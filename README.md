@@ -1,54 +1,57 @@
 # DNS Monitor
 
-DNS observability for **Keenetic / Netcraze routers** using the router's native DNS proxy, routing policies and Entware environment.
+**Русский** | [English](README_EN.md)
+
+DNS Monitor — мониторинг и диагностика DNS для роутеров **Keenetic / Netcraze**, использующий штатный DNS-прокси роутера, политики маршрутизации KeeneticOS/NDMS и окружение Entware.
 
 > [!IMPORTANT]
-> **Current supported target: Keenetic / Netcraze + ARM64 (aarch64) only.**  
-> DNS Monitor is built around KeeneticOS/NDMS facilities such as `ndmc`, `show dns-proxy`, `show ip hotspot`, `show ip policy`, local DNS proxy listeners and Keenetic policy routing. It is **not** a generic OpenWrt/Linux DNS monitor. x86, MIPS and other architectures are currently unsupported.
+> **На текущем этапе поддерживаются только Keenetic / Netcraze на ARM64 (aarch64).**  
+> DNS Monitor опирается на специфичные для KeeneticOS/NDMS механизмы: `ndmc`, `show dns-proxy`, `show ip hotspot`, `show ip policy`, локальные DNS-прокси и штатную policy routing. Это **не универсальный DNS-монитор для OpenWrt/Linux**. x86, MIPS и другие архитектуры сейчас не поддерживаются.
 
 > [!NOTE]
-> This is an independent community project and is not an official Keenetic or Netcraze product.
+> Это независимый community-проект и не является официальным продуктом Keenetic или Netcraze.
 
-## What it does
+## Возможности
 
-DNS Monitor passively observes how DNS is handled by the base router and presents it in a lightweight web interface.
+DNS Monitor пассивно наблюдает за тем, как штатный DNS Keenetic обрабатывает запросы клиентов, и показывает всё это в лёгком веб-интерфейсе.
 
-- discovers configured DoT/DoH resolvers from Keenetic automatically;
-- maps local DNS proxy ports to profile, resolver and protocol;
-- watches client DNS requests and router responses;
-- correlates client requests with the actual DoT/DoH upstream selected by Keenetic;
-- shows DNS activity per device and per LAN/Wi-Fi interface;
-- reads device names, MAC/IP, policy, SSID/AP and access path from Keenetic;
-- tracks success, DNS errors, timeouts, fallback events and latency;
-- detects `CACHE / LOCAL` answers when Keenetic replies without a new upstream request;
-- provides per-client drill-down with a pauseable DNS event stream;
-- reads native Keenetic policy routing and exposes policy marks/tables/tunnel paths;
-- performs policy-aware DoT/DoH diagnostics using the same routing mark as Keenetic;
-- compares a failing policy path with the normal default route;
-- keeps short rolling history in RAM to avoid unnecessary flash writes.
+- автоматически обнаруживает настроенные DoT/DoH-серверы Keenetic;
+- сопоставляет локальные DNS-порты с профилем, резолвером и протоколом;
+- отслеживает DNS-запросы клиентов и ответы роутера;
+- связывает клиентский запрос с фактически использованным DoT/DoH upstream;
+- показывает DNS-активность по устройствам и LAN/Wi-Fi-интерфейсам;
+- получает из Keenetic имя устройства, MAC/IP, политику, SSID/AP и путь подключения;
+- считает успешные ответы, DNS-ошибки, таймауты, fallback и задержки;
+- определяет ответы `CACHE / LOCAL`, когда Keenetic отвечает клиенту без нового upstream-запроса;
+- позволяет открыть конкретного клиента и смотреть только его DNS-поток;
+- умеет ставить live-поток на паузу, искать и спокойно просматривать события;
+- читает штатные политики маршрутизации Keenetic, их mark/table и доступные tunnel paths;
+- выполняет route-aware диагностику DoT/DoH через тот же policy mark, который использует Keenetic;
+- сравнивает проблемный policy-route с обычным default route;
+- хранит короткую историю в RAM, не создавая лишнюю запись на флешку.
 
-The web UI listens on **port 2233** by default.
+Веб-интерфейс по умолчанию работает на **порту 2233**.
 
-## Requirements
+## Требования
 
-- Keenetic or Netcraze router running KeeneticOS/NDMS;
-- **ARM64 / aarch64** CPU;
-- Entware mounted at `/opt`;
-- root access through Entware SSH;
-- standard Keenetic `ndmc` CLI available from the Entware environment.
+- роутер Keenetic или Netcraze с KeeneticOS/NDMS;
+- процессор **ARM64 / aarch64**;
+- установленный Entware, смонтированный в `/opt`;
+- root-доступ через Entware SSH;
+- доступная из Entware стандартная CLI-команда Keenetic `ndmc`.
 
-The current build has been developed against the Keenetic ARM64 environment. Other platforms may compile from source, but they are not considered supported and are likely to miss required Keenetic-specific facilities.
+Текущая сборка разрабатывается и тестируется именно в ARM64-окружении Keenetic. Теоретически исходники можно собрать и под другие платформы, но они пока не считаются поддерживаемыми и могут не иметь необходимых Keenetic-специфичных механизмов.
 
-## Installation
+## Установка
 
-Download or build the ARM64 package, unpack it on the router and run:
+Скачайте ARM64-пакет релиза, распакуйте его на роутере и запустите установщик:
 
 ```sh
 cd /opt/tmp/dns-monitor-v0.1.0
 ./install.sh
 ```
 
-The installer places:
+Установщик размещает файлы:
 
 ```text
 /opt/bin/dns-monitor
@@ -56,50 +59,50 @@ The installer places:
 /opt/var/log/dns-monitor.log
 ```
 
-Open:
+После установки откройте:
 
 ```text
-http://<router-ip>:2233
+http://<ip-роутера>:2233
 ```
 
-Service control:
+Управление сервисом:
 
 ```sh
 /opt/etc/init.d/S90dns-monitor stop
 /opt/etc/init.d/S90dns-monitor start
 ```
 
-Logs:
+Лог:
 
 ```sh
 tail -f /opt/var/log/dns-monitor.log
 ```
 
-## Build from source
+## Сборка из исходников
 
-Go 1.21+ is required.
+Требуется Go 1.21+.
 
 ```sh
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o dns-monitor-linux-arm64 .
 ```
 
-The web frontend is embedded in the Go binary; Node.js is not required on the router.
+Веб-интерфейс встроен непосредственно в Go-бинарник. Node.js на роутере не требуется.
 
-## How it works
+## Как это работает
 
-DNS Monitor observes two sides of the router DNS path:
+DNS Monitor наблюдает обе стороны DNS-цепочки роутера:
 
 ```text
-Client
+Клиент
   │  UDP/TCP 53
   ▼
-Keenetic DNS proxy
+DNS-прокси Keenetic
   │  localhost:405xx
   ▼
 DoT / DoH upstream
 ```
 
-It combines passive packet capture with metadata obtained from Keenetic itself. This lets a single event be presented as, for example:
+Пассивный захват пакетов объединяется с метаданными, которые предоставляет сам Keenetic. Благодаря этому одно событие можно представить примерно так:
 
 ```text
 Gaming-PC
@@ -113,29 +116,29 @@ Google DoT
 NOERROR / latency / fallback
 ```
 
-For routing diagnostics, DNS Monitor reads the dynamic policy mark/table assigned by Keenetic and can test the upstream using `SO_MARK`. That makes it possible to distinguish an upstream outage from a failure specific to a Keenetic policy or tunnel path.
+Для диагностики маршрутизации DNS Monitor считывает динамические `mark` и `table`, назначенные Keenetic выбранной политике, и может проверять upstream через `SO_MARK`. Это позволяет отличить недоступность самого DNS-сервера от проблемы конкретной политики или VPN/tunnel path.
 
-## Client outcomes
+## Состояния клиентского DNS-запроса
 
-A client-side request is classified as one of:
+Клиентский запрос может получить один из итоговых статусов:
 
-- `FORWARDED` — a matching local proxy/upstream request was observed;
-- `CACHE_LOCAL` — Keenetic replied without a new matching upstream request;
-- `ERROR` — the client received a DNS error such as SERVFAIL/REFUSED;
-- `CLIENT_TIMEOUT` — no router response was observed before the client timeout.
+- `FORWARDED` — найден соответствующий запрос через локальный DNS proxy/upstream;
+- `CACHE_LOCAL` — Keenetic ответил клиенту, но нового подходящего upstream-запроса не было;
+- `ERROR` — клиент получил DNS-ошибку, например SERVFAIL или REFUSED;
+- `CLIENT_TIMEOUT` — ответ роутера не был замечен до истечения клиентского таймаута.
 
-`CACHE_LOCAL` intentionally combines cache and locally generated answers: passive observation cannot reliably distinguish those two cases without modifying the router DNS proxy.
+`CACHE_LOCAL` намеренно объединяет ответы из кэша и локально сформированные ответы Keenetic: при полностью пассивном наблюдении надёжно разделить эти два случая без вмешательства в штатный DNS-прокси невозможно.
 
-## Limitations
+## Ограничения
 
-- DNS-over-TCP capture is currently best-effort when a DNS message fits in the observed TCP segment; full TCP stream reassembly is not implemented yet.
-- Direct DoH/DoT used independently by a client device is encrypted before it reaches the router DNS proxy and therefore cannot be attributed as a normal DNS query by this monitor.
-- The policy view shows Keenetic policy/tunnel candidates. Per-flow exact ECMP tunnel attribution is a planned improvement.
-- Runtime history is currently memory-only and resets when the daemon restarts.
+- DNS-over-TCP пока отслеживается в best-effort режиме, если DNS-сообщение целиком находится в наблюдаемом TCP-сегменте; полноценной TCP stream reassembly пока нет.
+- Если клиент сам использует прямой DoH/DoT, DNS-запрос шифруется ещё на клиенте и не проходит через штатный DNS Keenetic в открытом виде.
+- В карточке политики сейчас отображаются доступные tunnel candidates Keenetic; точная per-flow атрибуция ECMP-туннеля запланирована отдельно.
+- История хранится в оперативной памяти и сбрасывается после перезапуска демона.
 
 ## API
 
-Useful endpoints include:
+Основные endpoints:
 
 ```text
 /api/health
@@ -150,10 +153,10 @@ Useful endpoints include:
 /api/system
 ```
 
-## Versioning
+## Версионирование
 
-The public GitHub project starts at **v0.1.0**. Earlier internal development builds used a separate pre-public version sequence and are intentionally not part of the public release history.
+Публичная история проекта начинается с **v0.1.0**. Более ранние внутренние сборки использовали отдельную pre-public нумерацию и намеренно не включены в публичную историю релизов.
 
-## License
+## Лицензия
 
-A public license has not been selected yet. Until one is added, normal copyright rules apply.
+Публичная лицензия пока не выбрана. До её добавления действуют стандартные правила авторского права.

@@ -1,0 +1,20 @@
+# Build output
+dns-monitor
+dns-monitor-linux-arm64
+*.tar.gz
+*.zip
+*.sha256
+
+# Logs / runtime
+*.log
+*.pid
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local development
+/tmp/
+dist/

@@ -1,0 +1,8 @@
+#!/bin/sh
+ENABLED=yes
+PROCS=dns-monitor
+ARGS="-listen :2233 -discovery 60s -health 30s -log /opt/var/log/dns-monitor.log"
+PREARGS=""
+DESC="DNS Monitor"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+. /opt/etc/init.d/rc.func

@@ -2,12 +2,17 @@
 set -eu
 
 VERSION="${1:-0.1.0}"
-RELEASE="${2:-1}"
+RELEASE="${2:-}"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 WORK="$DIST/opkg-work"
 ARCH="aarch64-3.10"
-PKGFILE="dns-monitor_${VERSION}-${RELEASE}_${ARCH}.ipk"
+
+PKG_VERSION="$VERSION"
+if [ -n "$RELEASE" ]; then
+    PKG_VERSION="${VERSION}-${RELEASE}"
+fi
+PKGFILE="dns-monitor_${PKG_VERSION}_${ARCH}.ipk"
 
 rm -rf "$WORK"
 mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
@@ -20,7 +25,7 @@ chmod 0755 "$WORK/data/opt/etc/init.d/S90dns-monitor"
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/dns-monitor/LICENSE"
 chmod 0644 "$WORK/data/opt/share/licenses/dns-monitor/LICENSE"
 
-sed -e "s/@VERSION@/$VERSION/g" -e "s/@RELEASE@/$RELEASE/g" \
+sed -e "s/@VERSION@/$PKG_VERSION/g" \
     "$ROOT/packaging/opkg/control.template" > "$WORK/control/control"
 cp "$ROOT/packaging/opkg/postinst" "$WORK/control/postinst"
 cp "$ROOT/packaging/opkg/prerm" "$WORK/control/prerm"
@@ -30,19 +35,19 @@ chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
 printf '2.0\n' > "$WORK/debian-binary"
 (
   cd "$WORK/data"
-  tar -czf "$WORK/data.tar.gz" .
+  tar --owner=0 --group=0 --numeric-owner -czf "$WORK/data.tar.gz" .
 )
 (
   cd "$WORK/control"
-  tar -czf "$WORK/control.tar.gz" .
+  tar --owner=0 --group=0 --numeric-owner -czf "$WORK/control.tar.gz" .
 )
 
-# Entware/OpenWrt ipk uses a gzip-compressed tar container.  Do NOT build a
-# Debian ar container here: Entware's opkg/index tools expect tar.gz .ipk.
+# Entware/OpenWrt ipk uses a gzip-compressed tar container.
 rm -f "$DIST/$PKGFILE"
 (
   cd "$WORK"
-  tar -czf "$DIST/$PKGFILE" ./debian-binary ./control.tar.gz ./data.tar.gz
+  tar --owner=0 --group=0 --numeric-owner -czf "$DIST/$PKGFILE" \
+      ./debian-binary ./control.tar.gz ./data.tar.gz
 )
 
 printf '%s\n' "$DIST/$PKGFILE"

@@ -4,18 +4,9 @@ All notable public changes to DNS Monitor are documented here.
 
 ## [Unreleased]
 
-### Added
-
-- MIT license.
-- Entware/opkg repository bootstrap installer.
-- Native `dns-monitor` opkg package layout and feed build scripts.
-- GitHub Actions CI for tests, vet and shell syntax checks.
-- Security policy and GitHub issue / pull request templates.
-- Polished Russian-first README with English translation and quick installation instructions.
+No public changes yet.
 
 ## [0.1.0] - 2026-09-02
-
-> Package release `0.1.0-2`: fixed Entware `.ipk` container format used by the opkg feed.
 
 First public release.
 
@@ -32,3 +23,8 @@ First public release.
 - Policy-aware DoT/DoH diagnostics using `SO_MARK` with default-route comparison.
 - Embedded web UI on port 2233.
 - ARM64 Entware installer and init script.
+- Entware/opkg repository bootstrap installer and package feed.
+- MIT license.
+- GitHub Actions CI for tests, vet and shell syntax checks.
+- Security policy and GitHub issue / pull request templates.
+- Russian-first README with English translation and quick installation instructions.

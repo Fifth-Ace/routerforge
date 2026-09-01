@@ -1,5 +1,5 @@
 Package: dns-monitor
-Version: @VERSION@-1
+Version: @VERSION@-@RELEASE@
 Section: net
 Priority: optional
 Architecture: aarch64-3.10

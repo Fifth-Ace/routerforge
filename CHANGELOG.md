@@ -15,6 +15,8 @@ All notable public changes to DNS Monitor are documented here.
 
 ## [0.1.0] - 2026-09-02
 
+> Package release `0.1.0-2`: fixed Entware `.ipk` container format used by the opkg feed.
+
 First public release.
 
 ### Added

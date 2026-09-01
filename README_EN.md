@@ -2,6 +2,11 @@
 
 [Русский](README.md) | **English**
 
+[![Release](https://img.shields.io/github/v/release/Fifth-Ace/dns-monitor?display_name=tag)](https://github.com/Fifth-Ace/dns-monitor/releases)
+[![CI](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#requirements)
+
 DNS Monitor provides DNS observability and diagnostics for **Keenetic / Netcraze routers** using the router's native DNS proxy, KeeneticOS/NDMS routing policies and Entware environment.
 
 > [!IMPORTANT]
@@ -42,40 +47,66 @@ The web UI listens on **port 2233** by default.
 
 The current build is developed and tested against the Keenetic ARM64 environment. Other platforms may compile from source, but they are not considered supported and may not provide the Keenetic-specific facilities required by DNS Monitor.
 
-## Installation
+## Quick install
 
-Download the ARM64 release package, unpack it on the router and run:
+The recommended installation method is to add the DNS Monitor feed to Entware and install the package with `opkg`:
 
 ```sh
-cd /opt/tmp/dns-monitor-v0.1.0
-./install.sh
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/install-repo.sh | sh
 ```
 
-The installer places:
+The bootstrap script:
 
-```text
-/opt/bin/dns-monitor
-/opt/etc/init.d/S90dns-monitor
-/opt/var/log/dns-monitor.log
-```
+1. checks for ARM64 and Entware/opkg;
+2. adds `/opt/etc/opkg/dns-monitor.conf`;
+3. runs `opkg update`;
+4. installs or upgrades the `dns-monitor` package;
+5. starts the service.
 
-Open:
+The web UI is then available at:
 
 ```text
 http://<router-ip>:2233
 ```
 
-Service control:
+### Updating
+
+Once the repository is configured, future versions use the normal Entware workflow:
+
+```sh
+opkg update
+opkg upgrade dns-monitor
+```
+
+### Service control
 
 ```sh
 /opt/etc/init.d/S90dns-monitor stop
 /opt/etc/init.d/S90dns-monitor start
+/opt/etc/init.d/S90dns-monitor restart
 ```
 
 Logs:
 
 ```sh
 tail -f /opt/var/log/dns-monitor.log
+```
+
+### Uninstall
+
+Remove the package and repository entry:
+
+```sh
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/remove-repo.sh | sh
+```
+
+### Manual installation from a GitHub Release
+
+If you do not want to add an opkg feed, download the ARM64 archive for the required release, unpack it on the router and run `install.sh`:
+
+```sh
+cd /opt/tmp/dns-monitor-v0.1.0
+./install.sh
 ```
 
 ## Build from source
@@ -159,4 +190,6 @@ The public project history starts at **v0.1.0**. Earlier internal development bu
 
 ## License
 
-A public license has not been selected yet. Until one is added, normal copyright rules apply.
+DNS Monitor is distributed under the [MIT License](LICENSE).
+
+Copyright © 2026 Fifth-Ace.

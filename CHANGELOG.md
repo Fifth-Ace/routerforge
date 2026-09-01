@@ -2,6 +2,17 @@
 
 All notable public changes to DNS Monitor are documented here.
 
+## [Unreleased]
+
+### Added
+
+- MIT license.
+- Entware/opkg repository bootstrap installer.
+- Native `dns-monitor` opkg package layout and feed build scripts.
+- GitHub Actions CI for tests, vet and shell syntax checks.
+- Security policy and GitHub issue / pull request templates.
+- Polished Russian-first README with English translation and quick installation instructions.
+
 ## [0.1.0] - 2026-09-02
 
 First public release.

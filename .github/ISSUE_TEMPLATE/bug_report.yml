@@ -1,0 +1,40 @@
+name: Bug report
+about: Report a reproducible DNS Monitor problem
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove public IPs, MAC addresses, credentials, tunnel keys and private hostnames from diagnostics.
+  - type: input
+    id: router
+    attributes:
+      label: Router model
+      placeholder: Keenetic Ultra KN-xxxx
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: KeeneticOS / NDMS version
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: DNS Monitor version
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem description
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs / diagnostics
+      render: shell

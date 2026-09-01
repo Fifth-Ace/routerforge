@@ -2,6 +2,11 @@
 
 **Русский** | [English](README_EN.md)
 
+[![Release](https://img.shields.io/github/v/release/Fifth-Ace/dns-monitor?display_name=tag)](https://github.com/Fifth-Ace/dns-monitor/releases)
+[![CI](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#требования)
+
 DNS Monitor — мониторинг и диагностика DNS для роутеров **Keenetic / Netcraze**, использующий штатный DNS-прокси роутера, политики маршрутизации KeeneticOS/NDMS и окружение Entware.
 
 > [!IMPORTANT]
@@ -42,40 +47,66 @@ DNS Monitor пассивно наблюдает за тем, как штатны
 
 Текущая сборка разрабатывается и тестируется именно в ARM64-окружении Keenetic. Теоретически исходники можно собрать и под другие платформы, но они пока не считаются поддерживаемыми и могут не иметь необходимых Keenetic-специфичных механизмов.
 
-## Установка
+## Быстрая установка
 
-Скачайте ARM64-пакет релиза, распакуйте его на роутере и запустите установщик:
+Самый простой вариант — добавить репозиторий DNS Monitor в Entware и установить пакет через `opkg`:
 
 ```sh
-cd /opt/tmp/dns-monitor-v0.1.0
-./install.sh
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/install-repo.sh | sh
 ```
 
-Установщик размещает файлы:
+Скрипт:
 
-```text
-/opt/bin/dns-monitor
-/opt/etc/init.d/S90dns-monitor
-/opt/var/log/dns-monitor.log
-```
+1. проверяет ARM64 и наличие Entware/opkg;
+2. добавляет `/opt/etc/opkg/dns-monitor.conf`;
+3. выполняет `opkg update`;
+4. устанавливает или обновляет пакет `dns-monitor`;
+5. запускает сервис.
 
-После установки откройте:
+После установки веб-интерфейс доступен по адресу:
 
 ```text
 http://<ip-роутера>:2233
 ```
 
-Управление сервисом:
+### Обновление
+
+После добавления репозитория новые версии устанавливаются обычными командами Entware:
+
+```sh
+opkg update
+opkg upgrade dns-monitor
+```
+
+### Управление сервисом
 
 ```sh
 /opt/etc/init.d/S90dns-monitor stop
 /opt/etc/init.d/S90dns-monitor start
+/opt/etc/init.d/S90dns-monitor restart
 ```
 
 Лог:
 
 ```sh
 tail -f /opt/var/log/dns-monitor.log
+```
+
+### Удаление
+
+Удалить пакет и запись репозитория:
+
+```sh
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/remove-repo.sh | sh
+```
+
+### Ручная установка из GitHub Release
+
+Если не хочется добавлять opkg-репозиторий, скачайте ARM64-архив нужного релиза, распакуйте его на роутере и запустите `install.sh`:
+
+```sh
+cd /opt/tmp/dns-monitor-v0.1.0
+./install.sh
 ```
 
 ## Сборка из исходников
@@ -159,4 +190,6 @@ NOERROR / latency / fallback
 
 ## Лицензия
 
-Публичная лицензия пока не выбрана. До её добавления действуют стандартные правила авторского права.
+DNS Monitor распространяется по лицензии [MIT](LICENSE).
+
+Copyright © 2026 Fifth-Ace.

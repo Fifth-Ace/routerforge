@@ -62,7 +62,8 @@ func startWeb(store *Store, listen string, version string) error {
 		}
 
 		http.NotFound(w, r)
-	}))	mux.HandleFunc("/api/snapshot", func(w http.ResponseWriter, r *http.Request) {
+	}))
+	mux.HandleFunc("/api/snapshot", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		data := store.Snapshot(200, 30, 80)

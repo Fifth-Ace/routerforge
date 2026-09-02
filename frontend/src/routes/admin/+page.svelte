@@ -95,6 +95,7 @@
   }
 
   const pct = (n) => Math.max(0, Math.min(100, Number(n || 0)));
+  const coreUsage = (core) => Number(core?.usage_pct ?? core?.usage ?? 0);
   const cpuBar = (n) => {
     const value = pct(n);
     return value > 0 ? Math.max(1.5, value) : 0;
@@ -170,8 +171,8 @@
           {/if}
           {#each cpu as core (core.name)}
             <div class="cpu-row">
-              <div><strong>{core.name}</strong><span>{cpuReady ? cpuText(core.usage) : '…'}</span></div>
-              <div class="progress cpu-progress"><span style={`width:${cpuReady ? cpuBar(core.usage) : 0}%`}></span></div>
+              <div><strong>{core.name}</strong><span>{cpuReady ? cpuText(coreUsage(core)) : '…'}</span></div>
+              <div class="progress cpu-progress"><span style={`width:${cpuReady ? cpuBar(coreUsage(core)) : 0}%`}></span></div>
             </div>
           {/each}
         </div>

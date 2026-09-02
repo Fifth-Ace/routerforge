@@ -53,3 +53,17 @@ jobs:
           tar -tzf dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk | grep -qx './debian-binary'
           tar -tzf dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk | grep -qx './control.tar.gz'
           tar -tzf dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk | grep -qx './data.tar.gz'
+
+      - name: Build dev package
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          ./scripts/build-opkg.sh 0.2.0 dev
+          test -f dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
+
+      - name: Upload dev package
+        if: github.ref == 'refs/heads/dev'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dns-monitor-0.2.0-dev-aarch64
+          path: dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
+          retention-days: 7

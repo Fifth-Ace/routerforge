@@ -329,12 +329,27 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 }
 
 func readInstalledPackages() map[string]string {
-	f, err := os.Open("/opt/var/opkg/status")
-	if err != nil {
-		return map[string]string{}
+	paths := []string{
+		"/opt/lib/opkg/status",
+		"/opt/var/opkg/status",
 	}
-	defer f.Close()
-	return parseOpkgStatus(f)
+
+	for i := range paths {
+		p := paths[i]
+		f, err := os.Open(p)
+		if err != nil {
+			continue
+		}
+
+		out := parseOpkgStatus(f)
+		f.Close()
+
+		if len(out) > 0 {
+			return out
+		}
+	}
+
+	return map[string]string{}
 }
 
 func parseOpkgStatus(r io.Reader) map[string]string {

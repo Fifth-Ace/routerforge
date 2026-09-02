@@ -20,3 +20,9 @@ export async function getClients() { const r=await fetch('/api/clients',{cache:'
 export async function getInterfaces() { const r=await fetch('/api/interfaces',{cache:'no-store'}); if(!r.ok) throw new Error(`interfaces HTTP ${r.status}`); return r.json(); }
 
 export async function getClient(ip, limit=500) { const r=await fetch(`/api/client?ip=${encodeURIComponent(ip)}&limit=${encodeURIComponent(limit)}`,{cache:'no-store'}); if(!r.ok) throw new Error(`client HTTP ${r.status}`); return r.json(); }
+
+export async function getCatalog() {
+  const r = await fetch('/api/catalog', { cache: 'no-store' });
+  if (!r.ok) throw new Error(`catalog HTTP ${r.status}`);
+  return r.json();
+}

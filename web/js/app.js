@@ -1,4 +1,4 @@
-import { getSnapshot, getHistory, getSystem, getClients, getInterfaces, getClient } from './api.js';
+import { getSnapshot, getHistory, getSystem, getClients, getInterfaces, getClient, getCatalog } from './api.js';
 import { loadSettings, saveSettings, applySettings } from './state.js';
 import { esc, timeOnly } from './utils.js';
 import { renderOverview } from './pages/overview.js';
@@ -7,6 +7,7 @@ import { renderRouting } from './pages/routing.js';
 import { renderMonitoring } from './pages/monitoring.js';
 import { renderTools } from './pages/tools.js';
 import { renderSettings } from './pages/settings.js';
+import { renderCatalog } from './pages/catalog.js';
 
 const app=document.querySelector('#app');
 let settings=loadSettings(); applySettings(settings);
@@ -16,18 +17,20 @@ let clientData={clients:[]};
 let interfaceData={interfaces:[]};
 let clientDetailData={};
 let system={};
+let catalogData={modules:[],integrations:[]};
+let catalogFetchedAt=0;
 let timer=null;
 let busy=false;
 let renderQueued=false;
 let deferredRender=null;
 let lastInteraction=0;
-const ui={ page: pageFromLocation(), search:'', profile:'all', activeOnly:false, serverPort:0, routingProfile:'all', routingMinutes:60, monitorTab:'traffic', historyMinutes:5, historyManual:false, flowSearch:'', flowProfile:'all', fallbackOnly:false, flowPaused:false, frozenFlow:[], clientSearch:'', selectedClientIP:'', clientPaused:false, frozenClientEvents:[], clientFlowSearch:'', clientOutcome:'all', toolTab:'journal', logKind:'all', logSearch:'', logPaused:false, frozenErrors:[], frozenBursts:[] };
+const ui={ page: pageFromLocation(), search:'', profile:'all', activeOnly:false, serverPort:0, routingProfile:'all', routingMinutes:60, monitorTab:'traffic', historyMinutes:5, historyManual:false, flowSearch:'', flowProfile:'all', fallbackOnly:false, flowPaused:false, frozenFlow:[], clientSearch:'', selectedClientIP:'', clientPaused:false, frozenClientEvents:[], clientFlowSearch:'', clientOutcome:'all', toolTab:'journal', catalogSearch:'', catalogKind:'all', catalogCategory:'all', logKind:'all', logSearch:'', logPaused:false, frozenErrors:[], frozenBursts:[] };
 
-function pageFromLocation(){ const p=location.pathname.replace(/^\/|\/$/g,''); return ['servers','routing','monitoring','tools','settings'].includes(p)?p:'overview'; }
+function pageFromLocation(){ const p=location.pathname.replace(/^\/|\/$/g,''); return ['servers','routing','monitoring','tools','catalog','settings'].includes(p)?p:'overview'; }
 function pagePath(page){ return page==='overview'?'/':`/${page}`; }
 
 function shell(){
-  return `<header class="app-header"><div class="header-workspace"><div class="brand"><span class="brand-mark">D</span><span>DNS-MONITOR</span><span id="versionBadge" class="version-badge">v0.1.0</span></div><nav class="nav">${nav('overview','Обзор')}${nav('servers','Серверы')}${nav('routing','Маршрутизация')}${nav('monitoring','Мониторинг')}${nav('tools','Инструменты')}${nav('settings','Настройки')}</nav><div class="header-status"><span id="headerLed" class="status-led"></span><span id="headerState">...</span><span id="headerTime">--:--:--</span></div></div></header><main id="pageWorkspace" class="page-workspace"></main>`;
+  return `<header class="app-header"><div class="header-workspace"><div class="brand"><span class="brand-mark">D</span><span>DNS-MONITOR</span><span id="versionBadge" class="version-badge">v0.1.0</span></div><nav class="nav">${nav('overview','Обзор')}${nav('servers','Серверы')}${nav('routing','Маршрутизация')}${nav('monitoring','Мониторинг')}${nav('tools','Инструменты')}${nav('catalog','Каталог')}${nav('settings','Настройки')}</nav><div class="header-status"><span id="headerLed" class="status-led"></span><span id="headerState">...</span><span id="headerTime">--:--:--</span></div></div></header><main id="pageWorkspace" class="page-workspace"></main>`;
 }
 function nav(p,t){return `<a href="${pagePath(p)}" data-nav="${p}" class="nav-link">${t}</a>`}
 app.innerHTML=shell();
@@ -46,7 +49,7 @@ function updateHeader(){
   const vb=document.querySelector('#versionBadge'); if(vb) vb.textContent=`v${snapshot.version||'0.1.0'}`;
   document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('active',a.dataset.nav===ui.page));
 }
-function pageHTML(){ if(ui.page==='servers')return renderServers(snapshot,ui); if(ui.page==='routing')return renderRouting(snapshot,ui); if(ui.page==='monitoring')return renderMonitoring(snapshot,ui,historyData,clientData,interfaceData,clientDetailData); if(ui.page==='tools')return renderTools(snapshot,ui,system); if(ui.page==='settings')return renderSettings(snapshot,ui,settings,system); return renderOverview(snapshot,ui); }
+function pageHTML(){ if(ui.page==='servers')return renderServers(snapshot,ui); if(ui.page==='routing')return renderRouting(snapshot,ui); if(ui.page==='monitoring')return renderMonitoring(snapshot,ui,historyData,clientData,interfaceData,clientDetailData); if(ui.page==='tools')return renderTools(snapshot,ui,system); if(ui.page==='settings')return renderSettings(snapshot,ui,settings,system); if(ui.page==='catalog')return renderCatalog(catalogData,ui); return renderOverview(snapshot,ui); }
 function banners(){ return `${snapshot.discovery_error?`<div class="error-banner">Discovery: ${esc(snapshot.discovery_error)}</div>`:''}${snapshot.capture_error?`<div class="error-banner">Capture: ${esc(snapshot.capture_error)}</div>`:''}${snapshot.client_registry_error?`<div class="error-banner">Clients: ${esc(snapshot.client_registry_error)}</div>`:''}${snapshot.client_capture_error?`<div class="error-banner">Client capture: ${esc(snapshot.client_capture_error)}</div>`:''}`; }
 
 let pendingIdleRender=false;
@@ -162,6 +165,7 @@ app.addEventListener('input',e=>{
   if(e.target.id==='clientSearch'){ui.clientSearch=e.target.value; clearTimeout(searchTimer); searchTimer=setTimeout(render,80);return;}
   if(e.target.id==='clientFlowSearch'){ui.clientFlowSearch=e.target.value; clearTimeout(searchTimer); searchTimer=setTimeout(render,80);return;}
   if(e.target.id==='logSearch'){ui.logSearch=e.target.value; clearTimeout(searchTimer); searchTimer=setTimeout(render,80);return;}
+  if(e.target.id==='catalogSearch'){ui.catalogSearch=e.target.value; clearTimeout(searchTimer); searchTimer=setTimeout(render,80);return;}
 });
 
 app.addEventListener('change',e=>{
@@ -172,20 +176,28 @@ app.addEventListener('change',e=>{
   if(e.target.id==='uiLevel'){updateSetting('uiLevel',e.target.value);return;}
   if(e.target.id==='widthMode'){updateSetting('compact',e.target.value==='compact');return;}
   if(e.target.id==='refreshMs'){updateSetting('refreshMs',Number(e.target.value));schedule();return;}
+  if(e.target.id==='catalogKind'){ui.catalogKind=e.target.value;render();return;}
+  if(e.target.id==='catalogCategory'){ui.catalogCategory=e.target.value;render();return;}
 });
 
 function updateSetting(k,v){ settings[k]=v; saveSettings(settings); applySettings(settings); render(); }
 function needsSystem(){ return ui.page==='settings'||(ui.page==='tools'&&ui.toolTab==='system'); }
+function needsCatalog(){ return ui.page==='catalog'; }
 
 async function refresh({afterNavigation=false}={}){
   if(busy)return;
   busy=true;
   try{
     const requests=[getSnapshot()];
-    if(needsSystem()) requests.push(getSystem().catch(()=>system));
+    const wantSystem=needsSystem();
+    const wantCatalog=needsCatalog()&&(Date.now()-catalogFetchedAt>10000||!(catalogData.modules||[]).length);
+    if(wantSystem) requests.push(getSystem().catch(()=>system));
+    if(wantCatalog) requests.push(getCatalog().catch(()=>catalogData));
     const result=await Promise.all(requests);
     snapshot=result[0];
-    if(result.length>1) system=result[1];
+    let resultIndex=1;
+    if(wantSystem) system=result[resultIndex++];
+    if(wantCatalog){catalogData=result[resultIndex++];catalogFetchedAt=Date.now();}
     // History is only useful on the visible traffic tab. The old OR condition
     // fetched and rebuilt it on every Monitoring sub-tab.
     if(ui.page==='monitoring'&&ui.monitorTab==='traffic'){ if(!ui.historyManual){const m=Number(snapshot.uptime_seconds||0)/60; ui.historyMinutes=m>=720?1440:m>=90?180:m>=30?60:5;} await refreshHistory(false); }

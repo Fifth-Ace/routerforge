@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -12,71 +11,102 @@ import (
 	"time"
 )
 
-//go:embed web/*
-var webFS embed.FS
+func snapshotData(store *Store, version string) map[string]any {
+	data := store.Snapshot(200, 30, 80)
+	data["version"] = version
+	data["server_time"] = time.Now()
+	return data
+}
 
 func startWeb(store *Store, listen string, version string) error {
-	sub, err := fs.Sub(webFS, "web")
+	sub, err := frontendFS()
 	if err != nil {
 		return err
 	}
+
 	mux := http.NewServeMux()
 	fileServer := http.FileServer(http.FS(sub))
-	pageFiles := map[string]string{
-		"/":           "pages/index.html",
-		"/servers":    "pages/servers.html",
-		"/routing":    "pages/routing.html",
-		"/monitoring": "pages/monitoring.html",
-		"/tools":      "pages/tools.html",
-		"/catalog":    "pages/catalog.html",
-		"/settings":   "pages/settings.html",
-	}
 
-	servePage := func(w http.ResponseWriter, file string) {
-		doc, readErr := fs.ReadFile(sub, file)
+	serveIndex := func(w http.ResponseWriter) {
+		index, readErr := fs.ReadFile(sub, "index.html")
 		if readErr != nil {
-			http.Error(w, "frontend unavailable", http.StatusInternalServerError)
+			http.Error(w, "frontend unavailable: build frontend first", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		_, _ = w.Write(doc)
+		_, _ = w.Write(index)
 	}
 
-	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		route := strings.TrimSuffix(r.URL.Path, "/")
-		if route == "" {
-			route = "/"
-		}
-		if page, ok := pageFiles[route]; ok {
-			servePage(w, page)
-			return
-		}
-
-		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
-		if p != "." && p != "" {
-			if st, statErr := fs.Stat(sub, p); statErr == nil && !st.IsDir() {
-				fileServer.ServeHTTP(w, r)
-				return
-			}
-		}
-
-		http.NotFound(w, r)
-	}))
 	mux.HandleFunc("/api/snapshot", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		data := store.Snapshot(200, 30, 80)
-		data["version"] = version
-		data["server_time"] = time.Now()
-		_ = json.NewEncoder(w).Encode(data)
+		_ = json.NewEncoder(w).Encode(snapshotData(store, version))
 	})
+
+	mux.HandleFunc("/api/events", func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		interval := 2 * time.Second
+		if raw := r.URL.Query().Get("interval_ms"); raw != "" {
+			if ms, parseErr := strconv.Atoi(raw); parseErr == nil {
+				if ms < 1000 {
+					ms = 1000
+				}
+				if ms > 30000 {
+					ms = 30000
+				}
+				interval = time.Duration(ms) * time.Millisecond
+			}
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache, no-transform")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
+		fmt.Fprint(w, "retry: 1500\n\n")
+		flusher.Flush()
+
+		send := func() bool {
+			payload, marshalErr := json.Marshal(snapshotData(store, version))
+			if marshalErr != nil {
+				return false
+			}
+			if _, writeErr := fmt.Fprintf(w, "event: snapshot\ndata: %s\n\n", payload); writeErr != nil {
+				return false
+			}
+			flusher.Flush()
+			return true
+		}
+
+		if !send() {
+			return
+		}
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case <-ticker.C:
+				if !send() {
+					return
+				}
+			}
+		}
+	})
+
 	mux.HandleFunc("/api/history", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		minutes := 60
 		if raw := r.URL.Query().Get("minutes"); raw != "" {
-			if n, err := strconv.Atoi(raw); err == nil {
+			if n, parseErr := strconv.Atoi(raw); parseErr == nil {
 				minutes = n
 			}
 		}
@@ -87,53 +117,64 @@ func startWeb(store *Store, listen string, version string) error {
 		} else if minutes > 60 {
 			step = 3
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"minutes": minutes, "coverage": coverage, "sufficient": coverage >= 0.5, "step_minutes": step, "points": store.History(minutes)})
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"minutes":      minutes,
+			"coverage":     coverage,
+			"sufficient":   coverage >= 0.5,
+			"step_minutes": step,
+			"points":       store.History(minutes),
+		})
 	})
+
 	mux.HandleFunc("/api/quality", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		minutes := 5
 		if raw := r.URL.Query().Get("minutes"); raw != "" {
-			if n, err := strconv.Atoi(raw); err == nil {
+			if n, parseErr := strconv.Atoi(raw); parseErr == nil {
 				minutes = n
 			}
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"minutes": minutes, "upstreams": store.Quality(minutes)})
 	})
+
 	mux.HandleFunc("/api/fallbacks", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		minutes := 60
 		if raw := r.URL.Query().Get("minutes"); raw != "" {
-			if n, err := strconv.Atoi(raw); err == nil {
+			if n, parseErr := strconv.Atoi(raw); parseErr == nil {
 				minutes = n
 			}
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"minutes": minutes, "edges": store.FallbackEdges(minutes)})
 	})
+
 	mux.HandleFunc("/api/error-bursts", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		minutes := 60
 		if raw := r.URL.Query().Get("minutes"); raw != "" {
-			if n, err := strconv.Atoi(raw); err == nil {
+			if n, parseErr := strconv.Atoi(raw); parseErr == nil {
 				minutes = n
 			}
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"minutes": minutes, "bursts": store.ErrorBursts(minutes)})
 	})
+
 	mux.HandleFunc("/api/clients", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(map[string]any{"clients": store.Clients(200)})
 	})
+
 	mux.HandleFunc("/api/client", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		ip := strings.TrimSpace(r.URL.Query().Get("ip"))
 		limit := 500
 		if raw := r.URL.Query().Get("limit"); raw != "" {
-			if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 2000 {
+			if n, parseErr := strconv.Atoi(raw); parseErr == nil && n > 0 && n <= 2000 {
 				limit = n
 			}
 		}
@@ -144,25 +185,58 @@ func startWeb(store *Store, listen string, version string) error {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"client": client, "events": events})
 	})
+
 	mux.HandleFunc("/api/interfaces", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(map[string]any{"interfaces": store.Interfaces()})
 	})
+
 	mux.HandleFunc("/api/system", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(readSystemInfo())
 	})
+
 	mux.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(readCatalog())
 	})
+
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"ok":true}`)
 	})
-	s := &http.Server{Addr: listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
-	return s.ListenAndServe()
+
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.NotFound(w, r)
+			return
+		}
+
+		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		if p == "." || p == "" {
+			serveIndex(w)
+			return
+		}
+
+		if stat, statErr := fs.Stat(sub, p); statErr == nil && !stat.IsDir() {
+			if strings.HasPrefix(p, "_app/immutable/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		// SvelteKit client-side router fallback, same production model as AWG Manager.
+		serveIndex(w)
+	}))
+
+	server := &http.Server{
+		Addr:              listen,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	return server.ListenAndServe()
 }

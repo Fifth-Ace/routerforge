@@ -14,11 +14,20 @@ if [ -n "$RELEASE" ]; then
 fi
 PKGFILE="dns-monitor_${PKG_VERSION}_${ARCH}.ipk"
 
+if [ ! -f "$ROOT/frontend/build/index.html" ]; then
+    sh "$ROOT/scripts/build-frontend.sh"
+fi
+
 rm -rf "$WORK"
 mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
     "$WORK/data/opt/share/licenses/dns-monitor" "$WORK/control"
 
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o "$WORK/data/opt/bin/dns-monitor" "$ROOT"
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+    -tags embed_frontend \
+    -trimpath \
+    -ldflags='-s -w' \
+    -o "$WORK/data/opt/bin/dns-monitor" "$ROOT"
+
 chmod 0755 "$WORK/data/opt/bin/dns-monitor"
 cp "$ROOT/package/S90dns-monitor" "$WORK/data/opt/etc/init.d/S90dns-monitor"
 chmod 0755 "$WORK/data/opt/etc/init.d/S90dns-monitor"
@@ -42,7 +51,6 @@ printf '2.0\n' > "$WORK/debian-binary"
   tar --owner=0 --group=0 --numeric-owner -czf "$WORK/control.tar.gz" .
 )
 
-# Entware/OpenWrt ipk uses a gzip-compressed tar container.
 rm -f "$DIST/$PKGFILE"
 (
   cd "$WORK"

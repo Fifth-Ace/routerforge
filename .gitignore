@@ -18,3 +18,6 @@ Thumbs.db
 # Local development
 /tmp/
 dist/
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/

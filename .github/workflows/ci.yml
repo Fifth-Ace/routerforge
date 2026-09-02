@@ -16,6 +16,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: false
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Check frontend
+        working-directory: frontend
+        run: npm run check
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Verify frontend build
+        run: |
+          test -f frontend/build/index.html
+          test -d frontend/build/_app
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -31,6 +54,11 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Verify embedded frontend build
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags embed_frontend -o /tmp/dns-monitor-embed-check .
+          test -s /tmp/dns-monitor-embed-check
+
       - name: Check shell scripts
         run: |
           sh -n package/install.sh
@@ -38,6 +66,7 @@ jobs:
           sh -n package/S90dns-monitor
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh
+          sh -n scripts/build-frontend.sh
           sh -n scripts/build-opkg.sh
           sh -n scripts/build-feed.sh
           sh -n packaging/opkg/postinst

@@ -9,3 +9,5 @@ S90dns-monitor text eol=lf
 
 *.yml text eol=lf
 *.yaml text eol=lf
+*.svelte text eol=lf
+*.json text eol=lf

@@ -1,4 +1,5 @@
 import { getSnapshot, getHistory, getSystem, getClients, getInterfaces, getClient, getCatalog } from './api.js';
+import { morphHTML } from './morph.js';
 import { loadSettings, saveSettings, applySettings } from './state.js';
 import { esc, timeOnly } from './utils.js';
 import { renderOverview } from './pages/overview.js';
@@ -26,7 +27,7 @@ let deferredRender=null;
 let lastInteraction=0;
 const ui={ page: pageFromLocation(), search:'', profile:'all', activeOnly:false, serverPort:0, routingProfile:'all', routingMinutes:60, monitorTab:'traffic', historyMinutes:5, historyManual:false, flowSearch:'', flowProfile:'all', fallbackOnly:false, flowPaused:false, frozenFlow:[], clientSearch:'', selectedClientIP:'', clientPaused:false, frozenClientEvents:[], clientFlowSearch:'', clientOutcome:'all', toolTab:'journal', catalogSearch:'', catalogKind:'all', catalogCategory:'all', logKind:'all', logSearch:'', logPaused:false, frozenErrors:[], frozenBursts:[] };
 
-function pageFromLocation(){ const p=location.pathname.replace(/^\/|\/$/g,''); return ['servers','routing','monitoring','tools','catalog','settings'].includes(p)?p:'overview'; }
+function pageFromLocation(){ const declared=document.body?.dataset?.page; if(declared)return declared; const p=location.pathname.replace(/^\/|\/$/g,''); return ['servers','routing','monitoring','tools','catalog','settings'].includes(p)?p:'overview'; }
 function pagePath(page){ return page==='overview'?'/':`/${page}`; }
 
 function shell(){
@@ -88,7 +89,7 @@ function renderNow(){
   renderQueued=false;
   const view=captureViewState();
   updateHeader();
-  pageRoot.innerHTML=banners()+pageHTML();
+  morphHTML(pageRoot,banners()+pageHTML());
   restoreViewState(view);
 }
 function render(){
@@ -117,7 +118,7 @@ function navigate(page){
   render();
   setTimeout(()=>refresh({afterNavigation:true}),0);
 }
-window.addEventListener('popstate',()=>{ui.page=pageFromLocation();render();setTimeout(()=>refresh({afterNavigation:true}),0)});
+// Multi-page architecture: browser history loads real documents; no SPA popstate router.
 
 function markInteraction(){ lastInteraction=performance.now(); }
 document.addEventListener('pointerdown',markInteraction,true);
@@ -136,7 +137,7 @@ app.addEventListener('scroll',e=>{
 
 app.addEventListener('click',e=>{
   const navEl=e.target.closest('[data-nav]');
-  if(navEl){e.preventDefault();navigate(navEl.dataset.nav);return;}
+  if(navEl){return;} // real document navigation; do not intercept top-level links
   const port=e.target.closest('[data-port]'); if(port){ui.serverPort=Number(port.dataset.port);render();return;}
   const rm=e.target.closest('[data-rminutes]'); if(rm){ui.routingMinutes=Number(rm.dataset.rminutes);render();return;}
   const clientEl=e.target.closest('[data-client-ip]'); if(clientEl){ui.page='monitoring';ui.monitorTab='devices';ui.selectedClientIP=clientEl.dataset.clientIp;ui.clientPaused=false;ui.frozenClientEvents=[];render();refreshClientDetail();return;}

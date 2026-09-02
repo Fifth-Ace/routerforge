@@ -22,25 +22,47 @@ func startWeb(store *Store, listen string, version string) error {
 	}
 	mux := http.NewServeMux()
 	fileServer := http.FileServer(http.FS(sub))
-	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
-		if p == "." || p == "" {
-			p = "index.html"
-		}
-		if st, statErr := fs.Stat(sub, p); statErr == nil && !st.IsDir() {
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-		index, readErr := fs.ReadFile(sub, "index.html")
+	pageFiles := map[string]string{
+		"/":           "pages/index.html",
+		"/servers":    "pages/servers.html",
+		"/routing":    "pages/routing.html",
+		"/monitoring": "pages/monitoring.html",
+		"/tools":      "pages/tools.html",
+		"/catalog":    "pages/catalog.html",
+		"/settings":   "pages/settings.html",
+	}
+
+	servePage := func(w http.ResponseWriter, file string) {
+		doc, readErr := fs.ReadFile(sub, file)
 		if readErr != nil {
 			http.Error(w, "frontend unavailable", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		_, _ = w.Write(index)
-	}))
-	mux.HandleFunc("/api/snapshot", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(doc)
+	}
+
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := strings.TrimSuffix(r.URL.Path, "/")
+		if route == "" {
+			route = "/"
+		}
+		if page, ok := pageFiles[route]; ok {
+			servePage(w, page)
+			return
+		}
+
+		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		if p != "." && p != "" {
+			if st, statErr := fs.Stat(sub, p); statErr == nil && !st.IsDir() {
+				fileServer.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		http.NotFound(w, r)
+	}))	mux.HandleFunc("/api/snapshot", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		data := store.Snapshot(200, 30, 80)

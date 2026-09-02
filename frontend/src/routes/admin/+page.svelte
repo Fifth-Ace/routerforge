@@ -130,8 +130,14 @@
   </div>
 
   <div class="admin-safety-banner">
-    <div><strong>READ-ONLY ADMIN</strong><span>CPU · RAM · процессы · порты · службы · opkg · storage · thermal</span></div>
-    <div class="mono"><span>TERMINAL</span><strong>LOCKED</strong><span>WRITES</span><strong>LOCKED</strong></div>
+    <div class="admin-safety-main">
+      <strong>READ-ONLY ADMIN</strong>
+      <span>CPU · RAM · процессы · порты · службы · opkg · storage · thermal</span>
+    </div>
+    <div class="admin-lock-groups mono">
+      <span class="admin-lock-group"><em>TERMINAL</em><strong>LOCKED</strong></span>
+      <span class="admin-lock-group"><em>WRITES</em><strong>LOCKED</strong></span>
+    </div>
   </div>
 
   <div class="subtabs admin-tabs">
@@ -171,7 +177,10 @@
           {/if}
           {#each cpu as core (core.name)}
             <div class="cpu-row">
-              <div><strong>{core.name}</strong><span>{cpuReady ? cpuText(coreUsage(core)) : '…'}</span></div>
+              <div class="cpu-label-row">
+                <strong class="cpu-name">{core.name}</strong>
+                <span class="cpu-value">{cpuReady ? cpuText(coreUsage(core)) : '…'}</span>
+              </div>
               <div class="progress cpu-progress"><span style={`width:${cpuReady ? cpuBar(coreUsage(core)) : 0}%`}></span></div>
             </div>
           {/each}

@@ -646,3 +646,689 @@ html[data-layout-compact="true"] .client-metrics .hero-metric:nth-child(-n+3) { 
   .market-footer { align-items:flex-start; flex-direction:column; padding:7px 10px; }
 }
 /* END Marketplace console v2 */
+
+/* BEGIN Marketplace concept fidelity v3
+   Visual proportions based on the approved DNS Monitor Core & Marketplace concept.
+   No external fonts/assets: keeps the router UI fully offline-capable.
+*/
+:root {
+  --header-height: 48px;
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+  --font-mono: "Roboto Mono", "Cascadia Mono", Consolas, monospace;
+}
+
+/* Let Marketplace use the full application viewport like the concept. */
+.page-workspace:has(.marketplace-console) {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.page-workspace:has(.marketplace-console) > .marketplace-console {
+  margin: 0;
+}
+
+/* Exact-ish concept shell proportions. */
+.marketplace-console {
+  min-height: calc(100vh - 48px);
+  grid-template-columns: 256px minmax(0, 1fr);
+  border: 0;
+  border-radius: 0;
+  background: #0c0d10;
+  box-shadow: none;
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+.market-sidebar {
+  width: 256px;
+  padding: 16px;
+  gap: 20px;
+  border-right: 1px solid #1f2229;
+  background: #14161a;
+}
+
+.market-side-label {
+  margin-bottom: 12px;
+  color: #8b949e;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: .075em;
+}
+
+.market-tree {
+  padding: 12px;
+  border: 1px solid #1f2229;
+  border-radius: 8px;
+  background: #0c0d10;
+  color: #c9d1d9;
+  font-size: 11px;
+  line-height: 1.5;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.18);
+}
+
+.market-tree-root {
+  gap: 8px;
+  margin-bottom: 5px;
+  font-size: 11px;
+}
+
+.market-tree-row {
+  grid-template-columns: 30px 7px minmax(0,1fr) auto;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.market-tree-state {
+  font-size: 9px;
+}
+
+.market-tree-led,
+.market-status-dot {
+  width: 7px;
+  height: 7px;
+}
+
+.market-side-section {
+  margin-top: 20px;
+}
+
+.market-side-stat {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-size: 12px;
+}
+
+.market-side-stat strong {
+  font-size: 11px;
+}
+
+.market-telemetry {
+  padding: 12px;
+  border-color: #1f2229;
+  border-radius: 8px;
+  background: #0c0d10;
+  color: #8b949e;
+  font-size: 11px;
+}
+
+.market-telemetry > div:not(.market-side-label) {
+  padding: 4px 0;
+}
+
+.market-telemetry strong {
+  font-size: 11px;
+}
+
+/* Main pane */
+.market-main {
+  background: #0c0d10;
+}
+
+.market-toolbar {
+  min-height: 48px;
+  padding: 8px 20px;
+  border-bottom: 1px solid #1f2229;
+  background: #14161a;
+  gap: 16px;
+}
+
+.market-search-wrap {
+  max-width: 520px;
+  gap: 10px;
+}
+
+.market-search-icon {
+  font-size: 18px;
+  color: #8b949e;
+}
+
+.market-search {
+  height: 32px;
+  color: #c9d1d9;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.market-toolbar-controls {
+  gap: 10px;
+}
+
+.market-select {
+  height: 30px;
+  max-width: 205px;
+  padding: 0 28px 0 10px;
+  border-color: #2d323b;
+  border-radius: 5px;
+  background: #191b21;
+  color: #c9d1d9;
+  font-size: 11px;
+}
+
+.market-repo-state {
+  gap: 7px;
+  font-size: 10px;
+}
+
+.market-repo-state i,
+.market-api-ok i {
+  width: 7px;
+  height: 7px;
+}
+
+.market-content {
+  padding: 20px;
+}
+
+/* The concept goes from toolbar straight into the store grid.
+   Keep heading data in DOM for accessibility but visually suppress the extra block. */
+.market-heading {
+  margin: 0 0 16px;
+  min-height: 0;
+}
+
+.market-heading h1 {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.market-heading p {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.market-readonly-badge {
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+/* Cards: concept uses roomy 16px padding and 20px gaps. */
+.market-grid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.market-card {
+  padding: 16px;
+  gap: 16px;
+  border-color: #1f2229;
+  border-radius: 8px;
+  background: #14161a;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+
+.market-card:hover {
+  border-color: #38bdf8;
+  background: #14161a;
+  transform: none;
+}
+
+.market-card-head {
+  gap: 12px;
+}
+
+.market-card-identity {
+  gap: 12px;
+}
+
+.market-card-icon {
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
+  border-radius: 4px;
+  color: #38bdf8;
+  border-color: rgba(56,189,248,.20);
+  background: rgba(56,189,248,.05);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.market-card h3 {
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.market-card-source {
+  margin-top: 2px;
+  color: #8b949e;
+  font-size: 11px;
+}
+
+.market-state {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.market-state.active {
+  color: #2ea043;
+  border-color: rgba(46,160,67,.20);
+  background: rgba(46,160,67,.10);
+}
+
+.market-state.info {
+  color: #38bdf8;
+  border-color: rgba(56,189,248,.20);
+  background: rgba(56,189,248,.10);
+}
+
+.market-state.warn {
+  color: #d29922;
+  border-color: rgba(210,153,34,.20);
+  background: rgba(210,153,34,.10);
+}
+
+.market-state.error {
+  color: #f85149;
+  border-color: rgba(248,81,73,.20);
+  background: rgba(248,81,73,.10);
+}
+
+.market-card-description {
+  min-height: 0;
+  margin: 12px 0 16px;
+  color: #8b949e;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.market-tech-box {
+  padding: 10px;
+  border-color: #1f2229;
+  border-radius: 5px;
+  background: #0c0d10;
+  font-size: 11px;
+}
+
+.market-tech-box > div {
+  grid-template-columns: 74px minmax(0,1fr);
+  min-height: 23px;
+  gap: 10px;
+}
+
+.market-tech-box span {
+  color: #8b949e;
+}
+
+.market-tech-box strong {
+  color: #c9d1d9;
+  font-weight: 500;
+}
+
+.market-tech-box .good { color: #2ea043; }
+.market-tech-box .warn { color: #d29922; }
+
+.market-card-foot {
+  padding-top: 16px;
+  border-top-color: #1f2229;
+  gap: 10px;
+}
+
+.market-card-actions {
+  gap: 10px;
+}
+
+.market-card-kind {
+  font-size: 10px;
+  color: #8b949e;
+}
+
+.market-btn,
+.market-plan-details > summary.market-btn {
+  min-height: 30px;
+  padding: 0 12px;
+  border-color: #2d323b;
+  border-radius: 4px;
+  background: #1f2229;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.market-btn:hover,
+.market-plan-details > summary.market-btn:hover {
+  background: #2d323b;
+  border-color: #38bdf8;
+}
+
+.market-btn.primary,
+.market-plan-details > summary.market-btn.primary {
+  color: #38bdf8;
+  border-color: rgba(56,189,248,.30);
+  background: rgba(56,189,248,.10);
+  font-weight: 600;
+}
+
+.market-btn.primary:hover,
+.market-plan-details > summary.market-btn.primary:hover {
+  background: #38bdf8;
+  color: #0c0d10;
+}
+
+.market-btn.compact {
+  padding: 0 10px;
+}
+
+/* Footer = 32px just like the concept. */
+.market-footer {
+  min-height: 32px;
+  padding: 0 20px;
+  border-top-color: #1f2229;
+  background: #14161a;
+  color: #8b949e;
+  font-size: 11px;
+}
+
+.market-footer strong {
+  color: #fff;
+}
+
+/* Install Planner: match the 4xl Tailwind concept proportions. */
+.market-modal-overlay {
+  padding: 16px;
+  background: rgba(12,13,16,.75);
+  backdrop-filter: blur(4px);
+}
+
+.market-modal {
+  width: min(896px, calc(100vw - 32px));
+  max-height: 92vh;
+  border-color: #1f2229;
+  border-radius: 12px;
+  background: #14161a;
+  box-shadow: 0 25px 60px rgba(0,0,0,.50);
+}
+
+.market-modal-head {
+  min-height: 56px;
+  padding: 0 24px;
+  border-bottom-color: #1f2229;
+  background: #0c0d10;
+}
+
+.market-modal-title-row {
+  gap: 8px;
+  font-size: 14px;
+}
+
+.market-modal-prefix {
+  color: #8b949e;
+  font-size: 12px;
+}
+
+.market-version {
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #38bdf8;
+  border-color: rgba(56,189,248,.30);
+  background: rgba(56,189,248,.10);
+  font-size: 10px;
+}
+
+.market-modal-target {
+  gap: 8px;
+  font-size: 11px;
+}
+
+.market-modal-close {
+  margin-left: 12px;
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+}
+
+.market-modal-body {
+  grid-template-columns: minmax(320px,5fr) minmax(380px,7fr);
+}
+
+.market-modal-checks {
+  padding: 20px;
+  gap: 16px;
+  border-right-color: #1f2229;
+}
+
+.market-section-label {
+  margin-bottom: 16px;
+  color: #8b949e;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .075em;
+}
+
+.market-check-card {
+  padding: 12px;
+  margin-bottom: 12px;
+  border-color: #1f2229;
+  border-radius: 8px;
+  background: #14161a;
+}
+
+.market-check-head {
+  margin-bottom: 7px;
+  font-size: 12px;
+}
+
+.market-check-state {
+  padding: 3px 6px;
+  font-size: 10px;
+}
+
+.market-check-row {
+  min-height: 21px;
+  grid-template-columns: 112px minmax(0,1fr);
+  gap: 10px;
+  font-size: 11px;
+}
+
+.market-check-row code {
+  font-size: 11px;
+}
+
+.market-plan-notes {
+  margin-top: 8px;
+  padding-top: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.market-safety-box {
+  padding: 12px;
+  gap: 5px;
+  font-size: 11px;
+}
+
+.market-modal-console {
+  min-height: 390px;
+}
+
+.market-console-head {
+  min-height: 36px;
+  padding: 0 16px;
+  border-bottom-color: #1f2229;
+  font-size: 11px;
+}
+
+.market-console-body {
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.market-console-foot {
+  padding: 12px 16px;
+}
+
+.market-console-foot > div:first-child {
+  font-size: 11px;
+}
+
+.market-progress {
+  height: 6px;
+  margin-top: 8px;
+}
+
+.market-modal-foot {
+  min-height: 56px;
+  padding: 0 24px;
+  border-top-color: #1f2229;
+  background: #0c0d10;
+  font-size: 12px;
+}
+
+.market-modal-actions {
+  gap: 12px;
+}
+
+/* Concept palette. */
+.market-tree-led.active,
+.market-status-dot.active,
+.market-console-head i,
+.market-progress span,
+.market-repo-state i,
+.market-api-ok i {
+  background: #2ea043;
+}
+
+.market-tree-led.info,
+.market-status-dot.info {
+  background: #38bdf8;
+}
+
+.market-log-ok { color: #2ea043; }
+.market-log-info { color: #38bdf8; }
+.market-log-warn { color: #d29922; }
+
+/* Main application header proportions aligned to the concept without changing navigation logic. */
+.app-header {
+  height: 48px;
+  background: #0c0d10;
+  border-bottom-color: #1f2229;
+  backdrop-filter: none;
+}
+
+.header-workspace {
+  width: calc(100% - 40px);
+  max-width: none;
+  grid-template-columns: minmax(190px,1fr) auto minmax(190px,1fr);
+  gap: 24px;
+}
+
+.brand {
+  gap: 10px;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.brand-mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+
+.nav {
+  gap: 4px;
+}
+
+.nav-link {
+  padding: 0 12px;
+  color: #8b949e;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.nav-link.active::after {
+  display: none;
+}
+
+.nav-link.active {
+  height: 28px;
+  margin: auto 0;
+  border: 1px solid #1f2229;
+  border-radius: 4px;
+  background: #1f2229;
+  color: #fff;
+}
+
+.header-status {
+  gap: 10px;
+  color: #8b949e;
+  font-size: 11px;
+}
+
+.status-led {
+  width: 7px;
+  height: 7px;
+}
+
+/* Responsive behavior retains the concept density instead of collapsing too early. */
+@media (max-width: 1180px) {
+  .market-grid {
+    grid-template-columns: repeat(2, minmax(280px,1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .marketplace-console {
+    grid-template-columns: 220px minmax(0,1fr);
+  }
+  .market-sidebar {
+    width: 220px;
+  }
+  .market-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .market-search-wrap {
+    max-width: none;
+  }
+  .market-toolbar-controls {
+    flex-wrap: wrap;
+  }
+  .market-modal-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .market-modal-checks {
+    border-right: 0;
+    border-bottom: 1px solid #1f2229;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-workspace:has(.marketplace-console) {
+    width: 100%;
+  }
+  .marketplace-console {
+    display: block;
+    min-height: 0;
+  }
+  .market-sidebar {
+    width: 100%;
+  }
+  .market-sidebar > div:first-child {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .market-grid {
+    grid-template-columns: 1fr;
+  }
+  .market-content {
+    padding: 16px;
+  }
+  .market-modal {
+    width: 100%;
+  }
+  .header-workspace {
+    width: calc(100% - 24px);
+  }
+}
+/* END Marketplace concept fidelity v3 */

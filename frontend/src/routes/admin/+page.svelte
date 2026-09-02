@@ -11,6 +11,9 @@
   let tab = 'overview';
   let summary = null;
   let cpu = [];
+  let cpuReady = false;
+  let cpuWindowSeconds = 5;
+  let cpuSampledAt = '';
   let processes = [];
   let ports = [];
   let services = [];
@@ -47,19 +50,22 @@
     return !q || `${p.name} ${p.version} ${p.architecture}`.toLowerCase().includes(q);
   });
 
-  async function loadOverview() {
-    loading = true;
+  async function loadOverview(showLoading = true) {
+    if (showLoading) loading = true;
     try {
-      summary = await getAdminSummary();
-      const cpuData = await getAdminCPU();
+      const [nextSummary, cpuData] = await Promise.all([getAdminSummary(), getAdminCPU()]);
+      summary = nextSummary;
       cpu = cpuData.cpus || [];
+      cpuReady = Boolean(cpuData.ready);
+      cpuWindowSeconds = Number(cpuData.window_seconds || 5);
+      cpuSampledAt = cpuData.sampled_at || '';
       available = true;
       errorText = '';
     } catch (error) {
       available = false;
       errorText = error?.payload?.error || error?.message || 'dns-monitor-admin недоступен';
     } finally {
-      loading = false;
+      if (showLoading) loading = false;
     }
   }
 
@@ -70,7 +76,7 @@
     loading = true;
     try {
       if (next === 'overview') {
-        await loadOverview();
+        await loadOverview(true);
         return;
       }
       if (next === 'processes') processes = (await getAdminProcesses()).processes || [];
@@ -89,9 +95,24 @@
   }
 
   const pct = (n) => Math.max(0, Math.min(100, Number(n || 0)));
+  const cpuBar = (n) => {
+    const value = pct(n);
+    return value > 0 ? Math.max(1.5, value) : 0;
+  };
+  const cpuText = (n) => {
+    const value = Number(n || 0);
+    if (value > 0 && value < 1) return '<1%';
+    return `${value.toFixed(1)}%`;
+  };
   const sectorsBytes = (n) => Number(n || 0) * 512;
 
-  onMount(() => { loadOverview(); });
+  onMount(() => {
+    loadOverview(true);
+    const timer = setInterval(() => {
+      if (tab === 'overview' && available !== false) loadOverview(false);
+    }, 2000);
+    return () => clearInterval(timer);
+  });
 </script>
 
 <svelte:head><title>DNS Monitor — Админ</title></svelte:head>
@@ -142,12 +163,15 @@
 
     <div class="two-col admin-overview-grid">
       <section class="panel">
-        <div class="panel-head"><div><strong>CPU по ядрам</strong><span>220 ms sample из /proc/stat</span></div><span class="state-chip good">{cpu.length} CORES</span></div>
+        <div class="panel-head"><div><strong>CPU по ядрам</strong><span>rolling {cpuWindowSeconds} сек из /proc/stat · обновление 2 сек</span></div><span class="state-chip {cpuReady ? 'good' : 'info'}">{cpuReady ? `${cpu.length} CORES` : 'SAMPLING'}</span></div>
         <div class="cpu-list">
+          {#if !cpuReady && !cpu.length}
+            <div class="cpu-sampling"><span class="status-dot info"></span><span>Набираю первое окно CPU…</span></div>
+          {/if}
           {#each cpu as core (core.name)}
             <div class="cpu-row">
-              <div><strong>{core.name}</strong><span>{Number(core.usage || 0).toFixed(1)}%</span></div>
-              <div class="progress"><span style={`width:${pct(core.usage)}%`}></span></div>
+              <div><strong>{core.name}</strong><span>{cpuReady ? cpuText(core.usage) : '…'}</span></div>
+              <div class="progress cpu-progress"><span style={`width:${cpuReady ? cpuBar(core.usage) : 0}%`}></span></div>
             </div>
           {/each}
         </div>

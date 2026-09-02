@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -137,6 +138,12 @@ func main() {
 	defer listener.Close()
 	_ = os.Chmod(*socket, 0600)
 
+	cpuSampler, err := newCPUSampler(1*time.Second, 5)
+	if err != nil {
+		panic(err)
+	}
+	defer cpuSampler.Close()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/health", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -149,12 +156,13 @@ func main() {
 		writeJSON(w, http.StatusOK, readSummary())
 	}))
 	mux.HandleFunc("/v1/cpu", getOnly(func(w http.ResponseWriter, _ *http.Request) {
-		cpus, err := sampleCPU(220 * time.Millisecond)
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"cpus": cpus})
+		cpus, sampledAt, ready := cpuSampler.Snapshot()
+		writeJSON(w, http.StatusOK, map[string]any{
+			"cpus":           cpus,
+			"sampled_at":     sampledAt,
+			"ready":          ready,
+			"window_seconds": cpuSampler.WindowSeconds(),
+		})
 	}))
 	mux.HandleFunc("/v1/processes", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"processes": readProcesses()})
@@ -337,43 +345,156 @@ func readCPURaw() ([]cpuRaw, error) {
 	return out, sc.Err()
 }
 
-func sampleCPU(delay time.Duration) ([]cpuSample, error) {
-	a, err := readCPURaw()
+type cpuSampler struct {
+	mu        sync.RWMutex
+	interval  time.Duration
+	window    int
+	previous  map[string]cpuRaw
+	history   map[string][]float64
+	latest    []cpuSample
+	sampledAt time.Time
+	ready     bool
+	stop      chan struct{}
+	done      chan struct{}
+}
+
+func newCPUSampler(interval time.Duration, window int) (*cpuSampler, error) {
+	if interval <= 0 {
+		interval = time.Second
+	}
+	if window < 1 {
+		window = 1
+	}
+
+	raw, err := readCPURaw()
 	if err != nil {
 		return nil, err
 	}
-	time.Sleep(delay)
-	b, err := readCPURaw()
+
+	s := &cpuSampler{
+		interval: interval,
+		window:   window,
+		previous: make(map[string]cpuRaw, len(raw)),
+		history:  make(map[string][]float64, len(raw)),
+		stop:     make(chan struct{}),
+		done:     make(chan struct{}),
+	}
+	for _, item := range raw {
+		s.previous[item.Name] = item
+	}
+
+	go s.run()
+	return s, nil
+}
+
+func (s *cpuSampler) run() {
+	defer close(s.done)
+
+	// First result becomes available after one full interval, then the endpoint
+	// serves cached rolling data without sleeping inside HTTP requests.
+	timer := time.NewTimer(s.interval)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-s.stop:
+			return
+		case <-timer.C:
+			s.sample()
+			timer.Reset(s.interval)
+		}
+	}
+}
+
+func (s *cpuSampler) sample() {
+	current, err := readCPURaw()
 	if err != nil {
-		return nil, err
+		return
 	}
-	byName := map[string]cpuRaw{}
-	for _, item := range a {
-		byName[item.Name] = item
-	}
-	var out []cpuSample
-	for _, current := range b {
-		prev, ok := byName[current.Name]
-		if !ok || current.Total <= prev.Total {
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	latest := make([]cpuSample, 0, len(current))
+	for _, item := range current {
+		prev, ok := s.previous[item.Name]
+		s.previous[item.Name] = item
+		if !ok || item.Total <= prev.Total {
 			continue
 		}
-		totalDelta := current.Total - prev.Total
-		idleDelta := (current.Idle + current.IOWait) - (prev.Idle + prev.IOWait)
-		busyDelta := totalDelta
-		if idleDelta < totalDelta {
-			busyDelta = totalDelta - idleDelta
+
+		usage := cpuUsage(prev, item)
+		values := append(s.history[item.Name], usage)
+		if len(values) > s.window {
+			values = values[len(values)-s.window:]
 		}
-		out = append(out, cpuSample{
-			Name:   current.Name,
-			Usage:  float64(busyDelta) / float64(totalDelta) * 100,
-			User:   current.User,
-			System: current.System,
-			Idle:   current.Idle,
-			Total:  current.Total,
+		s.history[item.Name] = values
+
+		sum := 0.0
+		for _, value := range values {
+			sum += value
+		}
+		rolling := sum / float64(len(values))
+
+		latest = append(latest, cpuSample{
+			Name:   item.Name,
+			Usage:  rolling,
+			User:   item.User,
+			System: item.System,
+			Idle:   item.Idle,
+			Total:  item.Total,
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
+
+	sort.Slice(latest, func(i, j int) bool { return latest[i].Name < latest[j].Name })
+	if len(latest) > 0 {
+		s.latest = latest
+		s.sampledAt = time.Now()
+		s.ready = true
+	}
+}
+
+func cpuUsage(prev, current cpuRaw) float64 {
+	if current.Total <= prev.Total {
+		return 0
+	}
+	totalDelta := current.Total - prev.Total
+
+	prevIdle := prev.Idle + prev.IOWait
+	currentIdle := current.Idle + current.IOWait
+	if currentIdle < prevIdle {
+		return 0
+	}
+	idleDelta := currentIdle - prevIdle
+	if idleDelta >= totalDelta {
+		return 0
+	}
+	return float64(totalDelta-idleDelta) / float64(totalDelta) * 100
+}
+
+func (s *cpuSampler) Snapshot() ([]cpuSample, time.Time, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := append([]cpuSample(nil), s.latest...)
+	return out, s.sampledAt, s.ready
+}
+
+func (s *cpuSampler) WindowSeconds() int {
+	seconds := int(s.interval.Seconds()) * s.window
+	if seconds < 1 {
+		return 1
+	}
+	return seconds
+}
+
+func (s *cpuSampler) Close() {
+	select {
+	case <-s.stop:
+		return
+	default:
+		close(s.stop)
+	}
+	<-s.done
 }
 
 func readProcesses() []processInfo {

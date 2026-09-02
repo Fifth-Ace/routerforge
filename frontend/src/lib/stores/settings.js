@@ -4,6 +4,7 @@ import { writable } from 'svelte/store';
 export const defaults = {
   uiLevel: 'expert',
   compact: false,
+  uiScale: 'auto',
   refreshMs: 2000,
   theme: 'console',
   accent: '#38bdf8',
@@ -44,6 +45,7 @@ export function applySettings(value) {
   const root = document.documentElement;
   root.dataset.layoutCompact = String(Boolean(value.compact));
   root.dataset.uiLevel = value.uiLevel || 'expert';
+  root.dataset.uiScale = value.uiScale || 'auto';
   root.dataset.theme = value.theme || 'console';
 
   let t = themes[value.theme];

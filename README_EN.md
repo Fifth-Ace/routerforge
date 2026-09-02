@@ -186,7 +186,7 @@ Useful endpoints include:
 
 ## Versioning
 
-The public project history starts at **v0.1.0**. Earlier internal development builds used a separate pre-public version sequence and are intentionally not part of the public release history.
+Stable public DNS Monitor releases are published through GitHub Releases and the project Entware/opkg repository.
 
 ## License
 

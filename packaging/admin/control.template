@@ -1,0 +1,11 @@
+Package: dns-monitor-admin
+Version: @VERSION@
+Section: admin
+Priority: optional
+Architecture: aarch64-3.10
+Depends: dns-monitor
+Maintainer: Fifth-Ace
+Source: https://github.com/Fifth-Ace/dns-monitor
+Homepage: https://github.com/Fifth-Ace/dns-monitor
+License: MIT
+Description: Optional read-only system administration module for DNS Monitor.

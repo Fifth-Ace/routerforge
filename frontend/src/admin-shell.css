@@ -1,0 +1,705 @@
+/*
+ * DNS Monitor global application shell + visual scale pass.
+ *
+ * This file intentionally loads after app.css. It centralizes layout and fixes
+ * the small-type / misaligned-badge issues found during the first SvelteKit
+ * router test without duplicating page-specific styles.
+ */
+
+:root {
+  --global-left-rail: 292px;
+  --global-right-rail: 276px;
+}
+
+/* ---- Global scale ------------------------------------------------------- */
+body {
+  font-size: 15px;
+}
+
+.header-inner {
+  width: calc(100% - 32px);
+  grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
+}
+
+.brand-name {
+  font-size: 14px;
+}
+
+.brand-mark {
+  width: 24px;
+  height: 24px;
+  font-size: 13px;
+}
+
+.version-badge {
+  min-height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+}
+
+.nav-link {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.header-status {
+  font-size: 10px;
+}
+
+.page {
+  width: 100%;
+  max-width: none;
+  padding: 24px;
+}
+
+html[data-layout-compact="true"] .page {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.page-head {
+  min-height: 58px;
+  margin-bottom: 20px;
+}
+
+.page-head h1 {
+  font-size: 24px;
+}
+
+.page-head p {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.page-kicker {
+  font-size: 10px;
+}
+
+.toolbar {
+  min-height: 52px;
+  margin-bottom: 16px;
+  padding: 9px 12px;
+  gap: 10px;
+}
+
+.search-control {
+  height: 34px;
+}
+
+.search-control input,
+select,
+.button {
+  font-size: 12px;
+}
+
+select {
+  height: 34px;
+}
+
+.button {
+  min-height: 34px;
+  padding: 0 13px;
+}
+
+.subtabs {
+  margin-bottom: 18px;
+}
+
+.subtabs button {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+/* ---- Card/header alignment fixes --------------------------------------- */
+.panel,
+.hero-card {
+  margin-bottom: 16px;
+}
+
+.panel-head {
+  min-height: 58px;
+  padding: 0 18px;
+}
+
+/*
+ * app.css used `.panel-head span`, which also hit status pills. This is the
+ * exact reason OK/FAIL chips appeared vertically shifted in the screenshots.
+ */
+.panel-head > div > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.panel-head > div > strong {
+  font-size: 14px;
+}
+
+.panel-head > .state-chip,
+.panel-head > .pill,
+.page-head > .state-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 28px;
+  margin: 0 !important;
+  padding: 0 10px;
+  line-height: 1 !important;
+  font-size: 10px !important;
+  white-space: nowrap;
+}
+
+.panel-head > .state-chip.good,
+.page-head > .state-chip.good {
+  color: var(--good) !important;
+}
+
+.panel-head > .state-chip.warn,
+.page-head > .state-chip.warn {
+  color: var(--warn) !important;
+}
+
+.panel-head > .state-chip.error,
+.page-head > .state-chip.error {
+  color: var(--bad) !important;
+}
+
+.panel-head > .state-chip.info,
+.page-head > .state-chip.info {
+  color: var(--accent) !important;
+}
+
+.state-chip,
+.pill,
+.latency {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  vertical-align: middle;
+}
+
+.metric-card {
+  min-height: 118px;
+  padding: 17px 18px;
+}
+
+.metric-card > span {
+  font-size: 11px;
+}
+
+.metric-card > strong {
+  font-size: 26px;
+}
+
+.metric-card > small {
+  font-size: 11px;
+}
+
+th {
+  height: 40px;
+  padding: 0 14px;
+  font-size: 10px;
+}
+
+td {
+  padding: 11px 14px;
+  font-size: 12px;
+}
+
+.cell-sub {
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.info-row {
+  min-height: 62px;
+  padding: 11px 16px;
+}
+
+.info-row strong {
+  font-size: 12px;
+}
+
+.info-row > div:first-child > span,
+.info-value {
+  font-size: 11px;
+}
+
+.empty {
+  min-height: 112px;
+  font-size: 12px;
+}
+
+
+.global-content .shell-alerts {
+  width: auto;
+  margin: 14px 24px -6px;
+}
+
+/* ---- Persistent application rails ------------------------------------- */
+.global-shell {
+  min-height: calc(100vh - var(--header-height));
+  display: grid;
+  grid-template-columns: var(--global-left-rail) minmax(0, 1fr) var(--global-right-rail);
+  background: var(--bg);
+}
+
+.global-content {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.global-rail {
+  min-width: 0;
+  height: calc(100vh - var(--header-height));
+  position: sticky;
+  top: var(--header-height);
+  overflow-y: auto;
+  padding: 18px 16px;
+  background: #15171b;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.global-rail-left {
+  justify-content: space-between;
+}
+
+.global-rail-right {
+  justify-content: flex-start;
+}
+
+.rail-section {
+  margin-top: 22px;
+}
+
+.rail-section-label {
+  margin-bottom: 12px;
+  color: #929aa5;
+  font: 600 11px/1.2 var(--font-sans);
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+
+.global-module-tree {
+  padding: 14px 13px;
+  border: 1px solid #343a44;
+  border-radius: 9px;
+  background: #0c0e11;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.28);
+}
+
+.global-tree-root {
+  min-height: 25px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #fff;
+  font-size: 12px;
+}
+
+.global-tree-row {
+  min-height: 27px;
+  display: grid;
+  grid-template-columns: 28px 8px minmax(0,1fr) auto;
+  gap: 8px;
+  align-items: center;
+  color: #b7c0ca;
+  font-size: 11px;
+}
+
+.tree-branch {
+  color: #d2d8df;
+  text-align: right;
+  line-height: 1;
+}
+
+.global-tree-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #e2e7ec;
+  font-weight: 500;
+}
+
+.global-tree-state {
+  padding-left: 4px;
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rail-summary-row {
+  min-height: 38px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 6px;
+  color: #c5ccd4;
+  font-size: 12px;
+}
+
+.rail-summary-row:nth-of-type(even) {
+  background: #24272c;
+}
+
+.rail-summary-row strong {
+  max-width: 58%;
+  color: #fff;
+  font: 600 11px/1.2 var(--font-mono);
+  text-align: right;
+}
+
+.rail-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-status-card {
+  padding: 13px;
+  border: 1px solid #343a44;
+  border-radius: 9px;
+  background: #0c0e11;
+  color: #8f98a3;
+  font-size: 10px;
+}
+
+.rail-status-card > div:not(.rail-section-label) {
+  min-height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rail-status-card strong {
+  color: #fff;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.rail-bottom-card {
+  margin-top: auto;
+}
+
+.rail-empty {
+  padding: 14px;
+  border: 1px dashed #343a44;
+  border-radius: 8px;
+  color: #8b949e;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* ---- Catalog now uses the same global shell as every other page -------- */
+.catalog-page {
+  min-height: calc(100vh - var(--header-height));
+}
+
+.catalog-toolbar-v2 {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 20;
+}
+
+.catalog-grid-v2 {
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+}
+
+.catalog-card {
+  padding: 18px;
+  gap: 18px;
+}
+
+.catalog-icon {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+  font-size: 14px;
+}
+
+.catalog-identity h3 {
+  font-size: 15px;
+}
+
+.catalog-identity span {
+  font-size: 10px;
+}
+
+.catalog-card > div > p {
+  min-height: 44px;
+  margin: 14px 0 16px;
+  font-size: 12px;
+}
+
+.tech-box {
+  padding: 11px 12px;
+  font-size: 10px;
+}
+
+.tech-box > div {
+  min-height: 27px;
+  grid-template-columns: 78px minmax(0,1fr);
+}
+
+.catalog-inline-footer {
+  min-height: 40px;
+  margin-top: 18px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+/* ---- Admin page -------------------------------------------------------- */
+.admin-safety-banner {
+  min-height: 60px;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border: 1px solid rgba(56,189,248,.22);
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(56,189,248,.08), rgba(56,189,248,.02));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-safety-banner > div:first-child strong {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.admin-safety-banner > div:first-child span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.admin-safety-banner > div:last-child {
+  display: grid;
+  grid-template-columns: auto auto auto auto;
+  gap: 8px 12px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.admin-safety-banner > div:last-child strong {
+  color: var(--warn);
+}
+
+.admin-metric-grid {
+  grid-template-columns: repeat(4, minmax(0,1fr));
+}
+
+.admin-host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 20px !important;
+}
+
+.cpu-list {
+  padding: 12px 16px 16px;
+}
+
+.cpu-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cpu-row:last-child {
+  border-bottom: 0;
+}
+
+.cpu-row > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.cpu-row strong {
+  font-family: var(--font-mono);
+}
+
+.cpu-row span {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.admin-command {
+  max-width: 500px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-install-hint {
+  padding: 22px;
+}
+
+.admin-install-hint p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.admin-install-hint code {
+  display: block;
+  width: fit-content;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.admin-install-hint span {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.thermal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.thermal-card {
+  min-height: 130px;
+  padding: 17px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.thermal-card > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.thermal-card > div:first-child strong {
+  font-size: 13px;
+}
+
+.thermal-value {
+  display: block;
+  margin: 15px 0 10px;
+  color: #fff;
+  font: 600 28px/1 var(--font-mono);
+}
+
+.thermal-card code {
+  color: var(--muted);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Responsive shell ------------------------------------------------- */
+@media (max-width: 1540px) {
+  :root {
+    --global-left-rail: 250px;
+  }
+
+  .global-shell {
+    grid-template-columns: var(--global-left-rail) minmax(0,1fr);
+  }
+
+  .global-rail-right {
+    display: none;
+  }
+
+  .global-content {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 1120px) {
+  .global-shell {
+    display: block;
+  }
+
+  .global-rail-left {
+    position: static;
+    width: 100%;
+    height: auto;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(260px, .6fr);
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .global-rail-left > div:first-child {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(230px,.65fr);
+    gap: 12px;
+  }
+
+  .global-rail-left .rail-section {
+    margin: 0;
+  }
+
+  .global-content {
+    border: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    font-size: 14px;
+  }
+
+  .global-rail-left {
+    display: none;
+  }
+
+  .page {
+    padding: 16px 12px 24px;
+  }
+
+  .admin-metric-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  .admin-safety-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .catalog-grid-v2 {
+    grid-template-columns: 1fr;
+  }
+}

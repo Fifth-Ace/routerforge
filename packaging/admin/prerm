@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ -x /opt/etc/init.d/S91dns-monitor-admin ]; then
+    /opt/etc/init.d/S91dns-monitor-admin stop >/dev/null 2>&1 || true
+fi
+rm -f /opt/var/run/dns-monitor-admin.sock
+exit 0

@@ -63,35 +63,53 @@ jobs:
           sh -n package/install.sh
           sh -n package/uninstall.sh
           sh -n package/S90dns-monitor
+          sh -n package/S91dns-monitor-admin
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh
           sh -n scripts/build-frontend.sh
           sh -n scripts/build-opkg.sh
+          sh -n scripts/build-admin-opkg.sh
           sh -n scripts/build-feed.sh
           sh -n packaging/opkg/postinst
           sh -n packaging/opkg/prerm
+          sh -n packaging/admin/postinst
+          sh -n packaging/admin/prerm
 
-      - name: Build Entware package
+      - name: Build Entware core package
         run: |
           ./scripts/build-opkg.sh 0.0.0-ci
           test -f dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk
 
-      - name: Verify Entware package container
+      - name: Build Entware admin package
         run: |
-          tar -tzf dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk | grep -qx './debian-binary'
-          tar -tzf dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk | grep -qx './control.tar.gz'
-          tar -tzf dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk | grep -qx './data.tar.gz'
+          ./scripts/build-admin-opkg.sh 0.0.0-ci
+          test -f dist/dns-monitor-admin_0.0.0-ci_aarch64-3.10.ipk
 
-      - name: Build dev package
+      - name: Verify Entware package containers
+        run: |
+          for pkg in \
+            dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk \
+            dist/dns-monitor-admin_0.0.0-ci_aarch64-3.10.ipk
+          do
+            tar -tzf "$pkg" | grep -qx './debian-binary'
+            tar -tzf "$pkg" | grep -qx './control.tar.gz'
+            tar -tzf "$pkg" | grep -qx './data.tar.gz'
+          done
+
+      - name: Build dev packages
         if: github.ref == 'refs/heads/dev'
         run: |
           ./scripts/build-opkg.sh 0.2.0 dev
+          ./scripts/build-admin-opkg.sh 0.2.0 dev
           test -f dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
+          test -f dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk
 
-      - name: Upload dev package
+      - name: Upload dev packages
         if: github.ref == 'refs/heads/dev'
         uses: actions/upload-artifact@v4
         with:
           name: dns-monitor-0.2.0-dev-aarch64
-          path: dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
+          path: |
+            dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
+            dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk
           retention-days: 7

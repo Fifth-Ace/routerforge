@@ -43,6 +43,7 @@ type catalogItem struct {
 	State          string               `json:"state"`
 	Installed      bool                 `json:"installed"`
 	Enabled        bool                 `json:"enabled"`
+	Managed        bool                 `json:"managed,omitempty"`
 	Version        string               `json:"version,omitempty"`
 	Service        string               `json:"service,omitempty"`
 	ServiceRunning bool                 `json:"service_running"`
@@ -134,7 +135,36 @@ func builtinModuleCatalog() []catalogItem {
 		plannedModule("thermal", "Thermal Monitor", "Monitoring", "Температуры по всем доступным thermal/hwmon датчикам."),
 		plannedModule("storage", "Storage Monitor", "Monitoring", "Файловые системы, свободное место, I/O, USB и состояние хранилищ."),
 		plannedModule("network", "Network Monitor", "Monitoring", "Интерфейсы, RX/TX, ошибки и сетевые счётчики."),
-		plannedModule("admin", "Admin Tools", "Administration", "Процессы, службы, opkg, файлы и терминал. Потребует отдельной авторизации."),
+		{
+			ID:          "admin",
+			Kind:        "module",
+			Name:        "Admin Tools",
+			Category:    "Administration",
+			Description: "Опциональный read-only системный модуль: CPU, RAM, процессы, порты, службы, opkg, storage и thermal.",
+			Source:      "dns-monitor",
+			Managed:     true,
+			Capabilities: []string{
+				"system-summary", "cpu", "memory", "processes", "ports",
+				"services", "packages", "storage", "thermal",
+			},
+			Detection: catalogDetection{
+				Packages: []string{"dns-monitor-admin"},
+				Services: []string{"/opt/etc/init.d/S91dns-monitor-admin"},
+				Paths:    []string{"/opt/var/run/dns-monitor-admin.sock"},
+			},
+			ProcessNames: []string{"dnsmon-admin"},
+			Compatibility: catalogCompatibility{
+				Status: "requirements",
+				Hints:  []string{"DNS Monitor Core", "Entware", "Keenetic / Netcraze ARM64"},
+			},
+			Install: catalogInstallPlan{
+				Method:      "opkg-feed",
+				Repository:  "dns-monitor",
+				Packages:    []string{"dns-monitor-admin"},
+				Notes:       []string{"Admin helper устанавливается отдельным пакетом.", "v1 только read-only; terminal/process kill/service control/opkg mutation заблокированы до авторизации."},
+				PreviewOnly: true,
+			},
+		},
 		plannedModule("profiling", "Profiling", "Development", "pprof, slow-request logging и внутренняя диагностика DNS Monitor."),
 	}
 }
@@ -321,7 +351,11 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 	}
 
 	if item.Installed {
-		item.State = "installed_external"
+		if item.Managed {
+			item.State = "installed"
+		} else {
+			item.State = "installed_external"
+		}
 		item.Enabled = item.ServiceRunning
 	} else {
 		item.State = "available"

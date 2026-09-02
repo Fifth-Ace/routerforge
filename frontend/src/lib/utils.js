@@ -1,4 +1,5 @@
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, Number(n || 0)));
+
 export const fmtInt = (n) => new Intl.NumberFormat('ru-RU').format(Number(n || 0));
 export const fmtPct = (n) => `${Number(n || 0).toFixed(Number(n || 0) >= 10 ? 1 : 2)}%`;
 export const fmtMs = (n) => Number(n || 0) > 0 ? `${Math.round(Number(n))} ms` : '—';
@@ -25,7 +26,8 @@ export function bytes(n) {
   n = Number(n || 0);
   if (n < 1024) return `${n} B`;
   if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1048576).toFixed(1)} MB`;
+  if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
+  return `${(n / 1073741824).toFixed(2)} GB`;
 }
 
 export function timeOnly(iso) {
@@ -99,7 +101,13 @@ export function stateInfo(item = {}) {
       return item.service_running
         ? { label: 'ACTIVE', cls: 'good', detail: 'Установлен · служба работает' }
         : { label: 'INSTALLED', cls: 'warn', detail: 'Установлен · служба не обнаружена' };
-    case 'installed': return { label: 'BUILT-IN', cls: 'good', detail: 'Встроено в DNS Monitor' };
+    case 'installed':
+      if (item.managed) {
+        return item.service_running
+          ? { label: 'ACTIVE', cls: 'good', detail: 'Модуль DNS Monitor установлен и работает' }
+          : { label: 'INSTALLED', cls: 'warn', detail: 'Модуль DNS Monitor установлен, helper не обнаружен' };
+      }
+      return { label: 'BUILT-IN', cls: 'good', detail: 'Встроено в DNS Monitor' };
     case 'planned': return { label: 'PLANNED', cls: 'info', detail: 'Запланированный модуль' };
     case 'incompatible': return { label: 'INCOMPATIBLE', cls: 'error', detail: 'Требования не выполнены' };
     case 'broken': return { label: 'BROKEN', cls: 'error', detail: 'Установка обнаружена, состояние некорректно' };

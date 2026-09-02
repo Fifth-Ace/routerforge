@@ -4,7 +4,10 @@ async function request(path) {
     headers: { Accept: 'application/json' }
   });
   if (!response.ok) {
-    throw new Error(`${path} HTTP ${response.status}`);
+    const error = new Error(`${path} HTTP ${response.status}`);
+    error.status = response.status;
+    try { error.payload = await response.json(); } catch {}
+    throw error;
   }
   return response.json();
 }
@@ -17,3 +20,12 @@ export const getInterfaces = () => request('/api/interfaces');
 export const getHistory = (minutes = 60) => request(`/api/history?minutes=${encodeURIComponent(minutes)}`);
 export const getClient = (ip, limit = 500) =>
   request(`/api/client?ip=${encodeURIComponent(ip)}&limit=${encodeURIComponent(limit)}`);
+
+export const getAdminSummary = () => request('/api/admin/summary');
+export const getAdminCPU = () => request('/api/admin/cpu');
+export const getAdminProcesses = () => request('/api/admin/processes');
+export const getAdminPorts = () => request('/api/admin/ports');
+export const getAdminServices = () => request('/api/admin/services');
+export const getAdminPackages = () => request('/api/admin/packages');
+export const getAdminStorage = () => request('/api/admin/storage');
+export const getAdminThermal = () => request('/api/admin/thermal');

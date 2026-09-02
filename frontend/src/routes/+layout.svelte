@@ -7,9 +7,11 @@
   import '@fontsource/roboto-mono/500.css';
   import '@fontsource/roboto-mono/600.css';
   import '../app.css';
+  import '../admin-shell.css';
 
   import { onMount } from 'svelte';
   import AppHeader from '$lib/components/AppHeader.svelte';
+  import AppShell from '$lib/components/AppShell.svelte';
   import { snapshot, startSnapshotStream } from '$lib/stores/snapshot.js';
   import { settings } from '$lib/stores/settings.js';
 
@@ -33,13 +35,16 @@
 
 <AppHeader />
 
-{#if $snapshot.discovery_error || $snapshot.capture_error || $snapshot.client_registry_error || $snapshot.client_capture_error}
-  <div class="global-alerts">
-    {#if $snapshot.discovery_error}<div class="global-alert">Discovery: {$snapshot.discovery_error}</div>{/if}
-    {#if $snapshot.capture_error}<div class="global-alert">Capture: {$snapshot.capture_error}</div>{/if}
-    {#if $snapshot.client_registry_error}<div class="global-alert">Clients: {$snapshot.client_registry_error}</div>{/if}
-    {#if $snapshot.client_capture_error}<div class="global-alert">Client capture: {$snapshot.client_capture_error}</div>{/if}
-  </div>
-{/if}
-
-<main class="app-main"><slot /></main>
+<main class="app-main">
+  <AppShell>
+    {#if $snapshot.discovery_error || $snapshot.capture_error || $snapshot.client_registry_error || $snapshot.client_capture_error}
+      <div class="global-alerts shell-alerts">
+        {#if $snapshot.discovery_error}<div class="global-alert">Discovery: {$snapshot.discovery_error}</div>{/if}
+        {#if $snapshot.capture_error}<div class="global-alert">Capture: {$snapshot.capture_error}</div>{/if}
+        {#if $snapshot.client_registry_error}<div class="global-alert">Clients: {$snapshot.client_registry_error}</div>{/if}
+        {#if $snapshot.client_capture_error}<div class="global-alert">Client capture: {$snapshot.client_capture_error}</div>{/if}
+      </div>
+    {/if}
+    <slot />
+  </AppShell>
+</main>

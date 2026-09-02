@@ -4,21 +4,23 @@
   import { timeOnly } from '$lib/utils.js';
 
   const items = [
-    { href:'/', label:'Обзор' },
-    { href:'/servers', label:'Серверы' },
-    { href:'/routing', label:'Маршрутизация' },
-    { href:'/monitoring', label:'Мониторинг' },
-    { href:'/tools', label:'Инструменты' },
-    { href:'/catalog', label:'Каталог' },
-    { href:'/settings', label:'Настройки' }
+    { href: '/', label: 'Обзор' },
+    { href: '/servers', label: 'Серверы' },
+    { href: '/routing', label: 'Маршрутизация' },
+    { href: '/monitoring', label: 'Мониторинг' },
+    { href: '/tools', label: 'Инструменты' },
+    { href: '/admin', label: 'Админ' },
+    { href: '/catalog', label: 'Каталог' },
+    { href: '/settings', label: 'Настройки' }
   ];
 
   $: s = $snapshot || {};
   $: current = $page.url.pathname;
-  $: state = s.capture_error ? 'ERROR'
-    : s.active_down ? 'DOWN'
-    : (s.active_degraded || s.active_quality_bad || s.active_quality_warn) ? 'DEGRADED'
-    : 'OK';
+  $: state =
+    s.capture_error ? 'ERROR'
+      : s.active_down ? 'DOWN'
+      : (s.active_degraded || s.active_quality_bad || s.active_quality_warn) ? 'DEGRADED'
+      : 'OK';
   $: stateClass = state === 'OK' ? 'good' : state === 'DEGRADED' ? 'warn' : 'error';
 
   function active(href) {
@@ -29,7 +31,7 @@
 
 <header class="app-header">
   <div class="header-inner">
-    <a class="brand" href="/">
+    <a class="brand" href="/" aria-label="DNS Monitor">
       <span class="brand-mark">D</span>
       <span class="brand-name">DNS Monitor</span>
       <span class="version-badge">v{s.version || '0.2.0-dev'}</span>
@@ -37,7 +39,7 @@
 
     <nav class="main-nav" data-sveltekit-preload-code="eager" data-sveltekit-preload-data="hover">
       {#each items as item}
-        <a class="nav-link" class:active={active(item.href)} href={item.href}>{item.label}</a>
+        <a class:active={active(item.href)} class="nav-link" href={item.href}>{item.label}</a>
       {/each}
     </nav>
 

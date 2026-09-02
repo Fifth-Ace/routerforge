@@ -198,6 +198,8 @@ func startWeb(store *Store, listen string, version string) error {
 		_ = json.NewEncoder(w).Encode(readSystemInfo())
 	})
 
+	mux.HandleFunc("/api/admin/", proxyAdminAPI)
+
 	mux.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")

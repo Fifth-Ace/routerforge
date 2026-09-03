@@ -724,3 +724,33 @@ html[data-brand-mode="extended"] .routerforge-capability-icon {
   .routerforge-capability-card .state-chip { grid-column: 2; justify-self: start; }
   .accent-picker-row { align-items: flex-start; flex-direction: column; }
 }
+
+/* RouterForge auth control final geometry fix.
+ * admin-shell.css still sets left:25px on the ON thumb; reset that legacy
+ * positioning and use one transform model only.
+ */
+.security-control {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  white-space: nowrap;
+}
+
+.security-control > .state-chip {
+  min-width: 64px;
+  justify-content: center;
+}
+
+.security-switch > span {
+  left: 4px !important;
+  transform: translateX(0) !important;
+}
+
+.security-switch.on > span {
+  left: 4px !important;
+  transform: translateX(20px) !important;
+}

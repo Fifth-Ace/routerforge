@@ -1,17 +1,17 @@
-name: Bug report
-about: Report a reproducible DNS Monitor problem
+name: RouterForge bug
+description: Report a reproducible RouterForge problem
 title: "[Bug] "
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Please remove public IPs, MAC addresses, credentials, tunnel keys and private hostnames from diagnostics.
+        Remove public IPs, MAC addresses, credentials, cookies, tunnel keys and private hostnames from diagnostics.
   - type: input
     id: router
     attributes:
       label: Router model
-      placeholder: Keenetic Ultra KN-xxxx
+      placeholder: Keenetic Hopper KN-3811
     validations:
       required: true
   - type: input
@@ -20,17 +20,32 @@ body:
       label: KeeneticOS / NDMS version
     validations:
       required: true
-  - type: input
-    id: version
+  - type: dropdown
+    id: channel
     attributes:
-      label: DNS Monitor version
-      placeholder: v0.1.0
+      label: RouterForge channel
+      options:
+        - Stable
+        - Beta
+    validations:
+      required: true
+  - type: input
+    id: core_version
+    attributes:
+      label: RouterForge Core version
+      placeholder: 0.3.1
     validations:
       required: true
   - type: textarea
+    id: packages
+    attributes:
+      label: Installed RouterForge packages
+      description: Output of /opt/bin/opkg list-installed | grep '^routerforge-' | sort
+      render: shell
+  - type: textarea
     id: problem
     attributes:
-      label: Problem description
+      label: Problem description and reproduction steps
     validations:
       required: true
   - type: textarea

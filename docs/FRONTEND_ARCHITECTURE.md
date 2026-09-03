@@ -1,60 +1,90 @@
-# DNS Monitor frontend architecture
+# RouterForge frontend architecture
 
-## Decision
+## Stack
 
-The production frontend is a **Svelte 5 / SvelteKit / Vite** application built with
-`@sveltejs/adapter-static`, following the same proven deployment model used by
-AWG Manager:
+Production frontend:
 
-- the router does **not** run Node.js;
-- CI/build machines compile the frontend into `frontend/build`;
-- production Go builds use the `embed_frontend` build tag;
-- the compiled static bundle is embedded into the `dns-monitor` binary;
-- unknown non-API routes fall back to SvelteKit `index.html`;
-- SvelteKit performs client-side route navigation without document reloads.
+- Svelte 5;
+- SvelteKit;
+- Vite;
+- `@sveltejs/adapter-static`.
 
-## Runtime model
+Node.js используется только на development/CI машине.
+
+Production build встраивается в RouterForge Core через Go build tag `embed_frontend`.
+
+## Runtime
 
 ```text
-Go backend :2233
+RouterForge Core :2233
 ├── REST API
-│   ├── /api/snapshot
-│   ├── /api/history
-│   ├── /api/clients
-│   ├── /api/client
-│   ├── /api/interfaces
-│   ├── /api/system
-│   └── /api/catalog
-├── SSE
-│   └── /api/events
+├── SSE /api/events
 └── Embedded SvelteKit build
-    ├── shared +layout.svelte
-    ├── /
-    ├── /servers
-    ├── /routing
-    ├── /monitoring
-    ├── /tools
-    ├── /catalog
-    └── /settings
 ```
 
-The shared layout owns the long-lived snapshot EventSource connection. Top-level
-route changes keep the application shell and stores alive; only the route
-component changes.
+Shared `+layout.svelte` держит долгоживущие stores и snapshot stream между route transitions.
 
-`/api/events` pushes snapshot updates at the configured UI refresh interval.
-If EventSource is unavailable or temporarily disconnected, the frontend
-automatically falls back to REST polling until SSE recovers.
+При недоступном SSE frontend может использовать REST polling.
 
-Page-specific heavier resources (history, clients, interfaces, system, catalog)
-are loaded on demand by the route that uses them.
+## Capability-driven navigation
+
+Primary navigation формируется из фактически установленных capabilities.
+
+Базовые items:
+
+```text
+/           Главная
+/catalog    Marketplace
+/settings   Настройки
+```
+
+Conditional:
+
+```text
+/monitoring   если установлен system/thermal/storage/network
+/dns          если установлен RouterForge DNS
+/manage       если установлен RouterForge Control
+```
+
+Registry presentation metadata может добавлять navigation entry для установленного official module.
+
+## Catalog
+
+`catalog` store периодически перечитывает локальный `/api/catalog`.
+
+Это **не равно remote GitHub poll**: Core отдельно throttles Registry/release-index sync.
+
+Manual Marketplace update check использует:
+
+```text
+POST /api/catalog/refresh
+```
+
+Endpoint форсирует remote Registry + release-index refresh и возвращает пересчитанный catalog.
+
+## Authentication gate
+
+Layout сначала получает `/api/auth/status`.
+
+Если auth required и session отсутствует, основной shell не монтируется; показывается AuthGate.
+
+После login обычные protected API calls работают через `HttpOnly` session cookie.
 
 ## Development
 
 ```sh
 cd frontend
-npm install
+npm install --no-audit --no-fund
 VITE_API_TARGET=http://192.168.10.1:2233 npm run dev
+```
+
+Используйте только тестовый роутер для development target.
+
+## Checks
+
+```sh
+npm run check
+npm run build
 ```
 
 ## Production build
@@ -64,16 +94,4 @@ sh scripts/build-frontend.sh
 go build -tags embed_frontend .
 ```
 
-The Entware packaging script performs the frontend build automatically when
-`frontend/build/index.html` is absent.
-
-## Build-tag split
-
-`frontend_assets_dev.go` is used by normal local Go builds/tests and serves
-`frontend/build` from disk.
-
-`frontend_assets_embed.go` is enabled only with `-tags embed_frontend` and embeds
-the complete static build into the binary.
-
-This keeps ordinary `go test ./...` independent from Node while guaranteeing that
-Entware/release binaries are self-contained.
+Entware/release build самодостаточен: frontend assets находятся внутри Core binary.

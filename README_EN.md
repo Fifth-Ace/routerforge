@@ -1,195 +1,234 @@
-# DNS Monitor
+# RouterForge
 
 [Русский](README.md) | **English**
 
-[![Release](https://img.shields.io/github/v/release/Fifth-Ace/dns-monitor?display_name=tag)](https://github.com/Fifth-Ace/dns-monitor/releases)
 [![CI](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml)
+[![Stable](https://img.shields.io/badge/channel-stable-2ea043)](https://github.com/Fifth-Ace/dns-monitor/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/dns-monitor/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#requirements)
 
-DNS Monitor provides DNS observability and diagnostics for **Keenetic / Netcraze routers** using the router's native DNS proxy, KeeneticOS/NDMS routing policies and Entware environment.
+**RouterForge** is a modular web platform for monitoring, DNS diagnostics and router maintenance on **Keenetic / Netcraze ARM64** devices with Entware.
+
+A single Core provides the UI, API, Marketplace, authentication and package lifecycle. Optional capabilities are shipped as independent packages and appear in the UI only when installed.
 
 > [!IMPORTANT]
-> **Current supported target: Keenetic / Netcraze + ARM64 (aarch64) only.**  
-> DNS Monitor relies on KeeneticOS/NDMS-specific facilities such as `ndmc`, `show dns-proxy`, `show ip hotspot`, `show ip policy`, local DNS proxy listeners and native policy routing. It is **not** a generic OpenWrt/Linux DNS monitor. x86, MIPS and other architectures are currently unsupported.
+> The supported target is currently **Keenetic / Netcraze on ARM64 / aarch64** with Entware mounted at `/opt`.
+> RouterForge relies on KeeneticOS/NDMS-specific facilities such as `ndmc`, the native DNS proxy and policy routing. It is not intended to be a generic OpenWrt/Linux dashboard.
 
 > [!NOTE]
-> This is an independent community project and is not an official Keenetic or Netcraze product.
+> RouterForge is an independent community project and is not an official Keenetic or Netcraze product.
+> The repository currently keeps its historical `dns-monitor` name so existing links and release URLs remain valid.
 
-## Features
+## What RouterForge provides
 
-DNS Monitor passively observes how the native Keenetic DNS stack handles client requests and presents the data in a lightweight web interface.
+### Home
+- Core and capability state;
+- platform summary;
+- host telemetry when System/Control is installed;
+- Marketplace and Registry state.
 
-- automatically discovers configured DoT/DoH resolvers from Keenetic;
-- maps local DNS proxy ports to profile, resolver and protocol;
-- watches client DNS requests and router responses;
-- correlates client requests with the actual DoT/DoH upstream selected by Keenetic;
-- shows DNS activity per device and per LAN/Wi-Fi interface;
-- reads device name, MAC/IP, policy, SSID/AP and access path from Keenetic;
-- tracks successful answers, DNS errors, timeouts, fallback events and latency;
-- detects `CACHE / LOCAL` answers when Keenetic replies without a new upstream request;
-- provides per-client drill-down with its own DNS event stream;
-- supports pause and search for live DNS streams so events can be inspected without the list constantly moving;
-- reads native Keenetic policy routing, including mark/table and available tunnel paths;
-- performs policy-aware DoT/DoH diagnostics using the same routing mark as Keenetic;
-- compares a failing policy path with the normal default route;
-- keeps short rolling history in RAM to avoid unnecessary flash writes.
+### Monitoring
+Independently installable official modules:
+- **System Monitor** — CPU, RAM/swap, load, uptime and process counters;
+- **Thermal Monitor** — thermal/hwmon and available temperature sensors;
+- **Storage Monitor** — filesystems, devices and passive I/O telemetry;
+- **Network Monitor** — interfaces, addresses, RX/TX, errors/drops, wireless, routes and conntrack.
 
-The web UI listens on **port 2233** by default.
+### DNS
+RouterForge DNS keeps the original project's strongest capability:
+- plain DNS, DoT and DoH observability;
+- per-client and LAN/Wi‑Fi attribution;
+- upstream/fallback/timeout/error/latency tracking;
+- `CACHE_LOCAL`, `FORWARDED`, `ERROR` and `CLIENT_TIMEOUT`;
+- Keenetic policy routing discovery;
+- route-aware upstream diagnostics using the policy mark;
+- short in-memory history without continuous event writes to flash.
+
+### Control
+**RouterForge Control** is a separate read-only helper for inspecting:
+- processes;
+- listening sockets;
+- Entware services;
+- installed packages;
+- system summary.
+
+The helper uses a root-owned Unix socket and does not open another TCP port.
+
+### Marketplace
+- official RouterForge modules;
+- detection of supported third-party projects;
+- trust/status/compatibility metadata;
+- install/update/remove for approved lifecycle plans;
+- SHA256 verification before installing RouterForge IPKs;
+- independent component versions;
+- hourly automatic remote Registry/release-index checks;
+- immediate manual **Check for updates**;
+- RouterForge batch updates with modules first and Core last.
+
+### Settings and authentication
+Authentication is optional and can be enabled from RouterForge Settings:
+- credentials use the Entware `root` account;
+- password verification reads `/opt/etc/shadow` with `/opt/etc/passwd` fallback;
+- sessions live in RAM for 12 hours;
+- `HttpOnly` + `SameSite=Strict` cookie;
+- configuration: `/opt/etc/routerforge/security.json`.
+
+## Architecture
+
+```text
+Browser
+   │
+   │ http://router:2233
+   ▼
+RouterForge Core
+├── Web UI / REST / SSE
+├── Authentication
+├── Marketplace + Registry
+├── Release index / package lifecycle
+├── DNS engine
+└── Unix-socket proxy
+     ├── RouterForge Control
+     ├── System Monitor
+     ├── Thermal Monitor
+     ├── Storage Monitor
+     └── Network Monitor
+```
+
+The platform exposes a single web port: **2233**.
+
+## Official packages
+
+| Package | Purpose |
+| --- | --- |
+| `routerforge-core` | Core, UI, API, Marketplace, auth and release/update logic |
+| `routerforge-dns` | enables the DNS capability |
+| `routerforge-admin` | RouterForge Control |
+| `routerforge-system` | System Monitor |
+| `routerforge-thermal` | Thermal Monitor |
+| `routerforge-storage` | Storage Monitor |
+| `routerforge-network` | Network Monitor |
+| `routerforge-profiling` | loopback-only profiling capability |
+
+Components are **versioned independently**. A module version does not need to match the Core version.
 
 ## Requirements
 
-- Keenetic or Netcraze router running KeeneticOS/NDMS;
-- **ARM64 / aarch64** CPU;
+- Keenetic or Netcraze with KeeneticOS/NDMS;
+- ARM64 / aarch64;
 - Entware mounted at `/opt`;
+- working `opkg`;
 - root access through Entware SSH;
-- standard Keenetic `ndmc` CLI available from the Entware environment.
+- `sha256sum`;
+- `curl` or `wget`.
 
-The current build is developed and tested against the Keenetic ARM64 environment. Other platforms may compile from source, but they are not considered supported and may not provide the Keenetic-specific facilities required by DNS Monitor.
+## Quick install — Stable
 
-## Quick install
-
-The recommended installation method is to add the DNS Monitor feed to Entware and install the package with `opkg`:
+Recommended public channel:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/install-repo.sh | sh
+wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
-The bootstrap script:
+The bootstrap installs the current **Core + DNS** from the stable release. Their versions are resolved independently from the release index, and each IPK is SHA256-verified before `opkg install`.
 
-1. checks for ARM64 and Entware/opkg;
-2. adds `/opt/etc/opkg/dns-monitor.conf`;
-3. runs `opkg update`;
-4. installs or upgrades the `dns-monitor` package;
-5. starts the service.
-
-The web UI is then available at:
+Then open:
 
 ```text
 http://<router-ip>:2233
 ```
 
-### Updating
+Install other official capabilities from **Marketplace**.
 
-Once the repository is configured, future versions use the normal Entware workflow:
+Detailed installation guide: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
-```sh
-opkg update
-opkg upgrade dns-monitor
-```
+## Updates
 
-### Service control
+Marketplace is the recommended update path.
 
-```sh
-/opt/etc/init.d/S90dns-monitor stop
-/opt/etc/init.d/S90dns-monitor start
-/opt/etc/init.d/S90dns-monitor restart
-```
+RouterForge compares locally installed `opkg` versions with the approved release index for its channel. Remote checks run automatically once per hour; **Check for updates** forces an immediate check.
 
-Logs:
+Release channels:
+
+- `routerforge-stable` is published from `main`;
+- `routerforge-beta` is published from `dev` and is marked as a GitHub Pre-release.
+
+Beta installation:
 
 ```sh
-tail -f /opt/var/log/dns-monitor.log
+wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
-### Uninstall
+Avoid mixing stable and beta packages unless you deliberately switch channels.
 
-Remove the package and repository entry:
+## Service and diagnostics
+
+Core:
+
+```sh
+/opt/etc/init.d/S90routerforge restart
+```
+
+Log:
+
+```sh
+tail -f /opt/var/log/routerforge.log
+```
+
+Health:
+
+```sh
+wget -qO- http://127.0.0.1:2233/api/health
+```
+
+Packages:
+
+```sh
+/opt/bin/opkg list-installed | grep '^routerforge-' | sort
+```
+
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
+## Uninstall
 
 ```sh
 wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/remove-repo.sh | sh
 ```
 
-### Manual installation from a GitHub Release
+Packages are removed; configuration directories are preserved.
 
-If you do not want to add an opkg feed, download the ARM64 archive for the required release, unpack it on the router and run `install.sh`:
+## Documentation
 
-```sh
-cd /opt/tmp/dns-monitor-v0.1.0
-./install.sh
-```
+- [Installation and updates](docs/INSTALLATION.md)
+- [Modules](docs/MODULES.md)
+- [Marketplace and trust model](docs/MARKETPLACE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Frontend architecture](docs/FRONTEND_ARCHITECTURE.md)
+- [Changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
+
+The detailed manuals are currently Russian-first; command examples and architecture references are language-neutral.
 
 ## Build from source
 
-Go 1.21+ is required.
+Backend: Go 1.21+. Frontend: Node.js 22.x.
 
 ```sh
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o dns-monitor-linux-arm64 .
+cd frontend
+npm install --no-audit --no-fund
+npm run check
+npm run build
+cd ..
+
+gofmt -w .
+go test ./...
+go vet ./...
 ```
 
-The web frontend is embedded directly into the Go binary. Node.js is not required on the router.
-
-## How it works
-
-DNS Monitor observes both sides of the router DNS path:
-
-```text
-Client
-  │  UDP/TCP 53
-  ▼
-Keenetic DNS proxy
-  │  localhost:405xx
-  ▼
-DoT / DoH upstream
-```
-
-Passive packet capture is combined with metadata obtained from Keenetic itself. This allows a single event to be represented roughly as:
-
-```text
-Gaming-PC
-192.168.10.83
-Policy2
-    ↓
-catalog.example.com
-    ↓
-Google DoT
-    ↓
-NOERROR / latency / fallback
-```
-
-For routing diagnostics, DNS Monitor reads the dynamic `mark` and `table` assigned by Keenetic to a policy and can test an upstream using `SO_MARK`. This makes it possible to distinguish an upstream outage from a failure specific to a policy, VPN or tunnel path.
-
-## Client DNS outcomes
-
-A client-side request is classified as one of:
-
-- `FORWARDED` — a matching local proxy/upstream request was observed;
-- `CACHE_LOCAL` — Keenetic replied without a new matching upstream request;
-- `ERROR` — the client received a DNS error such as SERVFAIL or REFUSED;
-- `CLIENT_TIMEOUT` — no router response was observed before the client timeout.
-
-`CACHE_LOCAL` intentionally combines cached and locally generated answers: passive observation cannot reliably distinguish those cases without modifying the native router DNS proxy.
-
-## Limitations
-
-- DNS-over-TCP capture is currently best-effort when a DNS message fits in the observed TCP segment; full TCP stream reassembly is not implemented yet.
-- Direct DoH/DoT used independently by a client is encrypted before reaching the native Keenetic DNS proxy and therefore cannot be attributed as a normal DNS query by this monitor.
-- The policy view currently shows available Keenetic tunnel candidates; exact per-flow ECMP tunnel attribution is planned separately.
-- Runtime history is memory-only and resets when the daemon restarts.
-
-## API
-
-Useful endpoints include:
-
-```text
-/api/health
-/api/snapshot
-/api/history?minutes=60
-/api/quality?minutes=5
-/api/fallbacks?minutes=5
-/api/error-bursts?minutes=5
-/api/clients
-/api/client?ip=<client-ip>&limit=500
-/api/interfaces
-/api/system
-```
-
-## Versioning
-
-Stable public DNS Monitor releases are published through GitHub Releases and the project Entware/opkg repository.
+Production Core is built with `embed_frontend`; Node.js is not required on the router.
 
 ## License
 
-DNS Monitor is distributed under the [MIT License](LICENSE).
-
-Copyright © 2026 Fifth-Ace.
+[MIT](LICENSE) · Copyright © 2026 Fifth-Ace.

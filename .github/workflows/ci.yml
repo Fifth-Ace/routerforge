@@ -178,7 +178,7 @@ jobs:
       - name: Check RouterForge release tooling
         run: |
           sh -n scripts/build-module-opkg.sh
-          python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py
+          python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py
 
       - name: Build RouterForge beta channel
         if: github.ref == 'refs/heads/dev'
@@ -209,6 +209,7 @@ jobs:
           FINAL=dist/$INDEX
           CHANGED=dist/routerforge-beta-changed-assets.txt
           SUMS=dist/routerforge-beta-SHA256SUMS
+          BOOTSTRAP=dist/routerforge-beta-bootstrap.sh
 
           git tag -f "$TAG" "$GITHUB_SHA"
           git push --force origin "refs/tags/$TAG"
@@ -230,6 +231,12 @@ jobs:
             --output "$FINAL" \
             --changed-list "$CHANGED" \
             --checksums "$SUMS"
+
+          python3 scripts/render_bootstrap.py \
+            --channel beta \
+            --final "$FINAL" \
+            --output "$BOOTSTRAP"
+          sh -n "$BOOTSTRAP"
 
           NOTES=dist/routerforge-beta-release-notes.md
           python3 scripts/render_release_notes.py \
@@ -265,7 +272,7 @@ jobs:
             esac
           done
 
-          gh release upload "$TAG" --clobber "$FINAL" "$SUMS"
+          gh release upload "$TAG" --clobber "$FINAL" "$SUMS" "$BOOTSTRAP"
           gh release edit "$TAG" \
             --prerelease \
             --title "RouterForge Beta" \
@@ -300,6 +307,7 @@ jobs:
           FINAL=dist/$INDEX
           CHANGED=dist/routerforge-stable-changed-assets.txt
           SUMS=dist/routerforge-stable-SHA256SUMS
+          BOOTSTRAP=dist/routerforge-stable-bootstrap.sh
 
           git tag -f "$TAG" "$GITHUB_SHA"
           git push --force origin "refs/tags/$TAG"
@@ -320,6 +328,12 @@ jobs:
             --output "$FINAL" \
             --changed-list "$CHANGED" \
             --checksums "$SUMS"
+
+          python3 scripts/render_bootstrap.py \
+            --channel stable \
+            --final "$FINAL" \
+            --output "$BOOTSTRAP"
+          sh -n "$BOOTSTRAP"
 
           NOTES=dist/routerforge-stable-release-notes.md
           python3 scripts/render_release_notes.py \
@@ -355,7 +369,7 @@ jobs:
             esac
           done
 
-          gh release upload "$TAG" --clobber "$FINAL" "$SUMS"
+          gh release upload "$TAG" --clobber "$FINAL" "$SUMS" "$BOOTSTRAP"
 
           # One-time migration cleanup: the old dev rolling release predates beta/stable channels.
           if gh release view routerforge-dev >/dev/null 2>&1; then

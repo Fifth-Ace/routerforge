@@ -1,12 +1,12 @@
-name: Feature request
-about: Suggest an improvement
+name: RouterForge feature request
+description: Suggest a RouterForge capability, integration or UX improvement
 title: "[Feature] "
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: What problem should this solve?
+      label: What problem should RouterForge solve?
     validations:
       required: true
   - type: textarea
@@ -15,3 +15,16 @@ body:
       label: Proposed behavior
     validations:
       required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Core / Platform
+        - Monitoring
+        - DNS
+        - Control
+        - Marketplace
+        - Settings / Security
+        - Documentation
+        - Other

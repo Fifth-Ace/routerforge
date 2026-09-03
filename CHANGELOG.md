@@ -1,30 +1,61 @@
-# Changelog
+# RouterForge changelog
 
-All notable public changes to DNS Monitor are documented here.
+RouterForge components are versioned independently. Entries below describe platform milestones; they are not a promise that every package shares the same version.
 
 ## [Unreleased]
 
-No public changes yet.
+No public platform changes after the current Stable milestone.
 
-## [0.1.0] - 2026-09-02
-
-First public release.
+## 2026-09-03 — RouterForge 0.3 generation
 
 ### Added
 
-- Automatic Keenetic DoT/DoH resolver discovery.
+- RouterForge product identity and unified router-console UI.
+- Capability-driven navigation: Home, Monitoring, DNS, Control, Marketplace and Settings.
+- Official package namespace:
+  - `routerforge-core`
+  - `routerforge-dns`
+  - `routerforge-admin`
+  - `routerforge-system`
+  - `routerforge-thermal`
+  - `routerforge-storage`
+  - `routerforge-network`
+  - `routerforge-profiling`
+- Independent component versions and per-channel release indexes.
+- Rolling `routerforge-beta` and `routerforge-stable` GitHub release channels.
+- SHA256-verified RouterForge package lifecycle from Marketplace.
+- Web update for Core and optional modules.
+- Batch RouterForge update with Core updated last.
+- Hourly automatic remote update checks plus synchronous manual refresh.
+- Marketplace update-count highlighting.
+- Optional Entware-root authentication with 12-hour in-memory sessions.
+- RouterForge Control read-only helper.
+- System, Thermal, Storage and Network monitoring providers.
+- Profiling capability bound to loopback.
+- RouterForge design system, typography normalization and platform dashboard.
+
+### Changed
+
+- Project evolved from a DNS-only application into a modular router platform.
+- DNS became an independently managed capability while the DNS engine remains inside Core.
+- Stable Core uses Stable release/Registry sources; Beta Core uses Beta/dev sources.
+- Release publishing preserves unchanged component assets instead of replacing a same-version binary.
+
+## [0.1.0] - 2026-09-02 — legacy DNS Monitor
+
+First public DNS Monitor release.
+
+### Added
+
+- Keenetic DoT/DoH resolver discovery.
 - Passive DNS request/response observation.
 - Resolver health and rolling quality metrics.
 - Fallback, timeout and DNS-error tracking.
-- Per-device and per-interface DNS attribution using Keenetic client metadata.
-- Per-client DNS drill-down with pauseable live flow and filters.
-- Client-side `FORWARDED`, `CACHE_LOCAL`, `ERROR` and `CLIENT_TIMEOUT` outcomes.
-- Keenetic policy routing discovery and tunnel-path display.
-- Policy-aware DoT/DoH diagnostics using `SO_MARK` with default-route comparison.
+- Per-device and per-interface DNS attribution.
+- Per-client DNS drill-down.
+- `FORWARDED`, `CACHE_LOCAL`, `ERROR` and `CLIENT_TIMEOUT`.
+- Keenetic policy-routing discovery and route-aware diagnostics.
 - Embedded web UI on port 2233.
-- ARM64 Entware installer and init script.
-- Entware/opkg repository bootstrap installer and package feed.
-- MIT license.
-- GitHub Actions CI for tests, vet and shell syntax checks.
-- Security policy and GitHub issue / pull request templates.
-- Russian-first README with English translation and quick installation instructions.
+- ARM64 Entware packaging.
+
+The `dns-monitor` repository name and some internal source paths remain for migration/link compatibility; the product name is RouterForge.

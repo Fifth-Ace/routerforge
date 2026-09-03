@@ -13,11 +13,19 @@
   let authError = '';
 
   const themeCards = [
-    ['console', 'DNSM · Console', 'Текущий инфраструктурный стиль проекта.'],
-    ['legacy', 'DNSM · Legacy', 'Глубокие тёмно-синие оттенки.'],
-    ['neo', 'DNSM · Neo', 'Высокая контрастность и яркий акцент.'],
-    ['mint', 'DNSM · Mint', 'Мягкая серо-синяя палитра.'],
-    ['custom', 'DNSM · Custom', 'Три базовых цвета, остальные вычисляются.']
+    ['forge', 'RouterForge Dark', 'Нейтральный графитовый фундамент. Рекомендуется.'],
+    ['midnight', 'Midnight', 'Холодная тёмно-синяя палитра для сетевой консоли.'],
+    ['graphite', 'Graphite', 'Более нейтральный серо-графитовый интерфейс.'],
+    ['custom', 'Custom', 'Свой фон и текст; остальные поверхности вычисляются автоматически.']
+  ];
+
+  const accentOptions = [
+    ['#38bdf8', 'Blue'],
+    ['#22d3ee', 'Cyan'],
+    ['#60a5fa', 'Azure'],
+    ['#34d399', 'Green'],
+    ['#f59e0b', 'Amber'],
+    ['#d7824b', 'Copper']
   ];
 
   const update = (key, value) => settings.update((current) => ({ ...current, [key]: value }));
@@ -31,11 +39,8 @@
 
   function requestAuthToggle() {
     authError = '';
-    if ($authState.required) {
-      disableAuth();
-    } else {
-      showEnableAuth = true;
-    }
+    if ($authState.required) disableAuth();
+    else showEnableAuth = true;
   }
 
   async function enableAuth(password) {
@@ -65,13 +70,25 @@
       authBusy = false;
     }
   }
+
+  function previewPalette(id) {
+    if (id === 'custom') {
+      return {
+        background: $settings.background,
+        text: $settings.text,
+        surface: $settings.background,
+        border: $settings.text
+      };
+    }
+    return themes[id];
+  }
 </script>
 
 <svelte:head><title>RouterForge — Настройки</title></svelte:head>
 
 <div class="page">
   <div class="page-head">
-    <div><h1>Настройки</h1><p>Интерфейс, безопасность, частота live-обновлений и визуальная тема.</p></div>
+    <div><h1>Настройки</h1><p>Интерфейс, безопасность, live-обновления и единая дизайн-система RouterForge.</p></div>
     <span class="page-kicker mono">LOCAL UI SETTINGS</span>
   </div>
 
@@ -90,9 +107,18 @@
     <div class="settings-stack">
       <section class="settings-section panel">
         <div class="settings-title">Общие</div>
-        <div class="setting-row"><div><strong>Уровень интерфейса</strong><span>Обычный показывает только основные DNS и рабочие показатели. Расширенный добавляет policy-context, mark/table, внутренние порты и диагностические поля.</span></div><select value={$settings.uiLevel} onchange={(e) => update('uiLevel', e.currentTarget.value)}><option value="normal">Обычный</option><option value="advanced">Расширенный</option></select></div>
-        <div class="setting-row"><div><strong>Масштаб интерфейса</strong><span>Auto автоматически делает UI крупнее на 2K/4K без browser zoom.</span></div><select value={$settings.uiScale} onchange={(e) => update('uiScale', e.currentTarget.value)}><option value="auto">Auto · рекомендуется</option><option value="100">100%</option><option value="115">115%</option><option value="125">125%</option><option value="140">140%</option></select></div>
-        <div class="setting-row"><div><strong>Live update</strong><span>Частота SSE snapshot. При проблемах SSE автоматически включается polling.</span></div><select value={$settings.refreshMs} onchange={(e) => update('refreshMs', Number(e.currentTarget.value))}><option value="1000">1 сек</option><option value="2000">2 сек</option><option value="5000">5 сек</option><option value="10000">10 сек</option></select></div>
+        <div class="setting-row">
+          <div><strong>Уровень интерфейса</strong><span>Обычный показывает основные рабочие показатели. Расширенный добавляет диагностические поля.</span></div>
+          <div class="setting-control-slot"><select value={$settings.uiLevel} onchange={(e) => update('uiLevel', e.currentTarget.value)}><option value="normal">Обычный</option><option value="advanced">Расширенный</option></select></div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Масштаб интерфейса</strong><span>Auto автоматически делает UI крупнее на 2K/4K без browser zoom.</span></div>
+          <div class="setting-control-slot"><select value={$settings.uiScale} onchange={(e) => update('uiScale', e.currentTarget.value)}><option value="auto">Auto · рекомендуется</option><option value="100">100%</option><option value="115">115%</option><option value="125">125%</option><option value="140">140%</option></select></div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Live update</strong><span>Частота SSE snapshot. При проблемах SSE автоматически включается polling.</span></div>
+          <div class="setting-control-slot"><select value={$settings.refreshMs} onchange={(e) => update('refreshMs', Number(e.currentTarget.value))}><option value="1000">1 сек</option><option value="2000">2 сек</option><option value="5000">5 сек</option><option value="10000">10 сек</option></select></div>
+        </div>
       </section>
 
       <section class="settings-section panel">
@@ -102,9 +128,9 @@
             <strong>Требовать авторизацию</strong>
             <span>Вход под <code>root</code> с паролем Entware. Проверяется <code>/opt/etc/shadow</code> с fallback на <code>/opt/etc/passwd</code>; отдельный пароль RouterForge не хранится.</span>
           </div>
-          <div class="security-control">
+          <div class="security-control setting-control-slot">
             <span class="state-chip {$authState.required ? 'good' : 'neutral'}">{$authState.required ? 'REQUIRED' : 'OFF'}</span>
-            <button class="security-switch" class:on={$authState.required} type="button" aria-pressed={$authState.required} disabled={authBusy} onclick={requestAuthToggle}><span></span></button>
+            <button class="security-switch" class:on={$authState.required} type="button" aria-label={$authState.required ? 'Отключить обязательную авторизацию' : 'Включить обязательную авторизацию'} aria-pressed={$authState.required} disabled={authBusy} onclick={requestAuthToggle}><span></span></button>
           </div>
         </div>
         <div class="setting-row static"><div><strong>Сессия</strong><span>HttpOnly cookie, SameSite=Strict. После перезапуска Core требуется войти снова.</span></div><code>{$authState.session_hours || 12} часов</code></div>
@@ -114,14 +140,44 @@
 
       <section class="settings-section panel">
         <div class="settings-title">Внешний вид</div>
+        <div class="appearance-intro">Рабочий акцент интерфейса отделён от фирменной меди RouterForge. По умолчанию медь остаётся только в логотипе и брендовых деталях.</div>
+
+        <div class="appearance-subtitle">Тема</div>
         <div class="theme-grid">
           {#each themeCards as [id, title, description]}
-            {@const palette = themes[id] || { accent: $settings.accent, background: $settings.background, text: $settings.text, secondary: '#101010', tertiary: '#202020' }}
-            <button class="theme-card" class:active={$settings.theme === id} onclick={() => update('theme', id)}><h3>{title}</h3><p>{description}</p><div class="theme-preview" style={`background:${palette.background};color:${palette.text}`}><i style={`width:25%;background:${palette.accent}`}></i><i style={`width:80%;background:${palette.text};opacity:.14`}></i><i style={`background:${palette.secondary};border:1px solid ${palette.tertiary}`}></i></div></button>
+            {@const palette = previewPalette(id)}
+            <button class="theme-card" class:active={$settings.theme === id} onclick={() => update('theme', id)}>
+              <h3>{title}</h3><p>{description}</p>
+              <div class="theme-preview" style={`background:${palette.background};color:${palette.text}`}>
+                <i style={`width:25%;background:${$settings.accent}`}></i>
+                <i style={`width:80%;background:${palette.text};opacity:.14`}></i>
+                <i style={`background:${palette.surface || palette.background};border:1px solid ${palette.border || palette.text}`}></i>
+              </div>
+            </button>
           {/each}
         </div>
+
+        <div class="appearance-subtitle">Акцент интерфейса</div>
+        <div class="accent-picker-row">
+          <div class="accent-presets" aria-label="Предустановленные акценты">
+            {#each accentOptions as [color, label]}
+              <button type="button" class="accent-swatch" class:active={$settings.accent === color} style={`--swatch:${color}`} title={label} aria-label={label} onclick={() => update('accent', color)}><span></span></button>
+            {/each}
+          </div>
+          <label class="custom-accent"><span>Свой цвет</span><input type="color" value={$settings.accent} oninput={(e) => update('accent', e.currentTarget.value)}/><code>{$settings.accent}</code></label>
+        </div>
+
+        <div class="appearance-options-grid">
+          <label><span>Плотность</span><select value={$settings.density} onchange={(e) => update('density', e.currentTarget.value)}><option value="compact">Компактная</option><option value="normal">Обычная</option><option value="comfortable">Свободная</option></select></label>
+          <label><span>Скругления</span><select value={$settings.radius} onchange={(e) => update('radius', e.currentTarget.value)}><option value="sharp">Строгие</option><option value="default">Стандартные</option><option value="soft">Мягкие</option></select></label>
+          <label><span>Фирменная медь</span><select value={$settings.brandMode} onchange={(e) => update('brandMode', e.currentTarget.value)}><option value="brand-only">Только бренд</option><option value="extended">Расширенно</option></select></label>
+        </div>
+
         {#if $settings.theme === 'custom'}
-          <div class="color-grid"><label><span>Акцент</span><input type="color" value={$settings.accent} oninput={(e) => update('accent', e.currentTarget.value)}/><code>{$settings.accent}</code></label><label><span>Фон</span><input type="color" value={$settings.background} oninput={(e) => update('background', e.currentTarget.value)}/><code>{$settings.background}</code></label><label><span>Текст</span><input type="color" value={$settings.text} oninput={(e) => update('text', e.currentTarget.value)}/><code>{$settings.text}</code></label></div>
+          <div class="color-grid custom-theme-colors">
+            <label><span>Фон</span><input type="color" value={$settings.background} oninput={(e) => update('background', e.currentTarget.value)}/><code>{$settings.background}</code></label>
+            <label><span>Текст</span><input type="color" value={$settings.text} oninput={(e) => update('text', e.currentTarget.value)}/><code>{$settings.text}</code></label>
+          </div>
         {/if}
       </section>
 

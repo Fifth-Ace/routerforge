@@ -1,6 +1,78 @@
+/* RouterForge semantic design system.
+ * Loaded after app.css and admin-shell.css so every route consumes one token set.
+ */
 :root {
-  --routerforge-copper: #d7824b;
-  --routerforge-copper-soft: rgba(215, 130, 75, .14);
+  --rf-bg: #0b0d10;
+  --rf-surface: #12151a;
+  --rf-surface-2: #171b21;
+  --rf-hover: #1d2229;
+  --rf-text: #f5f7fa;
+  --rf-muted: #8d98a4;
+  --rf-border: #29313a;
+  --rf-border-strong: #36414d;
+  --rf-accent: #38bdf8;
+  --rf-accent-soft: rgba(56, 189, 248, .10);
+  --rf-accent-hover: rgba(56, 189, 248, .16);
+  --rf-accent-border: rgba(56, 189, 248, .30);
+  --rf-brand: #d7824b;
+  --rf-brand-ui: #38bdf8;
+  --rf-brand-soft: rgba(56, 189, 248, .10);
+  --rf-brand-border: rgba(56, 189, 248, .30);
+  --rf-radius-panel: 6px;
+  --rf-radius-control: 5px;
+  --rf-radius-card: 8px;
+  --rf-setting-row-h: 62px;
+  --rf-panel-head-h: 50px;
+  --rf-control-gap: 10px;
+
+  /* Backward-compatible aliases consumed by the existing UI. */
+  --concept-bg: var(--rf-bg);
+  --concept-surface: var(--rf-surface);
+  --concept-panel: var(--rf-surface);
+  --concept-panel-2: var(--rf-bg);
+  --concept-hover: var(--rf-hover);
+  --concept-border: var(--rf-border);
+  --concept-border-soft: var(--rf-border);
+  --routerforge-copper: var(--rf-brand);
+  --routerforge-copper-soft: var(--rf-brand-soft);
+}
+
+html[data-density="compact"] {
+  --rf-setting-row-h: 52px;
+  --rf-panel-head-h: 44px;
+  --rf-control-gap: 8px;
+}
+html[data-density="comfortable"] {
+  --rf-setting-row-h: 72px;
+  --rf-panel-head-h: 56px;
+  --rf-control-gap: 12px;
+}
+
+html[data-radius="sharp"] {
+  --rf-radius-panel: 2px;
+  --rf-radius-control: 2px;
+  --rf-radius-card: 3px;
+}
+html[data-radius="soft"] {
+  --rf-radius-panel: 10px;
+  --rf-radius-control: 8px;
+  --rf-radius-card: 12px;
+}
+
+html,
+body,
+.global-shell,
+.global-content {
+  background: var(--rf-bg) !important;
+  color: var(--rf-text);
+}
+
+/* ------------------------------------------------------------------ */
+/* Shell                                                              */
+/* ------------------------------------------------------------------ */
+.app-header {
+  border-bottom-color: var(--rf-border) !important;
+  background: color-mix(in srgb, var(--rf-bg) 96%, black) !important;
 }
 
 .routerforge-header-mark {
@@ -8,9 +80,245 @@
   height: 34px;
   object-fit: contain;
   flex: 0 0 34px;
-  filter: drop-shadow(0 0 8px rgba(215,130,75,.12));
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, .22));
 }
 
+.brand,
+.brand-copy strong,
+.page-head h1,
+.panel-head > div > strong,
+.cell-title,
+.hero-head h2,
+.metric-card > strong {
+  color: var(--rf-text) !important;
+}
+
+.brand-copy > span,
+.header-status,
+.page-head p,
+.page-kicker,
+.panel-head > div > span,
+.cell-sub,
+.metric-card > span,
+.metric-card > small,
+.muted {
+  color: var(--rf-muted) !important;
+}
+
+.version-badge,
+.nav-link.active,
+.button.primary,
+.button.active,
+.segmented button.active,
+.subtabs button.active,
+.pill.accent,
+.state-chip.info {
+  color: var(--rf-accent) !important;
+}
+
+.version-badge,
+.button.primary,
+.button.active,
+.pill.accent,
+.state-chip.info {
+  border-color: var(--rf-accent-border) !important;
+  background: var(--rf-accent-soft) !important;
+}
+
+.nav-link {
+  color: var(--rf-muted) !important;
+}
+.nav-link:hover {
+  color: var(--rf-text) !important;
+  background: var(--rf-surface-2) !important;
+}
+.nav-link.active {
+  border-color: var(--rf-border) !important;
+  background: var(--rf-hover) !important;
+}
+
+.global-rail {
+  background: var(--rf-surface) !important;
+  scrollbar-color: var(--rf-border-strong) transparent !important;
+}
+.global-content {
+  border-left-color: var(--rf-border) !important;
+}
+
+.global-module-tree,
+.rail-status-card {
+  border-color: var(--rf-border) !important;
+  border-radius: var(--rf-radius-panel) !important;
+  background: var(--rf-bg) !important;
+}
+.global-tree-root,
+.global-tree-name,
+.rail-summary-row strong,
+.rail-status-card strong {
+  color: var(--rf-text) !important;
+}
+.global-tree-row,
+.global-tree-state,
+.rail-section-label,
+.rail-summary-row,
+.rail-status-card {
+  color: var(--rf-muted) !important;
+}
+.rail-summary-row:nth-of-type(even) {
+  background: var(--rf-surface-2) !important;
+}
+
+/* Repository lives as a brand footer, not as another module row. */
+.rail-repository-link {
+  min-height: 56px;
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius-panel);
+  background: var(--rf-bg);
+  color: inherit;
+  text-decoration: none;
+  transition: background .14s ease, border-color .14s ease, transform .14s ease;
+}
+.rail-repository-link:hover {
+  border-color: var(--rf-accent-border);
+  background: var(--rf-accent-soft);
+  transform: translateY(-1px);
+}
+.rail-repository-link img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, .25));
+}
+.rail-repository-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.rail-repository-copy small {
+  color: var(--rf-muted);
+  font-size: var(--ui-micro);
+  line-height: 1.2;
+}
+.rail-repository-copy strong {
+  overflow: hidden;
+  color: var(--rf-text);
+  font-size: var(--ui-xs);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-repository-arrow {
+  color: var(--rf-accent);
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* Panels / controls                                                   */
+/* ------------------------------------------------------------------ */
+.panel,
+.hero-card,
+.metric-card,
+.catalog-card,
+.thermal-card,
+.routerforge-capability-card,
+.routerforge-empty-capability {
+  border-color: var(--rf-border) !important;
+  border-radius: var(--rf-radius-panel) !important;
+  background: var(--rf-surface) !important;
+  box-shadow: none !important;
+}
+.panel-head {
+  min-height: var(--rf-panel-head-h) !important;
+  border-bottom-color: var(--rf-border) !important;
+  background: color-mix(in srgb, var(--rf-surface) 82%, var(--rf-bg)) !important;
+}
+
+.toolbar,
+.search-control,
+select,
+input,
+.button,
+.segmented,
+.segmented button {
+  border-color: var(--rf-border) !important;
+}
+.toolbar,
+.button,
+.segmented button {
+  background: var(--rf-surface-2) !important;
+}
+.search-control,
+select,
+input {
+  border-radius: var(--rf-radius-control) !important;
+  background: var(--rf-surface-2) !important;
+  color: var(--rf-text) !important;
+}
+select:focus,
+input:focus,
+.search-control:focus-within {
+  border-color: var(--rf-accent) !important;
+  box-shadow: 0 0 0 2px var(--rf-accent-soft);
+}
+.button {
+  border-radius: var(--rf-radius-control) !important;
+  color: color-mix(in srgb, var(--rf-text) 86%, var(--rf-muted)) !important;
+}
+.button:hover {
+  border-color: var(--rf-border-strong) !important;
+  background: var(--rf-hover) !important;
+}
+.button.primary:hover {
+  color: var(--rf-bg) !important;
+  border-color: var(--rf-accent) !important;
+  background: var(--rf-accent) !important;
+}
+.segmented button.active,
+.subtabs button.active {
+  background: var(--rf-accent-soft) !important;
+}
+.subtabs button.active {
+  border-bottom-color: var(--rf-accent) !important;
+}
+
+.pill,
+.state-chip,
+.latency {
+  border-color: var(--rf-border) !important;
+  background: var(--rf-surface-2) !important;
+}
+.state-chip.neutral {
+  color: var(--rf-muted) !important;
+}
+.progress {
+  background: var(--rf-border) !important;
+}
+.progress span {
+  background: var(--rf-accent) !important;
+}
+
+table th {
+  border-bottom-color: var(--rf-border) !important;
+  background: color-mix(in srgb, var(--rf-bg) 78%, var(--rf-surface)) !important;
+  color: var(--rf-muted) !important;
+}
+table td {
+  border-bottom-color: color-mix(in srgb, var(--rf-border) 76%, transparent) !important;
+  color: color-mix(in srgb, var(--rf-text) 88%, var(--rf-muted)) !important;
+}
+tbody tr:hover td {
+  background: color-mix(in srgb, var(--rf-accent-soft) 35%, transparent) !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* RouterForge branding: copper is brand, not the default UI accent.   */
+/* ------------------------------------------------------------------ */
 .routerforge-auth-card {
   overflow: hidden;
 }
@@ -22,30 +330,26 @@
   width: 68px;
   height: 68px;
   object-fit: contain;
-  filter: drop-shadow(0 8px 20px rgba(0,0,0,.35));
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, .35));
+}
+.routerforge-eyebrow,
+.dns-module-nav-title {
+  color: var(--rf-brand-ui) !important;
 }
 
-.routerforge-eyebrow {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--routerforge-copper);
-  font-size: 11px;
-  letter-spacing: .12em;
-}
-.routerforge-home-head h1 {
-  margin-top: 0;
-}
 .routerforge-platform-metrics .metric-card:first-child {
-  border-color: rgba(215,130,75,.28);
-  background: linear-gradient(145deg, var(--routerforge-copper-soft), transparent 55%);
+  border-color: var(--rf-border) !important;
+  background: var(--rf-surface) !important;
 }
+
 .routerforge-home-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(300px, .75fr);
   gap: 16px;
   margin-top: 16px;
 }
-.routerforge-issue-list {
+.routerforge-issue-list,
+.routerforge-platform-list {
   display: grid;
   gap: 9px;
 }
@@ -55,9 +359,9 @@
   gap: 10px;
   min-height: 38px;
   padding: 8px 10px;
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 9px;
-  background: rgba(255,255,255,.018);
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius-control);
+  background: var(--rf-surface-2);
 }
 .routerforge-all-good {
   display: grid;
@@ -68,47 +372,40 @@
 }
 .routerforge-all-good span:last-child {
   grid-column: 2;
-  opacity: .66;
+  color: var(--rf-muted);
   font-size: 12px;
-}
-.routerforge-platform-list {
-  display: grid;
-  gap: 9px;
 }
 .routerforge-platform-list > div {
   display: flex;
   justify-content: space-between;
   gap: 14px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255,255,255,.055);
+  border-bottom: 1px solid var(--rf-border);
 }
 .routerforge-capabilities-section {
   margin-top: 20px;
 }
 .routerforge-capability-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 .routerforge-capability-card,
 .routerforge-empty-capability {
   display: grid;
-  grid-template-columns: 54px minmax(0,1fr) auto;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
   gap: 13px;
   align-items: center;
   min-height: 92px;
   padding: 14px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 12px;
-  background: rgba(255,255,255,.025);
   color: inherit;
   text-decoration: none;
   transition: border-color .15s ease, transform .15s ease, background .15s ease;
 }
 .routerforge-capability-card:hover,
 .routerforge-empty-capability:hover {
-  border-color: rgba(215,130,75,.36);
-  background: rgba(215,130,75,.045);
+  border-color: var(--rf-accent-border) !important;
+  background: var(--rf-accent-soft) !important;
   transform: translateY(-1px);
 }
 .routerforge-capability-icon {
@@ -116,20 +413,20 @@
   place-items: center;
   width: 48px;
   height: 48px;
-  border-radius: 10px;
-  border: 1px solid rgba(215,130,75,.3);
-  background: var(--routerforge-copper-soft);
-  color: #f0a06b;
-  font-weight: 700;
+  border: 1px solid var(--rf-accent-border);
+  border-radius: var(--rf-radius-card);
+  background: var(--rf-accent-soft);
+  color: var(--rf-accent);
   font-size: 13px;
+  font-weight: 700;
 }
 .routerforge-capability-copy {
+  min-width: 0;
   display: grid;
   gap: 5px;
-  min-width: 0;
 }
 .routerforge-capability-copy small {
-  opacity: .64;
+  color: var(--rf-muted);
   line-height: 1.35;
 }
 .routerforge-empty-capability {
@@ -137,7 +434,7 @@
   min-height: 100px;
 }
 .routerforge-empty-capability span {
-  opacity: .65;
+  color: var(--rf-muted);
 }
 
 .dns-module-nav {
@@ -146,42 +443,248 @@
   gap: 5px;
   margin-bottom: 16px;
   padding: 6px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 10px;
-  background: rgba(255,255,255,.025);
   overflow-x: auto;
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius-panel);
+  background: var(--rf-surface);
 }
 .dns-module-nav-title {
   padding: 7px 10px;
-  color: var(--routerforge-copper);
   font-weight: 700;
   letter-spacing: .08em;
 }
 .dns-module-nav a {
   padding: 8px 11px;
-  border-radius: 7px;
-  color: inherit;
+  border-radius: var(--rf-radius-control);
+  color: var(--rf-muted);
   text-decoration: none;
   white-space: nowrap;
-  opacity: .72;
 }
 .dns-module-nav a:hover {
-  background: rgba(255,255,255,.045);
-  opacity: 1;
+  color: var(--rf-text);
+  background: var(--rf-hover);
 }
 .dns-module-nav a.active {
-  background: var(--routerforge-copper-soft);
-  color: #f1a16c;
-  opacity: 1;
+  color: var(--rf-accent);
+  background: var(--rf-accent-soft);
 }
 
-.global-tree-root {
+/* ------------------------------------------------------------------ */
+/* Settings layout + appearance controls                               */
+/* ------------------------------------------------------------------ */
+.setting-row {
+  min-height: var(--rf-setting-row-h) !important;
+  padding: 10px 13px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  border-bottom-color: var(--rf-border) !important;
+}
+.setting-row > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto !important;
+  max-width: none !important;
+}
+.setting-row > div strong {
+  color: var(--rf-text) !important;
+}
+.setting-row > div span {
+  color: var(--rf-muted) !important;
+}
+.setting-control-slot {
+  width: 220px;
+  min-width: 220px;
+  flex: 0 0 220px !important;
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: flex-end;
+  gap: var(--rf-control-gap);
 }
-.global-tree-root .global-tree-state {
-  margin-left: auto;
+.setting-control-slot select {
+  width: 100%;
+  max-width: 220px;
+}
+
+.security-setting-row {
+  justify-content: space-between !important;
+  gap: 24px !important;
+}
+.security-setting-row > div:first-child {
+  flex: 1 1 auto !important;
+  max-width: none !important;
+}
+.security-control {
+  width: 220px !important;
+  min-width: 220px !important;
+  flex: 0 0 220px !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+}
+.security-switch {
+  width: 46px;
+  height: 24px;
+  flex: 0 0 46px;
+  position: relative;
+  padding: 0;
+  border: 1px solid var(--rf-border-strong) !important;
+  border-radius: 999px !important;
+  background: var(--rf-surface-2) !important;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.security-switch > span {
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  margin: 0 !important;
+  border-radius: 50%;
+  background: var(--rf-muted);
+  transition: transform .15s ease, background .15s ease;
+}
+.security-switch.on {
+  border-color: var(--rf-accent-border) !important;
+  background: var(--rf-accent-soft) !important;
+}
+.security-switch.on > span {
+  background: var(--rf-accent);
+  transform: translateX(20px);
+}
+.security-switch:focus-visible {
+  outline: 2px solid var(--rf-accent);
+  outline-offset: 2px;
+}
+.security-switch:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.settings-title {
+  border-bottom-color: var(--rf-border) !important;
+  color: var(--rf-text) !important;
+  background: color-mix(in srgb, var(--rf-surface) 82%, var(--rf-bg)) !important;
+}
+.appearance-intro {
+  padding: 12px 13px 4px;
+  color: var(--rf-muted);
+  font-size: var(--ui-xs);
+  line-height: 1.5;
+}
+.appearance-subtitle {
+  padding: 14px 13px 8px;
+  color: var(--rf-text);
+  font-size: var(--ui-xs);
+  font-weight: 600;
+}
+.theme-grid {
+  padding: 0 13px 13px;
+  gap: 10px !important;
+}
+.theme-card {
+  border: 1px solid var(--rf-border) !important;
+  border-radius: var(--rf-radius-card) !important;
+  background: var(--rf-surface-2) !important;
+  color: var(--rf-text) !important;
+}
+.theme-card:hover {
+  border-color: var(--rf-border-strong) !important;
+  background: var(--rf-hover) !important;
+}
+.theme-card.active {
+  border-color: var(--rf-accent-border) !important;
+  box-shadow: inset 0 0 0 1px var(--rf-accent-soft) !important;
+}
+.theme-card p {
+  color: var(--rf-muted) !important;
+}
+.theme-preview {
+  border-color: var(--rf-border) !important;
+  border-radius: var(--rf-radius-control) !important;
+}
+
+.accent-picker-row {
+  padding: 0 13px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.accent-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.accent-swatch {
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius-control);
+  background: var(--rf-surface-2);
+  cursor: pointer;
+}
+.accent-swatch span {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: max(2px, calc(var(--rf-radius-control) - 2px));
+  background: var(--swatch);
+}
+.accent-swatch:hover,
+.accent-swatch.active {
+  border-color: var(--rf-accent);
+}
+.accent-swatch.active {
+  box-shadow: 0 0 0 2px var(--rf-accent-soft);
+}
+.custom-accent,
+.appearance-options-grid label,
+.custom-theme-colors label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--rf-muted);
+  font-size: var(--ui-xs);
+}
+.custom-accent input[type="color"],
+.custom-theme-colors input[type="color"] {
+  width: 36px;
+  height: 30px;
+  padding: 3px;
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius-control);
+  background: var(--rf-surface-2);
+}
+.appearance-options-grid {
+  padding: 0 13px 13px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.appearance-options-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.appearance-options-grid select {
+  width: 100%;
+  max-width: none;
+}
+.custom-theme-colors {
+  padding: 0 13px 13px !important;
+}
+
+html[data-brand-mode="extended"] .routerforge-capability-icon,
+html[data-brand-mode="extended"] .rail-repository-arrow {
+  color: var(--rf-brand) !important;
+}
+html[data-brand-mode="extended"] .routerforge-capability-icon {
+  border-color: rgba(215, 130, 75, .30) !important;
+  background: rgba(215, 130, 75, .10) !important;
 }
 
 @media (max-width: 1000px) {
@@ -189,10 +692,35 @@
   .routerforge-capability-grid {
     grid-template-columns: 1fr;
   }
+  .appearance-options-grid {
+    grid-template-columns: 1fr;
+  }
 }
+
+@media (max-width: 900px) {
+  .setting-row,
+  .security-setting-row {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  .setting-control-slot,
+  .security-control {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    justify-content: flex-start !important;
+  }
+  .setting-control-slot select {
+    width: min(100%, 320px);
+    max-width: 320px;
+  }
+}
+
 @media (max-width: 760px) {
   .routerforge-header-mark { width: 30px; height: 30px; flex-basis: 30px; }
   .routerforge-auth-mark { width: 56px; height: 56px; }
-  .routerforge-capability-card { grid-template-columns: 48px minmax(0,1fr); }
+  .routerforge-capability-card { grid-template-columns: 48px minmax(0, 1fr); }
   .routerforge-capability-card .state-chip { grid-column: 2; justify-self: start; }
+  .accent-picker-row { align-items: flex-start; flex-direction: column; }
 }

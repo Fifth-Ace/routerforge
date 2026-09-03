@@ -51,6 +51,9 @@ func discoverDNSConfiguration() ([]UpstreamMeta, []PlainDNSMeta, map[string]Poli
 	dnsProxyText := string(out)
 	ups := parseDNSProxy(dnsProxyText)
 	plain := parsePlainDNSProxy(dnsProxyText)
+	if nameServerText, e := ndmcOutput("show ip name-server", 6*time.Second); e == nil {
+		plain = append(plain, parseIPNameServers(nameServerText)...)
+	}
 
 	policies := make(map[string]policyRoute)
 	if policyText, e := ndmcOutput("show ip policy", 6*time.Second); e == nil {

@@ -35,7 +35,9 @@ chmod 0755 "$WORK/data/opt/bin/dns-monitor"
 cp "$ROOT/package/S90dns-monitor" "$WORK/data/opt/etc/init.d/S90dns-monitor"
 chmod 0755 "$WORK/data/opt/etc/init.d/S90dns-monitor"
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/dns-monitor/LICENSE"
-chmod 0644 "$WORK/data/opt/share/licenses/dns-monitor/LICENSE"
+cp "$ROOT/THIRD_PARTY_NOTICES.md" "$WORK/data/opt/share/licenses/dns-monitor/THIRD_PARTY_NOTICES.md"
+chmod 0644 "$WORK/data/opt/share/licenses/dns-monitor/LICENSE" \
+    "$WORK/data/opt/share/licenses/dns-monitor/THIRD_PARTY_NOTICES.md"
 
 sed -e "s/@VERSION@/$PKG_VERSION/g" \
     "$ROOT/packaging/opkg/control.template" > "$WORK/control/control"

@@ -25,6 +25,8 @@ func startWeb(store *Store, listen string, version string) error {
 	}
 
 	mux := http.NewServeMux()
+	auth := newAuthManager()
+	auth.registerHandlers(mux)
 	fileServer := http.FileServer(http.FS(sub))
 
 	serveIndex := func(w http.ResponseWriter) {
@@ -72,6 +74,13 @@ func startWeb(store *Store, listen string, version string) error {
 		flusher.Flush()
 
 		send := func() bool {
+			// An SSE connection may have been opened while auth was disabled.
+			// Re-check before every snapshot so enabling auth closes old anonymous streams.
+			if auth.authRequired() {
+				if _, authenticated := auth.sessionUser(r); !authenticated {
+					return false
+				}
+			}
 			payload, marshalErr := json.Marshal(snapshotData(store, version))
 			if marshalErr != nil {
 				return false
@@ -214,6 +223,7 @@ func startWeb(store *Store, listen string, version string) error {
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
 	mux.HandleFunc("/api/modules/", proxyModuleAPI)
 
+	mux.HandleFunc("/api/catalog/action", handleCatalogActionTest)
 	mux.HandleFunc("/api/catalog/install", handleCatalogInstallTest)
 	mux.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -252,7 +262,7 @@ func startWeb(store *Store, listen string, version string) error {
 	}))
 
 	server := &http.Server{
-		Addr: listen, Handler: profiledHTTPHandler(mux), ReadHeaderTimeout: 5 * time.Second,
+		Addr: listen, Handler: profiledHTTPHandler(auth.middleware(mux)), ReadHeaderTimeout: 5 * time.Second,
 	}
 	return server.ListenAndServe()
 }

@@ -1,8 +1,9 @@
 <script>
   import { catalog, catalogOnline, refreshCatalog } from '$lib/stores/catalog.js';
-  import { installCatalogItem } from '$lib/api.js';
+  import { catalogAction } from '$lib/api.js';
   import { stateInfo, localWebURL } from '$lib/utils.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
+  import RemoveConfirm from '$lib/components/RemoveConfirm.svelte';
 
   const acronyms = {
     'awg-manager': 'AWG', nfqws2: 'NQ2', nfqws: 'NQ1', 'nfqws-web': 'NQW', 'hydraroute-neo': 'HRN',
@@ -17,8 +18,10 @@
   let statusFilter = 'all';
   let category = 'all';
   let plannerItem = null;
-  let installingId = '';
-  let installNotice = null;
+  let removeItem = null;
+  let busyId = '';
+  let busyAction = '';
+  let actionNotice = null;
 
   $: data = $catalog || { modules: [], integrations: [], read_only: true, install_test_mode: false };
   $: modules = data.modules || [];
@@ -30,32 +33,18 @@
   $: visibleModules = filterAndSort(modules, statusFilter, category, search);
   $: visibleIntegrations = filterAndSort(integrations, statusFilter, category, search);
   $: sections = [
-    {
-      id: 'modules',
-      title: 'Модули DNS Monitor',
-      subtitle: 'Core, Marketplace и optional-модули проекта.',
-      items: visibleModules
-    },
-    {
-      id: 'integrations',
-      title: 'Сторонние проекты',
-      subtitle: 'Обнаружение и интеграции Keenetic / Netcraze / Entware. Автоустановка стороннего кода отключена.',
-      items: visibleIntegrations
-    }
+    { id: 'modules', title: 'Модули DNS Monitor', subtitle: 'Core, Marketplace и optional-модули проекта.', items: visibleModules },
+    { id: 'integrations', title: 'Сторонние проекты', subtitle: 'Обнаружение и интеграции Keenetic / Netcraze / Entware. Автоуправление сторонними пакетами отключено.', items: visibleIntegrations }
   ];
 
   function filterAndSort(items, selectedStatus, selectedCategory, query) {
     const q = String(query || '').trim().toLowerCase();
-
     return items
       .filter((item) => {
         if (selectedStatus === 'installed' && !item.installed) return false;
         if (selectedStatus === 'not-installed' && item.installed) return false;
         if (selectedCategory !== 'all' && item.category !== selectedCategory) return false;
-
-        return !q || `${item.name} ${item.category} ${item.description} ${item.version || ''} ${(item.detection?.packages || []).join(' ')}`
-          .toLowerCase()
-          .includes(q);
+        return !q || `${item.name} ${item.category} ${item.description} ${item.version || ''} ${(item.detection?.packages || []).join(' ')}`.toLowerCase().includes(q);
       })
       .map((item, index) => ({ item, index }))
       .sort((a, b) => {
@@ -82,55 +71,65 @@
 
   const moduleURL = (item) => {
     if (item.id === 'admin') return '/admin';
-    if (['system', 'thermal', 'storage', 'network', 'profiling'].includes(item.id)) {
-      return `/modules?tab=${encodeURIComponent(item.id)}`;
-    }
+    if (['system', 'thermal', 'storage', 'network', 'profiling'].includes(item.id)) return `/modules?tab=${encodeURIComponent(item.id)}`;
     return '';
   };
 
-  const canTestInstall = (item) =>
+  const canManage = (item) =>
     Boolean(data.install_test_mode)
     && item.kind === 'module'
     && item.managed
-    && !item.installed
+    && !item.builtin
     && item.install?.method === 'opkg-feed'
     && item.install?.repository === 'dns-monitor';
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  async function installItem(item) {
-    if (!canTestInstall(item) || installingId) return;
-    const packages = item.install?.packages || [];
-    const confirmed = window.confirm(
-      `TEST MODE\n\nУстановить ${item.name}${packages.length ? ` (${packages.join(', ')})` : ''}?\n\nCore выполнит только allowlisted opkg install для модуля DNS Monitor.`
-    );
-    if (!confirmed) return;
+  async function runAction(item, action, confirm = '') {
+    if (!canManage(item) || busyId) return;
 
-    installingId = item.id;
-    installNotice = { cls: 'info', text: `Устанавливаем ${item.name}…` };
+    if (action === 'install') {
+      const packages = item.install?.packages || [];
+      if (!window.confirm(`Установить ${item.name}${packages.length ? ` (${packages.join(', ')})` : ''}?`)) return;
+    }
+    if (action === 'update' && !window.confirm(`Обновить ${item.name}?\n\nЕсли в /opt/tmp лежит локальный IPK, Marketplace выполнит force-reinstall именно его. Иначе будет использован opkg upgrade.`)) return;
+
+    busyId = item.id;
+    busyAction = action;
+    actionNotice = { cls: 'info', text: `${actionLabel(action)}: ${item.name}…` };
 
     try {
-      const result = await installCatalogItem(item.id);
+      const result = await catalogAction(item.id, action, confirm);
       await refreshCatalog();
-      installNotice = {
-        cls: 'good',
-        text: `${item.name}: установлено${result.sources?.length ? ` · ${result.sources.join(' · ')}` : ''}`
-      };
+      actionNotice = { cls: 'good', text: successText(item, action, result) };
+      if (action === 'remove') removeItem = null;
     } catch (error) {
-      // Profiling package restarts Core in postinst, so the HTTP request may be
-      // interrupted even when installation itself succeeded. Re-check catalog.
+      // Profiling package restarts Core in postinst/prerm, so a successful action
+      // can terminate the current HTTP request. Re-check the catalog after Core returns.
       await delay(2500);
       const refreshed = await refreshCatalog();
       const found = [...(refreshed?.modules || [])].find((candidate) => candidate.id === item.id);
-      if (found?.installed) {
-        installNotice = { cls: 'good', text: `${item.name}: установлено; Core перезапустился во время операции.` };
+      const expectedInstalled = action !== 'remove';
+      if (found && Boolean(found.installed) === expectedInstalled) {
+        actionNotice = { cls: 'good', text: `${item.name}: ${action === 'remove' ? 'удалён' : 'операция завершена'}; Core перезапустился во время операции.` };
+        if (action === 'remove') removeItem = null;
       } else {
         const detail = error?.payload?.detail || error?.payload?.error || error?.message || 'неизвестная ошибка';
-        installNotice = { cls: 'error', text: `${item.name}: установка не выполнена · ${detail}` };
+        actionNotice = { cls: 'error', text: `${item.name}: операция не выполнена · ${detail}` };
       }
     } finally {
-      installingId = '';
+      busyId = '';
+      busyAction = '';
     }
+  }
+
+  const actionLabel = (action) => action === 'install' ? 'Установка' : action === 'update' ? 'Обновление' : 'Удаление';
+
+  function successText(item, action, result) {
+    const source = result?.sources?.length ? ` · ${result.sources.join(' · ')}` : '';
+    if (action === 'remove') return `${item.name}: удалён`;
+    if (action === 'update') return `${item.name}: обновлён${source}`;
+    return `${item.name}: установлен${source}`;
   }
 </script>
 
@@ -159,39 +158,34 @@
 
   <div class="market-safety-line mono" class:test-mode={data.install_test_mode}>
     {#if data.install_test_mode}
-      <span><i class="status-dot warn"></i> INSTALL TEST MODE <strong>ACTIVE</strong></span>
-      <span>DNS MONITOR MODULES <strong>ALLOWLISTED</strong></span>
+      <span><i class="status-dot warn"></i> PACKAGE TEST MODE <strong>ACTIVE</strong></span>
+      <span>INSTALL / UPDATE / REMOVE <strong>ALLOWLISTED</strong></span>
       <span>THIRD-PARTY EXECUTION <strong>DISABLED</strong></span>
     {:else}
       <span><i class="status-dot good"></i> CATALOG READ-ONLY</span>
-      <span>DNS MONITOR INSTALL <strong>DISABLED</strong></span>
+      <span>PACKAGE MANAGEMENT <strong>DISABLED</strong></span>
       <span>THIRD-PARTY EXECUTION <strong>DISABLED</strong></span>
     {/if}
     <span>PHASE <strong>{data.phase || '—'}</strong></span>
   </div>
 
-  {#if installNotice}
-    <div class="catalog-install-notice {installNotice.cls}">
-      <span class="status-dot {installNotice.cls}"></span>
-      <span>{installNotice.text}</span>
-      <button class="icon-button" aria-label="Закрыть сообщение" onclick={() => installNotice = null}>×</button>
+  {#if actionNotice}
+    <div class="catalog-install-notice {actionNotice.cls}">
+      <span class="status-dot {actionNotice.cls}"></span>
+      <span>{actionNotice.text}</span>
+      <button class="icon-button" aria-label="Закрыть сообщение" onclick={() => actionNotice = null}>×</button>
     </div>
   {/if}
 
   {#each sections as section (section.id)}
     <section class="catalog-market-section">
       <div class="catalog-section-head">
-        <div>
-          <h2>{section.title}</h2>
-          <p>{section.subtitle}</p>
-        </div>
+        <div><h2>{section.title}</h2><p>{section.subtitle}</p></div>
         <span class="state-chip neutral">{section.items.length}</span>
       </div>
 
       <div class="catalog-grid catalog-grid-v2">
-        {#if !section.items.length}
-          <div class="catalog-empty">В этом разделе ничего не найдено</div>
-        {/if}
+        {#if !section.items.length}<div class="catalog-empty">В этом разделе ничего не найдено</div>{/if}
 
         {#each section.items as item (item.id)}
           {@const st = stateInfo(item)}
@@ -219,18 +213,18 @@
             <div class="catalog-card-foot">
               <div class="catalog-actions">
                 {#if ownURL}<a class="button primary" href={ownURL}>Открыть модуль</a>{/if}
-                {#if item.installed && item.web_port}
-                  <a class="button" target="_blank" rel="noopener noreferrer" href={localWebURL(item.web_port)}>Открыть UI :{item.web_port}</a>
+                {#if item.installed && item.web_port}<a class="button" target="_blank" rel="noopener noreferrer" href={localWebURL(item.web_port)}>Открыть UI :{item.web_port}</a>{/if}
+
+                {#if canManage(item)}
+                  {#if item.installed}
+                    <button class="button" disabled={Boolean(busyId)} onclick={() => runAction(item, 'update')}>{busyId === item.id && busyAction === 'update' ? 'Обновление…' : 'Обновить'}</button>
+                    <button class="button danger-subtle" disabled={Boolean(busyId)} onclick={() => removeItem = item}>Удалить</button>
+                  {:else}
+                    <button class="button primary test-install-button" disabled={Boolean(busyId)} onclick={() => runAction(item, 'install')}>{busyId === item.id && busyAction === 'install' ? 'Установка…' : 'Установить'}</button>
+                  {/if}
                 {/if}
 
-                {#if canTestInstall(item)}
-                  <button class="button primary test-install-button" disabled={Boolean(installingId)} onclick={() => installItem(item)}>
-                    {installingId === item.id ? 'Установка…' : 'Установить (TEST)'}
-                  </button>
-                {:else if item.installed || item.install?.method || item.project_url}
-                  <button class="button" onclick={() => plannerItem = item}>{item.installed ? 'Подробнее' : 'План установки'}</button>
-                {/if}
-
+                {#if item.installed || item.install?.method || item.project_url}<button class="button" onclick={() => plannerItem = item}>Подробнее</button>{/if}
                 {#if item.project_url}<a class="button compact" target="_blank" rel="noopener noreferrer" href={item.project_url}>Проект</a>{/if}
               </div>
               <span class="mono muted">{item.kind === 'module' ? 'dns-monitor' : 'third-party'}</span>
@@ -248,3 +242,4 @@
 </div>
 
 {#if plannerItem}<InstallPlanner item={plannerItem} onclose={() => plannerItem = null}/>{/if}
+{#if removeItem}<RemoveConfirm item={removeItem} busy={busyId === removeItem.id && busyAction === 'remove'} oncancel={() => { if (!busyId) removeItem = null; }} onconfirm={(typed) => runAction(removeItem, 'remove', typed)}/>{/if}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -13,68 +12,84 @@ type catalogInstallRequest struct {
 	ID string `json:"id"`
 }
 
-func handleCatalogInstallTest(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+type catalogActionRequest struct {
+	ID      string `json:"id"`
+	Action  string `json:"action"`
+	Confirm string `json:"confirm,omitempty"`
+}
 
+func handleCatalogInstallTest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": "POST required"})
+		writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST required"})
 		return
 	}
-
-	if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" {
-		parsed, err := url.Parse(origin)
-		if err != nil || !strings.EqualFold(parsed.Host, r.Host) {
-			w.WriteHeader(http.StatusForbidden)
-			_ = json.NewEncoder(w).Encode(map[string]any{"error": "cross-origin install request rejected"})
-			return
-		}
+	if !sameOriginRequest(r) {
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "cross-origin install request rejected"})
+		return
 	}
+	var request catalogInstallRequest
+	if err := decodeSmallJSON(w, r, &request); err != nil || strings.TrimSpace(request.ID) == "" {
+		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "valid catalog module id is required"})
+		return
+	}
+	runCatalogHTTPAction(w, r, request.ID, "install", "")
+}
 
+func handleCatalogActionTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST required"})
+		return
+	}
+	if !sameOriginRequest(r) {
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "cross-origin package-management request rejected"})
+		return
+	}
+	var request catalogActionRequest
+	if err := decodeSmallJSON(w, r, &request); err != nil || strings.TrimSpace(request.ID) == "" {
+		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "valid catalog action request is required"})
+		return
+	}
+	runCatalogHTTPAction(w, r, request.ID, request.Action, request.Confirm)
+}
+
+func runCatalogHTTPAction(w http.ResponseWriter, r *http.Request, id, action, confirmation string) {
 	if !marketplaceTestInstallEnabled() {
-		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"error":  "marketplace test install mode is disabled",
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{
+			"error":  "marketplace test package management is disabled",
 			"marker": marketplaceTestInstallMarker,
 		})
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, 4096)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	var request catalogInstallRequest
-	if err := decoder.Decode(&request); err != nil || strings.TrimSpace(request.ID) == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": "valid catalog module id is required"})
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(r.Context(), 180*time.Second)
 	defer cancel()
-
-	result, err := installCatalogModuleTest(ctx, request.ID)
+	result, err := runCatalogModuleAction(ctx, id, action, confirmation)
 	if err != nil {
 		status := http.StatusInternalServerError
 		message := err.Error()
 		detail := ""
-		if installErr, ok := err.(*catalogInstallFailure); ok {
-			if installErr.Status > 0 {
-				status = installErr.Status
+		if actionErr, ok := err.(*catalogInstallFailure); ok {
+			if actionErr.Status > 0 {
+				status = actionErr.Status
 			}
-			message = installErr.Message
-			detail = installErr.Detail
+			message = actionErr.Message
+			detail = actionErr.Detail
 		}
-		w.WriteHeader(status)
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		writeCatalogJSON(w, status, map[string]any{
 			"error":  message,
 			"detail": detail,
 			"result": result,
 		})
 		return
 	}
+	writeCatalogJSON(w, http.StatusOK, result)
+}
 
-	_ = json.NewEncoder(w).Encode(result)
+func writeCatalogJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
 }

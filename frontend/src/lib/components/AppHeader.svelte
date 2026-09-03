@@ -3,6 +3,7 @@
   import { snapshot, backendOnline, streamMode } from '$lib/stores/snapshot.js';
   import { adminSummary, adminOnline } from '$lib/stores/admin.js';
   import { systemModuleSummary, systemModuleOnline } from '$lib/stores/systemModule.js';
+  import { authState, logoutAuth } from '$lib/stores/auth.js';
 
   const items = [
     { href: '/', label: 'Обзор' },
@@ -34,6 +35,10 @@
     if (href === '/') return current === '/';
     return current === href || current.startsWith(`${href}/`);
   }
+
+  async function logout() {
+    await logoutAuth();
+  }
 </script>
 
 <header class="app-header">
@@ -60,6 +65,10 @@
         <span class="header-meta"><i>HOST:</i><b>{hostTelemetry.hostname || '—'}</b></span>
         <span class="header-separator"></span>
         <span class="header-meta"><i>KERNEL:</i><b>{hostTelemetry.kernel || '—'}</b></span>
+      {/if}
+      {#if $authState.required}
+        <span class="header-separator"></span>
+        <span class="header-auth"><i>AUTH:</i><b>{$authState.user || 'root'}</b><button type="button" onclick={logout}>Выйти</button></span>
       {/if}
       <span class="header-separator"></span>
       <span class="stream-label">{$streamMode.toUpperCase()}</span>

@@ -19,16 +19,19 @@ const (
 
 var marketplaceInstallMu sync.Mutex
 
-type catalogInstallResult struct {
+type catalogActionResult struct {
 	ID               string    `json:"id"`
 	Name             string    `json:"name"`
+	Action           string    `json:"action"`
 	Packages         []string  `json:"packages"`
-	Sources          []string  `json:"sources"`
+	Sources          []string  `json:"sources,omitempty"`
 	Installed        bool      `json:"installed"`
 	AlreadyInstalled bool      `json:"already_installed,omitempty"`
 	Output           string    `json:"output,omitempty"`
 	CompletedAt      time.Time `json:"completed_at"`
 }
+
+type catalogInstallResult = catalogActionResult
 
 type catalogInstallFailure struct {
 	Status  int
@@ -137,74 +140,124 @@ func opkgExecutable() (string, error) {
 }
 
 func installCatalogModuleTest(ctx context.Context, id string) (catalogInstallResult, error) {
+	return runCatalogModuleAction(ctx, id, "install", "")
+}
+
+func runCatalogModuleAction(ctx context.Context, id, action, confirmation string) (catalogActionResult, error) {
 	marketplaceInstallMu.Lock()
 	defer marketplaceInstallMu.Unlock()
 
 	if !marketplaceTestInstallEnabled() {
-		return catalogInstallResult{}, &catalogInstallFailure{
-			Status: 403, Message: "marketplace test install mode is disabled",
+		return catalogActionResult{}, &catalogInstallFailure{
+			Status: 403, Message: "marketplace test package management is disabled",
 			Detail: marketplaceTestInstallMarker + " is missing",
 		}
 	}
 
 	item, ok := catalogModuleByID(id)
 	if !ok {
-		return catalogInstallResult{}, &catalogInstallFailure{Status: 404, Message: "catalog module not found"}
-	}
-	if item.Installed {
-		return catalogInstallResult{
-			ID: item.ID, Name: item.Name, Packages: append([]string(nil), item.Install.Packages...),
-			Installed: true, AlreadyInstalled: true, CompletedAt: time.Now(),
-		}, nil
+		return catalogActionResult{}, &catalogInstallFailure{Status: 404, Message: "catalog module not found"}
 	}
 	if !catalogItemTestInstallable(item) {
-		return catalogInstallResult{}, &catalogInstallFailure{
-			Status: 403, Message: "catalog item is not allowlisted for test installation",
+		return catalogActionResult{}, &catalogInstallFailure{
+			Status: 403, Message: "catalog item is not allowlisted for package management",
 		}
+	}
+
+	action = strings.TrimSpace(strings.ToLower(action))
+	switch action {
+	case "install":
+		if item.Installed {
+			return catalogActionResult{
+				ID: item.ID, Name: item.Name, Action: action,
+				Packages:  append([]string(nil), item.Install.Packages...),
+				Installed: true, AlreadyInstalled: true, CompletedAt: time.Now(),
+			}, nil
+		}
+	case "update":
+		if !item.Installed {
+			return catalogActionResult{}, &catalogInstallFailure{Status: 409, Message: "module is not installed"}
+		}
+	case "remove":
+		if !item.Installed {
+			return catalogActionResult{
+				ID: item.ID, Name: item.Name, Action: action,
+				Packages:  append([]string(nil), item.Install.Packages...),
+				Installed: false, CompletedAt: time.Now(),
+			}, nil
+		}
+		if confirmation != item.Name {
+			return catalogActionResult{}, &catalogInstallFailure{
+				Status: 400, Message: "typed removal confirmation does not match module name",
+			}
+		}
+	default:
+		return catalogActionResult{}, &catalogInstallFailure{Status: 400, Message: "unsupported catalog action"}
 	}
 
 	opkg, err := opkgExecutable()
 	if err != nil {
-		return catalogInstallResult{}, &catalogInstallFailure{Status: 500, Message: "opkg unavailable", Detail: err.Error()}
+		return catalogActionResult{}, &catalogInstallFailure{Status: 500, Message: "opkg unavailable", Detail: err.Error()}
 	}
 
-	result := catalogInstallResult{
-		ID: item.ID, Name: item.Name, Packages: append([]string(nil), item.Install.Packages...),
+	result := catalogActionResult{
+		ID: item.ID, Name: item.Name, Action: action,
+		Packages: append([]string(nil), item.Install.Packages...),
 	}
 	var log strings.Builder
 
 	for _, pkg := range item.Install.Packages {
+		args := make([]string, 0, 4)
 		source := pkg
 		sourceKind := "opkg-feed"
-		if local := findNewestLocalIPK(marketplaceLocalPackageDir, pkg); local != "" {
-			source = local
-			sourceKind = "local-ipk"
-		}
-		result.Sources = append(result.Sources, sourceKind+":"+source)
+		local := findNewestLocalIPK(marketplaceLocalPackageDir, pkg)
 
-		cmd := exec.CommandContext(ctx, opkg, "install", source)
+		switch action {
+		case "install":
+			if local != "" {
+				source = local
+				sourceKind = "local-ipk"
+			}
+			args = []string{"install", source}
+			result.Sources = append(result.Sources, sourceKind+":"+source)
+		case "update":
+			if local != "" {
+				source = local
+				sourceKind = "local-ipk"
+				args = []string{"--force-reinstall", "install", source}
+			} else {
+				args = []string{"upgrade", pkg}
+			}
+			result.Sources = append(result.Sources, sourceKind+":"+source)
+		case "remove":
+			args = []string{"remove", pkg}
+		}
+
+		cmd := exec.CommandContext(ctx, opkg, args...)
 		output, runErr := cmd.CombinedOutput()
 		if log.Len() > 0 {
 			log.WriteString("\n")
 		}
-		fmt.Fprintf(&log, "$ %s install %s\n%s", opkg, source, string(output))
+		fmt.Fprintf(&log, "$ %s %s\n%s", opkg, strings.Join(args, " "), string(output))
 		if runErr != nil {
 			result.Output = truncateCatalogInstallOutput(log.String(), 16000)
 			return result, &catalogInstallFailure{
-				Status: 500, Message: "opkg install failed",
+				Status: 500, Message: "opkg " + action + " failed",
 				Detail: truncateCatalogInstallOutput(strings.TrimSpace(string(output)), 4000),
 			}
 		}
 	}
 
-	updated, ok := catalogModuleByID(id)
-	result.Installed = ok && updated.Installed
+	updated, found := catalogModuleByID(id)
+	result.Installed = found && updated.Installed
 	result.Output = truncateCatalogInstallOutput(log.String(), 16000)
 	result.CompletedAt = time.Now()
-	if !result.Installed {
-		return result, &catalogInstallFailure{
-			Status: 500, Message: "package command completed but catalog still reports module as not installed",
-		}
+
+	if action == "remove" && result.Installed {
+		return result, &catalogInstallFailure{Status: 500, Message: "package command completed but catalog still reports module as installed"}
+	}
+	if action != "remove" && !result.Installed {
+		return result, &catalogInstallFailure{Status: 500, Message: "package command completed but catalog still reports module as not installed"}
 	}
 	return result, nil
 }

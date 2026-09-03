@@ -178,7 +178,7 @@ jobs:
       - name: Check RouterForge release tooling
         run: |
           sh -n scripts/build-module-opkg.sh
-          python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py
+          python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py
 
       - name: Build RouterForge beta channel
         if: github.ref == 'refs/heads/dev'
@@ -219,8 +219,9 @@ jobs:
           else
             gh release create "$TAG" \
               --prerelease \
-              --title "RouterForge beta channel" \
-              --notes "Rolling RouterForge beta channel with independently versioned components."
+              --latest=false \
+              --title "RouterForge Beta" \
+              --notes "RouterForge beta channel is being initialized."
           fi
 
           python3 scripts/merge_release_index.py \
@@ -230,12 +231,45 @@ jobs:
             --changed-list "$CHANGED" \
             --checksums "$SUMS"
 
+          NOTES=dist/routerforge-beta-release-notes.md
+          python3 scripts/render_release_notes.py \
+            --channel beta \
+            --previous "$PREVIOUS" \
+            --final "$FINAL" \
+            --output "$NOTES" \
+            --commit "$GITHUB_SHA"
+
           while IFS= read -r asset; do
             [ -n "$asset" ] || continue
             gh release upload "$TAG" --clobber "dist/$asset"
           done < "$CHANGED"
 
+          python3 - "$FINAL" > /tmp/routerforge-beta-current-assets.txt <<'PY'
+          import json, sys
+          with open(sys.argv[1], "r", encoding="utf-8") as fh:
+              doc = json.load(fh)
+          for item in doc.get("components", []):
+              asset = item.get("asset")
+              if asset:
+                  print(asset)
+          PY
+
+          gh release view "$TAG" --json assets --jq '.assets[].name' |
+          while IFS= read -r asset; do
+            case "$asset" in
+              routerforge-*.ipk)
+                if ! grep -Fxq "$asset" /tmp/routerforge-beta-current-assets.txt; then
+                  gh release delete-asset "$TAG" "$asset" --yes
+                fi
+                ;;
+            esac
+          done
+
           gh release upload "$TAG" --clobber "$FINAL" "$SUMS"
+          gh release edit "$TAG" \
+            --prerelease \
+            --title "RouterForge Beta" \
+            --notes-file "$NOTES"
 
       - name: Build RouterForge stable channel
         if: github.ref == 'refs/heads/main'
@@ -275,8 +309,9 @@ jobs:
             gh release download "$TAG" -p "$INDEX" -D /tmp >/dev/null 2>&1 || true
           else
             gh release create "$TAG" \
-              --title "RouterForge stable channel" \
-              --notes "Production RouterForge channel with independently versioned components."
+              --latest \
+              --title "RouterForge Stable" \
+              --notes "RouterForge stable channel is being initialized."
           fi
 
           python3 scripts/merge_release_index.py \
@@ -286,9 +321,48 @@ jobs:
             --changed-list "$CHANGED" \
             --checksums "$SUMS"
 
+          NOTES=dist/routerforge-stable-release-notes.md
+          python3 scripts/render_release_notes.py \
+            --channel stable \
+            --previous "$PREVIOUS" \
+            --final "$FINAL" \
+            --output "$NOTES" \
+            --commit "$GITHUB_SHA"
+
           while IFS= read -r asset; do
             [ -n "$asset" ] || continue
             gh release upload "$TAG" --clobber "dist/$asset"
           done < "$CHANGED"
 
+          python3 - "$FINAL" > /tmp/routerforge-stable-current-assets.txt <<'PY'
+          import json, sys
+          with open(sys.argv[1], "r", encoding="utf-8") as fh:
+              doc = json.load(fh)
+          for item in doc.get("components", []):
+              asset = item.get("asset")
+              if asset:
+                  print(asset)
+          PY
+
+          gh release view "$TAG" --json assets --jq '.assets[].name' |
+          while IFS= read -r asset; do
+            case "$asset" in
+              routerforge-*.ipk)
+                if ! grep -Fxq "$asset" /tmp/routerforge-stable-current-assets.txt; then
+                  gh release delete-asset "$TAG" "$asset" --yes
+                fi
+                ;;
+            esac
+          done
+
           gh release upload "$TAG" --clobber "$FINAL" "$SUMS"
+
+          # One-time migration cleanup: the old dev rolling release predates beta/stable channels.
+          if gh release view routerforge-dev >/dev/null 2>&1; then
+            gh release delete routerforge-dev --cleanup-tag --yes
+          fi
+
+          gh release edit "$TAG" \
+            --latest \
+            --title "RouterForge Stable" \
+            --notes-file "$NOTES"

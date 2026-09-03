@@ -1,0 +1,8 @@
+#!/bin/sh
+ENABLED=yes
+PROCS=dnsmon-network
+ARGS="-module network -socket /opt/var/run/dns-monitor-network.sock"
+PREARGS=""
+DESC="DNS Monitor Network"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+. /opt/etc/init.d/rc.func

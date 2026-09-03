@@ -2,16 +2,20 @@
   import { onMount } from 'svelte';
   import { catalog, catalogOnline, startCatalogPolling } from '$lib/stores/catalog.js';
   import { adminSummary, adminOnline, startAdminPolling } from '$lib/stores/admin.js';
+  import { systemModuleSummary, systemModuleOnline, startSystemModulePolling } from '$lib/stores/systemModule.js';
 
   let stopCatalog = null;
   let stopAdmin = null;
+  let stopSystem = null;
 
   onMount(() => {
     stopCatalog = startCatalogPolling();
     stopAdmin = startAdminPolling();
+    stopSystem = startSystemModulePolling();
     return () => {
       stopCatalog?.();
       stopAdmin?.();
+      stopSystem?.();
     };
   });
 
@@ -23,7 +27,8 @@
     + modules.filter((x) => x.managed && x.service_running).length;
   $: available = all.filter((x) => x.state === 'available').length;
   $: adminModule = modules.find((x) => x.id === 'admin');
-  $: mem = $adminSummary?.memory;
+  $: telemetry = $adminOnline ? $adminSummary : $systemModuleOnline ? $systemModuleSummary : null;
+  $: mem = telemetry?.memory;
   $: ramPct = mem?.total_kb ? Number(mem.used_kb || 0) / Number(mem.total_kb) * 100 : 0;
 
   function stateLabel(item) {
@@ -79,14 +84,15 @@
     <div class="rail-bottom-stack">
       <section class="rail-status-card mono">
         <div class="rail-section-label">Core Telemetry</div>
-        {#if $adminOnline && $adminSummary}
-          <div><span>host</span><strong>{$adminSummary.hostname || '—'}</strong></div>
-          <div><span>load.1m</span><strong>{Number($adminSummary.load_1 || 0).toFixed(2)}</strong></div>
+        {#if telemetry}
+          <div><span>source</span><strong>{$adminOnline ? 'ADMIN' : 'SYSTEM'}</strong></div>
+          <div><span>host</span><strong>{telemetry.hostname || '—'}</strong></div>
+          <div><span>load.1m</span><strong>{Number(telemetry.load_1 || 0).toFixed(2)}</strong></div>
           <div><span>ram.used</span><strong>{ramPct.toFixed(0)}%</strong></div>
-          <div><span>processes</span><strong>{$adminSummary.process_count || 0}</strong></div>
+          <div><span>processes</span><strong>{telemetry.process_count || 0}</strong></div>
         {:else}
           <div><span>admin</span><strong class={adminModule?.installed ? 'warn' : 'muted'}>{adminModule?.installed ? 'OFFLINE' : 'OPTIONAL'}</strong></div>
-          <div><span>telemetry</span><strong class="muted">N/A</strong></div>
+          <div><span>system</span><strong class="muted">OPTIONAL</strong></div>
         {/if}
       </section>
 

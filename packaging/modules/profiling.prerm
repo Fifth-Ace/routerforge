@@ -1,0 +1,6 @@
+#!/bin/sh
+rm -f /opt/etc/dns-monitor/profiling.enabled
+if [ -x /opt/etc/init.d/S90dns-monitor ]; then
+    /opt/etc/init.d/S90dns-monitor restart >/dev/null 2>&1 || true
+fi
+exit 0

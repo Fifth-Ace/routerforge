@@ -4,9 +4,12 @@
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
 
   const acronyms = {
-    'awg-manager': 'AWG', nfqws2: 'NQ2', nfqws: 'NQ1', 'hydraroute-neo': 'HRN',
+    'awg-manager': 'AWG', nfqws2: 'NQ2', nfqws: 'NQ1', 'nfqws-web': 'NQW', 'hydraroute-neo': 'HRN',
     'dns-core': 'DNS', marketplace: 'MKT', system: 'SYS', thermal: 'TMP',
-    storage: 'DSK', network: 'NET', admin: 'ADM', profiling: 'PRF'
+    storage: 'DSK', network: 'NET', admin: 'ADM', profiling: 'PRF',
+    xkeen: 'XKN', 'xkeen-ui': 'XUI', 'keen-pbr': 'PBR', kvas: 'KVS', 'bypass-keenetic': 'BYP',
+    'traffic-via-vpn': 'VPN', 'adguardhome-keenetic': 'AGH', skeen: 'SKN', 'chur-keenetic': 'CHR', 'keenetic-sing-box-ui': 'SBU',
+    'keenetic-entware-extras': 'KEE'
   };
 
   let search = '';
@@ -38,8 +41,15 @@
   const compatibilityText = (item) => {
     const hints = item.compatibility?.hints || [];
     if (item.compatibility?.status === 'built-in') return 'built-in';
-    if (item.compatibility?.status === 'planned') return 'planned';
     return hints.length ? hints.join(' · ') : (item.compatibility?.status || 'not evaluated');
+  };
+
+  const moduleURL = (item) => {
+    if (item.id === 'admin') return '/admin';
+    if (['system', 'thermal', 'storage', 'network', 'profiling'].includes(item.id)) {
+      return `/modules?tab=${encodeURIComponent(item.id)}`;
+    }
+    return '';
   };
 </script>
 
@@ -49,7 +59,7 @@
   <div class="page-head">
     <div>
       <h1>Marketplace</h1>
-      <p>Модули DNS Monitor и обнаруженные сторонние системы на роутере.</p>
+      <p>Модули DNS Monitor и проверенные интеграции Keenetic/Netcraze + Entware. Сторонняя установка пока только в безопасном preview.</p>
     </div>
     <span class="state-chip {$catalogOnline ? 'good' : 'warn'}">{$catalogOnline ? 'REGISTRY ONLINE' : 'REGISTRY OFFLINE'}</span>
   </div>
@@ -61,11 +71,19 @@
     <button class="button" onclick={refreshCatalog}>↻ Обновить</button>
   </div>
 
+  <div class="market-safety-line mono">
+    <span><i class="status-dot good"></i> CATALOG READ-ONLY</span>
+    <span>THIRD-PARTY EXECUTION <strong>DISABLED</strong></span>
+    <span>INSTALL PLANS <strong>PREVIEW ONLY</strong></span>
+    <span>PHASE <strong>{data.phase || '—'}</strong></span>
+  </div>
+
   <div class="catalog-grid catalog-grid-v2">
     {#if !items.length}<div class="catalog-empty">Ничего не найдено</div>{/if}
 
     {#each items as item (item.id)}
       {@const st = stateInfo(item)}
+      {@const ownURL = item.kind === 'module' && item.installed ? moduleURL(item) : ''}
       <article class="catalog-card">
         <div>
           <div class="catalog-card-head">
@@ -81,20 +99,18 @@
           <div class="tech-box mono">
             <div><span>Version</span><strong>{item.version ? `v${item.version}` : '—'}</strong></div>
             <div><span>Package</span><strong title={packageText(item)}>{packageText(item)}</strong></div>
-            <div><span>Service</span><strong class:good={item.service_running} class:warn={item.service && !item.service_running}>{item.service ? (item.service_running ? 'RUNNING' : 'NOT RUNNING') : '—'}</strong></div>
+            <div><span>Service</span><strong class:good={item.service_running} class:warn={item.service && !item.service_running}>{item.service ? (item.service_running ? 'RUNNING' : 'NOT RUNNING') : item.installed ? 'BUILT-IN / HOOK' : '—'}</strong></div>
             <div><span>Compat</span><strong title={compatibilityText(item)}>{compatibilityText(item)}</strong></div>
           </div>
         </div>
 
         <div class="catalog-card-foot">
           <div class="catalog-actions">
-            {#if item.id === 'admin' && item.installed}
-              <a class="button primary" href="/admin">Открыть Admin</a>
-            {/if}
+            {#if ownURL}<a class="button primary" href={ownURL}>Открыть модуль</a>{/if}
             {#if item.installed && item.web_port}
               <a class="button" target="_blank" rel="noopener noreferrer" href={localWebURL(item.web_port)}>Открыть UI :{item.web_port}</a>
             {/if}
-            <button class="button" class:primary={!item.installed} onclick={() => plannerItem = item}>{item.installed ? 'Подробнее' : 'План установки'}</button>
+            <button class="button" class:primary={!item.installed && item.kind === 'integration'} onclick={() => plannerItem = item}>{item.installed ? 'Подробнее' : 'План установки'}</button>
             {#if item.project_url}<a class="button compact" target="_blank" rel="noopener noreferrer" href={item.project_url}>Проект</a>{/if}
           </div>
           <span class="mono muted">{item.kind || 'extension'}</span>

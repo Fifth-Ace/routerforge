@@ -82,7 +82,6 @@ func startWeb(store *Store, listen string, version string) error {
 			flusher.Flush()
 			return true
 		}
-
 		if !send() {
 			return
 		}
@@ -118,11 +117,8 @@ func startWeb(store *Store, listen string, version string) error {
 			step = 3
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"minutes":      minutes,
-			"coverage":     coverage,
-			"sufficient":   coverage >= 0.5,
-			"step_minutes": step,
-			"points":       store.History(minutes),
+			"minutes": minutes, "coverage": coverage, "sufficient": coverage >= 0.5,
+			"step_minutes": step, "points": store.History(minutes),
 		})
 	})
 
@@ -198,7 +194,25 @@ func startWeb(store *Store, listen string, version string) error {
 		_ = json.NewEncoder(w).Encode(readSystemInfo())
 	})
 
+	mux.HandleFunc("/api/plain-dns", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, `{"error":"read-only"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		limit := 100
+		if raw := r.URL.Query().Get("limit"); raw != "" {
+			if n, parseErr := strconv.Atoi(raw); parseErr == nil && n > 0 && n <= 500 {
+				limit = n
+			}
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(plainDNS.Snapshot(limit))
+	})
+
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
+	mux.HandleFunc("/api/modules/", proxyModuleAPI)
 
 	mux.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -216,13 +230,11 @@ func startWeb(store *Store, listen string, version string) error {
 			http.NotFound(w, r)
 			return
 		}
-
 		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 		if p == "." || p == "" {
 			serveIndex(w)
 			return
 		}
-
 		if stat, statErr := fs.Stat(sub, p); statErr == nil && !stat.IsDir() {
 			if strings.HasPrefix(p, "_app/immutable/") {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
@@ -230,15 +242,11 @@ func startWeb(store *Store, listen string, version string) error {
 			fileServer.ServeHTTP(w, r)
 			return
 		}
-
-		// SvelteKit client-side router fallback, same production model as AWG Manager.
 		serveIndex(w)
 	}))
 
 	server := &http.Server{
-		Addr:              listen,
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
+		Addr: listen, Handler: profiledHTTPHandler(mux), ReadHeaderTimeout: 5 * time.Second,
 	}
 	return server.ListenAndServe()
 }

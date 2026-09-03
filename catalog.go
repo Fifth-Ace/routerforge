@@ -55,9 +55,9 @@ type catalogItem struct {
 	Install        catalogInstallPlan   `json:"install,omitempty"`
 
 	ProcessNames       []string `json:"-"`
+	RunningPaths       []string `json:"-"`
 	WebRequiresPackage string   `json:"-"`
 	Builtin            bool     `json:"-"`
-	Planned            bool     `json:"-"`
 }
 
 type catalogSnapshot struct {
@@ -84,10 +84,7 @@ func buildCatalog(installed map[string]string, processes map[string]bool, exists
 	}
 
 	sort.Slice(modules, func(i, j int) bool {
-		if modules[i].Category != modules[j].Category {
-			return modules[i].Category < modules[j].Category
-		}
-		return modules[i].Name < modules[j].Name
+		return moduleOrder(modules[i].ID) < moduleOrder(modules[j].ID)
 	})
 	sort.Slice(integrations, func(i, j int) bool {
 		if integrations[i].Category != integrations[j].Category {
@@ -99,208 +96,550 @@ func buildCatalog(installed map[string]string, processes map[string]bool, exists
 	return catalogSnapshot{
 		GeneratedAt:  time.Now(),
 		ReadOnly:     true,
-		Phase:        "catalog-foundation",
+		Phase:        "combat-preview",
 		Modules:      modules,
 		Integrations: integrations,
 	}
 }
 
+func moduleOrder(id string) int {
+	order := map[string]int{
+		"dns-core": 1, "marketplace": 2, "admin": 3, "system": 4,
+		"thermal": 5, "storage": 6, "network": 7, "profiling": 8,
+	}
+	if n, ok := order[id]; ok {
+		return n
+	}
+	return 99
+}
+
 func builtinModuleCatalog() []catalogItem {
 	return []catalogItem{
 		{
-			ID:            "dns-core",
-			Kind:          "module",
-			Name:          "DNS Core",
-			Category:      "Core",
-			Description:   "Базовый DNS-мониторинг, корреляция клиентов, resolver health и диагностика маршрутизации.",
-			Source:        "builtin",
-			Builtin:       true,
-			Enabled:       true,
-			Capabilities:  []string{"dns-observability", "client-attribution", "routing-diagnostics"},
+			ID: "dns-core", Kind: "module", Name: "DNS Core", Category: "Core",
+			Description: "DNS observability, client attribution, DoT/DoH и обычные DNS UDP/TCP :53, resolver health и routing diagnostics.",
+			Source:      "builtin", Builtin: true, Enabled: true,
+			Capabilities:  []string{"dns-observability", "plain-dns", "client-attribution", "routing-diagnostics"},
 			Compatibility: catalogCompatibility{Status: "built-in"},
 		},
 		{
-			ID:            "marketplace",
-			Kind:          "module",
-			Name:          "Marketplace",
-			Category:      "Platform",
-			Description:   "Каталог модулей и сторонних интеграций. На первом этапе работает только в режиме обнаружения и предпросмотра.",
-			Source:        "builtin",
-			Builtin:       true,
-			Enabled:       true,
+			ID: "marketplace", Kind: "module", Name: "Marketplace", Category: "Platform",
+			Description: "Каталог модулей DNS Monitor и проверенных интеграций Keenetic/Netcraze + Entware.",
+			Source:      "builtin", Builtin: true, Enabled: true,
 			Capabilities:  []string{"catalog", "integration-detection", "install-plan-preview"},
 			Compatibility: catalogCompatibility{Status: "built-in"},
 		},
-		plannedModule("system", "System Monitor", "Monitoring", "CPU по ядрам, RAM, uptime, load average и системная сводка."),
-		plannedModule("thermal", "Thermal Monitor", "Monitoring", "Температуры по всем доступным thermal/hwmon датчикам."),
-		plannedModule("storage", "Storage Monitor", "Monitoring", "Файловые системы, свободное место, I/O, USB и состояние хранилищ."),
-		plannedModule("network", "Network Monitor", "Monitoring", "Интерфейсы, RX/TX, ошибки и сетевые счётчики."),
+		managedModule(
+			"admin", "Admin Tools", "Administration",
+			"Read-only системная админка: CPU, RAM, процессы, порты, службы, opkg, storage и thermal.",
+			"dns-monitor-admin", "/opt/etc/init.d/S91dns-monitor-admin", "dnsmon-admin",
+			[]string{"system-summary", "cpu", "memory", "processes", "ports", "services", "packages", "storage", "thermal"},
+		),
+		managedModule(
+			"system", "System Monitor", "Monitoring",
+			"Легковесная системная телеметрия: CPU по ядрам, RAM, swap, uptime, load и процессы.",
+			"dns-monitor-system", "/opt/etc/init.d/S92dns-monitor-system", "dnsmon-system",
+			[]string{"system-summary", "cpu", "memory"},
+		),
+		managedModule(
+			"thermal", "Thermal Monitor", "Monitoring",
+			"Все реальные thermal/hwmon датчики, Wi-Fi debugfs и optional SMART температуры накопителей.",
+			"dns-monitor-thermal", "/opt/etc/init.d/S93dns-monitor-thermal", "dnsmon-thermal",
+			[]string{"thermal", "hwmon", "wifi-thermal", "smart-temperature"},
+		),
+		managedModule(
+			"storage", "Storage Monitor", "Monitoring",
+			"Файловые системы, block devices и пассивные I/O rates без фоновых benchmark-тестов.",
+			"dns-monitor-storage", "/opt/etc/init.d/S94dns-monitor-storage", "dnsmon-storage",
+			[]string{"mounts", "block-devices", "diskstats", "io-rates"},
+		),
+		managedModule(
+			"network", "Network Monitor", "Monitoring",
+			"Интерфейсы, адреса, RX/TX rates, errors/drops, wireless counters, routes и conntrack.",
+			"dns-monitor-network", "/opt/etc/init.d/S95dns-monitor-network", "dnsmon-network",
+			[]string{"interfaces", "traffic-rates", "errors", "wireless", "routes", "conntrack"},
+		),
 		{
-			ID:          "admin",
-			Kind:        "module",
-			Name:        "Admin Tools",
-			Category:    "Administration",
-			Description: "Опциональный read-only системный модуль: CPU, RAM, процессы, порты, службы, opkg, storage и thermal.",
-			Source:      "dns-monitor",
-			Managed:     true,
-			Capabilities: []string{
-				"system-summary", "cpu", "memory", "processes", "ports",
-				"services", "packages", "storage", "thermal",
-			},
-			Detection: catalogDetection{
-				Packages: []string{"dns-monitor-admin"},
-				Services: []string{"/opt/etc/init.d/S91dns-monitor-admin"},
-				Paths:    []string{"/opt/var/run/dns-monitor-admin.sock"},
-			},
-			ProcessNames: []string{"dnsmon-admin"},
+			ID: "profiling", Kind: "module", Name: "Profiling", Category: "Development",
+			Description: "Опциональный pprof Core listener на loopback и slow-request logging.",
+			Source:      "dns-monitor", Managed: true,
+			Capabilities: []string{"pprof", "slow-request-log"},
+			Detection:    catalogDetection{Packages: []string{"dns-monitor-profiling"}},
+			RunningPaths: []string{profilingMarker},
 			Compatibility: catalogCompatibility{
 				Status: "requirements",
-				Hints:  []string{"DNS Monitor Core", "Entware", "Keenetic / Netcraze ARM64"},
+				Hints:  []string{"DNS Monitor Core", "loopback-only listener", "SSH tunnel for remote access"},
 			},
 			Install: catalogInstallPlan{
-				Method:      "opkg-feed",
-				Repository:  "dns-monitor",
-				Packages:    []string{"dns-monitor-admin"},
-				Notes:       []string{"Admin helper устанавливается отдельным пакетом.", "v1 только read-only; terminal/process kill/service control/opkg mutation заблокированы до авторизации."},
+				Method: "opkg-feed", Repository: "dns-monitor", Packages: []string{"dns-monitor-profiling"},
+				Notes: []string{
+					"Listener по умолчанию 127.0.0.1:6061 и не публикуется в LAN.",
+					"Пакет перезапускает DNS Monitor Core после установки/удаления.",
+				},
 				PreviewOnly: true,
 			},
 		},
-		plannedModule("profiling", "Profiling", "Development", "pprof, slow-request logging и внутренняя диагностика DNS Monitor."),
 	}
 }
 
-func plannedModule(id, name, category, description string) catalogItem {
+func managedModule(id, name, category, description, pkg, service, process string, capabilities []string) catalogItem {
 	return catalogItem{
-		ID:            id,
-		Kind:          "module",
-		Name:          name,
-		Category:      category,
-		Description:   description,
-		Source:        "dns-monitor",
-		Planned:       true,
-		Capabilities:  []string{"planned"},
-		Compatibility: catalogCompatibility{Status: "planned"},
+		ID: id, Kind: "module", Name: name, Category: category, Description: description,
+		Source: "dns-monitor", Managed: true, Capabilities: capabilities,
+		Detection: catalogDetection{
+			Packages: []string{pkg},
+			Services: []string{service},
+		},
+		ProcessNames: []string{process},
+		Compatibility: catalogCompatibility{
+			Status: "requirements",
+			Hints:  []string{"DNS Monitor Core", "Entware", "Keenetic / Netcraze ARM64"},
+		},
+		Install: catalogInstallPlan{
+			Method: "opkg-feed", Repository: "dns-monitor", Packages: []string{pkg},
+			Notes: []string{
+				"Отдельный optional IPK. Core не тянет модуль как зависимость.",
+				"v1 API модуля только read-only.",
+			},
+			PreviewOnly: true,
+		},
 	}
 }
 
 func integrationCatalog() []catalogItem {
 	return []catalogItem{
-		{
-			ID:           "awg-manager",
-			Kind:         "integration",
-			Name:         "AWG Manager",
-			Category:     "VPN / Routing",
-			Description:  "Управление AmneziaWG и sing-box туннелями на Keenetic.",
-			ProjectURL:   "https://github.com/hoaxisr/awg-manager",
-			Source:       "official",
-			Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview"},
-			Detection: catalogDetection{
-				Packages: []string{"awg-manager"},
-				Services: []string{"/opt/etc/init.d/S99awg-manager"},
-				Paths:    []string{"/opt/etc/awg-manager"},
-			},
-			ProcessNames:  []string{"awg-manager"},
-			WebPort:       2222,
-			WebPortSource: "default-hint",
-			Compatibility: catalogCompatibility{
-				Status: "requirements",
-				Hints:  []string{"Keenetic / Netcraze", "Entware", "Компонент WireGuard KeeneticOS"},
-			},
-			Install: catalogInstallPlan{
-				Method:       "official-script",
-				InstallerURL: "http://repo.hoaxisr.ru/install.sh",
-				Packages:     []string{"awg-manager"},
-				Notes:        []string{"Официальный install.sh AWG Manager.", "Выполнение из DNS Monitor пока отключено."},
-				PreviewOnly:  true,
-			},
+		awgManagerIntegration(),
+		nfqwsIntegration(),
+		nfqws2Integration(),
+		nfqwsWebIntegration(),
+		hydraRouteIntegration(),
+		xkeenIntegration(),
+		xkeenUIIntegration(),
+		keenPBRIntegration(),
+		kvasIntegration(),
+		bypassKeeneticIntegration(),
+		trafficViaVPNIntegration(),
+		adGuardHomeIntegration(),
+		skeenIntegration(),
+		churKeeneticIntegration(),
+		keeneticSingBoxUIIntegration(),
+		entwareExtrasIntegration(),
+	}
+}
+
+func awgManagerIntegration() catalogItem {
+	return catalogItem{
+		ID: "awg-manager", Kind: "integration", Name: "AWG Manager", Category: "VPN / Routing",
+		Description: "Управление AmneziaWG и sing-box туннелями непосредственно на Keenetic.",
+		ProjectURL:  "https://github.com/hoaxisr/awg-manager", Source: "project-official",
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"awg-manager"},
+			Services: []string{"/opt/etc/init.d/S99awg-manager"},
+			Paths:    []string{"/opt/etc/awg-manager"},
 		},
-		{
-			ID:           "nfqws",
-			Kind:         "integration",
-			Name:         "nfqws",
-			Category:     "DPI / Bypass",
-			Description:  "Классическая nfqws-keenetic интеграция. Поддерживается обнаружение; для новых установок предпочтительнее nfqws2.",
-			ProjectURL:   "https://github.com/Anonym-tsk/nfqws-keenetic",
-			Source:       "official",
-			Capabilities: []string{"detect", "version", "service-status", "open-ui"},
-			Detection: catalogDetection{
-				Packages: []string{"nfqws-keenetic"},
-				Services: []string{"/opt/etc/init.d/S51nfqws", "/opt/etc/init.d/S99zapret"},
-				Paths:    []string{"/opt/etc/nfqws"},
-			},
-			ProcessNames:       []string{"nfqws"},
-			WebPort:            90,
-			WebPortSource:      "nfqws-keenetic-web",
-			WebRequiresPackage: "nfqws-keenetic-web",
-			Compatibility: catalogCompatibility{
-				Status: "requirements",
-				Hints:  []string{"Entware", "Netfilter kernel modules", "Legacy: nfqws2 является новой веткой"},
-			},
-			Install: catalogInstallPlan{
-				Method:      "manual",
-				Notes:       []string{"На первом этапе Marketplace только обнаруживает legacy nfqws.", "Автоматическую установку добавим после отдельной проверки официального feed."},
-				PreviewOnly: true,
-			},
+		ProcessNames: []string{"awg-manager"}, WebPort: 2222, WebPortSource: "project-default",
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Keenetic / Netcraze", "Entware", "WireGuard component"},
 		},
-		{
-			ID:           "nfqws2",
-			Kind:         "integration",
-			Name:         "nfqws2",
-			Category:     "DPI / Bypass",
-			Description:  "Новая версия nfqws для NFQUEUE/raw sockets с Entware-пакетом и отдельным web UI.",
-			ProjectURL:   "https://github.com/nfqws/nfqws2-keenetic",
-			Source:       "official",
-			Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview", "conflict-detection"},
-			Detection: catalogDetection{
-				Packages: []string{"nfqws2-keenetic"},
-				Services: []string{"/opt/etc/init.d/S51nfqws2"},
-				Paths:    []string{"/opt/etc/nfqws2"},
-			},
-			ProcessNames:       []string{"nfqws2"},
-			WebPort:            90,
-			WebPortSource:      "nfqws-keenetic-web",
-			WebRequiresPackage: "nfqws-keenetic-web",
-			Compatibility: catalogCompatibility{
-				Status: "requirements",
-				Hints:  []string{"Entware", "Netfilter kernel modules", "Конфликтует с legacy nfqws-keenetic"},
-			},
-			Install: catalogInstallPlan{
-				Method:        "opkg-feed",
-				Repository:    "nfqws2-keenetic",
-				RepositoryURL: "https://nfqws.github.io/nfqws2-keenetic/all",
-				Packages:      []string{"nfqws2-keenetic"},
-				Notes:         []string{"Перед миграцией legacy nfqws должен быть удалён.", "Web UI nfqws-keenetic-web устанавливается отдельно."},
-				PreviewOnly:   true,
-			},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/hoaxisr/awg-manager/master/scripts/install.sh",
+			Packages:     []string{"awg-manager"},
+			Notes:        []string{"HTTPS GitHub installer опубликован самим проектом.", "Автовыполнение из Marketplace отключено."},
+			PreviewOnly:  true,
 		},
-		{
-			ID:           "hydraroute-neo",
-			Kind:         "integration",
-			Name:         "HydraRoute Neo",
-			Category:     "Routing",
-			Description:  "Маршрутизация по доменам/CIDR и L7 (TLS SNI / HTTP Host / QUIC) через политики или интерфейсы Keenetic.",
-			ProjectURL:   "https://github.com/Ground-Zerro/HydraRoute",
-			Source:       "official",
-			Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview"},
-			Detection: catalogDetection{
-				Packages: []string{"hrneo"},
-				Services: []string{"/opt/etc/init.d/S99hrneo"},
-				Paths:    []string{"/opt/etc/HydraRoute"},
+	}
+}
+
+func nfqwsIntegration() catalogItem {
+	return catalogItem{
+		ID: "nfqws", Kind: "integration", Name: "nfqws", Category: "DPI / Bypass",
+		Description: "Классическая ветка nfqws для Keenetic. Для новых установок предпочтительнее nfqws2.",
+		ProjectURL:  "https://github.com/nfqws/nfqws-keenetic", Source: "project-official",
+		Capabilities: []string{"detect", "version", "service-status", "open-ui"},
+		Detection: catalogDetection{
+			Packages: []string{"nfqws-keenetic"},
+			Services: []string{"/opt/etc/init.d/S51nfqws", "/opt/etc/init.d/S99zapret"},
+			Paths:    []string{"/opt/etc/nfqws"},
+		},
+		ProcessNames: []string{"nfqws"},
+		WebPort:      90, WebPortSource: "nfqws-keenetic-web",
+		WebRequiresPackage: "nfqws-keenetic-web",
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Entware", "Netfilter kernel modules", "Legacy branch"},
+		},
+		Install: catalogInstallPlan{
+			Method: "manual", Notes: []string{"Legacy integration: Marketplace only detects it."}, PreviewOnly: true,
+		},
+	}
+}
+
+func nfqws2Integration() catalogItem {
+	return catalogItem{
+		ID: "nfqws2", Kind: "integration", Name: "nfqws2", Category: "DPI / Bypass",
+		Description: "Актуальная nfqws ветка для Keenetic с Entware package и optional web UI.",
+		ProjectURL:  "https://github.com/nfqws/nfqws2-keenetic", Source: "project-official",
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview", "conflict-detection"},
+		Detection: catalogDetection{
+			Packages: []string{"nfqws2-keenetic"},
+			Services: []string{"/opt/etc/init.d/S51nfqws2"},
+			Paths:    []string{"/opt/etc/nfqws2"},
+		},
+		ProcessNames: []string{"nfqws2"},
+		WebPort:      90, WebPortSource: "nfqws-keenetic-web",
+		WebRequiresPackage: "nfqws-keenetic-web",
+		Compatibility: catalogCompatibility{
+			Status: "requirements",
+			Hints:  []string{"Entware", "Netfilter kernel modules", "Legacy nfqws must be removed before migration"},
+		},
+		Install: catalogInstallPlan{
+			Method: "opkg-feed", Repository: "nfqws2-keenetic",
+			RepositoryURL: "https://nfqws.github.io/nfqws2-keenetic/all",
+			Packages:      []string{"nfqws2-keenetic"},
+			Notes: []string{
+				"nfqws-keenetic-web is a separate optional package.",
+				"Do not install side-by-side with legacy nfqws.",
 			},
-			ProcessNames:  []string{"hrneo"},
-			WebPort:       2000,
-			WebPortSource: "default",
-			Compatibility: catalogCompatibility{
-				Status: "requirements",
-				Hints:  []string{"KeeneticOS > 4.3.6", "Entware", "Xtables-addons для Netfilter"},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func nfqwsWebIntegration() catalogItem {
+	return catalogItem{
+		ID: "nfqws-web", Kind: "integration", Name: "nfqws Web UI", Category: "DPI / Bypass",
+		Description: "Официальный веб-интерфейс для nfqws и nfqws2 на Keenetic/Netcraze и Entware.",
+		ProjectURL:  "https://github.com/nfqws/nfqws-keenetic-web", Source: "project-official",
+		Capabilities: []string{"detect", "version", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"nfqws-keenetic-web"},
+			Paths:    []string{"/opt/etc/nfqws_web.conf"},
+		},
+		WebPort: 90, WebPortSource: "project-default",
+		Compatibility: catalogCompatibility{
+			Status: "requirements",
+			Hints:  []string{"Entware", "nfqws or nfqws2", "php8-cgi", "lighttpd"},
+		},
+		Install: catalogInstallPlan{
+			Method: "opkg-feed", Repository: "nfqws-keenetic-web",
+			RepositoryURL: "https://nfqws.github.io/nfqws-keenetic-web/all",
+			Packages:      []string{"nfqws-keenetic-web"},
+			Notes: []string{
+				"Web UI supports both nfqws and nfqws2.",
+				"Default local panel port is :90.",
 			},
-			Install: catalogInstallPlan{
-				Method:       "official-script",
-				InstallerURL: "https://git.zerrolabs.org/Ground-Zerro/release/pages/keenetic/install-neo.sh",
-				Packages:     []string{"hrneo"},
-				Notes:        []string{"Официальный installer HydraRoute Neo также ставит HRweb.", "Выполнение из DNS Monitor пока отключено."},
-				PreviewOnly:  true,
+			PreviewOnly: true,
+		},
+	}
+}
+
+func hydraRouteIntegration() catalogItem {
+	return catalogItem{
+		ID: "hydraroute-neo", Kind: "integration", Name: "HydraRoute Neo", Category: "Routing",
+		Description: "Маршрутизация по доменам/CIDR и L7 SNI/HTTP/QUIC через Keenetic policies/interfaces.",
+		ProjectURL:  "https://github.com/Ground-Zerro/HydraRoute", Source: "project-official",
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"hrneo"},
+			Services: []string{"/opt/etc/init.d/S99hrneo"},
+			Paths:    []string{"/opt/etc/HydraRoute"},
+		},
+		ProcessNames: []string{"hrneo"}, WebPort: 2000, WebPortSource: "project-default",
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"KeeneticOS > 4.3.6", "Entware", "Xtables-addons for Netfilter"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://git.zerrolabs.org/Ground-Zerro/release/pages/keenetic/install-neo.sh",
+			Packages:     []string{"hrneo"},
+			Notes:        []string{"Project installer also deploys HRweb.", "Execution remains disabled."},
+			PreviewOnly:  true,
+		},
+	}
+}
+
+func xkeenIntegration() catalogItem {
+	return catalogItem{
+		ID: "xkeen", Kind: "integration", Name: "XKeen", Category: "VPN / Routing",
+		Description: "Xray runtime/update toolkit for Keenetic with GeoIP/GeoSite management.",
+		ProjectURL:  "https://github.com/Skrill0/XKeen", Source: "community",
+		Capabilities: []string{"detect", "version", "service-status", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"xkeen"},
+			Paths:    []string{"/opt/sbin/xkeen", "/opt/etc/xray/configs"},
+		},
+		ProcessNames: []string{"xray", "xray-linux-arm64"},
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Keenetic", "Entware", "curl", "tar", "Xray configuration"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/Skrill0/XKeen/main/install.sh",
+			Notes: []string{
+				"Official installer downloads the latest xkeen.tar release and runs xkeen -i.",
+				"Inspect existing Xray/sing-box routing stacks before installation.",
 			},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func xkeenUIIntegration() catalogItem {
+	return catalogItem{
+		ID: "xkeen-ui", Kind: "integration", Name: "XKeen UI", Category: "VPN / Routing",
+		Description: "Легковесная веб-панель управления XKeen, Xray/Mihomo конфигами, логами и ядрами.",
+		ProjectURL:  "https://github.com/zxc-rv/XKeen-UI", Source: "community",
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99xkeen-ui"},
+			Paths:    []string{"/opt/sbin/xkeen-ui", "/opt/share/www/XKeen-UI"},
+		},
+		ProcessNames: []string{"xkeen-ui"},
+		WebPort:      1000, WebPortSource: "project-default",
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Keenetic / Netcraze", "Entware", "XKeen installed"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/zxc-rv/XKeen-UI/main/setup.sh",
+			Notes: []string{
+				"Upstream documents XKeen as its only application dependency.",
+				"Default port is :1000 and can be changed in S99xkeen-ui.",
+			},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func keenPBRIntegration() catalogItem {
+	return catalogItem{
+		ID: "keen-pbr", Kind: "integration", Name: "keen-pbr", Category: "Routing",
+		Description: "Policy-based routing daemon for Keenetic/OpenWrt; full variant includes REST API and WebUI.",
+		ProjectURL:  "https://github.com/maksimkurb/keen-pbr", Source: "community",
+		Capabilities: []string{"detect", "version", "service-status", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"keen-pbr", "keen-pbr-headless"},
+			Services: []string{"/opt/etc/init.d/S80keen-pbr"},
+			Paths:    []string{"/opt/etc/keen-pbr"},
+		},
+		ProcessNames: []string{"keen-pbr"},
+		Compatibility: catalogCompatibility{
+			Status: "requirements",
+			Hints:  []string{"Entware", "conntrack/dnsmasq/ipset/iptables", "Keenetic Netfilter"},
+		},
+		Install: catalogInstallPlan{
+			Method: "manual", Packages: []string{"keen-pbr", "keen-pbr-headless"},
+			Notes:       []string{"Project builds dedicated Keenetic packages.", "Choose full OR headless variant; port is intentionally not guessed."},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func kvasIntegration() catalogItem {
+	return catalogItem{
+		ID: "kvas", Kind: "integration", Name: "КВАС", Category: "VPN / Routing",
+		Description: "Domain-selective routing/VPN toolkit using ipset with dnsmasq/dnscrypt or AdGuard Home.",
+		ProjectURL:  "https://github.com/qzeleza/kvas", Source: "community",
+		Capabilities: []string{"detect", "version", "service-status", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"kvas"},
+			Paths:    []string{"/opt/apps/kvas", "/opt/etc/kvas.conf", "/opt/etc/kvas.list"},
+		},
+		ProcessNames: []string{"kvas", "kvas-failover"},
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Keenetic", "Entware", "curl for installer"},
+		},
+		Install: catalogInstallPlan{
+			Method: "official-script", InstallerURL: "http://kvas.zeleza.ru/install", Packages: []string{"kvas"},
+			Notes: []string{
+				"Upstream installer uses HTTP: Marketplace marks this plan high-risk and never executes it automatically.",
+				"Interactive setup remains manual.",
+			},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func bypassKeeneticIntegration() catalogItem {
+	return catalogItem{
+		ID: "bypass-keenetic", Kind: "integration", Name: "bypass_keenetic", Category: "VPN / Routing",
+		Description: "Selective bypass via VPN/Shadowsocks/Tor with Telegram bot management.",
+		ProjectURL:  "https://github.com/keenetic-dev/bypass_keenetic", Source: "community",
+		Capabilities: []string{"detect", "service-status", "install-preview"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99unblock"},
+			Paths:    []string{"/opt/etc/bot.py", "/opt/etc/unblock"},
+		},
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Keenetic", "Entware", "Python 3", "VPN/Shadowsocks/Tor depending on setup"},
+		},
+		Install: catalogInstallPlan{
+			Method: "manual",
+			Notes: []string{
+				"Telegram credentials and interactive setup require explicit manual configuration.",
+				"DNS Monitor only detects/documents this integration.",
+			},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func trafficViaVPNIntegration() catalogItem {
+	return catalogItem{
+		ID: "traffic-via-vpn", Kind: "integration", Name: "keenetic-traffic-via-vpn", Category: "VPN / Routing",
+		Description: "Small Entware script set that redirects selected domains/IP/CIDR into a chosen VPN interface.",
+		ProjectURL:  "https://github.com/rustrict/keenetic-traffic-via-vpn", Source: "community",
+		Capabilities: []string{"detect", "install-preview"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/etc/unblock/config", "/opt/etc/unblock/unblock-list.txt"},
+		},
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Keenetic", "Entware", "curl", "bind-dig", "cron", "grep", "existing VPN interface"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/rustrict/keenetic-traffic-via-vpn/main/install.sh",
+			Notes:        []string{"Installer creates /opt/etc/unblock and IFACE must be configured afterwards."},
+			PreviewOnly:  true,
+		},
+	}
+}
+
+func adGuardHomeIntegration() catalogItem {
+	return catalogItem{
+		ID: "adguardhome-keenetic", Kind: "integration", Name: "AdGuard Home", Category: "DNS / Filtering",
+		Description: "Network-wide DNS filtering. Keenetic setup can use Entware adguardhome-go.",
+		ProjectURL:  "https://github.com/Corvus-Malus/AdGuardHome-Keenetic", Source: "community",
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"adguardhome-go"},
+			Services: []string{"/opt/etc/init.d/S99adguardhome"},
+			Paths:    []string{"/opt/etc/AdGuardHome"},
+		},
+		ProcessNames: []string{"AdGuardHome", "adguardhome-go"},
+		WebPort:      3000, WebPortSource: "initial-setup-default",
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Entware", "Port 53 ownership", "Keenetic dns-override only for explicit DNS replacement"},
+		},
+		Install: catalogInstallPlan{
+			Method: "opkg", Repository: "entware", Packages: []string{"adguardhome-go"},
+			Notes: []string{
+				"Installing the package alone does not replace Keenetic DNS.",
+				"dns-override changes DNS ownership and remains an explicit manual step.",
+			},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func skeenIntegration() catalogItem {
+	return catalogItem{
+		ID: "skeen", Kind: "integration", Name: "SKeen", Category: "VPN / Routing",
+		Description: "Keenetic/Netcraze TProxy & Redirect toolkit around sing-box with built-in web dashboard.",
+		ProjectURL:  "https://github.com/jinndi/SKeen", Source: "community",
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99SKeen"},
+			Paths:    []string{"/opt/etc/skeen", "/opt/bin/skeen"},
+		},
+		ProcessNames: []string{"skeen", "skeen-box"},
+		WebPort:      9999, WebPortSource: "project-default",
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Entware", "Netfilter kernel modules", "curl", "256 MB RAM recommended by project"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://github.com/jinndi/SKeen/releases/latest/download/skeen",
+			Notes: []string{
+				"Installer is interactive and can install/select sing-box.",
+				"Project dashboard defaults to :9999.",
+			},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func churKeeneticIntegration() catalogItem {
+	return catalogItem{
+		ID: "chur-keenetic", Kind: "integration", Name: "Chur Keenetic", Category: "VPN / Routing",
+		Description: "Web-менеджер VPN-интерфейсов Keenetic/Entware с optional AmneziaWG runtime.",
+		ProjectURL:  "https://github.com/ward-sentry/chur-keenetic", Source: "community",
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"chur-keenetic"},
+			Services: []string{"/opt/etc/init.d/S99chur-keenetic"},
+		},
+		ProcessNames: []string{"chur-keenetic"},
+		WebPort:      8088, WebPortSource: "project-default",
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"Keenetic", "Entware", "HTTPS-capable opkg feed", "aarch64-3.10 supported"},
+		},
+		Install: catalogInstallPlan{
+			Method: "opkg-feed", Repository: "chur",
+			RepositoryURL: "https://ward-sentry.github.io/chur-keenetic/latest/aarch64-3.10",
+			Packages:      []string{"chur-keenetic"},
+			Notes: []string{
+				"Marketplace target build is ARM64, therefore the preview shows the aarch64-3.10 feed.",
+				"AmneziaWG runtime is installed separately by Chur only when requested.",
+			},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func keeneticSingBoxUIIntegration() catalogItem {
+	return catalogItem{
+		ID: "keenetic-sing-box-ui", Kind: "integration", Name: "Keenetic sing-box UI", Category: "VPN / Routing",
+		Description: "Aarch64 web UI for sing-box with selective TProxy/REDIRECT routing, diagnostics and authentication.",
+		ProjectURL:  "https://github.com/CoOre/keenetic-sing-box-ui", Source: "community",
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99keenetic-sing-box-ui"},
+			Paths:    []string{"/opt/bin/keenetic-sing-box-ui", "/opt/sbin/keenetic-sing-box-ui"},
+		},
+		ProcessNames: []string{"keenetic-sing-box-ui"},
+		WebPort:      9091, WebPortSource: "project-default",
+		Compatibility: catalogCompatibility{
+			Status: "requirements",
+			Hints:  []string{"Keenetic / Netcraze", "Entware", "aarch64", "Netfilter modules for TProxy mode"},
+		},
+		Install: catalogInstallPlan{
+			Method: "release-deploy",
+			Notes: []string{
+				"Upstream deploys from a host script or a verified GitHub release rather than an Entware feed.",
+				"Transparent proxy modes can modify iptables/ipset; execution stays preview-only.",
+			},
+			PreviewOnly: true,
+		},
+	}
+}
+
+func entwareExtrasIntegration() catalogItem {
+	return catalogItem{
+		ID: "keenetic-entware-extras", Kind: "integration", Name: "Keenetic Entware Extras", Category: "Toolkit",
+		Description: "Geo routing, SmartDNS integration, DNS redirect, network diagnostics and optional web dashboard.",
+		ProjectURL:  "https://github.com/0xkee/keenetic-entware-extras", Source: "community",
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview"},
+		Detection: catalogDetection{
+			Packages: []string{"keenetic-entware-extras", "geo-split", "smartdns-geo-conf", "smartdns-redirect", "net-check", "webui"},
+			Services: []string{"/opt/etc/init.d/S80nginx-webui"},
+			Paths:    []string{"/opt/keenetic-entware-extras"},
+		},
+		WebPort: 8080, WebPortSource: "webui-default", WebRequiresPackage: "webui",
+		Compatibility: catalogCompatibility{
+			Status: "requirements", Hints: []string{"KeeneticOS 5.0+", "Entware"},
+		},
+		Install: catalogInstallPlan{
+			Method: "opkg-feed", Repository: "kee",
+			RepositoryURL: "https://0xkee.github.io/keenetic-entware-extras/stable",
+			Packages:      []string{"geo-split", "smartdns-geo-conf", "smartdns-redirect", "net-check", "webui"},
+			InstallerURL:  "https://raw.githubusercontent.com/0xkee/keenetic-entware-extras/master/scripts/install.sh",
+			Notes: []string{
+				"Packages are selectable; do not install the whole suite unless desired.",
+				"WebUI is optional and listens on :8080.",
+			},
+			PreviewOnly: true,
 		},
 	}
 }
@@ -309,10 +648,6 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 	if item.Builtin {
 		item.Installed = true
 		item.State = "installed"
-		return
-	}
-	if item.Planned {
-		item.State = "planned"
 		return
 	}
 
@@ -343,6 +678,12 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 			break
 		}
 	}
+	for _, runningPath := range item.RunningPaths {
+		if exists(runningPath) {
+			item.ServiceRunning = true
+			break
+		}
+	}
 
 	if item.WebRequiresPackage != "" {
 		if _, ok := installed[item.WebRequiresPackage]; !ok {
@@ -363,26 +704,18 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 }
 
 func readInstalledPackages() map[string]string {
-	paths := []string{
-		"/opt/lib/opkg/status",
-		"/opt/var/opkg/status",
-	}
-
-	for i := range paths {
-		p := paths[i]
+	paths := []string{"/opt/lib/opkg/status", "/opt/var/opkg/status"}
+	for _, p := range paths {
 		f, err := os.Open(p)
 		if err != nil {
 			continue
 		}
-
 		out := parseOpkgStatus(f)
-		f.Close()
-
+		_ = f.Close()
 		if len(out) > 0 {
 			return out
 		}
 	}
-
 	return map[string]string{}
 }
 
@@ -390,6 +723,7 @@ func parseOpkgStatus(r io.Reader) map[string]string {
 	out := map[string]string{}
 	sc := bufio.NewScanner(r)
 	var pkg, version string
+
 	commit := func() {
 		if pkg != "" {
 			out[pkg] = version

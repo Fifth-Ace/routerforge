@@ -55,8 +55,51 @@ jobs:
 
       - name: Verify embedded frontend build
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags embed_frontend -o /tmp/dns-monitor-embed-check .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+            -tags embed_frontend \
+            -ldflags="-X main.version=0.0.0-ci" \
+            -o /tmp/dns-monitor-embed-check .
           test -s /tmp/dns-monitor-embed-check
+
+      - name: Verify module host cross-build
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+            -ldflags="-X main.version=0.0.0-ci" \
+            -o /tmp/dns-monitor-module-arm64 ./cmd/dns-monitor-module
+          test -s /tmp/dns-monitor-module-arm64
+
+      - name: Smoke test module runtime
+        run: |
+          go build -ldflags="-X main.version=0.0.0-ci" -o /tmp/dns-monitor-module ./cmd/dns-monitor-module
+
+          smoke_module() {
+            id="$1"
+            endpoint="$2"
+            socket="/tmp/dns-monitor-${id}.sock"
+            rm -f "$socket"
+            /tmp/dns-monitor-module -module "$id" -socket "$socket" &
+            pid=$!
+            trap 'kill "$pid" 2>/dev/null || true; rm -f "$socket"' EXIT INT TERM
+
+            i=0
+            while [ ! -S "$socket" ] && [ "$i" -lt 30 ]; do
+              sleep 0.1
+              i=$((i + 1))
+            done
+            test -S "$socket"
+            curl --fail --silent --show-error --unix-socket "$socket" http://unix/v1/health >/dev/null
+            curl --fail --silent --show-error --unix-socket "$socket" "http://unix/v1/$endpoint" >/dev/null
+
+            kill "$pid"
+            wait "$pid" 2>/dev/null || true
+            rm -f "$socket"
+            trap - EXIT INT TERM
+          }
+
+          smoke_module system summary
+          smoke_module thermal sensors
+          smoke_module storage storage
+          smoke_module network summary
 
       - name: Check shell scripts
         run: |
@@ -64,52 +107,95 @@ jobs:
           sh -n package/uninstall.sh
           sh -n package/S90dns-monitor
           sh -n package/S91dns-monitor-admin
+          sh -n package/modules/S92dns-monitor-system
+          sh -n package/modules/S93dns-monitor-thermal
+          sh -n package/modules/S94dns-monitor-storage
+          sh -n package/modules/S95dns-monitor-network
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh
           sh -n scripts/build-frontend.sh
           sh -n scripts/build-opkg.sh
           sh -n scripts/build-admin-opkg.sh
+          sh -n scripts/build-modules-opkg.sh
           sh -n scripts/build-feed.sh
           sh -n packaging/opkg/postinst
           sh -n packaging/opkg/prerm
           sh -n packaging/admin/postinst
           sh -n packaging/admin/prerm
+          sh -n packaging/modules/postinst
+          sh -n packaging/modules/prerm
+          sh -n packaging/modules/profiling.postinst
+          sh -n packaging/modules/profiling.prerm
 
-      - name: Build Entware core package
+      - name: Build Entware package set
         run: |
           ./scripts/build-opkg.sh 0.0.0-ci
-          test -f dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk
-
-      - name: Build Entware admin package
-        run: |
           ./scripts/build-admin-opkg.sh 0.0.0-ci
-          test -f dist/dns-monitor-admin_0.0.0-ci_aarch64-3.10.ipk
+          ./scripts/build-modules-opkg.sh 0.0.0-ci
 
       - name: Verify Entware package containers
         run: |
-          for pkg in \
-            dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk \
-            dist/dns-monitor-admin_0.0.0-ci_aarch64-3.10.ipk
-          do
+          packages="
+          dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk
+          dist/dns-monitor-admin_0.0.0-ci_aarch64-3.10.ipk
+          dist/dns-monitor-system_0.0.0-ci_aarch64-3.10.ipk
+          dist/dns-monitor-thermal_0.0.0-ci_aarch64-3.10.ipk
+          dist/dns-monitor-storage_0.0.0-ci_aarch64-3.10.ipk
+          dist/dns-monitor-network_0.0.0-ci_aarch64-3.10.ipk
+          dist/dns-monitor-profiling_0.0.0-ci_aarch64-3.10.ipk
+          "
+
+          for pkg in $packages; do
+            test -f "$pkg"
             tar -tzf "$pkg" | grep -qx './debian-binary'
             tar -tzf "$pkg" | grep -qx './control.tar.gz'
             tar -tzf "$pkg" | grep -qx './data.tar.gz'
           done
 
-      - name: Build dev packages
+      - name: Verify Entware package payloads
+        run: |
+          tar -xzOf dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dns-monitor'
+          tar -xzOf dist/dns-monitor-admin_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-admin'
+          tar -xzOf dist/dns-monitor-system_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-system'
+          tar -xzOf dist/dns-monitor-thermal_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-thermal'
+          tar -xzOf dist/dns-monitor-storage_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-storage'
+          tar -xzOf dist/dns-monitor-network_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-network'
+          tar -xzOf dist/dns-monitor-profiling_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/dns-monitor/profiling.enabled'
+
+      - name: Verify Core runtime version injection
+        run: |
+          strings dist/opkg-work/data/opt/bin/dns-monitor | grep -q '0.0.0-ci'
+
+      - name: Build dev combat package set
         if: github.ref == 'refs/heads/dev'
         run: |
           ./scripts/build-opkg.sh 0.2.0 dev
           ./scripts/build-admin-opkg.sh 0.2.0 dev
-          test -f dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
-          test -f dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk
+          ./scripts/build-modules-opkg.sh 0.2.0 dev
 
-      - name: Upload dev packages
+          for pkg in \
+            dns-monitor \
+            dns-monitor-admin \
+            dns-monitor-system \
+            dns-monitor-thermal \
+            dns-monitor-storage \
+            dns-monitor-network \
+            dns-monitor-profiling
+          do
+            test -f "dist/${pkg}_0.2.0-dev_aarch64-3.10.ipk"
+          done
+
+      - name: Upload dev combat package set
         if: github.ref == 'refs/heads/dev'
         uses: actions/upload-artifact@v4
         with:
-          name: dns-monitor-0.2.0-dev-aarch64
+          name: dns-monitor-0.2.0-dev-combat-aarch64
           path: |
             dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
             dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk
+            dist/dns-monitor-system_0.2.0-dev_aarch64-3.10.ipk
+            dist/dns-monitor-thermal_0.2.0-dev_aarch64-3.10.ipk
+            dist/dns-monitor-storage_0.2.0-dev_aarch64-3.10.ipk
+            dist/dns-monitor-network_0.2.0-dev_aarch64-3.10.ipk
+            dist/dns-monitor-profiling_0.2.0-dev_aarch64-3.10.ipk
           retention-days: 7

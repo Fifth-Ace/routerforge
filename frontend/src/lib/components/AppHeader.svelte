@@ -2,6 +2,7 @@
   import { page } from '$app/stores';
   import { snapshot, backendOnline, streamMode } from '$lib/stores/snapshot.js';
   import { adminSummary, adminOnline } from '$lib/stores/admin.js';
+  import { systemModuleSummary, systemModuleOnline } from '$lib/stores/systemModule.js';
 
   const items = [
     { href: '/', label: 'Обзор' },
@@ -9,6 +10,7 @@
     { href: '/routing', label: 'Маршрутизация' },
     { href: '/monitoring', label: 'Мониторинг' },
     { href: '/tools', label: 'Инструменты' },
+    { href: '/modules', label: 'Модули' },
     { href: '/admin', label: 'Админ' },
     { href: '/catalog', label: 'Каталог' },
     { href: '/settings', label: 'Настройки' }
@@ -16,6 +18,7 @@
 
   $: s = $snapshot || {};
   $: current = $page.url.pathname;
+  $: hostTelemetry = $adminOnline ? $adminSummary : $systemModuleOnline ? $systemModuleSummary : null;
   $: state =
     s.capture_error ? 'ERROR'
       : s.active_down ? 'DOWN'
@@ -39,7 +42,7 @@
         <strong>DNS Monitor</strong>
         <span>Core Console</span>
       </span>
-      <span class="version-badge">v{s.version || '0.2.0-dev'}</span>
+      <span class="version-badge">v{s.version || 'dev'}</span>
     </a>
 
     <nav class="main-nav" data-sveltekit-preload-code="eager" data-sveltekit-preload-data="hover">
@@ -49,10 +52,10 @@
     </nav>
 
     <div class="header-status mono">
-      {#if $adminOnline && $adminSummary}
-        <span class="header-meta"><i>HOST:</i><b>{$adminSummary.hostname || '—'}</b></span>
+      {#if hostTelemetry}
+        <span class="header-meta"><i>HOST:</i><b>{hostTelemetry.hostname || '—'}</b></span>
         <span class="header-separator"></span>
-        <span class="header-meta"><i>KERNEL:</i><b>{$adminSummary.kernel || '—'}</b></span>
+        <span class="header-meta"><i>KERNEL:</i><b>{hostTelemetry.kernel || '—'}</b></span>
       {/if}
       <span class="header-separator"></span>
       <span class="stream-label">{$streamMode.toUpperCase()}</span>

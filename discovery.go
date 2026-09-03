@@ -38,26 +38,32 @@ type profileParse struct {
 	https     []httpsEndpointMeta
 }
 
-func discoverUpstreams() ([]UpstreamMeta, map[string]PolicyRouteView, error) {
+func discoverDNSConfiguration() ([]UpstreamMeta, []PlainDNSMeta, map[string]PolicyRouteView, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	cmd := exec.CommandContext(ctx, "ndmc", "-c", "show dns-proxy")
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, nil, fmt.Errorf("ndmc show dns-proxy: %w", err)
+		return nil, nil, nil, fmt.Errorf("ndmc show dns-proxy: %w", err)
 	}
-	ups := parseDNSProxy(string(out))
+
+	dnsProxyText := string(out)
+	ups := parseDNSProxy(dnsProxyText)
+	plain := parsePlainDNSProxy(dnsProxyText)
 
 	policies := make(map[string]policyRoute)
 	if policyText, e := ndmcOutput("show ip policy", 6*time.Second); e == nil {
 		policies = parseIPPolicies(policyText)
 	}
+
 	linuxIfs := map[string]string{}
 	ifaceIndex := map[string]keeneticRouteInterface{}
 	if interfaceText, e := ndmcOutput("show interface", 8*time.Second); e == nil {
 		linuxIfs = keeneticLinuxInterfacesFromText(interfaceText)
 		ifaceIndex = routeInterfaceIndexFromText(interfaceText)
 	}
+
 	for i := range ups {
 		if p, ok := policies[ups[i].Profile]; ok {
 			ups[i].PolicyMark = p.Mark
@@ -67,7 +73,15 @@ func discoverUpstreams() ([]UpstreamMeta, map[string]PolicyRouteView, error) {
 			ups[i].LinuxInterface = linuxIfs[ups[i].Interface]
 		}
 	}
-	return ups, buildPolicyRouteViews(policies, ifaceIndex), nil
+
+	return ups, plain, buildPolicyRouteViews(policies, ifaceIndex), nil
+}
+
+// Keep the old helper for tests/internal callers that only care about
+// encrypted local proxy upstreams.
+func discoverUpstreams() ([]UpstreamMeta, map[string]PolicyRouteView, error) {
+	ups, _, routes, err := discoverDNSConfiguration()
+	return ups, routes, err
 }
 
 func parseDNSProxy(text string) []UpstreamMeta {
@@ -76,8 +90,10 @@ func parseDNSProxy(text string) []UpstreamMeta {
 	var cur *profileParse
 	var curTLS *tlsEndpointMeta
 	var curHTTPS *httpsEndpointMeta
+
 	for s.Scan() {
 		line := strings.TrimSpace(s.Text())
+
 		if strings.HasPrefix(line, "proxy-name:") {
 			name := strings.TrimSpace(strings.TrimPrefix(line, "proxy-name:"))
 			cur = &profileParse{name: name, proceedMS: 500, timeoutMS: 7000}
@@ -88,6 +104,7 @@ func parseDNSProxy(text string) []UpstreamMeta {
 		if cur == nil {
 			continue
 		}
+
 		if strings.HasPrefix(line, "proceed =") {
 			if n, e := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "proceed ="))); e == nil {
 				cur.proceedMS = n
@@ -100,6 +117,7 @@ func parseDNSProxy(text string) []UpstreamMeta {
 			}
 			continue
 		}
+
 		if line == "server-tls:" {
 			cur.tls = append(cur.tls, tlsEndpointMeta{})
 			curTLS = &cur.tls[len(cur.tls)-1]
@@ -112,6 +130,7 @@ func parseDNSProxy(text string) []UpstreamMeta {
 			curTLS = nil
 			continue
 		}
+
 		if curTLS != nil {
 			switch {
 			case strings.HasPrefix(line, "address:"):
@@ -141,16 +160,21 @@ func parseDNSProxy(text string) []UpstreamMeta {
 		if len(m) != 4 {
 			continue
 		}
-		p, err := strconv.Atoi(m[1])
-		if err != nil || p < 1 || p > 65535 {
+		port, err := strconv.Atoi(m[1])
+		if err != nil || port < 1 || port > 65535 {
 			continue
 		}
+
 		domain := m[2]
 		if domain == "." {
 			domain = ""
 		}
 		comment := strings.TrimSpace(m[3])
-		meta := UpstreamMeta{Port: uint16(p), Profile: cur.name, Domain: domain, ProceedMS: cur.proceedMS, TimeoutMS: cur.timeoutMS}
+		meta := UpstreamMeta{
+			Port: uint16(port), Profile: cur.name, Domain: domain,
+			ProceedMS: cur.proceedMS, TimeoutMS: cur.timeoutMS,
+		}
+
 		if strings.HasPrefix(comment, "https://") || strings.HasPrefix(comment, "http://") {
 			meta.Protocol = "DoH"
 			raw := comment
@@ -182,14 +206,14 @@ func parseDNSProxy(text string) []UpstreamMeta {
 
 	var out []UpstreamMeta
 	seen := make(map[uint16]bool)
-	for _, p := range profiles {
-		for _, e := range p.entries {
-			e = enrichEndpointMeta(e, p)
-			if seen[e.Port] {
+	for _, profile := range profiles {
+		for _, entry := range profile.entries {
+			entry = enrichEndpointMeta(entry, profile)
+			if seen[entry.Port] {
 				continue
 			}
-			seen[e.Port] = true
-			out = append(out, e)
+			seen[entry.Port] = true
+			out = append(out, entry)
 		}
 	}
 	return out
@@ -259,7 +283,7 @@ func friendlyResolverName(host, proto string) string {
 
 func discoveryLoop(store *Store, interval time.Duration, log *EventLogger) {
 	refresh := func() {
-		ups, routes, err := discoverUpstreams()
+		ups, plain, routes, err := discoverDNSConfiguration()
 		if err != nil {
 			store.SetDiscoveryError(err.Error())
 			log.Event("DISCOVERY_ERROR", err.Error())
@@ -267,7 +291,9 @@ func discoveryLoop(store *Store, interval time.Duration, log *EventLogger) {
 		}
 		store.UpdateDiscovery(ups)
 		store.UpdatePolicyRoutes(routes)
+		plainDNS.UpdateResolvers(plain)
 	}
+
 	refresh()
 	t := time.NewTicker(interval)
 	defer t.Stop()

@@ -1,0 +1,8 @@
+#!/bin/sh
+ENABLED=yes
+PROCS=dnsmon-thermal
+ARGS="-module thermal -socket /opt/var/run/dns-monitor-thermal.sock"
+PREARGS=""
+DESC="DNS Monitor Thermal"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+. /opt/etc/init.d/rc.func

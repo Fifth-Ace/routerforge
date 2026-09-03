@@ -14,7 +14,10 @@ func isPrivateOrLocalIP(ip net.IP) bool {
 		return false
 	}
 	if v4 := ip.To4(); v4 != nil {
-		return v4[0] == 10 || (v4[0] == 172 && v4[1] >= 16 && v4[1] <= 31) || (v4[0] == 192 && v4[1] == 168) || (v4[0] == 169 && v4[1] == 254)
+		return v4[0] == 10 ||
+			(v4[0] == 172 && v4[1] >= 16 && v4[1] <= 31) ||
+			(v4[0] == 192 && v4[1] == 168) ||
+			(v4[0] == 169 && v4[1] == 254)
 	}
 	return ip.IsPrivate() || ip.IsLinkLocalUnicast()
 }
@@ -28,6 +31,7 @@ func clientCaptureLoop(store *Store, log *EventLogger) error {
 		return fmt.Errorf("client AF_PACKET socket: %w", err)
 	}
 	defer syscall.Close(fd)
+
 	buf := make([]byte, 65535)
 	for {
 		n, sa, err := syscall.Recvfrom(fd, buf, 0)
@@ -49,6 +53,7 @@ func handleClientPacket(store *Store, now time.Time, pkt []byte, outgoing bool) 
 	}
 	srcMAC := net.HardwareAddr(pkt[6:12]).String()
 	dstMAC := net.HardwareAddr(pkt[0:6]).String()
+
 	off := 14
 	etherType := binary.BigEndian.Uint16(pkt[12:14])
 	for etherType == 0x8100 || etherType == 0x88a8 {
@@ -61,6 +66,7 @@ func handleClientPacket(store *Store, now time.Time, pkt []byte, outgoing bool) 
 	if len(pkt) <= off {
 		return
 	}
+
 	switch etherType {
 	case 0x0800:
 		handleClientIPv4(store, now, srcMAC, dstMAC, pkt[off:], outgoing)
@@ -79,6 +85,7 @@ func handleClientIPv4(store *Store, now time.Time, srcMAC, dstMAC string, ip []b
 	}
 	srcIP := net.IP(ip[12:16]).String()
 	dstIP := net.IP(ip[16:20]).String()
+
 	switch ip[9] {
 	case 17:
 		handleClientUDP(store, now, srcIP, dstIP, srcMAC, dstMAC, ip[ihl:], outgoing)
@@ -93,8 +100,9 @@ func handleClientIPv6(store *Store, now time.Time, srcMAC, dstMAC string, ip []b
 	}
 	srcIP := net.IP(ip[8:24]).String()
 	dstIP := net.IP(ip[24:40]).String()
-	// Keenetic client DNS is normally plain UDP/TCP 53. Extension-header
-	// reassembly is intentionally left out; such packets are uncommon here.
+
+	// Keenetic client/plain-upstream DNS is normally UDP/TCP 53. Extension
+	// header reassembly stays best-effort and is intentionally not implemented.
 	switch ip[6] {
 	case 17:
 		handleClientUDP(store, now, srcIP, dstIP, srcMAC, dstMAC, ip[40:], outgoing)
@@ -109,10 +117,32 @@ func handleClientUDP(store *Store, now time.Time, srcIP, dstIP, srcMAC, dstMAC s
 	}
 	srcPort := binary.BigEndian.Uint16(udp[0:2])
 	dstPort := binary.BigEndian.Uint16(udp[2:4])
+	if srcPort != 53 && dstPort != 53 {
+		return
+	}
+
 	d, ok := parseDNSMessage(udp[8:])
 	if !ok {
 		return
 	}
+
+	// A client may directly query the same resolver that Keenetic uses. Mark the
+	// inbound client packet before NAT so its forwarded egress copy is not
+	// counted as a router DNS-proxy upstream flow.
+	if !outgoing && dstPort == 53 && !d.QR && isPrivateOrLocalIP(net.ParseIP(srcIP)) &&
+		plainDNS.IsResolver(dstIP, dstPort) {
+		plainDNS.ObserveDirectClientQuery(now, "UDP", dstIP, dstPort, d)
+	}
+
+	// Router/plain upstream query and matching resolver response.
+	if outgoing && dstPort == 53 && !d.QR && plainDNS.IsResolver(dstIP, dstPort) {
+		plainDNS.RecordQuery(now, "UDP", dstIP, dstPort, srcPort, d)
+	}
+	if !outgoing && srcPort == 53 && d.QR && plainDNS.IsResolver(srcIP, srcPort) {
+		plainDNS.RecordResponse(now, "UDP", srcIP, srcPort, dstPort, d)
+	}
+
+	// Existing client attribution path.
 	if !outgoing && dstPort == 53 && !d.QR && isPrivateOrLocalIP(net.ParseIP(srcIP)) {
 		store.RecordClientQuery(now, "UDP", srcIP, srcMAC, d.ID, d)
 		return
@@ -128,9 +158,10 @@ func handleClientTCP(store *Store, now time.Time, srcIP, dstIP, srcMAC, dstMAC s
 	}
 	srcPort := binary.BigEndian.Uint16(tcp[0:2])
 	dstPort := binary.BigEndian.Uint16(tcp[2:4])
-	if (!outgoing && dstPort != 53) || (outgoing && srcPort != 53) {
+	if srcPort != 53 && dstPort != 53 {
 		return
 	}
+
 	off := int((tcp[12] >> 4) * 4)
 	if off < 20 || len(tcp) < off+2 {
 		return
@@ -140,15 +171,29 @@ func handleClientTCP(store *Store, now time.Time, srcIP, dstIP, srcMAC, dstMAC s
 	if n < 12 || len(payload) < 2+n {
 		return // best-effort: segmented DNS/TCP is not reassembled yet
 	}
+
 	d, ok := parseDNSMessage(payload[2 : 2+n])
 	if !ok {
 		return
 	}
-	if !outgoing && !d.QR && isPrivateOrLocalIP(net.ParseIP(srcIP)) {
+
+	if !outgoing && dstPort == 53 && !d.QR && isPrivateOrLocalIP(net.ParseIP(srcIP)) &&
+		plainDNS.IsResolver(dstIP, dstPort) {
+		plainDNS.ObserveDirectClientQuery(now, "TCP", dstIP, dstPort, d)
+	}
+
+	if outgoing && dstPort == 53 && !d.QR && plainDNS.IsResolver(dstIP, dstPort) {
+		plainDNS.RecordQuery(now, "TCP", dstIP, dstPort, srcPort, d)
+	}
+	if !outgoing && srcPort == 53 && d.QR && plainDNS.IsResolver(srcIP, srcPort) {
+		plainDNS.RecordResponse(now, "TCP", srcIP, srcPort, dstPort, d)
+	}
+
+	if !outgoing && dstPort == 53 && !d.QR && isPrivateOrLocalIP(net.ParseIP(srcIP)) {
 		store.RecordClientQuery(now, "TCP", srcIP, srcMAC, d.ID, d)
 		return
 	}
-	if outgoing && d.QR && isPrivateOrLocalIP(net.ParseIP(dstIP)) {
+	if outgoing && srcPort == 53 && d.QR && isPrivateOrLocalIP(net.ParseIP(dstIP)) {
 		store.RecordClientResponse(now, "TCP", dstIP, dstMAC, d.ID, d)
 	}
 }

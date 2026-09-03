@@ -1,0 +1,8 @@
+#!/bin/sh
+SERVICE="@SERVICE@"
+mkdir -p /opt/var/run
+if [ -x "/opt/etc/init.d/$SERVICE" ]; then
+    "/opt/etc/init.d/$SERVICE" stop >/dev/null 2>&1 || true
+    "/opt/etc/init.d/$SERVICE" start >/dev/null 2>&1 || true
+fi
+exit 0

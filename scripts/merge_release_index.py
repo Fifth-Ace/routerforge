@@ -34,7 +34,12 @@ def main():
     for current in candidate.get("components", []):
         old = old_by_id.get(current["id"])
         if old and old.get("version") == current.get("version"):
-            merged.append(old)
+            preserved = dict(old)
+            # Metadata can move to the renamed repository without rebuilding or
+            # replacing a same-version binary. Legacy url remains untouched.
+            if current.get("canonical_url"):
+                preserved["canonical_url"] = current["canonical_url"]
+            merged.append(preserved)
         else:
             merged.append(current)
             changed.append(current["asset"])

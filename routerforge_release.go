@@ -18,6 +18,8 @@ var releaseChannel = "beta"
 const (
 	routerForgeReleaseSyncInterval = time.Hour
 	routerForgeReleaseMaxBytes     = 512 << 10
+	routerForgeCanonicalRepository = "Fifth-Ace/routerforge"
+	routerForgeLegacyRepository    = "Fifth-Ace/dns-monitor"
 )
 
 type catalogRelease struct {
@@ -27,6 +29,7 @@ type catalogRelease struct {
 	Asset          string `json:"asset,omitempty"`
 	SHA256         string `json:"sha256,omitempty"`
 	URL            string `json:"url,omitempty"`
+	CanonicalURL   string `json:"canonical_url,omitempty"`
 	MinCoreVersion string `json:"min_core_version,omitempty"`
 }
 
@@ -67,12 +70,53 @@ func normalizedReleaseChannel() string {
 	}
 }
 
-func routerForgeReleaseIndexURL() string {
+func routerForgeReleaseIndexURLs() []string {
 	channel := normalizedReleaseChannel()
-	return fmt.Sprintf(
-		"https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-%s/routerforge-%s-index.json",
-		channel, channel,
-	)
+	repositories := []string{
+		routerForgeCanonicalRepository,
+		routerForgeLegacyRepository,
+	}
+	urls := make([]string, 0, len(repositories))
+	for _, repository := range repositories {
+		urls = append(urls, fmt.Sprintf(
+			"https://github.com/%s/releases/download/routerforge-%s/routerforge-%s-index.json",
+			repository, channel, channel,
+		))
+	}
+	return urls
+}
+
+func routerForgeReleaseIndexURL() string {
+	return routerForgeReleaseIndexURLs()[0]
+}
+
+func validRouterForgeReleaseURL(value string) bool {
+	for _, repository := range []string{routerForgeCanonicalRepository, routerForgeLegacyRepository} {
+		if strings.HasPrefix(value, "https://github.com/"+repository+"/releases/download/") {
+			return true
+		}
+	}
+	return false
+}
+
+func routerForgeReleaseDownloadURLs(release catalogRelease) []string {
+	urls := make([]string, 0, 2)
+	for _, candidate := range []string{release.CanonicalURL, release.URL} {
+		if candidate == "" || !validRouterForgeReleaseURL(candidate) {
+			continue
+		}
+		duplicate := false
+		for _, existing := range urls {
+			if existing == candidate {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			urls = append(urls, candidate)
+		}
+	}
+	return urls
 }
 
 func routerForgeReleaseCachePath() string {
@@ -154,30 +198,51 @@ func waitRouterForgeReleaseRefresh(timeout time.Duration) routerForgeReleaseStat
 	}
 }
 
-func refreshRouterForgeReleaseIndex() {
-	url := routerForgeReleaseIndexURL()
-	client := &http.Client{Timeout: 8 * time.Second}
+func fetchRouterForgeReleaseIndexURL(client *http.Client, url string) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err == nil {
-		req.Header.Set("Accept", "application/json")
-		req.Header.Set("User-Agent", "RouterForge/"+version)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "RouterForge/"+version)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("release index HTTP %d", resp.StatusCode)
 	}
 
-	var data []byte
-	if err == nil {
-		var resp *http.Response
-		resp, err = client.Do(req)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, routerForgeReleaseMaxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > routerForgeReleaseMaxBytes {
+		return nil, fmt.Errorf("release index exceeds %d bytes", routerForgeReleaseMaxBytes)
+	}
+	return data, nil
+}
+
+func refreshRouterForgeReleaseIndex() {
+	client := &http.Client{Timeout: 8 * time.Second}
+	var (
+		data []byte
+		url  string
+		err  error
+	)
+	var attempts []string
+	for _, candidate := range routerForgeReleaseIndexURLs() {
+		data, err = fetchRouterForgeReleaseIndexURL(client, candidate)
 		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				err = fmt.Errorf("release index HTTP %d", resp.StatusCode)
-			} else {
-				data, err = io.ReadAll(io.LimitReader(resp.Body, routerForgeReleaseMaxBytes+1))
-				if err == nil && len(data) > routerForgeReleaseMaxBytes {
-					err = fmt.Errorf("release index exceeds %d bytes", routerForgeReleaseMaxBytes)
-				}
-			}
+			url = candidate
+			break
 		}
+		attempts = append(attempts, candidate+": "+err.Error())
+	}
+	if url == "" {
+		err = fmt.Errorf("release index unavailable: %s", strings.Join(attempts, "; "))
 	}
 
 	var doc routerForgeReleaseIndex
@@ -246,8 +311,11 @@ func parseRouterForgeReleaseIndex(data []byte) (routerForgeReleaseIndex, error) 
 		if _, err := hex.DecodeString(release.SHA256); err != nil {
 			return doc, fmt.Errorf("%s: invalid SHA256", release.Package)
 		}
-		if !strings.HasPrefix(release.URL, "https://github.com/Fifth-Ace/dns-monitor/releases/download/") {
+		if !validRouterForgeReleaseURL(release.URL) || !strings.HasSuffix(release.URL, "/"+release.Asset) {
 			return doc, fmt.Errorf("%s: invalid release URL", release.Package)
+		}
+		if release.CanonicalURL != "" && (!validRouterForgeReleaseURL(release.CanonicalURL) || !strings.HasSuffix(release.CanonicalURL, "/"+release.Asset)) {
+			return doc, fmt.Errorf("%s: invalid canonical release URL", release.Package)
 		}
 		if _, exists := seen[release.Package]; exists {
 			return doc, fmt.Errorf("duplicate release package %s", release.Package)

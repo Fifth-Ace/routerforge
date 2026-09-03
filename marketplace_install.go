@@ -236,14 +236,28 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 		return err
 	}
 
-	local, actual, err := downloadVerifiedAsset(ctx, release.URL, release.Asset, release.SHA256)
-	if err != nil {
-		return err
+var (
+	local     string
+	actual    string
+	sourceURL string
+)
+var downloadErrors []string
+for _, candidateURL := range routerForgeReleaseDownloadURLs(release) {
+	local, actual, err = downloadVerifiedAsset(ctx, candidateURL, release.Asset, release.SHA256)
+	if err == nil {
+		sourceURL = candidateURL
+		break
 	}
-	defer os.Remove(local)
+	downloadErrors = append(downloadErrors, candidateURL+": "+err.Error())
+}
+if sourceURL == "" {
+	return fmt.Errorf("verified RouterForge download failed: %s", strings.Join(downloadErrors, "; "))
+}
+defer os.Remove(local)
 
-	result.Packages = []string{release.Package}
-	result.Sources = append(result.Sources, "routerforge-"+release.Channel+":"+release.URL+"#sha256="+actual)
+result.Packages = []string{release.Package}
+result.Sources = append(result.Sources, "routerforge-"+release.Channel+":"+sourceURL+"#sha256="+actual)
+
 
 	args := []string{"install", local}
 	if action == "update" {
@@ -443,8 +457,8 @@ func fetchSmallHTTPS(ctx context.Context, url string, maxBytes int64) ([]byte, e
 }
 
 func downloadVerifiedAsset(ctx context.Context, url, asset, expected string) (string, string, error) {
-	if !strings.HasPrefix(url, "https://github.com/") {
-		return "", "", fmt.Errorf("RouterForge release asset must be hosted on github.com")
+	if !validRouterForgeReleaseURL(url) {
+		return "", "", fmt.Errorf("RouterForge release asset must belong to the RouterForge GitHub repository")
 	}
 	if err := os.MkdirAll(marketplaceDownloadDir, 0755); err != nil {
 		return "", "", err

@@ -19,12 +19,27 @@ const (
 	routerForgeRegistryMaxBytes     = 2 << 20
 )
 
-func routerForgeRegistryRemoteURL() string {
+func routerForgeRegistryRemoteURLs() []string {
 	ref := "dev"
 	if normalizedReleaseChannel() == "stable" {
 		ref = "main"
 	}
-	return fmt.Sprintf("https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/%s/marketplace/registry/index.json", ref)
+	repositories := []string{
+		routerForgeCanonicalRepository,
+		routerForgeLegacyRepository,
+	}
+	urls := make([]string, 0, len(repositories))
+	for _, repository := range repositories {
+		urls = append(
+			urls,
+			fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/marketplace/registry/index.json", repository, ref),
+		)
+	}
+	return urls
+}
+
+func routerForgeRegistryRemoteURL() string {
+	return routerForgeRegistryRemoteURLs()[0]
 }
 
 func routerForgeRegistryCacheFile() string {
@@ -166,29 +181,51 @@ func waitRouterForgeRegistryRefresh(timeout time.Duration) routerForgeRegistrySt
 	}
 }
 
-func refreshRouterForgeRegistry() {
-	ctxClient := &http.Client{Timeout: 6 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, routerForgeRegistryRemoteURL(), nil)
-	if err == nil {
-		req.Header.Set("Accept", "application/json")
-		req.Header.Set("User-Agent", "RouterForge/"+version)
+func fetchRouterForgeRegistryURL(client *http.Client, url string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "RouterForge/"+version)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("registry HTTP %d", resp.StatusCode)
 	}
 
-	var data []byte
-	if err == nil {
-		var resp *http.Response
-		resp, err = ctxClient.Do(req)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, routerForgeRegistryMaxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > routerForgeRegistryMaxBytes {
+		return nil, fmt.Errorf("registry exceeds %d bytes", routerForgeRegistryMaxBytes)
+	}
+	return data, nil
+}
+
+func refreshRouterForgeRegistry() {
+	ctxClient := &http.Client{Timeout: 6 * time.Second}
+	var (
+		data []byte
+		url  string
+		err  error
+	)
+	var attempts []string
+	for _, candidate := range routerForgeRegistryRemoteURLs() {
+		data, err = fetchRouterForgeRegistryURL(ctxClient, candidate)
 		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				err = fmt.Errorf("registry HTTP %d", resp.StatusCode)
-			} else {
-				data, err = io.ReadAll(io.LimitReader(resp.Body, routerForgeRegistryMaxBytes+1))
-				if err == nil && len(data) > routerForgeRegistryMaxBytes {
-					err = fmt.Errorf("registry exceeds %d bytes", routerForgeRegistryMaxBytes)
-				}
-			}
+			url = candidate
+			break
 		}
+		attempts = append(attempts, candidate+": "+err.Error())
+	}
+	if url == "" {
+		err = fmt.Errorf("registry unavailable: %s", strings.Join(attempts, "; "))
 	}
 
 	var doc routerForgeRegistryDocument
@@ -217,7 +254,7 @@ func refreshRouterForgeRegistry() {
 	routerForgeRegistryState.doc = doc
 	routerForgeRegistryState.status = routerForgeRegistryStatus{
 		ID:            doc.RegistryID,
-		URL:           routerForgeRegistryRemoteURL(),
+		URL:           url,
 		Source:        "remote",
 		Online:        true,
 		SchemaVersion: doc.SchemaVersion,

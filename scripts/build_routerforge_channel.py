@@ -10,6 +10,10 @@ from datetime import datetime, timezone
 ROOT = Path(__file__).resolve().parents[1]
 DIST_DEFAULT = ROOT / "dist"
 
+LEGACY_REPOSITORY = "Fifth-Ace/dns-monitor"
+CANONICAL_REPOSITORY = "Fifth-Ace/routerforge"
+ALLOWED_REPOSITORIES = {LEGACY_REPOSITORY, CANONICAL_REPOSITORY}
+
 def load(path):
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
@@ -36,6 +40,10 @@ def main():
     channel = config.get("channel")
     if channel not in {"beta", "stable"}:
         raise SystemExit("channel must be beta or stable")
+
+    repository = os.environ.get("GITHUB_REPOSITORY", LEGACY_REPOSITORY).strip()
+    if repository not in ALLOWED_REPOSITORIES:
+        raise SystemExit(f"unexpected GITHUB_REPOSITORY {repository!r}")
 
     components = config.get("components") or []
     ids = [c.get("id") for c in components]
@@ -64,7 +72,9 @@ def main():
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
 
     tag = f"routerforge-{channel}"
-    base = f"https://github.com/Fifth-Ace/dns-monitor/releases/download/{tag}"
+    legacy_base = f"https://github.com/{LEGACY_REPOSITORY}/releases/download/{tag}"
+    canonical_base = f"https://github.com/{repository}/releases/download/{tag}"
+
     entries = []
     for component in components:
         pkg = component["package"]
@@ -77,9 +87,14 @@ def main():
             "id": component["id"],
             "package": pkg,
             "version": version,
+            # Keep url on the historical repository indefinitely so pre-bridge
+            # Core versions can still consume new indexes after the rename.
+            "url": f"{legacy_base}/{asset}",
+            # New Core versions prefer canonical_url. Before rename this equals
+            # url; after rename CI automatically emits Fifth-Ace/routerforge.
+            "canonical_url": f"{canonical_base}/{asset}",
             "asset": asset,
             "sha256": sha256(path),
-            "url": f"{base}/{asset}",
             "min_core_version": component.get("min_core_version", ""),
         })
 

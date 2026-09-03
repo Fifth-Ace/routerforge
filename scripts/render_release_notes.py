@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -28,7 +29,11 @@ ORDER = [
 ]
 
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
+ALLOWED_REPOSITORIES = {"Fifth-Ace/dns-monitor", "Fifth-Ace/routerforge"}
 
+def repository_name():
+    value = os.environ.get("GITHUB_REPOSITORY", "Fifth-Ace/dns-monitor").strip()
+    return value if value in ALLOWED_REPOSITORIES else "Fifth-Ace/routerforge"
 
 def load_index(path):
     if not path:
@@ -39,7 +44,6 @@ def load_index(path):
     with p.open("r", encoding="utf-8") as fh:
         return json.load(fh)
 
-
 def by_package(doc):
     if not doc:
         return {}
@@ -49,11 +53,9 @@ def by_package(doc):
         if item.get("package")
     }
 
-
 def name(package, lang):
     pair = NAMES.get(package, (package, package))
     return pair[0] if lang == "ru" else pair[1]
-
 
 def commit_history(previous, current):
     previous_sha = str((previous or {}).get("commit", "")).lower()
@@ -85,9 +87,33 @@ def commit_history(previous, current):
         subject = " ".join(subject.strip().split())
         if HEX40.fullmatch(sha) and subject:
             commits.append((sha, subject))
-    # Rolling release notes should stay readable even after a long gap.
     return commits[-30:]
 
+def append_highlights(lines, lang):
+    if lang == "ru":
+        lines += [
+            "## Что входит в RouterForge сейчас",
+            "",
+            "- **Модульная платформа:** Core + независимо устанавливаемые DNS, Control и monitoring capabilities.",
+            "- **DNS observability:** plain DNS, DoT/DoH, клиенты, upstream/fallback, latency и route-aware диагностика Keenetic policy routing.",
+            "- **Мониторинг:** System, Thermal, Storage и Network providers через root-owned Unix sockets.",
+            "- **Marketplace:** управляемый lifecycle пакетов, trust metadata и SHA256-проверка RouterForge IPK.",
+            "- **Независимые обновления:** каждый компонент имеет собственную версию; remote-проверка раз в час и ручная проверка сразу.",
+            "- **Безопасность:** опциональная Entware-root авторизация, in-memory sessions и ограниченные типизированные package actions.",
+            "",
+        ]
+    else:
+        lines += [
+            "## Current RouterForge highlights",
+            "",
+            "- **Modular platform:** Core plus independently installable DNS, Control and monitoring capabilities.",
+            "- **DNS observability:** plain DNS, DoT/DoH, clients, upstream/fallback, latency and route-aware Keenetic policy-routing diagnostics.",
+            "- **Monitoring:** System, Thermal, Storage and Network providers over root-owned Unix sockets.",
+            "- **Marketplace:** constrained package lifecycle, trust metadata and SHA256 verification for RouterForge IPKs.",
+            "- **Independent updates:** every component has its own version, with hourly remote checks and immediate manual refresh.",
+            "- **Security:** optional Entware-root authentication, in-memory sessions and constrained typed package actions.",
+            "",
+        ]
 
 def append_component_changes(lines, changed, lang):
     heading = "## Изменения компонентов" if lang == "ru" else "## Component changes"
@@ -108,16 +134,14 @@ def append_component_changes(lines, changed, lang):
         )
     lines.append("")
 
-
 def append_commit_notes(lines, commits, lang):
     heading = "## Что изменилось с прошлого publish" if lang == "ru" else "## Changes since the previous publish"
     lines += [heading, ""]
+    repo = repository_name()
     if commits:
         for sha, subject in commits:
             short = sha[:7]
-            lines.append(
-                f"- [`{short}`](https://github.com/Fifth-Ace/dns-monitor/commit/{sha}) — {subject}"
-            )
+            lines.append(f"- [`{short}`](https://github.com/{repo}/commit/{sha}) — {subject}")
     else:
         lines.append(
             "- Нет новых commit notes для этого rolling publish."
@@ -125,7 +149,6 @@ def append_commit_notes(lines, commits, lang):
             else "- No additional commit notes for this rolling publish."
         )
     lines.append("")
-
 
 def append_versions(lines, current, lang):
     heading = "## Текущие версии компонентов" if lang == "ru" else "## Current component versions"
@@ -143,7 +166,6 @@ def append_versions(lines, current, lang):
             lines.append(f"| {name(package, lang)} | `{item.get('version', '—')}` |")
     lines.append("")
 
-
 def append_install(lines, channel, lang):
     channel_name = "Stable" if channel == "stable" else "Beta"
     heading = "## Установка" if lang == "ru" else "## Installation"
@@ -152,22 +174,21 @@ def append_install(lines, channel, lang):
         if lang == "ru"
         else f"Fresh **RouterForge {channel_name}** install (Core + DNS, versions resolved from the release index):"
     )
+    repo = repository_name()
     lines += [
         heading,
         "",
         intro,
         "",
         "```sh",
-        f"wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-{channel}/routerforge-{channel}-bootstrap.sh | sh",
+        f"wget -qO- https://github.com/{repo}/releases/download/routerforge-{channel}/routerforge-{channel}-bootstrap.sh | sh",
         "```",
         "",
     ]
 
-
 def append_build(lines, channel, commit, lang):
     heading = "## Сборка и проверка" if lang == "ru" else "## Build and verification"
     commit_label = "Коммит" if lang == "ru" else "Commit"
-    index_label = "Release index" if lang == "ru" else "Release index"
     sums_label = "Контрольные суммы" if lang == "ru" else "Checksums"
     bootstrap_label = "Bootstrap установки" if lang == "ru" else "Fresh-install bootstrap"
     verify = (
@@ -175,19 +196,19 @@ def append_build(lines, channel, commit, lang):
         if lang == "ru"
         else "RouterForge verifies the exact release asset and SHA256 from the channel index before package installation."
     )
+    repo = repository_name()
     short = commit[:7]
     lines += [
         heading,
         "",
-        f"- {commit_label}: [`{short}`](https://github.com/Fifth-Ace/dns-monitor/commit/{commit})",
-        f"- {index_label}: `routerforge-{channel}-index.json`",
+        f"- {commit_label}: [`{short}`](https://github.com/{repo}/commit/{commit})",
+        f"- Release index: `routerforge-{channel}-index.json`",
         f"- {sums_label}: `routerforge-{channel}-SHA256SUMS`",
         f"- {bootstrap_label}: `routerforge-{channel}-bootstrap.sh`",
         "",
         verify,
         "",
     ]
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -240,6 +261,7 @@ def main():
         "Это rolling-канал с независимыми версиями компонентов RouterForge.",
         "",
     ]
+    append_highlights(lines, "ru")
     append_component_changes(lines, changed, "ru")
     append_commit_notes(lines, commits, "ru")
     append_versions(lines, current, "ru")
@@ -256,6 +278,7 @@ def main():
         "This is a rolling channel with independently versioned RouterForge components.",
         "",
     ]
+    append_highlights(lines, "en")
     append_component_changes(lines, changed, "en")
     append_commit_notes(lines, commits, "en")
     append_versions(lines, current, "en")
@@ -263,7 +286,6 @@ def main():
     append_build(lines, args.channel, args.commit, "en")
 
     Path(args.output).write_text("\n".join(lines), encoding="utf-8")
-
 
 if __name__ == "__main__":
     main()

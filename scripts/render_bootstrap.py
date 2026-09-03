@@ -8,6 +8,11 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 SAFE_ASSET = re.compile(r"^[A-Za-z0-9._+-]+$")
 SAFE_PACKAGE = re.compile(r"^[a-z0-9._+-]+$")
 
+ALLOWED_REPOSITORIES = (
+    "Fifth-Ace/routerforge",
+    "Fifth-Ace/dns-monitor",
+)
+
 def load(path):
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
@@ -16,6 +21,13 @@ def shell_single(value):
     if "'" in value or "\n" in value or "\r" in value:
         raise SystemExit(f"unsafe shell value: {value!r}")
     return "'" + value + "'"
+
+def valid_release_url(url, channel, asset):
+    for repository in ALLOWED_REPOSITORIES:
+        prefix = f"https://github.com/{repository}/releases/download/routerforge-{channel}/"
+        if url.startswith(prefix) and url.endswith("/" + asset):
+            return True
+    return False
 
 def main():
     ap = argparse.ArgumentParser()
@@ -31,10 +43,6 @@ def main():
     by_package = {x.get("package"): x for x in doc.get("components", [])}
     required = ["routerforge-core", "routerforge-dns"]
     entries = []
-    expected_prefix = (
-        "https://github.com/Fifth-Ace/dns-monitor/releases/download/"
-        f"routerforge-{args.channel}/"
-    )
 
     for package in required:
         item = by_package.get(package)
@@ -42,16 +50,27 @@ def main():
             raise SystemExit(f"release index is missing {package}")
         asset = str(item.get("asset", ""))
         sha = str(item.get("sha256", "")).lower()
-        url = str(item.get("url", ""))
+        legacy_url = str(item.get("url", ""))
+        canonical_url = str(item.get("canonical_url", "") or legacy_url)
         if not SAFE_PACKAGE.fullmatch(package):
             raise SystemExit(f"unsafe package {package}")
         if not SAFE_ASSET.fullmatch(asset):
             raise SystemExit(f"unsafe asset {asset}")
         if not HEX64.fullmatch(sha):
             raise SystemExit(f"invalid sha256 for {package}")
-        if not url.startswith(expected_prefix) or not url.endswith("/" + asset):
-            raise SystemExit(f"unexpected release URL for {package}")
-        entries.append((package, asset, sha, url, str(item.get("version", ""))))
+        if not valid_release_url(legacy_url, args.channel, asset):
+            raise SystemExit(f"unexpected legacy release URL for {package}")
+        if not valid_release_url(canonical_url, args.channel, asset):
+            raise SystemExit(f"unexpected canonical release URL for {package}")
+        fallback_url = legacy_url if legacy_url != canonical_url else ""
+        entries.append((
+            package,
+            asset,
+            sha,
+            canonical_url,
+            fallback_url,
+            str(item.get("version", "")),
+        ))
 
     lines = [
         "#!/bin/sh",
@@ -82,12 +101,23 @@ def main():
         '    else fail "curl/wget was not found."; fi',
         "}",
         "",
+        'fetch_compatible() {',
+        '    primary="$1"; fallback="$2"; output="$3"',
+        '    if fetch "$primary" "$output"; then return 0; fi',
+        '    if [ -n "$fallback" ] && [ "$fallback" != "$primary" ]; then',
+        '        say "Primary repository URL unavailable; trying compatibility URL..."',
+        '        fetch "$fallback" "$output"',
+        '        return $?',
+        '    fi',
+        '    return 1',
+        '}',
+        "",
         'mkdir -p "$TMP"',
         "trap 'rm -rf \"$TMP\"' EXIT HUP INT TERM",
         "",
         'install_verified() {',
-        '    package="$1"; asset="$2"; expected="$3"; url="$4"',
-        '    fetch "$url" "$TMP/$asset"',
+        '    package="$1"; asset="$2"; expected="$3"; primary="$4"; fallback="$5"',
+        '    fetch_compatible "$primary" "$fallback" "$TMP/$asset" || fail "Download failed for $asset."',
         '    actual="$(sha256sum "$TMP/$asset" | awk \'{print $1}\')"',
         '    [ "$actual" = "$expected" ] || fail "SHA256 mismatch for $asset."',
         '    say "Installing $package..."',
@@ -97,11 +127,11 @@ def main():
         'say "RouterForge $CHANNEL bootstrap"',
     ]
 
-    for package, asset, sha, url, version in entries:
+    for package, asset, sha, primary, fallback, version in entries:
         lines += [
             f"say {shell_single(package + ' ' + version)}",
             "install_verified "
-            + " ".join(shell_single(v) for v in (package, asset, sha, url)),
+            + " ".join(shell_single(v) for v in (package, asset, sha, primary, fallback)),
         ]
 
     lines += [

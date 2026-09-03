@@ -32,7 +32,7 @@ HEX40 = re.compile(r"^[0-9a-f]{40}$")
 ALLOWED_REPOSITORIES = {"Fifth-Ace/dns-monitor", "Fifth-Ace/routerforge"}
 
 def repository_name():
-    value = os.environ.get("GITHUB_REPOSITORY", "Fifth-Ace/dns-monitor").strip()
+    value = os.environ.get("GITHUB_REPOSITORY", "Fifth-Ace/routerforge").strip()
     return value if value in ALLOWED_REPOSITORIES else "Fifth-Ace/routerforge"
 
 def load_index(path):

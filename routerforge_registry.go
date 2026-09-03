@@ -263,6 +263,30 @@ func refreshRouterForgeRegistry() {
 	}
 }
 
+func canonicalizeRouterForgeRegistryURL(value string) string {
+	return strings.ReplaceAll(value, routerForgeLegacyRepository, routerForgeCanonicalRepository)
+}
+
+func canonicalizeRouterForgeRegistryPlan(plan *catalogInstallPlan) {
+	plan.RepositoryURL = canonicalizeRouterForgeRegistryURL(plan.RepositoryURL)
+	plan.InstallerURL = canonicalizeRouterForgeRegistryURL(plan.InstallerURL)
+	plan.ChecksumURL = canonicalizeRouterForgeRegistryURL(plan.ChecksumURL)
+}
+
+func canonicalizeRouterForgeRegistry(doc *routerForgeRegistryDocument) {
+	for i := range doc.Entries {
+		item := &doc.Entries[i]
+		if item.Publisher.ID != "routerforge" {
+			continue
+		}
+		item.Publisher.URL = canonicalizeRouterForgeRegistryURL(item.Publisher.URL)
+		item.ProjectURL = canonicalizeRouterForgeRegistryURL(item.ProjectURL)
+		canonicalizeRouterForgeRegistryPlan(&item.Install)
+		canonicalizeRouterForgeRegistryPlan(&item.Update)
+		canonicalizeRouterForgeRegistryPlan(&item.Remove)
+	}
+}
+
 func parseRouterForgeRegistry(data []byte) (routerForgeRegistryDocument, error) {
 	var doc routerForgeRegistryDocument
 	if err := json.Unmarshal(data, &doc); err != nil {
@@ -271,6 +295,7 @@ func parseRouterForgeRegistry(data []byte) (routerForgeRegistryDocument, error) 
 	if err := validateRouterForgeRegistry(doc); err != nil {
 		return doc, err
 	}
+	canonicalizeRouterForgeRegistry(&doc)
 	return doc, nil
 }
 
@@ -388,7 +413,7 @@ func applyRouterForgeRegistry(snapshot *catalogSnapshot, installed map[string]st
 	for i := range snapshot.Modules {
 		item := &snapshot.Modules[i]
 		if item.Builtin || item.Managed {
-			item.Publisher = catalogPublisher{ID: "routerforge", Name: "RouterForge", URL: "https://github.com/Fifth-Ace/dns-monitor"}
+			item.Publisher = catalogPublisher{ID: "routerforge", Name: "RouterForge", URL: "https://github.com/Fifth-Ace/routerforge"}
 			item.Trust = catalogTrust{Status: "official", ReviewedBy: "routerforge", Note: "Встроенный или официальный модуль RouterForge."}
 			item.RegistrySource = "builtin-fallback"
 		}

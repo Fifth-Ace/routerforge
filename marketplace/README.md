@@ -29,7 +29,7 @@ Changing a manifest automatically invalidates the old approval because its canon
 
 The dev Core reads:
 
-`https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/dev/marketplace/registry/index.json`
+`https://raw.githubusercontent.com/Fifth-Ace/routerforge/dev/marketplace/registry/index.json`
 
 RouterForge-owned optional IPKs are published to the rolling GitHub prerelease tag `routerforge-dev`. Only the selected IPK is downloaded to `/opt/tmp/routerforge-marketplace`, verified against `routerforge-dev-SHA256SUMS`, installed, and deleted immediately.
 

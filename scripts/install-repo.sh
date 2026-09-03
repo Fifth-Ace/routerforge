@@ -8,7 +8,7 @@ case "$CHANNEL" in
     *) printf 'ERROR: ROUTERFORGE_CHANNEL must be stable or beta.\n' >&2; exit 1 ;;
 esac
 
-BASE="https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-$CHANNEL"
+BASE="https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-$CHANNEL"
 ASSET="routerforge-$CHANNEL-bootstrap.sh"
 TMP="/opt/tmp/routerforge-bootstrap-launcher.$$"
 

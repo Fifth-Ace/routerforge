@@ -7,7 +7,7 @@ Provides: dns-monitor
 Conflicts: dns-monitor
 Replaces: dns-monitor
 Maintainer: Fifth-Ace
-Source: https://github.com/Fifth-Ace/dns-monitor
-Homepage: https://github.com/Fifth-Ace/dns-monitor
+Source: https://github.com/Fifth-Ace/routerforge
+Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
 Description: RouterForge modular router console core for Keenetic / Netcraze ARM64.

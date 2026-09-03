@@ -41,7 +41,7 @@ def main():
     if channel not in {"beta", "stable"}:
         raise SystemExit("channel must be beta or stable")
 
-    repository = os.environ.get("GITHUB_REPOSITORY", LEGACY_REPOSITORY).strip()
+    repository = os.environ.get("GITHUB_REPOSITORY", CANONICAL_REPOSITORY).strip()
     if repository not in ALLOWED_REPOSITORIES:
         raise SystemExit(f"unexpected GITHUB_REPOSITORY {repository!r}")
 

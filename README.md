@@ -2,9 +2,9 @@
 
 **Русский** | [English](README_EN.md)
 
-[![CI](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/channel-stable-2ea043)](https://github.com/Fifth-Ace/dns-monitor/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/dns-monitor/releases/tag/routerforge-beta)
+[![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
+[![Stable](https://img.shields.io/badge/channel-stable-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#требования)
 
@@ -18,7 +18,7 @@
 
 > [!NOTE]
 > RouterForge — независимый community-проект и не является официальным продуктом Keenetic или Netcraze.
-> Репозиторий пока сохраняет историческое имя `dns-monitor`, чтобы не ломать существующие ссылки и release URL.
+> Исторические ссылки на прежнее имя репозитория продолжают работать через GitHub redirect и compatibility fallback RouterForge.
 
 ## Что умеет RouterForge
 
@@ -127,7 +127,7 @@ RouterForge Core
 Рекомендуемый публичный канал:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
+wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
 Bootstrap устанавливает актуальные **Core + DNS** из stable release, причём версии берутся из release-index независимо друг от друга. Каждый IPK проверяется по SHA256 до `opkg install`.
@@ -156,7 +156,7 @@ Stable и Beta — разные rolling channels:
 Beta для тестирования:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
 Не смешивайте stable и beta пакеты без необходимости.
@@ -192,7 +192,7 @@ wget -qO- http://127.0.0.1:2233/api/health
 ## Удаление
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/remove-repo.sh | sh
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
 ```
 
 Пакеты удаляются, каталоги конфигурации сохраняются.

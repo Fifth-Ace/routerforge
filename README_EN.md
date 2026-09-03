@@ -2,9 +2,9 @@
 
 [Русский](README.md) | **English**
 
-[![CI](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/dns-monitor/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/channel-stable-2ea043)](https://github.com/Fifth-Ace/dns-monitor/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/dns-monitor/releases/tag/routerforge-beta)
+[![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
+[![Stable](https://img.shields.io/badge/channel-stable-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#requirements)
 
@@ -18,7 +18,7 @@ A single Core provides the UI, API, Marketplace, authentication and package life
 
 > [!NOTE]
 > RouterForge is an independent community project and is not an official Keenetic or Netcraze product.
-> The repository currently keeps its historical `dns-monitor` name so existing links and release URLs remain valid.
+> Historical links using the previous repository name remain supported through GitHub redirects and the RouterForge compatibility fallback.
 
 ## What RouterForge provides
 
@@ -127,7 +127,7 @@ Components are **versioned independently**. A module version does not need to ma
 Recommended public channel:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
+wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
 The bootstrap installs the current **Core + DNS** from the stable release. Their versions are resolved independently from the release index, and each IPK is SHA256-verified before `opkg install`.
@@ -156,7 +156,7 @@ Release channels:
 Beta installation:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
 Avoid mixing stable and beta packages unless you deliberately switch channels.
@@ -192,7 +192,7 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 ## Uninstall
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/remove-repo.sh | sh
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
 ```
 
 Packages are removed; configuration directories are preserved.

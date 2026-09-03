@@ -4,7 +4,7 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
-No public platform changes after the current Stable milestone.
+- Canonical GitHub repository renamed to `Fifth-Ace/routerforge`; legacy links remain supported through redirects and the Core compatibility bridge.
 
 ## 2026-09-03 — RouterForge 0.3 generation
 
@@ -58,4 +58,4 @@ First public DNS Monitor release.
 - Embedded web UI on port 2233.
 - ARM64 Entware packaging.
 
-The `dns-monitor` repository name and some internal source paths remain for migration/link compatibility; the product name is RouterForge.
+The canonical repository is now `Fifth-Ace/routerforge`. Legacy `dns-monitor-*` packages, paths and historical links remain supported only for migration compatibility.

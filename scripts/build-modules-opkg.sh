@@ -59,8 +59,8 @@ Provides: $LEGACY
 Conflicts: $LEGACY
 Replaces: $LEGACY
 Maintainer: Fifth-Ace
-Source: https://github.com/Fifth-Ace/dns-monitor
-Homepage: https://github.com/Fifth-Ace/dns-monitor
+Source: https://github.com/Fifth-Ace/routerforge
+Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
 Description: $DESCRIPTION
 EOF
@@ -97,8 +97,8 @@ Priority: optional
 Architecture: $ARCH
 Depends: routerforge-core
 Maintainer: Fifth-Ace
-Source: https://github.com/Fifth-Ace/dns-monitor
-Homepage: https://github.com/Fifth-Ace/dns-monitor
+Source: https://github.com/Fifth-Ace/routerforge
+Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
 Description: RouterForge DNS observability module.
 EOF
@@ -141,8 +141,8 @@ Provides: $LEGACY
 Conflicts: $LEGACY
 Replaces: $LEGACY
 Maintainer: Fifth-Ace
-Source: https://github.com/Fifth-Ace/dns-monitor
-Homepage: https://github.com/Fifth-Ace/dns-monitor
+Source: https://github.com/Fifth-Ace/routerforge
+Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
 Description: Optional loopback-only pprof and slow-request logging for RouterForge Core.
 EOF

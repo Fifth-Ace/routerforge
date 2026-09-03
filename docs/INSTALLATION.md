@@ -16,7 +16,7 @@ Web UI работает на порту **2233**.
 ## Stable — рекомендуемый канал
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
+wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
 Bootstrap генерируется CI из актуального `routerforge-stable-index.json`.
@@ -51,7 +51,7 @@ wget -qO- http://127.0.0.1:2233/api/health
 Beta публикуется из `dev` и предназначена для проверки новых возможностей до Stable:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
 GitHub release `RouterForge Beta` помечен как **Pre-release**.
@@ -61,7 +61,7 @@ GitHub release `RouterForge Beta` помечен как **Pre-release**.
 Для совместимости в репозитории остаётся:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/install-repo.sh | sh
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/install-repo.sh | sh
 ```
 
 По умолчанию он запускает Stable bootstrap.
@@ -69,7 +69,7 @@ wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/i
 Beta через launcher:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/install-repo.sh | \
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/install-repo.sh | \
   ROUTERFORGE_CHANNEL=beta sh
 ```
 
@@ -154,7 +154,7 @@ tail -f /opt/var/log/routerforge.log
 ## Удаление
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/main/scripts/remove-repo.sh | sh
+wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
 ```
 
 Удаляются RouterForge-пакеты и legacy `dns-monitor-*`, если они остались установленными.
@@ -178,4 +178,4 @@ RouterForge использует новый package namespace `routerforge-*`.
 
 Пакеты содержат migration metadata для legacy `dns-monitor*`, а Core переносит совместимые настройки безопасности из старого namespace при первом обновлении.
 
-Репозиторий GitHub пока сохраняет имя `dns-monitor` только ради стабильности URL.
+Канонический репозиторий — `Fifth-Ace/routerforge`. Исторические ссылки на прежнее имя поддерживаются GitHub redirect и compatibility fallback в Core.

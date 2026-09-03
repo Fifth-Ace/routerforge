@@ -24,6 +24,11 @@ func TestBundledRouterForgeRegistry(t *testing.T) {
 	if admin == nil || admin.Trust.Status != "official" || admin.Install.Method != "routerforge-release" {
 		t.Fatalf("bad official admin entry: %#v", admin)
 	}
+	if admin.ProjectURL != "https://github.com/Fifth-Ace/routerforge" ||
+		admin.Publisher.URL != "https://github.com/Fifth-Ace/routerforge" ||
+		admin.Install.RepositoryURL != "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta" {
+		t.Fatalf("official RouterForge URLs were not canonicalized: %#v", admin)
+	}
 	if dns == nil || dns.Trust.Status != "official" || len(dns.Install.Packages) != 1 || dns.Install.Packages[0] != "routerforge-dns" {
 		t.Fatalf("bad RouterForge DNS entry: %#v", dns)
 	}

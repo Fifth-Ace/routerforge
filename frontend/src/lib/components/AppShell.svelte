@@ -112,7 +112,7 @@
         <div><span>Packages</span><strong class={$catalog.install_test_mode ? 'good' : 'muted'}>{$catalog.install_test_mode ? 'BETA ENABLED' : 'DISABLED'}</strong></div>
       </section>
 
-      <a class="rail-repository-link" href="https://github.com/Fifth-Ace/dns-monitor" target="_blank" rel="noreferrer" aria-label="Открыть репозиторий RouterForge на GitHub">
+      <a class="rail-repository-link" href="https://github.com/Fifth-Ace/routerforge" target="_blank" rel="noreferrer" aria-label="Открыть репозиторий RouterForge на GitHub">
         <img src="/routerforge-mark.png" alt="" />
         <span class="rail-repository-copy"><small>Исходный код</small><strong>RouterForge on GitHub</strong></span>
         <span class="rail-repository-arrow" aria-hidden="true">↗</span>

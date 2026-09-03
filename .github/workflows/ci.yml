@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test:
@@ -37,6 +37,9 @@ jobs:
         run: |
           test -f frontend/build/index.html
           test -d frontend/build/_app
+
+      - name: Validate RouterForge registry
+        run: python3 marketplace/build_registry.py --check
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -173,17 +176,17 @@ jobs:
           ./scripts/build-admin-opkg.sh 0.2.0 dev
           ./scripts/build-modules-opkg.sh 0.2.0 dev
 
-          for pkg in \
-            dns-monitor \
-            dns-monitor-admin \
-            dns-monitor-system \
-            dns-monitor-thermal \
-            dns-monitor-storage \
-            dns-monitor-network \
-            dns-monitor-profiling
-          do
-            test -f "dist/${pkg}_0.2.0-dev_aarch64-3.10.ipk"
-          done
+          assets="
+          dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
+          dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk
+          dist/dns-monitor-system_0.2.0-dev_aarch64-3.10.ipk
+          dist/dns-monitor-thermal_0.2.0-dev_aarch64-3.10.ipk
+          dist/dns-monitor-storage_0.2.0-dev_aarch64-3.10.ipk
+          dist/dns-monitor-network_0.2.0-dev_aarch64-3.10.ipk
+          dist/dns-monitor-profiling_0.2.0-dev_aarch64-3.10.ipk
+          "
+          for asset in $assets; do test -f "$asset"; done
+          sha256sum $assets | sed 's#dist/##' > dist/routerforge-dev-SHA256SUMS
 
       - name: Upload dev combat package set
         if: github.ref == 'refs/heads/dev'
@@ -198,4 +201,30 @@ jobs:
             dist/dns-monitor-storage_0.2.0-dev_aarch64-3.10.ipk
             dist/dns-monitor-network_0.2.0-dev_aarch64-3.10.ipk
             dist/dns-monitor-profiling_0.2.0-dev_aarch64-3.10.ipk
+            dist/routerforge-dev-SHA256SUMS
           retention-days: 7
+
+      - name: Publish rolling RouterForge dev release
+        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag -f routerforge-dev "$GITHUB_SHA"
+          git push --force origin refs/tags/routerforge-dev
+
+          if ! gh release view routerforge-dev >/dev/null 2>&1; then
+            gh release create routerforge-dev \
+              --prerelease \
+              --title "RouterForge dev packages" \
+              --notes "Rolling dev package channel. Assets are replaced after every green dev build."
+          fi
+
+          gh release upload routerforge-dev --clobber \
+            dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk \
+            dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk \
+            dist/dns-monitor-system_0.2.0-dev_aarch64-3.10.ipk \
+            dist/dns-monitor-thermal_0.2.0-dev_aarch64-3.10.ipk \
+            dist/dns-monitor-storage_0.2.0-dev_aarch64-3.10.ipk \
+            dist/dns-monitor-network_0.2.0-dev_aarch64-3.10.ipk \
+            dist/dns-monitor-profiling_0.2.0-dev_aarch64-3.10.ipk \
+            dist/routerforge-dev-SHA256SUMS

@@ -1,0 +1,7 @@
+{
+  "id": "system",
+  "status": "official",
+  "manifest_sha256": "1cde30e1dc929c71b74847a68785d4864e6805d04ad45ebe59c29a0a14738be0",
+  "reviewed_by": "routerforge",
+  "note": "Официальный модуль RouterForge."
+}

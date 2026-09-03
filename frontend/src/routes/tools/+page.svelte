@@ -22,10 +22,10 @@
   }
 </script>
 
-<svelte:head><title>DNS Monitor — Инструменты</title></svelte:head>
+<svelte:head><title>RouterForge — Инструменты</title></svelte:head>
 
 <div class="page">
-  <div class="page-head"><div><h1>Инструменты</h1><p>Журнал ошибок, локальные DNS proxy и процесс DNS Monitor.</p></div><span class="page-kicker mono">READ-ONLY TOOLS</span></div>
+  <div class="page-head"><div><h1>Инструменты</h1><p>Журнал ошибок, локальные DNS proxy и процесс RouterForge.</p></div><span class="page-kicker mono">READ-ONLY TOOLS</span></div>
   <div class="subtabs"><button class:active={tab==='journal'} onclick={()=>setTab('journal')}>Журнал</button><button class:active={tab==='connections'} onclick={()=>setTab('connections')}>Соединения</button><button class:active={tab==='dns'} onclick={()=>setTab('dns')}>Сведения о DNS</button><button class:active={tab==='system'} onclick={()=>setTab('system')}>Система</button></div>
 
   {#if tab==='journal'}
@@ -50,7 +50,7 @@
 
   {:else if tab==='system'}
     <div class="two-col">
-      <section class="panel"><div class="panel-head"><div><strong>DNS Monitor</strong><span>runtime</span></div></div><div class="info-row"><div><strong>Версия</strong></div><div class="info-value">{$snapshot.version||'—'}</div></div><div class="info-row"><div><strong>Uptime</strong></div><div class="info-value">{fmtDuration($snapshot.uptime_seconds)}</div></div><div class="info-row"><div><strong>Go runtime</strong></div><div class="info-value mono">{system.go_version||'—'}</div></div><div class="info-row"><div><strong>Архитектура</strong></div><div class="info-value mono">{system.goarch||'—'}</div></div></section>
+      <section class="panel"><div class="panel-head"><div><strong>RouterForge</strong><span>runtime</span></div></div><div class="info-row"><div><strong>Версия</strong></div><div class="info-value">{$snapshot.version||'—'}</div></div><div class="info-row"><div><strong>Uptime</strong></div><div class="info-value">{fmtDuration($snapshot.uptime_seconds)}</div></div><div class="info-row"><div><strong>Go runtime</strong></div><div class="info-value mono">{system.go_version||'—'}</div></div><div class="info-row"><div><strong>Архитектура</strong></div><div class="info-value mono">{system.goarch||'—'}</div></div></section>
       <section class="panel"><div class="panel-head"><div><strong>Процесс</strong><span>dns-monitor</span></div></div><div class="info-row"><div><strong>RSS</strong></div><div class="info-value">{bytes((system.rss_kb||0)*1024)}</div></div><div class="info-row"><div><strong>VmSize</strong></div><div class="info-value">{bytes((system.vmsize_kb||0)*1024)}</div></div><div class="info-row"><div><strong>Goroutines</strong></div><div class="info-value">{fmtInt(system.goroutines||0)}</div></div><div class="info-row"><div><strong>PID</strong></div><div class="info-value mono">{fmtInt(system.pid||0)}</div></div></section>
     </div>
   {/if}

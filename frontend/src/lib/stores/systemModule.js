@@ -5,6 +5,7 @@ export const systemModuleSummary = writable(null);
 export const systemModuleOnline = writable(false);
 
 let timer = null;
+let users = 0;
 
 export async function refreshSystemModule() {
   try {
@@ -20,9 +21,21 @@ export async function refreshSystemModule() {
 }
 
 export function startSystemModulePolling(intervalMs = 10000) {
+  users += 1;
   if (!timer) {
     refreshSystemModule();
     timer = setInterval(refreshSystemModule, intervalMs);
   }
-  return () => {};
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    users = Math.max(0, users - 1);
+    if (users === 0 && timer) {
+      clearInterval(timer);
+      timer = null;
+      systemModuleSummary.set(null);
+      systemModuleOnline.set(false);
+    }
+  };
 }

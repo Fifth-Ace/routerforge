@@ -1,71 +1,37 @@
 package main
 
-import (
-	"os"
-	"path/filepath"
-	"testing"
-	"time"
-)
+import "testing"
 
-func TestCatalogItemTestInstallable(t *testing.T) {
-	good := catalogItem{
-		Kind: "module", Managed: true,
-		Install: catalogInstallPlan{
-			Method: "opkg-feed", Repository: "dns-monitor",
-			Packages: []string{"dns-monitor-thermal"},
-		},
+func TestSafeCatalogPackageName(t *testing.T) {
+	for _, value := range []string{"dns-monitor-thermal", "nfqws2-keenetic", "adguardhome-go"} {
+		if !safeCatalogPackageName(value) {
+			t.Fatalf("expected safe package: %q", value)
+		}
 	}
-	if !catalogItemTestInstallable(good) {
-		t.Fatal("managed DNS Monitor module should be test-installable")
-	}
-
-	builtin := good
-	builtin.Builtin = true
-	if catalogItemTestInstallable(builtin) {
-		t.Fatal("built-in module must not be installable")
-	}
-
-	thirdParty := good
-	thirdParty.Kind = "integration"
-	if catalogItemTestInstallable(thirdParty) {
-		t.Fatal("third-party integration must not be test-installable")
-	}
-
-	script := good
-	script.Install.Method = "official-script"
-	if catalogItemTestInstallable(script) {
-		t.Fatal("script installer must not be test-installable")
-	}
-
-	unsafe := good
-	unsafe.Install.Packages = []string{"../../evil"}
-	if catalogItemTestInstallable(unsafe) {
-		t.Fatal("unsafe package name must be rejected")
+	for _, value := range []string{"../../evil", "bad package", "/tmp/x"} {
+		if safeCatalogPackageName(value) {
+			t.Fatalf("expected unsafe package: %q", value)
+		}
 	}
 }
 
-func TestFindNewestLocalIPK(t *testing.T) {
-	dir := t.TempDir()
-	oldPath := filepath.Join(dir, "dns-monitor-thermal_0.1.ipk")
-	newPath := filepath.Join(dir, "dns-monitor-thermal_0.2.ipk")
-	if err := os.WriteFile(oldPath, []byte("old"), 0644); err != nil {
-		t.Fatal(err)
+func TestExpandAssetTemplate(t *testing.T) {
+	got := expandAssetTemplate("{package}_{version}_aarch64-3.10.ipk", "dns-monitor-thermal", "0.2.0-dev")
+	want := "dns-monitor-thermal_0.2.0-dev_aarch64-3.10.ipk"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
 	}
-	if err := os.WriteFile(newPath, []byte("new"), 0644); err != nil {
-		t.Fatal(err)
+	if got := expandAssetTemplate("../../{package}.ipk", "dns-monitor-thermal", "0.2.0-dev"); got != "" {
+		t.Fatalf("unsafe template returned %q", got)
 	}
-	now := time.Now()
-	if err := os.Chtimes(oldPath, now.Add(-time.Hour), now.Add(-time.Hour)); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chtimes(newPath, now, now); err != nil {
-		t.Fatal(err)
-	}
+}
 
-	if got := findNewestLocalIPK(dir, "dns-monitor-thermal"); got != newPath {
-		t.Fatalf("got %q want %q", got, newPath)
+func TestParseChecksumList(t *testing.T) {
+	got, err := parseChecksumList("03c9787e77338360005886d13aac316d8ac8ad8611aeafc46ebf0304c3df6f30  dns-monitor_0.2.0-dev_aarch64-3.10.ipk\n")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := findNewestLocalIPK(dir, "../../evil"); got != "" {
-		t.Fatalf("unsafe package returned %q", got)
+	if got["dns-monitor_0.2.0-dev_aarch64-3.10.ipk"] == "" {
+		t.Fatal("checksum was not parsed")
 	}
 }

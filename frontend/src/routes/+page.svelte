@@ -99,7 +99,7 @@
   });
 </script>
 
-<svelte:head><title>DNS Monitor — Обзор</title></svelte:head>
+<svelte:head><title>RouterForge — Обзор</title></svelte:head>
 
 <div class="page">
   <div class="page-head">

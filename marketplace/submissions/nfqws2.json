@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "id": "nfqws2",
+  "kind": "integration",
+  "name": "nfqws2",
+  "category": "DPI / Bypass",
+  "description": "Актуальная nfqws ветка для Keenetic/Netcraze. Lifecycle сверяется с официальной инструкцией разработчика.",
+  "publisher": {
+    "id": "nfqws",
+    "name": "nfqws",
+    "url": "https://github.com/nfqws"
+  },
+  "project_url": "https://github.com/nfqws/nfqws2-keenetic",
+  "source": "project-official",
+  "package_authoritative": true,
+  "detection": {
+    "packages": [
+      "nfqws2-keenetic"
+    ],
+    "services": [
+      "/opt/etc/init.d/S51nfqws2"
+    ],
+    "paths": [
+      "/opt/etc/nfqws2"
+    ]
+  },
+  "process_names": [
+    "nfqws2"
+  ],
+  "web_port": 90,
+  "web_port_source": "nfqws-keenetic-web",
+  "web_requires_package": "nfqws-keenetic-web",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Entware",
+      "Netfilter kernel modules",
+      "Legacy nfqws must be removed before migration"
+    ]
+  },
+  "install": {
+    "method": "structured",
+    "packages": [
+      "nfqws2-keenetic"
+    ],
+    "notes": [
+      "Шаги повторяют README nfqws2-keenetic для Keenetic/Netcraze.",
+      "Если legacy nfqws-keenetic установлен, RouterForge остановит автоматическую установку вместо его скрытого удаления."
+    ],
+    "preview_only": false,
+    "steps": [
+      {
+        "type": "opkg-update"
+      },
+      {
+        "type": "opkg-install",
+        "packages": [
+          "ca-certificates",
+          "wget-ssl"
+        ]
+      },
+      {
+        "type": "opkg-remove",
+        "packages": [
+          "wget-nossl"
+        ],
+        "ignore_failure": true
+      },
+      {
+        "type": "write-opkg-feed",
+        "path": "/opt/etc/opkg/nfqws2-keenetic.conf",
+        "content": "src/gz nfqws2-keenetic https://nfqws.github.io/nfqws2-keenetic/all"
+      },
+      {
+        "type": "opkg-update"
+      },
+      {
+        "type": "opkg-install",
+        "packages": [
+          "nfqws2-keenetic"
+        ]
+      }
+    ]
+  },
+  "update": {
+    "method": "structured",
+    "packages": [
+      "nfqws2-keenetic"
+    ],
+    "notes": [
+      "Официальный README: opkg update; opkg upgrade nfqws2-keenetic."
+    ],
+    "preview_only": false,
+    "steps": [
+      {
+        "type": "opkg-update"
+      },
+      {
+        "type": "opkg-upgrade",
+        "packages": [
+          "nfqws2-keenetic"
+        ]
+      }
+    ]
+  },
+  "remove": {
+    "method": "structured",
+    "packages": [
+      "nfqws2-keenetic"
+    ],
+    "notes": [
+      "Официальный README: opkg remove --autoremove nfqws2-keenetic."
+    ],
+    "preview_only": false,
+    "steps": [
+      {
+        "type": "opkg-remove",
+        "args": [
+          "--autoremove"
+        ],
+        "packages": [
+          "nfqws2-keenetic"
+        ]
+      }
+    ]
+  }
+}

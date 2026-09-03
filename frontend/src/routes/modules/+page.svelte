@@ -20,8 +20,21 @@
   let timer = null;
 
   $: modules = $catalog.modules || [];
+  $: installedDefs = moduleDefs.filter((definition) => modules.some((item) => item.id === definition.id && item.installed));
   $: currentModule = modules.find((item) => item.id === tab);
-  $: definition = moduleDefs.find((item) => item.id === tab) || moduleDefs[0];
+  $: definition = installedDefs.find((item) => item.id === tab) || installedDefs[0] || moduleDefs[0];
+  $: if (installedDefs.length && !installedDefs.some((item) => item.id === tab)) {
+    tab = installedDefs[0].id;
+    data = {};
+    errorText = '';
+    if (typeof window !== 'undefined') {
+      Promise.resolve().then(() => {
+        replaceState(`/modules?tab=${encodeURIComponent(tab)}`, {});
+        startTimer();
+        loadCurrent();
+      });
+    }
+  }
 
   const pct = (n) => Math.max(0, Math.min(100, Number(n || 0)));
   const rate = (n) => {
@@ -101,13 +114,13 @@
   });
 </script>
 
-<svelte:head><title>DNS Monitor — Модули</title></svelte:head>
+<svelte:head><title>RouterForge — Модули</title></svelte:head>
 
 <div class="page modules-page">
   <div class="page-head">
     <div>
       <h1>Modules</h1>
-      <p>Опциональная телеметрия DNS Monitor. Каждый модуль — отдельный Entware IPK и отдельный read-only runtime.</p>
+      <p>Опциональная телеметрия RouterForge. Каждый модуль — отдельный Entware IPK и отдельный read-only runtime.</p>
     </div>
     <span class="state-chip {currentModule?.service_running ? 'good' : currentModule?.installed ? 'warn' : 'info'}">
       {currentModule?.service_running ? 'MODULE ONLINE' : currentModule?.installed ? 'INSTALLED / OFFLINE' : 'OPTIONAL'}
@@ -115,7 +128,7 @@
   </div>
 
   <div class="module-selector">
-    {#each moduleDefs as item}
+    {#each installedDefs as item}
       {@const catalogItem = modules.find((entry) => entry.id === item.id)}
       <button class:active={tab === item.id} onclick={() => selectTab(item.id)}>
         <span class="module-selector-icon mono">{item.short}</span>

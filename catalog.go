@@ -23,13 +23,16 @@ type catalogCompatibility struct {
 }
 
 type catalogInstallPlan struct {
-	Method        string   `json:"method,omitempty"`
-	Repository    string   `json:"repository,omitempty"`
-	RepositoryURL string   `json:"repository_url,omitempty"`
-	Packages      []string `json:"packages,omitempty"`
-	InstallerURL  string   `json:"installer_url,omitempty"`
-	Notes         []string `json:"notes,omitempty"`
-	PreviewOnly   bool     `json:"preview_only"`
+	Method        string                 `json:"method,omitempty"`
+	Repository    string                 `json:"repository,omitempty"`
+	RepositoryURL string                 `json:"repository_url,omitempty"`
+	Packages      []string               `json:"packages,omitempty"`
+	InstallerURL  string                 `json:"installer_url,omitempty"`
+	ChecksumURL   string                 `json:"checksum_url,omitempty"`
+	AssetTemplate string                 `json:"asset_template,omitempty"`
+	Notes         []string               `json:"notes,omitempty"`
+	Steps         []catalogLifecycleStep `json:"steps,omitempty"`
+	PreviewOnly   bool                   `json:"preview_only"`
 }
 
 type catalogItem struct {
@@ -53,28 +56,43 @@ type catalogItem struct {
 	Detection      catalogDetection     `json:"detection,omitempty"`
 	Compatibility  catalogCompatibility `json:"compatibility"`
 	Install        catalogInstallPlan   `json:"install,omitempty"`
+	Update         catalogInstallPlan   `json:"update,omitempty"`
+	Remove         catalogInstallPlan   `json:"remove,omitempty"`
+	Publisher      catalogPublisher     `json:"publisher,omitempty"`
+	Trust          catalogTrust         `json:"trust,omitempty"`
+	Actions        catalogActions       `json:"actions"`
+	ManifestID     string               `json:"manifest_id,omitempty"`
+	ManifestSHA256 string               `json:"manifest_sha256,omitempty"`
+	ManifestSource string               `json:"manifest_source,omitempty"`
+	RegistrySource string               `json:"registry_source,omitempty"`
 
-	ProcessNames       []string `json:"-"`
-	RunningPaths       []string `json:"-"`
-	WebRequiresPackage string   `json:"-"`
-	Builtin            bool     `json:"-"`
+	ProcessNames         []string `json:"process_names,omitempty"`
+	RunningPaths         []string `json:"running_paths,omitempty"`
+	WebRequiresPackage   string   `json:"web_requires_package,omitempty"`
+	PackageAuthoritative bool     `json:"package_authoritative,omitempty"`
+	Builtin              bool     `json:"builtin,omitempty"`
 }
 
 type catalogSnapshot struct {
-	GeneratedAt     time.Time     `json:"generated_at"`
-	ReadOnly        bool          `json:"read_only"`
-	InstallTestMode bool          `json:"install_test_mode"`
-	Phase           string        `json:"phase"`
-	Modules         []catalogItem `json:"modules"`
-	Integrations    []catalogItem `json:"integrations"`
+	GeneratedAt     time.Time                 `json:"generated_at"`
+	ReadOnly        bool                      `json:"read_only"`
+	InstallTestMode bool                      `json:"install_test_mode"`
+	Phase           string                    `json:"phase"`
+	Brand           string                    `json:"brand"`
+	Registry        routerForgeRegistryStatus `json:"registry"`
+	Modules         []catalogItem             `json:"modules"`
+	Integrations    []catalogItem             `json:"integrations"`
 }
 
 func readCatalog() catalogSnapshot {
-	snapshot := buildCatalog(readInstalledPackages(), readProcessNames(), pathExists)
+	installed := readInstalledPackages()
+	processes := readProcessNames()
+	snapshot := buildCatalog(installed, processes, pathExists)
+	applyRouterForgeRegistry(&snapshot, installed, processes, pathExists)
 	snapshot.InstallTestMode = marketplaceTestInstallEnabled()
 	if snapshot.InstallTestMode {
 		snapshot.ReadOnly = false
-		snapshot.Phase = "combat-install-test"
+		snapshot.Phase = "routerforge-dev-package-mode"
 	}
 	return snapshot
 }
@@ -123,7 +141,7 @@ func moduleOrder(id string) int {
 func builtinModuleCatalog() []catalogItem {
 	return []catalogItem{
 		{
-			ID: "dns-core", Kind: "module", Name: "DNS Core", Category: "Core",
+			ID: "dns-core", Kind: "module", Name: "RouterForge Core", Category: "Core",
 			Description: "DNS observability, client attribution, DoT/DoH и обычные DNS UDP/TCP :53, resolver health и routing diagnostics.",
 			Source:      "builtin", Builtin: true, Enabled: true,
 			Capabilities:  []string{"dns-observability", "plain-dns", "client-attribution", "routing-diagnostics"},
@@ -131,7 +149,7 @@ func builtinModuleCatalog() []catalogItem {
 		},
 		{
 			ID: "marketplace", Kind: "module", Name: "Marketplace", Category: "Platform",
-			Description: "Каталог модулей DNS Monitor и проверенных интеграций Keenetic/Netcraze + Entware.",
+			Description: "Каталог модулей RouterForge и проверенных интеграций Keenetic/Netcraze + Entware.",
 			Source:      "builtin", Builtin: true, Enabled: true,
 			Capabilities:  []string{"catalog", "integration-detection", "install-plan-preview"},
 			Compatibility: catalogCompatibility{Status: "built-in"},
@@ -175,13 +193,13 @@ func builtinModuleCatalog() []catalogItem {
 			RunningPaths: []string{profilingMarker},
 			Compatibility: catalogCompatibility{
 				Status: "requirements",
-				Hints:  []string{"DNS Monitor Core", "loopback-only listener", "SSH tunnel for remote access"},
+				Hints:  []string{"RouterForge Core", "loopback-only listener", "SSH tunnel for remote access"},
 			},
 			Install: catalogInstallPlan{
 				Method: "opkg-feed", Repository: "dns-monitor", Packages: []string{"dns-monitor-profiling"},
 				Notes: []string{
 					"Listener по умолчанию 127.0.0.1:6061 и не публикуется в LAN.",
-					"Пакет перезапускает DNS Monitor Core после установки/удаления.",
+					"Пакет перезапускает RouterForge Core после установки/удаления.",
 				},
 				PreviewOnly: true,
 			},
@@ -200,7 +218,7 @@ func managedModule(id, name, category, description, pkg, service, process string
 		ProcessNames: []string{process},
 		Compatibility: catalogCompatibility{
 			Status: "requirements",
-			Hints:  []string{"DNS Monitor Core", "Entware", "Keenetic / Netcraze ARM64"},
+			Hints:  []string{"RouterForge Core", "Entware", "Keenetic / Netcraze ARM64"},
 		},
 		Install: catalogInstallPlan{
 			Method: "opkg-feed", Repository: "dns-monitor", Packages: []string{pkg},
@@ -485,7 +503,7 @@ func bypassKeeneticIntegration() catalogItem {
 			Method: "manual",
 			Notes: []string{
 				"Telegram credentials and interactive setup require explicit manual configuration.",
-				"DNS Monitor only detects/documents this integration.",
+				"RouterForge only detects/documents this integration.",
 			},
 			PreviewOnly: true,
 		},
@@ -658,9 +676,11 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 		return
 	}
 
+	packageDetected := false
 	for _, pkg := range item.Detection.Packages {
 		if version, ok := installed[pkg]; ok {
 			item.Installed = true
+			packageDetected = true
 			if item.Version == "" {
 				item.Version = version
 			}
@@ -668,14 +688,16 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 	}
 	for _, service := range item.Detection.Services {
 		if exists(service) {
-			item.Installed = true
+			if !item.PackageAuthoritative || packageDetected {
+				item.Installed = true
+			}
 			if item.Service == "" {
 				item.Service = service
 			}
 		}
 	}
 	for _, p := range item.Detection.Paths {
-		if exists(p) {
+		if exists(p) && !item.PackageAuthoritative {
 			item.Installed = true
 		}
 	}

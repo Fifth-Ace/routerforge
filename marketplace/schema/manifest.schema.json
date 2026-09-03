@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://routerforge.local/schema/marketplace-manifest-v1.json",
+  "title": "RouterForge Marketplace Manifest v1",
+  "type": "object",
+  "required": ["schema_version", "id", "kind", "name", "publisher"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z0-9._-]{1,80}$"},
+    "kind": {"enum": ["module", "integration"]},
+    "name": {"type": "string", "minLength": 1},
+    "category": {"type": "string"},
+    "description": {"type": "string"},
+    "publisher": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "url": {"type": "string"}
+      }
+    },
+    "project_url": {"type": "string"},
+    "package_authoritative": {"type": "boolean"},
+    "detection": {"type": "object"},
+    "compatibility": {"type": "object"},
+    "install": {"$ref": "#/$defs/plan"},
+    "update": {"$ref": "#/$defs/plan"},
+    "remove": {"$ref": "#/$defs/plan"}
+  },
+  "$defs": {
+    "plan": {
+      "type": "object",
+      "required": ["method"],
+      "properties": {
+        "method": {"enum": ["routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy"]},
+        "repository": {"type": "string"},
+        "repository_url": {"type": "string"},
+        "checksum_url": {"type": "string"},
+        "asset_template": {"type": "string"},
+        "packages": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "array", "items": {"type": "string"}},
+        "preview_only": {"type": "boolean"},
+        "steps": {"type": "array", "items": {"type": "object"}}
+      }
+    }
+  }
+}

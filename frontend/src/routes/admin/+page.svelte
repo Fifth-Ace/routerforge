@@ -116,13 +116,13 @@
   });
 </script>
 
-<svelte:head><title>DNS Monitor — Админ</title></svelte:head>
+<svelte:head><title>RouterForge — Админ</title></svelte:head>
 
 <div class="page admin-page">
   <div class="page-head">
     <div>
       <h1>Admin Tools</h1>
-      <p>Опциональный системный модуль DNS Monitor. Сейчас только чтение — никаких скрытых shell-команд и мутаций.</p>
+      <p>Опциональный системный модуль RouterForge. Сейчас только чтение — никаких скрытых shell-команд и мутаций.</p>
     </div>
     <span class="state-chip {available === true ? 'good' : available === false ? 'warn' : 'info'}">
       {available === true ? 'MODULE ONLINE' : available === false ? 'MODULE OFFLINE' : 'CHECKING'}

@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "id": "nfqws-web",
+  "kind": "integration",
+  "name": "nfqws Web UI",
+  "category": "DPI / Bypass",
+  "description": "Официальный веб-интерфейс nfqws/nfqws2. Lifecycle повторяет upstream README для Entware.",
+  "publisher": {
+    "id": "nfqws",
+    "name": "nfqws",
+    "url": "https://github.com/nfqws"
+  },
+  "project_url": "https://github.com/nfqws/nfqws-keenetic-web",
+  "source": "project-official",
+  "package_authoritative": true,
+  "detection": {
+    "packages": [
+      "nfqws-keenetic-web"
+    ],
+    "paths": [
+      "/opt/etc/nfqws_web.conf"
+    ]
+  },
+  "web_port": 90,
+  "web_port_source": "project-default",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Entware",
+      "nfqws or nfqws2",
+      "php8-cgi",
+      "lighttpd"
+    ]
+  },
+  "install": {
+    "method": "structured",
+    "packages": [
+      "nfqws-keenetic-web"
+    ],
+    "notes": [
+      "Шаги повторяют README nfqws-keenetic-web для Keenetic/Netcraze."
+    ],
+    "preview_only": false,
+    "steps": [
+      {
+        "type": "opkg-update"
+      },
+      {
+        "type": "opkg-install",
+        "packages": [
+          "ca-certificates",
+          "wget-ssl"
+        ]
+      },
+      {
+        "type": "opkg-remove",
+        "packages": [
+          "wget-nossl"
+        ],
+        "ignore_failure": true
+      },
+      {
+        "type": "write-opkg-feed",
+        "path": "/opt/etc/opkg/nfqws-keenetic-web.conf",
+        "content": "src/gz nfqws-keenetic-web https://nfqws.github.io/nfqws-keenetic-web/all"
+      },
+      {
+        "type": "opkg-update"
+      },
+      {
+        "type": "opkg-install",
+        "packages": [
+          "nfqws-keenetic-web"
+        ]
+      }
+    ]
+  },
+  "update": {
+    "method": "structured",
+    "packages": [
+      "nfqws-keenetic-web"
+    ],
+    "notes": [
+      "Официальный README: opkg update; opkg upgrade nfqws-keenetic-web."
+    ],
+    "preview_only": false,
+    "steps": [
+      {
+        "type": "opkg-update"
+      },
+      {
+        "type": "opkg-upgrade",
+        "packages": [
+          "nfqws-keenetic-web"
+        ]
+      }
+    ]
+  },
+  "remove": {
+    "method": "structured",
+    "packages": [
+      "nfqws-keenetic-web"
+    ],
+    "notes": [
+      "Официальный README: opkg remove --autoremove nfqws-keenetic-web."
+    ],
+    "preview_only": false,
+    "steps": [
+      {
+        "type": "opkg-remove",
+        "args": [
+          "--autoremove"
+        ],
+        "packages": [
+          "nfqws-keenetic-web"
+        ]
+      }
+    ]
+  }
+}

@@ -83,7 +83,7 @@
   });
 </script>
 
-<svelte:head><title>DNS Monitor — Серверы</title></svelte:head>
+<svelte:head><title>RouterForge — Серверы</title></svelte:head>
 
 <div class="page">
   <div class="page-head">

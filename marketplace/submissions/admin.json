@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "admin",
+  "kind": "module",
+  "name": "Admin Tools",
+  "category": "Administration",
+  "description": "Системная админка RouterForge: CPU, RAM, процессы, порты, службы, opkg, storage и thermal.",
+  "publisher": {
+    "id": "routerforge",
+    "name": "RouterForge",
+    "url": "https://github.com/Fifth-Ace/dns-monitor"
+  },
+  "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+  "source": "routerforge-official",
+  "managed": true,
+  "package_authoritative": true,
+  "detection": {
+    "packages": [
+      "dns-monitor-admin"
+    ],
+    "services": [
+      "/opt/etc/init.d/S91dns-monitor-admin"
+    ]
+  },
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "RouterForge Core",
+      "Entware",
+      "Keenetic / Netcraze ARM64"
+    ]
+  },
+  "install": {
+    "method": "routerforge-release",
+    "repository": "routerforge-dev",
+    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+    "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+    "packages": [
+      "dns-monitor-admin"
+    ],
+    "notes": [
+      "Скачивается только выбранный IPK из GitHub release RouterForge.",
+      "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+    ],
+    "preview_only": false
+  },
+  "update": {
+    "method": "routerforge-release",
+    "repository": "routerforge-dev",
+    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+    "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+    "packages": [
+      "dns-monitor-admin"
+    ],
+    "notes": [
+      "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+    ],
+    "preview_only": false
+  },
+  "remove": {
+    "method": "opkg",
+    "packages": [
+      "dns-monitor-admin"
+    ],
+    "notes": [
+      "Удаляется только package; RouterForge Core остаётся независимым."
+    ],
+    "preview_only": false
+  }
+}

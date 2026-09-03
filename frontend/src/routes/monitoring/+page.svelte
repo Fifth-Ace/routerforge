@@ -68,7 +68,7 @@
   });
 </script>
 
-<svelte:head><title>DNS Monitor — Мониторинг</title></svelte:head>
+<svelte:head><title>RouterForge — Мониторинг</title></svelte:head>
 
 <div class="page">
   <div class="page-head"><div><h1>Мониторинг</h1><p>DNS flow, клиенты, интерфейсы, домены и временная история.</p></div><span class="page-kicker mono">LIVE / {$snapshot.flow?.length||0} EVENTS</span></div>

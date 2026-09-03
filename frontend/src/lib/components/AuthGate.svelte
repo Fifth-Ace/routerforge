@@ -33,7 +33,7 @@
       <span class="brand-mark concept-shield" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5.2-3.2 8.2-8 10-4.8-1.8-8-4.8-8-10V6l8-3Z"/><path d="m8.7 12 2 2 4.8-5"/></svg>
       </span>
-      <div><strong>DNS Monitor</strong><span>Core Console</span></div>
+      <div><strong>RouterForge</strong><span>Core Console</span></div>
     </div>
 
     {#if !$authState.ready}

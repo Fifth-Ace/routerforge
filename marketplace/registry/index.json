@@ -1,0 +1,754 @@
+{
+  "schema_version": 1,
+  "registry_id": "routerforge-community",
+  "brand": "RouterForge",
+  "revision": "6c0ad157825872f06c683fa02e6d6e3b5187da5842b10bdd7b69590c7d53aa4f",
+  "entries": [
+    {
+      "id": "admin",
+      "kind": "module",
+      "name": "Admin Tools",
+      "category": "Administration",
+      "description": "Системная админка RouterForge: CPU, RAM, процессы, порты, службы, opkg, storage и thermal.",
+      "publisher": {
+        "id": "routerforge",
+        "name": "RouterForge",
+        "url": "https://github.com/Fifth-Ace/dns-monitor"
+      },
+      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+      "source": "routerforge-official",
+      "managed": true,
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "dns-monitor-admin"
+        ],
+        "services": [
+          "/opt/etc/init.d/S91dns-monitor-admin"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "RouterForge Core",
+          "Entware",
+          "Keenetic / Netcraze ARM64"
+        ]
+      },
+      "install": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-admin"
+        ],
+        "notes": [
+          "Скачивается только выбранный IPK из GitHub release RouterForge.",
+          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+        ],
+        "preview_only": false
+      },
+      "update": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-admin"
+        ],
+        "notes": [
+          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+        ],
+        "preview_only": false
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "dns-monitor-admin"
+        ],
+        "notes": [
+          "Удаляется только package; RouterForge Core остаётся независимым."
+        ],
+        "preview_only": false
+      },
+      "manifest_id": "admin",
+      "manifest_sha256": "2e22ed1c367a31632a5266170da7f69382158ea9bd2dbff1f49ee4631297eaea",
+      "manifest_source": "marketplace/submissions/admin.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "official",
+        "reviewed_by": "routerforge",
+        "note": "Официальный модуль RouterForge."
+      }
+    },
+    {
+      "id": "network",
+      "kind": "module",
+      "name": "Network Monitor",
+      "category": "Monitoring",
+      "description": "Интерфейсы, RX/TX rates, errors/drops, wireless, routes и conntrack.",
+      "publisher": {
+        "id": "routerforge",
+        "name": "RouterForge",
+        "url": "https://github.com/Fifth-Ace/dns-monitor"
+      },
+      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+      "source": "routerforge-official",
+      "managed": true,
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "dns-monitor-network"
+        ],
+        "services": [
+          "/opt/etc/init.d/S95dns-monitor-network"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "RouterForge Core",
+          "Entware",
+          "Keenetic / Netcraze ARM64"
+        ]
+      },
+      "install": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-network"
+        ],
+        "notes": [
+          "Скачивается только выбранный IPK из GitHub release RouterForge.",
+          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+        ],
+        "preview_only": false
+      },
+      "update": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-network"
+        ],
+        "notes": [
+          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+        ],
+        "preview_only": false
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "dns-monitor-network"
+        ],
+        "notes": [
+          "Удаляется только package; RouterForge Core остаётся независимым."
+        ],
+        "preview_only": false
+      },
+      "manifest_id": "network",
+      "manifest_sha256": "d98e8cefe5df1e55b51481c5d51748fff5646ccb265fa3fccd21c7552734896e",
+      "manifest_source": "marketplace/submissions/network.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "official",
+        "reviewed_by": "routerforge",
+        "note": "Официальный модуль RouterForge."
+      }
+    },
+    {
+      "id": "nfqws-web",
+      "kind": "integration",
+      "name": "nfqws Web UI",
+      "category": "DPI / Bypass",
+      "description": "Официальный веб-интерфейс nfqws/nfqws2. Lifecycle повторяет upstream README для Entware.",
+      "publisher": {
+        "id": "nfqws",
+        "name": "nfqws",
+        "url": "https://github.com/nfqws"
+      },
+      "project_url": "https://github.com/nfqws/nfqws-keenetic-web",
+      "source": "project-official",
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "nfqws-keenetic-web"
+        ],
+        "paths": [
+          "/opt/etc/nfqws_web.conf"
+        ]
+      },
+      "web_port": 90,
+      "web_port_source": "project-default",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Entware",
+          "nfqws or nfqws2",
+          "php8-cgi",
+          "lighttpd"
+        ]
+      },
+      "install": {
+        "method": "structured",
+        "packages": [
+          "nfqws-keenetic-web"
+        ],
+        "notes": [
+          "Шаги повторяют README nfqws-keenetic-web для Keenetic/Netcraze."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-install",
+            "packages": [
+              "ca-certificates",
+              "wget-ssl"
+            ]
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "wget-nossl"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "write-opkg-feed",
+            "path": "/opt/etc/opkg/nfqws-keenetic-web.conf",
+            "content": "src/gz nfqws-keenetic-web https://nfqws.github.io/nfqws-keenetic-web/all"
+          },
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-install",
+            "packages": [
+              "nfqws-keenetic-web"
+            ]
+          }
+        ]
+      },
+      "update": {
+        "method": "structured",
+        "packages": [
+          "nfqws-keenetic-web"
+        ],
+        "notes": [
+          "Официальный README: opkg update; opkg upgrade nfqws-keenetic-web."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-upgrade",
+            "packages": [
+              "nfqws-keenetic-web"
+            ]
+          }
+        ]
+      },
+      "remove": {
+        "method": "structured",
+        "packages": [
+          "nfqws-keenetic-web"
+        ],
+        "notes": [
+          "Официальный README: opkg remove --autoremove nfqws-keenetic-web."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "args": [
+              "--autoremove"
+            ],
+            "packages": [
+              "nfqws-keenetic-web"
+            ]
+          }
+        ]
+      },
+      "manifest_id": "nfqws-web",
+      "manifest_sha256": "3a6197d51fdfe62b0638cfba474317d1322348e0133d5c74cecad56e22b9fd30",
+      "manifest_source": "marketplace/submissions/nfqws-web.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "verified",
+        "reviewed_by": "routerforge",
+        "note": "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
+      }
+    },
+    {
+      "id": "nfqws2",
+      "kind": "integration",
+      "name": "nfqws2",
+      "category": "DPI / Bypass",
+      "description": "Актуальная nfqws ветка для Keenetic/Netcraze. Lifecycle сверяется с официальной инструкцией разработчика.",
+      "publisher": {
+        "id": "nfqws",
+        "name": "nfqws",
+        "url": "https://github.com/nfqws"
+      },
+      "project_url": "https://github.com/nfqws/nfqws2-keenetic",
+      "source": "project-official",
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "nfqws2-keenetic"
+        ],
+        "services": [
+          "/opt/etc/init.d/S51nfqws2"
+        ],
+        "paths": [
+          "/opt/etc/nfqws2"
+        ]
+      },
+      "process_names": [
+        "nfqws2"
+      ],
+      "web_port": 90,
+      "web_port_source": "nfqws-keenetic-web",
+      "web_requires_package": "nfqws-keenetic-web",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Entware",
+          "Netfilter kernel modules",
+          "Legacy nfqws must be removed before migration"
+        ]
+      },
+      "install": {
+        "method": "structured",
+        "packages": [
+          "nfqws2-keenetic"
+        ],
+        "notes": [
+          "Шаги повторяют README nfqws2-keenetic для Keenetic/Netcraze.",
+          "Если legacy nfqws-keenetic установлен, RouterForge остановит автоматическую установку вместо его скрытого удаления."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-install",
+            "packages": [
+              "ca-certificates",
+              "wget-ssl"
+            ]
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "wget-nossl"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "write-opkg-feed",
+            "path": "/opt/etc/opkg/nfqws2-keenetic.conf",
+            "content": "src/gz nfqws2-keenetic https://nfqws.github.io/nfqws2-keenetic/all"
+          },
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-install",
+            "packages": [
+              "nfqws2-keenetic"
+            ]
+          }
+        ]
+      },
+      "update": {
+        "method": "structured",
+        "packages": [
+          "nfqws2-keenetic"
+        ],
+        "notes": [
+          "Официальный README: opkg update; opkg upgrade nfqws2-keenetic."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-upgrade",
+            "packages": [
+              "nfqws2-keenetic"
+            ]
+          }
+        ]
+      },
+      "remove": {
+        "method": "structured",
+        "packages": [
+          "nfqws2-keenetic"
+        ],
+        "notes": [
+          "Официальный README: opkg remove --autoremove nfqws2-keenetic."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "args": [
+              "--autoremove"
+            ],
+            "packages": [
+              "nfqws2-keenetic"
+            ]
+          }
+        ]
+      },
+      "manifest_id": "nfqws2",
+      "manifest_sha256": "08d68eb786495411162df2e13de8c1137586a758d08fcb5ac4b3bd8c2c42e933",
+      "manifest_source": "marketplace/submissions/nfqws2.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "verified",
+        "reviewed_by": "routerforge",
+        "note": "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
+      }
+    },
+    {
+      "id": "profiling",
+      "kind": "module",
+      "name": "Profiling",
+      "category": "Development",
+      "description": "Опциональный pprof Core listener на loopback и slow-request logging.",
+      "publisher": {
+        "id": "routerforge",
+        "name": "RouterForge",
+        "url": "https://github.com/Fifth-Ace/dns-monitor"
+      },
+      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+      "source": "routerforge-official",
+      "managed": true,
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "dns-monitor-profiling"
+        ],
+        "paths": [
+          "/opt/etc/dns-monitor/profiling.enabled"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "RouterForge Core",
+          "loopback-only listener",
+          "SSH tunnel for remote access"
+        ]
+      },
+      "install": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-profiling"
+        ],
+        "notes": [
+          "Скачивается только выбранный IPK из GitHub release RouterForge.",
+          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+        ],
+        "preview_only": false
+      },
+      "update": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-profiling"
+        ],
+        "notes": [
+          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+        ],
+        "preview_only": false
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "dns-monitor-profiling"
+        ],
+        "notes": [
+          "Удаляется только package; RouterForge Core остаётся независимым."
+        ],
+        "preview_only": false
+      },
+      "running_paths": [
+        "/opt/etc/dns-monitor/profiling.enabled"
+      ],
+      "manifest_id": "profiling",
+      "manifest_sha256": "e4e5de7978c33246c723fae6e73270c055ecd8f2d0295de29b28b766b8d29649",
+      "manifest_source": "marketplace/submissions/profiling.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "official",
+        "reviewed_by": "routerforge",
+        "note": "Официальный модуль RouterForge."
+      }
+    },
+    {
+      "id": "storage",
+      "kind": "module",
+      "name": "Storage Monitor",
+      "category": "Monitoring",
+      "description": "Файловые системы, block devices и пассивные I/O rates.",
+      "publisher": {
+        "id": "routerforge",
+        "name": "RouterForge",
+        "url": "https://github.com/Fifth-Ace/dns-monitor"
+      },
+      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+      "source": "routerforge-official",
+      "managed": true,
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "dns-monitor-storage"
+        ],
+        "services": [
+          "/opt/etc/init.d/S94dns-monitor-storage"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "RouterForge Core",
+          "Entware",
+          "Keenetic / Netcraze ARM64"
+        ]
+      },
+      "install": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-storage"
+        ],
+        "notes": [
+          "Скачивается только выбранный IPK из GitHub release RouterForge.",
+          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+        ],
+        "preview_only": false
+      },
+      "update": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-storage"
+        ],
+        "notes": [
+          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+        ],
+        "preview_only": false
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "dns-monitor-storage"
+        ],
+        "notes": [
+          "Удаляется только package; RouterForge Core остаётся независимым."
+        ],
+        "preview_only": false
+      },
+      "manifest_id": "storage",
+      "manifest_sha256": "85beacc30633928b2e8da73484cac45f542972b9fe81cfb9a0f1f9a4e6fda87c",
+      "manifest_source": "marketplace/submissions/storage.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "official",
+        "reviewed_by": "routerforge",
+        "note": "Официальный модуль RouterForge."
+      }
+    },
+    {
+      "id": "system",
+      "kind": "module",
+      "name": "System Monitor",
+      "category": "Monitoring",
+      "description": "Легковесная системная телеметрия: CPU по ядрам, RAM, swap, uptime, load и процессы.",
+      "publisher": {
+        "id": "routerforge",
+        "name": "RouterForge",
+        "url": "https://github.com/Fifth-Ace/dns-monitor"
+      },
+      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+      "source": "routerforge-official",
+      "managed": true,
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "dns-monitor-system"
+        ],
+        "services": [
+          "/opt/etc/init.d/S92dns-monitor-system"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "RouterForge Core",
+          "Entware",
+          "Keenetic / Netcraze ARM64"
+        ]
+      },
+      "install": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-system"
+        ],
+        "notes": [
+          "Скачивается только выбранный IPK из GitHub release RouterForge.",
+          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+        ],
+        "preview_only": false
+      },
+      "update": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-system"
+        ],
+        "notes": [
+          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+        ],
+        "preview_only": false
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "dns-monitor-system"
+        ],
+        "notes": [
+          "Удаляется только package; RouterForge Core остаётся независимым."
+        ],
+        "preview_only": false
+      },
+      "manifest_id": "system",
+      "manifest_sha256": "1cde30e1dc929c71b74847a68785d4864e6805d04ad45ebe59c29a0a14738be0",
+      "manifest_source": "marketplace/submissions/system.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "official",
+        "reviewed_by": "routerforge",
+        "note": "Официальный модуль RouterForge."
+      }
+    },
+    {
+      "id": "thermal",
+      "kind": "module",
+      "name": "Thermal Monitor",
+      "category": "Monitoring",
+      "description": "Thermal/hwmon, Wi-Fi debugfs и optional SMART температуры накопителей.",
+      "publisher": {
+        "id": "routerforge",
+        "name": "RouterForge",
+        "url": "https://github.com/Fifth-Ace/dns-monitor"
+      },
+      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+      "source": "routerforge-official",
+      "managed": true,
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "dns-monitor-thermal"
+        ],
+        "services": [
+          "/opt/etc/init.d/S93dns-monitor-thermal"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "RouterForge Core",
+          "Entware",
+          "Keenetic / Netcraze ARM64"
+        ]
+      },
+      "install": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-thermal"
+        ],
+        "notes": [
+          "Скачивается только выбранный IPK из GitHub release RouterForge.",
+          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+        ],
+        "preview_only": false
+      },
+      "update": {
+        "method": "routerforge-release",
+        "repository": "routerforge-dev",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "dns-monitor-thermal"
+        ],
+        "notes": [
+          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+        ],
+        "preview_only": false
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "dns-monitor-thermal"
+        ],
+        "notes": [
+          "Удаляется только package; RouterForge Core остаётся независимым."
+        ],
+        "preview_only": false
+      },
+      "manifest_id": "thermal",
+      "manifest_sha256": "5780d2c3c2fa9855390b6adaa20f266e072adab214a051f745b95d64bfe94aac",
+      "manifest_source": "marketplace/submissions/thermal.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "official",
+        "reviewed_by": "routerforge",
+        "note": "Официальный модуль RouterForge."
+      }
+    }
+  ]
+}

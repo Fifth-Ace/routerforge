@@ -1,0 +1,7 @@
+{
+  "id": "storage",
+  "status": "official",
+  "manifest_sha256": "85beacc30633928b2e8da73484cac45f542972b9fe81cfb9a0f1f9a4e6fda87c",
+  "reviewed_by": "routerforge",
+  "note": "Официальный модуль RouterForge."
+}

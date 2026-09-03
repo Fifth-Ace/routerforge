@@ -54,7 +54,7 @@
 
   async function disableAuth() {
     if (authBusy) return;
-    if (!window.confirm('Отключить обязательную авторизацию DNS Monitor? Панель и API снова будут доступны без входа из локальной сети.')) return;
+    if (!window.confirm('Отключить обязательную авторизацию RouterForge? Панель и API снова будут доступны без входа из локальной сети.')) return;
     authBusy = true;
     authError = '';
     try {
@@ -67,7 +67,7 @@
   }
 </script>
 
-<svelte:head><title>DNS Monitor — Настройки</title></svelte:head>
+<svelte:head><title>RouterForge — Настройки</title></svelte:head>
 
 <div class="page">
   <div class="page-head">
@@ -77,8 +77,8 @@
 
   <div class="settings-layout">
     <aside class="system-card panel">
-      <div class="panel-head"><div><strong>Система</strong><span>DNS Monitor</span></div><span class="state-chip {$snapshot.capture_error ? 'error' : 'good'}">{$snapshot.capture_error ? 'ERROR' : 'OK'}</span></div>
-      <div class="system-row"><span>DNS Monitor</span><strong>v{$snapshot.version || '—'}</strong></div>
+      <div class="panel-head"><div><strong>Система</strong><span>RouterForge</span></div><span class="state-chip {$snapshot.capture_error ? 'error' : 'good'}">{$snapshot.capture_error ? 'ERROR' : 'OK'}</span></div>
+      <div class="system-row"><span>RouterForge</span><strong>v{$snapshot.version || '—'}</strong></div>
       <div class="system-row"><span>Статус</span><strong>{primaryDown ? 'ERROR' : primaryDegraded ? 'DEGRADED' : 'OK'}</strong></div>
       <div class="system-row"><span>Основные DNS</span><strong>{fmtInt(primaryUpstreams)}</strong></div>
       <div class="system-row"><span>Uptime</span><strong>{fmtDuration($snapshot.uptime_seconds)}</strong></div>
@@ -100,7 +100,7 @@
         <div class="setting-row security-setting-row">
           <div>
             <strong>Требовать авторизацию</strong>
-            <span>Вход под <code>root</code> с паролем Entware. Проверяется <code>/opt/etc/shadow</code> с fallback на <code>/opt/etc/passwd</code>; отдельный пароль DNS Monitor не хранится.</span>
+            <span>Вход под <code>root</code> с паролем Entware. Проверяется <code>/opt/etc/shadow</code> с fallback на <code>/opt/etc/passwd</code>; отдельный пароль RouterForge не хранится.</span>
           </div>
           <div class="security-control">
             <span class="state-chip {$authState.required ? 'good' : 'neutral'}">{$authState.required ? 'REQUIRED' : 'OFF'}</span>
@@ -108,7 +108,7 @@
           </div>
         </div>
         <div class="setting-row static"><div><strong>Сессия</strong><span>HttpOnly cookie, SameSite=Strict. После перезапуска Core требуется войти снова.</span></div><code>{$authState.session_hours || 12} часов</code></div>
-        <div class="setting-row static"><div><strong>Backend</strong><span>Учётные данные системного root Entware, без копирования хеша в конфиг DNS Monitor.</span></div><code>entware-root</code></div>
+        <div class="setting-row static"><div><strong>Backend</strong><span>Учётные данные системного root Entware, без копирования хеша в конфиг RouterForge.</span></div><code>entware-root</code></div>
         {#if authError}<div class="settings-security-error">{authError}</div>{/if}
       </section>
 
@@ -130,7 +130,7 @@
         <div class="setting-row static"><div><strong>Discovery</strong><span>Основной DNS, System DoT/DoH и служебные policy-context Keenetic.</span></div><code>60 сек</code></div>
         <div class="setting-row static"><div><strong>Health-check</strong><span>Основные resolver'ы и policy-context только при наличии маршрута наружу.</span></div><code>30 сек</code></div>
         <div class="setting-row static"><div><strong>История</strong><span>Minute buckets хранятся только в RAM.</span></div><code>24 часа</code></div>
-        <div class="setting-row static"><div><strong>Веб-порт</strong><span>Панель DNS Monitor.</span></div><code>2233</code></div>
+        <div class="setting-row static"><div><strong>Веб-порт</strong><span>Панель RouterForge.</span></div><code>2233</code></div>
       </section>
     </div>
   </div>

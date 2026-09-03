@@ -10,16 +10,20 @@
   import '../admin-shell.css';
 
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import AppHeader from '$lib/components/AppHeader.svelte';
   import AppShell from '$lib/components/AppShell.svelte';
   import AuthGate from '$lib/components/AuthGate.svelte';
   import { snapshot, startSnapshotStream } from '$lib/stores/snapshot.js';
   import { settings } from '$lib/stores/settings.js';
+  import { catalog, catalogOnline } from '$lib/stores/catalog.js';
   import { authState, refreshAuth } from '$lib/stores/auth.js';
 
   let stopStream = null;
   let lastInterval = 0;
   let panelAccess = false;
+  let redirecting = false;
 
   function reconcileStream() {
     if (!panelAccess) {
@@ -29,6 +33,18 @@
     }
     if (stopStream) return;
     stopStream = startSnapshotStream(lastInterval || 2000);
+  }
+
+  $: modules = $catalog.modules || [];
+  $: adminInstalled = modules.some((item) => item.id === 'admin' && item.installed);
+  $: optionalInstalled = modules.some((item) => ['system', 'thermal', 'storage', 'network', 'profiling'].includes(item.id) && item.installed);
+  $: protectedPathMissing =
+    ($page.url.pathname === '/admin' && !adminInstalled)
+    || ($page.url.pathname === '/modules' && !optionalInstalled);
+
+  $: if ($catalogOnline && protectedPathMissing && !redirecting) {
+    redirecting = true;
+    goto('/catalog', { replaceState: true }).finally(() => { redirecting = false; });
   }
 
   onMount(() => {

@@ -18,7 +18,7 @@
   $: edgeCount=edges.reduce((sum,e)=>sum+Number(e.count||0),0);
 </script>
 
-<svelte:head><title>DNS Monitor — Маршрутизация</title></svelte:head>
+<svelte:head><title>RouterForge — Маршрутизация</title></svelte:head>
 
 <div class="page">
   <div class="page-head"><div><h1>Маршрутизация</h1><p>Fallback-переходы и распределение запросов между профилями Keenetic.</p></div><span class="page-kicker mono">POLICY / FALLBACK</span></div>

@@ -30,7 +30,7 @@ func handleCatalogInstallTest(w http.ResponseWriter, r *http.Request) {
 	}
 	var request catalogInstallRequest
 	if err := decodeSmallJSON(w, r, &request); err != nil || strings.TrimSpace(request.ID) == "" {
-		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "valid catalog module id is required"})
+		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "valid catalog item id is required"})
 		return
 	}
 	runCatalogHTTPAction(w, r, request.ID, "install", "")

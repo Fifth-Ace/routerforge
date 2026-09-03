@@ -1,7 +1,7 @@
 {
   "id": "thermal",
   "status": "official",
-  "manifest_sha256": "5780d2c3c2fa9855390b6adaa20f266e072adab214a051f745b95d64bfe94aac",
+  "manifest_sha256": "ffb2c5062137a7fa6152c9bc3d59359964a7174ba33cac1f5a97c0be6ddc50fd",
   "reviewed_by": "routerforge",
-  "note": "Официальный модуль RouterForge."
+  "note": "Официальный модуль RouterForge beta."
 }

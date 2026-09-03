@@ -4,14 +4,14 @@ import "testing"
 
 func TestCatalogManagedMonitoringModules(t *testing.T) {
 	installed := map[string]string{
-		"dns-monitor-system":  "0.2.0-dev",
-		"dns-monitor-thermal": "0.2.0-dev",
-		"dns-monitor-storage": "0.2.0-dev",
-		"dns-monitor-network": "0.2.0-dev",
+		"routerforge-system":  "0.3.0-beta",
+		"routerforge-thermal": "0.3.0-beta",
+		"routerforge-storage": "0.3.0-beta",
+		"routerforge-network": "0.3.0-beta",
 	}
 	processes := map[string]bool{
-		"dnsmon-system": true, "dnsmon-thermal": true,
-		"dnsmon-storage": true, "dnsmon-network": true,
+		"routerforge-system": true, "routerforge-thermal": true,
+		"routerforge-storage": true, "routerforge-network": true,
 	}
 	snap := buildCatalog(installed, processes, func(string) bool { return false })
 
@@ -36,7 +36,7 @@ func TestCatalogProfilingUsesMarkerAsRunningState(t *testing.T) {
 		return path == profilingMarker
 	}
 	snap := buildCatalog(
-		map[string]string{"dns-monitor-profiling": "0.2.0-dev"},
+		map[string]string{"routerforge-profiling": "0.3.0-beta"},
 		map[string]bool{},
 		exists,
 	)

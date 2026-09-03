@@ -1,66 +1,63 @@
 #!/bin/sh
 set -eu
 
-REPO_NAME="dns-monitor"
-REPO_URL="https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/opkg"
-REPO_FILE="/opt/etc/opkg/${REPO_NAME}.conf"
-PKG="dns-monitor"
+VERSION="0.3.0-beta"
+ARCH="aarch64-3.10"
+BASE_URL="https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta"
+SUMS="routerforge-beta-SHA256SUMS"
+TMP="/opt/tmp/routerforge-bootstrap.$$"
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 case "$(uname -m 2>/dev/null || true)" in
     aarch64|arm64) ;;
-    *) fail "DNS Monitor currently supports only ARM64/aarch64 Keenetic/Netcraze routers." ;;
+    *) fail "RouterForge beta supports ARM64/aarch64 Keenetic/Netcraze routers." ;;
 esac
 
-[ -d /opt ] || fail "Entware /opt was not found. Install Entware first."
+[ -d /opt ] || fail "Entware /opt was not found."
+if [ -x /opt/bin/opkg ]; then OPKG=/opt/bin/opkg
+elif command -v opkg >/dev/null 2>&1; then OPKG="$(command -v opkg)"
+else fail "opkg was not found."; fi
 
-if [ -x /opt/bin/opkg ]; then
-    OPKG=/opt/bin/opkg
-elif command -v opkg >/dev/null 2>&1; then
-    OPKG="$(command -v opkg)"
-else
-    fail "opkg was not found. Install Entware first."
-fi
-
-if command -v wget >/dev/null 2>&1; then
-    WGET="$(command -v wget)"
+if command -v curl >/dev/null 2>&1; then
+    fetch() { curl -fL --connect-timeout 10 --max-time 120 -o "$2" "$1"; }
+elif [ -x /opt/bin/curl ]; then
+    fetch() { /opt/bin/curl -fL --connect-timeout 10 --max-time 120 -o "$2" "$1"; }
+elif command -v wget >/dev/null 2>&1; then
+    fetch() { wget -q -O "$2" "$1"; }
 elif [ -x /opt/bin/wget ]; then
-    WGET=/opt/bin/wget
+    fetch() { /opt/bin/wget -q -O "$2" "$1"; }
 else
-    fail "wget was not found."
+    fail "curl/wget was not found."
 fi
 
-say "DNS Monitor repository installer"
-say "Target: Keenetic / Netcraze ARM64"
-say "Repository: ${REPO_URL}"
+command -v sha256sum >/dev/null 2>&1 || fail "sha256sum was not found."
 
-TMP="/tmp/dns-monitor-Packages.gz.$$"
-trap 'rm -f "$TMP"' EXIT HUP INT TERM
-"$WGET" -q -O "$TMP" "${REPO_URL}/Packages.gz" || fail "Cannot reach DNS Monitor repository."
-[ -s "$TMP" ] || fail "Repository index is empty."
-rm -f "$TMP"
-trap - EXIT HUP INT TERM
+mkdir -p "$TMP"
+trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 
-mkdir -p /opt/etc/opkg
-printf 'src/gz %s %s\n' "$REPO_NAME" "$REPO_URL" > "$REPO_FILE"
-say "Repository added: ${REPO_FILE}"
+say "RouterForge beta bootstrap"
+fetch "$BASE_URL/$SUMS" "$TMP/$SUMS"
 
-# Other third-party feeds may occasionally fail. Do not abort if our feed was
-# reachable and opkg reports an unrelated repository error.
-"$OPKG" update || say "WARNING: opkg update reported an error in one or more feeds; continuing."
+install_asset() {
+    package="$1"
+    asset="${package}_${VERSION}_${ARCH}.ipk"
+    expected="$(awk -v f="$asset" '$2 == f || $2 == "*"f {print $1; exit}' "$TMP/$SUMS")"
+    [ -n "$expected" ] || fail "Checksum for $asset is missing."
+    fetch "$BASE_URL/$asset" "$TMP/$asset"
+    actual="$(sha256sum "$TMP/$asset" | awk '{print $1}')"
+    [ "$actual" = "$expected" ] || fail "SHA256 mismatch for $asset."
+    say "Installing $package..."
+    "$OPKG" install "$TMP/$asset"
+}
 
-if "$OPKG" list-installed 2>/dev/null | grep -q '^dns-monitor '; then
-    say "DNS Monitor is already installed; upgrading..."
-    "$OPKG" upgrade "$PKG" || "$OPKG" install "$PKG"
-else
-    say "Installing DNS Monitor..."
-    "$OPKG" install "$PKG"
-fi
+install_asset routerforge-core
+install_asset routerforge-dns
 
 say ""
-say "DNS Monitor is ready."
+say "RouterForge beta is ready."
 say "Web UI: http://<router-ip>:2233"
-say "Service: /opt/etc/init.d/S90dns-monitor"
-say "Log: /opt/var/log/dns-monitor.log"
+say "Core: /opt/etc/init.d/S90routerforge"
+say "Log: /opt/var/log/routerforge.log"
+say "Optional capabilities are installed from Marketplace."

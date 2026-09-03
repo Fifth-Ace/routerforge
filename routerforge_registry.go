@@ -428,6 +428,9 @@ func mergeRegistryCatalogItem(dst *catalogItem, src catalogItem) {
 	dst.ManifestSHA256 = src.ManifestSHA256
 	dst.ManifestSource = src.ManifestSource
 	dst.RegistrySource = src.RegistrySource
+	if src.Presentation != nil {
+		dst.Presentation = src.Presentation
+	}
 	dst.PackageAuthoritative = src.PackageAuthoritative
 }
 

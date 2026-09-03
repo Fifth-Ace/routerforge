@@ -1,7 +1,7 @@
 {
   "id": "profiling",
   "status": "official",
-  "manifest_sha256": "e4e5de7978c33246c723fae6e73270c055ecd8f2d0295de29b28b766b8d29649",
+  "manifest_sha256": "23aa953ca3f3b291a13e995b497c9c54c5160eb9546d2e6b7d1f55d7a46aa1e3",
   "reviewed_by": "routerforge",
-  "note": "Официальный модуль RouterForge."
+  "note": "Официальный модуль RouterForge beta."
 }

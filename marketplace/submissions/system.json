@@ -4,7 +4,7 @@
   "kind": "module",
   "name": "System Monitor",
   "category": "Monitoring",
-  "description": "Легковесная системная телеметрия: CPU по ядрам, RAM, swap, uptime, load и процессы.",
+  "description": "CPU по ядрам, RAM, swap, uptime и load.",
   "publisher": {
     "id": "routerforge",
     "name": "RouterForge",
@@ -16,9 +16,11 @@
   "package_authoritative": true,
   "detection": {
     "packages": [
+      "routerforge-system",
       "dns-monitor-system"
     ],
     "services": [
+      "/opt/etc/init.d/S92routerforge-system",
       "/opt/etc/init.d/S92dns-monitor-system"
     ]
   },
@@ -32,12 +34,12 @@
   },
   "install": {
     "method": "routerforge-release",
-    "repository": "routerforge-dev",
-    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+    "repository": "routerforge-beta",
+    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
     "asset_template": "{package}_{version}_aarch64-3.10.ipk",
     "packages": [
-      "dns-monitor-system"
+      "routerforge-system"
     ],
     "notes": [
       "Скачивается только выбранный IPK из GitHub release RouterForge.",
@@ -47,26 +49,58 @@
   },
   "update": {
     "method": "routerforge-release",
-    "repository": "routerforge-dev",
-    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+    "repository": "routerforge-beta",
+    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
     "asset_template": "{package}_{version}_aarch64-3.10.ipk",
     "packages": [
-      "dns-monitor-system"
+      "routerforge-system"
     ],
     "notes": [
-      "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+      "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
     ],
     "preview_only": false
   },
   "remove": {
-    "method": "opkg",
+    "method": "structured",
     "packages": [
+      "routerforge-system",
       "dns-monitor-system"
     ],
     "notes": [
-      "Удаляется только package; RouterForge Core остаётся независимым."
+      "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
     ],
-    "preview_only": false
-  }
+    "preview_only": false,
+    "steps": [
+      {
+        "type": "opkg-remove",
+        "packages": [
+          "routerforge-system"
+        ],
+        "ignore_failure": true
+      },
+      {
+        "type": "opkg-remove",
+        "packages": [
+          "dns-monitor-system"
+        ],
+        "ignore_failure": true
+      }
+    ]
+  },
+  "presentation": {
+    "dashboard": {
+      "enabled": true,
+      "priority": 40
+    }
+  },
+  "process_names": [
+    "routerforge-system",
+    "dnsmon-system"
+  ],
+  "capabilities": [
+    "system-summary",
+    "cpu",
+    "memory"
+  ]
 }

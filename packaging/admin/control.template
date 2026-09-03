@@ -1,11 +1,14 @@
-Package: dns-monitor-admin
+Package: routerforge-admin
 Version: @VERSION@
 Section: admin
 Priority: optional
 Architecture: aarch64-3.10
-Depends: dns-monitor
+Depends: routerforge-core
+Provides: dns-monitor-admin
+Conflicts: dns-monitor-admin
+Replaces: dns-monitor-admin
 Maintainer: Fifth-Ace
 Source: https://github.com/Fifth-Ace/dns-monitor
 Homepage: https://github.com/Fifth-Ace/dns-monitor
 License: MIT
-Description: Optional read-only system administration module for DNS Monitor.
+Description: RouterForge Control provider for processes, sockets, services and Entware packages.

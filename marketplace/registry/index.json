@@ -2,14 +2,14 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "6c0ad157825872f06c683fa02e6d6e3b5187da5842b10bdd7b69590c7d53aa4f",
+  "revision": "26d8c98f29de6ba0e7697a8bf64651f19b3e4f47015be99383d0e3fd60dd6e4b",
   "entries": [
     {
       "id": "admin",
       "kind": "module",
-      "name": "Admin Tools",
+      "name": "RouterForge Control",
       "category": "Administration",
-      "description": "Системная админка RouterForge: CPU, RAM, процессы, порты, службы, opkg, storage и thermal.",
+      "description": "Управление и инспекция процессов, listening sockets, Entware services и пакетов без дублирования системной телеметрии.",
       "publisher": {
         "id": "routerforge",
         "name": "RouterForge",
@@ -21,9 +21,11 @@
       "package_authoritative": true,
       "detection": {
         "packages": [
+          "routerforge-admin",
           "dns-monitor-admin"
         ],
         "services": [
+          "/opt/etc/init.d/S91routerforge-admin",
           "/opt/etc/init.d/S91dns-monitor-admin"
         ]
       },
@@ -37,12 +39,12 @@
       },
       "install": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-admin"
+          "routerforge-admin"
         ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
@@ -52,44 +54,82 @@
       },
       "update": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-admin"
+          "routerforge-admin"
         ],
         "notes": [
-          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
         ],
         "preview_only": false
       },
       "remove": {
-        "method": "opkg",
+        "method": "structured",
         "packages": [
+          "routerforge-admin",
           "dns-monitor-admin"
         ],
         "notes": [
-          "Удаляется только package; RouterForge Core остаётся независимым."
+          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
         ],
-        "preview_only": false
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "routerforge-admin"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "dns-monitor-admin"
+            ],
+            "ignore_failure": true
+          }
+        ]
       },
+      "presentation": {
+        "dashboard": {
+          "enabled": true,
+          "priority": 40
+        },
+        "navigation": {
+          "label": "Управление",
+          "href": "/manage",
+          "order": 40
+        }
+      },
+      "process_names": [
+        "routerforge-admin",
+        "dnsmon-admin"
+      ],
+      "capabilities": [
+        "processes",
+        "ports",
+        "services",
+        "packages"
+      ],
       "manifest_id": "admin",
-      "manifest_sha256": "2e22ed1c367a31632a5266170da7f69382158ea9bd2dbff1f49ee4631297eaea",
+      "manifest_sha256": "66a7a2c179eb5186312af104b933d25cec13dc3e68ff9bb4c3cf3ae58b2b7ea3",
       "manifest_source": "marketplace/submissions/admin.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "official",
         "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge."
+        "note": "Официальный модуль RouterForge beta."
       }
     },
     {
-      "id": "network",
+      "id": "dns",
       "kind": "module",
-      "name": "Network Monitor",
-      "category": "Monitoring",
-      "description": "Интерфейсы, RX/TX rates, errors/drops, wireless, routes и conntrack.",
+      "name": "RouterForge DNS",
+      "category": "DNS",
+      "description": "DNS observability: plain DNS, DoT/DoH, клиенты, flow, health и routing diagnostics.",
       "publisher": {
         "id": "routerforge",
         "name": "RouterForge",
@@ -101,9 +141,109 @@
       "package_authoritative": true,
       "detection": {
         "packages": [
+          "routerforge-dns"
+        ],
+        "paths": [
+          "/opt/etc/routerforge/dns.enabled",
+          "/opt/etc/dns-monitor/dns.enabled"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "RouterForge Core",
+          "Entware",
+          "Keenetic / Netcraze ARM64"
+        ]
+      },
+      "install": {
+        "method": "routerforge-release",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "routerforge-dns"
+        ],
+        "notes": [
+          "Скачивается только выбранный IPK из GitHub release RouterForge.",
+          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+        ],
+        "preview_only": false
+      },
+      "update": {
+        "method": "routerforge-release",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+        "packages": [
+          "routerforge-dns"
+        ],
+        "notes": [
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
+        ],
+        "preview_only": false
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "routerforge-dns"
+        ],
+        "notes": [
+          "Отключает DNS runtime и убирает DNS-раздел из интерфейса; RouterForge Core остаётся."
+        ],
+        "preview_only": false
+      },
+      "presentation": {
+        "dashboard": {
+          "enabled": true,
+          "priority": 40
+        },
+        "navigation": {
+          "label": "DNS",
+          "href": "/dns",
+          "order": 30
+        }
+      },
+      "capabilities": [
+        "dns-observability",
+        "plain-dns",
+        "client-attribution",
+        "routing-diagnostics"
+      ],
+      "manifest_id": "dns",
+      "manifest_sha256": "031619eaf2bfaa886976e9a12776e106ca91c4de8e32b89a4b0ebf411ee7e05d",
+      "manifest_source": "marketplace/submissions/dns.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "official",
+        "reviewed_by": "routerforge",
+        "note": "Официальный модуль RouterForge beta."
+      }
+    },
+    {
+      "id": "network",
+      "kind": "module",
+      "name": "Network Monitor",
+      "category": "Monitoring",
+      "description": "Интерфейсы, адреса, RX/TX rates, errors/drops, wireless, routes и conntrack.",
+      "publisher": {
+        "id": "routerforge",
+        "name": "RouterForge",
+        "url": "https://github.com/Fifth-Ace/dns-monitor"
+      },
+      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+      "source": "routerforge-official",
+      "managed": true,
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "routerforge-network",
           "dns-monitor-network"
         ],
         "services": [
+          "/opt/etc/init.d/S95routerforge-network",
           "/opt/etc/init.d/S95dns-monitor-network"
         ]
       },
@@ -117,12 +257,12 @@
       },
       "install": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-network"
+          "routerforge-network"
         ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
@@ -132,36 +272,71 @@
       },
       "update": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-network"
+          "routerforge-network"
         ],
         "notes": [
-          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
         ],
         "preview_only": false
       },
       "remove": {
-        "method": "opkg",
+        "method": "structured",
         "packages": [
+          "routerforge-network",
           "dns-monitor-network"
         ],
         "notes": [
-          "Удаляется только package; RouterForge Core остаётся независимым."
+          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
         ],
-        "preview_only": false
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "routerforge-network"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "dns-monitor-network"
+            ],
+            "ignore_failure": true
+          }
+        ]
       },
+      "presentation": {
+        "dashboard": {
+          "enabled": true,
+          "priority": 40
+        }
+      },
+      "process_names": [
+        "routerforge-network",
+        "dnsmon-network"
+      ],
+      "capabilities": [
+        "interfaces",
+        "traffic-rates",
+        "errors",
+        "wireless",
+        "routes",
+        "conntrack"
+      ],
       "manifest_id": "network",
-      "manifest_sha256": "d98e8cefe5df1e55b51481c5d51748fff5646ccb265fa3fccd21c7552734896e",
+      "manifest_sha256": "58241c0902731aaae5b0bf12545146c5b9a5a848d756ad82ec5e3f7e572e6f87",
       "manifest_source": "marketplace/submissions/network.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "official",
         "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge."
+        "note": "Официальный модуль RouterForge beta."
       }
     },
     {
@@ -432,7 +607,7 @@
       "kind": "module",
       "name": "Profiling",
       "category": "Development",
-      "description": "Опциональный pprof Core listener на loopback и slow-request logging.",
+      "description": "Опциональный loopback-only pprof и slow-request logging для RouterForge Core.",
       "publisher": {
         "id": "routerforge",
         "name": "RouterForge",
@@ -444,9 +619,11 @@
       "package_authoritative": true,
       "detection": {
         "packages": [
+          "routerforge-profiling",
           "dns-monitor-profiling"
         ],
         "paths": [
+          "/opt/etc/routerforge/profiling.enabled",
           "/opt/etc/dns-monitor/profiling.enabled"
         ]
       },
@@ -454,18 +631,18 @@
         "status": "requirements",
         "hints": [
           "RouterForge Core",
-          "loopback-only listener",
-          "SSH tunnel for remote access"
+          "Entware",
+          "Keenetic / Netcraze ARM64"
         ]
       },
       "install": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-profiling"
+          "routerforge-profiling"
         ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
@@ -475,39 +652,63 @@
       },
       "update": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-profiling"
+          "routerforge-profiling"
         ],
         "notes": [
-          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
         ],
         "preview_only": false
       },
       "remove": {
-        "method": "opkg",
+        "method": "structured",
         "packages": [
+          "routerforge-profiling",
           "dns-monitor-profiling"
         ],
         "notes": [
-          "Удаляется только package; RouterForge Core остаётся независимым."
+          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
         ],
-        "preview_only": false
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "routerforge-profiling"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "dns-monitor-profiling"
+            ],
+            "ignore_failure": true
+          }
+        ]
       },
-      "running_paths": [
-        "/opt/etc/dns-monitor/profiling.enabled"
+      "presentation": {
+        "dashboard": {
+          "enabled": false,
+          "priority": 99
+        }
+      },
+      "capabilities": [
+        "pprof",
+        "slow-request-log"
       ],
       "manifest_id": "profiling",
-      "manifest_sha256": "e4e5de7978c33246c723fae6e73270c055ecd8f2d0295de29b28b766b8d29649",
+      "manifest_sha256": "23aa953ca3f3b291a13e995b497c9c54c5160eb9546d2e6b7d1f55d7a46aa1e3",
       "manifest_source": "marketplace/submissions/profiling.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "official",
         "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge."
+        "note": "Официальный модуль RouterForge beta."
       }
     },
     {
@@ -527,9 +728,11 @@
       "package_authoritative": true,
       "detection": {
         "packages": [
+          "routerforge-storage",
           "dns-monitor-storage"
         ],
         "services": [
+          "/opt/etc/init.d/S94routerforge-storage",
           "/opt/etc/init.d/S94dns-monitor-storage"
         ]
       },
@@ -543,12 +746,12 @@
       },
       "install": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-storage"
+          "routerforge-storage"
         ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
@@ -558,36 +761,69 @@
       },
       "update": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-storage"
+          "routerforge-storage"
         ],
         "notes": [
-          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
         ],
         "preview_only": false
       },
       "remove": {
-        "method": "opkg",
+        "method": "structured",
         "packages": [
+          "routerforge-storage",
           "dns-monitor-storage"
         ],
         "notes": [
-          "Удаляется только package; RouterForge Core остаётся независимым."
+          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
         ],
-        "preview_only": false
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "routerforge-storage"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "dns-monitor-storage"
+            ],
+            "ignore_failure": true
+          }
+        ]
       },
+      "presentation": {
+        "dashboard": {
+          "enabled": true,
+          "priority": 40
+        }
+      },
+      "process_names": [
+        "routerforge-storage",
+        "dnsmon-storage"
+      ],
+      "capabilities": [
+        "mounts",
+        "block-devices",
+        "diskstats",
+        "io-rates"
+      ],
       "manifest_id": "storage",
-      "manifest_sha256": "85beacc30633928b2e8da73484cac45f542972b9fe81cfb9a0f1f9a4e6fda87c",
+      "manifest_sha256": "c389a72919b83850329d5b8629d09bb258c386522702238dc06a3fff6bf3254b",
       "manifest_source": "marketplace/submissions/storage.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "official",
         "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge."
+        "note": "Официальный модуль RouterForge beta."
       }
     },
     {
@@ -595,7 +831,7 @@
       "kind": "module",
       "name": "System Monitor",
       "category": "Monitoring",
-      "description": "Легковесная системная телеметрия: CPU по ядрам, RAM, swap, uptime, load и процессы.",
+      "description": "CPU по ядрам, RAM, swap, uptime и load.",
       "publisher": {
         "id": "routerforge",
         "name": "RouterForge",
@@ -607,9 +843,11 @@
       "package_authoritative": true,
       "detection": {
         "packages": [
+          "routerforge-system",
           "dns-monitor-system"
         ],
         "services": [
+          "/opt/etc/init.d/S92routerforge-system",
           "/opt/etc/init.d/S92dns-monitor-system"
         ]
       },
@@ -623,12 +861,12 @@
       },
       "install": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-system"
+          "routerforge-system"
         ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
@@ -638,36 +876,68 @@
       },
       "update": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-system"
+          "routerforge-system"
         ],
         "notes": [
-          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
         ],
         "preview_only": false
       },
       "remove": {
-        "method": "opkg",
+        "method": "structured",
         "packages": [
+          "routerforge-system",
           "dns-monitor-system"
         ],
         "notes": [
-          "Удаляется только package; RouterForge Core остаётся независимым."
+          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
         ],
-        "preview_only": false
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "routerforge-system"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "dns-monitor-system"
+            ],
+            "ignore_failure": true
+          }
+        ]
       },
+      "presentation": {
+        "dashboard": {
+          "enabled": true,
+          "priority": 40
+        }
+      },
+      "process_names": [
+        "routerforge-system",
+        "dnsmon-system"
+      ],
+      "capabilities": [
+        "system-summary",
+        "cpu",
+        "memory"
+      ],
       "manifest_id": "system",
-      "manifest_sha256": "1cde30e1dc929c71b74847a68785d4864e6805d04ad45ebe59c29a0a14738be0",
+      "manifest_sha256": "4ecad1a51372e556ae1daad94e4108ca3033f18b91ad748a353ca48500db7577",
       "manifest_source": "marketplace/submissions/system.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "official",
         "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge."
+        "note": "Официальный модуль RouterForge beta."
       }
     },
     {
@@ -675,7 +945,7 @@
       "kind": "module",
       "name": "Thermal Monitor",
       "category": "Monitoring",
-      "description": "Thermal/hwmon, Wi-Fi debugfs и optional SMART температуры накопителей.",
+      "description": "Thermal/hwmon датчики, Wi‑Fi temperature и optional SMART temperature.",
       "publisher": {
         "id": "routerforge",
         "name": "RouterForge",
@@ -687,9 +957,11 @@
       "package_authoritative": true,
       "detection": {
         "packages": [
+          "routerforge-thermal",
           "dns-monitor-thermal"
         ],
         "services": [
+          "/opt/etc/init.d/S93routerforge-thermal",
           "/opt/etc/init.d/S93dns-monitor-thermal"
         ]
       },
@@ -703,12 +975,12 @@
       },
       "install": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-thermal"
+          "routerforge-thermal"
         ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
@@ -718,36 +990,69 @@
       },
       "update": {
         "method": "routerforge-release",
-        "repository": "routerforge-dev",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+        "repository": "routerforge-beta",
+        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
         "packages": [
-          "dns-monitor-thermal"
+          "routerforge-thermal"
         ],
         "notes": [
-          "Обновление dev-канала выполняет verified force-reinstall текущего RouterForge build."
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
         ],
         "preview_only": false
       },
       "remove": {
-        "method": "opkg",
+        "method": "structured",
         "packages": [
+          "routerforge-thermal",
           "dns-monitor-thermal"
         ],
         "notes": [
-          "Удаляется только package; RouterForge Core остаётся независимым."
+          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
         ],
-        "preview_only": false
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "routerforge-thermal"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "dns-monitor-thermal"
+            ],
+            "ignore_failure": true
+          }
+        ]
       },
+      "presentation": {
+        "dashboard": {
+          "enabled": true,
+          "priority": 40
+        }
+      },
+      "process_names": [
+        "routerforge-thermal",
+        "dnsmon-thermal"
+      ],
+      "capabilities": [
+        "thermal",
+        "hwmon",
+        "wifi-thermal",
+        "smart-temperature"
+      ],
       "manifest_id": "thermal",
-      "manifest_sha256": "5780d2c3c2fa9855390b6adaa20f266e072adab214a051f745b95d64bfe94aac",
+      "manifest_sha256": "ffb2c5062137a7fa6152c9bc3d59359964a7174ba33cac1f5a97c0be6ddc50fd",
       "manifest_source": "marketplace/submissions/thermal.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "official",
         "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge."
+        "note": "Официальный модуль RouterForge beta."
       }
     }
   ]

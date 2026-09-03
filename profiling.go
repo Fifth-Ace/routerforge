@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	profilingMarker = "/opt/etc/dns-monitor/profiling.enabled"
-	profilingConfig = "/opt/etc/dns-monitor/profiling.conf"
+	profilingMarker = "/opt/etc/routerforge/profiling.enabled"
+	profilingConfig = "/opt/etc/routerforge/profiling.conf"
 )
 
 type profilingRuntime struct {

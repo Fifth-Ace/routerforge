@@ -1,8 +1,8 @@
 #!/bin/sh
 ENABLED=yes
-PROCS=dnsmon-admin
-ARGS="-socket /opt/var/run/dns-monitor-admin.sock"
+PROCS=routerforge-admin
+ARGS="-socket /opt/var/run/routerforge-admin.sock"
 PREARGS=""
-DESC="DNS Monitor Admin"
+DESC="RouterForge Control"
 PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
 . /opt/etc/init.d/rc.func

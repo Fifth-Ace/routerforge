@@ -18,13 +18,11 @@
 
       if (adminInstalled && !stopAdmin) stopAdmin = startAdminPolling();
       if (!adminInstalled && stopAdmin) {
-        stopAdmin();
-        stopAdmin = null;
+        stopAdmin(); stopAdmin = null;
       }
       if (systemInstalled && !stopSystem) stopSystem = startSystemModulePolling();
       if (!systemInstalled && stopSystem) {
-        stopSystem();
-        stopSystem = null;
+        stopSystem(); stopSystem = null;
       }
     });
 
@@ -37,35 +35,30 @@
   });
 
   $: modules = $catalog.modules || [];
-  $: visibleModules = modules.filter((item) => item.builtin || item.installed);
+  $: installedCapabilities = modules.filter((item) =>
+    item.installed && !item.builtin && item.id !== 'profiling'
+  );
   $: integrations = $catalog.integrations || [];
-  $: all = [...integrations, ...modules];
   $: externalInstalled = integrations.filter((x) => x.state === 'installed_external').length;
   $: servicesRunning = integrations.filter((x) => x.service_running).length
     + modules.filter((x) => x.managed && x.service_running).length;
-  $: available = all.filter((x) => x.state === 'available').length;
-  $: adminModule = modules.find((x) => x.id === 'admin');
-  $: hasTelemetryModule = Boolean(adminModule?.installed) || modules.some((item) => item.id === 'system' && item.installed);
-  $: telemetry = $adminOnline ? $adminSummary : $systemModuleOnline ? $systemModuleSummary : null;
+  $: available = [...integrations, ...modules].filter((x) => x.state === 'available').length;
+  $: telemetry = $systemModuleOnline ? $systemModuleSummary : $adminOnline ? $adminSummary : null;
   $: mem = telemetry?.memory;
   $: ramPct = mem?.total_kb ? Number(mem.used_kb || 0) / Number(mem.total_kb) * 100 : 0;
 
   function stateLabel(item) {
-    if (item.state === 'installed' && item.managed) return item.service_running ? 'ACTIVE' : 'INSTALLED';
-    if (item.state === 'installed') return 'BUILT-IN';
-    if (item.state === 'installed_external') return item.service_running ? 'ACTIVE' : 'INSTALLED';
-    if (item.state === 'planned') return 'PLANNED';
-    if (item.state === 'available') return 'AVAILABLE';
-    return String(item.state || 'UNKNOWN').toUpperCase();
+    if (item.id === 'dns' && item.installed) return 'ENABLED';
+    if (item.service_running) return 'ONLINE';
+    if (item.installed) return 'INSTALLED';
+    return 'AVAILABLE';
   }
 
   function stateClass(item) {
-    if (item.state === 'installed' && item.managed) return item.service_running ? 'good' : 'warn';
-    if (item.state === 'installed') return 'good';
-    if (item.state === 'installed_external' && item.service_running) return 'good';
-    if (item.state === 'available') return 'info';
-    if (item.state === 'planned') return 'muted';
-    return item.installed && !item.service_running ? 'warn' : 'muted';
+    if (item.id === 'dns' && item.installed) return 'good';
+    if (item.service_running) return 'good';
+    if (item.installed) return 'warn';
+    return 'muted';
   }
 </script>
 
@@ -73,16 +66,17 @@
   <aside class="global-rail global-rail-left">
     <div class="rail-main">
       <section class="rail-block">
-        <div class="rail-section-label">RouterForge Modules</div>
+        <div class="rail-section-label">RouterForge</div>
         <div class="global-module-tree mono">
           <div class="global-tree-root">
             <span class="status-dot good"></span>
-            <strong>RouterForge Core</strong>
+            <strong>Core</strong>
+            <span class="global-tree-state good">[ONLINE]</span>
           </div>
 
-          {#each visibleModules as module, index (module.id)}
+          {#each installedCapabilities as module, index (module.id)}
             <div class="global-tree-row">
-              <span class="tree-branch">{index === visibleModules.length - 1 ? '└─' : '├─'}</span>
+              <span class="tree-branch">{index === installedCapabilities.length - 1 ? '└─' : '├─'}</span>
               <span class="status-dot {stateClass(module)}"></span>
               <span class="global-tree-name">{module.name}</span>
               <span class="global-tree-state {stateClass(module)}">[{stateLabel(module)}]</span>
@@ -92,27 +86,22 @@
       </section>
 
       <section class="rail-block">
-        <div class="rail-section-label">Registry Summary</div>
+        <div class="rail-section-label">Platform Summary</div>
+        <div class="rail-summary-row"><span>Capabilities</span><strong>{installedCapabilities.length}</strong></div>
         <div class="rail-summary-row"><span>External installed</span><strong>{externalInstalled}</strong></div>
         <div class="rail-summary-row"><span>Services running</span><strong>{servicesRunning}</strong></div>
-        <div class="rail-summary-row"><span>Available</span><strong>{available}</strong></div>
-        <div class="rail-summary-row"><span>Catalog entries</span><strong>{all.length}</strong></div>
+        <div class="rail-summary-row"><span>Marketplace available</span><strong>{available}</strong></div>
       </section>
     </div>
 
     <div class="rail-bottom-stack">
-      {#if hasTelemetryModule}
+      {#if telemetry}
         <section class="rail-status-card mono">
-          <div class="rail-section-label">Core Telemetry</div>
-          {#if telemetry}
-            <div><span>source</span><strong>{$adminOnline ? 'ADMIN' : 'SYSTEM'}</strong></div>
-            <div><span>host</span><strong>{telemetry.hostname || '—'}</strong></div>
-            <div><span>load.1m</span><strong>{Number(telemetry.load_1 || 0).toFixed(2)}</strong></div>
-            <div><span>ram.used</span><strong>{ramPct.toFixed(0)}%</strong></div>
-            <div><span>processes</span><strong>{telemetry.process_count || 0}</strong></div>
-          {:else}
-            <div><span>telemetry</span><strong class="muted">WAITING</strong></div>
-          {/if}
+          <div class="rail-section-label">Host Telemetry</div>
+          <div><span>host</span><strong>{telemetry.hostname || '—'}</strong></div>
+          <div><span>load.1m</span><strong>{Number(telemetry.load_1 || 0).toFixed(2)}</strong></div>
+          <div><span>ram.used</span><strong>{ramPct.toFixed(0)}%</strong></div>
+          <div><span>processes</span><strong>{telemetry.process_count || 0}</strong></div>
         </section>
       {/if}
 
@@ -120,7 +109,7 @@
         <div class="rail-section-label">Marketplace</div>
         <div><span>Catalog API</span><strong class={$catalogOnline ? 'good' : 'bad'}>{$catalogOnline ? 'ONLINE' : 'OFFLINE'}</strong></div>
         <div><span>Registry</span><strong class={$catalog.registry?.online ? 'good' : 'warn'}>{$catalog.registry?.online ? 'REMOTE' : ($catalog.registry?.source || 'BUNDLED').toUpperCase()}</strong></div>
-        <div><span>Package API</span><strong class={$catalog.install_test_mode ? 'warn' : 'muted'}>{$catalog.install_test_mode ? 'DEV ENABLED' : 'DISABLED'}</strong></div>
+        <div><span>Packages</span><strong class={$catalog.install_test_mode ? 'good' : 'muted'}>{$catalog.install_test_mode ? 'BETA ENABLED' : 'DISABLED'}</strong></div>
       </section>
     </div>
   </aside>

@@ -1,0 +1,8 @@
+#!/bin/sh
+ENABLED=yes
+PROCS=routerforge
+ARGS="-listen :2233 -discovery 60s -health 30s -log /opt/var/log/routerforge.log"
+PREARGS=""
+DESC="RouterForge Core"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+. /opt/etc/init.d/rc.func

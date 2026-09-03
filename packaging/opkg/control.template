@@ -1,10 +1,13 @@
-Package: dns-monitor
+Package: routerforge-core
 Version: @VERSION@
 Section: net
 Priority: optional
 Architecture: aarch64-3.10
+Provides: dns-monitor
+Conflicts: dns-monitor
+Replaces: dns-monitor
 Maintainer: Fifth-Ace
 Source: https://github.com/Fifth-Ace/dns-monitor
 Homepage: https://github.com/Fifth-Ace/dns-monitor
 License: MIT
-Description: DNS observability and diagnostics for Keenetic / Netcraze ARM64 routers.
+Description: RouterForge modular router console core for Keenetic / Netcraze ARM64.

@@ -1,0 +1,7 @@
+{
+  "id": "dns",
+  "status": "official",
+  "manifest_sha256": "031619eaf2bfaa886976e9a12776e106ca91c4de8e32b89a4b0ebf411ee7e05d",
+  "reviewed_by": "routerforge",
+  "note": "Официальный модуль RouterForge beta."
+}

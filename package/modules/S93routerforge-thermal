@@ -1,0 +1,8 @@
+#!/bin/sh
+ENABLED=yes
+PROCS=routerforge-thermal
+ARGS="-module thermal -socket /opt/var/run/routerforge-thermal.sock"
+PREARGS=""
+DESC="RouterForge Thermal Monitor"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+. /opt/etc/init.d/rc.func

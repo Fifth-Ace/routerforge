@@ -1,8 +1,0 @@
-#!/bin/sh
-ENABLED=yes
-PROCS=dnsmon-storage
-ARGS="-module storage -socket /opt/var/run/dns-monitor-storage.sock"
-PREARGS=""
-DESC="DNS Monitor Storage"
-PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
-. /opt/etc/init.d/rc.func

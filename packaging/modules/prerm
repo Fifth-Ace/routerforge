@@ -1,8 +1,6 @@
 #!/bin/sh
-SERVICE="@SERVICE@"
-SOCKET="@SOCKET@"
-if [ -x "/opt/etc/init.d/$SERVICE" ]; then
-    "/opt/etc/init.d/$SERVICE" stop >/dev/null 2>&1 || true
+if [ -x "/opt/etc/init.d/@SERVICE@" ]; then
+    "/opt/etc/init.d/@SERVICE@" stop >/dev/null 2>&1 || true
 fi
-rm -f "$SOCKET"
+rm -f "@SOCKET@"
 exit 0

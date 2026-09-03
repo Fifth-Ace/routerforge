@@ -8,6 +8,7 @@
   import '@fontsource/roboto-mono/600.css';
   import '../app.css';
   import '../admin-shell.css';
+  import '../routerforge-beta.css';
 
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -27,8 +28,7 @@
 
   function reconcileStream() {
     if (!panelAccess) {
-      stopStream?.();
-      stopStream = null;
+      stopStream?.(); stopStream = null;
       return;
     }
     if (stopStream) return;
@@ -37,10 +37,15 @@
 
   $: modules = $catalog.modules || [];
   $: adminInstalled = modules.some((item) => item.id === 'admin' && item.installed);
-  $: optionalInstalled = modules.some((item) => ['system', 'thermal', 'storage', 'network', 'profiling'].includes(item.id) && item.installed);
+  $: dnsInstalled = modules.some((item) => item.id === 'dns' && item.installed);
+  $: monitoringInstalled = modules.some((item) =>
+    ['system', 'thermal', 'storage', 'network'].includes(item.id) && item.installed
+  );
+  $: path = $page.url.pathname;
   $: protectedPathMissing =
-    ($page.url.pathname === '/admin' && !adminInstalled)
-    || ($page.url.pathname === '/modules' && !optionalInstalled);
+    (path === '/manage' && !adminInstalled)
+    || ((path === '/monitoring' || path.startsWith('/monitoring/')) && !monitoringInstalled)
+    || ((path === '/dns' || path.startsWith('/dns/')) && !dnsInstalled);
 
   $: if ($catalogOnline && protectedPathMissing && !redirecting) {
     redirecting = true;
@@ -52,10 +57,7 @@
       const interval = Number(value.refreshMs || 2000);
       if (interval === lastInterval) return;
       lastInterval = interval;
-      if (stopStream) {
-        stopStream();
-        stopStream = null;
-      }
+      if (stopStream) { stopStream(); stopStream = null; }
       reconcileStream();
     });
 
@@ -78,15 +80,14 @@
 
 {#if $authState.ready && (!$authState.required || $authState.authenticated)}
   <AppHeader />
-
   <main class="app-main">
     <AppShell>
       {#if $snapshot.discovery_error || $snapshot.capture_error || $snapshot.client_registry_error || $snapshot.client_capture_error}
         <div class="global-alerts shell-alerts">
-          {#if $snapshot.discovery_error}<div class="global-alert">Discovery: {$snapshot.discovery_error}</div>{/if}
-          {#if $snapshot.capture_error}<div class="global-alert">Capture: {$snapshot.capture_error}</div>{/if}
-          {#if $snapshot.client_registry_error}<div class="global-alert">Clients: {$snapshot.client_registry_error}</div>{/if}
-          {#if $snapshot.client_capture_error}<div class="global-alert">Client capture: {$snapshot.client_capture_error}</div>{/if}
+          {#if $snapshot.discovery_error}<div class="global-alert">DNS discovery: {$snapshot.discovery_error}</div>{/if}
+          {#if $snapshot.capture_error}<div class="global-alert">DNS capture: {$snapshot.capture_error}</div>{/if}
+          {#if $snapshot.client_registry_error}<div class="global-alert">DNS clients: {$snapshot.client_registry_error}</div>{/if}
+          {#if $snapshot.client_capture_error}<div class="global-alert">DNS client capture: {$snapshot.client_capture_error}</div>{/if}
         </div>
       {/if}
       <slot />

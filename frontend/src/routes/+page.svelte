@@ -1,211 +1,142 @@
 <script>
-  import { onMount } from 'svelte';
-  import { snapshot } from '$lib/stores/snapshot.js';
-  import { settings } from '$lib/stores/settings.js';
-  import { getPlainDNS } from '$lib/api.js';
-  import { fmtInt, fmtPct, fmtMs, fmtAgo, statusFor, errorCount, quality, qualityClass, latencyClass, groupBy, total } from '$lib/utils.js';
+  import { catalog, catalogOnline } from '$lib/stores/catalog.js';
+  import { snapshot, backendOnline } from '$lib/stores/snapshot.js';
+  import { adminSummary, adminOnline } from '$lib/stores/admin.js';
+  import { systemModuleSummary, systemModuleOnline } from '$lib/stores/systemModule.js';
 
-  let search='';
-  let activeOnly=false;
-  let plain={resolvers:[],recent:[],pending:0};
-  let plainError='';
-  let plainTimer=null;
+  $: modules = $catalog.modules || [];
+  $: integrations = $catalog.integrations || [];
+  $: installedModules = modules.filter((item) => item.installed && !item.builtin && item.id !== 'profiling');
+  $: dns = modules.find((item) => item.id === 'dns');
+  $: admin = modules.find((item) => item.id === 'admin');
+  $: monitoring = modules.filter((item) => ['system','thermal','storage','network'].includes(item.id));
+  $: monitoringInstalled = monitoring.filter((item) => item.installed);
+  $: monitoringOnline = monitoring.filter((item) => item.installed && item.service_running);
+  $: externalInstalled = integrations.filter((item) => item.installed).length;
+  $: telemetry = $systemModuleOnline ? $systemModuleSummary : $adminOnline ? $adminSummary : null;
+  $: memory = telemetry?.memory;
+  $: ramPct = memory?.total_kb ? Number(memory.used_kb || 0) / Number(memory.total_kb) * 100 : 0;
+  $: issues = buildIssues($backendOnline, $catalogOnline, $catalog, $snapshot, dns, monitoringInstalled, admin);
+  $: moduleCards = installedModules
+    .filter((item) => item.presentation?.dashboard?.enabled !== false)
+    .sort((a,b) => Number(a.presentation?.dashboard?.priority || 50) - Number(b.presentation?.dashboard?.priority || 50));
 
-  $: allUpstreams=$snapshot.upstreams||[];
-  $: systemUpstreams=allUpstreams.filter((u)=>u.profile==='System');
-  $: protectedUpstreams=systemUpstreams.length?systemUpstreams:allUpstreams;
-  $: policyUpstreams=allUpstreams.filter((u)=>u.profile!=='System');
-  $: policyGroups=Object.entries(groupBy(policyUpstreams,'profile')).sort(([a],[b])=>a.localeCompare(b,undefined,{numeric:true}));
-  $: plainResolvers=[...(plain.resolvers||[])].sort((a,b)=>{
-    const ad=String(a.source||'').toUpperCase()==='DHCP'?0:1;
-    const bd=String(b.source||'').toUpperCase()==='DHCP'?0:1;
-    return ad-bd||String(a.address||'').localeCompare(String(b.address||''),undefined,{numeric:true});
-  });
-
-  $: filteredProtected=protectedUpstreams.filter((u)=>{
-    if(activeOnly&&!u.active)return false;
-    const q=search.trim().toLowerCase();
-    return !q||`${u.name} ${u.target} ${u.sni} ${u.domain}`.toLowerCase().includes(q);
-  });
-  $: filteredPlain=plainResolvers.filter((r)=>{
-    if(activeOnly&&!plainRecentlyActive(r))return false;
-    const q=search.trim().toLowerCase();
-    return !q||`${r.name||''} ${r.address||''} ${r.source||''} ${r.interface||''} ${(r.domains||[]).join(' ')}`.toLowerCase().includes(q);
-  });
-
-  $: protectedRequests=total(protectedUpstreams,'requests');
-  $: plainRequests=total(plainResolvers,'requests');
-  $: requests=protectedRequests+plainRequests;
-  $: responses=total(protectedUpstreams,'responses')+total(plainResolvers,'responses');
-  $: protectedFallbacks=total(protectedUpstreams,'fallbacks');
-  $: plainTimeouts=total(plainResolvers,'timeouts');
-  $: protectedTimeouts=total(protectedUpstreams,'timeouts');
-  $: errors=protectedUpstreams.reduce((n,u)=>n+errorCount(u)+Number(u.timeouts||0),0)+total(plainResolvers,'errors')+plainTimeouts;
-  $: plainDown=plainResolvers.filter((r)=>Number(r.requests||0)>0&&Number(r.responses||0)===0&&Number(r.timeouts||0)>0).length;
-  $: protectedDown=protectedUpstreams.filter((u)=>u.health_status==='DOWN').length;
-  $: protectedDegraded=protectedUpstreams.filter((u)=>u.health_status==='DEGRADED').length;
-  $: active=protectedUpstreams.filter((u)=>u.active).length+plainResolvers.filter(plainRecentlyActive).length;
-  $: healthy=protectedUpstreams.length-protectedDown+plainResolvers.length-plainDown;
-  $: serverCount=protectedUpstreams.length+plainResolvers.length;
-  $: downCount=protectedDown+plainDown;
-  $: degradedCount=protectedDegraded+plainResolvers.filter((r)=>Number(r.requests||0)>0&&(Number(r.errors||0)>0||Number(r.timeouts||0)>0)).length;
-  $: timeoutCount=protectedTimeouts+plainTimeouts;
-
-  const share=(u)=>requests?Number(u.requests||0)/requests*100:0;
-
-  function plainRecentlyActive(r={}) {
-    const iso=String(r.last_request||'');
-    if(!iso||iso.startsWith('0001-'))return false;
-    const ts=new Date(iso).getTime();
-    return Number.isFinite(ts)&&Date.now()-ts<5*60*1000;
-  }
-
-  function plainStatus(r={}) {
-    const req=Number(r.requests||0);
-    const res=Number(r.responses||0);
-    const err=Number(r.errors||0);
-    const timeouts=Number(r.timeouts||0);
-    if(req>0&&res===0&&timeouts>0)return {cls:'error',label:'Недоступен'};
-    if(req>0&&(err>0||timeouts>0))return {cls:'warn',label:'Деградация'};
-    if(plainRecentlyActive(r))return {cls:'good',label:'Активен'};
-    return {cls:'neutral',label:'Обнаружен'};
-  }
-
-  function plainSuccess(r={}) {
-    const req=Number(r.requests||0);
-    return req?Number(r.responses||0)/req*100:100;
-  }
-
-  function policyRouteState(first={}) {
-    if(first.policy_has_default)return {cls:'good',label:'Есть маршрут'};
-    return {cls:'neutral',label:'Без default route'};
-  }
-
-  async function refreshPlain() {
-    try {
-      plain=await getPlainDNS(80);
-      plainError='';
-    } catch(error) {
-      plainError=error?.message||'Plain DNS API недоступен';
+  function buildIssues(coreOnline, catalogApiOnline, catalogData, snapshotData, dnsModule, installedMonitoring, adminModule) {
+    const out = [];
+    if (!coreOnline) out.push({ cls:'error', text:'RouterForge Core недоступен' });
+    if (!catalogApiOnline) out.push({ cls:'warn', text:'Catalog API недоступен' });
+    if (catalogData?.registry && !catalogData.registry.online) out.push({ cls:'warn', text:`Marketplace Registry работает из ${(catalogData.registry.source || 'bundled').toUpperCase()} cache` });
+    if (dnsModule?.installed && snapshotData?.capture_error) out.push({ cls:'error', text:`DNS capture: ${snapshotData.capture_error}` });
+    if (dnsModule?.installed && snapshotData?.discovery_error) out.push({ cls:'warn', text:`DNS discovery: ${snapshotData.discovery_error}` });
+    for (const item of installedMonitoring || []) {
+      if (!item.service_running) out.push({ cls:'warn', text:`${item.name}: runtime не запущен` });
     }
+    if (adminModule?.installed && !adminModule.service_running) out.push({ cls:'warn', text:'RouterForge Control установлен, но runtime не запущен' });
+    return out;
   }
 
-  onMount(()=>{
-    refreshPlain();
-    plainTimer=setInterval(()=>{
-      if(!document.hidden)refreshPlain();
-    },2500);
-    return ()=>clearInterval(plainTimer);
-  });
+  function hrefFor(item) {
+    if (item.presentation?.navigation?.href) return item.presentation.navigation.href;
+    if (['system','thermal','storage','network'].includes(item.id)) return `/monitoring?tab=${encodeURIComponent(item.id)}`;
+    return '/catalog';
+  }
+
+  function short(item) {
+    const map = { dns:'DNS', admin:'CTL', system:'SYS', thermal:'TMP', storage:'DSK', network:'NET' };
+    return map[item.id] || String(item.name || 'MOD').slice(0,3).toUpperCase();
+  }
 </script>
 
-<svelte:head><title>RouterForge — Обзор</title></svelte:head>
+<svelte:head><title>RouterForge — Главная</title></svelte:head>
 
-<div class="page">
-  <div class="page-head">
-    <div><h1>Обзор</h1><p>Основные DNS Keenetic без служебных policy-дублей.</p></div>
-    <span class="page-kicker mono">CORE / DNS OBSERVABILITY</span>
+<div class="page routerforge-home">
+  <div class="page-head routerforge-home-head">
+    <div>
+      <span class="routerforge-eyebrow mono">ROUTERFORGE / BETA</span>
+      <h1>{telemetry?.hostname || 'RouterForge'}</h1>
+      <p>Локальная платформа управления, мониторинга и расширений для роутера.</p>
+    </div>
+    <span class="state-chip {$backendOnline ? 'good' : 'error'}">CORE {$backendOnline ? 'ONLINE' : 'OFFLINE'}</span>
   </div>
 
-  <div class="toolbar">
-    <div class="search-control"><span>⌕</span><input bind:value={search} placeholder="Поиск DNS…"/></div>
-    <button class="button" class:active={activeOnly} onclick={()=>activeOnly=true}>Активные</button>
-    <button class="button" class:active={!activeOnly} onclick={()=>activeOnly=false}>Все</button>
-  </div>
-
-  <section class="metric-grid four">
-    <div class="metric-card"><span>DNS серверы</span><strong>{healthy}/{serverCount}</strong><small>{active} активны · DOWN {downCount}</small></div>
-    <div class="metric-card"><span>Запросы</span><strong>{fmtInt(requests)}</strong><small>{fmtInt(responses)} ответов</small></div>
-    <div class="metric-card"><span>Fallback</span><strong>{fmtInt(protectedFallbacks)}</strong><small>{protectedRequests?fmtPct(protectedFallbacks/protectedRequests*100):'0%'}</small></div>
-    <div class="metric-card"><span>Проблемы</span><strong>{fmtInt(errors)}</strong><small>{fmtInt(timeoutCount)} timeout · {degradedCount} degraded</small></div>
+  <section class="metric-grid four routerforge-platform-metrics">
+    <div class="metric-card">
+      <span>RouterForge</span>
+      <strong>v{$snapshot.version || 'beta'}</strong>
+      <small>Core · :2233</small>
+    </div>
+    <div class="metric-card">
+      <span>Возможности</span>
+      <strong>{installedModules.length}</strong>
+      <small>{monitoringOnline.length}/{monitoringInstalled.length} monitoring online</small>
+    </div>
+    <div class="metric-card">
+      <span>Marketplace</span>
+      <strong>{$catalog.registry?.online ? 'ONLINE' : 'CACHE'}</strong>
+      <small>{integrations.length + modules.length} entries · {externalInstalled} external</small>
+    </div>
+    <div class="metric-card">
+      <span>Host</span>
+      <strong>{telemetry ? `${ramPct.toFixed(0)}% RAM` : '—'}</strong>
+      <small>{telemetry ? `load ${Number(telemetry.load_1 || 0).toFixed(2)} · ${telemetry.process_count || 0} processes` : 'установите System Monitor'}</small>
+    </div>
   </section>
 
-  {#if filteredPlain.length}
-    <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Основной DNS</strong><span>Обычный DNS, полученный или заданный в Keenetic</span></div></div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>DNS</th><th>Тип</th><th>Статус</th><th>Запросы</th><th>Latency</th><th>Проблемы</th><th class="advanced-only">Ответы</th><th class="advanced-only">Источник</th><th class="advanced-only">Интерфейс</th></tr></thead>
-          <tbody>
-            {#each filteredPlain as r (`${r.address}:${r.port||53}`)}
-              {@const st=plainStatus(r)}
-              <tr>
-                <td><div class="cell-title">{r.name||r.address}</div><div class="cell-sub mono">{r.address}:{r.port||53}</div></td>
-                <td><span class="pill accent">DNS</span></td>
-                <td><span class="state-chip {st.cls}">{st.label}</span><div class="cell-sub">{plainRecentlyActive(r)?'используется сейчас':fmtAgo(r.last_request)}</div></td>
-                <td><strong>{fmtInt(r.requests||0)}</strong><div class="cell-sub">{fmtPct(share(r))} трафика</div></td>
-                <td>{#if Number(r.p95_latency_ms||0)}<span class="latency {latencyClass(r.p95_latency_ms)}">p95 {fmtMs(r.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(r.avg_latency_ms)}</div>{:else}—{/if}</td>
-                <td><strong class={Number(r.errors||0)+Number(r.timeouts||0)>0?'warn-text':''}>{fmtInt(Number(r.errors||0)+Number(r.timeouts||0))}</strong><div class="cell-sub">{fmtInt(r.timeouts||0)} timeout · {fmtInt(r.nxdomain||0)} NXDOMAIN</div></td>
-                <td class="advanced-only"><strong class={plainSuccess(r)<95?'warn-text':'good'}>{plainSuccess(r).toFixed(1)}%</strong><div class="cell-sub">{fmtInt(r.responses||0)} responses</div></td>
-                <td class="advanced-only">{r.source||((r.profiles||[]).length?'Keenetic profile':'—')}</td>
-                <td class="advanced-only">{r.interface||'—'}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+  <div class="routerforge-home-grid">
+    <section class="panel routerforge-attention">
+      <div class="panel-head">
+        <div><strong>Состояние</strong><span>То, что требует внимания прямо сейчас</span></div>
+        <span class="state-chip {issues.length ? 'warn' : 'good'}">{issues.length ? `${issues.length} ATTENTION` : 'ALL GOOD'}</span>
+      </div>
+      {#if issues.length}
+        <div class="routerforge-issue-list">
+          {#each issues as issue}
+            <div class="routerforge-issue"><span class="status-dot {issue.cls}"></span><span>{issue.text}</span></div>
+          {/each}
+        </div>
+      {:else}
+        <div class="routerforge-all-good"><span class="status-dot good"></span><strong>Критических событий нет</strong><span>Core, registry и установленные providers выглядят нормально.</span></div>
+      {/if}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div><strong>Платформа</strong><span>Состав текущей установки</span></div>
+      </div>
+      <div class="routerforge-platform-list mono">
+        <div><span>DNS</span><strong class={dns?.installed ? 'good' : 'muted'}>{dns?.installed ? 'ENABLED' : 'NOT INSTALLED'}</strong></div>
+        <div><span>Monitoring</span><strong>{monitoringInstalled.length} providers</strong></div>
+        <div><span>Control</span><strong class={admin?.installed ? 'good' : 'muted'}>{admin?.installed ? 'INSTALLED' : 'NOT INSTALLED'}</strong></div>
+        <div><span>Registry</span><strong>{($catalog.registry?.source || '—').toUpperCase()}</strong></div>
       </div>
     </section>
-  {:else if plainError}
-    <section class="panel"><div class="empty">Основной DNS — {plainError}</div></section>
-  {/if}
+  </div>
 
-  {#if filteredProtected.length}
-    <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Защищённые DNS</strong><span>System DoT/DoH · без служебных копий Policy</span></div></div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>DNS</th><th>Тип</th><th>Статус</th><th>Запросы</th><th>Latency</th><th>Проблемы</th><th class="advanced-only">Fallback</th><th class="advanced-only">Качество</th><th class="advanced-only">Port</th><th class="advanced-only">Interface</th></tr></thead>
-          <tbody>
-            {#each filteredProtected as u (u.port)}
-              {@const st=statusFor(u)}
-              {@const win=u.stats_5m||{}}
-              {@const q=quality(u)}
-              <tr>
-                <td><div class="cell-title">{u.name}</div><div class="cell-sub">{u.target||u.sni||'—'}{u.domain?` · ${u.domain}`:''}</div></td>
-                <td><span class="pill accent">{u.protocol}</span></td>
-                <td><span class="state-chip {st.cls}">{st.label}</span><div class="cell-sub">{u.active?'используется сейчас':fmtAgo(u.last_request)}</div></td>
-                <td><strong>{fmtInt(u.requests||0)}</strong><div class="cell-sub">{fmtPct(share(u))} трафика</div></td>
-                <td>{#if Number(win.p95_latency_ms||0)}<span class="latency {latencyClass(win.p95_latency_ms)}">p95 {fmtMs(win.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(win.avg_latency_ms)}</div>{:else}—{/if}</td>
-                <td><strong class={Number(win.errors||0)+Number(win.timeouts||0)>0?'warn-text':''}>{fmtInt(Number(win.errors||0)+Number(win.timeouts||0))}</strong><div class="cell-sub">{fmtInt(win.timeouts||0)} timeout</div></td>
-                <td class="advanced-only"><strong class={Number(win.fallbacks||0)>0?'warn-text':''}>{fmtInt(win.fallbacks||0)}</strong><div class="cell-sub">{fmtPct(win.fallback_pct||0)}</div></td>
-                <td class="advanced-only"><strong class={qualityClass(win)}>{q.toFixed(1)}%</strong></td>
-                <td class="advanced-only mono">{u.port}</td>
-                <td class="advanced-only">{u.interface||'—'}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  {/if}
+  <section class="routerforge-capabilities-section">
+    <div class="catalog-section-head">
+      <div><h2>Установленные возможности</h2><p>Главная показывает только то, что действительно установлено на этом роутере.</p></div>
+      <a class="button" href="/catalog">Marketplace</a>
+    </div>
 
-  {#if !filteredPlain.length&&!filteredProtected.length&&!plainError}
-    <section class="panel"><div class="empty">Ничего не найдено</div></section>
-  {/if}
-
-  {#if $settings.uiLevel==='advanced'&&policyGroups.length}
-    <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Маршрутные DNS-контексты</strong><span>Служебные Policy Keenetic · не влияют на общий CORE status</span></div><span class="state-chip info">РАСШИРЕННЫЙ</span></div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Policy</th><th>Маршрут</th><th>DNS proxy</th><th>Resolver'ы</th><th>Диагностика</th><th>Mark / table</th></tr></thead>
-          <tbody>
-            {#each policyGroups as [name,items]}
-              {@const first=items[0]||{}}
-              {@const route=policyRouteState(first)}
-              {@const down=items.filter((u)=>u.health_status==='DOWN').length}
-              <tr>
-                <td><div class="cell-title">{first.policy_description||name}</div><div class="cell-sub mono">{name}</div></td>
-                <td><span class="state-chip {route.cls}">{route.label}</span><div class="cell-sub">{first.policy_has_default?'проверяется health-check':'внешний health-check пропущен'}</div></td>
-                <td class="mono">:{first.profile_dns_port||'—'}</td>
-                <td>{items.length} <span class="cell-sub">DoT/DoH</span></td>
-                <td>{#if first.policy_has_default}<span class="state-chip {down?'warn':'good'}">{down?`${down} DOWN`:'OK'}</span>{:else}<span class="state-chip neutral">N/A</span>{/if}</td>
-                <td class="mono">0x{Number(first.policy_mark||0).toString(16)} · {first.policy_table||'—'}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  {/if}
+    <div class="routerforge-capability-grid">
+      {#if !moduleCards.length}
+        <a class="routerforge-empty-capability" href="/catalog">
+          <strong>Добавить возможности</strong>
+          <span>DNS, мониторинг, управление и сторонние проекты доступны в Marketplace.</span>
+        </a>
+      {/if}
+      {#each moduleCards as item (item.id)}
+        <a class="routerforge-capability-card" href={hrefFor(item)}>
+          <span class="routerforge-capability-icon mono">{short(item)}</span>
+          <span class="routerforge-capability-copy">
+            <strong>{item.name}</strong>
+            <small>{item.description}</small>
+          </span>
+          <span class="state-chip {item.id === 'dns' || item.service_running ? 'good' : 'warn'}">
+            {item.id === 'dns' ? 'ENABLED' : item.service_running ? 'ONLINE' : 'INSTALLED'}
+          </span>
+        </a>
+      {/each}
+    </div>
+  </section>
 </div>

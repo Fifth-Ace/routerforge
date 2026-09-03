@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	marketplaceTestInstallMarker = "/opt/etc/dns-monitor/marketplace-test-install.enabled"
-	marketplaceDownloadDir       = "/opt/tmp/routerforge-marketplace"
+	marketplaceTestInstallMarker       = "/opt/etc/routerforge/package-management.enabled"
+	legacyMarketplaceTestInstallMarker = "/opt/etc/dns-monitor/marketplace-test-install.enabled"
+	marketplaceDownloadDir             = "/opt/tmp/routerforge-marketplace"
 	marketplaceDownloadMaxBytes  = 64 << 20
 )
 
@@ -52,7 +53,7 @@ func (e *catalogInstallFailure) Error() string {
 }
 
 func marketplaceTestInstallEnabled() bool {
-	return pathExists(marketplaceTestInstallMarker)
+	return pathExists(marketplaceTestInstallMarker) || pathExists(legacyMarketplaceTestInstallMarker)
 }
 
 func catalogItemByID(id string) (catalogItem, bool) {

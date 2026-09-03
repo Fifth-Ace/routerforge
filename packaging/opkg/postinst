@@ -1,6 +1,13 @@
 #!/bin/sh
-if [ -x /opt/etc/init.d/S90dns-monitor ]; then
-    /opt/etc/init.d/S90dns-monitor stop >/dev/null 2>&1 || true
-    /opt/etc/init.d/S90dns-monitor start >/dev/null 2>&1 || true
+set -eu
+mkdir -p /opt/etc/routerforge /opt/var/log
+if [ ! -f /opt/etc/routerforge/security.json ] && [ -f /opt/etc/dns-monitor/security.json ]; then
+    cp /opt/etc/dns-monitor/security.json /opt/etc/routerforge/security.json
+    chmod 0600 /opt/etc/routerforge/security.json 2>/dev/null || true
+fi
+: > /opt/etc/routerforge/package-management.enabled
+if [ -x /opt/etc/init.d/S90routerforge ]; then
+    /opt/etc/init.d/S90routerforge stop >/dev/null 2>&1 || true
+    /opt/etc/init.d/S90routerforge start >/dev/null 2>&1 || true
 fi
 exit 0

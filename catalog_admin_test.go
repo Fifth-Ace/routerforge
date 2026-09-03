@@ -4,10 +4,10 @@ import "testing"
 
 func TestCatalogDetectsManagedAdminModule(t *testing.T) {
 	installed := map[string]string{
-		"dns-monitor-admin": "0.2.0-dev",
+		"routerforge-admin": "0.3.0-beta",
 	}
 	processes := map[string]bool{
-		"dnsmon-admin": true,
+		"routerforge-admin": true,
 	}
 
 	snap := buildCatalog(installed, processes, func(string) bool { return false })
@@ -23,7 +23,7 @@ func TestCatalogDetectsManagedAdminModule(t *testing.T) {
 		t.Fatal("admin module missing")
 	}
 	if !admin.Managed {
-		t.Fatal("admin module must be managed by DNS Monitor")
+		t.Fatal("admin module must be managed by RouterForge")
 	}
 	if !admin.Installed || admin.State != "installed" {
 		t.Fatalf("bad admin install state: %#v", admin)
@@ -31,7 +31,7 @@ func TestCatalogDetectsManagedAdminModule(t *testing.T) {
 	if !admin.ServiceRunning || !admin.Enabled {
 		t.Fatalf("admin service should be running: %#v", admin)
 	}
-	if admin.Version != "0.2.0-dev" {
+	if admin.Version != "0.3.0-beta" {
 		t.Fatalf("admin version=%q", admin.Version)
 	}
 }

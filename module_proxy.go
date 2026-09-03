@@ -6,23 +6,37 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 	"time"
 )
 
-var moduleSockets = map[string]string{
-	"system":  "/opt/var/run/dns-monitor-system.sock",
-	"thermal": "/opt/var/run/dns-monitor-thermal.sock",
-	"storage": "/opt/var/run/dns-monitor-storage.sock",
-	"network": "/opt/var/run/dns-monitor-network.sock",
+var moduleSockets = map[string][]string{
+	"system":  {"/opt/var/run/routerforge-system.sock", "/opt/var/run/dns-monitor-system.sock"},
+	"thermal": {"/opt/var/run/routerforge-thermal.sock", "/opt/var/run/dns-monitor-thermal.sock"},
+	"storage": {"/opt/var/run/routerforge-storage.sock", "/opt/var/run/dns-monitor-storage.sock"},
+	"network": {"/opt/var/run/routerforge-network.sock", "/opt/var/run/dns-monitor-network.sock"},
+}
+
+func activeModuleSocket(moduleID string) (string, bool) {
+	candidates, ok := moduleSockets[moduleID]
+	if !ok || len(candidates) == 0 {
+		return "", false
+	}
+	for _, socket := range candidates {
+		if _, err := os.Stat(socket); err == nil {
+			return socket, true
+		}
+	}
+	return candidates[0], true
 }
 
 func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		writeModuleJSON(w, http.StatusMethodNotAllowed, map[string]any{
-			"error":        "modules are read-only",
+			"error":        "monitoring providers are read-only",
 			"mutation_api": false,
 		})
 		return
@@ -45,7 +59,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	socket, ok := moduleSockets[moduleID]
+	socket, ok := activeModuleSocket(moduleID)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -97,7 +111,7 @@ func moduleUnavailable(w http.ResponseWriter, moduleID, detail string) {
 		"installed":    false,
 		"running":      false,
 		"mutation_api": false,
-		"error":        "module is not available",
+		"error":        "monitoring provider is not available",
 		"detail":       detail,
 	})
 }

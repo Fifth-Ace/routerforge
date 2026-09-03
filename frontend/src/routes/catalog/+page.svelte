@@ -7,7 +7,7 @@
 
   const acronyms = {
     'awg-manager': 'AWG', nfqws2: 'NQ2', nfqws: 'NQ1', 'nfqws-web': 'NQW', 'hydraroute-neo': 'HRN',
-    'dns-core': 'RFC', marketplace: 'MKT', system: 'SYS', thermal: 'TMP',
+    'routerforge-core': 'RFC', dns: 'DNS', marketplace: 'MKT', system: 'SYS', thermal: 'TMP',
     storage: 'DSK', network: 'NET', admin: 'ADM', profiling: 'PRF',
     xkeen: 'XKN', 'xkeen-ui': 'XUI', 'keen-pbr': 'PBR', kvas: 'KVS', 'bypass-keenetic': 'BYP',
     'traffic-via-vpn': 'VPN', 'adguardhome-keenetic': 'AGH', skeen: 'SKN', 'chur-keenetic': 'CHR', 'keenetic-sing-box-ui': 'SBU',
@@ -70,8 +70,9 @@
   };
 
   const moduleURL = (item) => {
-    if (item.id === 'admin') return '/admin';
-    if (['system', 'thermal', 'storage', 'network', 'profiling'].includes(item.id)) return `/modules?tab=${encodeURIComponent(item.id)}`;
+    if (item.id === 'admin') return '/manage';
+    if (item.id === 'dns') return '/dns';
+    if (['system', 'thermal', 'storage', 'network', 'profiling'].includes(item.id)) return `/monitoring?tab=${encodeURIComponent(item.id)}`;
     return '';
   };
 
@@ -144,7 +145,7 @@
   }
 </script>
 
-<svelte:head><title>RouterForge — Каталог</title></svelte:head>
+<svelte:head><title>RouterForge — Marketplace</title></svelte:head>
 
 <div class="page catalog-page">
   <div class="page-head">
@@ -169,7 +170,7 @@
 
   <div class="market-safety-line mono" class:test-mode={data.install_test_mode}>
     {#if data.install_test_mode}
-      <span><i class="status-dot warn"></i> PACKAGE DEV MODE <strong>ACTIVE</strong></span>
+      <span><i class="status-dot warn"></i> BETA PACKAGE MODE <strong>ACTIVE</strong></span>
       <span>OFFICIAL / VERIFIED <strong>EXECUTABLE</strong></span>
       <span>UNVERIFIED / CHANGED <strong>READ ONLY</strong></span>
     {:else}

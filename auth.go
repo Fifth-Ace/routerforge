@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	securityConfigPath = "/opt/etc/dns-monitor/security.json"
-	authCookieName     = "dnsmon_session"
+	securityConfigPath = "/opt/etc/routerforge/security.json"
+	authCookieName     = "routerforge_session"
 	authSessionTTL     = 12 * time.Hour
 )
 

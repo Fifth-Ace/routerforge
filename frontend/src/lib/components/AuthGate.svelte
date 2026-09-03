@@ -28,12 +28,10 @@
 </script>
 
 <div class="auth-gate">
-  <div class="auth-card">
-    <div class="auth-brand">
-      <span class="brand-mark concept-shield" aria-hidden="true">
-        <svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5.2-3.2 8.2-8 10-4.8-1.8-8-4.8-8-10V6l8-3Z"/><path d="m8.7 12 2 2 4.8-5"/></svg>
-      </span>
-      <div><strong>RouterForge</strong><span>Core Console</span></div>
+  <div class="auth-card routerforge-auth-card">
+    <div class="auth-brand routerforge-auth-brand">
+      <img class="routerforge-auth-mark" src="/routerforge-mark.png" alt=""/>
+      <div><strong>RouterForge</strong><span>Router Console · Beta</span></div>
     </div>
 
     {#if !$authState.ready}
@@ -45,8 +43,8 @@
       <button class="button primary" type="button" onclick={retry}>Повторить</button>
     {:else}
       <div class="auth-kicker mono">ENTWARE ROOT AUTH</div>
-      <h1>Вход в панель</h1>
-      <p>Используется root-пароль Entware — тот же источник учётных данных, что и у nfqws-keenetic-web.</p>
+      <h1>Вход в RouterForge</h1>
+      <p>Используется root-пароль Entware.</p>
 
       <form class="auth-form" onsubmit={submit}>
         <label><span>Пользователь</span><input bind:value={username} autocomplete="username" spellcheck="false"/></label>

@@ -37,6 +37,8 @@ jobs:
         run: |
           test -f frontend/build/index.html
           test -d frontend/build/_app
+          test -f frontend/build/favicon.ico
+          test -f frontend/build/routerforge-mark.png
 
       - name: Validate RouterForge registry
         run: python3 marketplace/build_registry.py --check
@@ -61,26 +63,26 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
             -tags embed_frontend \
             -ldflags="-X main.version=0.0.0-ci" \
-            -o /tmp/dns-monitor-embed-check .
-          test -s /tmp/dns-monitor-embed-check
+            -o /tmp/routerforge-embed-check .
+          test -s /tmp/routerforge-embed-check
 
-      - name: Verify module host cross-build
+      - name: Verify monitoring provider cross-build
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
             -ldflags="-X main.version=0.0.0-ci" \
-            -o /tmp/dns-monitor-module-arm64 ./cmd/dns-monitor-module
-          test -s /tmp/dns-monitor-module-arm64
+            -o /tmp/routerforge-module-arm64 ./cmd/dns-monitor-module
+          test -s /tmp/routerforge-module-arm64
 
-      - name: Smoke test module runtime
+      - name: Smoke test monitoring runtime
         run: |
-          go build -ldflags="-X main.version=0.0.0-ci" -o /tmp/dns-monitor-module ./cmd/dns-monitor-module
+          go build -ldflags="-X main.version=0.0.0-ci" -o /tmp/routerforge-module ./cmd/dns-monitor-module
 
           smoke_module() {
             id="$1"
             endpoint="$2"
-            socket="/tmp/dns-monitor-${id}.sock"
+            socket="/tmp/routerforge-${id}.sock"
             rm -f "$socket"
-            /tmp/dns-monitor-module -module "$id" -socket "$socket" &
+            /tmp/routerforge-module -module "$id" -socket "$socket" &
             pid=$!
             trap 'kill "$pid" 2>/dev/null || true; rm -f "$socket"' EXIT INT TERM
 
@@ -108,12 +110,12 @@ jobs:
         run: |
           sh -n package/install.sh
           sh -n package/uninstall.sh
-          sh -n package/S90dns-monitor
-          sh -n package/S91dns-monitor-admin
-          sh -n package/modules/S92dns-monitor-system
-          sh -n package/modules/S93dns-monitor-thermal
-          sh -n package/modules/S94dns-monitor-storage
-          sh -n package/modules/S95dns-monitor-network
+          sh -n package/S90routerforge
+          sh -n package/S91routerforge-admin
+          sh -n package/modules/S92routerforge-system
+          sh -n package/modules/S93routerforge-thermal
+          sh -n package/modules/S94routerforge-storage
+          sh -n package/modules/S95routerforge-network
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh
           sh -n scripts/build-frontend.sh
@@ -127,6 +129,8 @@ jobs:
           sh -n packaging/admin/prerm
           sh -n packaging/modules/postinst
           sh -n packaging/modules/prerm
+          sh -n packaging/modules/dns.postinst
+          sh -n packaging/modules/dns.prerm
           sh -n packaging/modules/profiling.postinst
           sh -n packaging/modules/profiling.prerm
 
@@ -139,13 +143,14 @@ jobs:
       - name: Verify Entware package containers
         run: |
           packages="
-          dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk
-          dist/dns-monitor-admin_0.0.0-ci_aarch64-3.10.ipk
-          dist/dns-monitor-system_0.0.0-ci_aarch64-3.10.ipk
-          dist/dns-monitor-thermal_0.0.0-ci_aarch64-3.10.ipk
-          dist/dns-monitor-storage_0.0.0-ci_aarch64-3.10.ipk
-          dist/dns-monitor-network_0.0.0-ci_aarch64-3.10.ipk
-          dist/dns-monitor-profiling_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-core_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-dns_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-admin_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-system_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-thermal_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-storage_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-network_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk
           "
 
           for pkg in $packages; do
@@ -157,74 +162,78 @@ jobs:
 
       - name: Verify Entware package payloads
         run: |
-          tar -xzOf dist/dns-monitor_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dns-monitor'
-          tar -xzOf dist/dns-monitor-admin_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-admin'
-          tar -xzOf dist/dns-monitor-system_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-system'
-          tar -xzOf dist/dns-monitor-thermal_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-thermal'
-          tar -xzOf dist/dns-monitor-storage_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-storage'
-          tar -xzOf dist/dns-monitor-network_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/dnsmon-network'
-          tar -xzOf dist/dns-monitor-profiling_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/dns-monitor/profiling.enabled'
+          tar -xzOf dist/routerforge-core_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge'
+          tar -xzOf dist/routerforge-dns_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/dns.enabled'
+          tar -xzOf dist/routerforge-admin_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-admin'
+          tar -xzOf dist/routerforge-system_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-system'
+          tar -xzOf dist/routerforge-thermal_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-thermal'
+          tar -xzOf dist/routerforge-storage_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-storage'
+          tar -xzOf dist/routerforge-network_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-network'
+          tar -xzOf dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/profiling.enabled'
 
       - name: Verify Core runtime version injection
         run: |
-          strings dist/opkg-work/data/opt/bin/dns-monitor | grep -q '0.0.0-ci'
+          strings dist/opkg-work/data/opt/bin/routerforge | grep -q '0.0.0-ci'
 
-      - name: Build dev combat package set
+      - name: Build RouterForge beta package set
         if: github.ref == 'refs/heads/dev'
         run: |
-          ./scripts/build-opkg.sh 0.2.0 dev
-          ./scripts/build-admin-opkg.sh 0.2.0 dev
-          ./scripts/build-modules-opkg.sh 0.2.0 dev
+          ./scripts/build-opkg.sh 0.3.0 beta
+          ./scripts/build-admin-opkg.sh 0.3.0 beta
+          ./scripts/build-modules-opkg.sh 0.3.0 beta
 
           assets="
-          dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
-          dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk
-          dist/dns-monitor-system_0.2.0-dev_aarch64-3.10.ipk
-          dist/dns-monitor-thermal_0.2.0-dev_aarch64-3.10.ipk
-          dist/dns-monitor-storage_0.2.0-dev_aarch64-3.10.ipk
-          dist/dns-monitor-network_0.2.0-dev_aarch64-3.10.ipk
-          dist/dns-monitor-profiling_0.2.0-dev_aarch64-3.10.ipk
+          dist/routerforge-core_0.3.0-beta_aarch64-3.10.ipk
+          dist/routerforge-dns_0.3.0-beta_aarch64-3.10.ipk
+          dist/routerforge-admin_0.3.0-beta_aarch64-3.10.ipk
+          dist/routerforge-system_0.3.0-beta_aarch64-3.10.ipk
+          dist/routerforge-thermal_0.3.0-beta_aarch64-3.10.ipk
+          dist/routerforge-storage_0.3.0-beta_aarch64-3.10.ipk
+          dist/routerforge-network_0.3.0-beta_aarch64-3.10.ipk
+          dist/routerforge-profiling_0.3.0-beta_aarch64-3.10.ipk
           "
           for asset in $assets; do test -f "$asset"; done
-          sha256sum $assets | sed 's#dist/##' > dist/routerforge-dev-SHA256SUMS
+          sha256sum $assets | sed 's#dist/##' > dist/routerforge-beta-SHA256SUMS
 
-      - name: Upload dev combat package set
+      - name: Upload RouterForge beta package set
         if: github.ref == 'refs/heads/dev'
         uses: actions/upload-artifact@v4
         with:
-          name: dns-monitor-0.2.0-dev-combat-aarch64
+          name: routerforge-0.3.0-beta-aarch64
           path: |
-            dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk
-            dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk
-            dist/dns-monitor-system_0.2.0-dev_aarch64-3.10.ipk
-            dist/dns-monitor-thermal_0.2.0-dev_aarch64-3.10.ipk
-            dist/dns-monitor-storage_0.2.0-dev_aarch64-3.10.ipk
-            dist/dns-monitor-network_0.2.0-dev_aarch64-3.10.ipk
-            dist/dns-monitor-profiling_0.2.0-dev_aarch64-3.10.ipk
-            dist/routerforge-dev-SHA256SUMS
+            dist/routerforge-core_0.3.0-beta_aarch64-3.10.ipk
+            dist/routerforge-dns_0.3.0-beta_aarch64-3.10.ipk
+            dist/routerforge-admin_0.3.0-beta_aarch64-3.10.ipk
+            dist/routerforge-system_0.3.0-beta_aarch64-3.10.ipk
+            dist/routerforge-thermal_0.3.0-beta_aarch64-3.10.ipk
+            dist/routerforge-storage_0.3.0-beta_aarch64-3.10.ipk
+            dist/routerforge-network_0.3.0-beta_aarch64-3.10.ipk
+            dist/routerforge-profiling_0.3.0-beta_aarch64-3.10.ipk
+            dist/routerforge-beta-SHA256SUMS
           retention-days: 7
 
-      - name: Publish rolling RouterForge dev release
+      - name: Publish rolling RouterForge beta release
         if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git tag -f routerforge-dev "$GITHUB_SHA"
-          git push --force origin refs/tags/routerforge-dev
+          git tag -f routerforge-beta "$GITHUB_SHA"
+          git push --force origin refs/tags/routerforge-beta
 
-          if ! gh release view routerforge-dev >/dev/null 2>&1; then
-            gh release create routerforge-dev \
+          if ! gh release view routerforge-beta >/dev/null 2>&1; then
+            gh release create routerforge-beta \
               --prerelease \
-              --title "RouterForge dev packages" \
-              --notes "Rolling dev package channel. Assets are replaced after every green dev build."
+              --title "RouterForge beta packages" \
+              --notes "Rolling RouterForge beta channel. Assets are replaced after every green dev build."
           fi
 
-          gh release upload routerforge-dev --clobber \
-            dist/dns-monitor_0.2.0-dev_aarch64-3.10.ipk \
-            dist/dns-monitor-admin_0.2.0-dev_aarch64-3.10.ipk \
-            dist/dns-monitor-system_0.2.0-dev_aarch64-3.10.ipk \
-            dist/dns-monitor-thermal_0.2.0-dev_aarch64-3.10.ipk \
-            dist/dns-monitor-storage_0.2.0-dev_aarch64-3.10.ipk \
-            dist/dns-monitor-network_0.2.0-dev_aarch64-3.10.ipk \
-            dist/dns-monitor-profiling_0.2.0-dev_aarch64-3.10.ipk \
-            dist/routerforge-dev-SHA256SUMS
+          gh release upload routerforge-beta --clobber \
+            dist/routerforge-core_0.3.0-beta_aarch64-3.10.ipk \
+            dist/routerforge-dns_0.3.0-beta_aarch64-3.10.ipk \
+            dist/routerforge-admin_0.3.0-beta_aarch64-3.10.ipk \
+            dist/routerforge-system_0.3.0-beta_aarch64-3.10.ipk \
+            dist/routerforge-thermal_0.3.0-beta_aarch64-3.10.ipk \
+            dist/routerforge-storage_0.3.0-beta_aarch64-3.10.ipk \
+            dist/routerforge-network_0.3.0-beta_aarch64-3.10.ipk \
+            dist/routerforge-profiling_0.3.0-beta_aarch64-3.10.ipk \
+            dist/routerforge-beta-SHA256SUMS

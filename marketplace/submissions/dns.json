@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "id": "dns",
+  "kind": "module",
+  "name": "RouterForge DNS",
+  "category": "DNS",
+  "description": "DNS observability: plain DNS, DoT/DoH, клиенты, flow, health и routing diagnostics.",
+  "publisher": {
+    "id": "routerforge",
+    "name": "RouterForge",
+    "url": "https://github.com/Fifth-Ace/dns-monitor"
+  },
+  "project_url": "https://github.com/Fifth-Ace/dns-monitor",
+  "source": "routerforge-official",
+  "managed": true,
+  "package_authoritative": true,
+  "detection": {
+    "packages": [
+      "routerforge-dns"
+    ],
+    "paths": [
+      "/opt/etc/routerforge/dns.enabled",
+      "/opt/etc/dns-monitor/dns.enabled"
+    ]
+  },
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "RouterForge Core",
+      "Entware",
+      "Keenetic / Netcraze ARM64"
+    ]
+  },
+  "install": {
+    "method": "routerforge-release",
+    "repository": "routerforge-beta",
+    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+    "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+    "packages": [
+      "routerforge-dns"
+    ],
+    "notes": [
+      "Скачивается только выбранный IPK из GitHub release RouterForge.",
+      "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+    ],
+    "preview_only": false
+  },
+  "update": {
+    "method": "routerforge-release",
+    "repository": "routerforge-beta",
+    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+    "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+    "packages": [
+      "routerforge-dns"
+    ],
+    "notes": [
+      "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
+    ],
+    "preview_only": false
+  },
+  "remove": {
+    "method": "opkg",
+    "packages": [
+      "routerforge-dns"
+    ],
+    "notes": [
+      "Отключает DNS runtime и убирает DNS-раздел из интерфейса; RouterForge Core остаётся."
+    ],
+    "preview_only": false
+  },
+  "presentation": {
+    "dashboard": {
+      "enabled": true,
+      "priority": 40
+    },
+    "navigation": {
+      "label": "DNS",
+      "href": "/dns",
+      "order": 30
+    }
+  },
+  "capabilities": [
+    "dns-observability",
+    "plain-dns",
+    "client-attribution",
+    "routing-diagnostics"
+  ]
+}

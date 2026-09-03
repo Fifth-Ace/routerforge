@@ -3,14 +3,28 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
 
-const adminModuleSocket = "/opt/var/run/dns-monitor-admin.sock"
+var adminModuleSockets = []string{
+	"/opt/var/run/routerforge-admin.sock",
+	"/opt/var/run/dns-monitor-admin.sock",
+}
+
+func activeAdminSocket() string {
+	for _, socket := range adminModuleSockets {
+		if _, err := os.Stat(socket); err == nil {
+			return socket
+		}
+	}
+	return adminModuleSockets[0]
+}
 
 func proxyAdminAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -18,7 +32,7 @@ func proxyAdminAPI(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"error":        "admin module is read-only",
+			"error":        "RouterForge Control mutation API is not enabled in beta",
 			"mutation_api": false,
 		})
 		return
@@ -29,20 +43,17 @@ func proxyAdminAPI(w http.ResponseWriter, r *http.Request) {
 		suffix = "/summary"
 	}
 	targetPath := "/v1" + suffix
+	socket := activeAdminSocket()
 
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			var dialer net.Dialer
-			return dialer.DialContext(ctx, "unix", adminModuleSocket)
+			return dialer.DialContext(ctx, "unix", socket)
 		},
 	}
 	defer transport.CloseIdleConnections()
 
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   6 * time.Second,
-	}
-
+	client := &http.Client{Transport: transport, Timeout: 6 * time.Second}
 	request, err := http.NewRequestWithContext(r.Context(), http.MethodGet, "http://unix"+targetPath, nil)
 	if err != nil {
 		adminUnavailable(w, err.Error())
@@ -53,7 +64,7 @@ func proxyAdminAPI(w http.ResponseWriter, r *http.Request) {
 
 	response, err := client.Do(request)
 	if err != nil {
-		adminUnavailable(w, err.Error())
+		adminUnavailable(w, fmt.Sprintf("%s: %v", socket, err))
 		return
 	}
 	defer response.Body.Close()
@@ -72,7 +83,7 @@ func adminUnavailable(w http.ResponseWriter, detail string) {
 		"installed":    false,
 		"running":      false,
 		"mutation_api": false,
-		"error":        "dns-monitor-admin is not available",
+		"error":        "routerforge-admin is not available",
 		"detail":       detail,
 	})
 }

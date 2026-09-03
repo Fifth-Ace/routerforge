@@ -1,0 +1,8 @@
+#!/bin/sh
+ENABLED=yes
+PROCS=routerforge-network
+ARGS="-module network -socket /opt/var/run/routerforge-network.sock"
+PREARGS=""
+DESC="RouterForge Network Monitor"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+. /opt/etc/init.d/rc.func

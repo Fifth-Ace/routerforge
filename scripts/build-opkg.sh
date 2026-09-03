@@ -12,7 +12,7 @@ PKG_VERSION="$VERSION"
 if [ -n "$RELEASE" ]; then
     PKG_VERSION="${VERSION}-${RELEASE}"
 fi
-PKGFILE="dns-monitor_${PKG_VERSION}_${ARCH}.ipk"
+PKGFILE="routerforge-core_${PKG_VERSION}_${ARCH}.ipk"
 
 if [ ! -f "$ROOT/frontend/build/index.html" ]; then
     sh "$ROOT/scripts/build-frontend.sh"
@@ -20,7 +20,7 @@ fi
 
 rm -rf "$WORK"
 mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
-    "$WORK/data/opt/share/licenses/dns-monitor" "$WORK/control"
+    "$WORK/data/opt/etc/routerforge" "$WORK/data/opt/share/licenses/routerforge-core" "$WORK/control"
 
 (
     cd "$ROOT"
@@ -28,16 +28,18 @@ mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
         -tags embed_frontend \
         -trimpath \
         -ldflags="-s -w -X main.version=$PKG_VERSION" \
-        -o "$WORK/data/opt/bin/dns-monitor" .
+        -o "$WORK/data/opt/bin/routerforge" .
 )
 
-chmod 0755 "$WORK/data/opt/bin/dns-monitor"
-cp "$ROOT/package/S90dns-monitor" "$WORK/data/opt/etc/init.d/S90dns-monitor"
-chmod 0755 "$WORK/data/opt/etc/init.d/S90dns-monitor"
-cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/dns-monitor/LICENSE"
-cp "$ROOT/THIRD_PARTY_NOTICES.md" "$WORK/data/opt/share/licenses/dns-monitor/THIRD_PARTY_NOTICES.md"
-chmod 0644 "$WORK/data/opt/share/licenses/dns-monitor/LICENSE" \
-    "$WORK/data/opt/share/licenses/dns-monitor/THIRD_PARTY_NOTICES.md"
+chmod 0755 "$WORK/data/opt/bin/routerforge"
+cp "$ROOT/package/S90routerforge" "$WORK/data/opt/etc/init.d/S90routerforge"
+chmod 0755 "$WORK/data/opt/etc/init.d/S90routerforge"
+: > "$WORK/data/opt/etc/routerforge/package-management.enabled"
+chmod 0644 "$WORK/data/opt/etc/routerforge/package-management.enabled"
+cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/routerforge-core/LICENSE"
+cp "$ROOT/THIRD_PARTY_NOTICES.md" "$WORK/data/opt/share/licenses/routerforge-core/THIRD_PARTY_NOTICES.md"
+chmod 0644 "$WORK/data/opt/share/licenses/routerforge-core/LICENSE" \
+    "$WORK/data/opt/share/licenses/routerforge-core/THIRD_PARTY_NOTICES.md"
 
 sed -e "s/@VERSION@/$PKG_VERSION/g" \
     "$ROOT/packaging/opkg/control.template" > "$WORK/control/control"

@@ -10,17 +10,22 @@ func TestBundledRouterForgeRegistry(t *testing.T) {
 	if doc.Brand != "RouterForge" || doc.RegistryID != "routerforge-community" {
 		t.Fatalf("unexpected registry identity: %#v", doc)
 	}
-	var admin, web *catalogItem
+	var admin, dns, web *catalogItem
 	for i := range doc.Entries {
 		switch doc.Entries[i].ID {
 		case "admin":
 			admin = &doc.Entries[i]
+		case "dns":
+			dns = &doc.Entries[i]
 		case "nfqws-web":
 			web = &doc.Entries[i]
 		}
 	}
 	if admin == nil || admin.Trust.Status != "official" || admin.Install.Method != "routerforge-release" {
-		t.Fatalf("bad official module entry: %#v", admin)
+		t.Fatalf("bad official admin entry: %#v", admin)
+	}
+	if dns == nil || dns.Trust.Status != "official" || len(dns.Install.Packages) != 1 || dns.Install.Packages[0] != "routerforge-dns" {
+		t.Fatalf("bad RouterForge DNS entry: %#v", dns)
 	}
 	if web == nil || web.Trust.Status != "verified" || web.Install.Method != "structured" {
 		t.Fatalf("bad verified integration entry: %#v", web)

@@ -1,6 +1,5 @@
 #!/bin/sh
 set -e
-if [ -x /opt/etc/init.d/S90dns-monitor ]; then /opt/etc/init.d/S90dns-monitor stop >/dev/null 2>&1 || true; fi
-rm -f /opt/etc/init.d/S90dns-monitor /opt/bin/dns-monitor
-rm -rf /opt/share/licenses/dns-monitor
-printf 'DNS Monitor removed. Logs were kept in /opt/var/log/dns-monitor.log\n'
+if [ -x /opt/etc/init.d/S90routerforge ]; then /opt/etc/init.d/S90routerforge stop >/dev/null 2>&1 || true; fi
+rm -f /opt/etc/init.d/S90routerforge /opt/bin/routerforge
+printf 'RouterForge Core removed. Configuration under /opt/etc/routerforge is preserved.\n'

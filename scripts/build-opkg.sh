@@ -7,6 +7,7 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 WORK="$DIST/opkg-work"
 ARCH="aarch64-3.10"
+CHANNEL="${ROUTERFORGE_CHANNEL:-beta}"
 
 PKG_VERSION="$VERSION"
 if [ -n "$RELEASE" ]; then
@@ -27,7 +28,7 @@ mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
         -tags embed_frontend \
         -trimpath \
-        -ldflags="-s -w -X main.version=$PKG_VERSION" \
+        -ldflags="-s -w -X main.version=$PKG_VERSION -X main.releaseChannel=$CHANNEL" \
         -o "$WORK/data/opt/bin/routerforge" .
 )
 

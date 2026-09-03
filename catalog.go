@@ -67,6 +67,9 @@ type catalogItem struct {
 	RegistrySource string               `json:"registry_source,omitempty"`
 	Presentation   map[string]any       `json:"presentation,omitempty"`
 
+	Release         catalogRelease `json:"release,omitempty"`
+	UpdateAvailable bool           `json:"update_available,omitempty"`
+
 	ProcessNames         []string `json:"process_names,omitempty"`
 	RunningPaths         []string `json:"running_paths,omitempty"`
 	WebRequiresPackage   string   `json:"web_requires_package,omitempty"`
@@ -83,6 +86,9 @@ type catalogSnapshot struct {
 	Registry        routerForgeRegistryStatus `json:"registry"`
 	Modules         []catalogItem             `json:"modules"`
 	Integrations    []catalogItem             `json:"integrations"`
+
+	PackageManagementEnabled bool                     `json:"package_management_enabled"`
+	Release                  routerForgeReleaseStatus `json:"release"`
 }
 
 func readCatalog() catalogSnapshot {
@@ -90,10 +96,12 @@ func readCatalog() catalogSnapshot {
 	processes := readProcessNames()
 	snapshot := buildCatalog(installed, processes, pathExists)
 	applyRouterForgeRegistry(&snapshot, installed, processes, pathExists)
+	applyRouterForgeReleaseIndex(&snapshot)
 	snapshot.InstallTestMode = marketplaceTestInstallEnabled()
-	if snapshot.InstallTestMode {
+	snapshot.PackageManagementEnabled = snapshot.InstallTestMode
+	if snapshot.PackageManagementEnabled {
 		snapshot.ReadOnly = false
-		snapshot.Phase = "routerforge-dev-package-mode"
+		snapshot.Phase = "routerforge-package-mode"
 	}
 	return snapshot
 }
@@ -674,6 +682,9 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 	if item.Builtin {
 		item.Installed = true
 		item.State = "installed"
+		if item.ID == "routerforge-core" {
+			item.Version = version
+		}
 		return
 	}
 

@@ -99,15 +99,50 @@
       {/if}
     </section>
 
-    <section class="panel">
+    <section class="panel routerforge-platform-panel">
       <div class="panel-head">
         <div><strong>Платформа</strong><span>Состав текущей установки</span></div>
       </div>
-      <div class="routerforge-platform-list mono">
-        <div><span>DNS</span><strong class={dns?.installed ? 'good' : 'muted'}>{dns?.installed ? 'ENABLED' : 'NOT INSTALLED'}</strong></div>
-        <div><span>Monitoring</span><strong>{monitoringInstalled.length} providers</strong></div>
-        <div><span>Control</span><strong class={admin?.installed ? 'good' : 'muted'}>{admin?.installed ? 'INSTALLED' : 'NOT INSTALLED'}</strong></div>
-        <div><span>Registry</span><strong>{($catalog.registry?.source || '—').toUpperCase()}</strong></div>
+      <div class="routerforge-platform-grid">
+        <div class="routerforge-platform-item">
+          <span class="routerforge-platform-code mono">DNS</span>
+          <span class="routerforge-platform-copy">
+            <strong>DNS</strong>
+            <small>Наблюдение и диагностика</small>
+          </span>
+          <span class="state-chip {dns?.installed ? 'good' : 'neutral'}">{dns?.installed ? 'ENABLED' : 'NOT INSTALLED'}</span>
+        </div>
+
+        <div class="routerforge-platform-item">
+          <span class="routerforge-platform-code mono">MON</span>
+          <span class="routerforge-platform-copy">
+            <strong>Monitoring</strong>
+            <small>Системные providers</small>
+          </span>
+          <span class="state-chip {monitoringInstalled.length && monitoringOnline.length === monitoringInstalled.length ? 'good' : monitoringInstalled.length ? 'warn' : 'neutral'}">
+            {monitoringInstalled.length ? `${monitoringOnline.length}/${monitoringInstalled.length} ONLINE` : 'NOT INSTALLED'}
+          </span>
+        </div>
+
+        <div class="routerforge-platform-item">
+          <span class="routerforge-platform-code mono">CTL</span>
+          <span class="routerforge-platform-copy">
+            <strong>Control</strong>
+            <small>Администрирование роутера</small>
+          </span>
+          <span class="state-chip {admin?.installed && admin?.service_running ? 'good' : admin?.installed ? 'warn' : 'neutral'}">
+            {admin?.installed ? admin?.service_running ? 'ONLINE' : 'INSTALLED' : 'NOT INSTALLED'}
+          </span>
+        </div>
+
+        <div class="routerforge-platform-item">
+          <span class="routerforge-platform-code mono">REG</span>
+          <span class="routerforge-platform-copy">
+            <strong>Registry</strong>
+            <small>Источник Marketplace</small>
+          </span>
+          <span class="state-chip {$catalog.registry?.online ? 'info' : 'warn'}">{($catalog.registry?.source || '—').toUpperCase()}</span>
+        </div>
       </div>
     </section>
   </div>

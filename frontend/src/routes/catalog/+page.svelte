@@ -22,13 +22,20 @@
   let busyId = '';
   let busyAction = '';
   let actionNotice = null;
+  let updatingAll = false;
 
-  $: data = $catalog || { modules: [], integrations: [], read_only: true, install_test_mode: false };
+  $: data = $catalog || { modules: [], integrations: [], read_only: true, package_management_enabled: false };
+  $: packageMode = Boolean(data.package_management_enabled ?? data['install_test_mode']);
   $: modules = data.modules || [];
   $: integrations = data.integrations || [];
   $: all = [...modules, ...integrations];
   $: installedCount = all.filter((item) => item.installed).length;
   $: notInstalledCount = all.length - installedCount;
+  $: routerForgeUpdates = modules.filter((item) =>
+    item.installed
+    && item.actions?.update
+    && (item.id === 'routerforge-core' || item.publisher?.id === 'routerforge')
+  );
   $: categories = [...new Set(all.map((x) => x.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
   $: visibleModules = filterAndSort(modules, statusFilter, category, search);
   $: visibleIntegrations = filterAndSort(integrations, statusFilter, category, search);
@@ -76,7 +83,7 @@
     return '';
   };
 
-  const canAction = (item, action) => Boolean(data.install_test_mode) && Boolean(item.actions?.[action]);
+  const canAction = (item, action) => Boolean(packageMode) && Boolean(item.actions?.[action]);
 
   const trustLabel = (item) => {
     const value = String(item.trust?.status || 'unverified').toLowerCase();
@@ -99,14 +106,14 @@
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  async function runAction(item, action, confirm = '') {
+  async function runAction(item, action, confirm = '', skipConfirm = false) {
     if (!canAction(item, action) || busyId) return;
 
-    if (action === 'install') {
+    if (!skipConfirm && action === 'install') {
       const source = item.kind === 'module' ? 'GitHub release RouterForge' : 'официальный lifecycle разработчика';
       if (!window.confirm(`Установить ${item.name}?\n\nИсточник: ${source}.`)) return;
     }
-    if (action === 'update' && !window.confirm(`Обновить ${item.name} по утверждённому lifecycle manifest?`)) return;
+    if (!skipConfirm && action === 'update' && !window.confirm(`Обновить ${item.name} по утверждённому release index?`)) return;
 
     busyId = item.id;
     busyAction = action;
@@ -122,7 +129,10 @@
       const refreshed = await refreshCatalog();
       const found = [...(refreshed?.modules || []), ...(refreshed?.integrations || [])].find((candidate) => candidate.id === item.id);
       const expectedInstalled = action !== 'remove';
-      if (found && Boolean(found.installed) === expectedInstalled) {
+      const expectedVersion = action === 'update' ? item.release?.version : '';
+      const installedMatches = found && Boolean(found.installed) === expectedInstalled;
+      const versionMatches = !expectedVersion || found?.version === expectedVersion;
+      if (installedMatches && versionMatches) {
         actionNotice = { cls: 'good', text: `${item.name}: ${action === 'remove' ? 'удалён' : 'операция завершена'}; runtime перезапустился во время операции.` };
         if (action === 'remove') removeItem = null;
       } else {
@@ -143,6 +153,25 @@
     if (action === 'update') return `${item.name}: обновлён${source}`;
     return `${item.name}: установлен${source}`;
   }
+
+  async function updateAllRouterForge() {
+    if (updatingAll || busyId || !routerForgeUpdates.length) return;
+    if (!window.confirm(`Обновить все доступные компоненты RouterForge (${routerForgeUpdates.length})?\n\nМодули обновятся независимо; Core — последним.`)) return;
+
+    updatingAll = true;
+    const ordered = [...routerForgeUpdates].sort((a, b) =>
+      a.id === 'routerforge-core' ? 1 : b.id === 'routerforge-core' ? -1 : 0
+    );
+
+    try {
+      for (const item of ordered) {
+        await runAction(item, 'update', '', true);
+      }
+    } finally {
+      updatingAll = false;
+      await refreshCatalog();
+    }
+  }
 </script>
 
 <svelte:head><title>RouterForge — Marketplace</title></svelte:head>
@@ -160,6 +189,15 @@
     <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder="Поиск модулей, проектов, издателей…"/></div>
     <select bind:value={category}><option value="all">Все категории</option>{#each categories as c}<option value={c}>{c}</option>{/each}</select>
     <button class="button" onclick={refreshCatalog}>↻ Обновить</button>
+    {#if packageMode}
+      <button
+        class="button primary"
+        disabled={updatingAll || Boolean(busyId) || !routerForgeUpdates.length}
+        onclick={updateAllRouterForge}
+      >
+        {updatingAll ? 'Обновление…' : `Обновить всё RouterForge${routerForgeUpdates.length ? ` (${routerForgeUpdates.length})` : ''}`}
+      </button>
+    {/if}
   </div>
 
   <div class="subtabs catalog-state-filter">
@@ -168,9 +206,10 @@
     <button class:active={statusFilter === 'not-installed'} onclick={() => statusFilter = 'not-installed'}>Неустановленные <span class="pill">{notInstalledCount}</span></button>
   </div>
 
-  <div class="market-safety-line mono" class:test-mode={data.install_test_mode}>
-    {#if data.install_test_mode}
-      <span><i class="status-dot warn"></i> BETA PACKAGE MODE <strong>ACTIVE</strong></span>
+  <div class="market-safety-line mono" class:test-mode={packageMode}>
+    {#if packageMode}
+      <span><i class="status-dot good"></i> PACKAGE MANAGEMENT <strong>ACTIVE</strong></span>
+      <span>CHANNEL <strong>{(data.release?.channel || '—').toUpperCase()}</strong></span>
       <span>OFFICIAL / VERIFIED <strong>EXECUTABLE</strong></span>
       <span>UNVERIFIED / CHANGED <strong>READ ONLY</strong></span>
     {:else}
@@ -218,7 +257,8 @@
               <p>{item.description || ''}</p>
 
               <div class="tech-box mono">
-                <div><span>Version</span><strong>{item.version ? `v${item.version}` : '—'}</strong></div>
+                <div><span>Installed</span><strong>{item.version ? `v${item.version}` : '—'}</strong></div>
+                <div><span>Available</span><strong class:good={item.update_available}>{item.release?.version ? `v${item.release.version}` : '—'}</strong></div>
                 <div><span>Package</span><strong title={packageText(item)}>{packageText(item)}</strong></div>
                 <div><span>Publisher</span><strong>{item.publisher?.name || '—'}</strong></div>
                 <div><span>Service</span><strong class:good={item.service_running} class:warn={item.service && !item.service_running}>{item.service ? (item.service_running ? 'RUNNING' : 'NOT RUNNING') : item.installed ? 'BUILT-IN / HOOK' : '—'}</strong></div>

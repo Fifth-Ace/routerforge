@@ -780,3 +780,430 @@ html[data-brand-mode="extended"] .routerforge-capability-icon {
   border-color: var(--rf-border) !important;
   background: var(--rf-surface-2) !important;
 }
+
+/* ==================================================================
+   RouterForge typography normalization + Platform card polish
+   ================================================================== */
+
+/* A readable scale. Useful interface copy no longer lives at 9–10 px.
+   Explicit scale profiles remain meaningful and Appearance still controls
+   the overall UI size. */
+:root,
+html[data-ui-scale="auto"],
+html[data-ui-scale="100"] {
+  --ui-body: 14px;
+  --ui-small: 13px;
+  --ui-xs: 12px;
+  --ui-micro: 11.5px;
+  --ui-title: 26px;
+  --ui-panel-title: 14px;
+  --rf-type-metric: 24px;
+}
+
+html[data-ui-scale="115"] {
+  --ui-body: 15px;
+  --ui-small: 14px;
+  --ui-xs: 13px;
+  --ui-micro: 12px;
+  --ui-title: 28px;
+  --ui-panel-title: 15px;
+  --rf-type-metric: 25px;
+}
+
+html[data-ui-scale="125"] {
+  --ui-body: 16px;
+  --ui-small: 15px;
+  --ui-xs: 14px;
+  --ui-micro: 13px;
+  --ui-title: 30px;
+  --ui-panel-title: 16px;
+  --rf-type-metric: 26px;
+}
+
+html[data-ui-scale="140"] {
+  --ui-body: 18px;
+  --ui-small: 16px;
+  --ui-xs: 15px;
+  --ui-micro: 14px;
+  --ui-title: 32px;
+  --ui-panel-title: 17px;
+  --rf-type-metric: 28px;
+}
+
+@media (min-width: 1800px) {
+  html[data-ui-scale="auto"] {
+    --ui-body: 15px;
+    --ui-small: 14px;
+    --ui-xs: 13px;
+    --ui-micro: 12px;
+    --ui-title: 28px;
+    --ui-panel-title: 15px;
+    --rf-type-metric: 25px;
+  }
+}
+
+/* Global hierarchy */
+body {
+  font-size: var(--ui-body) !important;
+  line-height: 1.42;
+}
+
+.page-head h1 {
+  font-size: var(--ui-title) !important;
+  line-height: 1.12 !important;
+  letter-spacing: -.025em;
+}
+
+.page-head p {
+  font-size: var(--ui-small) !important;
+  line-height: 1.5 !important;
+}
+
+.page-kicker,
+.routerforge-eyebrow {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.3;
+}
+
+.panel-head > div > strong,
+.settings-title,
+.catalog-identity h3,
+.module-thermal-head strong,
+.module-detail-card > div:first-child strong {
+  font-size: var(--ui-panel-title) !important;
+  line-height: 1.25;
+}
+
+.panel-head > div > span,
+.catalog-section-head p,
+.routerforge-capability-copy small,
+.module-note,
+.module-install-hint span,
+.plain-dns-warning,
+.appearance-intro {
+  font-size: var(--ui-xs) !important;
+  line-height: 1.48 !important;
+}
+
+/* Header: readable, still compact */
+.brand-copy strong,
+.brand-name {
+  font-size: var(--ui-small) !important;
+}
+
+.brand-copy > span,
+.nav-link {
+  font-size: var(--ui-xs) !important;
+}
+
+.version-badge,
+.header-status,
+.header-auth,
+.stream-label,
+.core-state {
+  font-size: var(--ui-micro) !important;
+}
+
+/* Left rail */
+.rail-section-label {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.25 !important;
+}
+
+.global-tree-root,
+.global-tree-row,
+.rail-summary-row {
+  font-size: var(--ui-xs) !important;
+  line-height: 1.35;
+}
+
+.global-tree-state {
+  font-size: var(--ui-micro) !important;
+}
+
+.rail-summary-row strong {
+  font-size: var(--ui-xs) !important;
+}
+
+.rail-status-card,
+.rail-status-card strong {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.5 !important;
+}
+
+.rail-repository-copy small {
+  font-size: var(--ui-micro) !important;
+}
+.rail-repository-copy strong {
+  font-size: var(--ui-xs) !important;
+}
+
+/* Metrics: readable without screaming */
+.metric-card > span {
+  font-size: var(--ui-xs) !important;
+  line-height: 1.25;
+}
+
+.metric-card > strong {
+  font-size: var(--rf-type-metric) !important;
+  line-height: 1.05 !important;
+}
+
+.metric-card > small {
+  font-size: var(--ui-xs) !important;
+  line-height: 1.35;
+}
+
+/* Controls */
+.button,
+select,
+.search-control input,
+.segmented button,
+.subtabs button {
+  font-size: var(--ui-xs) !important;
+}
+
+.state-chip,
+.pill,
+.latency,
+.live-chip {
+  font-size: var(--ui-micro) !important;
+}
+
+/* Data tables and generic information rows */
+th {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.25;
+}
+
+td,
+.cell-title,
+.info-row strong,
+.info-value {
+  font-size: var(--ui-xs) !important;
+  line-height: 1.4;
+}
+
+.cell-sub,
+.info-row > div:first-child > span {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.4;
+}
+
+/* DNS / routing / traffic */
+.resolver-main strong,
+.route-path strong,
+.table-link strong {
+  font-size: var(--ui-xs) !important;
+}
+
+.resolver-item > span,
+.hero-head p,
+.route-path span,
+.route-path code,
+.table-link span,
+.legend,
+.chart-empty span {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.45;
+}
+
+.hero-head h2 {
+  font-size: calc(var(--ui-panel-title) + 2px) !important;
+}
+
+.hero-metrics strong {
+  font-size: calc(var(--ui-panel-title) + 3px) !important;
+}
+
+.hero-metrics span {
+  font-size: var(--ui-micro) !important;
+}
+
+.chart-label {
+  font-size: var(--ui-micro) !important;
+}
+
+/* Monitoring providers */
+.module-selector strong,
+.module-selector-icon,
+.module-install-hint code,
+.module-code-block,
+.module-cpu-row {
+  font-size: var(--ui-xs) !important;
+}
+
+.module-selector small,
+.module-meta-strip,
+.market-safety-line,
+.plain-dns-note,
+.module-thermal-head div > span,
+.module-thermal-foot,
+.module-thermal-card code,
+.module-detail-card > div:first-child span,
+.module-detail-card dt,
+.module-detail-card dd {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.4;
+}
+
+.module-temp,
+.thermal-value {
+  font-size: var(--rf-type-metric) !important;
+}
+
+/* Marketplace */
+.catalog-identity span,
+.tech-box,
+.catalog-inline-footer,
+.catalog-manage-note {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.4;
+}
+
+.catalog-card > div > p,
+.catalog-install-notice {
+  font-size: var(--ui-xs) !important;
+  line-height: 1.5;
+}
+
+.catalog-section-head h2 {
+  font-size: calc(var(--ui-panel-title) + 3px) !important;
+}
+
+/* Control / Admin */
+.admin-safety-banner > div:first-child strong,
+.admin-safety-banner > div:first-child span,
+.cpu-row > div:first-child,
+.cpu-sampling {
+  font-size: var(--ui-xs) !important;
+}
+
+.admin-safety-banner > div:last-child,
+.admin-lock-groups {
+  font-size: var(--ui-micro) !important;
+}
+
+/* Settings */
+.system-row,
+.system-row strong {
+  font-size: var(--ui-xs) !important;
+}
+
+.setting-row > div strong {
+  font-size: var(--ui-small) !important;
+  line-height: 1.3;
+}
+
+.setting-row > div span {
+  font-size: var(--ui-xs) !important;
+  line-height: 1.5;
+}
+
+.theme-card h3,
+.appearance-options-grid label,
+.custom-accent,
+.custom-theme-colors label {
+  font-size: var(--ui-xs) !important;
+}
+
+.theme-card p {
+  font-size: var(--ui-micro) !important;
+  line-height: 1.45;
+}
+
+/* ------------------------------------------------------------------
+   Home / Platform
+   ------------------------------------------------------------------ */
+
+.routerforge-capability-copy strong {
+  font-size: var(--ui-panel-title) !important;
+  line-height: 1.25;
+}
+
+.routerforge-capability-copy small {
+  color: var(--rf-muted) !important;
+}
+
+.routerforge-platform-panel {
+  min-width: 0;
+}
+
+.routerforge-platform-grid {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.routerforge-platform-item {
+  min-width: 0;
+  min-height: 72px;
+  padding: 11px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius-control);
+  background: var(--rf-surface-2);
+}
+
+.routerforge-platform-code {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--rf-accent-border);
+  border-radius: var(--rf-radius-control);
+  background: var(--rf-accent-soft);
+  color: var(--rf-accent);
+  font-size: var(--ui-micro);
+  font-weight: 700;
+}
+
+.routerforge-platform-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.routerforge-platform-copy strong {
+  overflow: hidden;
+  color: var(--rf-text);
+  font-size: var(--ui-small);
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routerforge-platform-copy small {
+  overflow: hidden;
+  color: var(--rf-muted);
+  font-size: var(--ui-micro);
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routerforge-platform-item > .state-chip {
+  justify-self: end;
+}
+
+@media (max-width: 1500px) {
+  .routerforge-platform-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .routerforge-platform-item {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .routerforge-platform-item > .state-chip {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

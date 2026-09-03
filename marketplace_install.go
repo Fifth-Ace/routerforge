@@ -211,13 +211,23 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 	if action == "remove" {
 		return fmt.Errorf("routerforge-release does not implement remove")
 	}
-	if plan.RepositoryURL == "" || plan.ChecksumURL == "" {
-		return fmt.Errorf("RouterForge release URLs are incomplete")
+	release := item.Release
+	if release.Version == "" || release.Package == "" || release.Asset == "" || release.SHA256 == "" || release.URL == "" {
+		return fmt.Errorf("release index has no executable release for %s", item.ID)
 	}
-	checksums, err := fetchChecksumList(ctx, plan.ChecksumURL)
-	if err != nil {
-		return fmt.Errorf("fetch checksums: %w", err)
+	if len(plan.Packages) > 0 {
+		matched := false
+		for _, pkg := range plan.Packages {
+			if pkg == release.Package {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return fmt.Errorf("release package %s is not declared by lifecycle plan", release.Package)
+		}
 	}
+
 	opkg, err := opkgExecutable()
 	if err != nil {
 		return err
@@ -226,35 +236,23 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 		return err
 	}
 
-	for _, pkg := range plan.Packages {
-		if !safeCatalogPackageName(pkg) {
-			return fmt.Errorf("unsafe package name %q", pkg)
-		}
-		asset := expandAssetTemplate(plan.AssetTemplate, pkg, version)
-		if asset == "" {
-			return fmt.Errorf("cannot resolve release asset for %s", pkg)
-		}
-		expected, ok := checksums[asset]
-		if !ok {
-			return fmt.Errorf("checksum for %s is missing", asset)
-		}
-		url := strings.TrimRight(plan.RepositoryURL, "/") + "/" + asset
-		local, actual, err := downloadVerifiedAsset(ctx, url, asset, expected)
-		if err != nil {
-			return err
-		}
-		result.Sources = append(result.Sources, "routerforge-release:"+url+"#sha256="+actual)
+	local, actual, err := downloadVerifiedAsset(ctx, release.URL, release.Asset, release.SHA256)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(local)
 
-		args := []string{"install", local}
-		if action == "update" {
-			args = []string{"--force-reinstall", "install", local}
-		}
-		output, runErr := exec.CommandContext(ctx, opkg, args...).CombinedOutput()
-		fmt.Fprintf(log, "$ %s %s\n%s", opkg, strings.Join(args, " "), string(output))
-		_ = os.Remove(local)
-		if runErr != nil {
-			return fmt.Errorf("opkg %s: %s", action, strings.TrimSpace(string(output)))
-		}
+	result.Packages = []string{release.Package}
+	result.Sources = append(result.Sources, "routerforge-"+release.Channel+":"+release.URL+"#sha256="+actual)
+
+	args := []string{"install", local}
+	if action == "update" {
+		args = []string{"--force-reinstall", "install", local}
+	}
+	output, runErr := exec.CommandContext(ctx, opkg, args...).CombinedOutput()
+	fmt.Fprintf(log, "$ %s %s\n%s", opkg, strings.Join(args, " "), string(output))
+	if runErr != nil {
+		return fmt.Errorf("opkg %s: %s", action, strings.TrimSpace(string(output)))
 	}
 	return nil
 }

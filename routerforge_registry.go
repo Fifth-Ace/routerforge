@@ -15,11 +15,21 @@ import (
 )
 
 const (
-	routerForgeRegistryURL          = "https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/dev/marketplace/registry/index.json"
-	routerForgeRegistryCachePath    = "/opt/var/cache/routerforge/marketplace-index.json"
 	routerForgeRegistrySyncInterval = 15 * time.Minute
 	routerForgeRegistryMaxBytes     = 2 << 20
 )
+
+func routerForgeRegistryRemoteURL() string {
+	ref := "dev"
+	if normalizedReleaseChannel() == "stable" {
+		ref = "main"
+	}
+	return fmt.Sprintf("https://raw.githubusercontent.com/Fifth-Ace/dns-monitor/%s/marketplace/registry/index.json", ref)
+}
+
+func routerForgeRegistryCacheFile() string {
+	return "/opt/var/cache/routerforge/marketplace-index-" + normalizedReleaseChannel() + ".json"
+}
 
 //go:embed marketplace/registry/index.json
 var bundledRouterForgeRegistry []byte
@@ -92,14 +102,14 @@ func routerForgeRegistrySnapshot() (routerForgeRegistryDocument, routerForgeRegi
 		routerForgeRegistryState.doc = doc
 		routerForgeRegistryState.status = routerForgeRegistryStatus{
 			ID:            doc.RegistryID,
-			URL:           routerForgeRegistryURL,
+			URL:           routerForgeRegistryRemoteURL(),
 			Source:        "bundled",
 			Online:        false,
 			SchemaVersion: doc.SchemaVersion,
 			Revision:      doc.Revision,
 		}
 
-		if data, err := os.ReadFile(routerForgeRegistryCachePath); err == nil {
+		if data, err := os.ReadFile(routerForgeRegistryCacheFile()); err == nil {
 			if cached, parseErr := parseRouterForgeRegistry(data); parseErr == nil {
 				routerForgeRegistryState.doc = cached
 				routerForgeRegistryState.status.Source = "cache"
@@ -122,7 +132,7 @@ func routerForgeRegistrySnapshot() (routerForgeRegistryDocument, routerForgeRegi
 
 func refreshRouterForgeRegistry() {
 	ctxClient := &http.Client{Timeout: 6 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, routerForgeRegistryURL, nil)
+	req, err := http.NewRequest(http.MethodGet, routerForgeRegistryRemoteURL(), nil)
 	if err == nil {
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("User-Agent", "RouterForge/"+version)
@@ -150,10 +160,10 @@ func refreshRouterForgeRegistry() {
 		doc, err = parseRouterForgeRegistry(data)
 	}
 	if err == nil {
-		if mkErr := os.MkdirAll(filepath.Dir(routerForgeRegistryCachePath), 0755); mkErr == nil {
-			tmp := routerForgeRegistryCachePath + ".tmp"
+		if mkErr := os.MkdirAll(filepath.Dir(routerForgeRegistryCacheFile()), 0755); mkErr == nil {
+			tmp := routerForgeRegistryCacheFile() + ".tmp"
 			if writeErr := os.WriteFile(tmp, data, 0644); writeErr == nil {
-				_ = os.Rename(tmp, routerForgeRegistryCachePath)
+				_ = os.Rename(tmp, routerForgeRegistryCacheFile())
 			} else {
 				_ = os.Remove(tmp)
 			}
@@ -171,7 +181,7 @@ func refreshRouterForgeRegistry() {
 	routerForgeRegistryState.doc = doc
 	routerForgeRegistryState.status = routerForgeRegistryStatus{
 		ID:            doc.RegistryID,
-		URL:           routerForgeRegistryURL,
+		URL:           routerForgeRegistryRemoteURL(),
 		Source:        "remote",
 		Online:        true,
 		SchemaVersion: doc.SchemaVersion,
@@ -448,6 +458,9 @@ func resetCatalogRuntime(item *catalogItem) {
 
 func deriveCatalogActions(item catalogItem) catalogActions {
 	if item.Builtin {
+		if item.ID == "routerforge-core" && item.UpdateAvailable && executableCatalogPlan(item.Update) {
+			return catalogActions{Update: true}
+		}
 		return catalogActions{Reason: "Встроенный компонент RouterForge."}
 	}
 	status := strings.ToLower(item.Trust.Status)
@@ -463,9 +476,16 @@ func deriveCatalogActions(item catalogItem) catalogActions {
 		return catalogActions{Reason: reason}
 	}
 
+	installAllowed := !item.Installed && executableCatalogPlan(item.Install)
+	updateAllowed := item.Installed && executableCatalogPlan(item.Update)
+	if routerForgePackageForItem(item) != "" {
+		installAllowed = installAllowed && item.Release.Version != ""
+		updateAllowed = updateAllowed && item.UpdateAvailable
+	}
+
 	return catalogActions{
-		Install: !item.Installed && executableCatalogPlan(item.Install),
-		Update:  item.Installed && executableCatalogPlan(item.Update),
+		Install: installAllowed,
+		Update:  updateAllowed,
 		Remove:  item.Installed && executableCatalogPlan(item.Remove),
 	}
 }

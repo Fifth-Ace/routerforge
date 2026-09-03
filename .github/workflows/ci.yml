@@ -175,65 +175,120 @@ jobs:
         run: |
           strings dist/opkg-work/data/opt/bin/routerforge | grep -q '0.0.0-ci'
 
-      - name: Build RouterForge beta package set
+      - name: Check RouterForge release tooling
+        run: |
+          sh -n scripts/build-module-opkg.sh
+          python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py
+
+      - name: Build RouterForge beta channel
         if: github.ref == 'refs/heads/dev'
         run: |
-          ./scripts/build-opkg.sh 0.3.0 beta
-          ./scripts/build-admin-opkg.sh 0.3.0 beta
-          ./scripts/build-modules-opkg.sh 0.3.0 beta
+          python3 scripts/build_routerforge_channel.py \
+            --config packaging/channels/beta.json \
+            --dist dist
 
-          assets="
-          dist/routerforge-core_0.3.0-beta_aarch64-3.10.ipk
-          dist/routerforge-dns_0.3.0-beta_aarch64-3.10.ipk
-          dist/routerforge-admin_0.3.0-beta_aarch64-3.10.ipk
-          dist/routerforge-system_0.3.0-beta_aarch64-3.10.ipk
-          dist/routerforge-thermal_0.3.0-beta_aarch64-3.10.ipk
-          dist/routerforge-storage_0.3.0-beta_aarch64-3.10.ipk
-          dist/routerforge-network_0.3.0-beta_aarch64-3.10.ipk
-          dist/routerforge-profiling_0.3.0-beta_aarch64-3.10.ipk
-          "
-          for asset in $assets; do test -f "$asset"; done
-          sha256sum $assets | sed 's#dist/##' > dist/routerforge-beta-SHA256SUMS
-
-      - name: Upload RouterForge beta package set
+      - name: Upload RouterForge beta candidate
         if: github.ref == 'refs/heads/dev'
         uses: actions/upload-artifact@v4
         with:
-          name: routerforge-0.3.0-beta-aarch64
+          name: routerforge-beta-aarch64
           path: |
-            dist/routerforge-core_0.3.0-beta_aarch64-3.10.ipk
-            dist/routerforge-dns_0.3.0-beta_aarch64-3.10.ipk
-            dist/routerforge-admin_0.3.0-beta_aarch64-3.10.ipk
-            dist/routerforge-system_0.3.0-beta_aarch64-3.10.ipk
-            dist/routerforge-thermal_0.3.0-beta_aarch64-3.10.ipk
-            dist/routerforge-storage_0.3.0-beta_aarch64-3.10.ipk
-            dist/routerforge-network_0.3.0-beta_aarch64-3.10.ipk
-            dist/routerforge-profiling_0.3.0-beta_aarch64-3.10.ipk
-            dist/routerforge-beta-SHA256SUMS
+            dist/routerforge-*.ipk
+            dist/routerforge-beta-candidate-index.json
           retention-days: 7
 
-      - name: Publish rolling RouterForge beta release
+      - name: Publish RouterForge beta channel
         if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git tag -f routerforge-beta "$GITHUB_SHA"
-          git push --force origin refs/tags/routerforge-beta
+          set -eu
+          TAG=routerforge-beta
+          INDEX=routerforge-beta-index.json
+          PREVIOUS=/tmp/routerforge-beta-index.json
+          FINAL=dist/$INDEX
+          CHANGED=dist/routerforge-beta-changed-assets.txt
+          SUMS=dist/routerforge-beta-SHA256SUMS
 
-          if ! gh release view routerforge-beta >/dev/null 2>&1; then
-            gh release create routerforge-beta \
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$TAG"
+
+          rm -f "$PREVIOUS"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release download "$TAG" -p "$INDEX" -D /tmp >/dev/null 2>&1 || true
+          else
+            gh release create "$TAG" \
               --prerelease \
-              --title "RouterForge beta packages" \
-              --notes "Rolling RouterForge beta channel. Assets are replaced after every green dev build."
+              --title "RouterForge beta channel" \
+              --notes "Rolling RouterForge beta channel with independently versioned components."
           fi
 
-          gh release upload routerforge-beta --clobber \
-            dist/routerforge-core_0.3.0-beta_aarch64-3.10.ipk \
-            dist/routerforge-dns_0.3.0-beta_aarch64-3.10.ipk \
-            dist/routerforge-admin_0.3.0-beta_aarch64-3.10.ipk \
-            dist/routerforge-system_0.3.0-beta_aarch64-3.10.ipk \
-            dist/routerforge-thermal_0.3.0-beta_aarch64-3.10.ipk \
-            dist/routerforge-storage_0.3.0-beta_aarch64-3.10.ipk \
-            dist/routerforge-network_0.3.0-beta_aarch64-3.10.ipk \
-            dist/routerforge-profiling_0.3.0-beta_aarch64-3.10.ipk \
-            dist/routerforge-beta-SHA256SUMS
+          python3 scripts/merge_release_index.py \
+            --candidate dist/routerforge-beta-candidate-index.json \
+            --previous "$PREVIOUS" \
+            --output "$FINAL" \
+            --changed-list "$CHANGED" \
+            --checksums "$SUMS"
+
+          while IFS= read -r asset; do
+            [ -n "$asset" ] || continue
+            gh release upload "$TAG" --clobber "dist/$asset"
+          done < "$CHANGED"
+
+          gh release upload "$TAG" --clobber "$FINAL" "$SUMS"
+
+      - name: Build RouterForge stable channel
+        if: github.ref == 'refs/heads/main'
+        run: |
+          python3 scripts/build_routerforge_channel.py \
+            --config packaging/channels/stable.json \
+            --dist dist
+
+      - name: Upload RouterForge stable candidate
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: routerforge-stable-aarch64
+          path: |
+            dist/routerforge-*.ipk
+            dist/routerforge-stable-candidate-index.json
+          retention-days: 14
+
+      - name: Publish RouterForge stable channel
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          TAG=routerforge-stable
+          INDEX=routerforge-stable-index.json
+          PREVIOUS=/tmp/routerforge-stable-index.json
+          FINAL=dist/$INDEX
+          CHANGED=dist/routerforge-stable-changed-assets.txt
+          SUMS=dist/routerforge-stable-SHA256SUMS
+
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$TAG"
+
+          rm -f "$PREVIOUS"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release download "$TAG" -p "$INDEX" -D /tmp >/dev/null 2>&1 || true
+          else
+            gh release create "$TAG" \
+              --title "RouterForge stable channel" \
+              --notes "Production RouterForge channel with independently versioned components."
+          fi
+
+          python3 scripts/merge_release_index.py \
+            --candidate dist/routerforge-stable-candidate-index.json \
+            --previous "$PREVIOUS" \
+            --output "$FINAL" \
+            --changed-list "$CHANGED" \
+            --checksums "$SUMS"
+
+          while IFS= read -r asset; do
+            [ -n "$asset" ] || continue
+            gh release upload "$TAG" --clobber "dist/$asset"
+          done < "$CHANGED"
+
+          gh release upload "$TAG" --clobber "$FINAL" "$SUMS"

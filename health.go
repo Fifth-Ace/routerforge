@@ -14,6 +14,10 @@ const healthPrefix = "dnsmon-"
 
 func isHealthDomain(s string) bool { return strings.HasPrefix(strings.ToLower(s), healthPrefix) }
 
+func shouldHealthCheck(u UpstreamView) bool {
+	return u.Profile == "System" || u.PolicyMark == 0 || u.PolicyHasDefault
+}
+
 func healthLoop(store *Store, interval time.Duration, log *EventLogger) {
 	// Discovery runs immediately. Give it enough time to populate the first map.
 	time.Sleep(3 * time.Second)
@@ -27,6 +31,9 @@ func healthLoop(store *Store, interval time.Duration, log *EventLogger) {
 		var wg sync.WaitGroup
 		for _, u := range ups {
 			u := u
+			if !shouldHealthCheck(u) {
+				continue
+			}
 			wg.Add(1)
 			sem <- struct{}{}
 			go func() {

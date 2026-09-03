@@ -16,11 +16,13 @@ const (
 )
 
 type PlainDNSMeta struct {
-	Address  string   `json:"address"`
-	Port     uint16   `json:"port"`
-	Name     string   `json:"name"`
-	Profiles []string `json:"profiles,omitempty"`
-	Domains  []string `json:"domains,omitempty"`
+	Address   string   `json:"address"`
+	Port      uint16   `json:"port"`
+	Name      string   `json:"name"`
+	Profiles  []string `json:"profiles,omitempty"`
+	Domains   []string `json:"domains,omitempty"`
+	Source    string   `json:"source,omitempty"`
+	Interface string   `json:"interface,omitempty"`
 }
 
 type plainDNSPendingKey struct {
@@ -151,6 +153,12 @@ func (t *plainDNSTracker) UpdateResolvers(items []PlainDNSMeta) {
 		if existing, ok := next[key]; ok {
 			existing.Meta.Profiles = uniqueSorted(append(existing.Meta.Profiles, meta.Profiles...))
 			existing.Meta.Domains = uniqueSorted(append(existing.Meta.Domains, meta.Domains...))
+			if existing.Meta.Source == "" {
+				existing.Meta.Source = meta.Source
+			}
+			if existing.Meta.Interface == "" {
+				existing.Meta.Interface = meta.Interface
+			}
 			continue
 		}
 		if previous, ok := t.resolvers[key]; ok {
@@ -385,7 +393,7 @@ func (t *plainDNSTracker) Snapshot(limit int) PlainDNSSnapshot {
 		GeneratedAt: time.Now(), Resolvers: resolvers, Recent: recent,
 		Pending: len(t.pending),
 		Mode:    "configured-upstream-egress-observation",
-		Note:    "UDP/TCP :53 отслеживается только для resolver-адресов из show dns-proxy. Прямые клиентские запросы к тем же resolver подавляются best-effort до NAT.",
+		Note:    "UDP/TCP :53 отслеживается для resolver-адресов из show dns-proxy и show ip name-server. Прямые клиентские запросы к тем же resolver подавляются best-effort до NAT.",
 	}
 }
 

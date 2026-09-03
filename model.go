@@ -3,19 +3,22 @@ package main
 import "time"
 
 type UpstreamMeta struct {
-	Port           uint16 `json:"port"`
-	Profile        string `json:"profile"`
-	Protocol       string `json:"protocol"`
-	Target         string `json:"target"`
-	Name           string `json:"name"`
-	SNI            string `json:"sni,omitempty"`
-	Domain         string `json:"domain,omitempty"`
-	Interface      string `json:"interface,omitempty"`
-	LinuxInterface string `json:"linux_interface,omitempty"`
-	PolicyMark     uint32 `json:"policy_mark,omitempty"`
-	PolicyTable    int    `json:"policy_table,omitempty"`
-	ProceedMS      int    `json:"proceed_ms,omitempty"`
-	TimeoutMS      int    `json:"timeout_ms,omitempty"`
+	Port              uint16 `json:"port"`
+	Profile           string `json:"profile"`
+	Protocol          string `json:"protocol"`
+	Target            string `json:"target"`
+	Name              string `json:"name"`
+	SNI               string `json:"sni,omitempty"`
+	Domain            string `json:"domain,omitempty"`
+	Interface         string `json:"interface,omitempty"`
+	LinuxInterface    string `json:"linux_interface,omitempty"`
+	PolicyMark        uint32 `json:"policy_mark,omitempty"`
+	PolicyTable       int    `json:"policy_table,omitempty"`
+	PolicyDescription string `json:"policy_description,omitempty"`
+	PolicyHasDefault  bool   `json:"policy_has_default,omitempty"`
+	ProfileDNSPort    uint16 `json:"profile_dns_port,omitempty"`
+	ProceedMS         int    `json:"proceed_ms,omitempty"`
+	TimeoutMS         int    `json:"timeout_ms,omitempty"`
 }
 
 type WindowStats struct {

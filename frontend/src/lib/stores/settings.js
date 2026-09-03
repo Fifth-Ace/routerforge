@@ -2,8 +2,7 @@ import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
 
 export const defaults = {
-  uiLevel: 'expert',
-  compact: false,
+  uiLevel: 'normal',
   uiScale: 'auto',
   refreshMs: 2000,
   theme: 'console',
@@ -19,9 +18,17 @@ export const themes = {
   mint:    { accent:'#82c8d6', background:'#20252b', text:'#e9eef1', secondary:'#293139', tertiary:'#3d4854', hover:'#4b5866', muted:'#a1adb8', border:'#53616e' }
 };
 
+function normalize(value = {}) {
+  const next = { ...value };
+  if (next.uiLevel === 'expert') next.uiLevel = 'advanced';
+  if (next.uiLevel !== 'advanced') next.uiLevel = 'normal';
+  delete next.compact;
+  return { ...defaults, ...next };
+}
+
 function load() {
   if (!browser) return { ...defaults };
-  try { return { ...defaults, ...JSON.parse(localStorage.getItem('dnsmon.settings') || '{}') }; }
+  try { return normalize(JSON.parse(localStorage.getItem('dnsmon.settings') || '{}')); }
   catch { return { ...defaults }; }
 }
 
@@ -42,17 +49,17 @@ function luminance(hex) {
 
 export function applySettings(value) {
   if (!browser) return;
+  const normalized = normalize(value);
   const root = document.documentElement;
-  root.dataset.layoutCompact = String(Boolean(value.compact));
-  root.dataset.uiLevel = value.uiLevel || 'expert';
-  root.dataset.uiScale = value.uiScale || 'auto';
-  root.dataset.theme = value.theme || 'console';
+  root.dataset.uiLevel = normalized.uiLevel;
+  root.dataset.uiScale = normalized.uiScale || 'auto';
+  root.dataset.theme = normalized.theme || 'console';
 
-  let t = themes[value.theme];
+  let t = themes[normalized.theme];
   if (!t) {
-    const bg = value.background || defaults.background;
-    const text = value.text || defaults.text;
-    const accent = value.accent || defaults.accent;
+    const bg = normalized.background || defaults.background;
+    const text = normalized.text || defaults.text;
+    const accent = normalized.accent || defaults.accent;
     const light = luminance(bg) > .55;
     t = {
       accent,
@@ -82,14 +89,14 @@ const inner = writable(load());
 export const settings = {
   subscribe: inner.subscribe,
   set(value) {
-    const next = { ...defaults, ...value };
+    const next = normalize(value);
     if (browser) localStorage.setItem('dnsmon.settings', JSON.stringify(next));
     applySettings(next);
     inner.set(next);
   },
   update(fn) {
     inner.update((current) => {
-      const next = { ...defaults, ...fn(current) };
+      const next = normalize(fn(current));
       if (browser) localStorage.setItem('dnsmon.settings', JSON.stringify(next));
       applySettings(next);
       return next;

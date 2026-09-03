@@ -116,11 +116,6 @@ body {
   padding: var(--page-pad);
 }
 
-html[data-layout-compact="true"] .page {
-  width: min(1320px, 100%);
-  max-width: 1320px;
-  margin: 0 auto;
-}
 
 .page-head {
   min-height: 52px;

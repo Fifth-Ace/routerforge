@@ -716,6 +716,19 @@ func (s *Store) Snapshot(flowN, topN, errorN int) map[string]any {
 	healthy, down, degraded := 0, 0, 0
 	activeDown, activeDegraded, inactiveDown := 0, 0, 0
 	activeQualityBad, activeQualityWarn := 0, 0
+
+	hasSystem := false
+	for _, st := range s.upstreams {
+		if st.meta.Profile == "System" {
+			hasSystem = true
+			break
+		}
+	}
+	primaryHealthy, primaryDown, primaryDegraded := 0, 0, 0
+	primaryActiveDown, primaryActiveDegraded := 0, 0
+	primaryActiveQualityBad, primaryActiveQualityWarn := 0, 0
+	primaryUpstreamCount := 0
+
 	for _, st := range s.upstreams {
 		avg := 0.0
 		if st.latencyCount > 0 {
@@ -751,6 +764,32 @@ func (s *Store) Snapshot(flowN, topN, errorN int) map[string]any {
 				activeDegraded++
 			}
 		}
+
+		if st.meta.Profile == "System" || !hasSystem {
+			primaryUpstreamCount++
+			if active {
+				switch w5.QualityStatus {
+				case "BAD":
+					primaryActiveQualityBad++
+				case "WARN":
+					primaryActiveQualityWarn++
+				}
+			}
+			switch st.healthStatus {
+			case "UP":
+				primaryHealthy++
+			case "DOWN":
+				primaryDown++
+				if active {
+					primaryActiveDown++
+				}
+			case "DEGRADED":
+				primaryDegraded++
+				if active {
+					primaryActiveDegraded++
+				}
+			}
+		}
 	}
 	sort.Slice(ups, func(i, j int) bool {
 		if ups[i].Profile == ups[j].Profile {
@@ -772,6 +811,7 @@ func (s *Store) Snapshot(flowN, topN, errorN int) map[string]any {
 	return map[string]any{
 		"started": s.started, "uptime_seconds": int64(time.Since(s.started).Seconds()), "total_requests": s.totalRequests, "total_responses": s.totalResponses, "total_late_responses": s.totalLateResponses, "total_unmatched_responses": s.totalUnmatchedResponses, "total_fallbacks": s.totalFallbacks, "total_timeouts": s.totalTimeouts,
 		"healthy": healthy, "down": down, "degraded": degraded, "active_down": activeDown, "active_degraded": activeDegraded, "inactive_down": inactiveDown, "active_quality_bad": activeQualityBad, "active_quality_warn": activeQualityWarn,
+		"primary_healthy": primaryHealthy, "primary_down": primaryDown, "primary_degraded": primaryDegraded, "primary_active_down": primaryActiveDown, "primary_active_degraded": primaryActiveDegraded, "primary_active_quality_bad": primaryActiveQualityBad, "primary_active_quality_warn": primaryActiveQualityWarn, "primary_upstream_count": primaryUpstreamCount,
 		"upstream_count": len(ups), "upstreams": ups, "flow": flow, "top_domains": tops, "errors": errs, "fallback_edges": edges, "fallback_edges_5m": s.fallbackEdgesWindowLocked(5, now), "fallback_edges_1h": s.fallbackEdgesWindowLocked(60, now), "fallback_edges_24h": s.fallbackEdgesWindowLocked(1440, now),
 		"error_bursts": s.errorBurstsLocked(60, now), "last_discovery": s.lastDiscovery, "discovery_error": s.discoveryError, "capture_error": s.captureError,
 		"last_client_registry": s.lastClientRegistry, "client_registry_error": s.clientRegistryError, "client_capture_error": s.clientCaptureError,

@@ -41,6 +41,9 @@ server:
 	if gateway == nil || gateway.Port != 53 {
 		t.Fatalf("DHCP name server not parsed: %#v", got)
 	}
+	if gateway.Source != "DHCP" || gateway.Interface != "GigabitEthernet1" {
+		t.Fatalf("DHCP metadata=%#v", gateway)
+	}
 	if google == nil {
 		t.Fatalf("8.8.4.4 not parsed: %#v", got)
 	}

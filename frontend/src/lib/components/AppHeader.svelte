@@ -19,10 +19,14 @@
   $: s = $snapshot || {};
   $: current = $page.url.pathname;
   $: hostTelemetry = $adminOnline ? $adminSummary : $systemModuleOnline ? $systemModuleSummary : null;
+  $: primaryActiveDown = Number(s.primary_active_down ?? s.active_down ?? 0);
+  $: primaryActiveDegraded = Number(s.primary_active_degraded ?? s.active_degraded ?? 0);
+  $: primaryQualityBad = Number(s.primary_active_quality_bad ?? s.active_quality_bad ?? 0);
+  $: primaryQualityWarn = Number(s.primary_active_quality_warn ?? s.active_quality_warn ?? 0);
   $: state =
     s.capture_error ? 'ERROR'
-      : s.active_down ? 'DOWN'
-      : (s.active_degraded || s.active_quality_bad || s.active_quality_warn) ? 'DEGRADED'
+      : primaryActiveDown ? 'DOWN'
+      : (primaryActiveDegraded || primaryQualityBad || primaryQualityWarn) ? 'DEGRADED'
       : 'OK';
   $: stateClass = state === 'OK' ? 'good' : state === 'DEGRADED' ? 'warn' : 'error';
 

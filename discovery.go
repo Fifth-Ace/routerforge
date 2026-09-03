@@ -33,6 +33,7 @@ type profileParse struct {
 	name      string
 	proceedMS int
 	timeoutMS int
+	dnsPort   uint16
 	entries   []UpstreamMeta
 	tls       []tlsEndpointMeta
 	https     []httpsEndpointMeta
@@ -71,6 +72,8 @@ func discoverDNSConfiguration() ([]UpstreamMeta, []PlainDNSMeta, map[string]Poli
 		if p, ok := policies[ups[i].Profile]; ok {
 			ups[i].PolicyMark = p.Mark
 			ups[i].PolicyTable = p.Table
+			ups[i].PolicyDescription = p.Description
+			ups[i].PolicyHasDefault = p.HasDefault
 		}
 		if ups[i].Interface != "" {
 			ups[i].LinuxInterface = linuxIfs[ups[i].Interface]
@@ -117,6 +120,12 @@ func parseDNSProxy(text string) []UpstreamMeta {
 		if strings.HasPrefix(line, "timeout =") {
 			if n, e := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "timeout ="))); e == nil {
 				cur.timeoutMS = n
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "dns_tcp_port =") {
+			if n, e := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "dns_tcp_port ="))); e == nil && n > 0 && n <= 65535 {
+				cur.dnsPort = uint16(n)
 			}
 			continue
 		}
@@ -212,6 +221,7 @@ func parseDNSProxy(text string) []UpstreamMeta {
 	for _, profile := range profiles {
 		for _, entry := range profile.entries {
 			entry = enrichEndpointMeta(entry, profile)
+			entry.ProfileDNSPort = profile.dnsPort
 			if seen[entry.Port] {
 				continue
 			}

@@ -8,7 +8,7 @@
 body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-size:13px}button,input,select{font:inherit}a{color:inherit}
 code,.mono{font-family:var(--font-mono)}.good{color:var(--good)!important}.warn{color:var(--warn)!important}.bad,.error{color:var(--bad)!important}
 .info,.accent-text{color:var(--accent)!important}.warn-text{color:var(--warn)!important}.muted{color:var(--muted)!important}
-.expert-only{display:table-cell}html[data-ui-level="normal"] .expert-only{display:none!important}
+.advanced-only{display:none!important}html[data-ui-level="advanced"] .advanced-only{display:table-cell!important}
 
 .app-header{height:var(--header-height);position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);background:rgba(12,13,16,.97)}
 .header-inner{height:100%;width:calc(100% - 40px);margin:0 auto;display:grid;grid-template-columns:minmax(210px,1fr) auto minmax(210px,1fr);align-items:center;gap:20px}
@@ -22,7 +22,7 @@ code,.mono{font-family:var(--font-mono)}.good{color:var(--good)!important}.warn{
 .status-dot.warn{background:var(--warn);box-shadow:0 0 7px rgba(210,153,34,.4)}.status-dot.error{background:var(--bad);box-shadow:0 0 7px rgba(248,81,73,.4)}.status-dot.info{background:var(--accent);box-shadow:0 0 7px rgba(56,189,248,.4)}
 
 .global-alerts{width:min(1440px,calc(100% - 40px));margin:12px auto -4px;display:grid;gap:6px}.global-alert{padding:9px 12px;border:1px solid rgba(248,81,73,.25);border-radius:6px;background:rgba(248,81,73,.07);color:#ff9a95;font-size:11px}
-.app-main{min-height:calc(100vh - var(--header-height))}.page{width:min(1440px,calc(100% - 40px));margin:0 auto;padding:20px 0 28px}html[data-layout-compact="true"] .page{width:min(1120px,calc(100% - 40px))}
+.app-main{min-height:calc(100vh - var(--header-height))}.page{width:min(1440px,calc(100% - 40px));margin:0 auto;padding:20px 0 28px}
 .page-head{min-height:48px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.page-head h1{margin:0;color:#fff;font-size:20px;line-height:1.2;font-weight:650}
 .page-head p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.45}.page-kicker{margin-top:4px;color:var(--muted);font-size:9px;letter-spacing:.06em;white-space:nowrap}
 

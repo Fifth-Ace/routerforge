@@ -11,9 +11,11 @@ import (
 )
 
 type policyRoute struct {
-	Name  string
-	Mark  uint32
-	Table int
+	Name        string
+	Description string
+	Mark        uint32
+	Table       int
+	HasDefault  bool
 }
 
 func ndmcOutput(command string, timeout time.Duration) (string, error) {
@@ -40,7 +42,13 @@ func parseIPPolicies(text string) map[string]policyRoute {
 				cur = nil
 				continue
 			}
-			p := policyRoute{Name: name}
+			description := ""
+			if i := strings.Index(rest, "description ="); i >= 0 {
+				description = strings.TrimSpace(rest[i+len("description ="):])
+				description = strings.TrimSuffix(description, ":")
+				description = strings.Trim(strings.TrimSpace(description), `"`)
+			}
+			p := policyRoute{Name: name, Description: description}
 			out[name] = p
 			cur = &p
 			continue
@@ -55,6 +63,16 @@ func parseIPPolicies(text string) map[string]policyRoute {
 				cur.Mark = uint32(v)
 				p := out[cur.Name]
 				p.Mark = cur.Mark
+				out[cur.Name] = p
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "destination:") {
+			raw := strings.TrimSpace(strings.TrimPrefix(line, "destination:"))
+			if raw == "0.0.0.0/0" {
+				cur.HasDefault = true
+				p := out[cur.Name]
+				p.HasDefault = true
 				out[cur.Name] = p
 			}
 			continue

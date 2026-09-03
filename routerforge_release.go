@@ -118,7 +118,6 @@ func routerForgeReleaseSnapshot() (routerForgeReleaseIndex, routerForgeReleaseSt
 	return routerForgeReleaseState.doc, routerForgeReleaseState.status
 }
 
-
 func forceRefreshRouterForgeReleaseIndex() routerForgeReleaseStatus {
 	routerForgeReleaseState.mu.Lock()
 	if !routerForgeReleaseState.initialized {

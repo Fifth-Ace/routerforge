@@ -130,7 +130,6 @@ func routerForgeRegistrySnapshot() (routerForgeRegistryDocument, routerForgeRegi
 	return routerForgeRegistryState.doc, routerForgeRegistryState.status
 }
 
-
 func forceRefreshRouterForgeRegistry() routerForgeRegistryStatus {
 	routerForgeRegistryState.mu.Lock()
 	if !routerForgeRegistryState.initialized {

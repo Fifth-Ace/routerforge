@@ -223,7 +223,6 @@ func startWeb(store *Store, listen string, version string) error {
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
 	mux.HandleFunc("/api/modules/", proxyModuleAPI)
 
-
 	mux.HandleFunc("/api/catalog/refresh", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)

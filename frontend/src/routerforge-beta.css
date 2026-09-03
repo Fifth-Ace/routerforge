@@ -754,3 +754,29 @@ html[data-brand-mode="extended"] .routerforge-capability-icon {
   left: 4px !important;
   transform: translateX(20px) !important;
 }
+
+/* RouterForge auth state pill final polish. */
+.security-control > .state-chip {
+  width: 48px !important;
+  min-width: 48px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 1px 8px 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  text-align: center !important;
+}
+
+.security-control > .state-chip.good {
+  color: var(--good) !important;
+  border-color: rgba(46, 160, 67, .38) !important;
+  background: rgba(46, 160, 67, .10) !important;
+}
+
+.security-control > .state-chip.neutral {
+  color: var(--rf-muted) !important;
+  border-color: var(--rf-border) !important;
+  background: var(--rf-surface-2) !important;
+}

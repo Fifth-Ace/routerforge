@@ -129,7 +129,7 @@
             <span>Вход под <code>root</code> с паролем Entware. Проверяется <code>/opt/etc/shadow</code> с fallback на <code>/opt/etc/passwd</code>; отдельный пароль RouterForge не хранится.</span>
           </div>
           <div class="security-control setting-control-slot">
-            <span class="state-chip {$authState.required ? 'good' : 'neutral'}">{$authState.required ? 'REQUIRED' : 'OFF'}</span>
+            <span class="state-chip {$authState.required ? 'good' : 'neutral'}">{$authState.required ? 'ON' : 'OFF'}</span>
             <button class="security-switch" class:on={$authState.required} type="button" aria-label={$authState.required ? 'Отключить обязательную авторизацию' : 'Включить обязательную авторизацию'} aria-pressed={$authState.required} disabled={authBusy} onclick={requestAuthToggle}><span></span></button>
           </div>
         </div>

@@ -32,10 +32,10 @@
   $: all = [...modules, ...integrations];
   $: installedCount = all.filter((item) => item.installed).length;
   $: notInstalledCount = all.length - installedCount;
-  $: availableUpdates = all.filter((item) => item.installed && item.actions?.update);
+  const hasVerifiedUpdate = (item) => Boolean(item?.installed && item?.update_available && item?.actions?.update);
+  $: availableUpdates = all.filter(hasVerifiedUpdate);
   $: routerForgeUpdates = modules.filter((item) =>
-    item.installed
-    && item.actions?.update
+    hasVerifiedUpdate(item)
     && (item.id === 'routerforge-core' || item.publisher?.id === 'routerforge')
   );
   $: categories = [...new Set(all.map((x) => x.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -166,10 +166,10 @@
         ...(result?.catalog?.modules || []),
         ...(result?.catalog?.integrations || [])
       ];
-      const updates = freshItems.filter((item) => item.installed && item.actions?.update);
+      const updates = freshItems.filter(hasVerifiedUpdate);
       actionNotice = updates.length
         ? { cls: 'good', text: `Доступно обновлений: ${updates.length}` }
-        : { cls: 'info', text: 'Установлены актуальные версии RouterForge.' };
+        : { cls: 'info', text: 'Проверенных обновлений не найдено.' };
     } catch (error) {
       const detail = error?.payload?.detail || error?.payload?.error || error?.message || 'неизвестная ошибка';
       actionNotice = { cls: 'error', text: `Проверка обновлений не выполнена · ${detail}` };

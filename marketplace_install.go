@@ -20,20 +20,20 @@ const (
 var marketplaceInstallMu sync.Mutex
 
 type catalogInstallResult struct {
-	ID               string   `json:"id"`
-	Name             string   `json:"name"`
-	Packages         []string `json:"packages"`
-	Sources          []string `json:"sources"`
-	Installed        bool     `json:"installed"`
-	AlreadyInstalled bool     `json:"already_installed,omitempty"`
-	Output           string   `json:"output,omitempty"`
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	Packages         []string  `json:"packages"`
+	Sources          []string  `json:"sources"`
+	Installed        bool      `json:"installed"`
+	AlreadyInstalled bool      `json:"already_installed,omitempty"`
+	Output           string    `json:"output,omitempty"`
 	CompletedAt      time.Time `json:"completed_at"`
 }
 
 type catalogInstallFailure struct {
-	Status int
+	Status  int
 	Message string
-	Detail string
+	Detail  string
 }
 
 func (e *catalogInstallFailure) Error() string {

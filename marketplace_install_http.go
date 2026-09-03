@@ -36,7 +36,7 @@ func handleCatalogInstallTest(w http.ResponseWriter, r *http.Request) {
 	if !marketplaceTestInstallEnabled() {
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"error": "marketplace test install mode is disabled",
+			"error":  "marketplace test install mode is disabled",
 			"marker": marketplaceTestInstallMarker,
 		})
 		return
@@ -69,7 +69,7 @@ func handleCatalogInstallTest(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(status)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"error": message,
+			"error":  message,
 			"detail": detail,
 			"result": result,
 		})

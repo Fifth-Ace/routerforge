@@ -97,6 +97,7 @@
         <div class="empty">В текущей конфигурации Keenetic обычные внешние DNS UDP/TCP :53 не обнаружены.</div>
       </section>
     {:else}
+      {@const pst = plainState(selectedPlain)}
       <div class="plain-dns-note mono">
         <span><i class="status-dot good"></i> PASSIVE EGRESS OBSERVATION</span>
         <span>UDP/TCP :53</span>
@@ -118,7 +119,6 @@
         </aside>
 
         <div class="stack">
-          {@const pst = plainState(selectedPlain)}
           <section class="hero-card">
             <div class="hero-head">
               <div><h2>{selectedPlain.name || selectedPlain.address} <span class="pill accent">UDP/TCP 53</span></h2><p class="mono">{selectedPlain.address}:{selectedPlain.port || 53}</p></div>

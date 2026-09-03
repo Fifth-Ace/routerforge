@@ -236,28 +236,27 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 		return err
 	}
 
-var (
-	local     string
-	actual    string
-	sourceURL string
-)
-var downloadErrors []string
-for _, candidateURL := range routerForgeReleaseDownloadURLs(release) {
-	local, actual, err = downloadVerifiedAsset(ctx, candidateURL, release.Asset, release.SHA256)
-	if err == nil {
-		sourceURL = candidateURL
-		break
+	var (
+		local     string
+		actual    string
+		sourceURL string
+	)
+	var downloadErrors []string
+	for _, candidateURL := range routerForgeReleaseDownloadURLs(release) {
+		local, actual, err = downloadVerifiedAsset(ctx, candidateURL, release.Asset, release.SHA256)
+		if err == nil {
+			sourceURL = candidateURL
+			break
+		}
+		downloadErrors = append(downloadErrors, candidateURL+": "+err.Error())
 	}
-	downloadErrors = append(downloadErrors, candidateURL+": "+err.Error())
-}
-if sourceURL == "" {
-	return fmt.Errorf("verified RouterForge download failed: %s", strings.Join(downloadErrors, "; "))
-}
-defer os.Remove(local)
+	if sourceURL == "" {
+		return fmt.Errorf("verified RouterForge download failed: %s", strings.Join(downloadErrors, "; "))
+	}
+	defer os.Remove(local)
 
-result.Packages = []string{release.Package}
-result.Sources = append(result.Sources, "routerforge-"+release.Channel+":"+sourceURL+"#sha256="+actual)
-
+	result.Packages = []string{release.Package}
+	result.Sources = append(result.Sources, "routerforge-"+release.Channel+":"+sourceURL+"#sha256="+actual)
 
 	args := []string{"install", local}
 	if action == "update" {

@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { getCatalog } from '$lib/api.js';
+import { getCatalog, refreshCatalogRemote } from '$lib/api.js';
 
 export const catalog = writable({
   modules: [],
@@ -30,6 +30,22 @@ export async function refreshCatalog() {
   }
 }
 
+export async function forceRefreshCatalog() {
+  try {
+    const result = await refreshCatalogRemote();
+    const data = result?.catalog || null;
+    if (data) {
+      catalog.set(data);
+      catalogOnline.set(true);
+      return result;
+    }
+    const fallback = await refreshCatalog();
+    return { ok: Boolean(fallback), catalog: fallback };
+  } catch (error) {
+    catalogOnline.set(false);
+    throw error;
+  }
+}
 export function startCatalogPolling(intervalMs = 15000) {
   if (!timer) {
     refreshCatalog();

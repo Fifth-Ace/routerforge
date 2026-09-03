@@ -223,6 +223,33 @@ func startWeb(store *Store, listen string, version string) error {
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
 	mux.HandleFunc("/api/modules/", proxyModuleAPI)
 
+
+	mux.HandleFunc("/api/catalog/refresh", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, `{"error":"POST required"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		releaseDone := make(chan routerForgeReleaseStatus, 1)
+		registryDone := make(chan routerForgeRegistryStatus, 1)
+		go func() { releaseDone <- forceRefreshRouterForgeReleaseIndex() }()
+		go func() { registryDone <- forceRefreshRouterForgeRegistry() }()
+
+		releaseStatus := <-releaseDone
+		registryStatus := <-registryDone
+		catalog := readCatalog()
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":       releaseStatus.Online && registryStatus.Online,
+			"release":  releaseStatus,
+			"registry": registryStatus,
+			"catalog":  catalog,
+		})
+	})
+
 	mux.HandleFunc("/api/catalog/action", handleCatalogActionTest)
 	mux.HandleFunc("/api/catalog/install", handleCatalogInstallTest)
 	mux.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) {

@@ -5,7 +5,7 @@
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     {
       "id": "dns",
@@ -40,7 +40,7 @@
     {
       "id": "network",
       "package": "routerforge-network",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "min_core_version": "0.3.0"
     },
     {

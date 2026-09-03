@@ -34,6 +34,7 @@ async function postJSON(path, body) {
 export const getSnapshot = () => request('/api/snapshot');
 export const getSystem = () => request('/api/system');
 export const getCatalog = () => request('/api/catalog');
+export const refreshCatalogRemote = () => postJSON('/api/catalog/refresh', {});
 export const installCatalogItem = (id) => postJSON('/api/catalog/install', { id });
 export const catalogAction = (id, action, confirm = '') =>
   postJSON('/api/catalog/action', { id, action, confirm });

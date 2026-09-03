@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	routerForgeRegistrySyncInterval = 15 * time.Minute
+	routerForgeRegistrySyncInterval = time.Hour
 	routerForgeRegistryMaxBytes     = 2 << 20
 )
 
@@ -128,6 +128,43 @@ func routerForgeRegistrySnapshot() (routerForgeRegistryDocument, routerForgeRegi
 	}
 
 	return routerForgeRegistryState.doc, routerForgeRegistryState.status
+}
+
+
+func forceRefreshRouterForgeRegistry() routerForgeRegistryStatus {
+	routerForgeRegistryState.mu.Lock()
+	if !routerForgeRegistryState.initialized {
+		routerForgeRegistryState.mu.Unlock()
+		_, _ = routerForgeRegistrySnapshot()
+		return waitRouterForgeRegistryRefresh(8 * time.Second)
+	}
+	if routerForgeRegistryState.refreshing {
+		routerForgeRegistryState.mu.Unlock()
+		return waitRouterForgeRegistryRefresh(8 * time.Second)
+	}
+	routerForgeRegistryState.refreshing = true
+	routerForgeRegistryState.lastAttempt = time.Now()
+	routerForgeRegistryState.mu.Unlock()
+
+	refreshRouterForgeRegistry()
+	routerForgeRegistryState.mu.Lock()
+	status := routerForgeRegistryState.status
+	routerForgeRegistryState.mu.Unlock()
+	return status
+}
+
+func waitRouterForgeRegistryRefresh(timeout time.Duration) routerForgeRegistryStatus {
+	deadline := time.Now().Add(timeout)
+	for {
+		routerForgeRegistryState.mu.Lock()
+		refreshing := routerForgeRegistryState.refreshing
+		status := routerForgeRegistryState.status
+		routerForgeRegistryState.mu.Unlock()
+		if !refreshing || time.Now().After(deadline) {
+			return status
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func refreshRouterForgeRegistry() {

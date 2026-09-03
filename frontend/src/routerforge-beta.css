@@ -1207,3 +1207,19 @@ td,
     justify-self: start;
   }
 }
+
+/* Marketplace update discovery */
+.catalog-refresh-button {
+  transition: color .14s ease, border-color .14s ease, background .14s ease, box-shadow .14s ease;
+}
+
+.catalog-refresh-button.update-available {
+  color: var(--rf-accent) !important;
+  border-color: var(--rf-accent-border) !important;
+  background: var(--rf-accent-soft) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rf-accent) 14%, transparent);
+}
+
+.catalog-refresh-button.update-available:hover {
+  background: var(--rf-accent-hover) !important;
+}

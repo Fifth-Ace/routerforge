@@ -1,5 +1,5 @@
 <script>
-  import { catalog, catalogOnline, refreshCatalog } from '$lib/stores/catalog.js';
+  import { catalog, catalogOnline, refreshCatalog, forceRefreshCatalog } from '$lib/stores/catalog.js';
   import { catalogAction } from '$lib/api.js';
   import { stateInfo, localWebURL } from '$lib/utils.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
@@ -23,6 +23,7 @@
   let busyAction = '';
   let actionNotice = null;
   let updatingAll = false;
+  let checkingUpdates = false;
 
   $: data = $catalog || { modules: [], integrations: [], read_only: true, package_management_enabled: false };
   $: packageMode = Boolean(data.package_management_enabled ?? data['install_test_mode']);
@@ -31,6 +32,7 @@
   $: all = [...modules, ...integrations];
   $: installedCount = all.filter((item) => item.installed).length;
   $: notInstalledCount = all.length - installedCount;
+  $: availableUpdates = all.filter((item) => item.installed && item.actions?.update);
   $: routerForgeUpdates = modules.filter((item) =>
     item.installed
     && item.actions?.update
@@ -154,6 +156,27 @@
     return `${item.name}: установлен${source}`;
   }
 
+  async function checkForUpdates() {
+    if (checkingUpdates || busyId) return;
+    checkingUpdates = true;
+    actionNotice = { cls: 'info', text: 'Проверяем RouterForge Registry и канал обновлений…' };
+    try {
+      const result = await forceRefreshCatalog();
+      const freshItems = [
+        ...(result?.catalog?.modules || []),
+        ...(result?.catalog?.integrations || [])
+      ];
+      const updates = freshItems.filter((item) => item.installed && item.actions?.update);
+      actionNotice = updates.length
+        ? { cls: 'good', text: `Доступно обновлений: ${updates.length}` }
+        : { cls: 'info', text: 'Установлены актуальные версии RouterForge.' };
+    } catch (error) {
+      const detail = error?.payload?.detail || error?.payload?.error || error?.message || 'неизвестная ошибка';
+      actionNotice = { cls: 'error', text: `Проверка обновлений не выполнена · ${detail}` };
+    } finally {
+      checkingUpdates = false;
+    }
+  }
   async function updateAllRouterForge() {
     if (updatingAll || busyId || !routerForgeUpdates.length) return;
     if (!window.confirm(`Обновить все доступные компоненты RouterForge (${routerForgeUpdates.length})?\n\nМодули обновятся независимо; Core — последним.`)) return;
@@ -188,7 +211,18 @@
   <div class="toolbar catalog-toolbar-v2">
     <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder="Поиск модулей, проектов, издателей…"/></div>
     <select bind:value={category}><option value="all">Все категории</option>{#each categories as c}<option value={c}>{c}</option>{/each}</select>
-    <button class="button" onclick={refreshCatalog}>↻ Обновить</button>
+    <button
+      class="button catalog-refresh-button"
+      class:update-available={availableUpdates.length > 0}
+      disabled={checkingUpdates || Boolean(busyId)}
+      onclick={checkForUpdates}
+    >
+      {checkingUpdates
+        ? '↻ Проверка…'
+        : availableUpdates.length
+          ? `↻ Обновления · ${availableUpdates.length}`
+          : '↻ Проверить обновления'}
+    </button>
     {#if packageMode}
       <button
         class="button primary"

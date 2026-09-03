@@ -16,7 +16,7 @@ import (
 var releaseChannel = "beta"
 
 const (
-	routerForgeReleaseSyncInterval = 10 * time.Minute
+	routerForgeReleaseSyncInterval = time.Hour
 	routerForgeReleaseMaxBytes     = 512 << 10
 )
 
@@ -116,6 +116,43 @@ func routerForgeReleaseSnapshot() (routerForgeReleaseIndex, routerForgeReleaseSt
 	}
 
 	return routerForgeReleaseState.doc, routerForgeReleaseState.status
+}
+
+
+func forceRefreshRouterForgeReleaseIndex() routerForgeReleaseStatus {
+	routerForgeReleaseState.mu.Lock()
+	if !routerForgeReleaseState.initialized {
+		routerForgeReleaseState.mu.Unlock()
+		_, _ = routerForgeReleaseSnapshot()
+		return waitRouterForgeReleaseRefresh(10 * time.Second)
+	}
+	if routerForgeReleaseState.refreshing {
+		routerForgeReleaseState.mu.Unlock()
+		return waitRouterForgeReleaseRefresh(10 * time.Second)
+	}
+	routerForgeReleaseState.refreshing = true
+	routerForgeReleaseState.lastAttempt = time.Now()
+	routerForgeReleaseState.mu.Unlock()
+
+	refreshRouterForgeReleaseIndex()
+	routerForgeReleaseState.mu.Lock()
+	status := routerForgeReleaseState.status
+	routerForgeReleaseState.mu.Unlock()
+	return status
+}
+
+func waitRouterForgeReleaseRefresh(timeout time.Duration) routerForgeReleaseStatus {
+	deadline := time.Now().Add(timeout)
+	for {
+		routerForgeReleaseState.mu.Lock()
+		refreshing := routerForgeReleaseState.refreshing
+		status := routerForgeReleaseState.status
+		routerForgeReleaseState.mu.Unlock()
+		if !refreshing || time.Now().After(deadline) {
+			return status
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func refreshRouterForgeReleaseIndex() {

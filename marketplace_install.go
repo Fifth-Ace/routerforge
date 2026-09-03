@@ -20,7 +20,7 @@ const (
 	marketplaceTestInstallMarker       = "/opt/etc/routerforge/package-management.enabled"
 	legacyMarketplaceTestInstallMarker = "/opt/etc/dns-monitor/marketplace-test-install.enabled"
 	marketplaceDownloadDir             = "/opt/tmp/routerforge-marketplace"
-	marketplaceDownloadMaxBytes  = 64 << 20
+	marketplaceDownloadMaxBytes        = 64 << 20
 )
 
 var marketplaceInstallMu sync.Mutex

@@ -27,8 +27,8 @@
   $: installedCount = all.filter((item) => item.installed).length;
   $: notInstalledCount = all.length - installedCount;
   $: categories = [...new Set(all.map((x) => x.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
-  $: visibleModules = sortInstalledFirst(modules.filter(matchesFilters));
-  $: visibleIntegrations = sortInstalledFirst(integrations.filter(matchesFilters));
+  $: visibleModules = filterAndSort(modules, statusFilter, category, search);
+  $: visibleIntegrations = filterAndSort(integrations, statusFilter, category, search);
   $: sections = [
     {
       id: 'modules',
@@ -44,16 +44,19 @@
     }
   ];
 
-  function matchesFilters(item) {
-    if (statusFilter === 'installed' && !item.installed) return false;
-    if (statusFilter === 'not-installed' && item.installed) return false;
-    if (category !== 'all' && item.category !== category) return false;
-    const q = search.trim().toLowerCase();
-    return !q || `${item.name} ${item.category} ${item.description} ${item.version || ''} ${(item.detection?.packages || []).join(' ')}`.toLowerCase().includes(q);
-  }
+  function filterAndSort(items, selectedStatus, selectedCategory, query) {
+    const q = String(query || '').trim().toLowerCase();
 
-  function sortInstalledFirst(items) {
     return items
+      .filter((item) => {
+        if (selectedStatus === 'installed' && !item.installed) return false;
+        if (selectedStatus === 'not-installed' && item.installed) return false;
+        if (selectedCategory !== 'all' && item.category !== selectedCategory) return false;
+
+        return !q || `${item.name} ${item.category} ${item.description} ${item.version || ''} ${(item.detection?.packages || []).join(' ')}`
+          .toLowerCase()
+          .includes(q);
+      })
       .map((item, index) => ({ item, index }))
       .sort((a, b) => {
         if (Boolean(a.item.installed) !== Boolean(b.item.installed)) return a.item.installed ? -1 : 1;

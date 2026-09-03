@@ -12,9 +12,29 @@ async function request(path) {
   return response.json();
 }
 
+async function postJSON(path, body) {
+  const response = await fetch(path, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const error = new Error(`${path} HTTP ${response.status}`);
+    error.status = response.status;
+    try { error.payload = await response.json(); } catch {}
+    throw error;
+  }
+  return response.json();
+}
+
 export const getSnapshot = () => request('/api/snapshot');
 export const getSystem = () => request('/api/system');
 export const getCatalog = () => request('/api/catalog');
+export const installCatalogItem = (id) => postJSON('/api/catalog/install', { id });
 export const getClients = () => request('/api/clients');
 export const getInterfaces = () => request('/api/interfaces');
 export const getHistory = (minutes = 60) => request(`/api/history?minutes=${encodeURIComponent(minutes)}`);

@@ -5,6 +5,7 @@ export const catalog = writable({
   modules: [],
   integrations: [],
   read_only: true,
+  install_test_mode: false,
   phase: 'loading'
 });
 
@@ -15,7 +16,12 @@ let timer = null;
 export async function refreshCatalog() {
   try {
     const data = await getCatalog();
-    catalog.set(data || { modules: [], integrations: [], read_only: true });
+    catalog.set(data || {
+      modules: [],
+      integrations: [],
+      read_only: true,
+      install_test_mode: false
+    });
     catalogOnline.set(true);
     return data;
   } catch {

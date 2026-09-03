@@ -61,15 +61,22 @@ type catalogItem struct {
 }
 
 type catalogSnapshot struct {
-	GeneratedAt  time.Time     `json:"generated_at"`
-	ReadOnly     bool          `json:"read_only"`
-	Phase        string        `json:"phase"`
-	Modules      []catalogItem `json:"modules"`
-	Integrations []catalogItem `json:"integrations"`
+	GeneratedAt     time.Time     `json:"generated_at"`
+	ReadOnly        bool          `json:"read_only"`
+	InstallTestMode bool          `json:"install_test_mode"`
+	Phase           string        `json:"phase"`
+	Modules         []catalogItem `json:"modules"`
+	Integrations    []catalogItem `json:"integrations"`
 }
 
 func readCatalog() catalogSnapshot {
-	return buildCatalog(readInstalledPackages(), readProcessNames(), pathExists)
+	snapshot := buildCatalog(readInstalledPackages(), readProcessNames(), pathExists)
+	snapshot.InstallTestMode = marketplaceTestInstallEnabled()
+	if snapshot.InstallTestMode {
+		snapshot.ReadOnly = false
+		snapshot.Phase = "combat-install-test"
+	}
+	return snapshot
 }
 
 func buildCatalog(installed map[string]string, processes map[string]bool, exists func(string) bool) catalogSnapshot {

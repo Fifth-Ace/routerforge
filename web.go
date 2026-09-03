@@ -214,7 +214,13 @@ func startWeb(store *Store, listen string, version string) error {
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
 	mux.HandleFunc("/api/modules/", proxyModuleAPI)
 
+	mux.HandleFunc("/api/catalog/install", handleCatalogInstallTest)
 	mux.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, `{"error":"GET required"}`, http.StatusMethodNotAllowed)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_ = json.NewEncoder(w).Encode(readCatalog())

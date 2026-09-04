@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { getAdminProcesses, getAdminPorts, getAdminServices, getAdminPackages } from '$lib/api.js';
   import { bytes } from '$lib/utils.js';
+  import { settings } from '$lib/stores/settings.js';
+  import { t } from '$lib/i18n/index.js';
 
   let tab = 'processes';
   let processes = [];
@@ -12,11 +14,12 @@
   let loading = false;
   let errorText = '';
 
-  const tabs = [
-    ['processes', 'Процессы'],
-    ['ports', 'Порты'],
-    ['services', 'Службы'],
-    ['packages', 'Пакеты']
+  $: locale = $settings.locale || 'ru';
+  $: tabs = [
+    ['processes', t(locale, 'manage.tabs.processes')],
+    ['ports', t(locale, 'manage.tabs.ports')],
+    ['services', t(locale, 'manage.tabs.services')],
+    ['packages', t(locale, 'manage.tabs.packages')]
   ];
 
   $: q = search.trim().toLowerCase();
@@ -34,7 +37,7 @@
       if (next === 'services') services = (await getAdminServices()).services || [];
       if (next === 'packages') packages = (await getAdminPackages()).packages || [];
     } catch (error) {
-      errorText = error?.payload?.error || error?.message || 'RouterForge Control недоступен';
+      errorText = error?.payload?.error || error?.message || t(locale, 'errors.controlUnavailable');
     } finally {
       loading = false;
     }
@@ -55,47 +58,39 @@
   });
 </script>
 
-<svelte:head><title>RouterForge — Управление</title></svelte:head>
+<svelte:head><title>RouterForge — {t(locale, 'manage.pageTitle')}</title></svelte:head>
 
 <div class="page admin-page">
   <div class="page-head">
-    <div>
-      <h1>Управление</h1>
-      <p>Процессы, listening sockets, Entware services и установленные пакеты. Системная телеметрия вынесена в «Мониторинг».</p>
-    </div>
+    <div><h1>{t(locale, 'manage.pageTitle')}</h1><p>{t(locale, 'manage.subtitle')}</p></div>
     <span class="state-chip info">CONTROL / BETA</span>
   </div>
 
   <div class="admin-safety-banner">
-    <div class="admin-safety-main">
-      <strong>ROUTERFORGE CONTROL</strong>
-      <span>Диагностика и инвентаризация. Опасные действия пока заблокированы до отдельного permission layer.</span>
-    </div>
+    <div class="admin-safety-main"><strong>ROUTERFORGE CONTROL</strong><span>{t(locale, 'manage.safety')}</span></div>
     <div class="admin-lock-groups mono">
-      <span class="admin-lock-group"><em>INSPECT</em><strong>ENABLED</strong></span>
-      <span class="admin-lock-group"><em>MUTATE</em><strong>LOCKED</strong></span>
+      <span class="admin-lock-group"><em>{t(locale, 'manage.inspect')}</em><strong>{t(locale, 'manage.enabled')}</strong></span>
+      <span class="admin-lock-group"><em>{t(locale, 'manage.mutate')}</em><strong>{t(locale, 'manage.locked')}</strong></span>
     </div>
   </div>
 
   <div class="subtabs admin-tabs">
-    {#each tabs as [id, label]}
-      <button class:active={tab === id} onclick={() => selectTab(id)}>{label}</button>
-    {/each}
+    {#each tabs as [id, label]}<button class:active={tab === id} onclick={() => selectTab(id)}>{label}</button>{/each}
   </div>
 
   <div class="toolbar">
-    <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder="Поиск…"/></div>
-    <button class="button" onclick={() => load(tab)} disabled={loading}>↻ Обновить</button>
+    <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale, 'common.search')}/></div>
+    <button class="button" onclick={() => load(tab)} disabled={loading}>↻ {t(locale, 'common.refresh')}</button>
   </div>
 
   {#if errorText}
     <section class="panel"><div class="empty">{errorText}</div></section>
   {:else if loading && !processes.length && !ports.length && !services.length && !packages.length}
-    <section class="panel"><div class="empty">Читаю RouterForge Control…</div></section>
+    <section class="panel"><div class="empty">{t(locale, 'manage.loading')}</div></section>
   {:else if tab === 'processes'}
     <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Процессы</strong><span>Top 300 по RSS</span></div><span class="state-chip info">{filteredProcesses.length}</span></div>
-      <div class="table-scroll"><table><thead><tr><th>PID</th><th>Process</th><th>User</th><th>State</th><th>RSS</th><th>VmSize</th><th>Threads</th><th>Command</th></tr></thead><tbody>
+      <div class="panel-head"><div><strong>{t(locale, 'manage.tabs.processes')}</strong><span>{t(locale, 'manage.topRss')}</span></div><span class="state-chip info">{filteredProcesses.length}</span></div>
+      <div class="table-scroll"><table><thead><tr><th>PID</th><th>{t(locale, 'manage.columns.process')}</th><th>{t(locale, 'manage.columns.user')}</th><th>{t(locale, 'manage.columns.state')}</th><th>RSS</th><th>VmSize</th><th>{t(locale, 'manage.columns.threads')}</th><th>{t(locale, 'manage.columns.command')}</th></tr></thead><tbody>
         {#each filteredProcesses as p (p.pid)}
           <tr><td class="mono">{p.pid}</td><td><strong>{p.name}</strong></td><td>{p.user}</td><td><span class="pill">{p.state || '—'}</span></td><td class="mono">{bytes(Number(p.rss_kb || 0) * 1024)}</td><td class="mono">{bytes(Number(p.vmsize_kb || 0) * 1024)}</td><td class="mono">{p.threads || 0}</td><td class="mono admin-command">{p.command}</td></tr>
         {/each}
@@ -103,8 +98,8 @@
     </section>
   {:else if tab === 'ports'}
     <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Listening sockets</strong><span>/proc/net/tcp* + udp*</span></div><span class="state-chip info">{filteredPorts.length}</span></div>
-      <div class="table-scroll"><table><thead><tr><th>Proto</th><th>Local</th><th>State</th><th>PID</th><th>Process</th></tr></thead><tbody>
+      <div class="panel-head"><div><strong>{t(locale, 'manage.listeningSockets')}</strong><span>/proc/net/tcp* + udp*</span></div><span class="state-chip info">{filteredPorts.length}</span></div>
+      <div class="table-scroll"><table><thead><tr><th>{t(locale, 'manage.columns.proto')}</th><th>{t(locale, 'manage.columns.local')}</th><th>{t(locale, 'manage.columns.state')}</th><th>PID</th><th>{t(locale, 'manage.columns.process')}</th></tr></thead><tbody>
         {#each filteredPorts as p (`${p.protocol}-${p.local_address}-${p.local_port}-${p.inode}`)}
           <tr><td><span class="pill accent">{p.protocol}</span></td><td class="mono">{p.local_address}:{p.local_port}</td><td>{p.state}</td><td class="mono">{p.pid || '—'}</td><td>{p.process || '—'}</td></tr>
         {/each}
@@ -112,17 +107,17 @@
     </section>
   {:else if tab === 'services'}
     <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Entware services</strong><span>Состояние init scripts без их запуска</span></div><span class="state-chip info">{filteredServices.length}</span></div>
-      <div class="table-scroll"><table><thead><tr><th>Service</th><th>State</th><th>Executable</th><th>Init script</th><th>Detected by</th></tr></thead><tbody>
+      <div class="panel-head"><div><strong>{t(locale, 'manage.services')}</strong><span>{t(locale, 'manage.servicesHint')}</span></div><span class="state-chip info">{filteredServices.length}</span></div>
+      <div class="table-scroll"><table><thead><tr><th>{t(locale, 'manage.columns.service')}</th><th>{t(locale, 'manage.columns.state')}</th><th>{t(locale, 'manage.columns.executable')}</th><th>{t(locale, 'manage.columns.initScript')}</th><th>{t(locale, 'manage.columns.detectedBy')}</th></tr></thead><tbody>
         {#each filteredServices as s (s.path)}
-          <tr><td><strong>{s.name}</strong></td><td><span class="state-chip {s.running ? 'good' : 'neutral'}">{s.running ? 'RUNNING' : 'NOT DETECTED'}</span></td><td>{s.executable ? 'yes' : 'no'}</td><td class="mono">{s.path}</td><td class="cell-sub">{s.running_source || '—'}</td></tr>
+          <tr><td><strong>{s.name}</strong></td><td><span class="state-chip {s.running ? 'good' : 'neutral'}">{s.running ? t(locale, 'common.running').toUpperCase() : t(locale, 'common.notDetected').toUpperCase()}</span></td><td>{s.executable ? t(locale, 'common.yes') : t(locale, 'common.no')}</td><td class="mono">{s.path}</td><td class="cell-sub">{s.running_source || '—'}</td></tr>
         {/each}
       </tbody></table></div>
     </section>
   {:else if tab === 'packages'}
     <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Entware packages</strong><span>/opt/lib/opkg/status</span></div><span class="state-chip info">{filteredPackages.length}</span></div>
-      <div class="table-scroll"><table><thead><tr><th>Package</th><th>Version</th><th>Architecture</th><th>Status</th></tr></thead><tbody>
+      <div class="panel-head"><div><strong>{t(locale, 'manage.packages')}</strong><span>/opt/lib/opkg/status</span></div><span class="state-chip info">{filteredPackages.length}</span></div>
+      <div class="table-scroll"><table><thead><tr><th>{t(locale, 'manage.columns.package')}</th><th>{t(locale, 'manage.columns.version')}</th><th>{t(locale, 'manage.columns.architecture')}</th><th>{t(locale, 'manage.columns.status')}</th></tr></thead><tbody>
         {#each filteredPackages as p (p.name)}
           <tr><td><strong>{p.name}</strong></td><td class="mono">{p.version || '—'}</td><td>{p.architecture || '—'}</td><td>{p.status || 'installed'}</td></tr>
         {/each}

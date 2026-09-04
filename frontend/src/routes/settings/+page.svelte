@@ -5,6 +5,7 @@
   import { authState, setAuthRequired } from '$lib/stores/auth.js';
   import { getSystem } from '$lib/api.js';
   import { fmtInt, fmtDuration, fmtAgo } from '$lib/utils.js';
+  import { t } from '$lib/i18n/index.js';
   import AuthEnableModal from '$lib/components/AuthEnableModal.svelte';
 
   let system = {};
@@ -12,20 +13,20 @@
   let authBusy = false;
   let authError = '';
 
-  const themeCards = [
-    ['forge', 'RouterForge Dark', 'Нейтральный графитовый фундамент. Рекомендуется.'],
-    ['midnight', 'Midnight', 'Холодная тёмно-синяя палитра для сетевой консоли.'],
-    ['graphite', 'Graphite', 'Более нейтральный серо-графитовый интерфейс.'],
-    ['custom', 'Custom', 'Свой фон и текст; остальные поверхности вычисляются автоматически.']
+  $: locale = $settings.locale || 'ru';
+  $: themeCards = [
+    ['forge', t(locale, 'settings.themes.forgeTitle'), t(locale, 'settings.themes.forgeDesc')],
+    ['midnight', t(locale, 'settings.themes.midnightTitle'), t(locale, 'settings.themes.midnightDesc')],
+    ['graphite', t(locale, 'settings.themes.graphiteTitle'), t(locale, 'settings.themes.graphiteDesc')],
+    ['custom', t(locale, 'settings.themes.customTitle'), t(locale, 'settings.themes.customDesc')]
   ];
-
-  const accentOptions = [
-    ['#38bdf8', 'Blue'],
-    ['#22d3ee', 'Cyan'],
-    ['#60a5fa', 'Azure'],
-    ['#34d399', 'Green'],
-    ['#f59e0b', 'Amber'],
-    ['#d7824b', 'Copper']
+  $: accentOptions = [
+    ['#38bdf8', t(locale, 'settings.colors.blue')],
+    ['#22d3ee', t(locale, 'settings.colors.cyan')],
+    ['#60a5fa', t(locale, 'settings.colors.azure')],
+    ['#34d399', t(locale, 'settings.colors.green')],
+    ['#f59e0b', t(locale, 'settings.colors.amber')],
+    ['#d7824b', t(locale, 'settings.colors.copper')]
   ];
 
   const update = (key, value) => settings.update((current) => ({ ...current, [key]: value }));
@@ -51,7 +52,7 @@
       await setAuthRequired(true, 'root', password);
       showEnableAuth = false;
     } catch (error) {
-      authError = error?.payload?.error || error?.message || 'Не удалось включить авторизацию';
+      authError = error?.payload?.error || error?.message || t(locale, 'settings.enableAuthError');
     } finally {
       authBusy = false;
     }
@@ -59,13 +60,13 @@
 
   async function disableAuth() {
     if (authBusy) return;
-    if (!window.confirm('Отключить обязательную авторизацию RouterForge? Панель и API снова будут доступны без входа из локальной сети.')) return;
+    if (!window.confirm(t(locale, 'settings.disableAuthConfirm'))) return;
     authBusy = true;
     authError = '';
     try {
       await setAuthRequired(false);
     } catch (error) {
-      authError = error?.payload?.error || error?.message || 'Не удалось отключить авторизацию';
+      authError = error?.payload?.error || error?.message || t(locale, 'settings.disableAuthError');
     } finally {
       authBusy = false;
     }
@@ -73,76 +74,67 @@
 
   function previewPalette(id) {
     if (id === 'custom') {
-      return {
-        background: $settings.background,
-        text: $settings.text,
-        surface: $settings.background,
-        border: $settings.text
-      };
+      return { background: $settings.background, text: $settings.text, surface: $settings.background, border: $settings.text };
     }
     return themes[id];
   }
 </script>
 
-<svelte:head><title>RouterForge — Настройки</title></svelte:head>
+<svelte:head><title>RouterForge — {t(locale, 'settings.pageTitle')}</title></svelte:head>
 
 <div class="page">
   <div class="page-head">
-    <div><h1>Настройки</h1><p>Интерфейс, безопасность, live-обновления и единая дизайн-система RouterForge.</p></div>
-    <span class="page-kicker mono">LOCAL UI SETTINGS</span>
+    <div><h1>{t(locale, 'settings.pageTitle')}</h1><p>{t(locale, 'settings.subtitle')}</p></div>
+    <span class="page-kicker mono">{t(locale, 'settings.kicker')}</span>
   </div>
 
   <div class="settings-layout">
     <aside class="system-card panel">
-      <div class="panel-head"><div><strong>Система</strong><span>RouterForge</span></div><span class="state-chip {$snapshot.capture_error ? 'error' : 'good'}">{$snapshot.capture_error ? 'ERROR' : 'OK'}</span></div>
+      <div class="panel-head"><div><strong>{t(locale, 'settings.system')}</strong><span>RouterForge</span></div><span class="state-chip {$snapshot.capture_error ? 'error' : 'good'}">{$snapshot.capture_error ? 'ERROR' : 'OK'}</span></div>
       <div class="system-row"><span>RouterForge</span><strong>v{$snapshot.version || '—'}</strong></div>
-      <div class="system-row"><span>Статус</span><strong>{primaryDown ? 'ERROR' : primaryDegraded ? 'DEGRADED' : 'OK'}</strong></div>
-      <div class="system-row"><span>Основные DNS</span><strong>{fmtInt(primaryUpstreams)}</strong></div>
-      <div class="system-row"><span>Uptime</span><strong>{fmtDuration($snapshot.uptime_seconds)}</strong></div>
-      <div class="system-row"><span>Запросы</span><strong>{fmtInt($snapshot.total_requests)}</strong></div>
-      <div class="system-row"><span>Discovery</span><strong>{fmtAgo($snapshot.last_discovery)}</strong></div>
+      <div class="system-row"><span>{t(locale, 'settings.status')}</span><strong>{primaryDown ? 'ERROR' : primaryDegraded ? 'DEGRADED' : 'OK'}</strong></div>
+      <div class="system-row"><span>{t(locale, 'settings.primaryDns')}</span><strong>{fmtInt(primaryUpstreams, locale)}</strong></div>
+      <div class="system-row"><span>{t(locale, 'settings.uptime')}</span><strong>{fmtDuration($snapshot.uptime_seconds, locale)}</strong></div>
+      <div class="system-row"><span>{t(locale, 'settings.requests')}</span><strong>{fmtInt($snapshot.total_requests, locale)}</strong></div>
+      <div class="system-row"><span>{t(locale, 'settings.discovery')}</span><strong>{fmtAgo($snapshot.last_discovery, locale)}</strong></div>
       <div class="system-row"><span>RAM</span><strong>{system?.rss_kb ? `${(system.rss_kb / 1024).toFixed(1)} MB` : '—'}</strong></div>
     </aside>
 
     <div class="settings-stack">
       <section class="settings-section panel">
-        <div class="settings-title">Общие</div>
+        <div class="settings-title">{t(locale, 'settings.general')}</div>
         <div class="setting-row">
-          <div><strong>Уровень интерфейса</strong><span>Обычный показывает основные рабочие показатели. Расширенный добавляет диагностические поля.</span></div>
-          <div class="setting-control-slot"><select value={$settings.uiLevel} onchange={(e) => update('uiLevel', e.currentTarget.value)}><option value="normal">Обычный</option><option value="advanced">Расширенный</option></select></div>
+          <div><strong>{t(locale, 'settings.uiLevel')}</strong><span>{t(locale, 'settings.uiLevelHint')}</span></div>
+          <div class="setting-control-slot"><select value={$settings.uiLevel} onchange={(e) => update('uiLevel', e.currentTarget.value)}><option value="normal">{t(locale, 'common.normal')}</option><option value="advanced">{t(locale, 'common.advanced')}</option></select></div>
         </div>
         <div class="setting-row">
-          <div><strong>Масштаб интерфейса</strong><span>Auto автоматически делает UI крупнее на 2K/4K без browser zoom.</span></div>
-          <div class="setting-control-slot"><select value={$settings.uiScale} onchange={(e) => update('uiScale', e.currentTarget.value)}><option value="auto">Auto · рекомендуется</option><option value="100">100%</option><option value="115">115%</option><option value="125">125%</option><option value="140">140%</option></select></div>
+          <div><strong>{t(locale, 'settings.uiScale')}</strong><span>{t(locale, 'settings.uiScaleHint')}</span></div>
+          <div class="setting-control-slot"><select value={$settings.uiScale} onchange={(e) => update('uiScale', e.currentTarget.value)}><option value="auto">{t(locale, 'settings.autoRecommended')}</option><option value="100">100%</option><option value="115">115%</option><option value="125">125%</option><option value="140">140%</option></select></div>
         </div>
         <div class="setting-row">
-          <div><strong>Live update</strong><span>Частота SSE snapshot. При проблемах SSE автоматически включается polling.</span></div>
-          <div class="setting-control-slot"><select value={$settings.refreshMs} onchange={(e) => update('refreshMs', Number(e.currentTarget.value))}><option value="1000">1 сек</option><option value="2000">2 сек</option><option value="5000">5 сек</option><option value="10000">10 сек</option></select></div>
+          <div><strong>{t(locale, 'settings.liveUpdate')}</strong><span>{t(locale, 'settings.liveUpdateHint')}</span></div>
+          <div class="setting-control-slot"><select value={$settings.refreshMs} onchange={(e) => update('refreshMs', Number(e.currentTarget.value))}><option value="1000">{t(locale, 'common.seconds', { count: 1 })}</option><option value="2000">{t(locale, 'common.seconds', { count: 2 })}</option><option value="5000">{t(locale, 'common.seconds', { count: 5 })}</option><option value="10000">{t(locale, 'common.seconds', { count: 10 })}</option></select></div>
         </div>
       </section>
 
       <section class="settings-section panel">
-        <div class="settings-title">Безопасность</div>
+        <div class="settings-title">{t(locale, 'settings.security')}</div>
         <div class="setting-row security-setting-row">
-          <div>
-            <strong>Требовать авторизацию</strong>
-            <span>Вход под <code>root</code> с паролем Entware. Проверяется <code>/opt/etc/shadow</code> с fallback на <code>/opt/etc/passwd</code>; отдельный пароль RouterForge не хранится.</span>
-          </div>
+          <div><strong>{t(locale, 'settings.requireAuth')}</strong><span>{t(locale, 'settings.requireAuthHint')}</span></div>
           <div class="security-control setting-control-slot">
             <span class="state-chip {$authState.required ? 'good' : 'neutral'}">{$authState.required ? 'ON' : 'OFF'}</span>
-            <button class="security-switch" class:on={$authState.required} type="button" aria-label={$authState.required ? 'Отключить обязательную авторизацию' : 'Включить обязательную авторизацию'} aria-pressed={$authState.required} disabled={authBusy} onclick={requestAuthToggle}><span></span></button>
+            <button class="security-switch" class:on={$authState.required} type="button" aria-label={$authState.required ? t(locale, 'settings.disableAuthAria') : t(locale, 'settings.enableAuthAria')} aria-pressed={$authState.required} disabled={authBusy} onclick={requestAuthToggle}><span></span></button>
           </div>
         </div>
-        <div class="setting-row static"><div><strong>Сессия</strong><span>HttpOnly cookie, SameSite=Strict. После перезапуска Core требуется войти снова.</span></div><code>{$authState.session_hours || 12} часов</code></div>
-        <div class="setting-row static"><div><strong>Backend</strong><span>Учётные данные системного root Entware, без копирования хеша в конфиг RouterForge.</span></div><code>entware-root</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.session')}</strong><span>{t(locale, 'settings.sessionHint')}</span></div><code>{t(locale, 'common.hours', { count: $authState.session_hours || 12 })}</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.backend')}</strong><span>{t(locale, 'settings.backendHint')}</span></div><code>entware-root</code></div>
         {#if authError}<div class="settings-security-error">{authError}</div>{/if}
       </section>
 
       <section class="settings-section panel">
-        <div class="settings-title">Внешний вид</div>
-        <div class="appearance-intro">Рабочий акцент интерфейса отделён от фирменной меди RouterForge. По умолчанию медь остаётся только в логотипе и брендовых деталях.</div>
-
-        <div class="appearance-subtitle">Тема</div>
+        <div class="settings-title">{t(locale, 'settings.appearance')}</div>
+        <div class="appearance-intro">{t(locale, 'settings.appearanceIntro')}</div>
+        <div class="appearance-subtitle">{t(locale, 'settings.theme')}</div>
         <div class="theme-grid">
           {#each themeCards as [id, title, description]}
             {@const palette = previewPalette(id)}
@@ -157,36 +149,36 @@
           {/each}
         </div>
 
-        <div class="appearance-subtitle">Акцент интерфейса</div>
+        <div class="appearance-subtitle">{t(locale, 'settings.accent')}</div>
         <div class="accent-picker-row">
-          <div class="accent-presets" aria-label="Предустановленные акценты">
+          <div class="accent-presets" aria-label={t(locale, 'settings.presetAccents')}>
             {#each accentOptions as [color, label]}
               <button type="button" class="accent-swatch" class:active={$settings.accent === color} style={`--swatch:${color}`} title={label} aria-label={label} onclick={() => update('accent', color)}><span></span></button>
             {/each}
           </div>
-          <label class="custom-accent"><span>Свой цвет</span><input type="color" value={$settings.accent} oninput={(e) => update('accent', e.currentTarget.value)}/><code>{$settings.accent}</code></label>
+          <label class="custom-accent"><span>{t(locale, 'settings.customColor')}</span><input type="color" value={$settings.accent} oninput={(e) => update('accent', e.currentTarget.value)}/><code>{$settings.accent}</code></label>
         </div>
 
         <div class="appearance-options-grid">
-          <label><span>Плотность</span><select value={$settings.density} onchange={(e) => update('density', e.currentTarget.value)}><option value="compact">Компактная</option><option value="normal">Обычная</option><option value="comfortable">Свободная</option></select></label>
-          <label><span>Скругления</span><select value={$settings.radius} onchange={(e) => update('radius', e.currentTarget.value)}><option value="sharp">Строгие</option><option value="default">Стандартные</option><option value="soft">Мягкие</option></select></label>
-          <label><span>Фирменная медь</span><select value={$settings.brandMode} onchange={(e) => update('brandMode', e.currentTarget.value)}><option value="brand-only">Только бренд</option><option value="extended">Расширенно</option></select></label>
+          <label><span>{t(locale, 'settings.density')}</span><select value={$settings.density} onchange={(e) => update('density', e.currentTarget.value)}><option value="compact">{t(locale, 'settings.densityCompact')}</option><option value="normal">{t(locale, 'settings.densityNormal')}</option><option value="comfortable">{t(locale, 'settings.densityComfortable')}</option></select></label>
+          <label><span>{t(locale, 'settings.radius')}</span><select value={$settings.radius} onchange={(e) => update('radius', e.currentTarget.value)}><option value="sharp">{t(locale, 'settings.radiusSharp')}</option><option value="default">{t(locale, 'settings.radiusDefault')}</option><option value="soft">{t(locale, 'settings.radiusSoft')}</option></select></label>
+          <label><span>{t(locale, 'settings.brandCopper')}</span><select value={$settings.brandMode} onchange={(e) => update('brandMode', e.currentTarget.value)}><option value="brand-only">{t(locale, 'settings.brandOnly')}</option><option value="extended">{t(locale, 'settings.brandExtended')}</option></select></label>
         </div>
 
         {#if $settings.theme === 'custom'}
           <div class="color-grid custom-theme-colors">
-            <label><span>Фон</span><input type="color" value={$settings.background} oninput={(e) => update('background', e.currentTarget.value)}/><code>{$settings.background}</code></label>
-            <label><span>Текст</span><input type="color" value={$settings.text} oninput={(e) => update('text', e.currentTarget.value)}/><code>{$settings.text}</code></label>
+            <label><span>{t(locale, 'settings.background')}</span><input type="color" value={$settings.background} oninput={(e) => update('background', e.currentTarget.value)}/><code>{$settings.background}</code></label>
+            <label><span>{t(locale, 'settings.text')}</span><input type="color" value={$settings.text} oninput={(e) => update('text', e.currentTarget.value)}/><code>{$settings.text}</code></label>
           </div>
         {/if}
       </section>
 
       <section class="settings-section panel">
-        <div class="settings-title">Мониторинг</div>
-        <div class="setting-row static"><div><strong>Discovery</strong><span>Основной DNS, System DoT/DoH и служебные policy-context Keenetic.</span></div><code>60 сек</code></div>
-        <div class="setting-row static"><div><strong>Health-check</strong><span>Основные resolver'ы и policy-context только при наличии маршрута наружу.</span></div><code>30 сек</code></div>
-        <div class="setting-row static"><div><strong>История</strong><span>Minute buckets хранятся только в RAM.</span></div><code>24 часа</code></div>
-        <div class="setting-row static"><div><strong>Веб-порт</strong><span>Панель RouterForge.</span></div><code>2233</code></div>
+        <div class="settings-title">{t(locale, 'settings.monitoring')}</div>
+        <div class="setting-row static"><div><strong>Discovery</strong><span>{t(locale, 'settings.discoveryHint')}</span></div><code>{t(locale, 'common.seconds', { count: 60 })}</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.healthCheck')}</strong><span>{t(locale, 'settings.healthCheckHint')}</span></div><code>{t(locale, 'common.seconds', { count: 30 })}</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.history')}</strong><span>{t(locale, 'settings.historyHint')}</span></div><code>{t(locale, 'common.hours', { count: 24 })}</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.webPort')}</strong><span>{t(locale, 'settings.webPortHint')}</span></div><code>2233</code></div>
       </section>
     </div>
   </div>

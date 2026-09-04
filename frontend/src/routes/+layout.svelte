@@ -20,11 +20,14 @@
   import { settings } from '$lib/stores/settings.js';
   import { catalog, catalogOnline } from '$lib/stores/catalog.js';
   import { authState, refreshAuth } from '$lib/stores/auth.js';
+  import { t } from '$lib/i18n/index.js';
 
   let stopStream = null;
   let lastInterval = 0;
   let panelAccess = false;
   let redirecting = false;
+
+  $: locale = $settings.locale || 'ru';
 
   function reconcileStream() {
     if (!panelAccess) {
@@ -84,10 +87,10 @@
     <AppShell>
       {#if $snapshot.discovery_error || $snapshot.capture_error || $snapshot.client_registry_error || $snapshot.client_capture_error}
         <div class="global-alerts shell-alerts">
-          {#if $snapshot.discovery_error}<div class="global-alert">DNS discovery: {$snapshot.discovery_error}</div>{/if}
-          {#if $snapshot.capture_error}<div class="global-alert">DNS capture: {$snapshot.capture_error}</div>{/if}
-          {#if $snapshot.client_registry_error}<div class="global-alert">DNS clients: {$snapshot.client_registry_error}</div>{/if}
-          {#if $snapshot.client_capture_error}<div class="global-alert">DNS client capture: {$snapshot.client_capture_error}</div>{/if}
+          {#if $snapshot.discovery_error}<div class="global-alert">{t(locale, 'errors.dnsDiscovery')}: {$snapshot.discovery_error}</div>{/if}
+          {#if $snapshot.capture_error}<div class="global-alert">{t(locale, 'errors.dnsCapture')}: {$snapshot.capture_error}</div>{/if}
+          {#if $snapshot.client_registry_error}<div class="global-alert">{t(locale, 'errors.dnsClients')}: {$snapshot.client_registry_error}</div>{/if}
+          {#if $snapshot.client_capture_error}<div class="global-alert">{t(locale, 'errors.dnsClientCapture')}: {$snapshot.client_capture_error}</div>{/if}
         </div>
       {/if}
       <slot />

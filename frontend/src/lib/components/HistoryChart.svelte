@@ -1,4 +1,7 @@
 <script>
+  import { settings } from '$lib/stores/settings.js';
+  import { t } from '$lib/i18n/index.js';
+
   export let history = {};
 
   const W = 1000;
@@ -6,6 +9,8 @@
   const pad = { l:42, r:14, t:14, b:46 };
   const plotBottom = H - pad.b - 18;
   const fractions = [0,.25,.5,.75,1];
+
+  $: locale = $settings.locale || 'ru';
 
   function niceMax(value) {
     if (value <= 5) return Math.max(1, Math.ceil(value));
@@ -46,9 +51,9 @@
 </script>
 
 {#if !points.length}
-  <div class="empty chart-empty">История пока пуста</div>
+  <div class="empty chart-empty">{t(locale, 'history.empty')}</div>
 {:else if !sufficient}
-  <div class="empty chart-empty"><strong>Недостаточно данных за выбранный период</strong><span>Накоплено {coverage}% истории. График появится после 50% покрытия периода.</span></div>
+  <div class="empty chart-empty"><strong>{t(locale, 'history.insufficient')}</strong><span>{t(locale, 'history.coverage', { coverage })}</span></div>
 {:else}
   <svg class="history-chart" viewBox="0 0 {W} {H}" preserveAspectRatio="none">
     <defs><linearGradient id="reqFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity=".24"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
@@ -58,7 +63,7 @@
       <text x="2" y={yy+3} class="chart-label">{Math.round(maxReq*(1-fraction))}</text>
     {/each}
     {#each labelIndexes as i}
-      <text x={x(i)} y={H-5} text-anchor={i===0?'start':i===points.length-1?'end':'middle'} class="chart-label">{new Date(points[i].time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</text>
+      <text x={x(i)} y={H-5} text-anchor={i===0?'start':i===points.length-1?'end':'middle'} class="chart-label">{new Date(points[i].time).toLocaleTimeString(locale === 'en' ? 'en-GB' : 'ru-RU',{hour:'2-digit',minute:'2-digit'})}</text>
     {/each}
     {#if area}<path d={area} fill="url(#reqFill)"/>{/if}
     <path d={line} fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/>

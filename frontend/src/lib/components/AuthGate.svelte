@@ -1,10 +1,14 @@
 <script>
   import { authState, loginAuth, refreshAuth } from '$lib/stores/auth.js';
+  import { settings } from '$lib/stores/settings.js';
+  import { t } from '$lib/i18n/index.js';
 
   let username = 'root';
   let password = '';
   let busy = false;
   let error = '';
+
+  $: locale = $settings.locale || 'ru';
 
   async function submit(event) {
     event.preventDefault();
@@ -15,7 +19,7 @@
       await loginAuth(username.trim(), password);
       password = '';
     } catch (e) {
-      error = e?.payload?.error || e?.message || 'Ошибка входа';
+      error = e?.payload?.error || e?.message || t(locale, 'auth.loginError');
     } finally {
       busy = false;
     }
@@ -35,22 +39,22 @@
     </div>
 
     {#if !$authState.ready}
-      <div class="auth-loading mono">SECURITY STATUS…</div>
+      <div class="auth-loading mono">{t(locale, 'auth.securityStatus')}</div>
     {:else if $authState.error}
-      <h1>Core недоступен</h1>
-      <p>Не удалось проверить режим авторизации.</p>
+      <h1>{t(locale, 'auth.coreUnavailable')}</h1>
+      <p>{t(locale, 'auth.cannotCheck')}</p>
       <div class="auth-error">{$authState.error}</div>
-      <button class="button primary" type="button" onclick={retry}>Повторить</button>
+      <button class="button primary" type="button" onclick={retry}>{t(locale, 'common.retry')}</button>
     {:else}
       <div class="auth-kicker mono">ENTWARE ROOT AUTH</div>
-      <h1>Вход в RouterForge</h1>
-      <p>Используется root-пароль Entware.</p>
+      <h1>{t(locale, 'auth.signIn')}</h1>
+      <p>{t(locale, 'auth.usesRoot')}</p>
 
       <form class="auth-form" onsubmit={submit}>
-        <label><span>Пользователь</span><input bind:value={username} autocomplete="username" spellcheck="false"/></label>
-        <label><span>Пароль</span><input bind:value={password} type="password" autocomplete="current-password" autofocus/></label>
+        <label><span>{t(locale, 'auth.user')}</span><input bind:value={username} autocomplete="username" spellcheck="false"/></label>
+        <label><span>{t(locale, 'auth.password')}</span><input bind:value={password} type="password" autocomplete="current-password" autofocus/></label>
         {#if error}<div class="auth-error">{error}</div>{/if}
-        <button class="button primary auth-submit" type="submit" disabled={busy || !username.trim()}>{busy ? 'Проверка…' : 'Войти'}</button>
+        <button class="button primary auth-submit" type="submit" disabled={busy || !username.trim()}>{busy ? t(locale, 'auth.checking') : t(locale, 'auth.login')}</button>
       </form>
       <div class="auth-foot mono">SESSION {$authState.session_hours || 12}H · HTTPONLY · SAMESITE STRICT</div>
     {/if}

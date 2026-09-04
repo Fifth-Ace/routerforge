@@ -16,15 +16,18 @@ import (
 )
 
 type thermalSensor struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Category  string    `json:"category"`
-	Source    string    `json:"source"`
-	TempC     float64   `json:"temp_c"`
-	Status    string    `json:"status"`
-	WarnC     float64   `json:"warn_c"`
-	CriticalC float64   `json:"critical_c"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Category    string    `json:"category"`
+	Role        string    `json:"role"`
+	SensorIndex int       `json:"sensor_index"`
+	Detail      string    `json:"detail,omitempty"`
+	Source      string    `json:"source"`
+	TempC       float64   `json:"temp_c"`
+	Status      string    `json:"status"`
+	WarnC       float64   `json:"warn_c"`
+	CriticalC   float64   `json:"critical_c"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type thermalCollector struct {
@@ -84,6 +87,7 @@ func (s *moduleServer) registerThermal(mux *http.ServeMux) {
 func collectThermalSensors(now time.Time) []thermalSensor {
 	var sensors []thermalSensor
 	seen := map[string]bool{}
+	zoneNames := map[string]bool{}
 
 	add := func(sensor thermalSensor) {
 		key := thermalDedupKey(sensor)
@@ -102,6 +106,7 @@ func collectThermalSensors(now time.Time) []thermalSensor {
 			continue
 		}
 		name := firstNonEmpty(readTrimmed(filepath.Join(zone, "type")), filepath.Base(zone))
+		zoneNames[thermalNameKey(name)] = true
 		category := thermalCategory(name, tempPath)
 		add(makeThermalSensor(filepath.Base(zone), name, category, tempPath, temp, now))
 	}
@@ -117,6 +122,9 @@ func collectThermalSensors(now time.Time) []thermalSensor {
 			}
 			base := strings.TrimSuffix(filepath.Base(input), "_input")
 			label := readTrimmed(filepath.Join(hwmon, base+"_label"))
+			if isMirroredHwmonSensor(hwName, label, zoneNames) {
+				continue
+			}
 			name := hwName
 			if label != "" {
 				name += " · " + label
@@ -139,12 +147,29 @@ func collectThermalSensors(now time.Time) []thermalSensor {
 		if sensors[i].Category != sensors[j].Category {
 			return thermalCategoryOrder(sensors[i].Category) < thermalCategoryOrder(sensors[j].Category)
 		}
+		if sensors[i].Role != sensors[j].Role {
+			return sensors[i].Role < sensors[j].Role
+		}
+		if sensors[i].SensorIndex != sensors[j].SensorIndex {
+			return sensors[i].SensorIndex < sensors[j].SensorIndex
+		}
 		if sensors[i].TempC != sensors[j].TempC {
 			return sensors[i].TempC > sensors[j].TempC
 		}
 		return sensors[i].Name < sensors[j].Name
 	})
 	return sensors
+}
+
+func thermalNameKey(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+func isMirroredHwmonSensor(hwName, label string, zoneNames map[string]bool) bool {
+	if strings.TrimSpace(label) != "" {
+		return false
+	}
+	return zoneNames[thermalNameKey(hwName)]
 }
 
 func thermalDedupKey(sensor thermalSensor) string {
@@ -166,10 +191,53 @@ func makeThermalSensor(id, name, category, source string, temp float64, now time
 	} else if temp >= warn {
 		status = "warn"
 	}
+	role, index, detail := thermalRole(name, category)
 	return thermalSensor{
-		ID: id, Name: name, Category: category, Source: source, TempC: temp,
+		ID: id, Name: name, Category: category, Role: role, SensorIndex: index, Detail: detail, Source: source, TempC: temp,
 		Status: status, WarnC: warn, CriticalC: critical, UpdatedAt: now,
 	}
+}
+
+func thermalRole(name, category string) (string, int, string) {
+	lower := thermalNameKey(name)
+	switch {
+	case lower == "soc_thermal" || strings.Contains(lower, "cpu-thermal"):
+		return "soc", 0, ""
+	case strings.HasPrefix(lower, "mcusys_thermal"):
+		index := trailingIndex(lower, "mcusys_thermal")
+		detail := ""
+		if index == 0 {
+			detail = "0-1"
+		} else if index == 1 {
+			detail = "2-3"
+		}
+		return "cpu", index, detail
+	case strings.HasPrefix(lower, "eth2p5g_thermal"):
+		return "ethernet_2_5g", trailingIndex(lower, "eth2p5g_thermal"), ""
+	case strings.HasPrefix(lower, "ethsys_thermal"):
+		return "ethernet", trailingIndex(lower, "ethsys_thermal"), ""
+	case strings.HasPrefix(lower, "tops_thermal"):
+		return "tops", trailingIndex(lower, "tops_thermal"), ""
+	case category == "wifi":
+		return "wifi", 0, ""
+	case category == "storage":
+		return "storage", 0, ""
+	case category == "board":
+		return "board", 0, ""
+	case category == "ethernet":
+		return "ethernet", 0, ""
+	default:
+		return "other", 0, ""
+	}
+}
+
+func trailingIndex(value, prefix string) int {
+	raw := strings.TrimPrefix(value, prefix)
+	index, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0
+	}
+	return index
 }
 
 func thermalCategory(name, source string) string {
@@ -180,14 +248,18 @@ func thermalCategory(name, source string) string {
 		strings.Contains(text, "ata"):
 		return "storage"
 	case strings.Contains(text, "wifi"), strings.Contains(text, "wlan"),
-		strings.Contains(text, "phy"), strings.Contains(text, "radio"),
-		strings.Contains(text, "mt76"), strings.Contains(text, "ath"):
+		strings.Contains(text, "phy") && !strings.Contains(text, "eth2p5g"),
+		strings.Contains(text, "radio"), strings.Contains(text, "mt76"),
+		strings.Contains(text, "ath"):
 		return "wifi"
+	case strings.Contains(text, "eth2p5g"), strings.Contains(text, "ethsys"):
+		return "ethernet"
 	case strings.Contains(text, "pmic"), strings.Contains(text, "board"),
 		strings.Contains(text, "pcb"), strings.Contains(text, "ambient"),
 		strings.Contains(text, "switch"):
 		return "board"
 	case strings.Contains(text, "cpu"), strings.Contains(text, "soc"),
+		strings.Contains(text, "mcusys"), strings.Contains(text, "tops"),
 		strings.Contains(text, "thermal_zone"), strings.Contains(text, "cpu-thermal"):
 		return "soc"
 	default:
@@ -203,6 +275,8 @@ func thermalThresholds(category string) (float64, float64) {
 		return 75, 90
 	case "soc":
 		return 75, 90
+	case "ethernet":
+		return 75, 90
 	case "board":
 		return 70, 85
 	default:
@@ -214,14 +288,16 @@ func thermalCategoryOrder(category string) int {
 	switch category {
 	case "soc":
 		return 1
-	case "wifi":
+	case "ethernet":
 		return 2
-	case "board":
+	case "wifi":
 		return 3
-	case "storage":
+	case "board":
 		return 4
-	default:
+	case "storage":
 		return 5
+	default:
+		return 6
 	}
 }
 

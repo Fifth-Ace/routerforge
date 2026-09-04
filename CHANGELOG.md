@@ -5,6 +5,16 @@ RouterForge components are versioned independently. Entries below describe platf
 ## [Unreleased]
 
 - Canonical GitHub repository renamed to `Fifth-Ace/routerforge`; legacy links remain supported through redirects and the Core compatibility bridge.
+- Monitoring cleanup for the next Beta:
+  - Thermal collapses mirrored `thermal_zone` / `hwmon` sensors and adds human-readable MT7988 roles.
+  - Storage hides internal flash block devices and duplicate mount aliases from the normal view while keeping raw data in Advanced mode.
+  - Network uses active KeeneticOS logical interfaces, maps them to Linux `system-name` for counters, and keeps all kernel interfaces in Advanced mode.
+  - Network interface and IPv4 route tables support click-to-sort columns with persistent direction during live refreshes.
+- RU/EN localization is complete across the RouterForge frontend:
+  - Home, Control, Marketplace, Settings, authentication, dialogs, redirects and every DNS subpage use the shared i18n dictionaries.
+  - Browser titles, confirmations, empty states, alerts, tooltips/ARIA labels and frontend-rendered status text switch live with the selected language.
+  - Locale-aware time, duration, relative-time and frontend status formatting now follows the current UI language.
+  - Russian remains the default and fallback locale; technical IDs and user/Keenetic-provided data remain unchanged.
 
 ## 2026-09-03 — RouterForge 0.3 generation
 

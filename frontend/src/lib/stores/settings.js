@@ -5,6 +5,7 @@ export const defaults = {
   uiLevel: 'normal',
   uiScale: 'auto',
   refreshMs: 2000,
+  locale: 'ru',
   theme: 'forge',
   accent: '#38bdf8',
   background: '#0b0d10',
@@ -33,6 +34,7 @@ export const themes = {
 const validDensity = new Set(['compact', 'normal', 'comfortable']);
 const validRadius = new Set(['sharp', 'default', 'soft']);
 const validBrandMode = new Set(['brand-only', 'extended']);
+const validLocale = new Set(['ru', 'en']);
 const legacyThemes = {
   console: 'forge',
   legacy: 'midnight',
@@ -49,6 +51,7 @@ function normalize(value = {}) {
   const next = { ...value };
   if (next.uiLevel === 'expert') next.uiLevel = 'advanced';
   if (next.uiLevel !== 'advanced') next.uiLevel = 'normal';
+  if (!validLocale.has(next.locale)) next.locale = defaults.locale;
   if (legacyThemes[next.theme]) next.theme = legacyThemes[next.theme];
   if (!themes[next.theme] && next.theme !== 'custom') next.theme = defaults.theme;
   if (!validDensity.has(next.density)) next.density = defaults.density;
@@ -113,6 +116,8 @@ export function applySettings(value) {
   if (!browser) return;
   const normalized = normalize(value);
   const root = document.documentElement;
+  root.lang = normalized.locale;
+  root.dataset.locale = normalized.locale;
   root.dataset.uiLevel = normalized.uiLevel;
   root.dataset.uiScale = normalized.uiScale || 'auto';
   root.dataset.theme = normalized.theme;

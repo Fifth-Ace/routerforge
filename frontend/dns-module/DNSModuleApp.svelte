@@ -333,7 +333,7 @@
       <div class="metric-card"><span>{L.activeResolvers}</span><strong>{resolverState.active_count || 0}</strong><small>{L.native}</small></div>
       <div class="metric-card"><span>{L.disabledResolvers}</span><strong>{resolverState.disabled_count || 0}</strong><small>RouterForge metadata</small></div>
       <div class="metric-card"><span>{L.requests}</span><strong>{totalRequests}</strong><small>{L.sent}: {totalSent}</small></div>
-      <div class="metric-card"><span>{L.cache}</span><strong>{cacheHits}</strong><small>{L.physical}: {resolverState.physical_entries || 0} · {L.dotSlots}: {dotSlotsUsed}/{dotSlotLimit || '—'}</small></div>
+      <div class="metric-card"><span>{L.cache}</span><strong>{cacheHits}</strong><small>{L.physical}: {resolverState.physical_entries || 0} · {L.secureSlots}: {secureSlotsUsed}/{secureSlotLimit || '—'}</small></div>
     </section>
 
     <section class="panel">

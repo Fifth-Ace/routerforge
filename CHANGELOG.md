@@ -4,6 +4,9 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.8-beta` fixes the DNS overview runtime regression introduced by the secure DoT/DoH capacity rename:
+  - the overview cache metric still referenced the removed `dotSlotLimit` variable, which caused the Svelte render to throw after `loadAll()` completed and left the page frozen on the loading ellipsis;
+  - the overview now uses the combined `secureSlotsUsed/secureSlotLimit` values, matching the resolver editor and documented shared DoT/DoH capacity.
 - DNS `0.4.7-beta` completes documented DoH/plain-DNS parity in DNS Control:
   - Keenetic's documented secure-resolver capacity is treated as one combined pool of 8 physical DoT/DoH entries, so DoH and DoT cannot overcommit each other;
   - DoH domain bindings use the same logical-to-native expansion model as DoT; the editor projects the combined secure slot usage before save;

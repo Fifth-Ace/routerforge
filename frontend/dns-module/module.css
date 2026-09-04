@@ -1,73 +1,558 @@
 :root {
   color-scheme: dark;
-  background: transparent;
+  --rf-accent:#38bdf8;
+  --rf-bg:#0c0d10;
+  --rf-surface:#14161a;
+  --rf-surface-2:#191b21;
+  --rf-hover:#1f2229;
+  --rf-text:#f5f7fa;
+  --rf-muted:#8b949e;
+  --rf-border:#242831;
+  --rf-good:#2ea043;
+  --rf-warn:#d29922;
+  --rf-bad:#f85149;
+  --rf-radius:8px;
+  --rf-font-sans:'Inter','Segoe UI Variable Text','Segoe UI',sans-serif;
+  --rf-font-mono:'Roboto Mono','Cascadia Mono',Consolas,monospace;
+  background:var(--rf-bg);
 }
-html, body, #app { margin: 0; min-height: 100%; background: transparent; }
-body { overflow-x: hidden; }
-.dns-module { padding: .15rem .1rem 2rem; }
-.dns-module .module-tabs { display:flex; gap:.4rem; flex-wrap:wrap; margin:0 0 1rem; }
-.dns-module .module-tabs button { border:1px solid var(--rf-border, #303841); background:var(--rf-panel, #191f26); color:var(--rf-muted, #9aa7b3); padding:.55rem .85rem; border-radius:.55rem; cursor:pointer; font:inherit; }
-.dns-module .module-tabs button.active { color:var(--rf-text, #eef3f7); border-color:var(--rf-accent, #6cb6ff); background:rgba(108,182,255,.08); }
-.dns-module .resolver-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:.8rem; }
-.dns-module .resolver-card { border:1px solid var(--rf-border, #303841); border-radius:.7rem; background:var(--rf-panel, #191f26); padding:1rem; }
-.dns-module .resolver-head { display:flex; align-items:flex-start; justify-content:space-between; gap:.8rem; }
-.dns-module .resolver-head h3 { margin:0; font-size:1rem; }
-.dns-module .resolver-meta { color:var(--rf-muted, #9aa7b3); font-size:.86rem; margin-top:.25rem; overflow-wrap:anywhere; }
-.dns-module .scope-list { display:flex; gap:.35rem; flex-wrap:wrap; margin:.75rem 0; }
-.dns-module .scope-chip { border:1px solid var(--rf-border, #303841); border-radius:999px; padding:.2rem .5rem; font-size:.78rem; color:var(--rf-text, #eef3f7); }
-.dns-module .resolver-actions { display:flex; gap:.45rem; flex-wrap:wrap; margin-top:.9rem; }
-.dns-module button.action { border:1px solid var(--rf-border, #303841); background:transparent; color:var(--rf-text, #eef3f7); padding:.45rem .7rem; border-radius:.45rem; cursor:pointer; }
-.dns-module button.action.primary { border-color:var(--rf-accent, #6cb6ff); }
-.dns-module button.action.danger { border-color:#8b3f45; color:#ffb4b9; }
-.dns-module button.action:disabled { opacity:.45; cursor:not-allowed; }
-.dns-module .toolbar { display:flex; align-items:center; justify-content:space-between; gap:.7rem; flex-wrap:wrap; margin-bottom:.8rem; }
-.dns-module .toolbar-actions { display:flex; gap:.45rem; flex-wrap:wrap; }
-.dns-module .state-pill { border-radius:999px; padding:.22rem .52rem; font-size:.72rem; font-weight:700; letter-spacing:.04em; }
-.dns-module .state-pill.good { background:rgba(65,191,115,.12); color:#91e6b1; }
-.dns-module .state-pill.warn { background:rgba(237,182,71,.12); color:#f1cf86; }
-.dns-module .state-pill.neutral { background:rgba(154,167,179,.12); color:#c0cad2; }
-.dns-module .table-wrap { overflow:auto; }
-.dns-module table { width:100%; border-collapse:collapse; font-size:.84rem; }
-.dns-module th, .dns-module td { text-align:left; border-bottom:1px solid var(--rf-border, #303841); padding:.55rem .5rem; vertical-align:top; }
-.dns-module th { color:var(--rf-muted, #9aa7b3); font-weight:600; }
-.dns-module .mono { font-family:'Roboto Mono', monospace; }
-.dns-module .empty-box { border:1px dashed var(--rf-border, #303841); border-radius:.7rem; padding:1.2rem; color:var(--rf-muted, #9aa7b3); text-align:center; }
-.dns-module .error-box { border:1px solid #7f353a; background:rgba(180,55,65,.08); border-radius:.6rem; padding:.75rem; color:#ffc2c6; margin-bottom:.8rem; }
-.dns-module .success-box { border:1px solid #356f4a; background:rgba(65,191,115,.08); border-radius:.6rem; padding:.75rem; color:#a8ebbe; margin-bottom:.8rem; }
-.dns-module .modal-backdrop { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.62); display:flex; align-items:center; justify-content:center; padding:1rem; }
-.dns-module .modal { width:min(680px,100%); max-height:92vh; overflow:auto; background:#171c22; border:1px solid #39434d; border-radius:.8rem; padding:1rem; box-shadow:0 20px 80px rgba(0,0,0,.45); }
-.dns-module .modal h2 { margin:.1rem 0 1rem; }
-.dns-module .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
-.dns-module label { display:flex; flex-direction:column; gap:.3rem; color:var(--rf-muted, #9aa7b3); font-size:.82rem; }
-.dns-module input, .dns-module select, .dns-module textarea { width:100%; box-sizing:border-box; border:1px solid #36404a; background:#11161b; color:#edf2f6; border-radius:.45rem; padding:.55rem .6rem; font:inherit; }
+
+* { box-sizing:border-box; }
+html, body, #app { margin:0; min-height:100%; background:var(--rf-bg); color:var(--rf-text); }
+body {
+  overflow-x:hidden;
+  font:13px/1.4 var(--rf-font-sans);
+  color:var(--rf-text);
+}
+button, input, select, textarea { font:inherit; }
+button { font-family:var(--rf-font-sans); }
+.mono, code { font-family:var(--rf-font-mono); }
+
+/* Match the Core page canvas: same maximum width, centering and vertical rhythm. */
+.dns-module.page {
+  width:min(1440px,calc(100% - 40px));
+  margin:0 auto;
+  padding:20px 0 28px;
+}
+
+.dns-module .page-head {
+  min-height:48px;
+  margin-bottom:16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:20px;
+}
+.dns-module .page-head > div:first-child { min-width:0; }
+.dns-module .page-head h1 {
+  margin:0;
+  color:#fff;
+  font-size:20px;
+  line-height:1.2;
+  font-weight:650;
+}
+.dns-module .page-head p {
+  margin:5px 0 0;
+  color:var(--rf-muted);
+  font-size:12px;
+  line-height:1.45;
+}
+.dns-module .toolbar-actions {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+/* Core-style buttons. */
+.dns-module button.action {
+  min-height:30px;
+  padding:0 11px;
+  border:1px solid #303641;
+  border-radius:5px;
+  background:#1b1e24;
+  color:#d7dde4;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  cursor:pointer;
+  font-size:11px;
+  font-weight:500;
+  transition:.12s ease;
+}
+.dns-module button.action:hover:not(:disabled) {
+  background:#232730;
+  border-color:#424a56;
+}
+.dns-module button.action.primary {
+  color:var(--rf-accent);
+  border-color:rgba(56,189,248,.32);
+  background:rgba(56,189,248,.08);
+}
+.dns-module button.action.primary:hover:not(:disabled) {
+  color:#081017;
+  background:var(--rf-accent);
+}
+.dns-module button.action.danger {
+  color:#ff8d87;
+  border-color:rgba(248,81,73,.30);
+  background:rgba(248,81,73,.04);
+}
+.dns-module button.action.danger:hover:not(:disabled) {
+  color:#fff;
+  border-color:rgba(248,81,73,.52);
+  background:rgba(248,81,73,.14);
+}
+.dns-module button.action:disabled {
+  color:#606873;
+  border-color:#272b33;
+  background:#16181d;
+  opacity:1;
+  cursor:not-allowed;
+}
+
+/* DNS views behave like Core subtabs instead of a second set of large pills. */
+.dns-module .module-tabs {
+  margin-bottom:14px;
+  display:flex;
+  gap:4px;
+  overflow-x:auto;
+  border-bottom:1px solid var(--rf-border);
+}
+.dns-module .module-tabs button {
+  min-height:34px;
+  padding:0 12px;
+  border:0;
+  border-bottom:2px solid transparent;
+  background:transparent;
+  color:var(--rf-muted);
+  cursor:pointer;
+  white-space:nowrap;
+  font-size:11px;
+  font-weight:500;
+}
+.dns-module .module-tabs button:hover { color:var(--rf-text); }
+.dns-module .module-tabs button.active {
+  color:var(--rf-accent);
+  border-bottom-color:var(--rf-accent);
+  background:transparent;
+}
+
+/* Alerts use the same compact visual weight as Core notices. */
+.dns-module .error-box,
+.dns-module .success-box {
+  margin-bottom:14px;
+  padding:9px 12px;
+  border-radius:6px;
+  font-size:11px;
+  line-height:1.4;
+}
+.dns-module .error-box {
+  border:1px solid rgba(248,81,73,.25);
+  background:rgba(248,81,73,.07);
+  color:#ff9a95;
+}
+.dns-module .success-box {
+  border:1px solid rgba(46,160,67,.25);
+  background:rgba(46,160,67,.07);
+  color:#75d087;
+}
+.dns-module .error-box strong { color:#ffb0ab; }
+
+/* Metrics duplicate the Core monitoring cards exactly in density. */
+.dns-module .metric-grid {
+  margin-bottom:16px;
+  display:grid;
+  gap:12px;
+}
+.dns-module .metric-grid.four { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.dns-module .metric-card {
+  min-height:104px;
+  padding:15px 16px;
+  border:1px solid var(--rf-border);
+  border-radius:var(--rf-radius);
+  background:var(--rf-surface);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.dns-module .metric-card > span {
+  color:var(--rf-muted);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.dns-module .metric-card > strong {
+  margin-top:6px;
+  color:#fff;
+  font:600 24px/1 var(--rf-font-mono);
+}
+.dns-module .metric-card > small {
+  margin-top:8px;
+  color:var(--rf-muted);
+  font-size:10px;
+}
+
+/* Panels and headers follow the Core panel geometry. */
+.dns-module .panel {
+  min-width:0;
+  margin-bottom:14px;
+  border:1px solid var(--rf-border);
+  border-radius:var(--rf-radius);
+  background:var(--rf-surface);
+  overflow:hidden;
+}
+.dns-module .panel-head {
+  min-height:46px;
+  padding:0 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px solid var(--rf-border);
+  background:rgba(12,13,16,.26);
+}
+.dns-module .panel-head > div { min-width:0; }
+.dns-module .panel-head strong {
+  display:block;
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+}
+.dns-module .panel-head span {
+  display:block;
+  margin-top:2px;
+  color:var(--rf-muted);
+  font-size:9px;
+}
+.dns-module .panel > .resolver-meta { margin:0; padding:11px 14px; }
+
+/* Resolver page: one native panel with the same header/card spacing as monitoring. */
+.dns-module .resolver-panel { overflow:hidden; }
+.dns-module .resolver-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:12px;
+}
+.dns-module .panel > .resolver-grid,
+.dns-module .resolver-grid-body { padding:12px; }
+
+.dns-module .resolver-card {
+  min-width:0;
+  min-height:168px;
+  padding:14px;
+  border:1px solid var(--rf-border);
+  border-radius:7px;
+  background:var(--rf-surface-2);
+  display:flex;
+  flex-direction:column;
+  transition:border-color .12s ease, background .12s ease;
+}
+.dns-module .resolver-card:hover {
+  border-color:#303641;
+  background:#1b1e24;
+}
+.dns-module .resolver-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.dns-module .resolver-head > div { min-width:0; }
+.dns-module .resolver-head h3 {
+  margin:0;
+  color:#fff;
+  font-size:12px;
+  line-height:1.25;
+  font-weight:600;
+}
+.dns-module .resolver-meta {
+  margin-top:3px;
+  color:var(--rf-muted);
+  font-size:9px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.dns-module .state-pill {
+  min-height:20px;
+  padding:0 7px;
+  border:1px solid #303641;
+  border-radius:999px;
+  background:#191b21;
+  color:#9ba3ad;
+  display:inline-flex;
+  align-items:center;
+  flex:0 0 auto;
+  white-space:nowrap;
+  font:600 9px/1 var(--rf-font-mono);
+}
+.dns-module .state-pill.good {
+  color:var(--rf-good);
+  border-color:rgba(46,160,67,.28);
+  background:rgba(46,160,67,.08);
+}
+.dns-module .state-pill.warn {
+  color:var(--rf-warn);
+  border-color:rgba(210,153,34,.28);
+  background:rgba(210,153,34,.08);
+}
+.dns-module .state-pill.neutral {
+  color:#9ba3ad;
+  border-color:#303641;
+  background:#191b21;
+}
+.dns-module .state-pill.info {
+  color:var(--rf-accent);
+  border-color:rgba(56,189,248,.28);
+  background:rgba(56,189,248,.08);
+}
+
+.dns-module .scope-list {
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+  margin:10px 0;
+}
+.dns-module .scope-chip {
+  min-height:20px;
+  padding:0 7px;
+  border:1px solid #303641;
+  border-radius:999px;
+  background:#15171c;
+  color:#b8c0c9;
+  display:inline-flex;
+  align-items:center;
+  font:500 9px/1 var(--rf-font-mono);
+}
+.dns-module .resolver-actions {
+  margin-top:auto;
+  padding-top:12px;
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+/* Compact field/value blocks inside resolver and diagnostic cards. */
+.dns-module .detail-grid {
+  margin:10px 0;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:8px;
+}
+.dns-module .detail-item {
+  min-width:0;
+  padding:8px 9px;
+  border:1px solid rgba(36,40,49,.76);
+  border-radius:5px;
+  background:#101216;
+}
+.dns-module .detail-item span {
+  display:block;
+  color:var(--rf-muted);
+  font-size:9px;
+}
+.dns-module .detail-item strong {
+  display:block;
+  margin-top:3px;
+  color:#d5dbe2;
+  font-size:10px;
+  font-weight:550;
+  overflow-wrap:anywhere;
+}
+
+/* Secondary toolbars inside a view use Core's toolbar geometry. */
+.dns-module .toolbar {
+  min-height:46px;
+  margin-bottom:14px;
+  padding:7px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+  border:1px solid var(--rf-border);
+  border-radius:var(--rf-radius);
+  background:var(--rf-surface);
+}
+.dns-module .toolbar > div:first-child > strong {
+  display:block;
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+}
+
+/* Tables mirror Core table density and typography. */
+.dns-module .table-wrap { width:100%; overflow:auto; }
+.dns-module table {
+  width:100%;
+  min-width:680px;
+  border-collapse:collapse;
+}
+.dns-module th {
+  height:34px;
+  padding:0 12px;
+  border-bottom:1px solid var(--rf-border);
+  background:#101216;
+  color:#727b86;
+  text-align:left;
+  font-size:9px;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+.dns-module td {
+  min-height:42px;
+  padding:9px 12px;
+  border-bottom:1px solid rgba(36,40,49,.76);
+  color:#d5dbe2;
+  font-size:11px;
+  vertical-align:middle;
+}
+.dns-module tbody tr:last-child td { border-bottom:0; }
+.dns-module tbody tr:hover td { background:rgba(255,255,255,.018); }
+
+.dns-module .empty-box {
+  min-height:95px;
+  padding:20px;
+  display:grid;
+  place-items:center;
+  border:0;
+  color:var(--rf-muted);
+  text-align:center;
+  font-size:11px;
+}
+
+/* Editor follows Core form controls instead of oversized standalone styling. */
+.dns-module .modal-backdrop {
+  position:fixed;
+  inset:0;
+  z-index:100;
+  padding:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.68);
+}
+.dns-module .modal {
+  width:min(640px,100%);
+  max-height:92vh;
+  overflow:auto;
+  border:1px solid #303641;
+  border-radius:var(--rf-radius);
+  background:var(--rf-surface);
+  box-shadow:0 22px 70px rgba(0,0,0,.48);
+  padding:16px;
+}
+.dns-module .modal h2 {
+  margin:0 0 14px;
+  color:#fff;
+  font-size:16px;
+  line-height:1.25;
+  font-weight:650;
+}
+.dns-module .form-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px 14px;
+}
+.dns-module label {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  color:var(--rf-muted);
+  font-size:10px;
+}
+.dns-module input,
+.dns-module select,
+.dns-module textarea {
+  width:100%;
+  min-width:0;
+  border:1px solid #303641;
+  border-radius:5px;
+  outline:none;
+  background:#101216;
+  color:var(--rf-text);
+  font-size:11px;
+}
+.dns-module input,
+.dns-module select {
+  height:34px;
+  padding:0 9px;
+}
+.dns-module textarea {
+  min-height:92px;
+  padding:9px;
+  resize:vertical;
+  line-height:1.4;
+}
+.dns-module input::placeholder,
+.dns-module textarea::placeholder { color:#626a75; }
+.dns-module input:focus,
+.dns-module select:focus,
+.dns-module textarea:focus { border-color:var(--rf-accent); }
+
 .dns-module select.protocol-select {
   appearance:none;
   -webkit-appearance:none;
-  min-height:2.35rem;
-  line-height:1.25;
-  padding-right:2.3rem;
+  padding-right:30px;
   cursor:pointer;
   color-scheme:dark;
-  background-color:#11161b;
+  background-color:#101216;
   background-image:
-    linear-gradient(45deg, transparent 50%, #d4dde5 50%),
-    linear-gradient(135deg, #d4dde5 50%, transparent 50%);
+    linear-gradient(45deg,transparent 50%,#9aa3ad 50%),
+    linear-gradient(135deg,#9aa3ad 50%,transparent 50%);
   background-position:
-    calc(100% - 1rem) calc(50% - .12rem),
-    calc(100% - .7rem) calc(50% - .12rem);
-  background-size:.32rem .32rem, .32rem .32rem;
+    calc(100% - 13px) calc(50% - 1px),
+    calc(100% - 9px) calc(50% - 1px);
+  background-size:4px 4px,4px 4px;
   background-repeat:no-repeat;
 }
 .dns-module select.protocol-select::-ms-expand { display:none; }
-.dns-module select.protocol-select option { background:#11161b; color:#edf2f6; }
-.dns-module textarea { min-height:92px; resize:vertical; }
-.dns-module .span-2 { grid-column:1/-1; }
-.dns-module .modal-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:1rem; }
-.dns-module .metric-grid { margin-bottom:.9rem; }
-.dns-module .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.65rem; margin:.7rem 0; }
-.dns-module .detail-item { padding:.55rem .65rem; background:rgba(255,255,255,.025); border-radius:.45rem; }
-.dns-module .detail-item span { display:block; color:var(--rf-muted,#9aa7b3); font-size:.72rem; }
-.dns-module .detail-item strong { display:block; margin-top:.15rem; font-size:.88rem; overflow-wrap:anywhere; }
-@media (max-width:720px){ .dns-module .form-grid{grid-template-columns:1fr}.dns-module .span-2{grid-column:auto}.dns-module{padding-right:.2rem} }
+.dns-module select.protocol-select option { background:#101216; color:var(--rf-text); }
 
-.dns-module .slot-warning { color:#f1cf86; }
+.dns-module .span-2 { grid-column:1/-1; }
+.dns-module label > span {
+  color:#727b86;
+  font-size:9px;
+  line-height:1.45;
+}
+.dns-module label > span.slot-warning {
+  color:var(--rf-warn);
+  font-weight:550;
+}
+.dns-module .modal-actions {
+  margin:16px -16px -16px;
+  padding:12px 16px;
+  display:flex;
+  justify-content:flex-end;
+  gap:6px;
+  border-top:1px solid var(--rf-border);
+  background:rgba(12,13,16,.28);
+}
+
+@media (max-width:1100px) {
+  .dns-module .metric-grid.four { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .dns-module .resolver-grid { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
+}
+@media (max-width:720px) {
+  .dns-module.page {
+    width:calc(100% - 24px);
+    padding:14px 0 22px;
+  }
+  .dns-module .page-head {
+    margin-bottom:12px;
+    flex-direction:column;
+    gap:10px;
+  }
+  .dns-module .page-head .toolbar-actions { width:100%; }
+  .dns-module .page-head .toolbar-actions .action { flex:1; }
+  .dns-module .metric-grid.four { grid-template-columns:1fr; }
+  .dns-module .form-grid { grid-template-columns:1fr; }
+  .dns-module .span-2 { grid-column:auto; }
+  .dns-module .resolver-grid { grid-template-columns:1fr; }
+  .dns-module .panel > .resolver-grid,
+  .dns-module .resolver-grid-body { padding:8px; }
+}

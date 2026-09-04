@@ -274,7 +274,7 @@
 <div class="dns-module page">
   <div class="page-head">
     <div>
-      <span class="routerforge-eyebrow mono">ROUTERFORGE / DNS MODULE</span>
+
       <h1>{L.title}</h1>
       <p>{L.subtitle}</p>
     </div>
@@ -321,12 +321,13 @@
     </section>
 
   {:else if tab === 'resolvers'}
-    <div class="toolbar">
-      <div><strong>{L.resolvers}</strong><div class="resolver-meta">{L.nativeHint} · {L.dotSlots}: {dotSlotsUsed}/{dotSlotLimit || '—'}</div></div>
-      <button class="action primary" type="button" onclick={openAdd}>+ {L.add}</button>
-    </div>
-    {#if !resolvers.length}<div class="empty-box">{L.noResolvers}</div>{/if}
-    <div class="resolver-grid">
+    <section class="panel resolver-panel">
+      <div class="panel-head">
+        <div><strong>{L.resolvers}</strong><span>{L.nativeHint}</span></div>
+        <span class="state-pill info">{L.dotSlots}: {dotSlotsUsed}/{dotSlotLimit || '—'}</span>
+      </div>
+      {#if !resolvers.length}<div class="empty-box">{L.noResolvers}</div>{/if}
+      <div class="resolver-grid resolver-grid-body">
       {#each resolvers as resolver (resolver.id)}
         <article class="resolver-card">
           <div class="resolver-head">
@@ -349,7 +350,8 @@
           {#if resolver.dynamic}<div class="resolver-meta">{L.readOnly}</div>{/if}
         </article>
       {/each}
-    </div>
+      </div>
+    </section>
 
   {:else if tab === 'rules'}
     <section class="panel">

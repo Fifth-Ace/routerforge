@@ -4,6 +4,12 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.5-beta` visually aligns the Module ABI UI with the RouterForge Core shell:
+  - the DNS iframe now uses the same 1440px centered page canvas, 20px page padding, header rhythm, typography, surfaces, borders and controls as Core monitoring pages;
+  - DNS view tabs use the Core subtab language instead of a second pill-navigation system;
+  - metric cards, panels, resolver cards, tables, state chips, buttons, notices and form controls now share Core density and spacing;
+  - the duplicate resolver-page `+ Add DNS` action is removed; the global page action remains, while DoT slot usage moves into the resolver panel header;
+  - the resolver editor is tightened to Core form dimensions and warning styling without changing mutation behavior.
 - DNS `0.4.4-beta` adds a preflight guard for the Keenetic DoT capacity confirmed on live Hopper hardware:
   - Hopper accepts exactly 8 native DoT upstream entries; a 9th entry is silently truncated by NDMS.
   - RouterForge now rejects a mutation that would exceed 8 DoT physical entries before any native RCI write, returning a conflict instead of relying on rollback.

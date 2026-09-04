@@ -4,6 +4,10 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.3-beta` fixes Keenetic DoT SNI write/readback after live Hopper mutation testing:
+  - structured RCI writes now translate RouterForge SNI to Keenetic's saved `fqdn` field, preventing NDMS from silently dropping SNI and triggering a readback rollback;
+  - diagnostics no longer fabricate `SNI=<address>` for native DoT entries that have no SNI, and accept both `sni:` and `fqdn:` metadata labels.
+  - the live failed mutation was fully rolled back and the native `/show/sc/dns-proxy` snapshot matched its pre-test SHA256 byte-for-byte.
 - DNS `0.4.2-beta` polishes the Module ABI UI:
   - DNS tabs switch in-place without reloading the Core route/iframe, eliminating the visible page jump.
   - The resolver protocol selector uses RouterForge-owned dark styling and a consistent chevron instead of browser-native select chrome.

@@ -188,8 +188,8 @@ func parseDNSInfo(text string) RouterDNSInfoSnapshot {
 			case strings.HasPrefix(line, "port:"):
 				meta.Port = dnsInfoAtoi(strings.TrimSpace(strings.TrimPrefix(line, "port:")))
 				continue
-			case strings.HasPrefix(line, "sni:"):
-				meta.SNI = strings.TrimSpace(strings.TrimPrefix(line, "sni:"))
+			case strings.HasPrefix(line, "sni:"), strings.HasPrefix(line, "fqdn:"):
+				meta.SNI = dnsInfoAfterColon(line)
 				continue
 			case strings.HasPrefix(line, "interface:"):
 				meta.Interface = strings.TrimSpace(strings.TrimPrefix(line, "interface:"))
@@ -441,10 +441,11 @@ func parseDNSInfoServer(line string) (RouterDNSUpstreamInfo, bool) {
 	upstream.Address = host
 	upstream.Port = port
 	upstream.Target = addressPart
-	if upstream.SNI == "" {
-		upstream.SNI = host
+	nameHost := upstream.SNI
+	if nameHost == "" {
+		nameHost = host
 	}
-	upstream.Name = dnsInfoFriendlyResolverName(upstream.SNI, "DoT")
+	upstream.Name = dnsInfoFriendlyResolverName(nameHost, "DoT")
 	return upstream, true
 }
 

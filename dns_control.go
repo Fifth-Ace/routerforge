@@ -763,7 +763,9 @@ func dnsRCIPayload(protocol string, raw map[string]any) map[string]any {
 	case "DoT":
 		copyIfPresent(out, raw, "address", "port", "domain", "interface", "spki")
 		if sni := firstStringField(raw, "sni", "fqdn"); sni != "" {
-			out["sni"] = sni
+			// Keenetic's saved RCI schema exposes TLS SNI as "fqdn".
+			// Posting "sni" is accepted by transport but silently dropped by NDMS.
+			out["fqdn"] = sni
 		}
 	case "DoH":
 		if uri := firstStringField(raw, "uri", "url", "address"); uri != "" {

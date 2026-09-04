@@ -114,3 +114,37 @@ norebind_ip4net = 10.0.0.0/8
 		t.Fatalf("rebind nets not deduplicated: %#v", info.Rebind.Nets)
 	}
 }
+
+func TestParseDNSInfoServerDoesNotInventDoTSNI(t *testing.T) {
+	upstream, ok := parseDNSInfoServer("dns_server = 127.0.0.1:40500 . # 8.8.8.8")
+	if !ok {
+		t.Fatal("DoT upstream was not parsed")
+	}
+	if upstream.SNI != "" {
+		t.Fatalf("SNI = %q, want empty for native DoT without SNI", upstream.SNI)
+	}
+	if upstream.Address != "8.8.8.8" || upstream.Port != 853 {
+		t.Fatalf("unexpected DoT endpoint: %#v", upstream)
+	}
+}
+
+func TestParseDNSInfoAcceptsFQDNMetadataAlias(t *testing.T) {
+	input := `
+proxy-status:
+  proxy-name: System
+proxy-config:
+dns_server = 127.0.0.1:40500 . # 8.8.8.8
+proxy-tls:
+server-tls:
+  address: 8.8.8.8
+  fqdn: dns.google
+  domain:
+`
+	info := parseDNSInfo(input)
+	if len(info.Proxies) != 1 || len(info.Proxies[0].Upstreams) != 1 {
+		t.Fatalf("unexpected proxies: %#v", info.Proxies)
+	}
+	if got := info.Proxies[0].Upstreams[0].SNI; got != "dns.google" {
+		t.Fatalf("SNI = %q, want dns.google from fqdn metadata", got)
+	}
+}

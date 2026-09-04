@@ -62,3 +62,24 @@ func TestDynamicResolverIsReadOnlyShape(t *testing.T) {
 		t.Fatalf("dynamic resolver shape = %#v", items)
 	}
 }
+
+func TestDNSRCIPayloadUsesFQDNForDoTSNI(t *testing.T) {
+	raw := map[string]any{
+		"address": "1.0.0.1",
+		"sni":     "cloudflare-dns.com",
+		"domain":  "routerforge-test.invalid",
+	}
+	payload := dnsRCIPayload("DoT", raw)
+	if payload["fqdn"] != "cloudflare-dns.com" {
+		t.Fatalf("fqdn = %#v, want cloudflare-dns.com; payload=%#v", payload["fqdn"], payload)
+	}
+	if _, exists := payload["sni"]; exists {
+		t.Fatalf("Keenetic RCI payload must not emit sni: %#v", payload)
+	}
+
+	want := canonicalProtocolEntries("DoT", []map[string]any{raw})
+	got := canonicalProtocolEntries("DoT", []map[string]any{payload})
+	if len(want) != 1 || len(got) != 1 || want[0] != got[0] {
+		t.Fatalf("sni/fqdn canonical readback mismatch: want=%v got=%v", want, got)
+	}
+}

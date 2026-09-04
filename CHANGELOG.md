@@ -4,6 +4,8 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- Core `0.4.1-beta` fixes the Module ABI v1 UI proxy: module directory URLs now preserve their trailing slash, so a module UI cannot escape from `/api/modules/<id>/ui/` into the Core SPA and render a nested RouterForge shell with a `404`.
+  - `routerforge-dns` remains `0.4.0-beta`; this is a Core module-host fix, not a DNS module change.
 - RouterForge `0.4.0-beta` introduces Module ABI v1 and turns DNS into a real independently versioned module:
   - Core keeps the web shell, auth, Marketplace/Registry and the generic module API/UI host; DNS capture, discovery, health, diagnostics and mutation logic move to the `routerforge-dns` runtime over a root-owned Unix socket.
   - `routerforge-dns` now ships `/opt/bin/routerforge-dns`, `S91routerforge-dns`, its own UI bundle and `/api/modules/dns/*`; future DNS-only changes no longer require rebuilding or version-bumping Core.

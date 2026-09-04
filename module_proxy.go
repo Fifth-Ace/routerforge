@@ -59,9 +59,16 @@ func moduleTargetPath(rest string) (string, bool) {
 	if strings.Contains(rest, "..") {
 		return "", false
 	}
+	trailingSlash := strings.HasSuffix(rest, "/")
 	clean := path.Clean("/" + rest)
 	if clean == "/." || !strings.HasPrefix(clean, "/") {
 		return "", false
+	}
+	// path.Clean intentionally strips the trailing slash. For module UI
+	// directories that changes /v1/ui/ into /v1/ui and triggers the module's
+	// canonical redirect, leaking the internal /v1 path back to the browser.
+	if trailingSlash && clean != "/" {
+		clean += "/"
 	}
 	return "/v1" + clean, true
 }

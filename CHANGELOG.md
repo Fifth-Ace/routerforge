@@ -4,6 +4,11 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.16-beta` completes custom-theme state parity for the Traffic and Diagnostics second-level navigation:
+  - active Traffic/Diagnostics subtabs use the current accent only on text/underline and never receive a full accent fill;
+  - mouse-click focus no longer leaves a browser-default white rectangle around a selected subtab; keyboard focus remains visible through a semantic accent focus ring;
+  - Diagnostics report/action buttons now consume RouterForge surface, border, muted/text and hover tokens;
+  - active filter buttons (for example ALL/SERVFAIL/TIMEOUT) now use the configured accent instead of the old hard-coded green state.
 - DNS `0.4.15-beta` polishes custom-theme interactive states after live visual validation:
   - inactive segmented controls now use the current theme's muted/text palette instead of stale Forge-era hard-coded colors;
   - selected segmented controls keep the user accent on text/selection edge without an alert-like full accent wash;

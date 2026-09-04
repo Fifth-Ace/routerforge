@@ -1469,3 +1469,67 @@ html[data-radius="soft"] .dns-module {
   border-color:rgba(210,153,34,.28) !important;
   background:rgba(210,153,34,.08) !important;
 }
+/* DNS 0.4.16 subtab theme polish
+   Traffic/Diagnostics use a second-level .parity-subtabs control family.
+   It predates the semantic theme bridge and still carried hard-coded green,
+   hard-coded gray action buttons and the browser's default click outline. */
+.dns-module .parity-subtabs {
+  border-bottom-color:var(--rf-border) !important;
+}
+
+.dns-module .parity-subtabs > button:not(.subtab-action) {
+  color:var(--rf-muted) !important;
+  background:transparent !important;
+  outline:none;
+}
+
+.dns-module .parity-subtabs > button:not(.subtab-action):hover {
+  color:var(--rf-text) !important;
+  background:transparent !important;
+}
+
+.dns-module .parity-subtabs > button:not(.subtab-action).active {
+  color:var(--rf-accent) !important;
+  border-bottom-color:var(--rf-accent) !important;
+  background:transparent !important;
+}
+
+.dns-module .parity-subtabs > button:not(.subtab-action):focus {
+  outline:none;
+}
+
+.dns-module .parity-subtabs > button:not(.subtab-action):focus-visible {
+  color:var(--rf-accent) !important;
+  outline:1px solid var(--rf-accent-border);
+  outline-offset:-2px;
+  border-radius:var(--rf-radius-control) var(--rf-radius-control) 0 0;
+}
+
+.dns-module .subtab-action {
+  border-color:var(--rf-border) !important;
+  border-radius:var(--rf-radius-control) !important;
+  background:var(--rf-surface-2) !important;
+  color:var(--rf-muted) !important;
+  outline:none;
+}
+
+.dns-module .subtab-action:hover {
+  border-color:var(--rf-border-strong) !important;
+  background:var(--rf-hover) !important;
+  color:var(--rf-text) !important;
+}
+
+.dns-module .subtab-action:focus {
+  outline:none;
+}
+
+.dns-module .subtab-action:focus-visible {
+  border-color:var(--rf-accent-border) !important;
+  box-shadow:0 0 0 2px var(--rf-accent-soft);
+}
+
+.dns-module button.action.active {
+  color:var(--rf-accent) !important;
+  border-color:var(--rf-accent-border) !important;
+  background:var(--rf-accent-soft) !important;
+}

@@ -127,7 +127,7 @@ RouterForge Core
 Рекомендуемый публичный канал:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
 Bootstrap устанавливает актуальные **Core + DNS** из stable release, причём версии берутся из release-index независимо друг от друга. Каждый IPK проверяется по SHA256 до `opkg install`.
@@ -156,7 +156,7 @@ Stable и Beta — разные rolling channels:
 Beta для тестирования:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
 Не смешивайте stable и beta пакеты без необходимости.
@@ -192,7 +192,7 @@ wget -qO- http://127.0.0.1:2233/api/health
 ## Удаление
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
 ```
 
 Пакеты удаляются, каталоги конфигурации сохраняются.

@@ -220,6 +220,29 @@ func startWeb(store *Store, listen string, version string) error {
 		_ = json.NewEncoder(w).Encode(plainDNS.Snapshot(limit))
 	})
 
+	mux.HandleFunc("/api/dns/info", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "GET required"})
+			return
+		}
+		if !dnsModuleEnabled() {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "RouterForge DNS is not installed"})
+			return
+		}
+		info, infoErr := readDNSInfo()
+		if infoErr != nil {
+			w.WriteHeader(http.StatusBadGateway)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": infoErr.Error()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(info)
+	})
+
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
 	mux.HandleFunc("/api/modules/", proxyModuleAPI)
 

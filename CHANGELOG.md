@@ -4,6 +4,10 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS Control foundation for Core `0.3.7-beta`:
+  - `Tools → DNS details` now reads the full Keenetic `show dns-proxy` state: upstream configuration, per-policy request/cache statistics, server rank/latency counters, static A/AAAA records and rebind protection.
+  - Identical resolver endpoints are presented as one logical upstream with all discovered domain bindings while the per-policy view preserves each physical ndnproxy instance.
+  - DNS details can be refreshed, copied to the clipboard and exported as a text report; this first step is intentionally read-only before DNS write/rollback support lands.
 - Canonical GitHub repository renamed to `Fifth-Ace/routerforge`; legacy links remain supported through redirects and the Core compatibility bridge.
 - Monitoring cleanup for the next Beta:
   - Thermal collapses mirrored `thermal_zone` / `hwmon` sensors and adds human-readable MT7988 roles.

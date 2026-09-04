@@ -5,7 +5,7 @@
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.3.6-beta"
+      "version": "0.3.7-beta"
     },
     {
       "id": "dns",

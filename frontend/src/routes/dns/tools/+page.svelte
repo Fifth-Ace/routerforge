@@ -1,5 +1,6 @@
 <script>
   import DNSNav from '$lib/components/DNSNav.svelte';
+  import DNSInfoPanel from '$lib/components/DNSInfoPanel.svelte';
   import { snapshot } from '$lib/stores/snapshot.js';
   import { settings } from '$lib/stores/settings.js';
   import { getSystem } from '$lib/api.js';
@@ -52,6 +53,8 @@
       <section class="panel"><div class="panel-head"><div><strong>Discovery</strong><span>{t(locale,'dns.tools.discoveryState')}</span></div></div><div class="info-row"><div><strong>{t(locale,'dns.tools.lastDiscovery')}</strong></div><div class="info-value">{$snapshot.last_discovery||'—'}</div></div><div class="info-row"><div><strong>{t(locale,'dns.tools.discoveryError')}</strong></div><div class="info-value">{$snapshot.discovery_error||t(locale,'common.none')}</div></div><div class="info-row"><div><strong>{t(locale,'dns.tools.captureError')}</strong></div><div class="info-value">{$snapshot.capture_error||t(locale,'common.none')}</div></div><div class="info-row"><div><strong>{t(locale,'dns.tools.upstreamDns')}</strong></div><div class="info-value">{fmtInt($snapshot.upstream_count,locale)}</div></div></section>
       <section class="panel"><div class="panel-head"><div><strong>{t(locale,'dns.tools.counters')}</strong><span>{t(locale,'dns.tools.runtimeTotals')}</span></div></div><div class="info-row"><div><strong>{t(locale,'common.requests')}</strong></div><div class="info-value">{fmtInt($snapshot.total_requests,locale)}</div></div><div class="info-row"><div><strong>{t(locale,'common.responses')}</strong></div><div class="info-value">{fmtInt($snapshot.total_responses,locale)}</div></div><div class="info-row"><div><strong>{t(locale,'common.fallback')}</strong></div><div class="info-value">{fmtInt($snapshot.total_fallbacks,locale)}</div></div><div class="info-row"><div><strong>{t(locale,'dns.tools.activeDown')}</strong></div><div class="info-value">{fmtInt($snapshot.active_down,locale)}</div></div></section>
     </div>
+
+    <DNSInfoPanel />
 
   {:else if tab==='system'}
     <div class="two-col">

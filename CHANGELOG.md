@@ -4,6 +4,12 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.15-beta` polishes custom-theme interactive states after live visual validation:
+  - inactive segmented controls now use the current theme's muted/text palette instead of stale Forge-era hard-coded colors;
+  - selected segmented controls keep the user accent on text/selection edge without an alert-like full accent wash;
+  - the selected resolver in Resolvers 2.0 keeps an accent selection edge but uses the normal hover surface instead of tinting the whole row;
+  - browser-default focus outlines on DNS top tabs are replaced by an accessible theme-aware focus ring;
+  - DoT/DoH capacity pills are neutral informational controls and only switch to warning styling when their independent 8-entry pool is full.
 - DNS `0.4.14-beta` hotfixes three issues found immediately after the 0.4.13 stable rollout:
   - DoT and DoH capacity are separate Keenetic pools: RouterForge now allows up to 8 physical DoT entries **and** up to 8 physical DoH entries, exposes both limits independently, and projects each pool separately in the resolver editor. The production configuration with 8 DoT plus a simultaneous DoH entry proves the previous shared-8 guard was too strict; the earlier Hopper test had only proven the 8-entry DoT pool because RouterForge preflight blocked the mixed ninth entry before NDMS was actually exercised.
   - Module ABI DNS now inherits the full live RouterForge semantic theme (custom background/text/accent, density and radius) instead of only a subset of legacy shell tokens; a parent-root MutationObserver keeps the iframe synchronized with appearance changes.

@@ -1421,3 +1421,51 @@ html[data-radius="soft"] .dns-module {
     grid-template-columns:repeat(3,minmax(0,1fr));
   }
 }
+/* DNS 0.4.15 theme state polish
+   Keep custom-theme text/muted colors on inactive controls, reserve the user
+   accent for the actual selected edge/text, and avoid turning a selected
+   resolver into an alert-looking accent-filled card. */
+.dns-module .segmented button {
+  color:var(--rf-muted) !important;
+  background:var(--rf-surface-2) !important;
+}
+.dns-module .segmented button:hover:not(.active) {
+  color:var(--rf-text) !important;
+  background:var(--rf-hover) !important;
+}
+.dns-module .segmented button.active {
+  color:var(--rf-accent) !important;
+  border-color:var(--rf-border) !important;
+  background:var(--rf-surface-2) !important;
+  box-shadow:inset 0 -2px var(--rf-accent);
+}
+
+.dns-module .module-tabs button {
+  outline:none;
+}
+.dns-module .module-tabs button:focus-visible {
+  color:var(--rf-accent) !important;
+  outline:1px solid var(--rf-accent-border);
+  outline-offset:-2px;
+  border-radius:var(--rf-radius-control) var(--rf-radius-control) 0 0;
+}
+
+.dns-module .resolver-master-item.active {
+  border-left-color:var(--rf-accent) !important;
+  background:var(--rf-hover) !important;
+  box-shadow:inset 2px 0 var(--rf-accent);
+}
+.dns-module .resolver-master-item.active:hover {
+  background:var(--rf-hover) !important;
+}
+
+.dns-module .state-pill.capacity {
+  color:var(--rf-muted) !important;
+  border-color:var(--rf-border) !important;
+  background:var(--rf-surface-2) !important;
+}
+.dns-module .state-pill.capacity.warn {
+  color:var(--warn) !important;
+  border-color:rgba(210,153,34,.28) !important;
+  background:rgba(210,153,34,.08) !important;
+}

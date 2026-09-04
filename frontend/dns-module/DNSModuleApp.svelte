@@ -832,8 +832,8 @@
         <button class:active={resolverView === 'detail'} type="button" aria-pressed={resolverView === 'detail'} onclick={() => setResolverView('detail')}>{locale === 'en' ? 'List' : 'Список'}</button>
         <button class:active={resolverView === 'cards'} type="button" aria-pressed={resolverView === 'cards'} onclick={() => setResolverView('cards')}>{locale === 'en' ? 'Cards' : 'Карточки'}</button>
       </div>
-      <span class="state-pill info">DoT: {dotSlotsUsed}/{dotSlotLimit || '—'}</span>
-      <span class="state-pill info">DoH: {dohSlotsUsed}/{dohSlotLimit || '—'}</span>
+      <span class="state-pill capacity" class:warn={dotSlotLimit && dotSlotsUsed >= dotSlotLimit}>DoT: {dotSlotsUsed}/{dotSlotLimit || '—'}</span>
+      <span class="state-pill capacity" class:warn={dohSlotLimit && dohSlotsUsed >= dohSlotLimit}>DoH: {dohSlotsUsed}/{dohSlotLimit || '—'}</span>
     </div>
 
     <div class="resolver-summary-strip">

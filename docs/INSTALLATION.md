@@ -16,8 +16,10 @@ Web UI работает на порту **2233**.
 ## Stable — рекомендуемый канал
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
+
+Для публичной HTTPS-установки в примерах намеренно используется **Entware curl** (`/opt/bin/curl`): это обходит несовместимости stock BusyBox `wget`/TLS, встречающиеся на отдельных сборках KeeneticOS.
 
 Bootstrap генерируется CI из актуального `routerforge-stable-index.json`.
 
@@ -51,7 +53,7 @@ wget -qO- http://127.0.0.1:2233/api/health
 Beta публикуется из `dev` и предназначена для проверки новых возможностей до Stable:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
 GitHub release `RouterForge Beta` помечен как **Pre-release**.
@@ -61,7 +63,7 @@ GitHub release `RouterForge Beta` помечен как **Pre-release**.
 Для совместимости в репозитории остаётся:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/install-repo.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/install-repo.sh | sh
 ```
 
 По умолчанию он запускает Stable bootstrap.
@@ -69,7 +71,7 @@ wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/i
 Beta через launcher:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/install-repo.sh | \
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/install-repo.sh | \
   ROUTERFORGE_CHANNEL=beta sh
 ```
 
@@ -154,7 +156,7 @@ tail -f /opt/var/log/routerforge.log
 ## Удаление
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
 ```
 
 Удаляются RouterForge-пакеты и legacy `dns-monitor-*`, если они остались установленными.

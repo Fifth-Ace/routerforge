@@ -93,6 +93,14 @@ Current DNS API surface:
 ```text
 GET    /api/modules/dns/health
 GET    /api/modules/dns/snapshot
+GET    /api/modules/dns/history
+GET    /api/modules/dns/fallbacks
+GET    /api/modules/dns/error-bursts
+GET    /api/modules/dns/clients
+GET    /api/modules/dns/client
+GET    /api/modules/dns/interfaces
+GET    /api/modules/dns/system
+GET    /api/modules/dns/plain-dns
 GET    /api/modules/dns/info
 GET    /api/modules/dns/resolvers
 POST   /api/modules/dns/resolvers
@@ -102,6 +110,8 @@ POST   /api/modules/dns/resolvers/<id>/disable
 POST   /api/modules/dns/resolvers/<id>/enable
 POST   /api/modules/dns/preview
 ```
+
+The normal DNS UI consumes the observability endpoints lazily by active view. Resolver writes remain confined to the mutation endpoints above and keep the same snapshot/readback/rollback safety boundary.
 
 Mutation requests require the RouterForge action header injected by the official module UI. The DNS runtime also rejects unknown JSON fields and limits request body size.
 

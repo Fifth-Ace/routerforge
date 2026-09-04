@@ -36,13 +36,18 @@ Independently installable official modules:
 - **Network Monitor** — interfaces, addresses, RX/TX, errors/drops, wireless, routes and conntrack.
 
 ### DNS
-RouterForge DNS keeps the original project's strongest capability:
+**RouterForge DNS** is an independent Module ABI v1 runtime with its own backend/API/UI and safe control of native Keenetic DNS configuration:
 - plain DNS, DoT and DoH observability;
+- **Overview / Resolvers / Rules / Traffic / Diagnostics** views;
+- Add/Edit/Delete and temporary Disable/Enable for plain DNS, DoT and DoH;
+- dynamic DHCP/service DNS entries are displayed read-only;
+- one logical multi-domain resolver expands into the required native Keenetic entries;
+- a shared **8 physical-entry DoT/DoH** preflight limit and a **16 domains per plain DNS server** limit;
+- every mutation uses `snapshot → mutation → save → readback`, with verified rollback on mismatch;
 - per-client and LAN/Wi‑Fi attribution;
-- upstream/fallback/timeout/error/latency tracking;
+- upstream/fallback/timeout/error/latency tracking, quality windows and health diagnostics;
 - `CACHE_LOCAL`, `FORWARDED`, `ERROR` and `CLIENT_TIMEOUT`;
-- Keenetic policy routing discovery;
-- route-aware upstream diagnostics using the policy mark;
+- Keenetic policy routing discovery and route-aware upstream diagnostics using the policy mark;
 - short in-memory history without continuous event writes to flash.
 
 ### Control
@@ -82,12 +87,16 @@ Browser
    │ http://router:2233
    ▼
 RouterForge Core
-├── Web UI / REST / SSE
+├── Web shell / REST / SSE
 ├── Authentication
 ├── Marketplace + Registry
 ├── Release index / package lifecycle
-├── DNS engine
+├── Generic Module API + UI host
 └── Unix-socket proxy
+     ├── RouterForge DNS
+     │    ├── capture / discovery / health
+     │    ├── DNS Control + readback / rollback
+     │    └── module UI
      ├── RouterForge Control
      ├── System Monitor
      ├── Thermal Monitor
@@ -102,7 +111,7 @@ The platform exposes a single web port: **2233**.
 | Package | Purpose |
 | --- | --- |
 | `routerforge-core` | Core, UI, API, Marketplace, auth and release/update logic |
-| `routerforge-dns` | enables the DNS capability |
+| `routerforge-dns` | independent DNS runtime, UI, observability, DNS Control and diagnostics |
 | `routerforge-admin` | RouterForge Control |
 | `routerforge-system` | System Monitor |
 | `routerforge-thermal` | Thermal Monitor |
@@ -127,7 +136,7 @@ Components are **versioned independently**. A module version does not need to ma
 Recommended public channel:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
 The bootstrap installs the current **Core + DNS** from the stable release. Their versions are resolved independently from the release index, and each IPK is SHA256-verified before `opkg install`.
@@ -156,7 +165,7 @@ Release channels:
 Beta installation:
 
 ```sh
-wget -qO- https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
 Avoid mixing stable and beta packages unless you deliberately switch channels.
@@ -192,7 +201,7 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 ## Uninstall
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
 ```
 
 Packages are removed; configuration directories are preserved.

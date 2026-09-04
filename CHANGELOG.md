@@ -4,6 +4,19 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-04 — RouterForge Core 0.4.1 / DNS 0.4.13
+
+### Stable highlights
+
+- DNS is now a full Module ABI v1 runtime with its own backend/API/UI; Core provides the shared shell, authentication, Marketplace/Registry and generic module host.
+- DNS Control manages plain DNS, DoT and DoH with Add/Edit/Delete, temporary Disable/Enable, dynamic-entry read-only protection and logical multi-domain grouping.
+- Live Hopper validation confirmed structured Keenetic RCI writes, DoT `fqdn`/SNI handling, DoH `url` write semantics, stable DoH logical IDs, the shared 8-entry DoT/DoH capacity, the 16-domain plain-DNS limit and exact rollback/readback restoration.
+- Observability parity is restored across Overview, Rules, Traffic and Diagnostics: history, DNS Flow, client drill-down, interfaces, domains/QTYPEs, fallback routes, error bursts, runtime health and system details.
+- Resolvers 2.0 combines the original master/detail UX with the validated DNS Control feature set and keeps an optional equalized Cards view.
+- The DNS iframe now follows real module content height and Core visual scaling, eliminating nested scrolling and keeping the module visually aligned with the RouterForge shell.
+
+### Included 0.4 development history
+
 - DNS `0.4.13-beta` introduces Resolvers 2.0, combining the original master/detail server UX with the validated Module ABI DNS Control feature set:
   - the default resolver view is a stable master list plus selected-resolver detail pane with CRUD/Disable/Enable, dynamic read-only protection, logical/native metadata and persistent selection across refreshes;
   - logical DNS/DoT/DoH resolvers are correlated with existing runtime telemetry; multi-domain secure resolvers aggregate their native entries into 5m/1h/24h quality, diagnostics and recent-flow views;

@@ -36,13 +36,18 @@
 - **Network Monitor** — интерфейсы, адреса, RX/TX, ошибки/drops, Wi‑Fi, маршруты и conntrack.
 
 ### DNS
-RouterForge DNS сохраняет исходную сильную сторону проекта:
+**RouterForge DNS** — самостоятельный Module ABI v1 runtime с собственными backend/API/UI и безопасным управлением нативной DNS-конфигурацией Keenetic:
 - plain DNS, DoT и DoH observability;
+- вкладки **Обзор / Резолверы / Правила / Трафик / Диагностика**;
+- Add/Edit/Delete и временные Disable/Enable для plain DNS, DoT и DoH;
+- динамические DHCP/service DNS отображаются read-only;
+- один логический multi-domain resolver разворачивается в нужное число нативных записей Keenetic;
+- общий preflight-лимит **8 физических DoT/DoH entries** и максимум **16 доменов на plain DNS server**;
+- каждая мутация проходит `snapshot → mutation → save → readback`; mismatch запускает rollback и его повторную проверку;
 - привязка запросов к клиентам и LAN/Wi‑Fi-интерфейсам;
-- upstream/fallback/timeout/error/latency;
+- upstream/fallback/timeout/error/latency, quality windows и health diagnostics;
 - `CACHE_LOCAL`, `FORWARDED`, `ERROR`, `CLIENT_TIMEOUT`;
-- чтение Keenetic policy routing;
-- route-aware диагностика upstream через policy mark;
+- чтение Keenetic policy routing и route-aware диагностика upstream через policy mark;
 - короткая история в RAM без постоянной записи событий на флешку.
 
 ### Управление
@@ -82,12 +87,16 @@ Browser
    │ http://router:2233
    ▼
 RouterForge Core
-├── Web UI / REST / SSE
+├── Web shell / REST / SSE
 ├── Authentication
 ├── Marketplace + Registry
 ├── Release index / package lifecycle
-├── DNS engine
+├── Generic Module API + UI host
 └── Unix-socket proxy
+     ├── RouterForge DNS
+     │    ├── capture / discovery / health
+     │    ├── DNS Control + readback / rollback
+     │    └── module UI
      ├── RouterForge Control
      ├── System Monitor
      ├── Thermal Monitor
@@ -102,7 +111,7 @@ RouterForge Core
 | Package | Назначение |
 | --- | --- |
 | `routerforge-core` | Core, UI, API, Marketplace, auth, release/update logic |
-| `routerforge-dns` | включает DNS capability |
+| `routerforge-dns` | независимый DNS runtime, UI, observability, DNS Control и diagnostics |
 | `routerforge-admin` | RouterForge Control |
 | `routerforge-system` | System Monitor |
 | `routerforge-thermal` | Thermal Monitor |

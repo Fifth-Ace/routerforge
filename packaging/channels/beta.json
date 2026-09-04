@@ -5,13 +5,13 @@
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.4.1-beta"
+      "version": "0.4.2-beta"
     },
     {
       "id": "dns",
       "package": "routerforge-dns",
-      "version": "0.4.17-beta",
-      "min_core_version": "0.4.1-beta"
+      "version": "0.4.18-beta",
+      "min_core_version": "0.4.2-beta"
     },
     {
       "id": "admin",

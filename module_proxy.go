@@ -23,6 +23,85 @@ var moduleSockets = map[string][]string{
 	"network": {"/opt/var/run/routerforge-network.sock", "/opt/var/run/dns-monitor-network.sock"},
 }
 
+var modulePackageNames = map[string]string{
+	"dns":     "routerforge-dns",
+	"system":  "routerforge-system",
+	"thermal": "routerforge-thermal",
+	"storage": "routerforge-storage",
+	"network": "routerforge-network",
+}
+
+var moduleInstalledPackages = readInstalledPackages
+
+const moduleReconnectHTML = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RouterForge module reconnect</title>
+  <style>
+    html,body{min-height:100%;margin:0;background:transparent;color:inherit;font:inherit}
+    body{display:grid;place-items:center;min-height:55vh;padding:2rem;box-sizing:border-box}
+    main{text-align:center;max-width:36rem}
+    .spinner{width:1.6rem;height:1.6rem;margin:0 auto 1rem;border:.18rem solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;opacity:.75}
+    p{margin:.35rem 0;line-height:1.45}
+    .muted{opacity:.65}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+  </style>
+</head>
+<body>
+  <main role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p id="state">Модуль RouterForge перезапускается…</p>
+    <p class="muted">Переподключение к модулю… / Reconnecting…</p>
+  </main>
+  <script>
+    (function () {
+      var state = document.getElementById('state');
+      try {
+        var hostStyle = window.parent.getComputedStyle(window.parent.document.body);
+        document.body.style.color = hostStyle.color;
+        document.body.style.fontFamily = hostStyle.fontFamily;
+      } catch (_) {}
+      var marker = '/ui/';
+      var pos = window.location.pathname.indexOf(marker);
+      var healthURL = (pos >= 0 ? window.location.pathname.slice(0, pos) : '/api/modules') + '/health';
+
+      function retry() {
+        window.setTimeout(probe, 750);
+      }
+
+      function probe() {
+        fetch(healthURL, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json' }
+        }).then(function (response) {
+          if (response.ok) {
+            window.location.reload();
+            return null;
+          }
+          if (response.status === 503) {
+            return response.json().catch(function () { return null; });
+          }
+          return null;
+        }).then(function (payload) {
+          if (payload && payload.installed === false) {
+            state.textContent = 'Модуль не установлен / Module is not installed';
+            return;
+          }
+          retry();
+        }).catch(retry);
+      }
+
+      probe();
+    }());
+  </script>
+</body>
+</html>
+`
+
 func activeModuleSocket(moduleID string) (string, bool) {
 	candidates, ok := moduleSockets[moduleID]
 	if !ok || len(candidates) == 0 {
@@ -34,6 +113,15 @@ func activeModuleSocket(moduleID string) (string, bool) {
 		}
 	}
 	return candidates[0], true
+}
+
+func moduleInstalled(moduleID string) bool {
+	pkg := strings.TrimSpace(modulePackageNames[moduleID])
+	if pkg == "" {
+		return false
+	}
+	_, ok := moduleInstalledPackages()[pkg]
+	return ok
 }
 
 func moduleMethodAllowed(moduleID, method string) bool {
@@ -71,6 +159,10 @@ func moduleTargetPath(rest string) (string, bool) {
 		clean += "/"
 	}
 	return "/v1" + clean, true
+}
+
+func moduleUIPath(targetPath string) bool {
+	return targetPath == "/v1/ui" || strings.HasPrefix(targetPath, "/v1/ui/")
 }
 
 func moduleTransport(socket string) *http.Transport {
@@ -152,7 +244,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		req.Host = "unix"
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		if strings.HasPrefix(targetPath, "/v1/ui/") {
+		if moduleUIPath(targetPath) {
 			resp.Header.Set("Cache-Control", "no-cache")
 		} else {
 			resp.Header.Set("Cache-Control", "no-store")
@@ -160,6 +252,10 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		return nil
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
+		if moduleUIPath(targetPath) {
+			writeModuleReconnectHTML(rw)
+			return
+		}
 		moduleUnavailable(rw, moduleID, fmt.Sprintf("%s: %v", socket, err))
 	}
 	proxy.ServeHTTP(w, r)
@@ -199,12 +295,21 @@ func readModuleRaw(ctx context.Context, moduleID, targetPath string, timeout tim
 func moduleUnavailable(w http.ResponseWriter, moduleID, detail string) {
 	writeModuleJSON(w, http.StatusServiceUnavailable, map[string]any{
 		"module":       moduleID,
-		"installed":    false,
+		"installed":    moduleInstalled(moduleID),
 		"running":      false,
 		"mutation_api": moduleID == "dns",
 		"error":        "RouterForge module is not available",
 		"detail":       detail,
 	})
+}
+
+func writeModuleReconnectHTML(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Retry-After", "1")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_, _ = io.WriteString(w, moduleReconnectHTML)
 }
 
 func writeModuleJSON(w http.ResponseWriter, status int, value any) {

@@ -4,6 +4,16 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- Core `0.4.2-beta` fixes Module ABI upgrade lifecycle races:
+  - module proxy now reports package-installed state independently from runtime socket availability;
+  - module UI dial failures return a no-store reconnect page instead of raw JSON, while normal API failures remain JSON 503;
+  - ModuleFrame performs health preflight, distinguishes not-installed from restarting, and retries until runtime is ready;
+  - authenticated installations keep API protection intact while allowing only loopback GET/HEAD module-health probes for package readiness checks.
+- DNS `0.4.18-beta` makes Module ABI upgrades readiness-aware:
+  - maintainer script no longer hides DNS start failures;
+  - postinst waits for proxied module health before reporting success and emits log/socket diagnostics on timeout;
+  - beta DNS now requires Core `0.4.2-beta`.
+
 - DNS `0.4.17-beta` fixes the remaining unthemed Resolvers 2.0 detail strip:
   - resolver detail metric values now use the active custom theme text token;
   - metric captions now use the custom muted token;

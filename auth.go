@@ -163,7 +163,7 @@ func (a *authManager) cleanupSessionsLocked(now time.Time) {
 
 func (a *authManager) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/") || authPublicPath(r.URL.Path) || !a.authRequired() {
+		if !strings.HasPrefix(r.URL.Path, "/api/") || authPublicPath(r.URL.Path) || authLoopbackModuleHealth(r) || !a.authRequired() {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -176,6 +176,27 @@ func (a *authManager) middleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func authLoopbackModuleHealth(r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	const prefix = "/api/modules/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return false
+	}
+	rest := strings.TrimPrefix(r.URL.Path, prefix)
+	parts := strings.Split(rest, "/")
+	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || parts[1] != "health" {
+		return false
+	}
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err != nil {
+		host = strings.Trim(strings.TrimSpace(r.RemoteAddr), "[]")
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func authPublicPath(path string) bool {

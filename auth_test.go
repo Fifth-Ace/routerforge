@@ -83,6 +83,53 @@ func TestAuthMiddlewareBlocksProtectedAPI(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareAllowsOnlyLoopbackModuleHealthWithoutSession(t *testing.T) {
+	a := &authManager{
+		config:   securityConfig{AuthRequired: true},
+		sessions: make(map[string]authSession),
+		attempts: make(map[string]loginAttempt),
+	}
+	hit := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hit = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := a.middleware(next)
+
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		remoteAddr string
+		wantHit    bool
+	}{
+		{name: "loopback get health", method: http.MethodGet, path: "/api/modules/dns/health", remoteAddr: "127.0.0.1:41000", wantHit: true},
+		{name: "loopback head health", method: http.MethodHead, path: "/api/modules/dns/health", remoteAddr: "127.0.0.1:41001", wantHit: true},
+		{name: "lan get health", method: http.MethodGet, path: "/api/modules/dns/health", remoteAddr: "192.168.10.55:41002", wantHit: false},
+		{name: "loopback post health", method: http.MethodPost, path: "/api/modules/dns/health", remoteAddr: "127.0.0.1:41003", wantHit: false},
+		{name: "loopback other module api", method: http.MethodGet, path: "/api/modules/dns/info", remoteAddr: "127.0.0.1:41004", wantHit: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hit = false
+			r := httptest.NewRequest(tt.method, "http://router"+tt.path, nil)
+			r.RemoteAddr = tt.remoteAddr
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			if hit != tt.wantHit {
+				t.Fatalf("hit=%v, want %v; status=%d", hit, tt.wantHit, w.Code)
+			}
+			if tt.wantHit && w.Code != http.StatusNoContent {
+				t.Fatalf("allowed health status=%d, want %d", w.Code, http.StatusNoContent)
+			}
+			if !tt.wantHit && w.Code != http.StatusUnauthorized {
+				t.Fatalf("blocked request status=%d, want %d", w.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
 func TestAuthSessionAllowsProtectedAPI(t *testing.T) {
 	a := &authManager{
 		config:   securityConfig{AuthRequired: true},

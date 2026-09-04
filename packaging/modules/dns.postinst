@@ -3,9 +3,36 @@ set -eu
 mkdir -p /opt/etc/routerforge /opt/var/run /opt/var/log
 : > /opt/etc/routerforge/dns.enabled
 
+dns_diag() {
+    echo "routerforge-dns: last log lines:" >&2
+    tail -n 30 /opt/var/log/routerforge-dns.log >&2 2>/dev/null || true
+    if [ -e /opt/var/run/routerforge-dns.sock ]; then
+        ls -l /opt/var/run/routerforge-dns.sock >&2 2>/dev/null || true
+    fi
+}
+
 if [ -f /opt/etc/routerforge/module-abi-v1 ] && [ -x /opt/etc/init.d/S91routerforge-dns ]; then
     /opt/etc/init.d/S91routerforge-dns stop >/dev/null 2>&1 || true
-    /opt/etc/init.d/S91routerforge-dns start >/dev/null 2>&1 || true
+
+    if ! /opt/etc/init.d/S91routerforge-dns start >/dev/null 2>&1; then
+        echo "routerforge-dns: start failed" >&2
+        dns_diag
+        exit 1
+    fi
+
+    i=0
+    while [ "$i" -lt 20 ]; do
+        if wget -qO- http://127.0.0.1:2233/api/modules/dns/health 2>/dev/null |
+            grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'; then
+            exit 0
+        fi
+        i=$((i + 1))
+        sleep 1
+    done
+
+    echo "routerforge-dns: readiness timeout after ${i}s" >&2
+    dns_diag
+    exit 1
 elif [ -x /opt/etc/init.d/S90routerforge ]; then
     # Compatibility with 0.3.x Core: its DNS engine still reads dns.enabled.
     /opt/etc/init.d/S90routerforge stop >/dev/null 2>&1 || true

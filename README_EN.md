@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/static/routerforge-brand.jpg" alt="RouterForge — Monitoring and diagnostics for Keenetic / Netcraze with Entware" width="100%">
+  <img src="docs/assets/routerforge-banner.jpg" alt="RouterForge — Monitoring and diagnostics for Keenetic / Netcraze with Entware" width="100%">
 </p>
 
 # RouterForge

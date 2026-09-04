@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="frontend/static/routerforge-brand.jpg" alt="RouterForge — Monitoring and diagnostics for Keenetic / Netcraze with Entware" width="100%">
+</p>
+
 # RouterForge
 
 **Русский** | [English](README_EN.md)
@@ -19,6 +23,9 @@
 > [!NOTE]
 > RouterForge — независимый community-проект и не является официальным продуктом Keenetic или Netcraze.
 > Исторические ссылки на прежнее имя репозитория продолжают работать через GitHub redirect и compatibility fallback RouterForge.
+
+> [!TIP]
+> Production baseline от 05.09.2026: **Core 0.4.3 + DNS 0.4.18**. Компоненты версионируются независимо, поэтому номера Core и модулей не обязаны совпадать.
 
 ## Что умеет RouterForge
 

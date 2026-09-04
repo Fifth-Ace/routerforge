@@ -94,6 +94,7 @@ Current DNS API surface:
 GET    /api/modules/dns/health
 GET    /api/modules/dns/snapshot
 GET    /api/modules/dns/history
+GET    /api/modules/dns/quality
 GET    /api/modules/dns/fallbacks
 GET    /api/modules/dns/error-bursts
 GET    /api/modules/dns/clients
@@ -114,6 +115,20 @@ POST   /api/modules/dns/preview
 The normal DNS UI consumes the observability endpoints lazily by active view. Resolver writes remain confined to the mutation endpoints above and keep the same snapshot/readback/rollback safety boundary.
 
 Mutation requests require the RouterForge action header injected by the official module UI. The DNS runtime also rejects unknown JSON fields and limits request body size.
+
+## Module lifecycle и restart
+
+Наличие package и готовность runtime — разные состояния. Core сначала определяет установку по `opkg`, затем проверяет module health через Unix-socket proxy.
+
+При install/update/restart:
+
+1. package может быть уже установлен, пока socket ещё не поднялся;
+2. обычный module API в этот момент возвращает структурированный `503`;
+3. UI frame использует health preflight и показывает reconnect state;
+4. iframe proxy на временной dial-ошибке отдаёт no-store reconnect page вместо сырого JSON;
+5. после появления health UI автоматически возвращается к модулю.
+
+Это позволяет обновлять Module ABI runtime без ручного refresh страницы и без ложного состояния «модуль не установлен».
 
 ## DNS write safety
 
@@ -183,9 +198,9 @@ Every component has its own version in the channel release index.
 A normal post-ABI state can look like:
 
 ```text
-routerforge-core     0.4.0
-routerforge-dns      0.4.3
-routerforge-network  0.3.3
+routerforge-core     0.4.3
+routerforge-dns      0.4.18
+routerforge-network  0.3.2
 ```
 
 This is intentional. DNS-only changes must not require a Core version bump after Module ABI v1 has landed.

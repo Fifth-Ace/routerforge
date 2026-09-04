@@ -13,6 +13,15 @@ RouterForge рассчитан на:
 
 Web UI работает на порту **2233**.
 
+Текущий production baseline:
+
+```text
+routerforge-core  0.4.3
+routerforge-dns   0.4.18
+```
+
+DNS 0.4.18 требует Core не ниже 0.4.2. Stable bootstrap сам берёт совместимую пару из release-index.
+
 ## Stable — рекомендуемый канал
 
 ```sh
@@ -44,9 +53,21 @@ http://<ip-роутера>:2233
 Проверка:
 
 ```sh
+echo "=== CORE ==="
 wget -qO- http://127.0.0.1:2233/api/health
+echo
+
+echo "=== PACKAGES ==="
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
+
+echo "=== DNS MODULE ==="
+cat /opt/share/routerforge/modules/dns/manifest.json 2>/dev/null
+echo
+wget -qO- http://127.0.0.1:2233/api/modules/dns/health
+echo
 ```
+
+Для Core 0.4.2+ loopback `GET/HEAD /api/modules/<id>/health` используется как readiness probe и остаётся доступен локально даже при включённой RouterForge-auth. Остальные защищённые API по-прежнему требуют сессию.
 
 ## Beta
 
@@ -116,6 +137,10 @@ Remote release-index и Marketplace Registry автоматически обно
 При наличии обновлений кнопка подсвечивается и показывает их количество.
 
 **«Обновить всё RouterForge»** обновляет официальные RouterForge-компоненты независимо: модули сначала, Core последним.
+
+Lifecycle считается успешным только после повторного чтения локального package state. Для `update` Core дополнительно проверяет, что фактически установленная версия совпала с target version из release-index. Во время restart Module ABI runtime может кратковременно быть недоступен; UI показывает состояние перезапуска и сам повторяет health-check вместо вывода сырого proxy JSON.
+
+`opkg` иногда оставляет старые stanza со статусом `not-installed`. Core 0.4.3+ не считает такие tombstone-записи установленным пакетом и не позволяет им подменять отображаемую версию.
 
 ### Проверка установленных версий
 

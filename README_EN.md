@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="frontend/static/routerforge-brand.jpg" alt="RouterForge — Monitoring and diagnostics for Keenetic / Netcraze with Entware" width="100%">
+</p>
+
 # RouterForge
 
 [Русский](README.md) | **English**
@@ -19,6 +23,9 @@ A single Core provides the UI, API, Marketplace, authentication and package life
 > [!NOTE]
 > RouterForge is an independent community project and is not an official Keenetic or Netcraze product.
 > Historical links using the previous repository name remain supported through GitHub redirects and the RouterForge compatibility fallback.
+
+> [!TIP]
+> Production baseline as of 2026-09-05: **Core 0.4.3 + DNS 0.4.18**. Components are versioned independently, so Core and module versions do not need to match.
 
 ## What RouterForge provides
 

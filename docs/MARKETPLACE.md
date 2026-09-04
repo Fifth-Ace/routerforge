@@ -19,6 +19,8 @@ Core объединяет:
 
 Установленная версия RouterForge package определяется по локальной базе `opkg`.
 
+Core учитывает только stanza, у которых `Status` действительно заканчивается состоянием `installed`. Старые записи вида `install prefer not-installed`, которые `opkg` может оставить после upgrade, считаются tombstone и игнорируются. Поэтому старая версия не должна перекрывать текущую установленную версию в Marketplace.
+
 ### Available
 
 Доступная версия официального RouterForge package берётся из release-index:
@@ -62,6 +64,10 @@ CI публикует новый asset только для компонента,
 
 1. обновляются optional modules;
 2. Core обновляется последним.
+
+После lifecycle action Core повторно строит catalog из локального package state. `update` считается успешным только если package установлен **и** его фактическая версия совпадает с target version из release-index. Один только успешный exit code `opkg` недостаточен.
+
+Для Module ABI runtime package-installed и runtime-ready — независимые состояния. Во время restart proxy может кратковременно отдавать `503`, а UI выполняет health preflight/retry и восстанавливает iframe после готовности socket.
 
 ## Проверка IPK
 

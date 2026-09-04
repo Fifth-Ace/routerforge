@@ -80,13 +80,21 @@ ls -l /opt/var/run/routerforge-*.sock 2>/dev/null
 3. проверьте Unix socket;
 4. перезапустите конкретный service, затем Core.
 
-## 7. Marketplace не видит обновление
+## 7. Marketplace не видит обновление или показывает старую Installed version
 
-Сначала нажмите **«Проверить обновления»**.
+Сначала нажмите **«Проверить обновления»**. Кнопка делает force refresh Registry + release-index; автоматическая remote-проверка выполняется примерно раз в час.
 
-В новой архитектуре эта кнопка делает force refresh Registry + release-index.
+Проверьте реальное состояние `opkg`:
 
-Автоматическая remote-проверка — примерно раз в час.
+```sh
+/opt/bin/opkg status routerforge-core 2>/dev/null | grep -E '^(Package|Version|Status):'
+echo
+/opt/bin/opkg status routerforge-dns 2>/dev/null | grep -E '^(Package|Version|Status):'
+echo
+/opt/bin/opkg list-installed | grep '^routerforge-' | sort
+```
+
+`opkg status` может содержать одновременно текущую `installed` stanza и старую `not-installed` stanza. Core 0.4.3+ игнорирует `not-installed` tombstones. Если `opkg list-installed` и Marketplace расходятся на Core 0.4.3+, приложите полный `opkg status` нужного package к bug report.
 
 Cache:
 
@@ -123,16 +131,41 @@ cat /opt/etc/routerforge/security.json 2>/dev/null
 
 Если UI после изменения auth выглядит устаревшим, выполните hard refresh браузера после проверки, что `/api/health` отвечает.
 
-## 10. DNS
+## 10. DNS / Module ABI
 
-Если DNS-раздел отсутствует:
+Сначала разделите package state и runtime state:
 
 ```sh
-/opt/bin/opkg status routerforge-dns 2>/dev/null
-ls -l /opt/etc/routerforge/dns.enabled 2>/dev/null
+echo "=== PACKAGE ==="
+/opt/bin/opkg status routerforge-dns 2>/dev/null | grep -E '^(Package|Version|Status):'
+
+echo
+echo "=== MANIFEST ==="
+cat /opt/share/routerforge/modules/dns/manifest.json 2>/dev/null
+
+echo
+echo "=== SOCKET ==="
+ls -l /opt/var/run/routerforge-dns.sock 2>/dev/null
+
+echo
+echo "=== PROCESS ==="
+ps w | grep '[r]outerforge-dns'
+
+echo
+echo "=== HEALTH ==="
+wget -qO- http://127.0.0.1:2233/api/modules/dns/health
+echo
+
+echo
+echo "=== LAST STARTS ==="
+grep 'START' /opt/var/log/routerforge-dns.log 2>/dev/null | tail -10
 ```
 
-Если DNS-раздел есть, но discovery/capture сообщает ошибку, проверьте:
+Во время реального update/restart краткий `503` для module API допустим, пока Unix socket поднимается. На Core 0.4.2+ официальный UI сам повторяет health-check и iframe не должен застревать на сыром JSON.
+
+Если runtime уже `ok:true`, но Marketplace показывает другую Installed version, вернитесь к разделу 7 и сравните `opkg status`/`list-installed`.
+
+Если DNS runtime жив, но discovery/capture сообщает ошибку, проверьте Keenetic:
 
 ```sh
 ndmc -c 'show dns-proxy'

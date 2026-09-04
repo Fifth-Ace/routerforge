@@ -4,6 +4,17 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-05 — RouterForge Core 0.4.3 / DNS 0.4.18
+
+### Stable highlights
+
+- Core 0.4.3 makes Marketplace package accounting match real `opkg` state and rejects false-success updates whose installed version does not match the target release.
+- Core 0.4.2 lifecycle work is included: Module ABI install/update/restart distinguishes package-installed from runtime-ready, uses readiness probes, and reconnects module UI without exposing raw proxy JSON.
+- DNS 0.4.18 includes the readiness-aware maintainer lifecycle plus the 0.4.14–0.4.17 resolver/theme/diagnostics fixes validated in Beta.
+- DNS 0.4.18 requires Core 0.4.2 or newer.
+
+### Included beta history
+
 - Core `0.4.3-beta` fixes package-version accounting after real opkg upgrades:
   - opkg status parsing now accepts only stanzas whose package state is actually `installed`, so stale `not-installed` tombstones cannot overwrite the live version shown by Marketplace;
   - RouterForge release updates now verify the catalog-reported installed version against the target release before returning success.

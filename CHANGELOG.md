@@ -4,6 +4,13 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.11-beta` restores the observability/control UI parity that was lost during the Module ABI v1 split without moving DNS back into Core:
+  - Overview again shows searchable active/all runtime tables for plain DNS and protected DoT/DoH, including health, latency, errors, fallback, quality and Keenetic policy contexts;
+  - Rules keeps the new native domain-binding view and restores observed fallback routes, Keenetic profile summaries, local records and rebind state;
+  - Traffic restores history windows, live DNS Flow with pause/filtering, per-device drill-down, interfaces, domains/QTYPEs and plain-DNS recent events;
+  - Diagnostics restores error bursts/journal, local proxy connections, runtime DNS health diagnostics and process/system details;
+  - the module reuses the existing Module ABI endpoints (history, fallbacks, clients, client, interfaces, system, error-bursts and plain-dns), refreshes view-specific data lazily, and leaves the already validated resolver mutation/rollback backend untouched.
+
 - DNS `0.4.10-beta` fixes DoH logical-ID stability after successful native writes:
   - Keenetic DoH readback exposes the HTTPS endpoint but no separate port field; RouterForge now reconstructs port 443 (or a custom port embedded in the URL) before calculating resolver identity;
   - this keeps the ID returned by `Create` identical to the ID reconstructed by the next `loadState`, so immediate PATCH/Disable/Enable/Delete operations no longer return a false 404;

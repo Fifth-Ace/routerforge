@@ -10,7 +10,7 @@
     {
       "id": "dns",
       "package": "routerforge-dns",
-      "version": "0.4.10-beta",
+      "version": "0.4.11-beta",
       "min_core_version": "0.4.1-beta"
     },
     {

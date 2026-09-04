@@ -27,9 +27,9 @@ var (
 )
 
 const (
-	dnsDisabledStoreVersion       = 1
-	dnsKeeneticSecureSlotLimit    = 8
-	dnsKeeneticPlainDomainLimit   = 16
+	dnsDisabledStoreVersion     = 1
+	dnsKeeneticSecureSlotLimit  = 8
+	dnsKeeneticPlainDomainLimit = 16
 )
 
 var dnsSafeToken = regexp.MustCompile(`^[A-Za-z0-9._:@/\-+*=]{0,512}$`)

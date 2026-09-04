@@ -9,7 +9,7 @@
   let error = '';
   let success = '';
   let info = null;
-  let resolverState = { resolvers: [], active_count: 0, disabled_count: 0, dynamic_count: 0, physical_entries: 0, dot_physical_entries: 0, dot_physical_limit: 0 };
+  let resolverState = { resolvers: [], active_count: 0, disabled_count: 0, dynamic_count: 0, physical_entries: 0, dot_physical_entries: 0, dot_physical_limit: 0, doh_physical_entries: 0, secure_physical_entries: 0, secure_physical_limit: 0, plain_dns_domain_limit: 16 };
   let snapshot = {};
   let advanced = false;
   let editorOpen = false;
@@ -38,7 +38,7 @@
       topDomains:'Популярные домены', recentFlow:'Последние DNS-события', status:'Состояние', memory:'Память', rank:'Rank',
       rebindOn:'Включена', rebindOff:'Выключена', protectedNets:'Защищённые сети', exclusions:'Исключения',
       editTitle:'Настройка резолвера', addTitle:'Новый резолвер', all:'Все', moduleVersion:'Версия модуля',
-      dotSlots:'DoT-слоты', afterSave:'После сохранения', limitExceeded:'Превышен лимит Keenetic'
+      dotSlots:'DoT-слоты', secureSlots:'DoT/DoH-слоты', dnsDomainLimit:'Домены DNS', afterSave:'После сохранения', limitExceeded:'Превышен лимит Keenetic'
     },
     en: {
       title:'DNS', subtitle:'Keenetic resolver management, rules and DNS runtime.',
@@ -59,7 +59,7 @@
       topDomains:'Top domains', recentFlow:'Recent DNS events', status:'Status', memory:'Memory', rank:'Rank',
       rebindOn:'Enabled', rebindOff:'Disabled', protectedNets:'Protected networks', exclusions:'Exclusions',
       editTitle:'Configure resolver', addTitle:'New resolver', all:'All', moduleVersion:'Module version',
-      dotSlots:'DoT slots', afterSave:'After save', limitExceeded:'Keenetic limit exceeded'
+      dotSlots:'DoT slots', secureSlots:'DoT/DoH slots', dnsDomainLimit:'DNS domains', afterSave:'After save', limitExceeded:'Keenetic limit exceeded'
     }
   };
   $: L = strings[locale];
@@ -73,13 +73,19 @@
   $: topDomains = snapshot?.top_domains || [];
   $: flow = snapshot?.flow || [];
   $: dotSlotsUsed = Number(resolverState?.dot_physical_entries || 0);
-  $: dotSlotLimit = Number(resolverState?.dot_physical_limit || 0);
-  $: formPhysicalCount = form.domains.split(/\r?\n|,/).map((v) => v.trim()).filter(Boolean).length || 1;
-  $: editingActiveDoTSlots = editing && !editing.disabled && !editing.dynamic && editing.protocol === 'DoT' ? Number(editing.physical_count || 1) : 0;
+  $: dohSlotsUsed = Number(resolverState?.doh_physical_entries || 0);
+  $: secureSlotsUsed = Number(resolverState?.secure_physical_entries ?? (dotSlotsUsed + dohSlotsUsed));
+  $: secureSlotLimit = Number(resolverState?.secure_physical_limit || resolverState?.dot_physical_limit || 0);
+  $: plainDnsDomainLimit = Number(resolverState?.plain_dns_domain_limit || 16);
+  $: formDomainCount = form.domains.split(/\r?\n|,/).map((v) => v.trim()).filter(Boolean).length;
+  $: formPhysicalCount = formDomainCount || 1;
+  $: editingActiveSecureSlots = editing && !editing.disabled && !editing.dynamic && ['DoT','DoH'].includes(editing.protocol) ? Number(editing.physical_count || 1) : 0;
   $: editorAffectsActive = !editing || (!editing.disabled && !editing.dynamic);
-  $: formActiveDoTSlots = editorAffectsActive && form.protocol === 'DoT' ? formPhysicalCount : 0;
-  $: projectedDoTSlots = Math.max(0, dotSlotsUsed - editingActiveDoTSlots + formActiveDoTSlots);
-  $: dotCapacityExceeded = dotSlotLimit > 0 && projectedDoTSlots > dotSlotLimit;
+  $: formActiveSecureSlots = editorAffectsActive && ['DoT','DoH'].includes(form.protocol) ? formPhysicalCount : 0;
+  $: projectedSecureSlots = Math.max(0, secureSlotsUsed - editingActiveSecureSlots + formActiveSecureSlots);
+  $: secureCapacityExceeded = secureSlotLimit > 0 && projectedSecureSlots > secureSlotLimit;
+  $: plainDomainExceeded = form.protocol === 'DNS' && formDomainCount > plainDnsDomainLimit;
+  $: editorLimitExceeded = secureCapacityExceeded || plainDomainExceeded;
 
   function blankForm() {
     return { protocol:'DoT', address:'', uri:'', port:853, sni:'', interface:'', domains:'', spki:'', format:'' };
@@ -351,7 +357,7 @@
     <section class="panel resolver-panel">
       <div class="panel-head">
         <div><strong>{L.resolvers}</strong><span>{L.nativeHint}</span></div>
-        <span class="state-pill info">{L.dotSlots}: {dotSlotsUsed}/{dotSlotLimit || '—'}</span>
+        <span class="state-pill info">{L.secureSlots}: {secureSlotsUsed}/{secureSlotLimit || '—'}</span>
       </div>
       {#if !resolvers.length}<div class="empty-box">{L.noResolvers}</div>{/if}
       <div class="resolver-grid resolver-grid-body">
@@ -426,15 +432,15 @@
       <div class="modal" role="dialog" aria-modal="true">
         <h2>{editing ? L.editTitle : L.addTitle}</h2>
         <div class="form-grid">
-          <label>{L.protocol}<select class="protocol-select" bind:value={form.protocol} onchange={() => { if (form.protocol === 'DoT' && !form.port) form.port=853; if (form.protocol === 'DNS') form.port=53; if (form.protocol === 'DoH') form.port=443; }}><option>DNS</option><option>DoT</option><option>DoH</option></select></label>
-          <label>{L.port}<input type="number" min="1" max="65535" bind:value={form.port}/></label>
+          <label>{L.protocol}<select class="protocol-select" bind:value={form.protocol} onchange={() => { if (form.protocol === 'DoT') form.port=853; if (form.protocol === 'DNS') form.port=53; if (form.protocol === 'DoH') form.port=443; }}><option>DNS</option><option>DoT</option><option>DoH</option></select></label>
+          {#if form.protocol !== 'DoH'}<label>{L.port}<input type="number" min="1" max="65535" bind:value={form.port}/></label>{/if}
           {#if form.protocol === 'DoH'}<label class="span-2">{L.uri}<input class="mono" placeholder="https://dns.example/dns-query" bind:value={form.uri}/></label>{:else}<label class="span-2">{L.address}<input class="mono" placeholder={form.protocol === 'DNS' ? '1.1.1.1' : '1.1.1.1 / dns.example'} bind:value={form.address}/></label>{/if}
           {#if form.protocol === 'DoT'}<label>{L.sni}<input class="mono" placeholder="cloudflare-dns.com" bind:value={form.sni}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
           {#if form.protocol === 'DoH'}<label>{L.format}<input class="mono" bind:value={form.format}/></label>{/if}
           <label>{L.iface}<input class="mono" placeholder="ISP" bind:value={form.interface}/></label>
-          <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span class:slot-warning={dotCapacityExceeded}>{L.domainsHint}{#if form.protocol === 'DoT' && dotSlotLimit} · {L.dotSlots}: {dotSlotsUsed}/{dotSlotLimit} → {L.afterSave}: {projectedDoTSlots}/{dotSlotLimit}{#if dotCapacityExceeded} · {L.limitExceeded}{/if}{/if}</span></label>
+          <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span class:slot-warning={editorLimitExceeded}>{L.domainsHint}{#if ['DoT','DoH'].includes(form.protocol) && secureSlotLimit} · {L.secureSlots}: {secureSlotsUsed}/{secureSlotLimit} → {L.afterSave}: {projectedSecureSlots}/{secureSlotLimit}{#if secureCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DNS'} · {L.dnsDomainLimit}: {formDomainCount}/{plainDnsDomainLimit}{#if plainDomainExceeded} · {L.limitExceeded}{/if}{/if}</span></label>
         </div>
-        <div class="modal-actions"><button class="action" type="button" onclick={() => editorOpen = false}>{L.cancel}</button><button class="action primary" type="button" disabled={saving || dotCapacityExceeded} onclick={saveEditor}>{saving ? '…' : L.save}</button></div>
+        <div class="modal-actions"><button class="action" type="button" onclick={() => editorOpen = false}>{L.cancel}</button><button class="action primary" type="button" disabled={saving || editorLimitExceeded} onclick={saveEditor}>{saving ? '…' : L.save}</button></div>
       </div>
     </div>
   {/if}

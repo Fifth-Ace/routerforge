@@ -4,6 +4,12 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.7-beta` completes documented DoH/plain-DNS parity in DNS Control:
+  - Keenetic's documented secure-resolver capacity is treated as one combined pool of 8 physical DoT/DoH entries, so DoH and DoT cannot overcommit each other;
+  - DoH domain bindings use the same logical-to-native expansion model as DoT; the editor projects the combined secure slot usage before save;
+  - plain `ip name-server` keeps native multi-domain grouping but now enforces Keenetic's documented maximum of 16 domains per DNS server;
+  - DoH format is limited to the documented `dnsm`/`json` values, and its effective port is derived from the HTTPS URL instead of a separate UI field;
+  - regression tests cover mixed DoT/DoH 8-slot capacity, DoH multi-domain expansion, DoH URL-port semantics and the 16-domain plain-DNS limit.
 - DNS `0.4.6-beta` fixes visual alignment inside the Module ABI iframe:
   - removes the erroneous second max-width/centering layer so DNS fills the full Core content column exactly like native pages;
   - copies Core's computed responsive UI tokens into the same-origin DNS iframe, so 2K/4K `auto` scaling matches the shell even though the iframe viewport is narrower after the persistent rail;

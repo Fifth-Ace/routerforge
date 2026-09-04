@@ -27,8 +27,9 @@ var (
 )
 
 const (
-	dnsDisabledStoreVersion = 1
-	dnsKeeneticDoTSlotLimit = 8
+	dnsDisabledStoreVersion       = 1
+	dnsKeeneticSecureSlotLimit    = 8
+	dnsKeeneticPlainDomainLimit   = 16
 )
 
 var dnsSafeToken = regexp.MustCompile(`^[A-Za-z0-9._:@/\-+*=]{0,512}$`)
@@ -54,15 +55,19 @@ type DNSResolverSpec struct {
 }
 
 type DNSResolverList struct {
-	Resolvers          []DNSResolverSpec `json:"resolvers"`
-	ActiveCount        int               `json:"active_count"`
-	DisabledCount      int               `json:"disabled_count"`
-	DynamicCount       int               `json:"dynamic_count"`
-	MutationAPI        bool              `json:"mutation_api"`
-	NativeMode         bool              `json:"native_mode"`
-	GeneratedSlots     int               `json:"physical_entries"`
-	DoTPhysicalEntries int               `json:"dot_physical_entries"`
-	DoTPhysicalLimit   int               `json:"dot_physical_limit"`
+	Resolvers             []DNSResolverSpec `json:"resolvers"`
+	ActiveCount           int               `json:"active_count"`
+	DisabledCount         int               `json:"disabled_count"`
+	DynamicCount          int               `json:"dynamic_count"`
+	MutationAPI           bool              `json:"mutation_api"`
+	NativeMode            bool              `json:"native_mode"`
+	GeneratedSlots        int               `json:"physical_entries"`
+	DoTPhysicalEntries    int               `json:"dot_physical_entries"`
+	DoTPhysicalLimit      int               `json:"dot_physical_limit"`
+	DoHPhysicalEntries    int               `json:"doh_physical_entries"`
+	SecurePhysicalEntries int               `json:"secure_physical_entries"`
+	SecurePhysicalLimit   int               `json:"secure_physical_limit"`
+	PlainDNSDomainLimit   int               `json:"plain_dns_domain_limit"`
 }
 
 type DNSResolverPreview struct {
@@ -185,9 +190,11 @@ func (m *dnsControlManager) List(ctx context.Context) (DNSResolverList, error) {
 		return DNSResolverList{}, err
 	}
 	out := DNSResolverList{
-		MutationAPI:      true,
-		NativeMode:       true,
-		DoTPhysicalLimit: dnsKeeneticDoTSlotLimit,
+		MutationAPI:         true,
+		NativeMode:          true,
+		DoTPhysicalLimit:    dnsKeeneticSecureSlotLimit,
+		SecurePhysicalLimit: dnsKeeneticSecureSlotLimit,
+		PlainDNSDomainLimit: dnsKeeneticPlainDomainLimit,
 	}
 	ids := make([]string, 0, len(state.Logical))
 	for id := range state.Logical {
@@ -199,8 +206,13 @@ func (m *dnsControlManager) List(ctx context.Context) (DNSResolverList, error) {
 		out.Resolvers = append(out.Resolvers, spec)
 		out.ActiveCount++
 		out.GeneratedSlots += spec.PhysicalCount
-		if spec.Protocol == "DoT" {
+		switch spec.Protocol {
+		case "DoT":
 			out.DoTPhysicalEntries += spec.PhysicalCount
+			out.SecurePhysicalEntries += spec.PhysicalCount
+		case "DoH":
+			out.DoHPhysicalEntries += spec.PhysicalCount
+			out.SecurePhysicalEntries += spec.PhysicalCount
 		}
 	}
 	for _, spec := range state.Dynamic {
@@ -491,15 +503,16 @@ func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfi
 }
 
 func validateDNSPhysicalLimits(desired *dnsConfigState, changed map[string]bool) error {
-	if desired == nil || !changed["DoT"] {
+	if desired == nil || (!changed["DoT"] && !changed["DoH"]) {
 		return nil
 	}
-	slots := len(desiredEntriesForProtocol(desired, "DoT"))
-	if slots > dnsKeeneticDoTSlotLimit {
+	slots := len(desiredEntriesForProtocol(desired, "DoT")) +
+		len(desiredEntriesForProtocol(desired, "DoH"))
+	if slots > dnsKeeneticSecureSlotLimit {
 		return fmt.Errorf(
-			"%w: Keenetic DoT limit is %d physical entries; requested %d",
+			"%w: Keenetic DoT/DoH limit is %d physical entries; requested %d",
 			errDNSResolverConflict,
-			dnsKeeneticDoTSlotLimit,
+			dnsKeeneticSecureSlotLimit,
 			slots,
 		)
 	}
@@ -884,6 +897,13 @@ func normalizeDNSResolverSpec(spec DNSResolverSpec) (DNSResolverSpec, error) {
 	out.SPKI = strings.TrimSpace(out.SPKI)
 	out.Format = strings.TrimSpace(out.Format)
 	out.Domains = normalizeDomains(out.Domains)
+	if out.Protocol == "DNS" && len(out.Domains) > dnsKeeneticPlainDomainLimit {
+		return DNSResolverSpec{}, fmt.Errorf(
+			"%w: Keenetic plain DNS supports at most %d domains per server",
+			errDNSResolverInvalid,
+			dnsKeeneticPlainDomainLimit,
+		)
+	}
 	if len(out.Domains) > 64 {
 		return DNSResolverSpec{}, fmt.Errorf("%w: at most 64 domain bindings are accepted", errDNSResolverInvalid)
 	}
@@ -920,9 +940,17 @@ func normalizeDNSResolverSpec(spec DNSResolverSpec) (DNSResolverSpec, error) {
 		if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
 			return DNSResolverSpec{}, fmt.Errorf("%w: DoH URI must be a valid https:// URL", errDNSResolverInvalid)
 		}
+		if out.Format != "" && out.Format != "dnsm" && out.Format != "json" {
+			return DNSResolverSpec{}, fmt.Errorf("%w: DoH format must be dnsm or json", errDNSResolverInvalid)
+		}
 		out.Address, out.SNI, out.SPKI = "", "", ""
-		if out.Port == 0 {
-			out.Port = 443
+		out.Port = 443
+		if parsed.Port() != "" {
+			port, err := strconv.Atoi(parsed.Port())
+			if err != nil || port < 1 || port > 65535 {
+				return DNSResolverSpec{}, fmt.Errorf("%w: invalid DoH URL port", errDNSResolverInvalid)
+			}
+			out.Port = port
 		}
 	}
 	if out.Port < 1 || out.Port > 65535 {

@@ -88,32 +88,111 @@ func TestDNSRCIPayloadUsesFQDNForDoTSNI(t *testing.T) {
 	}
 }
 
-func TestDNSPhysicalLimitAcceptsEightDoTSlots(t *testing.T) {
-	entries := make([]map[string]any, dnsKeeneticDoTSlotLimit)
-	for i := range entries {
-		entries[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("slot-%d.invalid", i)}
+func TestDNSPhysicalLimitAcceptsEightMixedSecureSlots(t *testing.T) {
+	dot := make([]map[string]any, 5)
+	for i := range dot {
+		dot[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("dot-%d.invalid", i)}
+	}
+	doh := make([]map[string]any, 3)
+	for i := range doh {
+		doh[i] = map[string]any{"uri": "https://cloudflare-dns.com/dns-query", "domain": fmt.Sprintf("doh-%d.invalid", i)}
 	}
 	state := &dnsConfigState{Logical: map[string]*dnsLogicalResolver{
-		"test": {Spec: DNSResolverSpec{Protocol: "DoT"}, RawEntries: entries},
+		"dot": {Spec: DNSResolverSpec{Protocol: "DoT"}, RawEntries: dot},
+		"doh": {Spec: DNSResolverSpec{Protocol: "DoH"}, RawEntries: doh},
 	}}
-	if err := validateDNSPhysicalLimits(state, map[string]bool{"DoT": true}); err != nil {
-		t.Fatalf("8 DoT slots must be accepted: %v", err)
+	if err := validateDNSPhysicalLimits(state, map[string]bool{"DoH": true}); err != nil {
+		t.Fatalf("8 combined DoT/DoH slots must be accepted: %v", err)
 	}
 }
 
-func TestDNSPhysicalLimitRejectsNineDoTSlotsBeforeWrite(t *testing.T) {
-	entries := make([]map[string]any, dnsKeeneticDoTSlotLimit+1)
-	for i := range entries {
-		entries[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("slot-%d.invalid", i)}
+func TestDNSPhysicalLimitRejectsNinthMixedSecureSlotBeforeWrite(t *testing.T) {
+	dot := make([]map[string]any, 6)
+	for i := range dot {
+		dot[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("dot-%d.invalid", i)}
+	}
+	doh := make([]map[string]any, 3)
+	for i := range doh {
+		doh[i] = map[string]any{"uri": "https://cloudflare-dns.com/dns-query", "domain": fmt.Sprintf("doh-%d.invalid", i)}
 	}
 	state := &dnsConfigState{Logical: map[string]*dnsLogicalResolver{
-		"test": {Spec: DNSResolverSpec{Protocol: "DoT"}, RawEntries: entries},
+		"dot": {Spec: DNSResolverSpec{Protocol: "DoT"}, RawEntries: dot},
+		"doh": {Spec: DNSResolverSpec{Protocol: "DoH"}, RawEntries: doh},
 	}}
-	err := validateDNSPhysicalLimits(state, map[string]bool{"DoT": true})
+	err := validateDNSPhysicalLimits(state, map[string]bool{"DoH": true})
 	if err == nil {
-		t.Fatal("9 DoT slots must be rejected")
+		t.Fatal("9 combined DoT/DoH slots must be rejected")
 	}
 	if !errors.Is(err, errDNSResolverConflict) {
-		t.Fatalf("slot overflow must be a conflict: %v", err)
+		t.Fatalf("secure slot overflow must be a conflict: %v", err)
+	}
+}
+
+func TestPreviewDoHMultiDomainExpandsToPhysicalEntries(t *testing.T) {
+	preview, err := previewDNSResolver(DNSResolverSpec{
+		Protocol: "DoH",
+		URI:      "https://cloudflare-dns.com/dns-query",
+		Format:   "dnsm",
+		Domains:  []string{"a.invalid", "b.invalid", "c.invalid"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.PhysicalCount != 3 {
+		t.Fatalf("DoH physical count = %d, want 3", preview.PhysicalCount)
+	}
+	for _, entry := range preview.PhysicalEntries {
+		if entry["uri"] != "https://cloudflare-dns.com/dns-query" || entry["format"] != "dnsm" {
+			t.Fatalf("unexpected DoH entry: %#v", entry)
+		}
+	}
+}
+
+func TestPlainDNSAcceptsSixteenDomainsAndRejectsSeventeen(t *testing.T) {
+	domains := make([]string, dnsKeeneticPlainDomainLimit)
+	for i := range domains {
+		domains[i] = fmt.Sprintf("zone-%d.invalid", i)
+	}
+	spec, err := normalizeDNSResolverSpec(DNSResolverSpec{
+		Protocol: "DNS",
+		Address:  "1.1.1.1",
+		Domains:  domains,
+	})
+	if err != nil {
+		t.Fatalf("16 plain DNS domains must be accepted: %v", err)
+	}
+	if spec.PhysicalCount != dnsKeeneticPlainDomainLimit {
+		t.Fatalf("physical count = %d, want %d", spec.PhysicalCount, dnsKeeneticPlainDomainLimit)
+	}
+	_, err = normalizeDNSResolverSpec(DNSResolverSpec{
+		Protocol: "DNS",
+		Address:  "1.1.1.1",
+		Domains:  append(domains, "overflow.invalid"),
+	})
+	if err == nil || !errors.Is(err, errDNSResolverInvalid) {
+		t.Fatalf("17 plain DNS domains must be rejected, got %v", err)
+	}
+}
+
+func TestDoHPortComesFromURLAndFormatIsValidated(t *testing.T) {
+	spec, err := normalizeDNSResolverSpec(DNSResolverSpec{
+		Protocol: "DoH",
+		URI:      "https://dns.example:8443/dns-query",
+		Port:     1234,
+		Format:   "json",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Port != 8443 {
+		t.Fatalf("DoH port = %d, want URL port 8443", spec.Port)
+	}
+	_, err = normalizeDNSResolverSpec(DNSResolverSpec{
+		Protocol: "DoH",
+		URI:      "https://dns.example/dns-query",
+		Format:   "bogus",
+	})
+	if err == nil || !errors.Is(err, errDNSResolverInvalid) {
+		t.Fatalf("invalid DoH format must be rejected, got %v", err)
 	}
 }

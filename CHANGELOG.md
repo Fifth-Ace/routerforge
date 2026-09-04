@@ -4,6 +4,10 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.17-beta` fixes the remaining unthemed Resolvers 2.0 detail strip:
+  - resolver detail metric values now use the active custom theme text token;
+  - metric captions now use the custom muted token;
+  - the runtime status strip now uses custom surface/border/muted tokens instead of the old Forge hard-coded gray palette.
 - DNS `0.4.16-beta` completes custom-theme state parity for the Traffic and Diagnostics second-level navigation:
   - active Traffic/Diagnostics subtabs use the current accent only on text/underline and never receive a full accent fill;
   - mouse-click focus no longer leaves a browser-default white rectangle around a selected subtab; keyboard focus remains visible through a semantic accent focus ring;

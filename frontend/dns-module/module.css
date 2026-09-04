@@ -1533,3 +1533,25 @@ html[data-radius="soft"] .dns-module {
   border-color:var(--rf-accent-border) !important;
   background:var(--rf-accent-soft) !important;
 }
+/* DNS 0.4.17 resolver detail theme fix
+   Resolvers 2.0 still had three detail-only selectors outside the 0.4.14
+   semantic bridge: metric values, metric labels and the runtime strip.
+   They now consume the exact same live custom-theme tokens as the rest of
+   the module. */
+.dns-module .resolver-detail-metrics strong {
+  color:var(--rf-text) !important;
+}
+
+.dns-module .resolver-detail-metrics span {
+  color:var(--rf-muted) !important;
+}
+
+.dns-module .resolver-runtime-line {
+  border-top-color:var(--rf-border) !important;
+  background:var(--rf-surface-2) !important;
+  color:var(--rf-muted) !important;
+}
+
+.dns-module .resolver-runtime-line > span:not(.state-pill) {
+  color:var(--rf-muted) !important;
+}

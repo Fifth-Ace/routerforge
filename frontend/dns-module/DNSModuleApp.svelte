@@ -204,7 +204,7 @@
       sni: form.protocol === 'DoT' ? form.sni.trim() : '',
       interface: form.interface.trim(),
       domains: form.domains.split(/\r?\n|,/).map((v) => v.trim()).filter(Boolean),
-      spki: form.protocol === 'DoT' ? form.spki.trim() : '',
+      spki: ['DoT','DoH'].includes(form.protocol) ? form.spki.trim() : '',
       format: form.protocol === 'DoH' ? form.format.trim() : ''
     };
   }
@@ -436,7 +436,7 @@
           {#if form.protocol !== 'DoH'}<label>{L.port}<input type="number" min="1" max="65535" bind:value={form.port}/></label>{/if}
           {#if form.protocol === 'DoH'}<label class="span-2">{L.uri}<input class="mono" placeholder="https://dns.example/dns-query" bind:value={form.uri}/></label>{:else}<label class="span-2">{L.address}<input class="mono" placeholder={form.protocol === 'DNS' ? '1.1.1.1' : '1.1.1.1 / dns.example'} bind:value={form.address}/></label>{/if}
           {#if form.protocol === 'DoT'}<label>{L.sni}<input class="mono" placeholder="cloudflare-dns.com" bind:value={form.sni}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
-          {#if form.protocol === 'DoH'}<label>{L.format}<input class="mono" bind:value={form.format}/></label>{/if}
+          {#if form.protocol === 'DoH'}<label>{L.format}<input class="mono" bind:value={form.format}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
           <label>{L.iface}<input class="mono" placeholder="ISP" bind:value={form.interface}/></label>
           <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span class:slot-warning={editorLimitExceeded}>{L.domainsHint}{#if ['DoT','DoH'].includes(form.protocol) && secureSlotLimit} · {L.secureSlots}: {secureSlotsUsed}/{secureSlotLimit} → {L.afterSave}: {projectedSecureSlots}/{secureSlotLimit}{#if secureCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DNS'} · {L.dnsDomainLimit}: {formDomainCount}/{plainDnsDomainLimit}{#if plainDomainExceeded} · {L.limitExceeded}{/if}{/if}</span></label>
         </div>

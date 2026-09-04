@@ -4,6 +4,10 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.9-beta` fixes Keenetic DoH native writes after live Hopper readback validation:
+  - DoH write payloads now use Keenetic's `url` RCI argument while readback continues to accept the saved/runtime `uri` shape; posting `uri` was transport-valid but NDMS silently discarded the upstream;
+  - canonical verification treats `url` and `uri` as the same DoH endpoint, so write/readback semantics match the firmware;
+  - documented DoH SPKI support is preserved through normalization, native entry generation, RCI writes and the resolver editor.
 - DNS `0.4.8-beta` fixes the DNS overview runtime regression introduced by the secure DoT/DoH capacity rename:
   - the overview cache metric still referenced the removed `dotSlotLimit` variable, which caused the Svelte render to throw after `loadAll()` completed and left the page frozen on the loading ellipsis;
   - the overview now uses the combined `secureSlotsUsed/secureSlotLimit` values, matching the resolver editor and documented shared DoT/DoH capacity.

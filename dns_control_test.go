@@ -196,3 +196,45 @@ func TestDoHPortComesFromURLAndFormatIsValidated(t *testing.T) {
 		t.Fatalf("invalid DoH format must be rejected, got %v", err)
 	}
 }
+
+func TestDNSRCIPayloadUsesURLForDoHURI(t *testing.T) {
+	raw := map[string]any{
+		"uri":       "https://cloudflare-dns.com/dns-query",
+		"format":    "dnsm",
+		"domain":    "routerforge-doh.invalid",
+		"interface": "ISP",
+		"spki":      "sha256/example",
+	}
+	payload := dnsRCIPayload("DoH", raw)
+	if payload["url"] != "https://cloudflare-dns.com/dns-query" {
+		t.Fatalf("url = %#v, want DoH endpoint; payload=%#v", payload["url"], payload)
+	}
+	if _, exists := payload["uri"]; exists {
+		t.Fatalf("Keenetic DoH RCI write payload must not emit uri: %#v", payload)
+	}
+	if payload["format"] != "dnsm" || payload["domain"] != "routerforge-doh.invalid" ||
+		payload["interface"] != "ISP" || payload["spki"] != "sha256/example" {
+		t.Fatalf("DoH metadata was not preserved: %#v", payload)
+	}
+
+	want := canonicalProtocolEntries("DoH", []map[string]any{raw})
+	got := canonicalProtocolEntries("DoH", []map[string]any{payload})
+	if len(want) != 1 || len(got) != 1 || want[0] != got[0] {
+		t.Fatalf("uri/url canonical readback mismatch: want=%v got=%v", want, got)
+	}
+}
+
+func TestDoHSPKISurvivesNormalization(t *testing.T) {
+	spec, err := normalizeDNSResolverSpec(DNSResolverSpec{
+		Protocol: "DoH",
+		URI:      "https://cloudflare-dns.com/dns-query",
+		Format:   "dnsm",
+		SPKI:     "sha256/example",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.SPKI != "sha256/example" {
+		t.Fatalf("DoH SPKI = %q, want preserved value", spec.SPKI)
+	}
+}

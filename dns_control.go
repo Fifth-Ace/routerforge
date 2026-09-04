@@ -813,9 +813,12 @@ func dnsRCIPayload(protocol string, raw map[string]any) map[string]any {
 		}
 	case "DoH":
 		if uri := firstStringField(raw, "uri", "url", "address"); uri != "" {
-			out["uri"] = uri
+			// Keenetic CLI names the write argument "url", while saved/runtime
+			// state exposes the same value as "uri". Posting "uri" is accepted
+			// by RCI transport but NDMS silently drops the DoH upstream.
+			out["url"] = uri
 		}
-		copyIfPresent(out, raw, "format", "domain", "interface")
+		copyIfPresent(out, raw, "format", "domain", "interface", "spki")
 	case "DNS":
 		copyIfPresent(out, raw, "address", "domain", "interface")
 		if port := intField(raw, "port"); port != 0 && port != 53 {
@@ -853,6 +856,9 @@ func buildDNSResolverEntries(spec DNSResolverSpec) ([]map[string]any, error) {
 			entry["uri"] = normalized.URI
 			if normalized.Format != "" {
 				entry["format"] = normalized.Format
+			}
+			if normalized.SPKI != "" {
+				entry["spki"] = normalized.SPKI
 			}
 		case "DNS":
 			entry["address"] = normalized.Address
@@ -943,7 +949,7 @@ func normalizeDNSResolverSpec(spec DNSResolverSpec) (DNSResolverSpec, error) {
 		if out.Format != "" && out.Format != "dnsm" && out.Format != "json" {
 			return DNSResolverSpec{}, fmt.Errorf("%w: DoH format must be dnsm or json", errDNSResolverInvalid)
 		}
-		out.Address, out.SNI, out.SPKI = "", "", ""
+		out.Address, out.SNI = "", ""
 		out.Port = 443
 		if parsed.Port() != "" {
 			port, err := strconv.Atoi(parsed.Port())

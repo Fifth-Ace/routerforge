@@ -244,7 +244,7 @@
     <section class="panel module-offline">
       <div class="panel-head">
         <div><strong>{t(locale, 'monitoring.unavailableTitle', { name: moduleName(definition) })}</strong><span>{t(locale, 'monitoring.unavailableHint')}</span></div>
-        <span class="state-chip info">OPTIONAL IPK</span>
+        <span class="state-chip info">{t(locale, 'monitoring.optionalIpk')}</span>
       </div>
       <div class="module-install-hint">
         <p>{errorText}</p>
@@ -260,7 +260,7 @@
       <div class="metric-card"><span>{t(locale, 'monitoring.system.host')}</span><strong>{data.summary.hostname || '—'}</strong><small>{data.summary.kernel || '—'} · {data.summary.architecture || '—'}</small></div>
       <div class="metric-card"><span>{t(locale, 'monitoring.system.load')}</span><strong>{Number(data.summary.load_1 || 0).toFixed(2)}</strong><small>{Number(data.summary.load_5 || 0).toFixed(2)} · {Number(data.summary.load_15 || 0).toFixed(2)}</small></div>
       <div class="metric-card"><span>{t(locale, 'monitoring.system.ram')}</span><strong>{Number(data.memory?.used_pct || 0).toFixed(1)}%</strong><small>{bytes(Number(data.memory?.used_kb || 0) * 1024)} / {bytes(Number(data.memory?.total_kb || 0) * 1024)}</small></div>
-      <div class="metric-card"><span>{t(locale, 'monitoring.system.uptime')}</span><strong>{fmtDuration(data.summary.uptime_seconds || 0)}</strong><small>{t(locale, 'monitoring.system.coresProcesses', { cores: data.summary.cpu_count || 0, processes: data.summary.process_count || 0 })}</small></div>
+      <div class="metric-card"><span>{t(locale, 'monitoring.system.uptime')}</span><strong>{fmtDuration(data.summary.uptime_seconds || 0, locale)}</strong><small>{t(locale, 'monitoring.system.coresProcesses', { cores: data.summary.cpu_count || 0, processes: data.summary.process_count || 0 })}</small></div>
     </section>
 
     <div class="two-col">
@@ -359,7 +359,7 @@
 
   {:else if tab === 'network' && data.summary}
     <section class="metric-grid module-metric-grid">
-      <div class="metric-card"><span>{t(locale, 'monitoring.network.activeInterfaces')}</span><strong>{fmtInt(data.summary.interface_count || 0)}</strong><small>{advanced ? `${fmtInt(data.summary.system_interface_count || 0)} system` : ''}</small></div>
+      <div class="metric-card"><span>{t(locale, 'monitoring.network.activeInterfaces')}</span><strong>{fmtInt(data.summary.interface_count || 0)}</strong><small>{advanced ? t(locale, 'monitoring.network.systemCount', { count: fmtInt(data.summary.system_interface_count || 0, locale) }) : ''}</small></div>
       <div class="metric-card"><span>{t(locale, 'monitoring.network.conntrack')}</span><strong>{fmtInt(data.summary.conntrack_count || 0)}</strong><small>{t(locale, 'monitoring.network.max', { value: fmtInt(data.summary.conntrack_max || 0) })}</small></div>
       <div class="metric-card"><span>{t(locale, 'monitoring.network.errors')}</span><strong>{fmtInt(data.summary.errors || 0)}</strong><small>RX + TX</small></div>
       <div class="metric-card"><span>{t(locale, 'monitoring.network.drops')}</span><strong>{fmtInt(data.summary.drops || 0)}</strong><small>RX + TX</small></div>

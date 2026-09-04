@@ -5,6 +5,7 @@
   import { settings } from '$lib/stores/settings.js';
   import { getPlainDNS } from '$lib/api.js';
   import { fmtInt, fmtPct, fmtMs, fmtAgo, statusFor, errorCount, quality, qualityClass, latencyClass, groupBy, total } from '$lib/utils.js';
+  import { t } from '$lib/i18n/index.js';
 
   let search='';
   let activeOnly=false;
@@ -12,11 +13,12 @@
   let plainError='';
   let plainTimer=null;
 
+  $: locale = $settings.locale || 'ru';
   $: allUpstreams=$snapshot.upstreams||[];
   $: systemUpstreams=allUpstreams.filter((u)=>u.profile==='System');
   $: protectedUpstreams=systemUpstreams.length?systemUpstreams:allUpstreams;
   $: policyUpstreams=allUpstreams.filter((u)=>u.profile!=='System');
-  $: policyGroups=Object.entries(groupBy(policyUpstreams,'profile')).sort(([a],[b])=>a.localeCompare(b,undefined,{numeric:true}));
+  $: policyGroups=Object.entries(groupBy(policyUpstreams,'profile')).sort(([a],[b])=>a.localeCompare(b,locale,{numeric:true}));
   $: plainResolvers=[...(plain.resolvers||[])].sort((a,b)=>{
     const ad=String(a.source||'').toUpperCase()==='DHCP'?0:1;
     const bd=String(b.source||'').toUpperCase()==='DHCP'?0:1;
@@ -61,15 +63,12 @@
     return Number.isFinite(ts)&&Date.now()-ts<5*60*1000;
   }
 
-  function plainStatus(r={}) {
-    const req=Number(r.requests||0);
-    const res=Number(r.responses||0);
-    const err=Number(r.errors||0);
-    const timeouts=Number(r.timeouts||0);
-    if(req>0&&res===0&&timeouts>0)return {cls:'error',label:'Недоступен'};
-    if(req>0&&(err>0||timeouts>0))return {cls:'warn',label:'Деградация'};
-    if(plainRecentlyActive(r))return {cls:'good',label:'Активен'};
-    return {cls:'neutral',label:'Обнаружен'};
+  function plainStatus(r={}, lang=locale) {
+    const req=Number(r.requests||0), res=Number(r.responses||0), err=Number(r.errors||0), timeouts=Number(r.timeouts||0);
+    if(req>0&&res===0&&timeouts>0)return {cls:'error',label:t(lang,'dns.overview.unavailableStatus')};
+    if(req>0&&(err>0||timeouts>0))return {cls:'warn',label:t(lang,'dns.overview.degradedStatus')};
+    if(plainRecentlyActive(r))return {cls:'good',label:t(lang,'dns.overview.activeStatus')};
+    return {cls:'neutral',label:t(lang,'dns.overview.detectedStatus')};
   }
 
   function plainSuccess(r={}) {
@@ -77,137 +76,124 @@
     return req?Number(r.responses||0)/req*100:100;
   }
 
-  function policyRouteState(first={}) {
-    if(first.policy_has_default)return {cls:'good',label:'Есть маршрут'};
-    return {cls:'neutral',label:'Без default route'};
+  function policyRouteState(first={}, lang=locale) {
+    if(first.policy_has_default)return {cls:'good',label:t(lang,'dns.overview.hasRoute')};
+    return {cls:'neutral',label:t(lang,'dns.overview.noDefaultRoute')};
   }
 
   async function refreshPlain() {
-    try {
-      plain=await getPlainDNS(80);
-      plainError='';
-    } catch(error) {
-      plainError=error?.message||'Plain DNS API недоступен';
-    }
+    try { plain=await getPlainDNS(80); plainError=''; }
+    catch(error) { plainError=error?.message||t(locale,'errors.plainDnsUnavailable'); }
   }
 
   onMount(()=>{
     refreshPlain();
-    plainTimer=setInterval(()=>{
-      if(!document.hidden)refreshPlain();
-    },2500);
+    plainTimer=setInterval(()=>{ if(!document.hidden)refreshPlain(); },2500);
     return ()=>clearInterval(plainTimer);
   });
 </script>
 
-<svelte:head><title>RouterForge — DNS</title></svelte:head>
+<svelte:head><title>RouterForge — {t(locale, 'dns.overview.pageTitle')}</title></svelte:head>
 
 <div class="page">
   <DNSNav />
   <div class="page-head">
-    <div><h1>DNS</h1><p>Основные DNS Keenetic без служебных policy-дублей.</p></div>
+    <div><h1>DNS</h1><p>{t(locale,'dns.overview.subtitle')}</p></div>
     <span class="page-kicker mono">DNS / OBSERVABILITY</span>
   </div>
 
   <div class="toolbar">
-    <div class="search-control"><span>⌕</span><input bind:value={search} placeholder="Поиск DNS…"/></div>
-    <button class="button" class:active={activeOnly} onclick={()=>activeOnly=true}>Активные</button>
-    <button class="button" class:active={!activeOnly} onclick={()=>activeOnly=false}>Все</button>
+    <div class="search-control"><span>⌕</span><input bind:value={search} placeholder={t(locale,'dns.overview.searchPlaceholder')}/></div>
+    <button class="button" class:active={activeOnly} onclick={()=>activeOnly=true}>{t(locale,'dns.overview.active')}</button>
+    <button class="button" class:active={!activeOnly} onclick={()=>activeOnly=false}>{t(locale,'common.all')}</button>
   </div>
 
   <section class="metric-grid four">
-    <div class="metric-card"><span>DNS серверы</span><strong>{healthy}/{serverCount}</strong><small>{active} активны · DOWN {downCount}</small></div>
-    <div class="metric-card"><span>Запросы</span><strong>{fmtInt(requests)}</strong><small>{fmtInt(responses)} ответов</small></div>
-    <div class="metric-card"><span>Fallback</span><strong>{fmtInt(protectedFallbacks)}</strong><small>{protectedRequests?fmtPct(protectedFallbacks/protectedRequests*100):'0%'}</small></div>
-    <div class="metric-card"><span>Проблемы</span><strong>{fmtInt(errors)}</strong><small>{fmtInt(timeoutCount)} timeout · {degradedCount} degraded</small></div>
+    <div class="metric-card"><span>{t(locale,'dns.overview.servers')}</span><strong>{healthy}/{serverCount}</strong><small>{t(locale,'dns.overview.activeDown',{active,down:downCount})}</small></div>
+    <div class="metric-card"><span>{t(locale,'common.requests')}</span><strong>{fmtInt(requests,locale)}</strong><small>{t(locale,'dns.overview.answers',{count:fmtInt(responses,locale)})}</small></div>
+    <div class="metric-card"><span>{t(locale,'common.fallback')}</span><strong>{fmtInt(protectedFallbacks,locale)}</strong><small>{protectedRequests?fmtPct(protectedFallbacks/protectedRequests*100):'0%'}</small></div>
+    <div class="metric-card"><span>{t(locale,'dns.overview.problems')}</span><strong>{fmtInt(errors,locale)}</strong><small>{t(locale,'dns.overview.timeoutsDegraded',{timeouts:fmtInt(timeoutCount,locale),degraded:degradedCount})}</small></div>
   </section>
 
   {#if filteredPlain.length}
     <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Основной DNS</strong><span>Обычный DNS, полученный или заданный в Keenetic</span></div></div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>DNS</th><th>Тип</th><th>Статус</th><th>Запросы</th><th>Latency</th><th>Проблемы</th><th class="advanced-only">Ответы</th><th class="advanced-only">Источник</th><th class="advanced-only">Интерфейс</th></tr></thead>
-          <tbody>
-            {#each filteredPlain as r (`${r.address}:${r.port||53}`)}
-              {@const st=plainStatus(r)}
-              <tr>
-                <td><div class="cell-title">{r.name||r.address}</div><div class="cell-sub mono">{r.address}:{r.port||53}</div></td>
-                <td><span class="pill accent">DNS</span></td>
-                <td><span class="state-chip {st.cls}">{st.label}</span><div class="cell-sub">{plainRecentlyActive(r)?'используется сейчас':fmtAgo(r.last_request)}</div></td>
-                <td><strong>{fmtInt(r.requests||0)}</strong><div class="cell-sub">{fmtPct(share(r))} трафика</div></td>
-                <td>{#if Number(r.p95_latency_ms||0)}<span class="latency {latencyClass(r.p95_latency_ms)}">p95 {fmtMs(r.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(r.avg_latency_ms)}</div>{:else}—{/if}</td>
-                <td><strong class={Number(r.errors||0)+Number(r.timeouts||0)>0?'warn-text':''}>{fmtInt(Number(r.errors||0)+Number(r.timeouts||0))}</strong><div class="cell-sub">{fmtInt(r.timeouts||0)} timeout · {fmtInt(r.nxdomain||0)} NXDOMAIN</div></td>
-                <td class="advanced-only"><strong class={plainSuccess(r)<95?'warn-text':'good'}>{plainSuccess(r).toFixed(1)}%</strong><div class="cell-sub">{fmtInt(r.responses||0)} responses</div></td>
-                <td class="advanced-only">{r.source||((r.profiles||[]).length?'Keenetic profile':'—')}</td>
-                <td class="advanced-only">{r.interface||'—'}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+      <div class="panel-head"><div><strong>{t(locale,'dns.overview.mainDns')}</strong><span>{t(locale,'dns.overview.mainDnsHint')}</span></div></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>DNS</th><th>{t(locale,'common.type')}</th><th>{t(locale,'common.status')}</th><th>{t(locale,'common.requests')}</th><th>{t(locale,'common.latency')}</th><th>{t(locale,'common.issues')}</th><th class="advanced-only">{t(locale,'common.responses')}</th><th class="advanced-only">{t(locale,'common.source')}</th><th class="advanced-only">{t(locale,'common.interface')}</th></tr></thead>
+        <tbody>
+          {#each filteredPlain as r (`${r.address}:${r.port||53}`)}
+            {@const st=plainStatus(r,locale)}
+            <tr>
+              <td><div class="cell-title">{r.name||r.address}</div><div class="cell-sub mono">{r.address}:{r.port||53}</div></td>
+              <td><span class="pill accent">DNS</span></td>
+              <td><span class="state-chip {st.cls}">{st.label}</span><div class="cell-sub">{plainRecentlyActive(r)?t(locale,'dns.overview.currentUse'):fmtAgo(r.last_request,locale)}</div></td>
+              <td><strong>{fmtInt(r.requests||0,locale)}</strong><div class="cell-sub">{t(locale,'dns.overview.trafficShare',{value:fmtPct(share(r))})}</div></td>
+              <td>{#if Number(r.p95_latency_ms||0)}<span class="latency {latencyClass(r.p95_latency_ms)}">p95 {fmtMs(r.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(r.avg_latency_ms)}</div>{:else}—{/if}</td>
+              <td><strong class={Number(r.errors||0)+Number(r.timeouts||0)>0?'warn-text':''}>{fmtInt(Number(r.errors||0)+Number(r.timeouts||0),locale)}</strong><div class="cell-sub">{fmtInt(r.timeouts||0,locale)} timeout · {fmtInt(r.nxdomain||0,locale)} NXDOMAIN</div></td>
+              <td class="advanced-only"><strong class={plainSuccess(r)<95?'warn-text':'good'}>{plainSuccess(r).toFixed(1)}%</strong><div class="cell-sub">{fmtInt(r.responses||0,locale)} responses</div></td>
+              <td class="advanced-only">{r.source||((r.profiles||[]).length?t(locale,'dns.overview.profileSource'):'—')}</td>
+              <td class="advanced-only">{r.interface||'—'}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table></div>
     </section>
   {:else if plainError}
-    <section class="panel"><div class="empty">Основной DNS — {plainError}</div></section>
+    <section class="panel"><div class="empty">{t(locale,'dns.overview.mainDnsError',{error:plainError})}</div></section>
   {/if}
 
   {#if filteredProtected.length}
     <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Защищённые DNS</strong><span>System DoT/DoH · без служебных копий Policy</span></div></div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>DNS</th><th>Тип</th><th>Статус</th><th>Запросы</th><th>Latency</th><th>Проблемы</th><th class="advanced-only">Fallback</th><th class="advanced-only">Качество</th><th class="advanced-only">Port</th><th class="advanced-only">Interface</th></tr></thead>
-          <tbody>
-            {#each filteredProtected as u (u.port)}
-              {@const st=statusFor(u)}
-              {@const win=u.stats_5m||{}}
-              {@const q=quality(u)}
-              <tr>
-                <td><div class="cell-title">{u.name}</div><div class="cell-sub">{u.target||u.sni||'—'}{u.domain?` · ${u.domain}`:''}</div></td>
-                <td><span class="pill accent">{u.protocol}</span></td>
-                <td><span class="state-chip {st.cls}">{st.label}</span><div class="cell-sub">{u.active?'используется сейчас':fmtAgo(u.last_request)}</div></td>
-                <td><strong>{fmtInt(u.requests||0)}</strong><div class="cell-sub">{fmtPct(share(u))} трафика</div></td>
-                <td>{#if Number(win.p95_latency_ms||0)}<span class="latency {latencyClass(win.p95_latency_ms)}">p95 {fmtMs(win.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(win.avg_latency_ms)}</div>{:else}—{/if}</td>
-                <td><strong class={Number(win.errors||0)+Number(win.timeouts||0)>0?'warn-text':''}>{fmtInt(Number(win.errors||0)+Number(win.timeouts||0))}</strong><div class="cell-sub">{fmtInt(win.timeouts||0)} timeout</div></td>
-                <td class="advanced-only"><strong class={Number(win.fallbacks||0)>0?'warn-text':''}>{fmtInt(win.fallbacks||0)}</strong><div class="cell-sub">{fmtPct(win.fallback_pct||0)}</div></td>
-                <td class="advanced-only"><strong class={qualityClass(win)}>{q.toFixed(1)}%</strong></td>
-                <td class="advanced-only mono">{u.port}</td>
-                <td class="advanced-only">{u.interface||'—'}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+      <div class="panel-head"><div><strong>{t(locale,'dns.overview.protectedDns')}</strong><span>{t(locale,'dns.overview.protectedDnsHint')}</span></div></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>DNS</th><th>{t(locale,'common.type')}</th><th>{t(locale,'common.status')}</th><th>{t(locale,'common.requests')}</th><th>{t(locale,'common.latency')}</th><th>{t(locale,'common.issues')}</th><th class="advanced-only">{t(locale,'common.fallback')}</th><th class="advanced-only">{t(locale,'common.quality')}</th><th class="advanced-only">{t(locale,'common.port')}</th><th class="advanced-only">{t(locale,'common.interface')}</th></tr></thead>
+        <tbody>
+          {#each filteredProtected as u (u.port)}
+            {@const st=statusFor(u,locale)}
+            {@const win=u.stats_5m||{}}
+            {@const q=quality(u)}
+            <tr>
+              <td><div class="cell-title">{u.name}</div><div class="cell-sub">{u.target||u.sni||'—'}{u.domain?` · ${u.domain}`:''}</div></td>
+              <td><span class="pill accent">{u.protocol}</span></td>
+              <td><span class="state-chip {st.cls}">{st.label}</span><div class="cell-sub">{u.active?t(locale,'dns.overview.currentUse'):fmtAgo(u.last_request,locale)}</div></td>
+              <td><strong>{fmtInt(u.requests||0,locale)}</strong><div class="cell-sub">{t(locale,'dns.overview.trafficShare',{value:fmtPct(share(u))})}</div></td>
+              <td>{#if Number(win.p95_latency_ms||0)}<span class="latency {latencyClass(win.p95_latency_ms)}">p95 {fmtMs(win.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(win.avg_latency_ms)}</div>{:else}—{/if}</td>
+              <td><strong class={Number(win.errors||0)+Number(win.timeouts||0)>0?'warn-text':''}>{fmtInt(Number(win.errors||0)+Number(win.timeouts||0),locale)}</strong><div class="cell-sub">{fmtInt(win.timeouts||0,locale)} timeout</div></td>
+              <td class="advanced-only"><strong class={Number(win.fallbacks||0)>0?'warn-text':''}>{fmtInt(win.fallbacks||0,locale)}</strong><div class="cell-sub">{fmtPct(win.fallback_pct||0)}</div></td>
+              <td class="advanced-only"><strong class={qualityClass(win)}>{q.toFixed(1)}%</strong></td>
+              <td class="advanced-only mono">{u.port}</td><td class="advanced-only">{u.interface||'—'}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table></div>
     </section>
   {/if}
 
   {#if !filteredPlain.length&&!filteredProtected.length&&!plainError}
-    <section class="panel"><div class="empty">Ничего не найдено</div></section>
+    <section class="panel"><div class="empty">{t(locale,'dns.overview.notFound')}</div></section>
   {/if}
 
   {#if $settings.uiLevel==='advanced'&&policyGroups.length}
     <section class="panel table-panel">
-      <div class="panel-head"><div><strong>Маршрутные DNS-контексты</strong><span>Служебные Policy Keenetic · не влияют на общий CORE status</span></div><span class="state-chip info">РАСШИРЕННЫЙ</span></div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Policy</th><th>Маршрут</th><th>DNS proxy</th><th>Resolver'ы</th><th>Диагностика</th><th>Mark / table</th></tr></thead>
-          <tbody>
-            {#each policyGroups as [name,items]}
-              {@const first=items[0]||{}}
-              {@const route=policyRouteState(first)}
-              {@const down=items.filter((u)=>u.health_status==='DOWN').length}
-              <tr>
-                <td><div class="cell-title">{first.policy_description||name}</div><div class="cell-sub mono">{name}</div></td>
-                <td><span class="state-chip {route.cls}">{route.label}</span><div class="cell-sub">{first.policy_has_default?'проверяется health-check':'внешний health-check пропущен'}</div></td>
-                <td class="mono">:{first.profile_dns_port||'—'}</td>
-                <td>{items.length} <span class="cell-sub">DoT/DoH</span></td>
-                <td>{#if first.policy_has_default}<span class="state-chip {down?'warn':'good'}">{down?`${down} DOWN`:'OK'}</span>{:else}<span class="state-chip neutral">N/A</span>{/if}</td>
-                <td class="mono">0x{Number(first.policy_mark||0).toString(16)} · {first.policy_table||'—'}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+      <div class="panel-head"><div><strong>{t(locale,'dns.overview.policyContexts')}</strong><span>{t(locale,'dns.overview.policyContextsHint')}</span></div><span class="state-chip info">{t(locale,'common.advanced').toUpperCase()}</span></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>{t(locale,'dns.overview.policy')}</th><th>{t(locale,'dns.overview.route')}</th><th>{t(locale,'dns.overview.dnsProxy')}</th><th>{t(locale,'dns.overview.resolvers')}</th><th>{t(locale,'dns.overview.diagnostics')}</th><th>{t(locale,'dns.overview.markTable')}</th></tr></thead>
+        <tbody>
+          {#each policyGroups as [name,items]}
+            {@const first=items[0]||{}}
+            {@const route=policyRouteState(first,locale)}
+            {@const down=items.filter((u)=>u.health_status==='DOWN').length}
+            <tr>
+              <td><div class="cell-title">{first.policy_description||name}</div><div class="cell-sub mono">{name}</div></td>
+              <td><span class="state-chip {route.cls}">{route.label}</span><div class="cell-sub">{first.policy_has_default?t(locale,'dns.overview.healthChecked'):t(locale,'dns.overview.healthSkipped')}</div></td>
+              <td class="mono">:{first.profile_dns_port||'—'}</td>
+              <td>{items.length} <span class="cell-sub">DoT/DoH</span></td>
+              <td>{#if first.policy_has_default}<span class="state-chip {down?'warn':'good'}">{down?`${down} DOWN`:'OK'}</span>{:else}<span class="state-chip neutral">N/A</span>{/if}</td>
+              <td class="mono">0x{Number(first.policy_mark||0).toString(16)} · {first.policy_table||'—'}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table></div>
     </section>
   {/if}
 </div>

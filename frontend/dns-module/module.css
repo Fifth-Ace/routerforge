@@ -1,43 +1,58 @@
 :root {
   color-scheme: dark;
-  --rf-accent:#38bdf8;
-  --rf-bg:#0c0d10;
-  --rf-surface:#14161a;
-  --rf-surface-2:#191b21;
-  --rf-hover:#1f2229;
-  --rf-text:#f5f7fa;
-  --rf-muted:#8b949e;
-  --rf-border:#242831;
-  --rf-good:#2ea043;
-  --rf-warn:#d29922;
-  --rf-bad:#f85149;
-  --rf-radius:8px;
-  --rf-font-sans:'Inter','Segoe UI Variable Text','Segoe UI',sans-serif;
-  --rf-font-mono:'Roboto Mono','Cascadia Mono',Consolas,monospace;
-  background:var(--rf-bg);
+
+  /* Fallbacks match Core admin-shell.css. At runtime the module copies the
+     actual computed tokens from the parent RouterForge shell. */
+  --page-pad:18px;
+  --ui-body:14px;
+  --ui-small:12px;
+  --ui-xs:10px;
+  --ui-micro:9px;
+  --ui-title:23px;
+  --ui-panel-title:13px;
+  --ui-control-h:32px;
+  --concept-bg:#0b0d10;
+  --concept-surface:#12151a;
+  --concept-panel:#15181d;
+  --concept-panel-2:#0e1115;
+  --concept-hover:#1c2026;
+  --concept-border:#292f37;
+  --concept-border-soft:#20252c;
+  --accent:#38bdf8;
+  --good:#2ea043;
+  --warn:#d29922;
+  --bad:#f85149;
+  --font-sans:'Inter','Segoe UI Variable Text','Segoe UI',sans-serif;
+  --font-mono:'Roboto Mono','Cascadia Mono',Consolas,monospace;
+  background:var(--concept-bg);
 }
 
 * { box-sizing:border-box; }
-html, body, #app { margin:0; min-height:100%; background:var(--rf-bg); color:var(--rf-text); }
+html, body, #app {
+  margin:0;
+  min-height:100%;
+  background:var(--concept-bg);
+  color:#f5f7fa;
+}
 body {
   overflow-x:hidden;
-  font:13px/1.4 var(--rf-font-sans);
-  color:var(--rf-text);
+  font:var(--ui-body)/1.4 var(--font-sans);
 }
 button, input, select, textarea { font:inherit; }
-button { font-family:var(--rf-font-sans); }
-.mono, code { font-family:var(--rf-font-mono); }
+.mono, code { font-family:var(--font-mono); }
 
-/* Match the Core page canvas: same maximum width, centering and vertical rhythm. */
+/* IMPORTANT: the iframe already lives in Core's .global-content column.
+   Do not center/max-width the module a second time. */
 .dns-module.page {
-  width:min(1440px,calc(100% - 40px));
-  margin:0 auto;
-  padding:20px 0 28px;
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:var(--page-pad);
 }
 
 .dns-module .page-head {
-  min-height:48px;
-  margin-bottom:16px;
+  min-height:52px;
+  margin-bottom:18px;
   display:flex;
   justify-content:space-between;
   align-items:flex-start;
@@ -46,53 +61,54 @@ button { font-family:var(--rf-font-sans); }
 .dns-module .page-head > div:first-child { min-width:0; }
 .dns-module .page-head h1 {
   margin:0;
-  color:#fff;
-  font-size:20px;
+  color:#f4f7fb;
+  font-size:var(--ui-title);
   line-height:1.2;
   font-weight:650;
+  letter-spacing:-.02em;
 }
 .dns-module .page-head p {
-  margin:5px 0 0;
-  color:var(--rf-muted);
-  font-size:12px;
+  margin:6px 0 0;
+  color:#9099a5;
+  font-size:var(--ui-small);
   line-height:1.45;
 }
 .dns-module .toolbar-actions {
   display:flex;
   align-items:center;
-  gap:6px;
+  gap:7px;
   flex-wrap:wrap;
 }
 
-/* Core-style buttons. */
+/* Controls follow the active Core scale, including 2K/4K auto scale. */
 .dns-module button.action {
-  min-height:30px;
-  padding:0 11px;
-  border:1px solid #303641;
-  border-radius:5px;
-  background:#1b1e24;
+  min-height:var(--ui-control-h);
+  padding:0 10px;
+  border:1px solid #303640;
+  border-radius:4px;
+  background:#1b1f25;
   color:#d7dde4;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:5px;
   cursor:pointer;
-  font-size:11px;
+  font-size:var(--ui-xs);
   font-weight:500;
   transition:.12s ease;
 }
 .dns-module button.action:hover:not(:disabled) {
-  background:#232730;
-  border-color:#424a56;
+  border-color:#3b444f;
+  background:#232830;
 }
 .dns-module button.action.primary {
-  color:var(--rf-accent);
+  color:var(--accent);
   border-color:rgba(56,189,248,.32);
   background:rgba(56,189,248,.08);
 }
 .dns-module button.action.primary:hover:not(:disabled) {
   color:#081017;
-  background:var(--rf-accent);
+  background:var(--accent);
 }
 .dns-module button.action.danger {
   color:#ff8d87;
@@ -112,40 +128,38 @@ button { font-family:var(--rf-font-sans); }
   cursor:not-allowed;
 }
 
-/* DNS views behave like Core subtabs instead of a second set of large pills. */
+/* Same subtab language used by Core pages. */
 .dns-module .module-tabs {
   margin-bottom:14px;
   display:flex;
   gap:4px;
   overflow-x:auto;
-  border-bottom:1px solid var(--rf-border);
+  border-bottom:1px solid #343a43;
 }
 .dns-module .module-tabs button {
-  min-height:34px;
-  padding:0 12px;
+  min-height:36px;
+  padding:0 13px;
   border:0;
   border-bottom:2px solid transparent;
   background:transparent;
-  color:var(--rf-muted);
+  color:#9099a5;
   cursor:pointer;
   white-space:nowrap;
-  font-size:11px;
+  font-size:var(--ui-xs);
   font-weight:500;
 }
-.dns-module .module-tabs button:hover { color:var(--rf-text); }
+.dns-module .module-tabs button:hover { color:#e8edf2; }
 .dns-module .module-tabs button.active {
-  color:var(--rf-accent);
-  border-bottom-color:var(--rf-accent);
-  background:transparent;
+  color:#38f47b;
+  border-bottom-color:#38f47b;
 }
 
-/* Alerts use the same compact visual weight as Core notices. */
 .dns-module .error-box,
 .dns-module .success-box {
   margin-bottom:14px;
   padding:9px 12px;
-  border-radius:6px;
-  font-size:11px;
+  border-radius:5px;
+  font-size:var(--ui-xs);
   line-height:1.4;
 }
 .dns-module .error-box {
@@ -158,9 +172,7 @@ button { font-family:var(--rf-font-sans); }
   background:rgba(46,160,67,.07);
   color:#75d087;
 }
-.dns-module .error-box strong { color:#ffb0ab; }
 
-/* Metrics duplicate the Core monitoring cards exactly in density. */
 .dns-module .metric-grid {
   margin-bottom:16px;
   display:grid;
@@ -168,90 +180,88 @@ button { font-family:var(--rf-font-sans); }
 }
 .dns-module .metric-grid.four { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .dns-module .metric-card {
-  min-height:104px;
+  min-height:102px;
   padding:15px 16px;
-  border:1px solid var(--rf-border);
-  border-radius:var(--rf-radius);
-  background:var(--rf-surface);
+  border:1px solid var(--concept-border);
+  border-radius:6px;
+  background:var(--concept-panel);
   display:flex;
   flex-direction:column;
   justify-content:center;
 }
 .dns-module .metric-card > span {
-  color:var(--rf-muted);
-  font-size:10px;
+  color:#8c96a2;
+  font-size:var(--ui-xs);
   text-transform:uppercase;
   letter-spacing:.05em;
 }
 .dns-module .metric-card > strong {
-  margin-top:6px;
-  color:#fff;
-  font:600 24px/1 var(--rf-font-mono);
+  margin-top:7px;
+  color:#f7f9fb;
+  font:600 25px/1 var(--font-mono);
 }
 .dns-module .metric-card > small {
-  margin-top:8px;
-  color:var(--rf-muted);
-  font-size:10px;
+  margin-top:6px;
+  color:#8d97a3;
+  font-size:var(--ui-xs);
 }
 
-/* Panels and headers follow the Core panel geometry. */
 .dns-module .panel {
   min-width:0;
   margin-bottom:14px;
-  border:1px solid var(--rf-border);
-  border-radius:var(--rf-radius);
-  background:var(--rf-surface);
+  border:1px solid var(--concept-border);
+  border-radius:6px;
+  background:var(--concept-panel);
   overflow:hidden;
 }
 .dns-module .panel-head {
-  min-height:46px;
+  min-height:50px;
   padding:0 14px;
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:12px;
-  border-bottom:1px solid var(--rf-border);
-  background:rgba(12,13,16,.26);
+  border-bottom:1px solid var(--concept-border);
+  background:#121419;
 }
 .dns-module .panel-head > div { min-width:0; }
 .dns-module .panel-head strong {
   display:block;
-  color:#fff;
-  font-size:12px;
+  color:#f4f6f8;
+  font-size:var(--ui-panel-title);
   font-weight:600;
 }
-.dns-module .panel-head span {
+.dns-module .panel-head span:not(.state-pill) {
   display:block;
-  margin-top:2px;
-  color:var(--rf-muted);
-  font-size:9px;
+  margin-top:3px;
+  color:#8a95a1;
+  font-size:var(--ui-xs);
+  line-height:1.3;
 }
 .dns-module .panel > .resolver-meta { margin:0; padding:11px 14px; }
 
-/* Resolver page: one native panel with the same header/card spacing as monitoring. */
 .dns-module .resolver-panel { overflow:hidden; }
 .dns-module .resolver-grid {
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(290px,1fr));
   gap:12px;
 }
 .dns-module .panel > .resolver-grid,
 .dns-module .resolver-grid-body { padding:12px; }
-
 .dns-module .resolver-card {
   min-width:0;
-  min-height:168px;
+  min-height:184px;
   padding:14px;
-  border:1px solid var(--rf-border);
-  border-radius:7px;
-  background:var(--rf-surface-2);
+  border:1px solid var(--concept-border);
+  border-radius:6px;
+  background:#171a20;
   display:flex;
   flex-direction:column;
   transition:border-color .12s ease, background .12s ease;
 }
 .dns-module .resolver-card:hover {
-  border-color:#303641;
-  background:#1b1e24;
+  border-color:#353c46;
+  background:#191d23;
 }
 .dns-module .resolver-head {
   display:flex;
@@ -262,20 +272,20 @@ button { font-family:var(--rf-font-sans); }
 .dns-module .resolver-head > div { min-width:0; }
 .dns-module .resolver-head h3 {
   margin:0;
-  color:#fff;
-  font-size:12px;
+  color:#f4f6f8;
+  font-size:var(--ui-panel-title);
   line-height:1.25;
   font-weight:600;
 }
 .dns-module .resolver-meta {
-  margin-top:3px;
-  color:var(--rf-muted);
-  font-size:9px;
-  line-height:1.45;
+  margin-top:4px;
+  color:#8a95a1;
+  font-size:var(--ui-xs);
+  line-height:1.4;
   overflow-wrap:anywhere;
 }
 .dns-module .state-pill {
-  min-height:20px;
+  min-height:22px;
   padding:0 7px;
   border:1px solid #303641;
   border-radius:999px;
@@ -283,17 +293,22 @@ button { font-family:var(--rf-font-sans); }
   color:#9ba3ad;
   display:inline-flex;
   align-items:center;
+  justify-content:center;
   flex:0 0 auto;
   white-space:nowrap;
-  font:600 9px/1 var(--rf-font-mono);
+  font:600 var(--ui-micro)/1 var(--font-mono);
+}
+.dns-module .panel-head > .state-pill {
+  min-height:26px;
+  padding:0 9px;
 }
 .dns-module .state-pill.good {
-  color:var(--rf-good);
+  color:var(--good);
   border-color:rgba(46,160,67,.28);
   background:rgba(46,160,67,.08);
 }
 .dns-module .state-pill.warn {
-  color:var(--rf-warn);
+  color:var(--warn);
   border-color:rgba(210,153,34,.28);
   background:rgba(210,153,34,.08);
 }
@@ -303,86 +318,82 @@ button { font-family:var(--rf-font-sans); }
   background:#191b21;
 }
 .dns-module .state-pill.info {
-  color:var(--rf-accent);
+  color:var(--accent);
   border-color:rgba(56,189,248,.28);
   background:rgba(56,189,248,.08);
 }
-
 .dns-module .scope-list {
   display:flex;
   gap:5px;
   flex-wrap:wrap;
-  margin:10px 0;
+  margin:11px 0;
 }
 .dns-module .scope-chip {
-  min-height:20px;
+  min-height:22px;
   padding:0 7px;
   border:1px solid #303641;
   border-radius:999px;
-  background:#15171c;
+  background:#111419;
   color:#b8c0c9;
   display:inline-flex;
   align-items:center;
-  font:500 9px/1 var(--rf-font-mono);
+  font:500 var(--ui-micro)/1 var(--font-mono);
 }
 .dns-module .resolver-actions {
   margin-top:auto;
-  padding-top:12px;
+  padding-top:13px;
   display:flex;
-  gap:6px;
+  gap:7px;
   flex-wrap:wrap;
 }
 
-/* Compact field/value blocks inside resolver and diagnostic cards. */
 .dns-module .detail-grid {
   margin:10px 0;
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
   gap:8px;
 }
 .dns-module .detail-item {
   min-width:0;
-  padding:8px 9px;
-  border:1px solid rgba(36,40,49,.76);
-  border-radius:5px;
-  background:#101216;
+  padding:9px 10px;
+  border:1px solid var(--concept-border-soft);
+  border-radius:4px;
+  background:#0b0e12;
 }
 .dns-module .detail-item span {
   display:block;
-  color:var(--rf-muted);
-  font-size:9px;
+  color:#7f8995;
+  font-size:var(--ui-micro);
 }
 .dns-module .detail-item strong {
   display:block;
   margin-top:3px;
   color:#d5dbe2;
-  font-size:10px;
+  font-size:var(--ui-xs);
   font-weight:550;
   overflow-wrap:anywhere;
 }
 
-/* Secondary toolbars inside a view use Core's toolbar geometry. */
 .dns-module .toolbar {
   min-height:46px;
   margin-bottom:14px;
-  padding:7px 10px;
+  padding:6px 8px;
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:8px;
   flex-wrap:wrap;
-  border:1px solid var(--rf-border);
-  border-radius:var(--rf-radius);
-  background:var(--rf-surface);
+  border:1px solid var(--concept-border);
+  border-radius:5px;
+  background:#111419;
 }
 .dns-module .toolbar > div:first-child > strong {
   display:block;
-  color:#fff;
-  font-size:12px;
+  color:#f4f6f8;
+  font-size:var(--ui-panel-title);
   font-weight:600;
 }
 
-/* Tables mirror Core table density and typography. */
 .dns-module .table-wrap { width:100%; overflow:auto; }
 .dns-module table {
   width:100%;
@@ -390,41 +401,39 @@ button { font-family:var(--rf-font-sans); }
   border-collapse:collapse;
 }
 .dns-module th {
-  height:34px;
-  padding:0 12px;
-  border-bottom:1px solid var(--rf-border);
-  background:#101216;
-  color:#727b86;
+  height:36px;
+  padding:0 11px;
+  border-bottom:1px solid var(--concept-border);
+  background:#0f1216;
+  color:#76808c;
   text-align:left;
-  font-size:9px;
+  font-size:var(--ui-micro);
   font-weight:600;
   text-transform:uppercase;
   letter-spacing:.04em;
   white-space:nowrap;
 }
 .dns-module td {
-  min-height:42px;
-  padding:9px 12px;
-  border-bottom:1px solid rgba(36,40,49,.76);
-  color:#d5dbe2;
-  font-size:11px;
+  padding:9px 11px;
+  border-bottom:1px solid var(--concept-border-soft);
+  color:#d3d9df;
+  font-size:var(--ui-xs);
   vertical-align:middle;
 }
 .dns-module tbody tr:last-child td { border-bottom:0; }
 .dns-module tbody tr:hover td { background:rgba(255,255,255,.018); }
 
 .dns-module .empty-box {
-  min-height:95px;
+  min-height:100px;
   padding:20px;
   display:grid;
   place-items:center;
   border:0;
-  color:var(--rf-muted);
+  color:#87919d;
   text-align:center;
-  font-size:11px;
+  font-size:var(--ui-xs);
 }
 
-/* Editor follows Core form controls instead of oversized standalone styling. */
 .dns-module .modal-backdrop {
   position:fixed;
   inset:0;
@@ -436,19 +445,19 @@ button { font-family:var(--rf-font-sans); }
   background:rgba(0,0,0,.68);
 }
 .dns-module .modal {
-  width:min(640px,100%);
+  width:min(720px,100%);
   max-height:92vh;
   overflow:auto;
-  border:1px solid #303641;
-  border-radius:var(--rf-radius);
-  background:var(--rf-surface);
+  border:1px solid #303640;
+  border-radius:6px;
+  background:var(--concept-panel);
   box-shadow:0 22px 70px rgba(0,0,0,.48);
   padding:16px;
 }
 .dns-module .modal h2 {
   margin:0 0 14px;
-  color:#fff;
-  font-size:16px;
+  color:#f4f7fb;
+  font-size:calc(var(--ui-panel-title) + 3px);
   line-height:1.25;
   font-weight:650;
 }
@@ -462,45 +471,44 @@ button { font-family:var(--rf-font-sans); }
   display:flex;
   flex-direction:column;
   gap:5px;
-  color:var(--rf-muted);
-  font-size:10px;
+  color:#8a95a1;
+  font-size:var(--ui-xs);
 }
 .dns-module input,
 .dns-module select,
 .dns-module textarea {
   width:100%;
   min-width:0;
-  border:1px solid #303641;
-  border-radius:5px;
+  border:1px solid #303640;
+  border-radius:4px;
   outline:none;
-  background:#101216;
-  color:var(--rf-text);
-  font-size:11px;
+  background:#0b0e12;
+  color:#dfe4e9;
+  font-size:var(--ui-xs);
 }
 .dns-module input,
 .dns-module select {
-  height:34px;
+  height:var(--ui-control-h);
   padding:0 9px;
 }
 .dns-module textarea {
-  min-height:92px;
+  min-height:100px;
   padding:9px;
   resize:vertical;
-  line-height:1.4;
+  line-height:1.45;
 }
 .dns-module input::placeholder,
 .dns-module textarea::placeholder { color:#626a75; }
 .dns-module input:focus,
 .dns-module select:focus,
-.dns-module textarea:focus { border-color:var(--rf-accent); }
-
+.dns-module textarea:focus { border-color:var(--accent); }
 .dns-module select.protocol-select {
   appearance:none;
   -webkit-appearance:none;
   padding-right:30px;
   cursor:pointer;
   color-scheme:dark;
-  background-color:#101216;
+  background-color:#1b1f25;
   background-image:
     linear-gradient(45deg,transparent 50%,#9aa3ad 50%),
     linear-gradient(135deg,#9aa3ad 50%,transparent 50%);
@@ -511,16 +519,15 @@ button { font-family:var(--rf-font-sans); }
   background-repeat:no-repeat;
 }
 .dns-module select.protocol-select::-ms-expand { display:none; }
-.dns-module select.protocol-select option { background:#101216; color:var(--rf-text); }
-
+.dns-module select.protocol-select option { background:#1b1f25; color:#dfe4e9; }
 .dns-module .span-2 { grid-column:1/-1; }
 .dns-module label > span {
-  color:#727b86;
-  font-size:9px;
+  color:#76808c;
+  font-size:var(--ui-micro);
   line-height:1.45;
 }
 .dns-module label > span.slot-warning {
-  color:var(--rf-warn);
+  color:var(--warn);
   font-weight:550;
 }
 .dns-module .modal-actions {
@@ -528,25 +535,18 @@ button { font-family:var(--rf-font-sans); }
   padding:12px 16px;
   display:flex;
   justify-content:flex-end;
-  gap:6px;
-  border-top:1px solid var(--rf-border);
-  background:rgba(12,13,16,.28);
+  gap:7px;
+  border-top:1px solid var(--concept-border);
+  background:#121419;
 }
 
 @media (max-width:1100px) {
   .dns-module .metric-grid.four { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .dns-module .resolver-grid { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
+  .dns-module .resolver-grid { grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); }
 }
 @media (max-width:720px) {
-  .dns-module.page {
-    width:calc(100% - 24px);
-    padding:14px 0 22px;
-  }
-  .dns-module .page-head {
-    margin-bottom:12px;
-    flex-direction:column;
-    gap:10px;
-  }
+  .dns-module.page { padding:14px 12px 22px; }
+  .dns-module .page-head { margin-bottom:12px; flex-direction:column; gap:10px; }
   .dns-module .page-head .toolbar-actions { width:100%; }
   .dns-module .page-head .toolbar-actions .action { flex:1; }
   .dns-module .metric-grid.four { grid-template-columns:1fr; }

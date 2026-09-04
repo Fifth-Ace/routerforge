@@ -264,10 +264,37 @@
     setTimeout(() => URL.revokeObjectURL(href), 1000);
   }
 
+  // The DNS UI is rendered in a same-origin iframe. Core's responsive scale is
+  // calculated on the full browser viewport, while the iframe viewport is
+  // narrower because the persistent rail has already been subtracted. Copy the
+  // computed shell tokens from the parent so both surfaces stay pixel-aligned.
+  function syncCoreVisualTokens() {
+    try {
+      if (window.parent === window) return;
+      const parentRoot = window.parent.document.documentElement;
+      const source = window.parent.getComputedStyle(parentRoot);
+      const target = document.documentElement.style;
+      const tokens = [
+        '--page-pad','--ui-body','--ui-small','--ui-xs','--ui-micro','--ui-title',
+        '--ui-panel-title','--ui-control-h','--concept-bg','--concept-surface',
+        '--concept-panel','--concept-panel-2','--concept-hover','--concept-border',
+        '--concept-border-soft','--accent','--good','--warn','--bad','--font-sans','--font-mono'
+      ];
+      for (const token of tokens) {
+        const value = source.getPropertyValue(token).trim();
+        if (value) target.setProperty(token, value);
+      }
+    } catch {}
+  }
   onMount(() => {
+    syncCoreVisualTokens();
+    window.addEventListener('resize', syncCoreVisualTokens);
     loadAll();
     refreshTimer = setInterval(() => loadAll(true), 5000);
-    return () => clearInterval(refreshTimer);
+    return () => {
+      clearInterval(refreshTimer);
+      window.removeEventListener('resize', syncCoreVisualTokens);
+    };
   });
 </script>
 

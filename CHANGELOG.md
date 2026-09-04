@@ -4,6 +4,10 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.6-beta` fixes visual alignment inside the Module ABI iframe:
+  - removes the erroneous second max-width/centering layer so DNS fills the full Core content column exactly like native pages;
+  - copies Core's computed responsive UI tokens into the same-origin DNS iframe, so 2K/4K `auto` scaling matches the shell even though the iframe viewport is narrower after the persistent rail;
+  - DNS typography, page padding, controls, tabs, cards, panels and modal now use the live Core scale variables instead of hard-coded 13px-era values.
 - DNS `0.4.5-beta` visually aligns the Module ABI UI with the RouterForge Core shell:
   - the DNS iframe now uses the same 1440px centered page canvas, 20px page padding, header rhythm, typography, surfaces, borders and controls as Core monitoring pages;
   - DNS view tabs use the Core subtab language instead of a second pill-navigation system;

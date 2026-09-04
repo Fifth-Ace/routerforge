@@ -87,6 +87,42 @@ type dnsActiveNameServer struct {
 	Interface string `json:"interface"`
 }
 
+// Keenetic firmware does not expose one stable JSON shape for
+// /show/sc/ip/name-server. An empty saved configuration is an array on the
+// Hopper used for hardware validation, while other RCI endpoints/firmware can
+// expose a {"server":[...]} envelope. Keep both forms inside the DNS module so
+// Core and the Module ABI do not need firmware-specific knowledge.
+type dnsSavedNameServers struct {
+	Server []map[string]any
+}
+
+func (s *dnsSavedNameServers) UnmarshalJSON(data []byte) error {
+	raw := strings.TrimSpace(string(data))
+	if raw == "" {
+		return fmt.Errorf("empty saved name-server response")
+	}
+	if raw == "null" {
+		s.Server = nil
+		return nil
+	}
+	if strings.HasPrefix(raw, "[") {
+		var items []map[string]any
+		if err := json.Unmarshal(data, &items); err != nil {
+			return err
+		}
+		s.Server = items
+		return nil
+	}
+	var envelope struct {
+		Server []map[string]any `json:"server"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return err
+	}
+	s.Server = envelope.Server
+	return nil
+}
+
 type dnsConfigState struct {
 	TLS           []map[string]any
 	HTTPS         []map[string]any
@@ -533,9 +569,9 @@ func (m *dnsControlManager) loadState(ctx context.Context) (*dnsConfigState, err
 		Logical: map[string]*dnsLogicalResolver{},
 	}
 
-	var savedPlain map[string]any
+	var savedPlain dnsSavedNameServers
 	if err := m.rci.getJSON(ctx, "/show/sc/ip/name-server", &savedPlain); err == nil {
-		state.Plain = cloneMapSlice(mapSliceAt(savedPlain, "server"))
+		state.Plain = cloneMapSlice(savedPlain.Server)
 		state.PlainReadable = true
 	} else {
 		var httpErr *dnsRCIHTTPError

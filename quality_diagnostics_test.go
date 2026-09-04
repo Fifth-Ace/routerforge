@@ -48,7 +48,10 @@ func TestWindowFallbackEdges(t *testing.T) {
 		{Port: 40510, Profile: "System", Name: "Xbox DNS DoH", Protocol: "DoH", ProceedMS: 500},
 		{Port: 40504, Profile: "System", Name: "Comss DoT", Protocol: "DoT", ProceedMS: 500},
 	})
-	now := time.Now()
+	// Keep both synthetic events at or before wall-clock time. FallbackEdges()
+	// builds its rolling window from time.Now(), so placing the second query
+	// 500 ms in the future makes this test flaky across a minute boundary.
+	now := time.Now().Add(-time.Second)
 	d := DNSMessage{QName: "example.org", QType: 1}
 	s.RecordQuery(now, "UDP", 40510, 50000, 1, d)
 	s.RecordQuery(now.Add(500*time.Millisecond), "UDP", 40504, 50001, 2, d)

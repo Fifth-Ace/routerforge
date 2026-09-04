@@ -26,7 +26,10 @@ var (
 	errDNSResolverInvalid  = errors.New("invalid DNS resolver")
 )
 
-const dnsDisabledStoreVersion = 1
+const (
+	dnsDisabledStoreVersion  = 1
+	dnsKeeneticDoTSlotLimit = 8
+)
 
 var dnsSafeToken = regexp.MustCompile(`^[A-Za-z0-9._:@/\-+*=]{0,512}$`)
 
@@ -51,13 +54,15 @@ type DNSResolverSpec struct {
 }
 
 type DNSResolverList struct {
-	Resolvers      []DNSResolverSpec `json:"resolvers"`
-	ActiveCount    int               `json:"active_count"`
-	DisabledCount  int               `json:"disabled_count"`
-	DynamicCount   int               `json:"dynamic_count"`
-	MutationAPI    bool              `json:"mutation_api"`
-	NativeMode     bool              `json:"native_mode"`
-	GeneratedSlots int               `json:"physical_entries"`
+	Resolvers          []DNSResolverSpec `json:"resolvers"`
+	ActiveCount        int               `json:"active_count"`
+	DisabledCount      int               `json:"disabled_count"`
+	DynamicCount       int               `json:"dynamic_count"`
+	MutationAPI        bool              `json:"mutation_api"`
+	NativeMode         bool              `json:"native_mode"`
+	GeneratedSlots     int               `json:"physical_entries"`
+	DoTPhysicalEntries int               `json:"dot_physical_entries"`
+	DoTPhysicalLimit   int               `json:"dot_physical_limit"`
 }
 
 type DNSResolverPreview struct {
@@ -179,7 +184,11 @@ func (m *dnsControlManager) List(ctx context.Context) (DNSResolverList, error) {
 	if err != nil {
 		return DNSResolverList{}, err
 	}
-	out := DNSResolverList{MutationAPI: true, NativeMode: true}
+	out := DNSResolverList{
+		MutationAPI:      true,
+		NativeMode:       true,
+		DoTPhysicalLimit: dnsKeeneticDoTSlotLimit,
+	}
 	ids := make([]string, 0, len(state.Logical))
 	for id := range state.Logical {
 		ids = append(ids, id)
@@ -190,6 +199,9 @@ func (m *dnsControlManager) List(ctx context.Context) (DNSResolverList, error) {
 		out.Resolvers = append(out.Resolvers, spec)
 		out.ActiveCount++
 		out.GeneratedSlots += spec.PhysicalCount
+		if spec.Protocol == "DoT" {
+			out.DoTPhysicalEntries += spec.PhysicalCount
+		}
 	}
 	for _, spec := range state.Dynamic {
 		out.Resolvers = append(out.Resolvers, spec)
@@ -431,6 +443,9 @@ func (m *dnsControlManager) Enable(ctx context.Context, id string) (DNSMutationR
 // back on any mismatch. afterVerify runs only after native verification and is
 // used for RouterForge-only metadata such as temporarily disabled resolvers.
 func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfigState, changed map[string]bool, afterVerify func() error) error {
+	if err := validateDNSPhysicalLimits(desired, changed); err != nil {
+		return err
+	}
 	before, err := m.loadState(ctx)
 	if err != nil {
 		return err
@@ -471,6 +486,22 @@ func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfi
 			}
 			return fmt.Errorf("metadata write failed; native configuration rolled back: %w", err)
 		}
+	}
+	return nil
+}
+
+func validateDNSPhysicalLimits(desired *dnsConfigState, changed map[string]bool) error {
+	if desired == nil || !changed["DoT"] {
+		return nil
+	}
+	slots := len(desiredEntriesForProtocol(desired, "DoT"))
+	if slots > dnsKeeneticDoTSlotLimit {
+		return fmt.Errorf(
+			"%w: Keenetic DoT limit is %d physical entries; requested %d",
+			errDNSResolverConflict,
+			dnsKeeneticDoTSlotLimit,
+			slots,
+		)
 	}
 	return nil
 }

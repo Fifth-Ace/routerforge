@@ -9,7 +9,7 @@
   let error = '';
   let success = '';
   let info = null;
-  let resolverState = { resolvers: [], active_count: 0, disabled_count: 0, dynamic_count: 0, physical_entries: 0 };
+  let resolverState = { resolvers: [], active_count: 0, disabled_count: 0, dynamic_count: 0, physical_entries: 0, dot_physical_entries: 0, dot_physical_limit: 0 };
   let snapshot = {};
   let advanced = false;
   let editorOpen = false;
@@ -37,7 +37,8 @@
       rollbackNote:'Все изменения проходят snapshot → mutation → save → readback; при несовпадении выполняется rollback.',
       topDomains:'Популярные домены', recentFlow:'Последние DNS-события', status:'Состояние', memory:'Память', rank:'Rank',
       rebindOn:'Включена', rebindOff:'Выключена', protectedNets:'Защищённые сети', exclusions:'Исключения',
-      editTitle:'Настройка резолвера', addTitle:'Новый резолвер', all:'Все', moduleVersion:'Версия модуля'
+      editTitle:'Настройка резолвера', addTitle:'Новый резолвер', all:'Все', moduleVersion:'Версия модуля',
+      dotSlots:'DoT-слоты', afterSave:'После сохранения', limitExceeded:'Превышен лимит Keenetic'
     },
     en: {
       title:'DNS', subtitle:'Keenetic resolver management, rules and DNS runtime.',
@@ -57,7 +58,8 @@
       rollbackNote:'Every change uses snapshot → mutation → save → readback; mismatch triggers rollback.',
       topDomains:'Top domains', recentFlow:'Recent DNS events', status:'Status', memory:'Memory', rank:'Rank',
       rebindOn:'Enabled', rebindOff:'Disabled', protectedNets:'Protected networks', exclusions:'Exclusions',
-      editTitle:'Configure resolver', addTitle:'New resolver', all:'All', moduleVersion:'Module version'
+      editTitle:'Configure resolver', addTitle:'New resolver', all:'All', moduleVersion:'Module version',
+      dotSlots:'DoT slots', afterSave:'After save', limitExceeded:'Keenetic limit exceeded'
     }
   };
   $: L = strings[locale];
@@ -70,6 +72,14 @@
   $: cacheHits = (info?.proxies || []).reduce((sum,p) => sum + Number(p.stat?.cache_hits || 0), 0);
   $: topDomains = snapshot?.top_domains || [];
   $: flow = snapshot?.flow || [];
+  $: dotSlotsUsed = Number(resolverState?.dot_physical_entries || 0);
+  $: dotSlotLimit = Number(resolverState?.dot_physical_limit || 0);
+  $: formPhysicalCount = form.domains.split(/\r?\n|,/).map((v) => v.trim()).filter(Boolean).length || 1;
+  $: editingActiveDoTSlots = editing && !editing.disabled && !editing.dynamic && editing.protocol === 'DoT' ? Number(editing.physical_count || 1) : 0;
+  $: editorAffectsActive = !editing || (!editing.disabled && !editing.dynamic);
+  $: formActiveDoTSlots = editorAffectsActive && form.protocol === 'DoT' ? formPhysicalCount : 0;
+  $: projectedDoTSlots = Math.max(0, dotSlotsUsed - editingActiveDoTSlots + formActiveDoTSlots);
+  $: dotCapacityExceeded = dotSlotLimit > 0 && projectedDoTSlots > dotSlotLimit;
 
   function blankForm() {
     return { protocol:'DoT', address:'', uri:'', port:853, sni:'', interface:'', domains:'', spki:'', format:'' };
@@ -290,7 +300,7 @@
       <div class="metric-card"><span>{L.activeResolvers}</span><strong>{resolverState.active_count || 0}</strong><small>{L.native}</small></div>
       <div class="metric-card"><span>{L.disabledResolvers}</span><strong>{resolverState.disabled_count || 0}</strong><small>RouterForge metadata</small></div>
       <div class="metric-card"><span>{L.requests}</span><strong>{totalRequests}</strong><small>{L.sent}: {totalSent}</small></div>
-      <div class="metric-card"><span>{L.cache}</span><strong>{cacheHits}</strong><small>{L.physical}: {resolverState.physical_entries || 0}</small></div>
+      <div class="metric-card"><span>{L.cache}</span><strong>{cacheHits}</strong><small>{L.physical}: {resolverState.physical_entries || 0} · {L.dotSlots}: {dotSlotsUsed}/{dotSlotLimit || '—'}</small></div>
     </section>
 
     <section class="panel">
@@ -312,7 +322,7 @@
 
   {:else if tab === 'resolvers'}
     <div class="toolbar">
-      <div><strong>{L.resolvers}</strong><div class="resolver-meta">{L.nativeHint}</div></div>
+      <div><strong>{L.resolvers}</strong><div class="resolver-meta">{L.nativeHint} · {L.dotSlots}: {dotSlotsUsed}/{dotSlotLimit || '—'}</div></div>
       <button class="action primary" type="button" onclick={openAdd}>+ {L.add}</button>
     </div>
     {#if !resolvers.length}<div class="empty-box">{L.noResolvers}</div>{/if}
@@ -393,9 +403,9 @@
           {#if form.protocol === 'DoT'}<label>{L.sni}<input class="mono" placeholder="cloudflare-dns.com" bind:value={form.sni}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
           {#if form.protocol === 'DoH'}<label>{L.format}<input class="mono" bind:value={form.format}/></label>{/if}
           <label>{L.iface}<input class="mono" placeholder="ISP" bind:value={form.interface}/></label>
-          <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span>{L.domainsHint}</span></label>
+          <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span class:slot-warning={dotCapacityExceeded}>{L.domainsHint}{#if form.protocol === 'DoT' && dotSlotLimit} · {L.dotSlots}: {dotSlotsUsed}/{dotSlotLimit} → {L.afterSave}: {projectedDoTSlots}/{dotSlotLimit}{#if dotCapacityExceeded} · {L.limitExceeded}{/if}{/if}</span></label>
         </div>
-        <div class="modal-actions"><button class="action" type="button" onclick={() => editorOpen = false}>{L.cancel}</button><button class="action primary" type="button" disabled={saving} onclick={saveEditor}>{saving ? '…' : L.save}</button></div>
+        <div class="modal-actions"><button class="action" type="button" onclick={() => editorOpen = false}>{L.cancel}</button><button class="action primary" type="button" disabled={saving || dotCapacityExceeded} onclick={saveEditor}>{saving ? '…' : L.save}</button></div>
       </div>
     </div>
   {/if}

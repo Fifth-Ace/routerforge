@@ -69,3 +69,5 @@ body { overflow-x: hidden; }
 .dns-module .detail-item span { display:block; color:var(--rf-muted,#9aa7b3); font-size:.72rem; }
 .dns-module .detail-item strong { display:block; margin-top:.15rem; font-size:.88rem; overflow-wrap:anywhere; }
 @media (max-width:720px){ .dns-module .form-grid{grid-template-columns:1fr}.dns-module .span-2{grid-column:auto}.dns-module{padding-right:.2rem} }
+
+.dns-module .slot-warning { color:#f1cf86; }

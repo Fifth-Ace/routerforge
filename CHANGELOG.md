@@ -4,6 +4,11 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.4-beta` adds a preflight guard for the Keenetic DoT capacity confirmed on live Hopper hardware:
+  - Hopper accepts exactly 8 native DoT upstream entries; a 9th entry is silently truncated by NDMS.
+  - RouterForge now rejects a mutation that would exceed 8 DoT physical entries before any native RCI write, returning a conflict instead of relying on rollback.
+  - `/resolvers` exposes current DoT physical usage and the limit; the DNS UI shows `used/8`, projects the post-save usage, and disables Save when the requested logical resolver would exceed capacity.
+  - Live validation confirmed 8/8 succeeds, 9/8 triggers readback rollback on `0.4.3-beta`, and cleanup restores the original native DNS snapshot byte-for-byte.
 - DNS `0.4.3-beta` fixes Keenetic DoT SNI write/readback after live Hopper mutation testing:
   - structured RCI writes now translate RouterForge SNI to Keenetic's saved `fqdn` field, preventing NDMS from silently dropping SNI and triggering a readback rollback;
   - diagnostics no longer fabricate `SNI=<address>` for native DoT entries that have no SNI, and accept both `sni:` and `fqdn:` metadata labels.

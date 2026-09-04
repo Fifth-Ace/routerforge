@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"errors"
+	"fmt"
+	"testing"
+)
 
 func TestLogicalResolversKeepDistinctGoogleSNIAndGroupYandexDomains(t *testing.T) {
 	entries := []map[string]any{
@@ -81,5 +85,35 @@ func TestDNSRCIPayloadUsesFQDNForDoTSNI(t *testing.T) {
 	got := canonicalProtocolEntries("DoT", []map[string]any{payload})
 	if len(want) != 1 || len(got) != 1 || want[0] != got[0] {
 		t.Fatalf("sni/fqdn canonical readback mismatch: want=%v got=%v", want, got)
+	}
+}
+
+func TestDNSPhysicalLimitAcceptsEightDoTSlots(t *testing.T) {
+	entries := make([]map[string]any, dnsKeeneticDoTSlotLimit)
+	for i := range entries {
+		entries[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("slot-%d.invalid", i)}
+	}
+	state := &dnsConfigState{Logical: map[string]*dnsLogicalResolver{
+		"test": {Spec: DNSResolverSpec{Protocol: "DoT"}, RawEntries: entries},
+	}}
+	if err := validateDNSPhysicalLimits(state, map[string]bool{"DoT": true}); err != nil {
+		t.Fatalf("8 DoT slots must be accepted: %v", err)
+	}
+}
+
+func TestDNSPhysicalLimitRejectsNineDoTSlotsBeforeWrite(t *testing.T) {
+	entries := make([]map[string]any, dnsKeeneticDoTSlotLimit+1)
+	for i := range entries {
+		entries[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("slot-%d.invalid", i)}
+	}
+	state := &dnsConfigState{Logical: map[string]*dnsLogicalResolver{
+		"test": {Spec: DNSResolverSpec{Protocol: "DoT"}, RawEntries: entries},
+	}}
+	err := validateDNSPhysicalLimits(state, map[string]bool{"DoT": true})
+	if err == nil {
+		t.Fatal("9 DoT slots must be rejected")
+	}
+	if !errors.Is(err, errDNSResolverConflict) {
+		t.Fatalf("slot overflow must be a conflict: %v", err)
 	}
 }

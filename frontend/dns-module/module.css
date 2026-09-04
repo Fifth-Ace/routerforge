@@ -1180,3 +1180,244 @@ button, input, select, textarea { font:inherit; }
   .dns-module .resolver-detail-metrics > div:first-child { border-top:0; }
   .dns-module .resolver-scope-value { max-width:55%; }
 }
+
+/* DNS 0.4.14 theme bridge
+   Module ABI UI is same-origin with Core, but an iframe does not inherit the
+   parent's stylesheet cascade. DNSModuleApp copies the live semantic tokens
+   and data-* appearance attributes; this layer consumes those tokens instead
+   of the old hard-coded Forge palette. */
+:root {
+  --rf-bg:#0b0d10;
+  --rf-surface:#12151a;
+  --rf-surface-2:#171b21;
+  --rf-hover:#1d2229;
+  --rf-text:#f5f7fa;
+  --rf-muted:#8d98a4;
+  --rf-border:#29313a;
+  --rf-border-strong:#36414d;
+  --rf-accent:#38bdf8;
+  --rf-accent-soft:rgba(56,189,248,.10);
+  --rf-accent-hover:rgba(56,189,248,.16);
+  --rf-accent-border:rgba(56,189,248,.30);
+  --rf-radius-panel:6px;
+  --rf-radius-control:5px;
+  --rf-panel-head-h:50px;
+
+  --concept-bg:var(--rf-bg);
+  --concept-surface:var(--rf-surface);
+  --concept-panel:var(--rf-surface);
+  --concept-panel-2:var(--rf-bg);
+  --concept-hover:var(--rf-hover);
+  --concept-border:var(--rf-border);
+  --concept-border-soft:var(--rf-border);
+  --accent:var(--rf-accent);
+}
+
+html,
+body,
+#app,
+.dns-module {
+  background:var(--rf-bg) !important;
+  color:var(--rf-text) !important;
+}
+
+.dns-module .page-head h1,
+.dns-module .panel-head strong,
+.dns-module .metric-card > strong,
+.dns-module .cell-title,
+.dns-module .info-row strong,
+.dns-module .info-value,
+.dns-module .table-link strong,
+.dns-module .hero-head h2,
+.dns-module .hero-metrics strong,
+.dns-module .resolver-summary-strip strong,
+.dns-module .resolver-master-title strong,
+.dns-module .resolver-title-line h2,
+.dns-module .resolver-card h3,
+.dns-module td {
+  color:var(--rf-text) !important;
+}
+
+.dns-module .page-head p,
+.dns-module .page-kicker,
+.dns-module .panel-head span:not(.state-pill),
+.dns-module .metric-card > span,
+.dns-module .metric-card > small,
+.dns-module .cell-sub,
+.dns-module .resolver-meta,
+.dns-module .info-row span,
+.dns-module .empty-row,
+.dns-module .empty-box,
+.dns-module .hero-head p,
+.dns-module .hero-metrics span,
+.dns-module .route-path span,
+.dns-module .route-path code,
+.dns-module .legend,
+.dns-module .chart-labels,
+.dns-module .log-row,
+.dns-module .muted,
+.dns-module .resolver-summary-strip span,
+.dns-module .resolver-master-endpoint,
+.dns-module .resolver-master-meta,
+.dns-module .resolver-detail-title p,
+.dns-module .resolver-dynamic-banner,
+.dns-module .resolver-safety-note,
+.dns-module th {
+  color:var(--rf-muted) !important;
+}
+
+.dns-module .panel,
+.dns-module .metric-card,
+.dns-module .hero-card,
+.dns-module .resolver-card {
+  border-color:var(--rf-border) !important;
+  border-radius:var(--rf-radius-panel) !important;
+  background:var(--rf-surface) !important;
+}
+
+.dns-module .panel-head,
+.dns-module .resolver-detail-head {
+  min-height:var(--rf-panel-head-h) !important;
+  border-color:var(--rf-border) !important;
+  background:color-mix(in srgb,var(--rf-surface) 82%,var(--rf-bg)) !important;
+}
+
+.dns-module .toolbar,
+.dns-module .parity-toolbar,
+.dns-module .search-control,
+.dns-module input,
+.dns-module select,
+.dns-module textarea,
+.dns-module button.action,
+.dns-module .segmented,
+.dns-module .segmented button,
+.dns-module .scope-chip,
+.dns-module .detail-item,
+.dns-module .state-chip,
+.dns-module .pill {
+  border-color:var(--rf-border) !important;
+}
+
+.dns-module .toolbar,
+.dns-module .parity-toolbar,
+.dns-module button.action,
+.dns-module .segmented button,
+.dns-module .scope-chip,
+.dns-module .detail-item,
+.dns-module .state-chip,
+.dns-module .pill {
+  background:var(--rf-surface-2) !important;
+}
+
+.dns-module .search-control,
+.dns-module input,
+.dns-module select,
+.dns-module textarea {
+  border-radius:var(--rf-radius-control) !important;
+  background:var(--rf-surface-2) !important;
+  color:var(--rf-text) !important;
+}
+
+.dns-module input::placeholder,
+.dns-module textarea::placeholder {
+  color:var(--rf-muted) !important;
+}
+
+.dns-module button.action {
+  color:var(--rf-text) !important;
+}
+.dns-module button.action:hover:not(:disabled) {
+  border-color:var(--rf-border-strong) !important;
+  background:var(--rf-hover) !important;
+}
+.dns-module button.action.primary,
+.dns-module .segmented button.active,
+.dns-module .pill.accent,
+.dns-module .state-chip.info {
+  color:var(--rf-accent) !important;
+  border-color:var(--rf-accent-border) !important;
+  background:var(--rf-accent-soft) !important;
+}
+.dns-module button.action.primary:hover:not(:disabled) {
+  color:var(--rf-bg) !important;
+  background:var(--rf-accent) !important;
+}
+
+.dns-module .module-tabs {
+  border-bottom-color:var(--rf-border) !important;
+}
+.dns-module .module-tabs button {
+  color:var(--rf-muted) !important;
+}
+.dns-module .module-tabs button:hover {
+  color:var(--rf-text) !important;
+}
+.dns-module .module-tabs button.active {
+  color:var(--rf-accent) !important;
+  border-bottom-color:var(--rf-accent) !important;
+}
+
+.dns-module .resolver-summary-strip,
+.dns-module .resolver-master-list,
+.dns-module .resolver-detail-metrics,
+.dns-module .chart-shell,
+.dns-module .log-shell,
+.dns-module .resolver-safety-note {
+  border-color:var(--rf-border) !important;
+  background:var(--rf-bg) !important;
+}
+.dns-module .resolver-summary-strip > div,
+.dns-module .resolver-master-item,
+.dns-module .resolver-detail-metrics > div,
+.dns-module .info-row,
+.dns-module .log-row,
+.dns-module th,
+.dns-module td {
+  border-color:var(--rf-border) !important;
+}
+.dns-module .resolver-master-item {
+  background:var(--rf-surface) !important;
+  color:var(--rf-text) !important;
+}
+.dns-module .resolver-master-item:hover {
+  background:var(--rf-hover) !important;
+}
+.dns-module .resolver-master-item.active {
+  border-left-color:var(--rf-accent) !important;
+  background:var(--rf-accent-soft) !important;
+}
+.dns-module .table-wrap table thead th,
+.dns-module th {
+  background:color-mix(in srgb,var(--rf-surface) 72%,var(--rf-bg)) !important;
+}
+.dns-module tbody tr:hover td {
+  background:var(--rf-hover) !important;
+}
+.dns-module .table-link:hover strong {
+  color:var(--rf-accent) !important;
+}
+
+html[data-density="compact"] .dns-module {
+  --rf-panel-head-h:44px;
+}
+html[data-density="comfortable"] .dns-module {
+  --rf-panel-head-h:56px;
+}
+html[data-radius="sharp"] .dns-module {
+  --rf-radius-panel:2px;
+  --rf-radius-control:2px;
+}
+html[data-radius="soft"] .dns-module {
+  --rf-radius-panel:10px;
+  --rf-radius-control:8px;
+}
+
+/* Separate Keenetic secure pools: one 8-entry pool for DoT and one for DoH. */
+.dns-module .resolver-summary-strip {
+  grid-template-columns:repeat(6,minmax(0,1fr));
+}
+@media (max-width:980px) {
+  .dns-module .resolver-summary-strip {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}

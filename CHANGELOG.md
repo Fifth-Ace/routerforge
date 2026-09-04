@@ -4,13 +4,17 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.14-beta` hotfixes three issues found immediately after the 0.4.13 stable rollout:
+  - DoT and DoH capacity are separate Keenetic pools: RouterForge now allows up to 8 physical DoT entries **and** up to 8 physical DoH entries, exposes both limits independently, and projects each pool separately in the resolver editor. The production configuration with 8 DoT plus a simultaneous DoH entry proves the previous shared-8 guard was too strict; the earlier Hopper test had only proven the 8-entry DoT pool because RouterForge preflight blocked the mixed ninth entry before NDMS was actually exercised.
+  - Module ABI DNS now inherits the full live RouterForge semantic theme (custom background/text/accent, density and radius) instead of only a subset of legacy shell tokens; a parent-root MutationObserver keeps the iframe synchronized with appearance changes.
+  - Diagnostics no longer uses non-unique Svelte keys derived from resolver display names for error bursts/journal rows. Native multi-domain resolvers can legitimately share those names, which could throw a duplicate-key runtime error and freeze the DNS module until reload; the journal is also capped at 500 rendered rows.
 ## 2026-09-04 — RouterForge Core 0.4.1 / DNS 0.4.13
 
 ### Stable highlights
 
 - DNS is now a full Module ABI v1 runtime with its own backend/API/UI; Core provides the shared shell, authentication, Marketplace/Registry and generic module host.
 - DNS Control manages plain DNS, DoT and DoH with Add/Edit/Delete, temporary Disable/Enable, dynamic-entry read-only protection and logical multi-domain grouping.
-- Live Hopper validation confirmed structured Keenetic RCI writes, DoT `fqdn`/SNI handling, DoH `url` write semantics, stable DoH logical IDs, the shared 8-entry DoT/DoH capacity, the 16-domain plain-DNS limit and exact rollback/readback restoration.
+- Live Hopper validation confirmed structured Keenetic RCI writes, DoT `fqdn`/SNI handling, DoH `url` write semantics, stable DoH logical IDs, the 8-entry DoT pool, the 16-domain plain-DNS limit and exact rollback/readback restoration. Separate DoH capacity was corrected after the 0.4.13 rollout; see DNS 0.4.14-beta above.
 - Observability parity is restored across Overview, Rules, Traffic and Diagnostics: history, DNS Flow, client drill-down, interfaces, domains/QTYPEs, fallback routes, error bursts, runtime health and system details.
 - Resolvers 2.0 combines the original master/detail UX with the validated DNS Control feature set and keeps an optional equalized Cards view.
 - The DNS iframe now follows real module content height and Core visual scaling, eliminating nested scrolling and keeping the module visually aligned with the RouterForge shell.

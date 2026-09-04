@@ -42,7 +42,7 @@
 - Add/Edit/Delete и временные Disable/Enable для plain DNS, DoT и DoH;
 - динамические DHCP/service DNS отображаются read-only;
 - один логический multi-domain resolver разворачивается в нужное число нативных записей Keenetic;
-- общий preflight-лимит **8 физических DoT/DoH entries** и максимум **16 доменов на plain DNS server**;
+- независимые preflight-лимиты **до 8 физических DoT entries и до 8 физических DoH entries**; для plain DNS — максимум **16 доменов на server**;
 - каждая мутация проходит `snapshot → mutation → save → readback`; mismatch запускает rollback и его повторную проверку;
 - привязка запросов к клиентам и LAN/Wi‑Fi-интерфейсам;
 - upstream/fallback/timeout/error/latency, quality windows и health diagnostics;

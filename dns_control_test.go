@@ -88,12 +88,12 @@ func TestDNSRCIPayloadUsesFQDNForDoTSNI(t *testing.T) {
 	}
 }
 
-func TestDNSPhysicalLimitAcceptsEightMixedSecureSlots(t *testing.T) {
-	dot := make([]map[string]any, 5)
+func TestDNSPhysicalLimitAcceptsEightDoTAndEightDoH(t *testing.T) {
+	dot := make([]map[string]any, dnsKeeneticDoTSlotLimit)
 	for i := range dot {
 		dot[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("dot-%d.invalid", i)}
 	}
-	doh := make([]map[string]any, 3)
+	doh := make([]map[string]any, dnsKeeneticDoHSlotLimit)
 	for i := range doh {
 		doh[i] = map[string]any{"uri": "https://cloudflare-dns.com/dns-query", "domain": fmt.Sprintf("doh-%d.invalid", i)}
 	}
@@ -101,17 +101,39 @@ func TestDNSPhysicalLimitAcceptsEightMixedSecureSlots(t *testing.T) {
 		"dot": {Spec: DNSResolverSpec{Protocol: "DoT"}, RawEntries: dot},
 		"doh": {Spec: DNSResolverSpec{Protocol: "DoH"}, RawEntries: doh},
 	}}
-	if err := validateDNSPhysicalLimits(state, map[string]bool{"DoH": true}); err != nil {
-		t.Fatalf("8 combined DoT/DoH slots must be accepted: %v", err)
+	if err := validateDNSPhysicalLimits(state, map[string]bool{"DoT": true, "DoH": true}); err != nil {
+		t.Fatalf("8 DoT + 8 DoH physical entries must be accepted: %v", err)
 	}
 }
 
-func TestDNSPhysicalLimitRejectsNinthMixedSecureSlotBeforeWrite(t *testing.T) {
-	dot := make([]map[string]any, 6)
+func TestDNSPhysicalLimitRejectsNinthDoTBeforeWrite(t *testing.T) {
+	dot := make([]map[string]any, dnsKeeneticDoTSlotLimit+1)
 	for i := range dot {
 		dot[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("dot-%d.invalid", i)}
 	}
-	doh := make([]map[string]any, 3)
+	doh := make([]map[string]any, dnsKeeneticDoHSlotLimit)
+	for i := range doh {
+		doh[i] = map[string]any{"uri": "https://cloudflare-dns.com/dns-query", "domain": fmt.Sprintf("doh-%d.invalid", i)}
+	}
+	state := &dnsConfigState{Logical: map[string]*dnsLogicalResolver{
+		"dot": {Spec: DNSResolverSpec{Protocol: "DoT"}, RawEntries: dot},
+		"doh": {Spec: DNSResolverSpec{Protocol: "DoH"}, RawEntries: doh},
+	}}
+	err := validateDNSPhysicalLimits(state, map[string]bool{"DoT": true})
+	if err == nil {
+		t.Fatal("9 DoT physical entries must be rejected")
+	}
+	if !errors.Is(err, errDNSResolverConflict) {
+		t.Fatalf("DoT slot overflow must be a conflict: %v", err)
+	}
+}
+
+func TestDNSPhysicalLimitRejectsNinthDoHBeforeWrite(t *testing.T) {
+	dot := make([]map[string]any, dnsKeeneticDoTSlotLimit)
+	for i := range dot {
+		dot[i] = map[string]any{"address": "1.0.0.1", "domain": fmt.Sprintf("dot-%d.invalid", i)}
+	}
+	doh := make([]map[string]any, dnsKeeneticDoHSlotLimit+1)
 	for i := range doh {
 		doh[i] = map[string]any{"uri": "https://cloudflare-dns.com/dns-query", "domain": fmt.Sprintf("doh-%d.invalid", i)}
 	}
@@ -121,10 +143,10 @@ func TestDNSPhysicalLimitRejectsNinthMixedSecureSlotBeforeWrite(t *testing.T) {
 	}}
 	err := validateDNSPhysicalLimits(state, map[string]bool{"DoH": true})
 	if err == nil {
-		t.Fatal("9 combined DoT/DoH slots must be rejected")
+		t.Fatal("9 DoH physical entries must be rejected")
 	}
 	if !errors.Is(err, errDNSResolverConflict) {
-		t.Fatalf("secure slot overflow must be a conflict: %v", err)
+		t.Fatalf("DoH slot overflow must be a conflict: %v", err)
 	}
 }
 

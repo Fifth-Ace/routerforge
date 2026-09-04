@@ -13,7 +13,7 @@
   let error = '';
   let success = '';
   let info = null;
-  let resolverState = { resolvers: [], active_count: 0, disabled_count: 0, dynamic_count: 0, physical_entries: 0, dot_physical_entries: 0, dot_physical_limit: 0, doh_physical_entries: 0, secure_physical_entries: 0, secure_physical_limit: 0, plain_dns_domain_limit: 16 };
+  let resolverState = { resolvers: [], active_count: 0, disabled_count: 0, dynamic_count: 0, physical_entries: 0, dot_physical_entries: 0, dot_physical_limit: 0, doh_physical_entries: 0, doh_physical_limit: 0, secure_physical_entries: 0, secure_physical_limit: 0, plain_dns_domain_limit: 16 };
   let snapshot = {};
   let plain = { resolvers: [], recent: [], pending: 0, mode: '', note: '' };
   let history = { minutes: 5, points: [] };
@@ -162,18 +162,24 @@
   $: liveFlow = snapshot?.flow || [];
   $: dotSlotsUsed = Number(resolverState?.dot_physical_entries || 0);
   $: dohSlotsUsed = Number(resolverState?.doh_physical_entries || 0);
-  $: secureSlotsUsed = Number(resolverState?.secure_physical_entries ?? (dotSlotsUsed + dohSlotsUsed));
-  $: secureSlotLimit = Number(resolverState?.secure_physical_limit || resolverState?.dot_physical_limit || 0);
+  $: dotSlotLimit = Number(resolverState?.dot_physical_limit || 8);
+  $: dohSlotLimit = Number(resolverState?.doh_physical_limit || 8);
+  $: secureSlotsUsed = dotSlotsUsed + dohSlotsUsed;
+  $: secureSlotLimit = dotSlotLimit + dohSlotLimit;
   $: plainDnsDomainLimit = Number(resolverState?.plain_dns_domain_limit || 16);
   $: formDomainCount = form.domains.split(/\r?\n|,/).map((v) => v.trim()).filter(Boolean).length;
   $: formPhysicalCount = formDomainCount || 1;
-  $: editingActiveSecureSlots = editing && !editing.disabled && !editing.dynamic && ['DoT','DoH'].includes(editing.protocol) ? Number(editing.physical_count || 1) : 0;
   $: editorAffectsActive = !editing || (!editing.disabled && !editing.dynamic);
-  $: formActiveSecureSlots = editorAffectsActive && ['DoT','DoH'].includes(form.protocol) ? formPhysicalCount : 0;
-  $: projectedSecureSlots = Math.max(0, secureSlotsUsed - editingActiveSecureSlots + formActiveSecureSlots);
-  $: secureCapacityExceeded = secureSlotLimit > 0 && projectedSecureSlots > secureSlotLimit;
+  $: editingActiveDoTSlots = editing && editorAffectsActive && editing.protocol === 'DoT' ? Number(editing.physical_count || 1) : 0;
+  $: editingActiveDoHSlots = editing && editorAffectsActive && editing.protocol === 'DoH' ? Number(editing.physical_count || 1) : 0;
+  $: formActiveDoTSlots = editorAffectsActive && form.protocol === 'DoT' ? formPhysicalCount : 0;
+  $: formActiveDoHSlots = editorAffectsActive && form.protocol === 'DoH' ? formPhysicalCount : 0;
+  $: projectedDoTSlots = Math.max(0, dotSlotsUsed - editingActiveDoTSlots + formActiveDoTSlots);
+  $: projectedDoHSlots = Math.max(0, dohSlotsUsed - editingActiveDoHSlots + formActiveDoHSlots);
+  $: dotCapacityExceeded = dotSlotLimit > 0 && projectedDoTSlots > dotSlotLimit;
+  $: dohCapacityExceeded = dohSlotLimit > 0 && projectedDoHSlots > dohSlotLimit;
   $: plainDomainExceeded = form.protocol === 'DNS' && formDomainCount > plainDnsDomainLimit;
-  $: editorLimitExceeded = secureCapacityExceeded || plainDomainExceeded;
+  $: editorLimitExceeded = dotCapacityExceeded || dohCapacityExceeded || plainDomainExceeded;
 
   $: filteredPlain = plainResolvers.filter((r) => {
     if (overviewActiveOnly && !plainRecentlyActive(r)) return false;
@@ -241,7 +247,7 @@
     if (diagKind !== 'all' && x.kind !== diagKind) return false;
     const q = diagSearch.trim().toLowerCase();
     return !q || `${x.kind || ''} ${x.profile || ''} ${x.upstream || ''} ${x.domain || ''} ${x.message || ''}`.toLowerCase().includes(q);
-  });
+  }).slice(0,500);
   $: diagBursts = (diagPaused ? frozenBursts : (errorBursts?.bursts || snapshot?.error_bursts || [])).slice(0,20);
 
   $: historyPoints = history?.points || [];
@@ -639,9 +645,25 @@
       if (window.parent === window) return;
       const parentRoot = window.parent.document.documentElement;
       const source = window.parent.getComputedStyle(parentRoot);
-      const target = document.documentElement.style;
-      const tokens = ['--page-pad','--ui-body','--ui-small','--ui-xs','--ui-micro','--ui-title','--ui-panel-title','--ui-control-h','--concept-bg','--concept-surface','--concept-panel','--concept-panel-2','--concept-hover','--concept-border','--concept-border-soft','--accent','--good','--warn','--bad','--font-sans','--font-mono'];
-      for (const token of tokens) { const value = source.getPropertyValue(token).trim(); if (value) target.setProperty(token, value); }
+      const targetRoot = document.documentElement;
+      const target = targetRoot.style;
+      const tokens = [
+        '--page-pad','--ui-body','--ui-small','--ui-xs','--ui-micro','--ui-title','--ui-panel-title','--ui-control-h',
+        '--concept-bg','--concept-surface','--concept-panel','--concept-panel-2','--concept-hover','--concept-border','--concept-border-soft',
+        '--accent','--bg','--surface','--surface-2','--hover','--text','--muted','--border','--good','--warn','--bad',
+        '--rf-bg','--rf-surface','--rf-surface-2','--rf-hover','--rf-text','--rf-muted','--rf-border','--rf-border-strong',
+        '--rf-accent','--rf-accent-soft','--rf-accent-hover','--rf-accent-border','--rf-brand','--rf-brand-ui','--rf-brand-soft','--rf-brand-border',
+        '--rf-radius-panel','--rf-radius-control','--rf-radius-card','--rf-panel-head-h','--font-sans','--font-mono'
+      ];
+      for (const token of tokens) {
+        const value = source.getPropertyValue(token).trim();
+        if (value) target.setProperty(token, value);
+      }
+      for (const key of ['theme','density','radius','brandMode','uiLevel','uiScale','locale']) {
+        const value = parentRoot.dataset[key];
+        if (value) targetRoot.dataset[key] = value;
+        else delete targetRoot.dataset[key];
+      }
     } catch {}
   }
 
@@ -683,6 +705,16 @@
       : null;
     resizeObserver?.observe(root);
 
+    let parentThemeObserver = null;
+    try {
+      const parentRoot = window.parent.document.documentElement;
+      parentThemeObserver = new MutationObserver(syncShell);
+      parentThemeObserver.observe(parentRoot, {
+        attributes:true,
+        attributeFilter:['style','data-theme','data-density','data-radius','data-brand-mode','data-ui-level','data-ui-scale','data-locale']
+      });
+    } catch {}
+
     window.addEventListener('resize', syncShell);
     try { window.parent.addEventListener('resize', syncFrameHeight); } catch {}
 
@@ -695,6 +727,7 @@
     return () => {
       clearInterval(refreshTimer);
       resizeObserver?.disconnect();
+      parentThemeObserver?.disconnect();
       window.removeEventListener('resize', syncShell);
       try { window.parent.removeEventListener('resize', syncFrameHeight); } catch {}
     };
@@ -799,7 +832,8 @@
         <button class:active={resolverView === 'detail'} type="button" aria-pressed={resolverView === 'detail'} onclick={() => setResolverView('detail')}>{locale === 'en' ? 'List' : 'Список'}</button>
         <button class:active={resolverView === 'cards'} type="button" aria-pressed={resolverView === 'cards'} onclick={() => setResolverView('cards')}>{locale === 'en' ? 'Cards' : 'Карточки'}</button>
       </div>
-      <span class="state-pill info">{L.secureSlots}: {secureSlotsUsed}/{secureSlotLimit || '—'}</span>
+      <span class="state-pill info">DoT: {dotSlotsUsed}/{dotSlotLimit || '—'}</span>
+      <span class="state-pill info">DoH: {dohSlotsUsed}/{dohSlotLimit || '—'}</span>
     </div>
 
     <div class="resolver-summary-strip">
@@ -807,7 +841,8 @@
       <div><span>{L.activeResolvers}</span><strong class="good-text">{activeResolvers.length}</strong></div>
       <div><span>{L.disabledResolvers}</span><strong class={disabledResolvers.length ? 'warn-text' : ''}>{disabledResolvers.length}</strong></div>
       <div><span>{L.dynamicResolvers}</span><strong>{dynamicResolvers.length}</strong></div>
-      <div><span>{L.secureSlots}</span><strong class={secureSlotLimit && secureSlotsUsed >= secureSlotLimit ? 'warn-text' : ''}>{secureSlotsUsed}/{secureSlotLimit || '—'}</strong></div>
+      <div><span>DoT slots</span><strong class={dotSlotLimit && dotSlotsUsed >= dotSlotLimit ? 'warn-text' : ''}>{dotSlotsUsed}/{dotSlotLimit || '—'}</strong></div>
+      <div><span>DoH slots</span><strong class={dohSlotLimit && dohSlotsUsed >= dohSlotLimit ? 'warn-text' : ''}>{dohSlotsUsed}/{dohSlotLimit || '—'}</strong></div>
     </div>
 
     {#if !filteredResolvers.length}
@@ -1063,8 +1098,8 @@
 
     {#if diagnosticsTab === 'journal'}
       <div class="toolbar parity-toolbar"><span class="live-chip {diagPaused ? 'paused' : 'running'}">{diagPaused ? L.frozen : L.live}</span><button class="action" type="button" onclick={toggleDiagPause}>{diagPaused ? L.continue : L.pause}</button>{#each ['all','SERVFAIL','TIMEOUT','DOWN','RECOVERED'] as value}<button class="action" class:active={diagKind === value} type="button" onclick={() => diagKind = value}>{value === 'all' ? L.all.toUpperCase() : value}</button>{/each}<div class="search-control flex"><span>⌕</span><input bind:value={diagSearch} placeholder={L.searchDns}/></div><div class="segmented"><button class:active={diagMinutes === 5} type="button" onclick={() => selectDiagMinutes(5)}>5м</button><button class:active={diagMinutes === 60} type="button" onclick={() => selectDiagMinutes(60)}>1ч</button><button class:active={diagMinutes === 1440} type="button" onclick={() => selectDiagMinutes(1440)}>24ч</button></div></div>
-      {#if diagBursts.length}<section class="panel table-panel"><div class="panel-head"><div><strong>{L.errorSummary}</strong><span>{diagBursts.length} burst buckets</span></div></div><div class="table-wrap"><table><thead><tr><th>{locale === 'en' ? 'Time' : 'Время'}</th><th>DNS</th><th>{L.type}</th><th>{locale === 'en' ? 'Count' : 'Кол-во'}</th><th>{L.examples}</th></tr></thead><tbody>{#each diagBursts as b (`${b.minute}-${b.upstream}-${b.kind}`)}<tr><td class="mono">{timeOnly(b.minute)}</td><td>{b.profile} · <strong>{b.upstream}</strong></td><td><span class="pill {b.kind === 'TIMEOUT' ? 'warn' : 'error'}">{b.kind}</span></td><td class="bad-text">{fmtInt(b.count)}</td><td class="cell-sub">{(b.domains || []).join(', ') || '—'}</td></tr>{/each}</tbody></table></div></section>{/if}
-      <section class="panel"><div class="log-shell">{#if diagRows.length}{#each diagRows as row (`${row.time}|${row.kind}|${row.upstream}|${row.domain}`)}<div class="log-row"><span class="mono muted">{timeOnly(row.time)}</span><span class="log-kind {row.kind}">{row.kind}</span><span>{row.profile || ''} · {row.upstream || ''} · {row.domain || ''} — {row.message || ''}</span></div>{/each}{:else}<div class="empty-box small">{L.noData}</div>{/if}</div></section>
+      {#if diagBursts.length}<section class="panel table-panel"><div class="panel-head"><div><strong>{L.errorSummary}</strong><span>{diagBursts.length} burst buckets</span></div></div><div class="table-wrap"><table><thead><tr><th>{locale === 'en' ? 'Time' : 'Время'}</th><th>DNS</th><th>{L.type}</th><th>{locale === 'en' ? 'Count' : 'Кол-во'}</th><th>{L.examples}</th></tr></thead><tbody>{#each diagBursts as b, i}<tr><td class="mono">{timeOnly(b.minute)}</td><td>{b.profile} · <strong>{b.upstream}</strong></td><td><span class="pill {b.kind === 'TIMEOUT' ? 'warn' : 'error'}">{b.kind}</span></td><td class="bad-text">{fmtInt(b.count)}</td><td class="cell-sub">{(b.domains || []).join(', ') || '—'}</td></tr>{/each}</tbody></table></div></section>{/if}
+      <section class="panel"><div class="log-shell">{#if diagRows.length}{#each diagRows as row, i}<div class="log-row"><span class="mono muted">{timeOnly(row.time)}</span><span class="log-kind {row.kind}">{row.kind}</span><span>{row.profile || ''} · {row.upstream || ''} · {row.domain || ''} — {row.message || ''}</span></div>{/each}{:else}<div class="empty-box small">{L.noData}</div>{/if}</div></section>
 
     {:else if diagnosticsTab === 'connections'}
       <section class="panel table-panel"><div class="panel-head"><div><strong>{L.localProxies}</strong><span>{allUpstreams.length} endpoints</span></div></div><div class="table-wrap"><table><thead><tr><th>{L.profile}</th><th>DNS</th><th>{L.protocol}</th><th>Local</th><th>{L.target}</th><th>{L.iface}</th><th>{L.status}</th></tr></thead><tbody>{#each allUpstreams as u (u.port)}<tr><td>{u.profile}</td><td><strong>{u.name}</strong></td><td><span class="pill accent">{u.protocol}</span></td><td class="mono">127.0.0.1:{u.port}</td><td class="mono">{u.target || '—'}</td><td>{u.interface || u.linux_interface || '—'}</td><td><span class="state-chip {upstreamStatus(u).cls}">{upstreamStatus(u).label}</span></td></tr>{/each}</tbody></table></div></section>
@@ -1098,7 +1133,7 @@
           {#if form.protocol === 'DoT'}<label>{L.sni}<input class="mono" placeholder="cloudflare-dns.com" bind:value={form.sni}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
           {#if form.protocol === 'DoH'}<label>{L.format}<input class="mono" placeholder="dnsm / json" bind:value={form.format}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
           <label>{L.iface}<input class="mono" placeholder="ISP" bind:value={form.interface}/></label>
-          <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span class:slot-warning={editorLimitExceeded}>{L.domainsHint}{#if ['DoT','DoH'].includes(form.protocol) && secureSlotLimit} · {L.secureSlots}: {secureSlotsUsed}/{secureSlotLimit} → {L.afterSave}: {projectedSecureSlots}/{secureSlotLimit}{#if secureCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DNS'} · {L.dnsDomainLimit}: {formDomainCount}/{plainDnsDomainLimit}{#if plainDomainExceeded} · {L.limitExceeded}{/if}{/if}</span></label>
+          <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span class:slot-warning={editorLimitExceeded}>{L.domainsHint}{#if form.protocol === 'DoT' && dotSlotLimit} · DoT: {dotSlotsUsed}/{dotSlotLimit} → {L.afterSave}: {projectedDoTSlots}/{dotSlotLimit}{#if dotCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DoH' && dohSlotLimit} · DoH: {dohSlotsUsed}/{dohSlotLimit} → {L.afterSave}: {projectedDoHSlots}/{dohSlotLimit}{#if dohCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DNS'} · {L.dnsDomainLimit}: {formDomainCount}/{plainDnsDomainLimit}{#if plainDomainExceeded} · {L.limitExceeded}{/if}{/if}</span></label>
         </div>
         <div class="modal-actions"><button class="action" type="button" onclick={() => editorOpen = false}>{L.cancel}</button><button class="action primary" type="button" disabled={saving || editorLimitExceeded} onclick={saveEditor}>{saving ? '…' : L.save}</button></div>
       </div>

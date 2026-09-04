@@ -28,7 +28,8 @@ var (
 
 const (
 	dnsDisabledStoreVersion     = 1
-	dnsKeeneticSecureSlotLimit  = 8
+	dnsKeeneticDoTSlotLimit     = 8
+	dnsKeeneticDoHSlotLimit     = 8
 	dnsKeeneticPlainDomainLimit = 16
 )
 
@@ -65,6 +66,7 @@ type DNSResolverList struct {
 	DoTPhysicalEntries    int               `json:"dot_physical_entries"`
 	DoTPhysicalLimit      int               `json:"dot_physical_limit"`
 	DoHPhysicalEntries    int               `json:"doh_physical_entries"`
+	DoHPhysicalLimit      int               `json:"doh_physical_limit"`
 	SecurePhysicalEntries int               `json:"secure_physical_entries"`
 	SecurePhysicalLimit   int               `json:"secure_physical_limit"`
 	PlainDNSDomainLimit   int               `json:"plain_dns_domain_limit"`
@@ -192,8 +194,9 @@ func (m *dnsControlManager) List(ctx context.Context) (DNSResolverList, error) {
 	out := DNSResolverList{
 		MutationAPI:         true,
 		NativeMode:          true,
-		DoTPhysicalLimit:    dnsKeeneticSecureSlotLimit,
-		SecurePhysicalLimit: dnsKeeneticSecureSlotLimit,
+		DoTPhysicalLimit:    dnsKeeneticDoTSlotLimit,
+		DoHPhysicalLimit:    dnsKeeneticDoHSlotLimit,
+		SecurePhysicalLimit: dnsKeeneticDoTSlotLimit + dnsKeeneticDoHSlotLimit,
 		PlainDNSDomainLimit: dnsKeeneticPlainDomainLimit,
 	}
 	ids := make([]string, 0, len(state.Logical))
@@ -503,18 +506,30 @@ func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfi
 }
 
 func validateDNSPhysicalLimits(desired *dnsConfigState, changed map[string]bool) error {
-	if desired == nil || (!changed["DoT"] && !changed["DoH"]) {
+	if desired == nil {
 		return nil
 	}
-	slots := len(desiredEntriesForProtocol(desired, "DoT")) +
-		len(desiredEntriesForProtocol(desired, "DoH"))
-	if slots > dnsKeeneticSecureSlotLimit {
-		return fmt.Errorf(
-			"%w: Keenetic DoT/DoH limit is %d physical entries; requested %d",
-			errDNSResolverConflict,
-			dnsKeeneticSecureSlotLimit,
-			slots,
-		)
+	if changed["DoT"] {
+		slots := len(desiredEntriesForProtocol(desired, "DoT"))
+		if slots > dnsKeeneticDoTSlotLimit {
+			return fmt.Errorf(
+				"%w: Keenetic DoT limit is %d physical entries; requested %d",
+				errDNSResolverConflict,
+				dnsKeeneticDoTSlotLimit,
+				slots,
+			)
+		}
+	}
+	if changed["DoH"] {
+		slots := len(desiredEntriesForProtocol(desired, "DoH"))
+		if slots > dnsKeeneticDoHSlotLimit {
+			return fmt.Errorf(
+				"%w: Keenetic DoH limit is %d physical entries; requested %d",
+				errDNSResolverConflict,
+				dnsKeeneticDoHSlotLimit,
+				slots,
+			)
+		}
 	}
 	return nil
 }

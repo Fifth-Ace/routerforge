@@ -42,7 +42,7 @@ Independently installable official modules:
 - Add/Edit/Delete and temporary Disable/Enable for plain DNS, DoT and DoH;
 - dynamic DHCP/service DNS entries are displayed read-only;
 - one logical multi-domain resolver expands into the required native Keenetic entries;
-- a shared **8 physical-entry DoT/DoH** preflight limit and a **16 domains per plain DNS server** limit;
+- independent preflight limits of **up to 8 physical DoT entries and up to 8 physical DoH entries**; plain DNS keeps the **16 domains per server** limit;
 - every mutation uses `snapshot → mutation → save → readback`, with verified rollback on mismatch;
 - per-client and LAN/Wi‑Fi attribution;
 - upstream/fallback/timeout/error/latency tracking, quality windows and health diagnostics;

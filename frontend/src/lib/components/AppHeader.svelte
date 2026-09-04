@@ -5,7 +5,10 @@
   import { systemModuleSummary, systemModuleOnline } from '$lib/stores/systemModule.js';
   import { catalog } from '$lib/stores/catalog.js';
   import { authState, logoutAuth } from '$lib/stores/auth.js';
+  import { settings } from '$lib/stores/settings.js';
+  import { t } from '$lib/i18n/index.js';
 
+  $: locale = $settings.locale || 'ru';
   $: modules = $catalog.modules || [];
   $: telemetryInstalled = modules.some((item) =>
     ['system', 'thermal', 'storage', 'network'].includes(item.id) && item.installed
@@ -20,11 +23,11 @@
     .sort((a, b) => a.order - b.order);
 
   $: items = [
-    { href: '/', label: 'Главная', order: 10 },
-    ...(telemetryInstalled ? [{ href: '/monitoring', label: 'Мониторинг', order: 20 }] : []),
+    { href: '/', labelKey: 'nav.home', order: 10 },
+    ...(telemetryInstalled ? [{ href: '/monitoring', labelKey: 'nav.monitoring', order: 20 }] : []),
     ...dynamicModuleItems,
-    { href: '/catalog', label: 'Marketplace', order: 80 },
-    { href: '/settings', label: 'Настройки', order: 90 }
+    { href: '/catalog', labelKey: 'nav.marketplace', order: 80 },
+    { href: '/settings', labelKey: 'nav.settings', order: 90 }
   ].sort((a, b) => a.order - b.order);
 
   $: s = $snapshot || {};
@@ -48,6 +51,20 @@
     return current === href || current.startsWith(`${href}/`);
   }
 
+  function navLabel(item) {
+    if (item.labelKey) return t(locale, item.labelKey);
+    const known = {
+      '/manage': 'nav.manage',
+      '/dns': null
+    };
+    const key = known[item.href];
+    return key ? t(locale, key) : item.label;
+  }
+
+  function setLocale(value) {
+    settings.update((currentSettings) => ({ ...currentSettings, locale: value }));
+  }
+
   async function logout() {
     await logoutAuth();
   }
@@ -66,24 +83,65 @@
 
     <nav class="main-nav" data-sveltekit-preload-code="eager" data-sveltekit-preload-data="hover">
       {#each items as item}
-        <a class:active={active(item.href)} class="nav-link" href={item.href}>{item.label}</a>
+        <a class:active={active(item.href)} class="nav-link" href={item.href}>{navLabel(item)}</a>
       {/each}
     </nav>
 
     <div class="header-status mono">
+      <div class="rf-language-switch" aria-label={t(locale, 'common.language')}>
+        <button type="button" class:active={locale === 'ru'} aria-pressed={locale === 'ru'} onclick={() => setLocale('ru')}>RU</button>
+        <span>/</span>
+        <button type="button" class:active={locale === 'en'} aria-pressed={locale === 'en'} onclick={() => setLocale('en')}>EN</button>
+      </div>
+      <span class="header-separator"></span>
       {#if hostTelemetry}
         <span class="header-meta"><i>HOST:</i><b>{hostTelemetry.hostname || '—'}</b></span>
         <span class="header-separator"></span>
       {/if}
       {#if $authState.required}
-        <span class="header-auth"><i>AUTH:</i><b>{$authState.user || 'root'}</b><button type="button" onclick={logout}>Выйти</button></span>
+        <span class="header-auth"><i>AUTH:</i><b>{$authState.user || 'root'}</b><button type="button" onclick={logout}>{t(locale, 'nav.logout')}</button></span>
         <span class="header-separator"></span>
       {/if}
       <span class="stream-label">{$streamMode.toUpperCase()}</span>
       <span class="core-state {stateClass}">
         <span class="status-dot {stateClass}"></span>
-        CORE: {$backendOnline ? 'ONLINE' : 'OFFLINE'}
+        CORE: {$backendOnline ? t(locale, 'common.online') : t(locale, 'common.offline')}
       </span>
     </div>
   </div>
 </header>
+
+<style>
+  .rf-language-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: .22rem;
+    white-space: nowrap;
+  }
+
+  .rf-language-switch button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--rf-muted, var(--muted));
+    font: inherit;
+    font-weight: 600;
+    padding: .15rem .18rem;
+    cursor: pointer;
+  }
+
+  .rf-language-switch button:hover,
+  .rf-language-switch button.active {
+    color: var(--rf-text, var(--text));
+  }
+
+  .rf-language-switch button.active {
+    text-decoration: underline;
+    text-decoration-color: var(--rf-accent, var(--accent));
+    text-underline-offset: .25rem;
+  }
+
+  .rf-language-switch span {
+    color: var(--rf-border-strong, var(--border));
+  }
+</style>

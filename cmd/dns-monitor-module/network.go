@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -39,24 +41,32 @@ type wirelessStat struct {
 }
 
 type interfaceInfo struct {
-	Name      string        `json:"name"`
-	Index     int           `json:"index"`
-	MTU       int           `json:"mtu"`
-	MAC       string        `json:"mac,omitempty"`
-	Addresses []string      `json:"addresses,omitempty"`
-	OperState string        `json:"oper_state,omitempty"`
-	SpeedMbps int           `json:"speed_mbps,omitempty"`
-	Duplex    string        `json:"duplex,omitempty"`
-	RXBytes   uint64        `json:"rx_bytes"`
-	RXPackets uint64        `json:"rx_packets"`
-	RXErrors  uint64        `json:"rx_errors"`
-	RXDrops   uint64        `json:"rx_drops"`
-	TXBytes   uint64        `json:"tx_bytes"`
-	TXPackets uint64        `json:"tx_packets"`
-	TXErrors  uint64        `json:"tx_errors"`
-	TXDrops   uint64        `json:"tx_drops"`
-	Rate      netRate       `json:"rate"`
-	Wireless  *wirelessStat `json:"wireless,omitempty"`
+	Name                string        `json:"name"`
+	DisplayName         string        `json:"display_name,omitempty"`
+	PrimaryAddress      string        `json:"primary_address,omitempty"`
+	KeeneticID          string        `json:"keenetic_id,omitempty"`
+	KeeneticName        string        `json:"keenetic_name,omitempty"`
+	KeeneticDescription string        `json:"keenetic_description,omitempty"`
+	KeeneticType        string        `json:"keenetic_type,omitempty"`
+	LogicalState        string        `json:"logical_state,omitempty"`
+	Connected           bool          `json:"connected,omitempty"`
+	Index               int           `json:"index"`
+	MTU                 int           `json:"mtu"`
+	MAC                 string        `json:"mac,omitempty"`
+	Addresses           []string      `json:"addresses,omitempty"`
+	OperState           string        `json:"oper_state,omitempty"`
+	SpeedMbps           int           `json:"speed_mbps,omitempty"`
+	Duplex              string        `json:"duplex,omitempty"`
+	RXBytes             uint64        `json:"rx_bytes"`
+	RXPackets           uint64        `json:"rx_packets"`
+	RXErrors            uint64        `json:"rx_errors"`
+	RXDrops             uint64        `json:"rx_drops"`
+	TXBytes             uint64        `json:"tx_bytes"`
+	TXPackets           uint64        `json:"tx_packets"`
+	TXErrors            uint64        `json:"tx_errors"`
+	TXDrops             uint64        `json:"tx_drops"`
+	Rate                netRate       `json:"rate"`
+	Wireless            *wirelessStat `json:"wireless,omitempty"`
 }
 
 type routeInfo struct {
@@ -68,6 +78,18 @@ type routeInfo struct {
 	Flags       string `json:"flags"`
 }
 
+type keeneticInterface struct {
+	ID            string
+	InterfaceName string
+	Description   string
+	Type          string
+	Link          string
+	State         string
+	Address       string
+	Connected     bool
+	SystemName    string
+}
+
 type networkCollector struct {
 	mu       sync.RWMutex
 	interval time.Duration
@@ -76,6 +98,12 @@ type networkCollector struct {
 	sampled  time.Time
 	stop     chan struct{}
 	done     chan struct{}
+
+	keeneticMu      sync.Mutex
+	keenetic        []keeneticInterface
+	keeneticScanned time.Time
+	keeneticTTL     time.Duration
+	systemNames     map[string]string
 }
 
 func newNetworkCollector(interval time.Duration) *networkCollector {
@@ -83,12 +111,14 @@ func newNetworkCollector(interval time.Duration) *networkCollector {
 		interval = 2 * time.Second
 	}
 	n := &networkCollector{
-		interval: interval,
-		previous: readNetCounters(),
-		rates:    map[string]netRate{},
-		sampled:  time.Now(),
-		stop:     make(chan struct{}),
-		done:     make(chan struct{}),
+		interval:    interval,
+		previous:    readNetCounters(),
+		rates:       map[string]netRate{},
+		sampled:     time.Now(),
+		stop:        make(chan struct{}),
+		done:        make(chan struct{}),
+		keeneticTTL: 5 * time.Second,
+		systemNames: map[string]string{},
 	}
 	go n.run()
 	return n
@@ -158,40 +188,82 @@ func (n *networkCollector) snapshot() (map[string]netRate, time.Time) {
 	return out, n.sampled
 }
 
+func (n *networkCollector) keeneticSnapshot() []keeneticInterface {
+	n.keeneticMu.Lock()
+	defer n.keeneticMu.Unlock()
+
+	if len(n.keenetic) > 0 && time.Since(n.keeneticScanned) < n.keeneticTTL {
+		return append([]keeneticInterface(nil), n.keenetic...)
+	}
+
+	items, err := readKeeneticInterfaceState()
+	if err != nil {
+		if !n.keeneticScanned.IsZero() {
+			n.keeneticScanned = time.Now()
+		}
+		return append([]keeneticInterface(nil), n.keenetic...)
+	}
+
+	visible := make([]keeneticInterface, 0, len(items))
+	for _, item := range items {
+		if !shouldExposeKeeneticInterface(item) {
+			continue
+		}
+		systemName := n.systemNames[item.ID]
+		if systemName == "" {
+			systemName = readKeeneticSystemName(item.ID)
+			if systemName != "" {
+				n.systemNames[item.ID] = systemName
+			}
+		}
+		item.SystemName = systemName
+		if item.SystemName == "" {
+			continue
+		}
+		visible = append(visible, item)
+	}
+
+	n.keenetic = visible
+	n.keeneticScanned = time.Now()
+	return append([]keeneticInterface(nil), visible...)
+}
+
 func (s *moduleServer) registerNetwork(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/summary", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		rates, sampled := s.network.snapshot()
-		interfaces := readInterfaces(rates)
+		systemInterfaces := readInterfaces(rates)
+		interfaces := userFacingInterfaces(systemInterfaces, s.network.keeneticSnapshot())
 
 		var rxBPS, txBPS float64
 		var errors, drops uint64
 		for _, item := range interfaces {
-			if item.Name == "lo" {
-				continue
-			}
 			rxBPS += item.Rate.RXBPS
 			txBPS += item.Rate.TXBPS
 			errors += item.RXErrors + item.TXErrors
 			drops += item.RXDrops + item.TXDrops
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"interface_count": len(interfaces),
-			"rx_bps":          rxBPS,
-			"tx_bps":          txBPS,
-			"errors":          errors,
-			"drops":           drops,
-			"conntrack_count": readIntFile("/proc/sys/net/netfilter/nf_conntrack_count"),
-			"conntrack_max":   readIntFile("/proc/sys/net/netfilter/nf_conntrack_max"),
-			"sampled_at":      sampled,
-			"sample_seconds":  int(s.network.interval.Seconds()),
+			"interface_count":        len(interfaces),
+			"system_interface_count": len(systemInterfaces),
+			"rx_bps":                 rxBPS,
+			"tx_bps":                 txBPS,
+			"errors":                 errors,
+			"drops":                  drops,
+			"conntrack_count":        readIntFile("/proc/sys/net/netfilter/nf_conntrack_count"),
+			"conntrack_max":          readIntFile("/proc/sys/net/netfilter/nf_conntrack_max"),
+			"sampled_at":             sampled,
+			"sample_seconds":         int(s.network.interval.Seconds()),
 		})
 	}))
 
 	mux.HandleFunc("/v1/interfaces", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		rates, sampled := s.network.snapshot()
+		keenetic := s.network.keeneticSnapshot()
+		systemInterfaces := enrichSystemInterfaces(readInterfaces(rates), keenetic)
 		writeJSON(w, http.StatusOK, map[string]any{
-			"interfaces": readInterfaces(rates),
-			"sampled_at": sampled,
+			"interfaces":        userFacingInterfaces(systemInterfaces, keenetic),
+			"system_interfaces": systemInterfaces,
+			"sampled_at":        sampled,
 		})
 	}))
 
@@ -251,7 +323,8 @@ func readInterfaces(rates map[string]netRate) []interfaceInfo {
 
 		counter := counters[iface.Name]
 		item := interfaceInfo{
-			Name: iface.Name, Index: iface.Index, MTU: iface.MTU,
+			Name: iface.Name, DisplayName: iface.Name, PrimaryAddress: bestInterfaceAddress(addrStrings),
+			Index: iface.Index, MTU: iface.MTU,
 			MAC: iface.HardwareAddr.String(), Addresses: addrStrings,
 			OperState: readTrimmed(filepath.Join("/sys/class/net", iface.Name, "operstate")),
 			SpeedMbps: readIntFile(filepath.Join("/sys/class/net", iface.Name, "speed")),
@@ -267,19 +340,278 @@ func readInterfaces(rates map[string]netRate) []interfaceInfo {
 		out = append(out, item)
 	}
 
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Name == "lo" {
-			return false
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+func enrichSystemInterfaces(system []interfaceInfo, keenetic []keeneticInterface) []interfaceInfo {
+	meta := make(map[string]keeneticInterface, len(keenetic))
+	for _, item := range keenetic {
+		if item.SystemName != "" {
+			meta[item.SystemName] = item
 		}
-		if out[j].Name == "lo" {
-			return true
+	}
+	out := append([]interfaceInfo(nil), system...)
+	for i := range out {
+		if item, ok := meta[out[i].Name]; ok {
+			applyKeeneticMetadata(&out[i], item)
 		}
-		if out[i].OperState != out[j].OperState {
-			return out[i].OperState == "up"
+	}
+	return out
+}
+
+func userFacingInterfaces(system []interfaceInfo, keenetic []keeneticInterface) []interfaceInfo {
+	byName := make(map[string]interfaceInfo, len(system))
+	for _, item := range system {
+		byName[item.Name] = item
+	}
+
+	out := make([]interfaceInfo, 0, len(keenetic))
+	for _, logical := range keenetic {
+		item, ok := byName[logical.SystemName]
+		if !ok {
+			continue
+		}
+		applyKeeneticMetadata(&item, logical)
+		out = append(out, item)
+	}
+
+	if len(out) == 0 {
+		return fallbackActiveInterfaces(system)
+	}
+
+	sort.SliceStable(out, func(i, j int) bool {
+		left := strings.ToLower(firstNonEmpty(out[i].DisplayName, out[i].Name))
+		right := strings.ToLower(firstNonEmpty(out[j].DisplayName, out[j].Name))
+		if left != right {
+			return left < right
 		}
 		return out[i].Name < out[j].Name
 	})
 	return out
+}
+
+func applyKeeneticMetadata(item *interfaceInfo, logical keeneticInterface) {
+	item.DisplayName = preferredKeeneticDisplayName(logical)
+	item.KeeneticID = logical.ID
+	item.KeeneticName = logical.InterfaceName
+	item.KeeneticDescription = logical.Description
+	item.KeeneticType = logical.Type
+	item.LogicalState = logical.State
+	item.Connected = logical.Connected
+	if strings.TrimSpace(logical.Address) != "" {
+		item.PrimaryAddress = strings.TrimSpace(logical.Address)
+	}
+}
+
+func preferredKeeneticDisplayName(item keeneticInterface) string {
+	if value := strings.TrimSpace(item.Description); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(item.InterfaceName); value != "" && !numericOnly(value) {
+		return value
+	}
+	return firstNonEmpty(strings.TrimSpace(item.ID), strings.TrimSpace(item.SystemName))
+}
+
+func numericOnly(value string) bool {
+	if strings.TrimSpace(value) == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func fallbackActiveInterfaces(system []interfaceInfo) []interfaceInfo {
+	var out []interfaceInfo
+	for _, item := range system {
+		if item.Name == "lo" || fallbackSystemPlaceholder(item.Name) {
+			continue
+		}
+		if item.OperState != "up" && item.PrimaryAddress == "" {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func fallbackSystemPlaceholder(name string) bool {
+	lower := strings.ToLower(name)
+	for _, exact := range []string{"dummy0", "gre0", "gretap0", "ip6tnl0", "sit0", "tunl0", "ethoip0", "ezcfg0"} {
+		if lower == exact {
+			return true
+		}
+	}
+	return false
+}
+
+func bestInterfaceAddress(addresses []string) string {
+	for _, value := range addresses {
+		host := value
+		if slash := strings.IndexByte(host, '/'); slash >= 0 {
+			host = host[:slash]
+		}
+		ip := net.ParseIP(host)
+		if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+			continue
+		}
+		if ip.To4() != nil {
+			return host
+		}
+	}
+	for _, value := range addresses {
+		host := value
+		if slash := strings.IndexByte(host, '/'); slash >= 0 {
+			host = host[:slash]
+		}
+		ip := net.ParseIP(host)
+		if ip != nil && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() {
+			return host
+		}
+	}
+	return ""
+}
+
+func readKeeneticInterfaceState() ([]keeneticInterface, error) {
+	if _, err := exec.LookPath("ndmc"); err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, "ndmc", "-c", "show interface").CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
+	return parseKeeneticInterfaces(string(output)), nil
+}
+
+func parseKeeneticInterfaces(output string) []keeneticInterface {
+	var parsed []keeneticInterface
+	var current *keeneticInterface
+
+	flush := func() {
+		if current == nil || strings.TrimSpace(current.ID) == "" {
+			return
+		}
+		parsed = append(parsed, *current)
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !strings.Contains(line, ":") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if key == "id" {
+			flush()
+			current = &keeneticInterface{ID: value}
+			continue
+		}
+		if current == nil {
+			continue
+		}
+		switch key {
+		case "interface-name":
+			current.InterfaceName = value
+		case "description":
+			current.Description = value
+		case "type":
+			current.Type = value
+		case "link":
+			current.Link = strings.ToLower(value)
+		case "connected":
+			current.Connected = strings.EqualFold(value, "yes") || strings.EqualFold(value, "true")
+		case "state":
+			current.State = strings.ToLower(value)
+		case "address":
+			current.Address = value
+		}
+	}
+	flush()
+
+	best := map[string]keeneticInterface{}
+	order := []string{}
+	for _, item := range parsed {
+		previous, exists := best[item.ID]
+		if !exists {
+			best[item.ID] = item
+			order = append(order, item.ID)
+			continue
+		}
+		if keeneticInterfaceScore(item) > keeneticInterfaceScore(previous) {
+			best[item.ID] = item
+		}
+	}
+	out := make([]keeneticInterface, 0, len(best))
+	for _, id := range order {
+		out = append(out, best[id])
+	}
+	return out
+}
+
+func keeneticInterfaceScore(item keeneticInterface) int {
+	score := 0
+	for _, value := range []string{item.InterfaceName, item.Description, item.Type, item.Link, item.State, item.Address} {
+		if strings.TrimSpace(value) != "" {
+			score++
+		}
+	}
+	if item.Connected {
+		score++
+	}
+	return score
+}
+
+func shouldExposeKeeneticInterface(item keeneticInterface) bool {
+	if !item.Connected || strings.ToLower(strings.TrimSpace(item.State)) != "up" {
+		return false
+	}
+	typeName := strings.ToLower(strings.TrimSpace(item.Type))
+	switch typeName {
+	case "port", "wifimaster", "vlan":
+		return false
+	}
+	if strings.TrimSpace(item.Address) != "" {
+		return true
+	}
+	switch typeName {
+	case "accesspoint", "openvpn", "wireguard", "opkgtun", "proxy", "pptp", "pppoe", "l2tp", "sstp", "ipsec":
+		return true
+	}
+	return strings.TrimSpace(item.Description) != "" && strings.TrimSpace(item.InterfaceName) != strings.TrimSpace(item.ID)
+}
+
+func readKeeneticSystemName(id string) string {
+	if strings.TrimSpace(id) == "" {
+		return ""
+	}
+	for _, r := range id {
+		if !(r == '/' || r == '-' || r == '_' || r == '.' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
+			return ""
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, "ndmc", "-c", "show interface "+id+" system-name").CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "system-name:") {
+			continue
+		}
+		return strings.TrimSpace(strings.TrimPrefix(line, "system-name:"))
+	}
+	return ""
 }
 
 func readWirelessStats() map[string]wirelessStat {

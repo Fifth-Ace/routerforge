@@ -5,7 +5,7 @@
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.3.4-beta"
+      "version": "0.3.5-beta"
     },
     {
       "id": "dns",
@@ -28,19 +28,19 @@
     {
       "id": "thermal",
       "package": "routerforge-thermal",
-      "version": "0.3.0-beta",
+      "version": "0.3.1-beta",
       "min_core_version": "0.3.0-beta"
     },
     {
       "id": "storage",
       "package": "routerforge-storage",
-      "version": "0.3.0-beta",
+      "version": "0.3.1-beta",
       "min_core_version": "0.3.0-beta"
     },
     {
       "id": "network",
       "package": "routerforge-network",
-      "version": "0.3.1-beta",
+      "version": "0.3.2-beta",
       "min_core_version": "0.3.0-beta"
     },
     {

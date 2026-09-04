@@ -47,6 +47,7 @@ type blockDevice struct {
 	Path       string   `json:"path"`
 	Model      string   `json:"model,omitempty"`
 	Vendor     string   `json:"vendor,omitempty"`
+	Transport  string   `json:"transport,omitempty"`
 	SizeBytes  uint64   `json:"size_bytes"`
 	Removable  bool     `json:"removable"`
 	Rotational bool     `json:"rotational"`
@@ -155,9 +156,13 @@ func (s *storageCollector) rateSnapshot() (map[string]diskRate, time.Time) {
 func (s *moduleServer) registerStorage(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/storage", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		rates, sampled := s.storage.rateSnapshot()
+		allMounts := readAllMounts(rates)
+		allDisks := readAllBlockDevices(rates)
 		writeJSON(w, http.StatusOK, map[string]any{
-			"mounts":         readMounts(rates),
-			"disks":          readBlockDevices(rates),
+			"mounts":         userMounts(allMounts),
+			"system_mounts":  allMounts,
+			"disks":          userBlockDevices(allDisks),
+			"system_disks":   allDisks,
 			"sampled_at":     sampled,
 			"sample_seconds": int(s.storage.interval.Seconds()),
 			"benchmarking":   false,
@@ -190,7 +195,7 @@ func readDiskCounters() map[string]diskCounters {
 	return out
 }
 
-func readMounts(rates map[string]diskRate) []storageMount {
+func readAllMounts(rates map[string]diskRate) []storageMount {
 	f, err := os.Open("/proc/mounts")
 	if err != nil {
 		return nil
@@ -252,6 +257,62 @@ func readMounts(rates map[string]diskRate) []storageMount {
 	return out
 }
 
+func userMounts(all []storageMount) []storageMount {
+	bestByDevice := map[string]storageMount{}
+	deviceOrder := []string{}
+
+	for _, item := range all {
+		if !eligibleUserMount(item) {
+			continue
+		}
+		key := strings.TrimSpace(item.Device)
+		if key == "" {
+			key = "mount:" + item.Mount
+		}
+		current, exists := bestByDevice[key]
+		if !exists {
+			bestByDevice[key] = item
+			deviceOrder = append(deviceOrder, key)
+			continue
+		}
+		if mountPriority(item.Mount) < mountPriority(current.Mount) {
+			bestByDevice[key] = item
+		}
+	}
+
+	out := make([]storageMount, 0, len(bestByDevice))
+	for _, key := range deviceOrder {
+		if item, ok := bestByDevice[key]; ok {
+			out = append(out, item)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		pi, pj := mountPriority(out[i].Mount), mountPriority(out[j].Mount)
+		if pi != pj {
+			return pi < pj
+		}
+		return out[i].Mount < out[j].Mount
+	})
+	return out
+}
+
+func eligibleUserMount(item storageMount) bool {
+	if item.Mount == "/" {
+		return false
+	}
+	if item.FSType == "squashfs" {
+		return false
+	}
+	if item.TotalBytes == 0 {
+		return false
+	}
+	device := strings.TrimSpace(item.Device)
+	if device == "" || device == "rootfs" || device == "none" {
+		return false
+	}
+	return true
+}
+
 func pseudoFilesystem(fsType string) bool {
 	switch fsType {
 	case "proc", "sysfs", "devtmpfs", "devpts", "tmpfs", "cgroup", "cgroup2",
@@ -272,11 +333,14 @@ func mountPriority(mount string) int {
 	case "/":
 		return 3
 	default:
+		if strings.HasPrefix(mount, "/tmp/mnt/") {
+			return 20
+		}
 		return 10
 	}
 }
 
-func readBlockDevices(rates map[string]diskRate) []blockDevice {
+func readAllBlockDevices(rates map[string]diskRate) []blockDevice {
 	entries, err := os.ReadDir("/sys/block")
 	if err != nil {
 		return nil
@@ -294,6 +358,7 @@ func readBlockDevices(rates map[string]diskRate) []blockDevice {
 			Name: name, Path: "/dev/" + name,
 			Model:      readTrimmed(filepath.Join(base, "device/model")),
 			Vendor:     readTrimmed(filepath.Join(base, "device/vendor")),
+			Transport:  blockTransport(base),
 			SizeBytes:  sectors * 512,
 			Removable:  readTrimmed(filepath.Join(base, "removable")) == "1",
 			Rotational: readTrimmed(filepath.Join(base, "queue/rotational")) == "1",
@@ -303,6 +368,44 @@ func readBlockDevices(rates map[string]diskRate) []blockDevice {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
+}
+
+func userBlockDevices(all []blockDevice) []blockDevice {
+	out := make([]blockDevice, 0, len(all))
+	for _, device := range all {
+		if systemOnlyBlockDevice(device.Name) || device.SizeBytes == 0 {
+			continue
+		}
+		out = append(out, device)
+	}
+	return out
+}
+
+func systemOnlyBlockDevice(name string) bool {
+	lower := strings.ToLower(strings.TrimSpace(name))
+	return strings.HasPrefix(lower, "mtdblock") ||
+		strings.HasPrefix(lower, "ubiblock") ||
+		strings.HasPrefix(lower, "zram")
+}
+
+func blockTransport(base string) string {
+	real, err := filepath.EvalSymlinks(filepath.Join(base, "device"))
+	if err != nil {
+		return ""
+	}
+	lower := strings.ToLower(real)
+	switch {
+	case strings.Contains(lower, "/usb"):
+		return "usb"
+	case strings.Contains(lower, "/nvme"):
+		return "nvme"
+	case strings.Contains(lower, "/mmc"):
+		return "mmc"
+	case strings.Contains(lower, "/ata") || strings.Contains(lower, "/sata"):
+		return "ata"
+	default:
+		return ""
+	}
 }
 
 func unescapeMount(value string) string {

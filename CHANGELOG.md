@@ -5,6 +5,12 @@ RouterForge components are versioned independently. Entries below describe platf
 ## [Unreleased]
 
 - Canonical GitHub repository renamed to `Fifth-Ace/routerforge`; legacy links remain supported through redirects and the Core compatibility bridge.
+- Monitoring cleanup for the next Beta:
+  - Thermal collapses mirrored `thermal_zone` / `hwmon` sensors and adds human-readable MT7988 roles.
+  - Storage hides internal flash block devices and duplicate mount aliases from the normal view while keeping raw data in Advanced mode.
+  - Network uses active KeeneticOS logical interfaces, maps them to Linux `system-name` for counters, and keeps all kernel interfaces in Advanced mode.
+  - Network interface and IPv4 route tables support click-to-sort columns with persistent direction during live refreshes.
+  - RU/EN localization foundation added; Monitoring and the common header/navigation are bilingual, with the selected language stored locally.
 
 ## 2026-09-03 — RouterForge 0.3 generation
 

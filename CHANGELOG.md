@@ -4,6 +4,10 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.12-beta` polishes the restored Module ABI DNS layout without changing resolver control:
+  - the same-origin DNS iframe now follows the module's real content height (with a viewport floor), eliminating the unnecessary nested vertical scrollbar and letting the Core page/browser own scrolling;
+  - iframe height follows tab/content changes via ResizeObserver and parent/window resize events;
+  - the oversized standalone Native mode panel on Resolvers is replaced by a compact readback/rollback safety note while the native multi-entry explanation remains in the resolver panel header.
 - DNS `0.4.11-beta` restores the observability/control UI parity that was lost during the Module ABI v1 split without moving DNS back into Core:
   - Overview again shows searchable active/all runtime tables for plain DNS and protected DoT/DoH, including health, latency, errors, fallback, quality and Keenetic policy contexts;
   - Rules keeps the new native domain-binding view and restores observed fallback routes, Keenetic profile summaries, local records and rebind state;

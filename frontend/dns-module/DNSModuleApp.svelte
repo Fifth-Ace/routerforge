@@ -474,12 +474,59 @@
     } catch {}
   }
 
+  function syncFrameHeight() {
+    try {
+      if (window.parent === window || !window.frameElement) return;
+      const frame = window.frameElement;
+      const root = document.querySelector('.dns-module');
+      if (!root) return;
+
+      // ModuleFrame historically owns a viewport-sized iframe. Once the DNS
+      // page became feature-rich again that produced a second, inner scrollbar
+      // even when the Core page itself still had plenty of room. Because the
+      // module is same-origin, size the iframe to its real content and let the
+      // RouterForge shell/browser own vertical scrolling.
+      const contentHeight = Math.ceil(root.getBoundingClientRect().height) + 4;
+      const frameTop = frame.getBoundingClientRect().top;
+      const viewportFloor = Math.max(720, Math.floor(window.parent.innerHeight - frameTop - 2));
+      const nextHeight = Math.max(contentHeight, viewportFloor);
+
+      frame.style.minHeight = '0px';
+      if (Math.abs(frame.getBoundingClientRect().height - nextHeight) > 1) {
+        frame.style.height = `${nextHeight}px`;
+      }
+    } catch {}
+  }
+
   onMount(() => {
-    syncCoreVisualTokens();
-    window.addEventListener('resize', syncCoreVisualTokens);
-    loadAll().then(() => ensureViewData(tab));
+    const syncShell = () => {
+      syncCoreVisualTokens();
+      syncFrameHeight();
+    };
+
+    syncShell();
+
+    const root = document.querySelector('.dns-module');
+    const resizeObserver = typeof ResizeObserver !== 'undefined' && root
+      ? new ResizeObserver(() => syncFrameHeight())
+      : null;
+    resizeObserver?.observe(root);
+
+    window.addEventListener('resize', syncShell);
+    try { window.parent.addEventListener('resize', syncFrameHeight); } catch {}
+
+    loadAll().then(() => {
+      ensureViewData(tab);
+      syncFrameHeight();
+    });
     refreshTimer = setInterval(refreshCurrent, 5000);
-    return () => { clearInterval(refreshTimer); window.removeEventListener('resize', syncCoreVisualTokens); };
+
+    return () => {
+      clearInterval(refreshTimer);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', syncShell);
+      try { window.parent.removeEventListener('resize', syncFrameHeight); } catch {}
+    };
   });
 </script>
 
@@ -604,7 +651,10 @@
       </div>
     </section>
 
-    <section class="panel"><div class="panel-head"><div><strong>{L.native}</strong><span>{L.nativeHint}</span></div></div><p class="resolver-meta">{L.rollbackNote}</p></section>
+    <div class="resolver-safety-note">
+      <span class="state-pill good">READBACK / ROLLBACK</span>
+      <span>{L.rollbackNote}</span>
+    </div>
 
   {:else if tab === 'rules'}
     <div class="toolbar parity-toolbar">

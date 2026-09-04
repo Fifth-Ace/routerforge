@@ -858,3 +858,30 @@ button, input, select, textarea { font:inherit; }
   .dns-module .chart-shell svg { height:210px; }
   .dns-module .log-row { grid-template-columns:60px 72px minmax(0,1fr); }
 }
+/* DNS 0.4.12 layout polish
+   The iframe is autosized by DNSModuleApp so Core/browser scrolling owns the
+   page. Keep the resolver mutation guarantee visible without a full spare panel. */
+.dns-module .resolver-safety-note {
+  min-height:38px;
+  margin:-2px 0 14px;
+  padding:7px 10px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border:1px solid var(--concept-border-soft);
+  border-radius:5px;
+  background:#0f1216;
+  color:#7f8995;
+  font-size:var(--ui-xs);
+  line-height:1.4;
+}
+.dns-module .resolver-safety-note > span:last-child {
+  min-width:0;
+}
+@media (max-width:720px) {
+  .dns-module .resolver-safety-note {
+    align-items:flex-start;
+    flex-direction:column;
+    gap:6px;
+  }
+}

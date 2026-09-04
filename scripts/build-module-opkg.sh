@@ -4,8 +4,12 @@ set -eu
 ID="${1:?module id required}"
 VERSION="${2:?version required}"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+TARGET="${ROUTERFORGE_TARGET:-aarch64-3.10}"
+. "$ROOT/scripts/target-env.sh"
+routerforge_target_init "$TARGET"
+
 DIST="$ROOT/dist"
-ARCH="aarch64-3.10"
+ARCH="$RF_OPKG_ARCH"
 
 mkdir -p "$DIST"
 
@@ -17,12 +21,12 @@ build_runtime_module() {
     mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" "$WORK/data/opt/share/licenses/$PACKAGE" "$WORK/control"
     (
       cd "$ROOT"
-      CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
+      routerforge_go build -trimpath \
           -ldflags="-s -w -X main.version=$VERSION" \
-          -o "$WORK/data/opt/bin/$BINARY" ./cmd/dns-monitor-module
+          -o "$WORK/data/opt/bin/$BINARY" ./cmd/routerforge-module
     )
     chmod 0755 "$WORK/data/opt/bin/$BINARY"
-    cp "$ROOT/package/modules/$SERVICE" "$WORK/data/opt/etc/init.d/$SERVICE"
+    cp "$ROOT/packaging/init/modules/$SERVICE" "$WORK/data/opt/etc/init.d/$SERVICE"
     chmod 0755 "$WORK/data/opt/etc/init.d/$SERVICE"
     cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
     chmod 0644 "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
@@ -87,13 +91,13 @@ build_dns() {
       cd "$ROOT"
       # Explicit source list is the DNS side of Module ABI v1.
       # shellcheck disable=SC2086
-      CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
+      routerforge_go build -trimpath \
           -tags routerforge_dns_module \
           -ldflags="-s -w -X main.version=$VERSION" \
           -o "$WORK/data/opt/bin/routerforge-dns" $DNS_SOURCES
     )
     chmod 0755 "$WORK/data/opt/bin/routerforge-dns"
-    cp "$ROOT/package/modules/S91routerforge-dns" "$WORK/data/opt/etc/init.d/S91routerforge-dns"
+    cp "$ROOT/packaging/init/modules/S91routerforge-dns" "$WORK/data/opt/etc/init.d/S91routerforge-dns"
     chmod 0755 "$WORK/data/opt/etc/init.d/S91routerforge-dns"
     cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/dns/ui/"
     : > "$WORK/data/opt/etc/routerforge/dns.enabled"

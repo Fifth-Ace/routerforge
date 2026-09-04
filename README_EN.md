@@ -19,6 +19,8 @@ A single Core provides the UI, API, Marketplace, authentication and package life
 > [!IMPORTANT]
 > The supported target is currently **Keenetic / Netcraze on ARM64 / aarch64** with Entware mounted at `/opt`.
 > RouterForge relies on KeeneticOS/NDMS-specific facilities such as `ndmc`, the native DNS proxy and policy routing. It is not intended to be a generic OpenWrt/Linux dashboard.
+>
+> The build system is already prepared for future `mips-3.4` and `mipsel-3.4` targets, but they are currently cross-build CI targets only and **are not supported releases yet**. See [architectures](docs/ARCHITECTURES.md).
 
 > [!NOTE]
 > RouterForge is an independent community project and is not an official Keenetic or Netcraze product.
@@ -219,6 +221,7 @@ Packages are removed; configuration directories are preserved.
 - [Modules](docs/MODULES.md)
 - [Marketplace and trust model](docs/MARKETPLACE.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Supported and planned CPU architectures](docs/ARCHITECTURES.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Frontend architecture](docs/FRONTEND_ARCHITECTURE.md)
 - [Changelog](CHANGELOG.md)

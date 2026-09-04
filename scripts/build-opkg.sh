@@ -4,9 +4,13 @@ set -eu
 VERSION="${1:-0.1.0}"
 RELEASE="${2:-}"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+TARGET="${ROUTERFORGE_TARGET:-aarch64-3.10}"
+. "$ROOT/scripts/target-env.sh"
+routerforge_target_init "$TARGET"
+
 DIST="$ROOT/dist"
 WORK="$DIST/opkg-work"
-ARCH="aarch64-3.10"
+ARCH="$RF_OPKG_ARCH"
 CHANNEL="${ROUTERFORGE_CHANNEL:-beta}"
 
 PKG_VERSION="$VERSION"
@@ -46,7 +50,7 @@ frontend_assets_embed.go
 (
     cd "$ROOT"
     # shellcheck disable=SC2086
-    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+    routerforge_go build \
         -tags embed_frontend \
         -trimpath \
         -ldflags="-s -w -X main.version=$PKG_VERSION -X main.releaseChannel=$CHANNEL" \
@@ -54,7 +58,7 @@ frontend_assets_embed.go
 )
 
 chmod 0755 "$WORK/data/opt/bin/routerforge"
-cp "$ROOT/package/S90routerforge" "$WORK/data/opt/etc/init.d/S90routerforge"
+cp "$ROOT/packaging/init/core/S90routerforge" "$WORK/data/opt/etc/init.d/S90routerforge"
 chmod 0755 "$WORK/data/opt/etc/init.d/S90routerforge"
 : > "$WORK/data/opt/etc/routerforge/package-management.enabled"
 : > "$WORK/data/opt/etc/routerforge/module-abi-v1"

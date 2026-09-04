@@ -19,6 +19,8 @@
 > [!IMPORTANT]
 > Сейчас поддерживаются только **Keenetic / Netcraze на ARM64 / aarch64** с Entware в `/opt`.
 > RouterForge использует KeeneticOS/NDMS-специфичные механизмы (`ndmc`, DNS proxy, policy routing и системные данные роутера) и не позиционируется как универсальная панель для OpenWrt/Linux.
+>
+> Сборочная система уже подготовлена для будущих `mips-3.4` и `mipsel-3.4`, но эти цели пока проходят только cross-build CI и **не считаются поддерживаемыми релизами**. См. [архитектуры](docs/ARCHITECTURES.md).
 
 > [!NOTE]
 > RouterForge — независимый community-проект и не является официальным продуктом Keenetic или Netcraze.
@@ -219,6 +221,7 @@ wget -qO- http://127.0.0.1:2233/api/health
 - [Модули](docs/MODULES.md)
 - [Marketplace и модель доверия](docs/MARKETPLACE.md)
 - [Архитектура](docs/ARCHITECTURE.md)
+- [Поддерживаемые и планируемые CPU-архитектуры](docs/ARCHITECTURES.md)
 - [Диагностика](docs/TROUBLESHOOTING.md)
 - [Frontend architecture](docs/FRONTEND_ARCHITECTURE.md)
 - [Changelog](CHANGELOG.md)

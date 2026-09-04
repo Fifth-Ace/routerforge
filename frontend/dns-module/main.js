@@ -7,7 +7,7 @@ import '@fontsource/roboto-mono/500.css';
 import '@fontsource/roboto-mono/600.css';
 import '../src/app.css';
 import '../src/admin-shell.css';
-import '../src/routerforge-beta.css';
+import '../src/routerforge-shell.css';
 import './module.css';
 import { mount } from 'svelte';
 import DNSModuleApp from './DNSModuleApp.svelte';

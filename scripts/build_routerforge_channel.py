@@ -13,6 +13,7 @@ DIST_DEFAULT = ROOT / "dist"
 LEGACY_REPOSITORY = "Fifth-Ace/dns-monitor"
 CANONICAL_REPOSITORY = "Fifth-Ace/routerforge"
 ALLOWED_REPOSITORIES = {LEGACY_REPOSITORY, CANONICAL_REPOSITORY}
+TARGETS = {"aarch64-3.10", "mips-3.4", "mipsel-3.4"}
 
 def load(path):
     with open(path, "r", encoding="utf-8") as fh:
@@ -32,7 +33,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
     ap.add_argument("--dist", default=str(DIST_DEFAULT))
+    ap.add_argument(
+        "--target",
+        default=os.environ.get("ROUTERFORGE_TARGET", "aarch64-3.10"),
+        choices=sorted(TARGETS),
+    )
     args = ap.parse_args()
+    target = args.target
 
     config = load(args.config)
     if config.get("schema_version") != 1:
@@ -58,6 +65,7 @@ def main():
 
     env = dict(os.environ)
     env["ROUTERFORGE_CHANNEL"] = channel
+    env["ROUTERFORGE_TARGET"] = target
 
     for component in components:
         cid = component["id"]
@@ -79,7 +87,7 @@ def main():
     for component in components:
         pkg = component["package"]
         version = component["version"]
-        asset = f"{pkg}_{version}_aarch64-3.10.ipk"
+        asset = f"{pkg}_{version}_{target}.ipk"
         path = dist / asset
         if not path.is_file():
             raise SystemExit(f"missing built asset {asset}")
@@ -101,6 +109,7 @@ def main():
     candidate = {
         "schema_version": 1,
         "channel": channel,
+        "target": target,
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "commit": os.environ.get("GITHUB_SHA", ""),
         "components": entries,

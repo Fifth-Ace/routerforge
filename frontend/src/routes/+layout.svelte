@@ -8,7 +8,7 @@
   import '@fontsource/roboto-mono/600.css';
   import '../app.css';
   import '../admin-shell.css';
-  import '../routerforge-beta.css';
+  import '../routerforge-shell.css';
 
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';

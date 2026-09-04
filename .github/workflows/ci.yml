@@ -72,12 +72,27 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
             -ldflags="-X main.version=0.0.0-ci" \
-            -o /tmp/routerforge-module-arm64 ./cmd/dns-monitor-module
+            -o /tmp/routerforge-module-arm64 ./cmd/routerforge-module
           test -s /tmp/routerforge-module-arm64
+
+      - name: Verify planned MIPS build targets
+        run: |
+          set -eu
+          for target in mips-3.4 mipsel-3.4; do
+            ROUTERFORGE_TARGET="$target" ./scripts/build-opkg.sh 0.0.0-ci
+            ROUTERFORGE_TARGET="$target" ./scripts/build-admin-opkg.sh 0.0.0-ci
+            ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh dns 0.0.0-ci
+            ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh system 0.0.0-ci
+
+            test -s "dist/routerforge-core_0.0.0-ci_${target}.ipk"
+            test -s "dist/routerforge-admin_0.0.0-ci_${target}.ipk"
+            test -s "dist/routerforge-dns_0.0.0-ci_${target}.ipk"
+            test -s "dist/routerforge-system_0.0.0-ci_${target}.ipk"
+          done
 
       - name: Smoke test monitoring runtime
         run: |
-          go build -ldflags="-X main.version=0.0.0-ci" -o /tmp/routerforge-module ./cmd/dns-monitor-module
+          go build -ldflags="-X main.version=0.0.0-ci" -o /tmp/routerforge-module ./cmd/routerforge-module
 
           smoke_module() {
             id="$1"
@@ -110,14 +125,14 @@ jobs:
 
       - name: Check shell scripts
         run: |
-          sh -n package/install.sh
-          sh -n package/uninstall.sh
-          sh -n package/S90routerforge
-          sh -n package/S91routerforge-admin
-          sh -n package/modules/S92routerforge-system
-          sh -n package/modules/S93routerforge-thermal
-          sh -n package/modules/S94routerforge-storage
-          sh -n package/modules/S95routerforge-network
+          sh -n packaging/init/core/S90routerforge
+          sh -n packaging/init/admin/S91routerforge-admin
+          sh -n packaging/init/modules/S91routerforge-dns
+          sh -n packaging/init/modules/S92routerforge-system
+          sh -n packaging/init/modules/S93routerforge-thermal
+          sh -n packaging/init/modules/S94routerforge-storage
+          sh -n packaging/init/modules/S95routerforge-network
+          sh -n scripts/target-env.sh
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh
           sh -n scripts/build-frontend.sh

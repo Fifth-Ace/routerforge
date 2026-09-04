@@ -23,6 +23,32 @@ Status: install user installed
 	}
 }
 
+func TestParseOpkgStatusIgnoresNotInstalledTombstone(t *testing.T) {
+	got := parseOpkgStatus(strings.NewReader(`
+Package: routerforge-dns
+Version: 0.4.18-beta
+Status: install user installed
+
+Package: routerforge-dns
+Version: 0.4.17-beta
+Status: install prefer not-installed
+`))
+	if got["routerforge-dns"] != "0.4.18-beta" {
+		t.Fatalf("routerforge-dns version=%q, want 0.4.18-beta", got["routerforge-dns"])
+	}
+}
+
+func TestParseOpkgStatusOmitsNotInstalledPackage(t *testing.T) {
+	got := parseOpkgStatus(strings.NewReader(`
+Package: routerforge-dns
+Version: 0.4.17-beta
+Status: install prefer not-installed
+`))
+	if version, ok := got["routerforge-dns"]; ok {
+		t.Fatalf("not-installed package leaked into installed map with version %q", version)
+	}
+}
+
 func TestCatalogDetectsExternalIntegrations(t *testing.T) {
 	installed := map[string]string{
 		"awg-manager":        "2.15.1",

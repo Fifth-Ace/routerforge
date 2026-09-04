@@ -4,6 +4,9 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- Core `0.4.3-beta` fixes package-version accounting after real opkg upgrades:
+  - opkg status parsing now accepts only stanzas whose package state is actually `installed`, so stale `not-installed` tombstones cannot overwrite the live version shown by Marketplace;
+  - RouterForge release updates now verify the catalog-reported installed version against the target release before returning success.
 - Core `0.4.2-beta` fixes Module ABI upgrade lifecycle races:
   - module proxy now reports package-installed state independently from runtime socket availability;
   - module UI dial failures return a no-store reconnect page instead of raw JSON, while normal API failures remain JSON 503;

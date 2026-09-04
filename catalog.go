@@ -763,13 +763,13 @@ func readInstalledPackages() map[string]string {
 func parseOpkgStatus(r io.Reader) map[string]string {
 	out := map[string]string{}
 	sc := bufio.NewScanner(r)
-	var pkg, version string
+	var pkg, version, status string
 
 	commit := func() {
-		if pkg != "" {
+		if pkg != "" && opkgStatusInstalled(status) {
 			out[pkg] = version
 		}
-		pkg, version = "", ""
+		pkg, version, status = "", "", ""
 	}
 	for sc.Scan() {
 		line := sc.Text()
@@ -783,9 +783,17 @@ func parseOpkgStatus(r io.Reader) map[string]string {
 		if strings.HasPrefix(line, "Version:") {
 			version = strings.TrimSpace(strings.TrimPrefix(line, "Version:"))
 		}
+		if strings.HasPrefix(line, "Status:") {
+			status = strings.TrimSpace(strings.TrimPrefix(line, "Status:"))
+		}
 	}
 	commit()
 	return out
+}
+
+func opkgStatusInstalled(status string) bool {
+	fields := strings.Fields(status)
+	return len(fields) >= 3 && fields[0] == "install" && fields[len(fields)-1] == "installed"
 }
 
 func readProcessNames() map[string]bool {

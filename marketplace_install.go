@@ -172,13 +172,38 @@ func runCatalogModuleAction(ctx context.Context, id, action, confirmation string
 	result.Installed = found && updated.Installed
 	result.Output = truncateCatalogInstallOutput(log.String(), 16000)
 	result.CompletedAt = time.Now()
-	if action == "remove" && result.Installed {
-		return result, &catalogInstallFailure{Status: 500, Message: "lifecycle completed but catalog still reports item as installed"}
-	}
-	if action != "remove" && !result.Installed {
-		return result, &catalogInstallFailure{Status: 500, Message: "lifecycle completed but catalog still reports item as not installed"}
+	if failure := validateCatalogActionCompletion(item, updated, found, action); failure != nil {
+		return result, failure
 	}
 	return result, nil
+}
+
+func validateCatalogActionCompletion(item, updated catalogItem, found bool, action string) *catalogInstallFailure {
+	installed := found && updated.Installed
+	if action == "remove" {
+		if installed {
+			return &catalogInstallFailure{Status: 500, Message: "lifecycle completed but catalog still reports item as installed"}
+		}
+		return nil
+	}
+	if !installed {
+		return &catalogInstallFailure{Status: 500, Message: "lifecycle completed but catalog still reports item as not installed"}
+	}
+	if action == "update" {
+		expected := strings.TrimSpace(item.Release.Version)
+		actual := strings.TrimSpace(updated.Version)
+		if expected != "" && actual != expected {
+			if actual == "" {
+				actual = "<unknown>"
+			}
+			return &catalogInstallFailure{
+				Status:  500,
+				Message: "update completed but installed version does not match release",
+				Detail:  fmt.Sprintf("expected %s, got %s", expected, actual),
+			}
+		}
+	}
+	return nil
 }
 
 func catalogActionAllowed(item catalogItem, action string) bool {

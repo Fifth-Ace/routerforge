@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -11,14 +12,38 @@ import (
 	"time"
 )
 
-func snapshotData(store *Store, version string) map[string]any {
-	data := store.Snapshot(200, 30, 80)
+func coreSnapshot(version string) map[string]any {
+	data := map[string]any{
+		"version":           version,
+		"server_time":       time.Now(),
+		"dns_module_online": false,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	raw, err := readModuleRaw(ctx, "dns", "/v1/snapshot", 4*time.Second)
+	if err != nil {
+		return data
+	}
+	var module map[string]any
+	if json.Unmarshal(raw, &module) != nil {
+		return data
+	}
+	if dnsVersion, ok := module["version"]; ok {
+		data["dns_version"] = dnsVersion
+	}
+	for key, value := range module {
+		if key == "version" || key == "server_time" {
+			continue
+		}
+		data[key] = value
+	}
 	data["version"] = version
 	data["server_time"] = time.Now()
+	data["dns_module_online"] = true
 	return data
 }
 
-func startWeb(store *Store, listen string, version string) error {
+func startWeb(listen string, version string) error {
 	sub, err := frontendFS()
 	if err != nil {
 		return err
@@ -41,12 +66,22 @@ func startWeb(store *Store, listen string, version string) error {
 	}
 
 	mux.HandleFunc("/api/snapshot", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, `{"error":"GET required"}`, http.StatusMethodNotAllowed)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(snapshotData(store, version))
+		_ = json.NewEncoder(w).Encode(coreSnapshot(version))
 	})
 
 	mux.HandleFunc("/api/events", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "GET required", http.StatusMethodNotAllowed)
+			return
+		}
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
@@ -74,14 +109,14 @@ func startWeb(store *Store, listen string, version string) error {
 		flusher.Flush()
 
 		send := func() bool {
-			// An SSE connection may have been opened while auth was disabled.
-			// Re-check before every snapshot so enabling auth closes old anonymous streams.
+			// Preserve the 0.3.x security guarantee: enabling auth closes anonymous
+			// SSE streams even though DNS state now lives in another process.
 			if auth.authRequired() {
 				if _, authenticated := auth.sessionUser(r); !authenticated {
 					return false
 				}
 			}
-			payload, marshalErr := json.Marshal(snapshotData(store, version))
+			payload, marshalErr := json.Marshal(coreSnapshot(version))
 			if marshalErr != nil {
 				return false
 			}
@@ -94,7 +129,6 @@ func startWeb(store *Store, listen string, version string) error {
 		if !send() {
 			return
 		}
-
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
@@ -109,116 +143,23 @@ func startWeb(store *Store, listen string, version string) error {
 		}
 	})
 
-	mux.HandleFunc("/api/history", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		minutes := 60
-		if raw := r.URL.Query().Get("minutes"); raw != "" {
-			if n, parseErr := strconv.Atoi(raw); parseErr == nil {
-				minutes = n
-			}
+	legacyDNSProxy := func(target string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			clone := r.Clone(r.Context())
+			clone.URL.Path = "/api/modules/dns/" + strings.TrimPrefix(target, "/")
+			proxyModuleAPI(w, clone)
 		}
-		coverage := store.HistoryCoverage(minutes)
-		step := 1
-		if minutes > 180 {
-			step = 15
-		} else if minutes > 60 {
-			step = 3
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"minutes": minutes, "coverage": coverage, "sufficient": coverage >= 0.5,
-			"step_minutes": step, "points": store.History(minutes),
-		})
-	})
-
-	mux.HandleFunc("/api/quality", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		minutes := 5
-		if raw := r.URL.Query().Get("minutes"); raw != "" {
-			if n, parseErr := strconv.Atoi(raw); parseErr == nil {
-				minutes = n
-			}
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"minutes": minutes, "upstreams": store.Quality(minutes)})
-	})
-
-	mux.HandleFunc("/api/fallbacks", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		minutes := 60
-		if raw := r.URL.Query().Get("minutes"); raw != "" {
-			if n, parseErr := strconv.Atoi(raw); parseErr == nil {
-				minutes = n
-			}
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"minutes": minutes, "edges": store.FallbackEdges(minutes)})
-	})
-
-	mux.HandleFunc("/api/error-bursts", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		minutes := 60
-		if raw := r.URL.Query().Get("minutes"); raw != "" {
-			if n, parseErr := strconv.Atoi(raw); parseErr == nil {
-				minutes = n
-			}
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"minutes": minutes, "bursts": store.ErrorBursts(minutes)})
-	})
-
-	mux.HandleFunc("/api/clients", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]any{"clients": store.Clients(200)})
-	})
-
-	mux.HandleFunc("/api/client", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		ip := strings.TrimSpace(r.URL.Query().Get("ip"))
-		limit := 500
-		if raw := r.URL.Query().Get("limit"); raw != "" {
-			if n, parseErr := strconv.Atoi(raw); parseErr == nil && n > 0 && n <= 2000 {
-				limit = n
-			}
-		}
-		client, events, ok := store.ClientDetail(ip, limit)
-		if !ok {
-			http.Error(w, `{"error":"client not found"}`, http.StatusNotFound)
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"client": client, "events": events})
-	})
-
-	mux.HandleFunc("/api/interfaces", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]any{"interfaces": store.Interfaces()})
-	})
-
-	mux.HandleFunc("/api/system", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(readSystemInfo())
-	})
-
-	mux.HandleFunc("/api/plain-dns", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.Header().Set("Allow", http.MethodGet)
-			http.Error(w, `{"error":"read-only"}`, http.StatusMethodNotAllowed)
-			return
-		}
-		limit := 100
-		if raw := r.URL.Query().Get("limit"); raw != "" {
-			if n, parseErr := strconv.Atoi(raw); parseErr == nil && n > 0 && n <= 500 {
-				limit = n
-			}
-		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(plainDNS.Snapshot(limit))
-	})
+	}
+	mux.HandleFunc("/api/history", legacyDNSProxy("history"))
+	mux.HandleFunc("/api/quality", legacyDNSProxy("quality"))
+	mux.HandleFunc("/api/fallbacks", legacyDNSProxy("fallbacks"))
+	mux.HandleFunc("/api/error-bursts", legacyDNSProxy("error-bursts"))
+	mux.HandleFunc("/api/clients", legacyDNSProxy("clients"))
+	mux.HandleFunc("/api/client", legacyDNSProxy("client"))
+	mux.HandleFunc("/api/interfaces", legacyDNSProxy("interfaces"))
+	mux.HandleFunc("/api/system", legacyDNSProxy("system"))
+	mux.HandleFunc("/api/plain-dns", legacyDNSProxy("plain-dns"))
+	mux.HandleFunc("/api/dns/info", legacyDNSProxy("info"))
 
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
 	mux.HandleFunc("/api/modules/", proxyModuleAPI)
@@ -263,8 +204,13 @@ func startWeb(store *Store, listen string, version string) error {
 	})
 
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"ok":true}`)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":         true,
+			"version":    version,
+			"module_abi": "v1",
+		})
 	})
 
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

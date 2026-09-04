@@ -23,20 +23,43 @@ rm -rf "$WORK"
 mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
     "$WORK/data/opt/etc/routerforge" "$WORK/data/opt/share/licenses/routerforge-core" "$WORK/control"
 
+# Module ABI v1 boundary: Core is built from an explicit platform source list.
+# DNS capture/discovery/control sources are intentionally absent, so changing
+# routerforge-dns cannot silently change the Core binary.
+CORE_SOURCES="
+main.go
+core_log.go
+web.go
+admin_proxy.go
+module_proxy.go
+auth.go
+auth_crypt.go
+catalog.go
+marketplace_install.go
+marketplace_install_http.go
+profiling.go
+routerforge_registry.go
+routerforge_release.go
+frontend_assets_embed.go
+"
+
 (
     cd "$ROOT"
+    # shellcheck disable=SC2086
     CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
         -tags embed_frontend \
         -trimpath \
         -ldflags="-s -w -X main.version=$PKG_VERSION -X main.releaseChannel=$CHANNEL" \
-        -o "$WORK/data/opt/bin/routerforge" .
+        -o "$WORK/data/opt/bin/routerforge" $CORE_SOURCES
 )
 
 chmod 0755 "$WORK/data/opt/bin/routerforge"
 cp "$ROOT/package/S90routerforge" "$WORK/data/opt/etc/init.d/S90routerforge"
 chmod 0755 "$WORK/data/opt/etc/init.d/S90routerforge"
 : > "$WORK/data/opt/etc/routerforge/package-management.enabled"
-chmod 0644 "$WORK/data/opt/etc/routerforge/package-management.enabled"
+: > "$WORK/data/opt/etc/routerforge/module-abi-v1"
+chmod 0644 "$WORK/data/opt/etc/routerforge/package-management.enabled" \
+    "$WORK/data/opt/etc/routerforge/module-abi-v1"
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/routerforge-core/LICENSE"
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$WORK/data/opt/share/licenses/routerforge-core/THIRD_PARTY_NOTICES.md"
 chmod 0644 "$WORK/data/opt/share/licenses/routerforge-core/LICENSE" \

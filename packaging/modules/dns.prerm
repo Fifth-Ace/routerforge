@@ -1,6 +1,11 @@
 #!/bin/sh
-rm -f /opt/etc/routerforge/dns.enabled
-if [ -x /opt/etc/init.d/S90routerforge ]; then
+if [ -x /opt/etc/init.d/S91routerforge-dns ]; then
+    /opt/etc/init.d/S91routerforge-dns stop >/dev/null 2>&1 || true
+fi
+rm -f /opt/var/run/routerforge-dns.sock /opt/etc/routerforge/dns.enabled
+
+if [ ! -f /opt/etc/routerforge/module-abi-v1 ] && [ -x /opt/etc/init.d/S90routerforge ]; then
+    # Legacy Core needs a restart to notice marker removal.
     /opt/etc/init.d/S90routerforge stop >/dev/null 2>&1 || true
     /opt/etc/init.d/S90routerforge start >/dev/null 2>&1 || true
 fi

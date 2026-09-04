@@ -1,53 +1,53 @@
 {
-  "schema_version": 1,
-  "channel": "stable",
-  "components": [
-    {
-      "id": "routerforge-core",
-      "package": "routerforge-core",
-      "version": "0.3.6"
-    },
-    {
-      "id": "dns",
-      "package": "routerforge-dns",
-      "version": "0.3.0",
-      "min_core_version": "0.3.0"
-    },
-    {
-      "id": "admin",
-      "package": "routerforge-admin",
-      "version": "0.3.0",
-      "min_core_version": "0.3.0"
-    },
-    {
-      "id": "system",
-      "package": "routerforge-system",
-      "version": "0.3.0",
-      "min_core_version": "0.3.0"
-    },
-    {
-      "id": "thermal",
-      "package": "routerforge-thermal",
-      "version": "0.3.1",
-      "min_core_version": "0.3.0"
-    },
-    {
-      "id": "storage",
-      "package": "routerforge-storage",
-      "version": "0.3.1",
-      "min_core_version": "0.3.0"
-    },
-    {
-      "id": "network",
-      "package": "routerforge-network",
-      "version": "0.3.2",
-      "min_core_version": "0.3.0"
-    },
-    {
-      "id": "profiling",
-      "package": "routerforge-profiling",
-      "version": "0.3.0",
-      "min_core_version": "0.3.0"
-    }
-  ]
+    "schema_version":  1,
+    "channel":  "stable",
+    "components":  [
+                       {
+                           "id":  "routerforge-core",
+                           "package":  "routerforge-core",
+                           "version":  "0.4.1"
+                       },
+                       {
+                           "id":  "dns",
+                           "package":  "routerforge-dns",
+                           "version":  "0.4.13",
+                           "min_core_version":  "0.4.1"
+                       },
+                       {
+                           "id":  "admin",
+                           "package":  "routerforge-admin",
+                           "version":  "0.3.0",
+                           "min_core_version":  "0.3.0"
+                       },
+                       {
+                           "id":  "system",
+                           "package":  "routerforge-system",
+                           "version":  "0.3.0",
+                           "min_core_version":  "0.3.0"
+                       },
+                       {
+                           "id":  "thermal",
+                           "package":  "routerforge-thermal",
+                           "version":  "0.3.1",
+                           "min_core_version":  "0.3.0"
+                       },
+                       {
+                           "id":  "storage",
+                           "package":  "routerforge-storage",
+                           "version":  "0.3.1",
+                           "min_core_version":  "0.3.0"
+                       },
+                       {
+                           "id":  "network",
+                           "package":  "routerforge-network",
+                           "version":  "0.3.2",
+                           "min_core_version":  "0.3.0"
+                       },
+                       {
+                           "id":  "profiling",
+                           "package":  "routerforge-profiling",
+                           "version":  "0.3.0",
+                           "min_core_version":  "0.3.0"
+                       }
+                   ]
 }

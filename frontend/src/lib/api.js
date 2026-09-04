@@ -55,6 +55,7 @@ export const getAdminThermal = () => request('/api/admin/thermal');
 
 export const getPlainDNS = (limit = 100) =>
   request(`/api/plain-dns?limit=${encodeURIComponent(limit)}`);
+export const getDNSInfo = () => request('/api/dns/info');
 
 export const getModule = (moduleID, endpoint = 'health') =>
   request(`/api/modules/${encodeURIComponent(moduleID)}/${encodeURIComponent(endpoint)}`);

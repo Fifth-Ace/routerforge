@@ -1,4 +1,8 @@
 #!/bin/sh
+if [ -x /opt/etc/init.d/S91routerforge-dns ]; then
+    /opt/etc/init.d/S91routerforge-dns stop >/dev/null 2>&1 || true
+fi
+rm -f /opt/etc/routerforge/module-abi-v1
 if [ -x /opt/etc/init.d/S90routerforge ]; then
     /opt/etc/init.d/S90routerforge stop >/dev/null 2>&1 || true
 fi

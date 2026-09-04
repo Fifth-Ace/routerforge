@@ -27,7 +27,7 @@ var (
 )
 
 const (
-	dnsDisabledStoreVersion  = 1
+	dnsDisabledStoreVersion = 1
 	dnsKeeneticDoTSlotLimit = 8
 )
 

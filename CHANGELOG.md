@@ -4,6 +4,9 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.2-beta` polishes the Module ABI UI:
+  - DNS tabs switch in-place without reloading the Core route/iframe, eliminating the visible page jump.
+  - The resolver protocol selector uses RouterForge-owned dark styling and a consistent chevron instead of browser-native select chrome.
 - DNS `0.4.1-beta` accepts both Keenetic RCI shapes for saved plain DNS (`[]` and `{"server":[...]}`), fixing resolver discovery on Hopper when no static plain DNS servers are configured.
   - DNS data-load errors no longer claim that the module itself is unavailable when its health endpoint is online.
 - Core `0.4.1-beta` fixes the Module ABI v1 UI proxy: module directory URLs now preserve their trailing slash, so a module UI cannot escape from `/api/modules/<id>/ui/` into the Core SPA and render a nested RouterForge shell with a `404`.

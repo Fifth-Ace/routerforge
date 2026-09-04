@@ -108,6 +108,16 @@
 
   function setTab(value) {
     tab = value;
+
+    // Keep tab switching entirely inside the already-mounted DNS module.
+    // The old parent.location.href assignment reloaded the Core route and the
+    // iframe on every click, which caused a visible full-page jump.
+    const next = new URL(window.location.href);
+    next.searchParams.set('view', value);
+    history.replaceState(history.state, '', next);
+
+    // Keep the friendly parent URL in sync without asking SvelteKit/Core to
+    // navigate. A refresh still lands on the matching compatibility wrapper.
     const parentRoutes = {
       overview: '/dns',
       resolvers: '/dns/servers',
@@ -118,13 +128,11 @@
     try {
       if (window.parent !== window && window.parent.location.pathname.startsWith('/dns')) {
         const target = parentRoutes[value] || '/dns';
-        if (window.parent.location.pathname !== target) window.parent.location.href = target;
-        return;
+        if (window.parent.location.pathname !== target) {
+          window.parent.history.replaceState(window.parent.history.state, '', target);
+        }
       }
     } catch {}
-    const next = new URL(window.location.href);
-    next.searchParams.set('view', value);
-    history.replaceState(null, '', next);
   }
 
   function scopes(resolver) {
@@ -379,7 +387,7 @@
       <div class="modal" role="dialog" aria-modal="true">
         <h2>{editing ? L.editTitle : L.addTitle}</h2>
         <div class="form-grid">
-          <label>{L.protocol}<select bind:value={form.protocol} onchange={() => { if (form.protocol === 'DoT' && !form.port) form.port=853; if (form.protocol === 'DNS') form.port=53; if (form.protocol === 'DoH') form.port=443; }}><option>DNS</option><option>DoT</option><option>DoH</option></select></label>
+          <label>{L.protocol}<select class="protocol-select" bind:value={form.protocol} onchange={() => { if (form.protocol === 'DoT' && !form.port) form.port=853; if (form.protocol === 'DNS') form.port=53; if (form.protocol === 'DoH') form.port=443; }}><option>DNS</option><option>DoT</option><option>DoH</option></select></label>
           <label>{L.port}<input type="number" min="1" max="65535" bind:value={form.port}/></label>
           {#if form.protocol === 'DoH'}<label class="span-2">{L.uri}<input class="mono" placeholder="https://dns.example/dns-query" bind:value={form.uri}/></label>{:else}<label class="span-2">{L.address}<input class="mono" placeholder={form.protocol === 'DNS' ? '1.1.1.1' : '1.1.1.1 / dns.example'} bind:value={form.address}/></label>{/if}
           {#if form.protocol === 'DoT'}<label>{L.sni}<input class="mono" placeholder="cloudflare-dns.com" bind:value={form.sni}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}

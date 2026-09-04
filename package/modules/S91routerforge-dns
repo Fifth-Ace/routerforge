@@ -1,0 +1,15 @@
+#!/bin/sh
+ENABLED=yes
+PROCS=routerforge-dns
+ARGS="-socket /opt/var/run/routerforge-dns.sock -discovery 60s -health 30s -log /opt/var/log/routerforge-dns.log -ui /opt/share/routerforge/modules/dns/ui"
+PREARGS=""
+DESC="RouterForge DNS"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# RouterForge DNS 0.4+ must not run beside the legacy in-Core DNS engine.
+# Core 0.4+ owns this ABI marker and starts the service after upgrades.
+if [ ! -f /opt/etc/routerforge/module-abi-v1 ]; then
+    ENABLED=no
+fi
+
+. /opt/etc/init.d/rc.func

@@ -21,11 +21,12 @@ type RouterDNSInfoSnapshot struct {
 }
 
 type RouterDNSProxyInfo struct {
-	Name      string                  `json:"name"`
-	TCPPort   int                     `json:"tcp_port"`
-	UDPPort   int                     `json:"udp_port"`
-	Stat      RouterDNSProxyStatInfo  `json:"stat"`
-	Upstreams []RouterDNSUpstreamInfo `json:"upstreams"`
+	Name        string                  `json:"name"`
+	DisplayName string                  `json:"display_name,omitempty"`
+	TCPPort     int                     `json:"tcp_port"`
+	UDPPort     int                     `json:"udp_port"`
+	Stat        RouterDNSProxyStatInfo  `json:"stat"`
+	Upstreams   []RouterDNSUpstreamInfo `json:"upstreams"`
 }
 
 type RouterDNSProxyStatInfo struct {
@@ -99,6 +100,12 @@ func readDNSInfo() (RouterDNSInfoSnapshot, error) {
 		return RouterDNSInfoSnapshot{}, fmt.Errorf("ndmc show dns-proxy: %w", err)
 	}
 	info := parseDNSInfo(string(out))
+	policyNames := readDNSPolicyNames()
+	for i := range info.Proxies {
+		if display := strings.TrimSpace(policyNames[info.Proxies[i].Name]); display != "" {
+			info.Proxies[i].DisplayName = display
+		}
+	}
 	info.GeneratedAt = time.Now()
 	return info, nil
 }
@@ -306,11 +313,16 @@ func parseDNSInfo(text string) RouterDNSInfoSnapshot {
 
 	for pi := range result.Proxies {
 		proxy := &result.Proxies[pi]
+		tlsUsed := make([]bool, len(tlsMeta[proxy.Name]))
+		httpsUsed := make([]bool, len(httpsMeta[proxy.Name]))
 		for ui := range proxy.Upstreams {
 			u := &proxy.Upstreams[ui]
 			switch u.Protocol {
 			case "DoT":
-				for _, meta := range tlsMeta[proxy.Name] {
+				for mi, meta := range tlsMeta[proxy.Name] {
+					if tlsUsed[mi] {
+						continue
+					}
 					port := meta.Port
 					if port == 0 {
 						port = 853
@@ -318,6 +330,7 @@ func parseDNSInfo(text string) RouterDNSInfoSnapshot {
 					if meta.Address != u.Address || port != u.Port {
 						continue
 					}
+					tlsUsed[mi] = true
 					if meta.SNI != "" {
 						u.SNI = meta.SNI
 					}
@@ -328,10 +341,11 @@ func parseDNSInfo(text string) RouterDNSInfoSnapshot {
 					break
 				}
 			case "DoH":
-				for _, meta := range httpsMeta[proxy.Name] {
-					if dnsInfoNormalizeURI(meta.URI) != dnsInfoNormalizeURI(u.Target) {
+				for mi, meta := range httpsMeta[proxy.Name] {
+					if httpsUsed[mi] || dnsInfoNormalizeURI(meta.URI) != dnsInfoNormalizeURI(u.Target) {
 						continue
 					}
+					httpsUsed[mi] = true
 					u.Interface = meta.Interface
 					if u.Domain == "" {
 						u.Domain = meta.Domain
@@ -573,14 +587,19 @@ func dnsInfoUniqueStrings(values []string) []string {
 }
 
 func dnsInfoUniqueStatic(records []RouterDNSStaticRecordInfo) []RouterDNSStaticRecordInfo {
-	seen := map[string]struct{}{}
+	index := map[string]int{}
 	out := make([]RouterDNSStaticRecordInfo, 0, len(records))
 	for _, record := range records {
-		key := strings.ToLower(fmt.Sprintf("%s|%s|%s|%d", record.Host, record.Type, record.Value, record.Flag))
-		if _, ok := seen[key]; ok {
+		// ndnproxy repeats shared static records in System and policy contexts.
+		// Flag is context metadata, not part of the user's logical DNS record.
+		key := strings.ToLower(fmt.Sprintf("%s|%s|%s", record.Host, record.Type, record.Value))
+		if existing, ok := index[key]; ok {
+			if record.Flag > out[existing].Flag {
+				out[existing].Flag = record.Flag
+			}
 			continue
 		}
-		seen[key] = struct{}{}
+		index[key] = len(out)
 		out = append(out, record)
 	}
 	sort.Slice(out, func(i, j int) bool {

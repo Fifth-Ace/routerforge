@@ -1,7 +1,13 @@
 #!/bin/sh
-mkdir -p /opt/etc/routerforge
+set -eu
+mkdir -p /opt/etc/routerforge /opt/var/run /opt/var/log
 : > /opt/etc/routerforge/dns.enabled
-if [ -x /opt/etc/init.d/S90routerforge ]; then
+
+if [ -f /opt/etc/routerforge/module-abi-v1 ] && [ -x /opt/etc/init.d/S91routerforge-dns ]; then
+    /opt/etc/init.d/S91routerforge-dns stop >/dev/null 2>&1 || true
+    /opt/etc/init.d/S91routerforge-dns start >/dev/null 2>&1 || true
+elif [ -x /opt/etc/init.d/S90routerforge ]; then
+    # Compatibility with 0.3.x Core: its DNS engine still reads dns.enabled.
     /opt/etc/init.d/S90routerforge stop >/dev/null 2>&1 || true
     /opt/etc/init.d/S90routerforge start >/dev/null 2>&1 || true
 fi

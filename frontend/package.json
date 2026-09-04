@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "svelte-kit sync && vite build",
+    "build:dns-module": "vite build --config vite.dns-module.config.js",
     "check": "svelte-kit sync && svelte-check --threshold error"
   },
   "devDependencies": {

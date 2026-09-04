@@ -4,10 +4,13 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
-- DNS Control foundation for Core `0.3.7-beta`:
-  - `Tools → DNS details` now reads the full Keenetic `show dns-proxy` state: upstream configuration, per-policy request/cache statistics, server rank/latency counters, static A/AAAA records and rebind protection.
-  - Identical resolver endpoints are presented as one logical upstream with all discovered domain bindings while the per-policy view preserves each physical ndnproxy instance.
-  - DNS details can be refreshed, copied to the clipboard and exported as a text report; this first step is intentionally read-only before DNS write/rollback support lands.
+- RouterForge `0.4.0-beta` introduces Module ABI v1 and turns DNS into a real independently versioned module:
+  - Core keeps the web shell, auth, Marketplace/Registry and the generic module API/UI host; DNS capture, discovery, health, diagnostics and mutation logic move to the `routerforge-dns` runtime over a root-owned Unix socket.
+  - `routerforge-dns` now ships `/opt/bin/routerforge-dns`, `S91routerforge-dns`, its own UI bundle and `/api/modules/dns/*`; future DNS-only changes no longer require rebuilding or version-bumping Core.
+  - Legacy `/api/snapshot`, `/api/history`, `/api/plain-dns` and `/api/dns/info` remain compatibility bridges through Core during the 0.4 migration.
+  - DNS Control adds resolver Add/Edit/Delete, temporary Disable/Enable, native multi-domain grouping, dynamic DHCP/service DNS read-only protection, structured Keenetic RCI writes, readback verification and rollback.
+  - Resolver presentation uses RouterForge terminology: Overview, Resolvers, Rules, Traffic and Diagnostics. Physical ndnproxy entries remain available as advanced details instead of defining the normal UI.
+  - Live Hopper findings are handled: same-address DoT resolvers remain distinct when SNI differs; Yandex `.ru/.su/.рф` entries group into one logical resolver; duplicate static A/AAAA records are collapsed independently of internal flags; policy names are enriched from Keenetic RCI when available.
 - Canonical GitHub repository renamed to `Fifth-Ace/routerforge`; legacy links remain supported through redirects and the Core compatibility bridge.
 - Monitoring cleanup for the next Beta:
   - Thermal collapses mirrored `thermal_zone` / `hwmon` sensors and adds human-readable MT7988 roles.

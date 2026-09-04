@@ -37,6 +37,11 @@
   let resolverSearch = '';
   let resolverProtocol = 'all';
   let resolverStatus = 'all';
+  let resolverView = (() => {
+    try { return localStorage.getItem('routerforge:dns:resolver-view') === 'cards' ? 'cards' : 'detail'; }
+    catch { return 'detail'; }
+  })();
+  let selectedResolverId = '';
 
   let rulesProfile = 'all';
   let rulesMinutes = 60;
@@ -194,6 +199,12 @@
     return !q || `${r.name || ''} ${r.protocol || ''} ${r.address || ''} ${r.uri || ''} ${r.sni || ''} ${(r.domains || []).join(' ')}`.toLowerCase().includes(q);
   });
 
+  $: if (filteredResolvers.length && !filteredResolvers.some((r) => r.id === selectedResolverId)) selectedResolverId = filteredResolvers[0].id;
+  $: if (!filteredResolvers.length && selectedResolverId) selectedResolverId = '';
+  $: selectedResolver = filteredResolvers.find((r) => r.id === selectedResolverId) || null;
+  $: selectedRuntime = selectedResolver ? buildResolverRuntime(selectedResolver, allUpstreams, plainResolvers) : null;
+  $: selectedRecent = selectedResolver ? resolverRecentEvents(selectedResolver, selectedRuntime, liveFlow, plain?.recent || []) : [];
+
   $: ruleEdges = (fallbacks?.edges || []).filter((e) => rulesProfile === 'all' || e.from_profile === rulesProfile);
   $: ruleEdgeCount = ruleEdges.reduce((sum,e) => sum + Number(e.count || 0), 0);
   $: profileStats = profiles.map((name) => {
@@ -301,6 +312,164 @@
   }
   function resolverStatusClass(resolver) { if (resolver.disabled) return 'warn'; if (resolver.dynamic) return 'neutral'; return 'good'; }
   function resolverStatusText(resolver) { if (resolver.disabled) return L.disabled; if (resolver.dynamic) return L.dynamic; return L.active; }
+  function resolverScopeSummary(resolver) {
+    const count = scopes(resolver).length;
+    if (!count) return L.global;
+    return locale === 'en' ? `${count} domain${count === 1 ? '' : 's'}` : `${count} ${count === 1 ? 'домен' : count > 1 && count < 5 ? 'домена' : 'доменов'}`;
+  }
+  function setResolverView(value) {
+    if (!['detail','cards'].includes(value)) return;
+    resolverView = value;
+    try { localStorage.setItem('routerforge:dns:resolver-view', value); } catch {}
+    setTimeout(syncFrameHeight, 0);
+  }
+  function selectResolver(id) { selectedResolverId = id; }
+  function normHost(value) { return String(value || '').trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, ''); }
+  function normURL(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const u = new URL(raw);
+      const pathname = u.pathname === '/' ? '' : u.pathname.replace(/\/+$/, '');
+      return `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${pathname}${u.search}`;
+    } catch { return raw.toLowerCase().replace(/\/+$/, ''); }
+  }
+  function resolverUpstreamRows(resolver, rows = []) {
+    if (!resolver || resolver.protocol === 'DNS') return [];
+    const protocol = String(resolver.protocol || '').toLowerCase();
+    if (protocol === 'doh') {
+      const uri = normURL(resolver.uri);
+      return rows.filter((u) => String(u.protocol || '').toLowerCase() === protocol && normURL(u.target) === uri);
+    }
+    const address = normHost(resolver.address);
+    const sni = normHost(resolver.sni);
+    return rows.filter((u) => {
+      if (String(u.protocol || '').toLowerCase() !== protocol || normHost(u.target) !== address) return false;
+      const upstreamSNI = normHost(u.sni);
+      return sni ? upstreamSNI === sni : !upstreamSNI;
+    });
+  }
+  function resolverPlainRows(resolver, rows = []) {
+    if (!resolver || resolver.protocol !== 'DNS') return [];
+    const address = normHost(resolver.address);
+    const port = num(resolver.port || 53);
+    return rows.filter((r) => normHost(r.address) === address && num(r.port || 53) === port);
+  }
+  function latestISO(rows = [], key = 'last_request') {
+    let latest = '';
+    let latestMS = 0;
+    for (const row of rows) {
+      const value = String(row?.[key] || '');
+      const ms = new Date(value).getTime();
+      if (Number.isFinite(ms) && ms > latestMS) { latestMS = ms; latest = value; }
+    }
+    return latest;
+  }
+  function aggregateWindow(rows = [], key = 'stats_5m') {
+    const out = { requests:0, responses:0, late_responses:0, pending:0, success:0, errors:0, timeouts:0, fallbacks:0, avg_latency_ms:0, p95_latency_ms:0, max_latency_ms:0, quality_pct:100, fallback_pct:0, quality_status:'OK' };
+    let latencyWeighted = 0;
+    let latencyWeight = 0;
+    for (const row of rows) {
+      const w = row?.[key] || {};
+      out.requests += num(w.requests);
+      out.responses += num(w.responses);
+      out.late_responses += num(w.late_responses);
+      out.pending += num(w.pending);
+      out.success += num(w.success);
+      out.errors += num(w.errors);
+      out.timeouts += num(w.timeouts);
+      out.fallbacks += num(w.fallbacks);
+      out.p95_latency_ms = Math.max(out.p95_latency_ms, num(w.p95_latency_ms));
+      out.max_latency_ms = Math.max(out.max_latency_ms, num(w.max_latency_ms));
+      const weight = num(w.responses) || num(w.requests);
+      if (weight > 0 && num(w.avg_latency_ms) > 0) { latencyWeighted += num(w.avg_latency_ms) * weight; latencyWeight += weight; }
+    }
+    if (latencyWeight) out.avg_latency_ms = latencyWeighted / latencyWeight;
+    const attempts = out.success + out.errors + out.timeouts;
+    if (attempts > 0) out.quality_pct = out.success / attempts * 100;
+    if (out.requests > 0) out.fallback_pct = out.fallbacks / out.requests * 100;
+    out.quality_status = out.quality_pct < 90 ? 'BAD' : out.quality_pct < 98 ? 'WARN' : 'OK';
+    return out;
+  }
+  function aggregatePlain(rows = []) {
+    const out = { requests:0, responses:0, errors:0, timeouts:0, nxdomain:0, fallbacks:0, avg_latency_ms:0, p95_latency_ms:0, quality_pct:100, fallback_pct:0 };
+    let latencyWeighted = 0;
+    let latencyWeight = 0;
+    for (const row of rows) {
+      out.requests += num(row.requests);
+      out.responses += num(row.responses);
+      out.errors += num(row.errors);
+      out.timeouts += num(row.timeouts);
+      out.nxdomain += num(row.nxdomain);
+      out.p95_latency_ms = Math.max(out.p95_latency_ms, num(row.p95_latency_ms));
+      const weight = num(row.responses) || num(row.requests);
+      if (weight > 0 && num(row.avg_latency_ms) > 0) { latencyWeighted += num(row.avg_latency_ms) * weight; latencyWeight += weight; }
+    }
+    if (latencyWeight) out.avg_latency_ms = latencyWeighted / latencyWeight;
+    if (out.requests > 0) out.quality_pct = Math.min(100, out.responses / out.requests * 100);
+    return out;
+  }
+  function runtimeStateForRows(rows = []) {
+    if (!rows.length) return { cls:'neutral', label:locale === 'en' ? 'NO RUNTIME' : 'НЕТ RUNTIME' };
+    if (rows.some((u) => u.health_status === 'DOWN')) return { cls:'error', label:'DOWN' };
+    if (rows.some((u) => u.health_status === 'DEGRADED')) return { cls:'warn', label:'DEGRADED' };
+    if (rows.some((u) => u.active)) return { cls:'good', label:L.active };
+    if (rows.some((u) => u.health_status === 'UP')) return { cls:'neutral', label:'UP' };
+    return { cls:'neutral', label:L.detected };
+  }
+  function pickDiagnostic(rows = []) {
+    const withDiagnostics = rows.filter((u) => u?.diagnostic?.ran);
+    if (!withDiagnostics.length) return null;
+    return withDiagnostics.sort((a,b) => {
+      const rank = (u) => u.diagnostic?.status === 'FAIL' ? 3 : u.health_status === 'DOWN' ? 2 : u.health_status === 'DEGRADED' ? 1 : 0;
+      return rank(b) - rank(a);
+    })[0]?.diagnostic || null;
+  }
+  function buildResolverRuntime(resolver, upstreamRows = [], plainRows = []) {
+    if (!resolver) return null;
+    if (resolver.protocol === 'DNS') {
+      const rows = resolverPlainRows(resolver, plainRows);
+      const summary = aggregatePlain(rows);
+      const active = rows.some(plainRecentlyActive);
+      let state = { cls:'neutral', label:rows.length ? L.detected : (locale === 'en' ? 'NO RUNTIME' : 'НЕТ RUNTIME') };
+      if (rows.length && summary.requests > 0 && summary.responses === 0 && summary.timeouts > 0) state = { cls:'error', label:L.unavailable };
+      else if (rows.length && (summary.errors > 0 || summary.timeouts > 0)) state = { cls:'warn', label:L.degraded };
+      else if (active) state = { cls:'good', label:L.active };
+      return { kind:'plain', rows, summary, state, windows:null, diagnostic:null, ports:[num(resolver.port || 53)], last_request:latestISO(rows) };
+    }
+    const rows = resolverUpstreamRows(resolver, upstreamRows);
+    const windows = {
+      stats_5m:aggregateWindow(rows, 'stats_5m'),
+      stats_1h:aggregateWindow(rows, 'stats_1h'),
+      stats_24h:aggregateWindow(rows, 'stats_24h')
+    };
+    return {
+      kind:'secure', rows, summary:windows.stats_5m, state:runtimeStateForRows(rows), windows,
+      diagnostic:pickDiagnostic(rows),
+      ports:[...new Set(rows.map((u) => num(u.port)).filter(Boolean))].sort((a,b) => a - b),
+      profilePorts:[...new Set(rows.map((u) => num(u.profile_dns_port)).filter(Boolean))].sort((a,b) => a - b),
+      last_request:latestISO(rows)
+    };
+  }
+  function resolverRecentEvents(resolver, runtime, flowRows = [], plainRecent = []) {
+    if (!resolver || !runtime) return [];
+    if (resolver.protocol === 'DNS') {
+      const address = normHost(resolver.address);
+      const port = num(resolver.port || 53);
+      return plainRecent.filter((e) => normHost(e.resolver) === address && num(e.port || 53) === port).slice(0, 40).map((e) => ({
+        time:e.time, domain:e.domain, qtype:e.qtype, fallback:false, status:e.status || e.rcode || '—', rcode:e.rcode || ''
+      }));
+    }
+    const ports = new Set(runtime.ports || []);
+    return flowRows.slice().reverse().filter((e) => ports.has(num(e.port))).slice(0, 40).map((e) => ({
+      time:e.time, domain:e.domain, qtype:e.qtype, fallback:Boolean(e.fallback), status:e.fallback ? 'FALLBACK' : 'OK', rcode:''
+    }));
+  }
+  function runtimeWindowLabel(key) {
+    if (key === 'stats_5m') return locale === 'en' ? '5 minutes' : '5 минут';
+    if (key === 'stats_1h') return locale === 'en' ? '1 hour' : '1 час';
+    return locale === 'en' ? '24 hours' : '24 часа';
+  }
   function proxyName(proxy) { return proxy.display_name || (proxy.name === 'System' ? L.system : proxy.name); }
   function outcomeClass(value) { return value === 'FORWARDED' ? 'good' : value === 'ERROR' || value === 'CLIENT_TIMEOUT' ? 'error' : value === 'CACHE_LOCAL' ? 'info' : 'neutral'; }
 
@@ -422,8 +591,10 @@
     saving = true; error = ''; success = '';
     try {
       const payload = payloadFromForm();
-      if (editing) await request(`/resolvers/${encodeURIComponent(editing.id)}`, { method:'PATCH', body:JSON.stringify(payload) });
-      else await request('/resolvers', { method:'POST', body:JSON.stringify(payload) });
+      const result = editing
+        ? await request(`/resolvers/${encodeURIComponent(editing.id)}`, { method:'PATCH', body:JSON.stringify(payload) })
+        : await request('/resolvers', { method:'POST', body:JSON.stringify(payload) });
+      if (result?.resolver?.id) selectedResolverId = result.resolver.id;
       editorOpen = false;
       success = L.saved;
       await loadAll(true);
@@ -619,37 +790,155 @@
     {/if}
 
   {:else if tab === 'resolvers'}
-    <div class="toolbar parity-toolbar">
+    <div class="toolbar parity-toolbar resolver-toolbar">
       <div class="search-control"><span>⌕</span><input bind:value={resolverSearch} placeholder={L.searchDns}/></div>
       <select bind:value={resolverProtocol}><option value="all">{L.filterProtocol}: {L.all}</option><option value="DNS">DNS</option><option value="DoT">DoT</option><option value="DoH">DoH</option></select>
       <select bind:value={resolverStatus}><option value="all">{L.filterStatus}: {L.all}</option><option value="active">{L.active}</option><option value="disabled">{L.disabled}</option><option value="dynamic">{L.dynamic}</option></select>
-      <div class="toolbar-spacer"></div><span class="state-pill info">{L.secureSlots}: {secureSlotsUsed}/{secureSlotLimit || '—'}</span>
+      <div class="toolbar-spacer"></div>
+      <div class="segmented resolver-view-switch" aria-label={locale === 'en' ? 'Resolver view' : 'Вид резолверов'}>
+        <button class:active={resolverView === 'detail'} type="button" aria-pressed={resolverView === 'detail'} onclick={() => setResolverView('detail')}>{locale === 'en' ? 'List' : 'Список'}</button>
+        <button class:active={resolverView === 'cards'} type="button" aria-pressed={resolverView === 'cards'} onclick={() => setResolverView('cards')}>{locale === 'en' ? 'Cards' : 'Карточки'}</button>
+      </div>
+      <span class="state-pill info">{L.secureSlots}: {secureSlotsUsed}/{secureSlotLimit || '—'}</span>
     </div>
 
-    <section class="panel resolver-panel">
-      <div class="panel-head"><div><strong>{L.configured}</strong><span>{L.nativeHint}</span></div><span class="panel-meta">{filteredResolvers.length}/{resolvers.length}</span></div>
-      {#if !filteredResolvers.length}<div class="empty-box">{L.noResolvers}</div>{/if}
-      <div class="resolver-grid resolver-grid-body">
-        {#each filteredResolvers as resolver (resolver.id)}
-          <article class="resolver-card">
-            <div class="resolver-head"><div><h3>{resolver.name}</h3><div class="resolver-meta mono">{resolver.protocol} · {endpoint(resolver)}</div></div><span class="state-pill {resolverStatusClass(resolver)}">{resolverStatusText(resolver)}</span></div>
-            <div class="detail-grid compact">
-              {#if resolver.sni}<div class="detail-item"><span>SNI</span><strong class="mono">{resolver.sni}</strong></div>{/if}
-              {#if resolver.interface}<div class="detail-item"><span>{L.iface}</span><strong>{resolver.interface}</strong></div>{/if}
-              <div class="detail-item"><span>{L.physicalCount}</span><strong>{resolver.physical_count || 1}</strong></div>
-            </div>
-            <div class="resolver-meta">{L.scope}</div>
-            <div class="scope-list">{#if scopes(resolver).length}{#each scopes(resolver) as d}<span class="scope-chip">{displayDomain(d)}</span>{/each}{:else}<span class="scope-chip">{L.global}</span>{/if}</div>
-            <div class="resolver-actions">
-              <button class="action" type="button" disabled={resolver.dynamic} onclick={() => openEdit(resolver)}>{L.edit}</button>
-              {#if resolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(resolver,'enable')}>{L.enable}</button>{:else if !resolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(resolver,'disable')}>{L.disable}</button>{/if}
-              <button class="action danger" type="button" disabled={resolver.dynamic} onclick={() => resolverAction(resolver,'delete')}>{L.remove}</button>
-            </div>
-            {#if resolver.dynamic}<div class="resolver-meta">{L.readOnly}{resolver.service ? ` · ${resolver.service}` : ''}</div>{/if}
-          </article>
-        {/each}
+    <div class="resolver-summary-strip">
+      <div><span>{L.configured}</span><strong>{resolvers.length}</strong></div>
+      <div><span>{L.activeResolvers}</span><strong class="good-text">{activeResolvers.length}</strong></div>
+      <div><span>{L.disabledResolvers}</span><strong class={disabledResolvers.length ? 'warn-text' : ''}>{disabledResolvers.length}</strong></div>
+      <div><span>{L.dynamicResolvers}</span><strong>{dynamicResolvers.length}</strong></div>
+      <div><span>{L.secureSlots}</span><strong class={secureSlotLimit && secureSlotsUsed >= secureSlotLimit ? 'warn-text' : ''}>{secureSlotsUsed}/{secureSlotLimit || '—'}</strong></div>
+    </div>
+
+    {#if !filteredResolvers.length}
+      <section class="panel"><div class="empty-box">{L.noResolvers}</div></section>
+    {:else if resolverView === 'cards'}
+      <section class="panel resolver-panel resolver-cards-panel">
+        <div class="panel-head"><div><strong>{L.configured}</strong><span>{L.nativeHint}</span></div><span class="panel-meta">{filteredResolvers.length}/{resolvers.length}</span></div>
+        <div class="resolver-grid resolver-grid-body resolver-grid-uniform">
+          {#each filteredResolvers as resolver (resolver.id)}
+            <article class="resolver-card resolver-card-uniform">
+              <div class="resolver-head"><div><h3>{resolver.name}</h3><div class="resolver-meta mono resolver-card-endpoint" title={endpoint(resolver)}>{resolver.protocol} · {endpoint(resolver)}</div></div><span class="state-pill {resolverStatusClass(resolver)}">{resolverStatusText(resolver)}</span></div>
+              <div class="detail-grid compact">
+                {#if resolver.sni}<div class="detail-item"><span>SNI</span><strong class="mono">{resolver.sni}</strong></div>{/if}
+                {#if resolver.interface}<div class="detail-item"><span>{L.iface}</span><strong>{resolver.interface}</strong></div>{/if}
+                <div class="detail-item"><span>{L.physicalCount}</span><strong>{resolver.physical_count || 1}</strong></div>
+              </div>
+              <div class="resolver-meta">{L.scope}</div>
+              <div class="scope-list">{#if scopes(resolver).length}{#each scopes(resolver) as d}<span class="scope-chip">{displayDomain(d)}</span>{/each}{:else}<span class="scope-chip">{L.global}</span>{/if}</div>
+              <div class="resolver-actions">
+                <button class="action primary" type="button" onclick={() => { selectResolver(resolver.id); setResolverView('detail'); }}>{locale === 'en' ? 'Details' : 'Сведения'}</button>
+                <button class="action" type="button" disabled={resolver.dynamic} onclick={() => openEdit(resolver)}>{L.edit}</button>
+                {#if resolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(resolver,'enable')}>{L.enable}</button>{:else if !resolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(resolver,'disable')}>{L.disable}</button>{/if}
+                <button class="action danger" type="button" disabled={resolver.dynamic} onclick={() => resolverAction(resolver,'delete')}>{L.remove}</button>
+              </div>
+              {#if resolver.dynamic}<div class="resolver-meta resolver-readonly-note">{L.readOnly}{resolver.service ? ` · ${resolver.service}` : ''}</div>{/if}
+            </article>
+          {/each}
+        </div>
+      </section>
+    {:else}
+      <div class="resolver-master-detail">
+        <aside class="panel resolver-master-panel">
+          <div class="panel-head"><div><strong>{L.configured}</strong><span>{filteredResolvers.length}/{resolvers.length} · {L.nativeHint}</span></div></div>
+          <div class="resolver-master-list">
+            {#each filteredResolvers as resolver (resolver.id)}
+              <button class="resolver-master-item" class:active={resolver.id === selectedResolverId} type="button" onclick={() => selectResolver(resolver.id)}>
+                <span class="resolver-master-dot {resolverStatusClass(resolver)}"></span>
+                <span class="resolver-master-copy">
+                  <span class="resolver-master-title"><strong>{resolver.name}</strong><span class="pill accent">{resolver.protocol}</span></span>
+                  <span class="resolver-master-endpoint mono" title={endpoint(resolver)}>{endpoint(resolver)}</span>
+                  <span class="resolver-master-meta">{resolverScopeSummary(resolver)} · {resolver.physical_count || 1} {locale === 'en' ? 'native' : 'нативн.'}{resolver.dynamic ? ` · ${resolver.service || 'DHCP'}` : ''}</span>
+                </span>
+                <span class="state-pill {resolverStatusClass(resolver)} resolver-master-state">{resolverStatusText(resolver)}</span>
+              </button>
+            {/each}
+          </div>
+        </aside>
+
+        {#if selectedResolver}
+          <div class="resolver-detail-stack">
+            <section class="panel resolver-detail-hero">
+              <div class="resolver-detail-head">
+                <div class="resolver-detail-title">
+                  <div class="resolver-title-line"><h2>{selectedResolver.name}</h2><span class="pill accent">{selectedResolver.protocol}</span></div>
+                  <p class="mono" title={endpoint(selectedResolver)}>{endpoint(selectedResolver)}{selectedResolver.source ? ` · ${selectedResolver.source}` : ''}</p>
+                </div>
+                <div class="resolver-detail-actions">
+                  <span class="state-pill {resolverStatusClass(selectedResolver)}">{resolverStatusText(selectedResolver)}</span>
+                  <button class="action" type="button" disabled={selectedResolver.dynamic} onclick={() => openEdit(selectedResolver)}>{L.edit}</button>
+                  {#if selectedResolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(selectedResolver,'enable')}>{L.enable}</button>{:else if !selectedResolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(selectedResolver,'disable')}>{L.disable}</button>{/if}
+                  <button class="action danger" type="button" disabled={selectedResolver.dynamic} onclick={() => resolverAction(selectedResolver,'delete')}>{L.remove}</button>
+                </div>
+              </div>
+              {#if selectedResolver.dynamic}<div class="resolver-dynamic-banner"><span class="state-pill neutral">READ ONLY</span><span>{L.readOnly}{selectedResolver.service ? ` · ${selectedResolver.service}` : ''}</span></div>{/if}
+              <div class="resolver-detail-metrics">
+                <div><strong>{fmtInt(selectedRuntime?.summary?.requests || 0)}</strong><span>{L.requests}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+                <div><strong>{num(selectedRuntime?.summary?.p95_latency_ms) ? fmtMs(selectedRuntime.summary.p95_latency_ms) : '—'}</strong><span>P95 latency{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+                <div><strong>{fmtPct(selectedRuntime?.summary?.fallback_pct || 0, 2)}</strong><span>{L.fallback}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+                <div><strong class={selectedRuntime?.rows?.length ? qualityClass(selectedRuntime?.summary || {}) : ''}>{selectedRuntime?.rows?.length ? fmtPct(selectedRuntime?.summary?.quality_pct ?? 100, 1) : '—'}</strong><span>{L.quality}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+              </div>
+              <div class="resolver-runtime-line"><span>{locale === 'en' ? 'Runtime state' : 'Состояние runtime'}</span><span class="state-chip {selectedRuntime?.state?.cls || 'neutral'}">{selectedRuntime?.state?.label || '—'}</span><span>{selectedRuntime?.last_request ? fmtAgo(selectedRuntime.last_request) : (locale === 'en' ? 'no observed queries' : 'запросы не наблюдались')}</span></div>
+            </section>
+
+            {#if selectedRuntime?.kind === 'secure' && selectedRuntime?.rows?.length}
+              <section class="panel resolver-quality-panel">
+                <div class="panel-head"><div><strong>{locale === 'en' ? 'Resolver quality' : 'Качество resolver'}</strong><span>{locale === 'en' ? 'Aggregated windows across native entries' : 'Агрегированные окна по нативным записям'}</span></div><span class="state-pill info">{selectedRuntime.rows.length} native</span></div>
+                {#each ['stats_5m','stats_1h','stats_24h'] as key}
+                  {@const w = selectedRuntime.windows[key]}
+                  <div class="info-row resolver-window-row"><div><strong>{runtimeWindowLabel(key)}</strong><span>{fmtInt(w.requests)} {locale === 'en' ? 'requests' : 'запросов'} · {fmtInt(w.errors)} DNS errors · {fmtInt(w.timeouts)} timeout</span></div><div class="info-value"><strong class={qualityClass(w)}>{fmtPct(w.quality_pct ?? 100, 2)}</strong> · p95 {num(w.p95_latency_ms) ? fmtMs(w.p95_latency_ms) : '—'} · fallback {fmtPct(w.fallback_pct || 0, 2)}</div></div>
+                {/each}
+              </section>
+            {:else if selectedRuntime?.kind === 'plain'}
+              <section class="panel resolver-quality-panel">
+                <div class="panel-head"><div><strong>{locale === 'en' ? 'Plain DNS statistics' : 'Статистика обычного DNS'}</strong><span>Passive request → response correlation</span></div></div>
+                <div class="info-row"><div><strong>{L.responses}</strong><span>{locale === 'en' ? 'Matched responses' : 'Сопоставленные ответы'}</span></div><div class="info-value">{fmtInt(selectedRuntime.summary.responses)}</div></div>
+                <div class="info-row"><div><strong>{L.timeouts}</strong><span>{locale === 'en' ? 'No response before timeout' : 'Ответ не получен до таймаута'}</span></div><div class="info-value {num(selectedRuntime.summary.timeouts) ? 'warn-text' : ''}">{fmtInt(selectedRuntime.summary.timeouts)}</div></div>
+                <div class="info-row"><div><strong>NXDOMAIN</strong><span>DNS RCODE</span></div><div class="info-value">{fmtInt(selectedRuntime.summary.nxdomain)}</div></div>
+              </section>
+            {/if}
+
+            {#if selectedResolver.protocol !== 'DNS'}
+              <section class="panel resolver-diagnostic-panel">
+                <div class="panel-head"><div><strong>{locale === 'en' ? 'DoT/DoH diagnostics' : 'Диагностика DoT/DoH'}</strong><span>{locale === 'en' ? 'Automatic runtime probe / health state' : 'Автоматический runtime probe / health'}</span></div>{#if selectedRuntime?.diagnostic?.ran}<span class="state-chip {selectedRuntime.diagnostic.status === 'FAIL' ? 'error' : 'good'}">{selectedRuntime.diagnostic.status || '—'}</span>{/if}</div>
+                {#if selectedRuntime?.diagnostic?.ran}
+                  {@const d = selectedRuntime.diagnostic}
+                  <div class="info-row"><div><strong>{L.stage}</strong><span>{locale === 'en' ? 'Last reached stage' : 'Последний достигнутый этап'}</span></div><div class="info-value">{d.stage || '—'}</div></div>
+                  <div class="info-row"><div><strong>Target IP</strong><span>{locale === 'en' ? 'Direct probe target' : 'IP прямой проверки'}</span></div><div class="info-value mono">{d.target_ip || '—'}</div></div>
+                  <div class="info-row"><div><strong>Resolve / TCP / TLS</strong><span>{locale === 'en' ? 'Connection stages' : 'Этапы соединения'}</span></div><div class="info-value mono">{fmtMs(d.resolve_ms)} · {fmtMs(d.tcp_ms)} · {fmtMs(d.tls_ms)}</div></div>
+                  <div class="info-row"><div><strong>{selectedResolver.protocol === 'DoH' ? 'HTTP / DNS' : 'DNS'}</strong><span>{locale === 'en' ? 'Protocol check' : 'Протокольная проверка'}</span></div><div class="info-value">{num(d.protocol_ms) ? fmtMs(d.protocol_ms) : '—'}{selectedResolver.protocol === 'DoH' && d.http_status ? ` · HTTP ${d.http_status}` : ''}</div></div>
+                  <div class="info-row"><div><strong>DNS RCODE</strong><span>{locale === 'en' ? 'Direct DNS probe result' : 'Ответ прямого DNS probe'}</span></div><div class="info-value">{d.dns_rcode || '—'}</div></div>
+                  <div class="info-row"><div><strong>{L.assessment}</strong><span>{d.route_scope || 'default-route'}</span></div><div class="info-value {d.status === 'FAIL' ? 'warn-text' : 'good-text'}">{d.assessment || (d.status === 'FAIL' ? (locale === 'en' ? 'Probe failed' : 'Проверка не пройдена') : 'OK')}</div></div>
+                  <div class="info-row"><div><strong>{locale === 'en' ? 'Error' : 'Ошибка'}</strong><span>{locale === 'en' ? 'Stop reason' : 'Причина остановки'}</span></div><div class="info-value mono">{d.error || selectedRuntime.rows.find((u) => u.last_health_error)?.last_health_error || '—'}</div></div>
+                {:else}<div class="empty-box small">{locale === 'en' ? 'Runtime diagnostics have not run for this resolver yet.' : 'Runtime-диагностика для этого резолвера ещё не запускалась.'}</div>{/if}
+              </section>
+            {/if}
+
+            <section class="panel resolver-info-panel">
+              <div class="panel-head"><div><strong>{locale === 'en' ? 'DNS information' : 'Сведения о DNS'}</strong><span>{locale === 'en' ? 'Configuration + native/runtime metadata' : 'Конфигурация + native/runtime metadata'}</span></div><span class="state-pill info">{selectedResolver.physical_count || 1} native</span></div>
+              <div class="info-row"><div><strong>{L.target}</strong><span>{locale === 'en' ? 'Configured resolver endpoint' : 'Настроенный endpoint резолвера'}</span></div><div class="info-value mono">{endpoint(selectedResolver)}</div></div>
+              {#if selectedResolver.sni}<div class="info-row"><div><strong>SNI / FQDN</strong><span>TLS Server Name</span></div><div class="info-value mono">{selectedResolver.sni}</div></div>{/if}
+              {#if selectedResolver.spki}<div class="info-row"><div><strong>SPKI</strong><span>{locale === 'en' ? 'Certificate pin' : 'Пин сертификата'}</span></div><div class="info-value mono">{selectedResolver.spki}</div></div>{/if}
+              {#if selectedResolver.format}<div class="info-row"><div><strong>Format</strong><span>DoH wire format</span></div><div class="info-value mono">{selectedResolver.format}</div></div>{/if}
+              <div class="info-row"><div><strong>Domain filter</strong><span>{L.scope}</span></div><div class="info-value resolver-scope-value">{scopes(selectedResolver).length ? scopes(selectedResolver).map(displayDomain).join(' · ') : L.global}</div></div>
+              <div class="info-row"><div><strong>{L.iface}</strong><span>{locale === 'en' ? 'Keenetic outgoing interface' : 'Исходящий интерфейс Keenetic'}</span></div><div class="info-value">{selectedResolver.interface || selectedRuntime?.rows?.find((u) => u.interface)?.interface || '—'}</div></div>
+              <div class="info-row"><div><strong>{L.physicalCount}</strong><span>{L.nativeHint}</span></div><div class="info-value">{selectedResolver.physical_count || 1}</div></div>
+              {#if selectedRuntime?.ports?.length}<div class="info-row"><div><strong>{locale === 'en' ? 'Local port' : 'Локальный порт'}</strong><span>{locale === 'en' ? 'Internal resolver proxy' : 'Внутренний resolver proxy'}</span></div><div class="info-value mono">{selectedRuntime.ports.map((p) => `:${p}`).join(' · ')}</div></div>{/if}
+              {#if selectedRuntime?.profilePorts?.length}<div class="info-row"><div><strong>System DNS proxy</strong><span>{locale === 'en' ? 'Profile DNS listener' : 'DNS listener профиля'}</span></div><div class="info-value mono">{selectedRuntime.profilePorts.map((p) => `:${p}`).join(' · ')}</div></div>{/if}
+              {#if selectedRuntime?.rows?.[0]?.timeout_ms || selectedRuntime?.rows?.[0]?.proceed_ms}<div class="info-row"><div><strong>Timeout / Proceed</strong><span>Keenetic fallback thresholds</span></div><div class="info-value mono">{selectedRuntime.rows[0].timeout_ms ? `${selectedRuntime.rows[0].timeout_ms} ms` : '—'} / {selectedRuntime.rows[0].proceed_ms ? `${selectedRuntime.rows[0].proceed_ms} ms` : '—'}</div></div>{/if}
+              <div class="info-row"><div><strong>{locale === 'en' ? 'Source' : 'Источник'}</strong><span>{selectedResolver.dynamic ? L.readOnly : (locale === 'en' ? 'RouterForge/Keenetic configuration' : 'Конфигурация RouterForge/Keenetic')}</span></div><div class="info-value">{selectedResolver.service || selectedResolver.source || (selectedResolver.dynamic ? 'Keenetic service/DHCP' : 'static')}</div></div>
+            </section>
+
+            <section class="panel table-panel resolver-recent-panel">
+              <div class="panel-head"><div><strong>{locale === 'en' ? 'Recent queries' : 'Последние запросы'}</strong><span>{selectedRuntime?.last_request ? fmtAgo(selectedRuntime.last_request) : L.noData}</span></div><span class="panel-meta">{selectedRecent.length}</span></div>
+              <div class="table-wrap"><table><thead><tr><th>{locale === 'en' ? 'Time' : 'Время'}</th><th>{L.domains}</th><th>{L.type}</th><th>RCODE</th><th>{L.fallback}</th></tr></thead><tbody>
+                {#if selectedRecent.length}{#each selectedRecent as e, i (`${e.time}-${e.domain}-${e.qtype}-${i}`)}<tr><td class="mono">{timeOnly(e.time)}</td><td>{e.domain}</td><td><span class="pill">{e.qtype}</span></td><td>{e.rcode || '—'}</td><td>{#if e.fallback}<span class="pill warn">YES</span>{:else}<span class="cell-sub">{e.status || '—'}</span>{/if}</td></tr>{/each}{:else}<tr><td colspan="5" class="empty-row">{locale === 'en' ? 'No live queries for the selected resolver.' : 'Для выбранного резолвера live-запросов пока нет.'}</td></tr>{/if}
+              </tbody></table></div>
+            </section>
+          </div>
+        {/if}
       </div>
-    </section>
+    {/if}
 
     <div class="resolver-safety-note">
       <span class="state-pill good">READBACK / ROLLBACK</span>

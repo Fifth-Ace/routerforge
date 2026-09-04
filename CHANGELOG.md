@@ -4,6 +4,12 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.13-beta` introduces Resolvers 2.0, combining the original master/detail server UX with the validated Module ABI DNS Control feature set:
+  - the default resolver view is a stable master list plus selected-resolver detail pane with CRUD/Disable/Enable, dynamic read-only protection, logical/native metadata and persistent selection across refreshes;
+  - logical DNS/DoT/DoH resolvers are correlated with existing runtime telemetry; multi-domain secure resolvers aggregate their native entries into 5m/1h/24h quality, diagnostics and recent-flow views;
+  - plain DNS details reuse the passive resolver tracker, while DoT/DoH details restore quality windows, health probe stages, runtime ports and discovery metadata;
+  - an optional Cards view preserves the newer DNS Control presentation with equalized card geometry, bounded endpoints and a direct Details action back into the master/detail view;
+  - search/protocol/status filters, 8-slot secure preflight, 16-domain plain-DNS guard and snapshot/readback/rollback mutation semantics are unchanged.
 - DNS `0.4.12-beta` polishes the restored Module ABI DNS layout without changing resolver control:
   - the same-origin DNS iframe now follows the module's real content height (with a viewport floor), eliminating the unnecessary nested vertical scrollbar and letting the Core page/browser own scrolling;
   - iframe height follows tab/content changes via ResizeObserver and parent/window resize events;

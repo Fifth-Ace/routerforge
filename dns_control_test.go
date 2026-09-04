@@ -238,3 +238,65 @@ func TestDoHSPKISurvivesNormalization(t *testing.T) {
 		t.Fatalf("DoH SPKI = %q, want preserved value", spec.SPKI)
 	}
 }
+
+func TestDoHResolverIDStableAcrossNativeReadback(t *testing.T) {
+	input := DNSResolverSpec{
+		Protocol: "DoH",
+		URI:      "https://cloudflare-dns.com/dns-query",
+		Format:   "dnsm",
+		Domains:  []string{"routerforge-doh.invalid"},
+	}
+	normalized, err := normalizeDNSResolverSpec(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantID := dnsResolverID(normalized)
+
+	entries, err := buildDNSResolverEntries(normalized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entries = %d, want 1", len(entries))
+	}
+
+	// Keenetic readback exposes the endpoint as uri and does not expose a
+	// separate port field. specFromRaw must reconstruct the derived HTTPS port
+	// so the logical resolver ID stays identical after a write/readback cycle.
+	readback := cloneMap(entries[0])
+	spec := specFromRaw("DoH", readback)
+	gotID := dnsResolverID(spec)
+	if gotID != wantID {
+		t.Fatalf("DoH ID changed after readback: want=%s got=%s spec=%#v", wantID, gotID, spec)
+	}
+	if spec.Port != 443 {
+		t.Fatalf("DoH readback port = %d, want 443", spec.Port)
+	}
+}
+
+func TestDoHResolverIDStableWithCustomURLPort(t *testing.T) {
+	input := DNSResolverSpec{
+		Protocol: "DoH",
+		URI:      "https://dns.example:8443/dns-query",
+		Format:   "json",
+		Domains:  []string{"routerforge-doh.invalid"},
+	}
+	normalized, err := normalizeDNSResolverSpec(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantID := dnsResolverID(normalized)
+
+	entries, err := buildDNSResolverEntries(normalized)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := specFromRaw("DoH", entries[0])
+	gotID := dnsResolverID(spec)
+	if gotID != wantID {
+		t.Fatalf("custom-port DoH ID changed after readback: want=%s got=%s spec=%#v", wantID, gotID, spec)
+	}
+	if spec.Port != 8443 {
+		t.Fatalf("DoH readback port = %d, want 8443", spec.Port)
+	}
+}

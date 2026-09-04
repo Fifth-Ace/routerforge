@@ -4,6 +4,10 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- DNS `0.4.10-beta` fixes DoH logical-ID stability after successful native writes:
+  - Keenetic DoH readback exposes the HTTPS endpoint but no separate port field; RouterForge now reconstructs port 443 (or a custom port embedded in the URL) before calculating resolver identity;
+  - this keeps the ID returned by `Create` identical to the ID reconstructed by the next `loadState`, so immediate PATCH/Disable/Enable/Delete operations no longer return a false 404;
+  - regression tests cover default HTTPS port 443 and a custom URL port.
 - DNS `0.4.9-beta` fixes Keenetic DoH native writes after live Hopper readback validation:
   - DoH write payloads now use Keenetic's `url` RCI argument while readback continues to accept the saved/runtime `uri` shape; posting `uri` was transport-valid but NDMS silently discarded the upstream;
   - canonical verification treats `url` and `uri` as the same DoH endpoint, so write/readback semantics match the firmware;

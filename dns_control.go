@@ -699,6 +699,12 @@ func specFromRaw(protocol string, raw map[string]any) DNSResolverSpec {
 		spec.SNI = firstStringField(raw, "sni", "fqdn")
 	case "DoH":
 		spec.URI = firstStringField(raw, "uri", "url", "address")
+		spec.Port = 443
+		if parsed, err := url.Parse(spec.URI); err == nil && parsed.Port() != "" {
+			if port, err := strconv.Atoi(parsed.Port()); err == nil && port >= 1 && port <= 65535 {
+				spec.Port = port
+			}
+		}
 	case "DNS":
 		spec.Address = strings.TrimSpace(stringField(raw, "address"))
 		spec.Port = intField(raw, "port")

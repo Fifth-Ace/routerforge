@@ -316,6 +316,20 @@ jobs:
           sh -n scripts/build-module-opkg.sh
           python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py
 
+          grep -Fq 'detect_mem_mib() {' scripts/render_bootstrap.py
+          grep -Fq 'detect_swap_mib() {' scripts/render_bootstrap.py
+          grep -Fq 'detect_cpu_cores() {' scripts/render_bootstrap.py
+          grep -Fq 'hardware_preflight() {' scripts/render_bootstrap.py
+
+          grep -Fq 'ПРЕДУПРЕЖДЕНИЕ: обнаружено 128 МБ ОЗУ или меньше.' scripts/render_bootstrap.py
+          grep -Fq 'WARNING: 128 MiB of RAM or less detected.' scripts/render_bootstrap.py
+
+          grep -Fq 'ПРЕДУПРЕЖДЕНИЕ: обнаружен одноядерный процессор.' scripts/render_bootstrap.py
+          grep -Fq 'WARNING: single-core CPU detected.' scripts/render_bootstrap.py
+
+          grep -Fq 'swap-раздел или swap-файл на USB-накопителе' scripts/render_bootstrap.py
+          grep -Fq 'swap partition or swap file on USB storage' scripts/render_bootstrap.py
+
       - name: Build RouterForge beta channel
         if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
         run: |

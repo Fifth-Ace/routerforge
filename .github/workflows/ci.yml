@@ -120,7 +120,6 @@ jobs:
               case "$path" in
                 scripts/render_bootstrap.py)
                   RELEASE=true
-                  CROSS=true
                   ;;
                 release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py)
                   RELEASE=true
@@ -511,16 +510,31 @@ jobs:
           grep -Fq 'swap-раздел или swap-файл на USB-накопителе' scripts/render_bootstrap.py
           grep -Fq 'swap partition or swap file on USB storage' scripts/render_bootstrap.py
 
-          python3 scripts/build_routerforge_channel.py \
-            --config release/channels/beta.json \
-            --dist dist
-
-          python3 scripts/merge_release_index.py \
-            --candidate dist/routerforge-beta-candidate-index.json \
-            --previous /tmp/routerforge-no-previous-index.json \
-            --output /tmp/routerforge-preflight-index.json \
-            --changed-list /tmp/routerforge-preflight-changed.txt \
-            --checksums /tmp/routerforge-preflight-SHA256SUMS
+          cat > /tmp/routerforge-preflight-index.json <<'JSON'
+          {
+            "schema_version": 1,
+            "channel": "beta",
+            "target": "aarch64-3.10",
+            "components": [
+              {
+                "package": "routerforge-core",
+                "version": "0.0.0-ci",
+                "asset": "routerforge-core_0.0.0-ci_aarch64-3.10.ipk",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                "url": "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-core_0.0.0-ci_aarch64-3.10.ipk",
+                "canonical_url": "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-core_0.0.0-ci_aarch64-3.10.ipk"
+              },
+              {
+                "package": "routerforge-dns",
+                "version": "0.0.0-ci",
+                "asset": "routerforge-dns_0.0.0-ci_aarch64-3.10.ipk",
+                "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+                "url": "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-dns_0.0.0-ci_aarch64-3.10.ipk",
+                "canonical_url": "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-dns_0.0.0-ci_aarch64-3.10.ipk"
+              }
+            ]
+          }
+          JSON
 
           python3 scripts/render_bootstrap.py \
             --channel beta \
@@ -528,6 +542,10 @@ jobs:
             --output /tmp/routerforge-preflight-bootstrap.sh
 
           sh -n /tmp/routerforge-preflight-bootstrap.sh
+
+          grep -Fq "TARGET='aarch64-3.10'" /tmp/routerforge-preflight-bootstrap.sh
+          grep -Fq 'target_preflight() {' /tmp/routerforge-preflight-bootstrap.sh
+          grep -Fq 'hardware_preflight() {' /tmp/routerforge-preflight-bootstrap.sh
 
       - name: Build RouterForge beta channel
         if: steps.scope.outputs.full_release == 'true'

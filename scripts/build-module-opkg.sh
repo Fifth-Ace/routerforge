@@ -23,10 +23,17 @@ build_runtime_module() {
       cd "$ROOT"
       routerforge_go build -trimpath \
           -ldflags="-s -w -X main.version=$VERSION" \
-          -o "$WORK/data/opt/bin/$BINARY" ./cmd/routerforge-module
+          -o "$WORK/data/opt/bin/$BINARY" ./modules/monitoring-runtime
     )
     chmod 0755 "$WORK/data/opt/bin/$BINARY"
-    cp "$ROOT/packaging/init/modules/$SERVICE" "$WORK/data/opt/etc/init.d/$SERVICE"
+    case "$SERVICE" in
+        S92routerforge-system)  INIT_SOURCE="$ROOT/modules/system/packaging/$SERVICE" ;;
+        S93routerforge-thermal) INIT_SOURCE="$ROOT/modules/thermal/packaging/$SERVICE" ;;
+        S94routerforge-storage) INIT_SOURCE="$ROOT/modules/storage/packaging/$SERVICE" ;;
+        S95routerforge-network) INIT_SOURCE="$ROOT/modules/network/packaging/$SERVICE" ;;
+        *) echo "unsupported RouterForge service: $SERVICE" >&2; exit 2 ;;
+    esac
+    cp "$INIT_SOURCE" "$WORK/data/opt/etc/init.d/$SERVICE"
     chmod 0755 "$WORK/data/opt/etc/init.d/$SERVICE"
     cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
     chmod 0644 "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
@@ -46,8 +53,8 @@ Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
 Description: $DESCRIPTION
 CONTROL
-    sed -e "s|@SERVICE@|$SERVICE|g" "$ROOT/packaging/modules/postinst" > "$WORK/control/postinst"
-    sed -e "s|@SERVICE@|$SERVICE|g" -e "s|@SOCKET@|$SOCKET|g" "$ROOT/packaging/modules/prerm" > "$WORK/control/prerm"
+    sed -e "s|@SERVICE@|$SERVICE|g" "$ROOT/modules/monitoring-runtime/packaging/postinst" > "$WORK/control/postinst"
+    sed -e "s|@SERVICE@|$SERVICE|g" -e "s|@SOCKET@|$SOCKET|g" "$ROOT/modules/monitoring-runtime/packaging/prerm" > "$WORK/control/prerm"
     chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
     pack_ipk "$WORK" "$DIST/$PKGFILE"
 }
@@ -56,7 +63,7 @@ build_dns() {
     PACKAGE="routerforge-dns"
     WORK="$DIST/${PACKAGE}-channel-work"
     PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
-    UI_BUILD="$ROOT/frontend/dns-module-build"
+    UI_BUILD="$ROOT/modules/dns/frontend/build"
     [ -f "$UI_BUILD/index.html" ] || sh "$ROOT/scripts/build-dns-frontend.sh"
 
     rm -rf "$WORK"
@@ -88,7 +95,7 @@ build_dns() {
     system_info.go
     "
     (
-      cd "$ROOT"
+      cd "$ROOT/modules/dns/runtime"
       # Explicit source list is the DNS side of Module ABI v1.
       # shellcheck disable=SC2086
       routerforge_go build -trimpath \
@@ -97,7 +104,7 @@ build_dns() {
           -o "$WORK/data/opt/bin/routerforge-dns" $DNS_SOURCES
     )
     chmod 0755 "$WORK/data/opt/bin/routerforge-dns"
-    cp "$ROOT/packaging/init/modules/S91routerforge-dns" "$WORK/data/opt/etc/init.d/S91routerforge-dns"
+    cp "$ROOT/modules/dns/packaging/S91routerforge-dns" "$WORK/data/opt/etc/init.d/S91routerforge-dns"
     chmod 0755 "$WORK/data/opt/etc/init.d/S91routerforge-dns"
     cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/dns/ui/"
     : > "$WORK/data/opt/etc/routerforge/dns.enabled"
@@ -130,8 +137,8 @@ Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
 Description: RouterForge DNS runtime: observability, resolver control, native multi-domain rules and transactional RCI rollback.
 CONTROL
-    cp "$ROOT/packaging/modules/dns.postinst" "$WORK/control/postinst"
-    cp "$ROOT/packaging/modules/dns.prerm" "$WORK/control/prerm"
+    cp "$ROOT/modules/dns/packaging/postinst" "$WORK/control/postinst"
+    cp "$ROOT/modules/dns/packaging/prerm" "$WORK/control/prerm"
     chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
     pack_ipk "$WORK" "$DIST/$PKGFILE"
 }
@@ -141,7 +148,7 @@ build_profiling() {
     WORK="$DIST/${PACKAGE}-channel-work"; PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
     rm -rf "$WORK"
     mkdir -p "$WORK/data/opt/etc/routerforge" "$WORK/data/opt/share/licenses/$PACKAGE" "$WORK/control"
-    cp "$ROOT/packaging/modules/profiling.conf" "$WORK/data/opt/etc/routerforge/profiling.conf"
+    cp "$ROOT/modules/profiling/packaging/profiling.conf" "$WORK/data/opt/etc/routerforge/profiling.conf"
     : > "$WORK/data/opt/etc/routerforge/profiling.enabled"
     cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
     chmod 0644 "$WORK/data/opt/etc/routerforge/profiling.conf" "$WORK/data/opt/etc/routerforge/profiling.enabled" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
@@ -161,8 +168,8 @@ Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
 Description: Optional loopback-only pprof and slow-request logging for RouterForge Core.
 CONTROL
-    cp "$ROOT/packaging/modules/profiling.postinst" "$WORK/control/postinst"
-    cp "$ROOT/packaging/modules/profiling.prerm" "$WORK/control/prerm"
+    cp "$ROOT/modules/profiling/packaging/postinst" "$WORK/control/postinst"
+    cp "$ROOT/modules/profiling/packaging/prerm" "$WORK/control/prerm"
     printf '/opt/etc/routerforge/profiling.conf\n' > "$WORK/control/conffiles"
     chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
     pack_ipk "$WORK" "$DIST/$PKGFILE"

@@ -24,26 +24,57 @@ jobs:
           node-version: '22.x'
 
       - name: Install frontend dependencies
-        working-directory: frontend
+        working-directory: components/core/frontend
         run: npm install --no-audit --no-fund
 
       - name: Check frontend
-        working-directory: frontend
+        working-directory: components/core/frontend
         run: npm run check
 
       - name: Build frontend
-        working-directory: frontend
+        working-directory: components/core/frontend
         run: npm run build
 
       - name: Verify frontend build
         run: |
-          test -f frontend/build/index.html
-          test -d frontend/build/_app
-          test -f frontend/build/favicon.ico
-          test -f frontend/build/routerforge-mark.png
+          test -f components/core/frontend/build/index.html
+          test -d components/core/frontend/build/_app
+          test -f components/core/frontend/build/favicon.ico
+          test -f components/core/frontend/build/routerforge-mark.png
+
+      - name: Install DNS frontend dependencies
+        working-directory: modules/dns/frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Build DNS frontend
+        working-directory: modules/dns/frontend
+        run: npm run build
+
+      - name: Verify DNS frontend build
+        run: test -f modules/dns/frontend/build/index.html
 
       - name: Validate RouterForge registry
         run: python3 marketplace/build_registry.py --check
+
+      - name: Verify repository layout
+        run: |
+          test -z "$(find . -maxdepth 1 -type f -name '*.go' -print)"
+          test ! -d cmd
+          test ! -d frontend
+          test ! -d packaging
+          test -f components/core/main.go
+          test -f components/control/main.go
+          test -f modules/dns/runtime/dns_module_main.go
+          test -f modules/dns/frontend/DNSModuleApp.svelte
+          test -f modules/monitoring-runtime/main.go
+          test -f modules/system/packaging/S92routerforge-system
+          test -f modules/thermal/packaging/S93routerforge-thermal
+          test -f modules/storage/packaging/S94routerforge-storage
+          test -f modules/network/packaging/S95routerforge-network
+          test -f release/channels/beta.json
+          test -f release/channels/stable.json
+          test -f docs/REPOSITORY_LAYOUT.md
+
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -65,14 +96,14 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
             -tags embed_frontend \
             -ldflags="-X main.version=0.0.0-ci" \
-            -o /tmp/routerforge-embed-check .
+            -o /tmp/routerforge-embed-check ./components/core
           test -s /tmp/routerforge-embed-check
 
       - name: Verify monitoring provider cross-build
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
             -ldflags="-X main.version=0.0.0-ci" \
-            -o /tmp/routerforge-module-arm64 ./cmd/routerforge-module
+            -o /tmp/routerforge-module-arm64 ./modules/monitoring-runtime
           test -s /tmp/routerforge-module-arm64
 
       - name: Verify planned MIPS build targets
@@ -92,7 +123,7 @@ jobs:
 
       - name: Smoke test monitoring runtime
         run: |
-          go build -ldflags="-X main.version=0.0.0-ci" -o /tmp/routerforge-module ./cmd/routerforge-module
+          go build -ldflags="-X main.version=0.0.0-ci" -o /tmp/routerforge-module ./modules/monitoring-runtime
 
           smoke_module() {
             id="$1"
@@ -125,13 +156,13 @@ jobs:
 
       - name: Check shell scripts
         run: |
-          sh -n packaging/init/core/S90routerforge
-          sh -n packaging/init/admin/S91routerforge-admin
-          sh -n packaging/init/modules/S91routerforge-dns
-          sh -n packaging/init/modules/S92routerforge-system
-          sh -n packaging/init/modules/S93routerforge-thermal
-          sh -n packaging/init/modules/S94routerforge-storage
-          sh -n packaging/init/modules/S95routerforge-network
+          sh -n components/core/packaging/S90routerforge
+          sh -n components/control/packaging/S91routerforge-admin
+          sh -n modules/dns/packaging/S91routerforge-dns
+          sh -n modules/system/packaging/S92routerforge-system
+          sh -n modules/thermal/packaging/S93routerforge-thermal
+          sh -n modules/storage/packaging/S94routerforge-storage
+          sh -n modules/network/packaging/S95routerforge-network
           sh -n scripts/target-env.sh
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh
@@ -140,16 +171,16 @@ jobs:
           sh -n scripts/build-admin-opkg.sh
           sh -n scripts/build-modules-opkg.sh
           sh -n scripts/build-feed.sh
-          sh -n packaging/opkg/postinst
-          sh -n packaging/opkg/prerm
-          sh -n packaging/admin/postinst
-          sh -n packaging/admin/prerm
-          sh -n packaging/modules/postinst
-          sh -n packaging/modules/prerm
-          sh -n packaging/modules/dns.postinst
-          sh -n packaging/modules/dns.prerm
-          sh -n packaging/modules/profiling.postinst
-          sh -n packaging/modules/profiling.prerm
+          sh -n components/core/packaging/postinst
+          sh -n components/core/packaging/prerm
+          sh -n components/control/packaging/postinst
+          sh -n components/control/packaging/prerm
+          sh -n modules/monitoring-runtime/packaging/postinst
+          sh -n modules/monitoring-runtime/packaging/prerm
+          sh -n modules/dns/packaging/postinst
+          sh -n modules/dns/packaging/prerm
+          sh -n modules/profiling/packaging/postinst
+          sh -n modules/profiling/packaging/prerm
 
       - name: Build Entware package set
         run: |
@@ -198,14 +229,14 @@ jobs:
           python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py
 
       - name: Build RouterForge beta channel
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
         run: |
           python3 scripts/build_routerforge_channel.py \
-            --config packaging/channels/beta.json \
+            --config release/channels/beta.json \
             --dist dist
 
       - name: Upload RouterForge beta candidate
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-beta-aarch64
@@ -296,14 +327,14 @@ jobs:
             --notes-file "$NOTES"
 
       - name: Build RouterForge stable channel
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
         run: |
           python3 scripts/build_routerforge_channel.py \
-            --config packaging/channels/stable.json \
+            --config release/channels/stable.json \
             --dist dist
 
       - name: Upload RouterForge stable candidate
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-stable-aarch64

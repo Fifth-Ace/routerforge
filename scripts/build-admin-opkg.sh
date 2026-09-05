@@ -27,19 +27,19 @@ mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
   routerforge_go build \
       -trimpath \
       -ldflags='-s -w' \
-      -o "$WORK/data/opt/bin/routerforge-admin" ./cmd/routerforge-admin
+      -o "$WORK/data/opt/bin/routerforge-admin" ./components/control
 )
 
 chmod 0755 "$WORK/data/opt/bin/routerforge-admin"
-cp "$ROOT/packaging/init/admin/S91routerforge-admin" "$WORK/data/opt/etc/init.d/S91routerforge-admin"
+cp "$ROOT/components/control/packaging/S91routerforge-admin" "$WORK/data/opt/etc/init.d/S91routerforge-admin"
 chmod 0755 "$WORK/data/opt/etc/init.d/S91routerforge-admin"
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/routerforge-admin/LICENSE"
 chmod 0644 "$WORK/data/opt/share/licenses/routerforge-admin/LICENSE"
 
 sed -e "s/@VERSION@/$PKG_VERSION/g" \
-    "$ROOT/packaging/admin/control.template" > "$WORK/control/control"
-cp "$ROOT/packaging/admin/postinst" "$WORK/control/postinst"
-cp "$ROOT/packaging/admin/prerm" "$WORK/control/prerm"
+    "$ROOT/components/control/packaging/control.template" > "$WORK/control/control"
+cp "$ROOT/components/control/packaging/postinst" "$WORK/control/postinst"
+cp "$ROOT/components/control/packaging/prerm" "$WORK/control/prerm"
 chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
 
 printf '2.0\n' > "$WORK/debian-binary"

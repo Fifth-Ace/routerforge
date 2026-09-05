@@ -4,6 +4,9 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+- Repository sources are organized by component ownership: Core and Control live under `components/`, DNS owns runtime/frontend/packaging under `modules/dns/`, monitoring package lifecycle lives with each public module, and release manifests live under `release/channels/`. Runtime/package versions are unchanged.
+- The historical root Marketplace Registry URL remains stable for older Core compatibility; CI keeps the Core embedded Registry mirror byte-identical.
+
 ## 2026-09-05 — RouterForge Core 0.4.3 / DNS 0.4.18
 
 ### Stable highlights

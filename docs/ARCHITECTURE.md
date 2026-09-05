@@ -35,25 +35,24 @@ Core — единственный RouterForge process, который слуша
 
 ## Source layout
 
-Командные entry points:
+Репозиторий организован по владельцу компонента:
 
 ```text
-cmd/routerforge-admin/
-cmd/routerforge-module/
+components/core/             Core backend + frontend + packaging
+components/control/          RouterForge Control + packaging
+modules/dns/                 DNS runtime + frontend + packaging
+modules/monitoring-runtime/  shared System/Thermal/Storage/Network runtime
+modules/<id>/packaging/      package-specific lifecycle/init files
+release/channels/            beta/stable source manifests
 ```
 
-Core и DNS пока собираются из explicit source lists в `scripts/build-opkg.sh` и `scripts/build-module-opkg.sh`.
-Это сохраняет жёсткую границу Module ABI v1: изменение DNS runtime не должно молча менять Core binary.
+Core и DNS по-прежнему собираются из explicit source lists в `scripts/build-opkg.sh` и `scripts/build-module-opkg.sh`. Физическое разделение директорий дополнительно закрепляет границу Module ABI v1: изменение DNS runtime не должно молча менять Core binary.
 
-Активные init scripts находятся в:
+System/Thermal/Storage/Network намеренно используют общий `modules/monitoring-runtime/`: это один read-only Unix-socket runtime с выбором `-module`, а package/init ownership остаётся у соответствующих `modules/<id>/`.
 
-```text
-packaging/init/core/
-packaging/init/admin/
-packaging/init/modules/
-```
+`marketplace/registry/index.json` сохраняет исторический публичный GitHub path для совместимости со старыми Core; точная embedded-копия Core проверяется генератором Registry и CI.
 
-Исторические материалы, не участвующие в build/runtime, складываются в `archive/`.
+Исторические материалы, не участвующие в build/runtime, складываются в `archive/`. Подробная карта: [REPOSITORY_LAYOUT.md](REPOSITORY_LAYOUT.md).
 
 ## Module ABI v1
 
@@ -105,8 +104,8 @@ Root package mutations выполняет Core только через огра�
 Source channel manifests:
 
 ```text
-packaging/channels/beta.json
-packaging/channels/stable.json
+release/channels/beta.json
+release/channels/stable.json
 ```
 
 CI:

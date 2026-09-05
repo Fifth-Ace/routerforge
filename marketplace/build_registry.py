@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parent
 SUBMISSIONS = ROOT / "submissions"
 APPROVALS = ROOT / "approvals"
 OUT = ROOT / "registry" / "index.json"
+EMBEDDED_OUT = ROOT.parent / "components" / "core" / "embedded" / "marketplace-index.json"
 
 ALLOWED_KINDS = {"module", "integration"}
 ALLOWED_METHODS = {"routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy"}
@@ -140,14 +141,20 @@ def main():
         text = render(doc)
         if args.check:
             current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
+            embedded = EMBEDDED_OUT.read_text(encoding="utf-8") if EMBEDDED_OUT.exists() else ""
             if current != text:
                 print("marketplace/registry/index.json is out of date", file=sys.stderr)
+                return 1
+            if embedded != text:
+                print("components/core/embedded/marketplace-index.json is out of date", file=sys.stderr)
                 return 1
             print(f"RouterForge registry OK: {len(doc['entries'])} entries · {doc['revision'][:12]}")
             return 0
         OUT.parent.mkdir(parents=True, exist_ok=True)
+        EMBEDDED_OUT.parent.mkdir(parents=True, exist_ok=True)
         OUT.write_text(text, encoding="utf-8", newline="\n")
-        print(f"wrote {OUT}: {len(doc['entries'])} entries · {doc['revision'][:12]}")
+        EMBEDDED_OUT.write_text(text, encoding="utf-8", newline="\n")
+        print(f"wrote {OUT} and {EMBEDDED_OUT}: {len(doc['entries'])} entries · {doc['revision'][:12]}")
         return 0
     except Exception as exc:
         print(f"registry validation failed: {exc}", file=sys.stderr)

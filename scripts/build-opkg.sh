@@ -19,7 +19,7 @@ if [ -n "$RELEASE" ]; then
 fi
 PKGFILE="routerforge-core_${PKG_VERSION}_${ARCH}.ipk"
 
-if [ ! -f "$ROOT/frontend/build/index.html" ]; then
+if [ ! -f "$ROOT/components/core/frontend/build/index.html" ]; then
     sh "$ROOT/scripts/build-frontend.sh"
 fi
 
@@ -48,7 +48,7 @@ frontend_assets_embed.go
 "
 
 (
-    cd "$ROOT"
+    cd "$ROOT/components/core"
     # shellcheck disable=SC2086
     routerforge_go build \
         -tags embed_frontend \
@@ -58,7 +58,7 @@ frontend_assets_embed.go
 )
 
 chmod 0755 "$WORK/data/opt/bin/routerforge"
-cp "$ROOT/packaging/init/core/S90routerforge" "$WORK/data/opt/etc/init.d/S90routerforge"
+cp "$ROOT/components/core/packaging/S90routerforge" "$WORK/data/opt/etc/init.d/S90routerforge"
 chmod 0755 "$WORK/data/opt/etc/init.d/S90routerforge"
 : > "$WORK/data/opt/etc/routerforge/package-management.enabled"
 : > "$WORK/data/opt/etc/routerforge/module-abi-v1"
@@ -70,10 +70,10 @@ chmod 0644 "$WORK/data/opt/share/licenses/routerforge-core/LICENSE" \
     "$WORK/data/opt/share/licenses/routerforge-core/THIRD_PARTY_NOTICES.md"
 
 sed -e "s/@VERSION@/$PKG_VERSION/g" \
-    "$ROOT/packaging/opkg/control.template" > "$WORK/control/control"
-cp "$ROOT/packaging/opkg/postinst" "$WORK/control/postinst"
-cp "$ROOT/packaging/opkg/prerm" "$WORK/control/prerm"
-cp "$ROOT/packaging/opkg/conffiles" "$WORK/control/conffiles"
+    "$ROOT/components/core/packaging/control.template" > "$WORK/control/control"
+cp "$ROOT/components/core/packaging/postinst" "$WORK/control/postinst"
+cp "$ROOT/components/core/packaging/prerm" "$WORK/control/prerm"
+cp "$ROOT/components/core/packaging/conffiles" "$WORK/control/conffiles"
 chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
 
 printf '2.0\n' > "$WORK/debian-binary"

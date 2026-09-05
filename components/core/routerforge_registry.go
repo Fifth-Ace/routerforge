@@ -46,7 +46,7 @@ func routerForgeRegistryCacheFile() string {
 	return "/opt/var/cache/routerforge/marketplace-index-" + normalizedReleaseChannel() + ".json"
 }
 
-//go:embed marketplace/registry/index.json
+//go:embed embedded/marketplace-index.json
 var bundledRouterForgeRegistry []byte
 
 type catalogPublisher struct {

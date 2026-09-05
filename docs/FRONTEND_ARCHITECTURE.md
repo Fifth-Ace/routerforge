@@ -70,28 +70,48 @@ Layout сначала получает `/api/auth/status`.
 
 После login обычные protected API calls работают через `HttpOnly` session cookie.
 
+## Source workspaces
+
+Core UI:
+
+```text
+components/core/frontend/
+```
+
+DNS Module ABI UI:
+
+```text
+modules/dns/frontend/
+```
+
+DNS owns its UI source/build workspace, while shared RouterForge shell CSS remains owned by Core and is imported by the DNS build.
+
 ## Development
 
+Core:
+
 ```sh
-cd frontend
+cd components/core/frontend
 npm install --no-audit --no-fund
 VITE_API_TARGET=http://192.168.10.1:2233 npm run dev
 ```
 
-Используйте только тестовый роутер для development target.
-
-## Checks
+DNS module UI:
 
 ```sh
-npm run check
-npm run build
+cd modules/dns/frontend
+npm install --no-audit --no-fund
+npm run dev
 ```
 
-## Production build
+Используйте только тестовый роутер для development target.
+
+## Checks / production build
 
 ```sh
 sh scripts/build-frontend.sh
-go build -tags embed_frontend .
+sh scripts/build-dns-frontend.sh
+go build -tags embed_frontend ./components/core
 ```
 
-Entware/release build самодостаточен: frontend assets находятся внутри Core binary.
+Entware/release build самодостаточен: Core frontend assets встраиваются в Core binary, а DNS UI кладётся в пакет `routerforge-dns`. Node.js на роутере не нужен.

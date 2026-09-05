@@ -1,12 +1,11 @@
 {
-  "name": "dns-monitor-frontend",
+  "name": "routerforge-core-frontend",
   "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "svelte-kit sync && vite build",
-    "build:dns-module": "vite build --config vite.dns-module.config.js",
     "check": "svelte-kit sync && svelte-check --threshold error"
   },
   "devDependencies": {

@@ -233,11 +233,8 @@ wget -qO- http://127.0.0.1:2233/api/health
 Backend: Go 1.21+. Frontend: Node.js 22.x.
 
 ```sh
-cd frontend
-npm install --no-audit --no-fund
-npm run check
-npm run build
-cd ..
+sh scripts/build-frontend.sh
+sh scripts/build-dns-frontend.sh
 
 gofmt -w .
 go test ./...

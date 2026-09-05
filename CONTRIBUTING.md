@@ -23,10 +23,8 @@ go vet ./...
 Frontend:
 
 ```sh
-cd frontend
-npm install --no-audit --no-fund
-npm run check
-npm run build
+sh scripts/build-frontend.sh
+sh scripts/build-dns-frontend.sh
 ```
 
 Release tooling:
@@ -56,8 +54,8 @@ CI performs a broader package/container/runtime verification.
 Official versions are declared independently:
 
 ```text
-packaging/channels/beta.json
-packaging/channels/stable.json
+release/channels/beta.json
+release/channels/stable.json
 ```
 
 To release one component, bump only that component.

@@ -18,6 +18,12 @@ Thumbs.db
 # Local development
 /tmp/
 dist/
-frontend/node_modules/
-frontend/.svelte-kit/
-frontend/build/
+components/core/frontend/node_modules/
+components/core/frontend/.svelte-kit/
+components/core/frontend/build/
+modules/dns/frontend/node_modules/
+modules/dns/frontend/build/
+
+# Python cache
+__pycache__/
+*.pyc

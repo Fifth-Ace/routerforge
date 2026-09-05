@@ -1,0 +1,17 @@
+{
+  "name": "routerforge-dns-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "5.2.8",
+    "@fontsource/roboto-mono": "5.2.8",
+    "@sveltejs/vite-plugin-svelte": "6.2.4",
+    "svelte": "5.49.2",
+    "vite": "6.4.1"
+  }
+}

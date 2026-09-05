@@ -12,6 +12,7 @@
 ## Архитектура и разработка
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — runtime, процессы, сокеты и release channels.
+- [REPOSITORY_LAYOUT.md](REPOSITORY_LAYOUT.md) — component/module ownership и структура исходников.
 - [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md) — SvelteKit frontend и модель данных.
 - [../CONTRIBUTING.md](../CONTRIBUTING.md) — правила разработки и релизов.
 - [../SECURITY.md](../SECURITY.md) — security boundary.

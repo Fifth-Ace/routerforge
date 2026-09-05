@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
+
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-FRONTEND="$ROOT/frontend"
+FRONTEND="$ROOT/modules/dns/frontend"
 
 if ! command -v npm >/dev/null 2>&1; then
     echo "npm is required to build the RouterForge DNS module frontend" >&2
@@ -12,6 +13,6 @@ cd "$FRONTEND"
 if [ ! -d node_modules ]; then
     npm install --no-audit --no-fund
 fi
-npm run build:dns-module
+npm run build
 
-test -f "$FRONTEND/dns-module-build/index.html"
+test -f "$FRONTEND/build/index.html"

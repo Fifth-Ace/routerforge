@@ -19,6 +19,43 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect expensive build changes
+        id: changes
+        shell: bash
+        run: |
+          set -eu
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+
+          case "$BASE" in
+            ""|0000000000000000000000000000000000000000)
+              BASE="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+              ;;
+          esac
+
+          git diff --name-only "$BASE" "$GITHUB_SHA" \
+            > /tmp/routerforge-changed-files.txt
+
+          cat /tmp/routerforge-changed-files.txt
+
+          expensive=false
+
+          while IFS= read -r path; do
+            case "$path" in
+              components/*|modules/*|marketplace/*|release/*|scripts/*|go.mod|go.sum|.github/workflows/ci.yml)
+                expensive=true
+                break
+                ;;
+            esac
+          done < /tmp/routerforge-changed-files.txt
+
+          echo "expensive=$expensive" >> "$GITHUB_OUTPUT"
+          echo "Expensive build required: $expensive"
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -81,9 +118,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21.x'
-          cache: false
+          cache: true
 
       - name: Install pinned UPX
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           set -eu
           UPX_VERSION=5.2.1
@@ -119,6 +157,7 @@ jobs:
         run: go vet ./...
 
       - name: Verify embedded frontend build
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
             -tags embed_frontend \
@@ -127,6 +166,7 @@ jobs:
           test -s /tmp/routerforge-embed-check
 
       - name: Verify monitoring provider cross-build
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
             -ldflags="-X main.version=0.0.0-ci" \
@@ -134,6 +174,7 @@ jobs:
           test -s /tmp/routerforge-module-arm64
 
       - name: Verify planned MIPS build targets
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           set -eu
           for target in mips-3.4 mipsel-3.4; do
@@ -211,12 +252,14 @@ jobs:
           sh -n modules/profiling/packaging/prerm
 
       - name: Build Entware package set
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           ./scripts/build-opkg.sh 0.0.0-ci
           ./scripts/build-admin-opkg.sh 0.0.0-ci
           ./scripts/build-modules-opkg.sh 0.0.0-ci
 
       - name: Verify Entware package containers
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           packages="
           dist/routerforge-core_0.0.0-ci_aarch64-3.10.ipk
@@ -237,6 +280,7 @@ jobs:
           done
 
       - name: Verify Entware package payloads
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           tar -xzOf dist/routerforge-core_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge'
           tar -xzOf dist/routerforge-dns_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/dns.enabled'
@@ -248,6 +292,7 @@ jobs:
           tar -xzOf dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/profiling.enabled'
 
       - name: Verify AArch64 production executables are UPX packed
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           set -eu
 
@@ -297,6 +342,7 @@ jobs:
             routerforge-network
 
       - name: Verify Core runtime version injection
+        if: steps.changes.outputs.expensive == 'true'
         run: |
           set -eu
 
@@ -350,14 +396,14 @@ jobs:
           sh -n /tmp/routerforge-preflight-bootstrap.sh
 
       - name: Build RouterForge beta channel
-        if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
+        if: steps.changes.outputs.expensive == 'true' && (github.ref == 'refs/heads/dev' || github.base_ref == 'dev')
         run: |
           python3 scripts/build_routerforge_channel.py \
             --config release/channels/beta.json \
             --dist dist
 
       - name: Upload RouterForge beta candidate
-        if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
+        if: steps.changes.outputs.expensive == 'true' && (github.ref == 'refs/heads/dev' || github.base_ref == 'dev')
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-beta-aarch64
@@ -367,7 +413,7 @@ jobs:
           retention-days: 7
 
       - name: Publish RouterForge beta channel
-        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        if: steps.changes.outputs.expensive == 'true' && (github.ref == 'refs/heads/dev' && github.event_name == 'push')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -448,7 +494,7 @@ jobs:
             --notes-file "$NOTES"
 
       - name: Build stable promotion candidate
-        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        if: steps.changes.outputs.expensive == 'true' && (github.ref == 'refs/heads/dev' && github.event_name == 'push')
         run: |
           set -eu
 
@@ -492,7 +538,7 @@ jobs:
           PY
 
       - name: Upload stable promotion candidate
-        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        if: steps.changes.outputs.expensive == 'true' && (github.ref == 'refs/heads/dev' && github.event_name == 'push')
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-stable-promotion
@@ -515,6 +561,43 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Detect expensive build changes
+        id: changes
+        shell: bash
+        run: |
+          set -eu
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+
+          case "$BASE" in
+            ""|0000000000000000000000000000000000000000)
+              BASE="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+              ;;
+          esac
+
+          git diff --name-only "$BASE" "$GITHUB_SHA" \
+            > /tmp/routerforge-changed-files.txt
+
+          cat /tmp/routerforge-changed-files.txt
+
+          expensive=false
+
+          while IFS= read -r path; do
+            case "$path" in
+              components/*|modules/*|marketplace/*|release/*|scripts/*|go.mod|go.sum|.github/workflows/ci.yml)
+                expensive=true
+                break
+                ;;
+            esac
+          done < /tmp/routerforge-changed-files.txt
+
+          echo "expensive=$expensive" >> "$GITHUB_OUTPUT"
+          echo "Expensive build required: $expensive"
 
       - name: Find successful dev validation for exact SHA
         env:

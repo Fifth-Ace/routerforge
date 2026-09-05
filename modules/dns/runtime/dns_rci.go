@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -74,6 +75,58 @@ func (c *dnsRCIClient) getJSON(ctx context.Context, path string, out any) error 
 		return fmt.Errorf("RCI GET %s: decode: %w", path, err)
 	}
 	return nil
+}
+
+func (c *dnsRCIClient) deleteSetting(ctx context.Context, path string, params map[string]any) ([]byte, error) {
+	if !validRCIPath(path) {
+		return nil, fmt.Errorf("invalid RCI path %q", path)
+	}
+	query := url.Values{}
+	for key, value := range params {
+		key = strings.TrimSpace(key)
+		if key == "" || strings.ContainsAny(key, "\r\n") {
+			return nil, fmt.Errorf("invalid RCI query parameter %q", key)
+		}
+		switch v := value.(type) {
+		case string:
+			query.Set(key, v)
+		case int:
+			query.Set(key, fmt.Sprintf("%d", v))
+		case int64:
+			query.Set(key, fmt.Sprintf("%d", v))
+		case float64:
+			query.Set(key, fmt.Sprintf("%v", v))
+		case bool:
+			query.Set(key, fmt.Sprintf("%t", v))
+		default:
+			return nil, fmt.Errorf("unsupported RCI query value for %s", key)
+		}
+	}
+	endpoint := c.baseURL + path
+	if encoded := query.Encode(); encoded != "" {
+		endpoint += "?" + encoded
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("RCI DELETE %s: %w", path, err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if err != nil {
+		return nil, fmt.Errorf("RCI DELETE %s: read: %w", path, err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return responseBody, &dnsRCIHTTPError{Method: http.MethodDelete, Path: path, Status: resp.StatusCode, Body: string(responseBody)}
+	}
+	if msg := dnsRCIErrorMessage(responseBody); msg != "" {
+		return responseBody, &dnsRCIAppError{Path: path, Message: msg}
+	}
+	return responseBody, nil
 }
 
 func (c *dnsRCIClient) postJSON(ctx context.Context, path string, payload any) ([]byte, error) {
@@ -146,18 +199,33 @@ func dnsRCIErrorMessage(body []byte) string {
 	if !bytes.Contains(bytes.ToLower(body), []byte(`"status"`)) {
 		return ""
 	}
-	var envelope struct {
-		Status  string `json:"status"`
-		Message string `json:"message"`
-	}
-	if json.Unmarshal(body, &envelope) != nil {
+	var root any
+	if json.Unmarshal(body, &root) != nil {
 		return ""
 	}
-	if strings.EqualFold(strings.TrimSpace(envelope.Status), "error") {
-		if strings.TrimSpace(envelope.Message) != "" {
-			return strings.TrimSpace(envelope.Message)
+	return dnsRCIErrorInValue(root)
+}
+
+func dnsRCIErrorInValue(value any) string {
+	switch typed := value.(type) {
+	case map[string]any:
+		if status, ok := typed["status"].(string); ok && strings.EqualFold(strings.TrimSpace(status), "error") {
+			if message, ok := typed["message"].(string); ok && strings.TrimSpace(message) != "" {
+				return strings.TrimSpace(message)
+			}
+			return "NDMS returned an application error"
 		}
-		return "NDMS returned an application error"
+		for _, child := range typed {
+			if msg := dnsRCIErrorInValue(child); msg != "" {
+				return msg
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if msg := dnsRCIErrorInValue(child); msg != "" {
+				return msg
+			}
+		}
 	}
 	return ""
 }

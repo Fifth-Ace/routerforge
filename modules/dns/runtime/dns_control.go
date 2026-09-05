@@ -479,7 +479,7 @@ func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfi
 			return fmt.Errorf("%w: %s configuration changed concurrently; refresh and retry", errDNSResolverConflict, protocol)
 		}
 	}
-	if err := m.writeProtocols(ctx, desired, changed); err != nil {
+	if err := m.writeProtocols(ctx, before, desired, changed); err != nil {
 		rollbackErr := m.restoreProtocols(ctx, before, changed)
 		if rollbackErr != nil {
 			return fmt.Errorf("DNS mutation failed: %v; rollback FAILED: %v", err, rollbackErr)
@@ -534,8 +534,8 @@ func validateDNSPhysicalLimits(desired *dnsConfigState, changed map[string]bool)
 	return nil
 }
 
-func (m *dnsControlManager) writeProtocols(ctx context.Context, desired *dnsConfigState, changed map[string]bool) error {
-	for _, protocol := range []string{"DoT", "DoH", "DNS"} {
+func (m *dnsControlManager) writeProtocols(ctx context.Context, before, desired *dnsConfigState, changed map[string]bool) error {
+	for _, protocol := range []string{"DoT", "DoH"} {
 		if !changed[protocol] {
 			continue
 		}
@@ -544,12 +544,25 @@ func (m *dnsControlManager) writeProtocols(ctx context.Context, desired *dnsConf
 			return err
 		}
 	}
+	if changed["DNS"] {
+		if err := m.reconcilePlainDNS(ctx, before.Plain, desiredEntriesForProtocol(desired, "DNS")); err != nil {
+			return err
+		}
+	}
 	_, err := m.rci.postJSON(ctx, "/system/configuration/save", map[string]any{})
 	return err
 }
 
 func (m *dnsControlManager) restoreProtocols(ctx context.Context, before *dnsConfigState, changed map[string]bool) error {
-	for _, protocol := range []string{"DoT", "DoH", "DNS"} {
+	var current *dnsConfigState
+	if changed["DNS"] {
+		var err error
+		current, err = m.loadState(ctx)
+		if err != nil {
+			return fmt.Errorf("load DNS state for rollback: %w", err)
+		}
+	}
+	for _, protocol := range []string{"DoT", "DoH"} {
 		if !changed[protocol] {
 			continue
 		}
@@ -559,11 +572,14 @@ func (m *dnsControlManager) restoreProtocols(ctx context.Context, before *dnsCon
 			entries = before.TLS
 		case "DoH":
 			entries = before.HTTPS
-		case "DNS":
-			entries = before.Plain
 		}
 		if err := m.replaceProtocol(ctx, protocol, entries); err != nil {
 			return err
+		}
+	}
+	if changed["DNS"] {
+		if err := m.reconcilePlainDNS(ctx, current.Plain, before.Plain); err != nil {
+			return fmt.Errorf("restore DNS upstreams: %w", err)
 		}
 	}
 	if _, err := m.rci.postJSON(ctx, "/system/configuration/save", map[string]any{}); err != nil {
@@ -572,12 +588,106 @@ func (m *dnsControlManager) restoreProtocols(ctx context.Context, before *dnsCon
 	return m.verifyProtocols(ctx, before, changed)
 }
 
+// Plain DNS is a multi-input setting. Do not clear and recreate the complete
+// ip name-server section for a one-entry mutation: on real Keenetic firmware
+// the old structured {no:true} clear form can be a silent no-op. Reconcile the
+// exact physical delta using RCI DELETE for removed settings and POST only for
+// additions, then let the existing full readback verification prove the result.
+func (m *dnsControlManager) reconcilePlainDNS(ctx context.Context, before, desired []map[string]any) error {
+	removed, added := protocolEntryDelta("DNS", before, desired)
+	path, _ := dnsRCIWritePath("DNS")
+	for _, raw := range removed {
+		params := plainDNSDeleteParams(raw)
+		if _, err := m.rci.deleteSetting(ctx, path, params); err != nil {
+			return fmt.Errorf("delete DNS upstream %s: %w", canonicalEntryKey("DNS", raw), err)
+		}
+	}
+	if len(added) == 0 {
+		return nil
+	}
+	payload := make([]map[string]any, 0, len(added))
+	for _, raw := range added {
+		converted := dnsRCIPayload("DNS", raw)
+		if len(converted) != 0 {
+			payload = append(payload, converted)
+		}
+	}
+	if len(payload) == 0 {
+		return nil
+	}
+	if _, err := m.rci.postJSON(ctx, path, payload); err != nil {
+		return fmt.Errorf("write DNS upstreams: %w", err)
+	}
+	return nil
+}
+
+func protocolEntryDelta(protocol string, before, desired []map[string]any) (removed, added []map[string]any) {
+	desiredCounts := map[string]int{}
+	for _, raw := range desired {
+		desiredCounts[canonicalEntryKey(protocol, raw)]++
+	}
+	for _, raw := range before {
+		key := canonicalEntryKey(protocol, raw)
+		if desiredCounts[key] > 0 {
+			desiredCounts[key]--
+			continue
+		}
+		removed = append(removed, cloneMap(raw))
+	}
+
+	beforeCounts := map[string]int{}
+	for _, raw := range before {
+		beforeCounts[canonicalEntryKey(protocol, raw)]++
+	}
+	for _, raw := range desired {
+		key := canonicalEntryKey(protocol, raw)
+		if beforeCounts[key] > 0 {
+			beforeCounts[key]--
+			continue
+		}
+		added = append(added, cloneMap(raw))
+	}
+	return removed, added
+}
+
+func canonicalEntryKey(protocol string, raw map[string]any) string {
+	entries := canonicalProtocolEntries(protocol, []map[string]any{raw})
+	if len(entries) == 0 {
+		return ""
+	}
+	return entries[0]
+}
+
+func plainDNSDeleteParams(raw map[string]any) map[string]any {
+	params := map[string]any{}
+	if address := strings.TrimSpace(stringField(raw, "address")); address != "" {
+		params["address"] = address
+	}
+	port := intField(raw, "port")
+	if port == 0 {
+		port = 53
+	}
+	params["port"] = port
+	// An explicit empty domain targets the default-domain physical entry and
+	// avoids broad "remove this address" semantics when the same resolver also
+	// has domain-specific entries.
+	params["domain"] = normalizeDomain(stringField(raw, "domain"))
+	if iface := strings.TrimSpace(stringField(raw, "interface")); iface != "" {
+		params["interface"] = iface
+	}
+	return params
+}
+
 func (m *dnsControlManager) replaceProtocol(ctx context.Context, protocol string, entries []map[string]any) error {
 	path, ok := dnsRCIWritePath(protocol)
 	if !ok {
 		return fmt.Errorf("unsupported protocol %q", protocol)
 	}
-	if _, err := m.rci.postJSON(ctx, path, []map[string]any{{"no": true}}); err != nil {
+	if protocol == "DNS" {
+		if _, err := m.rci.deleteSetting(ctx, path, nil); err != nil {
+			return fmt.Errorf("clear %s upstreams: %w", protocol, err)
+		}
+	} else if _, err := m.rci.postJSON(ctx, path, []map[string]any{{"no": true}}); err != nil {
 		return fmt.Errorf("clear %s upstreams: %w", protocol, err)
 	}
 	if len(entries) == 0 {

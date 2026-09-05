@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -320,5 +323,79 @@ func TestDoHResolverIDStableWithCustomURLPort(t *testing.T) {
 	}
 	if spec.Port != 8443 {
 		t.Fatalf("DoH readback port = %d, want 8443", spec.Port)
+	}
+}
+
+func TestPlainDNSDeltaRemovesOnlyMissingPhysicalEntry(t *testing.T) {
+	before := []map[string]any{
+		{"address": "1.0.0.1", "interface": "wireguard1"},
+		{"address": "1.1.1.1", "interface": "wireguard1"},
+		{"address": "8.8.4.4", "interface": "opkgtun13"},
+		{"address": "8.8.4.4", "interface": "opkgtun14"},
+		{"address": "8.8.4.4", "interface": "opkgtun15"},
+		{"address": "8.8.8.8", "interface": "opkgtun13"},
+		{"address": "8.8.8.8", "interface": "opkgtun14"},
+		{"address": "8.8.8.8", "interface": "opkgtun15"},
+	}
+	desired := append([]map[string]any{}, before[:4]...)
+	desired = append(desired, before[5:]...)
+
+	removed, added := protocolEntryDelta("DNS", before, desired)
+	if len(removed) != 1 || len(added) != 0 {
+		t.Fatalf("removed=%#v added=%#v", removed, added)
+	}
+	if got := canonicalEntryKey("DNS", removed[0]); got != "dns|8.8.4.4|53|opkgtun15||" {
+		t.Fatalf("removed key = %q", got)
+	}
+	params := plainDNSDeleteParams(removed[0])
+	if params["address"] != "8.8.4.4" || params["port"] != 53 || params["domain"] != "" || params["interface"] != "opkgtun15" {
+		t.Fatalf("delete params = %#v", params)
+	}
+}
+
+func TestPlainDNSDeltaPreservesDuplicateCounts(t *testing.T) {
+	entry := map[string]any{"address": "9.9.9.9", "domain": "example.invalid"}
+	before := []map[string]any{cloneMap(entry), cloneMap(entry)}
+	desired := []map[string]any{cloneMap(entry)}
+	removed, added := protocolEntryDelta("DNS", before, desired)
+	if len(removed) != 1 || len(added) != 0 {
+		t.Fatalf("removed=%d added=%d", len(removed), len(added))
+	}
+}
+
+func TestReconcilePlainDNSUsesTargetedDeleteOnly(t *testing.T) {
+	before := []map[string]any{
+		{"address": "1.0.0.1", "interface": "wireguard1"},
+		{"address": "1.1.1.1", "interface": "wireguard1"},
+		{"address": "8.8.4.4", "interface": "opkgtun13"},
+		{"address": "8.8.4.4", "interface": "opkgtun14"},
+		{"address": "8.8.4.4", "interface": "opkgtun15"},
+		{"address": "8.8.8.8", "interface": "opkgtun13"},
+		{"address": "8.8.8.8", "interface": "opkgtun14"},
+		{"address": "8.8.8.8", "interface": "opkgtun15"},
+	}
+	desired := append([]map[string]any{}, before[:4]...)
+	desired = append(desired, before[5:]...)
+
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method != http.MethodDelete || r.URL.Path != "/rci/ip/name-server" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+		q := r.URL.Query()
+		if q.Get("address") != "8.8.4.4" || q.Get("port") != "53" || !q.Has("domain") || q.Get("domain") != "" || q.Get("interface") != "opkgtun15" {
+			t.Fatalf("unexpected delete query: %s", r.URL.RawQuery)
+		}
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	}))
+	defer server.Close()
+
+	manager := &dnsControlManager{rci: newDNSRCIClient(server.URL + "/rci")}
+	if err := manager.reconcilePlainDNS(context.Background(), before, desired); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("calls = %d, want exactly one targeted DELETE", calls)
 	}
 }

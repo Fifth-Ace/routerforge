@@ -4,7 +4,7 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
-- DNS `0.4.19-beta` fixes plain-DNS mutation readback failures on Keenetic: targeted RCI `DELETE /ip/name-server` removes only the intended physical resolver instead of clearing/reposting the entire static list; strict snapshot/save/readback/rollback verification remains enabled, and nested NDMS application errors returned with HTTP 200 are now detected instead of being mistaken for success.
+- DNS `0.4.19` fixes plain-DNS mutation readback failures on Keenetic: targeted RCI `DELETE /ip/name-server` removes only the intended physical resolver instead of clearing/reposting the entire static list; strict snapshot/save/readback/rollback verification remains enabled, and nested NDMS application errors returned with HTTP 200 are now detected instead of being mistaken for success.
 - Repository sources are organized by component ownership: Core and Control live under `components/`, DNS owns runtime/frontend/packaging under `modules/dns/`, monitoring package lifecycle lives with each public module, and release manifests live under `release/channels/`. Runtime/package versions are unchanged.
 - The historical root Marketplace Registry URL remains stable for older Core compatibility; CI keeps the Core embedded Registry mirror byte-identical.
 

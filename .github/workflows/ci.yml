@@ -297,7 +297,19 @@ jobs:
 
       - name: Verify Core runtime version injection
         run: |
-          strings dist/opkg-work/data/opt/bin/routerforge | grep -q '0.0.0-ci'
+          set -eu
+
+          TMP=/tmp/routerforge-version-check
+          rm -rf "$TMP"
+          mkdir -p "$TMP"
+
+          cp dist/opkg-work/data/opt/bin/routerforge "$TMP/routerforge"
+
+          if upx -t "$TMP/routerforge" >/dev/null 2>&1; then
+            upx -d "$TMP/routerforge"
+          fi
+
+          strings "$TMP/routerforge" | grep -q '0.0.0-ci'
 
       - name: Check RouterForge release tooling
         run: |

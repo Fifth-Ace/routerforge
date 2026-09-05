@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   test:
+    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -446,29 +447,199 @@ jobs:
             --title "RouterForge Beta" \
             --notes-file "$NOTES"
 
-      - name: Build RouterForge stable channel
-        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+      - name: Build stable promotion candidate
+        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
         run: |
+          set -eu
+
           python3 scripts/build_routerforge_channel.py \
             --config release/channels/stable.json \
             --dist dist
 
-      - name: Upload RouterForge stable candidate
-        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+          python3 - "$GITHUB_SHA" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          sha = sys.argv[1]
+          dist = Path("dist")
+          index = dist / "routerforge-stable-candidate-index.json"
+
+          with index.open("r", encoding="utf-8") as fh:
+              doc = json.load(fh)
+
+          assert doc["schema_version"] == 1
+          assert doc["channel"] == "stable"
+          assert doc["target"] == "aarch64-3.10"
+          assert doc["commit"] == sha
+
+          components = doc.get("components") or []
+          assert len(components) == 8
+
+          for item in components:
+              asset = item["asset"]
+              expected = item["sha256"]
+              path = dist / asset
+              assert path.is_file(), f"missing {asset}"
+
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              assert actual == expected, (
+                  f"{asset}: sha256 mismatch: {actual} != {expected}"
+              )
+
+          print("stable promotion candidate verified")
+          PY
+
+      - name: Upload stable promotion candidate
+        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: routerforge-stable-aarch64
+          name: routerforge-stable-promotion
           path: |
             dist/routerforge-*.ipk
             dist/routerforge-stable-candidate-index.json
           retention-days: 14
 
-      - name: Publish RouterForge stable channel
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  publish_stable:
+    name: Publish validated stable promotion
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find successful dev validation for exact SHA
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
+
+          RUNS=/tmp/routerforge-dev-runs.json
+
+          gh api --method GET \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f branch=dev \
+            -f head_sha="$GITHUB_SHA" \
+            -f event=push \
+            -f status=success \
+            -f per_page=20 \
+            > "$RUNS"
+
+          DEV_RUN_ID=$(
+            python3 - "$RUNS" "$GITHUB_SHA" <<'PY'
+          import json
+          import sys
+
+          path, sha = sys.argv[1:3]
+
+          with open(path, "r", encoding="utf-8") as fh:
+              doc = json.load(fh)
+
+          matches = [
+              run for run in doc.get("workflow_runs", [])
+              if run.get("head_sha") == sha
+              and run.get("head_branch") == "dev"
+              and run.get("event") == "push"
+              and run.get("status") == "completed"
+              and run.get("conclusion") == "success"
+          ]
+
+          if matches:
+              print(matches[0]["id"])
+          PY
+          )
+
+          if [ -z "$DEV_RUN_ID" ]; then
+            echo "No successful dev CI run found for exact SHA $GITHUB_SHA" >&2
+            exit 1
+          fi
+
+          echo "Validated dev run: $DEV_RUN_ID"
+          echo "DEV_RUN_ID=$DEV_RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Download exact stable promotion artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+
+          TMP=/tmp/routerforge-stable-promotion
+          rm -rf "$TMP" dist
+          mkdir -p "$TMP" dist
+
+          gh run download "$DEV_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name routerforge-stable-promotion \
+            --dir "$TMP"
+
+          find "$TMP" -type f \
+            \( -name 'routerforge-*.ipk' \
+               -o -name 'routerforge-stable-candidate-index.json' \) \
+            -exec cp '{}' dist/ \;
+
+          test -s dist/routerforge-stable-candidate-index.json
+
+      - name: Verify downloaded promotion candidate
+        run: |
+          set -eu
+
+          python3 - "$GITHUB_SHA" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          sha = sys.argv[1]
+          dist = Path("dist")
+          index = dist / "routerforge-stable-candidate-index.json"
+
+          with index.open("r", encoding="utf-8") as fh:
+              doc = json.load(fh)
+
+          assert doc["schema_version"] == 1
+          assert doc["channel"] == "stable"
+          assert doc["target"] == "aarch64-3.10"
+          assert doc["commit"] == sha
+
+          components = doc.get("components") or []
+          assert len(components) == 8
+
+          for item in components:
+              asset = item["asset"]
+              expected = item["sha256"]
+              path = dist / asset
+
+              assert path.is_file(), f"missing {asset}"
+
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              assert actual == expected, (
+                  f"{asset}: sha256 mismatch: {actual} != {expected}"
+              )
+
+          print("downloaded stable candidate verified")
+          PY
+
+          for pkg in dist/routerforge-*.ipk; do
+            test -s "$pkg"
+            tar -tzf "$pkg" | grep -qx './debian-binary'
+            tar -tzf "$pkg" | grep -qx './control.tar.gz'
+            tar -tzf "$pkg" | grep -qx './data.tar.gz'
+          done
+
+      - name: Prepare and validate stable release locally
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+
           TAG=routerforge-stable
           INDEX=routerforge-stable-index.json
           PREVIOUS=/tmp/routerforge-stable-index.json
@@ -476,18 +647,14 @@ jobs:
           CHANGED=dist/routerforge-stable-changed-assets.txt
           SUMS=dist/routerforge-stable-SHA256SUMS
           BOOTSTRAP=dist/routerforge-stable-bootstrap.sh
-
-          git tag -f "$TAG" "$GITHUB_SHA"
-          git push --force origin "refs/tags/$TAG"
+          NOTES=dist/routerforge-stable-release-notes.md
 
           rm -f "$PREVIOUS"
+
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release download "$TAG" -p "$INDEX" -D /tmp >/dev/null 2>&1 || true
-          else
-            gh release create "$TAG" \
-              --latest \
-              --title "RouterForge Stable" \
-              --notes "RouterForge stable channel is being initialized."
+            gh release download "$TAG" \
+              -p "$INDEX" \
+              -D /tmp >/dev/null 2>&1 || true
           fi
 
           python3 scripts/merge_release_index.py \
@@ -501,9 +668,9 @@ jobs:
             --channel stable \
             --final "$FINAL" \
             --output "$BOOTSTRAP"
+
           sh -n "$BOOTSTRAP"
 
-          NOTES=dist/routerforge-stable-release-notes.md
           python3 scripts/render_release_notes.py \
             --channel stable \
             --previous "$PREVIOUS" \
@@ -511,15 +678,65 @@ jobs:
             --output "$NOTES" \
             --commit "$GITHUB_SHA"
 
+          test -s "$FINAL"
+          test -s "$SUMS"
+          test -s "$BOOTSTRAP"
+          test -s "$NOTES"
+
           while IFS= read -r asset; do
             [ -n "$asset" ] || continue
-            gh release upload "$TAG" --clobber "dist/$asset"
+            test -s "dist/$asset"
           done < "$CHANGED"
 
+          echo "All stable release inputs validated before remote mutation."
+
+      - name: Publish stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+
+          TAG=routerforge-stable
+          INDEX=routerforge-stable-index.json
+          FINAL=dist/$INDEX
+          CHANGED=dist/routerforge-stable-changed-assets.txt
+          SUMS=dist/routerforge-stable-SHA256SUMS
+          BOOTSTRAP=dist/routerforge-stable-bootstrap.sh
+          NOTES=dist/routerforge-stable-release-notes.md
+
+          # From this point onward remote mutation is allowed.
+          # All build/render/checksum/bootstrap validation has already passed.
+
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --latest \
+              --title "RouterForge Stable" \
+              --notes "RouterForge stable channel is being initialized."
+          fi
+
+          # Upload component assets first. The public index is still the old one
+          # until every required package is already present.
+          while IFS= read -r asset; do
+            [ -n "$asset" ] || continue
+            gh release upload "$TAG" \
+              --clobber \
+              "dist/$asset"
+          done < "$CHANGED"
+
+          # Publish discovery metadata only after all referenced packages exist.
+          gh release upload "$TAG" \
+            --clobber \
+            "$FINAL" \
+            "$SUMS" \
+            "$BOOTSTRAP"
+
           python3 - "$FINAL" > /tmp/routerforge-stable-current-assets.txt <<'PY'
-          import json, sys
+          import json
+          import sys
+
           with open(sys.argv[1], "r", encoding="utf-8") as fh:
               doc = json.load(fh)
+
           for item in doc.get("components", []):
               asset = item.get("asset")
               if asset:
@@ -530,21 +747,28 @@ jobs:
           while IFS= read -r asset; do
             case "$asset" in
               routerforge-*.ipk)
-                if ! grep -Fxq "$asset" /tmp/routerforge-stable-current-assets.txt; then
-                  gh release delete-asset "$TAG" "$asset" --yes
+                if ! grep -Fxq \
+                  "$asset" \
+                  /tmp/routerforge-stable-current-assets.txt
+                then
+                  gh release delete-asset \
+                    "$TAG" \
+                    "$asset" \
+                    --yes
                 fi
                 ;;
             esac
           done
 
-          gh release upload "$TAG" --clobber "$FINAL" "$SUMS" "$BOOTSTRAP"
-
-          # One-time migration cleanup: the old dev rolling release predates beta/stable channels.
-          if gh release view routerforge-dev >/dev/null 2>&1; then
-            gh release delete routerforge-dev --cleanup-tag --yes
-          fi
-
           gh release edit "$TAG" \
             --latest \
             --title "RouterForge Stable" \
             --notes-file "$NOTES"
+
+          # Move the rolling tag LAST.
+          # A failure before this point cannot falsely mark an incomplete
+          # publication as the current stable commit.
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$TAG"
+
+          echo "Stable promotion complete: $GITHUB_SHA"

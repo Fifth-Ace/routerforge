@@ -87,43 +87,6 @@ jobs:
             cat /tmp/routerforge-changed-files.txt
           fi
 
-      - name: Detect expensive build changes
-        id: changes
-        shell: bash
-        run: |
-          set -eu
-
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE="${{ github.event.before }}"
-          fi
-
-          case "$BASE" in
-            ""|0000000000000000000000000000000000000000)
-              BASE="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
-              ;;
-          esac
-
-          git diff --name-only "$BASE" "$GITHUB_SHA" \
-            > /tmp/routerforge-changed-files.txt
-
-          cat /tmp/routerforge-changed-files.txt
-
-          expensive=false
-
-          while IFS= read -r path; do
-            case "$path" in
-              components/*|modules/*|marketplace/*|release/*|scripts/*|go.mod|go.sum|.github/workflows/ci.yml)
-                expensive=true
-                break
-                ;;
-            esac
-          done < /tmp/routerforge-changed-files.txt
-
-          echo "expensive=$expensive" >> "$GITHUB_OUTPUT"
-          echo "Expensive build required: $expensive"
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:

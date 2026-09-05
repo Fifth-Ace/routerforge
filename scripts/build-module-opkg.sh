@@ -26,6 +26,7 @@ build_runtime_module() {
           -o "$WORK/data/opt/bin/$BINARY" ./modules/monitoring-runtime
     )
     chmod 0755 "$WORK/data/opt/bin/$BINARY"
+    sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$BINARY"
     case "$SERVICE" in
         S92routerforge-system)  INIT_SOURCE="$ROOT/modules/system/packaging/$SERVICE" ;;
         S93routerforge-thermal) INIT_SOURCE="$ROOT/modules/thermal/packaging/$SERVICE" ;;
@@ -104,6 +105,7 @@ build_dns() {
           -o "$WORK/data/opt/bin/routerforge-dns" $DNS_SOURCES
     )
     chmod 0755 "$WORK/data/opt/bin/routerforge-dns"
+    sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-dns"
     cp "$ROOT/modules/dns/packaging/S91routerforge-dns" "$WORK/data/opt/etc/init.d/S91routerforge-dns"
     chmod 0755 "$WORK/data/opt/etc/init.d/S91routerforge-dns"
     cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/dns/ui/"

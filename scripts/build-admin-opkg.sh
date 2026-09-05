@@ -31,6 +31,7 @@ mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
 )
 
 chmod 0755 "$WORK/data/opt/bin/routerforge-admin"
+sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-admin"
 cp "$ROOT/components/control/packaging/S91routerforge-admin" "$WORK/data/opt/etc/init.d/S91routerforge-admin"
 chmod 0755 "$WORK/data/opt/etc/init.d/S91routerforge-admin"
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/routerforge-admin/LICENSE"

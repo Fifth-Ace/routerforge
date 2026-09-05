@@ -58,6 +58,7 @@ frontend_assets_embed.go
 )
 
 chmod 0755 "$WORK/data/opt/bin/routerforge"
+sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge"
 cp "$ROOT/components/core/packaging/S90routerforge" "$WORK/data/opt/etc/init.d/S90routerforge"
 chmod 0755 "$WORK/data/opt/etc/init.d/S90routerforge"
 : > "$WORK/data/opt/etc/routerforge/package-management.enabled"

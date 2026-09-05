@@ -82,6 +82,32 @@ jobs:
           go-version: '1.21.x'
           cache: false
 
+      - name: Install pinned UPX
+        run: |
+          set -eu
+          UPX_VERSION=5.2.1
+          UPX_ARCHIVE="upx-${UPX_VERSION}-amd64_linux.tar.xz"
+          UPX_SHA256="402162aad30af47e60dbd767fb2e64ca394ace9727ba1f40283641f1d1b91657"
+          UPX_URL="https://github.com/upx/upx/releases/download/v${UPX_VERSION}/${UPX_ARCHIVE}"
+
+          curl --fail --silent --show-error --location \
+            "$UPX_URL" \
+            --output "/tmp/$UPX_ARCHIVE"
+
+          printf '%s  %s\n' \
+            "$UPX_SHA256" \
+            "/tmp/$UPX_ARCHIVE" |
+            sha256sum -c -
+
+          rm -rf "/tmp/upx-${UPX_VERSION}-amd64_linux"
+          tar -xJf "/tmp/$UPX_ARCHIVE" -C /tmp
+
+          sudo install -m 0755 \
+            "/tmp/upx-${UPX_VERSION}-amd64_linux/upx" \
+            /usr/local/bin/upx
+
+          test "$(upx --version | head -n 1)" = "upx 5.2.1"
+
       - name: Check formatting
         run: test -z "$(gofmt -l .)"
 
@@ -169,6 +195,7 @@ jobs:
           sh -n scripts/build-frontend.sh
           sh -n scripts/build-opkg.sh
           sh -n scripts/build-admin-opkg.sh
+          sh -n scripts/upx-pack.sh
           sh -n scripts/build-modules-opkg.sh
           sh -n scripts/build-feed.sh
           sh -n components/core/packaging/postinst
@@ -218,6 +245,55 @@ jobs:
           tar -xzOf dist/routerforge-storage_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-storage'
           tar -xzOf dist/routerforge-network_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-network'
           tar -xzOf dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/profiling.enabled'
+
+      - name: Verify AArch64 production executables are UPX packed
+        run: |
+          set -eu
+
+          TMP=/tmp/routerforge-upx-payload-check
+          rm -rf "$TMP"
+          mkdir -p "$TMP"
+
+          verify_upx_payload() {
+            package="$1"
+            binary="$2"
+            output="$TMP/$binary"
+
+            tar -xzOf "$package" ./data.tar.gz |
+              tar -xzOf - "./opt/bin/$binary" > "$output"
+
+            test -s "$output"
+            chmod 0755 "$output"
+            upx -t "$output"
+          }
+
+          verify_upx_payload \
+            dist/routerforge-core_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge
+
+          verify_upx_payload \
+            dist/routerforge-admin_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-admin
+
+          verify_upx_payload \
+            dist/routerforge-dns_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-dns
+
+          verify_upx_payload \
+            dist/routerforge-system_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-system
+
+          verify_upx_payload \
+            dist/routerforge-thermal_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-thermal
+
+          verify_upx_payload \
+            dist/routerforge-storage_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-storage
+
+          verify_upx_payload \
+            dist/routerforge-network_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-network
 
       - name: Verify Core runtime version injection
         run: |

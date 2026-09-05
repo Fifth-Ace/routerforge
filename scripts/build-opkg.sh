@@ -71,6 +71,7 @@ chmod 0644 "$WORK/data/opt/share/licenses/routerforge-core/LICENSE" \
     "$WORK/data/opt/share/licenses/routerforge-core/THIRD_PARTY_NOTICES.md"
 
 sed -e "s/@VERSION@/$PKG_VERSION/g" \
+    -e "s/@ARCH@/$ARCH/g" \
     "$ROOT/components/core/packaging/control.template" > "$WORK/control/control"
 cp "$ROOT/components/core/packaging/postinst" "$WORK/control/postinst"
 cp "$ROOT/components/core/packaging/prerm" "$WORK/control/prerm"

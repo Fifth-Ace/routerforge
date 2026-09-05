@@ -38,6 +38,7 @@ cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/routerforge-admin/LICENSE"
 chmod 0644 "$WORK/data/opt/share/licenses/routerforge-admin/LICENSE"
 
 sed -e "s/@VERSION@/$PKG_VERSION/g" \
+    -e "s/@ARCH@/$ARCH/g" \
     "$ROOT/components/control/packaging/control.template" > "$WORK/control/control"
 cp "$ROOT/components/control/packaging/postinst" "$WORK/control/postinst"
 cp "$ROOT/components/control/packaging/prerm" "$WORK/control/prerm"

@@ -2,7 +2,7 @@ Package: routerforge-admin
 Version: @VERSION@
 Section: admin
 Priority: optional
-Architecture: aarch64-3.10
+Architecture: @ARCH@
 Depends: routerforge-core
 Provides: dns-monitor-admin
 Conflicts: dns-monitor-admin

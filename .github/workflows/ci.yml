@@ -296,6 +296,24 @@ jobs:
             test -s "dist/routerforge-admin_0.0.0-ci_${target}.ipk"
             test -s "dist/routerforge-dns_0.0.0-ci_${target}.ipk"
             test -s "dist/routerforge-system_0.0.0-ci_${target}.ipk"
+
+            for package in \
+              "dist/routerforge-core_0.0.0-ci_${target}.ipk" \
+              "dist/routerforge-admin_0.0.0-ci_${target}.ipk" \
+              "dist/routerforge-dns_0.0.0-ci_${target}.ipk" \
+              "dist/routerforge-system_0.0.0-ci_${target}.ipk"
+            do
+              actual_arch="$(
+                tar -xzOf "$package" ./control.tar.gz |
+                  tar -xzOf - ./control |
+                  awk -F ': *' '$1 == "Architecture" { print $2; exit }'
+              )"
+
+              test "$actual_arch" = "$target" || {
+                echo "$package: Architecture=$actual_arch, expected $target" >&2
+                exit 1
+              }
+            done
           done
 
       - name: Smoke test monitoring runtime

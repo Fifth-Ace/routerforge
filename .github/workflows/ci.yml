@@ -547,6 +547,137 @@ jobs:
           grep -Fq 'target_preflight() {' /tmp/routerforge-preflight-bootstrap.sh
           grep -Fq 'hardware_preflight() {' /tmp/routerforge-preflight-bootstrap.sh
 
+          cat > /tmp/routerforge-opkg-aarch64 <<'EOF'
+          #!/bin/sh
+          [ "$1" = "print-architecture" ] || exit 2
+          printf '%s\n' \
+            'arch all 1' \
+            'arch aarch64-3.10 10'
+          EOF
+          chmod 0755 /tmp/routerforge-opkg-aarch64
+
+          cat > /tmp/routerforge-opkg-wrong <<'EOF'
+          #!/bin/sh
+          [ "$1" = "print-architecture" ] || exit 2
+          printf '%s\n' \
+            'arch all 1' \
+            'arch mipsel-3.4 10'
+          EOF
+          chmod 0755 /tmp/routerforge-opkg-wrong
+
+          make_meminfo() {
+            file="$1"
+            ram="$2"
+            swap="$3"
+
+            {
+              echo "MemTotal:       $((ram * 1024)) kB"
+              echo "MemFree:        32768 kB"
+              echo "SwapTotal:      $((swap * 1024)) kB"
+              echo "SwapFree:       $((swap * 1024)) kB"
+            } > "$file"
+          }
+
+          make_cpuinfo() {
+            file="$1"
+            cores="$2"
+
+            : > "$file"
+            i=0
+
+            while [ "$i" -lt "$cores" ]; do
+              echo "processor       : $i" >> "$file"
+              echo "model name      : RouterForge synthetic CPU" >> "$file"
+              echo >> "$file"
+              i=$((i + 1))
+            done
+          }
+
+          run_preflight() {
+            name="$1"
+            ram="$2"
+            cores="$3"
+            swap="$4"
+
+            mem="/tmp/routerforge-${name}.meminfo"
+            cpu="/tmp/routerforge-${name}.cpuinfo"
+            out="/tmp/routerforge-${name}.out"
+
+            make_meminfo "$mem" "$ram" "$swap"
+            make_cpuinfo "$cpu" "$cores"
+
+            ROUTERFORGE_PREFLIGHT_ONLY=1 \
+            ROUTERFORGE_OPKG=/tmp/routerforge-opkg-aarch64 \
+            ROUTERFORGE_PROC_MEMINFO="$mem" \
+            ROUTERFORGE_PROC_CPUINFO="$cpu" \
+              sh /tmp/routerforge-preflight-bootstrap.sh > "$out" 2>&1
+
+            grep -Fq "RAM: ${ram} MiB" "$out"
+            grep -Fq "CPU cores: ${cores}" "$out"
+            grep -Fq "Swap: ${swap} MiB" "$out"
+          }
+
+          run_preflight low64_1core_noswap 64 1 0
+          grep -Fq \
+            '128 МБ ОЗУ или меньше и одноядерным процессором' \
+            /tmp/routerforge-low64_1core_noswap.out
+          grep -Fq \
+            'swap-раздел или swap-файл' \
+            /tmp/routerforge-low64_1core_noswap.out
+
+          run_preflight low128_1core_swap 128 1 256
+          grep -Fq \
+            'Активный swap обнаружен: 256 MiB.' \
+            /tmp/routerforge-low128_1core_swap.out
+          grep -Fq \
+            'Active swap detected: 256 MiB.' \
+            /tmp/routerforge-low128_1core_swap.out
+
+          run_preflight low128_2core 128 2 0
+          grep -Fq \
+            'ПРЕДУПРЕЖДЕНИЕ: обнаружено 128 МБ ОЗУ или меньше.' \
+            /tmp/routerforge-low128_2core.out
+
+          if grep -Fq \
+            'одноядерным процессором' \
+            /tmp/routerforge-low128_2core.out; then
+            echo "unexpected single-core warning for 2-core profile" >&2
+            exit 1
+          fi
+
+          run_preflight normal256_1core 256 1 0
+          grep -Fq \
+            'ПРЕДУПРЕЖДЕНИЕ: обнаружен одноядерный процессор.' \
+            /tmp/routerforge-normal256_1core.out
+
+          run_preflight normal256_2core 256 2 0
+
+          if grep -Fq \
+            'ПРЕДУПРЕЖДЕНИЕ:' \
+            /tmp/routerforge-normal256_2core.out; then
+            echo "unexpected warning for normal 256 MiB / 2-core profile" >&2
+            exit 1
+          fi
+
+          make_meminfo /tmp/routerforge-bad-abi.meminfo 256 0
+          make_cpuinfo /tmp/routerforge-bad-abi.cpuinfo 2
+
+          if ROUTERFORGE_PREFLIGHT_ONLY=1 \
+             ROUTERFORGE_OPKG=/tmp/routerforge-opkg-wrong \
+             ROUTERFORGE_PROC_MEMINFO=/tmp/routerforge-bad-abi.meminfo \
+             ROUTERFORGE_PROC_CPUINFO=/tmp/routerforge-bad-abi.cpuinfo \
+               sh /tmp/routerforge-preflight-bootstrap.sh \
+               > /tmp/routerforge-bad-abi.out 2>&1; then
+            echo "architecture mismatch unexpectedly accepted" >&2
+            exit 1
+          fi
+
+          grep -Fq \
+            'This RouterForge build is not compatible with the installed Entware architecture.' \
+            /tmp/routerforge-bad-abi.out
+
+          echo "Synthetic bootstrap preflight profiles: OK"
+
       - name: Build RouterForge beta channel
         if: steps.scope.outputs.full_release == 'true'
         run: |

@@ -118,7 +118,11 @@ jobs:
               esac
 
               case "$path" in
-                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/render_bootstrap.py)
+                scripts/render_bootstrap.py)
+                  RELEASE=true
+                  CROSS=true
+                  ;;
+                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py)
                   RELEASE=true
                   ;;
               esac

@@ -330,6 +330,24 @@ jobs:
           grep -Fq 'swap-раздел или swap-файл на USB-накопителе' scripts/render_bootstrap.py
           grep -Fq 'swap partition or swap file on USB storage' scripts/render_bootstrap.py
 
+          python3 scripts/build_routerforge_channel.py \
+            --config release/channels/beta.json \
+            --dist dist
+
+          python3 scripts/merge_release_index.py \
+            --candidate dist/routerforge-beta-candidate-index.json \
+            --previous /tmp/routerforge-no-previous-index.json \
+            --output /tmp/routerforge-preflight-index.json \
+            --changed-list /tmp/routerforge-preflight-changed.txt \
+            --checksums /tmp/routerforge-preflight-SHA256SUMS
+
+          python3 scripts/render_bootstrap.py \
+            --channel beta \
+            --final /tmp/routerforge-preflight-index.json \
+            --output /tmp/routerforge-preflight-bootstrap.sh
+
+          sh -n /tmp/routerforge-preflight-bootstrap.sh
+
       - name: Build RouterForge beta channel
         if: github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
         run: |

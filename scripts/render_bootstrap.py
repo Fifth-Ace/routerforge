@@ -40,6 +40,15 @@ def main():
     if doc.get("schema_version") != 1 or doc.get("channel") != args.channel:
         raise SystemExit("release index channel/schema mismatch")
 
+    target = str(doc.get("target", ""))
+    supported_targets = {
+        "aarch64-3.10",
+        "mips-3.4",
+        "mipsel-3.4",
+    }
+    if target not in supported_targets:
+        raise SystemExit(f"unsupported release target {target!r}")
+
     by_package = {x.get("package"): x for x in doc.get("components", [])}
     required = ["routerforge-core", "routerforge-dns"]
     entries = []
@@ -77,21 +86,31 @@ def main():
         "set -eu",
         "",
         f"CHANNEL={shell_single(args.channel)}",
+        f"TARGET={shell_single(target)}",
         'TMP="/opt/tmp/routerforge-bootstrap.$$"',
         "",
         "say() { printf '%s\\n' \"$*\"; }",
         "fail() { printf 'ERROR: %s\\n' \"$*\" >&2; exit 1; }",
-        "",
-        'case "$(uname -m 2>/dev/null || true)" in',
-        "    aarch64|arm64) ;;",
-        '    *) fail "RouterForge supports ARM64/aarch64 Keenetic/Netcraze routers." ;;',
-        "esac",
         "",
         '[ -d /opt ] || fail "Entware /opt was not found."',
         'if [ -x /opt/bin/opkg ]; then OPKG=/opt/bin/opkg',
         'elif command -v opkg >/dev/null 2>&1; then OPKG="$(command -v opkg)"',
         'else fail "opkg was not found."; fi',
         'command -v sha256sum >/dev/null 2>&1 || fail "sha256sum was not found."',
+        "",
+        "target_preflight() {",
+        '    if ! "$OPKG" print-architecture 2>/dev/null |',
+        '        awk ''$1 == "arch" { print $2 }'' |',
+        '        grep -Fxq "$TARGET"; then',
+        '        say ""',
+        '        say "Target package architecture: $TARGET"',
+        '        say "Entware architectures:"',
+        '        "$OPKG" print-architecture 2>/dev/null || true',
+        '        fail "This RouterForge build is not compatible with the installed Entware architecture."',
+        '    fi',
+        "}",
+        "",
+        "target_preflight",
         "",
         "detect_mem_mib() {",
         "    awk '/^MemTotal:/ { printf \"%d\\n\", $2 / 1024; found=1; exit } END { if (!found) print 0 }' /proc/meminfo 2>/dev/null || printf '0\\n'",

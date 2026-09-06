@@ -1,9 +1,12 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
   import { catalog, refreshCatalog, forceRefreshCatalog } from '$lib/stores/catalog.js';
   import { settings } from '$lib/stores/settings.js';
   import {
     catalogAction, setCatalogChannel, getEntwarePackages,
-    refreshEntwarePackages, entwarePackageAction
+    refreshEntwarePackages,
+    getEntwarePackageDetail, preflightAppAction, startAppAction,
+    getAppActions, getAppAction, cancelAppAction, appActionEventsURL
   } from '$lib/api.js';
   import { stateInfo, localWebURL } from '$lib/utils.js';
   import { appText as a } from '$lib/app-center-i18n.js';
@@ -28,11 +31,23 @@
   let actionNotice = null;
   let channelBusy = false;
   let checkingUpdates = false;
-  let updatingAll = false;
   let entwareLoading = false;
   let entwareRefreshing = false;
   let entwareState = 'all';
   let entwareData = { items:[], total:0, offset:0, limit:100, installed_count:0, upgradable_count:0, online:false };
+  let activeJob = null;
+  let actionLog = [];
+  let actionHistory = [];
+  let actionEvents = null;
+  let entwareDetail = null;
+
+  onMount(() => {
+    void refreshActionHistory();
+  });
+
+  onDestroy(() => {
+    actionEvents?.close();
+  });
 
   $: locale = $settings.locale || 'ru';
   $: data = $catalog || { modules:[], integrations:[], read_only:true, package_management_enabled:false };
@@ -149,8 +164,144 @@
     return entwareState === 'all' ? '' : entwareState;
   }
 
+  async function refreshActionHistory() {
+    try {
+      const result = await getAppActions();
+      actionHistory = result?.items || [];
+    } catch {
+      actionHistory = [];
+    }
+  }
+
+  function jobStateClass(state) {
+    if (state === 'succeeded') return 'good';
+    if (state === 'failed') return 'error';
+    if (state === 'cancelled') return 'warn';
+    return 'info';
+  }
+
+  async function finishWatchedAction(state, error = '') {
+    if (!activeJob) return;
+    const finished = activeJob;
+    activeJob = { ...activeJob, state, error };
+    busyId = '';
+    busyAction = '';
+    actionEvents?.close();
+    actionEvents = null;
+    await refreshCatalog();
+    if (['entware','installed','updates'].includes(tab)) await loadEntware(entwareData.offset || 0);
+    await refreshActionHistory();
+    actionNotice = state === 'succeeded'
+      ? { cls:'good', text: locale === 'ru' ? `\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e: ${finished.target}` : `Action completed: ${finished.target}` }
+      : { cls: state === 'cancelled' ? 'warn' : 'error', text: error || (locale === 'ru' ? `\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 ${state}: ${finished.target}` : `Action ${state}: ${finished.target}`) };
+  }
+
+  async function pollAction(id) {
+    for (let i = 0; i < 190; i += 1) {
+      try {
+        const job = await getAppAction(id);
+        activeJob = job;
+        actionLog = job.lines || actionLog;
+        if (['succeeded','failed','cancelled'].includes(job.state)) {
+          await finishWatchedAction(job.state, job.error || '');
+          return;
+        }
+      } catch (error) {
+        actionNotice = { cls:'warn', text:error?.payload?.error || error?.message || 'action polling failed' };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  function watchActionJob(job, busyTarget) {
+    activeJob = job;
+    actionLog = job.lines || [];
+    busyId = busyTarget;
+    busyAction = job.action || '';
+    actionEvents?.close();
+
+    const source = new EventSource(appActionEventsURL(job.id));
+    actionEvents = source;
+    source.onmessage = async (message) => {
+      let event;
+      try { event = JSON.parse(message.data); } catch { return; }
+      if (event.type === 'line') {
+        actionLog = [...actionLog, event.line].slice(-320);
+        return;
+      }
+      if (event.type === 'state') {
+        activeJob = { ...activeJob, state:event.state, error:event.error || '' };
+        if (['succeeded','failed','cancelled'].includes(event.state)) {
+          await finishWatchedAction(event.state, event.error || '');
+        }
+      }
+    };
+    source.onerror = () => {
+      source.close();
+      if (actionEvents === source) actionEvents = null;
+      if (activeJob && !['succeeded','failed','cancelled'].includes(activeJob.state)) {
+        void pollAction(job.id);
+      }
+    };
+  }
+
+  function preflightMessage(preflight, title) {
+    const lines = [title];
+    if (preflight?.method) lines.push(`method: ${preflight.method}`);
+    if (preflight?.packages?.length) lines.push(`packages: ${preflight.packages.join(', ')}`);
+    const entware = preflight?.entware;
+    if (entware?.architecture) lines.push(`arch: ${entware.architecture}`);
+    if (entware?.download_size_bytes) lines.push(`download: ${entware.download_size_bytes} B`);
+    if (entware?.installed_size_bytes) lines.push(`installed: ${entware.installed_size_bytes} B`);
+    if (entware?.dependencies?.length) lines.push(`depends: ${entware.dependencies.join(', ')}`);
+    if (entware?.reverse_dependencies?.length) lines.push(`reverse depends: ${entware.reverse_dependencies.join(', ')}`);
+    if (preflight?.warnings?.length) lines.push('', ...preflight.warnings.map((value) => `! ${value}`));
+    return lines.join('\n');
+  }
+
+  async function runAsyncCatalogAction(item, action, confirm = '', skipConfirm = false) {
+    if (busyId) return;
+    try {
+      const request = { kind:'catalog', target:item.id, action, confirm };
+      const preflight = await preflightAppAction(request);
+      if (!preflight.allowed) {
+        actionNotice = { cls:'error', text:preflight.reason || 'preflight rejected action' };
+        return;
+      }
+      const title = `${action === 'install' ? a(locale,'install') : action === 'remove' ? a(locale,'remove') : a(locale,'update')} ${item.name}?`;
+      if (!skipConfirm && !window.confirm(preflightMessage(preflight, title))) return;
+      const job = await startAppAction(request);
+      if (action === 'remove') removeItem = null;
+      watchActionJob(job, item.id);
+    } catch (error) {
+      busyId = '';
+      busyAction = '';
+      actionNotice = { cls:'error', text:error?.payload?.detail || error?.payload?.error || error?.message || 'error' };
+    }
+  }
+
+  async function showEntwareDetail(pkg) {
+    try {
+      entwareDetail = await getEntwarePackageDetail(pkg.name);
+    } catch (error) {
+      actionNotice = { cls:'error', text:error?.payload?.error || error?.message || 'error' };
+    }
+  }
+
+  async function cancelCurrentAction() {
+    if (!activeJob?.id || ['succeeded','failed','cancelled'].includes(activeJob.state)) return;
+    try {
+      await cancelAppAction(activeJob.id);
+    } catch (error) {
+      actionNotice = { cls:'error', text:error?.payload?.error || error?.message || 'cancel failed' };
+    }
+  }
   async function runCatalogAction(item, action, confirm = '', skipConfirm = false) {
     if (!canAction(item, action) || busyId) return;
+    if (item.id !== 'routerforge-core') {
+      await runAsyncCatalogAction(item, action, confirm, skipConfirm);
+      return;
+    }
     if (!skipConfirm && !window.confirm(`${action === 'install' ? a(locale,'install') : a(locale,'update')} ${item.name}?`)) return;
 
     busyId = item.id;
@@ -210,17 +361,8 @@
     }
   }
 
-  async function updateAllRouterForge() {
-    if (updatingAll || busyId || !routerForgeUpdates.length) return;
-    if (!window.confirm(`${a(locale,'routerforgeUpdateAll')} (${routerForgeUpdates.length})?`)) return;
-    updatingAll = true;
-    const ordered = [...routerForgeUpdates].sort((x,y) => x.id === 'routerforge-core' ? 1 : y.id === 'routerforge-core' ? -1 : 0);
-    try {
-      for (const item of ordered) await runCatalogAction(item, 'update', '', true);
-    } finally {
-      updatingAll = false;
-      await refreshCatalog();
-    }
+  function reviewRouterForgeUpdates() {
+    setTab('updates');
   }
 
   async function loadEntware(offset = 0) {
@@ -257,22 +399,24 @@
 
   async function runEntwareAction(pkg, action) {
     if (!packageMode || busyId) return;
-    const question = action === 'install' ? a(locale,'confirmInstall',{name:pkg.name})
-      : action === 'update' ? a(locale,'confirmUpdate',{name:pkg.name})
-      : a(locale,'confirmRemove',{name:pkg.name});
-    if (!window.confirm(question)) return;
-
-    busyId = `entware:${pkg.name}`;
-    busyAction = action;
+    const confirm = action === 'remove' ? pkg.name : '';
+    const request = { kind:'entware', target:pkg.name, action, confirm };
     try {
-      await entwarePackageAction(pkg.name, action, action === 'remove' ? pkg.name : '');
-      await loadEntware(entwareData.offset || 0);
-      actionNotice = { cls:'good', text:a(locale,'actionDone',{name:pkg.name}) };
+      const preflight = await preflightAppAction(request);
+      if (!preflight.allowed) {
+        actionNotice = { cls:'error', text:preflight.reason || 'preflight rejected action' };
+        return;
+      }
+      const question = action === 'install' ? a(locale,'confirmInstall',{name:pkg.name})
+        : action === 'update' ? a(locale,'confirmUpdate',{name:pkg.name})
+        : a(locale,'confirmRemove',{name:pkg.name});
+      if (!window.confirm(preflightMessage(preflight, question))) return;
+      const job = await startAppAction(request);
+      watchActionJob(job, `entware:${pkg.name}`);
     } catch (error) {
-      actionNotice = { cls:'error', text:a(locale,'actionFailed',{name:pkg.name,error:error?.payload?.detail || error?.payload?.error || error?.message || 'error'}) };
-    } finally {
       busyId = '';
       busyAction = '';
+      actionNotice = { cls:'error', text:a(locale,'actionFailed',{name:pkg.name,error:error?.payload?.detail || error?.payload?.error || error?.message || 'error'}) };
     }
   }
 
@@ -341,8 +485,8 @@
     {/if}
 
     {#if tab === 'routerforge' && packageMode && routerForgeUpdates.length}
-      <button class="button primary" disabled={updatingAll || Boolean(busyId)} onclick={updateAllRouterForge}>
-        {a(locale,'routerforgeUpdateAll')} ({routerForgeUpdates.length})
+      <button class="button primary" disabled={Boolean(busyId)} onclick={reviewRouterForgeUpdates}>
+        {locale === 'ru' ? '\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f' : 'Review updates'} ({routerForgeUpdates.length})
       </button>
     {/if}
   </div>
@@ -359,6 +503,41 @@
       <span class="status-dot {actionNotice.cls}"></span><span>{actionNotice.text}</span>
       <button class="icon-button" aria-label={t(locale,'common.close')} onclick={() => actionNotice = null}>×</button>
     </div>
+  {/if}
+
+  {#if activeJob}
+    <section class="app-action-console">
+      <div class="app-action-console-head">
+        <div>
+          <strong>{locale === 'ru' ? '\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0426\u0435\u043d\u0442\u0440\u0430 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0439' : 'App Center action'}</strong>
+          <span class="mono">{activeJob.kind} / {activeJob.target} / {activeJob.action}</span>
+        </div>
+        <div class="catalog-actions">
+          <span class="state-chip {jobStateClass(activeJob.state)}">{String(activeJob.state || 'queued').toUpperCase()}</span>
+          {#if !['succeeded','failed','cancelled'].includes(activeJob.state)}
+            <button class="button danger-subtle" onclick={cancelCurrentAction}>{locale === 'ru' ? '\u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c' : 'Cancel'}</button>
+          {/if}
+        </div>
+      </div>
+      {#if activeJob.error}<div class="catalog-install-notice error">{activeJob.error}</div>{/if}
+      <pre class="app-action-log mono">{actionLog.length ? actionLog.join('\n') : (locale === 'ru' ? '\u041e\u0436\u0438\u0434\u0430\u043d\u0438\u0435 \u0432\u044b\u0432\u043e\u0434\u0430...' : 'Waiting for output...')}</pre>
+    </section>
+  {/if}
+
+  {#if actionHistory.length}
+    <section class="app-action-history">
+      <div class="catalog-section-head">
+        <div><h2>{locale === 'ru' ? '\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0439' : 'Action history'}</h2><p>{locale === 'ru' ? '\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043f\u0430\u043a\u0435\u0442\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430.' : 'Recent package-manager operations.'}</p></div>
+      </div>
+      <div class="app-action-history-list">
+        {#each actionHistory.slice(0,5) as job (job.id)}
+          <div class="app-action-history-row">
+            <span><strong>{job.target}</strong><small class="mono">{job.kind} / {job.action}</small></span>
+            <span class="state-chip {jobStateClass(job.state)}">{String(job.state || '').toUpperCase()}</span>
+          </div>
+        {/each}
+      </div>
+    </section>
   {/if}
 
   <section class="catalog-market-section">
@@ -437,6 +616,7 @@
                 <span class="mono muted">{pkg.installed_version ? `installed ${pkg.installed_version}` : ''}{pkg.installed_version && pkg.available_version ? ' · ' : ''}{pkg.available_version ? `available ${pkg.available_version}` : ''}</span>
               </div>
               <div class="catalog-actions">
+                <button class="button" disabled={Boolean(busyId)} onclick={() => showEntwareDetail(pkg)}>{a(locale,'details')}</button>
                 {#if !pkg.installed && packageMode}<button class="button primary" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'install')}>{busyId === `entware:${pkg.name}` ? a(locale,'installing') : a(locale,'install')}</button>{/if}
                 {#if pkg.installed && pkg.upgradable && packageMode}<button class="button" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'update')}>{busyId === `entware:${pkg.name}` ? a(locale,'updating') : a(locale,'update')}</button>{/if}
                 {#if pkg.installed && packageMode && !pkg.name.startsWith('routerforge-') && pkg.name !== 'opkg'}<button class="button danger-subtle" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'remove')}>{busyId === `entware:${pkg.name}` ? a(locale,'removing') : a(locale,'remove')}</button>{/if}
@@ -457,6 +637,27 @@
   </section>
 </div>
 
+{#if entwareDetail}
+  <div class="app-detail-backdrop" role="presentation" onclick={() => entwareDetail = null}>
+    <section class="app-detail-modal" role="dialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
+      <div class="catalog-section-head">
+        <div><h2>{entwareDetail.name}</h2><p>{entwareDetail.description || ''}</p></div>
+        <button class="icon-button" aria-label={t(locale,'common.close')} onclick={() => entwareDetail = null}>x</button>
+      </div>
+      <div class="tech-box mono">
+        <div><span>Version</span><strong>{entwareDetail.version || entwareDetail.available_version || '\u2014'}</strong></div>
+        <div><span>Installed</span><strong>{entwareDetail.installed_version || '\u2014'}</strong></div>
+        <div><span>Architecture</span><strong>{entwareDetail.architecture || '\u2014'}</strong></div>
+        <div><span>Section</span><strong>{entwareDetail.section || '\u2014'}</strong></div>
+        <div><span>Download size</span><strong>{entwareDetail.download_size_bytes || '\u2014'}</strong></div>
+        <div><span>Installed size</span><strong>{entwareDetail.installed_size_bytes || '\u2014'}</strong></div>
+        <div><span>Depends</span><strong>{entwareDetail.depends?.join(', ') || '\u2014'}</strong></div>
+        <div><span>Maintainer</span><strong>{entwareDetail.maintainer || '\u2014'}</strong></div>
+      </div>
+    </section>
+  </div>
+{/if}
+
 {#if plannerItem}<InstallPlanner item={plannerItem} onclose={() => plannerItem = null}/>{/if}
 {#if removeItem}<RemoveConfirm item={removeItem} busy={busyId === removeItem.id && busyAction === 'remove'} oncancel={() => { if (!busyId) removeItem = null; }} onconfirm={(typed) => runCatalogAction(removeItem,'remove',typed)}/>{/if}
 
@@ -469,6 +670,16 @@
   .entware-package-main > div { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; }
   .entware-package-main p { margin:.25rem 0; }
   .entware-pagination { display:flex; justify-content:center; align-items:center; gap:.75rem; margin:1rem 0; }
+  .app-action-console, .app-action-history { margin:1rem 0; border:1px solid var(--rf-border,var(--border)); border-radius:.75rem; background:var(--rf-panel,var(--panel)); overflow:hidden; }
+  .app-action-console-head { display:flex; justify-content:space-between; gap:1rem; align-items:center; padding:.8rem 1rem; border-bottom:1px solid var(--rf-border,var(--border)); }
+  .app-action-console-head > div:first-child { display:grid; gap:.2rem; }
+  .app-action-log { min-height:90px; max-height:310px; overflow:auto; margin:0; padding:1rem; white-space:pre-wrap; word-break:break-word; font-size:.78rem; }
+  .app-action-history-list { display:grid; }
+  .app-action-history-row { display:flex; justify-content:space-between; gap:1rem; align-items:center; padding:.65rem 1rem; border-top:1px solid var(--rf-border,var(--border)); }
+  .app-action-history-row > span:first-child { display:grid; gap:.15rem; }
+  .app-action-history-row small { color:var(--rf-muted,var(--muted)); }
+  .app-detail-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:1rem; background:rgba(0,0,0,.55); }
+  .app-detail-modal { width:min(720px,100%); max-height:85vh; overflow:auto; padding:1rem; border:1px solid var(--rf-border,var(--border)); border-radius:.85rem; background:var(--rf-panel,var(--panel)); box-shadow:0 24px 80px rgba(0,0,0,.35); }
   @media (max-width: 760px) {
     .entware-package-row { align-items:flex-start; flex-direction:column; }
   }

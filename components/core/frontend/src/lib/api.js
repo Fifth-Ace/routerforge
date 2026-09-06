@@ -31,6 +31,16 @@ async function postJSON(path, body) {
   return response.json();
 }
 
+async function deleteRequest(path) {
+  const response = await fetch(path, {
+    method: 'DELETE',
+    cache: 'no-store',
+    headers: { Accept: 'application/json' }
+  });
+  if (!response.ok) throw await readError(response, path);
+  return response.json();
+}
+
 export const getSnapshot = () => request('/api/snapshot');
 export const getPlatform = () => request('/api/platform');
 export const getSystem = () => request('/api/system');
@@ -42,6 +52,14 @@ export const getEntwarePackages = ({ query = '', state = '', offset = 0, limit =
 export const refreshEntwarePackages = () => postJSON('/api/apps/entware/refresh', {});
 export const entwarePackageAction = (packageName, action, confirm = '') =>
   postJSON('/api/apps/entware/action', { package: packageName, action, confirm });
+export const getEntwarePackageDetail = (packageName) =>
+  request(`/api/apps/entware/detail?package=${encodeURIComponent(packageName)}`);
+export const preflightAppAction = (body) => postJSON('/api/apps/preflight', body);
+export const startAppAction = (body) => postJSON('/api/apps/actions', body);
+export const getAppActions = () => request('/api/apps/actions');
+export const getAppAction = (id) => request(`/api/apps/actions/${encodeURIComponent(id)}`);
+export const cancelAppAction = (id) => deleteRequest(`/api/apps/actions/${encodeURIComponent(id)}`);
+export const appActionEventsURL = (id) => `/api/apps/actions/${encodeURIComponent(id)}/events`;
 export const installCatalogItem = (id) => postJSON('/api/catalog/install', { id });
 export const catalogAction = (id, action, confirm = '') =>
   postJSON('/api/catalog/action', { id, action, confirm });

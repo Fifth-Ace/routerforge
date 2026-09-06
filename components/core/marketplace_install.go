@@ -112,6 +112,10 @@ func installCatalogModuleTest(ctx context.Context, id string) (catalogInstallRes
 }
 
 func runCatalogModuleAction(ctx context.Context, id, action, confirmation string) (catalogActionResult, error) {
+	return runCatalogModuleActionWithLogger(ctx, id, action, confirmation, nil)
+}
+
+func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmation string, emit func(string)) (catalogActionResult, error) {
 	marketplaceInstallMu.Lock()
 	defer marketplaceInstallMu.Unlock()
 
@@ -151,15 +155,15 @@ func runCatalogModuleAction(ctx context.Context, id, action, confirmation string
 		result.Packages = append([]string(nil), item.Detection.Packages...)
 	}
 
-	var log strings.Builder
+	log := &catalogActionLog{emit: emit}
 	var err error
 	switch plan.Method {
 	case "routerforge-release":
-		err = runRouterForgeReleasePlan(ctx, item, action, plan, &result, &log)
+		err = runRouterForgeReleasePlan(ctx, item, action, plan, &result, log)
 	case "opkg":
-		err = runDirectOpkgPlan(ctx, action, plan, &result, &log)
+		err = runDirectOpkgPlan(ctx, action, plan, &result, log)
 	case "structured":
-		err = runStructuredCatalogPlan(ctx, item, action, plan, &result, &log)
+		err = runStructuredCatalogPlan(ctx, item, action, plan, &result, log)
 	default:
 		err = fmt.Errorf("unsupported executable lifecycle method %q", plan.Method)
 	}
@@ -243,7 +247,7 @@ func catalogPlanForAction(item catalogItem, action string) catalogInstallPlan {
 	}
 	return plan
 }
-func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action string, plan catalogInstallPlan, result *catalogActionResult, log *strings.Builder) error {
+func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action string, plan catalogInstallPlan, result *catalogActionResult, log *catalogActionLog) error {
 	if action == "remove" {
 		return fmt.Errorf("routerforge-release does not implement remove")
 	}
@@ -298,15 +302,14 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 	if action == "update" {
 		args = []string{"--force-reinstall", "install", local}
 	}
-	output, runErr := exec.CommandContext(ctx, opkg, args...).CombinedOutput()
-	fmt.Fprintf(log, "$ %s %s\n%s", opkg, strings.Join(args, " "), string(output))
+	output, runErr := runCommandStreaming(ctx, opkg, args, log.EmitLine)
 	if runErr != nil {
 		return fmt.Errorf("opkg %s: %s", action, strings.TrimSpace(string(output)))
 	}
 	return nil
 }
 
-func runDirectOpkgPlan(ctx context.Context, action string, plan catalogInstallPlan, result *catalogActionResult, log *strings.Builder) error {
+func runDirectOpkgPlan(ctx context.Context, action string, plan catalogInstallPlan, result *catalogActionResult, log *catalogActionLog) error {
 	opkg, err := opkgExecutable()
 	if err != nil {
 		return err
@@ -327,8 +330,7 @@ func runDirectOpkgPlan(ctx context.Context, action string, plan catalogInstallPl
 		return fmt.Errorf("unsupported opkg action %q", action)
 	}
 	args := append([]string{verb}, plan.Packages...)
-	output, runErr := exec.CommandContext(ctx, opkg, args...).CombinedOutput()
-	fmt.Fprintf(log, "$ %s %s\n%s", opkg, strings.Join(args, " "), string(output))
+	output, runErr := runCommandStreaming(ctx, opkg, args, log.EmitLine)
 	result.Sources = append(result.Sources, "opkg:"+strings.Join(plan.Packages, ","))
 	if runErr != nil {
 		return fmt.Errorf("opkg %s: %s", action, strings.TrimSpace(string(output)))
@@ -336,7 +338,7 @@ func runDirectOpkgPlan(ctx context.Context, action string, plan catalogInstallPl
 	return nil
 }
 
-func runStructuredCatalogPlan(ctx context.Context, item catalogItem, action string, plan catalogInstallPlan, result *catalogActionResult, log *strings.Builder) error {
+func runStructuredCatalogPlan(ctx context.Context, item catalogItem, action string, plan catalogInstallPlan, result *catalogActionResult, log *catalogActionLog) error {
 	if len(plan.Steps) == 0 {
 		return fmt.Errorf("structured lifecycle has no steps")
 	}
@@ -364,7 +366,7 @@ func runStructuredCatalogPlan(ctx context.Context, item catalogItem, action stri
 	return nil
 }
 
-func executeStructuredStep(ctx context.Context, opkg string, step catalogLifecycleStep, log *strings.Builder) error {
+func executeStructuredStep(ctx context.Context, opkg string, step catalogLifecycleStep, log *catalogActionLog) error {
 	switch step.Type {
 	case "write-opkg-feed":
 		if !strings.HasPrefix(step.Path, "/opt/etc/opkg/") || strings.Contains(step.Path, "..") {
@@ -405,9 +407,8 @@ func executeStructuredStep(ctx context.Context, opkg string, step catalogLifecyc
 	}
 }
 
-func runOpkgStep(ctx context.Context, opkg string, args []string, log *strings.Builder) error {
-	output, err := exec.CommandContext(ctx, opkg, args...).CombinedOutput()
-	fmt.Fprintf(log, "$ %s %s\n%s", opkg, strings.Join(args, " "), string(output))
+func runOpkgStep(ctx context.Context, opkg string, args []string, log *catalogActionLog) error {
+	output, err := runCommandStreaming(ctx, opkg, args, log.EmitLine)
 	if err != nil {
 		return fmt.Errorf("opkg %s: %s", strings.Join(args, " "), strings.TrimSpace(string(output)))
 	}

@@ -1,53 +1,96 @@
 {
-    "schema_version":  1,
-    "channel":  "beta",
-    "components":  [
-                       {
-                           "id":  "routerforge-core",
-                           "package":  "routerforge-core",
-                           "version":  "0.4.4-beta"
-                       },
-                       {
-                           "id":  "dns",
-                           "package":  "routerforge-dns",
-                           "version":  "0.4.20-beta",
-                           "min_core_version":  "0.4.2-beta"
-                       },
-                       {
-                           "id":  "admin",
-                           "package":  "routerforge-admin",
-                           "version":  "0.3.1-beta",
-                           "min_core_version":  "0.3.0-beta"
-                       },
-                       {
-                           "id":  "system",
-                           "package":  "routerforge-system",
-                           "version":  "0.3.1-beta",
-                           "min_core_version":  "0.3.0-beta"
-                       },
-                       {
-                           "id":  "thermal",
-                           "package":  "routerforge-thermal",
-                           "version":  "0.3.2-beta",
-                           "min_core_version":  "0.3.0-beta"
-                       },
-                       {
-                           "id":  "storage",
-                           "package":  "routerforge-storage",
-                           "version":  "0.3.2-beta",
-                           "min_core_version":  "0.3.0-beta"
-                       },
-                       {
-                           "id":  "network",
-                           "package":  "routerforge-network",
-                           "version":  "0.3.3-beta",
-                           "min_core_version":  "0.3.0-beta"
-                       },
-                       {
-                           "id":  "profiling",
-                           "package":  "routerforge-profiling",
-                           "version":  "0.3.0-beta",
-                           "min_core_version":  "0.3.0-beta"
-                       }
-                   ]
+    "schema_version": 1,
+    "channel": "beta",
+    "release_version": "0.5.0-beta.1",
+    "release_notes": {
+        "ru": {
+            "new": [
+                "Добавлена экспериментальная поддержка MIPS и MIPSel в Beta.",
+                "Один universal bootstrap автоматически определяет архитектуру Entware и выбирает подходящую сборку.",
+                "Для MIPS/MIPSel добавлены fail-closed preflight, runtime compatibility probe и QEMU-проверка."
+            ],
+            "fixes": [
+                "Исправлена маршрутизация release-index и package assets между ARM64, MIPS и MIPSel.",
+                "Исправлена последовательная multi-arch сборка Beta без удаления пакетов другой архитектуры."
+            ],
+            "compatibility": [
+                "ARM64 (aarch64-3.10) — основной поддерживаемый target.",
+                "MIPS (mips-3.4) и MIPSel (mipsel-3.4) — experimental Beta до проверки на физическом оборудовании.",
+                "128 МБ ОЗУ поддерживаются с предупреждением о запасе памяти для стороннего ПО; 64 МБ остаются неподдерживаемой конфигурацией."
+            ],
+            "technical": [
+                "Добавлена проверка опубликованного multi-arch Beta release после загрузки assets.",
+                "ARM64 production executables продолжают упаковываться UPX; MIPS/MIPSel остаются без UPX до аппаратной валидации."
+            ]
+        },
+        "en": {
+            "new": [
+                "Experimental MIPS and MIPSel support is now available in Beta.",
+                "A single universal bootstrap automatically detects the Entware architecture and selects the matching build.",
+                "MIPS/MIPSel now use fail-closed preflight, runtime compatibility probing, and QEMU runtime validation."
+            ],
+            "fixes": [
+                "Fixed release-index and package-asset routing across ARM64, MIPS, and MIPSel.",
+                "Fixed sequential multi-architecture Beta builds so packages for other targets are preserved."
+            ],
+            "compatibility": [
+                "ARM64 (aarch64-3.10) is the primary supported target.",
+                "MIPS (mips-3.4) and MIPSel (mipsel-3.4) remain experimental Beta targets until physical hardware validation.",
+                "128 MiB RAM is supported with a headroom warning for other software; 64 MiB remains unsupported."
+            ],
+            "technical": [
+                "Added post-publication verification for the published multi-architecture Beta release.",
+                "ARM64 production executables remain UPX-packed; MIPS/MIPSel remain unpacked until hardware validation."
+            ]
+        }
+    },
+    "components": [
+        {
+            "id": "routerforge-core",
+            "package": "routerforge-core",
+            "version": "0.4.4-beta"
+        },
+        {
+            "id": "dns",
+            "package": "routerforge-dns",
+            "version": "0.4.20-beta",
+            "min_core_version": "0.4.2-beta"
+        },
+        {
+            "id": "admin",
+            "package": "routerforge-admin",
+            "version": "0.3.1-beta",
+            "min_core_version": "0.3.0-beta"
+        },
+        {
+            "id": "system",
+            "package": "routerforge-system",
+            "version": "0.3.1-beta",
+            "min_core_version": "0.3.0-beta"
+        },
+        {
+            "id": "thermal",
+            "package": "routerforge-thermal",
+            "version": "0.3.2-beta",
+            "min_core_version": "0.3.0-beta"
+        },
+        {
+            "id": "storage",
+            "package": "routerforge-storage",
+            "version": "0.3.2-beta",
+            "min_core_version": "0.3.0-beta"
+        },
+        {
+            "id": "network",
+            "package": "routerforge-network",
+            "version": "0.3.3-beta",
+            "min_core_version": "0.3.0-beta"
+        },
+        {
+            "id": "profiling",
+            "package": "routerforge-profiling",
+            "version": "0.3.0-beta",
+            "min_core_version": "0.3.0-beta"
+        }
+    ]
 }

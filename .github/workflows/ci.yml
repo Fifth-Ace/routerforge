@@ -125,7 +125,7 @@ jobs:
                 scripts/render_bootstrap.py|scripts/render_universal_bootstrap.py)
                   RELEASE=true
                   ;;
-                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-beta-multiarch.sh|scripts/verify-published-beta.sh)
+                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-beta-multiarch.sh|scripts/publish-versioned-release.sh|scripts/verify-published-beta.sh)
                   RELEASE=true
                   ;;
               esac
@@ -413,6 +413,7 @@ jobs:
           sh -n scripts/verify-mips-preview-quarantine.sh
           sh -n scripts/verify-universal-bootstrap.sh
           sh -n scripts/publish-beta-multiarch.sh
+          sh -n scripts/publish-versioned-release.sh
           sh -n scripts/verify-published-beta.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
@@ -1051,7 +1052,7 @@ jobs:
 
           python3 scripts/render_release_notes.py \
             --channel stable \
-            --previous "$PREVIOUS" \
+            --config release/channels/stable.json \
             --final "$FINAL" \
             --output "$NOTES" \
             --commit "$GITHUB_SHA"
@@ -1142,6 +1143,10 @@ jobs:
             --latest \
             --title "RouterForge Stable" \
             --notes-file "$NOTES"
+
+          # Preserve an immutable rollback snapshot after the rolling Stable
+          # alias is coherent. Existing versioned tags are never overwritten.
+          sh scripts/publish-versioned-release.sh stable
 
           # routerforge-stable is a permanent release anchor.
           # The exact product commit is recorded in the release index/notes.

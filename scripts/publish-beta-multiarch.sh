@@ -80,7 +80,7 @@ sh -n "$BOOTSTRAP"
 
 python3 scripts/render_release_notes.py \
     --channel beta \
-    --previous "$ARM_PREVIOUS" \
+    --config release/channels/beta.json \
     --final dist/routerforge-beta-index.json \
     --output "$NOTES" \
     --commit "$GITHUB_SHA"
@@ -144,3 +144,6 @@ gh release edit "$TAG" \
     --prerelease \
     --title "RouterForge Beta" \
     --notes-file "$NOTES"
+
+# Preserve an immutable rollback snapshot after the rolling Beta alias is coherent.
+sh scripts/publish-versioned-release.sh beta

@@ -14,9 +14,12 @@ def shell_single(value):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--channel", choices=("stable", "beta"), required=True)
+    ap.add_argument("--release-tag")
     ap.add_argument("--target", action="append", choices=TARGETS, required=True)
     ap.add_argument("--output", required=True)
     args = ap.parse_args()
+
+    release_tag = args.release_tag or f"routerforge-{args.channel}"
 
     available = []
     for target in args.target:
@@ -28,6 +31,7 @@ def main():
         "set -eu",
         "",
         f"CHANNEL={shell_single(args.channel)}",
+        f"RELEASE_TAG={shell_single(release_tag)}",
         f"AVAILABLE_TARGETS={shell_single(' '.join(available))}",
         'DISPATCH_ONLY="${ROUTERFORGE_DISPATCH_ONLY:-0}"',
         'TTY_PATH="${ROUTERFORGE_TTY:-/dev/tty}"',
@@ -162,8 +166,8 @@ def main():
         "}",
         "",
         'ASSET="routerforge-${CHANNEL}-bootstrap-${TARGET}.sh"',
-        'PRIMARY="https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-${CHANNEL}/${ASSET}"',
-        'FALLBACK="https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-${CHANNEL}/${ASSET}"',
+        'PRIMARY="https://github.com/Fifth-Ace/routerforge/releases/download/${RELEASE_TAG}/${ASSET}"',
+        'FALLBACK="https://github.com/Fifth-Ace/dns-monitor/releases/download/${RELEASE_TAG}/${ASSET}"',
         'CHILD="$TMP/$ASSET"',
         "",
         'if ! fetch "$PRIMARY" "$CHILD"; then',

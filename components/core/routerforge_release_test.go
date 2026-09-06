@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -118,94 +119,94 @@ func TestCoreCanExposeIndependentUpdate(t *testing.T) {
 }
 
 func TestRouterForgeReleaseIndexAssetNameByTarget(t *testing.T) {
-oldChannel := releaseChannel
-oldTarget := releaseTarget
+	oldChannel := releaseChannel
+	oldTarget := releaseTarget
 
-defer func() {
-releaseChannel = oldChannel
-releaseTarget = oldTarget
-}()
+	defer func() {
+		releaseChannel = oldChannel
+		releaseTarget = oldTarget
+	}()
 
-releaseChannel = "beta"
+	releaseChannel = "beta"
 
-cases := []struct {
-target string
-want   string
-}{
-{
-target: "aarch64-3.10",
-want:   "routerforge-beta-index.json",
-},
-{
-target: "mips-3.4",
-want:   "routerforge-beta-index-mips-3.4.json",
-},
-{
-target: "mipsel-3.4",
-want:   "routerforge-beta-index-mipsel-3.4.json",
-},
-}
+	cases := []struct {
+		target string
+		want   string
+	}{
+		{
+			target: "aarch64-3.10",
+			want:   "routerforge-beta-index.json",
+		},
+		{
+			target: "mips-3.4",
+			want:   "routerforge-beta-index-mips-3.4.json",
+		},
+		{
+			target: "mipsel-3.4",
+			want:   "routerforge-beta-index-mipsel-3.4.json",
+		},
+	}
 
-for _, tc := range cases {
-releaseTarget = tc.target
+	for _, tc := range cases {
+		releaseTarget = tc.target
 
-if got := routerForgeReleaseIndexAssetName(); got != tc.want {
-t.Fatalf(
-"target %s: index asset %q, want %q",
-tc.target,
-got,
-tc.want,
-)
-}
-}
+		if got := routerForgeReleaseIndexAssetName(); got != tc.want {
+			t.Fatalf(
+				"target %s: index asset %q, want %q",
+				tc.target,
+				got,
+				tc.want,
+			)
+		}
+	}
 }
 
 func TestRouterForgeReleaseIndexURLUsesTargetAsset(t *testing.T) {
-oldChannel := releaseChannel
-oldTarget := releaseTarget
+	oldChannel := releaseChannel
+	oldTarget := releaseTarget
 
-defer func() {
-releaseChannel = oldChannel
-releaseTarget = oldTarget
-}()
+	defer func() {
+		releaseChannel = oldChannel
+		releaseTarget = oldTarget
+	}()
 
-releaseChannel = "beta"
-releaseTarget = "mips-3.4"
+	releaseChannel = "beta"
+	releaseTarget = "mips-3.4"
 
-want := "routerforge-beta-index-mips-3.4.json"
+	want := "routerforge-beta-index-mips-3.4.json"
 
-for _, url := range routerForgeReleaseIndexURLs() {
-if !strings.HasSuffix(url, "/"+want) {
-t.Fatalf("unexpected MIPS release index URL: %q", url)
-}
-}
+	for _, url := range routerForgeReleaseIndexURLs() {
+		if !strings.HasSuffix(url, "/"+want) {
+			t.Fatalf("unexpected MIPS release index URL: %q", url)
+		}
+	}
 }
 
 func TestParseRouterForgeReleaseIndexRejectsWrongTarget(t *testing.T) {
-oldChannel := releaseChannel
-oldTarget := releaseTarget
+	oldChannel := releaseChannel
+	oldTarget := releaseTarget
 
-defer func() {
-releaseChannel = oldChannel
-releaseTarget = oldTarget
-}()
+	defer func() {
+		releaseChannel = oldChannel
+		releaseTarget = oldTarget
+	}()
 
-releaseChannel = "beta"
-releaseTarget = "mips-3.4"
+	releaseChannel = "beta"
+	releaseTarget = "mips-3.4"
 
-doc := routerForgeReleaseIndex{
-SchemaVersion: 1,
-Channel:       "beta",
-Target:        "mipsel-3.4",
-Components:    []catalogRelease{},
-}
+	doc := routerForgeReleaseIndex{
+		SchemaVersion: 1,
+		Channel:       "beta",
+		Target:        "mipsel-3.4",
+		Components:    []catalogRelease{},
+	}
 
-data, err := json.Marshal(doc)
-if err != nil {
-t.Fatal(err)
-}
+	data, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-if _, err := parseRouterForgeReleaseIndex(data); err == nil {
-t.Fatal("release index for wrong target was accepted")
-}
+	if _, err := parseRouterForgeReleaseIndex(data); err == nil {
+		t.Fatal("release index for wrong target was accepted")
+	}
 }

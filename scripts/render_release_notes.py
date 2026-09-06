@@ -2,8 +2,6 @@
 import argparse
 import json
 import os
-import re
-import subprocess
 from pathlib import Path
 
 NAMES = {
@@ -28,132 +26,59 @@ ORDER = [
     "routerforge-profiling",
 ]
 
-HEX40 = re.compile(r"^[0-9a-f]{40}$")
-ALLOWED_REPOSITORIES = {"Fifth-Ace/dns-monitor", "Fifth-Ace/routerforge"}
+ALLOWED_REPOSITORIES = {"Fifth-Ace/routerforge", "Fifth-Ace/dns-monitor"}
+
 
 def repository_name():
     value = os.environ.get("GITHUB_REPOSITORY", "Fifth-Ace/routerforge").strip()
     return value if value in ALLOWED_REPOSITORIES else "Fifth-Ace/routerforge"
 
-def load_index(path):
-    if not path:
-        return None
+
+def load(path):
     p = Path(path)
     if not p.is_file() or p.stat().st_size == 0:
-        return None
+        raise SystemExit(f"missing or empty JSON file: {path}")
     with p.open("r", encoding="utf-8") as fh:
         return json.load(fh)
 
+
 def by_package(doc):
-    if not doc:
-        return {}
     return {
         str(item.get("package", "")): item
         for item in doc.get("components", [])
         if item.get("package")
     }
 
+
 def name(package, lang):
     pair = NAMES.get(package, (package, package))
     return pair[0] if lang == "ru" else pair[1]
 
-def commit_history(previous, current):
-    previous_sha = str((previous or {}).get("commit", "")).lower()
-    current_sha = str(current).lower()
-    if not HEX40.fullmatch(previous_sha) or not HEX40.fullmatch(current_sha):
-        return []
-    if previous_sha == current_sha:
-        return []
 
-    result = subprocess.run(
-        [
-            "git", "log", "--reverse", "--no-merges",
-            "--format=%H%x09%s",
-            f"{previous_sha}..{current_sha}",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return []
+def notes_for(config, lang):
+    notes = config.get("release_notes") or {}
+    doc = notes.get(lang) or {}
+    if not isinstance(doc, dict):
+        raise SystemExit(f"release_notes.{lang} must be an object")
+    return doc
 
-    commits = []
-    for raw in result.stdout.splitlines():
-        if "\t" not in raw:
-            continue
-        sha, subject = raw.split("\t", 1)
-        sha = sha.strip().lower()
-        subject = " ".join(subject.strip().split())
-        if HEX40.fullmatch(sha) and subject:
-            commits.append((sha, subject))
-    return commits[-30:]
 
-def append_highlights(lines, lang):
-    if lang == "ru":
-        lines += [
-            "## Что входит в RouterForge сейчас",
-            "",
-            "- **Модульная платформа:** Core + независимо устанавливаемые DNS, Control и monitoring capabilities.",
-            "- **DNS observability:** plain DNS, DoT/DoH, клиенты, upstream/fallback, latency и route-aware диагностика Keenetic policy routing.",
-            "- **Мониторинг:** System, Thermal, Storage и Network providers через root-owned Unix sockets.",
-            "- **Marketplace:** управляемый lifecycle пакетов, trust metadata и SHA256-проверка RouterForge IPK.",
-            "- **Независимые обновления:** каждый компонент имеет собственную версию; remote-проверка раз в час и ручная проверка сразу.",
-            "- **Безопасность:** опциональная Entware-root авторизация, in-memory sessions и ограниченные типизированные package actions.",
-            "",
-        ]
-    else:
-        lines += [
-            "## Current RouterForge highlights",
-            "",
-            "- **Modular platform:** Core plus independently installable DNS, Control and monitoring capabilities.",
-            "- **DNS observability:** plain DNS, DoT/DoH, clients, upstream/fallback, latency and route-aware Keenetic policy-routing diagnostics.",
-            "- **Monitoring:** System, Thermal, Storage and Network providers over root-owned Unix sockets.",
-            "- **Marketplace:** constrained package lifecycle, trust metadata and SHA256 verification for RouterForge IPKs.",
-            "- **Independent updates:** every component has its own version, with hourly remote checks and immediate manual refresh.",
-            "- **Security:** optional Entware-root authentication, in-memory sessions and constrained typed package actions.",
-            "",
-        ]
-
-def append_component_changes(lines, changed, lang):
-    heading = "## Изменения компонентов" if lang == "ru" else "## Component changes"
+def append_items(lines, heading, items):
+    if not items:
+        return
     lines += [heading, ""]
-    if changed:
-        for package, before, after in changed:
-            label = name(package, lang)
-            if before:
-                lines.append(f"- **{label}:** `{before}` → `{after}`")
-            else:
-                initial = "первая версия в канале" if lang == "ru" else "initial channel version"
-                lines.append(f"- **{label}:** {initial} `{after}`")
-    else:
-        lines.append(
-            "- Версии пакетов в этой публикации не менялись."
-            if lang == "ru"
-            else "- No package versions changed in this publish."
-        )
+    for item in items:
+        text = " ".join(str(item).split())
+        if text:
+            lines.append(f"- {text}")
     lines.append("")
 
-def append_commit_notes(lines, commits, lang):
-    heading = "## Что изменилось с прошлого publish" if lang == "ru" else "## Changes since the previous publish"
-    lines += [heading, ""]
-    repo = repository_name()
-    if commits:
-        for sha, subject in commits:
-            short = sha[:7]
-            lines.append(f"- [`{short}`](https://github.com/{repo}/commit/{sha}) — {subject}")
-    else:
-        lines.append(
-            "- Нет новых commit notes для этого rolling publish."
-            if lang == "ru"
-            else "- No additional commit notes for this rolling publish."
-        )
-    lines.append("")
 
 def append_versions(lines, current, lang):
     heading = "## Текущие версии компонентов" if lang == "ru" else "## Current component versions"
     component_label = "Компонент" if lang == "ru" else "Component"
     version_label = "Версия" if lang == "ru" else "Version"
+
     lines += [
         heading,
         "",
@@ -166,126 +91,120 @@ def append_versions(lines, current, lang):
             lines.append(f"| {name(package, lang)} | `{item.get('version', '—')}` |")
     lines.append("")
 
-def append_install(lines, channel, lang):
+
+def append_install(lines, channel, release_tag, lang):
     channel_name = "Stable" if channel == "stable" else "Beta"
     heading = "## Установка" if lang == "ru" else "## Installation"
     intro = (
-        f"Свежая установка **RouterForge {channel_name}** (Core + DNS, версии берутся из release-index):"
+        f"Свежая установка **RouterForge {channel_name}**:"
         if lang == "ru"
-        else f"Fresh **RouterForge {channel_name}** install (Core + DNS, versions resolved from the release index):"
+        else f"Fresh **RouterForge {channel_name}** install:"
     )
     repo = repository_name()
+    tag = release_tag or f"routerforge-{channel}"
+
     lines += [
         heading,
         "",
         intro,
         "",
         "```sh",
-        f"wget -qO- https://github.com/{repo}/releases/download/routerforge-{channel}/routerforge-{channel}-bootstrap.sh | sh",
+        f"/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/{repo}/releases/download/{tag}/routerforge-{channel}-bootstrap.sh | sh",
         "```",
         "",
     ]
 
-def append_build(lines, channel, commit, lang):
+
+def append_build(lines, channel, commit, release_version, lang):
     heading = "## Сборка и проверка" if lang == "ru" else "## Build and verification"
     commit_label = "Коммит" if lang == "ru" else "Commit"
-    sums_label = "Контрольные суммы" if lang == "ru" else "Checksums"
-    bootstrap_label = "Bootstrap установки" if lang == "ru" else "Fresh-install bootstrap"
-    verify = (
-        "Перед установкой RouterForge сверяет точный release asset и SHA256 из release-index."
-        if lang == "ru"
-        else "RouterForge verifies the exact release asset and SHA256 from the channel index before package installation."
-    )
+    release_label = "Версия RouterForge" if lang == "ru" else "RouterForge release"
+    archive_label = "Архивный релиз" if lang == "ru" else "Immutable release"
     repo = repository_name()
     short = commit[:7]
+    tag = f"routerforge-v{release_version}"
+
     lines += [
         heading,
         "",
+        f"- {release_label}: `{release_version}`",
+        f"- {archive_label}: `{tag}`",
         f"- {commit_label}: [`{short}`](https://github.com/{repo}/commit/{commit})",
         f"- Release index: `routerforge-{channel}-index.json`",
-        f"- {sums_label}: `routerforge-{channel}-SHA256SUMS`",
-        f"- {bootstrap_label}: `routerforge-{channel}-bootstrap.sh`",
-        "",
-        verify,
+        f"- Bootstrap: `routerforge-{channel}-bootstrap.sh`",
         "",
     ]
+
+
+def append_language(lines, config, final, channel, commit, release_tag, lang):
+    release_version = str(config.get("release_version", "")).strip()
+    if not release_version:
+        raise SystemExit("release_version is missing")
+
+    notes = notes_for(config, lang)
+    current = by_package(final)
+
+    if lang == "ru":
+        lines += [
+            "## 🇷🇺 Русский",
+            "",
+            f"**RouterForge {release_version}**",
+            "",
+        ]
+        append_items(lines, "## Что нового", notes.get("new"))
+        append_items(lines, "## Исправления", notes.get("fixes"))
+        append_items(lines, "## Совместимость", notes.get("compatibility"))
+        append_items(lines, "## Технические изменения", notes.get("technical"))
+    else:
+        lines += [
+            "## 🇬🇧 English",
+            "",
+            f"**RouterForge {release_version}**",
+            "",
+        ]
+        append_items(lines, "## What's new", notes.get("new"))
+        append_items(lines, "## Fixes", notes.get("fixes"))
+        append_items(lines, "## Compatibility", notes.get("compatibility"))
+        append_items(lines, "## Technical changes", notes.get("technical"))
+
+    append_versions(lines, current, lang)
+    append_install(lines, channel, release_tag, lang)
+    append_build(lines, channel, commit, release_version, lang)
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--channel", choices=("beta", "stable"), required=True)
-    parser.add_argument("--previous")
+    parser.add_argument("--config", required=True)
+    parser.add_argument("--release-tag")
     parser.add_argument("--final", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--commit", required=True)
     args = parser.parse_args()
 
-    previous = load_index(args.previous)
-    final = load_index(args.final)
-    if not final:
-        raise SystemExit("final release index is missing or empty")
+    config = load(args.config)
+    final = load(args.final)
 
-    current = by_package(final)
-    old = by_package(previous)
+    if config.get("channel") != args.channel:
+        raise SystemExit("release config channel mismatch")
+    if final.get("channel") != args.channel:
+        raise SystemExit("release index channel mismatch")
 
-    changed = []
-    for package in ORDER:
-        item = current.get(package)
-        if not item:
-            continue
-        before = old.get(package, {}).get("version")
-        after = item.get("version", "")
-        if before != after:
-            changed.append((package, before, after))
-
-    commits = commit_history(previous, args.commit)
-    channel_name = "Beta" if args.channel == "beta" else "Stable"
-
-    ru_channel = (
-        "Тестовый pre-release канал. Здесь изменения проверяются перед переносом в Stable."
-        if args.channel == "beta"
-        else "Production-канал RouterForge. Сюда попадают изменения после проверки в Beta."
-    )
-    en_channel = (
-        "Pre-release testing channel. Changes are validated here before promotion to Stable."
-        if args.channel == "beta"
-        else "RouterForge production channel. Changes arrive here after validation in Beta."
-    )
+    release_version = str(config.get("release_version", "")).strip()
+    if not release_version:
+        raise SystemExit("release_version is missing")
 
     lines = [
-        f"# RouterForge {channel_name}",
-        "",
-        "## 🇷🇺 Русский",
-        "",
-        ru_channel,
-        "",
-        "Это rolling-канал с независимыми версиями компонентов RouterForge.",
+        f"# RouterForge {release_version}",
         "",
     ]
-    append_highlights(lines, "ru")
-    append_component_changes(lines, changed, "ru")
-    append_commit_notes(lines, commits, "ru")
-    append_versions(lines, current, "ru")
-    append_install(lines, args.channel, "ru")
-    append_build(lines, args.channel, args.commit, "ru")
 
-    lines += [
-        "---",
-        "",
-        "## 🇬🇧 English",
-        "",
-        en_channel,
-        "",
-        "This is a rolling channel with independently versioned RouterForge components.",
-        "",
-    ]
-    append_highlights(lines, "en")
-    append_component_changes(lines, changed, "en")
-    append_commit_notes(lines, commits, "en")
-    append_versions(lines, current, "en")
-    append_install(lines, args.channel, "en")
-    append_build(lines, args.channel, args.commit, "en")
+    append_language(lines, config, final, args.channel, args.commit, args.release_tag, "ru")
+    lines += ["---", ""]
+    append_language(lines, config, final, args.channel, args.commit, args.release_tag, "en")
 
     Path(args.output).write_text("\n".join(lines), encoding="utf-8")
+
 
 if __name__ == "__main__":
     main()

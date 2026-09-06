@@ -22,9 +22,9 @@ def shell_single(value):
         raise SystemExit(f"unsafe shell value: {value!r}")
     return "'" + value + "'"
 
-def valid_release_url(url, channel, asset):
+def valid_release_url(url, release_tag, asset):
     for repository in ALLOWED_REPOSITORIES:
-        prefix = f"https://github.com/{repository}/releases/download/routerforge-{channel}/"
+        prefix = f"https://github.com/{repository}/releases/download/{release_tag}/"
         if url.startswith(prefix) and url.endswith("/" + asset):
             return True
     return False
@@ -32,9 +32,12 @@ def valid_release_url(url, channel, asset):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--channel", choices=("stable", "beta"), required=True)
+    ap.add_argument("--release-tag")
     ap.add_argument("--final", required=True)
     ap.add_argument("--output", required=True)
     args = ap.parse_args()
+
+    release_tag = args.release_tag or f"routerforge-{args.channel}"
 
     doc = load(args.final)
     if doc.get("schema_version") != 1 or doc.get("channel") != args.channel:
@@ -148,9 +151,9 @@ def main():
             raise SystemExit(f"unsafe asset {asset}")
         if not HEX64.fullmatch(sha):
             raise SystemExit(f"invalid sha256 for {package}")
-        if not valid_release_url(legacy_url, args.channel, asset):
+        if not valid_release_url(legacy_url, release_tag, asset):
             raise SystemExit(f"unexpected legacy release URL for {package}")
-        if not valid_release_url(canonical_url, args.channel, asset):
+        if not valid_release_url(canonical_url, release_tag, asset):
             raise SystemExit(f"unexpected canonical release URL for {package}")
         fallback_url = legacy_url if legacy_url != canonical_url else ""
         entries.append((

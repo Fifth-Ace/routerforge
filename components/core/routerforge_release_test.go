@@ -116,3 +116,73 @@ func TestCoreCanExposeIndependentUpdate(t *testing.T) {
 		t.Fatalf("unexpected core actions: %#v", actions)
 	}
 }
+
+func TestRouterForgeReleaseIndexAssetNameByTarget(t *testing.T) {
+oldChannel := releaseChannel
+oldTarget := releaseTarget
+defer func() {
+releaseChannel = oldChannel
+releaseTarget = oldTarget
+}()
+
+releaseChannel = "beta"
+
+cases := []struct {
+target string
+want   string
+}{
+{
+target: "aarch64-3.10",
+want:   "routerforge-beta-index.json",
+},
+{
+target: "mips-3.4",
+want:   "routerforge-beta-index-mips-3.4.json",
+},
+{
+target: "mipsel-3.4",
+want:   "routerforge-beta-index-mipsel-3.4.json",
+},
+}
+
+for _, tc := range cases {
+releaseTarget = tc.target
+
+if got := routerForgeReleaseIndexAssetName(); got != tc.want {
+t.Fatalf(
+"target %s: index asset %q, want %q",
+tc.target,
+got,
+tc.want,
+)
+}
+}
+}
+
+func TestParseRouterForgeReleaseIndexRejectsWrongTarget(t *testing.T) {
+oldChannel := releaseChannel
+oldTarget := releaseTarget
+defer func() {
+releaseChannel = oldChannel
+releaseTarget = oldTarget
+}()
+
+releaseChannel = "beta"
+releaseTarget = "mips-3.4"
+
+doc := routerForgeReleaseIndex{
+SchemaVersion: 1,
+Channel:       "beta",
+Target:        "mipsel-3.4",
+Components:    []catalogRelease{},
+}
+
+data, err := json.Marshal(doc)
+if err != nil {
+t.Fatal(err)
+}
+
+if _, err := parseRouterForgeReleaseIndex(data); err == nil {
+t.Fatal("release index for wrong target was accepted")
+}
+}

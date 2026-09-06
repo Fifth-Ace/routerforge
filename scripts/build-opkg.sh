@@ -53,7 +53,7 @@ frontend_assets_embed.go
     routerforge_go build \
         -tags embed_frontend \
         -trimpath \
-        -ldflags="-s -w -X main.version=$PKG_VERSION -X main.releaseChannel=$CHANNEL" \
+        -ldflags="-s -w -X main.version=$PKG_VERSION -X main.releaseChannel=$CHANNEL -X main.releaseTarget=$TARGET" \
         -o "$WORK/data/opt/bin/routerforge" $CORE_SOURCES
 )
 

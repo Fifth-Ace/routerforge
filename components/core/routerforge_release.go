@@ -13,7 +13,10 @@ import (
 	"time"
 )
 
-var releaseChannel = "beta"
+var (
+releaseChannel = "beta"
+releaseTarget  string
+)
 
 const (
 	routerForgeReleaseSyncInterval = time.Hour

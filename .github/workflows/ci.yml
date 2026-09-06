@@ -122,7 +122,7 @@ jobs:
               esac
 
               case "$path" in
-                scripts/render_bootstrap.py)
+                scripts/render_bootstrap.py|scripts/render_universal_bootstrap.py)
                   RELEASE=true
                   ;;
                 release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py)
@@ -405,6 +405,7 @@ jobs:
           sh -n scripts/probe-runtime-compat.sh
           sh -n scripts/verify-runtime-compat-probe.sh
           sh -n scripts/verify-mips-preview-quarantine.sh
+          sh -n scripts/verify-universal-bootstrap.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
           sh -n components/control/packaging/postinst
@@ -423,6 +424,10 @@ jobs:
       - name: Verify MIPS preview quarantine
         if: steps.scope.outputs.release == 'true' || steps.scope.outputs.shell == 'true'
         run: sh scripts/verify-mips-preview-quarantine.sh
+
+      - name: Verify universal bootstrap dispatcher
+        if: steps.scope.outputs.release == 'true' || steps.scope.outputs.shell == 'true'
+        run: sh scripts/verify-universal-bootstrap.sh
 
       - name: Build Entware package set
         if: steps.scope.outputs.full_release == 'true'
@@ -535,7 +540,7 @@ jobs:
         if: steps.scope.outputs.release == 'true'
         run: |
           sh -n scripts/build-module-opkg.sh
-          python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py
+          python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py scripts/render_universal_bootstrap.py
 
           grep -Fq 'detect_mem_mib() {' scripts/render_bootstrap.py
           grep -Fq 'detect_swap_mib() {' scripts/render_bootstrap.py

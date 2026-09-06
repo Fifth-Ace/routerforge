@@ -47,10 +47,12 @@ def main():
         old = old_by_id.get(current["id"])
         if old and old.get("version") == current.get("version"):
             preserved = dict(old)
-            # Metadata can move to the renamed repository without rebuilding or
-            # replacing a same-version binary. Legacy url remains untouched.
-            if current.get("canonical_url"):
-                preserved["canonical_url"] = current["canonical_url"]
+            # Preserve the already-published same-version binary identity, but
+            # normalize repository metadata from the current candidate. This
+            # prevents legacy repository URLs from surviving channel merges.
+            for key in ("url", "canonical_url"):
+                if current.get(key):
+                    preserved[key] = current[key]
             merged.append(preserved)
         else:
             merged.append(current)

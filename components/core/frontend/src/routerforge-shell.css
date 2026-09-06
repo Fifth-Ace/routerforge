@@ -1223,3 +1223,37 @@ td,
 .catalog-refresh-button.update-available:hover {
   background: var(--rf-accent-hover) !important;
 }
+
+/* Core 0.6 overview / App Center closure */
+.routerforge-quick-telemetry {
+  display:flex; gap:18px; flex-wrap:wrap; margin:2px 0 18px; padding:9px 12px;
+  border:1px solid var(--rf-border); border-radius:var(--rf-radius-panel); background:var(--rf-surface);
+  color:var(--rf-muted); font-size:12px;
+}
+.routerforge-quick-telemetry strong { color:var(--rf-text); font-weight:600; }
+.routerforge-attention-v2 { margin-top:0; }
+.routerforge-attention-list { display:grid; }
+.routerforge-attention-row {
+  min-height:54px; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center;
+  gap:10px; padding:10px 13px; border-bottom:1px solid var(--rf-border); color:inherit;
+  text-decoration:none; background:var(--rf-surface);
+}
+.routerforge-attention-row:last-child { border-bottom:0; }
+.routerforge-attention-row:hover { background:var(--rf-hover); }
+.routerforge-attention-row.critical { border-left:2px solid #ef4444; }
+.routerforge-attention-row.warning { border-left:2px solid #f59e0b; }
+.routerforge-attention-row.info { border-left:2px solid var(--rf-accent); }
+.routerforge-attention-copy { min-width:0; display:grid; gap:3px; }
+.routerforge-attention-copy small { color:var(--rf-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.routerforge-installed-v2 { margin-top:20px; }
+.routerforge-installed-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.routerforge-installed-list { display:grid; }
+.routerforge-installed-row {
+  min-height:54px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:9px 12px; border-bottom:1px solid var(--rf-border); color:inherit; text-decoration:none;
+}
+.routerforge-installed-row:last-child { border-bottom:0; }
+.routerforge-installed-row:hover { background:var(--rf-hover); }
+.routerforge-installed-row > span:first-child { min-width:0; display:grid; gap:2px; }
+.routerforge-installed-row small { color:var(--rf-muted); }
+@media (max-width:900px) { .routerforge-installed-groups { grid-template-columns:1fr; } }

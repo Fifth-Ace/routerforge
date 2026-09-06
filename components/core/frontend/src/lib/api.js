@@ -32,6 +32,7 @@ async function postJSON(path, body) {
 }
 
 export const getSnapshot = () => request('/api/snapshot');
+export const getPlatform = () => request('/api/platform');
 export const getSystem = () => request('/api/system');
 export const getCatalog = () => request('/api/catalog');
 export const refreshCatalogRemote = () => postJSON('/api/catalog/refresh', {});

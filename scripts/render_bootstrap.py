@@ -134,7 +134,7 @@ def main():
         ])
 
     by_package = {x.get("package"): x for x in doc.get("components", [])}
-    required = ["routerforge-core", "routerforge-dns"]
+    required = ["routerforge-core"]
     entries = []
 
     for package in required:
@@ -352,7 +352,7 @@ def main():
         'say "Web UI: http://<router-ip>:2233"',
         'say "Core service: /opt/etc/init.d/S90routerforge"',
         'say "Log: /opt/var/log/routerforge.log"',
-        'say "Install optional capabilities from Marketplace."',
+        'say "Install optional capabilities from RouterForge App Center."',
         "",
     ]
 

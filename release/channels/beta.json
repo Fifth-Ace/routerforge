@@ -1,46 +1,46 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.5.0-beta.5",
+    "release_version": "0.6.0-beta.1",
     "release_notes": {
         "ru": {
             "new": [
-                "Интеграции теперь получают доступную версию и признак обновления из уже настроенных opkg feeds.",
-                "Для интеграций без проверенного manifest разрешены прямые opkg install/update/remove, если пакет однозначно найден в уже настроенном feed."
+                "Главная Core переработана в единый центр состояния и внимания.",
+                "Sidebar показывает RouterForge-компоненты, установленные интеграции и телеметрию устройства.",
+                "Core получил /api/platform для модели устройства и использования /opt.",
+                "Чистая bootstrap-установка теперь устанавливает только RouterForge Core."
             ],
             "fixes": [
-                "Исправлен разбор opkg list-upgradable: в интерфейсе показывается целевая версия обновления, а не установленная.",
-                "Пакеты RouterForge и пакеты, принадлежащие карточкам Интеграций, исключены из вкладки Entware, чтобы не дублироваться.",
-                "Кнопка обновления внешней интеграции показывается только при реальном доступном opkg update."
+                "Пользовательское название раздела унифицировано как «Центр приложений».",
+                "Убрано ложное предупреждение Built-in RouterForge component для Core."
             ],
             "compatibility": [
                 "ARM64 (aarch64-3.10) — основной поддерживаемый target.",
-                "MIPS (mips-3.4) и MIPSel (mipsel-3.4) — experimental Beta до проверки на физическом оборудовании.",
-                "128 МБ ОЗУ поддерживаются с предупреждением о запасе памяти для стороннего ПО; 64 МБ остаются неподдерживаемой конфигурацией."
+                "MIPS и MIPSel остаются experimental Beta до физической проверки."
             ],
             "technical": [
-                "Интеграции без проверенного manifest не получают право запускать upstream shell installers: fallback ограничен прямыми действиями через уже настроенный opkg feed.",
-                "Entware и Интеграции используют общий кэш package metadata; ручная проверка обновлений инвалидирует кэш без скрытого opkg update."
+                "Attention Center агрегирует secure DNS health и свежие plain DNS timeout/error наблюдения.",
+                "CPU/RAM/Thermal остаются optional providers; model и /opt принадлежат Core."
             ]
         },
         "en": {
             "new": [
-                "Integrations now receive available version and upgrade state from already configured opkg feeds.",
-                "Integrations without a verified manifest may use direct opkg install/update/remove when a single package is unambiguously available from an already configured feed."
+                "Core Home is redesigned as a unified status and attention center.",
+                "Sidebar shows RouterForge components, installed integrations, and device telemetry.",
+                "Core now exposes /api/platform for device model and /opt usage.",
+                "Fresh bootstrap now installs RouterForge Core only."
             ],
             "fixes": [
-                "Fixed opkg list-upgradable parsing so the UI shows the target upgrade version instead of the installed version.",
-                "RouterForge packages and packages owned by Integration cards are hidden from the Entware tab to avoid duplicate ownership.",
-                "External integration update actions are shown only when opkg reports a real upgrade."
+                "The user-facing section name is consistently App Center.",
+                "The benign Built-in RouterForge component warning is suppressed for Core."
             ],
             "compatibility": [
                 "ARM64 (aarch64-3.10) is the primary supported target.",
-                "MIPS (mips-3.4) and MIPSel (mipsel-3.4) remain experimental Beta targets until physical hardware validation.",
-                "128 MiB RAM is supported with a headroom warning for other software; 64 MiB remains unsupported."
+                "MIPS and MIPSel remain experimental Beta until physical validation."
             ],
             "technical": [
-                "Unverified integrations never gain permission to execute upstream shell installers; the fallback is limited to direct actions through an already configured opkg feed.",
-                "Entware and Integrations share cached package metadata; manual update checks invalidate the cache without silently running opkg update."
+                "Attention Center aggregates secure DNS health and recent plain DNS timeout/error observations.",
+                "CPU/RAM/Thermal remain optional providers; model and /opt belong to Core."
             ]
         }
     },
@@ -48,7 +48,7 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.4.7-beta"
+            "version": "0.6.0-beta"
         },
         {
             "id": "dns",

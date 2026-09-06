@@ -102,7 +102,7 @@ export default {
     "home": "Главная",
     "monitoring": "Мониторинг",
     "manage": "Управление",
-    "marketplace": "Приложения",
+    "marketplace": "\u0426\u0435\u043d\u0442\u0440 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0439",
     "settings": "Настройки",
     "logout": "Выйти"
   },

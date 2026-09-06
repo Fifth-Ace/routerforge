@@ -42,6 +42,8 @@ catalog.go
 marketplace_install.go
 marketplace_install_http.go
 app_center_entware.go
+core_platform.go
+core_platform_storage_linux.go
 profiling.go
 routerforge_registry.go
 routerforge_release.go

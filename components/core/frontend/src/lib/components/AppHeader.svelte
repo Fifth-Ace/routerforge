@@ -26,7 +26,7 @@
     { href: '/', labelKey: 'nav.home', order: 10 },
     ...(telemetryInstalled ? [{ href: '/monitoring', labelKey: 'nav.monitoring', order: 20 }] : []),
     ...dynamicModuleItems,
-    { href: '/catalog', labelKey: 'nav.marketplace', order: 80 },
+    { href: '/apps', labelKey: 'nav.marketplace', order: 80 },
     { href: '/settings', labelKey: 'nav.settings', order: 90 }
   ].sort((a, b) => a.order - b.order);
 

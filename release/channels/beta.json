@@ -1,106 +1,100 @@
 {
-    "schema_version": 1,
-    "channel": "beta",
-    "release_version": "0.5.0-beta.3",
-    "release_notes": {
-        "ru": {
-            "new": [
-                "Marketplace получил переключение Stable/Beta только для официальных модулей RouterForge без автоматической установки пакетов.",
-                "Marketplace теперь явно показывает выбранный target и experimental-статус, а неизвестная архитектура блокируется fail-closed.",
-                "Добавлена экспериментальная поддержка MIPS и MIPSel в Beta.",
-                "Один universal bootstrap автоматически определяет архитектуру Entware и выбирает подходящую сборку.",
-                "Для MIPS/MIPSel добавлены fail-closed preflight, runtime compatibility probe и QEMU-проверка."
-            ],
-            "fixes": [
-                "Исправлена доставка обновлённого Core существующим Beta-установкам: Core получил новую package version 0.4.5-beta.",
-                "Release tooling теперь запрещает публиковать изменившийся бинарник под уже использованной package version.",
-                "Исправлен release flow: существующий immutable snapshot проверяется до изменения rolling Beta alias.",
-                "Исправлена маршрутизация release-index и package assets между ARM64, MIPS и MIPSel.",
-                "Исправлена последовательная multi-arch сборка Beta без удаления пакетов другой архитектуры."
-            ],
-            "compatibility": [
-                "ARM64 (aarch64-3.10) — основной поддерживаемый target.",
-                "MIPS (mips-3.4) и MIPSel (mipsel-3.4) — experimental Beta до проверки на физическом оборудовании.",
-                "128 МБ ОЗУ поддерживаются с предупреждением о запасе памяти для стороннего ПО; 64 МБ остаются неподдерживаемой конфигурацией."
-            ],
-            "technical": [
-                "Добавлена проверка опубликованного multi-arch Beta release после загрузки assets.",
-                "ARM64 production executables продолжают упаковываться UPX; MIPS/MIPSel остаются без UPX до аппаратной валидации."
-            ]
-        },
-        "en": {
-            "new": [
-                "Marketplace can now switch Stable/Beta only for official RouterForge modules without automatically installing packages.",
-                "Marketplace now exposes the selected target and experimental status, while unknown architectures fail closed.",
-                "Experimental MIPS and MipSel support is now available in Beta.",
-                "A single universal bootstrap automatically detects the Entware architecture and selects the matching build.",
-                "MIPS/MIPSel now use fail-closed preflight, runtime compatibility probing, and QEMU runtime validation."
-            ],
-            "fixes": [
-                "Fixed delivery of the updated Core to existing Beta installations by bumping the Core package version to 0.4.5-beta.",
-                "Release tooling now rejects a changed binary published under an already-used package version.",
-                "Fixed release ordering so an existing immutable snapshot is rejected before the rolling Beta alias is mutated.",
-                "Fixed release-index and package-asset routing across ARM64, MIPS, and MIPSel.",
-                "Fixed sequential multi-architecture Beta builds so packages for other targets are preserved."
-            ],
-            "compatibility": [
-                "ARM64 (aarch64-3.10) is the primary supported target.",
-                "MIPS (mips-3.4) and MIPSel (mipsel-3.4) remain experimental Beta targets until physical hardware validation.",
-                "128 MiB RAM is supported with a headroom warning for other software; 64 MiB remains unsupported."
-            ],
-            "technical": [
-                "Added post-publication verification for the published multi-architecture Beta release.",
-                "ARM64 production executables remain UPX-packed; MIPS/MIPSel remain unpacked until hardware validation."
-            ]
-        }
-    },
-    "components": [
-        {
-            "id": "routerforge-core",
-            "package": "routerforge-core",
-            "version": "0.4.5-beta"
-        },
-        {
-            "id": "dns",
-            "package": "routerforge-dns",
-            "version": "0.4.20-beta",
-            "min_core_version": "0.4.2-beta"
-        },
-        {
-            "id": "admin",
-            "package": "routerforge-admin",
-            "version": "0.3.1-beta",
-            "min_core_version": "0.3.0-beta"
-        },
-        {
-            "id": "system",
-            "package": "routerforge-system",
-            "version": "0.3.1-beta",
-            "min_core_version": "0.3.0-beta"
-        },
-        {
-            "id": "thermal",
-            "package": "routerforge-thermal",
-            "version": "0.3.2-beta",
-            "min_core_version": "0.3.0-beta"
-        },
-        {
-            "id": "storage",
-            "package": "routerforge-storage",
-            "version": "0.3.2-beta",
-            "min_core_version": "0.3.0-beta"
-        },
-        {
-            "id": "network",
-            "package": "routerforge-network",
-            "version": "0.3.3-beta",
-            "min_core_version": "0.3.0-beta"
-        },
-        {
-            "id": "profiling",
-            "package": "routerforge-profiling",
-            "version": "0.3.0-beta",
-            "min_core_version": "0.3.0-beta"
-        }
-    ]
+    "schema_version":  1,
+    "channel":  "beta",
+    "release_version":  "0.5.0-beta.4",
+    "release_notes":  {
+                          "ru":  {
+                                     "new":  [
+                                                 "Marketplace переименован в «Приложения / Центр приложений» и оформлен как capability RouterForge Core.",
+                                                 "Добавлены вкладки RouterForge, Интеграции, Entware, Установлено и Обновления.",
+                                                 "Добавлен кэшированный Entware package browser с поиском, installed/update состоянием и постраничной выдачей.",
+                                                 "Добавлены guarded Entware install/update/remove и explicit opkg update через общий package-manager lock."
+                                             ],
+                                     "fixes":  [
+                                                   "Удалена фиктивная карточка Marketplace из списка устанавливаемых RouterForge-модулей.",
+                                                   "Core теперь показывает собственную версию и package lifecycle, а Центр приложений версионируется вместе с Core.",
+                                                   "Generic Entware actions блокируют routerforge-* и opkg, чтобы не обходить проверенный RouterForge release lifecycle."
+                                               ],
+                                     "compatibility":  [
+                                                           "ARM64 (aarch64-3.10) вЂ” РѕСЃРЅРѕРІРЅРѕР№ РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Р№ target.",
+                                                           "MIPS (mips-3.4) Рё MIPSel (mipsel-3.4) вЂ” experimental Beta РґРѕ РїСЂРѕРІРµСЂРєРё РЅР° С„РёР·РёС‡РµСЃРєРѕРј РѕР±РѕСЂСѓРґРѕРІР°РЅРёРё.",
+                                                           "128 РњР‘ РћР—РЈ РїРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ СЃ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµРј Рѕ Р·Р°РїР°СЃРµ РїР°РјСЏС‚Рё РґР»СЏ СЃС‚РѕСЂРѕРЅРЅРµРіРѕ РџРћ; 64 РњР‘ РѕСЃС‚Р°СЋС‚СЃСЏ РЅРµРїРѕРґРґРµСЂР¶РёРІР°РµРјРѕР№ РєРѕРЅС„РёРіСѓСЂР°С†РёРµР№."
+                                                       ],
+                                     "technical":  [
+                                                       "Р”РѕР±Р°РІР»РµРЅР° РїСЂРѕРІРµСЂРєР° РѕРїСѓР±Р»РёРєРѕРІР°РЅРЅРѕРіРѕ multi-arch Beta release РїРѕСЃР»Рµ Р·Р°РіСЂСѓР·РєРё assets.",
+                                                       "ARM64 production executables РїСЂРѕРґРѕР»Р¶Р°СЋС‚ СѓРїР°РєРѕРІС‹РІР°С‚СЊСЃСЏ UPX; MIPS/MIPSel РѕСЃС‚Р°СЋС‚СЃСЏ Р±РµР· UPX РґРѕ Р°РїРїР°СЂР°С‚РЅРѕР№ РІР°Р»РёРґР°С†РёРё."
+                                                   ]
+                                 },
+                          "en":  {
+                                     "new":  [
+                                                 "Marketplace is renamed to Apps / App Center and is explicitly a RouterForge Core capability.",
+                                                 "Added RouterForge, Integrations, Entware, Installed, and Updates tabs.",
+                                                 "Added a cached Entware package browser with search, installed/update state, and pagination.",
+                                                 "Added guarded Entware install/update/remove and explicit opkg update using the shared package-manager lock."
+                                             ],
+                                     "fixes":  [
+                                                   "Removed the fake Marketplace card from installable RouterForge modules.",
+                                                   "Core now owns App Center versioning and package lifecycle.",
+                                                   "Generic Entware actions block routerforge-* and opkg so verified RouterForge release lifecycle cannot be bypassed."
+                                               ],
+                                     "compatibility":  [
+                                                           "ARM64 (aarch64-3.10) is the primary supported target.",
+                                                           "MIPS (mips-3.4) and MIPSel (mipsel-3.4) remain experimental Beta targets until physical hardware validation.",
+                                                           "128 MiB RAM is supported with a headroom warning for other software; 64 MiB remains unsupported."
+                                                       ],
+                                     "technical":  [
+                                                       "Added post-publication verification for the published multi-architecture Beta release.",
+                                                       "ARM64 production executables remain UPX-packed; MIPS/MIPSel remain unpacked until hardware validation."
+                                                   ]
+                                 }
+                      },
+    "components":  [
+                       {
+                           "id":  "routerforge-core",
+                           "package":  "routerforge-core",
+                           "version":  "0.4.6-beta"
+                       },
+                       {
+                           "id":  "dns",
+                           "package":  "routerforge-dns",
+                           "version":  "0.4.20-beta",
+                           "min_core_version":  "0.4.2-beta"
+                       },
+                       {
+                           "id":  "admin",
+                           "package":  "routerforge-admin",
+                           "version":  "0.3.1-beta",
+                           "min_core_version":  "0.3.0-beta"
+                       },
+                       {
+                           "id":  "system",
+                           "package":  "routerforge-system",
+                           "version":  "0.3.1-beta",
+                           "min_core_version":  "0.3.0-beta"
+                       },
+                       {
+                           "id":  "thermal",
+                           "package":  "routerforge-thermal",
+                           "version":  "0.3.2-beta",
+                           "min_core_version":  "0.3.0-beta"
+                       },
+                       {
+                           "id":  "storage",
+                           "package":  "routerforge-storage",
+                           "version":  "0.3.2-beta",
+                           "min_core_version":  "0.3.0-beta"
+                       },
+                       {
+                           "id":  "network",
+                           "package":  "routerforge-network",
+                           "version":  "0.3.3-beta",
+                           "min_core_version":  "0.3.0-beta"
+                       },
+                       {
+                           "id":  "profiling",
+                           "package":  "routerforge-profiling",
+                           "version":  "0.3.0-beta",
+                           "min_core_version":  "0.3.0-beta"
+                       }
+                   ]
 }

@@ -160,6 +160,27 @@ tc.want,
 }
 }
 
+func TestRouterForgeReleaseIndexURLUsesTargetAsset(t *testing.T) {
+oldChannel := releaseChannel
+oldTarget := releaseTarget
+
+defer func() {
+releaseChannel = oldChannel
+releaseTarget = oldTarget
+}()
+
+releaseChannel = "beta"
+releaseTarget = "mips-3.4"
+
+want := "routerforge-beta-index-mips-3.4.json"
+
+for _, url := range routerForgeReleaseIndexURLs() {
+if !strings.HasSuffix(url, "/"+want) {
+t.Fatalf("unexpected MIPS release index URL: %q", url)
+}
+}
+}
+
 func TestParseRouterForgeReleaseIndexRejectsWrongTarget(t *testing.T) {
 oldChannel := releaseChannel
 oldTarget := releaseTarget

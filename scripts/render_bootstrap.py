@@ -49,6 +49,87 @@ def main():
     if target not in supported_targets:
         raise SystemExit(f"unsupported release target {target!r}")
 
+    mips_preview_lines = []
+    if target in {"mips-3.4", "mipsel-3.4"}:
+        probe_path = Path(__file__).with_name("probe-runtime-compat.sh")
+        compat_probe = probe_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        marker = "ROUTERFORGE_COMPAT_PROBE_EOF"
+
+        if "\r" in compat_probe:
+            raise SystemExit("runtime compatibility probe contains unsupported CR characters")
+        if marker in compat_probe:
+            raise SystemExit("runtime compatibility probe collides with bootstrap heredoc marker")
+        if not compat_probe.startswith("#!/bin/sh\n"):
+            raise SystemExit("runtime compatibility probe must start with #!/bin/sh")
+
+        mips_preview_lines = [
+            'MIPS_PREVIEW="${ROUTERFORGE_MIPS_PREVIEW:-0}"',
+            'MIPS_ALLOW_DEGRADED="${ROUTERFORGE_MIPS_ALLOW_DEGRADED:-0}"',
+            'PREINSTALL_ONLY="${ROUTERFORGE_PREINSTALL_ONLY:-0}"',
+            '',
+            'mkdir -p "$TMP"',
+            "trap 'rm -rf \"$TMP\"' EXIT HUP INT TERM",
+            '',
+            'write_runtime_compat_probe() {',
+            f'    cat > "$TMP/runtime-compat-probe.sh" <<\'{marker}\'',
+        ]
+
+        mips_preview_lines.extend(
+            compat_probe.rstrip("\n").split("\n")
+        )
+
+        mips_preview_lines.extend([
+            marker,
+            '    chmod 0755 "$TMP/runtime-compat-probe.sh"',
+            '}',
+            '',
+            'mips_preview_preflight() {',
+            '    [ "$MIPS_PREVIEW" = "1" ] || fail "MIPS/MIPSel support is experimental. Set ROUTERFORGE_MIPS_PREVIEW=1 to continue."',
+            '    write_runtime_compat_probe',
+            '    compat_out="$TMP/runtime-compat.out"',
+            '    compat_rc=0',
+            '    if ROUTERFORGE_PROBE_EXPECT_TARGET="$TARGET" sh "$TMP/runtime-compat-probe.sh" all >"$compat_out" 2>&1; then',
+            '        compat_rc=0',
+            '    else',
+            '        compat_rc=$?',
+            '    fi',
+            '    cat "$compat_out"',
+            '    compat_status=""',
+            '    while IFS="=" read -r key value; do',
+            '        if [ "$key" = "selected_status" ]; then',
+            '            compat_status="$value"',
+            '            break',
+            '        fi',
+            '    done < "$compat_out"',
+            '',
+            '    case "$compat_status" in',
+            '        ready)',
+            '            [ "$compat_rc" -eq 0 ] || fail "Runtime compatibility probe failed unexpectedly (exit $compat_rc)."',
+            '            say "MIPS/MIPSel compatibility: ready."',
+            '            ;;',
+            '        degraded)',
+            '            [ "$compat_rc" -eq 0 ] || fail "Runtime compatibility probe failed unexpectedly (exit $compat_rc)."',
+            '            say "WARNING: MIPS/MIPSel compatibility is degraded."',
+            '            [ "$MIPS_ALLOW_DEGRADED" = "1" ] || fail "Set ROUTERFORGE_MIPS_ALLOW_DEGRADED=1 to explicitly accept degraded experimental operation."',
+            '            say "Degraded experimental operation explicitly accepted."',
+            '            ;;',
+            '        blocked)',
+            '            fail "MIPS/MIPSel compatibility is blocked on this router."',
+            '            ;;',
+            '        *)',
+            '            fail "Runtime compatibility probe returned an invalid status (exit $compat_rc)."',
+            '            ;;',
+            '    esac',
+            '}',
+            '',
+            'mips_preview_preflight',
+            '',
+            'if [ "$PREINSTALL_ONLY" = "1" ]; then',
+            '    exit 0',
+            'fi',
+            '',
+        ])
+
     by_package = {x.get("package"): x for x in doc.get("components", [])}
     required = ["routerforge-core", "routerforge-dns"]
     entries = []
@@ -90,7 +171,11 @@ def main():
         'PREFLIGHT_ONLY="${ROUTERFORGE_PREFLIGHT_ONLY:-0}"',
         'PROC_MEMINFO="${ROUTERFORGE_PROC_MEMINFO:-/proc/meminfo}"',
         'PROC_CPUINFO="${ROUTERFORGE_PROC_CPUINFO:-/proc/cpuinfo}"',
-        'TMP="/opt/tmp/routerforge-bootstrap.$$"',
+        (
+            'TMP="/opt/tmp/routerforge-bootstrap.$$"'
+            if target == "aarch64-3.10"
+            else 'TMP="${ROUTERFORGE_TMP:-/opt/tmp/routerforge-bootstrap.$$}"'
+        ),
         "",
         "say() { printf '%s\\n' \"$*\"; }",
         "fail() { printf 'ERROR: %s\\n' \"$*\" >&2; exit 1; }",
@@ -213,6 +298,7 @@ def main():
         'fi',
         "",
         '[ -d /opt ] || fail "Entware /opt was not found."',
+        *mips_preview_lines,
         'command -v sha256sum >/dev/null 2>&1 || fail "sha256sum was not found."',
         "",
         "fetch() {",

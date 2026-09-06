@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -36,36 +37,38 @@ type catalogInstallPlan struct {
 }
 
 type catalogItem struct {
-	ID             string               `json:"id"`
-	Kind           string               `json:"kind"`
-	Name           string               `json:"name"`
-	Category       string               `json:"category"`
-	Description    string               `json:"description"`
-	ProjectURL     string               `json:"project_url,omitempty"`
-	Source         string               `json:"source"`
-	State          string               `json:"state"`
-	Installed      bool                 `json:"installed"`
-	Enabled        bool                 `json:"enabled"`
-	Managed        bool                 `json:"managed,omitempty"`
-	Version        string               `json:"version,omitempty"`
-	Service        string               `json:"service,omitempty"`
-	ServiceRunning bool                 `json:"service_running"`
-	WebPort        int                  `json:"web_port,omitempty"`
-	WebPortSource  string               `json:"web_port_source,omitempty"`
-	Capabilities   []string             `json:"capabilities,omitempty"`
-	Detection      catalogDetection     `json:"detection,omitempty"`
-	Compatibility  catalogCompatibility `json:"compatibility"`
-	Install        catalogInstallPlan   `json:"install,omitempty"`
-	Update         catalogInstallPlan   `json:"update,omitempty"`
-	Remove         catalogInstallPlan   `json:"remove,omitempty"`
-	Publisher      catalogPublisher     `json:"publisher,omitempty"`
-	Trust          catalogTrust         `json:"trust,omitempty"`
-	Actions        catalogActions       `json:"actions"`
-	ManifestID     string               `json:"manifest_id,omitempty"`
-	ManifestSHA256 string               `json:"manifest_sha256,omitempty"`
-	ManifestSource string               `json:"manifest_source,omitempty"`
-	RegistrySource string               `json:"registry_source,omitempty"`
-	Presentation   map[string]any       `json:"presentation,omitempty"`
+	ID               string               `json:"id"`
+	Kind             string               `json:"kind"`
+	Name             string               `json:"name"`
+	Category         string               `json:"category"`
+	Description      string               `json:"description"`
+	ProjectURL       string               `json:"project_url,omitempty"`
+	Source           string               `json:"source"`
+	State            string               `json:"state"`
+	Installed        bool                 `json:"installed"`
+	Enabled          bool                 `json:"enabled"`
+	Managed          bool                 `json:"managed,omitempty"`
+	Version          string               `json:"version,omitempty"`
+	AvailableVersion string               `json:"available_version,omitempty"`
+	PackageInstalled bool                 `json:"package_installed,omitempty"`
+	Service          string               `json:"service,omitempty"`
+	ServiceRunning   bool                 `json:"service_running"`
+	WebPort          int                  `json:"web_port,omitempty"`
+	WebPortSource    string               `json:"web_port_source,omitempty"`
+	Capabilities     []string             `json:"capabilities,omitempty"`
+	Detection        catalogDetection     `json:"detection,omitempty"`
+	Compatibility    catalogCompatibility `json:"compatibility"`
+	Install          catalogInstallPlan   `json:"install,omitempty"`
+	Update           catalogInstallPlan   `json:"update,omitempty"`
+	Remove           catalogInstallPlan   `json:"remove,omitempty"`
+	Publisher        catalogPublisher     `json:"publisher,omitempty"`
+	Trust            catalogTrust         `json:"trust,omitempty"`
+	Actions          catalogActions       `json:"actions"`
+	ManifestID       string               `json:"manifest_id,omitempty"`
+	ManifestSHA256   string               `json:"manifest_sha256,omitempty"`
+	ManifestSource   string               `json:"manifest_source,omitempty"`
+	RegistrySource   string               `json:"registry_source,omitempty"`
+	Presentation     map[string]any       `json:"presentation,omitempty"`
 
 	Release         catalogRelease `json:"release,omitempty"`
 	UpdateAvailable bool           `json:"update_available,omitempty"`
@@ -96,6 +99,13 @@ func readCatalog() catalogSnapshot {
 	processes := readProcessNames()
 	snapshot := buildCatalog(installed, processes, pathExists)
 	applyRouterForgeRegistry(&snapshot, installed, processes, pathExists)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	if packages, err := loadOpkgCatalog(ctx, false); err == nil {
+		applyIntegrationPackageVersions(&snapshot, packages)
+	}
+	cancel()
+
 	applyRouterForgeReleaseIndex(&snapshot)
 	snapshot.InstallTestMode = marketplaceTestInstallEnabled()
 	snapshot.PackageManagementEnabled = snapshot.InstallTestMode

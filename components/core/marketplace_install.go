@@ -168,6 +168,7 @@ func runCatalogModuleAction(ctx context.Context, id, action, confirmation string
 		return result, &catalogInstallFailure{Status: 500, Message: action + " failed", Detail: truncateCatalogInstallOutput(err.Error(), 4000)}
 	}
 
+	invalidateEntwareCatalog()
 	updated, found := catalogItemByID(id)
 	result.Installed = found && updated.Installed
 	result.Output = truncateCatalogInstallOutput(log.String(), 16000)
@@ -191,6 +192,9 @@ func validateCatalogActionCompletion(item, updated catalogItem, found bool, acti
 	}
 	if action == "update" {
 		expected := strings.TrimSpace(item.Release.Version)
+		if expected == "" && item.Kind == "integration" {
+			expected = strings.TrimSpace(item.AvailableVersion)
+		}
 		actual := strings.TrimSpace(updated.Version)
 		if expected != "" && actual != expected {
 			if actual == "" {
@@ -220,18 +224,25 @@ func catalogActionAllowed(item catalogItem, action string) bool {
 }
 
 func catalogPlanForAction(item catalogItem, action string) catalogInstallPlan {
+	var plan catalogInstallPlan
 	switch action {
 	case "install":
-		return item.Install
+		plan = item.Install
 	case "update":
-		return item.Update
+		plan = item.Update
 	case "remove":
-		return item.Remove
-	default:
-		return catalogInstallPlan{}
+		plan = item.Remove
 	}
-}
 
+	status := strings.ToLower(item.Trust.Status)
+	if (status == "official" || status == "verified") && executableCatalogPlan(plan) {
+		return plan
+	}
+	if fallback, ok := unverifiedDirectOpkgPlan(item, action); ok {
+		return fallback
+	}
+	return plan
+}
 func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action string, plan catalogInstallPlan, result *catalogActionResult, log *strings.Builder) error {
 	if action == "remove" {
 		return fmt.Errorf("routerforge-release does not implement remove")

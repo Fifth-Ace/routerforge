@@ -213,6 +213,7 @@ func startWeb(listen string, version string) error {
 
 		releaseStatus := <-releaseDone
 		registryStatus := <-registryDone
+		invalidateEntwareCatalog()
 		catalog := readCatalog()
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")

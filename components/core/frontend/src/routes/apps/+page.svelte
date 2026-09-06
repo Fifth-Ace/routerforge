@@ -41,8 +41,8 @@
   $: releaseTarget = data.release?.target || '—';
   $: modules = data.modules || [];
   $: integrations = data.integrations || [];
-  $: routerForgeUpdates = modules.filter(hasVerifiedUpdate);
-  $: integrationUpdates = integrations.filter(hasVerifiedUpdate);
+  $: routerForgeUpdates = modules.filter(hasCatalogUpdate);
+  $: integrationUpdates = integrations.filter(hasCatalogUpdate);
   $: installedCatalog = [...modules, ...integrations].filter((item) => item.installed);
   $: updateCatalog = [...routerForgeUpdates, ...integrationUpdates];
 
@@ -72,7 +72,7 @@
     ['updates', a(locale,'tabs.updates'), updateCatalog.length + Number(entwareData.upgradable_count || 0)]
   ];
 
-  function hasVerifiedUpdate(item) {
+  function hasCatalogUpdate(item) {
     return Boolean(item?.installed && item?.update_available && item?.actions?.update);
   }
 
@@ -80,7 +80,7 @@
     const q = String(query || '').trim().toLowerCase();
     if (!q) return items;
     return items.filter((item) =>
-      `${item.name} ${item.category || ''} ${item.description || ''} ${item.version || ''} ${(item.detection?.packages || []).join(' ')} ${item.publisher?.name || ''}`
+      `${item.name} ${item.category || ''} ${item.description || ''} ${item.version || ''} ${item.available_version || ''} ${(item.detection?.packages || []).join(' ')} ${item.publisher?.name || ''}`
         .toLowerCase().includes(q)
     );
   }
@@ -112,6 +112,9 @@
   }
 
   function trustLabel(item) {
+    if (item?.kind === 'integration' && !item?.manifest_id) {
+      return locale === 'ru' ? '\u0411\u0415\u0417 \u041c\u0410\u041d\u0418\u0424\u0415\u0421\u0422\u0410' : 'NO MANIFEST';
+    }
     const value = String(item.trust?.status || 'unverified').toLowerCase();
     const labels = locale === 'ru'
       ? { official:'ОФИЦИАЛЬНЫЙ', verified:'ПРОВЕРЕН', changed:'ИЗМЕНЁН', blocked:'ЗАБЛОКИРОВАН', deprecated:'УСТАРЕЛ', unverified:'НЕ ПРОВЕРЕН' }
@@ -126,6 +129,17 @@
     if (value === 'changed') return 'warn';
     if (value === 'blocked') return 'error';
     return 'neutral';
+  }
+
+  function catalogWarning(item) {
+    const status = String(item?.trust?.status || 'unverified').toLowerCase();
+    if (item?.kind === 'integration' && (!item?.manifest_id || status === 'unverified')) {
+      return locale === 'ru'
+        ? '\u041c\u0430\u043d\u0438\u0444\u0435\u0441\u0442 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0438\u043b\u0438 \u043d\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d. \u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0443\u0436\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d\u043d\u044b\u0439 opkg feed; upstream-\u0441\u043a\u0440\u0438\u043f\u0442\u044b \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438 \u043d\u0435 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u044e\u0442\u0441\u044f.'
+        : 'Manifest is missing or unverified. Available actions use only an already configured opkg feed; upstream scripts are never executed automatically.';
+    }
+    const hasAction = Boolean(item?.actions?.install || item?.actions?.update || item?.actions?.remove);
+    return hasAction ? '' : (item?.actions?.reason || '');
   }
 
   function entwareMode() {
@@ -230,6 +244,7 @@
     entwareRefreshing = true;
     try {
       await refreshEntwarePackages();
+      await refreshCatalog();
       await loadEntware(0);
       actionNotice = { cls:'good', text:a(locale,'entwareListsDone') };
     } catch (error) {
@@ -358,6 +373,7 @@
         {#each catalogItems as item (item.id)}
           {@const st = stateInfo(item,locale)}
           {@const ownURL = item.kind === 'module' && item.installed ? moduleURL(item) : ''}
+          {@const warning = catalogWarning(item)}
           <article class="catalog-card">
             <div>
               <div class="catalog-card-head">
@@ -370,14 +386,14 @@
               <p>{item.description || ''}</p>
               <div class="tech-box mono">
                 <div><span>{a(locale,'installed')}</span><strong>{item.version ? `v${item.version}` : '—'}</strong></div>
-                <div><span>{a(locale,'available')}</span><strong class:good={item.update_available}>{item.release?.version ? `v${item.release.version}` : '—'}</strong></div>
+                <div><span>{a(locale,'available')}</span><strong class:good={item.update_available}>{item.release?.version ? `v${item.release.version}` : item.available_version ? `v${item.available_version}` : '\u2014'}</strong></div>
                 <div><span>{a(locale,'package')}</span><strong title={packageText(item)}>{packageText(item)}</strong></div>
                 <div><span>{a(locale,'publisher')}</span><strong>{item.publisher?.name || '—'}</strong></div>
                 <div><span>{a(locale,'service')}</span><strong class:good={item.service_running}>{item.service ? (item.service_running ? 'RUNNING' : 'STOPPED') : item.id === 'routerforge-core' ? 'CORE' : '—'}</strong></div>
                 <div><span>{a(locale,'compatibility')}</span><strong title={compatibilityText(item)}>{compatibilityText(item)}</strong></div>
               </div>
-              {#if item.actions?.reason && !item.actions?.install && !item.actions?.update && !item.actions?.remove}
-                <div class="catalog-action-reason">{item.actions.reason}</div>
+              {#if warning}
+                <div class="catalog-action-reason">{warning}</div>
               {/if}
             </div>
             <div class="catalog-card-foot">

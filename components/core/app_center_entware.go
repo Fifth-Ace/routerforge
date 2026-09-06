@@ -327,6 +327,14 @@ func handleEntwareAction(w http.ResponseWriter, r *http.Request) {
 }
 
 func loadEntwareCatalog(ctx context.Context, force bool) ([]entwarePackage, error) {
+	items, err := loadOpkgCatalog(ctx, force)
+	if err != nil {
+		return nil, err
+	}
+	return filterEntwarePackages(items), nil
+}
+
+func loadOpkgCatalog(ctx context.Context, force bool) ([]entwarePackage, error) {
 	entwareCache.Lock()
 	defer entwareCache.Unlock()
 
@@ -349,9 +357,7 @@ func loadEntwareCatalog(ctx context.Context, force bool) ([]entwarePackage, erro
 
 	upgradable := map[string]string{}
 	if output, upgradeErr := exec.CommandContext(ctx, opkg, "list-upgradable").Output(); upgradeErr == nil {
-		for name, item := range parseEntwareList(string(output)) {
-			upgradable[name] = item.AvailableVersion
-		}
+		upgradable = parseEntwareUpgradable(string(output))
 	}
 
 	itemsByName := make(map[string]entwarePackage, len(available)+len(installed))
@@ -365,11 +371,9 @@ func loadEntwareCatalog(ctx context.Context, force bool) ([]entwarePackage, erro
 		item.Source = "entware"
 		item.Installed = true
 		item.InstalledVersion = installedVersion
-		if version, ok := upgradable[name]; ok {
+		if version, ok := upgradable[name]; ok && version != "" && version != installedVersion {
 			item.Upgradable = true
-			if version != "" {
-				item.AvailableVersion = version
-			}
+			item.AvailableVersion = version
 		}
 		itemsByName[name] = item
 	}
@@ -421,6 +425,109 @@ func parseEntwareList(raw string) map[string]entwarePackage {
 	return out
 }
 
+func parseEntwareUpgradable(raw string) map[string]string {
+	out := map[string]string{}
+	scanner := bufio.NewScanner(strings.NewReader(raw))
+	scanner.Buffer(make([]byte, 4096), 1024*1024)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, " - ", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		name := strings.TrimSpace(parts[0])
+		version := strings.TrimSpace(parts[2])
+		if !safeCatalogPackageName(name) || version == "" {
+			continue
+		}
+		out[name] = version
+	}
+	return out
+}
+
+func appCenterIntegrationPackageNames() map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, item := range integrationCatalog() {
+		for _, pkg := range item.Detection.Packages {
+			name := strings.ToLower(strings.TrimSpace(pkg))
+			if safeCatalogPackageName(name) {
+				out[name] = struct{}{}
+			}
+		}
+	}
+	return out
+}
+
+func entwarePackageProtectedWithIntegrations(name string, integrations map[string]struct{}) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "opkg" || strings.HasPrefix(name, "routerforge-") {
+		return true
+	}
+	_, ok := integrations[name]
+	return ok
+}
+
+func filterEntwarePackages(items []entwarePackage) []entwarePackage {
+	integrations := appCenterIntegrationPackageNames()
+	out := make([]entwarePackage, 0, len(items))
+	for _, item := range items {
+		if entwarePackageProtectedWithIntegrations(item.Name, integrations) {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func applyIntegrationPackageVersions(snapshot *catalogSnapshot, packages []entwarePackage) {
+	byName := make(map[string]entwarePackage, len(packages))
+	for _, pkg := range packages {
+		byName[pkg.Name] = pkg
+	}
+
+	for i := range snapshot.Integrations {
+		meta, ok := integrationPackageVersionCandidate(snapshot.Integrations[i], byName)
+		if !ok {
+			continue
+		}
+		item := &snapshot.Integrations[i]
+		item.AvailableVersion = meta.AvailableVersion
+		item.PackageInstalled = meta.Installed
+		if item.Version == "" && meta.InstalledVersion != "" {
+			item.Version = meta.InstalledVersion
+		}
+		item.UpdateAvailable = meta.Installed && meta.Upgradable
+	}
+}
+
+func integrationPackageVersionCandidate(item catalogItem, byName map[string]entwarePackage) (entwarePackage, bool) {
+	matches := make([]entwarePackage, 0, len(item.Detection.Packages))
+	installed := make([]entwarePackage, 0, 1)
+
+	for _, name := range item.Detection.Packages {
+		meta, ok := byName[name]
+		if !ok {
+			continue
+		}
+		matches = append(matches, meta)
+		if meta.Installed {
+			installed = append(installed, meta)
+		}
+	}
+
+	if len(installed) == 1 {
+		return installed[0], true
+	}
+	if len(matches) == 1 {
+		return matches[0], true
+	}
+	return entwarePackage{}, false
+}
+
 func invalidateEntwareCatalog() {
 	entwareCache.Lock()
 	entwareCache.at = time.Time{}
@@ -429,10 +536,8 @@ func invalidateEntwareCatalog() {
 }
 
 func entwarePackageProtected(name string) bool {
-	name = strings.ToLower(strings.TrimSpace(name))
-	return name == "opkg" || strings.HasPrefix(name, "routerforge-")
+	return entwarePackageProtectedWithIntegrations(name, appCenterIntegrationPackageNames())
 }
-
 func parseEntwareInt(raw string, fallback, min, max int) int {
 	if raw == "" {
 		return fallback

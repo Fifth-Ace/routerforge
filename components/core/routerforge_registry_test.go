@@ -46,3 +46,59 @@ func TestRegistryRejectsRawShellLifecycle(t *testing.T) {
 		t.Fatal("raw shell lifecycle must be rejected")
 	}
 }
+
+func TestUnverifiedIntegrationUsesDirectConfiguredOpkgFallback(t *testing.T) {
+	item := awgManagerIntegration()
+	item.Trust = catalogTrust{Status: "unverified"}
+	item.Installed = true
+	item.PackageInstalled = true
+	item.Version = "2.17.2"
+	item.AvailableVersion = "2.17.3"
+	item.UpdateAvailable = true
+
+	actions := deriveCatalogActions(item)
+	if actions.Install || !actions.Update || !actions.Remove {
+		t.Fatalf("unexpected unverified actions: %#v", actions)
+	}
+	if actions.Reason == "" {
+		t.Fatal("unverified integration should carry a warning reason")
+	}
+
+	plan := catalogPlanForAction(item, "update")
+	if plan.Method != "opkg" || len(plan.Packages) != 1 || plan.Packages[0] != "awg-manager" {
+		t.Fatalf("unexpected fallback update plan: %#v", plan)
+	}
+}
+
+func TestBlockedIntegrationCannotUseDirectOpkgFallback(t *testing.T) {
+	item := awgManagerIntegration()
+	item.Trust = catalogTrust{Status: "blocked"}
+	item.Installed = true
+	item.PackageInstalled = true
+	item.AvailableVersion = "2.17.3"
+	item.UpdateAvailable = true
+
+	actions := deriveCatalogActions(item)
+	if actions.Install || actions.Update || actions.Remove {
+		t.Fatalf("blocked integration received actions: %#v", actions)
+	}
+}
+
+func TestVerifiedPackageIntegrationUpdateRequiresRealUpgrade(t *testing.T) {
+	item := nfqws2Integration()
+	item.Trust = catalogTrust{Status: "verified"}
+	item.Installed = true
+	item.Update = catalogInstallPlan{
+		Method:   "opkg",
+		Packages: []string{"nfqws2-keenetic"},
+	}
+
+	if actions := deriveCatalogActions(item); actions.Update {
+		t.Fatalf("update was enabled without opkg upgrade state: %#v", actions)
+	}
+
+	item.UpdateAvailable = true
+	if actions := deriveCatalogActions(item); !actions.Update {
+		t.Fatalf("update stayed disabled with opkg upgrade state: %#v", actions)
+	}
+}

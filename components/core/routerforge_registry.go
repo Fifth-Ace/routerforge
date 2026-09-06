@@ -550,6 +550,9 @@ func resetCatalogRuntime(item *catalogItem) {
 	item.Installed = false
 	item.Enabled = false
 	item.Version = ""
+	item.AvailableVersion = ""
+	item.PackageInstalled = false
+	item.UpdateAvailable = false
 	item.Service = ""
 	item.ServiceRunning = false
 }
@@ -559,35 +562,91 @@ func deriveCatalogActions(item catalogItem) catalogActions {
 		if item.ID == "routerforge-core" && item.UpdateAvailable && executableCatalogPlan(item.Update) {
 			return catalogActions{Update: true}
 		}
-		return catalogActions{Reason: "Встроенный компонент RouterForge."}
-	}
-	status := strings.ToLower(item.Trust.Status)
-	if status != "official" && status != "verified" {
-		reason := "Автоматические действия доступны только для OFFICIAL / VERIFIED manifest."
-		if status == "blocked" {
-			reason = "Manifest заблокирован RouterForge Registry."
-		} else if status == "changed" {
-			reason = "Manifest изменён после последнего approval и требует повторной проверки."
-		} else if status == "deprecated" {
-			reason = "Проект помечен как устаревший."
-		}
-		return catalogActions{Reason: reason}
+		return catalogActions{Reason: "Built-in RouterForge component."}
 	}
 
-	installAllowed := !item.Installed && executableCatalogPlan(item.Install)
-	updateAllowed := item.Installed && executableCatalogPlan(item.Update)
-	if routerForgePackageForItem(item) != "" {
-		installAllowed = installAllowed && item.Release.Version != ""
-		updateAllowed = updateAllowed && item.UpdateAvailable
+	status := strings.ToLower(item.Trust.Status)
+	switch status {
+	case "blocked":
+		return catalogActions{Reason: "Manifest is blocked by RouterForge Registry."}
+	case "changed":
+		return catalogActions{Reason: "Manifest changed after approval and requires review."}
+	case "deprecated":
+		return catalogActions{Reason: "Project is marked as deprecated."}
+	}
+
+	trusted := status == "official" || status == "verified"
+	installAllowed := false
+	updateAllowed := false
+	removeAllowed := false
+	reason := ""
+
+	if trusted {
+		installAllowed = !item.Installed && executableCatalogPlan(item.Install)
+		updateAllowed = item.Installed && executableCatalogPlan(item.Update)
+		removeAllowed = item.Installed && executableCatalogPlan(item.Remove)
+
+		if item.Kind == "integration" && len(item.Detection.Packages) > 0 {
+			updateAllowed = updateAllowed && item.UpdateAvailable
+		}
+		if routerForgePackageForItem(item) != "" {
+			installAllowed = installAllowed && item.Release.Version != ""
+			updateAllowed = updateAllowed && item.UpdateAvailable
+		}
+	} else {
+		if status != "" && status != "unverified" {
+			return catalogActions{Reason: "Manifest trust state does not allow automatic actions."}
+		}
+		_, installAllowed = unverifiedDirectOpkgPlan(item, "install")
+		_, updateAllowed = unverifiedDirectOpkgPlan(item, "update")
+		_, removeAllowed = unverifiedDirectOpkgPlan(item, "remove")
+		reason = "No verified manifest. Direct actions use only packages exposed by configured opkg feeds; upstream scripts are never executed automatically."
 	}
 
 	return catalogActions{
 		Install: installAllowed,
 		Update:  updateAllowed,
-		Remove:  item.Installed && executableCatalogPlan(item.Remove),
+		Remove:  removeAllowed,
+		Reason:  reason,
 	}
 }
 
+func unverifiedDirectOpkgPlan(item catalogItem, action string) (catalogInstallPlan, bool) {
+	status := strings.ToLower(item.Trust.Status)
+	if status != "" && status != "unverified" {
+		return catalogInstallPlan{}, false
+	}
+	if item.Kind != "integration" || len(item.Detection.Packages) != 1 {
+		return catalogInstallPlan{}, false
+	}
+
+	pkg := strings.ToLower(strings.TrimSpace(item.Detection.Packages[0]))
+	if !safeCatalogPackageName(pkg) || pkg == "opkg" || strings.HasPrefix(pkg, "routerforge-") {
+		return catalogInstallPlan{}, false
+	}
+
+	switch action {
+	case "install":
+		if item.Installed || item.AvailableVersion == "" {
+			return catalogInstallPlan{}, false
+		}
+	case "update":
+		if !item.PackageInstalled || !item.UpdateAvailable || item.AvailableVersion == "" {
+			return catalogInstallPlan{}, false
+		}
+	case "remove":
+		if !item.PackageInstalled {
+			return catalogInstallPlan{}, false
+		}
+	default:
+		return catalogInstallPlan{}, false
+	}
+
+	return catalogInstallPlan{
+		Method:   "opkg",
+		Packages: []string{pkg},
+	}, true
+}
 func executableCatalogPlan(plan catalogInstallPlan) bool {
 	if plan.PreviewOnly {
 		return false

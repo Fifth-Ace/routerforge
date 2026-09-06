@@ -15,8 +15,10 @@ import (
 )
 
 var (
-	releaseChannel = "beta"
-	releaseTarget  string
+	releaseChannel       = initialReleaseChannel()
+	releaseTarget        string
+	releaseRuntimeGOARCH = runtime.GOARCH
+	releaseConfigMu      sync.RWMutex
 )
 
 const (
@@ -24,6 +26,7 @@ const (
 	routerForgeReleaseMaxBytes     = 512 << 10
 	routerForgeCanonicalRepository = "Fifth-Ace/routerforge"
 	routerForgeLegacyRepository    = "Fifth-Ace/dns-monitor"
+	routerForgeReleaseChannelFile  = "/opt/etc/routerforge/release-channel"
 )
 
 type catalogRelease struct {
@@ -47,12 +50,16 @@ type routerForgeReleaseIndex struct {
 }
 
 type routerForgeReleaseStatus struct {
-	Channel  string `json:"channel"`
-	URL      string `json:"url"`
-	Source   string `json:"source"`
-	Online   bool   `json:"online"`
-	LastSync string `json:"last_sync,omitempty"`
-	Error    string `json:"error,omitempty"`
+	Channel      string `json:"channel"`
+	Target       string `json:"target,omitempty"`
+	TargetSource string `json:"target_source,omitempty"`
+	Experimental bool   `json:"experimental,omitempty"`
+	Supported    bool   `json:"supported"`
+	URL          string `json:"url,omitempty"`
+	Source       string `json:"source"`
+	Online       bool   `json:"online"`
+	LastSync     string `json:"last_sync,omitempty"`
+	Error        string `json:"error,omitempty"`
 }
 
 var routerForgeReleaseState struct {
@@ -64,15 +71,42 @@ var routerForgeReleaseState struct {
 	status      routerForgeReleaseStatus
 }
 
-func normalizedReleaseChannel() string {
-	switch strings.ToLower(strings.TrimSpace(releaseChannel)) {
+func normalizeReleaseChannelValue(value string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "stable":
-		return "stable"
+		return "stable", true
 	case "beta":
-		return "beta"
+		return "beta", true
 	default:
+		return "", false
+	}
+}
+
+func defaultReleaseChannel() string {
+	if version == "dev" || strings.Contains(version, "-beta") {
 		return "beta"
 	}
+	return "stable"
+}
+
+func initialReleaseChannel() string {
+	data, err := os.ReadFile(routerForgeReleaseChannelFile)
+	if err == nil {
+		if channel, ok := normalizeReleaseChannelValue(string(data)); ok {
+			return channel
+		}
+	}
+	return defaultReleaseChannel()
+}
+
+func normalizedReleaseChannel() string {
+	releaseConfigMu.RLock()
+	value := releaseChannel
+	releaseConfigMu.RUnlock()
+	if channel, ok := normalizeReleaseChannelValue(value); ok {
+		return channel
+	}
+	return defaultReleaseChannel()
 }
 
 func normalizedReleaseTarget() string {
@@ -85,7 +119,7 @@ func normalizedReleaseTarget() string {
 		return "mipsel-3.4"
 	}
 
-	switch runtime.GOARCH {
+	switch releaseRuntimeGOARCH {
 	case "arm64":
 		return "aarch64-3.10"
 	case "mips":
@@ -93,28 +127,79 @@ func normalizedReleaseTarget() string {
 	case "mipsle":
 		return "mipsel-3.4"
 	default:
-		return "aarch64-3.10"
+		return ""
 	}
+}
+
+func releaseTargetExperimental(target string) bool {
+	return target == "mips-3.4" || target == "mipsel-3.4"
+}
+
+func releaseChannelSupported(channel, target string) bool {
+	if target == "" {
+		return false
+	}
+	return channel != "stable" || target == "aarch64-3.10"
+}
+
+func resetRouterForgeReleaseState() {
+	routerForgeReleaseState.mu.Lock()
+	routerForgeReleaseState.initialized = false
+	routerForgeReleaseState.refreshing = false
+	routerForgeReleaseState.lastAttempt = time.Time{}
+	routerForgeReleaseState.doc = routerForgeReleaseIndex{}
+	routerForgeReleaseState.status = routerForgeReleaseStatus{}
+	routerForgeReleaseState.mu.Unlock()
+}
+
+func setReleaseChannel(value string) error {
+	channel, ok := normalizeReleaseChannelValue(value)
+	if !ok {
+		return fmt.Errorf("unsupported RouterForge release channel %q", value)
+	}
+	target := normalizedReleaseTarget()
+	if !releaseChannelSupported(channel, target) {
+		if target == "" {
+			return fmt.Errorf("unsupported RouterForge runtime architecture %q", releaseRuntimeGOARCH)
+		}
+		return fmt.Errorf("RouterForge stable is unavailable for target %s", target)
+	}
+	if err := os.MkdirAll(filepath.Dir(routerForgeReleaseChannelFile), 0755); err != nil {
+		return err
+	}
+	tmp := routerForgeReleaseChannelFile + ".tmp"
+	if err := os.WriteFile(tmp, []byte(channel+"\n"), 0644); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, routerForgeReleaseChannelFile); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	releaseConfigMu.Lock()
+	releaseChannel = channel
+	releaseConfigMu.Unlock()
+	resetRouterForgeReleaseState()
+	return nil
 }
 
 func routerForgeReleaseIndexAssetName() string {
 	channel := normalizedReleaseChannel()
 	target := normalizedReleaseTarget()
-
+	if !releaseChannelSupported(channel, target) {
+		return ""
+	}
 	if target == "aarch64-3.10" {
 		return fmt.Sprintf("routerforge-%s-index.json", channel)
 	}
-
-	return fmt.Sprintf(
-		"routerforge-%s-index-%s.json",
-		channel,
-		target,
-	)
+	return fmt.Sprintf("routerforge-%s-index-%s.json", channel, target)
 }
 
 func routerForgeReleaseIndexURLs() []string {
 	channel := normalizedReleaseChannel()
 	asset := routerForgeReleaseIndexAssetName()
+	if asset == "" {
+		return nil
+	}
 	repositories := []string{
 		routerForgeCanonicalRepository,
 		routerForgeLegacyRepository,
@@ -130,7 +215,11 @@ func routerForgeReleaseIndexURLs() []string {
 }
 
 func routerForgeReleaseIndexURL() string {
-	return routerForgeReleaseIndexURLs()[0]
+	urls := routerForgeReleaseIndexURLs()
+	if len(urls) == 0 {
+		return ""
+	}
+	return urls[0]
 }
 
 func validRouterForgeReleaseURL(value string) bool {
@@ -180,26 +269,46 @@ func routerForgeReleaseSnapshot() (routerForgeReleaseIndex, routerForgeReleaseSt
 
 	if !routerForgeReleaseState.initialized {
 		channel := normalizedReleaseChannel()
+		target := normalizedReleaseTarget()
+		supported := releaseChannelSupported(channel, target)
+		status := routerForgeReleaseStatus{
+			Channel:      channel,
+			Target:       target,
+			TargetSource: "runtime",
+			Experimental: releaseTargetExperimental(target),
+			Supported:    supported,
+			URL:          routerForgeReleaseIndexURL(),
+			Source:       "none",
+			Online:       false,
+		}
+		if !supported {
+			if target == "" {
+				status.Error = fmt.Sprintf("unsupported RouterForge runtime architecture %q", releaseRuntimeGOARCH)
+			} else {
+				status.Error = fmt.Sprintf("RouterForge stable is unavailable for target %s", target)
+			}
+		}
 		routerForgeReleaseState.doc = routerForgeReleaseIndex{
 			SchemaVersion: 1,
 			Channel:       channel,
-			Target:        normalizedReleaseTarget(),
+			Target:        target,
 			Components:    []catalogRelease{},
 		}
-		routerForgeReleaseState.status = routerForgeReleaseStatus{
-			Channel: channel,
-			URL:     routerForgeReleaseIndexURL(),
-			Source:  "none",
-			Online:  false,
-		}
+		routerForgeReleaseState.status = status
 
-		if data, err := os.ReadFile(routerForgeReleaseCachePath()); err == nil {
-			if cached, parseErr := parseRouterForgeReleaseIndex(data); parseErr == nil {
-				routerForgeReleaseState.doc = cached
-				routerForgeReleaseState.status.Source = "cache"
+		if supported {
+			if data, err := os.ReadFile(routerForgeReleaseCachePath()); err == nil {
+				if cached, parseErr := parseRouterForgeReleaseIndex(data); parseErr == nil {
+					routerForgeReleaseState.doc = cached
+					routerForgeReleaseState.status.Source = "cache"
+				}
 			}
 		}
 		routerForgeReleaseState.initialized = true
+	}
+
+	if !routerForgeReleaseState.status.Supported {
+		return routerForgeReleaseState.doc, routerForgeReleaseState.status
 	}
 
 	now := time.Now()
@@ -218,8 +327,16 @@ func forceRefreshRouterForgeReleaseIndex() routerForgeReleaseStatus {
 	routerForgeReleaseState.mu.Lock()
 	if !routerForgeReleaseState.initialized {
 		routerForgeReleaseState.mu.Unlock()
-		_, _ = routerForgeReleaseSnapshot()
+		_, status := routerForgeReleaseSnapshot()
+		if !status.Supported {
+			return status
+		}
 		return waitRouterForgeReleaseRefresh(10 * time.Second)
+	}
+	if !routerForgeReleaseState.status.Supported {
+		status := routerForgeReleaseState.status
+		routerForgeReleaseState.mu.Unlock()
+		return status
 	}
 	if routerForgeReleaseState.refreshing {
 		routerForgeReleaseState.mu.Unlock()
@@ -322,13 +439,18 @@ func refreshRouterForgeReleaseIndex() {
 		return
 	}
 
+	target := normalizedReleaseTarget()
 	routerForgeReleaseState.doc = doc
 	routerForgeReleaseState.status = routerForgeReleaseStatus{
-		Channel:  doc.Channel,
-		URL:      url,
-		Source:   "remote",
-		Online:   true,
-		LastSync: time.Now().UTC().Format(time.RFC3339),
+		Channel:      doc.Channel,
+		Target:       target,
+		TargetSource: "runtime",
+		Experimental: releaseTargetExperimental(target),
+		Supported:    true,
+		URL:          url,
+		Source:       "remote",
+		Online:       true,
+		LastSync:     time.Now().UTC().Format(time.RFC3339),
 	}
 }
 
@@ -406,12 +528,24 @@ func applyRouterForgeReleaseIndex(snapshot *catalogSnapshot) {
 
 		item.Release = release
 		item.UpdateAvailable = item.Installed && item.Version != "" && item.Version != release.Version
+		if status.Target != "" {
+			item.Install.AssetTemplate = "{package}_{version}_" + status.Target + ".ipk"
+			item.Update.AssetTemplate = "{package}_{version}_" + status.Target + ".ipk"
+			for hintIndex := range item.Compatibility.Hints {
+				item.Compatibility.Hints[hintIndex] = strings.ReplaceAll(
+					item.Compatibility.Hints[hintIndex],
+					"ARM64",
+					status.Target,
+				)
+			}
+		}
 
 		if item.ID == "routerforge-core" {
 			item.Update = catalogInstallPlan{
-				Method:     "routerforge-release",
-				Repository: "routerforge-" + release.Channel,
-				Packages:   []string{release.Package},
+				Method:        "routerforge-release",
+				Repository:    "routerforge-" + release.Channel,
+				Packages:      []string{release.Package},
+				AssetTemplate: "{package}_{version}_" + status.Target + ".ipk",
 				Notes: []string{
 					"Core обновляется отдельно от модулей.",
 					"Asset и SHA256 берутся из release index выбранного канала.",
@@ -432,6 +566,11 @@ func applyRouterForgeReleaseIndex(snapshot *catalogSnapshot) {
 
 	for i := range snapshot.Modules {
 		snapshot.Modules[i].Actions = deriveCatalogActions(snapshot.Modules[i])
+		if !status.Supported && routerForgePackageForItem(snapshot.Modules[i]) != "" {
+			snapshot.Modules[i].Actions.Install = false
+			snapshot.Modules[i].Actions.Update = false
+			snapshot.Modules[i].Actions.Reason = status.Error
+		}
 	}
 	for i := range snapshot.Integrations {
 		snapshot.Integrations[i].Actions = deriveCatalogActions(snapshot.Integrations[i])

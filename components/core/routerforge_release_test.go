@@ -210,3 +210,61 @@ func TestParseRouterForgeReleaseIndexRejectsWrongTarget(t *testing.T) {
 		t.Fatal("release index for wrong target was accepted")
 	}
 }
+
+func TestNormalizedReleaseTargetFailsClosedUnknown(t *testing.T) {
+	oldTarget := releaseTarget
+	oldGOARCH := releaseRuntimeGOARCH
+	defer func() {
+		releaseTarget = oldTarget
+		releaseRuntimeGOARCH = oldGOARCH
+	}()
+
+	releaseTarget = ""
+	releaseRuntimeGOARCH = "riscv64"
+	if got := normalizedReleaseTarget(); got != "" {
+		t.Fatalf("unknown runtime architecture selected target %q", got)
+	}
+}
+
+func TestReleaseTargetMappingByRuntimeArchitecture(t *testing.T) {
+	oldTarget := releaseTarget
+	oldGOARCH := releaseRuntimeGOARCH
+	defer func() {
+		releaseTarget = oldTarget
+		releaseRuntimeGOARCH = oldGOARCH
+	}()
+
+	releaseTarget = ""
+	cases := map[string]string{
+		"arm64":  "aarch64-3.10",
+		"mips":   "mips-3.4",
+		"mipsle": "mipsel-3.4",
+	}
+	for goarch, want := range cases {
+		releaseRuntimeGOARCH = goarch
+		if got := normalizedReleaseTarget(); got != want {
+			t.Fatalf("%s: target %q, want %q", goarch, got, want)
+		}
+	}
+}
+
+func TestReleaseChannelSupportMatrix(t *testing.T) {
+	cases := []struct {
+		channel string
+		target  string
+		want    bool
+	}{
+		{"beta", "aarch64-3.10", true},
+		{"beta", "mips-3.4", true},
+		{"beta", "mipsel-3.4", true},
+		{"stable", "aarch64-3.10", true},
+		{"stable", "mips-3.4", false},
+		{"stable", "mipsel-3.4", false},
+		{"beta", "", false},
+	}
+	for _, tc := range cases {
+		if got := releaseChannelSupported(tc.channel, tc.target); got != tc.want {
+			t.Fatalf("%s/%s: supported=%v, want %v", tc.channel, tc.target, got, tc.want)
+		}
+	}
+}

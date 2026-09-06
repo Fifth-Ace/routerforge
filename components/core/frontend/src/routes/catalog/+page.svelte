@@ -1,7 +1,7 @@
 <script>
   import { catalog, refreshCatalog, forceRefreshCatalog } from '$lib/stores/catalog.js';
   import { settings } from '$lib/stores/settings.js';
-  import { catalogAction } from '$lib/api.js';
+  import { catalogAction, setCatalogChannel } from '$lib/api.js';
   import { stateInfo, localWebURL } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
@@ -26,10 +26,13 @@
   let actionNotice = null;
   let updatingAll = false;
   let checkingUpdates = false;
+  let channelBusy = false;
 
   $: locale = $settings.locale || 'ru';
   $: data = $catalog || { modules: [], integrations: [], read_only: true, package_management_enabled: false };
   $: packageMode = Boolean(data.package_management_enabled ?? data['install_test_mode']);
+  $: releaseChannel = data.release?.channel || 'beta';
+  $: releaseTarget = data.release?.target || '—';
   $: modules = data.modules || [];
   $: integrations = data.integrations || [];
   $: all = [...modules, ...integrations];
@@ -141,6 +144,49 @@
     return t(locale,'marketplace.action.installed',{name:item.name,source});
   }
 
+  async function changeReleaseChannel(event) {
+    const select = event.currentTarget;
+    const next = String(select.value || '').toLowerCase();
+    const current = String(releaseChannel || 'beta').toLowerCase();
+    if (next === current || channelBusy || busyId) return;
+
+    const message = next === 'beta'
+      ? (locale === 'ru'
+          ? 'Переключить официальные модули RouterForge на Beta? Внешние интеграции Marketplace не изменятся, установка пакетов автоматически не запускается.'
+          : 'Switch official RouterForge modules to Beta? External Marketplace integrations are unaffected and no package installation starts automatically.')
+      : (locale === 'ru'
+          ? 'Переключить официальные модули RouterForge на Stable? Пакеты автоматически не меняются; Marketplace только пересчитает доступные версии.'
+          : 'Switch official RouterForge modules to Stable? Packages are not changed automatically; Marketplace only recalculates available versions.');
+
+    if (!window.confirm(message)) {
+      select.value = current;
+      return;
+    }
+
+    channelBusy = true;
+    actionNotice = {
+      cls: 'info',
+      text: locale === 'ru' ? `Переключение RouterForge на ${next.toUpperCase()}…` : `Switching RouterForge to ${next.toUpperCase()}…`
+    };
+    try {
+      const result = await setCatalogChannel(next);
+      await refreshCatalog();
+      const release = result?.release || {};
+      actionNotice = {
+        cls: release.online === false ? 'warn' : 'good',
+        text: locale === 'ru'
+          ? `Канал RouterForge: ${String(release.channel || next).toUpperCase()} · target ${release.target || '—'}. Пакеты не устанавливались.`
+          : `RouterForge channel: ${String(release.channel || next).toUpperCase()} · target ${release.target || '—'}. No packages were installed.`
+      };
+    } catch (error) {
+      select.value = current;
+      const detail = error?.payload?.error || error?.message || t(locale,'errors.unknown');
+      actionNotice = { cls: 'error', text: detail };
+    } finally {
+      channelBusy = false;
+    }
+  }
+
   async function checkForUpdates() {
     if (checkingUpdates || busyId) return;
     checkingUpdates = true;
@@ -186,7 +232,11 @@
   <div class="toolbar catalog-toolbar-v2">
     <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale,'marketplace.searchPlaceholder')}/></div>
     <select bind:value={category}><option value="all">{t(locale,'marketplace.allCategories')}</option>{#each categories as c}<option value={c}>{c}</option>{/each}</select>
-    <button class="button catalog-refresh-button" class:update-available={availableUpdates.length > 0} disabled={checkingUpdates || Boolean(busyId)} onclick={checkForUpdates}>
+    <select aria-label="RouterForge channel" value={releaseChannel} disabled={channelBusy || Boolean(busyId)} onchange={changeReleaseChannel}>
+      <option value="stable">RouterForge Stable</option>
+      <option value="beta">RouterForge Beta</option>
+    </select>
+    <button class="button catalog-refresh-button" class:update-available={availableUpdates.length > 0} disabled={checkingUpdates || channelBusy || Boolean(busyId)} onclick={checkForUpdates}>
       {checkingUpdates ? t(locale,'marketplace.checking') : availableUpdates.length ? t(locale,'marketplace.updates',{count:availableUpdates.length}) : t(locale,'marketplace.checkUpdates')}
     </button>
     {#if packageMode}
@@ -206,6 +256,7 @@
     {#if packageMode}
       <span><i class="status-dot good"></i> {t(locale,'marketplace.safety.packageManagement')} <strong>{t(locale,'marketplace.safety.active')}</strong></span>
       <span>{t(locale,'marketplace.safety.channel')} <strong>{(data.release?.channel || '—').toUpperCase()}</strong></span>
+      <span>Target <strong>{releaseTarget}</strong>{#if data.release?.experimental} · EXPERIMENTAL{/if}</span>
       <span>{t(locale,'marketplace.safety.officialVerified')} <strong>{t(locale,'marketplace.safety.executable')}</strong></span>
       <span>{t(locale,'marketplace.safety.unverifiedChanged')} <strong>{t(locale,'marketplace.safety.readOnly')}</strong></span>
     {:else}

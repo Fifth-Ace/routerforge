@@ -14,20 +14,20 @@
 
 **RouterForge** — модульная веб-платформа для мониторинга, DNS-диагностики и обслуживания роутеров **Keenetic / Netcraze ARM64** с Entware.
 
-Один Core даёт общий интерфейс, API, Marketplace, авторизацию и управление жизненным циклом пакетов. Остальные возможности подключаются отдельными пакетами и появляются в интерфейсе только после установки.
+Один Core даёт общий интерфейс, API, Центр приложений, авторизацию и управление жизненным циклом пакетов. Остальные возможности подключаются отдельными пакетами и появляются в интерфейсе только после установки.
 
 > [!IMPORTANT]
 > Сейчас поддерживаются только **Keenetic / Netcraze на ARM64 / aarch64** с Entware в `/opt`.
 > RouterForge использует KeeneticOS/NDMS-специфичные механизмы (`ndmc`, DNS proxy, policy routing и системные данные роутера) и не позиционируется как универсальная панель для OpenWrt/Linux.
 >
-> Сборочная система уже подготовлена для будущих `mips-3.4` и `mipsel-3.4`, но эти цели пока проходят только cross-build CI и **не считаются поддерживаемыми релизами**. См. [архитектуры](docs/ARCHITECTURES.md).
+> MIPS/MipSel уже доступны в Beta только как **experimental preview**: они проходят cross-build/QEMU, но не имеют физической hardware validation и не допускаются в Stable. См. [архитектуры](docs/ARCHITECTURES.md).
 
 > [!NOTE]
 > RouterForge — независимый community-проект и не является официальным продуктом Keenetic или Netcraze.
 > Исторические ссылки на прежнее имя репозитория продолжают работать через GitHub redirect и compatibility fallback RouterForge.
 
 > [!TIP]
-> Production baseline от 05.09.2026: **Core 0.4.3 + DNS 0.4.18**. Компоненты версионируются независимо, поэтому номера Core и модулей не обязаны совпадать.
+> Текущий Stable baseline: **Core 0.4.5 + DNS 0.4.20**. Компоненты версионируются независимо, поэтому номера Core и модулей не обязаны совпадать.
 
 ## Что умеет RouterForge
 
@@ -35,7 +35,7 @@
 - состояние Core и установленных capabilities;
 - краткая сводка платформы;
 - телеметрия хоста при наличии System/Control;
-- состояние Marketplace и Registry.
+- состояние Центр приложений и Registry.
 
 ### Мониторинг
 Официальные модули устанавливаются независимо:
@@ -69,7 +69,7 @@
 
 Helper работает через root-owned Unix socket и не открывает отдельный TCP-порт.
 
-### Marketplace
+### Центр приложений
 - официальные RouterForge-модули;
 - обнаружение поддерживаемых сторонних проектов;
 - trust/status/compatibility metadata;
@@ -98,7 +98,7 @@ Browser
 RouterForge Core
 ├── Web shell / REST / SSE
 ├── Authentication
-├── Marketplace + Registry
+├── Центр приложений + Registry
 ├── Release index / package lifecycle
 ├── Generic Module API + UI host
 └── Unix-socket proxy
@@ -119,7 +119,7 @@ RouterForge Core
 
 | Package | Назначение |
 | --- | --- |
-| `routerforge-core` | Core, UI, API, Marketplace, auth, release/update logic |
+| `routerforge-core` | Core, UI, API, Центр приложений, auth, release/update logic |
 | `routerforge-dns` | независимый DNS runtime, UI, observability, DNS Control и diagnostics |
 | `routerforge-admin` | RouterForge Control |
 | `routerforge-system` | System Monitor |
@@ -156,13 +156,13 @@ Bootstrap устанавливает актуальные **Core + DNS** из st
 http://<ip-роутера>:2233
 ```
 
-Остальные официальные модули ставятся из **Marketplace**.
+Остальные официальные модули ставятся из **Центр приложений**.
 
 Подробно: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ## Обновления
 
-Основной способ — **Marketplace**.
+Основной способ — **Центр приложений**.
 
 RouterForge сравнивает локальные версии `opkg` с утверждённым release-index своего канала. Автоматическая remote-проверка выполняется раз в час; кнопка **«Проверить обновления»** форсирует проверку сразу.
 
@@ -176,6 +176,10 @@ Beta для тестирования:
 ```sh
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
+
+Начиная с **0.6.0-beta.1**, свежая Beta bootstrap-установка ставит только `routerforge-core`.
+DNS, мониторинг, управление и интеграции выбираются после запуска через **Центр приложений**.
+Уже установленные optional-пакеты bootstrap сам по себе не удаляет.
 
 Не смешивайте stable и beta пакеты без необходимости.
 
@@ -219,7 +223,7 @@ wget -qO- http://127.0.0.1:2233/api/health
 
 - [Установка и обновление](docs/INSTALLATION.md)
 - [Модули](docs/MODULES.md)
-- [Marketplace и модель доверия](docs/MARKETPLACE.md)
+- [Центр приложений и модель доверия](docs/MARKETPLACE.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Поддерживаемые и планируемые CPU-архитектуры](docs/ARCHITECTURES.md)
 - [Диагностика](docs/TROUBLESHOOTING.md)

@@ -14,20 +14,20 @@
 
 **RouterForge** is a modular web platform for monitoring, DNS diagnostics and router maintenance on **Keenetic / Netcraze ARM64** devices with Entware.
 
-A single Core provides the UI, API, Marketplace, authentication and package lifecycle. Optional capabilities are shipped as independent packages and appear in the UI only when installed.
+A single Core provides the UI, API, App Center, authentication and package lifecycle. Optional capabilities are shipped as independent packages and appear in the UI only when installed.
 
 > [!IMPORTANT]
 > The supported target is currently **Keenetic / Netcraze on ARM64 / aarch64** with Entware mounted at `/opt`.
 > RouterForge relies on KeeneticOS/NDMS-specific facilities such as `ndmc`, the native DNS proxy and policy routing. It is not intended to be a generic OpenWrt/Linux dashboard.
 >
-> The build system is already prepared for future `mips-3.4` and `mipsel-3.4` targets, but they are currently cross-build CI targets only and **are not supported releases yet**. See [architectures](docs/ARCHITECTURES.md).
+> MIPS/MipSel are available in Beta only as an **experimental preview**: they pass cross-build/QEMU checks but have no physical hardware validation and remain blocked from Stable. See [architectures](docs/ARCHITECTURES.md).
 
 > [!NOTE]
 > RouterForge is an independent community project and is not an official Keenetic or Netcraze product.
 > Historical links using the previous repository name remain supported through GitHub redirects and the RouterForge compatibility fallback.
 
 > [!TIP]
-> Production baseline as of 2026-09-05: **Core 0.4.3 + DNS 0.4.18**. Components are versioned independently, so Core and module versions do not need to match.
+> Current Stable baseline: **Core 0.4.5 + DNS 0.4.20**. Components are versioned independently, so Core and module versions do not need to match.
 
 ## What RouterForge provides
 
@@ -35,7 +35,7 @@ A single Core provides the UI, API, Marketplace, authentication and package life
 - Core and capability state;
 - platform summary;
 - host telemetry when System/Control is installed;
-- Marketplace and Registry state.
+- App Center and Registry state.
 
 ### Monitoring
 Independently installable official modules:
@@ -69,7 +69,7 @@ Independently installable official modules:
 
 The helper uses a root-owned Unix socket and does not open another TCP port.
 
-### Marketplace
+### App Center
 - official RouterForge modules;
 - detection of supported third-party projects;
 - trust/status/compatibility metadata;
@@ -98,7 +98,7 @@ Browser
 RouterForge Core
 ├── Web shell / REST / SSE
 ├── Authentication
-├── Marketplace + Registry
+├── App Center + Registry
 ├── Release index / package lifecycle
 ├── Generic Module API + UI host
 └── Unix-socket proxy
@@ -119,7 +119,7 @@ The platform exposes a single web port: **2233**.
 
 | Package | Purpose |
 | --- | --- |
-| `routerforge-core` | Core, UI, API, Marketplace, auth and release/update logic |
+| `routerforge-core` | Core, UI, API, App Center, auth and release/update logic |
 | `routerforge-dns` | independent DNS runtime, UI, observability, DNS Control and diagnostics |
 | `routerforge-admin` | RouterForge Control |
 | `routerforge-system` | System Monitor |
@@ -156,13 +156,13 @@ Then open:
 http://<router-ip>:2233
 ```
 
-Install other official capabilities from **Marketplace**.
+Install other official capabilities from **App Center**.
 
 Detailed installation guide: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ## Updates
 
-Marketplace is the recommended update path.
+App Center is the recommended update path.
 
 RouterForge compares locally installed `opkg` versions with the approved release index for its channel. Remote checks run automatically once per hour; **Check for updates** forces an immediate check.
 
@@ -176,6 +176,10 @@ Beta installation:
 ```sh
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
+
+Starting with **0.6.0-beta.1**, a fresh Beta bootstrap installs `routerforge-core` only.
+DNS, monitoring, control, and integrations are selected afterwards from **App Center**.
+Existing optional packages are not removed by the bootstrap itself.
 
 Avoid mixing stable and beta packages unless you deliberately switch channels.
 
@@ -219,7 +223,7 @@ Packages are removed; configuration directories are preserved.
 
 - [Installation and updates](docs/INSTALLATION.md)
 - [Modules](docs/MODULES.md)
-- [Marketplace and trust model](docs/MARKETPLACE.md)
+- [App Center and trust model](docs/MARKETPLACE.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Supported and planned CPU architectures](docs/ARCHITECTURES.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)

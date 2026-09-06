@@ -11,7 +11,7 @@ RouterForge Core
 /opt/bin/routerforge
 ├── Web shell / REST / SSE
 ├── Authentication
-├── Marketplace + Registry
+├── Центр приложений + Registry
 ├── Release index / package lifecycle
 ├── Generic Module API + UI host
 └── Unix-socket proxy
@@ -89,15 +89,15 @@ Loopback `GET/HEAD /api/modules/<id>/health` используется maintainer
 - verified rollback;
 - DNS module UI.
 
-Core не реализует DNS mutation/capture логику. Он предоставляет общий web shell, auth, Marketplace и generic module proxy.
+Core не реализует DNS mutation/capture логику. Он предоставляет общий web shell, auth, Центр приложений и generic module proxy.
 
 ## Control boundary
 
 `routerforge-admin` (RouterForge Control) остаётся отдельным read-only helper.
 
-Root package mutations выполняет Core только через ограниченный Marketplace lifecycle и только для разрешённых catalog actions.
+Root package mutations выполняет Core только через ограниченный Центр приложений lifecycle и только для разрешённых catalog actions.
 
-## Marketplace and package state
+## Центр приложений и package state
 
 Каждый component имеет независимую version.
 
@@ -151,7 +151,7 @@ Frontend:
 Мониторинг
 DNS
 Управление
-Marketplace
+Центр приложений
 Настройки
 ```
 
@@ -170,18 +170,18 @@ mips-3.4      -> GOARCH=mips   + GOMIPS=softfloat
 mipsel-3.4    -> GOARCH=mipsle + GOMIPS=softfloat
 ```
 
-MIPS/MIPSEL пока являются **CI-only planned targets** и не публикуются как поддерживаемые RouterForge releases.
+MIPS/MIPSEL публикуются только в Beta как **experimental preview**. Cross-build и QEMU являются CI-доказательством совместимости сборки, но не заменяют физическую hardware validation; Stable для этих target остаётся заблокированным.
 Подробнее: [ARCHITECTURES.md](ARCHITECTURES.md).
 
 ## Caches and storage policy
 
-Remote Marketplace state кэшируется под:
+Remote состояние Центра приложений кэшируется под:
 
 ```text
 /opt/var/cache/routerforge/
 ```
 
-Remote refresh throttled примерно до одного раза в час; manual Marketplace refresh может обходить interval.
+Remote refresh throttled примерно до одного раза в час; manual Центр приложений refresh может обходить interval.
 
 Высокочастотная DNS/runtime телеметрия ориентирована на RAM.
 RouterForge не должен превращать её в постоянную запись на flash/USB без отдельной явной функции.

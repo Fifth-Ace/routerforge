@@ -80,7 +80,7 @@ ls -l /opt/var/run/routerforge-*.sock 2>/dev/null
 3. проверьте Unix socket;
 4. перезапустите конкретный service, затем Core.
 
-## 7. Marketplace не видит обновление или показывает старую Installed version
+## 7. Центр приложений не видит обновление или показывает старую Installed version
 
 Сначала нажмите **«Проверить обновления»**. Кнопка делает force refresh Registry + release-index; автоматическая remote-проверка выполняется примерно раз в час.
 
@@ -94,7 +94,7 @@ echo
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
 ```
 
-`opkg status` может содержать одновременно текущую `installed` stanza и старую `not-installed` stanza. Core 0.4.3+ игнорирует `not-installed` tombstones. Если `opkg list-installed` и Marketplace расходятся на Core 0.4.3+, приложите полный `opkg status` нужного package к bug report.
+`opkg status` может содержать одновременно текущую `installed` stanza и старую `not-installed` stanza. Core 0.4.3+ игнорирует `not-installed` tombstones. Если `opkg list-installed` и Центр приложений расходятся на Core 0.4.3+, приложите полный `opkg status` нужного package к bug report.
 
 Cache:
 
@@ -106,7 +106,7 @@ ls -l /opt/var/cache/routerforge/ 2>/dev/null
 
 ## 8. Проверить release channel
 
-В Marketplace отображается текущий channel.
+В Центре приложений отображается текущий channel.
 
 Beta и Stable используют разные release-index:
 
@@ -115,7 +115,7 @@ routerforge-beta-index.json
 routerforge-stable-index.json
 ```
 
-Если вы случайно смешали beta/stable packages, установите bootstrap целевого канала и затем обновите остальные RouterForge components через Marketplace.
+Если вы случайно смешали beta/stable packages, установите bootstrap целевого канала и затем обновите остальные RouterForge components через Центр приложений.
 
 ## 9. Auth
 
@@ -163,7 +163,7 @@ grep 'START' /opt/var/log/routerforge-dns.log 2>/dev/null | tail -10
 
 Во время реального update/restart краткий `503` для module API допустим, пока Unix socket поднимается. На Core 0.4.2+ официальный UI сам повторяет health-check и iframe не должен застревать на сыром JSON.
 
-Если runtime уже `ok:true`, но Marketplace показывает другую Installed version, вернитесь к разделу 7 и сравните `opkg status`/`list-installed`.
+Если runtime уже `ok:true`, но Центр приложений показывает другую Installed version, вернитесь к разделу 7 и сравните `opkg status`/`list-installed`.
 
 Если DNS runtime жив, но discovery/capture сообщает ошибку, проверьте Keenetic:
 
@@ -185,7 +185,7 @@ opkg upgrade
 
 не должен быть первым шагом диагностики.
 
-Используйте Marketplace или точечную установку RouterForge package.
+Используйте Центр приложений или точечную установку RouterForge package.
 
 ## 12. Что приложить к bug report
 

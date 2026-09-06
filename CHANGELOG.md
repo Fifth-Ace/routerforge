@@ -4,6 +4,18 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+### 2026-09-07 — RouterForge 0.6.0-beta.1 preparation
+
+- Core `0.6.0-beta` redesigns Home into a path-aware attention center with device identity/uptime, sidebar telemetry, approved CPU/RAM/thermal/storage thresholds, sustained CPU detection, default-route alerting and recent failed App Center action visibility.
+- App Center closes the Phase 5 OPKG contract: cached read paths, package detail/preflight, dependencies/sizes, guarded async non-Core actions with SSE/cancel/global lock/timeout/history/post-verify, while Core self-update keeps a separate restart-safe lifecycle.
+- DNS attention follows the effective resolver path: active secure upstream health/quality/fallback/local-path diagnostics plus recent plain UDP/TCP terminal events, avoiding noise from unused backup resolvers.
+- RouterForge release metadata now carries architecture, download/installed size, dependencies and conflicts; release-index remains authoritative while `Packages`/`Packages.gz` stays a parallel OPKG view.
+- Manifest schema adds `version_source`, `conflicts` and typed `web` metadata as groundwork only; the Phase 6 embedded workspace and request-token hardening remain a separate security gate.
+- Fresh 0.6 Beta bootstrap installs Core only. Optional RouterForge modules, integrations and Entware packages are selected afterwards from App Center.
+- Device model detection now falls back to cached `ndmc -c "show version"` parsing when device-tree/tmp model sources are insufficient.
+- MIPS/MipSel remain Beta experimental preview targets without physical hardware validation; Stable stays blocked for them.
+
+
 - DNS `0.4.19` fixes plain-DNS mutation readback failures on Keenetic: targeted RCI `DELETE /ip/name-server` removes only the intended physical resolver instead of clearing/reposting the entire static list; strict snapshot/save/readback/rollback verification remains enabled, and nested NDMS application errors returned with HTTP 200 are now detected instead of being mistaken for success.
 - Repository sources are organized by component ownership: Core and Control live under `components/`, DNS owns runtime/frontend/packaging under `modules/dns/`, monitoring package lifecycle lives with each public module, and release manifests live under `release/channels/`. Runtime/package versions are unchanged.
 - The historical root Marketplace Registry URL remains stable for older Core compatibility; CI keeps the Core embedded Registry mirror byte-identical.

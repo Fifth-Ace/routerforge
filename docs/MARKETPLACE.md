@@ -1,6 +1,28 @@
-# RouterForge Marketplace
+# RouterForge — Центр приложений
 
-Marketplace — каталог официальных RouterForge capabilities и поддерживаемых внешних проектов для Keenetic/Netcraze Entware.
+**Центр приложений** — единая точка управления официальными компонентами RouterForge,
+curated-интеграциями и пакетами Entware/OPKG.
+
+> Compatibility note: имя файла `docs/MARKETPLACE.md`, корневой каталог `marketplace/`
+> и старые `/api/catalog*` маршруты пока сохраняются как compatibility surface для старых
+> Core и существующих ссылок. Пользовательское название продукта — **Центр приложений**.
+
+## Вкладки
+
+```text
+Центр приложений
+├── RouterForge
+├── Интеграции
+├── Entware
+├── Установлено
+└── Обновления
+```
+
+- **RouterForge** — Core и optional-пакеты платформы.
+- **Интеграции** — curated сторонние проекты, которые RouterForge умеет обнаруживать.
+- **Entware** — generic OPKG browser.
+- **Установлено** — агрегированное состояние RouterForge, интеграций и Entware.
+- **Обновления** — агрегированный список доступных обновлений.
 
 ## Источники данных
 
@@ -9,7 +31,7 @@ Core объединяет:
 1. bundled Registry;
 2. remote Registry из GitHub;
 3. локальное состояние Entware/opkg;
-4. RouterForge release-index текущего канала.
+4. target-specific RouterForge release-index текущего канала.
 
 Для Stable remote Registry читается из `main`, для Beta — из `dev`.
 
@@ -17,114 +39,187 @@ Core объединяет:
 
 ### Installed
 
-Установленная версия RouterForge package определяется по локальной базе `opkg`.
+Установленная версия package определяется по локальной базе `opkg`.
 
-Core учитывает только stanza, у которых `Status` действительно заканчивается состоянием `installed`. Старые записи вида `install prefer not-installed`, которые `opkg` может оставить после upgrade, считаются tombstone и игнорируются. Поэтому старая версия не должна перекрывать текущую установленную версию в Marketplace.
+Core учитывает только stanza, у которых `Status` действительно заканчивается состоянием
+`installed`. Старые записи вида `install prefer not-installed` считаются tombstone и
+игнорируются.
 
-### Available
+### Available для RouterForge
 
-Доступная версия официального RouterForge package берётся из release-index:
+Для официальных RouterForge package authoritative source — target-specific release-index:
 
 ```text
 routerforge-stable-index.json
 routerforge-beta-index.json
 ```
 
-Release-index содержит:
+Release-index содержит, когда metadata доступна:
 
 - component id;
 - package;
 - version;
+- architecture;
 - exact asset filename;
 - exact GitHub release URL;
 - SHA256;
-- compatibility metadata.
+- minimum Core version;
+- download size;
+- estimated installed payload size;
+- dependencies;
+- conflicts.
 
-Core не строит имя IPK из собственной версии.
+Core не строит имя IPK из собственной версии и не выдумывает package metadata.
+
+### OPKG feed
+
+`scripts/build-feed.sh` уже формирует `Packages` и `Packages.gz`.
+Для RouterForge 0.6 release-index остаётся authoritative source для собственного lifecycle.
+`Packages.gz` существует как параллельное OPKG-представление и не заменяет release-index
+без отдельной миграции. Решение зафиксировано в `APP_CENTER_RELEASE_FEED_ADR.md`.
+
+## Entware / OPKG read path
+
+Центр приложений использует реальные OPKG команды и кэширует тяжёлые списки:
+
+```text
+opkg list
+opkg list-installed
+opkg list-upgradable
+opkg info <pkg>
+opkg status <pkg>
+```
+
+Показываются:
+
+- package/name/description;
+- installed и available version;
+- architecture;
+- section/maintainer/source;
+- download и installed size, когда OPKG их сообщает;
+- dependencies и reverse dependency context;
+- installed/upgradable state.
+
+Поиск не запускает полный `opkg list` на каждый keystroke. Кэш инвалидируется после
+update/install/remove/upgrade и имеет TTL/manual refresh.
+
+## Preflight и действия
+
+Перед mutation выполняется preflight. Он может показать:
+
+- свободное место в `/opt`;
+- зависимости;
+- reverse dependencies/removal consequences;
+- source/feed;
+- ожидаемое действие.
+
+Package name валидируется. Команда запускается как executable + argv, без построения
+произвольной shell-строки.
+
+Для non-Core действий используется job model:
+
+- один глобальный package-manager lock;
+- bounded output;
+- timeout;
+- SSE live output;
+- cancellation;
+- post-action refresh;
+- post-action verification;
+- persistent action history.
+
+Текущий App Center action API:
+
+```text
+POST   /api/apps/preflight
+GET    /api/apps/actions
+POST   /api/apps/actions
+GET    /api/apps/actions/<id>
+GET    /api/apps/actions/<id>/events
+DELETE /api/apps/actions/<id>
+```
+
+История действий хранится в:
+
+```text
+/opt/var/log/routerforge-app-center.jsonl
+```
+
+с ограниченной ротацией.
+
+### Core self-update
+
+Самообновление `routerforge-core` намеренно не выполняется как обычный in-process async job:
+успешный update перезапускает сам Core. Для него сохраняется отдельный restart-safe lifecycle,
+а batch update выполняет Core последним.
+
+### Generic OPKG rollback
+
+Для generic Entware package RouterForge не обещает собственный rollback поверх семантики
+`opkg`. UI должен отличать:
+
+```text
+RouterForge managed action -> exact release metadata + verification
+Generic OPKG action        -> opkg semantics, rollback не гарантирован
+```
 
 ## Проверка обновлений
 
-Автоматическая remote-проверка Registry и release-index выполняется примерно **раз в час**.
+Remote Registry и release-index периодически обновляются с throttling/cache.
+Ручная **«Проверить обновления»** обходит обычный interval и немедленно пересчитывает
+доступные версии.
 
-Browser может чаще перечитывать локальный `/api/catalog`; это не означает постоянные запросы к GitHub.
+RouterForge-компоненты версионируются независимо. Если component version не менялась,
+release pipeline сохраняет уже опубликованный same-version asset вместо молчаливой
+подмены бинарника.
 
-Кнопка **«Проверить обновления»** выполняет force refresh и ждёт результат.
+## Проверка IPK RouterForge
 
-Если доступны executable updates, кнопка подсвечивается и показывает количество.
-
-## Независимые обновления
-
-RouterForge-модули не обязаны иметь версию Core.
-
-CI публикует новый asset только для компонента, version которого изменился.
-
-Если version не менялся, release pipeline сохраняет предыдущий asset/URL/SHA256 и не заменяет бинарник под тем же номером.
-
-При batch update:
-
-1. обновляются optional modules;
-2. Core обновляется последним.
-
-После lifecycle action Core повторно строит catalog из локального package state. `update` считается успешным только если package установлен **и** его фактическая версия совпадает с target version из release-index. Один только успешный exit code `opkg` недостаточен.
-
-Для Module ABI runtime package-installed и runtime-ready — независимые состояния. Во время restart proxy может кратковременно отдавать `503`, а UI выполняет health preflight/retry и восстанавливает iframe после готовности socket.
-
-## Проверка IPK
-
-Для официального RouterForge lifecycle:
+Для официального lifecycle:
 
 1. Core получает exact URL + SHA256 из release-index;
-2. разрешает только HTTPS GitHub release URL проекта;
+2. разрешает ожидаемый HTTPS GitHub release source;
 3. скачивает IPK во временный каталог;
 4. вычисляет SHA256;
-5. сравнивает с release-index;
-6. только затем вызывает `opkg install`;
-7. временный IPK удаляется.
+5. сравнивает его с release-index;
+6. вызывает `opkg install`;
+7. повторно читает package state/version.
 
-## Trust model
+Успешный exit code `opkg` сам по себе не является достаточным доказательством update.
 
-Marketplace различает доверие к источнику каталога и право выполнить lifecycle action.
+## Trust model интеграций
 
 Типичные статусы:
 
-- `OFFICIAL` — официальный RouterForge component;
-- `VERIFIED` — внешний manifest прошёл review/approval;
-- `UNVERIFIED` — metadata есть, но lifecycle не должен считаться доверенным;
-- `CHANGED` — manifest изменился после approval;
-- `BLOCKED` — выполнение запрещено;
-- `DEPRECATED` — устаревший entry.
+- `OFFICIAL`;
+- `VERIFIED`;
+- `UNVERIFIED`;
+- `CHANGED`;
+- `BLOCKED`;
+- `DEPRECATED`.
 
-Approval привязан к manifest SHA256.
+`CHANGED`, `BLOCKED` и `DEPRECATED` не получают автоматический executable lifecycle.
+Approval привязан к проверяемой версии manifest.
 
-## Никакого arbitrary shell из Registry
-
-Manifest не является root-shell script.
-
-Executable lifecycle ограничен поддерживаемыми Core типами, например:
-
-- RouterForge verified release install/update;
-- ограниченный `opkg` lifecycle;
-- structured operations из разрешённого набора.
-
-Неизвестный method не выполняется.
+Manifest не является root-shell script. Неизвестный lifecycle method не выполняется.
+Upstream install shell script никогда не запускается автоматически только потому, что URL
+присутствует в Registry.
 
 ## Сторонние проекты
 
-Сторонний проект может быть:
+Интеграция может быть:
 
-- обнаружен;
-- показан как installed external;
-- снабжён project URL;
-- иметь compatibility/status metadata;
-- иметь lifecycle только если он явно реализован и разрешён.
+- обнаружена по package/path/process/service;
+- показана как installed external;
+- снабжена version/service/project URL;
+- иметь compatibility и conflict hints;
+- получить typed package action, только если действие однозначно и разрешено.
 
-RouterForge не должен молча присваивать себе вручную установленный внешний проект.
+Typed `web` metadata (`scheme`, `port`, `path`, `embed`) в 0.6 является **только schema
+groundwork** для следующего этапа. Она не включает generic reverse proxy, произвольный SSRF
+surface или автоматическое iframe-embedding.
 
-## Удаление
-
-Remove требует отдельного разрешённого plan.
-
-Для destructive lifecycle UI использует явное подтверждение; backend повторно проверяет разрешение и ожидаемое имя.
+Полный embedded workspace остаётся отдельным security gate: per-session request token,
+strict Origin/CORS и изоляция внешнего iframe должны быть реализованы до массового embedding.
 
 ## Package management marker
 
@@ -134,16 +229,13 @@ Remove требует отдельного разрешённого plan.
 /opt/etc/routerforge/package-management.enabled
 ```
 
-Это включает RouterForge package-management mode.
-
 Legacy marker читается только для миграционной совместимости.
 
 ## Release channels
 
 | Channel | Branch | GitHub release | Назначение |
 | --- | --- | --- | --- |
-| Stable | `main` | `routerforge-stable` | публичный production channel |
-| Beta | `dev` | `routerforge-beta` | тестирование перед promotion |
+| Stable | `main` | `routerforge-stable` | production channel |
+| Beta | `dev` | `routerforge-beta` | pre-release validation |
 
-Beta release намеренно помечен GitHub как **Pre-release**.
-Stable должен быть обычным **Latest** release.
+Stable продвигается только после exact Beta verification и требуемого hardware pass.

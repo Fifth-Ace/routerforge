@@ -6,7 +6,7 @@ RouterForge состоит из Core и independently versioned capabilities.
 
 | Package | UI | Runtime | Назначение |
 | --- | --- | --- | --- |
-| `routerforge-core` | всегда | Core process | Web shell, auth, Marketplace, Registry, lifecycle, Module ABI host |
+| `routerforge-core` | всегда | Core process | Web shell, auth, Центр приложений, Registry, lifecycle, Module ABI host |
 | `routerforge-dns` | DNS | Unix-socket runtime | DNS observability, resolver management, traffic, diagnostics |
 | `routerforge-admin` | Управление | Unix-socket helper | процессы, порты, services, packages, system summary |
 | `routerforge-system` | Мониторинг | Unix-socket helper | CPU, RAM/swap, uptime/load, process count |
@@ -23,7 +23,7 @@ RouterForge состоит из Core и independently versioned capabilities.
 
 - embedded SvelteKit shell;
 - authentication layer;
-- Marketplace catalog and package lifecycle;
+- Центр приложений catalog and package lifecycle;
 - remote Registry and release-index updater;
 - generic `/api/modules/<id>/...` Unix-socket proxy;
 - generic module UI host/frame;
@@ -162,7 +162,7 @@ routerforge-admin
 
 Control helper remains read-only. It provides Core data about processes, listening sockets, Entware init scripts, installed packages and system summary.
 
-Package management in Marketplace is performed by Core through typed lifecycle plans, not by the Control helper.
+Package management in Центр приложений is performed by Core through typed lifecycle plans, not by the Control helper.
 
 ## Monitoring helpers
 
@@ -198,9 +198,9 @@ Every component has its own version in the channel release index.
 A normal post-ABI state can look like:
 
 ```text
-routerforge-core     0.4.3
-routerforge-dns      0.4.18
-routerforge-network  0.3.2
+routerforge-core     0.4.5
+routerforge-dns      0.4.20
+routerforge-network  0.3.3
 ```
 
 This is intentional. DNS-only changes must not require a Core version bump after Module ABI v1 has landed.
@@ -209,6 +209,6 @@ Compatibility is expressed through `min_core_version` metadata.
 
 ## Installation and removal
 
-The recommended lifecycle is Marketplace.
+The recommended lifecycle is Центр приложений.
 
 Removing an optional capability must not remove Core or any other RouterForge module.

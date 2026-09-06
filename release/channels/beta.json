@@ -5,42 +5,60 @@
     "release_notes": {
         "ru": {
             "new": [
-                "Главная Core переработана в единый центр состояния и внимания.",
-                "Sidebar показывает RouterForge-компоненты, установленные интеграции и телеметрию устройства.",
-                "Core получил /api/platform для модели устройства и использования /opt.",
-                "Чистая bootstrap-установка теперь устанавливает только RouterForge Core."
+                "Главная Core стала единым центром состояния и внимания с hostname/model/Core/channel/uptime.",
+                "Sidebar показывает дерево установленных RouterForge-компонентов, интеграции и телеметрию устройства.",
+                "Центр приложений получил вкладки RouterForge, Интеграции, Entware, Установлено и Обновления.",
+                "Generic OPKG получил package detail/preflight, кэшированный поиск, зависимости, размеры и безопасные install/update/remove actions.",
+                "Non-Core package actions выполняются как async jobs с SSE output, cancel, глобальным lock, timeout, history и post-verify.",
+                "Свежая 0.6 Beta bootstrap-установка устанавливает только RouterForge Core; optional capabilities выбираются после запуска."
             ],
             "fixes": [
-                "Пользовательское название раздела унифицировано как «Центр приложений».",
+                "Attention Center оценивает фактически используемый DNS path: secure upstream health/quality/fallback и свежие plain DNS terminal events.",
+                "Исправлены пороги внимания: CPU Temp >75 warning и >=90 critical, RAM >=90/96, /opt >=85/95, sustained CPU >=90% не менее 30 секунд.",
+                "Добавлены события отсутствующего default route и недавнего failed action Центра приложений.",
+                "Пользовательское название раздела унифицировано как «Центр приложений»; старые catalog/marketplace имена остаются compatibility aliases.",
+                "Определение модели устройства получило cached fallback через ndmc show version.",
                 "Убрано ложное предупреждение Built-in RouterForge component для Core."
             ],
             "compatibility": [
                 "ARM64 (aarch64-3.10) — основной поддерживаемый target.",
-                "MIPS и MIPSel остаются experimental Beta до физической проверки."
+                "MIPS и MIPSel публикуются только как experimental Beta preview и не считаются аппаратно проверенными.",
+                "Stable для MIPS/MipSel остаётся заблокированным до физической hardware validation."
             ],
             "technical": [
-                "Attention Center агрегирует secure DNS health и свежие plain DNS timeout/error наблюдения.",
-                "CPU/RAM/Thermal остаются optional providers; model и /opt принадлежат Core."
+                "RouterForge release metadata включает architecture, download/installed size, dependencies и conflicts.",
+                "Release-index остаётся authoritative source; Packages/Packages.gz сохраняются как параллельное OPKG-представление.",
+                "Manifest schema получила version_source, conflicts и typed web metadata как groundwork; full iframe workspace остаётся отдельным security gate.",
+                "Fresh Core bootstrap остаётся Core-only; Core self-update сохраняет отдельный restart-safe lifecycle."
             ]
         },
         "en": {
             "new": [
-                "Core Home is redesigned as a unified status and attention center.",
-                "Sidebar shows RouterForge components, installed integrations, and device telemetry.",
-                "Core now exposes /api/platform for device model and /opt usage.",
-                "Fresh bootstrap now installs RouterForge Core only."
+                "Core Home is now a unified status and attention center with hostname/model/Core/channel/uptime.",
+                "The sidebar shows installed RouterForge components, integrations, and device telemetry.",
+                "App Center now exposes RouterForge, Integrations, Entware, Installed, and Updates tabs.",
+                "Generic OPKG now has package details/preflight, cached search, dependency/size metadata, and guarded install/update/remove actions.",
+                "Non-Core package actions run as async jobs with SSE output, cancellation, a global lock, timeout, history, and post-verification.",
+                "A fresh 0.6 Beta bootstrap installs RouterForge Core only; optional capabilities are selected after startup."
             ],
             "fixes": [
-                "The user-facing section name is consistently App Center.",
+                "Attention Center evaluates the effective DNS path: secure upstream health/quality/fallback plus recent plain-DNS terminal events.",
+                "Attention thresholds now match the 0.6 contract: CPU temperature >75 warning and >=90 critical, RAM >=90/96, /opt >=85/95, and sustained CPU >=90% for at least 30 seconds.",
+                "Missing default-route and recent failed App Center action alerts are included.",
+                "The user-facing section name is consistently App Center while catalog/marketplace names remain compatibility aliases.",
+                "Device model detection now has a cached ndmc show version fallback.",
                 "The benign Built-in RouterForge component warning is suppressed for Core."
             ],
             "compatibility": [
                 "ARM64 (aarch64-3.10) is the primary supported target.",
-                "MIPS and MIPSel remain experimental Beta until physical validation."
+                "MIPS and MIPSel are published only as experimental Beta previews and are not hardware-validated.",
+                "Stable MIPS/MipSel remains blocked until physical hardware validation."
             ],
             "technical": [
-                "Attention Center aggregates secure DNS health and recent plain DNS timeout/error observations.",
-                "CPU/RAM/Thermal remain optional providers; model and /opt belong to Core."
+                "RouterForge release metadata now includes architecture, download/installed size, dependencies, and conflicts.",
+                "The release index remains authoritative; Packages/Packages.gz stays a parallel OPKG representation.",
+                "Manifest schema adds version_source, conflicts, and typed web metadata as groundwork; the full iframe workspace remains a separate security gate.",
+                "Fresh Core bootstrap remains Core-only; Core self-update keeps its restart-safe lifecycle."
             ]
         }
     },

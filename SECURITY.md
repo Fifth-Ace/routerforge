@@ -39,7 +39,7 @@ RouterForge Control is read-only.
 
 Helpers should not open independent LAN web ports.
 
-## Marketplace / packages
+## App Center / packages
 
 Official RouterForge package updates:
 

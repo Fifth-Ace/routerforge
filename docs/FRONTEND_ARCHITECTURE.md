@@ -34,7 +34,8 @@ Primary navigation формируется из фактически устано
 
 ```text
 /           Главная
-/catalog    Marketplace
+/apps       Центр приложений
+/catalog    compatibility redirect
 /settings   Настройки
 ```
 
@@ -48,13 +49,13 @@ Conditional:
 
 Registry presentation metadata может добавлять navigation entry для установленного official module.
 
-## Catalog
+## Центр приложений / Catalog compatibility
 
 `catalog` store периодически перечитывает локальный `/api/catalog`.
 
 Это **не равно remote GitHub poll**: Core отдельно throttles Registry/release-index sync.
 
-Manual Marketplace update check использует:
+Ручная проверка обновлений в Центре приложений использует:
 
 ```text
 POST /api/catalog/refresh

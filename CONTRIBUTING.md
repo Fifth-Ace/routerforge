@@ -71,7 +71,7 @@ CI preserves the previous release asset and SHA256 for any component whose versi
 
 Channel release-index is authoritative for exact version, asset, URL and SHA256.
 
-## Marketplace manifests
+## App Center manifests
 
 Do not turn Registry metadata into arbitrary shell execution.
 

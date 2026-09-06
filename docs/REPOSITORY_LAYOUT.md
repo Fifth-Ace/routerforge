@@ -39,7 +39,7 @@ routerforge/
 
 ### `components/core/`
 
-Owns RouterForge Core: web shell, authentication, Marketplace lifecycle, Registry/release handling, Module ABI proxy, Core tests, embedded assets, frontend and OPKG lifecycle files.
+Owns RouterForge Core: web shell, authentication, Центр приложений lifecycle, Registry/release handling, Module ABI proxy, Core tests, embedded assets, frontend and OPKG lifecycle files.
 
 Core remains the only RouterForge process that listens on TCP port `2233`.
 
@@ -72,7 +72,7 @@ If those modules become independent runtimes later, their Go implementation can 
 
 Owns the optional profiling package lifecycle/configuration. The actual pprof hook remains inside Core because profiling instruments the Core process itself.
 
-## Marketplace compatibility exception
+## Legacy `marketplace/` compatibility exception
 
 `marketplace/` intentionally remains at the repository root. Older RouterForge Core versions fetch this public URL directly:
 

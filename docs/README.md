@@ -6,7 +6,7 @@
 
 - [INSTALLATION.md](INSTALLATION.md) — установка Stable/Beta, обновление, смена канала и удаление.
 - [MODULES.md](MODULES.md) — официальные пакеты и границы модулей.
-- [MARKETPLACE.md](MARKETPLACE.md) — Registry, trust model и безопасный package lifecycle.
+- [Центр приложений](MARKETPLACE.md) — RouterForge/Integrations/Entware, Registry, trust model и безопасный package lifecycle.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — диагностика Core, модулей и обновлений.
 
 ## Архитектура и разработка

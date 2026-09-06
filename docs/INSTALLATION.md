@@ -16,11 +16,11 @@ Web UI работает на порту **2233**.
 Текущий production baseline:
 
 ```text
-routerforge-core  0.4.3
-routerforge-dns   0.4.18
+routerforge-core  0.4.5
+routerforge-dns   0.4.20
 ```
 
-DNS 0.4.18 требует Core не ниже 0.4.2. Stable bootstrap сам берёт совместимую пару из release-index.
+DNS 0.4.20 требует Core не ниже 0.4.2. Текущий опубликованный Stable 0.4.5 bootstrap ставит совместимые Core + DNS из release-index; 0.6 Beta использует Core-only fresh bootstrap.
 
 ## Stable — рекомендуемый канал
 
@@ -40,7 +40,7 @@ Bootstrap генерируется CI из актуального `routerforge-s
 4. сверяет SHA256 каждого IPK;
 5. устанавливает `routerforge-core`;
 6. устанавливает `routerforge-dns`;
-7. оставляет остальные capabilities на выбор пользователя через Marketplace.
+7. оставляет остальные capabilities на выбор пользователя через Центр приложений.
 
 Core и DNS могут иметь разные версии — bootstrap не предполагает общий номер версии.
 
@@ -79,6 +79,10 @@ Beta публикуется из `dev` и предназначена для пр
 
 GitHub release `RouterForge Beta` помечен как **Pre-release**.
 
+Для **0.6.0-beta.1** fresh Beta bootstrap устанавливает только `routerforge-core`.
+Optional RouterForge modules, интеграции и generic Entware packages выбираются после запуска
+через **Центр приложений**. Уже установленные optional-пакеты bootstrap не удаляет.
+
 ## Compatibility launcher
 
 Для совместимости в репозитории остаётся:
@@ -100,7 +104,7 @@ Beta через launcher:
 
 ## Что устанавливать дальше
 
-После Core + DNS откройте **Marketplace** и установите нужные возможности:
+После установки Core откройте **Центр приложений** и установите нужные возможности. На текущем опубликованном Stable 0.4.5 DNS пока также устанавливается bootstrap'ом; в 0.6 Beta fresh bootstrap Core-only:
 
 - RouterForge Control;
 - System Monitor;
@@ -113,7 +117,7 @@ Beta через launcher:
 
 ## Обновления
 
-### Через Marketplace
+### Через Центр приложений
 
 Это основной способ.
 
@@ -125,7 +129,7 @@ Beta через launcher:
 - состояние сервиса;
 - доступные actions.
 
-Remote release-index и Marketplace Registry автоматически обновляются примерно раз в час.
+Remote release-index и Центр приложений Registry автоматически обновляются примерно раз в час.
 
 Кнопка **«Проверить обновления»**:
 
@@ -155,7 +159,7 @@ Lifecycle считается успешным только после повто
 При осознанной смене канала:
 
 1. запустите bootstrap целевого канала;
-2. откройте Marketplace;
+2. откройте Центр приложений;
 3. выполните ручную проверку;
 4. обновите остальные установленные RouterForge-компоненты до доступных версий этого канала.
 

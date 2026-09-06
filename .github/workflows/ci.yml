@@ -104,7 +104,7 @@ jobs:
               esac
 
               case "$path" in
-                scripts/target-env.sh|scripts/build-opkg.sh|scripts/build-admin-opkg.sh|scripts/build-module-opkg.sh|scripts/build-modules-opkg.sh|scripts/build-feed.sh)
+                scripts/target-env.sh|scripts/build-opkg.sh|scripts/build-admin-opkg.sh|scripts/build-module-opkg.sh|scripts/build-modules-opkg.sh|scripts/build-feed.sh|scripts/verify-mips-qemu.sh)
                   CROSS=true
                   ;;
               esac
@@ -233,6 +233,27 @@ jobs:
           go-version: '1.21.x'
           cache: true
 
+      - name: Install QEMU user emulators
+        if: steps.scope.outputs.cross == 'true'
+        run: |
+          set -eu
+
+          if command -v qemu-mips >/dev/null 2>&1 &&
+             command -v qemu-mipsel >/dev/null 2>&1; then
+            qemu-mips --version | head -n 1
+            qemu-mipsel --version | head -n 1
+            exit 0
+          fi
+
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qemu-user
+
+          command -v qemu-mips >/dev/null
+          command -v qemu-mipsel >/dev/null
+
+          qemu-mips --version | head -n 1
+          qemu-mipsel --version | head -n 1
+
       - name: Install pinned UPX
         if: steps.scope.outputs.full_release == 'true'
         run: |
@@ -323,6 +344,10 @@ jobs:
             done
           done
 
+      - name: Verify MIPS runtime under QEMU
+        if: steps.scope.outputs.cross == 'true'
+        run: sh scripts/verify-mips-qemu.sh
+
       - name: Smoke test monitoring runtime
         if: steps.scope.outputs.go == 'true'
         run: |
@@ -376,6 +401,7 @@ jobs:
           sh -n scripts/upx-pack.sh
           sh -n scripts/build-modules-opkg.sh
           sh -n scripts/build-feed.sh
+          sh -n scripts/verify-mips-qemu.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
           sh -n components/control/packaging/postinst

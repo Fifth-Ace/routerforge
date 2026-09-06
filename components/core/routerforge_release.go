@@ -99,8 +99,6 @@ func routerForgeReleaseIndexAssetName() string {
 channel := normalizedReleaseChannel()
 target := normalizedReleaseTarget()
 
-// Preserve the historical ARM64 index name indefinitely so existing
-// RouterForge installations continue receiving release metadata.
 if target == "aarch64-3.10" {
 return fmt.Sprintf("routerforge-%s-index.json", channel)
 }
@@ -162,15 +160,7 @@ func routerForgeReleaseDownloadURLs(release catalogRelease) []string {
 }
 
 func routerForgeReleaseCachePath() string {
-	channel := normalizedReleaseChannel()
-	target := normalizedReleaseTarget()
-	name := "release-index-" + channel
-
-	if target != "aarch64-3.10" {
-		name += "-" + target
-	}
-
-	return "/opt/var/cache/routerforge/" + name + ".json"
+	return "/opt/var/cache/routerforge/release-index-" + normalizedReleaseChannel() + ".json"
 }
 
 func routerForgeReleaseSnapshot() (routerForgeReleaseIndex, routerForgeReleaseStatus) {

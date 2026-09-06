@@ -46,6 +46,18 @@ def main():
     for current in candidate.get("components", []):
         old = old_by_id.get(current["id"])
         if old and old.get("version") == current.get("version"):
+            old_sha = str(old.get("sha256", "")).strip()
+            current_sha = str(current.get("sha256", "")).strip()
+            old_asset = str(old.get("asset", "")).strip()
+            current_asset = str(current.get("asset", "")).strip()
+
+            if old_sha != current_sha or old_asset != current_asset:
+                raise SystemExit(
+                    f"{current['id']}: package version {current.get('version')!r} "
+                    "already exists with a different binary identity; "
+                    "bump the component version before publishing"
+                )
+
             preserved = dict(old)
             # Preserve the already-published same-version binary identity, but
             # normalize repository metadata from the current candidate. This

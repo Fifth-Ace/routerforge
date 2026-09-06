@@ -164,6 +164,40 @@ func startWeb(listen string, version string) error {
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
 	mux.HandleFunc("/api/modules/", proxyModuleAPI)
 
+	mux.HandleFunc("/api/catalog/channel", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			_, status := routerForgeReleaseSnapshot()
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-store")
+			_ = json.NewEncoder(w).Encode(status)
+		case http.MethodPost:
+			if !sameOriginRequest(r) {
+				writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "cross-origin release-channel request rejected"})
+				return
+			}
+			var request struct {
+				Channel string `json:"channel"`
+			}
+			if err := decodeSmallJSON(w, r, &request); err != nil {
+				return
+			}
+			if err := setReleaseChannel(request.Channel); err != nil {
+				writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+				return
+			}
+			status := forceRefreshRouterForgeReleaseIndex()
+			writeCatalogJSON(w, http.StatusOK, map[string]any{
+				"ok":      status.Supported,
+				"release": status,
+				"catalog": readCatalog(),
+			})
+		default:
+			w.Header().Set("Allow", "GET, POST")
+			writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET or POST required"})
+		}
+	})
+
 	mux.HandleFunc("/api/catalog/refresh", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)

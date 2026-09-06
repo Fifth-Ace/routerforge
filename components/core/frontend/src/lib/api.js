@@ -35,6 +35,7 @@ export const getSnapshot = () => request('/api/snapshot');
 export const getSystem = () => request('/api/system');
 export const getCatalog = () => request('/api/catalog');
 export const refreshCatalogRemote = () => postJSON('/api/catalog/refresh', {});
+export const setCatalogChannel = (channel) => postJSON('/api/catalog/channel', { channel });
 export const installCatalogItem = (id) => postJSON('/api/catalog/install', { id });
 export const catalogAction = (id, action, confirm = '') =>
   postJSON('/api/catalog/action', { id, action, confirm });

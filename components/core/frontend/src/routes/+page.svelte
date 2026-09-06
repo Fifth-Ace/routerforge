@@ -41,7 +41,7 @@
   function hrefFor(item) {
     if (item.presentation?.navigation?.href) return item.presentation.navigation.href;
     if (['system','thermal','storage','network'].includes(item.id)) return `/monitoring?tab=${encodeURIComponent(item.id)}`;
-    return '/catalog';
+    return '/apps';
   }
 
   function short(item) {
@@ -79,7 +79,7 @@
       <small>{t(locale, 'home.monitoringOnline', { online: monitoringOnline.length, installed: monitoringInstalled.length })}</small>
     </div>
     <div class="metric-card">
-      <span>Marketplace</span>
+      <span>{t(locale, 'nav.marketplace')}</span>
       <strong>{$catalog.registry?.online ? 'ONLINE' : 'CACHE'}</strong>
       <small>{t(locale, 'home.entriesExternal', { entries: integrations.length + modules.length, external: externalInstalled })}</small>
     </div>
@@ -144,12 +144,12 @@
   <section class="routerforge-capabilities-section">
     <div class="catalog-section-head">
       <div><h2>{t(locale, 'home.installedCapabilities')}</h2><p>{t(locale, 'home.installedCapabilitiesSubtitle')}</p></div>
-      <a class="button" href="/catalog">Marketplace</a>
+      <a class="button" href="/apps">{t(locale, 'nav.marketplace')}</a>
     </div>
 
     <div class="routerforge-capability-grid">
       {#if !moduleCards.length}
-        <a class="routerforge-empty-capability" href="/catalog">
+        <a class="routerforge-empty-capability" href="/apps">
           <strong>{t(locale, 'home.addCapabilities')}</strong>
           <span>{t(locale, 'home.addCapabilitiesHint')}</span>
         </a>

@@ -52,6 +52,7 @@ func startWeb(listen string, version string) error {
 	mux := http.NewServeMux()
 	auth := newAuthManager()
 	auth.registerHandlers(mux)
+	registerAppCenterHandlers(mux)
 	fileServer := http.FileServer(http.FS(sub))
 
 	serveIndex := func(w http.ResponseWriter) {

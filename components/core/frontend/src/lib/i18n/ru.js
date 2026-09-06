@@ -102,7 +102,7 @@ export default {
     "home": "Главная",
     "monitoring": "Мониторинг",
     "manage": "Управление",
-    "marketplace": "Marketplace",
+    "marketplace": "Приложения",
     "settings": "Настройки",
     "logout": "Выйти"
   },
@@ -167,7 +167,7 @@ export default {
     "issueControlRuntimeStopped": "RouterForge Control установлен, но runtime не запущен"
   },
   "marketplace": {
-    "pageTitle": "Marketplace",
+    "pageTitle": "Центр приложений",
     "subtitle": "Единый каталог RouterForge: официальные модули платформы и сторонние проекты с явным уровнем доверия.",
     "registryOnline": "REGISTRY В СЕТИ",
     "searchPlaceholder": "Поиск модулей, проектов, издателей…",

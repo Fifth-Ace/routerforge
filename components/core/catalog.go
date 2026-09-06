@@ -138,8 +138,8 @@ func buildCatalog(installed map[string]string, processes map[string]bool, exists
 
 func moduleOrder(id string) int {
 	order := map[string]int{
-		"routerforge-core": 1, "marketplace": 2, "dns": 3, "admin": 4, "system": 5,
-		"thermal": 6, "storage": 7, "network": 8, "profiling": 9,
+		"routerforge-core": 1, "dns": 2, "admin": 3, "system": 4,
+		"thermal": 5, "storage": 6, "network": 7, "profiling": 8,
 	}
 	if n, ok := order[id]; ok {
 		return n
@@ -151,18 +151,12 @@ func builtinModuleCatalog() []catalogItem {
 	return []catalogItem{
 		{
 			ID: "routerforge-core", Kind: "module", Name: "RouterForge Core", Category: "Core",
-			Description: "Локальная платформа RouterForge: web shell, Marketplace, auth, registry и API для устанавливаемых возможностей.",
+			Description: "Локальная платформа RouterForge: web shell, auth, Центр приложений, registry, module routing, settings и безопасный package lifecycle.",
 			Source:      "builtin", Builtin: true, Enabled: true,
-			Capabilities:  []string{"dns-observability", "plain-dns", "client-attribution", "routing-diagnostics"},
+			Capabilities:  []string{"web-shell", "auth", "app-center", "registry", "module-routing", "settings", "package-lifecycle"},
 			Compatibility: catalogCompatibility{Status: "built-in"},
 		},
-		{
-			ID: "marketplace", Kind: "module", Name: "Marketplace", Category: "Platform",
-			Description: "Каталог модулей RouterForge и проверенных интеграций Keenetic/Netcraze + Entware.",
-			Source:      "builtin", Builtin: true, Enabled: true,
-			Capabilities:  []string{"catalog", "integration-detection", "install-plan-preview"},
-			Compatibility: catalogCompatibility{Status: "built-in"},
-		},
+
 		managedModule(
 			"admin", "Admin Tools", "Administration",
 			"Read-only системная админка: CPU, RAM, процессы, порты, службы, opkg, storage и thermal.",

@@ -52,7 +52,7 @@
 
   $: if ($catalogOnline && protectedPathMissing && !redirecting) {
     redirecting = true;
-    goto('/catalog', { replaceState: true }).finally(() => { redirecting = false; });
+    goto('/apps', { replaceState: true }).finally(() => { redirecting = false; });
   }
 
   onMount(() => {

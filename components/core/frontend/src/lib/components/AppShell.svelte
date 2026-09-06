@@ -103,7 +103,7 @@
       {/if}
 
       <section class="rail-status-card mono">
-        <div class="rail-section-label">Marketplace</div>
+        <div class="rail-section-label">{t(locale, 'marketplace.pageTitle')}</div>
         <div><span>{t(locale, 'shell.catalogApi')}</span><strong class={$catalogOnline ? 'good' : 'bad'}>{$catalogOnline ? t(locale, 'common.online').toUpperCase() : t(locale, 'common.offline').toUpperCase()}</strong></div>
         <div><span>{t(locale, 'shell.registry')}</span><strong class={$catalog.registry?.online ? 'good' : 'warn'}>{$catalog.registry?.online ? t(locale, 'shell.remote') : ($catalog.registry?.source || t(locale, 'shell.bundled')).toUpperCase()}</strong></div>
         <div><span>{t(locale, 'shell.packages')}</span><strong class={$catalog.install_test_mode ? 'good' : 'muted'}>{$catalog.install_test_mode ? t(locale, 'shell.betaEnabled') : t(locale, 'common.disabled').toUpperCase()}</strong></div>

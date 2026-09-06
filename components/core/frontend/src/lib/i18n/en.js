@@ -102,7 +102,7 @@ export default {
     "home": "Home",
     "monitoring": "Monitoring",
     "manage": "Control",
-    "marketplace": "Marketplace",
+    "marketplace": "Apps",
     "settings": "Settings",
     "logout": "Log out"
   },
@@ -167,7 +167,7 @@ export default {
     "issueControlRuntimeStopped": "RouterForge Control is installed, but its runtime is not running"
   },
   "marketplace": {
-    "pageTitle": "Marketplace",
+    "pageTitle": "App Center",
     "subtitle": "RouterForge catalog: official platform modules and third-party projects with an explicit trust level.",
     "registryOnline": "REGISTRY ONLINE",
     "searchPlaceholder": "Search modules, projects, publishers…",

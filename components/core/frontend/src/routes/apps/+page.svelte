@@ -8,7 +8,7 @@
     getEntwarePackageDetail, preflightAppAction, startAppAction,
     getAppActions, getAppAction, cancelAppAction, appActionEventsURL
   } from '$lib/api.js';
-  import { stateInfo, localWebURL } from '$lib/utils.js';
+  import { stateInfo, localWebURL, bytes } from '$lib/utils.js';
   import { appText as a } from '$lib/app-center-i18n.js';
   import { t } from '$lib/i18n/index.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
@@ -568,6 +568,14 @@
                 <div><span>{a(locale,'installed')}</span><strong>{item.version ? `v${item.version}` : '—'}</strong></div>
                 <div><span>{a(locale,'available')}</span><strong class:good={item.update_available}>{item.release?.version ? `v${item.release.version}` : item.available_version ? `v${item.available_version}` : '\u2014'}</strong></div>
                 <div><span>{a(locale,'package')}</span><strong title={packageText(item)}>{packageText(item)}</strong></div>
+                {#if item.package_meta}
+                  <div><span>Architecture</span><strong>{item.package_meta.architecture || releaseTarget || '\u2014'}</strong></div>
+                  <div><span>Download</span><strong>{item.package_meta.download_size_bytes ? bytes(item.package_meta.download_size_bytes) : '\u2014'}</strong></div>
+                  <div><span>Installed size</span><strong>{item.package_meta.installed_size_bytes ? bytes(item.package_meta.installed_size_bytes) : '\u2014'}</strong></div>
+                  <div><span>Depends</span><strong title={(item.package_meta.depends || []).join(', ')}>{item.package_meta.depends?.length ? item.package_meta.depends.join(', ') : '\u2014'}</strong></div>
+                  {#if item.package_meta.conflicts?.length}<div><span>Conflicts</span><strong title={item.package_meta.conflicts.join(', ')}>{item.package_meta.conflicts.join(', ')}</strong></div>{/if}
+                {/if}
+                {#if item.release?.min_core_version}<div><span>Min Core</span><strong>v{item.release.min_core_version}</strong></div>{/if}
                 <div><span>{a(locale,'publisher')}</span><strong>{item.publisher?.name || '—'}</strong></div>
                 <div><span>{a(locale,'service')}</span><strong class:good={item.service_running}>{item.service ? (item.service_running ? 'RUNNING' : 'STOPPED') : item.id === 'routerforge-core' ? 'CORE' : '—'}</strong></div>
                 <div><span>{a(locale,'compatibility')}</span><strong title={compatibilityText(item)}>{compatibilityText(item)}</strong></div>

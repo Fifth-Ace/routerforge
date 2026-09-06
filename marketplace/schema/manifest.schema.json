@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://routerforge.local/schema/marketplace-manifest-v1.json",
-  "title": "RouterForge Marketplace Manifest v1",
+  "title": "RouterForge App Center Manifest v1",
   "type": "object",
   "required": [
     "schema_version",
@@ -58,8 +58,74 @@
     "package_authoritative": {
       "type": "boolean"
     },
+    "version_source": {
+      "enum": [
+        "opkg",
+        "binary",
+        "service",
+        "file",
+        "manual",
+        "release-index"
+      ]
+    },
+    "conflicts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9+._-]{1,120}$"
+      }
+    },
+    "web": {
+      "type": "object",
+      "required": [
+        "port"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "enum": [
+            "http",
+            "https"
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/[^\\r\\n]*$"
+        },
+        "embed": {
+          "type": "boolean"
+        }
+      }
+    },
     "detection": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9+._-]{1,120}$"
+          }
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "compatibility": {
       "type": "object"

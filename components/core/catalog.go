@@ -23,6 +23,22 @@ type catalogCompatibility struct {
 	Hints  []string `json:"hints,omitempty"`
 }
 
+type catalogPackageMetadata struct {
+	Architecture       string   `json:"architecture,omitempty"`
+	DownloadSizeBytes  uint64   `json:"download_size_bytes,omitempty"`
+	InstalledSizeBytes uint64   `json:"installed_size_bytes,omitempty"`
+	Depends            []string `json:"depends,omitempty"`
+	Conflicts          []string `json:"conflicts,omitempty"`
+	Source             string   `json:"source,omitempty"`
+}
+
+type catalogWebMetadata struct {
+	Scheme string `json:"scheme,omitempty"`
+	Port   int    `json:"port,omitempty"`
+	Path   string `json:"path,omitempty"`
+	Embed  bool   `json:"embed,omitempty"`
+}
+
 type catalogInstallPlan struct {
 	Method        string                 `json:"method,omitempty"`
 	Repository    string                 `json:"repository,omitempty"`
@@ -37,38 +53,42 @@ type catalogInstallPlan struct {
 }
 
 type catalogItem struct {
-	ID               string               `json:"id"`
-	Kind             string               `json:"kind"`
-	Name             string               `json:"name"`
-	Category         string               `json:"category"`
-	Description      string               `json:"description"`
-	ProjectURL       string               `json:"project_url,omitempty"`
-	Source           string               `json:"source"`
-	State            string               `json:"state"`
-	Installed        bool                 `json:"installed"`
-	Enabled          bool                 `json:"enabled"`
-	Managed          bool                 `json:"managed,omitempty"`
-	Version          string               `json:"version,omitempty"`
-	AvailableVersion string               `json:"available_version,omitempty"`
-	PackageInstalled bool                 `json:"package_installed,omitempty"`
-	Service          string               `json:"service,omitempty"`
-	ServiceRunning   bool                 `json:"service_running"`
-	WebPort          int                  `json:"web_port,omitempty"`
-	WebPortSource    string               `json:"web_port_source,omitempty"`
-	Capabilities     []string             `json:"capabilities,omitempty"`
-	Detection        catalogDetection     `json:"detection,omitempty"`
-	Compatibility    catalogCompatibility `json:"compatibility"`
-	Install          catalogInstallPlan   `json:"install,omitempty"`
-	Update           catalogInstallPlan   `json:"update,omitempty"`
-	Remove           catalogInstallPlan   `json:"remove,omitempty"`
-	Publisher        catalogPublisher     `json:"publisher,omitempty"`
-	Trust            catalogTrust         `json:"trust,omitempty"`
-	Actions          catalogActions       `json:"actions"`
-	ManifestID       string               `json:"manifest_id,omitempty"`
-	ManifestSHA256   string               `json:"manifest_sha256,omitempty"`
-	ManifestSource   string               `json:"manifest_source,omitempty"`
-	RegistrySource   string               `json:"registry_source,omitempty"`
-	Presentation     map[string]any       `json:"presentation,omitempty"`
+	ID               string                  `json:"id"`
+	Kind             string                  `json:"kind"`
+	Name             string                  `json:"name"`
+	Category         string                  `json:"category"`
+	Description      string                  `json:"description"`
+	ProjectURL       string                  `json:"project_url,omitempty"`
+	Source           string                  `json:"source"`
+	State            string                  `json:"state"`
+	Installed        bool                    `json:"installed"`
+	Enabled          bool                    `json:"enabled"`
+	Managed          bool                    `json:"managed,omitempty"`
+	Version          string                  `json:"version,omitempty"`
+	AvailableVersion string                  `json:"available_version,omitempty"`
+	VersionSource    string                  `json:"version_source,omitempty"`
+	PackageMeta      *catalogPackageMetadata `json:"package_meta,omitempty"`
+	Conflicts        []string                `json:"conflicts,omitempty"`
+	PackageInstalled bool                    `json:"package_installed,omitempty"`
+	Service          string                  `json:"service,omitempty"`
+	ServiceRunning   bool                    `json:"service_running"`
+	Web              *catalogWebMetadata     `json:"web,omitempty"`
+	WebPort          int                     `json:"web_port,omitempty"`
+	WebPortSource    string                  `json:"web_port_source,omitempty"`
+	Capabilities     []string                `json:"capabilities,omitempty"`
+	Detection        catalogDetection        `json:"detection,omitempty"`
+	Compatibility    catalogCompatibility    `json:"compatibility"`
+	Install          catalogInstallPlan      `json:"install,omitempty"`
+	Update           catalogInstallPlan      `json:"update,omitempty"`
+	Remove           catalogInstallPlan      `json:"remove,omitempty"`
+	Publisher        catalogPublisher        `json:"publisher,omitempty"`
+	Trust            catalogTrust            `json:"trust,omitempty"`
+	Actions          catalogActions          `json:"actions"`
+	ManifestID       string                  `json:"manifest_id,omitempty"`
+	ManifestSHA256   string                  `json:"manifest_sha256,omitempty"`
+	ManifestSource   string                  `json:"manifest_source,omitempty"`
+	RegistrySource   string                  `json:"registry_source,omitempty"`
+	Presentation     map[string]any          `json:"presentation,omitempty"`
 
 	Release         catalogRelease `json:"release,omitempty"`
 	UpdateAvailable bool           `json:"update_available,omitempty"`

@@ -299,6 +299,33 @@ func parseRouterForgeRegistry(data []byte) (routerForgeRegistryDocument, error) 
 	return doc, nil
 }
 
+func validCatalogVersionSource(value string) bool {
+	switch value {
+	case "", "opkg", "binary", "service", "file", "manual", "release-index":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateCatalogWebMetadata(meta *catalogWebMetadata) error {
+	if meta == nil {
+		return nil
+	}
+	if meta.Port < 1 || meta.Port > 65535 {
+		return fmt.Errorf("web port must be between 1 and 65535")
+	}
+	if meta.Scheme != "" && meta.Scheme != "http" && meta.Scheme != "https" {
+		return fmt.Errorf("web scheme must be http or https")
+	}
+	if meta.Path != "" {
+		if !strings.HasPrefix(meta.Path, "/") || strings.ContainsAny(meta.Path, "\r\n") {
+			return fmt.Errorf("web path must be an absolute local path")
+		}
+	}
+	return nil
+}
+
 func validateRouterForgeRegistry(doc routerForgeRegistryDocument) error {
 	if doc.SchemaVersion != 1 {
 		return fmt.Errorf("unsupported schema_version %d", doc.SchemaVersion)
@@ -333,6 +360,17 @@ func validateRouterForgeRegistry(doc routerForgeRegistryDocument) error {
 		}
 		if item.Trust.Status == "official" && item.Publisher.ID != "routerforge" {
 			return fmt.Errorf("%s: only RouterForge publisher may be official", item.ID)
+		}
+		if !validCatalogVersionSource(item.VersionSource) {
+			return fmt.Errorf("%s: invalid version_source %q", item.ID, item.VersionSource)
+		}
+		for _, pkg := range item.Conflicts {
+			if !safeCatalogPackageName(pkg) {
+				return fmt.Errorf("%s: unsafe conflict package %q", item.ID, pkg)
+			}
+		}
+		if err := validateCatalogWebMetadata(item.Web); err != nil {
+			return fmt.Errorf("%s: %w", item.ID, err)
 		}
 		for _, plan := range []catalogInstallPlan{item.Install, item.Update, item.Remove} {
 			if err := validateCatalogPlan(plan); err != nil {
@@ -516,6 +554,16 @@ func mergeRegistryCatalogItem(dst *catalogItem, src catalogItem) {
 	}
 	if src.WebRequiresPackage != "" {
 		dst.WebRequiresPackage = src.WebRequiresPackage
+	}
+	if src.VersionSource != "" {
+		dst.VersionSource = src.VersionSource
+	}
+	if len(src.Conflicts) > 0 {
+		dst.Conflicts = append([]string(nil), src.Conflicts...)
+	}
+	if src.Web != nil {
+		web := *src.Web
+		dst.Web = &web
 	}
 	if src.WebPort > 0 {
 		dst.WebPort = src.WebPort

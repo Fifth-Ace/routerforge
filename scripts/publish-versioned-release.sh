@@ -2,9 +2,14 @@
 set -eu
 
 CHANNEL="${1:-}"
+MODE="${2:-publish}"
 case "$CHANNEL" in
     beta|stable) ;;
-    *) echo "usage: $0 beta|stable" >&2; exit 64 ;;
+    *) echo "usage: $0 beta|stable [--preflight-only]" >&2; exit 64 ;;
+esac
+case "$MODE" in
+    publish|--preflight-only) ;;
+    *) echo "usage: $0 beta|stable [--preflight-only]" >&2; exit 64 ;;
 esac
 
 CONFIG="release/channels/${CHANNEL}.json"
@@ -36,6 +41,11 @@ if gh release view "$TAG" >/dev/null 2>&1; then
     echo "Immutable release already exists: $TAG" >&2
     echo "Bump release_version before publishing another snapshot." >&2
     exit 1
+fi
+
+if [ "$MODE" = "--preflight-only" ]; then
+    echo "Immutable release preflight available: $TAG"
+    exit 0
 fi
 
 case "$CHANNEL" in

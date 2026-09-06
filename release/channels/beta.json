@@ -1,15 +1,18 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.5.0-beta.1",
+    "release_version": "0.5.0-beta.2",
     "release_notes": {
         "ru": {
             "new": [
+                "Marketplace получил переключение Stable/Beta только для официальных модулей RouterForge без автоматической установки пакетов.",
+                "Marketplace теперь явно показывает выбранный target и experimental-статус, а неизвестная архитектура блокируется fail-closed.",
                 "Добавлена экспериментальная поддержка MIPS и MIPSel в Beta.",
                 "Один universal bootstrap автоматически определяет архитектуру Entware и выбирает подходящую сборку.",
                 "Для MIPS/MIPSel добавлены fail-closed preflight, runtime compatibility probe и QEMU-проверка."
             ],
             "fixes": [
+                "Исправлен release flow: существующий immutable snapshot проверяется до изменения rolling Beta alias.",
                 "Исправлена маршрутизация release-index и package assets между ARM64, MIPS и MIPSel.",
                 "Исправлена последовательная multi-arch сборка Beta без удаления пакетов другой архитектуры."
             ],
@@ -25,11 +28,14 @@
         },
         "en": {
             "new": [
-                "Experimental MIPS and MIPSel support is now available in Beta.",
+                "Marketplace can now switch Stable/Beta only for official RouterForge modules without automatically installing packages.",
+                "Marketplace now exposes the selected target and experimental status, while unknown architectures fail closed.",
+                "Experimental MIPS and MipSel support is now available in Beta.",
                 "A single universal bootstrap automatically detects the Entware architecture and selects the matching build.",
                 "MIPS/MIPSel now use fail-closed preflight, runtime compatibility probing, and QEMU runtime validation."
             ],
             "fixes": [
+                "Fixed release ordering so an existing immutable snapshot is rejected before the rolling Beta alias is mutated.",
                 "Fixed release-index and package-asset routing across ARM64, MIPS, and MIPSel.",
                 "Fixed sequential multi-architecture Beta builds so packages for other targets are preserved."
             ],

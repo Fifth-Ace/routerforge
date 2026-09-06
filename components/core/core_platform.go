@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -21,12 +22,13 @@ type platformStorage struct {
 }
 
 type platformInfo struct {
-	Hostname     string          `json:"hostname"`
-	Model        string          `json:"model"`
-	ModelFull    string          `json:"model_full,omitempty"`
-	Architecture string          `json:"architecture"`
-	Target       string          `json:"target,omitempty"`
-	Opt          platformStorage `json:"opt"`
+	Hostname      string          `json:"hostname"`
+	Model         string          `json:"model"`
+	ModelFull     string          `json:"model_full,omitempty"`
+	Architecture  string          `json:"architecture"`
+	Target        string          `json:"target,omitempty"`
+	UptimeSeconds int64           `json:"uptime_seconds"`
+	Opt           platformStorage `json:"opt"`
 }
 
 func registerPlatformHandlers(mux *http.ServeMux) {
@@ -45,12 +47,13 @@ func registerPlatformHandlers(mux *http.ServeMux) {
 func readPlatformInfo() platformInfo {
 	full := readDeviceModel()
 	return platformInfo{
-		Hostname:     firstPlatformValue(readPlatformText("/proc/sys/kernel/hostname"), "RouterForge"),
-		Model:        shortDeviceModel(full),
-		ModelFull:    full,
-		Architecture: runtime.GOARCH,
-		Target:       releaseTarget,
-		Opt:          readPlatformStorage("/opt"),
+		Hostname:      firstPlatformValue(readPlatformText("/proc/sys/kernel/hostname"), "RouterForge"),
+		Model:         shortDeviceModel(full),
+		ModelFull:     full,
+		Architecture:  runtime.GOARCH,
+		Target:        releaseTarget,
+		UptimeSeconds: readPlatformUptimeSeconds(),
+		Opt:           readPlatformStorage("/opt"),
 	}
 }
 
@@ -80,6 +83,22 @@ func shortDeviceModel(value string) string {
 		return strings.Join(fields[len(fields)-3:], " ")
 	}
 	return value
+}
+
+func parsePlatformUptimeSeconds(value string) int64 {
+	fields := strings.Fields(value)
+	if len(fields) == 0 {
+		return 0
+	}
+	seconds, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil || seconds < 0 {
+		return 0
+	}
+	return int64(seconds)
+}
+
+func readPlatformUptimeSeconds() int64 {
+	return parsePlatformUptimeSeconds(readPlatformText("/proc/uptime"))
 }
 
 func readPlatformText(path string) string {

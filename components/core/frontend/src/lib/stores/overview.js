@@ -1,22 +1,28 @@
 import { writable } from 'svelte/store';
 import {
-  getPlatform, getModule, getAdminSummary, getAdminCPU, getAdminStorage, getAdminThermal, getPlainDNS
+  getPlatform, getModule, getAdminSummary, getAdminCPU, getAdminStorage, getAdminThermal,
+  getPlainDNS, getAppActions
 } from '$lib/api.js';
 
 export const overview = writable({
-  platform: null, summary: null, cpu: null, memory: null, thermal: null, storage: null, plainDns: null
+  platform: null, summary: null, cpu: null, memory: null, thermal: null, storage: null,
+  plainDns: null, networkRoutes: null, appActions: null, cpuSustainedHigh: null
 });
 
 let timer = null;
 let users = 0;
 let lastCatalog = null;
+let cpuHighSince = 0;
 
 export async function refreshOverview(nextCatalog = lastCatalog) {
   lastCatalog = nextCatalog || lastCatalog;
   const modules = lastCatalog?.modules || [];
   const installed = (id) => modules.some((item) => item.id === id && item.installed);
   const safe = async (fn) => { try { return await fn(); } catch { return null; } };
-  const result = { platform:null, summary:null, cpu:null, memory:null, thermal:null, storage:null, plainDns:null };
+  const result = {
+    platform:null, summary:null, cpu:null, memory:null, thermal:null, storage:null,
+    plainDns:null, networkRoutes:null, appActions:null, cpuSustainedHigh:null
+  };
 
   result.platform = await safe(() => getPlatform());
 
@@ -40,7 +46,11 @@ export async function refreshOverview(nextCatalog = lastCatalog) {
   if (installed('storage')) result.storage = await safe(() => getModule('storage','storage'));
   else if (installed('admin')) result.storage = await safe(() => getAdminStorage());
 
-  if (installed('dns')) result.plainDns = await safe(() => getPlainDNS(100));
+  if (installed('dns')) result.plainDns = await safe(() => getPlainDNS(500));
+  if (installed('network')) result.networkRoutes = await safe(() => getModule('network','routes'));
+
+  result.appActions = await safe(() => getAppActions());
+  result.cpuSustainedHigh = updateSustainedCPU(result.cpu);
 
   overview.set(result);
   return result;
@@ -61,6 +71,7 @@ export function startOverviewPolling(getCatalog, intervalMs = 10000) {
     if (!users && timer) {
       clearInterval(timer);
       timer = null;
+      cpuHighSince = 0;
     }
   };
 }
@@ -69,6 +80,28 @@ export function averageCPU(cpu) {
   const rows = cpu?.cpus || [];
   if (!rows.length) return 0;
   return rows.reduce((sum, row) => sum + Number(row.usage_pct || 0), 0) / rows.length;
+}
+
+function updateSustainedCPU(cpu) {
+  const rows = cpu?.cpus || [];
+  if (!rows.length) {
+    cpuHighSince = 0;
+    return { active:false, usage_pct:0, since:'' };
+  }
+
+  const usage = averageCPU(cpu);
+  const now = Date.now();
+  if (usage < 90) {
+    cpuHighSince = 0;
+    return { active:false, usage_pct:usage, since:'' };
+  }
+
+  if (!cpuHighSince) cpuHighSince = now;
+  return {
+    active: now - cpuHighSince >= 30000,
+    usage_pct: usage,
+    since: new Date(cpuHighSince).toISOString()
+  };
 }
 
 export function cpuTemperature(thermal) {

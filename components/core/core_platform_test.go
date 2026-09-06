@@ -15,3 +15,14 @@ func TestShortDeviceModel(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePlatformUptimeSeconds(t *testing.T) {
+	if got := parsePlatformUptimeSeconds("12345.67 98765.43"); got != 12345 {
+		t.Fatalf("uptime=%d, want 12345", got)
+	}
+	for _, value := range []string{"", "bad", "-1 0"} {
+		if got := parsePlatformUptimeSeconds(value); got != 0 {
+			t.Fatalf("parsePlatformUptimeSeconds(%q)=%d, want 0", value, got)
+		}
+	}
+}

@@ -8,14 +8,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 )
 
 var (
-releaseChannel = "beta"
-releaseTarget  string
+	releaseChannel = "beta"
+	releaseTarget  string
 )
 
 const (
@@ -39,6 +40,7 @@ type catalogRelease struct {
 type routerForgeReleaseIndex struct {
 	SchemaVersion int              `json:"schema_version"`
 	Channel       string           `json:"channel"`
+	Target        string           `json:"target,omitempty"`
 	GeneratedAt   string           `json:"generated_at,omitempty"`
 	Commit        string           `json:"commit,omitempty"`
 	Components    []catalogRelease `json:"components"`
@@ -74,44 +76,45 @@ func normalizedReleaseChannel() string {
 }
 
 func normalizedReleaseTarget() string {
-switch strings.ToLower(strings.TrimSpace(releaseTarget)) {
-case "aarch64-3.10":
-return "aarch64-3.10"
-case "mips-3.4":
-return "mips-3.4"
-case "mipsel-3.4":
-return "mipsel-3.4"
-}
+	switch strings.ToLower(strings.TrimSpace(releaseTarget)) {
+	case "aarch64-3.10":
+		return "aarch64-3.10"
+	case "mips-3.4":
+		return "mips-3.4"
+	case "mipsel-3.4":
+		return "mipsel-3.4"
+	}
 
-switch runtime.GOARCH {
-case "arm64":
-return "aarch64-3.10"
-case "mips":
-return "mips-3.4"
-case "mipsle":
-return "mipsel-3.4"
-default:
-return "aarch64-3.10"
-}
+	switch runtime.GOARCH {
+	case "arm64":
+		return "aarch64-3.10"
+	case "mips":
+		return "mips-3.4"
+	case "mipsle":
+		return "mipsel-3.4"
+	default:
+		return "aarch64-3.10"
+	}
 }
 
 func routerForgeReleaseIndexAssetName() string {
-channel := normalizedReleaseChannel()
-target := normalizedReleaseTarget()
+	channel := normalizedReleaseChannel()
+	target := normalizedReleaseTarget()
 
-if target == "aarch64-3.10" {
-return fmt.Sprintf("routerforge-%s-index.json", channel)
-}
+	if target == "aarch64-3.10" {
+		return fmt.Sprintf("routerforge-%s-index.json", channel)
+	}
 
-return fmt.Sprintf(
-"routerforge-%s-index-%s.json",
-channel,
-target,
-)
+	return fmt.Sprintf(
+		"routerforge-%s-index-%s.json",
+		channel,
+		target,
+	)
 }
 
 func routerForgeReleaseIndexURLs() []string {
 	channel := normalizedReleaseChannel()
+	asset := routerForgeReleaseIndexAssetName()
 	repositories := []string{
 		routerForgeCanonicalRepository,
 		routerForgeLegacyRepository,
@@ -119,8 +122,8 @@ func routerForgeReleaseIndexURLs() []string {
 	urls := make([]string, 0, len(repositories))
 	for _, repository := range repositories {
 		urls = append(urls, fmt.Sprintf(
-			"https://github.com/%s/releases/download/routerforge-%s/routerforge-%s-index.json",
-			repository, channel, channel,
+			"https://github.com/%s/releases/download/routerforge-%s/%s",
+			repository, channel, asset,
 		))
 	}
 	return urls
@@ -160,7 +163,15 @@ func routerForgeReleaseDownloadURLs(release catalogRelease) []string {
 }
 
 func routerForgeReleaseCachePath() string {
-	return "/opt/var/cache/routerforge/release-index-" + normalizedReleaseChannel() + ".json"
+	channel := normalizedReleaseChannel()
+	target := normalizedReleaseTarget()
+	name := "release-index-" + channel
+
+	if target != "aarch64-3.10" {
+		name += "-" + target
+	}
+
+	return "/opt/var/cache/routerforge/" + name + ".json"
 }
 
 func routerForgeReleaseSnapshot() (routerForgeReleaseIndex, routerForgeReleaseStatus) {
@@ -172,6 +183,7 @@ func routerForgeReleaseSnapshot() (routerForgeReleaseIndex, routerForgeReleaseSt
 		routerForgeReleaseState.doc = routerForgeReleaseIndex{
 			SchemaVersion: 1,
 			Channel:       channel,
+			Target:        normalizedReleaseTarget(),
 			Components:    []catalogRelease{},
 		}
 		routerForgeReleaseState.status = routerForgeReleaseStatus{
@@ -330,6 +342,13 @@ func parseRouterForgeReleaseIndex(data []byte) (routerForgeReleaseIndex, error) 
 	}
 	if doc.Channel != normalizedReleaseChannel() {
 		return doc, fmt.Errorf("unexpected release channel %q", doc.Channel)
+	}
+	if doc.Target != "" && doc.Target != normalizedReleaseTarget() {
+		return doc, fmt.Errorf(
+			"unexpected release target %q (expected %q)",
+			doc.Target,
+			normalizedReleaseTarget(),
+		)
 	}
 	if len(doc.Components) > 128 {
 		return doc, fmt.Errorf("too many release components")

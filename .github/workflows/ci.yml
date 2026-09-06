@@ -402,6 +402,8 @@ jobs:
           sh -n scripts/build-modules-opkg.sh
           sh -n scripts/build-feed.sh
           sh -n scripts/verify-mips-qemu.sh
+          sh -n scripts/probe-runtime-compat.sh
+          sh -n scripts/verify-runtime-compat-probe.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
           sh -n components/control/packaging/postinst
@@ -412,6 +414,10 @@ jobs:
           sh -n modules/dns/packaging/prerm
           sh -n modules/profiling/packaging/postinst
           sh -n modules/profiling/packaging/prerm
+
+      - name: Verify runtime compatibility probe
+        if: steps.scope.outputs.shell == 'true'
+        run: sh scripts/verify-runtime-compat-probe.sh
 
       - name: Build Entware package set
         if: steps.scope.outputs.full_release == 'true'

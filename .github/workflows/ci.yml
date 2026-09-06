@@ -125,7 +125,7 @@ jobs:
                 scripts/render_bootstrap.py|scripts/render_universal_bootstrap.py)
                   RELEASE=true
                   ;;
-                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-beta-multiarch.sh)
+                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-beta-multiarch.sh|scripts/verify-published-beta.sh)
                   RELEASE=true
                   ;;
               esac
@@ -413,6 +413,7 @@ jobs:
           sh -n scripts/verify-mips-preview-quarantine.sh
           sh -n scripts/verify-universal-bootstrap.sh
           sh -n scripts/publish-beta-multiarch.sh
+          sh -n scripts/verify-published-beta.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
           sh -n components/control/packaging/postinst
@@ -813,6 +814,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: sh scripts/publish-beta-multiarch.sh
+
+      - name: Verify published RouterForge beta channel
+        if: steps.scope.outputs.full_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: sh scripts/verify-published-beta.sh
 
       - name: Build stable promotion candidate
         if: steps.scope.outputs.full_release == 'true'

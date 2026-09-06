@@ -72,16 +72,15 @@ src, dst, channel, tag = sys.argv[1:5]
 with open(src, "r", encoding="utf-8") as fh:
     doc = json.load(fh)
 
-old = f"/releases/download/routerforge-{channel}/"
-new = f"/releases/download/{tag}/"
+prefix = f"https://github.com/Fifth-Ace/routerforge/releases/download/{tag}/"
 
 for item in doc.get("components", []):
-    for key in ("url", "canonical_url"):
-        value = item.get(key)
-        if value:
-            if old not in value:
-                raise SystemExit(f"{src}: {key} does not use rolling channel URL")
-            item[key] = value.replace(old, new, 1)
+    asset = item.get("asset")
+    if not asset:
+        raise SystemExit(f"{src}: component without asset")
+    immutable_url = prefix + asset
+    item["url"] = immutable_url
+    item["canonical_url"] = immutable_url
 
 Path(dst).write_text(
     json.dumps(doc, ensure_ascii=False, indent=2) + "\n",

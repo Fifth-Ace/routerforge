@@ -26,3 +26,17 @@ func TestParsePlatformUptimeSeconds(t *testing.T) {
 		}
 	}
 }
+
+func TestParseNDMCDeviceModel(t *testing.T) {
+	cases := map[string]string{
+		"model: Keenetic Ultra (KN-1812)\n":            "Keenetic Ultra (KN-1812)",
+		"device: KN-3811\n":                            "KN-3811",
+		"some-prefix Keenetic Hopper KN-3811 suffix\n": "some-prefix Keenetic Hopper KN-3811 suffix",
+		"version: 5.01.C.1.0-0\n":                      "",
+	}
+	for input, want := range cases {
+		if got := parseNDMCDeviceModel(input); got != want {
+			t.Fatalf("parseNDMCDeviceModel(%q) = %q, want %q", input, got, want)
+		}
+	}
+}

@@ -113,7 +113,7 @@ export default {
     "dnsClientCapture": "DNS client capture",
     "unknown": "unknown error",
     "coreUnavailable": "RouterForge Core is unavailable",
-    "catalogUnavailable": "Catalog API is unavailable",
+    "catalogUnavailable": "App Center API is unavailable",
     "controlUnavailable": "RouterForge Control is unavailable",
     "plainDnsUnavailable": "Plain DNS API is unavailable"
   },

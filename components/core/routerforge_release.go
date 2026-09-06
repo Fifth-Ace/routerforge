@@ -30,14 +30,19 @@ const (
 )
 
 type catalogRelease struct {
-	Channel        string `json:"channel,omitempty"`
-	Version        string `json:"version,omitempty"`
-	Package        string `json:"package,omitempty"`
-	Asset          string `json:"asset,omitempty"`
-	SHA256         string `json:"sha256,omitempty"`
-	URL            string `json:"url,omitempty"`
-	CanonicalURL   string `json:"canonical_url,omitempty"`
-	MinCoreVersion string `json:"min_core_version,omitempty"`
+	Channel            string   `json:"channel,omitempty"`
+	Version            string   `json:"version,omitempty"`
+	Package            string   `json:"package,omitempty"`
+	Asset              string   `json:"asset,omitempty"`
+	SHA256             string   `json:"sha256,omitempty"`
+	URL                string   `json:"url,omitempty"`
+	CanonicalURL       string   `json:"canonical_url,omitempty"`
+	MinCoreVersion     string   `json:"min_core_version,omitempty"`
+	Architecture       string   `json:"architecture,omitempty"`
+	SizeBytes          uint64   `json:"size_bytes,omitempty"`
+	InstalledSizeBytes uint64   `json:"installed_size_bytes,omitempty"`
+	Depends            []string `json:"depends,omitempty"`
+	Conflicts          []string `json:"conflicts,omitempty"`
 }
 
 type routerForgeReleaseIndex struct {
@@ -454,6 +459,20 @@ func refreshRouterForgeReleaseIndex() {
 	}
 }
 
+func validateCatalogReleaseMetadata(release catalogRelease, target string) error {
+	if release.Architecture != "" && target != "" && release.Architecture != target {
+		return fmt.Errorf("%s: release architecture %q does not match target %q", release.Package, release.Architecture, target)
+	}
+	for _, values := range [][]string{release.Depends, release.Conflicts} {
+		for _, pkg := range values {
+			if !safeCatalogPackageName(pkg) {
+				return fmt.Errorf("%s: unsafe package metadata %q", release.Package, pkg)
+			}
+		}
+	}
+	return nil
+}
+
 func parseRouterForgeReleaseIndex(data []byte) (routerForgeReleaseIndex, error) {
 	var doc routerForgeReleaseIndex
 	if err := json.Unmarshal(data, &doc); err != nil {
@@ -498,6 +517,9 @@ func parseRouterForgeReleaseIndex(data []byte) (routerForgeReleaseIndex, error) 
 		if release.CanonicalURL != "" && (!validRouterForgeReleaseURL(release.CanonicalURL) || !strings.HasSuffix(release.CanonicalURL, "/"+release.Asset)) {
 			return doc, fmt.Errorf("%s: invalid canonical release URL", release.Package)
 		}
+		if err := validateCatalogReleaseMetadata(*release, normalizedReleaseTarget()); err != nil {
+			return doc, err
+		}
 		if _, exists := seen[release.Package]; exists {
 			return doc, fmt.Errorf("duplicate release package %s", release.Package)
 		}
@@ -527,6 +549,19 @@ func applyRouterForgeReleaseIndex(snapshot *catalogSnapshot) {
 		}
 
 		item.Release = release
+		item.AvailableVersion = release.Version
+		item.VersionSource = "release-index"
+		if release.Architecture != "" || release.SizeBytes > 0 || release.InstalledSizeBytes > 0 || len(release.Depends) > 0 || len(release.Conflicts) > 0 {
+			item.PackageMeta = &catalogPackageMetadata{
+				Architecture:       release.Architecture,
+				DownloadSizeBytes:  release.SizeBytes,
+				InstalledSizeBytes: release.InstalledSizeBytes,
+				Depends:            append([]string(nil), release.Depends...),
+				Conflicts:          append([]string(nil), release.Conflicts...),
+				Source:             "release-index",
+			}
+		}
+		item.Conflicts = append([]string(nil), release.Conflicts...)
 		item.UpdateAvailable = item.Installed && item.Version != "" && item.Version != release.Version
 		if status.Target != "" {
 			item.Install.AssetTemplate = "{package}_{version}_" + status.Target + ".ipk"

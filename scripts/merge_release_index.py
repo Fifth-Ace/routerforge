@@ -5,11 +5,13 @@ from pathlib import Path
 
 TARGETS = {"aarch64-3.10", "mips-3.4", "mipsel-3.4"}
 
+
 def load(path):
     if not path or not Path(path).is_file():
         return None
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -49,11 +51,10 @@ def main():
             # A freshly rebuilt IPK is not guaranteed to be byte-for-byte
             # identical because archive metadata can change between builds.
             # Same-version candidates therefore keep the already-published
-            # asset and checksum. A component version bump is the explicit
-            # signal that a new package binary must be published.
+            # asset/checksum and all byte-derived size metadata.
             preserved = dict(old)
-            for key in ("url", "canonical_url"):
-                if current.get(key):
+            for key in ("url", "canonical_url", "architecture", "depends", "conflicts"):
+                if key in current:
                     preserved[key] = current[key]
             merged.append(preserved)
         else:
@@ -74,6 +75,7 @@ def main():
         encoding="utf-8",
     )
     print(f"{channel}/{target}: {len(changed)} changed component(s)")
+
 
 if __name__ == "__main__":
     main()

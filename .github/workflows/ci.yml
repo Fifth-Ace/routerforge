@@ -76,6 +76,10 @@ jobs:
             while IFS= read -r path; do
               case "$path" in
 
+                .github/workflows/ci.yml)
+                  RELEASE=true
+                  ;;
+
                 components/core/frontend/*)
                   CORE_FRONTEND=true
                   ;;

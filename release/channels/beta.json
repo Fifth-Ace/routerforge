@@ -1,19 +1,17 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.5.0-beta.4",
+    "release_version": "0.5.0-beta.5",
     "release_notes": {
         "ru": {
             "new": [
-                "Marketplace переименован в «Приложения / Центр приложений» и оформлен как capability RouterForge Core.",
-                "Добавлены вкладки RouterForge, Интеграции, Entware, Установлено и Обновления.",
-                "Добавлен кэшированный Entware package browser с поиском, installed/update состоянием и постраничной выдачей.",
-                "Добавлены guarded Entware install/update/remove и explicit opkg update через общий package-manager lock."
+                "Интеграции теперь получают доступную версию и признак обновления из уже настроенных opkg feeds.",
+                "Для интеграций без проверенного manifest разрешены прямые opkg install/update/remove, если пакет однозначно найден в уже настроенном feed."
             ],
             "fixes": [
-                "Удалена фиктивная карточка Marketplace из списка устанавливаемых RouterForge-модулей.",
-                "Core теперь показывает собственную версию и package lifecycle, а Центр приложений версионируется вместе с Core.",
-                "Generic Entware actions блокируют routerforge-* и opkg, чтобы не обходить проверенный RouterForge release lifecycle."
+                "Исправлен разбор opkg list-upgradable: в интерфейсе показывается целевая версия обновления, а не установленная.",
+                "Пакеты RouterForge и пакеты, принадлежащие карточкам Интеграций, исключены из вкладки Entware, чтобы не дублироваться.",
+                "Кнопка обновления внешней интеграции показывается только при реальном доступном opkg update."
             ],
             "compatibility": [
                 "ARM64 (aarch64-3.10) — основной поддерживаемый target.",
@@ -21,21 +19,19 @@
                 "128 МБ ОЗУ поддерживаются с предупреждением о запасе памяти для стороннего ПО; 64 МБ остаются неподдерживаемой конфигурацией."
             ],
             "technical": [
-                "Добавлена проверка опубликованного multi-arch Beta release после загрузки assets.",
-                "ARM64 production executables продолжают упаковываться UPX; MIPS/MIPSel остаются без UPX до аппаратной валидации."
+                "Интеграции без проверенного manifest не получают право запускать upstream shell installers: fallback ограничен прямыми действиями через уже настроенный opkg feed.",
+                "Entware и Интеграции используют общий кэш package metadata; ручная проверка обновлений инвалидирует кэш без скрытого opkg update."
             ]
         },
         "en": {
             "new": [
-                "Marketplace is renamed to Apps / App Center and is explicitly a RouterForge Core capability.",
-                "Added RouterForge, Integrations, Entware, Installed, and Updates tabs.",
-                "Added a cached Entware package browser with search, installed/update state, and pagination.",
-                "Added guarded Entware install/update/remove and explicit opkg update using the shared package-manager lock."
+                "Integrations now receive available version and upgrade state from already configured opkg feeds.",
+                "Integrations without a verified manifest may use direct opkg install/update/remove when a single package is unambiguously available from an already configured feed."
             ],
             "fixes": [
-                "Removed the fake Marketplace card from installable RouterForge modules.",
-                "Core now owns App Center versioning and package lifecycle.",
-                "Generic Entware actions block routerforge-* and opkg so verified RouterForge release lifecycle cannot be bypassed."
+                "Fixed opkg list-upgradable parsing so the UI shows the target upgrade version instead of the installed version.",
+                "RouterForge packages and packages owned by Integration cards are hidden from the Entware tab to avoid duplicate ownership.",
+                "External integration update actions are shown only when opkg reports a real upgrade."
             ],
             "compatibility": [
                 "ARM64 (aarch64-3.10) is the primary supported target.",
@@ -43,8 +39,8 @@
                 "128 MiB RAM is supported with a headroom warning for other software; 64 MiB remains unsupported."
             ],
             "technical": [
-                "Added post-publication verification for the published multi-architecture Beta release.",
-                "ARM64 production executables remain UPX-packed; MIPS/MIPSel remain unpacked until hardware validation."
+                "Unverified integrations never gain permission to execute upstream shell installers; the fallback is limited to direct actions through an already configured opkg feed.",
+                "Entware and Integrations share cached package metadata; manual update checks invalidate the cache without silently running opkg update."
             ]
         }
     },
@@ -52,7 +48,7 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.4.6-beta"
+            "version": "0.4.7-beta"
         },
         {
             "id": "dns",

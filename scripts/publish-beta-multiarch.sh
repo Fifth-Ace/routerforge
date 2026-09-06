@@ -18,6 +18,10 @@ if ! gh release view "$TAG" >/dev/null 2>&1; then
     exit 1
 fi
 
+# Fail before the first rolling-release mutation if the configured immutable
+# snapshot tag already exists. This keeps release publication transactional.
+sh scripts/publish-versioned-release.sh beta --preflight-only
+
 for target in aarch64-3.10 mips-3.4 mipsel-3.4; do
     case "$target" in
         aarch64-3.10)

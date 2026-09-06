@@ -283,7 +283,13 @@ jobs:
 
       - name: Check formatting
         if: steps.scope.outputs.go == 'true'
-        run: test -z "$(gofmt -l .)"
+        run: |
+          set -eu
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf 'gofmt required:\n%s\n' "$unformatted" >&2
+            exit 1
+          fi
 
       - name: Test
         if: steps.scope.outputs.go == 'true'

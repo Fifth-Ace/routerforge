@@ -73,6 +73,45 @@ func normalizedReleaseChannel() string {
 	}
 }
 
+func normalizedReleaseTarget() string {
+switch strings.ToLower(strings.TrimSpace(releaseTarget)) {
+case "aarch64-3.10":
+return "aarch64-3.10"
+case "mips-3.4":
+return "mips-3.4"
+case "mipsel-3.4":
+return "mipsel-3.4"
+}
+
+switch runtime.GOARCH {
+case "arm64":
+return "aarch64-3.10"
+case "mips":
+return "mips-3.4"
+case "mipsle":
+return "mipsel-3.4"
+default:
+return "aarch64-3.10"
+}
+}
+
+func routerForgeReleaseIndexAssetName() string {
+channel := normalizedReleaseChannel()
+target := normalizedReleaseTarget()
+
+// Preserve the historical ARM64 index name indefinitely so existing
+// RouterForge installations continue receiving release metadata.
+if target == "aarch64-3.10" {
+return fmt.Sprintf("routerforge-%s-index.json", channel)
+}
+
+return fmt.Sprintf(
+"routerforge-%s-index-%s.json",
+channel,
+target,
+)
+}
+
 func routerForgeReleaseIndexURLs() []string {
 	channel := normalizedReleaseChannel()
 	repositories := []string{
@@ -123,7 +162,15 @@ func routerForgeReleaseDownloadURLs(release catalogRelease) []string {
 }
 
 func routerForgeReleaseCachePath() string {
-	return "/opt/var/cache/routerforge/release-index-" + normalizedReleaseChannel() + ".json"
+	channel := normalizedReleaseChannel()
+	target := normalizedReleaseTarget()
+	name := "release-index-" + channel
+
+	if target != "aarch64-3.10" {
+		name += "-" + target
+	}
+
+	return "/opt/var/cache/routerforge/" + name + ".json"
 }
 
 func routerForgeReleaseSnapshot() (routerForgeReleaseIndex, routerForgeReleaseStatus) {

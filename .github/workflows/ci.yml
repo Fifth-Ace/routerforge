@@ -7,9 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       full_release:
-        description: 'Build and publish beta + prepare stable promotion artifact'
+        description: 'Run full release validation and prepare stable promotion artifact'
         required: false
         default: false
+        type: boolean
+      publish_beta:
+        description: 'Publish the rolling + immutable Beta channel during full release'
+        required: false
+        default: true
         type: boolean
 
 permissions:
@@ -785,7 +790,7 @@ jobs:
           echo "Synthetic bootstrap preflight profiles: OK"
 
       - name: Build RouterForge beta channel
-        if: steps.scope.outputs.full_release == 'true'
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
         run: |
           set -eu
 
@@ -801,7 +806,7 @@ jobs:
           test -s dist/routerforge-beta-candidate-index-mipsel-3.4.json
 
       - name: Upload RouterForge beta candidate
-        if: steps.scope.outputs.full_release == 'true'
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-beta-multiarch
@@ -811,13 +816,13 @@ jobs:
           retention-days: 7
 
       - name: Publish RouterForge beta channel
-        if: steps.scope.outputs.full_release == 'true'
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
         env:
           GH_TOKEN: ${{ github.token }}
         run: sh scripts/publish-beta-multiarch.sh
 
       - name: Verify published RouterForge beta channel
-        if: steps.scope.outputs.full_release == 'true'
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
         env:
           GH_TOKEN: ${{ github.token }}
         run: sh scripts/verify-published-beta.sh

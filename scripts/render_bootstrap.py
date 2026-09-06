@@ -126,7 +126,7 @@ def main():
         "    cores=\"$(awk '/^processor[[:space:]]*:/ { n++ } END { print n + 0 }' \"$PROC_CPUINFO\" 2>/dev/null || printf '0\\n')\"",
         "    case \"$cores\" in ''|*[!0-9]*) cores=0 ;; esac",
         '    if [ "$cores" -gt 0 ]; then',
-        '        printf ''%s\n'' "$cores"',
+        "        printf '%s\\n' \"$cores\"",
         '        return 0',
         '    fi',
         '    if command -v nproc >/dev/null 2>&1; then',

@@ -46,22 +46,12 @@ def main():
     for current in candidate.get("components", []):
         old = old_by_id.get(current["id"])
         if old and old.get("version") == current.get("version"):
-            old_sha = str(old.get("sha256", "")).strip()
-            current_sha = str(current.get("sha256", "")).strip()
-            old_asset = str(old.get("asset", "")).strip()
-            current_asset = str(current.get("asset", "")).strip()
-
-            if old_sha != current_sha or old_asset != current_asset:
-                raise SystemExit(
-                    f"{current['id']}: package version {current.get('version')!r} "
-                    "already exists with a different binary identity; "
-                    "bump the component version before publishing"
-                )
-
+            # A freshly rebuilt IPK is not guaranteed to be byte-for-byte
+            # identical because archive metadata can change between builds.
+            # Same-version candidates therefore keep the already-published
+            # asset and checksum. A component version bump is the explicit
+            # signal that a new package binary must be published.
             preserved = dict(old)
-            # Preserve the already-published same-version binary identity, but
-            # normalize repository metadata from the current candidate. This
-            # prevents legacy repository URLs from surviving channel merges.
             for key in ("url", "canonical_url"):
                 if current.get(key):
                     preserved[key] = current[key]

@@ -404,6 +404,7 @@ jobs:
           sh -n scripts/verify-mips-qemu.sh
           sh -n scripts/probe-runtime-compat.sh
           sh -n scripts/verify-runtime-compat-probe.sh
+          sh -n scripts/verify-mips-preview-quarantine.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
           sh -n components/control/packaging/postinst
@@ -418,6 +419,10 @@ jobs:
       - name: Verify runtime compatibility probe
         if: steps.scope.outputs.shell == 'true'
         run: sh scripts/verify-runtime-compat-probe.sh
+
+      - name: Verify MIPS preview quarantine
+        if: steps.scope.outputs.release == 'true' || steps.scope.outputs.shell == 'true'
+        run: sh scripts/verify-mips-preview-quarantine.sh
 
       - name: Build Entware package set
         if: steps.scope.outputs.full_release == 'true'

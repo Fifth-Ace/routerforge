@@ -1,16 +1,25 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 var keeneticModelPattern = regexp.MustCompile(`(?i)\bKN-\d{4}\b`)
+
+var deviceModelCache = struct {
+	sync.Once
+	value string
+}{}
 
 type platformStorage struct {
 	Mount          string  `json:"mount"`
@@ -58,6 +67,13 @@ func readPlatformInfo() platformInfo {
 }
 
 func readDeviceModel() string {
+	deviceModelCache.Do(func() {
+		deviceModelCache.value = discoverDeviceModel()
+	})
+	return deviceModelCache.value
+}
+
+func discoverDeviceModel() string {
 	for _, path := range []string{
 		"/proc/device-tree/model",
 		"/sys/firmware/devicetree/base/model",
@@ -67,7 +83,37 @@ func readDeviceModel() string {
 			return value
 		}
 	}
+	return readNDMCDeviceModel()
+}
+
+func parseNDMCDeviceModel(raw string) string {
+	for _, rawLine := range strings.Split(raw, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if keeneticModelPattern.FindString(line) == "" {
+			continue
+		}
+		if index := strings.IndexByte(line, ':'); index >= 0 {
+			value := strings.TrimSpace(line[index+1:])
+			if keeneticModelPattern.FindString(value) != "" {
+				return value
+			}
+		}
+		return line
+	}
 	return ""
+}
+
+func readNDMCDeviceModel() string {
+	if _, err := exec.LookPath("ndmc"); err != nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, "ndmc", "-c", "show version").Output()
+	if err != nil {
+		return ""
+	}
+	return parseNDMCDeviceModel(string(output))
 }
 
 func shortDeviceModel(value string) string {

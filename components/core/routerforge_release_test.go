@@ -120,6 +120,7 @@ func TestCoreCanExposeIndependentUpdate(t *testing.T) {
 func TestRouterForgeReleaseIndexAssetNameByTarget(t *testing.T) {
 oldChannel := releaseChannel
 oldTarget := releaseTarget
+
 defer func() {
 releaseChannel = oldChannel
 releaseTarget = oldTarget
@@ -162,6 +163,7 @@ tc.want,
 func TestParseRouterForgeReleaseIndexRejectsWrongTarget(t *testing.T) {
 oldChannel := releaseChannel
 oldTarget := releaseTarget
+
 defer func() {
 releaseChannel = oldChannel
 releaseTarget = oldTarget

@@ -1,7 +1,7 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.5.0-beta.2",
+    "release_version": "0.5.0-beta.3",
     "release_notes": {
         "ru": {
             "new": [
@@ -12,6 +12,8 @@
                 "Для MIPS/MIPSel добавлены fail-closed preflight, runtime compatibility probe и QEMU-проверка."
             ],
             "fixes": [
+                "Исправлена доставка обновлённого Core существующим Beta-установкам: Core получил новую package version 0.4.5-beta.",
+                "Release tooling теперь запрещает публиковать изменившийся бинарник под уже использованной package version.",
                 "Исправлен release flow: существующий immutable snapshot проверяется до изменения rolling Beta alias.",
                 "Исправлена маршрутизация release-index и package assets между ARM64, MIPS и MIPSel.",
                 "Исправлена последовательная multi-arch сборка Beta без удаления пакетов другой архитектуры."
@@ -35,6 +37,8 @@
                 "MIPS/MIPSel now use fail-closed preflight, runtime compatibility probing, and QEMU runtime validation."
             ],
             "fixes": [
+                "Fixed delivery of the updated Core to existing Beta installations by bumping the Core package version to 0.4.5-beta.",
+                "Release tooling now rejects a changed binary published under an already-used package version.",
                 "Fixed release ordering so an existing immutable snapshot is rejected before the rolling Beta alias is mutated.",
                 "Fixed release-index and package-asset routing across ARM64, MIPS, and MIPSel.",
                 "Fixed sequential multi-architecture Beta builds so packages for other targets are preserved."
@@ -54,7 +58,7 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.4.4-beta"
+            "version": "0.4.5-beta"
         },
         {
             "id": "dns",

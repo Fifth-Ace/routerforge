@@ -29,6 +29,11 @@ def sha256(path):
 def run(cmd, env=None):
     subprocess.run(cmd, cwd=ROOT, env=env, check=True)
 
+def candidate_index_name(channel, target):
+    if target == "aarch64-3.10":
+        return f"routerforge-{channel}-candidate-index.json"
+    return f"routerforge-{channel}-candidate-index-{target}.json"
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
@@ -60,7 +65,7 @@ def main():
 
     dist = Path(args.dist)
     dist.mkdir(parents=True, exist_ok=True)
-    for old in dist.glob("routerforge-*.ipk"):
+    for old in dist.glob(f"routerforge-*_{target}.ipk"):
         old.unlink()
 
     env = dict(os.environ)
@@ -114,7 +119,7 @@ def main():
         "commit": os.environ.get("GITHUB_SHA", ""),
         "components": entries,
     }
-    out = dist / f"routerforge-{channel}-candidate-index.json"
+    out = dist / candidate_index_name(channel, target)
     out.write_text(json.dumps(candidate, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(out)
 

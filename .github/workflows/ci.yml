@@ -125,7 +125,7 @@ jobs:
                 scripts/render_bootstrap.py|scripts/render_universal_bootstrap.py)
                   RELEASE=true
                   ;;
-                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py)
+                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-beta-multiarch.sh)
                   RELEASE=true
                   ;;
               esac
@@ -412,6 +412,7 @@ jobs:
           sh -n scripts/verify-runtime-compat-probe.sh
           sh -n scripts/verify-mips-preview-quarantine.sh
           sh -n scripts/verify-universal-bootstrap.sh
+          sh -n scripts/publish-beta-multiarch.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
           sh -n components/control/packaging/postinst
@@ -547,6 +548,57 @@ jobs:
         run: |
           sh -n scripts/build-module-opkg.sh
           python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py scripts/render_universal_bootstrap.py
+
+          python3 - <<'PY'
+          import json
+          import runpy
+          import subprocess
+          import tempfile
+          from pathlib import Path
+
+          builder = runpy.run_path("scripts/build_routerforge_channel.py")
+          candidate_index_name = builder["candidate_index_name"]
+
+          assert candidate_index_name("beta", "aarch64-3.10") == "routerforge-beta-candidate-index.json"
+          assert candidate_index_name("beta", "mips-3.4") == "routerforge-beta-candidate-index-mips-3.4.json"
+          assert candidate_index_name("beta", "mipsel-3.4") == "routerforge-beta-candidate-index-mipsel-3.4.json"
+
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              candidate = root / "candidate.json"
+              previous = root / "previous.json"
+              output = root / "output.json"
+              changed = root / "changed.txt"
+              sums = root / "SHA256SUMS"
+
+              candidate.write_text(json.dumps({
+                  "schema_version": 1,
+                  "channel": "beta",
+                  "target": "mips-3.4",
+                  "components": [],
+              }), encoding="utf-8")
+
+              previous.write_text(json.dumps({
+                  "schema_version": 1,
+                  "channel": "beta",
+                  "target": "mipsel-3.4",
+                  "components": [],
+              }), encoding="utf-8")
+
+              result = subprocess.run([
+                  "python3",
+                  "scripts/merge_release_index.py",
+                  "--candidate", str(candidate),
+                  "--previous", str(previous),
+                  "--output", str(output),
+                  "--changed-list", str(changed),
+                  "--checksums", str(sums),
+              ])
+
+              assert result.returncode != 0, "cross-target release index merge was accepted"
+
+          print("Multi-arch release routing helpers: OK")
+          PY
 
           grep -Fq 'detect_mem_mib() {' scripts/render_bootstrap.py
           grep -Fq 'detect_swap_mib() {' scripts/render_bootstrap.py
@@ -733,111 +785,43 @@ jobs:
       - name: Build RouterForge beta channel
         if: steps.scope.outputs.full_release == 'true'
         run: |
-          python3 scripts/build_routerforge_channel.py \
-            --config release/channels/beta.json \
-            --dist dist
+          set -eu
+
+          for target in aarch64-3.10 mips-3.4 mipsel-3.4; do
+            python3 scripts/build_routerforge_channel.py \
+              --config release/channels/beta.json \
+              --dist dist \
+              --target "$target"
+          done
+
+          test -s dist/routerforge-beta-candidate-index.json
+          test -s dist/routerforge-beta-candidate-index-mips-3.4.json
+          test -s dist/routerforge-beta-candidate-index-mipsel-3.4.json
 
       - name: Upload RouterForge beta candidate
         if: steps.scope.outputs.full_release == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: routerforge-beta-aarch64
+          name: routerforge-beta-multiarch
           path: |
             dist/routerforge-*.ipk
-            dist/routerforge-beta-candidate-index.json
+            dist/routerforge-beta-candidate-index*.json
           retention-days: 7
 
       - name: Publish RouterForge beta channel
         if: steps.scope.outputs.full_release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          TAG=routerforge-beta
-          INDEX=routerforge-beta-index.json
-          PREVIOUS=/tmp/routerforge-beta-index.json
-          FINAL=dist/$INDEX
-          CHANGED=dist/routerforge-beta-changed-assets.txt
-          SUMS=dist/routerforge-beta-SHA256SUMS
-          BOOTSTRAP=dist/routerforge-beta-bootstrap.sh
-
-          rm -f "$PREVIOUS"
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release download "$TAG" -p "$INDEX" -D /tmp >/dev/null 2>&1 || true
-          fi
-
-          python3 scripts/merge_release_index.py \
-            --candidate dist/routerforge-beta-candidate-index.json \
-            --previous "$PREVIOUS" \
-            --output "$FINAL" \
-            --changed-list "$CHANGED" \
-            --checksums "$SUMS"
-
-          python3 scripts/render_bootstrap.py \
-            --channel beta \
-            --final "$FINAL" \
-            --output "$BOOTSTRAP"
-          sh -n "$BOOTSTRAP"
-
-          NOTES=dist/routerforge-beta-release-notes.md
-          python3 scripts/render_release_notes.py \
-            --channel beta \
-            --previous "$PREVIOUS" \
-            --final "$FINAL" \
-            --output "$NOTES" \
-            --commit "$GITHUB_SHA"
-
-          test -s "$FINAL"
-          test -s "$SUMS"
-          test -s "$BOOTSTRAP"
-          test -s "$NOTES"
-
-          # routerforge-beta is now a permanent release anchor.
-          # Do not move the Git ref from CI: workflow commits cannot be
-          # retagged by this GitHub App token without workflows permission.
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Beta release anchor '$TAG' does not exist." >&2
-            echo "Create the anchor manually once before FULL RELEASE." >&2
-            exit 1
-          fi
-
-          while IFS= read -r asset; do
-            [ -n "$asset" ] || continue
-            gh release upload "$TAG" --clobber "dist/$asset"
-          done < "$CHANGED"
-
-          python3 - "$FINAL" > /tmp/routerforge-beta-current-assets.txt <<'PY'
-          import json, sys
-          with open(sys.argv[1], "r", encoding="utf-8") as fh:
-              doc = json.load(fh)
-          for item in doc.get("components", []):
-              asset = item.get("asset")
-              if asset:
-                  print(asset)
-          PY
-
-          gh release view "$TAG" --json assets --jq '.assets[].name' |
-          while IFS= read -r asset; do
-            case "$asset" in
-              routerforge-*.ipk)
-                if ! grep -Fxq "$asset" /tmp/routerforge-beta-current-assets.txt; then
-                  gh release delete-asset "$TAG" "$asset" --yes
-                fi
-                ;;
-            esac
-          done
-
-          gh release upload "$TAG" --clobber "$FINAL" "$SUMS" "$BOOTSTRAP"
-          gh release edit "$TAG" \
-            --prerelease \
-            --title "RouterForge Beta" \
-            --notes-file "$NOTES"
+        run: sh scripts/publish-beta-multiarch.sh
 
       - name: Build stable promotion candidate
         if: steps.scope.outputs.full_release == 'true'
         run: |
           set -eu
+
+          # Beta multiarch packages share dist with the stable candidate step.
+          # Stable promotion remains ARM64-only until physical MIPS validation.
+          rm -f dist/routerforge-*.ipk
 
           python3 scripts/build_routerforge_channel.py \
             --config release/channels/stable.json \

@@ -3,6 +3,8 @@ import argparse
 import json
 from pathlib import Path
 
+TARGETS = {"aarch64-3.10", "mips-3.4", "mipsel-3.4"}
+
 def load(path):
     if not path or not Path(path).is_file():
         return None
@@ -23,9 +25,19 @@ def main():
     if not candidate:
         raise SystemExit("candidate index missing")
     channel = candidate["channel"]
+    target = candidate.get("target")
+    if target not in TARGETS:
+        raise SystemExit(f"candidate index has unsupported target {target!r}")
 
     old_by_id = {}
     if previous and previous.get("schema_version") == 1 and previous.get("channel") == channel:
+        previous_target = previous.get("target")
+        if not previous_target and target == "aarch64-3.10":
+            previous_target = target
+        if previous_target != target:
+            raise SystemExit(
+                f"previous index target {previous.get('target')!r} does not match candidate target {target!r}"
+            )
         old_by_id = {x["id"]: x for x in previous.get("components", [])}
 
     final = dict(candidate)
@@ -57,7 +69,7 @@ def main():
         "".join(f"{item['sha256']}  {item['asset']}\n" for item in merged),
         encoding="utf-8",
     )
-    print(f"{channel}: {len(changed)} changed component(s)")
+    print(f"{channel}/{target}: {len(changed)} changed component(s)")
 
 if __name__ == "__main__":
     main()

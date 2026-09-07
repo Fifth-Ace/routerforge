@@ -1,7 +1,7 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.6.0-beta.2",
+    "release_version": "0.6.0-beta.3",
     "release_notes": {
         "ru": {
             "new": [
@@ -13,6 +13,11 @@
                 "Свежая 0.6 Beta bootstrap-установка устанавливает только RouterForge Core; optional capabilities выбираются после запуска."
             ],
             "fixes": [
+                "Исправлена гонка при полном обновлении страницы: Home больше не сохраняет ложные состояния «Ядро RouterForge недоступно» и «Центр приложений недоступен» после фактического восстановления online-state.",
+                "Начальная загрузка теперь отличает состояние «ещё не загружено» от реального outage для Core и Центра приложений.",
+                "Телеметрия CPU/RAM/temperature/storage запускается сразу после загрузки реального catalog вместо ожидания следующего 10-секундного polling tick.",
+                "Overview защищён generation guard от перезаписи свежих данных устаревшим pre-catalog refresh и публикует быстрые telemetry providers раньше дополнительных DNS/network/action-history запросов.",
+                "SSE reconnect больше не помечает Core offline до проверки HTTP fallback.",
                 "Исправлено ложное предупреждение Home о неработающей службе для установленных RouterForge-модулей без собственного service contract; RouterForge DNS больше не помечается как остановленный только из-за managed=true.",
                 "Счётчик «требует внимания» теперь учитывает только warning/critical события; информационные уведомления об обновлениях остаются видимыми, но не увеличивают счётчик.",
                 "История действий Центра приложений получила сворачивание/разворачивание и более аккуратное выравнивание текста и статусов.",
@@ -46,6 +51,11 @@
                 "A fresh 0.6 Beta bootstrap installs RouterForge Core only; optional capabilities are selected after startup."
             ],
             "fixes": [
+                "Fixed a full-page-refresh race where Home could keep stale 'RouterForge Core is unavailable' and 'App Center is unavailable' alerts after the underlying stores had recovered.",
+                "Initial loading now distinguishes 'not loaded yet' from a confirmed Core or App Center outage.",
+                "CPU/RAM/temperature/storage telemetry refreshes immediately after the real catalog is hydrated instead of waiting for the next 10-second polling tick.",
+                "Overview now uses a generation guard so stale pre-catalog refreshes cannot overwrite fresh data, and publishes fast telemetry providers before supplementary DNS/network/action-history requests complete.",
+                "SSE reconnect no longer marks Core offline until the HTTP fallback also fails.",
                 "Fixed a false Home service warning for installed RouterForge modules that do not declare their own service contract; RouterForge DNS is no longer reported as stopped merely because managed=true.",
                 "The requires-attention badge now counts warning/critical events only; informational update notices remain visible without increasing the count.",
                 "App Center action history can now be collapsed/expanded and has cleaner text/status alignment.",
@@ -74,7 +84,7 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.6.0-beta.1"
+            "version": "0.6.0-beta.2"
         },
         {
             "id": "dns",

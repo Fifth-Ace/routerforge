@@ -4,6 +4,15 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+### 2026-09-07 — RouterForge 0.6.0-beta.3 refresh/bootstrap hotfix
+
+- Product snapshot advances to `0.6.0-beta.3`; Core advances from `0.6.0-beta.1` to `0.6.0-beta.2` because the Core frontend/store startup path changed again.
+- Home attention state now recomputes from explicit reactive dependencies instead of retaining the initial false offline snapshot.
+- Initial Core/App Center loading is distinct from a confirmed outage, eliminating false red/yellow startup alerts during normal page refresh.
+- Catalog hydration triggers telemetry refresh immediately instead of waiting for the next 10-second overview poll.
+- Overview refreshes are generation-guarded, fast telemetry providers run concurrently, and CPU/RAM/thermal/storage can publish before slower DNS/network/action-history calls finish.
+- SSE reconnect validates the HTTP fallback before declaring Core offline.
+
 ### 2026-09-07 — RouterForge 0.6.0-beta.2 release-candidate hotfix
 
 - Product snapshot advances to `0.6.0-beta.2` because the immutable `routerforge-v0.6.0-beta.1` release already exists and cannot be overwritten.

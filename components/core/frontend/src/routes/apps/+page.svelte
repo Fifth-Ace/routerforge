@@ -38,6 +38,7 @@
   let activeJob = null;
   let actionLog = [];
   let actionHistory = [];
+  let actionHistoryExpanded = false;
   let actionEvents = null;
   let entwareDetail = null;
 
@@ -526,17 +527,35 @@
 
   {#if actionHistory.length}
     <section class="app-action-history">
-      <div class="catalog-section-head">
-        <div><h2>{locale === 'ru' ? '\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0439' : 'Action history'}</h2><p>{locale === 'ru' ? '\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043f\u0430\u043a\u0435\u0442\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430.' : 'Recent package-manager operations.'}</p></div>
-      </div>
-      <div class="app-action-history-list">
-        {#each actionHistory.slice(0,5) as job (job.id)}
-          <div class="app-action-history-row">
-            <span><strong>{job.target}</strong><small class="mono">{job.kind} / {job.action}</small></span>
-            <span class="state-chip {jobStateClass(job.state)}">{String(job.state || '').toUpperCase()}</span>
-          </div>
-        {/each}
-      </div>
+      <button
+        class="app-action-history-toggle"
+        type="button"
+        aria-expanded={actionHistoryExpanded}
+        aria-controls="app-action-history-list"
+        onclick={() => actionHistoryExpanded = !actionHistoryExpanded}
+      >
+        <span class="app-action-history-title">
+          <strong>{locale === 'ru' ? '\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0439' : 'Action history'}</strong>
+          <small>{locale === 'ru' ? '\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043f\u0430\u043a\u0435\u0442\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430.' : 'Recent package-manager operations.'}</small>
+        </span>
+        <span class="app-action-history-meta">
+          <span class="state-chip neutral">{actionHistory.length}</span>
+          <span class:expanded={actionHistoryExpanded} class="app-action-history-chevron" aria-hidden="true">v</span>
+        </span>
+      </button>
+      {#if actionHistoryExpanded}
+        <div class="app-action-history-list" id="app-action-history-list">
+          {#each actionHistory.slice(0,5) as job (job.id)}
+            <div class="app-action-history-row">
+              <span class="app-action-history-copy">
+                <strong>{job.target}</strong>
+                <small class="mono">{job.kind} / {job.action}</small>
+              </span>
+              <span class="state-chip {jobStateClass(job.state)}">{String(job.state || '').toUpperCase()}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -691,4 +710,161 @@
   @media (max-width: 760px) {
     .entware-package-row { align-items:flex-start; flex-direction:column; }
   }
+
+  /* 0.6.0 release-candidate UI fixes: action history and catalog card wrapping. */
+  .app-center-page .app-action-history-toggle {
+    width:100%;
+    min-height:64px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:1rem;
+    padding:.85rem 1rem;
+    border:0;
+    background:transparent;
+    color:inherit;
+    text-align:left;
+    cursor:pointer;
+  }
+  .app-center-page .app-action-history-toggle:hover {
+    background:var(--rf-hover,var(--hover));
+  }
+  .app-center-page .app-action-history-title {
+    min-width:0;
+    display:grid;
+    gap:.28rem;
+  }
+  .app-center-page .app-action-history-title > strong {
+    color:var(--rf-text,var(--text));
+    font-size:1rem;
+    line-height:1.2;
+  }
+  .app-center-page .app-action-history-title > small {
+    color:var(--rf-muted,var(--muted));
+    font-size:.78rem;
+    line-height:1.4;
+  }
+  .app-center-page .app-action-history-meta {
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:.55rem;
+  }
+  .app-center-page .app-action-history-chevron {
+    display:inline-grid;
+    place-items:center;
+    width:1.5rem;
+    height:1.5rem;
+    color:var(--rf-muted,var(--muted));
+    font-size:.85rem;
+    line-height:1;
+    transition:transform .15s ease;
+  }
+  .app-center-page .app-action-history-chevron.expanded {
+    transform:rotate(180deg);
+  }
+  .app-center-page .app-action-history-list {
+    display:grid;
+    border-top:1px solid var(--rf-border,var(--border));
+  }
+  .app-center-page .app-action-history-row {
+    min-width:0;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:1rem;
+    padding:.78rem 1rem;
+    border-top:0;
+  }
+  .app-center-page .app-action-history-row + .app-action-history-row {
+    border-top:1px solid var(--rf-border,var(--border));
+  }
+  .app-center-page .app-action-history-copy {
+    min-width:0;
+    display:grid;
+    gap:.22rem;
+  }
+  .app-center-page .app-action-history-copy strong,
+  .app-center-page .app-action-history-copy small {
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+
+  .app-center-page .catalog-grid-v2 .catalog-card {
+    min-height:100%;
+  }
+  .app-center-page .catalog-grid-v2 .catalog-card > div:first-child,
+  .app-center-page .catalog-grid-v2 .catalog-card-head,
+  .app-center-page .catalog-grid-v2 .catalog-identity,
+  .app-center-page .catalog-grid-v2 .catalog-identity > div:last-child {
+    min-width:0;
+  }
+  .app-center-page .catalog-grid-v2 .catalog-card > div > p,
+  .app-center-page .catalog-grid-v2 .catalog-identity h3,
+  .app-center-page .catalog-grid-v2 .catalog-identity span {
+    overflow-wrap:anywhere;
+  }
+  .app-center-page .catalog-grid-v2 .catalog-state-stack {
+    flex:0 0 auto;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:.35rem;
+  }
+  .app-center-page .catalog-grid-v2 .tech-box > div {
+    min-height:24px;
+    grid-template-columns:minmax(104px,34%) minmax(0,1fr);
+    gap:12px;
+    align-items:start;
+    padding:3px 0;
+  }
+  .app-center-page .catalog-grid-v2 .tech-box span,
+  .app-center-page .catalog-grid-v2 .tech-box strong {
+    min-width:0;
+    line-height:1.35;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+  }
+  .app-center-page .catalog-grid-v2 .tech-box strong {
+    overflow:visible;
+    text-overflow:clip;
+  }
+  .app-center-page .catalog-grid-v2 .catalog-card-foot {
+    margin-top:auto;
+    align-items:flex-end;
+  }
+  .app-center-page .catalog-grid-v2 .catalog-card-foot > span {
+    min-width:0;
+    margin-left:auto;
+    overflow-wrap:anywhere;
+    text-align:right;
+  }
+
+  @media (max-width:760px) {
+    .app-center-page .app-action-history-toggle,
+    .app-center-page .app-action-history-row {
+      align-items:flex-start;
+    }
+    .app-center-page .catalog-grid-v2 .catalog-card-head {
+      flex-direction:column;
+    }
+    .app-center-page .catalog-grid-v2 .catalog-state-stack {
+      flex-direction:row;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .app-center-page .catalog-grid-v2 .tech-box > div {
+      grid-template-columns:minmax(104px,40%) minmax(0,1fr);
+    }
+    .app-center-page .catalog-grid-v2 .catalog-card-foot {
+      align-items:flex-start;
+      flex-direction:column;
+    }
+    .app-center-page .catalog-grid-v2 .catalog-card-foot > span {
+      margin-left:0;
+      text-align:left;
+    }
+  }
+
 </style>

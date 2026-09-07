@@ -71,6 +71,51 @@ func TestCatalogWebProbeUsesLoopbackWithoutCredentials(t *testing.T) {
 	}
 }
 
+func TestCatalogRuntimeWebProbeUsesDiscoveredHostWithGET(t *testing.T) {
+	item := catalogItem{
+		ID:             "runtime-web-test",
+		Installed:      true,
+		Trust:          catalogTrust{Status: "runtime-local"},
+		RegistrySource: "runtime-web-discovery",
+		WebPortSource:  "runtime-listener",
+		WebProbeHost:   "127.0.0.1",
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   8765,
+			Path:   "/login",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+	}
+
+	var seen *http.Request
+	doer := catalogWebProbeDoerFunc(func(r *http.Request) (*http.Response, error) {
+		seen = r.Clone(r.Context())
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader("<html></html>")),
+		}, nil
+	})
+
+	result := probeCatalogWeb(context.Background(), item, doer)
+	if seen == nil {
+		t.Fatal("runtime web probe request was not sent")
+	}
+	if seen.Method != http.MethodGet {
+		t.Fatalf("runtime discovery probe must use GET, got %s", seen.Method)
+	}
+	if seen.URL.Host != "127.0.0.1:8765" || seen.URL.Path != "/login" {
+		t.Fatalf("unexpected runtime web probe target: %s", seen.URL.String())
+	}
+	if seen.Header.Get("Cookie") != "" || seen.Header.Get("Authorization") != "" {
+		t.Fatalf("runtime web probe leaked credentials: %#v", seen.Header)
+	}
+	if !result.Reachable || result.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected runtime probe result: %#v", result)
+	}
+}
+
 func TestCatalogWebProbeEligibility(t *testing.T) {
 	probeWeb := &catalogWebMetadata{
 		Scheme: "http",
@@ -112,6 +157,27 @@ func TestCatalogWebProbeEligibility(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "runtime local discovery metadata",
+			item: catalogItem{
+				Trust:          catalogTrust{Status: "runtime-local"},
+				RegistrySource: "runtime-web-discovery",
+				WebPortSource:  "runtime-listener",
+				WebProbeHost:   "127.0.0.1",
+				Web:            probeWeb,
+			},
+			want: true,
+		},
+		{
+			name: "forged runtime metadata without server-only probe host",
+			item: catalogItem{
+				Trust:          catalogTrust{Status: "runtime-local"},
+				RegistrySource: "runtime-web-discovery",
+				WebPortSource:  "runtime-listener",
+				Web:            probeWeb,
+			},
+			want: false,
+		},
+		{
 			name: "remote unverified metadata",
 			item: catalogItem{
 				Trust:          catalogTrust{Status: "unverified"},
@@ -144,6 +210,37 @@ func TestCatalogWebProbeEligibility(t *testing.T) {
 				t.Fatalf("got %v, want %v for %#v", got, tt.want, tt.item)
 			}
 		})
+	}
+}
+
+func TestCatalogWebProbeStatusAllowsRuntimeAuthUIOnly(t *testing.T) {
+	runtimeItem := catalogItem{
+		Trust:          catalogTrust{Status: "runtime-local"},
+		RegistrySource: "runtime-web-discovery",
+		WebPortSource:  "runtime-listener",
+		WebProbeHost:   "127.0.0.1",
+		Web: &catalogWebMetadata{
+			Mode:  "probe-required",
+			Embed: true,
+		},
+	}
+	trustedItem := catalogItem{
+		Trust: catalogTrust{Status: "verified"},
+		Web:   &catalogWebMetadata{Mode: "probe-required", Embed: true},
+	}
+
+	for _, status := range []int{http.StatusOK, http.StatusNoContent} {
+		if !catalogWebProbeStatusAllowed(trustedItem, status) {
+			t.Fatalf("trusted 2xx status %d must be allowed", status)
+		}
+	}
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		if !catalogWebProbeStatusAllowed(runtimeItem, status) {
+			t.Fatalf("runtime auth UI status %d must be allowed", status)
+		}
+		if catalogWebProbeStatusAllowed(trustedItem, status) {
+			t.Fatalf("existing trusted probe semantics changed for status %d", status)
+		}
 	}
 }
 

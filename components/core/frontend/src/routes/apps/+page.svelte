@@ -9,7 +9,7 @@
     getEntwarePackageDetail, preflightAppAction, startAppAction,
     getAppActions, getAppAction, cancelAppAction, appActionEventsURL, probeCatalogWeb
   } from '$lib/api.js';
-  import { stateInfo, catalogWebURL, catalogWebPort, catalogWebSecurityDecision, catalogWebResolvedURL, bytes } from '$lib/utils.js';
+  import { stateInfo, catalogWebURL, catalogWebPort, catalogWebSecurityDecision, catalogWebResolvedURL, catalogWebProbeStatusAllowed, bytes } from '$lib/utils.js';
   import { appText as a } from '$lib/app-center-i18n.js';
   import { t } from '$lib/i18n/index.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
@@ -257,8 +257,7 @@
     try {
       const probe = await probeCatalogWeb(item.id);
       const safe = probe?.reachable === true
-        && Number(probe?.status_code || 0) >= 200
-        && Number(probe?.status_code || 0) < 300
+        && catalogWebProbeStatusAllowed(item, probe)
         && probe?.redirect === false
         && ['embedded-supported', 'probe-required'].includes(probe?.mode)
         && probe?.embed === true

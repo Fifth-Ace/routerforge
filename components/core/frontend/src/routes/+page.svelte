@@ -6,7 +6,7 @@
   import { settings } from '$lib/stores/settings.js';
   import { authState } from '$lib/stores/auth.js';
   import { probeCatalogWeb } from '$lib/api.js';
-  import { bytes, fmtDuration, catalogWebURL, catalogWebSecurityDecision, catalogWebResolvedURL } from '$lib/utils.js';
+  import { bytes, fmtDuration, catalogWebURL, catalogWebSecurityDecision, catalogWebResolvedURL, catalogWebProbeStatusAllowed } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
 
@@ -266,8 +266,7 @@
     try {
       const probe = await probeCatalogWeb(item.id);
       const safe = probe?.reachable === true
-        && Number(probe?.status_code || 0) >= 200
-        && Number(probe?.status_code || 0) < 300
+        && catalogWebProbeStatusAllowed(item, probe)
         && probe?.redirect === false
         && ['embedded-supported', 'probe-required'].includes(probe?.mode)
         && probe?.embed === true

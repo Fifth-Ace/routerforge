@@ -1,17 +1,12 @@
 <script>
-  import { onMount } from 'svelte';
-  import { catalog, catalogOnline } from '$lib/stores/catalog.js';
-  import { snapshot, backendOnline } from '$lib/stores/snapshot.js';
-  import { overview, startOverviewPolling, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
+
+  import { catalog, catalogOnline, catalogReady } from '$lib/stores/catalog.js';
+  import { snapshot, backendOnline, backendReady } from '$lib/stores/snapshot.js';
+  import { overview, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
   import { settings } from '$lib/stores/settings.js';
   import { bytes, fmtDuration } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
 
-  let stopOverview = null;
-  onMount(() => {
-    stopOverview = startOverviewPolling(() => $catalog, 10000);
-    return () => stopOverview?.();
-  });
 
   $: locale = $settings.locale || 'ru';
   $: modules = $catalog.modules || [];
@@ -25,7 +20,23 @@
   $: cpuTemp = cpuTemperature(telem.thermal);
   $: opt = telem.platform?.opt || {};
   $: updates = [...modules, ...integrations].filter((item) => item.installed && item.update_available);
-  $: issues = buildIssues();
+  $: issueInputs = {
+    backendReady: $backendReady,
+    backendOnline: $backendOnline,
+    catalogReady: $catalogReady,
+    catalogOnline: $catalogOnline,
+    catalog: $catalog,
+    snapshot: $snapshot,
+    telem,
+    modules,
+    integrations,
+    updates,
+    cpuTemp,
+    ramPct,
+    cpuPct,
+    opt
+  };
+  $: issues = buildIssues(issueInputs);
   $: actionableIssues = issues.filter((issue) => issue.severity !== 'info');
 
   const text = (ru, en) => locale === 'ru' ? ru : en;
@@ -76,12 +87,12 @@
     return [...groups.values()];
   }
 
-  function buildIssues() {
+  function buildIssues(_inputs) {
     const out = [];
     const push = (severity, title, detail = '', href = '') => out.push({ severity, title, detail, href });
 
-    if (!$backendOnline) push('critical', text('\u042f\u0434\u0440\u043e RouterForge \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e','RouterForge Core is unavailable'));
-    if (!$catalogOnline) push('warning', text('\u0426\u0435\u043d\u0442\u0440 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0439 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d','App Center is unavailable'));
+    if ($backendReady && !$backendOnline) push('critical', text('\u042f\u0434\u0440\u043e RouterForge \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e','RouterForge Core is unavailable'));
+    if ($catalogReady && !$catalogOnline) push('warning', text('\u0426\u0435\u043d\u0442\u0440 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0439 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d','App Center is unavailable'));
 
     if ($catalog.registry && !$catalog.registry.online) push('warning',
       text('Registry \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0438\u0437 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0430','Registry is using a local source'),
@@ -231,7 +242,7 @@
       <h1>{telem.platform?.hostname || 'RouterForge'}</h1>
       <p>{telem.platform?.model || 'Keenetic'} &middot; Core v{$snapshot.version || '\u2014'} &middot; {text('\u0410\u043f\u0442\u0430\u0439\u043c','Uptime')} {telem.platform?.uptime_seconds ? fmtDuration(telem.platform.uptime_seconds, locale) : '\u2014'}</p>
     </div>
-    <span class="state-chip {$backendOnline ? 'good' : 'error'}">CORE {$backendOnline ? 'ONLINE' : 'OFFLINE'}</span>
+    <span class="state-chip {!$backendReady ? 'neutral' : $backendOnline ? 'good' : 'error'}">CORE {!$backendReady ? 'LOADING' : $backendOnline ? 'ONLINE' : 'OFFLINE'}</span>
   </div>
 
   <div class="routerforge-quick-telemetry mono">

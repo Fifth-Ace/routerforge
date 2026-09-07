@@ -15,6 +15,7 @@ const empty = {
 
 export const snapshot = writable({ ...empty });
 export const backendOnline = writable(false);
+export const backendReady = writable(false);
 export const streamMode = writable('connecting');
 
 export function startSnapshotStream(intervalMs = 2000) {
@@ -27,6 +28,7 @@ export function startSnapshotStream(intervalMs = 2000) {
     if (!data || typeof data !== 'object') return;
     snapshot.set({ ...empty, ...data });
     backendOnline.set(true);
+    backendReady.set(true);
   };
 
   const fetchOnce = async () => {
@@ -35,6 +37,7 @@ export function startSnapshotStream(intervalMs = 2000) {
       return true;
     } catch {
       backendOnline.set(false);
+      backendReady.set(true);
       return false;
     }
   };
@@ -59,6 +62,7 @@ export function startSnapshotStream(intervalMs = 2000) {
     eventSource = new EventSource(`/api/events?interval_ms=${encodeURIComponent(interval)}`);
     eventSource.onopen = () => {
       backendOnline.set(true);
+      backendReady.set(true);
       streamMode.set('sse');
       stopFallback();
     };
@@ -70,8 +74,8 @@ export function startSnapshotStream(intervalMs = 2000) {
       } catch {}
     });
     eventSource.onerror = () => {
-      backendOnline.set(false);
       startFallback();
+      fetchOnce();
     };
   }
 

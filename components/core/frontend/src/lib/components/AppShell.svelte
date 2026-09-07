@@ -1,17 +1,38 @@
 <script>
   import { onMount } from 'svelte';
-  import { catalog, catalogOnline, startCatalogPolling } from '$lib/stores/catalog.js';
+  import { catalog, catalogOnline, catalogReady, startCatalogPolling } from '$lib/stores/catalog.js';
   import { settings } from '$lib/stores/settings.js';
-  import { overview, startOverviewPolling, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
+  import { overview, refreshOverview, startOverviewPolling, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
   import { t } from '$lib/i18n/index.js';
 
   let stopCatalog = null;
+  let stopCatalogSync = null;
   let stopOverview = null;
 
   onMount(() => {
     stopCatalog = startCatalogPolling();
+
+    let lastInstalledFingerprint = '';
+    stopCatalogSync = catalog.subscribe((value) => {
+      const moduleIds = (value?.modules || [])
+        .filter((item) => item.installed)
+        .map((item) => item.id)
+        .sort();
+      const integrationIds = (value?.integrations || [])
+        .filter((item) => item.installed)
+        .map((item) => item.id)
+        .sort();
+      const hydrated = value?.phase !== 'loading' || moduleIds.length > 0 || integrationIds.length > 0;
+      if (!hydrated) return;
+
+      const fingerprint = `${moduleIds.join(',')}|${integrationIds.join(',')}`;
+      if (fingerprint === lastInstalledFingerprint) return;
+      lastInstalledFingerprint = fingerprint;
+      refreshOverview(value);
+    });
+
     stopOverview = startOverviewPolling(() => $catalog, 10000);
-    return () => { stopCatalog?.(); stopOverview?.(); };
+    return () => { stopCatalogSync?.(); stopCatalog?.(); stopOverview?.(); };
   });
 
   $: locale = $settings.locale || 'ru';
@@ -90,8 +111,8 @@
 
       <section class="rail-status-card mono">
         <div class="rail-section-label">{t(locale,'marketplace.pageTitle')}</div>
-        <div><span>API</span><strong class={$catalogOnline ? 'good' : 'bad'}>{$catalogOnline ? t(locale,'common.online').toUpperCase() : t(locale,'common.offline').toUpperCase()}</strong></div>
-        <div><span>Registry</span><strong class={$catalog.registry?.online ? 'good' : 'warn'}>{($catalog.registry?.source || 'BUNDLED').toUpperCase()}</strong></div>
+        <div><span>API</span><strong class={!$catalogReady ? '' : $catalogOnline ? 'good' : 'bad'}>{!$catalogReady ? '...' : $catalogOnline ? t(locale,'common.online').toUpperCase() : t(locale,'common.offline').toUpperCase()}</strong></div>
+        <div><span>Registry</span><strong class={!$catalogReady ? '' : $catalog.registry?.online ? 'good' : 'warn'}>{!$catalogReady ? '...' : ($catalog.registry?.source || 'BUNDLED').toUpperCase()}</strong></div>
         <div><span>{locale === 'ru' ? 'Обновления' : 'Updates'}</span><strong class={[...modules,...integrations].some((x)=>x.update_available) ? 'warn' : 'good'}>{[...modules,...integrations].filter((x)=>x.update_available).length}</strong></div>
       </section>
 

@@ -143,6 +143,23 @@ export function catalogWebURL(item = {}, legacyScheme = 'current') {
   return `${scheme}//${hostName}:${port}${path}`;
 }
 
+export function catalogRuntimeWebItem(item = {}) {
+  const web = item?.web || {};
+  const capabilities = Array.isArray(item?.capabilities) ? item.capabilities : [];
+  return String(item?.trust?.status || '').toLowerCase() === 'runtime-local'
+    && item?.registry_source === 'runtime-web-discovery'
+    && item?.web_port_source === 'runtime-listener'
+    && capabilities.includes('runtime-web-discovery')
+    && web.mode === 'probe-required'
+    && web.embed === true;
+}
+
+export function catalogWebProbeStatusAllowed(item = {}, probe = {}) {
+  const status = Number(probe?.status_code || 0);
+  if (status >= 200 && status < 300) return true;
+  return catalogRuntimeWebItem(item) && [401, 403].includes(status);
+}
+
 export function catalogWebSecurityDecision(item = {}, auth = {}, urlOverride = '') {
   const url = typeof urlOverride === 'string' && urlOverride
     ? urlOverride
@@ -182,20 +199,27 @@ export function catalogWebSecurityDecision(item = {}, auth = {}, urlOverride = '
   const targetPort = target.port || (target.protocol === 'https:' ? '443' : '80');
   const sameHostDifferentPort = currentHost === targetHost && currentPort !== targetPort;
 
+  const web = item?.web || {};
+  const runtimeLocal = catalogRuntimeWebItem(item);
+  const runtimeProbePreflight = runtimeLocal
+    && !urlOverride
+    && web.mode === 'probe-required';
+
   decision.credentialRisk = Boolean(auth?.required && sameHostDifferentPort);
-  if (decision.credentialRisk) {
+  if (decision.credentialRisk && !runtimeProbePreflight) {
     decision.externalAllowed = false;
     decision.reason = 'session-cookie-cross-port';
     return decision;
   }
+  if (runtimeProbePreflight) decision.credentialRisk = false;
 
   decision.mixedContent = location.protocol === 'https:' && target.protocol !== 'https:';
 
-  const web = item?.web || {};
   const embedRequested = ['embedded-supported', 'probe-required'].includes(web.mode) && web.embed === true;
   const trustStatus = String(item?.trust?.status || '').toLowerCase();
   const probeEligible = trustStatus === 'official'
     || trustStatus === 'verified'
+    || runtimeLocal
     || (item?.registry_source === 'legacy-fallback' && Boolean(item?.web_port_source));
 
   if (embedRequested && !probeEligible) {
@@ -221,6 +245,8 @@ export function catalogWebResolvedURL(item = {}, probe = {}, auth = {}) {
     const decision = catalogWebSecurityDecision(item, auth, candidate);
     if (decision.embedAllowed) return decision.url;
   }
+
+  if (catalogRuntimeWebItem(item)) return '';
 
   const fallback = catalogWebSecurityDecision(item, auth);
   return fallback.embedAllowed ? fallback.url : '';

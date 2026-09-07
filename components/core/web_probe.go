@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"io"
 	"net"
@@ -68,10 +69,74 @@ func catalogWebProbeAllowed(item catalogItem) bool {
 	case "official", "verified":
 		return true
 	}
+	if catalogRuntimeWebProbeAllowed(item) {
+		return true
+	}
 	return item.RegistrySource == "legacy-fallback" &&
 		item.WebPortSource != "" &&
 		item.Web != nil &&
 		item.Web.Mode == "probe-required"
+}
+
+func catalogRuntimeWebProbeAllowed(item catalogItem) bool {
+	if strings.ToLower(strings.TrimSpace(item.Trust.Status)) != "runtime-local" {
+		return false
+	}
+	if item.RegistrySource != "runtime-web-discovery" ||
+		item.WebPortSource != "runtime-listener" ||
+		item.Web == nil ||
+		item.Web.Mode != "probe-required" ||
+		!item.Web.Embed {
+		return false
+	}
+	return catalogWebRuntimeProbeHost(item.WebProbeHost) != ""
+}
+
+func catalogWebRuntimeProbeHost(value string) string {
+	value = strings.Trim(strings.TrimSpace(value), "[]")
+	ip := net.ParseIP(value)
+	if ip == nil ||
+		ip.IsUnspecified() ||
+		ip.IsMulticast() ||
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() {
+		return ""
+	}
+	if ip.IsLoopback() {
+		return ip.String()
+	}
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+	for _, iface := range interfaces {
+		addresses, addrErr := iface.Addrs()
+		if addrErr != nil {
+			continue
+		}
+		for _, address := range addresses {
+			var candidate net.IP
+			switch typed := address.(type) {
+			case *net.IPNet:
+				candidate = typed.IP
+			case *net.IPAddr:
+				candidate = typed.IP
+			}
+			if candidate != nil && candidate.Equal(ip) {
+				return ip.String()
+			}
+		}
+	}
+	return ""
+}
+
+func catalogWebProbeStatusAllowed(item catalogItem, status int) bool {
+	if status >= http.StatusOK && status < http.StatusMultipleChoices {
+		return true
+	}
+	return catalogRuntimeWebProbeAllowed(item) &&
+		(status == http.StatusUnauthorized || status == http.StatusForbidden)
 }
 
 func handleCatalogWebProbe(w http.ResponseWriter, r *http.Request) {
@@ -126,8 +191,7 @@ func handleCatalogWebProbe(w http.ResponseWriter, r *http.Request) {
 
 	result := probeCatalogWeb(ctx, item, nil)
 	if result.Reachable &&
-		result.StatusCode >= http.StatusOK &&
-		result.StatusCode < http.StatusMultipleChoices &&
+		catalogWebProbeStatusAllowed(item, result.StatusCode) &&
 		!result.Redirect &&
 		result.FrameHeaderPolicy == "no-blocking-header-detected" {
 		result.BrowserURLs = catalogWebBrowserURLs(ctx, item, r)
@@ -155,13 +219,25 @@ func probeCatalogWeb(ctx context.Context, item catalogItem, doer catalogWebProbe
 		result.Path = "/"
 	}
 
+	runtimeLocal := strings.EqualFold(strings.TrimSpace(item.Trust.Status), "runtime-local")
+	probeHost := "127.0.0.1"
+	method := http.MethodHead
+	if runtimeLocal {
+		probeHost = catalogWebRuntimeProbeHost(item.WebProbeHost)
+		if !catalogRuntimeWebProbeAllowed(item) || probeHost == "" {
+			result.Error = "runtime-local web probe metadata rejected"
+			return result
+		}
+		method = http.MethodGet
+	}
+
 	target := &url.URL{
 		Scheme: result.Scheme,
-		Host:   net.JoinHostPort("127.0.0.1", strconv.Itoa(result.Port)),
+		Host:   net.JoinHostPort(probeHost, strconv.Itoa(result.Port)),
 		Path:   result.Path,
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, target.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, method, target.String(), nil)
 	if err != nil {
 		result.Error = err.Error()
 		return result
@@ -171,7 +247,16 @@ func probeCatalogWeb(ctx context.Context, item catalogItem, doer catalogWebProbe
 	req.Header.Set("User-Agent", "RouterForge/"+version+" web-probe")
 
 	if doer == nil {
-		doer = newCatalogWebProbeClient()
+		if runtimeLocal {
+			client, clientErr := newCatalogRuntimeWebProbeClient(probeHost, result.Scheme == "https")
+			if clientErr != nil {
+				result.Error = clientErr.Error()
+				return result
+			}
+			doer = client
+		} else {
+			doer = newCatalogWebProbeClient()
+		}
 	}
 
 	resp, err := doer.Do(req)
@@ -342,7 +427,11 @@ func probeCatalogWebBrowserURL(parent context.Context, item catalogItem, host st
 	ctx, cancel := context.WithTimeout(parent, catalogWebBrowserCandidateTimeout)
 	defer cancel()
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodHead, target.String(), nil)
+	method := http.MethodHead
+	if catalogRuntimeWebProbeAllowed(item) {
+		method = http.MethodGet
+	}
+	request, err := http.NewRequestWithContext(ctx, method, target.String(), nil)
 	if err != nil {
 		return "", false
 	}
@@ -350,7 +439,10 @@ func probeCatalogWebBrowserURL(parent context.Context, item catalogItem, host st
 	request.Header.Set("Cache-Control", "no-cache")
 	request.Header.Set("User-Agent", "RouterForge/"+version+" web-browser-candidate")
 
-	client, err := newCatalogWebExactHostClient(ip.String())
+	client, err := newCatalogWebExactHostClient(
+		ip.String(),
+		catalogRuntimeWebProbeAllowed(item) && scheme == "https",
+	)
 	if err != nil {
 		return "", false
 	}
@@ -362,7 +454,7 @@ func probeCatalogWebBrowserURL(parent context.Context, item catalogItem, host st
 	defer response.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 1024))
 
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+	if !catalogWebProbeStatusAllowed(item, response.StatusCode) {
 		return "", false
 	}
 
@@ -377,7 +469,7 @@ func probeCatalogWebBrowserURL(parent context.Context, item catalogItem, host st
 	return target.String(), true
 }
 
-func newCatalogWebExactHostClient(host string) (*http.Client, error) {
+func newCatalogWebExactHostClient(host string, insecureTLS ...bool) (*http.Client, error) {
 	expected := net.ParseIP(strings.Trim(host, "[]"))
 	if expected == nil {
 		return nil, errors.New("web candidate requires an IP host")
@@ -389,6 +481,12 @@ func newCatalogWebExactHostClient(host string) (*http.Client, error) {
 		ResponseHeaderTimeout:  catalogWebBrowserCandidateTimeout,
 		TLSHandshakeTimeout:    catalogWebBrowserCandidateTimeout,
 		MaxResponseHeaderBytes: 64 << 10,
+	}
+	if len(insecureTLS) > 0 && insecureTLS[0] {
+		transport.TLSClientConfig = &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true, // Exact local runtime listener only; no RouterForge credentials are sent.
+		}
 	}
 	dialer := &net.Dialer{Timeout: catalogWebBrowserCandidateTimeout}
 
@@ -407,6 +505,48 @@ func newCatalogWebExactHostClient(host string) (*http.Client, error) {
 	return &http.Client{
 		Transport: transport,
 		Timeout:   catalogWebBrowserCandidateTimeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}, nil
+}
+
+func newCatalogRuntimeWebProbeClient(host string, insecureTLS bool) (*http.Client, error) {
+	expected := net.ParseIP(strings.Trim(strings.TrimSpace(host), "[]"))
+	if expected == nil || catalogWebRuntimeProbeHost(expected.String()) == "" {
+		return nil, errors.New("runtime web probe requires an exact local IP host")
+	}
+
+	transport := &http.Transport{
+		Proxy:                  nil,
+		DisableKeepAlives:      true,
+		ResponseHeaderTimeout:  2 * time.Second,
+		TLSHandshakeTimeout:    2 * time.Second,
+		MaxResponseHeaderBytes: 64 << 10,
+	}
+	if insecureTLS {
+		transport.TLSClientConfig = &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true, // Exact local runtime listener only; no RouterForge credentials are sent.
+		}
+	}
+
+	dialer := &net.Dialer{Timeout: 1500 * time.Millisecond}
+	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		dialHost, dialPort, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, err
+		}
+		actual := net.ParseIP(strings.Trim(dialHost, "[]"))
+		if actual == nil || !actual.Equal(expected) {
+			return nil, errors.New("runtime web probe blocked unexpected dial")
+		}
+		return dialer.DialContext(ctx, network, net.JoinHostPort(expected.String(), dialPort))
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   catalogWebProbeTimeout,
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},

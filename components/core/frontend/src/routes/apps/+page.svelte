@@ -8,7 +8,7 @@
     getEntwarePackageDetail, preflightAppAction, startAppAction,
     getAppActions, getAppAction, cancelAppAction, appActionEventsURL
   } from '$lib/api.js';
-  import { stateInfo, localWebURL, bytes } from '$lib/utils.js';
+  import { stateInfo, catalogWebURL, catalogWebPort, bytes } from '$lib/utils.js';
   import { appText as a } from '$lib/app-center-i18n.js';
   import { t } from '$lib/i18n/index.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
@@ -682,7 +682,7 @@
             <div class="catalog-card-foot">
               <div class="catalog-actions">
                 {#if ownURL}<a class="button primary" href={ownURL}>{a(locale,'open')}</a>{/if}
-                {#if item.installed && item.web_port}<a class="button" target="_blank" rel="noopener noreferrer" href={localWebURL(item.web_port)}>{a(locale,'open')} :{item.web_port}</a>{/if}
+                {#if item.installed && catalogWebURL(item)}<a class="button" target="_blank" rel="noopener noreferrer" href={catalogWebURL(item)}>{a(locale,'open')} :{catalogWebPort(item)}</a>{/if}
                 {#if !item.installed && canAction(item,'install')}<button class="button primary" disabled={Boolean(busyId)} onclick={() => runCatalogAction(item,'install')}>{busyId === item.id ? a(locale,'installing') : a(locale,'install')}</button>{/if}
                 {#if item.installed && canAction(item,'update')}<button class="button" disabled={Boolean(busyId)} onclick={() => runCatalogAction(item,'update')}>{busyId === item.id ? a(locale,'updating') : a(locale,'update')}</button>{/if}
                 {#if item.installed && canAction(item,'remove')}<button class="button danger-subtle" disabled={Boolean(busyId)} onclick={() => removeItem = item}>{a(locale,'remove')}</button>{/if}

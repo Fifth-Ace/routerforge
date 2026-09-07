@@ -47,6 +47,7 @@ export const getSystem = () => request('/api/system');
 export const getCatalog = () => request('/api/catalog');
 export const refreshCatalogRemote = () => postJSON('/api/catalog/refresh', {});
 export const setCatalogChannel = (channel) => postJSON('/api/catalog/channel', { channel });
+export const probeCatalogWeb = (id) => postJSON('/api/catalog/web-probe', { id });
 export const getEntwarePackages = ({ query = '', state = '', offset = 0, limit = 100 } = {}) =>
   request(`/api/apps/entware?query=${encodeURIComponent(query)}&state=${encodeURIComponent(state)}&offset=${encodeURIComponent(offset)}&limit=${encodeURIComponent(limit)}`);
 export const refreshEntwarePackages = () => postJSON('/api/apps/entware/refresh', {});

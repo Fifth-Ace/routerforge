@@ -2,17 +2,19 @@
   import { onMount, onDestroy } from 'svelte';
   import { catalog, refreshCatalog, forceRefreshCatalog } from '$lib/stores/catalog.js';
   import { settings } from '$lib/stores/settings.js';
+  import { authState } from '$lib/stores/auth.js';
   import {
     catalogAction, setCatalogChannel, getEntwarePackages,
     refreshEntwarePackages,
     getEntwarePackageDetail, preflightAppAction, startAppAction,
-    getAppActions, getAppAction, cancelAppAction, appActionEventsURL
+    getAppActions, getAppAction, cancelAppAction, appActionEventsURL, probeCatalogWeb
   } from '$lib/api.js';
-  import { stateInfo, catalogWebURL, catalogWebPort, bytes } from '$lib/utils.js';
+  import { stateInfo, catalogWebURL, catalogWebPort, catalogWebSecurityDecision, bytes } from '$lib/utils.js';
   import { appText as a } from '$lib/app-center-i18n.js';
   import { t } from '$lib/i18n/index.js';
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
   import RemoveConfirm from '$lib/components/RemoveConfirm.svelte';
+  import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
 
   const acronyms = {
     'awg-manager':'AWG', nfqws2:'NQ2', nfqws:'NQ1', 'nfqws-web':'NQW', 'hydraroute-neo':'HRN',
@@ -26,6 +28,8 @@
   let search = '';
   let plannerItem = null;
   let removeItem = null;
+  let webWorkspace = null;
+  let webProbeBusyId = '';
   let busyId = '';
   let busyAction = '';
   let actionNotice = null;
@@ -178,6 +182,64 @@
 
   function canAction(item, action) {
     return packageMode && Boolean(item.actions?.[action]);
+  }
+
+  function webSecurityDecision(item) {
+    return catalogWebSecurityDecision(item, $authState);
+  }
+
+  function showWebSecurityNotice(item) {
+    const decision = webSecurityDecision(item);
+    const text = decision.reason === 'session-cookie-cross-port'
+      ? (locale === 'ru'
+        ? '\u0412\u043D\u0435\u0448\u043D\u0438\u0439 Web UI \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D: cookie \u0441\u0435\u0441\u0441\u0438\u0438 RouterForge \u043D\u0435 \u0438\u0437\u043E\u043B\u0438\u0440\u0443\u044E\u0442\u0441\u044F \u043F\u043E TCP-\u043F\u043E\u0440\u0442\u0443.'
+        : 'External Web UI is blocked because RouterForge session cookies are not isolated by TCP port.')
+      : decision.reason === 'mixed-content'
+        ? (locale === 'ru'
+          ? '\u0412\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0439 \u0440\u0435\u0436\u0438\u043C \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D: HTTPS RouterForge \u043D\u0435 \u043C\u043E\u0436\u0435\u0442 \u0432\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u0442\u044C HTTP Web UI.'
+          : 'Embedded mode is blocked because HTTPS RouterForge cannot embed an HTTP Web UI.')
+        : (locale === 'ru' ? '\u0412\u043D\u0435\u0448\u043D\u0438\u0439 Web UI \u0441\u0435\u0439\u0447\u0430\u0441 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D.' : 'External Web UI is not available right now.');
+
+    actionNotice = { cls:'warn', text };
+  }
+
+  async function openEmbeddedWeb(item) {
+    const decision = webSecurityDecision(item);
+    if (!decision.embedAllowed) {
+      showWebSecurityNotice(item);
+      return;
+    }
+
+    webProbeBusyId = item.id;
+    try {
+      const probe = await probeCatalogWeb(item.id);
+      const safe = probe?.reachable === true
+        && Number(probe?.status_code || 0) >= 200
+        && Number(probe?.status_code || 0) < 300
+        && probe?.redirect === false
+        && probe?.mode === 'embedded-supported'
+        && probe?.embed === true
+        && probe?.frame_header_policy === 'no-blocking-header-detected';
+
+      if (!safe) {
+        actionNotice = {
+          cls:'warn',
+          text: locale === 'ru'
+            ? '\u0412\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u043D\u0438\u0435 \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u043E: runtime web-probe \u043D\u0435 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043B \u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439 iframe.'
+            : 'Embed cancelled because the runtime web probe did not confirm a safe iframe.'
+        };
+        return;
+      }
+
+      webWorkspace = { item, url:decision.url, probe };
+    } catch (error) {
+      actionNotice = {
+        cls:'warn',
+        text:error?.payload?.error || error?.message || 'web probe failed'
+      };
+    } finally {
+      webProbeBusyId = '';
+    }
   }
 
   function trustLabel(item) {
@@ -682,7 +744,18 @@
             <div class="catalog-card-foot">
               <div class="catalog-actions">
                 {#if ownURL}<a class="button primary" href={ownURL}>{a(locale,'open')}</a>{/if}
-                {#if item.installed && catalogWebURL(item)}<a class="button" target="_blank" rel="noopener noreferrer" href={catalogWebURL(item)}>{a(locale,'open')} :{catalogWebPort(item)}</a>{/if}
+                {#if item.installed && catalogWebURL(item)}
+                  {#if webSecurityDecision(item).externalAllowed}
+                    <a class="button" target="_blank" rel="noopener noreferrer" href={catalogWebURL(item)}>{a(locale,'open')} :{catalogWebPort(item)}</a>
+                  {:else}
+                    <button class="button" type="button" onclick={() => showWebSecurityNotice(item)}>{a(locale,'open')} :{catalogWebPort(item)}</button>
+                  {/if}
+                  {#if webSecurityDecision(item).embedAllowed}
+                    <button class="button primary" type="button" disabled={webProbeBusyId === item.id} onclick={() => openEmbeddedWeb(item)}>
+                      {webProbeBusyId === item.id ? (locale === 'ru' ? '\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430\u2026' : 'Checking\u2026') : (locale === 'ru' ? '\u0412\u043D\u0443\u0442\u0440\u0438' : 'Embedded')}
+                    </button>
+                  {/if}
+                {/if}
                 {#if !item.installed && canAction(item,'install')}<button class="button primary" disabled={Boolean(busyId)} onclick={() => runCatalogAction(item,'install')}>{busyId === item.id ? a(locale,'installing') : a(locale,'install')}</button>{/if}
                 {#if item.installed && canAction(item,'update')}<button class="button" disabled={Boolean(busyId)} onclick={() => runCatalogAction(item,'update')}>{busyId === item.id ? a(locale,'updating') : a(locale,'update')}</button>{/if}
                 {#if item.installed && canAction(item,'remove')}<button class="button danger-subtle" disabled={Boolean(busyId)} onclick={() => removeItem = item}>{a(locale,'remove')}</button>{/if}
@@ -761,6 +834,7 @@
   </div>
 {/if}
 
+{#if webWorkspace}<ExternalWebWorkspace workspace={webWorkspace} {locale} onclose={() => webWorkspace = null}/>{/if}
 {#if plannerItem}<InstallPlanner item={plannerItem} onclose={() => plannerItem = null}/>{/if}
 {#if removeItem}<RemoveConfirm item={removeItem} busy={busyId === removeItem.id && busyAction === 'remove'} oncancel={() => { if (!busyId) removeItem = null; }} onconfirm={(typed) => runCatalogAction(removeItem,'remove',typed)}/>{/if}
 

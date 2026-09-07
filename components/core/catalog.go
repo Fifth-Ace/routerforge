@@ -754,8 +754,10 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 	if item.WebRequiresPackage != "" {
 		if _, ok := installed[item.WebRequiresPackage]; !ok {
 			item.WebPort = 0
+			item.Web = nil
 		}
 	}
+	normalizeCatalogWebMetadata(item)
 
 	if item.Installed {
 		if item.Managed {
@@ -766,6 +768,19 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 		item.Enabled = item.ServiceRunning
 	} else {
 		item.State = "available"
+	}
+}
+
+func normalizeCatalogWebMetadata(item *catalogItem) {
+	if item == nil || item.Web != nil || item.WebPort <= 0 {
+		return
+	}
+	item.Web = &catalogWebMetadata{
+		Scheme: "http",
+		Port:   item.WebPort,
+		Path:   "/",
+		Mode:   "probe-required",
+		Embed:  true,
 	}
 }
 

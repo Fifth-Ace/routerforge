@@ -217,7 +217,7 @@
         && Number(probe?.status_code || 0) >= 200
         && Number(probe?.status_code || 0) < 300
         && probe?.redirect === false
-        && probe?.mode === 'embedded-supported'
+        && ['embedded-supported', 'probe-required'].includes(probe?.mode)
         && probe?.embed === true
         && probe?.frame_header_policy === 'no-blocking-header-detected';
 

@@ -61,6 +61,17 @@ func safeCatalogWebProbeID(value string) bool {
 	return true
 }
 
+func catalogWebProbeAllowed(item catalogItem) bool {
+	switch strings.ToLower(strings.TrimSpace(item.Trust.Status)) {
+	case "official", "verified":
+		return true
+	}
+	return item.RegistrySource == "legacy-fallback" &&
+		item.WebPortSource != "" &&
+		item.Web != nil &&
+		item.Web.Mode == "probe-required"
+}
+
 func handleCatalogWebProbe(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -98,10 +109,8 @@ func handleCatalogWebProbe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch strings.ToLower(strings.TrimSpace(item.Trust.Status)) {
-	case "official", "verified":
-	default:
-		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "web probe requires official or verified catalog metadata"})
+	if !catalogWebProbeAllowed(item) {
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "web probe requires trusted or built-in local web metadata"})
 		return
 	}
 

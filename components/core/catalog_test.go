@@ -73,8 +73,36 @@ func TestCatalogDetectsExternalIntegrations(t *testing.T) {
 	if awg == nil || !awg.Installed || awg.State != "installed_external" || !awg.ServiceRunning {
 		t.Fatalf("bad awg state: %#v", awg)
 	}
+	if awg.Web == nil || awg.Web.Mode != "probe-required" || !awg.Web.Embed ||
+		awg.Web.Scheme != "http" || awg.Web.Port != 2222 || awg.Web.Path != "/" {
+		t.Fatalf("bad awg web contract: %#v", awg.Web)
+	}
 	if nfqws2 == nil || !nfqws2.Installed || nfqws2.WebPort != 90 {
 		t.Fatalf("bad nfqws2 state: %#v", nfqws2)
+	}
+	if nfqws2.Web == nil || nfqws2.Web.Mode != "probe-required" || !nfqws2.Web.Embed || nfqws2.Web.Port != 90 {
+		t.Fatalf("bad nfqws2 web contract: %#v", nfqws2.Web)
+	}
+}
+
+func TestCatalogSuppressesWebWhenCompanionPackageIsMissing(t *testing.T) {
+	installed := map[string]string{
+		"nfqws2-keenetic": "1.1.5",
+	}
+	snap := buildCatalog(installed, map[string]bool{}, func(string) bool { return false })
+
+	var nfqws2 *catalogItem
+	for i := range snap.Integrations {
+		if snap.Integrations[i].ID == "nfqws2" {
+			nfqws2 = &snap.Integrations[i]
+			break
+		}
+	}
+	if nfqws2 == nil || !nfqws2.Installed {
+		t.Fatalf("nfqws2 missing from catalog: %#v", nfqws2)
+	}
+	if nfqws2.WebPort != 0 || nfqws2.Web != nil {
+		t.Fatalf("nfqws2 web UI leaked without companion package: port=%d web=%#v", nfqws2.WebPort, nfqws2.Web)
 	}
 }
 

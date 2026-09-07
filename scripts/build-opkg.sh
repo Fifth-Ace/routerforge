@@ -35,6 +35,9 @@ main.go
 core_log.go
 web.go
 web_probe.go
+web_discovery.go
+web_discovery_probe.go
+web_discovery_catalog.go
 admin_proxy.go
 module_proxy.go
 auth.go

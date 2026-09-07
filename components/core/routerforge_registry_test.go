@@ -35,6 +35,62 @@ func TestBundledRouterForgeRegistry(t *testing.T) {
 	if web == nil || web.Trust.Status != "verified" || web.Install.Method != "structured" {
 		t.Fatalf("bad verified integration entry: %#v", web)
 	}
+	if web.Web == nil || web.Web.Mode != "external-only" || web.Web.Embed {
+		t.Fatalf("bad nfqws-web launch contract: %#v", web.Web)
+	}
+}
+
+func TestCatalogWebMetadataContract(t *testing.T) {
+	tests := []struct {
+		name    string
+		meta    catalogWebMetadata
+		wantErr bool
+	}{
+		{
+			name:    "missing mode",
+			meta:    catalogWebMetadata{Port: 90},
+			wantErr: true,
+		},
+		{
+			name: "external only",
+			meta: catalogWebMetadata{Port: 90, Mode: "external-only"},
+		},
+		{
+			name: "embedded supported but disabled",
+			meta: catalogWebMetadata{Port: 90, Mode: "embedded-supported"},
+		},
+		{
+			name: "embedded enabled",
+			meta: catalogWebMetadata{Port: 90, Mode: "embedded-supported", Embed: true},
+		},
+		{
+			name:    "unknown mode",
+			meta:    catalogWebMetadata{Port: 90, Mode: "iframe-maybe"},
+			wantErr: true,
+		},
+		{
+			name:    "external only cannot embed",
+			meta:    catalogWebMetadata{Port: 90, Mode: "external-only", Embed: true},
+			wantErr: true,
+		},
+		{
+			name:    "unsupported version cannot embed",
+			meta:    catalogWebMetadata{Port: 90, Mode: "unsupported-version", Embed: true},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCatalogWebMetadata(&tt.meta)
+			if tt.wantErr && err == nil {
+				t.Fatal("expected validation error")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected validation error: %v", err)
+			}
+		})
+	}
 }
 
 func TestRegistryRejectsRawShellLifecycle(t *testing.T) {

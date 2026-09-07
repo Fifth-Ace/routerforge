@@ -1,0 +1,246 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const catalogWebProbeTimeout = 2500 * time.Millisecond
+
+type catalogWebProbeRequest struct {
+	ID string `json:"id"`
+}
+
+type catalogWebProbeDoer interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+type catalogWebProbeResult struct {
+	ID                     string    `json:"id"`
+	Mode                   string    `json:"mode"`
+	Embed                  bool      `json:"embed"`
+	Scheme                 string    `json:"scheme"`
+	Port                   int       `json:"port"`
+	Path                   string    `json:"path"`
+	Reachable              bool      `json:"reachable"`
+	StatusCode             int       `json:"status_code,omitempty"`
+	Redirect               bool      `json:"redirect"`
+	XFrameOptions          string    `json:"x_frame_options,omitempty"`
+	CSPFrameAncestors      string    `json:"csp_frame_ancestors,omitempty"`
+	AccessControlAllowOrig string    `json:"access_control_allow_origin,omitempty"`
+	SetCookieCount         int       `json:"set_cookie_count"`
+	FrameHeaderPolicy      string    `json:"frame_header_policy"`
+	Error                  string    `json:"error,omitempty"`
+	ProbedAt               time.Time `json:"probed_at"`
+}
+
+func registerCatalogWebProbeHandler(mux *http.ServeMux) {
+	mux.HandleFunc("/api/catalog/web-probe", handleCatalogWebProbe)
+}
+
+func safeCatalogWebProbeID(value string) bool {
+	if value == "" || len(value) > 80 {
+		return false
+	}
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= '0' && r <= '9':
+		case r == '.', r == '_', r == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func handleCatalogWebProbe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST required"})
+		return
+	}
+	if !sameOriginRequest(r) {
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "cross-origin web probe request rejected"})
+		return
+	}
+
+	var request catalogWebProbeRequest
+	if err := decodeSmallJSON(w, r, &request); err != nil {
+		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid web probe request"})
+		return
+	}
+
+	request.ID = strings.TrimSpace(request.ID)
+	if !safeCatalogWebProbeID(request.ID) {
+		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "valid catalog item id is required"})
+		return
+	}
+
+	item, ok := catalogItemByID(request.ID)
+	if !ok {
+		writeCatalogJSON(w, http.StatusNotFound, map[string]any{"error": "catalog item not found"})
+		return
+	}
+	if item.Web == nil {
+		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "catalog item has no typed web metadata"})
+		return
+	}
+	if err := validateCatalogWebMetadata(item.Web); err != nil {
+		writeCatalogJSON(w, http.StatusInternalServerError, map[string]any{"error": "catalog web metadata failed validation"})
+		return
+	}
+
+	switch strings.ToLower(strings.TrimSpace(item.Trust.Status)) {
+	case "official", "verified":
+	default:
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "web probe requires official or verified catalog metadata"})
+		return
+	}
+
+	if !item.Installed {
+		writeCatalogJSON(w, http.StatusConflict, map[string]any{"error": "catalog item is not installed"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), catalogWebProbeTimeout)
+	defer cancel()
+
+	result := probeCatalogWeb(ctx, item, nil)
+	writeCatalogJSON(w, http.StatusOK, result)
+}
+
+func probeCatalogWeb(ctx context.Context, item catalogItem, doer catalogWebProbeDoer) catalogWebProbeResult {
+	meta := item.Web
+	result := catalogWebProbeResult{
+		ID:                item.ID,
+		Mode:              meta.Mode,
+		Embed:             meta.Embed,
+		Scheme:            meta.Scheme,
+		Port:              meta.Port,
+		Path:              meta.Path,
+		FrameHeaderPolicy: "unknown",
+		ProbedAt:          time.Now().UTC(),
+	}
+
+	if result.Scheme == "" {
+		result.Scheme = "http"
+	}
+	if result.Path == "" {
+		result.Path = "/"
+	}
+
+	target := &url.URL{
+		Scheme: result.Scheme,
+		Host:   net.JoinHostPort("127.0.0.1", strconv.Itoa(result.Port)),
+		Path:   result.Path,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, target.String(), nil)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	req.Header.Set("Accept", "text/html,*/*;q=0.1")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("User-Agent", "RouterForge/"+version+" web-probe")
+
+	if doer == nil {
+		doer = newCatalogWebProbeClient()
+	}
+
+	resp, err := doer.Do(req)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
+
+	result.Reachable = true
+	result.StatusCode = resp.StatusCode
+	result.Redirect = resp.StatusCode >= 300 && resp.StatusCode <= 399
+	result.XFrameOptions = strings.TrimSpace(strings.Join(resp.Header.Values("X-Frame-Options"), ", "))
+	result.CSPFrameAncestors = catalogFrameAncestors(strings.Join(resp.Header.Values("Content-Security-Policy"), "; "))
+	result.AccessControlAllowOrig = strings.TrimSpace(resp.Header.Get("Access-Control-Allow-Origin"))
+	result.SetCookieCount = len(resp.Header.Values("Set-Cookie"))
+	result.FrameHeaderPolicy = catalogFrameHeaderPolicy(result.XFrameOptions, result.CSPFrameAncestors)
+
+	return result
+}
+
+func newCatalogWebProbeClient() *http.Client {
+	base := &http.Transport{
+		Proxy:                  nil,
+		DisableKeepAlives:      true,
+		ResponseHeaderTimeout:  2 * time.Second,
+		TLSHandshakeTimeout:    2 * time.Second,
+		MaxResponseHeaderBytes: 64 << 10,
+	}
+
+	dialer := &net.Dialer{
+		Timeout: 1500 * time.Millisecond,
+	}
+
+	base.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		host, _, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, err
+		}
+		ip := net.ParseIP(strings.Trim(host, "[]"))
+		if ip == nil || !ip.IsLoopback() {
+			return nil, errors.New("web probe blocked non-loopback dial")
+		}
+		return dialer.DialContext(ctx, network, address)
+	}
+
+	return &http.Client{
+		Transport: base,
+		Timeout:   catalogWebProbeTimeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
+func catalogFrameAncestors(csp string) string {
+	for _, directive := range strings.Split(csp, ";") {
+		fields := strings.Fields(strings.TrimSpace(directive))
+		if len(fields) == 0 {
+			continue
+		}
+		if strings.EqualFold(fields[0], "frame-ancestors") {
+			return strings.Join(fields[1:], " ")
+		}
+	}
+	return ""
+}
+
+func catalogFrameHeaderPolicy(xFrameOptions, frameAncestors string) string {
+	xfo := strings.ToLower(strings.TrimSpace(xFrameOptions))
+	if strings.Contains(xfo, "deny") || strings.Contains(xfo, "sameorigin") {
+		return "blocked"
+	}
+
+	ancestors := strings.ToLower(strings.TrimSpace(frameAncestors))
+	if ancestors == "" {
+		if xfo == "" {
+			return "no-blocking-header-detected"
+		}
+		return "restricted"
+	}
+	if strings.Contains(ancestors, "'none'") {
+		return "blocked"
+	}
+	if strings.Contains(ancestors, "*") {
+		return "no-blocking-header-detected"
+	}
+	return "restricted"
+}

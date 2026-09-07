@@ -4,6 +4,15 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+### 2026-09-07 — RouterForge 0.6.0-beta.2 release-candidate hotfix
+
+- Product snapshot advances to `0.6.0-beta.2` because the immutable `routerforge-v0.6.0-beta.1` release already exists and cannot be overwritten.
+- Core advances from `0.6.0-beta` to `0.6.0-beta.1` because the Core frontend itself changed and must produce a new deployable IPK; other component versions remain unchanged.
+- Home no longer reports RouterForge DNS as a stopped service when the installed module has no declared service contract.
+- The attention badge counts only warning/critical events; informational update rows remain visible without inflating the problem count.
+- App Center action history is collapsible and its row/header spacing is cleaned up.
+- App Center module cards wrap long metadata/compatibility values instead of letting labels and values overlap.
+
 ### 2026-09-07 — RouterForge 0.6.0-beta.1 preparation
 
 - Core `0.6.0-beta` redesigns Home into a path-aware attention center with device identity/uptime, sidebar telemetry, approved CPU/RAM/thermal/storage thresholds, sustained CPU detection, default-route alerting and recent failed App Center action visibility.

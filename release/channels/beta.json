@@ -1,7 +1,7 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.6.0-beta.1",
+    "release_version": "0.6.0-beta.2",
     "release_notes": {
         "ru": {
             "new": [
@@ -13,6 +13,10 @@
                 "Свежая 0.6 Beta bootstrap-установка устанавливает только RouterForge Core; optional capabilities выбираются после запуска."
             ],
             "fixes": [
+                "Исправлено ложное предупреждение Home о неработающей службе для установленных RouterForge-модулей без собственного service contract; RouterForge DNS больше не помечается как остановленный только из-за managed=true.",
+                "Счётчик «требует внимания» теперь учитывает только warning/critical события; информационные уведомления об обновлениях остаются видимыми, но не увеличивают счётчик.",
+                "История действий Центра приложений получила сворачивание/разворачивание и более аккуратное выравнивание текста и статусов.",
+                "Карточки модулей Центра приложений корректно переносят длинные metadata/compatibility значения без наложения текста.",
                 "Attention Center оценивает фактически используемый DNS path: secure upstream health/quality/fallback и свежие plain DNS terminal events.",
                 "Исправлены пороги внимания: CPU Temp >75 warning и >=90 critical, RAM >=90/96, /opt >=85/95, sustained CPU >=90% не менее 30 секунд.",
                 "Добавлены события отсутствующего default route и недавнего failed action Центра приложений.",
@@ -42,6 +46,10 @@
                 "A fresh 0.6 Beta bootstrap installs RouterForge Core only; optional capabilities are selected after startup."
             ],
             "fixes": [
+                "Fixed a false Home service warning for installed RouterForge modules that do not declare their own service contract; RouterForge DNS is no longer reported as stopped merely because managed=true.",
+                "The requires-attention badge now counts warning/critical events only; informational update notices remain visible without increasing the count.",
+                "App Center action history can now be collapsed/expanded and has cleaner text/status alignment.",
+                "App Center module cards now wrap long metadata and compatibility values without text overlap.",
                 "Attention Center evaluates the effective DNS path: secure upstream health/quality/fallback plus recent plain-DNS terminal events.",
                 "Attention thresholds now match the 0.6 contract: CPU temperature >75 warning and >=90 critical, RAM >=90/96, /opt >=85/95, and sustained CPU >=90% for at least 30 seconds.",
                 "Missing default-route and recent failed App Center action alerts are included.",
@@ -66,7 +74,7 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.6.0-beta"
+            "version": "0.6.0-beta.1"
         },
         {
             "id": "dns",

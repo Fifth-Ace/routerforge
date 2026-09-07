@@ -26,6 +26,7 @@
   $: opt = telem.platform?.opt || {};
   $: updates = [...modules, ...integrations].filter((item) => item.installed && item.update_available);
   $: issues = buildIssues();
+  $: actionableIssues = issues.filter((issue) => issue.severity !== 'info');
 
   const text = (ru, en) => locale === 'ru' ? ru : en;
 
@@ -96,7 +97,9 @@
 
     for (const item of [...modules, ...integrations]) {
       if (!item.installed || item.builtin) continue;
-      if ((item.managed || item.service) && !item.service_running) {
+      const declaredServices = Array.isArray(item.detection?.services) ? item.detection.services : [];
+      const hasServiceContract = Boolean(item.service) || declaredServices.length > 0;
+      if (hasServiceContract && !item.service_running) {
         push('warning', `${item.name}: ${text('\u0441\u043b\u0443\u0436\u0431\u0430 \u043d\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442','service is not running')}`, '', '/apps?tab=installed');
       }
       const trust = String(item.trust?.status || '').toLowerCase();
@@ -241,8 +244,8 @@
   <section class="panel routerforge-attention routerforge-attention-v2">
     <div class="panel-head">
       <div><strong>{text('Состояние','Status')}</strong><span>{text('Всё, что требует внимания прямо сейчас','Everything that needs attention right now')}</span></div>
-      <span class="state-chip {issues.some((x)=>x.severity==='critical') ? 'error' : issues.length ? 'warn' : 'good'}">
-        {issues.length ? text(`${issues.length} ТРЕБУЕТ ВНИМАНИЯ`, `${issues.length} ATTENTION`) : text('ВСЁ ХОРОШО','ALL GOOD')}
+      <span class="state-chip {actionableIssues.some((x)=>x.severity==='critical') ? 'error' : actionableIssues.length ? 'warn' : 'good'}">
+        {actionableIssues.length ? text(`${actionableIssues.length} ТРЕБУЕТ ВНИМАНИЯ`, `${actionableIssues.length} ATTENTION`) : text('ВСЁ ХОРОШО','ALL GOOD')}
       </span>
     </div>
     {#if issues.length}

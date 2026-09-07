@@ -143,8 +143,10 @@ export function catalogWebURL(item = {}, legacyScheme = 'current') {
   return `${scheme}//${hostName}:${port}${path}`;
 }
 
-export function catalogWebSecurityDecision(item = {}, auth = {}) {
-  const url = catalogWebURL(item);
+export function catalogWebSecurityDecision(item = {}, auth = {}, urlOverride = '') {
+  const url = typeof urlOverride === 'string' && urlOverride
+    ? urlOverride
+    : catalogWebURL(item);
   const decision = {
     url,
     externalAllowed: Boolean(url),
@@ -208,6 +210,20 @@ export function catalogWebSecurityDecision(item = {}, auth = {}) {
 
   decision.embedAllowed = decision.externalAllowed && embedRequested;
   return decision;
+}
+
+export function catalogWebResolvedURL(item = {}, probe = {}, auth = {}) {
+  const candidates = Array.isArray(probe?.browser_urls)
+    ? probe.browser_urls
+    : [];
+
+  for (const candidate of candidates) {
+    const decision = catalogWebSecurityDecision(item, auth, candidate);
+    if (decision.embedAllowed) return decision.url;
+  }
+
+  const fallback = catalogWebSecurityDecision(item, auth);
+  return fallback.embedAllowed ? fallback.url : '';
 }
 
 export function stateInfo(item = {}, locale) {

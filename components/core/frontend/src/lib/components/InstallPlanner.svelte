@@ -1,6 +1,7 @@
 <script>
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
+  import { catalogWebPort } from '$lib/utils.js';
 
   export let item;
   export let onclose=()=>{};
@@ -10,6 +11,7 @@
   $: hints=item?.compatibility?.hints||[];
   $: packages=install.packages||item?.detection?.packages||[];
   $: notes=install.notes||[];
+  $: webPort=catalogWebPort(item);
 </script>
 
 {#if item}
@@ -29,7 +31,7 @@
               <div class="check-row"><span>{t(locale, 'marketplace.planner.state')}</span><code>{item.state||'available'}</code></div>
               <div class="check-row"><span>{t(locale, 'marketplace.planner.version')}</span><code>{item.version?`v${item.version}`:'—'}</code></div>
               {#if item.service}<div class="check-row"><span>{t(locale, 'marketplace.planner.service')}</span><code>{item.service}</code></div>{/if}
-              {#if item.web_port}<div class="check-row"><span>{t(locale, 'marketplace.planner.webUi')}</span><code>:{item.web_port}</code></div>{/if}
+              {#if webPort}<div class="check-row"><span>{t(locale, 'marketplace.planner.webUi')}</span><code>:{webPort}</code></div>{/if}
             </div>
             <div class="check-card">
               <div class="check-head"><strong>{t(locale, 'marketplace.planner.compatibility')}</strong><span class="state-chip info">{item.compatibility?.status||'REQUIREMENTS'}</span></div>
@@ -55,7 +57,7 @@
             {#if item.version}<div class="log-ok">[DETECT] version {item.version}</div>{/if}
             {#if packages.length}<div><span class="log-dim">[PACKAGE]</span> {packages.join(', ')} · {item.installed?t(locale, 'marketplace.planner.detected'):t(locale, 'marketplace.planner.notInstalled')}</div>{/if}
             {#if item.service}<div class={item.service_running ? 'item-ok' : ''}>[SERVICE] {item.service} · {item.service_running?t(locale, 'marketplace.planner.running'):t(locale, 'marketplace.planner.notRunning')}</div>{/if}
-            {#if item.web_port}<div><span class="log-dim">[WEB]</span> port {item.web_port} · {item.installed?t(locale, 'marketplace.planner.integrationEndpoint'):t(locale, 'marketplace.planner.expectedDefault')}</div>{/if}
+            {#if webPort}<div><span class="log-dim">[WEB]</span> port {webPort} · {item.installed?t(locale, 'marketplace.planner.integrationEndpoint'):t(locale, 'marketplace.planner.expectedDefault')}</div>{/if}
             {#if install.repository_url}<div><span class="log-info">[PLAN]</span> feed {install.repository_url}</div>{/if}
             {#if install.installer_url}<div><span class="log-info">[PLAN]</span> installer {install.installer_url}</div>{/if}
             {#if install.method}<div><span class="log-info">[PLAN]</span> method={install.method}</div>{/if}

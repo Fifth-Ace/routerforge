@@ -4,7 +4,7 @@
   import { snapshot, backendOnline, backendReady } from '$lib/stores/snapshot.js';
   import { overview, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
   import { settings } from '$lib/stores/settings.js';
-  import { bytes, fmtDuration } from '$lib/utils.js';
+  import { bytes, fmtDuration, catalogWebURL } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
 
 
@@ -211,8 +211,15 @@
     return out.sort((a,b) => rank[a.severity] - rank[b.severity]);
   }
 
+  function webHref(item) {
+    return item?.kind === 'integration'
+      ? catalogWebURL(item, 'http')
+      : '';
+  }
+
   function hrefFor(item) {
-    if (item.kind === 'integration' && item.web_port) return `http://${location.hostname}:${item.web_port}`;
+    const web = webHref(item);
+    if (web) return web;
     if (item.id === 'dns') return '/dns';
     if (item.id === 'admin') return '/manage';
     if (['system','thermal','storage','network'].includes(item.id)) return `/monitoring?tab=${item.id}`;
@@ -298,7 +305,7 @@
         <div class="routerforge-installed-list">
           {#if !installedIntegrations.length}<div class="catalog-empty">{text('Установленные интеграции не обнаружены.','No installed integrations detected.')}</div>{/if}
           {#each installedIntegrations as item (item.id)}
-            <a href={hrefFor(item)} target={item.web_port ? '_blank' : undefined} rel={item.web_port ? 'noopener noreferrer' : undefined} class="routerforge-installed-row">
+            <a href={hrefFor(item)} target={webHref(item) ? '_blank' : undefined} rel={webHref(item) ? 'noopener noreferrer' : undefined} class="routerforge-installed-row">
               <span><strong>{item.name}</strong><small>{item.version ? `v${item.version}` : '—'}</small></span>
               <span class="state-chip {stateClass(item)}">{stateText(item)}</span>
             </a>

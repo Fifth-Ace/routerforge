@@ -110,6 +110,39 @@ export function localWebURL(port) {
   return `${location.protocol === 'https:' ? 'https:' : 'http:'}//${host}:${port}`;
 }
 
+export function catalogWebPort(item = {}) {
+  const port = Number(item?.web?.port || item?.web_port || 0);
+  return Number.isInteger(port) && port >= 1 && port <= 65535 ? port : 0;
+}
+
+export function catalogWebURL(item = {}, legacyScheme = 'current') {
+  if (typeof location === 'undefined') return '';
+
+  const web = item?.web || {};
+  const port = catalogWebPort(item);
+  if (!port) return '';
+
+  const hostName = location.hostname.includes(':')
+    ? `[${location.hostname}]`
+    : location.hostname;
+
+  const scheme = web.scheme === 'https'
+    ? 'https:'
+    : web.scheme === 'http'
+      ? 'http:'
+      : legacyScheme === 'http'
+        ? 'http:'
+        : (location.protocol === 'https:' ? 'https:' : 'http:');
+
+  const path = typeof web.path === 'string'
+    && web.path.startsWith('/')
+    && !/[\r\n]/.test(web.path)
+      ? web.path
+      : '';
+
+  return `${scheme}//${hostName}:${port}${path}`;
+}
+
 export function stateInfo(item = {}, locale) {
   const lang = currentLocale(locale);
   switch (item.state) {

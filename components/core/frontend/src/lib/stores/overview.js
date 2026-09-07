@@ -13,9 +13,11 @@ let timer = null;
 let users = 0;
 let lastCatalog = null;
 let cpuHighSince = 0;
+let refreshGeneration = 0;
 
 export async function refreshOverview(nextCatalog = lastCatalog) {
   lastCatalog = nextCatalog || lastCatalog;
+  const generation = ++refreshGeneration;
   const modules = lastCatalog?.modules || [];
   const installed = (id) => modules.some((item) => item.id === id && item.installed);
   const safe = async (fn) => { try { return await fn(); } catch { return null; } };
@@ -24,33 +26,71 @@ export async function refreshOverview(nextCatalog = lastCatalog) {
     plainDns:null, networkRoutes:null, appActions:null, cpuSustainedHigh:null
   };
 
-  result.platform = await safe(() => getPlatform());
+  const platformPromise = safe(() => getPlatform());
 
+  let systemPromise = Promise.resolve([null, null, null]);
   if (installed('system')) {
-    [result.summary, result.cpu, result.memory] = await Promise.all([
+    systemPromise = Promise.all([
       safe(() => getModule('system','summary')),
       safe(() => getModule('system','cpu')),
       safe(() => getModule('system','memory'))
     ]);
   } else if (installed('admin')) {
-    [result.summary, result.cpu] = await Promise.all([
+    systemPromise = Promise.all([
       safe(() => getAdminSummary()),
-      safe(() => getAdminCPU())
+      safe(() => getAdminCPU()),
+      Promise.resolve(null)
     ]);
-    result.memory = result.summary?.memory || null;
   }
 
-  if (installed('thermal')) result.thermal = await safe(() => getModule('thermal','sensors'));
-  else if (installed('admin')) result.thermal = await safe(() => getAdminThermal());
+  const thermalPromise = installed('thermal')
+    ? safe(() => getModule('thermal','sensors'))
+    : installed('admin')
+      ? safe(() => getAdminThermal())
+      : Promise.resolve(null);
 
-  if (installed('storage')) result.storage = await safe(() => getModule('storage','storage'));
-  else if (installed('admin')) result.storage = await safe(() => getAdminStorage());
+  const storagePromise = installed('storage')
+    ? safe(() => getModule('storage','storage'))
+    : installed('admin')
+      ? safe(() => getAdminStorage())
+      : Promise.resolve(null);
 
-  if (installed('dns')) result.plainDns = await safe(() => getPlainDNS(500));
-  if (installed('network')) result.networkRoutes = await safe(() => getModule('network','routes'));
+  const plainDnsPromise = installed('dns')
+    ? safe(() => getPlainDNS(500))
+    : Promise.resolve(null);
 
-  result.appActions = await safe(() => getAppActions());
+  const networkPromise = installed('network')
+    ? safe(() => getModule('network','routes'))
+    : Promise.resolve(null);
+
+  const actionsPromise = safe(() => getAppActions());
+
+  const [platform, systemRows, thermal, storage] = await Promise.all([
+    platformPromise,
+    systemPromise,
+    thermalPromise,
+    storagePromise
+  ]);
+
+  result.platform = platform;
+  result.summary = systemRows[0];
+  result.cpu = systemRows[1];
+  result.memory = installed('system') ? systemRows[2] : result.summary?.memory || null;
+  result.thermal = thermal;
+  result.storage = storage;
   result.cpuSustainedHigh = updateSustainedCPU(result.cpu);
+
+  if (generation === refreshGeneration) {
+    overview.set({ ...result });
+  }
+
+  [result.plainDns, result.networkRoutes, result.appActions] = await Promise.all([
+    plainDnsPromise,
+    networkPromise,
+    actionsPromise
+  ]);
+
+  if (generation !== refreshGeneration) return result;
 
   overview.set(result);
   return result;

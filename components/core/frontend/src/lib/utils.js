@@ -190,7 +190,16 @@ export function catalogWebSecurityDecision(item = {}, auth = {}) {
   decision.mixedContent = location.protocol === 'https:' && target.protocol !== 'https:';
 
   const web = item?.web || {};
-  const embedRequested = web.mode === 'embedded-supported' && web.embed === true;
+  const embedRequested = ['embedded-supported', 'probe-required'].includes(web.mode) && web.embed === true;
+  const trustStatus = String(item?.trust?.status || '').toLowerCase();
+  const probeEligible = trustStatus === 'official'
+    || trustStatus === 'verified'
+    || (item?.registry_source === 'legacy-fallback' && Boolean(item?.web_port_source));
+
+  if (embedRequested && !probeEligible) {
+    decision.reason = 'untrusted-web-metadata';
+    return decision;
+  }
 
   if (embedRequested && decision.mixedContent) {
     decision.reason = 'mixed-content';

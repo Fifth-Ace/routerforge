@@ -56,6 +56,14 @@ func TestCatalogWebMetadataContract(t *testing.T) {
 			meta: catalogWebMetadata{Port: 90, Mode: "external-only"},
 		},
 		{
+			name: "probe required and enabled",
+			meta: catalogWebMetadata{Port: 90, Mode: "probe-required", Embed: true},
+		},
+		{
+			name: "probe required but disabled",
+			meta: catalogWebMetadata{Port: 90, Mode: "probe-required"},
+		},
+		{
 			name: "embedded supported but disabled",
 			meta: catalogWebMetadata{Port: 90, Mode: "embedded-supported"},
 		},

@@ -15,7 +15,7 @@ ALLOWED_KINDS = {"module", "integration"}
 ALLOWED_METHODS = {"routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy"}
 ALLOWED_STEPS = {"opkg-update", "opkg-install", "opkg-upgrade", "opkg-remove", "write-opkg-feed"}
 ALLOWED_APPROVALS = {"official", "verified", "blocked", "deprecated"}
-ALLOWED_WEB_MODES = {"external-only", "embedded-supported", "unsupported-version"}
+ALLOWED_WEB_MODES = {"external-only", "probe-required", "embedded-supported", "unsupported-version"}
 
 
 def canonical(obj):
@@ -61,8 +61,8 @@ def validate_web(web, where):
     embed = web.get("embed", False)
     if not isinstance(embed, bool):
         raise ValueError(f"{where}: web.embed must be boolean")
-    if embed and mode != "embedded-supported":
-        raise ValueError(f"{where}: web.embed requires mode=embedded-supported")
+    if embed and mode not in {"embedded-supported", "probe-required"}:
+        raise ValueError(f"{where}: web.embed requires mode=embedded-supported or probe-required")
 
 
 def validate_plan(plan, where):

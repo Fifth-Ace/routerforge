@@ -322,17 +322,17 @@ func validateCatalogWebMetadata(meta *catalogWebMetadata) error {
 		return fmt.Errorf("web mode is required")
 	}
 	switch meta.Mode {
-	case "external-only", "embedded-supported", "unsupported-version":
+	case "external-only", "probe-required", "embedded-supported", "unsupported-version":
 	default:
-		return fmt.Errorf("web mode must be external-only, embedded-supported, or unsupported-version")
+		return fmt.Errorf("web mode must be external-only, probe-required, embedded-supported, or unsupported-version")
 	}
 	if meta.Path != "" {
 		if !strings.HasPrefix(meta.Path, "/") || strings.ContainsAny(meta.Path, "\r\n") {
 			return fmt.Errorf("web path must be an absolute local path")
 		}
 	}
-	if meta.Embed && meta.Mode != "embedded-supported" {
-		return fmt.Errorf("web embed requires embedded-supported mode")
+	if meta.Embed && meta.Mode != "embedded-supported" && meta.Mode != "probe-required" {
+		return fmt.Errorf("web embed requires embedded-supported or probe-required mode")
 	}
 	return nil
 }

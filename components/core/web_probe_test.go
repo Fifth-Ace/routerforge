@@ -71,6 +71,82 @@ func TestCatalogWebProbeUsesLoopbackWithoutCredentials(t *testing.T) {
 	}
 }
 
+func TestCatalogWebProbeEligibility(t *testing.T) {
+	probeWeb := &catalogWebMetadata{
+		Scheme: "http",
+		Port:   2222,
+		Path:   "/",
+		Mode:   "probe-required",
+		Embed:  true,
+	}
+
+	tests := []struct {
+		name string
+		item catalogItem
+		want bool
+	}{
+		{
+			name: "verified registry metadata",
+			item: catalogItem{
+				Trust: catalogTrust{Status: "verified"},
+				Web:   probeWeb,
+			},
+			want: true,
+		},
+		{
+			name: "official registry metadata",
+			item: catalogItem{
+				Trust: catalogTrust{Status: "official"},
+				Web:   probeWeb,
+			},
+			want: true,
+		},
+		{
+			name: "built-in legacy fallback probe metadata",
+			item: catalogItem{
+				Trust:          catalogTrust{Status: "unverified"},
+				RegistrySource: "legacy-fallback",
+				WebPortSource:  "project-default",
+				Web:            probeWeb,
+			},
+			want: true,
+		},
+		{
+			name: "remote unverified metadata",
+			item: catalogItem{
+				Trust:          catalogTrust{Status: "unverified"},
+				RegistrySource: "routerforge-community",
+				WebPortSource:  "project-default",
+				Web:            probeWeb,
+			},
+			want: false,
+		},
+		{
+			name: "legacy fallback external-only metadata",
+			item: catalogItem{
+				Trust:          catalogTrust{Status: "unverified"},
+				RegistrySource: "legacy-fallback",
+				WebPortSource:  "project-default",
+				Web: &catalogWebMetadata{
+					Scheme: "http",
+					Port:   2222,
+					Path:   "/",
+					Mode:   "external-only",
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := catalogWebProbeAllowed(tt.item); got != tt.want {
+				t.Fatalf("got %v, want %v for %#v", got, tt.want, tt.item)
+			}
+		})
+	}
+}
+
 func TestCatalogWebProbeClientRejectsRedirects(t *testing.T) {
 	client := newCatalogWebProbeClient()
 	err := client.CheckRedirect(

@@ -4,9 +4,16 @@
   import { snapshot, backendOnline, backendReady } from '$lib/stores/snapshot.js';
   import { overview, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
   import { settings } from '$lib/stores/settings.js';
-  import { bytes, fmtDuration, catalogWebURL } from '$lib/utils.js';
+  import { authState } from '$lib/stores/auth.js';
+  import { probeCatalogWeb } from '$lib/api.js';
+  import { bytes, fmtDuration, catalogWebURL, catalogWebSecurityDecision, catalogWebResolvedURL } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
+  import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
 
+
+  let webWorkspace = null;
+  let webProbeBusyId = '';
+  let webNotice = '';
 
   $: locale = $settings.locale || 'ru';
   $: modules = $catalog.modules || [];
@@ -227,6 +234,70 @@
     return '/apps?tab=installed';
   }
 
+  async function openHomeIntegration(event, item) {
+    const fallback = integrationWorkspaceHref(item);
+    if (!fallback) return;
+
+    event.preventDefault();
+    if (webProbeBusyId) return;
+
+    const decision = catalogWebSecurityDecision(item, $authState);
+    if (!decision.embedAllowed) {
+      webNotice = decision.reason === 'session-cookie-cross-port'
+        ? text(
+            '\u0412\u0441\u0442\u0440\u043e\u0435\u043d\u043d\u044b\u0439 Web UI \u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u043d: cookie \u0441\u0435\u0441\u0441\u0438\u0438 RouterForge \u043d\u0435 \u0438\u0437\u043e\u043b\u0438\u0440\u0443\u044e\u0442\u0441\u044f \u043f\u043e TCP-\u043f\u043e\u0440\u0442\u0443.',
+            'Embedded Web UI is blocked because RouterForge session cookies are not isolated by TCP port.'
+          )
+        : decision.reason === 'mixed-content'
+          ? text(
+              'HTTPS RouterForge \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0432\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u0442\u044c HTTP Web UI.',
+              'HTTPS RouterForge cannot embed an HTTP Web UI.'
+            )
+          : text(
+              '\u0412\u0441\u0442\u0440\u043e\u0435\u043d\u043d\u044b\u0439 Web UI \u0441\u0435\u0439\u0447\u0430\u0441 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d.',
+              'Embedded Web UI is not available right now.'
+            );
+      return;
+    }
+
+    webProbeBusyId = item.id;
+    webNotice = '';
+
+    try {
+      const probe = await probeCatalogWeb(item.id);
+      const safe = probe?.reachable === true
+        && Number(probe?.status_code || 0) >= 200
+        && Number(probe?.status_code || 0) < 300
+        && probe?.redirect === false
+        && ['embedded-supported', 'probe-required'].includes(probe?.mode)
+        && probe?.embed === true
+        && probe?.frame_header_policy === 'no-blocking-header-detected';
+
+      if (!safe) {
+        webNotice = text(
+          '\u0412\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u043d\u0438\u0435 \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u043e: runtime web-probe \u043d\u0435 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043b \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 iframe.',
+          'Embed cancelled because the runtime web probe did not confirm a safe iframe.'
+        );
+        return;
+      }
+
+      const resolvedURL = catalogWebResolvedURL(item, probe, $authState);
+      if (!resolvedURL) {
+        webNotice = text(
+          '\u041d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 Web UI listener, \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0439 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0443.',
+          'No safe browser-reachable Web UI listener was resolved.'
+        );
+        return;
+      }
+
+      webWorkspace = { item, url:resolvedURL, probe };
+    } catch (error) {
+      webNotice = error?.payload?.error || error?.message || 'web probe failed';
+    } finally {
+      webProbeBusyId = '';
+    }
+  }
+
   function stateText(item) {
     if (item.update_available) return `↑ ${item.release?.version || item.available_version || ''}`;
     if (item.id === 'routerforge-core') return 'ONLINE';
@@ -303,10 +374,16 @@
 
       <section class="panel">
         <div class="panel-head"><div><strong>{text('Интеграции','Integrations')}</strong><span>{installedIntegrations.length}</span></div></div>
+        {#if webNotice}<div class="catalog-action-reason">{webNotice}</div>{/if}
         <div class="routerforge-installed-list">
           {#if !installedIntegrations.length}<div class="catalog-empty">{text('Установленные интеграции не обнаружены.','No installed integrations detected.')}</div>{/if}
           {#each installedIntegrations as item (item.id)}
-            <a href={hrefFor(item)} class="routerforge-installed-row">
+            <a
+              href={hrefFor(item)}
+              class="routerforge-installed-row"
+              aria-busy={webProbeBusyId === item.id}
+              onclick={(event) => openHomeIntegration(event, item)}
+            >
               <span><strong>{item.name}</strong><small>{item.version ? `v${item.version}` : '—'}</small></span>
               <span class="state-chip {stateClass(item)}">{stateText(item)}</span>
             </a>
@@ -316,3 +393,11 @@
     </div>
   </section>
 </div>
+
+{#if webWorkspace}
+  <ExternalWebWorkspace
+    workspace={webWorkspace}
+    {locale}
+    onclose={() => webWorkspace = null}
+  />
+{/if}

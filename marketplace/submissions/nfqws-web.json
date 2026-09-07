@@ -21,8 +21,12 @@
       "/opt/etc/nfqws_web.conf"
     ]
   },
-  "web_port": 90,
-  "web_port_source": "project-default",
+  "web": {
+    "scheme": "http",
+    "port": 90,
+    "path": "/",
+    "embed": false
+  },
   "compatibility": {
     "status": "requirements",
     "hints": [

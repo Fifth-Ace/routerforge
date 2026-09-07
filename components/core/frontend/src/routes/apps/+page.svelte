@@ -116,6 +116,59 @@
     return hints.length ? hints.join(' · ') : (item.compatibility?.status || '—');
   }
 
+  function descriptionText(item) {
+    if (item?.kind === 'module') {
+      const key = `moduleDescriptions.${item.id}`;
+      const translated = a(locale, key);
+      if (translated !== key) return translated;
+    }
+    return item?.description || '';
+  }
+
+  function hasServiceContract(item) {
+    if (item?.id === 'routerforge-core') return true;
+    return Boolean(item?.service) || Boolean(item?.detection?.services?.length);
+  }
+
+  function serviceStatusText(item) {
+    if (item?.id === 'routerforge-core') return a(locale,'coreService');
+    return item?.service_running ? a(locale,'running') : a(locale,'stopped');
+  }
+
+  function coreRestartTransportError(error) {
+    if (error?.status || error?.payload) return false;
+    const message = String(error?.message || '').toLowerCase();
+    return message.includes('failed to fetch')
+      || message.includes('networkerror')
+      || message.includes('network request failed')
+      || message.includes('load failed');
+  }
+
+  async function waitForCoreRecovery(targetVersion, timeoutMs = 45000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const refreshed = await refreshCatalog();
+      const core = (refreshed?.modules || []).find((candidate) => candidate.id === 'routerforge-core');
+      if (core?.installed && (!targetVersion || String(core.version || '') === String(targetVersion))) {
+        return core;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+    return null;
+  }
+
+  function jobStateLabel(state) {
+    const value = String(state || 'queued').toLowerCase();
+    const keys = {
+      queued:'jobQueued',
+      running:'jobRunning',
+      succeeded:'jobSucceeded',
+      failed:'jobFailed',
+      cancelled:'jobCancelled'
+    };
+    return a(locale, keys[value] || 'jobQueued');
+  }
+
   function moduleURL(item) {
     if (item.id === 'admin') return '/manage';
     if (item.id === 'dns') return '/dns';
@@ -248,14 +301,14 @@
 
   function preflightMessage(preflight, title) {
     const lines = [title];
-    if (preflight?.method) lines.push(`method: ${preflight.method}`);
-    if (preflight?.packages?.length) lines.push(`packages: ${preflight.packages.join(', ')}`);
+    if (preflight?.method) lines.push(`${a(locale,'method')}: ${preflight.method}`);
+    if (preflight?.packages?.length) lines.push(`${a(locale,'packages')}: ${preflight.packages.join(', ')}`);
     const entware = preflight?.entware;
-    if (entware?.architecture) lines.push(`arch: ${entware.architecture}`);
-    if (entware?.download_size_bytes) lines.push(`download: ${entware.download_size_bytes} B`);
-    if (entware?.installed_size_bytes) lines.push(`installed: ${entware.installed_size_bytes} B`);
-    if (entware?.dependencies?.length) lines.push(`depends: ${entware.dependencies.join(', ')}`);
-    if (entware?.reverse_dependencies?.length) lines.push(`reverse depends: ${entware.reverse_dependencies.join(', ')}`);
+    if (entware?.architecture) lines.push(`${a(locale,'architecture')}: ${entware.architecture}`);
+    if (entware?.download_size_bytes) lines.push(`${a(locale,'download')}: ${bytes(entware.download_size_bytes)}`);
+    if (entware?.installed_size_bytes) lines.push(`${a(locale,'installedSize')}: ${bytes(entware.installed_size_bytes)}`);
+    if (entware?.dependencies?.length) lines.push(`${a(locale,'depends')}: ${entware.dependencies.join(', ')}`);
+    if (entware?.reverse_dependencies?.length) lines.push(`${a(locale,'reverseDepends')}: ${entware.reverse_dependencies.join(', ')}`);
     if (preflight?.warnings?.length) lines.push('', ...preflight.warnings.map((value) => `! ${value}`));
     return lines.join('\n');
   }
@@ -305,13 +358,26 @@
     }
     if (!skipConfirm && !window.confirm(`${action === 'install' ? a(locale,'install') : a(locale,'update')} ${item.name}?`)) return;
 
+    const targetVersion = String(item.release?.version || item.available_version || '').trim();
     busyId = item.id;
     busyAction = action;
+    actionNotice = { cls:'warn', text:a(locale,'coreRestarting') };
+
     try {
-      await catalogAction(item.id, action, confirm);
-      await refreshCatalog();
+      try {
+        await catalogAction(item.id, action, confirm);
+      } catch (error) {
+        if (!coreRestartTransportError(error)) throw error;
+      }
+
+      const recovered = await waitForCoreRecovery(targetVersion);
+      if (!recovered) {
+        throw new Error(a(locale,'coreRecoveryTimeout',{version:targetVersion || '?'}));
+      }
+
       actionNotice = { cls:'good', text:a(locale,'actionDone',{name:item.name}) };
       if (action === 'remove') removeItem = null;
+      setTimeout(() => window.location.reload(), 300);
     } catch (error) {
       actionNotice = { cls:'error', text:a(locale,'actionFailed',{name:item.name,error:error?.payload?.detail || error?.payload?.error || error?.message || 'error'}) };
     } finally {
@@ -495,7 +561,7 @@
   <div class="market-safety-line mono" class:test-mode={packageMode}>
     <span><i class="status-dot {packageMode ? 'good' : 'neutral'}"></i> {a(locale,'packageManagement')} <strong>{packageMode ? a(locale,'active').toUpperCase() : a(locale,'readOnly').toUpperCase()}</strong></span>
     <span>{a(locale,'channel')} <strong>{String(releaseChannel).toUpperCase()}</strong></span>
-    <span>{a(locale,'target')} <strong>{releaseTarget}</strong>{#if data.release?.experimental} · EXPERIMENTAL{/if}</span>
+    <span>{a(locale,'target')} <strong>{releaseTarget}</strong>{#if data.release?.experimental} · {a(locale,'experimental')}{/if}</span>
     <span>{a(locale,'registry')} <strong>{data.registry?.revision ? data.registry.revision.slice(0,12) : '—'}</strong></span>
   </div>
 
@@ -514,7 +580,7 @@
           <span class="mono">{activeJob.kind} / {activeJob.target} / {activeJob.action}</span>
         </div>
         <div class="catalog-actions">
-          <span class="state-chip {jobStateClass(activeJob.state)}">{String(activeJob.state || 'queued').toUpperCase()}</span>
+          <span class="state-chip {jobStateClass(activeJob.state)}">{jobStateLabel(activeJob.state)}</span>
           {#if !['succeeded','failed','cancelled'].includes(activeJob.state)}
             <button class="button danger-subtle" onclick={cancelCurrentAction}>{locale === 'ru' ? '\u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c' : 'Cancel'}</button>
           {/if}
@@ -551,7 +617,7 @@
                 <strong>{job.target}</strong>
                 <small class="mono">{job.kind} / {job.action}</small>
               </span>
-              <span class="state-chip {jobStateClass(job.state)}">{String(job.state || '').toUpperCase()}</span>
+              <span class="state-chip {jobStateClass(job.state)}">{jobStateLabel(job.state)}</span>
             </div>
           {/each}
         </div>
@@ -582,21 +648,31 @@
                 </div>
                 <div class="catalog-state-stack"><span class="state-chip {trustClass(item)}">{trustLabel(item)}</span><span class="state-chip {st.cls}">{st.label}</span></div>
               </div>
-              <p>{item.description || ''}</p>
+              <p>{descriptionText(item)}</p>
               <div class="tech-box mono">
-                <div><span>{a(locale,'installed')}</span><strong>{item.version ? `v${item.version}` : '—'}</strong></div>
-                <div><span>{a(locale,'available')}</span><strong class:good={item.update_available}>{item.release?.version ? `v${item.release.version}` : item.available_version ? `v${item.available_version}` : '\u2014'}</strong></div>
+                <div><span>{a(locale,'installed')}</span><strong>{item.version ? `v${item.version}` : a(locale,'notInstalled')}</strong></div>
+                <div><span>{a(locale,'available')}</span><strong class:good={item.update_available}>{item.release?.version ? `v${item.release.version}` : item.available_version ? `v${item.available_version}` : a(locale,'notAvailable')}</strong></div>
                 <div><span>{a(locale,'package')}</span><strong title={packageText(item)}>{packageText(item)}</strong></div>
-                {#if item.package_meta}
-                  <div><span>Architecture</span><strong>{item.package_meta.architecture || releaseTarget || '\u2014'}</strong></div>
-                  <div><span>Download</span><strong>{item.package_meta.download_size_bytes ? bytes(item.package_meta.download_size_bytes) : '\u2014'}</strong></div>
-                  <div><span>Installed size</span><strong>{item.package_meta.installed_size_bytes ? bytes(item.package_meta.installed_size_bytes) : '\u2014'}</strong></div>
-                  <div><span>Depends</span><strong title={(item.package_meta.depends || []).join(', ')}>{item.package_meta.depends?.length ? item.package_meta.depends.join(', ') : '\u2014'}</strong></div>
-                  {#if item.package_meta.conflicts?.length}<div><span>Conflicts</span><strong title={item.package_meta.conflicts.join(', ')}>{item.package_meta.conflicts.join(', ')}</strong></div>{/if}
+                {#if item.package_meta?.architecture}
+                  <div><span>{a(locale,'architecture')}</span><strong>{item.package_meta.architecture}</strong></div>
                 {/if}
-                {#if item.release?.min_core_version}<div><span>Min Core</span><strong>v{item.release.min_core_version}</strong></div>{/if}
-                <div><span>{a(locale,'publisher')}</span><strong>{item.publisher?.name || '—'}</strong></div>
-                <div><span>{a(locale,'service')}</span><strong class:good={item.service_running}>{item.service ? (item.service_running ? 'RUNNING' : 'STOPPED') : item.id === 'routerforge-core' ? 'CORE' : '—'}</strong></div>
+                {#if Number(item.package_meta?.download_size_bytes || 0) > 0}
+                  <div><span>{a(locale,'download')}</span><strong>{bytes(item.package_meta.download_size_bytes)}</strong></div>
+                {/if}
+                {#if Number(item.package_meta?.installed_size_bytes || 0) > 0}
+                  <div><span>{a(locale,'installedSize')}</span><strong>{bytes(item.package_meta.installed_size_bytes)}</strong></div>
+                {/if}
+                {#if item.package_meta?.depends?.length}
+                  <div><span>{a(locale,'depends')}</span><strong title={item.package_meta.depends.join(', ')}>{item.package_meta.depends.join(', ')}</strong></div>
+                {/if}
+                {#if item.package_meta?.conflicts?.length}
+                  <div><span>{a(locale,'conflicts')}</span><strong title={item.package_meta.conflicts.join(', ')}>{item.package_meta.conflicts.join(', ')}</strong></div>
+                {/if}
+                {#if item.release?.min_core_version}<div><span>{a(locale,'minCore')}</span><strong>v{item.release.min_core_version}</strong></div>{/if}
+                <div><span>{a(locale,'publisher')}</span><strong>{item.publisher?.name || item.source || a(locale,'unknown')}</strong></div>
+                {#if hasServiceContract(item)}
+                  <div><span>{a(locale,'service')}</span><strong class:good={item.id === 'routerforge-core' || item.service_running}>{serviceStatusText(item)}</strong></div>
+                {/if}
                 <div><span>{a(locale,'compatibility')}</span><strong title={compatibilityText(item)}>{compatibilityText(item)}</strong></div>
               </div>
               {#if warning}
@@ -638,9 +714,9 @@
           {#each entwareData.items || [] as pkg (pkg.name)}
             <article class="entware-package-row">
               <div class="entware-package-main">
-                <div><strong>{pkg.name}</strong>{#if pkg.upgradable}<span class="state-chip warn">UPDATE</span>{/if}{#if pkg.installed}<span class="state-chip good">INSTALLED</span>{/if}</div>
-                <p>{pkg.description || '—'}</p>
-                <span class="mono muted">{pkg.installed_version ? `installed ${pkg.installed_version}` : ''}{pkg.installed_version && pkg.available_version ? ' · ' : ''}{pkg.available_version ? `available ${pkg.available_version}` : ''}</span>
+                <div><strong>{pkg.name}</strong>{#if pkg.upgradable}<span class="state-chip warn">{a(locale,'updateBadge')}</span>{/if}{#if pkg.installed}<span class="state-chip good">{a(locale,'installedBadge')}</span>{/if}</div>
+                <p>{pkg.description || a(locale,'unknown')}</p>
+                <span class="mono muted">{pkg.installed_version ? a(locale,'installedVersion',{version:pkg.installed_version}) : ''}{pkg.installed_version && pkg.available_version ? ' · ' : ''}{pkg.available_version ? a(locale,'availableVersion',{version:pkg.available_version}) : ''}</span>
               </div>
               <div class="catalog-actions">
                 <button class="button" disabled={Boolean(busyId)} onclick={() => showEntwareDetail(pkg)}>{a(locale,'details')}</button>
@@ -672,14 +748,14 @@
         <button class="icon-button" aria-label={t(locale,'common.close')} onclick={() => entwareDetail = null}>x</button>
       </div>
       <div class="tech-box mono">
-        <div><span>Version</span><strong>{entwareDetail.version || entwareDetail.available_version || '\u2014'}</strong></div>
-        <div><span>Installed</span><strong>{entwareDetail.installed_version || '\u2014'}</strong></div>
-        <div><span>Architecture</span><strong>{entwareDetail.architecture || '\u2014'}</strong></div>
-        <div><span>Section</span><strong>{entwareDetail.section || '\u2014'}</strong></div>
-        <div><span>Download size</span><strong>{entwareDetail.download_size_bytes || '\u2014'}</strong></div>
-        <div><span>Installed size</span><strong>{entwareDetail.installed_size_bytes || '\u2014'}</strong></div>
-        <div><span>Depends</span><strong>{entwareDetail.depends?.join(', ') || '\u2014'}</strong></div>
-        <div><span>Maintainer</span><strong>{entwareDetail.maintainer || '\u2014'}</strong></div>
+        <div><span>{a(locale,'version')}</span><strong>{entwareDetail.version || entwareDetail.available_version || a(locale,'unknown')}</strong></div>
+        <div><span>{a(locale,'installed')}</span><strong>{entwareDetail.installed_version || a(locale,'notInstalled')}</strong></div>
+        {#if entwareDetail.architecture}<div><span>{a(locale,'architecture')}</span><strong>{entwareDetail.architecture}</strong></div>{/if}
+        {#if entwareDetail.section}<div><span>{a(locale,'section')}</span><strong>{entwareDetail.section}</strong></div>{/if}
+        {#if Number(entwareDetail.download_size_bytes || 0) > 0}<div><span>{a(locale,'downloadSize')}</span><strong>{bytes(entwareDetail.download_size_bytes)}</strong></div>{/if}
+        {#if Number(entwareDetail.installed_size_bytes || 0) > 0}<div><span>{a(locale,'installedSize')}</span><strong>{bytes(entwareDetail.installed_size_bytes)}</strong></div>{/if}
+        {#if entwareDetail.depends?.length}<div><span>{a(locale,'depends')}</span><strong>{entwareDetail.depends.join(', ')}</strong></div>{/if}
+        {#if entwareDetail.maintainer}<div><span>{a(locale,'maintainer')}</span><strong>{entwareDetail.maintainer}</strong></div>{/if}
       </div>
     </section>
   </div>

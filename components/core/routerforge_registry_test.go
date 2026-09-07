@@ -35,7 +35,7 @@ func TestBundledRouterForgeRegistry(t *testing.T) {
 	if web == nil || web.Trust.Status != "verified" || web.Install.Method != "structured" {
 		t.Fatalf("bad verified integration entry: %#v", web)
 	}
-	if web.Web == nil || web.Web.Mode != "external-only" || web.Web.Embed {
+	if web.Web == nil || web.Web.Mode != "embedded-supported" || !web.Web.Embed {
 		t.Fatalf("bad nfqws-web launch contract: %#v", web.Web)
 	}
 }

@@ -97,6 +97,7 @@ type catalogItem struct {
 	ProcessNames         []string `json:"process_names,omitempty"`
 	RunningPaths         []string `json:"running_paths,omitempty"`
 	WebRequiresPackage   string   `json:"web_requires_package,omitempty"`
+	WebProbeHost         string   `json:"-"`
 	PackageAuthoritative bool     `json:"package_authoritative,omitempty"`
 	Builtin              bool     `json:"builtin,omitempty"`
 }
@@ -126,6 +127,8 @@ func readCatalog() catalogSnapshot {
 		applyIntegrationPackageVersions(&snapshot, packages)
 	}
 	cancel()
+
+	rfApplyRuntimeWebDiscovery(&snapshot, installed)
 
 	applyRouterForgeReleaseIndex(&snapshot)
 	snapshot.InstallTestMode = marketplaceTestInstallEnabled()

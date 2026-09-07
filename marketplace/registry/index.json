@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "26d8c98f29de6ba0e7697a8bf64651f19b3e4f47015be99383d0e3fd60dd6e4b",
+  "revision": "f455c9e60be78fbfe6c2bc3b1704d281eb65843e8de0f9c1387c50f55d6408eb",
   "entries": [
     {
       "id": "admin",
@@ -361,8 +361,12 @@
           "/opt/etc/nfqws_web.conf"
         ]
       },
-      "web_port": 90,
-      "web_port_source": "project-default",
+      "web": {
+        "scheme": "http",
+        "port": 90,
+        "path": "/",
+        "embed": false
+      },
       "compatibility": {
         "status": "requirements",
         "hints": [
@@ -458,7 +462,7 @@
         ]
       },
       "manifest_id": "nfqws-web",
-      "manifest_sha256": "3a6197d51fdfe62b0638cfba474317d1322348e0133d5c74cecad56e22b9fd30",
+      "manifest_sha256": "01d8200fcb276ebefade933b408d4c524a6cbd1cdf76ee8c5420dd4cfb6911f8",
       "manifest_source": "marketplace/submissions/nfqws-web.json",
       "registry_source": "routerforge-community",
       "trust": {

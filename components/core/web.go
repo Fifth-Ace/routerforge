@@ -55,6 +55,7 @@ func startWeb(listen string, version string) error {
 	registerAppCenterHandlers(mux)
 	registerAppActionHandlers(mux)
 	registerPlatformHandlers(mux)
+	registerCatalogWebProbeHandler(mux)
 	fileServer := http.FileServer(http.FS(sub))
 
 	serveIndex := func(w http.ResponseWriter) {

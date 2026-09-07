@@ -211,15 +211,16 @@
     return out.sort((a,b) => rank[a.severity] - rank[b.severity]);
   }
 
-  function webHref(item) {
-    return item?.kind === 'integration'
-      ? catalogWebURL(item, 'http')
-      : '';
+  function integrationWorkspaceHref(item) {
+    if (item?.kind !== 'integration' || !item?.installed) return '';
+    if (!catalogWebURL(item, 'http')) return '';
+    return `/apps?tab=integrations&open=${encodeURIComponent(item.id)}`;
   }
 
   function hrefFor(item) {
-    const web = webHref(item);
-    if (web) return web;
+    const workspace = integrationWorkspaceHref(item);
+    if (workspace) return workspace;
+    if (item?.kind === 'integration') return '/apps?tab=integrations';
     if (item.id === 'dns') return '/dns';
     if (item.id === 'admin') return '/manage';
     if (['system','thermal','storage','network'].includes(item.id)) return `/monitoring?tab=${item.id}`;
@@ -305,7 +306,7 @@
         <div class="routerforge-installed-list">
           {#if !installedIntegrations.length}<div class="catalog-empty">{text('Установленные интеграции не обнаружены.','No installed integrations detected.')}</div>{/if}
           {#each installedIntegrations as item (item.id)}
-            <a href={hrefFor(item)} target={webHref(item) ? '_blank' : undefined} rel={webHref(item) ? 'noopener noreferrer' : undefined} class="routerforge-installed-row">
+            <a href={hrefFor(item)} class="routerforge-installed-row">
               <span><strong>{item.name}</strong><small>{item.version ? `v${item.version}` : '—'}</small></span>
               <span class="state-chip {stateClass(item)}">{stateText(item)}</span>
             </a>

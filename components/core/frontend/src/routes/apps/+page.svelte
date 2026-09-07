@@ -48,6 +48,7 @@
 
   onMount(() => {
     void refreshActionHistory();
+    void openRequestedCatalogWeb();
   });
 
   onDestroy(() => {
@@ -91,6 +92,48 @@
     ['installed', a(locale,'tabs.installed'), ''],
     ['updates', a(locale,'tabs.updates'), updateCatalog.length + Number(entwareData.upgradable_count || 0)]
   ];
+
+  async function openRequestedCatalogWeb() {
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = String(params.get('tab') || '').trim();
+
+    if (['routerforge','integrations','entware','installed','updates'].includes(requestedTab)) {
+      setTab(requestedTab);
+    }
+
+    const requestedID = String(params.get('open') || '').trim();
+    if (!requestedID) return;
+
+    params.delete('open');
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+    );
+
+    let current = $catalog || { modules:[], integrations:[] };
+    let item = [...(current.modules || []), ...(current.integrations || [])]
+      .find((candidate) => candidate.id === requestedID);
+
+    if (!item) {
+      current = await refreshCatalog() || { modules:[], integrations:[] };
+      item = [...(current.modules || []), ...(current.integrations || [])]
+        .find((candidate) => candidate.id === requestedID);
+    }
+
+    if (!item || !item.installed || !catalogWebURL(item)) {
+      actionNotice = {
+        cls:'warn',
+        text: locale === 'ru'
+          ? '\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f \u043d\u0435 \u0433\u043e\u0442\u043e\u0432\u0430 \u043a \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044e \u0432 Web workspace.'
+          : 'The integration is not ready to open in the Web workspace.'
+      };
+      return;
+    }
+
+    await openEmbeddedWeb(item);
+  }
 
   function hasCatalogUpdate(item) {
     return Boolean(item?.installed && item?.update_available && item?.actions?.update);

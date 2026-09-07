@@ -4,6 +4,14 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+### 2026-09-07 — RouterForge 0.6.0-beta.4 App Center self-update/i18n hotfix
+
+- Product snapshot advances to `0.6.0-beta.4`; Core advances from `0.6.0-beta.2` to `0.6.0-beta.3` because the embedded App Center frontend changed again.
+- Core self-update treats a transport-only disconnect during Core restart as expected, then waits for `/api/catalog` to recover and verifies that the installed Core version matches the requested target before reporting success.
+- App Center hides unavailable optional package metadata instead of rendering rows full of dashes; status-bearing fields use localized semantic text.
+- Service metadata is rendered only for Core or entries with a declared service contract, avoiding meaningless empty Service rows for RouterForge DNS.
+- App Center technical labels, action states, preflight/Entware metadata, and official RouterForge module descriptions now have explicit RU/EN copy.
+
 ### 2026-09-07 — RouterForge 0.6.0-beta.3 refresh/bootstrap hotfix
 
 - Product snapshot advances to `0.6.0-beta.3`; Core advances from `0.6.0-beta.1` to `0.6.0-beta.2` because the Core frontend/store startup path changed again.

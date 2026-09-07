@@ -27,3 +27,24 @@ modules/dns/frontend/build/
 # Python cache
 __pycache__/
 *.pyc
+
+# RouterForge local/private work products
+/.routerforge-*
+/routerforge-*/
+/private/
+/DEVELOPMENT*.md
+/DEVELOPMENT*.txt
+/ACTION_PLAN*.md
+/ACTION_PLAN*.txt
+/HANDOFF*.md
+/HANDOFF*.txt
+/WORKLOG*.md
+/WORKLOG*.txt
+/MASTER*.md
+/MASTER*.txt
+/PRIVATE_*.md
+/PRIVATE_*.txt
+*.backup
+*.bak
+*.orig
+*.rej

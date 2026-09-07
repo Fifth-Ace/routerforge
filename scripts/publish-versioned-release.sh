@@ -49,11 +49,8 @@ if [ "$MODE" = "--preflight-only" ]; then
 fi
 
 case "$CHANNEL" in
-    beta)
+    beta|stable)
         TARGETS="aarch64-3.10 mips-3.4 mipsel-3.4"
-        ;;
-    stable)
-        TARGETS="aarch64-3.10"
         ;;
 esac
 
@@ -129,21 +126,13 @@ for item in doc.get("components", []):
 PY
 done
 
-if [ "$CHANNEL" = "beta" ]; then
-    python3 scripts/render_universal_bootstrap.py \
-        --channel beta \
-        --release-tag "$TAG" \
-        --target aarch64-3.10 \
-        --target mips-3.4 \
-        --target mipsel-3.4 \
-        --output "$SNAP/routerforge-beta-bootstrap.sh"
-else
-    python3 scripts/render_universal_bootstrap.py \
-        --channel stable \
-        --release-tag "$TAG" \
-        --target aarch64-3.10 \
-        --output "$SNAP/routerforge-stable-bootstrap.sh"
-fi
+python3 scripts/render_universal_bootstrap.py \
+    --channel "$CHANNEL" \
+    --release-tag "$TAG" \
+    --target aarch64-3.10 \
+    --target mips-3.4 \
+    --target mipsel-3.4 \
+    --output "$SNAP/routerforge-${CHANNEL}-bootstrap.sh"
 
 sh -n "$SNAP/routerforge-${CHANNEL}-bootstrap.sh"
 

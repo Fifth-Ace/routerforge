@@ -17,17 +17,17 @@
 Один Core даёт общий интерфейс, API, Центр приложений, авторизацию и управление жизненным циклом пакетов. Остальные возможности подключаются отдельными пакетами и появляются в интерфейсе только после установки.
 
 > [!IMPORTANT]
-> Сейчас поддерживаются только **Keenetic / Netcraze на ARM64 / aarch64** с Entware в `/opt`.
+> Основная аппаратно проверенная платформа — **Keenetic / Netcraze ARM64 / aarch64** с Entware в `/opt`.
 > RouterForge использует KeeneticOS/NDMS-специфичные механизмы (`ndmc`, DNS proxy, policy routing и системные данные роутера) и не позиционируется как универсальная панель для OpenWrt/Linux.
 >
-> MIPS/MipSel уже доступны в Beta только как **experimental preview**: они проходят cross-build/QEMU, но не имеют физической hardware validation и не допускаются в Stable. См. [архитектуры](docs/ARCHITECTURES.md).
+> Stable 0.6 также публикует **MIPS / MIPSel как experimental preview**. Эти сборки проходят cross-build/QEMU и runtime compatibility probe, но **не проверены на реальном MIPS/MIPSel-железе**. Установка требует явного experimental opt-in и может быть заблокирована runtime probe. См. [архитектуры](docs/ARCHITECTURES.md).
 
 > [!NOTE]
 > RouterForge — независимый community-проект и не является официальным продуктом Keenetic или Netcraze.
 > Исторические ссылки на прежнее имя репозитория продолжают работать через GitHub redirect и compatibility fallback RouterForge.
 
 > [!TIP]
-> Текущий Stable baseline: **Core 0.4.5 + DNS 0.4.20**. Компоненты версионируются независимо, поэтому номера Core и модулей не обязаны совпадать.
+> Stable 0.6 baseline: **RouterForge Core 0.6.0**. DNS 0.4.20 и остальные официальные модули версионируются независимо и устанавливаются по необходимости через Центр приложений.
 
 ## Что умеет RouterForge
 
@@ -148,7 +148,7 @@ RouterForge Core
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
-Bootstrap устанавливает актуальные **Core + DNS** из stable release, причём версии берутся из release-index независимо друг от друга. Каждый IPK проверяется по SHA256 до `opkg install`.
+Bootstrap устанавливает актуальный **RouterForge Core** из stable release и проверяет IPK по SHA256 до `opkg install`.
 
 После установки:
 
@@ -156,7 +156,7 @@ Bootstrap устанавливает актуальные **Core + DNS** из st
 http://<ip-роутера>:2233
 ```
 
-Остальные официальные модули ставятся из **Центр приложений**.
+DNS, мониторинг, управление и остальные официальные возможности устанавливаются по необходимости из **Центра приложений**. Уже установленные optional-пакеты bootstrap сам по себе не удаляет.
 
 Подробно: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 

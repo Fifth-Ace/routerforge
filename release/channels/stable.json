@@ -1,96 +1,104 @@
 {
-    "schema_version":  1,
-    "channel":  "stable",
-    "release_version":  "0.4.5",
-    "release_notes":  {
-                          "ru":  {
-                                     "new":  [
-                                                 "Marketplace получил переключение Stable/Beta для официальных модулей RouterForge без автоматической установки пакетов.",
-                                                 "Marketplace теперь показывает выбранный target и блокирует неизвестную архитектуру fail-closed.",
-                                                 "Universal installer и release metadata используют target-aware маршрутизацию пакетов."
-                                             ],
-                                     "fixes":  [
-                                                   "Исправлена доставка обновлённого Core: Stable Core получает новую package version 0.4.5.",
-                                                   "Усилен release flow: immutable snapshot проверяется до изменения rolling release.",
-                                                   "Исправлена нормализация release-index и сохранение уже опубликованных same-version package assets."
-                                               ],
-                                     "compatibility":  [
-                                                           "Stable публикуется только для ARM64 (aarch64-3.10).",
-                                                           "MIPS/MipSel остаются experimental Beta-only до физической аппаратной проверки."
-                                                       ],
-                                     "technical":  [
-                                                       "ARM64 production executables упаковываются UPX 5.2.1 и проверяются через upx -t.",
-                                                       "Stable promotion использует exact artifact из успешного FULL RELEASE на том же commit SHA."
-                                                   ]
-                                 },
-                          "en":  {
-                                     "new":  [
-                                                 "Marketplace can switch Stable/Beta for official RouterForge modules without automatically installing packages.",
-                                                 "Marketplace now exposes the selected target and fails closed on unknown architectures.",
-                                                 "The universal installer and release metadata use target-aware package routing."
-                                             ],
-                                     "fixes":  [
-                                                   "Fixed updated Core delivery by assigning Stable Core package version 0.4.5.",
-                                                   "Hardened release ordering so immutable snapshot preflight happens before rolling release mutation.",
-                                                   "Fixed release-index normalization and preservation of already-published same-version package assets."
-                                               ],
-                                     "compatibility":  [
-                                                           "Stable is published only for ARM64 (aarch64-3.10).",
-                                                           "MIPS/MipSel remain experimental Beta-only targets until physical hardware validation."
-                                                       ],
-                                     "technical":  [
-                                                       "ARM64 production executables are packed with UPX 5.2.1 and verified with upx -t.",
-                                                       "Stable promotion reuses the exact artifact from a successful FULL RELEASE on the same commit SHA."
-                                                   ]
-                                 }
-                      },
-    "components":  [
-                       {
-                           "id":  "routerforge-core",
-                           "package":  "routerforge-core",
-                           "version":  "0.4.5"
-                       },
-                       {
-                           "id":  "dns",
-                           "package":  "routerforge-dns",
-                           "version":  "0.4.20",
-                           "min_core_version":  "0.4.2"
-                       },
-                       {
-                           "id":  "admin",
-                           "package":  "routerforge-admin",
-                           "version":  "0.3.1",
-                           "min_core_version":  "0.3.0"
-                       },
-                       {
-                           "id":  "system",
-                           "package":  "routerforge-system",
-                           "version":  "0.3.1",
-                           "min_core_version":  "0.3.0"
-                       },
-                       {
-                           "id":  "thermal",
-                           "package":  "routerforge-thermal",
-                           "version":  "0.3.2",
-                           "min_core_version":  "0.3.0"
-                       },
-                       {
-                           "id":  "storage",
-                           "package":  "routerforge-storage",
-                           "version":  "0.3.2",
-                           "min_core_version":  "0.3.0"
-                       },
-                       {
-                           "id":  "network",
-                           "package":  "routerforge-network",
-                           "version":  "0.3.3",
-                           "min_core_version":  "0.3.0"
-                       },
-                       {
-                           "id":  "profiling",
-                           "package":  "routerforge-profiling",
-                           "version":  "0.3.0",
-                           "min_core_version":  "0.3.0"
-                       }
-                   ]
+    "schema_version": 1,
+    "channel": "stable",
+    "release_version": "0.6.0",
+    "release_notes": {
+        "ru": {
+            "new": [
+                "RouterForge 0.6 переводит Home в единый центр состояния и внимания с identity устройства, channel/Core status, uptime и телеметрией.",
+                "Центр приложений объединяет официальные RouterForge-компоненты, curated-интеграции и Entware/OPKG с отдельными вкладками Installed/Updates.",
+                "Generic OPKG получил detail/preflight, зависимости, размеры и guarded async install/update/remove jobs с SSE, cancel, timeout, history и post-verify.",
+                "Fresh Stable 0.6 bootstrap устанавливает только RouterForge Core; DNS, мониторинг, управление и остальные capabilities выбираются после запуска через Центр приложений."
+            ],
+            "fixes": [
+                "Home не создаёт ложные Core/App Center/DNS alerts во время начальной загрузки и корректно пересчитывает Attention после hydration stores.",
+                "CPU/RAM/temperature/storage telemetry запускается сразу после catalog hydration; stale pre-catalog refresh не может перезаписать свежие данные.",
+                "Core self-update переживает ожидаемый restart-разрыв соединения, ждёт восстановления /api/catalog и проверяет фактически установленную target version.",
+                "Карточки Центра приложений скрывают отсутствующие optional metadata вместо леса прочерков и показывают Service только для компонентов с реальным service contract.",
+                "App Center получил согласованный RU/EN перевод технических подписей, статусов действий, preflight/Entware metadata и официальных описаний RouterForge-модулей."
+            ],
+            "compatibility": [
+                "Stable 0.6 публикуется только для ARM64 (aarch64-3.10).",
+                "MIPS/MipSel публикуются в Stable 0.6 как experimental preview: cross-build/QEMU/runtime-probe проверены, но реального hardware validation пока нет; установка требует явного opt-in."
+            ],
+            "technical": [
+                "Компоненты RouterForge версионируются независимо; unchanged Stable module versions сохраняют ранее опубликованные exact assets/checksums.",
+                "Release-index остаётся authoritative source для RouterForge package lifecycle; Packages/Packages.gz остаются параллельным OPKG-представлением.",
+                "Stable promotion требует successful FULL RELEASE на dev для exact commit SHA и использует его exact stable-promotion artifact."
+            ]
+        },
+        "en": {
+            "new": [
+                "RouterForge 0.6 turns Home into a unified status and attention center with device identity, channel/Core state, uptime, and telemetry.",
+                "App Center combines official RouterForge components, curated integrations, and Entware/OPKG with dedicated Installed and Updates views.",
+                "Generic OPKG now has detail/preflight, dependency and size metadata, plus guarded async install/update/remove jobs with SSE, cancellation, timeout, history, and post-verification.",
+                "A fresh Stable 0.6 bootstrap installs RouterForge Core only; DNS, monitoring, control, and other capabilities are selected afterwards from App Center."
+            ],
+            "fixes": [
+                "Home no longer raises false Core/App Center/DNS alerts during initial loading and recomputes Attention correctly after store hydration.",
+                "CPU/RAM/temperature/storage telemetry starts immediately after catalog hydration, and stale pre-catalog refreshes cannot overwrite fresh data.",
+                "Core self-update tolerates the expected restart disconnect, waits for /api/catalog to recover, and verifies the actually installed target version.",
+                "App Center cards hide unavailable optional metadata instead of rendering rows of dashes and show Service only for components with a real service contract.",
+                "App Center now has consistent RU/EN localization for technical labels, action states, preflight/Entware metadata, and official RouterForge module descriptions."
+            ],
+            "compatibility": [
+                "Stable 0.6 is published for ARM64 (aarch64-3.10) only.",
+                "MIPS/MipSel are published in Stable 0.6 as experimental previews: cross-build/QEMU/runtime-probe gates pass, but physical hardware validation is still missing and installation requires explicit opt-in."
+            ],
+            "technical": [
+                "RouterForge components are versioned independently; unchanged Stable module versions retain their previously published exact assets and checksums.",
+                "The release index remains authoritative for RouterForge package lifecycle while Packages/Packages.gz remain a parallel OPKG representation.",
+                "Stable promotion requires a successful FULL RELEASE on dev for the exact commit SHA and reuses that run's exact stable-promotion artifact."
+            ]
+        }
+    },
+    "components": [
+        {
+            "id": "routerforge-core",
+            "package": "routerforge-core",
+            "version": "0.6.0"
+        },
+        {
+            "id": "dns",
+            "package": "routerforge-dns",
+            "version": "0.4.20",
+            "min_core_version": "0.4.2"
+        },
+        {
+            "id": "admin",
+            "package": "routerforge-admin",
+            "version": "0.3.1",
+            "min_core_version": "0.3.0"
+        },
+        {
+            "id": "system",
+            "package": "routerforge-system",
+            "version": "0.3.1",
+            "min_core_version": "0.3.0"
+        },
+        {
+            "id": "thermal",
+            "package": "routerforge-thermal",
+            "version": "0.3.2",
+            "min_core_version": "0.3.0"
+        },
+        {
+            "id": "storage",
+            "package": "routerforge-storage",
+            "version": "0.3.2",
+            "min_core_version": "0.3.0"
+        },
+        {
+            "id": "network",
+            "package": "routerforge-network",
+            "version": "0.3.3",
+            "min_core_version": "0.3.0"
+        },
+        {
+            "id": "profiling",
+            "package": "routerforge-profiling",
+            "version": "0.3.0",
+            "min_core_version": "0.3.0"
+        }
+    ]
 }

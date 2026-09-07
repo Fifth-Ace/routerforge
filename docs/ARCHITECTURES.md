@@ -7,15 +7,19 @@ RouterForge packages are Entware IPKs. Package architecture и Go target свя�
 
 | RouterForge target | Go target | Entware feed family | Release status |
 | --- | --- | --- | --- |
-| `aarch64-3.10` | `GOARCH=arm64` | `aarch64-k3.10` | **Stable / Beta supported** |
-| `mips-3.4` | `GOARCH=mips`, `GOMIPS=softfloat` | `mipssf-k3.4` | **Beta experimental preview only** |
-| `mipsel-3.4` | `GOARCH=mipsle`, `GOMIPS=softfloat` | `mipselsf-k3.4` | **Beta experimental preview only** |
+| `aarch64-3.10` | `GOARCH=arm64` | `aarch64-k3.10` | **Stable / Beta — hardware validated** |
+| `mips-3.4` | `GOARCH=mips`, `GOMIPS=softfloat` | `mipssf-k3.4` | **Stable / Beta experimental preview — NOT hardware tested** |
+| `mipsel-3.4` | `GOARCH=mipsle`, `GOMIPS=softfloat` | `mipselsf-k3.4` | **Stable / Beta experimental preview — NOT hardware tested** |
 
-AArch64 — основной аппаратно проверяемый target.
+AArch64 — основной аппаратно проверенный target.
 
-MIPS/MIPSel уже cross-build'ятся, проходят runtime smoke под QEMU и могут публиковаться в
-Beta как experimental preview. Это **не аппаратная валидация**: у проекта нет физического
-MIPS/MIPSel test router, поэтому Stable для этих target остаётся заблокированным.
+MIPS/MIPSel cross-build'ятся, проходят runtime smoke под QEMU и runtime compatibility probe.
+Начиная со Stable 0.6 они публикуются и в Stable release как **experimental preview**, но это
+не аппаратная валидация: у проекта нет физического MIPS/MIPSel test router.
+
+Публикация пакета не означает production support. MIPS/MipSel installer сохраняет explicit
+experimental opt-in и fail-closed probe: `blocked` нельзя обойти, а `degraded` требует
+отдельного явного подтверждения.
 
 ## Universal installer
 
@@ -32,7 +36,7 @@ opkg print-architecture
 - при неоднозначности интерактивный TTY может показать выбор;
 - без TTY target можно задать через `ROUTERFORGE_TARGET`.
 
-Для MIPS/MIPSel Beta требуется явное подтверждение experimental режима:
+Для MIPS/MIPSel Stable/Beta требуется явное подтверждение experimental режима:
 
 ```sh
 ROUTERFORGE_MIPS_PREVIEW=1
@@ -45,7 +49,7 @@ ROUTERFORGE_MIPS_PREVIEW=1
 ROUTERFORGE_MIPS_ALLOW_DEGRADED=1
 ```
 
-Stable bootstrap MIPS/MIPSel не открывает.
+Статус `blocked` не может быть overridden.
 
 ## Build target selection
 
@@ -83,20 +87,22 @@ CI currently checks, depending on scope/full-release mode:
 
 - Core/Control/DNS/monitoring cross-build;
 - target-specific IPK architecture;
-- planned MIPS/MIPSel builds;
+- MIPS/MipSel builds;
 - MIPS runtime under QEMU;
-- universal bootstrap quarantine/compatibility rules.
+- universal bootstrap quarantine/compatibility rules;
+- Stable multiarch promotion candidate checksums and package architecture.
 
 CI/QEMU do **not** prove:
 
 - real KeeneticOS startup on MIPS hardware;
 - Module ABI Unix-socket behavior on that hardware generation;
 - DNS capture/control against real MIPS Keenetic firmware;
-- real install/update/remove/rollback behavior.
+- real install/update/remove/rollback behavior;
+- acceptable resource footprint on representative low-memory MIPS hardware.
 
-## Before Stable MIPS/MIPSel
+## Physical validation backlog for MIPS/MipSel
 
-Stable support requires physical validation for each target:
+MIPS/MipSel remain explicitly experimental until physical validation covers each target:
 
 1. Core starts and `/api/health` is healthy.
 2. Module ABI Unix sockets work.
@@ -106,4 +112,5 @@ Stable support requires physical validation for each target:
 6. Install, update, rollback and uninstall are exercised.
 7. Resource footprint is acceptable on representative low-memory hardware.
 
-Until then MIPS/MipSel remain Beta experimental preview only.
+Until that pass exists, release notes and documentation must continue to mark MIPS/MipSel
+as **not hardware tested**.

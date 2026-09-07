@@ -5,7 +5,8 @@
 RouterForge рассчитан на:
 
 - Keenetic / Netcraze с KeeneticOS/NDMS;
-- ARM64 / aarch64;
+- ARM64 / aarch64 — основной аппаратно проверенный target;
+- MIPS / MIPSel — experimental Stable/Beta preview без физической hardware validation;
 - Entware в `/opt`;
 - рабочий `/opt/bin/opkg` или `opkg` в `PATH`;
 - `sha256sum`;
@@ -13,14 +14,15 @@ RouterForge рассчитан на:
 
 Web UI работает на порту **2233**.
 
-Текущий production baseline:
+Текущий Stable 0.6 baseline:
 
 ```text
-routerforge-core  0.4.5
-routerforge-dns   0.4.20
+product           0.6.0
+routerforge-core  0.6.0
+routerforge-dns   0.4.20  (optional)
 ```
 
-DNS 0.4.20 требует Core не ниже 0.4.2. Текущий опубликованный Stable 0.4.5 bootstrap ставит совместимые Core + DNS из release-index; 0.6 Beta использует Core-only fresh bootstrap.
+Компоненты версионируются независимо. Fresh Stable 0.6 bootstrap устанавливает только RouterForge Core; DNS и остальные официальные возможности выбираются после запуска через Центр приложений. Уже установленные optional-пакеты bootstrap сам по себе не удаляет.
 
 ## Stable — рекомендуемый канал
 
@@ -36,13 +38,12 @@ Bootstrap генерируется CI из актуального `routerforge-s
 
 1. проверяет ARM64 и Entware;
 2. определяет `opkg`;
-3. скачивает **точные** Core и DNS assets из release-index;
-4. сверяет SHA256 каждого IPK;
+3. скачивает **точный** Core asset из release-index;
+4. сверяет SHA256 IPK;
 5. устанавливает `routerforge-core`;
-6. устанавливает `routerforge-dns`;
-7. оставляет остальные capabilities на выбор пользователя через Центр приложений.
+6. оставляет DNS и остальные capabilities на выбор пользователя через Центр приложений.
 
-Core и DNS могут иметь разные версии — bootstrap не предполагает общий номер версии.
+Core и модули могут иметь разные версии — bootstrap не предполагает общий номер версии.
 
 После установки:
 
@@ -60,14 +61,48 @@ echo
 echo "=== PACKAGES ==="
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
 
-echo "=== DNS MODULE ==="
-cat /opt/share/routerforge/modules/dns/manifest.json 2>/dev/null
-echo
-wget -qO- http://127.0.0.1:2233/api/modules/dns/health
-echo
+echo "=== OPTIONAL DNS MODULE ==="
+if /opt/bin/opkg list-installed | grep -q '^routerforge-dns '; then
+    cat /opt/share/routerforge/modules/dns/manifest.json 2>/dev/null
+    echo
+    wget -qO- http://127.0.0.1:2233/api/modules/dns/health
+    echo
+else
+    echo "routerforge-dns is not installed (optional)"
+fi
 ```
 
 Для Core 0.4.2+ loopback `GET/HEAD /api/modules/<id>/health` используется как readiness probe и остаётся доступен локально даже при включённой RouterForge-auth. Остальные защищённые API по-прежнему требуют сессию.
+
+## MIPS / MIPSel experimental preview
+
+Stable 0.6 и Beta публикуют target-specific пакеты для:
+
+```text
+aarch64-3.10
+mips-3.4
+mipsel-3.4
+```
+
+ARM64 — аппаратно проверенный production target.
+
+MIPS/MipSel проходят cross-build, QEMU runtime smoke и встроенный runtime compatibility probe,
+но **не проверены на реальном MIPS/MipSel-роутере**. Поэтому их установка остаётся experimental
+и требует явного подтверждения.
+
+Для non-interactive установки:
+
+```sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | ROUTERFORGE_MIPS_PREVIEW=1 sh
+```
+
+Если runtime probe вернёт `degraded`, нужен отдельный явный override:
+
+```sh
+ROUTERFORGE_MIPS_ALLOW_DEGRADED=1
+```
+
+Статус `blocked` override'ом не обходится.
 
 ## Beta
 
@@ -104,8 +139,9 @@ Beta через launcher:
 
 ## Что устанавливать дальше
 
-После установки Core откройте **Центр приложений** и установите нужные возможности. На текущем опубликованном Stable 0.4.5 DNS пока также устанавливается bootstrap'ом; в 0.6 Beta fresh bootstrap Core-only:
+После установки Core откройте **Центр приложений** и установите нужные возможности:
 
+- RouterForge DNS;
 - RouterForge Control;
 - System Monitor;
 - Thermal Monitor;

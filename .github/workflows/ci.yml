@@ -130,7 +130,7 @@ jobs:
                 scripts/render_bootstrap.py|scripts/render_universal_bootstrap.py)
                   RELEASE=true
                   ;;
-                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-beta-multiarch.sh|scripts/publish-versioned-release.sh|scripts/verify-published-beta.sh)
+                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-beta-multiarch.sh|scripts/publish-stable-multiarch.sh|scripts/build-stable-multiarch.sh|scripts/verify-stable-promotion.sh|scripts/publish-versioned-release.sh|scripts/verify-published-beta.sh)
                   RELEASE=true
                   ;;
               esac
@@ -163,6 +163,9 @@ jobs:
             echo "Changed files:"
             cat /tmp/routerforge-changed-files.txt
           fi
+      - name: Verify public repository hygiene
+        run: python3 scripts/verify-public-tree.py
+
       - name: Set up Node
         if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
         uses: actions/setup-node@v4
@@ -419,6 +422,9 @@ jobs:
           sh -n scripts/verify-universal-bootstrap.sh
           sh -n scripts/publish-beta-multiarch.sh
           sh -n scripts/publish-versioned-release.sh
+          sh -n scripts/build-stable-multiarch.sh
+          sh -n scripts/verify-stable-promotion.sh
+          sh -n scripts/publish-stable-multiarch.sh
           sh -n scripts/verify-published-beta.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
@@ -569,6 +575,9 @@ jobs:
           assert candidate_index_name("beta", "aarch64-3.10") == "routerforge-beta-candidate-index.json"
           assert candidate_index_name("beta", "mips-3.4") == "routerforge-beta-candidate-index-mips-3.4.json"
           assert candidate_index_name("beta", "mipsel-3.4") == "routerforge-beta-candidate-index-mipsel-3.4.json"
+          assert candidate_index_name("stable", "aarch64-3.10") == "routerforge-stable-candidate-index.json"
+          assert candidate_index_name("stable", "mips-3.4") == "routerforge-stable-candidate-index-mips-3.4.json"
+          assert candidate_index_name("stable", "mipsel-3.4") == "routerforge-stable-candidate-index-mipsel-3.4.json"
 
           with tempfile.TemporaryDirectory() as tmp:
               root = Path(tmp)
@@ -827,53 +836,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: sh scripts/verify-published-beta.sh
 
-      - name: Build stable promotion candidate
+      - name: Build stable multiarch promotion candidate
         if: steps.scope.outputs.full_release == 'true'
-        run: |
-          set -eu
-
-          # Beta multiarch packages share dist with the stable candidate step.
-          # Stable promotion remains ARM64-only until physical MIPS validation.
-          rm -f dist/routerforge-*.ipk
-
-          python3 scripts/build_routerforge_channel.py \
-            --config release/channels/stable.json \
-            --dist dist
-
-          python3 - "$GITHUB_SHA" <<'PY'
-          import hashlib
-          import json
-          import sys
-          from pathlib import Path
-
-          sha = sys.argv[1]
-          dist = Path("dist")
-          index = dist / "routerforge-stable-candidate-index.json"
-
-          with index.open("r", encoding="utf-8") as fh:
-              doc = json.load(fh)
-
-          assert doc["schema_version"] == 1
-          assert doc["channel"] == "stable"
-          assert doc["target"] == "aarch64-3.10"
-          assert doc["commit"] == sha
-
-          components = doc.get("components") or []
-          assert len(components) == 8
-
-          for item in components:
-              asset = item["asset"]
-              expected = item["sha256"]
-              path = dist / asset
-              assert path.is_file(), f"missing {asset}"
-
-              actual = hashlib.sha256(path.read_bytes()).hexdigest()
-              assert actual == expected, (
-                  f"{asset}: sha256 mismatch: {actual} != {expected}"
-              )
-
-          print("stable promotion candidate verified")
-          PY
+        run: sh scripts/build-stable-multiarch.sh "$GITHUB_SHA"
 
       - name: Upload stable promotion candidate
         if: steps.scope.outputs.full_release == 'true'
@@ -882,7 +847,7 @@ jobs:
           name: routerforge-stable-promotion
           path: |
             dist/routerforge-*.ipk
-            dist/routerforge-stable-candidate-index.json
+            dist/routerforge-stable-candidate-index*.json
           retention-days: 14
 
   publish_stable:
@@ -966,194 +931,22 @@ jobs:
 
           find "$TMP" -type f \
             \( -name 'routerforge-*.ipk' \
-               -o -name 'routerforge-stable-candidate-index.json' \) \
+               -o -name 'routerforge-stable-candidate-index*.json' \) \
             -exec cp '{}' dist/ \;
 
           test -s dist/routerforge-stable-candidate-index.json
+          test -s dist/routerforge-stable-candidate-index-mips-3.4.json
+          test -s dist/routerforge-stable-candidate-index-mipsel-3.4.json
 
-      - name: Verify downloaded promotion candidate
-        run: |
-          set -eu
+      - name: Verify downloaded multiarch promotion candidate
+        run: sh scripts/verify-stable-promotion.sh "$GITHUB_SHA"
 
-          python3 - "$GITHUB_SHA" <<'PY'
-          import hashlib
-          import json
-          import sys
-          from pathlib import Path
-
-          sha = sys.argv[1]
-          dist = Path("dist")
-          index = dist / "routerforge-stable-candidate-index.json"
-
-          with index.open("r", encoding="utf-8") as fh:
-              doc = json.load(fh)
-
-          assert doc["schema_version"] == 1
-          assert doc["channel"] == "stable"
-          assert doc["target"] == "aarch64-3.10"
-          assert doc["commit"] == sha
-
-          components = doc.get("components") or []
-          assert len(components) == 8
-
-          for item in components:
-              asset = item["asset"]
-              expected = item["sha256"]
-              path = dist / asset
-
-              assert path.is_file(), f"missing {asset}"
-
-              actual = hashlib.sha256(path.read_bytes()).hexdigest()
-              assert actual == expected, (
-                  f"{asset}: sha256 mismatch: {actual} != {expected}"
-              )
-
-          print("downloaded stable candidate verified")
-          PY
-
-          for pkg in dist/routerforge-*.ipk; do
-            test -s "$pkg"
-            tar -tzf "$pkg" | grep -qx './debian-binary'
-            tar -tzf "$pkg" | grep -qx './control.tar.gz'
-            tar -tzf "$pkg" | grep -qx './data.tar.gz'
-          done
-
-      - name: Prepare and validate stable release locally
+      - name: Prepare and validate stable multiarch release locally
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
+        run: sh scripts/publish-stable-multiarch.sh prepare
 
-          TAG=routerforge-stable
-          INDEX=routerforge-stable-index.json
-          PREVIOUS=/tmp/routerforge-stable-index.json
-          FINAL=dist/$INDEX
-          CHANGED=dist/routerforge-stable-changed-assets.txt
-          SUMS=dist/routerforge-stable-SHA256SUMS
-          BOOTSTRAP=dist/routerforge-stable-bootstrap.sh
-          NOTES=dist/routerforge-stable-release-notes.md
-
-          rm -f "$PREVIOUS"
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release download "$TAG" \
-              -p "$INDEX" \
-              -D /tmp >/dev/null 2>&1 || true
-          fi
-
-          python3 scripts/merge_release_index.py \
-            --candidate dist/routerforge-stable-candidate-index.json \
-            --previous "$PREVIOUS" \
-            --output "$FINAL" \
-            --changed-list "$CHANGED" \
-            --checksums "$SUMS"
-
-          python3 scripts/render_bootstrap.py \
-            --channel stable \
-            --final "$FINAL" \
-            --output "$BOOTSTRAP"
-
-          sh -n "$BOOTSTRAP"
-
-          python3 scripts/render_release_notes.py \
-            --channel stable \
-            --config release/channels/stable.json \
-            --final "$FINAL" \
-            --output "$NOTES" \
-            --commit "$GITHUB_SHA"
-
-          test -s "$FINAL"
-          test -s "$SUMS"
-          test -s "$BOOTSTRAP"
-          test -s "$NOTES"
-
-          while IFS= read -r asset; do
-            [ -n "$asset" ] || continue
-            test -s "dist/$asset"
-          done < "$CHANGED"
-
-          echo "All stable release inputs validated before remote mutation."
-
-      - name: Publish stable release
+      - name: Publish stable multiarch release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-
-          TAG=routerforge-stable
-          INDEX=routerforge-stable-index.json
-          FINAL=dist/$INDEX
-          CHANGED=dist/routerforge-stable-changed-assets.txt
-          SUMS=dist/routerforge-stable-SHA256SUMS
-          BOOTSTRAP=dist/routerforge-stable-bootstrap.sh
-          NOTES=dist/routerforge-stable-release-notes.md
-
-          # From this point onward remote mutation is allowed.
-          # All build/render/checksum/bootstrap validation has already passed.
-
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" \
-              --latest \
-              --title "RouterForge Stable" \
-              --notes "RouterForge stable channel is being initialized."
-          fi
-
-          # Upload component assets first. The public index is still the old one
-          # until every required package is already present.
-          while IFS= read -r asset; do
-            [ -n "$asset" ] || continue
-            gh release upload "$TAG" \
-              --clobber \
-              "dist/$asset"
-          done < "$CHANGED"
-
-          # Publish discovery metadata only after all referenced packages exist.
-          gh release upload "$TAG" \
-            --clobber \
-            "$FINAL" \
-            "$SUMS" \
-            "$BOOTSTRAP"
-
-          python3 - "$FINAL" > /tmp/routerforge-stable-current-assets.txt <<'PY'
-          import json
-          import sys
-
-          with open(sys.argv[1], "r", encoding="utf-8") as fh:
-              doc = json.load(fh)
-
-          for item in doc.get("components", []):
-              asset = item.get("asset")
-              if asset:
-                  print(asset)
-          PY
-
-          gh release view "$TAG" --json assets --jq '.assets[].name' |
-          while IFS= read -r asset; do
-            case "$asset" in
-              routerforge-*.ipk)
-                if ! grep -Fxq \
-                  "$asset" \
-                  /tmp/routerforge-stable-current-assets.txt
-                then
-                  gh release delete-asset \
-                    "$TAG" \
-                    "$asset" \
-                    --yes
-                fi
-                ;;
-            esac
-          done
-
-          gh release edit "$TAG" \
-            --latest \
-            --title "RouterForge Stable" \
-            --notes-file "$NOTES"
-
-          # Preserve an immutable rollback snapshot after the rolling Stable
-          # alias is coherent. Existing versioned tags are never overwritten.
-          sh scripts/publish-versioned-release.sh stable
-
-          # routerforge-stable is a permanent release anchor.
-          # The exact product commit is recorded in the release index/notes.
-          # CI intentionally does not move the Git ref.
-          echo "Stable promotion complete: $GITHUB_SHA"
+        run: sh scripts/publish-stable-multiarch.sh publish

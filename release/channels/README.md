@@ -25,4 +25,16 @@ routerforge-<channel>-SHA256SUMS
 routerforge-<channel>-bootstrap.sh
 ```
 
-The bootstrap script is generated from the final merged release index, so Core and DNS can be installed even when their versions differ.
+The bootstrap script is generated from the final merged release index and installs RouterForge Core only. Optional RouterForge modules are selected afterwards from App Center; their versions remain independent from Core and from each other.
+
+Stable 0.6 and Beta publish target-specific indexes for:
+
+```text
+aarch64-3.10
+mips-3.4
+mipsel-3.4
+```
+
+AArch64 is the hardware-validated target. MIPS/MipSel are published as experimental previews
+only: they pass cross-build/QEMU/runtime-probe gates but have not been validated on physical
+hardware. Their target bootstrap keeps the explicit preview opt-in and fail-closed runtime probe.

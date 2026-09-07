@@ -4,6 +4,18 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-07 — RouterForge 0.6.0
+
+### Stable highlights
+
+- RouterForge Core advances to `0.6.0` after the `0.6.0-beta.4` ARM64 hardware validation pass; the product Stable snapshot is `0.6.0`.
+- Home is now a unified, path-aware Attention Center with device identity, channel/Core state, uptime, telemetry, default-route detection, sustained CPU detection, and actionable warning/critical counting.
+- App Center replaces the old user-facing Marketplace surface and combines official RouterForge packages, curated integrations, generic Entware/OPKG, async lifecycle jobs, history, and update aggregation.
+- Fresh Stable 0.6 bootstrap is Core-only. DNS, monitoring, control, profiling, and integrations are selected afterwards from App Center; already-installed optional packages are preserved.
+- Core self-update is restart-safe, stale refresh races are generation-guarded, startup loading is distinct from confirmed outage, and fast telemetry publishes without waiting for slower supplemental providers.
+- App Center metadata presentation and RU/EN localization were hardened during the final Beta hardware pass.
+- Stable 0.6 publishes ARM64 plus MIPS/MipSel target packages. ARM64 is hardware validated; MIPS/MipSel remain experimental, require explicit opt-in/runtime probing, and are clearly marked as not tested on physical hardware.
+
 ### 2026-09-07 — RouterForge 0.6.0-beta.4 App Center self-update/i18n hotfix
 
 - Product snapshot advances to `0.6.0-beta.4`; Core advances from `0.6.0-beta.2` to `0.6.0-beta.3` because the embedded App Center frontend changed again.

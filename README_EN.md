@@ -17,17 +17,17 @@
 A single Core provides the UI, API, App Center, authentication and package lifecycle. Optional capabilities are shipped as independent packages and appear in the UI only when installed.
 
 > [!IMPORTANT]
-> The supported target is currently **Keenetic / Netcraze on ARM64 / aarch64** with Entware mounted at `/opt`.
+> The primary hardware-validated platform is **Keenetic / Netcraze on ARM64 / aarch64** with Entware mounted at `/opt`.
 > RouterForge relies on KeeneticOS/NDMS-specific facilities such as `ndmc`, the native DNS proxy and policy routing. It is not intended to be a generic OpenWrt/Linux dashboard.
 >
-> MIPS/MipSel are available in Beta only as an **experimental preview**: they pass cross-build/QEMU checks but have no physical hardware validation and remain blocked from Stable. See [architectures](docs/ARCHITECTURES.md).
+> Stable 0.6 also publishes **MIPS / MIPSel as an experimental preview**. These builds pass cross-build/QEMU checks and the runtime compatibility probe, but **have not been validated on physical MIPS/MIPSel hardware**. Installation requires explicit experimental opt-in and may still be blocked by the runtime probe. See [architectures](docs/ARCHITECTURES.md).
 
 > [!NOTE]
 > RouterForge is an independent community project and is not an official Keenetic or Netcraze product.
 > Historical links using the previous repository name remain supported through GitHub redirects and the RouterForge compatibility fallback.
 
 > [!TIP]
-> Current Stable baseline: **Core 0.4.5 + DNS 0.4.20**. Components are versioned independently, so Core and module versions do not need to match.
+> Stable 0.6 baseline: **RouterForge Core 0.6.0**. DNS 0.4.20 and the other official modules are versioned independently and installed as needed from App Center.
 
 ## What RouterForge provides
 
@@ -148,7 +148,7 @@ Recommended public channel:
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
-The bootstrap installs the current **Core + DNS** from the stable release. Their versions are resolved independently from the release index, and each IPK is SHA256-verified before `opkg install`.
+The bootstrap installs the current **RouterForge Core** from the stable release and SHA256-verifies the IPK before `opkg install`.
 
 Then open:
 
@@ -156,7 +156,7 @@ Then open:
 http://<router-ip>:2233
 ```
 
-Install other official capabilities from **App Center**.
+Install DNS, monitoring, control, and other official capabilities as needed from **App Center**. Existing optional packages are not removed by the bootstrap itself.
 
 Detailed installation guide: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 

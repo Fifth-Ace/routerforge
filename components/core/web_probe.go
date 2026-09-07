@@ -168,10 +168,11 @@ func probeCatalogWeb(ctx context.Context, item catalogItem, doer catalogWebProbe
 	result.StatusCode = resp.StatusCode
 	result.Redirect = resp.StatusCode >= 300 && resp.StatusCode <= 399
 	result.XFrameOptions = strings.TrimSpace(strings.Join(resp.Header.Values("X-Frame-Options"), ", "))
-	result.CSPFrameAncestors = catalogFrameAncestors(strings.Join(resp.Header.Values("Content-Security-Policy"), "; "))
+	frameAncestors := catalogFrameAncestorsPolicies(resp.Header.Values("Content-Security-Policy"))
+	result.CSPFrameAncestors = strings.Join(frameAncestors, " | ")
 	result.AccessControlAllowOrig = strings.TrimSpace(resp.Header.Get("Access-Control-Allow-Origin"))
 	result.SetCookieCount = len(resp.Header.Values("Set-Cookie"))
-	result.FrameHeaderPolicy = catalogFrameHeaderPolicy(result.XFrameOptions, result.CSPFrameAncestors)
+	result.FrameHeaderPolicy = catalogFrameHeaderPolicy(result.XFrameOptions, frameAncestors)
 
 	return result
 }
@@ -211,36 +212,61 @@ func newCatalogWebProbeClient() *http.Client {
 }
 
 func catalogFrameAncestors(csp string) string {
-	for _, directive := range strings.Split(csp, ";") {
-		fields := strings.Fields(strings.TrimSpace(directive))
-		if len(fields) == 0 {
-			continue
-		}
-		if strings.EqualFold(fields[0], "frame-ancestors") {
-			return strings.Join(fields[1:], " ")
-		}
+	policies := catalogFrameAncestorsPolicies([]string{csp})
+	if len(policies) == 0 {
+		return ""
 	}
-	return ""
+	return policies[0]
 }
 
-func catalogFrameHeaderPolicy(xFrameOptions, frameAncestors string) string {
+func catalogFrameAncestorsPolicies(values []string) []string {
+	policies := make([]string, 0, len(values))
+	for _, csp := range values {
+		for _, directive := range strings.Split(csp, ";") {
+			fields := strings.Fields(strings.TrimSpace(directive))
+			if len(fields) == 0 || !strings.EqualFold(fields[0], "frame-ancestors") {
+				continue
+			}
+			policies = append(policies, strings.Join(fields[1:], " "))
+			break
+		}
+	}
+	return policies
+}
+
+func catalogFrameHeaderPolicy(xFrameOptions string, frameAncestors []string) string {
 	xfo := strings.ToLower(strings.TrimSpace(xFrameOptions))
 	if strings.Contains(xfo, "deny") || strings.Contains(xfo, "sameorigin") {
 		return "blocked"
 	}
-
-	ancestors := strings.ToLower(strings.TrimSpace(frameAncestors))
-	if ancestors == "" {
-		if xfo == "" {
-			return "no-blocking-header-detected"
-		}
+	if xfo != "" {
 		return "restricted"
 	}
-	if strings.Contains(ancestors, "'none'") {
-		return "blocked"
-	}
-	if strings.Contains(ancestors, "*") {
+	if len(frameAncestors) == 0 {
 		return "no-blocking-header-detected"
 	}
-	return "restricted"
+
+	restricted := false
+	for _, policy := range frameAncestors {
+		tokens := strings.Fields(strings.ToLower(strings.TrimSpace(policy)))
+		if len(tokens) == 0 {
+			return "blocked"
+		}
+		wildcardAll := false
+		for _, token := range tokens {
+			if token == "'none'" {
+				return "blocked"
+			}
+			if token == "*" {
+				wildcardAll = true
+			}
+		}
+		if !wildcardAll {
+			restricted = true
+		}
+	}
+	if restricted {
+		return "restricted"
+	}
+	return "no-blocking-header-detected"
 }

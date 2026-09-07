@@ -101,16 +101,22 @@ func TestCatalogFrameHeaderPolicy(t *testing.T) {
 	tests := []struct {
 		name      string
 		xfo       string
-		ancestors string
+		ancestors []string
 		want      string
 	}{
 		{name: "none", want: "no-blocking-header-detected"},
 		{name: "xfo deny", xfo: "DENY", want: "blocked"},
 		{name: "xfo sameorigin", xfo: "SAMEORIGIN", want: "blocked"},
-		{name: "csp none", ancestors: "'none'", want: "blocked"},
-		{name: "csp wildcard", ancestors: "*", want: "no-blocking-header-detected"},
-		{name: "csp self", ancestors: "'self'", want: "restricted"},
-		{name: "csp explicit", ancestors: "http://router.local:2233", want: "restricted"},
+		{name: "xfo unknown", xfo: "ALLOW-FROM http://router.local", ancestors: []string{"*"}, want: "restricted"},
+		{name: "csp none", ancestors: []string{"'none'"}, want: "blocked"},
+		{name: "csp wildcard", ancestors: []string{"*"}, want: "no-blocking-header-detected"},
+		{name: "csp wildcard host", ancestors: []string{"https://*.example.com"}, want: "restricted"},
+		{name: "csp self", ancestors: []string{"'self'"}, want: "restricted"},
+		{name: "csp explicit", ancestors: []string{"http://router.local:2233"}, want: "restricted"},
+		{name: "multiple wildcard", ancestors: []string{"*", "*"}, want: "no-blocking-header-detected"},
+		{name: "multiple block", ancestors: []string{"*", "'none'"}, want: "blocked"},
+		{name: "multiple restrict", ancestors: []string{"*", "'self'"}, want: "restricted"},
+		{name: "empty directive", ancestors: []string{""}, want: "blocked"},
 	}
 
 	for _, tt := range tests {
@@ -128,5 +134,51 @@ func TestCatalogFrameAncestorsExtraction(t *testing.T) {
 	want := "'self' http://router.local:2233"
 	if got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestCatalogFrameAncestorsPoliciesKeepAllHeaders(t *testing.T) {
+	got := catalogFrameAncestorsPolicies([]string{
+		"default-src 'self'; frame-ancestors *",
+		"img-src *; frame-ancestors 'none'",
+	})
+	if len(got) != 2 || got[0] != "*" || got[1] != "'none'" {
+		t.Fatalf("unexpected frame-ancestors policies: %#v", got)
+	}
+}
+
+func TestCatalogWebProbeMultipleCSPHeadersAreConservative(t *testing.T) {
+	item := catalogItem{
+		ID:        "nfqws-web",
+		Installed: true,
+		Trust:     catalogTrust{Status: "verified"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   90,
+			Path:   "/",
+			Mode:   "embedded-supported",
+			Embed:  true,
+		},
+	}
+
+	doer := catalogWebProbeDoerFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Security-Policy": []string{
+					"default-src 'self'; frame-ancestors *",
+					"frame-ancestors 'none'",
+				},
+			},
+			Body: io.NopCloser(strings.NewReader("")),
+		}, nil
+	})
+
+	result := probeCatalogWeb(context.Background(), item, doer)
+	if result.CSPFrameAncestors != "* | 'none'" {
+		t.Fatalf("unexpected CSP summary: %q", result.CSPFrameAncestors)
+	}
+	if result.FrameHeaderPolicy != "blocked" {
+		t.Fatalf("multiple enforced CSP headers must block, got %q", result.FrameHeaderPolicy)
 	}
 }

@@ -1,7 +1,7 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.6.0-beta.4",
+    "release_version": "0.6.0-beta.5",
     "release_notes": {
         "ru": {
             "new": [
@@ -92,7 +92,7 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.6.0-beta.3"
+            "version": "0.6.0-beta.4"
         },
         {
             "id": "dns",

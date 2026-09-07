@@ -34,6 +34,7 @@ CORE_SOURCES="
 main.go
 core_log.go
 web.go
+web_probe.go
 admin_proxy.go
 module_proxy.go
 auth.go

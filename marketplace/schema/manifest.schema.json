@@ -79,7 +79,8 @@
     "web": {
       "type": "object",
       "required": [
-        "port"
+        "port",
+        "mode"
       ],
       "additionalProperties": false,
       "properties": {
@@ -98,10 +99,41 @@
           "type": "string",
           "pattern": "^/[^\\r\\n]*$"
         },
+        "mode": {
+          "enum": [
+            "external-only",
+            "embedded-supported",
+            "unsupported-version"
+          ]
+        },
         "embed": {
           "type": "boolean"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "embed"
+            ],
+            "properties": {
+              "embed": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "const": "embedded-supported"
+              }
+            }
+          }
+        }
+      ]
     },
     "detection": {
       "type": "object",

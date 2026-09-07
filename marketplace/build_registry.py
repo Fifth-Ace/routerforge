@@ -15,6 +15,7 @@ ALLOWED_KINDS = {"module", "integration"}
 ALLOWED_METHODS = {"routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy"}
 ALLOWED_STEPS = {"opkg-update", "opkg-install", "opkg-upgrade", "opkg-remove", "write-opkg-feed"}
 ALLOWED_APPROVALS = {"official", "verified", "blocked", "deprecated"}
+ALLOWED_WEB_MODES = {"external-only", "embedded-supported", "unsupported-version"}
 
 
 def canonical(obj):
@@ -33,6 +34,35 @@ def load_json(path):
 def validate_package(value, where):
     if not value or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789-+._" for ch in value):
         raise ValueError(f"{where}: unsafe package {value!r}")
+
+
+def validate_web(web, where):
+    if web is None:
+        return
+    if not isinstance(web, dict):
+        raise ValueError(f"{where}: web must be an object")
+    unknown = set(web) - {"scheme", "port", "path", "mode", "embed"}
+    if unknown:
+        raise ValueError(f"{where}: unknown web keys {sorted(unknown)!r}")
+    port = web.get("port")
+    if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+        raise ValueError(f"{where}: web.port must be an integer between 1 and 65535")
+    scheme = web.get("scheme", "")
+    if scheme not in {"", "http", "https"}:
+        raise ValueError(f"{where}: web.scheme must be http or https")
+    path = web.get("path", "")
+    if not isinstance(path, str):
+        raise ValueError(f"{where}: web.path must be a string")
+    if path and (not path.startswith("/") or "\r" in path or "\n" in path):
+        raise ValueError(f"{where}: web.path must be an absolute local path")
+    mode = web.get("mode")
+    if mode not in ALLOWED_WEB_MODES:
+        raise ValueError(f"{where}: invalid or missing web.mode {mode!r}")
+    embed = web.get("embed", False)
+    if not isinstance(embed, bool):
+        raise ValueError(f"{where}: web.embed must be boolean")
+    if embed and mode != "embedded-supported":
+        raise ValueError(f"{where}: web.embed requires mode=embedded-supported")
 
 
 def validate_plan(plan, where):
@@ -75,6 +105,7 @@ def validate_manifest(obj, path):
         raise ValueError(f"{path.name}: filename must match id")
     if not obj["publisher"].get("id") or not obj["publisher"].get("name"):
         raise ValueError(f"{path.name}: publisher.id/name required")
+    validate_web(obj.get("web"), obj["id"])
     for key in ("install", "update", "remove"):
         validate_plan(obj.get(key), f"{obj['id']}.{key}")
 

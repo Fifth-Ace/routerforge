@@ -36,6 +36,7 @@ type catalogWebMetadata struct {
 	Scheme string `json:"scheme,omitempty"`
 	Port   int    `json:"port,omitempty"`
 	Path   string `json:"path,omitempty"`
+	Mode   string `json:"mode,omitempty"`
 	Embed  bool   `json:"embed,omitempty"`
 }
 

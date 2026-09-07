@@ -25,6 +25,7 @@
     "scheme": "http",
     "port": 90,
     "path": "/",
+    "mode": "external-only",
     "embed": false
   },
   "compatibility": {

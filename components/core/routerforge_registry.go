@@ -318,10 +318,21 @@ func validateCatalogWebMetadata(meta *catalogWebMetadata) error {
 	if meta.Scheme != "" && meta.Scheme != "http" && meta.Scheme != "https" {
 		return fmt.Errorf("web scheme must be http or https")
 	}
+	if meta.Mode == "" {
+		return fmt.Errorf("web mode is required")
+	}
+	switch meta.Mode {
+	case "external-only", "embedded-supported", "unsupported-version":
+	default:
+		return fmt.Errorf("web mode must be external-only, embedded-supported, or unsupported-version")
+	}
 	if meta.Path != "" {
 		if !strings.HasPrefix(meta.Path, "/") || strings.ContainsAny(meta.Path, "\r\n") {
 			return fmt.Errorf("web path must be an absolute local path")
 		}
+	}
+	if meta.Embed && meta.Mode != "embedded-supported" {
+		return fmt.Errorf("web embed requires embedded-supported mode")
 	}
 	return nil
 }

@@ -143,6 +143,64 @@ export function catalogWebURL(item = {}, legacyScheme = 'current') {
   return `${scheme}//${hostName}:${port}${path}`;
 }
 
+export function catalogWebSecurityDecision(item = {}, auth = {}) {
+  const url = catalogWebURL(item);
+  const decision = {
+    url,
+    externalAllowed: Boolean(url),
+    embedAllowed: false,
+    credentialRisk: false,
+    mixedContent: false,
+    reason: ''
+  };
+
+  if (!url || typeof location === 'undefined') {
+    decision.externalAllowed = false;
+    decision.reason = 'no-url';
+    return decision;
+  }
+
+  let target;
+  try {
+    target = new URL(url, location.href);
+  } catch {
+    decision.externalAllowed = false;
+    decision.reason = 'invalid-url';
+    return decision;
+  }
+
+  const normalizeHost = (value) => String(value || '')
+    .replace(/^\[/, '')
+    .replace(/\]$/, '')
+    .toLowerCase();
+
+  const currentHost = normalizeHost(location.hostname);
+  const targetHost = normalizeHost(target.hostname);
+  const currentPort = location.port || (location.protocol === 'https:' ? '443' : '80');
+  const targetPort = target.port || (target.protocol === 'https:' ? '443' : '80');
+  const sameHostDifferentPort = currentHost === targetHost && currentPort !== targetPort;
+
+  decision.credentialRisk = Boolean(auth?.required && sameHostDifferentPort);
+  if (decision.credentialRisk) {
+    decision.externalAllowed = false;
+    decision.reason = 'session-cookie-cross-port';
+    return decision;
+  }
+
+  decision.mixedContent = location.protocol === 'https:' && target.protocol !== 'https:';
+
+  const web = item?.web || {};
+  const embedRequested = web.mode === 'embedded-supported' && web.embed === true;
+
+  if (embedRequested && decision.mixedContent) {
+    decision.reason = 'mixed-content';
+    return decision;
+  }
+
+  decision.embedAllowed = decision.externalAllowed && embedRequested;
+  return decision;
+}
+
 export function stateInfo(item = {}, locale) {
   const lang = currentLocale(locale);
   switch (item.state) {

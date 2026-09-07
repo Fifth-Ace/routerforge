@@ -1,7 +1,7 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.6.0-beta.3",
+    "release_version": "0.6.0-beta.4",
     "release_notes": {
         "ru": {
             "new": [
@@ -13,6 +13,10 @@
                 "Свежая 0.6 Beta bootstrap-установка устанавливает только RouterForge Core; optional capabilities выбираются после запуска."
             ],
             "fixes": [
+                "Core self-update больше не показывает ложный «Failed to fetch» при штатном restart-разрыве: UI ждёт восстановления /api/catalog и проверяет фактически установленную целевую версию Core перед успешным завершением.",
+                "Карточки RouterForge-модулей больше не заполняются бессмысленными прочерками для отсутствующих optional package metadata; такие строки скрываются, а статусные значения выводятся осмысленно.",
+                "Строка Service теперь показывается только для Core и компонентов с реальным service contract; RouterForge DNS больше не получает пустой Service-row.",
+                "App Center получил полный RU/EN перевод технических подписей, статусов действий, preflight/Entware metadata и официальных описаний RouterForge-модулей.",
                 "Исправлена гонка при полном обновлении страницы: Home больше не сохраняет ложные состояния «Ядро RouterForge недоступно» и «Центр приложений недоступен» после фактического восстановления online-state.",
                 "Начальная загрузка теперь отличает состояние «ещё не загружено» от реального outage для Core и Центра приложений.",
                 "Телеметрия CPU/RAM/temperature/storage запускается сразу после загрузки реального catalog вместо ожидания следующего 10-секундного polling tick.",
@@ -51,6 +55,10 @@
                 "A fresh 0.6 Beta bootstrap installs RouterForge Core only; optional capabilities are selected after startup."
             ],
             "fixes": [
+                "Core self-update no longer reports a false 'Failed to fetch' during the expected restart disconnect: the UI waits for /api/catalog to recover and verifies the actually installed target Core version before declaring success.",
+                "RouterForge module cards no longer fill unavailable optional package metadata with meaningless dashes; absent optional rows are hidden and status values use semantic text.",
+                "The Service row is now shown only for Core and components with a real service contract, so RouterForge DNS no longer renders an empty Service row.",
+                "App Center now has complete RU/EN localization for technical labels, action states, preflight/Entware metadata, and official RouterForge module descriptions.",
                 "Fixed a full-page-refresh race where Home could keep stale 'RouterForge Core is unavailable' and 'App Center is unavailable' alerts after the underlying stores had recovered.",
                 "Initial loading now distinguishes 'not loaded yet' from a confirmed Core or App Center outage.",
                 "CPU/RAM/temperature/storage telemetry refreshes immediately after the real catalog is hydrated instead of waiting for the next 10-second polling tick.",
@@ -84,7 +92,7 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.6.0-beta.2"
+            "version": "0.6.0-beta.3"
         },
         {
             "id": "dns",

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ type catalogWebProbeResult struct {
 	Scheme                 string    `json:"scheme"`
 	Port                   int       `json:"port"`
 	Path                   string    `json:"path"`
+	BrowserURLs            []string  `json:"browser_urls,omitempty"`
 	Reachable              bool      `json:"reachable"`
 	StatusCode             int       `json:"status_code,omitempty"`
 	Redirect               bool      `json:"redirect"`
@@ -123,6 +125,13 @@ func handleCatalogWebProbe(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	result := probeCatalogWeb(ctx, item, nil)
+	if result.Reachable &&
+		result.StatusCode >= http.StatusOK &&
+		result.StatusCode < http.StatusMultipleChoices &&
+		!result.Redirect &&
+		result.FrameHeaderPolicy == "no-blocking-header-detected" {
+		result.BrowserURLs = catalogWebBrowserURLs(ctx, item, r)
+	}
 	writeCatalogJSON(w, http.StatusOK, result)
 }
 
@@ -184,6 +193,224 @@ func probeCatalogWeb(ctx context.Context, item catalogItem, doer catalogWebProbe
 	result.FrameHeaderPolicy = catalogFrameHeaderPolicy(result.XFrameOptions, frameAncestors)
 
 	return result
+}
+
+const (
+	catalogWebBrowserCandidateTimeout = 600 * time.Millisecond
+	catalogWebBrowserCandidateLimit   = 16
+)
+
+func catalogWebBrowserURLs(ctx context.Context, item catalogItem, r *http.Request) []string {
+	if item.Web == nil {
+		return nil
+	}
+
+	hosts := catalogLocalWebHosts(r)
+	if len(hosts) > catalogWebBrowserCandidateLimit {
+		hosts = hosts[:catalogWebBrowserCandidateLimit]
+	}
+
+	urls := make([]string, 0, len(hosts))
+	for _, host := range hosts {
+		if candidate, ok := probeCatalogWebBrowserURL(ctx, item, host); ok {
+			urls = append(urls, candidate)
+		}
+	}
+	return urls
+}
+
+func catalogLocalWebHosts(r *http.Request) []string {
+	discovered := make([]string, 0, 8)
+	interfaces, err := net.Interfaces()
+	if err == nil {
+		for _, iface := range interfaces {
+			addresses, addrErr := iface.Addrs()
+			if addrErr != nil {
+				continue
+			}
+			for _, address := range addresses {
+				var ip net.IP
+				switch value := address.(type) {
+				case *net.IPNet:
+					ip = value.IP
+				case *net.IPAddr:
+					ip = value.IP
+				}
+				if ip == nil || ip.IsLoopback() || !ip.IsGlobalUnicast() {
+					continue
+				}
+				discovered = append(discovered, ip.String())
+			}
+		}
+	}
+
+	preferred := make([]string, 0, 2)
+	if r != nil {
+		if host := catalogWebIPHost(r.Host); host != "" {
+			preferred = append(preferred, host)
+		}
+		if local, ok := r.Context().Value(http.LocalAddrContextKey).(net.Addr); ok && local != nil {
+			if host := catalogWebIPHost(local.String()); host != "" {
+				preferred = append(preferred, host)
+			}
+		}
+	}
+	return catalogOrderWebHosts(preferred, discovered)
+}
+
+func catalogWebIPHost(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(value); err == nil {
+		value = host
+	}
+	value = strings.Trim(value, "[]")
+	ip := net.ParseIP(value)
+	if ip == nil || ip.IsLoopback() || !ip.IsGlobalUnicast() {
+		return ""
+	}
+	return ip.String()
+}
+
+func catalogOrderWebHosts(preferred, discovered []string) []string {
+	available := make(map[string]struct{}, len(discovered))
+	for _, raw := range discovered {
+		host := catalogWebIPHost(raw)
+		if host != "" {
+			available[host] = struct{}{}
+		}
+	}
+
+	rest := make([]string, 0, len(available))
+	for host := range available {
+		rest = append(rest, host)
+	}
+	sort.Strings(rest)
+
+	out := make([]string, 0, len(rest))
+	used := make(map[string]struct{}, len(rest))
+	for _, raw := range preferred {
+		host := catalogWebIPHost(raw)
+		if host == "" {
+			continue
+		}
+		if _, ok := available[host]; !ok {
+			continue
+		}
+		if _, ok := used[host]; ok {
+			continue
+		}
+		used[host] = struct{}{}
+		out = append(out, host)
+	}
+	for _, host := range rest {
+		if _, ok := used[host]; ok {
+			continue
+		}
+		used[host] = struct{}{}
+		out = append(out, host)
+	}
+	return out
+}
+
+func probeCatalogWebBrowserURL(parent context.Context, item catalogItem, host string) (string, bool) {
+	if item.Web == nil {
+		return "", false
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	if ip == nil || ip.IsLoopback() || !ip.IsGlobalUnicast() {
+		return "", false
+	}
+
+	scheme := item.Web.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+	path := item.Web.Path
+	if path == "" {
+		path = "/"
+	}
+
+	target := &url.URL{
+		Scheme: scheme,
+		Host:   net.JoinHostPort(ip.String(), strconv.Itoa(item.Web.Port)),
+		Path:   path,
+	}
+
+	ctx, cancel := context.WithTimeout(parent, catalogWebBrowserCandidateTimeout)
+	defer cancel()
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodHead, target.String(), nil)
+	if err != nil {
+		return "", false
+	}
+	request.Header.Set("Accept", "text/html,*/*;q=0.1")
+	request.Header.Set("Cache-Control", "no-cache")
+	request.Header.Set("User-Agent", "RouterForge/"+version+" web-browser-candidate")
+
+	client, err := newCatalogWebExactHostClient(ip.String())
+	if err != nil {
+		return "", false
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return "", false
+	}
+	defer response.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 1024))
+
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return "", false
+	}
+
+	frameAncestors := catalogFrameAncestorsPolicies(response.Header.Values("Content-Security-Policy"))
+	if catalogFrameHeaderPolicy(
+		strings.TrimSpace(strings.Join(response.Header.Values("X-Frame-Options"), ", ")),
+		frameAncestors,
+	) != "no-blocking-header-detected" {
+		return "", false
+	}
+
+	return target.String(), true
+}
+
+func newCatalogWebExactHostClient(host string) (*http.Client, error) {
+	expected := net.ParseIP(strings.Trim(host, "[]"))
+	if expected == nil {
+		return nil, errors.New("web candidate requires an IP host")
+	}
+
+	transport := &http.Transport{
+		Proxy:                  nil,
+		DisableKeepAlives:      true,
+		ResponseHeaderTimeout:  catalogWebBrowserCandidateTimeout,
+		TLSHandshakeTimeout:    catalogWebBrowserCandidateTimeout,
+		MaxResponseHeaderBytes: 64 << 10,
+	}
+	dialer := &net.Dialer{Timeout: catalogWebBrowserCandidateTimeout}
+
+	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		dialHost, dialPort, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, err
+		}
+		actual := net.ParseIP(strings.Trim(dialHost, "[]"))
+		if actual == nil || !actual.Equal(expected) {
+			return nil, errors.New("web candidate blocked unexpected dial")
+		}
+		return dialer.DialContext(ctx, network, net.JoinHostPort(expected.String(), dialPort))
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   catalogWebBrowserCandidateTimeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}, nil
 }
 
 func newCatalogWebProbeClient() *http.Client {

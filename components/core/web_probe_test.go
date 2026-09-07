@@ -147,6 +147,50 @@ func TestCatalogWebProbeEligibility(t *testing.T) {
 	}
 }
 
+func TestCatalogOrderWebHostsPrefersCurrentInterface(t *testing.T) {
+	got := catalogOrderWebHosts(
+		[]string{"192.168.1.252", "192.168.1.252"},
+		[]string{"192.168.10.1", "172.20.12.1", "192.168.1.252", "192.168.10.1"},
+	)
+	want := []string{"192.168.1.252", "172.20.12.1", "192.168.10.1"}
+	if len(got) != len(want) {
+		t.Fatalf("got %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %#v, want %#v", got, want)
+		}
+	}
+}
+
+func TestCatalogOrderWebHostsRejectsNonLocalPreferredHost(t *testing.T) {
+	got := catalogOrderWebHosts(
+		[]string{"203.0.113.8"},
+		[]string{"192.168.10.1"},
+	)
+	if len(got) != 1 || got[0] != "192.168.10.1" {
+		t.Fatalf("unexpected host order: %#v", got)
+	}
+}
+
+func TestCatalogWebExactHostClientRejectsDifferentDialTarget(t *testing.T) {
+	client, err := newCatalogWebExactHostClient("192.168.10.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("unexpected transport type: %T", client.Transport)
+	}
+	conn, err := transport.DialContext(context.Background(), "tcp", "192.168.1.252:2222")
+	if conn != nil {
+		conn.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), "blocked unexpected dial") {
+		t.Fatalf("expected exact-host dial rejection, got %v", err)
+	}
+}
+
 func TestCatalogWebProbeClientRejectsRedirects(t *testing.T) {
 	client := newCatalogWebProbeClient()
 	err := client.CheckRedirect(

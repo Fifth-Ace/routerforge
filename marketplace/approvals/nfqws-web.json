@@ -1,7 +1,7 @@
 {
   "id": "nfqws-web",
   "status": "verified",
-  "manifest_sha256": "227a4dd7ed1a3792137dd3004cd16040719c645a08d54e2f5c1734940db6e701",
+  "manifest_sha256": "9cde131b5556b6098d4153eae85f968a3eba782802dc5aeacf18a07eb4d1e87c",
   "reviewed_by": "routerforge",
   "note": "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
 }

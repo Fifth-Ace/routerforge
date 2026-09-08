@@ -2,55 +2,63 @@ package main
 
 import "testing"
 
-func TestCatalogManagedMonitoringModules(t *testing.T) {
+func TestBuiltinCatalogContainsCoreOnly(t *testing.T) {
+	snap := buildCatalog(map[string]string{}, map[string]bool{}, func(string) bool { return false })
+	if len(snap.Modules) != 1 || snap.Modules[0].ID != "routerforge-core" {
+		t.Fatalf("builtin catalog must contain Core only: %#v", snap.Modules)
+	}
+}
+
+func TestCatalogManagedMonitoringModuleFromRegistry(t *testing.T) {
 	installed := map[string]string{
-		"routerforge-system":  "0.3.0-beta",
-		"routerforge-thermal": "0.3.0-beta",
-		"routerforge-storage": "0.3.0-beta",
-		"routerforge-network": "0.3.0-beta",
+		"routerforge-monitoring": "0.7.0-dev.test",
 	}
 	processes := map[string]bool{
-		"routerforge-system": true, "routerforge-thermal": true,
-		"routerforge-storage": true, "routerforge-network": true,
+		"routerforge-monitoring": true,
 	}
-	snap := buildCatalog(installed, processes, func(string) bool { return false })
 
-	want := map[string]bool{"system": true, "thermal": true, "storage": true, "network": true}
-	for i := range snap.Modules {
-		item := snap.Modules[i]
-		if !want[item.ID] {
-			continue
-		}
-		delete(want, item.ID)
-		if !item.Managed || !item.Installed || !item.Enabled || !item.ServiceRunning || item.State != "installed" {
-			t.Fatalf("bad managed module state for %s: %#v", item.ID, item)
-		}
+	item := testBundledRegistryModule(t, "monitoring")
+	finalizeCatalogItem(&item, installed, processes, func(string) bool { return false })
+
+	if !item.Managed || !item.Installed || !item.Enabled || !item.ServiceRunning || item.State != "installed" {
+		t.Fatalf("bad consolidated monitoring state: %#v", item)
 	}
-	if len(want) != 0 {
-		t.Fatalf("managed modules missing: %#v", want)
+	if item.Version != "0.7.0-dev.test" {
+		t.Fatalf("monitoring version=%q", item.Version)
 	}
 }
 
 func TestCatalogProfilingUsesMarkerAsRunningState(t *testing.T) {
+	item := testBundledRegistryModule(t, "profiling")
 	exists := func(path string) bool {
 		return path == profilingMarker
 	}
-	snap := buildCatalog(
-		map[string]string{"routerforge-profiling": "0.3.0-beta"},
+	finalizeCatalogItem(
+		&item,
+		map[string]string{"routerforge-profiling": "0.7.0-dev.test"},
 		map[string]bool{},
 		exists,
 	)
-	for i := range snap.Modules {
-		if snap.Modules[i].ID != "profiling" {
-			continue
-		}
-		item := snap.Modules[i]
-		if !item.Installed || !item.ServiceRunning || !item.Enabled || item.State != "installed" {
-			t.Fatalf("bad profiling state: %#v", item)
-		}
-		return
+	if !item.Installed || !item.ServiceRunning || !item.Enabled || item.State != "installed" {
+		t.Fatalf("bad profiling state: %#v", item)
 	}
-	t.Fatal("profiling module missing")
+}
+
+func TestCatalogDNSUsesEnabledMarkerAsRunningState(t *testing.T) {
+	item := testBundledRegistryModule(t, "dns")
+	const marker = "/opt/etc/routerforge/dns.enabled"
+	exists := func(path string) bool {
+		return path == marker
+	}
+	finalizeCatalogItem(
+		&item,
+		map[string]string{"routerforge-dns": "0.7.0-dev.test"},
+		map[string]bool{},
+		exists,
+	)
+	if !item.Installed || !item.ServiceRunning || !item.Enabled || item.State != "installed" {
+		t.Fatalf("bad DNS marker state: %#v", item)
+	}
 }
 
 func TestCombatMarketplaceHasCuratedIntegrations(t *testing.T) {

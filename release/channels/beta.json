@@ -1,7 +1,7 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.6.0-beta.5",
+    "release_version": "0.6.0-beta.6",
     "release_notes": {
         "ru": {
             "new": [
@@ -10,7 +10,9 @@
                 "Центр приложений получил вкладки RouterForge, Интеграции, Entware, Установлено и Обновления.",
                 "Generic OPKG получил package detail/preflight, кэшированный поиск, зависимости, размеры и безопасные install/update/remove actions.",
                 "Non-Core package actions выполняются как async jobs с SSE output, cancel, глобальным lock, timeout, history и post-verify.",
-                "Свежая 0.6 Beta bootstrap-установка устанавливает только RouterForge Core; optional capabilities выбираются после запуска."
+                "Свежая 0.6 Beta bootstrap-установка устанавливает только RouterForge Core; optional capabilities выбираются после запуска.",
+                "Generic Runtime Web UI Discovery автоматически находит локальные Web UI установленного Entware ПО по TCP LISTEN socket → PID/process/package correlation и безопасному HTTP/HTTPS probe без сканирования LAN.",
+                "Runtime Web UI открываются через защищённый workspace только после fail-closed web-probe с проверкой X-Frame-Options/CSP, redirect и browser-reachable listener."
             ],
             "fixes": [
                 "Core self-update больше не показывает ложный «Failed to fetch» при штатном restart-разрыве: UI ждёт восстановления /api/catalog и проверяет фактически установленную целевую версию Core перед успешным завершением.",
@@ -31,7 +33,9 @@
                 "Добавлены события отсутствующего default route и недавнего failed action Центра приложений.",
                 "Пользовательское название раздела унифицировано как «Центр приложений»; старые catalog/marketplace имена остаются compatibility aliases.",
                 "Определение модели устройства получило cached fallback через ndmc show version.",
-                "Убрано ложное предупреждение Built-in RouterForge component для Core."
+                "Убрано ложное предупреждение Built-in RouterForge component для Core.",
+                "Generic discovery больше не создаёт ложные Web UI из обычных 403 Forbidden страниц и не приписывает приложение инфраструктурным lighttpd/nginx/httpd/uhttpd/apache процессам.",
+                "Из runtime integrations исключены firmware/platform Web panels вроде KeeneticOS nginx, а уже известные Web UI дедуплицируются вместо создания третьих карточек."
             ],
             "compatibility": [
                 "ARM64 (aarch64-3.10) — основной поддерживаемый target.",
@@ -52,7 +56,9 @@
                 "App Center now exposes RouterForge, Integrations, Entware, Installed, and Updates tabs.",
                 "Generic OPKG now has package details/preflight, cached search, dependency/size metadata, and guarded install/update/remove actions.",
                 "Non-Core package actions run as async jobs with SSE output, cancellation, a global lock, timeout, history, and post-verification.",
-                "A fresh 0.6 Beta bootstrap installs RouterForge Core only; optional capabilities are selected after startup."
+                "A fresh 0.6 Beta bootstrap installs RouterForge Core only; optional capabilities are selected after startup.",
+                "Generic Runtime Web UI Discovery automatically finds local Web UIs for installed Entware software using TCP LISTEN socket → PID/process/package correlation and safe HTTP/HTTPS probing without LAN scanning.",
+                "Runtime Web UIs open through the guarded workspace only after a fail-closed web probe validates X-Frame-Options/CSP, redirects, and a browser-reachable listener."
             ],
             "fixes": [
                 "Core self-update no longer reports a false 'Failed to fetch' during the expected restart disconnect: the UI waits for /api/catalog to recover and verifies the actually installed target Core version before declaring success.",
@@ -73,7 +79,9 @@
                 "Missing default-route and recent failed App Center action alerts are included.",
                 "The user-facing section name is consistently App Center while catalog/marketplace names remain compatibility aliases.",
                 "Device model detection now has a cached ndmc show version fallback.",
-                "The benign Built-in RouterForge component warning is suppressed for Core."
+                "The benign Built-in RouterForge component warning is suppressed for Core.",
+                "Generic discovery no longer turns ordinary 403 Forbidden pages into Web UIs and no longer treats infrastructure lighttpd/nginx/httpd/uhttpd/apache processes as application identity.",
+                "Firmware/platform Web panels such as KeeneticOS nginx are excluded from runtime integrations, while already-known Web UIs are deduplicated instead of producing third copies."
             ],
             "compatibility": [
                 "ARM64 (aarch64-3.10) is the primary supported target.",
@@ -92,7 +100,7 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.6.0-beta.4"
+            "version": "0.6.0-beta.5"
         },
         {
             "id": "dns",

@@ -17,6 +17,9 @@ var version = "dev"
 
 var monitoringModuleIDs = []string{"system", "thermal", "storage", "network"}
 
+const monitoringPrimarySocketName = "routerforge-monitoring.sock"
+const monitoringUIPath = "/opt/share/routerforge/modules/monitoring/ui"
+
 var monitoringSocketNames = map[string]string{
 	"system":  "routerforge-system.sock",
 	"thermal": "routerforge-thermal.sock",
@@ -115,6 +118,15 @@ func serveAllModules(socketDir string) error {
 		return errors.New("invalid -socket-dir: directory is required")
 	}
 
+	primarySocket := filepath.Join(socketDir, monitoringPrimarySocketName)
+	primaryActive, err := unixSocketResponding(primarySocket)
+	if err != nil {
+		return err
+	}
+	if primaryActive {
+		return fmt.Errorf("monitoring socket already active: %s", primarySocket)
+	}
+
 	for _, id := range monitoringModuleIDs {
 		socket := monitoringSocketPath(socketDir, id)
 		active, err := unixSocketResponding(socket)
@@ -143,7 +155,10 @@ func serveAllModules(socketDir string) error {
 		}
 	}()
 
-	errCh := make(chan error, len(servers))
+	errCh := make(chan error, len(servers)+1)
+	go func() {
+		errCh <- serveMonitoringApp(primarySocket, monitoringUIPath)
+	}()
 	for _, server := range servers {
 		go func(s *moduleServer) {
 			errCh <- s.Serve()
@@ -196,6 +211,7 @@ func (s *moduleServer) Serve() error {
 		return err
 	}
 	defer listener.Close()
+	defer os.Remove(s.socket)
 	_ = os.Chmod(s.socket, 0600)
 
 	mux := http.NewServeMux()

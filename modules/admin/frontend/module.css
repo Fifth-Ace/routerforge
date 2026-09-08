@@ -1,0 +1,2 @@
+html, body, #app { min-height: 100%; margin: 0; background: transparent; }
+body { color: var(--rf-text, var(--text, #f5f7fa)); }

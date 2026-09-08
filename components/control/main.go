@@ -19,7 +19,9 @@ import (
 	"time"
 )
 
-const defaultSocket = "/opt/var/run/dns-monitor-admin.sock"
+const defaultSocket = "/opt/var/run/routerforge-admin.sock"
+
+var version = "dev"
 
 type memoryInfo struct {
 	TotalKB     int64   `json:"total_kb"`
@@ -124,6 +126,7 @@ type thermalInfo struct {
 
 func main() {
 	socket := flag.String("socket", defaultSocket, "Unix socket path")
+	uiPath := flag.String("ui", "/opt/share/routerforge/modules/admin/ui", "module UI path")
 	flag.Parse()
 
 	if err := os.MkdirAll(filepath.Dir(*socket), 0755); err != nil {
@@ -136,6 +139,7 @@ func main() {
 		panic(err)
 	}
 	defer listener.Close()
+	defer os.Remove(*socket)
 	_ = os.Chmod(*socket, 0600)
 
 	cpuSampler, err := newCPUSampler(1*time.Second, 5)
@@ -148,6 +152,9 @@ func main() {
 	mux.HandleFunc("/v1/health", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"ok":           true,
+			"module":       "admin",
+			"version":      version,
+			"api_version":  1,
 			"mode":         "read-only",
 			"mutation_api": false,
 		})
@@ -182,6 +189,23 @@ func main() {
 	mux.HandleFunc("/v1/thermal", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"sensors": readThermals()})
 	}))
+
+	uiFS := http.FileServer(http.Dir(*uiPath))
+	mux.HandleFunc("/v1/ui", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "/v1/ui/index.html", http.StatusTemporaryRedirect)
+	})
+	mux.Handle("/v1/ui/", http.StripPrefix("/v1/ui/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-cache")
+		uiFS.ServeHTTP(w, r)
+	})))
 
 	server := &http.Server{
 		Handler:           mux,

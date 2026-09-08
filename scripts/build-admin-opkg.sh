@@ -13,32 +13,44 @@ WORK="$DIST/admin-opkg-work"
 ARCH="$RF_OPKG_ARCH"
 
 PKG_VERSION="$VERSION"
-if [ -n "$RELEASE" ]; then
-    PKG_VERSION="${VERSION}-${RELEASE}"
-fi
+if [ -n "$RELEASE" ]; then PKG_VERSION="${VERSION}-${RELEASE}"; fi
 PKGFILE="routerforge-admin_${PKG_VERSION}_${ARCH}.ipk"
+UI_BUILD="$ROOT/modules/admin/frontend/build"
+[ -f "$UI_BUILD/index.html" ] || sh "$ROOT/scripts/build-admin-frontend.sh"
 
 rm -rf "$WORK"
 mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
+    "$WORK/data/opt/share/routerforge/modules/admin/ui" \
+    "$WORK/data/opt/share/routerforge/modules/admin" \
     "$WORK/data/opt/share/licenses/routerforge-admin" "$WORK/control"
 
 (
   cd "$ROOT"
-  routerforge_go build \
-      -trimpath \
-      -ldflags='-s -w' \
+  routerforge_go build -trimpath \
+      -ldflags="-s -w -X main.version=$PKG_VERSION" \
       -o "$WORK/data/opt/bin/routerforge-admin" ./components/control
 )
-
 chmod 0755 "$WORK/data/opt/bin/routerforge-admin"
 sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-admin"
 cp "$ROOT/components/control/packaging/S91routerforge-admin" "$WORK/data/opt/etc/init.d/S91routerforge-admin"
 chmod 0755 "$WORK/data/opt/etc/init.d/S91routerforge-admin"
+cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/admin/ui/"
+cat > "$WORK/data/opt/share/routerforge/modules/admin/manifest.json" <<MANIFEST
+{
+  "schema_version": 1,
+  "id": "admin",
+  "version": "$PKG_VERSION",
+  "api_version": 1,
+  "socket": "/opt/var/run/routerforge-admin.sock",
+  "api_base": "/api/modules/admin",
+  "ui_entry": "/api/modules/admin/ui/index.html"
+}
+MANIFEST
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/routerforge-admin/LICENSE"
-chmod 0644 "$WORK/data/opt/share/licenses/routerforge-admin/LICENSE"
+chmod 0644 "$WORK/data/opt/share/routerforge/modules/admin/manifest.json" \
+    "$WORK/data/opt/share/licenses/routerforge-admin/LICENSE"
 
-sed -e "s/@VERSION@/$PKG_VERSION/g" \
-    -e "s/@ARCH@/$ARCH/g" \
+sed -e "s/@VERSION@/$PKG_VERSION/g" -e "s/@ARCH@/$ARCH/g" \
     "$ROOT/components/control/packaging/control.template" > "$WORK/control/control"
 cp "$ROOT/components/control/packaging/postinst" "$WORK/control/postinst"
 cp "$ROOT/components/control/packaging/prerm" "$WORK/control/prerm"
@@ -47,9 +59,6 @@ chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
 printf '2.0\n' > "$WORK/debian-binary"
 (cd "$WORK/data" && tar --owner=0 --group=0 --numeric-owner -czf "$WORK/data.tar.gz" .)
 (cd "$WORK/control" && tar --owner=0 --group=0 --numeric-owner -czf "$WORK/control.tar.gz" .)
-
 rm -f "$DIST/$PKGFILE"
-(cd "$WORK" && tar --owner=0 --group=0 --numeric-owner -czf "$DIST/$PKGFILE" \
-    ./debian-binary ./control.tar.gz ./data.tar.gz)
-
+(cd "$WORK" && tar --owner=0 --group=0 --numeric-owner -czf "$DIST/$PKGFILE" ./debian-binary ./control.tar.gz ./data.tar.gz)
 printf '%s\n' "$DIST/$PKGFILE"

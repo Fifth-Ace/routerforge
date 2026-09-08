@@ -41,9 +41,8 @@
   $: modules = $catalog.modules || [];
   $: adminInstalled = modules.some((item) => item.id === 'admin' && item.installed);
   $: dnsInstalled = modules.some((item) => item.id === 'dns' && item.installed);
-  $: monitoringInstalled = modules.some((item) =>
-    ['system', 'thermal', 'storage', 'network'].includes(item.id) && item.installed
-  );
+  $: monitoringInstalled = modules.some((item) => item.id === 'monitoring' && item.installed)
+    || modules.some((item) => ['system', 'thermal', 'storage', 'network'].includes(item.id) && item.installed);
   $: path = $page.url.pathname;
   $: protectedPathMissing =
     (path === '/manage' && !adminInstalled)

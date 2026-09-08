@@ -172,8 +172,14 @@ func buildCatalog(installed map[string]string, processes map[string]bool, exists
 
 func moduleOrder(id string) int {
 	order := map[string]int{
-		"routerforge-core": 1, "dns": 2, "admin": 3, "system": 4,
-		"thermal": 5, "storage": 6, "network": 7, "profiling": 8,
+		"routerforge-core": 1,
+		"dns":              2,
+		"admin":            3,
+		"monitoring":       4,
+		"profiling":        5,
+		// Legacy logical IDs remain sortable while cached pre-consolidation
+		// registries are being replaced by the rolling Dev registry.
+		"system": 40, "thermal": 41, "storage": 42, "network": 43,
 	}
 	if n, ok := order[id]; ok {
 		return n
@@ -189,57 +195,6 @@ func builtinModuleCatalog() []catalogItem {
 			Source:      "builtin", Builtin: true, Enabled: true,
 			Capabilities:  []string{"web-shell", "auth", "app-center", "registry", "module-routing", "settings", "package-lifecycle"},
 			Compatibility: catalogCompatibility{Status: "built-in"},
-		},
-
-		managedModule(
-			"admin", "Admin Tools", "Administration",
-			"Read-only системная админка: CPU, RAM, процессы, порты, службы, opkg, storage и thermal.",
-			"routerforge-admin", "/opt/etc/init.d/S91routerforge-admin", "routerforge-admin",
-			[]string{"system-summary", "cpu", "memory", "processes", "ports", "services", "packages", "storage", "thermal"},
-		),
-		managedModule(
-			"system", "System Monitor", "Monitoring",
-			"Легковесная системная телеметрия: CPU по ядрам, RAM, swap, uptime, load и процессы.",
-			"routerforge-system", "/opt/etc/init.d/S92routerforge-system", "routerforge-system",
-			[]string{"system-summary", "cpu", "memory"},
-		),
-		managedModule(
-			"thermal", "Thermal Monitor", "Monitoring",
-			"Все реальные thermal/hwmon датчики, Wi-Fi debugfs и optional SMART температуры накопителей.",
-			"routerforge-thermal", "/opt/etc/init.d/S93routerforge-thermal", "routerforge-thermal",
-			[]string{"thermal", "hwmon", "wifi-thermal", "smart-temperature"},
-		),
-		managedModule(
-			"storage", "Storage Monitor", "Monitoring",
-			"Файловые системы, block devices и пассивные I/O rates без фоновых benchmark-тестов.",
-			"routerforge-storage", "/opt/etc/init.d/S94routerforge-storage", "routerforge-storage",
-			[]string{"mounts", "block-devices", "diskstats", "io-rates"},
-		),
-		managedModule(
-			"network", "Network Monitor", "Monitoring",
-			"Интерфейсы, адреса, RX/TX rates, errors/drops, wireless counters, routes и conntrack.",
-			"routerforge-network", "/opt/etc/init.d/S95routerforge-network", "routerforge-network",
-			[]string{"interfaces", "traffic-rates", "errors", "wireless", "routes", "conntrack"},
-		),
-		{
-			ID: "profiling", Kind: "module", Name: "Profiling", Category: "Development",
-			Description: "Опциональный pprof Core listener на loopback и slow-request logging.",
-			Source:      "dns-monitor", Managed: true,
-			Capabilities: []string{"pprof", "slow-request-log"},
-			Detection:    catalogDetection{Packages: []string{"routerforge-profiling"}},
-			RunningPaths: []string{profilingMarker},
-			Compatibility: catalogCompatibility{
-				Status: "requirements",
-				Hints:  []string{"RouterForge Core", "loopback-only listener", "SSH tunnel for remote access"},
-			},
-			Install: catalogInstallPlan{
-				Method: "opkg-feed", Repository: "dns-monitor", Packages: []string{"routerforge-profiling"},
-				Notes: []string{
-					"Listener по умолчанию 127.0.0.1:6061 и не публикуется в LAN.",
-					"Пакет перезапускает RouterForge Core после установки/удаления.",
-				},
-				PreviewOnly: true,
-			},
 		},
 	}
 }

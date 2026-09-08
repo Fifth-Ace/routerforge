@@ -18,7 +18,7 @@
 
   const acronyms = {
     'awg-manager':'AWG', nfqws2:'NQ2', nfqws:'NQ1', 'nfqws-web':'NQW', 'hydraroute-neo':'HRN',
-    'routerforge-core':'RFC', dns:'DNS', system:'SYS', thermal:'TMP', storage:'DSK', network:'NET',
+    'routerforge-core':'RFC', dns:'DNS', admin:'ADM', monitoring:'MON', system:'SYS', thermal:'TMP', storage:'DSK', network:'NET',
     admin:'ADM', profiling:'PRF', xkeen:'XKN', 'xkeen-ui':'XUI', 'keen-pbr':'PBR', kvas:'KVS',
     'bypass-keenetic':'BYP', 'traffic-via-vpn':'VPN', 'adguardhome-keenetic':'AGH', skeen:'SKN',
     'chur-keenetic':'CHR', 'keenetic-sing-box-ui':'SBU', 'keenetic-entware-extras':'KEE'
@@ -35,6 +35,7 @@
   let actionNotice = null;
   let channelBusy = false;
   let checkingUpdates = false;
+  let bulkUpdating = false;
   let entwareLoading = false;
   let entwareRefreshing = false;
   let entwareState = 'all';
@@ -63,6 +64,7 @@
   $: modules = data.modules || [];
   $: integrations = data.integrations || [];
   $: routerForgeUpdates = modules.filter(hasCatalogUpdate);
+  $: officialRouterForgeUpdates = routerForgeUpdates.filter(isOfficialRouterForgeUpdate);
   $: integrationUpdates = integrations.filter(hasCatalogUpdate);
   $: installedCatalog = [...modules, ...integrations].filter((item) => item.installed);
   $: updateCatalog = [...routerForgeUpdates, ...integrationUpdates];
@@ -137,6 +139,12 @@
 
   function hasCatalogUpdate(item) {
     return Boolean(item?.installed && item?.update_available && item?.actions?.update);
+  }
+  function isOfficialRouterForgeUpdate(item) {
+    return Boolean(
+      hasCatalogUpdate(item)
+      && (item?.id === 'routerforge-core' || item?.publisher?.id === 'routerforge' || item?.source === 'routerforge-official')
+    );
   }
 
   function filterCatalog(items, query) {
@@ -219,7 +227,8 @@
   function moduleURL(item) {
     if (item.id === 'admin') return '/manage';
     if (item.id === 'dns') return '/dns';
-    if (['system','thermal','storage','network','profiling'].includes(item.id)) return `/monitoring?tab=${encodeURIComponent(item.id)}`;
+    if (item.id === 'monitoring') return '/monitoring';
+    if (['system','thermal','storage','network'].includes(item.id)) return `/monitoring?tab=${encodeURIComponent(item.id)}`;
     return '';
   }
 
@@ -562,6 +571,122 @@
     }
   }
 
+  async function waitForCatalogItemVersion(id, targetVersion, timeoutMs = 60000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const refreshed = await refreshCatalog();
+      const item = (refreshed?.modules || []).find((candidate) => candidate.id === id);
+      if (item?.installed && (!targetVersion || String(item.version || '') === String(targetVersion))) return item;
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+    return null;
+  }
+
+  async function runBulkRestartingUpdate(item) {
+    const targetVersion = String(item.release?.version || item.available_version || '').trim();
+    busyId = item.id;
+    busyAction = 'update';
+    try {
+      try {
+        await catalogAction(item.id, 'update', '');
+      } catch (error) {
+        if (!coreRestartTransportError(error)) throw error;
+      }
+
+      const recovered = item.id === 'routerforge-core'
+        ? await waitForCoreRecovery(targetVersion, 60000)
+        : await waitForCatalogItemVersion(item.id, targetVersion, 60000);
+      if (!recovered) throw new Error(`RouterForge ${item.name || item.id} recovery timeout (${targetVersion || '?'})`);
+    } finally {
+      busyId = '';
+      busyAction = '';
+    }
+  }
+
+  async function runBulkModuleUpdate(item) {
+    const request = { kind:'catalog', target:item.id, action:'update', confirm:'' };
+    const preflight = await preflightAppAction(request);
+    if (!preflight.allowed) throw new Error(preflight.reason || `${item.id}: preflight rejected update`);
+
+    const job = await startAppAction(request);
+    activeJob = job;
+    actionLog = job.lines || [];
+    busyId = item.id;
+    busyAction = 'update';
+
+    try {
+      for (let i = 0; i < 190; i += 1) {
+        const current = await getAppAction(job.id);
+        activeJob = current;
+        actionLog = current.lines || actionLog;
+        if (current.state === 'succeeded') {
+          await refreshCatalog();
+          return;
+        }
+        if (current.state === 'failed' || current.state === 'cancelled') {
+          throw new Error(current.error || `${item.name || item.id}: ${current.state}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      throw new Error(`${item.name || item.id}: update timeout`);
+    } finally {
+      busyId = '';
+      busyAction = '';
+    }
+  }
+
+  async function updateAllRouterForge() {
+    if (bulkUpdating || busyId) return;
+    const initial = [...officialRouterForgeUpdates];
+    if (!initial.length) return;
+
+    const names = initial.map((item) => item.name || item.id).join('\n• ');
+    const question = locale === 'ru'
+      ? `Обновить все официальные компоненты RouterForge (${initial.length})?\n\n• ${names}\n\nСторонние интеграции и Entware-пакеты затронуты не будут.`
+      : `Update all official RouterForge components (${initial.length})?\n\n• ${names}\n\nThird-party integrations and Entware packages will not be touched.`;
+    if (!window.confirm(question)) return;
+
+    const priority = (item) => item.id === 'routerforge-core' ? 0 : item.id === 'profiling' ? 20 : 10;
+    const queue = [...initial].sort((a, b) => priority(a) - priority(b) || String(a.id).localeCompare(String(b.id)));
+
+    bulkUpdating = true;
+    try {
+      for (let index = 0; index < queue.length; index += 1) {
+        await refreshCatalog();
+        const current = (($catalog || {}).modules || []).find((candidate) => candidate.id === queue[index].id);
+        if (!isOfficialRouterForgeUpdate(current)) continue;
+
+        actionNotice = {
+          cls:'warn',
+          text: locale === 'ru'
+            ? `RouterForge: обновление ${index + 1}/${queue.length} — ${current.name || current.id}`
+            : `RouterForge: updating ${index + 1}/${queue.length} — ${current.name || current.id}`
+        };
+
+        if (current.id === 'routerforge-core' || current.id === 'profiling') {
+          await runBulkRestartingUpdate(current);
+        } else {
+          await runBulkModuleUpdate(current);
+        }
+      }
+
+      await refreshCatalog();
+      await refreshActionHistory();
+      actionNotice = {
+        cls:'good',
+        text: locale === 'ru' ? 'Все доступные обновления RouterForge установлены.' : 'All available RouterForge updates are installed.'
+      };
+      setTimeout(() => window.location.reload(), 450);
+    } catch (error) {
+      actionNotice = { cls:'error', text:error?.payload?.detail || error?.payload?.error || error?.message || 'bulk update failed' };
+      await refreshCatalog();
+      await refreshActionHistory();
+    } finally {
+      bulkUpdating = false;
+      busyId = '';
+      busyAction = '';
+    }
+  }
   function reviewRouterForgeUpdates() {
     setTab('updates');
   }
@@ -686,9 +811,15 @@
       </button>
     {/if}
 
+    {#if tab === 'routerforge' && packageMode && officialRouterForgeUpdates.length}
+      <button class="button primary" disabled={bulkUpdating || Boolean(busyId)} onclick={updateAllRouterForge}>
+        {bulkUpdating ? (locale === 'ru' ? 'Обновляем RouterForge…' : 'Updating RouterForge…') : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
+      </button>
+    {/if}
+
     {#if tab === 'routerforge' && packageMode && routerForgeUpdates.length}
-      <button class="button primary" disabled={Boolean(busyId)} onclick={reviewRouterForgeUpdates}>
-        {locale === 'ru' ? '\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f' : 'Review updates'} ({routerForgeUpdates.length})
+      <button class="button" disabled={bulkUpdating || Boolean(busyId)} onclick={reviewRouterForgeUpdates}>
+        {locale === 'ru' ? 'Просмотреть обновления' : 'Review updates'} ({routerForgeUpdates.length})
       </button>
     {/if}
   </div>

@@ -145,6 +145,70 @@ CONTROL
     pack_ipk "$WORK" "$DIST/$PKGFILE"
 }
 
+
+build_monitoring() {
+    PACKAGE="routerforge-monitoring"
+    WORK="$DIST/${PACKAGE}-channel-work"
+    PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
+    UI_BUILD="$ROOT/modules/monitoring/frontend/build"
+    [ -f "$UI_BUILD/index.html" ] || sh "$ROOT/scripts/build-monitoring-frontend.sh"
+
+    rm -rf "$WORK"
+    mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
+        "$WORK/data/opt/share/routerforge/modules/monitoring/ui" \
+        "$WORK/data/opt/share/routerforge/modules/monitoring" \
+        "$WORK/data/opt/share/licenses/$PACKAGE" "$WORK/control"
+
+    (
+      cd "$ROOT"
+      routerforge_go build -trimpath \
+          -ldflags="-s -w -X main.version=$VERSION" \
+          -o "$WORK/data/opt/bin/routerforge-monitoring" ./modules/monitoring-runtime
+    )
+    chmod 0755 "$WORK/data/opt/bin/routerforge-monitoring"
+    sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-monitoring"
+    cp "$ROOT/modules/monitoring-runtime/packaging/S92routerforge-monitoring" "$WORK/data/opt/etc/init.d/S92routerforge-monitoring"
+    chmod 0755 "$WORK/data/opt/etc/init.d/S92routerforge-monitoring"
+    cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/monitoring/ui/"
+
+    cat > "$WORK/data/opt/share/routerforge/modules/monitoring/manifest.json" <<MANIFEST
+{
+  "schema_version": 1,
+  "id": "monitoring",
+  "version": "$VERSION",
+  "api_version": 1,
+  "socket": "/opt/var/run/routerforge-monitoring.sock",
+  "api_base": "/api/modules/monitoring",
+  "ui_entry": "/api/modules/monitoring/ui/index.html",
+  "compatibility_api": ["system", "thermal", "storage", "network"]
+}
+MANIFEST
+
+    cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
+    chmod 0644 "$WORK/data/opt/share/routerforge/modules/monitoring/manifest.json" \
+        "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
+
+    cat > "$WORK/control/control" <<CONTROL
+Package: $PACKAGE
+Version: $VERSION
+Section: admin
+Priority: optional
+Architecture: $ARCH
+Depends: routerforge-core
+Provides: routerforge-system, routerforge-thermal, routerforge-storage, routerforge-network, dns-monitor-system, dns-monitor-thermal, dns-monitor-storage, dns-monitor-network
+Conflicts: routerforge-system, routerforge-thermal, routerforge-storage, routerforge-network, dns-monitor-system, dns-monitor-thermal, dns-monitor-storage, dns-monitor-network
+Replaces: routerforge-system, routerforge-thermal, routerforge-storage, routerforge-network, dns-monitor-system, dns-monitor-thermal, dns-monitor-storage, dns-monitor-network
+Maintainer: Fifth-Ace
+Source: https://github.com/Fifth-Ace/routerforge
+Homepage: https://github.com/Fifth-Ace/routerforge
+License: MIT
+Description: RouterForge consolidated read-only system, thermal, storage and network monitoring runtime.
+CONTROL
+    cp "$ROOT/modules/monitoring-runtime/packaging/standalone-postinst" "$WORK/control/postinst"
+    cp "$ROOT/modules/monitoring-runtime/packaging/standalone-prerm" "$WORK/control/prerm"
+    chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
+    pack_ipk "$WORK" "$DIST/$PKGFILE"
+}
 build_profiling() {
     PACKAGE="routerforge-profiling"; LEGACY="dns-monitor-profiling"
     WORK="$DIST/${PACKAGE}-channel-work"; PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
@@ -189,6 +253,7 @@ pack_ipk() {
 
 case "$ID" in
     dns) build_dns ;;
+    monitoring) build_monitoring ;;
     system) build_runtime_module routerforge-system dns-monitor-system routerforge-system S92routerforge-system /opt/var/run/routerforge-system.sock "RouterForge read-only CPU, memory, load and uptime monitoring." ;;
     thermal) build_runtime_module routerforge-thermal dns-monitor-thermal routerforge-thermal S93routerforge-thermal /opt/var/run/routerforge-thermal.sock "RouterForge thermal and hwmon monitoring." ;;
     storage) build_runtime_module routerforge-storage dns-monitor-storage routerforge-storage S94routerforge-storage /opt/var/run/routerforge-storage.sock "RouterForge storage capacity and passive I/O monitoring." ;;

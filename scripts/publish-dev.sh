@@ -125,10 +125,7 @@ verify_plain() {
 verify_plain "dist/routerforge-core_${VERSION}_${TARGET}.ipk" routerforge
 verify_plain "dist/routerforge-admin_${VERSION}_${TARGET}.ipk" routerforge-admin
 verify_plain "dist/routerforge-dns_${VERSION}_${TARGET}.ipk" routerforge-dns
-verify_plain "dist/routerforge-system_${VERSION}_${TARGET}.ipk" routerforge-system
-verify_plain "dist/routerforge-thermal_${VERSION}_${TARGET}.ipk" routerforge-thermal
-verify_plain "dist/routerforge-storage_${VERSION}_${TARGET}.ipk" routerforge-storage
-verify_plain "dist/routerforge-network_${VERSION}_${TARGET}.ipk" routerforge-network
+verify_plain "dist/routerforge-monitoring_${VERSION}_${TARGET}.ipk" routerforge-monitoring
 
 echo "DEV_PLAIN_BINARY_GATE=PASS"
 

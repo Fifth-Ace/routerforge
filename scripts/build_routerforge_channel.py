@@ -142,9 +142,12 @@ def main():
 
     components = config.get("components") or []
     ids = [c.get("id") for c in components]
-    required = ["routerforge-core", "dns", "admin", "system", "thermal", "storage", "network", "profiling"]
+    if channel == "dev":
+        required = ["routerforge-core", "dns", "admin", "monitoring", "profiling"]
+    else:
+        required = ["routerforge-core", "dns", "admin", "system", "thermal", "storage", "network", "profiling"]
     if ids != required:
-        raise SystemExit(f"components must be ordered exactly as {required}")
+        raise SystemExit(f"components for {channel} must be ordered exactly as {required}")
 
     dist = Path(args.dist)
     dist.mkdir(parents=True, exist_ok=True)

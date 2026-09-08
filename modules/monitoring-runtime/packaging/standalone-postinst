@@ -1,11 +1,27 @@
 #!/bin/sh
 set -eu
-
 mkdir -p /opt/etc/routerforge /opt/var/run
 
-# Prototype package installation is intentionally non-disruptive.  The
-# standalone service is not auto-enabled or auto-started while the four legacy
-# packages remain the production topology.  Hardware A/B starts the exact
-# prototype binary under explicit test control.
-echo "routerforge-monitoring: standalone prototype installed; autostart disabled until migration/cutover"
+# A successful opkg Replaces/Conflicts migration removes the legacy packages.
+# Stop any still-running legacy services before claiming their compatibility sockets.
+for service in \
+  /opt/etc/init.d/S92routerforge-system \
+  /opt/etc/init.d/S93routerforge-thermal \
+  /opt/etc/init.d/S94routerforge-storage \
+  /opt/etc/init.d/S95routerforge-network
+do
+    [ -x "$service" ] && "$service" stop >/dev/null 2>&1 || true
+done
+
+rm -f \
+  /opt/var/run/routerforge-monitoring.sock \
+  /opt/var/run/routerforge-system.sock \
+  /opt/var/run/routerforge-thermal.sock \
+  /opt/var/run/routerforge-storage.sock \
+  /opt/var/run/routerforge-network.sock
+
+if [ -x /opt/etc/init.d/S92routerforge-monitoring ]; then
+    /opt/etc/init.d/S92routerforge-monitoring stop >/dev/null 2>&1 || true
+    /opt/etc/init.d/S92routerforge-monitoring start >/dev/null 2>&1 || true
+fi
 exit 0

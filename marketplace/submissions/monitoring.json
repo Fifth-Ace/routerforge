@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "id": "monitoring",
+  "kind": "module",
+  "name": "RouterForge Monitoring",
+  "category": "Monitoring",
+  "description": "Единый read-only runtime системной телеметрии: CPU/RAM, thermal, storage и network с сохранением совместимых API.",
+  "publisher": {
+    "id": "routerforge",
+    "name": "RouterForge",
+    "url": "https://github.com/Fifth-Ace/routerforge"
+  },
+  "project_url": "https://github.com/Fifth-Ace/routerforge",
+  "source": "routerforge-official",
+  "managed": true,
+  "package_authoritative": true,
+  "detection": {
+    "packages": [
+      "routerforge-monitoring",
+      "routerforge-system",
+      "routerforge-thermal",
+      "routerforge-storage",
+      "routerforge-network",
+      "dns-monitor-system",
+      "dns-monitor-thermal",
+      "dns-monitor-storage",
+      "dns-monitor-network"
+    ],
+    "services": [
+      "/opt/etc/init.d/S92routerforge-monitoring",
+      "/opt/etc/init.d/S92routerforge-system",
+      "/opt/etc/init.d/S93routerforge-thermal",
+      "/opt/etc/init.d/S94routerforge-storage",
+      "/opt/etc/init.d/S95routerforge-network"
+    ]
+  },
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "RouterForge Core",
+      "Entware",
+      "Keenetic / Netcraze ARM64"
+    ]
+  },
+  "install": {
+    "method": "routerforge-release",
+    "repository": "routerforge-beta",
+    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+    "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+    "packages": "routerforge-monitoring",
+    "notes": "Один runtime заменяет routerforge-system/thermal/storage/network и сохраняет их API-контракты.",
+    "preview_only": false
+  },
+  "update": {
+    "method": "routerforge-release",
+    "repository": "routerforge-beta",
+    "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+    "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+    "asset_template": "{package}_{version}_aarch64-3.10.ipk",
+    "packages": "routerforge-monitoring",
+    "notes": "Мигрирует четыре старых RouterForge monitoring package в один consolidated package.",
+    "preview_only": false
+  },
+  "remove": {
+    "method": "structured",
+    "packages": [
+      "routerforge-monitoring",
+      "routerforge-system",
+      "routerforge-thermal",
+      "routerforge-storage",
+      "routerforge-network"
+    ],
+    "preview_only": false,
+    "steps": [
+      {
+        "type": "opkg-remove",
+        "packages": "routerforge-monitoring",
+        "ignore_failure": true
+      },
+      {
+        "type": "opkg-remove",
+        "packages": "routerforge-system",
+        "ignore_failure": true
+      },
+      {
+        "type": "opkg-remove",
+        "packages": "routerforge-thermal",
+        "ignore_failure": true
+      },
+      {
+        "type": "opkg-remove",
+        "packages": "routerforge-storage",
+        "ignore_failure": true
+      },
+      {
+        "type": "opkg-remove",
+        "packages": "routerforge-network",
+        "ignore_failure": true
+      }
+    ]
+  },
+  "presentation": {
+    "dashboard": {
+      "enabled": true,
+      "priority": 30
+    },
+    "navigation": {
+      "label": "Мониторинг",
+      "href": "/monitoring",
+      "order": 20
+    }
+  },
+  "process_names": [
+    "routerforge-monitoring",
+    "routerforge-system",
+    "routerforge-thermal",
+    "routerforge-storage",
+    "routerforge-network"
+  ],
+  "capabilities": [
+    "system-summary",
+    "cpu",
+    "memory",
+    "thermal",
+    "hwmon",
+    "mounts",
+    "block-devices",
+    "diskstats",
+    "io-rates",
+    "interfaces",
+    "traffic-rates",
+    "routes",
+    "conntrack"
+  ]
+}

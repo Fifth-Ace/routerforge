@@ -89,7 +89,7 @@ jobs:
                   CORE_FRONTEND=true
                   ;;
 
-                modules/dns/frontend/*)
+                modules/dns/frontend/*|modules/admin/frontend/*|modules/monitoring/frontend/*)
                   DNS_FRONTEND=true
                   ;;
 
@@ -208,6 +208,31 @@ jobs:
       - name: Verify DNS frontend build
         if: steps.scope.outputs.dns_frontend == 'true'
         run: test -f modules/dns/frontend/build/index.html
+      - name: Install Admin frontend dependencies
+        if: steps.scope.outputs.dns_frontend == 'true'
+        working-directory: modules/admin/frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Build Admin frontend
+        if: steps.scope.outputs.dns_frontend == 'true'
+        working-directory: modules/admin/frontend
+        run: npm run build
+
+      - name: Install Monitoring frontend dependencies
+        if: steps.scope.outputs.dns_frontend == 'true'
+        working-directory: modules/monitoring/frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Build Monitoring frontend
+        if: steps.scope.outputs.dns_frontend == 'true'
+        working-directory: modules/monitoring/frontend
+        run: npm run build
+
+      - name: Verify standalone module frontend builds
+        if: steps.scope.outputs.dns_frontend == 'true'
+        run: |
+          test -f modules/admin/frontend/build/index.html
+          test -f modules/monitoring/frontend/build/index.html
 
       - name: Validate RouterForge registry
         if: steps.scope.outputs.registry == 'true'
@@ -224,7 +249,11 @@ jobs:
           test -f components/control/main.go
           test -f modules/dns/runtime/dns_module_main.go
           test -f modules/dns/frontend/DNSModuleApp.svelte
+          test -f modules/admin/frontend/AdminModuleApp.svelte
+          test -f modules/monitoring/frontend/MonitoringModuleApp.svelte
           test -f modules/monitoring-runtime/main.go
+          test -f modules/monitoring-runtime/app_server.go
+          test -f modules/monitoring-runtime/packaging/S92routerforge-monitoring
           test -f modules/system/packaging/S92routerforge-system
           test -f modules/thermal/packaging/S93routerforge-thermal
           test -f modules/storage/packaging/S94routerforge-storage
@@ -397,6 +426,26 @@ jobs:
           smoke_module storage storage
           smoke_module network summary
 
+          all_dir=/tmp/routerforge-monitoring-all
+          rm -rf "$all_dir"
+          mkdir -p "$all_dir"
+          /tmp/routerforge-module -module all -socket-dir "$all_dir" &
+          all_pid=$!
+          trap 'kill "$all_pid" 2>/dev/null || true; rm -rf "$all_dir"' EXIT INT TERM
+          i=0
+          while [ ! -S "$all_dir/routerforge-monitoring.sock" ] && [ "$i" -lt 40 ]; do
+            sleep 0.1
+            i=$((i + 1))
+          done
+          for socket in routerforge-monitoring routerforge-system routerforge-thermal routerforge-storage routerforge-network; do
+            test -S "$all_dir/${socket}.sock"
+            curl --fail --silent --show-error --unix-socket "$all_dir/${socket}.sock" http://unix/v1/health >/dev/null
+          done
+          kill "$all_pid"
+          wait "$all_pid" 2>/dev/null || true
+          rm -rf "$all_dir"
+          trap - EXIT INT TERM
+
       - name: Check shell scripts
         if: steps.scope.outputs.shell == 'true'
         run: |
@@ -407,10 +456,13 @@ jobs:
           sh -n modules/thermal/packaging/S93routerforge-thermal
           sh -n modules/storage/packaging/S94routerforge-storage
           sh -n modules/network/packaging/S95routerforge-network
+          sh -n modules/monitoring-runtime/packaging/S92routerforge-monitoring
           sh -n scripts/target-env.sh
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh
           sh -n scripts/build-frontend.sh
+          sh -n scripts/build-admin-frontend.sh
+          sh -n scripts/build-monitoring-frontend.sh
           sh -n scripts/build-opkg.sh
           sh -n scripts/build-admin-opkg.sh
           sh -n scripts/upx-pack.sh

@@ -1,0 +1,27 @@
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(here, '../../..');
+
+export default defineConfig({
+  root: here,
+  base: './',
+  plugins: [svelte()],
+  resolve: {
+    alias: {
+      '$lib': path.join(repoRoot, 'components/core/frontend/src/lib'),
+      '$app/environment': path.join(here, 'shim-environment.js'),
+      '$app/navigation': path.join(here, 'shim-navigation.js'),
+    }
+  },
+  server: { fs: { allow: [repoRoot] } },
+  build: {
+    outDir: path.join(here, 'build'),
+    emptyOutDir: true,
+    sourcemap: false,
+    rollupOptions: { input: path.join(here, 'index.html') }
+  }
+});

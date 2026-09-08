@@ -1,9 +1,12 @@
 #!/bin/sh
-
 if [ -x /opt/etc/init.d/S92routerforge-monitoring ]; then
     /opt/etc/init.d/S92routerforge-monitoring stop >/dev/null 2>&1 || true
 fi
-
-# Prototype activation marker belongs only to this standalone package.
+rm -f \
+  /opt/var/run/routerforge-monitoring.sock \
+  /opt/var/run/routerforge-system.sock \
+  /opt/var/run/routerforge-thermal.sock \
+  /opt/var/run/routerforge-storage.sock \
+  /opt/var/run/routerforge-network.sock
 rm -f /opt/etc/routerforge/monitoring.prototype-enabled
 exit 0

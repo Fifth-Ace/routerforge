@@ -96,6 +96,69 @@ func TestRFSynthesizeRuntimeWebCatalogDeduplicatesGenericServerOnKnownPort(t *te
 	}
 }
 
+func TestRFSynthesizeRuntimeWebCatalogSkipsPlatformGenericServer(t *testing.T) {
+	surfaces := []rfDetectedWebSurface{
+		{
+			Address:     "0.0.0.0",
+			Port:        80,
+			Scheme:      "http",
+			ProbeURL:    "http://127.0.0.1:80/",
+			StatusCode:  200,
+			ContentType: "text/html",
+			Title:       "KeeneticOS Web Panel",
+			Owners: []rfWebListenerOwner{
+				{PID: 746, Process: "nginx:", Executable: "/usr/sbin/nginx"},
+			},
+		},
+	}
+
+	if items := rfSynthesizeRuntimeWebCatalog(nil, surfaces, nil); len(items) != 0 {
+		t.Fatalf("platform generic web server must stay outside App integrations: %#v", items)
+	}
+}
+
+func TestRFRuntimeWebPlatformGenericServerScope(t *testing.T) {
+	cases := []struct {
+		name  string
+		owner rfWebListenerOwner
+		want  bool
+	}{
+		{
+			name:  "keenetic nginx",
+			owner: rfWebListenerOwner{Process: "nginx:", Executable: "/usr/sbin/nginx"},
+			want:  true,
+		},
+		{
+			name:  "system busybox httpd",
+			owner: rfWebListenerOwner{Process: "httpd", Executable: "/bin/busybox"},
+			want:  true,
+		},
+		{
+			name:  "entware lighttpd",
+			owner: rfWebListenerOwner{Process: "lighttpd", Package: "lighttpd", Executable: "/opt/sbin/lighttpd"},
+			want:  false,
+		},
+		{
+			name:  "system custom daemon",
+			owner: rfWebListenerOwner{Process: "customd", Executable: "/usr/sbin/customd"},
+			want:  false,
+		},
+		{
+			name:  "unresolved owner",
+			owner: rfWebListenerOwner{},
+			want:  false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := rfRuntimeWebPlatformGenericServerSurface(tc.owner); got != tc.want {
+				t.Fatalf("got=%v want=%v owner=%#v", got, tc.want, tc.owner)
+			}
+		})
+	}
+}
+
 func TestRFSynthesizeRuntimeWebCatalogDoesNotAttributeGenericWebServer(t *testing.T) {
 	surfaces := []rfDetectedWebSurface{
 		{

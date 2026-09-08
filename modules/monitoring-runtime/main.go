@@ -15,6 +15,15 @@ import (
 
 var version = "dev"
 
+var monitoringModuleIDs = []string{"system", "thermal", "storage", "network"}
+
+var monitoringSocketNames = map[string]string{
+	"system":  "routerforge-system.sock",
+	"thermal": "routerforge-thermal.sock",
+	"storage": "routerforge-storage.sock",
+	"network": "routerforge-network.sock",
+}
+
 type moduleServer struct {
 	id      string
 	socket  string
@@ -27,13 +36,23 @@ type moduleServer struct {
 }
 
 func main() {
-	moduleID := flag.String("module", "", "module id: system|thermal|storage|network")
+	moduleID := flag.String("module", "", "module id: system|thermal|storage|network|all")
 	socket := flag.String("socket", "", "Unix socket path")
+	socketDir := flag.String("socket-dir", "/opt/var/run", "Unix socket directory for -module all")
 	flag.Parse()
 
 	id := strings.ToLower(strings.TrimSpace(*moduleID))
-	if !validModuleID(id) {
-		panic("invalid -module: expected system|thermal|storage|network")
+	if !validModuleMode(id) {
+		panic("invalid -module: expected system|thermal|storage|network|all")
+	}
+	if id == "all" {
+		if strings.TrimSpace(*socket) != "" {
+			panic("invalid -socket: -module all uses -socket-dir")
+		}
+		if err := serveAllModules(*socketDir); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			panic(err)
+		}
+		return
 	}
 	if strings.TrimSpace(*socket) == "" {
 		*socket = fmt.Sprintf("/opt/var/run/dns-monitor-%s.sock", id)
@@ -50,6 +69,10 @@ func main() {
 	}
 }
 
+func validModuleMode(id string) bool {
+	return id == "all" || validModuleID(id)
+}
+
 func validModuleID(id string) bool {
 	switch id {
 	case "system", "thermal", "storage", "network":
@@ -57,6 +80,76 @@ func validModuleID(id string) bool {
 	default:
 		return false
 	}
+}
+
+func monitoringSocketPath(socketDir, id string) string {
+	name, ok := monitoringSocketNames[id]
+	if !ok {
+		return ""
+	}
+	return filepath.Join(strings.TrimSpace(socketDir), name)
+}
+
+func unixSocketResponding(socket string) (bool, error) {
+	info, err := os.Lstat(socket)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return false, fmt.Errorf("monitoring socket path exists and is not a Unix socket: %s", socket)
+	}
+	conn, err := net.DialTimeout("unix", socket, 150*time.Millisecond)
+	if err != nil {
+		return false, nil
+	}
+	_ = conn.Close()
+	return true, nil
+}
+
+func serveAllModules(socketDir string) error {
+	socketDir = strings.TrimSpace(socketDir)
+	if socketDir == "" {
+		return errors.New("invalid -socket-dir: directory is required")
+	}
+
+	for _, id := range monitoringModuleIDs {
+		socket := monitoringSocketPath(socketDir, id)
+		active, err := unixSocketResponding(socket)
+		if err != nil {
+			return err
+		}
+		if active {
+			return fmt.Errorf("monitoring socket already active: %s", socket)
+		}
+	}
+
+	servers := make([]*moduleServer, 0, len(monitoringModuleIDs))
+	for _, id := range monitoringModuleIDs {
+		server, err := newModuleServer(id, monitoringSocketPath(socketDir, id))
+		if err != nil {
+			for _, created := range servers {
+				created.Close()
+			}
+			return err
+		}
+		servers = append(servers, server)
+	}
+	defer func() {
+		for _, server := range servers {
+			server.Close()
+		}
+	}()
+
+	errCh := make(chan error, len(servers))
+	for _, server := range servers {
+		go func(s *moduleServer) {
+			errCh <- s.Serve()
+		}(server)
+	}
+	return <-errCh
 }
 
 func newModuleServer(id, socket string) (*moduleServer, error) {

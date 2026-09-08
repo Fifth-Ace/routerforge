@@ -193,12 +193,13 @@ func rfProbeWebListener(parent context.Context, listener rfWebListener, host, sc
 	htmlBody := rfLooksLikeHTML(contentType, body)
 	redirect := rfSafeWebDiscoveryRedirect(target, response.Header.Get("Location"))
 	tlsHint := scheme == "http" && rfLooksLikeTLSRequired(body)
+	authUI := rfLooksLikeAuthWebUI(response.StatusCode, htmlBody, body)
 
 	result.HTTP = true
 	result.HTML = htmlBody
 	result.TLSHint = tlsHint
 	result.BodyBytes = len(body)
-	result.LikelyUI = rfLooksLikeWebUIResponse(response.StatusCode, htmlBody, redirect, tlsHint)
+	result.LikelyUI = rfLooksLikeWebUIResponse(response.StatusCode, htmlBody, redirect, tlsHint, authUI)
 	result.Surface = rfDetectedWebSurface{
 		Address:                listener.Address,
 		Port:                   listener.Port,
@@ -283,7 +284,41 @@ func rfLooksLikeTLSRequired(body []byte) bool {
 	return false
 }
 
-func rfLooksLikeWebUIResponse(status int, htmlBody bool, redirect string, tlsHint bool) bool {
+func rfLooksLikeAuthWebUI(status int, htmlBody bool, body []byte) bool {
+	if !htmlBody || (status != http.StatusUnauthorized && status != http.StatusForbidden) {
+		return false
+	}
+
+	text := strings.ToLower(string(body))
+	for _, marker := range []string{
+		`type="password"`,
+		`type='password'`,
+		`autocomplete="current-password"`,
+		`autocomplete='current-password'`,
+	} {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+
+	title := strings.ToLower(rfWebDiscoveryTitle(body))
+	for _, marker := range []string{
+		"login",
+		"log in",
+		"sign in",
+		"authentication",
+		"authorization",
+		"username",
+		"password",
+	} {
+		if strings.Contains(title, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func rfLooksLikeWebUIResponse(status int, htmlBody bool, redirect string, tlsHint bool, authUI bool) bool {
 	if tlsHint {
 		return false
 	}
@@ -293,7 +328,7 @@ func rfLooksLikeWebUIResponse(status int, htmlBody bool, redirect string, tlsHin
 	if !htmlBody {
 		return false
 	}
-	return (status >= 200 && status < 300) || status == http.StatusUnauthorized || status == http.StatusForbidden
+	return (status >= 200 && status < 300) || authUI
 }
 
 func rfSafeWebDiscoveryRedirect(base *url.URL, raw string) string {

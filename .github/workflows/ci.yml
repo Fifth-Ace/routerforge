@@ -130,7 +130,7 @@ jobs:
                 scripts/render_bootstrap.py|scripts/render_universal_bootstrap.py)
                   RELEASE=true
                   ;;
-                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-beta-multiarch.sh|scripts/publish-stable-multiarch.sh|scripts/build-stable-multiarch.sh|scripts/verify-stable-promotion.sh|scripts/publish-versioned-release.sh|scripts/verify-published-beta.sh)
+                release/*|scripts/build_routerforge_channel.py|scripts/merge_release_index.py|scripts/render_release_notes.py|scripts/publish-dev.sh|scripts/publish-beta-multiarch.sh|scripts/publish-stable-multiarch.sh|scripts/build-stable-multiarch.sh|scripts/verify-stable-promotion.sh|scripts/publish-versioned-release.sh|scripts/verify-published-beta.sh)
                   RELEASE=true
                   ;;
               esac
@@ -229,6 +229,7 @@ jobs:
           test -f modules/thermal/packaging/S93routerforge-thermal
           test -f modules/storage/packaging/S94routerforge-storage
           test -f modules/network/packaging/S95routerforge-network
+          test -f release/channels/dev.json
           test -f release/channels/beta.json
           test -f release/channels/stable.json
           test -f docs/REPOSITORY_LAYOUT.md
@@ -242,7 +243,7 @@ jobs:
           cache: true
 
       - name: Install QEMU user emulators
-        if: steps.scope.outputs.cross == 'true'
+        if: steps.scope.outputs.full_release == 'true'
         run: |
           set -eu
 
@@ -325,7 +326,7 @@ jobs:
           test -s /tmp/routerforge-module-arm64
 
       - name: Verify planned MIPS build targets
-        if: steps.scope.outputs.cross == 'true'
+        if: steps.scope.outputs.full_release == 'true'
         run: |
           set -eu
           for target in mips-3.4 mipsel-3.4; do
@@ -359,7 +360,7 @@ jobs:
           done
 
       - name: Verify MIPS runtime under QEMU
-        if: steps.scope.outputs.cross == 'true'
+        if: steps.scope.outputs.full_release == 'true'
         run: sh scripts/verify-mips-qemu.sh
 
       - name: Smoke test monitoring runtime
@@ -415,6 +416,7 @@ jobs:
           sh -n scripts/upx-pack.sh
           sh -n scripts/build-modules-opkg.sh
           sh -n scripts/build-feed.sh
+          sh -n scripts/publish-dev.sh
           sh -n scripts/verify-mips-qemu.sh
           sh -n scripts/probe-runtime-compat.sh
           sh -n scripts/verify-runtime-compat-probe.sh
@@ -572,6 +574,7 @@ jobs:
           builder = runpy.run_path("scripts/build_routerforge_channel.py")
           candidate_index_name = builder["candidate_index_name"]
 
+          assert candidate_index_name("dev", "aarch64-3.10") == "routerforge-dev-candidate-index.json"
           assert candidate_index_name("beta", "aarch64-3.10") == "routerforge-beta-candidate-index.json"
           assert candidate_index_name("beta", "mips-3.4") == "routerforge-beta-candidate-index-mips-3.4.json"
           assert candidate_index_name("beta", "mipsel-3.4") == "routerforge-beta-candidate-index-mipsel-3.4.json"
@@ -849,6 +852,42 @@ jobs:
             dist/routerforge-*.ipk
             dist/routerforge-stable-candidate-index*.json
           retention-days: 14
+
+  publish_dev:
+    name: Publish rolling ARM64 Dev channel
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: routerforge-dev-publish
+      cancel-in-progress: true
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout exact dev source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+          cache: true
+
+      - name: Build and publish rolling ARM64 Dev channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROUTERFORGE_UPX: '0'
+        run: sh scripts/publish-dev.sh
 
   publish_stable:
     name: Publish validated stable promotion

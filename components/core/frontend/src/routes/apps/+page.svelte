@@ -520,7 +520,13 @@
     const current = String(releaseChannel || 'beta').toLowerCase();
     if (next === current || channelBusy || busyId) return;
 
-    if (!window.confirm(next === 'beta' ? a(locale,'channelBeta') : a(locale,'channelStable'))) {
+    const confirmKey = next === 'dev'
+      ? 'channelDev'
+      : next === 'beta'
+        ? 'channelBeta'
+        : 'channelStable';
+
+    if (!window.confirm(a(locale, confirmKey))) {
       select.value = current;
       return;
     }
@@ -667,6 +673,7 @@
     <select aria-label="RouterForge channel" value={releaseChannel} disabled={channelBusy || Boolean(busyId)} onchange={changeReleaseChannel}>
       <option value="stable">RouterForge Stable</option>
       <option value="beta">RouterForge Beta</option>
+      <option value="dev">RouterForge Dev</option>
     </select>
 
     <button class="button" disabled={checkingUpdates || Boolean(busyId)} onclick={checkForUpdates}>

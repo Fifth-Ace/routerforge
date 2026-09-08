@@ -78,6 +78,8 @@ var routerForgeReleaseState struct {
 
 func normalizeReleaseChannelValue(value string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "dev":
+		return "dev", true
 	case "stable":
 		return "stable", true
 	case "beta":
@@ -88,7 +90,11 @@ func normalizeReleaseChannelValue(value string) (string, bool) {
 }
 
 func defaultReleaseChannel() string {
-	if version == "dev" || strings.Contains(version, "-beta") {
+	value := strings.ToLower(strings.TrimSpace(version))
+	if value == "dev" || strings.Contains(value, "-dev") {
+		return "dev"
+	}
+	if strings.Contains(value, "-beta") {
 		return "beta"
 	}
 	return "stable"
@@ -144,6 +150,9 @@ func releaseChannelSupported(channel, target string) bool {
 	if target == "" {
 		return false
 	}
+	if channel == "dev" {
+		return target == "aarch64-3.10"
+	}
 	return channel != "stable" || target == "aarch64-3.10"
 }
 
@@ -167,7 +176,7 @@ func setReleaseChannel(value string) error {
 		if target == "" {
 			return fmt.Errorf("unsupported RouterForge runtime architecture %q", releaseRuntimeGOARCH)
 		}
-		return fmt.Errorf("RouterForge stable is unavailable for target %s", target)
+		return fmt.Errorf("RouterForge %s is unavailable for target %s", channel, target)
 	}
 	if err := os.MkdirAll(filepath.Dir(routerForgeReleaseChannelFile), 0755); err != nil {
 		return err
@@ -290,7 +299,7 @@ func routerForgeReleaseSnapshot() (routerForgeReleaseIndex, routerForgeReleaseSt
 			if target == "" {
 				status.Error = fmt.Sprintf("unsupported RouterForge runtime architecture %q", releaseRuntimeGOARCH)
 			} else {
-				status.Error = fmt.Sprintf("RouterForge stable is unavailable for target %s", target)
+				status.Error = fmt.Sprintf("RouterForge %s is unavailable for target %s", channel, target)
 			}
 		}
 		routerForgeReleaseState.doc = routerForgeReleaseIndex{

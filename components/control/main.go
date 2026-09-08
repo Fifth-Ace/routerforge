@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -19,9 +21,17 @@ import (
 	"time"
 )
 
-const defaultSocket = "/opt/var/run/routerforge-admin.sock"
+const (
+	defaultSocket                    = "/opt/var/run/routerforge-admin.sock"
+	adminMutationAuthorizationHeader = "X-RouterForge-Admin-Authorized"
+	adminMutationAuthorizationValue  = "session-root-v1"
+	adminMutationResponseOutputLimit = 16 * 1024
+)
 
-var version = "dev"
+var (
+	version        = "dev"
+	serviceInitDir = "/opt/etc/init.d"
+)
 
 type memoryInfo struct {
 	TotalKB     int64   `json:"total_kb"`
@@ -85,6 +95,7 @@ type portInfo struct {
 }
 
 type serviceInfo struct {
+	ID            string    `json:"id"`
 	Name          string    `json:"name"`
 	Path          string    `json:"path"`
 	Executable    bool      `json:"executable"`
@@ -151,12 +162,14 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/health", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok":           true,
-			"module":       "admin",
-			"version":      version,
-			"api_version":  1,
-			"mode":         "read-only",
-			"mutation_api": false,
+			"ok":            true,
+			"module":        "admin",
+			"version":       version,
+			"api_version":   1,
+			"mode":          "control",
+			"mutation_api":  true,
+			"mutation_auth": "root-session",
+			"ui_mutations":  false,
 		})
 	}))
 	mux.HandleFunc("/v1/summary", getOnly(func(w http.ResponseWriter, _ *http.Request) {
@@ -180,6 +193,8 @@ func main() {
 	mux.HandleFunc("/v1/services", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"services": readServices()})
 	}))
+	mux.HandleFunc("/v1/processes/", mutationOnly(handleProcessSignal))
+	mux.HandleFunc("/v1/services/", mutationOnly(handleServiceAction))
 	mux.HandleFunc("/v1/packages", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"packages": readPackages()})
 	}))
@@ -214,6 +229,291 @@ func main() {
 	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		panic(err)
 	}
+}
+
+type processSignalRequest struct {
+	Signal     string `json:"signal"`
+	ConfirmPID int    `json:"confirm_pid"`
+}
+
+type serviceActionRequest struct {
+	Action    string `json:"action"`
+	ConfirmID string `json:"confirm_id"`
+}
+
+func mutationOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
+				"error":        "POST required",
+				"mutation_api": true,
+			})
+			return
+		}
+		if r.Header.Get(adminMutationAuthorizationHeader) != adminMutationAuthorizationValue {
+			writeJSON(w, http.StatusForbidden, map[string]any{
+				"error":        "authorized RouterForge Core session required",
+				"mutation_api": true,
+			})
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		next(w, r)
+	}
+}
+
+func decodeMutationJSON(w http.ResponseWriter, r *http.Request, target any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	return decoder.Decode(target)
+}
+
+func parseProcessSignalPath(path string) (int, bool) {
+	const prefix = "/v1/processes/"
+	if !strings.HasPrefix(path, prefix) {
+		return 0, false
+	}
+	parts := strings.Split(strings.TrimPrefix(path, prefix), "/")
+	if len(parts) != 2 || parts[1] != "signal" {
+		return 0, false
+	}
+	pid, err := strconv.Atoi(parts[0])
+	return pid, err == nil && pid > 0
+}
+
+func requestedSignal(name string) (syscall.Signal, string, bool) {
+	switch strings.ToUpper(strings.TrimSpace(name)) {
+	case "TERM", "SIGTERM":
+		return syscall.SIGTERM, "TERM", true
+	case "HUP", "SIGHUP":
+		return syscall.SIGHUP, "HUP", true
+	case "INT", "SIGINT":
+		return syscall.SIGINT, "INT", true
+	case "KILL", "SIGKILL":
+		return syscall.SIGKILL, "KILL", true
+	default:
+		return 0, "", false
+	}
+}
+
+func readProcessByPID(pid int) (processInfo, bool) {
+	if pid <= 0 {
+		return processInfo{}, false
+	}
+	base := filepath.Join("/proc", strconv.Itoa(pid))
+	if info, err := os.Stat(base); err != nil || !info.IsDir() {
+		return processInfo{}, false
+	}
+	status := readColonFile(filepath.Join(base, "status"))
+	name := strings.TrimSpace(status["Name"])
+	if name == "" {
+		name = readTrimmed(filepath.Join(base, "comm"))
+	}
+	uid := firstInt(strings.Fields(status["Uid"]))
+	command := name
+	cmdline := strings.Split(string(readBytes(filepath.Join(base, "cmdline"))), "\x00")
+	if len(cmdline) > 0 && strings.TrimSpace(cmdline[0]) != "" {
+		command = cmdline[0]
+	}
+	users := readUsers()
+	return processInfo{
+		PID:      pid,
+		Name:     name,
+		Command:  command,
+		State:    firstField(status["State"]),
+		User:     firstNonEmpty(users[uid], strconv.Itoa(uid)),
+		UID:      uid,
+		RSSKB:    parseKB(status["VmRSS"]),
+		VmSizeKB: parseKB(status["VmSize"]),
+		Threads:  firstInt(strings.Fields(status["Threads"])),
+	}, true
+}
+
+func protectedProcessMutation(pid int, info processInfo) bool {
+	if pid <= 1 || pid == os.Getpid() {
+		return true
+	}
+	corpus := strings.ToLower(info.Name + " " + info.Command)
+	return strings.Contains(corpus, "routerforge") || strings.Contains(corpus, "dns-monitor")
+}
+
+func handleProcessSignal(w http.ResponseWriter, r *http.Request) {
+	pid, ok := parseProcessSignalPath(r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	var request processSignalRequest
+	if err := decodeMutationJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid process signal request"})
+		return
+	}
+	if request.ConfirmPID != pid {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm_pid does not match target pid"})
+		return
+	}
+	signal, signalName, ok := requestedSignal(request.Signal)
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "unsupported signal; allowed: TERM, HUP, INT, KILL"})
+		return
+	}
+	before, exists := readProcessByPID(pid)
+	if !exists {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "process not found"})
+		return
+	}
+	if protectedProcessMutation(pid, before) {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "RouterForge and PID 1 process lifecycle is managed outside Admin process signals"})
+		return
+	}
+	if err := syscall.Kill(pid, signal); err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, syscall.ESRCH) {
+			status = http.StatusNotFound
+		} else if errors.Is(err, syscall.EPERM) {
+			status = http.StatusForbidden
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	after, existsAfter := readProcessByPID(pid)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":               true,
+		"action":           "signal",
+		"pid":              pid,
+		"signal":           signalName,
+		"signal_delivered": true,
+		"exists_after":     existsAfter,
+		"process_before":   before,
+		"process_after":    after,
+	})
+}
+
+func validServiceID(id string) bool {
+	id = strings.TrimSpace(id)
+	if id == "" || filepath.Base(id) != id || !strings.HasPrefix(id, "S") {
+		return false
+	}
+	for _, r := range id {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func readServiceByID(id string) (serviceInfo, bool) {
+	if !validServiceID(id) {
+		return serviceInfo{}, false
+	}
+	for _, service := range readServices() {
+		if service.ID == id {
+			return service, true
+		}
+	}
+	return serviceInfo{}, false
+}
+
+func protectedServiceMutation(service serviceInfo) bool {
+	corpus := strings.ToLower(service.ID + " " + service.Name + " " + service.Path)
+	return strings.Contains(corpus, "routerforge") || strings.Contains(corpus, "dns-monitor")
+}
+
+func parseServiceActionPath(path string) (string, bool) {
+	const prefix = "/v1/services/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", false
+	}
+	parts := strings.Split(strings.TrimPrefix(path, prefix), "/")
+	if len(parts) != 2 || parts[1] != "action" || !validServiceID(parts[0]) {
+		return "", false
+	}
+	return parts[0], true
+}
+
+func requestedServiceAction(action string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "start":
+		return "start", true
+	case "stop":
+		return "stop", true
+	case "restart":
+		return "restart", true
+	default:
+		return "", false
+	}
+}
+
+func trimMutationOutput(output []byte) string {
+	if len(output) > adminMutationResponseOutputLimit {
+		output = output[:adminMutationResponseOutputLimit]
+	}
+	return strings.TrimSpace(string(output))
+}
+
+func handleServiceAction(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseServiceActionPath(r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	var request serviceActionRequest
+	if err := decodeMutationJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid service action request"})
+		return
+	}
+	if strings.TrimSpace(request.ConfirmID) != id {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm_id does not match target service"})
+		return
+	}
+	action, ok := requestedServiceAction(request.Action)
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "unsupported service action; allowed: start, stop, restart"})
+		return
+	}
+	before, exists := readServiceByID(id)
+	if !exists {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "service not found"})
+		return
+	}
+	if !before.Executable {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "service init script is not executable"})
+		return
+	}
+	if protectedServiceMutation(before) {
+		writeJSON(w, http.StatusForbidden, map[string]any{"error": "RouterForge service lifecycle is managed through App Center"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, before.Path, action).CombinedOutput()
+	outputText := trimMutationOutput(output)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			status = http.StatusGatewayTimeout
+		}
+		writeJSON(w, status, map[string]any{
+			"error":  err.Error(),
+			"action": action,
+			"id":     id,
+			"output": outputText,
+		})
+		return
+	}
+	after, existsAfter := readServiceByID(id)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":             true,
+		"action":         action,
+		"id":             id,
+		"output":         outputText,
+		"exists_after":   existsAfter,
+		"service_before": before,
+		"service_after":  after,
+	})
 }
 
 func getOnly(next http.HandlerFunc) http.HandlerFunc {
@@ -267,8 +567,8 @@ func readSummary() adminSummary {
 		CPUCount:      runtime.NumCPU(),
 		ProcessCount:  processes,
 		Memory:        readMemory(),
-		MutationAPI:   false,
-		Mode:          "read-only",
+		MutationAPI:   true,
+		Mode:          "control",
 	}
 }
 
@@ -723,7 +1023,7 @@ func socketState(state string, tcp bool) string {
 }
 
 func readServices() []serviceInfo {
-	entries, err := os.ReadDir("/opt/etc/init.d")
+	entries, err := os.ReadDir(serviceInitDir)
 	if err != nil {
 		return nil
 	}
@@ -737,7 +1037,7 @@ func readServices() []serviceInfo {
 		if err != nil {
 			continue
 		}
-		path := filepath.Join("/opt/etc/init.d", entry.Name())
+		path := filepath.Join(serviceInitDir, entry.Name())
 		serviceName := trimServicePrefix(entry.Name())
 		needle := strings.ToLower(strings.ReplaceAll(serviceName, "-", ""))
 		running := false
@@ -751,6 +1051,7 @@ func readServices() []serviceInfo {
 			}
 		}
 		out = append(out, serviceInfo{
+			ID:            entry.Name(),
 			Name:          serviceName,
 			Path:          path,
 			Executable:    info.Mode()&0111 != 0,

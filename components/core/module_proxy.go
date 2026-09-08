@@ -37,6 +37,66 @@ var modulePackageNames = map[string]string{
 
 var moduleInstalledPackages = readInstalledPackages
 
+type moduleProxyContextKey string
+
+const (
+	adminMutationAuthorizedKey       moduleProxyContextKey = "admin-mutation-authorized"
+	adminMutationAuthorizationHeader                       = "X-RouterForge-Admin-Authorized"
+	adminMutationAuthorizationValue                        = "session-root-v1"
+)
+
+func moduleMutationAPI(moduleID string) bool {
+	return moduleID == "dns" || moduleID == "admin"
+}
+
+func adminModuleMutationRequest(r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return false
+	}
+	const prefix = "/api/modules/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return false
+	}
+	rest := strings.TrimPrefix(r.URL.Path, prefix)
+	parts := strings.SplitN(rest, "/", 2)
+	return len(parts) > 0 && strings.EqualFold(strings.TrimSpace(parts[0]), "admin")
+}
+
+func markAdminMutationAuthorized(r *http.Request) *http.Request {
+	ctx := context.WithValue(r.Context(), adminMutationAuthorizedKey, true)
+	return r.WithContext(ctx)
+}
+
+func adminMutationAuthorized(r *http.Request) bool {
+	authorized, _ := r.Context().Value(adminMutationAuthorizedKey).(bool)
+	return authorized
+}
+
+func securedModuleProxy(auth *authManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if adminModuleMutationRequest(r) {
+			if !sameOriginRequest(r) {
+				writeModuleJSON(w, http.StatusForbidden, map[string]any{
+					"error":        "cross-origin Admin mutation rejected",
+					"mutation_api": true,
+				})
+				return
+			}
+			user, authenticated := auth.sessionUser(r)
+			if !authenticated || user != "root" {
+				writeModuleJSON(w, http.StatusUnauthorized, map[string]any{
+					"error":         "authenticated Entware root session required for Admin mutation",
+					"auth_required": true,
+					"mutation_api":  true,
+				})
+				return
+			}
+			r = markAdminMutationAuthorized(r)
+		}
+		proxyModuleAPI(w, r)
+	}
+}
+
 const moduleReconnectHTML = `<!doctype html>
 <html lang="en">
 <head>
@@ -140,6 +200,14 @@ func moduleMethodAllowed(moduleID, method string) bool {
 			return false
 		}
 	}
+	if moduleID == "admin" {
+		switch method {
+		case http.MethodGet, http.MethodPost:
+			return true
+		default:
+			return false
+		}
+	}
 	return method == http.MethodGet
 }
 
@@ -208,11 +276,13 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		allow := "GET, HEAD"
 		if moduleID == "dns" {
 			allow = "GET, HEAD, POST, PATCH, DELETE"
+		} else if moduleID == "admin" {
+			allow = "GET, HEAD, POST"
 		}
 		w.Header().Set("Allow", allow)
 		writeModuleJSON(w, http.StatusMethodNotAllowed, map[string]any{
 			"error":        "method is not allowed by this RouterForge module",
-			"mutation_api": moduleID == "dns",
+			"mutation_api": moduleMutationAPI(moduleID),
 		})
 		return
 	}
@@ -246,6 +316,12 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		req.URL.Path = targetPath
 		req.URL.RawPath = ""
 		req.Host = "unix"
+		if moduleID == "admin" && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			req.Header.Del(adminMutationAuthorizationHeader)
+			if adminMutationAuthorized(r) {
+				req.Header.Set(adminMutationAuthorizationHeader, adminMutationAuthorizationValue)
+			}
+		}
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if moduleUIPath(targetPath) {
@@ -301,7 +377,7 @@ func moduleUnavailable(w http.ResponseWriter, moduleID, detail string) {
 		"module":       moduleID,
 		"installed":    moduleInstalled(moduleID),
 		"running":      false,
-		"mutation_api": moduleID == "dns",
+		"mutation_api": moduleMutationAPI(moduleID),
 		"error":        "RouterForge module is not available",
 		"detail":       detail,
 	})

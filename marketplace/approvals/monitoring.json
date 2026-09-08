@@ -1,7 +1,7 @@
 {
   "id": "monitoring",
   "status": "official",
-  "manifest_sha256": "70e481ecefe1af01f1bb6d0da697d2f33ce98c9a1c2f34243cd63cb938fb624e",
+  "manifest_sha256": "c034ec716a9b0490b72a8b84ebc58aa542af30a7932652acd7d0a83258f3f290",
   "reviewed_by": "routerforge",
   "note": "Официальный consolidated RouterForge monitoring module for Dev hardware validation."
 }

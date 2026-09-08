@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "6591ab2d6ad23e80ad55e1b1ea54273e7862256af63550f38c7be89e0e41e694",
+  "revision": "7d474d8e35f69b9eccfcb8e40e675da1691c08d77cac91de7a327a33d4390d75",
   "entries": [
     {
       "id": "admin",
@@ -43,7 +43,9 @@
         "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
         "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": "routerforge-admin",
+        "packages": [
+          "routerforge-admin"
+        ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
           "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
@@ -56,8 +58,12 @@
         "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
         "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": "routerforge-admin",
-        "notes": "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости.",
+        "packages": [
+          "routerforge-admin"
+        ],
+        "notes": [
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
+        ],
         "preview_only": false
       },
       "remove": {
@@ -66,17 +72,23 @@
           "routerforge-admin",
           "dns-monitor-admin"
         ],
-        "notes": "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен.",
+        "notes": [
+          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
+        ],
         "preview_only": false,
         "steps": [
           {
             "type": "opkg-remove",
-            "packages": "routerforge-admin",
+            "packages": [
+              "routerforge-admin"
+            ],
             "ignore_failure": true
           },
           {
             "type": "opkg-remove",
-            "packages": "dns-monitor-admin",
+            "packages": [
+              "dns-monitor-admin"
+            ],
             "ignore_failure": true
           }
         ]
@@ -128,7 +140,9 @@
       "managed": true,
       "package_authoritative": true,
       "detection": {
-        "packages": "routerforge-dns",
+        "packages": [
+          "routerforge-dns"
+        ],
         "paths": [
           "/opt/etc/routerforge/dns.enabled",
           "/opt/etc/dns-monitor/dns.enabled"
@@ -148,7 +162,9 @@
         "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
         "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": "routerforge-dns",
+        "packages": [
+          "routerforge-dns"
+        ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
           "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
@@ -161,14 +177,22 @@
         "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
         "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": "routerforge-dns",
-        "notes": "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости.",
+        "packages": [
+          "routerforge-dns"
+        ],
+        "notes": [
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
+        ],
         "preview_only": false
       },
       "remove": {
         "method": "opkg",
-        "packages": "routerforge-dns",
-        "notes": "Отключает DNS runtime и убирает DNS-раздел из интерфейса; RouterForge Core остаётся.",
+        "packages": [
+          "routerforge-dns"
+        ],
+        "notes": [
+          "Отключает DNS runtime и убирает DNS-раздел из интерфейса; RouterForge Core остаётся."
+        ],
         "preview_only": false
       },
       "presentation": {
@@ -247,8 +271,12 @@
         "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
         "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": "routerforge-monitoring",
-        "notes": "Один runtime заменяет routerforge-system/thermal/storage/network и сохраняет их API-контракты.",
+        "packages": [
+          "routerforge-monitoring"
+        ],
+        "notes": [
+          "Один runtime заменяет routerforge-system/thermal/storage/network и сохраняет их API-контракты."
+        ],
         "preview_only": false
       },
       "update": {
@@ -257,8 +285,12 @@
         "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
         "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": "routerforge-monitoring",
-        "notes": "Мигрирует четыре старых RouterForge monitoring package в один consolidated package.",
+        "packages": [
+          "routerforge-monitoring"
+        ],
+        "notes": [
+          "Мигрирует четыре старых RouterForge monitoring package в один consolidated package."
+        ],
         "preview_only": false
       },
       "remove": {
@@ -274,27 +306,37 @@
         "steps": [
           {
             "type": "opkg-remove",
-            "packages": "routerforge-monitoring",
+            "packages": [
+              "routerforge-monitoring"
+            ],
             "ignore_failure": true
           },
           {
             "type": "opkg-remove",
-            "packages": "routerforge-system",
+            "packages": [
+              "routerforge-system"
+            ],
             "ignore_failure": true
           },
           {
             "type": "opkg-remove",
-            "packages": "routerforge-thermal",
+            "packages": [
+              "routerforge-thermal"
+            ],
             "ignore_failure": true
           },
           {
             "type": "opkg-remove",
-            "packages": "routerforge-storage",
+            "packages": [
+              "routerforge-storage"
+            ],
             "ignore_failure": true
           },
           {
             "type": "opkg-remove",
-            "packages": "routerforge-network",
+            "packages": [
+              "routerforge-network"
+            ],
             "ignore_failure": true
           }
         ]
@@ -333,118 +375,13 @@
         "conntrack"
       ],
       "manifest_id": "monitoring",
-      "manifest_sha256": "70e481ecefe1af01f1bb6d0da697d2f33ce98c9a1c2f34243cd63cb938fb624e",
+      "manifest_sha256": "c034ec716a9b0490b72a8b84ebc58aa542af30a7932652acd7d0a83258f3f290",
       "manifest_source": "marketplace/submissions/monitoring.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "official",
         "reviewed_by": "routerforge",
         "note": "Официальный consolidated RouterForge monitoring module for Dev hardware validation."
-      }
-    },
-    {
-      "id": "nfqws2",
-      "kind": "integration",
-      "name": "nfqws2",
-      "category": "DPI / Bypass",
-      "description": "Актуальная nfqws ветка для Keenetic/Netcraze. Lifecycle сверяется с официальной инструкцией разработчика.",
-      "publisher": {
-        "id": "nfqws",
-        "name": "nfqws",
-        "url": "https://github.com/nfqws"
-      },
-      "project_url": "https://github.com/nfqws/nfqws2-keenetic",
-      "source": "project-official",
-      "package_authoritative": true,
-      "detection": {
-        "packages": "nfqws2-keenetic",
-        "services": "/opt/etc/init.d/S51nfqws2",
-        "paths": "/opt/etc/nfqws2"
-      },
-      "process_names": "nfqws2",
-      "web_port": 90,
-      "web_port_source": "nfqws-keenetic-web",
-      "web_requires_package": "nfqws-keenetic-web",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Entware",
-          "Netfilter kernel modules",
-          "Legacy nfqws must be removed before migration"
-        ]
-      },
-      "install": {
-        "method": "structured",
-        "packages": "nfqws2-keenetic",
-        "notes": [
-          "Шаги повторяют README nfqws2-keenetic для Keenetic/Netcraze.",
-          "Если legacy nfqws-keenetic установлен, RouterForge остановит автоматическую установку вместо его скрытого удаления."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-install",
-            "packages": [
-              "ca-certificates",
-              "wget-ssl"
-            ]
-          },
-          {
-            "type": "opkg-remove",
-            "packages": "wget-nossl",
-            "ignore_failure": true
-          },
-          {
-            "type": "write-opkg-feed",
-            "path": "/opt/etc/opkg/nfqws2-keenetic.conf",
-            "content": "src/gz nfqws2-keenetic https://nfqws.github.io/nfqws2-keenetic/all"
-          },
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-install",
-            "packages": "nfqws2-keenetic"
-          }
-        ]
-      },
-      "update": {
-        "method": "structured",
-        "packages": "nfqws2-keenetic",
-        "notes": "Официальный README: opkg update; opkg upgrade nfqws2-keenetic.",
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-upgrade",
-            "packages": "nfqws2-keenetic"
-          }
-        ]
-      },
-      "remove": {
-        "method": "structured",
-        "packages": "nfqws2-keenetic",
-        "notes": "Официальный README: opkg remove --autoremove nfqws2-keenetic.",
-        "preview_only": false,
-        "steps": {
-          "type": "opkg-remove",
-          "args": "--autoremove",
-          "packages": "nfqws2-keenetic"
-        }
-      },
-      "manifest_id": "nfqws2",
-      "manifest_sha256": "08d68eb786495411162df2e13de8c1137586a758d08fcb5ac4b3bd8c2c42e933",
-      "manifest_source": "marketplace/submissions/nfqws2.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "verified",
-        "reviewed_by": "routerforge",
-        "note": "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
       }
     },
     {
@@ -462,8 +399,12 @@
       "source": "project-official",
       "package_authoritative": true,
       "detection": {
-        "packages": "nfqws-keenetic-web",
-        "paths": "/opt/etc/nfqws_web.conf"
+        "packages": [
+          "nfqws-keenetic-web"
+        ],
+        "paths": [
+          "/opt/etc/nfqws_web.conf"
+        ]
       },
       "web": {
         "scheme": "http",
@@ -483,8 +424,12 @@
       },
       "install": {
         "method": "structured",
-        "packages": "nfqws-keenetic-web",
-        "notes": "Шаги повторяют README nfqws-keenetic-web для Keenetic/Netcraze.",
+        "packages": [
+          "nfqws-keenetic-web"
+        ],
+        "notes": [
+          "Шаги повторяют README nfqws-keenetic-web для Keenetic/Netcraze."
+        ],
         "preview_only": false,
         "steps": [
           {
@@ -499,7 +444,9 @@
           },
           {
             "type": "opkg-remove",
-            "packages": "wget-nossl",
+            "packages": [
+              "wget-nossl"
+            ],
             "ignore_failure": true
           },
           {
@@ -512,14 +459,20 @@
           },
           {
             "type": "opkg-install",
-            "packages": "nfqws-keenetic-web"
+            "packages": [
+              "nfqws-keenetic-web"
+            ]
           }
         ]
       },
       "update": {
         "method": "structured",
-        "packages": "nfqws-keenetic-web",
-        "notes": "Официальный README: opkg update; opkg upgrade nfqws-keenetic-web.",
+        "packages": [
+          "nfqws-keenetic-web"
+        ],
+        "notes": [
+          "Официальный README: opkg update; opkg upgrade nfqws-keenetic-web."
+        ],
         "preview_only": false,
         "steps": [
           {
@@ -527,24 +480,171 @@
           },
           {
             "type": "opkg-upgrade",
-            "packages": "nfqws-keenetic-web"
+            "packages": [
+              "nfqws-keenetic-web"
+            ]
           }
         ]
       },
       "remove": {
         "method": "structured",
-        "packages": "nfqws-keenetic-web",
-        "notes": "Официальный README: opkg remove --autoremove nfqws-keenetic-web.",
+        "packages": [
+          "nfqws-keenetic-web"
+        ],
+        "notes": [
+          "Официальный README: opkg remove --autoremove nfqws-keenetic-web."
+        ],
         "preview_only": false,
-        "steps": {
-          "type": "opkg-remove",
-          "args": "--autoremove",
-          "packages": "nfqws-keenetic-web"
-        }
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "args": [
+              "--autoremove"
+            ],
+            "packages": [
+              "nfqws-keenetic-web"
+            ]
+          }
+        ]
       },
       "manifest_id": "nfqws-web",
       "manifest_sha256": "9cde131b5556b6098d4153eae85f968a3eba782802dc5aeacf18a07eb4d1e87c",
       "manifest_source": "marketplace/submissions/nfqws-web.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "verified",
+        "reviewed_by": "routerforge",
+        "note": "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
+      }
+    },
+    {
+      "id": "nfqws2",
+      "kind": "integration",
+      "name": "nfqws2",
+      "category": "DPI / Bypass",
+      "description": "Актуальная nfqws ветка для Keenetic/Netcraze. Lifecycle сверяется с официальной инструкцией разработчика.",
+      "publisher": {
+        "id": "nfqws",
+        "name": "nfqws",
+        "url": "https://github.com/nfqws"
+      },
+      "project_url": "https://github.com/nfqws/nfqws2-keenetic",
+      "source": "project-official",
+      "package_authoritative": true,
+      "detection": {
+        "packages": [
+          "nfqws2-keenetic"
+        ],
+        "services": [
+          "/opt/etc/init.d/S51nfqws2"
+        ],
+        "paths": [
+          "/opt/etc/nfqws2"
+        ]
+      },
+      "process_names": [
+        "nfqws2"
+      ],
+      "web_port": 90,
+      "web_port_source": "nfqws-keenetic-web",
+      "web_requires_package": "nfqws-keenetic-web",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Entware",
+          "Netfilter kernel modules",
+          "Legacy nfqws must be removed before migration"
+        ]
+      },
+      "install": {
+        "method": "structured",
+        "packages": [
+          "nfqws2-keenetic"
+        ],
+        "notes": [
+          "Шаги повторяют README nfqws2-keenetic для Keenetic/Netcraze.",
+          "Если legacy nfqws-keenetic установлен, RouterForge остановит автоматическую установку вместо его скрытого удаления."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-install",
+            "packages": [
+              "ca-certificates",
+              "wget-ssl"
+            ]
+          },
+          {
+            "type": "opkg-remove",
+            "packages": [
+              "wget-nossl"
+            ],
+            "ignore_failure": true
+          },
+          {
+            "type": "write-opkg-feed",
+            "path": "/opt/etc/opkg/nfqws2-keenetic.conf",
+            "content": "src/gz nfqws2-keenetic https://nfqws.github.io/nfqws2-keenetic/all"
+          },
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-install",
+            "packages": [
+              "nfqws2-keenetic"
+            ]
+          }
+        ]
+      },
+      "update": {
+        "method": "structured",
+        "packages": [
+          "nfqws2-keenetic"
+        ],
+        "notes": [
+          "Официальный README: opkg update; opkg upgrade nfqws2-keenetic."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-update"
+          },
+          {
+            "type": "opkg-upgrade",
+            "packages": [
+              "nfqws2-keenetic"
+            ]
+          }
+        ]
+      },
+      "remove": {
+        "method": "structured",
+        "packages": [
+          "nfqws2-keenetic"
+        ],
+        "notes": [
+          "Официальный README: opkg remove --autoremove nfqws2-keenetic."
+        ],
+        "preview_only": false,
+        "steps": [
+          {
+            "type": "opkg-remove",
+            "args": [
+              "--autoremove"
+            ],
+            "packages": [
+              "nfqws2-keenetic"
+            ]
+          }
+        ]
+      },
+      "manifest_id": "nfqws2",
+      "manifest_sha256": "08d68eb786495411162df2e13de8c1137586a758d08fcb5ac4b3bd8c2c42e933",
+      "manifest_source": "marketplace/submissions/nfqws2.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "verified",
@@ -591,7 +691,9 @@
         "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
         "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": "routerforge-profiling",
+        "packages": [
+          "routerforge-profiling"
+        ],
         "notes": [
           "Скачивается только выбранный IPK из GitHub release RouterForge.",
           "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
@@ -604,8 +706,12 @@
         "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
         "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
         "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": "routerforge-profiling",
-        "notes": "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости.",
+        "packages": [
+          "routerforge-profiling"
+        ],
+        "notes": [
+          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
+        ],
         "preview_only": false
       },
       "remove": {
@@ -614,17 +720,23 @@
           "routerforge-profiling",
           "dns-monitor-profiling"
         ],
-        "notes": "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен.",
+        "notes": [
+          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
+        ],
         "preview_only": false,
         "steps": [
           {
             "type": "opkg-remove",
-            "packages": "routerforge-profiling",
+            "packages": [
+              "routerforge-profiling"
+            ],
             "ignore_failure": true
           },
           {
             "type": "opkg-remove",
-            "packages": "dns-monitor-profiling",
+            "packages": [
+              "dns-monitor-profiling"
+            ],
             "ignore_failure": true
           }
         ]

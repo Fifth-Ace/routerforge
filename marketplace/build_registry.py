@@ -31,6 +31,11 @@ def load_json(path):
         return json.load(fh)
 
 
+def validate_string_list(value, where):
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ValueError(f"{where}: must be an array of strings")
+
+
 def validate_package(value, where):
     if not value or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789-+._" for ch in value):
         raise ValueError(f"{where}: unsafe package {value!r}")
@@ -68,19 +73,33 @@ def validate_web(web, where):
 def validate_plan(plan, where):
     if not plan:
         return
+    if not isinstance(plan, dict):
+        raise ValueError(f"{where}: plan must be an object")
     method = plan.get("method", "")
     if method not in ALLOWED_METHODS:
         raise ValueError(f"{where}: unsupported method {method!r}")
+
+    if "packages" in plan:
+        validate_string_list(plan["packages"], f"{where}.packages")
+    if "notes" in plan:
+        validate_string_list(plan["notes"], f"{where}.notes")
     for pkg in plan.get("packages", []):
         validate_package(pkg, where)
+
     if method == "structured":
         steps = plan.get("steps", [])
-        if not steps:
+        if not isinstance(steps, list) or not steps:
             raise ValueError(f"{where}: structured plan has no steps")
         for idx, step in enumerate(steps):
+            if not isinstance(step, dict):
+                raise ValueError(f"{where}.steps[{idx}]: step must be an object")
             step_type = step.get("type")
             if step_type not in ALLOWED_STEPS:
                 raise ValueError(f"{where}.steps[{idx}]: unsupported type {step_type!r}")
+            if "packages" in step:
+                validate_string_list(step["packages"], f"{where}.steps[{idx}].packages")
+            if "args" in step:
+                validate_string_list(step["args"], f"{where}.steps[{idx}].args")
             for pkg in step.get("packages", []):
                 validate_package(pkg, f"{where}.steps[{idx}]")
             if step_type == "write-opkg-feed":

@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -143,3 +143,45 @@ jobs:
           path: dist/monitoring-prototype-artifact/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish unindexed Phase 7B hardware-test asset
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          PACKAGE='${{ steps.build.outputs.package }}'
+          TAG=routerforge-beta
+          ASSET="phase7b-hwtest-${GITHUB_SHA}-routerforge-monitoring_0.7.0-phase7b_aarch64-3.10.ipk"
+          OUT="dist/$ASSET"
+
+          case "$ASSET" in
+            routerforge-*.ipk)
+              echo "Hardware-test asset name must stay outside rolling Beta stale-package cleanup." >&2
+              exit 1
+              ;;
+          esac
+
+          cp "$PACKAGE" "$OUT"
+          test -s "$OUT"
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
+             grep -Fxq "$ASSET"; then
+            echo "Refusing to overwrite immutable hardware-test asset: $ASSET" >&2
+            exit 1
+          fi
+
+          LOCAL_SHA="$(sha256sum "$OUT" | awk '{print $1}')"
+
+          gh release upload "$TAG" "$OUT" --repo "$GITHUB_REPOSITORY"
+
+          REMOTE_DIGEST="$(
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG"               --jq ".assets[] | select(.name == \"$ASSET\") | .digest"
+          )"
+
+          test "$REMOTE_DIGEST" = "sha256:$LOCAL_SHA"
+
+          printf 'ASSET=%s\n' "$ASSET"
+          printf 'SHA256=%s\n' "$LOCAL_SHA"
+          printf 'URL=https://github.com/%s/releases/download/%s/%s\n'             "$GITHUB_REPOSITORY" "$TAG" "$ASSET"

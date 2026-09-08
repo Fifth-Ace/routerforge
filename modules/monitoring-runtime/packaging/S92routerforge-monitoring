@@ -6,11 +6,7 @@ PREARGS=""
 DESC="RouterForge Monitoring"
 PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-# Standalone Module ABI v1 service, intentionally outside Core like routerforge-dns.
-# Phase 7B prototype is fail-closed at boot: explicit activation is required so
-# it can never race legacy S92-S95 helpers for the compatibility sockets.
-if [ -f /opt/etc/routerforge/module-abi-v1 ] && \
-   [ -f /opt/etc/routerforge/monitoring.prototype-enabled ]; then
+if [ -f /opt/etc/routerforge/module-abi-v1 ]; then
     ENABLED=yes
 fi
 

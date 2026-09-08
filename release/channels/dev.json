@@ -21,26 +21,8 @@
       "min_core_version": "0.7.0-dev"
     },
     {
-      "id": "system",
-      "package": "routerforge-system",
-      "version": "0.7.0-dev",
-      "min_core_version": "0.7.0-dev"
-    },
-    {
-      "id": "thermal",
-      "package": "routerforge-thermal",
-      "version": "0.7.0-dev",
-      "min_core_version": "0.7.0-dev"
-    },
-    {
-      "id": "storage",
-      "package": "routerforge-storage",
-      "version": "0.7.0-dev",
-      "min_core_version": "0.7.0-dev"
-    },
-    {
-      "id": "network",
-      "package": "routerforge-network",
+      "id": "monitoring",
+      "package": "routerforge-monitoring",
       "version": "0.7.0-dev",
       "min_core_version": "0.7.0-dev"
     },

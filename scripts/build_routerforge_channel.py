@@ -131,8 +131,10 @@ def main():
     if config.get("schema_version") != 1:
         raise SystemExit("channel config schema_version must be 1")
     channel = config.get("channel")
-    if channel not in {"beta", "stable"}:
-        raise SystemExit("channel must be beta or stable")
+    if channel not in {"dev", "beta", "stable"}:
+        raise SystemExit("channel must be dev, beta or stable")
+    if channel == "dev" and target != "aarch64-3.10":
+        raise SystemExit("dev channel is ARM64-only")
 
     repository = os.environ.get("GITHUB_REPOSITORY", CANONICAL_REPOSITORY).strip()
     if repository not in ALLOWED_REPOSITORIES:

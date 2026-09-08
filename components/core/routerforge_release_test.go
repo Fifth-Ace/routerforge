@@ -254,17 +254,33 @@ func TestReleaseChannelSupportMatrix(t *testing.T) {
 		target  string
 		want    bool
 	}{
+		{"dev", "aarch64-3.10", true},
+		{"dev", "mips-3.4", false},
+		{"dev", "mipsel-3.4", false},
 		{"beta", "aarch64-3.10", true},
 		{"beta", "mips-3.4", true},
 		{"beta", "mipsel-3.4", true},
 		{"stable", "aarch64-3.10", true},
 		{"stable", "mips-3.4", false},
 		{"stable", "mipsel-3.4", false},
+		{"dev", "", false},
 		{"beta", "", false},
 	}
 	for _, tc := range cases {
 		if got := releaseChannelSupported(tc.channel, tc.target); got != tc.want {
 			t.Fatalf("%s/%s: supported=%v, want %v", tc.channel, tc.target, got, tc.want)
+		}
+	}
+}
+
+func TestDefaultReleaseChannelRecognizesDevBuild(t *testing.T) {
+	oldVersion := version
+	defer func() { version = oldVersion }()
+
+	for _, value := range []string{"dev", "0.7.0-dev", "0.7.0-dev.86ca9d0"} {
+		version = value
+		if got := defaultReleaseChannel(); got != "dev" {
+			t.Fatalf("version %q selected channel %q, want dev", value, got)
 		}
 	}
 }

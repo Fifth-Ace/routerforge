@@ -31,7 +31,7 @@ def valid_release_url(url, release_tag, asset):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--channel", choices=("stable", "beta"), required=True)
+    ap.add_argument("--channel", choices=("dev", "stable", "beta"), required=True)
     ap.add_argument("--release-tag")
     ap.add_argument("--final", required=True)
     ap.add_argument("--output", required=True)

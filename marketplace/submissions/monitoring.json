@@ -48,8 +48,12 @@
     "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
     "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
     "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-    "packages": "routerforge-monitoring",
-    "notes": "Один runtime заменяет routerforge-system/thermal/storage/network и сохраняет их API-контракты.",
+    "packages": [
+      "routerforge-monitoring"
+    ],
+    "notes": [
+      "Один runtime заменяет routerforge-system/thermal/storage/network и сохраняет их API-контракты."
+    ],
     "preview_only": false
   },
   "update": {
@@ -58,8 +62,12 @@
     "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
     "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
     "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-    "packages": "routerforge-monitoring",
-    "notes": "Мигрирует четыре старых RouterForge monitoring package в один consolidated package.",
+    "packages": [
+      "routerforge-monitoring"
+    ],
+    "notes": [
+      "Мигрирует четыре старых RouterForge monitoring package в один consolidated package."
+    ],
     "preview_only": false
   },
   "remove": {
@@ -75,27 +83,37 @@
     "steps": [
       {
         "type": "opkg-remove",
-        "packages": "routerforge-monitoring",
+        "packages": [
+          "routerforge-monitoring"
+        ],
         "ignore_failure": true
       },
       {
         "type": "opkg-remove",
-        "packages": "routerforge-system",
+        "packages": [
+          "routerforge-system"
+        ],
         "ignore_failure": true
       },
       {
         "type": "opkg-remove",
-        "packages": "routerforge-thermal",
+        "packages": [
+          "routerforge-thermal"
+        ],
         "ignore_failure": true
       },
       {
         "type": "opkg-remove",
-        "packages": "routerforge-storage",
+        "packages": [
+          "routerforge-storage"
+        ],
         "ignore_failure": true
       },
       {
         "type": "opkg-remove",
-        "packages": "routerforge-network",
+        "packages": [
+          "routerforge-network"
+        ],
         "ignore_failure": true
       }
     ]

@@ -6,7 +6,7 @@ import (
 	"hash/fnv"
 	"net"
 	"net/url"
-	"path/filepath"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -111,6 +111,9 @@ func rfSynthesizeRuntimeWebCatalog(existing []catalogItem, surfaces []rfDetected
 		if rfRuntimeWebSelfSurface(surface, rawOwner) {
 			continue
 		}
+		if rfRuntimeWebPlatformGenericServerSurface(rawOwner) {
+			continue
+		}
 		owner := rfRuntimeWebApplicationOwner(rawOwner)
 		if rfRuntimeWebMatchesKnown(owner, surface.Port, knownPackages, knownProcesses, knownPorts) {
 			continue
@@ -213,9 +216,29 @@ func rfPreferredRuntimeWebOwner(owners []rfWebListenerOwner) rfWebListenerOwner 
 	return owners[0]
 }
 
+func rfRuntimeWebPlatformGenericServerSurface(owner rfWebListenerOwner) bool {
+	executable := strings.TrimSpace(owner.Executable)
+	if executable == "" {
+		return false
+	}
+
+	cleanExecutable := path.Clean(executable)
+	if cleanExecutable == "/opt" || strings.HasPrefix(cleanExecutable, "/opt/") {
+		return false
+	}
+
+	process := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(owner.Process), ":"))
+	executableBase := strings.ToLower(path.Base(cleanExecutable))
+	pkg := strings.ToLower(strings.TrimSpace(owner.Package))
+
+	return rfRuntimeWebGenericServerName(process) ||
+		rfRuntimeWebGenericServerName(executableBase) ||
+		rfRuntimeWebGenericServerPackage(pkg)
+}
+
 func rfRuntimeWebApplicationOwner(owner rfWebListenerOwner) rfWebListenerOwner {
 	process := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(owner.Process), ":"))
-	executable := strings.ToLower(filepath.Base(strings.TrimSpace(owner.Executable)))
+	executable := strings.ToLower(path.Base(strings.TrimSpace(owner.Executable)))
 	pkg := strings.ToLower(strings.TrimSpace(owner.Package))
 
 	if rfRuntimeWebGenericServerName(process) ||

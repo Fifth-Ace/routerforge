@@ -2,6 +2,21 @@ package main
 
 import "testing"
 
+func testBundledRegistryModule(t *testing.T, id string) catalogItem {
+	t.Helper()
+	doc, err := parseRouterForgeRegistry(bundledRouterForgeRegistry)
+	if err != nil {
+		t.Fatalf("parse bundled registry: %v", err)
+	}
+	for i := range doc.Entries {
+		if doc.Entries[i].Kind == "module" && doc.Entries[i].ID == id {
+			return doc.Entries[i]
+		}
+	}
+	t.Fatalf("bundled registry module %q missing", id)
+	return catalogItem{}
+}
+
 func TestCatalogDetectsManagedAdminModule(t *testing.T) {
 	installed := map[string]string{
 		"routerforge-admin": "0.3.0-beta",
@@ -10,18 +25,9 @@ func TestCatalogDetectsManagedAdminModule(t *testing.T) {
 		"routerforge-admin": true,
 	}
 
-	snap := buildCatalog(installed, processes, func(string) bool { return false })
+	admin := testBundledRegistryModule(t, "admin")
+	finalizeCatalogItem(&admin, installed, processes, func(string) bool { return false })
 
-	var admin *catalogItem
-	for i := range snap.Modules {
-		if snap.Modules[i].ID == "admin" {
-			admin = &snap.Modules[i]
-			break
-		}
-	}
-	if admin == nil {
-		t.Fatal("admin module missing")
-	}
 	if !admin.Managed {
 		t.Fatal("admin module must be managed by RouterForge")
 	}

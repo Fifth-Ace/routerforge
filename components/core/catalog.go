@@ -702,7 +702,17 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 			break
 		}
 	}
-	for _, runningPath := range item.RunningPaths {
+	runningPaths := item.RunningPaths
+	if len(runningPaths) == 0 && item.Managed && item.PackageAuthoritative && len(item.ProcessNames) == 0 {
+		// Registry v1 compatibility: early official modules encoded enable
+		// markers in detection.paths before running_paths was populated.
+		for _, p := range item.Detection.Paths {
+			if strings.HasSuffix(strings.ToLower(p), ".enabled") {
+				runningPaths = append(runningPaths, p)
+			}
+		}
+	}
+	for _, runningPath := range runningPaths {
 		if exists(runningPath) {
 			item.ServiceRunning = true
 			break

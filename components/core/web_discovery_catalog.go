@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"net"
 	"net/url"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -106,10 +107,11 @@ func rfSynthesizeRuntimeWebCatalog(existing []catalogItem, surfaces []rfDetected
 	items := make([]catalogItem, 0, len(surfaces))
 	seen := map[string]struct{}{}
 	for _, surface := range surfaces {
-		owner := rfPreferredRuntimeWebOwner(surface.Owners)
-		if rfRuntimeWebSelfSurface(surface, owner) {
+		rawOwner := rfPreferredRuntimeWebOwner(surface.Owners)
+		if rfRuntimeWebSelfSurface(surface, rawOwner) {
 			continue
 		}
+		owner := rfRuntimeWebApplicationOwner(rawOwner)
 		if rfRuntimeWebMatchesKnown(owner, surface.Port, knownPackages, knownProcesses, knownPorts) {
 			continue
 		}
@@ -209,6 +211,38 @@ func rfPreferredRuntimeWebOwner(owners []rfWebListenerOwner) rfWebListenerOwner 
 		}
 	}
 	return owners[0]
+}
+
+func rfRuntimeWebApplicationOwner(owner rfWebListenerOwner) rfWebListenerOwner {
+	process := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(owner.Process), ":"))
+	executable := strings.ToLower(filepath.Base(strings.TrimSpace(owner.Executable)))
+	pkg := strings.ToLower(strings.TrimSpace(owner.Package))
+
+	if rfRuntimeWebGenericServerName(process) ||
+		rfRuntimeWebGenericServerName(executable) ||
+		rfRuntimeWebGenericServerPackage(pkg) {
+		return rfWebListenerOwner{PID: owner.PID}
+	}
+	return owner
+}
+
+func rfRuntimeWebGenericServerName(value string) bool {
+	value = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(value), ":"))
+	switch value {
+	case "lighttpd", "nginx", "httpd", "uhttpd", "apache2", "apachectl":
+		return true
+	default:
+		return false
+	}
+}
+
+func rfRuntimeWebGenericServerPackage(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	return value == "lighttpd" ||
+		value == "nginx" ||
+		strings.HasPrefix(value, "nginx-") ||
+		value == "uhttpd" ||
+		value == "apache2"
 }
 
 func rfRuntimeWebSelfSurface(surface rfDetectedWebSurface, owner rfWebListenerOwner) bool {

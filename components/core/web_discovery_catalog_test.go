@@ -67,6 +67,64 @@ func TestRFSynthesizeRuntimeWebCatalogSkipsKnownIntegration(t *testing.T) {
 	}
 }
 
+func TestRFSynthesizeRuntimeWebCatalogDeduplicatesGenericServerOnKnownPort(t *testing.T) {
+	existing := []catalogItem{
+		{
+			ID:        "nfqws-web",
+			Installed: true,
+			Detection: catalogDetection{Packages: []string{"nfqws-keenetic-web"}},
+			Web:       &catalogWebMetadata{Port: 90},
+		},
+	}
+	surfaces := []rfDetectedWebSurface{
+		{
+			Address:     "0.0.0.0",
+			Port:        90,
+			Scheme:      "http",
+			ProbeURL:    "http://127.0.0.1:90/",
+			StatusCode:  200,
+			ContentType: "text/html",
+			Title:       "nfqws-keenetic-web",
+			Owners: []rfWebListenerOwner{
+				{PID: 919, Process: "lighttpd", Package: "lighttpd", Executable: "/opt/sbin/lighttpd"},
+			},
+		},
+	}
+
+	if items := rfSynthesizeRuntimeWebCatalog(existing, surfaces, map[string]string{"lighttpd": "1.4.82-2"}); len(items) != 0 {
+		t.Fatalf("generic web server must not create a duplicate known Web UI: %#v", items)
+	}
+}
+
+func TestRFSynthesizeRuntimeWebCatalogDoesNotAttributeGenericWebServer(t *testing.T) {
+	surfaces := []rfDetectedWebSurface{
+		{
+			Address:     "0.0.0.0",
+			Port:        8765,
+			Scheme:      "http",
+			ProbeURL:    "http://127.0.0.1:8765/",
+			StatusCode:  200,
+			ContentType: "text/html",
+			Title:       "Mystery Panel",
+			Owners: []rfWebListenerOwner{
+				{PID: 55, Process: "lighttpd", Package: "lighttpd", Executable: "/opt/sbin/lighttpd"},
+			},
+		},
+	}
+
+	items := rfSynthesizeRuntimeWebCatalog(nil, surfaces, map[string]string{"lighttpd": "1.4.82-2"})
+	if len(items) != 1 {
+		t.Fatalf("items=%d %#v", len(items), items)
+	}
+	item := items[0]
+	if item.Name != "Mystery Panel" || item.Version != "" || item.PackageInstalled {
+		t.Fatalf("generic server leaked into application identity/version: %#v", item)
+	}
+	if len(item.Detection.Packages) != 0 || len(item.ProcessNames) != 0 {
+		t.Fatalf("generic server leaked into application provenance: %#v", item)
+	}
+}
+
 func TestRFSynthesizeRuntimeWebCatalogSkipsRouterForgeCore(t *testing.T) {
 	surfaces := []rfDetectedWebSurface{
 		{

@@ -263,6 +263,19 @@
         && probe?.embed === true
         && probe?.frame_header_policy === 'no-blocking-header-detected';
 
+      const frameBlocked = probe?.reachable === true
+        && probe?.frame_header_policy === 'blocked';
+
+      if (frameBlocked) {
+        actionNotice = {
+          cls:'warn',
+          text: locale === 'ru'
+            ? 'Web UI \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d, \u043d\u043e \u0441\u0430\u043c\u043e \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0437\u0430\u043f\u0440\u0435\u0449\u0430\u0435\u0442 \u0432\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u043d\u0438\u0435 \u0447\u0435\u0440\u0435\u0437 X-Frame-Options/CSP.'
+            : 'Web UI was detected, but the application itself blocks embedding through X-Frame-Options/CSP.'
+        };
+        return;
+      }
+
       if (!safe) {
         actionNotice = {
           cls:'warn',

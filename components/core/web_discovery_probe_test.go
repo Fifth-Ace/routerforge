@@ -82,6 +82,40 @@ func TestRFDetectWebSurfaceAcceptsSameEndpointRedirect(t *testing.T) {
 	}
 }
 
+func TestRFDetectWebSurfaceRejectsGenericForbidden(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte("<html><head><title>403 Forbidden</title></head><body>Forbidden</body></html>"))
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if surface, ok := rfDetectWebSurface(ctx, rfListenerForTestURL(t, server.URL)); ok {
+		t.Fatalf("generic forbidden page must not become a Web UI: %#v", surface)
+	}
+}
+
+func TestRFDetectWebSurfaceAcceptsForbiddenLoginForm(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`<html><head><title>Admin Login</title></head><body><form><input name="user"><input type="password"></form></body></html>`))
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	surface, ok := rfDetectWebSurface(ctx, rfListenerForTestURL(t, server.URL))
+	if !ok {
+		t.Fatal("forbidden login form should remain a Web UI candidate")
+	}
+	if surface.StatusCode != http.StatusForbidden || surface.Title != "Admin Login" {
+		t.Fatalf("surface=%#v", surface)
+	}
+}
+
 func TestRFDetectWebSurfaceHTTPSWithSelfSignedCertificate(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")

@@ -166,7 +166,7 @@ func startWeb(listen string, version string) error {
 	mux.HandleFunc("/api/dns/info", legacyDNSProxy("info"))
 
 	mux.HandleFunc("/api/admin/", proxyAdminAPI)
-	mux.HandleFunc("/api/modules/", proxyModuleAPI)
+	mux.HandleFunc("/api/modules/", securedModuleProxy(auth))
 
 	mux.HandleFunc("/api/catalog/channel", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

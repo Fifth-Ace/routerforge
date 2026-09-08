@@ -134,7 +134,7 @@ jobs:
           } > "$OUT/BUILD-METADATA.txt"
 
           cat "$OUT/BUILD-METADATA.txt"
-          sha256sum -c "$OUT/SHA256SUMS"
+          (cd "$OUT" && sha256sum -c SHA256SUMS)
 
       - name: Upload ARM64 monitoring prototype
         uses: actions/upload-artifact@v4

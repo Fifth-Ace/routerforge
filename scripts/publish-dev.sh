@@ -186,6 +186,28 @@ verify_remote_digest "$(basename "$SUMS")" "$SUMS"
 verify_remote_digest "$(basename "$BOOTSTRAP")" "$BOOTSTRAP"
 verify_remote_digest "$(basename "$FINAL")" "$FINAL"
 
+# The rolling Dev tag is the source identity. Move it only after all published assets
+# and their remote digests have been verified successfully.
+gh api \
+    --method PATCH \
+    "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" \
+    -f sha="$GITHUB_SHA" \
+    -F force=true >/dev/null
+
+DEV_TAG_SHA="$(
+    gh api \
+        "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" \
+        --jq '.object.sha'
+)"
+
+[ "$DEV_TAG_SHA" = "$GITHUB_SHA" ] || {
+    echo "Dev tag mismatch: expected $GITHUB_SHA, got $DEV_TAG_SHA" >&2
+    exit 1
+}
+
+echo "DEV_TAG_SHA=$DEV_TAG_SHA"
+echo "DEV_TAG_GATE=PASS"
+
 echo "DEV_RELEASE=$TAG"
 echo "DEV_INDEX=$(basename "$FINAL")"
 echo "DEV_VERSION=$VERSION"

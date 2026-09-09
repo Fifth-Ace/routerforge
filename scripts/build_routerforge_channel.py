@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tarfile
@@ -16,6 +17,7 @@ LEGACY_REPOSITORY = "Fifth-Ace/dns-monitor"
 CANONICAL_REPOSITORY = "Fifth-Ace/routerforge"
 ALLOWED_REPOSITORIES = {LEGACY_REPOSITORY, CANONICAL_REPOSITORY}
 TARGETS = {"aarch64-3.10", "mips-3.4", "mipsel-3.4"}
+SAFE_ASSET_VERSION = re.compile(r"^[A-Za-z0-9._+-]+$")
 
 
 def load(path):
@@ -39,6 +41,15 @@ def candidate_index_name(channel, target):
     if target == "aarch64-3.10":
         return f"routerforge-{channel}-candidate-index.json"
     return f"routerforge-{channel}-candidate-index-{target}.json"
+
+
+def release_asset_version(version):
+    # opkg needs "~" for prerelease ordering, but GitHub release asset names
+    # must stay on the portable filename subset used by RouterForge.
+    value = str(version).replace("~", "-")
+    if not value or not SAFE_ASSET_VERSION.fullmatch(value):
+        raise SystemExit(f"unsafe release asset version {version!r}")
+    return value
 
 
 def parse_control_fields(raw):
@@ -160,15 +171,29 @@ def main():
 
     for component in components:
         cid = component["id"]
+        pkg = component["package"]
         version = component["version"]
         if not version or "/" in version or ".." in version:
             raise SystemExit(f"{cid}: invalid version")
+        asset_version = release_asset_version(version)
         if cid == "routerforge-core":
             run(["./scripts/build-opkg.sh", version], env=env)
         elif cid == "admin":
             run(["./scripts/build-admin-opkg.sh", version], env=env)
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
+
+        raw_asset = f"{pkg}_{version}_{target}.ipk"
+        asset = f"{pkg}_{asset_version}_{target}.ipk"
+        raw_path = dist / raw_asset
+        path = dist / asset
+
+        if not raw_path.is_file():
+            raise SystemExit(f"missing built asset {raw_asset}")
+        if raw_path != path:
+            if path.exists():
+                raise SystemExit(f"safe release asset already exists {asset}")
+            raw_path.rename(path)
 
     tag = f"routerforge-{channel}"
     legacy_base = f"https://github.com/{LEGACY_REPOSITORY}/releases/download/{tag}"
@@ -178,7 +203,8 @@ def main():
     for component in components:
         pkg = component["package"]
         version = component["version"]
-        asset = f"{pkg}_{version}_{target}.ipk"
+        asset_version = release_asset_version(version)
+        asset = f"{pkg}_{asset_version}_{target}.ipk"
         path = dist / asset
         if not path.is_file():
             raise SystemExit(f"missing built asset {asset}")

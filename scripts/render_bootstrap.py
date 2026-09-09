@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
-SAFE_ASSET = re.compile(r"^[A-Za-z0-9._+-]+$")
+SAFE_ASSET = re.compile(r"^[A-Za-z0-9._+~-]+$")
 SAFE_PACKAGE = re.compile(r"^[a-z0-9._+-]+$")
 
 ALLOWED_REPOSITORIES = (

@@ -613,8 +613,41 @@ jobs:
       - name: Check RouterForge release tooling
         if: steps.scope.outputs.release == 'true'
         run: |
+          set -eu
           sh -n scripts/build-module-opkg.sh
           python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py scripts/render_universal_bootstrap.py
+
+          TILDE_VERSION='0.7.1~dev.r999.deadbeefcafe'
+          TILDE_ASSET="routerforge-core_${TILDE_VERSION}_aarch64-3.10.ipk"
+          TILDE_INDEX=/tmp/routerforge-ci-tilde-index.json
+          TILDE_BOOTSTRAP=/tmp/routerforge-ci-tilde-bootstrap.sh
+
+          cat > "$TILDE_INDEX" <<JSON
+          {
+            "schema_version": 1,
+            "channel": "dev",
+            "target": "aarch64-3.10",
+            "components": [
+              {
+                "package": "routerforge-core",
+                "version": "$TILDE_VERSION",
+                "asset": "$TILDE_ASSET",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                "url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-dev/$TILDE_ASSET",
+                "canonical_url": "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev/$TILDE_ASSET"
+              }
+            ]
+          }
+          JSON
+
+          python3 scripts/render_bootstrap.py \
+            --channel dev \
+            --final "$TILDE_INDEX" \
+            --output "$TILDE_BOOTSTRAP"
+          sh -n "$TILDE_BOOTSTRAP"
+          grep -Fq "$TILDE_ASSET" "$TILDE_BOOTSTRAP"
+          grep -Fq "$TILDE_VERSION" "$TILDE_BOOTSTRAP"
+          echo "DEV_TILDE_ASSET_RENDER_GATE=PASS"
 
           python3 - <<'PY'
           import json

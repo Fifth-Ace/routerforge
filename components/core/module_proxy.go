@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -47,6 +48,77 @@ const (
 
 func moduleMutationAPI(moduleID string) bool {
 	return moduleID == "dns" || moduleID == "admin"
+}
+
+const (
+	dnsModuleMutationBodyLimit   int64 = 64 << 10
+	adminModuleMutationBodyLimit int64 = 8 << 10
+)
+
+func moduleMutationBodyLimit(moduleID string) int64 {
+	switch moduleID {
+	case "dns":
+		return dnsModuleMutationBodyLimit
+	case "admin":
+		return adminModuleMutationBodyLimit
+	default:
+		return 0
+	}
+}
+
+func boundedModuleMutationRequest(w http.ResponseWriter, r *http.Request, moduleID string) (*http.Request, bool) {
+	limit := moduleMutationBodyLimit(moduleID)
+	if limit <= 0 || r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return r, true
+	}
+
+	if r.ContentLength > limit {
+		writeModuleMutationBodyTooLarge(w, moduleID, limit)
+		return nil, false
+	}
+	if r.Body == nil || r.Body == http.NoBody {
+		return r, true
+	}
+
+	body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
+	if err != nil {
+		w.Header().Set("Connection", "close")
+		writeModuleJSON(w, http.StatusBadRequest, map[string]any{
+			"error":        "invalid RouterForge module mutation request body",
+			"module":       moduleID,
+			"mutation_api": true,
+		})
+		return nil, false
+	}
+	if int64(len(body)) > limit {
+		writeModuleMutationBodyTooLarge(w, moduleID, limit)
+		return nil, false
+	}
+
+	clone := r.Clone(r.Context())
+	clone.ContentLength = int64(len(body))
+	clone.TransferEncoding = nil
+	clone.Trailer = nil
+	if len(body) == 0 {
+		clone.Body = http.NoBody
+		clone.GetBody = func() (io.ReadCloser, error) { return http.NoBody, nil }
+	} else {
+		clone.Body = io.NopCloser(bytes.NewReader(body))
+		clone.GetBody = func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(body)), nil
+		}
+	}
+	return clone, true
+}
+
+func writeModuleMutationBodyTooLarge(w http.ResponseWriter, moduleID string, limit int64) {
+	w.Header().Set("Connection", "close")
+	writeModuleJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
+		"error":          "RouterForge module mutation request body exceeds limit",
+		"module":         moduleID,
+		"mutation_api":   true,
+		"max_body_bytes": limit,
+	})
 }
 
 func adminModuleMutationRequest(r *http.Request) bool {
@@ -286,6 +358,12 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	boundedRequest, ok := boundedModuleMutationRequest(w, r, moduleID)
+	if !ok {
+		return
+	}
+	r = boundedRequest
 
 	socket, ok := activeModuleSocket(moduleID)
 	if !ok {

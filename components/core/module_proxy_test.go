@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestModuleTargetPathPreservesTrailingSlash(t *testing.T) {
@@ -185,5 +187,130 @@ func TestModuleUIProxyStillServesLiveUnixSocket(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "module-ok") {
 		t.Fatalf("unexpected body: %s", rec.Body.String())
+	}
+}
+
+func TestModuleMutationBodyLimitsMatchDownstreamContracts(t *testing.T) {
+	if got, want := moduleMutationBodyLimit("dns"), int64(64<<10); got != want {
+		t.Fatalf("dns limit=%d, want %d", got, want)
+	}
+	if got, want := moduleMutationBodyLimit("admin"), int64(8<<10); got != want {
+		t.Fatalf("admin limit=%d, want %d", got, want)
+	}
+	if got := moduleMutationBodyLimit("monitoring"); got != 0 {
+		t.Fatalf("monitoring limit=%d, want 0", got)
+	}
+}
+
+func TestModuleMutationBodyLimitRejectsKnownLength(t *testing.T) {
+	body := strings.Repeat("x", int(dnsModuleMutationBodyLimit)+1)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/modules/dns/resolvers", strings.NewReader(body))
+
+	proxyModuleAPI(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status=%d, want %d body=%s", rec.Code, http.StatusRequestEntityTooLarge, rec.Body.String())
+	}
+	if got := rec.Header().Get("Connection"); !strings.EqualFold(got, "close") {
+		t.Fatalf("Connection=%q, want close", got)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got := int64(payload["max_body_bytes"].(float64)); got != dnsModuleMutationBodyLimit {
+		t.Fatalf("max_body_bytes=%d, want %d", got, dnsModuleMutationBodyLimit)
+	}
+}
+
+func TestModuleMutationBodyLimitRejectsUnknownLength(t *testing.T) {
+	body := strings.Repeat("x", int(dnsModuleMutationBodyLimit)+1)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/modules/dns/resolvers", strings.NewReader(body))
+	req.ContentLength = -1
+	req.TransferEncoding = []string{"chunked"}
+
+	proxyModuleAPI(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status=%d, want %d body=%s", rec.Code, http.StatusRequestEntityTooLarge, rec.Body.String())
+	}
+}
+
+func TestAdminMutationBodyLimitRejectsAboveDownstreamLimit(t *testing.T) {
+	body := strings.Repeat("x", int(adminModuleMutationBodyLimit)+1)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/modules/admin/processes/123/signal", strings.NewReader(body))
+
+	bounded, ok := boundedModuleMutationRequest(rec, req, "admin")
+	if ok || bounded != nil {
+		t.Fatal("oversized Admin mutation request was accepted")
+	}
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status=%d, want %d body=%s", rec.Code, http.StatusRequestEntityTooLarge, rec.Body.String())
+	}
+}
+
+func TestModuleMutationBodyLimitAcceptsDNSBoundaryAndForwardsBody(t *testing.T) {
+	socket := filepath.Join(t.TempDir(), "dns.sock")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatalf("listen unix socket: %v", err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+
+	type observation struct {
+		method string
+		path   string
+		body   string
+		err    error
+	}
+	observed := make(chan observation, 1)
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, readErr := io.ReadAll(r.Body)
+		observed <- observation{method: r.Method, path: r.URL.Path, body: string(body), err: readErr}
+		w.WriteHeader(http.StatusNoContent)
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+
+	configureModuleProxyTest(t, socket, map[string]string{"routerforge-dns": "test"})
+	payload := strings.Repeat("x", int(dnsModuleMutationBodyLimit))
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/modules/dns/resolvers", strings.NewReader(payload))
+
+	proxyModuleAPI(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status=%d, want %d body=%s", rec.Code, http.StatusNoContent, rec.Body.String())
+	}
+	select {
+	case got := <-observed:
+		if got.err != nil {
+			t.Fatalf("upstream read: %v", got.err)
+		}
+		if got.method != http.MethodPost || got.path != "/v1/resolvers" {
+			t.Fatalf("upstream method/path=%s %s", got.method, got.path)
+		}
+		if got.body != payload {
+			t.Fatalf("upstream body length=%d, want %d", len(got.body), len(payload))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("upstream body observation timed out")
+	}
+}
+
+func TestModuleMutationBodyLimitLeavesGETUnchanged(t *testing.T) {
+	body := strings.Repeat("x", int(dnsModuleMutationBodyLimit)+1)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/modules/dns/info", strings.NewReader(body))
+
+	bounded, ok := boundedModuleMutationRequest(rec, req, "dns")
+	if !ok {
+		t.Fatalf("GET was rejected: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if bounded != req {
+		t.Fatal("GET request should pass through without body buffering")
 	}
 }

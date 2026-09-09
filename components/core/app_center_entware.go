@@ -324,6 +324,7 @@ func handleEntwareRefresh(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	refreshCatalog()
 
 	writeCatalogJSON(w, http.StatusOK, map[string]any{
 		"ok":     true,
@@ -448,6 +449,7 @@ func handleEntwareAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	invalidateEntwareCatalog()
+	refreshCatalog()
 	writeCatalogJSON(w, http.StatusOK, result)
 }
 

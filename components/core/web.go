@@ -43,11 +43,26 @@ func coreSnapshot(version string) map[string]any {
 	return data
 }
 
+func handleCatalogRead(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		http.Error(w, `{"error":"GET required"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(readCatalog())
+}
+
 func startWeb(listen string, version string) error {
 	sub, err := frontendFS()
 	if err != nil {
 		return err
 	}
+
+	// Build one bounded runtime snapshot at Core startup. GET /api/catalog only
+	// serializes this cache; active discovery is owned by explicit refresh paths.
+	refreshCatalog()
 
 	mux := http.NewServeMux()
 	auth := newAuthManager()
@@ -194,7 +209,7 @@ func startWeb(listen string, version string) error {
 			writeCatalogJSON(w, http.StatusOK, map[string]any{
 				"ok":      status.Supported,
 				"release": status,
-				"catalog": readCatalog(),
+				"catalog": refreshCatalog(),
 			})
 		default:
 			w.Header().Set("Allow", "GET, POST")
@@ -217,7 +232,7 @@ func startWeb(listen string, version string) error {
 		releaseStatus := <-releaseDone
 		registryStatus := <-registryDone
 		invalidateEntwareCatalog()
-		catalog := readCatalog()
+		catalog := refreshCatalog()
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
@@ -231,16 +246,7 @@ func startWeb(listen string, version string) error {
 
 	mux.HandleFunc("/api/catalog/action", handleCatalogActionTest)
 	mux.HandleFunc("/api/catalog/install", handleCatalogInstallTest)
-	mux.HandleFunc("/api/catalog", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.Header().Set("Allow", http.MethodGet)
-			http.Error(w, `{"error":"GET required"}`, http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(readCatalog())
-	})
+	mux.HandleFunc("/api/catalog", handleCatalogRead)
 
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")

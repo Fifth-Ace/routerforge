@@ -173,6 +173,7 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 	}
 
 	invalidateEntwareCatalog()
+	refreshCatalog()
 	updated, found := catalogItemByID(id)
 	result.Installed = found && updated.Installed
 	result.Output = truncateCatalogInstallOutput(log.String(), 16000)

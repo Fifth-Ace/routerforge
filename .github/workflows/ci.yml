@@ -353,6 +353,10 @@ jobs:
             -ldflags="-X main.version=0.0.0-ci" \
             -o /tmp/routerforge-module-arm64 ./modules/monitoring-runtime
           test -s /tmp/routerforge-module-arm64
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
+            -ldflags="-X main.version=0.0.0-ci" \
+            -o /tmp/routerforge-module-windows.exe ./modules/monitoring-runtime
+          test -s /tmp/routerforge-module-windows.exe
 
       - name: Verify planned MIPS build targets
         if: steps.scope.outputs.full_release == 'true'

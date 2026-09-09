@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -219,14 +218,11 @@ func readAllMounts(rates map[string]diskRate) []storageMount {
 		}
 		seen[mount] = true
 
-		var stat syscall.Statfs_t
-		if err := syscall.Statfs(mount, &stat); err != nil {
+		stats, err := readFilesystemStats(mount)
+		if err != nil {
 			continue
 		}
-		blockSize := uint64(stat.Bsize)
-		total := uint64(stat.Blocks) * blockSize
-		free := uint64(stat.Bfree) * blockSize
-		available := uint64(stat.Bavail) * blockSize
+		total, free, available := stats.Total, stats.Free, stats.Available
 		used := total - free
 
 		usedPct := 0.0

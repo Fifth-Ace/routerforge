@@ -2,11 +2,10 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"net"
 	"net/url"
-	"os/exec"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -39,34 +38,101 @@ type profileParse struct {
 	https     []httpsEndpointMeta
 }
 
-func discoverDNSConfiguration() ([]UpstreamMeta, []PlainDNSMeta, map[string]PolicyRouteView, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+const (
+	dnsAuxiliaryTTL       = 5 * time.Minute
+	dnsAuxiliaryColdRetry = time.Minute
+)
 
-	cmd := exec.CommandContext(ctx, "ndmc", "-c", "show dns-proxy")
-	out, err := cmd.Output()
+type dnsDiscoveryCommand func(string, time.Duration) (string, error)
+
+type dnsAuxiliaryState struct {
+	text        string
+	hasValue    bool
+	nextAttempt time.Time
+}
+
+type dnsDiscoveryCollector struct {
+	auxiliaryTTL time.Duration
+	now          func() time.Time
+	run          dnsDiscoveryCommand
+
+	auxiliary    map[string]dnsAuxiliaryState
+	havePrimary  bool
+	lastUpstream []UpstreamMeta
+	lastPlain    []PlainDNSMeta
+}
+
+func newDNSDiscoveryCollector(auxiliaryTTL time.Duration) *dnsDiscoveryCollector {
+	return &dnsDiscoveryCollector{
+		auxiliaryTTL: auxiliaryTTL,
+		now:          time.Now,
+		run:          ndmcOutput,
+		auxiliary:    make(map[string]dnsAuxiliaryState),
+	}
+}
+
+func (c *dnsDiscoveryCollector) primaryChanged(ups []UpstreamMeta, plain []PlainDNSMeta) bool {
+	changed := !c.havePrimary ||
+		!reflect.DeepEqual(c.lastUpstream, ups) ||
+		!reflect.DeepEqual(c.lastPlain, plain)
+
+	c.havePrimary = true
+	c.lastUpstream = append([]UpstreamMeta(nil), ups...)
+	c.lastPlain = append([]PlainDNSMeta(nil), plain...)
+	return changed
+}
+
+func (c *dnsDiscoveryCollector) auxiliaryText(command string, timeout time.Duration, force bool) string {
+	now := c.now()
+	state := c.auxiliary[command]
+
+	due := force || c.auxiliaryTTL <= 0 || state.nextAttempt.IsZero() || !now.Before(state.nextAttempt)
+	if !due {
+		return state.text
+	}
+
+	text, err := c.run(command, timeout)
+	if err == nil {
+		state.text = text
+		state.hasValue = true
+		if c.auxiliaryTTL > 0 {
+			state.nextAttempt = now.Add(c.auxiliaryTTL)
+		}
+		c.auxiliary[command] = state
+		return state.text
+	}
+
+	if c.auxiliaryTTL > 0 {
+		retry := c.auxiliaryTTL
+		if !state.hasValue && dnsAuxiliaryColdRetry < retry {
+			retry = dnsAuxiliaryColdRetry
+		}
+		state.nextAttempt = now.Add(retry)
+	}
+	c.auxiliary[command] = state
+	return state.text
+}
+
+func (c *dnsDiscoveryCollector) discover() ([]UpstreamMeta, []PlainDNSMeta, map[string]PolicyRouteView, error) {
+	dnsProxyText, err := c.run("show dns-proxy", 10*time.Second)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("ndmc show dns-proxy: %w", err)
 	}
 
-	dnsProxyText := string(out)
 	ups := parseDNSProxy(dnsProxyText)
-	plain := parsePlainDNSProxy(dnsProxyText)
-	if nameServerText, e := ndmcOutput("show ip name-server", 6*time.Second); e == nil {
-		plain = append(plain, parseIPNameServers(nameServerText)...)
-	}
+	primaryPlain := parsePlainDNSProxy(dnsProxyText)
+	forceAuxiliary := c.primaryChanged(ups, primaryPlain)
 
-	policies := make(map[string]policyRoute)
-	if policyText, e := ndmcOutput("show ip policy", 6*time.Second); e == nil {
-		policies = parseIPPolicies(policyText)
-	}
+	plain := append([]PlainDNSMeta(nil), primaryPlain...)
+	nameServerText := c.auxiliaryText("show ip name-server", 6*time.Second, forceAuxiliary)
+	plain = append(plain, parseIPNameServers(nameServerText)...)
 
-	linuxIfs := map[string]string{}
-	ifaceIndex := map[string]keeneticRouteInterface{}
-	if interfaceText, e := ndmcOutput("show interface", 8*time.Second); e == nil {
-		linuxIfs = keeneticLinuxInterfacesFromText(interfaceText)
-		ifaceIndex = routeInterfaceIndexFromText(interfaceText)
-	}
+	policyText := c.auxiliaryText("show ip policy", 6*time.Second, forceAuxiliary)
+	policies := parseIPPolicies(policyText)
+
+	interfaceText := c.auxiliaryText("show interface", 8*time.Second, forceAuxiliary)
+	linuxIfs := keeneticLinuxInterfacesFromText(interfaceText)
+	ifaceIndex := routeInterfaceIndexFromText(interfaceText)
 
 	for i := range ups {
 		if p, ok := policies[ups[i].Profile]; ok {
@@ -81,6 +147,10 @@ func discoverDNSConfiguration() ([]UpstreamMeta, []PlainDNSMeta, map[string]Poli
 	}
 
 	return ups, plain, buildPolicyRouteViews(policies, ifaceIndex), nil
+}
+
+func discoverDNSConfiguration() ([]UpstreamMeta, []PlainDNSMeta, map[string]PolicyRouteView, error) {
+	return newDNSDiscoveryCollector(0).discover()
 }
 
 // Keep the old helper for tests/internal callers that only care about
@@ -341,8 +411,9 @@ func runAdaptivePoll(base, max time.Duration, refresh func() bool) {
 }
 
 func discoveryLoop(store *Store, interval time.Duration, log *EventLogger) {
+	collector := newDNSDiscoveryCollector(dnsAuxiliaryTTL)
 	refresh := func() bool {
-		ups, plain, routes, err := discoverDNSConfiguration()
+		ups, plain, routes, err := collector.discover()
 		if err != nil {
 			store.SetDiscoveryError(err.Error())
 			log.Event("DISCOVERY_ERROR", err.Error())

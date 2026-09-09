@@ -18,9 +18,12 @@ import (
 )
 
 const (
-	securityConfigPath = "/opt/etc/routerforge/security.json"
-	authCookieName     = "routerforge_session"
-	authSessionTTL     = 12 * time.Hour
+	securityConfigPath         = "/opt/etc/routerforge/security.json"
+	authCookieName             = "routerforge_session"
+	authSessionTTL             = 12 * time.Hour
+	authLoginAttemptWindow     = 5 * time.Minute
+	authLoginAttemptBlockTTL   = 30 * time.Second
+	authLoginAttemptMaxEntries = 1024
 )
 
 type securityConfig struct {
@@ -370,12 +373,13 @@ func (a *authManager) loginBlockedFor(client string) time.Duration {
 	now := time.Now()
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	attempt := a.attempts[client]
+	a.cleanupLoginAttemptsLocked(now, client)
+	attempt, ok := a.attempts[client]
+	if !ok {
+		return 0
+	}
 	if attempt.BlockedUntil.After(now) {
 		return attempt.BlockedUntil.Sub(now)
-	}
-	if !attempt.WindowStart.IsZero() && now.Sub(attempt.WindowStart) > 5*time.Minute {
-		delete(a.attempts, client)
 	}
 	return 0
 }
@@ -385,16 +389,69 @@ func (a *authManager) recordLoginFailure(client string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	attempt := a.attempts[client]
-	if attempt.WindowStart.IsZero() || now.Sub(attempt.WindowStart) > 5*time.Minute {
+	if attempt.WindowStart.IsZero() || now.Sub(attempt.WindowStart) > authLoginAttemptWindow {
 		attempt = loginAttempt{WindowStart: now}
 	}
 	attempt.Failures++
 	if attempt.Failures >= 5 {
-		attempt.BlockedUntil = now.Add(30 * time.Second)
+		attempt.BlockedUntil = now.Add(authLoginAttemptBlockTTL)
 		attempt.Failures = 0
 		attempt.WindowStart = now
 	}
 	a.attempts[client] = attempt
+	a.cleanupLoginAttemptsLocked(now, client)
+}
+
+func (a *authManager) cleanupLoginAttemptsLocked(now time.Time, keep string) {
+	for client, attempt := range a.attempts {
+		if attempt.BlockedUntil.After(now) {
+			continue
+		}
+		if attempt.WindowStart.IsZero() || now.Sub(attempt.WindowStart) > authLoginAttemptWindow {
+			delete(a.attempts, client)
+		}
+	}
+
+	for len(a.attempts) > authLoginAttemptMaxEntries {
+		victim := ""
+		var victimAttempt loginAttempt
+		for client, attempt := range a.attempts {
+			if client == keep {
+				continue
+			}
+			if victim == "" || loginAttemptEvictsBefore(client, attempt, victim, victimAttempt, now) {
+				victim = client
+				victimAttempt = attempt
+			}
+		}
+		if victim == "" {
+			break
+		}
+		delete(a.attempts, victim)
+	}
+}
+
+func loginAttemptEvictsBefore(client string, attempt loginAttempt, victimClient string, victim loginAttempt, now time.Time) bool {
+	attemptBlocked := attempt.BlockedUntil.After(now)
+	victimBlocked := victim.BlockedUntil.After(now)
+	if attemptBlocked != victimBlocked {
+		return !attemptBlocked
+	}
+
+	attemptTime := loginAttemptRetentionTime(attempt)
+	victimTime := loginAttemptRetentionTime(victim)
+	if !attemptTime.Equal(victimTime) {
+		return attemptTime.Before(victimTime)
+	}
+	return client < victimClient
+}
+
+func loginAttemptRetentionTime(attempt loginAttempt) time.Time {
+	retainedUntil := attempt.WindowStart
+	if attempt.BlockedUntil.After(retainedUntil) {
+		retainedUntil = attempt.BlockedUntil
+	}
+	return retainedUntil
 }
 
 func (a *authManager) clearLoginFailures(client string) {

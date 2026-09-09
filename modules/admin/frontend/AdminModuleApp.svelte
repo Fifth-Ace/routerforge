@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { getModule } from '$lib/api.js';
+  import { startSerialPolling } from '$lib/polling.js';
   import { bytes } from '$lib/utils.js';
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
@@ -50,11 +51,12 @@
   }
 
   onMount(() => {
-    load();
-    const timer = setInterval(() => {
-      if (!document.hidden && (tab === 'processes' || tab === 'ports')) load(tab);
+    const stopPolling = startSerialPolling(() => {
+      if (!document.hidden && (tab === 'processes' || tab === 'ports')) {
+        return load(tab);
+      }
     }, 4000);
-    return () => clearInterval(timer);
+    return stopPolling;
   });
 </script>
 

@@ -10,6 +10,11 @@ export default defineConfig({
   root: here,
   base: './',
   plugins: [svelte()],
+  resolve: {
+    alias: {
+      '$lib': path.join(repoRoot, 'components/core/frontend/src/lib'),
+    }
+  },
   server: {
     fs: {
       allow: [repoRoot]

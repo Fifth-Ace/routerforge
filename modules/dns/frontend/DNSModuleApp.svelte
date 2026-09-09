@@ -1,7 +1,10 @@
 <script>
   import { onMount } from 'svelte';
+  import { withRequestTimeout } from '$lib/http.js';
 
   const API = '/api/modules/dns';
+  const DNS_READ_TIMEOUT_MS = 12000;
+
   const query = new URLSearchParams(window.location.search);
   const topTabs = ['overview','resolvers','rules','traffic','diagnostics'];
   const trafficTabs = ['traffic','flow','devices','interfaces','domains'];
@@ -485,12 +488,21 @@
       headers['Content-Type'] = 'application/json';
       headers['X-RouterForge-Action'] = 'dns-control';
     }
-    const response = await fetch(`${API}${path}`, { ...options, headers, cache:'no-store' });
-    const text = await response.text();
-    let data = null;
-    try { data = text ? JSON.parse(text) : {}; } catch { data = { error:text || `HTTP ${response.status}` }; }
-    if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
-    return data;
+    const method = String(options.method || 'GET').toUpperCase();
+    const perform = async (signal) => {
+      const requestOptions = { ...options, headers, cache:'no-store' };
+      if (signal) requestOptions.signal = signal;
+      const response = await fetch(`${API}${path}`, requestOptions);
+      const text = await response.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { error:text || `HTTP ${response.status}` }; }
+      if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+      return data;
+    };
+    if (method === 'GET' || method === 'HEAD') {
+      return withRequestTimeout(`${API}${path}`, DNS_READ_TIMEOUT_MS, perform);
+    }
+    return perform(undefined);
   }
 
   async function loadAll(quiet = false) {

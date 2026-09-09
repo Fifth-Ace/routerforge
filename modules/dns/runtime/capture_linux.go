@@ -32,6 +32,7 @@ func captureLoop(store *Store, log *EventLogger) error {
 	if err := syscall.Bind(fd, &syscall.SockaddrLinklayer{Protocol: htons(ethPAll), Ifindex: iface.Index}); err != nil {
 		return fmt.Errorf("bind lo: %w", err)
 	}
+	attachPacketFilter(fd, "proxy-loopback", proxyCaptureFilterProgram, log)
 	buf := make([]byte, 65535)
 	for {
 		n, sa, err := syscall.Recvfrom(fd, buf, 0)

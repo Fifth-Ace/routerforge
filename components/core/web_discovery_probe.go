@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -25,7 +26,10 @@ const (
 	rfWebDiscoveryMaxTitleRunes = 160
 )
 
-var rfWebTitlePattern = regexp.MustCompile(`(?is)<title(?:\s[^>]*)?>(.*?)</title>`)
+var (
+	rfWebTitlePattern      = regexp.MustCompile(`(?is)<title(?:\s[^>]*)?>(.*?)</title>`)
+	rfProbeWebListenerFunc = rfProbeWebListener
+)
 
 type rfDetectedWebSurface struct {
 	Address                string               `json:"address"`
@@ -51,6 +55,10 @@ type rfWebProbeObservation struct {
 }
 
 func rfDetectLocalWebSurfaces(ctx context.Context, listeners []rfWebListener) []rfDetectedWebSurface {
+	if len(listeners) == 0 {
+		return nil
+	}
+	listeners = rfFilterActiveProbeWebListeners(listeners)
 	if len(listeners) == 0 {
 		return nil
 	}
@@ -118,13 +126,131 @@ func rfDetectLocalWebSurfaces(ctx context.Context, listeners []rfWebListener) []
 	return surfaces
 }
 
+func rfFilterActiveProbeWebListeners(listeners []rfWebListener) []rfWebListener {
+	if len(listeners) == 0 {
+		return nil
+	}
+	filtered := make([]rfWebListener, 0, len(listeners))
+	for _, listener := range listeners {
+		if rfShouldActiveProbeWebListener(listener) {
+			filtered = append(filtered, listener)
+		}
+	}
+	return filtered
+}
+
+func rfShouldActiveProbeWebListener(listener rfWebListener) bool {
+	if listener.Port < 1 || listener.Port > 65535 {
+		return false
+	}
+	if rfWebDiscoveryKnownNonWebPort(listener.Port) {
+		return false
+	}
+	if rfWebDiscoveryKnownWebPort(listener.Port) {
+		return true
+	}
+	return rfWebDiscoveryOwnerAllowsActiveProbe(listener.Owners)
+}
+
+func rfWebDiscoveryKnownNonWebPort(port int) bool {
+	switch port {
+	case 1, 7, 9, 13, 17, 19,
+		20, 21, 22, 23, 25, 37, 53, 67, 68, 69,
+		79, 88, 109, 110, 111, 113, 119, 123,
+		135, 137, 138, 139, 143, 161, 162, 389,
+		445, 465, 514, 515, 587, 631, 636, 873,
+		989, 990, 993, 995, 1194, 1723, 1812, 1813,
+		3306, 3389, 5432, 5900, 6379, 11211, 27017:
+		return true
+	default:
+		return false
+	}
+}
+
+func rfWebDiscoveryKnownWebPort(port int) bool {
+	switch port {
+	case 80, 81, 82, 443,
+		8000, 8008, 8080, 8081, 8088, 8181,
+		8443, 8888, 9000, 9090, 9443, 10443,
+		2222, 2233:
+		return true
+	default:
+		return false
+	}
+}
+
+func rfWebDiscoveryOwnerAllowsActiveProbe(owners []rfWebListenerOwner) bool {
+	for _, owner := range owners {
+		if rfWebDiscoveryOwnerLooksNonWebInfrastructure(owner) {
+			continue
+		}
+		if rfWebDiscoveryOwnerLooksWebCapable(owner) {
+			return true
+		}
+	}
+	return false
+}
+
+func rfWebDiscoveryOwnerLooksNonWebInfrastructure(owner rfWebListenerOwner) bool {
+	corpus := rfWebDiscoveryOwnerCorpus(owner)
+	for _, marker := range []string{
+		"dropbear", "openssh", "sshd", "ssh",
+		"telnet", "telnetd",
+		"samba", "smbd", "nmbd", "wsdd", "ksmbd", "tsmb",
+		"dnsmasq", "named", "unbound", "stubby", "smartdns",
+		"pppd", "xl2tpd", "openvpn", "wireguard", "amneziawg",
+		"postgres", "mysql", "mariadb", "redis", "memcached", "mongodb",
+	} {
+		if strings.Contains(corpus, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func rfWebDiscoveryOwnerLooksWebCapable(owner rfWebListenerOwner) bool {
+	corpus := rfWebDiscoveryOwnerCorpus(owner)
+	for _, marker := range []string{
+		"routerforge", "awg-manager",
+		"http", "https", "web", "ui", "panel", "dashboard", "admin",
+		"lighttpd", "nginx", "uhttpd", "apache", "caddy", "traefik",
+		"node", "npm", "python", "gunicorn", "uvicorn",
+	} {
+		if strings.Contains(corpus, marker) {
+			return true
+		}
+	}
+	return rfWebDiscoveryOwnerIsOptPackage(owner)
+}
+
+func rfWebDiscoveryOwnerCorpus(owner rfWebListenerOwner) string {
+	parts := []string{owner.Package, owner.Process, owner.Executable}
+	parts = append(parts, owner.Command...)
+	return strings.ToLower(strings.Join(parts, " "))
+}
+
+func rfWebDiscoveryOwnerIsOptPackage(owner rfWebListenerOwner) bool {
+	pkg := strings.TrimSpace(owner.Package)
+	if pkg == "" {
+		return false
+	}
+	executable := filepath.Clean(strings.TrimSpace(owner.Executable))
+	if executable == "." || executable == string(filepath.Separator) {
+		return false
+	}
+	return executable == "/opt" || strings.HasPrefix(executable, "/opt/")
+}
+
 func rfDetectWebSurface(ctx context.Context, listener rfWebListener) (rfDetectedWebSurface, bool) {
+	if !rfShouldActiveProbeWebListener(listener) {
+		return rfDetectedWebSurface{}, false
+	}
 	host, ok := rfWebDiscoveryProbeHost(listener.Address)
 	if !ok {
 		return rfDetectedWebSurface{}, false
 	}
 	for _, scheme := range rfWebDiscoverySchemeOrder(listener.Port) {
-		observation := rfProbeWebListener(ctx, listener, host, scheme)
+		observation := rfProbeWebListenerFunc(ctx, listener, host, scheme)
 		if observation.LikelyUI {
 			return observation.Surface, true
 		}

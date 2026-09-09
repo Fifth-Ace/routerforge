@@ -25,7 +25,16 @@ func rfListenerForTestURL(t *testing.T, raw string) rfWebListener {
 	if _, err := fmt.Sscanf(portText, "%d", &port); err != nil {
 		t.Fatal(err)
 	}
-	return rfWebListener{Address: "127.0.0.1", Port: port}
+	return rfWebListener{
+		Address: "127.0.0.1",
+		Port:    port,
+		Owners: []rfWebListenerOwner{{
+			PID:        123,
+			Process:    "demo-panel",
+			Executable: "/opt/bin/demo-panel",
+			Package:    "demo-panel",
+		}},
+	}
 }
 
 func TestRFDetectWebSurfaceHTML(t *testing.T) {
@@ -131,6 +140,60 @@ func TestRFDetectWebSurfaceHTTPSWithSelfSignedCertificate(t *testing.T) {
 	}
 	if surface.Scheme != "https" || !surface.TLSVerificationSkipped || surface.Title != "TLS Panel" {
 		t.Fatalf("surface=%#v", surface)
+	}
+}
+
+func TestRFShouldActiveProbeWebListenerBlocksKnownNonWebPortsBeforeDial(t *testing.T) {
+	oldProbe := rfProbeWebListenerFunc
+	t.Cleanup(func() { rfProbeWebListenerFunc = oldProbe })
+
+	calls := 0
+	rfProbeWebListenerFunc = func(context.Context, rfWebListener, string, string) rfWebProbeObservation {
+		calls++
+		return rfWebProbeObservation{LikelyUI: true}
+	}
+
+	listeners := []rfWebListener{
+		{Address: "127.0.0.1", Port: 23, Owners: []rfWebListenerOwner{{Process: "telnetd", Executable: "/usr/sbin/telnetd"}}},
+		{Address: "127.0.0.1", Port: 139, Owners: []rfWebListenerOwner{{Process: "smbd", Executable: "/usr/sbin/smbd"}}},
+		{Address: "127.0.0.1", Port: 445, Owners: []rfWebListenerOwner{{Process: "tsmb", Executable: "/usr/sbin/tsmb"}}},
+	}
+	if surfaces := rfDetectLocalWebSurfaces(context.Background(), listeners); len(surfaces) != 0 {
+		t.Fatalf("non-Web ports must not be surfaced: %#v", surfaces)
+	}
+	if calls != 0 {
+		t.Fatalf("probe called %d times for denied ports; want zero", calls)
+	}
+}
+
+func TestRFShouldActiveProbeWebListenerPreservesKnownRouterWebPorts(t *testing.T) {
+	for _, port := range []int{2222, 2233} {
+		listener := rfWebListener{Address: "127.0.0.1", Port: port}
+		if !rfShouldActiveProbeWebListener(listener) {
+			t.Fatalf("known RouterForge-adjacent Web port %d must remain probeable", port)
+		}
+	}
+}
+
+func TestRFShouldActiveProbeWebListenerAllowsOptOwnedHighPort(t *testing.T) {
+	listener := rfWebListener{
+		Address: "127.0.0.1",
+		Port:    32000,
+		Owners: []rfWebListenerOwner{{
+			Process:    "custom-panel",
+			Executable: "/opt/bin/custom-panel",
+			Package:    "custom-panel",
+		}},
+	}
+	if !rfShouldActiveProbeWebListener(listener) {
+		t.Fatal("/opt package high-port Web UI should be probeable")
+	}
+}
+
+func TestRFShouldActiveProbeWebListenerRejectsUnknownHighPort(t *testing.T) {
+	listener := rfWebListener{Address: "127.0.0.1", Port: 32001}
+	if rfShouldActiveProbeWebListener(listener) {
+		t.Fatal("unknown high port without owner metadata must not be actively probed")
 	}
 }
 

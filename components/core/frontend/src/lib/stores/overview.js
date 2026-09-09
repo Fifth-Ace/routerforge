@@ -3,13 +3,14 @@ import {
   getPlatform, getModule, getAdminSummary, getAdminCPU, getAdminStorage, getAdminThermal,
   getPlainDNS, getAppActions
 } from '$lib/api.js';
+import { startSerialPolling } from '$lib/polling.js';
 
 export const overview = writable({
   platform: null, summary: null, cpu: null, memory: null, thermal: null, storage: null,
   plainDns: null, networkRoutes: null, appActions: null, cpuSustainedHigh: null
 });
 
-let timer = null;
+let stopPolling = null;
 let users = 0;
 let lastCatalog = null;
 let cpuHighSince = 0;
@@ -98,19 +99,21 @@ export async function refreshOverview(nextCatalog = lastCatalog) {
 
 export function startOverviewPolling(getCatalog, intervalMs = 10000) {
   users += 1;
+
   const tick = () => refreshOverview(typeof getCatalog === 'function' ? getCatalog() : getCatalog);
-  if (!timer) {
-    tick();
-    timer = setInterval(tick, intervalMs);
+  if (!stopPolling) {
+    stopPolling = startSerialPolling(tick, intervalMs);
   }
+
   let stopped = false;
   return () => {
     if (stopped) return;
     stopped = true;
     users = Math.max(0, users - 1);
-    if (!users && timer) {
-      clearInterval(timer);
-      timer = null;
+
+    if (!users && stopPolling) {
+      stopPolling();
+      stopPolling = null;
       cpuHighSince = 0;
     }
   };

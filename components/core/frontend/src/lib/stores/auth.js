@@ -1,4 +1,7 @@
 import { writable, get } from 'svelte/store';
+import { withRequestTimeout } from '$lib/http.js';
+
+const AUTH_TIMEOUT_MS = 12000;
 
 const initial = {
   ready: false,
@@ -24,6 +27,13 @@ async function parseResponse(response) {
   return payload || {};
 }
 
+async function authRequest(path, options) {
+  return withRequestTimeout(path, AUTH_TIMEOUT_MS, async (signal) => {
+    const response = await fetch(path, { ...options, signal });
+    return await parseResponse(response);
+  });
+}
+
 export function markUnauthorized() {
   authState.update((current) => current.required
     ? { ...current, ready: true, authenticated: false, user: '' }
@@ -32,11 +42,10 @@ export function markUnauthorized() {
 
 export async function refreshAuth() {
   try {
-    const response = await fetch('/api/auth/status', {
+    const data = await authRequest('/api/auth/status', {
       cache: 'no-store',
       headers: { Accept: 'application/json' }
     });
-    const data = await parseResponse(response);
     authState.set({ ...initial, ...data, ready: true, error: '' });
     return data;
   } catch (error) {
@@ -51,25 +60,23 @@ export async function refreshAuth() {
 }
 
 export async function loginAuth(username, password) {
-  const response = await fetch('/api/auth/login', {
+  await authRequest('/api/auth/login', {
     method: 'POST',
     cache: 'no-store',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password })
   });
-  await parseResponse(response);
   return refreshAuth();
 }
 
 export async function logoutAuth() {
   try {
-    const response = await fetch('/api/auth/logout', {
+    await authRequest('/api/auth/logout', {
       method: 'POST',
       cache: 'no-store',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: '{}'
     });
-    await parseResponse(response);
   } finally {
     authState.update((current) => ({
       ...current,
@@ -81,13 +88,12 @@ export async function logoutAuth() {
 }
 
 export async function setAuthRequired(required, username = '', password = '') {
-  const response = await fetch('/api/auth/config', {
+  const data = await authRequest('/api/auth/config', {
     method: 'POST',
     cache: 'no-store',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ required: Boolean(required), username, password })
   });
-  const data = await parseResponse(response);
   authState.set({ ...initial, ...data, ready: true, error: '' });
   if (required) {
     // The enabling response also creates the authenticated session cookie.

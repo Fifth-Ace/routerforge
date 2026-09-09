@@ -20,6 +20,7 @@
   import { settings } from '$lib/stores/settings.js';
   import { catalog, catalogOnline } from '$lib/stores/catalog.js';
   import { authState, refreshAuth } from '$lib/stores/auth.js';
+  import { startSerialPolling } from '$lib/polling.js';
   import { t } from '$lib/i18n/index.js';
 
   let stopStream = null;
@@ -69,10 +70,14 @@
     });
 
     refreshAuth().catch(() => {});
-    const authTimer = setInterval(() => refreshAuth().catch(() => {}), 60000);
+    const stopAuthPolling = startSerialPolling(
+      () => refreshAuth().catch(() => {}),
+      60000,
+      { immediate: false }
+    );
 
     return () => {
-      clearInterval(authTimer);
+      stopAuthPolling();
       unsubscribeSettings();
       unsubscribeAuth();
       stopStream?.();

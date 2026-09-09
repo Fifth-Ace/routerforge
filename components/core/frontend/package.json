@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "svelte-kit sync && vite build",
-    "check": "svelte-kit sync && svelte-check --threshold error"
+    "check": "svelte-kit sync && svelte-check --threshold error && node --test tests/polling.test.mjs tests/http.test.mjs"
   },
   "devDependencies": {
     "@fontsource/inter": "5.2.8",

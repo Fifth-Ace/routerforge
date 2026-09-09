@@ -1,4 +1,9 @@
 import { markUnauthorized } from '$lib/stores/auth.js';
+import { withRequestTimeout } from '$lib/http.js';
+
+const READ_TIMEOUT_MS = 12000;
+const WRITE_TIMEOUT_MS = 30000;
+const PACKAGE_WRITE_TIMEOUT_MS = 190000;
 
 async function readError(response, path) {
   const error = new Error(`${path} HTTP ${response.status}`);
@@ -8,17 +13,23 @@ async function readError(response, path) {
   return error;
 }
 
-async function request(path) {
-  const response = await fetch(path, {
-    cache: 'no-store',
-    headers: { Accept: 'application/json' }
+async function fetchJSON(path, options, timeoutMs) {
+  return withRequestTimeout(path, timeoutMs, async (signal) => {
+    const response = await fetch(path, { ...options, signal });
+    if (!response.ok) throw await readError(response, path);
+    return await response.json();
   });
-  if (!response.ok) throw await readError(response, path);
-  return response.json();
 }
 
-async function postJSON(path, body) {
-  const response = await fetch(path, {
+async function request(path, timeoutMs = READ_TIMEOUT_MS) {
+  return fetchJSON(path, {
+    cache: 'no-store',
+    headers: { Accept: 'application/json' }
+  }, timeoutMs);
+}
+
+async function postJSON(path, body, timeoutMs = WRITE_TIMEOUT_MS) {
+  return fetchJSON(path, {
     method: 'POST',
     cache: 'no-store',
     headers: {
@@ -26,19 +37,15 @@ async function postJSON(path, body) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(body)
-  });
-  if (!response.ok) throw await readError(response, path);
-  return response.json();
+  }, timeoutMs);
 }
 
-async function deleteRequest(path) {
-  const response = await fetch(path, {
+async function deleteRequest(path, timeoutMs = WRITE_TIMEOUT_MS) {
+  return fetchJSON(path, {
     method: 'DELETE',
     cache: 'no-store',
     headers: { Accept: 'application/json' }
-  });
-  if (!response.ok) throw await readError(response, path);
-  return response.json();
+  }, timeoutMs);
 }
 
 export const getSnapshot = () => request('/api/snapshot');
@@ -50,9 +57,10 @@ export const setCatalogChannel = (channel) => postJSON('/api/catalog/channel', {
 export const probeCatalogWeb = (id) => postJSON('/api/catalog/web-probe', { id });
 export const getEntwarePackages = ({ query = '', state = '', offset = 0, limit = 100 } = {}) =>
   request(`/api/apps/entware?query=${encodeURIComponent(query)}&state=${encodeURIComponent(state)}&offset=${encodeURIComponent(offset)}&limit=${encodeURIComponent(limit)}`);
-export const refreshEntwarePackages = () => postJSON('/api/apps/entware/refresh', {});
+export const refreshEntwarePackages = () =>
+  postJSON('/api/apps/entware/refresh', {}, PACKAGE_WRITE_TIMEOUT_MS);
 export const entwarePackageAction = (packageName, action, confirm = '') =>
-  postJSON('/api/apps/entware/action', { package: packageName, action, confirm });
+  postJSON('/api/apps/entware/action', { package: packageName, action, confirm }, PACKAGE_WRITE_TIMEOUT_MS);
 export const getEntwarePackageDetail = (packageName) =>
   request(`/api/apps/entware/detail?package=${encodeURIComponent(packageName)}`);
 export const preflightAppAction = (body) => postJSON('/api/apps/preflight', body);
@@ -61,9 +69,10 @@ export const getAppActions = () => request('/api/apps/actions');
 export const getAppAction = (id) => request(`/api/apps/actions/${encodeURIComponent(id)}`);
 export const cancelAppAction = (id) => deleteRequest(`/api/apps/actions/${encodeURIComponent(id)}`);
 export const appActionEventsURL = (id) => `/api/apps/actions/${encodeURIComponent(id)}/events`;
-export const installCatalogItem = (id) => postJSON('/api/catalog/install', { id });
+export const installCatalogItem = (id) =>
+  postJSON('/api/catalog/install', { id }, PACKAGE_WRITE_TIMEOUT_MS);
 export const catalogAction = (id, action, confirm = '') =>
-  postJSON('/api/catalog/action', { id, action, confirm });
+  postJSON('/api/catalog/action', { id, action, confirm }, PACKAGE_WRITE_TIMEOUT_MS);
 export const getClients = () => request('/api/clients');
 export const getInterfaces = () => request('/api/interfaces');
 export const getHistory = (minutes = 60) => request(`/api/history?minutes=${encodeURIComponent(minutes)}`);

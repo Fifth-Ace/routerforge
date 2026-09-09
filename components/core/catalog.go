@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -116,19 +117,57 @@ type catalogSnapshot struct {
 	Release                  routerForgeReleaseStatus `json:"release"`
 }
 
+var catalogCacheState struct {
+	mu       sync.RWMutex
+	snapshot catalogSnapshot
+}
+
+var catalogRefreshMu sync.Mutex
+
+var (
+	catalogReadInstalledPackages    = readInstalledPackages
+	catalogReadProcessNames         = readProcessNames
+	catalogLoadOpkgCatalog          = loadOpkgCatalog
+	catalogApplyRuntimeWebDiscovery = rfApplyRuntimeWebDiscovery
+)
+
+func init() {
+	storeCatalogSnapshot(buildCatalog(
+		map[string]string{},
+		map[string]bool{},
+		func(string) bool { return false },
+	))
+}
+
 func readCatalog() catalogSnapshot {
-	installed := readInstalledPackages()
-	processes := readProcessNames()
+	catalogCacheState.mu.RLock()
+	snapshot := catalogCacheState.snapshot
+	catalogCacheState.mu.RUnlock()
+	return snapshot
+}
+
+func storeCatalogSnapshot(snapshot catalogSnapshot) {
+	catalogCacheState.mu.Lock()
+	catalogCacheState.snapshot = snapshot
+	catalogCacheState.mu.Unlock()
+}
+
+func refreshCatalog() catalogSnapshot {
+	catalogRefreshMu.Lock()
+	defer catalogRefreshMu.Unlock()
+
+	installed := catalogReadInstalledPackages()
+	processes := catalogReadProcessNames()
 	snapshot := buildCatalog(installed, processes, pathExists)
 	applyRouterForgeRegistry(&snapshot, installed, processes, pathExists)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-	if packages, err := loadOpkgCatalog(ctx, false); err == nil {
+	if packages, err := catalogLoadOpkgCatalog(ctx, false); err == nil {
 		applyIntegrationPackageVersions(&snapshot, packages)
 	}
 	cancel()
 
-	rfApplyRuntimeWebDiscovery(&snapshot, installed)
+	catalogApplyRuntimeWebDiscovery(&snapshot, installed)
 
 	applyRouterForgeReleaseIndex(&snapshot)
 	snapshot.InstallTestMode = marketplaceTestInstallEnabled()
@@ -137,6 +176,8 @@ func readCatalog() catalogSnapshot {
 		snapshot.ReadOnly = false
 		snapshot.Phase = "routerforge-package-mode"
 	}
+
+	storeCatalogSnapshot(snapshot)
 	return snapshot
 }
 

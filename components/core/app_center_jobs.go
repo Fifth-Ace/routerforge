@@ -543,6 +543,7 @@ func runEntwareJob(ctx context.Context, request appActionStartRequest, emit func
 		return result, fmt.Errorf("opkg action completed but package is not installed")
 	}
 	invalidateEntwareCatalog()
+	refreshCatalog()
 	return result, nil
 }
 

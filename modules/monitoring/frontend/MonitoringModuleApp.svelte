@@ -4,6 +4,7 @@
   import { catalog } from '$lib/stores/catalog.js';
   import { settings } from '$lib/stores/settings.js';
   import { getModule } from '$lib/api.js';
+  import { startSerialPolling } from '$lib/polling.js';
   import { bytes, fmtDuration, fmtInt } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
 
@@ -18,7 +19,7 @@
   let loading = false;
   let errorText = '';
   let data = {};
-  let timer = null;
+  let stopPolling = null;
   let interfaceSort = { key: 'display_name', dir: 'asc' };
   let systemInterfaceSort = { key: 'name', dir: 'asc' };
   let routeSort = { key: 'destination', dir: 'asc' };
@@ -41,8 +42,7 @@
     if (typeof window !== 'undefined') {
       Promise.resolve().then(() => {
         replaceState(`/monitoring?tab=${encodeURIComponent(tab)}`, {});
-        startTimer();
-        loadCurrent();
+        startTimer(true);
       });
     }
   }
@@ -101,11 +101,15 @@
     }
   }
 
-  function startTimer() {
-    clearInterval(timer);
+  function startTimer(showLoading = false) {
+    if (stopPolling) stopPolling();
     const interval = tab === 'thermal' ? 10000 : tab === 'profiling' ? 5000 : 3000;
-    timer = setInterval(() => {
-      if (!document.hidden && !errorText) loadCurrent(false);
+    let first = true;
+    stopPolling = startSerialPolling(() => {
+      if (document.hidden) return;
+      const currentShowLoading = first && showLoading;
+      first = false;
+      return loadCurrent(currentShowLoading);
     }, interval);
   }
 
@@ -113,8 +117,7 @@
     if (tab === id) return;
     tab = id;
     replaceState(`/monitoring?tab=${encodeURIComponent(id)}`, {});
-    startTimer();
-    loadCurrent();
+    startTimer(true);
   }
 
   function nextSort(current, key) {
@@ -212,9 +215,10 @@
     const params = new URLSearchParams(location.search);
     const initial = params.get('view') || params.get('tab');
     if (initial && moduleDefs.some((item) => item.id === initial)) tab = initial;
-    loadCurrent();
-    startTimer();
-    return () => clearInterval(timer);
+    startTimer(true);
+    return () => {
+      if (stopPolling) stopPolling();
+    };
   });
 </script>
 

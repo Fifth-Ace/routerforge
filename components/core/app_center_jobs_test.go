@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestActionLineCaptureSplitsAndBoundsLines(t *testing.T) {
@@ -29,6 +31,64 @@ func TestAppActionJobBoundsLines(t *testing.T) {
 	view := job.snapshot()
 	if len(view.Lines) != appActionMaxLines {
 		t.Fatalf("lines=%d, want %d", len(view.Lines), appActionMaxLines)
+	}
+}
+
+func TestPruneAppActionJobsBoundsTerminalRetention(t *testing.T) {
+	appActions.Lock()
+	savedActive := appActions.active
+	savedJobs := appActions.jobs
+	appActions.active = ""
+	appActions.jobs = map[string]*appActionJob{}
+	appActions.Unlock()
+
+	t.Cleanup(func() {
+		appActions.Lock()
+		appActions.active = savedActive
+		appActions.jobs = savedJobs
+		appActions.Unlock()
+	})
+
+	base := time.Unix(1_700_000_000, 0)
+	terminalCount := appActionTerminalRetention + 37
+
+	appActions.Lock()
+	for i := 0; i < terminalCount; i++ {
+		id := fmt.Sprintf("terminal-%03d", i)
+		appActions.jobs[id] = &appActionJob{
+			ID:          id,
+			State:       "succeeded",
+			StartedAt:   base.Add(time.Duration(i) * time.Second),
+			CompletedAt: base.Add(time.Duration(i) * time.Second),
+		}
+	}
+	active := &appActionJob{
+		ID:        "active-job",
+		State:     "running",
+		StartedAt: base.Add(time.Hour),
+	}
+	appActions.jobs[active.ID] = active
+	appActions.active = active.ID
+	appActions.Unlock()
+
+	pruneAppActionJobs()
+
+	appActions.Lock()
+	defer appActions.Unlock()
+
+	if got, want := len(appActions.jobs), appActionTerminalRetention+1; got != want {
+		t.Fatalf("jobs=%d, want %d", got, want)
+	}
+	if got := appActions.jobs[active.ID]; got != active {
+		t.Fatal("active job must never be pruned")
+	}
+	for i := 0; i < terminalCount; i++ {
+		id := fmt.Sprintf("terminal-%03d", i)
+		_, kept := appActions.jobs[id]
+		wantKept := i >= terminalCount-appActionTerminalRetention
+		if kept != wantKept {
+			t.Fatalf("%s kept=%v, want %v", id, kept, wantKept)
+		}
 	}
 }
 

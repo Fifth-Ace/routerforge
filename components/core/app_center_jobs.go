@@ -17,11 +17,12 @@ import (
 )
 
 const (
-	appActionHistoryPath = "/opt/var/log/routerforge-app-center.jsonl"
-	appActionHistoryMax  = 512 << 10
-	appActionMaxLines    = 320
-	appActionLineMax     = 2048
-	appActionOutputMax   = 64 << 10
+	appActionHistoryPath       = "/opt/var/log/routerforge-app-center.jsonl"
+	appActionHistoryMax        = 512 << 10
+	appActionMaxLines          = 320
+	appActionTerminalRetention = 64
+	appActionLineMax           = 2048
+	appActionOutputMax         = 64 << 10
 )
 
 type appActionStartRequest struct {
@@ -496,6 +497,7 @@ func runAppActionJob(ctx context.Context, job *appActionJob, request appActionSt
 		appActions.active = ""
 	}
 	appActions.Unlock()
+	pruneAppActionJobs()
 }
 
 func runEntwareJob(ctx context.Context, request appActionStartRequest, emit func(string)) (entwareActionResult, error) {
@@ -597,6 +599,50 @@ func findAppActionJob(id string) *appActionJob {
 
 func terminalAppActionState(state string) bool {
 	return state == "succeeded" || state == "failed" || state == "cancelled"
+}
+
+func pruneAppActionJobs() {
+	appActions.Lock()
+	defer appActions.Unlock()
+
+	type terminalJob struct {
+		id          string
+		completedAt time.Time
+		startedAt   time.Time
+	}
+
+	terminal := make([]terminalJob, 0, len(appActions.jobs))
+	for id, job := range appActions.jobs {
+		if id == appActions.active || job == nil {
+			continue
+		}
+		view := job.snapshot()
+		if !terminalAppActionState(view.State) {
+			continue
+		}
+		terminal = append(terminal, terminalJob{
+			id:          id,
+			completedAt: view.CompletedAt,
+			startedAt:   view.StartedAt,
+		})
+	}
+	if len(terminal) <= appActionTerminalRetention {
+		return
+	}
+
+	sort.Slice(terminal, func(i, j int) bool {
+		if !terminal[i].completedAt.Equal(terminal[j].completedAt) {
+			return terminal[i].completedAt.After(terminal[j].completedAt)
+		}
+		if !terminal[i].startedAt.Equal(terminal[j].startedAt) {
+			return terminal[i].startedAt.After(terminal[j].startedAt)
+		}
+		return terminal[i].id > terminal[j].id
+	})
+
+	for _, item := range terminal[appActionTerminalRetention:] {
+		delete(appActions.jobs, item.id)
+	}
 }
 
 func listAppActionViews() []appActionView {

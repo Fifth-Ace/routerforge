@@ -14,6 +14,7 @@ routerforge/
 │       ├── *.go / *_test.go
 │       └── packaging/
 ├── modules/
+│   ├── admin/frontend/
 │   ├── dns/
 │   │   ├── runtime/
 │   │   ├── frontend/
@@ -21,6 +22,7 @@ routerforge/
 │   ├── monitoring-runtime/
 │   │   ├── *.go / *_test.go
 │   │   └── packaging/
+│   ├── monitoring/frontend/
 │   ├── system/packaging/
 │   ├── thermal/packaging/
 │   ├── storage/packaging/
@@ -45,7 +47,7 @@ Core remains the only RouterForge process that listens on TCP port `2233`.
 
 ### `components/control/`
 
-Owns RouterForge Control (`routerforge-admin`), its tests and package lifecycle files.
+Owns RouterForge Control (`routerforge-admin`) backend, tests and package lifecycle files. Its standalone Svelte/Vite UI lives in `modules/admin/frontend/` and is bundled into the Admin IPK.
 
 ## Modules
 
@@ -57,16 +59,18 @@ The DNS UI has its own small Vite/Svelte build workspace under `modules/dns/fron
 
 ### `modules/monitoring-runtime/`
 
-System, Thermal, Storage and Network currently share one read-only Unix-socket runtime selected by `-module`. The common Go server/collector implementation therefore lives here once instead of being copied four times.
+System, Thermal, Storage and Network collectors share one read-only implementation. The current Dev/Beta product packages that implementation as consolidated `routerforge-monitoring`, while also exposing compatible legacy sockets/API routes.
 
-Package-specific init scripts still live with their public modules:
+The standalone Monitoring UI lives under `modules/monitoring/frontend/`.
+
+Legacy split package init/lifecycle files remain under:
 
 - `modules/system/packaging/`
 - `modules/thermal/packaging/`
 - `modules/storage/packaging/`
 - `modules/network/packaging/`
 
-If those modules become independent runtimes later, their Go implementation can move into the corresponding module directory without changing package names.
+Those directories are compatibility/migration ownership, not the current Beta package topology.
 
 ### `modules/profiling/`
 
@@ -93,6 +97,7 @@ components/core/embedded/marketplace-index.json
 Source channel manifests live in:
 
 ```text
+release/channels/dev.json
 release/channels/beta.json
 release/channels/stable.json
 ```

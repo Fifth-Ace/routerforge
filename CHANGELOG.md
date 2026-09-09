@@ -4,6 +4,43 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-10 — RouterForge 0.7.1-beta.1
+
+### Beta highlights
+
+- Monitoring is consolidated into `routerforge-monitoring`: one read-only runtime and one standalone UI replace the split System/Thermal/Storage/Network packages while preserving compatibility API/socket contracts for migration.
+- RouterForge Control and Monitoring now own standalone Svelte/Vite module UIs. Core remains the shell, authentication boundary, App Center host and generic Module ABI proxy.
+- Management v2 introduces a hardware-validated backend contract for root-session-protected process signals and Entware service start/stop/restart actions. The current Management UI remains read-only.
+- Dev and Beta are separated operationally: pushes to `dev` publish the rolling ARM64 `routerforge-dev` train; Beta is published only by an explicit FULL RELEASE on a verified commit.
+- Beta component versions use `0.7.1~beta.1` internally so opkg orders them below future Stable `0.7.1`; GitHub assets and the immutable release tag use the readable `0.7.1-beta.1` form.
+- MIPSel receives its first physical validation on Keenetic Giga KN-1010: fresh installation and basic normal operation were confirmed on real hardware. This is a partial validation milestone, not yet the complete MIPSel support matrix.
+
+### Runtime hardening and performance
+
+- Web UI discovery no longer performs arbitrary TCP LISTEN probing.
+- DNS passive capture applies kernel BPF filtering before userspace packet handling.
+- `GET /api/catalog` is a cached read path; expensive refresh is isolated behind same-origin/singleflight/rate-limited `POST /api/catalog/refresh`.
+- Core and standalone module frontends use serial polling; shared read requests have explicit abortable timeouts.
+- DNS and Monitoring high-frequency Keenetic metadata paths use TTL/last-good caches and DNS failure loops back off after errors.
+- Thermal refresh uses stale-while-revalidate/singleflight to avoid concurrent request-path collector work.
+- Core HTTP serving has read/header/idle/header-size limits while deliberately retaining unlimited SSE write lifetime.
+- Module mutation bodies are bounded before ReverseProxy (`DNS=64 KiB`, `Admin=8 KiB`).
+- App Center terminal jobs and failed-login clients now have bounded in-memory retention; auth attempts are capped at 1024 clients with global stale pruning.
+
+### Monitoring 4→1 migration
+
+- `routerforge-monitoring` declares `Provides/Conflicts/Replaces` for the four split RouterForge monitoring packages and their historical `dns-monitor-*` predecessors.
+- New package `postinst` stops any still-running split services and clears stale socket paths before starting the consolidated runtime.
+- CI verifies the package migration contract and ensures the consolidated payload does not contain the old split binaries/init scripts.
+- A read-only hardware verifier checks real upgrades for package-database cleanup, old binary/init/process absence, the new process, and the five expected sockets. The four compatibility sockets are intentional and are not migration leftovers.
+
+### Build, portability and release
+
+- Monitoring Statfs is split into Linux/non-Linux implementations and the package cross-build gate covers non-Linux compilation.
+- Beta multi-arch release set becomes `Core + DNS + Control + Monitoring + Profiling`; legacy split monitoring packages remain migration compatibility only.
+- ARM64 remains the fully hardware-validated target. MIPSel has partial physical evidence on KN-1010; MIPS big-endian remains without physical hardware validation.
+- Phase 8 runtime audit is closed on Dev `r248` / `4bcf08f` with hardware health evidence. Reboot persistence and destructive auth-failure injection are intentionally not claimed.
+
 ## 2026-09-07 — RouterForge 0.6.0
 
 ### Stable highlights

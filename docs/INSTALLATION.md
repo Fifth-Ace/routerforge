@@ -6,7 +6,8 @@ RouterForge рассчитан на:
 
 - Keenetic / Netcraze с KeeneticOS/NDMS;
 - ARM64 / aarch64 — основной аппаратно проверенный target;
-- MIPS / MIPSel — experimental Stable/Beta preview без физической hardware validation;
+- MIPS — experimental Stable/Beta preview без физической hardware validation;
+- MIPSel — experimental Stable/Beta preview с частичной physical validation на Keenetic Giga KN-1010 (fresh install/basic operation);
 - Entware в `/opt`;
 - рабочий `/opt/bin/opkg` или `opkg` в `PATH`;
 - `sha256sum`;
@@ -14,11 +15,11 @@ RouterForge рассчитан на:
 
 Web UI работает на порту **2233**.
 
-Текущий Stable 0.6 baseline:
+Текущий Stable baseline:
 
 ```text
-product           0.6.0
-routerforge-core  0.6.0
+product           0.6.1
+routerforge-core  0.6.1
 routerforge-dns   0.4.20  (optional)
 ```
 
@@ -86,9 +87,11 @@ mipsel-3.4
 
 ARM64 — аппаратно проверенный production target.
 
-MIPS/MipSel проходят cross-build, QEMU runtime smoke и встроенный runtime compatibility probe,
-но **не проверены на реальном MIPS/MipSel-роутере**. Поэтому их установка остаётся experimental
-и требует явного подтверждения.
+MIPS/MipSel проходят cross-build, QEMU runtime smoke и встроенный runtime compatibility probe.
+
+MIPSel дополнительно имеет partial physical validation на Keenetic Giga KN-1010: fresh installation и базовая штатная работа подтверждены. Полные upgrade/rollback/uninstall, DNS/Module ABI и resource-footprint сценарии ещё не закрыты.
+
+MIPS big-endian физически не проверен. Оба non-ARM64 target пока остаются experimental и требуют явного подтверждения.
 
 Для non-interactive установки:
 
@@ -114,9 +117,9 @@ Beta публикуется из `dev` и предназначена для пр
 
 GitHub release `RouterForge Beta` помечен как **Pre-release**.
 
-Для **0.6.0-beta.1** fresh Beta bootstrap устанавливает только `routerforge-core`.
-Optional RouterForge modules, интеграции и generic Entware packages выбираются после запуска
-через **Центр приложений**. Уже установленные optional-пакеты bootstrap не удаляет.
+Для Beta 0.7.1 fresh bootstrap по-прежнему устанавливает только `routerforge-core`.
+Пакеты Beta используют prerelease-safe opkg versions `0.7.1~beta.1`, а GitHub asset/tag — форму `0.7.1-beta.1`.
+Optional RouterForge modules, интеграции и generic Entware packages выбираются после запуска через **Центр приложений**. Уже установленные optional-пакеты bootstrap не удаляет.
 
 ## Compatibility launcher
 
@@ -143,11 +146,10 @@ Beta через launcher:
 
 - RouterForge DNS;
 - RouterForge Control;
-- System Monitor;
-- Thermal Monitor;
-- Storage Monitor;
-- Network Monitor;
+- RouterForge Monitoring (System + Thermal + Storage + Network);
 - Profiling.
+
+В Beta 0.7.1 `routerforge-monitoring` заменяет четыре старых split monitoring package и сохраняет compatibility API для миграции. После реального upgrade путь проверяется read-only gate из [MONITORING_MIGRATION.md](MONITORING_MIGRATION.md).
 
 Установка одного модуля не требует обновлять остальные.
 

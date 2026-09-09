@@ -79,10 +79,20 @@ for target, path in targets.items():
         )
 
     components = doc.get("components")
-    if not isinstance(components, list) or len(components) != 8:
+    expected_packages = [
+        "routerforge-core",
+        "routerforge-dns",
+        "routerforge-admin",
+        "routerforge-monitoring",
+        "routerforge-profiling",
+    ]
+    if not isinstance(components, list):
+        raise SystemExit(f"{path.name}: components is not a list")
+    actual_packages = [item.get("package") for item in components]
+    if actual_packages != expected_packages:
         raise SystemExit(
-            f"{path.name}: expected 8 components, got "
-            f"{len(components) if isinstance(components, list) else 'invalid'}"
+            f"{path.name}: package set/order={actual_packages!r}, "
+            f"expected {expected_packages!r}"
         )
 
     seen_packages = set()
@@ -118,8 +128,8 @@ for target, path in targets.items():
 
         all_ipks.add(asset)
 
-if len(all_ipks) != 24:
-    raise SystemExit(f"expected 24 target-specific IPKs, got {len(all_ipks)}")
+if len(all_ipks) != 15:
+    raise SystemExit(f"expected 15 target-specific IPKs, got {len(all_ipks)}")
 
 sums_path = root / "routerforge-beta-SHA256SUMS"
 sum_assets = set()
@@ -143,7 +153,7 @@ if sum_assets != all_ipks:
     )
 
 print("Published beta indexes/assets: OK")
-print("Published target IPKs: 24")
+print("Published target IPKs: 15")
 PY
 
 for bootstrap in \

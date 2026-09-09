@@ -24,10 +24,12 @@ RouterForge Core
      │   └── independent module UI
      ├── RouterForge Control
      │   /opt/bin/routerforge-admin
-     ├── System Monitor
-     ├── Thermal Monitor
-     ├── Storage Monitor
-     └── Network Monitor
+     └── RouterForge Monitoring
+         /opt/bin/routerforge-monitoring
+         ├── System
+         ├── Thermal
+         ├── Storage
+         └── Network
 ```
 
 Core — единственный RouterForge process, который слушает пользовательский TCP-порт **2233**.
@@ -39,16 +41,18 @@ Core — единственный RouterForge process, который слуша
 
 ```text
 components/core/             Core backend + frontend + packaging
-components/control/          RouterForge Control + packaging
+components/control/          RouterForge Control backend + packaging
+modules/admin/frontend/      standalone RouterForge Control UI
 modules/dns/                 DNS runtime + frontend + packaging
-modules/monitoring-runtime/  shared System/Thermal/Storage/Network runtime
-modules/<id>/packaging/      package-specific lifecycle/init files
-release/channels/            beta/stable source manifests
+modules/monitoring-runtime/  consolidated Monitoring runtime + packaging
+modules/monitoring/frontend/ standalone Monitoring UI
+modules/<id>/packaging/      legacy split-package compatibility lifecycle
+release/channels/            dev/beta/stable source manifests
 ```
 
 Core и DNS по-прежнему собираются из explicit source lists в `scripts/build-opkg.sh` и `scripts/build-module-opkg.sh`. Физическое разделение директорий дополнительно закрепляет границу Module ABI v1: изменение DNS runtime не должно молча менять Core binary.
 
-System/Thermal/Storage/Network намеренно используют общий `modules/monitoring-runtime/`: это один read-only Unix-socket runtime с выбором `-module`, а package/init ownership остаётся у соответствующих `modules/<id>/`.
+Текущий Dev/Beta train публикует consolidated `routerforge-monitoring`: один read-only runtime поднимает основной Monitoring socket и совместимые System/Thermal/Storage/Network sockets. Старые split packages сохраняются только как migration/compatibility boundary и объявлены через `Provides/Conflicts/Replaces`.
 
 `marketplace/registry/index.json` сохраняет исторический публичный GitHub path для совместимости со старыми Core; точная embedded-копия Core проверяется генератором Registry и CI.
 
@@ -93,9 +97,11 @@ Core не реализует DNS mutation/capture логику. Он предо�
 
 ## Control boundary
 
-`routerforge-admin` (RouterForge Control) остаётся отдельным read-only helper.
+`routerforge-admin` (RouterForge Control) остаётся отдельным Unix-socket helper. Read endpoints покрывают процессы, listening sockets, Entware services/packages и summary.
 
-Root package mutations выполняет Core только через ограниченный Центр приложений lifecycle и только для разрешённых catalog actions.
+Management v2 добавляет строго ограниченные mutation endpoints для process signals и Entware service start/stop/restart. Они требуют live Entware-root session, same-origin, exact confirmation, whitelist и Core-injected internal socket marker. Текущий standalone Management UI остаётся read-only.
+
+Root package mutations по-прежнему выполняет Core только через ограниченный Центр приложений lifecycle и только для разрешённых catalog actions.
 
 ## Центр приложений и package state
 
@@ -104,15 +110,22 @@ Root package mutations выполняет Core только через огра�
 Source channel manifests:
 
 ```text
+release/channels/dev.json
 release/channels/beta.json
 release/channels/stable.json
 ```
 
-CI:
+Release lifecycle:
 
 ```text
-dev  ──> RouterForge Beta   ──> routerforge-beta-index.json
-main ──> RouterForge Stable ──> routerforge-stable-index.json
+push dev
+  └──> rolling ARM64 Dev (routerforge-dev)
+
+workflow_dispatch FULL RELEASE on exact dev SHA
+  └──> rolling Beta + immutable routerforge-v<beta-version>
+
+main
+  └──> Stable promotion from validated exact-SHA artifact
 ```
 
 При неизменной component version предыдущий release asset сохраняется.
@@ -133,6 +146,8 @@ Config:
 При `auth_required=true` middleware защищает `/api/*`, кроме публичных auth endpoints, Core health и loopback-only module health readiness probe.
 
 Login использует Entware `root`; sessions находятся только в памяти Core.
+
+Failed-login state также in-memory, но bounded: stale entries очищаются глобально, tracked clients ограничены 1024, активные lockout записи сохраняются приоритетно. Lockout policy остаётся 5 ошибок в 5-минутном окне с 30-секундной блокировкой.
 
 ## Frontend
 
@@ -170,7 +185,7 @@ mips-3.4      -> GOARCH=mips   + GOMIPS=softfloat
 mipsel-3.4    -> GOARCH=mipsle + GOMIPS=softfloat
 ```
 
-MIPS/MIPSEL публикуются только в Beta как **experimental preview**. Cross-build и QEMU являются CI-доказательством совместимости сборки, но не заменяют физическую hardware validation; Stable для этих target остаётся заблокированным.
+MIPS/MIPSEL публикуются как **experimental preview** targets. Cross-build, QEMU и runtime compatibility probe являются CI-доказательством совместимости сборки, но не заменяют физическую hardware validation. MIPSel уже имеет частичную physical evidence на KN-1010 (fresh install/basic operation); MIPS big-endian остаётся без физической проверки.
 Подробнее: [ARCHITECTURES.md](ARCHITECTURES.md).
 
 ## Caches and storage policy

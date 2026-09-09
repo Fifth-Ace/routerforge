@@ -5,8 +5,10 @@ RouterForge targets Keenetic / Netcraze ARM64 routers running Entware.
 ## Branches
 
 - `main` — production source for the RouterForge Stable channel.
-- `dev` — active development and RouterForge Beta channel.
+- `dev` — active development and the rolling ARM64 Dev channel.
 - feature/fix branches should normally target `dev`.
+
+Beta is not published by every `dev` push. Beta publication is an explicit FULL RELEASE from a verified exact `dev` SHA.
 
 A change reaches `main` only after it has passed CI and, when runtime behavior changes, has been validated on a test router.
 
@@ -25,6 +27,8 @@ Frontend:
 ```sh
 sh scripts/build-frontend.sh
 sh scripts/build-dns-frontend.sh
+sh scripts/build-admin-frontend.sh
+sh scripts/build-monitoring-frontend.sh
 ```
 
 Release tooling:
@@ -54,6 +58,7 @@ CI performs a broader package/container/runtime verification.
 Official versions are declared independently:
 
 ```text
+release/channels/dev.json
 release/channels/beta.json
 release/channels/stable.json
 ```
@@ -66,10 +71,14 @@ CI preserves the previous release asset and SHA256 for any component whose versi
 
 ## Release channels
 
-- push to `dev` → `routerforge-beta` Pre-release;
-- push to `main` → `routerforge-stable` production/Latest release.
+- push to `dev` → mutable ARM64 `routerforge-dev`;
+- explicit FULL RELEASE on an exact `dev` SHA → rolling `routerforge-beta` plus immutable versioned Beta snapshot;
+- `main` → Stable promotion only from a validated promotion artifact for the exact source SHA.
 
 Channel release-index is authoritative for exact version, asset, URL and SHA256.
+
+Full release procedure and post-publication gates: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
+Monitoring 4→1 migration contract and hardware gate: [docs/MONITORING_MIGRATION.md](docs/MONITORING_MIGRATION.md).
 
 ## App Center manifests
 

@@ -115,7 +115,7 @@ func (s *dnsModuleServer) Serve() error {
 		s.writeJSON(w, http.StatusOK, plainDNS.Snapshot(limit))
 	}))
 	mux.HandleFunc("/v1/info", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
-		info, err := readDNSInfo()
+		info, err := dnsInfoRequestCache.snapshotForRequest()
 		if err != nil {
 			s.writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 			return

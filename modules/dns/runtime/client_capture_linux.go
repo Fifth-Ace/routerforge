@@ -31,6 +31,7 @@ func clientCaptureLoop(store *Store, log *EventLogger) error {
 		return fmt.Errorf("client AF_PACKET socket: %w", err)
 	}
 	defer syscall.Close(fd)
+	attachPacketFilter(fd, "client-global", clientCaptureFilterProgram, log)
 
 	buf := make([]byte, 65535)
 	for {

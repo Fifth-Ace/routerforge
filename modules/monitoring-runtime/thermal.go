@@ -11,69 +11,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
-type thermalSensor struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Category    string    `json:"category"`
-	Role        string    `json:"role"`
-	SensorIndex int       `json:"sensor_index"`
-	Detail      string    `json:"detail,omitempty"`
-	Source      string    `json:"source"`
-	TempC       float64   `json:"temp_c"`
-	Status      string    `json:"status"`
-	WarnC       float64   `json:"warn_c"`
-	CriticalC   float64   `json:"critical_c"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
-type thermalCollector struct {
-	mu       sync.RWMutex
-	interval time.Duration
-	sensors  []thermalSensor
-	scanned  time.Time
-}
-
 func newThermalCollector(interval time.Duration) *thermalCollector {
-	if interval < 10*time.Second {
-		interval = 30 * time.Second
-	}
-	t := &thermalCollector{interval: interval}
-	t.refresh()
-	return t
-}
-
-func (t *thermalCollector) snapshot() ([]thermalSensor, time.Time) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return append([]thermalSensor(nil), t.sensors...), t.scanned
-}
-
-func (t *thermalCollector) maybeRefresh() {
-	t.mu.RLock()
-	stale := time.Since(t.scanned) >= t.interval
-	t.mu.RUnlock()
-	if stale {
-		t.refresh()
-	}
-}
-
-func (t *thermalCollector) refresh() {
-	now := time.Now()
-	sensors := collectThermalSensors(now)
-	t.mu.Lock()
-	t.sensors = sensors
-	t.scanned = now
-	t.mu.Unlock()
+	return newThermalCollectorWith(interval, collectThermalSensors)
 }
 
 func (s *moduleServer) registerThermal(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/sensors", getOnly(func(w http.ResponseWriter, _ *http.Request) {
-		s.thermal.maybeRefresh()
-		sensors, scanned := s.thermal.snapshot()
+		sensors, scanned := s.thermal.snapshotForRequest()
 		writeJSON(w, http.StatusOK, map[string]any{
 			"sensors":           sensors,
 			"sensor_count":      len(sensors),

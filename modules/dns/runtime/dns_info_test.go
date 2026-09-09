@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"sync/atomic"
+	"testing"
+	"time"
+)
 
 func TestParseDNSInfo(t *testing.T) {
 	input := `
@@ -146,5 +150,145 @@ server-tls:
 	}
 	if got := info.Proxies[0].Upstreams[0].SNI; got != "dns.google" {
 		t.Fatalf("SNI = %q, want dns.google from fqdn metadata", got)
+	}
+}
+
+func TestDNSInfoCacheColdLoadSingleflight(t *testing.T) {
+	var calls atomic.Int32
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	cache := newDNSInfoCache(time.Minute, func() (RouterDNSInfoSnapshot, error) {
+		if calls.Add(1) == 1 {
+			close(started)
+		}
+		<-release
+		return RouterDNSInfoSnapshot{
+			Proxies: []RouterDNSProxyInfo{{Name: "cold"}},
+		}, nil
+	})
+
+	const readers = 8
+	results := make(chan RouterDNSInfoSnapshot, readers)
+	errors := make(chan error, readers)
+	for i := 0; i < readers; i++ {
+		go func() {
+			snapshot, err := cache.snapshotForRequest()
+			results <- snapshot
+			errors <- err
+		}()
+	}
+
+	select {
+	case <-started:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("cold cache read did not start")
+	}
+
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("cold cache reads = %d, want exactly 1", got)
+	}
+	close(release)
+
+	for i := 0; i < readers; i++ {
+		if err := <-errors; err != nil {
+			t.Fatalf("cold cache reader failed: %v", err)
+		}
+		snapshot := <-results
+		if len(snapshot.Proxies) != 1 || snapshot.Proxies[0].Name != "cold" {
+			t.Fatalf("unexpected cold snapshot: %#v", snapshot)
+		}
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("cold cache reads after release = %d, want exactly 1", got)
+	}
+}
+
+func TestDNSInfoCacheServesStaleWhileSingleRefreshRuns(t *testing.T) {
+	var calls atomic.Int32
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+
+	cache := newDNSInfoCache(time.Minute, func() (RouterDNSInfoSnapshot, error) {
+		n := calls.Add(1)
+		if n == 1 {
+			return RouterDNSInfoSnapshot{
+				Proxies: []RouterDNSProxyInfo{{Name: "old"}},
+			}, nil
+		}
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		<-release
+		return RouterDNSInfoSnapshot{
+			Proxies: []RouterDNSProxyInfo{{Name: "new"}},
+		}, nil
+	})
+
+	first, err := cache.snapshotForRequest()
+	if err != nil {
+		t.Fatalf("prime cache: %v", err)
+	}
+	if len(first.Proxies) != 1 || first.Proxies[0].Name != "old" {
+		t.Fatalf("unexpected prime snapshot: %#v", first)
+	}
+
+	cache.mu.Lock()
+	cache.scanned = time.Now().Add(-2 * cache.interval)
+	cache.mu.Unlock()
+
+	returned := make(chan RouterDNSInfoSnapshot, 1)
+	go func() {
+		snapshot, _ := cache.snapshotForRequest()
+		returned <- snapshot
+	}()
+
+	select {
+	case stale := <-returned:
+		if len(stale.Proxies) != 1 || stale.Proxies[0].Name != "old" {
+			t.Fatalf("stale request returned %#v", stale)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("stale request blocked on refresh")
+	}
+
+	select {
+	case <-started:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("background refresh did not start")
+	}
+
+	for i := 0; i < 8; i++ {
+		snapshot, err := cache.snapshotForRequest()
+		if err != nil {
+			t.Fatalf("stale cache read %d: %v", i, err)
+		}
+		if len(snapshot.Proxies) != 1 || snapshot.Proxies[0].Name != "old" {
+			t.Fatalf("stale cache read %d returned %#v", i, snapshot)
+		}
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("refresh reads while blocked = %d, want exactly 2 total", got)
+	}
+
+	close(release)
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for {
+		snapshot, err := cache.snapshotForRequest()
+		if err != nil {
+			t.Fatalf("post-refresh cache read: %v", err)
+		}
+		if len(snapshot.Proxies) == 1 && snapshot.Proxies[0].Name == "new" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("new snapshot was not published: %#v", snapshot)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("refresh reads after publish = %d, want exactly 2 total", got)
 	}
 }

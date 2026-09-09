@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -90,6 +91,91 @@ type dnsInfoHTTPSMeta struct {
 	Interface string
 	Domain    string
 }
+
+type dnsInfoCache struct {
+	mu         sync.Mutex
+	interval   time.Duration
+	snapshot   RouterDNSInfoSnapshot
+	scanned    time.Time
+	refreshing bool
+	ready      chan struct{}
+	lastErr    error
+	read       func() (RouterDNSInfoSnapshot, error)
+}
+
+func newDNSInfoCache(interval time.Duration, read func() (RouterDNSInfoSnapshot, error)) *dnsInfoCache {
+	if interval <= 0 {
+		interval = 15 * time.Second
+	}
+	if read == nil {
+		panic("dns info reader is required")
+	}
+	return &dnsInfoCache{interval: interval, read: read}
+}
+
+// snapshotForRequest bounds expensive ndmc reads while keeping HTTP reads fast.
+// The first request fills the cache synchronously. Once populated, stale
+// snapshots are returned immediately while exactly one background refresh runs.
+func (c *dnsInfoCache) snapshotForRequest() (RouterDNSInfoSnapshot, error) {
+	c.mu.Lock()
+	if !c.scanned.IsZero() {
+		snapshot := c.snapshot
+		stale := time.Since(c.scanned) >= c.interval
+		if stale && !c.refreshing {
+			c.refreshing = true
+			c.ready = make(chan struct{})
+			go c.refresh()
+		}
+		c.mu.Unlock()
+		return snapshot, nil
+	}
+
+	if c.refreshing {
+		ready := c.ready
+		c.mu.Unlock()
+		<-ready
+
+		c.mu.Lock()
+		snapshot, err := c.snapshot, c.lastErr
+		c.mu.Unlock()
+		return snapshot, err
+	}
+
+	c.refreshing = true
+	c.ready = make(chan struct{})
+	c.mu.Unlock()
+
+	c.refresh()
+
+	c.mu.Lock()
+	snapshot, err := c.snapshot, c.lastErr
+	c.mu.Unlock()
+	return snapshot, err
+}
+
+func (c *dnsInfoCache) refresh() {
+	snapshot, err := c.read()
+	now := time.Now()
+
+	c.mu.Lock()
+	if err == nil {
+		c.snapshot = snapshot
+		c.scanned = now
+	} else if !c.scanned.IsZero() {
+		// Keep serving the last good snapshot, but back off retries to the same
+		// bounded interval instead of spawning ndmc on every UI poll.
+		c.scanned = now
+	}
+	c.lastErr = err
+	c.refreshing = false
+	if c.ready != nil {
+		close(c.ready)
+		c.ready = nil
+	}
+	c.mu.Unlock()
+}
+
+var dnsInfoRequestCache = newDNSInfoCache(15*time.Second, readDNSInfo)
 
 func readDNSInfo() (RouterDNSInfoSnapshot, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

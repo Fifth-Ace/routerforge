@@ -80,6 +80,8 @@ build_dns() {
     dns_policy.go
     capture_linux.go
     client_capture_linux.go
+    packet_filter.go
+    packet_filter_linux.go
     client_registry.go
     clients_stats.go
     diagnostics.go

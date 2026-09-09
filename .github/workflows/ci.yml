@@ -484,6 +484,7 @@ jobs:
           sh -n scripts/verify-stable-promotion.sh
           sh -n scripts/publish-stable-multiarch.sh
           sh -n scripts/verify-published-beta.sh
+          sh -n scripts/verify-monitoring-migration.sh
           sh -n components/core/packaging/postinst
           sh -n components/core/packaging/prerm
           sh -n components/control/packaging/postinst
@@ -923,6 +924,17 @@ jobs:
           test -s dist/routerforge-beta-candidate-index.json
           test -s dist/routerforge-beta-candidate-index-mips-3.4.json
           test -s dist/routerforge-beta-candidate-index-mipsel-3.4.json
+
+      - name: Verify consolidated Monitoring migration contract
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
+        run: |
+          set -eu
+          set -- \
+            dist/routerforge-monitoring_*_aarch64-3.10.ipk \
+            dist/routerforge-monitoring_*_mips-3.4.ipk \
+            dist/routerforge-monitoring_*_mipsel-3.4.ipk
+          test "$#" -eq 3
+          sh scripts/verify-monitoring-migration.sh package "$@"
 
       - name: Upload RouterForge beta candidate
         if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true

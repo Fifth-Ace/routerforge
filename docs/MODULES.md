@@ -8,11 +8,8 @@ RouterForge состоит из Core и independently versioned capabilities.
 | --- | --- | --- | --- |
 | `routerforge-core` | всегда | Core process | Web shell, auth, Центр приложений, Registry, lifecycle, Module ABI host |
 | `routerforge-dns` | DNS | Unix-socket runtime | DNS observability, resolver management, traffic, diagnostics |
-| `routerforge-admin` | Управление | Unix-socket helper | процессы, порты, services, packages, system summary |
-| `routerforge-system` | Мониторинг | Unix-socket helper | CPU, RAM/swap, uptime/load, process count |
-| `routerforge-thermal` | Мониторинг | Unix-socket helper | thermal/hwmon и доступные датчики |
-| `routerforge-storage` | Мониторинг | Unix-socket helper | mounts, capacity, block devices, passive I/O |
-| `routerforge-network` | Мониторинг | Unix-socket helper | interfaces, routes, RX/TX, drops/errors, wireless, conntrack |
+| `routerforge-admin` | Управление | Unix-socket helper | процессы, порты, services, packages, system summary; guarded Management v2 backend mutations |
+| `routerforge-monitoring` | Мониторинг | consolidated Unix-socket runtime | CPU/RAM, thermal, storage, network, compatible legacy APIs |
 | `routerforge-profiling` | служебный | Core feature | loopback-only pprof/slow-request profiling |
 
 ## Core
@@ -84,7 +81,7 @@ With an old 0.3 Core it still enables the legacy in-Core DNS engine. With Core 0
 
 ## Module API boundary
 
-Monitoring modules remain read-only. DNS is the first Module ABI v1 runtime with a mutation API.
+Monitoring remains read-only. DNS exposes its resolver mutation API, while Management v2 adds a separately gated Admin mutation contract for authenticated process/service actions.
 
 Core does not interpret DNS payloads. It authenticates the user, enforces the platform route, and forwards allowed methods to the root-owned Unix socket. DNS itself validates resolver input and performs router mutations.
 
@@ -160,24 +157,40 @@ Package:
 routerforge-admin
 ```
 
-Control helper remains read-only. It provides Core data about processes, listening sockets, Entware init scripts, installed packages and system summary.
+Control helper provides Core data about processes, listening sockets, Entware init scripts, installed packages and system summary.
+
+Management v2 also exposes tightly scoped process-signal and Entware-service actions behind root-session/same-origin/confirmation/whitelist/internal-marker gates. The current Management UI remains read-only.
 
 Package management in Центр приложений is performed by Core through typed lifecycle plans, not by the Control helper.
 
-## Monitoring helpers
+## RouterForge Monitoring
 
-`system`, `thermal`, `storage`, `network` run separately and communicate with Core through Unix sockets.
+Current Dev/Beta package:
 
-This keeps two important boundaries:
+```text
+routerforge-monitoring
+```
 
-1. an unused module can be removed completely;
-2. a helper does not need to open its own LAN TCP listener.
+It consolidates System, Thermal, Storage and Network into one read-only runtime and one standalone UI. The runtime exposes the primary Monitoring socket plus compatible legacy module sockets/API contracts so Core routes and older integrations can migrate without opening new LAN listeners.
+
+Package metadata declares `Provides/Conflicts/Replaces` for:
+
+```text
+routerforge-system
+routerforge-thermal
+routerforge-storage
+routerforge-network
+```
+
+The old split packages remain compatibility/migration artifacts; they are not the current Beta package set.
 
 Socket check:
 
 ```sh
 ls -l /opt/var/run/routerforge-*.sock 2>/dev/null
 ```
+
+A successful migration intentionally leaves the four compatibility socket names above. It must not leave the old split packages, binaries, init scripts or processes. See [MONITORING_MIGRATION.md](MONITORING_MIGRATION.md).
 
 ## Profiling
 
@@ -198,9 +211,9 @@ Every component has its own version in the channel release index.
 A normal post-ABI state can look like:
 
 ```text
-routerforge-core     0.4.5
-routerforge-dns      0.4.20
-routerforge-network  0.3.3
+routerforge-core        0.7.1~beta.1
+routerforge-dns         0.7.1~beta.1
+routerforge-monitoring  0.7.1~beta.1
 ```
 
 This is intentional. DNS-only changes must not require a Core version bump after Module ABI v1 has landed.

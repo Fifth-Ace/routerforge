@@ -42,7 +42,7 @@ Primary navigation формируется из фактически устано
 Conditional:
 
 ```text
-/monitoring   если установлен system/thermal/storage/network
+/monitoring   если установлен RouterForge Monitoring (или обнаружен legacy split monitoring)
 /dns          если установлен RouterForge DNS
 /manage       если установлен RouterForge Control
 ```
@@ -79,13 +79,24 @@ Core UI:
 components/core/frontend/
 ```
 
-DNS Module ABI UI:
+Standalone Module ABI UIs:
 
 ```text
 modules/dns/frontend/
+modules/admin/frontend/
+modules/monitoring/frontend/
 ```
 
-DNS owns its UI source/build workspace, while shared RouterForge shell CSS remains owned by Core and is imported by the DNS build.
+Module UIs own their source/build workspaces. Shared RouterForge frontend helpers remain owned by Core and are imported through `$lib` aliases at Vite build time; the resulting bundles are self-contained on the router.
+
+Shared request/polling primitives:
+
+```text
+components/core/frontend/src/lib/http.js
+components/core/frontend/src/lib/polling.js
+```
+
+Periodic async work must use serial polling rather than raw async `setInterval`. Read requests use bounded AbortController timeouts; mutation timeout policy is endpoint-specific and must not create false failure after a router-side commit.
 
 ## Development
 
@@ -105,6 +116,22 @@ npm install --no-audit --no-fund
 npm run dev
 ```
 
+Control module UI:
+
+```sh
+cd modules/admin/frontend
+npm install --no-audit --no-fund
+npm run dev
+```
+
+Monitoring module UI:
+
+```sh
+cd modules/monitoring/frontend
+npm install --no-audit --no-fund
+npm run dev
+```
+
 Используйте только тестовый роутер для development target.
 
 ## Checks / production build
@@ -112,7 +139,9 @@ npm run dev
 ```sh
 sh scripts/build-frontend.sh
 sh scripts/build-dns-frontend.sh
+sh scripts/build-admin-frontend.sh
+sh scripts/build-monitoring-frontend.sh
 go build -tags embed_frontend ./components/core
 ```
 
-Entware/release build самодостаточен: Core frontend assets встраиваются в Core binary, а DNS UI кладётся в пакет `routerforge-dns`. Node.js на роутере не нужен.
+Entware/release build самодостаточен: Core frontend assets встраиваются в Core binary, а standalone module UIs кладутся в соответствующие IPK. Node.js на роутере не нужен.

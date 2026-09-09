@@ -9,13 +9,17 @@ RouterForge packages are Entware IPKs. Package architecture и Go target свя�
 | --- | --- | --- | --- |
 | `aarch64-3.10` | `GOARCH=arm64` | `aarch64-k3.10` | **Stable / Beta — hardware validated** |
 | `mips-3.4` | `GOARCH=mips`, `GOMIPS=softfloat` | `mipssf-k3.4` | **Stable / Beta experimental preview — NOT hardware tested** |
-| `mipsel-3.4` | `GOARCH=mipsle`, `GOMIPS=softfloat` | `mipselsf-k3.4` | **Stable / Beta experimental preview — NOT hardware tested** |
+| `mipsel-3.4` | `GOARCH=mipsle`, `GOMIPS=softfloat` | `mipselsf-k3.4` | **Stable / Beta experimental preview — partial hardware validation on KN-1010** |
 
-AArch64 — основной аппаратно проверенный target.
+AArch64 — основной полностью аппаратно проверенный target.
 
 MIPS/MIPSel cross-build'ятся, проходят runtime smoke под QEMU и runtime compatibility probe.
-Начиная со Stable 0.6 они публикуются и в Stable release как **experimental preview**, но это
-не аппаратная валидация: у проекта нет физического MIPS/MIPSel test router.
+Начиная со Stable 0.6 они публикуются и в Stable release как **experimental preview**.
+
+Для MIPSel получена первая физическая проверка на Keenetic Giga KN-1010: fresh installation
+и базовая штатная работа RouterForge подтверждены на реальном устройстве. Это частичная
+валидация: upgrade/rollback/uninstall, полный DNS/Module ABI сценарий и resource footprint
+на MIPSel ещё не закрыты. MIPS big-endian физически не проверен.
 
 Публикация пакета не означает production support. MIPS/MipSel installer сохраняет explicit
 experimental opt-in и fail-closed probe: `blocked` нельзя обойти, а `degraded` требует
@@ -94,15 +98,15 @@ CI currently checks, depending on scope/full-release mode:
 
 CI/QEMU do **not** prove:
 
-- real KeeneticOS startup on MIPS hardware;
-- Module ABI Unix-socket behavior on that hardware generation;
-- DNS capture/control against real MIPS Keenetic firmware;
-- real install/update/remove/rollback behavior;
-- acceptable resource footprint on representative low-memory MIPS hardware.
+- real KeeneticOS startup on a target that has no physical evidence;
+- complete Module ABI Unix-socket behavior on each hardware generation;
+- DNS capture/control against each real MIPS/MIPSel Keenetic firmware family;
+- real update/remove/rollback behavior;
+- acceptable resource footprint on representative low-memory MIPS/MIPSel hardware.
 
 ## Physical validation backlog for MIPS/MipSel
 
-MIPS/MipSel remain explicitly experimental until physical validation covers each target:
+MIPS remains fully unvalidated on physical hardware. MIPSel has a partial KN-1010 fresh-install/basic-operation pass, but both targets remain explicitly experimental until the remaining matrix is covered:
 
 1. Core starts and `/api/health` is healthy.
 2. Module ABI Unix sockets work.
@@ -112,5 +116,8 @@ MIPS/MipSel remain explicitly experimental until physical validation covers each
 6. Install, update, rollback and uninstall are exercised.
 7. Resource footprint is acceptable on representative low-memory hardware.
 
-Until that pass exists, release notes and documentation must continue to mark MIPS/MipSel
-as **not hardware tested**.
+Until that matrix is complete, release notes and documentation must distinguish:
+
+- MIPS big-endian: **not hardware tested**;
+- MIPSel: **partially hardware validated on KN-1010**, still experimental;
+- AArch64: primary fully hardware-validated target.

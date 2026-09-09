@@ -1,98 +1,102 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.6.0-beta.6",
+    "release_version": "0.7.1-beta.1",
     "release_notes": {
         "ru": {
             "new": [
-                "Главная Core стала единым центром состояния и внимания с hostname/model/Core/channel/uptime.",
-                "Sidebar показывает дерево установленных RouterForge-компонентов, интеграции и телеметрию устройства.",
-                "Центр приложений получил вкладки RouterForge, Интеграции, Entware, Установлено и Обновления.",
-                "Generic OPKG получил package detail/preflight, кэшированный поиск, зависимости, размеры и безопасные install/update/remove actions.",
-                "Non-Core package actions выполняются как async jobs с SSE output, cancel, глобальным lock, timeout, history и post-verify.",
-                "Свежая 0.6 Beta bootstrap-установка устанавливает только RouterForge Core; optional capabilities выбираются после запуска.",
-                "Generic Runtime Web UI Discovery автоматически находит локальные Web UI установленного Entware ПО по TCP LISTEN socket → PID/process/package correlation и безопасному HTTP/HTTPS probe без сканирования LAN.",
-                "Runtime Web UI открываются через защищённый workspace только после fail-closed web-probe с проверкой X-Frame-Options/CSP, redirect и browser-reachable listener."
+                "Новый Beta train 0.7.1 переводит системный мониторинг на единый пакет routerforge-monitoring: один read-only runtime и один UI заменяют отдельные system/thermal/storage/network пакеты, сохраняя совместимые API и Unix-socket endpoints.",
+                "Monitoring получил собственный standalone Svelte/Vite UI с разделами System, Thermal, Storage, Network и Profiling; Core теперь выступает shell/host, а не владеет страницей мониторинга.",
+                "RouterForge Control получил standalone UI и Management v2 backend contract для root-session protected process/service mutations. Текущий UI остаётся read-only; mutation API подготовлен и аппаратно проверен отдельно от будущих управляющих кнопок.",
+                "Dev и Beta теперь разведены: каждый push в dev публикует rolling ARM64 Dev train, а Beta выпускается только явным FULL RELEASE на проверенном exact SHA.",
+                "Beta 0.7.1 использует prerelease-safe opkg versions вида 0.7.1~beta.1, тогда как GitHub asset/tag сохраняют читаемую форму 0.7.1-beta.1. Это гарантирует корректный порядок Beta < будущий Stable 0.7.1.",
+                "Получена первая физическая MIPSel-проверка на Keenetic Giga KN-1010: fresh installation и базовая штатная работа RouterForge подтверждены на реальном устройстве."
             ],
             "fixes": [
-                "Core self-update больше не показывает ложный «Failed to fetch» при штатном restart-разрыве: UI ждёт восстановления /api/catalog и проверяет фактически установленную целевую версию Core перед успешным завершением.",
-                "Карточки RouterForge-модулей больше не заполняются бессмысленными прочерками для отсутствующих optional package metadata; такие строки скрываются, а статусные значения выводятся осмысленно.",
-                "Строка Service теперь показывается только для Core и компонентов с реальным service contract; RouterForge DNS больше не получает пустой Service-row.",
-                "App Center получил полный RU/EN перевод технических подписей, статусов действий, preflight/Entware metadata и официальных описаний RouterForge-модулей.",
-                "Исправлена гонка при полном обновлении страницы: Home больше не сохраняет ложные состояния «Ядро RouterForge недоступно» и «Центр приложений недоступен» после фактического восстановления online-state.",
-                "Начальная загрузка теперь отличает состояние «ещё не загружено» от реального outage для Core и Центра приложений.",
-                "Телеметрия CPU/RAM/temperature/storage запускается сразу после загрузки реального catalog вместо ожидания следующего 10-секундного polling tick.",
-                "Overview защищён generation guard от перезаписи свежих данных устаревшим pre-catalog refresh и публикует быстрые telemetry providers раньше дополнительных DNS/network/action-history запросов.",
-                "SSE reconnect больше не помечает Core offline до проверки HTTP fallback.",
-                "Исправлено ложное предупреждение Home о неработающей службе для установленных RouterForge-модулей без собственного service contract; RouterForge DNS больше не помечается как остановленный только из-за managed=true.",
-                "Счётчик «требует внимания» теперь учитывает только warning/critical события; информационные уведомления об обновлениях остаются видимыми, но не увеличивают счётчик.",
-                "История действий Центра приложений получила сворачивание/разворачивание и более аккуратное выравнивание текста и статусов.",
-                "Карточки модулей Центра приложений корректно переносят длинные metadata/compatibility значения без наложения текста.",
-                "Attention Center оценивает фактически используемый DNS path: secure upstream health/quality/fallback и свежие plain DNS terminal events.",
-                "Исправлены пороги внимания: CPU Temp >75 warning и >=90 critical, RAM >=90/96, /opt >=85/95, sustained CPU >=90% не менее 30 секунд.",
-                "Добавлены события отсутствующего default route и недавнего failed action Центра приложений.",
-                "Пользовательское название раздела унифицировано как «Центр приложений»; старые catalog/marketplace имена остаются compatibility aliases.",
-                "Определение модели устройства получило cached fallback через ndmc show version.",
-                "Убрано ложное предупреждение Built-in RouterForge component для Core.",
-                "Generic discovery больше не создаёт ложные Web UI из обычных 403 Forbidden страниц и не приписывает приложение инфраструктурным lighttpd/nginx/httpd/uhttpd/apache процессам.",
-                "Из runtime integrations исключены firmware/platform Web panels вроде KeeneticOS nginx, а уже известные Web UI дедуплицируются вместо создания третьих карточек."
+                "Generic Web UI Discovery больше не выполняет произвольные TCP LISTEN probes: probing ограничен обнаруженными локальными application endpoints и сохраняет fail-closed SSRF/XFO/CSP boundary.",
+                "DNS passive capture получил kernel BPF filtering до userspace обработки, уменьшая ненужный packet-processing overhead.",
+                "Обычный GET /api/catalog больше не запускает дорогой active discovery; remote/discovery refresh вынесен в отдельный guarded POST /api/catalog/refresh.",
+                "POST /api/catalog/refresh защищён same-origin проверкой, singleflight и rate limiting, поэтому повторные refresh не размножают дорогостоящую работу.",
+                "Core frontend polling переведён на serial scheduling без async setInterval overlap; сетевые read/write helpers получили AbortController timeout policy и гарантированную очистку timer.",
+                "Standalone Admin и Monitoring UI используют тот же serial polling contract; медленный запрос больше не порождает несколько параллельных периодических циклов.",
+                "Standalone DNS UI получил 12-секундный timeout для GET/HEAD reads, при этом mutation requests намеренно не получают короткий UI timeout, чтобы не сообщать ложный failure после уже применённой router mutation.",
+                "Monitoring thermal path переведён на stale-while-revalidate/singleflight: request path не запускает конкурентные refresh/smartctl операции, а last-good snapshot публикуется без блокировки UI.",
+                "DNS info, resolver auxiliary discovery и Monitoring Keenetic network metadata получили bounded TTL caches/last-good semantics; повторный ndmc polling заметно сокращён.",
+                "DNS background collector получил backoff после ошибок, чтобы failure loop не превращался в горячий polling.",
+                "Monitoring storage Statfs вынесен в platform-specific implementation: Linux сохраняет прежнюю семантику, а non-Linux targets теперь безопасно cross-compile.",
+                "App Center internal async job map получил terminal retention cap; древние завершённые jobs больше не накапливаются бесконечно в памяти Core.",
+                "Core HTTP server получил ReadHeaderTimeout, ReadTimeout, IdleTimeout и MaxHeaderBytes; global WriteTimeout оставлен выключенным специально для долгоживущего SSE.",
+                "Core generic module proxy ограничивает mutation request bodies до downstream contracts: DNS 64 KiB, Admin 8 KiB; oversize отклоняется до Unix-socket forwarding.",
+                "Authentication failed-login tracking получил global stale pruning и строгий cap 1024 clients. Активные блокировки сохраняются приоритетно; lockout policy остаётся 5 ошибок / 5 минут / 30 секунд."
             ],
             "compatibility": [
-                "ARM64 (aarch64-3.10) — основной поддерживаемый target.",
-                "MIPS и MIPSel публикуются только как experimental Beta preview и не считаются аппаратно проверенными.",
-                "Stable для MIPS/MipSel остаётся заблокированным до физической hardware validation."
+                "ARM64 aarch64-3.10 остаётся основным и полностью аппаратно проверенным Beta target.",
+                "MIPSel mipsel-3.4 теперь имеет реальную hardware evidence на Keenetic Giga KN-1010 для fresh installation и базовой штатной работы. Target остаётся experimental до проверки upgrade/rollback/uninstall, полного Module ABI/DNS сценария и resource footprint.",
+                "MIPS mips-3.4 остаётся experimental preview без физической hardware validation; cross-build/QEMU/runtime-probe не считаются аппаратной проверкой.",
+                "routerforge-monitoring Conflicts/Replaces/Provides старые routerforge-system/routerforge-thermal/routerforge-storage/routerforge-network и сохраняет compatibility API для миграции.",
+                "Fresh Beta bootstrap по-прежнему устанавливает только RouterForge Core; optional DNS, Monitoring, Control и Profiling выбираются через Центр приложений.",
+                "Stable 0.6.1 и main не изменяются этим Beta release."
             ],
             "technical": [
-                "RouterForge release metadata включает architecture, download/installed size, dependencies и conflicts.",
-                "Release-index остаётся authoritative source; Packages/Packages.gz сохраняются как параллельное OPKG-представление.",
-                "Manifest schema получила version_source, conflicts и typed web metadata как groundwork; full iframe workspace остаётся отдельным security gate.",
-                "Fresh Core bootstrap остаётся Core-only; Core self-update сохраняет отдельный restart-safe lifecycle."
+                "Beta FULL RELEASE строит и публикует exact multi-arch package set: Core, DNS, Control, Monitoring и Profiling; rolling Beta alias после публикации получает coherent indexes/checksums/bootstrap, затем создаётся immutable routerforge-v0.7.1-beta.1 snapshot.",
+                "Release tooling валидирует exact package order для Beta и проверяет 5 компонентов × 3 target = 15 IPK assets плюс SHA256SUMS и target-specific/universal bootstraps.",
+                "Consolidated Monitoring package contract отдельно проверяется в CI: package metadata обязана объявлять legacy Provides/Conflicts/Replaces, payload не должен содержать старые split binaries/init scripts, а postinst должен останавливать legacy services перед запуском нового runtime.",
+                "Для реального upgrade 4→1 добавлен read-only hardware migration gate: он проверяет package DB, отсутствие старых binaries/init scripts/processes, основной runtime и пять ожидаемых Unix sockets (primary + compatibility).",
+                "routerforge-dev остаётся отдельным mutable ARM64-only каналом с версиями 0.7.1~dev.r<run>.<sha12> и больше не считается Beta.",
+                "Core и module runtime общаются через root-owned Unix sockets; Core остаётся единственным RouterForge LAN listener на :2233.",
+                "Management v2 mutation path требует POST, same-origin, live root session, exact confirmation, whitelist и Core-injected internal Unix-socket marker; arbitrary shell/path execution отсутствует.",
+                "Core HTTP WriteTimeout=0 сохранён намеренно: SSE /api/events должен жить дольше обычных request read timeouts.",
+                "DNS/Admin module mutation body limits применяются в Core до ReverseProxy, а downstream runtime продолжает собственную validation/JSON limit policy.",
+                "Frontend standalone builds используют общие Core $lib helpers на этапе Vite bundling; Node.js на роутере не требуется.",
+                "Phase 8 runtime audit закрыт на Dev r248 с hardware health evidence. Reboot persistence и destructive auth failure injection сознательно не заявляются как выполненные; MIPSel hardware evidence пока ограничена fresh install/basic operation на KN-1010."
             ]
         },
         "en": {
             "new": [
-                "Core Home is now a unified status and attention center with hostname/model/Core/channel/uptime.",
-                "The sidebar shows installed RouterForge components, integrations, and device telemetry.",
-                "App Center now exposes RouterForge, Integrations, Entware, Installed, and Updates tabs.",
-                "Generic OPKG now has package details/preflight, cached search, dependency/size metadata, and guarded install/update/remove actions.",
-                "Non-Core package actions run as async jobs with SSE output, cancellation, a global lock, timeout, history, and post-verification.",
-                "A fresh 0.6 Beta bootstrap installs RouterForge Core only; optional capabilities are selected after startup.",
-                "Generic Runtime Web UI Discovery automatically finds local Web UIs for installed Entware software using TCP LISTEN socket → PID/process/package correlation and safe HTTP/HTTPS probing without LAN scanning.",
-                "Runtime Web UIs open through the guarded workspace only after a fail-closed web probe validates X-Frame-Options/CSP, redirects, and a browser-reachable listener."
+                "The 0.7.1 Beta train consolidates system monitoring into routerforge-monitoring: one read-only runtime and one UI replace the separate system/thermal/storage/network packages while preserving compatible APIs and Unix-socket endpoints.",
+                "Monitoring now has its own standalone Svelte/Vite UI for System, Thermal, Storage, Network, and Profiling; Core acts as the shell/host instead of owning the monitoring page.",
+                "RouterForge Control now has a standalone UI and a Management v2 backend contract for root-session-protected process/service mutations. The current UI remains read-only; mutation APIs are prepared and hardware-validated separately from future control buttons.",
+                "Dev and Beta are now separate release channels: each dev push publishes the rolling ARM64 Dev train, while Beta is published only by an explicit FULL RELEASE on a verified exact SHA.",
+                "Beta 0.7.1 uses prerelease-safe opkg versions such as 0.7.1~beta.1 while GitHub assets/tags keep the readable 0.7.1-beta.1 form, guaranteeing Beta sorts below future Stable 0.7.1.",
+                "The first physical MIPSel validation is now recorded on Keenetic Giga KN-1010: fresh installation and basic normal RouterForge operation were confirmed on real hardware."
             ],
             "fixes": [
-                "Core self-update no longer reports a false 'Failed to fetch' during the expected restart disconnect: the UI waits for /api/catalog to recover and verifies the actually installed target Core version before declaring success.",
-                "RouterForge module cards no longer fill unavailable optional package metadata with meaningless dashes; absent optional rows are hidden and status values use semantic text.",
-                "The Service row is now shown only for Core and components with a real service contract, so RouterForge DNS no longer renders an empty Service row.",
-                "App Center now has complete RU/EN localization for technical labels, action states, preflight/Entware metadata, and official RouterForge module descriptions.",
-                "Fixed a full-page-refresh race where Home could keep stale 'RouterForge Core is unavailable' and 'App Center is unavailable' alerts after the underlying stores had recovered.",
-                "Initial loading now distinguishes 'not loaded yet' from a confirmed Core or App Center outage.",
-                "CPU/RAM/temperature/storage telemetry refreshes immediately after the real catalog is hydrated instead of waiting for the next 10-second polling tick.",
-                "Overview now uses a generation guard so stale pre-catalog refreshes cannot overwrite fresh data, and publishes fast telemetry providers before supplementary DNS/network/action-history requests complete.",
-                "SSE reconnect no longer marks Core offline until the HTTP fallback also fails.",
-                "Fixed a false Home service warning for installed RouterForge modules that do not declare their own service contract; RouterForge DNS is no longer reported as stopped merely because managed=true.",
-                "The requires-attention badge now counts warning/critical events only; informational update notices remain visible without increasing the count.",
-                "App Center action history can now be collapsed/expanded and has cleaner text/status alignment.",
-                "App Center module cards now wrap long metadata and compatibility values without text overlap.",
-                "Attention Center evaluates the effective DNS path: secure upstream health/quality/fallback plus recent plain-DNS terminal events.",
-                "Attention thresholds now match the 0.6 contract: CPU temperature >75 warning and >=90 critical, RAM >=90/96, /opt >=85/95, and sustained CPU >=90% for at least 30 seconds.",
-                "Missing default-route and recent failed App Center action alerts are included.",
-                "The user-facing section name is consistently App Center while catalog/marketplace names remain compatibility aliases.",
-                "Device model detection now has a cached ndmc show version fallback.",
-                "The benign Built-in RouterForge component warning is suppressed for Core.",
-                "Generic discovery no longer turns ordinary 403 Forbidden pages into Web UIs and no longer treats infrastructure lighttpd/nginx/httpd/uhttpd/apache processes as application identity.",
-                "Firmware/platform Web panels such as KeeneticOS nginx are excluded from runtime integrations, while already-known Web UIs are deduplicated instead of producing third copies."
+                "Generic Web UI Discovery no longer performs arbitrary TCP LISTEN probing; probing is limited to discovered local application endpoints while preserving fail-closed SSRF/XFO/CSP boundaries.",
+                "DNS passive capture now applies kernel BPF filtering before userspace processing, reducing unnecessary packet-processing overhead.",
+                "Normal GET /api/catalog no longer triggers expensive active discovery; remote/discovery refresh is isolated behind guarded POST /api/catalog/refresh.",
+                "POST /api/catalog/refresh now has same-origin validation, singleflight, and rate limiting so repeated refreshes cannot multiply expensive work.",
+                "Core frontend polling uses serial scheduling instead of overlapping async setInterval calls; shared request helpers now enforce AbortController timeout policy with reliable timer cleanup.",
+                "Standalone Admin and Monitoring UIs use the same serial polling contract, preventing slow requests from creating multiple concurrent periodic cycles.",
+                "Standalone DNS UI now has a 12-second timeout for GET/HEAD reads, while mutation requests intentionally keep their previous timeout semantics to avoid false failures after a router mutation may already have committed.",
+                "Monitoring thermal collection now uses stale-while-revalidate/singleflight: request paths do not launch concurrent refresh/smartctl work and last-good snapshots can be served without blocking the UI.",
+                "DNS info, resolver auxiliary discovery, and Monitoring Keenetic network metadata now use bounded TTL caches/last-good semantics, substantially reducing repeated ndmc polling.",
+                "The DNS background collector backs off after failures instead of turning an error condition into a hot polling loop.",
+                "Monitoring storage Statfs is split into platform-specific implementations: Linux keeps the existing semantics while non-Linux targets cross-compile safely.",
+                "The App Center async job map now has terminal retention; old completed jobs can no longer accumulate indefinitely in Core memory.",
+                "The Core HTTP server now has ReadHeaderTimeout, ReadTimeout, IdleTimeout, and MaxHeaderBytes; the global WriteTimeout intentionally remains disabled for long-lived SSE.",
+                "The generic Core module proxy bounds mutation bodies to downstream contracts: DNS 64 KiB and Admin 8 KiB, rejecting oversized requests before Unix-socket forwarding.",
+                "Failed-login tracking now has global stale pruning and a strict 1024-client cap. Active blocks are preferred during eviction; lockout policy remains 5 failures / 5 minutes / 30 seconds."
             ],
             "compatibility": [
-                "ARM64 (aarch64-3.10) is the primary supported target.",
-                "MIPS and MIPSel are published only as experimental Beta previews and are not hardware-validated.",
-                "Stable MIPS/MipSel remains blocked until physical hardware validation."
+                "ARM64 aarch64-3.10 remains the primary fully hardware-validated Beta target.",
+                "MIPSel mipsel-3.4 now has real hardware evidence on Keenetic Giga KN-1010 for fresh installation and basic normal operation. It remains experimental until upgrade/rollback/uninstall, full Module ABI/DNS behavior, and resource footprint are validated.",
+                "MIPS mips-3.4 remains an experimental preview without physical hardware validation; cross-build/QEMU/runtime probes do not count as hardware validation.",
+                "routerforge-monitoring Conflicts/Replaces/Provides the legacy routerforge-system/routerforge-thermal/routerforge-storage/routerforge-network packages and preserves compatibility APIs for migration.",
+                "Fresh Beta bootstrap still installs RouterForge Core only; optional DNS, Monitoring, Control, and Profiling are selected through App Center.",
+                "Stable 0.6.1 and main are unchanged by this Beta release."
             ],
             "technical": [
-                "RouterForge release metadata now includes architecture, download/installed size, dependencies, and conflicts.",
-                "The release index remains authoritative; Packages/Packages.gz stays a parallel OPKG representation.",
-                "Manifest schema adds version_source, conflicts, and typed web metadata as groundwork; the full iframe workspace remains a separate security gate.",
-                "Fresh Core bootstrap remains Core-only; Core self-update keeps its restart-safe lifecycle."
+                "Beta FULL RELEASE builds and publishes the exact multi-arch package set: Core, DNS, Control, Monitoring, and Profiling. After the rolling Beta alias is coherent, an immutable routerforge-v0.7.1-beta.1 snapshot is created.",
+                "Release tooling validates exact Beta package order and verifies 5 components × 3 targets = 15 IPK assets together with SHA256SUMS and target-specific/universal bootstraps.",
+                "The consolidated Monitoring package contract is checked in CI: package metadata must declare legacy Provides/Conflicts/Replaces, the payload must not contain old split binaries/init scripts, and postinst must stop legacy services before starting the new runtime.",
+                "A read-only hardware migration gate is provided for the real 4→1 upgrade: it checks package DB state, absence of old binaries/init scripts/processes, the primary runtime, and all five expected Unix sockets (primary plus compatibility).",
+                "routerforge-dev remains a separate mutable ARM64-only channel using 0.7.1~dev.r<run>.<sha12> versions and is no longer documented as Beta.",
+                "Core and module runtimes communicate through root-owned Unix sockets; Core remains the only RouterForge LAN listener on :2233.",
+                "Management v2 mutation paths require POST, same-origin, a live root session, exact confirmation, a whitelist, and a Core-injected internal Unix-socket marker; arbitrary shell/path execution is not exposed.",
+                "Core HTTP WriteTimeout=0 is intentional so SSE /api/events can outlive normal request read timeouts.",
+                "DNS/Admin mutation body limits are enforced in Core before ReverseProxy while downstream runtimes keep their own validation and JSON limits.",
+                "Standalone frontend builds import shared Core $lib helpers at Vite bundle time; Node.js is not required on the router.",
+                "The Phase 8 runtime audit is closed on Dev r248 with hardware health evidence. Reboot persistence and destructive auth-failure injection are explicitly not claimed; MIPSel hardware evidence is currently limited to fresh install/basic operation on KN-1010."
             ]
         }
     },
@@ -100,49 +104,31 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.6.0-beta.5"
+            "version": "0.7.1~beta.1"
         },
         {
             "id": "dns",
             "package": "routerforge-dns",
-            "version": "0.4.20-beta",
-            "min_core_version": "0.4.2-beta"
+            "version": "0.7.1~beta.1",
+            "min_core_version": "0.7.1~beta.1"
         },
         {
             "id": "admin",
             "package": "routerforge-admin",
-            "version": "0.3.1-beta",
-            "min_core_version": "0.3.0-beta"
+            "version": "0.7.1~beta.1",
+            "min_core_version": "0.7.1~beta.1"
         },
         {
-            "id": "system",
-            "package": "routerforge-system",
-            "version": "0.3.1-beta",
-            "min_core_version": "0.3.0-beta"
-        },
-        {
-            "id": "thermal",
-            "package": "routerforge-thermal",
-            "version": "0.3.2-beta",
-            "min_core_version": "0.3.0-beta"
-        },
-        {
-            "id": "storage",
-            "package": "routerforge-storage",
-            "version": "0.3.2-beta",
-            "min_core_version": "0.3.0-beta"
-        },
-        {
-            "id": "network",
-            "package": "routerforge-network",
-            "version": "0.3.3-beta",
-            "min_core_version": "0.3.0-beta"
+            "id": "monitoring",
+            "package": "routerforge-monitoring",
+            "version": "0.7.1~beta.1",
+            "min_core_version": "0.7.1~beta.1"
         },
         {
             "id": "profiling",
             "package": "routerforge-profiling",
-            "version": "0.3.0-beta",
-            "min_core_version": "0.3.0-beta"
+            "version": "0.7.1~beta.1",
+            "min_core_version": "0.7.1~beta.1"
         }
     ]
 }

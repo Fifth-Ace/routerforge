@@ -618,9 +618,17 @@ jobs:
           python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py scripts/render_universal_bootstrap.py
 
           TILDE_VERSION='0.7.1~dev.r999.deadbeefcafe'
-          TILDE_ASSET="routerforge-core_${TILDE_VERSION}_aarch64-3.10.ipk"
+          SAFE_ASSET_VERSION='0.7.1-dev.r999.deadbeefcafe'
+          TILDE_ASSET="routerforge-core_${SAFE_ASSET_VERSION}_aarch64-3.10.ipk"
           TILDE_INDEX=/tmp/routerforge-ci-tilde-index.json
           TILDE_BOOTSTRAP=/tmp/routerforge-ci-tilde-bootstrap.sh
+
+          case "$TILDE_ASSET" in
+            *'~'*)
+              echo "release asset leaked opkg prerelease separator: $TILDE_ASSET" >&2
+              exit 1
+              ;;
+          esac
 
           cat > "$TILDE_INDEX" <<JSON
           {
@@ -647,7 +655,7 @@ jobs:
           sh -n "$TILDE_BOOTSTRAP"
           grep -Fq "$TILDE_ASSET" "$TILDE_BOOTSTRAP"
           grep -Fq "$TILDE_VERSION" "$TILDE_BOOTSTRAP"
-          echo "DEV_TILDE_ASSET_RENDER_GATE=PASS"
+          echo "DEV_VERSION_ASSET_DECOUPLING_GATE=PASS"
 
           python3 - <<'PY'
           import json
@@ -658,6 +666,16 @@ jobs:
 
           builder = runpy.run_path("scripts/build_routerforge_channel.py")
           candidate_index_name = builder["candidate_index_name"]
+          release_asset_version = builder["release_asset_version"]
+
+          assert release_asset_version("0.7.1~dev.r999.deadbeefcafe") == "0.7.1-dev.r999.deadbeefcafe"
+          assert release_asset_version("0.6.1") == "0.6.1"
+          try:
+              release_asset_version("0.7.1:bad")
+          except SystemExit:
+              pass
+          else:
+              raise AssertionError("unsafe release asset version was accepted")
 
           assert candidate_index_name("dev", "aarch64-3.10") == "routerforge-dev-candidate-index.json"
           assert candidate_index_name("beta", "aarch64-3.10") == "routerforge-beta-candidate-index.json"

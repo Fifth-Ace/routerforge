@@ -37,6 +37,7 @@ SHORT_SHA="$(printf '%.12s' "$GITHUB_SHA")"
 # train and move to the next patch line. "~dev" sorts below the matching stable
 # release while GITHUB_RUN_NUMBER provides a monotonic rolling Dev sequence.
 VERSION="0.7.1~dev.r${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+ASSET_VERSION="$(printf '%s' "$VERSION" | tr '~' '-')"
 
 mkdir -p dist
 rm -f "$BUILD_CONFIG" "$CANDIDATE" "$FINAL" "$SUMS" "$BOOTSTRAP" "$CURRENT"
@@ -134,45 +135,12 @@ verify_plain() {
     rm -f "$output"
 }
 
-verify_plain "dist/routerforge-core_${VERSION}_${TARGET}.ipk" routerforge
-verify_plain "dist/routerforge-admin_${VERSION}_${TARGET}.ipk" routerforge-admin
-verify_plain "dist/routerforge-dns_${VERSION}_${TARGET}.ipk" routerforge-dns
-verify_plain "dist/routerforge-monitoring_${VERSION}_${TARGET}.ipk" routerforge-monitoring
+verify_plain "dist/routerforge-core_${ASSET_VERSION}_${TARGET}.ipk" routerforge
+verify_plain "dist/routerforge-admin_${ASSET_VERSION}_${TARGET}.ipk" routerforge-admin
+verify_plain "dist/routerforge-dns_${ASSET_VERSION}_${TARGET}.ipk" routerforge-dns
+verify_plain "dist/routerforge-monitoring_${ASSET_VERSION}_${TARGET}.ipk" routerforge-monitoring
 
 echo "DEV_PLAIN_BINARY_GATE=PASS"
-
-if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-    gh release create "$TAG" \
-        --repo "$GITHUB_REPOSITORY" \
-        --target "$GITHUB_SHA" \
-        --prerelease \
-        --title "RouterForge Dev" \
-        --notes "Rolling ARM64 development channel. Plain binaries; test-router use only."
-fi
-
-while IFS= read -r asset; do
-    [ -n "$asset" ] || continue
-    gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "dist/$asset"
-done < "$CURRENT"
-
-gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
-    "$SUMS" \
-    "$BOOTSTRAP"
-
-# The index is the App Center switch point; publish it after every referenced asset exists.
-gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "$FINAL"
-
-# Remove stale package assets only after the new index is live.
-gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
-while IFS= read -r asset; do
-    case "$asset" in
-        routerforge-*.ipk)
-            if ! grep -Fxq "$asset" "$CURRENT"; then
-                gh release delete-asset "$TAG" "$asset" --repo "$GITHUB_REPOSITORY" --yes
-            fi
-            ;;
-    esac
-done
 
 verify_remote_digest() {
     asset="$1"
@@ -189,14 +157,52 @@ verify_remote_digest() {
     }
 }
 
+if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+    gh release create "$TAG" \
+        --repo "$GITHUB_REPOSITORY" \
+        --target "$GITHUB_SHA" \
+        --prerelease \
+        --title "RouterForge Dev" \
+        --notes "Rolling ARM64 development channel. Plain binaries; test-router use only."
+fi
+
+while IFS= read -r asset; do
+    [ -n "$asset" ] || continue
+    gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "dist/$asset"
+done < "$CURRENT"
+
+# Verify every package under its exact published filename before the App Center
+# switch point is touched. This catches any release-host filename normalization.
 while IFS= read -r asset; do
     [ -n "$asset" ] || continue
     verify_remote_digest "$asset" "dist/$asset"
 done < "$CURRENT"
+echo "DEV_PACKAGE_REMOTE_DIGESTS=PASS"
+
+gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+    "$SUMS" \
+    "$BOOTSTRAP"
 
 verify_remote_digest "$(basename "$SUMS")" "$SUMS"
 verify_remote_digest "$(basename "$BOOTSTRAP")" "$BOOTSTRAP"
+
+# The index is the App Center switch point. Publish it only after every package
+# and supporting metadata asset exists under the exact expected name and digest.
+gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "$FINAL"
 verify_remote_digest "$(basename "$FINAL")" "$FINAL"
+echo "DEV_METADATA_REMOTE_DIGESTS=PASS"
+
+# Remove stale package assets only after the new index is live and verified.
+gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
+while IFS= read -r asset; do
+    case "$asset" in
+        routerforge-*.ipk)
+            if ! grep -Fxq "$asset" "$CURRENT"; then
+                gh release delete-asset "$TAG" "$asset" --repo "$GITHUB_REPOSITORY" --yes
+            fi
+            ;;
+    esac
+done
 
 # The rolling Dev tag is the source identity. Move it only after all published assets
 # and their remote digests have been verified successfully.

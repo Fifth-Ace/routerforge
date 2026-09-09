@@ -99,10 +99,8 @@ type networkCollector struct {
 	stop     chan struct{}
 	done     chan struct{}
 
-	keeneticMu      sync.Mutex
-	keenetic        []keeneticInterface
-	keeneticScanned time.Time
-	keeneticTTL     time.Duration
+	keenetic        *keeneticSnapshotCache[keeneticInterface]
+	keeneticNamesMu sync.Mutex
 	systemNames     map[string]string
 }
 
@@ -117,9 +115,9 @@ func newNetworkCollector(interval time.Duration) *networkCollector {
 		sampled:     time.Now(),
 		stop:        make(chan struct{}),
 		done:        make(chan struct{}),
-		keeneticTTL: 5 * time.Second,
 		systemNames: map[string]string{},
 	}
+	n.keenetic = newKeeneticSnapshotCache(15*time.Second, n.readKeeneticSnapshot)
 	go n.run()
 	return n
 }
@@ -189,19 +187,13 @@ func (n *networkCollector) snapshot() (map[string]netRate, time.Time) {
 }
 
 func (n *networkCollector) keeneticSnapshot() []keeneticInterface {
-	n.keeneticMu.Lock()
-	defer n.keeneticMu.Unlock()
+	return n.keenetic.snapshotForRequest()
+}
 
-	if len(n.keenetic) > 0 && time.Since(n.keeneticScanned) < n.keeneticTTL {
-		return append([]keeneticInterface(nil), n.keenetic...)
-	}
-
+func (n *networkCollector) readKeeneticSnapshot() ([]keeneticInterface, error) {
 	items, err := readKeeneticInterfaceState()
 	if err != nil {
-		if !n.keeneticScanned.IsZero() {
-			n.keeneticScanned = time.Now()
-		}
-		return append([]keeneticInterface(nil), n.keenetic...)
+		return nil, err
 	}
 
 	visible := make([]keeneticInterface, 0, len(items))
@@ -209,23 +201,27 @@ func (n *networkCollector) keeneticSnapshot() []keeneticInterface {
 		if !shouldExposeKeeneticInterface(item) {
 			continue
 		}
-		systemName := n.systemNames[item.ID]
-		if systemName == "" {
-			systemName = readKeeneticSystemName(item.ID)
-			if systemName != "" {
-				n.systemNames[item.ID] = systemName
-			}
-		}
-		item.SystemName = systemName
+		item.SystemName = n.cachedKeeneticSystemName(item.ID)
 		if item.SystemName == "" {
 			continue
 		}
 		visible = append(visible, item)
 	}
+	return visible, nil
+}
 
-	n.keenetic = visible
-	n.keeneticScanned = time.Now()
-	return append([]keeneticInterface(nil), visible...)
+func (n *networkCollector) cachedKeeneticSystemName(id string) string {
+	n.keeneticNamesMu.Lock()
+	defer n.keeneticNamesMu.Unlock()
+
+	if systemName := n.systemNames[id]; systemName != "" {
+		return systemName
+	}
+	systemName := readKeeneticSystemName(id)
+	if systemName != "" {
+		n.systemNames[id] = systemName
+	}
+	return systemName
 }
 
 func (s *moduleServer) registerNetwork(mux *http.ServeMux) {

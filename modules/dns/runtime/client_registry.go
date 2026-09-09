@@ -241,18 +241,14 @@ func discoverClients() ([]ClientInfo, error) {
 }
 
 func clientRegistryLoop(store *Store, log *EventLogger) {
-	refresh := func() {
+	refresh := func() bool {
 		clients, err := discoverClients()
 		if err != nil {
 			store.SetClientRegistryError(err.Error())
-			return
+			return false
 		}
 		store.UpdateClientRegistry(clients)
+		return true
 	}
-	refresh()
-	t := time.NewTicker(30 * time.Second)
-	defer t.Stop()
-	for range t.C {
-		refresh()
-	}
+	runAdaptivePoll(30*time.Second, dnsBackgroundMaxBackoff, refresh)
 }

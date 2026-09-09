@@ -294,23 +294,65 @@ func friendlyResolverName(host, proto string) string {
 	return proto
 }
 
+const dnsBackgroundMaxBackoff = 5 * time.Minute
+
+type pollBackoff struct {
+	base    time.Duration
+	max     time.Duration
+	current time.Duration
+}
+
+func newPollBackoff(base, max time.Duration) pollBackoff {
+	if base <= 0 {
+		base = time.Second
+	}
+	if max < base {
+		max = base
+	}
+	return pollBackoff{base: base, max: max, current: base}
+}
+
+func (b *pollBackoff) next(success bool) time.Duration {
+	if success {
+		b.current = b.base
+		return b.current
+	}
+	if b.current < b.base {
+		b.current = b.base
+	}
+	if b.current >= b.max {
+		b.current = b.max
+		return b.current
+	}
+	next := b.current * 2
+	if next < b.current || next > b.max {
+		next = b.max
+	}
+	b.current = next
+	return b.current
+}
+
+func runAdaptivePoll(base, max time.Duration, refresh func() bool) {
+	backoff := newPollBackoff(base, max)
+	for {
+		success := refresh()
+		time.Sleep(backoff.next(success))
+	}
+}
+
 func discoveryLoop(store *Store, interval time.Duration, log *EventLogger) {
-	refresh := func() {
+	refresh := func() bool {
 		ups, plain, routes, err := discoverDNSConfiguration()
 		if err != nil {
 			store.SetDiscoveryError(err.Error())
 			log.Event("DISCOVERY_ERROR", err.Error())
-			return
+			return false
 		}
 		store.UpdateDiscovery(ups)
 		store.UpdatePolicyRoutes(routes)
 		plainDNS.UpdateResolvers(plain)
+		return true
 	}
 
-	refresh()
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	for range t.C {
-		refresh()
-	}
+	runAdaptivePoll(interval, dnsBackgroundMaxBackoff, refresh)
 }

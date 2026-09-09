@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestReadPasswordHashFrom(t *testing.T) {
@@ -160,5 +162,100 @@ func TestAuthSessionAllowsProtectedAPI(t *testing.T) {
 	a.middleware(next).ServeHTTP(w, r)
 	if !hit || w.Code != http.StatusNoContent {
 		t.Fatalf("valid session was rejected: hit=%v status=%d", hit, w.Code)
+	}
+}
+
+func TestAuthLoginAttemptsPruneStaleEntries(t *testing.T) {
+	now := time.Now()
+	a := &authManager{
+		attempts: map[string]loginAttempt{
+			"stale": {
+				WindowStart: now.Add(-authLoginAttemptWindow - time.Second),
+			},
+			"fresh": {
+				WindowStart: now.Add(-time.Minute),
+			},
+			"blocked": {
+				WindowStart:  now.Add(-authLoginAttemptWindow - time.Minute),
+				BlockedUntil: now.Add(time.Minute),
+			},
+		},
+	}
+
+	a.mu.Lock()
+	a.cleanupLoginAttemptsLocked(now, "")
+	a.mu.Unlock()
+
+	if _, ok := a.attempts["stale"]; ok {
+		t.Fatal("stale login attempt was retained")
+	}
+	if _, ok := a.attempts["fresh"]; !ok {
+		t.Fatal("fresh login attempt was pruned")
+	}
+	if _, ok := a.attempts["blocked"]; !ok {
+		t.Fatal("active block was pruned")
+	}
+}
+
+func TestAuthLoginAttemptsAreStrictlyBounded(t *testing.T) {
+	now := time.Now()
+	a := &authManager{attempts: make(map[string]loginAttempt)}
+	for i := 0; i < authLoginAttemptMaxEntries; i++ {
+		a.attempts[fmt.Sprintf("client-%04d", i)] = loginAttempt{
+			WindowStart: now.Add(-time.Duration(i%120) * time.Second),
+		}
+	}
+
+	a.recordLoginFailure("current-client")
+
+	if got := len(a.attempts); got != authLoginAttemptMaxEntries {
+		t.Fatalf("attempt map size=%d, want %d", got, authLoginAttemptMaxEntries)
+	}
+	attempt, ok := a.attempts["current-client"]
+	if !ok {
+		t.Fatal("current client was evicted during its own cleanup")
+	}
+	if attempt.Failures != 1 {
+		t.Fatalf("current client failures=%d, want 1", attempt.Failures)
+	}
+}
+
+func TestAuthLoginAttemptsPreferActiveBlocksDuringEviction(t *testing.T) {
+	now := time.Now()
+	a := &authManager{attempts: make(map[string]loginAttempt)}
+	for i := 0; i < authLoginAttemptMaxEntries; i++ {
+		a.attempts[fmt.Sprintf("client-%04d", i)] = loginAttempt{
+			WindowStart: now.Add(-time.Duration(i%120) * time.Second),
+		}
+	}
+	a.attempts["blocked-client"] = loginAttempt{
+		WindowStart:  now.Add(-time.Minute),
+		BlockedUntil: now.Add(time.Minute),
+	}
+
+	a.mu.Lock()
+	a.cleanupLoginAttemptsLocked(now, "")
+	a.mu.Unlock()
+
+	if got := len(a.attempts); got != authLoginAttemptMaxEntries {
+		t.Fatalf("attempt map size=%d, want %d", got, authLoginAttemptMaxEntries)
+	}
+	if _, ok := a.attempts["blocked-client"]; !ok {
+		t.Fatal("active blocked client was evicted before an unblocked attempt")
+	}
+}
+
+func TestAuthLoginFailureStillBlocksAfterFiveFailures(t *testing.T) {
+	a := &authManager{attempts: make(map[string]loginAttempt)}
+	for i := 0; i < 5; i++ {
+		a.recordLoginFailure("client")
+	}
+
+	wait := a.loginBlockedFor("client")
+	if wait <= 0 {
+		t.Fatal("client was not blocked after five failures")
+	}
+	if wait > authLoginAttemptBlockTTL {
+		t.Fatalf("block duration=%s exceeds configured ttl %s", wait, authLoginAttemptBlockTTL)
 	}
 }

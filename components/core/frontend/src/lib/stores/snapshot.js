@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { getSnapshot } from '$lib/api.js';
+import { startSerialPolling } from '$lib/polling.js';
 
 const empty = {
   upstreams: [],
@@ -21,7 +22,8 @@ export const streamMode = writable('connecting');
 export function startSnapshotStream(intervalMs = 2000) {
   let closed = false;
   let eventSource = null;
-  let fallbackTimer = null;
+  let stopFallbackPolling = null;
+  let fetchInFlight = null;
   const interval = Math.max(1000, Math.min(30000, Number(intervalMs || 2000)));
 
   const publish = (data) => {
@@ -31,30 +33,38 @@ export function startSnapshotStream(intervalMs = 2000) {
     backendReady.set(true);
   };
 
-  const fetchOnce = async () => {
-    try {
-      publish(await getSnapshot());
-      return true;
-    } catch {
-      backendOnline.set(false);
-      backendReady.set(true);
-      return false;
-    }
+  const fetchOnce = () => {
+    if (fetchInFlight) return fetchInFlight;
+
+    fetchInFlight = (async () => {
+      try {
+        publish(await getSnapshot());
+        return true;
+      } catch {
+        backendOnline.set(false);
+        backendReady.set(true);
+        return false;
+      } finally {
+        fetchInFlight = null;
+      }
+    })();
+
+    return fetchInFlight;
   };
 
   const stopFallback = () => {
-    if (!fallbackTimer) return;
-    clearInterval(fallbackTimer);
-    fallbackTimer = null;
+    if (!stopFallbackPolling) return;
+    stopFallbackPolling();
+    stopFallbackPolling = null;
   };
 
   const startFallback = () => {
-    if (fallbackTimer || closed) return;
+    if (stopFallbackPolling || closed) return;
     streamMode.set('polling');
-    fallbackTimer = setInterval(fetchOnce, interval);
+    stopFallbackPolling = startSerialPolling(fetchOnce, interval, { immediate: false });
   };
 
-  fetchOnce();
+  void fetchOnce();
 
   if (typeof EventSource === 'undefined') {
     startFallback();
@@ -75,7 +85,7 @@ export function startSnapshotStream(intervalMs = 2000) {
     });
     eventSource.onerror = () => {
       startFallback();
-      fetchOnce();
+      void fetchOnce();
     };
   }
 

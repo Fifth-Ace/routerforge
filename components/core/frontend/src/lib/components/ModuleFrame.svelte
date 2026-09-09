@@ -1,6 +1,7 @@
 <script>
   import { onDestroy } from 'svelte';
   import { settings } from '$lib/stores/settings.js';
+  import { withRequestTimeout } from '$lib/http.js';
 
   export let moduleId = '';
   export let view = 'overview';
@@ -34,11 +35,27 @@
   }
 
   async function probe(id, generation) {
+    const path = `/api/modules/${encodeURIComponent(id)}/health`;
+
     try {
-      const response = await fetch(`/api/modules/${encodeURIComponent(id)}/health`, {
-        cache: 'no-store',
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' }
+      const { response, payload } = await withRequestTimeout(path, 5000, async (signal) => {
+        const response = await fetch(path, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+          signal
+        });
+
+        let payload = null;
+        if (response.status === 503) {
+          try {
+            payload = await response.json();
+          } catch {
+            payload = null;
+          }
+        }
+
+        return { response, payload };
       });
 
       if (generation !== probeGeneration) return;
@@ -53,20 +70,9 @@
         return;
       }
 
-      if (response.status === 503) {
-        let payload = null;
-        try {
-          payload = await response.json();
-        } catch {
-          payload = null;
-        }
-
-        if (generation !== probeGeneration) return;
-
-        if (payload?.installed === false) {
-          state = 'not-installed';
-          return;
-        }
+      if (response.status === 503 && payload?.installed === false) {
+        state = 'not-installed';
+        return;
       }
 
       state = 'reconnecting';

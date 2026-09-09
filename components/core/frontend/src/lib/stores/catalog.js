@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { getCatalog, refreshCatalogRemote } from '$lib/api.js';
+import { startSerialPolling } from '$lib/polling.js';
 
 export const catalog = writable({
   modules: [],
@@ -12,7 +13,7 @@ export const catalog = writable({
 export const catalogOnline = writable(false);
 export const catalogReady = writable(false);
 
-let timer = null;
+let stopPolling = null;
 
 export async function refreshCatalog() {
   try {
@@ -51,10 +52,18 @@ export async function forceRefreshCatalog() {
     throw error;
   }
 }
+
 export function startCatalogPolling(intervalMs = 15000) {
-  if (!timer) {
-    refreshCatalog();
-    timer = setInterval(refreshCatalog, intervalMs);
-  }
-  return () => {};
+  if (stopPolling) return stopPolling;
+
+  const stop = startSerialPolling(refreshCatalog, intervalMs);
+  const wrappedStop = () => {
+    stop();
+    if (stopPolling === wrappedStop) {
+      stopPolling = null;
+    }
+  };
+
+  stopPolling = wrappedStop;
+  return wrappedStop;
 }

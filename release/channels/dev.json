@@ -1,36 +1,36 @@
 {
   "schema_version": 1,
   "channel": "dev",
-  "release_version": "0.7.0-dev",
+  "release_version": "0.7.1~dev",
   "components": [
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.7.0-dev"
+      "version": "0.7.1~dev"
     },
     {
       "id": "dns",
       "package": "routerforge-dns",
-      "version": "0.7.0-dev",
-      "min_core_version": "0.7.0-dev"
+      "version": "0.7.1~dev",
+      "min_core_version": "0.7.1~dev"
     },
     {
       "id": "admin",
       "package": "routerforge-admin",
-      "version": "0.7.0-dev",
-      "min_core_version": "0.7.0-dev"
+      "version": "0.7.1~dev",
+      "min_core_version": "0.7.1~dev"
     },
     {
       "id": "monitoring",
       "package": "routerforge-monitoring",
-      "version": "0.7.0-dev",
-      "min_core_version": "0.7.0-dev"
+      "version": "0.7.1~dev",
+      "min_core_version": "0.7.1~dev"
     },
     {
       "id": "profiling",
       "package": "routerforge-profiling",
-      "version": "0.7.0-dev",
-      "min_core_version": "0.7.0-dev"
+      "version": "0.7.1~dev",
+      "min_core_version": "0.7.1~dev"
     }
   ]
 }

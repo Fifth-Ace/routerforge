@@ -16,7 +16,15 @@ CURRENT=/tmp/routerforge-dev-current-assets.txt
 
 : "${GITHUB_SHA:?GITHUB_SHA is required}"
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+: "${GITHUB_RUN_NUMBER:?GITHUB_RUN_NUMBER is required}"
 : "${ROUTERFORGE_UPX:=0}"
+
+case "$GITHUB_RUN_NUMBER" in
+    ''|*[!0-9]*)
+        echo "GITHUB_RUN_NUMBER must be a positive integer." >&2
+        exit 1
+        ;;
+esac
 
 [ "$ROUTERFORGE_UPX" = "0" ] || {
     echo "Dev channel must use plain binaries (ROUTERFORGE_UPX=0)." >&2
@@ -24,7 +32,11 @@ CURRENT=/tmp/routerforge-dev-current-assets.txt
 }
 
 SHORT_SHA="$(printf '%.12s' "$GITHUB_SHA")"
-VERSION="0.7.0-dev.${SHORT_SHA}"
+# 0.7.0-dev.<sha> was not monotonic under opkg version ordering because the
+# hexadecimal SHA participated directly in comparison. Burn that prerelease
+# train and move to the next patch line. "~dev" sorts below the matching stable
+# release while GITHUB_RUN_NUMBER provides a monotonic rolling Dev sequence.
+VERSION="0.7.1~dev.r${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
 
 mkdir -p dist
 rm -f "$BUILD_CONFIG" "$CANDIDATE" "$FINAL" "$SUMS" "$BOOTSTRAP" "$CURRENT"

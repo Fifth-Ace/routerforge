@@ -9,6 +9,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -52,6 +53,142 @@ func handleCatalogRead(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(readCatalog())
+}
+
+const (
+	catalogRefreshCooldown   = 5 * time.Second
+	catalogRefreshModeHeader = "X-RouterForge-Catalog-Refresh"
+)
+
+type catalogRefreshResult struct {
+	Release  routerForgeReleaseStatus
+	Registry routerForgeRegistryStatus
+	Catalog  catalogSnapshot
+}
+
+type catalogRefreshCall struct {
+	done   chan struct{}
+	result catalogRefreshResult
+}
+
+type catalogRefreshCoordinator struct {
+	mu            sync.Mutex
+	inFlight      *catalogRefreshCall
+	last          catalogRefreshResult
+	lastCompleted time.Time
+	hasLast       bool
+	cooldown      time.Duration
+	now           func() time.Time
+	run           func() catalogRefreshResult
+}
+
+func newCatalogRefreshCoordinator(cooldown time.Duration, run func() catalogRefreshResult) *catalogRefreshCoordinator {
+	return &catalogRefreshCoordinator{
+		cooldown: cooldown,
+		now:      time.Now,
+		run:      run,
+	}
+}
+
+func (c *catalogRefreshCoordinator) do(ctx context.Context) (catalogRefreshResult, string, error) {
+	now := c.now()
+
+	c.mu.Lock()
+	if c.inFlight != nil {
+		call := c.inFlight
+		c.mu.Unlock()
+		select {
+		case <-call.done:
+			return call.result, "joined", nil
+		case <-ctx.Done():
+			return catalogRefreshResult{}, "", ctx.Err()
+		}
+	}
+
+	if c.hasLast && c.cooldown > 0 {
+		age := now.Sub(c.lastCompleted)
+		if age >= 0 && age < c.cooldown {
+			result := c.last
+			c.mu.Unlock()
+			return result, "cached", nil
+		}
+	}
+
+	call := &catalogRefreshCall{done: make(chan struct{})}
+	c.inFlight = call
+	c.mu.Unlock()
+
+	go c.execute(call)
+
+	select {
+	case <-call.done:
+		return call.result, "fresh", nil
+	case <-ctx.Done():
+		return catalogRefreshResult{}, "", ctx.Err()
+	}
+}
+
+func (c *catalogRefreshCoordinator) execute(call *catalogRefreshCall) {
+	result := c.run()
+
+	c.mu.Lock()
+	call.result = result
+	c.last = result
+	c.lastCompleted = c.now()
+	c.hasLast = true
+	if c.inFlight == call {
+		c.inFlight = nil
+	}
+	close(call.done)
+	c.mu.Unlock()
+}
+
+func performCatalogRefresh() catalogRefreshResult {
+	releaseDone := make(chan routerForgeReleaseStatus, 1)
+	registryDone := make(chan routerForgeRegistryStatus, 1)
+	go func() { releaseDone <- forceRefreshRouterForgeReleaseIndex() }()
+	go func() { registryDone <- forceRefreshRouterForgeRegistry() }()
+
+	releaseStatus := <-releaseDone
+	registryStatus := <-registryDone
+	invalidateEntwareCatalog()
+
+	return catalogRefreshResult{
+		Release:  releaseStatus,
+		Registry: registryStatus,
+		Catalog:  refreshCatalog(),
+	}
+}
+
+var catalogRefreshHTTP = newCatalogRefreshCoordinator(catalogRefreshCooldown, performCatalogRefresh)
+
+func handleCatalogRefreshWithCoordinator(w http.ResponseWriter, r *http.Request, coordinator *catalogRefreshCoordinator) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST required"})
+		return
+	}
+	if !sameOriginRequest(r) {
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "cross-origin catalog refresh rejected"})
+		return
+	}
+
+	result, mode, err := coordinator.do(r.Context())
+	if err != nil {
+		return
+	}
+
+	w.Header().Set(catalogRefreshModeHeader, mode)
+	writeCatalogJSON(w, http.StatusOK, map[string]any{
+		"ok":       result.Release.Online && result.Registry.Online,
+		"release":  result.Release,
+		"registry": result.Registry,
+		"catalog":  result.Catalog,
+	})
+}
+
+func handleCatalogRefresh(w http.ResponseWriter, r *http.Request) {
+	handleCatalogRefreshWithCoordinator(w, r, catalogRefreshHTTP)
 }
 
 func startWeb(listen string, version string) error {
@@ -217,32 +354,7 @@ func startWeb(listen string, version string) error {
 		}
 	})
 
-	mux.HandleFunc("/api/catalog/refresh", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.Header().Set("Allow", http.MethodPost)
-			http.Error(w, `{"error":"POST required"}`, http.StatusMethodNotAllowed)
-			return
-		}
-
-		releaseDone := make(chan routerForgeReleaseStatus, 1)
-		registryDone := make(chan routerForgeRegistryStatus, 1)
-		go func() { releaseDone <- forceRefreshRouterForgeReleaseIndex() }()
-		go func() { registryDone <- forceRefreshRouterForgeRegistry() }()
-
-		releaseStatus := <-releaseDone
-		registryStatus := <-registryDone
-		invalidateEntwareCatalog()
-		catalog := refreshCatalog()
-
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ok":       releaseStatus.Online && registryStatus.Online,
-			"release":  releaseStatus,
-			"registry": registryStatus,
-			"catalog":  catalog,
-		})
-	})
+	mux.HandleFunc("/api/catalog/refresh", handleCatalogRefresh)
 
 	mux.HandleFunc("/api/catalog/action", handleCatalogActionTest)
 	mux.HandleFunc("/api/catalog/install", handleCatalogInstallTest)

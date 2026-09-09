@@ -84,7 +84,8 @@ smoke_server() {
     socket="$3"
     expected_arch="$4"
     expected_module="$5"
-    shift 5
+    expected_mode="$6"
+    shift 6
 
     log="$TMP/$(basename "$binary").server.log"
 
@@ -126,7 +127,7 @@ smoke_server() {
         grep -Fq '"ok":true'
 
     printf '%s\n' "$health" |
-        grep -Fq '"mode":"read-only"'
+        grep -Fq "\"mode\":\"$expected_mode\""
 
     if [ -n "$expected_module" ]; then
         printf '%s\n' "$health" |
@@ -204,7 +205,8 @@ for target in mips-3.4 mipsel-3.4; do
         "$dns" \
         "${target}-dns"
 
-    # Admin is safe to run read-only against the CI host /proc.
+    # Admin smoke only reads health/summary against the CI host /proc.
+    # The runtime mode is "control" because Management v2 exposes guarded mutations.
     admin_socket="$TMP/${target}-admin.sock"
 
     smoke_server \
@@ -213,6 +215,7 @@ for target in mips-3.4 mipsel-3.4; do
         "$admin_socket" \
         "$goarch" \
         "" \
+        control \
         -socket "$admin_socket"
 
     # System uses the shared monitoring runtime and exposes read-only health/summary.
@@ -224,6 +227,7 @@ for target in mips-3.4 mipsel-3.4; do
         "$system_socket" \
         "$goarch" \
         system \
+        read-only \
         -module system \
         -socket "$system_socket"
 

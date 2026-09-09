@@ -191,6 +191,26 @@ func handleCatalogRefresh(w http.ResponseWriter, r *http.Request) {
 	handleCatalogRefreshWithCoordinator(w, r, catalogRefreshHTTP)
 }
 
+const (
+	coreReadHeaderTimeout = 5 * time.Second
+	coreReadTimeout       = 15 * time.Second
+	coreIdleTimeout       = 60 * time.Second
+	coreMaxHeaderBytes    = 32 << 10
+)
+
+func newCoreHTTPServer(listen string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              listen,
+		Handler:           handler,
+		ReadHeaderTimeout: coreReadHeaderTimeout,
+		ReadTimeout:       coreReadTimeout,
+		IdleTimeout:       coreIdleTimeout,
+		MaxHeaderBytes:    coreMaxHeaderBytes,
+		// Keep WriteTimeout disabled: Core exposes long-lived SSE streams.
+		WriteTimeout: 0,
+	}
+}
+
 func startWeb(listen string, version string) error {
 	sub, err := frontendFS()
 	if err != nil {
@@ -390,8 +410,9 @@ func startWeb(listen string, version string) error {
 		serveIndex(w)
 	}))
 
-	server := &http.Server{
-		Addr: listen, Handler: profiledHTTPHandler(auth.middleware(mux)), ReadHeaderTimeout: 5 * time.Second,
-	}
+	server := newCoreHTTPServer(
+		listen,
+		profiledHTTPHandler(auth.middleware(mux)),
+	)
 	return server.ListenAndServe()
 }

@@ -66,6 +66,9 @@ func inspectAdminFileMutationTarget(raw string) (adminFileResolvedPath, os.FileI
 	if err != nil {
 		return adminFileResolvedPath{}, nil, err
 	}
+	if adminFileRootReadOnly(resolved.Root) {
+		return adminFileResolvedPath{}, nil, errors.New("allowed root is read-only")
+	}
 	info, err := os.Lstat(resolved.Lexical)
 	if err != nil {
 		return adminFileResolvedPath{}, nil, err

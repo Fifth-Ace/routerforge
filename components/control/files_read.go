@@ -43,6 +43,8 @@ func registerAdminFileReadRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/files/list", adminFileAccessOnly(false, handleAdminFileList))
 	mux.HandleFunc("/v1/files/read", adminFileAccessOnly(false, handleAdminFileRead))
 	mux.HandleFunc("/v1/files/download", adminFileAccessOnly(true, handleAdminFileDownload))
+	mux.HandleFunc("/v1/files/volumes", adminFileAccessOnly(false, handleAdminFileVolumes))
+	mux.HandleFunc("/v1/files/hash", adminFileAccessOnly(false, handleAdminFileHash))
 }
 
 func adminFileAccessOnly(allowHead bool, next http.HandlerFunc) http.HandlerFunc {
@@ -71,7 +73,10 @@ func adminFilePathErrorStatus(err error) int {
 		return http.StatusNotFound
 	}
 	message := err.Error()
-	if strings.Contains(message, "outside allowed roots") || strings.Contains(message, "escapes allowed root") {
+	if strings.Contains(message, "outside allowed roots") ||
+		strings.Contains(message, "escapes allowed root") ||
+		strings.Contains(message, "read-only") ||
+		strings.Contains(message, "protected system pseudo-filesystem") {
 		return http.StatusForbidden
 	}
 	return http.StatusBadRequest

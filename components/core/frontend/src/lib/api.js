@@ -96,6 +96,10 @@ export const getModule = (moduleID, endpoint = 'health') =>
   request(`/api/modules/${encodeURIComponent(moduleID)}/${encodeURIComponent(endpoint)}`);
 export const getAdminFiles = (path) =>
   request(`/api/modules/admin/files/list?path=${encodeURIComponent(path)}`);
+export const getAdminFileVolumes = () =>
+  request('/api/modules/admin/files/volumes');
+export const getAdminFileHash = (path, algorithm = 'sha256') =>
+  request(`/api/modules/admin/files/hash?path=${encodeURIComponent(path)}&algorithm=${encodeURIComponent(algorithm)}`);
 export const readAdminFile = (path) =>
   request(`/api/modules/admin/files/read?path=${encodeURIComponent(path)}`);
 export const adminFileDownloadURL = (path) =>

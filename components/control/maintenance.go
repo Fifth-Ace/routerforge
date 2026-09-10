@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -54,6 +55,10 @@ func handleAdminMaintenanceLogs(w http.ResponseWriter, _ *http.Request) {
 }
 
 func readTailFile(path string, limit int64) (string, error) {
+	if limit <= 0 {
+		return "", nil
+	}
+
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
@@ -71,17 +76,12 @@ func readTailFile(path string, limit int64) (string, error) {
 	if _, err := file.Seek(offset, 0); err != nil {
 		return "", err
 	}
-	content, err := os.ReadFile(path)
-	if err == nil && int64(len(content)) <= limit {
-		return string(content), nil
-	}
 
-	buf := make([]byte, limit)
-	n, err := file.Read(buf)
+	content, err := io.ReadAll(io.LimitReader(file, limit))
 	if err != nil {
 		return "", err
 	}
-	return string(buf[:n]), nil
+	return string(content), nil
 }
 
 func handleAdminMaintenanceTasks(w http.ResponseWriter, _ *http.Request) {

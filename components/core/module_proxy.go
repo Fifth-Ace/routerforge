@@ -134,6 +134,19 @@ func adminModuleMutationRequest(r *http.Request) bool {
 	return len(parts) > 0 && strings.EqualFold(strings.TrimSpace(parts[0]), "admin")
 }
 
+func adminModuleFileRequest(r *http.Request) bool {
+	const prefix = "/api/modules/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return false
+	}
+	rest := strings.TrimPrefix(r.URL.Path, prefix)
+	parts := strings.SplitN(rest, "/", 2)
+	if len(parts) != 2 || !strings.EqualFold(strings.TrimSpace(parts[0]), "admin") {
+		return false
+	}
+	return parts[1] == "files" || strings.HasPrefix(parts[1], "files/")
+}
+
 func markAdminMutationAuthorized(r *http.Request) *http.Request {
 	ctx := context.WithValue(r.Context(), adminMutationAuthorizedKey, true)
 	return r.WithContext(ctx)
@@ -146,20 +159,30 @@ func adminMutationAuthorized(r *http.Request) bool {
 
 func securedModuleProxy(auth *authManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if adminModuleMutationRequest(r) {
+		adminMutation := adminModuleMutationRequest(r)
+		adminFiles := adminModuleFileRequest(r)
+		if adminMutation || adminFiles {
 			if !sameOriginRequest(r) {
+				message := "cross-origin Admin mutation rejected"
+				if adminFiles && !adminMutation {
+					message = "cross-origin Admin file access rejected"
+				}
 				writeModuleJSON(w, http.StatusForbidden, map[string]any{
-					"error":        "cross-origin Admin mutation rejected",
-					"mutation_api": true,
+					"error":        message,
+					"mutation_api": adminMutation,
 				})
 				return
 			}
 			user, authenticated := auth.sessionUser(r)
 			if !authenticated || user != "root" {
+				message := "authenticated Entware root session required for Admin mutation"
+				if adminFiles && !adminMutation {
+					message = "authenticated Entware root session required for Admin file access"
+				}
 				writeModuleJSON(w, http.StatusUnauthorized, map[string]any{
-					"error":         "authenticated Entware root session required for Admin mutation",
+					"error":         message,
 					"auth_required": true,
-					"mutation_api":  true,
+					"mutation_api":  adminMutation,
 				})
 				return
 			}
@@ -394,7 +417,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		req.URL.Path = targetPath
 		req.URL.RawPath = ""
 		req.Host = "unix"
-		if moduleID == "admin" && r.Method != http.MethodGet && r.Method != http.MethodHead {
+		if moduleID == "admin" {
 			req.Header.Del(adminMutationAuthorizationHeader)
 			if adminMutationAuthorized(r) {
 				req.Header.Set(adminMutationAuthorizationHeader, adminMutationAuthorizationValue)

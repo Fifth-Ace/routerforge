@@ -10,6 +10,10 @@
     adminProcessSignal,
     adminServiceAction,
     adminTerminalRun,
+    adminMaintenanceBackup,
+    adminNetworkToolRun,
+    getAdminMaintenanceLogs,
+    getAdminMaintenanceTasks,
     getAdminFiles,
     getModule,
     readAdminFile
@@ -42,6 +46,17 @@
   let terminalLines = [];
   let terminalBusy = false;
 
+  let maintenanceLogs = '';
+  let maintenanceLogSource = '';
+  let maintenanceTasks = [];
+  let maintenanceBusy = false;
+
+  let networkTool = 'ping';
+  let networkHost = '1.1.1.1';
+  let networkPort = 443;
+  let networkResult = null;
+  let networkBusy = false;
+
   $: locale = $settings.locale || 'ru';
   $: copy = locale === 'ru' ? {
     files: 'Файлы',
@@ -49,6 +64,13 @@
     run: 'Выполнить',
     clear: 'Очистить',
     terminalHint: 'Команды выполняются через /bin/sh -lc от root, cwd разрешён только внутри /opt или /tmp. Таймаут 15 секунд.',
+    maintenance: 'Обслуживание',
+    networkTools: 'Сеть',
+    logs: 'Логи',
+    tasks: 'Cron / задачи',
+    backup: 'Создать backup',
+    backupConfirm: 'Создать архив конфигурации RouterForge в /tmp/routerforge-backups?',
+    networkHint: 'Ping, traceroute, DNS lookup и TCP connect test без shell-интерполяции.',
     path: 'Путь',
     up: 'Вверх',
     open: 'Открыть',
@@ -78,6 +100,13 @@
     run: 'Run',
     clear: 'Clear',
     terminalHint: 'Commands run through /bin/sh -lc as root; cwd is restricted to /opt or /tmp. Timeout is 15 seconds.',
+    maintenance: 'Maintenance',
+    networkTools: 'Network',
+    logs: 'Logs',
+    tasks: 'Cron / tasks',
+    backup: 'Create backup',
+    backupConfirm: 'Create RouterForge configuration archive in /tmp/routerforge-backups?',
+    networkHint: 'Ping, traceroute, DNS lookup and TCP connect test without shell interpolation.',
     path: 'Path',
     up: 'Up',
     open: 'Open',
@@ -109,7 +138,9 @@
     ['services', t(locale, 'manage.tabs.services')],
     ['packages', t(locale, 'manage.tabs.packages')],
     ['files', copy.files],
-    ['terminal', copy.terminal]
+    ['terminal', copy.terminal],
+    ['maintenance', copy.maintenance],
+    ['network-tools', copy.networkTools]
   ];
 
   $: q = search.trim().toLowerCase();
@@ -134,6 +165,8 @@
   async function load(next = tab) {
     if (next === 'files') return loadFiles(filePath);
     if (next === 'terminal') return;
+    if (next === 'maintenance') return loadMaintenance();
+    if (next === 'network-tools') return;
     loading = true;
     errorText = '';
     try {
@@ -376,6 +409,52 @@
     }
   }
 
+  async function loadMaintenance() {
+    maintenanceBusy = true;
+    errorText = '';
+    try {
+      const [logs, tasks] = await Promise.all([
+        getAdminMaintenanceLogs(),
+        getAdminMaintenanceTasks()
+      ]);
+      maintenanceLogs = logs.content || '';
+      maintenanceLogSource = logs.source || '';
+      maintenanceTasks = tasks.tasks || [];
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      maintenanceBusy = false;
+    }
+  }
+
+  async function createBackup() {
+    if (!confirm(copy.backupConfirm)) return;
+    maintenanceBusy = true;
+    errorText = '';
+    try {
+      const result = await adminMaintenanceBackup();
+      setAction(`${copy.backup}: ${result.path} (${bytes(result.size || 0)})`);
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      maintenanceBusy = false;
+    }
+  }
+
+  async function runNetworkTool() {
+    if (!networkHost.trim() || networkBusy) return;
+    networkBusy = true;
+    networkResult = null;
+    errorText = '';
+    try {
+      networkResult = await adminNetworkToolRun(networkTool, networkHost.trim(), Number(networkPort || 0));
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      networkBusy = false;
+    }
+  }
+
   onMount(() => {
     load(tab);
     const stopPolling = startSerialPolling(() => {
@@ -532,6 +611,52 @@
         <button class="button" onclick={runTerminal} disabled={terminalBusy || !terminalCommand.trim()}>{terminalBusy ? '…' : copy.run}</button>
       </div>
     </section>
+  {:else if tab === 'maintenance'}
+    <section class="panel">
+      <div class="panel-head">
+        <div><strong>{copy.maintenance}</strong><span>Logs · Cron · Backup BASE</span></div>
+        <div class="actions-cell">
+          <button class="button" onclick={loadMaintenance} disabled={maintenanceBusy}>↻ {t(locale, 'common.refresh')}</button>
+          <button class="button" onclick={createBackup} disabled={maintenanceBusy}>{copy.backup}</button>
+        </div>
+      </div>
+      <div class="maintenance-grid">
+        <div class="maintenance-card">
+          <strong>{copy.logs}</strong>
+          <span class="cell-sub mono">{maintenanceLogSource || 'not detected'}</span>
+          <pre class="maintenance-pre mono">{maintenanceLogs || copy.empty}</pre>
+        </div>
+        <div class="maintenance-card">
+          <strong>{copy.tasks}</strong>
+          <div class="maintenance-task-list mono">
+            {#each maintenanceTasks as task}
+              <div><span>{task.source}</span><pre>{task.line}</pre></div>
+            {/each}
+            {#if maintenanceTasks.length === 0}<div>{copy.empty}</div>{/if}
+          </div>
+        </div>
+      </div>
+    </section>
+  {:else if tab === 'network-tools'}
+    <section class="panel">
+      <div class="panel-head"><div><strong>{copy.networkTools}</strong><span>{copy.networkHint}</span></div></div>
+      <div class="network-controls">
+        <select class="path-input" bind:value={networkTool}>
+          <option value="ping">Ping</option>
+          <option value="traceroute">Traceroute</option>
+          <option value="dns">DNS lookup</option>
+          <option value="tcp">TCP connect</option>
+        </select>
+        <input class="path-input mono" bind:value={networkHost} placeholder="host"/>
+        {#if networkTool === 'tcp'}<input class="path-input mono network-port" type="number" min="1" max="65535" bind:value={networkPort}/>{/if}
+        <button class="button" onclick={runNetworkTool} disabled={networkBusy || !networkHost.trim()}>{networkBusy ? '…' : copy.run}</button>
+      </div>
+      {#if networkResult}
+        <div class="network-result mono">
+          <pre>{JSON.stringify(networkResult, null, 2)}</pre>
+        </div>
+      {/if}
+    </section>
   {/if}
 </div>
 
@@ -560,4 +685,17 @@
   .terminal-controls{display:flex;gap:.5rem;padding:1rem;border-top:1px solid var(--border-color,rgba(127,127,127,.25))}
   .terminal-cwd{flex:0 0 12rem;min-width:8rem}
   .terminal-input{flex:1}
+  .maintenance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;padding:1rem}
+  .maintenance-card{min-width:0}
+  .maintenance-card>strong{display:block;margin-bottom:.5rem}
+  .maintenance-pre,.maintenance-task-list{min-height:22rem;max-height:45vh;overflow:auto;background:#0b0d10;color:#d7e1ea;padding:.8rem;border-radius:.55rem;white-space:pre-wrap;word-break:break-word}
+  .maintenance-task-list pre{white-space:pre-wrap;margin:.2rem 0 .75rem}
+  .maintenance-task-list span{opacity:.6}
+  .network-controls{display:flex;gap:.5rem;padding:1rem;flex-wrap:wrap}
+  .network-controls select{flex:0 0 10rem}
+  .network-controls input{flex:1}
+  .network-port{max-width:8rem}
+  .network-result{margin:0 1rem 1rem;background:#0b0d10;color:#d7e1ea;padding:1rem;border-radius:.55rem;min-height:20rem}
+  .network-result pre{white-space:pre-wrap;word-break:break-word;margin:0}
+  @media(max-width:900px){.maintenance-grid{grid-template-columns:1fr}}
 </style>

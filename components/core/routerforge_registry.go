@@ -454,7 +454,27 @@ func validTrustStatus(status string) bool {
 	}
 }
 
+func ensureBundledRouterForgeModules(snapshot *catalogSnapshot, installed map[string]string, processes map[string]bool, exists func(string) bool) {
+	doc, err := parseRouterForgeRegistry(bundledRouterForgeRegistry)
+	if err != nil {
+		return
+	}
+	for _, incoming := range doc.Entries {
+		if incoming.Kind != "module" || incoming.Publisher.ID != "routerforge" || incoming.ID == "" {
+			continue
+		}
+		if findCatalogItem(snapshot, incoming.ID, "module") != nil {
+			continue
+		}
+		incoming.RegistrySource = "bundled-fallback"
+		resetCatalogRuntime(&incoming)
+		finalizeCatalogItem(&incoming, installed, processes, exists)
+		snapshot.Modules = append(snapshot.Modules, incoming)
+	}
+}
+
 func applyRouterForgeRegistry(snapshot *catalogSnapshot, installed map[string]string, processes map[string]bool, exists func(string) bool) {
+	ensureBundledRouterForgeModules(snapshot, installed, processes, exists)
 	doc, status := routerForgeRegistrySnapshot()
 	snapshot.Brand = "RouterForge"
 	snapshot.Registry = status

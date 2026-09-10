@@ -126,6 +126,21 @@ export const adminTerminalRun = (command, cwd = '/opt') =>
     cwd,
     confirm: 'RUN'
   });
+export const adminTerminalCreate = (cwd = '/opt', cols = 80, rows = 24) =>
+  postJSON('/api/modules/admin/terminal/session', {
+    cwd,
+    cols,
+    rows,
+    confirm: 'CONNECT'
+  });
+export const adminTerminalOutput = (sessionID, cursor = 0) =>
+  request(`/api/modules/admin/terminal/session/${encodeURIComponent(sessionID)}/output?cursor=${encodeURIComponent(cursor)}`);
+export const adminTerminalInput = (sessionID, data) =>
+  postJSON(`/api/modules/admin/terminal/session/${encodeURIComponent(sessionID)}/input`, { data });
+export const adminTerminalResize = (sessionID, cols, rows) =>
+  postJSON(`/api/modules/admin/terminal/session/${encodeURIComponent(sessionID)}/resize`, { cols, rows });
+export const adminTerminalClose = (sessionID) =>
+  postJSON(`/api/modules/admin/terminal/session/${encodeURIComponent(sessionID)}/close`, {});
 export const getAdminMaintenanceLogs = () =>
   request('/api/modules/admin/maintenance/logs');
 export const getAdminMaintenanceTasks = () =>

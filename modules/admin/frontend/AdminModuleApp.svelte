@@ -30,6 +30,7 @@
   import { bytes } from '$lib/utils.js';
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
+  import TerminalPane from './TerminalPane.svelte';
 
   const FILE_EDITOR_WRITE_LIMIT = 128 * 1024;
 
@@ -786,25 +787,7 @@
       </section>
     {/if}
   {:else if tab === 'terminal'}
-    <section class="panel terminal-panel">
-      <div class="panel-head">
-        <div><strong>{copy.terminal}</strong><span>{copy.terminalHint}</span></div>
-        <button class="button" onclick={() => { terminalLines = []; }}>{copy.clear}</button>
-      </div>
-      <div class="terminal-output mono">
-        {#if terminalLines.length === 0}
-          <div class="terminal-muted">RouterForge Terminal BASE · /bin/sh</div>
-        {/if}
-        {#each terminalLines as line}
-          <pre class:terminal-command={line.kind === 'command'} class:terminal-error={line.kind === 'error'}>{line.text}</pre>
-        {/each}
-      </div>
-      <div class="terminal-controls">
-        <input class="path-input mono terminal-cwd" bind:value={terminalCwd} aria-label="cwd"/>
-        <input class="path-input mono terminal-input" bind:value={terminalCommand} onkeydown={(event) => event.key === 'Enter' && runTerminal()} placeholder="command" aria-label="command"/>
-        <button class="button" onclick={runTerminal} disabled={terminalBusy || !terminalCommand.trim()}>{terminalBusy ? '…' : copy.run}</button>
-      </div>
-    </section>
+    <TerminalPane locale={locale} />
   {:else if tab === 'maintenance'}
     <section class="panel">
       <div class="panel-head">

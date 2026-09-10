@@ -88,3 +88,9 @@ later Phase 8 step after the API/security contract has hardware evidence.
 - terminal / PTY APIs;
 - arbitrary shell execution;
 - package mutation duplication (package lifecycle continues to use App Center).
+
+## Phase 8E extension
+
+File Manager is specified separately in `MANAGEMENT_V2_FILES_API.md`.
+
+FE-001A introduces the filesystem path-security contract and tested path-resolution primitives only. It does **not** enable File Manager HTTP routes or filesystem mutations. The Phase 8A process/service mutation contract above remains unchanged.

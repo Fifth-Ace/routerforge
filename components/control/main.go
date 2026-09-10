@@ -205,6 +205,8 @@ func main() {
 		writeJSON(w, http.StatusOK, map[string]any{"sensors": readThermals()})
 	}))
 
+	registerAdminFileReadRoutes(mux)
+
 	uiFS := http.FileServer(http.Dir(*uiPath))
 	mux.HandleFunc("/v1/ui", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {

@@ -169,7 +169,8 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		adminMutation := adminModuleMutationRequest(r)
 		adminFiles := adminModuleFileRequest(r)
-		if adminMutation || adminFiles {
+		guarded := adminMutation || adminFiles
+		if guarded {
 			if !sameOriginRequest(r) {
 				message := "cross-origin Admin mutation rejected"
 				if adminFiles && !adminMutation {
@@ -181,18 +182,21 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 				})
 				return
 			}
-			user, authenticated := auth.sessionUser(r)
-			if !authenticated || user != "root" {
-				message := "authenticated Entware root session required for Admin mutation"
-				if adminFiles && !adminMutation {
-					message = "authenticated Entware root session required for Admin file access"
+			requireRootSession := (adminMutation && !adminFiles) || (adminFiles && auth.authRequired())
+			if requireRootSession {
+				user, authenticated := auth.sessionUser(r)
+				if !authenticated || user != "root" {
+					message := "authenticated Entware root session required for Admin mutation"
+					if adminFiles && !adminMutation {
+						message = "authenticated Entware root session required for Admin file access"
+					}
+					writeModuleJSON(w, http.StatusUnauthorized, map[string]any{
+						"error":         message,
+						"auth_required": true,
+						"mutation_api":  adminMutation,
+					})
+					return
 				}
-				writeModuleJSON(w, http.StatusUnauthorized, map[string]any{
-					"error":         message,
-					"auth_required": true,
-					"mutation_api":  adminMutation,
-				})
-				return
 			}
 			r = markAdminMutationAuthorized(r)
 		}

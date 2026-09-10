@@ -20,21 +20,23 @@ const (
 )
 
 type adminFileEntry struct {
-	Name       string    `json:"name"`
-	Path       string    `json:"path"`
-	Kind       string    `json:"kind"`
-	Size       int64     `json:"size"`
-	Mode       string    `json:"mode"`
-	ModifiedAt time.Time `json:"modified_at"`
+	Name         string    `json:"name"`
+	Path         string    `json:"path"`
+	Kind         string    `json:"kind"`
+	Size         int64     `json:"size"`
+	Mode         string    `json:"mode"`
+	ModifiedAt   time.Time `json:"modified_at"`
+	ModifiedAtNS int64     `json:"mtime_ns"`
 }
 
 type adminFileReadResponse struct {
-	Path       string    `json:"path"`
-	Size       int64     `json:"size"`
-	Mode       string    `json:"mode"`
-	ModifiedAt time.Time `json:"modified_at"`
-	Encoding   string    `json:"encoding"`
-	Content    string    `json:"content"`
+	Path         string    `json:"path"`
+	Size         int64     `json:"size"`
+	Mode         string    `json:"mode"`
+	ModifiedAt   time.Time `json:"modified_at"`
+	ModifiedAtNS int64     `json:"mtime_ns"`
+	Encoding     string    `json:"encoding"`
+	Content      string    `json:"content"`
 }
 
 func registerAdminFileReadRoutes(mux *http.ServeMux) {
@@ -145,12 +147,13 @@ func handleAdminFileList(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		result = append(result, adminFileEntry{
-			Name:       entry.Name(),
-			Path:       filepath.Join(resolved.Lexical, entry.Name()),
-			Kind:       adminFileKind(info.Mode()),
-			Size:       info.Size(),
-			Mode:       info.Mode().String(),
-			ModifiedAt: info.ModTime(),
+			Name:         entry.Name(),
+			Path:         filepath.Join(resolved.Lexical, entry.Name()),
+			Kind:         adminFileKind(info.Mode()),
+			Size:         info.Size(),
+			Mode:         info.Mode().String(),
+			ModifiedAt:   info.ModTime(),
+			ModifiedAtNS: info.ModTime().UnixNano(),
 		})
 	}
 	sort.Slice(result, func(i, j int) bool {
@@ -224,12 +227,13 @@ func handleAdminFileRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, adminFileReadResponse{
-		Path:       resolved.Lexical,
-		Size:       int64(len(content)),
-		Mode:       stat.Mode().String(),
-		ModifiedAt: stat.ModTime(),
-		Encoding:   "utf-8",
-		Content:    string(content),
+		Path:         resolved.Lexical,
+		Size:         int64(len(content)),
+		Mode:         stat.Mode().String(),
+		ModifiedAt:   stat.ModTime(),
+		ModifiedAtNS: stat.ModTime().UnixNano(),
+		Encoding:     "utf-8",
+		Content:      string(content),
 	})
 }
 

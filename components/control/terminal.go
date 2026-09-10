@@ -95,13 +95,13 @@ func handleAdminTerminalRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":             runErr == nil && !timedOut,
-		"command":        command,
-		"cwd":            resolved.Lexical,
-		"output":         string(output),
-		"exit_code":      exitCode,
-		"timed_out":      timedOut,
+		"ok":               runErr == nil && !timedOut,
+		"command":          command,
+		"cwd":              resolved.Lexical,
+		"output":           string(output),
+		"exit_code":        exitCode,
+		"timed_out":        timedOut,
 		"output_truncated": truncated,
-		"timeout_seconds": int(adminTerminalTimeout / time.Second),
+		"timeout_seconds":  int(adminTerminalTimeout / time.Second),
 	})
 }

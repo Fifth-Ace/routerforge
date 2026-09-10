@@ -330,9 +330,13 @@
 
   async function toggleTree(path) {
     const current = treeState[path] || { loaded: false, expanded: false, children: [] };
-    if (!current.loaded) await loadTreeChildren(path);
-    const fresh = treeState[path] || current;
-    treeState = { ...treeState, [path]: { ...fresh, expanded: !fresh.expanded } };
+    if (!current.loaded) {
+      await loadTreeChildren(path);
+      const fresh = treeState[path] || current;
+      treeState = { ...treeState, [path]: { ...fresh, expanded: true } };
+      return;
+    }
+    treeState = { ...treeState, [path]: { ...current, expanded: !current.expanded } };
   }
 
   async function ensureTreePath(path) {

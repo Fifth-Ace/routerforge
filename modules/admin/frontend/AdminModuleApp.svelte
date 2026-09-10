@@ -535,6 +535,7 @@
     errorText = '';
     try {
       const result = await adminMaintenanceBackup();
+      await loadMaintenance();
       setAction(`${copy.backup}: ${result.path} (${bytes(result.size || 0)})`);
     } catch (error) {
       errorText = errorMessage(error);
@@ -667,7 +668,7 @@
     {/each}
   </div>
 
-  {#if tab !== 'files' && tab !== 'terminal'}
+  {#if tab !== 'files' && tab !== 'terminal' && tab !== 'maintenance'}
     <div class="toolbar">
       <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale, 'common.search')}/></div>
       <button class="button" onclick={() => load(tab)} disabled={loading || fileLoading}>↻ {t(locale, 'common.refresh')}</button>
@@ -751,108 +752,137 @@
   {:else if tab === 'terminal'}
     <TerminalPane locale={locale} />
   {:else if tab === 'maintenance'}
-    <section class="panel">
-      <div class="panel-head">
-        <div><strong>{copy.maintenance}</strong><span>Logs · Cron · Backup BASE</span></div>
-        <div class="actions-cell">
+    <section class="maintenance-shell">
+      <div class="maintenance-commandbar">
+        <div class="maintenance-command-copy">
+          <span class="maintenance-kicker mono">ROUTERFORGE / SYSTEM CARE</span>
+          <strong>{copy.maintenance}</strong>
+          <span>{copy.restoreMode}</span>
+        </div>
+        <div class="maintenance-actions">
+          {#if maintenanceBusy}<span class="maintenance-busy mono">WORKING…</span>{/if}
           <button class="button" onclick={loadMaintenance} disabled={maintenanceBusy}>↻ {t(locale, 'common.refresh')}</button>
-          <button class="button" onclick={createBackup} disabled={maintenanceBusy}>{copy.backup}</button>
+          <button class="button primary" onclick={createBackup} disabled={maintenanceBusy}>{copy.backup}</button>
         </div>
       </div>
-      <div class="maintenance-grid">
-        <div class="maintenance-card">
-          <strong>{copy.logs}</strong>
-          <span class="cell-sub mono">{maintenanceLogSource || 'not detected'}</span>
+
+      <div class="maintenance-summary">
+        <div class="maintenance-stat"><span>{copy.logs}</span><strong>{maintenanceLogSource ? 'READY' : '—'}</strong><small class="mono" title={maintenanceLogSource}>{maintenanceLogSource || 'not detected'}</small></div>
+        <div class="maintenance-stat"><span>{copy.tasks}</span><strong>{maintenanceTasks.length}</strong><small>cron entries</small></div>
+        <div class="maintenance-stat"><span>{copy.backups}</span><strong>{maintenanceBackups.length}</strong><small>/tmp/routerforge-backups</small></div>
+        <div class="maintenance-stat"><span>{copy.watchdogs}</span><strong>{watchdogs.filter((item) => item.enabled).length}</strong><small>{watchdogs.length} detected/configured</small></div>
+        <div class="maintenance-stat"><span>{copy.snapshots}</span><strong>{snapshots.length}</strong><small>/tmp · max 32</small></div>
+      </div>
+
+      <div class="maintenance-workbench">
+        <section class="maintenance-section maintenance-log-section">
+          <div class="maintenance-section-head">
+            <div><strong>{copy.logs}</strong><span class="mono">{maintenanceLogSource || 'not detected'}</span></div>
+            <span class="state-chip neutral">LOG</span>
+          </div>
           <pre class="maintenance-pre mono">{maintenanceLogs || copy.empty}</pre>
-        </div>
-        <div class="maintenance-card">
-          <strong>{copy.tasks}</strong>
+        </section>
+
+        <section class="maintenance-section maintenance-task-section">
+          <div class="maintenance-section-head">
+            <div><strong>{copy.tasks}</strong><span>Configured cron entries</span></div>
+            <span class="state-chip info">{maintenanceTasks.length}</span>
+          </div>
           <div class="maintenance-task-list mono">
             {#each maintenanceTasks as task}
-              <div><span>{task.source}</span><pre>{task.line}</pre></div>
+              <div class="maintenance-task-row"><span>{task.source}</span><pre>{task.line}</pre></div>
             {/each}
-            {#if maintenanceTasks.length === 0}<div>{copy.empty}</div>{/if}
+            {#if maintenanceTasks.length === 0}<div class="maintenance-empty">{copy.empty}</div>{/if}
           </div>
-        </div>
+        </section>
       </div>
-      <div class="maintenance-backups">
-        <div class="maintenance-backup-head">
+
+      <section class="maintenance-section maintenance-wide-section">
+        <div class="maintenance-section-head">
           <div><strong>{copy.backups}</strong><span>{copy.restoreMode}</span></div>
+          <span class="state-chip info">{maintenanceBackups.length}</span>
         </div>
         {#if maintenanceBackups.length === 0}
-          <div class="maintenance-backup-empty">{copy.empty}</div>
+          <div class="maintenance-empty">{copy.empty}</div>
         {:else}
-          {#each maintenanceBackups as backup}
-            <div class="maintenance-backup-row">
-              <div>
-                <strong class="mono">{backup.name}</strong>
-                <span class="cell-sub mono">
-                  {bytes(backup.size || 0)} · config {bytes(backup.config_bytes || 0)} · {backup.config_entries || 0} entries
-                  {backup.ignored_entries ? ` · ignored ${backup.ignored_entries}` : ''}
-                  {backup.error ? ` · ${backup.error}` : ''}
-                </span>
+          <div class="maintenance-list">
+            {#each maintenanceBackups as backup}
+              <div class="maintenance-list-row">
+                <div class="maintenance-list-copy">
+                  <strong class="mono">{backup.name}</strong>
+                  <span class="cell-sub mono">
+                    {bytes(backup.size || 0)} · config {bytes(backup.config_bytes || 0)} · {backup.config_entries || 0} entries
+                    {backup.ignored_entries ? ` · ignored ${backup.ignored_entries}` : ''}
+                    {backup.error ? ` · ${backup.error}` : ''}
+                  </span>
+                </div>
+                <div class="maintenance-row-actions">
+                  <span class="state-chip {backup.valid ? 'good' : 'error'}">{backup.valid ? 'VALID' : 'INVALID'}</span>
+                  <button class="button" onclick={() => restoreBackup(backup)} disabled={!backup.valid || !!restoreBusyPath}>
+                    {restoreBusyPath === backup.path ? '…' : copy.restore}
+                  </button>
+                </div>
               </div>
-              <div class="actions-cell">
-                <span class:state-running={backup.valid} class:state-stopped={!backup.valid}>{backup.valid ? 'VALID' : 'INVALID'}</span>
-                <button class="button" onclick={() => restoreBackup(backup)} disabled={!backup.valid || !!restoreBusyPath}>
-                  {restoreBusyPath === backup.path ? '…' : copy.restore}
-                </button>
-              </div>
-            </div>
-          {/each}
+            {/each}
+          </div>
         {/if}
-      </div>
+      </section>
 
-      <div class="maintenance-extra">
-        <div class="maintenance-extra-head">
-          <div><strong>{copy.watchdogs}</strong><span>{copy.watchdogHint}</span></div>
-        </div>
-        <div class="watchdog-grid">
-          {#each watchdogs as watchdog}
-            <div class="watchdog-card">
-              <div>
-                <strong>{watchdog.name}</strong>
-                <span class="cell-sub mono">
-                  {watchdog.detected ? (watchdog.running ? copy.running : copy.stopped) : copy.notDetected}
-                  · {copy.attempts}: {watchdog.attempts_last_hour || 0}
-                  {watchdog.service_id ? ` · ${watchdog.service_id}` : ''}
-                </span>
-              </div>
-              <button
-                class="button"
-                onclick={() => setWatchdog(watchdog, !watchdog.enabled)}
-                disabled={!!watchdogBusyID || (!watchdog.auto_start_available && !watchdog.enabled)}
-              >
-                {watchdogBusyID === watchdog.id ? '…' : (watchdog.enabled ? copy.disable : copy.enable)}
-              </button>
+      <div class="maintenance-secondary-grid">
+        <section class="maintenance-section">
+          <div class="maintenance-section-head">
+            <div><strong>{copy.watchdogs}</strong><span>{copy.watchdogHint}</span></div>
+            <span class="state-chip info">{watchdogs.length}</span>
+          </div>
+          {#if watchdogs.length === 0}
+            <div class="maintenance-empty">{copy.empty}</div>
+          {:else}
+            <div class="maintenance-list compact-list">
+              {#each watchdogs as watchdog}
+                <div class="watchdog-row">
+                  <div class="maintenance-list-copy">
+                    <strong>{watchdog.name}</strong>
+                    <span class="cell-sub mono">
+                      {watchdog.detected ? (watchdog.running ? copy.running : copy.stopped) : copy.notDetected}
+                      · {copy.attempts}: {watchdog.attempts_last_hour || 0}
+                      {watchdog.service_id ? ` · ${watchdog.service_id}` : ''}
+                    </span>
+                  </div>
+                  <div class="maintenance-row-actions">
+                    <span class="state-chip {watchdog.running ? 'good' : 'neutral'}">{watchdog.running ? 'RUN' : 'IDLE'}</span>
+                    <button class="button" onclick={() => setWatchdog(watchdog, !watchdog.enabled)} disabled={!!watchdogBusyID || (!watchdog.auto_start_available && !watchdog.enabled)}>
+                      {watchdogBusyID === watchdog.id ? '…' : (watchdog.enabled ? copy.disable : copy.enable)}
+                    </button>
+                  </div>
+                </div>
+              {/each}
             </div>
-          {/each}
-        </div>
-      </div>
+          {/if}
+        </section>
 
-      <div class="maintenance-extra">
-        <div class="maintenance-extra-head">
-          <div><strong>{copy.snapshots}</strong><span>{copy.snapshotHint}</span></div>
-          <button class="button" onclick={makeSnapshot} disabled={snapshotBusy}>
-            {snapshotBusy ? '…' : copy.createSnapshot}
-          </button>
-        </div>
-        {#if snapshots.length === 0}
-          <div class="maintenance-backup-empty">{copy.empty}</div>
-        {:else}
-          {#each snapshots as snapshot}
-            <div class="maintenance-backup-row">
-              <div>
-                <strong class="mono">{snapshot.name}</strong>
-                <span class="cell-sub mono">{bytes(snapshot.size || 0)} · {snapshot.modified_at}</span>
-              </div>
-              <button class="button danger" onclick={() => removeSnapshot(snapshot)} disabled={snapshotBusy}>{copy.delete}</button>
+        <section class="maintenance-section">
+          <div class="maintenance-section-head">
+            <div><strong>{copy.snapshots}</strong><span>{copy.snapshotHint}</span></div>
+            <button class="button" onclick={makeSnapshot} disabled={snapshotBusy}>{snapshotBusy ? '…' : copy.createSnapshot}</button>
+          </div>
+          {#if snapshots.length === 0}
+            <div class="maintenance-empty">{copy.empty}</div>
+          {:else}
+            <div class="maintenance-list compact-list">
+              {#each snapshots as snapshot}
+                <div class="maintenance-list-row">
+                  <div class="maintenance-list-copy">
+                    <strong class="mono">{snapshot.name}</strong>
+                    <span class="cell-sub mono">{bytes(snapshot.size || 0)} · {snapshot.modified_at}</span>
+                  </div>
+                  <button class="button danger" onclick={() => removeSnapshot(snapshot)} disabled={snapshotBusy}>{copy.delete}</button>
+                </div>
+              {/each}
             </div>
-          {/each}
-        {/if}
+          {/if}
+        </section>
       </div>
-    </section>
-  {:else if tab === 'network-tools'}
+    </section>  {:else if tab === 'network-tools'}
     <section class="panel">
       <div class="panel-head"><div><strong>{copy.networkTools}</strong><span>{copy.networkHint}</span></div></div>
       <div class="network-controls">
@@ -906,73 +936,29 @@
 </div>
 
 <style>
-  .ui-action-ok,.ui-action-error{margin:.75rem 0;padding:.7rem .9rem;border-radius:.65rem;font-weight:600}
-  .ui-action-ok{background:rgba(48,190,120,.12);border:1px solid rgba(48,190,120,.35)}
-  .ui-action-error{background:rgba(230,75,75,.12);border:1px solid rgba(230,75,75,.35)}
-  .actions-cell{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}
-  td.actions-cell{display:table-cell;white-space:nowrap;vertical-align:middle}
-  td.actions-cell>.mini,td.actions-cell>.link{margin:.15rem .3rem .15rem 0}
-  td.actions-cell>:last-child{margin-right:0}
-  .mini{font:inherit;font-size:.78rem;padding:.32rem .5rem;border:1px solid var(--border-color,rgba(127,127,127,.3));border-radius:.45rem;background:transparent;color:inherit;cursor:pointer}
-  .mini:hover{background:rgba(127,127,127,.12)}
-  .mini.danger{border-color:rgba(230,75,75,.45)}
-  .mini:disabled{opacity:.4;cursor:not-allowed}
-  .mini.link{text-decoration:none;display:inline-block}
-  .process-table{table-layout:fixed}
-  .process-primary{width:48%}
-  .process-command{max-width:46rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .process-actions{white-space:nowrap}
-  .process-table tbody td{border-bottom:1px solid var(--border-color,rgba(127,127,127,.18))}
-  .package-more{display:flex;justify-content:flex-end;align-items:center;gap:.75rem;padding:.7rem 1rem;border-top:1px solid var(--border-color,rgba(127,127,127,.18));font-size:.82rem;opacity:.85}
-  .file-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:1rem}
-  .path-input{flex:1;min-width:18rem;padding:.55rem .7rem;border-radius:.5rem;border:1px solid var(--border-color,rgba(127,127,127,.3));background:rgba(0,0,0,.08);color:inherit}
-  .file-name{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;text-align:left;padding:0}
-  .file-name:hover{text-decoration:underline}
-  .terminal-panel{overflow:hidden}
-  .terminal-output{min-height:28rem;max-height:55vh;overflow:auto;padding:1rem;background:#0b0d10;color:#d7e1ea}
-  .terminal-output pre{margin:0 0 .55rem;white-space:pre-wrap;word-break:break-word;font:inherit}
-  .terminal-command{color:#8fd3ff}
-  .terminal-error{color:#ff8f8f}
-  .terminal-muted{opacity:.55}
-  .terminal-controls{display:flex;gap:.5rem;padding:1rem;border-top:1px solid var(--border-color,rgba(127,127,127,.25))}
-  .terminal-cwd{flex:0 0 12rem;min-width:8rem}
-  .terminal-input{flex:1}
-  .maintenance-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;padding:1rem}
-  .maintenance-card{min-width:0}
-  .maintenance-card>strong{display:block;margin-bottom:.5rem}
-  .maintenance-pre,.maintenance-task-list{min-height:22rem;max-height:45vh;overflow:auto;background:#0b0d10;color:#d7e1ea;padding:.8rem;border-radius:.55rem;white-space:pre-wrap;word-break:break-word}
-  .maintenance-task-list pre{white-space:pre-wrap;margin:.2rem 0 .75rem}
-  .maintenance-task-list span{opacity:.6}
-  .network-controls{display:flex;gap:.5rem;padding:1rem;flex-wrap:wrap}
-  .network-controls select{flex:0 0 10rem}
-  .network-controls input{flex:1}
-  .network-port{max-width:8rem}
-  .network-result{margin:0 1rem 1rem;background:#0b0d10;color:#d7e1ea;padding:1rem;border-radius:.55rem;min-height:20rem}
-  .network-result pre{white-space:pre-wrap;word-break:break-word;margin:0}
-  @media(max-width:900px){.maintenance-grid{grid-template-columns:1fr}}
-  .integration-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;padding:1rem}
-  .integration-card{border:1px solid var(--border-color,rgba(127,127,127,.25));border-radius:.7rem;padding:1rem;min-width:0}
-  .integration-title{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1rem}
-  .integration-title span{font-size:.8rem;font-weight:700}
-  .state-running{color:#42c77a}
-  .state-stopped{opacity:.6}
-  .integration-card dl{display:grid;grid-template-columns:6rem 1fr;gap:.45rem .7rem;margin:0}
-  .integration-card dt{opacity:.6}
-  .integration-card dd{margin:0;min-width:0;word-break:break-word}
-  .integration-paths div{margin-bottom:.2rem}
-  @media(max-width:1000px){.integration-grid{grid-template-columns:1fr}}
-  .maintenance-backups{margin:0 1rem 1rem;border:1px solid var(--border-color,rgba(127,127,127,.25));border-radius:.65rem;overflow:hidden}
-  .maintenance-backup-head,.maintenance-backup-row{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.8rem 1rem;border-bottom:1px solid var(--border-color,rgba(127,127,127,.18))}
-  .maintenance-backup-head>div,.maintenance-backup-row>div:first-child{min-width:0;display:flex;flex-direction:column;gap:.2rem}
-  .maintenance-backup-head span{opacity:.65}
-  .maintenance-backup-row:last-child{border-bottom:0}
-  .maintenance-backup-empty{padding:1rem;opacity:.6}
-  .maintenance-extra{margin:0 1rem 1rem;border:1px solid var(--border-color,rgba(127,127,127,.25));border-radius:.65rem;overflow:hidden}
-  .maintenance-extra-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.8rem 1rem;border-bottom:1px solid var(--border-color,rgba(127,127,127,.18))}
-  .maintenance-extra-head>div{display:flex;flex-direction:column;gap:.2rem}
-  .maintenance-extra-head span{opacity:.65}
-  .watchdog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;padding:1rem}
-  .watchdog-card{display:flex;justify-content:space-between;align-items:center;gap:.75rem;border:1px solid var(--border-color,rgba(127,127,127,.18));border-radius:.55rem;padding:.75rem;min-width:0}
-  .watchdog-card>div{display:flex;flex-direction:column;gap:.2rem;min-width:0}
-  @media(max-width:1000px){.watchdog-grid{grid-template-columns:1fr}}
+  .ui-action-ok,.ui-action-error{margin:.75rem 0;padding:.7rem .9rem;border-radius:var(--rf-radius-control,.65rem);font-weight:600}
+  .ui-action-ok{color:var(--good,#2ea043);background:color-mix(in srgb,var(--good,#2ea043) 10%,var(--rf-surface,#12151a));border:1px solid color-mix(in srgb,var(--good,#2ea043) 36%,transparent)}
+  .ui-action-error{color:var(--bad,#f85149);background:color-mix(in srgb,var(--bad,#f85149) 10%,var(--rf-surface,#12151a));border:1px solid color-mix(in srgb,var(--bad,#f85149) 36%,transparent)}
+  .actions-cell{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}td.actions-cell{display:table-cell;white-space:nowrap;vertical-align:middle}td.actions-cell>.mini,td.actions-cell>.link{margin:.15rem .3rem .15rem 0}td.actions-cell>:last-child{margin-right:0}
+  .mini{font:inherit;font-size:.78rem;padding:.32rem .5rem;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-control,.45rem);background:var(--rf-surface-2,#171b21);color:var(--rf-text,#f5f7fa);cursor:pointer}.mini:hover{background:var(--rf-hover,#1d2229);border-color:var(--rf-accent-border,rgba(56,189,248,.30))}.mini.danger{border-color:rgba(248,81,73,.42);color:var(--bad,#f85149)}.mini:disabled{opacity:.4;cursor:not-allowed}.mini.link{text-decoration:none;display:inline-block}
+  .process-table{table-layout:fixed}.process-primary{width:48%}.process-command{max-width:46rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.process-actions{white-space:nowrap}.process-table tbody td{border-bottom:1px solid var(--rf-border,#29313a)}
+  .package-more{display:flex;justify-content:flex-end;align-items:center;gap:.75rem;padding:.7rem 1rem;border-top:1px solid var(--rf-border,#29313a);font-size:.82rem;color:var(--rf-muted,#8d98a4)}
+  .file-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:1rem}.path-input{flex:1;min-width:18rem;padding:.55rem .7rem;border-radius:var(--rf-radius-control,.5rem);border:1px solid var(--rf-border,#29313a);background:var(--rf-surface-2,#171b21);color:var(--rf-text,#f5f7fa)}.file-name{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;text-align:left;padding:0}.file-name:hover{text-decoration:underline}
+  .terminal-panel{overflow:hidden}.terminal-output{min-height:28rem;max-height:55vh;overflow:auto;padding:1rem;background:var(--rf-bg,#0b0d10);color:var(--rf-text,#f5f7fa)}.terminal-output pre{margin:0 0 .55rem;white-space:pre-wrap;word-break:break-word;font:inherit}.terminal-command{color:var(--rf-accent,#38bdf8)}.terminal-error{color:var(--bad,#f85149)}.terminal-muted{opacity:.55}.terminal-controls{display:flex;gap:.5rem;padding:1rem;border-top:1px solid var(--rf-border,#29313a)}.terminal-cwd{flex:0 0 12rem;min-width:8rem}.terminal-input{flex:1}
+  .network-controls{display:flex;gap:.5rem;padding:1rem;flex-wrap:wrap}.network-controls select{flex:0 0 10rem}.network-controls input{flex:1}.network-port{max-width:8rem}.network-result{margin:0 1rem 1rem;background:var(--rf-bg,#0b0d10);color:var(--rf-text,#f5f7fa);padding:1rem;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-control,.55rem);min-height:20rem}.network-result pre{white-space:pre-wrap;word-break:break-word;margin:0}
+  .integration-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;padding:1rem}.integration-card{border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-card,.7rem);padding:1rem;min-width:0;background:var(--rf-surface-2,#171b21)}.integration-title{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1rem}.integration-title span{font-size:.8rem;font-weight:700}.state-running{color:var(--good,#2ea043)}.state-stopped{color:var(--rf-muted,#8d98a4)}.integration-card dl{display:grid;grid-template-columns:6rem 1fr;gap:.45rem .7rem;margin:0}.integration-card dt{color:var(--rf-muted,#8d98a4)}.integration-card dd{margin:0;min-width:0;word-break:break-word}.integration-paths div{margin-bottom:.2rem}
+
+  .maintenance-shell{display:grid;gap:14px;min-width:0}
+  .maintenance-commandbar{min-height:72px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-panel,6px);background:var(--rf-surface,#12151a)}
+  .maintenance-command-copy{min-width:0;display:grid;gap:3px}.maintenance-command-copy>strong{color:var(--rf-text,#f5f7fa);font-size:var(--ui-panel-title,14px)}.maintenance-command-copy>span:last-child{max-width:70rem;color:var(--rf-muted,#8d98a4);font-size:var(--ui-xs,12px);line-height:1.4}.maintenance-kicker{color:var(--rf-accent,#38bdf8);font-size:var(--ui-micro,11px);font-weight:700;letter-spacing:.08em}.maintenance-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.maintenance-busy{color:var(--warn,#d29922);font-size:var(--ui-micro,11px);letter-spacing:.06em}
+  .maintenance-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.maintenance-stat{min-width:0;padding:11px 12px;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-panel,6px);background:var(--rf-surface,#12151a);display:grid;gap:4px}.maintenance-stat>span{color:var(--rf-muted,#8d98a4);font-size:var(--ui-micro,11px);text-transform:uppercase;letter-spacing:.045em}.maintenance-stat>strong{color:var(--rf-text,#f5f7fa);font:650 18px/1.1 var(--font-mono,"Roboto Mono",monospace)}.maintenance-stat>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rf-muted,#8d98a4);font-size:10px}
+  .maintenance-workbench{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr);gap:14px}.maintenance-secondary-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  .maintenance-section{min-width:0;overflow:hidden;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-panel,6px);background:var(--rf-surface,#12151a)}.maintenance-section-head{min-height:50px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--rf-border,#29313a);background:color-mix(in srgb,var(--rf-surface,#12151a) 76%,var(--rf-bg,#0b0d10))}.maintenance-section-head>div{min-width:0}.maintenance-section-head strong{display:block;color:var(--rf-text,#f5f7fa);font-size:var(--ui-panel-title,14px)}.maintenance-section-head div>span{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rf-muted,#8d98a4);font-size:var(--ui-micro,11px)}
+  .maintenance-pre{box-sizing:border-box;width:100%;height:clamp(18rem,34vh,27rem);margin:0;padding:12px 14px;overflow:auto;border:0;background:var(--rf-bg,#0b0d10);color:color-mix(in srgb,var(--rf-text,#f5f7fa) 88%,var(--rf-muted,#8d98a4));white-space:pre-wrap;word-break:break-word;line-height:1.52;scrollbar-color:var(--rf-border-strong,#36414d) var(--rf-bg,#0b0d10)}
+  .maintenance-task-list{height:clamp(18rem,34vh,27rem);overflow:auto;background:var(--rf-bg,#0b0d10);scrollbar-color:var(--rf-border-strong,#36414d) var(--rf-bg,#0b0d10)}.maintenance-task-row{padding:10px 12px;border-bottom:1px solid var(--rf-border,#29313a)}.maintenance-task-row:last-child{border-bottom:0}.maintenance-task-row>span{display:block;color:var(--rf-accent,#38bdf8);font-size:10px}.maintenance-task-row pre{margin:5px 0 0;color:var(--rf-text,#f5f7fa);white-space:pre-wrap;word-break:break-word;font:inherit;line-height:1.45}
+  .maintenance-list{display:grid}.maintenance-list-row,.watchdog-row{min-height:58px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid var(--rf-border,#29313a)}.maintenance-list-row:last-child,.watchdog-row:last-child{border-bottom:0}.maintenance-list-row:hover,.watchdog-row:hover{background:var(--rf-accent-soft,rgba(56,189,248,.10))}.maintenance-list-copy{min-width:0;display:grid;gap:3px}.maintenance-list-copy>strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rf-text,#f5f7fa)}.maintenance-list-copy>.cell-sub{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rf-muted,#8d98a4)}.maintenance-row-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto}.maintenance-empty{min-height:74px;padding:16px;display:grid;place-items:center;color:var(--rf-muted,#8d98a4);background:var(--rf-bg,#0b0d10);font-size:var(--ui-xs,12px)}.compact-list{max-height:22rem;overflow:auto;scrollbar-color:var(--rf-border-strong,#36414d) var(--rf-surface,#12151a)}
+  .button.danger{border-color:rgba(248,81,73,.38)!important;color:var(--bad,#f85149)!important}.button.danger:hover{background:color-mix(in srgb,var(--bad,#f85149) 10%,var(--rf-surface,#12151a))!important}
+  @media(max-width:1200px){.maintenance-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.maintenance-workbench{grid-template-columns:1fr}.maintenance-secondary-grid{grid-template-columns:1fr}}
+  @media(max-width:900px){.integration-grid{grid-template-columns:1fr}.maintenance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:680px){.maintenance-commandbar{align-items:flex-start;flex-direction:column}.maintenance-actions{width:100%;justify-content:flex-start}.maintenance-summary{grid-template-columns:1fr}.maintenance-list-row,.watchdog-row{align-items:flex-start;flex-direction:column}.maintenance-row-actions{width:100%;justify-content:flex-start}.maintenance-pre,.maintenance-task-list{height:22rem}}
 </style>

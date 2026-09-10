@@ -1,2 +1,39 @@
-html, body, #app { min-height: 100%; margin: 0; background: transparent; }
-body { color: var(--rf-text, var(--text, #f5f7fa)); }
+html, body, #app {
+  min-height: 100%;
+  margin: 0;
+  background: transparent;
+}
+
+body {
+  color: var(--rf-text, var(--text, #f5f7fa));
+}
+
+/* Admin standalone inherits the RouterForge semantic theme. Keep the safety
+ * header and route-level controls on the same palette as the active theme. */
+.admin-page .admin-safety-banner {
+  border-color: var(--rf-accent-border, rgba(56, 189, 248, .30)) !important;
+  background: var(--rf-surface, #12151a) !important;
+}
+
+.admin-page .admin-safety-main > strong {
+  color: var(--rf-accent, #38bdf8) !important;
+}
+
+.admin-page .admin-safety-main > span,
+.admin-page .admin-lock-group > em {
+  color: var(--rf-muted, #8d98a4) !important;
+}
+
+.admin-page .admin-tabs {
+  border-bottom-color: var(--rf-border, #29313a) !important;
+}
+
+.admin-page .toolbar {
+  border-color: var(--rf-border, #29313a) !important;
+  background: var(--rf-surface, #12151a) !important;
+}
+
+.admin-page .search-control {
+  border-color: var(--rf-border, #29313a) !important;
+  background: var(--rf-bg, #0b0d10) !important;
+}

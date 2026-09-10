@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -169,7 +170,7 @@ func main() {
 			"mode":          "control",
 			"mutation_api":  true,
 			"mutation_auth": "root-session",
-			"ui_mutations":  false,
+			"ui_mutations":  true,
 		})
 	}))
 	mux.HandleFunc("/v1/summary", getOnly(func(w http.ResponseWriter, _ *http.Request) {
@@ -274,7 +275,17 @@ func decodeMutationJSON(w http.ResponseWriter, r *http.Request, target any) erro
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	return decoder.Decode(target)
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return errors.New("multiple JSON values are not allowed")
+		}
+		return err
+	}
+	return nil
 }
 
 func parseProcessSignalPath(path string) (int, bool) {

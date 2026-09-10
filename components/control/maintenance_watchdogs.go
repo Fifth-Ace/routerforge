@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ const (
 	adminWatchdogAttemptWindow  = time.Hour
 	adminWatchdogMaxAttempts    = 3
 	adminWatchdogOutputMaxBytes = 4096
+	adminWatchdogStartTimeout   = 15 * time.Second
 )
 
 type adminWatchdogConfig struct {
@@ -258,38 +260,67 @@ func (runtime *adminWatchdogRuntime) statuses(now time.Time) []adminWatchdogStat
 func (runtime *adminWatchdogRuntime) tick(now time.Time) {
 	services := readServices()
 
-	runtime.mu.Lock()
-	defer runtime.mu.Unlock()
-	runtime.pruneAttemptsLocked(now)
-
 	for _, definition := range adminIntegrationDefinitions {
-		if !runtime.config.Items[definition.ID].Enabled {
-			continue
-		}
 		service, detected := findAdminWatchdogService(definition, services)
 		if !detected || service.Running || !service.Executable || !safeAdminWatchdogServicePath(service.Path) {
 			continue
 		}
-		attempts := runtime.attempts[definition.ID]
-		if len(attempts) >= adminWatchdogMaxAttempts {
-			continue
-		}
-		last := runtime.lastAttempt[definition.ID]
-		if !last.At.IsZero() && now.Sub(last.At) < adminWatchdogCooldown {
+		if !runtime.reserveAttempt(definition.ID, now) {
 			continue
 		}
 
-		output, err := exec.Command(service.Path, "start").CombinedOutput()
-		if len(output) > adminWatchdogOutputMaxBytes {
-			output = output[:adminWatchdogOutputMaxBytes]
-		}
-		attempt := adminWatchdogAttempt{
-			At:     now,
-			OK:     err == nil,
-			Output: strings.TrimSpace(string(output)),
-		}
-		runtime.attempts[definition.ID] = append(attempts, now)
+		attempt := runAdminWatchdogServiceStart(service.Path, now, adminWatchdogStartTimeout)
+		runtime.mu.Lock()
 		runtime.lastAttempt[definition.ID] = attempt
+		runtime.mu.Unlock()
+	}
+}
+
+func (runtime *adminWatchdogRuntime) reserveAttempt(id string, now time.Time) bool {
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+
+	runtime.pruneAttemptsLocked(now)
+	if !runtime.config.Items[id].Enabled {
+		return false
+	}
+	attempts := runtime.attempts[id]
+	if len(attempts) >= adminWatchdogMaxAttempts {
+		return false
+	}
+	last := runtime.lastAttempt[id]
+	if !last.At.IsZero() && now.Sub(last.At) < adminWatchdogCooldown {
+		return false
+	}
+
+	runtime.attempts[id] = append(attempts, now)
+	runtime.lastAttempt[id] = adminWatchdogAttempt{
+		At:     now,
+		Output: "start in progress",
+	}
+	return true
+}
+
+func runAdminWatchdogServiceStart(path string, now time.Time, timeout time.Duration) adminWatchdogAttempt {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	output, err := exec.CommandContext(ctx, path, "start").CombinedOutput()
+	if len(output) > adminWatchdogOutputMaxBytes {
+		output = output[:adminWatchdogOutputMaxBytes]
+	}
+	text := strings.TrimSpace(string(output))
+	if ctx.Err() == context.DeadlineExceeded {
+		if text != "" {
+			text += "\n"
+		}
+		text += "start timed out"
+	}
+
+	return adminWatchdogAttempt{
+		At:     now,
+		OK:     err == nil && ctx.Err() == nil,
+		Output: text,
 	}
 }
 

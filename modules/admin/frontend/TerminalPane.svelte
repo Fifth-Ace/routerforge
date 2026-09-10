@@ -45,16 +45,41 @@
     disconnected: 'DISCONNECTED'
   };
 
-  const theme = {
-    background: '#0b1017', foreground: '#d8dee9', cursor: '#f8f8f2',
-    cursorAccent: '#0b1017', selectionBackground: '#29445f',
-    black: '#1b1f24', red: '#ff6b6b', green: '#7bd88f', yellow: '#ffd866',
-    blue: '#6cb6ff', magenta: '#c099ff', cyan: '#5de4c7', white: '#e6edf3',
-    brightBlack: '#59636e', brightRed: '#ff8787', brightGreen: '#97e6a8',
-    brightYellow: '#ffe58f', brightBlue: '#8bc8ff', brightMagenta: '#d0b3ff',
-    brightCyan: '#82ead5', brightWhite: '#ffffff'
-  };
+  function cssToken(name, fallback) {
+    if (typeof document === 'undefined') return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
 
+  function terminalTheme() {
+    const accent = cssToken('--rf-accent', '#38bdf8');
+    const background = cssToken('--rf-bg', '#0b0d10');
+    const foreground = cssToken('--rf-text', '#f5f7fa');
+    const muted = cssToken('--rf-muted', '#8d98a4');
+    return {
+      background,
+      foreground,
+      cursor: foreground,
+      cursorAccent: background,
+      selectionBackground: cssToken('--rf-accent-soft', 'rgba(56, 189, 248, .18)'),
+      black: background,
+      red: '#ff6b6b',
+      green: '#7bd88f',
+      yellow: '#ffd866',
+      blue: accent,
+      magenta: '#c099ff',
+      cyan: accent,
+      white: foreground,
+      brightBlack: muted,
+      brightRed: '#ff8787',
+      brightGreen: '#97e6a8',
+      brightYellow: '#ffe58f',
+      brightBlue: accent,
+      brightMagenta: '#d0b3ff',
+      brightCyan: accent,
+      brightWhite: '#ffffff'
+    };
+  }
   function setState(value, label) {
     connected = value;
     statusText = label;
@@ -174,7 +199,7 @@
       lineHeight: 1.14,
       scrollback: 5000,
       tabStopWidth: 4,
-      theme
+      theme: terminalTheme()
     });
     fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
@@ -245,32 +270,22 @@
 
 <style>
   :global(.terminal-shell .xterm){height:100%}
-  :global(.terminal-shell .xterm-viewport){scrollbar-color:#3b5065 #0b1017}
-  .terminal-shell{overflow:hidden;border:1px solid #263442;border-radius:.72rem;background:#0b1017;box-shadow:0 18px 50px rgba(0,0,0,.22)}
-  .terminal-topbar{min-height:2.35rem;display:flex;align-items:stretch;justify-content:space-between;background:#151c25;border-bottom:1px solid #263442}
+  :global(.terminal-shell .xterm-viewport){scrollbar-color:var(--rf-border-strong,#36414d) var(--rf-bg,#0b0d10)}
+  .terminal-shell{overflow:hidden;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-panel,.72rem);background:var(--rf-bg,#0b0d10);color:var(--rf-text,#f5f7fa);box-shadow:none}
+  .terminal-topbar{min-height:2.35rem;display:flex;align-items:stretch;justify-content:space-between;background:var(--rf-surface,#12151a);border-bottom:1px solid var(--rf-border,#29313a)}
   .terminal-tabs{display:flex;min-width:0}
-  .terminal-tab{display:flex;align-items:center;gap:.48rem;padding:0 .9rem;border:0;border-right:1px solid #263442;background:#111821;color:#8d9aaa;font:inherit;font-size:.8rem}
-  .terminal-tab.active{color:#e6edf3;background:#0b1017;box-shadow:inset 0 2px 0 #5de4c7}
+  .terminal-tab{display:flex;align-items:center;gap:.48rem;padding:0 .9rem;border:0;border-right:1px solid var(--rf-border,#29313a);background:var(--rf-surface,#12151a);color:var(--rf-muted,#8d98a4);font:inherit;font-size:.8rem}
+  .terminal-tab.active{color:var(--rf-text,#f5f7fa);background:var(--rf-bg,#0b0d10);box-shadow:inset 0 2px 0 var(--rf-accent,#38bdf8)}
   .terminal-tab:disabled{cursor:not-allowed;opacity:.52}
-  .terminal-tab em{padding:.08rem .3rem;border:1px solid #344556;border-radius:.3rem;font-size:.58rem;font-style:normal;text-transform:uppercase}
-  .terminal-dot,.status-dot{width:.45rem;height:.45rem;border-radius:50%;background:#59636e;flex:none}
-  .connected-dot,.status-dot.online{background:#7bd88f;box-shadow:0 0 0 3px rgba(123,216,143,.1)}
-  .terminal-head-status{display:flex;align-items:center;gap:.55rem;padding:0 .85rem;color:#7c8997;font-size:.68rem;letter-spacing:.045em}
-  .terminal-head-status strong{color:#9ca9b7;font-size:.65rem}
-  .terminal-head-status .online+strong{color:#7bd88f}
-  .terminal-titlebar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.72rem .9rem;background:#101721;border-bottom:1px solid #1e2a36;color:#d8dee9}
-  .terminal-titlebar>div:first-child{display:flex;flex-direction:column;gap:.15rem;min-width:0}
-  .terminal-titlebar strong{font-size:.88rem}
-  .terminal-titlebar span{color:#728090;font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .terminal-actions{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}
-  .terminal-actions button{border:1px solid #314253;border-radius:.38rem;background:#17212c;color:#c7d0da;padding:.31rem .52rem;font:inherit;font-size:.68rem;cursor:pointer}
-  .terminal-actions button:hover{background:#202d3a;border-color:#476078}
-  .terminal-actions button.danger{border-color:#603b43;color:#ff9da4}
-  .terminal-actions button:disabled{opacity:.45;cursor:not-allowed}
-  .terminal-bezel{padding:.65rem .72rem .35rem;background:#0b1017}
-  .terminal-canvas{width:100%;height:clamp(30rem,61vh,48rem);overflow:hidden}
-  .terminal-statusbar{display:flex;align-items:center;gap:.9rem;min-height:1.85rem;padding:0 .8rem;border-top:1px solid #1e2a36;background:#101721;color:#687787;font-family:"Roboto Mono","Cascadia Mono",Consolas,monospace;font-size:.62rem}
-  .terminal-statusbar b{color:#7bd88f;font-weight:700}
-  .terminal-status-spacer{flex:1}
+  .terminal-tab em{padding:.08rem .3rem;border:1px solid var(--rf-border-strong,#36414d);border-radius:.3rem;font-size:.58rem;font-style:normal;text-transform:uppercase}
+  .terminal-dot,.status-dot{width:.45rem;height:.45rem;border-radius:50%;background:var(--rf-muted,#8d98a4);flex:none}
+  .connected-dot,.status-dot.online{background:var(--good,#2ea043);box-shadow:0 0 0 3px color-mix(in srgb,var(--good,#2ea043) 14%,transparent)}
+  .terminal-head-status{display:flex;align-items:center;gap:.55rem;padding:0 .85rem;color:var(--rf-muted,#8d98a4);font-size:.68rem;letter-spacing:.045em}
+  .terminal-head-status strong{color:color-mix(in srgb,var(--rf-text,#f5f7fa) 70%,var(--rf-muted,#8d98a4));font-size:.65rem}.terminal-head-status .online+strong{color:var(--good,#2ea043)}
+  .terminal-titlebar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.72rem .9rem;background:var(--rf-surface-2,#171b21);border-bottom:1px solid var(--rf-border,#29313a);color:var(--rf-text,#f5f7fa)}
+  .terminal-titlebar>div:first-child{display:flex;flex-direction:column;gap:.15rem;min-width:0}.terminal-titlebar strong{font-size:.88rem}.terminal-titlebar span{color:var(--rf-muted,#8d98a4);font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .terminal-actions{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}.terminal-actions button{border:1px solid var(--rf-border-strong,#36414d);border-radius:var(--rf-radius-control,.38rem);background:var(--rf-surface,#12151a);color:color-mix(in srgb,var(--rf-text,#f5f7fa) 86%,var(--rf-muted,#8d98a4));padding:.31rem .52rem;font:inherit;font-size:.68rem;cursor:pointer}.terminal-actions button:hover{background:var(--rf-hover,#1d2229);border-color:var(--rf-accent-border,rgba(56,189,248,.30))}.terminal-actions button.danger{border-color:rgba(248,81,73,.38);color:var(--bad,#f85149)}.terminal-actions button:disabled{opacity:.45;cursor:not-allowed}
+  .terminal-bezel{padding:.65rem .72rem .35rem;background:var(--rf-bg,#0b0d10)}.terminal-canvas{width:100%;height:clamp(30rem,61vh,48rem);overflow:hidden}
+  .terminal-statusbar{display:flex;align-items:center;gap:.9rem;min-height:1.85rem;padding:0 .8rem;border-top:1px solid var(--rf-border,#29313a);background:var(--rf-surface,#12151a);color:var(--rf-muted,#8d98a4);font-family:"Roboto Mono","Cascadia Mono",Consolas,monospace;font-size:.62rem}.terminal-statusbar b{color:var(--rf-accent,#38bdf8);font-weight:700}.terminal-status-spacer{flex:1}
   @media(max-width:800px){.terminal-head-status span.mono{display:none}.terminal-titlebar span{display:none}.terminal-canvas{height:62vh}}
 </style>

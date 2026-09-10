@@ -11,6 +11,8 @@
   let textarea;
   let gutter;
   let highlightLayer;
+  let closing = false;
+  let closeTimer = null;
 
   $: lineCount = Math.max(1, String(content ?? '').split('\n').length);
   $: lineNumbers = Array.from({ length: lineCount }, (_, index) => index + 1).join('\n');
@@ -168,7 +170,13 @@
     }
   }
 
-  function requestClose() { if (dirty && !confirm(copy.discard)) return; onClose(); }
+  function requestClose() {
+    if (closing) return;
+    if (dirty && !confirm(copy.discard)) return;
+    closing = true;
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => onClose(), 260);
+  }
 
   function handleKeydown(event) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
@@ -184,8 +192,8 @@
   }
 </script>
 
-<div class="editor-backdrop" aria-hidden="true"></div>
-<section class="editor-sheet" aria-label={copy.editor}>
+<div class:closing class="editor-backdrop" aria-hidden="true"></div>
+<section class:closing class="editor-sheet" aria-label={copy.editor}>
   <header class="editor-topbar">
     <div class="editor-title">
       <div class="editor-kicker"><span class="editor-dot"></span><span>{copy.editor}</span><em>{mode}</em></div>
@@ -210,13 +218,18 @@
 </section>
 
 <style>
-  .editor-backdrop{position:fixed;inset:0;z-index:998;background:rgba(2,7,12,.58);backdrop-filter:blur(1.5px)}
-  .editor-sheet{position:fixed;z-index:999;top:0;left:0;right:0;height:75vh;display:grid;grid-template-rows:auto auto 1fr auto;background:#0b1017;color:#d8dee9;border-bottom:1px solid #2a3948;box-shadow:0 24px 65px rgba(0,0,0,.46);font-family:Inter,system-ui,sans-serif;animation:sheet-in .18s ease-out}
-  @keyframes sheet-in{from{transform:translateY(-22px);opacity:.72}to{transform:translateY(0);opacity:1}}
+  .editor-backdrop{position:fixed;inset:0;z-index:998;background:rgba(2,7,12,.58);backdrop-filter:blur(1.5px);animation:editor-backdrop-in .30s ease both}
+  .editor-backdrop.closing{animation:editor-backdrop-out .24s ease both}
+  .editor-sheet{position:fixed;z-index:999;top:0;left:0;right:0;height:75vh;display:grid;grid-template-rows:auto auto 1fr auto;background:#0b1017;color:#d8dee9;border-bottom:1px solid #2a3948;box-shadow:0 24px 65px rgba(0,0,0,.46);font-family:Inter,system-ui,sans-serif;animation:sheet-in .32s cubic-bezier(.22,.72,.2,1) both;will-change:transform,opacity}
+  .editor-sheet.closing{pointer-events:none;animation:sheet-out .24s cubic-bezier(.4,0,.8,.2) both}
+  @keyframes editor-backdrop-in{from{opacity:0}to{opacity:1}}
+  @keyframes editor-backdrop-out{from{opacity:1}to{opacity:0}}
+  @keyframes sheet-in{from{transform:translateY(-42px);opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes sheet-out{from{transform:translateY(0);opacity:1}to{transform:translateY(-36px);opacity:0}}
   .editor-topbar{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.85rem 1rem;background:#111923;border-bottom:1px solid #263442}.editor-title{min-width:0;display:flex;flex-direction:column;gap:.16rem}.editor-title strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:"Roboto Mono","Cascadia Mono",Consolas,monospace;font-size:.9rem;color:#e6edf3}.editor-kicker{display:flex;align-items:center;gap:.42rem;color:#5de4c7;font-size:.66rem;font-weight:800;letter-spacing:.065em;text-transform:uppercase}.editor-kicker em{border:1px solid #345064;border-radius:.32rem;padding:.08rem .32rem;color:#8bc8ff;font-size:.56rem;font-style:normal}.editor-dot{width:.46rem;height:.46rem;border-radius:50%;background:#7bd88f;box-shadow:0 0 0 3px rgba(123,216,143,.1)}.editor-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#667687;font-family:"Roboto Mono","Cascadia Mono",Consolas,monospace;font-size:.65rem}.editor-actions{display:flex;align-items:center;gap:.42rem;flex:none}
   button{border:1px solid #314253;border-radius:.4rem;background:#17212c;color:#c7d0da;padding:.38rem .58rem;font:inherit;font-size:.7rem;cursor:pointer}button:hover:not(:disabled){background:#202d3a;border-color:#4b657d}button:disabled{opacity:.4;cursor:not-allowed}button.close{width:2rem;height:2rem;padding:0;font-size:1.15rem;line-height:1;border-color:#583941;color:#ff9da4}.editor-state{border:1px solid #2e4a40;border-radius:.34rem;color:#7bd88f;padding:.18rem .38rem;font:700 .58rem/1 "Roboto Mono","Cascadia Mono",Consolas,monospace;letter-spacing:.04em}.editor-state.dirty{color:#ffd866;border-color:#5b512d}.editor-state.readonly{color:#c099ff;border-color:#59446f}
   .editor-meta,.editor-footer{min-height:1.85rem;display:flex;align-items:center;gap:.85rem;padding:0 .85rem;background:#101721;color:#6f7f90;border-bottom:1px solid #1f2c38;font:.61rem/1 "Roboto Mono","Cascadia Mono",Consolas,monospace}.editor-footer{border-top:1px solid #1f2c38;border-bottom:0;min-height:2.2rem}.editor-footer button{padding:.28rem .5rem}.spacer{flex:1}
   .editor-surface{min-height:0;display:grid;grid-template-columns:auto 1fr;background:#0b1017;overflow:hidden}.editor-gutter{box-sizing:border-box;margin:0;min-width:3.8rem;height:100%;overflow:hidden;padding:.9rem .72rem .9rem .4rem;border-right:1px solid #1e2a36;background:#0e151e;color:#4f6275;text-align:right;user-select:none;white-space:pre;font:12.5px/1.55 "Roboto Mono","Cascadia Mono",Consolas,monospace}.editor-code-wrap{position:relative;min-width:0;min-height:0;overflow:hidden;background:#0b1017}.editor-highlight,.editor-text{box-sizing:border-box;position:absolute;inset:0;width:100%;height:100%;margin:0;padding:.9rem 1rem;overflow:auto;white-space:pre;tab-size:2;font:12.5px/1.55 "Roboto Mono","Cascadia Mono",Consolas,monospace}.editor-highlight{z-index:1;border:0;background:#0b1017;color:#c9d1d9;pointer-events:none;scrollbar-width:none}.editor-highlight::-webkit-scrollbar{display:none}.editor-text{z-index:2;resize:none;border:0;outline:0;background:transparent;color:transparent;caret-color:#e6edf3;-webkit-text-fill-color:transparent}.editor-text::selection{background:rgba(72,118,157,.55);-webkit-text-fill-color:transparent}.editor-text:focus{box-shadow:inset 2px 0 0 #5de4c7}.editor-text:read-only{caret-color:#94a0ac}
   :global(.tok-comment){color:#5c7080;font-style:italic}:global(.tok-string){color:#ffd866}:global(.tok-key){color:#8bc8ff}:global(.tok-number){color:#c099ff}:global(.tok-boolean),:global(.tok-null){color:#ff9da4}:global(.tok-keyword){color:#ff7ab2;font-weight:650}:global(.tok-function){color:#82d2ce}:global(.tok-variable){color:#7bd88f}:global(.tok-operator){color:#89ddff}:global(.tok-section){color:#c099ff;font-weight:700}:global(.tok-tag){color:#ff7ab2}:global(.tok-selector){color:#7bd88f}:global(.tok-link){color:#5de4c7;text-decoration:underline}:global(.tok-address){color:#ffb86c}:global(.tok-path){color:#82d2ce}
-  @media(max-width:760px){.editor-sheet{height:78vh}.editor-meta span:nth-child(3),.editor-meta span:nth-child(4){display:none}.editor-footer>span:first-child{display:none}}@media(prefers-reduced-motion:reduce){.editor-sheet{animation:none}}
+  @media(max-width:760px){.editor-sheet{height:78vh}.editor-meta span:nth-child(3),.editor-meta span:nth-child(4){display:none}.editor-footer>span:first-child{display:none}}@media(prefers-reduced-motion:reduce){.editor-sheet,.editor-sheet.closing,.editor-backdrop,.editor-backdrop.closing{animation-duration:.01ms}}
 </style>

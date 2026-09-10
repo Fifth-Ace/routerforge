@@ -51,8 +51,8 @@ func moduleMutationAPI(moduleID string) bool {
 }
 
 const (
-	dnsModuleMutationBodyLimit   int64 = 64 << 10
-	adminModuleMutationBodyLimit int64 = 8 << 10
+	dnsModuleMutationBodyLimit     int64 = 64 << 10
+	adminModuleMutationBodyLimit   int64 = 8 << 10
 	adminFileWriteRequestBodyLimit int64 = 272 << 10
 )
 

@@ -134,3 +134,5 @@ export const adminMaintenanceBackup = () =>
   postJSON('/api/modules/admin/maintenance/backup', { confirm: 'BACKUP' });
 export const adminNetworkToolRun = (tool, host, port = 0) =>
   postJSON('/api/modules/admin/network-tools/run', { tool, host, port });
+export const getAdminIntegrations = () =>
+  request('/api/modules/admin/integrations');

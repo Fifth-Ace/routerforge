@@ -14,6 +14,7 @@
     adminNetworkToolRun,
     getAdminMaintenanceLogs,
     getAdminMaintenanceTasks,
+    getAdminIntegrations,
     getAdminFiles,
     getModule,
     readAdminFile
@@ -57,6 +58,9 @@
   let networkResult = null;
   let networkBusy = false;
 
+  let integrations = [];
+  let integrationsBusy = false;
+
   $: locale = $settings.locale || 'ru';
   $: copy = locale === 'ru' ? {
     files: 'Файлы',
@@ -71,6 +75,16 @@
     backup: 'Создать backup',
     backupConfirm: 'Создать архив конфигурации RouterForge в /tmp/routerforge-backups?',
     networkHint: 'Ping, traceroute, DNS lookup и TCP connect test без shell-интерполяции.',
+    integrations: 'Интеграции',
+    integrationsHint: 'Автообнаружение nfqws2, AWG Manager и AdGuard Home: бинарники, сервисы, процессы и listening-порты.',
+    detected: 'Обнаружено',
+    notDetected: 'Не обнаружено',
+    running: 'Работает',
+    stopped: 'Остановлено',
+    service: 'Сервис',
+    processesLabel: 'PID',
+    portsLabel: 'Порты',
+    pathsLabel: 'Пути',
     path: 'Путь',
     up: 'Вверх',
     open: 'Открыть',
@@ -107,6 +121,16 @@
     backup: 'Create backup',
     backupConfirm: 'Create RouterForge configuration archive in /tmp/routerforge-backups?',
     networkHint: 'Ping, traceroute, DNS lookup and TCP connect test without shell interpolation.',
+    integrations: 'Integrations',
+    integrationsHint: 'Auto-detection for nfqws2, AWG Manager and AdGuard Home: binaries, services, processes and listening ports.',
+    detected: 'Detected',
+    notDetected: 'Not detected',
+    running: 'Running',
+    stopped: 'Stopped',
+    service: 'Service',
+    processesLabel: 'PID',
+    portsLabel: 'Ports',
+    pathsLabel: 'Paths',
     path: 'Path',
     up: 'Up',
     open: 'Open',
@@ -140,7 +164,8 @@
     ['files', copy.files],
     ['terminal', copy.terminal],
     ['maintenance', copy.maintenance],
-    ['network-tools', copy.networkTools]
+    ['network-tools', copy.networkTools],
+    ['integrations', copy.integrations]
   ];
 
   $: q = search.trim().toLowerCase();
@@ -167,6 +192,7 @@
     if (next === 'terminal') return;
     if (next === 'maintenance') return loadMaintenance();
     if (next === 'network-tools') return;
+    if (next === 'integrations') return loadIntegrations();
     loading = true;
     errorText = '';
     try {
@@ -455,6 +481,19 @@
     }
   }
 
+  async function loadIntegrations() {
+    integrationsBusy = true;
+    errorText = '';
+    try {
+      const result = await getAdminIntegrations();
+      integrations = result.integrations || [];
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      integrationsBusy = false;
+    }
+  }
+
   onMount(() => {
     load(tab);
     const stopPolling = startSerialPolling(() => {
@@ -657,6 +696,36 @@
         </div>
       {/if}
     </section>
+  {:else if tab === 'integrations'}
+    <section class="panel">
+      <div class="panel-head">
+        <div><strong>{copy.integrations}</strong><span>{copy.integrationsHint}</span></div>
+        <button class="button" onclick={loadIntegrations} disabled={integrationsBusy}>↻ {t(locale, 'common.refresh')}</button>
+      </div>
+      <div class="integration-grid">
+        {#each integrations as integration}
+          <article class="integration-card">
+            <div class="integration-title">
+              <strong>{integration.name}</strong>
+              <span class:state-running={integration.running} class:state-stopped={!integration.running}>
+                {integration.detected ? (integration.running ? copy.running : copy.stopped) : copy.notDetected}
+              </span>
+            </div>
+            <dl>
+              <dt>{copy.detected}</dt><dd>{integration.detected ? 'YES' : 'NO'}</dd>
+              <dt>{copy.service}</dt><dd class="mono">{integration.service_id || '—'}</dd>
+              <dt>{copy.processesLabel}</dt><dd class="mono">{(integration.process_pids || []).join(', ') || '—'}</dd>
+              <dt>{copy.portsLabel}</dt><dd class="mono">{(integration.ports || []).join(', ') || '—'}</dd>
+              <dt>{copy.pathsLabel}</dt>
+              <dd class="mono integration-paths">
+                {#each integration.paths || [] as path}<div>{path}</div>{/each}
+                {#if !(integration.paths || []).length}—{/if}
+              </dd>
+            </dl>
+          </article>
+        {/each}
+      </div>
+    </section>
   {/if}
 </div>
 
@@ -698,4 +767,15 @@
   .network-result{margin:0 1rem 1rem;background:#0b0d10;color:#d7e1ea;padding:1rem;border-radius:.55rem;min-height:20rem}
   .network-result pre{white-space:pre-wrap;word-break:break-word;margin:0}
   @media(max-width:900px){.maintenance-grid{grid-template-columns:1fr}}
+  .integration-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;padding:1rem}
+  .integration-card{border:1px solid var(--border-color,rgba(127,127,127,.25));border-radius:.7rem;padding:1rem;min-width:0}
+  .integration-title{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1rem}
+  .integration-title span{font-size:.8rem;font-weight:700}
+  .state-running{color:#42c77a}
+  .state-stopped{opacity:.6}
+  .integration-card dl{display:grid;grid-template-columns:6rem 1fr;gap:.45rem .7rem;margin:0}
+  .integration-card dt{opacity:.6}
+  .integration-card dd{margin:0;min-width:0;word-break:break-word}
+  .integration-paths div{margin-bottom:.2rem}
+  @media(max-width:1000px){.integration-grid{grid-template-columns:1fr}}
 </style>

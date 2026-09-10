@@ -9,316 +9,566 @@
 
   export let locale = 'ru';
 
-  const VIEW_KEY='routerforge.admin.files.view';
-  const WRITE_LIMIT=128*1024;
-  let view='commander';
-  let busy=false;
-  let errorText='';
-  let actionText='';
+  const VIEW_KEY = 'routerforge.admin.files.view';
+  const LEFT_KEY = 'routerforge.admin.files.left.path';
+  const RIGHT_KEY = 'routerforge.admin.files.right.path';
+  const EXPLORER_KEY = 'routerforge.admin.files.explorer.path';
+  const WRITE_LIMIT = 128 * 1024;
 
-  let left={path:'/opt',entries:[],selected:null};
-  let right={path:'/tmp',entries:[],selected:null};
-  let active='left';
-
-  let explorerPath='/opt';
-  let explorerEntries=[];
-  let explorerSearch='';
-
-  let selectedFile=null;
-  let editorContent='';
-  let editorOriginal='';
-  let editorBusy=false;
-
-  $: editorDirty=!!selectedFile&&editorContent!==editorOriginal;
-  $: editorReadOnly=!!selectedFile&&Number(selectedFile.size||0)>WRITE_LIMIT;
-  $: explorerFiltered=explorerEntries.filter((entry)=>!explorerSearch.trim()||`${entry.name} ${entry.path}`.toLowerCase().includes(explorerSearch.trim().toLowerCase()));
-
-  $: copy=locale==='ru'?{
-    commander:'Commander',explorer:'Explorer',refresh:'Обновить',up:'Вверх',
-    folder:'Папка',file:'Файл',copy:'Копировать',move:'Переместить',rename:'Переименовать',
-    remove:'Удалить',chmod:'Права',download:'Скачать',actions:'Действия',name:'Имя',
-    size:'Размер',modified:'Изменён',mode:'Права',search:'Поиск в папке…',
-    regularOnly:'Копирование между панелями пока поддерживает обычные файлы; каталоги перемещаются.',
-    noSelection:'Сначала выбери объект в активной панели.',overwrite:'Файл назначения уже существует.',
-    dirty:'Есть несохранённые изменения',save:'Сохранить',close:'Закрыть'
-  }:{
-    commander:'Commander',explorer:'Explorer',refresh:'Refresh',up:'Up',
-    folder:'Folder',file:'File',copy:'Copy',move:'Move',rename:'Rename',
-    remove:'Delete',chmod:'Mode',download:'Download',actions:'Actions',name:'Name',
-    size:'Size',modified:'Modified',mode:'Mode',search:'Search in folder…',
-    regularOnly:'Cross-panel copy currently supports regular files; directories can be moved.',
-    noSelection:'Select an item in the active panel first.',overwrite:'Destination already exists.',
-    dirty:'Unsaved changes',save:'Save',close:'Close'
-  };
-
-  const quickRoots=[
-    ['Entware /opt','/opt'],['Entware /opt/etc','/opt/etc'],['Entware /opt/var','/opt/var'],
-    ['Binaries','/opt/bin'],['Logs','/opt/var/log'],['AWG Manager','/opt/etc/awg-manager'],['Temp','/tmp']
+  const quickRoots = [
+    ['Entware', '/opt'],
+    ['Config', '/opt/etc'],
+    ['AWG Manager', '/opt/etc/awg-manager'],
+    ['Logs', '/opt/var/log'],
+    ['Binaries', '/opt/bin'],
+    ['Runtime', '/opt/var'],
+    ['Temp', '/tmp']
   ];
 
-  function err(error){return error?.payload?.error||error?.message||String(error);}
-  function join(parent,name){return `${parent.replace(/\/+$/,'')}/${name}`||`/${name}`;}
-  function parent(path){
-    const clean=path.replace(/\/+$/,'');
-    if(clean==='/opt'||clean==='/tmp') return clean;
-    const pos=clean.lastIndexOf('/');
-    const value=pos<=0?clean:clean.slice(0,pos);
-    if(clean.startsWith('/opt/')&&!value.startsWith('/opt')) return '/opt';
-    if(clean.startsWith('/tmp/')&&!value.startsWith('/tmp')) return '/tmp';
+  let view = 'commander';
+  let busyCount = 0;
+  let errorText = '';
+  let actionText = '';
+  let active = 'left';
+
+  let left = makePanel('/opt');
+  let right = makePanel('/opt/etc');
+
+  let explorerPath = '/opt';
+  let explorerEntries = [];
+  let explorerSearch = '';
+  let explorerSort = 'name';
+  let explorerSortDir = 1;
+
+  let selectedFile = null;
+  let editorContent = '';
+  let editorOriginal = '';
+  let editorBusy = false;
+  let editorForceReadOnly = false;
+
+  $: busy = busyCount > 0;
+  $: editorDirty = !!selectedFile && editorContent !== editorOriginal;
+  $: editorReadOnly = editorForceReadOnly || (!!selectedFile && Number(selectedFile.size || 0) > WRITE_LIMIT);
+  $: explorerFiltered = sortEntries(
+    explorerEntries.filter((entry) => !explorerSearch.trim() || `${entry.name} ${entry.path}`.toLowerCase().includes(explorerSearch.trim().toLowerCase())),
+    explorerSort,
+    explorerSortDir
+  );
+
+  $: copy = locale === 'ru' ? {
+    commander: 'Commander', explorer: 'Explorer', refresh: 'Обновить',
+    folder: 'Папка', file: 'Файл', copy: 'Копировать', move: 'Переместить', rename: 'Переименовать',
+    remove: 'Удалить', chmod: 'Права', download: 'Скачать', actions: 'Действия', name: 'Имя',
+    size: 'Размер', modified: 'Изменён', mode: 'Права', search: 'Фильтр…', path: 'Путь',
+    noSelection: 'Сначала выбери объект в активной панели.', regularOnly: 'Копирование каталогов backend пока не поддерживает.',
+    destination: 'Путь назначения', viewFile: 'Просмотр', edit: 'Правка', save: 'Сохранить', close: 'Закрыть',
+    previous: 'Назад', next: 'Вперёд', up: 'Вверх', swap: 'Поменять панели', quick: 'Быстрый доступ',
+    selected: 'выбрано', items: 'объектов', empty: 'Папка пуста', open: 'Открыть'
+  } : {
+    commander: 'Commander', explorer: 'Explorer', refresh: 'Refresh',
+    folder: 'Folder', file: 'File', copy: 'Copy', move: 'Move', rename: 'Rename',
+    remove: 'Delete', chmod: 'Mode', download: 'Download', actions: 'Actions', name: 'Name',
+    size: 'Size', modified: 'Modified', mode: 'Mode', search: 'Filter…', path: 'Path',
+    noSelection: 'Select an item in the active panel first.', regularOnly: 'Directory copy is not supported by the backend yet.',
+    destination: 'Destination path', viewFile: 'View', edit: 'Edit', save: 'Save', close: 'Close',
+    previous: 'Back', next: 'Forward', up: 'Up', swap: 'Swap panels', quick: 'Quick access',
+    selected: 'selected', items: 'items', empty: 'Folder is empty', open: 'Open'
+  };
+
+  function makePanel(path) {
+    return { path, pathInput: path, entries: [], selected: null, filter: '', sort: 'name', sortDir: 1, history: [path], historyIndex: 0 };
+  }
+
+  function err(error) { return error?.payload?.error || error?.message || String(error); }
+  function join(parentPath, name) { return `${parentPath.replace(/\/+$/, '')}/${name}` || `/${name}`; }
+  function parent(path) {
+    const clean = path.replace(/\/+$/, '');
+    if (clean === '/opt' || clean === '/tmp') return clean;
+    const pos = clean.lastIndexOf('/');
+    const value = pos <= 0 ? clean : clean.slice(0, pos);
+    if (clean.startsWith('/opt/') && !value.startsWith('/opt')) return '/opt';
+    if (clean.startsWith('/tmp/') && !value.startsWith('/tmp')) return '/tmp';
     return value;
   }
-  function base(path){const clean=path.replace(/\/+$/,'');return clean.slice(clean.lastIndexOf('/')+1);}
+  function base(path) { const clean = path.replace(/\/+$/, ''); return clean.slice(clean.lastIndexOf('/') + 1); }
 
-  function setView(next){
-    view=next;
-    localStorage.setItem(VIEW_KEY,next);
-    if(next==='explorer') loadExplorer(explorerPath);
-  }
-  function setAction(value){actionText=value;setTimeout(()=>{if(actionText===value)actionText='';},3500);}
-
-  async function loadPanel(side,path){
-    busy=true;errorText='';
-    try{
-      const result=await getAdminFiles(path);
-      const next={path:result.path||path,entries:result.entries||[],selected:null};
-      if(side==='left') left=next; else right=next;
-    }catch(error){errorText=err(error);}finally{busy=false;}
+  function panelFor(side) { return side === 'left' ? left : right; }
+  function setPanel(side, next) { if (side === 'left') left = next; else right = next; }
+  function activePanel() { return panelFor(active); }
+  function otherPanel() { return panelFor(active === 'left' ? 'right' : 'left'); }
+  function panelEntries(panel) {
+    const q = panel.filter.trim().toLowerCase();
+    const filtered = q ? panel.entries.filter((entry) => `${entry.name} ${entry.path}`.toLowerCase().includes(q)) : panel.entries;
+    return sortEntries(filtered, panel.sort, panel.sortDir);
   }
 
-  async function loadExplorer(path=explorerPath){
-    busy=true;errorText='';
-    try{
-      const result=await getAdminFiles(path);
-      explorerPath=result.path||path; explorerEntries=result.entries||[];
-    }catch(error){errorText=err(error);}finally{busy=false;}
+  function sortEntries(entries, key, dir) {
+    return [...entries].sort((a, b) => {
+      if (a.kind === 'directory' && b.kind !== 'directory') return -1;
+      if (a.kind !== 'directory' && b.kind === 'directory') return 1;
+      let av; let bv;
+      if (key === 'size') { av = Number(a.size || 0); bv = Number(b.size || 0); }
+      else if (key === 'modified') { av = Date.parse(a.modified_at || 0) || 0; bv = Date.parse(b.modified_at || 0) || 0; }
+      else if (key === 'mode') { av = a.mode || ''; bv = b.mode || ''; }
+      else { av = (a.name || '').toLowerCase(); bv = (b.name || '').toLowerCase(); }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
   }
 
-  function select(side,entry){
-    active=side;
-    if(side==='left') left={...left,selected:entry}; else right={...right,selected:entry};
+  function cycleSort(side, key) {
+    const panel = panelFor(side);
+    const sortDir = panel.sort === key ? panel.sortDir * -1 : 1;
+    setPanel(side, { ...panel, sort: key, sortDir });
   }
 
-  async function open(side,entry){
-    if(entry.kind==='directory'){
-      if(side==='explorer') return loadExplorer(entry.path);
-      return loadPanel(side,entry.path);
-    }
-    if(entry.kind!=='file') return;
-    editorBusy=true;errorText='';
-    try{
-      const result=await readAdminFile(entry.path);
-      selectedFile=result;editorContent=result.content||'';editorOriginal=editorContent;
-    }catch(error){errorText=err(error);}finally{editorBusy=false;}
+  function cycleExplorerSort(key) {
+    const same = explorerSort === key;
+    explorerSort = key;
+    explorerSortDir = same ? explorerSortDir * -1 : 1;
   }
 
-  async function saveEditor(){
-    if(!selectedFile||!editorDirty||editorReadOnly)return;
-    editorBusy=true;errorText='';
-    try{
-      const result=await adminFileWrite({
-        path:selectedFile.path,confirm_path:selectedFile.path,content:editorContent,create:false,
-        expected_size:selectedFile.size,expected_mtime_ns:selectedFile.mtime_ns
+  function setView(next) {
+    view = next;
+    localStorage.setItem(VIEW_KEY, next);
+    if (next === 'explorer') loadExplorer(explorerPath);
+  }
+
+  function setAction(value) {
+    actionText = value;
+    setTimeout(() => { if (actionText === value) actionText = ''; }, 3500);
+  }
+
+  function rememberPanelPath(side, path) {
+    localStorage.setItem(side === 'left' ? LEFT_KEY : RIGHT_KEY, path);
+  }
+
+  async function loadPanel(side, path, historyMode = 'push') {
+    busyCount += 1; errorText = '';
+    try {
+      const result = await getAdminFiles(path);
+      const current = panelFor(side);
+      const resolved = result.path || path;
+      let history = current.history;
+      let historyIndex = current.historyIndex;
+      if (historyMode === 'push' && current.path !== resolved) {
+        history = [...history.slice(0, historyIndex + 1), resolved];
+        historyIndex = history.length - 1;
+      }
+      setPanel(side, {
+        ...current,
+        path: resolved,
+        pathInput: resolved,
+        entries: result.entries || [],
+        selected: null,
+        history,
+        historyIndex
       });
-      const fresh=await readAdminFile(result.path||selectedFile.path);
-      selectedFile=fresh;editorContent=fresh.content||'';editorOriginal=editorContent;
+      rememberPanelPath(side, resolved);
+    } catch (error) { errorText = err(error); }
+    finally { busyCount -= 1; }
+  }
+
+  async function navigateHistory(side, delta) {
+    const panel = panelFor(side);
+    const nextIndex = panel.historyIndex + delta;
+    if (nextIndex < 0 || nextIndex >= panel.history.length) return;
+    const target = panel.history[nextIndex];
+    setPanel(side, { ...panel, historyIndex: nextIndex });
+    await loadPanel(side, target, 'history');
+  }
+
+  async function submitPath(side) {
+    const panel = panelFor(side);
+    const target = panel.pathInput.trim();
+    if (!target) return;
+    await loadPanel(side, target);
+  }
+
+  async function loadExplorer(path = explorerPath) {
+    busyCount += 1; errorText = '';
+    try {
+      const result = await getAdminFiles(path);
+      explorerPath = result.path || path;
+      explorerEntries = result.entries || [];
+      localStorage.setItem(EXPLORER_KEY, explorerPath);
+    } catch (error) { errorText = err(error); }
+    finally { busyCount -= 1; }
+  }
+
+  function select(side, entry) {
+    active = side;
+    const panel = panelFor(side);
+    setPanel(side, { ...panel, selected: entry });
+  }
+
+  async function openEntry(side, entry, forceReadOnly = false) {
+    if (entry.kind === 'directory') {
+      if (side === 'explorer') return loadExplorer(entry.path);
+      return loadPanel(side, entry.path);
+    }
+    if (entry.kind !== 'file') return;
+    editorBusy = true; errorText = '';
+    try {
+      const result = await readAdminFile(entry.path);
+      selectedFile = result;
+      editorContent = result.content || '';
+      editorOriginal = editorContent;
+      editorForceReadOnly = forceReadOnly;
+    } catch (error) { errorText = err(error); }
+    finally { editorBusy = false; }
+  }
+
+  async function saveEditor() {
+    if (!selectedFile || !editorDirty || editorReadOnly) return;
+    editorBusy = true; errorText = '';
+    try {
+      const result = await adminFileWrite({
+        path: selectedFile.path, confirm_path: selectedFile.path, content: editorContent, create: false,
+        expected_size: selectedFile.size, expected_mtime_ns: selectedFile.mtime_ns
+      });
+      const fresh = await readAdminFile(result.path || selectedFile.path);
+      selectedFile = fresh;
+      editorContent = fresh.content || '';
+      editorOriginal = editorContent;
       setAction(`${copy.save}: ${fresh.path}`);
       await refreshAll();
-    }catch(error){errorText=err(error);}finally{editorBusy=false;}
+    } catch (error) { errorText = err(error); }
+    finally { editorBusy = false; }
   }
 
-  async function createFolder(path,reload){
-    const name=prompt(copy.folder);if(!name)return;
-    const target=join(path,name);
-    try{await adminFileMkdir({path:target,confirm_path:target});setAction(`${copy.folder}: ${target}`);await reload();}
-    catch(error){errorText=err(error);}
-  }
-  async function createFile(path,reload){
-    const name=prompt(copy.file);if(!name)return;
-    const target=join(path,name);
-    try{
-      await adminFileWrite({path:target,confirm_path:target,content:'',create:true});
-      setAction(`${copy.file}: ${target}`);await reload();
-    }catch(error){errorText=err(error);}
+  async function createFolder(path, reload) {
+    const name = prompt(copy.folder); if (!name) return;
+    const target = join(path, name);
+    try { await adminFileMkdir({ path: target, confirm_path: target }); setAction(`${copy.folder}: ${target}`); await reload(); }
+    catch (error) { errorText = err(error); }
   }
 
-  async function renameEntry(entry,reload){
-    const destination=prompt(copy.rename,entry.path);if(!destination||destination===entry.path)return;
-    if(!confirm(`${entry.path}\n→ ${destination}?`))return;
-    try{
+  async function createFile(path, reload) {
+    const name = prompt(copy.file); if (!name) return;
+    const target = join(path, name);
+    try {
+      await adminFileWrite({ path: target, confirm_path: target, content: '', create: true });
+      setAction(`${copy.file}: ${target}`); await reload();
+    } catch (error) { errorText = err(error); }
+  }
+
+  async function renameEntry(entry, reload) {
+    const destination = prompt(copy.rename, entry.path); if (!destination || destination === entry.path) return;
+    if (!confirm(`${entry.path}\n→ ${destination}?`)) return;
+    try {
       await adminFileMove({
-        source:entry.path,destination,confirm_source:entry.path,confirm_destination:destination,
-        expected_size:entry.size,expected_mtime_ns:entry.mtime_ns
+        source: entry.path, destination, confirm_source: entry.path, confirm_destination: destination,
+        expected_size: entry.size, expected_mtime_ns: entry.mtime_ns
       });
-      setAction(`${copy.rename}: ${destination}`);await reload();
-    }catch(error){errorText=err(error);}
+      setAction(`${copy.rename}: ${destination}`); await reload();
+    } catch (error) { errorText = err(error); }
   }
 
-  async function deleteEntry(entry,reload){
-    if(!confirm(`${copy.remove}: ${entry.path}?`))return;
-    try{
-      await adminFileDelete({path:entry.path,confirm_path:entry.path,expected_size:entry.size,expected_mtime_ns:entry.mtime_ns});
-      setAction(`${copy.remove}: ${entry.path}`);await reload();
-    }catch(error){errorText=err(error);}
+  async function deleteEntry(entry, reload) {
+    if (!confirm(`${copy.remove}: ${entry.path}?`)) return;
+    try {
+      await adminFileDelete({ path: entry.path, confirm_path: entry.path, expected_size: entry.size, expected_mtime_ns: entry.mtime_ns });
+      setAction(`${copy.remove}: ${entry.path}`); await reload();
+    } catch (error) { errorText = err(error); }
   }
 
-  async function chmodEntry(entry,reload){
-    const mode=prompt(copy.chmod,entry.kind==='directory'?'0755':'0644');if(!mode)return;
-    try{
-      await adminFileChmod({path:entry.path,confirm_path:entry.path,mode,expected_size:entry.size,expected_mtime_ns:entry.mtime_ns});
-      setAction(`${copy.chmod}: ${entry.path}`);await reload();
-    }catch(error){errorText=err(error);}
+  async function chmodEntry(entry, reload) {
+    const mode = prompt(copy.chmod, entry.kind === 'directory' ? '0755' : '0644'); if (!mode) return;
+    try {
+      await adminFileChmod({ path: entry.path, confirm_path: entry.path, mode, expected_size: entry.size, expected_mtime_ns: entry.mtime_ns });
+      setAction(`${copy.chmod}: ${entry.path}`); await reload();
+    } catch (error) { errorText = err(error); }
   }
 
-  async function transfer(kind){
-    const sourcePanel=active==='left'?left:right;
-    const destinationPanel=active==='left'?right:left;
-    const entry=sourcePanel.selected;
-    if(!entry){errorText=copy.noSelection;return;}
-    const destination=join(destinationPanel.path,entry.name);
-    if(kind==='copy'&&entry.kind!=='file'){errorText=copy.regularOnly;return;}
-    if(!confirm(`${copy[kind]}:\n${entry.path}\n→ ${destination}?`))return;
-    try{
-      if(kind==='copy'){
+  async function transfer(kind) {
+    const sourcePanel = activePanel();
+    const destinationPanel = otherPanel();
+    const entry = sourcePanel.selected;
+    if (!entry) { errorText = copy.noSelection; return; }
+    if (kind === 'copy' && entry.kind !== 'file') { errorText = copy.regularOnly; return; }
+    const proposed = join(destinationPanel.path, entry.name);
+    const destination = prompt(copy.destination, proposed);
+    if (!destination || destination === entry.path) return;
+    if (!confirm(`${copy[kind]}:\n${entry.path}\n→ ${destination}?`)) return;
+    try {
+      if (kind === 'copy') {
         await adminFileCopy({
-          source:entry.path,destination,confirm_source:entry.path,confirm_destination:destination,
-          expected_size:entry.size,expected_mtime_ns:entry.mtime_ns
+          source: entry.path, destination, confirm_source: entry.path, confirm_destination: destination,
+          expected_size: entry.size, expected_mtime_ns: entry.mtime_ns
         });
-      }else{
+      } else {
         await adminFileMove({
-          source:entry.path,destination,confirm_source:entry.path,confirm_destination:destination,
-          expected_size:entry.size,expected_mtime_ns:entry.mtime_ns
+          source: entry.path, destination, confirm_source: entry.path, confirm_destination: destination,
+          expected_size: entry.size, expected_mtime_ns: entry.mtime_ns
         });
       }
       setAction(`${copy[kind]}: ${destination}`);
-      await Promise.all([loadPanel('left',left.path),loadPanel('right',right.path)]);
-    }catch(error){errorText=err(error);}
+      await Promise.all([loadPanel('left', left.path, 'history'), loadPanel('right', right.path, 'history')]);
+    } catch (error) { errorText = err(error); }
   }
 
-  async function refreshAll(){
-    if(view==='commander')await Promise.all([loadPanel('left',left.path),loadPanel('right',right.path)]);
+  function swapPanels() {
+    const oldLeft = left;
+    left = right;
+    right = oldLeft;
+    rememberPanelPath('left', left.path);
+    rememberPanelPath('right', right.path);
+    active = active === 'left' ? 'right' : 'left';
+  }
+
+  async function refreshAll() {
+    if (view === 'commander') await Promise.all([loadPanel('left', left.path, 'history'), loadPanel('right', right.path, 'history')]);
     else await loadExplorer(explorerPath);
   }
 
-  onMount(()=>{
-    const stored=localStorage.getItem(VIEW_KEY);
-    if(stored==='explorer'||stored==='commander')view=stored;
-    loadPanel('left',left.path);loadPanel('right',right.path);
-    if(view==='explorer')loadExplorer(explorerPath);
+  async function invokeSelected(action) {
+    const panel = activePanel();
+    const entry = panel.selected;
+    if (!entry && !['mkdir'].includes(action)) { errorText = copy.noSelection; return; }
+    if (action === 'view') return openEntry(active, entry, true);
+    if (action === 'edit') return openEntry(active, entry, false);
+    if (action === 'copy') return transfer('copy');
+    if (action === 'move') return transfer('move');
+    if (action === 'mkdir') return createFolder(panel.path, () => loadPanel(active, panel.path, 'history'));
+    if (action === 'delete') return deleteEntry(entry, () => loadPanel(active, panel.path, 'history'));
+  }
+
+  function selectRelative(delta) {
+    const panel = activePanel();
+    const entries = panelEntries(panel);
+    if (!entries.length) return;
+    let index = panel.selected ? entries.findIndex((item) => item.path === panel.selected.path) : -1;
+    index = Math.max(0, Math.min(entries.length - 1, index + delta));
+    select(active, entries[index]);
+  }
+
+  function handleCommanderKey(event) {
+    if (view !== 'commander' || selectedFile) return;
+    const tag = event.target?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    if (event.key === 'Tab') { event.preventDefault(); active = active === 'left' ? 'right' : 'left'; return; }
+    if (event.ctrlKey && event.key.toLowerCase() === 'u') { event.preventDefault(); swapPanels(); return; }
+    if (event.key === 'ArrowDown') { event.preventDefault(); selectRelative(1); return; }
+    if (event.key === 'ArrowUp') { event.preventDefault(); selectRelative(-1); return; }
+    if (event.key === 'Home') { event.preventDefault(); selectRelative(-999999); return; }
+    if (event.key === 'End') { event.preventDefault(); selectRelative(999999); return; }
+    if (event.key === 'PageDown') { event.preventDefault(); selectRelative(12); return; }
+    if (event.key === 'PageUp') { event.preventDefault(); selectRelative(-12); return; }
+    if (event.key === 'Backspace') { event.preventDefault(); loadPanel(active, parent(activePanel().path)); return; }
+    if (event.key === 'Enter' && activePanel().selected) { event.preventDefault(); openEntry(active, activePanel().selected); return; }
+    if (event.key === 'F3') { event.preventDefault(); invokeSelected('view'); return; }
+    if (event.key === 'F4') { event.preventDefault(); invokeSelected('edit'); return; }
+    if (event.key === 'F5') { event.preventDefault(); invokeSelected('copy'); return; }
+    if (event.key === 'F6') { event.preventDefault(); invokeSelected('move'); return; }
+    if (event.key === 'F7') { event.preventDefault(); invokeSelected('mkdir'); return; }
+    if (event.key === 'F8') { event.preventDefault(); invokeSelected('delete'); }
+  }
+
+  function breadcrumbs(path) {
+    const root = path.startsWith('/tmp') ? '/tmp' : '/opt';
+    if (path === root) return [{ label: root, path: root }];
+    const rest = path.slice(root.length).split('/').filter(Boolean);
+    const crumbs = [{ label: root, path: root }];
+    let current = root;
+    for (const part of rest) { current = `${current}/${part}`; crumbs.push({ label: part, path: current }); }
+    return crumbs;
+  }
+
+  onMount(() => {
+    const stored = localStorage.getItem(VIEW_KEY);
+    if (stored === 'explorer' || stored === 'commander') view = stored;
+    const leftPath = localStorage.getItem(LEFT_KEY) || '/opt';
+    const rightPath = localStorage.getItem(RIGHT_KEY) || '/opt/etc';
+    explorerPath = localStorage.getItem(EXPLORER_KEY) || leftPath;
+    left = makePanel(leftPath);
+    right = makePanel(rightPath);
+    loadPanel('left', leftPath, 'history');
+    loadPanel('right', rightPath, 'history');
+    if (view === 'explorer') loadExplorer(explorerPath);
+    window.addEventListener('keydown', handleCommanderKey);
+    return () => window.removeEventListener('keydown', handleCommanderKey);
   });
 </script>
 
 <section class="fm-shell">
   <div class="fm-toolbar">
     <div class="view-toggle">
-      <button class:active={view==='commander'} onclick={()=>setView('commander')}>◫ {copy.commander}</button>
-      <button class:active={view==='explorer'} onclick={()=>setView('explorer')}>☷ {copy.explorer}</button>
+      <button class:active={view === 'commander'} onclick={() => setView('commander')}>◫ {copy.commander}</button>
+      <button class:active={view === 'explorer'} onclick={() => setView('explorer')}>☷ {copy.explorer}</button>
     </div>
     <button onclick={refreshAll} disabled={busy}>↻ {copy.refresh}</button>
-    {#if view==='commander'}
-      <button onclick={()=>transfer('copy')}>{copy.copy}</button>
-      <button onclick={()=>transfer('move')}>{copy.move}</button>
+    {#if view === 'commander'}
+      <button onclick={swapPanels} title="Ctrl+U">⇄ {copy.swap}</button>
     {/if}
     <span class="spacer"></span>
-    {#if view==='explorer'}<input class="fm-search" bind:value={explorerSearch} placeholder={copy.search}/>{/if}
+    {#if busy}<span class="busy-pill">WORKING…</span>{/if}
   </div>
 
   {#if actionText}<div class="fm-ok">{actionText}</div>{/if}
   {#if errorText}<div class="fm-error">{errorText}</div>{/if}
 
-  {#if view==='commander'}
+  {#if view === 'commander'}
     <div class="commander-grid">
-      {#each [['left',left],['right',right]] as [side,panel]}
-        <section class:active-panel={active===side} class="commander-panel" onclick={()=>active=side}>
-          <div class="panel-path">
-            <button onclick={()=>loadPanel(side,parent(panel.path))}>↑</button>
-            <strong class="mono">{panel.path}</strong>
-            <span class="spacer"></span>
-            <button onclick={()=>createFolder(panel.path,()=>loadPanel(side,panel.path))}>＋D</button>
-            <button onclick={()=>createFile(panel.path,()=>loadPanel(side,panel.path))}>＋F</button>
+      {#each [['left', left], ['right', right]] as [side, panel]}
+        <section class:active-panel={active === side} class="commander-panel" onclick={() => active = side}>
+          <div class="panel-nav">
+            <button title={copy.previous} onclick={() => navigateHistory(side, -1)} disabled={panel.historyIndex <= 0}>‹</button>
+            <button title={copy.next} onclick={() => navigateHistory(side, 1)} disabled={panel.historyIndex >= panel.history.length - 1}>›</button>
+            <button title={copy.up} onclick={() => loadPanel(side, parent(panel.path))}>↑</button>
+            <select aria-label={copy.quick} onchange={(event) => loadPanel(side, event.currentTarget.value)} value="">
+              <option value="" disabled>⌘</option>
+              {#each quickRoots as [label, path]}<option value={path}>{label}</option>{/each}
+            </select>
+            <form class="path-form" onsubmit={(event) => { event.preventDefault(); submitPath(side); }}>
+              <input class="path-input mono" bind:value={panel.pathInput} aria-label={copy.path}/>
+            </form>
           </div>
+
+          <div class="panel-filter-row">
+            <input bind:value={panel.filter} placeholder={copy.search}/>
+            <button class:sort-active={panel.sort === 'name'} onclick={() => cycleSort(side, 'name')}>Name{panel.sort === 'name' ? (panel.sortDir === 1 ? ' ↑' : ' ↓') : ''}</button>
+            <button class:sort-active={panel.sort === 'size'} onclick={() => cycleSort(side, 'size')}>Size{panel.sort === 'size' ? (panel.sortDir === 1 ? ' ↑' : ' ↓') : ''}</button>
+            <button class:sort-active={panel.sort === 'modified'} onclick={() => cycleSort(side, 'modified')}>Date{panel.sort === 'modified' ? (panel.sortDir === 1 ? ' ↑' : ' ↓') : ''}</button>
+          </div>
+
+          <div class="commander-head"><span>{copy.name}</span><span>{copy.size}</span><span>{copy.modified}</span><span>{copy.mode}</span></div>
           <div class="commander-list">
-            <button class="file-row parent-row" onclick={()=>loadPanel(side,parent(panel.path))}><span>📁 ..</span><span></span><span></span></button>
-            {#each panel.entries as entry (entry.path)}
-              <button class:selected={panel.selected?.path===entry.path} class="file-row" onclick={()=>select(side,entry)} ondblclick={()=>open(side,entry)}>
-                <span class="entry-name">{entry.kind==='directory'?'📁':entry.kind==='file'?'📄':'↗'} {entry.name}</span>
-                <span class="mono">{entry.kind==='file'?bytes(entry.size||0):'—'}</span>
-                <span class="mono">{entry.mode||''}</span>
+            <button class="file-row parent-row" onclick={() => loadPanel(side, parent(panel.path))}><span>📁 ..</span><span>—</span><span>—</span><span>—</span></button>
+            {#each panelEntries(panel) as entry (entry.path)}
+              <button class:selected={panel.selected?.path === entry.path} class="file-row" onclick={() => select(side, entry)} ondblclick={() => openEntry(side, entry)}>
+                <span class="entry-name">{entry.kind === 'directory' ? '📁' : entry.kind === 'file' ? '📄' : '↗'} {entry.name}</span>
+                <span class="mono">{entry.kind === 'file' ? bytes(entry.size || 0) : '—'}</span>
+                <span class="mono date-cell">{entry.modified_at ? new Date(entry.modified_at).toLocaleString() : '—'}</span>
+                <span class="mono">{entry.mode || ''}</span>
               </button>
             {/each}
+            {#if panelEntries(panel).length === 0}<div class="empty-row">{copy.empty}</div>{/if}
           </div>
-          {#if panel.selected}
-            <div class="panel-actions">
-              {#if panel.selected.kind==='file'}<button onclick={()=>open(side,panel.selected)}>Edit</button>{/if}
-              <button onclick={()=>renameEntry(panel.selected,()=>loadPanel(side,panel.path))}>Rename</button>
-              <button onclick={()=>chmodEntry(panel.selected,()=>loadPanel(side,panel.path))}>Chmod</button>
-              <button class="danger" onclick={()=>deleteEntry(panel.selected,()=>loadPanel(side,panel.path))}>{copy.remove}</button>
-            </div>
-          {/if}
+
+          <div class="panel-status mono">
+            <span>{panelEntries(panel).length} {copy.items}</span>
+            <span class="spacer"></span>
+            {#if panel.selected}<span class="selected-info">{base(panel.selected.path)}{panel.selected.kind === 'file' ? ` · ${bytes(panel.selected.size || 0)}` : ''}</span>{/if}
+          </div>
         </section>
       {/each}
     </div>
-    <div class="commander-help mono"><span>LEFT ↔ RIGHT</span><span>double-click — open</span><span class="spacer"></span><span>{copy.regularOnly}</span></div>
+
+    <div class="commander-keys">
+      <button onclick={() => invokeSelected('view')}><kbd>F3</kbd> {copy.viewFile}</button>
+      <button onclick={() => invokeSelected('edit')}><kbd>F4</kbd> {copy.edit}</button>
+      <button onclick={() => invokeSelected('copy')}><kbd>F5</kbd> {copy.copy}</button>
+      <button onclick={() => invokeSelected('move')}><kbd>F6</kbd> {copy.move}</button>
+      <button onclick={() => invokeSelected('mkdir')}><kbd>F7</kbd> MkDir</button>
+      <button class="danger" onclick={() => invokeSelected('delete')}><kbd>F8</kbd> {copy.remove}</button>
+      <span class="spacer"></span><span class="key-hint mono">TAB panel · Ctrl+U swap · Enter open · Backspace up</span>
+    </div>
   {:else}
     <div class="explorer-shell">
       <aside class="quick-tree">
-        <strong>STRUCTURE</strong>
-        {#each quickRoots as [label,path]}
-          <button class:active={explorerPath===path||explorerPath.startsWith(`${path}/`)} onclick={()=>loadExplorer(path)}>› 📁 {label}</button>
+        <div class="quick-title">{copy.quick}</div>
+        {#each quickRoots as [label, path]}
+          <button class:active={explorerPath === path || explorerPath.startsWith(`${path}/`)} onclick={() => loadExplorer(path)}>
+            <span class="quick-icon">▣</span><span>{label}</span><small>{path}</small>
+          </button>
         {/each}
       </aside>
+
       <section class="explorer-main">
-        <div class="explorer-path">
-          <button onclick={()=>loadExplorer(parent(explorerPath))}>↑</button>
-          <span class="mono">{explorerPath}</span><span class="spacer"></span>
-          <button onclick={()=>createFolder(explorerPath,()=>loadExplorer(explorerPath))}>＋ {copy.folder}</button>
-          <button onclick={()=>createFile(explorerPath,()=>loadExplorer(explorerPath))}>＋ {copy.file}</button>
+        <div class="explorer-toolbar">
+          <button title={copy.up} onclick={() => loadExplorer(parent(explorerPath))}>↑</button>
+          <button title={copy.refresh} onclick={() => loadExplorer(explorerPath)}>↻</button>
+          <button onclick={() => createFolder(explorerPath, () => loadExplorer(explorerPath))}>＋ {copy.folder}</button>
+          <button onclick={() => createFile(explorerPath, () => loadExplorer(explorerPath))}>＋ {copy.file}</button>
+          <span class="spacer"></span>
+          <div class="search-box">⌕ <input bind:value={explorerSearch} placeholder={copy.search}/></div>
         </div>
+
+        <div class="breadcrumbs">
+          {#each breadcrumbs(explorerPath) as crumb, index}
+            {#if index > 0}<span>›</span>{/if}
+            <button onclick={() => loadExplorer(crumb.path)}>{crumb.label}</button>
+          {/each}
+        </div>
+
         <div class="explorer-table">
-          <div class="explorer-head"><span>{copy.name}</span><span>{copy.size}</span><span>{copy.modified}</span><span>{copy.mode}</span><span>{copy.actions}</span></div>
-          <button class="explorer-row" onclick={()=>loadExplorer(parent(explorerPath))}><span>📁 ..</span><span>—</span><span>—</span><span>—</span><span></span></button>
+          <div class="explorer-head">
+            <button onclick={() => cycleExplorerSort('name')}>{copy.name}</button>
+            <button onclick={() => cycleExplorerSort('size')}>{copy.size}</button>
+            <button onclick={() => cycleExplorerSort('modified')}>{copy.modified}</button>
+            <button onclick={() => cycleExplorerSort('mode')}>{copy.mode}</button>
+            <span>{copy.actions}</span>
+          </div>
+          <button class="explorer-row parent-row" onclick={() => loadExplorer(parent(explorerPath))}><span>📁 ..</span><span>—</span><span>—</span><span>—</span><span></span></button>
           {#each explorerFiltered as entry (entry.path)}
             <div class="explorer-row">
-              <button class="entry-open" onclick={()=>open('explorer',entry)}>{entry.kind==='directory'?'📁':entry.kind==='file'?'📄':'↗'} {entry.name}</button>
-              <span class="mono">{entry.kind==='file'?bytes(entry.size||0):'—'}</span>
-              <span class="mono">{new Date(entry.modified_at).toLocaleString()}</span>
-              <span class="mono">{entry.mode||''}</span>
+              <button class="entry-open" onclick={() => openEntry('explorer', entry)}>
+                <span class="file-icon">{entry.kind === 'directory' ? '📁' : entry.kind === 'file' ? '📄' : '↗'}</span>
+                <span><strong>{entry.name}</strong><small>{entry.path}</small></span>
+              </button>
+              <span class="mono">{entry.kind === 'file' ? bytes(entry.size || 0) : '—'}</span>
+              <span class="mono">{entry.modified_at ? new Date(entry.modified_at).toLocaleString() : '—'}</span>
+              <span class="mono permission">{entry.mode || ''}</span>
               <span class="row-actions">
-                {#if entry.kind==='file'}<a href={adminFileDownloadURL(entry.path)}>↓</a>{/if}
-                <button onclick={()=>renameEntry(entry,()=>loadExplorer(explorerPath))}>✎</button>
-                <button onclick={()=>chmodEntry(entry,()=>loadExplorer(explorerPath))}>◈</button>
-                <button class="danger" onclick={()=>deleteEntry(entry,()=>loadExplorer(explorerPath))}>×</button>
+                {#if entry.kind === 'file'}
+                  <button title={copy.viewFile} onclick={() => openEntry('explorer', entry, true)}>◉</button>
+                  <button title={copy.edit} onclick={() => openEntry('explorer', entry, false)}>✎</button>
+                  <a title={copy.download} href={adminFileDownloadURL(entry.path)}>↓</a>
+                {/if}
+                <button title={copy.rename} onclick={() => renameEntry(entry, () => loadExplorer(explorerPath))}>↷</button>
+                <button title={copy.chmod} onclick={() => chmodEntry(entry, () => loadExplorer(explorerPath))}>◆</button>
+                <button title={copy.remove} class="danger" onclick={() => deleteEntry(entry, () => loadExplorer(explorerPath))}>×</button>
               </span>
             </div>
           {/each}
+          {#if explorerFiltered.length === 0}<div class="empty-row explorer-empty">{copy.empty}</div>{/if}
         </div>
+        <div class="explorer-status mono"><span>{explorerFiltered.length} / {explorerEntries.length} {copy.items}</span><span class="spacer"></span><span>{explorerPath}</span></div>
       </section>
     </div>
   {/if}
 </section>
 
 {#if selectedFile}
-  <FileEditorDrawer file={selectedFile} bind:content={editorContent} dirty={editorDirty} readOnly={editorReadOnly} busy={editorBusy} locale={locale} onSave={saveEditor} onClose={()=>{selectedFile=null;editorContent='';editorOriginal='';}} />
+  <FileEditorDrawer
+    file={selectedFile}
+    bind:content={editorContent}
+    dirty={editorDirty}
+    readOnly={editorReadOnly}
+    busy={editorBusy}
+    locale={locale}
+    onSave={saveEditor}
+    onClose={() => { selectedFile = null; editorContent = ''; editorOriginal = ''; editorForceReadOnly = false; }}
+  />
 {/if}
 
 <style>
-  .fm-shell{border:1px solid var(--border-color,rgba(127,127,127,.22));border-radius:.72rem;overflow:hidden;background:rgba(0,0,0,.04)}
-  .fm-toolbar,.panel-path,.explorer-path,.panel-actions,.commander-help{display:flex;align-items:center;gap:.45rem}
-  .fm-toolbar{padding:.65rem .75rem;border-bottom:1px solid var(--border-color,rgba(127,127,127,.2))}
-  button,.fm-search,.fm-toolbar a{font:inherit;color:inherit;border:1px solid var(--border-color,rgba(127,127,127,.3));background:rgba(127,127,127,.05);border-radius:.42rem;padding:.38rem .58rem}
-  button{cursor:pointer}button:hover{background:rgba(127,127,127,.12)}button:disabled{opacity:.4;cursor:not-allowed}.danger{border-color:rgba(230,75,75,.45);color:#ff8f8f}
-  .view-toggle{display:flex}.view-toggle button{border-radius:0}.view-toggle button:first-child{border-radius:.42rem 0 0 .42rem}.view-toggle button:last-child{border-radius:0 .42rem .42rem 0}.view-toggle button.active{background:rgba(45,210,105,.13);border-color:rgba(45,210,105,.5);color:#71e89c}
-  .spacer{flex:1}.fm-search{min-width:16rem}.fm-ok,.fm-error{padding:.5rem .75rem;font-size:.78rem}.fm-ok{color:#71e89c}.fm-error{color:#ff8f8f}
-  .commander-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border-color,rgba(127,127,127,.2));min-height:32rem}
-  .commander-panel{min-width:0;background:var(--panel-color,#0f1720);outline:2px solid transparent;outline-offset:-2px}.commander-panel.active-panel{outline-color:#5de4c7}
-  .panel-path{padding:.55rem .6rem;border-bottom:1px solid rgba(127,127,127,.18)}.panel-path strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .commander-list{max-height:55vh;overflow:auto;padding:.25rem}
-  .file-row{width:100%;display:grid;grid-template-columns:minmax(0,1fr) 7rem 9rem;gap:.5rem;align-items:center;border:0;border-radius:.28rem;padding:.36rem .48rem;text-align:left}
-  .file-row.selected{background:#16472b;color:#dffff0}.file-row:hover{background:rgba(93,228,199,.08)}.entry-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.parent-row{opacity:.7}
-  .panel-actions{padding:.5rem .6rem;border-top:1px solid rgba(127,127,127,.18);flex-wrap:wrap}
-  .commander-help{padding:.42rem .7rem;background:#0b1017;color:#718091;font-size:.66rem;flex-wrap:wrap}
-  .explorer-shell{display:grid;grid-template-columns:14rem 1fr;min-height:34rem}.quick-tree{padding:.9rem;border-right:1px solid rgba(127,127,127,.18);display:flex;flex-direction:column;gap:.2rem}.quick-tree>strong{font-size:.68rem;color:#7b8998;margin-bottom:.4rem}.quick-tree button{border:0;text-align:left}.quick-tree button.active{background:#16472b;color:#8bf0ad}
-  .explorer-main{min-width:0}.explorer-path{padding:.65rem;border-bottom:1px solid rgba(127,127,127,.18)}
-  .explorer-table{max-height:58vh;overflow:auto}.explorer-head,.explorer-row{display:grid;grid-template-columns:minmax(16rem,1fr) 7rem 12rem 10rem 9rem;gap:.6rem;align-items:center;padding:.45rem .65rem;border-bottom:1px solid rgba(127,127,127,.16)}
-  .explorer-head{position:sticky;top:0;z-index:2;background:#111923;font-size:.7rem;font-weight:800;text-transform:uppercase}.explorer-row{font-size:.78rem}.explorer-row>button{border:0;background:none;text-align:left;padding:0}.entry-open{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650}.row-actions{display:flex;gap:.28rem}.row-actions a,.row-actions button{display:inline-grid;place-items:center;width:1.75rem;height:1.75rem;padding:0;text-decoration:none}
-  @media(max-width:900px){.commander-grid{grid-template-columns:1fr}.explorer-shell{grid-template-columns:1fr}.quick-tree{display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(10rem,1fr) 6rem 8rem}.explorer-head span:nth-child(3),.explorer-row>span:nth-child(3),.explorer-head span:nth-child(4),.explorer-row>span:nth-child(4){display:none}}
+  .fm-shell{border:1px solid var(--border-color,rgba(127,127,127,.22));border-radius:.72rem;overflow:hidden;background:#0c1219;color:#d7e0e8}
+  .fm-toolbar,.panel-nav,.panel-filter-row,.panel-status,.commander-keys,.explorer-toolbar,.breadcrumbs,.explorer-status{display:flex;align-items:center;gap:.42rem}
+  .fm-toolbar{padding:.58rem .68rem;border-bottom:1px solid #22303c;background:#101821}
+  button,input,select,.search-box,a{font:inherit;color:inherit;border:1px solid #2a3946;background:#141f2a;border-radius:.38rem}
+  button,select,a{padding:.34rem .5rem;cursor:pointer}button:hover,a:hover{background:#1b2a36;border-color:#466073}button:disabled{opacity:.35;cursor:not-allowed}
+  input{padding:.38rem .5rem;outline:0}input:focus{border-color:#5de4c7;box-shadow:0 0 0 1px rgba(93,228,199,.18)}
+  .danger{border-color:#583941!important;color:#ff9da4!important}.spacer{flex:1}.mono{font-family:"Roboto Mono","Cascadia Mono",Consolas,monospace}
+  .view-toggle{display:flex}.view-toggle button{border-radius:0}.view-toggle button:first-child{border-radius:.38rem 0 0 .38rem}.view-toggle button:last-child{border-radius:0 .38rem .38rem 0}.view-toggle button.active{background:#15392d;border-color:#39705c;color:#79e7ba}
+  .busy-pill{color:#ffd866;font:700 .58rem/1 "Roboto Mono",monospace;letter-spacing:.08em}.fm-ok,.fm-error{padding:.45rem .7rem;font-size:.74rem}.fm-ok{color:#79e7ba;background:#10241d}.fm-error{color:#ff9da4;background:#2a1419}
+
+  .commander-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1px;background:#273643;min-height:35rem}
+  .commander-panel{min-width:0;background:#0c131b;outline:2px solid transparent;outline-offset:-2px}.commander-panel.active-panel{outline-color:#5de4c7}
+  .panel-nav{padding:.48rem;border-bottom:1px solid #1f2c37;background:#101821}.panel-nav button{min-width:2rem}.panel-nav select{width:2.4rem;padding:.34rem .25rem}.path-form{flex:1;min-width:0}.path-input{box-sizing:border-box;width:100%;background:#0b1218;color:#b8f3df}
+  .panel-filter-row{padding:.38rem .48rem;border-bottom:1px solid #1c2934;background:#0e161f}.panel-filter-row input{min-width:0;flex:1}.panel-filter-row button{padding:.26rem .38rem;font-size:.65rem;color:#748697}.panel-filter-row button.sort-active{color:#8bc8ff;border-color:#345064}
+  .commander-head,.file-row{display:grid;grid-template-columns:minmax(0,1fr) 6.5rem 10.5rem 8rem;gap:.45rem;align-items:center}.commander-head{padding:.38rem .55rem;background:#111c26;color:#6f8293;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #22303c}
+  .commander-list{height:52vh;min-height:25rem;overflow:auto;padding:.18rem}.file-row{box-sizing:border-box;width:100%;border:0;border-radius:.26rem;padding:.32rem .42rem;background:transparent;text-align:left;color:#cbd5df;font-size:.74rem}.file-row:hover{background:#13232d}.file-row.selected{background:#16513a;color:#eafff4;box-shadow:inset 3px 0 #5de4c7}.entry-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.date-cell{font-size:.67rem;color:#7e91a2}.parent-row{opacity:.75}
+  .panel-status{min-height:1.9rem;padding:0 .5rem;border-top:1px solid #1f2c37;background:#0f1821;color:#687b8c;font-size:.61rem}.selected-info{color:#9fb0bf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .commander-keys{padding:.42rem .5rem;background:#0a1016;border-top:1px solid #263542}.commander-keys button{display:flex;gap:.32rem;align-items:center;padding:.3rem .46rem}.commander-keys kbd{border:0;background:#23313e;color:#8bc8ff;border-radius:.2rem;padding:.08rem .24rem;font:700 .58rem/1 "Roboto Mono",monospace}.key-hint{color:#647586;font-size:.59rem}
+
+  .explorer-shell{display:grid;grid-template-columns:13rem minmax(0,1fr);min-height:36rem;background:#0c131b}.quick-tree{padding:.7rem .55rem;border-right:1px solid #22303c;background:#0e161e;display:flex;flex-direction:column;gap:.18rem}.quick-title{padding:.25rem .45rem .5rem;color:#607384;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.quick-tree button{display:grid;grid-template-columns:1.25rem minmax(0,1fr);gap:.06rem .35rem;border:0;text-align:left;background:transparent;padding:.42rem}.quick-tree button small{grid-column:2;color:#536574;font-size:.56rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quick-tree button.active{background:#13372c;color:#86eabd}.quick-tree button.active small{color:#699b88}.quick-icon{color:#5de4c7}
+  .explorer-main{min-width:0;display:grid;grid-template-rows:auto auto 1fr auto}.explorer-toolbar{padding:.55rem .62rem;border-bottom:1px solid #22303c;background:#101821}.search-box{display:flex;align-items:center;gap:.3rem;padding:0 .42rem;background:#0b1218}.search-box input{border:0;background:transparent;box-shadow:none;padding:.35rem 0;min-width:14rem}
+  .breadcrumbs{padding:.42rem .65rem;border-bottom:1px solid #1f2c37;background:#0e161f;color:#637687;overflow:auto;white-space:nowrap}.breadcrumbs button{border:0;background:transparent;padding:.18rem .25rem;color:#91b7d0}.breadcrumbs button:hover{color:#c8ecff;background:#15232d}
+  .explorer-table{overflow:auto;max-height:58vh}.explorer-head,.explorer-row{display:grid;grid-template-columns:minmax(16rem,1fr) 6.5rem 11rem 8.5rem 10.5rem;gap:.5rem;align-items:center;padding:.42rem .62rem;border-bottom:1px solid #1b2731}.explorer-head{position:sticky;top:0;z-index:3;background:#111b25;color:#687b8c;font-size:.61rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.explorer-head button{border:0;background:transparent;padding:0;text-align:left;color:inherit;font-weight:inherit;text-transform:inherit}.explorer-row{font-size:.73rem;min-height:2.2rem}.explorer-row:hover{background:#101f29}.explorer-row>button{border:0;background:transparent;text-align:left;padding:0}.entry-open{display:flex;align-items:center;gap:.5rem;min-width:0}.entry-open>span:last-child{display:flex;min-width:0;flex-direction:column}.entry-open strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.entry-open small{color:#516574;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font: .56rem/1.2 "Roboto Mono",monospace}.file-icon{width:1.2rem;text-align:center}.permission{color:#8bc8ff}.row-actions{display:flex;justify-content:flex-end;gap:.2rem}.row-actions button,.row-actions a{display:grid;place-items:center;width:1.65rem;height:1.65rem;padding:0;text-decoration:none}.explorer-status{padding:.35rem .62rem;border-top:1px solid #22303c;background:#0e161f;color:#607384;font-size:.59rem;min-width:0}.explorer-status span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.empty-row{padding:1rem;color:#566978;text-align:center;font-size:.7rem}.explorer-empty{border-bottom:1px solid #1b2731}
+
+  @media(max-width:980px){.commander-head,.file-row{grid-template-columns:minmax(0,1fr) 6rem 7rem}.commander-head span:nth-child(3),.file-row span:nth-child(3){display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(12rem,1fr) 6rem 8rem 9rem}.explorer-head>*:nth-child(3),.explorer-row>*:nth-child(3){display:none}.quick-tree{width:auto}.explorer-shell{grid-template-columns:10.5rem minmax(0,1fr)}}
+  @media(max-width:760px){.commander-grid{grid-template-columns:1fr}.commander-panel:not(.active-panel){display:none}.key-hint{display:none}.explorer-shell{grid-template-columns:1fr}.quick-tree{display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(10rem,1fr) 6rem 9rem}.explorer-head>*:nth-child(4),.explorer-row>*:nth-child(4){display:none}.search-box input{min-width:7rem}.commander-keys{overflow:auto}}
 </style>

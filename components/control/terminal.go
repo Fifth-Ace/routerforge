@@ -24,6 +24,7 @@ type adminTerminalRunRequest struct {
 
 func registerAdminTerminalRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/terminal/run", mutationOnly(handleAdminTerminalRun))
+	registerAdminTerminalSessionRoutes(mux)
 }
 
 func handleAdminTerminalRun(w http.ResponseWriter, r *http.Request) {

@@ -155,6 +155,19 @@ func adminModuleFileRequest(r *http.Request) bool {
 	return parts[1] == "files" || strings.HasPrefix(parts[1], "files/")
 }
 
+func adminModuleTerminalRequest(r *http.Request) bool {
+	const prefix = "/api/modules/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return false
+	}
+	rest := strings.TrimPrefix(r.URL.Path, prefix)
+	parts := strings.SplitN(rest, "/", 2)
+	if len(parts) != 2 || !strings.EqualFold(strings.TrimSpace(parts[0]), "admin") {
+		return false
+	}
+	return parts[1] == "terminal" || strings.HasPrefix(parts[1], "terminal/")
+}
+
 func markAdminMutationAuthorized(r *http.Request) *http.Request {
 	ctx := context.WithValue(r.Context(), adminMutationAuthorizedKey, true)
 	return r.WithContext(ctx)
@@ -169,12 +182,16 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		adminMutation := adminModuleMutationRequest(r)
 		adminFiles := adminModuleFileRequest(r)
-		guarded := adminMutation || adminFiles
+		adminTerminal := adminModuleTerminalRequest(r)
+		guarded := adminMutation || adminFiles || adminTerminal
 		if guarded {
 			if !sameOriginRequest(r) {
 				message := "cross-origin Admin mutation rejected"
 				if adminFiles && !adminMutation {
 					message = "cross-origin Admin file access rejected"
+				}
+				if adminTerminal && !adminMutation {
+					message = "cross-origin Admin terminal access rejected"
 				}
 				writeModuleJSON(w, http.StatusForbidden, map[string]any{
 					"error":        message,
@@ -182,13 +199,17 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 				})
 				return
 			}
-			requireRootSession := (adminMutation && !adminFiles) || (adminFiles && auth.authRequired())
+			requireRootSession := (adminMutation && !adminFiles && !adminTerminal) ||
+				((adminFiles || adminTerminal) && auth.authRequired())
 			if requireRootSession {
 				user, authenticated := auth.sessionUser(r)
 				if !authenticated || user != "root" {
 					message := "authenticated Entware root session required for Admin mutation"
 					if adminFiles && !adminMutation {
 						message = "authenticated Entware root session required for Admin file access"
+					}
+					if adminTerminal && !adminMutation {
+						message = "authenticated Entware root session required for Admin terminal access"
 					}
 					writeModuleJSON(w, http.StatusUnauthorized, map[string]any{
 						"error":         message,

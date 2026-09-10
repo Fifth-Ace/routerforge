@@ -144,3 +144,21 @@ export const adminMaintenanceRestore = (path) =>
     confirm_path: path,
     confirm: 'RESTORE'
   });
+export const getAdminWatchdogs = () =>
+  request('/api/modules/admin/maintenance/watchdogs');
+export const configureAdminWatchdog = (id, enabled) =>
+  postJSON('/api/modules/admin/maintenance/watchdogs/configure', {
+    id,
+    enabled,
+    confirm_id: id
+  });
+export const getAdminSnapshots = () =>
+  request('/api/modules/admin/maintenance/snapshots');
+export const createAdminSnapshot = () =>
+  postJSON('/api/modules/admin/maintenance/snapshot', { confirm: 'SNAPSHOT' });
+export const deleteAdminSnapshot = (path) =>
+  postJSON('/api/modules/admin/maintenance/snapshot/delete', {
+    path,
+    confirm_path: path,
+    confirm: 'DELETE'
+  });

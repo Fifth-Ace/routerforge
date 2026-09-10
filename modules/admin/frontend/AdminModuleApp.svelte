@@ -12,9 +12,14 @@
     adminTerminalRun,
     adminMaintenanceBackup,
     adminMaintenanceRestore,
+    configureAdminWatchdog,
+    createAdminSnapshot,
+    deleteAdminSnapshot,
     adminNetworkToolRun,
     getAdminMaintenanceBackups,
     getAdminMaintenanceLogs,
+    getAdminSnapshots,
+    getAdminWatchdogs,
     getAdminMaintenanceTasks,
     getAdminIntegrations,
     getAdminFiles,
@@ -55,6 +60,10 @@
   let maintenanceBusy = false;
   let maintenanceBackups = [];
   let restoreBusyPath = '';
+  let watchdogs = [];
+  let watchdogBusyID = '';
+  let snapshots = [];
+  let snapshotBusy = false;
 
   let networkTool = 'ping';
   let networkHost = '1.1.1.1';
@@ -82,6 +91,14 @@
     restoreConfirm: 'ВОССТАНОВИТЬ КОНФИГ из выбранного backup? Перед заменой RouterForge автоматически создаст safety backup текущего конфига. Автоперезапуска не будет.',
     backups: 'Backup / Restore',
     restoreMode: 'Restore меняет только /opt/etc/routerforge. Старый /opt/share/routerforge из legacy backup игнорируется.',
+    watchdogs: 'Watchdogs',
+    watchdogHint: 'Автозапуск только известных интеграций. По умолчанию выключен; 30 сек проверка, cooldown 5 мин, максимум 3 попытки/час.',
+    enable: 'Включить',
+    disable: 'Выключить',
+    attempts: 'Попытки/час',
+    snapshots: 'Диагностические snapshots',
+    snapshotHint: 'Снимок summary/processes/services/ports/storage/thermal/integrations. Хранятся в /tmp, максимум 32.',
+    createSnapshot: 'Создать snapshot',
     networkHint: 'Ping, traceroute, DNS lookup и TCP connect test без shell-интерполяции.',
     integrations: 'Интеграции',
     integrationsHint: 'Автообнаружение nfqws2, AWG Manager и AdGuard Home: бинарники, сервисы, процессы и listening-порты.',
@@ -132,6 +149,14 @@
     restoreConfirm: 'RESTORE CONFIG from the selected backup? RouterForge creates a safety backup of the current config before the swap. No automatic restart.',
     backups: 'Backup / Restore',
     restoreMode: 'Restore changes /opt/etc/routerforge only. Legacy /opt/share/routerforge content is ignored.',
+    watchdogs: 'Watchdogs',
+    watchdogHint: 'Auto-start is limited to known integrations. Disabled by default; 30s checks, 5m cooldown, max 3 attempts/hour.',
+    enable: 'Enable',
+    disable: 'Disable',
+    attempts: 'Attempts/hour',
+    snapshots: 'Diagnostic snapshots',
+    snapshotHint: 'Captures summary/processes/services/ports/storage/thermal/integrations. Stored in /tmp, max 32.',
+    createSnapshot: 'Create snapshot',
     networkHint: 'Ping, traceroute, DNS lookup and TCP connect test without shell interpolation.',
     integrations: 'Integrations',
     integrationsHint: 'Auto-detection for nfqws2, AWG Manager and AdGuard Home: binaries, services, processes and listening ports.',
@@ -451,15 +476,19 @@
     maintenanceBusy = true;
     errorText = '';
     try {
-      const [logs, tasks, backups] = await Promise.all([
+      const [logs, tasks, backups, watchdogResult, snapshotResult] = await Promise.all([
         getAdminMaintenanceLogs(),
         getAdminMaintenanceTasks(),
-        getAdminMaintenanceBackups()
+        getAdminMaintenanceBackups(),
+        getAdminWatchdogs(),
+        getAdminSnapshots()
       ]);
       maintenanceLogs = logs.content || '';
       maintenanceLogSource = logs.source || '';
       maintenanceTasks = tasks.tasks || [];
       maintenanceBackups = backups.backups || [];
+      watchdogs = watchdogResult.watchdogs || [];
+      snapshots = snapshotResult.snapshots || [];
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
@@ -494,6 +523,54 @@
       errorText = errorMessage(error);
     } finally {
       restoreBusyPath = '';
+    }
+  }
+
+  async function setWatchdog(watchdog, enabled) {
+    if (watchdogBusyID) return;
+    const action = enabled ? copy.enable : copy.disable;
+    if (!confirm(`${action} watchdog: ${watchdog.name}?`)) return;
+    watchdogBusyID = watchdog.id;
+    errorText = '';
+    try {
+      await configureAdminWatchdog(watchdog.id, enabled);
+      await loadMaintenance();
+      setAction(`${copy.watchdogs}: ${watchdog.name} — ${action}`);
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      watchdogBusyID = '';
+    }
+  }
+
+  async function makeSnapshot() {
+    if (snapshotBusy) return;
+    snapshotBusy = true;
+    errorText = '';
+    try {
+      const result = await createAdminSnapshot();
+      setAction(`${copy.createSnapshot}: ${result.path} (${bytes(result.size || 0)})`);
+      await loadMaintenance();
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      snapshotBusy = false;
+    }
+  }
+
+  async function removeSnapshot(snapshot) {
+    if (snapshotBusy) return;
+    if (!confirm(`${copy.delete}: ${snapshot.path}?`)) return;
+    snapshotBusy = true;
+    errorText = '';
+    try {
+      await deleteAdminSnapshot(snapshot.path);
+      setAction(`${copy.delete}: ${snapshot.path}`);
+      await loadMaintenance();
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      snapshotBusy = false;
     }
   }
 
@@ -732,6 +809,55 @@
           {/each}
         {/if}
       </div>
+
+      <div class="maintenance-extra">
+        <div class="maintenance-extra-head">
+          <div><strong>{copy.watchdogs}</strong><span>{copy.watchdogHint}</span></div>
+        </div>
+        <div class="watchdog-grid">
+          {#each watchdogs as watchdog}
+            <div class="watchdog-card">
+              <div>
+                <strong>{watchdog.name}</strong>
+                <span class="cell-sub mono">
+                  {watchdog.detected ? (watchdog.running ? copy.running : copy.stopped) : copy.notDetected}
+                  · {copy.attempts}: {watchdog.attempts_last_hour || 0}
+                  {watchdog.service_id ? ` · ${watchdog.service_id}` : ''}
+                </span>
+              </div>
+              <button
+                class="button"
+                onclick={() => setWatchdog(watchdog, !watchdog.enabled)}
+                disabled={!!watchdogBusyID || (!watchdog.auto_start_available && !watchdog.enabled)}
+              >
+                {watchdogBusyID === watchdog.id ? '…' : (watchdog.enabled ? copy.disable : copy.enable)}
+              </button>
+            </div>
+          {/each}
+        </div>
+      </div>
+
+      <div class="maintenance-extra">
+        <div class="maintenance-extra-head">
+          <div><strong>{copy.snapshots}</strong><span>{copy.snapshotHint}</span></div>
+          <button class="button" onclick={makeSnapshot} disabled={snapshotBusy}>
+            {snapshotBusy ? '…' : copy.createSnapshot}
+          </button>
+        </div>
+        {#if snapshots.length === 0}
+          <div class="maintenance-backup-empty">{copy.empty}</div>
+        {:else}
+          {#each snapshots as snapshot}
+            <div class="maintenance-backup-row">
+              <div>
+                <strong class="mono">{snapshot.name}</strong>
+                <span class="cell-sub mono">{bytes(snapshot.size || 0)} · {snapshot.modified_at}</span>
+              </div>
+              <button class="button danger" onclick={() => removeSnapshot(snapshot)} disabled={snapshotBusy}>{copy.delete}</button>
+            </div>
+          {/each}
+        {/if}
+      </div>
     </section>
   {:else if tab === 'network-tools'}
     <section class="panel">
@@ -841,4 +967,12 @@
   .maintenance-backup-head span{opacity:.65}
   .maintenance-backup-row:last-child{border-bottom:0}
   .maintenance-backup-empty{padding:1rem;opacity:.6}
+  .maintenance-extra{margin:0 1rem 1rem;border:1px solid var(--border-color,rgba(127,127,127,.25));border-radius:.65rem;overflow:hidden}
+  .maintenance-extra-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.8rem 1rem;border-bottom:1px solid var(--border-color,rgba(127,127,127,.18))}
+  .maintenance-extra-head>div{display:flex;flex-direction:column;gap:.2rem}
+  .maintenance-extra-head span{opacity:.65}
+  .watchdog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;padding:1rem}
+  .watchdog-card{display:flex;justify-content:space-between;align-items:center;gap:.75rem;border:1px solid var(--border-color,rgba(127,127,127,.18));border-radius:.55rem;padding:.75rem;min-width:0}
+  .watchdog-card>div{display:flex;flex-direction:column;gap:.2rem;min-width:0}
+  @media(max-width:1000px){.watchdog-grid{grid-template-columns:1fr}}
 </style>

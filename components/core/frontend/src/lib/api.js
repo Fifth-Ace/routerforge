@@ -126,3 +126,11 @@ export const adminTerminalRun = (command, cwd = '/opt') =>
     cwd,
     confirm: 'RUN'
   });
+export const getAdminMaintenanceLogs = () =>
+  request('/api/modules/admin/maintenance/logs');
+export const getAdminMaintenanceTasks = () =>
+  request('/api/modules/admin/maintenance/tasks');
+export const adminMaintenanceBackup = () =>
+  postJSON('/api/modules/admin/maintenance/backup', { confirm: 'BACKUP' });
+export const adminNetworkToolRun = (tool, host, port = 0) =>
+  postJSON('/api/modules/admin/network-tools/run', { tool, host, port });

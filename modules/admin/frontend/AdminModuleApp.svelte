@@ -11,7 +11,9 @@
     adminServiceAction,
     adminTerminalRun,
     adminMaintenanceBackup,
+    adminMaintenanceRestore,
     adminNetworkToolRun,
+    getAdminMaintenanceBackups,
     getAdminMaintenanceLogs,
     getAdminMaintenanceTasks,
     getAdminIntegrations,
@@ -51,6 +53,8 @@
   let maintenanceLogSource = '';
   let maintenanceTasks = [];
   let maintenanceBusy = false;
+  let maintenanceBackups = [];
+  let restoreBusyPath = '';
 
   let networkTool = 'ping';
   let networkHost = '1.1.1.1';
@@ -73,7 +77,11 @@
     logs: 'Логи',
     tasks: 'Cron / задачи',
     backup: 'Создать backup',
-    backupConfirm: 'Создать архив конфигурации RouterForge в /tmp/routerforge-backups?',
+    backupConfirm: 'Создать config-only архив RouterForge в /tmp/routerforge-backups?',
+    restore: 'Восстановить',
+    restoreConfirm: 'ВОССТАНОВИТЬ КОНФИГ из выбранного backup? Перед заменой RouterForge автоматически создаст safety backup текущего конфига. Автоперезапуска не будет.',
+    backups: 'Backup / Restore',
+    restoreMode: 'Restore меняет только /opt/etc/routerforge. Старый /opt/share/routerforge из legacy backup игнорируется.',
     networkHint: 'Ping, traceroute, DNS lookup и TCP connect test без shell-интерполяции.',
     integrations: 'Интеграции',
     integrationsHint: 'Автообнаружение nfqws2, AWG Manager и AdGuard Home: бинарники, сервисы, процессы и listening-порты.',
@@ -119,7 +127,11 @@
     logs: 'Logs',
     tasks: 'Cron / tasks',
     backup: 'Create backup',
-    backupConfirm: 'Create RouterForge configuration archive in /tmp/routerforge-backups?',
+    backupConfirm: 'Create a config-only RouterForge archive in /tmp/routerforge-backups?',
+    restore: 'Restore',
+    restoreConfirm: 'RESTORE CONFIG from the selected backup? RouterForge creates a safety backup of the current config before the swap. No automatic restart.',
+    backups: 'Backup / Restore',
+    restoreMode: 'Restore changes /opt/etc/routerforge only. Legacy /opt/share/routerforge content is ignored.',
     networkHint: 'Ping, traceroute, DNS lookup and TCP connect test without shell interpolation.',
     integrations: 'Integrations',
     integrationsHint: 'Auto-detection for nfqws2, AWG Manager and AdGuard Home: binaries, services, processes and listening ports.',
@@ -439,13 +451,15 @@
     maintenanceBusy = true;
     errorText = '';
     try {
-      const [logs, tasks] = await Promise.all([
+      const [logs, tasks, backups] = await Promise.all([
         getAdminMaintenanceLogs(),
-        getAdminMaintenanceTasks()
+        getAdminMaintenanceTasks(),
+        getAdminMaintenanceBackups()
       ]);
       maintenanceLogs = logs.content || '';
       maintenanceLogSource = logs.source || '';
       maintenanceTasks = tasks.tasks || [];
+      maintenanceBackups = backups.backups || [];
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
@@ -464,6 +478,22 @@
       errorText = errorMessage(error);
     } finally {
       maintenanceBusy = false;
+    }
+  }
+
+  async function restoreBackup(backup) {
+    if (!backup?.valid || restoreBusyPath) return;
+    if (!confirm(`${copy.restoreConfirm}\n\n${backup.path}`)) return;
+    restoreBusyPath = backup.path;
+    errorText = '';
+    try {
+      const result = await adminMaintenanceRestore(backup.path);
+      setAction(`${copy.restore}: ${result.restored_root} — OK · safety: ${result.safety_backup}`);
+      await loadMaintenance();
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      restoreBusyPath = '';
     }
   }
 
@@ -675,6 +705,33 @@
           </div>
         </div>
       </div>
+      <div class="maintenance-backups">
+        <div class="maintenance-backup-head">
+          <div><strong>{copy.backups}</strong><span>{copy.restoreMode}</span></div>
+        </div>
+        {#if maintenanceBackups.length === 0}
+          <div class="maintenance-backup-empty">{copy.empty}</div>
+        {:else}
+          {#each maintenanceBackups as backup}
+            <div class="maintenance-backup-row">
+              <div>
+                <strong class="mono">{backup.name}</strong>
+                <span class="cell-sub mono">
+                  {bytes(backup.size || 0)} · config {bytes(backup.config_bytes || 0)} · {backup.config_entries || 0} entries
+                  {backup.ignored_entries ? ` · ignored ${backup.ignored_entries}` : ''}
+                  {backup.error ? ` · ${backup.error}` : ''}
+                </span>
+              </div>
+              <div class="actions-cell">
+                <span class:state-running={backup.valid} class:state-stopped={!backup.valid}>{backup.valid ? 'VALID' : 'INVALID'}</span>
+                <button class="button" onclick={() => restoreBackup(backup)} disabled={!backup.valid || !!restoreBusyPath}>
+                  {restoreBusyPath === backup.path ? '…' : copy.restore}
+                </button>
+              </div>
+            </div>
+          {/each}
+        {/if}
+      </div>
     </section>
   {:else if tab === 'network-tools'}
     <section class="panel">
@@ -778,4 +835,10 @@
   .integration-card dd{margin:0;min-width:0;word-break:break-word}
   .integration-paths div{margin-bottom:.2rem}
   @media(max-width:1000px){.integration-grid{grid-template-columns:1fr}}
+  .maintenance-backups{margin:0 1rem 1rem;border:1px solid var(--border-color,rgba(127,127,127,.25));border-radius:.65rem;overflow:hidden}
+  .maintenance-backup-head,.maintenance-backup-row{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.8rem 1rem;border-bottom:1px solid var(--border-color,rgba(127,127,127,.18))}
+  .maintenance-backup-head>div,.maintenance-backup-row>div:first-child{min-width:0;display:flex;flex-direction:column;gap:.2rem}
+  .maintenance-backup-head span{opacity:.65}
+  .maintenance-backup-row:last-child{border-bottom:0}
+  .maintenance-backup-empty{padding:1rem;opacity:.6}
 </style>

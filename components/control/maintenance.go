@@ -2,14 +2,11 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 )
 
 const (
@@ -25,7 +22,9 @@ type adminMaintenanceBackupRequest struct {
 func registerAdminMaintenanceRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/maintenance/logs", getOnly(handleAdminMaintenanceLogs))
 	mux.HandleFunc("/v1/maintenance/tasks", getOnly(handleAdminMaintenanceTasks))
+	mux.HandleFunc("/v1/maintenance/backups", getOnly(handleAdminMaintenanceBackups))
 	mux.HandleFunc("/v1/maintenance/backup", mutationOnly(handleAdminMaintenanceBackup))
+	mux.HandleFunc("/v1/maintenance/restore", mutationOnly(handleAdminMaintenanceRestore))
 }
 
 func handleAdminMaintenanceLogs(w http.ResponseWriter, _ *http.Request) {
@@ -149,55 +148,11 @@ func handleAdminMaintenanceBackup(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm must equal BACKUP"})
 		return
 	}
-	if err := os.MkdirAll(adminMaintenanceBackupRoot, 0700); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	name := fmt.Sprintf("routerforge-config-%d.tar.gz", time.Now().Unix())
-	target := filepath.Join(adminMaintenanceBackupRoot, name)
 
-	args := []string{"-czf", target}
-	sources := make([]string, 0, 2)
-	for _, candidate := range []string{"/opt/etc/routerforge", "/opt/share/routerforge"} {
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			args = append(args, candidate)
-			sources = append(sources, candidate)
-		}
-	}
-	if len(sources) == 0 {
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "no RouterForge configuration directories found"})
-		return
-	}
-	cmd := exec.Command("tar", args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{
-			"error":  "backup command failed",
-			"output": string(output[:minInt(len(output), adminMutationResponseOutputLimit)]),
-		})
-		return
-	}
-	if err := os.Chmod(target, 0600); err != nil {
-		_ = os.Remove(target)
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	info, err := os.Stat(target)
+	result, err := createAdminMaintenanceConfigBackup()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":      true,
-		"path":    target,
-		"size":    info.Size(),
-		"sources": sources,
-	})
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+	writeJSON(w, http.StatusOK, result)
 }

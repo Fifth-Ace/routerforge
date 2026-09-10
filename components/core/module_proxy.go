@@ -53,6 +53,7 @@ func moduleMutationAPI(moduleID string) bool {
 const (
 	dnsModuleMutationBodyLimit   int64 = 64 << 10
 	adminModuleMutationBodyLimit int64 = 8 << 10
+	adminFileWriteRequestBodyLimit int64 = 272 << 10
 )
 
 func moduleMutationBodyLimit(moduleID string) int64 {
@@ -66,8 +67,15 @@ func moduleMutationBodyLimit(moduleID string) int64 {
 	}
 }
 
+func moduleMutationBodyLimitForRequest(r *http.Request, moduleID string) int64 {
+	if moduleID == "admin" && r.Method == http.MethodPost && r.URL.Path == "/api/modules/admin/files/write" {
+		return adminFileWriteRequestBodyLimit
+	}
+	return moduleMutationBodyLimit(moduleID)
+}
+
 func boundedModuleMutationRequest(w http.ResponseWriter, r *http.Request, moduleID string) (*http.Request, bool) {
-	limit := moduleMutationBodyLimit(moduleID)
+	limit := moduleMutationBodyLimitForRequest(r, moduleID)
 	if limit <= 0 || r.Method == http.MethodGet || r.Method == http.MethodHead {
 		return r, true
 	}

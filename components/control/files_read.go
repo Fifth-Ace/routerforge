@@ -26,7 +26,7 @@ type adminFileEntry struct {
 	Size         int64     `json:"size"`
 	Mode         string    `json:"mode"`
 	ModifiedAt   time.Time `json:"modified_at"`
-	ModifiedAtNS int64     `json:"mtime_ns"`
+	ModifiedAtNS int64     `json:"mtime_ns,string"`
 }
 
 type adminFileReadResponse struct {
@@ -34,7 +34,7 @@ type adminFileReadResponse struct {
 	Size         int64     `json:"size"`
 	Mode         string    `json:"mode"`
 	ModifiedAt   time.Time `json:"modified_at"`
-	ModifiedAtNS int64     `json:"mtime_ns"`
+	ModifiedAtNS int64     `json:"mtime_ns,string"`
 	Encoding     string    `json:"encoding"`
 	Content      string    `json:"content"`
 }

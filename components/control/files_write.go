@@ -30,7 +30,7 @@ type adminFileWriteRequest struct {
 	Content         string `json:"content"`
 	Create          bool   `json:"create"`
 	ExpectedSize    *int64 `json:"expected_size,omitempty"`
-	ExpectedMtimeNS *int64 `json:"expected_mtime_ns,omitempty"`
+	ExpectedMtimeNS *int64 `json:"expected_mtime_ns,string,omitempty"`
 }
 
 func registerAdminFileMutationRoutes(mux *http.ServeMux) {

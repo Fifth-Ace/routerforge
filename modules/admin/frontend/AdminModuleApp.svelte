@@ -31,6 +31,8 @@
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
 
+  const FILE_EDITOR_WRITE_LIMIT = 128 * 1024;
+
   let tab = 'processes';
   let processes = [];
   let ports = [];
@@ -132,7 +134,8 @@
     empty: 'Пусто',
     dirty: 'Есть несохранённые изменения',
     mutationLocked: 'Изменения требуют активной root-сессии RouterForge.',
-    noPreview: 'Предпросмотр доступен только для UTF-8 текстовых файлов до 256 KiB.'
+    noPreview: 'Предпросмотр доступен только для UTF-8 текстовых файлов до 256 KiB.',
+    editorReadOnly: 'Только просмотр: редактирование ограничено 128 KiB.'
   } : {
     files: 'Files',
     terminal: 'Terminal',
@@ -190,7 +193,8 @@
     empty: 'Empty',
     dirty: 'Unsaved changes',
     mutationLocked: 'Mutations require an active RouterForge root session.',
-    noPreview: 'Preview supports UTF-8 text files up to 256 KiB only.'
+    noPreview: 'Preview supports UTF-8 text files up to 256 KiB only.',
+    editorReadOnly: 'Read-only preview: editing is limited to 128 KiB.'
   };
 
   $: tabs = [
@@ -212,6 +216,7 @@
   $: filteredPackages = packages.filter((p) => !q || `${p.name} ${p.version} ${p.architecture}`.toLowerCase().includes(q));
   $: filteredFiles = fileEntries.filter((entry) => !q || `${entry.name} ${entry.path} ${entry.kind}`.toLowerCase().includes(q));
   $: editorDirty = selectedFile && editorContent !== editorOriginal;
+  $: editorReadOnly = !!selectedFile && Number(selectedFile.size || 0) > FILE_EDITOR_WRITE_LIMIT;
 
   function setAction(message) {
     actionText = message || '';
@@ -328,7 +333,7 @@
   }
 
   async function saveEditor() {
-    if (!selectedFile || !editorDirty) return;
+    if (!selectedFile || !editorDirty || editorReadOnly) return;
     editorBusy = true;
     errorText = '';
     try {
@@ -728,13 +733,13 @@
     {#if selectedFile}
       <section class="panel editor-panel">
         <div class="panel-head">
-          <div><strong class="mono">{selectedFile.path}</strong><span>{bytes(selectedFile.size || 0)} · {selectedFile.mode} {editorDirty ? `· ${copy.dirty}` : ''}</span></div>
+          <div><strong class="mono">{selectedFile.path}</strong><span>{bytes(selectedFile.size || 0)} · {selectedFile.mode} {editorReadOnly ? `· ${copy.editorReadOnly}` : (editorDirty ? `· ${copy.dirty}` : '')}</span></div>
           <div class="actions-cell">
-            <button class="button" onclick={saveEditor} disabled={!editorDirty || editorBusy}>{copy.save}</button>
+            <button class="button" onclick={saveEditor} disabled={!editorDirty || editorBusy || editorReadOnly}>{copy.save}</button>
             <button class="button" onclick={() => { selectedFile = null; editorContent = ''; editorOriginal = ''; }}>{copy.close}</button>
           </div>
         </div>
-        <textarea class="file-editor mono" bind:value={editorContent} spellcheck="false"></textarea>
+        <textarea class="file-editor mono" bind:value={editorContent} spellcheck="false" readonly={editorReadOnly}></textarea>
       </section>
     {/if}
   {:else if tab === 'terminal'}

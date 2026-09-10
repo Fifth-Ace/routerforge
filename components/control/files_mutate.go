@@ -18,14 +18,14 @@ type adminFileMoveRequest struct {
 	ConfirmSource   string `json:"confirm_source"`
 	ConfirmDest     string `json:"confirm_destination"`
 	ExpectedSize    *int64 `json:"expected_size,omitempty"`
-	ExpectedMtimeNS *int64 `json:"expected_mtime_ns,omitempty"`
+	ExpectedMtimeNS *int64 `json:"expected_mtime_ns,string,omitempty"`
 }
 
 type adminFileDeleteRequest struct {
 	Path            string `json:"path"`
 	ConfirmPath     string `json:"confirm_path"`
 	ExpectedSize    *int64 `json:"expected_size,omitempty"`
-	ExpectedMtimeNS *int64 `json:"expected_mtime_ns,omitempty"`
+	ExpectedMtimeNS *int64 `json:"expected_mtime_ns,string,omitempty"`
 }
 
 type adminFileChmodRequest struct {
@@ -33,7 +33,7 @@ type adminFileChmodRequest struct {
 	ConfirmPath     string `json:"confirm_path"`
 	Mode            string `json:"mode"`
 	ExpectedSize    *int64 `json:"expected_size,omitempty"`
-	ExpectedMtimeNS *int64 `json:"expected_mtime_ns,omitempty"`
+	ExpectedMtimeNS *int64 `json:"expected_mtime_ns,string,omitempty"`
 }
 
 func decodeAdminFileMutationJSON(w http.ResponseWriter, r *http.Request, target any) error {

@@ -116,7 +116,7 @@ func handleAdminTerminalWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writer := &terminalWebSocketWriter{w: rw}
+	writer := &terminalWebSocketWriter{w: rw.Writer}
 	done := make(chan struct{})
 	var doneOnce sync.Once
 	signalDone := func() { doneOnce.Do(func() { close(done) }) }

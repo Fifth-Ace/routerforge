@@ -9,6 +9,7 @@
     adminFileWrite,
     adminProcessSignal,
     adminServiceAction,
+    adminTerminalRun,
     getAdminFiles,
     getModule,
     readAdminFile
@@ -36,9 +37,18 @@
   let editorOriginal = '';
   let editorBusy = false;
 
+  let terminalCommand = '';
+  let terminalCwd = '/opt';
+  let terminalLines = [];
+  let terminalBusy = false;
+
   $: locale = $settings.locale || 'ru';
   $: copy = locale === 'ru' ? {
     files: 'Файлы',
+    terminal: 'Терминал',
+    run: 'Выполнить',
+    clear: 'Очистить',
+    terminalHint: 'Команды выполняются через /bin/sh -lc от root, cwd разрешён только внутри /opt или /tmp. Таймаут 15 секунд.',
     path: 'Путь',
     up: 'Вверх',
     open: 'Открыть',
@@ -64,6 +74,10 @@
     noPreview: 'Предпросмотр доступен только для UTF-8 текстовых файлов до 256 KiB.'
   } : {
     files: 'Files',
+    terminal: 'Terminal',
+    run: 'Run',
+    clear: 'Clear',
+    terminalHint: 'Commands run through /bin/sh -lc as root; cwd is restricted to /opt or /tmp. Timeout is 15 seconds.',
     path: 'Path',
     up: 'Up',
     open: 'Open',
@@ -94,7 +108,8 @@
     ['ports', t(locale, 'manage.tabs.ports')],
     ['services', t(locale, 'manage.tabs.services')],
     ['packages', t(locale, 'manage.tabs.packages')],
-    ['files', copy.files]
+    ['files', copy.files],
+    ['terminal', copy.terminal]
   ];
 
   $: q = search.trim().toLowerCase();
@@ -118,6 +133,7 @@
 
   async function load(next = tab) {
     if (next === 'files') return loadFiles(filePath);
+    if (next === 'terminal') return;
     loading = true;
     errorText = '';
     try {
@@ -334,6 +350,32 @@
     }
   }
 
+  async function runTerminal() {
+    const command = terminalCommand.trim();
+    if (!command || terminalBusy) return;
+    if (!confirm(`root@routerforge:${terminalCwd}$ ${command}`)) return;
+
+    terminalBusy = true;
+    errorText = '';
+    terminalLines = [...terminalLines, { kind: 'command', text: `root@routerforge:${terminalCwd}$ ${command}` }];
+    try {
+      const result = await adminTerminalRun(command, terminalCwd);
+      const output = result.output || '';
+      if (output) terminalLines = [...terminalLines, { kind: 'output', text: output }];
+      terminalLines = [...terminalLines, {
+        kind: result.ok ? 'status' : 'error',
+        text: `[exit ${result.exit_code}${result.timed_out ? ' · timeout' : ''}${result.output_truncated ? ' · truncated' : ''}]`
+      }];
+      terminalCommand = '';
+    } catch (error) {
+      const message = errorMessage(error);
+      terminalLines = [...terminalLines, { kind: 'error', text: message }];
+      errorText = message;
+    } finally {
+      terminalBusy = false;
+    }
+  }
+
   onMount(() => {
     load(tab);
     const stopPolling = startSerialPolling(() => {
@@ -470,6 +512,26 @@
         <textarea class="file-editor mono" bind:value={editorContent} spellcheck="false"></textarea>
       </section>
     {/if}
+  {:else if tab === 'terminal'}
+    <section class="panel terminal-panel">
+      <div class="panel-head">
+        <div><strong>{copy.terminal}</strong><span>{copy.terminalHint}</span></div>
+        <button class="button" onclick={() => { terminalLines = []; }}>{copy.clear}</button>
+      </div>
+      <div class="terminal-output mono">
+        {#if terminalLines.length === 0}
+          <div class="terminal-muted">RouterForge Terminal BASE · /bin/sh</div>
+        {/if}
+        {#each terminalLines as line}
+          <pre class:terminal-command={line.kind === 'command'} class:terminal-error={line.kind === 'error'}>{line.text}</pre>
+        {/each}
+      </div>
+      <div class="terminal-controls">
+        <input class="path-input mono terminal-cwd" bind:value={terminalCwd} aria-label="cwd"/>
+        <input class="path-input mono terminal-input" bind:value={terminalCommand} onkeydown={(event) => event.key === 'Enter' && runTerminal()} placeholder="command" aria-label="command"/>
+        <button class="button" onclick={runTerminal} disabled={terminalBusy || !terminalCommand.trim()}>{terminalBusy ? '…' : copy.run}</button>
+      </div>
+    </section>
   {/if}
 </div>
 
@@ -489,4 +551,13 @@
   .file-name:hover{text-decoration:underline}
   .editor-panel{margin-top:1rem}
   .file-editor{width:100%;min-height:26rem;resize:vertical;box-sizing:border-box;border:0;border-top:1px solid var(--border-color,rgba(127,127,127,.25));background:rgba(0,0,0,.1);color:inherit;padding:1rem;line-height:1.45;tab-size:2}
+  .terminal-panel{overflow:hidden}
+  .terminal-output{min-height:28rem;max-height:55vh;overflow:auto;padding:1rem;background:#0b0d10;color:#d7e1ea}
+  .terminal-output pre{margin:0 0 .55rem;white-space:pre-wrap;word-break:break-word;font:inherit}
+  .terminal-command{color:#8fd3ff}
+  .terminal-error{color:#ff8f8f}
+  .terminal-muted{opacity:.55}
+  .terminal-controls{display:flex;gap:.5rem;padding:1rem;border-top:1px solid var(--border-color,rgba(127,127,127,.25))}
+  .terminal-cwd{flex:0 0 12rem;min-width:8rem}
+  .terminal-input{flex:1}
 </style>

@@ -120,3 +120,9 @@ export const adminServiceAction = (id, action) =>
     action,
     confirm_id: id
   });
+export const adminTerminalRun = (command, cwd = '/opt') =>
+  postJSON('/api/modules/admin/terminal/run', {
+    command,
+    cwd,
+    confirm: 'RUN'
+  });

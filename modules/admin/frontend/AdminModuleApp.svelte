@@ -31,6 +31,7 @@
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
   import TerminalPane from './TerminalPane.svelte';
+  import FileEditorDrawer from './FileEditorDrawer.svelte';
 
   const FILE_EDITOR_WRITE_LIMIT = 128 * 1024;
 
@@ -775,16 +776,20 @@
     </section>
 
     {#if selectedFile}
-      <section class="panel editor-panel">
-        <div class="panel-head">
-          <div><strong class="mono">{selectedFile.path}</strong><span>{bytes(selectedFile.size || 0)} · {selectedFile.mode} {editorReadOnly ? `· ${copy.editorReadOnly}` : (editorDirty ? `· ${copy.dirty}` : '')}</span></div>
-          <div class="actions-cell">
-            <button class="button" onclick={saveEditor} disabled={!editorDirty || editorBusy || editorReadOnly}>{copy.save}</button>
-            <button class="button" onclick={() => { selectedFile = null; editorContent = ''; editorOriginal = ''; }}>{copy.close}</button>
-          </div>
-        </div>
-        <textarea class="file-editor mono" bind:value={editorContent} spellcheck="false" readonly={editorReadOnly}></textarea>
-      </section>
+      <FileEditorDrawer
+        file={selectedFile}
+        bind:content={editorContent}
+        dirty={editorDirty}
+        readOnly={editorReadOnly}
+        busy={editorBusy}
+        locale={locale}
+        onSave={saveEditor}
+        onClose={() => {
+          selectedFile = null;
+          editorContent = '';
+          editorOriginal = '';
+        }}
+      />
     {/if}
   {:else if tab === 'terminal'}
     <TerminalPane locale={locale} />
@@ -948,6 +953,9 @@
   .ui-action-ok{background:rgba(48,190,120,.12);border:1px solid rgba(48,190,120,.35)}
   .ui-action-error{background:rgba(230,75,75,.12);border:1px solid rgba(230,75,75,.35)}
   .actions-cell{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}
+  td.actions-cell{display:table-cell;white-space:nowrap;vertical-align:middle}
+  td.actions-cell>.mini,td.actions-cell>.link{margin:.15rem .3rem .15rem 0}
+  td.actions-cell>:last-child{margin-right:0}
   .mini{font:inherit;font-size:.78rem;padding:.32rem .5rem;border:1px solid var(--border-color,rgba(127,127,127,.3));border-radius:.45rem;background:transparent;color:inherit;cursor:pointer}
   .mini:hover{background:rgba(127,127,127,.12)}
   .mini.danger{border-color:rgba(230,75,75,.45)}
@@ -957,13 +965,12 @@
   .process-primary{width:48%}
   .process-command{max-width:46rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .process-actions{white-space:nowrap}
+  .process-table tbody td{border-bottom:1px solid var(--border-color,rgba(127,127,127,.18))}
   .package-more{display:flex;justify-content:flex-end;align-items:center;gap:.75rem;padding:.7rem 1rem;border-top:1px solid var(--border-color,rgba(127,127,127,.18));font-size:.82rem;opacity:.85}
   .file-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:1rem}
   .path-input{flex:1;min-width:18rem;padding:.55rem .7rem;border-radius:.5rem;border:1px solid var(--border-color,rgba(127,127,127,.3));background:rgba(0,0,0,.08);color:inherit}
   .file-name{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;text-align:left;padding:0}
   .file-name:hover{text-decoration:underline}
-  .editor-panel{margin-top:1rem}
-  .file-editor{width:100%;min-height:26rem;resize:vertical;box-sizing:border-box;border:0;border-top:1px solid var(--border-color,rgba(127,127,127,.25));background:rgba(0,0,0,.1);color:inherit;padding:1rem;line-height:1.45;tab-size:2}
   .terminal-panel{overflow:hidden}
   .terminal-output{min-height:28rem;max-height:55vh;overflow:auto;padding:1rem;background:#0b0d10;color:#d7e1ea}
   .terminal-output pre{margin:0 0 .55rem;white-space:pre-wrap;word-break:break-word;font:inherit}

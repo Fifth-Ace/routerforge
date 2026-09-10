@@ -126,11 +126,12 @@ export const adminTerminalRun = (command, cwd = '/opt') =>
     cwd,
     confirm: 'RUN'
   });
-export const adminTerminalCreate = (cwd = '/opt', cols = 80, rows = 24) =>
+export const adminTerminalCreate = (cwd = '/opt', cols = 80, rows = 24, clientID = '') =>
   postJSON('/api/modules/admin/terminal/session', {
     cwd,
     cols,
     rows,
+    client_id: clientID,
     confirm: 'CONNECT'
   });
 export const adminTerminalOutput = (sessionID, cursor = 0) =>

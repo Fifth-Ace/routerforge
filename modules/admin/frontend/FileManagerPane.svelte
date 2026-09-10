@@ -242,11 +242,13 @@
   async function loadExplorer(path = explorerPath) {
     busyCount += 1; errorText = '';
     try {
-      const result = await getAdminFiles(path);
+      const result = await getAdminFiles(path, true);
       explorerPath = result.path || path;
       explorerEntries = result.entries || [];
       explorerVolumeRoot = rootForPath(explorerPath);
       localStorage.setItem(EXPLORER_KEY, explorerPath);
+      treeChildren = { ...treeChildren, [explorerPath]: explorerEntries.filter((entry) => entry.kind === 'directory') };
+      treeLoaded = { ...treeLoaded, [explorerPath]: true };
       await ensureTreePath(explorerPath);
     } catch (error) { errorText = err(error); }
     finally { busyCount -= 1; }
@@ -365,7 +367,7 @@
     if (treeLoaded[path] || treeLoading[path]) return;
     treeLoading = { ...treeLoading, [path]: true };
     try {
-      const result = await getAdminFiles(path);
+      const result = await getAdminFiles(path, true);
       const children = (result.entries || []).filter((entry) => entry.kind === 'directory');
       treeChildren = { ...treeChildren, [path]: children };
       treeLoaded = { ...treeLoaded, [path]: true };
@@ -408,10 +410,15 @@
   function buildTreeRows(root, childrenByPath, loadedByPath, expandedByPath, loadingByPath, volumeList, currentLocale) {
     void currentLocale;
     const rows = [];
-    const walk = (path, label, depth) => {
+    const walk = (path, label, depth, hasChildrenHint) => {
       const children = childrenByPath[path] || [];
       const loaded = Boolean(loadedByPath[path]);
       const expanded = Boolean(expandedByPath[path]);
+      const hasChildren = loaded
+        ? children.length > 0
+        : hasChildrenHint === false
+          ? false
+          : true;
       rows.push({
         path,
         label,
@@ -419,13 +426,18 @@
         expanded,
         loaded,
         loading: Boolean(loadingByPath[path]),
-        hasChildren: !loaded || children.length > 0
+        hasChildren
       });
       if (!expanded) return;
-      for (const child of children) walk(child.path, child.name, depth + 1);
+      for (const child of children) {
+        const hint = typeof child.has_child_directories === 'boolean'
+          ? child.has_child_directories
+          : undefined;
+        walk(child.path, child.name, depth + 1, hint);
+      }
     };
     const volume = volumeList.find((item) => item.mount === root);
-    walk(root, volumeDisplayName(volume), 0);
+    walk(root, volumeDisplayName(volume), 0, undefined);
     return rows;
   }
 
@@ -646,12 +658,13 @@
             <div class:tree-active={explorerPath === node.path} class="tree-row" style={`padding-left:${0.35 + node.depth * 0.82}rem`}>
               <button
                 class:loading={node.loading}
+                class:leaf={!node.hasChildren}
                 class="tree-toggle"
                 onclick={(event) => { event.stopPropagation(); toggleTree(node.path); }}
-                disabled={node.loaded && !node.hasChildren}
+                disabled={!node.hasChildren}
                 aria-label={node.expanded ? 'Collapse folder' : 'Expand folder'}
                 title={node.path}
-              >{node.loading ? '…' : node.hasChildren ? (node.expanded ? '▾' : '▸') : '·'}</button>
+              >{node.loading ? '…' : node.hasChildren ? (node.expanded ? '▾' : '▸') : ''}</button>
               <button class="tree-name" onclick={() => loadExplorer(node.path)} title={node.path}>📁 <span>{node.label}</span></button>
             </div>
           {/each}
@@ -783,7 +796,7 @@
 
 
   .volume-select,.tree-volume select{max-width:12rem;background:#0e161e;color:#c9d4df;border:1px solid #30404d;border-radius:.35rem;padding:.34rem .42rem;font:600 .62rem "Roboto Mono",monospace}.tree-volume{padding:.15rem .35rem .65rem;border-bottom:1px solid #22303c;margin-bottom:.45rem}.tree-volume label{display:block;color:#607384;font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.28rem}.tree-volume select{width:100%;max-width:none}
-  .folder-tree{overflow:auto;max-height:54vh;padding:.1rem 0}.tree-row{display:flex;align-items:center;min-width:0;border-radius:.3rem}.tree-row:hover{background:rgba(93,228,199,.06)}.tree-row.tree-active{background:#13372c}.tree-toggle{display:grid!important;place-items:center!important;grid-template-columns:none!important;flex:none;width:1.45rem;height:1.65rem;padding:0!important;border:0;background:transparent;color:#8299aa;font:800 .76rem/1 "Roboto Mono",monospace}.tree-toggle:hover{color:#b8f3df;background:#18303a}.tree-toggle.loading{color:#ffd866}.tree-name{display:flex!important;grid-template-columns:none!important;align-items:center;gap:.3rem;min-width:0;flex:1;border:0;background:transparent;text-align:left;padding:.32rem .2rem!important;color:#b9c7d3;white-space:nowrap;overflow:hidden}.tree-name span{min-width:0;overflow:hidden;text-overflow:ellipsis}.tree-active .tree-name{color:#86eabd}
+  .folder-tree{overflow:auto;max-height:54vh;padding:.1rem 0}.tree-row{display:flex;align-items:center;min-width:0;border-radius:.3rem}.tree-row:hover{background:rgba(93,228,199,.06)}.tree-row.tree-active{background:#13372c}.tree-toggle{display:grid!important;place-items:center!important;grid-template-columns:none!important;flex:none;width:1.45rem;height:1.65rem;padding:0!important;border:0;background:transparent;color:#8299aa;font:800 .76rem/1 "Roboto Mono",monospace}.tree-toggle:hover{color:#b8f3df;background:#18303a}.tree-toggle.loading{color:#ffd866}.tree-toggle.leaf{visibility:hidden}.tree-name{display:flex!important;grid-template-columns:none!important;align-items:center;gap:.3rem;min-width:0;flex:1;border:0;background:transparent;text-align:left;padding:.32rem .2rem!important;color:#b9c7d3;white-space:nowrap;overflow:hidden}.tree-name span{min-width:0;overflow:hidden;text-overflow:ellipsis}.tree-active .tree-name{color:#86eabd}
   @media(max-width:980px){.commander-head,.file-row{grid-template-columns:minmax(0,1fr) 6rem 7rem}.commander-head span:nth-child(3),.file-row span:nth-child(3){display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(12rem,1fr) 6rem 8rem 9rem}.explorer-head>*:nth-child(3),.explorer-row>*:nth-child(3){display:none}.quick-tree{width:auto}.explorer-shell{grid-template-columns:10.5rem minmax(0,1fr)}}
   @media(max-width:760px){.commander-grid{grid-template-columns:1fr}.commander-panel:not(.active-panel){display:none}.key-hint{display:none}.explorer-shell{grid-template-columns:1fr}.quick-tree{display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(10rem,1fr) 6rem 9rem}.explorer-head>*:nth-child(4),.explorer-row>*:nth-child(4){display:none}.search-box input{min-width:7rem}.commander-keys{overflow:auto}.location-bar{gap:.45rem}.location-volume{padding-right:.45rem}.location-volume-name{max-width:8.5rem;overflow:hidden;text-overflow:ellipsis}.panel-nav select{width:8.5rem;max-width:36%}}
 </style>

@@ -52,3 +52,19 @@ func TestNormalizeTerminalSize(t *testing.T) {
 		t.Fatalf("valid size=%dx%d", cols, rows)
 	}
 }
+
+func TestTerminalClientIDValidation(t *testing.T) {
+	if !terminalClientIDValid("0123456789abcdef0123456789abcdef") {
+		t.Fatal("valid client id rejected")
+	}
+	for _, value := range []string{
+		"",
+		"0123",
+		"0123456789ABCDEF0123456789ABCDEF",
+		"0123456789abcdef0123456789abcdeg",
+	} {
+		if terminalClientIDValid(value) {
+			t.Fatalf("invalid client id accepted: %q", value)
+		}
+	}
+}

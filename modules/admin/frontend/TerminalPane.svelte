@@ -15,6 +15,7 @@
 
   const SESSION_KEY = 'routerforge.admin.terminal.session';
   const CURSOR_KEY = 'routerforge.admin.terminal.cursor';
+  const CLIENT_KEY = 'routerforge.admin.terminal.client';
 
   let host;
   let terminal;
@@ -31,6 +32,7 @@
   let resizeTimer;
   let pendingInput = '';
   let disposed = false;
+  let clientID = '';
 
   $: copy = locale === 'ru' ? {
     title: 'Entware Terminal',
@@ -99,6 +101,17 @@
     return Number.isFinite(value) && value >= 0 ? value : 0;
   }
 
+  function stableClientID() {
+    const stored = localStorage.getItem(CLIENT_KEY) || '';
+    if (/^[0-9a-f]{32}$/.test(stored)) return stored;
+
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const value = Array.from(bytes, (item) => item.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem(CLIENT_KEY, value);
+    return value;
+  }
+
   function rememberSession() {
     if (sessionID) sessionStorage.setItem(SESSION_KEY, sessionID);
     else sessionStorage.removeItem(SESSION_KEY);
@@ -122,7 +135,7 @@
     setConnection(false, copy.connecting);
     try {
       fitAddon?.fit();
-      const result = await adminTerminalCreate('/opt', terminal.cols || 80, terminal.rows || 24);
+      const result = await adminTerminalCreate('/opt', terminal.cols || 80, terminal.rows || 24, clientID);
       sessionID = result.session_id;
       cursor = 0;
       rememberSession();
@@ -164,12 +177,17 @@
       setConnection(true, copy.connected);
       await sendResize();
       schedulePoll(0);
-    } catch {
-      sessionID = '';
-      cursor = 0;
-      sessionStorage.removeItem(SESSION_KEY);
-      sessionStorage.removeItem(CURSOR_KEY);
-      await createSession();
+    } catch (error) {
+      if (error?.status === 404) {
+        sessionID = '';
+        cursor = 0;
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(CURSOR_KEY);
+        await createSession();
+        return;
+      }
+      setConnection(false, copy.disconnected);
+      terminal?.writeln(`\x1b[1;31m${error?.payload?.error || error?.message || 'Terminal reconnect failed'}\x1b[0m`);
     }
   }
 
@@ -279,6 +297,8 @@
   }
 
   onMount(() => {
+    clientID = stableClientID();
+
     terminal = new Terminal({
       allowProposedApi: false,
       convertEol: false,

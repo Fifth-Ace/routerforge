@@ -38,6 +38,7 @@ type terminalWindowSize struct {
 type adminTerminalSession struct {
 	mu         sync.Mutex
 	id         string
+	clientID   string
 	master     *os.File
 	cmd        *exec.Cmd
 	output     []byte
@@ -59,10 +60,11 @@ var terminalSessions = &adminTerminalSessionManager{
 }
 
 type adminTerminalSessionCreateRequest struct {
-	Cwd     string `json:"cwd"`
-	Cols    int    `json:"cols"`
-	Rows    int    `json:"rows"`
-	Confirm string `json:"confirm"`
+	Cwd      string `json:"cwd"`
+	Cols     int    `json:"cols"`
+	Rows     int    `json:"rows"`
+	ClientID string `json:"client_id"`
+	Confirm  string `json:"confirm"`
 }
 
 type adminTerminalSessionInputRequest struct {
@@ -122,8 +124,14 @@ func handleAdminTerminalSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	clientID := strings.ToLower(strings.TrimSpace(request.ClientID))
+	if !terminalClientIDValid(clientID) {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid terminal client_id"})
+		return
+	}
+
 	cols, rows := normalizeTerminalSize(request.Cols, request.Rows)
-	session, err := terminalSessions.create(resolved.Canonical, cols, rows)
+	session, err := terminalSessions.create(resolved.Canonical, cols, rows, clientID)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, errTerminalSessionLimit) {
@@ -289,18 +297,43 @@ func normalizeTerminalSize(cols, rows int) (int, int) {
 	return cols, rows
 }
 
+func terminalClientIDValid(value string) bool {
+	if len(value) != 32 {
+		return false
+	}
+	for _, ch := range value {
+		if !((ch >= 'a' && ch <= 'f') || (ch >= '0' && ch <= '9')) {
+			return false
+		}
+	}
+	return true
+}
+
 var errTerminalSessionLimit = errors.New("terminal session limit reached")
 
-func (m *adminTerminalSessionManager) create(cwd string, cols, rows int) (*adminTerminalSession, error) {
+func (m *adminTerminalSessionManager) create(cwd string, cols, rows int, clientID string) (*adminTerminalSession, error) {
 	m.once.Do(func() { go m.janitor() })
-	m.cleanupExpired()
+	m.cleanupInactive()
 
+	var replaced []*adminTerminalSession
 	m.mu.Lock()
+	for id, existing := range m.sessions {
+		if existing.clientID == clientID {
+			delete(m.sessions, id)
+			replaced = append(replaced, existing)
+		}
+	}
 	if len(m.sessions) >= adminTerminalSessionLimit {
 		m.mu.Unlock()
+		for _, existing := range replaced {
+			existing.close()
+		}
 		return nil, errTerminalSessionLimit
 	}
 	m.mu.Unlock()
+	for _, existing := range replaced {
+		existing.close()
+	}
 
 	id, err := randomTerminalSessionID()
 	if err != nil {
@@ -328,19 +361,33 @@ exec /bin/sh -i
 
 	session := &adminTerminalSession{
 		id:        id,
+		clientID:  clientID,
 		master:    master,
 		cmd:       cmd,
 		touchedAt: time.Now(),
 	}
 
+	var superseded []*adminTerminalSession
 	m.mu.Lock()
+	for existingID, existing := range m.sessions {
+		if existing.clientID == clientID {
+			delete(m.sessions, existingID)
+			superseded = append(superseded, existing)
+		}
+	}
 	if len(m.sessions) >= adminTerminalSessionLimit {
 		m.mu.Unlock()
+		for _, existing := range superseded {
+			existing.close()
+		}
 		session.close()
 		return nil, errTerminalSessionLimit
 	}
 	m.sessions[id] = session
 	m.mu.Unlock()
+	for _, existing := range superseded {
+		existing.close()
+	}
 
 	go session.capture()
 	go session.wait()
@@ -363,18 +410,18 @@ func (m *adminTerminalSessionManager) remove(id string) {
 	m.mu.Unlock()
 }
 
-func (m *adminTerminalSessionManager) cleanupExpired() {
+func (m *adminTerminalSessionManager) cleanupInactive() {
 	now := time.Now()
-	var expired []*adminTerminalSession
+	var stale []*adminTerminalSession
 	m.mu.Lock()
 	for id, session := range m.sessions {
-		if session.idleFor(now) > adminTerminalSessionIdleTimeout {
+		if session.closedState() || session.idleFor(now) > adminTerminalSessionIdleTimeout {
 			delete(m.sessions, id)
-			expired = append(expired, session)
+			stale = append(stale, session)
 		}
 	}
 	m.mu.Unlock()
-	for _, session := range expired {
+	for _, session := range stale {
 		session.close()
 	}
 }
@@ -383,7 +430,7 @@ func (m *adminTerminalSessionManager) janitor() {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		m.cleanupExpired()
+		m.cleanupInactive()
 	}
 }
 
@@ -496,6 +543,12 @@ func (s *adminTerminalSession) idleFor(now time.Time) time.Duration {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return now.Sub(s.touchedAt)
+}
+
+func (s *adminTerminalSession) closedState() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
 }
 
 func (s *adminTerminalSession) capture() {

@@ -1,10 +1,10 @@
-# RouterForge Management v2 Files API — Phase 8E / FE-001C
+# RouterForge Management v2 Files API — Phase 8E / FE-001D
 
-Status: **read-only File Manager backend + guarded mkdir/atomic text write-edit implemented on Dev**.
+Status: **File Manager backend through guarded move/delete/chmod implemented on Dev; UI not yet enabled**.
 
 This document extends `MANAGEMENT_V2_API.md`.
 
-FE-001A established the filesystem path-security foundation. FE-001B enabled root-session-gated directory listing, bounded UTF-8 text reading and streamed file download. FE-001C adds the first guarded filesystem mutations: single-directory creation and bounded atomic UTF-8 text create/edit.
+FE-001A established the filesystem path-security foundation. FE-001B enabled root-session-gated directory listing, bounded UTF-8 text reading and streamed file download. FE-001C added guarded mkdir and bounded atomic UTF-8 text create/edit. FE-001D adds guarded move/rename, non-recursive delete and chmod.
 
 ## Ownership
 
@@ -136,7 +136,7 @@ POST  /api/modules/admin/files/write
 
 The FE-001C atomic rename narrows partial-write risk but is not claimed to eliminate every privileged local TOCTOU race. Stronger descriptor-relative/openat-style hardening remains a later security option if measurements and threat model justify the added implementation cost.
 
-## Remaining planned mutation surface
+## Enabled FE-001D mutation surface
 
 ```text
 POST  /api/modules/admin/files/move
@@ -144,7 +144,49 @@ POST  /api/modules/admin/files/delete
 POST  /api/modules/admin/files/chmod
 ```
 
-`copy`, archive/extract, optional `chown`, advanced system-root mode and richer upload workflows are later layers.
+### move / rename
+
+`files/move`:
+
+- requires exact source and destination confirmations;
+- requires `expected_size` + `expected_mtime_ns` for the source object;
+- rejects stale source state;
+- rejects leaf symlinks and mutation of an allowed root itself;
+- requires an absent destination;
+- is restricted to one configured allowed root;
+- rejects moving a directory inside itself;
+- revalidates source and destination immediately before acting;
+- uses same-filesystem `rename`; copy+delete fallback is intentionally not enabled;
+- verifies old-source disappearance and destination existence;
+- emits a success audit entry.
+
+### delete
+
+`files/delete`:
+
+- requires exact `confirm_path == path`;
+- requires `expected_size` + `expected_mtime_ns`;
+- rejects stale state, leaf symlinks and deletion of an allowed root itself;
+- removes a regular file or an empty directory only;
+- recursive deletion is intentionally not enabled in FE-001D;
+- revalidates immediately before `remove`;
+- verifies that the target no longer exists;
+- emits a success audit entry.
+
+### chmod
+
+`files/chmod`:
+
+- requires exact `confirm_path == path`;
+- requires `expected_size` + `expected_mtime_ns`;
+- accepts only permission bits `0000` through `0777`;
+- setuid, setgid and sticky bits are not accepted;
+- rejects leaf symlinks and mutation of an allowed root itself;
+- revalidates immediately before chmod;
+- verifies resulting permission bits;
+- emits a success audit entry.
+
+`copy`, recursive delete, archive/extract, optional `chown`, advanced system-root mode and richer upload workflows are later layers.
 
 ## Mutation contract requirements
 
@@ -185,4 +227,4 @@ The implementation must preserve all FE-001A/FE-001B tests and additionally prov
 - Terminal/PTTY;
 - arbitrary shell execution.
 
-The next step after FE-001C is **FE-001D: move/rename + delete + chmod guarded mutations**, then FE-002 File Manager UI.
+The next step after FE-001D is **FE-002: File Manager UI**, followed by the accelerated Management UI train.

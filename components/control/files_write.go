@@ -36,6 +36,9 @@ type adminFileWriteRequest struct {
 func registerAdminFileMutationRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/files/mkdir", mutationOnly(handleAdminFileMkdir))
 	mux.HandleFunc("/v1/files/write", mutationOnly(handleAdminFileWrite))
+	mux.HandleFunc("/v1/files/move", mutationOnly(handleAdminFileMove))
+	mux.HandleFunc("/v1/files/delete", mutationOnly(handleAdminFileDelete))
+	mux.HandleFunc("/v1/files/chmod", mutationOnly(handleAdminFileChmod))
 }
 
 func exactAdminFileConfirmation(path, confirmPath string) bool {

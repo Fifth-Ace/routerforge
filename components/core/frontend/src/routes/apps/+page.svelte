@@ -823,7 +823,9 @@
       <h1>{a(locale,'pageTitle')}</h1>
       <p>{a(locale,'subtitle')}</p>
     </div>
-
+    <span class="state-chip {data.registry?.online && String(data.registry?.source || '').toLowerCase() === 'remote' ? 'good' : data.registry?.source === 'cache' ? 'warn' : 'neutral'}">
+      {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
+    </span>
   </div>
 
   <div class="subtabs app-center-tabs">
@@ -861,12 +863,6 @@
         <option value="dev">RouterForge Dev</option>
       </select>
 
-      <span
-        class="registry-chip state-chip {data.registry?.online && String(data.registry?.source || '').toLowerCase() === 'remote' ? 'good' : data.registry?.source === 'cache' ? 'warn' : 'neutral'}"
-        title={data.registry?.last_sync || data.registry?.error || ''}
-      >
-        {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
-      </span>
 
       <button class="button check-updates-button" disabled={checkingUpdates || Boolean(busyId)} onclick={checkForUpdates}>
         {checkingUpdates ? a(locale,'checking') : a(locale,'checkUpdates')}

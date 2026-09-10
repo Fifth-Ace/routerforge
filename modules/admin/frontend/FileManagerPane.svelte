@@ -57,6 +57,15 @@
     explorerSort,
     explorerSortDir
   );
+  $: explorerTreeRows = buildTreeRows(
+    explorerVolumeRoot,
+    treeChildren,
+    treeLoaded,
+    treeExpanded,
+    treeLoading,
+    volumes,
+    locale
+  );
 
   $: copy = locale === 'ru' ? {
     commander: 'Commander', explorer: 'Explorer', refresh: 'Обновить',
@@ -67,7 +76,7 @@
     destination: 'Путь назначения', viewFile: 'Просмотр', edit: 'Правка', save: 'Сохранить', close: 'Закрыть',
     previous: 'Назад', next: 'Вперёд', up: 'Вверх', swap: 'Поменять панели', quick: 'Дерево папок',
     selected: 'выбрано', items: 'объектов', empty: 'Папка пуста', open: 'Открыть',
-    volume: 'Диск / том', properties: 'Свойства'
+    volume: 'Диск / том', properties: 'Свойства', parentUp: 'На уровень выше'
   } : {
     commander: 'Commander', explorer: 'Explorer', refresh: 'Refresh',
     folder: 'Folder', file: 'File', copy: 'Copy', move: 'Move', rename: 'Rename',
@@ -77,7 +86,7 @@
     destination: 'Destination path', viewFile: 'View', edit: 'Edit', save: 'Save', close: 'Close',
     previous: 'Back', next: 'Forward', up: 'Up', swap: 'Swap panels', quick: 'Folder tree',
     selected: 'selected', items: 'items', empty: 'Folder is empty', open: 'Open',
-    volume: 'Disk / volume', properties: 'Properties'
+    volume: 'Disk / volume', properties: 'Properties', parentUp: 'Up one level'
   };
 
   function makePanel(path) {
@@ -396,25 +405,26 @@
     }
   }
 
-  function treeRows(root) {
+  function buildTreeRows(root, childrenByPath, loadedByPath, expandedByPath, loadingByPath, volumeList, currentLocale) {
+    void currentLocale;
     const rows = [];
     const walk = (path, label, depth) => {
-      const children = treeChildren[path] || [];
-      const loaded = Boolean(treeLoaded[path]);
-      const expanded = Boolean(treeExpanded[path]);
+      const children = childrenByPath[path] || [];
+      const loaded = Boolean(loadedByPath[path]);
+      const expanded = Boolean(expandedByPath[path]);
       rows.push({
         path,
         label,
         depth,
         expanded,
         loaded,
-        loading: Boolean(treeLoading[path]),
+        loading: Boolean(loadingByPath[path]),
         hasChildren: !loaded || children.length > 0
       });
       if (!expanded) return;
       for (const child of children) walk(child.path, child.name, depth + 1);
     };
-    const volume = volumes.find((item) => item.mount === root);
+    const volume = volumeList.find((item) => item.mount === root);
     walk(root, volumeDisplayName(volume), 0);
     return rows;
   }
@@ -632,7 +642,7 @@
         </div>
         <div class="quick-title">{copy.quick}</div>
         <div class="folder-tree">
-          {#each treeRows(explorerVolumeRoot) as node (node.path)}
+          {#each explorerTreeRows as node (node.path)}
             <div class:tree-active={explorerPath === node.path} class="tree-row" style={`padding-left:${0.35 + node.depth * 0.82}rem`}>
               <button
                 class:loading={node.loading}
@@ -684,7 +694,15 @@
             <button onclick={() => cycleExplorerSort('mode')}>{copy.mode}</button>
             <span>{copy.actions}</span>
           </div>
-          <button class="explorer-row parent-row" onclick={() => loadExplorer(parentWithin(explorerPath, explorerVolumeRoot))}><span>📁 ..</span><span>—</span><span>—</span><span>—</span><span></span></button>
+          {#if explorerPath !== explorerVolumeRoot}
+            <button class="explorer-parent-nav" onclick={() => loadExplorer(parentWithin(explorerPath, explorerVolumeRoot))}>
+              <span class="parent-nav-icon">↑</span>
+              <span class="parent-nav-copy">
+                <strong>{copy.parentUp}</strong>
+                <small class="mono">{parentWithin(explorerPath, explorerVolumeRoot)}</small>
+              </span>
+            </button>
+          {/if}
           {#each explorerFiltered as entry (entry.path)}
             <div class="explorer-row">
               <button class="entry-open" onclick={() => openEntry('explorer', entry)}>
@@ -761,7 +779,7 @@
   .explorer-shell{display:grid;grid-template-columns:13rem minmax(0,1fr);min-height:36rem;background:#0c131b}.quick-tree{padding:.7rem .55rem;border-right:1px solid #22303c;background:#0e161e;display:flex;flex-direction:column;gap:.18rem}.quick-title{padding:.25rem .45rem .5rem;color:#607384;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.quick-tree button{display:grid;grid-template-columns:1.25rem minmax(0,1fr);gap:.06rem .35rem;border:0;text-align:left;background:transparent;padding:.42rem}.quick-tree button small{grid-column:2;color:#536574;font-size:.56rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quick-tree button.active{background:#13372c;color:#86eabd}.quick-tree button.active small{color:#699b88}.quick-icon{color:#5de4c7}
   .explorer-main{min-width:0;display:grid;grid-template-rows:auto auto 1fr auto}.explorer-toolbar{padding:.55rem .62rem;border-bottom:1px solid #22303c;background:#101821}.search-box{display:flex;align-items:center;gap:.3rem;padding:0 .42rem;background:#0b1218}.search-box input{border:0;background:transparent;box-shadow:none;padding:.35rem 0;min-width:14rem}
   .location-bar{display:flex;align-items:stretch;gap:.7rem;min-width:0;padding:.48rem .62rem;border-bottom:1px solid #1f2c37;background:#0e161f}.location-volume{flex:0 0 auto;display:flex;align-items:center;gap:.38rem;padding-right:.65rem;border-right:1px solid #25343f}.location-volume-name{color:#b8f3df;font-size:.69rem;font-weight:750;white-space:nowrap}.location-mode{padding:.12rem .3rem;border:1px solid #356a58;border-radius:.28rem;color:#79e7ba;background:#10281f;font:800 .52rem/1 "Roboto Mono",monospace}.location-mode.readonly{border-color:#795e31;color:#ffd866;background:#2a2110}.location-content{min-width:0;flex:1;display:grid;gap:.1rem}.breadcrumbs{min-width:0;padding:0;color:#637687;overflow:auto;white-space:nowrap}.breadcrumbs button{border:0;background:transparent;padding:.08rem .2rem;color:#91b7d0}.breadcrumbs button:hover{color:#c8ecff;background:#15232d}.location-path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#536a7b;font-size:.56rem}
-  .explorer-table{overflow:auto;max-height:58vh}.explorer-head,.explorer-row{display:grid;grid-template-columns:minmax(16rem,1fr) 6.5rem 11rem 8.5rem 10.5rem;gap:.5rem;align-items:center;padding:.42rem .62rem;border-bottom:1px solid #1b2731}.explorer-head{position:sticky;top:0;z-index:3;background:#111b25;color:#687b8c;font-size:.61rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.explorer-head button{border:0;background:transparent;padding:0;text-align:left;color:inherit;font-weight:inherit;text-transform:inherit}.explorer-row{font-size:.73rem;min-height:2.2rem}.explorer-row:hover{background:#101f29}.explorer-row>button{border:0;background:transparent;text-align:left;padding:0}.entry-open{display:flex;align-items:center;gap:.5rem;min-width:0}.entry-open>span:last-child{display:flex;min-width:0;flex-direction:column}.entry-open strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.entry-open small{color:#516574;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font: .56rem/1.2 "Roboto Mono",monospace}.file-icon{width:1.2rem;text-align:center}.permission{color:#8bc8ff}.row-actions{display:flex;justify-content:flex-end;gap:.2rem}.row-actions button,.row-actions a{display:grid;place-items:center;width:1.65rem;height:1.65rem;padding:0;text-decoration:none}.explorer-status{padding:.35rem .62rem;border-top:1px solid #22303c;background:#0e161f;color:#607384;font-size:.59rem;min-width:0}.explorer-status span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.empty-row{padding:1rem;color:#566978;text-align:center;font-size:.7rem}.explorer-empty{border-bottom:1px solid #1b2731}
+  .explorer-table{overflow:auto;max-height:58vh}.explorer-head,.explorer-row{display:grid;grid-template-columns:minmax(16rem,1fr) 6.5rem 11rem 8.5rem 10.5rem;gap:.5rem;align-items:center;padding:.42rem .62rem;border-bottom:1px solid #1b2731}.explorer-head{position:sticky;top:0;z-index:3;background:#111b25;color:#687b8c;font-size:.61rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.explorer-head button{border:0;background:transparent;padding:0;text-align:left;color:inherit;font-weight:inherit;text-transform:inherit}.explorer-parent-nav{box-sizing:border-box;width:100%;display:flex;align-items:center;gap:.55rem;padding:.5rem .72rem;border:0;border-bottom:1px solid #1b2731;border-radius:0;background:#0e1821;color:#9fb4c5;text-align:left}.explorer-parent-nav:hover{background:#13232d;color:#d8e8f3}.parent-nav-icon{display:grid;place-items:center;width:1.5rem;height:1.5rem;border:1px solid #304454;border-radius:.35rem;color:#8bc8ff;background:#111f2a}.parent-nav-copy{min-width:0;display:flex;align-items:baseline;gap:.65rem}.parent-nav-copy strong{font-size:.72rem;color:inherit}.parent-nav-copy small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#61798c;font-size:.58rem}.explorer-row{font-size:.73rem;min-height:2.2rem}.explorer-row:hover{background:#101f29}.explorer-row>button{border:0;background:transparent;text-align:left;padding:0}.entry-open{display:flex;align-items:center;gap:.5rem;min-width:0}.entry-open>span:last-child{display:flex;min-width:0;flex-direction:column}.entry-open strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.entry-open small{color:#516574;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font: .56rem/1.2 "Roboto Mono",monospace}.file-icon{width:1.2rem;text-align:center}.permission{color:#8bc8ff}.row-actions{display:flex;justify-content:flex-end;gap:.2rem}.row-actions button,.row-actions a{display:grid;place-items:center;width:1.65rem;height:1.65rem;padding:0;text-decoration:none}.explorer-status{padding:.35rem .62rem;border-top:1px solid #22303c;background:#0e161f;color:#607384;font-size:.59rem;min-width:0}.explorer-status span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.empty-row{padding:1rem;color:#566978;text-align:center;font-size:.7rem}.explorer-empty{border-bottom:1px solid #1b2731}
 
 
   .volume-select,.tree-volume select{max-width:12rem;background:#0e161e;color:#c9d4df;border:1px solid #30404d;border-radius:.35rem;padding:.34rem .42rem;font:600 .62rem "Roboto Mono",monospace}.tree-volume{padding:.15rem .35rem .65rem;border-bottom:1px solid #22303c;margin-bottom:.45rem}.tree-volume label{display:block;color:#607384;font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.28rem}.tree-volume select{width:100%;max-width:none}

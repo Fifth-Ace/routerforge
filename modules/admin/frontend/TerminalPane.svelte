@@ -17,6 +17,7 @@
   let statusText = 'OFFLINE';
   let dimensions = '80×24';
   let disposed = false;
+  let trimInitialPTYBreaks = true;
 
   $: copy = locale === 'ru' ? {
     title: 'Entware Terminal',
@@ -63,6 +64,28 @@
     terminal?.writeln('\x1b[1;36mRouterForge Entware Terminal\x1b[0m');
   }
 
+  function writeServerOutput(data) {
+    if (!trimInitialPTYBreaks) {
+      terminal.write(data instanceof ArrayBuffer ? new Uint8Array(data) : data);
+      return;
+    }
+
+    if (data instanceof ArrayBuffer) {
+      const bytes = new Uint8Array(data);
+      let start = 0;
+      while (start < bytes.length && (bytes[start] === 10 || bytes[start] === 13)) start += 1;
+      if (start >= bytes.length) return;
+      trimInitialPTYBreaks = false;
+      terminal.write(bytes.subarray(start));
+      return;
+    }
+
+    const text = String(data || '').replace(/^[\r\n]+/, '');
+    if (!text) return;
+    trimInitialPTYBreaks = false;
+    terminal.write(text);
+  }
+
   function socketURL() {
     const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const cols = terminal?.cols || 80;
@@ -106,10 +129,8 @@
 
     ws.onmessage = (event) => {
       if (socket !== ws) return;
-      if (event.data instanceof ArrayBuffer) {
-        terminal.write(new Uint8Array(event.data));
-      } else if (typeof event.data === 'string') {
-        terminal.write(event.data);
+      if (event.data instanceof ArrayBuffer || typeof event.data === 'string') {
+        writeServerOutput(event.data);
       }
     };
 

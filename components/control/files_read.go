@@ -20,13 +20,14 @@ const (
 )
 
 type adminFileEntry struct {
-	Name         string    `json:"name"`
-	Path         string    `json:"path"`
-	Kind         string    `json:"kind"`
-	Size         int64     `json:"size"`
-	Mode         string    `json:"mode"`
-	ModifiedAt   time.Time `json:"modified_at"`
-	ModifiedAtNS int64     `json:"mtime_ns,string"`
+	Name                string    `json:"name"`
+	Path                string    `json:"path"`
+	Kind                string    `json:"kind"`
+	Size                int64     `json:"size"`
+	Mode                string    `json:"mode"`
+	ModifiedAt          time.Time `json:"modified_at"`
+	ModifiedAtNS        int64     `json:"mtime_ns,string"`
+	HasChildDirectories *bool     `json:"has_child_directories,omitempty"`
 }
 
 type adminFileReadResponse struct {
@@ -107,6 +108,29 @@ func adminFileKind(mode os.FileMode) string {
 	}
 }
 
+func adminFileHasChildDirectory(path string) (bool, error) {
+	dir, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer dir.Close()
+
+	for {
+		entries, readErr := dir.ReadDir(64)
+		for _, entry := range entries {
+			if entry.IsDir() {
+				return true, nil
+			}
+		}
+		if errors.Is(readErr, io.EOF) {
+			return false, nil
+		}
+		if readErr != nil {
+			return false, readErr
+		}
+	}
+}
+
 func handleAdminFileList(w http.ResponseWriter, r *http.Request) {
 	resolved, err := resolveExistingAdminFilePath(r.URL.Query().Get("path"))
 	if err != nil {
@@ -144,6 +168,7 @@ func handleAdminFileList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	includeTreeMetadata := r.URL.Query().Get("tree_meta") == "1"
 	result := make([]adminFileEntry, 0, len(entries))
 	for _, entry := range entries {
 		info, err := entry.Info()
@@ -151,14 +176,25 @@ func handleAdminFileList(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot inspect directory entry"})
 			return
 		}
+
+		var hasChildDirectories *bool
+		if includeTreeMetadata && info.IsDir() {
+			hasChildren, childErr := adminFileHasChildDirectory(filepath.Join(resolved.Canonical, entry.Name()))
+			if childErr == nil {
+				hasChildDirectories = new(bool)
+				*hasChildDirectories = hasChildren
+			}
+		}
+
 		result = append(result, adminFileEntry{
-			Name:         entry.Name(),
-			Path:         filepath.Join(resolved.Lexical, entry.Name()),
-			Kind:         adminFileKind(info.Mode()),
-			Size:         info.Size(),
-			Mode:         info.Mode().String(),
-			ModifiedAt:   info.ModTime(),
-			ModifiedAtNS: info.ModTime().UnixNano(),
+			Name:                entry.Name(),
+			Path:                filepath.Join(resolved.Lexical, entry.Name()),
+			Kind:                adminFileKind(info.Mode()),
+			Size:                info.Size(),
+			Mode:                info.Mode().String(),
+			ModifiedAt:          info.ModTime(),
+			ModifiedAtNS:        info.ModTime().UnixNano(),
+			HasChildDirectories: hasChildDirectories,
 		})
 	}
 	sort.Slice(result, func(i, j int) bool {

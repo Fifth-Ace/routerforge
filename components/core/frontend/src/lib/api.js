@@ -94,8 +94,8 @@ export const getDNSInfo = () => request('/api/dns/info');
 
 export const getModule = (moduleID, endpoint = 'health') =>
   request(`/api/modules/${encodeURIComponent(moduleID)}/${encodeURIComponent(endpoint)}`);
-export const getAdminFiles = (path) =>
-  request(`/api/modules/admin/files/list?path=${encodeURIComponent(path)}`);
+export const getAdminFiles = (path, includeTreeMetadata = false) =>
+  request(`/api/modules/admin/files/list?path=${encodeURIComponent(path)}${includeTreeMetadata ? '&tree_meta=1' : ''}`);
 export const getAdminFileVolumes = () =>
   request('/api/modules/admin/files/volumes');
 export const getAdminFileHash = (path, algorithm = 'sha256') =>

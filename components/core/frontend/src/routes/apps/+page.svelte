@@ -35,6 +35,7 @@
   let actionNotice = null;
   let channelBusy = false;
   let checkingUpdates = false;
+  let checkingAll = false;
   let bulkUpdating = false;
   let entwareLoading = false;
   let entwareRefreshing = false;
@@ -582,17 +583,67 @@
     }
   }
 
-  async function checkForUpdates() {
-    if (checkingUpdates || busyId) return;
+  async function checkCurrentUpdates() {
+    if (checkingUpdates || checkingAll || channelBusy || busyId) return;
+    if (tab !== 'routerforge' && tab !== 'integrations') return;
+
+    const scope = tab;
     checkingUpdates = true;
     try {
-      await forceRefreshCatalog();
-      if (['entware','installed','updates'].includes(tab)) await loadEntware(0);
-      actionNotice = { cls:'good', text:a(locale,'checkUpdates') };
+      const result = await forceRefreshCatalog();
+      const current = result?.catalog || await refreshCatalog() || { modules:[], integrations:[] };
+      const count = scope === 'routerforge'
+        ? (current.modules || []).filter(hasCatalogUpdate).length
+        : (current.integrations || []).filter(hasCatalogUpdate).length;
+      actionNotice = {
+        cls:'good',
+        text: scope === 'routerforge'
+          ? (locale === 'ru' ? `RouterForge: проверка завершена · обновлений: ${count}` : `RouterForge check complete · updates: ${count}`)
+          : (locale === 'ru' ? `Интеграции: проверка завершена · обновлений: ${count}` : `Integrations check complete · updates: ${count}`)
+      };
     } catch (error) {
       actionNotice = { cls:'error', text:error?.payload?.error || error?.message || 'error' };
     } finally {
       checkingUpdates = false;
+    }
+  }
+
+  async function checkAllUpdates() {
+    if (checkingAll || checkingUpdates || channelBusy || entwareRefreshing || bulkUpdating || busyId) return;
+    checkingAll = true;
+
+    const failures = [];
+    try {
+      try {
+        await forceRefreshCatalog();
+      } catch (error) {
+        failures.push(`Registry: ${error?.payload?.error || error?.message || 'error'}`);
+      }
+
+      if (packageMode) {
+        try {
+          await refreshEntwarePackages();
+        } catch (error) {
+          failures.push(`Entware: ${error?.payload?.detail || error?.payload?.error || error?.message || 'error'}`);
+        }
+      }
+
+      await refreshCatalog();
+      await loadEntware(0);
+
+      actionNotice = failures.length
+        ? {
+            cls:'warn',
+            text: locale === 'ru'
+              ? `Проверка завершена с предупреждениями: ${failures.join(' · ')}`
+              : `Check completed with warnings: ${failures.join(' · ')}`
+          }
+        : {
+            cls:'good',
+            text: locale === 'ru' ? 'Проверены все источники обновлений.' : 'All update sources checked.'
+          };
+    } finally {
+      checkingAll = false;
     }
   }
 
@@ -823,9 +874,14 @@
       <h1>{a(locale,'pageTitle')}</h1>
       <p>{a(locale,'subtitle')}</p>
     </div>
-    <span class="state-chip {data.registry?.online && String(data.registry?.source || '').toLowerCase() === 'remote' ? 'good' : data.registry?.source === 'cache' ? 'warn' : 'neutral'}">
-      {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
-    </span>
+    <div class="page-head-actions">
+      <span class="state-chip {data.registry?.online && String(data.registry?.source || '').toLowerCase() === 'remote' ? 'good' : data.registry?.source === 'cache' ? 'warn' : 'neutral'}">
+        {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
+      </span>
+      <button class="button check-all-button" disabled={checkingAll || checkingUpdates || channelBusy || entwareRefreshing || bulkUpdating || Boolean(busyId)} onclick={checkAllUpdates}>
+        {checkingAll ? (locale === 'ru' ? 'Проверяем всё…' : 'Checking all…') : (locale === 'ru' ? 'Проверить всё' : 'Check all')}
+      </button>
+    </div>
   </div>
 
   <div class="subtabs app-center-tabs">
@@ -836,7 +892,7 @@
     {/each}
   </div>
 
-  <div class="toolbar catalog-toolbar-v3">
+  <div class="toolbar catalog-toolbar-v4" class:routerforge={tab === 'routerforge'}>
     <div class="catalog-search-group">
       <div class="search-control flex">
         <span>⌕</span>
@@ -857,31 +913,35 @@
         </select>
       {/if}
 
-      <select class="channel-select" aria-label="RouterForge channel" value={releaseChannel} disabled={channelBusy || Boolean(busyId)} onchange={changeReleaseChannel}>
-        <option value="stable">RouterForge Stable</option>
-        <option value="beta">RouterForge Beta</option>
-        <option value="dev">RouterForge Dev</option>
-      </select>
-
-
-      <button class="button check-updates-button" disabled={checkingUpdates || Boolean(busyId)} onclick={checkForUpdates}>
-        {checkingUpdates ? a(locale,'checking') : a(locale,'checkUpdates')}
-      </button>
+      {#if tab === 'routerforge'}
+        <select class="channel-select" aria-label="RouterForge channel" value={releaseChannel} disabled={channelBusy || checkingUpdates || checkingAll || Boolean(busyId)} onchange={changeReleaseChannel}>
+          <option value="stable">RouterForge Stable</option>
+          <option value="beta">RouterForge Beta</option>
+          <option value="dev">RouterForge Dev</option>
+        </select>
+        <button class="button check-updates-button" disabled={checkingUpdates || checkingAll || channelBusy || Boolean(busyId)} onclick={checkCurrentUpdates}>
+          {checkingUpdates ? a(locale,'checking') : (locale === 'ru' ? 'Проверить RouterForge' : 'Check RouterForge')}
+        </button>
+      {:else if tab === 'integrations'}
+        <button class="button check-updates-button" disabled={checkingUpdates || checkingAll || Boolean(busyId)} onclick={checkCurrentUpdates}>
+          {checkingUpdates ? a(locale,'checking') : (locale === 'ru' ? 'Проверить интеграции' : 'Check integrations')}
+        </button>
+      {/if}
 
       {#if tab === 'entware' && packageMode}
-        <button class="button" disabled={entwareRefreshing || Boolean(busyId)} onclick={refreshEntware}>
+        <button class="button" disabled={entwareRefreshing || checkingAll || Boolean(busyId)} onclick={refreshEntware}>
           {entwareRefreshing ? a(locale,'updatingLists') : a(locale,'updateLists')}
         </button>
       {/if}
 
       {#if tab === 'routerforge' && packageMode && officialRouterForgeUpdates.length}
-        <button class="button primary" disabled={bulkUpdating || Boolean(busyId)} onclick={updateAllRouterForge}>
+        <button class="button primary" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId)} onclick={updateAllRouterForge}>
           {bulkUpdating ? (locale === 'ru' ? 'Обновляем RouterForge…' : 'Updating RouterForge…') : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
         </button>
       {/if}
 
       {#if tab === 'routerforge' && packageMode && routerForgeUpdates.length}
-        <button class="button" disabled={bulkUpdating || Boolean(busyId)} onclick={reviewRouterForgeUpdates}>
+        <button class="button" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId)} onclick={reviewRouterForgeUpdates}>
           {locale === 'ru' ? 'Просмотреть обновления' : 'Review updates'} ({routerForgeUpdates.length})
         </button>
       {/if}
@@ -1108,7 +1168,17 @@
 
 <style>
   .app-center-tabs { margin-bottom: 1rem; }
-  .app-center-page .catalog-toolbar-v3 {
+  .app-center-page .page-head-actions {
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:.5rem;
+    flex-wrap:wrap;
+  }
+  .app-center-page .check-all-button {
+    white-space:nowrap;
+  }
+  .app-center-page .catalog-toolbar-v4 {
     display:grid;
     grid-template-columns:minmax(18rem,1fr) auto;
     gap:.65rem;
@@ -1136,10 +1206,6 @@
   }
   .app-center-page .channel-select {
     min-width:10.5rem;
-  }
-  .app-center-page .registry-chip {
-    flex:0 0 auto;
-    white-space:nowrap;
   }
   .app-center-page .check-updates-button {
     white-space:nowrap;
@@ -1295,8 +1361,17 @@
     text-align:right;
   }
 
+  @media (max-width:1240px) {
+    .app-center-page .catalog-toolbar-v4.routerforge {
+      grid-template-columns:1fr;
+    }
+    .app-center-page .catalog-toolbar-v4.routerforge .catalog-control-group {
+      justify-content:flex-start;
+    }
+  }
+
   @media (max-width:980px) {
-    .app-center-page .catalog-toolbar-v3 {
+    .app-center-page .catalog-toolbar-v4 {
       grid-template-columns:1fr;
     }
     .app-center-page .catalog-control-group {
@@ -1305,23 +1380,23 @@
   }
 
   @media (max-width:760px) {
+    .app-center-page .page-head-actions {
+      justify-content:flex-start;
+    }
     .app-center-page .catalog-search-group {
       align-items:stretch;
     }
     .app-center-page .catalog-control-group {
       display:grid;
-      grid-template-columns:minmax(0,1fr) auto;
+      grid-template-columns:1fr;
       align-items:stretch;
+    }
+    .app-center-page .catalog-control-group > .button,
+    .app-center-page .catalog-control-group > select {
+      width:100%;
     }
     .app-center-page .channel-select {
       min-width:0;
-      width:100%;
-    }
-    .app-center-page .registry-chip {
-      align-self:center;
-    }
-    .app-center-page .check-updates-button {
-      grid-column:1 / -1;
     }
     .app-center-page .app-action-history-toggle,
     .app-center-page .app-action-history-row {

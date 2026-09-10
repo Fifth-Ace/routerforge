@@ -37,6 +37,7 @@
 
   $: locale = $settings.locale || 'ru';
   $: modules = $catalog.modules || [];
+  $: coreModule = modules.find((item) => item.id === 'routerforge-core');
   $: integrations = $catalog.integrations || [];
   $: installedModules = modules.filter((item) => item.installed && !item.builtin && item.id !== 'profiling');
   $: installedIntegrations = integrations.filter((item) => item.installed);
@@ -48,16 +49,25 @@
   $: model = telem.platform?.model || 'Keenetic';
   $: processes = Number(telem.summary?.process_count || 0);
 
+  function compactModuleName(item) {
+    const original = String(item?.name || item?.id || 'Module').trim();
+    const compact = original.replace(/^RouterForge(?:\s+|[-_:]+)*/i, '').trim();
+    return compact || original;
+  }
+
+  function moduleIsOff(item) {
+    if (!item || item.id === 'routerforge-core' || item.id === 'dns') return false;
+    const hasServiceContract = Boolean(item.service) || Boolean(item.detection?.services?.length);
+    return hasServiceContract && item.service_running === false;
+  }
+
   function stateLabel(item) {
-    if (item.update_available) return 'UPDATE';
-    if (item.id === 'dns') return t(locale,'common.enabled').toUpperCase();
-    if (item.service_running) return t(locale,'common.online').toUpperCase();
-    return t(locale,'common.installed').toUpperCase();
+    if (item?.update_available) return 'UPDATE';
+    return moduleIsOff(item) ? 'OFF' : 'ON';
   }
   function stateClass(item) {
-    if (item.update_available) return 'warn';
-    if (item.id === 'dns' || item.service_running) return 'good';
-    return 'neutral';
+    if (item?.update_available) return 'warn';
+    return moduleIsOff(item) ? 'bad' : 'good';
   }
 </script>
 
@@ -68,14 +78,14 @@
         <div class="rail-section-label">RouterForge</div>
         <div class="global-module-tree mono">
           <div class="global-tree-root">
-            <span class="status-dot good"></span><strong>Core</strong>
-            <span class="global-tree-state good">[{t(locale,'common.online').toUpperCase()}]</span>
+            <span class="status-dot {stateClass(coreModule)}"></span><strong>Core</strong>
+            <span class="global-tree-state {stateClass(coreModule)}">[{stateLabel(coreModule)}]</span>
           </div>
           {#each installedModules as item, index (item.id)}
             <div class="global-tree-row">
               <span class="tree-branch">{index === installedModules.length - 1 ? '└─' : '├─'}</span>
               <span class="status-dot {stateClass(item)}"></span>
-              <span class="global-tree-name">{item.name}</span>
+              <span class="global-tree-name" title={item.name}>{compactModuleName(item)}</span>
               <span class="global-tree-state {stateClass(item)}">[{stateLabel(item)}]</span>
             </div>
           {/each}
@@ -90,7 +100,7 @@
               <div class="global-tree-row">
                 <span class="tree-branch">{index === installedIntegrations.length - 1 ? '└─' : '├─'}</span>
                 <span class="status-dot {stateClass(item)}"></span>
-                <span class="global-tree-name">{item.name}</span>
+                <span class="global-tree-name" title={item.name}>{compactModuleName(item)}</span>
                 <span class="global-tree-state {stateClass(item)}">[{stateLabel(item)}]</span>
               </div>
             {/each}

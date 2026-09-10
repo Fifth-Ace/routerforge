@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestFallbackDetection(t *testing.T) {
@@ -22,5 +23,20 @@ func TestFallbackDetection(t *testing.T) {
 	flow := snap["flow"].([]FlowEvent)
 	if len(flow) != 2 || !flow[1].Fallback {
 		t.Fatalf("flow=%#v", flow)
+	}
+}
+func TestDefaultFlowRetentionBudget(t *testing.T) {
+	if defaultFlowRetentionCap < 2*maxClientDetailEvents {
+		t.Fatalf("retention cap %d must keep at least 2x client detail max %d", defaultFlowRetentionCap, maxClientDetailEvents)
+	}
+
+	s := NewStore(defaultFlowRetentionCap, 8)
+	if len(s.flow) != defaultFlowRetentionCap || len(s.clientFlow) != defaultFlowRetentionCap {
+		t.Fatalf("preallocated rings flow=%d client_flow=%d want=%d", len(s.flow), len(s.clientFlow), defaultFlowRetentionCap)
+	}
+
+	ringBytes := uintptr(defaultFlowRetentionCap) * (unsafe.Sizeof(FlowEvent{}) + unsafe.Sizeof(ClientFlowEvent{}))
+	if unsafe.Sizeof(uintptr(0)) == 8 && ringBytes > 3*1024*1024 {
+		t.Fatalf("64-bit base ring budget too large: %d bytes", ringBytes)
 	}
 }

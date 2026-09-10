@@ -24,7 +24,7 @@ func main() {
 		log.Fatal("routerforge-dns must run as root (packet capture and Keenetic RCI require it)")
 	}
 
-	store := NewStore(10000, 500)
+	store := NewStore(defaultFlowRetentionCap, 500)
 	eventLog := NewEventLogger(*logPath)
 	eventLog.Event("START", fmt.Sprintf("routerforge-dns v%s socket=%s", version, *socket))
 

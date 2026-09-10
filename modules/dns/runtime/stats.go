@@ -9,6 +9,9 @@ import (
 
 var latencyBoundsMS = [...]float64{10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 8000, 16000}
 
+const defaultFlowRetentionCap = 4096
+const maxClientDetailEvents = 2000
+
 type upstreamState struct {
 	meta               UpstreamMeta
 	requests           uint64

@@ -347,6 +347,13 @@ func normalizeMaintenanceArchiveName(name string) (string, error) {
 	if name == "" || strings.HasPrefix(name, "/") {
 		return "", errors.New("archive contains absolute or empty path")
 	}
+
+	for _, component := range strings.Split(name, "/") {
+		if component == ".." {
+			return "", errors.New("archive contains path traversal")
+		}
+	}
+
 	clean := filepath.ToSlash(filepath.Clean(name))
 	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") {
 		return "", errors.New("archive contains path traversal")

@@ -11,12 +11,12 @@ import (
 )
 
 type adminFileCopyRequest struct {
-	Source               string `json:"source"`
-	Destination          string `json:"destination"`
-	ConfirmSource        string `json:"confirm_source"`
-	ConfirmDestination   string `json:"confirm_destination"`
-	ExpectedSize         int64  `json:"expected_size"`
-	ExpectedMtimeNS      int64  `json:"expected_mtime_ns,string"`
+	Source             string `json:"source"`
+	Destination        string `json:"destination"`
+	ConfirmSource      string `json:"confirm_source"`
+	ConfirmDestination string `json:"confirm_destination"`
+	ExpectedSize       int64  `json:"expected_size"`
+	ExpectedMtimeNS    int64  `json:"expected_mtime_ns,string"`
 }
 
 func handleAdminFileCopy(w http.ResponseWriter, r *http.Request) {

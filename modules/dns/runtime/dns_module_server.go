@@ -96,7 +96,7 @@ func (s *dnsModuleServer) Serve() error {
 	}))
 	mux.HandleFunc("/v1/client", s.getOnly(func(w http.ResponseWriter, r *http.Request) {
 		ip := strings.TrimSpace(r.URL.Query().Get("ip"))
-		limit := boundedInt(r.URL.Query().Get("limit"), 500, 1, 2000)
+		limit := boundedInt(r.URL.Query().Get("limit"), 500, 1, maxClientDetailEvents)
 		client, events, ok := s.store.ClientDetail(ip, limit)
 		if !ok {
 			s.writeJSON(w, http.StatusNotFound, map[string]any{"error": "client not found"})

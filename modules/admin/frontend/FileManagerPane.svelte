@@ -2,10 +2,11 @@
   import { onMount } from 'svelte';
   import {
     adminFileChmod, adminFileCopy, adminFileDelete, adminFileDownloadURL,
-    adminFileMkdir, adminFileMove, adminFileWrite, getAdminFiles, readAdminFile
+    adminFileMkdir, adminFileMove, adminFileWrite, getAdminFiles, getAdminFileVolumes, readAdminFile
   } from '$lib/api.js';
   import { bytes } from '$lib/utils.js';
   import FileEditorDrawer from './FileEditorDrawer.svelte';
+  import FilePropertiesModal from './FilePropertiesModal.svelte';
 
   export let locale = 'ru';
 
@@ -15,15 +16,12 @@
   const EXPLORER_KEY = 'routerforge.admin.files.explorer.path';
   const WRITE_LIMIT = 128 * 1024;
 
-  const quickRoots = [
-    ['Entware', '/opt'],
-    ['Config', '/opt/etc'],
-    ['AWG Manager', '/opt/etc/awg-manager'],
-    ['Logs', '/opt/var/log'],
-    ['Binaries', '/opt/bin'],
-    ['Runtime', '/opt/var'],
-    ['Temp', '/tmp']
+  let volumes = [
+    { id: 'entware', label: 'Entware', mount: '/opt', read_only: false, kind: 'entware' },
+    { id: 'temp', label: 'Temporary', mount: '/tmp', read_only: false, kind: 'temporary' }
   ];
+  let explorerVolumeRoot = '/opt';
+  let treeState = {};
 
   let view = 'commander';
   let busyCount = 0;
@@ -45,6 +43,8 @@
   let editorOriginal = '';
   let editorBusy = false;
   let editorForceReadOnly = false;
+  let propertiesEntry = null;
+  let propertiesReload = null;
 
   $: busy = busyCount > 0;
   $: editorDirty = !!selectedFile && editorContent !== editorOriginal;
@@ -62,8 +62,9 @@
     size: 'Размер', modified: 'Изменён', mode: 'Права', search: 'Фильтр…', path: 'Путь',
     noSelection: 'Сначала выбери объект в активной панели.', regularOnly: 'Копирование каталогов backend пока не поддерживает.',
     destination: 'Путь назначения', viewFile: 'Просмотр', edit: 'Правка', save: 'Сохранить', close: 'Закрыть',
-    previous: 'Назад', next: 'Вперёд', up: 'Вверх', swap: 'Поменять панели', quick: 'Быстрый доступ',
-    selected: 'выбрано', items: 'объектов', empty: 'Папка пуста', open: 'Открыть'
+    previous: 'Назад', next: 'Вперёд', up: 'Вверх', swap: 'Поменять панели', quick: 'Дерево папок',
+    selected: 'выбрано', items: 'объектов', empty: 'Папка пуста', open: 'Открыть',
+    volume: 'Диск / том', properties: 'Свойства'
   } : {
     commander: 'Commander', explorer: 'Explorer', refresh: 'Refresh',
     folder: 'Folder', file: 'File', copy: 'Copy', move: 'Move', rename: 'Rename',
@@ -71,24 +72,35 @@
     size: 'Size', modified: 'Modified', mode: 'Mode', search: 'Filter…', path: 'Path',
     noSelection: 'Select an item in the active panel first.', regularOnly: 'Directory copy is not supported by the backend yet.',
     destination: 'Destination path', viewFile: 'View', edit: 'Edit', save: 'Save', close: 'Close',
-    previous: 'Back', next: 'Forward', up: 'Up', swap: 'Swap panels', quick: 'Quick access',
-    selected: 'selected', items: 'items', empty: 'Folder is empty', open: 'Open'
+    previous: 'Back', next: 'Forward', up: 'Up', swap: 'Swap panels', quick: 'Folder tree',
+    selected: 'selected', items: 'items', empty: 'Folder is empty', open: 'Open',
+    volume: 'Disk / volume', properties: 'Properties'
   };
 
   function makePanel(path) {
-    return { path, pathInput: path, entries: [], selected: null, filter: '', sort: 'name', sortDir: 1, history: [path], historyIndex: 0 };
+    return { path, volumeRoot: rootForPath(path), pathInput: path, entries: [], selected: null, filter: '', sort: 'name', sortDir: 1, history: [path], historyIndex: 0 };
   }
+
+  function volumeForPath(path) {
+    const clean = String(path || '/');
+    return [...volumes]
+      .filter((volume) => clean === volume.mount || clean.startsWith(`${volume.mount.replace(/\/$/, '')}/`))
+      .sort((a, b) => b.mount.length - a.mount.length)[0] || volumes[0];
+  }
+
+  function rootForPath(path) { return volumeForPath(path)?.mount || '/opt'; }
+  function pathWritable(path) { return !(volumeForPath(path)?.read_only ?? true); }
 
   function err(error) { return error?.payload?.error || error?.message || String(error); }
   function join(parentPath, name) { return `${parentPath.replace(/\/+$/, '')}/${name}` || `/${name}`; }
-  function parent(path) {
-    const clean = path.replace(/\/+$/, '');
-    if (clean === '/opt' || clean === '/tmp') return clean;
+  function parentWithin(path, root = rootForPath(path)) {
+    const clean = path.replace(/\/+$/, '') || '/';
+    const boundary = root.replace(/\/+$/, '') || '/';
+    if (clean === boundary) return boundary;
     const pos = clean.lastIndexOf('/');
-    const value = pos <= 0 ? clean : clean.slice(0, pos);
-    if (clean.startsWith('/opt/') && !value.startsWith('/opt')) return '/opt';
-    if (clean.startsWith('/tmp/') && !value.startsWith('/tmp')) return '/tmp';
-    return value;
+    const value = pos <= 0 ? '/' : clean.slice(0, pos);
+    if (boundary === '/') return value;
+    return value === boundary || value.startsWith(`${boundary}/`) ? value : boundary;
   }
   function base(path) { const clean = path.replace(/\/+$/, ''); return clean.slice(clean.lastIndexOf('/') + 1); }
 
@@ -159,6 +171,7 @@
       setPanel(side, {
         ...current,
         path: resolved,
+        volumeRoot: rootForPath(resolved),
         pathInput: resolved,
         entries: result.entries || [],
         selected: null,
@@ -192,7 +205,9 @@
       const result = await getAdminFiles(path);
       explorerPath = result.path || path;
       explorerEntries = result.entries || [];
+      explorerVolumeRoot = rootForPath(explorerPath);
       localStorage.setItem(EXPLORER_KEY, explorerPath);
+      await ensureTreePath(explorerPath);
     } catch (error) { errorText = err(error); }
     finally { busyCount -= 1; }
   }
@@ -274,12 +289,77 @@
     } catch (error) { errorText = err(error); }
   }
 
-  async function chmodEntry(entry, reload) {
-    const mode = prompt(copy.chmod, entry.kind === 'directory' ? '0755' : '0644'); if (!mode) return;
+  function showProperties(entry, reload) {
+    propertiesEntry = entry;
+    propertiesReload = reload;
+  }
+
+  async function applyPropertiesMode(mode) {
+    const entry = propertiesEntry;
+    if (!entry) return;
+    await adminFileChmod({
+      path: entry.path, confirm_path: entry.path, mode,
+      expected_size: entry.size, expected_mtime_ns: entry.mtime_ns
+    });
+    setAction(`${copy.chmod}: ${entry.path} → ${mode}`);
+    propertiesEntry = null;
+    if (propertiesReload) await propertiesReload();
+  }
+
+  async function changePanelVolume(side, mount) {
+    const panel = panelFor(side);
+    setPanel(side, { ...panel, volumeRoot: mount, history: [mount], historyIndex: 0 });
+    await loadPanel(side, mount, 'history');
+  }
+
+  async function changeExplorerVolume(mount) {
+    explorerVolumeRoot = mount;
+    treeState = {};
+    await loadExplorer(mount);
+  }
+
+  async function loadTreeChildren(path) {
+    const current = treeState[path];
+    if (current?.loaded) return;
     try {
-      await adminFileChmod({ path: entry.path, confirm_path: entry.path, mode, expected_size: entry.size, expected_mtime_ns: entry.mtime_ns });
-      setAction(`${copy.chmod}: ${entry.path}`); await reload();
+      const result = await getAdminFiles(path);
+      const children = (result.entries || []).filter((entry) => entry.kind === 'directory');
+      treeState = { ...treeState, [path]: { loaded: true, expanded: current?.expanded ?? true, children } };
     } catch (error) { errorText = err(error); }
+  }
+
+  async function toggleTree(path) {
+    const current = treeState[path] || { loaded: false, expanded: false, children: [] };
+    if (!current.loaded) await loadTreeChildren(path);
+    const fresh = treeState[path] || current;
+    treeState = { ...treeState, [path]: { ...fresh, expanded: !fresh.expanded } };
+  }
+
+  async function ensureTreePath(path) {
+    const root = rootForPath(path);
+    await loadTreeChildren(root);
+    const parts = path.slice(root.length).split('/').filter(Boolean);
+    let current = root;
+    for (const part of parts) {
+      const node = treeState[current] || { loaded: false, expanded: false, children: [] };
+      treeState = { ...treeState, [current]: { ...node, expanded: true } };
+      const next = `${current.replace(/\/$/, '')}/${part}`;
+      await loadTreeChildren(next);
+      current = next;
+    }
+  }
+
+  function treeRows(root) {
+    const rows = [];
+    const walk = (path, label, depth) => {
+      const state = treeState[path] || { loaded: false, expanded: false, children: [] };
+      rows.push({ path, label, depth, expanded: state.expanded, loaded: state.loaded, hasChildren: !state.loaded || state.children.length > 0 });
+      if (!state.expanded) return;
+      for (const child of state.children) walk(child.path, child.name, depth + 1);
+    };
+    const volume = volumes.find((item) => item.mount === root);
+    walk(root, volume?.label || root, 0);
+    return rows;
   }
 
   async function transfer(kind) {
@@ -333,6 +413,7 @@
     if (action === 'move') return transfer('move');
     if (action === 'mkdir') return createFolder(panel.path, () => loadPanel(active, panel.path, 'history'));
     if (action === 'delete') return deleteEntry(entry, () => loadPanel(active, panel.path, 'history'));
+    if (action === 'properties') return showProperties(entry, () => loadPanel(active, panel.path, 'history'));
   }
 
   function selectRelative(delta) {
@@ -356,7 +437,8 @@
     if (event.key === 'End') { event.preventDefault(); selectRelative(999999); return; }
     if (event.key === 'PageDown') { event.preventDefault(); selectRelative(12); return; }
     if (event.key === 'PageUp') { event.preventDefault(); selectRelative(-12); return; }
-    if (event.key === 'Backspace') { event.preventDefault(); loadPanel(active, parent(activePanel().path)); return; }
+    if (event.key === 'Backspace') { event.preventDefault(); loadPanel(active, parentWithin(activePanel().path, activePanel().volumeRoot)); return; }
+    if (event.altKey && event.key === 'Enter') { event.preventDefault(); invokeSelected('properties'); return; }
     if (event.key === 'Enter' && activePanel().selected) { event.preventDefault(); openEntry(active, activePanel().selected); return; }
     if (event.key === 'F3') { event.preventDefault(); invokeSelected('view'); return; }
     if (event.key === 'F4') { event.preventDefault(); invokeSelected('edit'); return; }
@@ -367,7 +449,7 @@
   }
 
   function breadcrumbs(path) {
-    const root = path.startsWith('/tmp') ? '/tmp' : '/opt';
+    const root = rootForPath(path);
     if (path === root) return [{ label: root, path: root }];
     const rest = path.slice(root.length).split('/').filter(Boolean);
     const crumbs = [{ label: root, path: root }];
@@ -377,6 +459,13 @@
   }
 
   onMount(() => {
+    let disposed = false;
+    (async () => {
+      try {
+        const result = await getAdminFileVolumes();
+        if (!disposed && Array.isArray(result.volumes) && result.volumes.length) volumes = result.volumes;
+      } catch (error) { errorText = err(error); }
+      if (disposed) return;
     const stored = localStorage.getItem(VIEW_KEY);
     if (stored === 'explorer' || stored === 'commander') view = stored;
     const leftPath = localStorage.getItem(LEFT_KEY) || '/opt';
@@ -386,9 +475,15 @@
     right = makePanel(rightPath);
     loadPanel('left', leftPath, 'history');
     loadPanel('right', rightPath, 'history');
+    explorerVolumeRoot = rootForPath(explorerPath);
     if (view === 'explorer') loadExplorer(explorerPath);
+    else loadTreeChildren(explorerVolumeRoot);
+    })();
     window.addEventListener('keydown', handleCommanderKey);
-    return () => window.removeEventListener('keydown', handleCommanderKey);
+    return () => {
+      disposed = true;
+      window.removeEventListener('keydown', handleCommanderKey);
+    };
   });
 </script>
 
@@ -416,10 +511,9 @@
           <div class="panel-nav">
             <button title={copy.previous} onclick={() => navigateHistory(side, -1)} disabled={panel.historyIndex <= 0}>‹</button>
             <button title={copy.next} onclick={() => navigateHistory(side, 1)} disabled={panel.historyIndex >= panel.history.length - 1}>›</button>
-            <button title={copy.up} onclick={() => loadPanel(side, parent(panel.path))}>↑</button>
-            <select aria-label={copy.quick} onchange={(event) => loadPanel(side, event.currentTarget.value)} value="">
-              <option value="" disabled>⌘</option>
-              {#each quickRoots as [label, path]}<option value={path}>{label}</option>{/each}
+            <button title={copy.up} onclick={() => loadPanel(side, parentWithin(panel.path, panel.volumeRoot))}>↑</button>
+            <select class="volume-select" aria-label={copy.volume} onchange={(event) => changePanelVolume(side, event.currentTarget.value)} value={panel.volumeRoot}>
+              {#each volumes as volume}<option value={volume.mount}>{volume.label}{volume.read_only ? ' · RO' : ''}</option>{/each}
             </select>
             <form class="path-form" onsubmit={(event) => { event.preventDefault(); submitPath(side); }}>
               <input class="path-input mono" bind:value={panel.pathInput} aria-label={copy.path}/>
@@ -435,7 +529,7 @@
 
           <div class="commander-head"><span>{copy.name}</span><span>{copy.size}</span><span>{copy.modified}</span><span>{copy.mode}</span></div>
           <div class="commander-list">
-            <button class="file-row parent-row" onclick={() => loadPanel(side, parent(panel.path))}><span>📁 ..</span><span>—</span><span>—</span><span>—</span></button>
+            <button class="file-row parent-row" onclick={() => loadPanel(side, parentWithin(panel.path, panel.volumeRoot))}><span>📁 ..</span><span>—</span><span>—</span><span>—</span></button>
             {#each panelEntries(panel) as entry (entry.path)}
               <button class:selected={panel.selected?.path === entry.path} class="file-row" onclick={() => select(side, entry)} ondblclick={() => openEntry(side, entry)}>
                 <span class="entry-name">{entry.kind === 'directory' ? '📁' : entry.kind === 'file' ? '📄' : '↗'} {entry.name}</span>
@@ -463,22 +557,32 @@
       <button onclick={() => invokeSelected('move')}><kbd>F6</kbd> {copy.move}</button>
       <button onclick={() => invokeSelected('mkdir')}><kbd>F7</kbd> MkDir</button>
       <button class="danger" onclick={() => invokeSelected('delete')}><kbd>F8</kbd> {copy.remove}</button>
+      <button onclick={() => invokeSelected('properties')}><kbd>Alt+Enter</kbd> {copy.properties}</button>
       <span class="spacer"></span><span class="key-hint mono">TAB panel · Ctrl+U swap · Enter open · Backspace up</span>
     </div>
   {:else}
     <div class="explorer-shell">
       <aside class="quick-tree">
+        <div class="tree-volume">
+          <label>{copy.volume}</label>
+          <select value={explorerVolumeRoot} onchange={(event) => changeExplorerVolume(event.currentTarget.value)}>
+            {#each volumes as volume}<option value={volume.mount}>{volume.label}{volume.read_only ? ' · RO' : ''}</option>{/each}
+          </select>
+        </div>
         <div class="quick-title">{copy.quick}</div>
-        {#each quickRoots as [label, path]}
-          <button class:active={explorerPath === path || explorerPath.startsWith(`${path}/`)} onclick={() => loadExplorer(path)}>
-            <span class="quick-icon">▣</span><span>{label}</span><small>{path}</small>
-          </button>
-        {/each}
+        <div class="folder-tree">
+          {#each treeRows(explorerVolumeRoot) as node (node.path)}
+            <div class:tree-active={explorerPath === node.path} class="tree-row" style={`padding-left:${0.45 + node.depth * 0.85}rem`}>
+              <button class="tree-toggle" onclick={() => toggleTree(node.path)} disabled={!node.hasChildren}>{node.hasChildren ? (node.expanded ? '▾' : '▸') : '·'}</button>
+              <button class="tree-name" onclick={() => loadExplorer(node.path)} title={node.path}>📁 {node.label}</button>
+            </div>
+          {/each}
+        </div>
       </aside>
 
       <section class="explorer-main">
         <div class="explorer-toolbar">
-          <button title={copy.up} onclick={() => loadExplorer(parent(explorerPath))}>↑</button>
+          <button title={copy.up} onclick={() => loadExplorer(parentWithin(explorerPath, explorerVolumeRoot))}>↑</button>
           <button title={copy.refresh} onclick={() => loadExplorer(explorerPath)}>↻</button>
           <button onclick={() => createFolder(explorerPath, () => loadExplorer(explorerPath))}>＋ {copy.folder}</button>
           <button onclick={() => createFile(explorerPath, () => loadExplorer(explorerPath))}>＋ {copy.file}</button>
@@ -501,7 +605,7 @@
             <button onclick={() => cycleExplorerSort('mode')}>{copy.mode}</button>
             <span>{copy.actions}</span>
           </div>
-          <button class="explorer-row parent-row" onclick={() => loadExplorer(parent(explorerPath))}><span>📁 ..</span><span>—</span><span>—</span><span>—</span><span></span></button>
+          <button class="explorer-row parent-row" onclick={() => loadExplorer(parentWithin(explorerPath, explorerVolumeRoot))}><span>📁 ..</span><span>—</span><span>—</span><span>—</span><span></span></button>
           {#each explorerFiltered as entry (entry.path)}
             <div class="explorer-row">
               <button class="entry-open" onclick={() => openEntry('explorer', entry)}>
@@ -518,7 +622,7 @@
                   <a title={copy.download} href={adminFileDownloadURL(entry.path)}>↓</a>
                 {/if}
                 <button title={copy.rename} onclick={() => renameEntry(entry, () => loadExplorer(explorerPath))}>↷</button>
-                <button title={copy.chmod} onclick={() => chmodEntry(entry, () => loadExplorer(explorerPath))}>◆</button>
+                <button title={copy.properties} onclick={() => showProperties(entry, () => loadExplorer(explorerPath))}>ⓘ</button>
                 <button title={copy.remove} class="danger" onclick={() => deleteEntry(entry, () => loadExplorer(explorerPath))}>×</button>
               </span>
             </div>
@@ -541,6 +645,17 @@
     locale={locale}
     onSave={saveEditor}
     onClose={() => { selectedFile = null; editorContent = ''; editorOriginal = ''; editorForceReadOnly = false; }}
+  />
+{/if}
+
+{#if propertiesEntry}
+  <FilePropertiesModal
+    entry={propertiesEntry}
+    writable={pathWritable(propertiesEntry.path)}
+    locale={locale}
+    onClose={() => { propertiesEntry = null; propertiesReload = null; }}
+    onEdit={() => { const entry = propertiesEntry; propertiesEntry = null; if (entry?.kind === 'file') openEntry('explorer', entry, false); }}
+    onApplyMode={applyPropertiesMode}
   />
 {/if}
 
@@ -569,6 +684,9 @@
   .breadcrumbs{padding:.42rem .65rem;border-bottom:1px solid #1f2c37;background:#0e161f;color:#637687;overflow:auto;white-space:nowrap}.breadcrumbs button{border:0;background:transparent;padding:.18rem .25rem;color:#91b7d0}.breadcrumbs button:hover{color:#c8ecff;background:#15232d}
   .explorer-table{overflow:auto;max-height:58vh}.explorer-head,.explorer-row{display:grid;grid-template-columns:minmax(16rem,1fr) 6.5rem 11rem 8.5rem 10.5rem;gap:.5rem;align-items:center;padding:.42rem .62rem;border-bottom:1px solid #1b2731}.explorer-head{position:sticky;top:0;z-index:3;background:#111b25;color:#687b8c;font-size:.61rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.explorer-head button{border:0;background:transparent;padding:0;text-align:left;color:inherit;font-weight:inherit;text-transform:inherit}.explorer-row{font-size:.73rem;min-height:2.2rem}.explorer-row:hover{background:#101f29}.explorer-row>button{border:0;background:transparent;text-align:left;padding:0}.entry-open{display:flex;align-items:center;gap:.5rem;min-width:0}.entry-open>span:last-child{display:flex;min-width:0;flex-direction:column}.entry-open strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.entry-open small{color:#516574;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font: .56rem/1.2 "Roboto Mono",monospace}.file-icon{width:1.2rem;text-align:center}.permission{color:#8bc8ff}.row-actions{display:flex;justify-content:flex-end;gap:.2rem}.row-actions button,.row-actions a{display:grid;place-items:center;width:1.65rem;height:1.65rem;padding:0;text-decoration:none}.explorer-status{padding:.35rem .62rem;border-top:1px solid #22303c;background:#0e161f;color:#607384;font-size:.59rem;min-width:0}.explorer-status span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.empty-row{padding:1rem;color:#566978;text-align:center;font-size:.7rem}.explorer-empty{border-bottom:1px solid #1b2731}
 
+
+  .volume-select,.tree-volume select{max-width:12rem;background:#0e161e;color:#c9d4df;border:1px solid #30404d;border-radius:.35rem;padding:.34rem .42rem;font:600 .62rem "Roboto Mono",monospace}.tree-volume{padding:.15rem .35rem .65rem;border-bottom:1px solid #22303c;margin-bottom:.45rem}.tree-volume label{display:block;color:#607384;font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.28rem}.tree-volume select{width:100%;max-width:none}
+  .folder-tree{overflow:auto;max-height:54vh;padding:.1rem 0}.tree-row{display:flex;align-items:center;min-width:0;border-radius:.3rem}.tree-row:hover{background:rgba(93,228,199,.06)}.tree-row.tree-active{background:#13372c}.tree-toggle{flex:none;width:1.25rem;padding:.25rem 0;border:0;background:transparent;color:#71879a}.tree-name{min-width:0;flex:1;border:0;background:transparent;text-align:left;padding:.32rem .2rem;color:#b9c7d3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tree-active .tree-name{color:#86eabd}
   @media(max-width:980px){.commander-head,.file-row{grid-template-columns:minmax(0,1fr) 6rem 7rem}.commander-head span:nth-child(3),.file-row span:nth-child(3){display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(12rem,1fr) 6rem 8rem 9rem}.explorer-head>*:nth-child(3),.explorer-row>*:nth-child(3){display:none}.quick-tree{width:auto}.explorer-shell{grid-template-columns:10.5rem minmax(0,1fr)}}
   @media(max-width:760px){.commander-grid{grid-template-columns:1fr}.commander-panel:not(.active-panel){display:none}.key-hint{display:none}.explorer-shell{grid-template-columns:1fr}.quick-tree{display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(10rem,1fr) 6rem 9rem}.explorer-head>*:nth-child(4),.explorer-row>*:nth-child(4){display:none}.search-box input{min-width:7rem}.commander-keys{overflow:auto}}
 </style>

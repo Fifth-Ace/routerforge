@@ -54,6 +54,9 @@ func adminFileLexicalPath(raw string) (string, string, error) {
 	}
 
 	clean := filepath.Clean(raw)
+	if adminFileForbiddenSystemPath(clean) {
+		return "", "", errors.New("file path is inside a protected system pseudo-filesystem")
+	}
 	for _, configuredRoot := range adminFileAllowedRoots {
 		root := filepath.Clean(configuredRoot)
 		if !filepath.IsAbs(root) {
@@ -113,6 +116,9 @@ func resolveCreatableAdminFilePath(raw string) (adminFileResolvedPath, error) {
 	lexical, root, err := adminFileLexicalPath(raw)
 	if err != nil {
 		return adminFileResolvedPath{}, err
+	}
+	if adminFileRootReadOnly(root) {
+		return adminFileResolvedPath{}, errors.New("allowed root is read-only")
 	}
 
 	if _, err := os.Lstat(lexical); err == nil {

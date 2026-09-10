@@ -40,6 +40,7 @@ func TestAdminModuleFileRequestExactPath(t *testing.T) {
 
 func TestSecuredModuleProxyRequiresRootSessionForAdminFiles(t *testing.T) {
 	auth, _ := testAdminAuthManager()
+	auth.config.AuthRequired = true
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/modules/admin/files/list?path=%2Fopt", nil)
 	req.Host = "router.local"
@@ -97,13 +98,12 @@ func TestSecuredModuleProxyInjectsCanonicalMarkerForRootFileAccess(t *testing.T)
 	moduleSockets = map[string][]string{"admin": {socket}}
 	t.Cleanup(func() { moduleSockets = oldSockets })
 
-	auth, token := testAdminAuthManager()
+	auth, _ := testAdminAuthManager()
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/modules/admin/files/list?path=%2Fopt", nil)
 	req.Host = "router.local"
 	req.Header.Set("Origin", "http://router.local")
 	req.Header.Set(adminMutationAuthorizationHeader, "spoofed")
-	req.AddCookie(&http.Cookie{Name: authCookieName, Value: token})
 
 	securedModuleProxy(auth)(rec, req)
 	if rec.Code != http.StatusOK {

@@ -40,6 +40,9 @@
   let packages = [];
   let search = '';
   let loading = false;
+  let packageLoading = false;
+  let loadEpoch = 0;
+  let packageRenderLimit = 160;
   let errorText = '';
   let actionText = '';
 
@@ -213,7 +216,8 @@
   $: filteredProcesses = processes.filter((p) => !q || `${p.pid} ${p.name} ${p.user} ${p.command}`.toLowerCase().includes(q));
   $: filteredPorts = ports.filter((p) => !q || `${p.protocol} ${p.local_address} ${p.local_port} ${p.process} ${p.pid}`.toLowerCase().includes(q));
   $: filteredServices = services.filter((s) => !q || `${s.id} ${s.name} ${s.path}`.toLowerCase().includes(q));
-  $: filteredPackages = packages.filter((p) => !q || `${p.name} ${p.version} ${p.architecture}`.toLowerCase().includes(q));
+  $: matchingPackages = packages.filter((p) => !q || `${p.name} ${p.version} ${p.architecture}`.toLowerCase().includes(q));
+  $: filteredPackages = matchingPackages.slice(0, packageRenderLimit);
   $: filteredFiles = fileEntries.filter((entry) => !q || `${entry.name} ${entry.path} ${entry.kind}`.toLowerCase().includes(q));
   $: editorDirty = selectedFile && editorContent !== editorOriginal;
   $: editorReadOnly = !!selectedFile && Number(selectedFile.size || 0) > FILE_EDITOR_WRITE_LIMIT;
@@ -230,22 +234,44 @@
   }
 
   async function load(next = tab) {
+    const epoch = ++loadEpoch;
     if (next === 'files') return loadFiles(filePath);
     if (next === 'terminal') return;
     if (next === 'maintenance') return loadMaintenance();
     if (next === 'network-tools') return;
     if (next === 'integrations') return loadIntegrations();
-    loading = true;
+
+    if (next === 'packages') {
+      packageLoading = true;
+      packageRenderLimit = 160;
+    } else {
+      loading = true;
+    }
     errorText = '';
     try {
-      if (next === 'processes') processes = (await getModule('admin', 'processes')).processes || [];
-      if (next === 'ports') ports = (await getModule('admin', 'ports')).ports || [];
-      if (next === 'services') services = (await getModule('admin', 'services')).services || [];
-      if (next === 'packages') packages = (await getModule('admin', 'packages')).packages || [];
+      if (next === 'processes') {
+        const result = await getModule('admin', 'processes');
+        if (epoch === loadEpoch && tab === next) processes = result.processes || [];
+      }
+      if (next === 'ports') {
+        const result = await getModule('admin', 'ports');
+        if (epoch === loadEpoch && tab === next) ports = result.ports || [];
+      }
+      if (next === 'services') {
+        const result = await getModule('admin', 'services');
+        if (epoch === loadEpoch && tab === next) services = result.services || [];
+      }
+      if (next === 'packages') {
+        const result = await getModule('admin', 'packages');
+        if (epoch === loadEpoch && tab === next) packages = result.packages || [];
+      }
     } catch (error) {
-      errorText = errorMessage(error);
+      if (epoch === loadEpoch && tab === next) errorText = errorMessage(error);
     } finally {
-      loading = false;
+      if (epoch === loadEpoch) {
+        loading = false;
+        packageLoading = false;
+      }
     }
   }
 
@@ -650,11 +676,18 @@
   {#if tab === 'processes'}
     <section class="panel table-panel">
       <div class="panel-head"><div><strong>{t(locale, 'manage.tabs.processes')}</strong><span>{t(locale, 'manage.topRss')}</span></div><span class="state-chip info">{filteredProcesses.length}</span></div>
-      <div class="table-scroll"><table><thead><tr><th>PID</th><th>{t(locale, 'manage.columns.process')}</th><th>{t(locale, 'manage.columns.user')}</th><th>{t(locale, 'manage.columns.state')}</th><th>RSS</th><th>{t(locale, 'manage.columns.command')}</th><th>{copy.actions}</th></tr></thead><tbody>
+      <div class="table-scroll"><table class="process-table"><thead><tr><th>{t(locale, 'manage.columns.process')}</th><th>PID</th><th>{t(locale, 'manage.columns.user')}</th><th>{t(locale, 'manage.columns.state')}</th><th>RSS</th><th>{copy.actions}</th></tr></thead><tbody>
         {#each filteredProcesses as p (p.pid)}
           <tr>
-            <td class="mono">{p.pid}</td><td><strong>{p.name}</strong></td><td>{p.user}</td><td><span class="pill">{p.state || '—'}</span></td><td class="mono">{bytes(Number(p.rss_kb || 0) * 1024)}</td><td class="mono admin-command">{p.command}</td>
-            <td class="actions-cell">
+            <td class="process-primary">
+              <strong>{p.name}</strong>
+              <div class="cell-sub mono process-command" title={p.command}>{p.command || p.name}</div>
+            </td>
+            <td class="mono">{p.pid}</td>
+            <td>{p.user}</td>
+            <td><span class="pill">{p.state || '—'}</span></td>
+            <td class="mono">{bytes(Number(p.rss_kb || 0) * 1024)}</td>
+            <td class="actions-cell process-actions">
               <button class="mini" onclick={() => mutateProcess(p, 'TERM')}>TERM</button>
               <button class="mini" onclick={() => mutateProcess(p, 'HUP')}>HUP</button>
               <button class="mini danger" onclick={() => mutateProcess(p, 'KILL')}>KILL</button>
@@ -693,11 +726,21 @@
   {:else if tab === 'packages'}
     <section class="panel table-panel">
       <div class="panel-head"><div><strong>{t(locale, 'manage.packages')}</strong><span>/opt/lib/opkg/status</span></div><span class="state-chip info">{filteredPackages.length}</span></div>
-      <div class="table-scroll"><table><thead><tr><th>{t(locale, 'manage.columns.package')}</th><th>{t(locale, 'manage.columns.version')}</th><th>{t(locale, 'manage.columns.architecture')}</th><th>{t(locale, 'manage.columns.status')}</th></tr></thead><tbody>
-        {#each filteredPackages as p (p.name)}
-          <tr><td><strong>{p.name}</strong></td><td class="mono">{p.version || '—'}</td><td>{p.architecture || '—'}</td><td>{p.status || 'installed'}</td></tr>
-        {/each}
-      </tbody></table></div>
+      {#if packageLoading}
+        <div class="empty">{t(locale, 'manage.loading')}</div>
+      {:else}
+        <div class="table-scroll"><table><thead><tr><th>{t(locale, 'manage.columns.package')}</th><th>{t(locale, 'manage.columns.version')}</th><th>{t(locale, 'manage.columns.architecture')}</th><th>{t(locale, 'manage.columns.status')}</th></tr></thead><tbody>
+          {#each filteredPackages as p}
+            <tr><td><strong>{p.name}</strong></td><td class="mono">{p.version || '—'}</td><td>{p.architecture || '—'}</td><td>{p.status || 'installed'}</td></tr>
+          {/each}
+        </tbody></table></div>
+        {#if matchingPackages.length > filteredPackages.length}
+          <div class="package-more">
+            <span>{filteredPackages.length} / {matchingPackages.length}</span>
+            <button class="button" onclick={() => { packageRenderLimit += 160; }}>＋160</button>
+          </div>
+        {/if}
+      {/if}
     </section>
   {:else if tab === 'files'}
     <section class="panel files-panel">
@@ -927,6 +970,11 @@
   .mini.danger{border-color:rgba(230,75,75,.45)}
   .mini:disabled{opacity:.4;cursor:not-allowed}
   .mini.link{text-decoration:none;display:inline-block}
+  .process-table{table-layout:fixed}
+  .process-primary{width:48%}
+  .process-command{max-width:46rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .process-actions{white-space:nowrap}
+  .package-more{display:flex;justify-content:flex-end;align-items:center;gap:.75rem;padding:.7rem 1rem;border-top:1px solid var(--border-color,rgba(127,127,127,.18));font-size:.82rem;opacity:.85}
   .file-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:1rem}
   .path-input{flex:1;min-width:18rem;padding:.55rem .7rem;border-radius:.5rem;border:1px solid var(--border-color,rgba(127,127,127,.3));background:rgba(0,0,0,.08);color:inherit}
   .file-name{border:0;background:none;color:inherit;font:inherit;font-weight:600;cursor:pointer;text-align:left;padding:0}

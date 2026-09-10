@@ -21,7 +21,10 @@
     { id: 'temp', label: 'Temporary', mount: '/tmp', read_only: false, kind: 'temporary' }
   ];
   let explorerVolumeRoot = '/opt';
-  let treeState = {};
+  let treeChildren = {};
+  let treeLoaded = {};
+  let treeExpanded = {};
+  let treeLoading = {};
 
   let view = 'commander';
   let busyCount = 0;
@@ -90,6 +93,34 @@
 
   function rootForPath(path) { return volumeForPath(path)?.mount || '/opt'; }
   function pathWritable(path) { return !(volumeForPath(path)?.read_only ?? true); }
+
+  function volumeDeviceName(volume) {
+    const device = String(volume?.device || '').trim();
+    return device.split('/').filter(Boolean).pop() || '';
+  }
+
+  function volumeDisplayName(volume) {
+    if (!volume) return locale === 'ru' ? 'Накопитель' : 'Storage';
+    const kind = String(volume.kind || '').toLowerCase();
+    const device = volumeDeviceName(volume);
+    const deviceLower = device.toLowerCase();
+
+    if (kind === 'entware') return 'Entware';
+    if (kind === 'temporary') return locale === 'ru' ? 'Временные файлы' : 'Temporary';
+    if (kind === 'system') return locale === 'ru' ? 'Система' : 'System';
+    if (kind === 'storage') {
+      if (deviceLower.startsWith('ubi')) return locale === 'ru' ? 'Внутренняя память' : 'Internal storage';
+      if (/^sd[a-z][0-9]*$/.test(deviceLower)) return `USB · ${device}`;
+      if (deviceLower.startsWith('mmcblk')) return `SD · ${device}`;
+      return device ? `${locale === 'ru' ? 'Накопитель' : 'Storage'} · ${device}` : (locale === 'ru' ? 'Накопитель' : 'Storage');
+    }
+
+    return String(volume.label || device || volume.mount || (locale === 'ru' ? 'Накопитель' : 'Storage'));
+  }
+
+  function volumeOptionLabel(volume) {
+    return `${volumeDisplayName(volume)} — ${volume.read_only ? 'RO' : 'RW'} — ${volume.mount}`;
+  }
 
   function err(error) { return error?.payload?.error || error?.message || String(error); }
   function join(parentPath, name) { return `${parentPath.replace(/\/+$/, '')}/${name}` || `/${name}`; }
@@ -314,39 +345,51 @@
 
   async function changeExplorerVolume(mount) {
     explorerVolumeRoot = mount;
-    treeState = {};
+    treeChildren = {};
+    treeLoaded = {};
+    treeExpanded = {};
+    treeLoading = {};
     await loadExplorer(mount);
   }
 
   async function loadTreeChildren(path) {
-    const current = treeState[path];
-    if (current?.loaded) return;
+    if (treeLoaded[path] || treeLoading[path]) return;
+    treeLoading = { ...treeLoading, [path]: true };
     try {
       const result = await getAdminFiles(path);
       const children = (result.entries || []).filter((entry) => entry.kind === 'directory');
-      treeState = { ...treeState, [path]: { loaded: true, expanded: current?.expanded ?? true, children } };
-    } catch (error) { errorText = err(error); }
+      treeChildren = { ...treeChildren, [path]: children };
+      treeLoaded = { ...treeLoaded, [path]: true };
+    } catch (error) {
+      errorText = err(error);
+    } finally {
+      treeLoading = { ...treeLoading, [path]: false };
+    }
   }
 
   async function toggleTree(path) {
-    const current = treeState[path] || { loaded: false, expanded: false, children: [] };
-    if (!current.loaded) {
-      await loadTreeChildren(path);
-      const fresh = treeState[path] || current;
-      treeState = { ...treeState, [path]: { ...fresh, expanded: true } };
-      return;
-    }
-    treeState = { ...treeState, [path]: { ...current, expanded: !current.expanded } };
+    if (treeLoading[path]) return;
+    if (!treeLoaded[path]) await loadTreeChildren(path);
+    const children = treeChildren[path] || [];
+    if (treeLoaded[path] && children.length === 0) return;
+    treeExpanded = { ...treeExpanded, [path]: !Boolean(treeExpanded[path]) };
   }
 
   async function ensureTreePath(path) {
     const root = rootForPath(path);
     await loadTreeChildren(root);
     const parts = path.slice(root.length).split('/').filter(Boolean);
+
+    if (parts.length === 0) {
+      if (treeExpanded[root] === undefined) {
+        treeExpanded = { ...treeExpanded, [root]: true };
+      }
+      return;
+    }
+
     let current = root;
     for (const part of parts) {
-      const node = treeState[current] || { loaded: false, expanded: false, children: [] };
-      treeState = { ...treeState, [current]: { ...node, expanded: true } };
+      treeExpanded = { ...treeExpanded, [current]: true };
       const next = `${current.replace(/\/$/, '')}/${part}`;
       await loadTreeChildren(next);
       current = next;
@@ -356,13 +399,23 @@
   function treeRows(root) {
     const rows = [];
     const walk = (path, label, depth) => {
-      const state = treeState[path] || { loaded: false, expanded: false, children: [] };
-      rows.push({ path, label, depth, expanded: state.expanded, loaded: state.loaded, hasChildren: !state.loaded || state.children.length > 0 });
-      if (!state.expanded) return;
-      for (const child of state.children) walk(child.path, child.name, depth + 1);
+      const children = treeChildren[path] || [];
+      const loaded = Boolean(treeLoaded[path]);
+      const expanded = Boolean(treeExpanded[path]);
+      rows.push({
+        path,
+        label,
+        depth,
+        expanded,
+        loaded,
+        loading: Boolean(treeLoading[path]),
+        hasChildren: !loaded || children.length > 0
+      });
+      if (!expanded) return;
+      for (const child of children) walk(child.path, child.name, depth + 1);
     };
     const volume = volumes.find((item) => item.mount === root);
-    walk(root, volume?.label || root, 0);
+    walk(root, volumeDisplayName(volume), 0);
     return rows;
   }
 
@@ -454,11 +507,15 @@
 
   function breadcrumbs(path) {
     const root = rootForPath(path);
-    if (path === root) return [{ label: root, path: root }];
+    const volume = volumeForPath(path);
+    if (path === root) return [{ label: volumeDisplayName(volume), path: root }];
     const rest = path.slice(root.length).split('/').filter(Boolean);
-    const crumbs = [{ label: root, path: root }];
+    const crumbs = [{ label: volumeDisplayName(volume), path: root }];
     let current = root;
-    for (const part of rest) { current = `${current}/${part}`; crumbs.push({ label: part, path: current }); }
+    for (const part of rest) {
+      current = `${current.replace(/\/$/, '')}/${part}`;
+      crumbs.push({ label: part, path: current });
+    }
     return crumbs;
   }
 
@@ -517,7 +574,7 @@
             <button title={copy.next} onclick={() => navigateHistory(side, 1)} disabled={panel.historyIndex >= panel.history.length - 1}>›</button>
             <button title={copy.up} onclick={() => loadPanel(side, parentWithin(panel.path, panel.volumeRoot))}>↑</button>
             <select class="volume-select" aria-label={copy.volume} onchange={(event) => changePanelVolume(side, event.currentTarget.value)} value={panel.volumeRoot}>
-              {#each volumes as volume}<option value={volume.mount}>{volume.label}{volume.read_only ? ' · RO' : ''}</option>{/each}
+              {#each volumes as volume}<option value={volume.mount}>{volumeOptionLabel(volume)}</option>{/each}
             </select>
             <form class="path-form" onsubmit={(event) => { event.preventDefault(); submitPath(side); }}>
               <input class="path-input mono" bind:value={panel.pathInput} aria-label={copy.path}/>
@@ -570,15 +627,22 @@
         <div class="tree-volume">
           <label>{copy.volume}</label>
           <select value={explorerVolumeRoot} onchange={(event) => changeExplorerVolume(event.currentTarget.value)}>
-            {#each volumes as volume}<option value={volume.mount}>{volume.label}{volume.read_only ? ' · RO' : ''}</option>{/each}
+            {#each volumes as volume}<option value={volume.mount}>{volumeOptionLabel(volume)}</option>{/each}
           </select>
         </div>
         <div class="quick-title">{copy.quick}</div>
         <div class="folder-tree">
           {#each treeRows(explorerVolumeRoot) as node (node.path)}
-            <div class:tree-active={explorerPath === node.path} class="tree-row" style={`padding-left:${0.45 + node.depth * 0.85}rem`}>
-              <button class="tree-toggle" onclick={() => toggleTree(node.path)} disabled={!node.hasChildren}>{node.hasChildren ? (node.expanded ? '▾' : '▸') : '·'}</button>
-              <button class="tree-name" onclick={() => loadExplorer(node.path)} title={node.path}>📁 {node.label}</button>
+            <div class:tree-active={explorerPath === node.path} class="tree-row" style={`padding-left:${0.35 + node.depth * 0.82}rem`}>
+              <button
+                class:loading={node.loading}
+                class="tree-toggle"
+                onclick={(event) => { event.stopPropagation(); toggleTree(node.path); }}
+                disabled={node.loaded && !node.hasChildren}
+                aria-label={node.expanded ? 'Collapse folder' : 'Expand folder'}
+                title={node.path}
+              >{node.loading ? '…' : node.hasChildren ? (node.expanded ? '▾' : '▸') : '·'}</button>
+              <button class="tree-name" onclick={() => loadExplorer(node.path)} title={node.path}>📁 <span>{node.label}</span></button>
             </div>
           {/each}
         </div>
@@ -594,11 +658,22 @@
           <div class="search-box">⌕ <input bind:value={explorerSearch} placeholder={copy.search}/></div>
         </div>
 
-        <div class="breadcrumbs">
-          {#each breadcrumbs(explorerPath) as crumb, index}
-            {#if index > 0}<span>›</span>{/if}
-            <button onclick={() => loadExplorer(crumb.path)}>{crumb.label}</button>
-          {/each}
+        <div class="location-bar">
+          <div class="location-volume">
+            <span class="location-volume-name">{volumeDisplayName(volumeForPath(explorerPath))}</span>
+            <span class:readonly={volumeForPath(explorerPath)?.read_only} class="location-mode">
+              {volumeForPath(explorerPath)?.read_only ? 'RO' : 'RW'}
+            </span>
+          </div>
+          <div class="location-content">
+            <div class="breadcrumbs">
+              {#each breadcrumbs(explorerPath) as crumb, index}
+                {#if index > 0}<span>›</span>{/if}
+                <button onclick={() => loadExplorer(crumb.path)} title={crumb.path}>{crumb.label}</button>
+              {/each}
+            </div>
+            <div class="location-path mono" title={explorerPath}>{explorerPath}</div>
+          </div>
         </div>
 
         <div class="explorer-table">
@@ -676,7 +751,7 @@
 
   .commander-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1px;background:#273643;min-height:35rem}
   .commander-panel{min-width:0;background:#0c131b;outline:2px solid transparent;outline-offset:-2px}.commander-panel.active-panel{outline-color:#5de4c7}
-  .panel-nav{padding:.48rem;border-bottom:1px solid #1f2c37;background:#101821}.panel-nav button{min-width:2rem}.panel-nav select{width:2.4rem;padding:.34rem .25rem}.path-form{flex:1;min-width:0}.path-input{box-sizing:border-box;width:100%;background:#0b1218;color:#b8f3df}
+  .panel-nav{padding:.48rem;border-bottom:1px solid #1f2c37;background:#101821}.panel-nav button{min-width:2rem}.panel-nav select{width:10.5rem;max-width:34%;padding:.34rem .4rem}.path-form{flex:1;min-width:0}.path-input{box-sizing:border-box;width:100%;background:#0b1218;color:#b8f3df}
   .panel-filter-row{padding:.38rem .48rem;border-bottom:1px solid #1c2934;background:#0e161f}.panel-filter-row input{min-width:0;flex:1}.panel-filter-row button{padding:.26rem .38rem;font-size:.65rem;color:#748697}.panel-filter-row button.sort-active{color:#8bc8ff;border-color:#345064}
   .commander-head,.file-row{display:grid;grid-template-columns:minmax(0,1fr) 6.5rem 10.5rem 8rem;gap:.45rem;align-items:center}.commander-head{padding:.38rem .55rem;background:#111c26;color:#6f8293;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #22303c}
   .commander-list{height:52vh;min-height:25rem;overflow:auto;padding:.18rem}.file-row{box-sizing:border-box;width:100%;border:0;border-radius:.26rem;padding:.32rem .42rem;background:transparent;text-align:left;color:#cbd5df;font-size:.74rem}.file-row:hover{background:#13232d}.file-row.selected{background:#16513a;color:#eafff4;box-shadow:inset 3px 0 #5de4c7}.entry-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.date-cell{font-size:.67rem;color:#7e91a2}.parent-row{opacity:.75}
@@ -685,12 +760,12 @@
 
   .explorer-shell{display:grid;grid-template-columns:13rem minmax(0,1fr);min-height:36rem;background:#0c131b}.quick-tree{padding:.7rem .55rem;border-right:1px solid #22303c;background:#0e161e;display:flex;flex-direction:column;gap:.18rem}.quick-title{padding:.25rem .45rem .5rem;color:#607384;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.quick-tree button{display:grid;grid-template-columns:1.25rem minmax(0,1fr);gap:.06rem .35rem;border:0;text-align:left;background:transparent;padding:.42rem}.quick-tree button small{grid-column:2;color:#536574;font-size:.56rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.quick-tree button.active{background:#13372c;color:#86eabd}.quick-tree button.active small{color:#699b88}.quick-icon{color:#5de4c7}
   .explorer-main{min-width:0;display:grid;grid-template-rows:auto auto 1fr auto}.explorer-toolbar{padding:.55rem .62rem;border-bottom:1px solid #22303c;background:#101821}.search-box{display:flex;align-items:center;gap:.3rem;padding:0 .42rem;background:#0b1218}.search-box input{border:0;background:transparent;box-shadow:none;padding:.35rem 0;min-width:14rem}
-  .breadcrumbs{padding:.42rem .65rem;border-bottom:1px solid #1f2c37;background:#0e161f;color:#637687;overflow:auto;white-space:nowrap}.breadcrumbs button{border:0;background:transparent;padding:.18rem .25rem;color:#91b7d0}.breadcrumbs button:hover{color:#c8ecff;background:#15232d}
+  .location-bar{display:flex;align-items:stretch;gap:.7rem;min-width:0;padding:.48rem .62rem;border-bottom:1px solid #1f2c37;background:#0e161f}.location-volume{flex:0 0 auto;display:flex;align-items:center;gap:.38rem;padding-right:.65rem;border-right:1px solid #25343f}.location-volume-name{color:#b8f3df;font-size:.69rem;font-weight:750;white-space:nowrap}.location-mode{padding:.12rem .3rem;border:1px solid #356a58;border-radius:.28rem;color:#79e7ba;background:#10281f;font:800 .52rem/1 "Roboto Mono",monospace}.location-mode.readonly{border-color:#795e31;color:#ffd866;background:#2a2110}.location-content{min-width:0;flex:1;display:grid;gap:.1rem}.breadcrumbs{min-width:0;padding:0;color:#637687;overflow:auto;white-space:nowrap}.breadcrumbs button{border:0;background:transparent;padding:.08rem .2rem;color:#91b7d0}.breadcrumbs button:hover{color:#c8ecff;background:#15232d}.location-path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#536a7b;font-size:.56rem}
   .explorer-table{overflow:auto;max-height:58vh}.explorer-head,.explorer-row{display:grid;grid-template-columns:minmax(16rem,1fr) 6.5rem 11rem 8.5rem 10.5rem;gap:.5rem;align-items:center;padding:.42rem .62rem;border-bottom:1px solid #1b2731}.explorer-head{position:sticky;top:0;z-index:3;background:#111b25;color:#687b8c;font-size:.61rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.explorer-head button{border:0;background:transparent;padding:0;text-align:left;color:inherit;font-weight:inherit;text-transform:inherit}.explorer-row{font-size:.73rem;min-height:2.2rem}.explorer-row:hover{background:#101f29}.explorer-row>button{border:0;background:transparent;text-align:left;padding:0}.entry-open{display:flex;align-items:center;gap:.5rem;min-width:0}.entry-open>span:last-child{display:flex;min-width:0;flex-direction:column}.entry-open strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.entry-open small{color:#516574;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font: .56rem/1.2 "Roboto Mono",monospace}.file-icon{width:1.2rem;text-align:center}.permission{color:#8bc8ff}.row-actions{display:flex;justify-content:flex-end;gap:.2rem}.row-actions button,.row-actions a{display:grid;place-items:center;width:1.65rem;height:1.65rem;padding:0;text-decoration:none}.explorer-status{padding:.35rem .62rem;border-top:1px solid #22303c;background:#0e161f;color:#607384;font-size:.59rem;min-width:0}.explorer-status span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.empty-row{padding:1rem;color:#566978;text-align:center;font-size:.7rem}.explorer-empty{border-bottom:1px solid #1b2731}
 
 
   .volume-select,.tree-volume select{max-width:12rem;background:#0e161e;color:#c9d4df;border:1px solid #30404d;border-radius:.35rem;padding:.34rem .42rem;font:600 .62rem "Roboto Mono",monospace}.tree-volume{padding:.15rem .35rem .65rem;border-bottom:1px solid #22303c;margin-bottom:.45rem}.tree-volume label{display:block;color:#607384;font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.28rem}.tree-volume select{width:100%;max-width:none}
-  .folder-tree{overflow:auto;max-height:54vh;padding:.1rem 0}.tree-row{display:flex;align-items:center;min-width:0;border-radius:.3rem}.tree-row:hover{background:rgba(93,228,199,.06)}.tree-row.tree-active{background:#13372c}.tree-toggle{flex:none;width:1.25rem;padding:.25rem 0;border:0;background:transparent;color:#71879a}.tree-name{min-width:0;flex:1;border:0;background:transparent;text-align:left;padding:.32rem .2rem;color:#b9c7d3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tree-active .tree-name{color:#86eabd}
+  .folder-tree{overflow:auto;max-height:54vh;padding:.1rem 0}.tree-row{display:flex;align-items:center;min-width:0;border-radius:.3rem}.tree-row:hover{background:rgba(93,228,199,.06)}.tree-row.tree-active{background:#13372c}.tree-toggle{display:grid!important;place-items:center!important;grid-template-columns:none!important;flex:none;width:1.45rem;height:1.65rem;padding:0!important;border:0;background:transparent;color:#8299aa;font:800 .76rem/1 "Roboto Mono",monospace}.tree-toggle:hover{color:#b8f3df;background:#18303a}.tree-toggle.loading{color:#ffd866}.tree-name{display:flex!important;grid-template-columns:none!important;align-items:center;gap:.3rem;min-width:0;flex:1;border:0;background:transparent;text-align:left;padding:.32rem .2rem!important;color:#b9c7d3;white-space:nowrap;overflow:hidden}.tree-name span{min-width:0;overflow:hidden;text-overflow:ellipsis}.tree-active .tree-name{color:#86eabd}
   @media(max-width:980px){.commander-head,.file-row{grid-template-columns:minmax(0,1fr) 6rem 7rem}.commander-head span:nth-child(3),.file-row span:nth-child(3){display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(12rem,1fr) 6rem 8rem 9rem}.explorer-head>*:nth-child(3),.explorer-row>*:nth-child(3){display:none}.quick-tree{width:auto}.explorer-shell{grid-template-columns:10.5rem minmax(0,1fr)}}
-  @media(max-width:760px){.commander-grid{grid-template-columns:1fr}.commander-panel:not(.active-panel){display:none}.key-hint{display:none}.explorer-shell{grid-template-columns:1fr}.quick-tree{display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(10rem,1fr) 6rem 9rem}.explorer-head>*:nth-child(4),.explorer-row>*:nth-child(4){display:none}.search-box input{min-width:7rem}.commander-keys{overflow:auto}}
+  @media(max-width:760px){.commander-grid{grid-template-columns:1fr}.commander-panel:not(.active-panel){display:none}.key-hint{display:none}.explorer-shell{grid-template-columns:1fr}.quick-tree{display:none}.explorer-head,.explorer-row{grid-template-columns:minmax(10rem,1fr) 6rem 9rem}.explorer-head>*:nth-child(4),.explorer-row>*:nth-child(4){display:none}.search-box input{min-width:7rem}.commander-keys{overflow:auto}.location-bar{gap:.45rem}.location-volume{padding-right:.45rem}.location-volume-name{max-width:8.5rem;overflow:hidden;text-overflow:ellipsis}.panel-nav select{width:8.5rem;max-width:36%}}
 </style>

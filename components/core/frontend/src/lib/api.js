@@ -94,3 +94,29 @@ export const getDNSInfo = () => request('/api/dns/info');
 
 export const getModule = (moduleID, endpoint = 'health') =>
   request(`/api/modules/${encodeURIComponent(moduleID)}/${encodeURIComponent(endpoint)}`);
+export const getAdminFiles = (path) =>
+  request(`/api/modules/admin/files/list?path=${encodeURIComponent(path)}`);
+export const readAdminFile = (path) =>
+  request(`/api/modules/admin/files/read?path=${encodeURIComponent(path)}`);
+export const adminFileDownloadURL = (path) =>
+  `/api/modules/admin/files/download?path=${encodeURIComponent(path)}`;
+export const adminFileMkdir = (body) =>
+  postJSON('/api/modules/admin/files/mkdir', body);
+export const adminFileWrite = (body) =>
+  postJSON('/api/modules/admin/files/write', body);
+export const adminFileMove = (body) =>
+  postJSON('/api/modules/admin/files/move', body);
+export const adminFileDelete = (body) =>
+  postJSON('/api/modules/admin/files/delete', body);
+export const adminFileChmod = (body) =>
+  postJSON('/api/modules/admin/files/chmod', body);
+export const adminProcessSignal = (pid, signal) =>
+  postJSON(`/api/modules/admin/processes/${encodeURIComponent(pid)}/signal`, {
+    signal,
+    confirm_pid: Number(pid)
+  });
+export const adminServiceAction = (id, action) =>
+  postJSON(`/api/modules/admin/services/${encodeURIComponent(id)}/action`, {
+    action,
+    confirm_id: id
+  });

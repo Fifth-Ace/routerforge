@@ -371,6 +371,24 @@
     return 'info';
   }
 
+  async function refreshAfterPackageAction() {
+    try {
+      const result = await forceRefreshCatalog();
+      const nextCatalog = result?.catalog || null;
+      const remote = Boolean(nextCatalog?.registry?.online && String(nextCatalog?.registry?.source || '').toLowerCase() === 'remote');
+      return { catalog:nextCatalog, remote };
+    } catch {
+      const fallback = await refreshCatalog();
+      return { catalog:fallback, remote:false };
+    }
+  }
+
+  function registryFallbackText() {
+    return locale === 'ru'
+      ? 'Пакет обновлён, но registry пока читается из кеша. Повторная синхронизация будет выполнена при следующей проверке.'
+      : 'Package updated, but the registry is still served from cache. Remote sync will be retried on the next check.';
+  }
+
   async function finishWatchedAction(state, error = '') {
     if (!activeJob) return;
     const finished = activeJob;
@@ -379,11 +397,15 @@
     busyAction = '';
     actionEvents?.close();
     actionEvents = null;
-    await refreshCatalog();
+    const refreshResult = state === 'succeeded'
+      ? await refreshAfterPackageAction()
+      : { catalog:await refreshCatalog(), remote:true };
     if (['entware','installed','updates'].includes(tab)) await loadEntware(entwareData.offset || 0);
     await refreshActionHistory();
     actionNotice = state === 'succeeded'
-      ? { cls:'good', text: locale === 'ru' ? `\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e: ${finished.target}` : `Action completed: ${finished.target}` }
+      ? refreshResult.remote
+        ? { cls:'good', text: locale === 'ru' ? `\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e: ${finished.target}` : `Action completed: ${finished.target}` }
+        : { cls:'warn', text:registryFallbackText() }
       : { cls: state === 'cancelled' ? 'warn' : 'error', text: error || (locale === 'ru' ? `\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 ${state}: ${finished.target}` : `Action ${state}: ${finished.target}`) };
   }
 
@@ -512,7 +534,10 @@
         throw new Error(a(locale,'coreRecoveryTimeout',{version:targetVersion || '?'}));
       }
 
-      actionNotice = { cls:'good', text:a(locale,'actionDone',{name:item.name}) };
+      const registryRefresh = await refreshAfterPackageAction();
+      actionNotice = registryRefresh.remote
+        ? { cls:'good', text:a(locale,'actionDone',{name:item.name}) }
+        : { cls:'warn', text:registryFallbackText() };
       if (action === 'remove') removeItem = null;
       setTimeout(() => window.location.reload(), 300);
     } catch (error) {
@@ -582,21 +607,52 @@
     return null;
   }
 
+  async function recheckBulkPreflight(item, request, preflight) {
+    if (preflight?.allowed) return { item, allowed:true };
+
+    const refreshed = await refreshAfterPackageAction();
+    const current = (refreshed.catalog?.modules || []).find((candidate) => candidate.id === item.id);
+    if (!isOfficialRouterForgeUpdate(current)) {
+      return { item:current, allowed:false, alreadyCurrent:true };
+    }
+
+    const retryPreflight = await preflightAppAction(request);
+    if (retryPreflight?.allowed) return { item:current, allowed:true };
+    throw new Error(`${item.name || item.id}: ${retryPreflight?.reason || preflight?.reason || 'preflight rejected update'}`);
+  }
+
   async function runBulkRestartingUpdate(item) {
     const targetVersion = String(item.release?.version || item.available_version || '').trim();
     busyId = item.id;
     busyAction = 'update';
     try {
+      if (item.id !== 'routerforge-core') {
+        const request = { kind:'catalog', target:item.id, action:'update', confirm:'' };
+        const preflight = await preflightAppAction(request);
+        const checked = await recheckBulkPreflight(item, request, preflight);
+        if (checked.alreadyCurrent) return;
+        item = checked.item || item;
+      }
+
       try {
         await catalogAction(item.id, 'update', '');
       } catch (error) {
-        if (!coreRestartTransportError(error)) throw error;
+        if (!coreRestartTransportError(error)) {
+          const refreshed = await refreshAfterPackageAction();
+          const current = (refreshed.catalog?.modules || []).find((candidate) => candidate.id === item.id);
+          if (!isOfficialRouterForgeUpdate(current)) return;
+          throw new Error(`${item.name || item.id}: ${error?.payload?.detail || error?.payload?.error || error?.message || 'update failed'}`);
+        }
       }
 
       const recovered = item.id === 'routerforge-core'
         ? await waitForCoreRecovery(targetVersion, 60000)
         : await waitForCatalogItemVersion(item.id, targetVersion, 60000);
       if (!recovered) throw new Error(`RouterForge ${item.name || item.id} recovery timeout (${targetVersion || '?'})`);
+
+      if (item.id === 'routerforge-core') {
+        await refreshAfterPackageAction();
+      }
     } finally {
       busyId = '';
       busyAction = '';
@@ -606,7 +662,9 @@
   async function runBulkModuleUpdate(item) {
     const request = { kind:'catalog', target:item.id, action:'update', confirm:'' };
     const preflight = await preflightAppAction(request);
-    if (!preflight.allowed) throw new Error(preflight.reason || `${item.id}: preflight rejected update`);
+    const checked = await recheckBulkPreflight(item, request, preflight);
+    if (checked.alreadyCurrent) return;
+    item = checked.item || item;
 
     const job = await startAppAction(request);
     activeJob = job;
@@ -652,8 +710,8 @@
     bulkUpdating = true;
     try {
       for (let index = 0; index < queue.length; index += 1) {
-        await refreshCatalog();
-        const current = (($catalog || {}).modules || []).find((candidate) => candidate.id === queue[index].id);
+        const refreshed = await refreshCatalog();
+        const current = (refreshed?.modules || []).find((candidate) => candidate.id === queue[index].id);
         if (!isOfficialRouterForgeUpdate(current)) continue;
 
         actionNotice = {
@@ -670,12 +728,14 @@
         }
       }
 
-      await refreshCatalog();
+      const registryRefresh = await refreshAfterPackageAction();
       await refreshActionHistory();
-      actionNotice = {
-        cls:'good',
-        text: locale === 'ru' ? 'Все доступные обновления RouterForge установлены.' : 'All available RouterForge updates are installed.'
-      };
+      actionNotice = registryRefresh.remote
+        ? {
+            cls:'good',
+            text: locale === 'ru' ? 'Все доступные обновления RouterForge установлены.' : 'All available RouterForge updates are installed.'
+          }
+        : { cls:'warn', text:registryFallbackText() };
       setTimeout(() => window.location.reload(), 450);
     } catch (error) {
       actionNotice = { cls:'error', text:error?.payload?.detail || error?.payload?.error || error?.message || 'bulk update failed' };
@@ -763,9 +823,7 @@
       <h1>{a(locale,'pageTitle')}</h1>
       <p>{a(locale,'subtitle')}</p>
     </div>
-    <span class="state-chip {data.registry?.online ? 'good' : 'warn'}">
-      {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
-    </span>
+
   </div>
 
   <div class="subtabs app-center-tabs">
@@ -776,52 +834,62 @@
     {/each}
   </div>
 
-  <div class="toolbar catalog-toolbar-v2">
-    <div class="search-control flex">
-      <span>⌕</span>
-      <input bind:value={search} onkeydown={(event) => { if (event.key === 'Enter' && ['entware','installed','updates'].includes(tab)) void loadEntware(0); }} placeholder={a(locale,'search')}/>
+  <div class="toolbar catalog-toolbar-v3">
+    <div class="catalog-search-group">
+      <div class="search-control flex">
+        <span>⌕</span>
+        <input bind:value={search} onkeydown={(event) => { if (event.key === 'Enter' && ['entware','installed','updates'].includes(tab)) void loadEntware(0); }} placeholder={a(locale,'search')}/>
+      </div>
+      {#if ['entware','installed','updates'].includes(tab)}
+        <button class="button search-submit" disabled={entwareLoading} onclick={() => loadEntware(0)}>{a(locale,'searchButton')}</button>
+      {/if}
     </div>
 
-    {#if ['entware','installed','updates'].includes(tab)}
-      <button class="button" disabled={entwareLoading} onclick={() => loadEntware(0)}>{a(locale,'searchButton')}</button>
-    {/if}
+    <div class="catalog-control-group">
+      {#if tab === 'entware'}
+        <select class="entware-state-select" bind:value={entwareState} onchange={() => loadEntware(0)}>
+          <option value="all">{a(locale,'all')}</option>
+          <option value="installed">{a(locale,'installedOnly')}</option>
+          <option value="available">{a(locale,'availableOnly')}</option>
+          <option value="upgradable">{a(locale,'tabs.updates')}</option>
+        </select>
+      {/if}
 
-    {#if tab === 'entware'}
-      <select bind:value={entwareState} onchange={() => loadEntware(0)}>
-        <option value="all">{a(locale,'all')}</option>
-        <option value="installed">{a(locale,'installedOnly')}</option>
-        <option value="available">{a(locale,'availableOnly')}</option>
-        <option value="upgradable">{a(locale,'tabs.updates')}</option>
+      <select class="channel-select" aria-label="RouterForge channel" value={releaseChannel} disabled={channelBusy || Boolean(busyId)} onchange={changeReleaseChannel}>
+        <option value="stable">RouterForge Stable</option>
+        <option value="beta">RouterForge Beta</option>
+        <option value="dev">RouterForge Dev</option>
       </select>
-    {/if}
 
-    <select aria-label="RouterForge channel" value={releaseChannel} disabled={channelBusy || Boolean(busyId)} onchange={changeReleaseChannel}>
-      <option value="stable">RouterForge Stable</option>
-      <option value="beta">RouterForge Beta</option>
-      <option value="dev">RouterForge Dev</option>
-    </select>
+      <span
+        class="registry-chip state-chip {data.registry?.online && String(data.registry?.source || '').toLowerCase() === 'remote' ? 'good' : data.registry?.source === 'cache' ? 'warn' : 'neutral'}"
+        title={data.registry?.last_sync || data.registry?.error || ''}
+      >
+        {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
+      </span>
 
-    <button class="button" disabled={checkingUpdates || Boolean(busyId)} onclick={checkForUpdates}>
-      {checkingUpdates ? a(locale,'checking') : a(locale,'checkUpdates')}
-    </button>
-
-    {#if ['entware','installed','updates'].includes(tab) && packageMode}
-      <button class="button" disabled={entwareRefreshing || Boolean(busyId)} onclick={refreshEntware}>
-        {entwareRefreshing ? a(locale,'updatingLists') : a(locale,'updateLists')}
+      <button class="button check-updates-button" disabled={checkingUpdates || Boolean(busyId)} onclick={checkForUpdates}>
+        {checkingUpdates ? a(locale,'checking') : a(locale,'checkUpdates')}
       </button>
-    {/if}
 
-    {#if tab === 'routerforge' && packageMode && officialRouterForgeUpdates.length}
-      <button class="button primary" disabled={bulkUpdating || Boolean(busyId)} onclick={updateAllRouterForge}>
-        {bulkUpdating ? (locale === 'ru' ? 'Обновляем RouterForge…' : 'Updating RouterForge…') : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
-      </button>
-    {/if}
+      {#if tab === 'entware' && packageMode}
+        <button class="button" disabled={entwareRefreshing || Boolean(busyId)} onclick={refreshEntware}>
+          {entwareRefreshing ? a(locale,'updatingLists') : a(locale,'updateLists')}
+        </button>
+      {/if}
 
-    {#if tab === 'routerforge' && packageMode && routerForgeUpdates.length}
-      <button class="button" disabled={bulkUpdating || Boolean(busyId)} onclick={reviewRouterForgeUpdates}>
-        {locale === 'ru' ? 'Просмотреть обновления' : 'Review updates'} ({routerForgeUpdates.length})
-      </button>
-    {/if}
+      {#if tab === 'routerforge' && packageMode && officialRouterForgeUpdates.length}
+        <button class="button primary" disabled={bulkUpdating || Boolean(busyId)} onclick={updateAllRouterForge}>
+          {bulkUpdating ? (locale === 'ru' ? 'Обновляем RouterForge…' : 'Updating RouterForge…') : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
+        </button>
+      {/if}
+
+      {#if tab === 'routerforge' && packageMode && routerForgeUpdates.length}
+        <button class="button" disabled={bulkUpdating || Boolean(busyId)} onclick={reviewRouterForgeUpdates}>
+          {locale === 'ru' ? 'Просмотреть обновления' : 'Review updates'} ({routerForgeUpdates.length})
+        </button>
+      {/if}
+    </div>
   </div>
 
   <div class="market-safety-line mono" class:test-mode={packageMode}>
@@ -1044,6 +1112,42 @@
 
 <style>
   .app-center-tabs { margin-bottom: 1rem; }
+  .app-center-page .catalog-toolbar-v3 {
+    display:grid;
+    grid-template-columns:minmax(18rem,1fr) auto;
+    gap:.65rem;
+    align-items:center;
+    padding:.55rem;
+  }
+  .app-center-page .catalog-search-group,
+  .app-center-page .catalog-control-group {
+    min-width:0;
+    display:flex;
+    align-items:center;
+    gap:.48rem;
+  }
+  .app-center-page .catalog-search-group .search-control {
+    min-width:12rem;
+    flex:1 1 24rem;
+  }
+  .app-center-page .catalog-search-group .search-control input {
+    width:100%;
+    min-width:0;
+  }
+  .app-center-page .catalog-control-group {
+    justify-content:flex-end;
+    flex-wrap:wrap;
+  }
+  .app-center-page .channel-select {
+    min-width:10.5rem;
+  }
+  .app-center-page .registry-chip {
+    flex:0 0 auto;
+    white-space:nowrap;
+  }
+  .app-center-page .check-updates-button {
+    white-space:nowrap;
+  }
   .entware-summary { display:flex; gap:1.2rem; flex-wrap:wrap; margin:1rem 0; color:var(--rf-muted,var(--muted)); }
   .entware-package-list { display:grid; gap:.55rem; margin-top:1rem; }
   .entware-package-row { display:flex; justify-content:space-between; gap:1rem; align-items:center; border:1px solid var(--rf-border,var(--border)); border-radius:.7rem; padding:.8rem 1rem; background:var(--rf-panel,var(--panel)); }
@@ -1195,7 +1299,34 @@
     text-align:right;
   }
 
+  @media (max-width:980px) {
+    .app-center-page .catalog-toolbar-v3 {
+      grid-template-columns:1fr;
+    }
+    .app-center-page .catalog-control-group {
+      justify-content:flex-start;
+    }
+  }
+
   @media (max-width:760px) {
+    .app-center-page .catalog-search-group {
+      align-items:stretch;
+    }
+    .app-center-page .catalog-control-group {
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      align-items:stretch;
+    }
+    .app-center-page .channel-select {
+      min-width:0;
+      width:100%;
+    }
+    .app-center-page .registry-chip {
+      align-self:center;
+    }
+    .app-center-page .check-updates-button {
+      grid-column:1 / -1;
+    }
     .app-center-page .app-action-history-toggle,
     .app-center-page .app-action-history-row {
       align-items:flex-start;

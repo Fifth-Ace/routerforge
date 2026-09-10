@@ -20,7 +20,6 @@
 
   $: copy = locale === 'ru' ? {
     title: 'Entware Terminal',
-    hint: 'WebSocket · PTY · /opt/bin/sh -il · ANSI / UTF-8',
     connect: 'Подключить',
     disconnect: 'Отключить',
     reconnect: 'Переподключить',
@@ -33,7 +32,6 @@
     disconnected: 'DISCONNECTED'
   } : {
     title: 'Entware Terminal',
-    hint: 'WebSocket · PTY · /opt/bin/sh -il · ANSI / UTF-8',
     connect: 'Connect',
     disconnect: 'Disconnect',
     reconnect: 'Reconnect',
@@ -63,8 +61,6 @@
 
   function terminalBanner() {
     terminal?.writeln('\x1b[1;36mRouterForge Entware Terminal\x1b[0m');
-    terminal?.writeln('\x1b[38;5;244mWebSocket · PTY · /opt/bin/sh -il\x1b[0m');
-    terminal?.writeln('');
   }
 
   function socketURL() {
@@ -206,7 +202,7 @@
   </header>
 
   <div class="terminal-titlebar">
-    <div><strong>{copy.title}</strong><span>{copy.hint}</span></div>
+    <div><strong>{copy.title}</strong></div>
     <div class="terminal-actions">
       <button type="button" onclick={() => terminal?.clear()}>{copy.clear}</button>
       {#if connected}

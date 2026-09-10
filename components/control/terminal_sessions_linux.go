@@ -344,13 +344,13 @@ func (m *adminTerminalSessionManager) create(cwd string, cols, rows int, clientI
 if [ -r /opt/etc/profile ]; then
 	. /opt/etc/profile
 fi
-export PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH=/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export HOME=/opt/root
 export USER=root
 export LOGNAME=root
-export SHELL=/bin/sh
+export SHELL=/opt/bin/sh
 export TERM=xterm-256color
-exec /bin/sh -i
+exec /opt/bin/sh -il
 `
 	cmd := exec.Command("/bin/sh", "-c", shellScript, "routerforge-terminal", cwd)
 	cmd.Env = terminalEnvironment(os.Environ())

@@ -106,6 +106,8 @@ export const adminFileWrite = (body) =>
   postJSON('/api/modules/admin/files/write', body);
 export const adminFileMove = (body) =>
   postJSON('/api/modules/admin/files/move', body);
+export const adminFileCopy = (body) =>
+  postJSON('/api/modules/admin/files/copy', body);
 export const adminFileDelete = (body) =>
   postJSON('/api/modules/admin/files/delete', body);
 export const adminFileChmod = (body) =>

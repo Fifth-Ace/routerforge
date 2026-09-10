@@ -31,7 +31,7 @@
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
   import TerminalPane from './TerminalPane.svelte';
-  import FileEditorDrawer from './FileEditorDrawer.svelte';
+  import FileManagerPane from './FileManagerPane.svelte';
 
   const FILE_EDITOR_WRITE_LIMIT = 128 * 1024;
 
@@ -237,7 +237,7 @@
 
   async function load(next = tab) {
     const epoch = ++loadEpoch;
-    if (next === 'files') return loadFiles(filePath);
+    if (next === 'files') return;
     if (next === 'terminal') return;
     if (next === 'maintenance') return loadMaintenance();
     if (next === 'network-tools') return;
@@ -667,10 +667,12 @@
     {/each}
   </div>
 
-  <div class="toolbar">
-    <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale, 'common.search')}/></div>
-    <button class="button" onclick={() => load(tab)} disabled={loading || fileLoading}>↻ {t(locale, 'common.refresh')}</button>
-  </div>
+  {#if tab !== 'files' && tab !== 'terminal'}
+    <div class="toolbar">
+      <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale, 'common.search')}/></div>
+      <button class="button" onclick={() => load(tab)} disabled={loading || fileLoading}>↻ {t(locale, 'common.refresh')}</button>
+    </div>
+  {/if}
 
   {#if actionText}<div class="ui-action-ok">{actionText}</div>{/if}
   {#if errorText}<div class="ui-action-error">{errorText}</div>{/if}
@@ -745,52 +747,7 @@
       {/if}
     </section>
   {:else if tab === 'files'}
-    <section class="panel files-panel">
-      <div class="file-toolbar">
-        <button class="button" onclick={() => loadFiles(parentPath(filePath))} disabled={filePath === '/opt' || filePath === '/tmp'}>↑ {copy.up}</button>
-        <input class="path-input mono" bind:value={filePath} onkeydown={(event) => event.key === 'Enter' && loadFiles(filePath)} aria-label={copy.path}/>
-        <button class="button" onclick={() => loadFiles(filePath)}>↻</button>
-        <button class="button" onclick={createDirectory}>＋ {copy.mkdir}</button>
-        <button class="button" onclick={createFile}>＋ {copy.newFile}</button>
-      </div>
-
-      {#if fileLoading}
-        <div class="empty">{t(locale, 'manage.loading')}</div>
-      {:else}
-        <div class="table-scroll"><table><thead><tr><th>{copy.files}</th><th>Type</th><th>Size</th><th>Mode</th><th>Modified</th><th>{copy.actions}</th></tr></thead><tbody>
-          {#each filteredFiles as entry (entry.path)}
-            <tr>
-              <td><button class="file-name" onclick={() => openEntry(entry)}>{entry.kind === 'directory' ? '📁' : entry.kind === 'file' ? '📄' : '↗'} {entry.name}</button></td>
-              <td>{entry.kind}</td><td class="mono">{entry.kind === 'file' ? bytes(entry.size || 0) : '—'}</td><td class="mono">{entry.mode}</td><td class="mono">{new Date(entry.modified_at).toLocaleString()}</td>
-              <td class="actions-cell">
-                {#if entry.kind === 'file'}<a class="mini link" href={adminFileDownloadURL(entry.path)}>{copy.download}</a>{/if}
-                <button class="mini" onclick={() => moveEntry(entry)}>{copy.rename}</button>
-                <button class="mini" onclick={() => chmodEntry(entry)}>{copy.chmod}</button>
-                <button class="mini danger" onclick={() => deleteEntry(entry)}>{copy.remove}</button>
-              </td>
-            </tr>
-          {/each}
-          {#if filteredFiles.length === 0}<tr><td colspan="6" class="empty">{copy.empty}</td></tr>{/if}
-        </tbody></table></div>
-      {/if}
-    </section>
-
-    {#if selectedFile}
-      <FileEditorDrawer
-        file={selectedFile}
-        bind:content={editorContent}
-        dirty={editorDirty}
-        readOnly={editorReadOnly}
-        busy={editorBusy}
-        locale={locale}
-        onSave={saveEditor}
-        onClose={() => {
-          selectedFile = null;
-          editorContent = '';
-          editorOriginal = '';
-        }}
-      />
-    {/if}
+    <FileManagerPane locale={locale} />
   {:else if tab === 'terminal'}
     <TerminalPane locale={locale} />
   {:else if tab === 'maintenance'}

@@ -41,3 +41,20 @@ func TestCatalogDetectsManagedAdminModule(t *testing.T) {
 		t.Fatalf("admin version=%q", admin.Version)
 	}
 }
+
+func TestBundledRegistryKeepsAdminVisibleAsStandaloneModule(t *testing.T) {
+	snapshot := catalogSnapshot{Modules: builtinModuleCatalog()}
+	installed := map[string]string{"routerforge-admin": "0.7.1~dev.test"}
+	ensureBundledRouterForgeModules(&snapshot, installed, map[string]bool{}, func(string) bool { return false })
+
+	admin := findCatalogItem(&snapshot, "admin", "module")
+	if admin == nil {
+		t.Fatal("bundled fallback did not keep admin module in catalog")
+	}
+	if admin.Kind != "module" || admin.Name != "RouterForge Control" {
+		t.Fatalf("unexpected admin catalog item: kind=%q name=%q", admin.Kind, admin.Name)
+	}
+	if !admin.Installed {
+		t.Fatal("routerforge-admin package was not detected as installed")
+	}
+}

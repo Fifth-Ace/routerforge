@@ -4,6 +4,27 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-11 — RouterForge 0.7.1
+
+### Stable highlights
+- Management v2 is fully user-facing: Processes/Services actions, Commander/Explorer File Manager, Maintenance, Entware Terminal and hardware-validated Keenetic NDM Console.
+- Monitoring is consolidated into `routerforge-monitoring`; split monitoring packages are migration compatibility only.
+- DNS remains a separate Module ABI v1 runtime with safe resolver mutations, observability, bounded caches/backoff and compact 10,000-event internal rings.
+- App Center combines RouterForge, Integrations and Entware/OPKG with guarded jobs, bulk update, exact release-index/SHA256 and safe local Web UI discovery.
+- Stable is multiarch: ARM64 production hardware-validated, MIPSel experimental with partial KN-1010 evidence, MIPS experimental without physical validation.
+- Stable promotion is exact-SHA and consumes the validated `routerforge-stable-promotion` artifact for the same source commit.
+
+### Hardware evidence
+- Keenetic Ultra KN-1812: exact Admin package, `ndmc`, browser Entware PTY, browser Keenetic PTY and mode switching — PASS.
+- Consolidated Monitoring 4→1 migration: package/runtime/reboot/autostart hardware evidence — PASS.
+
+### Release/docs hardening
+- Root RU/EN READMEs and active docs synchronized with Stable 0.7.1 topology.
+- Added `docs/RELEASE_NOTES_0.7.1.md`.
+- Monitoring migration verifier now accepts valid Entware `Status: install <selection> installed`.
+- CI validates current documentation invariants and local Markdown links.
+- Beta train consistency remains fail closed.
+
 ## 2026-09-10 — RouterForge 0.7.1-beta.1
 
 ### Beta highlights

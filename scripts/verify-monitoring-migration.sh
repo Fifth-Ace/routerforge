@@ -117,8 +117,7 @@ is_installed() {
         awk '
             $1 == "Status:" &&
             $2 == "install" &&
-            $3 == "ok" &&
-            $4 == "installed" {
+            $NF == "installed" {
                 found=1
             }
             END { exit found ? 0 : 1 }

@@ -1,202 +1,60 @@
 # Архитектура RouterForge
 
-## Runtime
+## Runtime Stable 0.7.1
 
 ```text
-Browser
-   │
-   │ http://router:2233
-   ▼
-RouterForge Core
-/opt/bin/routerforge
-├── Web shell / REST / SSE
-├── Authentication
-├── Центр приложений + Registry
-├── Release index / package lifecycle
-├── Generic Module API + UI host
-└── Unix-socket proxy
-     ├── RouterForge DNS
-     │   /opt/bin/routerforge-dns
-     │   /opt/var/run/routerforge-dns.sock
-     │   ├── discovery / capture / health
-     │   ├── resolver observability
-     │   ├── DNS Control + readback / rollback
-     │   └── independent module UI
-     ├── RouterForge Control
-     │   /opt/bin/routerforge-admin
-     └── RouterForge Monitoring
-         /opt/bin/routerforge-monitoring
-         ├── System
-         ├── Thermal
-         ├── Storage
-         └── Network
+Browser -> RouterForge Core :2233
+           ├── Authentication / App Center / lifecycle
+           ├── Generic Module API/UI host
+           └── root-owned Unix-socket proxy
+                ├── routerforge-dns
+                ├── routerforge-admin
+                └── routerforge-monitoring
 ```
 
-Core — единственный RouterForge process, который слушает пользовательский TCP-порт **2233**.
-Официальные runtime-модули и Control общаются с Core через root-owned Unix sockets и не открывают отдельные LAN TCP-порты.
+Core — единственный RouterForge process с пользовательским LAN listener `:2233`.
+Profiling, если установлен, слушает только loopback `127.0.0.1:6061`.
 
-## Source layout
-
-Репозиторий организован по владельцу компонента:
-
-```text
-components/core/             Core backend + frontend + packaging
-components/control/          RouterForge Control backend + packaging
-modules/admin/frontend/      standalone RouterForge Control UI
-modules/dns/                 DNS runtime + frontend + packaging
-modules/monitoring-runtime/  consolidated Monitoring runtime + packaging
-modules/monitoring/frontend/ standalone Monitoring UI
-modules/<id>/packaging/      legacy split-package compatibility lifecycle
-release/channels/            dev/beta/stable source manifests
-```
-
-Core и DNS по-прежнему собираются из explicit source lists в `scripts/build-opkg.sh` и `scripts/build-module-opkg.sh`. Физическое разделение директорий дополнительно закрепляет границу Module ABI v1: изменение DNS runtime не должно молча менять Core binary.
-
-Текущий Dev/Beta train публикует consolidated `routerforge-monitoring`: один read-only runtime поднимает основной Monitoring socket и совместимые System/Thermal/Storage/Network sockets. Старые split packages сохраняются только как migration/compatibility boundary и объявлены через `Provides/Conflicts/Replaces`.
-
-`marketplace/registry/index.json` сохраняет исторический публичный GitHub path для совместимости со старыми Core; точная embedded-копия Core проверяется генератором Registry и CI.
-
-Исторические материалы, не участвующие в build/runtime, складываются в `archive/`. Подробная карта: [REPOSITORY_LAYOUT.md](REPOSITORY_LAYOUT.md).
-
-## Module ABI v1
-
-Package installation и runtime readiness — разные состояния.
-
-Core определяет:
-
-1. установлен ли package по локальной базе `opkg`;
-2. доступен ли runtime через его Unix socket;
-3. отвечает ли module health endpoint.
-
-Во время install/update/restart package может уже быть установлен, пока socket ещё не поднялся.
-В этот промежуток Core не должен объявлять модуль отсутствующим:
-
-- module API возвращает структурированный `503` с `installed=true`, `running=false`;
-- UI делает health preflight/retry;
-- iframe proxy показывает reconnect page вместо сырого JSON;
-- после восстановления health модуль возвращается без ручного refresh.
-
-Loopback `GET/HEAD /api/modules/<id>/health` используется maintainer scripts как readiness probe.
+## Module ABI
+Package-installed и runtime-ready — разные состояния. Core читает `opkg`, manifest/socket и health; во время restart UI использует reconnect semantics.
 
 ## DNS boundary
+`routerforge-dns` владеет capture/discovery/health/history/resolver mutations/UI. Core не интерпретирует DNS payload и не реализует DNS writes.
 
-`routerforge-dns` — самостоятельный Module ABI v1 runtime.
+## Management boundary
+`routerforge-admin` владеет Processes, Services, File Manager, Maintenance и PTY backend.
 
-В DNS package находятся:
+Mutations требуют live Entware-root session, same-origin, confirmation/whitelist и Core-injected internal marker.
 
-- Keenetic DNS discovery;
-- passive DNS/client capture;
-- resolver/routing diagnostics;
-- DNS health/quality/history;
-- DNS mutation API;
-- snapshot → mutation → save → readback;
-- verified rollback;
-- DNS module UI.
+Terminal modes фиксированы:
+- `entware` → `/opt/bin/sh -il`;
+- `keenetic` → server-resolved `ndmc`.
 
-Core не реализует DNS mutation/capture логику. Он предоставляет общий web shell, auth, Центр приложений и generic module proxy.
+Request-controlled executable отсутствует.
 
-## Control boundary
+## Monitoring
+Stable 0.7.1 публикует consolidated `routerforge-monitoring`: один read-only runtime + UI и intentional compatibility sockets System/Thermal/Storage/Network.
 
-`routerforge-admin` (RouterForge Control) остаётся отдельным Unix-socket helper. Read endpoints покрывают процессы, listening sockets, Entware services/packages и summary.
-
-Management v2 добавляет строго ограниченные mutation endpoints для process signals и Entware service start/stop/restart. Они требуют live Entware-root session, same-origin, exact confirmation, whitelist и Core-injected internal socket marker. Текущий standalone Management UI остаётся read-only.
-
-Root package mutations по-прежнему выполняет Core только через ограниченный Центр приложений lifecycle и только для разрешённых catalog actions.
-
-## Центр приложений и package state
-
-Каждый component имеет независимую version.
-
-Source channel manifests:
+## App Center / release lifecycle
 
 ```text
-release/channels/dev.json
-release/channels/beta.json
-release/channels/stable.json
+push dev -> rolling Dev
+
+FULL RELEASE exact dev SHA
+  -> broad validation
+  -> optional Beta
+  -> stable promotion artifact
+
+same validated SHA -> main
+  -> verified rolling Stable
+  -> immutable routerforge-v<stable-version>
 ```
 
-Release lifecycle:
+## Generic Web UI Discovery
+Локальные application listeners коррелируются с PID/process/package и bounded web probe. Blind LAN scan отсутствует; redirect/XFO/CSP/SSRF checks fail closed.
 
-```text
-push dev
-  └──> rolling ARM64 Dev (routerforge-dev)
-
-workflow_dispatch FULL RELEASE on exact dev SHA
-  └──> rolling Beta + immutable routerforge-v<beta-version>
-
-main
-  └──> Stable promotion from validated exact-SHA artifact
-```
-
-При неизменной component version предыдущий release asset сохраняется.
-
-Installed version читается из `opkg`. Core учитывает только package stanza, чей state действительно `installed`;
-старые `not-installed` tombstones не должны перекрывать текущую версию.
-
-После `update` lifecycle дополнительно сверяет фактически установленную version с target release version.
-
-## Authentication
-
-Config:
-
-```text
-/opt/etc/routerforge/security.json
-```
-
-При `auth_required=true` middleware защищает `/api/*`, кроме публичных auth endpoints, Core health и loopback-only module health readiness probe.
-
-Login использует Entware `root`; sessions находятся только в памяти Core.
-
-Failed-login state также in-memory, но bounded: stale entries очищаются глобально, tracked clients ограничены 1024, активные lockout записи сохраняются приоритетно. Lockout policy остаётся 5 ошибок в 5-минутном окне с 30-секундной блокировкой.
+## Source layout
+См. [REPOSITORY_LAYOUT.md](REPOSITORY_LAYOUT.md).
 
 ## Frontend
-
-Frontend:
-
-- Svelte 5 / SvelteKit / Vite;
-- static adapter;
-- production build встраивается в Core Go binary;
-- Node.js на роутере не нужен;
-- capability-driven navigation скрывает разделы отсутствующих optional packages.
-
-Основная IA:
-
-```text
-Главная
-Мониторинг
-DNS
-Управление
-Центр приложений
-Настройки
-```
-
-## CPU / Entware architectures
-
-Публичный release target сейчас:
-
-```text
-aarch64-3.10  -> GOARCH=arm64
-```
-
-Build system заранее содержит compile/package profiles:
-
-```text
-mips-3.4      -> GOARCH=mips   + GOMIPS=softfloat
-mipsel-3.4    -> GOARCH=mipsle + GOMIPS=softfloat
-```
-
-MIPS/MIPSEL публикуются как **experimental preview** targets. Cross-build, QEMU и runtime compatibility probe являются CI-доказательством совместимости сборки, но не заменяют физическую hardware validation. MIPSel уже имеет частичную physical evidence на KN-1010 (fresh install/basic operation); MIPS big-endian остаётся без физической проверки.
-Подробнее: [ARCHITECTURES.md](ARCHITECTURES.md).
-
-## Caches and storage policy
-
-Remote состояние Центра приложений кэшируется под:
-
-```text
-/opt/var/cache/routerforge/
-```
-
-Remote refresh throttled примерно до одного раза в час; manual Центр приложений refresh может обходить interval.
-
-Высокочастотная DNS/runtime телеметрия ориентирована на RAM.
-RouterForge не должен превращать её в постоянную запись на flash/USB без отдельной явной функции.
+Svelte 5/SvelteKit/Vite. Core UI embedded; DNS/Admin/Monitoring UIs входят в свои IPK. Node.js на роутере не нужен.

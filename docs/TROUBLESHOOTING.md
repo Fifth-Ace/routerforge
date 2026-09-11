@@ -1,208 +1,59 @@
 # Диагностика RouterForge
 
-Все команды ниже предполагают Entware shell на роутере.
-
-## 1. Core установлен?
-
 ```sh
-/opt/bin/opkg status routerforge-core 2>/dev/null
-```
-
-Или:
-
-```sh
+echo '=== PACKAGES ==='
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
-```
-
-## 2. Core запущен?
-
-```sh
+echo '=== PROCESSES ==='
 ps w | grep '[r]outerforge'
-```
-
-Restart:
-
-```sh
-/opt/etc/init.d/S90routerforge restart
-```
-
-## 3. Слушается ли порт 2233?
-
-```sh
+echo '=== LISTEN ==='
 netstat -lnp 2>/dev/null | grep ':2233'
-```
-
-Ожидается RouterForge Core.
-
-## 4. Health
-
-```sh
-wget -qO- http://127.0.0.1:2233/api/health
-echo
-```
-
-Если `curl` удобнее:
-
-```sh
-curl -fsS http://127.0.0.1:2233/api/health
-```
-
-## 5. Лог Core
-
-```sh
-tail -n 100 /opt/var/log/routerforge.log
-```
-
-Live:
-
-```sh
-tail -f /opt/var/log/routerforge.log
-```
-
-## 6. Optional modules
-
-Пакеты:
-
-```sh
-/opt/bin/opkg list-installed | grep '^routerforge-' | sort
-```
-
-Unix sockets:
-
-```sh
+echo '=== SOCKETS ==='
 ls -l /opt/var/run/routerforge-*.sock 2>/dev/null
+echo '=== CORE HEALTH ==='
+wget -qO- http://127.0.0.1:2233/api/health
 ```
 
-Если конкретный monitoring module установлен, но UI показывает OFFLINE:
+Core — единственный RouterForge LAN listener `:2233`.
 
-1. проверьте его package;
-2. проверьте init script;
-3. проверьте Unix socket;
-4. перезапустите конкретный service, затем Core.
-
-## 7. Центр приложений не видит обновление или показывает старую Installed version
-
-Сначала нажмите **«Проверить обновления»**. Кнопка делает force refresh Registry + release-index; автоматическая remote-проверка выполняется примерно раз в час.
-
-Проверьте реальное состояние `opkg`:
+## Module health
 
 ```sh
-/opt/bin/opkg status routerforge-core 2>/dev/null | grep -E '^(Package|Version|Status):'
-echo
-/opt/bin/opkg status routerforge-dns 2>/dev/null | grep -E '^(Package|Version|Status):'
-echo
-/opt/bin/opkg list-installed | grep '^routerforge-' | sort
-```
-
-`opkg status` может содержать одновременно текущую `installed` stanza и старую `not-installed` stanza. Core 0.4.3+ игнорирует `not-installed` tombstones. Если `opkg list-installed` и Центр приложений расходятся на Core 0.4.3+, приложите полный `opkg status` нужного package к bug report.
-
-Cache:
-
-```sh
-ls -l /opt/var/cache/routerforge/ 2>/dev/null
-```
-
-Не удаляйте cache без причины: при временной недоступности GitHub RouterForge может использовать last-good state.
-
-## 8. Проверить release channel
-
-В Центре приложений отображается текущий channel.
-
-Beta и Stable используют разные release-index:
-
-```text
-routerforge-beta-index.json
-routerforge-stable-index.json
-```
-
-Если вы случайно смешали beta/stable packages, установите bootstrap целевого канала и затем обновите остальные RouterForge components через Центр приложений.
-
-## 9. Auth
-
-Config:
-
-```sh
-cat /opt/etc/routerforge/security.json 2>/dev/null
-```
-
-При включённой авторизации используется Entware `root`.
-
-Не публикуйте содержимое `/opt/etc/shadow`, cookies или password hashes.
-
-Если UI после изменения auth выглядит устаревшим, выполните hard refresh браузера после проверки, что `/api/health` отвечает.
-
-## 10. DNS / Module ABI
-
-Сначала разделите package state и runtime state:
-
-```sh
-echo "=== PACKAGE ==="
-/opt/bin/opkg status routerforge-dns 2>/dev/null | grep -E '^(Package|Version|Status):'
-
-echo
-echo "=== MANIFEST ==="
-cat /opt/share/routerforge/modules/dns/manifest.json 2>/dev/null
-
-echo
-echo "=== SOCKET ==="
-ls -l /opt/var/run/routerforge-dns.sock 2>/dev/null
-
-echo
-echo "=== PROCESS ==="
-ps w | grep '[r]outerforge-dns'
-
-echo
-echo "=== HEALTH ==="
 wget -qO- http://127.0.0.1:2233/api/modules/dns/health
-echo
-
-echo
-echo "=== LAST STARTS ==="
-grep 'START' /opt/var/log/routerforge-dns.log 2>/dev/null | tail -10
+wget -qO- http://127.0.0.1:2233/api/modules/admin/health
+wget -qO- http://127.0.0.1:2233/api/modules/monitoring/health
 ```
 
-Во время реального update/restart краткий `503` для module API допустим, пока Unix socket поднимается. На Core 0.4.2+ официальный UI сам повторяет health-check и iframe не должен застревать на сыром JSON.
-
-Если runtime уже `ok:true`, но Центр приложений показывает другую Installed version, вернитесь к разделу 7 и сравните `opkg status`/`list-installed`.
-
-Если DNS runtime жив, но discovery/capture сообщает ошибку, проверьте Keenetic:
+## Monitoring migration
 
 ```sh
-ndmc -c 'show dns-proxy'
-ndmc -c 'show ip hotspot'
-ndmc -c 'show ip policy'
+ROUTERFORGE_MONITORING_EXPECTED_VERSION='0.7.1' \
+  sh scripts/verify-monitoring-migration.sh runtime
 ```
 
-Вывод может содержать чувствительные данные — санитизируйте его перед публикацией.
+Нормально: один `routerforge-monitoring` process/package и 5 sockets including compatibility names.
 
-## 11. Не делайте broad upgrade ради RouterForge
-
-Для RouterForge не требуется массово обновлять весь Entware:
-
-```text
-opkg upgrade
-```
-
-не должен быть первым шагом диагностики.
-
-Используйте Центр приложений или точечную установку RouterForge package.
-
-## 12. Что приложить к bug report
-
-Без секретов:
+## Management / Terminal
 
 ```sh
-uname -a
-/opt/bin/opkg list-installed | grep '^routerforge-' | sort
-netstat -lnp 2>/dev/null | grep ':2233'
-tail -n 100 /opt/var/log/routerforge.log
+/opt/bin/opkg status routerforge-admin
+ps w | grep '[r]outerforge-admin'
+ls -l /opt/var/run/routerforge-admin.sock
+ndmc -c 'show version'
 ```
 
-Также укажите:
+## DNS
 
-- модель роутера;
-- KeeneticOS/NDMS version;
-- RouterForge Core version;
-- versions проблемных modules;
-- Stable или Beta;
-- что именно воспроизводит проблему.
+```sh
+/opt/bin/opkg status routerforge-dns
+ps w | grep '[r]outerforge-dns'
+ls -l /opt/var/run/routerforge-dns.sock
+wget -qO- http://127.0.0.1:2233/api/modules/dns/health
+```
+
+## App Center stale state
+Нажмите **Проверить обновления**, затем сравните `opkg status`/`list-installed`. Не удаляйте cache без причины.
+
+## Не делайте broad `opkg upgrade`
+Для RouterForge используйте App Center или точечный lifecycle.
+
+Bug report: модель, KeeneticOS, architecture, channel, package versions, sanitized logs/health. Не публикуйте credentials, cookies, VPN keys, private names, public IPs или MAC.

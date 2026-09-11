@@ -205,25 +205,55 @@ while IFS= read -r asset; do
 done
 
 # The rolling Dev tag is the source identity. Move it only after all published assets
-# and their remote digests have been verified successfully.
-gh api \
-    --method PATCH \
-    "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" \
-    -f sha="$GITHUB_SHA" \
-    -F force=true >/dev/null
-
-DEV_TAG_SHA="$(
+# and their remote digests have been verified successfully. GitHub can briefly serve
+# the previous ref value immediately after a successful PATCH, so validate both the
+# write response and eventual read visibility before declaring the channel published.
+PATCHED_DEV_TAG_SHA="$(
     gh api \
-        "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" \
+        --method PATCH \
+        "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" \
+        -f sha="$GITHUB_SHA" \
+        -F force=true \
         --jq '.object.sha'
 )"
 
+[ "$PATCHED_DEV_TAG_SHA" = "$GITHUB_SHA" ] || {
+    echo "Dev tag write mismatch: expected $GITHUB_SHA, got $PATCHED_DEV_TAG_SHA" >&2
+    exit 1
+}
+
+echo "DEV_TAG_WRITE_SHA=$PATCHED_DEV_TAG_SHA"
+echo "DEV_TAG_WRITE_GATE=PASS"
+
+DEV_TAG_SHA=""
+DEV_TAG_ATTEMPT=1
+while [ "$DEV_TAG_ATTEMPT" -le 10 ]; do
+    DEV_TAG_SHA="$(
+        gh api \
+            "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" \
+            --jq '.object.sha' \
+            2>/dev/null || true
+    )"
+
+    if [ "$DEV_TAG_SHA" = "$GITHUB_SHA" ]; then
+        break
+    fi
+
+    if [ "$DEV_TAG_ATTEMPT" -lt 10 ]; then
+        echo "Dev tag visibility lag: expected $GITHUB_SHA, got ${DEV_TAG_SHA:-<empty>}; retry $DEV_TAG_ATTEMPT/10" >&2
+        sleep 2
+    fi
+
+    DEV_TAG_ATTEMPT=$((DEV_TAG_ATTEMPT + 1))
+done
+
 [ "$DEV_TAG_SHA" = "$GITHUB_SHA" ] || {
-    echo "Dev tag mismatch: expected $GITHUB_SHA, got $DEV_TAG_SHA" >&2
+    echo "Dev tag visibility mismatch after 10 attempts: expected $GITHUB_SHA, got ${DEV_TAG_SHA:-<empty>}" >&2
     exit 1
 }
 
 echo "DEV_TAG_SHA=$DEV_TAG_SHA"
+echo "DEV_TAG_VISIBILITY_ATTEMPT=$DEV_TAG_ATTEMPT"
 echo "DEV_TAG_GATE=PASS"
 
 echo "DEV_RELEASE=$TAG"

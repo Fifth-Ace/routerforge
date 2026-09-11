@@ -52,6 +52,37 @@ def release_asset_version(version):
     return value
 
 
+BETA_RELEASE_VERSION = re.compile(r"^(.+)-beta\.([0-9]+)$")
+
+
+def validate_release_train(config, channel, components):
+    if channel != "beta":
+        return
+
+    release_version = str(config.get("release_version", "")).strip()
+    match = BETA_RELEASE_VERSION.fullmatch(release_version)
+    if not match:
+        raise SystemExit(
+            "beta release_version %r must match <base>-beta.<n>" % release_version
+        )
+
+    expected = "%s~beta.%s" % (match.group(1), match.group(2))
+    for component in components:
+        cid = component.get("id")
+        version = str(component.get("version", "")).strip()
+        if version != expected:
+            raise SystemExit(
+                "beta release train mismatch: %s version=%r, " % (cid, version)
+                + "expected %r from release_version=%r" % (expected, release_version)
+            )
+
+        min_core = str(component.get("min_core_version", "")).strip()
+        if min_core and min_core != expected:
+            raise SystemExit(
+                "beta release train mismatch: %s min_core_version=%r, " % (cid, min_core)
+                + "expected %r from release_version=%r" % (expected, release_version)
+            )
+
 def parse_control_fields(raw):
     fields = {}
     current = None
@@ -159,6 +190,8 @@ def main():
         required = ["routerforge-core", "dns", "admin", "system", "thermal", "storage", "network", "profiling"]
     if ids != required:
         raise SystemExit(f"components for {channel} must be ordered exactly as {required}")
+
+    validate_release_train(config, channel, components)
 
     dist = Path(args.dist)
     dist.mkdir(parents=True, exist_ok=True)

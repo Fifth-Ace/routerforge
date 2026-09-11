@@ -84,6 +84,7 @@ build_dns() {
     packet_filter_linux.go
     client_registry.go
     clients_stats.go
+    compact_events.go
     diagnostics.go
     discovery.go
     dns.go

@@ -187,7 +187,7 @@ def main():
     if channel in {"dev", "beta"}:
         required = ["routerforge-core", "dns", "admin", "monitoring", "profiling"]
     else:
-        required = ["routerforge-core", "dns", "admin", "system", "thermal", "storage", "network", "profiling"]
+        required = ["routerforge-core", "dns", "admin", "monitoring", "profiling"]
     if ids != required:
         raise SystemExit(f"components for {channel} must be ordered exactly as {required}")
 

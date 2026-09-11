@@ -9,6 +9,29 @@ import (
 	"testing"
 )
 
+func TestNormalizeTerminalWebSocketMode(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want string
+		ok   bool
+	}{
+		{"", "entware", true},
+		{"entware", "entware", true},
+		{" ENTWARE ", "entware", true},
+		{"keenetic", "keenetic", true},
+		{" KEENETIC ", "keenetic", true},
+		{"shell", "", false},
+		{"/opt/bin/sh", "", false},
+		{"ndmc -c show version", "", false},
+	}
+
+	for _, tt := range tests {
+		got, ok := normalizeTerminalWebSocketMode(tt.raw)
+		if got != tt.want || ok != tt.ok {
+			t.Fatalf("mode %q => (%q, %v), want (%q, %v)", tt.raw, got, ok, tt.want, tt.ok)
+		}
+	}
+}
 func TestWebSocketAcceptRFCExample(t *testing.T) {
 	got := webSocketAccept("dGhlIHNhbXBsZSBub25jZQ==")
 	if got != "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=" {

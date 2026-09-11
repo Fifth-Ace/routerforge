@@ -10,6 +10,7 @@ func TestAdminModuleTerminalRequest(t *testing.T) {
 	good := []string{
 		"/api/modules/admin/terminal/run",
 		"/api/modules/admin/terminal/session",
+		"/api/modules/admin/terminal/ws?mode=keenetic",
 		"/api/modules/admin/terminal/session/0123456789abcdef0123456789abcdef/output",
 	}
 	for _, path := range good {

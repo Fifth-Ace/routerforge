@@ -55,22 +55,9 @@ func handleAdminTerminalWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cwd := strings.TrimSpace(r.URL.Query().Get("cwd"))
-	if cwd == "" {
-		cwd = "/opt"
-	}
-	resolved, err := resolveExistingAdminFilePath(cwd)
-	if err != nil {
-		writeAdminFilePathError(w, err)
-		return
-	}
-	info, err := os.Stat(resolved.Canonical)
-	if err != nil {
-		writeAdminFilePathError(w, err)
-		return
-	}
-	if !info.IsDir() {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "terminal cwd is not a directory"})
+	mode, ok := normalizeTerminalWebSocketMode(r.URL.Query().Get("mode"))
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid terminal mode"})
 		return
 	}
 
@@ -78,15 +65,45 @@ func handleAdminTerminalWebSocket(w http.ResponseWriter, r *http.Request) {
 	rows := queryTerminalDimension(r, "rows", 24)
 	cols, rows = normalizeTerminalSize(cols, rows)
 
-	cmd := exec.Command("/opt/bin/sh", "-il")
-	cmd.Dir = resolved.Canonical
+	var cmd *exec.Cmd
+	switch mode {
+	case "entware":
+		cwd := strings.TrimSpace(r.URL.Query().Get("cwd"))
+		if cwd == "" {
+			cwd = "/opt"
+		}
+		resolved, err := resolveExistingAdminFilePath(cwd)
+		if err != nil {
+			writeAdminFilePathError(w, err)
+			return
+		}
+		info, err := os.Stat(resolved.Canonical)
+		if err != nil {
+			writeAdminFilePathError(w, err)
+			return
+		}
+		if !info.IsDir() {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "terminal cwd is not a directory"})
+			return
+		}
+		cmd = exec.Command("/opt/bin/sh", "-il")
+		cmd.Dir = resolved.Canonical
+	case "keenetic":
+		ndmcPath, err := exec.LookPath("ndmc")
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "Keenetic NDM console is unavailable: ndmc not found"})
+			return
+		}
+		cmd = exec.Command(ndmcPath)
+		cmd.Dir = "/opt"
+	}
+
 	cmd.Env = terminalWebSocketEnvironment(os.Environ())
 	master, err := startTerminalPTY(cmd, cols, rows)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": fmt.Sprintf("cannot start Entware PTY: %v", err)})
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": fmt.Sprintf("cannot start %s terminal PTY: %v", mode, err)})
 		return
 	}
-
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		closeTerminalPTY(master, cmd)
@@ -215,6 +232,16 @@ func queryTerminalDimension(r *http.Request, name string, fallback int) int {
 	return value
 }
 
+func normalizeTerminalWebSocketMode(raw string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "entware":
+		return "entware", true
+	case "keenetic":
+		return "keenetic", true
+	default:
+		return "", false
+	}
+}
 func terminalWebSocketEnvironment(env []string) []string {
 	managed := map[string]string{
 		"PATH":    "/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin",

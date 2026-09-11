@@ -1,40 +1,81 @@
-# RouterForge architectures
+# Архитектуры RouterForge
 
-| Target | Go target | Entware family | Status |
+## Текущий статус
+
+| Target | Go target | Семейство Entware | Статус |
 | --- | --- | --- | --- |
-| `aarch64-3.10` | `GOARCH=arm64` | `aarch64-k3.10` | **Stable / hardware validated** |
-| `mipsel-3.4` | `GOARCH=mipsle`, softfloat | `mipselsf-k3.4` | **experimental / partial KN-1010 validation** |
-| `mips-3.4` | `GOARCH=mips`, softfloat | `mipssf-k3.4` | **experimental / no physical validation** |
+| `aarch64-3.10` | `GOARCH=arm64` | `aarch64-k3.10` | **Production / полностью аппаратно проверен** |
+| `mipsel-3.4` | `GOARCH=mipsle`, softfloat | `mipselsf-k3.4` | **Experimental / частичная физическая проверка KN-1010** |
+| `mips-3.4` | `GOARCH=mips`, softfloat | `mipssf-k3.4` | **Experimental / физической проверки нет** |
 
-ARM64 — production target.
+ARM64 — основная production-архитектура RouterForge.
 
-MIPSel имеет physical evidence для fresh install/basic operation. Upgrade/rollback/uninstall, complete DNS/Management matrix и resource-stress остаются открыты.
+## Аппаратная матрица ARM64
 
-MIPS big-endian не имеет hardware pass. Cross-build/QEMU/runtime probe не заменяют физическую проверку.
+| Устройство | Каналы | Назначение |
+| --- | --- | --- |
+| **Keenetic Hopper KN-3811** | **Dev + Beta** | ежедневная разработка, функциональные аппаратные проверки, rolling Dev и Beta |
+| **Keenetic Ultra KN-1812** | **Beta + Stable** | дополнительная/финальная Beta validation и проверка Stable-релиза |
 
-## Universal installer
-Target определяется через `opkg print-architecture`.
+Beta, таким образом, проверяется на **обеих ARM64-площадках**.
 
-Non-ARM64 opt-in:
+## MIPSel
+
+**Keenetic Giga KN-1010** используется для частичной физической проверки `mipsel-3.4`.
+
+Подтверждены:
+- fresh install;
+- базовая нормальная работа.
+
+Пока не заявлены полностью закрытыми:
+- upgrade;
+- rollback;
+- uninstall;
+- полный DNS/Management matrix;
+- resource-stress scenarios.
+
+Поэтому MIPSel остаётся experimental.
+
+## MIPS big-endian
+
+`mips-3.4` проходит:
+- cross-build;
+- QEMU runtime checks;
+- package/index/bootstrap validation.
+
+Физической аппаратной проверки для MIPS big-endian пока нет, поэтому target остаётся experimental.
+
+## Универсальный installer
+
+Target определяется через:
+
+```sh
+opkg print-architecture
+```
+
+Для non-ARM64 требуется explicit opt-in:
 
 ```sh
 ROUTERFORGE_MIPS_PREVIEW=1
 ```
 
-Для `degraded`:
+Для runtime probe со статусом `degraded`:
 
 ```sh
 ROUTERFORGE_MIPS_ALLOW_DEGRADED=1
 ```
 
-`blocked` не override'ится.
+Статус `blocked` не override'ится.
 
-## CI proves
+## Что проверяет CI
+
+CI проверяет:
 - cross-build;
-- IPK architecture;
-- MIPS/MIPSel QEMU runtime;
+- архитектуру IPK;
+- MIPS/MIPSel runtime под QEMU;
 - compatibility/quarantine bootstrap;
 - release package/index integrity;
-- ARM64 production compression.
+- production compression для ARM64;
+- документацию и release metadata.
 
-CI не доказывает отсутствующую hardware validation.
+CI не заменяет физическую аппаратную проверку на реальном роутере.

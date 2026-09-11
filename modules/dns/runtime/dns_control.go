@@ -51,6 +51,9 @@ type DNSResolverSpec struct {
 	Dynamic        bool     `json:"dynamic,omitempty"`
 	Service        string   `json:"service,omitempty"`
 	Source         string   `json:"source,omitempty"`
+	Preset         bool     `json:"preset,omitempty"`
+	Provider       string   `json:"provider,omitempty"`
+	Variant        string   `json:"variant,omitempty"`
 	PhysicalCount  int      `json:"physical_count,omitempty"`
 	ReadOnlyReason string   `json:"read_only_reason,omitempty"`
 }
@@ -60,6 +63,9 @@ type DNSResolverList struct {
 	ActiveCount           int               `json:"active_count"`
 	DisabledCount         int               `json:"disabled_count"`
 	DynamicCount          int               `json:"dynamic_count"`
+	PresetCount           int               `json:"preset_count"`
+	PresetAvailableCount  int               `json:"preset_available_count"`
+	PresetCatalogRevision string            `json:"preset_catalog_revision,omitempty"`
 	MutationAPI           bool              `json:"mutation_api"`
 	NativeMode            bool              `json:"native_mode"`
 	GeneratedSlots        int               `json:"physical_entries"`
@@ -199,14 +205,16 @@ func (m *dnsControlManager) List(ctx context.Context) (DNSResolverList, error) {
 		SecurePhysicalLimit: dnsKeeneticDoTSlotLimit + dnsKeeneticDoHSlotLimit,
 		PlainDNSDomainLimit: dnsKeeneticPlainDomainLimit,
 	}
+	seen := make(map[string]struct{}, len(state.Logical)+len(state.Dynamic)+len(disabled.Resolvers)+len(dnsPublicPresets))
 	ids := make([]string, 0, len(state.Logical))
 	for id := range state.Logical {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 	for _, id := range ids {
-		spec := state.Logical[id].Spec
+		spec := applyDNSPublicPresetMetadata(state.Logical[id].Spec)
 		out.Resolvers = append(out.Resolvers, spec)
+		seen[spec.ID] = struct{}{}
 		out.ActiveCount++
 		out.GeneratedSlots += spec.PhysicalCount
 		switch spec.Protocol {
@@ -220,21 +228,39 @@ func (m *dnsControlManager) List(ctx context.Context) (DNSResolverList, error) {
 	}
 	for _, spec := range state.Dynamic {
 		out.Resolvers = append(out.Resolvers, spec)
+		seen[spec.ID] = struct{}{}
 		out.DynamicCount++
 	}
 	for _, record := range disabled.Resolvers {
-		spec := record.Resolver
+		spec := applyDNSPublicPresetMetadata(record.Resolver)
 		spec.Disabled = true
-		spec.Source = "disabled"
+		if !spec.Preset {
+			spec.Source = "disabled"
+		} else {
+			out.PresetAvailableCount++
+		}
 		out.Resolvers = append(out.Resolvers, spec)
+		seen[spec.ID] = struct{}{}
 		out.DisabledCount++
 	}
+	appendDNSPublicPresetCatalog(&out, seen)
 	sort.SliceStable(out.Resolvers, func(i, j int) bool {
 		if out.Resolvers[i].Disabled != out.Resolvers[j].Disabled {
 			return !out.Resolvers[i].Disabled
 		}
 		if out.Resolvers[i].Dynamic != out.Resolvers[j].Dynamic {
 			return !out.Resolvers[i].Dynamic
+		}
+		if out.Resolvers[i].Preset != out.Resolvers[j].Preset {
+			return !out.Resolvers[i].Preset
+		}
+		if out.Resolvers[i].Preset && out.Resolvers[j].Preset {
+			if out.Resolvers[i].Provider != out.Resolvers[j].Provider {
+				return strings.ToLower(out.Resolvers[i].Provider) < strings.ToLower(out.Resolvers[j].Provider)
+			}
+			if out.Resolvers[i].Variant != out.Resolvers[j].Variant {
+				return strings.ToLower(out.Resolvers[i].Variant) < strings.ToLower(out.Resolvers[j].Variant)
+			}
 		}
 		if out.Resolvers[i].Protocol != out.Resolvers[j].Protocol {
 			return out.Resolvers[i].Protocol < out.Resolvers[j].Protocol
@@ -243,7 +269,6 @@ func (m *dnsControlManager) List(ctx context.Context) (DNSResolverList, error) {
 	})
 	return out, nil
 }
-
 func (m *dnsControlManager) Create(ctx context.Context, spec DNSResolverSpec) (DNSMutationResult, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -273,6 +298,7 @@ func (m *dnsControlManager) Create(ctx context.Context, spec DNSResolverSpec) (D
 	if err := m.applyMutation(ctx, state, map[string]bool{normalized.Protocol: true}, nil); err != nil {
 		return DNSMutationResult{}, err
 	}
+	normalized = applyDNSPublicPresetMetadata(normalized)
 	return DNSMutationResult{OK: true, Action: "create", Resolver: &normalized}, nil
 }
 
@@ -286,6 +312,9 @@ func (m *dnsControlManager) Update(ctx context.Context, id string, spec DNSResol
 	disabled, err := m.loadDisabled()
 	if err != nil {
 		return DNSMutationResult{}, err
+	}
+	if _, preset := dnsPublicPresetByID(id); preset {
+		return DNSMutationResult{}, fmt.Errorf("%w: built-in public DNS preset", errDNSResolverReadOnly)
 	}
 	if dynamicByID(state.Dynamic, id) != nil {
 		return DNSMutationResult{}, fmt.Errorf("%w: dynamic DHCP/service resolver", errDNSResolverReadOnly)
@@ -348,6 +377,9 @@ func (m *dnsControlManager) Delete(ctx context.Context, id string) (DNSMutationR
 	if err != nil {
 		return DNSMutationResult{}, err
 	}
+	if _, preset := dnsPublicPresetByID(id); preset {
+		return DNSMutationResult{}, fmt.Errorf("%w: built-in public DNS preset; disable it instead", errDNSResolverReadOnly)
+	}
 	disabled, err := m.loadDisabled()
 	if err != nil {
 		return DNSMutationResult{}, err
@@ -389,6 +421,15 @@ func (m *dnsControlManager) Disable(ctx context.Context, id string) (DNSMutation
 	if current == nil {
 		return DNSMutationResult{}, errDNSResolverNotFound
 	}
+	if _, preset := dnsPublicPresetByID(id); preset {
+		delete(state.Logical, id)
+		if err := m.applyMutation(ctx, state, map[string]bool{current.Spec.Protocol: true}, nil); err != nil {
+			return DNSMutationResult{}, err
+		}
+		spec := applyDNSPublicPresetMetadata(current.Spec)
+		spec.Disabled = true
+		return DNSMutationResult{OK: true, Action: "disable", Resolver: &spec}, nil
+	}
 	disabled, err := m.loadDisabled()
 	if err != nil {
 		return DNSMutationResult{}, err
@@ -424,7 +465,26 @@ func (m *dnsControlManager) Enable(ctx context.Context, id string) (DNSMutationR
 	}
 	index := disabledIndex(disabled, id)
 	if index < 0 {
-		return DNSMutationResult{}, errDNSResolverNotFound
+		preset, ok := dnsPublicPresetByID(id)
+		if !ok {
+			return DNSMutationResult{}, errDNSResolverNotFound
+		}
+		if state.Logical[id] != nil {
+			return DNSMutationResult{}, fmt.Errorf("%w: active resolver %s already exists", errDNSResolverConflict, id)
+		}
+		spec := preset
+		spec.Disabled = false
+		spec.Source = "preset"
+		entries, err := buildDNSResolverEntries(spec)
+		if err != nil {
+			return DNSMutationResult{}, err
+		}
+		spec.PhysicalCount = len(entries)
+		state.Logical[id] = &dnsLogicalResolver{Spec: spec, RawEntries: entries}
+		if err := m.applyMutation(ctx, state, map[string]bool{spec.Protocol: true}, nil); err != nil {
+			return DNSMutationResult{}, err
+		}
+		return DNSMutationResult{OK: true, Action: "enable", Resolver: &spec}, nil
 	}
 	record := disabled.Resolvers[index]
 	spec := record.Resolver
@@ -450,6 +510,7 @@ func (m *dnsControlManager) Enable(ctx context.Context, id string) (DNSMutationR
 		_ = m.saveDisabled(beforeDisabled)
 		return DNSMutationResult{}, err
 	}
+	spec = applyDNSPublicPresetMetadata(spec)
 	return DNSMutationResult{OK: true, Action: "enable", Resolver: &spec}, nil
 }
 
@@ -1016,6 +1077,9 @@ func normalizeDNSResolverSpec(spec DNSResolverSpec) (DNSResolverSpec, error) {
 	out.Service = ""
 	out.ReadOnlyReason = ""
 	out.Source = "static"
+	out.Preset = false
+	out.Provider = ""
+	out.Variant = ""
 	out.Protocol = strings.TrimSpace(out.Protocol)
 	switch strings.ToLower(out.Protocol) {
 	case "dns", "plain":

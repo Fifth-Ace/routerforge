@@ -18,9 +18,11 @@
   let dimensions = '80×24';
   let disposed = false;
   let trimInitialPTYBreaks = true;
+  let terminalMode = 'entware';
 
   $: copy = locale === 'ru' ? {
     title: 'Entware Terminal',
+    keeneticTitle: 'Keenetic NDM Console',
     connect: 'Подключить',
     disconnect: 'Отключить',
     reconnect: 'Переподключить',
@@ -33,6 +35,7 @@
     disconnected: 'DISCONNECTED'
   } : {
     title: 'Entware Terminal',
+    keeneticTitle: 'Keenetic NDM Console',
     connect: 'Connect',
     disconnect: 'Disconnect',
     reconnect: 'Reconnect',
@@ -86,9 +89,9 @@
   }
 
   function terminalBanner() {
-    terminal?.writeln('\x1b[1;36mRouterForge Entware Terminal\x1b[0m');
+    const label = terminalMode === 'keenetic' ? 'Keenetic NDM Console' : 'Entware Terminal';
+    if (terminal) terminal.writeln(`\x1b[1;36mRouterForge ${label}\x1b[0m`);
   }
-
   function writeServerOutput(data) {
     if (!trimInitialPTYBreaks) {
       terminal.write(data instanceof ArrayBuffer ? new Uint8Array(data) : data);
@@ -113,11 +116,16 @@
 
   function socketURL() {
     const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const cols = terminal?.cols || 80;
-    const rows = terminal?.rows || 24;
-    return `${scheme}//${window.location.host}/api/modules/admin/terminal/ws?cwd=${encodeURIComponent('/opt')}&cols=${cols}&rows=${rows}`;
+    const cols = terminal ? terminal.cols : 80;
+    const rows = terminal ? terminal.rows : 24;
+    const params = new URLSearchParams({
+      mode: terminalMode,
+      cols: String(cols),
+      rows: String(rows)
+    });
+    if (terminalMode === 'entware') params.set('cwd', '/opt');
+    return `${scheme}//${window.location.host}/api/modules/admin/terminal/ws?${params.toString()}`;
   }
-
   function sendResize() {
     clearTimeout(resizeTimer);
     resizeTimer = null;
@@ -186,6 +194,18 @@
     setTimeout(connect, 40);
   }
 
+  function switchTerminalMode(nextMode) {
+    if (nextMode !== 'entware' && nextMode !== 'keenetic') return;
+    if (terminalMode === nextMode) {
+      if (terminal) terminal.focus();
+      return;
+    }
+    terminalMode = nextMode;
+    trimInitialPTYBreaks = true;
+    if (terminal) terminal.clear();
+    terminalBanner();
+    reconnect();
+  }
   onMount(() => {
     terminal = new Terminal({
       allowProposedApi: false,
@@ -234,21 +254,20 @@
 <section class="terminal-shell">
   <header class="terminal-topbar">
     <div class="terminal-tabs">
-      <button class="terminal-tab active" type="button">
-        <span class="terminal-dot connected-dot"></span>{copy.entware}
+      <button class="terminal-tab" class:active={terminalMode === 'entware'} type="button" onclick={() => switchTerminalMode('entware')}>
+        <span class="terminal-dot" class:connected-dot={connected && terminalMode === 'entware'}></span>{copy.entware}
       </button>
-      <button class="terminal-tab" type="button" disabled title={copy.keeneticHint}>
-        <span class="terminal-dot"></span>{copy.keenetic}<em>next</em>
+      <button class="terminal-tab" class:active={terminalMode === 'keenetic'} type="button" onclick={() => switchTerminalMode('keenetic')}>
+        <span class="terminal-dot" class:connected-dot={connected && terminalMode === 'keenetic'}></span>{copy.keenetic}
       </button>
-    </div>
-    <div class="terminal-head-status">
+    </div>    <div class="terminal-head-status">
       <span class:online={connected} class="status-dot"></span>
       <strong>{statusText}</strong><span class="mono">{dimensions}</span>
     </div>
   </header>
 
   <div class="terminal-titlebar">
-    <div><strong>{copy.title}</strong></div>
+    <div><strong>{terminalMode === 'keenetic' ? copy.keeneticTitle : copy.title}</strong></div>
     <div class="terminal-actions">
       <button type="button" onclick={() => terminal?.clear()}>{copy.clear}</button>
       {#if connected}
@@ -263,7 +282,12 @@
   <div class="terminal-bezel"><div class="terminal-canvas" bind:this={host}></div></div>
 
   <footer class="terminal-statusbar">
-    <span><b>root</b>@entware</span><span>/opt</span><span>UTF-8</span><span>WS / PTY</span>
+    {#if terminalMode === 'keenetic'}
+      <span><b>ndm</b>@keenetic</span><span>NDM CLI</span>
+    {:else}
+      <span><b>root</b>@entware</span><span>/opt</span>
+    {/if}
+    <span>UTF-8</span><span>WS / PTY</span>
     <span class="terminal-status-spacer"></span><span>{dimensions}</span>
   </footer>
 </section>

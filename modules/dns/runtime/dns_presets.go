@@ -1,8 +1,12 @@
 package main
 
-import "strings"
+import (
+	"net/url"
+	"strconv"
+	"strings"
+)
 
-const dnsPublicPresetCatalogRevision = "2026-09-12"
+const dnsPublicPresetCatalogRevision = "2026-09-12-r2"
 
 type dnsPublicPresetFamily struct {
 	Provider   string
@@ -13,59 +17,26 @@ type dnsPublicPresetFamily struct {
 }
 
 // dnsPublicPresetFamilies is intentionally curated rather than scraped at
-// runtime. Every entry is a public, no-account encrypted DNS endpoint verified
-// against the operator's published documentation for the catalog revision
-// above. Keeping the catalog compiled-in makes package installation inert:
-// presets exist only in RouterForge's control view until the user explicitly
-// enables one.
+// runtime. R2 keeps exactly one baseline encrypted profile per provider: no
+// Family/Malware/Adult/Ads/ECS/etc. variants. Every family expands to one DoT
+// and one DoH preset and remains inert until explicitly enabled by the user.
 var dnsPublicPresetFamilies = []dnsPublicPresetFamily{
-	// Cloudflare 1.1.1.1
+	// Large public resolvers: one baseline profile per provider.
 	{Provider: "Cloudflare", Variant: "Standard", DoTAddress: "1.1.1.1", DoTSNI: "one.one.one.one", DoHURI: "https://cloudflare-dns.com/dns-query"},
-	{Provider: "Cloudflare", Variant: "Malware", DoTAddress: "1.1.1.2", DoTSNI: "security.cloudflare-dns.com", DoHURI: "https://security.cloudflare-dns.com/dns-query"},
-	{Provider: "Cloudflare", Variant: "Family", DoTAddress: "1.1.1.3", DoTSNI: "family.cloudflare-dns.com", DoHURI: "https://family.cloudflare-dns.com/dns-query"},
-
-	// Google Public DNS
 	{Provider: "Google", Variant: "Standard", DoTAddress: "8.8.8.8", DoTSNI: "dns.google", DoHURI: "https://dns.google/dns-query"},
-
-	// Quad9
-	{Provider: "Quad9", Variant: "Secure", DoTAddress: "9.9.9.9", DoTSNI: "dns.quad9.net", DoHURI: "https://dns.quad9.net/dns-query"},
-	{Provider: "Quad9", Variant: "Secure + ECS", DoTAddress: "9.9.9.11", DoTSNI: "dns11.quad9.net", DoHURI: "https://dns11.quad9.net/dns-query"},
-	{Provider: "Quad9", Variant: "Unfiltered", DoTAddress: "9.9.9.10", DoTSNI: "dns10.quad9.net", DoHURI: "https://dns10.quad9.net/dns-query"},
-
-	// AdGuard Public DNS
+	{Provider: "Quad9", Variant: "Default", DoTAddress: "9.9.9.9", DoTSNI: "dns.quad9.net", DoHURI: "https://dns.quad9.net/dns-query"},
 	{Provider: "AdGuard", Variant: "Default", DoTAddress: "94.140.14.14", DoTSNI: "dns.adguard-dns.com", DoHURI: "https://dns.adguard-dns.com/dns-query"},
-	{Provider: "AdGuard", Variant: "Unfiltered", DoTAddress: "94.140.14.140", DoTSNI: "unfiltered.adguard-dns.com", DoHURI: "https://unfiltered.adguard-dns.com/dns-query"},
-	{Provider: "AdGuard", Variant: "Family", DoTAddress: "94.140.14.15", DoTSNI: "family.adguard-dns.com", DoHURI: "https://family.adguard-dns.com/dns-query"},
-
-	// Yandex DNS
 	{Provider: "Yandex", Variant: "Basic", DoTAddress: "77.88.8.8", DoTSNI: "common.dot.dns.yandex.net", DoHURI: "https://common.dot.dns.yandex.net/dns-query"},
-	{Provider: "Yandex", Variant: "Safe", DoTAddress: "77.88.8.88", DoTSNI: "safe.dot.dns.yandex.net", DoHURI: "https://safe.dot.dns.yandex.net/dns-query"},
-	{Provider: "Yandex", Variant: "Family", DoTAddress: "77.88.8.7", DoTSNI: "family.dot.dns.yandex.net", DoHURI: "https://family.dot.dns.yandex.net/dns-query"},
-
-	// CleanBrowsing free filters
-	{Provider: "CleanBrowsing", Variant: "Security", DoTAddress: "185.228.168.9", DoTSNI: "security-filter-dns.cleanbrowsing.org", DoHURI: "https://doh.cleanbrowsing.org/doh/security-filter/"},
-	{Provider: "CleanBrowsing", Variant: "Adult", DoTAddress: "185.228.168.10", DoTSNI: "adult-filter-dns.cleanbrowsing.org", DoHURI: "https://doh.cleanbrowsing.org/doh/adult-filter/"},
-	{Provider: "CleanBrowsing", Variant: "Family", DoTAddress: "185.228.168.168", DoTSNI: "family-filter-dns.cleanbrowsing.org", DoHURI: "https://doh.cleanbrowsing.org/doh/family-filter/"},
-
-	// Control D free native filters. Third-party blocklist variants are omitted
-	// deliberately: they are much more volatile than the provider's native
-	// public service and would turn this stable catalog into a moving target.
-	{Provider: "Control D", Variant: "Unfiltered", DoTAddress: "76.76.2.0", DoTSNI: "p0.freedns.controld.com", DoHURI: "https://freedns.controld.com/p0"},
-	{Provider: "Control D", Variant: "Malware", DoTAddress: "76.76.2.1", DoTSNI: "p1.freedns.controld.com", DoHURI: "https://freedns.controld.com/p1"},
-	{Provider: "Control D", Variant: "Ads & Tracking", DoTAddress: "76.76.2.2", DoTSNI: "p2.freedns.controld.com", DoHURI: "https://freedns.controld.com/p2"},
-	{Provider: "Control D", Variant: "Social", DoTAddress: "76.76.2.3", DoTSNI: "p3.freedns.controld.com", DoHURI: "https://freedns.controld.com/p3"},
-	{Provider: "Control D", Variant: "Family", DoTAddress: "76.76.2.4", DoTSNI: "family.freedns.controld.com", DoHURI: "https://freedns.controld.com/family"},
-	{Provider: "Control D", Variant: "Uncensored", DoTAddress: "76.76.2.5", DoTSNI: "uncensored.freedns.controld.com", DoHURI: "https://freedns.controld.com/uncensored"},
-
-	// DNS4EU Public Service
-	{Provider: "DNS4EU", Variant: "Protective", DoTAddress: "86.54.11.1", DoTSNI: "protective.joindns4.eu", DoHURI: "https://protective.joindns4.eu/dns-query"},
-	{Provider: "DNS4EU", Variant: "Protective + Child", DoTAddress: "86.54.11.12", DoTSNI: "child.joindns4.eu", DoHURI: "https://child.joindns4.eu/dns-query"},
-	{Provider: "DNS4EU", Variant: "Protective + Ads", DoTAddress: "86.54.11.13", DoTSNI: "noads.joindns4.eu", DoHURI: "https://noads.joindns4.eu/dns-query"},
-	{Provider: "DNS4EU", Variant: "Protective + Child + Ads", DoTAddress: "86.54.11.11", DoTSNI: "child-noads.joindns4.eu", DoHURI: "https://child-noads.joindns4.eu/dns-query"},
-	{Provider: "DNS4EU", Variant: "Unfiltered", DoTAddress: "86.54.11.100", DoTSNI: "unfiltered.joindns4.eu", DoHURI: "https://unfiltered.joindns4.eu/dns-query"},
-
-	// Comss.one DNS
+	{Provider: "Control D", Variant: "Base", DoTAddress: "76.76.2.0", DoTSNI: "p0.freedns.controld.com", DoHURI: "https://freedns.controld.com/p0"},
+	{Provider: "DNS4EU", Variant: "Base", DoTAddress: "86.54.11.100", DoTSNI: "unfiltered.joindns4.eu", DoHURI: "https://unfiltered.joindns4.eu/dns-query"},
 	{Provider: "Comss.one", Variant: "Default", DoTAddress: "195.133.25.16", DoTSNI: "dns.comss.one", DoHURI: "https://dns.comss.one/dns-query"},
+
+	// Community/private public resolvers. Prefer hostnames for DoT so provider
+	// side address changes do not require a RouterForge catalog update.
+	{Provider: "Xbox DNS", Variant: "Base", DoTAddress: "xbox-dns.ru", DoTSNI: "xbox-dns.ru", DoHURI: "https://xbox-dns.ru/dns-query"},
+	{Provider: "AstraCat", Variant: "Base", DoTAddress: "dns.astracat.ru", DoTSNI: "dns.astracat.ru", DoHURI: "https://dns.astracat.ru/dns-query"},
+	{Provider: "MALW", Variant: "Base", DoTAddress: "dns.malw.link", DoTSNI: "dns.malw.link", DoHURI: "https://dns.malw.link/dns-query"},
+	{Provider: "Mafioznik", Variant: "Base", DoTAddress: "dns.mafioznik.xyz", DoTSNI: "dns.mafioznik.xyz", DoHURI: "https://dns.mafioznik.xyz/dns-query"},
 }
 
 var dnsPublicPresets = mustBuildDNSPublicPresets()
@@ -147,14 +118,23 @@ func applyDNSPublicPresetMetadata(spec DNSResolverSpec) DNSResolverSpec {
 	return spec
 }
 
+// appendDNSPublicPresetCatalog adds only presets that are not already present
+// in native/disabled RouterForge state. ID matching handles exact built-in
+// round-trips; endpoint matching also suppresses a virtual preset when the user
+// configured the same resolver before RouterForge learned about the catalog or
+// when scope/interface metadata makes the resolver ID different.
 func appendDNSPublicPresetCatalog(out *DNSResolverList, seen map[string]struct{}) {
 	if out == nil {
 		return
 	}
 	out.PresetCount = len(dnsPublicPresets)
 	out.PresetCatalogRevision = dnsPublicPresetCatalogRevision
+	configured := append([]DNSResolverSpec(nil), out.Resolvers...)
 	for _, preset := range dnsPublicPresets {
 		if _, exists := seen[preset.ID]; exists {
+			continue
+		}
+		if dnsPublicPresetEndpointAlreadyConfigured(preset, configured) {
 			continue
 		}
 		out.Resolvers = append(out.Resolvers, preset)
@@ -163,4 +143,89 @@ func appendDNSPublicPresetCatalog(out *DNSResolverList, seen map[string]struct{}
 		// disabled store and expose catalog availability separately.
 		out.PresetAvailableCount++
 	}
+}
+
+func dnsPublicPresetEndpointAlreadyConfigured(preset DNSResolverSpec, configured []DNSResolverSpec) bool {
+	for _, existing := range configured {
+		if dnsPublicPresetEndpointEquivalent(preset, existing) {
+			return true
+		}
+	}
+	return false
+}
+
+func dnsPublicPresetEndpointEquivalent(a, b DNSResolverSpec) bool {
+	if !strings.EqualFold(strings.TrimSpace(a.Protocol), strings.TrimSpace(b.Protocol)) {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(a.Protocol)) {
+	case "dot":
+		return dnsPublicDoTEndpointEquivalent(a, b)
+	case "doh":
+		left := dnsPublicCanonicalDoHURI(a.URI)
+		right := dnsPublicCanonicalDoHURI(b.URI)
+		return left != "" && left == right
+	default:
+		return false
+	}
+}
+
+func dnsPublicDoTEndpointEquivalent(a, b DNSResolverSpec) bool {
+	leftPort := a.Port
+	if leftPort == 0 {
+		leftPort = 853
+	}
+	rightPort := b.Port
+	if rightPort == 0 {
+		rightPort = 853
+	}
+	if leftPort != rightPort {
+		return false
+	}
+	leftAddress := dnsPublicCanonicalHost(a.Address)
+	rightAddress := dnsPublicCanonicalHost(b.Address)
+	leftSNI := dnsPublicCanonicalHost(a.SNI)
+	rightSNI := dnsPublicCanonicalHost(b.SNI)
+	return dnsPublicNonEmptyEqual(leftAddress, rightAddress) ||
+		dnsPublicNonEmptyEqual(leftSNI, rightSNI) ||
+		dnsPublicNonEmptyEqual(leftAddress, rightSNI) ||
+		dnsPublicNonEmptyEqual(leftSNI, rightAddress)
+}
+
+func dnsPublicCanonicalHost(value string) string {
+	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(value), "."))
+}
+
+func dnsPublicNonEmptyEqual(a, b string) bool {
+	return a != "" && b != "" && a == b
+}
+
+func dnsPublicCanonicalDoHURI(value string) string {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || !strings.EqualFold(parsed.Scheme, "https") || parsed.Hostname() == "" {
+		return ""
+	}
+	host := dnsPublicCanonicalHost(parsed.Hostname())
+	port := parsed.Port()
+	if port == "443" {
+		port = ""
+	}
+	authority := host
+	if port != "" {
+		if _, err := strconv.Atoi(port); err != nil {
+			return ""
+		}
+		authority += ":" + port
+	}
+	path := parsed.EscapedPath()
+	if path == "" {
+		path = "/"
+	} else if path != "/" {
+		path = strings.TrimSuffix(path, "/")
+	}
+	canonical := "https://" + authority + path
+	if parsed.RawQuery != "" {
+		canonical += "?" + parsed.RawQuery
+	}
+	return canonical
 }

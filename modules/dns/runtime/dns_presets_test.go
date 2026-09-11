@@ -2,12 +2,26 @@ package main
 
 import "testing"
 
-func TestDNSPublicPresetCatalogIsValidUniqueAndDisabled(t *testing.T) {
-	if len(dnsPublicPresets) != 56 {
-		t.Fatalf("public preset count = %d, want 56", len(dnsPublicPresets))
+func TestDNSPublicPresetCatalogIsBaselineOnlyValidUniqueAndDisabled(t *testing.T) {
+	wantFamilies := map[string]string{
+		"Cloudflare": "Standard",
+		"Google":     "Standard",
+		"Quad9":      "Default",
+		"AdGuard":    "Default",
+		"Yandex":     "Basic",
+		"Control D":  "Base",
+		"DNS4EU":     "Base",
+		"Comss.one":  "Default",
+		"Xbox DNS":   "Base",
+		"AstraCat":   "Base",
+		"MALW":       "Base",
+		"Mafioznik":  "Base",
+	}
+	if len(dnsPublicPresets) != len(wantFamilies)*2 {
+		t.Fatalf("public preset count = %d, want %d", len(dnsPublicPresets), len(wantFamilies)*2)
 	}
 	seen := map[string]struct{}{}
-	providers := map[string]int{}
+	providers := map[string]map[string]int{}
 	for _, preset := range dnsPublicPresets {
 		if preset.ID == "" || preset.Provider == "" || preset.Variant == "" {
 			t.Fatalf("incomplete public preset: %#v", preset)
@@ -18,11 +32,21 @@ func TestDNSPublicPresetCatalogIsValidUniqueAndDisabled(t *testing.T) {
 		if preset.Protocol != "DoT" && preset.Protocol != "DoH" {
 			t.Fatalf("unexpected public preset protocol: %#v", preset)
 		}
+		wantVariant, ok := wantFamilies[preset.Provider]
+		if !ok {
+			t.Fatalf("unexpected provider %q leaked into baseline catalog", preset.Provider)
+		}
+		if preset.Variant != wantVariant {
+			t.Fatalf("provider %s variant = %q, want %q", preset.Provider, preset.Variant, wantVariant)
+		}
 		if _, exists := seen[preset.ID]; exists {
 			t.Fatalf("duplicate public preset ID: %s", preset.ID)
 		}
 		seen[preset.ID] = struct{}{}
-		providers[preset.Provider]++
+		if providers[preset.Provider] == nil {
+			providers[preset.Provider] = map[string]int{}
+		}
+		providers[preset.Provider][preset.Protocol]++
 		entries, err := buildDNSResolverEntries(preset)
 		if err != nil {
 			t.Fatalf("preset %s is invalid: %v", preset.Name, err)
@@ -31,15 +55,10 @@ func TestDNSPublicPresetCatalogIsValidUniqueAndDisabled(t *testing.T) {
 			t.Fatalf("preset %s physical entries = %d, want 1", preset.Name, len(entries))
 		}
 	}
-	for _, provider := range []string{
-		"Cloudflare", "Google", "Quad9", "AdGuard", "Yandex", "CleanBrowsing", "Control D", "DNS4EU", "Comss.one",
-	} {
-		if providers[provider] == 0 {
-			t.Fatalf("provider %s missing from public preset catalog", provider)
+	for provider := range wantFamilies {
+		if providers[provider]["DoT"] != 1 || providers[provider]["DoH"] != 1 {
+			t.Fatalf("provider %s protocols = %#v, want exactly one DoT and one DoH", provider, providers[provider])
 		}
-	}
-	if providers["Mullvad"] != 0 || providers["DNS0.EU"] != 0 {
-		t.Fatalf("retired/retiring provider leaked into catalog: %#v", providers)
 	}
 }
 
@@ -63,14 +82,76 @@ func TestDNSPublicPresetCatalogAppendDoesNotConsumeNativeSlots(t *testing.T) {
 func TestDNSPublicPresetCatalogSkipsConfiguredIDs(t *testing.T) {
 	configured := dnsPublicPresets[0]
 	out := DNSResolverList{}
-	appendDNSPublicPresetCatalog(&out, map[string]struct{}{configured.ID: struct{}{}})
+	appendDNSPublicPresetCatalog(&out, map[string]struct{}{configured.ID: {}})
 	if len(out.Resolvers) != len(dnsPublicPresets)-1 {
 		t.Fatalf("visible presets = %d, want %d", len(out.Resolvers), len(dnsPublicPresets)-1)
 	}
-	for _, preset := range out.Resolvers {
-		if preset.ID == configured.ID {
-			t.Fatalf("configured preset %s was duplicated", configured.ID)
-		}
+	assertPresetIDAbsent(t, out.Resolvers, configured.ID)
+}
+
+func TestDNSPublicPresetCatalogSkipsEquivalentConfiguredDoTWithDifferentID(t *testing.T) {
+	preset := mustFindDNSPublicPreset(t, "Cloudflare", "DoT")
+	configured := preset
+	configured.ID = "custom-dot-id"
+	configured.Preset = false
+	configured.Disabled = false
+	configured.Source = "static"
+	configured.Domains = []string{"example.com"}
+	configured.Interface = "Wireguard0"
+
+	out := DNSResolverList{Resolvers: []DNSResolverSpec{configured}}
+	appendDNSPublicPresetCatalog(&out, map[string]struct{}{configured.ID: {}})
+	assertPresetIDAbsent(t, out.Resolvers, preset.ID)
+
+	doh := mustFindDNSPublicPreset(t, "Cloudflare", "DoH")
+	assertPresetIDPresent(t, out.Resolvers, doh.ID)
+}
+
+func TestDNSPublicPresetCatalogSkipsEquivalentConfiguredDoTBySNI(t *testing.T) {
+	preset := mustFindDNSPublicPreset(t, "Cloudflare", "DoT")
+	configured := DNSResolverSpec{
+		ID:       "custom-hostname-dot",
+		Protocol: "DoT",
+		Address:  "one.one.one.one",
+		Port:     853,
+		Source:   "static",
+	}
+	out := DNSResolverList{Resolvers: []DNSResolverSpec{configured}}
+	appendDNSPublicPresetCatalog(&out, map[string]struct{}{configured.ID: {}})
+	assertPresetIDAbsent(t, out.Resolvers, preset.ID)
+}
+
+func TestDNSPublicPresetCatalogSkipsEquivalentConfiguredDoHWithTrailingSlash(t *testing.T) {
+	preset := mustFindDNSPublicPreset(t, "Xbox DNS", "DoH")
+	configured := preset
+	configured.ID = "custom-doh-id"
+	configured.Preset = false
+	configured.Disabled = false
+	configured.Source = "static"
+	configured.URI = preset.URI + "/"
+	configured.Domains = []string{"example.com"}
+
+	out := DNSResolverList{Resolvers: []DNSResolverSpec{configured}}
+	appendDNSPublicPresetCatalog(&out, map[string]struct{}{configured.ID: {}})
+	assertPresetIDAbsent(t, out.Resolvers, preset.ID)
+
+	dot := mustFindDNSPublicPreset(t, "Xbox DNS", "DoT")
+	assertPresetIDPresent(t, out.Resolvers, dot.ID)
+}
+
+func TestDNSPublicPresetCatalogSkipsEquivalentPersistedDisabledResolver(t *testing.T) {
+	preset := mustFindDNSPublicPreset(t, "MALW", "DoH")
+	configured := preset
+	configured.ID = "legacy-disabled-malw"
+	configured.Preset = false
+	configured.Disabled = true
+	configured.Source = "disabled"
+
+	out := DNSResolverList{Resolvers: []DNSResolverSpec{configured}, DisabledCount: 1}
+	appendDNSPublicPresetCatalog(&out, map[string]struct{}{configured.ID: {}})
+	assertPresetIDAbsent(t, out.Resolvers, preset.ID)
+	if out.DisabledCount != 1 {
+		t.Fatalf("semantic preset de-dup changed disabled count: %d", out.DisabledCount)
 	}
 }
 
@@ -91,4 +172,34 @@ func TestDNSPublicPresetMetadataOverlay(t *testing.T) {
 	if got.Disabled {
 		t.Fatalf("metadata overlay changed active state: %#v", got)
 	}
+}
+
+func mustFindDNSPublicPreset(t *testing.T, provider, protocol string) DNSResolverSpec {
+	t.Helper()
+	for _, preset := range dnsPublicPresets {
+		if preset.Provider == provider && preset.Protocol == protocol {
+			return preset
+		}
+	}
+	t.Fatalf("preset %s/%s not found", provider, protocol)
+	return DNSResolverSpec{}
+}
+
+func assertPresetIDAbsent(t *testing.T, resolvers []DNSResolverSpec, id string) {
+	t.Helper()
+	for _, resolver := range resolvers {
+		if resolver.ID == id {
+			t.Fatalf("preset %s was duplicated", id)
+		}
+	}
+}
+
+func assertPresetIDPresent(t *testing.T, resolvers []DNSResolverSpec, id string) {
+	t.Helper()
+	for _, resolver := range resolvers {
+		if resolver.ID == id {
+			return
+		}
+	}
+	t.Fatalf("preset %s unexpectedly missing", id)
 }

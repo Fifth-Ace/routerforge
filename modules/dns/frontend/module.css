@@ -1555,3 +1555,155 @@ html[data-radius="soft"] .dns-module {
 .dns-module .resolver-runtime-line > span:not(.state-pill) {
   color:var(--rf-muted) !important;
 }
+/* DNS 0.7.1 resolver provider grouping — compact provider-first layout. */
+.dns-module .resolver-group-grid {
+  margin-bottom:14px;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  align-items:start;
+}
+.dns-module .resolver-group-card {
+  min-width:0;
+  margin-bottom:0;
+  overflow:hidden;
+}
+.dns-module .resolver-group-card.custom { grid-column:1/-1; }
+.dns-module .resolver-group-head {
+  min-height:50px;
+  padding:9px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px solid var(--concept-border-soft);
+  background:color-mix(in srgb,var(--rf-surface) 82%,var(--rf-bg));
+}
+.dns-module .resolver-group-head > div { min-width:0; }
+.dns-module .resolver-group-head strong {
+  display:block;
+  overflow:hidden;
+  color:var(--rf-text);
+  font-size:var(--ui-panel-title);
+  font-weight:650;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.dns-module .resolver-group-head span:not(.panel-meta) {
+  margin-top:3px;
+  display:block;
+  color:var(--rf-muted);
+  font-size:var(--ui-micro);
+}
+.dns-module .resolver-group-options { display:grid; }
+.dns-module .resolver-group-option {
+  min-width:0;
+  min-height:70px;
+  padding:9px 10px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:9px;
+  border-bottom:1px solid var(--concept-border-soft);
+  background:var(--rf-surface);
+}
+.dns-module .resolver-group-option:last-child { border-bottom:0; }
+.dns-module .resolver-group-option:hover { background:var(--rf-hover); }
+.dns-module .resolver-group-protocol { min-width:42px; justify-content:center; }
+.dns-module .resolver-group-main {
+  min-width:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  cursor:pointer;
+  text-align:left;
+}
+.dns-module .resolver-group-main strong {
+  display:block;
+  overflow:hidden;
+  color:var(--rf-text);
+  font-size:var(--ui-xs);
+  font-weight:650;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.dns-module .resolver-group-main span {
+  margin-top:4px;
+  display:block;
+  overflow:hidden;
+  color:var(--rf-muted);
+  font-size:var(--ui-micro);
+  line-height:1.35;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.dns-module .resolver-group-state,
+.dns-module .resolver-group-actions {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.dns-module .resolver-group-actions .action {
+  min-height:28px;
+  padding:0 8px;
+}
+.dns-module .resolver-master-list {
+  grid-template-columns:1fr !important;
+}
+.dns-module .resolver-master-group {
+  min-width:0;
+  display:block;
+  background:#0d1014;
+}
+.dns-module .resolver-master-group + .resolver-master-group {
+  border-top:1px solid var(--concept-border);
+}
+.dns-module .resolver-master-group-head {
+  min-height:34px;
+  padding:7px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border-bottom:1px solid var(--concept-border-soft);
+  background:color-mix(in srgb,var(--rf-surface) 74%,var(--rf-bg));
+  color:var(--rf-muted);
+  font-size:var(--ui-micro);
+  letter-spacing:.045em;
+  text-transform:uppercase;
+}
+.dns-module .resolver-master-group-head span {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.dns-module .resolver-master-group-head strong {
+  color:var(--rf-text);
+  font:600 var(--ui-micro)/1 var(--font-mono);
+}
+.dns-module .resolver-master-group .resolver-master-item:last-child { border-bottom:0; }
+
+@media (max-width:1180px) {
+  .dns-module .resolver-group-grid { grid-template-columns:1fr; }
+  .dns-module .resolver-group-card.custom { grid-column:auto; }
+}
+@media (max-width:760px) {
+  .dns-module .resolver-group-option {
+    grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:start;
+  }
+  .dns-module .resolver-group-state { align-self:center; }
+  .dns-module .resolver-group-actions {
+    grid-column:2/-1;
+    justify-content:flex-start;
+  }
+}
+@media (max-width:520px) {
+  .dns-module .resolver-group-option { grid-template-columns:auto minmax(0,1fr); }
+  .dns-module .resolver-group-state,
+  .dns-module .resolver-group-actions { grid-column:2; justify-content:flex-start; }
+}

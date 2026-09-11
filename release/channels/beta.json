@@ -1,19 +1,22 @@
 {
     "schema_version":  1,
     "channel":  "beta",
-    "release_version":  "0.7.1-beta.2",
+    "release_version":  "0.7.1-beta.3",
     "release_notes":  {
                           "ru":  {
                                      "new":  [
+                                                 "Management/Admin Terminal теперь включает аппаратно проверенную Keenetic NDM Console: отдельная вкладка запускает фиксированный ndmc через защищённый WebSocket/PTY backend, а переключение Entware ↔ Keenetic проверено на Keenetic Ultra KN-1812.",
                                                  "Management/Admin получил полноценный Entware Terminal на WebSocket/PTY и переработанный файловый менеджер с Commander, Explorer, деревом каталогов, выбором томов, редактором, свойствами файлов и visual chmod.",
                                                  "Новый Beta train 0.7.1 переводит системный мониторинг на единый пакет routerforge-monitoring: один read-only runtime и один UI заменяют отдельные system/thermal/storage/network пакеты, сохраняя совместимые API и Unix-socket endpoints.",
                                                  "Monitoring получил собственный standalone Svelte/Vite UI с разделами System, Thermal, Storage, Network и Profiling; Core теперь выступает shell/host, а не владеет страницей мониторинга.",
                                                  "RouterForge Control получил standalone UI и Management v2 backend contract для root-session protected process/service mutations. Текущий UI остаётся read-only; mutation API подготовлен и аппаратно проверен отдельно от будущих управляющих кнопок.",
                                                  "Dev и Beta теперь разведены: каждый push в dev публикует rolling ARM64 Dev train, а Beta выпускается только явным FULL RELEASE на проверенном exact SHA.",
-                                                 "Beta 0.7.1 использует prerelease-safe opkg versions вида 0.7.1~beta.1, тогда как GitHub asset/tag сохраняют читаемую форму 0.7.1-beta.1. Это гарантирует корректный порядок Beta \u003c будущий Stable 0.7.1.",
+                                                 "Beta 0.7.1 использует prerelease-safe opkg versions вида 0.7.1~beta.3, тогда как GitHub asset/tag сохраняют читаемую форму 0.7.1-beta.3. Это гарантирует корректный порядок Beta \u003c будущий Stable 0.7.1.",
                                                  "Получена первая физическая MIPSel-проверка на Keenetic Giga KN-1010: fresh installation и базовая штатная работа RouterForge подтверждены на реальном устройстве."
                                              ],
                                      "fixes":  [
+                                                   "DNS event rings переведены на компактное внутреннее хранение с сохранением логической глубины retention 10 000 и без изменения публичных FlowEvent/ClientFlowEvent API-контрактов.",
+                                                   "Management theme и Maintenance layout выровнены по семантическим rf-токенам; окно свойств файлов, Terminal и связанные панели корректнее следуют активной теме.",
                                                    "App Center получил корректное обновление registry после package actions, устойчивый bulk-update без ложных lifecycle errors, раздельную проверку RouterForge, Integrations и Entware, общую проверку обновлений и исправленную адаптивную панель. Статусы модулей унифицированы в ON/OFF/UPDATE.",
                                                    "Generic Web UI Discovery больше не выполняет произвольные TCP LISTEN probes: probing ограничен обнаруженными локальными application endpoints и сохраняет fail-closed SSRF/XFO/CSP boundary.",
                                                    "DNS passive capture получил kernel BPF filtering до userspace обработки, уменьшая ненужный packet-processing overhead.",
@@ -40,8 +43,9 @@
                                                            "Stable 0.6.1 и main не изменяются этим Beta release."
                                                        ],
                                      "technical":  [
+                                                       "ARM64 Dev r287 (621a0602128b) прошёл аппаратный gate Management Terminal: exact Admin package установлен на Keenetic Ultra KN-1812, ndmc show version — PASS, браузерные Entware PTY и Keenetic NDM PTY — PASS, переключение между вкладками — PASS.",
                                                        "ARM64 Dev r280 (90d925d2ad52) прошёл аппаратный runtime smoke: Core, Admin, File API, tree metadata и volumes — PASS. RouterForge остаётся единственным LAN listener на :2233.",
-                                                       "Beta FULL RELEASE строит и публикует exact multi-arch package set: Core, DNS, Control, Monitoring и Profiling; rolling Beta alias после публикации получает coherent indexes/checksums/bootstrap, затем создаётся immutable routerforge-v0.7.1-beta.1 snapshot.",
+                                                       "Beta FULL RELEASE строит и публикует exact multi-arch package set: Core, DNS, Control, Monitoring и Profiling; rolling Beta alias после публикации получает coherent indexes/checksums/bootstrap, затем создаётся immutable routerforge-v0.7.1-beta.3 snapshot.",
                                                        "Release tooling валидирует exact package order для Beta и проверяет 5 компонентов × 3 target = 15 IPK assets плюс SHA256SUMS и target-specific/universal bootstraps.",
                                                        "Consolidated Monitoring package contract отдельно проверяется в CI: package metadata обязана объявлять legacy Provides/Conflicts/Replaces, payload не должен содержать старые split binaries/init scripts, а postinst должен останавливать legacy services перед запуском нового runtime.",
                                                        "Для реального upgrade 4→1 добавлен read-only hardware migration gate: он проверяет package DB, отсутствие старых binaries/init scripts/processes, основной runtime и пять ожидаемых Unix sockets (primary + compatibility).",
@@ -56,15 +60,18 @@
                                  },
                           "en":  {
                                      "new":  [
+                                                 "Management/Admin Terminal now includes a hardware-validated Keenetic NDM Console: a dedicated tab launches fixed ndmc through the guarded WebSocket/PTY backend, and Entware ↔ Keenetic switching was validated on a Keenetic Ultra KN-1812.",
                                                  "Management/Admin now includes a full Entware Terminal over WebSocket/PTY and a rebuilt file manager with Commander, Explorer, folder tree, volume selection, editor, file properties, and visual chmod.",
                                                  "The 0.7.1 Beta train consolidates system monitoring into routerforge-monitoring: one read-only runtime and one UI replace the separate system/thermal/storage/network packages while preserving compatible APIs and Unix-socket endpoints.",
                                                  "Monitoring now has its own standalone Svelte/Vite UI for System, Thermal, Storage, Network, and Profiling; Core acts as the shell/host instead of owning the monitoring page.",
                                                  "RouterForge Control now has a standalone UI and a Management v2 backend contract for root-session-protected process/service mutations. The current UI remains read-only; mutation APIs are prepared and hardware-validated separately from future control buttons.",
                                                  "Dev and Beta are now separate release channels: each dev push publishes the rolling ARM64 Dev train, while Beta is published only by an explicit FULL RELEASE on a verified exact SHA.",
-                                                 "Beta 0.7.1 uses prerelease-safe opkg versions such as 0.7.1~beta.1 while GitHub assets/tags keep the readable 0.7.1-beta.1 form, guaranteeing Beta sorts below future Stable 0.7.1.",
+                                                 "Beta 0.7.1 uses prerelease-safe opkg versions such as 0.7.1~beta.3 while GitHub assets/tags keep the readable 0.7.1-beta.3 form, guaranteeing Beta sorts below future Stable 0.7.1.",
                                                  "The first physical MIPSel validation is now recorded on Keenetic Giga KN-1010: fresh installation and basic normal RouterForge operation were confirmed on real hardware."
                                              ],
                                      "fixes":  [
+                                                   "DNS event rings now use compact internal storage while preserving the logical retention depth of 10,000 events and keeping the public FlowEvent/ClientFlowEvent API contracts unchanged.",
+                                                   "Management theme and Maintenance layout now consistently use semantic rf tokens; File Properties, Terminal, and related panes follow the active theme more reliably.",
                                                    "App Center now refreshes registry state correctly after package actions, completes bulk updates without false lifecycle errors, separates RouterForge, Integrations, and Entware update checks, adds a global update check, and fixes narrow-window toolbar layout. Module states are unified as ON/OFF/UPDATE.",
                                                    "Generic Web UI Discovery no longer performs arbitrary TCP LISTEN probing; probing is limited to discovered local application endpoints while preserving fail-closed SSRF/XFO/CSP boundaries.",
                                                    "DNS passive capture now applies kernel BPF filtering before userspace processing, reducing unnecessary packet-processing overhead.",
@@ -91,8 +98,9 @@
                                                            "Stable 0.6.1 and main are unchanged by this Beta release."
                                                        ],
                                      "technical":  [
+                                                       "ARM64 Dev r287 (621a0602128b) passed the Management Terminal hardware gate on a Keenetic Ultra KN-1812: the exact Admin package installed successfully, ndmc show version passed, both browser Entware PTY and Keenetic NDM PTY passed, and tab switching passed.",
                                                        "ARM64 Dev r280 (90d925d2ad52) passed hardware runtime smoke for Core, Admin, File API, tree metadata, and volumes. RouterForge remains the only LAN listener on :2233.",
-                                                       "Beta FULL RELEASE builds and publishes the exact multi-arch package set: Core, DNS, Control, Monitoring, and Profiling. After the rolling Beta alias is coherent, an immutable routerforge-v0.7.1-beta.1 snapshot is created.",
+                                                       "Beta FULL RELEASE builds and publishes the exact multi-arch package set: Core, DNS, Control, Monitoring, and Profiling. After the rolling Beta alias is coherent, an immutable routerforge-v0.7.1-beta.3 snapshot is created.",
                                                        "Release tooling validates exact Beta package order and verifies 5 components × 3 targets = 15 IPK assets together with SHA256SUMS and target-specific/universal bootstraps.",
                                                        "The consolidated Monitoring package contract is checked in CI: package metadata must declare legacy Provides/Conflicts/Replaces, the payload must not contain old split binaries/init scripts, and postinst must stop legacy services before starting the new runtime.",
                                                        "A read-only hardware migration gate is provided for the real 4→1 upgrade: it checks package DB state, absence of old binaries/init scripts/processes, the primary runtime, and all five expected Unix sockets (primary plus compatibility).",

@@ -909,6 +909,42 @@ jobs:
 
           echo "Synthetic bootstrap preflight profiles: OK"
 
+      - name: Verify Beta release train consistency
+        if: steps.scope.outputs.release == 'true'
+        run: |
+          python3 - <<'PY'
+          import copy
+          import json
+          import runpy
+
+          module = runpy.run_path("scripts/build_routerforge_channel.py")
+          validate = module["validate_release_train"]
+
+          with open("release/channels/beta.json", "r", encoding="utf-8") as fh:
+              config = json.load(fh)
+
+          validate(config, config["channel"], config["components"])
+
+          bad = copy.deepcopy(config)
+          bad["components"][0]["version"] = "0.7.1~beta.999"
+          try:
+              validate(bad, bad["channel"], bad["components"])
+          except SystemExit:
+              pass
+          else:
+              raise SystemExit("beta release train mismatch was not rejected")
+
+          bad = copy.deepcopy(config)
+          bad["components"][1]["min_core_version"] = "0.7.1~beta.999"
+          try:
+              validate(bad, bad["channel"], bad["components"])
+          except SystemExit:
+              pass
+          else:
+              raise SystemExit("beta min_core_version mismatch was not rejected")
+
+          print("BETA_RELEASE_TRAIN_GUARD=PASS")
+          PY
       - name: Build RouterForge beta channel
         if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
         run: |

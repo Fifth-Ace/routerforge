@@ -148,8 +148,11 @@
   $: L = strings[locale];
   $: resolvers = resolverState?.resolvers || [];
   $: activeResolvers = resolvers.filter((r) => !r.disabled && !r.dynamic);
-  $: disabledResolvers = resolvers.filter((r) => r.disabled);
+  $: disabledResolvers = resolvers.filter((r) => r.disabled && !r.preset);
   $: dynamicResolvers = resolvers.filter((r) => r.dynamic);
+  $: presetResolvers = resolvers.filter((r) => r.preset);
+  $: availablePresets = presetResolvers.filter((r) => r.disabled);
+  $: configuredResolvers = resolvers.filter((r) => !r.preset || !r.disabled);
   $: allUpstreams = snapshot?.upstreams || [];
   $: systemUpstreams = allUpstreams.filter((u) => u.profile === 'System');
   $: protectedUpstreams = systemUpstreams.length ? systemUpstreams : allUpstreams;
@@ -204,8 +207,9 @@
     const q = resolverSearch.trim().toLowerCase();
     const status = r.dynamic ? 'dynamic' : r.disabled ? 'disabled' : 'active';
     if (resolverProtocol !== 'all' && r.protocol !== resolverProtocol) return false;
-    if (resolverStatus !== 'all' && status !== resolverStatus) return false;
-    return !q || `${r.name || ''} ${r.protocol || ''} ${r.address || ''} ${r.uri || ''} ${r.sni || ''} ${(r.domains || []).join(' ')}`.toLowerCase().includes(q);
+    if (resolverStatus === 'preset' && !r.preset) return false;
+    if (resolverStatus !== 'all' && resolverStatus !== 'preset' && status !== resolverStatus) return false;
+    return !q || `${r.name || ''} ${r.provider || ''} ${r.variant || ''} ${r.protocol || ''} ${r.address || ''} ${r.uri || ''} ${r.sni || ''} ${(r.domains || []).join(' ')}`.toLowerCase().includes(q);
   });
 
   $: if (filteredResolvers.length && !filteredResolvers.some((r) => r.id === selectedResolverId)) selectedResolverId = filteredResolvers[0].id;
@@ -319,7 +323,7 @@
     const port = resolver.port || (resolver.protocol === 'DoT' ? 853 : 53);
     return `${resolver.address || '—'}:${port}`;
   }
-  function resolverStatusClass(resolver) { if (resolver.disabled) return 'warn'; if (resolver.dynamic) return 'neutral'; return 'good'; }
+  function resolverStatusClass(resolver) { if (resolver.disabled) return resolver.preset ? 'info' : 'warn'; if (resolver.dynamic) return 'neutral'; return 'good'; }
   function resolverStatusText(resolver) { if (resolver.disabled) return L.disabled; if (resolver.dynamic) return L.dynamic; return L.active; }
   function resolverScopeSummary(resolver) {
     const count = scopes(resolver).length;
@@ -620,7 +624,7 @@
     finally { saving = false; }
   }
   async function resolverAction(resolver, action) {
-    const prompts = { delete:L.confirmDelete, disable:L.confirmDisable, enable:L.confirmEnable };
+    const prompts = { delete:L.confirmDelete, disable:L.confirmDisable, enable:resolver.preset ? (locale === 'en' ? 'Enable this built-in public DNS in Keenetic?' : 'Включить этот встроенный публичный DNS в Keenetic?') : L.confirmEnable };
     if (!confirm(prompts[action])) return;
     error = ''; success = '';
     try {
@@ -634,7 +638,7 @@
   function reportText() {
     const lines = ['RouterForge DNS', new Date().toISOString(), `module=${snapshot?.version || '—'}`, ''];
     lines.push(`requests=${totalRequests} responses=${totalResponses} fallbacks=${totalFallbacks} timeouts=${totalTimeouts} errors=${totalErrors}`);
-    lines.push(`resolvers=${resolvers.length} secure_slots=${secureSlotsUsed}/${secureSlotLimit || 'unknown'}`, '');
+    lines.push(`resolvers=${configuredResolvers.length} public_presets=${availablePresets.length}/${presetResolvers.length} catalog=${resolverState?.preset_catalog_revision || '—'} secure_slots=${secureSlotsUsed}/${secureSlotLimit || 'unknown'}`, '');
     for (const u of allUpstreams) lines.push(`[${u.profile}] ${u.name} ${u.protocol} ${u.target || ''} port=${u.port} health=${u.health_status || ''} requests=${u.requests || 0} fallbacks=${u.fallbacks || 0}`);
     lines.push('', `resolver_control=${JSON.stringify(resolverState, null, 2)}`);
     return lines.join('\n');
@@ -838,7 +842,7 @@
     <div class="toolbar parity-toolbar resolver-toolbar">
       <div class="search-control"><span>⌕</span><input bind:value={resolverSearch} placeholder={L.searchDns}/></div>
       <select bind:value={resolverProtocol}><option value="all">{L.filterProtocol}: {L.all}</option><option value="DNS">DNS</option><option value="DoT">DoT</option><option value="DoH">DoH</option></select>
-      <select bind:value={resolverStatus}><option value="all">{L.filterStatus}: {L.all}</option><option value="active">{L.active}</option><option value="disabled">{L.disabled}</option><option value="dynamic">{L.dynamic}</option></select>
+      <select bind:value={resolverStatus}><option value="all">{L.filterStatus}: {L.all}</option><option value="active">{L.active}</option><option value="disabled">{L.disabled}</option><option value="preset">{locale === 'en' ? 'Public presets' : 'Публичные пресеты'}</option><option value="dynamic">{L.dynamic}</option></select>
       <div class="toolbar-spacer"></div>
       <div class="segmented resolver-view-switch" aria-label={locale === 'en' ? 'Resolver view' : 'Вид резолверов'}>
         <button class:active={resolverView === 'detail'} type="button" aria-pressed={resolverView === 'detail'} onclick={() => setResolverView('detail')}>{locale === 'en' ? 'List' : 'Список'}</button>
@@ -849,10 +853,11 @@
     </div>
 
     <div class="resolver-summary-strip">
-      <div><span>{L.configured}</span><strong>{resolvers.length}</strong></div>
+      <div><span>{L.configured}</span><strong>{configuredResolvers.length}</strong></div>
       <div><span>{L.activeResolvers}</span><strong class="good-text">{activeResolvers.length}</strong></div>
       <div><span>{L.disabledResolvers}</span><strong class={disabledResolvers.length ? 'warn-text' : ''}>{disabledResolvers.length}</strong></div>
       <div><span>{L.dynamicResolvers}</span><strong>{dynamicResolvers.length}</strong></div>
+      <div><span>{locale === 'en' ? 'Public presets' : 'Публичные пресеты'}</span><strong>{availablePresets.length}/{presetResolvers.length}</strong></div>
       <div><span>DoT slots</span><strong class={dotSlotLimit && dotSlotsUsed >= dotSlotLimit ? 'warn-text' : ''}>{dotSlotsUsed}/{dotSlotLimit || '—'}</strong></div>
       <div><span>DoH slots</span><strong class={dohSlotLimit && dohSlotsUsed >= dohSlotLimit ? 'warn-text' : ''}>{dohSlotsUsed}/{dohSlotLimit || '—'}</strong></div>
     </div>
@@ -865,7 +870,7 @@
         <div class="resolver-grid resolver-grid-body resolver-grid-uniform">
           {#each filteredResolvers as resolver (resolver.id)}
             <article class="resolver-card resolver-card-uniform">
-              <div class="resolver-head"><div><h3>{resolver.name}</h3><div class="resolver-meta mono resolver-card-endpoint" title={endpoint(resolver)}>{resolver.protocol} · {endpoint(resolver)}</div></div><span class="state-pill {resolverStatusClass(resolver)}">{resolverStatusText(resolver)}</span></div>
+              <div class="resolver-head"><div><h3>{resolver.name}</h3><div class="resolver-meta mono resolver-card-endpoint" title={endpoint(resolver)}>{resolver.protocol} · {endpoint(resolver)}</div></div><div class="resolver-badges">{#if resolver.preset}<span class="state-pill info">PUBLIC</span>{/if}<span class="state-pill {resolverStatusClass(resolver)}">{resolverStatusText(resolver)}</span></div></div>
               <div class="detail-grid compact">
                 {#if resolver.sni}<div class="detail-item"><span>SNI</span><strong class="mono">{resolver.sni}</strong></div>{/if}
                 {#if resolver.interface}<div class="detail-item"><span>{L.iface}</span><strong>{resolver.interface}</strong></div>{/if}
@@ -875,10 +880,11 @@
               <div class="scope-list">{#if scopes(resolver).length}{#each scopes(resolver) as d}<span class="scope-chip">{displayDomain(d)}</span>{/each}{:else}<span class="scope-chip">{L.global}</span>{/if}</div>
               <div class="resolver-actions">
                 <button class="action primary" type="button" onclick={() => { selectResolver(resolver.id); setResolverView('detail'); }}>{locale === 'en' ? 'Details' : 'Сведения'}</button>
-                <button class="action" type="button" disabled={resolver.dynamic} onclick={() => openEdit(resolver)}>{L.edit}</button>
+                <button class="action" type="button" disabled={resolver.dynamic || resolver.preset} onclick={() => openEdit(resolver)}>{L.edit}</button>
                 {#if resolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(resolver,'enable')}>{L.enable}</button>{:else if !resolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(resolver,'disable')}>{L.disable}</button>{/if}
-                <button class="action danger" type="button" disabled={resolver.dynamic} onclick={() => resolverAction(resolver,'delete')}>{L.remove}</button>
+                <button class="action danger" type="button" disabled={resolver.dynamic || resolver.preset} onclick={() => resolverAction(resolver,'delete')}>{L.remove}</button>
               </div>
+              {#if resolver.preset && resolver.disabled}<div class="resolver-meta resolver-readonly-note">{locale === 'en' ? 'Built-in public preset · uses no Keenetic slot until enabled' : 'Встроенный публичный пресет · не занимает слот Keenetic, пока выключен'}</div>{/if}
               {#if resolver.dynamic}<div class="resolver-meta resolver-readonly-note">{L.readOnly}{resolver.service ? ` · ${resolver.service}` : ''}</div>{/if}
             </article>
           {/each}
@@ -913,11 +919,12 @@
                 </div>
                 <div class="resolver-detail-actions">
                   <span class="state-pill {resolverStatusClass(selectedResolver)}">{resolverStatusText(selectedResolver)}</span>
-                  <button class="action" type="button" disabled={selectedResolver.dynamic} onclick={() => openEdit(selectedResolver)}>{L.edit}</button>
+                  <button class="action" type="button" disabled={selectedResolver.dynamic || selectedResolver.preset} onclick={() => openEdit(selectedResolver)}>{L.edit}</button>
                   {#if selectedResolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(selectedResolver,'enable')}>{L.enable}</button>{:else if !selectedResolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(selectedResolver,'disable')}>{L.disable}</button>{/if}
-                  <button class="action danger" type="button" disabled={selectedResolver.dynamic} onclick={() => resolverAction(selectedResolver,'delete')}>{L.remove}</button>
+                  <button class="action danger" type="button" disabled={selectedResolver.dynamic || selectedResolver.preset} onclick={() => resolverAction(selectedResolver,'delete')}>{L.remove}</button>
                 </div>
               </div>
+              {#if selectedResolver.preset}<div class="resolver-dynamic-banner"><span class="state-pill info">PUBLIC PRESET</span><span>{selectedResolver.provider} · {selectedResolver.variant} · {selectedResolver.disabled ? (locale === 'en' ? 'inert until enabled' : 'не меняет Keenetic до включения') : (locale === 'en' ? 'enabled in Keenetic' : 'включён в Keenetic')}</span></div>{/if}
               {#if selectedResolver.dynamic}<div class="resolver-dynamic-banner"><span class="state-pill neutral">READ ONLY</span><span>{L.readOnly}{selectedResolver.service ? ` · ${selectedResolver.service}` : ''}</span></div>{/if}
               <div class="resolver-detail-metrics">
                 <div><strong>{fmtInt(selectedRuntime?.summary?.requests || 0)}</strong><span>{L.requests}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>

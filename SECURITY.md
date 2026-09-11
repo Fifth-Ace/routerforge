@@ -1,101 +1,36 @@
 # RouterForge Security Policy
 
-RouterForge runs on a router with root privileges, observes network/DNS state and can perform approved package lifecycle operations. Treat its web access and release supply chain accordingly.
+RouterForge работает на роутере с root privileges и имеет privileged package/Management/DNS surfaces.
 
 ## Authentication
+При включённой auth используется Entware `root`; password не сохраняется; session token in-memory; cookie `HttpOnly` + `SameSite=Strict`; failed-login tracking bounded/rate-limited.
 
-Authentication is optional and configurable in RouterForge Settings.
+Config: `/opt/etc/routerforge/security.json`. Invalid auth config fail closed.
 
-When enabled:
+## Network boundary
+Core — единственный пользовательский RouterForge LAN listener `:2233`.
+DNS/Admin/Monitoring используют root-owned Unix sockets.
+Profiling — loopback-only `127.0.0.1:6061`.
 
-- only Entware user `root` is accepted;
-- password verification uses `/opt/etc/shadow`, with `/opt/etc/passwd` fallback;
-- the password is not stored by RouterForge;
-- sessions use a random in-memory token;
-- session lifetime is 12 hours;
-- cookie is `HttpOnly` and `SameSite=Strict`;
-- same-origin checks protect auth-changing POST requests;
-- repeated failed logins are rate-limited.
+## Management mutations
+Process/service/file mutations требуют live root session, same-origin, confirmation/whitelist и Core-injected internal marker.
 
-Config:
+Browser не выбирает arbitrary terminal executable:
+- Entware → fixed `/opt/bin/sh -il`;
+- Keenetic → fixed server-resolved `ndmc`.
 
-```text
-/opt/etc/routerforge/security.json
-```
+File Manager ограничен approved `/opt` + `/tmp` canonical path boundary.
 
-If the config exists but cannot be read or parsed correctly, Core is designed to fail closed for authentication state.
+## DNS mutations
+Strict validation + snapshot → mutation → save → readback → verified rollback. Dynamic service/DHCP entries read-only.
 
-## API boundary
+## App Center / supply chain
+Official lifecycle uses exact channel release-index, release asset URL, SHA256 and post-action version/state verification. Registry manifest не становится arbitrary shell script.
 
-When auth is required, `/api/*` is protected except the explicit authentication endpoints and `/api/health`.
+Stable promotion разрешён только из exact successful Dev FULL RELEASE artifact для того же SHA.
 
-Do not expose port `2233` to untrusted networks without authentication and appropriate network filtering.
+## Runtime Web UI Discovery
+Нет blind LAN scan. Probe ограничен discovered local application endpoints и fail-closed redirect/XFO/CSP/SSRF checks.
 
-## Module boundary
-
-Monitoring helpers and RouterForge Control communicate over root-owned Unix sockets.
-
-RouterForge Control is read-only.
-
-Helpers should not open independent LAN web ports.
-
-## App Center / packages
-
-Official RouterForge package updates:
-
-- use the current channel release-index;
-- use exact release asset URLs;
-- require a matching SHA256 before `opkg install`;
-- restrict RouterForge downloads to project GitHub release HTTPS URLs;
-- use supported typed lifecycle operations.
-
-Registry manifests are not arbitrary shell scripts.
-
-Third-party entries do not automatically become trusted merely because they are detected.
-
-## Profiling
-
-Profiling is loopback-only by design.
-
-Default:
-
-```text
-127.0.0.1:6061
-```
-
-Use SSH forwarding for remote profiling.
-
-## Reporting a vulnerability
-
-Do not publish sensitive details in a public issue.
-
-Open a minimal issue stating that a security problem exists and that private diagnostics are available.
-
-Sanitize:
-
-- credentials and password hashes;
-- cookies/tokens;
-- public IP addresses;
-- MAC addresses;
-- private host/device names;
-- internal domains;
-- WireGuard/AmneziaWG/VPN keys;
-- complete router configuration dumps.
-
-## Release provenance
-
-Use packages from the RouterForge GitHub releases or builds you compiled yourself.
-
-Stable:
-
-```text
-routerforge-stable
-```
-
-Beta:
-
-```text
-routerforge-beta
-```
-
-Do not install IPKs received through unrelated mirrors unless you independently verify their provenance and checksum.
+## Reporting
+Не публикуйте credentials, hashes, cookies/tokens, IP/MAC, internal domains, VPN keys или complete router configs.

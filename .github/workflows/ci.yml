@@ -166,6 +166,9 @@ jobs:
       - name: Verify public repository hygiene
         run: python3 scripts/verify-public-tree.py
 
+      - name: Verify documentation currency
+        run: python3 scripts/verify-docs-current.py
+
       - name: Set up Node
         if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
         uses: actions/setup-node@v4

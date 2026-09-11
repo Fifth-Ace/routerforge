@@ -1,19 +1,9 @@
-# RouterForge beta
+# Historical direct-install Beta layout — do not use
 
-RouterForge is a modular local router console for Keenetic / Netcraze ARM64 + Entware.
+This archived directory documents an old Beta topology with split monitoring packages. It is retained only for history and is **not** valid installation documentation for Stable 0.7.1.
 
-Core UI listens on port **2233**.
+Use:
+- [`../../README.md`](../../README.md)
+- [`../../docs/INSTALLATION.md`](../../docs/INSTALLATION.md)
 
-Beta package namespace:
-
-- `routerforge-core`
-- `routerforge-dns`
-- `routerforge-admin`
-- `routerforge-system`
-- `routerforge-thermal`
-- `routerforge-storage`
-- `routerforge-network`
-- `routerforge-profiling`
-
-Legacy `dns-monitor-*` package names are migrated through opkg `Provides / Conflicts / Replaces`.
-Optional packages are fetched on demand from the rolling `routerforge-beta` GitHub release.
+Current Monitoring package: `routerforge-monitoring`.

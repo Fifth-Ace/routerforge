@@ -1,124 +1,39 @@
 # Contributing to RouterForge
 
-RouterForge targets Keenetic / Netcraze ARM64 routers running Entware.
+ARM64 is the production hardware-validated target; MIPS/MIPSel remain experimental. See [docs/ARCHITECTURES.md](docs/ARCHITECTURES.md).
 
 ## Branches
+- `main` — production Stable source.
+- `dev` — active development and rolling ARM64 Dev.
+- feature/fix work normally targets `dev`.
 
-- `main` — production source for the RouterForge Stable channel.
-- `dev` — active development and the rolling ARM64 Dev channel.
-- feature/fix branches should normally target `dev`.
+Beta is explicit FULL RELEASE, not every dev push. Stable main must be fast-forwarded to the **same exact SHA** that already has a successful Dev FULL RELEASE stable-promotion artifact.
 
-Beta is not published by every `dev` push. Beta publication is an explicit FULL RELEASE from a verified exact `dev` SHA.
-
-A change reaches `main` only after it has passed CI and, when runtime behavior changes, has been validated on a test router.
-
-## Local checks
-
-Backend:
+## Checks
 
 ```sh
 gofmt -w .
 go test ./...
 go vet ./...
-```
-
-Frontend:
-
-```sh
 sh scripts/build-frontend.sh
 sh scripts/build-dns-frontend.sh
 sh scripts/build-admin-frontend.sh
 sh scripts/build-monitoring-frontend.sh
+python3 -m py_compile scripts/build_routerforge_channel.py scripts/merge_release_index.py scripts/render_release_notes.py scripts/render_bootstrap.py scripts/render_universal_bootstrap.py scripts/verify-docs-current.py
 ```
 
-Release tooling:
+## Ownership
+See [docs/REPOSITORY_LAYOUT.md](docs/REPOSITORY_LAYOUT.md). Product code belongs to its component/module, not repository root.
 
-```sh
-python3 -m py_compile \
-  scripts/build_routerforge_channel.py \
-  scripts/merge_release_index.py \
-  scripts/render_release_notes.py \
-  scripts/render_bootstrap.py
-```
+## Releases
+Channel manifests live under `release/channels/`.
+Release-index is authoritative exact version/asset/URL/SHA256.
+Beta release metadata is fail-closed against inconsistent train versions.
 
-Shell:
-
-```sh
-sh -n scripts/install-repo.sh
-sh -n scripts/remove-repo.sh
-sh -n scripts/build-opkg.sh
-sh -n scripts/build-admin-opkg.sh
-sh -n scripts/build-module-opkg.sh
-```
-
-CI performs a broader package/container/runtime verification.
-
-## Component versions
-
-Official versions are declared independently:
-
-```text
-release/channels/dev.json
-release/channels/beta.json
-release/channels/stable.json
-```
-
-To release one component, bump only that component.
-
-Do **not** bump Core just because an optional module changed.
-
-CI preserves the previous release asset and SHA256 for any component whose version is unchanged.
-
-## Release channels
-
-- push to `dev` → mutable ARM64 `routerforge-dev`;
-- explicit FULL RELEASE on an exact `dev` SHA → rolling `routerforge-beta` plus immutable versioned Beta snapshot;
-- `main` → Stable promotion only from a validated promotion artifact for the exact source SHA.
-
-Channel release-index is authoritative for exact version, asset, URL and SHA256.
-
-Full release procedure and post-publication gates: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
-Monitoring 4→1 migration contract and hardware gate: [docs/MONITORING_MIGRATION.md](docs/MONITORING_MIGRATION.md).
-
-## App Center manifests
-
-Do not turn Registry metadata into arbitrary shell execution.
-
-Executable lifecycle must use supported typed methods and explicit package/path constraints.
-
-Changes to approved manifests must change their manifest SHA and therefore require a new trust decision.
-
-## Keenetic parsers
-
-Keenetic/NDMS command output varies between firmware versions and hardware families.
-
-Parsers should:
-
-- tolerate missing fields;
-- avoid hardcoding transient IDs when discovery is possible;
-- fail visibly rather than silently inventing data;
-- keep diagnostics safe for production routers.
+Full flow: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
 ## Runtime safety
+Do not add blind LAN scans, arbitrary shell execution from browser input, unauthenticated mutations, broad automatic `opkg upgrade`, unnecessary LAN listeners or high-frequency persistent telemetry writes.
 
-Do not add:
-
-- background benchmark workloads to monitoring;
-- frequent persistent writes for high-rate telemetry;
-- new LAN listeners for helper modules without a strong reason;
-- broad `opkg upgrade` behavior;
-- unauthenticated mutation endpoints.
-
-## Bug reports
-
-Include sanitized:
-
-- router model;
-- KeeneticOS/NDMS version;
-- ARM64 confirmation;
-- Stable/Beta channel;
-- `routerforge-core` version;
-- affected module versions;
-- relevant RouterForge logs.
-
-Never publish credentials, cookies, private keys, tunnel secrets, private infrastructure names, public IPs or MAC addresses.
+## Documentation
+User-visible behavior must update relevant docs. Release work updates CHANGELOG and channel release notes. CI checks local Markdown links and current-version invariants.

@@ -1,251 +1,147 @@
-<p align="center">
-  <img src="docs/assets/routerforge-banner.jpg" alt="RouterForge — Monitoring and diagnostics for Keenetic / Netcraze with Entware" width="100%">
-</p>
-
 # RouterForge
 
 **Русский** | [English](README_EN.md)
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/channel-stable-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/badge/stable-0.7.1-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/beta-0.7.1--beta.4-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#требования)
 
-**RouterForge** — модульная веб-платформа для мониторинга, DNS-диагностики и обслуживания роутеров **Keenetic / Netcraze ARM64** с Entware.
+**RouterForge 0.7.1** — модульная веб-платформа для мониторинга, DNS-диагностики, управления и обслуживания роутеров **Keenetic / Netcraze с Entware**.
 
-Один Core даёт общий интерфейс, API, Центр приложений, авторизацию и управление жизненным циклом пакетов. Остальные возможности подключаются отдельными пакетами и появляются в интерфейсе только после установки.
+Core предоставляет Web UI, авторизацию, Центр приложений, package/release lifecycle и Module ABI host. DNS, Management, Monitoring и Profiling подключаются отдельными пакетами через root-owned Unix sockets. Единственный пользовательский RouterForge TCP listener — **`:2233`**.
 
 > [!IMPORTANT]
-> Основная аппаратно проверенная платформа — **Keenetic / Netcraze ARM64 / aarch64** с Entware в `/opt`.
-> RouterForge использует KeeneticOS/NDMS-специфичные механизмы (`ndmc`, DNS proxy, policy routing и системные данные роутера) и не позиционируется как универсальная панель для OpenWrt/Linux.
->
-> Stable 0.6 также публикует **MIPS / MIPSel как experimental preview**. Эти сборки проходят cross-build/QEMU и runtime compatibility probe, но **не проверены на реальном MIPS/MIPSel-железе**. Установка требует явного experimental opt-in и может быть заблокирована runtime probe. См. [архитектуры](docs/ARCHITECTURES.md).
+> **aarch64-3.10 / ARM64** — основной полностью аппаратно проверенный Stable target.
+> `mipsel-3.4` имеет partial physical validation на Keenetic Giga KN-1010 и остаётся experimental.
+> `mips-3.4` остаётся experimental без физической hardware validation.
+> См. [docs/ARCHITECTURES.md](docs/ARCHITECTURES.md).
 
-> [!NOTE]
-> RouterForge — независимый community-проект и не является официальным продуктом Keenetic или Netcraze.
-> Исторические ссылки на прежнее имя репозитория продолжают работать через GitHub redirect и compatibility fallback RouterForge.
+## Stable 0.7.1 — главное
 
-> [!TIP]
-> Stable 0.6 baseline: **RouterForge Core 0.6.0**. DNS 0.4.20 и остальные официальные модули версионируются независимо и устанавливаются по необходимости через Центр приложений.
+### Management v2
+- Processes и Entware Services с root-session protected actions;
+- File Manager: **Commander / Explorer**, tree, volumes, UTF-8 editor, properties, visual chmod;
+- guarded mkdir/write/move/delete/chmod в canonical `/opt` + `/tmp` boundary;
+- Maintenance и backup/restore workflows;
+- полноценный **Entware Terminal** по WebSocket/PTTY;
+- **Keenetic NDM Console**: backend запускает фиксированный server-side `ndmc`, а не executable из браузера;
+- переключение Entware ↔ Keenetic аппаратно проверено на Keenetic Ultra KN-1812.
 
-## Что умеет RouterForge
-
-### Главная
-- состояние Core и установленных capabilities;
-- краткая сводка платформы;
-- телеметрия хоста при наличии System/Control;
-- состояние Центр приложений и Registry.
-
-### Мониторинг
-Официальные модули устанавливаются независимо:
-- **System Monitor** — CPU, RAM/swap, load, uptime и процессы;
-- **Thermal Monitor** — thermal/hwmon и доступные температурные датчики;
-- **Storage Monitor** — файловые системы, устройства и пассивная I/O-телеметрия;
-- **Network Monitor** — интерфейсы, адреса, RX/TX, ошибки/drops, Wi‑Fi, маршруты и conntrack.
+### Monitoring
+`routerforge-monitoring` объединяет прежние System/Thermal/Storage/Network packages в **один runtime и один UI**, сохраняя compatibility sockets/API для штатной migration.
 
 ### DNS
-**RouterForge DNS** — самостоятельный Module ABI v1 runtime с собственными backend/API/UI и безопасным управлением нативной DNS-конфигурацией Keenetic:
-- plain DNS, DoT и DoH observability;
-- вкладки **Обзор / Резолверы / Правила / Трафик / Диагностика**;
-- Add/Edit/Delete и временные Disable/Enable для plain DNS, DoT и DoH;
-- динамические DHCP/service DNS отображаются read-only;
-- один логический multi-domain resolver разворачивается в нужное число нативных записей Keenetic;
-- независимые preflight-лимиты **до 8 физических DoT entries и до 8 физических DoH entries**; для plain DNS — максимум **16 доменов на server**;
-- каждая мутация проходит `snapshot → mutation → save → readback`; mismatch запускает rollback и его повторную проверку;
-- привязка запросов к клиентам и LAN/Wi‑Fi-интерфейсам;
-- upstream/fallback/timeout/error/latency, quality windows и health diagnostics;
-- `CACHE_LOCAL`, `FORWARDED`, `ERROR`, `CLIENT_TIMEOUT`;
-- чтение Keenetic policy routing и route-aware диагностика upstream через policy mark;
-- короткая история в RAM без постоянной записи событий на флешку.
-
-### Управление
-**RouterForge Control** — отдельный read-only helper для:
-- процессов;
-- listening sockets;
-- Entware services;
-- установленных пакетов;
-- системной сводки.
-
-Helper работает через root-owned Unix socket и не открывает отдельный TCP-порт.
+`routerforge-dns` — отдельный Module ABI v1 runtime:
+- plain DNS / DoT / DoH observability;
+- resolver Add/Edit/Delete/Disable/Enable;
+- snapshot → mutation → save → readback → verified rollback;
+- client/LAN/Wi-Fi attribution;
+- fallback/timeout/error/latency diagnostics;
+- policy-routing-aware upstream diagnostics;
+- compact internal event rings с сохранением логической retention depth **10 000**.
 
 ### Центр приложений
-- официальные RouterForge-модули;
-- обнаружение поддерживаемых сторонних проектов;
-- trust/status/compatibility metadata;
-- install/update/remove для разрешённых lifecycle-планов;
-- проверка SHA256 перед установкой RouterForge IPK;
-- независимые версии каждого RouterForge-компонента;
-- автоматическая проверка remote Registry/release-index раз в час;
-- немедленная ручная проверка кнопкой **«Проверить обновления»**;
-- массовое обновление RouterForge: модули сначала, Core последним.
+- RouterForge / Integrations / Entware;
+- guarded install/update/remove jobs;
+- preflight, dependencies, sizes;
+- bulk update с Core последним;
+- exact release-index + SHA256;
+- Generic Runtime Web UI Discovery без blind LAN scan;
+- fail-closed SSRF/XFO/CSP/redirect boundary.
 
-### Настройки и авторизация
-Авторизация включается по желанию в интерфейсе RouterForge:
-- используется Entware-пользователь `root`;
-- пароль проверяется по `/opt/etc/shadow`, с fallback на `/opt/etc/passwd`;
-- сессия хранится в RAM и действует 12 часов;
-- cookie `HttpOnly` + `SameSite=Strict`;
-- конфигурация: `/opt/etc/routerforge/security.json`.
+Большой патчноут: **[RouterForge 0.7.1 Release Notes](docs/RELEASE_NOTES_0.7.1.md)**.
 
 ## Архитектура
 
 ```text
-Browser
-   │
-   │ http://router:2233
-   ▼
-RouterForge Core
-├── Web shell / REST / SSE
-├── Authentication
-├── Центр приложений + Registry
-├── Release index / package lifecycle
-├── Generic Module API + UI host
-└── Unix-socket proxy
-     ├── RouterForge DNS
-     │    ├── capture / discovery / health
-     │    ├── DNS Control + readback / rollback
-     │    └── module UI
-     ├── RouterForge Control
-     ├── System Monitor
-     ├── Thermal Monitor
-     ├── Storage Monitor
-     └── Network Monitor
+Browser -> Core :2233
+           |
+           +-- routerforge-dns        (Unix socket)
+           +-- routerforge-admin      (Unix socket)
+           |    +-- File Manager / Maintenance
+           |    +-- Entware Terminal
+           |    `-- Keenetic NDM Console
+           `-- routerforge-monitoring (Unix socket)
+                +-- System
+                +-- Thermal
+                +-- Storage
+                `-- Network
 ```
 
-Внешний веб-порт у платформы один: **2233**.
+Profiling — optional Core capability, по умолчанию только `127.0.0.1:6061`.
 
-## Официальные пакеты
+## Официальные пакеты Stable 0.7.1
 
 | Package | Назначение |
 | --- | --- |
-| `routerforge-core` | Core, UI, API, Центр приложений, auth, release/update logic |
-| `routerforge-dns` | независимый DNS runtime, UI, observability, DNS Control и diagnostics |
-| `routerforge-admin` | RouterForge Control |
-| `routerforge-system` | System Monitor |
-| `routerforge-thermal` | Thermal Monitor |
-| `routerforge-storage` | Storage Monitor |
-| `routerforge-network` | Network Monitor |
-| `routerforge-profiling` | loopback-only profiling capability |
+| `routerforge-core` | Web shell, auth, App Center, Registry/release lifecycle, Module ABI host |
+| `routerforge-dns` | DNS runtime/UI/control/observability/diagnostics |
+| `routerforge-admin` | Management v2, File Manager, Maintenance, Entware + Keenetic terminals |
+| `routerforge-monitoring` | consolidated System/Thermal/Storage/Network runtime + UI |
+| `routerforge-profiling` | loopback-only Core profiling |
 
-Компоненты **версионируются независимо**. Версия Core не обязана совпадать с версиями модулей.
+Fresh bootstrap ставит **Core**; optional capabilities выбираются через Центр приложений.
 
-## Требования
-
-- Keenetic или Netcraze с KeeneticOS/NDMS;
-- ARM64 / aarch64;
-- Entware, смонтированный в `/opt`;
-- рабочий `opkg`;
-- root-доступ через Entware SSH;
-- `sha256sum`;
-- `curl` или `wget`.
-
-## Быстрая установка — Stable
-
-Рекомендуемый публичный канал:
+## Установка Stable
 
 ```sh
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
-Bootstrap устанавливает актуальный **RouterForge Core** из stable release и проверяет IPK по SHA256 до `opkg install`.
-
-После установки:
-
-```text
-http://<ip-роутера>:2233
-```
-
-DNS, мониторинг, управление и остальные официальные возможности устанавливаются по необходимости из **Центра приложений**. Уже установленные optional-пакеты bootstrap сам по себе не удаляет.
+После установки: `http://<ip-роутера>:2233`
 
 Подробно: [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
-## Обновления
-
-Основной способ — **Центр приложений**.
-
-RouterForge сравнивает локальные версии `opkg` с утверждённым release-index своего канала. Автоматическая remote-проверка выполняется раз в час; кнопка **«Проверить обновления»** форсирует проверку сразу.
-
-Stable и Beta — разные rolling channels:
-
-- `routerforge-stable` публикуется из `main`;
-- `routerforge-beta` публикуется из `dev` и помечен GitHub как Pre-release.
-
-Beta для тестирования:
+## Beta
 
 ```sh
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
-Начиная с **0.6.0-beta.1**, свежая Beta bootstrap-установка ставит только `routerforge-core`.
-DNS, мониторинг, управление и интеграции выбираются после запуска через **Центр приложений**.
-Уже установленные optional-пакеты bootstrap сам по себе не удаляет.
+Stable и Beta не следует смешивать без осознанной смены channel.
 
-Не смешивайте stable и beta пакеты без необходимости.
-
-## Сервис и диагностика
-
-Core:
-
-```sh
-/opt/etc/init.d/S90routerforge restart
-```
-
-Лог:
-
-```sh
-tail -f /opt/var/log/routerforge.log
-```
-
-Health:
-
-```sh
-wget -qO- http://127.0.0.1:2233/api/health
-```
-
-Пакеты:
+## Диагностика
 
 ```sh
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
+wget -qO- http://127.0.0.1:2233/api/health
+ls -l /opt/var/run/routerforge-*.sock 2>/dev/null
 ```
 
-Полный чек-лист: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
-
-## Удаление
-
-```sh
-/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
-```
-
-Пакеты удаляются, каталоги конфигурации сохраняются.
+См. [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ## Документация
 
-- [Установка и обновление](docs/INSTALLATION.md)
-- [Модули](docs/MODULES.md)
-- [Центр приложений и модель доверия](docs/MARKETPLACE.md)
-- [Архитектура](docs/ARCHITECTURE.md)
-- [Поддерживаемые и планируемые CPU-архитектуры](docs/ARCHITECTURES.md)
-- [Диагностика](docs/TROUBLESHOOTING.md)
-- [Frontend architecture](docs/FRONTEND_ARCHITECTURE.md)
+- [Documentation index](docs/README.md)
+- [Release Notes 0.7.1](docs/RELEASE_NOTES_0.7.1.md)
+- [Installation](docs/INSTALLATION.md)
+- [Modules](docs/MODULES.md)
+- [Management v2](docs/MANAGEMENT_V2_API.md)
+- [File Manager API](docs/MANAGEMENT_V2_FILES_API.md)
+- [App Center](docs/MARKETPLACE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [CPU architectures](docs/ARCHITECTURES.md)
+- [Monitoring migration](docs/MONITORING_MIGRATION.md)
+- [Release process](docs/RELEASE_PROCESS.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Changelog](CHANGELOG.md)
-- [Security policy](SECURITY.md)
+- [Security](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)
 
-## Сборка из исходников
-
-Backend: Go 1.21+. Frontend: Node.js 22.x.
+## Сборка
 
 ```sh
 sh scripts/build-frontend.sh
 sh scripts/build-dns-frontend.sh
-
+sh scripts/build-admin-frontend.sh
+sh scripts/build-monitoring-frontend.sh
 gofmt -w .
 go test ./...
 go vet ./...
 ```
 
-Production Core собирается с `embed_frontend`; Node.js на роутере не нужен.
+Backend: Go 1.21+. Frontend: Node.js 22.x. Node.js на роутере не требуется.
 
 ## Лицензия
 

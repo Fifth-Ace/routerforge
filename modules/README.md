@@ -1,8 +1,12 @@
 # RouterForge modules
 
-- `dns/` — independent DNS Module ABI v1 runtime, frontend and packaging.
-- `system/`, `thermal/`, `storage/`, `network/` — package ownership for the read-only monitoring modules.
-- `monitoring-runtime/` — shared Go runtime currently used by System/Thermal/Storage/Network.
-- `profiling/` — optional Core profiling package/configuration.
+Current Stable 0.7.1 topology:
 
-See [`../docs/REPOSITORY_LAYOUT.md`](../docs/REPOSITORY_LAYOUT.md) for ownership rules and the shared-runtime rationale.
+- `dns/` — independent DNS Module ABI v1 runtime/frontend/packaging.
+- `admin/frontend/` — Management v2 UI.
+- `monitoring-runtime/` — consolidated System/Thermal/Storage/Network runtime/packaging.
+- `monitoring/frontend/` — Monitoring UI.
+- `profiling/` — optional Core profiling lifecycle.
+- `system/`, `thermal/`, `storage/`, `network/` — legacy split-package migration/compatibility ownership only.
+
+See [`../docs/REPOSITORY_LAYOUT.md`](../docs/REPOSITORY_LAYOUT.md).

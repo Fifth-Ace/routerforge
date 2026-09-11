@@ -76,6 +76,7 @@ build_dns() {
     dns_module_main.go
     dns_module_server.go
     dns_control.go
+    dns_presets.go
     dns_rci.go
     dns_policy.go
     capture_linux.go

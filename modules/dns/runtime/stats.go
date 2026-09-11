@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -111,6 +112,7 @@ type Store struct {
 	mu                      sync.RWMutex
 	started                 time.Time
 	upstreams               map[uint16]*upstreamState
+	portIdentity            map[uint16]string
 	pending                 map[pendingKey]pendingQuery
 	timedOut                map[pendingKey]timedOutQuery
 	recentByName            map[string][]recentQuery
@@ -152,7 +154,7 @@ type Store struct {
 
 func NewStore(flowCap, errorCap int) *Store {
 	return &Store{
-		started: time.Now(), upstreams: make(map[uint16]*upstreamState), pending: make(map[pendingKey]pendingQuery), timedOut: make(map[pendingKey]timedOutQuery),
+		started: time.Now(), upstreams: make(map[uint16]*upstreamState), portIdentity: make(map[uint16]string), pending: make(map[pendingKey]pendingQuery), timedOut: make(map[pendingKey]timedOutQuery),
 		recentByName: make(map[string][]recentQuery), flow: make([]compactFlowEvent, maxInt(1, flowCap)), flowCap: maxInt(1, flowCap), errorCap: errorCap,
 		domainCounts: make(map[string]uint64), fallbackEdges: make(map[[2]uint16]uint64), errorDedup: make(map[string]time.Time), history: make([]minuteBucket, 1440),
 		clientRegistry: make(map[string]ClientInfo), clientStats: make(map[string]*clientState), recentClients: make(map[string][]*clientQuery), clientPending: make(map[string][]*clientQuery), clientDedup: make(map[string]time.Time), clientResponseDedup: make(map[string]time.Time),
@@ -160,20 +162,143 @@ func NewStore(flowCap, errorCap int) *Store {
 	}
 }
 
+func resolverIdentity(m UpstreamMeta) string {
+	// ndnproxy local ports are runtime locators, not resolver identities.
+	// Keep the identity limited to endpoint-defining fields. Friendly labels,
+	// policy descriptions/marks, derived Linux metadata and timing knobs may
+	// change without turning the endpoint into a different resolver.
+	return strings.Join([]string{
+		strings.TrimSpace(m.Profile),
+		strings.ToUpper(strings.TrimSpace(m.Protocol)),
+		strings.TrimSpace(m.Target),
+		strings.ToLower(strings.TrimSuffix(strings.TrimSpace(m.SNI), ".")),
+		strings.ToLower(strings.TrimSuffix(strings.TrimSpace(m.Domain), ".")),
+		strings.TrimSpace(m.Interface),
+	}, "\x00")
+}
+
+func detachClientQueryFromResolverPort(q *clientQuery, port uint16) {
+	if q == nil || q.resolverPort != port {
+		return
+	}
+	q.resolverPort = 0
+	q.fallback = false
+	q.upstreamRCode = ""
+	q.upstreamLatencyMS = 0
+	q.upstreamTimeout = false
+}
+
+func (s *Store) resetPortAttributionLocked(port uint16) {
+	// The same ndnproxy local port can later point at a different upstream.
+	// Anything keyed only by that port must not survive that generation change.
+	for i := range s.history {
+		b := &s.history[i]
+		if b.upstreams != nil {
+			delete(b.upstreams, port)
+		}
+		for edge := range b.edges {
+			if edge[0] == port || edge[1] == port {
+				delete(b.edges, edge)
+			}
+		}
+		for key := range b.errorBursts {
+			if key.port == port {
+				delete(b.errorBursts, key)
+			}
+		}
+	}
+
+	for edge := range s.fallbackEdges {
+		if edge[0] == port || edge[1] == port {
+			delete(s.fallbackEdges, edge)
+		}
+	}
+
+	for _, st := range s.clientStats {
+		if st != nil && st.resolvers != nil {
+			delete(st.resolvers, port)
+		}
+	}
+
+	for key, q := range s.pending {
+		if key.proxyPort == port || q.port == port {
+			detachClientQueryFromResolverPort(q.clientTxn, port)
+			delete(s.pending, key)
+		}
+	}
+	for key, q := range s.timedOut {
+		if key.proxyPort == port || q.query.port == port {
+			detachClientQueryFromResolverPort(q.query.clientTxn, port)
+			delete(s.timedOut, key)
+		}
+	}
+
+	for key, items := range s.recentByName {
+		keep := items[:0]
+		for _, q := range items {
+			if q.port == port {
+				detachClientQueryFromResolverPort(q.clientTxn, port)
+				continue
+			}
+			keep = append(keep, q)
+		}
+		if len(keep) == 0 {
+			delete(s.recentByName, key)
+		} else {
+			s.recentByName[key] = keep
+		}
+	}
+
+	// recentClients and clientPending can share *clientQuery values. Clearing
+	// the resolver attribution in both indexes prevents a later client response
+	// from materializing the old resolver under the new port owner.
+	for _, items := range s.recentClients {
+		for _, q := range items {
+			detachClientQueryFromResolverPort(q, port)
+		}
+	}
+	for _, items := range s.clientPending {
+		for _, q := range items {
+			detachClientQueryFromResolverPort(q, port)
+		}
+	}
+
+	// Dedup keys include the port. Do not let an event from the old generation
+	// suppress the first real event from the new resolver.
+	s.errorDedup = make(map[string]time.Time)
+}
+
 func (s *Store) UpdateDiscovery(list []UpstreamMeta) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	present := make(map[uint16]bool)
 	for _, m := range list {
 		present[m.Port] = true
-		if st, ok := s.upstreams[m.Port]; ok {
+		id := resolverIdentity(m)
+		oldID := s.portIdentity[m.Port]
+		if oldID == "" {
+			if st := s.upstreams[m.Port]; st != nil {
+				oldID = resolverIdentity(st.meta)
+			}
+		}
+
+		if oldID != "" && oldID != id {
+			s.resetPortAttributionLocked(m.Port)
+			s.upstreams[m.Port] = &upstreamState{meta: m, healthStatus: "UNKNOWN"}
+		} else if st := s.upstreams[m.Port]; st != nil {
 			st.meta = m
 		} else {
 			s.upstreams[m.Port] = &upstreamState{meta: m, healthStatus: "UNKNOWN"}
 		}
+		s.portIdentity[m.Port] = id
 	}
+
 	for p := range s.upstreams {
 		if !present[p] {
+			// Keep portIdentity: if ndnproxy later reuses this numeric port for
+			// another endpoint, stale window/client/edge attribution must be
+			// purged before the new resolver becomes visible.
 			delete(s.upstreams, p)
 		}
 	}
@@ -285,6 +410,9 @@ func (s *Store) RecordQuery(now time.Time, transport string, proxyPort, clientPo
 	if !ok {
 		st = &upstreamState{meta: UpstreamMeta{Port: proxyPort, Profile: "Unknown", Protocol: "?", Target: "unknown", Name: "Unknown local DNS proxy"}, healthStatus: "UNKNOWN"}
 		s.upstreams[proxyPort] = st
+		if s.portIdentity[proxyPort] == "" {
+			s.portIdentity[proxyPort] = resolverIdentity(st.meta)
+		}
 	}
 	st.requests++
 	st.lastRequest = now

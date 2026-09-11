@@ -26,6 +26,9 @@ func TestFallbackDetection(t *testing.T) {
 	}
 }
 func TestDefaultFlowRetentionBudget(t *testing.T) {
+	if defaultFlowRetentionCap != 10000 {
+		t.Fatalf("retention cap=%d want=10000", defaultFlowRetentionCap)
+	}
 	if defaultFlowRetentionCap < 2*maxClientDetailEvents {
 		t.Fatalf("retention cap %d must keep at least 2x client detail max %d", defaultFlowRetentionCap, maxClientDetailEvents)
 	}
@@ -35,8 +38,14 @@ func TestDefaultFlowRetentionBudget(t *testing.T) {
 		t.Fatalf("preallocated rings flow=%d client_flow=%d want=%d", len(s.flow), len(s.clientFlow), defaultFlowRetentionCap)
 	}
 
-	ringBytes := uintptr(defaultFlowRetentionCap) * (unsafe.Sizeof(FlowEvent{}) + unsafe.Sizeof(ClientFlowEvent{}))
-	if unsafe.Sizeof(uintptr(0)) == 8 && ringBytes > 3*1024*1024 {
-		t.Fatalf("64-bit base ring budget too large: %d bytes", ringBytes)
+	fullPair := unsafe.Sizeof(FlowEvent{}) + unsafe.Sizeof(ClientFlowEvent{})
+	compactPair := unsafe.Sizeof(compactFlowEvent{}) + unsafe.Sizeof(compactClientFlowEvent{})
+	if compactPair >= fullPair/2 {
+		t.Fatalf("compact pair=%d full pair=%d; want compact below 50%%", compactPair, fullPair)
+	}
+
+	ringBytes := uintptr(defaultFlowRetentionCap) * compactPair
+	if unsafe.Sizeof(uintptr(0)) == 8 && ringBytes > 2500*1024 {
+		t.Fatalf("64-bit 10k compact ring base storage too large: %d bytes", ringBytes)
 	}
 }

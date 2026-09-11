@@ -9,7 +9,7 @@ import (
 
 var latencyBoundsMS = [...]float64{10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 8000, 16000}
 
-const defaultFlowRetentionCap = 4096
+const defaultFlowRetentionCap = 10000
 const maxClientDetailEvents = 2000
 
 type upstreamState struct {
@@ -114,7 +114,7 @@ type Store struct {
 	pending                 map[pendingKey]pendingQuery
 	timedOut                map[pendingKey]timedOutQuery
 	recentByName            map[string][]recentQuery
-	flow                    []FlowEvent
+	flow                    []compactFlowEvent
 	flowCap                 int
 	flowPos                 int
 	flowCount               int
@@ -139,10 +139,11 @@ type Store struct {
 	clientPending           map[string][]*clientQuery
 	clientDedup             map[string]time.Time
 	clientResponseDedup     map[string]time.Time
-	clientFlow              []ClientFlowEvent
+	clientFlow              []compactClientFlowEvent
 	clientFlowCap           int
 	clientFlowPos           int
 	clientFlowCount         int
+	eventStrings            *eventStringPool
 	policyRoutes            map[string]PolicyRouteView
 	clientRegistryError     string
 	clientCaptureError      string
@@ -152,10 +153,10 @@ type Store struct {
 func NewStore(flowCap, errorCap int) *Store {
 	return &Store{
 		started: time.Now(), upstreams: make(map[uint16]*upstreamState), pending: make(map[pendingKey]pendingQuery), timedOut: make(map[pendingKey]timedOutQuery),
-		recentByName: make(map[string][]recentQuery), flow: make([]FlowEvent, maxInt(1, flowCap)), flowCap: maxInt(1, flowCap), errorCap: errorCap,
+		recentByName: make(map[string][]recentQuery), flow: make([]compactFlowEvent, maxInt(1, flowCap)), flowCap: maxInt(1, flowCap), errorCap: errorCap,
 		domainCounts: make(map[string]uint64), fallbackEdges: make(map[[2]uint16]uint64), errorDedup: make(map[string]time.Time), history: make([]minuteBucket, 1440),
 		clientRegistry: make(map[string]ClientInfo), clientStats: make(map[string]*clientState), recentClients: make(map[string][]*clientQuery), clientPending: make(map[string][]*clientQuery), clientDedup: make(map[string]time.Time), clientResponseDedup: make(map[string]time.Time),
-		clientFlow: make([]ClientFlowEvent, maxInt(1, flowCap)), clientFlowCap: maxInt(1, flowCap), policyRoutes: make(map[string]PolicyRouteView),
+		clientFlow: make([]compactClientFlowEvent, maxInt(1, flowCap)), clientFlowCap: maxInt(1, flowCap), eventStrings: newEventStringPool(), policyRoutes: make(map[string]PolicyRouteView),
 	}
 }
 
@@ -969,7 +970,10 @@ func (s *Store) addFlowLocked(e FlowEvent) {
 	if s.flowCap <= 0 {
 		return
 	}
-	s.flow[s.flowPos] = e
+	if s.flowCount == s.flowCap {
+		s.flow[s.flowPos].release(s.eventStrings)
+	}
+	s.flow[s.flowPos] = compactFlowFromEvent(s.eventStrings, e)
 	s.flowPos = (s.flowPos + 1) % s.flowCap
 	if s.flowCount < s.flowCap {
 		s.flowCount++
@@ -985,7 +989,7 @@ func (s *Store) flowTailLocked(n int) []FlowEvent {
 	out := make([]FlowEvent, 0, n)
 	start := (s.flowPos - n + s.flowCap) % s.flowCap
 	for i := 0; i < n; i++ {
-		out = append(out, s.flow[(start+i)%s.flowCap])
+		out = append(out, s.flow[(start+i)%s.flowCap].materialize(s.eventStrings))
 	}
 	return out
 }
@@ -1098,7 +1102,10 @@ func (s *Store) addClientFlowLocked(e ClientFlowEvent) {
 	if s.clientFlowCap <= 0 {
 		return
 	}
-	s.clientFlow[s.clientFlowPos] = e
+	if s.clientFlowCount == s.clientFlowCap {
+		s.clientFlow[s.clientFlowPos].release(s.eventStrings)
+	}
+	s.clientFlow[s.clientFlowPos] = compactClientFlowFromEvent(s.eventStrings, e)
 	s.clientFlowPos = (s.clientFlowPos + 1) % s.clientFlowCap
 	if s.clientFlowCount < s.clientFlowCap {
 		s.clientFlowCount++
@@ -1115,7 +1122,7 @@ func (s *Store) clientFlowTailLocked(n int) []ClientFlowEvent {
 	out := make([]ClientFlowEvent, 0, n)
 	start := (s.clientFlowPos - n + s.clientFlowCap) % s.clientFlowCap
 	for i := 0; i < n; i++ {
-		out = append(out, s.clientFlow[(start+i)%s.clientFlowCap])
+		out = append(out, s.clientFlow[(start+i)%s.clientFlowCap].materialize(s.eventStrings))
 	}
 	return out
 }

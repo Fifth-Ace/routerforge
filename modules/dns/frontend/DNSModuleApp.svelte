@@ -340,16 +340,94 @@
     if (!count) return L.global;
     return locale === 'en' ? `${count} domain${count === 1 ? '' : 's'}` : `${count} ${count === 1 ? 'домен' : count > 1 && count < 5 ? 'домена' : 'доменов'}`;
   }
-  const PRIVATE_DNS_PROVIDERS = new Set(['Xbox DNS','AstraCat','MALW','Mafioznik']);
+  const PRIVATE_DNS_PROVIDERS = new Set(['Comss.one','Xbox DNS','AstraCat','MALW','Mafioznik']);
+  const DNS_PROVIDER_HINTS = [
+    { provider:'Cloudflare', addresses:['1.1.1.1'], hosts:['one.one.one.one','cloudflare-dns.com'] },
+    { provider:'Google', addresses:['8.8.8.8','8.8.4.4'], hosts:['dns.google'] },
+    { provider:'Quad9', addresses:['9.9.9.9'], hosts:['dns.quad9.net'] },
+    { provider:'AdGuard', addresses:['94.140.14.14'], hosts:['dns.adguard-dns.com'] },
+    { provider:'Yandex', addresses:['77.88.8.8'], hosts:['common.dot.dns.yandex.net'] },
+    { provider:'Control D', addresses:['76.76.2.0'], hosts:['p0.freedns.controld.com','freedns.controld.com'] },
+    { provider:'DNS4EU', addresses:['86.54.11.100'], hosts:['unfiltered.joindns4.eu'] },
+    { provider:'Comss.one', addresses:['195.133.25.16'], hosts:['dns.comss.one'] },
+    { provider:'Xbox DNS', addresses:[], hosts:['xbox-dns.ru'] },
+    { provider:'AstraCat', addresses:[], hosts:['dns.astracat.ru','dns.astracat.network'] },
+    { provider:'MALW', addresses:[], hosts:['dns.malw.link'] },
+    { provider:'Mafioznik', addresses:[], hosts:['dns.mafioznik.xyz'] }
+  ];
+
+  function canonicalResolverHint(value) {
+    return String(value || '').trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+  }
+
+  function resolverDoHHostname(resolver) {
+    try { return canonicalResolverHint(new URL(String(resolver?.uri || '')).hostname); }
+    catch { return ''; }
+  }
+
+  function inferKnownResolverProvider(resolver) {
+    if (!resolver || resolver.dynamic || !resolver.disabled || resolver.protocol === 'DNS') return '';
+    const candidates = new Set();
+    const address = canonicalResolverHint(resolver.address);
+    const sni = canonicalResolverHint(resolver.sni);
+    const dohHost = resolver.protocol === 'DoH' ? resolverDoHHostname(resolver) : '';
+    if (address) candidates.add(address);
+    if (sni) candidates.add(sni);
+    if (dohHost) candidates.add(dohHost);
+
+    for (const hint of DNS_PROVIDER_HINTS) {
+      if (hint.addresses.some((value) => candidates.has(value)) || hint.hosts.some((value) => candidates.has(value))) {
+        return hint.provider;
+      }
+    }
+    return '';
+  }
+
+  function resolverSectionProvider(resolver) {
+    const explicit = String(resolver?.provider || '').trim();
+    if (resolver?.preset) return explicit;
+    if (!resolver?.disabled || resolver?.dynamic || resolver?.protocol === 'DNS') return '';
+    return explicit || inferKnownResolverProvider(resolver);
+  }
 
   function isPrivatePresetProvider(provider) {
     return PRIVATE_DNS_PROVIDERS.has(String(provider || '').trim());
   }
 
+  function resolverSectionKind(resolver) {
+    const provider = resolverSectionProvider(resolver);
+    if (!provider) return 'custom';
+    return isPrivatePresetProvider(provider) ? 'private' : 'public';
+  }
+
+  function resolverProviderBadge(resolver) {
+    const kind = resolverSectionKind(resolver);
+    return kind === 'private' ? 'PRIVATE' : kind === 'public' ? 'PUBLIC' : '';
+  }
+
+  function resolverProviderKey(resolver) {
+    const provider = resolverSectionProvider(resolver);
+    return provider ? `${provider.toLowerCase()}\u0000${String(resolver?.protocol || '').toLowerCase()}` : '';
+  }
+
+  function dedupeProviderRows(rows = []) {
+    const manualKeys = new Set(
+      rows
+        .filter((resolver) => !resolver?.preset && resolver?.disabled)
+        .map(resolverProviderKey)
+        .filter(Boolean)
+    );
+    return rows.filter((resolver) => {
+      if (!resolver?.preset || !resolver?.disabled) return true;
+      const key = resolverProviderKey(resolver);
+      return !key || !manualKeys.has(key);
+    });
+  }
+
   function buildProviderResolverGroups(rows = [], currentLocale = 'ru') {
     const byProvider = new Map();
     for (const resolver of rows) {
-      const provider = String(resolver?.provider || (currentLocale === 'en' ? 'Public DNS' : 'Публичный DNS')).trim() || (currentLocale === 'en' ? 'Public DNS' : 'Публичный DNS');
+      const provider = resolverSectionProvider(resolver) || (currentLocale === 'en' ? 'Provider DNS' : 'DNS провайдера');
       if (!byProvider.has(provider)) byProvider.set(provider, []);
       byProvider.get(provider).push(resolver);
     }
@@ -367,7 +445,7 @@
         return {
           key:`provider:${provider}`,
           label:provider,
-          subtitle:currentLocale === 'en' ? 'Base resolvers · DoT + DoH' : 'Базовые резолверы · DoT + DoH',
+          subtitle:currentLocale === 'en' ? 'Provider resolvers · DoT + DoH' : 'Резолверы провайдера · DoT + DoH',
           preset:true,
           resolvers:providerRows
         };
@@ -376,62 +454,60 @@
 
   function buildResolverSections(rows = [], currentLocale = 'ru') {
     const sections = [];
-    const custom = rows.filter((resolver) => !resolver?.preset);
+    const custom = rows.filter((resolver) => resolverSectionKind(resolver) === 'custom');
     if (custom.length) {
       sections.push({
         key:'custom',
         label:currentLocale === 'en' ? 'Keenetic / custom' : 'Keenetic / свои',
-        subtitle:currentLocale === 'en' ? 'Configured, disabled and dynamic resolvers' : 'Настроенные, отключённые и динамические резолверы',
+        subtitle:currentLocale === 'en' ? 'Configured, active and dynamic resolvers' : 'Настроенные, активные и динамические резолверы',
         kind:'custom',
         badge:'LOCAL',
         total:custom.length,
         groups:[{
           key:'custom',
           label:currentLocale === 'en' ? 'Keenetic / custom' : 'Keenetic / свои',
-          subtitle:currentLocale === 'en' ? 'Configured, disabled and dynamic resolvers' : 'Настроенные, отключённые и динамические резолверы',
+          subtitle:currentLocale === 'en' ? 'Configured, active and dynamic resolvers' : 'Настроенные, активные и динамические резолверы',
           preset:false,
           resolvers:custom
         }]
       });
     }
 
-    const publicPresetRows = rows.filter((resolver) => resolver?.preset && !isPrivatePresetProvider(resolver.provider));
-    if (publicPresetRows.length) {
+    const publicRows = dedupeProviderRows(rows.filter((resolver) => resolverSectionKind(resolver) === 'public'));
+    if (publicRows.length) {
       sections.push({
         key:'public-presets',
         label:currentLocale === 'en' ? 'Public DNS' : 'Публичные DNS',
-        subtitle:currentLocale === 'en' ? 'Global public base resolvers' : 'Глобальные публичные базовые резолверы',
+        subtitle:currentLocale === 'en' ? 'Public provider resolvers · built-in and disabled' : 'Публичные провайдеры · встроенные и отключённые',
         kind:'public',
         badge:'PUBLIC',
-        total:publicPresetRows.length,
-        groups:buildProviderResolverGroups(publicPresetRows, currentLocale)
+        total:publicRows.length,
+        groups:buildProviderResolverGroups(publicRows, currentLocale)
       });
     }
 
-    const privatePresetRows = rows.filter((resolver) => resolver?.preset && isPrivatePresetProvider(resolver.provider));
-    if (privatePresetRows.length) {
+    const privateRows = dedupeProviderRows(rows.filter((resolver) => resolverSectionKind(resolver) === 'private'));
+    if (privateRows.length) {
       sections.push({
         key:'private-presets',
         label:currentLocale === 'en' ? 'Private DNS' : 'Частные DNS',
-        subtitle:currentLocale === 'en' ? 'Stable private base resolvers' : 'Стабильные частные базовые резолверы',
+        subtitle:currentLocale === 'en' ? 'Private provider resolvers · built-in and disabled' : 'Частные провайдеры · встроенные и отключённые',
         kind:'private',
         badge:'PRIVATE',
-        total:privatePresetRows.length,
-        groups:buildProviderResolverGroups(privatePresetRows, currentLocale)
+        total:privateRows.length,
+        groups:buildProviderResolverGroups(privateRows, currentLocale)
       });
     }
 
     return sections;
   }
-
   function resolverListTitle(resolver) {
     if (resolver?.preset) return resolver.variant || resolver.protocol || 'DNS';
     return resolver?.name || resolver?.protocol || 'DNS';
   }
 
   function resolverPresetKind(resolver) {
-    if (!resolver?.preset) return '';
-    return isPrivatePresetProvider(resolver.provider) ? 'PRIVATE' : 'PUBLIC';
+    return resolverProviderBadge(resolver);
   }
 
   function resolverStatusPillClass(resolver) {
@@ -1079,7 +1155,7 @@
     <div class="toolbar parity-toolbar resolver-toolbar">
       <div class="search-control"><span>⌕</span><input bind:value={resolverSearch} placeholder={L.searchDns}/></div>
       <select bind:value={resolverProtocol}><option value="all">{L.filterProtocol}: {L.all}</option><option value="DNS">DNS</option><option value="DoT">DoT</option><option value="DoH">DoH</option></select>
-      <select bind:value={resolverStatus}><option value="all">{L.filterStatus}: {L.all}</option><option value="active">{L.active}</option><option value="disabled">{L.disabled}</option><option value="preset">{locale === 'en' ? 'Public presets' : 'Публичные пресеты'}</option><option value="dynamic">{L.dynamic}</option></select>
+      <select bind:value={resolverStatus}><option value="all">{L.filterStatus}: {L.all}</option><option value="active">{L.active}</option><option value="disabled">{L.disabled}</option><option value="preset">{locale === 'en' ? 'Catalog presets' : 'Пресеты каталога'}</option><option value="dynamic">{L.dynamic}</option></select>
       <div class="toolbar-spacer"></div>
       <div class="segmented resolver-view-switch" aria-label={locale === 'en' ? 'Resolver view' : 'Вид резолверов'}>
         <button class:active={resolverView === 'detail'} type="button" aria-pressed={resolverView === 'detail'} onclick={() => setResolverView('detail')}>{locale === 'en' ? 'List' : 'Список'}</button>
@@ -1094,7 +1170,7 @@
       <div><span>{L.activeResolvers}</span><strong class="good-text">{activeResolvers.length}</strong></div>
       <div><span>{L.disabledResolvers}</span><strong class={disabledResolvers.length ? 'warn-text' : ''}>{disabledResolvers.length}</strong></div>
       <div><span>{L.dynamicResolvers}</span><strong>{dynamicResolvers.length}</strong></div>
-      <div><span>{locale === 'en' ? 'Public presets' : 'Публичные пресеты'}</span><strong>{availablePresets.length}/{presetResolvers.length}</strong></div>
+      <div><span>{locale === 'en' ? 'Catalog presets' : 'Пресеты каталога'}</span><strong>{availablePresets.length}/{presetResolvers.length}</strong></div>
       <div><span>DoT slots</span><strong class={dotSlotLimit && dotSlotsUsed >= dotSlotLimit ? 'warn-text' : ''}>{dotSlotsUsed}/{dotSlotLimit || '—'}</strong></div>
       <div><span>DoH slots</span><strong class={dohSlotLimit && dohSlotsUsed >= dohSlotLimit ? 'warn-text' : ''}>{dohSlotsUsed}/{dohSlotLimit || '—'}</strong></div>
     </div>
@@ -1136,7 +1212,7 @@
                             <span class="mono" title={endpoint(resolver)}>{endpoint(resolver)}</span>
                           </button>
                           <div class="resolver-group-state">
-                            {#if resolver.preset}<span class="state-pill {resolverPresetKind(resolver) === 'PRIVATE' ? 'warning' : 'info'}">{resolverPresetKind(resolver)}</span>{/if}
+                            {#if resolverProviderBadge(resolver)}<span class="state-pill {resolverSectionKind(resolver) === 'private' ? 'warning' : 'info'}">{resolverProviderBadge(resolver)}</span>{/if}
                             <span class="state-pill {resolverStatusPillClass(resolver)}">{resolverStatusText(resolver)}</span>
                           </div>
                           <div class="resolver-group-actions">
@@ -1191,7 +1267,7 @@
                             <span class="resolver-master-meta">{resolverScopeSummary(resolver)} · {resolver.physical_count || 1} {locale === 'en' ? 'native' : 'нативн.'}{resolver.dynamic ? ` · ${resolver.service || 'DHCP'}` : ''}</span>
                           </span>
                           <span class="resolver-master-state-wrap">
-                            {#if resolver.preset}<span class="state-pill {resolverPresetKind(resolver) === 'PRIVATE' ? 'warning' : 'info'}">{resolverPresetKind(resolver)}</span>{/if}
+                            {#if resolverProviderBadge(resolver)}<span class="state-pill {resolverSectionKind(resolver) === 'private' ? 'warning' : 'info'}">{resolverProviderBadge(resolver)}</span>{/if}
                             <span class="state-pill {resolverStatusPillClass(resolver)} resolver-master-state">{resolverStatusText(resolver)}</span>
                           </span>
                         </button>
@@ -1220,7 +1296,7 @@
                   <button class="action danger" type="button" disabled={selectedResolver.dynamic || selectedResolver.preset} onclick={() => resolverAction(selectedResolver,'delete')}>{L.remove}</button>
                 </div>
               </div>
-              {#if selectedResolver.preset}<div class="resolver-dynamic-banner"><span class="state-pill info">PUBLIC PRESET</span><span>{selectedResolver.provider} · {selectedResolver.variant} · {selectedResolver.disabled ? (locale === 'en' ? 'inert until enabled' : 'не меняет Keenetic до включения') : (locale === 'en' ? 'enabled in Keenetic' : 'включён в Keenetic')}</span></div>{/if}
+              {#if selectedResolver.preset}<div class="resolver-dynamic-banner"><span class="state-pill {resolverSectionKind(selectedResolver) === 'private' ? 'warning' : 'info'}">{resolverProviderBadge(selectedResolver)} PRESET</span><span>{selectedResolver.provider} · {selectedResolver.variant} · {selectedResolver.disabled ? (locale === 'en' ? 'inert until enabled' : 'не меняет Keenetic до включения') : (locale === 'en' ? 'enabled in Keenetic' : 'включён в Keenetic')}</span></div>{/if}
               {#if selectedResolver.dynamic}<div class="resolver-dynamic-banner"><span class="state-pill neutral">READ ONLY</span><span>{L.readOnly}{selectedResolver.service ? ` · ${selectedResolver.service}` : ''}</span></div>{/if}
               <div class="resolver-detail-metrics">
                 <div><strong>{fmtInt(selectedRuntime?.summary?.requests || 0)}</strong><span>{L.requests}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>

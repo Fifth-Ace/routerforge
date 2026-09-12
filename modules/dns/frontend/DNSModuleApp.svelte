@@ -34,6 +34,10 @@
   let refreshTimer = null;
   let frameSyncTimer = null;
   let sectionAnimationUntil = 0;
+  const resolverSectionCloseTimers = new Map();
+  const resolverSectionOpenTimers = new Map();
+  let closingResolverSections = {};
+  let openingResolverSections = {};
   let refreshBusy = false;
 
   let overviewSearch = '';
@@ -439,10 +443,99 @@
     return !!collapsedResolverSections[key];
   }
 
+  function isResolverSectionClosing(key) {
+    return !!closingResolverSections[key];
+  }
+
+  function isResolverSectionOpening(key) {
+    return !!openingResolverSections[key];
+  }
+
+  function isResolverSectionVisuallyCollapsed(key) {
+    return isResolverSectionCollapsed(key) || isResolverSectionClosing(key);
+  }
+
+  function shouldRenderResolverSection(key) {
+    return !isResolverSectionCollapsed(key) || isResolverSectionClosing(key);
+  }
+
+  function resolverSectionMotionMs() {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 170; }
+    catch { return 170; }
+  }
+
+  function clearResolverSectionTimer(timers, key) {
+    const timer = timers.get(key);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timers.delete(key);
+    }
+  }
+
+  function clearResolverSectionFlag(flags, key) {
+    if (!flags[key]) return flags;
+    const next = { ...flags };
+    delete next[key];
+    return next;
+  }
+
+  function startResolverSectionOpening(key, duration) {
+    clearResolverSectionTimer(resolverSectionOpenTimers, key);
+    openingResolverSections = { ...openingResolverSections, [key]: true };
+    if (duration <= 0) {
+      openingResolverSections = clearResolverSectionFlag(openingResolverSections, key);
+      return;
+    }
+    const timer = setTimeout(() => {
+      openingResolverSections = clearResolverSectionFlag(openingResolverSections, key);
+      resolverSectionOpenTimers.delete(key);
+    }, duration);
+    resolverSectionOpenTimers.set(key, timer);
+  }
+
   function toggleResolverSection(key) {
-    collapsedResolverSections = { ...collapsedResolverSections, [key]: !collapsedResolverSections[key] };
-    sectionAnimationUntil = performance.now() + 220;
-    queueFrameHeightSync();
+    const duration = resolverSectionMotionMs();
+
+    // Re-open a section while its cheap close animation is still running.
+    if (isResolverSectionClosing(key)) {
+      clearResolverSectionTimer(resolverSectionCloseTimers, key);
+      closingResolverSections = clearResolverSectionFlag(closingResolverSections, key);
+      collapsedResolverSections = { ...collapsedResolverSections, [key]: false };
+      startResolverSectionOpening(key, duration);
+      sectionAnimationUntil = performance.now() + duration;
+      queueFrameHeightSync();
+      return;
+    }
+
+    // Opening mounts once, then only opacity/transform are animated.
+    if (isResolverSectionCollapsed(key)) {
+      collapsedResolverSections = { ...collapsedResolverSections, [key]: false };
+      startResolverSectionOpening(key, duration);
+      sectionAnimationUntil = performance.now() + duration;
+      queueFrameHeightSync();
+      return;
+    }
+
+    // Closing keeps layout stable during the visual animation. The subtree is
+    // removed once at the end, avoiding per-frame layout recalculation.
+    clearResolverSectionTimer(resolverSectionOpenTimers, key);
+    openingResolverSections = clearResolverSectionFlag(openingResolverSections, key);
+    closingResolverSections = { ...closingResolverSections, [key]: true };
+    sectionAnimationUntil = performance.now() + duration;
+
+    const finishClose = () => {
+      collapsedResolverSections = { ...collapsedResolverSections, [key]: true };
+      closingResolverSections = clearResolverSectionFlag(closingResolverSections, key);
+      resolverSectionCloseTimers.delete(key);
+      queueFrameHeightSync();
+    };
+
+    if (duration <= 0) finishClose();
+    else {
+      const timer = setTimeout(finishClose, duration);
+      resolverSectionCloseTimers.set(key, timer);
+      queueFrameHeightSync();
+    }
   }
 
   function setResolverView(value) {
@@ -872,6 +965,10 @@
     return () => {
       clearInterval(refreshTimer);
       if (frameSyncTimer !== null) clearTimeout(frameSyncTimer);
+      for (const timer of resolverSectionCloseTimers.values()) clearTimeout(timer);
+      for (const timer of resolverSectionOpenTimers.values()) clearTimeout(timer);
+      resolverSectionCloseTimers.clear();
+      resolverSectionOpenTimers.clear();
       resizeObserver?.disconnect();
       parentThemeObserver?.disconnect();
       window.removeEventListener('resize', syncShell);
@@ -998,7 +1095,7 @@
       <div class="resolver-section-stack">
         {#each resolverSections as section (section.key)}
           <section class="panel resolver-section-panel">
-            <button class="resolver-section-toggle" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!isResolverSectionCollapsed(section.key)}>
+            <button class="resolver-section-toggle" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!isResolverSectionVisuallyCollapsed(section.key)}>
               <div class="resolver-section-heading">
                 <strong>{section.label}</strong>
                 <span>{section.subtitle}</span>
@@ -1006,11 +1103,12 @@
               <div class="resolver-section-meta">
                 <span class="state-pill {section.kind === 'private' ? 'warning' : section.kind === 'custom' ? 'accent' : 'info'}">{section.badge}</span>
                 <span class="panel-meta">{section.total}</span>
-                <span class="resolver-section-chevron" class:collapsed={isResolverSectionCollapsed(section.key)}>▾</span>
+                <span class="resolver-section-chevron" class:collapsed={isResolverSectionVisuallyCollapsed(section.key)}>▾</span>
               </div>
             </button>
 
-            <div class="resolver-section-body" class:collapsed={isResolverSectionCollapsed(section.key)} aria-hidden={isResolverSectionCollapsed(section.key)}>
+            {#if shouldRenderResolverSection(section.key)}
+            <div class="resolver-section-body" class:closing={isResolverSectionClosing(section.key)} class:opening={isResolverSectionOpening(section.key)} aria-hidden={isResolverSectionClosing(section.key)}>
               <div class="resolver-section-body-inner">
                 <div class="resolver-group-grid" class:single-column={section.kind === 'custom'}>
                 {#each section.groups as group (group.key)}
@@ -1045,6 +1143,7 @@
                 </div>
               </div>
             </div>
+            {/if}
           </section>
         {/each}
       </div>
@@ -1055,7 +1154,7 @@
           <div class="resolver-master-list">
             {#each resolverSections as section (section.key)}
               <div class="resolver-master-section">
-                <button class="resolver-master-section-head" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!isResolverSectionCollapsed(section.key)}>
+                <button class="resolver-master-section-head" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!isResolverSectionVisuallyCollapsed(section.key)}>
                   <span class="resolver-master-section-copy">
                     <strong>{section.label}</strong>
                     <small>{section.subtitle}</small>
@@ -1063,11 +1162,12 @@
                   <span class="resolver-master-section-meta">
                     <span class="state-pill {section.kind === 'private' ? 'warning' : section.kind === 'custom' ? 'accent' : 'info'}">{section.badge}</span>
                     <strong>{section.total}</strong>
-                    <span class="resolver-section-chevron" class:collapsed={isResolverSectionCollapsed(section.key)}>▾</span>
+                    <span class="resolver-section-chevron" class:collapsed={isResolverSectionVisuallyCollapsed(section.key)}>▾</span>
                   </span>
                 </button>
 
-                <div class="resolver-master-section-body" class:collapsed={isResolverSectionCollapsed(section.key)} aria-hidden={isResolverSectionCollapsed(section.key)}>
+                {#if shouldRenderResolverSection(section.key)}
+                <div class="resolver-master-section-body" class:closing={isResolverSectionClosing(section.key)} class:opening={isResolverSectionOpening(section.key)} aria-hidden={isResolverSectionClosing(section.key)}>
                   <div class="resolver-master-section-body-inner">
                     {#each section.groups as group (group.key)}
                     <div class="resolver-master-group">
@@ -1090,6 +1190,7 @@
                     {/each}
                   </div>
                 </div>
+                {/if}
               </div>
             {/each}
           </div>        </aside>

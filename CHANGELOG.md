@@ -4,6 +4,24 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-12 — RouterForge 0.7.2 DNS hotfix
+
+### Versioning
+- Only `routerforge-dns` advances from `0.7.1` to `0.7.2`.
+- `routerforge-core`, `routerforge-admin`, `routerforge-monitoring`, and `routerforge-profiling` remain at `0.7.1`.
+- DNS keeps `min_core_version=0.7.1`; the Beta channel is not changed.
+
+### DNS fixes
+- Resolver telemetry is generation-isolated across secure local-port reuse, preventing old counters/history/client attribution from contaminating a new resolver identity on the same port.
+- Added a curated baseline DoT/DoH preset catalog with semantic endpoint dedup and no slot consumption before explicit enable.
+- Resolver UI now groups entries into Keenetic/custom, Public DNS, and Private DNS; disabled manual known-provider entries move into provider sections without becoming read-only presets.
+- Collapsible resolver sections now use direct reactive state bindings and smooth immediate animation; the Resolvers view no longer performs the heavy 5-second full refresh.
+- Disabled preset status styling is aligned with normal disabled resolvers.
+
+### Hardware evidence
+- DoT secure-port reuse was accepted on real Keenetic hardware without restarting the DNS process; reused-port cumulative/history state reset correctly.
+- DoH uses the same generic identity mechanism, but a separate DoH-specific hardware port-reuse acceptance is not claimed.
+
 ## 2026-09-11 — RouterForge 0.7.1
 
 ### Stable highlights

@@ -1565,36 +1565,33 @@ html[data-radius="soft"] .dns-module {
   overflow:hidden;
 }
 
-/* DNS 0.7.1 resolver collapse animation — immediate UI, deferred iframe resize. */
+/* DNS 0.7.1 resolver collapse animation — compositor-only staged collapse. */
 .dns-module .resolver-section-body,
 .dns-module .resolver-master-section-body {
-  display:grid;
-  grid-template-rows:1fr;
   opacity:1;
-  transition:
-    grid-template-rows .22s cubic-bezier(.22,.8,.24,1),
-    opacity .16s ease;
+  transform:translate3d(0,0,0);
 }
 .dns-module .resolver-section-body-inner,
 .dns-module .resolver-master-section-body-inner {
   min-height:0;
   overflow:hidden;
-  opacity:1;
-  transform:translateY(0);
-  transition:
-    opacity .16s ease,
-    transform .22s cubic-bezier(.22,.8,.24,1);
 }
-.dns-module .resolver-section-body.collapsed,
-.dns-module .resolver-master-section-body.collapsed {
-  grid-template-rows:0fr;
+.dns-module .resolver-section-body.opening,
+.dns-module .resolver-master-section-body.opening {
+  animation:resolver-section-enter .17s cubic-bezier(.22,.8,.24,1) both;
+}
+.dns-module .resolver-section-body.closing,
+.dns-module .resolver-master-section-body.closing {
   opacity:0;
+  transform:translate3d(0,-5px,0);
   pointer-events:none;
+  transition:
+    opacity .13s ease,
+    transform .17s cubic-bezier(.22,.8,.24,1);
 }
-.dns-module .resolver-section-body.collapsed > .resolver-section-body-inner,
-.dns-module .resolver-master-section-body.collapsed > .resolver-master-section-body-inner {
-  opacity:0;
-  transform:translateY(-5px);
+@keyframes resolver-section-enter {
+  from { opacity:0; transform:translate3d(0,-5px,0); }
+  to { opacity:1; transform:translate3d(0,0,0); }
 }
 .dns-module .resolver-section-toggle,
 .dns-module .resolver-master-section-head {
@@ -1831,6 +1828,7 @@ html[data-radius="soft"] .dns-module {
   .dns-module .resolver-section-body-inner,
   .dns-module .resolver-master-section-body-inner,
   .dns-module .resolver-section-chevron {
+    animation:none !important;
     transition:none !important;
   }
 }

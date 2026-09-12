@@ -1000,6 +1000,25 @@
     } catch {}
   }
 
+  function syncResolverEditorViewport() {
+    try {
+      const root = document.documentElement;
+      if (window.parent === window || !window.frameElement) {
+        root.style.setProperty('--resolver-drawer-top', '0px');
+        root.style.setProperty('--resolver-drawer-height', `${window.innerHeight}px`);
+        return;
+      }
+      const frameRect = window.frameElement.getBoundingClientRect();
+      const parentHeight = Math.max(1, window.parent.innerHeight || 0);
+      const visibleTop = Math.max(0, frameRect.top);
+      const visibleBottom = Math.min(parentHeight, frameRect.bottom);
+      const visibleHeight = Math.max(1, visibleBottom - visibleTop);
+      const childTop = Math.max(0, -frameRect.top);
+      root.style.setProperty('--resolver-drawer-top', `${Math.round(childTop)}px`);
+      root.style.setProperty('--resolver-drawer-height', `${Math.round(visibleHeight)}px`);
+    } catch {}
+  }
+
   function syncFrameHeight() {
     try {
       if (window.parent === window || !window.frameElement) return;
@@ -1041,6 +1060,7 @@
   onMount(() => {
     const syncShell = () => {
       syncCoreVisualTokens();
+      syncResolverEditorViewport();
       syncFrameHeight();
     };
 
@@ -1063,7 +1083,11 @@
     } catch {}
 
     window.addEventListener('resize', syncShell);
-    try { window.parent.addEventListener('resize', queueFrameHeightSync); } catch {}
+    try {
+      window.parent.addEventListener('resize', queueFrameHeightSync);
+      window.parent.addEventListener('resize', syncResolverEditorViewport);
+      window.parent.addEventListener('scroll', syncResolverEditorViewport, { passive:true });
+    } catch {}
 
     loadAll().then(() => {
       ensureViewData(tab);
@@ -1081,7 +1105,11 @@
       resizeObserver?.disconnect();
       parentThemeObserver?.disconnect();
       window.removeEventListener('resize', syncShell);
-      try { window.parent.removeEventListener('resize', queueFrameHeightSync); } catch {}
+      try {
+        window.parent.removeEventListener('resize', queueFrameHeightSync);
+        window.parent.removeEventListener('resize', syncResolverEditorViewport);
+        window.parent.removeEventListener('scroll', syncResolverEditorViewport);
+      } catch {}
     };
   });
 </script>

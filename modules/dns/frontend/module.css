@@ -436,7 +436,11 @@ button, input, select, textarea { font:inherit; }
 
 .dns-module .resolver-editor-backdrop {
   position:fixed;
-  inset:0;
+  top:var(--resolver-drawer-top,0px);
+  right:0;
+  bottom:auto;
+  left:0;
+  height:var(--resolver-drawer-height,100vh);
   z-index:1000;
   background:rgba(0,0,0,.56);
   backdrop-filter:blur(1.5px);
@@ -449,10 +453,11 @@ button, input, select, textarea { font:inherit; }
 .dns-module .resolver-editor-drawer {
   position:fixed;
   z-index:1001;
-  top:0;
+  top:var(--resolver-drawer-top,0px);
   right:0;
   width:min(34rem,calc(100vw - .75rem));
-  height:100vh;
+  height:var(--resolver-drawer-height,100vh);
+  max-height:var(--resolver-drawer-height,100vh);
   display:grid;
   grid-template-rows:auto minmax(0,1fr) auto;
   overflow:hidden;

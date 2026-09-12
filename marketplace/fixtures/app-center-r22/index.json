@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "registry_id": "rf-lab-canary",
+  "name": "RouterForge App Center R2.2 Canary",
+  "revision": "2026-09-12-r22",
+  "entries": [
+    {
+      "id": "canary-arm64",
+      "kind": "integration",
+      "name": "RouterForge Canary / ARM64",
+      "category": "RouterForge Lab",
+      "description": "Harmless lifecycle canary for install, update and remove acceptance on aarch64-3.10.",
+      "publisher": {
+        "id": "rf-lab",
+        "name": "RouterForge Lab"
+      },
+      "detection": {
+        "packages": [
+          "rf-appcenter-canary-arm64"
+        ]
+      },
+      "compatibility": {
+        "targets": [
+          "aarch64-3.10"
+        ]
+      },
+      "install": {
+        "method": "opkg",
+        "packages": [
+          "rf-appcenter-canary-arm64"
+        ],
+        "notes": [
+          "Acceptance fixture only. Package contains marker files and no service."
+        ]
+      },
+      "update": {
+        "method": "opkg",
+        "packages": [
+          "rf-appcenter-canary-arm64"
+        ]
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "rf-appcenter-canary-arm64"
+        ]
+      }
+    },
+    {
+      "id": "canary-mipsel",
+      "kind": "integration",
+      "name": "RouterForge Canary / MIPSel",
+      "category": "RouterForge Lab",
+      "description": "Foreign-architecture lifecycle canary used to prove backend target blocking on ARM64.",
+      "publisher": {
+        "id": "rf-lab",
+        "name": "RouterForge Lab"
+      },
+      "detection": {
+        "packages": [
+          "rf-appcenter-canary-mipsel"
+        ]
+      },
+      "compatibility": {
+        "targets": [
+          "mipsel-3.4"
+        ]
+      },
+      "install": {
+        "method": "opkg",
+        "packages": [
+          "rf-appcenter-canary-mipsel"
+        ]
+      },
+      "update": {
+        "method": "opkg",
+        "packages": [
+          "rf-appcenter-canary-mipsel"
+        ]
+      },
+      "remove": {
+        "method": "opkg",
+        "packages": [
+          "rf-appcenter-canary-mipsel"
+        ]
+      }
+    }
+  ]
+}

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -119,5 +121,48 @@ func TestTerminalAppActionState(t *testing.T) {
 		if terminalAppActionState(state) {
 			t.Fatalf("%q should not be terminal", state)
 		}
+	}
+}
+func TestFinalizeAppActionViewsKeepsNewestFifty(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0).UTC()
+	views := make([]appActionView, 0, appActionHistoryListLimit+5)
+	for i := 0; i < appActionHistoryListLimit+5; i++ {
+		views = append(views, appActionView{
+			ID:        fmt.Sprintf("job-%03d", i),
+			State:     "succeeded",
+			StartedAt: base.Add(time.Duration(i) * time.Second),
+		})
+	}
+
+	got := finalizeAppActionViews(views)
+	if len(got) != appActionHistoryListLimit {
+		t.Fatalf("views=%d, want %d", len(got), appActionHistoryListLimit)
+	}
+	if got[0].ID != "job-054" {
+		t.Fatalf("newest id=%q, want job-054", got[0].ID)
+	}
+	if got[len(got)-1].ID != "job-005" {
+		t.Fatalf("oldest retained id=%q, want job-005", got[len(got)-1].ID)
+	}
+}
+
+func TestReadAppActionHistoryFromIncludesRotatedFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "actions.jsonl")
+	rotated := "{\"id\":\"older\",\"started_at\":\"2026-09-12T18:00:00Z\"}\n"
+	current := "{\"id\":\"newer\",\"started_at\":\"2026-09-12T19:00:00Z\"}\n"
+
+	if err := os.WriteFile(path+".1", []byte(rotated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(current), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := finalizeAppActionViews(readAppActionHistoryFrom(path))
+	if len(got) != 2 {
+		t.Fatalf("views=%d, want 2", len(got))
+	}
+	if got[0].ID != "newer" || got[1].ID != "older" {
+		t.Fatalf("order=%q,%q, want newer,older", got[0].ID, got[1].ID)
 	}
 }

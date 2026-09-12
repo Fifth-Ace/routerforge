@@ -131,6 +131,7 @@
         <span class="rail-repository-copy"><small>{t(locale,'shell.sourceCode')}</small><strong>{t(locale,'shell.github')}</strong></span>
         <span class="rail-repository-arrow" aria-hidden="true">↗</span>
       </a>
+      <a class="rail-legal-badge" href="/legal">{locale === 'ru' ? 'Пользовательское соглашение · MIT · AS IS' : 'User Agreement · MIT · AS IS'}</a>
     </div>
   </aside>
   <div class="global-content"><slot /></div>

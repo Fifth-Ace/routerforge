@@ -153,11 +153,17 @@ func (c *catalogRefreshCoordinator) execute(call *catalogRefreshCall) {
 func performCatalogRefresh() catalogRefreshResult {
 	releaseDone := make(chan routerForgeReleaseStatus, 1)
 	registryDone := make(chan routerForgeRegistryStatus, 1)
+	sourcesDone := make(chan struct{}, 1)
 	go func() { releaseDone <- forceRefreshRouterForgeReleaseIndex() }()
 	go func() { registryDone <- forceRefreshRouterForgeRegistry() }()
+	go func() {
+		forceRefreshUserAppSources()
+		sourcesDone <- struct{}{}
+	}()
 
 	releaseStatus := <-releaseDone
 	registryStatus := <-registryDone
+	<-sourcesDone
 	invalidateEntwareCatalog()
 
 	return catalogRefreshResult{
@@ -244,6 +250,7 @@ func startWeb(listen string, version string) error {
 	auth := newAuthManager()
 	auth.registerHandlers(mux)
 	registerAppCenterHandlers(mux)
+	registerAppSourceHandlers(mux)
 	registerAppActionHandlers(mux)
 	registerPlatformHandlers(mux)
 	registerCatalogWebProbeHandler(mux)

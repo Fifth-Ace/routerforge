@@ -47,6 +47,7 @@ marketplace_install.go
 marketplace_install_http.go
 app_center_entware.go
 app_center_jobs.go
+user_app_sources.go
 core_platform.go
 core_platform_storage_linux.go
 profiling.go

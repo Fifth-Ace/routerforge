@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -106,6 +107,37 @@ func (s *dnsModuleServer) Serve() error {
 	}))
 	mux.HandleFunc("/v1/interfaces", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		s.writeJSON(w, http.StatusOK, map[string]any{"interfaces": s.store.Interfaces()})
+	}))
+	mux.HandleFunc("/v1/control-interfaces", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		index, err := routeInterfaceIndex()
+		if err != nil {
+			s.writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			return
+		}
+
+		byID := make(map[string]keeneticRouteInterface)
+		for _, item := range index {
+			if strings.TrimSpace(item.ID) == "" {
+				continue
+			}
+			byID[item.ID] = item
+		}
+
+		options := make([]map[string]string, 0, len(byID))
+		for _, item := range byID {
+			options = append(options, map[string]string{
+				"id":          item.ID,
+				"description": item.Description,
+				"type":        item.Type,
+				"address":     item.Address,
+				"linux":       item.Linux,
+			})
+		}
+		sort.Slice(options, func(i, j int) bool {
+			return options[i]["id"] < options[j]["id"]
+		})
+
+		s.writeJSON(w, http.StatusOK, map[string]any{"interfaces": options})
 	}))
 	mux.HandleFunc("/v1/system", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		s.writeJSON(w, http.StatusOK, readSystemInfo())

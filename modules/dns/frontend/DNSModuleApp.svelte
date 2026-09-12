@@ -27,6 +27,8 @@
   let errorBursts = { minutes: 60, bursts: [] };
 
   let editorOpen = false;
+  let editorClosing = false;
+  let editorCloseTimer = null;
   let editing = null;
   let saving = false;
   let form = blankForm();
@@ -880,8 +882,29 @@
   function openClient(ip) { selectedIP = ip; clientPaused = false; frozenClientEvents = []; clientDetail = null; loadSelectedClient(); }
   function closeClient() { selectedIP = ''; clientPaused = false; frozenClientEvents = []; clientDetail = null; loadClients(); }
 
-  function openAdd() { editing = null; form = blankForm(); editorOpen = true; }
+  function resetEditorTransition() {
+    clearTimeout(editorCloseTimer);
+    editorClosing = false;
+  }
+
+  function closeEditor() {
+    if (!editorOpen || editorClosing) return;
+    editorClosing = true;
+    clearTimeout(editorCloseTimer);
+    editorCloseTimer = setTimeout(() => {
+      editorOpen = false;
+      editorClosing = false;
+    }, 260);
+  }
+
+  function openAdd() {
+    resetEditorTransition();
+    editing = null;
+    form = blankForm();
+    editorOpen = true;
+  }
   function openEdit(resolver) {
+    resetEditorTransition();
     editing = resolver;
     form = {
       protocol:resolver.protocol || 'DoT', address:resolver.address || '', uri:resolver.uri || '',
@@ -911,7 +934,7 @@
         ? await request(`/resolvers/${encodeURIComponent(editing.id)}`, { method:'PATCH', body:JSON.stringify(payload) })
         : await request('/resolvers', { method:'POST', body:JSON.stringify(payload) });
       if (result?.resolver?.id) selectedResolverId = result.resolver.id;
-      editorOpen = false;
+      closeEditor();
       success = L.saved;
       await loadAll(true);
     } catch (e) { error = e?.message || String(e); }
@@ -1514,20 +1537,45 @@
   {/if}
 
   {#if editorOpen}
-    <div class="modal-backdrop" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) editorOpen = false; }}>
-      <div class="modal" role="dialog" aria-modal="true">
-        <h2>{editing ? L.editTitle : L.addTitle}</h2>
-        <div class="form-grid">
-          <label>{L.protocol}<select class="protocol-select" bind:value={form.protocol} onchange={() => { if (form.protocol === 'DoT') form.port = 853; if (form.protocol === 'DNS') form.port = 53; if (form.protocol === 'DoH') form.port = 443; }}><option>DNS</option><option>DoT</option><option>DoH</option></select></label>
-          {#if form.protocol !== 'DoH'}<label>{L.port}<input type="number" min="1" max="65535" bind:value={form.port}/></label>{/if}
-          {#if form.protocol === 'DoH'}<label class="span-2">{L.uri}<input class="mono" placeholder="https://dns.example/dns-query" bind:value={form.uri}/></label>{:else}<label class="span-2">{L.address}<input class="mono" placeholder={form.protocol === 'DNS' ? '1.1.1.1' : '1.1.1.1 / dns.example'} bind:value={form.address}/></label>{/if}
-          {#if form.protocol === 'DoT'}<label>{L.sni}<input class="mono" placeholder="cloudflare-dns.com" bind:value={form.sni}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
-          {#if form.protocol === 'DoH'}<label>{L.format}<input class="mono" placeholder="dnsm / json" bind:value={form.format}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
-          <label>{L.iface}<input class="mono" placeholder="ISP" bind:value={form.interface}/></label>
-          <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span class:slot-warning={editorLimitExceeded}>{L.domainsHint}{#if form.protocol === 'DoT' && dotSlotLimit} · DoT: {dotSlotsUsed}/{dotSlotLimit} → {L.afterSave}: {projectedDoTSlots}/{dotSlotLimit}{#if dotCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DoH' && dohSlotLimit} · DoH: {dohSlotsUsed}/{dohSlotLimit} → {L.afterSave}: {projectedDoHSlots}/{dohSlotLimit}{#if dohCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DNS'} · {L.dnsDomainLimit}: {formDomainCount}/{plainDnsDomainLimit}{#if plainDomainExceeded} · {L.limitExceeded}{/if}{/if}</span></label>
+    <div
+      class="resolver-editor-backdrop"
+      class:closing={editorClosing}
+      role="presentation"
+      onclick={(event) => { if (event.target === event.currentTarget) closeEditor(); }}
+    >
+      <section
+        class="resolver-editor-drawer"
+        class:closing={editorClosing}
+        role="dialog"
+        aria-modal="true"
+        aria-label={editing ? L.editTitle : L.addTitle}
+      >
+        <header class="resolver-editor-header">
+          <div>
+            <span class="resolver-editor-kicker">{editing ? L.edit : L.add}</span>
+            <h2>{editing ? L.editTitle : L.addTitle}</h2>
+            <span class="resolver-editor-subtitle mono">{editing ? endpoint(editing) : L.nativeHint}</span>
+          </div>
+          <button class="resolver-editor-close" type="button" aria-label={L.cancel} onclick={closeEditor}>&times;</button>
+        </header>
+
+        <div class="resolver-editor-body">
+          <div class="form-grid">
+            <label>{L.protocol}<select class="protocol-select" bind:value={form.protocol} onchange={() => { if (form.protocol === 'DoT') form.port = 853; if (form.protocol === 'DNS') form.port = 53; if (form.protocol === 'DoH') form.port = 443; }}><option>DNS</option><option>DoT</option><option>DoH</option></select></label>
+            {#if form.protocol !== 'DoH'}<label>{L.port}<input type="number" min="1" max="65535" bind:value={form.port}/></label>{/if}
+            {#if form.protocol === 'DoH'}<label class="span-2">{L.uri}<input class="mono" placeholder="https://dns.example/dns-query" bind:value={form.uri}/></label>{:else}<label class="span-2">{L.address}<input class="mono" placeholder={form.protocol === 'DNS' ? '1.1.1.1' : '1.1.1.1 / dns.example'} bind:value={form.address}/></label>{/if}
+            {#if form.protocol === 'DoT'}<label>{L.sni}<input class="mono" placeholder="cloudflare-dns.com" bind:value={form.sni}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
+            {#if form.protocol === 'DoH'}<label>{L.format}<input class="mono" placeholder="dnsm / json" bind:value={form.format}/></label><label>{L.spki}<input class="mono" bind:value={form.spki}/></label>{/if}
+            <label>{L.iface}<input class="mono" placeholder="ISP" bind:value={form.interface}/></label>
+            <label class="span-2">{L.domains}<textarea class="mono" placeholder={'ru\nsu\nxn--p1ai'} bind:value={form.domains}></textarea><span class:slot-warning={editorLimitExceeded}>{L.domainsHint}{#if form.protocol === 'DoT' && dotSlotLimit} · DoT: {dotSlotsUsed}/{dotSlotLimit} → {L.afterSave}: {projectedDoTSlots}/{dotSlotLimit}{#if dotCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DoH' && dohSlotLimit} · DoH: {dohSlotsUsed}/{dohSlotLimit} → {L.afterSave}: {projectedDoHSlots}/{dohSlotLimit}{#if dohCapacityExceeded} · {L.limitExceeded}{/if}{:else if form.protocol === 'DNS'} · {L.dnsDomainLimit}: {formDomainCount}/{plainDnsDomainLimit}{#if plainDomainExceeded} · {L.limitExceeded}{/if}{/if}</span></label>
+          </div>
         </div>
-        <div class="modal-actions"><button class="action" type="button" onclick={() => editorOpen = false}>{L.cancel}</button><button class="action primary" type="button" disabled={saving || editorLimitExceeded} onclick={saveEditor}>{saving ? '…' : L.save}</button></div>
-      </div>
+
+        <footer class="resolver-editor-actions">
+          <button class="action" type="button" disabled={saving} onclick={closeEditor}>{L.cancel}</button>
+          <button class="action primary" type="button" disabled={saving || editorLimitExceeded} onclick={saveEditor}>{saving ? '…' : L.save}</button>
+        </footer>
+      </section>
     </div>
   {/if}
 </div>

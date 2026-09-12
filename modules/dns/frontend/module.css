@@ -434,32 +434,119 @@ button, input, select, textarea { font:inherit; }
   font-size:var(--ui-xs);
 }
 
-.dns-module .modal-backdrop {
+.dns-module .resolver-editor-backdrop {
   position:fixed;
   inset:0;
-  z-index:100;
-  padding:16px;
+  z-index:1000;
+  background:rgba(0,0,0,.56);
+  backdrop-filter:blur(1.5px);
+  animation:resolver-editor-backdrop-in .30s ease both;
+}
+.dns-module .resolver-editor-backdrop.closing {
+  pointer-events:none;
+  animation:resolver-editor-backdrop-out .24s ease both;
+}
+.dns-module .resolver-editor-drawer {
+  position:fixed;
+  z-index:1001;
+  top:0;
+  right:0;
+  width:min(34rem,calc(100vw - .75rem));
+  height:100vh;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  border-left:1px solid #303640;
+  border-radius:8px 0 0 8px;
+  background:var(--concept-bg);
+  box-shadow:-24px 0 80px rgba(0,0,0,.46);
+  animation:resolver-editor-in .32s cubic-bezier(.22,.72,.2,1) both;
+  will-change:transform,opacity;
+}
+.dns-module .resolver-editor-drawer.closing {
+  pointer-events:none;
+  animation:resolver-editor-out .24s cubic-bezier(.4,0,.8,.2) both;
+}
+@keyframes resolver-editor-backdrop-in {
+  from { opacity:0; }
+  to { opacity:1; }
+}
+@keyframes resolver-editor-backdrop-out {
+  from { opacity:1; }
+  to { opacity:0; }
+}
+@keyframes resolver-editor-in {
+  from { transform:translateX(46px); opacity:0; }
+  to { transform:translateX(0); opacity:1; }
+}
+@keyframes resolver-editor-out {
+  from { transform:translateX(0); opacity:1; }
+  to { transform:translateX(40px); opacity:0; }
+}
+.dns-module .resolver-editor-header {
+  min-width:0;
+  padding:15px 16px 13px;
   display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(0,0,0,.68);
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  border-bottom:1px solid var(--concept-border);
+  background:#121419;
 }
-.dns-module .modal {
-  width:min(720px,100%);
-  max-height:92vh;
-  overflow:auto;
-  border:1px solid #303640;
-  border-radius:6px;
-  background:var(--concept-panel);
-  box-shadow:0 22px 70px rgba(0,0,0,.48);
-  padding:16px;
+.dns-module .resolver-editor-header > div {
+  min-width:0;
 }
-.dns-module .modal h2 {
-  margin:0 0 14px;
+.dns-module .resolver-editor-kicker {
+  display:block;
+  margin-bottom:4px;
+  color:var(--accent);
+  font-size:var(--ui-micro);
+  font-weight:650;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.dns-module .resolver-editor-header h2 {
+  margin:0;
   color:#f4f7fb;
   font-size:calc(var(--ui-panel-title) + 3px);
   line-height:1.25;
   font-weight:650;
+}
+.dns-module .resolver-editor-subtitle {
+  display:block;
+  max-width:100%;
+  margin-top:5px;
+  overflow:hidden;
+  color:#7f8995;
+  font-size:var(--ui-micro);
+  line-height:1.45;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.dns-module button.resolver-editor-close {
+  width:32px;
+  height:32px;
+  flex:0 0 32px;
+  padding:0;
+  border:1px solid #303640;
+  border-radius:4px;
+  background:#1b1f25;
+  color:#aeb7c1;
+  cursor:pointer;
+  font-size:20px;
+  line-height:1;
+}
+.dns-module button.resolver-editor-close:hover {
+  border-color:#46515e;
+  background:#232830;
+  color:#fff;
+}
+.dns-module .resolver-editor-body {
+  min-height:0;
+  overflow:auto;
+  overscroll-behavior:contain;
+  padding:14px 16px 18px;
+  scrollbar-color:#303640 transparent;
 }
 .dns-module .form-grid {
   display:grid;
@@ -530,10 +617,10 @@ button, input, select, textarea { font:inherit; }
   color:var(--warn);
   font-weight:550;
 }
-.dns-module .modal-actions {
-  margin:16px -16px -16px;
+.dns-module .resolver-editor-actions {
   padding:12px 16px;
   display:flex;
+  align-items:center;
   justify-content:flex-end;
   gap:7px;
   border-top:1px solid var(--concept-border);
@@ -550,6 +637,11 @@ button, input, select, textarea { font:inherit; }
   .dns-module .page-head .toolbar-actions { width:100%; }
   .dns-module .page-head .toolbar-actions .action { flex:1; }
   .dns-module .metric-grid.four { grid-template-columns:1fr; }
+  .dns-module .resolver-editor-drawer {
+    width:100vw;
+    border-left:0;
+    border-radius:0;
+  }
   .dns-module .form-grid { grid-template-columns:1fr; }
   .dns-module .span-2 { grid-column:auto; }
   .dns-module .resolver-grid { grid-template-columns:1fr; }

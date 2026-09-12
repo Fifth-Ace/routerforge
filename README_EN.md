@@ -3,13 +3,16 @@
 [Русский](README.md) | **English**
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.7.1-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Stable](https://img.shields.io/badge/stable-0.7.2-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
 [![Beta](https://img.shields.io/badge/beta-0.7.1--beta.4-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RouterForge 0.7.1** is a modular web platform for monitoring, DNS diagnostics, management and maintenance on **Keenetic / Netcraze routers with Entware**.
+**RouterForge 0.7.2** is a modular web platform for monitoring, DNS diagnostics, management and maintenance on **Keenetic / Netcraze routers with Entware**.
 
 Core owns the shared Web UI, authentication, App Center, package/release lifecycle and Module ABI host. DNS, Management, Monitoring and Profiling are optional packages connected through root-owned Unix sockets. The only user-facing RouterForge TCP listener is **`:2233`**.
+
+> [!NOTE]
+> **Stable 0.7.2 is a focused DNS hotfix.** `routerforge-dns` advances to `0.7.2`; Core, Admin, Monitoring and Profiling remain at `0.7.1`. See [Release Notes 0.7.2](docs/RELEASE_NOTES_0.7.2.md).
 
 > [!IMPORTANT]
 > **aarch64-3.10 / ARM64** is the primary fully hardware-validated Stable target.
@@ -17,7 +20,7 @@ Core owns the shared Web UI, authentication, App Center, package/release lifecyc
 > `mips-3.4` remains experimental without physical hardware validation.
 > See [docs/ARCHITECTURES.md](docs/ARCHITECTURES.md).
 
-## Stable 0.7.1 highlights
+## Stable platform highlights
 
 ### Management v2
 - Processes and Entware Services with root-session-protected actions;
@@ -37,9 +40,9 @@ Core owns the shared Web UI, authentication, App Center, package/release lifecyc
 ### App Center
 RouterForge / Integrations / Entware, guarded lifecycle jobs, preflight metadata, bulk update, exact SHA256 release-index verification and safe local Web UI discovery without blind LAN scans.
 
-Read the full **[RouterForge 0.7.1 Release Notes](docs/RELEASE_NOTES_0.7.1.md)**.
+Read the **[0.7.2 DNS hotfix notes](docs/RELEASE_NOTES_0.7.2.md)** and the full **[RouterForge 0.7.1 platform release notes](docs/RELEASE_NOTES_0.7.1.md)**.
 
-## Official Stable 0.7.1 packages
+## Official Stable 0.7.2 packages
 
 | Package | Purpose |
 | --- | --- |
@@ -72,6 +75,7 @@ Avoid mixing Stable and Beta unless deliberately switching channels.
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Release Notes 0.7.2](docs/RELEASE_NOTES_0.7.2.md)
 - [Release Notes 0.7.1](docs/RELEASE_NOTES_0.7.1.md)
 - [Installation](docs/INSTALLATION.md)
 - [Modules](docs/MODULES.md)

@@ -7,12 +7,12 @@
 **Русский** | [English](README_EN.md)
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.7.1-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Stable](https://img.shields.io/badge/stable-0.7.2-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
 [![Beta](https://img.shields.io/badge/beta-0.7.1--beta.4-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#аппаратная-проверка)
 
-**RouterForge 0.7.1** — модульная веб-платформа для мониторинга, DNS-диагностики, управления и обслуживания роутеров **Keenetic / Netcraze с Entware**.
+**RouterForge 0.7.2** — модульная веб-платформа для мониторинга, DNS-диагностики, управления и обслуживания роутеров **Keenetic / Netcraze с Entware**.
 
 RouterForge не пытается быть универсальной панелью «для любого Linux». Платформа использует реальные возможности KeeneticOS/NDMS: `ndmc`, RCI, системные данные роутера, DNS, policy routing, таблицы маршрутизации и службы Entware. Core предоставляет единый Web UI, авторизацию, Центр приложений, общий API и хост Module ABI. DNS, Management и Monitoring устанавливаются отдельными пакетами и общаются с Core через root-owned Unix sockets.
 
@@ -22,7 +22,10 @@ RouterForge не пытается быть универсальной панел
 > **RouterForge — независимый некоммерческий проект сообщества.** Он не является официальным продуктом, подразделением или партнёрским проектом **Keenetic, Netcraze, Entware** и других упомянутых компаний или проектов. Все товарные знаки принадлежат их владельцам. Лицензия проекта — MIT.
 
 > [!TIP]
-> **Core и модули RouterForge могут версионироваться независимо.** Номер платформенного релиза не обязан всегда совпадать с версиями каждого пакета. Для Stable 0.7.1 пять официальных пакетов намеренно сведены в единый релизный train `0.7.1`, но архитектура сохраняет возможность отдельных component releases.
+> **Core и модули RouterForge могут версионироваться независимо.** Stable 0.7.2 использует эту модель: `routerforge-dns` обновлён до `0.7.2`, а `routerforge-core`, `routerforge-admin`, `routerforge-monitoring` и `routerforge-profiling` остаются на `0.7.1`.
+>
+> [!NOTE]
+> **Stable 0.7.2 — точечный DNS hotfix.** Исправлены port-reuse telemetry isolation, resolver presets/grouping, manual provider classification и отзывчивость Resolver UI. Полный список — в [Release Notes 0.7.2](docs/RELEASE_NOTES_0.7.2.md).
 
 > [!IMPORTANT]
 > Основная производственная архитектура — **ARM64 / `aarch64-3.10`**.

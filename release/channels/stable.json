@@ -1,140 +1,92 @@
 {
-  "schema_version": 1,
-  "channel": "stable",
-  "release_version": "0.7.1",
-  "release_notes": {
-    "ru": {
-      "new": [
-        "Management v2 стал полноценной пользовательской возможностью: процессы, Entware-службы, File Manager, Maintenance и Terminal объединены в одном модуле управления.",
-        "File Manager получил режимы Commander и Explorer, дерево каталогов, тома, UTF-8 редактор, создание каталогов, переименование/перемещение, скачивание, удаление файлов, свойства и визуальное изменение прав.",
-        "Добавлены Entware Terminal и аппаратно проверенная Keenetic NDM Console; Keenetic-режим запускает фиксированный server-side ndmc.",
-        "Четыре отдельных monitoring-пакета System/Thermal/Storage/Network объединены в routerforge-monitoring с единым runtime/UI и совместимыми API/socket contracts для миграции.",
-        "DNS остаётся отдельным Module ABI v1 runtime и включает управление резолверами, observability, client attribution, route-aware diagnostics и проверяемый rollback.",
-        "Центр приложений объединяет RouterForge, Integrations и Entware/OPKG, поддерживает защищённые фоновые задания, массовое обновление и проверку installed version.",
-        "Добавлено безопасное обнаружение локальных Web UI по LISTEN socket → PID/process → package → bounded probe без слепого сканирования LAN.",
-        "Stable 0.7.1 публикуется для ARM64, MIPS и MIPSel: ARM64 является production target, non-ARM64 остаются experimental.",
-        "Аппаратная схема тестирования зафиксирована явно: KN-3811 используется для Dev+Beta, KN-1812 для Beta+Stable, KN-1010 — для частичной MIPSel-проверки."
-      ],
-      "fixes": [
-        "DNS event rings используют компактное внутреннее представление при сохранении публичного API и логической глубины истории 10 000 событий.",
-        "DNS passive capture применяет kernel BPF filtering до обработки пакетов в userspace.",
-        "Дорогие DNS/Monitoring ndmc paths получили ограниченные TTL/last-good caches и backoff после ошибок.",
-        "GET /api/catalog остаётся быстрым cached read path, а принудительный refresh вынесен в same-origin singleflight/rate-limited POST.",
-        "Периодические запросы Core/Admin/Monitoring переведены на последовательное планирование без накопления overlapping requests.",
-        "Frontend reads получили ограниченные AbortController timeouts; DNS mutation semantics не создают ложное сообщение об отмене после потенциально выполненной системной мутации.",
-        "Thermal использует stale-while-revalidate/singleflight; Storage Statfs разделён на platform-specific implementations.",
-        "Центр приложений корректно обновляет Registry после действий, устойчивее выполняет bulk update и разделяет обычную/принудительную проверку обновлений.",
-        "История завершённых App Center jobs и failed-login clients ограничена по размеру и очищается от устаревших записей.",
-        "Core HTTP получил read/header/idle/header-size limits без глобального WriteTimeout, который ломал бы SSE.",
-        "Core module proxy ограничивает тела mutation-запросов до передачи привилегированным Unix-socket modules.",
-        "Management/Maintenance/File Properties/Terminal приведены к общей semantic theme-модели RouterForge.",
-        "Verifier миграции Monitoring принимает корректный Entware Status: install <selection> installed.",
-        "README и активная документация синхронизированы с topology Stable 0.7.1; CI проверяет обязательные маркеры и локальные Markdown links.",
-        "Beta release train защищён fail-closed проверкой согласованности release_version, component version и min_core_version.",
-        "Stable builder приведён к актуальной пятикомпонентной topology Core/DNS/Admin/Monitoring/Profiling."
-      ],
-      "compatibility": [
-        "ARM64 aarch64-3.10 — основной production target с физической проверкой на KN-3811 и KN-1812.",
-        "Keenetic Hopper KN-3811 используется для Dev и Beta; Keenetic Ultra KN-1812 — для Beta и Stable-релиза.",
-        "MIPSel mipsel-3.4 остаётся experimental и имеет частичную физическую проверку на Keenetic Giga KN-1010.",
-        "MIPS mips-3.4 остаётся experimental без физической аппаратной проверки.",
-        "routerforge-monitoring использует Provides/Conflicts/Replaces для legacy split monitoring packages и исторических dns-monitor variants.",
-        "Fresh Stable bootstrap устанавливает Core; дополнительные возможности выбираются через Центр приложений.",
-        "Stable 0.6.1 обновляется через актуальный Stable bootstrap и Центр приложений; split monitoring переводится на routerforge-monitoring."
-      ],
-      "technical": [
-        "Keenetic NDM Console проверена на реальном KN-1812: exact package install, ndmc, browser Entware PTY, browser Keenetic PTY и повторное переключение режимов.",
-        "Monitoring 4→1 migration проверена на ARM64, включая package cleanup, runtime health, reboot и autostart.",
-        "Core остаётся единственным пользовательским RouterForge LAN listener на :2233; DNS/Admin/Monitoring используют root-owned Unix sockets.",
-        "Keenetic terminal backend принимает только mode enum и сам выбирает фиксированный ndmc.",
-        "Management mutations требуют live root-session, same-origin boundary, confirmation/whitelist и Core-injected internal marker.",
-        "File Manager ограничивает mutations каноническими границами /opt и /tmp и повторно проверяет destructive target.",
-        "Profiling остаётся loopback-only на 127.0.0.1:6061.",
-        "Stable строится из exact successful Dev validation SHA и отдельного routerforge-stable-promotion artifact; main продвигает тот же SHA.",
-        "Stable 0.7.1 публикует 5 packages × 3 targets = 15 IPK плюс три indexes, SHA256SUMS и bootstrap scripts.",
-        "Core и модули архитектурно могут версионироваться независимо; в Stable 0.7.1 их версии намеренно выровнены до 0.7.1."
-      ]
-    },
-    "en": {
-      "new": [
-        "Management v2 is now a complete capability combining Processes, Entware Services, File Manager, Maintenance, and Terminal.",
-        "File Manager now provides Commander/Explorer, tree, volumes, UTF-8 editor, create/move/rename/delete/download, properties, and visual chmod inside canonical /opt and /tmp.",
-        "Terminal now provides Entware shell and a hardware-validated Keenetic NDM Console backed by fixed server-side ndmc.",
-        "System/Thermal/Storage/Network are consolidated into routerforge-monitoring with migration compatibility sockets/APIs.",
-        "DNS remains an independent Module ABI v1 runtime with resolver control, observability, client attribution, route-aware diagnostics, and verified rollback.",
-        "App Center combines RouterForge, Integrations, and Entware/OPKG with guarded lifecycle jobs, bulk update, and exact release-index/SHA256 verification.",
-        "Generic Runtime Web UI Discovery finds local Entware Web UIs without blind LAN scanning.",
-        "Stable 0.7.1 is published for ARM64, MIPS, and MIPSel; ARM64 is production and non-ARM64 remains experimental.",
-        "MIPSel now has partial physical evidence on Keenetic Giga KN-1010."
-      ],
-      "fixes": [
-        "DNS event rings use compact internal representation while preserving the public API and 10,000-event logical retention.",
-        "DNS passive capture applies kernel BPF filtering before userspace processing.",
-        "Expensive DNS/Monitoring ndmc paths use bounded TTL/last-good caches and failure backoff.",
-        "GET /api/catalog remains cached while guarded refresh is same-origin, singleflight, and rate-limited.",
-        "Core/Admin/Monitoring polling uses serial scheduling without overlap.",
-        "Frontend reads use bounded AbortController timeouts while DNS mutation timeout semantics avoid false failures after possible commits.",
-        "Thermal uses stale-while-revalidate/singleflight and storage Statfs is platform-specific.",
-        "App Center refreshes Registry state correctly after actions, performs bulk update reliably, and separates update checks.",
-        "Finished App Center jobs and failed-login clients now have bounded retention.",
-        "Core HTTP has read/header/idle/header-size limits without a global SSE-breaking WriteTimeout.",
-        "Core module proxy bounds mutation request bodies before Unix-socket forwarding.",
-        "Management theme/Maintenance/File Properties/Terminal now consistently use semantic rf tokens.",
-        "Monitoring migration verifier accepts Entware Status: install <selection> installed instead of assuming install ok installed.",
-        "READMEs and active documentation are synchronized with Stable 0.7.1; CI checks current-doc invariants and local Markdown links.",
-        "Beta builder fail-closed validates release_version/component/min_core train consistency."
-      ],
-      "compatibility": [
-        "ARM64 aarch64-3.10 is the fully hardware-validated Stable target.",
-        "MIPSel mipsel-3.4 remains experimental with partial KN-1010 physical validation.",
-        "MIPS mips-3.4 remains experimental without physical hardware validation.",
-        "routerforge-monitoring Provides/Conflicts/Replaces legacy split monitoring packages and historical dns-monitor variants.",
-        "Fresh Stable bootstrap installs Core; optional capabilities are selected from App Center.",
-        "Stable 0.6.x upgrades through the Stable bootstrap plus App Center."
-      ],
-      "technical": [
-        "Keenetic NDM Console passed hardware validation on Keenetic Ultra KN-1812: exact package, ndmc, both browser PTYs, and mode switching.",
-        "Monitoring 4→1 migration passed ARM64 hardware validation including reboot/autostart.",
-        "Core remains the only RouterForge LAN listener on :2233; modules use root-owned Unix sockets.",
-        "Keenetic terminal backend accepts only a mode enum and resolves fixed ndmc itself.",
-        "Management mutations require live root session, same-origin, confirmation/whitelist, and a Core-injected internal marker.",
-        "File Manager approved roots /opt and /tmp use canonical containment/revalidation.",
-        "Profiling remains loopback-only on 127.0.0.1:6061.",
-        "FULL RELEASE builds the Stable promotion artifact on the exact dev SHA and main promotion uses that same SHA.",
-        "Stable publishes 5 packages × 3 targets = 15 IPKs plus indexes/SHA256/bootstrap.",
-        "Immutable routerforge-v0.7.1 is never clobbered."
-      ]
-    }
-  },
-  "components": [
-    {
-      "id": "routerforge-core",
-      "package": "routerforge-core",
-      "version": "0.7.1"
-    },
-    {
-      "id": "dns",
-      "package": "routerforge-dns",
-      "version": "0.7.1",
-      "min_core_version": "0.7.1"
-    },
-    {
-      "id": "admin",
-      "package": "routerforge-admin",
-      "version": "0.7.1",
-      "min_core_version": "0.7.1"
-    },
-    {
-      "id": "monitoring",
-      "package": "routerforge-monitoring",
-      "version": "0.7.1",
-      "min_core_version": "0.7.1"
-    },
-    {
-      "id": "profiling",
-      "package": "routerforge-profiling",
-      "version": "0.7.1",
-      "min_core_version": "0.7.1"
-    }
-  ]
+    "schema_version":  1,
+    "channel":  "stable",
+    "release_version":  "0.7.2",
+    "release_notes":  {
+                          "ru":  {
+                                     "new":  [
+                                                 "Stable 0.7.2 — точечный DNS-hotfix: версионно обновляется только routerforge-dns до 0.7.2; Core, Admin, Monitoring и Profiling остаются на 0.7.1.",
+                                                 "DNS получил встроенный каталог базовых DoT/DoH-провайдеров, отключённый по умолчанию и не занимающий secure slots до явного включения.",
+                                                 "UI резолверов разделён на Keenetic / свои, Публичные DNS и Частные DNS с группировкой по провайдерам и сворачиваемыми секциями."
+                                             ],
+                                     "fixes":  [
+                                                   "Телеметрия DNS изолирована от повторного использования локального secure-порта: смена semantic resolver identity очищает port-owned counters, rolling history, fallback/error/client attribution и pending state.",
+                                                   "Каталог сокращён до 12 базовых провайдеров × DoT/DoH; semantic endpoint dedup скрывает виртуальный preset, если эквивалентный резолвер уже настроен вручную.",
+                                                   "Отключённые ручные DoT/DoH известных провайдеров классифицируются в Public/Private без превращения в read-only preset; AstraCat распознаётся также по dns.astracat.network, Comss.one относится к Private.",
+                                                   "Сворачивание секций использует прямую Svelte state binding: реакция на клик мгновенная, плавная анимация не зависит от фонового polling.",
+                                                   "На вкладке Resolvers отключён тяжёлый 5-секундный full refresh; первичная загрузка, ручное обновление и refresh после mutations сохранены.",
+                                                   "Статус ОТКЛЮЧЕН для встроенных DNS приведён к общей disabled-семантике и цветовой схеме."
+                                               ],
+                                     "compatibility":  [
+                                                           "routerforge-dns 0.7.2 требует RouterForge Core 0.7.1 или новее.",
+                                                           "routerforge-core, routerforge-admin, routerforge-monitoring и routerforge-profiling в Stable 0.7.2 остаются версии 0.7.1.",
+                                                           "ARM64 aarch64-3.10 остаётся production target; MIPS и MIPSel сохраняют experimental status.",
+                                                           "Beta channel этим Stable hotfix не изменяется."
+                                                       ],
+                                     "technical":  [
+                                                       "DoT port-reuse isolation прошла hardware acceptance на реальном Keenetic без перезапуска routerforge-dns; после возврата исходного resolver на переиспользованный порт cumulative/history начинались с нуля.",
+                                                       "DoH использует тот же общий semantic identity механизм, но отдельный DoH-specific hardware port-reuse сценарий не заявляется как выполненный.",
+                                                       "Stable 0.7.2 собирается из exact validated Dev SHA и продвигается в main только после successful FULL RELEASE с publish_beta=false.",
+                                                       "Immutable routerforge-v0.7.1 не изменяется; 0.7.2 создаётся отдельным immutable snapshot."
+                                                   ]
+                                 },
+                          "en":  {
+                                     "new":  [
+                                                 "Stable 0.7.2 is a focused DNS hotfix: only routerforge-dns advances to 0.7.2; Core, Admin, Monitoring, and Profiling remain at 0.7.1.",
+                                                 "DNS now includes a curated baseline DoT/DoH provider catalog that is disabled by default and consumes no secure slots until explicitly enabled.",
+                                                 "Resolver UI is split into Keenetic/custom, Public DNS, and Private DNS with provider grouping and collapsible sections."
+                                             ],
+                                     "fixes":  [
+                                                   "DNS telemetry is isolated across secure local-port reuse: a semantic resolver identity change clears port-owned counters, rolling history, fallback/error/client attribution, and pending state.",
+                                                   "The catalog is reduced to 12 baseline providers × DoT/DoH; semantic endpoint dedup hides a virtual preset when an equivalent resolver is already configured manually.",
+                                                   "Disabled manual DoT/DoH entries for known providers are classified into Public/Private without becoming read-only presets; AstraCat also recognizes dns.astracat.network and Comss.one is classified as Private.",
+                                                   "Resolver section collapse now uses direct Svelte state bindings, so click response is immediate and smooth animation no longer depends on background polling.",
+                                                   "The heavy 5-second full refresh is disabled on the Resolvers view while initial load, manual refresh, and post-mutation refresh remain intact.",
+                                                   "Built-in disabled resolver status now uses the same disabled semantics and visual treatment as normal disabled resolvers."
+                                               ],
+                                     "compatibility":  [
+                                                           "routerforge-dns 0.7.2 requires RouterForge Core 0.7.1 or newer.",
+                                                           "routerforge-core, routerforge-admin, routerforge-monitoring, and routerforge-profiling remain at version 0.7.1 in Stable 0.7.2.",
+                                                           "ARM64 aarch64-3.10 remains the production target; MIPS and MIPSel remain experimental.",
+                                                           "The Beta channel is not changed by this Stable hotfix."
+                                                       ],
+                                     "technical":  [
+                                                       "DoT port-reuse isolation passed hardware acceptance on a real Keenetic without restarting routerforge-dns; when the original resolver returned to a reused port, cumulative/history state restarted from zero.",
+                                                       "DoH uses the same generic semantic identity mechanism, but a separate DoH-specific hardware port-reuse scenario is not claimed as completed.",
+                                                       "Stable 0.7.2 is built from the exact validated Dev SHA and reaches main only after a successful FULL RELEASE with publish_beta=false.",
+                                                       "Immutable routerforge-v0.7.1 is never modified; 0.7.2 is published as a separate immutable snapshot."
+                                                   ]
+                                 }
+                      },
+    "components":  [
+                       {
+                           "id":  "routerforge-core",
+                           "package":  "routerforge-core",
+                           "version":  "0.7.1"
+                       },
+                       {
+                           "id":  "dns",
+                           "package":  "routerforge-dns",
+                           "version":  "0.7.2",
+                           "min_core_version":  "0.7.1"
+                       },
+                       {
+                           "id":  "admin",
+                           "package":  "routerforge-admin",
+                           "version":  "0.7.1",
+                           "min_core_version":  "0.7.1"
+                       },
+                       {
+                           "id":  "monitoring",
+                           "package":  "routerforge-monitoring",
+                           "version":  "0.7.1",
+                           "min_core_version":  "0.7.1"
+                       },
+                       {
+                           "id":  "profiling",
+                           "package":  "routerforge-profiling",
+                           "version":  "0.7.1",
+                           "min_core_version":  "0.7.1"
+                       }
+                   ]
 }

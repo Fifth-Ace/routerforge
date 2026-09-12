@@ -91,6 +91,14 @@ func newCatalogRefreshCoordinator(cooldown time.Duration, run func() catalogRefr
 }
 
 func (c *catalogRefreshCoordinator) do(ctx context.Context) (catalogRefreshResult, string, error) {
+	return c.doWithPolicy(ctx, true)
+}
+
+func (c *catalogRefreshCoordinator) doFresh(ctx context.Context) (catalogRefreshResult, string, error) {
+	return c.doWithPolicy(ctx, false)
+}
+
+func (c *catalogRefreshCoordinator) doWithPolicy(ctx context.Context, allowCached bool) (catalogRefreshResult, string, error) {
 	now := c.now()
 
 	c.mu.Lock()
@@ -105,7 +113,7 @@ func (c *catalogRefreshCoordinator) do(ctx context.Context) (catalogRefreshResul
 		}
 	}
 
-	if c.hasLast && c.cooldown > 0 {
+	if allowCached && c.hasLast && c.cooldown > 0 {
 		age := now.Sub(c.lastCompleted)
 		if age >= 0 && age < c.cooldown {
 			result := c.last
@@ -127,7 +135,6 @@ func (c *catalogRefreshCoordinator) do(ctx context.Context) (catalogRefreshResul
 		return catalogRefreshResult{}, "", ctx.Err()
 	}
 }
-
 func (c *catalogRefreshCoordinator) execute(call *catalogRefreshCall) {
 	result := c.run()
 
@@ -173,7 +180,19 @@ func handleCatalogRefreshWithCoordinator(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	result, mode, err := coordinator.do(r.Context())
+	freshValue := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("fresh")))
+	requireFresh := freshValue == "1" || freshValue == "true"
+
+	var (
+		result catalogRefreshResult
+		mode   string
+		err    error
+	)
+	if requireFresh {
+		result, mode, err = coordinator.doFresh(r.Context())
+	} else {
+		result, mode, err = coordinator.do(r.Context())
+	}
 	if err != nil {
 		return
 	}

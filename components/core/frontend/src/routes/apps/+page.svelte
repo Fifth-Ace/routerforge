@@ -26,6 +26,7 @@
 
   let tab = 'routerforge';
   let search = '';
+  let categoryFilter = 'all';
   let plannerItem = null;
   let removeItem = null;
   let webWorkspace = null;
@@ -51,6 +52,7 @@
   onMount(() => {
     void refreshActionHistory();
     void openRequestedCatalogWeb();
+    void refreshAppCenterOnEntry();
   });
 
   onDestroy(() => {
@@ -70,11 +72,14 @@
   $: installedCatalog = [...modules, ...integrations].filter((item) => item.installed);
   $: updateCatalog = [...routerForgeUpdates, ...integrationUpdates];
 
-  $: catalogItems = tab === 'routerforge' ? filterCatalog(modules, search)
-    : tab === 'integrations' ? filterCatalog(integrations, search)
-    : tab === 'installed' ? filterCatalog(installedCatalog, search)
-    : tab === 'updates' ? filterCatalog(updateCatalog, search)
+  $: catalogBaseItems = tab === 'routerforge' ? modules
+    : tab === 'integrations' ? integrations
+    : tab === 'installed' ? installedCatalog
+    : tab === 'updates' ? updateCatalog
     : [];
+  $: catalogSearchItems = filterCatalog(catalogBaseItems, search);
+  $: categoryOptions = buildCategoryOptions(catalogSearchItems, locale);
+  $: catalogItems = filterCatalogCategory(catalogSearchItems, categoryFilter);
 
   $: sectionTitle = tab === 'routerforge' ? a(locale,'tabs.routerforge')
     : tab === 'integrations' ? a(locale,'tabs.integrations')
@@ -152,9 +157,40 @@
     const q = String(query || '').trim().toLowerCase();
     if (!q) return items;
     return items.filter((item) =>
-      `${item.name} ${item.category || ''} ${item.description || ''} ${item.version || ''} ${item.available_version || ''} ${(item.detection?.packages || []).join(' ')} ${item.publisher?.name || ''}`
+      `${item.name} ${item.category || ''} ${item.description || ''} ${item.version || ''} ${item.available_version || ''} ${(item.detection?.packages || []).join(' ')} ${(item.capabilities || []).join(' ')} ${item.publisher?.name || ''}`
         .toLowerCase().includes(q)
     );
+  }
+
+  function catalogCategory(item) {
+    return String(item?.category || (item?.kind === 'module' ? 'RouterForge' : 'Other')).trim() || 'Other';
+  }
+
+  function buildCategoryOptions(items, currentLocale) {
+    const counts = new Map();
+    for (const item of items || []) {
+      const category = catalogCategory(item);
+      counts.set(category, Number(counts.get(category) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], currentLocale === 'en' ? 'en' : 'ru', { numeric:true, sensitivity:'base' }))
+      .map(([name, count]) => ({ name, count }));
+  }
+
+  function filterCatalogCategory(items, category) {
+    if (!category || category === 'all') return items;
+    return (items || []).filter((item) => catalogCategory(item) === category);
+  }
+
+  function catalogVersionText(item, currentLocale) {
+    const installed = String(item?.version || '').trim();
+    const available = String(item?.release?.version || item?.available_version || '').trim();
+    if (item?.update_available && installed && available && installed !== available) {
+      return `v${installed} → v${available}`;
+    }
+    if (installed) return `v${installed}`;
+    if (available) return `${currentLocale === 'ru' ? 'доступно' : 'available'} v${available}`;
+    return currentLocale === 'ru' ? 'версия —' : 'version —';
   }
 
   function acronym(item) {
@@ -583,6 +619,15 @@
     }
   }
 
+  async function refreshAppCenterOnEntry() {
+    try {
+      await forceRefreshCatalog(false);
+      await refreshCatalog();
+    } catch {
+      // App Center remains usable from the last known snapshot.
+    }
+  }
+
   async function checkCurrentUpdates() {
     if (checkingUpdates || checkingAll || channelBusy || busyId) return;
     if (tab !== 'routerforge' && tab !== 'integrations') return;
@@ -590,8 +635,8 @@
     const scope = tab;
     checkingUpdates = true;
     try {
-      const result = await forceRefreshCatalog();
-      const current = result?.catalog || await refreshCatalog() || { modules:[], integrations:[] };
+      const result = await forceRefreshCatalog(true);
+      const current = await refreshCatalog() || result?.catalog || { modules:[], integrations:[] };
       const count = scope === 'routerforge'
         ? (current.modules || []).filter(hasCatalogUpdate).length
         : (current.integrations || []).filter(hasCatalogUpdate).length;
@@ -615,7 +660,7 @@
     const failures = [];
     try {
       try {
-        await forceRefreshCatalog();
+        await forceRefreshCatalog(true);
       } catch (error) {
         failures.push(`Registry: ${error?.payload?.error || error?.message || 'error'}`);
       }
@@ -860,6 +905,7 @@
   function setTab(next) {
     tab = next;
     search = '';
+    categoryFilter = 'all';
     entwareState = 'all';
     if (['entware','installed','updates'].includes(next)) void loadEntware(0);
   }
@@ -1022,6 +1068,31 @@
       {:else}<span class="state-chip neutral">{tab === 'entware' ? entwareData.total || 0 : catalogItems.length + (['installed','updates'].includes(tab) ? Number(entwareData.total || 0) : 0)}</span>{/if}
     </div>
 
+    {#if tab !== 'entware' && categoryOptions.length > 1}
+      <div class="catalog-facets" aria-label={a(locale,'categories')}>
+        <button
+          type="button"
+          class="catalog-facet"
+          class:active={categoryFilter === 'all'}
+          onclick={() => categoryFilter = 'all'}
+        >
+          <span>{a(locale,'allCategories')}</span>
+          <strong>{catalogSearchItems.length}</strong>
+        </button>
+        {#each categoryOptions as category (category.name)}
+          <button
+            type="button"
+            class="catalog-facet"
+            class:active={categoryFilter === category.name}
+            onclick={() => categoryFilter = category.name}
+          >
+            <span>{category.name}</span>
+            <strong>{category.count}</strong>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
     {#if tab !== 'entware'}
       <div class="catalog-grid catalog-grid-v2">
         {#if !catalogItems.length && !['installed','updates'].includes(tab)}<div class="catalog-empty">{a(locale,'noItems')}</div>{/if}
@@ -1029,70 +1100,96 @@
           {@const st = stateInfo(item,locale)}
           {@const ownURL = item.kind === 'module' && item.installed ? moduleURL(item) : ''}
           {@const warning = catalogWarning(item)}
-          <article class="catalog-card">
-            <div>
+          <article class="catalog-card catalog-card-compact" class:update-available={item.update_available}>
+            <div class="catalog-card-main">
               <div class="catalog-card-head">
                 <div class="catalog-identity">
                   <div class="catalog-icon mono">{acronym(item)}</div>
-                  <div><h3>{item.name}</h3><span class="mono">{item.publisher?.name || item.source || 'community'} / {item.category || item.kind}</span></div>
+                  <div>
+                    <h3>{item.name}</h3>
+                    <span class="mono">{item.publisher?.name || item.source || 'community'} · {catalogCategory(item)}</span>
+                  </div>
                 </div>
-                <div class="catalog-state-stack"><span class="state-chip {trustClass(item)}">{trustLabel(item)}</span><span class="state-chip {st.cls}">{st.label}</span></div>
+                <div class="catalog-state-stack">
+                  {#if item.update_available}<span class="state-chip warn">{a(locale,'updateBadge')}</span>{/if}
+                  <span class="state-chip {trustClass(item)}">{trustLabel(item)}</span>
+                  <span class="state-chip {st.cls}">{st.label}</span>
+                </div>
               </div>
-              <p>{descriptionText(item)}</p>
-              <div class="tech-box mono">
-                <div><span>{a(locale,'installed')}</span><strong>{item.version ? `v${item.version}` : a(locale,'notInstalled')}</strong></div>
-                <div><span>{a(locale,'available')}</span><strong class:good={item.update_available}>{item.release?.version ? `v${item.release.version}` : item.available_version ? `v${item.available_version}` : a(locale,'notAvailable')}</strong></div>
-                <div><span>{a(locale,'package')}</span><strong title={packageText(item)}>{packageText(item)}</strong></div>
-                {#if item.package_meta?.architecture}
-                  <div><span>{a(locale,'architecture')}</span><strong>{item.package_meta.architecture}</strong></div>
-                {/if}
-                {#if Number(item.package_meta?.download_size_bytes || 0) > 0}
-                  <div><span>{a(locale,'download')}</span><strong>{bytes(item.package_meta.download_size_bytes)}</strong></div>
-                {/if}
-                {#if Number(item.package_meta?.installed_size_bytes || 0) > 0}
-                  <div><span>{a(locale,'installedSize')}</span><strong>{bytes(item.package_meta.installed_size_bytes)}</strong></div>
-                {/if}
-                {#if item.package_meta?.depends?.length}
-                  <div><span>{a(locale,'depends')}</span><strong title={item.package_meta.depends.join(', ')}>{item.package_meta.depends.join(', ')}</strong></div>
-                {/if}
-                {#if item.package_meta?.conflicts?.length}
-                  <div><span>{a(locale,'conflicts')}</span><strong title={item.package_meta.conflicts.join(', ')}>{item.package_meta.conflicts.join(', ')}</strong></div>
-                {/if}
-                {#if item.release?.min_core_version}<div><span>{a(locale,'minCore')}</span><strong>v{item.release.min_core_version}</strong></div>{/if}
-                <div><span>{a(locale,'publisher')}</span><strong>{item.publisher?.name || item.source || a(locale,'unknown')}</strong></div>
+
+              <p class="catalog-card-description">{descriptionText(item)}</p>
+
+              <div class="catalog-card-meta">
+                <span class="catalog-meta-chip">{catalogCategory(item)}</span>
+                <span class="catalog-meta-chip mono" class:good={item.update_available}>{catalogVersionText(item, locale)}</span>
                 {#if hasServiceContract(item)}
-                  <div><span>{a(locale,'service')}</span><strong class:good={item.id === 'routerforge-core' || item.service_running}>{serviceStatusText(item)}</strong></div>
+                  <span
+                    class="catalog-meta-chip"
+                    class:good={item.id === 'routerforge-core' || item.service_running}
+                  >
+                    {serviceStatusText(item)}
+                  </span>
                 {/if}
-                <div><span>{a(locale,'compatibility')}</span><strong title={compatibilityText(item)}>{compatibilityText(item)}</strong></div>
               </div>
+
               {#if warning}
                 <div class="catalog-action-reason">{warning}</div>
               {/if}
             </div>
-            <div class="catalog-card-foot">
+
+            <div class="catalog-card-foot compact-foot">
               <div class="catalog-actions">
-                {#if ownURL}<a class="button primary" href={ownURL}>{a(locale,'open')}</a>{/if}
+                {#if item.installed && canAction(item,'update')}
+                  <button
+                    class="button"
+                    class:primary={item.update_available}
+                    disabled={Boolean(busyId)}
+                    onclick={() => runCatalogAction(item,'update')}
+                  >
+                    {busyId === item.id ? a(locale,'updating') : a(locale,'update')}
+                  </button>
+                {/if}
+
+                {#if ownURL}
+                  <a class="button" class:primary={!item.update_available} href={ownURL}>{a(locale,'open')}</a>
+                {/if}
+
+                {#if !item.installed && canAction(item,'install')}
+                  <button
+                    class="button primary"
+                    disabled={Boolean(busyId)}
+                    onclick={() => runCatalogAction(item,'install')}
+                  >
+                    {busyId === item.id ? a(locale,'installing') : a(locale,'install')}
+                  </button>
+                {/if}
+
+                {#if item.installed || item.install?.method || item.project_url}
+                  <button class="button" onclick={() => plannerItem = item}>{a(locale,'details')}</button>
+                {/if}
+
                 {#if item.installed && catalogWebURL(item)}
                   {#if webSecurityDecision(item).externalAllowed}
-                    <a class="button" target="_blank" rel="noopener noreferrer" href={catalogWebURL(item)}>{a(locale,'open')} :{catalogWebPort(item)}</a>
+                    <a class="button compact" target="_blank" rel="noopener noreferrer" href={catalogWebURL(item)}>{a(locale,'open')} :{catalogWebPort(item)}</a>
                   {:else}
-                    <button class="button" type="button" onclick={() => showWebSecurityNotice(item)}>{a(locale,'open')} :{catalogWebPort(item)}</button>
+                    <button class="button compact" type="button" onclick={() => showWebSecurityNotice(item)}>{a(locale,'open')} :{catalogWebPort(item)}</button>
                   {/if}
                   {#if webSecurityDecision(item).embedAllowed}
-                    <button class="button primary" type="button" disabled={webProbeBusyId === item.id} onclick={() => openEmbeddedWeb(item)}>
-                      {webProbeBusyId === item.id ? (locale === 'ru' ? '\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430\u2026' : 'Checking\u2026') : (locale === 'ru' ? '\u0412\u043D\u0443\u0442\u0440\u0438' : 'Embedded')}
+                    <button class="button compact" type="button" disabled={webProbeBusyId === item.id} onclick={() => openEmbeddedWeb(item)}>
+                      {webProbeBusyId === item.id ? (locale === 'ru' ? 'Проверка…' : 'Checking…') : (locale === 'ru' ? 'Внутри' : 'Embedded')}
                     </button>
                   {/if}
                 {/if}
-                {#if !item.installed && canAction(item,'install')}<button class="button primary" disabled={Boolean(busyId)} onclick={() => runCatalogAction(item,'install')}>{busyId === item.id ? a(locale,'installing') : a(locale,'install')}</button>{/if}
-                {#if item.installed && canAction(item,'update')}<button class="button" disabled={Boolean(busyId)} onclick={() => runCatalogAction(item,'update')}>{busyId === item.id ? a(locale,'updating') : a(locale,'update')}</button>{/if}
-                {#if item.installed && canAction(item,'remove')}<button class="button danger-subtle" disabled={Boolean(busyId)} onclick={() => removeItem = item}>{a(locale,'remove')}</button>{/if}
-                {#if item.installed || item.install?.method || item.project_url}<button class="button" onclick={() => plannerItem = item}>{a(locale,'details')}</button>{/if}
-                {#if item.project_url}<a class="button compact" target="_blank" rel="noopener noreferrer" href={item.project_url}>{a(locale,'project')}</a>{/if}
+
+                {#if item.project_url}
+                  <a class="button compact" target="_blank" rel="noopener noreferrer" href={item.project_url}>{a(locale,'project')}</a>
+                {/if}
+
+                {#if item.installed && canAction(item,'remove')}
+                  <button class="button danger-subtle compact" disabled={Boolean(busyId)} onclick={() => removeItem = item}>{a(locale,'remove')}</button>
+                {/if}
               </div>
-              <span class="mono muted">{item.manifest_sha256 ? `manifest ${item.manifest_sha256.slice(0,8)}` : item.kind}</span>
-            </div>
-          </article>
+            </div>          </article>
         {/each}
       </div>
     {/if}
@@ -1209,6 +1306,114 @@
   }
   .app-center-page .check-updates-button {
     white-space:nowrap;
+  }
+
+  .app-center-page .catalog-facets {
+    display:flex;
+    align-items:center;
+    gap:.42rem;
+    margin:.75rem 0 .85rem;
+    padding:.15rem 0 .2rem;
+    overflow-x:auto;
+    scrollbar-width:thin;
+  }
+
+  .app-center-page .catalog-facet {
+    flex:0 0 auto;
+    display:inline-flex;
+    align-items:center;
+    gap:.42rem;
+    min-height:30px;
+    padding:.32rem .58rem;
+    border:1px solid var(--rf-border,var(--border));
+    border-radius:999px;
+    background:transparent;
+    color:var(--rf-muted,var(--muted));
+    font:inherit;
+    font-size:.78rem;
+    cursor:pointer;
+  }
+
+  .app-center-page .catalog-facet:hover {
+    color:var(--rf-text,var(--text));
+    border-color:color-mix(in srgb,var(--rf-text,var(--text)) 28%,var(--rf-border,var(--border)));
+  }
+
+  .app-center-page .catalog-facet.active {
+    color:var(--rf-text,var(--text));
+    border-color:rgba(44,255,75,.42);
+    background:rgba(44,255,75,.08);
+  }
+
+  .app-center-page .catalog-facet strong {
+    min-width:1.35rem;
+    padding:.06rem .34rem;
+    border-radius:999px;
+    background:var(--rf-hover,var(--hover));
+    color:inherit;
+    font-size:.7rem;
+    text-align:center;
+  }
+
+  .app-center-page .catalog-card-compact {
+    min-height:0;
+  }
+
+  .app-center-page .catalog-card-compact.update-available {
+    border-color:rgba(247,185,85,.34);
+  }
+
+  .app-center-page .catalog-card-main {
+    min-width:0;
+    display:grid;
+    gap:.58rem;
+  }
+
+  .app-center-page .catalog-card-description {
+    display:-webkit-box;
+    min-height:2.65em;
+    margin:.05rem 0;
+    overflow:hidden;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    line-clamp:2;
+    color:var(--rf-muted,var(--muted));
+    line-height:1.35;
+  }
+
+  .app-center-page .catalog-card-meta {
+    display:flex;
+    align-items:center;
+    gap:.38rem;
+    flex-wrap:wrap;
+  }
+
+  .app-center-page .catalog-meta-chip {
+    display:inline-flex;
+    align-items:center;
+    min-height:24px;
+    padding:.18rem .46rem;
+    border:1px solid var(--rf-border,var(--border));
+    border-radius:999px;
+    color:var(--rf-muted,var(--muted));
+    background:rgba(255,255,255,.025);
+    font-size:.72rem;
+    line-height:1.1;
+  }
+
+  .app-center-page .catalog-meta-chip.good {
+    color:var(--rf-good,#52d273);
+    border-color:rgba(82,210,115,.32);
+  }
+
+  .app-center-page .catalog-card-compact .compact-foot {
+    margin-top:.7rem;
+    padding-top:.62rem;
+    border-top:1px solid var(--rf-border,var(--border));
+  }
+
+  .app-center-page .catalog-card-compact .catalog-actions {
+    gap:.38rem;
   }
   .entware-summary { display:flex; gap:1.2rem; flex-wrap:wrap; margin:1rem 0; color:var(--rf-muted,var(--muted)); }
   .entware-package-list { display:grid; gap:.55rem; margin-top:1rem; }

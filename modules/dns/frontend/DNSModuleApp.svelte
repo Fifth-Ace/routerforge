@@ -496,6 +496,8 @@
   function toggleResolverSection(key) {
     const duration = resolverSectionMotionMs();
 
+    // direct collapse state binding keeps the template reactive without relying
+    // on unrelated resolver polling to trigger a later DOM update.
     // Re-open a section while its cheap close animation is still running.
     if (isResolverSectionClosing(key)) {
       clearResolverSectionTimer(resolverSectionCloseTimers, key);
@@ -1103,7 +1105,7 @@
       <div class="resolver-section-stack">
         {#each resolverSections as section (section.key)}
           <section class="panel resolver-section-panel">
-            <button class="resolver-section-toggle" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!isResolverSectionVisuallyCollapsed(section.key)}>
+            <button class="resolver-section-toggle" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!(collapsedResolverSections[section.key] || closingResolverSections[section.key])}>
               <div class="resolver-section-heading">
                 <strong>{section.label}</strong>
                 <span>{section.subtitle}</span>
@@ -1111,12 +1113,12 @@
               <div class="resolver-section-meta">
                 <span class="state-pill {section.kind === 'private' ? 'warning' : section.kind === 'custom' ? 'accent' : 'info'}">{section.badge}</span>
                 <span class="panel-meta">{section.total}</span>
-                <span class="resolver-section-chevron" class:collapsed={isResolverSectionVisuallyCollapsed(section.key)}>▾</span>
+                <span class="resolver-section-chevron" class:collapsed={!!(collapsedResolverSections[section.key] || closingResolverSections[section.key])}>▾</span>
               </div>
             </button>
 
-            {#if shouldRenderResolverSection(section.key)}
-            <div class="resolver-section-body" class:closing={isResolverSectionClosing(section.key)} class:opening={isResolverSectionOpening(section.key)} aria-hidden={isResolverSectionClosing(section.key)}>
+            {#if !collapsedResolverSections[section.key] || closingResolverSections[section.key]}
+            <div class="resolver-section-body" class:closing={!!closingResolverSections[section.key]} class:opening={!!openingResolverSections[section.key]} aria-hidden={!!closingResolverSections[section.key]}>
               <div class="resolver-section-body-inner">
                 <div class="resolver-group-grid" class:single-column={section.kind === 'custom'}>
                 {#each section.groups as group (group.key)}
@@ -1162,7 +1164,7 @@
           <div class="resolver-master-list">
             {#each resolverSections as section (section.key)}
               <div class="resolver-master-section">
-                <button class="resolver-master-section-head" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!isResolverSectionVisuallyCollapsed(section.key)}>
+                <button class="resolver-master-section-head" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!(collapsedResolverSections[section.key] || closingResolverSections[section.key])}>
                   <span class="resolver-master-section-copy">
                     <strong>{section.label}</strong>
                     <small>{section.subtitle}</small>
@@ -1170,12 +1172,12 @@
                   <span class="resolver-master-section-meta">
                     <span class="state-pill {section.kind === 'private' ? 'warning' : section.kind === 'custom' ? 'accent' : 'info'}">{section.badge}</span>
                     <strong>{section.total}</strong>
-                    <span class="resolver-section-chevron" class:collapsed={isResolverSectionVisuallyCollapsed(section.key)}>▾</span>
+                    <span class="resolver-section-chevron" class:collapsed={!!(collapsedResolverSections[section.key] || closingResolverSections[section.key])}>▾</span>
                   </span>
                 </button>
 
-                {#if shouldRenderResolverSection(section.key)}
-                <div class="resolver-master-section-body" class:closing={isResolverSectionClosing(section.key)} class:opening={isResolverSectionOpening(section.key)} aria-hidden={isResolverSectionClosing(section.key)}>
+                {#if !collapsedResolverSections[section.key] || closingResolverSections[section.key]}
+                <div class="resolver-master-section-body" class:closing={!!closingResolverSections[section.key]} class:opening={!!openingResolverSections[section.key]} aria-hidden={!!closingResolverSections[section.key]}>
                   <div class="resolver-master-section-body-inner">
                     {#each section.groups as group (group.key)}
                     <div class="resolver-master-group">

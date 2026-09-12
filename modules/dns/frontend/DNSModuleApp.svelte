@@ -212,7 +212,10 @@
     return !q || `${r.name || ''} ${r.provider || ''} ${r.variant || ''} ${r.protocol || ''} ${r.address || ''} ${r.uri || ''} ${r.sni || ''} ${(r.domains || []).join(' ')}`.toLowerCase().includes(q);
   });
 
-  $: resolverGroups = buildResolverGroups(filteredResolvers, locale);
+  let resolverSections = [];
+  let collapsedResolverSections = {};
+
+  $: resolverSections = buildResolverSections(filteredResolvers, locale);
   $: if (filteredResolvers.length && !filteredResolvers.some((r) => r.id === selectedResolverId)) selectedResolverId = filteredResolvers[0].id;
   $: if (!filteredResolvers.length && selectedResolverId) selectedResolverId = '';
   $: selectedResolver = filteredResolvers.find((r) => r.id === selectedResolverId) || null;
@@ -331,52 +334,114 @@
     if (!count) return L.global;
     return locale === 'en' ? `${count} domain${count === 1 ? '' : 's'}` : `${count} ${count === 1 ? 'домен' : count > 1 && count < 5 ? 'домена' : 'доменов'}`;
   }
-  function buildResolverGroups(rows = [], currentLocale = 'ru') {
-    const groups = [];
-    const custom = rows.filter((resolver) => !resolver?.preset);
-    if (custom.length) {
-      groups.push({
-        key:'custom',
-        label:currentLocale === 'en' ? 'Keenetic / custom' : 'Keenetic / свои',
-        subtitle:currentLocale === 'en' ? 'Configured, disabled and dynamic resolvers' : 'Настроенные, отключённые и динамические резолверы',
-        preset:false,
-        resolvers:custom
-      });
-    }
+  const PRIVATE_DNS_PROVIDERS = new Set(['Xbox DNS','AstraCat','MALW','Mafioznik']);
 
+  function isPrivatePresetProvider(provider) {
+    return PRIVATE_DNS_PROVIDERS.has(String(provider || '').trim());
+  }
+
+  function buildProviderResolverGroups(rows = [], currentLocale = 'ru') {
     const byProvider = new Map();
     for (const resolver of rows) {
-      if (!resolver?.preset) continue;
-      const provider = String(resolver.provider || 'Public DNS').trim() || 'Public DNS';
+      const provider = String(resolver?.provider || (currentLocale === 'en' ? 'Public DNS' : 'Публичный DNS')).trim() || (currentLocale === 'en' ? 'Public DNS' : 'Публичный DNS');
       if (!byProvider.has(provider)) byProvider.set(provider, []);
       byProvider.get(provider).push(resolver);
     }
 
     const rank = { DoT:0, DoH:1, DNS:2 };
-    const providers = [...byProvider.keys()].sort((a,b) => a.localeCompare(b, currentLocale === 'en' ? 'en' : 'ru', { numeric:true, sensitivity:'base' }));
-    for (const provider of providers) {
-      const providerRows = byProvider.get(provider).slice().sort((a,b) => {
-        const aRank = Object.prototype.hasOwnProperty.call(rank, a.protocol) ? rank[a.protocol] : 9;
-        const bRank = Object.prototype.hasOwnProperty.call(rank, b.protocol) ? rank[b.protocol] : 9;
-        if (aRank !== bRank) return aRank - bRank;
-        return endpoint(a).localeCompare(endpoint(b), undefined, { numeric:true, sensitivity:'base' });
+    return [...byProvider.keys()]
+      .sort((a,b) => a.localeCompare(b, currentLocale === 'en' ? 'en' : 'ru', { numeric:true, sensitivity:'base' }))
+      .map((provider) => {
+        const providerRows = byProvider.get(provider).slice().sort((a,b) => {
+          const aRank = Object.prototype.hasOwnProperty.call(rank, a.protocol) ? rank[a.protocol] : 9;
+          const bRank = Object.prototype.hasOwnProperty.call(rank, b.protocol) ? rank[b.protocol] : 9;
+          if (aRank !== bRank) return aRank - bRank;
+          return endpoint(a).localeCompare(endpoint(b), undefined, { numeric:true, sensitivity:'base' });
+        });
+        return {
+          key:`provider:${provider}`,
+          label:provider,
+          subtitle:currentLocale === 'en' ? 'Base resolvers · DoT + DoH' : 'Базовые резолверы · DoT + DoH',
+          preset:true,
+          resolvers:providerRows
+        };
       });
-      groups.push({
-        key:`preset:${provider}`,
-        label:provider,
-        subtitle:currentLocale === 'en' ? 'Public DNS · DoT + DoH' : 'Публичный DNS · DoT + DoH',
-        preset:true,
-        resolvers:providerRows
+  }
+
+  function buildResolverSections(rows = [], currentLocale = 'ru') {
+    const sections = [];
+    const custom = rows.filter((resolver) => !resolver?.preset);
+    if (custom.length) {
+      sections.push({
+        key:'custom',
+        label:currentLocale === 'en' ? 'Keenetic / custom' : 'Keenetic / свои',
+        subtitle:currentLocale === 'en' ? 'Configured, disabled and dynamic resolvers' : 'Настроенные, отключённые и динамические резолверы',
+        kind:'custom',
+        badge:'LOCAL',
+        total:custom.length,
+        groups:[{
+          key:'custom',
+          label:currentLocale === 'en' ? 'Keenetic / custom' : 'Keenetic / свои',
+          subtitle:currentLocale === 'en' ? 'Configured, disabled and dynamic resolvers' : 'Настроенные, отключённые и динамические резолверы',
+          preset:false,
+          resolvers:custom
+        }]
       });
     }
-    return groups;
+
+    const publicPresetRows = rows.filter((resolver) => resolver?.preset && !isPrivatePresetProvider(resolver.provider));
+    if (publicPresetRows.length) {
+      sections.push({
+        key:'public-presets',
+        label:currentLocale === 'en' ? 'Public DNS' : 'Публичные DNS',
+        subtitle:currentLocale === 'en' ? 'Global public base resolvers' : 'Глобальные публичные базовые резолверы',
+        kind:'public',
+        badge:'PUBLIC',
+        total:publicPresetRows.length,
+        groups:buildProviderResolverGroups(publicPresetRows, currentLocale)
+      });
+    }
+
+    const privatePresetRows = rows.filter((resolver) => resolver?.preset && isPrivatePresetProvider(resolver.provider));
+    if (privatePresetRows.length) {
+      sections.push({
+        key:'private-presets',
+        label:currentLocale === 'en' ? 'Private DNS' : 'Частные DNS',
+        subtitle:currentLocale === 'en' ? 'Stable private base resolvers' : 'Стабильные частные базовые резолверы',
+        kind:'private',
+        badge:'PRIVATE',
+        total:privatePresetRows.length,
+        groups:buildProviderResolverGroups(privatePresetRows, currentLocale)
+      });
+    }
+
+    return sections;
   }
 
   function resolverListTitle(resolver) {
     if (resolver?.preset) return resolver.variant || resolver.protocol || 'DNS';
     return resolver?.name || resolver?.protocol || 'DNS';
   }
-  function setResolverView(value) {
+
+  function resolverPresetKind(resolver) {
+    if (!resolver?.preset) return '';
+    return isPrivatePresetProvider(resolver.provider) ? 'PRIVATE' : 'PUBLIC';
+  }
+
+  function resolverStatusPillClass(resolver) {
+    const base = resolverStatusClass(resolver);
+    return resolver?.disabled ? `${base} is-disabled` : base;
+  }
+
+  function isResolverSectionCollapsed(key) {
+    return !!collapsedResolverSections[key];
+  }
+
+  function toggleResolverSection(key) {
+    collapsedResolverSections = { ...collapsedResolverSections, [key]: !collapsedResolverSections[key] };
+  }
+
+  function setResolverView(value) {  function setResolverView(value) {
     if (!['detail','cards'].includes(value)) return;
     resolverView = value;
     try { localStorage.setItem('routerforge:dns:resolver-view', value); } catch {}
@@ -911,55 +976,98 @@
     {#if !filteredResolvers.length}
       <section class="panel"><div class="empty-box">{L.noResolvers}</div></section>
     {:else if resolverView === 'cards'}
-      <div class="resolver-group-grid">
-        {#each resolverGroups as group (group.key)}
-          <section class="panel resolver-group-card" class:custom={!group.preset}>
-            <div class="resolver-group-head">
-              <div><strong>{group.label}</strong><span>{group.subtitle}</span></div>
-              <span class="panel-meta">{group.resolvers.length}</span>
-            </div>
-            <div class="resolver-group-options">
-              {#each group.resolvers as resolver (resolver.id)}
-                <div class="resolver-group-option">
-                  <span class="pill accent resolver-group-protocol">{resolver.protocol}</span>
-                  <button class="resolver-group-main" type="button" onclick={() => { selectResolver(resolver.id); setResolverView('detail'); }}>
-                    <strong>{resolverListTitle(resolver)}</strong>
-                    <span class="mono" title={endpoint(resolver)}>{endpoint(resolver)}</span>
-                  </button>
-                  <div class="resolver-group-state">
-                    {#if resolver.preset}<span class="state-pill info">PUBLIC</span>{/if}
-                    <span class="state-pill {resolverStatusClass(resolver)}">{resolverStatusText(resolver)}</span>
-                  </div>
-                  <div class="resolver-group-actions">
-                    <button class="action" type="button" onclick={() => { selectResolver(resolver.id); setResolverView('detail'); }}>{locale === 'en' ? 'Details' : 'Сведения'}</button>
-                    {#if !resolver.preset && !resolver.dynamic}<button class="action" type="button" onclick={() => openEdit(resolver)}>{L.edit}</button>{/if}
-                    {#if resolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(resolver,'enable')}>{L.enable}</button>{:else if !resolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(resolver,'disable')}>{L.disable}</button>{/if}
-                    {#if !resolver.preset && !resolver.dynamic}<button class="action danger" type="button" onclick={() => resolverAction(resolver,'delete')}>{L.remove}</button>{/if}
-                  </div>
-                </div>
-              {/each}
-            </div>
+      <div class="resolver-section-stack">
+        {#each resolverSections as section (section.key)}
+          <section class="panel resolver-section-panel">
+            <button class="resolver-section-toggle" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!isResolverSectionCollapsed(section.key)}>
+              <div class="resolver-section-heading">
+                <strong>{section.label}</strong>
+                <span>{section.subtitle}</span>
+              </div>
+              <div class="resolver-section-meta">
+                <span class="state-pill {section.kind === 'private' ? 'warning' : section.kind === 'custom' ? 'accent' : 'info'}">{section.badge}</span>
+                <span class="panel-meta">{section.total}</span>
+                <span class="resolver-section-chevron" class:collapsed={isResolverSectionCollapsed(section.key)}>▾</span>
+              </div>
+            </button>
+
+            {#if !isResolverSectionCollapsed(section.key)}
+              <div class="resolver-group-grid" class:single-column={section.kind === 'custom'}>
+                {#each section.groups as group (group.key)}
+                  <section class="panel resolver-group-card" class:custom={!group.preset}>
+                    <div class="resolver-group-head">
+                      <div><strong>{group.label}</strong><span>{group.subtitle}</span></div>
+                      <span class="panel-meta">{group.resolvers.length}</span>
+                    </div>
+                    <div class="resolver-group-options">
+                      {#each group.resolvers as resolver (resolver.id)}
+                        <div class="resolver-group-option">
+                          <span class="pill accent resolver-group-protocol">{resolver.protocol}</span>
+                          <button class="resolver-group-main" type="button" onclick={() => { selectResolver(resolver.id); setResolverView('detail'); }}>
+                            <strong>{resolverListTitle(resolver)}</strong>
+                            <span class="mono" title={endpoint(resolver)}>{endpoint(resolver)}</span>
+                          </button>
+                          <div class="resolver-group-state">
+                            {#if resolver.preset}<span class="state-pill {resolverPresetKind(resolver) === 'PRIVATE' ? 'warning' : 'info'}">{resolverPresetKind(resolver)}</span>{/if}
+                            <span class="state-pill {resolverStatusPillClass(resolver)}">{resolverStatusText(resolver)}</span>
+                          </div>
+                          <div class="resolver-group-actions">
+                            <button class="action" type="button" onclick={() => { selectResolver(resolver.id); setResolverView('detail'); }}>{locale === 'en' ? 'Details' : 'Сведения'}</button>
+                            {#if !resolver.preset && !resolver.dynamic}<button class="action" type="button" onclick={() => openEdit(resolver)}>{L.edit}</button>{/if}
+                            {#if resolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(resolver,'enable')}>{L.enable}</button>{:else if !resolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(resolver,'disable')}>{L.disable}</button>{/if}
+                            {#if !resolver.preset && !resolver.dynamic}<button class="action danger" type="button" onclick={() => resolverAction(resolver,'delete')}>{L.remove}</button>{/if}
+                          </div>
+                        </div>
+                      {/each}
+                    </div>
+                  </section>
+                {/each}
+              </div>
+            {/if}
           </section>
         {/each}
-      </div>    {:else}
+      </div>
+    {:else}
+      <div class="resolver-master-detail">    {:else}
       <div class="resolver-master-detail">
         <aside class="panel resolver-master-panel">
           <div class="panel-head"><div><strong>{L.configured}</strong><span>{filteredResolvers.length}/{resolvers.length} · {L.nativeHint}</span></div></div>
           <div class="resolver-master-list">
-            {#each resolverGroups as group (group.key)}
-              <div class="resolver-master-group">
-                <div class="resolver-master-group-head"><span>{group.label}</span><strong>{group.resolvers.length}</strong></div>
-                {#each group.resolvers as resolver (resolver.id)}
-                  <button class="resolver-master-item" class:active={resolver.id === selectedResolverId} type="button" onclick={() => selectResolver(resolver.id)}>
-                    <span class="resolver-master-dot {resolverStatusClass(resolver)}"></span>
-                    <span class="resolver-master-copy">
-                      <span class="resolver-master-title"><strong>{resolverListTitle(resolver)}</strong><span class="pill accent">{resolver.protocol}</span></span>
-                      <span class="resolver-master-endpoint mono" title={endpoint(resolver)}>{endpoint(resolver)}</span>
-                      <span class="resolver-master-meta">{resolverScopeSummary(resolver)} · {resolver.physical_count || 1} {locale === 'en' ? 'native' : 'нативн.'}{resolver.dynamic ? ` · ${resolver.service || 'DHCP'}` : ''}</span>
-                    </span>
-                    <span class="state-pill {resolverStatusClass(resolver)} resolver-master-state">{resolverStatusText(resolver)}</span>
-                  </button>
-                {/each}
+            {#each resolverSections as section (section.key)}
+              <div class="resolver-master-section">
+                <button class="resolver-master-section-head" type="button" onclick={() => toggleResolverSection(section.key)} aria-expanded={!isResolverSectionCollapsed(section.key)}>
+                  <span class="resolver-master-section-copy">
+                    <strong>{section.label}</strong>
+                    <small>{section.subtitle}</small>
+                  </span>
+                  <span class="resolver-master-section-meta">
+                    <span class="state-pill {section.kind === 'private' ? 'warning' : section.kind === 'custom' ? 'accent' : 'info'}">{section.badge}</span>
+                    <strong>{section.total}</strong>
+                    <span class="resolver-section-chevron" class:collapsed={isResolverSectionCollapsed(section.key)}>▾</span>
+                  </span>
+                </button>
+
+                {#if !isResolverSectionCollapsed(section.key)}
+                  {#each section.groups as group (group.key)}
+                    <div class="resolver-master-group">
+                      <div class="resolver-master-group-head"><span>{group.label}</span><strong>{group.resolvers.length}</strong></div>
+                      {#each group.resolvers as resolver (resolver.id)}
+                        <button class="resolver-master-item" class:active={resolver.id === selectedResolverId} type="button" onclick={() => selectResolver(resolver.id)}>
+                          <span class="resolver-master-dot {resolverStatusClass(resolver)}"></span>
+                          <span class="resolver-master-copy">
+                            <span class="resolver-master-title"><strong>{resolverListTitle(resolver)}</strong><span class="pill accent">{resolver.protocol}</span></span>
+                            <span class="resolver-master-endpoint mono" title={endpoint(resolver)}>{endpoint(resolver)}</span>
+                            <span class="resolver-master-meta">{resolverScopeSummary(resolver)} · {resolver.physical_count || 1} {locale === 'en' ? 'native' : 'нативн.'}{resolver.dynamic ? ` · ${resolver.service || 'DHCP'}` : ''}</span>
+                          </span>
+                          <span class="resolver-master-state-wrap">
+                            {#if resolver.preset}<span class="state-pill {resolverPresetKind(resolver) === 'PRIVATE' ? 'warning' : 'info'}">{resolverPresetKind(resolver)}</span>{/if}
+                            <span class="state-pill {resolverStatusPillClass(resolver)} resolver-master-state">{resolverStatusText(resolver)}</span>
+                          </span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/each}
+                {/if}
               </div>
             {/each}
           </div>        </aside>

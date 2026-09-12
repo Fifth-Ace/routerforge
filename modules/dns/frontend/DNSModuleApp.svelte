@@ -460,8 +460,8 @@
   }
 
   function resolverSectionMotionMs() {
-    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 170; }
-    catch { return 170; }
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220; }
+    catch { return 220; }
   }
 
   function clearResolverSectionTimer(timers, key) {

@@ -31,13 +31,95 @@ type platformStorage struct {
 }
 
 type platformInfo struct {
-	Hostname      string          `json:"hostname"`
-	Model         string          `json:"model"`
-	ModelFull     string          `json:"model_full,omitempty"`
-	Architecture  string          `json:"architecture"`
-	Target        string          `json:"target,omitempty"`
-	UptimeSeconds int64           `json:"uptime_seconds"`
-	Opt           platformStorage `json:"opt"`
+	Hostname         string          `json:"hostname"`
+	Model            string          `json:"model"`
+	ModelFull        string          `json:"model_full,omitempty"`
+	Architecture     string          `json:"architecture"`
+	Target           string          `json:"target,omitempty"`
+	TargetStatus     string          `json:"target_status,omitempty"`
+	TargetSource     string          `json:"target_source,omitempty"`
+	TargetCandidates []string        `json:"target_candidates,omitempty"`
+	UptimeSeconds    int64           `json:"uptime_seconds"`
+	Opt              platformStorage `json:"opt"`
+}
+
+type platformTargetResolution struct {
+	Status     string
+	Target     string
+	Source     string
+	Candidates []string
+}
+
+func parseEntwareTargets(raw string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, line := range strings.Split(raw, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "arch" {
+			continue
+		}
+		var target string
+		switch strings.ToLower(fields[1]) {
+		case "aarch64-3.10":
+			target = "aarch64-3.10"
+		case "mips-3.4":
+			target = "mips-3.4"
+		case "mipsel-3.4":
+			target = "mipsel-3.4"
+		default:
+			continue
+		}
+		if !seen[target] {
+			seen[target] = true
+			out = append(out, target)
+		}
+	}
+	return out
+}
+
+func targetResolutionFromArchitectureOutput(raw string) platformTargetResolution {
+	candidates := parseEntwareTargets(raw)
+	result := platformTargetResolution{
+		Status:     "unknown",
+		Source:     "opkg print-architecture",
+		Candidates: candidates,
+	}
+	if len(candidates) == 1 {
+		result.Status = "resolved"
+		result.Target = candidates[0]
+	} else if len(candidates) > 1 {
+		result.Status = "ambiguous"
+	}
+	return result
+}
+
+func readOpkgPrintArchitecture() (string, error) {
+	path := "/opt/bin/opkg"
+	if _, err := os.Stat(path); err != nil {
+		resolved, lookupErr := exec.LookPath("opkg")
+		if lookupErr != nil {
+			return "", lookupErr
+		}
+		path = resolved
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, path, "print-architecture").Output()
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
+}
+
+func resolvePlatformTarget() platformTargetResolution {
+	raw, err := readOpkgPrintArchitecture()
+	if err != nil {
+		return platformTargetResolution{
+			Status: "unknown",
+			Source: "opkg print-architecture",
+		}
+	}
+	return targetResolutionFromArchitectureOutput(raw)
 }
 
 func registerPlatformHandlers(mux *http.ServeMux) {
@@ -55,14 +137,18 @@ func registerPlatformHandlers(mux *http.ServeMux) {
 
 func readPlatformInfo() platformInfo {
 	full := readDeviceModel()
+	target := resolvePlatformTarget()
 	return platformInfo{
-		Hostname:      firstPlatformValue(readPlatformText("/proc/sys/kernel/hostname"), "RouterForge"),
-		Model:         shortDeviceModel(full),
-		ModelFull:     full,
-		Architecture:  runtime.GOARCH,
-		Target:        releaseTarget,
-		UptimeSeconds: readPlatformUptimeSeconds(),
-		Opt:           readPlatformStorage("/opt"),
+		Hostname:         firstPlatformValue(readPlatformText("/proc/sys/kernel/hostname"), "RouterForge"),
+		Model:            shortDeviceModel(full),
+		ModelFull:        full,
+		Architecture:     runtime.GOARCH,
+		Target:           target.Target,
+		TargetStatus:     target.Status,
+		TargetSource:     target.Source,
+		TargetCandidates: append([]string(nil), target.Candidates...),
+		UptimeSeconds:    readPlatformUptimeSeconds(),
+		Opt:              readPlatformStorage("/opt"),
 	}
 }
 

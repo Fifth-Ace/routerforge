@@ -20,8 +20,12 @@ type catalogDetection struct {
 }
 
 type catalogCompatibility struct {
-	Status string   `json:"status"`
-	Hints  []string `json:"hints,omitempty"`
+	Status         string   `json:"status"`
+	Hints          []string `json:"hints,omitempty"`
+	Targets        []string `json:"targets,omitempty"`
+	TargetStatus   string   `json:"target_status,omitempty"`
+	DetectedTarget string   `json:"detected_target,omitempty"`
+	TargetSource   string   `json:"target_source,omitempty"`
 }
 
 type catalogPackageMetadata struct {

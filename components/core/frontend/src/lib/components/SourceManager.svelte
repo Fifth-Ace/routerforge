@@ -9,7 +9,7 @@
   export let onclose = () => {};
   export let onchanged = () => {};
 
-  let state = { sources:[], allow_unverified:false, agreement_version:'', agreement_accepted_at:'' };
+  let state = { sources:[], allow_unverified:false, agreement_version:'', agreement_accepted_at:'', allow_local_sources:false, local_agreement_version:'', local_agreement_accepted_at:'' };
   let loading = true;
   let busy = '';
   let error = '';
@@ -18,6 +18,8 @@
   let preview = null;
   let riskOpen = false;
   let riskAccepted = false;
+  let localRiskOpen = false;
+  let localRiskAccepted = false;
   let legalOpen = false;
   let legalText = '';
   let legalLoading = false;
@@ -85,7 +87,7 @@
     if (busy) return;
     busy = 'security'; error = '';
     try {
-      await setAppSourceSecurity({ allow_unverified:false, accepted:false, agreement_version:state.agreement_version });
+      await setAppSourceSecurity({ scope:'unverified', allow_unverified:false, accepted:false, agreement_version:state.agreement_version });
       await load(); await onchanged();
     } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
@@ -95,8 +97,39 @@
     if (!riskAccepted || busy) return;
     busy = 'security'; error = '';
     try {
-      await setAppSourceSecurity({ allow_unverified:true, accepted:true, agreement_version:state.agreement_version });
+      await setAppSourceSecurity({ scope:'unverified', allow_unverified:true, accepted:true, agreement_version:state.agreement_version });
       riskOpen = false; riskAccepted = false;
+      await load(); await onchanged();
+    } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
+    finally { busy = ''; }
+  }
+
+  async function disableLocalSources() {
+    if (busy) return;
+    busy = 'local-security'; error = '';
+    try {
+      await setAppSourceSecurity({
+        scope:'local',
+        allow_local_sources:false,
+        local_accepted:false,
+        local_agreement_version:state.local_agreement_version
+      });
+      await load(); await onchanged();
+    } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
+    finally { busy = ''; }
+  }
+
+  async function enableLocalSources() {
+    if (!localRiskAccepted || busy) return;
+    busy = 'local-security'; error = '';
+    try {
+      await setAppSourceSecurity({
+        scope:'local',
+        allow_local_sources:true,
+        local_accepted:true,
+        local_agreement_version:state.local_agreement_version
+      });
+      localRiskOpen = false; localRiskAccepted = false;
       await load(); await onchanged();
     } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
@@ -153,6 +186,20 @@
       {/if}
     </section>
 
+    <section class="risk-panel local" class:enabled={state.allow_local_sources}>
+      <div>
+        <strong>{ru() ? 'Локальные источники (LAN)' : 'Local sources (LAN)'}</strong>
+        <p>{state.allow_local_sources
+          ? (ru() ? 'Разрешены HTTPS-источники в частных сетях. Loopback и link-local по-прежнему заблокированы.' : 'HTTPS sources on private networks are allowed. Loopback and link-local remain blocked.')
+          : (ru() ? 'Заблокированы по умолчанию.' : 'Blocked by default.')}</p>
+      </div>
+      {#if state.allow_local_sources}
+        <button class="button danger-subtle" disabled={Boolean(busy)} onclick={disableLocalSources}>{ru() ? 'Запретить' : 'Disable'}</button>
+      {:else}
+        <button class="button" disabled={Boolean(busy)} onclick={() => localRiskOpen = true}>{ru() ? 'Разрешить локальные' : 'Allow local'}</button>
+      {/if}
+    </section>
+
     <div class="source-list">
       {#if loading}
         <div class="source-empty">{ru() ? 'Загрузка…' : 'Loading…'}</div>
@@ -169,6 +216,7 @@
               <span class="mono source-url">{source.url}</span>
               <div class="source-meta">
                 <span>{source.kind === 'app' ? (ru() ? 'Одно приложение' : 'Single app') : (ru() ? 'Репозиторий' : 'Repository')}</span>
+                {#if source.local}<span>{ru() ? 'Локальная сеть' : 'Local network'}</span>{/if}
                 <span>{ru() ? 'Приложений' : 'Apps'}: {source.entry_count || 0}</span>
                 {#if source.revision}<span>rev {source.revision}</span>{/if}
                 {#if source.last_sync}<span>{ru() ? 'Синхр.' : 'Sync'}: {source.last_sync}</span>{/if}
@@ -217,13 +265,17 @@
           <span class="mono source-url">{preview.resolved_url}</span>
           <div class="source-preview-apps">
             {#each (preview.entries || []).slice(0, 8) as entry (entry.id)}
-              <span>{entry.name}{#if entry.category} · {entry.category}{/if}{#if entry.package} · <code>{entry.package}</code>{/if}</span>
+              <span>
+                {entry.name}{#if entry.category} · {entry.category}{/if}{#if entry.package} · <code>{entry.package}</code>{/if}
+                {#if (entry.targets || []).length} · <code>{entry.targets.join(', ')}</code>{/if}
+                {#if entry.target_status === 'incompatible'} · <strong>{ru() ? 'НЕСОВМЕСТИМО' : 'INCOMPATIBLE'}</strong>{/if}
+              </span>
             {/each}
             {#if Number(preview.entry_count || 0) > 8}<span>+{Number(preview.entry_count) - 8}</span>{/if}
           </div>
           <div class="source-preview-warning">{ru()
-            ? 'Источник не проверен RouterForge. R2 разрешает только безопасный opkg/manual lifecycle; произвольные install-скрипты и structured steps блокируются.'
-            : 'This source is not verified by RouterForge. R2 only allows safe opkg/manual lifecycle; arbitrary install scripts and structured steps are blocked.'}</div>
+            ? `Источник не проверен RouterForge. Разрешены только opkg/manual lifecycle; архитектура ${preview.entries?.[0]?.detected_target || 'не определена'} проверяется отдельно.${preview.local ? ' Источник находится в локальной сети.' : ''}`
+            : `This source is not verified by RouterForge. Only opkg/manual lifecycle is allowed; architecture ${preview.entries?.[0]?.detected_target || 'is unknown'} is checked separately.${preview.local ? ' The source is on a local network.' : ''}`}</div>
           <button class="button primary" disabled={Boolean(busy)} onclick={addSource}>{busy === 'add' ? (ru() ? 'Добавляем…' : 'Adding…') : (ru() ? 'Добавить источник' : 'Add source')}</button>
         </div>
       {/if}
@@ -259,6 +311,29 @@
   </div>
 {/if}
 
+{#if localRiskOpen}
+  <div class="risk-backdrop" role="presentation" onclick={() => localRiskOpen = false}>
+    <section class="risk-modal local-risk" role="alertdialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
+      <span class="risk-kicker">{ru() ? 'ЛОКАЛЬНАЯ СЕТЬ' : 'LOCAL NETWORK'}</span>
+      <h3>{ru() ? 'Разрешить локальные источники?' : 'Allow local sources?'}</h3>
+      <p>{ru()
+        ? 'RouterForge сможет обращаться к HTTPS-источникам в частных адресных диапазонах и к .local-именам. Такой источник может контролироваться другим устройством в вашей сети и не считается доверенным автоматически.'
+        : 'RouterForge will be allowed to access HTTPS sources on private address ranges and .local names. Such a source can be controlled by another device on your network and is not trusted automatically.'}</p>
+      <p>{ru()
+        ? 'Даже после включения localhost, loopback, link-local, multicast и cloud-metadata адреса остаются заблокированы. HTTPS и стандартная проверка TLS-сертификата сохраняются.'
+        : 'Even when enabled, localhost, loopback, link-local, multicast and cloud-metadata addresses remain blocked. HTTPS and normal TLS certificate validation remain required.'}</p>
+      <label class="risk-check">
+        <input type="checkbox" bind:checked={localRiskAccepted} />
+        <span>{ru() ? 'Я понимаю риск и хочу разрешить локальные источники.' : 'I understand the risk and want to allow local sources.'}</span>
+      </label>
+      <div class="risk-actions">
+        <button class="button" onclick={() => localRiskOpen = false}>{ru() ? 'Отмена' : 'Cancel'}</button>
+        <button class="button danger" disabled={!localRiskAccepted || Boolean(busy)} onclick={enableLocalSources}>{ru() ? 'РАЗРЕШИТЬ ЛОКАЛЬНЫЕ' : 'ALLOW LOCAL'}</button>
+      </div>
+    </section>
+  </div>
+{/if}
+
 {#if legalOpen}
   <div class="risk-backdrop" role="presentation" onclick={() => legalOpen = false}>
     <section class="legal-modal" role="dialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
@@ -278,7 +353,7 @@
   .source-head h2,.source-head h3{margin:.15rem 0 .25rem}.source-head p{margin:0;color:var(--rf-muted,var(--muted))}
   .eyebrow{font-size:.7rem;color:var(--rf-good,#52d273)}
   .risk-panel{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.8rem;border:1px solid rgba(247,185,85,.34);background:rgba(247,185,85,.06);border-radius:.75rem;margin-bottom:.9rem}
-  .risk-panel.enabled{border-color:rgba(255,78,78,.45);background:rgba(255,78,78,.07)}
+  .risk-panel.enabled{border-color:rgba(255,78,78,.45);background:rgba(255,78,78,.07)} .risk-panel.local{border-color:rgba(95,160,255,.34);background:rgba(95,160,255,.06)} .risk-panel.local.enabled{border-color:rgba(95,160,255,.5);background:rgba(95,160,255,.1)}
   .risk-panel p{margin:.2rem 0 0;color:var(--rf-muted,var(--muted))}
   .source-list{display:grid;gap:.55rem}
   .source-card{display:flex;justify-content:space-between;gap:1rem;align-items:center;border:1px solid var(--rf-border,var(--border));border-radius:.75rem;padding:.75rem;background:rgba(255,255,255,.018)}

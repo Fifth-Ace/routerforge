@@ -263,3 +263,90 @@ func TestPreviewResolverCanBeStubbed(t *testing.T) {
 		t.Fatalf("stub resolver failed: cache=%#v err=%v", cache, err)
 	}
 }
+func TestLocalSourcePermissionGate(t *testing.T) {
+	withTempAppSources(t)
+
+	if _, err := validateConfiguredAppSourceURL("https://192.168.1.10/index.json"); err == nil {
+		t.Fatal("private source accepted before local-source permission")
+	}
+	if _, err := setAppSourceSecurity(appSourceSecurityRequest{
+		Scope:                 "local",
+		AllowLocalSources:     true,
+		LocalAccepted:         false,
+		LocalAgreementVersion: appSourcesLocalAgreementVersion,
+	}); err == nil {
+		t.Fatal("local-source mode enabled without warning acceptance")
+	}
+	cfg, err := setAppSourceSecurity(appSourceSecurityRequest{
+		Scope:                 "local",
+		AllowLocalSources:     true,
+		LocalAccepted:         true,
+		LocalAgreementVersion: appSourcesLocalAgreementVersion,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.AllowLocalSources || cfg.LocalAgreementAccepted == "" {
+		t.Fatalf("local-source permission not persisted: %#v", cfg)
+	}
+	if _, err := validateConfiguredAppSourceURL("https://192.168.1.10/index.json"); err != nil {
+		t.Fatalf("private source rejected after opt-in: %v", err)
+	}
+	for _, raw := range []string{
+		"https://127.0.0.1/index.json",
+		"https://169.254.169.254/latest/meta-data",
+		"https://[::1]/index.json",
+	} {
+		if _, err := validateConfiguredAppSourceURL(raw); err == nil {
+			t.Fatalf("blocked address accepted with local opt-in: %s", raw)
+		}
+	}
+}
+
+func TestThirdPartyTargetCompatibilityGate(t *testing.T) {
+	item := catalogItem{
+		Install: catalogInstallPlan{Method: "opkg", Packages: []string{"demo"}},
+		Compatibility: catalogCompatibility{
+			Targets: []string{"mipsel-3.4"},
+		},
+	}
+	applyUserSourceTargetCompatibility(&item, platformTargetResolution{
+		Status: "resolved", Target: "aarch64-3.10", Source: "opkg print-architecture",
+	})
+	if item.Compatibility.TargetStatus != "incompatible" {
+		t.Fatalf("status=%q, want incompatible", item.Compatibility.TargetStatus)
+	}
+	if reason := appSourceTargetBlockReason(item); !strings.Contains(reason, "not compatible") {
+		t.Fatalf("unexpected block reason: %q", reason)
+	}
+
+	applyUserSourceTargetCompatibility(&item, platformTargetResolution{
+		Status: "resolved", Target: "mipsel-3.4", Source: "opkg print-architecture",
+	})
+	if item.Compatibility.TargetStatus != "compatible" {
+		t.Fatalf("status=%q, want compatible", item.Compatibility.TargetStatus)
+	}
+
+	all := catalogItem{Compatibility: catalogCompatibility{Targets: []string{"all"}}}
+	applyUserSourceTargetCompatibility(&all, platformTargetResolution{Status: "unknown", Source: "opkg print-architecture"})
+	if all.Compatibility.TargetStatus != "compatible" {
+		t.Fatalf("all target status=%q, want compatible", all.Compatibility.TargetStatus)
+	}
+}
+
+func TestThirdPartyRejectsUnknownTarget(t *testing.T) {
+	raw := []byte(`{
+	  "schema_version":1,
+	  "app":{
+	    "id":"bad-target",
+	    "kind":"integration",
+	    "name":"Bad Target",
+	    "publisher":{"name":"Example"},
+	    "compatibility":{"targets":["x86_64"]},
+	    "install":{"method":"manual"}
+	  }
+	}`)
+	if _, err := parseThirdPartySourceDocument(raw, "https://example.com/routerforge.json", "app"); err == nil {
+		t.Fatal("unsupported compatibility target accepted")
+	}
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "registry_id": "rf-lab-fixtures",
+  "name": "RouterForge App Center R2.1 Fixtures",
+  "revision": "2026-09-12-r21",
+  "entries": [
+    {
+      "id": "fixture-all",
+      "kind": "integration",
+      "name": "Fixture / All Architectures",
+      "category": "RouterForge Lab",
+      "description": "Architecture-independent fixture for App Center source validation.",
+      "publisher": { "id": "rf-lab", "name": "RouterForge Lab" },
+      "compatibility": { "targets": ["all"] },
+      "install": { "method": "manual", "notes": ["Test fixture only."] }
+    },
+    {
+      "id": "fixture-arm64",
+      "kind": "integration",
+      "name": "Fixture / ARM64",
+      "category": "RouterForge Lab",
+      "description": "ARM64-only fixture used to verify target gating.",
+      "publisher": { "id": "rf-lab", "name": "RouterForge Lab" },
+      "compatibility": { "targets": ["aarch64-3.10"] },
+      "install": { "method": "manual", "notes": ["Test fixture only."] }
+    },
+    {
+      "id": "fixture-mipsel",
+      "kind": "integration",
+      "name": "Fixture / MIPSel",
+      "category": "RouterForge Lab",
+      "description": "MIPSel-only fixture used to verify target gating.",
+      "publisher": { "id": "rf-lab", "name": "RouterForge Lab" },
+      "compatibility": { "targets": ["mipsel-3.4"] },
+      "install": { "method": "manual", "notes": ["Test fixture only."] }
+    }
+  ]
+}

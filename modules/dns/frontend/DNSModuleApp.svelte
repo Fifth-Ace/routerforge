@@ -441,7 +441,7 @@
     collapsedResolverSections = { ...collapsedResolverSections, [key]: !collapsedResolverSections[key] };
   }
 
-  function setResolverView(value) {  function setResolverView(value) {
+  function setResolverView(value) {
     if (!['detail','cards'].includes(value)) return;
     resolverView = value;
     try { localStorage.setItem('routerforge:dns:resolver-view', value); } catch {}
@@ -1028,7 +1028,6 @@
         {/each}
       </div>
     {:else}
-      <div class="resolver-master-detail">    {:else}
       <div class="resolver-master-detail">
         <aside class="panel resolver-master-panel">
           <div class="panel-head"><div><strong>{L.configured}</strong><span>{filteredResolvers.length}/{resolvers.length} · {L.nativeHint}</span></div></div>

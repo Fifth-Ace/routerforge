@@ -761,6 +761,14 @@
 
   async function refreshCurrent() {
     if (refreshBusy || document.hidden) return;
+
+    // Resolver management is interaction-heavy. A full 5s refresh replaces
+    // resolverState + snapshot + plain DNS data and can keep the main thread
+    // busy while users expand/collapse resolver groups. The resolver page is
+    // already refreshed on initial load, manual Refresh, and every mutation.
+    // Keep automatic polling for the live telemetry tabs only.
+    if (tab === 'resolvers') return;
+
     refreshBusy = true;
     try {
       await loadAll(true);

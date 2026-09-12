@@ -32,6 +32,8 @@
   let form = blankForm();
   let advanced = false;
   let refreshTimer = null;
+  let frameSyncTimer = null;
+  let sectionAnimationUntil = 0;
   let refreshBusy = false;
 
   let overviewSearch = '';
@@ -439,13 +441,15 @@
 
   function toggleResolverSection(key) {
     collapsedResolverSections = { ...collapsedResolverSections, [key]: !collapsedResolverSections[key] };
+    sectionAnimationUntil = performance.now() + 220;
+    queueFrameHeightSync();
   }
 
   function setResolverView(value) {
     if (!['detail','cards'].includes(value)) return;
     resolverView = value;
     try { localStorage.setItem('routerforge:dns:resolver-view', value); } catch {}
-    setTimeout(syncFrameHeight, 0);
+    queueFrameHeightSync();
   }
   function selectResolver(id) { selectedResolverId = id; }
   function normHost(value) { return String(value || '').trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, ''); }
@@ -807,15 +811,29 @@
       // module is same-origin, size the iframe to its real content and let the
       // RouterForge shell/browser own vertical scrolling.
       const contentHeight = Math.ceil(root.getBoundingClientRect().height) + 4;
-      const frameTop = frame.getBoundingClientRect().top;
-      const viewportFloor = Math.max(720, Math.floor(window.parent.innerHeight - frameTop - 2));
+      const frameRect = frame.getBoundingClientRect();
+      const viewportFloor = Math.max(720, Math.floor(window.parent.innerHeight - frameRect.top - 2));
       const nextHeight = Math.max(contentHeight, viewportFloor);
 
       frame.style.minHeight = '0px';
-      if (Math.abs(frame.getBoundingClientRect().height - nextHeight) > 1) {
+      if (Math.abs(frameRect.height - nextHeight) > 1) {
         frame.style.height = `${nextHeight}px`;
       }
     } catch {}
+  }
+
+  function queueFrameHeightSync() {
+    try {
+      if (frameSyncTimer !== null) clearTimeout(frameSyncTimer);
+      const animationWait = Math.max(0, sectionAnimationUntil - performance.now());
+      const wait = Math.max(24, Math.ceil(animationWait) + 12);
+      frameSyncTimer = setTimeout(() => {
+        frameSyncTimer = null;
+        window.requestAnimationFrame(() => syncFrameHeight());
+      }, wait);
+    } catch {
+      syncFrameHeight();
+    }
   }
 
   onMount(() => {
@@ -828,7 +846,7 @@
 
     const root = document.querySelector('.dns-module');
     const resizeObserver = typeof ResizeObserver !== 'undefined' && root
-      ? new ResizeObserver(() => syncFrameHeight())
+      ? new ResizeObserver(() => queueFrameHeightSync())
       : null;
     resizeObserver?.observe(root);
 
@@ -843,20 +861,21 @@
     } catch {}
 
     window.addEventListener('resize', syncShell);
-    try { window.parent.addEventListener('resize', syncFrameHeight); } catch {}
+    try { window.parent.addEventListener('resize', queueFrameHeightSync); } catch {}
 
     loadAll().then(() => {
       ensureViewData(tab);
-      syncFrameHeight();
+      queueFrameHeightSync();
     });
     refreshTimer = setInterval(refreshCurrent, 5000);
 
     return () => {
       clearInterval(refreshTimer);
+      if (frameSyncTimer !== null) clearTimeout(frameSyncTimer);
       resizeObserver?.disconnect();
       parentThemeObserver?.disconnect();
       window.removeEventListener('resize', syncShell);
-      try { window.parent.removeEventListener('resize', syncFrameHeight); } catch {}
+      try { window.parent.removeEventListener('resize', queueFrameHeightSync); } catch {}
     };
   });
 </script>
@@ -991,8 +1010,9 @@
               </div>
             </button>
 
-            {#if !isResolverSectionCollapsed(section.key)}
-              <div class="resolver-group-grid" class:single-column={section.kind === 'custom'}>
+            <div class="resolver-section-body" class:collapsed={isResolverSectionCollapsed(section.key)} aria-hidden={isResolverSectionCollapsed(section.key)}>
+              <div class="resolver-section-body-inner">
+                <div class="resolver-group-grid" class:single-column={section.kind === 'custom'}>
                 {#each section.groups as group (group.key)}
                   <section class="panel resolver-group-card" class:custom={!group.preset}>
                     <div class="resolver-group-head">
@@ -1022,8 +1042,9 @@
                     </div>
                   </section>
                 {/each}
+                </div>
               </div>
-            {/if}
+            </div>
           </section>
         {/each}
       </div>
@@ -1046,8 +1067,9 @@
                   </span>
                 </button>
 
-                {#if !isResolverSectionCollapsed(section.key)}
-                  {#each section.groups as group (group.key)}
+                <div class="resolver-master-section-body" class:collapsed={isResolverSectionCollapsed(section.key)} aria-hidden={isResolverSectionCollapsed(section.key)}>
+                  <div class="resolver-master-section-body-inner">
+                    {#each section.groups as group (group.key)}
                     <div class="resolver-master-group">
                       <div class="resolver-master-group-head"><span>{group.label}</span><strong>{group.resolvers.length}</strong></div>
                       {#each group.resolvers as resolver (resolver.id)}
@@ -1065,8 +1087,9 @@
                         </button>
                       {/each}
                     </div>
-                  {/each}
-                {/if}
+                    {/each}
+                  </div>
+                </div>
               </div>
             {/each}
           </div>        </aside>

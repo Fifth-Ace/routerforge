@@ -1564,6 +1564,38 @@ html[data-radius="soft"] .dns-module {
 .dns-module .resolver-section-panel {
   overflow:hidden;
 }
+
+/* DNS 0.7.1 resolver collapse animation — immediate UI, deferred iframe resize. */
+.dns-module .resolver-section-body,
+.dns-module .resolver-master-section-body {
+  display:grid;
+  grid-template-rows:1fr;
+  opacity:1;
+  transition:
+    grid-template-rows .22s cubic-bezier(.22,.8,.24,1),
+    opacity .16s ease;
+}
+.dns-module .resolver-section-body-inner,
+.dns-module .resolver-master-section-body-inner {
+  min-height:0;
+  overflow:hidden;
+  opacity:1;
+  transform:translateY(0);
+  transition:
+    opacity .16s ease,
+    transform .22s cubic-bezier(.22,.8,.24,1);
+}
+.dns-module .resolver-section-body.collapsed,
+.dns-module .resolver-master-section-body.collapsed {
+  grid-template-rows:0fr;
+  opacity:0;
+  pointer-events:none;
+}
+.dns-module .resolver-section-body.collapsed > .resolver-section-body-inner,
+.dns-module .resolver-master-section-body.collapsed > .resolver-master-section-body-inner {
+  opacity:0;
+  transform:translateY(-5px);
+}
 .dns-module .resolver-section-toggle,
 .dns-module .resolver-master-section-head {
   width:100%;
@@ -1763,7 +1795,7 @@ html[data-radius="soft"] .dns-module {
   color:var(--rf-muted);
   font-size:13px;
   line-height:1;
-  transition:transform .15s ease;
+  transition:transform .22s cubic-bezier(.22,.8,.24,1);
 }
 .dns-module .resolver-section-chevron.collapsed {
   transform:rotate(-90deg);
@@ -1792,4 +1824,13 @@ html[data-radius="soft"] .dns-module {
   .dns-module .resolver-group-option { grid-template-columns:auto minmax(0,1fr); }
   .dns-module .resolver-group-state,
   .dns-module .resolver-group-actions { grid-column:2; justify-content:flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dns-module .resolver-section-body,
+  .dns-module .resolver-master-section-body,
+  .dns-module .resolver-section-body-inner,
+  .dns-module .resolver-master-section-body-inner,
+  .dns-module .resolver-section-chevron {
+    transition:none !important;
+  }
 }

@@ -934,7 +934,9 @@
       <p>{a(locale,'subtitle')}</p>
     </div>
     <div class="page-head-actions">
-      <button class="button" onclick={() => sourceManagerOpen = true}>{locale === 'ru' ? 'Источники' : 'Sources'}</button>
+      <div class="page-head-sources-row">
+        <button class="button compact" onclick={() => sourceManagerOpen = true}>{locale === 'ru' ? 'Источники' : 'Sources'}</button>
+      </div>
       <span class="state-chip {data.registry?.online && String(data.registry?.source || '').toLowerCase() === 'remote' ? 'good' : data.registry?.source === 'cache' ? 'warn' : 'neutral'}">
         {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
       </span>
@@ -1650,4 +1652,16 @@
     }
   }
 
-</style>
+.page-head-actions {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  row-gap: .45rem;
+}
+.page-head-sources-row {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+.page-head-sources-row .button {
+  min-width: 0;
+}</style>

@@ -20,12 +20,13 @@ import (
 )
 
 const (
-	appSourcesSchemaVersion    = 1
-	appSourcesAgreementVersion = "2026-09-12"
-	appSourceMaxBytes          = 2 << 20
-	appSourceMaxSources        = 16
-	appSourceMaxEntries        = 256
-	appSourceRiskConfirm       = "UNVERIFIED"
+	appSourcesSchemaVersion         = 1
+	appSourcesAgreementVersion      = "2026-09-12"
+	appSourcesLocalAgreementVersion = "2026-09-12-local-v1"
+	appSourceMaxBytes               = 2 << 20
+	appSourceMaxSources             = 16
+	appSourceMaxEntries             = 256
+	appSourceRiskConfirm            = "UNVERIFIED"
 )
 
 var (
@@ -40,11 +41,14 @@ var (
 var appSourceAgreementRU string
 
 type appSourcesConfig struct {
-	SchemaVersion     int               `json:"schema_version"`
-	AllowUnverified   bool              `json:"allow_unverified"`
-	AgreementVersion  string            `json:"agreement_version,omitempty"`
-	AgreementAccepted string            `json:"agreement_accepted_at,omitempty"`
-	Sources           []appSourceRecord `json:"sources"`
+	SchemaVersion          int               `json:"schema_version"`
+	AllowUnverified        bool              `json:"allow_unverified"`
+	AgreementVersion       string            `json:"agreement_version,omitempty"`
+	AgreementAccepted      string            `json:"agreement_accepted_at,omitempty"`
+	AllowLocalSources      bool              `json:"allow_local_sources"`
+	LocalAgreementVersion  string            `json:"local_agreement_version,omitempty"`
+	LocalAgreementAccepted string            `json:"local_agreement_accepted_at,omitempty"`
+	Sources                []appSourceRecord `json:"sources"`
 }
 
 type appSourceRecord struct {
@@ -58,6 +62,7 @@ type appSourceRecord struct {
 	Trust       string `json:"trust"`
 	Enabled     bool   `json:"enabled"`
 	ReadOnly    bool   `json:"read_only,omitempty"`
+	Local       bool   `json:"local,omitempty"`
 	Online      bool   `json:"online"`
 	Cached      bool   `json:"cached,omitempty"`
 	EntryCount  int    `json:"entry_count"`
@@ -74,6 +79,7 @@ type appSourceCache struct {
 	Name           string        `json:"name"`
 	Revision       string        `json:"revision,omitempty"`
 	ResolvedURL    string        `json:"resolved_url"`
+	Local          bool          `json:"local,omitempty"`
 	ManifestSHA256 string        `json:"manifest_sha256"`
 	Entries        []catalogItem `json:"entries"`
 }
@@ -94,11 +100,14 @@ type thirdPartySingleDocument struct {
 }
 
 type appSourcePreviewEntry struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Category  string `json:"category,omitempty"`
-	Publisher string `json:"publisher,omitempty"`
-	Package   string `json:"package,omitempty"`
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	Category       string   `json:"category,omitempty"`
+	Publisher      string   `json:"publisher,omitempty"`
+	Package        string   `json:"package,omitempty"`
+	Targets        []string `json:"targets,omitempty"`
+	TargetStatus   string   `json:"target_status,omitempty"`
+	DetectedTarget string   `json:"detected_target,omitempty"`
 }
 
 type appSourcePreview struct {
@@ -107,6 +116,7 @@ type appSourcePreview struct {
 	RegistryID     string                  `json:"registry_id"`
 	Revision       string                  `json:"revision,omitempty"`
 	ResolvedURL    string                  `json:"resolved_url"`
+	Local          bool                    `json:"local,omitempty"`
 	Trust          string                  `json:"trust"`
 	Fingerprint    string                  `json:"fingerprint"`
 	EntryCount     int                     `json:"entry_count"`
@@ -120,9 +130,13 @@ type appSourceMutationRequest struct {
 }
 
 type appSourceSecurityRequest struct {
-	AllowUnverified  bool   `json:"allow_unverified"`
-	Accepted         bool   `json:"accepted"`
-	AgreementVersion string `json:"agreement_version"`
+	Scope                 string `json:"scope,omitempty"`
+	AllowUnverified       bool   `json:"allow_unverified"`
+	Accepted              bool   `json:"accepted"`
+	AgreementVersion      string `json:"agreement_version"`
+	AllowLocalSources     bool   `json:"allow_local_sources"`
+	LocalAccepted         bool   `json:"local_accepted"`
+	LocalAgreementVersion string `json:"local_agreement_version"`
 }
 
 type appSourceToggleRequest struct {
@@ -246,7 +260,20 @@ func validAppSourceKind(kind string) string {
 	}
 }
 
+func appSourceLocalSourcesAllowed() bool {
+	cfg, err := loadAppSourcesConfig()
+	return err == nil && cfg.AllowLocalSources
+}
+
 func validateAppSourceURL(raw string) (*url.URL, error) {
+	return validateAppSourceURLWithPolicy(raw, false)
+}
+
+func validateConfiguredAppSourceURL(raw string) (*url.URL, error) {
+	return validateAppSourceURLWithPolicy(raw, appSourceLocalSourcesAllowed())
+}
+
+func validateAppSourceURLWithPolicy(raw string, allowLocal bool) (*url.URL, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
 		return nil, fmt.Errorf("invalid source URL: %w", err)
@@ -261,24 +288,57 @@ func validateAppSourceURL(raw string) (*url.URL, error) {
 		return nil, fmt.Errorf("source URL hostname is required")
 	}
 	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
-	if host == "localhost" || strings.HasSuffix(host, ".localhost") || strings.HasSuffix(host, ".local") {
-		return nil, fmt.Errorf("local source host is not allowed")
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return nil, fmt.Errorf("localhost source is not allowed")
 	}
-	if ip := net.ParseIP(host); ip != nil && !appSourcePublicIP(ip) {
-		return nil, fmt.Errorf("private, loopback or link-local source address is not allowed")
+	if strings.HasSuffix(host, ".local") && !allowLocal {
+		return nil, fmt.Errorf("local source host requires explicit local-source permission")
+	}
+	if ip := net.ParseIP(host); ip != nil && !appSourceIPAllowed(ip, allowLocal) {
+		if ip.IsPrivate() && !allowLocal {
+			return nil, fmt.Errorf("private source address requires explicit local-source permission")
+		}
+		return nil, fmt.Errorf("loopback, link-local, multicast or unspecified source address is not allowed")
 	}
 	return u, nil
 }
 
-func appSourcePublicIP(ip net.IP) bool {
-	if ip == nil {
+func appSourceIPAllowed(ip net.IP, allowLocal bool) bool {
+	if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() {
 		return false
 	}
-	return !ip.IsLoopback() && !ip.IsPrivate() && !ip.IsLinkLocalUnicast() &&
-		!ip.IsLinkLocalMulticast() && !ip.IsUnspecified() && !ip.IsMulticast()
+	if ip.IsPrivate() && !allowLocal {
+		return false
+	}
+	return true
 }
 
-func appSourceDialContext(ctx context.Context, network, address string) (net.Conn, error) {
+func appSourceURLIsLocal(ctx context.Context, raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
+	if strings.HasSuffix(host, ".local") {
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsPrivate()
+	}
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return false
+	}
+	for _, addr := range addrs {
+		if addr.IP != nil && addr.IP.IsPrivate() {
+			return true
+		}
+	}
+	return false
+}
+
+func appSourceDialContext(ctx context.Context, network, address string, allowLocal bool) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
@@ -297,7 +357,7 @@ func appSourceDialContext(ctx context.Context, network, address string) (net.Con
 	}
 	dialer := net.Dialer{Timeout: 5 * time.Second}
 	for _, ip := range ips {
-		if !appSourcePublicIP(ip) {
+		if !appSourceIPAllowed(ip, allowLocal) {
 			continue
 		}
 		conn, dialErr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
@@ -309,13 +369,18 @@ func appSourceDialContext(ctx context.Context, network, address string) (net.Con
 	if err != nil {
 		return nil, err
 	}
-	return nil, fmt.Errorf("source host resolved only to disallowed addresses")
+	if allowLocal {
+		return nil, fmt.Errorf("source host resolved only to blocked addresses")
+	}
+	return nil, fmt.Errorf("source host resolved only to private or blocked addresses")
 }
 
-func newAppSourceHTTPClient() *http.Client {
+func newAppSourceHTTPClient(allowLocal bool) *http.Client {
 	transport := &http.Transport{
-		Proxy:               nil,
-		DialContext:         appSourceDialContext,
+		Proxy: nil,
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			return appSourceDialContext(ctx, network, address, allowLocal)
+		},
 		TLSHandshakeTimeout: 5 * time.Second,
 		IdleConnTimeout:     20 * time.Second,
 	}
@@ -326,14 +391,15 @@ func newAppSourceHTTPClient() *http.Client {
 			if len(via) >= 3 {
 				return fmt.Errorf("too many source redirects")
 			}
-			_, err := validateAppSourceURL(req.URL.String())
+			_, err := validateAppSourceURLWithPolicy(req.URL.String(), allowLocal)
 			return err
 		},
 	}
 }
 
 func fetchAppSourceBytes(ctx context.Context, rawURL string) ([]byte, error) {
-	u, err := validateAppSourceURL(rawURL)
+	allowLocal := appSourceLocalSourcesAllowed()
+	u, err := validateAppSourceURLWithPolicy(rawURL, allowLocal)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +409,7 @@ func fetchAppSourceBytes(ctx context.Context, rawURL string) ([]byte, error) {
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "RouterForge-AppCenter/1")
-	resp, err := newAppSourceHTTPClient().Do(req)
+	resp, err := newAppSourceHTTPClient(allowLocal).Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -471,14 +537,19 @@ func resolveAppSourceRemote(ctx context.Context, rawURL, kind string) (appSource
 	if kind == "" {
 		return appSourceCache{}, fmt.Errorf("invalid source kind")
 	}
+	local := appSourceURLIsLocal(ctx, rawURL)
 	if _, _, ok := githubRepositoryParts(rawURL); ok {
-		return resolveGitHubSource(ctx, rawURL, kind)
+		cache, err := resolveGitHubSource(ctx, rawURL, kind)
+		cache.Local = false
+		return cache, err
 	}
 	data, err := appSourceFetchBytes(ctx, rawURL)
 	if err != nil {
 		return appSourceCache{}, err
 	}
-	return parseThirdPartySourceDocument(data, rawURL, kind)
+	cache, err := parseThirdPartySourceDocument(data, rawURL, kind)
+	cache.Local = local
+	return cache, err
 }
 
 func parseThirdPartySourceDocument(data []byte, resolvedURL, requestedKind string) (appSourceCache, error) {
@@ -603,6 +674,9 @@ func validateThirdPartyCatalogItem(item catalogItem) error {
 	if status := strings.ToLower(strings.TrimSpace(item.Trust.Status)); status != "" && status != "unverified" {
 		return fmt.Errorf("%s: third-party source cannot self-declare trust=%q", item.ID, status)
 	}
+	if _, err := normalizeCompatibilityTargets(item.Compatibility.Targets); err != nil {
+		return fmt.Errorf("%s: %w", item.ID, err)
+	}
 	if err := validateCatalogWebMetadata(item.Web); err != nil {
 		return fmt.Errorf("%s: %w", item.ID, err)
 	}
@@ -638,9 +712,89 @@ func validateThirdPartyCatalogPlan(plan catalogInstallPlan) error {
 	return nil
 }
 
+func normalizeCompatibilityTargets(targets []string) ([]string, error) {
+	if len(targets) == 0 {
+		return nil, nil
+	}
+	seen := map[string]bool{}
+	out := []string{}
+	for _, raw := range targets {
+		target := strings.ToLower(strings.TrimSpace(raw))
+		switch target {
+		case "all", "aarch64-3.10", "mips-3.4", "mipsel-3.4":
+		default:
+			return nil, fmt.Errorf("unsupported compatibility target %q", raw)
+		}
+		if !seen[target] {
+			seen[target] = true
+			out = append(out, target)
+		}
+	}
+	if seen["all"] {
+		return []string{"all"}, nil
+	}
+	return out, nil
+}
+
+func applyUserSourceTargetCompatibility(item *catalogItem, resolution platformTargetResolution) {
+	if item == nil {
+		return
+	}
+	targets, err := normalizeCompatibilityTargets(item.Compatibility.Targets)
+	if err != nil {
+		item.Compatibility.TargetStatus = "invalid"
+		return
+	}
+	item.Compatibility.Targets = targets
+	item.Compatibility.DetectedTarget = resolution.Target
+	item.Compatibility.TargetSource = resolution.Source
+
+	if len(targets) == 0 {
+		if item.Install.Method == "opkg" || item.Update.Method == "opkg" {
+			item.Compatibility.TargetStatus = "delegated"
+		}
+		return
+	}
+	if len(targets) == 1 && targets[0] == "all" {
+		item.Compatibility.TargetStatus = "compatible"
+		return
+	}
+	switch resolution.Status {
+	case "resolved":
+		for _, target := range targets {
+			if target == resolution.Target {
+				item.Compatibility.TargetStatus = "compatible"
+				return
+			}
+		}
+		item.Compatibility.TargetStatus = "incompatible"
+	case "ambiguous":
+		item.Compatibility.TargetStatus = "ambiguous"
+	default:
+		item.Compatibility.TargetStatus = "unknown"
+	}
+}
+
+func appSourceTargetBlockReason(item catalogItem) string {
+	switch item.Compatibility.TargetStatus {
+	case "incompatible":
+		return fmt.Sprintf("app is not compatible with Entware target %s", item.Compatibility.DetectedTarget)
+	case "ambiguous":
+		return "Entware architecture is ambiguous; target-specific installation is blocked"
+	case "unknown":
+		return "Entware architecture could not be determined with opkg print-architecture"
+	case "invalid":
+		return "app declares an invalid architecture target"
+	default:
+		return ""
+	}
+}
 func previewFromAppSourceCache(cache appSourceCache) appSourcePreview {
 	entries := make([]appSourcePreviewEntry, 0, len(cache.Entries))
-	for _, item := range cache.Entries {
+	resolution := resolvePlatformTarget()
+	for _, original := range cache.Entries {
+		item := original
+		applyUserSourceTargetCompatibility(&item, resolution)
 		pkg := ""
 		if len(item.Detection.Packages) > 0 {
 			pkg = item.Detection.Packages[0]
@@ -648,11 +802,14 @@ func previewFromAppSourceCache(cache appSourceCache) appSourcePreview {
 			pkg = item.Install.Packages[0]
 		}
 		entries = append(entries, appSourcePreviewEntry{
-			ID:        item.ID,
-			Name:      item.Name,
-			Category:  item.Category,
-			Publisher: item.Publisher.Name,
-			Package:   pkg,
+			ID:             item.ID,
+			Name:           item.Name,
+			Category:       item.Category,
+			Publisher:      item.Publisher.Name,
+			Package:        pkg,
+			Targets:        append([]string(nil), item.Compatibility.Targets...),
+			TargetStatus:   item.Compatibility.TargetStatus,
+			DetectedTarget: item.Compatibility.DetectedTarget,
 		})
 	}
 	return appSourcePreview{
@@ -661,6 +818,7 @@ func previewFromAppSourceCache(cache appSourceCache) appSourcePreview {
 		RegistryID:     cache.RegistryID,
 		Revision:       cache.Revision,
 		ResolvedURL:    cache.ResolvedURL,
+		Local:          cache.Local,
 		Trust:          "unsigned",
 		Fingerprint:    cache.ManifestSHA256,
 		EntryCount:     len(cache.Entries),
@@ -692,8 +850,9 @@ func applyUserAppSources(snapshot *catalogSnapshot, installed map[string]string,
 	if err != nil {
 		return
 	}
+	resolution := resolvePlatformTarget()
 	for _, source := range cfg.Sources {
-		if !source.Enabled {
+		if !source.Enabled || (source.Local && !cfg.AllowLocalSources) {
 			continue
 		}
 		cache, cacheErr := loadAppSourceCache(source.ID)
@@ -702,6 +861,7 @@ func applyUserAppSources(snapshot *catalogSnapshot, installed map[string]string,
 		}
 		for _, original := range cache.Entries {
 			item := normalizeUserSourceItem(source, cache, original)
+			applyUserSourceTargetCompatibility(&item, resolution)
 			resetCatalogRuntime(&item)
 			finalizeCatalogItem(&item, installed, processes, exists)
 			snapshot.Integrations = append(snapshot.Integrations, item)
@@ -711,6 +871,12 @@ func applyUserAppSources(snapshot *catalogSnapshot, installed map[string]string,
 
 func appSourceApplyActionPolicy(item *catalogItem) {
 	if item == nil || !strings.HasPrefix(item.RegistrySource, "src-") {
+		return
+	}
+	if reason := appSourceTargetBlockReason(*item); reason != "" {
+		item.Actions.Install = false
+		item.Actions.Update = false
+		item.Actions.Reason = reason
 		return
 	}
 	if strings.ToLower(item.Trust.Status) != "unverified" {
@@ -732,6 +898,9 @@ func appSourceActionBlockReason(item catalogItem, action, confirm string) string
 	}
 	if action == "remove" {
 		return ""
+	}
+	if reason := appSourceTargetBlockReason(item); reason != "" {
+		return reason
 	}
 	if strings.ToLower(item.Trust.Status) != "unverified" {
 		return "unsupported third-party trust state"
@@ -809,11 +978,14 @@ func listAppSources() (map[string]any, error) {
 		sources = append(sources, source)
 	}
 	return map[string]any{
-		"schema_version":        cfg.SchemaVersion,
-		"allow_unverified":      cfg.AllowUnverified,
-		"agreement_version":     appSourcesAgreementVersion,
-		"agreement_accepted_at": cfg.AgreementAccepted,
-		"sources":               sources,
+		"schema_version":              cfg.SchemaVersion,
+		"allow_unverified":            cfg.AllowUnverified,
+		"agreement_version":           appSourcesAgreementVersion,
+		"agreement_accepted_at":       cfg.AgreementAccepted,
+		"allow_local_sources":         cfg.AllowLocalSources,
+		"local_agreement_version":     appSourcesLocalAgreementVersion,
+		"local_agreement_accepted_at": cfg.LocalAgreementAccepted,
+		"sources":                     sources,
 	}, nil
 }
 
@@ -823,7 +995,7 @@ func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSou
 		return appSourceRecord{}, appSourcePreview{}, fmt.Errorf("invalid source kind")
 	}
 	rawURL := strings.TrimSpace(request.URL)
-	if _, err := validateAppSourceURL(rawURL); err != nil {
+	if _, err := validateConfiguredAppSourceURL(rawURL); err != nil {
 		return appSourceRecord{}, appSourcePreview{}, err
 	}
 	cache, err := appSourceResolve(ctx, rawURL, kind)
@@ -858,6 +1030,7 @@ func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSou
 		Revision:    cache.Revision,
 		Trust:       "unsigned",
 		Enabled:     true,
+		Local:       cache.Local,
 		Online:      true,
 		Cached:      true,
 		EntryCount:  len(cache.Entries),
@@ -929,6 +1102,7 @@ func refreshOneAppSource(ctx context.Context, id string) (appSourceRecord, error
 	cfg.Sources[index].ResolvedURL = cache.ResolvedURL
 	cfg.Sources[index].RegistryID = cache.RegistryID
 	cfg.Sources[index].Revision = cache.Revision
+	cfg.Sources[index].Local = cache.Local
 	cfg.Sources[index].EntryCount = len(cache.Entries)
 	cfg.Sources[index].LastSync = now
 	cfg.Sources[index].Error = ""
@@ -948,7 +1122,7 @@ func forceRefreshUserAppSources() {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 4)
 	for _, source := range cfg.Sources {
-		if !source.Enabled {
+		if !source.Enabled || (source.Local && !cfg.AllowLocalSources) {
 			continue
 		}
 		sourceID := source.ID
@@ -1022,16 +1196,32 @@ func setAppSourceSecurity(request appSourceSecurityRequest) (appSourcesConfig, e
 	if err != nil {
 		return cfg, err
 	}
-	if request.AllowUnverified {
-		if !request.Accepted || request.AgreementVersion != appSourcesAgreementVersion {
-			return cfg, fmt.Errorf("current agreement and risk warning must be accepted")
+
+	switch strings.ToLower(strings.TrimSpace(request.Scope)) {
+	case "local":
+		if request.AllowLocalSources {
+			if !request.LocalAccepted || request.LocalAgreementVersion != appSourcesLocalAgreementVersion {
+				return cfg, fmt.Errorf("current local-source warning must be accepted")
+			}
+			cfg.AllowLocalSources = true
+			cfg.LocalAgreementVersion = appSourcesLocalAgreementVersion
+			cfg.LocalAgreementAccepted = time.Now().UTC().Format(time.RFC3339)
+		} else {
+			cfg.AllowLocalSources = false
 		}
-		cfg.AllowUnverified = true
-		cfg.AgreementVersion = appSourcesAgreementVersion
-		cfg.AgreementAccepted = time.Now().UTC().Format(time.RFC3339)
-	} else {
-		cfg.AllowUnverified = false
+	default:
+		if request.AllowUnverified {
+			if !request.Accepted || request.AgreementVersion != appSourcesAgreementVersion {
+				return cfg, fmt.Errorf("current agreement and risk warning must be accepted")
+			}
+			cfg.AllowUnverified = true
+			cfg.AgreementVersion = appSourcesAgreementVersion
+			cfg.AgreementAccepted = time.Now().UTC().Format(time.RFC3339)
+		} else {
+			cfg.AllowUnverified = false
+		}
 	}
+
 	if err := saveAppSourcesConfigUnlocked(cfg); err != nil {
 		return cfg, err
 	}
@@ -1101,7 +1291,7 @@ func handleAppSourcePreview(w http.ResponseWriter, r *http.Request) {
 		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid source kind"})
 		return
 	}
-	if _, err := validateAppSourceURL(request.URL); err != nil {
+	if _, err := validateConfiguredAppSourceURL(request.URL); err != nil {
 		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
@@ -1124,9 +1314,12 @@ func handleAppSourceSecurity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeCatalogJSON(w, http.StatusOK, map[string]any{
-			"allow_unverified":      cfg.AllowUnverified,
-			"agreement_version":     appSourcesAgreementVersion,
-			"agreement_accepted_at": cfg.AgreementAccepted,
+			"allow_unverified":            cfg.AllowUnverified,
+			"agreement_version":           appSourcesAgreementVersion,
+			"agreement_accepted_at":       cfg.AgreementAccepted,
+			"allow_local_sources":         cfg.AllowLocalSources,
+			"local_agreement_version":     appSourcesLocalAgreementVersion,
+			"local_agreement_accepted_at": cfg.LocalAgreementAccepted,
 		})
 	case http.MethodPost:
 		if !sameOriginRequest(r) {
@@ -1143,10 +1336,13 @@ func handleAppSourceSecurity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeCatalogJSON(w, http.StatusOK, map[string]any{
-			"allow_unverified":      cfg.AllowUnverified,
-			"agreement_version":     appSourcesAgreementVersion,
-			"agreement_accepted_at": cfg.AgreementAccepted,
-			"catalog":               refreshCatalog(),
+			"allow_unverified":            cfg.AllowUnverified,
+			"agreement_version":           appSourcesAgreementVersion,
+			"agreement_accepted_at":       cfg.AgreementAccepted,
+			"allow_local_sources":         cfg.AllowLocalSources,
+			"local_agreement_version":     appSourcesLocalAgreementVersion,
+			"local_agreement_accepted_at": cfg.LocalAgreementAccepted,
+			"catalog":                     refreshCatalog(),
 		})
 	default:
 		w.Header().Set("Allow", "GET, POST")

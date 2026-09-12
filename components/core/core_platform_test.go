@@ -40,3 +40,25 @@ func TestParseNDMCDeviceModel(t *testing.T) {
 		}
 	}
 }
+func TestParseEntwareTargets(t *testing.T) {
+	raw := "arch all 1\narch aarch64-3.10 10\narch aarch64-3.10 20\n"
+	got := parseEntwareTargets(raw)
+	if len(got) != 1 || got[0] != "aarch64-3.10" {
+		t.Fatalf("targets=%v, want [aarch64-3.10]", got)
+	}
+}
+
+func TestTargetResolutionFromArchitectureOutput(t *testing.T) {
+	resolved := targetResolutionFromArchitectureOutput("arch all 1\narch mipsel-3.4 10\n")
+	if resolved.Status != "resolved" || resolved.Target != "mipsel-3.4" {
+		t.Fatalf("resolved=%#v", resolved)
+	}
+	ambiguous := targetResolutionFromArchitectureOutput("arch mips-3.4 10\narch mipsel-3.4 10\n")
+	if ambiguous.Status != "ambiguous" || ambiguous.Target != "" || len(ambiguous.Candidates) != 2 {
+		t.Fatalf("ambiguous=%#v", ambiguous)
+	}
+	unknown := targetResolutionFromArchitectureOutput("arch all 1\n")
+	if unknown.Status != "unknown" || unknown.Target != "" {
+		t.Fatalf("unknown=%#v", unknown)
+	}
+}

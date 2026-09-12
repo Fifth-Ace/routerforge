@@ -60,6 +60,15 @@ export const getEntwarePackages = ({ query = '', state = '', offset = 0, limit =
   request(`/api/apps/entware?query=${encodeURIComponent(query)}&state=${encodeURIComponent(state)}&offset=${encodeURIComponent(offset)}&limit=${encodeURIComponent(limit)}`);
 export const refreshEntwarePackages = () =>
   postJSON('/api/apps/entware/refresh', {}, PACKAGE_WRITE_TIMEOUT_MS);
+export const getAppSources = () => request('/api/apps/sources');
+export const previewAppSource = (body) => postJSON('/api/apps/sources/preview', body);
+export const addAppSource = (body) => postJSON('/api/apps/sources', body);
+export const refreshAppSource = (id) => postJSON(`/api/apps/sources/${encodeURIComponent(id)}/refresh`, {});
+export const setAppSourceEnabled = (id, enabled) =>
+  postJSON(`/api/apps/sources/${encodeURIComponent(id)}/toggle`, { enabled });
+export const removeAppSource = (id) => deleteRequest(`/api/apps/sources/${encodeURIComponent(id)}`);
+export const setAppSourceSecurity = (body) => postJSON('/api/apps/sources/security', body);
+export const getAppLegal = (locale = 'ru') => request(`/api/apps/legal?locale=${encodeURIComponent(locale)}`);
 export const entwarePackageAction = (packageName, action, confirm = '') =>
   postJSON('/api/apps/entware/action', { package: packageName, action, confirm }, PACKAGE_WRITE_TIMEOUT_MS);
 export const getEntwarePackageDetail = (packageName) =>

@@ -1022,6 +1022,9 @@ func appCenterIntegrationPackageNames() map[string]struct{} {
 			}
 		}
 	}
+	for pkg := range userAppSourcePackageNames() {
+		out[strings.ToLower(strings.TrimSpace(pkg))] = struct{}{}
+	}
 	return out
 }
 

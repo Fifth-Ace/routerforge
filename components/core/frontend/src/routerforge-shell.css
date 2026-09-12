@@ -217,6 +217,24 @@ body,
   font-size: 16px;
   line-height: 1;
 }
+.rail-legal-badge {
+  display: block;
+  margin-top: -2px;
+  padding: 3px 5px 0;
+  color: var(--rf-muted);
+  font-size: var(--ui-micro);
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  opacity: .78;
+}
+.rail-legal-badge:hover {
+  color: var(--rf-text);
+  opacity: 1;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
 
 /* ------------------------------------------------------------------ */
 /* Panels / controls                                                   */

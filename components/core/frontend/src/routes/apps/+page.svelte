@@ -15,6 +15,7 @@
   import InstallPlanner from '$lib/components/InstallPlanner.svelte';
   import RemoveConfirm from '$lib/components/RemoveConfirm.svelte';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
+  import SourceManager from '$lib/components/SourceManager.svelte';
 
   const acronyms = {
     'awg-manager':'AWG', nfqws2:'NQ2', nfqws:'NQ1', 'nfqws-web':'NQW', 'hydraroute-neo':'HRN',
@@ -48,6 +49,7 @@
   let actionHistoryExpanded = false;
   let actionEvents = null;
   let entwareDetail = null;
+  let sourceManagerOpen = false;
 
   onMount(() => {
     void refreshActionHistory();
@@ -512,6 +514,17 @@
   async function runAsyncCatalogAction(item, action, confirm = '', skipConfirm = false) {
     if (busyId) return;
     try {
+      if (
+        String(item?.registry_source || '').startsWith('src-')
+        && String(item?.trust?.status || '').toLowerCase() === 'unverified'
+        && action !== 'remove'
+      ) {
+        const risk = locale === 'ru'
+          ? `Непроверенное приложение «${item.name}» будет выполнять сторонний код с правами, достаточными для изменения пакетов и конфигурации устройства.\n\nИсточник: ${item.registry_source}\nИздатель: ${item.publisher?.name || '—'}\n\nПродолжить?`
+          : `Unverified app “${item.name}” will execute third-party code with privileges sufficient to modify packages and device configuration.\n\nSource: ${item.registry_source}\nPublisher: ${item.publisher?.name || '—'}\n\nContinue?`;
+        if (!window.confirm(risk)) return;
+        confirm = 'UNVERIFIED';
+      }
       const request = { kind:'catalog', target:item.id, action, confirm };
       const preflight = await preflightAppAction(request);
       if (!preflight.allowed) {
@@ -921,6 +934,7 @@
       <p>{a(locale,'subtitle')}</p>
     </div>
     <div class="page-head-actions">
+      <button class="button" onclick={() => sourceManagerOpen = true}>{locale === 'ru' ? 'Источники' : 'Sources'}</button>
       <span class="state-chip {data.registry?.online && String(data.registry?.source || '').toLowerCase() === 'remote' ? 'good' : data.registry?.source === 'cache' ? 'warn' : 'neutral'}">
         {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
       </span>
@@ -1237,6 +1251,14 @@
     {/if}
   </section>
 </div>
+
+{#if sourceManagerOpen}
+  <SourceManager
+    {locale}
+    onclose={() => sourceManagerOpen = false}
+    onchanged={async () => { await refreshCatalog(); }}
+  />
+{/if}
 
 {#if entwareDetail}
   <div class="app-detail-backdrop" role="presentation" onclick={() => entwareDetail = null}>

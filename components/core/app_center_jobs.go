@@ -293,6 +293,13 @@ func buildAppActionPreflight(ctx context.Context, request appActionStartRequest)
 			out.Reason = "unsupported catalog action"
 			return out, nil
 		}
+		if reason := appSourceActionBlockReason(item, request.Action, request.Confirm); reason != "" {
+			out.Reason = reason
+			return out, nil
+		}
+		if strings.HasPrefix(item.RegistrySource, "src-") && request.Action != "remove" {
+			out.Warnings = append(out.Warnings, "unverified third-party source: review publisher, source URL and package plan")
+		}
 		if !catalogActionAllowed(item, request.Action) {
 			out.Reason = item.Actions.Reason
 			if out.Reason == "" {

@@ -160,12 +160,18 @@ func refreshCatalog() catalogSnapshot {
 	processes := catalogReadProcessNames()
 	snapshot := buildCatalog(installed, processes, pathExists)
 	applyRouterForgeRegistry(&snapshot, installed, processes, pathExists)
+	applyUserAppSources(&snapshot, installed, processes, pathExists)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	if packages, err := catalogLoadOpkgCatalog(ctx, false); err == nil {
 		applyIntegrationPackageVersions(&snapshot, packages)
 	}
 	cancel()
+
+	for i := range snapshot.Integrations {
+		snapshot.Integrations[i].Actions = deriveCatalogActions(snapshot.Integrations[i])
+		appSourceApplyActionPolicy(&snapshot.Integrations[i])
+	}
 
 	catalogApplyRuntimeWebDiscovery(&snapshot, installed)
 

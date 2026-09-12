@@ -29,6 +29,7 @@
   let editorOpen = false;
   let editorClosing = false;
   let editorCloseTimer = null;
+  let parentScrollLocks = [];
   let editing = null;
   let saving = false;
   let form = blankForm();
@@ -887,6 +888,59 @@
     editorClosing = false;
   }
 
+  function lockParentScroll() {
+    try {
+      if (window.parent === window || parentScrollLocks.length) return;
+      const doc = window.parent.document;
+      const candidates = [];
+      const seen = new Set();
+
+      let node = window.frameElement?.parentElement || null;
+      while (node) {
+        const style = window.parent.getComputedStyle(node);
+        if (/(auto|scroll|overlay)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) {
+          candidates.push(node);
+        }
+        node = node.parentElement;
+      }
+
+      if (doc.scrollingElement) candidates.push(doc.scrollingElement);
+      if (doc.documentElement) candidates.push(doc.documentElement);
+      if (doc.body) candidates.push(doc.body);
+
+      parentScrollLocks = candidates
+        .filter((element) => element && !seen.has(element) && seen.add(element))
+        .map((element) => ({
+          element,
+          overflowY:element.style.overflowY,
+          overscrollBehaviorY:element.style.overscrollBehaviorY
+        }));
+
+      for (const lock of parentScrollLocks) {
+        lock.element.style.overflowY = 'hidden';
+        lock.element.style.overscrollBehaviorY = 'none';
+      }
+    } catch {
+      parentScrollLocks = [];
+    }
+  }
+
+  function unlockParentScroll() {
+    for (const lock of parentScrollLocks) {
+      try {
+        lock.element.style.overflowY = lock.overflowY;
+        lock.element.style.overscrollBehaviorY = lock.overscrollBehaviorY;
+      } catch {}
+    }
+    parentScrollLocks = [];
+  }
+
+  function prepareEditorViewport() {
+    syncResolverEditorViewport();
+    lockParentScroll();
+    syncResolverEditorViewport();
+  }
+
   function closeEditor() {
     if (!editorOpen || editorClosing) return;
     editorClosing = true;
@@ -894,6 +948,7 @@
     editorCloseTimer = setTimeout(() => {
       editorOpen = false;
       editorClosing = false;
+      unlockParentScroll();
     }, 260);
   }
 
@@ -901,6 +956,7 @@
     resetEditorTransition();
     editing = null;
     form = blankForm();
+    prepareEditorViewport();
     editorOpen = true;
   }
   function openEdit(resolver) {
@@ -911,6 +967,7 @@
       port:resolver.port || (resolver.protocol === 'DoH' ? 443 : resolver.protocol === 'DNS' ? 53 : 853),
       sni:resolver.sni || '', interface:resolver.interface || '', domains:(resolver.domains || []).join('\n'), spki:resolver.spki || '', format:resolver.format || ''
     };
+    prepareEditorViewport();
     editorOpen = true;
   }
   function payloadFromForm() {
@@ -1086,7 +1143,6 @@
     try {
       window.parent.addEventListener('resize', queueFrameHeightSync);
       window.parent.addEventListener('resize', syncResolverEditorViewport);
-      window.parent.addEventListener('scroll', syncResolverEditorViewport, { passive:true });
     } catch {}
 
     loadAll().then(() => {
@@ -1105,10 +1161,10 @@
       resizeObserver?.disconnect();
       parentThemeObserver?.disconnect();
       window.removeEventListener('resize', syncShell);
+      unlockParentScroll();
       try {
         window.parent.removeEventListener('resize', queueFrameHeightSync);
         window.parent.removeEventListener('resize', syncResolverEditorViewport);
-        window.parent.removeEventListener('scroll', syncResolverEditorViewport);
       } catch {}
     };
   });

@@ -394,10 +394,28 @@
     return entwareState === 'all' ? '' : entwareState;
   }
 
+  function actionHistoryTimestamp(job) {
+    const value = Date.parse(job?.started_at || '');
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function formatActionHistoryTime(value) {
+    const date = new Date(value || '');
+    if (Number.isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'ru-RU', {
+      dateStyle:'short',
+      timeStyle:'medium'
+    }).format(date);
+  }
+
   async function refreshActionHistory() {
     try {
       const result = await getAppActions();
-      actionHistory = result?.items || [];
+      const items = Array.isArray(result?.items) ? result.items : [];
+      actionHistory = [...items].sort((left, right) =>
+        actionHistoryTimestamp(right) - actionHistoryTimestamp(left)
+        || String(right?.id || '').localeCompare(String(left?.id || ''))
+      );
     } catch {
       actionHistory = [];
     }
@@ -1054,7 +1072,7 @@
       >
         <span class="app-action-history-title">
           <strong>{locale === 'ru' ? '\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0439' : 'Action history'}</strong>
-          <small>{locale === 'ru' ? '\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043f\u0430\u043a\u0435\u0442\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430.' : 'Recent package-manager operations.'}</small>
+          <small>{locale === 'ru' ? '\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043f\u0430\u043a\u0435\u0442\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u00b7 \u043d\u043e\u0432\u044b\u0435 \u0441\u0432\u0435\u0440\u0445\u0443.' : 'Recent package-manager operations \u00b7 newest first.'}</small>
         </span>
         <span class="app-action-history-meta">
           <span class="state-chip neutral">{actionHistory.length}</span>
@@ -1063,11 +1081,11 @@
       </button>
       {#if actionHistoryExpanded}
         <div class="app-action-history-list" id="app-action-history-list">
-          {#each actionHistory.slice(0,5) as job (job.id)}
+          {#each actionHistory as job (job.id)}
             <div class="app-action-history-row">
               <span class="app-action-history-copy">
                 <strong>{job.target}</strong>
-                <small class="mono">{job.kind} / {job.action}</small>
+                <small class="mono">{formatActionHistoryTime(job.started_at)} &middot; {job.kind} / {job.action}</small>
               </span>
               <span class="state-chip {jobStateClass(job.state)}">{jobStateLabel(job.state)}</span>
             </div>
@@ -1514,6 +1532,9 @@
   }
   .app-center-page .app-action-history-list {
     display:grid;
+    max-height:min(34rem,60vh);
+    overflow-y:auto;
+    scrollbar-width:thin;
     border-top:1px solid var(--rf-border,var(--border));
   }
   .app-center-page .app-action-history-row {

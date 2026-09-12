@@ -21,6 +21,7 @@ const (
 	appActionHistoryMax        = 512 << 10
 	appActionMaxLines          = 320
 	appActionTerminalRetention = 64
+	appActionHistoryListLimit  = 50
 	appActionLineMax           = 2048
 	appActionOutputMax         = 64 << 10
 )
@@ -652,6 +653,27 @@ func pruneAppActionJobs() {
 	}
 }
 
+func finalizeAppActionViews(views []appActionView) []appActionView {
+	for i := range views {
+		if len(views[i].Lines) > 20 {
+			views[i].Lines = append([]string(nil), views[i].Lines[len(views[i].Lines)-20:]...)
+		}
+	}
+	sort.Slice(views, func(i, j int) bool {
+		if !views[i].StartedAt.Equal(views[j].StartedAt) {
+			return views[i].StartedAt.After(views[j].StartedAt)
+		}
+		if !views[i].CompletedAt.Equal(views[j].CompletedAt) {
+			return views[i].CompletedAt.After(views[j].CompletedAt)
+		}
+		return views[i].ID > views[j].ID
+	})
+	if len(views) > appActionHistoryListLimit {
+		views = views[:appActionHistoryListLimit]
+	}
+	return views
+}
+
 func listAppActionViews() []appActionView {
 	viewsByID := map[string]appActionView{}
 	for _, view := range readAppActionHistory() {
@@ -666,18 +688,9 @@ func listAppActionViews() []appActionView {
 
 	views := make([]appActionView, 0, len(viewsByID))
 	for _, view := range viewsByID {
-		if len(view.Lines) > 20 {
-			view.Lines = append([]string(nil), view.Lines[len(view.Lines)-20:]...)
-		}
 		views = append(views, view)
 	}
-	sort.Slice(views, func(i, j int) bool {
-		return views[i].StartedAt.After(views[j].StartedAt)
-	})
-	if len(views) > 50 {
-		views = views[:50]
-	}
-	return views
+	return finalizeAppActionViews(views)
 }
 
 func streamAppActionEvents(w http.ResponseWriter, r *http.Request, id string) {
@@ -764,8 +777,8 @@ func appendAppActionHistory(view appActionView) error {
 	return json.NewEncoder(file).Encode(view)
 }
 
-func readAppActionHistory() []appActionView {
-	data, err := os.ReadFile(appActionHistoryPath)
+func readAppActionHistoryFile(path string) []appActionView {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
@@ -787,4 +800,14 @@ func readAppActionHistory() []appActionView {
 		}
 	}
 	return out
+}
+
+func readAppActionHistoryFrom(path string) []appActionView {
+	out := readAppActionHistoryFile(path + ".1")
+	out = append(out, readAppActionHistoryFile(path)...)
+	return out
+}
+
+func readAppActionHistory() []appActionView {
+	return readAppActionHistoryFrom(appActionHistoryPath)
 }

@@ -120,6 +120,65 @@ func TestCatalogRefreshCoordinatorCooldownExpiry(t *testing.T) {
 	}
 }
 
+func TestCatalogRefreshCoordinatorFreshBypassesCooldown(t *testing.T) {
+	runs := 0
+	coordinator := newCatalogRefreshCoordinator(time.Minute, func() catalogRefreshResult {
+		runs++
+		return testCatalogRefreshResult()
+	})
+
+	if _, mode, err := coordinator.do(context.Background()); err != nil || mode != "fresh" {
+		t.Fatalf("initial refresh mode=%q err=%v, want fresh", mode, err)
+	}
+
+	if _, mode, err := coordinator.do(context.Background()); err != nil || mode != "cached" {
+		t.Fatalf("ordinary cooldown refresh mode=%q err=%v, want cached", mode, err)
+	}
+
+	if _, mode, err := coordinator.doFresh(context.Background()); err != nil || mode != "fresh" {
+		t.Fatalf("manual fresh refresh mode=%q err=%v, want fresh", mode, err)
+	}
+
+	if runs != 2 {
+		t.Fatalf("expensive refresh runs=%d, want 2", runs)
+	}
+}
+
+func TestCatalogRefreshHandlerFreshQueryBypassesCooldown(t *testing.T) {
+	runs := 0
+	coordinator := newCatalogRefreshCoordinator(time.Minute, func() catalogRefreshResult {
+		runs++
+		return testCatalogRefreshResult()
+	})
+
+	first := httptest.NewRequest(http.MethodPost, "http://router.local/api/catalog/refresh", nil)
+	firstResponse := httptest.NewRecorder()
+	handleCatalogRefreshWithCoordinator(firstResponse, first, coordinator)
+	if firstResponse.Code != http.StatusOK {
+		t.Fatalf("first status=%d, want %d", firstResponse.Code, http.StatusOK)
+	}
+
+	cached := httptest.NewRequest(http.MethodPost, "http://router.local/api/catalog/refresh", nil)
+	cachedResponse := httptest.NewRecorder()
+	handleCatalogRefreshWithCoordinator(cachedResponse, cached, coordinator)
+	if got := cachedResponse.Header().Get(catalogRefreshModeHeader); got != "cached" {
+		t.Fatalf("ordinary second refresh mode=%q, want cached", got)
+	}
+
+	fresh := httptest.NewRequest(http.MethodPost, "http://router.local/api/catalog/refresh?fresh=1", nil)
+	freshResponse := httptest.NewRecorder()
+	handleCatalogRefreshWithCoordinator(freshResponse, fresh, coordinator)
+	if freshResponse.Code != http.StatusOK {
+		t.Fatalf("fresh status=%d, want %d", freshResponse.Code, http.StatusOK)
+	}
+	if got := freshResponse.Header().Get(catalogRefreshModeHeader); got != "fresh" {
+		t.Fatalf("fresh query mode=%q, want fresh", got)
+	}
+	if runs != 2 {
+		t.Fatalf("expensive refresh runs=%d, want 2", runs)
+	}
+}
+
 func TestCatalogRefreshHandlerRejectsCrossOrigin(t *testing.T) {
 	runs := 0
 	coordinator := newCatalogRefreshCoordinator(time.Minute, func() catalogRefreshResult {

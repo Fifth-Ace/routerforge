@@ -52,7 +52,8 @@ export const getSnapshot = () => request('/api/snapshot');
 export const getPlatform = () => request('/api/platform');
 export const getSystem = () => request('/api/system');
 export const getCatalog = () => request('/api/catalog');
-export const refreshCatalogRemote = () => postJSON('/api/catalog/refresh', {});
+export const refreshCatalogRemote = (fresh = false) =>
+  postJSON(`/api/catalog/refresh${fresh ? '?fresh=1' : ''}`, {});
 export const setCatalogChannel = (channel) => postJSON('/api/catalog/channel', { channel });
 export const probeCatalogWeb = (id) => postJSON('/api/catalog/web-probe', { id });
 export const getEntwarePackages = ({ query = '', state = '', offset = 0, limit = 100 } = {}) =>

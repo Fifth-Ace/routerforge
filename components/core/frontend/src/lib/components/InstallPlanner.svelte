@@ -1,7 +1,7 @@
 <script>
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
-  import { catalogWebPort } from '$lib/utils.js';
+  import { catalogWebPort, bytes } from '$lib/utils.js';
 
   export let item;
   export let onclose=()=>{};
@@ -11,6 +11,7 @@
   $: hints=item?.compatibility?.hints||[];
   $: packages=install.packages||item?.detection?.packages||[];
   $: notes=install.notes||[];
+  $: packageMeta=item?.package_meta||{};
   $: webPort=catalogWebPort(item);
 </script>
 
@@ -18,7 +19,7 @@
   <div class="modal-overlay" role="presentation" onclick={(event)=>event.currentTarget===event.target&&onclose()}>
     <section class="planner-modal" role="dialog" aria-modal="true" aria-label={t(locale, 'marketplace.planner.aria')}>
       <header class="planner-head">
-        <div class="planner-title"><span class="status-dot info"></span><span class="muted mono">{t(locale, 'marketplace.planner.title')} ::</span><strong>{item.name}</strong>{#if item.version}<span class="version-badge">v{item.version}</span>{/if}</div>
+        <div class="planner-title"><span class="status-dot info"></span><span class="muted mono">{locale === 'ru' ? 'СВЕДЕНИЯ' : 'DETAILS'} ::</span><strong>{item.name}</strong>{#if item.version}<span class="version-badge">v{item.version}</span>{/if}</div>
         <div class="planner-mode mono"><span>{t(locale, 'marketplace.planner.mode')}</span><strong>{t(locale, 'marketplace.planner.modeValue')}</strong><button class="icon-button" type="button" aria-label={t(locale, 'common.close')} onclick={onclose}>×</button></div>
       </header>
 
@@ -36,6 +37,21 @@
             <div class="check-card">
               <div class="check-head"><strong>{t(locale, 'marketplace.planner.compatibility')}</strong><span class="state-chip info">{item.compatibility?.status||'REQUIREMENTS'}</span></div>
               {#if hints.length}{#each hints as hint}<div class="check-row"><span>{t(locale, 'marketplace.planner.requirement')}</span><code>{hint}</code></div>{/each}{:else}<div class="check-row"><span>{t(locale, 'marketplace.planner.requirements')}</span><code>{t(locale, 'marketplace.planner.notDeclared')}</code></div>{/if}
+            </div>
+            <div class="check-card">
+              <div class="check-head">
+                <strong>{locale === 'ru' ? 'Технические данные' : 'Technical details'}</strong>
+                <span class="state-chip neutral">{item.kind || 'app'}</span>
+              </div>
+              {#if item.release?.version || item.available_version}<div class="check-row"><span>{locale === 'ru' ? 'Доступная версия' : 'Available version'}</span><code>v{item.release?.version || item.available_version}</code></div>{/if}
+              {#if packageMeta.architecture}<div class="check-row"><span>{locale === 'ru' ? 'Архитектура' : 'Architecture'}</span><code>{packageMeta.architecture}</code></div>{/if}
+              {#if Number(packageMeta.download_size_bytes || 0) > 0}<div class="check-row"><span>{locale === 'ru' ? 'Загрузка' : 'Download'}</span><code>{bytes(packageMeta.download_size_bytes)}</code></div>{/if}
+              {#if Number(packageMeta.installed_size_bytes || 0) > 0}<div class="check-row"><span>{locale === 'ru' ? 'После установки' : 'Installed size'}</span><code>{bytes(packageMeta.installed_size_bytes)}</code></div>{/if}
+              {#if item.release?.min_core_version}<div class="check-row"><span>{locale === 'ru' ? 'Мин. Core' : 'Min Core'}</span><code>v{item.release.min_core_version}</code></div>{/if}
+              {#if packageMeta.depends?.length}<div class="check-row"><span>{locale === 'ru' ? 'Зависимости' : 'Depends'}</span><code>{packageMeta.depends.join(', ')}</code></div>{/if}
+              {#if packageMeta.conflicts?.length}<div class="check-row"><span>{locale === 'ru' ? 'Конфликты' : 'Conflicts'}</span><code>{packageMeta.conflicts.join(', ')}</code></div>{/if}
+              <div class="check-row"><span>{locale === 'ru' ? 'Издатель' : 'Publisher'}</span><code>{item.publisher?.name || item.source || '—'}</code></div>
+              {#if item.manifest_sha256}<div class="check-row"><span>Manifest</span><code>{item.manifest_sha256}</code></div>{/if}
             </div>
             <div class="check-card">
               <div class="check-head"><strong>{t(locale, 'marketplace.planner.installPlan')}</strong><span class="state-chip info">{t(locale, 'marketplace.planner.staged')}</span></div>

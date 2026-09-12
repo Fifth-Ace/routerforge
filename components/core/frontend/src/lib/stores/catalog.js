@@ -34,9 +34,9 @@ export async function refreshCatalog() {
   }
 }
 
-export async function forceRefreshCatalog() {
+export async function forceRefreshCatalog(fresh = false) {
   try {
-    const result = await refreshCatalogRemote();
+    const result = await refreshCatalogRemote(fresh);
     const data = result?.catalog || null;
     if (data) {
       catalog.set(data);

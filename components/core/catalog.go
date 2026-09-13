@@ -260,7 +260,7 @@ func networkToolsSeedModules() []catalogItem {
 			[]string{"network-doctor", "traceroute", "route-inspector", "flow-explorer", "active-probes", "interfaces", "routes", "read-only"}),
 	}
 }
-func networkToolsSeedModule(func vnextSeedModule(
+func networkToolsSeedModule(
 	id, name, category, description, pkg, service, process, href string,
 	order int,
 	capabilities []string,

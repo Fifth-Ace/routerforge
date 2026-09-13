@@ -3,9 +3,9 @@ package main
 import "testing"
 
 func TestBuiltinCatalogContainsCoreOnly(t *testing.T) {
-	snap := buildCatalog(map[string]string{}, map[string]bool{}, func(string) bool { return false })
-	if len(snap.Modules) != 1 || snap.Modules[0].ID != "routerforge-core" {
-		t.Fatalf("builtin catalog must contain Core only: %#v", snap.Modules)
+	modules := builtinModuleCatalog()
+	if len(modules) != 1 || modules[0].ID != "routerforge-core" {
+		t.Fatalf("builtin catalog must contain Core only: %#v", modules)
 	}
 }
 

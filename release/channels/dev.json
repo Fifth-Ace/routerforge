@@ -1,60 +1,60 @@
 {
-    "schema_version":  1,
-    "channel":  "dev",
-    "release_version":  "0.8.0~dev",
-    "components":  [
-                       {
-                           "id":  "routerforge-core",
-                           "package":  "routerforge-core",
-                           "version":  "0.8.0~dev"
-                       },
-                       {
-                           "id":  "dns",
-                           "package":  "routerforge-dns",
-                           "version":  "0.8.0~dev",
-                           "min_core_version":  "0.8.0~dev"
-                       },
-                       {
-                           "id":  "admin",
-                           "package":  "routerforge-admin",
-                           "version":  "0.8.0~dev",
-                           "min_core_version":  "0.8.0~dev"
-                       },
-                       {
-                           "id":  "monitoring",
-                           "package":  "routerforge-monitoring",
-                           "version":  "0.8.0~dev",
-                           "min_core_version":  "0.8.0~dev"
-                       },
-                       {
-                           "id":  "maintenance",
-                           "package":  "routerforge-maintenance",
-                           "version":  "0.8.0~dev",
-                           "min_core_version":  "0.8.0~dev"
-                       },
-                       {
-                           "id":  "network-tools",
-                           "package":  "routerforge-network-tools",
-                           "version":  "0.8.0~dev",
-                           "min_core_version":  "0.8.0~dev"
-                       },
-                       {
-                           "id":  "integrations",
-                           "package":  "routerforge-integrations",
-                           "version":  "0.8.0~dev",
-                           "min_core_version":  "0.8.0~dev"
-                       },
-                       {
-                           "id":  "developer-tools",
-                           "package":  "routerforge-developer-tools",
-                           "version":  "0.8.0~dev",
-                           "min_core_version":  "0.8.0~dev"
-                       },
-                       {
-                           "id":  "profiling",
-                           "package":  "routerforge-profiling",
-                           "version":  "0.8.0~dev",
-                           "min_core_version":  "0.8.0~dev"
-                       }
-                   ]
+  "schema_version": 1,
+  "channel": "dev",
+  "release_version": "0.8.0~dev",
+  "components": [
+    {
+      "id": "routerforge-core",
+      "package": "routerforge-core",
+      "version": "0.8.0~dev"
+    },
+    {
+      "id": "dns",
+      "package": "routerforge-dns",
+      "version": "0.8.0~dev",
+      "min_core_version": "0.8.0~dev"
+    },
+    {
+      "id": "admin",
+      "package": "routerforge-admin",
+      "version": "0.8.0~dev",
+      "min_core_version": "0.8.0~dev"
+    },
+    {
+      "id": "monitoring",
+      "package": "routerforge-monitoring",
+      "version": "0.8.0~dev",
+      "min_core_version": "0.8.0~dev"
+    },
+    {
+      "id": "maintenance",
+      "package": "routerforge-maintenance",
+      "version": "0.8.0~dev",
+      "min_core_version": "0.8.0~dev"
+    },
+    {
+      "id": "network-tools",
+      "package": "routerforge-network-tools",
+      "version": "0.8.0~dev",
+      "min_core_version": "0.8.0~dev"
+    },
+    {
+      "id": "integrations",
+      "package": "routerforge-integrations",
+      "version": "0.8.0~dev",
+      "min_core_version": "0.8.0~dev"
+    },
+    {
+      "id": "developer-tools",
+      "package": "routerforge-developer-tools",
+      "version": "0.8.0~dev",
+      "min_core_version": "0.8.0~dev"
+    },
+    {
+      "id": "profiling",
+      "package": "routerforge-profiling",
+      "version": "0.8.0~dev",
+      "min_core_version": "0.8.0~dev"
+    }
+  ]
 }

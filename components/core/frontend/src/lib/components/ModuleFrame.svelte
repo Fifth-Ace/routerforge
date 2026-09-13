@@ -9,6 +9,8 @@
   let state = 'checking';
   let retryTimer = null;
   let probeGeneration = 0;
+  let frame = null;
+  let frameHeight = 760;
 
   $: locale = $settings.locale === 'en' ? 'en' : 'ru';
   $: src = `/api/modules/${encodeURIComponent(moduleId)}/ui/index.html?locale=${encodeURIComponent(locale)}&view=${encodeURIComponent(view)}`;
@@ -24,19 +26,16 @@
   function restartProbe(id) {
     clearRetry();
     const generation = ++probeGeneration;
-
     if (!id) {
       state = 'not-installed';
       return;
     }
-
     state = 'checking';
     probe(id, generation);
   }
 
   async function probe(id, generation) {
     const path = `/api/modules/${encodeURIComponent(id)}/health`;
-
     try {
       const { response, payload } = await withRequestTimeout(path, 5000, async (signal) => {
         const response = await fetch(path, {
@@ -45,36 +44,22 @@
           headers: { Accept: 'application/json' },
           signal
         });
-
         let payload = null;
         if (response.status === 503) {
-          try {
-            payload = await response.json();
-          } catch {
-            payload = null;
-          }
+          try { payload = await response.json(); } catch { payload = null; }
         }
-
         return { response, payload };
       });
 
       if (generation !== probeGeneration) return;
-
       if (response.ok) {
         state = 'ready';
         return;
       }
-
-      if (response.status === 404) {
+      if (response.status === 404 || (response.status === 503 && payload?.installed === false)) {
         state = 'not-installed';
         return;
       }
-
-      if (response.status === 503 && payload?.installed === false) {
-        state = 'not-installed';
-        return;
-      }
-
       state = 'reconnecting';
     } catch {
       if (generation !== probeGeneration) return;
@@ -85,25 +70,39 @@
     retryTimer = setTimeout(() => probe(id, generation), 800);
   }
 
+  function moduleMessage(event) {
+    if (event.origin !== window.location.origin || !frame || event.source !== frame.contentWindow) return;
+    const data = event.data;
+    if (!data || data.type !== 'routerforge-module-height' || data.moduleId !== moduleId) return;
+    const height = Number(data.height || 0);
+    if (!Number.isFinite(height) || height < 360 || height > 12000) return;
+    frameHeight = Math.ceil(height);
+  }
+
+  window.addEventListener('message', moduleMessage);
+
   onDestroy(() => {
     ++probeGeneration;
     clearRetry();
+    window.removeEventListener('message', moduleMessage);
   });
 </script>
 
 <div class="routerforge-module-frame">
   {#if state === 'ready'}
     <iframe
+      bind:this={frame}
       title={`RouterForge ${moduleId}`}
       src={src}
       loading="eager"
       referrerpolicy="same-origin"
+      style={`height:${frameHeight}px`}
     ></iframe>
   {:else}
     <div class="module-state" role="status" aria-live="polite">
       {#if state === 'not-installed'}
         <strong>{locale === 'en' ? 'Module is not installed' : 'Модуль не установлен'}</strong>
-        <span>{locale === 'en' ? 'Install it from RouterForge Marketplace to open this page.' : 'Установите его через RouterForge Marketplace, чтобы открыть эту страницу.'}</span>
+        <span>{locale === 'en' ? 'Install it from RouterForge App Center to open this workspace.' : 'Установите его через Центр приложений RouterForge, чтобы открыть рабочую область.'}</span>
       {:else}
         <span class="spinner" aria-hidden="true"></span>
         <strong>{locale === 'en' ? 'Reconnecting to module…' : 'Переподключение к модулю…'}</strong>
@@ -114,10 +113,7 @@
 </div>
 
 <style>
-  .routerforge-module-frame {
-    width: 100%;
-    min-height: calc(100vh - 11rem);
-  }
+  .routerforge-module-frame { width: 100%; min-height: calc(100vh - 11rem); }
   .module-state {
     display: grid;
     justify-items: center;
@@ -129,10 +125,7 @@
     text-align: center;
     color: inherit;
   }
-  .module-state span {
-    max-width: 42rem;
-    opacity: 0.72;
-  }
+  .module-state span { max-width: 42rem; opacity: 0.72; }
   .spinner {
     width: 1.55rem;
     height: 1.55rem;
@@ -145,19 +138,14 @@
   iframe {
     display: block;
     width: 100%;
-    height: calc(100vh - 10.5rem);
     min-height: 720px;
     border: 0;
     background: transparent;
   }
-  @keyframes module-spin {
-    to { transform: rotate(360deg); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .spinner { animation: none; }
-  }
+  @keyframes module-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
   @media (max-width: 760px) {
-    iframe { min-height: 900px; height: calc(100vh - 8rem); }
+    iframe { min-height: 900px; }
     .module-state { min-height: min(900px, calc(100vh - 8rem)); }
   }
 </style>

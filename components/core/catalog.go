@@ -192,7 +192,7 @@ func refreshCatalog() catalogSnapshot {
 }
 
 func buildCatalog(installed map[string]string, processes map[string]bool, exists func(string) bool) catalogSnapshot {
-	modules := builtinModuleCatalog()
+	modules := append(builtinModuleCatalog(), vnextSeedModules()...)
 	integrations := integrationCatalog()
 
 	for i := range modules {
@@ -224,10 +224,14 @@ func buildCatalog(installed map[string]string, processes map[string]bool, exists
 func moduleOrder(id string) int {
 	order := map[string]int{
 		"routerforge-core": 1,
-		"dns":              2,
-		"admin":            3,
-		"monitoring":       4,
-		"profiling":        5,
+		"monitoring":       2,
+		"dns":              3,
+		"admin":            4,
+		"maintenance":      5,
+		"network-tools":    6,
+		"integrations":     7,
+		"developer-tools":  8,
+		"profiling":        90,
 		// Legacy logical IDs remain sortable while cached pre-consolidation
 		// registries are being replaced by the rolling Dev registry.
 		"system": 40, "thermal": 41, "storage": 42, "network": 43,
@@ -246,6 +250,75 @@ func builtinModuleCatalog() []catalogItem {
 			Source:      "builtin", Builtin: true, Enabled: true,
 			Capabilities:  []string{"web-shell", "auth", "app-center", "registry", "module-routing", "settings", "package-lifecycle"},
 			Compatibility: catalogCompatibility{Status: "built-in"},
+		},
+	}
+}
+
+func vnextSeedModules() []catalogItem {
+	return []catalogItem{
+		vnextSeedModule("maintenance", "RouterForge Maintenance", "Maintenance",
+			"Config Vault inventory, /opt health, logs/tasks metadata and Storage Doctor foundation.",
+			"routerforge-maintenance", "/opt/etc/init.d/S96routerforge-maintenance", "routerforge-maintenance",
+			"/api/modules/maintenance/ui/index.html", 50,
+			[]string{"config-vault", "storage-doctor", "logs-metadata", "tasks", "watchdogs", "read-only"}),
+		vnextSeedModule("network-tools", "RouterForge Network Tools", "Network Tools",
+			"Network Doctor, Route Inspector and bounded metadata-only Flow Explorer.",
+			"routerforge-network-tools", "/opt/etc/init.d/S97routerforge-network-tools", "routerforge-network-tools",
+			"/api/modules/network-tools/ui/index.html", 60,
+			[]string{"network-doctor", "route-inspector", "flow-explorer", "interfaces", "routes", "read-only"}),
+		vnextSeedModule("integrations", "RouterForge Integrations", "Integrations",
+			"Installed-only integration discovery and NFQWS2 Manager diagnostics.",
+			"routerforge-integrations", "/opt/etc/init.d/S98routerforge-integrations", "routerforge-integrations",
+			"/api/modules/integrations/ui/index.html", 70,
+			[]string{"integration-discovery", "nfqws2-manager", "awg-manager", "adguard-home", "x-ui", "read-only"}),
+		vnextSeedModule("developer-tools", "RouterForge Developer Tools", "Developer Tools",
+			"Runtime diagnostics and Module ABI manifest validation.",
+			"routerforge-developer-tools", "/opt/etc/init.d/S99routerforge-developer-tools", "routerforge-developer-tools",
+			"/api/modules/developer-tools/ui/index.html", 75,
+			[]string{"module-abi", "runtime-diagnostics", "manifest-validation", "read-only"}),
+	}
+}
+
+func vnextSeedModule(
+	id, name, category, description, pkg, service, process, href string,
+	order int,
+	capabilities []string,
+) catalogItem {
+	return catalogItem{
+		ID: id, Kind: "module", Name: name, Category: category, Description: description,
+		ProjectURL: "https://github.com/Fifth-Ace/routerforge",
+		Source:     "routerforge-official", Managed: true, PackageAuthoritative: true,
+		Publisher: catalogPublisher{ID: "routerforge", Name: "RouterForge", URL: "https://github.com/Fifth-Ace/routerforge"},
+		Trust: catalogTrust{
+			Status: "official", ReviewedBy: "routerforge",
+			Note: "Official RouterForge vNext module accepted on ARM64 hardware before Dev App Center publication.",
+		},
+		Capabilities: capabilities,
+		Detection:    catalogDetection{Packages: []string{pkg}, Services: []string{service}},
+		ProcessNames: []string{process},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Hints:   []string{"RouterForge Core", "Entware", "Keenetic / Netcraze ARM64"},
+			Targets: []string{"aarch64-3.10"},
+		},
+		Install: catalogInstallPlan{
+			Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{pkg},
+			Notes: []string{
+				"Dev App Center downloads the exact package from the RouterForge release index and verifies SHA256 before opkg install.",
+				"Current module API is read-only; mutation endpoints remain disabled.",
+			},
+		},
+		Update: catalogInstallPlan{
+			Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{pkg},
+			Notes: []string{"Dev update uses the exact release-index asset and checksum."},
+		},
+		Remove: catalogInstallPlan{
+			Method: "opkg", Packages: []string{pkg},
+			Notes: []string{"Removes only the selected optional RouterForge module; Core remains installed."},
+		},
+		Presentation: map[string]any{
+			"dashboard":  map[string]any{"enabled": true, "priority": order},
+			"navigation": map[string]any{"label": name, "href": href, "order": order},
 		},
 	}
 }

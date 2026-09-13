@@ -5,6 +5,11 @@ on:
     branches: [dev]
     paths:
       - 'components/core/vnext_modules.go'
+      - 'components/core/catalog.go'
+      - 'components/core/vnext_catalog_test.go'
+      - 'release/channels/dev.json'
+      - 'scripts/build_routerforge_channel.py'
+      - 'scripts/publish-dev.sh'
       - 'internal/platform/**'
       - 'modules/vnext-runtime/**'
       - 'modules/vnext-ui/**'
@@ -43,6 +48,11 @@ jobs:
           test -f modules/developer-tools/frontend/index.html
           test -x scripts/build-vnext-opkg.sh
           grep -Fxq 'vnext_modules.go' scripts/build-opkg.sh
+          grep -Fq '"id": "maintenance"' release/channels/dev.json
+          grep -Fq '"id": "network-tools"' release/channels/dev.json
+          grep -Fq '"id": "integrations"' release/channels/dev.json
+          grep -Fq '"id": "developer-tools"' release/channels/dev.json
+          grep -Fq 'VERSION="0.8.0~dev.r${GITHUB_RUN_NUMBER}.${SHORT_SHA}"' scripts/publish-dev.sh
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -54,14 +64,14 @@ jobs:
         shell: bash
         run: |
           set -eu
-          unformatted="$(gofmt -l components/core/vnext_modules.go internal/platform modules/vnext-runtime)"
+          unformatted="$(gofmt -l components/core/vnext_modules.go components/core/catalog.go components/core/vnext_catalog_test.go internal/platform modules/vnext-runtime)"
           test -z "$unformatted" || {
             printf 'gofmt required:\n%s\n' "$unformatted" >&2
             exit 1
           }
 
       - name: Test shared engines and vNext runtime
-        run: go test ./internal/platform/... ./modules/vnext-runtime
+        run: go test ./components/core ./internal/platform/... ./modules/vnext-runtime
 
       - name: Vet shared engines and vNext runtime
         run: go vet ./internal/platform/... ./modules/vnext-runtime

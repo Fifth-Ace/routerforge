@@ -184,8 +184,18 @@ def main():
 
     components = config.get("components") or []
     ids = [c.get("id") for c in components]
-    if channel in {"dev", "beta"}:
-        required = ["routerforge-core", "dns", "admin", "monitoring", "profiling"]
+    if channel == "dev":
+        required = [
+            "routerforge-core",
+            "dns",
+            "admin",
+            "monitoring",
+            "maintenance",
+            "network-tools",
+            "integrations",
+            "developer-tools",
+            "profiling",
+        ]
     else:
         required = ["routerforge-core", "dns", "admin", "monitoring", "profiling"]
     if ids != required:
@@ -202,6 +212,9 @@ def main():
     env["ROUTERFORGE_CHANNEL"] = channel
     env["ROUTERFORGE_TARGET"] = target
 
+    vnext_built_versions = set()
+    vnext_ids = {"maintenance", "network-tools", "integrations", "developer-tools"}
+
     for component in components:
         cid = component["id"]
         pkg = component["package"]
@@ -213,6 +226,10 @@ def main():
             run(["./scripts/build-opkg.sh", version], env=env)
         elif cid == "admin":
             run(["./scripts/build-admin-opkg.sh", version], env=env)
+        elif cid in vnext_ids:
+            if version not in vnext_built_versions:
+                run(["./scripts/build-vnext-opkg.sh", version], env=env)
+                vnext_built_versions.add(version)
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
 

@@ -13,7 +13,7 @@
   let frameHeight = 760;
 
   $: locale = $settings.locale === 'en' ? 'en' : 'ru';
-  $: src = `/api/modules/${encodeURIComponent(moduleId)}/ui/index.html?locale=${encodeURIComponent(locale)}&view=${encodeURIComponent(view)}`;
+  $: src = `/api/modules/${encodeURIComponent(moduleId)}/ui/index.html?locale=${encodeURIComponent(locale)}&view=${encodeURIComponent(view)}&theme=${encodeURIComponent($settings.theme || 'forge')}&accent=${encodeURIComponent($settings.accent || '#38bdf8')}&background=${encodeURIComponent($settings.background || '#0b0d10')}&text=${encodeURIComponent($settings.text || '#f5f7fa')}&density=${encodeURIComponent($settings.density || 'normal')}&radius=${encodeURIComponent($settings.radius || 'default')}`;
   $: restartProbe(moduleId);
 
   function clearRetry() {

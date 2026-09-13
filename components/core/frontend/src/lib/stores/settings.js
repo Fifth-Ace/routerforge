@@ -5,6 +5,7 @@ export const defaults = {
   uiLevel: 'normal',
   uiScale: 'auto',
   refreshMs: 2000,
+  cpuTempWarning: 75,
   locale: 'ru',
   theme: 'forge',
   accent: '#38bdf8',
@@ -51,7 +52,10 @@ function normalize(value = {}) {
   const next = { ...value };
   if (next.uiLevel === 'expert') next.uiLevel = 'advanced';
   if (next.uiLevel !== 'advanced') next.uiLevel = 'normal';
-  if (!validLocale.has(next.locale)) next.locale = defaults.locale;
+  const cpuTempWarning = Number(next.cpuTempWarning);
+  next.cpuTempWarning = Number.isFinite(cpuTempWarning)
+    ? Math.min(89, Math.max(50, Math.round(cpuTempWarning)))
+    : defaults.cpuTempWarning;  if (!validLocale.has(next.locale)) next.locale = defaults.locale;
   if (legacyThemes[next.theme]) next.theme = legacyThemes[next.theme];
   if (!themes[next.theme] && next.theme !== 'custom') next.theme = defaults.theme;
   if (!validDensity.has(next.density)) next.density = defaults.density;

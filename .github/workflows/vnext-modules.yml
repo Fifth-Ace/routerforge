@@ -8,7 +8,11 @@ on:
       - 'components/core/catalog.go'
       - 'components/core/vnext_catalog_test.go'
       - 'components/core/catalog_lifecycle_test.go'
-      - 'release/channels/dev.json'
+      - 'components/core/frontend/src/lib/components/ModuleFrame.svelte'
+      - 'components/core/frontend/src/routes/maintenance/**'
+      - 'components/core/frontend/src/routes/network-tools/**'
+      - 'components/core/frontend/src/routes/integrations/**'
+      - 'components/core/frontend/src/routes/developer-tools/**'      - 'release/channels/dev.json'
       - 'scripts/build_routerforge_channel.py'
       - 'scripts/publish-dev.sh'
       - 'internal/platform/**'
@@ -127,7 +131,15 @@ jobs:
           grep -q 'Config Vault' modules/maintenance/frontend/index.html
           grep -q 'NFQWS2 Manager' modules/integrations/frontend/index.html
           grep -q 'Module ABI' modules/developer-tools/frontend/index.html
-
+          grep -q 'existing guarded Admin backend' modules/maintenance/frontend/index.html
+          grep -q 'Classic diagnostics' modules/network-tools/frontend/index.html
+          grep -q 'canonical Core catalog' modules/integrations/frontend/index.html
+          grep -q 'Developer Tools runtime' modules/developer-tools/frontend/index.html
+          grep -q 'routerforge-module-height' components/core/frontend/src/lib/components/ModuleFrame.svelte
+          grep -q 'moduleId="maintenance"' components/core/frontend/src/routes/maintenance/+page.svelte
+          grep -q 'moduleId="network-tools"' components/core/frontend/src/routes/network-tools/+page.svelte
+          grep -q 'moduleId="integrations"' components/core/frontend/src/routes/integrations/+page.svelte
+          grep -q 'moduleId="developer-tools"' components/core/frontend/src/routes/developer-tools/+page.svelte
       - name: Validate shell packaging
         shell: bash
         run: |

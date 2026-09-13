@@ -7,10 +7,10 @@ func TestVnextSeedModulesAppCenterLifecycle(t *testing.T) {
 		pkg  string
 		href string
 	}{
-		"maintenance":     {"routerforge-maintenance", "/api/modules/maintenance/ui/index.html"},
-		"network-tools":   {"routerforge-network-tools", "/api/modules/network-tools/ui/index.html"},
-		"integrations":    {"routerforge-integrations", "/api/modules/integrations/ui/index.html"},
-		"developer-tools": {"routerforge-developer-tools", "/api/modules/developer-tools/ui/index.html"},
+		"maintenance":     {"routerforge-maintenance", "/maintenance"},
+		"network-tools":   {"routerforge-network-tools", "/network-tools"},
+		"integrations":    {"routerforge-integrations", "/integrations"},
+		"developer-tools": {"routerforge-developer-tools", "/developer-tools"},
 	}
 
 	found := map[string]bool{}

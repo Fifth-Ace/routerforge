@@ -7,6 +7,7 @@ on:
       - 'components/core/vnext_modules.go'
       - 'components/core/catalog.go'
       - 'components/core/vnext_catalog_test.go'
+      - 'components/core/catalog_lifecycle_test.go'
       - 'release/channels/dev.json'
       - 'scripts/build_routerforge_channel.py'
       - 'scripts/publish-dev.sh'
@@ -48,10 +49,30 @@ jobs:
           test -f modules/developer-tools/frontend/index.html
           test -x scripts/build-vnext-opkg.sh
           grep -Fxq 'vnext_modules.go' scripts/build-opkg.sh
-          grep -Fq '"id": "maintenance"' release/channels/dev.json
-          grep -Fq '"id": "network-tools"' release/channels/dev.json
-          grep -Fq '"id": "integrations"' release/channels/dev.json
-          grep -Fq '"id": "developer-tools"' release/channels/dev.json
+          python3 - <<'PY'
+          import json
+
+          with open("release/channels/dev.json", "r", encoding="utf-8") as fh:
+              doc = json.load(fh)
+
+          expected = [
+              "routerforge-core",
+              "dns",
+              "admin",
+              "monitoring",
+              "maintenance",
+              "network-tools",
+              "integrations",
+              "developer-tools",
+              "profiling",
+          ]
+          actual = [item.get("id") for item in doc.get("components", [])]
+          if actual != expected:
+              raise SystemExit(f"unexpected Dev component order: {actual!r}")
+          if doc.get("release_version") != "0.8.0~dev":
+              raise SystemExit(f"unexpected Dev release train: {doc.get('release_version')!r}")
+          print("DEV_APP_CENTER_COMPONENT_CONFIG=PASS")
+          PY
           grep -Fq 'VERSION="0.8.0~dev.r${GITHUB_RUN_NUMBER}.${SHORT_SHA}"' scripts/publish-dev.sh
 
       - name: Set up Go
@@ -64,7 +85,7 @@ jobs:
         shell: bash
         run: |
           set -eu
-          unformatted="$(gofmt -l components/core/vnext_modules.go components/core/catalog.go components/core/vnext_catalog_test.go internal/platform modules/vnext-runtime)"
+          unformatted="$(gofmt -l components/core/vnext_modules.go components/core/catalog.go components/core/vnext_catalog_test.go components/core/catalog_lifecycle_test.go internal/platform modules/vnext-runtime)"
           test -z "$unformatted" || {
             printf 'gofmt required:\n%s\n' "$unformatted" >&2
             exit 1

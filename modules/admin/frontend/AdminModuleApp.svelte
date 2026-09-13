@@ -81,6 +81,43 @@
   let integrations = [];
   let integrationsBusy = false;
 
+  let adminPage = null;
+  let adminHeightRaf = 0;
+  let adminHeightObserver = null;
+
+  function measuredAdminHeight() {
+    if (!adminPage) return 760;
+    if (tab === 'files' || tab === 'terminal') return 760;
+
+    const pageRect = adminPage.getBoundingClientRect();
+    let bottom = 0;
+    for (const child of Array.from(adminPage.children || [])) {
+      const rect = child.getBoundingClientRect();
+      if (!Number.isFinite(rect.bottom)) continue;
+      bottom = Math.max(bottom, rect.bottom - pageRect.top);
+    }
+
+    const style = getComputedStyle(adminPage);
+    const paddingBottom = Number.parseFloat(style.paddingBottom || '0') || 0;
+    return Math.max(720, Math.min(12000, Math.ceil(bottom + paddingBottom + 12)));
+  }
+
+  function notifyAdminHeight() {
+    adminHeightRaf = 0;
+    if (!adminPage || window.parent === window) return;
+    const height = measuredAdminHeight();
+    window.parent.postMessage({
+      type: 'routerforge-module-height',
+      moduleId: 'admin',
+      height
+    }, window.location.origin);
+  }
+
+  function scheduleAdminHeight() {
+    if (adminHeightRaf) cancelAnimationFrame(adminHeightRaf);
+    adminHeightRaf = requestAnimationFrame(notifyAdminHeight);
+  }
+
   $: locale = $settings.locale || 'ru';
   $: copy = locale === 'ru' ? {
     files: 'Файлы',
@@ -283,6 +320,7 @@
     errorText = '';
     actionText = '';
     load(next);
+    scheduleAdminHeight();
   }
 
   async function mutateProcess(p, signal) {
@@ -637,18 +675,42 @@
 
   onMount(() => {
     load(tab);
+
+    adminHeightObserver = new MutationObserver(scheduleAdminHeight);
+    if (adminPage) {
+      adminHeightObserver.observe(adminPage, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true
+      });
+    }
+
+    window.addEventListener('resize', scheduleAdminHeight);
+    scheduleAdminHeight();
+    const warmupA = setTimeout(scheduleAdminHeight, 120);
+    const warmupB = setTimeout(scheduleAdminHeight, 500);
+
     const stopPolling = startSerialPolling(() => {
       if (!document.hidden && (tab === 'processes' || tab === 'ports')) {
         return load(tab);
       }
     }, 4000);
-    return stopPolling;
+
+    return () => {
+      stopPolling();
+      clearTimeout(warmupA);
+      clearTimeout(warmupB);
+      window.removeEventListener('resize', scheduleAdminHeight);
+      if (adminHeightObserver) adminHeightObserver.disconnect();
+      if (adminHeightRaf) cancelAnimationFrame(adminHeightRaf);
+    };
   });
 </script>
 
 <svelte:head><title>RouterForge — {t(locale, 'manage.pageTitle')}</title></svelte:head>
 
-<div class="page admin-page">
+<div class="page admin-page" bind:this={adminPage}>
   <div class="page-head">
     <div><h1>{t(locale, 'manage.pageTitle')}</h1><p>{t(locale, 'manage.subtitle')}</p></div>
     <span class="state-chip info">CONTROL / DEV</span>

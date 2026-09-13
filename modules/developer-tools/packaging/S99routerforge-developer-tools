@@ -1,0 +1,9 @@
+#!/bin/sh
+ENABLED=no
+PROCS=routerforge-developer-tools
+ARGS="-module developer-tools -socket /opt/var/run/routerforge-developer-tools.sock -ui /opt/share/routerforge/modules/developer-tools/ui"
+PREARGS=""
+DESC="RouterForge Developer Tools"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+[ -f /opt/etc/routerforge/module-abi-v1 ] && ENABLED=yes
+. /opt/etc/init.d/rc.func

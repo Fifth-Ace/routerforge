@@ -190,10 +190,7 @@ def main():
             "dns",
             "admin",
             "monitoring",
-            "maintenance",
             "network-tools",
-            "integrations",
-            "developer-tools",
             "profiling",
         ]
     else:
@@ -212,8 +209,6 @@ def main():
     env["ROUTERFORGE_CHANNEL"] = channel
     env["ROUTERFORGE_TARGET"] = target
 
-    vnext_built_versions = set()
-    vnext_ids = {"maintenance", "network-tools", "integrations", "developer-tools"}
 
     for component in components:
         cid = component["id"]
@@ -226,10 +221,8 @@ def main():
             run(["./scripts/build-opkg.sh", version], env=env)
         elif cid == "admin":
             run(["./scripts/build-admin-opkg.sh", version], env=env)
-        elif cid in vnext_ids:
-            if version not in vnext_built_versions:
-                run(["./scripts/build-vnext-opkg.sh", version], env=env)
-                vnext_built_versions.add(version)
+        elif cid == "network-tools":
+            run(["./scripts/build-network-tools-opkg.sh", version], env=env)
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
 

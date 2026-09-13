@@ -40,7 +40,7 @@ web_discovery_probe.go
 web_discovery_catalog.go
 admin_proxy.go
 module_proxy.go
-vnext_modules.go
+network_tools_module.go
 auth.go
 auth_crypt.go
 catalog.go

@@ -139,10 +139,7 @@ verify_plain "dist/routerforge-core_${ASSET_VERSION}_${TARGET}.ipk" routerforge
 verify_plain "dist/routerforge-admin_${ASSET_VERSION}_${TARGET}.ipk" routerforge-admin
 verify_plain "dist/routerforge-dns_${ASSET_VERSION}_${TARGET}.ipk" routerforge-dns
 verify_plain "dist/routerforge-monitoring_${ASSET_VERSION}_${TARGET}.ipk" routerforge-monitoring
-verify_plain "dist/routerforge-maintenance_${ASSET_VERSION}_${TARGET}.ipk" routerforge-maintenance
 verify_plain "dist/routerforge-network-tools_${ASSET_VERSION}_${TARGET}.ipk" routerforge-network-tools
-verify_plain "dist/routerforge-integrations_${ASSET_VERSION}_${TARGET}.ipk" routerforge-integrations
-verify_plain "dist/routerforge-developer-tools_${ASSET_VERSION}_${TARGET}.ipk" routerforge-developer-tools
 
 echo "DEV_PLAIN_BINARY_GATE=PASS"
 

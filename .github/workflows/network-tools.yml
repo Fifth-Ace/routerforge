@@ -1,0 +1,220 @@
+name: Network Tools
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'components/core/catalog.go'
+      - 'components/core/network_tools_module.go'
+      - 'components/core/network_tools_catalog_test.go'
+      - 'components/core/catalog_lifecycle_test.go'
+      - 'components/core/frontend/src/lib/components/ModuleFrame.svelte'
+      - 'components/core/frontend/src/routes/network-tools/**'
+      - 'release/channels/dev.json'
+      - 'scripts/build_routerforge_channel.py'
+      - 'scripts/publish-dev.sh'
+      - 'internal/platform/probe/**'
+      - 'modules/network-tools/**'
+      - 'scripts/build-network-tools-opkg.sh'
+      - 'scripts/build-opkg.sh'
+      - '.github/workflows/network-tools.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify cleanup and channel topology
+        shell: bash
+        run: |
+          set -eu
+          git diff --check HEAD^
+          test -f components/core/network_tools_module.go
+          test -f components/core/network_tools_catalog_test.go
+          test -f components/core/frontend/src/routes/network-tools/+page.svelte
+          test -f modules/network-tools/runtime/main.go
+          test -f modules/network-tools/runtime/network_tools.go
+          test -f modules/network-tools/frontend/index.html
+          test -x scripts/build-network-tools-opkg.sh
+
+          test ! -e components/core/frontend/src/routes/maintenance
+          test ! -e components/core/frontend/src/routes/integrations
+          test ! -e components/core/frontend/src/routes/developer-tools
+          test ! -e modules/maintenance
+          test ! -e modules/integrations
+          test ! -e modules/developer-tools
+          test ! -e modules/vnext-runtime
+          test ! -e modules/vnext-ui
+          test ! -e scripts/build-vnext-opkg.sh
+          test ! -e .github/workflows/vnext-modules.yml
+
+          python3 - <<'PY'
+          import json
+          with open("release/channels/dev.json", "r", encoding="utf-8") as fh:
+              doc = json.load(fh)
+          expected = [
+              "routerforge-core",
+              "dns",
+              "admin",
+              "monitoring",
+              "network-tools",
+              "profiling",
+          ]
+          actual = [item.get("id") for item in doc.get("components", [])]
+          if actual != expected:
+              raise SystemExit(f"unexpected Dev component order: {actual!r}")
+          if doc.get("release_version") != "0.8.0~dev":
+              raise SystemExit(f"unexpected Dev release train: {doc.get('release_version')!r}")
+          print("DEV_NETWORK_TOOLS_TOPOLOGY=PASS")
+          PY
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+          cache: true
+
+      - name: Verify Go formatting
+        shell: bash
+        run: |
+          set -eu
+          unformatted="$(gofmt -l \
+            components/core/catalog.go \
+            components/core/network_tools_module.go \
+            components/core/network_tools_catalog_test.go \
+            components/core/catalog_lifecycle_test.go \
+            internal/platform/probe \
+            modules/network-tools/runtime)"
+          test -z "$unformatted" || {
+            printf 'gofmt required:\n%s\n' "$unformatted" >&2
+            exit 1
+          }
+
+      - name: Test Network Tools contracts
+        run: go test ./components/core ./internal/platform/probe ./modules/network-tools/runtime
+
+      - name: Vet Network Tools runtime
+        run: go vet ./internal/platform/probe ./modules/network-tools/runtime
+
+      - name: Cross-build ARM64 Network Tools
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+            -trimpath \
+            -ldflags='-s -w -X main.version=0.0.0-ci' \
+            -o /tmp/routerforge-network-tools-arm64 ./modules/network-tools/runtime
+          test -s /tmp/routerforge-network-tools-arm64
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Validate Network Tools UI target
+        shell: bash
+        run: |
+          set -eu
+          node --check modules/network-tools/frontend/runtime.js
+          node --check modules/network-tools/frontend/app.js
+          grep -Fq 'Network Doctor' modules/network-tools/frontend/index.html
+          grep -Fq 'Route Inspector' modules/network-tools/frontend/index.html
+          grep -Fq 'Flow Explorer' modules/network-tools/frontend/index.html
+          grep -Fq 'Active Probes' modules/network-tools/frontend/index.html
+          grep -Fq 'Доступность сети' modules/network-tools/frontend/index.html
+          grep -Fq 'Средняя задержка (RTT)' modules/network-tools/frontend/index.html
+          grep -Fq 'Потери пакетов' modules/network-tools/frontend/index.html
+          grep -Fq 'Активные сессии' modules/network-tools/frontend/index.html
+          grep -Fq 'Сохранить отчёт' modules/network-tools/frontend/index.html
+          grep -Fq '/network-tools' components/core/catalog.go
+
+      - name: Validate package shell
+        shell: bash
+        run: |
+          set -eu
+          sh -n scripts/build-network-tools-opkg.sh
+          sh -n modules/network-tools/packaging/postinst
+          sh -n modules/network-tools/packaging/prerm
+          sh -n modules/network-tools/packaging/S97routerforge-network-tools
+
+      - name: Smoke test Unix socket and read-only boundary
+        shell: bash
+        run: |
+          set -eu
+          go build -trimpath -ldflags='-X main.version=0.0.0-ci' \
+            -o /tmp/routerforge-network-tools ./modules/network-tools/runtime
+
+          socket=/tmp/routerforge-network-tools.sock
+          ui="$PWD/modules/network-tools/frontend"
+          rm -f "$socket"
+          /tmp/routerforge-network-tools -socket "$socket" -ui "$ui" &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; rm -f "$socket"' EXIT INT TERM
+
+          i=0
+          while [ ! -S "$socket" ] && [ "$i" -lt 40 ]; do
+            sleep 0.1
+            i=$((i + 1))
+          done
+          test -S "$socket"
+
+          curl --fail --silent --show-error --unix-socket "$socket" http://unix/v1/health | grep -q '"ok":true'
+          curl --fail --silent --show-error --unix-socket "$socket" http://unix/v1/summary >/dev/null
+          curl --fail --silent --show-error --unix-socket "$socket" http://unix/v1/interfaces >/dev/null
+          curl --fail --silent --show-error --unix-socket "$socket" http://unix/v1/routes >/dev/null
+          curl --fail --silent --show-error --unix-socket "$socket" http://unix/v1/flows >/dev/null
+          curl --fail --silent --show-error --unix-socket "$socket" 'http://unix/v1/doctor?target=127.0.0.1&checks=dns' >/dev/null
+          curl --fail --silent --show-error --unix-socket "$socket" http://unix/v1/ui/index.html | grep -Fq 'Сетевые инструменты'
+
+          code="$(curl --silent --output /tmp/post-body --write-out '%{http_code}' \
+            --unix-socket "$socket" -X POST http://unix/v1/routes)"
+          test "$code" = '405'
+          grep -q '"mutation_api":false' /tmp/post-body
+
+          kill "$pid"
+          wait "$pid" 2>/dev/null || true
+          rm -f "$socket"
+          trap - EXIT INT TERM
+
+      - name: Build ARM64 Network Tools IPK
+        id: package
+        shell: bash
+        env:
+          ROUTERFORGE_TARGET: aarch64-3.10
+          ROUTERFORGE_UPX: '0'
+        run: |
+          set -eu
+          SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-12)"
+          VERSION="0.8.0~dev.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          ./scripts/build-network-tools-opkg.sh "$VERSION"
+
+          file="dist/routerforge-network-tools_${VERSION}_aarch64-3.10.ipk"
+          test -s "$file"
+          actual_arch="$(tar -xzOf "$file" ./control.tar.gz | tar -xzOf - ./control | awk -F ': *' '$1 == "Architecture" {print $2; exit}')"
+          actual_name="$(tar -xzOf "$file" ./control.tar.gz | tar -xzOf - ./control | awk -F ': *' '$1 == "Package" {print $2; exit}')"
+          test "$actual_arch" = 'aarch64-3.10'
+          test "$actual_name" = 'routerforge-network-tools'
+
+          tar -xzOf "$file" ./data.tar.gz | tar -xzOf - ./opt/share/routerforge/modules/network-tools/manifest.json | grep -Fq '"mode": "read-only-diagnostics"'
+          tar -xzOf "$file" ./data.tar.gz | tar -tzf - | grep -Fq './opt/share/routerforge/modules/network-tools/ui/index.html'
+
+          sha256sum "$file" | tee dist/NETWORK_TOOLS_SHA256SUMS.txt
+          printf 'SHA=%s\nVERSION=%s\n' "$GITHUB_SHA" "$VERSION" | tee dist/NETWORK_TOOLS_BUILD_INFO.txt
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload ARM64 Network Tools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: routerforge-network-tools-${{ github.run_number }}
+          path: |
+            dist/routerforge-network-tools_*.ipk
+            dist/NETWORK_TOOLS_SHA256SUMS.txt
+            dist/NETWORK_TOOLS_BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 14

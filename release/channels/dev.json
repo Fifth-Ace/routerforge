@@ -27,26 +27,8 @@
       "min_core_version": "0.8.0~dev"
     },
     {
-      "id": "maintenance",
-      "package": "routerforge-maintenance",
-      "version": "0.8.0~dev",
-      "min_core_version": "0.8.0~dev"
-    },
-    {
       "id": "network-tools",
       "package": "routerforge-network-tools",
-      "version": "0.8.0~dev",
-      "min_core_version": "0.8.0~dev"
-    },
-    {
-      "id": "integrations",
-      "package": "routerforge-integrations",
-      "version": "0.8.0~dev",
-      "min_core_version": "0.8.0~dev"
-    },
-    {
-      "id": "developer-tools",
-      "package": "routerforge-developer-tools",
       "version": "0.8.0~dev",
       "min_core_version": "0.8.0~dev"
     },

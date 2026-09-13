@@ -1,1 +1,126 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RouterForge Network Tools</title><link rel="stylesheet" href="module.css"></head><body><main class="rf-page"><header class="rf-head"><div><span class="rf-kicker">ROUTERFORGE / NETWORK TOOLS</span><h1>Network Doctor · Route Inspector · Flow Explorer</h1><p>Новая причинная диагностика + уже рабочие ping / traceroute / DNS / TCP инструменты из существующего Admin backend. Старый Management пока остаётся параллельно для сравнения.</p></div><div class="rf-status" data-health>loading…</div></header><section class="rf-grid metrics" id="metrics"></section><section class="rf-panel"><div class="rf-panel-head"><strong>Network Doctor</strong><span>DNS → route → TCP / first proven failure</span></div><div class="rf-toolbar"><input id="target" value="1.1.1.1" placeholder="IP or hostname"><input id="port" value="443" inputmode="numeric"><button class="rf-action" id="run">Проверить</button></div><div class="rf-body" id="doctor"></div></section><section class="rf-panel"><div class="rf-panel-head"><strong>Classic diagnostics</strong><span>existing Admin backend</span></div><div class="rf-toolbar"><select id="tool"><option value="ping">ping</option><option value="traceroute">traceroute</option><option value="dns">DNS lookup</option><option value="tcp">TCP connect</option></select><input id="classic-target" value="1.1.1.1"><input id="classic-port" value="443"><button class="rf-action" id="classic-run">Run</button></div><div class="rf-body" id="classic-result"></div></section><section class="rf-grid two"><div class="rf-panel"><div class="rf-panel-head"><strong>Route Inspector</strong><span>kernel route table</span></div><div class="rf-table-wrap" id="routes"></div></div><div class="rf-panel"><div class="rf-panel-head"><strong>Interfaces</strong><span>addresses / MTU</span></div><div class="rf-list" id="interfaces"></div></div></section><section class="rf-panel"><div class="rf-panel-head"><strong>Flow Explorer</strong><span>bounded conntrack metadata · no DPI</span></div><div class="rf-table-wrap" id="flows"></div></section></main><script src="runtime.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RouterForge — Сетевые инструменты</title>
+  <link rel="stylesheet" href="module.css">
+</head>
+<body>
+<main class="nt-page">
+  <header class="nt-heading">
+    <div>
+      <span class="nt-kicker">ROUTERFORGE / СЕТЕВЫЕ ИНСТРУМЕНТЫ</span>
+      <h1>Сетевые инструменты</h1>
+      <p>Диагностика, анализ маршрутов, исследование трафика и активные проверки сети.</p>
+    </div>
+    <div class="nt-heading-actions">
+      <div class="nt-hint">ⓘ Диагностируйте. Анализируйте. Решайте быстрее.</div>
+      <button class="nt-button" id="save-report">▣&nbsp; Сохранить отчёт⌄</button>
+    </div>
+  </header>
+
+  <nav class="nt-tabs" aria-label="Network Tools">
+    <button class="nt-tab active" data-target="doctor-panel">◉&nbsp; Network Doctor</button>
+    <button class="nt-tab" data-target="route-panel">♧&nbsp; Route Inspector</button>
+    <button class="nt-tab" data-target="flow-panel">☷&nbsp; Flow Explorer</button>
+    <button class="nt-tab" data-target="active-panel">◌&nbsp; Active Probes</button>
+  </nav>
+
+  <section class="nt-kpis" aria-label="Network summary">
+    <article class="nt-kpi">
+      <div class="nt-kpi-label">Доступность сети</div>
+      <div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-availability">—</div><div class="nt-trend" id="trend-availability">LIVE</div><div id="spark-availability"></div></div>
+      <small>По последним активным проверкам</small>
+    </article>
+    <article class="nt-kpi">
+      <div class="nt-kpi-label">Средняя задержка (RTT)</div>
+      <div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-rtt">—</div><div class="nt-trend" id="trend-rtt">LIVE</div><div id="spark-rtt"></div></div>
+      <small>По последним активным проверкам</small>
+    </article>
+    <article class="nt-kpi">
+      <div class="nt-kpi-label">Потери пакетов</div>
+      <div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-loss">—</div><div class="nt-trend bad" id="trend-loss">LIVE</div><div id="spark-loss"></div></div>
+      <small>По последнему Ping</small>
+    </article>
+    <article class="nt-kpi">
+      <div class="nt-kpi-label">Активные сессии</div>
+      <div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-sessions">—</div><div class="nt-trend" id="trend-sessions">LIVE</div><div id="spark-sessions"></div></div>
+      <small>Текущий bounded conntrack snapshot</small>
+    </article>
+  </section>
+
+  <section class="nt-main-grid">
+    <article class="nt-panel" id="doctor-panel">
+      <div class="nt-panel-head"><div><strong>◉&nbsp; Быстрая проверка (Network Doctor)</strong><small>Проверьте доступность узла и основные сервисы.</small></div></div>
+      <div class="nt-toolbar four">
+        <input id="doctor-target" value="8.8.8.8" aria-label="Target">
+        <select id="doctor-profile" aria-label="Profile">
+          <option value="standard">Профиль: Стандартный</option>
+          <option value="web">Профиль: Web</option>
+          <option value="dns">Профиль: DNS</option>
+        </select>
+        <button class="nt-button primary" id="doctor-run">Запустить&nbsp; ▶</button>
+        <button class="nt-button" id="doctor-copy" title="Копировать результат">▣</button>
+      </div>
+      <div class="nt-checks">
+        <label class="nt-check"><input type="checkbox" id="check-ping" checked> Ping</label>
+        <label class="nt-check"><input type="checkbox" id="check-dns" checked> DNS</label>
+        <label class="nt-check"><input type="checkbox" id="check-http"> HTTP</label>
+        <label class="nt-check"><input type="checkbox" id="check-tcp" checked> TCP</label>
+      </div>
+      <div class="nt-result-list" id="doctor-results"><div class="nt-empty">Выберите проверки и нажмите «Запустить».</div></div>
+    </article>
+
+    <article class="nt-panel" id="trace-panel">
+      <div class="nt-panel-head"><div><strong>♜&nbsp; Трассировка маршрута</strong><small>Визуализация пути и диагностика на каждом хопе.</small></div></div>
+      <div class="nt-toolbar four">
+        <input id="trace-target" value="8.8.8.8" aria-label="Traceroute target">
+        <select aria-label="Traceroute protocol"><option>ICMP (traceroute)</option></select>
+        <button class="nt-button primary" id="trace-run">◉&nbsp; Запустить</button>
+        <button class="nt-button" id="trace-copy">▣&nbsp; Копировать</button>
+      </div>
+      <div class="nt-table-wrap" id="trace-results"><div class="nt-empty">Трассировка ещё не запускалась.</div></div>
+    </article>
+
+    <article class="nt-panel" id="route-panel">
+      <div class="nt-panel-head"><div><strong>◈&nbsp; Информация о маршруте (Route Inspector)</strong><small>Подробная информация о выбранном маршруте, политике и решении.</small></div></div>
+      <div class="nt-toolbar">
+        <input id="route-target" value="8.8.8.8" aria-label="Route target">
+        <span></span>
+        <button class="nt-button primary" id="route-run">◉&nbsp; Показать маршрут</button>
+      </div>
+      <div class="route-card-grid">
+        <div class="route-facts" id="route-facts"><div class="nt-empty">Маршрут ещё не выбран.</div></div>
+        <div class="route-decision" id="route-decision"><div class="nt-empty">Нет данных о решении.</div></div>
+      </div>
+    </article>
+
+    <article class="nt-panel" id="flow-panel">
+      <div class="nt-panel-head"><div><strong>⌁&nbsp; Анализ трафика (Flow Explorer)</strong><small>Активные соединения и потоки в реальном времени.</small></div></div>
+      <div class="nt-toolbar flow">
+        <select id="flow-window"><option>Последние 5 минут</option><option>Текущий snapshot</option></select>
+        <select id="flow-interface"><option value="">Все интерфейсы</option></select>
+        <input id="flow-search" placeholder="⌕ Поиск по IP, домену, порту…">
+        <button class="nt-button primary" id="flow-refresh">↻&nbsp; Обновить</button>
+      </div>
+      <div class="nt-table-wrap" id="flow-results"><div class="nt-empty">Загрузка conntrack…</div></div>
+      <div class="flow-footer"><button id="flow-more">Показать больше соединений&nbsp; →</button><span id="flow-count">Всего: —</span></div>
+    </article>
+  </section>
+
+  <section class="nt-panel nt-active" id="active-panel">
+    <div class="nt-panel-head"><div><strong>◌&nbsp; Active Probes</strong><small>Ручная bounded-проверка без изменения конфигурации роутера.</small></div></div>
+    <div class="active-grid">
+      <select id="probe-kind"><option value="ping">Ping</option><option value="dns">DNS</option><option value="tcp">TCP</option><option value="http">HTTP</option></select>
+      <input id="probe-target" value="8.8.8.8">
+      <input id="probe-port" value="53" inputmode="numeric">
+      <button class="nt-button primary" id="probe-run">Запустить&nbsp; ▶</button>
+    </div>
+    <pre class="nt-console" id="probe-output">Готово к запуску.</pre>
+  </section>
+</main>
+<script src="runtime.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

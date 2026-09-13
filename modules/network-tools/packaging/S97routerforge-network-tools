@@ -1,7 +1,7 @@
 #!/bin/sh
 ENABLED=no
 PROCS=routerforge-network-tools
-ARGS="-module network-tools -socket /opt/var/run/routerforge-network-tools.sock -ui /opt/share/routerforge/modules/network-tools/ui"
+ARGS="-socket /opt/var/run/routerforge-network-tools.sock -ui /opt/share/routerforge/modules/network-tools/ui"
 PREARGS=""
 DESC="RouterForge Network Tools"
 PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin

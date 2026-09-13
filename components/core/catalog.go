@@ -192,7 +192,7 @@ func refreshCatalog() catalogSnapshot {
 }
 
 func buildCatalog(installed map[string]string, processes map[string]bool, exists func(string) bool) catalogSnapshot {
-	modules := append(builtinModuleCatalog(), vnextSeedModules()...)
+	modules := append(builtinModuleCatalog(), networkToolsSeedModules()...)
 	integrations := integrationCatalog()
 
 	for i := range modules {
@@ -227,10 +227,7 @@ func moduleOrder(id string) int {
 		"monitoring":       2,
 		"dns":              3,
 		"admin":            4,
-		"maintenance":      5,
-		"network-tools":    6,
-		"integrations":     7,
-		"developer-tools":  8,
+		"network-tools":    5,
 		"profiling":        90,
 		// Legacy logical IDs remain sortable while cached pre-consolidation
 		// registries are being replaced by the rolling Dev registry.
@@ -254,32 +251,16 @@ func builtinModuleCatalog() []catalogItem {
 	}
 }
 
-func vnextSeedModules() []catalogItem {
+func networkToolsSeedModules() []catalogItem {
 	return []catalogItem{
-		vnextSeedModule("maintenance", "RouterForge Maintenance", "Maintenance",
-			"Config Vault inventory, /opt health, logs/tasks metadata and Storage Doctor foundation.",
-			"routerforge-maintenance", "/opt/etc/init.d/S96routerforge-maintenance", "routerforge-maintenance",
-			"/maintenance", 50,
-			[]string{"config-vault", "storage-doctor", "logs-metadata", "tasks", "watchdogs", "read-only"}),
-		vnextSeedModule("network-tools", "RouterForge Network Tools", "Network Tools",
-			"Network Doctor, Route Inspector and bounded metadata-only Flow Explorer.",
+		networkToolsSeedModule("network-tools", "RouterForge Network Tools", "Network Tools",
+			"Network Doctor, traceroute, Route Inspector, Flow Explorer and bounded active probes.",
 			"routerforge-network-tools", "/opt/etc/init.d/S97routerforge-network-tools", "routerforge-network-tools",
-			"/network-tools", 60,
-			[]string{"network-doctor", "route-inspector", "flow-explorer", "interfaces", "routes", "read-only"}),
-		vnextSeedModule("integrations", "RouterForge Integrations", "Integrations",
-			"Installed-only integration discovery and NFQWS2 Manager diagnostics.",
-			"routerforge-integrations", "/opt/etc/init.d/S98routerforge-integrations", "routerforge-integrations",
-			"/integrations", 70,
-			[]string{"integration-discovery", "nfqws2-manager", "awg-manager", "adguard-home", "x-ui", "read-only"}),
-		vnextSeedModule("developer-tools", "RouterForge Developer Tools", "Developer Tools",
-			"Runtime diagnostics and Module ABI manifest validation.",
-			"routerforge-developer-tools", "/opt/etc/init.d/S99routerforge-developer-tools", "routerforge-developer-tools",
-			"/developer-tools", 75,
-			[]string{"module-abi", "runtime-diagnostics", "manifest-validation", "read-only"}),
+			"/network-tools", 50,
+			[]string{"network-doctor", "traceroute", "route-inspector", "flow-explorer", "active-probes", "interfaces", "routes", "read-only"}),
 	}
 }
-
-func vnextSeedModule(
+func networkToolsSeedModule(func vnextSeedModule(
 	id, name, category, description, pkg, service, process, href string,
 	order int,
 	capabilities []string,
@@ -291,7 +272,7 @@ func vnextSeedModule(
 		Publisher: catalogPublisher{ID: "routerforge", Name: "RouterForge", URL: "https://github.com/Fifth-Ace/routerforge"},
 		Trust: catalogTrust{
 			Status: "official", ReviewedBy: "routerforge",
-			Note: "Official RouterForge vNext module accepted on ARM64 hardware before Dev App Center publication.",
+			Note: "Official RouterForge Network Tools module on the rolling ARM64 Dev channel.",
 		},
 		Capabilities: capabilities,
 		Detection:    catalogDetection{Packages: []string{pkg}, Services: []string{service}},

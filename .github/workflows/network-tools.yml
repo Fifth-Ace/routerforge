@@ -44,6 +44,7 @@ jobs:
           test -f modules/network-tools/runtime/network_tools.go
           test -f modules/network-tools/frontend/index.html
           test -x scripts/build-network-tools-opkg.sh
+          test -x scripts/build-opkg.sh
 
           test ! -e components/core/frontend/src/routes/maintenance
           test ! -e components/core/frontend/src/routes/integrations
@@ -196,13 +197,30 @@ jobs:
 
           file="dist/routerforge-network-tools_${VERSION}_aarch64-3.10.ipk"
           test -s "$file"
-          actual_arch="$(tar -xzOf "$file" ./control.tar.gz | tar -xzOf - ./control | awk -F ': *' '$1 == "Architecture" {print $2; exit}')"
-          actual_name="$(tar -xzOf "$file" ./control.tar.gz | tar -xzOf - ./control | awk -F ': *' '$1 == "Package" {print $2; exit}')"
+
+          control_tar="$RUNNER_TEMP/routerforge-network-tools-control.tar.gz"
+          data_tar="$RUNNER_TEMP/routerforge-network-tools-data.tar.gz"
+          control_txt="$RUNNER_TEMP/routerforge-network-tools-control"
+          manifest_txt="$RUNNER_TEMP/routerforge-network-tools-manifest.json"
+          data_list="$RUNNER_TEMP/routerforge-network-tools-data.lst"
+          rm -f "$control_tar" "$data_tar" "$control_txt" "$manifest_txt" "$data_list"
+
+          tar -xzOf "$file" ./control.tar.gz > "$control_tar"
+          tar -xzOf "$file" ./data.tar.gz > "$data_tar"
+          tar -xzOf "$control_tar" ./control > "$control_txt"
+
+          actual_arch="$(awk -F ': *' '$1 == "Architecture" {value=$2} END {print value}' "$control_txt")"
+          actual_name="$(awk -F ': *' '$1 == "Package" {value=$2} END {print value}' "$control_txt")"
           test "$actual_arch" = 'aarch64-3.10'
           test "$actual_name" = 'routerforge-network-tools'
 
-          tar -xzOf "$file" ./data.tar.gz | tar -xzOf - ./opt/share/routerforge/modules/network-tools/manifest.json | grep -Fq '"mode": "read-only-diagnostics"'
-          tar -xzOf "$file" ./data.tar.gz | tar -tzf - | grep -Fq './opt/share/routerforge/modules/network-tools/ui/index.html'
+          tar -xzOf "$data_tar" ./opt/share/routerforge/modules/network-tools/manifest.json > "$manifest_txt"
+          grep -Fq '"mode": "read-only-diagnostics"' "$manifest_txt"
+
+          tar -tzf "$data_tar" > "$data_list"
+          grep -Fxq './opt/share/routerforge/modules/network-tools/ui/index.html' "$data_list"
+
+          rm -f "$control_tar" "$data_tar" "$control_txt" "$manifest_txt" "$data_list"
 
           sha256sum "$file" | tee dist/NETWORK_TOOLS_SHA256SUMS.txt
           printf 'SHA=%s\nVERSION=%s\n' "$GITHUB_SHA" "$VERSION" | tee dist/NETWORK_TOOLS_BUILD_INFO.txt

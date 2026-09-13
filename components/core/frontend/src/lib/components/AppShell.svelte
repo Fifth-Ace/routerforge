@@ -46,6 +46,7 @@
   $: ramPct = Number(memory?.used_pct || (memory?.total_kb ? Number(memory.used_kb || 0) / Number(memory.total_kb) * 100 : 0));
   $: cpuPct = averageCPU(telem.cpu);
   $: cpuTemp = cpuTemperature(telem.thermal);
+  $: cpuTempWarning = Number($settings.cpuTempWarning || 75);
   $: model = telem.platform?.model || 'Keenetic';
   $: processes = Number(telem.summary?.process_count || 0);
 
@@ -113,7 +114,7 @@
       <section class="rail-status-card mono">
         <div class="rail-section-label">{locale === 'ru' ? 'Телеметрия устройства' : 'Device telemetry'}</div>
         <div><span>{locale === 'ru' ? 'Модель' : 'Model'}</span><strong>{model}</strong></div>
-        <div><span>CPU Temp</span><strong class:warn={cpuTemp > 75} class:bad={cpuTemp >= 90}>{cpuTemp ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></div>
+        <div><span>CPU Temp</span><strong class:warn={cpuTemp >= cpuTempWarning && cpuTemp < 90} class:bad={cpuTemp >= 90}>{cpuTemp ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></div>
         <div><span>CPU Usage</span><strong>{telem.cpu ? `${cpuPct.toFixed(0)}%` : '—'}</strong></div>
         <div><span>RAM Usage</span><strong>{memory ? `${ramPct.toFixed(0)}%` : '—'}</strong></div>
         <div><span>{locale === 'ru' ? 'Процессы' : 'Processes'}</span><strong>{processes || '—'}</strong></div>

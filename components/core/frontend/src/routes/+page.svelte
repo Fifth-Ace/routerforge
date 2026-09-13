@@ -25,6 +25,7 @@
   $: ramPct = Number(memory?.used_pct || (memory?.total_kb ? Number(memory.used_kb || 0) / Number(memory.total_kb) * 100 : 0));
   $: cpuPct = averageCPU(telem.cpu);
   $: cpuTemp = cpuTemperature(telem.thermal);
+  $: cpuTempWarning = Number($settings.cpuTempWarning || 75);
   $: opt = telem.platform?.opt || {};
   $: updates = [...modules, ...integrations].filter((item) => item.installed && item.update_available);
   $: issueInputs = {
@@ -125,7 +126,7 @@
         `${item.name}: ${text('manifest \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u0432\u043d\u0438\u043c\u0430\u043d\u0438\u044f','manifest requires attention')}`, trust.toUpperCase(), '/apps?tab=installed');
     }
 
-    if (cpuTemp > 75) push(cpuTemp >= 90 ? 'critical' : 'warning',
+    if (cpuTemp >= cpuTempWarning) push(cpuTemp >= 90 ? 'critical' : 'warning',
       text('\u041f\u043e\u0432\u044b\u0448\u0435\u043d\u043d\u0430\u044f \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 CPU','High CPU temperature'), `${cpuTemp.toFixed(0)}\u00b0C`, '/monitoring?tab=thermal');
     if (ramPct >= 90) push(ramPct >= 96 ? 'critical' : 'warning',
       text('\u0412\u044b\u0441\u043e\u043a\u043e\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0435 RAM','High RAM usage'), `${ramPct.toFixed(0)}%`, '/monitoring?tab=system');

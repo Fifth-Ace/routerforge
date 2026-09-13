@@ -253,7 +253,7 @@ func builtinModuleCatalog() []catalogItem {
 
 func networkToolsSeedModules() []catalogItem {
 	return []catalogItem{
-		networkToolsSeedModule("network-tools", "RouterForge Network Tools", "Network Tools",
+		networkToolsSeedModule("network-tools", "Network Tools", "Network Tools",
 			"Network Doctor, traceroute, Route Inspector, Flow Explorer and bounded active probes.",
 			"routerforge-network-tools", "/opt/etc/init.d/S97routerforge-network-tools", "routerforge-network-tools",
 			"/network-tools", 50,

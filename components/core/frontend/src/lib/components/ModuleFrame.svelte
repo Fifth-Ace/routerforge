@@ -12,6 +12,26 @@
   let frame = null;
   let frameHeight = 760;
 
+  function visibleWorkspaceHeight() {
+    if (!frame || typeof window === 'undefined') return 720;
+    const top = frame.getBoundingClientRect().top;
+    return Math.max(720, Math.floor(window.innerHeight - top - 8));
+  }
+
+  function applyFrameHeight(reportedHeight = frameHeight) {
+    const reported = Number(reportedHeight || 0);
+    const floor = moduleId === 'admin' ? visibleWorkspaceHeight() : 0;
+    const next = Math.max(reported, floor);
+    if (Number.isFinite(next) && next >= 360 && next <= 12000) {
+      frameHeight = Math.ceil(next);
+    }
+  }
+
+  function refreshVisibleWorkspaceHeight() {
+    if (moduleId !== 'admin') return;
+    applyFrameHeight(frameHeight);
+  }
+
   $: locale = $settings.locale === 'en' ? 'en' : 'ru';
   $: moduleThemeQuery = moduleId === 'network-tools'
     ? `&theme=${encodeURIComponent($settings.theme || 'forge')}&accent=${encodeURIComponent($settings.accent || '#38bdf8')}&background=${encodeURIComponent($settings.background || '#0b0d10')}&text=${encodeURIComponent($settings.text || '#f5f7fa')}&density=${encodeURIComponent($settings.density || 'normal')}&radius=${encodeURIComponent($settings.radius || 'default')}`
@@ -79,15 +99,17 @@
     if (!data || data.type !== 'routerforge-module-height' || data.moduleId !== moduleId) return;
     const height = Number(data.height || 0);
     if (!Number.isFinite(height) || height < 360 || height > 12000) return;
-    frameHeight = Math.ceil(height);
+    applyFrameHeight(height);
   }
 
   window.addEventListener('message', moduleMessage);
+  window.addEventListener('resize', refreshVisibleWorkspaceHeight);
 
   onDestroy(() => {
     ++probeGeneration;
     clearRetry();
     window.removeEventListener('message', moduleMessage);
+    window.removeEventListener('resize', refreshVisibleWorkspaceHeight);
   });
 </script>
 
@@ -98,6 +120,7 @@
       title={`RouterForge ${moduleId}`}
       src={src}
       loading="eager"
+      onload={refreshVisibleWorkspaceHeight}
       referrerpolicy="same-origin"
       style={`height:${frameHeight}px`}
     ></iframe>

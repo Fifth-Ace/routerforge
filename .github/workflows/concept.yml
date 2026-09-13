@@ -1,0 +1,111 @@
+name: Concept UI
+
+on:
+  push:
+    branches: [concept]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout exact concept SHA
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact Concept R1 delta
+        shell: bash
+        run: |
+          set -eu
+          BASE='8b3758a0fcdea36d9792982c4f6ffb88a006e0bb'
+          test "$(git rev-parse HEAD^)" = "$BASE"
+          test "$(git rev-list --count "$BASE"..HEAD)" = '1'
+          git diff --check "$BASE" HEAD
+
+          printf '%s\n' \
+            '.github/workflows/concept.yml' \
+            'components/core/frontend/src/routes/concept/+page.svelte' \
+            'docs/concepts/UI_CONCEPT_R1.md' \
+            | LC_ALL=C sort > /tmp/concept-expected-files.txt
+
+          git diff --name-only "$BASE" HEAD \
+            | LC_ALL=C sort > /tmp/concept-actual-files.txt
+
+          diff -u /tmp/concept-expected-files.txt /tmp/concept-actual-files.txt
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Install Core frontend dependencies
+        working-directory: components/core/frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Check Concept frontend
+        working-directory: components/core/frontend
+        run: npm run check
+
+      - name: Build Concept frontend
+        working-directory: components/core/frontend
+        run: npm run build
+
+      - name: Verify Concept route output
+        run: |
+          set -eu
+          test -f components/core/frontend/build/index.html
+          test -d components/core/frontend/build/_app
+          grep -R -q "CONCEPT R1" components/core/frontend/build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+          cache: true
+
+      - name: Verify embedded ARM64 Core build
+        run: |
+          set -eu
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+            -tags embed_frontend \
+            -trimpath \
+            -ldflags="-s -w -X main.version=concept-${GITHUB_RUN_NUMBER}" \
+            -o /tmp/routerforge-concept-arm64 ./components/core
+          test -s /tmp/routerforge-concept-arm64
+
+      - name: Build isolated ARM64 concept IPK
+        id: package
+        shell: bash
+        run: |
+          set -eu
+          SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-12)"
+          VERSION="0.7.1-concept.r${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          ROUTERFORGE_CHANNEL=concept \
+          ROUTERFORGE_TARGET=aarch64-3.10 \
+            ./scripts/build-opkg.sh "$VERSION"
+
+          PACKAGE="dist/routerforge-core_${VERSION}_aarch64-3.10.ipk"
+          test -s "$PACKAGE"
+          sha256sum "$PACKAGE" | tee dist/CONCEPT_SHA256SUMS.txt
+          printf 'CONCEPT_SHA=%s\nCONCEPT_VERSION=%s\nCONCEPT_PACKAGE=%s\n' \
+            "$GITHUB_SHA" "$VERSION" "$(basename "$PACKAGE")" \
+            | tee dist/CONCEPT_BUILD_INFO.txt
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload ARM64 test-router package
+        uses: actions/upload-artifact@v4
+        with:
+          name: routerforge-concept-arm64-${{ github.run_number }}
+          path: |
+            ${{ steps.package.outputs.package }}
+            dist/CONCEPT_SHA256SUMS.txt
+            dist/CONCEPT_BUILD_INFO.txt
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,9 @@
+#!/bin/sh
+ENABLED=no
+PROCS=routerforge-maintenance
+ARGS="-module maintenance -socket /opt/var/run/routerforge-maintenance.sock -ui /opt/share/routerforge/modules/maintenance/ui"
+PREARGS=""
+DESC="RouterForge Maintenance"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+[ -f /opt/etc/routerforge/module-abi-v1 ] && ENABLED=yes
+. /opt/etc/init.d/rc.func

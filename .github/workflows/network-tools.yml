@@ -22,7 +22,8 @@ on:
       - 'modules/admin/frontend/AdminModuleApp.svelte'
       - 'modules/network/**'
       - 'marketplace/approvals/network.json'
-      - 'docs/NETWORK_TOOLS_CONSOLIDATION.md'      - 'scripts/build-network-tools-opkg.sh'
+      - 'docs/NETWORK_TOOLS_CONSOLIDATION.md'
+      - 'scripts/build-network-tools-opkg.sh'
       - 'scripts/build-opkg.sh'
       - '.github/workflows/network-tools.yml'
   workflow_dispatch:

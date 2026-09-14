@@ -18,9 +18,13 @@
     return Math.max(720, Math.floor(window.innerHeight - top - 8));
   }
 
+  function usesVisibleWorkspaceFloor() {
+    return moduleId === 'admin' || moduleId === 'monitoring';
+  }
+
   function applyFrameHeight(reportedHeight = frameHeight) {
     const reported = Number(reportedHeight || 0);
-    const floor = moduleId === 'admin' ? visibleWorkspaceHeight() : 0;
+    const floor = usesVisibleWorkspaceFloor() ? visibleWorkspaceHeight() : 0;
     const next = Math.max(reported, floor);
     if (Number.isFinite(next) && next >= 360 && next <= 12000) {
       frameHeight = Math.ceil(next);
@@ -28,7 +32,7 @@
   }
 
   function refreshVisibleWorkspaceHeight() {
-    if (moduleId !== 'admin') return;
+    if (!usesVisibleWorkspaceFloor()) return;
     applyFrameHeight(frameHeight);
   }
 

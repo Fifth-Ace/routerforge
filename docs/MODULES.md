@@ -1,28 +1,24 @@
-# Официальные модули RouterForge
+# Official RouterForge modules
 
-Stable 0.7.1:
+Stable 0.8.0 topology:
 
-| Package | Назначение |
+| Package | Purpose |
 | --- | --- |
-| `routerforge-core` | Web shell/auth/App Center/lifecycle/Module ABI host |
-| `routerforge-dns` | DNS runtime/UI/control/diagnostics |
-| `routerforge-admin` | Management v2/File Manager/Maintenance/terminals |
-| `routerforge-monitoring` | consolidated System/Thermal/Storage/Network |
-| `routerforge-profiling` | loopback-only Core profiling |
+| `routerforge-core` | Web shell, auth, App Center, lifecycle and Module ABI host |
+| `routerforge-dns` | DNS runtime, UI, control and diagnostics |
+| `routerforge-admin` | Management: Processes, Services, Packages/Ports, File Manager, Terminal and Maintenance |
+| `routerforge-monitoring` | Consolidated System/Thermal/Storage/Network telemetry |
+| `routerforge-network-tools` | Network diagnostics: Doctor, probes, route inspection and flow exploration |
+| `routerforge-profiling` | Loopback-only Core profiling |
 
-## DNS
-Independent Module ABI v1 runtime. Resolver writes сохраняют snapshot/save/readback/rollback semantics.
+## Ownership boundaries
 
-## Management
-`routerforge-admin` предоставляет Processes, Services, File Manager, Maintenance, Entware Terminal и Keenetic NDM Console. Process/service/file mutations защищены root-session/same-origin/confirmation/internal-marker gates. Keenetic mode использует fixed server-side `ndmc`.
+`routerforge-admin` owns host administration and maintenance. It does not own network diagnostic probes.
 
-Подробнее: [MANAGEMENT_V2_API.md](MANAGEMENT_V2_API.md) и [MANAGEMENT_V2_FILES_API.md](MANAGEMENT_V2_FILES_API.md).
+`routerforge-network-tools` is the sole first-class network diagnostics module and owns active diagnostics plus its dedicated runtime/UI/package.
 
-## Monitoring
-`routerforge-monitoring` заменяет split packages. Legacy package names остаются только migration compatibility через `Provides/Conflicts/Replaces`.
-
-## Profiling
-Default: `127.0.0.1:6061`.
+`routerforge-monitoring` remains read-only telemetry. Historical split package names such as `routerforge-network` may remain in migration compatibility metadata so old installations can be detected and removed; they are not active product modules.
 
 ## Versions
-Stable 0.7.1 — coherent five-package train. Release-index authoritative для exact assets/SHA256; architecture проекта по-прежнему допускает independent component versioning в будущих component-only releases.
+
+Stable 0.8.0 is a six-package product topology with independent component versioning. Release-index metadata is authoritative for exact assets and SHA256 values.

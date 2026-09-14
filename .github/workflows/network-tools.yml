@@ -15,7 +15,14 @@ on:
       - 'scripts/publish-dev.sh'
       - 'internal/platform/probe/**'
       - 'modules/network-tools/**'
-      - 'scripts/build-network-tools-opkg.sh'
+      - 'components/control/main.go'
+      - 'components/control/network_tools.go'
+      - 'components/control/network_tools_test.go'
+      - 'components/core/frontend/src/lib/api.js'
+      - 'modules/admin/frontend/AdminModuleApp.svelte'
+      - 'modules/network/**'
+      - 'marketplace/approvals/network.json'
+      - 'docs/NETWORK_TOOLS_CONSOLIDATION.md'      - 'scripts/build-network-tools-opkg.sh'
       - 'scripts/build-opkg.sh'
       - '.github/workflows/network-tools.yml'
   workflow_dispatch:
@@ -46,6 +53,15 @@ jobs:
           test -x scripts/build-network-tools-opkg.sh
           test -x scripts/build-opkg.sh
 
+          # Network diagnostics ownership: Network Tools only.
+          test ! -e components/control/network_tools.go
+          test ! -e components/control/network_tools_test.go
+          test ! -e modules/network
+          test ! -e marketplace/approvals/network.json
+          ! grep -q 'registerAdminNetworkToolRoutes' components/control/main.go
+          ! grep -q 'adminNetworkToolRun' components/core/frontend/src/lib/api.js
+          ! grep -q "tab === 'network-tools'" modules/admin/frontend/AdminModuleApp.svelte
+          ! grep -q "\['network-tools'," modules/admin/frontend/AdminModuleApp.svelte
           test ! -e components/core/frontend/src/routes/maintenance
           test ! -e components/core/frontend/src/routes/integrations
           test ! -e components/core/frontend/src/routes/developer-tools

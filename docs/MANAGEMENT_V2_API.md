@@ -1,9 +1,9 @@
 # RouterForge Management v2 API
 
-Status: **Stable 0.7.1 contract**.
+Status: **Stable 0.8.0 product topology**. The Management v2 contract introduced in 0.7.1 remains compatible.
 
 ## Security
-Mutations require fixed method, same-origin, live Entware-root session, exact confirmation/whitelist where applicable and Core-injected internal Admin marker. Browser cannot authorize itself directly.
+Mutations require fixed method, same-origin, live Entware-root session, exact confirmation/whitelist where applicable and Core-injected internal Admin marker.
 
 ## Processes
 `POST /api/modules/admin/processes/<pid>/signal`
@@ -12,29 +12,19 @@ Allowed: `TERM`, `HUP`, `INT`, `KILL`.
 ## Services
 `POST /api/modules/admin/services/<id>/action`
 Allowed: `start`, `stop`, `restart`.
-Backend executes exact `/opt/etc/init.d/<id>` with one whitelisted argument.
 
 ## File Manager
-See [MANAGEMENT_V2_FILES_API.md](MANAGEMENT_V2_FILES_API.md). UI is enabled in Stable 0.7.1.
+See [MANAGEMENT_V2_FILES_API.md](MANAGEMENT_V2_FILES_API.md).
 
 ## Terminal / PTY
+`GET /api/modules/admin/terminal/ws?mode=<entware|keenetic>&cols=<n>&rows=<n>`
 
-```text
-GET /api/modules/admin/terminal/ws?mode=<entware|keenetic>&cols=<n>&rows=<n>
-```
+Entware uses fixed `/opt/bin/sh -il`; Keenetic mode uses fixed server-resolved `ndmc`. Unknown modes are rejected.
 
-Entware:
-- fixed `/opt/bin/sh -il`;
-- default cwd `/opt`.
+## Network diagnostics ownership
+Management no longer exposes the old `/api/modules/admin/network-tools/run` endpoint or the old `Network` tab. Active network diagnostics belong exclusively to `routerforge-network-tools`.
 
-Keenetic:
-- fixed server-resolved `ndmc`;
-- fixed cwd `/opt`;
-- no request-controlled executable/argv.
-
-Unknown mode rejected. Both modes and switching were hardware-validated on Keenetic Ultra KN-1812.
-
-REST terminal compatibility remains Entware-oriented; interactive UI uses WebSocket/PTTY.
+Management owns administration, Monitoring owns read-only telemetry, and Network Tools owns active diagnostics.
 
 ## Package mutations
 Generic RouterForge/Entware package lifecycle remains owned by Core/App Center.

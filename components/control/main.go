@@ -210,7 +210,6 @@ func main() {
 	registerAdminFileMutationRoutes(mux)
 	registerAdminTerminalRoutes(mux)
 	registerAdminMaintenanceRoutes(mux)
-	registerAdminNetworkToolRoutes(mux)
 	registerAdminIntegrationRoutes(mux)
 
 	uiFS := http.FileServer(http.Dir(*uiPath))

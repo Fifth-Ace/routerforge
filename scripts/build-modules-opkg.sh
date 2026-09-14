@@ -10,6 +10,7 @@ if [ -n "$RELEASE" ]; then
     PKG_VERSION="${VERSION}-${RELEASE}"
 fi
 
-for id in dns system thermal storage network profiling; do
-    "$ROOT/scripts/build-module-opkg.sh" "$id" "$PKG_VERSION"
-done
+"$ROOT/scripts/build-module-opkg.sh" dns "$PKG_VERSION"
+"$ROOT/scripts/build-module-opkg.sh" monitoring "$PKG_VERSION"
+"$ROOT/scripts/build-network-tools-opkg.sh" "$PKG_VERSION"
+"$ROOT/scripts/build-module-opkg.sh" profiling "$PKG_VERSION"

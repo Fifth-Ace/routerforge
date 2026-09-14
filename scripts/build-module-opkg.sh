@@ -13,53 +13,6 @@ ARCH="$RF_OPKG_ARCH"
 
 mkdir -p "$DIST"
 
-build_runtime_module() {
-    PACKAGE="$1"; LEGACY="$2"; BINARY="$3"; SERVICE="$4"; SOCKET="$5"; DESCRIPTION="$6"
-    WORK="$DIST/${PACKAGE}-channel-work"
-    PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
-    rm -rf "$WORK"
-    mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" "$WORK/data/opt/share/licenses/$PACKAGE" "$WORK/control"
-    (
-      cd "$ROOT"
-      routerforge_go build -trimpath \
-          -ldflags="-s -w -X main.version=$VERSION" \
-          -o "$WORK/data/opt/bin/$BINARY" ./modules/monitoring-runtime
-    )
-    chmod 0755 "$WORK/data/opt/bin/$BINARY"
-    sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$BINARY"
-    case "$SERVICE" in
-        S92routerforge-system)  INIT_SOURCE="$ROOT/modules/system/packaging/$SERVICE" ;;
-        S93routerforge-thermal) INIT_SOURCE="$ROOT/modules/thermal/packaging/$SERVICE" ;;
-        S94routerforge-storage) INIT_SOURCE="$ROOT/modules/storage/packaging/$SERVICE" ;;
-        S95routerforge-network) INIT_SOURCE="$ROOT/modules/network/packaging/$SERVICE" ;;
-        *) echo "unsupported RouterForge service: $SERVICE" >&2; exit 2 ;;
-    esac
-    cp "$INIT_SOURCE" "$WORK/data/opt/etc/init.d/$SERVICE"
-    chmod 0755 "$WORK/data/opt/etc/init.d/$SERVICE"
-    cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
-    chmod 0644 "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
-    cat > "$WORK/control/control" <<CONTROL
-Package: $PACKAGE
-Version: $VERSION
-Section: admin
-Priority: optional
-Architecture: $ARCH
-Depends: routerforge-core
-Provides: $LEGACY
-Conflicts: $LEGACY
-Replaces: $LEGACY
-Maintainer: Fifth-Ace
-Source: https://github.com/Fifth-Ace/routerforge
-Homepage: https://github.com/Fifth-Ace/routerforge
-License: MIT
-Description: $DESCRIPTION
-CONTROL
-    sed -e "s|@SERVICE@|$SERVICE|g" "$ROOT/modules/monitoring-runtime/packaging/postinst" > "$WORK/control/postinst"
-    sed -e "s|@SERVICE@|$SERVICE|g" -e "s|@SOCKET@|$SOCKET|g" "$ROOT/modules/monitoring-runtime/packaging/prerm" > "$WORK/control/prerm"
-    chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
-    pack_ipk "$WORK" "$DIST/$PKGFILE"
-}
-
 build_dns() {
     PACKAGE="routerforge-dns"
     WORK="$DIST/${PACKAGE}-channel-work"
@@ -258,10 +211,6 @@ pack_ipk() {
 case "$ID" in
     dns) build_dns ;;
     monitoring) build_monitoring ;;
-    system) build_runtime_module routerforge-system dns-monitor-system routerforge-system S92routerforge-system /opt/var/run/routerforge-system.sock "RouterForge read-only CPU, memory, load and uptime monitoring." ;;
-    thermal) build_runtime_module routerforge-thermal dns-monitor-thermal routerforge-thermal S93routerforge-thermal /opt/var/run/routerforge-thermal.sock "RouterForge thermal and hwmon monitoring." ;;
-    storage) build_runtime_module routerforge-storage dns-monitor-storage routerforge-storage S94routerforge-storage /opt/var/run/routerforge-storage.sock "RouterForge storage capacity and passive I/O monitoring." ;;
-    network) build_runtime_module routerforge-network dns-monitor-network routerforge-network S95routerforge-network /opt/var/run/routerforge-network.sock "RouterForge interface, route and conntrack monitoring." ;;
     profiling) build_profiling ;;
     *) echo "unsupported RouterForge module id: $ID" >&2; exit 2 ;;
 esac

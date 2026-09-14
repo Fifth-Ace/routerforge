@@ -3,16 +3,16 @@
 [Русский](README.md) | **English**
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.7.2-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/beta-0.7.1--beta.4-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/badge/stable-0.8.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/beta-0.8.0--beta.1-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RouterForge 0.7.2** is a modular web platform for monitoring, DNS diagnostics, management and maintenance on **Keenetic / Netcraze routers with Entware**.
+**RouterForge 0.8.0** is a modular web platform for monitoring, DNS diagnostics, management and maintenance on **Keenetic / Netcraze routers with Entware**.
 
-Core owns the shared Web UI, authentication, App Center, package/release lifecycle and Module ABI host. DNS, Management, Monitoring and Profiling are optional packages connected through root-owned Unix sockets. The only user-facing RouterForge TCP listener is **`:2233`**.
+Core owns the shared Web UI, authentication, App Center, package/release lifecycle and Module ABI host. DNS, Management, Monitoring, Network Tools and Profiling are optional packages connected through root-owned Unix sockets. The only user-facing RouterForge TCP listener is **`:2233`**.
 
 > [!NOTE]
-> **Stable 0.7.2 is a focused DNS hotfix.** `routerforge-dns` advances to `0.7.2`; Core, Admin, Monitoring and Profiling remain at `0.7.1`. See [Release Notes 0.7.2](docs/RELEASE_NOTES_0.7.2.md).
+> **Stable 0.8.0** introduces standalone Network Tools, a configurable CPU temperature warning threshold, and corrected module workspace sizing. Core, DNS, Admin, and Network Tools are `0.8.0`; unchanged Monitoring and Profiling remain `0.7.1`. See [Release Notes 0.8.0](docs/RELEASE_NOTES_0.8.0.md).
 
 > [!IMPORTANT]
 > **aarch64-3.10 / ARM64** is the primary fully hardware-validated Stable target.
@@ -40,16 +40,16 @@ Core owns the shared Web UI, authentication, App Center, package/release lifecyc
 ### App Center
 RouterForge / Integrations / Entware, guarded lifecycle jobs, preflight metadata, bulk update, exact SHA256 release-index verification and safe local Web UI discovery without blind LAN scans.
 
-Read the **[0.7.2 DNS hotfix notes](docs/RELEASE_NOTES_0.7.2.md)** and the full **[RouterForge 0.7.1 platform release notes](docs/RELEASE_NOTES_0.7.1.md)**.
+Read the **[RouterForge 0.8.0 release notes](docs/RELEASE_NOTES_0.8.0.md)**. Historical 0.7.2 and 0.7.1 notes remain available.
 
-## Official Stable 0.7.2 packages
+## Official Stable 0.8.0 packages
 
 | Package | Purpose |
 | --- | --- |
 | `routerforge-core` | Web shell, auth, App Center, Registry/release lifecycle, Module ABI host |
 | `routerforge-dns` | DNS runtime/UI/control/observability/diagnostics |
 | `routerforge-admin` | Management v2, File Manager, Maintenance, Entware + Keenetic terminals |
-| `routerforge-monitoring` | consolidated System/Thermal/Storage/Network runtime + UI |
+| `routerforge-monitoring` | consolidated System/Thermal/Storage/Network runtime + UI |`n| `routerforge-network-tools` | Network Doctor, routes, flows and active diagnostics |
 | `routerforge-profiling` | loopback-only Core profiling |
 
 A fresh bootstrap installs **Core**. Optional capabilities are selected from App Center.

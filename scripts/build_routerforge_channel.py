@@ -184,7 +184,7 @@ def main():
 
     components = config.get("components") or []
     ids = [c.get("id") for c in components]
-    if channel in {"dev", "beta"}:
+    if channel in {"dev", "beta", "stable"}:
         required = [
             "routerforge-core",
             "dns",

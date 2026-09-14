@@ -37,13 +37,26 @@
     <article class="nt-panel">
       <div class="nt-panel-head"><div><strong data-i18n="doctorTitle">Быстрая проверка</strong><small data-i18n="doctorHint">Проверьте доступность узла и основные сервисы.</small></div></div>
       <div class="nt-toolbar four">
-        <input id="doctor-target" value="8.8.8.8" aria-label="Target">
+        <input id="doctor-target" value="example.com" aria-label="Target">
         <select id="doctor-profile"><option value="standard" data-i18n="profileStandard">Профиль: Стандартный</option><option value="web" data-i18n="profileWeb">Профиль: Web</option><option value="dns" data-i18n="profileDns">Профиль: DNS</option></select>
         <button class="nt-button primary" id="doctor-run"><span data-i18n="run">Запустить</span>&nbsp;▶</button>
         <button class="nt-button" id="doctor-copy" title="Copy">▣</button>
       </div>
       <div class="nt-checks"><label class="nt-check"><input type="checkbox" id="check-ping" checked> Ping</label><label class="nt-check"><input type="checkbox" id="check-dns" checked> DNS</label><label class="nt-check"><input type="checkbox" id="check-http"> HTTP</label><label class="nt-check"><input type="checkbox" id="check-tcp" checked> TCP</label></div>
       <div class="nt-result-list" id="doctor-results"><div class="nt-empty" data-i18n="doctorEmpty">Выберите проверки и нажмите «Запустить».</div></div>
+    </article>
+
+    <article class="nt-panel" id="interface-inspector">
+      <div class="nt-panel-head">
+        <div>
+          <strong id="interfaces-title">Interfaces</strong>
+          <small id="interfaces-hint">Kernel link state, addresses, counters and default-route ownership.</small>
+        </div>
+        <button class="nt-button compact" id="interfaces-refresh">Refresh</button>
+      </div>
+      <div class="nt-table-wrap" id="interface-results">
+        <div class="nt-empty">Loading interfaces…</div>
+      </div>
     </article>
   </section>
 

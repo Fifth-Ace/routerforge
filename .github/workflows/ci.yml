@@ -109,7 +109,7 @@ jobs:
               esac
 
               case "$path" in
-                scripts/target-env.sh|scripts/build-opkg.sh|scripts/build-admin-opkg.sh|scripts/build-module-opkg.sh|scripts/build-modules-opkg.sh|scripts/build-feed.sh|scripts/verify-mips-qemu.sh)
+                scripts/target-env.sh|scripts/build-opkg.sh|scripts/build-admin-opkg.sh|scripts/build-module-opkg.sh|scripts/build-network-tools-opkg.sh|scripts/build-modules-opkg.sh|scripts/build-feed.sh|scripts/verify-mips-qemu.sh)
                   CROSS=true
                   ;;
               esac
@@ -257,13 +257,15 @@ jobs:
           test -f modules/monitoring-runtime/main.go
           test -f modules/monitoring-runtime/app_server.go
           test -f modules/monitoring-runtime/packaging/S92routerforge-monitoring
-          test -f modules/system/packaging/S92routerforge-system
-          test -f modules/thermal/packaging/S93routerforge-thermal
-          test -f modules/storage/packaging/S94routerforge-storage
+          test ! -d modules/system
+          test ! -d modules/thermal
+          test ! -d modules/storage
           test ! -d modules/network
           test -f modules/network-tools/runtime/main.go
           test -f modules/network-tools/runtime/network_tools.go
-          test -f modules/network-tools/frontend/index.html          test -f release/channels/dev.json
+          test -f modules/network-tools/packaging/S97routerforge-network-tools
+          test -f modules/network-tools/frontend/index.html
+          test -f release/channels/dev.json
           test -f release/channels/beta.json
           test -f release/channels/stable.json
           test -f docs/REPOSITORY_LAYOUT.md
@@ -371,19 +373,19 @@ jobs:
             ROUTERFORGE_TARGET="$target" ./scripts/build-opkg.sh 0.0.0-ci
             ROUTERFORGE_TARGET="$target" ./scripts/build-admin-opkg.sh 0.0.0-ci
             ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh dns 0.0.0-ci
-            ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh system 0.0.0-ci
-
-            test -s "dist/routerforge-core_0.0.0-ci_${target}.ipk"
-            test -s "dist/routerforge-admin_0.0.0-ci_${target}.ipk"
-            test -s "dist/routerforge-dns_0.0.0-ci_${target}.ipk"
-            test -s "dist/routerforge-system_0.0.0-ci_${target}.ipk"
+            ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh monitoring 0.0.0-ci
+            ROUTERFORGE_TARGET="$target" ./scripts/build-network-tools-opkg.sh 0.0.0-ci
+            ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh profiling 0.0.0-ci
 
             for package in \
               "dist/routerforge-core_0.0.0-ci_${target}.ipk" \
               "dist/routerforge-admin_0.0.0-ci_${target}.ipk" \
               "dist/routerforge-dns_0.0.0-ci_${target}.ipk" \
-              "dist/routerforge-system_0.0.0-ci_${target}.ipk"
+              "dist/routerforge-monitoring_0.0.0-ci_${target}.ipk" \
+              "dist/routerforge-network-tools_0.0.0-ci_${target}.ipk" \
+              "dist/routerforge-profiling_0.0.0-ci_${target}.ipk"
             do
+              test -s "$package"
               actual_arch="$(
                 tar -xzOf "$package" ./control.tar.gz |
                   tar -xzOf - ./control |
@@ -396,7 +398,6 @@ jobs:
               }
             done
           done
-
       - name: Verify MIPS runtime under QEMU
         if: steps.scope.outputs.full_release == 'true'
         run: sh scripts/verify-mips-qemu.sh
@@ -461,11 +462,14 @@ jobs:
           sh -n components/core/packaging/S90routerforge
           sh -n components/control/packaging/S91routerforge-admin
           sh -n modules/dns/packaging/S91routerforge-dns
-          sh -n modules/system/packaging/S92routerforge-system
-          sh -n modules/thermal/packaging/S93routerforge-thermal
-          sh -n modules/storage/packaging/S94routerforge-storage
-          sh -n modules/network/packaging/S95routerforge-network
           sh -n modules/monitoring-runtime/packaging/S92routerforge-monitoring
+          sh -n modules/monitoring-runtime/packaging/postinst
+          sh -n modules/monitoring-runtime/packaging/prerm
+          sh -n modules/monitoring-runtime/packaging/standalone-postinst
+          sh -n modules/monitoring-runtime/packaging/standalone-prerm
+          sh -n modules/network-tools/packaging/S97routerforge-network-tools
+          sh -n modules/network-tools/packaging/postinst
+          sh -n modules/network-tools/packaging/prerm
           sh -n scripts/target-env.sh
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh
@@ -474,6 +478,8 @@ jobs:
           sh -n scripts/build-monitoring-frontend.sh
           sh -n scripts/build-opkg.sh
           sh -n scripts/build-admin-opkg.sh
+          sh -n scripts/build-module-opkg.sh
+          sh -n scripts/build-network-tools-opkg.sh
           sh -n scripts/upx-pack.sh
           sh -n scripts/build-modules-opkg.sh
           sh -n scripts/build-feed.sh
@@ -494,13 +500,10 @@ jobs:
           sh -n components/core/packaging/prerm
           sh -n components/control/packaging/postinst
           sh -n components/control/packaging/prerm
-          sh -n modules/monitoring-runtime/packaging/postinst
-          sh -n modules/monitoring-runtime/packaging/prerm
           sh -n modules/dns/packaging/postinst
           sh -n modules/dns/packaging/prerm
           sh -n modules/profiling/packaging/postinst
           sh -n modules/profiling/packaging/prerm
-
       - name: Verify runtime compatibility probe
         if: steps.scope.outputs.shell == 'true'
         run: sh scripts/verify-runtime-compat-probe.sh
@@ -527,10 +530,8 @@ jobs:
           dist/routerforge-core_0.0.0-ci_aarch64-3.10.ipk
           dist/routerforge-dns_0.0.0-ci_aarch64-3.10.ipk
           dist/routerforge-admin_0.0.0-ci_aarch64-3.10.ipk
-          dist/routerforge-system_0.0.0-ci_aarch64-3.10.ipk
-          dist/routerforge-thermal_0.0.0-ci_aarch64-3.10.ipk
-          dist/routerforge-storage_0.0.0-ci_aarch64-3.10.ipk
-          dist/routerforge-network_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-monitoring_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-network-tools_0.0.0-ci_aarch64-3.10.ipk
           dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk
           "
 
@@ -540,19 +541,17 @@ jobs:
             tar -tzf "$pkg" | grep -qx './control.tar.gz'
             tar -tzf "$pkg" | grep -qx './data.tar.gz'
           done
-
       - name: Verify Entware package payloads
         if: steps.scope.outputs.full_release == 'true'
         run: |
           tar -xzOf dist/routerforge-core_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge'
           tar -xzOf dist/routerforge-dns_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/dns.enabled'
           tar -xzOf dist/routerforge-admin_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-admin'
-          tar -xzOf dist/routerforge-system_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-system'
-          tar -xzOf dist/routerforge-thermal_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-thermal'
-          tar -xzOf dist/routerforge-storage_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-storage'
-          tar -xzOf dist/routerforge-network_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-network'
+          tar -xzOf dist/routerforge-monitoring_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-monitoring'
+          tar -xzOf dist/routerforge-monitoring_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/init.d/S92routerforge-monitoring'
+          tar -xzOf dist/routerforge-network-tools_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-network-tools'
+          tar -xzOf dist/routerforge-network-tools_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/init.d/S97routerforge-network-tools'
           tar -xzOf dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/profiling.enabled'
-
       - name: Verify AArch64 production executables are UPX packed
         if: steps.scope.outputs.full_release == 'true'
         run: |
@@ -588,21 +587,12 @@ jobs:
             routerforge-dns
 
           verify_upx_payload \
-            dist/routerforge-system_0.0.0-ci_aarch64-3.10.ipk \
-            routerforge-system
+            dist/routerforge-monitoring_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-monitoring
 
           verify_upx_payload \
-            dist/routerforge-thermal_0.0.0-ci_aarch64-3.10.ipk \
-            routerforge-thermal
-
-          verify_upx_payload \
-            dist/routerforge-storage_0.0.0-ci_aarch64-3.10.ipk \
-            routerforge-storage
-
-          verify_upx_payload \
-            dist/routerforge-network_0.0.0-ci_aarch64-3.10.ipk \
-            routerforge-network
-
+            dist/routerforge-network-tools_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-network-tools
       - name: Verify Core runtime version injection
         if: steps.scope.outputs.full_release == 'true'
         run: |

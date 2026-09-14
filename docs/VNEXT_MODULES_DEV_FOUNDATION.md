@@ -1,39 +1,37 @@
-# RouterForge vNext modules — Dev foundation
+# Historical / superseded: RouterForge vNext module foundation
 
-This document records the first production-shaped implementation of the four top-level modules that were visual-only in Concept R1.
+Status: **superseded**.
 
-## Scope
+This file records an abandoned Concept R1 development direction. It is retained only as historical context and must not be used as the current module plan, package topology, or release contract.
 
-The foundation adds four optional Module ABI v1 packages:
+The old concept proposed four new top-level packages: Maintenance, Network Tools, Integrations, and Developer Tools. RouterForge did **not** keep that topology.
 
-- `routerforge-maintenance` — Maintenance / Config Vault inventory / Storage Doctor foundation.
-- `routerforge-network-tools` — Network Doctor / Route Inspector / metadata-only Flow Explorer.
-- `routerforge-integrations` — installed-only third-party discovery and NFQWS2 Manager diagnostics foundation.
-- `routerforge-developer-tools` — runtime diagnostics and Module ABI manifest validation.
+## Accepted architecture after Stable 0.8.0
 
-The module UIs follow the dense dark RouterForge Concept R1 workspace: compact metrics, evidence tables, explicit PASS/WARN/FAIL semantics, bounded data and no decorative marketing surfaces.
+```text
+RouterForge
+├── Core / App Center
+├── Monitoring
+├── DNS
+├── Management
+│   ├── Processes
+│   ├── Services
+│   ├── Packages / Ports
+│   ├── File Manager
+│   ├── Terminal
+│   └── Maintenance
+├── Network Tools
+└── Profiling
+```
 
-## Shared platform layer
+Maintenance remains under Management rather than becoming a standalone top-level module.
 
-`internal/platform` introduces minimal, reusable contracts for:
+Integrations remain nested in the existing Management/Core integration surfaces rather than becoming a standalone product module.
 
-- Policy Objects.
-- Snapshot/Transaction state transitions.
-- Probe Engine DNS/TCP primitives.
-- Event Engine bounded ring storage.
+Developer Tools did not become a standalone product module.
 
-These are source-level shared contracts, not standalone daemons or mandatory user packages.
+Network Tools is the only new top-level module retained from the Concept R1 foundation. It owns active diagnostics, has its own runtime/UI/package, and is separate from Monitoring's read-only network telemetry.
 
-## Safety boundary
+The shared `internal/platform` packages may remain reusable source-level infrastructure; they do not imply standalone daemons or packages.
 
-This stage is deliberately read-only. Core registers the new modules in `moduleSockets` and `modulePackageNames`, while the existing generic module proxy keeps unknown/non-DNS/non-Admin module IDs restricted to GET/HEAD.
-
-No new lifecycle, config mutation, restart, file-write, NFQWS2 strategy selection or automatic remediation endpoint is exposed. Later mutation work must pass the shared Snapshot/Transaction consumer gate and prove rollback under injected failure before Beta.
-
-## Footprint boundary
-
-All four optional packages compile from one compact stdlib-only runtime source. Each package starts only when installed. The UI is static HTML/CSS/JS with no additional frontend runtime dependency. Flow Explorer reads bounded conntrack metadata and does not capture payloads or add DPI.
-
-## CI gate
-
-`.github/workflows/vnext-modules.yml` performs formatting, tests, vet, ARM64 cross-build, static UI syntax checks, shell validation, Unix-socket smoke tests, builds four ARM64 IPKs and uploads exact-SHA artifacts. It does not publish Beta/Stable channels.
+For the current product topology and ownership rules, use `docs/MODULES.md`, `docs/REPOSITORY_LAYOUT.md`, and `docs/NETWORK_TOOLS_CONSOLIDATION.md`.

@@ -171,7 +171,8 @@ for target in mips-3.4 mipsel-3.4; do
     core="$target_tmp/routerforge"
     admin="$target_tmp/routerforge-admin"
     dns="$target_tmp/routerforge-dns"
-    system="$target_tmp/routerforge-system"
+    monitoring="$target_tmp/routerforge-monitoring"
+    network_tools="$target_tmp/routerforge-network-tools"
 
     extract_binary \
         "$DIST/routerforge-core_0.0.0-ci_${target}.ipk" \
@@ -189,9 +190,14 @@ for target in mips-3.4 mipsel-3.4; do
         "$dns"
 
     extract_binary \
-        "$DIST/routerforge-system_0.0.0-ci_${target}.ipk" \
-        routerforge-system \
-        "$system"
+        "$DIST/routerforge-monitoring_0.0.0-ci_${target}.ipk" \
+        routerforge-monitoring \
+        "$monitoring"
+
+    extract_binary \
+        "$DIST/routerforge-network-tools_0.0.0-ci_${target}.ipk" \
+        routerforge-network-tools \
+        "$network_tools"
 
     # Core and DNS require root/router-specific runtime resources.
     # -h still executes the actual cross-built ELF but exits before those checks.
@@ -204,6 +210,11 @@ for target in mips-3.4 mipsel-3.4; do
         "$emulator" \
         "$dns" \
         "${target}-dns"
+
+    smoke_help \
+        "$emulator" \
+        "$network_tools" \
+        "${target}-network-tools"
 
     # Admin smoke only reads health/summary against the CI host /proc.
     # The runtime mode is "control" because Management v2 exposes guarded mutations.
@@ -218,18 +229,18 @@ for target in mips-3.4 mipsel-3.4; do
         control \
         -socket "$admin_socket"
 
-    # System uses the shared monitoring runtime and exposes read-only health/summary.
-    system_socket="$TMP/${target}-system.sock"
+    # Consolidated Monitoring still owns the logical System compatibility view.
+    monitoring_socket="$TMP/${target}-monitoring-system.sock"
 
     smoke_server \
         "$emulator" \
-        "$system" \
-        "$system_socket" \
+        "$monitoring" \
+        "$monitoring_socket" \
         "$goarch" \
         system \
         read-only \
         -module system \
-        -socket "$system_socket"
+        -socket "$monitoring_socket"
 
     echo "$target QEMU runtime smoke: PASS"
 done

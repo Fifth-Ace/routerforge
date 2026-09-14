@@ -60,3 +60,81 @@ func TestParseTraceroute(t *testing.T) {
 		t.Fatal("raw hop lost")
 	}
 }
+
+func TestSelectDefaultRoutePrefersMetric(t *testing.T) {
+	routes := []routeEntry{
+		{
+			Destination: "0.0.0.0",
+			Mask:        "0.0.0.0",
+			Prefix:      0,
+			Metric:      50,
+			Interface:   "backup",
+			Gateway:     "192.168.2.1",
+		},
+		{
+			Destination: "0.0.0.0",
+			Mask:        "0.0.0.0",
+			Prefix:      0,
+			Metric:      10,
+			Interface:   "wan",
+			Gateway:     "192.168.1.1",
+		},
+	}
+
+	selected := selectDefaultRoute(routes)
+	if selected == nil {
+		t.Fatal("expected default route")
+	}
+	if selected.Interface != "wan" || selected.Gateway != "192.168.1.1" {
+		t.Fatalf("unexpected default route: %#v", selected)
+	}
+}
+
+func TestDoctorVerdictPriority(t *testing.T) {
+	healthy := doctorVerdictFor([]doctorStage{
+		{ID: "default_route", Status: "ok"},
+		{ID: "interface", Status: "ok"},
+		{ID: "internet", Status: "ok"},
+		{ID: "dns", Status: "ok"},
+	})
+	if healthy.Code != "healthy" || healthy.Severity != "ok" {
+		t.Fatalf("unexpected healthy verdict: %#v", healthy)
+	}
+
+	dnsFailure := doctorVerdictFor([]doctorStage{
+		{ID: "default_route", Status: "ok"},
+		{ID: "interface", Status: "ok"},
+		{ID: "internet", Status: "ok"},
+		{ID: "dns", Status: "fail"},
+	})
+	if dnsFailure.Code != "dns_failure" || dnsFailure.FaultDomain != "dns" {
+		t.Fatalf("unexpected DNS verdict: %#v", dnsFailure)
+	}
+
+	routeFailure := doctorVerdictFor([]doctorStage{
+		{ID: "default_route", Status: "fail"},
+		{ID: "dns", Status: "fail"},
+	})
+	if routeFailure.Code != "no_default_route" {
+		t.Fatalf("route failure must win priority: %#v", routeFailure)
+	}
+
+	degraded := doctorVerdictFor([]doctorStage{
+		{ID: "default_route", Status: "ok"},
+		{ID: "gateway", Status: "warn"},
+		{ID: "internet", Status: "ok"},
+	})
+	if degraded.Code != "degraded" || degraded.Severity != "warn" {
+		t.Fatalf("unexpected degraded verdict: %#v", degraded)
+	}
+}
+
+func TestPrimaryInterfaceAddress(t *testing.T) {
+	got := primaryInterfaceAddress([]string{
+		"fe80::1/64",
+		"192.168.10.1/24",
+	})
+	if got != "192.168.10.1/24" {
+		t.Fatalf("unexpected primary address: %q", got)
+	}
+}

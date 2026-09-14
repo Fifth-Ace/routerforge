@@ -92,7 +92,13 @@ func registerNetworkToolsRoutes(mux *http.ServeMux) {
 		})
 	}))
 	mux.HandleFunc("/v1/interfaces", getOnly(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"interfaces": interfaceSnapshot()})
+		routes, _ := readRoutes()
+		writeJSON(w, http.StatusOK, map[string]any{
+			"interfaces":    interfaceSnapshot(),
+			"default_route": selectDefaultRoute(routes),
+			"source":        "kernel+sysfs",
+			"mutation_api":  false,
+		})
 	}))
 	mux.HandleFunc("/v1/routes", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		routes, err := readRoutes()
@@ -149,33 +155,153 @@ func registerNetworkToolsRoutes(mux *http.ServeMux) {
 	}))
 }
 
+type doctorStage struct {
+	ID         string `json:"id"`
+	Status     string `json:"status"`
+	Detail     string `json:"detail,omitempty"`
+	DurationMS int64  `json:"duration_ms,omitempty"`
+}
+
+type doctorVerdict struct {
+	Code        string `json:"code"`
+	Severity    string `json:"severity"`
+	FaultDomain string `json:"fault_domain,omitempty"`
+}
+
+func readSysfsText(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(raw))
+}
+
+func readSysfsUint(path string) uint64 {
+	raw := readSysfsText(path)
+	if raw == "" {
+		return 0
+	}
+	value, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return value
+}
+
+func readSysfsInt(path string) int {
+	raw := readSysfsText(path)
+	if raw == "" {
+		return 0
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0
+	}
+	return value
+}
+
+func selectDefaultRoute(routes []routeEntry) *routeEntry {
+	var best *routeEntry
+	for i := range routes {
+		route := &routes[i]
+		if route.Prefix != 0 || route.Destination != "0.0.0.0" {
+			continue
+		}
+		if best == nil || route.Metric < best.Metric {
+			copy := *route
+			best = &copy
+		}
+	}
+	return best
+}
+
+func interfaceAddresses(iface *net.Interface) []string {
+	if iface == nil {
+		return []string{}
+	}
+	addresses, err := iface.Addrs()
+	if err != nil {
+		return []string{}
+	}
+	out := make([]string, 0, len(addresses))
+	for _, addr := range addresses {
+		out = append(out, addr.String())
+		if len(out) >= 16 {
+			break
+		}
+	}
+	return out
+}
+
+func primaryInterfaceAddress(addresses []string) string {
+	for _, raw := range addresses {
+		ip, _, err := net.ParseCIDR(raw)
+		if err != nil || ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+			continue
+		}
+		return raw
+	}
+	if len(addresses) > 0 {
+		return addresses[0]
+	}
+	return ""
+}
+
 func interfaceSnapshot() []map[string]any {
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		return []map[string]any{}
 	}
+
+	routes, _ := readRoutes()
+	defaultRoute := selectDefaultRoute(routes)
 	out := make([]map[string]any, 0, len(interfaces))
+
 	for _, iface := range interfaces {
-		addresses, _ := iface.Addrs()
-		addrStrings := make([]string, 0, len(addresses))
-		for _, addr := range addresses {
-			addrStrings = append(addrStrings, addr.String())
-			if len(addrStrings) >= 16 {
-				break
-			}
+		name := iface.Name
+		base := "/sys/class/net/" + name
+		addresses := interfaceAddresses(&iface)
+		operstate := readSysfsText(base + "/operstate")
+		carrierRaw := readSysfsText(base + "/carrier")
+		speed := readSysfsInt(base + "/speed")
+		if speed < 0 {
+			speed = 0
 		}
-		out = append(out, map[string]any{
-			"name":          iface.Name,
+
+		item := map[string]any{
+			"name":          name,
 			"index":         iface.Index,
 			"mtu":           iface.MTU,
 			"hardware_addr": iface.HardwareAddr.String(),
 			"flags":         iface.Flags.String(),
-			"addresses":     addrStrings,
-		})
+			"addresses":     addresses,
+			"alias":         readSysfsText(base + "/ifalias"),
+			"operstate":     operstate,
+			"carrier":       carrierRaw == "1",
+			"speed_mbps":    speed,
+			"duplex":        readSysfsText(base + "/duplex"),
+			"rx_bytes":      readSysfsUint(base + "/statistics/rx_bytes"),
+			"tx_bytes":      readSysfsUint(base + "/statistics/tx_bytes"),
+			"rx_packets":    readSysfsUint(base + "/statistics/rx_packets"),
+			"tx_packets":    readSysfsUint(base + "/statistics/tx_packets"),
+			"rx_errors":     readSysfsUint(base + "/statistics/rx_errors"),
+			"tx_errors":     readSysfsUint(base + "/statistics/tx_errors"),
+			"rx_dropped":    readSysfsUint(base + "/statistics/rx_dropped"),
+			"tx_dropped":    readSysfsUint(base + "/statistics/tx_dropped"),
+			"default_route": false,
+		}
+
+		if defaultRoute != nil && defaultRoute.Interface == name {
+			item["default_route"] = true
+			item["default_gateway"] = defaultRoute.Gateway
+			item["default_metric"] = defaultRoute.Metric
+		}
+
+		out = append(out, item)
 	}
+
 	return out
 }
-
 func readRoutes() ([]routeEntry, error) {
 	file, err := os.Open("/proc/net/route")
 	if err != nil {
@@ -603,19 +729,85 @@ func parseTraceroute(raw string) []traceHop {
 	return out
 }
 
+func doctorStageIndex(stages []doctorStage, id string) int {
+	for i := range stages {
+		if stages[i].ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+func doctorVerdictFor(stages []doctorStage) doctorVerdict {
+	priority := []struct {
+		id     string
+		code   string
+		domain string
+	}{
+		{"default_route", "no_default_route", "routing"},
+		{"interface", "interface_down", "local"},
+		{"local_address", "no_local_address", "local"},
+		{"internet", "internet_unreachable", "upstream"},
+		{"dns", "dns_failure", "dns"},
+		{"target_route", "target_route_failure", "routing"},
+		{"tcp", "tcp_failure", "service"},
+		{"http", "http_failure", "service"},
+		{"ping", "target_unreachable", "target"},
+	}
+
+	for _, candidate := range priority {
+		if i := doctorStageIndex(stages, candidate.id); i >= 0 && stages[i].Status == "fail" {
+			return doctorVerdict{
+				Code:        candidate.code,
+				Severity:    "fail",
+				FaultDomain: candidate.domain,
+			}
+		}
+	}
+
+	for _, stage := range stages {
+		if stage.Status == "warn" {
+			return doctorVerdict{
+				Code:        "degraded",
+				Severity:    "warn",
+				FaultDomain: "mixed",
+			}
+		}
+	}
+
+	return doctorVerdict{Code: "healthy", Severity: "ok"}
+}
+
+func doctorPort(r *http.Request, name string, fallback int) int {
+	raw := strings.TrimSpace(r.URL.Query().Get(name))
+	if raw == "" {
+		return fallback
+	}
+	port, err := strconv.Atoi(raw)
+	if err != nil || port < 1 || port > 65535 {
+		return -1
+	}
+	return port
+}
+
 func networkDoctor(r *http.Request) map[string]any {
 	target := strings.TrimSpace(r.URL.Query().Get("target"))
 	if target == "" {
-		target = "8.8.8.8"
+		target = "example.com"
 	}
 	if !validTarget(target) {
-		return map[string]any{"ok": false, "first_failure": "target-validation", "error": "invalid target"}
+		return map[string]any{
+			"ok":            false,
+			"first_failure": "target-validation",
+			"error":         "invalid target",
+		}
 	}
 
 	rawChecks := strings.TrimSpace(r.URL.Query().Get("checks"))
 	if rawChecks == "" {
 		rawChecks = "ping,dns,tcp"
 	}
+
 	checks := make([]string, 0, 4)
 	seen := map[string]bool{}
 	for _, raw := range strings.Split(rawChecks, ",") {
@@ -624,58 +816,347 @@ func networkDoctor(r *http.Request) map[string]any {
 			continue
 		}
 		if kind != "ping" && kind != "dns" && kind != "http" && kind != "tcp" {
-			return map[string]any{"ok": false, "first_failure": "check-validation", "error": "unsupported check " + kind}
+			return map[string]any{
+				"ok":            false,
+				"first_failure": "check-validation",
+				"error":         "unsupported check " + kind,
+			}
 		}
 		seen[kind] = true
 		checks = append(checks, kind)
 	}
 	if len(checks) == 0 {
-		return map[string]any{"ok": false, "first_failure": "check-validation", "error": "no checks selected"}
+		return map[string]any{
+			"ok":            false,
+			"first_failure": "check-validation",
+			"error":         "no checks selected",
+		}
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 18*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 22*time.Second)
 	defer cancel()
 
+	stages := make([]doctorStage, 0, 10)
+	routes, routeErr := readRoutes()
+	defaultRoute := selectDefaultRoute(routes)
+
+	switch {
+	case routeErr != nil:
+		stages = append(stages, doctorStage{
+			ID:     "default_route",
+			Status: "unavailable",
+			Detail: routeErr.Error(),
+		})
+	case defaultRoute == nil:
+		stages = append(stages, doctorStage{
+			ID:     "default_route",
+			Status: "fail",
+			Detail: "no IPv4 default route",
+		})
+	default:
+		stages = append(stages, doctorStage{
+			ID:     "default_route",
+			Status: "ok",
+			Detail: fmt.Sprintf(
+				"via %s dev %s metric %d",
+				defaultRoute.Gateway,
+				defaultRoute.Interface,
+				defaultRoute.Metric,
+			),
+		})
+	}
+
+	var defaultInterface map[string]any
+	if defaultRoute != nil {
+		if iface, err := net.InterfaceByName(defaultRoute.Interface); err != nil {
+			stages = append(stages, doctorStage{
+				ID:     "interface",
+				Status: "fail",
+				Detail: err.Error(),
+			})
+		} else {
+			operstate := readSysfsText("/sys/class/net/" + iface.Name + "/operstate")
+			up := iface.Flags&net.FlagUp != 0
+			if operstate != "" && operstate != "up" && operstate != "unknown" {
+				up = false
+			}
+
+			status := "ok"
+			if !up {
+				status = "fail"
+			}
+			stages = append(stages, doctorStage{
+				ID:     "interface",
+				Status: status,
+				Detail: fmt.Sprintf("%s (%s)", iface.Name, operstate),
+			})
+
+			addresses := interfaceAddresses(iface)
+			primary := primaryInterfaceAddress(addresses)
+			addressStatus := "ok"
+			if primary == "" {
+				addressStatus = "fail"
+				primary = "no usable address"
+			}
+			stages = append(stages, doctorStage{
+				ID:     "local_address",
+				Status: addressStatus,
+				Detail: primary,
+			})
+
+			defaultInterface = map[string]any{
+				"name":            iface.Name,
+				"flags":           iface.Flags.String(),
+				"operstate":       operstate,
+				"addresses":       addresses,
+				"primary_address": primary,
+				"mtu":             iface.MTU,
+			}
+		}
+	} else {
+		stages = append(stages,
+			doctorStage{
+				ID:     "interface",
+				Status: "skipped",
+				Detail: "default route unavailable",
+			},
+			doctorStage{
+				ID:     "local_address",
+				Status: "skipped",
+				Detail: "default interface unavailable",
+			},
+		)
+	}
+
+	gatewayResult := probeResult{}
+	if defaultRoute != nil && defaultRoute.Gateway != "" && defaultRoute.Gateway != "0.0.0.0" {
+		gatewayResult = pingProbe(ctx, defaultRoute.Gateway)
+		status := "ok"
+		if !gatewayResult.OK {
+			status = "fail"
+		}
+		detail := defaultRoute.Gateway
+		if gatewayResult.RTTAvgMS > 0 {
+			detail = fmt.Sprintf(
+				"%s %.1f ms",
+				defaultRoute.Gateway,
+				gatewayResult.RTTAvgMS,
+			)
+		}
+		if gatewayResult.Error != "" {
+			detail += " - " + gatewayResult.Error
+		}
+		stages = append(stages, doctorStage{
+			ID:         "gateway",
+			Status:     status,
+			Detail:     detail,
+			DurationMS: gatewayResult.DurationMS,
+		})
+	} else {
+		stages = append(stages, doctorStage{
+			ID:     "gateway",
+			Status: "skipped",
+			Detail: "direct default route or no gateway",
+		})
+	}
+
+	internetPing := pingProbe(ctx, "1.1.1.1")
+	internetTCP := probeResult{}
+	internetOK := internetPing.OK
+	internetDetail := "1.1.1.1"
+	internetDuration := internetPing.DurationMS
+
+	if internetPing.RTTAvgMS > 0 {
+		internetDetail = fmt.Sprintf(
+			"1.1.1.1 %.1f ms ICMP",
+			internetPing.RTTAvgMS,
+		)
+	}
+
+	if !internetOK {
+		internetTCP = runProbe(ctx, "tcp", "1.1.1.1", 443)
+		internetDuration = internetTCP.DurationMS
+		if internetTCP.OK {
+			internetOK = true
+			internetDetail = fmt.Sprintf(
+				"1.1.1.1:443 reachable in %d ms; ICMP unavailable",
+				internetTCP.DurationMS,
+			)
+		} else {
+			internetDetail = "1.1.1.1 unreachable by ICMP and TCP/443"
+		}
+	}
+
+	internetStatus := "ok"
+	if !internetOK {
+		internetStatus = "fail"
+	}
+	stages = append(stages, doctorStage{
+		ID:         "internet",
+		Status:     internetStatus,
+		Detail:     internetDetail,
+		DurationMS: internetDuration,
+	})
+
 	ip, resolution := targetIP(ctx, target)
-	routes, _ := readRoutes()
+	if net.ParseIP(target) == nil {
+		status := "ok"
+		detail := strings.Join(resolution.Addresses, ", ")
+		if !resolution.OK || len(resolution.Addresses) == 0 {
+			status = "fail"
+			detail = resolution.Error
+			if detail == "" {
+				detail = "no addresses returned"
+			}
+		}
+		stages = append(stages, doctorStage{
+			ID:     "dns",
+			Status: status,
+			Detail: detail,
+		})
+	} else {
+		stages = append(stages, doctorStage{
+			ID:     "dns",
+			Status: "skipped",
+			Detail: "target is already an IP address",
+		})
+	}
+
 	var selected *routeEntry
 	if ip != nil {
 		selected = selectRoute(routes, ip)
 	}
 
+	switch {
+	case ip == nil:
+		stages = append(stages, doctorStage{
+			ID:     "target_route",
+			Status: "skipped",
+			Detail: "target address unavailable",
+		})
+	case selected == nil:
+		stages = append(stages, doctorStage{
+			ID:     "target_route",
+			Status: "fail",
+			Detail: "no matching IPv4 route",
+		})
+	default:
+		stages = append(stages, doctorStage{
+			ID:     "target_route",
+			Status: "ok",
+			Detail: fmt.Sprintf(
+				"%s/%d via %s dev %s metric %d",
+				selected.Destination,
+				selected.Prefix,
+				selected.Gateway,
+				selected.Interface,
+				selected.Metric,
+			),
+		})
+	}
+
 	probes := map[string]probeResult{}
-	allOK := true
-	firstFailure := ""
+	anyServiceOK := false
+
 	for _, kind := range checks {
-		port := defaultPort(kind)
+		port := 0
+		switch kind {
+		case "tcp":
+			port = doctorPort(r, "tcp_port", 443)
+		case "http":
+			port = doctorPort(r, "http_port", 80)
+		}
+
 		result := runProbe(ctx, kind, target, port)
 		probes[kind] = result
+
+		if result.OK && (kind == "tcp" || kind == "http") {
+			anyServiceOK = true
+		}
+
+		if kind == "dns" {
+			continue
+		}
+
+		status := "ok"
 		if !result.OK {
-			allOK = false
-			if firstFailure == "" {
-				firstFailure = kind
-			}
+			status = "fail"
+		}
+
+		detail := fmt.Sprintf("%d ms", result.DurationMS)
+		if kind == "ping" && result.RTTAvgMS > 0 {
+			detail = fmt.Sprintf(
+				"%.1f ms avg, %.1f%% loss",
+				result.RTTAvgMS,
+				result.LossPct,
+			)
+		}
+		if kind == "http" && result.StatusCode > 0 {
+			detail = fmt.Sprintf(
+				"HTTP %d in %d ms",
+				result.StatusCode,
+				result.DurationMS,
+			)
+		}
+		if result.Error != "" {
+			detail = result.Error
+		}
+
+		stages = append(stages, doctorStage{
+			ID:         kind,
+			Status:     status,
+			Detail:     detail,
+			DurationMS: result.DurationMS,
+		})
+	}
+
+	if internetOK || anyServiceOK {
+		if i := doctorStageIndex(stages, "gateway"); i >= 0 && stages[i].Status == "fail" {
+			stages[i].Status = "warn"
+			stages[i].Detail += "; upstream still reachable"
 		}
 	}
-	if selected == nil && ip != nil {
-		allOK = false
-		if firstFailure == "" {
-			firstFailure = "route"
+
+	if anyServiceOK {
+		if i := doctorStageIndex(stages, "internet"); i >= 0 && stages[i].Status == "fail" {
+			stages[i].Status = "warn"
+			stages[i].Detail += "; selected target service is reachable"
+		}
+		if i := doctorStageIndex(stages, "ping"); i >= 0 && stages[i].Status == "fail" {
+			stages[i].Status = "warn"
+			stages[i].Detail += "; TCP/HTTP target service is reachable"
+		}
+	}
+
+	verdict := doctorVerdictFor(stages)
+	firstFailure := ""
+	for _, stage := range stages {
+		if stage.Status == "fail" {
+			firstFailure = stage.ID
+			break
 		}
 	}
 
 	return map[string]any{
-		"ok":            allOK,
-		"target":        target,
-		"checks":        checks,
-		"resolution":    resolution,
-		"route":         selected,
-		"probes":        probes,
+		"ok":                    verdict.Severity != "fail",
+		"target":                target,
+		"checks":                checks,
+		"resolution":            resolution,
+		"route":                 selected,
+		"default_route":         defaultRoute,
+		"default_interface":     defaultInterface,
+		"probes":                probes,
+		"gateway_probe":         gatewayResult,
+		"internet_probe":        internetPing,
+		"internet_tcp_fallback": internetTCP,
+		"diagnosis": map[string]any{
+			"stages":  stages,
+			"verdict": verdict,
+		},
 		"first_failure": firstFailure,
 		"mutation_api":  false,
 	}
 }
-
 func minInt(a, b int) int {
 	if a < b {
 		return a

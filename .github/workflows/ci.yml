@@ -260,8 +260,10 @@ jobs:
           test -f modules/system/packaging/S92routerforge-system
           test -f modules/thermal/packaging/S93routerforge-thermal
           test -f modules/storage/packaging/S94routerforge-storage
-          test -f modules/network/packaging/S95routerforge-network
-          test -f release/channels/dev.json
+          test ! -d modules/network
+          test -f modules/network-tools/runtime/main.go
+          test -f modules/network-tools/runtime/network_tools.go
+          test -f modules/network-tools/frontend/index.html          test -f release/channels/dev.json
           test -f release/channels/beta.json
           test -f release/channels/stable.json
           test -f docs/REPOSITORY_LAYOUT.md

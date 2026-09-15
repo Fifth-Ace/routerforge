@@ -134,34 +134,28 @@ func saveAdminWatchdogConfig(config adminWatchdogConfig) error {
 		return err
 	}
 	content = append(content, '\n')
-	temp, err := os.CreateTemp(filepath.Dir(adminWatchdogConfigPath), ".watchdogs-")
+	atomicFile, err := safety.NewAtomicFile(filepath.Dir(adminWatchdogConfigPath), ".watchdogs-")
 	if err != nil {
 		return err
 	}
-	tempPath := temp.Name()
-	success := false
-	defer func() {
-		_ = temp.Close()
-		if !success {
-			_ = os.Remove(tempPath)
-		}
-	}()
+	defer atomicFile.Cleanup()
+
+	temp := atomicFile.File()
 	if err := temp.Chmod(0600); err != nil {
 		return err
 	}
 	if _, err := temp.Write(content); err != nil {
 		return err
 	}
-	if err := temp.Sync(); err != nil {
+	if err := atomicFile.Sync(); err != nil {
 		return err
 	}
-	if err := temp.Close(); err != nil {
+	if err := atomicFile.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tempPath, adminWatchdogConfigPath); err != nil {
+	if err := atomicFile.Publish(adminWatchdogConfigPath); err != nil {
 		return err
 	}
-	success = true
 	return nil
 }
 

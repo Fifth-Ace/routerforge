@@ -17,7 +17,7 @@ ACTIVE = [
     "docs/FRONTEND_ARCHITECTURE.md", "docs/EXECUTABLE_COMPRESSION.md",
     "docs/APP_CENTER_RELEASE_FEED_ADR.md", "docs/RELEASE_NOTES_0.7.1.md",
     "docs/RELEASE_NOTES_0.7.2.md", "docs/RELEASE_NOTES_0.8.0.md",
-    "docs/VNEXT_MODULES_DEV_FOUNDATION.md",
+    "docs/VNEXT_MODULES_DEV_FOUNDATION.md", "docs/FORGEJO_FAILOVER.md",
 ]
 
 for rel in ACTIVE:

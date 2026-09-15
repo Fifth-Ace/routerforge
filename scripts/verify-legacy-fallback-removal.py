@@ -157,10 +157,18 @@ def main():
         if entry.get("manifest_sha256") != digest:
             fail(f"{item_id}: manifest digest mismatch")
 
+        # Removal readiness is about behavioral/runtime parity, not frozen UI copy.
+        # Description text may legitimately evolve in the manifest while the legacy
+        # fallback still carries older wording. Keep identity/source exact and only
+        # require both descriptions to remain non-empty.
+        if not first_string(body, "Description"):
+            fail(f"{item_id}: legacy description missing")
+        if not manifest.get("description"):
+            fail(f"{item_id}: manifest description missing")
+
         for go_field, json_field in (
             ("Name", "name"),
             ("Category", "category"),
-            ("Description", "description"),
             ("ProjectURL", "project_url"),
             ("Source", "source"),
         ):

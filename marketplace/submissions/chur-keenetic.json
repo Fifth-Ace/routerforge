@@ -42,7 +42,7 @@
     ]
   },
   "install": {
-    "method": "opkg-feed",
+    "method": "manual",
     "repository": "chur",
     "repository_url": "https://ward-sentry.github.io/chur-keenetic/latest/aarch64-3.10",
     "packages": [

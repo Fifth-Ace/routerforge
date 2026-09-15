@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "a415c7e89734c8810f7276f1a172fffa52b0c0ad12687792d03687311041573f",
+  "revision": "18a514cb65b55bfd922870a73788e6947039490b0ca081f21ec556fa3e13c60b",
   "entries": [
     {
       "id": "adguardhome-keenetic",
@@ -351,7 +351,7 @@
         ]
       },
       "install": {
-        "method": "opkg-feed",
+        "method": "manual",
         "repository": "chur",
         "repository_url": "https://ward-sentry.github.io/chur-keenetic/latest/aarch64-3.10",
         "packages": [
@@ -364,7 +364,7 @@
         "preview_only": true
       },
       "manifest_id": "chur-keenetic",
-      "manifest_sha256": "c2fae3cd1160e3e07092a77485a814fbb0f8395560716c4826f35c18119d6d2b",
+      "manifest_sha256": "48fbd0c0694bf6c788222e6a7aaa21e7753053057686ba23edecec563f0f3adf",
       "manifest_source": "marketplace/submissions/chur-keenetic.json",
       "registry_source": "routerforge-community",
       "trust": {
@@ -645,7 +645,7 @@
         ]
       },
       "install": {
-        "method": "opkg-feed",
+        "method": "manual",
         "repository": "kee",
         "repository_url": "https://0xkee.github.io/keenetic-entware-extras/stable",
         "packages": [
@@ -663,7 +663,7 @@
         "preview_only": true
       },
       "manifest_id": "keenetic-entware-extras",
-      "manifest_sha256": "3b799a0abae101d9537d2ec24288ad0810814b7438214eb94e4f1cc278958165",
+      "manifest_sha256": "8edeba2fbd56c6bbc7cdb1070d5aa42e8428f84b3934a884424ff811b55fc465",
       "manifest_source": "marketplace/submissions/keenetic-entware-extras.json",
       "registry_source": "routerforge-community",
       "trust": {

@@ -37,3 +37,37 @@ body {
   border-color: var(--rf-border, #29313a) !important;
   background: var(--rf-bg, #0b0d10) !important;
 }
+
+/* R23 targeted mid-width visual correction.
+   Keep destructive process actions fully inside the table at desktop widths. */
+.admin-page .process-table th:last-child,
+.admin-page .process-table td.process-actions {
+  width:168px;
+}
+
+.admin-page .process-primary {
+  width:40%;
+}
+
+.admin-page td.process-actions > .mini {
+  margin-right:.18rem;
+  padding-left:.42rem;
+  padding-right:.42rem;
+}
+
+@media (max-width:1100px) {
+  .admin-page .process-table th:last-child,
+  .admin-page .process-table td.process-actions {
+    width:154px;
+  }
+
+  .admin-page .process-primary {
+    width:36%;
+  }
+
+  .admin-page td.process-actions > .mini {
+    margin-right:.12rem;
+    padding-left:.34rem;
+    padding-right:.34rem;
+  }
+}

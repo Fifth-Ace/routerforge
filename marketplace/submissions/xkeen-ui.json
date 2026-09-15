@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "xkeen-ui",
+  "kind": "integration",
+  "name": "XKeen UI",
+  "category": "VPN / Routing",
+  "description": "Легковесная веб-панель управления XKeen, Xray/Mihomo конфигами, логами и ядрами.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/zxc-rv/XKeen-UI"
+  },
+  "project_url": "https://github.com/zxc-rv/XKeen-UI",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "services": [
+      "/opt/etc/init.d/S99xkeen-ui"
+    ],
+    "paths": [
+      "/opt/sbin/xkeen-ui",
+      "/opt/share/www/XKeen-UI"
+    ]
+  },
+  "process_names": [
+    "xkeen-ui"
+  ],
+  "web_port": 1000,
+  "web_port_source": "project-default",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic / Netcraze",
+      "Entware",
+      "XKeen installed"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "https://raw.githubusercontent.com/zxc-rv/XKeen-UI/main/setup.sh",
+    "notes": [
+      "Upstream documents XKeen as its only application dependency.",
+      "Default port is :1000 and can be changed in S99xkeen-ui."
+    ],
+    "preview_only": true
+  }
+}

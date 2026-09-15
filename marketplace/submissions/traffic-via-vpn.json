@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "traffic-via-vpn",
+  "kind": "integration",
+  "name": "keenetic-traffic-via-vpn",
+  "category": "VPN / Routing",
+  "description": "Small Entware script set that redirects selected domains/IP/CIDR into a chosen VPN interface.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/rustrict/keenetic-traffic-via-vpn"
+  },
+  "project_url": "https://github.com/rustrict/keenetic-traffic-via-vpn",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "install-preview"
+  ],
+  "detection": {
+    "paths": [
+      "/opt/etc/unblock/config",
+      "/opt/etc/unblock/unblock-list.txt"
+    ]
+  },
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic",
+      "Entware",
+      "curl",
+      "bind-dig",
+      "cron",
+      "grep",
+      "existing VPN interface"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "https://raw.githubusercontent.com/rustrict/keenetic-traffic-via-vpn/main/install.sh",
+    "notes": [
+      "Installer creates /opt/etc/unblock and IFACE must be configured afterwards."
+    ],
+    "preview_only": true
+  }
+}

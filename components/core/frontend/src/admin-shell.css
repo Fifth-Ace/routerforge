@@ -1973,3 +1973,80 @@ td {
     min-width:140px;
   }
 }
+
+/* R19 canonical module header.
+   Align Management, Monitoring and App Center with the accepted Network Tools
+   header rhythm without changing their content or behaviour. */
+.page-head {
+  min-height:0;
+  margin-bottom:14px;
+  padding:12px 2px 6px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+
+.page-head > div:first-child {
+  min-width:0;
+}
+
+.page-head h1 {
+  margin:0;
+  font-size:max(var(--ui-title),28px);
+  line-height:1.08;
+  letter-spacing:-.025em;
+}
+
+.page-head p {
+  max-width:920px;
+  margin:7px 0 0;
+  font-size:max(var(--ui-small),13px);
+  line-height:1.45;
+}
+
+.page-head .routerforge-eyebrow,
+.page-head .page-kicker {
+  display:block;
+  margin:0 0 7px;
+  color:#75808d;
+  font-size:var(--ui-micro);
+  font-weight:650;
+  letter-spacing:.08em;
+  line-height:1.2;
+  text-transform:uppercase;
+}
+
+.page-head-actions {
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.page-head-actions .button {
+  min-height:38px;
+}
+
+.page-head > .state-chip {
+  align-self:center;
+  flex:0 0 auto;
+}
+
+@media (max-width:900px) {
+  .page-head {
+    flex-direction:column;
+    align-items:stretch;
+    gap:11px;
+  }
+
+  .page-head-actions {
+    justify-content:flex-start;
+  }
+
+  .page-head > .state-chip {
+    align-self:flex-start;
+  }
+}

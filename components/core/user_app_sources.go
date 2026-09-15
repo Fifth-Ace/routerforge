@@ -201,7 +201,7 @@ func saveAppSourcesConfigUnlocked(cfg appSourcesConfig) error {
 func appSourceCachePath(id string) string { return filepath.Join(appSourcesCacheDir, id+".json") }
 
 func saveAppSourceCache(cache appSourceCache) error {
-	if !strings.HasPrefix(cache.SourceID, "src-") {
+	if !validAppSourceRecordID(cache.SourceID) {
 		return fmt.Errorf("invalid source id")
 	}
 	if err := os.MkdirAll(appSourcesCacheDir, 0o755); err != nil {
@@ -225,7 +225,7 @@ func saveAppSourceCache(cache appSourceCache) error {
 }
 
 func loadAppSourceCache(id string) (appSourceCache, error) {
-	if !strings.HasPrefix(id, "src-") {
+	if !validAppSourceRecordID(id) {
 		return appSourceCache{}, fmt.Errorf("invalid source id")
 	}
 	data, err := os.ReadFile(appSourceCachePath(id))
@@ -245,6 +245,15 @@ func loadAppSourceCache(id string) (appSourceCache, error) {
 func appSourceID(rawURL string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(rawURL)))
 	return "src-" + hex.EncodeToString(sum[:6])
+}
+
+func validAppSourceRecordID(id string) bool {
+	id = strings.TrimSpace(id)
+	if len(id) != 16 || !strings.HasPrefix(id, "src-") || id != strings.ToLower(id) {
+		return false
+	}
+	decoded, err := hex.DecodeString(id[4:])
+	return err == nil && len(decoded) == 6
 }
 
 func validAppSourceKind(kind string) string {
@@ -838,9 +847,13 @@ func normalizeUserSourceItem(source appSourceRecord, cache appSourceCache, origi
 	item.Source = "user-source"
 	item.Builtin = false
 	item.Managed = false
+	trustNote := "User-added source. Installation requires explicit unsafe-source permission."
+	if source.Local {
+		trustNote = "Local/private user-added source. Publisher identity is not verified; installation requires explicit local-source and unsafe-source permission."
+	}
 	item.Trust = catalogTrust{
 		Status: "unverified",
-		Note:   "User-added source. Installation requires explicit unsafe-source permission.",
+		Note:   trustNote,
 	}
 	return item
 }
@@ -852,6 +865,9 @@ func applyUserAppSources(snapshot *catalogSnapshot, installed map[string]string,
 	}
 	resolution := resolvePlatformTarget()
 	for _, source := range cfg.Sources {
+		if !validAppSourceRecordID(source.ID) {
+			continue
+		}
 		if !source.Enabled || (source.Local && !cfg.AllowLocalSources) {
 			continue
 		}
@@ -922,6 +938,9 @@ func userAppSourcePackageNames() map[string]struct{} {
 		return out
 	}
 	for _, source := range cfg.Sources {
+		if !validAppSourceRecordID(source.ID) {
+			continue
+		}
 		if !source.Enabled {
 			continue
 		}
@@ -1049,6 +1068,9 @@ func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSou
 }
 
 func refreshOneAppSource(ctx context.Context, id string) (appSourceRecord, error) {
+	if !validAppSourceRecordID(id) {
+		return appSourceRecord{}, fmt.Errorf("source not found")
+	}
 	cfg, err := loadAppSourcesConfig()
 	if err != nil {
 		return appSourceRecord{}, err
@@ -1140,6 +1162,9 @@ func forceRefreshUserAppSources() {
 }
 
 func setAppSourceEnabled(id string, enabled bool) (appSourceRecord, error) {
+	if !validAppSourceRecordID(id) {
+		return appSourceRecord{}, fmt.Errorf("source not found")
+	}
 	appSourcesMu.Lock()
 	defer appSourcesMu.Unlock()
 	cfg, err := loadAppSourcesConfigUnlocked()
@@ -1160,8 +1185,8 @@ func setAppSourceEnabled(id string, enabled bool) (appSourceRecord, error) {
 }
 
 func removeAppSource(id string) error {
-	if !strings.HasPrefix(id, "src-") {
-		return fmt.Errorf("built-in source cannot be removed")
+	if !validAppSourceRecordID(id) {
+		return fmt.Errorf("built-in or invalid source cannot be removed")
 	}
 	appSourcesMu.Lock()
 	defer appSourcesMu.Unlock()
@@ -1358,8 +1383,8 @@ func handleAppSourcePath(w http.ResponseWriter, r *http.Request) {
 	}
 	parts := strings.Split(suffix, "/")
 	id := parts[0]
-	if !strings.HasPrefix(id, "src-") {
-		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "built-in source is read-only"})
+	if !validAppSourceRecordID(id) {
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "built-in or invalid source is read-only"})
 		return
 	}
 	if !sameOriginRequest(r) && r.Method != http.MethodGet {

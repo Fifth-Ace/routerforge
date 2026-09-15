@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -277,27 +279,14 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rollbackPath := adminMaintenanceConfigRoot + fmt.Sprintf(".restore-old-%d", time.Now().UnixNano())
-	hadCurrent := false
-	if _, err := os.Stat(adminMaintenanceConfigRoot); err == nil {
-		if err := os.Rename(adminMaintenanceConfigRoot, rollbackPath); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot stage current config for rollback: " + err.Error()})
-			return
-		}
-		hadCurrent = true
-	} else if !errors.Is(err, os.ErrNotExist) {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-
-	if err := os.Rename(stagedConfig, adminMaintenanceConfigRoot); err != nil {
-		if hadCurrent {
-			_ = os.Rename(rollbackPath, adminMaintenanceConfigRoot)
-		}
+	swapResult, err := safety.SwapPath(stagedConfig, adminMaintenanceConfigRoot, rollbackPath)
+	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "restore swap failed: " + err.Error()})
 		return
 	}
-	if hadCurrent {
-		_ = os.RemoveAll(rollbackPath)
+	if err := safety.CleanupRollback(rollbackPath, swapResult.HadCurrent); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "restore rollback cleanup failed: " + err.Error()})
+		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{

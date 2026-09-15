@@ -169,6 +169,9 @@ jobs:
       - name: Verify documentation currency
         run: python3 scripts/verify-docs-current.py
 
+      - name: Verify UI contract
+        run: python3 scripts/verify-ui-contract.py
+
       - name: Set up Node
         if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
         uses: actions/setup-node@v4

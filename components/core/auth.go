@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -348,16 +350,26 @@ func (a *authManager) saveConfig(config securityConfig) error {
 	if err := os.MkdirAll(filepath.Dir(securityConfigPath), 0755); err != nil {
 		return err
 	}
-	tmp := securityConfigPath + ".tmp"
-	if err := os.WriteFile(tmp, append(data, '\n'), 0600); err != nil {
+	atomicFile, err := safety.NewAtomicFile(filepath.Dir(securityConfigPath), ".security-")
+	if err != nil {
 		return err
 	}
-	if err := os.Chmod(tmp, 0600); err != nil {
-		_ = os.Remove(tmp)
+	defer atomicFile.Cleanup()
+
+	temp := atomicFile.File()
+	if err := temp.Chmod(0600); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, securityConfigPath); err != nil {
-		_ = os.Remove(tmp)
+	if _, err := temp.Write(append(data, '\n')); err != nil {
+		return err
+	}
+	if err := atomicFile.Sync(); err != nil {
+		return err
+	}
+	if err := atomicFile.Close(); err != nil {
+		return err
+	}
+	if err := atomicFile.Publish(securityConfigPath); err != nil {
 		return err
 	}
 	a.mu.Lock()

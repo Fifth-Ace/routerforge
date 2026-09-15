@@ -2433,3 +2433,59 @@ html[data-radius="soft"] .dns-module {
   outline:2px solid var(--rf-accent,var(--accent));
   outline-offset:2px;
 }
+
+/* R22 resolver-summary responsive hardening.
+   Seven current summary cells stay balanced instead of leaving DoH alone. */
+.dns-module .resolver-summary-strip {
+  grid-template-columns:repeat(7,minmax(0,1fr));
+}
+
+@media (min-width:981px) and (max-width:1050px) {
+  .dns-module .resolver-summary-strip > div {
+    border-top:0;
+    border-right:1px solid var(--concept-border-soft);
+  }
+  .dns-module .resolver-summary-strip > div:last-child { border-right:0; }
+}
+
+@media (max-width:980px) {
+  .dns-module .resolver-summary-strip {
+    grid-template-columns:repeat(4,minmax(0,1fr));
+  }
+  .dns-module .resolver-summary-strip > div {
+    border-top:0;
+    border-right:1px solid var(--concept-border-soft);
+  }
+  .dns-module .resolver-summary-strip > div:nth-child(4n),
+  .dns-module .resolver-summary-strip > div:last-child { border-right:0; }
+  .dns-module .resolver-summary-strip > div:nth-child(n+5) {
+    border-top:1px solid var(--concept-border-soft);
+  }
+}
+
+@media (max-width:780px) {
+  .dns-module .resolver-summary-strip {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .dns-module .resolver-summary-strip > div {
+    border-top:1px solid var(--concept-border-soft);
+    border-right:1px solid var(--concept-border-soft);
+  }
+  .dns-module .resolver-summary-strip > div:nth-child(-n+2) { border-top:0; }
+  .dns-module .resolver-summary-strip > div:nth-child(even) { border-right:0; }
+  .dns-module .resolver-summary-strip > div:nth-child(odd) { border-right:1px solid var(--concept-border-soft); }
+  .dns-module .resolver-summary-strip > div:last-child {
+    grid-column:1 / -1;
+    border-right:0;
+  }
+}
+
+@media (max-width:520px) {
+  .dns-module .resolver-summary-strip { grid-template-columns:1fr; }
+  .dns-module .resolver-summary-strip > div {
+    border-right:0;
+    border-top:1px solid var(--concept-border-soft);
+  }
+  .dns-module .resolver-summary-strip > div:first-child { border-top:0; }
+  .dns-module .resolver-summary-strip > div:last-child { grid-column:auto; }
+}

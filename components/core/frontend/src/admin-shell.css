@@ -2246,3 +2246,51 @@ textarea:focus-visible {
     white-space:normal;
   }
 }
+
+/* R22 responsive visual hardening.
+   Keep the shell readable before the mobile rail breakpoint and preserve
+   horizontal tab overflow without leaking the native bright scrollbar. */
+.nav-link {
+  flex:0 0 auto;
+  white-space:nowrap;
+}
+
+.subtabs,
+.module-selector {
+  scrollbar-color:var(--rf-border-strong, #36414d) transparent;
+}
+.subtabs::-webkit-scrollbar,
+.module-selector::-webkit-scrollbar {
+  height:6px;
+}
+.subtabs::-webkit-scrollbar-track,
+.module-selector::-webkit-scrollbar-track {
+  background:transparent;
+}
+.subtabs::-webkit-scrollbar-thumb,
+.module-selector::-webkit-scrollbar-thumb {
+  border-radius:999px;
+  background:var(--rf-border-strong, #36414d);
+}
+
+@media (max-width:1500px) {
+  :root { --rail-width:244px; }
+  .global-tree-row {
+    grid-template-columns:18px 7px minmax(0,1fr) auto;
+    gap:4px;
+  }
+}
+
+@media (max-width:1400px) {
+  .header-inner { gap:10px; }
+  .brand-copy > span,
+  .stream-label { display:none; }
+  .nav-link {
+    padding-left:8px;
+    padding-right:8px;
+  }
+}
+
+@media (max-width:1180px) {
+  .version-badge { display:none; }
+}

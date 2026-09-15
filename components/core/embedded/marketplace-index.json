@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "1cca1149f2a4519c9cecd6ca1a5f47fc778edd0437371212b27083c14623a1e8",
+  "revision": "a60847ad3269fd28d495da0ac4c1302d2a5a9edf20289e0cf8e6f79a4ee4ed98",
   "entries": [
     {
       "id": "admin",
@@ -122,6 +122,59 @@
         "status": "official",
         "reviewed_by": "routerforge",
         "note": "Официальный модуль RouterForge beta."
+      }
+    },
+    {
+      "id": "bypass-keenetic",
+      "kind": "integration",
+      "name": "bypass_keenetic",
+      "category": "VPN / Routing",
+      "description": "Selective bypass via VPN/Shadowsocks/Tor with Telegram bot management.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/keenetic-dev/bypass_keenetic"
+      },
+      "project_url": "https://github.com/keenetic-dev/bypass_keenetic",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "service-status",
+        "install-preview"
+      ],
+      "detection": {
+        "services": [
+          "/opt/etc/init.d/S99unblock"
+        ],
+        "paths": [
+          "/opt/etc/bot.py",
+          "/opt/etc/unblock"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic",
+          "Entware",
+          "Python 3",
+          "VPN/Shadowsocks/Tor depending on setup"
+        ]
+      },
+      "install": {
+        "method": "manual",
+        "notes": [
+          "Telegram credentials and interactive setup require explicit manual configuration.",
+          "RouterForge only detects/documents this integration."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "bypass-keenetic",
+      "manifest_sha256": "89925078642bf82aafa78f2ad9543065ab15f1da8184236704bdf357ee098499",
+      "manifest_source": "marketplace/submissions/bypass-keenetic.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
       }
     },
     {
@@ -814,6 +867,117 @@
         "status": "official",
         "reviewed_by": "routerforge",
         "note": "Официальный модуль RouterForge beta."
+      }
+    },
+    {
+      "id": "traffic-via-vpn",
+      "kind": "integration",
+      "name": "keenetic-traffic-via-vpn",
+      "category": "VPN / Routing",
+      "description": "Small Entware script set that redirects selected domains/IP/CIDR into a chosen VPN interface.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/rustrict/keenetic-traffic-via-vpn"
+      },
+      "project_url": "https://github.com/rustrict/keenetic-traffic-via-vpn",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "install-preview"
+      ],
+      "detection": {
+        "paths": [
+          "/opt/etc/unblock/config",
+          "/opt/etc/unblock/unblock-list.txt"
+        ]
+      },
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic",
+          "Entware",
+          "curl",
+          "bind-dig",
+          "cron",
+          "grep",
+          "existing VPN interface"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "https://raw.githubusercontent.com/rustrict/keenetic-traffic-via-vpn/main/install.sh",
+        "notes": [
+          "Installer creates /opt/etc/unblock and IFACE must be configured afterwards."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "traffic-via-vpn",
+      "manifest_sha256": "4fd9d4c17540907a7a856fbd81158d8db635fb844264241b4f7b4f42bc447519",
+      "manifest_source": "marketplace/submissions/traffic-via-vpn.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
+      "id": "xkeen-ui",
+      "kind": "integration",
+      "name": "XKeen UI",
+      "category": "VPN / Routing",
+      "description": "Легковесная веб-панель управления XKeen, Xray/Mihomo конфигами, логами и ядрами.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/zxc-rv/XKeen-UI"
+      },
+      "project_url": "https://github.com/zxc-rv/XKeen-UI",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "services": [
+          "/opt/etc/init.d/S99xkeen-ui"
+        ],
+        "paths": [
+          "/opt/sbin/xkeen-ui",
+          "/opt/share/www/XKeen-UI"
+        ]
+      },
+      "process_names": [
+        "xkeen-ui"
+      ],
+      "web_port": 1000,
+      "web_port_source": "project-default",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic / Netcraze",
+          "Entware",
+          "XKeen installed"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "https://raw.githubusercontent.com/zxc-rv/XKeen-UI/main/setup.sh",
+        "notes": [
+          "Upstream documents XKeen as its only application dependency.",
+          "Default port is :1000 and can be changed in S99xkeen-ui."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "xkeen-ui",
+      "manifest_sha256": "32ffe0cfdfa79d791d138d9f739dc3c5c774ae9d18ad11d1c35de5efb7a6a8fa",
+      "manifest_source": "marketplace/submissions/xkeen-ui.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
       }
     }
   ]

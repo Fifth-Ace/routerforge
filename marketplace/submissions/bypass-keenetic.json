@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "bypass-keenetic",
+  "kind": "integration",
+  "name": "bypass_keenetic",
+  "category": "VPN / Routing",
+  "description": "Selective bypass via VPN/Shadowsocks/Tor with Telegram bot management.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/keenetic-dev/bypass_keenetic"
+  },
+  "project_url": "https://github.com/keenetic-dev/bypass_keenetic",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "service-status",
+    "install-preview"
+  ],
+  "detection": {
+    "services": [
+      "/opt/etc/init.d/S99unblock"
+    ],
+    "paths": [
+      "/opt/etc/bot.py",
+      "/opt/etc/unblock"
+    ]
+  },
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic",
+      "Entware",
+      "Python 3",
+      "VPN/Shadowsocks/Tor depending on setup"
+    ]
+  },
+  "install": {
+    "method": "manual",
+    "notes": [
+      "Telegram credentials and interactive setup require explicit manual configuration.",
+      "RouterForge only detects/documents this integration."
+    ],
+    "preview_only": true
+  }
+}

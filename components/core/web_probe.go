@@ -65,6 +65,12 @@ func safeCatalogWebProbeID(value string) bool {
 }
 
 func catalogWebProbeAllowed(item catalogItem) bool {
+	// User/private source metadata is descriptive only. Active HTTP probing of
+	// those endpoints must never be gained through trust-state drift; opening
+	// a user-declared URL remains a separate explicit browser action.
+	if strings.HasPrefix(item.RegistrySource, "src-") {
+		return false
+	}
 	switch strings.ToLower(strings.TrimSpace(item.Trust.Status)) {
 	case "official", "verified":
 		return true

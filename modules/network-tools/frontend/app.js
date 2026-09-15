@@ -46,5 +46,256 @@
   async function runActiveProbe(){var kind=q('probe-kind').value,target=q('probe-target').value.trim(),port=Number(q('probe-port').value||0);q('probe-output').textContent=tr('run')+' '+kind+'…';try{var d=await U.request('/probe',{kind:kind,target:target,port:port});state.activeProbe=d;q('probe-output').textContent=JSON.stringify(d,null,2);}catch(e){q('probe-output').textContent='FAIL: '+e.message;}U.notifyHeight();}
   function saveReport(){var report={generated_at:new Date().toISOString(),module:'network-tools',health:state.health,summary:state.summary,doctor:state.doctor,interfaces:state.interfaces,traceroute:state.traceroute,route:state.route,flow_source:state.flowSource,flows:state.flows,active_probe:state.activeProbe};var blob=new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='network-tools-report-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);}
   function copyText(value){if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(value).catch(function(){});}
-  function bind(){q('doctor-profile').onchange=function(){var p=q('doctor-profile').value;q('check-ping').checked=p!=='dns';q('check-dns').checked=true;q('check-http').checked=p==='web';q('check-tcp').checked=p!=='dns';};q('doctor-run').onclick=runDoctor;q('doctor-target').onkeydown=function(e){if(e.key==='Enter')runDoctor();};q('doctor-copy').onclick=function(){copyText(JSON.stringify(state.doctor||{},null,2));};q('interfaces-refresh').onclick=loadInterfaces;q('trace-run').onclick=runTrace;q('trace-copy').onclick=function(){copyText(state.traceroute?(state.traceroute.raw||JSON.stringify(state.traceroute,null,2)):'');};q('route-run').onclick=function(){inspectRoute();};q('flow-refresh').onclick=refreshFlows;q('flow-search').oninput=renderFlows;q('flow-more').onclick=function(){flowLimit+=80;renderFlows();U.notifyHeight();};q('probe-kind').onchange=function(){var kind=q('probe-kind').value;q('probe-port').value=kind==='http'?'80':kind==='tcp'?'53':'0';};q('probe-run').onclick=runActiveProbe;q('save-report').onclick=saveReport;}  async function load(){localize();bindTabs();bind();q('interfaces-title').textContent=lx('\u0418\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u044b','Interfaces');q('interfaces-hint').textContent=lx('\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043b\u0438\u043d\u043a\u0430, IP-\u0430\u0434\u0440\u0435\u0441\u0430, \u0441\u0447\u0435\u0442\u0447\u0438\u043a\u0438 \u0438 \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u043c \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e.','Link state, IP addresses, counters and default-route ownership.');q('interfaces-refresh').textContent=lx('\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c','Refresh');try{state.health=await U.request('/health');state.summary=await U.request('/summary');q('kpi-sessions').textContent=Number(state.summary.active_sessions||0).toLocaleString(locale==='ru'?'ru-RU':'en-US');pushHistory('sessions',Number(state.summary.active_sessions||0));updateKpis();await Promise.all([refreshFlows(),inspectRoute('8.8.8.8'),loadInterfaces()]);}catch(e){U.error('.nt-page',e);}U.notifyHeight();}  load();
+  // R15 UI polish: data-driven route filters, useful flow controls and safer probe UX.
+  var flowAutoTimer=null;
+  var flowRefreshBusy=false;
+  var routeFitMode='values';
+
+  function r15Option(value,label){return '<option value="'+U.esc(value)+'">'+U.esc(label)+'</option>';}
+  function r15SetOptions(id,items,preserve){
+    var node=q(id);
+    if(!node)return;
+    var previous=preserve?node.value:'';
+    node.innerHTML=items.map(function(item){return r15Option(item[0],item[1]);}).join('');
+    if(preserve&&items.some(function(item){return item[0]===previous;}))node.value=previous;
+  }
+  function r15Unique(values){
+    var seen={};
+    return values.filter(function(value){
+      value=String(value||'').trim();
+      if(!value||seen[value])return false;
+      seen[value]=true;
+      return true;
+    }).sort(function(a,b){return a.localeCompare(b);});
+  }
+  function r15LocalizeControls(){
+    r15SetOptions('route-family-filter',[
+      ['',lx('\u0412\u0441\u0435 IP','All IP')],
+      ['ipv4','IPv4'],
+      ['ipv6','IPv6']
+    ],true);
+    q('route-search').setAttribute('placeholder',lx('\u041d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435, via, dev, src\u2026','Destination, via, dev, src\u2026'));
+    q('route-fit-toggle').textContent=lx('\u041a\u043e\u043b\u043e\u043d\u043a\u0438: \u043f\u043e \u0434\u0430\u043d\u043d\u044b\u043c','Columns: fit values');
+
+    r15SetOptions('flow-window',[
+      ['manual',lx('\u0420\u0443\u0447\u043d\u043e\u0435 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435','Manual refresh')],
+      ['5',lx('\u0410\u0432\u0442\u043e \u00b7 5 \u0441','Auto \u00b7 5 s')],
+      ['15',lx('\u0410\u0432\u0442\u043e \u00b7 15 \u0441','Auto \u00b7 15 s')]
+    ],true);
+    r15SetOptions('flow-sort',[
+      ['recent',lx('\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043d\u043e\u0432\u044b\u0435','Newest first')],
+      ['bytes',lx('\u041f\u043e \u043e\u0431\u044a\u0451\u043c\u0443','By volume')],
+      ['packets',lx('\u041f\u043e \u043f\u0430\u043a\u0435\u0442\u0430\u043c','By packets')],
+      ['destination',lx('\u041f\u043e \u043d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044e','By destination')]
+    ],true);
+    q('flow-search').setAttribute('placeholder',lx('\u041f\u043e\u0438\u0441\u043a: IP, \u043f\u043e\u0440\u0442, \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435\u2026','Search: IP, port, state\u2026'));
+    q('probe-copy').textContent=lx('\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c','Copy');
+  }
+
+  function r15RouteTables(routes){
+    return r15Unique(routes.map(function(route){return route.table||'main';}));
+  }
+  function r15SyncRouteFilters(routes){
+    var table=q('route-table-filter');
+    var previous=table?table.value:'';
+    var options=[['',lx('\u0412\u0441\u0435 \u0442\u0430\u0431\u043b\u0438\u0446\u044b','All tables')]];
+    r15RouteTables(routes).forEach(function(name){options.push([name,name]);});
+    r15SetOptions('route-table-filter',options,false);
+    if(previous&&options.some(function(item){return item[0]===previous;}))q('route-table-filter').value=previous;
+  }
+  function r15RouteMatches(route){
+    var family=q('route-family-filter').value;
+    var table=q('route-table-filter').value;
+    var search=q('route-search').value.trim().toLowerCase();
+    if(family&&String(route.family||'').toLowerCase()!==family)return false;
+    if(table&&String(route.table||'main')!==table)return false;
+    if(search){
+      var hay=[
+        route.destination,route.gateway,route.interface,route.source,
+        route.table,route.protocol,route.scope,route.type,route.metric
+      ].join(' ').toLowerCase();
+      if(hay.indexOf(search)<0)return false;
+    }
+    return true;
+  }
+  renderRouteInventory=function(data){
+    var routes=[].concat(data.routes_v4||[],data.routes_v6||[]);
+    r15SyncRouteFilters(routes);
+    var filtered=routes.filter(r15RouteMatches);
+    var visible=filtered.slice(0,200);
+    q('route-routes-count').textContent=filtered.length===routes.length?String(routes.length):(filtered.length+' / '+routes.length);
+    if(!visible.length)return '<div class="nt-empty">'+U.esc(lx('\u041d\u0435\u0442 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u0432 \u043f\u043e \u0442\u0435\u043a\u0443\u0449\u0435\u043c\u0443 \u0444\u0438\u043b\u044c\u0442\u0440\u0443.','No routes match the current filter.'))+'</div>';
+    var mode=routeFitMode==='grid'?'fit-grid':'fit-values';
+    return '<table class="route-data-table '+mode+'"><thead><tr>'+
+      '<th class="c-family">IP</th>'+
+      '<th class="c-destination">'+U.esc(lx('\u041d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435','Destination'))+'</th>'+
+      '<th class="c-table">'+U.esc(lx('\u0422\u0430\u0431\u043b\u0438\u0446\u0430','Table'))+'</th>'+
+      '<th class="c-via">Via</th><th class="c-dev">Dev</th><th class="c-src">Src</th>'+
+      '<th class="c-metric">Metric</th><th class="c-proto">Proto / Scope</th></tr></thead><tbody>'+
+      visible.map(function(r){
+        var destination=r.destination||'\u2014';
+        var rowClass=(destination==='default'||destination==='0.0.0.0/0'||destination==='::/0')?' class="is-default"':'';
+        return '<tr'+rowClass+'>'+
+          '<td>'+U.esc(r.family||'\u2014')+'</td>'+
+          '<td class="mono">'+U.esc(destination)+'</td>'+
+          '<td class="mono">'+U.esc(r.table||'main')+'</td>'+
+          '<td class="mono">'+U.esc(r.gateway||'direct')+'</td>'+
+          '<td>'+U.esc(r.interface||'\u2014')+'</td>'+
+          '<td class="mono">'+U.esc(r.source||'\u2014')+'</td>'+
+          '<td class="num">'+U.esc(r.metric||0)+'</td>'+
+          '<td>'+U.esc([r.protocol,r.scope,r.type].filter(Boolean).join(' / ')||'\u2014')+'</td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>';
+  };
+
+  function r15ToggleRouteFit(){
+    routeFitMode=routeFitMode==='values'?'grid':'values';
+    q('route-fit-toggle').textContent=routeFitMode==='values'
+      ?lx('\u041a\u043e\u043b\u043e\u043d\u043a\u0438: \u043f\u043e \u0434\u0430\u043d\u043d\u044b\u043c','Columns: fit values')
+      :lx('\u041a\u043e\u043b\u043e\u043d\u043a\u0438: \u043f\u043e \u0441\u0435\u0442\u043a\u0435','Columns: fixed grid');
+    if(state.route)q('route-routes').innerHTML=renderRouteInventory(state.route);
+    U.notifyHeight();
+  }
+
+  function r15SyncFlowFilters(){
+    var protocols=r15Unique(state.flows.map(function(flow){return String(flow.protocol||'').toUpperCase();}));
+    var states=r15Unique(state.flows.map(function(flow){return String(flow.state||'ACTIVE').toUpperCase();}));
+    var protocolValue=q('flow-protocol').value;
+    var stateValue=q('flow-state').value;
+    var protocolOptions=[['',lx('\u0412\u0441\u0435 \u043f\u0440\u043e\u0442\u043e\u043a\u043e\u043b\u044b','All protocols')]];
+    var stateOptions=[['',lx('\u0412\u0441\u0435 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f','All states')]];
+    protocols.forEach(function(value){protocolOptions.push([value,value]);});
+    states.forEach(function(value){stateOptions.push([value,value]);});
+    r15SetOptions('flow-protocol',protocolOptions,false);
+    r15SetOptions('flow-state',stateOptions,false);
+    if(protocolValue&&protocols.indexOf(protocolValue)>=0)q('flow-protocol').value=protocolValue;
+    if(stateValue&&states.indexOf(stateValue)>=0)q('flow-state').value=stateValue;
+  }
+  function r15FlowList(){
+    var search=q('flow-search').value.trim().toLowerCase();
+    var protocol=q('flow-protocol').value;
+    var stateName=q('flow-state').value;
+    var sortMode=q('flow-sort').value;
+    var list=state.flows.filter(function(flow){
+      if(protocol&&String(flow.protocol||'').toUpperCase()!==protocol)return false;
+      if(stateName&&String(flow.state||'ACTIVE').toUpperCase()!==stateName)return false;
+      if(search&&JSON.stringify(flow).toLowerCase().indexOf(search)<0)return false;
+      return true;
+    }).slice();
+    if(sortMode==='bytes')list.sort(function(a,b){return Number(b.bytes||0)-Number(a.bytes||0);});
+    else if(sortMode==='packets')list.sort(function(a,b){return Number(b.packets||0)-Number(a.packets||0);});
+    else if(sortMode==='destination')list.sort(function(a,b){return String(a.destination||'').localeCompare(String(b.destination||''));});
+    return list;
+  }
+  function r15FlowSummary(list){
+    var bytes=0,tcp=0,udp=0;
+    list.forEach(function(flow){
+      bytes+=Number(flow.bytes||0);
+      var p=String(flow.protocol||'').toUpperCase();
+      if(p==='TCP')tcp++;
+      if(p==='UDP')udp++;
+    });
+    var source=state.flowSource||'unavailable';
+    q('flow-summary').innerHTML=
+      '<span><b>'+U.esc(list.length)+'</b>'+U.esc(lx(' \u043f\u043e\u0442\u043e\u043a\u043e\u0432',' flows'))+'</span>'+
+      '<span>TCP <b>'+tcp+'</b></span><span>UDP <b>'+udp+'</b></span>'+
+      '<span>'+U.esc(lx('\u041e\u0431\u044a\u0451\u043c','Volume'))+' <b>'+U.esc(U.fmtBytes(bytes))+'</b></span>'+
+      '<span class="mono">'+U.esc(source)+'</span>';
+  }
+  function r15FlowRow(flow){
+    var source=(flow.source||'')+(flow.source_port?':'+flow.source_port:'');
+    var dest=(flow.destination||'')+(flow.destination_port?':'+flow.destination_port:'');
+    var stateName=flow.state||'ACTIVE';
+    var tone=stateName==='ESTABLISHED'||stateName==='ACTIVE'?'':'neutral';
+    return '<tr>'+
+      '<td class="mono">'+U.esc(flow.seen_at||'\u2014')+'</td>'+
+      '<td class="mono">'+U.esc(source||'\u2014')+'</td>'+
+      '<td class="mono">'+U.esc(dest||'\u2014')+'</td>'+
+      '<td>'+U.esc(flow.protocol||'\u2014')+'</td>'+
+      '<td>'+U.badge(stateName,tone)+'</td>'+
+      '<td class="num">'+U.esc(flow.packets||0)+'</td>'+
+      '<td class="num">'+U.esc(U.fmtBytes(flow.bytes||0))+'</td>'+
+      '<td class="num">'+U.esc(flow.timeout_seconds||0)+' s</td>'+
+    '</tr>';
+  }
+  renderFlows=function(){
+    var list=r15FlowList();
+    var visible=list.slice(0,flowLimit);
+    q('flow-count').textContent=lx('\u041f\u043e\u043a\u0430\u0437\u0430\u043d\u043e: ','Showing: ')+visible.length+' / '+list.length;
+    r15FlowSummary(list);
+    if(!visible.length){
+      q('flow-results').innerHTML='<div class="nt-empty">'+U.esc(tr('noFlows'))+'</div>';
+      return;
+    }
+    q('flow-results').innerHTML='<table class="flow-data-table"><thead><tr>'+
+      '<th>'+tr('time')+'</th><th>'+tr('source')+'</th><th>'+tr('destination')+'</th>'+
+      '<th>'+tr('protocol')+'</th><th>'+tr('flowState')+'</th>'+
+      '<th>'+U.esc(lx('\u041f\u0430\u043a\u0435\u0442\u044b','Packets'))+'</th>'+
+      '<th>'+tr('volume')+'</th><th>TTL</th></tr></thead><tbody>'+
+      visible.map(r15FlowRow).join('')+'</tbody></table>';
+  };
+  refreshFlows=async function(){
+    if(flowRefreshBusy)return;
+    flowRefreshBusy=true;
+    q('flow-refresh').disabled=true;
+    try{
+      var d=await U.request('/flows',{limit:512});
+      state.flows=d.flows||[];
+      state.flowSource=d.source||'';
+      r15SyncFlowFilters();
+      renderFlows();
+      q('kpi-sessions').textContent=state.flows.length.toLocaleString(locale==='ru'?'ru-RU':'en-US');
+      pushHistory('sessions',state.flows.length);
+      updateKpis();
+    }catch(e){
+      U.error(q('flow-results'),e);
+    }finally{
+      flowRefreshBusy=false;
+      q('flow-refresh').disabled=false;
+    }
+    U.notifyHeight();
+  };
+  function r15ConfigureFlowTimer(){
+    if(flowAutoTimer){clearInterval(flowAutoTimer);flowAutoTimer=null;}
+    var seconds=Number(q('flow-window').value||0);
+    if(seconds>0)flowAutoTimer=setInterval(function(){refreshFlows();},seconds*1000);
+  }
+  function r15ProbeFields(){
+    var kind=q('probe-kind').value;
+    var port=q('probe-port');
+    var needsPort=kind==='tcp'||kind==='http';
+    port.disabled=!needsPort;
+    if(kind==='tcp')port.value='443';
+    else if(kind==='http')port.value='80';
+    else port.value='';
+    port.setAttribute('placeholder',needsPort?'port':'n/a');
+  }
+  function bind(){
+    q('doctor-profile').onchange=function(){var p=q('doctor-profile').value;q('check-ping').checked=p!=='dns';q('check-dns').checked=true;q('check-http').checked=p==='web';q('check-tcp').checked=p!=='dns';};
+    q('doctor-run').onclick=runDoctor;
+    q('doctor-target').onkeydown=function(e){if(e.key==='Enter')runDoctor();};
+    q('doctor-copy').onclick=function(){copyText(JSON.stringify(state.doctor||{},null,2));};
+    q('interfaces-refresh').onclick=loadInterfaces;
+    q('trace-run').onclick=runTrace;
+    q('trace-copy').onclick=function(){copyText(state.traceroute?(state.traceroute.raw||JSON.stringify(state.traceroute,null,2)):'');};
+    q('route-run').onclick=function(){inspectRoute();};
+    q('route-family-filter').onchange=function(){if(state.route)q('route-routes').innerHTML=renderRouteInventory(state.route);};
+    q('route-table-filter').onchange=function(){if(state.route)q('route-routes').innerHTML=renderRouteInventory(state.route);};
+    q('route-search').oninput=function(){if(state.route)q('route-routes').innerHTML=renderRouteInventory(state.route);};
+    q('route-fit-toggle').onclick=r15ToggleRouteFit;
+    q('flow-refresh').onclick=refreshFlows;
+    q('flow-search').oninput=renderFlows;
+    q('flow-protocol').onchange=renderFlows;
+    q('flow-state').onchange=renderFlows;
+    q('flow-sort').onchange=renderFlows;
+    q('flow-window').onchange=function(){r15ConfigureFlowTimer();refreshFlows();};
+    q('flow-more').onclick=function(){flowLimit+=80;renderFlows();U.notifyHeight();};
+    q('probe-kind').onchange=r15ProbeFields;
+    q('probe-target').onkeydown=function(e){if(e.key==='Enter')runActiveProbe();};
+    q('probe-run').onclick=runActiveProbe;
+    q('probe-copy').onclick=function(){copyText(q('probe-output').textContent||'');};
+    q('save-report').onclick=saveReport;
+    r15LocalizeControls();
+    r15ProbeFields();
+  }  async function load(){localize();bindTabs();bind();q('interfaces-title').textContent=lx('\u0418\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u044b','Interfaces');q('interfaces-hint').textContent=lx('\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043b\u0438\u043d\u043a\u0430, IP-\u0430\u0434\u0440\u0435\u0441\u0430, \u0441\u0447\u0435\u0442\u0447\u0438\u043a\u0438 \u0438 \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u043c \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e.','Link state, IP addresses, counters and default-route ownership.');q('interfaces-refresh').textContent=lx('\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c','Refresh');try{state.health=await U.request('/health');state.summary=await U.request('/summary');q('kpi-sessions').textContent=Number(state.summary.active_sessions||0).toLocaleString(locale==='ru'?'ru-RU':'en-US');pushHistory('sessions',Number(state.summary.active_sessions||0));updateKpis();await Promise.all([refreshFlows(),inspectRoute('8.8.8.8'),loadInterfaces()]);}catch(e){U.error('.nt-page',e);}U.notifyHeight();}  load();
 }());

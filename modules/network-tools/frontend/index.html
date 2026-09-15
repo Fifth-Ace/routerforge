@@ -76,21 +76,35 @@
         <div class="route-inspector-grid">
           <section class="route-subpanel">
             <div class="route-subpanel-head"><div><strong id="route-inventory-title">Routing tables</strong><small id="route-inventory-hint">IPv4/IPv6 routes from available kernel tables.</small></div><span class="route-count" id="route-routes-count">0</span></div>
+            <div class="route-filter-bar">
+              <select id="route-family-filter" aria-label="IP family"><option value="">All IP</option></select>
+              <select id="route-table-filter" aria-label="Routing table"><option value="">All tables</option></select>
+              <input id="route-search" aria-label="Route search" placeholder="Destination, via, dev, src...">
+              <button class="nt-button compact" id="route-fit-toggle" type="button">Columns: fit values</button>
+            </div>
             <div class="nt-table-wrap" id="route-routes"><div class="nt-empty">Loading routes...</div></div>
           </section>
           <section class="route-subpanel">
             <div class="route-subpanel-head"><div><strong id="route-rules-title">Policy rules</strong><small id="route-rules-hint">Read-only ip rule snapshot.</small></div><span class="route-count" id="route-rules-count">0</span></div>
             <div class="nt-table-wrap" id="route-rules"><div class="nt-empty">Loading policy rules...</div></div>
           </section>
-        </div>      </article>
+        </div>
+      </article>
     </div>
   </section>
 
   <section class="nt-view" data-panel="flows">
     <article class="nt-panel">
       <div class="nt-panel-head"><div><strong data-i18n="flowTitle">Анализ трафика</strong><small data-i18n="flowHint">Активные соединения и потоки в реальном времени.</small></div></div>
-      <div class="nt-toolbar flow"><select id="flow-window"><option data-i18n="flowNow">Текущий снимок</option></select><select id="flow-interface"><option value="" data-i18n="allInterfaces">Все интерфейсы</option></select><input id="flow-search" data-i18n-placeholder="flowSearch" placeholder="Поиск по IP, порту…"><button class="nt-button primary" id="flow-refresh" data-i18n="refresh">Обновить</button></div>
-      <div class="nt-table-wrap" id="flow-results"><div class="nt-empty" data-i18n="flowLoading">Загрузка conntrack…</div></div>
+      <div class="nt-toolbar flow">
+        <select id="flow-window" aria-label="Flow refresh mode"><option value="manual">Manual refresh</option></select>
+        <select id="flow-protocol" aria-label="Protocol"><option value="">All protocols</option></select>
+        <select id="flow-state" aria-label="State"><option value="">All states</option></select>
+        <select id="flow-sort" aria-label="Sort"><option value="recent">Newest first</option></select>
+        <input id="flow-search" data-i18n-placeholder="flowSearch" placeholder="Search by IP or port...">
+        <button class="nt-button primary" id="flow-refresh" data-i18n="refresh">Refresh</button>
+      </div>
+      <div class="flow-summary" id="flow-summary"><span>Waiting for conntrack snapshot...</span></div>      <div class="nt-table-wrap" id="flow-results"><div class="nt-empty" data-i18n="flowLoading">Загрузка conntrack…</div></div>
       <div class="flow-footer"><button id="flow-more" data-i18n="moreFlows">Показать больше соединений →</button><span id="flow-count">—</span></div>
     </article>
   </section>
@@ -98,8 +112,13 @@
   <section class="nt-view" data-panel="probes">
     <article class="nt-panel">
       <div class="nt-panel-head"><div><strong data-i18n="probeTitle">Активные проверки</strong><small data-i18n="probeHint">Ручная ограниченная проверка без изменения конфигурации роутера.</small></div></div>
-      <div class="active-grid"><select id="probe-kind"><option value="ping">Ping</option><option value="dns">DNS</option><option value="tcp">TCP</option><option value="http">HTTP</option></select><input id="probe-target" value="8.8.8.8"><input id="probe-port" value="53" inputmode="numeric"><button class="nt-button primary" id="probe-run"><span data-i18n="run">Запустить</span>&nbsp;▶</button></div>
-      <pre class="nt-console" id="probe-output" data-i18n="probeReady">Готово к запуску.</pre>
+      <div class="active-grid">
+        <select id="probe-kind"><option value="ping">Ping</option><option value="dns">DNS</option><option value="tcp">TCP</option><option value="http">HTTP</option></select>
+        <input id="probe-target" value="8.8.8.8">
+        <input id="probe-port" value="" inputmode="numeric" placeholder="n/a">
+        <button class="nt-button primary" id="probe-run"><span data-i18n="run">Run</span>&nbsp;&#9654;</button>
+        <button class="nt-button" id="probe-copy" type="button">Copy</button>
+      </div>      <pre class="nt-console" id="probe-output" data-i18n="probeReady">Готово к запуску.</pre>
     </article>
   </section>
 </main>

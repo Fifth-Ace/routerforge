@@ -2489,3 +2489,24 @@ html[data-radius="soft"] .dns-module {
   .dns-module .resolver-summary-strip > div:first-child { border-top:0; }
   .dns-module .resolver-summary-strip > div:last-child { grid-column:auto; }
 }
+
+/* R23 resolver-card containment correction.
+   Prevent resolver status/scope pills from leaking outside card geometry. */
+.dns-module .resolver-card {
+  overflow:hidden;
+}
+
+.dns-module .resolver-card .resolver-head,
+.dns-module .resolver-card .resolver-meta,
+.dns-module .resolver-card .scope-list,
+.dns-module .resolver-card .resolver-actions {
+  min-width:0;
+  max-width:100%;
+}
+
+.dns-module .resolver-card .state-pill,
+.dns-module .resolver-card .scope-chip {
+  max-width:100%;
+  margin-left:0;
+  transform:none;
+}

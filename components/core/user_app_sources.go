@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -190,12 +192,26 @@ func saveAppSourcesConfigUnlocked(cfg appSourcesConfig) error {
 		return err
 	}
 	data = append(data, '\n')
-	tmp := appSourcesConfigPath + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	atomicFile, err := safety.NewAtomicFile(filepath.Dir(appSourcesConfigPath), ".app-sources-")
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, appSourcesConfigPath); err != nil {
-		_ = os.Remove(tmp)
+	defer atomicFile.Cleanup()
+
+	temp := atomicFile.File()
+	if err := temp.Chmod(0o600); err != nil {
+		return err
+	}
+	if _, err := temp.Write(data); err != nil {
+		return err
+	}
+	if err := atomicFile.Sync(); err != nil {
+		return err
+	}
+	if err := atomicFile.Close(); err != nil {
+		return err
+	}
+	if err := atomicFile.Publish(appSourcesConfigPath); err != nil {
 		return err
 	}
 	return nil
@@ -216,12 +232,26 @@ func saveAppSourceCache(cache appSourceCache) error {
 	}
 	data = append(data, '\n')
 	path := appSourceCachePath(cache.SourceID)
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	atomicFile, err := safety.NewAtomicFile(filepath.Dir(path), ".app-source-cache-")
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
+	defer atomicFile.Cleanup()
+
+	temp := atomicFile.File()
+	if err := temp.Chmod(0o644); err != nil {
+		return err
+	}
+	if _, err := temp.Write(data); err != nil {
+		return err
+	}
+	if err := atomicFile.Sync(); err != nil {
+		return err
+	}
+	if err := atomicFile.Close(); err != nil {
+		return err
+	}
+	if err := atomicFile.Publish(path); err != nil {
 		return err
 	}
 	return nil

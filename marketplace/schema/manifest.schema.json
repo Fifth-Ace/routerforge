@@ -3,6 +3,7 @@
   "$id": "https://routerforge.local/schema/marketplace-manifest-v1.json",
   "title": "RouterForge App Center Manifest v1",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "schema_version",
     "id",
@@ -36,16 +37,19 @@
     },
     "publisher": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "id",
         "name"
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "url": {
           "type": "string"
@@ -54,6 +58,15 @@
     },
     "project_url": {
       "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "managed": {
+      "type": "boolean"
+    },
+    "builtin": {
+      "type": "boolean"
     },
     "package_authoritative": {
       "type": "boolean"
@@ -76,13 +89,46 @@
         "pattern": "^[a-z0-9+._-]{1,120}$"
       }
     },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "process_names": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "running_paths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "web_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "web_port_source": {
+      "type": "string"
+    },
+    "web_requires_package": {
+      "type": "string",
+      "pattern": "^[a-z0-9+._-]{1,120}$"
+    },
     "web": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "port",
         "mode"
       ],
-      "additionalProperties": false,
       "properties": {
         "scheme": {
           "enum": [
@@ -102,6 +148,7 @@
         "mode": {
           "enum": [
             "external-only",
+            "probe-required",
             "embedded-supported",
             "unsupported-version"
           ]
@@ -123,12 +170,12 @@
             }
           },
           "then": {
-            "required": [
-              "mode"
-            ],
             "properties": {
               "mode": {
-                "const": "embedded-supported"
+                "enum": [
+                  "embedded-supported",
+                  "probe-required"
+                ]
               }
             }
           }
@@ -137,6 +184,7 @@
     },
     "detection": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "packages": {
           "type": "array",
@@ -160,13 +208,39 @@
       }
     },
     "compatibility": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "hints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "targets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "all",
+              "aarch64-3.10",
+              "mips-3.4",
+              "mipsel-3.4"
+            ]
+          }
+        }
+      }
     },
     "presentation": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "navigation": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "label": {
               "type": "string"
@@ -182,6 +256,7 @@
         },
         "dashboard": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "enabled": {
               "type": "boolean"
@@ -204,8 +279,69 @@
     }
   },
   "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "opkg-update",
+            "opkg-install",
+            "opkg-upgrade",
+            "opkg-remove",
+            "write-opkg-feed"
+          ]
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9+._-]{1,120}$"
+          }
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "path": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "ignore_failure": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "write-opkg-feed"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      ]
+    },
     "plan": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "method"
       ],
@@ -226,6 +362,9 @@
         "repository_url": {
           "type": "string"
         },
+        "installer_url": {
+          "type": "string"
+        },
         "checksum_url": {
           "type": "string"
         },
@@ -235,7 +374,8 @@
         "packages": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-z0-9+._-]{1,120}$"
           }
         },
         "notes": {
@@ -250,10 +390,34 @@
         "steps": {
           "type": "array",
           "items": {
-            "type": "object"
+            "$ref": "#/$defs/step"
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "structured"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "required": [
+              "steps"
+            ],
+            "properties": {
+              "steps": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

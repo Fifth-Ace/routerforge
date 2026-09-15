@@ -11,11 +11,22 @@ APPROVALS = ROOT / "approvals"
 OUT = ROOT / "registry" / "index.json"
 EMBEDDED_OUT = ROOT.parent / "components" / "core" / "embedded" / "marketplace-index.json"
 
+SCHEMA = ROOT / "schema" / "manifest.schema.json"
+
 ALLOWED_KINDS = {"module", "integration"}
 ALLOWED_METHODS = {"routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy"}
 ALLOWED_STEPS = {"opkg-update", "opkg-install", "opkg-upgrade", "opkg-remove", "write-opkg-feed"}
 ALLOWED_APPROVALS = {"official", "verified", "blocked", "deprecated"}
 ALLOWED_WEB_MODES = {"external-only", "probe-required", "embedded-supported", "unsupported-version"}
+ALLOWED_VERSION_SOURCES = {"opkg", "binary", "service", "file", "manual", "release-index"}
+ALLOWED_COMPATIBILITY_TARGETS = {"all", "aarch64-3.10", "mips-3.4", "mipsel-3.4"}
+ALLOWED_MANIFEST_KEYS = {
+    "schema_version", "id", "kind", "name", "category", "description", "publisher",
+    "project_url", "source", "managed", "builtin", "package_authoritative",
+    "version_source", "conflicts", "capabilities", "process_names", "running_paths",
+    "web_port", "web_port_source", "web_requires_package", "web", "detection",
+    "compatibility", "presentation", "install", "update", "remove",
+}
 
 
 def canonical(obj):
@@ -37,8 +48,47 @@ def validate_string_list(value, where):
 
 
 def validate_package(value, where):
-    if not value or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789-+._" for ch in value):
+    if not isinstance(value, str) or not value or len(value) > 120 or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789-+._" for ch in value):
         raise ValueError(f"{where}: unsafe package {value!r}")
+
+
+def validate_id(value, where):
+    if not isinstance(value, str) or not value or len(value) > 80 or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789-._" for ch in value):
+        raise ValueError(f"{where}: unsafe id {value!r}")
+
+
+def validate_optional_string(value, where):
+    if value is not None and not isinstance(value, str):
+        raise ValueError(f"{where}: must be a string")
+
+
+def validate_contract_alignment():
+    schema = load_json(SCHEMA)
+    properties = schema.get("properties", {})
+    schema_keys = set(properties)
+    if schema_keys != ALLOWED_MANIFEST_KEYS:
+        missing = sorted(ALLOWED_MANIFEST_KEYS - schema_keys)
+        extra = sorted(schema_keys - ALLOWED_MANIFEST_KEYS)
+        raise ValueError(f"manifest contract drift: schema keys missing={missing!r} extra={extra!r}")
+
+    checks = (
+        ("kind", set(properties["kind"]["enum"]), ALLOWED_KINDS),
+        ("version_source", set(properties["version_source"]["enum"]), ALLOWED_VERSION_SOURCES),
+        ("web.mode", set(properties["web"]["properties"]["mode"]["enum"]), ALLOWED_WEB_MODES),
+        ("plan.method", set(schema["$defs"]["plan"]["properties"]["method"]["enum"]), ALLOWED_METHODS),
+        ("step.type", set(schema["$defs"]["step"]["properties"]["type"]["enum"]), ALLOWED_STEPS),
+        (
+            "compatibility.targets",
+            set(properties["compatibility"]["properties"]["targets"]["items"]["enum"]),
+            ALLOWED_COMPATIBILITY_TARGETS,
+        ),
+    )
+    for label, schema_values, builder_values in checks:
+        if schema_values != builder_values:
+            raise ValueError(
+                f"manifest contract drift: {label} schema={sorted(schema_values)!r} "
+                f"builder={sorted(builder_values)!r}"
+            )
 
 
 def validate_web(web, where):
@@ -75,9 +125,21 @@ def validate_plan(plan, where):
         return
     if not isinstance(plan, dict):
         raise ValueError(f"{where}: plan must be an object")
+    unknown_plan = set(plan) - {
+        "method", "repository", "repository_url", "installer_url", "checksum_url",
+        "asset_template", "packages", "notes", "preview_only", "steps",
+    }
+    if unknown_plan:
+        raise ValueError(f"{where}: unknown plan keys {sorted(unknown_plan)!r}")
+
     method = plan.get("method", "")
     if method not in ALLOWED_METHODS:
         raise ValueError(f"{where}: unsupported method {method!r}")
+
+    for key in ("repository", "repository_url", "installer_url", "checksum_url", "asset_template"):
+        validate_optional_string(plan.get(key), f"{where}.{key}")
+    if "preview_only" in plan and not isinstance(plan["preview_only"], bool):
+        raise ValueError(f"{where}.preview_only: must be boolean")
 
     if "packages" in plan:
         validate_string_list(plan["packages"], f"{where}.packages")
@@ -100,6 +162,11 @@ def validate_plan(plan, where):
                 validate_string_list(step["packages"], f"{where}.steps[{idx}].packages")
             if "args" in step:
                 validate_string_list(step["args"], f"{where}.steps[{idx}].args")
+            if "ignore_failure" in step and not isinstance(step["ignore_failure"], bool):
+                raise ValueError(f"{where}.steps[{idx}].ignore_failure: must be boolean")
+            unknown_step = set(step) - {"type", "packages", "args", "path", "content", "ignore_failure"}
+            if unknown_step:
+                raise ValueError(f"{where}.steps[{idx}]: unknown keys {sorted(unknown_step)!r}")
             for pkg in step.get("packages", []):
                 validate_package(pkg, f"{where}.steps[{idx}]")
             if step_type == "write-opkg-feed":
@@ -112,24 +179,110 @@ def validate_plan(plan, where):
 
 
 def validate_manifest(obj, path):
+    if not isinstance(obj, dict):
+        raise ValueError(f"{path.name}: manifest must be an object")
+
+    unknown = set(obj) - ALLOWED_MANIFEST_KEYS
+    if unknown:
+        raise ValueError(f"{path.name}: unknown manifest keys {sorted(unknown)!r}")
+
     required = ["schema_version", "id", "kind", "name", "publisher"]
     for key in required:
         if key not in obj:
             raise ValueError(f"{path.name}: missing {key}")
+
     if obj["schema_version"] != 1:
         raise ValueError(f"{path.name}: schema_version must be 1")
+
+    validate_id(obj["id"], f"{path.name}.id")
     if obj["kind"] not in ALLOWED_KINDS:
         raise ValueError(f"{path.name}: invalid kind")
     if path.stem != obj["id"]:
         raise ValueError(f"{path.name}: filename must match id")
-    if not obj["publisher"].get("id") or not obj["publisher"].get("name"):
-        raise ValueError(f"{path.name}: publisher.id/name required")
+    if not isinstance(obj["name"], str) or not obj["name"]:
+        raise ValueError(f"{path.name}: name required")
+
+    publisher = obj["publisher"]
+    if not isinstance(publisher, dict):
+        raise ValueError(f"{path.name}: publisher must be an object")
+    unknown_publisher = set(publisher) - {"id", "name", "url"}
+    if unknown_publisher:
+        raise ValueError(f"{path.name}: unknown publisher keys {sorted(unknown_publisher)!r}")
+    if not isinstance(publisher.get("id"), str) or not publisher.get("id"):
+        raise ValueError(f"{path.name}: publisher.id required")
+    if not isinstance(publisher.get("name"), str) or not publisher.get("name"):
+        raise ValueError(f"{path.name}: publisher.name required")
+    validate_optional_string(publisher.get("url"), f"{path.name}.publisher.url")
+
+    for key in ("category", "description", "project_url", "source", "web_port_source"):
+        validate_optional_string(obj.get(key), f"{path.name}.{key}")
+
+    for key in ("managed", "builtin", "package_authoritative"):
+        if key in obj and not isinstance(obj[key], bool):
+            raise ValueError(f"{path.name}.{key}: must be boolean")
+
+    version_source = obj.get("version_source")
+    if version_source is not None and version_source not in ALLOWED_VERSION_SOURCES:
+        raise ValueError(f"{path.name}: invalid version_source {version_source!r}")
+
+    if "conflicts" in obj:
+        validate_string_list(obj["conflicts"], f"{path.name}.conflicts")
+        for pkg in obj["conflicts"]:
+            validate_package(pkg, f"{path.name}.conflicts")
+
+    for key in ("capabilities", "process_names", "running_paths"):
+        if key in obj:
+            validate_string_list(obj[key], f"{path.name}.{key}")
+
+    if "web_port" in obj:
+        port = obj["web_port"]
+        if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+            raise ValueError(f"{path.name}.web_port: must be an integer between 1 and 65535")
+
+    if "web_requires_package" in obj:
+        validate_package(obj["web_requires_package"], f"{path.name}.web_requires_package")
+
+    detection = obj.get("detection")
+    if detection is not None:
+        if not isinstance(detection, dict):
+            raise ValueError(f"{path.name}.detection: must be an object")
+        unknown_detection = set(detection) - {"packages", "services", "paths"}
+        if unknown_detection:
+            raise ValueError(f"{path.name}.detection: unknown keys {sorted(unknown_detection)!r}")
+        for key in ("packages", "services", "paths"):
+            if key in detection:
+                validate_string_list(detection[key], f"{path.name}.detection.{key}")
+        for pkg in detection.get("packages", []):
+            validate_package(pkg, f"{path.name}.detection.packages")
+
+    compatibility = obj.get("compatibility")
+    if compatibility is not None:
+        if not isinstance(compatibility, dict):
+            raise ValueError(f"{path.name}.compatibility: must be an object")
+        unknown_compat = set(compatibility) - {"status", "hints", "targets"}
+        if unknown_compat:
+            raise ValueError(f"{path.name}.compatibility: unknown keys {sorted(unknown_compat)!r}")
+        validate_optional_string(compatibility.get("status"), f"{path.name}.compatibility.status")
+        if "hints" in compatibility:
+            validate_string_list(compatibility["hints"], f"{path.name}.compatibility.hints")
+        if "targets" in compatibility:
+            validate_string_list(compatibility["targets"], f"{path.name}.compatibility.targets")
+            unknown_targets = set(compatibility["targets"]) - ALLOWED_COMPATIBILITY_TARGETS
+            if unknown_targets:
+                raise ValueError(
+                    f"{path.name}.compatibility.targets: unsupported targets {sorted(unknown_targets)!r}"
+                )
+
+    if "presentation" in obj and not isinstance(obj["presentation"], dict):
+        raise ValueError(f"{path.name}.presentation: must be an object")
+
     validate_web(obj.get("web"), obj["id"])
     for key in ("install", "update", "remove"):
         validate_plan(obj.get(key), f"{obj['id']}.{key}")
 
 
 def build():
+    validate_contract_alignment()
     entries = []
     seen = set()
     approvals = {}

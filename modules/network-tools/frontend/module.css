@@ -273,3 +273,146 @@ tbody tr.is-default td,.flow-row-selectable.selected td{background:var(--accent-
     justify-content:flex-start;
   }
 }
+
+/* R20 canonical component rhythm for Network Tools.
+   Keeps the module-specific layouts while matching the shared shell geometry. */
+.nt-page {
+  --rf-ui-panel-radius:8px;
+  --rf-ui-control-radius:6px;
+  --rf-ui-control-h:38px;
+  --rf-ui-panel-head-min:50px;
+  --rf-ui-row-min:42px;
+}
+
+.nt-panel,
+.nt-kpi,
+.route-subpanel,
+.flow-detail,
+.probe-history,
+.probe-raw {
+  border-radius:var(--rf-ui-panel-radius);
+}
+
+.nt-panel-head,
+.route-subpanel-head {
+  min-height:var(--rf-ui-panel-head-min);
+  padding:11px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.nt-panel-head strong,
+.route-subpanel-head strong {
+  font-size:13px;
+  line-height:1.25;
+}
+
+.nt-panel-head small,
+.route-subpanel-head small {
+  margin-top:4px;
+  font-size:10px;
+  line-height:1.4;
+}
+
+.nt-toolbar {
+  gap:8px;
+  padding:0 14px 12px;
+}
+
+.nt-button {
+  min-height:var(--rf-ui-control-h);
+  padding:7px 13px;
+  border-radius:var(--rf-ui-control-radius);
+  line-height:1.2;
+}
+
+.nt-button.compact {
+  min-height:32px;
+  padding:5px 9px;
+}
+
+input,
+select {
+  min-height:var(--rf-ui-control-h);
+  height:var(--rf-ui-control-h);
+  border-radius:var(--rf-ui-control-radius);
+}
+
+.nt-table-wrap {
+  max-width:100%;
+  overflow:auto;
+}
+
+table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+
+thead th {
+  position:sticky;
+  top:0;
+  z-index:2;
+  padding:9px 11px;
+  background:var(--panel-2);
+  color:var(--muted);
+  font-size:9px;
+  font-weight:650;
+  line-height:1.25;
+  white-space:nowrap;
+}
+
+tbody td {
+  min-height:var(--rf-ui-row-min);
+  padding:9px 11px;
+  line-height:1.4;
+  vertical-align:middle;
+}
+
+tbody tr:nth-child(even) td {
+  background:rgba(255,255,255,.008);
+}
+
+tbody tr:hover td {
+  background:rgba(255,255,255,.018);
+}
+
+.rf-badge,
+.route-cap,
+.flow-summary span,
+.panel-updated {
+  min-height:24px;
+  padding:3px 8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+}
+
+.nt-empty,
+.flow-detail-empty {
+  min-height:72px;
+  padding:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+.nt-button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+
+@media(max-width:760px) {
+  .nt-panel-head,
+  .route-subpanel-head {
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+}

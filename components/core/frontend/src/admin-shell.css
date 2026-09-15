@@ -2050,3 +2050,199 @@ td {
     align-self:flex-start;
   }
 }
+
+/* R20 canonical component rhythm.
+   Shared shell modules (Management / Monitoring / App Center) use one
+   geometry for panels, toolbars, controls, tables and primary actions. */
+:root {
+  --rf-ui-panel-radius:8px;
+  --rf-ui-control-radius:6px;
+  --rf-ui-control-h:38px;
+  --rf-ui-panel-head-min:50px;
+  --rf-ui-row-min:42px;
+  --rf-ui-gap:8px;
+}
+
+.panel,
+.hero-card,
+.metric-card,
+.catalog-card,
+.thermal-card,
+.maintenance-section,
+.integration-card {
+  border-radius:var(--rf-ui-panel-radius);
+}
+
+.panel-head,
+.maintenance-section-head {
+  min-height:var(--rf-ui-panel-head-min);
+  padding:11px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.panel-head > div:first-child,
+.maintenance-section-head > div:first-child {
+  min-width:0;
+}
+
+.panel-head > div:first-child > strong,
+.maintenance-section-head > div:first-child > strong {
+  font-size:max(var(--ui-panel-title),13px);
+  line-height:1.25;
+}
+
+.panel-head > div:first-child > span,
+.maintenance-section-head > div:first-child > span {
+  margin-top:4px;
+  font-size:max(var(--ui-xs),10px);
+  line-height:1.4;
+}
+
+.toolbar,
+.maintenance-commandbar {
+  min-height:48px;
+  gap:var(--rf-ui-gap);
+  padding:6px 8px;
+  border-radius:var(--rf-ui-control-radius);
+}
+
+.button,
+.mini,
+.search-control,
+input,
+select,
+textarea {
+  border-radius:var(--rf-ui-control-radius);
+}
+
+.button {
+  min-height:var(--rf-ui-control-h);
+  padding:7px 13px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  line-height:1.2;
+  white-space:nowrap;
+}
+
+.button.compact,
+.mini {
+  min-height:32px;
+  padding:5px 9px;
+}
+
+.search-control {
+  min-height:var(--rf-ui-control-h);
+  overflow:hidden;
+}
+
+.search-control input {
+  min-height:calc(var(--rf-ui-control-h) - 2px);
+}
+
+.toolbar input,
+.toolbar select,
+.toolbar .search-control,
+.catalog-toolbar-v4 input,
+.catalog-toolbar-v4 select {
+  min-height:var(--rf-ui-control-h);
+}
+
+.table-scroll,
+.table-wrap {
+  max-width:100%;
+  overflow:auto;
+}
+
+table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:max(var(--ui-small),12px);
+}
+
+thead th {
+  position:sticky;
+  top:0;
+  z-index:2;
+  min-height:36px;
+  padding:9px 11px;
+  background:var(--concept-panel-2,#0e1115);
+  color:#8f99a5;
+  font-size:max(var(--ui-micro),9px);
+  font-weight:650;
+  line-height:1.25;
+  white-space:nowrap;
+}
+
+tbody td {
+  min-height:var(--rf-ui-row-min);
+  padding:9px 11px;
+  line-height:1.4;
+  vertical-align:middle;
+}
+
+tbody tr:nth-child(even) td {
+  background:rgba(255,255,255,.008);
+}
+
+tbody tr:hover td {
+  background:rgba(255,255,255,.018);
+}
+
+.cell-sub {
+  margin-top:3px;
+  line-height:1.35;
+}
+
+.state-chip,
+.pill {
+  min-height:24px;
+  padding:3px 8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+  white-space:nowrap;
+}
+
+.empty,
+.maintenance-empty {
+  min-height:72px;
+  padding:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--rf-muted,#9099a5);
+  text-align:center;
+}
+
+.button:focus-visible,
+.mini:focus-visible,
+.search-control:focus-within,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline:2px solid var(--rf-accent,#38bdf8);
+  outline-offset:2px;
+}
+
+@media (max-width:760px) {
+  .panel-head,
+  .maintenance-section-head {
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+
+  .toolbar,
+  .maintenance-commandbar {
+    min-height:0;
+  }
+
+  .button {
+    white-space:normal;
+  }
+}

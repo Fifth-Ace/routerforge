@@ -2290,3 +2290,146 @@ html[data-radius="soft"] .dns-module {
     justify-content:flex-start;
   }
 }
+
+/* R20 canonical component rhythm for the DNS iframe. */
+.dns-module {
+  --rf-ui-panel-radius:8px;
+  --rf-ui-control-radius:6px;
+  --rf-ui-control-h:38px;
+  --rf-ui-panel-head-min:50px;
+  --rf-ui-row-min:42px;
+}
+
+.dns-module .panel,
+.dns-module .metric-card,
+.dns-module .resolver-card,
+.dns-module .detail-card {
+  border-radius:var(--rf-ui-panel-radius) !important;
+}
+
+.dns-module .panel-head {
+  min-height:var(--rf-ui-panel-head-min);
+  padding:11px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.dns-module .panel-head > div:first-child {
+  min-width:0;
+}
+
+.dns-module .panel-head strong {
+  font-size:max(var(--ui-panel-title,13px),13px);
+  line-height:1.25;
+}
+
+.dns-module .panel-head span {
+  line-height:1.4;
+}
+
+.dns-module .toolbar {
+  min-height:48px;
+  gap:8px;
+  padding:6px 8px;
+  border-radius:var(--rf-ui-control-radius);
+}
+
+.dns-module .action,
+.dns-module .button,
+.dns-module .mini {
+  min-height:var(--rf-ui-control-h);
+  padding:7px 13px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border-radius:var(--rf-ui-control-radius);
+  line-height:1.2;
+  white-space:nowrap;
+}
+
+.dns-module .mini {
+  min-height:32px;
+  padding:5px 9px;
+}
+
+.dns-module input,
+.dns-module select,
+.dns-module textarea,
+.dns-module .search-control {
+  min-height:var(--rf-ui-control-h);
+  border-radius:var(--rf-ui-control-radius);
+}
+
+.dns-module .table-wrap {
+  max-width:100%;
+  overflow:auto;
+}
+
+.dns-module table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:max(var(--ui-small,12px),12px);
+}
+
+.dns-module thead th {
+  position:sticky;
+  top:0;
+  z-index:2;
+  padding:9px 11px;
+  background:var(--rf-surface-2,var(--concept-panel-2));
+  color:var(--rf-muted,#9099a5);
+  font-size:max(var(--ui-micro,9px),9px);
+  font-weight:650;
+  line-height:1.25;
+  white-space:nowrap;
+}
+
+.dns-module tbody td {
+  min-height:var(--rf-ui-row-min);
+  padding:9px 11px;
+  line-height:1.4;
+  vertical-align:middle;
+}
+
+.dns-module tbody tr:nth-child(even) td {
+  background:rgba(255,255,255,.008);
+}
+
+.dns-module tbody tr:hover td {
+  background:rgba(255,255,255,.018);
+}
+
+.dns-module .state-chip,
+.dns-module .state-pill,
+.dns-module .pill,
+.dns-module .latency {
+  min-height:24px;
+  padding:3px 8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+  white-space:nowrap;
+}
+
+.dns-module .empty-box {
+  min-height:72px;
+  padding:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+.dns-module .action:focus-visible,
+.dns-module .button:focus-visible,
+.dns-module .mini:focus-visible,
+.dns-module input:focus-visible,
+.dns-module select:focus-visible,
+.dns-module textarea:focus-visible {
+  outline:2px solid var(--rf-accent,var(--accent));
+  outline-offset:2px;
+}

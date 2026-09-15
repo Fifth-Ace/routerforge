@@ -15,18 +15,19 @@
       <p data-i18n="subtitle">Диагностика, анализ маршрутов, исследование трафика и активные проверки сети.</p>
     </div>
     <div class="nt-heading-actions">
+      <button class="nt-button" id="refresh-all" type="button"><span>↻</span><span id="refresh-all-label">Обновить данные</span></button>
       <button class="nt-button" id="save-report"><span>▣</span><span data-i18n="saveReport">Сохранить отчёт</span></button>
     </div>
   </header>
 
-  <nav class="nt-tabs" aria-label="Network Tools" data-contract="Network Doctor | Route Inspector | Flow Explorer | Active Probes">
-    <button class="nt-tab active" data-view="doctor"><span>◉</span><span data-i18n="tabDoctor">Сетевой доктор</span></button>
-    <button class="nt-tab" data-view="routes"><span>♧</span><span data-i18n="tabRoutes">Маршруты</span></button>
-    <button class="nt-tab" data-view="flows"><span>☷</span><span data-i18n="tabFlows">Потоки</span></button>
-    <button class="nt-tab" data-view="probes"><span>◌</span><span data-i18n="tabProbes">Активные проверки</span></button>
+  <nav class="nt-tabs" role="tablist" aria-label="Network Tools" data-contract="Network Doctor | Route Inspector | Flow Explorer | Active Probes">
+    <button class="nt-tab active" id="tab-doctor" role="tab" aria-selected="true" aria-controls="panel-doctor" data-view="doctor"><span>◉</span><span data-i18n="tabDoctor">Сетевой доктор</span></button>
+    <button class="nt-tab" id="tab-routes" role="tab" aria-selected="false" aria-controls="panel-routes" data-view="routes"><span>♧</span><span data-i18n="tabRoutes">Маршруты</span></button>
+    <button class="nt-tab" id="tab-flows" role="tab" aria-selected="false" aria-controls="panel-flows" data-view="flows"><span>☷</span><span data-i18n="tabFlows">Потоки</span></button>
+    <button class="nt-tab" id="tab-probes" role="tab" aria-selected="false" aria-controls="panel-probes" data-view="probes"><span>◌</span><span data-i18n="tabProbes">Активные проверки</span></button>
   </nav>
 
-  <section class="nt-view active" data-panel="doctor">
+  <section class="nt-view active" id="panel-doctor" role="tabpanel" aria-labelledby="tab-doctor" data-panel="doctor">
     <section class="nt-kpis" aria-label="Network summary">
       <article class="nt-kpi"><div class="nt-kpi-label" data-i18n="availability">Доступность сети</div><div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-availability">—</div><div class="nt-trend">LIVE</div><div id="spark-availability"></div></div><small data-i18n="availabilityHint">По последним активным проверкам</small></article>
       <article class="nt-kpi"><div class="nt-kpi-label" data-i18n="rtt">Средняя задержка (RTT)</div><div class="nt-kpi-main"><div class="nt-kpi-value" id="kpi-rtt">—</div><div class="nt-trend">LIVE</div><div id="spark-rtt"></div></div><small data-i18n="rttHint">По последним активным проверкам</small></article>
@@ -40,7 +41,7 @@
         <input id="doctor-target" value="example.com" aria-label="Target">
         <select id="doctor-profile"><option value="standard" data-i18n="profileStandard">Профиль: Стандартный</option><option value="web" data-i18n="profileWeb">Профиль: Web</option><option value="dns" data-i18n="profileDns">Профиль: DNS</option></select>
         <button class="nt-button primary" id="doctor-run"><span data-i18n="run">Запустить</span>&nbsp;▶</button>
-        <button class="nt-button" id="doctor-copy" title="Copy">▣</button>
+        <button class="nt-button" id="doctor-copy" type="button"><span>▣</span><span id="doctor-copy-label">Копировать</span></button>
       </div>
       <div class="nt-checks"><label class="nt-check"><input type="checkbox" id="check-ping" checked> Ping</label><label class="nt-check"><input type="checkbox" id="check-dns" checked> DNS</label><label class="nt-check"><input type="checkbox" id="check-http"> HTTP</label><label class="nt-check"><input type="checkbox" id="check-tcp" checked> TCP</label></div>
       <div class="nt-result-list" id="doctor-results"><div class="nt-empty" data-i18n="doctorEmpty">Выберите проверки и нажмите «Запустить».</div></div>
@@ -52,7 +53,7 @@
           <strong id="interfaces-title">Interfaces</strong>
           <small id="interfaces-hint">Kernel link state, addresses, counters and default-route ownership.</small>
         </div>
-        <button class="nt-button compact" id="interfaces-refresh">Refresh</button>
+        <div class="nt-panel-head-actions"><span class="panel-updated" id="interfaces-updated">—</span><button class="nt-button compact" id="interfaces-refresh">Refresh</button></div>
       </div>
       <div class="nt-table-wrap" id="interface-results">
         <div class="nt-empty">Loading interfaces…</div>
@@ -60,7 +61,7 @@
     </article>
   </section>
 
-  <section class="nt-view" data-panel="routes">
+  <section class="nt-view" id="panel-routes" role="tabpanel" aria-labelledby="tab-routes" data-panel="routes">
     <div class="nt-stack">
       <article class="nt-panel">
         <div class="nt-panel-head"><div><strong data-i18n="traceTitle">Трассировка маршрута</strong><small data-i18n="traceHint">Визуализация пути и диагностика на каждом хопе.</small></div></div>
@@ -69,7 +70,7 @@
       </article>
 
       <article class="nt-panel">
-        <div class="nt-panel-head"><div><strong data-i18n="routeTitle">Информация о маршруте</strong><small data-i18n="routeHint">Подробная информация о выбранном маршруте и решении ядра.</small></div></div>
+        <div class="nt-panel-head"><div><strong data-i18n="routeTitle">Информация о маршруте</strong><small data-i18n="routeHint">Подробная информация о выбранном маршруте и решении ядра.</small></div><div class="nt-panel-head-actions"><span class="panel-updated" id="route-updated">—</span></div></div>
         <div class="nt-toolbar"><input id="route-target" value="8.8.8.8"><span></span><button class="nt-button primary" id="route-run" data-i18n="showRoute">Показать маршрут</button></div>
         <div class="route-capabilities" id="route-capabilities"><span class="route-source">Loading capabilities...</span></div>
         <div class="route-card-grid"><div class="route-facts" id="route-facts"><div class="nt-empty" data-i18n="routeEmpty">Route not selected.</div></div><div class="route-decision" id="route-decision"><div class="nt-empty" data-i18n="decisionEmpty">No decision data.</div></div></div>
@@ -93,9 +94,9 @@
     </div>
   </section>
 
-  <section class="nt-view" data-panel="flows">
+  <section class="nt-view" id="panel-flows" role="tabpanel" aria-labelledby="tab-flows" data-panel="flows">
     <article class="nt-panel">
-      <div class="nt-panel-head"><div><strong data-i18n="flowTitle">Анализ трафика</strong><small data-i18n="flowHint">Активные соединения и потоки в реальном времени.</small></div><div class="nt-panel-head-actions"><button class="nt-button compact" id="flow-clear" type="button">Reset filters</button><button class="nt-button compact" id="flow-copy-selected" type="button" disabled>Copy flow</button></div></div>
+      <div class="nt-panel-head"><div><strong data-i18n="flowTitle">Анализ трафика</strong><small data-i18n="flowHint">Активные соединения и потоки в реальном времени.</small></div><div class="nt-panel-head-actions"><span class="panel-updated" id="flow-updated">—</span><button class="nt-button compact" id="flow-clear" type="button">Reset filters</button><button class="nt-button compact" id="flow-copy-selected" type="button" disabled>Copy flow</button></div></div>
       <div class="nt-toolbar flow">
         <select id="flow-window" aria-label="Flow refresh mode"><option value="manual">Manual refresh</option></select>
         <select id="flow-protocol" aria-label="Protocol"><option value="">All protocols</option></select>
@@ -111,9 +112,9 @@
     </article>
   </section>
 
-  <section class="nt-view" data-panel="probes">
+  <section class="nt-view" id="panel-probes" role="tabpanel" aria-labelledby="tab-probes" data-panel="probes">
     <article class="nt-panel">
-      <div class="nt-panel-head"><div><strong data-i18n="probeTitle">Активные проверки</strong><small data-i18n="probeHint">Ручная ограниченная проверка без изменения конфигурации роутера.</small></div><div class="nt-panel-head-actions"><button class="nt-button compact" id="probe-clear-history" type="button">Clear history</button></div></div>
+      <div class="nt-panel-head"><div><strong data-i18n="probeTitle">Активные проверки</strong><small data-i18n="probeHint">Ручная ограниченная проверка без изменения конфигурации роутера.</small></div><div class="nt-panel-head-actions"><span class="panel-updated" id="probe-updated">—</span><button class="nt-button compact" id="probe-clear-history" type="button">Clear history</button></div></div>
       <div class="active-grid">
         <select id="probe-kind"><option value="ping">Ping</option><option value="dns">DNS</option><option value="tcp">TCP</option><option value="http">HTTP</option></select>
         <input id="probe-target" value="8.8.8.8">
@@ -121,7 +122,7 @@
         <button class="nt-button primary" id="probe-run"><span data-i18n="run">Run</span>&nbsp;&#9654;</button>
         <button class="nt-button" id="probe-copy" type="button">Copy</button>
       </div>
-      <div class="probe-summary" id="probe-summary"><div class="nt-empty">Ready to run.</div></div><div class="probe-history-title">Recent probes</div><div class="probe-history" id="probe-history"><div class="nt-empty">Probe history is empty.</div></div><pre class="nt-console" id="probe-output" data-i18n="probeReady">Готово к запуску.</pre>
+      <div class="probe-summary" id="probe-summary"><div class="nt-empty">Ready to run.</div></div><div class="probe-history-title">Recent probes</div><div class="probe-history" id="probe-history"><div class="nt-empty">Probe history is empty.</div></div><details class="probe-raw" id="probe-raw"><summary id="probe-raw-summary">Raw JSON details</summary><pre class="nt-console" id="probe-output" data-i18n="probeReady">Готово к запуску.</pre></details>
     </article>
   </section>
 </main>

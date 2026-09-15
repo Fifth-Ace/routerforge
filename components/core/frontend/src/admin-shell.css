@@ -2294,3 +2294,80 @@ textarea:focus-visible {
 @media (max-width:1180px) {
   .version-badge { display:none; }
 }
+
+/* R24 responsive shell correction.
+   Preserve the RouterForge context rail on narrow screens and keep the
+   761-1120px shell compact instead of turning it into a tall dashboard. */
+@media (max-width:1120px) and (min-width:761px) {
+  .global-rail-left {
+    grid-template-columns:1fr;
+    gap:10px;
+    padding:10px 12px;
+  }
+
+  .rail-main {
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:10px;
+  }
+
+  .rail-bottom-stack {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:10px;
+    align-items:start;
+  }
+
+  .global-module-tree,
+  .rail-status-card {
+    padding-top:9px;
+    padding-bottom:9px;
+  }
+}
+
+@media (max-width:760px) {
+  .global-rail-left {
+    height:auto;
+    position:static;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+    padding:9px 10px;
+    border-bottom:1px solid var(--concept-border);
+  }
+
+  .rail-main {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  .rail-bottom-stack {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin:0;
+  }
+
+  .rail-bottom-stack > :last-child {
+    grid-column:1/-1;
+  }
+
+  .global-module-tree {
+    padding:9px 8px;
+  }
+
+  .rail-section-label {
+    margin-bottom:7px;
+  }
+}
+
+@media (max-width:520px) {
+  .rail-main,
+  .rail-bottom-stack {
+    grid-template-columns:1fr;
+  }
+
+  .rail-bottom-stack > :last-child {
+    grid-column:auto;
+  }
+}

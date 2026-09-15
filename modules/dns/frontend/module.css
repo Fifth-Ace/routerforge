@@ -2510,3 +2510,25 @@ html[data-radius="soft"] .dns-module {
   margin-left:0;
   transform:none;
 }
+
+/* R24 resolver master-tile grid correction.
+   At <=1320px the master item becomes a two-column grid. Keep the provider
+   and resolver-state pills in column 2 instead of auto-placing them into
+   the implicit first column below the card body. */
+@media (max-width:1320px) {
+  .dns-module .resolver-master-item > .resolver-master-state-wrap {
+    grid-column:2;
+    grid-row:auto;
+    min-width:0;
+    max-width:100%;
+    margin-top:4px;
+    justify-content:flex-start;
+    overflow:hidden;
+  }
+
+  .dns-module .resolver-master-item > .resolver-master-state-wrap .state-pill {
+    max-width:100%;
+    margin-left:0;
+    transform:none;
+  }
+}

@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -20,6 +19,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -506,7 +507,7 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, before.Path, action).CombinedOutput()
+	output, err := safety.RunCommand(ctx, adminMutationResponseOutputLimit, before.Path, action)
 	outputText := trimMutationOutput(output)
 	if err != nil {
 		status := http.StatusInternalServerError

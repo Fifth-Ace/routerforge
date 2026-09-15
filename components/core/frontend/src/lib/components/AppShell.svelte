@@ -8,8 +8,20 @@
   let stopCatalog = null;
   let stopCatalogSync = null;
   let stopOverview = null;
+  let narrowRailOpen = true;
+
+  function toggleNarrowRail() {
+    narrowRailOpen = !narrowRailOpen;
+    try {
+      localStorage.setItem('routerforge:narrow-rail-open', narrowRailOpen ? '1' : '0');
+    } catch {}
+  }
 
   onMount(() => {
+    try {
+      narrowRailOpen = localStorage.getItem('routerforge:narrow-rail-open') !== '0';
+    } catch {}
+
     stopCatalog = startCatalogPolling();
 
     let lastInstalledFingerprint = '';
@@ -73,7 +85,23 @@
 </script>
 
 <div class="global-shell">
-  <aside class="global-rail global-rail-left">
+  <button
+    class="rail-mobile-toggle"
+    class:closed={!narrowRailOpen}
+    type="button"
+    aria-expanded={narrowRailOpen}
+    aria-controls="routerforge-global-rail"
+    onclick={toggleNarrowRail}
+  >
+    <span>{locale === 'ru' ? 'Панель RouterForge' : 'RouterForge panel'}</span>
+    <span class="rail-toggle-chevron" aria-hidden="true">{narrowRailOpen ? '▲' : '▼'}</span>
+  </button>
+
+  <aside
+    id="routerforge-global-rail"
+    class="global-rail global-rail-left"
+    class:collapsed={!narrowRailOpen}
+  >
     <div class="rail-main">
       <section class="rail-block">
         <div class="rail-section-label">RouterForge</div>

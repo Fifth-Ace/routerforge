@@ -175,6 +175,9 @@ jobs:
       - name: Verify marketplace contract
         run: python3 scripts/verify-marketplace-contract.py
 
+      - name: Verify legacy fallback removal readiness
+        run: python3 scripts/verify-legacy-fallback-removal.py
+
       - name: Set up Node
         if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
         uses: actions/setup-node@v4

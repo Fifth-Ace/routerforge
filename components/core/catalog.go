@@ -89,6 +89,8 @@ type catalogItem struct {
 	Remove           catalogInstallPlan      `json:"remove,omitempty"`
 	Publisher        catalogPublisher        `json:"publisher,omitempty"`
 	Trust            catalogTrust            `json:"trust,omitempty"`
+	Provenance       catalogProvenance       `json:"provenance,omitempty"`
+	LifecycleTrust   catalogLifecycleTrust   `json:"lifecycle_trust,omitempty"`
 	Actions          catalogActions          `json:"actions"`
 	ManifestID       string                  `json:"manifest_id,omitempty"`
 	ManifestSHA256   string                  `json:"manifest_sha256,omitempty"`
@@ -175,6 +177,13 @@ func refreshCatalog() catalogSnapshot {
 	for i := range snapshot.Integrations {
 		snapshot.Integrations[i].Actions = deriveCatalogActions(snapshot.Integrations[i])
 		appSourceApplyActionPolicy(&snapshot.Integrations[i])
+	}
+
+	for i := range snapshot.Modules {
+		applyCatalogTrustModel(&snapshot.Modules[i])
+	}
+	for i := range snapshot.Integrations {
+		applyCatalogTrustModel(&snapshot.Integrations[i])
 	}
 
 	catalogApplyRuntimeWebDiscovery(&snapshot, installed)

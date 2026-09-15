@@ -1873,3 +1873,103 @@ td {
     min-width: 0;
   }
 }
+
+/* R18 canonical module tab strip.
+   Network Tools is the visual reference: framed strip, roomy text tabs,
+   semantic accent for the active item, horizontal overflow when needed. */
+.subtabs,
+.module-selector {
+  margin-bottom:14px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  overflow-x:auto;
+  padding:5px;
+  border:1px solid var(--concept-border, var(--rf-border, #29313a));
+  border-radius:8px;
+  background:var(--concept-panel, var(--rf-surface, #12151a));
+  scrollbar-width:thin;
+}
+
+.subtabs button,
+.module-selector button {
+  flex:0 0 auto;
+  min-width:165px;
+  min-height:40px;
+  padding:10px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border:1px solid transparent;
+  border-radius:6px;
+  background:transparent;
+  color:var(--rf-muted, #9099a5);
+  font-size:var(--ui-small, 12px);
+  font-weight:650;
+  line-height:1.2;
+  text-align:center;
+  white-space:nowrap;
+  cursor:pointer;
+  box-shadow:none;
+}
+
+.subtabs button:hover,
+.module-selector button:hover {
+  color:var(--rf-text, #f5f7fa);
+  border-color:var(--rf-border-strong, #36414d);
+  background:var(--rf-hover, var(--concept-hover, #1c2026));
+}
+
+.subtabs button.active,
+.module-selector button.active {
+  color:var(--rf-text, #f5f7fa);
+  border-color:var(--rf-accent-border, var(--accent, #38bdf8));
+  background:var(--rf-accent-soft, rgba(56,189,248,.10));
+  box-shadow:inset 0 -2px 0 var(--rf-accent, var(--accent, #38bdf8));
+}
+
+.subtabs button:focus-visible,
+.module-selector button:focus-visible {
+  outline:2px solid var(--rf-accent, var(--accent, #38bdf8));
+  outline-offset:-2px;
+}
+
+/* Monitoring's old selector cards become proper text tabs too. */
+.module-selector {
+  grid-template-columns:none;
+}
+
+.module-selector button {
+  grid-template-columns:none;
+  text-align:center;
+}
+
+.module-selector-icon,
+.module-selector button small,
+.module-selector button > i {
+  display:none !important;
+}
+
+.module-selector button > span:nth-child(2) {
+  display:block;
+  min-width:0;
+}
+
+.module-selector strong {
+  display:block;
+  overflow:visible;
+  color:inherit;
+  font-size:inherit;
+  font-weight:650;
+  text-overflow:clip;
+  white-space:nowrap;
+}
+
+@media (max-width:760px) {
+  .subtabs button,
+  .module-selector button {
+    min-width:140px;
+  }
+}

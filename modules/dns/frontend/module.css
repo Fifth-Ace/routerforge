@@ -2140,3 +2140,83 @@ html[data-radius="soft"] .dns-module {
     margin-left:0;
   }
 }
+
+/* R18 canonical RouterForge tab strip.
+   DNS top-level and nested tabs follow the Network Tools visual language. */
+.dns-module .module-tabs,
+.dns-module .parity-subtabs {
+  margin-bottom:14px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  overflow-x:auto;
+  padding:5px;
+  border:1px solid var(--rf-border, var(--concept-border)) !important;
+  border-radius:8px;
+  background:var(--rf-surface, var(--concept-panel));
+  scrollbar-width:thin;
+}
+
+.dns-module .module-tabs button,
+.dns-module .parity-subtabs > button:not(.subtab-action) {
+  flex:0 0 auto;
+  min-width:165px;
+  min-height:40px;
+  padding:10px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid transparent !important;
+  border-radius:6px !important;
+  background:transparent !important;
+  color:var(--rf-muted, #9099a5) !important;
+  font-size:var(--ui-small, 12px);
+  font-weight:650;
+  line-height:1.2;
+  text-align:center;
+  white-space:nowrap;
+  cursor:pointer;
+  box-shadow:none !important;
+}
+
+.dns-module .module-tabs button:hover,
+.dns-module .parity-subtabs > button:not(.subtab-action):hover {
+  color:var(--rf-text, #f5f7fa) !important;
+  border-color:var(--rf-border-strong, #36414d) !important;
+  background:var(--rf-hover, var(--concept-hover)) !important;
+}
+
+.dns-module .module-tabs button.active,
+.dns-module .parity-subtabs > button:not(.subtab-action).active {
+  color:var(--rf-text, #f5f7fa) !important;
+  border-color:var(--rf-accent-border, var(--accent)) !important;
+  background:var(--rf-accent-soft, rgba(56,189,248,.10)) !important;
+  box-shadow:inset 0 -2px 0 var(--rf-accent, var(--accent)) !important;
+}
+
+.dns-module .module-tabs button:focus-visible,
+.dns-module .parity-subtabs > button:not(.subtab-action):focus-visible {
+  color:var(--rf-text, #f5f7fa) !important;
+  outline:2px solid var(--rf-accent, var(--accent)) !important;
+  outline-offset:-2px !important;
+  border-radius:6px !important;
+}
+
+.dns-module .parity-subtabs .subtab-spacer {
+  flex:1 0 24px;
+}
+
+.dns-module .parity-subtabs > .subtab-action {
+  flex:0 0 auto;
+  min-width:auto;
+  min-height:32px;
+  border-radius:6px !important;
+}
+
+@media (max-width:760px) {
+  .dns-module .module-tabs button,
+  .dns-module .parity-subtabs > button:not(.subtab-action) {
+    min-width:140px;
+  }
+}

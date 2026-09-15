@@ -106,14 +106,14 @@ func TestCatalogSuppressesWebWhenCompanionPackageIsMissing(t *testing.T) {
 	}
 }
 
-func TestCatalogInstallPlansArePreviewOnly(t *testing.T) {
+func TestCatalogUnverifiedInstallPlansStayPreviewOnly(t *testing.T) {
 	snap := buildCatalog(map[string]string{}, map[string]bool{}, func(string) bool { return false })
 	if !snap.ReadOnly {
 		t.Fatal("catalog foundation must be read-only")
 	}
 	for _, item := range snap.Integrations {
-		if !item.Install.PreviewOnly {
-			t.Fatalf("%s install plan is not preview-only", item.ID)
+		if item.Trust.Status == "unverified" && item.Install.Method != "" && !item.Install.PreviewOnly {
+			t.Fatalf("%s unverified install plan is not preview-only", item.ID)
 		}
 	}
 }

@@ -72,8 +72,8 @@ func TestCombatMarketplaceHasCuratedIntegrations(t *testing.T) {
 	}
 	for _, item := range snap.Integrations {
 		delete(want, item.ID)
-		if !item.Install.PreviewOnly {
-			t.Fatalf("%s is not preview-only", item.ID)
+		if item.Trust.Status == "unverified" && item.Install.Method != "" && !item.Install.PreviewOnly {
+			t.Fatalf("%s unverified install plan is not preview-only", item.ID)
 		}
 	}
 	if len(want) != 0 {

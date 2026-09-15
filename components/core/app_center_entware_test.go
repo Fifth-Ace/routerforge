@@ -118,7 +118,7 @@ func TestFilterEntwarePackagesHidesAppCenterOwnedPackages(t *testing.T) {
 }
 
 func TestApplyIntegrationPackageVersions(t *testing.T) {
-	item := awgManagerIntegration()
+	item := testBundledRegistryIntegration(t, "awg-manager")
 	finalizeCatalogItem(
 		&item,
 		map[string]string{"awg-manager": "2.17.2"},

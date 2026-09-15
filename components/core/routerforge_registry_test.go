@@ -2,6 +2,21 @@ package main
 
 import "testing"
 
+func testBundledRegistryIntegration(t *testing.T, id string) catalogItem {
+	t.Helper()
+	doc, err := parseRouterForgeRegistry(bundledRouterForgeRegistry)
+	if err != nil {
+		t.Fatalf("parse bundled registry: %v", err)
+	}
+	for i := range doc.Entries {
+		if doc.Entries[i].Kind == "integration" && doc.Entries[i].ID == id {
+			return doc.Entries[i]
+		}
+	}
+	t.Fatalf("bundled registry integration %q missing", id)
+	return catalogItem{}
+}
+
 func TestBundledRouterForgeRegistry(t *testing.T) {
 	doc, err := parseRouterForgeRegistry(bundledRouterForgeRegistry)
 	if err != nil {
@@ -112,7 +127,7 @@ func TestRegistryRejectsRawShellLifecycle(t *testing.T) {
 }
 
 func TestUnverifiedIntegrationUsesDirectConfiguredOpkgFallback(t *testing.T) {
-	item := awgManagerIntegration()
+	item := testBundledRegistryIntegration(t, "awg-manager")
 	item.Trust = catalogTrust{Status: "unverified"}
 	item.Installed = true
 	item.PackageInstalled = true
@@ -135,7 +150,7 @@ func TestUnverifiedIntegrationUsesDirectConfiguredOpkgFallback(t *testing.T) {
 }
 
 func TestBlockedIntegrationCannotUseDirectOpkgFallback(t *testing.T) {
-	item := awgManagerIntegration()
+	item := testBundledRegistryIntegration(t, "awg-manager")
 	item.Trust = catalogTrust{Status: "blocked"}
 	item.Installed = true
 	item.PackageInstalled = true
@@ -149,7 +164,7 @@ func TestBlockedIntegrationCannotUseDirectOpkgFallback(t *testing.T) {
 }
 
 func TestVerifiedPackageIntegrationUpdateRequiresRealUpgrade(t *testing.T) {
-	item := nfqws2Integration()
+	item := testBundledRegistryIntegration(t, "nfqws2")
 	item.Trust = catalogTrust{Status: "verified"}
 	item.Installed = true
 	item.Update = catalogInstallPlan{

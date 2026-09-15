@@ -1014,7 +1014,7 @@ func buildEntwarePreflight(ctx context.Context, name, action string) (entwareAct
 
 func appCenterIntegrationPackageNames() map[string]struct{} {
 	out := map[string]struct{}{}
-	for _, item := range integrationCatalog() {
+	for _, item := range bundledRegistryIntegrations() {
 		for _, pkg := range item.Detection.Packages {
 			name := strings.ToLower(strings.TrimSpace(pkg))
 			if safeCatalogPackageName(name) {

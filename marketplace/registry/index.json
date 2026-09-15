@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "7d474d8e35f69b9eccfcb8e40e675da1691c08d77cac91de7a327a33d4390d75",
+  "revision": "1cca1149f2a4519c9cecd6ca1a5f47fc778edd0437371212b27083c14623a1e8",
   "entries": [
     {
       "id": "admin",
@@ -382,6 +382,61 @@
         "status": "official",
         "reviewed_by": "routerforge",
         "note": "Официальный consolidated RouterForge monitoring module for Dev hardware validation."
+      }
+    },
+    {
+      "id": "nfqws",
+      "kind": "integration",
+      "name": "nfqws",
+      "category": "DPI / Bypass",
+      "description": "Классическая ветка nfqws для Keenetic. Для новых установок предпочтительнее nfqws2.",
+      "publisher": {
+        "id": "nfqws",
+        "name": "nfqws",
+        "url": "https://github.com/nfqws"
+      },
+      "project_url": "https://github.com/nfqws/nfqws-keenetic",
+      "source": "project-official",
+      "detection": {
+        "packages": [
+          "nfqws-keenetic"
+        ],
+        "services": [
+          "/opt/etc/init.d/S51nfqws",
+          "/opt/etc/init.d/S99zapret"
+        ],
+        "paths": [
+          "/opt/etc/nfqws"
+        ]
+      },
+      "process_names": [
+        "nfqws"
+      ],
+      "web_port": 90,
+      "web_port_source": "nfqws-keenetic-web",
+      "web_requires_package": "nfqws-keenetic-web",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Entware",
+          "Netfilter kernel modules",
+          "Legacy branch"
+        ]
+      },
+      "install": {
+        "method": "manual",
+        "notes": [
+          "Legacy integration: Marketplace only detects it."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "nfqws",
+      "manifest_sha256": "9fcab37c7624c273eb41b083de9c21a549e114e3b34af30a3090a4596c6cf884",
+      "manifest_source": "marketplace/submissions/nfqws.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
       }
     },
     {

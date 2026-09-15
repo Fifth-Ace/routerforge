@@ -1,88 +1,88 @@
 {
-  "schema_version": 1,
-  "channel": "beta",
-  "release_version": "0.8.0-beta.1",
-  "release_notes": {
-    "ru": {
-      "new": [
-        "Network Tools \u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0441\u044f \u0441\u0430\u043c\u043e\u0441\u0442\u043e\u044f\u0442\u0435\u043b\u044c\u043d\u044b\u043c Beta-\u043c\u043e\u0434\u0443\u043b\u0435\u043c \u0441 \u0432\u043a\u043b\u0430\u0434\u043a\u0430\u043c\u0438 \u0421\u0435\u0442\u0435\u0432\u043e\u0439 \u0434\u043e\u043a\u0442\u043e\u0440, \u041c\u0430\u0440\u0448\u0440\u0443\u0442\u044b, \u041f\u043e\u0442\u043e\u043a\u0438 \u0438 \u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438, \u0440\u0443\u0441\u0441\u043a\u043e\u0439/\u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u043e\u0439 \u043b\u043e\u043a\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u0435\u0439 \u0438 \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\u043e\u0439 \u0442\u0435\u043c RouterForge.",
-        "\u0412 \u043e\u0431\u0449\u0438\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u0440\u0443\u0447\u043d\u043e\u0439 \u043f\u043e\u0440\u043e\u0433 \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u044f \u043f\u043e \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0435 CPU; \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e 75 \u00b0C, \u0430 \u0433\u043b\u0430\u0432\u043d\u0430\u044f \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u0438 \u043e\u043a\u043d\u043e \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u0439 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u043c \u043f\u043e\u0440\u043e\u0433."
-      ],
-      "fixes": [
-        "\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0430 \u0431\u0435\u0441\u043a\u043e\u043d\u0435\u0447\u043d\u0430\u044f \u043f\u0435\u0442\u043b\u044f \u0432\u044b\u0441\u043e\u0442\u044b iframe Network Tools.",
-        "Management/Admin \u0441\u043d\u043e\u0432\u0430 \u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u043e \u0440\u0430\u0441\u0442\u044f\u0433\u0438\u0432\u0430\u0435\u0442 \u0434\u043b\u0438\u043d\u043d\u044b\u0435 \u0432\u043a\u043b\u0430\u0434\u043a\u0438, \u0430 \u0424\u0430\u0439\u043b\u044b \u0438 \u0422\u0435\u0440\u043c\u0438\u043d\u0430\u043b \u0437\u0430\u043d\u0438\u043c\u0430\u044e\u0442 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0443\u044e \u0432\u044b\u0441\u043e\u0442\u0443 \u043e\u043a\u043d\u0430 \u0432\u043c\u0435\u0441\u0442\u043e \u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0439 \u043a\u043e\u0440\u043e\u0442\u043a\u043e\u0439 \u043e\u0431\u043b\u0430\u0441\u0442\u0438.",
-        "Beta release tooling \u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0451\u043d \u043d\u0430 \u0430\u043a\u0442\u0443\u0430\u043b\u044c\u043d\u0443\u044e \u0442\u043e\u043f\u043e\u043b\u043e\u0433\u0438\u044e \u0438\u0437 \u0448\u0435\u0441\u0442\u0438 \u043a\u043e\u043c\u043f\u043e\u043d\u0435\u043d\u0442\u043e\u0432 \u0438 \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442 18 IPK \u0434\u043b\u044f \u0442\u0440\u0451\u0445 \u0446\u0435\u043b\u0435\u0432\u044b\u0445 \u0430\u0440\u0445\u0438\u0442\u0435\u043a\u0442\u0443\u0440."
-      ],
-      "compatibility": [
-        "\u0424\u0443\u043d\u043a\u0446\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u043e \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u044b Core, Admin/Management, Monitoring integration \u0438 \u043d\u043e\u0432\u044b\u0439 Network Tools.",
-        "DNS \u0438 Profiling \u0444\u0443\u043d\u043a\u0446\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u043e \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u043b\u0438\u0441\u044c \u0432 \u044d\u0442\u043e\u043c workstream, \u043d\u043e \u043f\u0435\u0440\u0435\u0441\u043e\u0431\u0438\u0440\u0430\u044e\u0442\u0441\u044f \u0441 \u043e\u0431\u0449\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0435\u0439 Beta train \u0434\u043b\u044f \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u043e\u0433\u043e \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f \u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0435\u0439.",
-        "\u0412\u0441\u0435 \u0448\u0435\u0441\u0442\u044c \u043f\u0430\u043a\u0435\u0442\u043e\u0432 Beta \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 opkg-\u0432\u0435\u0440\u0441\u0438\u044e 0.8.0~beta.1; GitHub release/tag \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 0.8.0-beta.1.",
-        "Stable/main \u044d\u0442\u0438\u043c Beta-\u0432\u044b\u043f\u0443\u0441\u043a\u043e\u043c \u043d\u0435 \u043f\u0440\u043e\u0434\u0432\u0438\u0433\u0430\u044e\u0442\u0441\u044f."
-      ],
-      "technical": [
-        "\u0422\u043e\u0447\u043a\u0430 \u043f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0438 Beta \u043e\u0441\u043d\u043e\u0432\u0430\u043d\u0430 \u043d\u0430 \u0430\u043f\u043f\u0430\u0440\u0430\u0442\u043d\u043e \u043f\u0440\u0438\u043d\u044f\u0442\u043e\u043c Dev SHA ea7679727285771ecd4565861fce4dbc199c1c9c \u0438 \u043f\u043e\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0445 release-prep \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f\u0445 \u0442\u043e\u043b\u044c\u043a\u043e release tooling/config.",
-        "Beta FULL RELEASE \u043f\u0443\u0431\u043b\u0438\u043a\u0443\u0435\u0442 Core, DNS, Admin, Monitoring, Network Tools \u0438 Profiling \u0434\u043b\u044f aarch64-3.10, mips-3.4 \u0438 mipsel-3.4: 6 \u043a\u043e\u043c\u043f\u043e\u043d\u0435\u043d\u0442\u043e\u0432 \u00d7 3 target = 18 IPK.",
-        "Rolling routerforge-beta \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u0441\u043e\u0432\u043c\u0435\u0441\u0442\u0438\u043c\u044b\u043c mutable release anchor; \u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e \u0441\u043e\u0437\u0434\u0430\u0451\u0442\u0441\u044f immutable routerforge-v0.8.0-beta.1 \u043d\u0430 exact release SHA."
-      ]
-    },
-    "en": {
-      "new": [
-        "Network Tools becomes a standalone Beta module with Network Doctor, Routes, Flows, and Active Probes tabs, Russian/English localization, and RouterForge theme support.",
-        "Global settings now include a user-selectable CPU temperature warning threshold. The default remains 75 \u00b0C and the dashboard/status attention logic uses the configured value."
-      ],
-      "fixes": [
-        "Fixed the Network Tools iframe height feedback loop that could grow the page indefinitely.",
-        "Management/Admin long tabs now expand correctly, while Files and Terminal fill the available browser workspace instead of remaining in a short fixed area.",
-        "Beta release tooling now follows the six-component topology and verifies 18 IPKs across three target architectures."
-      ],
-      "compatibility": [
-        "Core, Admin/Management, Monitoring integration, and the new Network Tools module are functionally changed.",
-        "DNS and Profiling are functionally unchanged in this workstream, but are rebuilt with the coherent Beta train version for dependency consistency.",
-        "All six Beta packages use opkg version 0.8.0~beta.1; the GitHub release/tag uses 0.8.0-beta.1.",
-        "Stable/main are not promoted by this Beta release."
-      ],
-      "technical": [
-        "Beta preparation starts from hardware-accepted Dev SHA ea7679727285771ecd4565861fce4dbc199c1c9c; the release-prep commit changes release configuration/tooling only.",
-        "Beta FULL RELEASE publishes Core, DNS, Admin, Monitoring, Network Tools, and Profiling for aarch64-3.10, mips-3.4, and mipsel-3.4: 6 components \u00d7 3 targets = 18 IPKs.",
-        "The rolling routerforge-beta release remains the mutable compatibility anchor; immutable routerforge-v0.8.0-beta.1 is also created on the exact release SHA."
-      ]
-    }
-  },
-  "components": [
-    {
-      "id": "routerforge-core",
-      "package": "routerforge-core",
-      "version": "0.8.0~beta.1"
-    },
-    {
-      "id": "dns",
-      "package": "routerforge-dns",
-      "version": "0.8.0~beta.1",
-      "min_core_version": "0.8.0~beta.1"
-    },
-    {
-      "id": "admin",
-      "package": "routerforge-admin",
-      "version": "0.8.0~beta.1",
-      "min_core_version": "0.8.0~beta.1"
-    },
-    {
-      "id": "monitoring",
-      "package": "routerforge-monitoring",
-      "version": "0.8.0~beta.1",
-      "min_core_version": "0.8.0~beta.1"
-    },
-    {
-      "id": "network-tools",
-      "package": "routerforge-network-tools",
-      "version": "0.8.0~beta.1",
-      "min_core_version": "0.8.0~beta.1"
-    },
-    {
-      "id": "profiling",
-      "package": "routerforge-profiling",
-      "version": "0.8.0~beta.1",
-      "min_core_version": "0.8.0~beta.1"
-    }
-  ]
+    "schema_version":  1,
+    "channel":  "beta",
+    "release_version":  "0.8.5-beta.1",
+    "release_notes":  {
+                          "ru":  {
+                                     "new":  [
+                                                 "PHASE 13 Registry / Manifest Platform завершён: manifest contract hardening, migration legacy integrations и local/private registry сведены в единый защищённый App Center contract.",
+                                                 "Bundled manifest registry теперь является источником истины для интеграций; старый Go fallback удалён и прикрыт постоянным CI sentinel.",
+                                                 "Local/private sources получили namespaced identity и отдельную conservative trust-модель без возможности тихо подменить public ID."
+                                             ],
+                                     "fixes":  [
+                                                   "Добавление стороннего источника теперь строго двухшаговое: read-only preview, затем отдельный ADD_SOURCE с точным SHA-256 preview; изменившийся между шагами источник блокируется.",
+                                                   "Detection сторонних источников остаётся пассивным и не изменяет source config/cache; active Core web-probe для user/private src-* запрещён.",
+                                                   "Responsive UI baseline R26 сохраняется замороженным; новый registry workstream не открывает повторный broad UI redesign."
+                                               ],
+                                     "compatibility":  [
+                                                           "Все шесть Beta-пакетов выпускаются единым train 0.8.5~beta.1; GitHub release/tag использует 0.8.5-beta.1.",
+                                                           "Stable/main остаётся RouterForge 0.8.0 и этим Beta-выпуском не продвигается.",
+                                                           "Beta публикуется для aarch64-3.10, mips-3.4 и mipsel-3.4: 6 компонентов x 3 target = 18 IPK."
+                                                       ],
+                                     "technical":  [
+                                                       "P13 completion защищён always-on CI gate Verify private registry completion.",
+                                                       "Public GitHub остаётся текущим CI/release authority; Private Forgejo начинается следующим отдельным P14 workstream.",
+                                                       "Rolling routerforge-beta обновляется транзакционно; дополнительно создаётся immutable routerforge-v0.8.5-beta.1 на exact release SHA."
+                                                   ]
+                                 },
+                          "en":  {
+                                     "new":  [
+                                                 "PHASE 13 Registry / Manifest Platform is complete: manifest contract hardening, legacy integration migration, and the local/private registry now share one guarded App Center contract.",
+                                                 "The bundled manifest registry is now the source of truth for integrations; the legacy Go fallback is removed and protected by a permanent CI sentinel.",
+                                                 "Local/private sources use namespaced identities and a conservative trust model that cannot silently replace public IDs."
+                                             ],
+                                     "fixes":  [
+                                                   "Third-party source addition is now strictly two-step: read-only preview followed by an explicit ADD_SOURCE action bound to the exact preview SHA-256; stale previews are rejected.",
+                                                   "Third-party source detection remains passive and does not mutate source config/cache; active Core web-probe is denied for user/private src-* sources.",
+                                                   "The accepted R26 responsive UI baseline remains frozen; the registry workstream does not reopen broad UI redesign."
+                                               ],
+                                     "compatibility":  [
+                                                           "All six Beta packages use the coherent 0.8.5~beta.1 train; the GitHub release/tag uses 0.8.5-beta.1.",
+                                                           "Stable/main remains RouterForge 0.8.0 and is not promoted by this Beta release.",
+                                                           "Beta is published for aarch64-3.10, mips-3.4, and mipsel-3.4: 6 components x 3 targets = 18 IPKs."
+                                                       ],
+                                     "technical":  [
+                                                       "P13 completion is protected by the always-on Verify private registry completion CI gate.",
+                                                       "Public GitHub remains the current CI/release authority; Private Forgejo starts as the next separate P14 workstream.",
+                                                       "The rolling routerforge-beta alias is updated transactionally and an immutable routerforge-v0.8.5-beta.1 snapshot is created at the exact release SHA."
+                                                   ]
+                                 }
+                      },
+    "components":  [
+                       {
+                           "id":  "routerforge-core",
+                           "package":  "routerforge-core",
+                           "version":  "0.8.5~beta.1"
+                       },
+                       {
+                           "id":  "dns",
+                           "package":  "routerforge-dns",
+                           "version":  "0.8.5~beta.1",
+                           "min_core_version":  "0.8.5~beta.1"
+                       },
+                       {
+                           "id":  "admin",
+                           "package":  "routerforge-admin",
+                           "version":  "0.8.5~beta.1",
+                           "min_core_version":  "0.8.5~beta.1"
+                       },
+                       {
+                           "id":  "monitoring",
+                           "package":  "routerforge-monitoring",
+                           "version":  "0.8.5~beta.1",
+                           "min_core_version":  "0.8.5~beta.1"
+                       },
+                       {
+                           "id":  "network-tools",
+                           "package":  "routerforge-network-tools",
+                           "version":  "0.8.5~beta.1",
+                           "min_core_version":  "0.8.5~beta.1"
+                       },
+                       {
+                           "id":  "profiling",
+                           "package":  "routerforge-profiling",
+                           "version":  "0.8.5~beta.1",
+                           "min_core_version":  "0.8.5~beta.1"
+                       }
+                   ]
 }

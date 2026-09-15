@@ -4,6 +4,27 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-15 — RouterForge 0.8.5-beta.1
+
+### Registry / App Center
+- PHASE 13 Registry / Manifest Platform is complete.
+- Bundled manifests are the integration source of truth; the legacy Go fallback is removed and guarded by CI.
+- Local/private source IDs are namespaced and cannot silently override public catalog IDs.
+- Local/private sources remain conservative/unverified by default and require explicit local-source permission where applicable.
+
+### Source action boundaries
+- Source preview is read-only and does not persist config/cache.
+- Add is a separate explicit action requiring `ADD_SOURCE` and the exact SHA-256 returned by preview.
+- A changed source between preview and add is rejected.
+- Detection remains passive/read-only; user/private `src-*` sources cannot gain active Core web-probe authority from trust-state drift.
+
+### CI / release
+- `Verify private registry completion` is a permanent CI gate covering P13A/P13B/P13C invariants.
+- Beta train advances by 0.0.5 to `0.8.5-beta.1` (`0.8.5~beta.1` for opkg) across all six components.
+- Dev train advances to `0.8.5~dev`.
+- Stable/main remains RouterForge 0.8.0 and is not promoted by this Beta.
+- Next roadmap phase: P14 Private Forgejo.
+
 ## 2026-09-12 — RouterForge 0.7.2 DNS hotfix
 
 ### Versioning

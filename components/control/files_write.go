@@ -12,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 	"unicode/utf8"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -248,22 +250,16 @@ func handleAdminFileWrite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	parent := filepath.Dir(resolved.Canonical)
-	temp, err := os.CreateTemp(parent, ".routerforge-write-*")
+	atomicFile, err := safety.NewAtomicFile(parent, ".routerforge-write-*")
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot create atomic write temporary file"})
 		return
 	}
-	tempPath := temp.Name()
-	tempClosed := false
-	defer func() {
-		if !tempClosed {
-			_ = temp.Close()
-		}
-		_ = os.Remove(tempPath)
-	}()
+	defer atomicFile.Cleanup()
+	temp := atomicFile.File()
 
 	if exists {
-		if err := preserveAdminFileMetadata(tempPath, before); err != nil {
+		if err := preserveAdminFileMetadata(atomicFile.Path(), before); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot preserve file metadata"})
 			return
 		}
@@ -276,15 +272,14 @@ func handleAdminFileWrite(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot write temporary file"})
 		return
 	}
-	if err := temp.Sync(); err != nil {
+	if err := atomicFile.Sync(); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot sync temporary file"})
 		return
 	}
-	if err := temp.Close(); err != nil {
+	if err := atomicFile.Close(); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot close temporary file"})
 		return
 	}
-	tempClosed = true
 
 	rechecked, err := resolveCreatableAdminFilePath(request.Path)
 	if err != nil {
@@ -306,7 +301,7 @@ func handleAdminFileWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := os.Rename(tempPath, resolved.Canonical); err != nil {
+	if err := atomicFile.Publish(resolved.Canonical); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot atomically replace target file"})
 		return
 	}

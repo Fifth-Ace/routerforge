@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 type adminFileCopyRequest struct {
@@ -75,19 +77,13 @@ func handleAdminFileCopy(w http.ResponseWriter, r *http.Request) {
 	defer input.Close()
 
 	parent := filepath.Dir(destination.Canonical)
-	temp, err := os.CreateTemp(parent, ".routerforge-copy-*")
+	atomicFile, err := safety.NewAtomicFile(parent, ".routerforge-copy-*")
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot create copy temporary file"})
 		return
 	}
-	tempPath := temp.Name()
-	closed := false
-	defer func() {
-		if !closed {
-			_ = temp.Close()
-		}
-		_ = os.Remove(tempPath)
-	}()
+	defer atomicFile.Cleanup()
+	temp := atomicFile.File()
 
 	if err := temp.Chmod(sourceInfo.Mode().Perm()); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot preserve copy mode"})
@@ -105,15 +101,14 @@ func handleAdminFileCopy(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot copy file content"})
 		return
 	}
-	if err := temp.Sync(); err != nil {
+	if err := atomicFile.Sync(); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot sync copied file"})
 		return
 	}
-	if err := temp.Close(); err != nil {
+	if err := atomicFile.Close(); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot close copied file"})
 		return
 	}
-	closed = true
 
 	rechecked, err := resolveCreatableAdminFilePath(request.Destination)
 	if err != nil || rechecked.Canonical != destination.Canonical {
@@ -124,7 +119,7 @@ func handleAdminFileCopy(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "copy destination appeared during operation"})
 		return
 	}
-	if err := os.Rename(tempPath, destination.Canonical); err != nil {
+	if err := atomicFile.Publish(destination.Canonical); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot publish copied file"})
 		return
 	}

@@ -46,7 +46,7 @@
     ]
   },
   "install": {
-    "method": "opkg-feed",
+    "method": "manual",
     "repository": "kee",
     "repository_url": "https://0xkee.github.io/keenetic-entware-extras/stable",
     "packages": [

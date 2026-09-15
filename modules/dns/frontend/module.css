@@ -2220,3 +2220,73 @@ html[data-radius="soft"] .dns-module {
     min-width:140px;
   }
 }
+
+/* R19 canonical module header for the DNS iframe. */
+.dns-module .page-head {
+  min-height:0;
+  margin-bottom:14px;
+  padding:12px 2px 6px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+
+.dns-module .page-head > div:first-child {
+  min-width:0;
+}
+
+.dns-module .page-head h1 {
+  margin:0;
+  font-size:max(var(--ui-title,23px),28px);
+  line-height:1.08;
+  letter-spacing:-.025em;
+}
+
+.dns-module .page-head p {
+  max-width:920px;
+  margin:7px 0 0;
+  font-size:max(var(--ui-small,12px),13px);
+  line-height:1.45;
+}
+
+.dns-module .toolbar-actions {
+  min-height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.dns-module .toolbar-actions .page-kicker {
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  margin:0;
+  padding:0 8px;
+  border:1px solid var(--rf-border,var(--concept-border));
+  border-radius:999px;
+  background:var(--rf-surface-2,var(--concept-panel-2));
+  color:var(--rf-muted,#9099a5);
+  font-size:var(--ui-micro,9px);
+  font-weight:650;
+  letter-spacing:.05em;
+  white-space:nowrap;
+}
+
+.dns-module .toolbar-actions .action {
+  min-height:38px;
+}
+
+@media (max-width:900px) {
+  .dns-module .page-head {
+    flex-direction:column;
+    align-items:stretch;
+    gap:11px;
+  }
+
+  .dns-module .toolbar-actions {
+    justify-content:flex-start;
+  }
+}

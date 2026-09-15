@@ -2377,7 +2377,7 @@ textarea:focus-visible {
   display:none;
 }
 
-@media (max-width:900px) {
+@media (max-width:1120px) {
   .rail-mobile-toggle {
     width:100%;
     min-height:32px;
@@ -2512,8 +2512,8 @@ textarea:focus-visible {
 /*
 R25_RESPONSIVE_PANEL=TWO_COLUMN
 R25_PANEL_COLLAPSE=SLIDE_UP
-R25_PANEL_900=COMPACT
+R26_PANEL_1120=COMPACT
 R25_PANEL_700=COMPACT
-DESKTOP_GE_901=UNTOUCHED
+DESKTOP_GE_1121=UNTOUCHED
 RUNTIME_BACKEND=UNTOUCHED
 */

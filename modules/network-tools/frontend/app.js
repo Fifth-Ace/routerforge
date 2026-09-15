@@ -482,7 +482,116 @@
     a.remove();
     setTimeout(function(){URL.revokeObjectURL(url);},1000);
   };
+  // R17 final interaction polish: refresh telemetry, accessible tabs and update stamps.
+  function r17Stamp(id){
+    var node=q(id);
+    if(!node)return;
+    node.textContent=lx('\u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e ','Updated ')+new Date().toLocaleTimeString(locale==='ru'?'ru-RU':'en-US');
+  }
+
+  function r17LocalizeChrome(){
+    q('refresh-all-label').textContent=lx('\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u0434\u0430\u043d\u043d\u044b','Refresh data');
+    q('doctor-copy-label').textContent=lx('\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c','Copy');
+    q('probe-raw-summary').textContent=lx('\u0422\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0434\u0430\u043d\u043d\u044b JSON','Raw JSON details');
+    q('interfaces-title').textContent=lx('\u0418\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u044b','Interfaces');
+    q('interfaces-hint').textContent=lx('\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043b\u0438\u043d\u043a\u0430, IP-\u0430\u0434\u0440\u0435\u0441\u0430, \u0441\u0447\u0435\u0442\u0447\u0438\u043a\u0438 \u0438 \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u0435 default route.','Link state, IP addresses, counters and default-route ownership.');
+    q('interfaces-refresh').textContent=lx('\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c','Refresh');
+    q('route-inventory-title').textContent=lx('\u0422\u0430\u0431\u043b\u0438\u0446\u044b \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0438\u0437\u0430\u0446\u0438\u0438','Routing tables');
+    q('route-inventory-hint').textContent=lx('IPv4/IPv6 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u044b \u0438\u0437 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0445 kernel tables.','IPv4/IPv6 routes from available kernel tables.');
+    q('route-rules-title').textContent=lx('\u041f\u0440\u0430\u0432\u0438\u043b\u0430 PBR','Policy rules');
+    q('route-rules-hint').textContent=lx('Read-only \u0441\u043d\u0438\u043c\u043e\u043a ip rule.','Read-only ip rule snapshot.');
+  }
+
+  function r17SyncTabs(view){
+    var tabs=Array.prototype.slice.call(document.querySelectorAll('.nt-tab'));
+    tabs.forEach(function(tab){
+      var selected=tab.getAttribute('data-view')===view;
+      tab.setAttribute('aria-selected',selected?'true':'false');
+      tab.setAttribute('tabindex',selected?'0':'-1');
+    });
+    document.querySelectorAll('.nt-view').forEach(function(panel){
+      panel.setAttribute('aria-hidden',panel.getAttribute('data-panel')===view?'false':'true');
+    });
+  }
+
+  var r17BaseSetView=setView;
+  setView=function(view){
+    r17BaseSetView(view);
+    r17SyncTabs(activeView);
+    try{sessionStorage.setItem('rf-network-tools-view',activeView);}catch(e){}
+    try{
+      var u=new URL(window.location.href);
+      u.searchParams.set('view',activeView);
+      window.history.replaceState(null,'',u.toString());
+    }catch(e){}
+  };
+
+  function r17RestoreView(){
+    if(U.params().get('view'))return;
+    try{
+      var saved=sessionStorage.getItem('rf-network-tools-view');
+      if(['doctor','routes','flows','probes'].indexOf(saved)>=0)activeView=saved;
+    }catch(e){}
+  }
+
+  function r17BindTabKeyboard(){
+    var tabs=Array.prototype.slice.call(document.querySelectorAll('.nt-tab'));
+    tabs.forEach(function(tab,index){
+      tab.onkeydown=function(e){
+        var next=-1;
+        if(e.key==='ArrowRight')next=(index+1)%tabs.length;
+        else if(e.key==='ArrowLeft')next=(index-1+tabs.length)%tabs.length;
+        else if(e.key==='Home')next=0;
+        else if(e.key==='End')next=tabs.length-1;
+        if(next<0)return;
+        e.preventDefault();
+        tabs[next].focus();
+        tabs[next].click();
+      };
+    });
+  }
+
+  var r17BaseLoadInterfaces=loadInterfaces;
+  loadInterfaces=async function(){
+    await r17BaseLoadInterfaces();
+    r17Stamp('interfaces-updated');
+  };
+
+  var r17BaseInspectRoute=inspectRoute;
+  inspectRoute=async function(target){
+    await r17BaseInspectRoute(target);
+    r17Stamp('route-updated');
+  };
+
+  var r17BaseRefreshFlows=refreshFlows;
+  refreshFlows=async function(){
+    await r17BaseRefreshFlows();
+    r17Stamp('flow-updated');
+  };
+
+  var r17BaseRunActiveProbe=runActiveProbe;
+  runActiveProbe=async function(){
+    await r17BaseRunActiveProbe();
+    r17Stamp('probe-updated');
+  };
+
+  async function r17RefreshAll(){
+    var button=q('refresh-all');
+    button.disabled=true;
+    try{
+      await Promise.all([
+        loadInterfaces(),
+        refreshFlows(),
+        inspectRoute(q('route-target').value.trim()||'8.8.8.8')
+      ]);
+    }finally{
+      button.disabled=false;
+      U.notifyHeight();
+    }
+  }
   function bind(){
+    r17RestoreView();
+
     q('doctor-profile').onchange=function(){var p=q('doctor-profile').value;q('check-ping').checked=p!=='dns';q('check-dns').checked=true;q('check-http').checked=p==='web';q('check-tcp').checked=p!=='dns';};
     q('doctor-run').onclick=runDoctor;
     q('doctor-target').onkeydown=function(e){if(e.key==='Enter')runDoctor();};
@@ -517,10 +626,14 @@
     q('probe-copy').onclick=function(){copyText(q('probe-output').textContent||'');};
     q('probe-clear-history').onclick=function(){state.probeHistory=[];r16RenderProbeHistory();U.notifyHeight();};
 
+    q('refresh-all').onclick=r17RefreshAll;
     q('save-report').onclick=saveReport;
 
     r15LocalizeControls();
     r15ProbeFields();
+    r17LocalizeChrome();
+    r17BindTabKeyboard();
+
     q('trace-mode').textContent=lx('\u0420\u0435\u0436\u0438\u043c: ICMP traceroute','Mode: ICMP traceroute');
     q('route-rules-search').setAttribute('placeholder',lx('\u041f\u043e\u0438\u0441\u043a \u043f\u043e priority, from, to, mark, table\u2026','Search priority, from, to, mark, table\u2026'));
     q('route-copy-routes').textContent=lx('\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c','Copy');
@@ -531,5 +644,8 @@
 
     r16RenderFlowDetail();
     r16RenderProbeHistory();
-  }  async function load(){localize();bindTabs();bind();q('interfaces-title').textContent=lx('\u0418\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u044b','Interfaces');q('interfaces-hint').textContent=lx('\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043b\u0438\u043d\u043a\u0430, IP-\u0430\u0434\u0440\u0435\u0441\u0430, \u0441\u0447\u0435\u0442\u0447\u0438\u043a\u0438 \u0438 \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u043c \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e.','Link state, IP addresses, counters and default-route ownership.');q('interfaces-refresh').textContent=lx('\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c','Refresh');try{state.health=await U.request('/health');state.summary=await U.request('/summary');q('kpi-sessions').textContent=Number(state.summary.active_sessions||0).toLocaleString(locale==='ru'?'ru-RU':'en-US');pushHistory('sessions',Number(state.summary.active_sessions||0));updateKpis();await Promise.all([refreshFlows(),inspectRoute('8.8.8.8'),loadInterfaces()]);}catch(e){U.error('.nt-page',e);}U.notifyHeight();}  load();
+
+    q('probe-raw').ontoggle=function(){U.notifyHeight();};
+  }  async function load(){localize();bind();bindTabs();q('interfaces-title').textContent=lx('\u0418\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u044b','Interfaces');q('interfaces-hint').textContent=lx('\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043b\u0438\u043d\u043a\u0430, IP-\u0430\u0434\u0440\u0435\u0441\u0430, \u0441\u0447\u0435\u0442\u0447\u0438\u043a\u0438 \u0438 \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u043c \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e.','Link state, IP addresses, counters and default-route ownership.');q('interfaces-refresh').textContent=lx('\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c','Refresh');try{state.health=await U.request('/health');state.summary=await U.request('/summary');q('kpi-sessions').textContent=Number(state.summary.active_sessions||0).toLocaleString(locale==='ru'?'ru-RU':'en-US');pushHistory('sessions',Number(state.summary.active_sessions||0));updateKpis();await Promise.all([refreshFlows(),inspectRoute('8.8.8.8'),loadInterfaces()]);}catch(e){U.error('.nt-page',e);}U.notifyHeight();}
+  load();
 }());

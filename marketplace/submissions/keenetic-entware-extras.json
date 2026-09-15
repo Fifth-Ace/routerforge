@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "keenetic-entware-extras",
+  "kind": "integration",
+  "name": "Keenetic Entware Extras",
+  "category": "Toolkit",
+  "description": "Geo routing, SmartDNS integration, DNS redirect, network diagnostics and optional web dashboard.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/0xkee/keenetic-entware-extras"
+  },
+  "project_url": "https://github.com/0xkee/keenetic-entware-extras",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "keenetic-entware-extras",
+      "geo-split",
+      "smartdns-geo-conf",
+      "smartdns-redirect",
+      "net-check",
+      "webui"
+    ],
+    "services": [
+      "/opt/etc/init.d/S80nginx-webui"
+    ],
+    "paths": [
+      "/opt/keenetic-entware-extras"
+    ]
+  },
+  "web_port": 8080,
+  "web_port_source": "webui-default",
+  "web_requires_package": "webui",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "KeeneticOS 5.0+",
+      "Entware"
+    ]
+  },
+  "install": {
+    "method": "opkg-feed",
+    "repository": "kee",
+    "repository_url": "https://0xkee.github.io/keenetic-entware-extras/stable",
+    "packages": [
+      "geo-split",
+      "smartdns-geo-conf",
+      "smartdns-redirect",
+      "net-check",
+      "webui"
+    ],
+    "installer_url": "https://raw.githubusercontent.com/0xkee/keenetic-entware-extras/master/scripts/install.sh",
+    "notes": [
+      "Packages are selectable; do not install the whole suite unless desired.",
+      "WebUI is optional and listens on :8080."
+    ],
+    "preview_only": true
+  }
+}

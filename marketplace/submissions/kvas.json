@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "kvas",
+  "kind": "integration",
+  "name": "КВАС",
+  "category": "VPN / Routing",
+  "description": "Domain-selective routing/VPN toolkit using ipset with dnsmasq/dnscrypt or AdGuard Home.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/qzeleza/kvas"
+  },
+  "project_url": "https://github.com/qzeleza/kvas",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "kvas"
+    ],
+    "paths": [
+      "/opt/apps/kvas",
+      "/opt/etc/kvas.conf",
+      "/opt/etc/kvas.list"
+    ]
+  },
+  "process_names": [
+    "kvas",
+    "kvas-failover"
+  ],
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic",
+      "Entware",
+      "curl for installer"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "http://kvas.zeleza.ru/install",
+    "packages": [
+      "kvas"
+    ],
+    "notes": [
+      "Upstream installer uses HTTP: Marketplace marks this plan high-risk and never executes it automatically.",
+      "Interactive setup remains manual."
+    ],
+    "preview_only": true
+  }
+}

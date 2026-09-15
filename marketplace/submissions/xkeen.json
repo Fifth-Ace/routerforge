@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "xkeen",
+  "kind": "integration",
+  "name": "XKeen",
+  "category": "VPN / Routing",
+  "description": "Xray runtime/update toolkit for Keenetic with GeoIP/GeoSite management.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/Skrill0/XKeen"
+  },
+  "project_url": "https://github.com/Skrill0/XKeen",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "xkeen"
+    ],
+    "paths": [
+      "/opt/sbin/xkeen",
+      "/opt/etc/xray/configs"
+    ]
+  },
+  "process_names": [
+    "xray",
+    "xray-linux-arm64"
+  ],
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic",
+      "Entware",
+      "curl",
+      "tar",
+      "Xray configuration"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "https://raw.githubusercontent.com/Skrill0/XKeen/main/install.sh",
+    "notes": [
+      "Official installer downloads the latest xkeen.tar release and runs xkeen -i.",
+      "Inspect existing Xray/sing-box routing stacks before installation."
+    ],
+    "preview_only": true
+  }
+}

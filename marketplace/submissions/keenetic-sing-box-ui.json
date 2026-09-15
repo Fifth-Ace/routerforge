@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "keenetic-sing-box-ui",
+  "kind": "integration",
+  "name": "Keenetic sing-box UI",
+  "category": "VPN / Routing",
+  "description": "Aarch64 web UI for sing-box with selective TProxy/REDIRECT routing, diagnostics and authentication.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/CoOre/keenetic-sing-box-ui"
+  },
+  "project_url": "https://github.com/CoOre/keenetic-sing-box-ui",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "services": [
+      "/opt/etc/init.d/S99keenetic-sing-box-ui"
+    ],
+    "paths": [
+      "/opt/bin/keenetic-sing-box-ui",
+      "/opt/sbin/keenetic-sing-box-ui"
+    ]
+  },
+  "process_names": [
+    "keenetic-sing-box-ui"
+  ],
+  "web_port": 9091,
+  "web_port_source": "project-default",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic / Netcraze",
+      "Entware",
+      "aarch64",
+      "Netfilter modules for TProxy mode"
+    ]
+  },
+  "install": {
+    "method": "release-deploy",
+    "notes": [
+      "Upstream deploys from a host script or a verified GitHub release rather than an Entware feed.",
+      "Transparent proxy modes can modify iptables/ipset; execution stays preview-only."
+    ],
+    "preview_only": true
+  }
+}

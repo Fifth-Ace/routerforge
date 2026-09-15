@@ -61,6 +61,20 @@ type catalogTrust struct {
 	Note       string `json:"note,omitempty"`
 }
 
+type catalogProvenance struct {
+	PublisherID    string `json:"publisher_id,omitempty"`
+	PublisherURL   string `json:"publisher_url,omitempty"`
+	ProjectURL     string `json:"project_url,omitempty"`
+	Source         string `json:"source,omitempty"`
+	ManifestSource string `json:"manifest_source,omitempty"`
+	RegistrySource string `json:"registry_source,omitempty"`
+}
+
+type catalogLifecycleTrust struct {
+	Status string `json:"status,omitempty"`
+	Reason string `json:"reason,omitempty"`
+}
+
 type catalogActions struct {
 	Install bool   `json:"install"`
 	Update  bool   `json:"update"`
@@ -451,6 +465,50 @@ func validTrustStatus(status string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func applyCatalogTrustModel(item *catalogItem) {
+	if item == nil {
+		return
+	}
+
+	item.Provenance = catalogProvenance{
+		PublisherID:    item.Publisher.ID,
+		PublisherURL:   item.Publisher.URL,
+		ProjectURL:     item.ProjectURL,
+		Source:         item.Source,
+		ManifestSource: item.ManifestSource,
+		RegistrySource: item.RegistrySource,
+	}
+
+	status := strings.ToLower(strings.TrimSpace(item.Trust.Status))
+	switch status {
+	case "official", "verified":
+		item.LifecycleTrust = catalogLifecycleTrust{
+			Status: "reviewed",
+			Reason: "Metadata was reviewed; executable actions remain governed by the existing RouterForge action policy.",
+		}
+	case "blocked":
+		item.LifecycleTrust = catalogLifecycleTrust{
+			Status: "blocked",
+			Reason: "Registry trust status is blocked.",
+		}
+	case "deprecated":
+		item.LifecycleTrust = catalogLifecycleTrust{
+			Status: "restricted",
+			Reason: "Deprecated metadata does not grant lifecycle authority.",
+		}
+	case "changed":
+		item.LifecycleTrust = catalogLifecycleTrust{
+			Status: "restricted",
+			Reason: "Manifest changed after review; lifecycle authority is not implied.",
+		}
+	default:
+		item.LifecycleTrust = catalogLifecycleTrust{
+			Status: "restricted",
+			Reason: "Unverified metadata does not grant lifecycle authority.",
+		}
 	}
 }
 

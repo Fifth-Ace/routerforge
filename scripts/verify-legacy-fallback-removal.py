@@ -185,20 +185,40 @@ def main():
         compare("detection.paths", string_slice_from_block(body, "Detection", "Paths"), detection.get("paths"), item_id)
         compare("process_names", string_slice(body, "ProcessNames"), manifest.get("process_names"), item_id)
 
+        # Web metadata may be represented either by legacy top-level web_port fields
+        # or by the newer structured web object. Treat them as equivalent runtime
+        # representations instead of forcing the old serialization shape forever.
         legacy_port = int_field(body, "WebPort")
-        if legacy_port and manifest.get("web_port", 0) != legacy_port:
-            fail(f"{item_id}: web_port drift legacy={legacy_port} manifest={manifest.get('web_port')!r}")
+        manifest_web = manifest.get("web") or {}
+        manifest_port = manifest.get("web_port", 0) or manifest_web.get("port", 0)
+        if legacy_port and manifest_port != legacy_port:
+            fail(
+                f"{item_id}: web port drift "
+                f"legacy={legacy_port} manifest={manifest_port!r}"
+            )
 
-        for go_field, json_field in (
-            ("WebPortSource", "web_port_source"),
-            ("WebRequiresPackage", "web_requires_package"),
-        ):
-            legacy_value = first_string(body, go_field)
-            if legacy_value and manifest.get(json_field, "") != legacy_value:
+        legacy_port_source = first_string(body, "WebPortSource")
+        if legacy_port_source:
+            manifest_port_source = manifest.get("web_port_source", "")
+            if manifest_port_source:
+                if manifest_port_source != legacy_port_source:
+                    fail(
+                        f"{item_id}: web_port_source drift "
+                        f"legacy={legacy_port_source!r} manifest={manifest_port_source!r}"
+                    )
+            elif not manifest_web.get("port"):
                 fail(
-                    f"{item_id}: {json_field} drift "
-                    f"legacy={legacy_value!r} manifest={manifest.get(json_field)!r}"
+                    f"{item_id}: legacy web_port_source exists but manifest has "
+                    "neither web_port_source nor structured web.port"
                 )
+
+        legacy_web_requires = first_string(body, "WebRequiresPackage")
+        if legacy_web_requires and manifest.get("web_requires_package", "") != legacy_web_requires:
+            fail(
+                f"{item_id}: web_requires_package drift "
+                f"legacy={legacy_web_requires!r} "
+                f"manifest={manifest.get('web_requires_package')!r}"
+            )
 
         # Unverified migrations must never gain lifecycle authority while the fallback is removed.
         trust = (entry.get("trust") or {}).get("status", "")

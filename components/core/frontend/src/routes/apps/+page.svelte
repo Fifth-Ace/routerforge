@@ -1611,7 +1611,7 @@
     text-align:right;
   }
 
-  @media (max-width:1240px) {
+  @media (max-width:1400px) {
     .app-center-page .catalog-toolbar-v4.routerforge {
       grid-template-columns:1fr;
     }

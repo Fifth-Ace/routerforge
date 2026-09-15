@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "skeen",
+  "kind": "integration",
+  "name": "SKeen",
+  "category": "VPN / Routing",
+  "description": "Keenetic/Netcraze TProxy & Redirect toolkit around sing-box with built-in web dashboard.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/jinndi/SKeen"
+  },
+  "project_url": "https://github.com/jinndi/SKeen",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "services": [
+      "/opt/etc/init.d/S99SKeen"
+    ],
+    "paths": [
+      "/opt/etc/skeen",
+      "/opt/bin/skeen"
+    ]
+  },
+  "process_names": [
+    "skeen",
+    "skeen-box"
+  ],
+  "web_port": 9999,
+  "web_port_source": "project-default",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Entware",
+      "Netfilter kernel modules",
+      "curl",
+      "256 MB RAM recommended by project"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "https://github.com/jinndi/SKeen/releases/latest/download/skeen",
+    "notes": [
+      "Installer is interactive and can install/select sing-box.",
+      "Project dashboard defaults to :9999."
+    ],
+    "preview_only": true
+  }
+}

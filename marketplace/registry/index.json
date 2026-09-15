@@ -2,8 +2,74 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "a60847ad3269fd28d495da0ac4c1302d2a5a9edf20289e0cf8e6f79a4ee4ed98",
+  "revision": "a415c7e89734c8810f7276f1a172fffa52b0c0ad12687792d03687311041573f",
   "entries": [
+    {
+      "id": "adguardhome-keenetic",
+      "kind": "integration",
+      "name": "AdGuard Home",
+      "category": "DNS / Filtering",
+      "description": "Network-wide DNS filtering. Keenetic setup can use Entware adguardhome-go.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/Corvus-Malus/AdGuardHome-Keenetic"
+      },
+      "project_url": "https://github.com/Corvus-Malus/AdGuardHome-Keenetic",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "adguardhome-go"
+        ],
+        "services": [
+          "/opt/etc/init.d/S99adguardhome"
+        ],
+        "paths": [
+          "/opt/etc/AdGuardHome"
+        ]
+      },
+      "process_names": [
+        "AdGuardHome",
+        "adguardhome-go"
+      ],
+      "web_port": 3000,
+      "web_port_source": "initial-setup-default",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Entware",
+          "Port 53 ownership",
+          "Keenetic dns-override only for explicit DNS replacement"
+        ]
+      },
+      "install": {
+        "method": "opkg",
+        "repository": "entware",
+        "packages": [
+          "adguardhome-go"
+        ],
+        "notes": [
+          "Installing the package alone does not replace Keenetic DNS.",
+          "dns-override changes DNS ownership and remains an explicit manual step."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "adguardhome-keenetic",
+      "manifest_sha256": "cf7a73ca8da94f3f0a8cdc4450542181e4e92c55b581a84a81073eb637168fa6",
+      "manifest_source": "marketplace/submissions/adguardhome-keenetic.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
     {
       "id": "admin",
       "kind": "module",
@@ -125,6 +191,71 @@
       }
     },
     {
+      "id": "awg-manager",
+      "kind": "integration",
+      "name": "AWG Manager",
+      "category": "VPN / Routing",
+      "description": "Управление AmneziaWG и sing-box туннелями непосредственно на Keenetic.",
+      "publisher": {
+        "id": "project-official",
+        "name": "Upstream project",
+        "url": "https://github.com/hoaxisr/awg-manager"
+      },
+      "project_url": "https://github.com/hoaxisr/awg-manager",
+      "source": "project-official",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "awg-manager"
+        ],
+        "services": [
+          "/opt/etc/init.d/S99awg-manager"
+        ],
+        "paths": [
+          "/opt/etc/awg-manager"
+        ]
+      },
+      "process_names": [
+        "awg-manager"
+      ],
+      "web_port": 2222,
+      "web_port_source": "project-default",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic / Netcraze",
+          "Entware",
+          "WireGuard component"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "https://raw.githubusercontent.com/hoaxisr/awg-manager/master/scripts/install.sh",
+        "packages": [
+          "awg-manager"
+        ],
+        "notes": [
+          "HTTPS GitHub installer опубликован самим проектом.",
+          "Автовыполнение из Marketplace отключено."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "awg-manager",
+      "manifest_sha256": "788b1bb9b8128df35950ab08630d6513799611699520264c109ffd7fd2738f7e",
+      "manifest_source": "marketplace/submissions/awg-manager.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
       "id": "bypass-keenetic",
       "kind": "integration",
       "name": "bypass_keenetic",
@@ -171,6 +302,70 @@
       "manifest_id": "bypass-keenetic",
       "manifest_sha256": "89925078642bf82aafa78f2ad9543065ab15f1da8184236704bdf357ee098499",
       "manifest_source": "marketplace/submissions/bypass-keenetic.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
+      "id": "chur-keenetic",
+      "kind": "integration",
+      "name": "Chur Keenetic",
+      "category": "VPN / Routing",
+      "description": "Web-менеджер VPN-интерфейсов Keenetic/Entware с optional AmneziaWG runtime.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/ward-sentry/chur-keenetic"
+      },
+      "project_url": "https://github.com/ward-sentry/chur-keenetic",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "chur-keenetic"
+        ],
+        "services": [
+          "/opt/etc/init.d/S99chur-keenetic"
+        ]
+      },
+      "process_names": [
+        "chur-keenetic"
+      ],
+      "web_port": 8088,
+      "web_port_source": "project-default",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic",
+          "Entware",
+          "HTTPS-capable opkg feed",
+          "aarch64-3.10 supported"
+        ]
+      },
+      "install": {
+        "method": "opkg-feed",
+        "repository": "chur",
+        "repository_url": "https://ward-sentry.github.io/chur-keenetic/latest/aarch64-3.10",
+        "packages": [
+          "chur-keenetic"
+        ],
+        "notes": [
+          "Marketplace target build is ARM64, therefore the preview shows the aarch64-3.10 feed.",
+          "AmneziaWG runtime is installed separately by Chur only when requested."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "chur-keenetic",
+      "manifest_sha256": "c2fae3cd1160e3e07092a77485a814fbb0f8395560716c4826f35c18119d6d2b",
+      "manifest_source": "marketplace/submissions/chur-keenetic.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
@@ -273,6 +468,328 @@
         "status": "official",
         "reviewed_by": "routerforge",
         "note": "Официальный модуль RouterForge beta."
+      }
+    },
+    {
+      "id": "hydraroute-neo",
+      "kind": "integration",
+      "name": "HydraRoute Neo",
+      "category": "Routing",
+      "description": "Маршрутизация по доменам/CIDR и L7 SNI/HTTP/QUIC через Keenetic policies/interfaces.",
+      "publisher": {
+        "id": "project-official",
+        "name": "Upstream project",
+        "url": "https://github.com/Ground-Zerro/HydraRoute"
+      },
+      "project_url": "https://github.com/Ground-Zerro/HydraRoute",
+      "source": "project-official",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "hrneo"
+        ],
+        "services": [
+          "/opt/etc/init.d/S99hrneo"
+        ],
+        "paths": [
+          "/opt/etc/HydraRoute"
+        ]
+      },
+      "process_names": [
+        "hrneo"
+      ],
+      "web_port": 2000,
+      "web_port_source": "project-default",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "KeeneticOS > 4.3.6",
+          "Entware",
+          "Xtables-addons for Netfilter"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "https://git.zerrolabs.org/Ground-Zerro/release/pages/keenetic/install-neo.sh",
+        "packages": [
+          "hrneo"
+        ],
+        "notes": [
+          "Project installer also deploys HRweb.",
+          "Execution remains disabled."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "hydraroute-neo",
+      "manifest_sha256": "d2ab18e6eac7dcf2e25def8713ce7e6221a5c6576ca25ec1d890d1c904ecee72",
+      "manifest_source": "marketplace/submissions/hydraroute-neo.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
+      "id": "keen-pbr",
+      "kind": "integration",
+      "name": "keen-pbr",
+      "category": "Routing",
+      "description": "Policy-based routing daemon for Keenetic/OpenWrt; full variant includes REST API and WebUI.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/maksimkurb/keen-pbr"
+      },
+      "project_url": "https://github.com/maksimkurb/keen-pbr",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "keen-pbr",
+          "keen-pbr-headless"
+        ],
+        "services": [
+          "/opt/etc/init.d/S80keen-pbr"
+        ],
+        "paths": [
+          "/opt/etc/keen-pbr"
+        ]
+      },
+      "process_names": [
+        "keen-pbr"
+      ],
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Entware",
+          "conntrack/dnsmasq/ipset/iptables",
+          "Keenetic Netfilter"
+        ]
+      },
+      "install": {
+        "method": "manual",
+        "packages": [
+          "keen-pbr",
+          "keen-pbr-headless"
+        ],
+        "notes": [
+          "Project builds dedicated Keenetic packages.",
+          "Choose full OR headless variant; port is intentionally not guessed."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "keen-pbr",
+      "manifest_sha256": "5d4aca8ec8d1d63d61b93e53ee443239f51439525d0dccc9bc56f1ff8a4f8ab9",
+      "manifest_source": "marketplace/submissions/keen-pbr.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
+      "id": "keenetic-entware-extras",
+      "kind": "integration",
+      "name": "Keenetic Entware Extras",
+      "category": "Toolkit",
+      "description": "Geo routing, SmartDNS integration, DNS redirect, network diagnostics and optional web dashboard.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/0xkee/keenetic-entware-extras"
+      },
+      "project_url": "https://github.com/0xkee/keenetic-entware-extras",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "keenetic-entware-extras",
+          "geo-split",
+          "smartdns-geo-conf",
+          "smartdns-redirect",
+          "net-check",
+          "webui"
+        ],
+        "services": [
+          "/opt/etc/init.d/S80nginx-webui"
+        ],
+        "paths": [
+          "/opt/keenetic-entware-extras"
+        ]
+      },
+      "web_port": 8080,
+      "web_port_source": "webui-default",
+      "web_requires_package": "webui",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "KeeneticOS 5.0+",
+          "Entware"
+        ]
+      },
+      "install": {
+        "method": "opkg-feed",
+        "repository": "kee",
+        "repository_url": "https://0xkee.github.io/keenetic-entware-extras/stable",
+        "packages": [
+          "geo-split",
+          "smartdns-geo-conf",
+          "smartdns-redirect",
+          "net-check",
+          "webui"
+        ],
+        "installer_url": "https://raw.githubusercontent.com/0xkee/keenetic-entware-extras/master/scripts/install.sh",
+        "notes": [
+          "Packages are selectable; do not install the whole suite unless desired.",
+          "WebUI is optional and listens on :8080."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "keenetic-entware-extras",
+      "manifest_sha256": "3b799a0abae101d9537d2ec24288ad0810814b7438214eb94e4f1cc278958165",
+      "manifest_source": "marketplace/submissions/keenetic-entware-extras.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
+      "id": "keenetic-sing-box-ui",
+      "kind": "integration",
+      "name": "Keenetic sing-box UI",
+      "category": "VPN / Routing",
+      "description": "Aarch64 web UI for sing-box with selective TProxy/REDIRECT routing, diagnostics and authentication.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/CoOre/keenetic-sing-box-ui"
+      },
+      "project_url": "https://github.com/CoOre/keenetic-sing-box-ui",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "services": [
+          "/opt/etc/init.d/S99keenetic-sing-box-ui"
+        ],
+        "paths": [
+          "/opt/bin/keenetic-sing-box-ui",
+          "/opt/sbin/keenetic-sing-box-ui"
+        ]
+      },
+      "process_names": [
+        "keenetic-sing-box-ui"
+      ],
+      "web_port": 9091,
+      "web_port_source": "project-default",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic / Netcraze",
+          "Entware",
+          "aarch64",
+          "Netfilter modules for TProxy mode"
+        ]
+      },
+      "install": {
+        "method": "release-deploy",
+        "notes": [
+          "Upstream deploys from a host script or a verified GitHub release rather than an Entware feed.",
+          "Transparent proxy modes can modify iptables/ipset; execution stays preview-only."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "keenetic-sing-box-ui",
+      "manifest_sha256": "848619b877b3d4778790bed005b345ceb0a0141574f54ac6a0e48f0813597478",
+      "manifest_source": "marketplace/submissions/keenetic-sing-box-ui.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
+      "id": "kvas",
+      "kind": "integration",
+      "name": "КВАС",
+      "category": "VPN / Routing",
+      "description": "Domain-selective routing/VPN toolkit using ipset with dnsmasq/dnscrypt or AdGuard Home.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/qzeleza/kvas"
+      },
+      "project_url": "https://github.com/qzeleza/kvas",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "kvas"
+        ],
+        "paths": [
+          "/opt/apps/kvas",
+          "/opt/etc/kvas.conf",
+          "/opt/etc/kvas.list"
+        ]
+      },
+      "process_names": [
+        "kvas",
+        "kvas-failover"
+      ],
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic",
+          "Entware",
+          "curl for installer"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "http://kvas.zeleza.ru/install",
+        "packages": [
+          "kvas"
+        ],
+        "notes": [
+          "Upstream installer uses HTTP: Marketplace marks this plan high-risk and never executes it automatically.",
+          "Interactive setup remains manual."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "kvas",
+      "manifest_sha256": "09a56d0cb2453f5f0125e086b55569295229a88410309891fed1869ed8f01da2",
+      "manifest_source": "marketplace/submissions/kvas.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
       }
     },
     {
@@ -870,6 +1387,67 @@
       }
     },
     {
+      "id": "skeen",
+      "kind": "integration",
+      "name": "SKeen",
+      "category": "VPN / Routing",
+      "description": "Keenetic/Netcraze TProxy & Redirect toolkit around sing-box with built-in web dashboard.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/jinndi/SKeen"
+      },
+      "project_url": "https://github.com/jinndi/SKeen",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "services": [
+          "/opt/etc/init.d/S99SKeen"
+        ],
+        "paths": [
+          "/opt/etc/skeen",
+          "/opt/bin/skeen"
+        ]
+      },
+      "process_names": [
+        "skeen",
+        "skeen-box"
+      ],
+      "web_port": 9999,
+      "web_port_source": "project-default",
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Entware",
+          "Netfilter kernel modules",
+          "curl",
+          "256 MB RAM recommended by project"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "https://github.com/jinndi/SKeen/releases/latest/download/skeen",
+        "notes": [
+          "Installer is interactive and can install/select sing-box.",
+          "Project dashboard defaults to :9999."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "skeen",
+      "manifest_sha256": "b82408aecf8886a08a38ea838555b96fdf3fd3cfdc2f7acb577bd4300b13a844",
+      "manifest_source": "marketplace/submissions/skeen.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
       "id": "traffic-via-vpn",
       "kind": "integration",
       "name": "keenetic-traffic-via-vpn",
@@ -915,6 +1493,66 @@
       "manifest_id": "traffic-via-vpn",
       "manifest_sha256": "4fd9d4c17540907a7a856fbd81158d8db635fb844264241b4f7b4f42bc447519",
       "manifest_source": "marketplace/submissions/traffic-via-vpn.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+      }
+    },
+    {
+      "id": "xkeen",
+      "kind": "integration",
+      "name": "XKeen",
+      "category": "VPN / Routing",
+      "description": "Xray runtime/update toolkit for Keenetic with GeoIP/GeoSite management.",
+      "publisher": {
+        "id": "community",
+        "name": "Upstream project",
+        "url": "https://github.com/Skrill0/XKeen"
+      },
+      "project_url": "https://github.com/Skrill0/XKeen",
+      "source": "community",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "xkeen"
+        ],
+        "paths": [
+          "/opt/sbin/xkeen",
+          "/opt/etc/xray/configs"
+        ]
+      },
+      "process_names": [
+        "xray",
+        "xray-linux-arm64"
+      ],
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic",
+          "Entware",
+          "curl",
+          "tar",
+          "Xray configuration"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "https://raw.githubusercontent.com/Skrill0/XKeen/main/install.sh",
+        "notes": [
+          "Official installer downloads the latest xkeen.tar release and runs xkeen -i.",
+          "Inspect existing Xray/sing-box routing stacks before installation."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "xkeen",
+      "manifest_sha256": "46608070f492e35278a8d7752c9b69fb5f0c7e8d6584be36c8a41a06fd58bb82",
+      "manifest_source": "marketplace/submissions/xkeen.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",

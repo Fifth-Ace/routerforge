@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "adguardhome-keenetic",
+  "kind": "integration",
+  "name": "AdGuard Home",
+  "category": "DNS / Filtering",
+  "description": "Network-wide DNS filtering. Keenetic setup can use Entware adguardhome-go.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/Corvus-Malus/AdGuardHome-Keenetic"
+  },
+  "project_url": "https://github.com/Corvus-Malus/AdGuardHome-Keenetic",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "adguardhome-go"
+    ],
+    "services": [
+      "/opt/etc/init.d/S99adguardhome"
+    ],
+    "paths": [
+      "/opt/etc/AdGuardHome"
+    ]
+  },
+  "process_names": [
+    "AdGuardHome",
+    "adguardhome-go"
+  ],
+  "web_port": 3000,
+  "web_port_source": "initial-setup-default",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Entware",
+      "Port 53 ownership",
+      "Keenetic dns-override only for explicit DNS replacement"
+    ]
+  },
+  "install": {
+    "method": "opkg",
+    "repository": "entware",
+    "packages": [
+      "adguardhome-go"
+    ],
+    "notes": [
+      "Installing the package alone does not replace Keenetic DNS.",
+      "dns-override changes DNS ownership and remains an explicit manual step."
+    ],
+    "preview_only": true
+  }
+}

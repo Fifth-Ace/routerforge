@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "hydraroute-neo",
+  "kind": "integration",
+  "name": "HydraRoute Neo",
+  "category": "Routing",
+  "description": "Маршрутизация по доменам/CIDR и L7 SNI/HTTP/QUIC через Keenetic policies/interfaces.",
+  "publisher": {
+    "id": "project-official",
+    "name": "Upstream project",
+    "url": "https://github.com/Ground-Zerro/HydraRoute"
+  },
+  "project_url": "https://github.com/Ground-Zerro/HydraRoute",
+  "source": "project-official",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "hrneo"
+    ],
+    "services": [
+      "/opt/etc/init.d/S99hrneo"
+    ],
+    "paths": [
+      "/opt/etc/HydraRoute"
+    ]
+  },
+  "process_names": [
+    "hrneo"
+  ],
+  "web_port": 2000,
+  "web_port_source": "project-default",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "KeeneticOS > 4.3.6",
+      "Entware",
+      "Xtables-addons for Netfilter"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "https://git.zerrolabs.org/Ground-Zerro/release/pages/keenetic/install-neo.sh",
+    "packages": [
+      "hrneo"
+    ],
+    "notes": [
+      "Project installer also deploys HRweb.",
+      "Execution remains disabled."
+    ],
+    "preview_only": true
+  }
+}

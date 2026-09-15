@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "chur-keenetic",
+  "kind": "integration",
+  "name": "Chur Keenetic",
+  "category": "VPN / Routing",
+  "description": "Web-менеджер VPN-интерфейсов Keenetic/Entware с optional AmneziaWG runtime.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/ward-sentry/chur-keenetic"
+  },
+  "project_url": "https://github.com/ward-sentry/chur-keenetic",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "chur-keenetic"
+    ],
+    "services": [
+      "/opt/etc/init.d/S99chur-keenetic"
+    ]
+  },
+  "process_names": [
+    "chur-keenetic"
+  ],
+  "web_port": 8088,
+  "web_port_source": "project-default",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic",
+      "Entware",
+      "HTTPS-capable opkg feed",
+      "aarch64-3.10 supported"
+    ]
+  },
+  "install": {
+    "method": "opkg-feed",
+    "repository": "chur",
+    "repository_url": "https://ward-sentry.github.io/chur-keenetic/latest/aarch64-3.10",
+    "packages": [
+      "chur-keenetic"
+    ],
+    "notes": [
+      "Marketplace target build is ARM64, therefore the preview shows the aarch64-3.10 feed.",
+      "AmneziaWG runtime is installed separately by Chur only when requested."
+    ],
+    "preview_only": true
+  }
+}

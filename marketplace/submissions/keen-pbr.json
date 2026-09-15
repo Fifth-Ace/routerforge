@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "keen-pbr",
+  "kind": "integration",
+  "name": "keen-pbr",
+  "category": "Routing",
+  "description": "Policy-based routing daemon for Keenetic/OpenWrt; full variant includes REST API and WebUI.",
+  "publisher": {
+    "id": "community",
+    "name": "Upstream project",
+    "url": "https://github.com/maksimkurb/keen-pbr"
+  },
+  "project_url": "https://github.com/maksimkurb/keen-pbr",
+  "source": "community",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "keen-pbr",
+      "keen-pbr-headless"
+    ],
+    "services": [
+      "/opt/etc/init.d/S80keen-pbr"
+    ],
+    "paths": [
+      "/opt/etc/keen-pbr"
+    ]
+  },
+  "process_names": [
+    "keen-pbr"
+  ],
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Entware",
+      "conntrack/dnsmasq/ipset/iptables",
+      "Keenetic Netfilter"
+    ]
+  },
+  "install": {
+    "method": "manual",
+    "packages": [
+      "keen-pbr",
+      "keen-pbr-headless"
+    ],
+    "notes": [
+      "Project builds dedicated Keenetic packages.",
+      "Choose full OR headless variant; port is intentionally not guessed."
+    ],
+    "preview_only": true
+  }
+}

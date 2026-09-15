@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "id": "awg-manager",
+  "kind": "integration",
+  "name": "AWG Manager",
+  "category": "VPN / Routing",
+  "description": "Управление AmneziaWG и sing-box туннелями непосредственно на Keenetic.",
+  "publisher": {
+    "id": "project-official",
+    "name": "Upstream project",
+    "url": "https://github.com/hoaxisr/awg-manager"
+  },
+  "project_url": "https://github.com/hoaxisr/awg-manager",
+  "source": "project-official",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "open-ui",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "awg-manager"
+    ],
+    "services": [
+      "/opt/etc/init.d/S99awg-manager"
+    ],
+    "paths": [
+      "/opt/etc/awg-manager"
+    ]
+  },
+  "process_names": [
+    "awg-manager"
+  ],
+  "web_port": 2222,
+  "web_port_source": "project-default",
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic / Netcraze",
+      "Entware",
+      "WireGuard component"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "https://raw.githubusercontent.com/hoaxisr/awg-manager/master/scripts/install.sh",
+    "packages": [
+      "awg-manager"
+    ],
+    "notes": [
+      "HTTPS GitHub installer опубликован самим проектом.",
+      "Автовыполнение из Marketplace отключено."
+    ],
+    "preview_only": true
+  }
+}

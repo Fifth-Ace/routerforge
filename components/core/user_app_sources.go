@@ -27,6 +27,7 @@ const (
 	appSourceMaxSources             = 16
 	appSourceMaxEntries             = 256
 	appSourceRiskConfirm            = "UNVERIFIED"
+	appSourceAddConfirm             = "ADD_SOURCE"
 )
 
 var (
@@ -125,8 +126,10 @@ type appSourcePreview struct {
 }
 
 type appSourceMutationRequest struct {
-	URL  string `json:"url"`
-	Kind string `json:"kind"`
+	URL         string `json:"url"`
+	Kind        string `json:"kind"`
+	Confirm     string `json:"confirm,omitempty"`
+	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 type appSourceSecurityRequest struct {
@@ -254,6 +257,15 @@ func validAppSourceRecordID(id string) bool {
 	}
 	decoded, err := hex.DecodeString(id[4:])
 	return err == nil && len(decoded) == 6
+}
+
+func validAppSourceFingerprint(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) != sha256.Size*2 || value != strings.ToLower(value) {
+		return false
+	}
+	decoded, err := hex.DecodeString(value)
+	return err == nil && len(decoded) == sha256.Size
 }
 
 func validAppSourceKind(kind string) string {
@@ -1009,6 +1021,13 @@ func listAppSources() (map[string]any, error) {
 }
 
 func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSourceRecord, appSourcePreview, error) {
+	if strings.TrimSpace(request.Confirm) != appSourceAddConfirm {
+		return appSourceRecord{}, appSourcePreview{}, fmt.Errorf("explicit source add confirmation is required")
+	}
+	fingerprint := strings.TrimSpace(request.Fingerprint)
+	if !validAppSourceFingerprint(fingerprint) {
+		return appSourceRecord{}, appSourcePreview{}, fmt.Errorf("valid preview fingerprint is required")
+	}
 	kind := validAppSourceKind(request.Kind)
 	if kind == "" {
 		return appSourceRecord{}, appSourcePreview{}, fmt.Errorf("invalid source kind")
@@ -1020,6 +1039,9 @@ func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSou
 	cache, err := appSourceResolve(ctx, rawURL, kind)
 	if err != nil {
 		return appSourceRecord{}, appSourcePreview{}, err
+	}
+	if cache.ManifestSHA256 != fingerprint {
+		return appSourceRecord{}, appSourcePreview{}, fmt.Errorf("source changed since preview; preview it again before adding")
 	}
 
 	appSourcesMu.Lock()

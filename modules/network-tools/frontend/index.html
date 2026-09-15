@@ -71,8 +71,18 @@
       <article class="nt-panel">
         <div class="nt-panel-head"><div><strong data-i18n="routeTitle">Информация о маршруте</strong><small data-i18n="routeHint">Подробная информация о выбранном маршруте и решении ядра.</small></div></div>
         <div class="nt-toolbar"><input id="route-target" value="8.8.8.8"><span></span><button class="nt-button primary" id="route-run" data-i18n="showRoute">Показать маршрут</button></div>
-        <div class="route-card-grid"><div class="route-facts" id="route-facts"><div class="nt-empty" data-i18n="routeEmpty">Маршрут ещё не выбран.</div></div><div class="route-decision" id="route-decision"><div class="nt-empty" data-i18n="decisionEmpty">Нет данных о решении.</div></div></div>
-      </article>
+        <div class="route-capabilities" id="route-capabilities"><span class="route-source">Loading capabilities...</span></div>
+        <div class="route-card-grid"><div class="route-facts" id="route-facts"><div class="nt-empty" data-i18n="routeEmpty">Route not selected.</div></div><div class="route-decision" id="route-decision"><div class="nt-empty" data-i18n="decisionEmpty">No decision data.</div></div></div>
+        <div class="route-inspector-grid">
+          <section class="route-subpanel">
+            <div class="route-subpanel-head"><div><strong id="route-inventory-title">Routing tables</strong><small id="route-inventory-hint">IPv4/IPv6 routes from available kernel tables.</small></div><span class="route-count" id="route-routes-count">0</span></div>
+            <div class="nt-table-wrap" id="route-routes"><div class="nt-empty">Loading routes...</div></div>
+          </section>
+          <section class="route-subpanel">
+            <div class="route-subpanel-head"><div><strong id="route-rules-title">Policy rules</strong><small id="route-rules-hint">Read-only ip rule snapshot.</small></div><span class="route-count" id="route-rules-count">0</span></div>
+            <div class="nt-table-wrap" id="route-rules"><div class="nt-empty">Loading policy rules...</div></div>
+          </section>
+        </div>      </article>
     </div>
   </section>
 

@@ -101,22 +101,13 @@ func registerNetworkToolsRoutes(mux *http.ServeMux) {
 		})
 	}))
 	mux.HandleFunc("/v1/routes", getOnly(func(w http.ResponseWriter, r *http.Request) {
-		routes, err := readRoutes()
-		if err != nil {
-			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": err.Error()})
+		target := strings.TrimSpace(r.URL.Query().Get("target"))
+		if target != "" && !validTarget(target) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid target"})
 			return
 		}
-		response := map[string]any{"routes": routes, "table": "main"}
-		if target := strings.TrimSpace(r.URL.Query().Get("target")); target != "" {
-			ip, resolution := targetIP(r.Context(), target)
-			response["resolution"] = resolution
-			if ip != nil {
-				response["selected"] = selectRoute(routes, ip)
-			}
-		}
-		writeJSON(w, http.StatusOK, response)
-	}))
-	mux.HandleFunc("/v1/flows", getOnly(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, routeInspector(r.Context(), target))
+	}))	mux.HandleFunc("/v1/flows", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		limit := 256
 		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
 			if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 512 {

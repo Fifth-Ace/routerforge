@@ -178,6 +178,9 @@ jobs:
       - name: Verify legacy fallback removal readiness
         run: python3 scripts/verify-legacy-fallback-removal.py
 
+      - name: Verify private registry completion
+        run: python3 scripts/verify-private-registry-contract.py
+
       - name: Set up Node
         if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
         uses: actions/setup-node@v4

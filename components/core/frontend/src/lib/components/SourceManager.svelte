@@ -16,6 +16,7 @@
   let sourceURL = '';
   let sourceKind = 'auto';
   let preview = null;
+  let previewRequest = null;
   let riskOpen = false;
   let riskAccepted = false;
   let localRiskOpen = false;
@@ -35,21 +36,42 @@
     finally { loading = false; }
   }
 
+  function invalidateSourcePreview() {
+    preview = null;
+    previewRequest = null;
+  }
+
   async function previewSource() {
     const url = sourceURL.trim();
+    const kind = sourceKind;
     if (!url || busy) return;
-    busy = 'preview'; error = ''; preview = null;
-    try { preview = await previewAppSource({ url, kind:sourceKind }); }
+    busy = 'preview'; error = ''; invalidateSourcePreview();
+    try {
+      preview = await previewAppSource({ url, kind });
+      previewRequest = { url, kind };
+    }
     catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
 
   async function addSource() {
-    if (!preview || busy) return;
+    if (!preview || !previewRequest || busy) return;
+    if (sourceURL.trim() !== previewRequest.url || sourceKind !== previewRequest.kind) {
+      error = ru()
+        ? 'URL или тип источника изменён после проверки. Выполни проверку ещё раз.'
+        : 'The source URL or type changed after preview. Preview it again.';
+      invalidateSourcePreview();
+      return;
+    }
     busy = 'add'; error = '';
     try {
-      await addAppSource({ url:sourceURL.trim(), kind:sourceKind });
-      sourceURL = ''; preview = null;
+      await addAppSource({
+        url:previewRequest.url,
+        kind:previewRequest.kind,
+        confirm:'ADD_SOURCE',
+        fingerprint:preview.fingerprint
+      });
+      sourceURL = ''; invalidateSourcePreview();
       await load(); await onchanged();
     } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
@@ -241,12 +263,12 @@
         <p>{ru() ? 'Репозиторий приложений, GitHub-репозиторий одного приложения или прямой HTTPS manifest.' : 'Application repository, a single GitHub app repository, or a direct HTTPS manifest.'}</p>
       </div>
       <div class="source-form">
-        <select bind:value={sourceKind}>
+        <select bind:value={sourceKind} onchange={invalidateSourcePreview}>
           <option value="auto">{ru() ? 'Определить автоматически' : 'Auto-detect'}</option>
           <option value="repository">{ru() ? 'Репозиторий приложений' : 'Application repository'}</option>
           <option value="app">{ru() ? 'Отдельное приложение' : 'Single application'}</option>
         </select>
-        <input bind:value={sourceURL} placeholder="https://github.com/owner/repo" />
+        <input bind:value={sourceURL} oninput={invalidateSourcePreview} placeholder="https://github.com/owner/repo" />
         <button class="button" disabled={!sourceURL.trim() || Boolean(busy)} onclick={previewSource}>{busy === 'preview' ? (ru() ? 'Проверяем…' : 'Checking…') : (ru() ? 'Проверить' : 'Preview')}</button>
       </div>
 
@@ -276,7 +298,10 @@
           <div class="source-preview-warning">{ru()
             ? `Источник не проверен RouterForge. Разрешены только opkg/manual lifecycle; архитектура ${preview.entries?.[0]?.detected_target || 'не определена'} проверяется отдельно.${preview.local ? ' Источник находится в локальной сети.' : ''}`
             : `This source is not verified by RouterForge. Only opkg/manual lifecycle is allowed; architecture ${preview.entries?.[0]?.detected_target || 'is unknown'} is checked separately.${preview.local ? ' The source is on a local network.' : ''}`}</div>
-          <button class="button primary" disabled={Boolean(busy)} onclick={addSource}>{busy === 'add' ? (ru() ? 'Добавляем…' : 'Adding…') : (ru() ? 'Добавить источник' : 'Add source')}</button>
+          <div class="source-preview-warning">{ru()
+            ? 'Добавление — отдельное действие: RouterForge повторно загрузит источник и сверит SHA-256 с этим preview.'
+            : 'Adding is a separate action: RouterForge will fetch the source again and require the SHA-256 to match this preview.'}</div>
+          <button class="button primary" disabled={Boolean(busy) || !preview?.fingerprint || !previewRequest} onclick={addSource}>{busy === 'add' ? (ru() ? 'Добавляем…' : 'Adding…') : (ru() ? 'Добавить проверенный источник' : 'Add previewed source')}</button>
         </div>
       {/if}
     </section>

@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -305,10 +306,7 @@ func runAdminWatchdogServiceStart(path string, now time.Time, timeout time.Durat
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	output, err := exec.CommandContext(ctx, path, "start").CombinedOutput()
-	if len(output) > adminWatchdogOutputMaxBytes {
-		output = output[:adminWatchdogOutputMaxBytes]
-	}
+	output, err := safety.RunCommand(ctx, adminWatchdogOutputMaxBytes, path, "start")
 	text := strings.TrimSpace(string(output))
 	if ctx.Err() == context.DeadlineExceeded {
 		if text != "" {

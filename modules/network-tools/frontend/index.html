@@ -64,7 +64,7 @@
     <div class="nt-stack">
       <article class="nt-panel">
         <div class="nt-panel-head"><div><strong data-i18n="traceTitle">Трассировка маршрута</strong><small data-i18n="traceHint">Визуализация пути и диагностика на каждом хопе.</small></div></div>
-        <div class="nt-toolbar four"><input id="trace-target" value="8.8.8.8"><select><option>ICMP (traceroute)</option></select><button class="nt-button primary" id="trace-run"><span data-i18n="run">Запустить</span></button><button class="nt-button" id="trace-copy"><span>▣</span><span data-i18n="copy">Копировать</span></button></div>
+        <div class="nt-toolbar four"><input id="trace-target" value="8.8.8.8"><div class="nt-static-mode" id="trace-mode">Mode: ICMP traceroute</div><button class="nt-button primary" id="trace-run"><span data-i18n="run">Запустить</span></button><button class="nt-button" id="trace-copy"><span>▣</span><span data-i18n="copy">Копировать</span></button></div>
         <div class="nt-table-wrap" id="trace-results"><div class="nt-empty" data-i18n="traceEmpty">Трассировка ещё не запускалась.</div></div>
       </article>
 
@@ -75,7 +75,7 @@
         <div class="route-card-grid"><div class="route-facts" id="route-facts"><div class="nt-empty" data-i18n="routeEmpty">Route not selected.</div></div><div class="route-decision" id="route-decision"><div class="nt-empty" data-i18n="decisionEmpty">No decision data.</div></div></div>
         <div class="route-inspector-grid">
           <section class="route-subpanel">
-            <div class="route-subpanel-head"><div><strong id="route-inventory-title">Routing tables</strong><small id="route-inventory-hint">IPv4/IPv6 routes from available kernel tables.</small></div><span class="route-count" id="route-routes-count">0</span></div>
+            <div class="route-subpanel-head"><div><strong id="route-inventory-title">Routing tables</strong><small id="route-inventory-hint">IPv4/IPv6 routes from available kernel tables.</small></div><div class="route-subpanel-actions"><span class="route-count" id="route-routes-count">0</span><button class="nt-button compact" id="route-copy-routes" type="button">Copy</button></div></div>
             <div class="route-filter-bar">
               <select id="route-family-filter" aria-label="IP family"><option value="">All IP</option></select>
               <select id="route-table-filter" aria-label="Routing table"><option value="">All tables</option></select>
@@ -85,7 +85,7 @@
             <div class="nt-table-wrap" id="route-routes"><div class="nt-empty">Loading routes...</div></div>
           </section>
           <section class="route-subpanel">
-            <div class="route-subpanel-head"><div><strong id="route-rules-title">Policy rules</strong><small id="route-rules-hint">Read-only ip rule snapshot.</small></div><span class="route-count" id="route-rules-count">0</span></div>
+            <div class="route-subpanel-head"><div><strong id="route-rules-title">Policy rules</strong><small id="route-rules-hint">Read-only ip rule snapshot.</small></div><div class="route-subpanel-actions"><span class="route-count" id="route-rules-count">0</span><button class="nt-button compact" id="route-copy-rules" type="button">Copy</button></div></div><div class="route-rules-filter"><input id="route-rules-search" aria-label="Policy rule search" placeholder="Search policy rules..."></div>
             <div class="nt-table-wrap" id="route-rules"><div class="nt-empty">Loading policy rules...</div></div>
           </section>
         </div>
@@ -95,7 +95,7 @@
 
   <section class="nt-view" data-panel="flows">
     <article class="nt-panel">
-      <div class="nt-panel-head"><div><strong data-i18n="flowTitle">Анализ трафика</strong><small data-i18n="flowHint">Активные соединения и потоки в реальном времени.</small></div></div>
+      <div class="nt-panel-head"><div><strong data-i18n="flowTitle">Анализ трафика</strong><small data-i18n="flowHint">Активные соединения и потоки в реальном времени.</small></div><div class="nt-panel-head-actions"><button class="nt-button compact" id="flow-clear" type="button">Reset filters</button><button class="nt-button compact" id="flow-copy-selected" type="button" disabled>Copy flow</button></div></div>
       <div class="nt-toolbar flow">
         <select id="flow-window" aria-label="Flow refresh mode"><option value="manual">Manual refresh</option></select>
         <select id="flow-protocol" aria-label="Protocol"><option value="">All protocols</option></select>
@@ -104,21 +104,24 @@
         <input id="flow-search" data-i18n-placeholder="flowSearch" placeholder="Search by IP or port...">
         <button class="nt-button primary" id="flow-refresh" data-i18n="refresh">Refresh</button>
       </div>
-      <div class="flow-summary" id="flow-summary"><span>Waiting for conntrack snapshot...</span></div>      <div class="nt-table-wrap" id="flow-results"><div class="nt-empty" data-i18n="flowLoading">Загрузка conntrack…</div></div>
+      <div class="flow-summary" id="flow-summary"><span>Waiting for conntrack snapshot...</span></div>
+      <div class="flow-detail" id="flow-detail"><div class="flow-detail-empty">Select a flow row to inspect details.</div></div>
+      <div class="nt-table-wrap" id="flow-results"><div class="nt-empty" data-i18n="flowLoading">Загрузка conntrack…</div></div>
       <div class="flow-footer"><button id="flow-more" data-i18n="moreFlows">Показать больше соединений →</button><span id="flow-count">—</span></div>
     </article>
   </section>
 
   <section class="nt-view" data-panel="probes">
     <article class="nt-panel">
-      <div class="nt-panel-head"><div><strong data-i18n="probeTitle">Активные проверки</strong><small data-i18n="probeHint">Ручная ограниченная проверка без изменения конфигурации роутера.</small></div></div>
+      <div class="nt-panel-head"><div><strong data-i18n="probeTitle">Активные проверки</strong><small data-i18n="probeHint">Ручная ограниченная проверка без изменения конфигурации роутера.</small></div><div class="nt-panel-head-actions"><button class="nt-button compact" id="probe-clear-history" type="button">Clear history</button></div></div>
       <div class="active-grid">
         <select id="probe-kind"><option value="ping">Ping</option><option value="dns">DNS</option><option value="tcp">TCP</option><option value="http">HTTP</option></select>
         <input id="probe-target" value="8.8.8.8">
         <input id="probe-port" value="" inputmode="numeric" placeholder="n/a">
         <button class="nt-button primary" id="probe-run"><span data-i18n="run">Run</span>&nbsp;&#9654;</button>
         <button class="nt-button" id="probe-copy" type="button">Copy</button>
-      </div>      <pre class="nt-console" id="probe-output" data-i18n="probeReady">Готово к запуску.</pre>
+      </div>
+      <div class="probe-summary" id="probe-summary"><div class="nt-empty">Ready to run.</div></div><div class="probe-history-title">Recent probes</div><div class="probe-history" id="probe-history"><div class="nt-empty">Probe history is empty.</div></div><pre class="nt-console" id="probe-output" data-i18n="probeReady">Готово к запуску.</pre>
     </article>
   </section>
 </main>

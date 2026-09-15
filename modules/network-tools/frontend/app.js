@@ -270,19 +270,237 @@
     else port.value='';
     port.setAttribute('placeholder',needsPort?'port':'n/a');
   }
+  // R16 detail polish: remove dead controls, add useful drill-downs and probe history.
+  state.probeHistory=state.probeHistory||[];
+  state.selectedFlow=state.selectedFlow||null;
+
+  function r16Rules(){
+    var data=state.route||{};
+    var search=(q('route-rules-search')?q('route-rules-search').value:'').trim().toLowerCase();
+    var rules=[].concat(data.rules_v4||[],data.rules_v6||[]);
+    if(!search)return rules;
+    return rules.filter(function(rule){return JSON.stringify(rule).toLowerCase().indexOf(search)>=0;});
+  }
+
+  renderPolicyRules=function(data){
+    var search=(q('route-rules-search')?q('route-rules-search').value:'').trim().toLowerCase();
+    var rules=[].concat(data.rules_v4||[],data.rules_v6||[]);
+    var filtered=search?rules.filter(function(rule){return JSON.stringify(rule).toLowerCase().indexOf(search)>=0;}):rules;
+    var visible=filtered.slice(0,160);
+    q('route-rules-count').textContent=filtered.length===rules.length?String(rules.length):(filtered.length+' / '+rules.length);
+    if(!visible.length)return '<div class="nt-empty">'+U.esc(lx('\u041d\u0435\u0442 PBR-\u043f\u0440\u0430\u0432\u0438\u043b \u043f\u043e \u0442\u0435\u043a\u0443\u0449\u0435\u043c\u0443 \u0444\u0438\u043b\u044c\u0442\u0440\u0443.','No policy rules match the current filter.'))+'</div>';
+    return '<table class="policy-table"><thead><tr><th>IP</th><th>Priority</th><th>From</th><th>To</th><th>Mark</th><th>IIF / OIF</th><th>Table / Action</th></tr></thead><tbody>'+
+      visible.map(function(r){
+        return '<tr>'+
+          '<td>'+U.esc(r.family||'\u2014')+'</td>'+
+          '<td class="num">'+U.esc(r.priority)+'</td>'+
+          '<td class="mono">'+U.esc(r.from||'all')+'</td>'+
+          '<td class="mono">'+U.esc(r.to||'all')+'</td>'+
+          '<td class="mono">'+U.esc(r.mark||'\u2014')+'</td>'+
+          '<td>'+U.esc([r.iif,r.oif].filter(Boolean).join(' / ')||'\u2014')+'</td>'+
+          '<td class="mono">'+U.esc(r.table||r.action||'\u2014')+'</td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>';
+  };
+
+  function r16FilteredRoutes(){
+    var data=state.route||{};
+    return [].concat(data.routes_v4||[],data.routes_v6||[]).filter(r15RouteMatches);
+  }
+
+  function r16FlowKey(flow){
+    return [
+      flow.protocol||'',flow.source||'',flow.source_port||'',
+      flow.destination||'',flow.destination_port||'',flow.state||''
+    ].join('|');
+  }
+
+  function r16RenderFlowDetail(){
+    var box=q('flow-detail');
+    if(!box)return;
+    var flow=state.selectedFlow;
+    if(!flow){
+      box.innerHTML='<div class="flow-detail-empty">'+U.esc(lx('\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u0442\u0440\u043e\u043a\u0443 \u043f\u043e\u0442\u043e\u043a\u0430 \u0434\u043b\u044f \u0434\u0435\u0442\u0430\u043b\u0435\u0439.','Select a flow row to inspect details.'))+'</div>';
+      q('flow-copy-selected').disabled=true;
+      return;
+    }
+    q('flow-copy-selected').disabled=false;
+    var pairs=[
+      [lx('\u041f\u0440\u043e\u0442\u043e\u043a\u043e\u043b','Protocol'),flow.protocol||'\u2014'],
+      [lx('\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435','State'),flow.state||'ACTIVE'],
+      [lx('\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a','Source'),(flow.source||'\u2014')+(flow.source_port?':'+flow.source_port:'')],
+      [lx('\u041d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435','Destination'),(flow.destination||'\u2014')+(flow.destination_port?':'+flow.destination_port:'')],
+      [lx('\u041f\u0430\u043a\u0435\u0442\u044b','Packets'),Number(flow.packets||0).toLocaleString(locale==='ru'?'ru-RU':'en-US')],
+      [lx('\u041e\u0431\u044a\u0451\u043c','Volume'),U.fmtBytes(flow.bytes||0)],
+      ['TTL',String(flow.timeout_seconds||0)+' s'],
+      [lx('\u0421\u043d\u0438\u043c\u043e\u043a','Snapshot'),flow.seen_at||'\u2014']
+    ];
+    box.innerHTML='<div class="flow-detail-grid">'+pairs.map(function(pair){
+      return '<div class="flow-detail-item"><span>'+U.esc(pair[0])+'</span><strong class="'+((pair[0]==='Source'||pair[0]==='Destination'||pair[0]==='\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a'||pair[0]==='\u041d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435')?'mono':'')+'">'+U.esc(pair[1])+'</strong></div>';
+    }).join('')+'</div>';
+  }
+
+  function r16FlowRow(flow,pos){
+    var source=(flow.source||'')+(flow.source_port?':'+flow.source_port:'');
+    var dest=(flow.destination||'')+(flow.destination_port?':'+flow.destination_port:'');
+    var stateName=flow.state||'ACTIVE';
+    var tone=stateName==='ESTABLISHED'||stateName==='ACTIVE'?'':'neutral';
+    var selected=state.selectedFlow&&r16FlowKey(state.selectedFlow)===r16FlowKey(flow);
+    return '<tr class="flow-row-selectable'+(selected?' selected':'')+'" data-flow-pos="'+pos+'">'+
+      '<td class="mono">'+U.esc(flow.seen_at||'\u2014')+'</td>'+
+      '<td class="mono">'+U.esc(source||'\u2014')+'</td>'+
+      '<td class="mono">'+U.esc(dest||'\u2014')+'</td>'+
+      '<td>'+U.esc(flow.protocol||'\u2014')+'</td>'+
+      '<td>'+U.badge(stateName,tone)+'</td>'+
+      '<td class="num">'+U.esc(flow.packets||0)+'</td>'+
+      '<td class="num">'+U.esc(U.fmtBytes(flow.bytes||0))+'</td>'+
+      '<td class="num">'+U.esc(flow.timeout_seconds||0)+' s</td>'+
+    '</tr>';
+  }
+
+  renderFlows=function(){
+    var list=r15FlowList();
+    var visible=list.slice(0,flowLimit);
+    q('flow-count').textContent=lx('\u041f\u043e\u043a\u0430\u0437\u0430\u043d\u043e: ','Showing: ')+visible.length+' / '+list.length;
+    r15FlowSummary(list);
+    if(!visible.length){
+      q('flow-results').innerHTML='<div class="nt-empty">'+U.esc(tr('noFlows'))+'</div>';
+      r16RenderFlowDetail();
+      return;
+    }
+    q('flow-results').innerHTML='<table class="flow-data-table"><thead><tr>'+
+      '<th>'+tr('time')+'</th><th>'+tr('source')+'</th><th>'+tr('destination')+'</th>'+
+      '<th>'+tr('protocol')+'</th><th>'+tr('flowState')+'</th>'+
+      '<th>'+U.esc(lx('\u041f\u0430\u043a\u0435\u0442\u044b','Packets'))+'</th>'+
+      '<th>'+tr('volume')+'</th><th>TTL</th></tr></thead><tbody>'+
+      visible.map(function(flow,pos){return r16FlowRow(flow,pos);}).join('')+'</tbody></table>';
+    document.querySelectorAll('.flow-row-selectable').forEach(function(row){
+      row.onclick=function(){
+        var pos=Number(row.getAttribute('data-flow-pos'));
+        var current=r15FlowList();
+        state.selectedFlow=current[pos]||null;
+        renderFlows();
+        r16RenderFlowDetail();
+      };
+    });
+    r16RenderFlowDetail();
+  };
+
+  var r16BaseRefreshFlows=refreshFlows;
+  refreshFlows=async function(){
+    state.selectedFlow=null;
+    await r16BaseRefreshFlows();
+    r16RenderFlowDetail();
+  };
+
+  function r16ClearFlowFilters(){
+    q('flow-protocol').value='';
+    q('flow-state').value='';
+    q('flow-sort').value='recent';
+    q('flow-search').value='';
+    flowLimit=80;
+    state.selectedFlow=null;
+    renderFlows();
+    r16RenderFlowDetail();
+    U.notifyHeight();
+  }
+
+  function r16ProbeSummary(result){
+    var tone=result&&result.ok?'':'bad';
+    var detail=resultDetail((result&&result.kind)||'',result||{});
+    var target=(result&&result.target)||'\u2014';
+    return '<div class="probe-summary-card '+(result&&result.ok?'ok':'fail')+'">'+
+      '<div><span>'+U.esc(resultIcon((result&&result.kind)||''))+'</span><strong>'+U.esc(resultLabel((result&&result.kind)||''))+'</strong><small class="mono">'+U.esc(target)+'</small></div>'+
+      U.badge(result&&result.ok?tr('success'):tr('error'),tone)+
+      '<div class="probe-summary-detail">'+U.esc(detail)+'</div>'+
+    '</div>';
+  }
+
+  function r16RenderProbeHistory(){
+    var box=q('probe-history');
+    if(!box)return;
+    var list=(state.probeHistory||[]).slice().reverse();
+    if(!list.length){
+      box.innerHTML='<div class="nt-empty">'+U.esc(lx('\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a \u043f\u043e\u043a\u0430 \u043f\u0443\u0441\u0442\u0430.','Probe history is empty.'))+'</div>';
+      return;
+    }
+    box.innerHTML='<table class="probe-history-table"><thead><tr>'+
+      '<th>'+tr('time')+'</th><th>'+U.esc(lx('\u0422\u0438\u043f','Kind'))+'</th><th>'+U.esc(lx('\u0426\u0435\u043b\u044c','Target'))+'</th><th>'+tr('status')+'</th><th>'+U.esc(lx('\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442','Result'))+'</th>'+
+      '</tr></thead><tbody>'+list.map(function(item){
+        var d=item.result||{};
+        var tone=d.ok?'':'bad';
+        return '<tr><td class="mono">'+U.esc(item.at)+'</td><td>'+U.esc(resultLabel(d.kind||''))+'</td><td class="mono">'+U.esc(d.target||'\u2014')+'</td><td>'+U.badge(d.ok?tr('success'):tr('error'),tone)+'</td><td>'+U.esc(resultDetail(d.kind||'',d))+'</td></tr>';
+      }).join('')+'</tbody></table>';
+  }
+
+  runActiveProbe=async function(){
+    var kind=q('probe-kind').value;
+    var target=q('probe-target').value.trim();
+    var port=Number(q('probe-port').value||0);
+    var button=q('probe-run');
+    button.disabled=true;
+    q('probe-summary').innerHTML='<div class="nt-empty">'+U.esc(lx('\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u0442\u0441\u044f\u2026','Probe is running\u2026'))+'</div>';
+    try{
+      var d=await U.request('/probe',{kind:kind,target:target,port:port});
+      state.activeProbe=d;
+      state.probeHistory.push({at:new Date().toLocaleTimeString(locale==='ru'?'ru-RU':'en-US'),result:d});
+      if(state.probeHistory.length>12)state.probeHistory.splice(0,state.probeHistory.length-12);
+      q('probe-summary').innerHTML=r16ProbeSummary(d);
+      q('probe-output').textContent=JSON.stringify(d,null,2);
+      r16RenderProbeHistory();
+    }catch(e){
+      q('probe-summary').innerHTML='<div class="rf-error">FAIL: '+U.esc(e.message)+'</div>';
+      q('probe-output').textContent='FAIL: '+e.message;
+    }finally{
+      button.disabled=false;
+    }
+    U.notifyHeight();
+  };
+
+  saveReport=function(){
+    var report={
+      generated_at:new Date().toISOString(),
+      module:'network-tools',
+      health:state.health,
+      summary:state.summary,
+      doctor:state.doctor,
+      interfaces:state.interfaces,
+      traceroute:state.traceroute,
+      route:state.route,
+      flow_source:state.flowSource,
+      flows:state.flows,
+      selected_flow:state.selectedFlow,
+      active_probe:state.activeProbe,
+      probe_history:state.probeHistory
+    };
+    var blob=new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json'});
+    var url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;
+    a.download='network-tools-report-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  };
   function bind(){
     q('doctor-profile').onchange=function(){var p=q('doctor-profile').value;q('check-ping').checked=p!=='dns';q('check-dns').checked=true;q('check-http').checked=p==='web';q('check-tcp').checked=p!=='dns';};
     q('doctor-run').onclick=runDoctor;
     q('doctor-target').onkeydown=function(e){if(e.key==='Enter')runDoctor();};
     q('doctor-copy').onclick=function(){copyText(JSON.stringify(state.doctor||{},null,2));};
     q('interfaces-refresh').onclick=loadInterfaces;
+
     q('trace-run').onclick=runTrace;
     q('trace-copy').onclick=function(){copyText(state.traceroute?(state.traceroute.raw||JSON.stringify(state.traceroute,null,2)):'');};
+
     q('route-run').onclick=function(){inspectRoute();};
     q('route-family-filter').onchange=function(){if(state.route)q('route-routes').innerHTML=renderRouteInventory(state.route);};
     q('route-table-filter').onchange=function(){if(state.route)q('route-routes').innerHTML=renderRouteInventory(state.route);};
     q('route-search').oninput=function(){if(state.route)q('route-routes').innerHTML=renderRouteInventory(state.route);};
     q('route-fit-toggle').onclick=r15ToggleRouteFit;
+    q('route-rules-search').oninput=function(){if(state.route)q('route-rules').innerHTML=renderPolicyRules(state.route);};
+    q('route-copy-routes').onclick=function(){copyText(JSON.stringify(r16FilteredRoutes(),null,2));};
+    q('route-copy-rules').onclick=function(){copyText(JSON.stringify(r16Rules(),null,2));};
+
     q('flow-refresh').onclick=refreshFlows;
     q('flow-search').oninput=renderFlows;
     q('flow-protocol').onchange=renderFlows;
@@ -290,12 +508,28 @@
     q('flow-sort').onchange=renderFlows;
     q('flow-window').onchange=function(){r15ConfigureFlowTimer();refreshFlows();};
     q('flow-more').onclick=function(){flowLimit+=80;renderFlows();U.notifyHeight();};
+    q('flow-clear').onclick=r16ClearFlowFilters;
+    q('flow-copy-selected').onclick=function(){if(state.selectedFlow)copyText(JSON.stringify(state.selectedFlow,null,2));};
+
     q('probe-kind').onchange=r15ProbeFields;
     q('probe-target').onkeydown=function(e){if(e.key==='Enter')runActiveProbe();};
     q('probe-run').onclick=runActiveProbe;
     q('probe-copy').onclick=function(){copyText(q('probe-output').textContent||'');};
+    q('probe-clear-history').onclick=function(){state.probeHistory=[];r16RenderProbeHistory();U.notifyHeight();};
+
     q('save-report').onclick=saveReport;
+
     r15LocalizeControls();
     r15ProbeFields();
+    q('trace-mode').textContent=lx('\u0420\u0435\u0436\u0438\u043c: ICMP traceroute','Mode: ICMP traceroute');
+    q('route-rules-search').setAttribute('placeholder',lx('\u041f\u043e\u0438\u0441\u043a \u043f\u043e priority, from, to, mark, table\u2026','Search priority, from, to, mark, table\u2026'));
+    q('route-copy-routes').textContent=lx('\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c','Copy');
+    q('route-copy-rules').textContent=lx('\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c','Copy');
+    q('flow-clear').textContent=lx('\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b','Reset filters');
+    q('flow-copy-selected').textContent=lx('\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u043f\u043e\u0442\u043e\u043a','Copy flow');
+    q('probe-clear-history').textContent=lx('\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u0438\u0441\u0442\u043e\u0440\u0438\u044e','Clear history');
+
+    r16RenderFlowDetail();
+    r16RenderProbeHistory();
   }  async function load(){localize();bindTabs();bind();q('interfaces-title').textContent=lx('\u0418\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u044b','Interfaces');q('interfaces-hint').textContent=lx('\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043b\u0438\u043d\u043a\u0430, IP-\u0430\u0434\u0440\u0435\u0441\u0430, \u0441\u0447\u0435\u0442\u0447\u0438\u043a\u0438 \u0438 \u0432\u043b\u0430\u0434\u0435\u043d\u0438\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u043c \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e.','Link state, IP addresses, counters and default-route ownership.');q('interfaces-refresh').textContent=lx('\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c','Refresh');try{state.health=await U.request('/health');state.summary=await U.request('/summary');q('kpi-sessions').textContent=Number(state.summary.active_sessions||0).toLocaleString(locale==='ru'?'ru-RU':'en-US');pushHistory('sessions',Number(state.summary.active_sessions||0));updateKpis();await Promise.all([refreshFlows(),inspectRoute('8.8.8.8'),loadInterfaces()]);}catch(e){U.error('.nt-page',e);}U.notifyHeight();}  load();
 }());

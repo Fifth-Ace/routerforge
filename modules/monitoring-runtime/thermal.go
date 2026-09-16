@@ -295,26 +295,28 @@ func collectNDMCThermals(now time.Time) []thermalSensor {
 
 func parseNDMCThermals(output string, now time.Time) []thermalSensor {
 	type interfaceBlock struct {
-		name       string
-		wifiMaster bool
+		id         string
+		ifaceType  string
 		temp       float64
 		hasTemp    bool
+		wifiMaster bool
 	}
 
 	var out []thermalSensor
 	current := interfaceBlock{}
 
 	flush := func() {
-		if current.name == "" || !current.wifiMaster || !current.hasTemp {
+		name := strings.TrimSpace(current.id)
+		if name == "" || !current.wifiMaster || !current.hasTemp {
 			return
 		}
 
-		index := trailingIndex(strings.ToLower(current.name), "wifimaster")
+		index := trailingIndex(strings.ToLower(name), "wifimaster")
 		sensor := makeThermalSensor(
-			"ndmc:"+strings.ToLower(current.name),
-			"Wi-Fi · "+current.name,
+			"ndmc:"+strings.ToLower(name),
+			"Wi-Fi · "+name,
 			"wifi",
-			"ndmc:show interface:"+current.name,
+			"ndmc:show interface:"+name,
 			current.temp,
 			now,
 		)
@@ -326,36 +328,39 @@ func parseNDMCThermals(output string, now time.Time) []thermalSensor {
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !strings.Contains(line, ":") {
+			continue
+		}
 
-		if strings.HasPrefix(line, `Interface, name = "`) && strings.HasSuffix(line, `"`) {
+		parts := strings.SplitN(line, ":", 2)
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		if key == "id" {
 			flush()
-			current = interfaceBlock{
-				name: strings.TrimSuffix(strings.TrimPrefix(line, `Interface, name = "`), `"`),
-			}
+			current = interfaceBlock{id: value}
 			continue
 		}
-		if current.name == "" {
+		if current.id == "" {
 			continue
 		}
 
-		switch {
-		case strings.HasPrefix(line, "type:"):
-			value := strings.TrimSpace(strings.TrimPrefix(line, "type:"))
+		switch key {
+		case "type":
+			current.ifaceType = value
 			if strings.EqualFold(value, "WifiMaster") {
 				current.wifiMaster = true
 			}
-		case strings.HasPrefix(line, "traits:"):
-			value := strings.TrimSpace(strings.TrimPrefix(line, "traits:"))
+		case "traits":
 			if strings.Contains(strings.ToLower(value), "wifimaster") {
 				current.wifiMaster = true
 			}
-		case strings.HasPrefix(line, "temperature:"):
-			raw := strings.TrimSpace(strings.TrimPrefix(line, "temperature:"))
-			value, parseErr := strconv.ParseFloat(raw, 64)
-			if parseErr != nil {
+		case "temperature":
+			parsed, err := strconv.ParseFloat(value, 64)
+			if err != nil {
 				continue
 			}
-			temp, ok := normalizeTemperature(value)
+			temp, ok := normalizeTemperature(parsed)
 			if !ok {
 				continue
 			}

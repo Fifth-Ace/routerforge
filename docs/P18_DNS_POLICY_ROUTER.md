@@ -619,6 +619,85 @@ Contract tests доказывают:
 - RouterForge не вызывает structured RCI policy mutation;
 - hardware-proven read/identity primitive можно развивать дальше без догадок.
 
+## P18J — hybrid dataplane mapping + marked egress contract
+
+Hardware discovery показал, что direct native mapping `client_cidr + domain_suffix + qtype -> PolicyN` не требуется для первого dataplane design.
+
+Keenetic уже предоставляет policy-routing primitive:
+
+- `Policy0`: mark `0xffffaaa`, table4 `4096`;
+- `Policy1`: mark `0xffffaab`, table4 `4098`;
+- Linux `ip rule` связывает эти marks с exact routing tables;
+- explicit route lookup with `mark 0xffffaab` selects table `4098`;
+- Policy0 has no default route, and explicit marked lookup fails instead of silently falling through;
+- therefore mark selection is a fail-closed egress primitive.
+
+### Hybrid model
+
+Policy matching остаётся внутри RouterForge DNS:
+
+`client_cidr / domain_suffix / qtype -> PolicyN`
+
+После evaluator выбранная `PolicyN` разрешается в текущий Keenetic route identity:
+
+`PolicyN -> mark + table`
+
+Исходящий DNS socket получает `SO_MARK`, а native Keenetic Linux policy routing выбирает уже существующую table.
+
+Таким образом RouterForge не создаёт domain/qtype rules внутри Keenetic и не дублирует его policy configuration.
+
+### Internal contract
+
+P18J добавляет:
+
+- `DNSPolicyEgressTarget`;
+- `resolveDNSPolicyEgressTarget`;
+- Linux-only `newDNSPolicyMarkedDialer`.
+
+`System` использует обычный unmarked dialer.
+
+`PolicyN` требует:
+
+- существующую policy;
+- ненулевой mark;
+- положительный table id.
+
+Отсутствие default route не маскируется: target сохраняет `HasDefault=false`, а kernel marked route остаётся fail-closed.
+
+### Linux SO_MARK
+
+Linux dialer ставит:
+
+`SOL_SOCKET / SO_MARK = policy.Mark`
+
+через `net.Dialer.Control` до connect/send path.
+
+Ошибки `SO_MARK` возвращаются вызывающему коду и не допускают unmarked fallback.
+
+### Tests
+
+Unit/contract tests проверяют:
+
+- `System` остаётся unmarked;
+- `Policy1` maps to exact `0xffffaab / 4098`;
+- policy without default route remains representable as fail-closed;
+- unknown/zero-mark/zero-table policies rejected;
+- Linux dialer sets exact mark;
+- setsockopt error is propagated;
+- System dialer has no mark Control.
+
+### Safety boundary
+
+P18J ещё не подключает marked dialer к live DNS resolver path:
+
+- public activation API отсутствует;
+- persisted rules не активируются;
+- live DNS traffic не меняется;
+- `ApplyCanonicalRules` остаётся fail-closed;
+- production driver ready остаётся false.
+
+Hardware mark mapping доказан, но перед live wiring нужен отдельный marked-socket smoke на реальном Keenetic.
+
 ## Следующий этап
 
-P18J — dataplane mapping discovery: определить, каким native Keenetic механизмом безопасно выразить `client_cidr`, `domain_suffix` и `qtype` policy rules, прежде чем разблокировать `ApplyCanonicalRules`.
+P18K — marked socket hardware smoke: отправить diagnostic UDP/TCP flow через internal `SO_MARK` primitive и доказать route/table behavior на реальном Keenetic до интеграции с DNS resolver path.

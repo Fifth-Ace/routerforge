@@ -13,6 +13,7 @@ dns_diag() {
 
 if [ -f /opt/etc/routerforge/module-abi-v1 ] && [ -x /opt/etc/init.d/S91routerforge-dns ]; then
     /opt/etc/init.d/S91routerforge-dns stop >/dev/null 2>&1 || true
+    rm -f /opt/var/run/routerforge-dns.sock
 
     if ! /opt/etc/init.d/S91routerforge-dns start >/dev/null 2>&1; then
         echo "routerforge-dns: start failed" >&2
@@ -22,15 +23,15 @@ if [ -f /opt/etc/routerforge/module-abi-v1 ] && [ -x /opt/etc/init.d/S91routerfo
 
     i=0
     while [ "$i" -lt 20 ]; do
-        if wget -qO- http://127.0.0.1:2233/api/modules/dns/health 2>/dev/null |
-            grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'; then
+        if pidof routerforge-dns >/dev/null 2>&1 &&
+           [ -S /opt/var/run/routerforge-dns.sock ]; then
             exit 0
         fi
         i=$((i + 1))
         sleep 1
     done
 
-    echo "routerforge-dns: readiness timeout after ${i}s" >&2
+    echo "routerforge-dns: service readiness timeout after ${i}s" >&2
     dns_diag
     exit 1
 elif [ -x /opt/etc/init.d/S90routerforge ]; then

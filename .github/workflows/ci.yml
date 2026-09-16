@@ -1024,7 +1024,7 @@ jobs:
   publish_dev:
     name: Publish rolling ARM64 Dev channel
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success' && !startsWith(github.event.head_commit.message, 'docs:')
     runs-on: ubuntu-latest
 
     concurrency:
@@ -1059,7 +1059,7 @@ jobs:
 
   publish_stable:
     name: Publish validated stable promotion
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !startsWith(github.event.head_commit.message, 'docs:')
     runs-on: ubuntu-latest
 
     permissions:

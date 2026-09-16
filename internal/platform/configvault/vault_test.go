@@ -225,3 +225,25 @@ func TestReadArtifactRejectsUnknownArtifact(t *testing.T) {
 		t.Fatalf("expected os.ErrNotExist, got %v", err)
 	}
 }
+
+func TestCaptureEmptyBaseline(t *testing.T) {
+	store, _ := testStore(t, 8)
+	manifest, err := store.Capture(CaptureRequest{
+		Component: "admin",
+		Reason:    "empty baseline",
+		Artifacts: []ArtifactSpec{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Artifacts) != 0 || manifest.TotalBytes != 0 {
+		t.Fatalf("unexpected empty snapshot: %+v", manifest)
+	}
+	loaded, err := store.Get(manifest.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Artifacts) != 0 {
+		t.Fatalf("stored empty baseline gained artifacts: %+v", loaded.Artifacts)
+	}
+}

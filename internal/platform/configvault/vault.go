@@ -159,9 +159,6 @@ func (s *Store) Capture(request CaptureRequest) (Manifest, error) {
 	if len(request.TransactionID) > 128 {
 		return Manifest{}, errors.New("transaction id is too long")
 	}
-	if len(request.Artifacts) == 0 {
-		return Manifest{}, errors.New("snapshot requires at least one artifact")
-	}
 	if err := s.ensureLayout(); err != nil {
 		return Manifest{}, err
 	}

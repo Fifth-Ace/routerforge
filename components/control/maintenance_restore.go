@@ -254,6 +254,15 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockVault, _ := lockAdminConfigVaultMutation(adminMaintenanceConfigRoot)
+	defer unlockVault()
+
+	prechange, err := captureAdminConfigVaultPrechangeLocked("maintenance-restore", adminMaintenanceConfigRoot)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "automatic config vault pre-change snapshot failed", "mutation_blocked": true})
+		return
+	}
+
 	safetyBackup, err := createAdminMaintenanceConfigBackup()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "pre-restore safety backup failed: " + err.Error()})
@@ -296,8 +305,9 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 		"config_entries":    inspection.ConfigEntries,
 		"config_bytes":      inspection.ConfigBytes,
 		"ignored_entries":   inspection.IgnoredEntries,
-		"safety_backup":     safetyBackup.Path,
-		"restart_required":  true,
+		"safety_backup":          safetyBackup.Path,
+		"config_vault_snapshot": prechange.SnapshotID,
+		"restart_required":       true,
 		"automatic_restart": false,
 	})
 }

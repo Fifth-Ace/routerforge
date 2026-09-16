@@ -219,13 +219,12 @@ func handleAdminConfigVaultCapture(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockVault, _ := lockAdminConfigVaultMutation(adminConfigVaultManagedRoot)
+	defer unlockVault()
+
 	managed, specs, err := discoverAdminConfigVaultArtifacts()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
-		return
-	}
-	if len(specs) == 0 {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "no managed RouterForge config files found"})
 		return
 	}
 

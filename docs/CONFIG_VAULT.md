@@ -270,3 +270,52 @@ Restore требует, чтобы перед операцией существ�
 ### Следующий этап
 
 После P16C фундамент Config Vault считается пригодным для подключения к реальным mutation flow отдельных компонентов: автоматический pre-change snapshot, component-specific validation и runtime probes.
+
+## P16D — автоматические pre-change snapshots
+
+P16D подключает Config Vault к реальным изменениям управляемой конфигурации.
+
+### Что защищается автоматически
+
+Если Admin File Manager собирается изменить **обычный файл** внутри `/opt/etc/routerforge`, RouterForge перед первым изменением автоматически создаёт Config Vault snapshot.
+
+Покрыты file-level операции:
+
+- create / edit через `/v1/files/write`;
+- copy, если destination находится внутри managed root;
+- move обычного файла, если source или destination затрагивает managed root;
+- delete обычного managed-файла;
+- chmod обычного managed-файла;
+- legacy Maintenance restore из `routerforge-config-*.tar.gz`.
+
+P16C Config Vault restore также входит в общий serialized mutation guard, но отдельный дополнительный pre-change snapshot ему не нужен: сам P16C уже обязательно создаёт собственный safety snapshot.
+
+### Сериализация
+
+Все mutation flow, затрагивающие `/opt/etc/routerforge`, проходят через один in-process mutex.
+
+Критическая секция включает:
+
+`FINAL RECHECK → PRE-CHANGE SNAPSHOT → MUTATION → VERIFY`
+
+Это не позволяет двум запросам Admin одновременно получить один и тот же baseline и затем перетереть изменения друг друга между snapshot и apply.
+
+### Empty baseline
+
+Schema v1 теперь допускает snapshot с нулём artifacts.
+
+Это нужно для корректной защиты самого первого managed-файла. Если `/opt/etc/routerforge` ещё не содержит обычных файлов, RouterForge всё равно создаёт доказуемый empty-baseline snapshot перед create/copy/restore.
+
+Такой snapshot можно восстановить: restore удалит managed regular files, появившиеся после пустого baseline, и подтвердит результат через обычный SHA-256 diff.
+
+### Fail closed
+
+Если путь относится к managed root, а automatic pre-change snapshot создать не удалось, файловая mutation **не должна выполняться**.
+
+Операции вне `/opt/etc/routerforge` продолжают работать без Config Vault snapshot.
+
+### Что пока не входит
+
+Config Vault хранит и восстанавливает файлы, а не состояние каталогов. Поэтому чисто directory-only операции File Manager (`mkdir`, chmod/delete/move пустого каталога) в P16D не объявляются защищёнными snapshot-механизмом.
+
+Runtime-specific restart/health probe также остаётся отдельным следующим слоем: P16D защищает конфигурационное состояние до мутации, а P16C отвечает за доказуемое файловое восстановление.

@@ -281,6 +281,9 @@ func handleAdminFileWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockVault, vaultProtected := lockAdminConfigVaultMutation(resolved.Canonical)
+	defer unlockVault()
+
 	rechecked, err := resolveCreatableAdminFilePath(request.Path)
 	if err != nil {
 		writeAdminFilePathError(w, err)
@@ -299,6 +302,13 @@ func handleAdminFileWrite(w http.ResponseWriter, r *http.Request) {
 	if err := checkAdminFileWritePrecondition(request, current, currentExists); err != nil {
 		writeAdminFilePreconditionError(w, err)
 		return
+	}
+
+	if vaultProtected {
+		if _, err := captureAdminConfigVaultPrechangeLocked("file-write", resolved.Canonical); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "automatic config vault pre-change snapshot failed", "mutation_blocked": true})
+			return
+		}
 	}
 
 	if err := atomicFile.Publish(resolved.Canonical); err != nil {

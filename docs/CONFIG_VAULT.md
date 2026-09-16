@@ -195,3 +195,78 @@ P16B делает его частью Maintenance:
 ### Следующий этап — P16C
 
 P16C добавит реальное безопасное восстановление одного snapshot с проверкой до и после применения. До завершения P16C Config Vault остаётся read/capture/preview системой и не выполняет destructive restore.
+
+## P16C — безопасное восстановление snapshot
+
+P16C включает реальный restore для управляемой области `/opt/etc/routerforge`.
+
+Restore доступен только через guarded mutation API:
+
+`POST /v1/maintenance/config-vault-restore`
+
+Запрос обязан содержать:
+
+- `snapshot_id`;
+- точно совпадающий `confirm_snapshot_id`;
+- `confirm = "RESTORE"`;
+- необязательный `transaction_id`.
+
+### Цепочка восстановления
+
+RouterForge не копирует snapshot поверх текущих файлов напрямую. Операция проходит общий безопасный контур:
+
+`PRECHECK → SAFETY SNAPSHOT → VALIDATION → APPLY → SHA-256 READBACK → COMMIT`
+
+Перед первым изменением Config Vault обязательно делает отдельный safety snapshot текущей управляемой конфигурации.
+
+Target snapshot повторно проверяется перед apply:
+
+- schema и component;
+- отсутствие дублирующихся artifact ID и путей;
+- каждый путь обязан находиться внутри `/opt/etc/routerforge`;
+- backing object читается через Config Vault с проверкой размера и SHA-256;
+- symlink в целевом файле или родительском каталоге запрещает restore.
+
+### Apply
+
+Каждый файл публикуется через атомарную запись в том же каталоге.
+
+После восстановления файлов snapshot удаляются только те текущие **обычные managed-файлы**, которых в snapshot нет. Symlink и special files restore не удаляет и не заменяет.
+
+Права доступа восстанавливаются из manifest. Нулевой mode нормализуется в `0600`.
+
+### Проверка после применения
+
+После apply RouterForge строит новый diff между target snapshot и фактическим состоянием `/opt/etc/routerforge`.
+
+Успех возможен только если:
+
+`changed = false`
+
+Это является обязательным SHA-256 readback probe.
+
+P16C пока не перезапускает сервисы и не утверждает, что конкретный DNS/VPN/другой runtime функционально здоров. Runtime-specific validators и probes должны подключаться consumer-ами отдельно. Текущая гарантия P16C — **точное восстановление управляемых файлов**.
+
+### Автоматический rollback
+
+Если apply или post-apply readback завершается ошибкой:
+
+1. RouterForge применяет pre-restore safety snapshot;
+2. повторно сравнивает фактическое состояние с safety snapshot;
+3. только после `changed = false` rollback считается подтверждённым.
+
+Результат транзакции:
+
+- `committed` — target snapshot применён и подтверждён readback;
+- `rolled-back` — target не прошёл, исходное состояние восстановлено и подтверждено;
+- `ambiguous` — не удалось доказать успешный rollback; требуется ручная диагностика.
+
+`LAST WORKING` не меняется автоматически после restore. Он остаётся отдельным явным действием пользователя.
+
+### Ограничение первого P16C
+
+Restore требует, чтобы перед операцией существовал хотя бы один текущий managed-файл. Это позволяет всегда создать доказуемый safety snapshot до изменения системы.
+
+### Следующий этап
+
+После P16C фундамент Config Vault считается пригодным для подключения к реальным mutation flow отдельных компонентов: автоматический pre-change snapshot, component-specific validation и runtime probes.

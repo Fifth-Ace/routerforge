@@ -559,3 +559,64 @@ func (s *Store) manifestPath(id string) string {
 	return filepath.Join(s.snapshotsDir(), id+".json")
 }
 func (s *Store) statePath() string { return filepath.Join(s.root, "state.json") }
+
+// ReadArtifact returns one snapshot artifact and verifies the backing object
+// before exposing its bytes to a restore consumer.
+func (s *Store) ReadArtifact(snapshotID, artifactID string) (ArtifactRecord, []byte, error) {
+	if !idPattern.MatchString(artifactID) {
+		return ArtifactRecord{}, nil, errors.New("invalid artifact id")
+	}
+	manifest, err := s.Get(snapshotID)
+	if err != nil {
+		return ArtifactRecord{}, nil, err
+	}
+
+	var record ArtifactRecord
+	found := false
+	for _, candidate := range manifest.Artifacts {
+		if candidate.ID == artifactID {
+			record = candidate
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ArtifactRecord{}, nil, os.ErrNotExist
+	}
+	if !shaPattern.MatchString(record.SHA256) {
+		return ArtifactRecord{}, nil, errors.New("artifact contains invalid object checksum")
+	}
+	if record.Size < 0 || record.Size > s.maxArtifactBytes {
+		return ArtifactRecord{}, nil, errors.New("artifact size is outside configured limits")
+	}
+
+	path := s.objectPath(record.SHA256)
+	info, err := os.Lstat(path)
+	if err != nil {
+		return ArtifactRecord{}, nil, err
+	}
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return ArtifactRecord{}, nil, errors.New("artifact object must be a regular non-symlink file")
+	}
+	if info.Size() != record.Size {
+		return ArtifactRecord{}, nil, errors.New("artifact object size mismatch")
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return ArtifactRecord{}, nil, err
+	}
+	defer file.Close()
+	content, err := io.ReadAll(io.LimitReader(file, s.maxArtifactBytes+1))
+	if err != nil {
+		return ArtifactRecord{}, nil, err
+	}
+	if int64(len(content)) != record.Size {
+		return ArtifactRecord{}, nil, errors.New("artifact object read size mismatch")
+	}
+	sum := sha256.Sum256(content)
+	if hex.EncodeToString(sum[:]) != record.SHA256 {
+		return ArtifactRecord{}, nil, errors.New("artifact object checksum mismatch")
+	}
+	return record, content, nil
+}

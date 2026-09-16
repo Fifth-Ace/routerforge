@@ -774,6 +774,150 @@ func doctorRouteStages(decision kernelRouteDecision, policyState string, targetR
 	return routeStage, policyStage
 }
 
+type doctorPathFacts struct {
+	EgressExists  bool
+	EgressUp      bool
+	SourceChecked bool
+	SourceMatches bool
+}
+
+func sourceBelongsToInterface(addresses []net.Addr, source string) bool {
+	ip := net.ParseIP(strings.TrimSpace(source))
+	if ip == nil {
+		return false
+	}
+	for _, address := range addresses {
+		var candidate net.IP
+		switch value := address.(type) {
+		case *net.IPNet:
+			candidate = value.IP
+		case *net.IPAddr:
+			candidate = value.IP
+		default:
+			host := strings.SplitN(address.String(), "/", 2)[0]
+			candidate = net.ParseIP(host)
+		}
+		if candidate != nil && candidate.Equal(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func inspectDoctorPathFacts(decision kernelRouteDecision) doctorPathFacts {
+	facts := doctorPathFacts{}
+	if !decision.Available || decision.Interface == "" {
+		return facts
+	}
+	iface, err := net.InterfaceByName(decision.Interface)
+	if err != nil {
+		return facts
+	}
+	facts.EgressExists = true
+	operstate := readSysfsText("/sys/class/net/" + iface.Name + "/operstate")
+	facts.EgressUp = iface.Flags&net.FlagUp != 0
+	if operstate != "" && operstate != "up" && operstate != "unknown" {
+		facts.EgressUp = false
+	}
+	if decision.Source == "" {
+		return facts
+	}
+	addresses, err := iface.Addrs()
+	if err != nil {
+		return facts
+	}
+	facts.SourceChecked = true
+	facts.SourceMatches = sourceBelongsToInterface(addresses, decision.Source)
+	return facts
+}
+
+func doctorPathStages(decision kernelRouteDecision, defaultRoute *routeEntry, facts doctorPathFacts) (doctorStage, doctorStage, doctorStage) {
+	egress := doctorStage{ID: "kernel_egress"}
+	gateway := doctorStage{ID: "gateway_consistency"}
+	source := doctorStage{ID: "source_consistency"}
+
+	if !decision.Available {
+		egress.Status = "skipped"
+		egress.Detail = "kernel route decision unavailable"
+		gateway.Status = "skipped"
+		gateway.Detail = "kernel route decision unavailable"
+		source.Status = "skipped"
+		source.Detail = "kernel route decision unavailable"
+		return egress, gateway, source
+	}
+
+	switch decision.Type {
+	case "blackhole", "unreachable", "prohibit", "throw":
+		egress.Status = "skipped"
+		egress.Detail = decision.Type + " route has no usable egress"
+		gateway.Status = "skipped"
+		gateway.Detail = "blocking route selected"
+		source.Status = "skipped"
+		source.Detail = "blocking route selected"
+		return egress, gateway, source
+	}
+
+	if decision.Interface == "" {
+		egress.Status = "fail"
+		egress.Detail = "kernel decision has no egress interface"
+	} else if !facts.EgressExists {
+		egress.Status = "fail"
+		egress.Detail = "kernel-selected interface " + decision.Interface + " does not exist"
+	} else if !facts.EgressUp {
+		egress.Status = "fail"
+		egress.Detail = "kernel-selected interface " + decision.Interface + " is not up"
+	} else {
+		egress.Status = "ok"
+		egress.Detail = "kernel selected dev " + decision.Interface
+		if decision.Table != "" {
+			egress.Detail += " table " + decision.Table
+		}
+	}
+
+	if decision.Gateway == "" {
+		gateway.Status = "ok"
+		gateway.Detail = "direct/on-link route via " + decision.Interface
+	} else if decision.Interface == "" {
+		gateway.Status = "fail"
+		gateway.Detail = "gateway " + decision.Gateway + " selected without an egress interface"
+	} else {
+		gateway.Status = "ok"
+		gateway.Detail = "via " + decision.Gateway + " dev " + decision.Interface
+		if defaultRoute != nil && (decision.Table == "" || decision.Table == "main") {
+			if defaultRoute.Interface == decision.Interface && defaultRoute.Gateway == decision.Gateway {
+				gateway.Detail += "; matches IPv4 default path"
+			} else {
+				gateway.Detail += fmt.Sprintf(
+					"; target path differs from IPv4 default via %s dev %s",
+					defaultRoute.Gateway,
+					defaultRoute.Interface,
+				)
+			}
+		} else if decision.Table != "" && decision.Table != "main" {
+			gateway.Detail += "; policy table " + decision.Table + " is authoritative"
+		}
+	}
+
+	if decision.Source == "" {
+		source.Status = "unavailable"
+		source.Detail = "kernel did not expose a source address"
+	} else if !facts.EgressExists {
+		source.Status = "skipped"
+		source.Detail = "egress interface unavailable"
+	} else if !facts.SourceChecked {
+		source.Status = "unavailable"
+		source.Detail = "could not enumerate addresses on " + decision.Interface
+	} else if !facts.SourceMatches {
+		source.Status = "fail"
+		source.Detail = "kernel source " + decision.Source + " is not assigned to " + decision.Interface
+	} else {
+		source.Status = "ok"
+		source.Detail = "src " + decision.Source + " belongs to " + decision.Interface
+	}
+
+	return egress, gateway, source
+}
+
 func doctorStageIndex(stages []doctorStage, id string) int {
 	for i := range stages {
 		if stages[i].ID == id {
@@ -792,9 +936,12 @@ func doctorVerdictFor(stages []doctorStage) doctorVerdict {
 		{"default_route", "no_default_route", "routing"},
 		{"interface", "interface_down", "local"},
 		{"local_address", "no_local_address", "local"},
+		{"target_route", "target_route_failure", "routing"},
+		{"kernel_egress", "egress_interface_failure", "local"},
+		{"gateway_consistency", "gateway_interface_mismatch", "routing"},
+		{"source_consistency", "route_source_mismatch", "local"},
 		{"internet", "internet_unreachable", "upstream"},
 		{"dns", "dns_failure", "dns"},
-		{"target_route", "target_route_failure", "routing"},
 		{"tcp", "tcp_failure", "service"},
 		{"http", "http_failure", "service"},
 		{"ping", "target_unreachable", "target"},
@@ -1078,7 +1225,9 @@ func networkDoctor(r *http.Request) map[string]any {
 	}
 
 	targetRouteStage, policyRouteStage := doctorRouteStages(decision, policyState, targetAddress != "")
-	stages = append(stages, targetRouteStage, policyRouteStage)
+	pathFacts := inspectDoctorPathFacts(decision)
+	egressStage, gatewayConsistencyStage, sourceConsistencyStage := doctorPathStages(decision, defaultRoute, pathFacts)
+	stages = append(stages, targetRouteStage, policyRouteStage, egressStage, gatewayConsistencyStage, sourceConsistencyStage)
 
 	probes := map[string]probeResult{}
 	anyServiceOK := false
@@ -1163,13 +1312,23 @@ func networkDoctor(r *http.Request) map[string]any {
 	}
 
 	return map[string]any{
-		"ok":                    verdict.Severity != "fail",
-		"target":                target,
-		"checks":                checks,
-		"resolution":            resolution,
-		"route":                 selected,
-		"route_decision":        decision,
-		"policy_state":          policyState,
+		"ok":             verdict.Severity != "fail",
+		"target":         target,
+		"checks":         checks,
+		"resolution":     resolution,
+		"route":          selected,
+		"route_decision": decision,
+		"policy_state":   policyState,
+		"path_explainability": map[string]any{
+			"egress_interface":      decision.Interface,
+			"gateway":               decision.Gateway,
+			"source":                decision.Source,
+			"table":                 decision.Table,
+			"egress_exists":         pathFacts.EgressExists,
+			"egress_up":             pathFacts.EgressUp,
+			"source_checked":        pathFacts.SourceChecked,
+			"source_matches_egress": pathFacts.SourceMatches,
+		},
 		"default_route":         defaultRoute,
 		"default_interface":     defaultInterface,
 		"probes":                probes,

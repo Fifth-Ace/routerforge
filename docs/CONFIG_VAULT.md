@@ -104,3 +104,94 @@ P16B должен подключить Config Vault к Management / Maintenance:
 7. подготовить restore preview без самого destructive apply.
 
 После этого P16C добавит component restore с validate → apply → readback/probe → rollback/verify.
+## P16B — API и интеграция с Maintenance
+
+P16B подключает фундамент Config Vault к модулю Management / Maintenance.
+
+### Постоянное хранилище
+
+Production root:
+
+`/opt/var/lib/routerforge/config-vault`
+
+Управляемый конфигурационный root первого этапа:
+
+`/opt/etc/routerforge`
+
+Config Vault не сканирует весь `/opt` и не пытается сохранять произвольные пользовательские файлы. На P16B область намеренно ограничена конфигурациями RouterForge.
+
+### Что считается управляемым артефактом
+
+Maintenance рекурсивно обнаруживает обычные файлы внутри `/opt/etc/routerforge`.
+
+Правила:
+
+- symlink игнорируются;
+- special files игнорируются;
+- не более 128 файлов за один discovery;
+- каждый файл получает стабильный artifact ID от относительного пути;
+- полный исходный путь остаётся в manifest;
+- сами snapshots по-прежнему проходят ограничения Config Vault P16A.
+
+### API P16B
+
+Read-only:
+
+- `GET /v1/maintenance/config-vault` — состояние Vault, snapshots, retention, `LAST WORKING` и текущие managed artifacts;
+- `GET /v1/maintenance/config-vault/<id>` — manifest одного snapshot;
+- `GET /v1/maintenance/config-vault-diff?id=<id>` — сравнение snapshot с текущей конфигурацией;
+- `GET /v1/maintenance/config-vault-restore-preview?id=<id>` — предварительный просмотр будущего restore без применения изменений.
+
+Guarded mutations через существующий Core authorization contract:
+
+- `POST /v1/maintenance/config-vault-capture` — ручной snapshot текущих RouterForge configs;
+- `POST /v1/maintenance/config-vault-last-working` — назначение подтверждённого snapshot как `LAST WORKING`.
+
+Capture требует явное подтверждение `SNAPSHOT`.
+
+Назначение `LAST WORKING` требует явное подтверждение `LAST_WORKING`.
+
+### Diff
+
+Diff имеет четыре состояния:
+
+- `unchanged` — текущий SHA-256 совпадает со snapshot;
+- `changed` — путь существует, но содержимое изменилось;
+- `removed` — файл был в snapshot, но сейчас отсутствует;
+- `added` — файл появился после snapshot.
+
+P16B не раскрывает содержимое файлов через API: наружу идут только metadata и SHA-256.
+
+### Restore preview
+
+Restore preview уже показывает, какие файлы изменятся, но **не умеет применять snapshot**.
+
+Это намеренный safety gate:
+
+`apply_enabled = false`
+
+Реальный component restore переносится в P16C, где появится полный цикл:
+
+`precheck → safety snapshot → validation → apply → readback/probe → commit`
+
+При доказанном FAIL:
+
+`rollback → rollback verification`
+
+### Что изменилось относительно P16A
+
+P16A был библиотечным storage contract.
+
+P16B делает его частью Maintenance:
+
+- выбран постоянный storage root;
+- определена первая managed область;
+- появились list/get/state API;
+- появился ручной capture;
+- `LAST WORKING` доступен через guarded mutation;
+- появился diff;
+- появился restore preview.
+
+### Следующий этап — P16C
+
+P16C добавит реальное безопасное восстановление одного snapshot с проверкой до и после применения. До завершения P16C Config Vault остаётся read/capture/preview системой и не выполняет destructive restore.

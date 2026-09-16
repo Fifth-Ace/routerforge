@@ -28,6 +28,7 @@ func registerAdminMaintenanceRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/maintenance/restore", mutationOnly(handleAdminMaintenanceRestore))
 	registerAdminWatchdogRoutes(mux)
 	registerAdminSnapshotRoutes(mux)
+	registerAdminConfigVaultRoutes(mux)
 }
 
 func handleAdminMaintenanceLogs(w http.ResponseWriter, _ *http.Request) {

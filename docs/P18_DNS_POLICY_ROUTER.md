@@ -920,6 +920,82 @@ P18M намеренно **не** меняет `dns_module_main.go`.
 
 `production_driver_ready=false` сохраняется.
 
+## P18N — explicit CLI shadow-forwarder smoke harness
+
+P18N добавляет CLI-only режим:
+
+`routerforge-dns --policy-shadow-smoke`
+
+Default параметры:
+
+- listener: `127.0.0.1:55353`;
+- upstream: `1.1.1.1:53`;
+- per-query timeout: `3s`.
+
+Listener остаётся под P18M validation: только explicit loopback и port != 53.
+
+### Synthetic rules only
+
+Smoke не читает и не изменяет persisted policy document.
+
+Внутри процесса создаются два synthetic rules:
+
+- dedicated domain -> `Policy1`;
+- dedicated domain -> `Policy0`.
+
+Третий dedicated domain не имеет match и обязан пройти через evaluator fallback `System`.
+
+### End-to-end matrix
+
+Harness запускает один production `dnsPolicyShadowServer` и последовательно проверяет:
+
+- System / UDP -> reply;
+- System / TCP -> reply;
+- Policy1 / UDP -> reply;
+- Policy1 / TCP -> reply;
+- Policy0 / UDP -> no reply, fail-closed;
+- Policy0 / TCP -> no reply, fail-closed.
+
+Ответ считается валидным только если это DNS response с исходным transaction ID.
+
+### Exact mark evidence
+
+На время CLI smoke production `dnsPolicySetSocketMark` оборачивается без изменения его поведения:
+
+1. исходный setter ставит `SO_MARK`;
+2. `getsockopt(SO_MARK)` проверяет actual mark на том же fd;
+3. observed marks записываются в evidence.
+
+PASS требует минимум:
+
+- два observed `0xffffaab` — Policy1 UDP + TCP;
+- два observed `0xffffaaa` — Policy0 UDP + TCP.
+
+System не вызывает mark setter.
+
+### Lifetime
+
+CLI smoke:
+
+- стартует listener только внутри текущего процесса;
+- после матрицы отменяет context;
+- закрывает UDP/TCP listener;
+- завершается;
+- обычный daemon/runtime не запускается.
+
+### Safety boundary
+
+- package install не требуется;
+- native DNS :53 не bind'ится;
+- Keenetic config не меняется;
+- DHCP/DNS redirect не меняется;
+- persisted rules не меняются;
+- service restart не требуется;
+- public activation отсутствует;
+- production auto-start shadow listener отсутствует.
+
+`production_driver_ready=false` сохраняется.
+
 ## Следующий этап
 
-P18N — explicit CLI shadow-smoke harness: временно поднять loopback UDP/TCP listener на non-53 port, прогнать synthetic System/Policy1/Policy0 queries на реальном Keenetic и автоматически завершить listener без установки/takeover.
+После hardware PASS P18N — P18O shadow runtime hardening: telemetry/evidence, bounded concurrency, explicit error responses/metrics и preparation к controlled persisted-rule shadow mode; системный DNS takeover всё ещё запрещён.

@@ -17,10 +17,7 @@ import (
 	"time"
 )
 
-const (
-	soMark         = 36
-	soBindToDevice = 25
-)
+const soBindToDevice = 25
 
 type diagnosticRoute struct {
 	mode          string
@@ -119,24 +116,33 @@ func diagnoseUpstream(u UpstreamView) DiagnosticView {
 }
 
 func dialerForRoute(r diagnosticRoute, timeout time.Duration) *net.Dialer {
+	if r.mark != 0 {
+		target := DNSPolicyEgressTarget{
+			Policy: r.scope,
+			Mark:   r.mark,
+			Table:  r.table,
+		}
+		dialer, err := newDNSPolicyMarkedDialer(target, timeout)
+		if err == nil {
+			return dialer
+		}
+		return &net.Dialer{
+			Timeout: timeout,
+			Control: func(string, string, syscall.RawConn) error {
+				return err
+			},
+		}
+	}
+
 	d := &net.Dialer{Timeout: timeout}
-	if r.mark == 0 && r.interfaceName == "" {
+	if r.interfaceName == "" {
 		return d
 	}
-	d.Control = func(network, address string, c syscall.RawConn) error {
+
+	d.Control = func(_, _ string, c syscall.RawConn) error {
 		var sockErr error
 		if err := c.Control(func(fd uintptr) {
-			if r.mark != 0 {
-				if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, soMark, int(r.mark)); err != nil {
-					sockErr = err
-					return
-				}
-			}
-			if r.interfaceName != "" {
-				if err := syscall.SetsockoptString(int(fd), syscall.SOL_SOCKET, soBindToDevice, r.interfaceName); err != nil {
-					sockErr = err
-				}
-			}
+			sockErr = syscall.SetsockoptString(int(fd), syscall.SOL_SOCKET, soBindToDevice, r.interfaceName)
 		}); err != nil {
 			return err
 		}

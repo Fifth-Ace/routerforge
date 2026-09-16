@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"strconv"
@@ -8,18 +9,34 @@ import (
 	"time"
 )
 
+const (
+	defaultDNSPolicyShadowConcurrency = 32
+	maxDNSPolicyShadowConcurrency     = 256
+)
+
 type DNSPolicyShadowConfig struct {
-	ListenAddr string
-	Upstream   string
-	Rules      []DNSPolicyRule
-	Allowed    map[string]bool
-	Timeout    time.Duration
+	ListenAddr    string
+	Upstream      string
+	Rules         []DNSPolicyRule
+	Allowed       map[string]bool
+	Timeout       time.Duration
+	MaxConcurrent int
 }
 
 type DNSPolicyShadowPlan struct {
 	Message    DNSMessage
 	Evaluation DNSPolicyEvaluation
 	Target     DNSPolicyEgressTarget
+}
+
+type DNSPolicyShadowStats struct {
+	Requests          uint64
+	Successes         uint64
+	Failures          uint64
+	ServfailResponses uint64
+	InFlight          int
+	PeakInFlight      int
+	PolicySelections  map[string]uint64
 }
 
 func validateDNSPolicyShadowConfig(cfg DNSPolicyShadowConfig) (DNSPolicyShadowConfig, error) {
@@ -58,12 +75,18 @@ func validateDNSPolicyShadowConfig(cfg DNSPolicyShadowConfig) (DNSPolicyShadowCo
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 4 * time.Second
 	}
+	if cfg.MaxConcurrent == 0 {
+		cfg.MaxConcurrent = defaultDNSPolicyShadowConcurrency
+	}
+	if cfg.MaxConcurrent < 1 || cfg.MaxConcurrent > maxDNSPolicyShadowConcurrency {
+		return DNSPolicyShadowConfig{}, fmt.Errorf("shadow max concurrency must be between 1 and %d", maxDNSPolicyShadowConcurrency)
+	}
 	return cfg, nil
 }
 
 func planDNSPolicyShadowQuery(query []byte, clientIP string, cfg DNSPolicyShadowConfig, routes map[string]policyRoute) (DNSPolicyShadowPlan, error) {
 	msg, ok := parseDNSMessage(query)
-	if !ok || msg.QR || msg.QDCount == 0 || strings.TrimSpace(msg.QName) == "" {
+	if !ok || msg.QR || msg.QDCount != 1 || strings.TrimSpace(msg.QName) == "" {
 		return DNSPolicyShadowPlan{}, fmt.Errorf("invalid shadow DNS query")
 	}
 	evaluation, err := evaluateDNSPolicy(DNSPolicyEvaluationRequest{
@@ -80,4 +103,25 @@ func planDNSPolicyShadowQuery(query []byte, clientIP string, cfg DNSPolicyShadow
 		return DNSPolicyShadowPlan{}, err
 	}
 	return DNSPolicyShadowPlan{Message: msg, Evaluation: evaluation, Target: target}, nil
+}
+
+func buildDNSPolicyShadowFailureResponse(query []byte, rcode uint8) ([]byte, error) {
+	msg, ok := parseDNSMessage(query)
+	if !ok || msg.QR || msg.QDCount != 1 {
+		return nil, fmt.Errorf("cannot build shadow DNS failure response")
+	}
+	_, off, ok := parseDNSName(query, 12)
+	if !ok || off+4 > len(query) {
+		return nil, fmt.Errorf("cannot locate shadow DNS question")
+	}
+	response := append([]byte(nil), query[:off+4]...)
+	flags := binary.BigEndian.Uint16(response[2:4])
+	flags |= 0x8000
+	flags &^= 0x000f
+	flags |= uint16(rcode & 0x0f)
+	binary.BigEndian.PutUint16(response[2:4], flags)
+	binary.BigEndian.PutUint16(response[6:8], 0)
+	binary.BigEndian.PutUint16(response[8:10], 0)
+	binary.BigEndian.PutUint16(response[10:12], 0)
+	return response, nil
 }

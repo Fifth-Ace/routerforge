@@ -56,7 +56,7 @@ func main() {
 		fmt.Printf("LISTEN: %s\n", result.ListenAddr)
 		fmt.Printf("UPSTREAM: %s\n", result.Upstream)
 		for _, item := range result.Cases {
-			fmt.Printf("CASE: %s TRANSPORT=%s POLICY=%s WANT_MARK=%#x REPLY=%t", item.Name, item.Transport, item.Policy, item.WantMark, item.Reply)
+			fmt.Printf("CASE: %s TRANSPORT=%s POLICY=%s WANT_MARK=%#x REPLY=%t RCODE=%s", item.Name, item.Transport, item.Policy, item.WantMark, item.Reply, item.RCode)
 			if item.Error != "" {
 				fmt.Printf(" ERROR=%q", item.Error)
 			}
@@ -64,6 +64,14 @@ func main() {
 		}
 		fmt.Printf("POLICY1_MARK_COUNT: %d\n", countDNSPolicyShadowMark(result.Marks, 0x0ffffaab))
 		fmt.Printf("POLICY0_MARK_COUNT: %d\n", countDNSPolicyShadowMark(result.Marks, 0x0ffffaaa))
+		fmt.Printf("STATS_REQUESTS: %d\n", result.Stats.Requests)
+		fmt.Printf("STATS_SUCCESSES: %d\n", result.Stats.Successes)
+		fmt.Printf("STATS_FAILURES: %d\n", result.Stats.Failures)
+		fmt.Printf("STATS_SERVFAIL: %d\n", result.Stats.ServfailResponses)
+		fmt.Printf("STATS_PEAK_INFLIGHT: %d\n", result.Stats.PeakInFlight)
+		fmt.Printf("STATS_POLICY_SYSTEM: %d\n", result.Stats.PolicySelections["System"])
+		fmt.Printf("STATS_POLICY_POLICY1: %d\n", result.Stats.PolicySelections["Policy1"])
+		fmt.Printf("STATS_POLICY_POLICY0: %d\n", result.Stats.PolicySelections["Policy0"])
 		if err != nil {
 			fmt.Println("RESULT: FAIL")
 			fmt.Printf("ERROR: %v\n", err)

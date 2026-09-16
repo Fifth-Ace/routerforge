@@ -7,12 +7,12 @@
 **Русский** | [English](README_EN.md)
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.8.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/beta-0.8.0--beta.1-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/badge/stable-0.9.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/beta-0.8.5--beta.2-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#аппаратная-проверка)
 
-**RouterForge 0.8.0** — модульная веб-платформа для мониторинга, DNS-диагностики, управления и обслуживания роутеров **Keenetic / Netcraze с Entware**.
+**RouterForge 0.9.0** — модульная веб-платформа для мониторинга, DNS-диагностики, управления и обслуживания роутеров **Keenetic / Netcraze с Entware**.
 
 RouterForge не пытается быть универсальной панелью «для любого Linux». Платформа использует реальные возможности KeeneticOS/NDMS: `ndmc`, RCI, системные данные роутера, DNS, policy routing, таблицы маршрутизации и службы Entware. Core предоставляет единый Web UI, авторизацию, Центр приложений, общий API и хост Module ABI. DNS, Management, Monitoring и Network Tools устанавливаются отдельными пакетами и общаются с Core через root-owned Unix sockets.
 
@@ -22,11 +22,11 @@ RouterForge не пытается быть универсальной панел
 > **RouterForge — независимый некоммерческий проект сообщества.** Он не является официальным продуктом, подразделением или партнёрским проектом **Keenetic, Netcraze, Entware** и других упомянутых компаний или проектов. Все товарные знаки принадлежат их владельцам. Лицензия проекта — MIT.
 
 > [!TIP]
-> **Core и модули RouterForge версионируются независимо.** В Stable 0.8.0 изменённые `routerforge-core`, `routerforge-dns`, `routerforge-admin` и новый `routerforge-network-tools` имеют версию `0.8.0`; неизменённые `routerforge-monitoring` и `routerforge-profiling` остаются на `0.7.1`.
+> **Core и модули RouterForge версионируются независимо.** Stable 0.9.0: Core `0.9.0`, DNS `0.8.1`, Admin `0.8.1`, Monitoring `0.8.0`, Network Tools `0.9.0`, неизменённый Profiling `0.7.1`. Правила — в [Versioning Policy](docs/VERSIONING.md).
 >
 > [!NOTE]
-> **Stable 0.8.0** добавляет самостоятельный Network Tools, настраиваемый температурный warning threshold и исправления высоты модульных рабочих областей. Полный список — в [Release Notes 0.8.0](docs/RELEASE_NOTES_0.8.0.md).
-
+> **Stable 0.9.0** завершает Registry/Manifest Platform, Private Forgejo и Shared Safety Engines, добавляет App Center Jobs + History, rolling DNS health/explainability, Management guarded actions и крупное расширение Network Tools. Полный список — в [Release Notes 0.9.0](docs/RELEASE_NOTES_0.9.0.md).
+>
 > [!IMPORTANT]
 > Основная производственная архитектура — **ARM64 / `aarch64-3.10`**.
 >
@@ -129,7 +129,7 @@ RouterForge Core
 
 Внешний Web-порт платформы один: **2233**. `routerforge-profiling` по умолчанию доступен только на `127.0.0.1:6061`.
 
-## Официальные пакеты Stable 0.7.1
+## Официальные пакеты Stable 0.9.0
 
 | Пакет | Назначение |
 | --- | --- |
@@ -137,6 +137,7 @@ RouterForge Core
 | `routerforge-dns` | DNS runtime, UI, управление резолверами и диагностика |
 | `routerforge-admin` | Management v2, File Manager, Maintenance, Entware Terminal и Keenetic NDM Console |
 | `routerforge-monitoring` | единый System/Thermal/Storage/Network runtime + UI |
+| `routerforge-network-tools` | Network Doctor, Route Inspector, Flow Explorer и Active Probes |
 | `routerforge-profiling` | локальное профилирование Core |
 
 Свежая установка ставит Core. Остальные возможности выбираются через Центр приложений.
@@ -161,10 +162,10 @@ CI дополнительно проверяет cross-build, QEMU для MIPS/M
 - `curl` или `wget`;
 - production-рекомендация: ARM64 / `aarch64-3.10`.
 
-## Полный патчноут 0.7.1
+## Полный патчноут 0.9.0
 
-Полный список изменений **относительно Stable 0.6.1**:
-**[RouterForge 0.7.1 — полный патчноут](docs/RELEASE_NOTES_0.7.1.md)**
+Полный список изменений **относительно Stable 0.8.0**:
+**[RouterForge 0.9.0 — полный патчноут](docs/RELEASE_NOTES_0.9.0.md)**
 
 ## Быстрая установка — Stable
 
@@ -174,7 +175,7 @@ CI дополнительно проверяет cross-build, QEMU для MIPS/M
 
 После установки: `http://<ip-роутера>:2233`
 
-## Обновление с Stable 0.6.1
+## Обновление с Stable 0.8.0
 
 1. Запустить Stable bootstrap.
 2. Открыть **Центр приложений**.
@@ -208,7 +209,8 @@ ls -l /opt/var/run/routerforge-*.sock 2>/dev/null
 
 ## Документация
 
-- [Полный патчноут RouterForge 0.7.1](docs/RELEASE_NOTES_0.7.1.md)
+- [Полный патчноут RouterForge 0.9.0](docs/RELEASE_NOTES_0.9.0.md)
+- [Политика версионирования](docs/VERSIONING.md)
 - [Установка и обновление](docs/INSTALLATION.md)
 - [Модули](docs/MODULES.md)
 - [Management v2](docs/MANAGEMENT_V2_API.md)

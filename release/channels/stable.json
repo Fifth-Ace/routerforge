@@ -1,50 +1,56 @@
 {
   "schema_version": 1,
   "channel": "stable",
-  "release_version": "0.8.0",
+  "release_version": "0.9.0",
   "release_notes": {
     "ru": {
       "new": [
-        "Network Tools \u0432\u043f\u0435\u0440\u0432\u044b\u0435 \u0432\u0445\u043e\u0434\u0438\u0442 \u0432 Stable \u043a\u0430\u043a \u0441\u0430\u043c\u043e\u0441\u0442\u043e\u044f\u0442\u0435\u043b\u044c\u043d\u044b\u0439 \u043c\u043e\u0434\u0443\u043b\u044c \u0441 Network Doctor, Route Inspector, Flow Explorer \u0438 Active Probes \u0432\u043d\u0443\u0442\u0440\u0438 \u043e\u0431\u0449\u0435\u0433\u043e RouterForge shell.",
-        "\u0412 \u043e\u0431\u0449\u0438\u0445 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445 \u043f\u043e\u044f\u0432\u0438\u043b\u0441\u044f \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 \u043f\u043e\u0440\u043e\u0433 \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u044f \u043f\u043e \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0435 CPU; \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e 75 \u00b0C."
+        "App Center получил завершённую Registry / Manifest Platform: bundled manifests стали источником истины для интеграций, local/private sources получили namespaced identity, preview + explicit add с SHA-256 и conservative trust-модель.",
+        "Private Forgejo оформлен как hot-backup Git authority с fail-closed promotion/restore procedure; GitHub остаётся primary и автоматический Forgejo -> GitHub sync запрещён.",
+        "Shared Safety Engines объединяют path validation, atomic file/config writes, swap/rollback и bounded command execution для пользовательских control paths.",
+        "App Center получил Jobs + History, сохранение технических логов, безопасное открытие локальных Web UI и устойчивый переход между каналами.",
+        "Network Tools существенно расширен: Route Inspector и runtime/UI диагностика маршрутов и сетевого состояния."
       ],
       "fixes": [
-        "\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0430 \u043f\u0435\u0442\u043b\u044f \u0430\u0432\u0442\u043e-\u0432\u044b\u0441\u043e\u0442\u044b Network Tools, \u0438\u0437-\u0437\u0430 \u043a\u043e\u0442\u043e\u0440\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u043c\u043e\u0433\u043b\u0430 \u0431\u0435\u0441\u043a\u043e\u043d\u0435\u0447\u043d\u043e \u0440\u0430\u0441\u0442\u0438 \u0432\u043d\u0438\u0437.",
-        "Management/Admin \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u043b \u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u0443\u044e \u0432\u044b\u0441\u043e\u0442\u0443 \u0434\u043b\u0438\u043d\u043d\u044b\u0445 \u0432\u043a\u043b\u0430\u0434\u043e\u043a; \u0424\u0430\u0439\u043b\u044b \u0438 \u0422\u0435\u0440\u043c\u0438\u043d\u0430\u043b \u0441\u043d\u043e\u0432\u0430 \u0437\u0430\u043d\u0438\u043c\u0430\u044e\u0442 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0443\u044e \u0432\u044b\u0441\u043e\u0442\u0443 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0430.",
-        "Stable release tooling \u043e\u0431\u043d\u043e\u0432\u043b\u0451\u043d \u0441 \u043f\u044f\u0442\u0438 \u0434\u043e \u0448\u0435\u0441\u0442\u0438 \u043a\u043e\u043c\u043f\u043e\u043d\u0435\u043d\u0442\u043e\u0432 \u0438 \u0432\u0430\u043b\u0438\u0434\u0438\u0440\u0443\u0435\u0442 18 IPK \u0434\u043b\u044f \u0442\u0440\u0451\u0445 \u0430\u0440\u0445\u0438\u0442\u0435\u043a\u0442\u0443\u0440."
+        "DNS health переведён с накопительных lifetime-счётчиков на rolling window: старые ошибки больше не держат резолвер в вечном DEGRADED, NXDOMAIN информационный, а текущая причина проблемы показывается по конкретному резолверу.",
+        "Management same-origin actions работают при отключённой авторизации RouterForge; при включённой авторизации root-session остаётся обязательной. Cross-origin, exact-target confirmations и process/path guards сохранены.",
+        "Обновления между каналами выполняют модули до Core и Core последним; transient empty/invalid JSON во время рестарта Core обрабатывается явно.",
+        "Исправлены module UI caching/revisioning, history workspace, resolver details drawer и thermal sensor discovery/presentation на Keenetic."
       ],
       "compatibility": [
-        "routerforge-core, routerforge-dns, routerforge-admin \u0438 routerforge-network-tools \u0438\u043c\u0435\u044e\u0442 Stable-\u0432\u0435\u0440\u0441\u0438\u044e 0.8.0.",
-        "routerforge-monitoring \u0438 routerforge-profiling \u0444\u0443\u043d\u043a\u0446\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u043e \u043d\u0435 \u043c\u0435\u043d\u044f\u043b\u0438\u0441\u044c \u043e\u0442\u043d\u043e\u0441\u0438\u0442\u0435\u043b\u044c\u043d\u043e \u0442\u0435\u043a\u0443\u0449\u0435\u0433\u043e Stable \u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u044e\u0442 \u0432\u0435\u0440\u0441\u0438\u044e 0.7.1.",
-        "DNS, Admin \u0438 Network Tools \u0442\u0440\u0435\u0431\u0443\u044e\u0442 Core 0.8.0; Monitoring \u0438 Profiling \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u044e\u0442 min_core_version 0.7.1."
+        "Компоненты версионируются независимо: Core 0.9.0, DNS 0.8.1, Admin 0.8.1, Monitoring 0.8.0, Network Tools 0.9.0, Profiling 0.7.1.",
+        "DNS/Admin/Monitoring/Network Tools требуют Core 0.9.0; неизменённый Profiling сохраняет min_core_version 0.7.1.",
+        "Stable остаётся multiarch: aarch64-3.10 production; mipsel-3.4 и mips-3.4 experimental."
       ],
       "technical": [
-        "Stable 0.8.0 \u043f\u0440\u043e\u0434\u0432\u0438\u0433\u0430\u0435\u0442\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u0438\u0437 exact Dev SHA \u043f\u043e\u0441\u043b\u0435 successful FULL RELEASE \u0441 publish_beta=false.",
-        "Stable \u043f\u0443\u0431\u043b\u0438\u043a\u0443\u0435\u0442 6 \u043a\u043e\u043c\u043f\u043e\u043d\u0435\u043d\u0442\u043e\u0432 \u00d7 3 target = 18 IPK.",
-        "\u041f\u0435\u0440\u0435\u0434 Stable promotion Beta 0.8.0-beta.1 \u0431\u044b\u043b\u0430 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0430 \u0438 \u0438\u043d\u0442\u0435\u0440\u0430\u043a\u0442\u0438\u0432\u043d\u043e \u043f\u0440\u0438\u043d\u044f\u0442\u0430 \u043d\u0430 \u0442\u0435\u043a\u0443\u0449\u0435\u043c \u0430\u043f\u043f\u0430\u0440\u0430\u0442\u043d\u043e\u043c \u0442\u0435\u0441\u0442\u043e\u0432\u043e\u043c \u0440\u043e\u0443\u0442\u0435\u0440\u0435.",
-        "\u041f\u043e\u0441\u043b\u0435 rolling routerforge-stable \u0441\u043e\u0437\u0434\u0430\u0451\u0442\u0441\u044f immutable routerforge-v0.8.0."
+        "Stable 0.9.0 готовится относительно Stable 0.8.0; между базовым Stable SHA и release-prep базой накоплено 70 коммитов.",
+        "Stable promotion выполняется только из exact Dev SHA после успешного FULL RELEASE с publish_beta=false.",
+        "Публикуются 6 компонентов × 3 target = 18 IPK; rolling routerforge-stable обновляется только после валидации exact promotion artifact."
       ]
     },
     "en": {
       "new": [
-        "Network Tools enters Stable as a standalone module with Network Doctor, Route Inspector, Flow Explorer, and Active Probes inside the shared RouterForge shell.",
-        "Global settings now expose a user-selectable CPU temperature warning threshold with a 75 \u00b0C default."
+        "App Center now includes the completed Registry / Manifest Platform: bundled manifests are the integration source of truth, local/private sources use namespaced identity, explicit preview/add with SHA-256, and a conservative trust model.",
+        "Private Forgejo is documented as a hot-backup Git authority with fail-closed promotion/restore; GitHub remains primary and Forgejo -> GitHub synchronization is never automatic.",
+        "Shared Safety Engines centralize path validation, atomic file/config writes, swap/rollback and bounded command execution for user-facing control paths.",
+        "App Center now has Jobs + History, persisted technical logs, safe local Web UI opening and hardened channel transitions.",
+        "Network Tools received a substantial Route Inspector and runtime/UI diagnostics expansion."
       ],
       "fixes": [
-        "Fixed the Network Tools auto-height feedback loop that could grow the page indefinitely.",
-        "Management/Admin long views now size correctly; Files and Terminal again fill the available browser workspace.",
-        "Stable release tooling now validates six components and 18 IPKs across three architectures."
+        "DNS health now uses rolling windows rather than lifetime counters; historical errors no longer keep resolvers permanently DEGRADED, NXDOMAIN is informational, and current problems are attributed per resolver.",
+        "Management same-origin actions work when RouterForge authentication is disabled; auth-enabled deployments still require a root session. Cross-origin, exact-target and process/path guards remain.",
+        "Channel updates apply modules before Core and Core last; transient empty/invalid JSON during Core restart is handled explicitly.",
+        "Module UI caching/revisioning, history workspace behavior, resolver details and Keenetic thermal discovery/presentation were corrected."
       ],
       "compatibility": [
-        "routerforge-core, routerforge-dns, routerforge-admin, and routerforge-network-tools use Stable version 0.8.0.",
-        "routerforge-monitoring and routerforge-profiling are functionally unchanged relative to the current Stable and remain at version 0.7.1.",
-        "DNS, Admin, and Network Tools require Core 0.8.0; Monitoring and Profiling retain min_core_version 0.7.1."
+        "Components are independently versioned: Core 0.9.0, DNS 0.8.1, Admin 0.8.1, Monitoring 0.8.0, Network Tools 0.9.0, Profiling 0.7.1.",
+        "DNS/Admin/Monitoring/Network Tools require Core 0.9.0; unchanged Profiling keeps min_core_version 0.7.1.",
+        "Stable remains multi-arch: aarch64-3.10 production; mipsel-3.4 and mips-3.4 experimental."
       ],
       "technical": [
-        "Stable 0.8.0 is promoted only from an exact Dev SHA after a successful FULL RELEASE with publish_beta=false.",
-        "Stable publishes 6 components \u00d7 3 targets = 18 IPKs.",
-        "Before Stable promotion, Beta 0.8.0-beta.1 was installed and interactively accepted on the current hardware test router.",
-        "Immutable routerforge-v0.8.0 is created after the rolling Stable channel is coherent."
+        "Stable 0.9.0 is prepared relative to Stable 0.8.0; 70 commits separate the Stable base SHA from the release-prep base.",
+        "Stable promotion is allowed only from an exact Dev SHA after successful FULL RELEASE validation with publish_beta=false.",
+        "Stable publishes 6 components × 3 targets = 18 IPKs; the rolling routerforge-stable channel is updated only after exact promotion artifact validation."
       ]
     }
   },
@@ -52,31 +58,31 @@
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.8.0"
+      "version": "0.9.0"
     },
     {
       "id": "dns",
       "package": "routerforge-dns",
-      "version": "0.8.0",
-      "min_core_version": "0.8.0"
+      "version": "0.8.1",
+      "min_core_version": "0.9.0"
     },
     {
       "id": "admin",
       "package": "routerforge-admin",
-      "version": "0.8.0",
-      "min_core_version": "0.8.0"
+      "version": "0.8.1",
+      "min_core_version": "0.9.0"
     },
     {
       "id": "monitoring",
       "package": "routerforge-monitoring",
-      "version": "0.7.1",
-      "min_core_version": "0.7.1"
+      "version": "0.8.0",
+      "min_core_version": "0.9.0"
     },
     {
       "id": "network-tools",
       "package": "routerforge-network-tools",
-      "version": "0.8.0",
-      "min_core_version": "0.8.0"
+      "version": "0.9.0",
+      "min_core_version": "0.9.0"
     },
     {
       "id": "profiling",

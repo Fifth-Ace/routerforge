@@ -4,6 +4,21 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-16 — RouterForge 0.9.0 (release preparation)
+
+### Versioning
+- Platform release: `0.9.0`.
+- Independent component versions: Core `0.9.0`, DNS `0.8.1`, Admin `0.8.1`, Monitoring `0.8.0`, Network Tools `0.9.0`, Profiling `0.7.1`.
+- Versioning policy is documented in `docs/VERSIONING.md`.
+
+### Highlights since Stable 0.8.0
+- Registry / Manifest Platform, Private Forgejo and Shared Safety Engines are complete.
+- App Center gained Jobs + History, persisted technical logs, safe local Web UI opening and hardened channel transitions.
+- DNS gained rolling health/explainability and installed-only health settings; historical counters no longer keep resolvers permanently DEGRADED.
+- Management same-origin actions work with RouterForge auth disabled while auth-enabled root-session and cross-origin/exact-target guards remain.
+- Monitoring thermal discovery/runtime was hardened for Keenetic/NDMS/sysfs.
+- Network Tools received a substantial Route Inspector/runtime/UI expansion.
+- Full details: `docs/RELEASE_NOTES_0.9.0.md`.
 ## 2026-09-16 — RouterForge 0.8.5-beta.2
 
 ### Platform / safety

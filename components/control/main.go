@@ -26,7 +26,7 @@ import (
 const (
 	defaultSocket                    = "/opt/var/run/routerforge-admin.sock"
 	adminMutationAuthorizationHeader = "X-RouterForge-Admin-Authorized"
-	adminMutationAuthorizationValue  = "session-root-v1"
+	adminMutationAuthorizationValue  = "core-authorized-v1"
 	adminMutationResponseOutputLimit = 16 * 1024
 )
 
@@ -170,7 +170,7 @@ func main() {
 			"api_version":   1,
 			"mode":          "control",
 			"mutation_api":  true,
-			"mutation_auth": "root-session",
+			"mutation_auth": "core-guarded",
 			"ui_mutations":  true,
 		})
 	}))
@@ -261,7 +261,7 @@ func mutationOnly(next http.HandlerFunc) http.HandlerFunc {
 		}
 		if r.Header.Get(adminMutationAuthorizationHeader) != adminMutationAuthorizationValue {
 			writeJSON(w, http.StatusForbidden, map[string]any{
-				"error":        "authorized RouterForge Core session required",
+				"error":        "authorized RouterForge Core request required",
 				"mutation_api": true,
 			})
 			return

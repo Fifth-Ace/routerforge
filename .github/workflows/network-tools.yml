@@ -89,7 +89,7 @@ jobs:
           actual = [item.get("id") for item in doc.get("components", [])]
           if actual != expected:
               raise SystemExit(f"unexpected Dev component order: {actual!r}")
-          if doc.get("release_version") != "0.8.0~dev":
+          if doc.get("release_version") != "0.8.5~dev":
               raise SystemExit(f"unexpected Dev release train: {doc.get('release_version')!r}")
           print("DEV_NETWORK_TOOLS_TOPOLOGY=PASS")
           PY
@@ -209,7 +209,7 @@ jobs:
         run: |
           set -eu
           SHORT_SHA="$(printf '%s' "$GITHUB_SHA" | cut -c1-12)"
-          VERSION="0.8.0~dev.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          VERSION="0.8.5~dev.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
           ./scripts/build-network-tools-opkg.sh "$VERSION"
 
           file="dist/routerforge-network-tools_${VERSION}_aarch64-3.10.ipk"

@@ -374,8 +374,15 @@
     }
   }
 
+  function historyLogText(job) {
+    const lines = [...(job?.lines || [])];
+    const error = String(job?.error || '').trim();
+    if (error) lines.unshift(`[ERROR] ${error}`, '');
+    return lines.join('\n');
+  }
+
   async function copyHistoryLog() {
-    const text = (selectedHistoryJob?.lines || []).join('\n');
+    const text = historyLogText(selectedHistoryJob);
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -1519,10 +1526,6 @@
     </div>
 
     <div class="app-history-sheet-surface">
-      {#if selectedHistoryJob.error}
-        <div class="catalog-install-notice error app-history-sheet-error">{selectedHistoryJob.error}</div>
-      {/if}
-
       <aside class="app-history-sheet-summary mono">
         <div><span>{locale === 'ru' ? 'Канал' : 'Channel'}</span><strong>{historyChannel(selectedHistoryJob).toUpperCase() || '—'}</strong></div>
         <div><span>{locale === 'ru' ? 'Версия' : 'Version'}</span><strong>{historyVersion(selectedHistoryJob) || '—'}</strong></div>
@@ -1539,7 +1542,7 @@
           <strong>{locale === 'ru' ? 'Технический лог' : 'Technical log'}</strong>
           <span>{locale === 'ru' ? 'Полный вывод пакетного менеджера' : 'Full package-manager output'}</span>
         </div>
-        <pre class="app-history-sheet-log-body mono">{selectedHistoryJob.lines?.length ? selectedHistoryJob.lines.join('\n') : (locale === 'ru' ? 'Лог отсутствует.' : 'No log available.')}</pre>
+        <pre class="app-history-sheet-log-body mono" class:error-log={Boolean(selectedHistoryJob.error)}>{historyLogText(selectedHistoryJob) || (locale === 'ru' ? 'Лог отсутствует.' : 'No log available.')}</pre>
       </div>
     </div>
 
@@ -1796,7 +1799,10 @@
   }
   .app-history-sheet-backdrop {
     position:fixed;
-    inset:0;
+    top:41px;
+    left:241px;
+    right:0;
+    bottom:0;
     z-index:998;
     background:rgba(0,0,0,.58);
     backdrop-filter:blur(1.5px);
@@ -1805,10 +1811,11 @@
   .app-history-sheet {
     position:fixed;
     z-index:999;
-    top:0;
-    left:0;
+    top:41px;
+    left:241px;
     right:0;
-    height:75vh;
+    bottom:0;
+    height:auto;
     min-height:0;
     display:grid;
     grid-template-rows:auto auto minmax(0,1fr) auto;
@@ -1967,13 +1974,7 @@
     background:var(--rf-bg,#0b0d10);
     overflow:hidden;
   }
-  .app-history-sheet-error {
-    position:absolute;
-    z-index:2;
-    left:1rem;
-    right:1rem;
-    margin-top:.75rem;
-  }
+
   .app-history-sheet-summary {
     min-width:0;
     min-height:0;
@@ -2026,6 +2027,9 @@
     color:var(--rf-muted,#8d98a4);
     font-size:.64rem;
   }
+  .app-history-sheet-log-body.error-log {
+    color:color-mix(in srgb,var(--bad,#f85149) 62%,var(--rf-text,#f5f7fa));
+  }
   .app-history-sheet-log-body {
     box-sizing:border-box;
     min-width:0;
@@ -2042,6 +2046,12 @@
     word-break:break-word;
     font:12.5px/1.55 "Roboto Mono","Cascadia Mono",Consolas,monospace;
     scrollbar-width:thin;
+  }
+  @media(max-width:900px) {
+    .app-history-sheet-backdrop,
+    .app-history-sheet {
+      left:0;
+    }
   }
   @media(max-width:760px) {
     .app-history-sheet { height:78vh; }

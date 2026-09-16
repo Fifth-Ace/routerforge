@@ -299,16 +299,16 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":                true,
-		"restored_from":     path,
-		"restored_root":     adminMaintenanceConfigRoot,
-		"config_entries":    inspection.ConfigEntries,
-		"config_bytes":      inspection.ConfigBytes,
-		"ignored_entries":   inspection.IgnoredEntries,
-		"safety_backup":          safetyBackup.Path,
+		"ok":                    true,
+		"restored_from":         path,
+		"restored_root":         adminMaintenanceConfigRoot,
+		"config_entries":        inspection.ConfigEntries,
+		"config_bytes":          inspection.ConfigBytes,
+		"ignored_entries":       inspection.IgnoredEntries,
+		"safety_backup":         safetyBackup.Path,
 		"config_vault_snapshot": prechange.SnapshotID,
-		"restart_required":       true,
-		"automatic_restart": false,
+		"restart_required":      true,
+		"automatic_restart":     false,
 	})
 }
 

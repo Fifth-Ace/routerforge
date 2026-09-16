@@ -159,6 +159,67 @@ P18C — **persist-only**:
 
 Это отделяет безопасную конфигурационную mutation boundary от будущей runtime activation.
 
+## P18D — persisted-rule evaluation + activation preview
+
+P18D связывает persisted store с evaluator, но по-прежнему не активирует rules в live DNS runtime.
+
+### Persisted evaluation
+
+`POST /v1/policy-rules/evaluate`
+
+Тело содержит только request context:
+
+- `client_ip`;
+- `domain`;
+- `qtype`.
+
+Rules из запроса не принимаются. Runtime:
+
+1. загружает versioned persisted document;
+2. читает live Keenetic policy inventory;
+3. повторно валидирует сохранённые rules;
+4. запускает тот же deterministic evaluator из P18B.
+
+Ответ содержит:
+
+- `source=persisted`;
+- `document_version`;
+- `updated_at`;
+- `persisted=true`;
+- `activated=false`;
+- explainable evaluation result.
+
+Если сохранённая policy больше не существует в live inventory, endpoint возвращает conflict и не пытается оценивать устаревший rule set.
+
+### Activation preview
+
+`GET /v1/policy-rules/activation-preview`
+
+Preview показывает только уже доказуемую границу будущей активации:
+
+- persisted rule count;
+- current active policy-router rule count = `0`;
+- policy identities, используемые сохранёнными rules;
+- readiness после live-policy validation;
+- `activated=false`;
+- структурированный `changes` и `evidence`.
+
+Current state `0 active policy-router rules` следует из текущего P18C/P18D контракта: сохранённые policy rules ещё не подключены к live DNS traffic path.
+
+Preview **не симулирует неизвестный будущий dataplane** и не делает RCI mutation.
+
+### Safety boundary
+
+P18D остаётся preview-only:
+
+- сохранённый rule set можно dry-run'ить;
+- readiness зависит от текущего Keenetic policy inventory;
+- live DNS traffic не меняется;
+- resolver configuration не меняется;
+- Keenetic policy bindings не меняются;
+- activation endpoint отсутствует;
+- activation preview не требует mutation header.
+
 ## Следующий этап
 
-P18D — persisted-rule evaluation + activation preview: dry-run должен уметь брать сохранённый rule set и показывать diff/evidence будущей runtime activation, всё ещё без изменения живого DNS-трафика.
+P18E — activation transaction design: определить точный runtime apply/verify/rollback контракт и evidence до появления любого enable/apply endpoint.

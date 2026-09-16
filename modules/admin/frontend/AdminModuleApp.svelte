@@ -166,7 +166,7 @@
     filePrompt: 'Имя нового файла',
     empty: 'Пусто',
     dirty: 'Есть несохранённые изменения',
-    mutationLocked: 'Изменения требуют активной root-сессии RouterForge.',
+    mutationLocked: 'Действия разрешены. Опасные операции защищены проверкой цели и явным подтверждением.',
     noPreview: 'Предпросмотр доступен только для UTF-8 текстовых файлов до 256 KiB.',
     editorReadOnly: 'Только просмотр: редактирование ограничено 128 KiB.'
   } : {
@@ -223,7 +223,7 @@
     filePrompt: 'New file name',
     empty: 'Empty',
     dirty: 'Unsaved changes',
-    mutationLocked: 'Mutations require an active RouterForge root session.',
+    mutationLocked: 'Actions are enabled. Destructive operations remain protected by exact-target checks and explicit confirmation.',
     noPreview: 'Preview supports UTF-8 text files up to 256 KiB only.',
     editorReadOnly: 'Read-only preview: editing is limited to 128 KiB.'
   };
@@ -693,7 +693,7 @@
     <div class="admin-safety-main"><strong>ROUTERFORGE CONTROL</strong><span>{copy.mutationLocked}</span></div>
     <div class="admin-lock-groups mono">
       <span class="admin-lock-group"><em>{t(locale, 'manage.inspect')}</em><strong>{t(locale, 'manage.enabled')}</strong></span>
-      <span class="admin-lock-group"><em>{t(locale, 'manage.mutate')}</em><strong>GUARDED</strong></span>
+      <span class="admin-lock-group"><em>{t(locale, 'manage.mutate')}</em><strong>{t(locale, 'manage.enabled')} · GUARDED</strong></span>
     </div>
   </div>
 

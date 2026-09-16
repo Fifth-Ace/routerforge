@@ -43,7 +43,7 @@ type moduleProxyContextKey string
 const (
 	adminMutationAuthorizedKey       moduleProxyContextKey = "admin-mutation-authorized"
 	adminMutationAuthorizationHeader                       = "X-RouterForge-Admin-Authorized"
-	adminMutationAuthorizationValue                        = "session-root-v1"
+	adminMutationAuthorizationValue                        = "core-authorized-v1"
 )
 
 func moduleMutationAPI(moduleID string) bool {
@@ -199,17 +199,21 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 				})
 				return
 			}
-			requireRootSession := (adminMutation && !adminFiles && !adminTerminal) ||
-				((adminFiles || adminTerminal) && auth.authRequired())
+			// RouterForge commonly runs with its own login disabled on a trusted
+			// router LAN. In that mode, same-origin requests are the user-presence
+			// boundary and the Admin module's own exact-target/confirm/path guards
+			// remain authoritative. If RouterForge authentication is enabled,
+			// every guarded Admin action still requires an authenticated root user.
+			requireRootSession := auth.authRequired()
 			if requireRootSession {
 				user, authenticated := auth.sessionUser(r)
 				if !authenticated || user != "root" {
-					message := "authenticated Entware root session required for Admin mutation"
+					message := "authenticated RouterForge root session required for Admin mutation"
 					if adminFiles && !adminMutation {
-						message = "authenticated Entware root session required for Admin file access"
+						message = "authenticated RouterForge root session required for Admin file access"
 					}
 					if adminTerminal && !adminMutation {
-						message = "authenticated Entware root session required for Admin terminal access"
+						message = "authenticated RouterForge root session required for Admin terminal access"
 					}
 					writeModuleJSON(w, http.StatusUnauthorized, map[string]any{
 						"error":         message,

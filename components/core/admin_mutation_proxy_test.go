@@ -30,8 +30,49 @@ func TestAdminMutationMethodMatrix(t *testing.T) {
 	}
 }
 
-func TestSecuredModuleProxyRequiresSessionEvenWhenGlobalAuthDisabled(t *testing.T) {
+func TestSecuredModuleProxyAllowsSameOriginMutationWhenAuthDisabled(t *testing.T) {
+	socket := filepath.Join(t.TempDir(), "admin.sock")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+
+	markerSeen := make(chan bool, 1)
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		markerSeen <- r.Header.Get(adminMutationAuthorizationHeader) == adminMutationAuthorizationValue
+		w.WriteHeader(http.StatusOK)
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+
+	oldSockets := moduleSockets
+	moduleSockets = map[string][]string{"admin": {socket}}
+	t.Cleanup(func() { moduleSockets = oldSockets })
+
 	auth, _ := testAdminAuthManager()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/modules/admin/processes/123/signal", strings.NewReader(`{"signal":"TERM","confirm_pid":123}`))
+	req.Host = "router.local"
+	req.Header.Set("Origin", "http://router.local")
+	securedModuleProxy(auth)(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d want=200 body=%s", rec.Code, rec.Body.String())
+	}
+	select {
+	case ok := <-markerSeen:
+		if !ok {
+			t.Fatal("same-origin no-auth mutation did not receive canonical internal marker")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("upstream marker observation timed out")
+	}
+}
+
+func TestSecuredModuleProxyRequiresRootSessionWhenAuthEnabled(t *testing.T) {
+	auth, _ := testAdminAuthManager()
+	auth.config.AuthRequired = true
+
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/modules/admin/processes/123/signal", strings.NewReader(`{"signal":"TERM","confirm_pid":123}`))
 	req.Host = "router.local"

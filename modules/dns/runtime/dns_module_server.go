@@ -322,6 +322,39 @@ func (s *dnsModuleServer) Serve() error {
 			"mutation_api": false,
 		})
 	}))
+	mux.HandleFunc("/v1/policy-rules/activation-transaction-design", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		doc, err := s.policyStore.Load()
+		if err != nil {
+			s.writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		inventory, err := readDNSPolicyInventory()
+		if err != nil {
+			s.writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "source": "keenetic-rci"})
+			return
+		}
+		allowed := make(map[string]bool, len(inventory))
+		for _, policy := range inventory {
+			allowed[policy.Proxy] = true
+		}
+		rules, err := validateDNSPolicyRules(doc.Rules, allowed)
+		if err != nil {
+			s.writeJSON(w, http.StatusConflict, map[string]any{
+				"error":                err.Error(),
+				"activation_available": false,
+				"activated":            false,
+				"ready":                false,
+			})
+			return
+		}
+		design := buildDNSPolicyActivationTransactionDesign(doc, rules)
+		s.writeJSON(w, http.StatusOK, map[string]any{
+			"design":               design,
+			"activation_available": false,
+			"activated":            false,
+			"mutation_api":         false,
+		})
+	}))
 	mux.HandleFunc("/v1/policies/evaluate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "POST")

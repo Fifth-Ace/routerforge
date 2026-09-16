@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
 )
 
 const dnsPolicyRulesSchemaVersion = 1
@@ -93,6 +95,112 @@ func buildDNSPolicyActivationPreview(doc DNSPolicyRulesDocument, rules []DNSPoli
 			fmt.Sprintf("schema version %d accepted", doc.Version),
 			"rules validated against live Keenetic policy inventory",
 			"runtime activation remains disabled",
+		},
+	}
+}
+
+type DNSPolicyActivationStageDesign struct {
+	State            transaction.State `json:"state"`
+	Purpose          string            `json:"purpose"`
+	RequiredEvidence []string          `json:"required_evidence"`
+	OnFailure        string            `json:"on_failure"`
+}
+
+type DNSPolicyActivationTransactionDesign struct {
+	Component           string                           `json:"component"`
+	DocumentVersion     int                              `json:"document_version"`
+	PersistedRules      int                              `json:"persisted_rules"`
+	ActivationAvailable bool                             `json:"activation_available"`
+	MutatesRuntime      bool                             `json:"mutates_runtime"`
+	Stages              []DNSPolicyActivationStageDesign `json:"stages"`
+	TerminalStates      []transaction.State              `json:"terminal_states"`
+	RollbackArtifacts   []string                         `json:"rollback_artifacts"`
+	CommitGate          []string                         `json:"commit_gate"`
+}
+
+func buildDNSPolicyActivationTransactionDesign(doc DNSPolicyRulesDocument, rules []DNSPolicyRule) DNSPolicyActivationTransactionDesign {
+	return DNSPolicyActivationTransactionDesign{
+		Component:           "dns-policy-router",
+		DocumentVersion:     doc.Version,
+		PersistedRules:      len(rules),
+		ActivationAvailable: false,
+		MutatesRuntime:      false,
+		Stages: []DNSPolicyActivationStageDesign{
+			{
+				State:   transaction.Precheck,
+				Purpose: "prove the persisted rule set and live policy inventory are usable before any runtime change",
+				RequiredEvidence: []string{
+					"persisted document loaded",
+					"schema version accepted",
+					"all rules validate against current Keenetic policy inventory",
+				},
+				OnFailure: "failed; no runtime mutation is permitted",
+			},
+			{
+				State:   transaction.Snapshot,
+				Purpose: "capture exact pre-activation runtime policy-router state and desired persisted document identity",
+				RequiredEvidence: []string{
+					"pre-activation runtime snapshot captured",
+					"desired persisted document identity captured",
+					"rollback artifact is readable before apply",
+				},
+				OnFailure: "failed; no runtime mutation is permitted",
+			},
+			{
+				State:   transaction.Validated,
+				Purpose: "freeze the canonical desired rule set and activation plan after snapshot creation",
+				RequiredEvidence: []string{
+					"canonical validated rules frozen",
+					"policy inventory rechecked after snapshot",
+					"activation input is unchanged since precheck",
+				},
+				OnFailure: "failed; no runtime mutation is permitted",
+			},
+			{
+				State:   transaction.Applied,
+				Purpose: "future activation implementation atomically installs the staged runtime policy-router state",
+				RequiredEvidence: []string{
+					"apply operation returned success",
+					"runtime accepted the staged policy-router configuration",
+				},
+				OnFailure: "attempt rollback to the exact pre-activation snapshot; unresolved state becomes ambiguous",
+			},
+			{
+				State:   transaction.Verified,
+				Purpose: "prove the active runtime state matches the staged desired configuration before commit",
+				RequiredEvidence: []string{
+					"active runtime identity matches staged desired identity",
+					"runtime health check passes",
+					"policy-router evaluation probes match the staged rule set",
+				},
+				OnFailure: "rollback to the exact pre-activation snapshot and verify recovery; unresolved state becomes ambiguous",
+			},
+			{
+				State:   transaction.Committed,
+				Purpose: "declare activation successful only after verification evidence is complete",
+				RequiredEvidence: []string{
+					"all required verification evidence passed",
+					"transaction manifest is terminal and immutable",
+				},
+				OnFailure: "not applicable; commit is reached only after verified state",
+			},
+		},
+		TerminalStates: []transaction.State{
+			transaction.Committed,
+			transaction.RolledBack,
+			transaction.Ambiguous,
+			transaction.Failed,
+		},
+		RollbackArtifacts: []string{
+			"exact pre-activation runtime policy-router snapshot",
+			"desired persisted policy document identity",
+			"transaction evidence manifest",
+		},
+		CommitGate: []string{
+			"active runtime identity equals staged desired identity",
+			"runtime health is good",
+			"policy-router evaluation probes pass",
+			"no unresolved rollback or ambiguous evidence exists",
 		},
 	}
 }

@@ -33,6 +33,7 @@ build_dns() {
     dns_presets.go
     dns_rci.go
     dns_policy.go
+    dns_policy_store.go
     capture_linux.go
     client_capture_linux.go
     packet_filter.go

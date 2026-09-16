@@ -35,6 +35,7 @@ build_dns() {
     dns_policy.go
     dns_policy_store.go
     dns_policy_activation.go
+    dns_policy_adapter.go
     capture_linux.go
     client_capture_linux.go
     packet_filter.go

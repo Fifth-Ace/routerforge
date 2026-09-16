@@ -314,6 +314,83 @@ P18E remains design-only:
 - no live DNS traffic mutation;
 - no RCI mutation.
 
+## P18F — activation engine foundation behind tests/fakes
+
+P18F реализует внутренний activation transaction executor, но не подключает его к HTTP/API и не создаёт production runtime driver.
+
+Новый internal engine принимает только абстрактный `dnsPolicyActivationDriver`:
+
+- `Precheck`;
+- `Snapshot`;
+- `Validate`;
+- `Apply`;
+- `Verify`;
+- `Rollback`;
+- `VerifyRollback`.
+
+Production driver отсутствует. В P18F engine вызывается только тестами с fake driver.
+
+### State-machine execution
+
+Успешный путь:
+
+`precheck → snapshot → validated → applied → verified → committed`
+
+Engine использует существующий `internal/platform/transaction`.
+
+Критически важно: engine входит в state `applied` **до** вызова `Apply`.
+
+Причина: apply может частично изменить runtime и вернуть error. Поэтому любой error после входа в applied обязан пройти через rollback path, а не может завершиться обычным `failed` с неизвестным состоянием runtime.
+
+### Failure semantics
+
+До apply:
+
+- precheck/snapshot/validation failure → `failed`;
+- runtime mutation ещё не разрешена.
+
+После входа в applied:
+
+- apply failure → rollback + rollback verification;
+- verify failure → rollback + rollback verification;
+- успешный rollback + verification → `rolled-back`;
+- rollback failure → `ambiguous`;
+- rollback verification failure → `ambiguous`.
+
+`committed` достигается только после успешного `Verify`.
+
+### Evidence
+
+Engine записывает shared transaction evidence:
+
+- precheck result;
+- snapshot identity/rule count;
+- validated rule count;
+- apply result;
+- verify result;
+- rollback/recovery evidence;
+- rollback verification evidence;
+- committed terminal evidence.
+
+Ошибки возвращаются через `transaction.Wrap`, поэтому manifest доступен через `transaction.Extract`.
+
+### Build ABI
+
+`dns_policy_activation.go` включён в explicit DNS Module ABI source list в `scripts/build-module-opkg.sh`.
+
+Таким образом production-like Dev package build проверяет compile совместимость engine даже при отсутствии production driver/API wiring.
+
+### Safety boundary
+
+P18F всё ещё не активирует routing:
+
+- public activation endpoint отсутствует;
+- production activation driver отсутствует;
+- server не вызывает executor;
+- RCI mutation отсутствует;
+- live DNS traffic не меняется;
+- persisted rules остаются inactive.
+
 ## Следующий этап
 
-P18F — activation engine foundation: implement an internal transaction executor behind tests/fakes only, with no public activation endpoint, so apply/verify/rollback mechanics can be proven before exposing mutation to users.
+P18G — runtime adapter discovery + contract tests: определить существующие RouterForge/Keenetic primitives, которыми можно безопасно реализовать production driver, и проверить snapshot/apply/verify/rollback adapter contract до подключения executor к API.

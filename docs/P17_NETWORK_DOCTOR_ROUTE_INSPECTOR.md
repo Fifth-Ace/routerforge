@@ -1,4 +1,4 @@
-# P17A–P17B — Network Doctor + Route Inspector
+# P17A–P17C — Network Doctor + Route Inspector
 
 P17A связывает уже существующие Network Doctor и Route Inspector в один маршрутный диагностический контур.
 
@@ -106,3 +106,38 @@ Fault-domain verdict теперь отдаёт более точные коды:
 - `route_source_mismatch` → `local`.
 
 P17B остаётся read-only: mutation API не добавляется, маршруты/правила не изменяются.
+## P17C — actionable diagnosis
+
+P17C завершает диагностический контур Network Doctor: итоговый verdict теперь сопровождается безопасным списком следующих проверок.
+
+`diagnosis.actions` содержит machine-readable элементы:
+
+- `id` — стабильный идентификатор следующей проверки;
+- `priority` — `high` или `medium`;
+- `fault_domain` — область, к которой относится проверка;
+- `detail` — краткое объяснение.
+
+Примеры:
+
+- routing failure → проверить target route и policy rules;
+- kernel egress failure → проверить фактически выбранный интерфейс;
+- source mismatch → проверить назначение source address и source-based PBR;
+- DNS failure → проверить resolver/DNS policy;
+- upstream failure → проверить gateway и upstream;
+- service failure → проверить порт, сервис и удалённую фильтрацию.
+
+Для `healthy` список действий пустой: Doctor не предлагает бессмысленные изменения, когда критическая проблема не обнаружена.
+
+UI показывает блок «Что проверить дальше / Next checks» непосредственно под диагностической цепочкой.
+
+Все действия остаются **рекомендациями**, а не mutation API. P17C ничего не меняет в маршрутах, интерфейсах, DNS, firewall или policy rules.
+
+## P17 status
+
+P17 Network Doctor + Route Inspector завершён:
+
+- P17A — единый kernel-aware route decision;
+- P17B — path explainability и consistency diagnostics;
+- P17C — actionable diagnosis.
+
+Следующий workstream: **P18 DNS Policy Router**.

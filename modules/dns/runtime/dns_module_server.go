@@ -31,7 +31,7 @@ func newDNSModuleServer(store *Store, version, socket, uiPath string) *dnsModule
 		socket:  socket,
 		uiPath:  uiPath,
 		started: time.Now(),
-		control: newDNSControlManager(newDNSRCIClient("http://127.0.0.1:79/rci"), "/opt/etc/routerforge/dns-disabled.json"),
+		control: newDNSControlManager(newDNSRCIClient("http://127.0.0.1:79/rci"), "/opt/etc/routerforge/dns-disabled.json", newDNSRuntimeProbe(socket)),
 	}
 }
 

@@ -167,10 +167,15 @@ type dnsControlManager struct {
 	mu           sync.Mutex
 	rci          *dnsRCIClient
 	disabledPath string
+	runtimeProbe func(context.Context) error
 }
 
-func newDNSControlManager(rci *dnsRCIClient, disabledPath string) *dnsControlManager {
-	return &dnsControlManager{rci: rci, disabledPath: disabledPath}
+func newDNSControlManager(rci *dnsRCIClient, disabledPath string, runtimeProbe ...func(context.Context) error) *dnsControlManager {
+	manager := &dnsControlManager{rci: rci, disabledPath: disabledPath}
+	if len(runtimeProbe) > 0 {
+		manager.runtimeProbe = runtimeProbe[0]
+	}
+	return manager
 }
 
 func previewDNSResolver(spec DNSResolverSpec) (DNSResolverPreview, error) {
@@ -521,7 +526,7 @@ func (m *dnsControlManager) Enable(ctx context.Context, id string) (DNSMutationR
 // back on any mismatch. afterVerify runs only after native verification and is
 // used for RouterForge-only metadata such as temporarily disabled resolvers.
 func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfigState, changed map[string]bool, afterVerify func() error) error {
-	if err := validateDNSPhysicalLimits(desired, changed); err != nil {
+	if err := validateDNSMutationDesired(desired, changed); err != nil {
 		return err
 	}
 	before, err := m.loadState(ctx)
@@ -564,6 +569,13 @@ func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfi
 			}
 			return fmt.Errorf("metadata write failed; native configuration rolled back: %w", err)
 		}
+	}
+	if err := m.runRuntimeProbe(ctx); err != nil {
+		rollbackErr := m.restoreProtocols(ctx, before, changed)
+		if rollbackErr != nil {
+			return fmt.Errorf("DNS runtime probe failed: %v; native rollback FAILED: %v", err, rollbackErr)
+		}
+		return fmt.Errorf("DNS runtime probe failed; native configuration rolled back: %w", err)
 	}
 	return nil
 }

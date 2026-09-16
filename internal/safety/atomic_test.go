@@ -105,3 +105,27 @@ func TestWriteFileAtomicRejectsEmptyDestination(t *testing.T) {
 		t.Fatal("empty destination must be rejected")
 	}
 }
+
+func TestCreateExclusiveFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "exclusive.dat")
+	file, err := CreateExclusiveFile(path, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.WriteString("x"); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := CreateExclusiveFile(path, 0o600); err == nil {
+		t.Fatal("existing path must be rejected")
+	}
+}
+
+func TestCreateExclusiveFileRejectsEmptyPath(t *testing.T) {
+	if _, err := CreateExclusiveFile("", 0o600); err == nil {
+		t.Fatal("empty path must be rejected")
+	}
+}

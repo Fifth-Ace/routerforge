@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -150,7 +152,7 @@ func createAdminSnapshot() (string, int64, error) {
 
 	name := fmt.Sprintf("routerforge-snapshot-%d.json", time.Now().UnixNano())
 	path := filepath.Join(adminSnapshotRoot, name)
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	file, err := safety.CreateExclusiveFile(path, 0600)
 	if err != nil {
 		return "", 0, err
 	}

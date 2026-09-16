@@ -52,9 +52,9 @@ func discoverDNSPolicyRuntimeAdapter() DNSPolicyAdapterDiscovery {
 			},
 		},
 		BlockingUnknowns: []string{
-			"exact Keenetic RCI read path and response schema for active policy-router rule state",
-			"exact Keenetic RCI mutation path and payload schema for installing policy-router rules",
-			"stable runtime identity/readback contract that proves the installed policy-router state equals the desired rules",
+			"exact mapping from persisted DNSPolicyRule match dimensions to Keenetic dataplane objects",
+			"exact structured RCI mutation payloads for those dataplane objects beyond the proven policy-description transport",
+			"partial-apply rollback ordering and artifacts for the final dataplane mapping",
 		},
 	}
 }

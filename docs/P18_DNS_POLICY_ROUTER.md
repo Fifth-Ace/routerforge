@@ -478,12 +478,15 @@ Probe предназначен для реального Keenetic/Entware и **�
 - firmware/system metadata через `ndmc`;
 - CLI `show ip policy`;
 - raw HTTP GET `RCI /show/ip/policy` вместе с headers/status/body;
-- GET RCI root как read-only discovery evidence;
+- narrow config GET `RCI /ip/policy`;
+- narrow host binding GET `RCI /ip/hotspot/host`;
 - только отфильтрованные policy/proxy/route строки `show running-config`;
 - SHA256 для evidence-файлов;
 - tar.gz evidence bundle.
 
 Полный `running-config` намеренно не сохраняется, чтобы не утащить секреты/ключи/пароли в диагностический bundle.
+
+После hardware baseline было подтверждено, что GET RCI root может раскрывать несвязанные чувствительные настройки. Поэтому root GET удалён из probe полностью. Используются только подтверждённые narrow reads `/ip/policy` и `/ip/hotspot/host`.
 
 Probe явно гарантирует:
 

@@ -96,17 +96,24 @@ if command -v curl >/dev/null 2>&1; then
         2>"$OUT/rci-show-ip-policy.stderr"
     printf '%s\n' "$?" >"$OUT/rci-show-ip-policy.rc"
 
-    # GET on RCI root is discovery-only. Unsupported/404 is useful evidence.
-    # It cannot mutate configuration.
-    curl -q --proxy '' --noproxy '*' \
-        --connect-timeout 3 --max-time 10 \
-        -sS -D "$OUT/rci-root-get.headers" \
-        -o "$OUT/rci-root-get.body" \
-        -w '%{http_code}\n' \
-        "$RCI_BASE/" \
-        >"$OUT/rci-root-get.http" \
-        2>"$OUT/rci-root-get.stderr"
-    printf '%s\n' "$?" >"$OUT/rci-root-get.rc"
+    # Confirmed narrow configuration reads. Do not query the RCI root:
+    # on real hardware it can expose unrelated sensitive configuration.
+    for item in \
+        "rci-ip-policy|/ip/policy" \
+        "rci-ip-hotspot-host|/ip/hotspot/host"
+    do
+        name="${item%%|*}"
+        path="${item#*|}"
+        curl -q --proxy '' --noproxy '*' \
+            --connect-timeout 3 --max-time 10 \
+            -sS -D "$OUT/$name.headers" \
+            -o "$OUT/$name.body" \
+            -w '%{http_code}\n' \
+            "$RCI_BASE$path" \
+            >"$OUT/$name.http" \
+            2>"$OUT/$name.stderr"
+        printf '%s\n' "$?" >"$OUT/$name.rc"
+    done
 else
     echo "CURL: MISSING"
     printf '%s\n' "127" >"$OUT/rci-show-ip-policy.rc"
@@ -183,7 +190,9 @@ MANIFEST="$OUT/MANIFEST.txt"
     echo "- rci-show-ip-policy.* captures the exact known RCI read contract."
     echo "- ndmc-show-ip-policy.* captures the CLI view of the same policy inventory."
     echo "- ndmc-running-config-policy-filtered.* contains only policy/route-related lines."
-    echo "- rci-root-get.* records whether the RCI root exposes read-only discovery metadata."
+    echo "- rci-ip-policy.* captures the narrow configured policy subtree."
+    echo "- rci-ip-hotspot-host.* captures the narrow host-to-policy binding subtree."
+    echo "- RCI root is intentionally never queried because it may expose sensitive configuration."
     echo "- this probe does NOT establish a write schema by itself."
     echo "- compare baseline/after snapshots around one reversible UI/CLI policy change."
 } >"$MANIFEST"

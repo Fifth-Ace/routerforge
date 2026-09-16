@@ -714,6 +714,66 @@ func parseTraceroute(raw string) []traceHop {
 	return out
 }
 
+func doctorRouteStages(decision kernelRouteDecision, policyState string, targetResolved bool) (doctorStage, doctorStage) {
+	routeStage := doctorStage{ID: "target_route"}
+	policyStage := doctorStage{ID: "policy_routing"}
+
+	if !targetResolved {
+		routeStage.Status = "skipped"
+		routeStage.Detail = "target address unavailable"
+	} else if !decision.Available {
+		routeStage.Status = "fail"
+		routeStage.Detail = "kernel route decision unavailable"
+		if decision.Error != "" {
+			routeStage.Detail = decision.Error
+		}
+	} else {
+		switch decision.Type {
+		case "blackhole", "unreachable", "prohibit", "throw":
+			routeStage.Status = "fail"
+			routeStage.Detail = fmt.Sprintf("%s route selected for %s", decision.Type, decision.Destination)
+		default:
+			routeStage.Status = "ok"
+			parts := []string{}
+			if decision.Table != "" {
+				parts = append(parts, "table "+decision.Table)
+			}
+			if decision.Gateway != "" {
+				parts = append(parts, "via "+decision.Gateway)
+			}
+			if decision.Interface != "" {
+				parts = append(parts, "dev "+decision.Interface)
+			}
+			if decision.Source != "" {
+				parts = append(parts, "src "+decision.Source)
+			}
+			routeStage.Detail = strings.Join(parts, " ")
+			if routeStage.Detail == "" {
+				routeStage.Detail = decision.Raw
+			}
+		}
+	}
+
+	switch policyState {
+	case "active":
+		policyStage.Status = "ok"
+		policyStage.Detail = "policy routing active"
+		if decision.Table != "" {
+			policyStage.Detail += "; kernel selected table " + decision.Table
+		}
+	case "default-only":
+		policyStage.Status = "ok"
+		policyStage.Detail = "default policy rules only"
+		if decision.Table != "" {
+			policyStage.Detail += "; kernel selected table " + decision.Table
+		}
+	default:
+		policyStage.Status = "unavailable"
+		policyStage.Detail = "policy routing state unavailable"
+	}
+	return routeStage, policyStage
+}
+
 func doctorStageIndex(stages []doctorStage, id string) int {
 	for i := range stages {
 		if stages[i].ID == id {
@@ -983,7 +1043,7 @@ func networkDoctor(r *http.Request) map[string]any {
 		DurationMS: internetDuration,
 	})
 
-	ip, resolution := targetIP(ctx, target)
+	_, resolution := targetIP(ctx, target)
 	if net.ParseIP(target) == nil {
 		status := "ok"
 		detail := strings.Join(resolution.Addresses, ", ")
@@ -1007,38 +1067,18 @@ func networkDoctor(r *http.Request) map[string]any {
 		})
 	}
 
+	routeReport := routeInspector(ctx, target)
+	decision, _ := routeReport["kernel_decision"].(kernelRouteDecision)
+	policyState, _ := routeReport["policy_state"].(string)
+	targetAddress, _ := routeReport["target_address"].(string)
+
 	var selected *routeEntry
-	if ip != nil {
-		selected = selectRoute(routes, ip)
+	if legacySelected, ok := routeReport["selected"].(*routeEntry); ok {
+		selected = legacySelected
 	}
 
-	switch {
-	case ip == nil:
-		stages = append(stages, doctorStage{
-			ID:     "target_route",
-			Status: "skipped",
-			Detail: "target address unavailable",
-		})
-	case selected == nil:
-		stages = append(stages, doctorStage{
-			ID:     "target_route",
-			Status: "fail",
-			Detail: "no matching IPv4 route",
-		})
-	default:
-		stages = append(stages, doctorStage{
-			ID:     "target_route",
-			Status: "ok",
-			Detail: fmt.Sprintf(
-				"%s/%d via %s dev %s metric %d",
-				selected.Destination,
-				selected.Prefix,
-				selected.Gateway,
-				selected.Interface,
-				selected.Metric,
-			),
-		})
-	}
+	targetRouteStage, policyRouteStage := doctorRouteStages(decision, policyState, targetAddress != "")
+	stages = append(stages, targetRouteStage, policyRouteStage)
 
 	probes := map[string]probeResult{}
 	anyServiceOK := false
@@ -1128,6 +1168,8 @@ func networkDoctor(r *http.Request) map[string]any {
 		"checks":                checks,
 		"resolution":            resolution,
 		"route":                 selected,
+		"route_decision":        decision,
+		"policy_state":          policyState,
 		"default_route":         defaultRoute,
 		"default_interface":     defaultInterface,
 		"probes":                probes,

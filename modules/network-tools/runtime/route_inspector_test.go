@@ -45,3 +45,63 @@ func TestNonDefaultPolicyRules(t *testing.T) {
 		t.Fatalf("expected 1 non-default rule, got %d", got)
 	}
 }
+
+func TestDoctorRouteStagesPolicyTable(t *testing.T) {
+	decision := kernelRouteDecision{
+		Available:   true,
+		Family:      "ipv4",
+		Destination: "8.8.8.8",
+		Gateway:     "192.168.1.1",
+		Interface:   "eth0",
+		Source:      "192.168.1.20",
+		Table:       "100",
+		Type:        "unicast",
+	}
+	routeStage, policyStage := doctorRouteStages(decision, "active", true)
+	if routeStage.Status != "ok" || policyStage.Status != "ok" {
+		t.Fatalf("unexpected stages: route=%+v policy=%+v", routeStage, policyStage)
+	}
+	if policyStage.Detail != "policy routing active; kernel selected table 100" {
+		t.Fatalf("unexpected policy detail: %q", policyStage.Detail)
+	}
+}
+
+func TestDoctorRouteStagesIPv6(t *testing.T) {
+	decision := kernelRouteDecision{
+		Available:   true,
+		Family:      "ipv6",
+		Destination: "2001:4860:4860::8888",
+		Gateway:     "fe80::1",
+		Interface:   "eth0",
+		Table:       "main",
+		Type:        "unicast",
+	}
+	routeStage, _ := doctorRouteStages(decision, "default-only", true)
+	if routeStage.Status != "ok" {
+		t.Fatalf("IPv6 kernel decision rejected: %+v", routeStage)
+	}
+}
+
+func TestDoctorRouteStagesBlockingRoute(t *testing.T) {
+	decision := kernelRouteDecision{
+		Available:   true,
+		Family:      "ipv4",
+		Destination: "203.0.113.7",
+		Table:       "100",
+		Type:        "blackhole",
+	}
+	routeStage, policyStage := doctorRouteStages(decision, "active", true)
+	if routeStage.Status != "fail" {
+		t.Fatalf("blackhole route must fail: %+v", routeStage)
+	}
+	if policyStage.Status != "ok" {
+		t.Fatalf("active policy itself must not be failure: %+v", policyStage)
+	}
+}
+
+func TestDoctorRouteStagesUnresolvedTarget(t *testing.T) {
+	routeStage, policyStage := doctorRouteStages(kernelRouteDecision{}, "unavailable", false)
+	if routeStage.Status != "skipped" || policyStage.Status != "unavailable" {
+		t.Fatalf("unexpected unresolved stages: route=%+v policy=%+v", routeStage, policyStage)
+	}
+}

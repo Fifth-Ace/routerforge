@@ -130,7 +130,7 @@ Interface, name = "WifiMaster1"
 	}
 
 	if got[0].ID != "ndmc:wifimaster0" ||
-		got[0].Name != "Wi-Fi · WifiMaster0" ||
+		got[0].Name != "Wi-Fi 2.4 GHz" ||
 		got[0].Category != "wifi" ||
 		got[0].Role != "wifi" ||
 		got[0].SensorIndex != 0 ||
@@ -256,5 +256,25 @@ func TestCollectNDMCThermalsRejectsEmptyOrInvalidOutput(t *testing.T) {
 	}
 	if got := collectNDMCThermalsWith(now, invalid); len(got) != 0 {
 		t.Fatalf("invalid output produced sensors: %#v", got)
+	}
+}
+func TestThermalDisplayNames(t *testing.T) {
+	if got := thermalDisplayName("cpu-thermal", "soc", 0); got != "CPU / SoC" {
+		t.Fatalf("cpu display name=%q", got)
+	}
+	if got := thermalDisplayName("mcusys_thermal0", "soc", 0); got != "mcusys_thermal0" {
+		t.Fatalf("unexpected generic rename=%q", got)
+	}
+
+	cases := map[int]string{
+		0: "Wi-Fi 2.4 GHz",
+		1: "Wi-Fi 5 GHz",
+		2: "Wi-Fi 6 GHz",
+		3: "Wi-Fi radio 3",
+	}
+	for index, want := range cases {
+		if got := keeneticWiFiDisplayName(index); got != want {
+			t.Fatalf("keeneticWiFiDisplayName(%d)=%q want %q", index, got, want)
+		}
 	}
 }

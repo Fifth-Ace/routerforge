@@ -57,7 +57,9 @@ func collectThermalSensors(now time.Time) []thermalSensor {
 		name := firstNonEmpty(readTrimmed(filepath.Join(zone, "type")), filepath.Base(zone))
 		zoneNames[thermalNameKey(name)] = true
 		category := thermalCategory(name, tempPath)
-		add(makeThermalSensor(filepath.Base(zone), name, category, tempPath, temp, now))
+		sensor := makeThermalSensor(filepath.Base(zone), name, category, tempPath, temp, now)
+		sensor.Name = thermalDisplayName(sensor.Name, sensor.Category, sensor.SensorIndex)
+		add(sensor)
 	}
 
 	hwmons, _ := filepath.Glob("/sys/class/hwmon/hwmon*")
@@ -113,6 +115,27 @@ func collectThermalSensors(now time.Time) []thermalSensor {
 	return sensors
 }
 
+func thermalDisplayName(name, category string, index int) string {
+	lower := thermalNameKey(name)
+	switch {
+	case lower == "cpu-thermal" || lower == "soc_thermal":
+		return "CPU / SoC"
+	}
+	return name
+}
+
+func keeneticWiFiDisplayName(index int) string {
+	switch index {
+	case 0:
+		return "Wi-Fi 2.4 GHz"
+	case 1:
+		return "Wi-Fi 5 GHz"
+	case 2:
+		return "Wi-Fi 6 GHz"
+	default:
+		return "Wi-Fi radio " + strconv.Itoa(index)
+	}
+}
 func thermalNameKey(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
 }
@@ -333,7 +356,7 @@ func parseNDMCThermals(output string, now time.Time) []thermalSensor {
 		index := trailingIndex(strings.ToLower(name), "wifimaster")
 		sensor := makeThermalSensor(
 			"ndmc:"+strings.ToLower(name),
-			"Wi-Fi · "+name,
+			keeneticWiFiDisplayName(index),
 			"wifi",
 			"ndmc:show interface:"+name,
 			current.temp,

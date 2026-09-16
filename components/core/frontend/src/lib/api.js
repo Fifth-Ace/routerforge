@@ -17,7 +17,24 @@ async function fetchJSON(path, options, timeoutMs) {
   return withRequestTimeout(path, timeoutMs, async (signal) => {
     const response = await fetch(path, { ...options, signal });
     if (!response.ok) throw await readError(response, path);
-    return await response.json();
+
+    const text = await response.text();
+    if (!text.trim()) {
+      const error = new Error(`${path} returned an empty response`);
+      error.code = 'EMPTY_JSON_RESPONSE';
+      error.status = response.status;
+      throw error;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (cause) {
+      const error = new Error(`${path} returned invalid JSON`);
+      error.code = 'INVALID_JSON_RESPONSE';
+      error.status = response.status;
+      error.cause = cause;
+      throw error;
+    }
   });
 }
 

@@ -463,6 +463,86 @@ P18G остаётся non-production:
 - live DNS traffic не меняется;
 - RCI mutation policy-router rules отсутствует.
 
+## P18H — hardware discovery protocol
+
+P18H добавляет воспроизводимый hardware probe:
+
+`scripts/keenetic-policy-rci-discovery.sh`
+
+Probe предназначен для реального Keenetic/Entware и **не выполняет mutation**.
+
+### Phase A — read-only snapshot
+
+Один запуск собирает:
+
+- firmware/system metadata через `ndmc`;
+- CLI `show ip policy`;
+- raw HTTP GET `RCI /show/ip/policy` вместе с headers/status/body;
+- GET RCI root как read-only discovery evidence;
+- только отфильтрованные policy/proxy/route строки `show running-config`;
+- SHA256 для evidence-файлов;
+- tar.gz evidence bundle.
+
+Полный `running-config` намеренно не сохраняется, чтобы не утащить секреты/ключи/пароли в диагностический bundle.
+
+Probe явно гарантирует:
+
+- RCI POST не выполняется;
+- RCI DELETE не выполняется;
+- `/system/configuration/save` не вызывается;
+- mutating `ndmc` command отсутствует.
+
+### Phase B — controlled delta capture
+
+Для определения runtime identity и будущего write contract probe запускается дважды:
+
+1. `baseline` — до изменения;
+2. `after` — после **одного** заведомо обратимого изменения существующей Keenetic policy через штатный UI/CLI.
+
+Сам probe изменение не выполняет.
+
+Сравниваются:
+
+- `rci-show-ip-policy.body`;
+- `ndmc-show-ip-policy.stdout`;
+- `ndmc-running-config-policy-filtered.stdout`;
+- HTTP metadata;
+- SHA256 manifests.
+
+Из diff можно принимать только фактически наблюдаемые поля/identity. Нельзя выводить mutation path из названия read endpoint по аналогии.
+
+### Write-schema gate
+
+P18H **не разблокирует production driver автоматически**.
+
+Для `production_driver_ready=true` всё ещё нужны доказательства:
+
+1. exact active-state read path/schema;
+2. exact mutation path/payload;
+3. controlled apply evidence;
+4. exact readback equality after apply;
+5. exact rollback evidence;
+6. stable identity across repeated reads.
+
+До появления этих данных:
+
+- production driver отсутствует;
+- public activation API отсутствует;
+- policy mutation в RouterForge отсутствует.
+
+### Hardware output
+
+Probe печатает секции:
+
+`PRECHECK / GATES / ACTION / VERIFY / RESULT`
+
+И завершает:
+
+- `STATE: PASS`, если известный RCI read contract доступен и evidence сохранён;
+- `STATE: PARTIAL`, если часть read-only источников недоступна.
+
+`PARTIAL` не является разрешением переходить к write implementation.
+
 ## Следующий этап
 
-P18H — hardware discovery protocol: подготовить read-only/controlled диагностический probe для реального Keenetic, чтобы установить exact policy RCI read/write schema и runtime identity contract до написания production primitive.
+P18I — hardware evidence analysis: прогнать P18H на реальном Keenetic, сравнить baseline/after bundle и только на основании наблюдаемой схемы решить, можно ли реализовать production policy runtime primitive.

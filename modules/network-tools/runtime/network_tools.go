@@ -161,6 +161,13 @@ type doctorVerdict struct {
 	FaultDomain string `json:"fault_domain,omitempty"`
 }
 
+type doctorAction struct {
+	ID          string `json:"id"`
+	Priority    string `json:"priority"`
+	FaultDomain string `json:"fault_domain,omitempty"`
+	Detail      string `json:"detail"`
+}
+
 func readSysfsText(path string) string {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -970,6 +977,73 @@ func doctorVerdictFor(stages []doctorStage) doctorVerdict {
 	return doctorVerdict{Code: "healthy", Severity: "ok"}
 }
 
+func doctorActionsFor(verdict doctorVerdict) []doctorAction {
+	action := func(id, priority, domain, detail string) doctorAction {
+		return doctorAction{ID: id, Priority: priority, FaultDomain: domain, Detail: detail}
+	}
+	switch verdict.Code {
+	case "healthy":
+		return []doctorAction{}
+	case "degraded":
+		return []doctorAction{
+			action("review-warnings", "medium", "mixed", "Review warning stages before changing configuration."),
+		}
+	case "no_default_route":
+		return []doctorAction{
+			action("inspect-default-route", "high", "routing", "Inspect default routes and their metrics."),
+			action("inspect-policy-rules", "medium", "routing", "Check whether policy rules intentionally bypass the main table."),
+		}
+	case "interface_down":
+		return []doctorAction{
+			action("inspect-default-interface", "high", "local", "Check link state and carrier on the default-route interface."),
+		}
+	case "no_local_address":
+		return []doctorAction{
+			action("inspect-interface-address", "high", "local", "Check address assignment on the default-route interface."),
+		}
+	case "egress_interface_failure":
+		return []doctorAction{
+			action("inspect-kernel-egress", "high", "local", "Check the interface selected by the kernel route decision."),
+			action("inspect-policy-rules", "medium", "routing", "Verify that policy routing selects an existing interface."),
+		}
+	case "gateway_interface_mismatch":
+		return []doctorAction{
+			action("inspect-target-route", "high", "routing", "Inspect the target-specific route, gateway, and selected interface."),
+			action("inspect-policy-rules", "medium", "routing", "Verify the policy table that selected this path."),
+		}
+	case "route_source_mismatch":
+		return []doctorAction{
+			action("inspect-source-address", "high", "local", "Verify that the kernel-selected source address is assigned to the selected egress."),
+			action("inspect-policy-rules", "medium", "routing", "Check source-based routing and policy rules."),
+		}
+	case "internet_unreachable":
+		return []doctorAction{
+			action("verify-upstream", "high", "upstream", "Verify gateway reachability and upstream connectivity."),
+		}
+	case "dns_failure":
+		return []doctorAction{
+			action("inspect-dns", "high", "dns", "Verify resolver availability and DNS policy for this target."),
+		}
+	case "target_route_failure":
+		return []doctorAction{
+			action("inspect-target-route", "high", "routing", "Inspect the kernel route decision and blocking route types for this target."),
+			action("inspect-policy-rules", "medium", "routing", "Check policy rules and the selected routing table."),
+		}
+	case "tcp_failure", "http_failure":
+		return []doctorAction{
+			action("verify-service", "medium", "service", "Verify the target service, listening port, and remote filtering."),
+		}
+	case "target_unreachable":
+		return []doctorAction{
+			action("verify-target-reachability", "medium", "target", "Retry with a transport check because ICMP may be filtered."),
+		}
+	default:
+		return []doctorAction{
+			action("review-diagnosis", "medium", verdict.FaultDomain, "Review failed and warning stages before changing configuration."),
+		}
+	}
+}
+
 func doctorPort(r *http.Request, name string, fallback int) int {
 	raw := strings.TrimSpace(r.URL.Query().Get(name))
 	if raw == "" {
@@ -1303,6 +1377,7 @@ func networkDoctor(r *http.Request) map[string]any {
 	}
 
 	verdict := doctorVerdictFor(stages)
+	actions := doctorActionsFor(verdict)
 	firstFailure := ""
 	for _, stage := range stages {
 		if stage.Status == "fail" {
@@ -1338,6 +1413,7 @@ func networkDoctor(r *http.Request) map[string]any {
 		"diagnosis": map[string]any{
 			"stages":  stages,
 			"verdict": verdict,
+			"actions": actions,
 		},
 		"first_failure": firstFailure,
 		"mutation_api":  false,

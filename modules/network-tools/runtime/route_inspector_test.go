@@ -162,3 +162,34 @@ func TestDoctorVerdictPrefersPathMismatch(t *testing.T) {
 		t.Fatalf("unexpected verdict: %+v", verdict)
 	}
 }
+
+func TestDoctorActionsRoutingFailure(t *testing.T) {
+	actions := doctorActionsFor(doctorVerdict{
+		Code: "target_route_failure", Severity: "fail", FaultDomain: "routing",
+	})
+	if len(actions) != 2 {
+		t.Fatalf("expected two routing actions, got %#v", actions)
+	}
+	if actions[0].ID != "inspect-target-route" || actions[0].Priority != "high" {
+		t.Fatalf("unexpected primary action: %#v", actions[0])
+	}
+	if actions[1].ID != "inspect-policy-rules" {
+		t.Fatalf("unexpected secondary action: %#v", actions[1])
+	}
+}
+
+func TestDoctorActionsHealthyEmpty(t *testing.T) {
+	actions := doctorActionsFor(doctorVerdict{Code: "healthy", Severity: "ok"})
+	if len(actions) != 0 {
+		t.Fatalf("healthy verdict must not suggest remediation: %#v", actions)
+	}
+}
+
+func TestDoctorActionsSourceMismatch(t *testing.T) {
+	actions := doctorActionsFor(doctorVerdict{
+		Code: "route_source_mismatch", Severity: "fail", FaultDomain: "local",
+	})
+	if len(actions) < 1 || actions[0].ID != "inspect-source-address" || actions[0].FaultDomain != "local" {
+		t.Fatalf("unexpected source-mismatch guidance: %#v", actions)
+	}
+}

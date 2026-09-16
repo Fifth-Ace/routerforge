@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 )
 
@@ -15,6 +16,85 @@ type DNSPolicyRulesDocument struct {
 	Version   int             `json:"version"`
 	UpdatedAt time.Time       `json:"updated_at"`
 	Rules     []DNSPolicyRule `json:"rules"`
+}
+
+type DNSPersistedPolicyEvaluationRequest struct {
+	ClientIP  string `json:"client_ip,omitempty"`
+	Domain    string `json:"domain"`
+	QueryType string `json:"qtype,omitempty"`
+}
+
+type DNSPolicyActivationChange struct {
+	Field   string `json:"field"`
+	Current string `json:"current"`
+	Desired string `json:"desired"`
+}
+
+type DNSPolicyActivationPreview struct {
+	DocumentVersion int                         `json:"document_version"`
+	UpdatedAt       time.Time                   `json:"updated_at"`
+	PersistedRules  int                         `json:"persisted_rules"`
+	ActiveRules     int                         `json:"active_rules"`
+	Policies        []string                    `json:"policies"`
+	Ready           bool                        `json:"ready"`
+	Activated       bool                        `json:"activated"`
+	Changes         []DNSPolicyActivationChange `json:"changes"`
+	Evidence        []string                    `json:"evidence"`
+}
+
+func buildDNSPolicyActivationPreview(doc DNSPolicyRulesDocument, rules []DNSPolicyRule) DNSPolicyActivationPreview {
+	names := map[string]string{}
+	for _, rule := range rules {
+		names[rule.Policy] = rule.Policy
+	}
+	inventory := dnsPolicyInventoryFromNames(names)
+	policies := make([]string, 0, len(inventory))
+	for _, item := range inventory {
+		policies = append(policies, item.Proxy)
+	}
+	sort.Strings(policies)
+	if len(policies) > 1 {
+		sort.SliceStable(policies, func(i, j int) bool {
+			if policies[i] == "System" {
+				return true
+			}
+			if policies[j] == "System" {
+				return false
+			}
+			oi, iok := policyProxyOrdinal(policies[i])
+			oj, jok := policyProxyOrdinal(policies[j])
+			if iok && jok && oi != oj {
+				return oi < oj
+			}
+			if iok != jok {
+				return iok
+			}
+			return policies[i] < policies[j]
+		})
+	}
+
+	return DNSPolicyActivationPreview{
+		DocumentVersion: doc.Version,
+		UpdatedAt:       doc.UpdatedAt,
+		PersistedRules:  len(rules),
+		ActiveRules:     0,
+		Policies:        policies,
+		Ready:           true,
+		Activated:       false,
+		Changes: []DNSPolicyActivationChange{
+			{
+				Field:   "policy_rules",
+				Current: "inactive (0 active policy-router rules)",
+				Desired: fmt.Sprintf("persisted (%d validated rules)", len(rules)),
+			},
+		},
+		Evidence: []string{
+			"persisted document loaded",
+			fmt.Sprintf("schema version %d accepted", doc.Version),
+			"rules validated against live Keenetic policy inventory",
+			"runtime activation remains disabled",
+		},
+	}
 }
 
 type dnsPolicyStore struct {

@@ -223,6 +223,105 @@ func (s *dnsModuleServer) Serve() error {
 			s.writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET, HEAD, or PUT required"})
 		}
 	})
+	mux.HandleFunc("/v1/policy-rules/evaluate", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			s.writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST required"})
+			return
+		}
+		if !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+			s.writeJSON(w, http.StatusUnsupportedMediaType, map[string]any{"error": "application/json required"})
+			return
+		}
+		defer r.Body.Close()
+		decoder := json.NewDecoder(io.LimitReader(r.Body, 32<<10))
+		decoder.DisallowUnknownFields()
+		var request DNSPersistedPolicyEvaluationRequest
+		if err := decoder.Decode(&request); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		if decoder.Decode(&struct{}{}) != io.EOF {
+			s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": "only one JSON object is allowed"})
+			return
+		}
+
+		doc, err := s.policyStore.Load()
+		if err != nil {
+			s.writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		inventory, err := readDNSPolicyInventory()
+		if err != nil {
+			s.writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "source": "keenetic-rci"})
+			return
+		}
+		allowed := make(map[string]bool, len(inventory))
+		for _, policy := range inventory {
+			allowed[policy.Proxy] = true
+		}
+		rules, err := validateDNSPolicyRules(doc.Rules, allowed)
+		if err != nil {
+			s.writeJSON(w, http.StatusConflict, map[string]any{
+				"error":     err.Error(),
+				"persisted": true,
+				"activated": false,
+				"ready":     false,
+			})
+			return
+		}
+		result, err := evaluateDNSPolicy(DNSPolicyEvaluationRequest{
+			ClientIP:  request.ClientIP,
+			Domain:    request.Domain,
+			QueryType: request.QueryType,
+			Rules:     rules,
+		}, allowed)
+		if err != nil {
+			s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		s.writeJSON(w, http.StatusOK, map[string]any{
+			"evaluation":       result,
+			"source":           "persisted",
+			"document_version": doc.Version,
+			"updated_at":       doc.UpdatedAt,
+			"persisted":        true,
+			"activated":        false,
+		})
+	})
+	mux.HandleFunc("/v1/policy-rules/activation-preview", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		doc, err := s.policyStore.Load()
+		if err != nil {
+			s.writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		inventory, err := readDNSPolicyInventory()
+		if err != nil {
+			s.writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "source": "keenetic-rci"})
+			return
+		}
+		allowed := make(map[string]bool, len(inventory))
+		for _, policy := range inventory {
+			allowed[policy.Proxy] = true
+		}
+		rules, err := validateDNSPolicyRules(doc.Rules, allowed)
+		if err != nil {
+			s.writeJSON(w, http.StatusConflict, map[string]any{
+				"error":     err.Error(),
+				"persisted": true,
+				"activated": false,
+				"ready":     false,
+			})
+			return
+		}
+		preview := buildDNSPolicyActivationPreview(doc, rules)
+		s.writeJSON(w, http.StatusOK, map[string]any{
+			"preview":      preview,
+			"persisted":    true,
+			"activated":    false,
+			"mutation_api": false,
+		})
+	}))
 	mux.HandleFunc("/v1/policies/evaluate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "POST")

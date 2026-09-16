@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestDNSPolicyStoreRoundTrip(t *testing.T) {
@@ -65,5 +66,47 @@ func TestValidateDNSPolicyRulesRejectsDuplicateAndUnknown(t *testing.T) {
 	}, map[string]bool{"System": true, "Policy1": true})
 	if err == nil {
 		t.Fatal("unknown policy must fail")
+	}
+}
+
+func TestBuildDNSPolicyActivationPreview(t *testing.T) {
+	doc := DNSPolicyRulesDocument{
+		Version:   dnsPolicyRulesSchemaVersion,
+		UpdatedAt: time.Date(2026, 9, 17, 0, 0, 0, 0, time.UTC),
+	}
+	rules := []DNSPolicyRule{
+		{ID: "p2", Priority: 20, Policy: "Policy2"},
+		{ID: "sys", Priority: 10, Policy: "System"},
+		{ID: "p1", Priority: 30, Policy: "Policy1"},
+	}
+	preview := buildDNSPolicyActivationPreview(doc, rules)
+	if !preview.Ready || preview.Activated {
+		t.Fatalf("unexpected readiness state: %#v", preview)
+	}
+	if preview.PersistedRules != 3 || preview.ActiveRules != 0 {
+		t.Fatalf("unexpected rule counts: %#v", preview)
+	}
+	want := []string{"System", "Policy1", "Policy2"}
+	if len(preview.Policies) != len(want) {
+		t.Fatalf("policies = %#v", preview.Policies)
+	}
+	for i := range want {
+		if preview.Policies[i] != want[i] {
+			t.Fatalf("policies[%d] = %q, want %q", i, preview.Policies[i], want[i])
+		}
+	}
+	if len(preview.Changes) != 1 || len(preview.Evidence) != 4 {
+		t.Fatalf("preview evidence incomplete: %#v", preview)
+	}
+}
+
+func TestBuildDNSPolicyActivationPreviewEmptyRules(t *testing.T) {
+	doc := DNSPolicyRulesDocument{Version: dnsPolicyRulesSchemaVersion}
+	preview := buildDNSPolicyActivationPreview(doc, nil)
+	if !preview.Ready || preview.Activated || preview.PersistedRules != 0 || preview.ActiveRules != 0 {
+		t.Fatalf("unexpected empty preview: %#v", preview)
+	}
+	if len(preview.Policies) != 0 {
+		t.Fatalf("empty rules must have no policies: %#v", preview.Policies)
 	}
 }

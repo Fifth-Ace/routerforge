@@ -175,3 +175,53 @@ func TestArtifactAndSnapshotLimits(t *testing.T) {
 		t.Fatal("expected artifact size limit")
 	}
 }
+
+func TestReadArtifactVerifiesStoredObject(t *testing.T) {
+	store, source := testStore(t, 8)
+	path := filepath.Join(source, "restore.conf")
+	content := []byte("restore=true\n")
+	if err := os.WriteFile(path, content, 0600); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := store.Capture(CaptureRequest{
+		Component: "admin",
+		Artifacts: []ArtifactSpec{{ID: "restore", Path: path}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	record, restored, err := store.ReadArtifact(manifest.ID, "restore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.ID != "restore" || string(restored) != string(content) {
+		t.Fatalf("unexpected restored artifact: %+v %q", record, restored)
+	}
+
+	object := store.objectPath(record.SHA256)
+	if err := os.WriteFile(object, []byte("tampered\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.ReadArtifact(manifest.ID, "restore"); err == nil {
+		t.Fatal("tampered content object must be rejected")
+	}
+}
+
+func TestReadArtifactRejectsUnknownArtifact(t *testing.T) {
+	store, source := testStore(t, 8)
+	path := filepath.Join(source, "known.conf")
+	if err := os.WriteFile(path, []byte("known\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := store.Capture(CaptureRequest{
+		Component: "admin",
+		Artifacts: []ArtifactSpec{{ID: "known", Path: path}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.ReadArtifact(manifest.ID, "missing"); !os.IsNotExist(err) {
+		t.Fatalf("expected os.ErrNotExist, got %v", err)
+	}
+}

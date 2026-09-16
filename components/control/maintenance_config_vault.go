@@ -62,6 +62,7 @@ func registerAdminConfigVaultRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/maintenance/config-vault-restore-preview", getOnly(handleAdminConfigVaultRestorePreview))
 	mux.HandleFunc("/v1/maintenance/config-vault-capture", mutationOnly(handleAdminConfigVaultCapture))
 	mux.HandleFunc("/v1/maintenance/config-vault-last-working", mutationOnly(handleAdminConfigVaultLastWorking))
+	mux.HandleFunc("/v1/maintenance/config-vault-restore", mutationOnly(handleAdminConfigVaultRestore))
 }
 
 func newAdminConfigVault() (*configvault.Store, error) {
@@ -168,7 +169,7 @@ func handleAdminConfigVaultOverview(w http.ResponseWriter, _ *http.Request) {
 		"snapshots":         snapshots,
 		"state":             state,
 		"retention":         store.Retention(),
-		"restore_enabled":   false,
+		"restore_enabled":   true,
 		"restore_preview":   true,
 	})
 }
@@ -304,12 +305,12 @@ func handleAdminConfigVaultRestorePreview(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"snapshot_id":   diff.SnapshotID,
-		"component":     diff.Component,
-		"would_change":  diff.Changed,
-		"items":         diff.Items,
-		"apply_enabled": false,
-		"next_stage":    "P16C",
+		"snapshot_id":      diff.SnapshotID,
+		"component":        diff.Component,
+		"would_change":     diff.Changed,
+		"items":            diff.Items,
+		"apply_enabled":    true,
+		"restore_endpoint": "/v1/maintenance/config-vault-restore",
 	})
 }
 

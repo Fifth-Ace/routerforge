@@ -546,6 +546,79 @@ Probe печатает секции:
 
 `PARTIAL` не является разрешением переходить к write implementation.
 
+## P18I — Keenetic-backed policy state primitive
+
+Hardware discovery подтвердил на реальном Keenetic:
+
+- narrow GET `/ip/policy`;
+- narrow GET `/ip/hotspot/host`;
+- runtime GET `/show/ip/policy`;
+- structured POST transport через `/rci/`;
+- payload shape для безопасного controlled field: `ip -> policy -> Policy0 -> description`;
+- exact readback после apply;
+- structured RCI rollback тем же transport;
+- exact restoration `/ip/policy`, `/ip/hotspot/host` и `/show/ip/policy` по SHA256;
+- experiment не требовал `/system/configuration/save`.
+
+### Production state primitive
+
+P18I добавляет `dnsPolicyKeeneticPrimitive`.
+
+Production-backed операции:
+
+- `SnapshotRuntime()` читает только три доказанных narrow/runtime endpoint;
+- состояние канонизируется;
+- host array сортируется по MAC, чтобы порядок перечисления не менял identity;
+- identity = SHA256 от canonical `/ip/policy` + `/ip/hotspot/host` + `/show/ip/policy`;
+- `VerifyRuntimeSnapshot()` повторно читает state и требует exact identity equality;
+- `RuntimeHealth()` использует существующий health callback.
+
+### Fail-closed mutation boundary
+
+P18I **не материализует `DNSPolicyRule` в Keenetic dataplane**.
+
+Следующие методы production primitive намеренно возвращают `errDNSPolicyDataplaneMappingUnknown`:
+
+- `ApplyCanonicalRules`;
+- `VerifyCanonicalRules`;
+- `RestoreRuntime`.
+
+Причина: hardware evidence доказал structured RCI transport и rollback на `description`, но ещё не доказал exact mapping наших match dimensions (`client_cidr`, `domain_suffix`, `qtype`) в native Keenetic objects.
+
+Поэтому `dnsPolicyKeeneticPrimitive` уже реализует interface compile-time, но activation через него fail-closed и не может случайно изменить router state.
+
+### Discovery contract
+
+Старые unknowns "read path/write transport/identity" заменены более точными блокерами:
+
+1. mapping `DNSPolicyRule` -> Keenetic dataplane objects;
+2. structured payload schema именно для этих objects;
+3. partial-apply rollback ordering/artifacts для финального mapping.
+
+`production_driver_ready=false` сохраняется.
+
+### Tests
+
+Contract tests доказывают:
+
+- primitive ходит только на `/ip/policy`, `/ip/hotspot/host`, `/show/ip/policy`;
+- RCI root GET не используется;
+- host enumeration order не меняет snapshot identity;
+- runtime change ломает exact snapshot verification;
+- mutation methods fail closed с dedicated error.
+
+### Build ABI
+
+`dns_policy_runtime_keenetic.go` добавлен в explicit DNS Module ABI source list и проходит production-like Linux ARM64 build до commit.
+
+### Safety boundary
+
+- public activation API отсутствует;
+- production rule apply отсутствует;
+- live DNS traffic не меняется;
+- RouterForge не вызывает structured RCI policy mutation;
+- hardware-proven read/identity primitive можно развивать дальше без догадок.
+
 ## Следующий этап
 
-P18I — hardware evidence analysis: прогнать P18H на реальном Keenetic, сравнить baseline/after bundle и только на основании наблюдаемой схемы решить, можно ли реализовать production policy runtime primitive.
+P18J — dataplane mapping discovery: определить, каким native Keenetic механизмом безопасно выразить `client_cidr`, `domain_suffix` и `qtype` policy rules, прежде чем разблокировать `ApplyCanonicalRules`.

@@ -314,3 +314,50 @@ func TestModuleMutationBodyLimitLeavesGETUnchanged(t *testing.T) {
 		t.Fatal("GET request should pass through without body buffering")
 	}
 }
+func TestModuleUICacheControl(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{path: "/v1/ui/index.html", want: "no-store"},
+		{path: "/v1/ui/app.js", want: "no-store"},
+		{path: "/v1/ui/module.css", want: "no-store"},
+		{path: "/v1/ui/assets/index-ABC123.js", want: "public, max-age=31536000, immutable"},
+		{path: "/v1/ui/assets/font-ABC123.woff2", want: "public, max-age=31536000, immutable"},
+		{path: "/v1/health", want: "no-store"},
+	}
+	for _, tt := range tests {
+		if got := moduleUICacheControl(tt.path); got != tt.want {
+			t.Fatalf("cache policy for %q=%q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestModuleUIProxyOverridesStaleUpstreamCache(t *testing.T) {
+	socket := filepath.Join(t.TempDir(), "module.sock")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatalf("listen unix socket: %v", err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("Cache-Control", "max-age=86400")
+		_, _ = w.Write([]byte("<!doctype html><title>fresh-module</title>"))
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+
+	configureModuleProxyTest(t, socket, map[string]string{"routerforge-dns": "test"})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/modules/dns/ui/index.html?rev=new-build", nil)
+	proxyModuleAPI(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d, want %d body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control=%q, want no-store", got)
+	}
+}

@@ -155,11 +155,25 @@
         <div><span>{locale === 'ru' ? 'Обновления' : 'Updates'}</span><strong class={[...modules,...integrations].some((x)=>x.update_available) ? 'warn' : 'good'}>{[...modules,...integrations].filter((x)=>x.update_available).length}</strong></div>
       </section>
 
-      <a class="rail-repository-link" href="https://github.com/Fifth-Ace/routerforge" target="_blank" rel="noreferrer" aria-label={t(locale,'shell.repositoryAria')}>
-        <img src="/routerforge-mark.png" alt="" />
-        <span class="rail-repository-copy"><small>{t(locale,'shell.sourceCode')}</small><strong>{t(locale,'shell.github')}</strong></span>
-        <span class="rail-repository-arrow" aria-hidden="true">↗</span>
-      </a>
+      <div class="rail-community-links">
+        <a class="rail-repository-link" href="https://github.com/Fifth-Ace/routerforge" target="_blank" rel="noreferrer" aria-label={t(locale,'shell.repositoryAria')}>
+          <img src="/routerforge-mark.png" alt="" />
+          <span class="rail-repository-copy"><small>{t(locale,'shell.sourceCode')}</small><strong>GitHub</strong></span>
+          <span class="rail-repository-arrow" aria-hidden="true">↗</span>
+        </a>
+
+        <a class="rail-repository-link" href="https://git.fifthace.ru/FifthAce/routerforge" target="_blank" rel="noreferrer" aria-label={locale === 'ru' ? 'Исходный код RouterForge — приватный репозиторий' : 'RouterForge source code — private repository'}>
+          <img src="/routerforge-mark.png" alt="" />
+          <span class="rail-repository-copy"><small>{t(locale,'shell.sourceCode')}</small><strong>{locale === 'ru' ? 'Private repo' : 'Private repo'}</strong></span>
+          <span class="rail-repository-arrow" aria-hidden="true">↗</span>
+        </a>
+
+        <a class="rail-repository-link rail-telegram-link" href="https://t.me/RouterForge" target="_blank" rel="noreferrer" aria-label={locale === 'ru' ? 'Telegram-канал RouterForge' : 'RouterForge Telegram channel'}>
+          <span class="rail-link-icon" aria-hidden="true">TG</span>
+          <span class="rail-repository-copy"><small>{locale === 'ru' ? 'Сообщество' : 'Community'}</small><strong>Telegram</strong></span>
+          <span class="rail-repository-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
       <a class="rail-legal-badge" href="/legal">{locale === 'ru' ? 'Пользовательское соглашение · MIT · AS IS' : 'User Agreement · MIT · AS IS'}</a>
     </div>
   </aside>

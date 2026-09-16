@@ -168,6 +168,32 @@ body,
   background: var(--rf-surface-2) !important;
 }
 
+/* Repository/community links live as a brand footer, not as module rows. */
+.rail-community-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.rail-community-links .rail-repository-link {
+  min-width: 0;
+}
+.rail-community-links .rail-telegram-link {
+  grid-column: 1 / -1;
+}
+.rail-link-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--rf-accent-border);
+  border-radius: 50%;
+  background: var(--rf-accent-soft);
+  color: var(--rf-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
 /* Repository lives as a brand footer, not as another module row. */
 .rail-repository-link {
   min-height: 56px;

@@ -21,7 +21,7 @@ const (
 	appActionHistoryMax        = 512 << 10
 	appActionMaxLines          = 320
 	appActionTerminalRetention = 64
-	appActionHistoryListLimit  = 50
+	appActionHistoryListLimit  = 100
 	appActionLineMax           = 2048
 	appActionOutputMax         = 64 << 10
 )
@@ -31,6 +31,7 @@ type appActionStartRequest struct {
 	Target  string `json:"target"`
 	Action  string `json:"action"`
 	Confirm string `json:"confirm,omitempty"`
+	BatchID string `json:"batch_id,omitempty"`
 }
 
 type appActionPreflight struct {
@@ -48,15 +49,21 @@ type appActionPreflight struct {
 }
 
 type appActionView struct {
-	ID          string    `json:"id"`
-	Kind        string    `json:"kind"`
-	Target      string    `json:"target"`
-	Action      string    `json:"action"`
-	State       string    `json:"state"`
-	Error       string    `json:"error,omitempty"`
-	Lines       []string  `json:"lines,omitempty"`
-	StartedAt   time.Time `json:"started_at"`
-	CompletedAt time.Time `json:"completed_at,omitempty"`
+	ID            string    `json:"id"`
+	Kind          string    `json:"kind"`
+	Target        string    `json:"target"`
+	Action        string    `json:"action"`
+	State         string    `json:"state"`
+	Error         string    `json:"error,omitempty"`
+	Lines         []string  `json:"lines,omitempty"`
+	Method        string    `json:"method,omitempty"`
+	Packages      []string  `json:"packages,omitempty"`
+	BatchID       string    `json:"batch_id,omitempty"`
+	TargetVersion string    `json:"target_version,omitempty"`
+	Channel       string    `json:"channel,omitempty"`
+	DurationMS    int64     `json:"duration_ms,omitempty"`
+	StartedAt     time.Time `json:"started_at"`
+	CompletedAt   time.Time `json:"completed_at,omitempty"`
 }
 
 type appActionJob struct {
@@ -68,6 +75,9 @@ type appActionJob struct {
 	State       string
 	Error       string
 	Lines       []string
+	Method      string
+	Packages    []string
+	BatchID     string
 	StartedAt   time.Time
 	CompletedAt time.Time
 	cancel      context.CancelFunc
@@ -391,11 +401,18 @@ func handleAppActions(w http.ResponseWriter, r *http.Request) {
 	appActions.Lock()
 	if appActions.active != "" {
 		active := appActions.active
+		activeJob := appActions.jobs[active]
 		appActions.Unlock()
-		writeCatalogJSON(w, http.StatusConflict, map[string]any{
+		payload := map[string]any{
 			"error":     "another App Center action is already running",
 			"active_id": active,
-		})
+		}
+		if activeJob != nil {
+			activeView := activeJob.snapshot()
+			payload["active"] = activeView
+			payload["detail"] = fmt.Sprintf("%s / %s / %s is already running", activeView.Kind, activeView.Target, activeView.Action)
+		}
+		writeCatalogJSON(w, http.StatusConflict, payload)
 		return
 	}
 
@@ -407,6 +424,9 @@ func handleAppActions(w http.ResponseWriter, r *http.Request) {
 		Target:    request.Target,
 		Action:    request.Action,
 		State:     "queued",
+		Method:    preflight.Method,
+		Packages:  append([]string(nil), preflight.Packages...),
+		BatchID:   strings.TrimSpace(request.BatchID),
 		StartedAt: time.Now(),
 		cancel:    runCancel,
 	}
@@ -443,6 +463,12 @@ func handleAppActionPath(w http.ResponseWriter, r *http.Request) {
 
 	job := findAppActionJob(id)
 	if job == nil {
+		if r.Method == http.MethodGet {
+			if historical, ok := findHistoricalAppActionView(id); ok {
+				writeCatalogJSON(w, http.StatusOK, historical)
+				return
+			}
+		}
 		writeCatalogJSON(w, http.StatusNotFound, map[string]any{"error": "action not found"})
 		return
 	}
@@ -583,10 +609,78 @@ func (j *appActionJob) setState(state, errorText string) {
 	j.mu.Unlock()
 }
 
+func appActionVersionFromLines(lines []string) string {
+	for index := len(lines) - 1; index >= 0; index-- {
+		line := strings.TrimSpace(lines[index])
+		if !strings.HasPrefix(line, "Installing ") {
+			continue
+		}
+		open := strings.LastIndex(line, " (")
+		if open < 0 {
+			continue
+		}
+		rest := line[open+2:]
+		close := strings.Index(rest, ")")
+		if close < 0 {
+			continue
+		}
+		version := strings.TrimSpace(rest[:close])
+		if version != "" {
+			return version
+		}
+	}
+	return ""
+}
+
+func appActionChannelFromVersion(version string) string {
+	value := strings.ToLower(strings.TrimSpace(version))
+	switch {
+	case value == "":
+		return ""
+	case strings.Contains(value, "dev"), strings.Contains(value, "alpha"):
+		return "dev"
+	case strings.Contains(value, "beta"), strings.Contains(value, "rc"):
+		return "beta"
+	default:
+		return "stable"
+	}
+}
+
+func enrichAppActionView(view appActionView) appActionView {
+	if view.TargetVersion == "" {
+		view.TargetVersion = appActionVersionFromLines(view.Lines)
+	}
+	if view.Channel == "" {
+		view.Channel = appActionChannelFromVersion(view.TargetVersion)
+	}
+	if view.DurationMS <= 0 && !view.StartedAt.IsZero() {
+		end := view.CompletedAt
+		if end.IsZero() && !terminalAppActionState(view.State) {
+			end = time.Now()
+		}
+		if !end.IsZero() && end.After(view.StartedAt) {
+			view.DurationMS = end.Sub(view.StartedAt).Milliseconds()
+		}
+	}
+	return view
+}
+
+func findHistoricalAppActionView(id string) (appActionView, bool) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return appActionView{}, false
+	}
+	for _, view := range readAppActionHistory() {
+		if view.ID == id {
+			return enrichAppActionView(view), true
+		}
+	}
+	return appActionView{}, false
+}
 func (j *appActionJob) snapshot() appActionView {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	return appActionView{
+	return enrichAppActionView(appActionView{
 		ID:          j.ID,
 		Kind:        j.Kind,
 		Target:      j.Target,
@@ -594,9 +688,12 @@ func (j *appActionJob) snapshot() appActionView {
 		State:       j.State,
 		Error:       j.Error,
 		Lines:       append([]string(nil), j.Lines...),
+		Method:      j.Method,
+		Packages:    append([]string(nil), j.Packages...),
+		BatchID:     j.BatchID,
 		StartedAt:   j.StartedAt,
 		CompletedAt: j.CompletedAt,
-	}
+	})
 }
 
 func findAppActionJob(id string) *appActionJob {
@@ -655,6 +752,7 @@ func pruneAppActionJobs() {
 
 func finalizeAppActionViews(views []appActionView) []appActionView {
 	for i := range views {
+		views[i] = enrichAppActionView(views[i])
 		if len(views[i].Lines) > 20 {
 			views[i].Lines = append([]string(nil), views[i].Lines[len(views[i].Lines)-20:]...)
 		}

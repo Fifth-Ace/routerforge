@@ -5,12 +5,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -306,7 +307,7 @@ func handleEntwareRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output, runErr := exec.CommandContext(ctx, opkg, "update").CombinedOutput()
+	output, runErr := safety.RunCommand(ctx, entwareOutputMaxBytes, opkg, "update")
 	if runErr != nil {
 		writeCatalogJSON(w, http.StatusInternalServerError, map[string]any{
 			"error":  "opkg update failed",
@@ -406,7 +407,7 @@ func handleEntwareAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	verb := entwareOpkgVerb(request.Action)
-	output, runErr := exec.CommandContext(ctx, opkg, verb, request.Package).CombinedOutput()
+	output, runErr := safety.RunCommand(ctx, entwareOutputMaxBytes, opkg, verb, request.Package)
 	result := entwareActionResult{
 		Package: request.Package,
 		Action:  request.Action,
@@ -500,7 +501,7 @@ func loadOpkgCatalog(ctx context.Context, force bool) ([]entwarePackage, error) 
 		return nil, err
 	}
 
-	listOutput, err := exec.CommandContext(ctx, opkg, "list").Output()
+	listOutput, err := safety.RunCommandOutput(ctx, opkg, "list")
 	if err != nil {
 		return nil, fmt.Errorf("opkg list: %w", err)
 	}
@@ -512,7 +513,7 @@ func loadOpkgCatalog(ctx context.Context, force bool) ([]entwarePackage, error) 
 
 	available := parseEntwareList(string(listOutput))
 	upgradable := map[string]string{}
-	if output, upgradeErr := exec.CommandContext(ctx, opkg, "list-upgradable").Output(); upgradeErr == nil {
+	if output, upgradeErr := safety.RunCommandOutput(ctx, opkg, "list-upgradable"); upgradeErr == nil {
 		upgradable = parseEntwareUpgradable(string(output))
 	}
 
@@ -551,7 +552,7 @@ func loadOpkgCatalog(ctx context.Context, force bool) ([]entwarePackage, error) 
 }
 
 func loadOpkgInstalled(ctx context.Context, opkg string) (map[string]string, error) {
-	output, err := exec.CommandContext(ctx, opkg, "list-installed").Output()
+	output, err := safety.RunCommandOutput(ctx, opkg, "list-installed")
 	if err != nil {
 		return nil, fmt.Errorf("opkg list-installed: %w", err)
 	}
@@ -665,14 +666,14 @@ func loadEntwarePackageDetail(ctx context.Context, name string) (entwarePackageD
 		MetadataSource:   "opkg-info-status",
 	}
 
-	if output, infoErr := exec.CommandContext(ctx, opkg, "info", name).Output(); infoErr == nil {
+	if output, infoErr := safety.RunCommandOutput(ctx, opkg, "info", name); infoErr == nil {
 		if stanza, ok := selectOpkgStanza(parseOpkgControlStanzas(string(output)), name, ""); ok {
 			mergeEntwareDetailStanza(&detail, stanza, false)
 			found = true
 		}
 	}
 
-	if output, statusErr := exec.CommandContext(ctx, opkg, "status", name).Output(); statusErr == nil {
+	if output, statusErr := safety.RunCommandOutput(ctx, opkg, "status", name); statusErr == nil {
 		if stanza, ok := selectOpkgStanza(parseOpkgControlStanzas(string(output)), name, "installed"); ok {
 			mergeEntwareDetailStanza(&detail, stanza, true)
 			found = true
@@ -949,7 +950,7 @@ func buildEntwarePreflight(ctx context.Context, name, action string) (entwareAct
 	preflight.MissingDependencies = missingDependencyGroups(parseDependencyGroups(detail.DependsRaw), installed)
 
 	if action == "remove" {
-		if output, statusErr := exec.CommandContext(ctx, opkg, "status").Output(); statusErr == nil {
+		if output, statusErr := safety.RunCommandOutput(ctx, opkg, "status"); statusErr == nil {
 			preflight.ReverseDependencies = reverseDependencies(parseOpkgControlStanzas(string(output)), name)
 		}
 	}

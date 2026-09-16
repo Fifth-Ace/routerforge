@@ -63,6 +63,58 @@ func TestRunCommandCapturesAndCapsOutput(t *testing.T) {
 	}
 }
 
+func TestRunCommandOutputPreservesStdout(t *testing.T) {
+	if os.Getenv("ROUTERFORGE_COMMAND_OUTPUT_HELPER") == "1" {
+		_, _ = os.Stdout.WriteString("stdout-only")
+		_, _ = os.Stderr.WriteString("stderr-only")
+		os.Exit(0)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	old := os.Getenv("ROUTERFORGE_COMMAND_OUTPUT_HELPER")
+	if err := os.Setenv("ROUTERFORGE_COMMAND_OUTPUT_HELPER", "1"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if old == "" {
+			_ = os.Unsetenv("ROUTERFORGE_COMMAND_OUTPUT_HELPER")
+		} else {
+			_ = os.Setenv("ROUTERFORGE_COMMAND_OUTPUT_HELPER", old)
+		}
+	}()
+
+	output, err := RunCommandOutput(
+		ctx,
+		os.Args[0],
+		"-test.run=TestRunCommandOutputPreservesStdout",
+	)
+	if err != nil {
+		t.Fatalf("run output helper: %v", err)
+	}
+	if string(output) != "stdout-only" {
+		t.Fatalf("output=%q want=%q", string(output), "stdout-only")
+	}
+}
+
+func TestRunCommandOutputRejectsInvalidInputs(t *testing.T) {
+	ctx := context.Background()
+
+	if _, err := RunCommandOutput(nil, "x"); err == nil {
+		t.Fatal("nil context must be rejected")
+	}
+	if _, err := RunCommandOutput(ctx, ""); err == nil {
+		t.Fatal("empty program must be rejected")
+	}
+	if _, err := RunCommandOutput(ctx, "bad\x00program"); err == nil {
+		t.Fatal("NUL program must be rejected")
+	}
+	if _, err := RunCommandOutput(ctx, "x", "bad\x00arg"); err == nil {
+		t.Fatal("NUL argument must be rejected")
+	}
+}
+
 func TestRunCommandTimeout(t *testing.T) {
 	if os.Getenv("ROUTERFORGE_COMMAND_SLEEP_HELPER") == "1" {
 		time.Sleep(5 * time.Second)

@@ -117,3 +117,11 @@ func WriteFileAtomic(destination string, data []byte, mode os.FileMode) error {
 	}
 	return atomicFile.Publish(destination)
 }
+
+// CreateExclusiveFile creates a new file and fails if the path already exists.
+func CreateExclusiveFile(path string, mode os.FileMode) (*os.File, error) {
+	if path == "" {
+		return nil, errors.New("exclusive file path is empty")
+	}
+	return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
+}

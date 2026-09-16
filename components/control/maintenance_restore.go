@@ -126,7 +126,7 @@ func createAdminMaintenanceConfigBackup() (adminMaintenanceBackupResult, error) 
 
 	name := fmt.Sprintf("routerforge-config-%d.tar.gz", time.Now().UnixNano())
 	target := filepath.Join(adminMaintenanceBackupRoot, name)
-	file, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	file, err := safety.CreateExclusiveFile(target, 0600)
 	if err != nil {
 		return result, err
 	}
@@ -463,7 +463,7 @@ func extractAdminMaintenanceConfigArchive(path, stage string) error {
 			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 				return err
 			}
-			output, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
+			output, err := safety.CreateExclusiveFile(target, mode)
 			if err != nil {
 				return err
 			}

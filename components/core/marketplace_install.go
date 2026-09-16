@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -380,7 +382,7 @@ func executeStructuredStep(ctx context.Context, opkg string, step catalogLifecyc
 		if err := os.MkdirAll(filepath.Dir(step.Path), 0755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(step.Path, []byte(content+"\n"), 0644); err != nil {
+		if err := safety.WriteFileAtomic(step.Path, []byte(content+"\n"), 0644); err != nil {
 			return err
 		}
 		fmt.Fprintf(log, "$ write %s\n%s\n", step.Path, content)
@@ -501,51 +503,51 @@ func downloadVerifiedAsset(ctx context.Context, url, asset, expected string) (st
 		return "", "", err
 	}
 	path := filepath.Join(marketplaceDownloadDir, asset)
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	atomicFile, err := safety.NewAtomicFile(marketplaceDownloadDir, "."+asset+".tmp-*")
 	if err != nil {
 		return "", "", err
 	}
-	cleanup := func() {
-		_ = file.Close()
-		_ = os.Remove(path)
+	defer atomicFile.Cleanup()
+	file := atomicFile.File()
+	if err := file.Chmod(0600); err != nil {
+		return "", "", err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		cleanup()
 		return "", "", err
 	}
 	req.Header.Set("User-Agent", "RouterForge/"+version)
 	client := &http.Client{Timeout: 90 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		cleanup()
 		return "", "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		cleanup()
 		return "", "", fmt.Errorf("download %s: HTTP %d", asset, resp.StatusCode)
 	}
 
 	hash := sha256.New()
 	written, err := io.Copy(io.MultiWriter(file, hash), io.LimitReader(resp.Body, marketplaceDownloadMaxBytes+1))
 	if err != nil {
-		cleanup()
 		return "", "", err
 	}
 	if written > marketplaceDownloadMaxBytes {
-		cleanup()
 		return "", "", fmt.Errorf("download %s exceeds size limit", asset)
 	}
-	if err := file.Close(); err != nil {
-		_ = os.Remove(path)
+	if err := atomicFile.Sync(); err != nil {
+		return "", "", err
+	}
+	if err := atomicFile.Close(); err != nil {
 		return "", "", err
 	}
 	actual := hex.EncodeToString(hash.Sum(nil))
 	if !strings.EqualFold(actual, expected) {
-		_ = os.Remove(path)
 		return "", actual, fmt.Errorf("SHA256 mismatch for %s", asset)
+	}
+	if err := atomicFile.Publish(path); err != nil {
+		return "", actual, err
 	}
 	return path, actual, nil
 }

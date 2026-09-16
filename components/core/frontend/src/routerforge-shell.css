@@ -177,6 +177,9 @@ body,
 .rail-community-links .rail-repository-link {
   min-width: 0;
 }
+.rail-community-links .rail-repository-link-text {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
 .rail-community-links .rail-telegram-link {
   grid-column: 1 / -1;
 }

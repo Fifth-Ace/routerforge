@@ -1081,6 +1081,7 @@
 </script>
 
 <svelte:head><title>RouterForge — {a(locale,'pageTitle')}</title></svelte:head>
+<svelte:window onkeydown={(event) => { if (event.key === 'Escape' && selectedHistoryJob) selectedHistoryJob = null; }} />
 
 <div class="page catalog-page app-center-page">
   <div class="page-head">
@@ -1470,41 +1471,53 @@
 
 
 {#if selectedHistoryJob}
-  <div class="app-detail-backdrop" role="presentation" onclick={() => selectedHistoryJob = null}>
-    <section class="app-detail-modal app-history-detail" role="dialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
-      <div class="catalog-section-head">
-        <div>
-          <h2>{selectedHistoryJob.target}</h2>
-          <p>{historySummary(selectedHistoryJob)}</p>
+  <div class="app-history-drawer-backdrop" role="presentation" onclick={() => selectedHistoryJob = null}>
+    <section class="app-history-drawer" role="dialog" aria-modal="true" aria-label={locale === 'ru' ? 'Подробности действия App Center' : 'App Center action details'} onclick={(event) => event.stopPropagation()}>
+      <div class="app-history-drawer-head">
+        <div class="app-history-drawer-title">
+          <span class="routerforge-eyebrow mono">ROUTERFORGE / APP CENTER / HISTORY</span>
+          <div class="app-history-drawer-title-row">
+            <h2>{selectedHistoryJob.target}</h2>
+            <span class="state-chip {jobStateClass(selectedHistoryJob.state)}">{jobStateLabel(selectedHistoryJob.state)}</span>
+          </div>
+          <p>{historySummary(selectedHistoryJob)} · {formatActionHistoryTime(selectedHistoryJob.started_at)} · {historyDuration(selectedHistoryJob)}</p>
         </div>
-        <button class="icon-button" aria-label={t(locale,'common.close')} onclick={() => selectedHistoryJob = null}>x</button>
+        <div class="catalog-actions app-history-drawer-actions">
+          <button class="button compact" type="button" onclick={copyHistoryLog}>
+            {historyCopyDone ? (locale === 'ru' ? 'Скопировано' : 'Copied') : (locale === 'ru' ? 'Копировать лог' : 'Copy log')}
+          </button>
+          <button class="icon-button" aria-label={t(locale,'common.close')} onclick={() => selectedHistoryJob = null}>×</button>
+        </div>
       </div>
 
-      {#if selectedHistoryJob.error}
-        <div class="catalog-install-notice error">{selectedHistoryJob.error}</div>
-      {/if}
+      <div class="app-history-drawer-body">
+        {#if selectedHistoryJob.error}
+          <div class="catalog-install-notice error">{selectedHistoryJob.error}</div>
+        {/if}
 
-      <div class="tech-box mono app-history-meta-grid">
-        <div><span>Job ID</span><strong>{selectedHistoryJob.id}</strong></div>
-        <div><span>{locale === 'ru' ? 'Результат' : 'Result'}</span><strong>{jobStateLabel(selectedHistoryJob.state)}</strong></div>
-        <div><span>{locale === 'ru' ? 'Операция' : 'Action'}</span><strong>{actionVerb(selectedHistoryJob)}</strong></div>
-        <div><span>{locale === 'ru' ? 'Канал' : 'Channel'}</span><strong>{historyChannel(selectedHistoryJob).toUpperCase() || '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Версия' : 'Version'}</span><strong>{historyVersion(selectedHistoryJob) || '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Метод' : 'Method'}</span><strong>{selectedHistoryJob.method || '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Пакеты' : 'Packages'}</span><strong>{selectedHistoryJob.packages?.length ? selectedHistoryJob.packages.join(', ') : '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Начато' : 'Started'}</span><strong>{formatActionHistoryTime(selectedHistoryJob.started_at)}</strong></div>
-        <div><span>{locale === 'ru' ? 'Завершено' : 'Completed'}</span><strong>{selectedHistoryJob.completed_at ? formatActionHistoryTime(selectedHistoryJob.completed_at) : '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Длительность' : 'Duration'}</span><strong>{historyDuration(selectedHistoryJob)}</strong></div>
-        {#if selectedHistoryJob.batch_id}<div><span>Batch ID</span><strong>{selectedHistoryJob.batch_id}</strong></div>{/if}
-      </div>
+        <div class="app-history-summary-grid mono">
+          <div><span>Job ID</span><strong>{selectedHistoryJob.id}</strong></div>
+          <div><span>{locale === 'ru' ? 'Операция' : 'Action'}</span><strong>{actionVerb(selectedHistoryJob)}</strong></div>
+          <div><span>{locale === 'ru' ? 'Канал' : 'Channel'}</span><strong>{historyChannel(selectedHistoryJob).toUpperCase() || '—'}</strong></div>
+          <div><span>{locale === 'ru' ? 'Версия' : 'Version'}</span><strong>{historyVersion(selectedHistoryJob) || '—'}</strong></div>
+          <div><span>{locale === 'ru' ? 'Метод' : 'Method'}</span><strong>{selectedHistoryJob.method || '—'}</strong></div>
+          <div><span>{locale === 'ru' ? 'Пакеты' : 'Packages'}</span><strong>{selectedHistoryJob.packages?.length ? selectedHistoryJob.packages.join(', ') : '—'}</strong></div>
+          <div><span>{locale === 'ru' ? 'Начато' : 'Started'}</span><strong>{formatActionHistoryTime(selectedHistoryJob.started_at)}</strong></div>
+          <div><span>{locale === 'ru' ? 'Завершено' : 'Completed'}</span><strong>{selectedHistoryJob.completed_at ? formatActionHistoryTime(selectedHistoryJob.completed_at) : '—'}</strong></div>
+          <div><span>{locale === 'ru' ? 'Длительность' : 'Duration'}</span><strong>{historyDuration(selectedHistoryJob)}</strong></div>
+          {#if selectedHistoryJob.batch_id}<div><span>Batch ID</span><strong>{selectedHistoryJob.batch_id}</strong></div>{/if}
+        </div>
 
-      <div class="app-history-log-head">
-        <strong>{locale === 'ru' ? 'Технический лог' : 'Technical log'}</strong>
-        <button class="button compact" type="button" onclick={copyHistoryLog}>
-          {historyCopyDone ? (locale === 'ru' ? 'Скопировано' : 'Copied') : (locale === 'ru' ? 'Копировать' : 'Copy')}
-        </button>
+        <div class="app-history-log-panel">
+          <div class="app-history-log-head">
+            <div>
+              <strong>{locale === 'ru' ? 'Технический лог' : 'Technical log'}</strong>
+              <small>{locale === 'ru' ? 'Полный вывод пакетного менеджера' : 'Full package-manager output'}</small>
+            </div>
+          </div>
+          <pre class="app-history-full-log mono">{selectedHistoryJob.lines?.length ? selectedHistoryJob.lines.join('\n') : (locale === 'ru' ? 'Лог отсутствует.' : 'No log available.')}</pre>
+        </div>
       </div>
-      <pre class="app-action-log app-history-full-log mono">{selectedHistoryJob.lines?.length ? selectedHistoryJob.lines.join('\n') : (locale === 'ru' ? 'Лог отсутствует.' : 'No log available.')}</pre>
     </section>
   </div>
 {/if}
@@ -1752,25 +1765,171 @@
     padding:.7rem 1rem;
     border-top:1px solid var(--rf-border,var(--border));
   }
-  .app-history-detail {
-    width:min(860px,100%);
+  .app-history-drawer-backdrop {
+    position:fixed;
+    inset:0;
+    z-index:1200;
+    background:rgba(4,7,10,.58);
+    backdrop-filter:blur(2px);
+    animation:app-history-fade-in .14s ease-out;
   }
-  .app-history-meta-grid {
-    margin:.8rem 0;
+  .app-history-drawer {
+    position:absolute;
+    top:48px;
+    right:16px;
+    left:236px;
+    height:clamp(300px,33vh,430px);
+    min-height:0;
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr);
+    overflow:hidden;
+    border:1px solid var(--rf-border-strong,var(--rf-border,var(--border)));
+    border-radius:0 0 var(--rf-radius-card,8px) var(--rf-radius-card,8px);
+    background:color-mix(in srgb,var(--rf-surface,var(--panel)) 96%,black);
+    box-shadow:0 18px 46px rgba(0,0,0,.38);
+    animation:app-history-drawer-in .18s cubic-bezier(.2,.8,.2,1);
+  }
+  .app-history-drawer-head {
+    min-width:0;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+    padding:.78rem 1rem .72rem;
+    border-bottom:1px solid var(--rf-border,var(--border));
+    background:color-mix(in srgb,var(--rf-surface-2,var(--panel)) 80%,var(--rf-bg));
+  }
+  .app-history-drawer-title {
+    min-width:0;
+    display:grid;
+    gap:.18rem;
+  }
+  .app-history-drawer-title-row {
+    min-width:0;
+    display:flex;
+    align-items:center;
+    gap:.55rem;
+    flex-wrap:wrap;
+  }
+  .app-history-drawer-title h2 {
+    min-width:0;
+    margin:0;
+    color:var(--rf-text,var(--text));
+    font-size:1.05rem;
+    line-height:1.2;
+    overflow-wrap:anywhere;
+  }
+  .app-history-drawer-title p {
+    margin:0;
+    color:var(--rf-muted,var(--muted));
+    font-size:.75rem;
+    line-height:1.35;
+    overflow-wrap:anywhere;
+  }
+  .app-history-drawer-actions {
+    flex:0 0 auto;
+    align-items:center;
+  }
+  .app-history-drawer-body {
+    min-height:0;
+    display:grid;
+    grid-template-columns:minmax(360px,.82fr) minmax(0,1.18fr);
+    gap:.8rem;
+    padding:.8rem 1rem 1rem;
+    overflow:hidden;
+  }
+  .app-history-drawer-body > .catalog-install-notice {
+    grid-column:1 / -1;
+    margin:0;
+  }
+  .app-history-summary-grid {
+    min-width:0;
+    min-height:0;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-content:start;
+    gap:1px;
+    overflow:auto;
+    border:1px solid var(--rf-border,var(--border));
+    border-radius:var(--rf-radius-panel,6px);
+    background:var(--rf-border,var(--border));
+    scrollbar-width:thin;
+  }
+  .app-history-summary-grid > div {
+    min-width:0;
+    display:grid;
+    gap:.18rem;
+    padding:.48rem .58rem;
+    background:var(--rf-bg);
+  }
+  .app-history-summary-grid span {
+    color:var(--rf-muted,var(--muted));
+    font-size:.68rem;
+    line-height:1.2;
+  }
+  .app-history-summary-grid strong {
+    min-width:0;
+    color:var(--rf-text,var(--text));
+    font-size:.74rem;
+    line-height:1.3;
+    overflow-wrap:anywhere;
+  }
+  .app-history-log-panel {
+    min-width:0;
+    min-height:0;
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr);
+    overflow:hidden;
+    border:1px solid var(--rf-border,var(--border));
+    border-radius:var(--rf-radius-panel,6px);
+    background:var(--rf-bg);
   }
   .app-history-log-head {
+    min-width:0;
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:.75rem;
-    margin-top:1rem;
+    padding:.46rem .62rem;
+    border-bottom:1px solid var(--rf-border,var(--border));
+    background:var(--rf-surface-2,var(--panel));
+  }
+  .app-history-log-head > div {
+    min-width:0;
+    display:grid;
+    gap:.08rem;
+  }
+  .app-history-log-head strong {
+    color:var(--rf-text,var(--text));
+    font-size:.78rem;
+  }
+  .app-history-log-head small {
+    color:var(--rf-muted,var(--muted));
+    font-size:.68rem;
   }
   .app-history-full-log {
-    max-height:40vh;
-    margin-top:.5rem;
-    border:1px solid var(--rf-border,var(--border));
-    border-radius:.6rem;
-    background:rgba(0,0,0,.18);
+    min-height:0;
+    max-height:none;
+    overflow:auto;
+    margin:0;
+    padding:.65rem .72rem;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    color:color-mix(in srgb,var(--rf-text,var(--text)) 88%,var(--rf-muted,var(--muted)));
+    white-space:pre-wrap;
+    word-break:break-word;
+    font-size:.72rem;
+    line-height:1.45;
+    scrollbar-width:thin;
+  }
+  @keyframes app-history-drawer-in {
+    from { transform:translateY(-18px); opacity:0; }
+    to { transform:translateY(0); opacity:1; }
+  }
+  @keyframes app-history-fade-in {
+    from { opacity:0; }
+    to { opacity:1; }
   }
   .app-detail-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:1rem; background:rgba(0,0,0,.55); }
   .app-detail-modal { width:min(720px,100%); max-height:85vh; overflow:auto; padding:1rem; border:1px solid var(--rf-border,var(--border)); border-radius:.85rem; background:var(--rf-panel,var(--panel)); box-shadow:0 24px 80px rgba(0,0,0,.35); }
@@ -1911,6 +2070,43 @@
     text-align:right;
   }
 
+  @media (max-width:980px) {
+    .app-history-drawer {
+      top:44px;
+      right:10px;
+      left:10px;
+      height:clamp(320px,42vh,480px);
+      border-radius:0 0 var(--rf-radius-card,8px) var(--rf-radius-card,8px);
+    }
+    .app-history-drawer-body {
+      grid-template-columns:minmax(0,1fr);
+      overflow:auto;
+    }
+    .app-history-summary-grid {
+      overflow:visible;
+    }
+    .app-history-log-panel {
+      min-height:180px;
+    }
+  }
+
+  @media (max-width:620px) {
+    .app-history-drawer {
+      top:42px;
+      height:52vh;
+    }
+    .app-history-drawer-head {
+      align-items:stretch;
+      flex-direction:column;
+      gap:.55rem;
+    }
+    .app-history-drawer-actions {
+      justify-content:space-between;
+    }
+    .app-history-summary-grid {
+      grid-template-columns:minmax(0,1fr);
+    }
+  }
   @media (max-width:1400px) {
     .app-center-page .catalog-toolbar-v4.routerforge {
       grid-template-columns:1fr;

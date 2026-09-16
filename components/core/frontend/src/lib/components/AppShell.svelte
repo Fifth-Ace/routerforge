@@ -162,9 +162,8 @@
           <span class="rail-repository-arrow" aria-hidden="true">↗</span>
         </a>
 
-        <a class="rail-repository-link" href="https://git.fifthace.ru/FifthAce/routerforge" target="_blank" rel="noreferrer" aria-label={locale === 'ru' ? 'Исходный код RouterForge — приватный репозиторий' : 'RouterForge source code — private repository'}>
-          <img src="/routerforge-mark.png" alt="" />
-          <span class="rail-repository-copy"><small>{t(locale,'shell.sourceCode')}</small><strong>{locale === 'ru' ? 'Private repo' : 'Private repo'}</strong></span>
+        <a class="rail-repository-link rail-repository-link-text" href="https://git.fifthace.ru/FifthAce/routerforge" target="_blank" rel="noreferrer" aria-label={locale === 'ru' ? 'Исходный код RouterForge — приватный репозиторий' : 'RouterForge source code — private repository'}>
+          <span class="rail-repository-copy"><small>{t(locale,'shell.sourceCode')}</small><strong>Private repo</strong></span>
           <span class="rail-repository-arrow" aria-hidden="true">↗</span>
         </a>
 

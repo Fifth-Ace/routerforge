@@ -48,6 +48,7 @@
   let closingResolverSections = {};
   let openingResolverSections = {};
   let refreshBusy = false;
+  let healthHelp = null;
 
   let overviewSearch = '';
   let overviewActiveOnly = false;
@@ -210,11 +211,18 @@
     const q = overviewSearch.trim().toLowerCase();
     return !q || `${u.name || ''} ${u.target || ''} ${u.sni || ''} ${u.domain || ''}`.toLowerCase().includes(q);
   });
+  $: problematicPlain = plainResolvers.filter((r) => ['warn','error'].includes(plainStatus(r).cls));
+  $: problematicProtected = protectedUpstreams.filter((u) => ['warn','error'].includes(upstreamStatus(u).cls));
   $: serverCount = protectedUpstreams.length + plainResolvers.length;
-  $: healthyCount = protectedUpstreams.filter((u) => u.health_status !== 'DOWN').length + plainResolvers.filter((r) => plainStatus(r).cls !== 'error').length;
+  $: problemResolverCount = problematicPlain.length + problematicProtected.length;
+  $: healthyCount = Math.max(0, serverCount - problemResolverCount);
   $: activeCount = protectedUpstreams.filter((u) => u.active).length + plainResolvers.filter(plainRecentlyActive).length;
-  $: downCount = protectedUpstreams.filter((u) => u.health_status === 'DOWN').length + plainResolvers.filter((r) => plainStatus(r).cls === 'error').length;
-  $: degradedCount = protectedUpstreams.filter((u) => u.health_status === 'DEGRADED').length + plainResolvers.filter((r) => plainStatus(r).cls === 'warn').length;
+  $: downCount = protectedUpstreams.filter((u) => upstreamStatus(u).cls === 'error').length + plainResolvers.filter((r) => plainStatus(r).cls === 'error').length;
+  $: degradedCount = protectedUpstreams.filter((u) => upstreamStatus(u).cls === 'warn').length + plainResolvers.filter((r) => plainStatus(r).cls === 'warn').length;
+  $: problemResolverPreview = [
+    ...problematicPlain.map((r) => `${r.name || r.address}: ${plainStatus(r).detail || plainStatus(r).label}`),
+    ...problematicProtected.map((u) => `${u.name || u.target || u.sni || `:${u.port}`}: ${protectedHealthDetail(u)}`)
+  ].slice(0, 3).join(' · ');
 
   $: filteredResolvers = resolvers.filter((r) => {
     const q = resolverSearch.trim().toLowerCase();
@@ -470,6 +478,100 @@
     if (u.health_status === 'UP') return { cls:'neutral', label:'UP' };
     return { cls:'neutral', label:u.health_status || L.detected };
   }
+
+  function protectedHealthDetail(u = {}) {
+    const state = upstreamStatus(u);
+    const w = u.stats_5m || {};
+    const failures = num(w.errors) + num(w.timeouts);
+    const p95 = num(w.p95_latency_ms);
+    const quality = num(w.quality_pct ?? 100);
+    if (state.cls === 'error') {
+      if (failures) return locale === 'en' ? `${failures} failures in 5 min · resolver is down` : `${failures} сбоев за 5 мин · резолвер недоступен`;
+      return locale === 'en' ? 'runtime health reports no replies' : 'runtime health сообщает, что ответов нет';
+    }
+    if (state.cls === 'warn') {
+      if (failures) return locale === 'en' ? `${failures} failures in 5 min · quality ${quality.toFixed(1)}%` : `${failures} сбоев за 5 мин · качество ${quality.toFixed(1)}%`;
+      if (p95) return locale === 'en' ? `runtime degraded · p95 ${Math.round(p95)} ms` : `runtime DEGRADED · p95 ${Math.round(p95)} мс`;
+      return locale === 'en' ? 'runtime health marked this resolver degraded' : 'runtime health пометил этот резолвер как DEGRADED';
+    }
+    return state.label;
+  }
+
+  function healthSeverityText(state = {}) {
+    if (state.cls === 'error') return locale === 'en'
+      ? 'Critical: this DNS is currently unavailable. Requests may move to another resolver.'
+      : 'Критично: этот DNS сейчас недоступен. Запросы могут уйти на другой резолвер.';
+    if (state.cls === 'warn') return locale === 'en'
+      ? 'Warning: DNS still works, but failures or latency exceed the configured threshold.'
+      : 'Предупреждение: DNS ещё работает, но ошибки или задержка превысили настроенный порог.';
+    if (state.label === L.hadIssues) return locale === 'en'
+      ? 'Informational: there were problems recently, but the current health window is normal.'
+      : 'Информация: недавно были сбои, но текущее окно уже в норме.';
+    return locale === 'en'
+      ? 'Normal: no current health trigger requires attention.'
+      : 'Норма: сейчас ни один health-порог не требует внимания.';
+  }
+
+  function plainHealthTooltip(r = {}) {
+    const state = plainStatus(r);
+    const cfg = dnsHealthConfig();
+    const reason = state.detail ? `${state.detail}. ` : '';
+    return locale === 'en'
+      ? `${healthSeverityText(state)}\n${reason}Plain DNS uses a ${cfg.windowMin}-minute rolling window. Degraded requires at least ${cfg.failCount} failures AND ${cfg.failRate}% failure rate, or p95 ≥ ${cfg.latencyP95Ms} ms after ${cfg.latencySamples} replies. NXDOMAIN is a normal “name not found” reply and does not count as a failure.`
+      : `${healthSeverityText(state)}\n${reason}Обычный DNS оценивается по скользящему окну ${cfg.windowMin} мин. Для «Есть проблемы» нужно одновременно минимум ${cfg.failCount} сбоев И ${cfg.failRate}% ошибок, либо p95 ≥ ${cfg.latencyP95Ms} мс после ${cfg.latencySamples} ответов. NXDOMAIN — нормальный ответ «имя не найдено» и ошибкой не считается.`;
+  }
+
+  function protectedHealthTooltip(u = {}) {
+    const state = upstreamStatus(u);
+    const w = u.stats_5m || {};
+    const failures = num(w.errors) + num(w.timeouts);
+    const p95 = num(w.p95_latency_ms);
+    const quality = num(w.quality_pct ?? 100);
+    return locale === 'en'
+      ? `${healthSeverityText(state)}\nCurrent 5 min: ${failures} failures, p95 ${p95 ? `${Math.round(p95)} ms` : '—'}, quality ${quality.toFixed(1)}%. Protected DoT/DoH health also uses RouterForge runtime probes, so DEGRADED/DOWN can appear even when the historical journal is empty.`
+      : `${healthSeverityText(state)}\nТекущие 5 мин: ${failures} сбоев, p95 ${p95 ? `${Math.round(p95)} мс` : '—'}, качество ${quality.toFixed(1)}%. Для защищённых DoT/DoH учитываются также runtime-проверки RouterForge, поэтому DEGRADED/DOWN может появиться даже без записи в историческом журнале.`;
+  }
+
+  function overviewHealthTooltip() {
+    return locale === 'en'
+      ? 'This is the current state, not a lifetime error counter. Healthy means the resolver is not DEGRADED or DOWN right now. “Had issues” is counted as currently healthy.'
+      : 'Это состояние прямо сейчас, а не счётчик ошибок за всё время. Здоровым считается DNS, который сейчас не DEGRADED и не DOWN. «Были сбои» означает, что проблема уже закончилась.';
+  }
+
+  function problemsTooltip() {
+    return locale === 'en'
+      ? 'Shows how many resolvers need attention now. The diagnostics journal is historical and can contain old Quad9 errors while another resolver is currently healthy. Plain DNS timeouts are also visible in Traffic → recent DNS requests.'
+      : 'Показывает, сколько резолверов требуют внимания прямо сейчас. Журнал диагностики исторический: в нём могут оставаться старые ошибки Quad9, пока другой DNS уже полностью здоров. Таймауты обычного DNS также видны в «Трафик → последние DNS-запросы».';
+  }
+
+  function latencyTooltip() {
+    return locale === 'en'
+      ? 'p95 means 95% of replies were this fast or faster. It exposes occasional slow replies better than the average. Very high p95 can mark DNS degraded even with zero packet errors.'
+      : 'p95 означает: 95% ответов пришли не медленнее этого значения. Он лучше среднего показывает редкие долгие ответы. Поэтому DNS может получить «Есть проблемы» из-за высокой задержки даже при нуле сетевых ошибок.';
+  }
+
+  function qualityTooltip() {
+    return locale === 'en'
+      ? 'Quality reflects successful replies in the current health window. 100% does not guarantee low latency: a slow resolver can still be degraded.'
+      : 'Качество показывает долю успешных ответов в текущем health-окне. 100% не означает низкую задержку: медленный DNS всё равно может быть отмечен как проблемный.';
+  }
+
+  function showHealthHelp(event, text, title = '') {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const width = Math.min(360, Math.max(260, window.innerWidth - 24));
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2));
+    const below = rect.bottom + 8;
+    const top = below + 170 < window.innerHeight ? below : Math.max(12, rect.top - 178);
+    healthHelp = { text, title, left, top, width };
+  }
+  function hideHealthHelp() { healthHelp = null; }
+  function toggleHealthHelp(event, text, title = '') {
+    event.preventDefault();
+    event.stopPropagation();
+    if (healthHelp?.text === text) hideHealthHelp();
+    else showHealthHelp(event, text, title);
+  }
+
   function qualityClass(w = {}) {
     const q = num(w.quality_pct ?? 100);
     if (w.quality_status === 'BAD' || q < 90) return 'bad-text';
@@ -1406,20 +1508,39 @@
     </div>
 
     <section class="metric-grid four">
-      <div class="metric-card"><span>DNS-СЕРВЕРЫ</span><strong>{healthyCount}/{serverCount}</strong><small>{activeCount} {locale === 'en' ? 'active' : 'активны'} · DOWN {downCount}</small></div>
+      <div class="metric-card">
+        <span class="metric-label-help">DNS-СЕРВЕРЫ <button class="health-help" type="button" aria-label={locale === 'en' ? 'Explain DNS server health' : 'Объяснить состояние DNS-серверов'} onmouseenter={(e) => showHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, overviewHealthTooltip(), locale === 'en' ? 'Current DNS health' : 'Текущее состояние DNS')}>?</button></span>
+        <strong>{healthyCount}/{serverCount}</strong>
+        <small>{activeCount} {locale === 'en' ? 'active' : 'активны'} · DOWN {downCount} · DEGRADED {degradedCount}</small>
+      </div>
       <div class="metric-card"><span>{L.requests}</span><strong>{fmtInt(totalRequests)}</strong><small>{fmtInt(totalResponses)} {locale === 'en' ? 'responses' : 'ответов'}</small></div>
       <div class="metric-card"><span>{L.fallback}</span><strong>{fmtInt(totalFallbacks)}</strong><small>{fmtPct(totalRequests ? totalFallbacks / totalRequests * 100 : 0, 2)}</small></div>
-      <div class="metric-card"><span>{L.problems}</span><strong>{fmtInt(totalErrors)}</strong><small>{fmtInt(totalTimeouts)} timeout · degraded {degradedCount}</small></div>
+      <div class="metric-card" class:metric-warning={problemResolverCount > 0}>
+        <span class="metric-label-help">{L.problems} <button class="health-help" type="button" aria-label={locale === 'en' ? 'Explain DNS problems' : 'Объяснить, что считается проблемой DNS'} onmouseenter={(e) => showHealthHelp(e, problemsTooltip(), locale === 'en' ? 'Problems now' : 'Проблемы сейчас')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, problemsTooltip(), locale === 'en' ? 'Problems now' : 'Проблемы сейчас')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, problemsTooltip(), locale === 'en' ? 'Problems now' : 'Проблемы сейчас')}>?</button></span>
+        <strong>{problemResolverCount}</strong>
+        <small>{problemResolverCount ? (locale === 'en' ? `${problemResolverCount} of ${serverCount} need attention` : `${problemResolverCount} из ${serverCount} требуют внимания`) : (locale === 'en' ? 'no current health triggers' : 'сейчас проблем нет')}</small>
+      </div>
     </section>
+
+    {#if problemResolverCount}
+      <section class="dns-health-callout warn">
+        <div>
+          <span class="dns-health-callout-kicker">{locale === 'en' ? 'ATTENTION NOW' : 'СЕЙЧАС ТРЕБУЕТ ВНИМАНИЯ'}</span>
+          <strong>{locale === 'en' ? `${problemResolverCount} of ${serverCount} DNS resolvers have problems` : `Проблемы у ${problemResolverCount} из ${serverCount} DNS-резолверов`}</strong>
+          <p>{problemResolverPreview || (locale === 'en' ? 'Open resolver rows below for details.' : 'Причина показана у конкретного резолвера ниже.')}</p>
+        </div>
+        <button class="health-help callout-help" type="button" aria-label={locale === 'en' ? 'Explain severity' : 'Объяснить серьёзность'} onmouseenter={(e) => showHealthHelp(e, problemsTooltip(), locale === 'en' ? 'How bad is this?' : 'Насколько это плохо?')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, problemsTooltip(), locale === 'en' ? 'How bad is this?' : 'Насколько это плохо?')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, problemsTooltip(), locale === 'en' ? 'How bad is this?' : 'Насколько это плохо?')}>?</button>
+      </section>
+    {/if}
 
     {#if filteredPlain.length}
       <section class="panel table-panel">
         <div class="panel-head"><div><strong>{L.mainDns}</strong><span>show ip name-server · passive request/response correlation</span></div><span class="state-pill info">{filteredPlain.length} DNS</span></div>
-        <div class="table-wrap"><table><thead><tr><th>DNS</th><th>{L.status}</th><th>{L.requests}</th><th>{L.latency}</th><th>{L.problems}</th><th>{L.quality}</th><th>{L.iface}</th></tr></thead><tbody>
+        <div class="table-wrap"><table><thead><tr><th>DNS</th><th>{L.status}</th><th>{L.requests}</th><th><span class="th-help">{L.latency}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain p95 latency' : 'Что означает p95'} onmouseenter={(e) => showHealthHelp(e, latencyTooltip(), 'p95')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, latencyTooltip(), 'p95')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, latencyTooltip(), 'p95')}>?</button></span></th><th><span class="th-help">{L.problems}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain DNS problems' : 'Что считается проблемой'} onmouseenter={(e) => showHealthHelp(e, problemsTooltip(), L.problems)} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, problemsTooltip(), L.problems)} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, problemsTooltip(), L.problems)}>?</button></span></th><th><span class="th-help">{L.quality}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain DNS quality' : 'Что означает качество DNS'} onmouseenter={(e) => showHealthHelp(e, qualityTooltip(), L.quality)} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, qualityTooltip(), L.quality)} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, qualityTooltip(), L.quality)}>?</button></span></th><th>{L.iface}</th></tr></thead><tbody>
           {#each filteredPlain as r (`${r.address}:${r.port || 53}`)}
             <tr>
               <td><div class="cell-title">{r.name || r.address}</div><div class="cell-sub mono">{r.address}:{r.port || 53}{r.source ? ` · ${r.source}` : ''}</div></td>
-              <td><span class="state-chip {plainStatus(r).cls}">{plainStatus(r).label}</span><div class="cell-sub">{plainStatus(r).detail || (plainRecentlyActive(r) ? L.currentUse : fmtAgo(r.last_request))}</div></td>
+              <td><div class="status-help-wrap"><span class="state-chip {plainStatus(r).cls}">{plainStatus(r).label}</span><button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain this DNS status' : 'Объяснить статус этого DNS'} onmouseenter={(e) => showHealthHelp(e, plainHealthTooltip(r), r.name || r.address)} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, plainHealthTooltip(r), r.name || r.address)} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, plainHealthTooltip(r), r.name || r.address)}>?</button></div><div class="cell-sub">{plainStatus(r).detail || (plainRecentlyActive(r) ? L.currentUse : fmtAgo(r.last_request))}</div></td>
               <td><strong>{fmtInt(r.requests)}</strong><div class="cell-sub">{fmtPct(share(r.requests), 2)} {L.trafficShare}</div></td>
               <td>{#if num(r.p95_latency_ms)}<span class="latency {latencyClass(r.p95_latency_ms)}">p95 {fmtMs(r.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(r.avg_latency_ms)}</div>{:else}—{/if}</td>
               <td><strong class={plainStatus(r).failures > 0 ? 'warn-text' : ''}>{fmtInt(plainStatus(r).failures)}</strong><div class="cell-sub">{fmtInt(plainStatus(r).timeouts)} timeout · {fmtInt(plainStatus(r).errors)} error · {fmtInt(r.nxdomain)} NX</div></td>
@@ -1434,12 +1555,12 @@
     {#if filteredProtected.length}
       <section class="panel table-panel">
         <div class="panel-head"><div><strong>{L.protectedDns}</strong><span>System DoT/DoH runtime · без policy-дублей</span></div><span class="state-pill info">{filteredProtected.length}</span></div>
-        <div class="table-wrap"><table><thead><tr><th>DNS</th><th>{L.type}</th><th>{L.status}</th><th>{L.requests}</th><th>{L.latency}</th><th>{L.problems}</th><th>{L.fallback}</th><th>{L.quality}</th><th>{L.port}</th></tr></thead><tbody>
+        <div class="table-wrap"><table><thead><tr><th>DNS</th><th>{L.type}</th><th>{L.status}</th><th>{L.requests}</th><th><span class="th-help">{L.latency}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain p95 latency' : 'Что означает p95'} onmouseenter={(e) => showHealthHelp(e, latencyTooltip(), 'p95')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, latencyTooltip(), 'p95')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, latencyTooltip(), 'p95')}>?</button></span></th><th><span class="th-help">{L.problems}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain DNS problems' : 'Что считается проблемой'} onmouseenter={(e) => showHealthHelp(e, problemsTooltip(), L.problems)} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, problemsTooltip(), L.problems)} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, problemsTooltip(), L.problems)}>?</button></span></th><th>{L.fallback}</th><th><span class="th-help">{L.quality}<button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain DNS quality' : 'Что означает качество DNS'} onmouseenter={(e) => showHealthHelp(e, qualityTooltip(), L.quality)} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, qualityTooltip(), L.quality)} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, qualityTooltip(), L.quality)}>?</button></span></th><th>{L.port}</th></tr></thead><tbody>
           {#each filteredProtected as u (u.port)}
             <tr>
               <td><div class="cell-title">{u.name}</div><div class="cell-sub">{u.target || u.sni || '—'}{u.domain ? ` · ${u.domain}` : ''}</div></td>
               <td><span class="pill accent">{u.protocol}</span></td>
-              <td><span class="state-chip {upstreamStatus(u).cls}">{upstreamStatus(u).label}</span><div class="cell-sub">{u.active ? L.currentUse : fmtAgo(u.last_request)}</div></td>
+              <td><div class="status-help-wrap"><span class="state-chip {upstreamStatus(u).cls}">{upstreamStatus(u).label}</span><button class="health-help tiny" type="button" aria-label={locale === 'en' ? 'Explain this DNS status' : 'Объяснить статус этого DNS'} onmouseenter={(e) => showHealthHelp(e, protectedHealthTooltip(u), u.name || u.target || 'DNS')} onmouseleave={hideHealthHelp} onfocus={(e) => showHealthHelp(e, protectedHealthTooltip(u), u.name || u.target || 'DNS')} onblur={hideHealthHelp} onclick={(e) => toggleHealthHelp(e, protectedHealthTooltip(u), u.name || u.target || 'DNS')}>?</button></div><div class="cell-sub">{['warn','error'].includes(upstreamStatus(u).cls) ? protectedHealthDetail(u) : (u.active ? L.currentUse : fmtAgo(u.last_request))}</div></td>
               <td><strong>{fmtInt(u.requests)}</strong><div class="cell-sub">{fmtPct(share(u.requests), 2)} {L.trafficShare}</div></td>
               <td>{#if num(u.stats_5m?.p95_latency_ms)}<span class="latency {latencyClass(u.stats_5m?.p95_latency_ms)}">p95 {fmtMs(u.stats_5m?.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(u.stats_5m?.avg_latency_ms)}</div>{:else}—{/if}</td>
               <td><strong class={num(u.stats_5m?.errors) + num(u.stats_5m?.timeouts) > 0 ? 'warn-text' : ''}>{fmtInt(num(u.stats_5m?.errors) + num(u.stats_5m?.timeouts))}</strong><div class="cell-sub">{fmtInt(u.stats_5m?.timeouts)} timeout</div></td>
@@ -1857,6 +1978,13 @@
         <section class="panel"><div class="panel-head"><div><strong>{L.process}</strong><span>routerforge-dns</span></div></div><div class="info-row"><div><strong>RSS</strong></div><div class="info-value">{fmtInt(systemInfo?.rss_kb)} KiB</div></div><div class="info-row"><div><strong>VmSize</strong></div><div class="info-value">{fmtInt(systemInfo?.vmsize_kb)} KiB</div></div><div class="info-row"><div><strong>Goroutines</strong></div><div class="info-value">{fmtInt(systemInfo?.goroutines)}</div></div><div class="info-row"><div><strong>PID</strong></div><div class="info-value mono">{fmtInt(systemInfo?.pid)}</div></div></section>
       </div>
     {/if}
+  {/if}
+
+  {#if healthHelp}
+    <div class="dns-help-popover" role="tooltip" style={`left:${healthHelp.left}px;top:${healthHelp.top}px;width:${healthHelp.width}px`}>
+      {#if healthHelp.title}<strong>{healthHelp.title}</strong>{/if}
+      <span>{healthHelp.text}</span>
+    </div>
   {/if}
 
   {#if editorOpen}

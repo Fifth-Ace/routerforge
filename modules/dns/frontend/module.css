@@ -205,6 +205,83 @@ button, input, select, textarea { font:inherit; }
   color:#8d97a3;
   font-size:var(--ui-xs);
 }
+.dns-module .metric-card.metric-warning {
+  border-color:rgba(210,153,34,.34);
+  background:linear-gradient(180deg,rgba(210,153,34,.055),var(--concept-panel));
+}
+.dns-module .metric-card.metric-warning > strong { color:#e6b34b; }
+.dns-module .metric-label-help,
+.dns-module .th-help,
+.dns-module .status-help-wrap {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+}
+.dns-module button.health-help {
+  width:18px;
+  height:18px;
+  min-width:18px;
+  padding:0;
+  border:1px solid #3a424d;
+  border-radius:50%;
+  background:#15191f;
+  color:#8f9aa6;
+  display:inline-grid;
+  place-items:center;
+  cursor:help;
+  font:700 10px/1 var(--font-mono);
+  text-transform:none;
+  letter-spacing:0;
+  vertical-align:middle;
+}
+.dns-module button.health-help:hover,
+.dns-module button.health-help:focus-visible {
+  outline:none;
+  border-color:rgba(56,189,248,.52);
+  background:rgba(56,189,248,.10);
+  color:var(--accent);
+}
+.dns-module button.health-help.tiny {
+  width:16px;
+  height:16px;
+  min-width:16px;
+  font-size:9px;
+}
+.dns-module .dns-health-callout {
+  margin:-2px 0 16px;
+  padding:11px 13px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  border:1px solid var(--concept-border);
+  border-radius:6px;
+  background:#111419;
+}
+.dns-module .dns-health-callout.warn {
+  border-color:rgba(210,153,34,.30);
+  background:rgba(210,153,34,.055);
+}
+.dns-module .dns-health-callout > div { min-width:0; }
+.dns-module .dns-health-callout-kicker {
+  display:block;
+  margin-bottom:3px;
+  color:var(--warn);
+  font:650 var(--ui-micro)/1.2 var(--font-mono);
+  letter-spacing:.06em;
+}
+.dns-module .dns-health-callout strong {
+  display:block;
+  color:#f0f3f6;
+  font-size:var(--ui-xs);
+}
+.dns-module .dns-health-callout p {
+  margin:4px 0 0;
+  color:#9aa4af;
+  font-size:var(--ui-xs);
+  line-height:1.45;
+}
+.dns-module .dns-health-callout .callout-help { flex:0 0 18px; }
 
 .dns-module .panel {
   min-width:0;
@@ -422,6 +499,32 @@ button, input, select, textarea { font:inherit; }
 }
 .dns-module tbody tr:last-child td { border-bottom:0; }
 .dns-module tbody tr:hover td { background:rgba(255,255,255,.018); }
+
+.dns-help-popover {
+  position:fixed;
+  z-index:1400;
+  padding:10px 11px;
+  border:1px solid #3a424d;
+  border-radius:6px;
+  background:#11151a;
+  box-shadow:0 12px 34px rgba(0,0,0,.42);
+  color:#cbd2da;
+  pointer-events:none;
+}
+.dns-help-popover strong {
+  display:block;
+  margin-bottom:5px;
+  color:#f4f7fa;
+  font-size:12px;
+  font-weight:650;
+}
+.dns-help-popover span {
+  display:block;
+  color:#aab3bd;
+  font-size:11px;
+  line-height:1.5;
+  white-space:pre-line;
+}
 
 .dns-module .empty-box {
   min-height:100px;

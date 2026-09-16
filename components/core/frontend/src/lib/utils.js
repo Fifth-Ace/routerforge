@@ -1,4 +1,5 @@
 import { t, localeOf } from '$lib/i18n/index.js';
+import { catalogWebProbeMetadataEligible } from '$lib/catalog-web-security.js';
 
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, Number(n || 0)));
 
@@ -216,11 +217,7 @@ export function catalogWebSecurityDecision(item = {}, auth = {}, urlOverride = '
   decision.mixedContent = location.protocol === 'https:' && target.protocol !== 'https:';
 
   const embedRequested = ['embedded-supported', 'probe-required'].includes(web.mode) && web.embed === true;
-  const trustStatus = String(item?.trust?.status || '').toLowerCase();
-  const probeEligible = trustStatus === 'official'
-    || trustStatus === 'verified'
-    || runtimeLocal
-    || (item?.registry_source === 'legacy-fallback' && Boolean(item?.web_port_source));
+  const probeEligible = catalogWebProbeMetadataEligible(item, runtimeLocal);
 
   if (embedRequested && !probeEligible) {
     decision.reason = 'untrusted-web-metadata';

@@ -109,8 +109,7 @@
       editTitle:'Настройка резолвера', addTitle:'Новый резолвер', all:'Все', moduleVersion:'Версия модуля',
       secureSlots:'DoT/DoH-слоты', dnsDomainLimit:'Домены DNS', afterSave:'После сохранения', limitExceeded:'Превышен лимит Keenetic',
       mainDns:'Основной DNS', protectedDns:'Защищённые DNS', problems:'Проблемы', quality:'Качество', latency:'Latency', fallback:'Fallback',
-      searchDns:'Поиск DNS…', activeOnly:'Активные', currentUse:'используется сейчас', detected:'Доступен', unavailable:'Недоступен', degraded:'Есть проблемы',
-      trafficShare:'трафика', timeouts:'Таймауты', policyContexts:'Маршрутные DNS-контексты', route:'Маршрут', resolverCount:'Резолверы', markTable:'MARK / TABLE',
+      searchDns:'Поиск DNS…', activeOnly:'Активные', currentUse:'используется сейчас', detected:'Доступен', unavailable:'Недоступен', degraded:'Есть проблемы', hadIssues:'Были сбои',      trafficShare:'трафика', timeouts:'Таймауты', policyContexts:'Маршрутные DNS-контексты', route:'Маршрут', resolverCount:'Резолверы', markTable:'MARK / TABLE',
       bindings:'Доменные привязки', bindingsHint:'Нативные domain bindings активных резолверов Keenetic.', fallbackRoutes:'Fallback-маршруты', fallbackHint:'Фактические переходы между DNS upstream за выбранный период.', keeneticProfiles:'Профили Keenetic', discoveryData:'Текущие discovery-данные', triggers:'Срабатывания', from:'Откуда', to:'Куда', allProfiles:'Все профили',
       trafficGraph:'DNS traffic', buckets:'интервалов', flow:'DNS Flow', devices:'Устройства', interfaces:'Интерфейсы', domainsTab:'Домены',
       domainOrDevice:'Домен или устройство…', fallbackOnly:'Только fallback', pause:'Пауза', continue:'Продолжить', live:'LIVE', frozen:'ЗАМОРОЖЕНО', noMatching:'Ничего не найдено.',
@@ -144,8 +143,7 @@
       editTitle:'Configure resolver', addTitle:'New resolver', all:'All', moduleVersion:'Module version',
       secureSlots:'DoT/DoH slots', dnsDomainLimit:'DNS domains', afterSave:'After save', limitExceeded:'Keenetic limit exceeded',
       mainDns:'Main DNS', protectedDns:'Protected DNS', problems:'Problems', quality:'Quality', latency:'Latency', fallback:'Fallback',
-      searchDns:'Search DNS…', activeOnly:'Active', currentUse:'in use now', detected:'Detected', unavailable:'Unavailable', degraded:'Degraded',
-      trafficShare:'traffic', timeouts:'Timeouts', policyContexts:'Policy DNS contexts', route:'Route', resolverCount:'Resolvers', markTable:'MARK / TABLE',
+      searchDns:'Search DNS…', activeOnly:'Active', currentUse:'in use now', detected:'Detected', unavailable:'Unavailable', degraded:'Degraded', hadIssues:'Had issues',      trafficShare:'traffic', timeouts:'Timeouts', policyContexts:'Policy DNS contexts', route:'Route', resolverCount:'Resolvers', markTable:'MARK / TABLE',
       bindings:'Domain bindings', bindingsHint:'Native domain bindings of active Keenetic resolvers.', fallbackRoutes:'Fallback routes', fallbackHint:'Observed transitions between DNS upstreams in the selected period.', keeneticProfiles:'Keenetic profiles', discoveryData:'Current discovery data', triggers:'Triggers', from:'From', to:'To', allProfiles:'All profiles',
       trafficGraph:'DNS traffic', buckets:'buckets', flow:'DNS Flow', devices:'Devices', interfaces:'Interfaces', domainsTab:'Domains',
       domainOrDevice:'Domain or device…', fallbackOnly:'Fallback only', pause:'Pause', continue:'Continue', live:'LIVE', frozen:'FROZEN', noMatching:'No matching events.',
@@ -322,12 +320,148 @@
     const ts = new Date(iso).getTime();
     return Number.isFinite(ts) && Date.now() - ts < 5 * 60 * 1000;
   }
+  function boundedHealthNumber(value, fallback, min, max) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(max, Math.max(min, parsed));
+  }
+
+  function dnsHealthConfig() {
+    const defaults = {
+      windowMin:5, failCount:10, failRate:2, latencyP95Ms:1500, latencySamples:20,
+      downRequests:5, downWindowSec:60, historyMin:60
+    };
+    try {
+      const raw = JSON.parse(localStorage.getItem('routerforge.settings') || '{}');
+      return {
+        windowMin: Math.round(boundedHealthNumber(raw.dnsHealthWindowMin, defaults.windowMin, 1, 15)),
+        failCount: Math.round(boundedHealthNumber(raw.dnsHealthFailCount, defaults.failCount, 1, 1000)),
+        failRate: boundedHealthNumber(raw.dnsHealthFailRate, defaults.failRate, .1, 50),
+        latencyP95Ms: Math.round(boundedHealthNumber(raw.dnsHealthLatencyP95Ms, defaults.latencyP95Ms, 100, 10000)),
+        latencySamples: Math.round(boundedHealthNumber(raw.dnsHealthLatencySamples, defaults.latencySamples, 1, 1000)),
+        downRequests: Math.round(boundedHealthNumber(raw.dnsHealthDownRequests, defaults.downRequests, 1, 100)),
+        downWindowSec: Math.round(boundedHealthNumber(raw.dnsHealthDownWindowSec, defaults.downWindowSec, 30, 300)),
+        historyMin: Math.round(boundedHealthNumber(raw.dnsHealthHistoryMin, defaults.historyMin, 15, 60))
+      };
+    } catch {
+      return defaults;
+    }
+  }
+
+  function mergePlainHealthBuckets(rows = []) {
+    const merged = new Map();
+    for (const row of rows) {
+      for (const bucket of row?.health_buckets || []) {
+        const minute = Number(bucket?.minute);
+        if (!Number.isFinite(minute)) continue;
+        const current = merged.get(minute) || { minute, requests:0, responses:0, errors:0, timeouts:0, nxdomain:0, p95_latency_ms:0 };
+        current.requests += num(bucket.requests);
+        current.responses += num(bucket.responses);
+        current.errors += num(bucket.errors);
+        current.timeouts += num(bucket.timeouts);
+        current.nxdomain += num(bucket.nxdomain);
+        current.p95_latency_ms = Math.max(current.p95_latency_ms, num(bucket.p95_latency_ms));
+        merged.set(minute, current);
+      }
+    }
+    return merged;
+  }
+
+  function plainHealthWindow(bucketMap, endMinute, minutes) {
+    const start = endMinute - Math.max(1, minutes) + 1;
+    const out = { requests:0, responses:0, errors:0, timeouts:0, nxdomain:0, p95_latency_ms:0, failures:0, fail_rate:0, successes:0 };
+    for (const [minute, bucket] of bucketMap) {
+      if (minute < start || minute > endMinute) continue;
+      out.requests += num(bucket.requests);
+      out.responses += num(bucket.responses);
+      out.errors += num(bucket.errors);
+      out.timeouts += num(bucket.timeouts);
+      out.nxdomain += num(bucket.nxdomain);
+      out.p95_latency_ms = Math.max(out.p95_latency_ms, num(bucket.p95_latency_ms));
+    }
+    out.failures = out.errors + out.timeouts;
+    const attempts = out.responses + out.timeouts;
+    out.successes = Math.max(0, out.responses - out.errors);
+    out.fail_rate = attempts > 0 ? out.failures / attempts * 100 : 0;
+    return out;
+  }
+
+  function healthWindowState(metrics, cfg, allowDown = true) {
+    const attempts = metrics.responses + metrics.timeouts;
+    if (allowDown && attempts >= cfg.downRequests && metrics.successes === 0) return 'down';
+    const failureProblem = metrics.failures >= cfg.failCount && metrics.fail_rate >= cfg.failRate;
+    const latencyProblem = metrics.responses >= cfg.latencySamples && metrics.p95_latency_ms >= cfg.latencyP95Ms;
+    if (failureProblem || latencyProblem) return 'degraded';
+    return 'healthy';
+  }
+
+  function healthDetail(metrics, cfg, state) {
+    if (state === 'down') {
+      return locale === 'en'
+        ? `${metrics.responses + metrics.timeouts} attempts · no successful replies`
+        : `${metrics.responses + metrics.timeouts} попыток · нет успешных ответов`;
+    }
+    if (state === 'degraded') {
+      if (metrics.responses >= cfg.latencySamples && metrics.p95_latency_ms >= cfg.latencyP95Ms) {
+        return `p95 ${Math.round(metrics.p95_latency_ms)} ms · ${metrics.responses} ${locale === 'en' ? 'replies' : 'ответов'}`;
+      }
+      return `${metrics.failures} ${locale === 'en' ? 'failures' : 'сбоев'} · ${metrics.fail_rate.toFixed(2)}%`;
+    }
+    return '';
+  }
+
+  function plainHealthState(rows = []) {
+    if (!rows.length) return { cls:'neutral', label:L.detected, detail:'', failures:0, failRate:0, errors:0, timeouts:0, nxdomain:0, quality:100 };
+    const buckets = mergePlainHealthBuckets(rows);
+    const active = rows.some(plainRecentlyActive);
+    if (!buckets.size) {
+      return { cls:active ? 'good' : 'neutral', label:active ? L.active : L.detected, detail:'', failures:0, failRate:0, errors:0, timeouts:0, nxdomain:0, quality:100 };
+    }
+
+    const cfg = dnsHealthConfig();
+    const nowMinute = Math.floor(Date.now() / 60000);
+    const current = plainHealthWindow(buckets, nowMinute, cfg.windowMin);
+    const downMinutes = Math.max(1, Math.ceil(cfg.downWindowSec / 60));
+    const down = plainHealthWindow(buckets, nowMinute, downMinutes);
+    const downState = healthWindowState(down, cfg, true);
+    const currentState = downState === 'down' ? 'down' : healthWindowState(current, cfg, false);
+    const quality = Math.max(0, 100 - current.fail_rate);
+
+    if (currentState === 'down') {
+      return { cls:'error', label:L.unavailable, detail:healthDetail(down, cfg, 'down'), failures:down.failures, failRate:down.fail_rate, errors:down.errors, timeouts:down.timeouts, nxdomain:down.nxdomain, quality };
+    }
+    if (currentState === 'degraded') {
+      return { cls:'warn', label:L.degraded, detail:healthDetail(current, cfg, 'degraded'), failures:current.failures, failRate:current.fail_rate, errors:current.errors, timeouts:current.timeouts, nxdomain:current.nxdomain, quality };
+    }
+
+    const oldest = nowMinute - cfg.historyMin + 1;
+    let lastIssueEnd = null;
+    for (let end = nowMinute - 1; end >= oldest; end--) {
+      const historic = plainHealthWindow(buckets, end, cfg.windowMin);
+      const historicDown = plainHealthWindow(buckets, end, downMinutes);
+      if (healthWindowState(historicDown, cfg, true) === 'down' || healthWindowState(historic, cfg, false) === 'degraded') {
+        lastIssueEnd = end;
+        break;
+      }
+    }
+    if (lastIssueEnd !== null) {
+      const ago = Math.max(1, nowMinute - lastIssueEnd);
+      return {
+        cls:'neutral', label:L.hadIssues,
+        detail:locale === 'en' ? `${ago} min ago · current window is healthy` : `${ago} мин назад · сейчас всё нормально`,
+        failures:current.failures, failRate:current.fail_rate, errors:current.errors, timeouts:current.timeouts, nxdomain:current.nxdomain, quality
+      };
+    }
+
+    return {
+      cls:active ? 'good' : 'neutral', label:active ? L.active : L.detected,
+      detail:'', failures:current.failures, failRate:current.fail_rate,
+      errors:current.errors, timeouts:current.timeouts, nxdomain:current.nxdomain, quality
+    };
+  }
+
   function plainStatus(r = {}) {
-    const req = num(r.requests), res = num(r.responses), err = num(r.errors), timeout = num(r.timeouts);
-    if (req > 0 && res === 0 && timeout > 0) return { cls:'error', label:L.unavailable };
-    if (req > 0 && (err > 0 || timeout > 0)) return { cls:'warn', label:L.degraded };
-    if (plainRecentlyActive(r)) return { cls:'good', label:L.active };
-    return { cls:'neutral', label:L.detected };
+    return plainHealthState([r]);
   }
   function upstreamStatus(u = {}) {
     if (u.health_status === 'DOWN') return { cls:'error', label:'DOWN' };
@@ -780,8 +914,7 @@
       const summary = aggregatePlain(rows);
       const active = rows.some(plainRecentlyActive);
       let state = { cls:'neutral', label:rows.length ? L.detected : (locale === 'en' ? 'NO RUNTIME' : 'НЕТ RUNTIME') };
-      if (rows.length && summary.requests > 0 && summary.responses === 0 && summary.timeouts > 0) state = { cls:'error', label:L.unavailable };
-      else if (rows.length && (summary.errors > 0 || summary.timeouts > 0)) state = { cls:'warn', label:L.degraded };
+      if (rows.length) state = plainHealthState(rows);
       else if (active) state = { cls:'good', label:L.active };
       return { kind:'plain', rows, summary, state, windows:null, diagnostic:null, ports:[num(resolver.port || 53)], last_request:latestISO(rows) };
     }
@@ -1286,11 +1419,11 @@
           {#each filteredPlain as r (`${r.address}:${r.port || 53}`)}
             <tr>
               <td><div class="cell-title">{r.name || r.address}</div><div class="cell-sub mono">{r.address}:{r.port || 53}{r.source ? ` · ${r.source}` : ''}</div></td>
-              <td><span class="state-chip {plainStatus(r).cls}">{plainStatus(r).label}</span><div class="cell-sub">{plainRecentlyActive(r) ? L.currentUse : fmtAgo(r.last_request)}</div></td>
+              <td><span class="state-chip {plainStatus(r).cls}">{plainStatus(r).label}</span><div class="cell-sub">{plainStatus(r).detail || (plainRecentlyActive(r) ? L.currentUse : fmtAgo(r.last_request))}</div></td>
               <td><strong>{fmtInt(r.requests)}</strong><div class="cell-sub">{fmtPct(share(r.requests), 2)} {L.trafficShare}</div></td>
               <td>{#if num(r.p95_latency_ms)}<span class="latency {latencyClass(r.p95_latency_ms)}">p95 {fmtMs(r.p95_latency_ms)}</span><div class="cell-sub">avg {fmtMs(r.avg_latency_ms)}</div>{:else}—{/if}</td>
-              <td><strong class={num(r.errors) + num(r.timeouts) > 0 ? 'warn-text' : ''}>{fmtInt(num(r.errors) + num(r.timeouts))}</strong><div class="cell-sub">{fmtInt(r.timeouts)} timeout · {fmtInt(r.nxdomain)} NX</div></td>
-              <td><strong class={num(r.requests) && num(r.responses) / num(r.requests) < .95 ? 'warn-text' : 'good-text'}>{fmtPct(num(r.requests) ? num(r.responses) / num(r.requests) * 100 : 100)}</strong></td>
+              <td><strong class={plainStatus(r).failures > 0 ? 'warn-text' : ''}>{fmtInt(plainStatus(r).failures)}</strong><div class="cell-sub">{fmtInt(plainStatus(r).timeouts)} timeout · {fmtInt(plainStatus(r).errors)} error · {fmtInt(r.nxdomain)} NX</div></td>
+              <td><strong class={plainStatus(r).quality < 98 ? 'warn-text' : 'good-text'}>{fmtPct(plainStatus(r).quality)}</strong><div class="cell-sub">{locale === 'en' ? 'current window' : 'текущее окно'}</div></td>
               <td>{r.interface || '—'}</td>
             </tr>
           {/each}

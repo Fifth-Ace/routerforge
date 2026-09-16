@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { snapshot } from '$lib/stores/snapshot.js';
   import { settings, themes } from '$lib/stores/settings.js';
+  import { catalog, refreshCatalog } from '$lib/stores/catalog.js';
   import { authState, setAuthRequired } from '$lib/stores/auth.js';
   import { getSystem } from '$lib/api.js';
   import { fmtInt, fmtDuration, fmtAgo } from '$lib/utils.js';
@@ -33,9 +34,31 @@
   $: primaryDown = Number($snapshot.primary_active_down ?? $snapshot.active_down ?? 0);
   $: primaryDegraded = Number($snapshot.primary_active_degraded ?? $snapshot.active_degraded ?? 0);
   $: primaryUpstreams = Number($snapshot.primary_upstream_count ?? $snapshot.upstream_count ?? 0);
+  $: dnsInstalled = ($catalog?.modules || []).some((item) => item?.id === 'dns' && item?.installed);
 
+  const dnsPresets = {
+    strict: { dnsHealthWindowMin:5, dnsHealthFailCount:5, dnsHealthFailRate:1, dnsHealthLatencyP95Ms:1000, dnsHealthLatencySamples:20, dnsHealthDownRequests:3, dnsHealthDownWindowSec:60, dnsHealthHistoryMin:60 },
+    normal: { dnsHealthWindowMin:5, dnsHealthFailCount:8, dnsHealthFailRate:1.5, dnsHealthLatencyP95Ms:1200, dnsHealthLatencySamples:20, dnsHealthDownRequests:4, dnsHealthDownWindowSec:60, dnsHealthHistoryMin:60 },
+    unstable: { dnsHealthWindowMin:5, dnsHealthFailCount:10, dnsHealthFailRate:2, dnsHealthLatencyP95Ms:1500, dnsHealthLatencySamples:20, dnsHealthDownRequests:5, dnsHealthDownWindowSec:60, dnsHealthHistoryMin:60 }
+  };
+
+  function setDNSPreset(id) {
+    if (id === 'custom') {
+      settings.update((current) => ({ ...current, dnsHealthPreset:'custom' }));
+      return;
+    }
+    const preset = dnsPresets[id] || dnsPresets.unstable;
+    settings.update((current) => ({ ...current, ...preset, dnsHealthPreset:id }));
+  }
+
+  function updateDNS(key, value) {
+    settings.update((current) => ({ ...current, [key]:value, dnsHealthPreset:'custom' }));
+  }
   onMount(async () => {
-    try { system = await getSystem(); } catch {}
+    await Promise.all([
+      getSystem().then((value) => { system = value; }).catch(() => {}),
+      refreshCatalog().catch(() => {})
+    ]);
   });
 
   function requestAuthToggle() {
@@ -173,6 +196,71 @@
         {/if}
       </section>
 
+      {#if dnsInstalled}
+        <section class="settings-section panel">
+          <div class="settings-title">DNS</div>
+          <div class="appearance-intro">
+            {locale === 'ru'
+              ? 'Пороги состояния DNS. NXDOMAIN считается нормальным DNS-ответом и никогда не ухудшает состояние.'
+              : 'DNS health thresholds. NXDOMAIN is a normal DNS answer and never degrades health.'}
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <strong>{locale === 'ru' ? 'Профиль чувствительности' : 'Sensitivity preset'}</strong>
+              <span>{locale === 'ru' ? 'По умолчанию выбран мягкий профиль для нестабильного интернета.' : 'The relaxed preset for unstable internet is the default.'}</span>
+            </div>
+            <div class="setting-control-slot">
+              <select value={$settings.dnsHealthPreset} onchange={(e) => setDNSPreset(e.currentTarget.value)}>
+                <option value="strict">{locale === 'ru' ? 'Строгий' : 'Strict'}</option>
+                <option value="normal">{locale === 'ru' ? 'Обычный' : 'Normal'}</option>
+                <option value="unstable">{locale === 'ru' ? 'Нестабильный интернет' : 'Unstable internet'}</option>
+                <option value="custom">{locale === 'ru' ? 'Пользовательский' : 'Custom'}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row static">
+            <div><strong>{locale === 'ru' ? 'Текущая логика' : 'Current policy'}</strong><span>{locale === 'ru' ? 'Сбой считается проблемой только при одновременном превышении количества и процента.' : 'Failures trigger a problem only when both count and percentage thresholds are exceeded.'}</span></div>
+            <code>{$settings.dnsHealthFailCount}+ / {$settings.dnsHealthFailRate}% · p95 {$settings.dnsHealthLatencyP95Ms} ms</code>
+          </div>
+
+          {#if $settings.dnsHealthPreset === 'custom'}
+            <div class="setting-row">
+              <div><strong>{locale === 'ru' ? 'Окно текущего состояния' : 'Current health window'}</strong><span>{locale === 'ru' ? 'Интервал, по которому определяется текущее состояние.' : 'Window used for current health.'}</span></div>
+              <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="1" max="15" step="1" value={$settings.dnsHealthWindowMin} onchange={(e) => updateDNS('dnsHealthWindowMin', Number(e.currentTarget.value))}/><span>min</span></label></div>
+            </div>
+            <div class="setting-row">
+              <div><strong>{locale === 'ru' ? 'Минимум сбоев' : 'Minimum failures'}</strong><span>{locale === 'ru' ? 'Меньшее число ошибок не включает предупреждение независимо от процента.' : 'Fewer failures never trigger degradation regardless of percentage.'}</span></div>
+              <div class="setting-control-slot"><input type="number" min="1" max="1000" step="1" value={$settings.dnsHealthFailCount} onchange={(e) => updateDNS('dnsHealthFailCount', Number(e.currentTarget.value))}/></div>
+            </div>
+            <div class="setting-row">
+              <div><strong>{locale === 'ru' ? 'Доля сбоев' : 'Failure rate'}</strong><span>{locale === 'ru' ? 'Порог доли timeout и ошибок; NXDOMAIN не учитывается.' : 'Timeout/error rate threshold; NXDOMAIN is excluded.'}</span></div>
+              <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="0.1" max="50" step="0.1" value={$settings.dnsHealthFailRate} onchange={(e) => updateDNS('dnsHealthFailRate', Number(e.currentTarget.value))}/><span>%</span></label></div>
+            </div>
+            <div class="setting-row">
+              <div><strong>{locale === 'ru' ? 'Медленный DNS, p95' : 'Slow DNS p95'}</strong><span>{locale === 'ru' ? 'Задержка влияет на статус только после накопления достаточного числа ответов.' : 'Latency affects health only after enough replies are observed.'}</span></div>
+              <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="100" max="10000" step="50" value={$settings.dnsHealthLatencyP95Ms} onchange={(e) => updateDNS('dnsHealthLatencyP95Ms', Number(e.currentTarget.value))}/><span>ms</span></label></div>
+            </div>
+            <div class="setting-row">
+              <div><strong>{locale === 'ru' ? 'Минимум ответов для p95' : 'Minimum replies for p95'}</strong><span>{locale === 'ru' ? 'Не даёт единичному медленному ответу испортить статус.' : 'Prevents one slow reply from degrading health.'}</span></div>
+              <div class="setting-control-slot"><input type="number" min="1" max="1000" step="1" value={$settings.dnsHealthLatencySamples} onchange={(e) => updateDNS('dnsHealthLatencySamples', Number(e.currentTarget.value))}/></div>
+            </div>
+            <div class="setting-row">
+              <div><strong>{locale === 'ru' ? 'Недоступен: минимум запросов' : 'Down: minimum attempts'}</strong><span>{locale === 'ru' ? 'Сколько попыток без успешного ответа нужно для состояния «Недоступен».' : 'Attempts without a successful answer before marking the resolver down.'}</span></div>
+              <div class="setting-control-slot"><input type="number" min="1" max="100" step="1" value={$settings.dnsHealthDownRequests} onchange={(e) => updateDNS('dnsHealthDownRequests', Number(e.currentTarget.value))}/></div>
+            </div>
+            <div class="setting-row">
+              <div><strong>{locale === 'ru' ? 'Окно недоступности' : 'Down window'}</strong><span>{locale === 'ru' ? 'Короткое окно для определения полной недоступности.' : 'Short window used to detect complete outage.'}</span></div>
+              <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="30" max="300" step="30" value={$settings.dnsHealthDownWindowSec} onchange={(e) => updateDNS('dnsHealthDownWindowSec', Number(e.currentTarget.value))}/><span>s</span></label></div>
+            </div>
+            <div class="setting-row">
+              <div><strong>{locale === 'ru' ? 'Показывать «Были сбои»' : 'Remember past issues'}</strong><span>{locale === 'ru' ? 'Сколько минут после восстановления сохранять историческое предупреждение.' : 'How long to keep the recovered-issue indicator.'}</span></div>
+              <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="15" max="60" step="5" value={$settings.dnsHealthHistoryMin} onchange={(e) => updateDNS('dnsHealthHistoryMin', Number(e.currentTarget.value))}/><span>min</span></label></div>
+            </div>
+          {/if}
+        </section>
+      {/if}
       <section class="settings-section panel">
         <div class="settings-title">{t(locale, 'settings.monitoring')}</div>
         <div class="setting-row">

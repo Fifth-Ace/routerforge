@@ -6,7 +6,15 @@ export const defaults = {
   uiScale: 'auto',
   refreshMs: 2000,
   cpuTempWarning: 75,
-  locale: 'ru',
+  dnsHealthPreset: 'unstable',
+  dnsHealthWindowMin: 5,
+  dnsHealthFailCount: 10,
+  dnsHealthFailRate: 2,
+  dnsHealthLatencyP95Ms: 1500,
+  dnsHealthLatencySamples: 20,
+  dnsHealthDownRequests: 5,
+  dnsHealthDownWindowSec: 60,
+  dnsHealthHistoryMin: 60,  locale: 'ru',
   theme: 'forge',
   accent: '#38bdf8',
   background: '#0b0d10',
@@ -36,6 +44,14 @@ const validDensity = new Set(['compact', 'normal', 'comfortable']);
 const validRadius = new Set(['sharp', 'default', 'soft']);
 const validBrandMode = new Set(['brand-only', 'extended']);
 const validLocale = new Set(['ru', 'en']);
+const validDNSHealthPreset = new Set(['strict', 'normal', 'unstable', 'custom']);
+
+function boundedNumber(value, fallback, min, max, integer = false) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const bounded = Math.min(max, Math.max(min, parsed));
+  return integer ? Math.round(bounded) : bounded;
+}
 const legacyThemes = {
   console: 'forge',
   legacy: 'midnight',
@@ -55,7 +71,17 @@ function normalize(value = {}) {
   const cpuTempWarning = Number(next.cpuTempWarning);
   next.cpuTempWarning = Number.isFinite(cpuTempWarning)
     ? Math.min(89, Math.max(50, Math.round(cpuTempWarning)))
-    : defaults.cpuTempWarning;  if (!validLocale.has(next.locale)) next.locale = defaults.locale;
+    : defaults.cpuTempWarning;
+  if (!validDNSHealthPreset.has(next.dnsHealthPreset)) next.dnsHealthPreset = defaults.dnsHealthPreset;
+  next.dnsHealthWindowMin = boundedNumber(next.dnsHealthWindowMin, defaults.dnsHealthWindowMin, 1, 15, true);
+  next.dnsHealthFailCount = boundedNumber(next.dnsHealthFailCount, defaults.dnsHealthFailCount, 1, 1000, true);
+  next.dnsHealthFailRate = boundedNumber(next.dnsHealthFailRate, defaults.dnsHealthFailRate, 0.1, 50);
+  next.dnsHealthLatencyP95Ms = boundedNumber(next.dnsHealthLatencyP95Ms, defaults.dnsHealthLatencyP95Ms, 100, 10000, true);
+  next.dnsHealthLatencySamples = boundedNumber(next.dnsHealthLatencySamples, defaults.dnsHealthLatencySamples, 1, 1000, true);
+  next.dnsHealthDownRequests = boundedNumber(next.dnsHealthDownRequests, defaults.dnsHealthDownRequests, 1, 100, true);
+  next.dnsHealthDownWindowSec = boundedNumber(next.dnsHealthDownWindowSec, defaults.dnsHealthDownWindowSec, 30, 300, true);
+  next.dnsHealthHistoryMin = boundedNumber(next.dnsHealthHistoryMin, defaults.dnsHealthHistoryMin, 15, 60, true);
+  if (!validLocale.has(next.locale)) next.locale = defaults.locale;
   if (legacyThemes[next.theme]) next.theme = legacyThemes[next.theme];
   if (!themes[next.theme] && next.theme !== 'custom') next.theme = defaults.theme;
   if (!validDensity.has(next.density)) next.density = defaults.density;

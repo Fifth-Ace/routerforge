@@ -53,6 +53,31 @@ type plainDNSForwardMark struct {
 	Count  uint32
 }
 
+const plainDNSHealthRetentionMinutes int64 = 70
+
+type plainDNSHealthBucket struct {
+	Minute       int64
+	Requests     uint64
+	Responses    uint64
+	Errors       uint64
+	Timeouts     uint64
+	NXDomain     uint64
+	LatencySumMS float64
+	LatencyCount uint64
+	LatenciesMS  []float64
+}
+
+type PlainDNSHealthBucketView struct {
+	Minute       int64   `json:"minute"`
+	Requests     uint64  `json:"requests"`
+	Responses    uint64  `json:"responses"`
+	Errors       uint64  `json:"errors"`
+	Timeouts     uint64  `json:"timeouts"`
+	NXDomain     uint64  `json:"nxdomain"`
+	AvgLatencyMS float64 `json:"avg_latency_ms"`
+	P95LatencyMS float64 `json:"p95_latency_ms"`
+}
+
 type PlainDNSEvent struct {
 	Time      time.Time `json:"time"`
 	Protocol  string    `json:"protocol"`
@@ -66,32 +91,34 @@ type PlainDNSEvent struct {
 }
 
 type plainDNSResolverState struct {
-	Meta         PlainDNSMeta
-	Requests     uint64
-	Responses    uint64
-	Errors       uint64
-	Timeouts     uint64
-	NXDomain     uint64
-	LatencySumMS float64
-	LatencyCount uint64
-	LatenciesMS  []float64
-	LastRequest  time.Time
-	LastResponse time.Time
-	LastLatency  float64
+	Meta          PlainDNSMeta
+	Requests      uint64
+	Responses     uint64
+	Errors        uint64
+	Timeouts      uint64
+	NXDomain      uint64
+	LatencySumMS  float64
+	LatencyCount  uint64
+	LatenciesMS   []float64
+	LastRequest   time.Time
+	LastResponse  time.Time
+	LastLatency   float64
+	HealthBuckets map[int64]*plainDNSHealthBucket
 }
 
 type PlainDNSResolverView struct {
 	PlainDNSMeta
-	Requests     uint64    `json:"requests"`
-	Responses    uint64    `json:"responses"`
-	Errors       uint64    `json:"errors"`
-	Timeouts     uint64    `json:"timeouts"`
-	NXDomain     uint64    `json:"nxdomain"`
-	AvgLatencyMS float64   `json:"avg_latency_ms"`
-	P95LatencyMS float64   `json:"p95_latency_ms"`
-	LastLatency  float64   `json:"last_latency_ms"`
-	LastRequest  time.Time `json:"last_request,omitempty"`
-	LastResponse time.Time `json:"last_response,omitempty"`
+	Requests      uint64                     `json:"requests"`
+	Responses     uint64                     `json:"responses"`
+	Errors        uint64                     `json:"errors"`
+	Timeouts      uint64                     `json:"timeouts"`
+	NXDomain      uint64                     `json:"nxdomain"`
+	AvgLatencyMS  float64                    `json:"avg_latency_ms"`
+	P95LatencyMS  float64                    `json:"p95_latency_ms"`
+	LastLatency   float64                    `json:"last_latency_ms"`
+	LastRequest   time.Time                  `json:"last_request,omitempty"`
+	LastResponse  time.Time                  `json:"last_response,omitempty"`
+	HealthBuckets []PlainDNSHealthBucketView `json:"health_buckets,omitempty"`
 }
 
 type PlainDNSSnapshot struct {
@@ -229,6 +256,52 @@ func (t *plainDNSTracker) ObserveDirectClientQuery(now time.Time, protocol, remo
 	t.forwarded[key] = mark
 }
 
+func (t *plainDNSTracker) healthBucketLocked(state *plainDNSResolverState, now time.Time) *plainDNSHealthBucket {
+	if state.HealthBuckets == nil {
+		state.HealthBuckets = make(map[int64]*plainDNSHealthBucket)
+	}
+	minute := now.Unix() / 60
+	cutoff := minute - plainDNSHealthRetentionMinutes
+	for key := range state.HealthBuckets {
+		if key < cutoff {
+			delete(state.HealthBuckets, key)
+		}
+	}
+	bucket := state.HealthBuckets[minute]
+	if bucket == nil {
+		bucket = &plainDNSHealthBucket{Minute: minute}
+		state.HealthBuckets[minute] = bucket
+	}
+	return bucket
+}
+
+func plainDNSHealthViews(buckets map[int64]*plainDNSHealthBucket) []PlainDNSHealthBucketView {
+	if len(buckets) == 0 {
+		return nil
+	}
+	keys := make([]int64, 0, len(buckets))
+	for key := range buckets {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+	out := make([]PlainDNSHealthBucketView, 0, len(keys))
+	for _, key := range keys {
+		bucket := buckets[key]
+		if bucket == nil {
+			continue
+		}
+		view := PlainDNSHealthBucketView{
+			Minute: bucket.Minute, Requests: bucket.Requests, Responses: bucket.Responses,
+			Errors: bucket.Errors, Timeouts: bucket.Timeouts, NXDomain: bucket.NXDomain,
+			P95LatencyMS: percentile95(bucket.LatenciesMS),
+		}
+		if bucket.LatencyCount > 0 {
+			view.AvgLatencyMS = bucket.LatencySumMS / float64(bucket.LatencyCount)
+		}
+		out = append(out, view)
+	}
+	return out
+}
 func (t *plainDNSTracker) RecordQuery(now time.Time, protocol, remoteIP string, remotePort, localPort uint16, msg DNSMessage) bool {
 	remoteIP = canonicalIP(remoteIP)
 	endpoint := plainDNSEndpoint(remoteIP, remotePort)
@@ -268,6 +341,7 @@ func (t *plainDNSTracker) RecordQuery(now time.Time, protocol, remoteIP string, 
 	t.pending[key] = plainDNSPending{Time: now, Domain: msg.QName, QType: msg.QType}
 	resolver.Requests++
 	resolver.LastRequest = now
+	t.healthBucketLocked(resolver, now).Requests++
 	return true
 }
 
@@ -308,10 +382,21 @@ func (t *plainDNSTracker) RecordResponse(now time.Time, protocol, remoteIP strin
 		resolver.LatenciesMS = resolver.LatenciesMS[len(resolver.LatenciesMS)-256:]
 	}
 
+	health := t.healthBucketLocked(resolver, now)
+	health.Responses++
+	health.LatencySumMS += latency
+	health.LatencyCount++
+	health.LatenciesMS = append(health.LatenciesMS, latency)
+	if len(health.LatenciesMS) > 256 {
+		health.LatenciesMS = health.LatenciesMS[len(health.LatenciesMS)-256:]
+	}
+
 	if msg.RCode == 3 {
 		resolver.NXDomain++
+		health.NXDomain++
 	} else if msg.RCode != 0 {
 		resolver.Errors++
+		health.Errors++
 	}
 
 	t.appendRecentLocked(PlainDNSEvent{
@@ -333,6 +418,7 @@ func (t *plainDNSTracker) Sweep(now time.Time) {
 		delete(t.pending, key)
 		if resolver := t.resolvers[plainDNSEndpoint(key.RemoteIP, key.RemotePort)]; resolver != nil {
 			resolver.Timeouts++
+			t.healthBucketLocked(resolver, now).Timeouts++
 		}
 		t.appendRecentLocked(PlainDNSEvent{
 			Time: now, Protocol: key.Protocol, Resolver: key.RemoteIP,
@@ -371,6 +457,7 @@ func (t *plainDNSTracker) Snapshot(limit int) PlainDNSSnapshot {
 			view.AvgLatencyMS = state.LatencySumMS / float64(state.LatencyCount)
 		}
 		view.P95LatencyMS = percentile95(state.LatenciesMS)
+		view.HealthBuckets = plainDNSHealthViews(state.HealthBuckets)
 		resolvers = append(resolvers, view)
 	}
 

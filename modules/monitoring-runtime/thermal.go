@@ -85,6 +85,9 @@ func collectThermalSensors(now time.Time) []thermalSensor {
 		}
 	}
 
+	for _, sensor := range collectNDMCThermals(now) {
+		add(sensor)
+	}
 	for _, sensor := range collectDebugFSThermals(now) {
 		add(sensor)
 	}
@@ -274,6 +277,95 @@ func normalizeTemperature(value float64) (float64, bool) {
 		return 0, false
 	}
 	return value, true
+}
+
+func collectNDMCThermals(now time.Time) []thermalSensor {
+	if !commandExists("ndmc") {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	output, err := safety.RunCommand(ctx, 512<<10, "ndmc", "-c", "show interface")
+	cancel()
+	if err != nil || ctx.Err() != nil || len(output) == 0 {
+		return nil
+	}
+	return parseNDMCThermals(string(output), now)
+}
+
+func parseNDMCThermals(output string, now time.Time) []thermalSensor {
+	type interfaceBlock struct {
+		name       string
+		wifiMaster bool
+		temp       float64
+		hasTemp    bool
+	}
+
+	var out []thermalSensor
+	current := interfaceBlock{}
+
+	flush := func() {
+		if current.name == "" || !current.wifiMaster || !current.hasTemp {
+			return
+		}
+
+		index := trailingIndex(strings.ToLower(current.name), "wifimaster")
+		sensor := makeThermalSensor(
+			"ndmc:"+strings.ToLower(current.name),
+			"Wi-Fi · "+current.name,
+			"wifi",
+			"ndmc:show interface:"+current.name,
+			current.temp,
+			now,
+		)
+		sensor.Role = "wifi"
+		sensor.SensorIndex = index
+		out = append(out, sensor)
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		if strings.HasPrefix(line, `Interface, name = "`) && strings.HasSuffix(line, `"`) {
+			flush()
+			current = interfaceBlock{
+				name: strings.TrimSuffix(strings.TrimPrefix(line, `Interface, name = "`), `"`),
+			}
+			continue
+		}
+		if current.name == "" {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(line, "type:"):
+			value := strings.TrimSpace(strings.TrimPrefix(line, "type:"))
+			if strings.EqualFold(value, "WifiMaster") {
+				current.wifiMaster = true
+			}
+		case strings.HasPrefix(line, "traits:"):
+			value := strings.TrimSpace(strings.TrimPrefix(line, "traits:"))
+			if strings.Contains(strings.ToLower(value), "wifimaster") {
+				current.wifiMaster = true
+			}
+		case strings.HasPrefix(line, "temperature:"):
+			raw := strings.TrimSpace(strings.TrimPrefix(line, "temperature:"))
+			value, parseErr := strconv.ParseFloat(raw, 64)
+			if parseErr != nil {
+				continue
+			}
+			temp, ok := normalizeTemperature(value)
+			if !ok {
+				continue
+			}
+			current.temp = temp
+			current.hasTemp = true
+		}
+	}
+	flush()
+
+	return out
 }
 
 func collectDebugFSThermals(now time.Time) []thermalSensor {

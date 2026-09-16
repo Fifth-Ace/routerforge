@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestNormalizeTemperature(t *testing.T) {
 	cases := []struct {
@@ -87,5 +90,70 @@ func TestParseSmartctlTemperature(t *testing.T) {
 	nvme := "Temperature:                        41 Celsius"
 	if got, ok := parseSmartctlTemperature(nvme); !ok || got != 41 {
 		t.Fatalf("NVMe parse=(%v,%v)", got, ok)
+	}
+}
+
+func TestParseNDMCThermalsKeeneticWifiMasters(t *testing.T) {
+	now := time.Date(2026, 9, 16, 9, 58, 31, 0, time.UTC)
+	input := `
+Interface, name = "WifiMaster0"
+             type: WifiMaster
+           traits: WifiRadio
+           traits: WifiMaster
+           traits: MtkWifiMaster
+             link: up
+        connected: yes
+      temperature: 52
+
+Interface, name = "WifiMaster0/AccessPoint0"
+             type: AccessPoint
+           traits: Wifi
+           traits: AccessPoint
+      temperature: 88
+
+Interface, name = "WifiMaster1"
+             type: WifiMaster
+           traits: WifiRadio
+           traits: MtkWifiMaster
+      temperature: 49.5
+`
+
+	got := parseNDMCThermals(input, now)
+	if len(got) != 2 {
+		t.Fatalf("got %d sensors, want 2: %#v", len(got), got)
+	}
+
+	if got[0].ID != "ndmc:wifimaster0" ||
+		got[0].Name != "Wi-Fi · WifiMaster0" ||
+		got[0].Category != "wifi" ||
+		got[0].Role != "wifi" ||
+		got[0].SensorIndex != 0 ||
+		got[0].TempC != 52 ||
+		got[0].Source != "ndmc:show interface:WifiMaster0" {
+		t.Fatalf("unexpected WifiMaster0 sensor: %#v", got[0])
+	}
+
+	if got[1].ID != "ndmc:wifimaster1" ||
+		got[1].SensorIndex != 1 ||
+		got[1].TempC != 49.5 {
+		t.Fatalf("unexpected WifiMaster1 sensor: %#v", got[1])
+	}
+}
+
+func TestParseNDMCThermalsRejectsNonMasterAndInvalidTemperature(t *testing.T) {
+	input := `
+Interface, name = "AccessPoint"
+             type: AccessPoint
+           traits: Wifi
+      temperature: 44
+
+Interface, name = "WifiMaster0"
+             type: WifiMaster
+      temperature: 250000
+`
+
+	got := parseNDMCThermals(input, time.Unix(0, 0))
+	if len(got) != 0 {
+		t.Fatalf("got unexpected sensors: %#v", got)
 	}
 }

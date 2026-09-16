@@ -3,6 +3,7 @@ package safety
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -69,5 +70,38 @@ func TestAtomicFilePublishRequiresClose(t *testing.T) {
 
 	if err := atomic.Publish(filepath.Join(dir, "target")); err == nil {
 		t.Fatal("publish must require a closed temporary file")
+	}
+}
+
+func TestWriteFileAtomicPublishesContentAndMode(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "settings.json")
+
+	if err := WriteFileAtomic(target, []byte("payload\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "payload\n" {
+		t.Fatalf("content=%q", string(got))
+	}
+
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("mode=%#o want=%#o", info.Mode().Perm(), os.FileMode(0o600))
+		}
+	}
+}
+
+func TestWriteFileAtomicRejectsEmptyDestination(t *testing.T) {
+	if err := WriteFileAtomic("", []byte("x"), 0o600); err == nil {
+		t.Fatal("empty destination must be rejected")
 	}
 }

@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 var (
@@ -1276,16 +1278,7 @@ func (m *dnsControlManager) saveDisabled(store dnsDisabledStore) error {
 	if err != nil {
 		return err
 	}
-	tmp := m.disabledPath + ".tmp"
-	if err := os.WriteFile(tmp, append(payload, '\n'), 0600); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmp, 0600); err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	if err := os.Rename(tmp, m.disabledPath); err != nil {
-		_ = os.Remove(tmp)
+	if err := safety.WriteFileAtomic(m.disabledPath, append(payload, '\n'), 0600); err != nil {
 		return err
 	}
 	return nil

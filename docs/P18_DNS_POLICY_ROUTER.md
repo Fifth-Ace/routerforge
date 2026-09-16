@@ -49,6 +49,54 @@ P18A полностью read-only:
 - mutation API не добавляется;
 - источник — существующий bounded RCI client.
 
+## P18B — policy selection/evaluation dry-run
+
+P18B добавляет pure evaluator без хранения правил и без применения конфигурации.
+
+`POST /v1/policies/evaluate`
+
+Контекст запроса:
+
+- `client_ip` — optional IPv4/IPv6 адрес клиента;
+- `domain` — обязательное DNS-имя;
+- `qtype` — optional тип запроса;
+- `rules` — временный candidate rule set только для этого dry-run.
+
+Rule:
+
+- `id` — стабильный идентификатор;
+- `priority` — целое `0..1000000`, меньшее значение выигрывает при одинаковой specificity;
+- `policy` — существующий `System` либо `PolicyN`;
+- `match.client_cidr`;
+- `match.domain_suffix`;
+- `match.qtype`.
+
+### Детерминированный выбор
+
+Совпавшие правила ранжируются:
+
+1. specificity bit score: client CIDR = 4, domain suffix = 2, qtype = 1;
+2. меньшее `priority`;
+3. лексикографически меньший `id`.
+
+Так client+domain rule предсказуемо сильнее только domain rule независимо от порядка JSON-массива.
+
+Если ни одно правило не совпало, evaluator возвращает `System` с `fallback_to_system=true`.
+
+Ответ также содержит `reasons`, `rule_id`, `rule_priority`, `specificity` и число просмотренных правил.
+
+### Safety boundary
+
+P18B остаётся read-only:
+
+- rules не записываются на диск;
+- Keenetic policy не меняется;
+- resolver configuration не меняется;
+- endpoint не требует mutation header, потому что выполняет только dry-run;
+- policy identities сверяются с текущим `/show/ip/policy`;
+- body ограничен 128 KiB, rules — максимум 128;
+- unknown JSON fields отклоняются.
+
 ## Следующий этап
 
-P18B — policy selection/evaluation model: определить стабильные match dimensions и объяснимый dry-run выбора policy до появления mutation API.
+P18C — persisted policy model + validation contract, но ещё без runtime traffic activation: подготовить безопасное хранение и transaction-ready mutation boundary.

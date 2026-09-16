@@ -159,6 +159,49 @@ func (s *dnsModuleServer) Serve() error {
 			"mutation_api": false,
 		})
 	}))
+	mux.HandleFunc("/v1/policies/evaluate", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			s.writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST required"})
+			return
+		}
+		if !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+			s.writeJSON(w, http.StatusUnsupportedMediaType, map[string]any{"error": "application/json required"})
+			return
+		}
+		defer r.Body.Close()
+		decoder := json.NewDecoder(io.LimitReader(r.Body, 128<<10))
+		decoder.DisallowUnknownFields()
+		var request DNSPolicyEvaluationRequest
+		if err := decoder.Decode(&request); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		if decoder.Decode(&struct{}{}) != io.EOF {
+			s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": "only one JSON object is allowed"})
+			return
+		}
+		inventory, err := readDNSPolicyInventory()
+		if err != nil {
+			s.writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "source": "keenetic-rci"})
+			return
+		}
+		allowed := make(map[string]bool, len(inventory))
+		for _, policy := range inventory {
+			allowed[policy.Proxy] = true
+		}
+		result, err := evaluateDNSPolicy(request, allowed)
+		if err != nil {
+			s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		s.writeJSON(w, http.StatusOK, map[string]any{
+			"evaluation":   result,
+			"source":       "dry-run",
+			"mutation_api": false,
+			"persisted":    false,
+		})
+	})
 	mux.HandleFunc("/v1/plain-dns", s.getOnly(func(w http.ResponseWriter, r *http.Request) {
 		limit := boundedInt(r.URL.Query().Get("limit"), 100, 1, 500)
 		s.writeJSON(w, http.StatusOK, plainDNS.Snapshot(limit))

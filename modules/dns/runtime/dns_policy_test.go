@@ -60,3 +60,66 @@ func TestPolicyProxyOrdinal(t *testing.T) {
 		t.Fatal("System must not have policy ordinal")
 	}
 }
+
+func TestEvaluateDNSPolicySpecificityWins(t *testing.T) {
+	allowed := map[string]bool{"System": true, "Policy1": true, "Policy2": true}
+	result, err := evaluateDNSPolicy(DNSPolicyEvaluationRequest{
+		ClientIP:  "192.168.1.44",
+		Domain:    "api.example.com",
+		QueryType: "A",
+		Rules: []DNSPolicyRule{
+			{ID: "domain", Priority: 1, Policy: "Policy1", Match: DNSPolicyMatch{DomainSuffix: "example.com"}},
+			{ID: "client-domain", Priority: 50, Policy: "Policy2", Match: DNSPolicyMatch{ClientCIDR: "192.168.1.0/24", DomainSuffix: "example.com"}},
+		},
+	}, allowed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Policy != "Policy2" || result.RuleID != "client-domain" || result.Specificity != 6 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+func TestEvaluateDNSPolicyPriorityThenID(t *testing.T) {
+	allowed := map[string]bool{"System": true, "Policy1": true, "Policy2": true}
+	result, err := evaluateDNSPolicy(DNSPolicyEvaluationRequest{
+		Domain: "example.com",
+		Rules: []DNSPolicyRule{
+			{ID: "z-rule", Priority: 10, Policy: "Policy2", Match: DNSPolicyMatch{DomainSuffix: "example.com"}},
+			{ID: "a-rule", Priority: 10, Policy: "Policy1", Match: DNSPolicyMatch{DomainSuffix: "example.com"}},
+		},
+	}, allowed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Policy != "Policy1" || result.RuleID != "a-rule" {
+		t.Fatalf("tie must resolve by stable id: %#v", result)
+	}
+}
+
+func TestEvaluateDNSPolicySystemFallback(t *testing.T) {
+	result, err := evaluateDNSPolicy(DNSPolicyEvaluationRequest{
+		Domain: "other.example",
+		Rules: []DNSPolicyRule{
+			{ID: "only", Priority: 1, Policy: "Policy1", Match: DNSPolicyMatch{DomainSuffix: "example.com"}},
+		},
+	}, map[string]bool{"System": true, "Policy1": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Matched || result.Policy != "System" || !result.FallbackToSystem {
+		t.Fatalf("unexpected fallback: %#v", result)
+	}
+}
+
+func TestEvaluateDNSPolicyRejectsUnknownPolicy(t *testing.T) {
+	_, err := evaluateDNSPolicy(DNSPolicyEvaluationRequest{
+		Domain: "example.com",
+		Rules: []DNSPolicyRule{
+			{ID: "bad", Policy: "Policy9", Match: DNSPolicyMatch{}},
+		},
+	}, map[string]bool{"System": true, "Policy1": true})
+	if err == nil {
+		t.Fatal("unknown policy must be rejected")
+	}
+}

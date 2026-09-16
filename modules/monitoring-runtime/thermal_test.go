@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -200,5 +201,60 @@ Interface, name = "WifiMaster1"
 	}
 	if got[1].ID != "ndmc:wifimaster1" || got[1].TempC != 53 {
 		t.Fatalf("unexpected WifiMaster1 sensor: %#v", got[1])
+	}
+}
+func TestCollectNDMCThermalsUsesValidOutputDespiteCommandError(t *testing.T) {
+	now := time.Date(2026, 9, 16, 11, 5, 56, 0, time.UTC)
+	run := func(_ context.Context, maxOutput int, program string, args ...string) ([]byte, error) {
+		if maxOutput != 512<<10 {
+			t.Fatalf("maxOutput=%d want %d", maxOutput, 512<<10)
+		}
+		if program != "ndmc" {
+			t.Fatalf("program=%q want ndmc", program)
+		}
+		if len(args) != 2 || args[0] != "-c" || args[1] != "show interface" {
+			t.Fatalf("unexpected args: %#v", args)
+		}
+		return []byte(`
+               id: WifiMaster0
+             type: WifiMaster
+           traits: MtkWifiMaster
+      temperature: 53
+               id: WifiMaster0/AccessPoint0
+             type: AccessPoint
+               id: WifiMaster1
+             type: WifiMaster
+           traits: MtkWifiMaster
+      temperature: 54
+`), context.DeadlineExceeded
+	}
+
+	got := collectNDMCThermalsWith(now, run)
+	if len(got) != 2 {
+		t.Fatalf("got %d sensors, want 2: %#v", len(got), got)
+	}
+	if got[0].ID != "ndmc:wifimaster0" || got[0].TempC != 53 {
+		t.Fatalf("unexpected WifiMaster0 sensor: %#v", got[0])
+	}
+	if got[1].ID != "ndmc:wifimaster1" || got[1].TempC != 54 {
+		t.Fatalf("unexpected WifiMaster1 sensor: %#v", got[1])
+	}
+}
+
+func TestCollectNDMCThermalsRejectsEmptyOrInvalidOutput(t *testing.T) {
+	now := time.Unix(0, 0)
+
+	empty := func(context.Context, int, string, ...string) ([]byte, error) {
+		return nil, context.DeadlineExceeded
+	}
+	if got := collectNDMCThermalsWith(now, empty); len(got) != 0 {
+		t.Fatalf("empty output produced sensors: %#v", got)
+	}
+
+	invalid := func(context.Context, int, string, ...string) ([]byte, error) {
+		return []byte("id: WifiMaster0\ntype: WifiMaster\ntemperature: invalid\n"), nil
+	}
+	if got := collectNDMCThermalsWith(now, invalid); len(got) != 0 {
+		t.Fatalf("invalid output produced sensors: %#v", got)
 	}
 }

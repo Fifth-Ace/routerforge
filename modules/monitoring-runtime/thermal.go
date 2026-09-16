@@ -279,18 +279,37 @@ func normalizeTemperature(value float64) (float64, bool) {
 	return value, true
 }
 
+type thermalCommandRunner func(context.Context, int, string, ...string) ([]byte, error)
+
 func collectNDMCThermals(now time.Time) []thermalSensor {
 	if !commandExists("ndmc") {
 		return nil
 	}
+	return collectNDMCThermalsWith(now, safety.RunCommand)
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	output, err := safety.RunCommand(ctx, 512<<10, "ndmc", "-c", "show interface")
-	cancel()
-	if err != nil || ctx.Err() != nil || len(output) == 0 {
+func collectNDMCThermalsWith(now time.Time, run thermalCommandRunner) []thermalSensor {
+	if run == nil {
 		return nil
 	}
-	return parseNDMCThermals(string(output), now)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	output, _ := run(ctx, 512<<10, "ndmc", "-c", "show interface")
+	cancel()
+
+	if len(output) == 0 {
+		return nil
+	}
+
+	// ndmc may produce useful stdout even when the process exits non-zero or
+	// the context expires while it is shutting down. Valid parsed sensors are
+	// therefore authoritative; execution status only matters when no valid
+	// thermal data was recovered.
+	sensors := parseNDMCThermals(string(output), now)
+	if len(sensors) == 0 {
+		return nil
+	}
+	return sensors
 }
 
 func parseNDMCThermals(output string, now time.Time) []thermalSensor {

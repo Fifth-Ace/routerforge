@@ -1468,113 +1468,114 @@
             {/each}
           </div>        </aside>
 
-        {#if selectedResolver && detailsOpen}
-          <div
-            class="resolver-details-backdrop"
-            class:closing={detailsClosing}
-            role="presentation"
-            onclick={(event) => { if (event.target === event.currentTarget) closeResolverDetails(); }}
-          >
-            <section
-              class="resolver-details-sheet"
-              class:closing={detailsClosing}
-              role="dialog"
-              aria-modal="true"
-              aria-label={locale === 'en' ? 'Resolver details' : 'Сведения о резолвере'}
-            >
-              <header class="resolver-details-sheet-header">
-                <div>
-                  <span class="resolver-details-kicker">{locale === 'en' ? 'Resolver details' : 'Сведения о резолвере'}</span>
-                  <strong>{selectedResolver.name}</strong>
-                  <span class="mono">{endpoint(selectedResolver)}</span>
-                </div>
-                <button class="resolver-editor-close" type="button" aria-label={L.cancel} onclick={closeResolverDetails}>&times;</button>
-              </header>
-              <div class="resolver-details-scroll">
-                <div class="resolver-detail-stack">
-            <section class="panel resolver-detail-hero">
-              <div class="resolver-detail-head">
-                <div class="resolver-detail-title">
-                  <div class="resolver-title-line"><h2>{selectedResolver.name}</h2><span class="pill accent">{selectedResolver.protocol}</span></div>
-                  <p class="mono" title={endpoint(selectedResolver)}>{endpoint(selectedResolver)}{selectedResolver.source ? ` · ${selectedResolver.source}` : ''}</p>
-                </div>
-                <div class="resolver-detail-actions">
-                  <span class="state-pill {resolverStatusClass(selectedResolver)}">{resolverStatusText(selectedResolver)}</span>
-                  <button class="action" type="button" disabled={selectedResolver.dynamic || selectedResolver.preset} onclick={() => openEditFromDetails(selectedResolver)}>{L.edit}</button>
-                  {#if selectedResolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(selectedResolver,'enable')}>{L.enable}</button>{:else if !selectedResolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(selectedResolver,'disable')}>{L.disable}</button>{/if}
+      </div>
+    {/if}
 
-                </div>
-              </div>
-              {#if selectedResolver.preset}<div class="resolver-dynamic-banner"><span class="state-pill {resolverSectionKind(selectedResolver) === 'private' ? 'warning' : 'info'}">{resolverProviderBadge(selectedResolver)} PRESET</span><span>{selectedResolver.provider} · {selectedResolver.variant} · {selectedResolver.disabled ? (locale === 'en' ? 'inert until enabled' : 'не меняет Keenetic до включения') : (locale === 'en' ? 'enabled in Keenetic' : 'включён в Keenetic')}</span></div>{/if}
-              {#if selectedResolver.dynamic}<div class="resolver-dynamic-banner"><span class="state-pill neutral">READ ONLY</span><span>{L.readOnly}{selectedResolver.service ? ` · ${selectedResolver.service}` : ''}</span></div>{/if}
-              <div class="resolver-detail-metrics">
-                <div><strong>{fmtInt(selectedRuntime?.summary?.requests || 0)}</strong><span>{L.requests}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
-                <div><strong>{num(selectedRuntime?.summary?.p95_latency_ms) ? fmtMs(selectedRuntime.summary.p95_latency_ms) : '—'}</strong><span>P95 latency{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
-                <div><strong>{fmtPct(selectedRuntime?.summary?.fallback_pct || 0, 2)}</strong><span>{L.fallback}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
-                <div><strong class={selectedRuntime?.rows?.length ? qualityClass(selectedRuntime?.summary || {}) : ''}>{selectedRuntime?.rows?.length ? fmtPct(selectedRuntime?.summary?.quality_pct ?? 100, 1) : '—'}</strong><span>{L.quality}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
-              </div>
-              <div class="resolver-runtime-line"><span>{locale === 'en' ? 'Runtime state' : 'Состояние runtime'}</span><span class="state-chip {selectedRuntime?.state?.cls || 'neutral'}">{selectedRuntime?.state?.label || '—'}</span><span>{selectedRuntime?.last_request ? fmtAgo(selectedRuntime.last_request) : (locale === 'en' ? 'no observed queries' : 'запросы не наблюдались')}</span></div>
-            </section>
+    {#if selectedResolver && detailsOpen}
+      <div
+        class="resolver-details-backdrop"
+        class:closing={detailsClosing}
+        role="presentation"
+        onclick={(event) => { if (event.target === event.currentTarget) closeResolverDetails(); }}
+      >
+        <section
+          class="resolver-details-sheet"
+          class:closing={detailsClosing}
+          role="dialog"
+          aria-modal="true"
+          aria-label={locale === 'en' ? 'Resolver details' : 'Сведения о резолвере'}
+        >
+          <header class="resolver-details-sheet-header">
+            <div>
+              <span class="resolver-details-kicker">{locale === 'en' ? 'Resolver details' : 'Сведения о резолвере'}</span>
+              <strong>{selectedResolver.name}</strong>
+              <span class="mono">{endpoint(selectedResolver)}</span>
+            </div>
+            <button class="resolver-editor-close" type="button" aria-label={L.cancel} onclick={closeResolverDetails}>&times;</button>
+          </header>
+          <div class="resolver-details-scroll">
+            <div class="resolver-detail-stack">
+        <section class="panel resolver-detail-hero">
+          <div class="resolver-detail-head">
+            <div class="resolver-detail-title">
+              <div class="resolver-title-line"><h2>{selectedResolver.name}</h2><span class="pill accent">{selectedResolver.protocol}</span></div>
+              <p class="mono" title={endpoint(selectedResolver)}>{endpoint(selectedResolver)}{selectedResolver.source ? ` · ${selectedResolver.source}` : ''}</p>
+            </div>
+            <div class="resolver-detail-actions">
+              <span class="state-pill {resolverStatusClass(selectedResolver)}">{resolverStatusText(selectedResolver)}</span>
+              <button class="action" type="button" disabled={selectedResolver.dynamic || selectedResolver.preset} onclick={() => openEditFromDetails(selectedResolver)}>{L.edit}</button>
+              {#if selectedResolver.disabled}<button class="action primary" type="button" onclick={() => resolverAction(selectedResolver,'enable')}>{L.enable}</button>{:else if !selectedResolver.dynamic}<button class="action" type="button" onclick={() => resolverAction(selectedResolver,'disable')}>{L.disable}</button>{/if}
 
-            {#if selectedRuntime?.kind === 'secure' && selectedRuntime?.rows?.length}
-              <section class="panel resolver-quality-panel">
-                <div class="panel-head"><div><strong>{locale === 'en' ? 'Resolver quality' : 'Качество resolver'}</strong><span>{locale === 'en' ? 'Aggregated windows across native entries' : 'Агрегированные окна по нативным записям'}</span></div><span class="state-pill info">{selectedRuntime.rows.length} native</span></div>
-                {#each ['stats_5m','stats_1h','stats_24h'] as key}
-                  {@const w = selectedRuntime.windows[key]}
-                  <div class="info-row resolver-window-row"><div><strong>{runtimeWindowLabel(key)}</strong><span>{fmtInt(w.requests)} {locale === 'en' ? 'requests' : 'запросов'} · {fmtInt(w.errors)} DNS errors · {fmtInt(w.timeouts)} timeout</span></div><div class="info-value"><strong class={qualityClass(w)}>{fmtPct(w.quality_pct ?? 100, 2)}</strong> · p95 {num(w.p95_latency_ms) ? fmtMs(w.p95_latency_ms) : '—'} · fallback {fmtPct(w.fallback_pct || 0, 2)}</div></div>
-                {/each}
-              </section>
-            {:else if selectedRuntime?.kind === 'plain'}
-              <section class="panel resolver-quality-panel">
-                <div class="panel-head"><div><strong>{locale === 'en' ? 'Plain DNS statistics' : 'Статистика обычного DNS'}</strong><span>Passive request → response correlation</span></div></div>
-                <div class="info-row"><div><strong>{L.responses}</strong><span>{locale === 'en' ? 'Matched responses' : 'Сопоставленные ответы'}</span></div><div class="info-value">{fmtInt(selectedRuntime.summary.responses)}</div></div>
-                <div class="info-row"><div><strong>{L.timeouts}</strong><span>{locale === 'en' ? 'No response before timeout' : 'Ответ не получен до таймаута'}</span></div><div class="info-value {num(selectedRuntime.summary.timeouts) ? 'warn-text' : ''}">{fmtInt(selectedRuntime.summary.timeouts)}</div></div>
-                <div class="info-row"><div><strong>NXDOMAIN</strong><span>DNS RCODE</span></div><div class="info-value">{fmtInt(selectedRuntime.summary.nxdomain)}</div></div>
-              </section>
-            {/if}
-
-            {#if selectedResolver.protocol !== 'DNS'}
-              <section class="panel resolver-diagnostic-panel">
-                <div class="panel-head"><div><strong>{locale === 'en' ? 'DoT/DoH diagnostics' : 'Диагностика DoT/DoH'}</strong><span>{locale === 'en' ? 'Automatic runtime probe / health state' : 'Автоматический runtime probe / health'}</span></div>{#if selectedRuntime?.diagnostic?.ran}<span class="state-chip {selectedRuntime.diagnostic.status === 'FAIL' ? 'error' : 'good'}">{selectedRuntime.diagnostic.status || '—'}</span>{/if}</div>
-                {#if selectedRuntime?.diagnostic?.ran}
-                  {@const d = selectedRuntime.diagnostic}
-                  <div class="info-row"><div><strong>{L.stage}</strong><span>{locale === 'en' ? 'Last reached stage' : 'Последний достигнутый этап'}</span></div><div class="info-value">{d.stage || '—'}</div></div>
-                  <div class="info-row"><div><strong>Target IP</strong><span>{locale === 'en' ? 'Direct probe target' : 'IP прямой проверки'}</span></div><div class="info-value mono">{d.target_ip || '—'}</div></div>
-                  <div class="info-row"><div><strong>Resolve / TCP / TLS</strong><span>{locale === 'en' ? 'Connection stages' : 'Этапы соединения'}</span></div><div class="info-value mono">{fmtMs(d.resolve_ms)} · {fmtMs(d.tcp_ms)} · {fmtMs(d.tls_ms)}</div></div>
-                  <div class="info-row"><div><strong>{selectedResolver.protocol === 'DoH' ? 'HTTP / DNS' : 'DNS'}</strong><span>{locale === 'en' ? 'Protocol check' : 'Протокольная проверка'}</span></div><div class="info-value">{num(d.protocol_ms) ? fmtMs(d.protocol_ms) : '—'}{selectedResolver.protocol === 'DoH' && d.http_status ? ` · HTTP ${d.http_status}` : ''}</div></div>
-                  <div class="info-row"><div><strong>DNS RCODE</strong><span>{locale === 'en' ? 'Direct DNS probe result' : 'Ответ прямого DNS probe'}</span></div><div class="info-value">{d.dns_rcode || '—'}</div></div>
-                  <div class="info-row"><div><strong>{L.assessment}</strong><span>{d.route_scope || 'default-route'}</span></div><div class="info-value {d.status === 'FAIL' ? 'warn-text' : 'good-text'}">{d.assessment || (d.status === 'FAIL' ? (locale === 'en' ? 'Probe failed' : 'Проверка не пройдена') : 'OK')}</div></div>
-                  <div class="info-row"><div><strong>{locale === 'en' ? 'Error' : 'Ошибка'}</strong><span>{locale === 'en' ? 'Stop reason' : 'Причина остановки'}</span></div><div class="info-value mono">{d.error || selectedRuntime.rows.find((u) => u.last_health_error)?.last_health_error || '—'}</div></div>
-                {:else}<div class="empty-box small">{locale === 'en' ? 'Runtime diagnostics have not run for this resolver yet.' : 'Runtime-диагностика для этого резолвера ещё не запускалась.'}</div>{/if}
-              </section>
-            {/if}
-
-            <section class="panel resolver-info-panel">
-              <div class="panel-head"><div><strong>{locale === 'en' ? 'DNS information' : 'Сведения о DNS'}</strong><span>{locale === 'en' ? 'Configuration + native/runtime metadata' : 'Конфигурация + native/runtime metadata'}</span></div><span class="state-pill info">{selectedResolver.physical_count || 1} native</span></div>
-              <div class="info-row"><div><strong>{L.target}</strong><span>{locale === 'en' ? 'Configured resolver endpoint' : 'Настроенный endpoint резолвера'}</span></div><div class="info-value mono">{endpoint(selectedResolver)}</div></div>
-              {#if selectedResolver.sni}<div class="info-row"><div><strong>SNI / FQDN</strong><span>TLS Server Name</span></div><div class="info-value mono">{selectedResolver.sni}</div></div>{/if}
-              {#if selectedResolver.spki}<div class="info-row"><div><strong>SPKI</strong><span>{locale === 'en' ? 'Certificate pin' : 'Пин сертификата'}</span></div><div class="info-value mono">{selectedResolver.spki}</div></div>{/if}
-              {#if selectedResolver.format}<div class="info-row"><div><strong>Format</strong><span>DoH wire format</span></div><div class="info-value mono">{selectedResolver.format}</div></div>{/if}
-              <div class="info-row"><div><strong>Domain filter</strong><span>{L.scope}</span></div><div class="info-value resolver-scope-value">{scopes(selectedResolver).length ? scopes(selectedResolver).map(displayDomain).join(' · ') : L.global}</div></div>
-              <div class="info-row"><div><strong>{L.iface}</strong><span>{locale === 'en' ? 'Keenetic outgoing interface' : 'Исходящий интерфейс Keenetic'}</span></div><div class="info-value">{selectedResolver.interface || selectedRuntime?.rows?.find((u) => u.interface)?.interface || '—'}</div></div>
-              <div class="info-row"><div><strong>{L.physicalCount}</strong><span>{L.nativeHint}</span></div><div class="info-value">{selectedResolver.physical_count || 1}</div></div>
-              {#if selectedRuntime?.ports?.length}<div class="info-row"><div><strong>{locale === 'en' ? 'Local port' : 'Локальный порт'}</strong><span>{locale === 'en' ? 'Internal resolver proxy' : 'Внутренний resolver proxy'}</span></div><div class="info-value mono">{selectedRuntime.ports.map((p) => `:${p}`).join(' · ')}</div></div>{/if}
-              {#if selectedRuntime?.profilePorts?.length}<div class="info-row"><div><strong>System DNS proxy</strong><span>{locale === 'en' ? 'Profile DNS listener' : 'DNS listener профиля'}</span></div><div class="info-value mono">{selectedRuntime.profilePorts.map((p) => `:${p}`).join(' · ')}</div></div>{/if}
-              {#if selectedRuntime?.rows?.[0]?.timeout_ms || selectedRuntime?.rows?.[0]?.proceed_ms}<div class="info-row"><div><strong>Timeout / Proceed</strong><span>Keenetic fallback thresholds</span></div><div class="info-value mono">{selectedRuntime.rows[0].timeout_ms ? `${selectedRuntime.rows[0].timeout_ms} ms` : '—'} / {selectedRuntime.rows[0].proceed_ms ? `${selectedRuntime.rows[0].proceed_ms} ms` : '—'}</div></div>{/if}
-              <div class="info-row"><div><strong>{locale === 'en' ? 'Source' : 'Источник'}</strong><span>{selectedResolver.dynamic ? L.readOnly : (locale === 'en' ? 'RouterForge/Keenetic configuration' : 'Конфигурация RouterForge/Keenetic')}</span></div><div class="info-value">{selectedResolver.service || selectedResolver.source || (selectedResolver.dynamic ? 'Keenetic service/DHCP' : 'static')}</div></div>
-            </section>
-
-            <section class="panel table-panel resolver-recent-panel">
-              <div class="panel-head"><div><strong>{locale === 'en' ? 'Recent queries' : 'Последние запросы'}</strong><span>{selectedRuntime?.last_request ? fmtAgo(selectedRuntime.last_request) : L.noData}</span></div><span class="panel-meta">{selectedRecent.length}</span></div>
-              <div class="table-wrap"><table><thead><tr><th>{locale === 'en' ? 'Time' : 'Время'}</th><th>{L.domains}</th><th>{L.type}</th><th>RCODE</th><th>{L.fallback}</th></tr></thead><tbody>
-                {#if selectedRecent.length}{#each selectedRecent as e, i (`${e.time}-${e.domain}-${e.qtype}-${i}`)}<tr><td class="mono">{timeOnly(e.time)}</td><td>{e.domain}</td><td><span class="pill">{e.qtype}</span></td><td>{e.rcode || '—'}</td><td>{#if e.fallback}<span class="pill warn">YES</span>{:else}<span class="cell-sub">{e.status || '—'}</span>{/if}</td></tr>{/each}{:else}<tr><td colspan="5" class="empty-row">{locale === 'en' ? 'No live queries for the selected resolver.' : 'Для выбранного резолвера live-запросов пока нет.'}</td></tr>{/if}
-              </tbody></table></div>
-            </section>
-                </div>
-              </div>
-            </section>
+            </div>
           </div>
+          {#if selectedResolver.preset}<div class="resolver-dynamic-banner"><span class="state-pill {resolverSectionKind(selectedResolver) === 'private' ? 'warning' : 'info'}">{resolverProviderBadge(selectedResolver)} PRESET</span><span>{selectedResolver.provider} · {selectedResolver.variant} · {selectedResolver.disabled ? (locale === 'en' ? 'inert until enabled' : 'не меняет Keenetic до включения') : (locale === 'en' ? 'enabled in Keenetic' : 'включён в Keenetic')}</span></div>{/if}
+          {#if selectedResolver.dynamic}<div class="resolver-dynamic-banner"><span class="state-pill neutral">READ ONLY</span><span>{L.readOnly}{selectedResolver.service ? ` · ${selectedResolver.service}` : ''}</span></div>{/if}
+          <div class="resolver-detail-metrics">
+            <div><strong>{fmtInt(selectedRuntime?.summary?.requests || 0)}</strong><span>{L.requests}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+            <div><strong>{num(selectedRuntime?.summary?.p95_latency_ms) ? fmtMs(selectedRuntime.summary.p95_latency_ms) : '—'}</strong><span>P95 latency{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+            <div><strong>{fmtPct(selectedRuntime?.summary?.fallback_pct || 0, 2)}</strong><span>{L.fallback}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+            <div><strong class={selectedRuntime?.rows?.length ? qualityClass(selectedRuntime?.summary || {}) : ''}>{selectedRuntime?.rows?.length ? fmtPct(selectedRuntime?.summary?.quality_pct ?? 100, 1) : '—'}</strong><span>{L.quality}{selectedRuntime?.kind === 'secure' ? ' · 5m' : ''}</span></div>
+          </div>
+          <div class="resolver-runtime-line"><span>{locale === 'en' ? 'Runtime state' : 'Состояние runtime'}</span><span class="state-chip {selectedRuntime?.state?.cls || 'neutral'}">{selectedRuntime?.state?.label || '—'}</span><span>{selectedRuntime?.last_request ? fmtAgo(selectedRuntime.last_request) : (locale === 'en' ? 'no observed queries' : 'запросы не наблюдались')}</span></div>
+        </section>
+
+        {#if selectedRuntime?.kind === 'secure' && selectedRuntime?.rows?.length}
+          <section class="panel resolver-quality-panel">
+            <div class="panel-head"><div><strong>{locale === 'en' ? 'Resolver quality' : 'Качество resolver'}</strong><span>{locale === 'en' ? 'Aggregated windows across native entries' : 'Агрегированные окна по нативным записям'}</span></div><span class="state-pill info">{selectedRuntime.rows.length} native</span></div>
+            {#each ['stats_5m','stats_1h','stats_24h'] as key}
+              {@const w = selectedRuntime.windows[key]}
+              <div class="info-row resolver-window-row"><div><strong>{runtimeWindowLabel(key)}</strong><span>{fmtInt(w.requests)} {locale === 'en' ? 'requests' : 'запросов'} · {fmtInt(w.errors)} DNS errors · {fmtInt(w.timeouts)} timeout</span></div><div class="info-value"><strong class={qualityClass(w)}>{fmtPct(w.quality_pct ?? 100, 2)}</strong> · p95 {num(w.p95_latency_ms) ? fmtMs(w.p95_latency_ms) : '—'} · fallback {fmtPct(w.fallback_pct || 0, 2)}</div></div>
+            {/each}
+          </section>
+        {:else if selectedRuntime?.kind === 'plain'}
+          <section class="panel resolver-quality-panel">
+            <div class="panel-head"><div><strong>{locale === 'en' ? 'Plain DNS statistics' : 'Статистика обычного DNS'}</strong><span>Passive request → response correlation</span></div></div>
+            <div class="info-row"><div><strong>{L.responses}</strong><span>{locale === 'en' ? 'Matched responses' : 'Сопоставленные ответы'}</span></div><div class="info-value">{fmtInt(selectedRuntime.summary.responses)}</div></div>
+            <div class="info-row"><div><strong>{L.timeouts}</strong><span>{locale === 'en' ? 'No response before timeout' : 'Ответ не получен до таймаута'}</span></div><div class="info-value {num(selectedRuntime.summary.timeouts) ? 'warn-text' : ''}">{fmtInt(selectedRuntime.summary.timeouts)}</div></div>
+            <div class="info-row"><div><strong>NXDOMAIN</strong><span>DNS RCODE</span></div><div class="info-value">{fmtInt(selectedRuntime.summary.nxdomain)}</div></div>
+          </section>
         {/if}
+
+        {#if selectedResolver.protocol !== 'DNS'}
+          <section class="panel resolver-diagnostic-panel">
+            <div class="panel-head"><div><strong>{locale === 'en' ? 'DoT/DoH diagnostics' : 'Диагностика DoT/DoH'}</strong><span>{locale === 'en' ? 'Automatic runtime probe / health state' : 'Автоматический runtime probe / health'}</span></div>{#if selectedRuntime?.diagnostic?.ran}<span class="state-chip {selectedRuntime.diagnostic.status === 'FAIL' ? 'error' : 'good'}">{selectedRuntime.diagnostic.status || '—'}</span>{/if}</div>
+            {#if selectedRuntime?.diagnostic?.ran}
+              {@const d = selectedRuntime.diagnostic}
+              <div class="info-row"><div><strong>{L.stage}</strong><span>{locale === 'en' ? 'Last reached stage' : 'Последний достигнутый этап'}</span></div><div class="info-value">{d.stage || '—'}</div></div>
+              <div class="info-row"><div><strong>Target IP</strong><span>{locale === 'en' ? 'Direct probe target' : 'IP прямой проверки'}</span></div><div class="info-value mono">{d.target_ip || '—'}</div></div>
+              <div class="info-row"><div><strong>Resolve / TCP / TLS</strong><span>{locale === 'en' ? 'Connection stages' : 'Этапы соединения'}</span></div><div class="info-value mono">{fmtMs(d.resolve_ms)} · {fmtMs(d.tcp_ms)} · {fmtMs(d.tls_ms)}</div></div>
+              <div class="info-row"><div><strong>{selectedResolver.protocol === 'DoH' ? 'HTTP / DNS' : 'DNS'}</strong><span>{locale === 'en' ? 'Protocol check' : 'Протокольная проверка'}</span></div><div class="info-value">{num(d.protocol_ms) ? fmtMs(d.protocol_ms) : '—'}{selectedResolver.protocol === 'DoH' && d.http_status ? ` · HTTP ${d.http_status}` : ''}</div></div>
+              <div class="info-row"><div><strong>DNS RCODE</strong><span>{locale === 'en' ? 'Direct DNS probe result' : 'Ответ прямого DNS probe'}</span></div><div class="info-value">{d.dns_rcode || '—'}</div></div>
+              <div class="info-row"><div><strong>{L.assessment}</strong><span>{d.route_scope || 'default-route'}</span></div><div class="info-value {d.status === 'FAIL' ? 'warn-text' : 'good-text'}">{d.assessment || (d.status === 'FAIL' ? (locale === 'en' ? 'Probe failed' : 'Проверка не пройдена') : 'OK')}</div></div>
+              <div class="info-row"><div><strong>{locale === 'en' ? 'Error' : 'Ошибка'}</strong><span>{locale === 'en' ? 'Stop reason' : 'Причина остановки'}</span></div><div class="info-value mono">{d.error || selectedRuntime.rows.find((u) => u.last_health_error)?.last_health_error || '—'}</div></div>
+            {:else}<div class="empty-box small">{locale === 'en' ? 'Runtime diagnostics have not run for this resolver yet.' : 'Runtime-диагностика для этого резолвера ещё не запускалась.'}</div>{/if}
+          </section>
+        {/if}
+
+        <section class="panel resolver-info-panel">
+          <div class="panel-head"><div><strong>{locale === 'en' ? 'DNS information' : 'Сведения о DNS'}</strong><span>{locale === 'en' ? 'Configuration + native/runtime metadata' : 'Конфигурация + native/runtime metadata'}</span></div><span class="state-pill info">{selectedResolver.physical_count || 1} native</span></div>
+          <div class="info-row"><div><strong>{L.target}</strong><span>{locale === 'en' ? 'Configured resolver endpoint' : 'Настроенный endpoint резолвера'}</span></div><div class="info-value mono">{endpoint(selectedResolver)}</div></div>
+          {#if selectedResolver.sni}<div class="info-row"><div><strong>SNI / FQDN</strong><span>TLS Server Name</span></div><div class="info-value mono">{selectedResolver.sni}</div></div>{/if}
+          {#if selectedResolver.spki}<div class="info-row"><div><strong>SPKI</strong><span>{locale === 'en' ? 'Certificate pin' : 'Пин сертификата'}</span></div><div class="info-value mono">{selectedResolver.spki}</div></div>{/if}
+          {#if selectedResolver.format}<div class="info-row"><div><strong>Format</strong><span>DoH wire format</span></div><div class="info-value mono">{selectedResolver.format}</div></div>{/if}
+          <div class="info-row"><div><strong>Domain filter</strong><span>{L.scope}</span></div><div class="info-value resolver-scope-value">{scopes(selectedResolver).length ? scopes(selectedResolver).map(displayDomain).join(' · ') : L.global}</div></div>
+          <div class="info-row"><div><strong>{L.iface}</strong><span>{locale === 'en' ? 'Keenetic outgoing interface' : 'Исходящий интерфейс Keenetic'}</span></div><div class="info-value">{selectedResolver.interface || selectedRuntime?.rows?.find((u) => u.interface)?.interface || '—'}</div></div>
+          <div class="info-row"><div><strong>{L.physicalCount}</strong><span>{L.nativeHint}</span></div><div class="info-value">{selectedResolver.physical_count || 1}</div></div>
+          {#if selectedRuntime?.ports?.length}<div class="info-row"><div><strong>{locale === 'en' ? 'Local port' : 'Локальный порт'}</strong><span>{locale === 'en' ? 'Internal resolver proxy' : 'Внутренний resolver proxy'}</span></div><div class="info-value mono">{selectedRuntime.ports.map((p) => `:${p}`).join(' · ')}</div></div>{/if}
+          {#if selectedRuntime?.profilePorts?.length}<div class="info-row"><div><strong>System DNS proxy</strong><span>{locale === 'en' ? 'Profile DNS listener' : 'DNS listener профиля'}</span></div><div class="info-value mono">{selectedRuntime.profilePorts.map((p) => `:${p}`).join(' · ')}</div></div>{/if}
+          {#if selectedRuntime?.rows?.[0]?.timeout_ms || selectedRuntime?.rows?.[0]?.proceed_ms}<div class="info-row"><div><strong>Timeout / Proceed</strong><span>Keenetic fallback thresholds</span></div><div class="info-value mono">{selectedRuntime.rows[0].timeout_ms ? `${selectedRuntime.rows[0].timeout_ms} ms` : '—'} / {selectedRuntime.rows[0].proceed_ms ? `${selectedRuntime.rows[0].proceed_ms} ms` : '—'}</div></div>{/if}
+          <div class="info-row"><div><strong>{locale === 'en' ? 'Source' : 'Источник'}</strong><span>{selectedResolver.dynamic ? L.readOnly : (locale === 'en' ? 'RouterForge/Keenetic configuration' : 'Конфигурация RouterForge/Keenetic')}</span></div><div class="info-value">{selectedResolver.service || selectedResolver.source || (selectedResolver.dynamic ? 'Keenetic service/DHCP' : 'static')}</div></div>
+        </section>
+
+        <section class="panel table-panel resolver-recent-panel">
+          <div class="panel-head"><div><strong>{locale === 'en' ? 'Recent queries' : 'Последние запросы'}</strong><span>{selectedRuntime?.last_request ? fmtAgo(selectedRuntime.last_request) : L.noData}</span></div><span class="panel-meta">{selectedRecent.length}</span></div>
+          <div class="table-wrap"><table><thead><tr><th>{locale === 'en' ? 'Time' : 'Время'}</th><th>{L.domains}</th><th>{L.type}</th><th>RCODE</th><th>{L.fallback}</th></tr></thead><tbody>
+            {#if selectedRecent.length}{#each selectedRecent as e, i (`${e.time}-${e.domain}-${e.qtype}-${i}`)}<tr><td class="mono">{timeOnly(e.time)}</td><td>{e.domain}</td><td><span class="pill">{e.qtype}</span></td><td>{e.rcode || '—'}</td><td>{#if e.fallback}<span class="pill warn">YES</span>{:else}<span class="cell-sub">{e.status || '—'}</span>{/if}</td></tr>{/each}{:else}<tr><td colspan="5" class="empty-row">{locale === 'en' ? 'No live queries for the selected resolver.' : 'Для выбранного резолвера live-запросов пока нет.'}</td></tr>{/if}
+          </tbody></table></div>
+        </section>
+            </div>
+          </div>
+        </section>
       </div>
     {/if}
 

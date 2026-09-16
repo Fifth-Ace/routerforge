@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 type RouterDNSInfoSnapshot struct {
@@ -181,7 +182,7 @@ func readDNSInfo() (RouterDNSInfoSnapshot, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	out, err := exec.CommandContext(ctx, "ndmc", "-c", "show dns-proxy").Output()
+	out, err := safety.RunCommandOutput(ctx, "ndmc", "-c", "show dns-proxy")
 	if err != nil {
 		return RouterDNSInfoSnapshot{}, fmt.Errorf("ndmc show dns-proxy: %w", err)
 	}

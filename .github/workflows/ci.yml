@@ -184,6 +184,9 @@ jobs:
       - name: Verify Forgejo failover contract
         run: python3 scripts/verify-forgejo-failover-contract.py
 
+      - name: Verify shared safety contract
+        run: python3 scripts/verify-safety-contract.py
+
       - name: Set up Node
         if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
         uses: actions/setup-node@v4

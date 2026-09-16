@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 type routeCapabilities struct {
@@ -68,11 +70,7 @@ func runIPCommand(parent context.Context, args ...string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binary, args...)
-	output, runErr := cmd.CombinedOutput()
-	if len(output) > commandOutputMax {
-		output = output[:commandOutputMax]
-	}
+	output, runErr := safety.RunCommand(ctx, commandOutputMax, binary, args...)
 	text := strings.TrimSpace(string(output))
 	if ctx.Err() == context.DeadlineExceeded {
 		return text, fmt.Errorf("ip command timed out")

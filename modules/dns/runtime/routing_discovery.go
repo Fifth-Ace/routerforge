@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"context"
 	"net"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 type policyRoute struct {
@@ -21,7 +22,7 @@ type policyRoute struct {
 func ndmcOutput(command string, timeout time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ndmc", "-c", command).Output()
+	out, err := safety.RunCommandOutput(ctx, "ndmc", "-c", command)
 	return string(out), err
 }
 
@@ -257,7 +258,7 @@ func defaultRoutePaths(table int, ifaceIndex map[string]keeneticRouteInterface) 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ip", args...).Output()
+	out, err := safety.RunCommandOutput(ctx, "ip", args...)
 	if err != nil {
 		return nil
 	}

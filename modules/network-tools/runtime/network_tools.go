@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Fifth-Ace/routerforge/internal/platform/probe"
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -586,11 +587,7 @@ func pingProbe(ctx context.Context, target string) probeResult {
 		result.Error = "ping command unavailable"
 		return result
 	}
-	cmd := exec.CommandContext(ctx, binary, "-c", "4", "-W", "1", target)
-	output, err := cmd.CombinedOutput()
-	if len(output) > commandOutputMax {
-		output = output[:commandOutputMax]
-	}
+	output, err := safety.RunCommand(ctx, commandOutputMax, binary, "-c", "4", "-W", "1", target)
 	result.Output = string(output)
 	result.DurationMS = time.Since(start).Milliseconds()
 	result.OK = err == nil
@@ -663,11 +660,7 @@ func traceRoute(parent context.Context, target string) ([]traceHop, string, erro
 	if err != nil {
 		return nil, "", errors.New("traceroute command unavailable")
 	}
-	cmd := exec.CommandContext(ctx, binary, "-m", "12", "-w", "2", target)
-	output, runErr := cmd.CombinedOutput()
-	if len(output) > commandOutputMax {
-		output = output[:commandOutputMax]
-	}
+	output, runErr := safety.RunCommand(ctx, commandOutputMax, binary, "-m", "12", "-w", "2", target)
 	raw := string(output)
 	hops := parseTraceroute(raw)
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {

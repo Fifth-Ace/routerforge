@@ -131,3 +131,39 @@ func TestPlainDNSObserveDirection(t *testing.T) {
 		t.Fatal("unconfigured resolver must not be observed")
 	}
 }
+func TestPlainDNSHealthBuckets(t *testing.T) {
+	tracker := newPlainDNSTracker(10)
+	tracker.UpdateResolvers([]PlainDNSMeta{{Address: "1.1.1.1", Port: 53}})
+	start := time.Unix(3600, 0)
+
+	q1 := DNSMessage{ID: 1, QName: "ok.example", QType: 1}
+	if !tracker.RecordQuery(start, "UDP", "1.1.1.1", 53, 41001, q1) {
+		t.Fatal("query 1 not recorded")
+	}
+	if !tracker.RecordResponse(start.Add(40*time.Millisecond), "UDP", "1.1.1.1", 53, 41001, DNSMessage{ID: 1, QR: true, RCode: 0}) {
+		t.Fatal("response 1 not recorded")
+	}
+
+	q2 := DNSMessage{ID: 2, QName: "missing.example", QType: 1}
+	tracker.RecordQuery(start.Add(time.Second), "UDP", "1.1.1.1", 53, 41002, q2)
+	tracker.RecordResponse(start.Add(1050*time.Millisecond), "UDP", "1.1.1.1", 53, 41002, DNSMessage{ID: 2, QR: true, RCode: 3})
+
+	q3 := DNSMessage{ID: 3, QName: "timeout.example", QType: 1}
+	tracker.RecordQuery(start.Add(2*time.Second), "UDP", "1.1.1.1", 53, 41003, q3)
+	tracker.Sweep(start.Add(plainDNSTimeout + 3*time.Second))
+
+	view := tracker.Snapshot(10).Resolvers[0]
+	if len(view.HealthBuckets) != 1 {
+		t.Fatalf("health buckets=%d want 1: %#v", len(view.HealthBuckets), view.HealthBuckets)
+	}
+	bucket := view.HealthBuckets[0]
+	if bucket.Requests != 3 || bucket.Responses != 2 || bucket.Timeouts != 1 {
+		t.Fatalf("bad health counts: %#v", bucket)
+	}
+	if bucket.NXDomain != 1 || bucket.Errors != 0 {
+		t.Fatalf("NXDOMAIN must stay informational: %#v", bucket)
+	}
+	if bucket.P95LatencyMS <= 0 {
+		t.Fatalf("missing health latency: %#v", bucket)
+	}
+}

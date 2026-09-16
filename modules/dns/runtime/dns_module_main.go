@@ -18,10 +18,32 @@ func main() {
 	healthEvery := flag.Duration("health", 30*time.Second, "resolver health check interval")
 	logPath := flag.String("log", "/opt/var/log/routerforge-dns.log", "DNS event log path")
 	uiPath := flag.String("ui", "/opt/share/routerforge/modules/dns/ui", "DNS module UI directory")
+	policyEgressSmoke := flag.String("policy-egress-smoke", "", "run one marked-egress diagnostic for PolicyN and exit")
+	policyEgressSmokeAddress := flag.String("policy-egress-smoke-address", "1.1.1.1:443", "TCP destination for marked-egress diagnostic")
+	policyEgressSmokeTimeout := flag.Duration("policy-egress-smoke-timeout", 4*time.Second, "timeout for marked-egress diagnostic")
 	flag.Parse()
 
 	if os.Geteuid() != 0 {
 		log.Fatal("routerforge-dns must run as root (packet capture and Keenetic RCI require it)")
+	}
+
+	if *policyEgressSmoke != "" {
+		result, err := runDNSPolicyEgressSmoke(*policyEgressSmoke, *policyEgressSmokeAddress, *policyEgressSmokeTimeout)
+		fmt.Println("=== POLICY EGRESS SMOKE ===")
+		fmt.Printf("POLICY: %s\n", result.Policy)
+		fmt.Printf("ADDRESS: %s\n", result.Address)
+		fmt.Printf("REQUESTED_MARK: %#x\n", result.RequestedMark)
+		fmt.Printf("ACTUAL_MARK: %#x\n", result.ActualMark)
+		fmt.Printf("TABLE: %d\n", result.Table)
+		fmt.Printf("HAS_DEFAULT: %t\n", result.HasDefault)
+		fmt.Printf("CONNECTED: %t\n", result.Connected)
+		if err != nil {
+			fmt.Printf("RESULT: FAIL\n")
+			fmt.Printf("ERROR: %v\n", err)
+			os.Exit(3)
+		}
+		fmt.Println("RESULT: PASS")
+		return
 	}
 
 	store := NewStore(defaultFlowRetentionCap, 500)

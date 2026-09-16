@@ -698,6 +698,58 @@ P18J ещё не подключает marked dialer к live DNS resolver path:
 
 Hardware mark mapping доказан, но перед live wiring нужен отдельный marked-socket smoke на реальном Keenetic.
 
+## P18K — marked socket hardware smoke harness
+
+P18K добавляет explicit CLI-only диагностический режим в production DNS binary:
+
+`routerforge-dns --policy-egress-smoke PolicyN`
+
+Дополнительные параметры:
+
+- `--policy-egress-smoke-address` — TCP destination, default `1.1.1.1:443`;
+- `--policy-egress-smoke-timeout` — bounded timeout, default `4s`.
+
+Диагностический режим запускается до DNS server/capture loops и сразу завершается.
+
+### Exact primitive reuse
+
+Smoke использует production P18J contract без отдельной реализации:
+
+1. `discoverPolicyRoutes()`;
+2. `resolveDNSPolicyEgressTarget()`;
+3. `newDNSPolicyMarkedDialer()`;
+4. тот же `dnsPolicySetSocketMark`.
+
+Для hardware evidence setter временно оборачивается:
+
+- production setter устанавливает `SO_MARK`;
+- `getsockopt(SO_MARK)` читает mark обратно на том же fd;
+- mismatch считается ошибкой;
+- затем выполняется реальный bounded TCP connect.
+
+Таким образом evidence связывает:
+
+`PolicyN -> requested mark -> actual socket mark -> kernel route/connect result`.
+
+### Safety boundary
+
+Smoke mode:
+
+- не стартует DNS server;
+- не запускает packet capture;
+- не читает persisted policy rules;
+- не изменяет Keenetic configuration;
+- не вызывает RCI POST/DELETE;
+- не вызывает configuration save;
+- не меняет live DNS traffic;
+- выполняет только один диагностический outbound TCP socket.
+
+P18K считается hardware-complete только после проверки на реальном Keenetic:
+
+- Policy1: requested/actual `0xffffaab`, TCP connect PASS;
+- Policy0: requested/actual `0xffffaaa`, TCP connect ожидаемо FAIL из-за отсутствия default route;
+- никакого unmarked fallback.
+
 ## Следующий этап
 
-P18K — marked socket hardware smoke: отправить diagnostic UDP/TCP flow через internal `SO_MARK` primitive и доказать route/table behavior на реальном Keenetic до интеграции с DNS resolver path.
+После hardware PASS — P18L: интеграционный дизайн live DNS wiring + activation semantics, всё ещё без публичного enable до отдельного gate.

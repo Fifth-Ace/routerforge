@@ -47,6 +47,11 @@
   let actionLog = [];
   let actionHistory = [];
   let actionHistoryExpanded = false;
+  let historyStateFilter = 'all';
+  let historyTargetFilter = 'all';
+  let historyVisibleLimit = 20;
+  let selectedHistoryJob = null;
+  let historyCopyDone = false;
   let actionEvents = null;
   let entwareDetail = null;
   let sourceManagerOpen = false;
@@ -73,6 +78,13 @@
   $: integrationUpdates = integrations.filter(hasCatalogUpdate);
   $: installedCatalog = [...modules, ...integrations].filter((item) => item.installed);
   $: updateCatalog = [...routerForgeUpdates, ...integrationUpdates];
+  $: historyTargets = [...new Set(actionHistory.map((job) => String(job?.target || '').trim()).filter(Boolean))].sort();
+  $: filteredActionHistory = actionHistory.filter((job) =>
+    (historyStateFilter === 'all' || String(job?.state || '') === historyStateFilter)
+    && (historyTargetFilter === 'all' || String(job?.target || '') === historyTargetFilter)
+  );
+  $: actionHistoryGroups = buildActionHistoryGroups(filteredActionHistory);
+  $: visibleActionHistoryGroups = actionHistoryGroups.slice(0, historyVisibleLimit);
 
   $: catalogBaseItems = tab === 'routerforge' ? modules
     : tab === 'integrations' ? integrations
@@ -263,6 +275,122 @@
     return a(locale, keys[value] || 'jobQueued');
   }
 
+  function actionVerb(job) {
+    const value = String(job?.action || '').toLowerCase();
+    if (locale === 'ru') return value === 'install' ? 'Установка' : value === 'remove' ? 'Удаление' : value === 'update' ? 'Обновление' : (value || 'Действие');
+    return value === 'install' ? 'Install' : value === 'remove' ? 'Remove' : value === 'update' ? 'Update' : (value || 'Action');
+  }
+
+  function historyDuration(job) {
+    const direct = Number(job?.duration_ms || 0);
+    let ms = direct;
+    if (!(ms > 0)) {
+      const start = Date.parse(job?.started_at || '');
+      const end = Date.parse(job?.completed_at || '');
+      if (Number.isFinite(start) && Number.isFinite(end) && end >= start) ms = end - start;
+    }
+    if (!(ms >= 0)) return '—';
+    if (ms < 1000) return `${Math.round(ms)} ms`;
+    const seconds = ms / 1000;
+    if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)} s`;
+    const minutes = Math.floor(seconds / 60);
+    const rest = Math.round(seconds % 60);
+    return `${minutes}m ${rest}s`;
+  }
+
+  function historyVersion(job) {
+    return String(job?.target_version || '').trim();
+  }
+
+  function historyChannel(job) {
+    const direct = String(job?.channel || '').trim().toLowerCase();
+    if (direct) return direct;
+    const version = historyVersion(job).toLowerCase();
+    if (!version) return '';
+    if (version.includes('dev') || version.includes('alpha')) return 'dev';
+    if (version.includes('beta') || version.includes('rc')) return 'beta';
+    return 'stable';
+  }
+
+  function historySummary(job) {
+    const version = historyVersion(job);
+    const channel = historyChannel(job);
+    const parts = [actionVerb(job)];
+    if (version) parts.push(`v${version}`);
+    if (channel) parts.push(channel.toUpperCase());
+    return parts.join(' · ');
+  }
+
+  function buildActionHistoryGroups(items) {
+    const result = [];
+    const batches = new Map();
+    for (const job of items || []) {
+      const batchID = String(job?.batch_id || '').trim();
+      if (!batchID) {
+        result.push({ id:`job:${job.id}`, batch:false, jobs:[job], started:actionHistoryTimestamp(job) });
+        continue;
+      }
+      let group = batches.get(batchID);
+      if (!group) {
+        group = { id:`batch:${batchID}`, batch:true, batch_id:batchID, jobs:[], started:actionHistoryTimestamp(job) };
+        batches.set(batchID, group);
+        result.push(group);
+      }
+      group.jobs.push(job);
+      group.started = Math.max(group.started, actionHistoryTimestamp(job));
+    }
+    result.sort((left, right) => right.started - left.started);
+    return result;
+  }
+
+  function historyGroupState(group) {
+    const states = (group?.jobs || []).map((job) => String(job?.state || ''));
+    if (states.includes('failed')) return 'failed';
+    if (states.includes('running') || states.includes('queued')) return 'running';
+    if (states.includes('cancelled')) return 'cancelled';
+    return 'succeeded';
+  }
+
+  function historyGroupChannel(group) {
+    const channels = [...new Set((group?.jobs || []).map(historyChannel).filter(Boolean))];
+    return channels.length === 1 ? channels[0] : '';
+  }
+
+  async function openHistoryJob(job) {
+    selectedHistoryJob = { ...job };
+    historyCopyDone = false;
+    try {
+      selectedHistoryJob = await getAppAction(job.id);
+    } catch {
+      selectedHistoryJob = { ...job };
+    }
+  }
+
+  async function copyHistoryLog() {
+    const text = (selectedHistoryJob?.lines || []).join('\n');
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      historyCopyDone = true;
+      setTimeout(() => historyCopyDone = false, 1500);
+    } catch {
+      historyCopyDone = false;
+    }
+  }
+
+  function adoptActiveConflict(error) {
+    const job = error?.payload?.active;
+    if (!job?.id) return false;
+    actionHistoryExpanded = true;
+    watchActionJob(job, job.target || 'app-center');
+    actionNotice = {
+      cls:'warn',
+      text: locale === 'ru'
+        ? `Уже выполняется: ${job.target || job.kind} · ${actionVerb(job)}. Открыт текущий ход выполнения.`
+        : `Already running: ${job.target || job.kind} · ${actionVerb(job)}. The active job is now open.`
+    };
+    return true;
+  }
   function moduleURL(item) {
     if (item.id === 'admin') return '/manage';
     if (item.id === 'dns') return '/dns';
@@ -416,6 +544,11 @@
         actionHistoryTimestamp(right) - actionHistoryTimestamp(left)
         || String(right?.id || '').localeCompare(String(left?.id || ''))
       );
+      const running = actionHistory.find((job) => !['succeeded','failed','cancelled'].includes(String(job?.state || '')));
+      if (running && (!activeJob || ['succeeded','failed','cancelled'].includes(String(activeJob?.state || '')))) {
+        activeJob = running;
+        actionLog = running.lines || [];
+      }
     } catch {
       actionHistory = [];
     }
@@ -557,7 +690,9 @@
     } catch (error) {
       busyId = '';
       busyAction = '';
-      actionNotice = { cls:'error', text:error?.payload?.detail || error?.payload?.error || error?.message || 'error' };
+      if (!adoptActiveConflict(error)) {
+        actionNotice = { cls:'error', text:error?.payload?.detail || error?.payload?.error || error?.message || 'error' };
+      }
     }
   }
 
@@ -786,8 +921,8 @@
     }
   }
 
-  async function runBulkModuleUpdate(item) {
-    const request = { kind:'catalog', target:item.id, action:'update', confirm:'' };
+  async function runBulkModuleUpdate(item, batchId = '') {
+    const request = { kind:'catalog', target:item.id, action:'update', confirm:'', batch_id:batchId };
     const preflight = await preflightAppAction(request);
     const checked = await recheckBulkPreflight(item, request, preflight);
     if (checked.alreadyCurrent) return;
@@ -833,6 +968,7 @@
 
     const priority = (item) => item.id === 'routerforge-core' ? 0 : item.id === 'profiling' ? 20 : 10;
     const queue = [...initial].sort((a, b) => priority(a) - priority(b) || String(a.id).localeCompare(String(b.id)));
+    const batchId = `routerforge-bulk-${Date.now().toString(36)}`;
 
     bulkUpdating = true;
     try {
@@ -851,7 +987,7 @@
         if (current.id === 'routerforge-core' || current.id === 'profiling') {
           await runBulkRestartingUpdate(current);
         } else {
-          await runBulkModuleUpdate(current);
+          await runBulkModuleUpdate(current, batchId);
         }
       }
 
@@ -929,7 +1065,9 @@
     } catch (error) {
       busyId = '';
       busyAction = '';
-      actionNotice = { cls:'error', text:a(locale,'actionFailed',{name:pkg.name,error:error?.payload?.detail || error?.payload?.error || error?.message || 'error'}) };
+      if (!adoptActiveConflict(error)) {
+        actionNotice = { cls:'error', text:a(locale,'actionFailed',{name:pkg.name,error:error?.payload?.detail || error?.payload?.error || error?.message || 'error'}) };
+      }
     }
   }
 
@@ -1046,7 +1184,7 @@
     <section class="app-action-console">
       <div class="app-action-console-head">
         <div>
-          <strong>{locale === 'ru' ? '\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0426\u0435\u043d\u0442\u0440\u0430 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0439' : 'App Center action'}</strong>
+          <strong>{!['succeeded','failed','cancelled'].includes(activeJob.state) ? (locale === 'ru' ? 'Сейчас выполняется' : 'Running now') : (locale === 'ru' ? 'Последнее действие' : 'Latest action')}</strong>
           <span class="mono">{activeJob.kind} / {activeJob.target} / {activeJob.action}</span>
         </div>
         <div class="catalog-actions">
@@ -1071,26 +1209,76 @@
         onclick={() => actionHistoryExpanded = !actionHistoryExpanded}
       >
         <span class="app-action-history-title">
-          <strong>{locale === 'ru' ? '\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0439' : 'Action history'}</strong>
-          <small>{locale === 'ru' ? '\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043f\u0430\u043a\u0435\u0442\u043d\u043e\u0433\u043e \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u00b7 \u043d\u043e\u0432\u044b\u0435 \u0441\u0432\u0435\u0440\u0445\u0443.' : 'Recent package-manager operations \u00b7 newest first.'}</small>
+          <strong>{locale === 'ru' ? 'История действий' : 'Action history'}</strong>
+          <small>{locale === 'ru' ? 'Операции App Center · нажми запись, чтобы увидеть версии, длительность и полный лог.' : 'App Center operations · open a row for versions, duration and the full log.'}</small>
         </span>
         <span class="app-action-history-meta">
-          <span class="state-chip neutral">{actionHistory.length}</span>
+          <span class="state-chip neutral">{actionHistory.length} {locale === 'ru' ? 'зап.' : 'items'}</span>
           <span class:expanded={actionHistoryExpanded} class="app-action-history-chevron" aria-hidden="true">v</span>
         </span>
       </button>
       {#if actionHistoryExpanded}
-        <div class="app-action-history-list" id="app-action-history-list">
-          {#each actionHistory as job (job.id)}
-            <div class="app-action-history-row">
-              <span class="app-action-history-copy">
-                <strong>{job.target}</strong>
-                <small class="mono">{formatActionHistoryTime(job.started_at)} &middot; {job.kind} / {job.action}</small>
-              </span>
-              <span class="state-chip {jobStateClass(job.state)}">{jobStateLabel(job.state)}</span>
-            </div>
-          {/each}
+        <div class="app-action-history-controls">
+          <select bind:value={historyStateFilter} onchange={() => historyVisibleLimit = 20} aria-label={locale === 'ru' ? 'Фильтр по результату' : 'Filter by result'}>
+            <option value="all">{locale === 'ru' ? 'Все результаты' : 'All results'}</option>
+            <option value="succeeded">{locale === 'ru' ? 'Успешно' : 'Succeeded'}</option>
+            <option value="failed">{locale === 'ru' ? 'Ошибка' : 'Failed'}</option>
+            <option value="cancelled">{locale === 'ru' ? 'Отменено' : 'Cancelled'}</option>
+            <option value="running">{locale === 'ru' ? 'Выполняется' : 'Running'}</option>
+          </select>
+          <select bind:value={historyTargetFilter} onchange={() => historyVisibleLimit = 20} aria-label={locale === 'ru' ? 'Фильтр по компоненту' : 'Filter by target'}>
+            <option value="all">{locale === 'ru' ? 'Все компоненты' : 'All targets'}</option>
+            {#each historyTargets as target (target)}
+              <option value={target}>{target}</option>
+            {/each}
+          </select>
+          <span class="mono muted">{filteredActionHistory.length} / {actionHistory.length}</span>
         </div>
+        <div class="app-action-history-list" id="app-action-history-list">
+          {#each visibleActionHistoryGroups as group (group.id)}
+            {#if group.batch && group.jobs.length > 1}
+              <div class="app-action-history-batch">
+                <div class="app-action-history-batch-head">
+                  <span>
+                    <strong>{locale === 'ru' ? 'Пакетное обновление RouterForge' : 'RouterForge bulk update'}</strong>
+                    <small class="mono">{formatActionHistoryTime(group.jobs[0]?.started_at)}{#if historyGroupChannel(group)} · {historyGroupChannel(group).toUpperCase()}{/if} · {group.jobs.length} {locale === 'ru' ? 'операции' : 'operations'}</small>
+                  </span>
+                  <span class="state-chip {jobStateClass(historyGroupState(group))}">{jobStateLabel(historyGroupState(group))}</span>
+                </div>
+                {#each group.jobs as job (job.id)}
+                  <button class="app-action-history-row nested" type="button" onclick={() => openHistoryJob(job)}>
+                    <span class="app-action-history-copy">
+                      <strong>{job.target}</strong>
+                      <small>{historySummary(job)}</small>
+                      <small class="mono">{formatActionHistoryTime(job.started_at)} · {historyDuration(job)}</small>
+                    </span>
+                    <span class="state-chip {jobStateClass(job.state)}">{jobStateLabel(job.state)}</span>
+                  </button>
+                {/each}
+              </div>
+            {:else}
+              {@const job = group.jobs[0]}
+              <button class="app-action-history-row" type="button" onclick={() => openHistoryJob(job)}>
+                <span class="app-action-history-copy">
+                  <strong>{job.target}</strong>
+                  <small>{historySummary(job)}</small>
+                  <small class="mono">{formatActionHistoryTime(job.started_at)} · {historyDuration(job)}</small>
+                </span>
+                <span class="state-chip {jobStateClass(job.state)}">{jobStateLabel(job.state)}</span>
+              </button>
+            {/if}
+          {/each}
+          {#if !filteredActionHistory.length}
+            <div class="catalog-empty">{locale === 'ru' ? 'По этому фильтру записей нет.' : 'No history matches this filter.'}</div>
+          {/if}
+        </div>
+        {#if visibleActionHistoryGroups.length < actionHistoryGroups.length}
+          <div class="app-action-history-more">
+            <button class="button compact" type="button" onclick={() => historyVisibleLimit += 20}>
+              {locale === 'ru' ? 'Показать ещё' : 'Show more'} ({actionHistoryGroups.length - visibleActionHistoryGroups.length})
+            </button>
+          </div>
+        {/if}
       {/if}
     </section>
   {/if}
@@ -1280,6 +1468,46 @@
   />
 {/if}
 
+
+{#if selectedHistoryJob}
+  <div class="app-detail-backdrop" role="presentation" onclick={() => selectedHistoryJob = null}>
+    <section class="app-detail-modal app-history-detail" role="dialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
+      <div class="catalog-section-head">
+        <div>
+          <h2>{selectedHistoryJob.target}</h2>
+          <p>{historySummary(selectedHistoryJob)}</p>
+        </div>
+        <button class="icon-button" aria-label={t(locale,'common.close')} onclick={() => selectedHistoryJob = null}>x</button>
+      </div>
+
+      {#if selectedHistoryJob.error}
+        <div class="catalog-install-notice error">{selectedHistoryJob.error}</div>
+      {/if}
+
+      <div class="tech-box mono app-history-meta-grid">
+        <div><span>Job ID</span><strong>{selectedHistoryJob.id}</strong></div>
+        <div><span>{locale === 'ru' ? 'Результат' : 'Result'}</span><strong>{jobStateLabel(selectedHistoryJob.state)}</strong></div>
+        <div><span>{locale === 'ru' ? 'Операция' : 'Action'}</span><strong>{actionVerb(selectedHistoryJob)}</strong></div>
+        <div><span>{locale === 'ru' ? 'Канал' : 'Channel'}</span><strong>{historyChannel(selectedHistoryJob).toUpperCase() || '—'}</strong></div>
+        <div><span>{locale === 'ru' ? 'Версия' : 'Version'}</span><strong>{historyVersion(selectedHistoryJob) || '—'}</strong></div>
+        <div><span>{locale === 'ru' ? 'Метод' : 'Method'}</span><strong>{selectedHistoryJob.method || '—'}</strong></div>
+        <div><span>{locale === 'ru' ? 'Пакеты' : 'Packages'}</span><strong>{selectedHistoryJob.packages?.length ? selectedHistoryJob.packages.join(', ') : '—'}</strong></div>
+        <div><span>{locale === 'ru' ? 'Начато' : 'Started'}</span><strong>{formatActionHistoryTime(selectedHistoryJob.started_at)}</strong></div>
+        <div><span>{locale === 'ru' ? 'Завершено' : 'Completed'}</span><strong>{selectedHistoryJob.completed_at ? formatActionHistoryTime(selectedHistoryJob.completed_at) : '—'}</strong></div>
+        <div><span>{locale === 'ru' ? 'Длительность' : 'Duration'}</span><strong>{historyDuration(selectedHistoryJob)}</strong></div>
+        {#if selectedHistoryJob.batch_id}<div><span>Batch ID</span><strong>{selectedHistoryJob.batch_id}</strong></div>{/if}
+      </div>
+
+      <div class="app-history-log-head">
+        <strong>{locale === 'ru' ? 'Технический лог' : 'Technical log'}</strong>
+        <button class="button compact" type="button" onclick={copyHistoryLog}>
+          {historyCopyDone ? (locale === 'ru' ? 'Скопировано' : 'Copied') : (locale === 'ru' ? 'Копировать' : 'Copy')}
+        </button>
+      </div>
+      <pre class="app-action-log app-history-full-log mono">{selectedHistoryJob.lines?.length ? selectedHistoryJob.lines.join('\n') : (locale === 'ru' ? 'Лог отсутствует.' : 'No log available.')}</pre>
+    </section>
+  </div>
+{/if}
 {#if entwareDetail}
   <div class="app-detail-backdrop" role="presentation" onclick={() => entwareDetail = null}>
     <section class="app-detail-modal" role="dialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
@@ -1472,6 +1700,78 @@
   .app-action-history-row { display:flex; justify-content:space-between; gap:1rem; align-items:center; padding:.65rem 1rem; border-top:1px solid var(--rf-border,var(--border)); }
   .app-action-history-row > span:first-child { display:grid; gap:.15rem; }
   .app-action-history-row small { color:var(--rf-muted,var(--muted)); }
+  .app-center-page .app-action-history-controls {
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+    flex-wrap:wrap;
+    padding:.65rem 1rem;
+    border-top:1px solid var(--rf-border,var(--border));
+    background:rgba(255,255,255,.015);
+  }
+  .app-center-page .app-action-history-controls select {
+    min-width:10rem;
+  }
+  .app-center-page .app-action-history-row {
+    width:100%;
+    border-left:0;
+    border-right:0;
+    border-bottom:0;
+    background:transparent;
+    color:inherit;
+    text-align:left;
+    font:inherit;
+    cursor:pointer;
+  }
+  .app-center-page .app-action-history-row:hover {
+    background:var(--rf-hover,var(--hover));
+  }
+  .app-center-page .app-action-history-row.nested {
+    padding-left:1.65rem;
+  }
+  .app-center-page .app-action-history-batch {
+    display:grid;
+    border-top:1px solid var(--rf-border,var(--border));
+  }
+  .app-center-page .app-action-history-batch-head {
+    display:flex;
+    justify-content:space-between;
+    gap:1rem;
+    align-items:center;
+    padding:.75rem 1rem;
+    background:rgba(255,255,255,.025);
+  }
+  .app-center-page .app-action-history-batch-head > span:first-child {
+    min-width:0;
+    display:grid;
+    gap:.2rem;
+  }
+  .app-center-page .app-action-history-more {
+    display:flex;
+    justify-content:center;
+    padding:.7rem 1rem;
+    border-top:1px solid var(--rf-border,var(--border));
+  }
+  .app-history-detail {
+    width:min(860px,100%);
+  }
+  .app-history-meta-grid {
+    margin:.8rem 0;
+  }
+  .app-history-log-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    margin-top:1rem;
+  }
+  .app-history-full-log {
+    max-height:40vh;
+    margin-top:.5rem;
+    border:1px solid var(--rf-border,var(--border));
+    border-radius:.6rem;
+    background:rgba(0,0,0,.18);
+  }
   .app-detail-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:1rem; background:rgba(0,0,0,.55); }
   .app-detail-modal { width:min(720px,100%); max-height:85vh; overflow:auto; padding:1rem; border:1px solid var(--rf-border,var(--border)); border-radius:.85rem; background:var(--rf-panel,var(--panel)); box-shadow:0 24px 80px rgba(0,0,0,.35); }
   @media (max-width: 760px) {

@@ -4,6 +4,28 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-16 — RouterForge 0.8.5-beta.2
+
+### Platform / safety
+- PHASE 14 Private Forgejo and PHASE 15 Shared Safety Engines are complete.
+- Shared command, file and config mutation safety primitives now back the user-facing control paths while preserving explicit low-level terminal/App Center exceptions.
+- Private Forgejo mirror/recovery plumbing is in place; destructive restore promotion remains an explicit maintenance operation.
+
+### App Center / channel transitions
+- Jobs + History now persists useful job details and technical logs, with the history sheet fitted to the main workspace.
+- Dev/Beta transition handling updates modules before Core and Core last; transient empty/invalid JSON during Core restart is handled explicitly.
+- Installed applications with valid local Web UI metadata can be opened without granting arbitrary lifecycle authority.
+
+### DNS / monitoring / management
+- DNS health is rolling-window based instead of lifetime-error based, with resolver-specific attribution and human-readable explanations for DEGRADED/DOWN, p95, quality and NXDOMAIN.
+- DNS settings are shown only when DNS is installed; resolver details and package-readiness behavior were corrected.
+- Management actions are enabled for same-origin UI when RouterForge auth is disabled; auth-enabled deployments still require a root session, and cross-origin/exact-target safety gates remain active.
+- Thermal and module UI cache behavior were hardened.
+
+### Release
+- Beta train advances to `0.8.5-beta.2` (`0.8.5~beta.2` for opkg) across all six components.
+- Beta targets remain `aarch64-3.10`, `mips-3.4`, and `mipsel-3.4`.
+- Stable/main remains RouterForge 0.8.0 and is not promoted by this Beta.
 ## 2026-09-15 — RouterForge 0.8.5-beta.1
 
 ### Registry / App Center

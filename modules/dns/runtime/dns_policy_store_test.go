@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
 )
 
 func TestDNSPolicyStoreRoundTrip(t *testing.T) {
@@ -108,5 +110,51 @@ func TestBuildDNSPolicyActivationPreviewEmptyRules(t *testing.T) {
 	}
 	if len(preview.Policies) != 0 {
 		t.Fatalf("empty rules must have no policies: %#v", preview.Policies)
+	}
+}
+
+func TestBuildDNSPolicyActivationTransactionDesign(t *testing.T) {
+	doc := DNSPolicyRulesDocument{Version: dnsPolicyRulesSchemaVersion}
+	rules := []DNSPolicyRule{
+		{ID: "one", Priority: 10, Policy: "Policy1"},
+		{ID: "two", Priority: 20, Policy: "System"},
+	}
+	design := buildDNSPolicyActivationTransactionDesign(doc, rules)
+	if design.Component != "dns-policy-router" {
+		t.Fatalf("component = %q", design.Component)
+	}
+	if design.ActivationAvailable || design.MutatesRuntime {
+		t.Fatalf("P18E must remain design-only: %#v", design)
+	}
+	if design.DocumentVersion != dnsPolicyRulesSchemaVersion || design.PersistedRules != 2 {
+		t.Fatalf("unexpected document summary: %#v", design)
+	}
+	wantStages := []transaction.State{
+		transaction.Precheck,
+		transaction.Snapshot,
+		transaction.Validated,
+		transaction.Applied,
+		transaction.Verified,
+		transaction.Committed,
+	}
+	if len(design.Stages) != len(wantStages) {
+		t.Fatalf("stage count = %d", len(design.Stages))
+	}
+	for i, want := range wantStages {
+		if design.Stages[i].State != want {
+			t.Fatalf("stage[%d] = %q, want %q", i, design.Stages[i].State, want)
+		}
+		if len(design.Stages[i].RequiredEvidence) == 0 {
+			t.Fatalf("stage[%d] has no required evidence", i)
+		}
+		if design.Stages[i].OnFailure == "" {
+			t.Fatalf("stage[%d] has no failure policy", i)
+		}
+	}
+	if len(design.TerminalStates) != 4 {
+		t.Fatalf("terminal states = %#v", design.TerminalStates)
+	}
+	if len(design.RollbackArtifacts) != 3 || len(design.CommitGate) != 4 {
+		t.Fatalf("rollback/commit contract incomplete: %#v", design)
 	}
 }

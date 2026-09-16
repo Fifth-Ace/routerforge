@@ -220,6 +220,100 @@ P18D остаётся preview-only:
 - activation endpoint отсутствует;
 - activation preview не требует mutation header.
 
+## P18E — activation transaction design
+
+P18E определяет будущий activation transaction поверх общего RouterForge transaction contract, но **не добавляет runtime activation**.
+
+`GET /v1/policy-rules/activation-transaction-design`
+
+Endpoint:
+
+1. загружает persisted document;
+2. читает live Keenetic policy inventory;
+3. валидирует сохранённые rules;
+4. возвращает immutable design contract.
+
+### Shared transaction states
+
+Используются существующие RouterForge states без отдельной DNS-специфичной state machine:
+
+`precheck → snapshot → validated → applied → verified → committed`
+
+Terminal recovery/error states:
+
+- `rolled-back`;
+- `ambiguous`;
+- `failed`.
+
+### Required evidence by stage
+
+`precheck`:
+
+- persisted document loaded;
+- schema version accepted;
+- all rules valid against current Keenetic policy inventory.
+
+`snapshot`:
+
+- exact pre-activation runtime policy-router snapshot;
+- desired persisted document identity;
+- rollback artifact readable before apply.
+
+`validated`:
+
+- canonical desired rules frozen;
+- policy inventory rechecked;
+- activation input unchanged since precheck.
+
+`applied`:
+
+- future atomic apply reports success;
+- runtime accepts staged policy-router configuration.
+
+`verified`:
+
+- active runtime identity equals staged desired identity;
+- runtime health passes;
+- policy-router evaluation probes match staged rules.
+
+`committed`:
+
+- verification evidence complete;
+- no unresolved rollback/ambiguous state.
+
+### Rollback contract
+
+If failure happens after apply, future implementation must restore the **exact pre-activation runtime snapshot** and verify recovery.
+
+If rollback cannot be proven, transaction must end as `ambiguous`, never as successful.
+
+Required artifacts:
+
+- exact pre-activation runtime policy-router snapshot;
+- desired persisted policy document identity;
+- transaction evidence manifest.
+
+### Commit gate
+
+A future activation may enter `committed` only when:
+
+- active runtime identity equals staged desired identity;
+- runtime health is good;
+- policy-router evaluation probes pass;
+- no unresolved rollback or ambiguous evidence exists.
+
+### Safety boundary
+
+P18E remains design-only:
+
+- `activation_available=false`;
+- `activated=false`;
+- `mutation_api=false` for the design endpoint;
+- no apply endpoint;
+- no enable endpoint;
+- no live DNS traffic mutation;
+- no RCI mutation.
+
 ## Следующий этап
 
-P18E — activation transaction design: определить точный runtime apply/verify/rollback контракт и evidence до появления любого enable/apply endpoint.
+P18F — activation engine foundation: implement an internal transaction executor behind tests/fakes only, with no public activation endpoint, so apply/verify/rollback mechanics can be proven before exposing mutation to users.

@@ -203,6 +203,35 @@ func evaluateDNSPolicy(req DNSPolicyEvaluationRequest, allowed map[string]bool) 
 	}, nil
 }
 
+func validateDNSPolicyRules(rules []DNSPolicyRule, allowed map[string]bool) ([]DNSPolicyRule, error) {
+	if len(rules) > 128 {
+		return nil, fmt.Errorf("too many rules")
+	}
+	normalized := make([]DNSPolicyRule, 0, len(rules))
+	seenIDs := make(map[string]bool, len(rules))
+	for _, raw := range rules {
+		rule, err := normalizeDNSPolicyRule(raw)
+		if err != nil {
+			return nil, err
+		}
+		if seenIDs[rule.ID] {
+			return nil, fmt.Errorf("duplicate rule id %q", rule.ID)
+		}
+		seenIDs[rule.ID] = true
+		if allowed != nil && !allowed[rule.Policy] {
+			return nil, fmt.Errorf("unknown policy %q", rule.Policy)
+		}
+		normalized = append(normalized, rule)
+	}
+	sort.SliceStable(normalized, func(i, j int) bool {
+		if normalized[i].Priority != normalized[j].Priority {
+			return normalized[i].Priority < normalized[j].Priority
+		}
+		return normalized[i].ID < normalized[j].ID
+	})
+	return normalized, nil
+}
+
 func normalizeDNSPolicyRule(rule DNSPolicyRule) (DNSPolicyRule, error) {
 	rule.ID = strings.TrimSpace(rule.ID)
 	if rule.ID == "" || len(rule.ID) > 64 {

@@ -97,6 +97,68 @@ P18B остаётся read-only:
 - body ограничен 128 KiB, rules — максимум 128;
 - unknown JSON fields отклоняются.
 
+## P18C — persisted policy model + validation boundary
+
+P18C добавляет сохранение policy rules, но намеренно **не активирует** их в DNS runtime.
+
+### API
+
+`GET /v1/policy-rules`
+
+Возвращает versioned document:
+
+- `version`;
+- `updated_at`;
+- `rules`.
+
+Ответ явно содержит:
+
+- `persisted=true`;
+- `activated=false`.
+
+`PUT /v1/policy-rules`
+
+Требует стандартный RouterForge DNS mutation header и `application/json`.
+
+Перед записью:
+
+1. каждое правило проходит нормализацию P18B;
+2. duplicate `id` отклоняются;
+3. policy должна существовать в live Keenetic RCI inventory;
+4. максимум 128 rules;
+5. правила канонически сортируются по `priority`, затем `id`.
+
+### Storage contract
+
+Файл:
+
+`/opt/etc/routerforge/dns-policy-rules.json`
+
+Схема versioned (`version=1`).
+
+Запись выполняется через temporary file в том же каталоге:
+
+- mode `0600`;
+- write;
+- `fsync`;
+- close;
+- atomic rename.
+
+Отсутствующий файл трактуется как валидный пустой rule set.
+
+### Safety boundary
+
+P18C — **persist-only**:
+
+- правила сохраняются;
+- правила можно валидировать и dry-run'ить;
+- resolver configuration не меняется;
+- policy bindings в Keenetic не меняются;
+- live DNS traffic не использует сохранённые rules;
+- `activated=false` является частью API-контракта.
+
+Это отделяет безопасную конфигурационную mutation boundary от будущей runtime activation.
+
 ## Следующий этап
 
-P18C — persisted policy model + validation contract, но ещё без runtime traffic activation: подготовить безопасное хранение и transaction-ready mutation boundary.
+P18D — persisted-rule evaluation + activation preview: dry-run должен уметь брать сохранённый rule set и показывать diff/evidence будущей runtime activation, всё ещё без изменения живого DNS-трафика.

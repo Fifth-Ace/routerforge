@@ -18,22 +18,24 @@ import (
 )
 
 type dnsModuleServer struct {
-	store   *Store
-	version string
-	socket  string
-	uiPath  string
-	started time.Time
-	control *dnsControlManager
+	store       *Store
+	version     string
+	socket      string
+	uiPath      string
+	started     time.Time
+	control     *dnsControlManager
+	policyStore *dnsPolicyStore
 }
 
 func newDNSModuleServer(store *Store, version, socket, uiPath string) *dnsModuleServer {
 	return &dnsModuleServer{
-		store:   store,
-		version: version,
-		socket:  socket,
-		uiPath:  uiPath,
-		started: time.Now(),
-		control: newDNSControlManager(newDNSRCIClient("http://127.0.0.1:79/rci"), "/opt/etc/routerforge/dns-disabled.json", newDNSRuntimeProbe(socket)),
+		store:       store,
+		version:     version,
+		socket:      socket,
+		uiPath:      uiPath,
+		started:     time.Now(),
+		control:     newDNSControlManager(newDNSRCIClient("http://127.0.0.1:79/rci"), "/opt/etc/routerforge/dns-disabled.json", newDNSRuntimeProbe(socket)),
+		policyStore: newDNSPolicyStore("/opt/etc/routerforge/dns-policy-rules.json"),
 	}
 }
 
@@ -159,6 +161,68 @@ func (s *dnsModuleServer) Serve() error {
 			"mutation_api": false,
 		})
 	}))
+	mux.HandleFunc("/v1/policy-rules", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead:
+			doc, err := s.policyStore.Load()
+			if err != nil {
+				s.writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+				return
+			}
+			s.writeJSON(w, http.StatusOK, map[string]any{
+				"document":     doc,
+				"persisted":    true,
+				"activated":    false,
+				"mutation_api": true,
+			})
+		case http.MethodPut:
+			if !s.requireMutationHeader(w, r) {
+				return
+			}
+			defer r.Body.Close()
+			decoder := json.NewDecoder(io.LimitReader(r.Body, 128<<10))
+			decoder.DisallowUnknownFields()
+			var request struct {
+				Rules []DNSPolicyRule `json:"rules"`
+			}
+			if err := decoder.Decode(&request); err != nil {
+				s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+				return
+			}
+			if decoder.Decode(&struct{}{}) != io.EOF {
+				s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": "only one JSON object is allowed"})
+				return
+			}
+			inventory, err := readDNSPolicyInventory()
+			if err != nil {
+				s.writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "source": "keenetic-rci"})
+				return
+			}
+			allowed := make(map[string]bool, len(inventory))
+			for _, policy := range inventory {
+				allowed[policy.Proxy] = true
+			}
+			rules, err := validateDNSPolicyRules(request.Rules, allowed)
+			if err != nil {
+				s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+				return
+			}
+			doc, err := s.policyStore.Save(rules)
+			if err != nil {
+				s.writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+				return
+			}
+			s.writeJSON(w, http.StatusOK, map[string]any{
+				"document":     doc,
+				"persisted":    true,
+				"activated":    false,
+				"mutation_api": true,
+			})
+		default:
+			w.Header().Set("Allow", "GET, HEAD, PUT")
+			s.writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET, HEAD, or PUT required"})
+		}
+	})
 	mux.HandleFunc("/v1/policies/evaluate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "POST")

@@ -189,6 +189,9 @@ func handleAdminFileMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockVault, vaultProtected := lockAdminConfigVaultMutation(source.Canonical, destination.Canonical)
+	defer unlockVault()
+
 	recheckedSource, _, err := recheckAdminFileMutationTarget(
 		request.Source,
 		source.Canonical,
@@ -211,6 +214,12 @@ func handleAdminFileMove(w http.ResponseWriter, r *http.Request) {
 	if recheckedDestination.Canonical != destination.Canonical {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "destination path changed during validation"})
 		return
+	}
+	if vaultProtected && info.Mode().IsRegular() {
+		if _, err := captureAdminConfigVaultPrechangeLocked("file-move", source.Canonical, destination.Canonical); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "automatic config vault pre-change snapshot failed", "mutation_blocked": true})
+			return
+		}
 	}
 
 	if err := os.Rename(recheckedSource.Canonical, recheckedDestination.Canonical); err != nil {
@@ -265,6 +274,9 @@ func handleAdminFileDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockVault, vaultProtected := lockAdminConfigVaultMutation(resolved.Canonical)
+	defer unlockVault()
+
 	rechecked, _, err := recheckAdminFileMutationTarget(
 		request.Path,
 		resolved.Canonical,
@@ -274,6 +286,12 @@ func handleAdminFileDelete(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeAdminFileObjectError(w, err)
 		return
+	}
+	if vaultProtected && info.Mode().IsRegular() {
+		if _, err := captureAdminConfigVaultPrechangeLocked("file-delete", resolved.Canonical); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "automatic config vault pre-change snapshot failed", "mutation_blocked": true})
+			return
+		}
 	}
 
 	if err := os.Remove(rechecked.Canonical); err != nil {
@@ -338,6 +356,9 @@ func handleAdminFileChmod(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockVault, vaultProtected := lockAdminConfigVaultMutation(resolved.Canonical)
+	defer unlockVault()
+
 	rechecked, _, err := recheckAdminFileMutationTarget(
 		request.Path,
 		resolved.Canonical,
@@ -347,6 +368,12 @@ func handleAdminFileChmod(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeAdminFileObjectError(w, err)
 		return
+	}
+	if vaultProtected && info.Mode().IsRegular() {
+		if _, err := captureAdminConfigVaultPrechangeLocked("file-chmod", resolved.Canonical); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "automatic config vault pre-change snapshot failed", "mutation_blocked": true})
+			return
+		}
 	}
 
 	if err := os.Chmod(rechecked.Canonical, mode); err != nil {

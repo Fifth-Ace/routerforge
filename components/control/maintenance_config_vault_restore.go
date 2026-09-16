@@ -94,16 +94,13 @@ func handleAdminConfigVaultRestore(w http.ResponseWriter, r *http.Request) {
 		Artifacts: []string{target.ID},
 	}
 
+	unlockVault, _ := lockAdminConfigVaultMutation(adminConfigVaultManagedRoot)
+	defer unlockVault()
+
 	_, currentSpecs, err := discoverAdminConfigVaultArtifacts()
 	if err != nil {
 		_ = transaction.Advance(&tx, transaction.Failed)
 		writeAdminConfigVaultRestoreFailure(w, target.ID, "", tx, false, false, "precheck", err)
-		return
-	}
-	if len(currentSpecs) == 0 {
-		_ = transaction.Advance(&tx, transaction.Failed)
-		writeAdminConfigVaultRestoreFailure(w, target.ID, "", tx, false, false, "precheck",
-			errors.New("restore requires at least one current managed config file for a safety snapshot"))
 		return
 	}
 
@@ -217,9 +214,6 @@ func validateAdminConfigVaultRestoreManifest(root string, manifest configvault.M
 	}
 	if manifest.Component != "admin" {
 		return errors.New("snapshot component must be admin")
-	}
-	if len(manifest.Artifacts) == 0 {
-		return errors.New("snapshot contains no artifacts")
 	}
 	if len(manifest.Artifacts) > adminConfigVaultMaxFiles {
 		return fmt.Errorf("snapshot contains more than %d artifacts", adminConfigVaultMaxFiles)

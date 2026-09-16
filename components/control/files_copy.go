@@ -110,6 +110,9 @@ func handleAdminFileCopy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockVault, vaultProtected := lockAdminConfigVaultMutation(destination.Canonical)
+	defer unlockVault()
+
 	rechecked, err := resolveCreatableAdminFilePath(request.Destination)
 	if err != nil || rechecked.Canonical != destination.Canonical {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "copy destination changed during validation"})
@@ -118,6 +121,12 @@ func handleAdminFileCopy(w http.ResponseWriter, r *http.Request) {
 	if _, err := os.Lstat(destination.Canonical); !errors.Is(err, os.ErrNotExist) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "copy destination appeared during operation"})
 		return
+	}
+	if vaultProtected {
+		if _, err := captureAdminConfigVaultPrechangeLocked("file-copy", destination.Canonical); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "automatic config vault pre-change snapshot failed", "mutation_blocked": true})
+			return
+		}
 	}
 	if err := atomicFile.Publish(destination.Canonical); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot publish copied file"})

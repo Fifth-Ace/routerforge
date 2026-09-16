@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
 	"time"
 )
 
@@ -323,18 +325,6 @@ func (s *dnsModuleServer) handleResolverAction(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if err != nil {
-		if errors.Is(err, errDNSResolverNotFound) {
-			s.writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
-			return
-		}
-		if errors.Is(err, errDNSResolverReadOnly) || errors.Is(err, errDNSResolverConflict) {
-			s.writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
-			return
-		}
-		if errors.Is(err, errDNSResolverInvalid) {
-			s.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-			return
-		}
 		s.writeMutationError(w, err)
 		return
 	}
@@ -343,12 +333,18 @@ func (s *dnsModuleServer) handleResolverAction(w http.ResponseWriter, r *http.Re
 
 func (s *dnsModuleServer) writeMutationError(w http.ResponseWriter, err error) {
 	status := http.StatusBadGateway
-	if errors.Is(err, errDNSResolverInvalid) {
+	if errors.Is(err, errDNSResolverNotFound) {
+		status = http.StatusNotFound
+	} else if errors.Is(err, errDNSResolverInvalid) {
 		status = http.StatusBadRequest
 	} else if errors.Is(err, errDNSResolverConflict) || errors.Is(err, errDNSResolverReadOnly) {
 		status = http.StatusConflict
 	}
-	s.writeJSON(w, status, map[string]any{"error": err.Error()})
+	response := map[string]any{"error": err.Error()}
+	if tx, ok := transaction.Extract(err); ok {
+		response["transaction"] = tx
+	}
+	s.writeJSON(w, status, response)
 }
 
 func (s *dnsModuleServer) writeJSON(w http.ResponseWriter, status int, value any) {

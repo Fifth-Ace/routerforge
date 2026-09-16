@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/Fifth-Ace/routerforge/internal/platform/configvault"
 	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
@@ -80,19 +79,11 @@ func handleAdminConfigVaultRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now().UTC()
 	transactionID := request.TransactionID
-	if transactionID == "" {
-		transactionID = fmt.Sprintf("restore-%d", now.UnixNano())
-	}
-	tx := transaction.Manifest{
-		ID:        transactionID,
-		Component: "admin",
-		State:     transaction.Precheck,
-		StartedAt: now,
-		UpdatedAt: now,
-		Artifacts: []string{target.ID},
-	}
+	tx := transaction.New(transactionID, "admin", target.ID)
+	transaction.Record(&tx, "target-precheck", transaction.EvidencePassed, "target snapshot manifest accepted", map[string]string{
+		"target_snapshot": target.ID,
+	})
 
 	unlockVault, _ := lockAdminConfigVaultMutation(adminConfigVaultManagedRoot)
 	defer unlockVault()
@@ -115,6 +106,9 @@ func handleAdminConfigVaultRestore(w http.ResponseWriter, r *http.Request) {
 		writeAdminConfigVaultRestoreFailure(w, target.ID, "", tx, false, false, "safety-snapshot", err)
 		return
 	}
+	transaction.Record(&tx, "safety-snapshot", transaction.EvidencePassed, "pre-restore safety snapshot captured", map[string]string{
+		"safety_snapshot": safetySnapshot.ID,
+	})
 	if err := transaction.Advance(&tx, transaction.Snapshot); err != nil {
 		writeAdminConfigVaultRestoreFailure(w, target.ID, safetySnapshot.ID, tx, false, false, "transaction", err)
 		return
@@ -125,6 +119,7 @@ func handleAdminConfigVaultRestore(w http.ResponseWriter, r *http.Request) {
 		writeAdminConfigVaultRestoreFailure(w, target.ID, safetySnapshot.ID, tx, false, false, "validation", err)
 		return
 	}
+	transaction.Record(&tx, "content-validation", transaction.EvidencePassed, "snapshot objects verified before apply", nil)
 	if err := transaction.Advance(&tx, transaction.Validated); err != nil {
 		writeAdminConfigVaultRestoreFailure(w, target.ID, safetySnapshot.ID, tx, false, false, "transaction", err)
 		return
@@ -135,10 +130,15 @@ func handleAdminConfigVaultRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := applyAdminConfigVaultSnapshot(store, adminConfigVaultManagedRoot, target); err != nil {
+		transaction.RecordFailure(&tx, "atomic-apply", err, nil)
 		rollbackOK, rollbackErr := rollbackAdminConfigVaultSnapshot(store, adminConfigVaultManagedRoot, safetySnapshot)
 		if rollbackOK {
+			transaction.Record(&tx, "rollback-readback", transaction.EvidenceRecovered, "safety snapshot rollback verified", map[string]string{
+				"safety_snapshot": safetySnapshot.ID,
+			})
 			_ = transaction.Advance(&tx, transaction.RolledBack)
 		} else {
+			transaction.RecordFailure(&tx, "rollback-readback", rollbackErr, nil)
 			_ = transaction.Advance(&tx, transaction.Ambiguous)
 		}
 		if rollbackErr != nil {
@@ -154,10 +154,15 @@ func handleAdminConfigVaultRestore(w http.ResponseWriter, r *http.Request) {
 		if verifyErr == nil {
 			verifyErr = errors.New("post-restore readback does not match target snapshot")
 		}
+		transaction.RecordFailure(&tx, "sha256-readback", verifyErr, nil)
 		rollbackOK, rollbackErr := rollbackAdminConfigVaultSnapshot(store, adminConfigVaultManagedRoot, safetySnapshot)
 		if rollbackOK {
+			transaction.Record(&tx, "rollback-readback", transaction.EvidenceRecovered, "safety snapshot rollback verified", map[string]string{
+				"safety_snapshot": safetySnapshot.ID,
+			})
 			_ = transaction.Advance(&tx, transaction.RolledBack)
 		} else {
+			transaction.RecordFailure(&tx, "rollback-readback", rollbackErr, nil)
 			_ = transaction.Advance(&tx, transaction.Ambiguous)
 		}
 		if rollbackErr != nil {
@@ -167,6 +172,7 @@ func handleAdminConfigVaultRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	transaction.Record(&tx, "sha256-readback", transaction.EvidencePassed, "managed config matches target snapshot", nil)
 	if err := transaction.Advance(&tx, transaction.Verified); err != nil {
 		writeAdminConfigVaultRestoreFailure(w, target.ID, safetySnapshot.ID, tx, false, false, "transaction", err)
 		return

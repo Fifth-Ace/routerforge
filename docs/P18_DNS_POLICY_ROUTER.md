@@ -750,6 +750,110 @@ P18K считается hardware-complete только после проверк
 - Policy0: requested/actual `0xffffaaa`, TCP connect ожидаемо FAIL из-за отсутствия default route;
 - никакого unmarked fallback.
 
+## P18L — live wiring design boundary + egress primitive unification
+
+P18K hardware smoke подтвердил production egress primitive на реальном Keenetic:
+
+- Policy1 requested mark `0xffffaab`;
+- actual socket mark `0xffffaab`;
+- table `4098`;
+- bounded TCP connect успешно прошёл;
+- Policy0 requested/actual mark `0xffffaaa`;
+- table `4096` без default route;
+- connect завершился fail-closed;
+- unmarked fallback не наблюдался;
+- установка пакета, restart сервиса и config mutation не выполнялись.
+
+### Найденная runtime boundary
+
+Текущий RouterForge DNS не является authoritative/live forwarding DNS proxy.
+
+Текущие client/proxy paths:
+
+- `capture_linux.go` пассивно наблюдает loopback proxy traffic через `AF_PACKET`;
+- `client_capture_linux.go` пассивно наблюдает client/plain DNS traffic;
+- runtime сохраняет telemetry, client attribution и health state;
+- production listener на UDP/TCP :53 отсутствует;
+- live client DNS request не проходит через RouterForge evaluator перед отправкой upstream.
+
+Следовательно, подключить `newDNSPolicyMarkedDialer()` к существующему live request path невозможно: такого forwarding path пока нет.
+
+### Single egress primitive
+
+До P18L diagnostics имел отдельную реализацию `SO_MARK`.
+
+P18L устраняет это расхождение:
+
+- diagnostic `policy-mark` route теперь использует `newDNSPolicyMarkedDialer`;
+- `dnsPolicySetSocketMark` становится единственной реализацией policy socket mark;
+- interface-only diagnostics продолжает использовать `SO_BINDTODEVICE`;
+- default diagnostics остаётся unmarked.
+
+Это гарантирует, что hardware smoke, diagnostics и будущий live proxy используют один и тот же mark primitive.
+
+### Future live proxy contract
+
+Будущий forwarding path должен появиться отдельно и сначала только в shadow mode.
+
+Минимальный contract:
+
+1. отдельный explicit listener, не системный `:53`;
+2. UDP и TCP parity;
+3. client IP должен быть известен до evaluation;
+4. raw query парсится тем же DNS parser;
+5. persisted rules загружаются и валидируются;
+6. evaluator выбирает `System` либо `PolicyN`;
+7. `PolicyN` повторно разрешается в live `mark/table`;
+8. upstream socket создаётся через единственный policy egress primitive;
+9. отсутствие policy/default route и SO_MARK error — fail closed, без silent System fallback;
+10. response возвращается исходному diagnostic/shadow client;
+11. telemetry фиксирует selected rule, policy, mark/table и outcome.
+
+### Shadow-first rollout
+
+Первый live forwarding этап не должен:
+
+- bind системный UDP/TCP :53;
+- менять Keenetic nameserver config;
+- менять DHCP DNS;
+- ставить redirect/NAT rules;
+- выключать native DNS proxy;
+- активировать persisted rules для обычных клиентов.
+
+Hardware gate сначала должен доказать на отдельном loopback/temporary port:
+
+`synthetic client query -> evaluator -> PolicyN -> SO_MARK -> upstream -> response`.
+
+Только после этого можно проектировать takeover/redirect transaction.
+
+### Activation semantics
+
+Существующий P18F transaction нельзя считать готовым к live proxy takeover без дополнительных artifacts.
+
+Будущий activation snapshot должен включать минимум:
+
+- proxy listener state;
+- selected listen addresses/ports;
+- persisted rule document identity;
+- current Keenetic policy state identity;
+- upstream inventory identity;
+- current native DNS/redirect state, если takeover когда-либо будет разрешён.
+
+Rollback должен сначала вернуть native DNS traffic path, затем остановить RouterForge live listener. Если recovery нельзя доказать, состояние `ambiguous`.
+
+### Safety boundary
+
+P18L:
+
+- не добавляет DNS listener;
+- не bind'ит :53;
+- не меняет Keenetic config;
+- не активирует persisted policy rules;
+- не добавляет public activation API;
+- не меняет live DNS traffic.
+
+`production_driver_ready=false` сохраняется.
+
 ## Следующий этап
 
-После hardware PASS — P18L: интеграционный дизайн live DNS wiring + activation semantics, всё ещё без публичного enable до отдельного gate.
+P18M — shadow DNS forwarder foundation: отдельный loopback-only UDP/TCP listener на non-53 port, synthetic requests only, evaluator + marked egress, без системного DNS takeover.

@@ -78,10 +78,22 @@ func catalogWebProbeAllowed(item catalogItem) bool {
 	if catalogRuntimeWebProbeAllowed(item) {
 		return true
 	}
-	return item.RegistrySource == "legacy-fallback" &&
+	if item.RegistrySource == "legacy-fallback" &&
 		item.WebPortSource != "" &&
 		item.Web != nil &&
-		item.Web.Mode == "probe-required"
+		item.Web.Mode == "probe-required" {
+		return true
+	}
+
+	// Manifest trust controls installation/lifecycle authority, not access to a
+	// Web UI of a package that is already installed by the user. For
+	// unverified registry metadata we only permit the server-side local probe
+	// when the package is actually installed and the Web contract explicitly
+	// requires probing. User/private sources stay blocked above.
+	return item.PackageInstalled &&
+		item.Web != nil &&
+		item.Web.Mode == "probe-required" &&
+		item.Web.Embed
 }
 
 func catalogRuntimeWebProbeAllowed(item catalogItem) bool {

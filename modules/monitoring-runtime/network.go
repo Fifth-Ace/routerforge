@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 type netCounters struct {
@@ -479,7 +481,7 @@ func readKeeneticInterfaceState() ([]keeneticInterface, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, "ndmc", "-c", "show interface").CombinedOutput()
+	output, err := safety.RunCommand(ctx, 1<<20, "ndmc", "-c", "show interface")
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +598,7 @@ func readKeeneticSystemName(id string) string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, "ndmc", "-c", "show interface "+id+" system-name").CombinedOutput()
+	output, err := safety.RunCommand(ctx, 1<<20, "ndmc", "-c", "show interface "+id+" system-name")
 	if err != nil {
 		return ""
 	}

@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 func newThermalCollector(interval time.Duration) *thermalCollector {
@@ -331,8 +333,7 @@ func collectSmartctlThermals(now time.Time) []thermalSensor {
 	var out []thermalSensor
 	for _, device := range devices {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		cmd := exec.CommandContext(ctx, "smartctl", "-A", device)
-		output, _ := cmd.CombinedOutput()
+		output, _ := safety.RunCommand(ctx, 256<<10, "smartctl", "-A", device)
 		cancel()
 		if ctx.Err() != nil || len(output) == 0 {
 			continue

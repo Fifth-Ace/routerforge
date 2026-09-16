@@ -391,6 +391,78 @@ P18F всё ещё не активирует routing:
 - live DNS traffic не меняется;
 - persisted rules остаются inactive.
 
+## P18G — runtime adapter discovery + contract tests
+
+P18G не создаёт production driver. Этап фиксирует, какие primitives уже существуют в RouterForge и какие знания о Keenetic policy dataplane всё ещё отсутствуют.
+
+### Уже доступные primitives
+
+Подтверждены текущим DNS mutation stack:
+
+- bounded context-aware RCI GET через `dnsRCIClient.getJSON`;
+- structured RCI POST/DELETE без shell interpolation;
+- native configuration save через `/system/configuration/save`;
+- exact canonical RCI readback verification;
+- restore exact captured native state + verification;
+- DNS runtime health probe before transaction commit.
+
+Эти primitives уже используются resolver mutation path и являются подходящими строительными блоками для будущего policy activation driver.
+
+### Blocking unknowns
+
+Production policy driver остаётся **заблокирован**, пока аппаратно не определены:
+
+1. exact Keenetic RCI read path и response schema для реально активного policy-router rule state;
+2. exact RCI mutation path и payload schema для установки policy-router rules;
+3. stable runtime identity/readback contract, которым можно доказать, что active state идентичен desired rules.
+
+`discoverDNSPolicyRuntimeAdapter()` поэтому возвращает:
+
+`production_driver_ready=false`.
+
+Ни один unknown не заменяется предположением о CLI/RCI schema.
+
+### Adapter contract
+
+Добавлен internal `dnsPolicyActivationAdapter`, который связывает P18F engine с абстрактным `dnsPolicyRuntimePrimitive`.
+
+Primitive contract:
+
+- `SnapshotRuntime`;
+- `ApplyCanonicalRules`;
+- `VerifyCanonicalRules`;
+- `RestoreRuntime`;
+- `VerifyRuntimeSnapshot`;
+- `RuntimeHealth`.
+
+Rule validation передаётся отдельно и выполняется на precheck/validated boundary.
+
+### Contract tests
+
+Fake primitive доказывает:
+
+- P18F engine корректно проходит через adapter до `committed`;
+- validation выполняется до mutation;
+- runtime health проверяется до apply и после desired readback;
+- verify failure вызывает restore exact snapshot;
+- rollback verification проверяет snapshot identity и runtime health;
+- health failure до apply не вызывает mutation.
+
+### Build ABI
+
+`dns_policy_adapter.go` включён в explicit DNS Module ABI source list.
+
+### Safety boundary
+
+P18G остаётся non-production:
+
+- production runtime primitive отсутствует;
+- exact policy RCI write path нигде не задан;
+- server/API не создаёт adapter;
+- public activation endpoint отсутствует;
+- live DNS traffic не меняется;
+- RCI mutation policy-router rules отсутствует.
+
 ## Следующий этап
 
-P18G — runtime adapter discovery + contract tests: определить существующие RouterForge/Keenetic primitives, которыми можно безопасно реализовать production driver, и проверить snapshot/apply/verify/rollback adapter contract до подключения executor к API.
+P18H — hardware discovery protocol: подготовить read-only/controlled диагностический probe для реального Keenetic, чтобы установить exact policy RCI read/write schema и runtime identity contract до написания production primitive.

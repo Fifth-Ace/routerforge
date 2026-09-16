@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 var keeneticModelPattern = regexp.MustCompile(`(?i)\bKN-\d{4}\b`)
@@ -104,7 +106,7 @@ func readOpkgPrintArchitecture() (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, path, "print-architecture").Output()
+	output, err := safety.RunCommandOutput(ctx, path, "print-architecture")
 	if err != nil {
 		return "", err
 	}
@@ -195,7 +197,7 @@ func readNDMCDeviceModel() string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, "ndmc", "-c", "show version").Output()
+	output, err := safety.RunCommandOutput(ctx, "ndmc", "-c", "show version")
 	if err != nil {
 		return ""
 	}

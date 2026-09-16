@@ -171,17 +171,14 @@ body,
 /* Repository/community links live as a brand footer, not as module rows. */
 .rail-community-links {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 7px;
 }
 .rail-community-links .rail-repository-link {
   min-width: 0;
 }
-.rail-community-links .rail-repository-link-text {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
 .rail-community-links .rail-telegram-link {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 .rail-link-icon {
   display: grid;

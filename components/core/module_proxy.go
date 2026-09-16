@@ -365,6 +365,16 @@ func moduleUIPath(targetPath string) bool {
 	return targetPath == "/v1/ui" || strings.HasPrefix(targetPath, "/v1/ui/")
 }
 
+func moduleUICacheControl(targetPath string) string {
+	if !moduleUIPath(targetPath) {
+		return "no-store"
+	}
+	if strings.HasPrefix(targetPath, "/v1/ui/assets/") {
+		return "public, max-age=31536000, immutable"
+	}
+	return "no-store"
+}
+
 func moduleTransport(socket string) *http.Transport {
 	return &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
@@ -458,11 +468,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		if moduleUIPath(targetPath) {
-			resp.Header.Set("Cache-Control", "no-cache")
-		} else {
-			resp.Header.Set("Cache-Control", "no-store")
-		}
+		resp.Header.Set("Cache-Control", moduleUICacheControl(targetPath))
 		return nil
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {

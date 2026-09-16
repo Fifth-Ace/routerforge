@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 var (
@@ -181,12 +183,7 @@ func setReleaseChannel(value string) error {
 	if err := os.MkdirAll(filepath.Dir(routerForgeReleaseChannelFile), 0755); err != nil {
 		return err
 	}
-	tmp := routerForgeReleaseChannelFile + ".tmp"
-	if err := os.WriteFile(tmp, []byte(channel+"\n"), 0644); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, routerForgeReleaseChannelFile); err != nil {
-		_ = os.Remove(tmp)
+	if err := safety.WriteFileAtomic(routerForgeReleaseChannelFile, []byte(channel+"\n"), 0644); err != nil {
 		return err
 	}
 	releaseConfigMu.Lock()
@@ -435,12 +432,7 @@ func refreshRouterForgeReleaseIndex() {
 	if err == nil {
 		cache := routerForgeReleaseCachePath()
 		if mkErr := os.MkdirAll(filepath.Dir(cache), 0755); mkErr == nil {
-			tmp := cache + ".tmp"
-			if writeErr := os.WriteFile(tmp, data, 0644); writeErr == nil {
-				_ = os.Rename(tmp, cache)
-			} else {
-				_ = os.Remove(tmp)
-			}
+			_ = safety.WriteFileAtomic(cache, data, 0644)
 		}
 	}
 

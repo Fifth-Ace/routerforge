@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -248,12 +250,7 @@ func refreshRouterForgeRegistry() {
 	}
 	if err == nil {
 		if mkErr := os.MkdirAll(filepath.Dir(routerForgeRegistryCacheFile()), 0755); mkErr == nil {
-			tmp := routerForgeRegistryCacheFile() + ".tmp"
-			if writeErr := os.WriteFile(tmp, data, 0644); writeErr == nil {
-				_ = os.Rename(tmp, routerForgeRegistryCacheFile())
-			} else {
-				_ = os.Remove(tmp)
-			}
+			_ = safety.WriteFileAtomic(routerForgeRegistryCacheFile(), data, 0644)
 		}
 	}
 

@@ -3,6 +3,7 @@ package safety
 import (
 	"errors"
 	"os"
+	"path/filepath"
 )
 
 // AtomicFile owns a temporary file until it is published with rename.
@@ -84,4 +85,35 @@ func (a *AtomicFile) Cleanup() error {
 		return nil
 	}
 	return err
+}
+
+// WriteFileAtomic writes a complete file through a same-directory temporary file,
+// flushes it, closes it, and atomically publishes it with rename.
+func WriteFileAtomic(destination string, data []byte, mode os.FileMode) error {
+	if destination == "" {
+		return errors.New("atomic destination is empty")
+	}
+
+	dir := filepath.Dir(destination)
+	pattern := "." + filepath.Base(destination) + ".tmp-*"
+	atomicFile, err := NewAtomicFile(dir, pattern)
+	if err != nil {
+		return err
+	}
+	defer atomicFile.Cleanup()
+
+	temp := atomicFile.File()
+	if err := temp.Chmod(mode); err != nil {
+		return err
+	}
+	if _, err := temp.Write(data); err != nil {
+		return err
+	}
+	if err := atomicFile.Sync(); err != nil {
+		return err
+	}
+	if err := atomicFile.Close(); err != nil {
+		return err
+	}
+	return atomicFile.Publish(destination)
 }

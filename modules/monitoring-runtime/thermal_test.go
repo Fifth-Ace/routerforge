@@ -97,6 +97,8 @@ func TestParseNDMCThermalsKeeneticWifiMasters(t *testing.T) {
 	now := time.Date(2026, 9, 16, 9, 58, 31, 0, time.UTC)
 	input := `
 Interface, name = "WifiMaster0"
+               id: WifiMaster0
+   interface-name: WifiMaster0
              type: WifiMaster
            traits: WifiRadio
            traits: WifiMaster
@@ -106,12 +108,15 @@ Interface, name = "WifiMaster0"
       temperature: 52
 
 Interface, name = "WifiMaster0/AccessPoint0"
+               id: WifiMaster0/AccessPoint0
              type: AccessPoint
            traits: Wifi
            traits: AccessPoint
       temperature: 88
 
 Interface, name = "WifiMaster1"
+               id: WifiMaster1
+   interface-name: WifiMaster1
              type: WifiMaster
            traits: WifiRadio
            traits: MtkWifiMaster
@@ -143,11 +148,13 @@ Interface, name = "WifiMaster1"
 func TestParseNDMCThermalsRejectsNonMasterAndInvalidTemperature(t *testing.T) {
 	input := `
 Interface, name = "AccessPoint"
+               id: AccessPoint
              type: AccessPoint
            traits: Wifi
       temperature: 44
 
 Interface, name = "WifiMaster0"
+               id: WifiMaster0
              type: WifiMaster
       temperature: 250000
 `
@@ -155,5 +162,43 @@ Interface, name = "WifiMaster0"
 	got := parseNDMCThermals(input, time.Unix(0, 0))
 	if len(got) != 0 {
 		t.Fatalf("got unexpected sensors: %#v", got)
+	}
+}
+
+func TestParseNDMCThermalsRealHopperKN3811(t *testing.T) {
+	now := time.Date(2026, 9, 16, 10, 46, 35, 0, time.UTC)
+	input := `
+Interface, name = "WifiMaster0"
+               id: WifiMaster0
+   interface-name: WifiMaster0
+             type: WifiMaster
+           traits: WifiMaster
+           traits: MtkWifiMaster
+      temperature: 53
+               id: WifiMaster0/AccessPoint0
+   interface-name: AccessPoint
+             type: AccessPoint
+
+Interface, name = "WifiMaster1"
+               id: WifiMaster1
+   interface-name: WifiMaster1
+             type: WifiMaster
+           traits: WifiMaster
+           traits: MtkWifiMaster
+      temperature: 53
+               id: WifiMaster1/AccessPoint0
+   interface-name: AccessPoint_5G
+             type: AccessPoint
+`
+
+	got := parseNDMCThermals(input, now)
+	if len(got) != 2 {
+		t.Fatalf("got %d sensors, want 2: %#v", len(got), got)
+	}
+	if got[0].ID != "ndmc:wifimaster0" || got[0].TempC != 53 {
+		t.Fatalf("unexpected WifiMaster0 sensor: %#v", got[0])
+	}
+	if got[1].ID != "ndmc:wifimaster1" || got[1].TempC != 53 {
+		t.Fatalf("unexpected WifiMaster1 sensor: %#v", got[1])
 	}
 }

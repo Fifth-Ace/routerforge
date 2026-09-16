@@ -105,3 +105,60 @@ func TestDoctorRouteStagesUnresolvedTarget(t *testing.T) {
 		t.Fatalf("unexpected unresolved stages: route=%+v policy=%+v", routeStage, policyStage)
 	}
 }
+
+func TestDoctorPathStagesHealthyMainPath(t *testing.T) {
+	defaultRoute := &routeEntry{Gateway: "192.168.1.1", Interface: "eth0"}
+	decision := kernelRouteDecision{
+		Available: true, Family: "ipv4", Destination: "8.8.8.8",
+		Gateway: "192.168.1.1", Interface: "eth0", Source: "192.168.1.20",
+		Table: "main", Type: "unicast",
+	}
+	egress, gateway, source := doctorPathStages(decision, defaultRoute, doctorPathFacts{
+		EgressExists: true, EgressUp: true, SourceChecked: true, SourceMatches: true,
+	})
+	if egress.Status != "ok" || gateway.Status != "ok" || source.Status != "ok" {
+		t.Fatalf("unexpected stages: egress=%+v gateway=%+v source=%+v", egress, gateway, source)
+	}
+}
+
+func TestDoctorPathStagesEgressDown(t *testing.T) {
+	decision := kernelRouteDecision{
+		Available: true, Family: "ipv4", Destination: "8.8.8.8",
+		Gateway: "192.168.1.1", Interface: "eth0", Source: "192.168.1.20",
+		Table: "main", Type: "unicast",
+	}
+	egress, _, _ := doctorPathStages(decision, nil, doctorPathFacts{
+		EgressExists: true, EgressUp: false, SourceChecked: true, SourceMatches: true,
+	})
+	if egress.Status != "fail" {
+		t.Fatalf("down kernel-selected egress must fail: %+v", egress)
+	}
+}
+
+func TestDoctorPathStagesSourceMismatch(t *testing.T) {
+	decision := kernelRouteDecision{
+		Available: true, Family: "ipv4", Destination: "8.8.8.8",
+		Gateway: "192.168.1.1", Interface: "eth0", Source: "10.0.0.10",
+		Table: "100", Type: "unicast",
+	}
+	_, gateway, source := doctorPathStages(decision, nil, doctorPathFacts{
+		EgressExists: true, EgressUp: true, SourceChecked: true, SourceMatches: false,
+	})
+	if gateway.Status != "ok" {
+		t.Fatalf("policy-table gateway should remain valid: %+v", gateway)
+	}
+	if source.Status != "fail" {
+		t.Fatalf("source/interface mismatch must fail: %+v", source)
+	}
+}
+
+func TestDoctorVerdictPrefersPathMismatch(t *testing.T) {
+	stages := []doctorStage{
+		{ID: "internet", Status: "fail"},
+		{ID: "source_consistency", Status: "fail"},
+	}
+	verdict := doctorVerdictFor(stages)
+	if verdict.Code != "route_source_mismatch" || verdict.FaultDomain != "local" {
+		t.Fatalf("unexpected verdict: %+v", verdict)
+	}
+}

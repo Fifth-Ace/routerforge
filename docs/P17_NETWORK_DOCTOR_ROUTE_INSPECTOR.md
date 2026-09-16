@@ -1,4 +1,4 @@
-# P17A — Network Doctor + Route Inspector integration
+# P17A–P17B — Network Doctor + Route Inspector
 
 P17A связывает уже существующие Network Doctor и Route Inspector в один маршрутный диагностический контур.
 
@@ -70,6 +70,39 @@ P17A остаётся полностью read-only:
 - пользовательский target проходит существующую validation;
 - timeout/output bounds сохраняются.
 
-## Следующий этап
+## P17B — path explainability
 
-P17B — explainability для default path и интерфейса: kernel-selected egress, gateway/interface consistency, route/source mismatch diagnostics и более точный fault-domain verdict.
+P17B делает результат Network Doctor объяснимым на уровне фактически выбранного ядром пути.
+
+После `target_route` и `policy_routing` Doctor добавляет:
+
+- `kernel_egress` — существует ли выбранный `ip route get` интерфейс и находится ли он в рабочем состоянии;
+- `gateway_consistency` — какой gateway/interface выбрало ядро, совпадает ли main-table путь с IPv4 default path либо цель использует отдельный target-specific/PBR путь;
+- `source_consistency` — принадлежит ли выбранный ядром `src` фактическому egress-интерфейсу.
+
+Ответ `/v1/doctor` также содержит `path_explainability` с:
+
+- `egress_interface`;
+- `gateway`;
+- `source`;
+- `table`;
+- `egress_exists`;
+- `egress_up`;
+- `source_checked`;
+- `source_matches_egress`.
+
+Различие target path и default path само по себе не считается ошибкой: более специфичный маршрут либо PBR могут законно выбрать другой gateway/interface.
+
+Ошибка фиксируется только для фактической несогласованности:
+
+- kernel-selected интерфейс отсутствует или down;
+- gateway присутствует, но egress interface отсутствует;
+- kernel-selected source не принадлежит выбранному интерфейсу.
+
+Fault-domain verdict теперь отдаёт более точные коды:
+
+- `egress_interface_failure` → `local`;
+- `gateway_interface_mismatch` → `routing`;
+- `route_source_mismatch` → `local`.
+
+P17B остаётся read-only: mutation API не добавляется, маршруты/правила не изменяются.

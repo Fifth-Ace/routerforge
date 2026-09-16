@@ -854,6 +854,72 @@ P18L:
 
 `production_driver_ready=false` сохраняется.
 
+## P18M — shadow DNS forwarder foundation
+
+P18M добавляет internal shadow forwarder, но не подключает его к `main()` и не запускает listener в обычном DNS runtime.
+
+### Listener safety contract
+
+Shadow config принимает только:
+
+- explicit loopback IP (`127.0.0.0/8`);
+- explicit non-zero port;
+- port `53` запрещён;
+- explicit upstream в форме IP:port;
+- validated policy inventory;
+- существующий `DNSPolicyRule` document model.
+
+Wildcard/LAN bind и системный DNS port отвергаются до `Listen`.
+
+### Existing policy engine reuse
+
+Каждый synthetic query проходит существующий production contract:
+
+1. raw DNS packet разбирается `parseDNSMessage`;
+2. `client_ip`, normalized domain и qtype передаются в `evaluateDNSPolicy`;
+3. evaluator выбирает `System` или `PolicyN`;
+4. `PolicyN` разрешается через `resolveDNSPolicyEgressTarget` в current mark/table;
+5. Linux transport использует `newDNSPolicyMarkedDialer`;
+6. response проверяется как DNS response с тем же transaction ID.
+
+Отдельного shadow evaluator или второго SO_MARK implementation нет.
+
+### UDP/TCP parity
+
+Foundation содержит оба listener path:
+
+- UDP: datagram query -> marked UDP upstream -> datagram response;
+- TCP: RFC-style 2-byte DNS frame -> marked TCP upstream -> framed response.
+
+Оба транспорта используют один `planDNSPolicyShadowQuery` и один egress contract.
+
+### Dynamic route identity
+
+`dnsPolicyShadowServer` получает route provider function. Mark/table читаются заново для каждого запроса, поэтому будущий shadow smoke не закрепляет stale route identity на момент старта listener.
+
+### Fail-closed rules
+
+- invalid query -> no upstream dial;
+- unknown policy -> no upstream dial;
+- missing/zero mark or invalid table -> no upstream dial;
+- SO_MARK error -> no unmarked fallback;
+- PolicyN without usable kernel route naturally fails on marked socket;
+- malformed/mismatched upstream DNS response не возвращается client.
+
+### Runtime boundary
+
+P18M намеренно **не** меняет `dns_module_main.go`.
+
+Следовательно после сборки/publish:
+
+- shadow listener не стартует автоматически;
+- :53 не bind'ится;
+- Keenetic config не меняется;
+- persisted rules не становятся live;
+- обычный RouterForge DNS остаётся passive observer.
+
+`production_driver_ready=false` сохраняется.
+
 ## Следующий этап
 
-P18M — shadow DNS forwarder foundation: отдельный loopback-only UDP/TCP listener на non-53 port, synthetic requests only, evaluator + marked egress, без системного DNS takeover.
+P18N — explicit CLI shadow-smoke harness: временно поднять loopback UDP/TCP listener на non-53 port, прогнать synthetic System/Policy1/Policy0 queries на реальном Keenetic и автоматически завершить listener без установки/takeover.

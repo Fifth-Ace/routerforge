@@ -996,6 +996,100 @@ CLI smoke:
 
 `production_driver_ready=false` сохраняется.
 
+## P18O — shadow runtime hardening
+
+P18N hardware smoke доказал на реальном Keenetic полный synthetic path для UDP и TCP:
+
+- System получил DNS response по UDP и TCP без SO_MARK;
+- Policy1 получил DNS response по UDP и TCP с actual SO_MARK `0xffffaab`;
+- Policy0 выставил actual SO_MARK `0xffffaaa` по UDP и TCP и не получил unmarked fallback;
+- loopback listener закрылся после smoke;
+- native :53, persisted rules, service state и Keenetic config не менялись.
+
+### Bounded concurrency
+
+Shadow config теперь содержит `MaxConcurrent`:
+
+- default `32`;
+- допустимый диапазон `1..256`;
+- один общий semaphore ограничивает суммарные UDP/TCP in-flight handlers.
+
+Это не даёт diagnostic/shadow listener бесконтрольно создавать goroutines при burst нагрузке.
+
+### Explicit DNS failure semantics
+
+Ошибки policy/evaluation/marked upstream path больше не превращаются в silent UDP timeout или TCP EOF для валидного DNS query.
+
+Для валидного одиночного DNS question shadow listener строит локальный response:
+
+- тот же transaction ID;
+- тот же question;
+- `QR=1`;
+- `RCODE=SERVFAIL`;
+- answer/authority/additional counts = 0.
+
+Критически важно: SERVFAIL создаётся **после** fail-closed ошибки. Он не делает System fallback и не отправляет второй unmarked upstream request.
+
+### Telemetry/evidence
+
+Каждый shadow server ведёт process-local snapshot:
+
+- requests;
+- successful upstream responses;
+- forwarding failures;
+- emitted SERVFAIL responses;
+- current in-flight;
+- peak in-flight;
+- policy selection counts по `System/PolicyN`.
+
+Telemetry не пишется на диск и не экспортируется public API на P18O.
+
+### Hardened smoke contract
+
+P18N CLI smoke автоматически адаптирован к новым failure semantics.
+
+Теперь Policy0 UDP/TCP обязан:
+
+- выставить exact mark `0xffffaaa`;
+- получить marked-path failure;
+- получить локальный DNS `SERVFAIL` вместо timeout/EOF;
+- не использовать System fallback.
+
+Smoke также требует exact counters:
+
+- requests = 6;
+- successes = 4;
+- failures = 2;
+- SERVFAIL = 2;
+- System selections = 2;
+- Policy1 selections = 2;
+- Policy0 selections = 2.
+
+### Persisted-rule preparation boundary
+
+P18O не включает persisted rules в listener автоматически.
+
+Но runtime теперь имеет необходимые deterministic primitives для следующего controlled shadow stage:
+
+- bounded listener lifetime/concurrency;
+- explainable policy selection;
+- exact egress primitive;
+- client-visible fail-closed response;
+- process-local evidence snapshot.
+
+### Safety boundary
+
+P18O по-прежнему:
+
+- не запускает shadow listener в normal daemon mode;
+- не bind'ит native :53;
+- не меняет Keenetic config/DHCP/redirect;
+- не активирует persisted rules;
+- не добавляет public activation API;
+- не меняет live client DNS traffic.
+
+`production_driver_ready=false` сохраняется.
+
 ## Следующий этап
 
-После hardware PASS P18N — P18O shadow runtime hardening: telemetry/evidence, bounded concurrency, explicit error responses/metrics и preparation к controlled persisted-rule shadow mode; системный DNS takeover всё ещё запрещён.
+P18P — controlled persisted-rule shadow mode: CLI-only загрузка persisted document + live policy inventory validation + loopback non-53 listener + evidence manifest, без system DNS takeover.

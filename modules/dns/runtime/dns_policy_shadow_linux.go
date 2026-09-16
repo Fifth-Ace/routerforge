@@ -15,6 +15,9 @@ import (
 type dnsPolicyShadowServer struct {
 	cfg           DNSPolicyShadowConfig
 	routeProvider func() map[string]policyRoute
+	sem           chan struct{}
+	statsMu       sync.Mutex
+	stats         DNSPolicyShadowStats
 }
 
 func newDNSPolicyShadowServer(cfg DNSPolicyShadowConfig, routeProvider func() map[string]policyRoute) (*dnsPolicyShadowServer, error) {
@@ -25,7 +28,14 @@ func newDNSPolicyShadowServer(cfg DNSPolicyShadowConfig, routeProvider func() ma
 	if routeProvider == nil {
 		return nil, fmt.Errorf("shadow route provider is required")
 	}
-	return &dnsPolicyShadowServer{cfg: validated, routeProvider: routeProvider}, nil
+	return &dnsPolicyShadowServer{
+		cfg:           validated,
+		routeProvider: routeProvider,
+		sem:           make(chan struct{}, validated.MaxConcurrent),
+		stats: DNSPolicyShadowStats{
+			PolicySelections: map[string]uint64{},
+		},
+	}, nil
 }
 
 func (s *dnsPolicyShadowServer) Serve(ctx context.Context) error {
@@ -62,6 +72,71 @@ func (s *dnsPolicyShadowServer) Serve(ctx context.Context) error {
 	return err
 }
 
+func (s *dnsPolicyShadowServer) acquire(ctx context.Context) bool {
+	select {
+	case s.sem <- struct{}{}:
+		s.statsMu.Lock()
+		s.stats.InFlight++
+		if s.stats.InFlight > s.stats.PeakInFlight {
+			s.stats.PeakInFlight = s.stats.InFlight
+		}
+		s.statsMu.Unlock()
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func (s *dnsPolicyShadowServer) release() {
+	<-s.sem
+	s.statsMu.Lock()
+	if s.stats.InFlight > 0 {
+		s.stats.InFlight--
+	}
+	s.statsMu.Unlock()
+}
+
+func (s *dnsPolicyShadowServer) recordRequest() {
+	s.statsMu.Lock()
+	s.stats.Requests++
+	s.statsMu.Unlock()
+}
+
+func (s *dnsPolicyShadowServer) recordPlan(plan DNSPolicyShadowPlan) {
+	s.statsMu.Lock()
+	s.stats.PolicySelections[plan.Evaluation.Policy]++
+	s.statsMu.Unlock()
+}
+
+func (s *dnsPolicyShadowServer) recordSuccess() {
+	s.statsMu.Lock()
+	s.stats.Successes++
+	s.statsMu.Unlock()
+}
+
+func (s *dnsPolicyShadowServer) recordFailure() {
+	s.statsMu.Lock()
+	s.stats.Failures++
+	s.statsMu.Unlock()
+}
+
+func (s *dnsPolicyShadowServer) recordServfail() {
+	s.statsMu.Lock()
+	s.stats.ServfailResponses++
+	s.statsMu.Unlock()
+}
+
+func (s *dnsPolicyShadowServer) Stats() DNSPolicyShadowStats {
+	s.statsMu.Lock()
+	defer s.statsMu.Unlock()
+	out := s.stats
+	out.PolicySelections = make(map[string]uint64, len(s.stats.PolicySelections))
+	for key, value := range s.stats.PolicySelections {
+		out.PolicySelections[key] = value
+	}
+	return out
+}
+
 func (s *dnsPolicyShadowServer) serveUDP(ctx context.Context, conn *net.UDPConn) error {
 	buf := make([]byte, 65535)
 	for {
@@ -77,11 +152,21 @@ func (s *dnsPolicyShadowServer) serveUDP(ctx context.Context, conn *net.UDPConn)
 			return err
 		}
 		query := append([]byte(nil), buf[:n]...)
+		if !s.acquire(ctx) {
+			return nil
+		}
 		go func() {
+			defer s.release()
+			s.recordRequest()
 			response, err := s.forward(ctx, "udp4", client.IP.String(), query)
-			if err == nil {
-				_, _ = conn.WriteToUDP(response, client)
+			if err != nil {
+				response, err = buildDNSPolicyShadowFailureResponse(query, 2)
+				if err != nil {
+					return
+				}
+				s.recordServfail()
 			}
+			_, _ = conn.WriteToUDP(response, client)
 		}()
 	}
 }
@@ -97,9 +182,14 @@ func (s *dnsPolicyShadowServer) serveTCP(ctx context.Context, ln net.Listener) e
 			}
 			return err
 		}
+		if !s.acquire(ctx) {
+			_ = conn.Close()
+			return nil
+		}
 		wg.Add(1)
 		go func(c net.Conn) {
 			defer wg.Done()
+			defer s.release()
 			defer c.Close()
 			_ = c.SetDeadline(time.Now().Add(s.cfg.Timeout))
 			var hdr [2]byte
@@ -114,10 +204,15 @@ func (s *dnsPolicyShadowServer) serveTCP(ctx context.Context, ln net.Listener) e
 			if _, err := io.ReadFull(c, query); err != nil {
 				return
 			}
+			s.recordRequest()
 			host, _, _ := net.SplitHostPort(c.RemoteAddr().String())
 			response, err := s.forward(ctx, "tcp4", host, query)
 			if err != nil {
-				return
+				response, err = buildDNSPolicyShadowFailureResponse(query, 2)
+				if err != nil {
+					return
+				}
+				s.recordServfail()
 			}
 			frame := make([]byte, 2+len(response))
 			binary.BigEndian.PutUint16(frame[:2], uint16(len(response)))
@@ -130,16 +225,20 @@ func (s *dnsPolicyShadowServer) serveTCP(ctx context.Context, ln net.Listener) e
 func (s *dnsPolicyShadowServer) forward(parent context.Context, network, clientIP string, query []byte) ([]byte, error) {
 	plan, err := planDNSPolicyShadowQuery(query, clientIP, s.cfg, s.routeProvider())
 	if err != nil {
+		s.recordFailure()
 		return nil, err
 	}
+	s.recordPlan(plan)
 	dialer, err := newDNSPolicyMarkedDialer(plan.Target, s.cfg.Timeout)
 	if err != nil {
+		s.recordFailure()
 		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(parent, s.cfg.Timeout)
 	defer cancel()
 	conn, err := dialer.DialContext(ctx, network, s.cfg.Upstream)
 	if err != nil {
+		s.recordFailure()
 		return nil, err
 	}
 	defer conn.Close()
@@ -147,36 +246,54 @@ func (s *dnsPolicyShadowServer) forward(parent context.Context, network, clientI
 
 	if network == "udp4" {
 		if _, err := conn.Write(query); err != nil {
+			s.recordFailure()
 			return nil, err
 		}
 		buf := make([]byte, 65535)
 		n, err := conn.Read(buf)
 		if err != nil {
+			s.recordFailure()
 			return nil, err
 		}
 		response := append([]byte(nil), buf[:n]...)
-		return validateDNSPolicyShadowResponse(query, response)
+		response, err = validateDNSPolicyShadowResponse(query, response)
+		if err != nil {
+			s.recordFailure()
+			return nil, err
+		}
+		s.recordSuccess()
+		return response, nil
 	}
 
 	frame := make([]byte, 2+len(query))
 	binary.BigEndian.PutUint16(frame[:2], uint16(len(query)))
 	copy(frame[2:], query)
 	if _, err := conn.Write(frame); err != nil {
+		s.recordFailure()
 		return nil, err
 	}
 	var hdr [2]byte
 	if _, err := io.ReadFull(conn, hdr[:]); err != nil {
+		s.recordFailure()
 		return nil, err
 	}
 	n := int(binary.BigEndian.Uint16(hdr[:]))
 	if n < 12 || n > 65535 {
+		s.recordFailure()
 		return nil, fmt.Errorf("invalid shadow TCP DNS response length %d", n)
 	}
 	response := make([]byte, n)
 	if _, err := io.ReadFull(conn, response); err != nil {
+		s.recordFailure()
 		return nil, err
 	}
-	return validateDNSPolicyShadowResponse(query, response)
+	response, err = validateDNSPolicyShadowResponse(query, response)
+	if err != nil {
+		s.recordFailure()
+		return nil, err
+	}
+	s.recordSuccess()
+	return response, nil
 }
 
 func validateDNSPolicyShadowResponse(query, response []byte) ([]byte, error) {

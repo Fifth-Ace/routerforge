@@ -18,7 +18,7 @@ type DNSPolicyShadowSmokeCase struct {
 	Domain    string
 	Policy    string
 	WantMark  uint32
-	WantReply bool
+	WantRCode string
 }
 
 type DNSPolicyShadowSmokeCaseResult struct {
@@ -27,6 +27,7 @@ type DNSPolicyShadowSmokeCaseResult struct {
 	Policy    string
 	WantMark  uint32
 	Reply     bool
+	RCode     string
 	Error     string
 }
 
@@ -35,6 +36,7 @@ type DNSPolicyShadowSmokeResult struct {
 	Upstream   string
 	Cases      []DNSPolicyShadowSmokeCaseResult
 	Marks      []uint32
+	Stats      DNSPolicyShadowStats
 }
 
 func runDNSPolicyShadowSmoke(listenAddr, upstream string, timeout time.Duration) (DNSPolicyShadowSmokeResult, error) {
@@ -42,9 +44,9 @@ func runDNSPolicyShadowSmoke(listenAddr, upstream string, timeout time.Duration)
 		timeout = 3 * time.Second
 	}
 	cases := []DNSPolicyShadowSmokeCase{
-		{Name: "system", Domain: "routerforge-shadow-system.invalid", Policy: "System", WantReply: true},
-		{Name: "policy1", Domain: "routerforge-shadow-policy1.invalid", Policy: "Policy1", WantMark: 0x0ffffaab, WantReply: true},
-		{Name: "policy0", Domain: "routerforge-shadow-policy0.invalid", Policy: "Policy0", WantMark: 0x0ffffaaa, WantReply: false},
+		{Name: "system", Domain: "routerforge-shadow-system.invalid", Policy: "System"},
+		{Name: "policy1", Domain: "routerforge-shadow-policy1.invalid", Policy: "Policy1", WantMark: 0x0ffffaab},
+		{Name: "policy0", Domain: "routerforge-shadow-policy0.invalid", Policy: "Policy0", WantMark: 0x0ffffaaa, WantRCode: "SERVFAIL"},
 	}
 	allowed := map[string]bool{"System": true, "Policy0": true, "Policy1": true}
 	rules := []DNSPolicyRule{
@@ -112,34 +114,31 @@ func runDNSPolicyShadowSmoke(listenAddr, upstream string, timeout time.Duration)
 			case "tcp":
 				response, queryErr = dnsPolicyShadowSmokeTCP(cfg.ListenAddr, query, timeout)
 			}
-			gotReply := queryErr == nil
 			caseResult := DNSPolicyShadowSmokeCaseResult{
-				Name: tc.Name, Transport: transport, Policy: tc.Policy,
-				WantMark: tc.WantMark, Reply: gotReply,
+				Name: tc.Name, Transport: transport, Policy: tc.Policy, WantMark: tc.WantMark,
+				Reply: queryErr == nil,
 			}
 			if queryErr != nil {
 				caseResult.Error = queryErr.Error()
-			}
-			result.Cases = append(result.Cases, caseResult)
-
-			if tc.WantReply && !gotReply {
+				result.Cases = append(result.Cases, caseResult)
 				cancel()
 				<-serverErr
 				return result, fmt.Errorf("%s/%s expected DNS reply: %v", tc.Name, transport, queryErr)
 			}
-			if !tc.WantReply && gotReply {
+			q, qok := parseDNSMessage(query)
+			r, rok := parseDNSMessage(response)
+			if !qok || !rok || !r.QR || q.ID != r.ID {
+				result.Cases = append(result.Cases, caseResult)
 				cancel()
 				<-serverErr
-				return result, fmt.Errorf("%s/%s unexpectedly received DNS reply", tc.Name, transport)
+				return result, fmt.Errorf("%s/%s invalid DNS response", tc.Name, transport)
 			}
-			if gotReply {
-				q, qok := parseDNSMessage(query)
-				r, rok := parseDNSMessage(response)
-				if !qok || !rok || !r.QR || q.ID != r.ID {
-					cancel()
-					<-serverErr
-					return result, fmt.Errorf("%s/%s invalid DNS response", tc.Name, transport)
-				}
+			caseResult.RCode = rcodeName(r.RCode)
+			result.Cases = append(result.Cases, caseResult)
+			if tc.WantRCode != "" && caseResult.RCode != tc.WantRCode {
+				cancel()
+				<-serverErr
+				return result, fmt.Errorf("%s/%s rcode=%s want=%s", tc.Name, transport, caseResult.RCode, tc.WantRCode)
 			}
 		}
 	}
@@ -151,12 +150,21 @@ func runDNSPolicyShadowSmoke(listenAddr, upstream string, timeout time.Duration)
 	markMu.Lock()
 	result.Marks = append(result.Marks, marks...)
 	markMu.Unlock()
+	result.Stats = server.Stats()
 
 	if countDNSPolicyShadowMark(result.Marks, 0x0ffffaab) < 2 {
 		return result, fmt.Errorf("Policy1 mark was not observed for both UDP and TCP")
 	}
 	if countDNSPolicyShadowMark(result.Marks, 0x0ffffaaa) < 2 {
 		return result, fmt.Errorf("Policy0 mark was not observed for both UDP and TCP")
+	}
+	if result.Stats.Requests != 6 || result.Stats.Successes != 4 || result.Stats.Failures != 2 || result.Stats.ServfailResponses != 2 {
+		return result, fmt.Errorf("unexpected shadow stats: requests=%d success=%d failures=%d servfail=%d", result.Stats.Requests, result.Stats.Successes, result.Stats.Failures, result.Stats.ServfailResponses)
+	}
+	for _, policy := range []string{"System", "Policy1", "Policy0"} {
+		if result.Stats.PolicySelections[policy] != 2 {
+			return result, fmt.Errorf("policy %s selections=%d want=2", policy, result.Stats.PolicySelections[policy])
+		}
 	}
 	return result, nil
 }

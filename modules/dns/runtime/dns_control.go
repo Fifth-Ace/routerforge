@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -87,11 +88,12 @@ type DNSResolverPreview struct {
 }
 
 type DNSMutationResult struct {
-	OK       bool             `json:"ok"`
-	Action   string           `json:"action"`
-	Resolver *DNSResolverSpec `json:"resolver,omitempty"`
-	Rollback bool             `json:"rollback,omitempty"`
-	Message  string           `json:"message,omitempty"`
+	OK          bool                  `json:"ok"`
+	Action      string                `json:"action"`
+	Resolver    *DNSResolverSpec      `json:"resolver,omitempty"`
+	Rollback    bool                  `json:"rollback,omitempty"`
+	Message     string                `json:"message,omitempty"`
+	Transaction *transaction.Manifest `json:"transaction,omitempty"`
 }
 
 type dnsLogicalResolver struct {
@@ -302,11 +304,12 @@ func (m *dnsControlManager) Create(ctx context.Context, spec DNSResolverSpec) (D
 	normalized.PhysicalCount = len(entries)
 	normalized.Source = "static"
 	state.Logical[normalized.ID] = &dnsLogicalResolver{Spec: normalized, RawEntries: entries}
-	if err := m.applyMutation(ctx, state, map[string]bool{normalized.Protocol: true}, nil); err != nil {
+	tx, err := m.applyMutation(ctx, state, map[string]bool{normalized.Protocol: true}, nil)
+	if err != nil {
 		return DNSMutationResult{}, err
 	}
 	normalized = applyDNSPublicPresetMetadata(normalized)
-	return DNSMutationResult{OK: true, Action: "create", Resolver: &normalized}, nil
+	return DNSMutationResult{OK: true, Action: "create", Resolver: &normalized, Transaction: &tx}, nil
 }
 
 func (m *dnsControlManager) Update(ctx context.Context, id string, spec DNSResolverSpec) (DNSMutationResult, error) {
@@ -371,10 +374,11 @@ func (m *dnsControlManager) Update(ctx context.Context, id string, spec DNSResol
 	delete(state.Logical, id)
 	state.Logical[normalized.ID] = &dnsLogicalResolver{Spec: normalized, RawEntries: entries}
 	changed := map[string]bool{current.Spec.Protocol: true, normalized.Protocol: true}
-	if err := m.applyMutation(ctx, state, changed, nil); err != nil {
+	tx, err := m.applyMutation(ctx, state, changed, nil)
+	if err != nil {
 		return DNSMutationResult{}, err
 	}
-	return DNSMutationResult{OK: true, Action: "update", Resolver: &normalized}, nil
+	return DNSMutationResult{OK: true, Action: "update", Resolver: &normalized, Transaction: &tx}, nil
 }
 
 func (m *dnsControlManager) Delete(ctx context.Context, id string) (DNSMutationResult, error) {
@@ -407,11 +411,12 @@ func (m *dnsControlManager) Delete(ctx context.Context, id string) (DNSMutationR
 		return DNSMutationResult{}, errDNSResolverNotFound
 	}
 	delete(state.Logical, id)
-	if err := m.applyMutation(ctx, state, map[string]bool{current.Spec.Protocol: true}, nil); err != nil {
+	tx, err := m.applyMutation(ctx, state, map[string]bool{current.Spec.Protocol: true}, nil)
+	if err != nil {
 		return DNSMutationResult{}, err
 	}
 	spec := current.Spec
-	return DNSMutationResult{OK: true, Action: "delete", Resolver: &spec}, nil
+	return DNSMutationResult{OK: true, Action: "delete", Resolver: &spec, Transaction: &tx}, nil
 }
 
 func (m *dnsControlManager) Disable(ctx context.Context, id string) (DNSMutationResult, error) {
@@ -430,12 +435,13 @@ func (m *dnsControlManager) Disable(ctx context.Context, id string) (DNSMutation
 	}
 	if _, preset := dnsPublicPresetByID(id); preset {
 		delete(state.Logical, id)
-		if err := m.applyMutation(ctx, state, map[string]bool{current.Spec.Protocol: true}, nil); err != nil {
+		tx, err := m.applyMutation(ctx, state, map[string]bool{current.Spec.Protocol: true}, nil)
+		if err != nil {
 			return DNSMutationResult{}, err
 		}
 		spec := applyDNSPublicPresetMetadata(current.Spec)
 		spec.Disabled = true
-		return DNSMutationResult{OK: true, Action: "disable", Resolver: &spec}, nil
+		return DNSMutationResult{OK: true, Action: "disable", Resolver: &spec, Transaction: &tx}, nil
 	}
 	disabled, err := m.loadDisabled()
 	if err != nil {
@@ -450,13 +456,14 @@ func (m *dnsControlManager) Disable(ctx context.Context, id string) (DNSMutation
 	spec.Source = "disabled"
 	disabled.Resolvers = append(disabled.Resolvers, dnsDisabledRecord{Resolver: spec, RawEntries: cloneMapSlice(current.RawEntries)})
 	delete(state.Logical, id)
-	if err := m.applyMutation(ctx, state, map[string]bool{current.Spec.Protocol: true}, func() error {
+	tx, err := m.applyMutation(ctx, state, map[string]bool{current.Spec.Protocol: true}, func() error {
 		return m.saveDisabled(disabled)
-	}); err != nil {
+	})
+	if err != nil {
 		_ = m.saveDisabled(beforeDisabled)
 		return DNSMutationResult{}, err
 	}
-	return DNSMutationResult{OK: true, Action: "disable", Resolver: &spec}, nil
+	return DNSMutationResult{OK: true, Action: "disable", Resolver: &spec, Transaction: &tx}, nil
 }
 
 func (m *dnsControlManager) Enable(ctx context.Context, id string) (DNSMutationResult, error) {
@@ -488,10 +495,11 @@ func (m *dnsControlManager) Enable(ctx context.Context, id string) (DNSMutationR
 		}
 		spec.PhysicalCount = len(entries)
 		state.Logical[id] = &dnsLogicalResolver{Spec: spec, RawEntries: entries}
-		if err := m.applyMutation(ctx, state, map[string]bool{spec.Protocol: true}, nil); err != nil {
+		tx, err := m.applyMutation(ctx, state, map[string]bool{spec.Protocol: true}, nil)
+		if err != nil {
 			return DNSMutationResult{}, err
 		}
-		return DNSMutationResult{OK: true, Action: "enable", Resolver: &spec}, nil
+		return DNSMutationResult{OK: true, Action: "enable", Resolver: &spec, Transaction: &tx}, nil
 	}
 	record := disabled.Resolvers[index]
 	spec := record.Resolver
@@ -511,73 +519,114 @@ func (m *dnsControlManager) Enable(ctx context.Context, id string) (DNSMutationR
 	state.Logical[spec.ID] = &dnsLogicalResolver{Spec: spec, RawEntries: entries}
 	beforeDisabled := cloneDisabledStore(disabled)
 	disabled.Resolvers = append(disabled.Resolvers[:index], disabled.Resolvers[index+1:]...)
-	if err := m.applyMutation(ctx, state, map[string]bool{spec.Protocol: true}, func() error {
+	tx, err := m.applyMutation(ctx, state, map[string]bool{spec.Protocol: true}, func() error {
 		return m.saveDisabled(disabled)
-	}); err != nil {
+	})
+	if err != nil {
 		_ = m.saveDisabled(beforeDisabled)
 		return DNSMutationResult{}, err
 	}
 	spec = applyDNSPublicPresetMetadata(spec)
-	return DNSMutationResult{OK: true, Action: "enable", Resolver: &spec}, nil
+	return DNSMutationResult{OK: true, Action: "enable", Resolver: &spec, Transaction: &tx}, nil
 }
 
 // applyMutation snapshots the current native sections, applies only affected
-// protocol sections, saves, verifies RCI readback and rolls the native sections
-// back on any mismatch. afterVerify runs only after native verification and is
-// used for RouterForge-only metadata such as temporarily disabled resolvers.
-func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfigState, changed map[string]bool, afterVerify func() error) error {
-	if err := validateDNSMutationDesired(desired, changed); err != nil {
-		return err
+// protocol sections, verifies exact RCI readback and the module runtime probe,
+// and returns shared transaction evidence for both success and failure.
+func (m *dnsControlManager) applyMutation(ctx context.Context, desired *dnsConfigState, changed map[string]bool, afterVerify func() error) (transaction.Manifest, error) {
+	artifacts := make([]string, 0, len(changed))
+	for _, protocol := range []string{"DNS", "DoT", "DoH"} {
+		if changed[protocol] {
+			artifacts = append(artifacts, protocol)
+		}
 	}
+	tx := transaction.New("", "dns", artifacts...)
+
+	if err := validateDNSMutationDesired(desired, changed); err != nil {
+		transaction.RecordFailure(&tx, "component-validator", err, nil)
+		_ = transaction.Advance(&tx, transaction.Failed)
+		return tx, transaction.Wrap(err, tx)
+	}
+	transaction.Record(&tx, "component-validator", transaction.EvidencePassed, "DNS mutation envelope accepted", nil)
+
 	before, err := m.loadState(ctx)
 	if err != nil {
-		return err
+		transaction.RecordFailure(&tx, "native-snapshot", err, nil)
+		_ = transaction.Advance(&tx, transaction.Failed)
+		return tx, transaction.Wrap(err, tx)
 	}
+	transaction.Record(&tx, "native-snapshot", transaction.EvidencePassed, "native RCI baseline captured", nil)
+	if err := transaction.Advance(&tx, transaction.Snapshot); err != nil {
+		return tx, transaction.Wrap(err, tx)
+	}
+
 	for protocol := range changed {
 		if protocol == "DNS" && !before.PlainReadable {
-			return fmt.Errorf("%w: saved plain DNS configuration is not readable on this firmware", errDNSResolverReadOnly)
+			err := fmt.Errorf("%w: saved plain DNS configuration is not readable on this firmware", errDNSResolverReadOnly)
+			transaction.RecordFailure(&tx, "concurrency-check", err, map[string]string{"protocol": protocol})
+			_ = transaction.Advance(&tx, transaction.Failed)
+			return tx, transaction.Wrap(err, tx)
 		}
-		// The caller built desired from an earlier RCI snapshot. Its raw protocol
-		// slices are deliberately left untouched while only Logical is edited.
-		// Refuse to overwrite a section if Keenetic changed it between that read
-		// and the mutation (for example another admin saved DNS in parallel).
 		baseline := canonicalProtocolEntries(protocol, rawEntriesForProtocol(desired, protocol))
 		fresh := canonicalProtocolEntries(protocol, rawEntriesForProtocol(before, protocol))
 		if strings.Join(baseline, "\n") != strings.Join(fresh, "\n") {
-			return fmt.Errorf("%w: %s configuration changed concurrently; refresh and retry", errDNSResolverConflict, protocol)
+			err := fmt.Errorf("%w: %s configuration changed concurrently; refresh and retry", errDNSResolverConflict, protocol)
+			transaction.RecordFailure(&tx, "concurrency-check", err, map[string]string{"protocol": protocol})
+			_ = transaction.Advance(&tx, transaction.Failed)
+			return tx, transaction.Wrap(err, tx)
 		}
 	}
+	transaction.Record(&tx, "concurrency-check", transaction.EvidencePassed, "native RCI baseline is unchanged", nil)
+	if err := transaction.Advance(&tx, transaction.Validated); err != nil {
+		return tx, transaction.Wrap(err, tx)
+	}
+	if err := transaction.Advance(&tx, transaction.Applied); err != nil {
+		return tx, transaction.Wrap(err, tx)
+	}
+
+	rollback := func(stage string, cause error) (transaction.Manifest, error) {
+		transaction.RecordFailure(&tx, stage, cause, nil)
+		rollbackErr := m.restoreProtocols(ctx, before, changed)
+		if rollbackErr != nil {
+			combined := fmt.Errorf("%s failed: %v; native rollback FAILED: %v", stage, cause, rollbackErr)
+			transaction.RecordFailure(&tx, "native-rollback", rollbackErr, nil)
+			_ = transaction.Advance(&tx, transaction.Ambiguous)
+			return tx, transaction.Wrap(combined, tx)
+		}
+		transaction.Record(&tx, "native-rollback", transaction.EvidenceRecovered, "native RCI rollback verified", nil)
+		_ = transaction.Advance(&tx, transaction.RolledBack)
+		return tx, transaction.Wrap(cause, tx)
+	}
+
 	if err := m.writeProtocols(ctx, before, desired, changed); err != nil {
-		rollbackErr := m.restoreProtocols(ctx, before, changed)
-		if rollbackErr != nil {
-			return fmt.Errorf("DNS mutation failed: %v; rollback FAILED: %v", err, rollbackErr)
-		}
-		return fmt.Errorf("DNS mutation failed and was rolled back: %w", err)
+		return rollback("native-apply", fmt.Errorf("DNS mutation failed: %w", err))
 	}
+	transaction.Record(&tx, "native-apply", transaction.EvidencePassed, "affected native DNS sections saved", nil)
+
 	if err := m.verifyProtocols(ctx, desired, changed); err != nil {
-		rollbackErr := m.restoreProtocols(ctx, before, changed)
-		if rollbackErr != nil {
-			return fmt.Errorf("DNS readback mismatch: %v; rollback FAILED: %v", err, rollbackErr)
-		}
-		return fmt.Errorf("DNS readback mismatch; native configuration rolled back: %w", err)
+		return rollback("rci-readback", fmt.Errorf("DNS readback mismatch: %w", err))
 	}
+	transaction.Record(&tx, "rci-readback", transaction.EvidencePassed, "exact native RCI readback matched desired state", nil)
+
 	if afterVerify != nil {
 		if err := afterVerify(); err != nil {
-			rollbackErr := m.restoreProtocols(ctx, before, changed)
-			if rollbackErr != nil {
-				return fmt.Errorf("metadata write failed: %v; native rollback FAILED: %v", err, rollbackErr)
-			}
-			return fmt.Errorf("metadata write failed; native configuration rolled back: %w", err)
+			return rollback("metadata-write", fmt.Errorf("metadata write failed: %w", err))
 		}
+		transaction.Record(&tx, "metadata-write", transaction.EvidencePassed, "RouterForge DNS metadata saved", nil)
 	}
+
 	if err := m.runRuntimeProbe(ctx); err != nil {
-		rollbackErr := m.restoreProtocols(ctx, before, changed)
-		if rollbackErr != nil {
-			return fmt.Errorf("DNS runtime probe failed: %v; native rollback FAILED: %v", err, rollbackErr)
-		}
-		return fmt.Errorf("DNS runtime probe failed; native configuration rolled back: %w", err)
+		return rollback("runtime-probe", fmt.Errorf("DNS runtime probe failed: %w", err))
 	}
-	return nil
+	transaction.Record(&tx, "runtime-probe", transaction.EvidencePassed, "DNS Unix health contract passed", nil)
+
+	if err := transaction.Advance(&tx, transaction.Verified); err != nil {
+		return tx, transaction.Wrap(err, tx)
+	}
+	if err := transaction.Advance(&tx, transaction.Committed); err != nil {
+		return tx, transaction.Wrap(err, tx)
+	}
+	return tx, nil
 }
 
 func validateDNSPhysicalLimits(desired *dnsConfigState, changed map[string]bool) error {

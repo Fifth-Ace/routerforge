@@ -10,95 +10,35 @@
 [![Stable](https://img.shields.io/badge/stable-0.9.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
 [![Beta](https://img.shields.io/badge/beta-0.8.5--beta.2-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Keenetic%20%2F%20Netcraze-ARM64-blue)](#аппаратная-проверка)
 
-**RouterForge 0.9.0** — модульная веб-платформа для мониторинга, DNS-диагностики, управления и обслуживания роутеров **Keenetic / Netcraze с Entware**.
+**RouterForge 0.9.0** — компактная модульная веб-платформа для мониторинга, DNS, управления и сетевой диагностики роутеров **Keenetic / Netcraze с Entware**.
 
-RouterForge не пытается быть универсальной панелью «для любого Linux». Платформа использует реальные возможности KeeneticOS/NDMS: `ndmc`, RCI, системные данные роутера, DNS, policy routing, таблицы маршрутизации и службы Entware. Core предоставляет единый Web UI, авторизацию, Центр приложений, общий API и хост Module ABI. DNS, Management, Monitoring и Network Tools устанавливаются отдельными пакетами и общаются с Core через root-owned Unix sockets.
-
-Единственный пользовательский TCP-порт RouterForge — **`:2233`**. Служебные модули не размножают внешние HTTP-порты.
-
-> [!NOTE]
-> **RouterForge — независимый некоммерческий проект сообщества.** Он не является официальным продуктом, подразделением или партнёрским проектом **Keenetic, Netcraze, Entware** и других упомянутых компаний или проектов. Все товарные знаки принадлежат их владельцам. Лицензия проекта — MIT.
+RouterForge использует возможности KeeneticOS/NDMS и Entware напрямую: `ndmc`, RCI, интерфейсы, маршруты, DNS, policy routing, процессы и службы. Пользователь работает через единый Web UI на **`:2233`**, а внутренние модули подключаются к Core через Unix sockets.
 
 > [!TIP]
-> **Core и модули RouterForge версионируются независимо.** Stable 0.9.0: Core `0.9.0`, DNS `0.8.1`, Admin `0.8.1`, Monitoring `0.8.0`, Network Tools `0.9.0`, неизменённый Profiling `0.7.1`. Правила — в [Versioning Policy](docs/VERSIONING.md).
->
-> [!NOTE]
-> **Stable 0.9.0** завершает Registry/Manifest Platform, Private Forgejo и Shared Safety Engines, добавляет App Center Jobs + History, rolling DNS health/explainability, Management guarded actions и крупное расширение Network Tools. Полный список — в [Release Notes 0.9.0](docs/RELEASE_NOTES_0.9.0.md).
->
-> [!IMPORTANT]
-> Основная производственная архитектура — **ARM64 / `aarch64-3.10`**.
->
-> - **Keenetic Hopper KN-3811** — основная аппаратная площадка для **Dev и Beta**.
-> - **Keenetic Ultra KN-1812** — аппаратная площадка для **Beta и Stable-релиза**.
-> - **Keenetic Giga KN-1010 / MIPSel** — частичная физическая проверка, статус experimental.
-> - **MIPS big-endian** — experimental без физической аппаратной проверки.
->
-> Таким образом, Beta проходит реальные проверки на двух ARM64-площадках: KN-3811 и KN-1812. Подробная матрица — в [docs/ARCHITECTURES.md](docs/ARCHITECTURES.md).
+> Core и модули версионируются независимо — [Versioning Policy](docs/VERSIONING.md).
 
-## Сильные стороны RouterForge
+## Почему RouterForge
 
-### Нативная работа с Keenetic
-RouterForge понимает не только Entware/Linux, но и сам роутер: `ndmc`, RCI, DNS, policy routing, системные интерфейсы, маршруты и особенности запуска служб Keenetic.
+- **Нативная работа с Keenetic.** Не просто Linux-панель: RouterForge понимает NDMS/KeeneticOS, `ndmc`, RCI, policy routing и системные интерфейсы роутера.
+- **Один интерфейс.** Core объединяет модули, настройки, Центр приложений и диагностику; внешний Web-порт платформы один — `2233`.
+- **Модульность.** Нужные функции ставятся отдельными пакетами, без обязательной установки всего набора.
+- **Безопасные операции.** Опасные действия проходят через ограниченные server-side контракты, проверки путей, подтверждения и rollback там, где он нужен.
+- **Подходит для роутера.** Runtime рассчитан на ограниченные CPU/RAM/flash; Node.js нужен только для сборки фронтенда и не требуется на устройстве.
+- **Проверяемые релизы.** Stable публикуется из заранее проверенного exact SHA с multi-arch индексами, SHA256 и immutable release snapshot.
 
-### Модульность без зоопарка внешних сервисов
-Свежая установка начинается с Core. DNS, Management, Monitoring и Profiling подключаются по необходимости. Пользователь работает с одним Web UI, а внутренние runtime-модули используют root-owned Unix sockets.
+## Из чего состоит Stable 0.9.0
 
-### Безопасные изменения вместо произвольного shell из браузера
-Критичные операции выполняются через ограниченные server-side контракты: фиксированные сигналы и действия служб, live root-session, защита путей, DNS snapshot/readback/rollback и фиксированный `ndmc` для Keenetic NDM Console.
+| Компонент | Stable | Назначение |
+| --- | ---: | --- |
+| `routerforge-core` | `0.9.0` | Web UI, авторизация, настройки, Центр приложений, Registry, release lifecycle и Module ABI |
+| `routerforge-dns` | `0.8.1` | DNS/DoT/DoH, управление резолверами, rolling health, клиентская атрибуция и диагностика |
+| `routerforge-admin` | `0.8.1` | Processes, Services, File Manager, Maintenance, Entware Terminal и Keenetic NDM Console |
+| `routerforge-monitoring` | `0.8.0` | System, Thermal, Storage и Network monitoring |
+| `routerforge-network-tools` | `0.9.0` | Network Doctor, Route Inspector, Flow Explorer и Active Probes |
+| `routerforge-profiling` | `0.7.1` | локальное профилирование Core |
 
-### Расчёт на ресурсы роутера
-Используются ограниченные кэши и история, последовательные опросы, backoff/timeouts, компактные DNS event rings и production-compression. Node.js нужен только для сборки фронтенда и **не требуется на роутере**.
-
-### Центр приложений вместо ручного OPKG-зоопарка
-Официальные пакеты RouterForge, Integrations, Entware/OPKG, installed state и updates собраны в одном интерфейсе.
-
-### Проверяемая цепочка релиза
-Stable строится из заранее проверенного SHA. Release-index фиксирует версии, архитектуру, URL и SHA256. Публикация идёт через отдельный promotion artifact с повторной проверкой.
-
-## Что умеет RouterForge
-
-### Management v2
-`routerforge-admin` объединяет процессы, Entware Services, File Manager, Maintenance, Entware Terminal и Keenetic NDM Console.
-
-Процессы поддерживают защищённые `TERM/HUP/INT/KILL`. Entware-службы — `start/stop/restart`.
-
-File Manager:
-- **Commander / Explorer**;
-- дерево каталогов и тома;
-- UTF-8 редактор;
-- создание каталогов;
-- rename/move;
-- download/delete;
-- properties;
-- visual `chmod`;
-- guarded boundary для `/opt` и `/tmp`.
-
-**Entware Terminal** — WebSocket/PTTY + фиксированный `/opt/bin/sh -il`.
-
-**Keenetic NDM Console** — WebSocket/PTTY + фиксированный server-side `ndmc`. Browser выбирает только `entware` или `keenetic`, а не executable/argv.
-
-### Monitoring
-Вместо `routerforge-system`, `routerforge-thermal`, `routerforge-storage`, `routerforge-network` используется единый `routerforge-monitoring`, обслуживающий System / Thermal / Storage / Network.
-
-### DNS
-`routerforge-dns` — отдельный Module ABI v1 runtime с:
-- plain DNS / DoT / DoH;
-- Add/Edit/Delete/Disable/Enable;
-- read-only защитой динамических DNS;
-- logical multi-domain resolvers;
-- `snapshot → validation → mutation → save → readback → verified rollback`;
-- client/LAN/Wi-Fi attribution;
-- fallback/timeout/error/latency diagnostics;
-- route-aware diagnostics;
-- компактными event rings при логической глубине истории **10 000** событий.
-
-### Центр приложений
-RouterForge / Integrations / Entware / Installed / Updates, package preflight, dependencies/sizes, guarded async jobs, global package-manager lock, timeout/cancel, post-action verification, bulk update и безопасное обнаружение локальных Web UI без blind LAN scan.
-
-### Настройки и авторизация
-При включённой авторизации используется Entware-пользователь `root`; пароль RouterForge не сохраняет; session token хранится в RAM; cookie использует `HttpOnly` + `SameSite=Strict`; failed-login tracking ограничен и rate-limited. Конфигурация: `/opt/etc/routerforge/security.json`.
+Свежая установка начинается с **Core**. Остальные компоненты устанавливаются по необходимости через Центр приложений.
 
 ## Архитектура
 
@@ -109,137 +49,99 @@ Browser
    v
 RouterForge Core
 ├── Web UI / REST / SSE
-├── Authentication
-├── Центр приложений + Registry
-├── Release index / package lifecycle
-├── Generic Module API + UI host
+├── Authentication / Settings
+├── App Center / Registry / Release lifecycle
+├── Module ABI host
 └── Unix-socket proxy
-     ├── routerforge-dns
-     ├── routerforge-admin
+     ├── DNS
+     ├── Management
      │    ├── Processes / Services
      │    ├── File Manager / Maintenance
      │    ├── Entware Terminal
      │    └── Keenetic NDM Console
-     └── routerforge-monitoring
-          ├── System
-          ├── Thermal
-          ├── Storage
-          └── Network
+     ├── Monitoring
+     │    ├── System
+     │    ├── Thermal
+     │    ├── Storage
+     │    └── Network
+     └── Network Tools
+          ├── Network Doctor
+          ├── Route Inspector
+          ├── Flow Explorer
+          └── Active Probes
 ```
 
-Внешний Web-порт платформы один: **2233**. `routerforge-profiling` по умолчанию доступен только на `127.0.0.1:6061`.
+`routerforge-profiling` работает отдельно и по умолчанию доступен только на `127.0.0.1:6061`.
 
-## Официальные пакеты Stable 0.9.0
+## Установка
 
-| Пакет | Назначение |
-| --- | --- |
-| `routerforge-core` | Web UI, авторизация, Центр приложений, Registry/release lifecycle, хост Module ABI |
-| `routerforge-dns` | DNS runtime, UI, управление резолверами и диагностика |
-| `routerforge-admin` | Management v2, File Manager, Maintenance, Entware Terminal и Keenetic NDM Console |
-| `routerforge-monitoring` | единый System/Thermal/Storage/Network runtime + UI |
-| `routerforge-network-tools` | Network Doctor, Route Inspector, Flow Explorer и Active Probes |
-| `routerforge-profiling` | локальное профилирование Core |
-
-Свежая установка ставит Core. Остальные возможности выбираются через Центр приложений.
-
-## Аппаратная проверка
-
-| Устройство | Архитектура | Каналы | Роль |
-| --- | --- | --- | --- |
-| **Keenetic Hopper KN-3811** | ARM64 | **Dev + Beta** | ежедневная разработка, функциональные проверки и Beta |
-| **Keenetic Ultra KN-1812** | ARM64 | **Beta + Stable** | финальная Beta-проверка и проверка релизной версии |
-| **Keenetic Giga KN-1010** | MIPSel | experimental | частичная физическая проверка установки и базовой работы |
-
-CI дополнительно проверяет cross-build, QEMU для MIPS/MIPSel, структуру IPK, release indexes, bootstrap scripts и целостность артефактов. CI не подменяет физическую проверку на роутере.
-
-## Требования
-
-- Keenetic или Netcraze с KeeneticOS/NDMS;
-- Entware в `/opt`;
-- рабочий `opkg`;
-- root-доступ через Entware;
-- `sha256sum`;
-- `curl` или `wget`;
-- production-рекомендация: ARM64 / `aarch64-3.10`.
-
-## Полный патчноут 0.9.0
-
-Полный список изменений **относительно Stable 0.8.0**:
-**[RouterForge 0.9.0 — полный патчноут](docs/RELEASE_NOTES_0.9.0.md)**
-
-## Быстрая установка — Stable
+### Stable
 
 ```sh
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
-После установки: `http://<ip-роутера>:2233`
+После установки откройте:
 
-## Обновление с Stable 0.8.0
+```text
+http://<ip-роутера>:2233
+```
 
-1. Запустить Stable bootstrap.
-2. Открыть **Центр приложений**.
-3. Нажать **«Проверить обновления»**.
-4. Обновить установленные RouterForge packages.
-5. Проверить migration split monitoring → `routerforge-monitoring`.
-
-## Beta
+### Beta
 
 ```sh
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
-Stable и Beta — разные rolling channels. Не смешивайте их без осознанной смены канала.
+Stable и Beta — разные rolling channels. Переключайте канал осознанно.
 
-## Сервис и диагностика
+## Поддерживаемая платформа
 
-```sh
-/opt/etc/init.d/S90routerforge restart
-tail -f /opt/var/log/routerforge.log
-wget -qO- http://127.0.0.1:2233/api/health
-/opt/bin/opkg list-installed | grep '^routerforge-' | sort
-ls -l /opt/var/run/routerforge-*.sock 2>/dev/null
-```
+Основная production-платформа — **Keenetic / Netcraze + Entware**.
 
-## Удаление
+| Архитектура | Статус |
+| --- | --- |
+| `aarch64-3.10` | основная, физически проверенная |
+| `mipsel-3.4` | experimental, частично проверенная |
+| `mips-3.4` | experimental |
 
-```sh
-/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://raw.githubusercontent.com/Fifth-Ace/routerforge/main/scripts/remove-repo.sh | sh
-```
+Для работы нужны Entware в `/opt`, `opkg`, root-доступ и `curl` или `wget`.
+
+Подробная матрица устройств и архитектур: [docs/ARCHITECTURES.md](docs/ARCHITECTURES.md).
+
+## Сообщество
+
+Вопросы, обратная связь, идеи и обсуждение RouterForge — в нашей группе **[Telegram @RouterForge](https://t.me/RouterForge)**.
+
+Ошибки и технические задачи также можно оформлять через [GitHub Issues](https://github.com/Fifth-Ace/routerforge/issues).
 
 ## Документация
 
-- [Полный патчноут RouterForge 0.9.0](docs/RELEASE_NOTES_0.9.0.md)
-- [Политика версионирования](docs/VERSIONING.md)
+- [Документация RouterForge](docs/README.md)
+- [Release Notes 0.9.0](docs/RELEASE_NOTES_0.9.0.md)
 - [Установка и обновление](docs/INSTALLATION.md)
-- [Модули](docs/MODULES.md)
-- [Management v2](docs/MANAGEMENT_V2_API.md)
-- [File Manager API](docs/MANAGEMENT_V2_FILES_API.md)
-- [Центр приложений](docs/MARKETPLACE.md)
 - [Архитектура](docs/ARCHITECTURE.md)
-- [CPU-архитектуры и аппаратные проверки](docs/ARCHITECTURES.md)
-- [Миграция Monitoring](docs/MONITORING_MIGRATION.md)
-- [Процесс релиза](docs/RELEASE_PROCESS.md)
+- [Модули](docs/MODULES.md)
+- [Центр приложений](docs/MARKETPLACE.md)
+- [Management v2](docs/MANAGEMENT_V2_API.md)
+- [Политика версионирования](docs/VERSIONING.md)
 - [Диагностика](docs/TROUBLESHOOTING.md)
 - [Changelog](CHANGELOG.md)
-- [Политика безопасности](SECURITY.md)
-- [Участие в разработке](CONTRIBUTING.md)
 
-## Сборка из исходников
+## Для разработчиков
 
-Backend: Go 1.21+. Frontend: Node.js 22.x.
+Backend: **Go 1.21+**. Frontend: **Node.js 22.x**.
 
 ```sh
 sh scripts/build-frontend.sh
 sh scripts/build-dns-frontend.sh
 sh scripts/build-admin-frontend.sh
 sh scripts/build-monitoring-frontend.sh
-gofmt -w .
 go test ./...
 go vet ./...
 ```
 
-Node.js на роутере не требуется.
+Подробнее: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Лицензия
 

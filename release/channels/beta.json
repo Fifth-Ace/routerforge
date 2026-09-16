@@ -1,88 +1,90 @@
 {
-    "schema_version":  1,
-    "channel":  "beta",
-    "release_version":  "0.8.5-beta.1",
-    "release_notes":  {
-                          "ru":  {
-                                     "new":  [
-                                                 "PHASE 13 Registry / Manifest Platform завершён: manifest contract hardening, migration legacy integrations и local/private registry сведены в единый защищённый App Center contract.",
-                                                 "Bundled manifest registry теперь является источником истины для интеграций; старый Go fallback удалён и прикрыт постоянным CI sentinel.",
-                                                 "Local/private sources получили namespaced identity и отдельную conservative trust-модель без возможности тихо подменить public ID."
-                                             ],
-                                     "fixes":  [
-                                                   "Добавление стороннего источника теперь строго двухшаговое: read-only preview, затем отдельный ADD_SOURCE с точным SHA-256 preview; изменившийся между шагами источник блокируется.",
-                                                   "Detection сторонних источников остаётся пассивным и не изменяет source config/cache; active Core web-probe для user/private src-* запрещён.",
-                                                   "Responsive UI baseline R26 сохраняется замороженным; новый registry workstream не открывает повторный broad UI redesign."
-                                               ],
-                                     "compatibility":  [
-                                                           "Все шесть Beta-пакетов выпускаются единым train 0.8.5~beta.1; GitHub release/tag использует 0.8.5-beta.1.",
-                                                           "Stable/main остаётся RouterForge 0.8.0 и этим Beta-выпуском не продвигается.",
-                                                           "Beta публикуется для aarch64-3.10, mips-3.4 и mipsel-3.4: 6 компонентов x 3 target = 18 IPK."
-                                                       ],
-                                     "technical":  [
-                                                       "P13 completion защищён always-on CI gate Verify private registry completion.",
-                                                       "Public GitHub остаётся текущим CI/release authority; Private Forgejo начинается следующим отдельным P14 workstream.",
-                                                       "Rolling routerforge-beta обновляется транзакционно; дополнительно создаётся immutable routerforge-v0.8.5-beta.1 на exact release SHA."
-                                                   ]
-                                 },
-                          "en":  {
-                                     "new":  [
-                                                 "PHASE 13 Registry / Manifest Platform is complete: manifest contract hardening, legacy integration migration, and the local/private registry now share one guarded App Center contract.",
-                                                 "The bundled manifest registry is now the source of truth for integrations; the legacy Go fallback is removed and protected by a permanent CI sentinel.",
-                                                 "Local/private sources use namespaced identities and a conservative trust model that cannot silently replace public IDs."
-                                             ],
-                                     "fixes":  [
-                                                   "Third-party source addition is now strictly two-step: read-only preview followed by an explicit ADD_SOURCE action bound to the exact preview SHA-256; stale previews are rejected.",
-                                                   "Third-party source detection remains passive and does not mutate source config/cache; active Core web-probe is denied for user/private src-* sources.",
-                                                   "The accepted R26 responsive UI baseline remains frozen; the registry workstream does not reopen broad UI redesign."
-                                               ],
-                                     "compatibility":  [
-                                                           "All six Beta packages use the coherent 0.8.5~beta.1 train; the GitHub release/tag uses 0.8.5-beta.1.",
-                                                           "Stable/main remains RouterForge 0.8.0 and is not promoted by this Beta release.",
-                                                           "Beta is published for aarch64-3.10, mips-3.4, and mipsel-3.4: 6 components x 3 targets = 18 IPKs."
-                                                       ],
-                                     "technical":  [
-                                                       "P13 completion is protected by the always-on Verify private registry completion CI gate.",
-                                                       "Public GitHub remains the current CI/release authority; Private Forgejo starts as the next separate P14 workstream.",
-                                                       "The rolling routerforge-beta alias is updated transactionally and an immutable routerforge-v0.8.5-beta.1 snapshot is created at the exact release SHA."
-                                                   ]
-                                 }
-                      },
-    "components":  [
-                       {
-                           "id":  "routerforge-core",
-                           "package":  "routerforge-core",
-                           "version":  "0.8.5~beta.1"
-                       },
-                       {
-                           "id":  "dns",
-                           "package":  "routerforge-dns",
-                           "version":  "0.8.5~beta.1",
-                           "min_core_version":  "0.8.5~beta.1"
-                       },
-                       {
-                           "id":  "admin",
-                           "package":  "routerforge-admin",
-                           "version":  "0.8.5~beta.1",
-                           "min_core_version":  "0.8.5~beta.1"
-                       },
-                       {
-                           "id":  "monitoring",
-                           "package":  "routerforge-monitoring",
-                           "version":  "0.8.5~beta.1",
-                           "min_core_version":  "0.8.5~beta.1"
-                       },
-                       {
-                           "id":  "network-tools",
-                           "package":  "routerforge-network-tools",
-                           "version":  "0.8.5~beta.1",
-                           "min_core_version":  "0.8.5~beta.1"
-                       },
-                       {
-                           "id":  "profiling",
-                           "package":  "routerforge-profiling",
-                           "version":  "0.8.5~beta.1",
-                           "min_core_version":  "0.8.5~beta.1"
-                       }
-                   ]
+  "schema_version": 1,
+  "channel": "beta",
+  "release_version": "0.8.5-beta.2",
+  "release_notes": {
+    "ru": {
+      "new": [
+        "PHASE 14 Private Forgejo и PHASE 15 Shared Safety Engines завершены: зеркалирование/восстановление приватного репозитория и общие безопасные механизмы команд, файловых операций и конфигурационных изменений доведены до рабочего состояния.",
+        "App Center получил Jobs + History с сохранением истории/технического лога, устойчивый переход между каналами и корректное открытие локальных Web UI установленных приложений.",
+        "DNS получил rolling health-модель, понятное объяснение текущих проблем по конкретным резолверам, подсказки по p95/качеству/NXDOMAIN и отдельные настройки health-порогов."
+      ],
+      "fixes": [
+        "Устранено зависание DNS в вечном DEGRADED из-за старых накопленных ошибок: текущее здоровье считается по скользящему окну и больше не смешивается с историческими счётчиками.",
+        "Исправлен переход dev/beta при обновлении Core: модули обновляются до Core, Core идёт последним, а пустые/повреждённые JSON-ответы во время рестарта обрабатываются явно.",
+        "Management/Admin теперь разрешает штатные same-origin действия при отключённой авторизации RouterForge; при включённой авторизации root-сессия остаётся обязательной. Cross-origin защита, exact-target подтверждения и прочие safety-gates сохранены.",
+        "Исправлены UI-кэширование модулей, history workspace, thermal/temperature presentation и resolver details drawer."
+      ],
+      "compatibility": [
+        "Все шесть Beta-пакетов выпускаются единым train 0.8.5~beta.2; GitHub release/tag использует 0.8.5-beta.2.",
+        "Stable/main остаётся RouterForge 0.8.0 и этим Beta-выпуском не продвигается.",
+        "Beta публикуется для aarch64-3.10, mips-3.4 и mipsel-3.4: 6 компонентов x 3 target = 18 IPK."
+      ],
+      "technical": [
+        "Rolling routerforge-beta обновляется транзакционно и дополнительно создаётся immutable routerforge-v0.8.5-beta.2 на exact release SHA.",
+        "Полный Beta release проходит Linux full-release validation, multi-arch build, публикацию и verify-published-beta перед PASS.",
+        "Основной Dev SHA перед release preparation: 80119269f6cd270f5c69dffc8355690ecb4c5648; main/stable не затрагивается."
+      ]
+    },
+    "en": {
+      "new": [
+        "PHASE 14 Private Forgejo and PHASE 15 Shared Safety Engines are complete: private repository mirror/recovery and shared safe command, file, and config mutation primitives are now operational.",
+        "App Center now includes Jobs + History with persisted technical logs, hardened channel transitions, and local Web UI opening for installed applications.",
+        "DNS now uses a rolling health model with resolver-specific problem attribution, p95/quality/NXDOMAIN explanations, and configurable health thresholds."
+      ],
+      "fixes": [
+        "DNS no longer remains permanently DEGRADED because of historical cumulative errors; current health is calculated from rolling windows and is separated from historical counters.",
+        "Dev/beta transitions are hardened: modules update before Core, Core is updated last, and empty/invalid JSON responses during restart are handled explicitly.",
+        "Management/Admin now allows normal same-origin actions when RouterForge authentication is disabled; when authentication is enabled, a root session is still required. Cross-origin protection, exact-target confirmations, and other safety gates remain intact.",
+        "Module UI caching, history workspace behavior, thermal presentation, and the resolver details drawer were corrected."
+      ],
+      "compatibility": [
+        "All six Beta packages use the coherent 0.8.5~beta.2 train; the GitHub release/tag uses 0.8.5-beta.2.",
+        "Stable/main remains RouterForge 0.8.0 and is not promoted by this Beta release.",
+        "Beta is published for aarch64-3.10, mips-3.4, and mipsel-3.4: 6 components x 3 targets = 18 IPKs."
+      ],
+      "technical": [
+        "The rolling routerforge-beta alias is updated transactionally and an immutable routerforge-v0.8.5-beta.2 snapshot is created at the exact release SHA.",
+        "The Beta release must pass Linux full-release validation, multi-arch build, publication, and verify-published-beta before PASS.",
+        "Dev source before release preparation: 80119269f6cd270f5c69dffc8355690ecb4c5648; main/stable remains untouched."
+      ]
+    }
+  },
+  "components": [
+    {
+      "id": "routerforge-core",
+      "package": "routerforge-core",
+      "version": "0.8.5~beta.2"
+    },
+    {
+      "id": "dns",
+      "package": "routerforge-dns",
+      "version": "0.8.5~beta.2",
+      "min_core_version": "0.8.5~beta.2"
+    },
+    {
+      "id": "admin",
+      "package": "routerforge-admin",
+      "version": "0.8.5~beta.2",
+      "min_core_version": "0.8.5~beta.2"
+    },
+    {
+      "id": "monitoring",
+      "package": "routerforge-monitoring",
+      "version": "0.8.5~beta.2",
+      "min_core_version": "0.8.5~beta.2"
+    },
+    {
+      "id": "network-tools",
+      "package": "routerforge-network-tools",
+      "version": "0.8.5~beta.2",
+      "min_core_version": "0.8.5~beta.2"
+    },
+    {
+      "id": "profiling",
+      "package": "routerforge-profiling",
+      "version": "0.8.5~beta.2",
+      "min_core_version": "0.8.5~beta.2"
+    }
+  ]
 }

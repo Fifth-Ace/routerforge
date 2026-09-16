@@ -144,6 +144,21 @@ func (s *dnsModuleServer) Serve() error {
 	mux.HandleFunc("/v1/system", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		s.writeJSON(w, http.StatusOK, readSystemInfo())
 	}))
+	mux.HandleFunc("/v1/policies", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		policies, err := readDNSPolicyInventory()
+		if err != nil {
+			s.writeJSON(w, http.StatusBadGateway, map[string]any{
+				"error":  err.Error(),
+				"source": "keenetic-rci",
+			})
+			return
+		}
+		s.writeJSON(w, http.StatusOK, map[string]any{
+			"policies":     policies,
+			"source":       "keenetic-rci",
+			"mutation_api": false,
+		})
+	}))
 	mux.HandleFunc("/v1/plain-dns", s.getOnly(func(w http.ResponseWriter, r *http.Request) {
 		limit := boundedInt(r.URL.Query().Get("limit"), 100, 1, 500)
 		s.writeJSON(w, http.StatusOK, plainDNS.Snapshot(limit))

@@ -1,7 +1,7 @@
 # RouterForge UI Contract
 
 Status: current development contract
-Baseline: RouterForge dev after R20 component-rhythm unification
+Baseline: RouterForge Stable 0.9.0 release preparation; R20 geometry remains the accepted visual baseline
 Scope: Management, Monitoring, DNS, App Center, Network Tools
 
 ## Purpose
@@ -94,3 +94,7 @@ the frame around content: navigation, headers, panels, controls, tables, empty
 states and focus behavior.
 
 Runtime APIs, package topology and module functionality are outside this UI contract.
+
+## 7. App Center History
+
+History opens inside the main workspace while the global header/sidebar remain visible. Technical errors are part of the unified job log rather than a separate oversized banner.

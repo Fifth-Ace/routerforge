@@ -11,6 +11,15 @@ Available RouterForge state → target-specific channel release-index с exact v
 ## Lifecycle
 Non-Core actions: preflight, global package-manager lock, bounded output, timeout/cancel, SSE, post-refresh, post-verify, bounded history. Core self-update restart-aware и идёт последним в batch.
 
+
+## Registry / Manifest Platform
+Bundled manifests are the integration source of truth. Local/private sources use namespaced
+identity, read-only preview and an explicit add step bound to the exact preview SHA-256.
+Detection remains passive; trust does not silently grant arbitrary lifecycle authority.
+
+## Jobs + History
+App Center keeps bounded backend history with persisted details/technical logs. Active
+conflicts can be adopted by the UI instead of starting duplicate package-manager work.
 ## Registry trust
 `OFFICIAL`, `VERIFIED`, `UNVERIFIED`, `CHANGED`, `BLOCKED`, `DEPRECATED`.
 Manifest не является arbitrary shell script.

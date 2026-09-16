@@ -1,18 +1,22 @@
 # Установка и обновление RouterForge
 
-## Stable 0.7.1
+## Stable 0.9.0
 
-Текущий Stable train:
+Текущий Stable train после promotion:
 
 ```text
-routerforge-core        0.7.1
-routerforge-dns         0.7.1
-routerforge-admin       0.7.1
-routerforge-monitoring  0.7.1
-routerforge-profiling   0.7.1
+routerforge-core           0.9.0
+routerforge-dns            0.8.1   (min Core 0.9.0)
+routerforge-admin          0.8.1   (min Core 0.9.0)
+routerforge-monitoring     0.8.0   (min Core 0.9.0)
+routerforge-network-tools  0.9.0   (min Core 0.9.0)
+routerforge-profiling      0.7.1   (min Core 0.7.1)
 ```
 
-Fresh bootstrap устанавливает Core. DNS, Management, Monitoring и Profiling выбираются через **Центр приложений**.
+Компоненты версионируются независимо; см. [VERSIONING.md](VERSIONING.md).
+
+Fresh bootstrap устанавливает Core. DNS, Management, Monitoring, Network Tools и Profiling
+выбираются через **Центр приложений**.
 
 ## Targets
 
@@ -22,7 +26,8 @@ Fresh bootstrap устанавливает Core. DNS, Management, Monitoring и 
 | `mipsel-3.4` | experimental, partial physical validation на KN-1010 |
 | `mips-3.4` | experimental, no physical hardware validation |
 
-Требуются Keenetic/Netcraze с KeeneticOS/NDMS, Entware в `/opt`, `opkg`, `sha256sum` и `curl`/`wget`.
+Требуются Keenetic/Netcraze с KeeneticOS/NDMS, Entware в `/opt`, `opkg`, `sha256sum`
+и `curl`/`wget`.
 
 ## Установка Stable
 
@@ -40,20 +45,25 @@ echo
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
 ```
 
-## Upgrade с Stable 0.6.x
+## Upgrade с Stable 0.8.0
 
 1. Запустите Stable bootstrap.
 2. Откройте **Центр приложений**.
 3. Нажмите **Проверить обновления**.
-4. Обновите установленные capabilities.
-5. Если были split monitoring packages, обновление заменит их на `routerforge-monitoring`.
+4. Обновите установленные RouterForge capabilities.
+5. App Center применит обычные модули до Core, а Core — последним, затем восстановит shell.
 
-Не удаляйте old monitoring files вручную. Migration должна пройти через package lifecycle.
+Не удаляйте package-owned files вручную.
 
-После migration:
+## Monitoring migration
+
+Исторический переход split System/Thermal/Storage/Network → `routerforge-monitoring`
+остаётся поддерживаемым migration contract.
+
+После Stable 0.9.0 ожидаемая версия consolidated package:
 
 ```sh
-ROUTERFORGE_MONITORING_EXPECTED_VERSION='0.7.1' \
+ROUTERFORGE_MONITORING_EXPECTED_VERSION='0.8.0' \
   sh scripts/verify-monitoring-migration.sh runtime
 ```
 
@@ -73,7 +83,7 @@ ROUTERFORGE_MIPS_PREVIEW=1
 ROUTERFORGE_MIPS_ALLOW_DEGRADED=1
 ```
 
-`blocked` override не допускает. См. [ARCHITECTURES.md](ARCHITECTURES.md).
+`blocked` override не допускается. См. [ARCHITECTURES.md](ARCHITECTURES.md).
 
 ## Beta
 
@@ -81,21 +91,22 @@ ROUTERFORGE_MIPS_ALLOW_DEGRADED=1
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
 ```
 
-Pre-release package versions используют `~`, например `0.7.1~beta.4`, чтобы сортироваться ниже Stable `0.7.1`.
+Pre-release package versions используют `~`, чтобы сортироваться ниже соответствующего Stable.
 
 ## Stable ↔ Beta
 
 При смене channel:
 1. запустите bootstrap целевого channel;
 2. форсируйте проверку в App Center;
-3. приведите installed RouterForge packages к versions этого channel.
+3. приведите installed RouterForge packages к versions целевого release-index.
 
 Stable → `routerforge-stable` + Registry `main`.
 Beta → `routerforge-beta` + Registry `dev`.
 
 ## Management
 
-`routerforge-admin` добавляет Processes/Services, File Manager, Maintenance, Entware Terminal и Keenetic NDM Console. Keenetic mode запускает фиксированный backend `ndmc`.
+`routerforge-admin` добавляет Processes/Services, File Manager, Maintenance,
+Entware Terminal и Keenetic NDM Console. Keenetic mode запускает фиксированный backend `ndmc`.
 
 ## Core service
 

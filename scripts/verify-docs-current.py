@@ -17,7 +17,9 @@ ACTIVE = [
     "docs/FRONTEND_ARCHITECTURE.md", "docs/EXECUTABLE_COMPRESSION.md",
     "docs/APP_CENTER_RELEASE_FEED_ADR.md", "docs/RELEASE_NOTES_0.7.1.md",
     "docs/RELEASE_NOTES_0.7.2.md", "docs/RELEASE_NOTES_0.8.0.md",
+    "docs/RELEASE_NOTES_0.9.0.md", "docs/VERSIONING.md",
     "docs/VNEXT_MODULES_DEV_FOUNDATION.md", "docs/FORGEJO_FAILOVER.md",
+    "docs/UI_CONTRACT.md",
 ]
 
 for rel in ACTIVE:
@@ -26,30 +28,40 @@ for rel in ACTIVE:
 
 required = {
     "README.md": [
-        "Stable 0.8.0", "routerforge-network-tools", "routerforge-monitoring",
-        "Keenetic NDM Console", "docs/RELEASE_NOTES_0.8.0.md",
+        "Stable 0.9.0", "routerforge-network-tools", "routerforge-monitoring",
+        "Keenetic NDM Console", "docs/RELEASE_NOTES_0.9.0.md",
     ],
     "README_EN.md": [
-        "Stable 0.8.0", "routerforge-network-tools", "routerforge-monitoring",
-        "Keenetic NDM Console", "docs/RELEASE_NOTES_0.8.0.md",
+        "Stable 0.9.0", "routerforge-network-tools", "routerforge-monitoring",
+        "Keenetic NDM Console", "docs/RELEASE_NOTES_0.9.0.md",
     ],
     "modules/README.md": [
-        "Current Stable 0.8.0 topology", "network-tools/",
+        "Current Stable 0.9.0 topology", "network-tools/",
         "Legacy split source directories",
     ],
     "docs/REPOSITORY_LAYOUT.md": [
-        "Stable 0.8.0 release topology", "modules/network-tools/",
-        "not build targets",
+        "Stable 0.9.0 release topology", "modules/network-tools/",
+        "not build targets", "internal/safety/",
     ],
     "docs/VNEXT_MODULES_DEV_FOUNDATION.md": [
         "Historical / superseded", "Maintenance remains under Management",
         "Network Tools is the only new top-level module",
     ],
     "docs/NETWORK_TOOLS_CONSOLIDATION.md": [
-        "routerforge-network-tools", "sole first-class network diagnostics module",
+        "routerforge-network-tools", "sole first-class", "Stable 0.9.0",
     ],
-    "docs/MANAGEMENT_V2_API.md": ["mode=<entware|keenetic>", "ndmc"],
-    "docs/RELEASE_PROCESS.md": ["publish_beta=false", "routerforge-stable-promotion"],
+    "docs/MANAGEMENT_V2_API.md": [
+        "mode=<entware|keenetic>", "ndmc", "authentication is disabled",
+    ],
+    "docs/RELEASE_PROCESS.md": [
+        "publish_beta=false", "routerforge-stable-promotion", "VERSIONING.md",
+    ],
+    "docs/RELEASE_NOTES_0.9.0.md": [
+        "RouterForge 0.9.0", "70 коммитов", "DNS 0.8.1",
+        "Admin 0.8.1", "Monitoring 0.8.0", "Network Tools 0.9.0",
+        "Profiling 0.7.1", "Shared Safety Engines", "Private Forgejo",
+    ],
+    "docs/VERSIONING.md": ["MAJOR.MINOR.PATCH", "PATCH", "MINOR", "1.0.0"],
     "docs/RELEASE_NOTES_0.7.1.md": ["RouterForge 0.7.1", "Keenetic NDM Console"],
     "docs/RELEASE_NOTES_0.7.2.md": ["RouterForge 0.7.2", "routerforge-dns", "DNS hotfix"],
     "docs/RELEASE_NOTES_0.8.0.md": [
@@ -65,7 +77,7 @@ for rel, needles in required.items():
             raise SystemExit(f"{rel}: missing current marker {needle}")
 
 stable = json.loads((ROOT / "release/channels/stable.json").read_text(encoding="utf-8"))
-if stable.get("release_version") != "0.8.0":
+if stable.get("release_version") != "0.9.0":
     raise SystemExit("stable.json release_version mismatch")
 
 expected = [
@@ -77,11 +89,11 @@ if [x.get("package") for x in components] != expected:
     raise SystemExit("stable.json topology mismatch")
 
 versions = {
-    "routerforge-core": ("0.8.0", ""),
-    "routerforge-dns": ("0.8.0", "0.8.0"),
-    "routerforge-admin": ("0.8.0", "0.8.0"),
-    "routerforge-monitoring": ("0.7.1", "0.7.1"),
-    "routerforge-network-tools": ("0.8.0", "0.8.0"),
+    "routerforge-core": ("0.9.0", ""),
+    "routerforge-dns": ("0.8.1", "0.9.0"),
+    "routerforge-admin": ("0.8.1", "0.9.0"),
+    "routerforge-monitoring": ("0.8.0", "0.9.0"),
+    "routerforge-network-tools": ("0.9.0", "0.9.0"),
     "routerforge-profiling": ("0.7.1", "0.7.1"),
 }
 for item in components:
@@ -141,8 +153,8 @@ for rel in ACTIVE:
             raise SystemExit(f"{rel}: broken local link: {raw}")
 
 print("DOCS_CURRENT=PASS")
-print("STABLE_RELEASE_VERSION=0.8.0")
-print("STABLE_COMPONENT_VERSIONS=core:0.8.0,dns:0.8.0,admin:0.8.0,monitoring:0.7.1,network-tools:0.8.0,profiling:0.7.1")
+print("STABLE_RELEASE_VERSION=0.9.0")
+print("STABLE_COMPONENT_VERSIONS=core:0.9.0,dns:0.8.1,admin:0.8.1,monitoring:0.8.0,network-tools:0.9.0,profiling:0.7.1")
 print("LEGACY_SPLIT_SOURCE_DIRS=ABSENT")
 print("ORPHAN_SPLIT_APPROVALS=ABSENT")
 print("ACTIVE_BUILD_TOPOLOGY=dns,monitoring,network-tools,profiling")

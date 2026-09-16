@@ -1,5 +1,7 @@
 # Forgejo failover / failback control
 
+Status: **current / P14 complete**. GitHub remains primary; Forgejo is a hot backup.
+
 RouterForge authority model:
 
 - **GitHub = primary**

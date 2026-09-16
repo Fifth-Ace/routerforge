@@ -21,6 +21,10 @@ func main() {
 	policyEgressSmoke := flag.String("policy-egress-smoke", "", "run one marked-egress diagnostic for PolicyN and exit")
 	policyEgressSmokeAddress := flag.String("policy-egress-smoke-address", "1.1.1.1:443", "TCP destination for marked-egress diagnostic")
 	policyEgressSmokeTimeout := flag.Duration("policy-egress-smoke-timeout", 4*time.Second, "timeout for marked-egress diagnostic")
+	policyShadowSmoke := flag.Bool("policy-shadow-smoke", false, "run loopback-only shadow DNS forwarding smoke and exit")
+	policyShadowSmokeListen := flag.String("policy-shadow-smoke-listen", "127.0.0.1:55353", "loopback non-53 listener for shadow DNS smoke")
+	policyShadowSmokeUpstream := flag.String("policy-shadow-smoke-upstream", "1.1.1.1:53", "explicit IP:port upstream for shadow DNS smoke")
+	policyShadowSmokeTimeout := flag.Duration("policy-shadow-smoke-timeout", 3*time.Second, "per-query timeout for shadow DNS smoke")
 	flag.Parse()
 
 	if os.Geteuid() != 0 {
@@ -41,6 +45,29 @@ func main() {
 			fmt.Printf("RESULT: FAIL\n")
 			fmt.Printf("ERROR: %v\n", err)
 			os.Exit(3)
+		}
+		fmt.Println("RESULT: PASS")
+		return
+	}
+
+	if *policyShadowSmoke {
+		result, err := runDNSPolicyShadowSmoke(*policyShadowSmokeListen, *policyShadowSmokeUpstream, *policyShadowSmokeTimeout)
+		fmt.Println("=== POLICY SHADOW SMOKE ===")
+		fmt.Printf("LISTEN: %s\n", result.ListenAddr)
+		fmt.Printf("UPSTREAM: %s\n", result.Upstream)
+		for _, item := range result.Cases {
+			fmt.Printf("CASE: %s TRANSPORT=%s POLICY=%s WANT_MARK=%#x REPLY=%t", item.Name, item.Transport, item.Policy, item.WantMark, item.Reply)
+			if item.Error != "" {
+				fmt.Printf(" ERROR=%q", item.Error)
+			}
+			fmt.Println()
+		}
+		fmt.Printf("POLICY1_MARK_COUNT: %d\n", countDNSPolicyShadowMark(result.Marks, 0x0ffffaab))
+		fmt.Printf("POLICY0_MARK_COUNT: %d\n", countDNSPolicyShadowMark(result.Marks, 0x0ffffaaa))
+		if err != nil {
+			fmt.Println("RESULT: FAIL")
+			fmt.Printf("ERROR: %v\n", err)
+			os.Exit(4)
 		}
 		fmt.Println("RESULT: PASS")
 		return

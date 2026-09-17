@@ -25,6 +25,13 @@ func main() {
 	policyShadowSmokeListen := flag.String("policy-shadow-smoke-listen", "127.0.0.1:55353", "loopback non-53 listener for shadow DNS smoke")
 	policyShadowSmokeUpstream := flag.String("policy-shadow-smoke-upstream", "1.1.1.1:53", "explicit IP:port upstream for shadow DNS smoke")
 	policyShadowSmokeTimeout := flag.Duration("policy-shadow-smoke-timeout", 3*time.Second, "per-query timeout for shadow DNS smoke")
+	policyPersistedShadow := flag.Bool("policy-persisted-shadow", false, "run controlled persisted-rule shadow listener and exit")
+	policyPersistedShadowStore := flag.String("policy-persisted-shadow-store", "/opt/etc/routerforge/dns-policy-rules.json", "persisted policy document path")
+	policyPersistedShadowListen := flag.String("policy-persisted-shadow-listen", "127.0.0.1:55354", "loopback non-53 listener for persisted shadow mode")
+	policyPersistedShadowUpstream := flag.String("policy-persisted-shadow-upstream", "1.1.1.1:53", "explicit IP:port upstream for persisted shadow mode")
+	policyPersistedShadowDuration := flag.Duration("policy-persisted-shadow-duration", 15*time.Second, "bounded persisted shadow listener lifetime")
+	policyPersistedShadowTimeout := flag.Duration("policy-persisted-shadow-timeout", 3*time.Second, "per-query persisted shadow timeout")
+	policyPersistedShadowConcurrency := flag.Int("policy-persisted-shadow-concurrency", 16, "bounded persisted shadow concurrency")
 	flag.Parse()
 
 	if os.Geteuid() != 0 {
@@ -76,6 +83,39 @@ func main() {
 			fmt.Println("RESULT: FAIL")
 			fmt.Printf("ERROR: %v\n", err)
 			os.Exit(4)
+		}
+		fmt.Println("RESULT: PASS")
+		return
+	}
+
+	if *policyPersistedShadow {
+		evidence, err := runDNSPolicyPersistedShadow(
+			*policyPersistedShadowStore,
+			*policyPersistedShadowListen,
+			*policyPersistedShadowUpstream,
+			*policyPersistedShadowDuration,
+			*policyPersistedShadowTimeout,
+			*policyPersistedShadowConcurrency,
+		)
+		fmt.Println("=== PERSISTED POLICY SHADOW ===")
+		fmt.Printf("STORE: %s\n", evidence.StorePath)
+		fmt.Printf("DOCUMENT_SHA256: %s\n", evidence.DocumentSHA256)
+		fmt.Printf("DOCUMENT_VERSION: %d\n", evidence.DocumentVersion)
+		fmt.Printf("DOCUMENT_UPDATED_AT: %s\n", evidence.DocumentUpdatedAt.UTC().Format(time.RFC3339Nano))
+		fmt.Printf("RULE_COUNT: %d\n", evidence.RuleCount)
+		fmt.Printf("INVENTORY_COUNT: %d\n", evidence.InventoryCount)
+		fmt.Printf("LISTEN: %s\n", evidence.ListenAddr)
+		fmt.Printf("UPSTREAM: %s\n", evidence.Upstream)
+		fmt.Printf("DURATION: %s\n", evidence.Duration)
+		fmt.Printf("STATS_REQUESTS: %d\n", evidence.Stats.Requests)
+		fmt.Printf("STATS_SUCCESSES: %d\n", evidence.Stats.Successes)
+		fmt.Printf("STATS_FAILURES: %d\n", evidence.Stats.Failures)
+		fmt.Printf("STATS_SERVFAIL: %d\n", evidence.Stats.ServfailResponses)
+		fmt.Printf("STATS_PEAK_INFLIGHT: %d\n", evidence.Stats.PeakInFlight)
+		if err != nil {
+			fmt.Println("RESULT: FAIL")
+			fmt.Printf("ERROR: %v\n", err)
+			os.Exit(5)
 		}
 		fmt.Println("RESULT: PASS")
 		return

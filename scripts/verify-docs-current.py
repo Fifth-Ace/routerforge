@@ -17,7 +17,7 @@ ACTIVE = [
     "docs/FRONTEND_ARCHITECTURE.md", "docs/EXECUTABLE_COMPRESSION.md",
     "docs/APP_CENTER_RELEASE_FEED_ADR.md", "docs/RELEASE_NOTES_0.7.1.md",
     "docs/RELEASE_NOTES_0.7.2.md", "docs/RELEASE_NOTES_0.8.0.md",
-    "docs/RELEASE_NOTES_0.9.0.md", "docs/VERSIONING.md",
+    "docs/RELEASE_NOTES_0.9.0.md", "docs/RELEASE_NOTES_0.9.1.md", "docs/VERSIONING.md",
     "docs/VNEXT_MODULES_DEV_FOUNDATION.md", "docs/FORGEJO_FAILOVER.md",
     "docs/UI_CONTRACT.md",
 ]
@@ -61,6 +61,7 @@ required = {
         "Admin 0.8.1", "Monitoring 0.8.0", "Network Tools 0.9.0",
         "Profiling 0.7.1", "Shared Safety Engines", "Private Forgejo",
     ],
+    "docs/RELEASE_NOTES_0.9.1.md": ["RouterForge 0.9.1", "thermal", "unsupported", "/api/health", "P16", "P17", "P18"],
     "docs/VERSIONING.md": ["MAJOR.MINOR.PATCH", "PATCH", "MINOR", "1.0.0"],
     "docs/RELEASE_NOTES_0.7.1.md": ["RouterForge 0.7.1", "Keenetic NDM Console"],
     "docs/RELEASE_NOTES_0.7.2.md": ["RouterForge 0.7.2", "routerforge-dns", "DNS hotfix"],
@@ -77,7 +78,7 @@ for rel, needles in required.items():
             raise SystemExit(f"{rel}: missing current marker {needle}")
 
 stable = json.loads((ROOT / "release/channels/stable.json").read_text(encoding="utf-8"))
-if stable.get("release_version") != "0.9.0":
+if stable.get("release_version") != "0.9.1":
     raise SystemExit("stable.json release_version mismatch")
 
 expected = [
@@ -153,7 +154,7 @@ for rel in ACTIVE:
             raise SystemExit(f"{rel}: broken local link: {raw}")
 
 print("DOCS_CURRENT=PASS")
-print("STABLE_RELEASE_VERSION=0.9.0")
+print("STABLE_RELEASE_VERSION=0.9.1")
 print("STABLE_COMPONENT_VERSIONS=core:0.9.0,dns:0.8.1,admin:0.8.1,monitoring:0.8.0,network-tools:0.9.0,profiling:0.7.1")
 print("LEGACY_SPLIT_SOURCE_DIRS=ABSENT")
 print("ORPHAN_SPLIT_APPROVALS=ABSENT")

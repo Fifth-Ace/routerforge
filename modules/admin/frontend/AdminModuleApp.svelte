@@ -242,7 +242,13 @@
   $: q = search.trim().toLowerCase();
   $: filteredProcesses = processes.filter((p) => !q || `${p.pid} ${p.name} ${p.user} ${p.command}`.toLowerCase().includes(q));
   $: filteredPorts = ports.filter((p) => !q || `${p.protocol} ${p.local_address} ${p.local_port} ${p.process} ${p.pid}`.toLowerCase().includes(q));
-  $: filteredServices = services.filter((s) => !q || `${s.id} ${s.name} ${s.path}`.toLowerCase().includes(q));
+  $: filteredServices = services.filter((s) => {
+    if (!q) return true;
+    const processes = (s.processes || []).map((p) => `${p.pid} ${p.name} ${p.command}`).join(' ');
+    const ports = (s.listening_ports || []).map((p) => `${p.protocol} ${p.local_address} ${p.local_port}`).join(' ');
+    const paths = [...(s.config_paths || []), ...(s.log_paths || [])].join(' ');
+    return `${s.id} ${s.name} ${s.init_script || s.path || ''} ${s.package?.name || ''} ${s.package?.version || ''} ${processes} ${ports} ${paths}`.toLowerCase().includes(q);
+  });
   $: matchingPackages = packages.filter((p) => !q || `${p.name} ${p.version} ${p.architecture}`.toLowerCase().includes(q));
   $: filteredPackages = matchingPackages.slice(0, packageRenderLimit);
   $: filteredFiles = fileEntries.filter((entry) => !q || `${entry.name} ${entry.path} ${entry.kind}`.toLowerCase().includes(q));
@@ -284,7 +290,7 @@
         if (epoch === loadEpoch && tab === next) ports = result.ports || [];
       }
       if (next === 'services') {
-        const result = await getModule('admin', 'services');
+        const result = await getModule('admin', 'service-inspector');
         if (epoch === loadEpoch && tab === next) services = result.services || [];
       }
       if (next === 'packages') {
@@ -321,6 +327,23 @@
     }
   }
 
+  function serviceActionProtected(service) {
+    const corpus = `${service?.id || ''} ${service?.name || ''} ${service?.init_script || service?.path || ''}`.toLowerCase();
+    return corpus.includes('routerforge') || corpus.includes('dns-monitor');
+  }
+
+  async function openServicePath(path) {
+    if (!path) return;
+    tab = 'files';
+    search = '';
+    errorText = '';
+    actionText = '';
+    filePath = parentPath(path);
+    await loadFiles(filePath);
+    const entry = fileEntries.find((item) => item.path === path);
+    if (entry) await openEntry(entry);
+    scheduleAdminHeight();
+  }
   async function mutateService(service, action) {
     const id = service.id || service.name;
     if (!id || !confirm(`${copy.serviceConfirm} ${id}: ${action}?`)) return;
@@ -747,21 +770,108 @@
     </section>
   {:else if tab === 'services'}
     <section class="panel table-panel">
-      <div class="panel-head"><div><strong>{t(locale, 'manage.services')}</strong><span>{t(locale, 'manage.servicesHint')}</span></div><span class="state-chip info">{filteredServices.length}</span></div>
-      <div class="table-scroll"><table><thead><tr><th>{t(locale, 'manage.columns.service')}</th><th>{t(locale, 'manage.columns.state')}</th><th>{t(locale, 'manage.columns.initScript')}</th><th>{copy.actions}</th></tr></thead><tbody>
-        {#each filteredServices as s (s.path)}
-          <tr>
-            <td><strong>{s.name}</strong><div class="cell-sub mono">{s.id || ''}</div></td>
-            <td><span class="state-chip {s.running ? 'good' : 'neutral'}">{s.running ? t(locale, 'common.running').toUpperCase() : t(locale, 'common.notDetected').toUpperCase()}</span></td>
-            <td class="mono">{s.path}</td>
-            <td class="actions-cell">
-              <button class="mini" disabled={!s.executable} onclick={() => mutateService(s, 'start')}>START</button>
-              <button class="mini" disabled={!s.executable} onclick={() => mutateService(s, 'restart')}>RESTART</button>
-              <button class="mini danger" disabled={!s.executable} onclick={() => mutateService(s, 'stop')}>STOP</button>
-            </td>
-          </tr>
-        {/each}
-      </tbody></table></div>
+      <div class="panel-head">
+        <div>
+          <strong>{locale === 'ru' ? 'Service Inspector' : 'Service Inspector'}</strong>
+          <span>{locale === 'ru' ? 'package → init → process → sockets · read evidence + guarded actions' : 'package → init → process → sockets · read evidence + guarded actions'}</span>
+        </div>
+        <span class="state-chip info">{filteredServices.length}</span>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>{t(locale, 'manage.columns.service')}</th>
+              <th>{locale === 'ru' ? 'Пакет' : 'Package'}</th>
+              <th>{t(locale, 'manage.columns.state')}</th>
+              <th>{locale === 'ru' ? 'Runtime evidence' : 'Runtime evidence'}</th>
+              <th>{locale === 'ru' ? 'Конфиги / логи' : 'Config / logs'}</th>
+              <th>{copy.actions}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each filteredServices as s (s.id)}
+              <tr>
+                <td>
+                  <strong>{s.name}</strong>
+                  <div class="cell-sub mono">{s.id || '—'}</div>
+                  <div class="cell-sub mono" title={s.init_script || s.path}>{s.init_script || s.path || '—'}</div>
+                </td>
+
+                <td>
+                  {#if s.package}
+                    <strong>{s.package.name}</strong>
+                    <div class="cell-sub mono">{s.package.version || '—'} · {s.package.architecture || '—'}</div>
+                  {:else}
+                    <span class="cell-sub">{locale === 'ru' ? 'владелец opkg не найден' : 'no opkg owner'}</span>
+                  {/if}
+                </td>
+
+                <td>
+                  <span class="state-chip {s.running ? 'good' : 'neutral'}">
+                    {s.running ? t(locale, 'common.running').toUpperCase() : t(locale, 'common.notDetected').toUpperCase()}
+                  </span>
+                  <div class="cell-sub mono">{s.running_source || '—'}</div>
+                </td>
+
+                <td>
+                  <div class="cell-sub">
+                    <strong>{s.resource?.process_count || 0}</strong> proc ·
+                    <strong>{s.resource?.listeners || 0}</strong> listen ·
+                    RSS <strong>{bytes(Number(s.resource?.rss_kb || 0) * 1024)}</strong> ·
+                    {s.resource?.threads || 0} thr
+                  </div>
+
+                  {#if (s.processes || []).length}
+                    {#each s.processes as p (p.pid)}
+                      <div class="cell-sub mono" title={p.command}>
+                        PID {p.pid} · {p.name} · {bytes(Number(p.rss_kb || 0) * 1024)}
+                      </div>
+                    {/each}
+                  {:else}
+                    <div class="cell-sub">{locale === 'ru' ? 'процессы не сопоставлены' : 'no matched processes'}</div>
+                  {/if}
+
+                  {#each s.listening_ports || [] as p (`${p.protocol}-${p.local_address}-${p.local_port}-${p.inode}`)}
+                    <div class="cell-sub mono">{p.protocol} {p.local_address}:{p.local_port}</div>
+                  {/each}
+                </td>
+
+                <td>
+                  {#if (s.config_paths || []).length}
+                    <div class="cell-sub"><strong>{locale === 'ru' ? 'Config' : 'Config'}</strong></div>
+                    {#each s.config_paths as path}
+                      <button class="mini" title={path} onclick={() => openServicePath(path)}>{path}</button>
+                    {/each}
+                  {/if}
+
+                  {#if (s.log_paths || []).length}
+                    <div class="cell-sub"><strong>{locale === 'ru' ? 'Logs' : 'Logs'}</strong></div>
+                    {#each s.log_paths as path}
+                      <button class="mini" title={path} onclick={() => openServicePath(path)}>{path}</button>
+                    {/each}
+                  {/if}
+
+                  {#if !(s.config_paths || []).length && !(s.log_paths || []).length}
+                    <span class="cell-sub">—</span>
+                  {/if}
+                </td>
+
+                <td class="actions-cell">
+                  {@const guarded = serviceActionProtected(s)}
+                  <button class="mini" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'start')}>START</button>
+                  <button class="mini" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'restart')}>RESTART</button>
+                  <button class="mini danger" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'stop')}>STOP</button>
+                  {#if guarded}
+                    <div class="cell-sub">{locale === 'ru' ? 'lifecycle защищён' : 'lifecycle protected'}</div>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     </section>
   {:else if tab === 'packages'}
     <section class="panel table-panel">

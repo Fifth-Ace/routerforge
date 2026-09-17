@@ -31,7 +31,6 @@
   import { t } from '$lib/i18n/index.js';
   import TerminalPane from './TerminalPane.svelte';
   import FileManagerPane from './FileManagerPane.svelte';
-  import IncidentTimelinePane from './IncidentTimelinePane.svelte';
 
   const FILE_EDITOR_WRITE_LIMIT = 128 * 1024;
 
@@ -241,7 +240,6 @@
     ['files', copy.files],
     ['terminal', copy.terminal],
     ['maintenance', copy.maintenance],
-    ['timeline', locale === 'ru' ? 'Инциденты' : 'Incidents'],
     ['integrations', copy.integrations]
   ];
 
@@ -278,7 +276,6 @@
     if (next === 'files') return;
     if (next === 'terminal') return;
     if (next === 'maintenance') return loadMaintenance();
-    if (next === 'timeline') return;
     if (next === 'integrations') return loadIntegrations();
 
     if (next === 'packages') {
@@ -763,7 +760,7 @@
     {/each}
   </div>
 
-  {#if tab !== 'files' && tab !== 'terminal' && tab !== 'maintenance' && tab !== 'timeline'}
+  {#if tab !== 'files' && tab !== 'terminal' && tab !== 'maintenance'}
     <div class="toolbar">
       <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale, 'common.search')}/></div>
       <button class="button" onclick={() => load(tab)} disabled={loading || fileLoading}>↻ {t(locale, 'common.refresh')}</button>
@@ -1193,8 +1190,7 @@
           {/if}
         </section>
       </div>
-    </section>  {:else if tab === 'timeline'}
-    <IncidentTimelinePane />
+    </section>
   {:else if tab === 'integrations'}
     <section class="panel">
       <div class="panel-head">

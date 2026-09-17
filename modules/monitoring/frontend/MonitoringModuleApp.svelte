@@ -7,12 +7,14 @@
   import { startSerialPolling } from '$lib/polling.js';
   import { bytes, fmtDuration, fmtInt } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
+  import EventsPane from './EventsPane.svelte';
 
   const moduleDefs = [
     { id: 'system', nameKey: 'monitoring.modules.system', short: 'SYS', package: 'routerforge-monitoring' },
     { id: 'thermal', nameKey: 'monitoring.modules.thermal', short: 'TMP', package: 'routerforge-monitoring' },
     { id: 'storage', nameKey: 'monitoring.modules.storage', short: 'DSK', package: 'routerforge-monitoring' },
     { id: 'network', nameKey: 'monitoring.modules.network', short: 'NET', package: 'routerforge-monitoring' },
+    { id: 'events', short: 'EVT', package: 'routerforge-monitoring' },
   ];
 
   let tab = 'system';
@@ -56,7 +58,7 @@
   };
   const cpuText = (n) => Number(n || 0) > 0 && Number(n) < 1 ? '<1%' : `${Number(n || 0).toFixed(1)}%`;
   const tempClass = (sensor) => sensor.status === 'critical' ? 'error' : sensor.status === 'warn' ? 'warn' : 'good';
-  const moduleName = (item) => t(locale, item?.nameKey || 'monitoring.title');
+  const moduleName = (item) => item?.id === 'events' ? (locale === 'ru' ? 'События' : 'Events') : t(locale, item?.nameKey || 'monitoring.title');
 
   async function loadSystem() {
     const [summary, cpu, memory] = await Promise.all([
@@ -85,6 +87,7 @@
   }
 
   async function loadCurrent(showLoading = true) {
+    if (tab === 'events') { loading = false; errorText = ''; data = {}; return; }
     if (showLoading) loading = true;
     try {
       if (tab === 'system') data = await loadSystem();
@@ -102,6 +105,7 @@
   }
 
   function startTimer(showLoading = false) {
+    if (tab === 'events') { if (stopPolling) stopPolling(); stopPolling = null; loading = false; errorText = ''; return; }
     if (stopPolling) stopPolling();
     const interval = tab === 'thermal' ? 10000 : tab === 'profiling' ? 5000 : 3000;
     let first = true;
@@ -260,6 +264,9 @@
     </section>
   {:else if loading}
     <section class="panel"><div class="empty">{t(locale, 'monitoring.loading', { name: moduleName(definition) })}</div></section>
+
+  {:else if tab === 'events'}
+    <EventsPane />
 
   {:else if tab === 'system' && data.summary}
     <section class="metric-grid module-metric-grid">

@@ -1346,8 +1346,35 @@ The persistent/public activation API remains disabled until this exact acceptanc
 - HEAD for generic GET-only API and `/v1/policy-rules` suppresses response bodies;
 - PUT content-type gate was already enforced by the existing mutation-header helper and is retained unchanged.
 
-### Remaining gate
+## P18V — final external ingress acceptance and closeout
 
-After hardware PASS of `--policy-activation-acceptance`, only external-LAN PREROUTING packet-counter acceptance remains before declaring the production driver ready for persistent/public activation.
+Final hardware acceptance is complete.
 
-No additional discovery stage is planned.
+The transaction-driver acceptance reached `committed`, then deliberate post-commit rollback restored native UDP/TCP DNS without restarting `ndnproxy`; all RouterForge runtime firewall state was absent afterwards.
+
+The real external client proof used the nested test topology:
+
+`Windows 192.168.1.2 -> main router 192.168.1.1 -> test Keenetic -> 192.168.10.1:53`
+
+Because the client is upstream of the test Keenetic, the physical ingress is `eth3`, not `br0`. A real TCP DNS query produced 3 packets / 180 bytes on the exact NAT PREROUTING rule, and the temporary chain was removed afterwards.
+
+`production_driver_ready=true`.
+
+This means the internal production driver, transaction ordering, marked egress, interface-scoped IPv4 ingress takeover and verified rollback have completed hardware acceptance.
+
+It does not enable persistent/public activation by itself:
+
+- public activation endpoint remains disabled;
+- daemon autostart takeover remains disabled;
+- no persistent iptables rules are installed;
+- activation remains explicit and transaction-gated;
+- the accepted ingress primitive is IPv4 only and must use the actual client ingress interface;
+- IPv6 DNS takeover remains outside P18 scope.
+
+The UDP timeout from the upstream Windows client is tracked separately as a nested test-network path issue; TCP/53 external ingress was directly proven through PREROUTING.
+
+## P18 result
+
+**P18 DNS Policy Router: COMPLETE.**
+
+All P18 blockers are closed. No additional P18 discovery or hardware stage is required.

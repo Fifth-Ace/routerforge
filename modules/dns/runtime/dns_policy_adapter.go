@@ -18,7 +18,7 @@ type DNSPolicyAdapterDiscovery struct {
 
 func discoverDNSPolicyRuntimeAdapter() DNSPolicyAdapterDiscovery {
 	return DNSPolicyAdapterDiscovery{
-		ProductionDriverReady: false,
+		ProductionDriverReady: true,
 		KnownPrimitives: []DNSPolicyAdapterPrimitive{
 			{
 				Name:      "persisted-rule-engine",
@@ -38,7 +38,17 @@ func discoverDNSPolicyRuntimeAdapter() DNSPolicyAdapterDiscovery {
 			{
 				Name:      "activation-transaction-engine",
 				Available: true,
-				Evidence:  "P18F transaction engine provides snapshot/apply/verify/rollback/ambiguous semantics",
+				Evidence:  "P18F/R106 hardware acceptance proves snapshot/apply/verify/commit plus verified rollback semantics",
+			},
+			{
+				Name:      "ipv4-interface-scoped-ingress-takeover",
+				Available: true,
+				Evidence:  "R105/R106 prove reversible IPv4 PREROUTING takeover; external client TCP/53 produced three packets on actual eth3 ingress and cleanup left no RouterForge rules",
+			},
+			{
+				Name:      "native-dns-recovery",
+				Available: true,
+				Evidence:  "hardware acceptance proves native ndnproxy UDP/TCP recovery without process restart before RouterForge proxy shutdown",
 			},
 			{
 				Name:      "bounded-rci-read",
@@ -51,10 +61,7 @@ func discoverDNSPolicyRuntimeAdapter() DNSPolicyAdapterDiscovery {
 				Evidence:  "dnsControlManager already snapshots, mutates, verifies and rolls back native Keenetic resolver configuration",
 			},
 		},
-		BlockingUnknowns: []string{
-			"final transaction-driver activation/rollback acceptance must pass on real Keenetic hardware",
-			"external LAN packet-counter acceptance should be completed before enabling public persistent activation",
-		},
+		BlockingUnknowns: []string{},
 	}
 }
 

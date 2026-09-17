@@ -144,6 +144,9 @@ func buildAdminSupportStatus(now time.Time) (adminSupportStatus, error) {
 	overall := "ok"
 	for _, item := range storage {
 		state := classifyAdminSupportStorage(item.UsedPct)
+		if !adminSupportStorageMonitored(item) {
+			state = "ignored"
+		}
 		if state == "critical" {
 			overall = "critical"
 		} else if state == "warning" && overall == "ok" {
@@ -195,6 +198,20 @@ func buildAdminSupportStatus(now time.Time) (adminSupportStatus, error) {
 		WatchdogsAttention: attention,
 		SupportBundleCount: len(bundles),
 	}, nil
+}
+
+func adminSupportStorageMonitored(item storageInfo) bool {
+	if item.TotalBytes == 0 {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(item.FSType)) {
+	case "squashfs", "proc", "sysfs", "devpts", "debugfs", "tmpfs", "devtmpfs",
+		"ramfs", "overlay", "cgroup", "cgroup2", "pstore", "securityfs", "tracefs",
+		"configfs", "fusectl", "mqueue", "autofs", "bpf":
+		return false
+	default:
+		return true
+	}
 }
 
 func classifyAdminSupportStorage(usedPct float64) string {

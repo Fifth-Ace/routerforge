@@ -195,6 +195,9 @@ func main() {
 	mux.HandleFunc("/v1/services", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"services": readServices()})
 	}))
+	mux.HandleFunc("/v1/service-inspector", getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, readServiceInspector())
+	}))
 	mux.HandleFunc("/v1/processes/", mutationOnly(handleProcessSignal))
 	mux.HandleFunc("/v1/services/", mutationOnly(handleServiceAction))
 	mux.HandleFunc("/v1/packages", getOnly(func(w http.ResponseWriter, _ *http.Request) {

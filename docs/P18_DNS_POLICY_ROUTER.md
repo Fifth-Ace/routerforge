@@ -1090,6 +1090,72 @@ P18O по-прежнему:
 
 `production_driver_ready=false` сохраняется.
 
+## P18P — controlled persisted-rule shadow mode
+
+P18P добавляет CLI-only controlled shadow mode поверх реального persisted policy document.
+
+### Read-only persisted input
+
+Default source:
+
+`/opt/etc/routerforge/dns-policy-rules.json`
+
+Mode:
+
+1. требует существующий readable persisted file;
+2. читает raw bytes и фиксирует SHA256 identity;
+3. загружает document через существующий `dnsPolicyStore.Load()`;
+4. проверяет schema version;
+5. читает live Keenetic policy inventory;
+6. повторно запускает `validateDNSPolicyRules` против live inventory;
+7. только после успешных gates строит P18O shadow config.
+
+Отсутствующий file является ошибкой controlled mode. P18P не трактует missing store как доказанно активный empty rule set.
+
+### Listener contract
+
+CLI mode использует тот же P18M/P18O server:
+
+- loopback-only;
+- port 53 запрещён;
+- UDP/TCP;
+- bounded concurrency;
+- fail-closed SERVFAIL;
+- exact `PolicyN -> SO_MARK` egress;
+- bounded lifetime, default 15 seconds and hard maximum 10 minutes.
+
+Normal daemon mode listener не запускает.
+
+### Evidence manifest
+
+После завершения CLI process печатает:
+
+- store path;
+- raw document SHA256;
+- schema version;
+- `updated_at`;
+- validated rule count;
+- live inventory count;
+- listener/upstream;
+- bounded duration;
+- requests/success/failure/SERVFAIL/peak-in-flight counters.
+
+P18P не объявляет конкретное persisted rule hardware-proven, если за окно не было запроса, который это правило реально matched.
+
+### Safety boundary
+
+P18P:
+
+- store не изменяет;
+- persisted rules не копирует и не переписывает;
+- native :53 не bind'ит;
+- DHCP/DNS redirect не меняет;
+- normal DNS daemon path не меняет;
+- public activation API не добавляет;
+- system DNS takeover не выполняет.
+
+`production_driver_ready=false` сохраняется.
+
 ## Следующий этап
 
-P18P — controlled persisted-rule shadow mode: CLI-only загрузка persisted document + live policy inventory validation + loopback non-53 listener + evidence manifest, без system DNS takeover.
+P18Q — hardware persisted-shadow evidence: сначала прочитать фактический persisted document на тестовом Keenetic, затем автоматически подобрать безопасные probes для реально доказуемых rules и прогнать их через временный P18P listener; правила, которые невозможно доказать synthetic loopback client context, явно помечать unproven.

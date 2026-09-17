@@ -43,6 +43,8 @@ build_dns() {
     dns_policy_shadow.go
     dns_policy_shadow_linux.go
     dns_policy_shadow_smoke_linux.go
+    dns_policy_shadow_persisted.go
+    dns_policy_shadow_persisted_linux.go
     capture_linux.go
     client_capture_linux.go
     packet_filter.go

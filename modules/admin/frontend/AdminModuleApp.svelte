@@ -792,6 +792,7 @@
           </thead>
           <tbody>
             {#each filteredServices as s (s.id)}
+              {@const guarded = serviceActionProtected(s)}
               <tr>
                 <td>
                   <strong>{s.name}</strong>
@@ -859,7 +860,6 @@
                 </td>
 
                 <td class="actions-cell">
-                  {@const guarded = serviceActionProtected(s)}
                   <button class="mini" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'start')}>START</button>
                   <button class="mini" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'restart')}>RESTART</button>
                   <button class="mini danger" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'stop')}>STOP</button>

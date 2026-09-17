@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -338,8 +337,7 @@ func handleNFQWS2Config(w http.ResponseWriter, r *http.Request) {
 func runNFQWS2Init(action string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), nfqws2ActionTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, nfqws2InitPath, action)
-	output, err := cmd.CombinedOutput()
+	output, err := safety.RunCommand(ctx, nfqws2LogTailMaxBytes, nfqws2InitPath, action)
 	text := strings.TrimSpace(string(output))
 	if ctx.Err() != nil {
 		return text, fmt.Errorf("nfqws2 %s timed out", action)

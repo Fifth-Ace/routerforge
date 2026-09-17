@@ -47,6 +47,7 @@ func registerEventEngineHandlers(mux *http.ServeMux, version string) {
 		},
 	})
 	mux.HandleFunc("/api/platform/events", handleEventTimeline)
+	mux.HandleFunc("/api/platform/alerts", handleHealthAlerts)
 }
 
 func handleEventTimeline(w http.ResponseWriter, r *http.Request) {
@@ -90,6 +91,59 @@ func handleEventTimelineWithRing(w http.ResponseWriter, r *http.Request, ring *p
 		SeverityCount: severityCount,
 		Events:        items,
 	})
+}
+
+type healthAlert struct {
+	ID         string                  `json:"id"`
+	Component  string                  `json:"component"`
+	Severity   platformevents.Severity `json:"severity"`
+	State      string                  `json:"state"`
+	Message    string                  `json:"message"`
+	Since      time.Time               `json:"since"`
+	AgeSeconds int64                   `json:"age_seconds"`
+	Context    map[string]any          `json:"context,omitempty"`
+}
+
+type healthAlertsResponse struct {
+	APIVersion    int           `json:"api_version"`
+	Mode          string        `json:"mode"`
+	Status        string        `json:"status"`
+	ActiveCount   int           `json:"active_count"`
+	WarningCount  int           `json:"warning_count"`
+	CriticalCount int           `json:"critical_count"`
+	Alerts        []healthAlert `json:"alerts"`
+}
+
+func handleHealthAlerts(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		writeEventTimelineError(w, http.StatusMethodNotAllowed, "GET required")
+		return
+	}
+
+	alerts := snapshotActiveModuleHealthAlerts(time.Now().UTC())
+	response := healthAlertsResponse{
+		APIVersion:  1,
+		Mode:        "read-only",
+		Status:      "ok",
+		ActiveCount: len(alerts),
+		Alerts:      alerts,
+	}
+	if len(alerts) > 0 {
+		response.Status = "degraded"
+	}
+	for _, alert := range alerts {
+		switch alert.Severity {
+		case platformevents.Critical:
+			response.CriticalCount++
+		default:
+			response.WarningCount++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func eventQueryFromRequest(r *http.Request) (platformevents.Query, int, error) {

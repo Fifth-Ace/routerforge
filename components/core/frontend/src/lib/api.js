@@ -67,6 +67,7 @@ async function deleteRequest(path, timeoutMs = WRITE_TIMEOUT_MS) {
 
 export const getSnapshot = () => request('/api/snapshot');
 export const getPlatform = () => request('/api/platform');
+export const getPlatformAlerts = () => request('/api/platform/alerts');
 export const getPlatformEvents = ({
   limit = 100,
   severity = '',

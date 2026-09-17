@@ -1,12 +1,14 @@
 <script>
   import { onMount } from 'svelte';
-  import { getPlatformEvents } from '$lib/api.js';
+  import { getPlatformAlerts, getPlatformEvents } from '$lib/api.js';
   import { settings } from '$lib/stores/settings.js';
 
   const POLL_MS = 5000;
 
   let response = null;
   let events = [];
+  let alertsResponse = null;
+  let alerts = [];
   let loading = true;
   let refreshing = false;
   let errorText = '';
@@ -48,6 +50,10 @@
     newest: 'Сначала новые',
     filterTransaction: 'Фильтр по транзакции',
     filterObject: 'Фильтр по объекту',
+    alertsTitle: 'Активные предупреждения',
+    alertsHealthy: 'Активных проблем здоровья модулей нет.',
+    alertsSince: 'С',
+    alertsAge: 'Возраст',
     loadError: 'Не удалось загрузить временную шкалу событий'
   } : {
     title: 'Incidents & events',
@@ -76,6 +82,10 @@
     newest: 'Newest first',
     filterTransaction: 'Filter by transaction',
     filterObject: 'Filter by object',
+    alertsTitle: 'Active health alerts',
+    alertsHealthy: 'No active module health problems.',
+    alertsSince: 'Since',
+    alertsAge: 'Age',
     loadError: 'Failed to load the event timeline'
   };
 
@@ -101,7 +111,7 @@
     else loading = true;
 
     try {
-      const next = await getPlatformEvents(query());
+      const [next, nextAlerts] = await Promise.all([getPlatformEvents(query()), getPlatformAlerts()]);
       if (epoch !== requestEpoch) return;
       response = next;
       events = Array.isArray(next?.events) ? next.events : [];
@@ -184,6 +194,31 @@
       </button>
     </div>
   </div>
+
+<section class="health-alerts" class:healthy={alerts.length === 0}>
+    <div class="health-alerts-head">
+      <strong>{copy.alertsTitle}</strong>
+      <span>{alertsResponse?.status || '—'} · {alertsResponse?.active_count ?? alerts.length}</span>
+    </div>
+    {#if alerts.length === 0}
+      <div class="health-alerts-empty">{copy.alertsHealthy}</div>
+    {:else}
+      <div class="health-alert-list">
+        {#each alerts as alert}
+          <article class="health-alert-card" data-severity={alert.severity || 'warning'}>
+            <div>
+              <strong>{alert.component || alert.id}</strong>
+              <span>{alert.message || '—'}</span>
+            </div>
+            <div class="health-alert-meta">
+              <span>{copy.alertsSince}: {formatTime(alert.since)}</span>
+              <span>{copy.alertsAge}: {alert.age_seconds ?? 0}s</span>
+            </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
+  </section>
 
   <div class="incident-summary">
     <div><span>{copy.buffered}</span><strong>{response?.total_buffered ?? 0}</strong></div>
@@ -313,6 +348,17 @@
   .incident-button:hover:not(:disabled){border-color:#64748b}
   .incident-button:disabled{opacity:.5;cursor:default}
   .incident-button.primary{background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.5)}
+.health-alerts{display:grid;gap:.65rem;padding:.9rem 1rem;border:1px solid rgba(245,158,11,.38);border-radius:.9rem;background:rgba(245,158,11,.06)}
+  .health-alerts.healthy{border-color:rgba(34,197,94,.28);background:rgba(34,197,94,.045)}
+  .health-alerts-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+  .health-alerts-head span{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;opacity:.6}
+  .health-alerts-empty{font-size:.82rem;opacity:.7}
+  .health-alert-list{display:grid;gap:.45rem}
+  .health-alert-card{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:.65rem .75rem;border:1px solid rgba(245,158,11,.28);border-radius:.7rem}
+  .health-alert-card[data-severity="critical"]{border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.045)}
+  .health-alert-card>div:first-child{display:grid;gap:.18rem;min-width:0}
+  .health-alert-card>div:first-child span{font-size:.78rem;opacity:.72;overflow-wrap:anywhere}
+  .health-alert-meta{display:grid;gap:.15rem;text-align:right;font-size:.7rem;opacity:.62;white-space:nowrap}
   .incident-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.65rem}
   .incident-summary>div{display:grid;gap:.2rem;padding:.8rem .9rem;border:1px solid var(--border-color,#293346);border-radius:.8rem;min-width:0}
   .incident-summary span{font-size:.72rem;opacity:.62;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	platformevents "github.com/Fifth-Ace/routerforge/internal/platform/events"
 )
@@ -125,5 +126,40 @@ func TestProducerSkipsOversizedServiceResponseWithoutConsumingBody(t *testing.T)
 	}
 	if coreEventEngine.Len() != 0 {
 		t.Fatalf("oversized response should not emit events")
+	}
+}
+
+func TestHealthAlertSnapshotTracksDownRecoveryAndEscalation(t *testing.T) {
+	resetPlatformEventProducerTestState()
+	now := time.Now().UTC()
+
+	moduleHealthProducerState.Lock()
+	moduleHealthProducerState.Modules["dns"] = moduleHealthObservation{
+		Healthy:   false,
+		ChangedAt: now.Add(-healthAlertCriticalAfter - time.Second),
+		Detail:    "dial failed",
+	}
+	moduleHealthProducerState.Modules["network-tools"] = moduleHealthObservation{
+		Healthy:   false,
+		ChangedAt: now.Add(-time.Second),
+		Detail:    "503 Service Unavailable",
+	}
+	moduleHealthProducerState.Unlock()
+
+	alerts := snapshotActiveModuleHealthAlerts(now)
+	if len(alerts) != 2 {
+		t.Fatalf("expected two alerts, got %d: %#v", len(alerts), alerts)
+	}
+	if alerts[0].Component != "dns" || alerts[0].Severity != platformevents.Critical {
+		t.Fatalf("expected critical dns first, got %#v", alerts[0])
+	}
+	if alerts[1].Component != "network-tools" || alerts[1].Severity != platformevents.Warning {
+		t.Fatalf("expected warning network-tools second, got %#v", alerts[1])
+	}
+
+	observeModuleHealth("dns", true, "200 OK")
+	alerts = snapshotActiveModuleHealthAlerts(time.Now().UTC())
+	if len(alerts) != 1 || alerts[0].Component != "network-tools" {
+		t.Fatalf("recovered module should disappear from active alerts: %#v", alerts)
 	}
 }

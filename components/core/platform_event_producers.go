@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	platformevents "github.com/Fifth-Ace/routerforge/internal/platform/events"
 	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
@@ -15,7 +17,9 @@ import (
 const platformEventProducerResponseLimit int64 = 128 << 10
 
 type moduleHealthObservation struct {
-	Healthy bool
+	Healthy   bool
+	ChangedAt time.Time
+	Detail    string
 }
 
 var moduleHealthProducerState = struct {
@@ -68,7 +72,12 @@ func observeModuleHealth(moduleID string, healthy bool, detail string) {
 		moduleHealthProducerState.Unlock()
 		return
 	}
-	moduleHealthProducerState.Modules[moduleID] = moduleHealthObservation{Healthy: healthy}
+	now := time.Now().UTC()
+	moduleHealthProducerState.Modules[moduleID] = moduleHealthObservation{
+		Healthy:   healthy,
+		ChangedAt: now,
+		Detail:    boundedEventText(detail, 512),
+	}
 	moduleHealthProducerState.Unlock()
 
 	event := platformevents.Event{
@@ -96,6 +105,63 @@ func observeModuleHealth(moduleID string, healthy bool, detail string) {
 	}
 
 	emitPlatformEvent(event)
+}
+
+const healthAlertCriticalAfter = 5 * time.Minute
+
+func snapshotActiveModuleHealthAlerts(now time.Time) []healthAlert {
+	moduleHealthProducerState.Lock()
+	snapshot := make(map[string]moduleHealthObservation, len(moduleHealthProducerState.Modules))
+	for moduleID, observation := range moduleHealthProducerState.Modules {
+		snapshot[moduleID] = observation
+	}
+	moduleHealthProducerState.Unlock()
+
+	alerts := make([]healthAlert, 0, len(snapshot))
+	for moduleID, observation := range snapshot {
+		if observation.Healthy {
+			continue
+		}
+		since := observation.ChangedAt
+		if since.IsZero() {
+			since = now
+		}
+		age := now.Sub(since)
+		if age < 0 {
+			age = 0
+		}
+		severity := platformevents.Warning
+		if age >= healthAlertCriticalAfter {
+			severity = platformevents.Critical
+		}
+		context := map[string]any{
+			"producer": "module-proxy-health",
+		}
+		if observation.Detail != "" {
+			context["detail"] = observation.Detail
+		}
+		alerts = append(alerts, healthAlert{
+			ID:         "module-health:" + moduleID,
+			Component:  moduleID,
+			Severity:   severity,
+			State:      "active",
+			Message:    "module health is unavailable",
+			Since:      since,
+			AgeSeconds: int64(age / time.Second),
+			Context:    context,
+		})
+	}
+
+	sort.Slice(alerts, func(i, j int) bool {
+		if alerts[i].Severity != alerts[j].Severity {
+			return alerts[i].Severity == platformevents.Critical
+		}
+		if !alerts[i].Since.Equal(alerts[j].Since) {
+			return alerts[i].Since.Before(alerts[j].Since)
+		}
+		return alerts[i].Component < alerts[j].Component
+	})
+	return alerts
 }
 
 func serviceActionTarget(targetPath string) bool {

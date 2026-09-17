@@ -4,6 +4,25 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-17 — RouterForge 0.10.0-beta.1
+
+### Platform
+- P16 Config Vault, P17 Network Doctor / Route Inspector completion and P18 DNS Policy Router are included.
+- P18 hardware acceptance covers transaction commit/rollback, native DNS recovery and real external IPv4 PREROUTING ingress evidence.
+- Public persistent DNS activation remains disabled; IPv6 takeover remains outside the accepted P18 scope.
+
+### Multiarch / bootstrap
+- MIPS/MIPSel Core install gating is separated from optional capabilities.
+- Missing thermal sensors are reported as unsupported instead of blocking Core installation.
+- Bootstrap performs a post-install local Core health verification.
+- KN-1010 is tracked as MIPS evidence; KN-2311 Hero 4G+ is tracked as MIPSel physical install/UI/runtime evidence.
+
+### Release
+- Beta train advances to 0.10.0-beta.1 (0.10.0~beta.1 for opkg) across all six components.
+- Targets: aarch64-3.10, mips-3.4 and mipsel-3.4.
+- Stable/main is not promoted by this Beta release.
+
+
 ## 2026-09-16 — RouterForge 0.9.0 (release preparation)
 
 ### Versioning

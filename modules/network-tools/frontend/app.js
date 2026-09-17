@@ -470,6 +470,7 @@
       traceroute:state.traceroute,
       route:state.route,
       flow_source:state.flowSource,
+      flow_enrichment:state.flowEnrichment||{},
       flows:state.flows,
       selected_flow:state.selectedFlow,
       active_probe:state.activeProbe,
@@ -563,6 +564,217 @@
   inspectRoute=async function(target){
     await r17BaseInspectRoute(target);
     r17Stamp('route-updated');
+  };
+
+
+  // P20C Flow Explorer UI: consume enriched read-only metadata without adding
+  // polling, packet capture, or mutations.
+  function p20Endpoint(tuple){
+    tuple=tuple||{};
+    var host=tuple.source||tuple.destination||'';
+    var port=tuple.source_port||tuple.destination_port||'';
+    return host+(port?':'+port:'');
+  }
+
+  function p20NormalizeFlow(raw){
+    raw=raw||{};
+    var original=raw.original||{};
+    var reply=raw.reply||{};
+    var packets=Number(original.packets||0)+Number(reply.packets||0);
+    var bytes=Number(original.bytes||0)+Number(reply.bytes||0);
+    return {
+      protocol:raw.protocol||'',
+      state:raw.state||'ACTIVE',
+      source:original.source||'',
+      source_port:original.source_port||'',
+      destination:original.destination||'',
+      destination_port:original.destination_port||'',
+      packets:packets,
+      bytes:bytes,
+      timeout_seconds:raw.timeout_seconds||0,
+      seen_at:state.flowGeneratedAt||'—',
+      mark:raw.mark||'',
+      process:(raw.socket&&raw.socket.available)?(raw.socket.process||''):'',
+      pid:(raw.socket&&raw.socket.available)?Number(raw.socket.pid||0):0,
+      route_interface:(raw.policy&&raw.policy.kernel_decision&&raw.policy.kernel_decision.available)
+        ?(raw.policy.kernel_decision.interface||'')
+        :((raw.route&&raw.route.available)?(raw.route.interface||''):''),
+      _raw:raw
+    };
+  }
+
+  r16FlowKey=function(flow){
+    var raw=(flow&&flow._raw)||{};
+    var original=raw.original||{};
+    return [
+      raw.protocol||flow.protocol||'',
+      original.source||flow.source||'',
+      original.source_port||flow.source_port||'',
+      original.destination||flow.destination||'',
+      original.destination_port||flow.destination_port||'',
+      raw.mark||flow.mark||''
+    ].join('|');
+  };
+
+  r15FlowSummary=function(list){
+    var bytes=0,tcp=0,udp=0,owned=0,nat=0;
+    list.forEach(function(flow){
+      bytes+=Number(flow.bytes||0);
+      var p=String(flow.protocol||'').toUpperCase();
+      if(p==='TCP')tcp++;
+      if(p==='UDP')udp++;
+      if(flow.pid)owned++;
+      if(flow._raw&&flow._raw.nat&&flow._raw.nat.detected)nat++;
+    });
+    var enrichment=state.flowEnrichment||{};
+    q('flow-summary').innerHTML=
+      '<span><b>'+U.esc(list.length)+'</b>'+U.esc(lx(' потоков',' flows'))+'</span>'+
+      '<span>TCP <b>'+tcp+'</b></span><span>UDP <b>'+udp+'</b></span>'+
+      '<span>NAT <b>'+nat+'</b></span><span>PID <b>'+owned+'</b></span>'+
+      '<span>'+U.esc(lx('Объём','Volume'))+' <b>'+U.esc(U.fmtBytes(bytes))+'</b></span>'+
+      '<span class="mono">'+U.esc(state.flowSource||'unavailable')+'</span>'+
+      '<span class="mono">sockets '+U.esc(enrichment.socket_records||0)+'/4096</span>'+
+      '<span class="mono">fd '+U.esc(enrichment.owner_fds_scanned||0)+'/16384</span>'+
+      '<span class="mono">route-get '+U.esc(enrichment.route_lookups||0)+'/'+U.esc(enrichment.route_lookup_budget||32)+'</span>';
+  };
+
+  r16FlowRow=function(flow,pos){
+    var source=(flow.source||'')+(flow.source_port?':'+flow.source_port:'');
+    var dest=(flow.destination||'')+(flow.destination_port?':'+flow.destination_port:'');
+    var stateName=flow.state||'ACTIVE';
+    var tone=stateName==='ESTABLISHED'||stateName==='ACTIVE'?'':'neutral';
+    var selected=state.selectedFlow&&r16FlowKey(state.selectedFlow)===r16FlowKey(flow);
+    var owner=flow.pid?((flow.process||'pid')+' · '+flow.pid):'—';
+    var route=flow.route_interface||'—';
+    return '<tr class="flow-row-selectable'+(selected?' selected':'')+'" data-flow-pos="'+pos+'">'+
+      '<td class="mono">'+U.esc(source||'—')+'</td>'+
+      '<td class="mono">'+U.esc(dest||'—')+'</td>'+
+      '<td>'+U.esc(flow.protocol||'—')+'</td>'+
+      '<td>'+U.badge(stateName,tone)+'</td>'+
+      '<td class="mono">'+U.esc(flow.mark||'—')+'</td>'+
+      '<td class="mono">'+U.esc(owner)+'</td>'+
+      '<td class="mono">'+U.esc(route)+'</td>'+
+      '<td class="num">'+U.esc(flow.packets||0)+'</td>'+
+      '<td class="num">'+U.esc(U.fmtBytes(flow.bytes||0))+'</td>'+
+      '<td class="num">'+U.esc(flow.timeout_seconds||0)+' s</td>'+
+    '</tr>';
+  };
+
+  renderFlows=function(){
+    var list=r15FlowList();
+    var visible=list.slice(0,flowLimit);
+    q('flow-count').textContent=lx('Показано: ','Showing: ')+visible.length+' / '+list.length;
+    r15FlowSummary(list);
+    if(!visible.length){
+      q('flow-results').innerHTML='<div class="nt-empty">'+U.esc(tr('noFlows'))+'</div>';
+      r16RenderFlowDetail();
+      return;
+    }
+    q('flow-results').innerHTML='<table class="flow-data-table"><thead><tr>'+
+      '<th>'+tr('source')+'</th><th>'+tr('destination')+'</th>'+
+      '<th>'+tr('protocol')+'</th><th>'+tr('flowState')+'</th>'+
+      '<th>Mark</th><th>PID / Process</th><th>'+U.esc(lx('Маршрут','Route'))+'</th>'+
+      '<th>'+U.esc(lx('Пакеты','Packets'))+'</th><th>'+tr('volume')+'</th><th>TTL</th>'+
+      '</tr></thead><tbody>'+
+      visible.map(function(flow,pos){return r16FlowRow(flow,pos);}).join('')+'</tbody></table>';
+    document.querySelectorAll('.flow-row-selectable').forEach(function(row){
+      row.onclick=function(){
+        var pos=Number(row.getAttribute('data-flow-pos'));
+        var current=r15FlowList();
+        state.selectedFlow=current[pos]||null;
+        renderFlows();
+        r16RenderFlowDetail();
+      };
+    });
+    r16RenderFlowDetail();
+  };
+
+  r16RenderFlowDetail=function(){
+    var box=q('flow-detail');
+    if(!box)return;
+    var flow=state.selectedFlow;
+    if(!flow){
+      box.innerHTML='<div class="flow-detail-empty">'+U.esc(lx('Выберите строку потока для деталей.','Select a flow row to inspect details.'))+'</div>';
+      q('flow-copy-selected').disabled=true;
+      return;
+    }
+    q('flow-copy-selected').disabled=false;
+    var raw=flow._raw||{};
+    var original=raw.original||{};
+    var reply=raw.reply||{};
+    var nat=raw.nat||{};
+    var socket=raw.socket||{};
+    var route=(raw.policy&&raw.policy.kernel_decision&&raw.policy.kernel_decision.available)
+      ?raw.policy.kernel_decision
+      :(raw.route||{});
+    var policy=raw.policy||{};
+    var candidates=policy.candidates||[];
+    var pairs=[
+      [lx('Исходный tuple','Original tuple'),(original.source||'—')+(original.source_port?':'+original.source_port:'')+' → '+(original.destination||'—')+(original.destination_port?':'+original.destination_port:'')],
+      [lx('Ответный tuple','Reply tuple'),(reply.source||'—')+(reply.source_port?':'+reply.source_port:'')+' → '+(reply.destination||'—')+(reply.destination_port?':'+reply.destination_port:'')],
+      ['NAT',nat.detected?((nat.types||[]).join(' + ')||'detected'):'none'],
+      [lx('Эффективное назначение','Effective destination'),raw.effective_destination||original.destination||'—'],
+      ['Mark',raw.mark||'—'],
+      ['PID / Process',socket.available?((socket.process||'—')+' · '+(socket.pid||'—')):(socket.reason||'unattributed')],
+      [lx('Socket evidence','Socket evidence'),socket.match||socket.source||'—'],
+      [lx('Маршрут','Route'),route.available?((route.interface||'—')+' · table '+(route.table||'main')+(route.gateway?' · via '+route.gateway:'')):(route.reason||route.error||'unavailable')],
+      [lx('Policy candidates','Policy candidates'),String(candidates.length)],
+      [lx('Policy source','Policy source'),policy.source||'unavailable']
+    ];
+    var evidence='<div class="flow-detail-grid">'+pairs.map(function(pair){
+      return '<div class="flow-detail-item"><span>'+U.esc(pair[0])+'</span><strong class="mono">'+U.esc(pair[1])+'</strong></div>';
+    }).join('')+'</div>';
+    if(candidates.length){
+      evidence+='<div class="flow-policy-list">'+candidates.slice(0,16).map(function(rule){
+        return '<span class="route-cap '+(rule.match==='matched-known-fields'?'ok':'off')+'">'+
+          U.esc(String(rule.priority)+' · '+(rule.mark||'no-mark')+' → '+(rule.table||rule.match||'—'))+
+        '</span>';
+      }).join('')+'</div>';
+    }
+    box.innerHTML=evidence;
+  };
+
+  refreshFlows=async function(){
+    if(flowRefreshBusy)return;
+    flowRefreshBusy=true;
+    q('flow-refresh').disabled=true;
+    try{
+      var params={limit:256};
+      var protocol=q('flow-protocol').value;
+      var source=q('flow-source-filter').value.trim();
+      var destination=q('flow-destination-filter').value.trim();
+      if(protocol)params.protocol=protocol;
+      if(source)params.source=source;
+      if(destination)params.destination=destination;
+      var d=await U.request('/flow-explorer',params);
+      state.flowGeneratedAt=d.generated_at?new Date(d.generated_at).toLocaleTimeString(locale==='ru'?'ru-RU':'en-US'):'—';
+      state.flows=(d.flows||[]).map(p20NormalizeFlow);
+      state.flowSource=d.source||'';
+      state.flowEnrichment=d.enrichment||{};
+      r15SyncFlowFilters();
+      renderFlows();
+      q('kpi-sessions').textContent=state.flows.length.toLocaleString(locale==='ru'?'ru-RU':'en-US');
+      pushHistory('sessions',state.flows.length);
+      updateKpis();
+    }catch(e){
+      U.error(q('flow-results'),e);
+    }finally{
+      flowRefreshBusy=false;
+      q('flow-refresh').disabled=false;
+    }
+    U.notifyHeight();
+  };
+
+  r16ClearFlowFilters=function(){
+    q('flow-protocol').value='';
+    q('flow-state').value='';
+    q('flow-sort').value='recent';
+    q('flow-search').value='';
+    q('flow-source-filter').value='';
+    q('flow-destination-filter').value='';
+    flowLimit=80;
+    state.selectedFlow=null;
+    refreshFlows();
   };
 
   var r17BaseRefreshFlows=refreshFlows;

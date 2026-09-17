@@ -67,6 +67,25 @@ async function deleteRequest(path, timeoutMs = WRITE_TIMEOUT_MS) {
 
 export const getSnapshot = () => request('/api/snapshot');
 export const getPlatform = () => request('/api/platform');
+export const getPlatformEvents = ({
+  limit = 100,
+  severity = '',
+  component = '',
+  type = '',
+  object_id = '',
+  transaction_id = '',
+  recovery = ''
+} = {}) => {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  if (severity) params.set('severity', severity);
+  if (component) params.set('component', component);
+  if (type) params.set('type', type);
+  if (object_id) params.set('object_id', object_id);
+  if (transaction_id) params.set('transaction_id', transaction_id);
+  if (recovery !== '' && recovery !== null && recovery !== undefined) params.set('recovery', String(recovery));
+  return request(`/api/platform/events?${params.toString()}`);
+};
 export const getSystem = () => request('/api/system');
 export const getCatalog = () => request('/api/catalog');
 export const refreshCatalogRemote = (fresh = false) =>

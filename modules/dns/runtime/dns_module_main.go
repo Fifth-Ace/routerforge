@@ -32,6 +32,11 @@ func main() {
 	policyPersistedShadowDuration := flag.Duration("policy-persisted-shadow-duration", 15*time.Second, "bounded persisted shadow listener lifetime")
 	policyPersistedShadowTimeout := flag.Duration("policy-persisted-shadow-timeout", 3*time.Second, "per-query persisted shadow timeout")
 	policyPersistedShadowConcurrency := flag.Int("policy-persisted-shadow-concurrency", 16, "bounded persisted shadow concurrency")
+	policyIngressSmoke := flag.Bool("policy-ingress-smoke", false, "run reversible IPv4 DNS ingress takeover smoke and exit")
+	policyIngressSmokeInterface := flag.String("policy-ingress-smoke-interface", "br0", "LAN interface for ingress takeover smoke")
+	policyIngressSmokeListen := flag.String("policy-ingress-smoke-listen", "192.168.10.1:55355", "explicit LAN IPv4:high-port RouterForge listener")
+	policyIngressSmokeUpstream := flag.String("policy-ingress-smoke-upstream", "1.1.1.1:53", "explicit upstream for ingress takeover smoke")
+	policyIngressSmokeTimeout := flag.Duration("policy-ingress-smoke-timeout", 4*time.Second, "per-query timeout for ingress takeover smoke")
 	flag.Parse()
 
 	if os.Geteuid() != 0 {
@@ -116,6 +121,33 @@ func main() {
 			fmt.Println("RESULT: FAIL")
 			fmt.Printf("ERROR: %v\n", err)
 			os.Exit(5)
+		}
+		fmt.Println("RESULT: PASS")
+		return
+	}
+
+	if *policyIngressSmoke {
+		result, err := runDNSPolicyIngressSmoke(*policyIngressSmokeInterface, *policyIngressSmokeListen, *policyIngressSmokeUpstream, *policyIngressSmokeTimeout)
+		fmt.Println("=== POLICY INGRESS TAKEOVER SMOKE ===")
+		fmt.Printf("INTERFACE: %s\n", result.Interface)
+		fmt.Printf("LISTEN: %s\n", result.ListenAddr)
+		fmt.Printf("INGRESS_INSTALLED: %t\n", result.IngressInstalled)
+		fmt.Printf("INGRESS_VERIFIED: %t\n", result.IngressVerified)
+		fmt.Printf("INGRESS_REMOVED: %t\n", result.IngressRemoved)
+		fmt.Printf("POLICY1_MARK_COUNT: %d\n", result.Policy1Marks)
+		fmt.Printf("POLICY0_MARK_COUNT: %d\n", result.Policy0Marks)
+		fmt.Printf("STATS_REQUESTS: %d\n", result.Stats.Requests)
+		fmt.Printf("STATS_SUCCESSES: %d\n", result.Stats.Successes)
+		fmt.Printf("STATS_FAILURES: %d\n", result.Stats.Failures)
+		fmt.Printf("STATS_SERVFAIL: %d\n", result.Stats.ServfailResponses)
+		fmt.Printf("NATIVE_UDP_AFTER_ROLLBACK: %t\n", result.NativeUDPAfter)
+		fmt.Printf("NATIVE_TCP_AFTER_ROLLBACK: %t\n", result.NativeTCPAfter)
+		fmt.Println("--- IPTABLES RULE EVIDENCE ---")
+		fmt.Print(result.RuleDump)
+		if err != nil {
+			fmt.Println("RESULT: FAIL")
+			fmt.Printf("ERROR: %v\n", err)
+			os.Exit(6)
 		}
 		fmt.Println("RESULT: PASS")
 		return

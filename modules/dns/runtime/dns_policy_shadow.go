@@ -15,12 +15,13 @@ const (
 )
 
 type DNSPolicyShadowConfig struct {
-	ListenAddr    string
-	Upstream      string
-	Rules         []DNSPolicyRule
-	Allowed       map[string]bool
-	Timeout       time.Duration
-	MaxConcurrent int
+	ListenAddr      string
+	ListenInterface string
+	Upstream        string
+	Rules           []DNSPolicyRule
+	Allowed         map[string]bool
+	Timeout         time.Duration
+	MaxConcurrent   int
 }
 
 type DNSPolicyShadowPlan struct {
@@ -45,8 +46,15 @@ func validateDNSPolicyShadowConfig(cfg DNSPolicyShadowConfig) (DNSPolicyShadowCo
 		return DNSPolicyShadowConfig{}, fmt.Errorf("invalid shadow listen address: %w", err)
 	}
 	ip := net.ParseIP(host)
-	if ip == nil || !ip.IsLoopback() {
-		return DNSPolicyShadowConfig{}, fmt.Errorf("shadow listener must use an explicit loopback IP")
+	if ip == nil || ip.To4() == nil || ip.IsUnspecified() {
+		return DNSPolicyShadowConfig{}, fmt.Errorf("shadow listener must use an explicit IPv4 address")
+	}
+	cfg.ListenInterface = strings.TrimSpace(cfg.ListenInterface)
+	if !ip.IsLoopback() && cfg.ListenInterface == "" {
+		return DNSPolicyShadowConfig{}, fmt.Errorf("non-loopback shadow listener requires an explicit interface")
+	}
+	if strings.ContainsAny(cfg.ListenInterface, " \t\r\n/") {
+		return DNSPolicyShadowConfig{}, fmt.Errorf("invalid shadow listen interface")
 	}
 	port, err := strconv.Atoi(portText)
 	if err != nil || port <= 0 || port > 65535 {

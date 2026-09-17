@@ -46,6 +46,8 @@ build_dns() {
     dns_policy_shadow_persisted.go
     dns_policy_shadow_persisted_linux.go
     dns_policy_takeover.go
+    dns_policy_takeover_linux.go
+    dns_policy_activation_acceptance_linux.go
     dns_policy_ingress.go
     dns_policy_ingress_linux.go
     dns_policy_ingress_smoke_linux.go

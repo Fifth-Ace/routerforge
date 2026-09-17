@@ -52,9 +52,8 @@ func discoverDNSPolicyRuntimeAdapter() DNSPolicyAdapterDiscovery {
 			},
 		},
 		BlockingUnknowns: []string{
-			"exact crash-safe DNS ingress takeover primitive that transfers client DNS traffic from native Keenetic handling to RouterForge",
-			"exact native ingress snapshot/readback identity required to prove ownership before and after takeover",
-			"hardware-proven restore ordering that re-establishes native DNS ingress before RouterForge proxy shutdown",
+			"final transaction-driver activation/rollback acceptance must pass on real Keenetic hardware",
+			"external LAN packet-counter acceptance should be completed before enabling public persistent activation",
 		},
 	}
 }

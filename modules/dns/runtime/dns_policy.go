@@ -14,7 +14,7 @@ type DNSPolicyOption struct {
 	Proxy       string `json:"proxy"`
 	DisplayName string `json:"display_name"`
 	System      bool   `json:"system"`
-	Ordinal     int    `json:"ordinal,omitempty"`
+	Ordinal     int    `json:"ordinal"`
 }
 
 func readDNSPolicyInventory() ([]DNSPolicyOption, error) {
@@ -113,8 +113,8 @@ type DNSPolicyEvaluation struct {
 	Matched          bool     `json:"matched"`
 	Policy           string   `json:"policy"`
 	RuleID           string   `json:"rule_id,omitempty"`
-	RulePriority     int      `json:"rule_priority,omitempty"`
-	Specificity      int      `json:"specificity,omitempty"`
+	RulePriority     int      `json:"rule_priority"`
+	Specificity      int      `json:"specificity"`
 	Reasons          []string `json:"reasons"`
 	EvaluatedRules   int      `json:"evaluated_rules"`
 	FallbackToSystem bool     `json:"fallback_to_system"`

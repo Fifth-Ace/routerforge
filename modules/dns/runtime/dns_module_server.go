@@ -164,6 +164,9 @@ func (s *dnsModuleServer) Serve() error {
 	mux.HandleFunc("/v1/policy-rules", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead:
+			if r.Method == http.MethodHead {
+				w = headOnlyResponseWriter{ResponseWriter: w}
+			}
 			doc, err := s.policyStore.Load()
 			if err != nil {
 				s.writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
@@ -447,12 +450,23 @@ func boundedInt(raw string, fallback, min, max int) int {
 	return value
 }
 
+type headOnlyResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (w headOnlyResponseWriter) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
 func (s *dnsModuleServer) getOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
 			s.writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "GET required"})
 			return
+		}
+		if r.Method == http.MethodHead {
+			w = headOnlyResponseWriter{ResponseWriter: w}
 		}
 		w.Header().Set("Cache-Control", "no-store")
 		next(w, r)

@@ -237,6 +237,11 @@ func (s *dnsPolicyStore) Load() (DNSPolicyRulesDocument, error) {
 	if doc.Rules == nil {
 		doc.Rules = []DNSPolicyRule{}
 	}
+	rules, err := validateDNSPolicyRules(doc.Rules, nil)
+	if err != nil {
+		return DNSPolicyRulesDocument{}, fmt.Errorf("validate policy rules: %w", err)
+	}
+	doc.Rules = rules
 	return doc, nil
 }
 

@@ -1314,6 +1314,40 @@ Local CLI smoke не заявляет packet-counter proof конкретног�
 
 `production_driver_ready=false` сохраняется до hardware PASS R105 и final public activation hardening.
 
-## Следующий этап
+## P18U — production transaction wiring and final acceptance
 
-После R105 hardware PASS — встроить доказанный ingress primitive в P18R takeover driver, закрыть накопленный public API hardening debt и провести один final activation/rollback acceptance gate вместо новых discovery-этапов.
+R105 hardware PASS доказал reversible ingress primitive:
+
+- exact LAN listener ownership;
+- runtime-only IPv4 PREROUTING redirect;
+- UDP/TCP rule install/readback;
+- Policy1 exact mark `0xffffaab`;
+- Policy0 exact mark `0xffffaaa` with fail-closed SERVFAIL;
+- rollback removed all RouterForge firewall state;
+- native `ndnproxy` recovered UDP/TCP without restart.
+
+R106 wires that proven primitive into the P18R transaction driver.
+
+Production transaction now uses:
+
+`precheck -> snapshot native ingress -> start proxy -> verify proxy -> install ingress -> verify ingress -> committed`
+
+Acceptance CLI then deliberately exercises post-commit recovery:
+
+`restore native ingress -> stop RouterForge proxy -> verify native UDP/TCP`
+
+The persistent/public activation API remains disabled until this exact acceptance passes on hardware.
+
+### Hardening debt closed in R106
+
+- zero-valued `ordinal`, `rule_priority`, and `specificity` are explicit in JSON;
+- persisted store `Load()` performs semantic rule validation and canonicalization;
+- repeated atomic store overwrite is covered by regression test;
+- HEAD for generic GET-only API and `/v1/policy-rules` suppresses response bodies;
+- PUT content-type gate was already enforced by the existing mutation-header helper and is retained unchanged.
+
+### Remaining gate
+
+After hardware PASS of `--policy-activation-acceptance`, only external-LAN PREROUTING packet-counter acceptance remains before declaring the production driver ready for persistent/public activation.
+
+No additional discovery stage is planned.

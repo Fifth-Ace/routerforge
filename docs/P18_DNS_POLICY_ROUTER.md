@@ -1156,6 +1156,99 @@ P18P:
 
 `production_driver_ready=false` сохраняется.
 
+## P18Q — hardware persisted-shadow evidence
+
+Тестовый Keenetic не имел production store `/opt/etc/routerforge/dns-policy-rules.json`, и P18P корректно завершился fail-closed с `PERSISTED_STORE_NOT_FOUND`.
+
+Чтобы не создавать production state только ради smoke, P18Q использовал временный document в `/opt/tmp` и exact production P18P path.
+
+Hardware evidence:
+
+- temporary persisted document SHA256 verified;
+- schema version `1`;
+- 2 rules validated against live inventory;
+- live inventory count = 3;
+- persisted loader/listener lifecycle PASS;
+- real production store остался absent;
+- System UDP/TCP PASS;
+- Policy1 UDP/TCP PASS с exact `SO_MARK=0xffffaab`;
+- Policy0 UDP/TCP получил local SERVFAIL после exact `SO_MARK=0xffffaaa`;
+- requests=6, successes=4, failures=2, SERVFAIL=2;
+- no unmarked fallback;
+- listener cleanup PASS;
+- installed RouterForge DNS service remained alive;
+- native port 53, config and service state не менялись.
+
+P18Q закрывает shadow/persisted hardware workstream.
+
+## P18R — activation target pivot
+
+P18G предполагал, что future activation должен транслировать `DNSPolicyRule` в неизвестные Keenetic policy dataplane objects.
+
+P18J-P18Q доказали другую production architecture:
+
+`DNSPolicyRule -> RouterForge evaluator/forwarder -> SO_MARK -> native Keenetic policy routing`
+
+Следовательно отдельный Keenetic rule compiler не нужен и старые dataplane-mapping blockers больше не являются правильной production boundary.
+
+### Новый activation target
+
+Activation теперь означает lifecycle двух частей:
+
+1. RouterForge DNS proxy/forwarder с validated persisted rules;
+2. DNS ingress ownership — controlled transfer client DNS traffic с native Keenetic path на RouterForge и обратно.
+
+Keenetic policy routing остаётся backend dataplane и не получает DNSPolicyRule objects.
+
+### Takeover transaction driver
+
+P18R добавляет `dnsPolicyTakeoverActivationDriver` поверх существующего P18F engine.
+
+Apply ordering:
+
+1. start RouterForge proxy;
+2. verify RouterForge proxy readiness;
+3. switch DNS ingress to RouterForge;
+4. P18F Verify доказывает, что ingress действительно обслуживается RouterForge.
+
+Rollback ordering намеренно обратный только частично:
+
+1. **сначала restore native DNS ingress**;
+2. затем stop RouterForge proxy;
+3. затем verify native ingress identity.
+
+Так RouterForge proxy не выключается раньше, чем восстановлен native DNS path.
+
+### Failure semantics
+
+- precheck/snapshot failure: no mutation;
+- proxy start/verify failure after Applied boundary: rollback path;
+- ingress switch/verify failure: rollback path;
+- native ingress restore failure: `ambiguous`;
+- native restore verification failure: `ambiguous`.
+
+### Production readiness
+
+`production_driver_ready=false` остаётся.
+
+Теперь реальные blockers только три:
+
+1. exact crash-safe ingress takeover primitive;
+2. exact native ingress snapshot/readback identity;
+3. hardware-proven restore ordering/ownership.
+
+Policy evaluator, persisted rules, UDP/TCP forwarder и SO_MARK dataplane уже не blockers.
+
+### Safety boundary
+
+P18R не реализует production takeover primitive:
+
+- native :53 не меняется;
+- daemon auto-start policy routing не включается;
+- public activation API отсутствует;
+- persisted rules остаются inactive для обычных клиентов;
+- никакой RCI/iptables mutation из нового driver пока нет.
+
 ## Следующий этап
 
-P18Q — hardware persisted-shadow evidence: сначала прочитать фактический persisted document на тестовом Keenetic, затем автоматически подобрать безопасные probes для реально доказуемых rules и прогнать их через временный P18P listener; правила, которые невозможно доказать synthetic loopback client context, явно помечать unproven.
+P18S — narrow hardware ingress discovery: read-only определить фактического владельца UDP/TCP :53, native DNS listener topology и минимальный reversible takeover mechanism; затем выбрать один exact primitive вместо нескольких альтернатив.

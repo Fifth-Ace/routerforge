@@ -66,6 +66,7 @@ var adminIntegrationDefinitions = []adminIntegrationDefinition{
 
 func registerAdminIntegrationRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/integrations", getOnly(handleAdminIntegrations))
+	registerNFQWS2Routes(mux)
 }
 
 func handleAdminIntegrations(w http.ResponseWriter, _ *http.Request) {

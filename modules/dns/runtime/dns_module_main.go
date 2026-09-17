@@ -37,6 +37,11 @@ func main() {
 	policyIngressSmokeListen := flag.String("policy-ingress-smoke-listen", "192.168.10.1:55355", "explicit LAN IPv4:high-port RouterForge listener")
 	policyIngressSmokeUpstream := flag.String("policy-ingress-smoke-upstream", "1.1.1.1:53", "explicit upstream for ingress takeover smoke")
 	policyIngressSmokeTimeout := flag.Duration("policy-ingress-smoke-timeout", 4*time.Second, "per-query timeout for ingress takeover smoke")
+	policyActivationAcceptance := flag.Bool("policy-activation-acceptance", false, "run final transaction-driver activation plus rollback acceptance and exit")
+	policyActivationAcceptanceInterface := flag.String("policy-activation-acceptance-interface", "br0", "LAN interface for final activation acceptance")
+	policyActivationAcceptanceListen := flag.String("policy-activation-acceptance-listen", "192.168.10.1:55356", "explicit LAN IPv4:high-port listener for final activation acceptance")
+	policyActivationAcceptanceUpstream := flag.String("policy-activation-acceptance-upstream", "1.1.1.1:53", "explicit upstream for final activation acceptance")
+	policyActivationAcceptanceTimeout := flag.Duration("policy-activation-acceptance-timeout", 4*time.Second, "timeout for final activation acceptance")
 	flag.Parse()
 
 	if os.Geteuid() != 0 {
@@ -148,6 +153,28 @@ func main() {
 			fmt.Println("RESULT: FAIL")
 			fmt.Printf("ERROR: %v\n", err)
 			os.Exit(6)
+		}
+		fmt.Println("RESULT: PASS")
+		return
+	}
+
+	if *policyActivationAcceptance {
+		result, err := runDNSPolicyActivationAcceptance(
+			*policyActivationAcceptanceInterface,
+			*policyActivationAcceptanceListen,
+			*policyActivationAcceptanceUpstream,
+			*policyActivationAcceptanceTimeout,
+		)
+		fmt.Println("=== POLICY ACTIVATION ACCEPTANCE ===")
+		fmt.Printf("TX_STATE: %s\n", result.Activation.Manifest.State)
+		fmt.Printf("ACTIVATED: %t\n", result.Activation.Activated)
+		fmt.Printf("SNAPSHOT_IDENTITY: %s\n", result.Activation.Snapshot.Identity)
+		fmt.Printf("ROLLBACK_AFTER_COMMIT: %t\n", result.RolledBack)
+		fmt.Printf("NATIVE_AFTER_ROLLBACK: %t\n", result.NativeOK)
+		if err != nil {
+			fmt.Println("RESULT: FAIL")
+			fmt.Printf("ERROR: %v\n", err)
+			os.Exit(7)
 		}
 		fmt.Println("RESULT: PASS")
 		return

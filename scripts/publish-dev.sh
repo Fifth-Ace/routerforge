@@ -143,6 +143,31 @@ verify_plain "dist/routerforge-network-tools_${ASSET_VERSION}_${TARGET}.ipk" rou
 
 echo "DEV_PLAIN_BINARY_GATE=PASS"
 
+upload_release_asset() {
+    path="$1"
+    asset="$(basename "$path")"
+    attempt=1
+
+    while [ "$attempt" -le 5 ]; do
+        if gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "$path"; then
+            if [ "$attempt" -gt 1 ]; then
+                echo "DEV_ASSET_UPLOAD_RECOVERED=$asset attempt=$attempt"
+            fi
+            return 0
+        fi
+
+        if [ "$attempt" -ge 5 ]; then
+            echo "$asset: release upload failed after $attempt attempts" >&2
+            return 1
+        fi
+
+        delay=$((attempt * 2))
+        echo "$asset: release upload attempt $attempt/5 failed; retrying in ${delay}s" >&2
+        sleep "$delay"
+        attempt=$((attempt + 1))
+    done
+}
+
 verify_remote_digest() {
     asset="$1"
     path="$2"
@@ -169,7 +194,7 @@ fi
 
 while IFS= read -r asset; do
     [ -n "$asset" ] || continue
-    gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "dist/$asset"
+    upload_release_asset "dist/$asset"
 done < "$CURRENT"
 
 # Verify every package under its exact published filename before the App Center
@@ -180,16 +205,15 @@ while IFS= read -r asset; do
 done < "$CURRENT"
 echo "DEV_PACKAGE_REMOTE_DIGESTS=PASS"
 
-gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
-    "$SUMS" \
-    "$BOOTSTRAP"
+upload_release_asset "$SUMS"
+upload_release_asset "$BOOTSTRAP"
 
 verify_remote_digest "$(basename "$SUMS")" "$SUMS"
 verify_remote_digest "$(basename "$BOOTSTRAP")" "$BOOTSTRAP"
 
 # The index is the App Center switch point. Publish it only after every package
 # and supporting metadata asset exists under the exact expected name and digest.
-gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "$FINAL"
+upload_release_asset "$FINAL"
 verify_remote_digest "$(basename "$FINAL")" "$FINAL"
 echo "DEV_METADATA_REMOTE_DIGESTS=PASS"
 

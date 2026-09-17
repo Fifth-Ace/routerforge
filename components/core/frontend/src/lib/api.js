@@ -203,6 +203,12 @@ export const adminMaintenanceBackup = () =>
   postJSON('/api/modules/admin/maintenance/backup', { confirm: 'BACKUP' });
 export const getAdminIntegrations = () =>
   request('/api/modules/admin/integrations');
+export const getNFQWS2Manager = () =>
+  request('/api/modules/admin/integrations/nfqws2');
+export const nfqws2ManagerAction = (action) =>
+  postJSON('/api/modules/admin/integrations/nfqws2/action', { action, confirm: 'NFQWS2' });
+export const saveNFQWS2Config = (content) =>
+  postJSON('/api/modules/admin/integrations/nfqws2/config', { content, confirm: 'NFQWS2_CONFIG' });
 export const getAdminMaintenanceBackups = () =>
   request('/api/modules/admin/maintenance/backups');
 export const adminMaintenanceRestore = (path) =>

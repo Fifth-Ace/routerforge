@@ -25,6 +25,9 @@
     getAdminWatchdogs,
     getAdminMaintenanceTasks,
     getAdminIntegrations,
+    getNFQWS2Manager,
+    nfqws2ManagerAction,
+    saveNFQWS2Config,
     getAdminFiles,
     getModule,
     readAdminFile
@@ -84,6 +87,10 @@
 
   let integrations = [];
   let integrationsBusy = false;
+  let nfqws2 = null;
+  let nfqws2Config = '';
+  let nfqws2Original = '';
+  let nfqws2Busy = false;
 
   let adminPage = null;
   let adminHeightRaf = 0;
@@ -724,12 +731,58 @@
     integrationsBusy = true;
     errorText = '';
     try {
-      const result = await getAdminIntegrations();
+      const [result, manager] = await Promise.all([
+        getAdminIntegrations(),
+        getNFQWS2Manager()
+      ]);
       integrations = result.integrations || [];
+      nfqws2 = manager || null;
+      if (!nfqws2Busy) {
+        nfqws2Config = manager?.config || '';
+        nfqws2Original = manager?.config || '';
+      }
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
       integrationsBusy = false;
+    }
+  }
+
+  async function runNFQWS2Action(action) {
+    if (nfqws2Busy) return;
+    if (!confirm(`nfqws2: ${action}?`)) return;
+    nfqws2Busy = true;
+    errorText = '';
+    try {
+      const result = await nfqws2ManagerAction(action);
+      setAction(`nfqws2 ${action}: OK`);
+      nfqws2 = result.status || nfqws2;
+      nfqws2Config = nfqws2?.config || nfqws2Config;
+      nfqws2Original = nfqws2Config;
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      nfqws2Busy = false;
+    }
+  }
+
+  async function saveNFQWS2() {
+    if (nfqws2Busy || nfqws2Config === nfqws2Original) return;
+    if (!confirm(locale === 'ru'
+      ? 'Сохранить nfqws2.conf, создать safety backup и выполнить reload?'
+      : 'Save nfqws2.conf, create a safety backup and reload?')) return;
+    nfqws2Busy = true;
+    errorText = '';
+    try {
+      const result = await saveNFQWS2Config(nfqws2Config);
+      setAction(locale === 'ru' ? `nfqws2: конфигурация применена; backup ${result.backup}` : `nfqws2 config applied; backup ${result.backup}`);
+      nfqws2 = result.status || nfqws2;
+      nfqws2Config = nfqws2?.config || nfqws2Config;
+      nfqws2Original = nfqws2Config;
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      nfqws2Busy = false;
     }
   }
 
@@ -1317,6 +1370,61 @@
         <div><strong>{copy.integrations}</strong><span>{copy.integrationsHint}</span></div>
         <button class="button" onclick={loadIntegrations} disabled={integrationsBusy}>↻ {t(locale, 'common.refresh')}</button>
       </div>
+      {#if nfqws2}
+        <article class="nfqws2-manager">
+          <div class="nfqws2-head">
+            <div>
+              <strong>NFQWS2 Manager</strong>
+              <span>{locale === 'ru' ? 'Управление уже установленным nfqws2-keenetic. RouterForge ничего не устанавливает и не обновляет.' : 'Manage an existing nfqws2-keenetic installation. RouterForge does not install or update it.'}</span>
+            </div>
+            <div class="nfqws2-actions">
+              <span class:state-running={nfqws2.running} class:state-stopped={!nfqws2.running}>{nfqws2.detected ? (nfqws2.running ? copy.running : copy.stopped) : copy.notDetected}</span>
+              <button class="button" onclick={() => runNFQWS2Action('reload')} disabled={nfqws2Busy || !nfqws2.mutation_ready}>Reload</button>
+              <button class="button" onclick={() => runNFQWS2Action('restart')} disabled={nfqws2Busy || !nfqws2.mutation_ready}>Restart</button>
+            </div>
+          </div>
+
+          {#if nfqws2.detected}
+            <div class="nfqws2-grid">
+              <div class="nfqws2-config">
+                <div class="nfqws2-section-head">
+                  <div>
+                    <strong>nfqws2.conf</strong>
+                    <span class="cell-sub mono">{nfqws2.config_path} · {nfqws2.config_size || 0} B · SHA256 {nfqws2.config_sha256 || '—'}</span>
+                  </div>
+                  <button class="button primary" onclick={saveNFQWS2} disabled={nfqws2Busy || !nfqws2.mutation_ready || nfqws2Config === nfqws2Original}>
+                    {locale === 'ru' ? 'Сохранить + reload' : 'Save + reload'}
+                  </button>
+                </div>
+                <textarea class="nfqws2-editor mono" bind:value={nfqws2Config} disabled={nfqws2Busy || !nfqws2.mutation_ready}></textarea>
+                <span class="cell-sub">{locale === 'ru' ? `Safety backups: ${nfqws2.backup_count || 0}; максимум 8. При неудачном reload предыдущий конфиг восстанавливается автоматически.` : `Safety backups: ${nfqws2.backup_count || 0}; max 8. A failed reload automatically restores the previous config.`}</span>
+              </div>
+
+              <div class="nfqws2-side">
+                <div>
+                  <strong>{locale === 'ru' ? 'Списки' : 'Lists'}</strong>
+                  <span class="cell-sub mono">{nfqws2.lists_root}</span>
+                </div>
+                <div class="nfqws2-list-stack">
+                  {#each nfqws2.lists || [] as item}
+                    <details>
+                      <summary><span class="mono">{item.name}</span><span>{item.size} B{item.truncated ? ' · preview truncated' : ''}</span></summary>
+                      <pre class="mono">{item.preview || ''}</pre>
+                    </details>
+                  {/each}
+                  {#if !(nfqws2.lists || []).length}<span class="cell-sub">—</span>{/if}
+                </div>
+
+                <details class="nfqws2-log">
+                  <summary>{locale === 'ru' ? 'Последние строки лога' : 'Recent log tail'} · <span class="mono">{nfqws2.log_path}</span></summary>
+                  <pre class="mono">{nfqws2.log_tail || '—'}</pre>
+                </details>
+              </div>
+            </div>
+          {/if}
+        </article>
+      {/if}
+
       <div class="integration-grid">
         {#each integrations as integration}
           <article class="integration-card">
@@ -1414,4 +1522,17 @@
   .p22-bundle-list{max-height:16rem;overflow:auto}.warn-text{color:var(--warn,#d29922)!important}.error-text{color:var(--bad,#f85149)!important}
   @media(max-width:1100px){.p22-support-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:680px){.p22-support-grid{grid-template-columns:1fr}.p22-support-actions,.p22-storage-row{align-items:flex-start;flex-direction:column}.p22-storage-value{justify-items:start}}
+  .nfqws2-manager{margin:0 0 14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--panel) 92%,var(--accent) 8%)}
+  .nfqws2-head,.nfqws2-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .nfqws2-head>div:first-child,.nfqws2-section-head>div:first-child{display:grid;gap:4px}
+  .nfqws2-head span{color:var(--muted);font-size:12px}
+  .nfqws2-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .nfqws2-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.8fr);gap:12px;margin-top:12px}
+  .nfqws2-config,.nfqws2-side{display:grid;gap:9px;min-width:0}
+  .nfqws2-editor{width:100%;min-height:360px;resize:vertical;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);padding:10px;line-height:1.45}
+  .nfqws2-list-stack{display:grid;gap:6px}
+  .nfqws2-list-stack details,.nfqws2-log{border:1px solid var(--line);border-radius:7px;padding:7px 9px}
+  .nfqws2-list-stack summary{display:flex;justify-content:space-between;gap:8px;cursor:pointer}
+  .nfqws2-list-stack pre,.nfqws2-log pre{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}
+  @media(max-width:900px){.nfqws2-grid{grid-template-columns:1fr}.nfqws2-head,.nfqws2-section-head{flex-direction:column}}
 </style>

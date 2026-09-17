@@ -21,40 +21,40 @@ func discoverDNSPolicyRuntimeAdapter() DNSPolicyAdapterDiscovery {
 		ProductionDriverReady: false,
 		KnownPrimitives: []DNSPolicyAdapterPrimitive{
 			{
+				Name:      "persisted-rule-engine",
+				Available: true,
+				Evidence:  "P18B-P18Q validate and execute DNSPolicyRule inside the RouterForge shadow forwarder",
+			},
+			{
+				Name:      "policy-mark-egress",
+				Available: true,
+				Evidence:  "P18J/P18K hardware evidence proves PolicyN -> SO_MARK -> Keenetic policy routing with fail-closed semantics",
+			},
+			{
+				Name:      "udp-tcp-forwarder",
+				Available: true,
+				Evidence:  "P18M-P18Q hardware evidence proves loopback UDP/TCP forwarding, SERVFAIL and bounded concurrency",
+			},
+			{
+				Name:      "activation-transaction-engine",
+				Available: true,
+				Evidence:  "P18F transaction engine provides snapshot/apply/verify/rollback/ambiguous semantics",
+			},
+			{
 				Name:      "bounded-rci-read",
 				Available: true,
 				Evidence:  "dnsRCIClient.getJSON provides bounded context-aware RCI GET",
 			},
 			{
-				Name:      "structured-rci-mutation",
+				Name:      "verified-native-dns-mutation",
 				Available: true,
-				Evidence:  "dnsRCIClient.postJSON/deleteSetting provide structured RCI mutation without shell interpolation",
-			},
-			{
-				Name:      "configuration-save",
-				Available: true,
-				Evidence:  "existing DNS mutations persist native changes through /system/configuration/save",
-			},
-			{
-				Name:      "exact-readback-verification",
-				Available: true,
-				Evidence:  "dnsControlManager verifies canonical native RCI readback before commit",
-			},
-			{
-				Name:      "verified-rollback",
-				Available: true,
-				Evidence:  "dnsControlManager restores the captured native state and verifies it before reporting recovery",
-			},
-			{
-				Name:      "runtime-health-probe",
-				Available: true,
-				Evidence:  "existing DNS mutation path runs the DNS Unix health contract before commit",
+				Evidence:  "dnsControlManager already snapshots, mutates, verifies and rolls back native Keenetic resolver configuration",
 			},
 		},
 		BlockingUnknowns: []string{
-			"exact mapping from persisted DNSPolicyRule match dimensions to Keenetic dataplane objects",
-			"exact structured RCI mutation payloads for those dataplane objects beyond the proven policy-description transport",
-			"partial-apply rollback ordering and artifacts for the final dataplane mapping",
+			"exact crash-safe DNS ingress takeover primitive that transfers client DNS traffic from native Keenetic handling to RouterForge",
+			"exact native ingress snapshot/readback identity required to prove ownership before and after takeover",
+			"hardware-proven restore ordering that re-establishes native DNS ingress before RouterForge proxy shutdown",
 		},
 	}
 }

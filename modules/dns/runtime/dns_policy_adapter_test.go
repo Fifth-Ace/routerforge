@@ -49,12 +49,12 @@ func (f *fakeDNSPolicyRuntimePrimitive) RuntimeHealth() error {
 	return f.step("runtime-health")
 }
 
-func TestDNSPolicyRuntimeAdapterDiscoveryBlocksProductionDriver(t *testing.T) {
+func TestDNSPolicyRuntimeAdapterDiscoveryReadyAfterHardwareAcceptance(t *testing.T) {
 	discovery := discoverDNSPolicyRuntimeAdapter()
-	if discovery.ProductionDriverReady {
-		t.Fatal("production driver must remain blocked until final hardware acceptance is complete")
+	if !discovery.ProductionDriverReady {
+		t.Fatal("production driver must be ready after final hardware acceptance")
 	}
-	if len(discovery.KnownPrimitives) < 6 {
+	if len(discovery.KnownPrimitives) < 8 {
 		t.Fatalf("known primitives incomplete: %#v", discovery.KnownPrimitives)
 	}
 	for _, primitive := range discovery.KnownPrimitives {
@@ -62,8 +62,8 @@ func TestDNSPolicyRuntimeAdapterDiscoveryBlocksProductionDriver(t *testing.T) {
 			t.Fatalf("invalid discovered primitive: %#v", primitive)
 		}
 	}
-	if len(discovery.BlockingUnknowns) != 2 {
-		t.Fatalf("blocking unknowns = %#v", discovery.BlockingUnknowns)
+	if len(discovery.BlockingUnknowns) != 0 {
+		t.Fatalf("blocking unknowns remain after P18 closeout: %#v", discovery.BlockingUnknowns)
 	}
 }
 

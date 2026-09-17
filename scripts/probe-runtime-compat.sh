@@ -244,7 +244,7 @@ THERMAL="$CORE"
 if [ "$THERMAL" != blocked ] &&
    [ "$THERMAL_SENSOR" != yes ]; then
 
-    THERMAL=degraded
+    THERMAL=unsupported
 fi
 
 DNS="$CORE"
@@ -258,6 +258,14 @@ if [ "$DNS" != blocked ]; then
         done
     fi
 fi
+
+PLATFORM="$CORE"
+
+if [ "$PLATFORM" != blocked ] && [ "$NDMC_READ" != yes ]; then
+    PLATFORM=blocked
+fi
+
+GATE="$PLATFORM"
 
 ALL="$CORE"
 
@@ -317,8 +325,15 @@ printf '%s\n' \
     "module_storage=$STORAGE" \
     "module_thermal=$THERMAL" \
     "module_dns=$DNS" \
+    "platform_status=$PLATFORM" \
+    "gate_status=$GATE" \
     "overall=$ALL" \
     "selected_status=$SELECTED"
 
-[ "$SELECTED" != blocked ] || exit 2
+if [ "$PROFILE" = all ]; then
+    [ "$GATE" != blocked ] || exit 2
+else
+    [ "$SELECTED" != blocked ] || exit 2
+fi
+
 exit 0

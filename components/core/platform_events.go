@@ -46,6 +46,7 @@ func registerEventEngineHandlers(mux *http.ServeMux, version string) {
 			"version": version,
 		},
 	})
+	startDeviceEventObserver()
 	mux.HandleFunc("/api/platform/events", handleEventTimeline)
 	mux.HandleFunc("/api/platform/alerts", handleHealthAlerts)
 }
@@ -121,7 +122,9 @@ func handleHealthAlerts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	alerts := snapshotActiveModuleHealthAlerts(time.Now().UTC())
+	now := time.Now().UTC()
+	alerts := snapshotActiveModuleHealthAlerts(now)
+	alerts = append(alerts, snapshotDeviceHealthAlerts(now)...)
 	response := healthAlertsResponse{
 		APIVersion:  1,
 		Mode:        "read-only",

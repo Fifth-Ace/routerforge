@@ -174,7 +174,13 @@
 
       'network-tools': 'Сетевые инструменты',
 
-      network: 'Сеть'
+      network: 'Сеть',
+
+      storage: 'Накопители',
+
+      thermal: 'Температура',
+
+      watchdog: 'Автовосстановление'
 
     };
 
@@ -192,11 +198,49 @@
 
       'network-tools': 'Network Tools',
 
-      network: 'Network'
+      network: 'Network',
+
+      storage: 'Storage',
+
+      thermal: 'Temperature',
+
+      watchdog: 'Auto recovery'
 
     };
 
     return (locale === 'ru' ? ru : en)[id] || value || 'RouterForge';
+
+  }
+
+
+
+  function humanAlert(alert) {
+
+    const component = String(alert?.component || '');
+
+    if (locale === 'ru') {
+
+      if (component === 'storage') return `Заканчивается свободное место: ${alert?.context?.mount || alert?.id || 'накопитель'}.`;
+
+      if (component === 'thermal') return `Высокая температура: ${alert?.context?.sensor || alert?.id || 'датчик'}${alert?.context?.temp_c != null ? ` · ${Number(alert.context.temp_c).toFixed(1)} °C` : ''}.`;
+
+      if (component === 'network') return `Сетевой интерфейс недоступен: ${alert?.context?.interface || alert?.id || 'интерфейс'}.`;
+
+      if (component === 'watchdog') return `Автовосстановление не смогло поднять ${alert?.context?.name || alert?.id || 'службу'}.`;
+
+      return 'Модуль не отвечает на проверку состояния.';
+
+    }
+
+    if (component === 'storage') return `Low free space: ${alert?.context?.mount || alert?.id || 'storage'}.`;
+
+    if (component === 'thermal') return `High temperature: ${alert?.context?.sensor || alert?.id || 'sensor'}${alert?.context?.temp_c != null ? ` · ${Number(alert.context.temp_c).toFixed(1)} °C` : ''}.`;
+
+    if (component === 'network') return `Network interface unavailable: ${alert?.context?.interface || alert?.id || 'interface'}.`;
+
+    if (component === 'watchdog') return `Auto recovery could not start ${alert?.context?.name || alert?.id || 'service'}.`;
+
+    return 'The module is not responding to health checks.';
 
   }
 
@@ -254,6 +298,22 @@
 
       if (type === 'core.ready') return { title: 'RouterForge запущен и готов', text: 'Основные службы готовы к работе.' };
 
+      if (type === 'device.network.down' || type === 'device.network.missing') return { title: `Сетевой интерфейс ${object} недоступен`, text: 'RouterForge зафиксировал изменение состояния интерфейса после того, как он уже работал.' };
+
+      if (type === 'device.network.recovered') return { title: `Сетевой интерфейс ${object} снова работает`, text: 'Связь на интерфейсе восстановлена.' };
+
+      if (type === 'device.storage.warning' || type === 'device.storage.critical') return { title: `Заканчивается место на ${object}`, text: event?.context?.used_pct != null ? `Использовано ${Number(event.context.used_pct).toFixed(1)}%.` : 'Свободного места осталось мало.' };
+
+      if (type === 'device.storage.recovered') return { title: `Свободное место на ${object} снова в норме`, text: event?.context?.used_pct != null ? `Использовано ${Number(event.context.used_pct).toFixed(1)}%.` : 'Состояние накопителя нормализовалось.' };
+
+      if (type === 'device.thermal.warning' || type === 'device.thermal.critical') return { title: `Высокая температура: ${event?.context?.sensor || object}`, text: event?.context?.temp_c != null ? `${Number(event.context.temp_c).toFixed(1)} °C.` : 'Температура превысила порог.' };
+
+      if (type === 'device.thermal.recovered') return { title: `Температура нормализовалась: ${event?.context?.sensor || object}`, text: event?.context?.temp_c != null ? `${Number(event.context.temp_c).toFixed(1)} °C.` : 'Температура вернулась в нормальный диапазон.' };
+
+      if (type === 'device.watchdog.failed') return { title: `Автовосстановление не смогло поднять ${event?.context?.name || object}`, text: 'Watchdog выполнил попытку восстановления, но служба не запустилась.' };
+
+      if (type === 'device.watchdog.recovered') return { title: `${event?.context?.name || object} восстановлен автоматически`, text: 'Watchdog успешно вернул службу в рабочее состояние.' };
+
       if (type === 'service.action.committed') return { title: `Действие с сервисом ${object} выполнено`, text: action ? `Операция «${action}» завершена успешно.` : 'Операция завершена успешно.' };
 
       if (type === 'service.action.failed') return { title: `Не удалось выполнить действие с сервисом ${object}`, text: action ? `Операция «${action}» завершилась ошибкой.` : 'Операция завершилась ошибкой.' };
@@ -283,6 +343,22 @@
     if (type === 'module.health.up') return { title: `${name} is available`, text: 'The health check completed successfully.' };
 
     if (type === 'core.ready') return { title: 'RouterForge is ready', text: 'Core services are ready.' };
+
+    if (type === 'device.network.down' || type === 'device.network.missing') return { title: `Network interface ${object} is unavailable`, text: 'RouterForge observed a link-state change after the interface had been working.' };
+
+    if (type === 'device.network.recovered') return { title: `Network interface ${object} recovered`, text: 'The interface link is available again.' };
+
+    if (type === 'device.storage.warning' || type === 'device.storage.critical') return { title: `Low free space on ${object}`, text: event?.context?.used_pct != null ? `${Number(event.context.used_pct).toFixed(1)}% used.` : 'Storage free space is low.' };
+
+    if (type === 'device.storage.recovered') return { title: `Storage ${object} returned to normal`, text: event?.context?.used_pct != null ? `${Number(event.context.used_pct).toFixed(1)}% used.` : 'Storage pressure cleared.' };
+
+    if (type === 'device.thermal.warning' || type === 'device.thermal.critical') return { title: `High temperature: ${event?.context?.sensor || object}`, text: event?.context?.temp_c != null ? `${Number(event.context.temp_c).toFixed(1)} °C.` : 'Temperature exceeded the threshold.' };
+
+    if (type === 'device.thermal.recovered') return { title: `Temperature recovered: ${event?.context?.sensor || object}`, text: event?.context?.temp_c != null ? `${Number(event.context.temp_c).toFixed(1)} °C.` : 'Temperature returned to normal.' };
+
+    if (type === 'device.watchdog.failed') return { title: `Auto recovery failed for ${event?.context?.name || object}`, text: 'The watchdog attempted recovery but the service did not start.' };
+
+    if (type === 'device.watchdog.recovered') return { title: `${event?.context?.name || object} recovered automatically`, text: 'The watchdog restored the service.' };
 
     if (type === 'service.action.committed') return { title: `Service action completed: ${object}`, text: action ? `Action “${action}” completed successfully.` : 'The action completed successfully.' };
 
@@ -486,7 +562,7 @@
 
                 <strong>{componentName(alert.component)}</strong>
 
-                <span>{locale === 'ru' ? 'Модуль не отвечает на проверку состояния.' : 'The module is not responding to health checks.'}</span>
+                <span>{humanAlert(alert)}</span>
 
               </div>
 

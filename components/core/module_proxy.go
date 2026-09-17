@@ -473,9 +473,11 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		resp.Header.Set("Cache-Control", moduleUICacheControl(targetPath))
+		observeModuleProxyResponse(moduleID, targetPath, r.Method, resp)
 		return nil
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
+		observeModuleProxyError(moduleID, targetPath, err)
 		if moduleUIPath(targetPath) {
 			writeModuleReconnectHTML(rw)
 			return

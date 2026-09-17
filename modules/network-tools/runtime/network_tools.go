@@ -119,6 +119,7 @@ func registerNetworkToolsRoutes(mux *http.ServeMux) {
 		flows, source := readFlows(limit)
 		writeJSON(w, http.StatusOK, map[string]any{"flows": flows, "source": source, "limit": limit})
 	}))
+	mux.HandleFunc("/v1/flow-explorer", getOnly(handleFlowExplorer))
 	mux.HandleFunc("/v1/probe", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		target := strings.TrimSpace(r.URL.Query().Get("target"))
 		kind := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("kind")))

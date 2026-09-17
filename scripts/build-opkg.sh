@@ -51,6 +51,7 @@ app_center_jobs.go
 user_app_sources.go
 core_platform.go
 platform_events.go
+platform_event_producers.go
 core_platform_storage_linux.go
 profiling.go
 routerforge_registry.go

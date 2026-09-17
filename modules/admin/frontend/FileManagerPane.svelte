@@ -446,7 +446,6 @@
     const destinationPanel = otherPanel();
     const entry = sourcePanel.selected;
     if (!entry) { errorText = copy.noSelection; return; }
-    if (kind === 'copy' && entry.kind !== 'file') { errorText = copy.regularOnly; return; }
     const proposed = join(destinationPanel.path, entry.name);
     const destination = prompt(copy.destination, proposed);
     if (!destination || destination === entry.path) return;

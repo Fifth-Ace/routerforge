@@ -53,8 +53,12 @@ func handleAdminFileCopy(w http.ResponseWriter, r *http.Request) {
 		writeAdminFilePathError(w, err)
 		return
 	}
-	if sourceInfo.Mode()&os.ModeSymlink != 0 || !sourceInfo.Mode().IsRegular() {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "copy currently supports regular files only"})
+	if sourceInfo.Mode()&os.ModeSymlink != 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "copy refuses symbolic links"})
+		return
+	}
+	if !sourceInfo.Mode().IsRegular() && !sourceInfo.IsDir() {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "copy supports regular files and directories only"})
 		return
 	}
 	if sourceInfo.Size() != request.ExpectedSize || sourceInfo.ModTime().UnixNano() != request.ExpectedMtimeNS {
@@ -68,7 +72,10 @@ func handleAdminFileCopy(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot inspect copy destination"})
 		return
 	}
-
+	if sourceInfo.IsDir() {
+		handleAdminDirectoryCopy(w, request, source, destination, sourceInfo)
+		return
+	}
 	input, err := os.Open(source.Canonical)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "cannot open copy source"})

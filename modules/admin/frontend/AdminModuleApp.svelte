@@ -47,6 +47,9 @@
   let errorText = '';
   let actionText = '';
   let serviceActionResult = null;
+  let selectedServiceID = '';
+  let selectedService = null;
+  let fileOpenTarget = '';
 
   let filePath = '/opt';
   let fileEntries = [];
@@ -250,6 +253,7 @@
     const paths = [...(s.config_paths || []), ...(s.log_paths || [])].join(' ');
     return `${s.id} ${s.name} ${s.init_script || s.path || ''} ${s.package?.name || ''} ${s.package?.version || ''} ${processes} ${ports} ${paths}`.toLowerCase().includes(q);
   });
+  $: selectedService = filteredServices.find((service) => service.id === selectedServiceID) || filteredServices[0] || null;
   $: matchingPackages = packages.filter((p) => !q || `${p.name} ${p.version} ${p.architecture}`.toLowerCase().includes(q));
   $: filteredPackages = matchingPackages.slice(0, packageRenderLimit);
   $: filteredFiles = fileEntries.filter((entry) => !q || `${entry.name} ${entry.path} ${entry.kind}`.toLowerCase().includes(q));
@@ -309,6 +313,7 @@
   }
 
   function selectTab(next) {
+    if (next === 'files') fileOpenTarget = '';
     tab = next;
     search = '';
     errorText = '';
@@ -333,16 +338,27 @@
     return corpus.includes('routerforge') || corpus.includes('dns-monitor');
   }
 
+  function servicePathName(path) {
+    const clean = String(path || '').replace(/\/+$/, '');
+    return clean.slice(clean.lastIndexOf('/') + 1) || clean || '—';
+  }
+
+  function inspectRelated(next, value) {
+    tab = next;
+    search = String(value || '');
+    errorText = '';
+    actionText = '';
+    load(next);
+    scheduleAdminHeight();
+  }
+
   async function openServicePath(path) {
     if (!path) return;
+    fileOpenTarget = path;
     tab = 'files';
     search = '';
     errorText = '';
     actionText = '';
-    filePath = parentPath(path);
-    await loadFiles(filePath);
-    const entry = fileEntries.find((item) => item.path === path);
-    if (entry) await openEntry(entry);
     scheduleAdminHeight();
   }
   async function mutateService(service, action) {
@@ -812,111 +828,213 @@
       </tbody></table></div>
     </section>
   {:else if tab === 'services'}
-    <section class="panel table-panel">
-      <div class="panel-head">
+    <section class="panel service-workspace">
+      <div class="panel-head service-workspace-head">
         <div>
-          <strong>{locale === 'ru' ? 'Service Inspector' : 'Service Inspector'}</strong>
-          <span>{locale === 'ru' ? 'package → init → process → sockets · read evidence + guarded actions' : 'package → init → process → sockets · read evidence + guarded actions'}</span>
+          <strong>Service Inspector</strong>
+          <span>{locale === 'ru'
+            ? 'Служба → пакет → процесс → sockets · детали и guarded actions по требованию'
+            : 'service → package → process → sockets · details and guarded actions on demand'}</span>
         </div>
         <span class="state-chip info">{filteredServices.length}</span>
       </div>
 
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>{t(locale, 'manage.columns.service')}</th>
-              <th>{locale === 'ru' ? 'Пакет' : 'Package'}</th>
-              <th>{t(locale, 'manage.columns.state')}</th>
-              <th>{locale === 'ru' ? 'Runtime evidence' : 'Runtime evidence'}</th>
-              <th>{locale === 'ru' ? 'Конфиги / логи' : 'Config / logs'}</th>
-              <th>{copy.actions}</th>
-            </tr>
-          </thead>
-          <tbody>
+      {#if filteredServices.length === 0}
+        <div class="empty">{locale === 'ru' ? 'Службы по текущему фильтру не найдены.' : 'No services match the current filter.'}</div>
+      {:else}
+        <div class="service-master-detail">
+          <div class="service-master-list">
             {#each filteredServices as s (s.id)}
               {@const guarded = serviceActionProtected(s)}
-              <tr>
-                <td>
-                  <strong>{s.name}</strong>
-                  <div class="cell-sub mono">{s.id || '—'}</div>
-                  <div class="cell-sub mono" title={s.init_script || s.path}>{s.init_script || s.path || '—'}</div>
-                </td>
-
-                <td>
-                  {#if s.package}
-                    <strong>{s.package.name}</strong>
-                    <div class="cell-sub mono">{s.package.version || '—'} · {s.package.architecture || '—'}</div>
-                  {:else}
-                    <span class="cell-sub">{locale === 'ru' ? 'владелец opkg не найден' : 'no opkg owner'}</span>
-                  {/if}
-                </td>
-
-                <td>
+              <button
+                class="service-master-row"
+                class:selected={selectedService?.id === s.id}
+                onclick={() => { selectedServiceID = s.id; scheduleAdminHeight(); }}
+              >
+                <div class="service-master-top">
+                  <div class="service-master-title">
+                    <strong>{s.name}</strong>
+                    <span class="cell-sub mono">{s.id || '—'}</span>
+                  </div>
                   <span class="state-chip {s.running ? 'good' : 'neutral'}">
                     {s.running ? t(locale, 'common.running').toUpperCase() : t(locale, 'common.notDetected').toUpperCase()}
                   </span>
-                  <div class="cell-sub mono">{s.running_source || '—'}</div>
-                </td>
+                </div>
 
-                <td>
-                  <div class="cell-sub">
-                    <strong>{s.resource?.process_count || 0}</strong> proc ·
-                    <strong>{s.resource?.listeners || 0}</strong> listen ·
-                    RSS <strong>{bytes(Number(s.resource?.rss_kb || 0) * 1024)}</strong> ·
-                    {s.resource?.threads || 0} thr
+                <div class="service-master-package">
+                  <span>{s.package?.name || (locale === 'ru' ? 'без владельца opkg' : 'no opkg owner')}</span>
+                  {#if s.package?.version}<span class="mono">{s.package.version}</span>{/if}
+                </div>
+
+                <div class="service-chip-row">
+                  <span class="service-metric-chip">{s.resource?.process_count || 0} proc</span>
+                  <span class="service-metric-chip">{s.resource?.listeners || 0} listen</span>
+                  <span class="service-metric-chip">RSS {bytes(Number(s.resource?.rss_kb || 0) * 1024)}</span>
+                  {#if (s.config_paths || []).length}<span class="service-metric-chip">{s.config_paths.length} cfg</span>{/if}
+                  {#if (s.log_paths || []).length}<span class="service-metric-chip">{s.log_paths.length} log</span>{/if}
+                  {#if guarded}<span class="service-metric-chip guarded">GUARDED</span>{/if}
+                </div>
+              </button>
+            {/each}
+          </div>
+
+          {#if selectedService}
+            {@const guarded = serviceActionProtected(selectedService)}
+            <article class="service-detail">
+              <header class="service-detail-head">
+                <div class="service-detail-identity">
+                  <span class="service-detail-kicker mono">{selectedService.id || 'SERVICE'}</span>
+                  <strong>{selectedService.name}</strong>
+                  <span class="mono" title={selectedService.init_script || selectedService.path}>
+                    {selectedService.init_script || selectedService.path || '—'}
+                  </span>
+                </div>
+                <div class="service-detail-state">
+                  <span class="state-chip {selectedService.running ? 'good' : 'neutral'}">
+                    {selectedService.running ? t(locale, 'common.running').toUpperCase() : t(locale, 'common.notDetected').toUpperCase()}
+                  </span>
+                  {#if guarded}<span class="state-chip neutral">GUARDED</span>{/if}
+                </div>
+              </header>
+
+              <div class="service-overview-grid">
+                <div class="service-fact">
+                  <span>{locale === 'ru' ? 'Пакет' : 'Package'}</span>
+                  <strong>{selectedService.package?.name || '—'}</strong>
+                  <small class="mono">
+                    {selectedService.package ? `${selectedService.package.version || '—'} · ${selectedService.package.architecture || '—'}` : (locale === 'ru' ? 'владелец opkg не найден' : 'no opkg owner')}
+                  </small>
+                </div>
+                <div class="service-fact">
+                  <span>{locale === 'ru' ? 'Источник состояния' : 'State source'}</span>
+                  <strong>{selectedService.running_source || '—'}</strong>
+                  <small>{selectedService.executable ? (locale === 'ru' ? 'lifecycle доступен' : 'lifecycle available') : (locale === 'ru' ? 'lifecycle недоступен' : 'lifecycle unavailable')}</small>
+                </div>
+                <div class="service-fact">
+                  <span>{locale === 'ru' ? 'Процессы' : 'Processes'}</span>
+                  <strong>{selectedService.resource?.process_count || 0}</strong>
+                  <small>{selectedService.resource?.threads || 0} threads · RSS {bytes(Number(selectedService.resource?.rss_kb || 0) * 1024)}</small>
+                </div>
+                <div class="service-fact">
+                  <span>{locale === 'ru' ? 'Слушатели' : 'Listeners'}</span>
+                  <strong>{selectedService.resource?.listeners || 0}</strong>
+                  <small>{(selectedService.listening_ports || []).length ? (locale === 'ru' ? 'есть socket evidence' : 'socket evidence available') : '—'}</small>
+                </div>
+              </div>
+
+              <div class="service-detail-grid">
+                <section class="service-detail-section">
+                  <div class="service-section-head">
+                    <div>
+                      <strong>{locale === 'ru' ? 'Runtime evidence' : 'Runtime evidence'}</strong>
+                      <span>{locale === 'ru' ? 'Сопоставленные процессы и listening sockets' : 'Matched processes and listening sockets'}</span>
+                    </div>
+                    <div class="service-section-links">
+                      {#if (selectedService.processes || []).length}
+                        <button class="mini" onclick={() => inspectRelated('processes', selectedService.processes[0].pid)}>
+                          {locale === 'ru' ? 'Процессы' : 'Processes'} ↗
+                        </button>
+                      {/if}
+                      {#if (selectedService.listening_ports || []).length}
+                        <button class="mini" onclick={() => inspectRelated('ports', selectedService.listening_ports[0].local_port)}>
+                          {locale === 'ru' ? 'Порты' : 'Ports'} ↗
+                        </button>
+                      {/if}
+                    </div>
                   </div>
-
-                  {#if (s.processes || []).length}
-                    {#each s.processes as p (p.pid)}
-                      <div class="cell-sub mono" title={p.command}>
-                        PID {p.pid} · {p.name} · {bytes(Number(p.rss_kb || 0) * 1024)}
+                  <div class="service-evidence-list">
+                    {#each selectedService.processes || [] as p (p.pid)}
+                      <div class="service-evidence-row">
+                        <div>
+                          <strong>{p.name || 'process'}</strong>
+                          <span class="mono">PID {p.pid} · {bytes(Number(p.rss_kb || 0) * 1024)}</span>
+                        </div>
+                        <span class="cell-sub mono service-evidence-command" title={p.command}>{p.command || '—'}</span>
                       </div>
                     {/each}
-                  {:else}
-                    <div class="cell-sub">{locale === 'ru' ? 'процессы не сопоставлены' : 'no matched processes'}</div>
-                  {/if}
-
-                  {#each s.listening_ports || [] as p (`${p.protocol}-${p.local_address}-${p.local_port}-${p.inode}`)}
-                    <div class="cell-sub mono">{p.protocol} {p.local_address}:{p.local_port}</div>
-                  {/each}
-                </td>
-
-                <td>
-                  {#if (s.config_paths || []).length}
-                    <div class="cell-sub"><strong>{locale === 'ru' ? 'Config' : 'Config'}</strong></div>
-                    {#each s.config_paths as path}
-                      <button class="mini" title={path} onclick={() => openServicePath(path)}>{path}</button>
+                    {#if !(selectedService.processes || []).length}
+                      <div class="service-detail-empty">{locale === 'ru' ? 'Сопоставленных процессов нет.' : 'No matched processes.'}</div>
+                    {/if}
+                    {#each selectedService.listening_ports || [] as p (`${p.protocol}-${p.local_address}-${p.local_port}-${p.inode}`)}
+                      <div class="service-socket-row mono">
+                        <span>{p.protocol}</span>
+                        <strong>{p.local_address}:{p.local_port}</strong>
+                        <span>inode {p.inode || '—'}</span>
+                      </div>
                     {/each}
-                  {/if}
+                  </div>
+                </section>
 
-                  {#if (s.log_paths || []).length}
-                    <div class="cell-sub"><strong>{locale === 'ru' ? 'Logs' : 'Logs'}</strong></div>
-                    {#each s.log_paths as path}
-                      <button class="mini" title={path} onclick={() => openServicePath(path)}>{path}</button>
-                    {/each}
-                  {/if}
+                <section class="service-detail-section">
+                  <div class="service-section-head">
+                    <div>
+                      <strong>{locale === 'ru' ? 'Конфиги и логи' : 'Config and logs'}</strong>
+                      <span>{locale === 'ru' ? 'Клик открывает сам файл сразу в File Manager' : 'Click opens the file directly in File Manager'}</span>
+                    </div>
+                  </div>
+                  <div class="service-file-groups">
+                    <div class="service-file-group">
+                      <span class="service-file-label">CONFIG · {(selectedService.config_paths || []).length}</span>
+                      {#each selectedService.config_paths || [] as path}
+                        <button class="service-file-row" onclick={() => openServicePath(path)} title={path}>
+                          <span>📄</span>
+                          <span class="service-file-copy">
+                            <strong>{servicePathName(path)}</strong>
+                            <small class="mono">{path}</small>
+                          </span>
+                          <span class="service-file-open">{locale === 'ru' ? 'Открыть' : 'Open'} ↗</span>
+                        </button>
+                      {/each}
+                      {#if !(selectedService.config_paths || []).length}
+                        <div class="service-detail-empty compact">—</div>
+                      {/if}
+                    </div>
 
-                  {#if !(s.config_paths || []).length && !(s.log_paths || []).length}
-                    <span class="cell-sub">—</span>
-                  {/if}
-                </td>
+                    <div class="service-file-group">
+                      <span class="service-file-label">LOG · {(selectedService.log_paths || []).length}</span>
+                      {#each selectedService.log_paths || [] as path}
+                        <button class="service-file-row" onclick={() => openServicePath(path)} title={path}>
+                          <span>▤</span>
+                          <span class="service-file-copy">
+                            <strong>{servicePathName(path)}</strong>
+                            <small class="mono">{path}</small>
+                          </span>
+                          <span class="service-file-open">{locale === 'ru' ? 'Открыть' : 'Open'} ↗</span>
+                        </button>
+                      {/each}
+                      {#if !(selectedService.log_paths || []).length}
+                        <div class="service-detail-empty compact">—</div>
+                      {/if}
+                    </div>
+                  </div>
+                </section>
+              </div>
 
-                <td class="actions-cell">
-                  <button class="mini" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'start')}>START</button>
-                  <button class="mini" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'restart')}>RESTART</button>
-                  <button class="mini danger" disabled={!s.executable || guarded} onclick={() => mutateService(s, 'stop')}>STOP</button>
-                  {#if guarded}
-                    <div class="cell-sub">{locale === 'ru' ? 'lifecycle защищён' : 'lifecycle protected'}</div>
+              <footer class="service-actionbar">
+                <div class="service-action-copy">
+                  <strong>{locale === 'ru' ? 'Lifecycle' : 'Lifecycle'}</strong>
+                  <span>
+                    {guarded
+                      ? (locale === 'ru' ? 'Действия защищены для системной службы.' : 'Actions are protected for this system service.')
+                      : (locale === 'ru' ? 'Guarded action с transaction evidence.' : 'Guarded action with transaction evidence.')}
+                  </span>
+                </div>
+                <div class="service-action-buttons">
+                  {#if selectedService.package?.name}
+                    <button class="mini" onclick={() => inspectRelated('packages', selectedService.package.name)}>
+                      {locale === 'ru' ? 'Пакет' : 'Package'} ↗
+                    </button>
                   {/if}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  {:else if tab === 'packages'}
+                  <button class="mini" disabled={!selectedService.executable || guarded} onclick={() => mutateService(selectedService, 'start')}>START</button>
+                  <button class="mini" disabled={!selectedService.executable || guarded} onclick={() => mutateService(selectedService, 'restart')}>RESTART</button>
+                  <button class="mini danger" disabled={!selectedService.executable || guarded} onclick={() => mutateService(selectedService, 'stop')}>STOP</button>
+                </div>
+              </footer>
+            </article>
+          {/if}
+        </div>
+      {/if}
+    </section>  {:else if tab === 'packages'}
     <section class="panel table-panel">
       <div class="panel-head"><div><strong>{t(locale, 'manage.packages')}</strong><span>/opt/lib/opkg/status</span></div><span class="state-chip info">{filteredPackages.length}</span></div>
       {#if packageLoading}
@@ -936,7 +1054,9 @@
       {/if}
     </section>
   {:else if tab === 'files'}
-    <FileManagerPane locale={locale} />
+    {#key fileOpenTarget}
+      <FileManagerPane locale={locale} openTarget={fileOpenTarget} />
+    {/key}
   {:else if tab === 'terminal'}
     <TerminalPane locale={locale} />
   {:else if tab === 'maintenance'}
@@ -1115,6 +1235,35 @@
   .terminal-panel{overflow:hidden}.terminal-output{min-height:28rem;max-height:55vh;overflow:auto;padding:1rem;background:var(--rf-bg,#0b0d10);color:var(--rf-text,#f5f7fa)}.terminal-output pre{margin:0 0 .55rem;white-space:pre-wrap;word-break:break-word;font:inherit}.terminal-command{color:var(--rf-accent,#38bdf8)}.terminal-error{color:var(--bad,#f85149)}.terminal-muted{opacity:.55}.terminal-controls{display:flex;gap:.5rem;padding:1rem;border-top:1px solid var(--rf-border,#29313a)}.terminal-cwd{flex:0 0 12rem;min-width:8rem}.terminal-input{flex:1}
   .integration-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;padding:1rem}.integration-card{border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-card,.7rem);padding:1rem;min-width:0;background:var(--rf-surface-2,#171b21)}.integration-title{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1rem}.integration-title span{font-size:.8rem;font-weight:700}.state-running{color:var(--good,#2ea043)}.state-stopped{color:var(--rf-muted,#8d98a4)}.integration-card dl{display:grid;grid-template-columns:6rem 1fr;gap:.45rem .7rem;margin:0}.integration-card dt{color:var(--rf-muted,#8d98a4)}.integration-card dd{margin:0;min-width:0;word-break:break-word}.integration-paths div{margin-bottom:.2rem}
 
+
+  .service-workspace{overflow:hidden}
+  .service-workspace-head{border-bottom:1px solid var(--rf-border,#29313a)}
+  .service-master-detail{display:grid;grid-template-columns:minmax(280px,.62fr) minmax(0,1.38fr);min-height:38rem}
+  .service-master-list{min-width:0;border-right:1px solid var(--rf-border,#29313a);background:color-mix(in srgb,var(--rf-bg,#0b0d10) 55%,var(--rf-surface,#12151a));max-height:72vh;overflow:auto;scrollbar-color:var(--rf-border-strong,#36414d) var(--rf-bg,#0b0d10)}
+  .service-master-row{width:100%;min-width:0;padding:12px 13px;display:grid;gap:8px;border:0;border-bottom:1px solid var(--rf-border,#29313a);background:transparent;color:var(--rf-text,#f5f7fa);text-align:left;cursor:pointer}
+  .service-master-row:hover{background:var(--rf-hover,#1d2229)}
+  .service-master-row.selected{background:var(--rf-accent-soft,rgba(56,189,248,.10));box-shadow:inset 3px 0 0 var(--rf-accent,#38bdf8)}
+  .service-master-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .service-master-title{min-width:0;display:grid;gap:2px}.service-master-title>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.88rem}.service-master-title>.cell-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .service-master-package{display:flex;align-items:center;gap:7px;min-width:0;color:var(--rf-muted,#8d98a4);font-size:.74rem}.service-master-package>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.service-master-package>span:first-child{color:var(--rf-text,#f5f7fa)}
+  .service-chip-row{display:flex;flex-wrap:wrap;gap:5px}.service-metric-chip{padding:3px 6px;border:1px solid var(--rf-border,#29313a);border-radius:999px;background:var(--rf-surface-2,#171b21);color:var(--rf-muted,#8d98a4);font:600 .66rem/1.1 var(--font-mono,"Roboto Mono",monospace)}.service-metric-chip.guarded{color:var(--warn,#d29922);border-color:color-mix(in srgb,var(--warn,#d29922) 42%,transparent)}
+  .service-detail{min-width:0;display:grid;align-content:start;background:var(--rf-surface,#12151a)}
+  .service-detail-head{min-height:82px;padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:1px solid var(--rf-border,#29313a)}
+  .service-detail-identity{min-width:0;display:grid;gap:3px}.service-detail-identity>strong{font-size:1.05rem}.service-detail-identity>span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rf-muted,#8d98a4);font-size:.72rem}.service-detail-kicker{color:var(--rf-accent,#38bdf8);font-size:.65rem;font-weight:700;letter-spacing:.06em}
+  .service-detail-state{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .service-overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--rf-border,#29313a)}
+  .service-fact{min-width:0;padding:11px 13px;display:grid;gap:3px;border-right:1px solid var(--rf-border,#29313a)}.service-fact:last-child{border-right:0}.service-fact>span{color:var(--rf-muted,#8d98a4);font-size:.65rem;text-transform:uppercase;letter-spacing:.04em}.service-fact>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.86rem}.service-fact>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rf-muted,#8d98a4);font-size:.68rem}
+  .service-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .service-detail-section{min-width:0;border-bottom:1px solid var(--rf-border,#29313a)}.service-detail-section:first-child{border-right:1px solid var(--rf-border,#29313a)}
+  .service-section-head{min-height:57px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--rf-border,#29313a);background:color-mix(in srgb,var(--rf-surface,#12151a) 78%,var(--rf-bg,#0b0d10))}.service-section-head>div:first-child{min-width:0}.service-section-head strong{display:block;font-size:.78rem}.service-section-head span{display:block;margin-top:3px;color:var(--rf-muted,#8d98a4);font-size:.66rem}.service-section-links{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+  .service-evidence-list{max-height:30rem;overflow:auto}.service-evidence-row{padding:9px 12px;display:grid;gap:3px;border-bottom:1px solid var(--rf-border,#29313a)}.service-evidence-row>div{display:flex;align-items:center;justify-content:space-between;gap:8px}.service-evidence-row strong{font-size:.76rem}.service-evidence-row span{color:var(--rf-muted,#8d98a4);font-size:.68rem}.service-evidence-command{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.service-socket-row{padding:7px 12px;display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;border-bottom:1px solid var(--rf-border,#29313a);font-size:.68rem}.service-socket-row>span{color:var(--rf-muted,#8d98a4)}
+  .service-file-groups{display:grid;gap:12px;padding:12px}.service-file-group{min-width:0;display:grid;gap:5px}.service-file-label{color:var(--rf-muted,#8d98a4);font:.68rem/1.2 var(--font-mono,"Roboto Mono",monospace)}
+  .service-file-row{width:100%;min-width:0;padding:7px 8px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-control,.45rem);background:var(--rf-surface-2,#171b21);color:var(--rf-text,#f5f7fa);text-align:left;cursor:pointer}.service-file-row:hover{border-color:var(--rf-accent-border,rgba(56,189,248,.30));background:var(--rf-hover,#1d2229)}.service-file-copy{min-width:0;display:grid;gap:2px}.service-file-copy strong,.service-file-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.service-file-copy strong{font-size:.74rem}.service-file-copy small{color:var(--rf-muted,#8d98a4);font-size:.64rem}.service-file-open{color:var(--rf-accent,#38bdf8);font-size:.68rem;white-space:nowrap}
+  .service-detail-empty{padding:16px;color:var(--rf-muted,#8d98a4);font-size:.72rem;text-align:center}.service-detail-empty.compact{padding:8px}
+  .service-actionbar{padding:10px 13px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--rf-bg,#0b0d10) 42%,var(--rf-surface,#12151a))}.service-action-copy{min-width:0;display:grid;gap:2px}.service-action-copy strong{font-size:.76rem}.service-action-copy span{color:var(--rf-muted,#8d98a4);font-size:.66rem}.service-action-buttons{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+  @media(max-width:1180px){.service-master-detail{grid-template-columns:minmax(250px,.72fr) minmax(0,1.28fr)}.service-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.service-fact:nth-child(2){border-right:0}.service-fact:nth-child(-n+2){border-bottom:1px solid var(--rf-border,#29313a)}.service-detail-grid{grid-template-columns:1fr}.service-detail-section:first-child{border-right:0}}
+  @media(max-width:820px){.service-master-detail{grid-template-columns:1fr;min-height:0}.service-master-list{max-height:26rem;border-right:0;border-bottom:1px solid var(--rf-border,#29313a)}.service-detail-head{min-height:0}.service-actionbar{align-items:flex-start;flex-direction:column}.service-action-buttons{width:100%;justify-content:flex-start}}
+  @media(max-width:560px){.service-overview-grid{grid-template-columns:1fr}.service-fact,.service-fact:nth-child(2){border-right:0;border-bottom:1px solid var(--rf-border,#29313a)}.service-fact:last-child{border-bottom:0}.service-detail-head{flex-direction:column}.service-detail-state{justify-content:flex-start}.service-socket-row{grid-template-columns:52px minmax(0,1fr)}.service-socket-row>span:last-child{display:none}.service-file-open{display:none}}
   .maintenance-shell{display:grid;gap:14px;min-width:0}
   .maintenance-commandbar{min-height:72px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-panel,6px);background:var(--rf-surface,#12151a)}
   .maintenance-command-copy{min-width:0;display:grid;gap:3px}.maintenance-command-copy>strong{color:var(--rf-text,#f5f7fa);font-size:var(--ui-panel-title,14px)}.maintenance-command-copy>span:last-child{max-width:70rem;color:var(--rf-muted,#8d98a4);font-size:var(--ui-xs,12px);line-height:1.4}.maintenance-kicker{color:var(--rf-accent,#38bdf8);font-size:var(--ui-micro,11px);font-weight:700;letter-spacing:.08em}.maintenance-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.maintenance-busy{color:var(--warn,#d29922);font-size:var(--ui-micro,11px);letter-spacing:.06em}

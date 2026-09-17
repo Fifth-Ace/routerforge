@@ -9,6 +9,7 @@
   import FilePropertiesModal from './FilePropertiesModal.svelte';
 
   export let locale = 'ru';
+  export let openTarget = '';
 
   const VIEW_KEY = 'routerforge.admin.files.view';
   const LEFT_KEY = 'routerforge.admin.files.left.path';
@@ -540,7 +541,39 @@
     return crumbs;
   }
 
-  onMount(() => {
+
+  async function openExternalTarget(path) {
+    const target = String(path || '').trim();
+    if (!target) return;
+
+    view = 'explorer';
+    const root = rootForPath(target);
+    const parent = parentWithin(target, root);
+    await loadExplorer(parent);
+
+    const entry = explorerEntries.find((item) => item.path === target);
+    if (entry) {
+      await openEntry('explorer', entry, true);
+      return;
+    }
+
+    // A service evidence path can disappear between inspection and navigation.
+    // Try a direct read so the user gets the real backend error instead of
+    // silently landing in the parent directory.
+    editorBusy = true;
+    errorText = '';
+    try {
+      const result = await readAdminFile(target);
+      selectedFile = result;
+      editorContent = result.content || '';
+      editorOriginal = editorContent;
+      editorForceReadOnly = true;
+    } catch (error) {
+      errorText = err(error);
+    } finally {
+      editorBusy = false;
+    }
+  }  onMount(() => {
     let disposed = false;
     (async () => {
       try {
@@ -548,6 +581,10 @@
         if (!disposed && Array.isArray(result.volumes) && result.volumes.length) volumes = result.volumes;
       } catch (error) { errorText = err(error); }
       if (disposed) return;
+      if (openTarget) {
+        await openExternalTarget(openTarget);
+        return;
+      }
     const stored = localStorage.getItem(VIEW_KEY);
     if (stored === 'explorer' || stored === 'commander') view = stored;
     const leftPath = localStorage.getItem(LEFT_KEY) || '/opt';

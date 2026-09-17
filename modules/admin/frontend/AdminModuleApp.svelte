@@ -12,6 +12,10 @@
     adminTerminalRun,
     adminMaintenanceBackup,
     adminMaintenanceRestore,
+    adminSupportBundleDownloadURL,
+    createAdminSupportBundle,
+    getAdminSupportBundles,
+    getAdminSupportStatus,
     configureAdminWatchdog,
     createAdminSnapshot,
     deleteAdminSnapshot,
@@ -74,6 +78,9 @@
   let watchdogBusyID = '';
   let snapshots = [];
   let snapshotBusy = false;
+  let supportStatus = null;
+  let supportBundles = [];
+  let supportBusy = false;
 
   let integrations = [];
   let integrationsBusy = false;
@@ -587,6 +594,26 @@
     }
   }
 
+  async function createSupportBundle() {
+    if (supportBusy) return;
+    supportBusy = true;
+    errorText = '';
+    try {
+      const result = await createAdminSupportBundle();
+      const [status, bundles] = await Promise.all([
+        getAdminSupportStatus(),
+        getAdminSupportBundles()
+      ]);
+      supportStatus = status;
+      supportBundles = bundles.bundles || [];
+      setAction(`${locale === 'ru' ? 'Диагностический пакет создан' : 'Support bundle created'}: ${result.bundle?.name || 'OK'}`);
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      supportBusy = false;
+    }
+  }
+
   async function loadMaintenance() {
     maintenanceBusy = true;
     errorText = '';
@@ -604,6 +631,9 @@
       maintenanceBackups = backups.backups || [];
       watchdogs = watchdogResult.watchdogs || [];
       snapshots = snapshotResult.snapshots || [];
+      const [support, bundleResult] = await Promise.all([getAdminSupportStatus(), getAdminSupportBundles()]);
+      supportStatus = support;
+      supportBundles = bundleResult.bundles || [];
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
@@ -1082,6 +1112,96 @@
         <div class="maintenance-stat"><span>{copy.snapshots}</span><strong>{snapshots.length}</strong><small>/tmp · max 32</small></div>
       </div>
 
+      <section class="maintenance-section p22-support">
+        <div class="maintenance-section-head">
+          <div>
+            <strong>{locale === 'ru' ? 'Поддержка и восстановление' : 'Support & recovery'}</strong>
+            <span>{locale === 'ru'
+              ? 'Состояние хранилищ, резервные копии и безопасный диагностический пакет без конфигов и секретов.'
+              : 'Storage health, recovery assets and a safe diagnostic bundle without configs or secrets.'}</span>
+          </div>
+          <span class="state-chip {supportStatus?.overall === 'critical' ? 'error' : supportStatus?.overall === 'warning' ? 'warn' : 'good'}">
+            {(supportStatus?.overall || 'ok').toUpperCase()}
+          </span>
+        </div>
+
+        <div class="p22-support-grid">
+          <div class="p22-support-card">
+            <span>{locale === 'ru' ? 'Хранилища' : 'Storage'}</span>
+            <strong>{(supportStatus?.storage || []).length}</strong>
+            <small>{locale === 'ru' ? 'контролируемых точек монтирования' : 'monitored mount points'}</small>
+          </div>
+          <div class="p22-support-card">
+            <span>{locale === 'ru' ? 'Backup' : 'Backups'}</span>
+            <strong>{supportStatus?.backup_count || 0}</strong>
+            <small>{supportStatus?.latest_backup ? new Date(supportStatus.latest_backup).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US') : '—'}</small>
+          </div>
+          <div class="p22-support-card">
+            <span>Watchdogs</span>
+            <strong>{supportStatus?.watchdogs_enabled || 0}</strong>
+            <small class:warn-text={(supportStatus?.watchdogs_attention || 0) > 0}>
+              {supportStatus?.watchdogs_attention || 0} {locale === 'ru' ? 'требуют внимания' : 'need attention'}
+            </small>
+          </div>
+          <div class="p22-support-card">
+            <span>{locale === 'ru' ? 'Диагностические пакеты' : 'Support bundles'}</span>
+            <strong>{supportStatus?.support_bundle_count || supportBundles.length}</strong>
+            <small>{locale === 'ru' ? 'хранятся во временной директории' : 'stored in temporary storage'}</small>
+          </div>
+        </div>
+
+        {#if (supportStatus?.storage || []).length}
+          <div class="p22-storage-list">
+            {#each supportStatus.storage as item (`${item.device}-${item.mount}`)}
+              <div class="p22-storage-row">
+                <div>
+                  <strong>{item.mount || item.device}</strong>
+                  <span class="mono">{item.device} · {item.fs_type}</span>
+                </div>
+                <div class="p22-storage-value">
+                  <strong class:error-text={item.status === 'critical'} class:warn-text={item.status === 'warning'}>
+                    {Number(item.used_pct || 0).toFixed(1)}%
+                  </strong>
+                  <span>{bytes(item.free_bytes || 0)} {locale === 'ru' ? 'свободно' : 'free'}</span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        <div class="p22-support-actions">
+          <div>
+            <strong>{locale === 'ru' ? 'Диагностический пакет' : 'Support bundle'}</strong>
+            <span>{locale === 'ru'
+              ? 'Содержит состояние системы, накопителей, температур, служб, интеграций, watchdog и очищенный хвост логов. Конфиги, аргументы процессов и cron-команды не включаются.'
+              : 'Contains system, storage, thermal, service, integration and watchdog state plus a redacted log tail. Configs, process arguments and cron command bodies are excluded.'}</span>
+          </div>
+          <button class="button primary" onclick={createSupportBundle} disabled={supportBusy}>
+            {supportBusy ? '…' : (locale === 'ru' ? 'Собрать диагностику' : 'Create support bundle')}
+          </button>
+        </div>
+
+        {#if supportBundles.length}
+          <div class="maintenance-list p22-bundle-list">
+            {#each supportBundles as bundle}
+              <div class="maintenance-list-row">
+                <div class="maintenance-list-copy">
+                  <strong class="mono">{bundle.name}</strong>
+                  <span class="cell-sub mono">{bytes(bundle.size || 0)} · {new Date(bundle.modified_at).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')}</span>
+                </div>
+                <a class="button" href={adminSupportBundleDownloadURL(bundle.path)}>
+                  {locale === 'ru' ? 'Скачать' : 'Download'}
+                </a>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="maintenance-empty">
+            {locale === 'ru' ? 'Диагностические пакеты ещё не создавались.' : 'No support bundles have been created yet.'}
+          </div>
+        {/if}
+      </section>
+
       <div class="maintenance-workbench">
         <section class="maintenance-section maintenance-log-section">
           <div class="maintenance-section-head">
@@ -1278,4 +1398,20 @@
   @media(max-width:1200px){.maintenance-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.maintenance-workbench{grid-template-columns:1fr}.maintenance-secondary-grid{grid-template-columns:1fr}}
   @media(max-width:900px){.integration-grid{grid-template-columns:1fr}.maintenance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:680px){.maintenance-commandbar{align-items:flex-start;flex-direction:column}.maintenance-actions{width:100%;justify-content:flex-start}.maintenance-summary{grid-template-columns:1fr}.maintenance-list-row,.watchdog-row{align-items:flex-start;flex-direction:column}.maintenance-row-actions{width:100%;justify-content:flex-start}.maintenance-pre,.maintenance-task-list{height:22rem}}
+  .p22-support{display:grid;gap:0}
+  .p22-support-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:12px;border-bottom:1px solid var(--rf-border,#29313a)}
+  .p22-support-card{min-width:0;padding:10px 11px;display:grid;gap:4px;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-panel,6px);background:var(--rf-bg,#0b0d10)}
+  .p22-support-card>span{color:var(--rf-muted,#8d98a4);font-size:var(--ui-micro,11px);text-transform:uppercase;letter-spacing:.045em}
+  .p22-support-card>strong{font:650 18px/1.1 var(--font-mono,"Roboto Mono",monospace)}
+  .p22-support-card>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rf-muted,#8d98a4);font-size:10px}
+  .p22-storage-list{display:grid;border-bottom:1px solid var(--rf-border,#29313a)}
+  .p22-storage-row{min-height:52px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--rf-border,#29313a)}
+  .p22-storage-row:last-child{border-bottom:0}
+  .p22-storage-row>div:first-child{min-width:0;display:grid;gap:3px}.p22-storage-row span{color:var(--rf-muted,#8d98a4);font-size:var(--ui-micro,11px)}
+  .p22-storage-value{display:grid;justify-items:end;gap:3px;flex:0 0 auto}.p22-storage-value>strong{font-family:var(--font-mono,"Roboto Mono",monospace)}
+  .p22-support-actions{padding:12px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--rf-border,#29313a);background:color-mix(in srgb,var(--rf-surface,#12151a) 76%,var(--rf-bg,#0b0d10))}
+  .p22-support-actions>div{min-width:0;display:grid;gap:4px}.p22-support-actions span{max-width:70rem;color:var(--rf-muted,#8d98a4);font-size:var(--ui-xs,12px);line-height:1.45}
+  .p22-bundle-list{max-height:16rem;overflow:auto}.warn-text{color:var(--warn,#d29922)!important}.error-text{color:var(--bad,#f85149)!important}
+  @media(max-width:1100px){.p22-support-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:680px){.p22-support-grid{grid-template-columns:1fr}.p22-support-actions,.p22-storage-row{align-items:flex-start;flex-direction:column}.p22-storage-value{justify-items:start}}
 </style>

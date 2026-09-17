@@ -46,6 +46,7 @@
   let packageRenderLimit = 160;
   let errorText = '';
   let actionText = '';
+  let serviceActionResult = null;
 
   let filePath = '/opt';
   let fileEntries = [];
@@ -347,15 +348,32 @@
   async function mutateService(service, action) {
     const id = service.id || service.name;
     if (!id || !confirm(`${copy.serviceConfirm} ${id}: ${action}?`)) return;
+    serviceActionResult = null;
+    errorText = '';
     try {
-      await adminServiceAction(id, action);
-      setAction(`${id}: ${action} — OK`);
+      const result = await adminServiceAction(id, action);
+      serviceActionResult = {
+        id,
+        action,
+        ok: true,
+        ...result
+      };
+      const state = result.transaction?.state || 'completed';
+      setAction(`${id}: ${action} — ${state.toUpperCase()}`);
       await load('services');
     } catch (error) {
+      const payload = error?.payload || {};
+      if (payload.transaction) {
+        serviceActionResult = {
+          id,
+          action,
+          ok: false,
+          ...payload
+        };
+      }
       errorText = errorMessage(error);
     }
   }
-
   function joinPath(parent, name) {
     if (parent === '/') return `/${name}`;
     return `${parent.replace(/\/+$/, '')}/${name}`;
@@ -735,6 +753,31 @@
 
   {#if actionText}<div class="ui-action-ok">{actionText}</div>{/if}
   {#if errorText}<div class="ui-action-error">{errorText}</div>{/if}
+
+  {#if tab === 'services' && serviceActionResult?.transaction}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <strong>{locale === 'ru' ? 'Результат действия' : 'Action result'} · {serviceActionResult.id}</strong>
+          <span>{serviceActionResult.action} · tx {serviceActionResult.transaction.id}</span>
+        </div>
+        <span class="state-chip {serviceActionResult.ok ? 'good' : 'bad'}">
+          {serviceActionResult.transaction.state.toUpperCase()}
+        </span>
+      </div>
+      <div class="cell-sub mono">
+        {locale === 'ru' ? 'rollback' : 'rollback'}: {serviceActionResult.rollback || 'n/a'}
+      </div>
+      <div class="cell-sub">
+        {#each serviceActionResult.transaction.evidence || [] as evidence}
+          <span class="pill">{evidence.stage} · {evidence.status}</span>
+        {/each}
+      </div>
+      {#if serviceActionResult.output}
+        <pre class="mono">{serviceActionResult.output}</pre>
+      {/if}
+    </section>
+  {/if}
 
   {#if tab === 'processes'}
     <section class="panel table-panel">

@@ -1249,6 +1249,71 @@ P18R не реализует production takeover primitive:
 - persisted rules остаются inactive для обычных клиентов;
 - никакой RCI/iptables mutation из нового driver пока нет.
 
+## P18S — hardware ingress discovery
+
+Read-only hardware discovery на Keenetic Hopper установил exact ingress topology:
+
+- UDP `0.0.0.0:53` и `:::53` принадлежат `ndnproxy` PID 684;
+- TCP `0.0.0.0:53` и `:::53` также принадлежат тому же `ndnproxy`;
+- native command: `/usr/sbin/ndnproxy -c /var/ndnproxymain.conf ...`;
+- LAN interface `br0` имеет IPv4 `192.168.10.1/24`;
+- native DNS отвечает локально на 127.0.0.1;
+- saved static name-server list пуст, active upstream приходит по DHCP на GigabitEthernet1;
+- RouterForge DNS service остаётся отдельным процессом и native :53 не занимает.
+
+Выбран один takeover primitive: **runtime-only IPv4 iptables NAT PREROUTING redirect**, без остановки `ndnproxy`.
+
+## P18T — reversible ingress takeover smoke
+
+R105 добавляет CLI-only primitive и hardware smoke.
+
+### Listener safety
+
+Обычные shadow/persisted modes сохраняют loopback contract. Non-loopback listener разрешён только если одновременно:
+
+- указан explicit IPv4, не wildcard и не loopback;
+- указан explicit interface;
+- Linux runtime доказывает, что IPv4 реально принадлежит этому UP interface;
+- port 53 запрещён.
+
+### Ingress ownership
+
+RouterForge резервирует отдельную NAT chain `RF_DNS_INGRESS`.
+
+Activation primitive:
+
+1. reconcile only stale RouterForge chain/jumps;
+2. start/verify RouterForge proxy on explicit LAN high-port;
+3. create `RF_DNS_INGRESS`;
+4. add UDP/TCP dport 53 REDIRECT внутри chain;
+5. insert exact PREROUTING jumps только для выбранного LAN interface;
+6. verify every jump/redirect through `iptables -C`.
+
+Native `ndnproxy :53` остаётся запущен всё время.
+
+Rollback:
+
+1. delete exact RouterForge PREROUTING jumps;
+2. flush/delete only `RF_DNS_INGRESS`;
+3. verify chain/jumps absent;
+4. direct UDP/TCP query to native LAN-IP:53 must succeed;
+5. only after native recovery proxy process may stop.
+
+Rules runtime-only: никакого iptables-save/persistence.
+
+### Hardware-smoke boundary
+
+CLI smoke доказывает:
+
+- concrete non-loopback RouterForge listener;
+- exact Policy1/Policy0 marked dataplane on that listener;
+- exact iptables install/readback/removal;
+- native UDP/TCP DNS recovery after rollback.
+
+Local CLI smoke не заявляет packet-counter proof конкретного external LAN frame through PREROUTING; такой proof можно добавить финальным client-side acceptance probe, если требуется перед public activation.
+
+`production_driver_ready=false` сохраняется до hardware PASS R105 и final public activation hardening.
+
 ## Следующий этап
 
-P18S — narrow hardware ingress discovery: read-only определить фактического владельца UDP/TCP :53, native DNS listener topology и минимальный reversible takeover mechanism; затем выбрать один exact primitive вместо нескольких альтернатив.
+После R105 hardware PASS — встроить доказанный ingress primitive в P18R takeover driver, закрыть накопленный public API hardening debt и провести один final activation/rollback acceptance gate вместо новых discovery-этапов.

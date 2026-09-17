@@ -28,6 +28,9 @@ func newDNSPolicyShadowServer(cfg DNSPolicyShadowConfig, routeProvider func() ma
 	if routeProvider == nil {
 		return nil, fmt.Errorf("shadow route provider is required")
 	}
+	if err := validateDNSPolicyShadowListenOwnership(validated); err != nil {
+		return nil, err
+	}
 	return &dnsPolicyShadowServer{
 		cfg:           validated,
 		routeProvider: routeProvider,

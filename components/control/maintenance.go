@@ -29,6 +29,7 @@ func registerAdminMaintenanceRoutes(mux *http.ServeMux) {
 	registerAdminWatchdogRoutes(mux)
 	registerAdminSnapshotRoutes(mux)
 	registerAdminConfigVaultRoutes(mux)
+	registerAdminSupportRoutes(mux)
 }
 
 func handleAdminMaintenanceLogs(w http.ResponseWriter, _ *http.Request) {

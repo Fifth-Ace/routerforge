@@ -229,3 +229,11 @@ export const deleteAdminSnapshot = (path) =>
     confirm_path: path,
     confirm: 'DELETE'
   });
+export const getAdminSupportStatus = () =>
+  request('/api/modules/admin/maintenance/support/status');
+export const getAdminSupportBundles = () =>
+  request('/api/modules/admin/maintenance/support-bundles');
+export const createAdminSupportBundle = () =>
+  postJSON('/api/modules/admin/maintenance/support-bundle', { confirm: 'SUPPORT_BUNDLE' });
+export const adminSupportBundleDownloadURL = (path) =>
+  `/api/modules/admin/maintenance/support-bundle/download?path=${encodeURIComponent(path)}`;

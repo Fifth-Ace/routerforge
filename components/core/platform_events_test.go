@@ -81,3 +81,65 @@ func TestEventTimelineLimitIsCapped(t *testing.T) {
 		t.Fatalf("expected max limit %d, got %d", eventEngineMaxLimit, limit)
 	}
 }
+
+func TestHealthAlertsReadOnlyContract(t *testing.T) {
+	resetPlatformEventProducerTestState()
+	now := time.Now().UTC()
+	moduleHealthProducerState.Lock()
+	moduleHealthProducerState.Modules["dns"] = moduleHealthObservation{
+		Healthy:   false,
+		ChangedAt: now.Add(-healthAlertCriticalAfter - time.Minute),
+		Detail:    "dial failed",
+	}
+	moduleHealthProducerState.Modules["admin"] = moduleHealthObservation{
+		Healthy:   true,
+		ChangedAt: now,
+		Detail:    "200 OK",
+	}
+	moduleHealthProducerState.Unlock()
+
+	get := httptest.NewRequest(http.MethodGet, "/api/platform/alerts", nil)
+	getResponse := httptest.NewRecorder()
+	handleHealthAlerts(getResponse, get)
+	if getResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected status %d body=%s", getResponse.Code, getResponse.Body.String())
+	}
+
+	var payload healthAlertsResponse
+	if err := json.Unmarshal(getResponse.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.APIVersion != 1 || payload.Mode != "read-only" || payload.Status != "degraded" {
+		t.Fatalf("unexpected alert contract: %#v", payload)
+	}
+	if payload.ActiveCount != 1 || payload.CriticalCount != 1 || payload.WarningCount != 0 {
+		t.Fatalf("unexpected alert counters: %#v", payload)
+	}
+	if len(payload.Alerts) != 1 || payload.Alerts[0].Component != "dns" || payload.Alerts[0].State != "active" {
+		t.Fatalf("unexpected alerts: %#v", payload.Alerts)
+	}
+
+	post := httptest.NewRequest(http.MethodPost, "/api/platform/alerts", nil)
+	postResponse := httptest.NewRecorder()
+	handleHealthAlerts(postResponse, post)
+	if postResponse.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", postResponse.Code)
+	}
+}
+
+func TestHealthAlertsOKWhenNoModuleIsDown(t *testing.T) {
+	resetPlatformEventProducerTestState()
+	observeModuleHealth("dns", true, "200 OK")
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/platform/alerts", nil)
+	handleHealthAlerts(response, request)
+
+	var payload healthAlertsResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Status != "ok" || payload.ActiveCount != 0 || len(payload.Alerts) != 0 {
+		t.Fatalf("unexpected healthy response: %#v", payload)
+	}
+}

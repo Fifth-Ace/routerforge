@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -508,24 +509,90 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusForbidden, map[string]any{"error": "RouterForge service lifecycle is managed through App Center"})
 		return
 	}
+
+	tx := transaction.New("", "admin-service", before.Path)
+	transaction.Record(&tx, "target-precheck", transaction.EvidencePassed, "service action target accepted", map[string]string{
+		"id":             before.ID,
+		"action":         action,
+		"init_script":    before.Path,
+		"running_before": strconv.FormatBool(before.Running),
+	})
+
+	// Service lifecycle does not have a safe generic rollback operation.
+	// Snapshot means capture of the exact pre-action runtime observation, not a
+	// promise that the previous service state can be automatically restored.
+	if err := transaction.Advance(&tx, transaction.Snapshot); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error(), "transaction": tx})
+		return
+	}
+	transaction.Record(&tx, "runtime-snapshot", transaction.EvidencePassed, "pre-action service observation captured", map[string]string{
+		"id":      before.ID,
+		"running": strconv.FormatBool(before.Running),
+	})
+
+	if err := transaction.Advance(&tx, transaction.Validated); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error(), "transaction": tx})
+		return
+	}
+	transaction.Record(&tx, "action-validation", transaction.EvidencePassed, "service action is allowlisted and target is executable", map[string]string{
+		"action": action,
+	})
+
+	if err := transaction.Advance(&tx, transaction.Applied); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error(), "transaction": tx})
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	output, err := safety.RunCommand(ctx, adminMutationResponseOutputLimit, before.Path, action)
 	outputText := trimMutationOutput(output)
 	if err != nil {
+		transaction.RecordFailure(&tx, "service-action", err, map[string]string{
+			"action": action,
+			"output": outputText,
+		})
+		_ = transaction.Advance(&tx, transaction.Failed)
+
 		status := http.StatusInternalServerError
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			status = http.StatusGatewayTimeout
 		}
 		writeJSON(w, status, map[string]any{
-			"error":  err.Error(),
-			"action": action,
-			"id":     id,
-			"output": outputText,
+			"error":       err.Error(),
+			"action":      action,
+			"id":          id,
+			"output":      outputText,
+			"transaction": tx,
 		})
 		return
 	}
+
+	transaction.Record(&tx, "service-action", transaction.EvidencePassed, "init action command completed", map[string]string{
+		"action": action,
+		"output": outputText,
+	})
+
 	after, existsAfter := readServiceByID(id)
+	readback := map[string]string{
+		"id":           id,
+		"exists_after": strconv.FormatBool(existsAfter),
+	}
+	if existsAfter {
+		readback["running_after"] = strconv.FormatBool(after.Running)
+		readback["running_source"] = after.RunningSource
+	}
+	transaction.Record(&tx, "post-action-readback", transaction.EvidencePassed, "post-action service observation captured", readback)
+
+	if err := transaction.Advance(&tx, transaction.Verified); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error(), "transaction": tx})
+		return
+	}
+	if err := transaction.Advance(&tx, transaction.Committed); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error(), "transaction": tx})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":             true,
 		"action":         action,
@@ -534,9 +601,10 @@ func handleServiceAction(w http.ResponseWriter, r *http.Request) {
 		"exists_after":   existsAfter,
 		"service_before": before,
 		"service_after":  after,
+		"transaction":    tx,
+		"rollback":       "not-supported-generic-service-lifecycle",
 	})
 }
-
 func getOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

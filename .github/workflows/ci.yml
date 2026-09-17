@@ -1082,7 +1082,6 @@ jobs:
 
           gh api --method GET \
             "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
-            -f branch=dev \
             -f head_sha="$GITHUB_SHA" \
             -f event=workflow_dispatch \
             -f status=success \
@@ -1102,7 +1101,7 @@ jobs:
           matches = [
               run for run in doc.get("workflow_runs", [])
               if run.get("head_sha") == sha
-              and run.get("head_branch") == "dev"
+              and (run.get("head_branch") == "dev" or str(run.get("head_branch", "")).startswith("release/stable-"))
               and run.get("event") == "workflow_dispatch"
               and run.get("status") == "completed"
               and run.get("conclusion") == "success"

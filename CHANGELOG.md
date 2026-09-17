@@ -4,6 +4,16 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-17 — RouterForge 0.9.1
+
+### Stable hotfix
+- Backports only the R85 bootstrap/runtime-compatibility fix onto the Stable 0.9.0 line.
+- Missing optional thermal sensors no longer block Core installation on MIPS/MIPSel.
+- Core install gating is separated from optional module status and post-install Core health is verified locally.
+- P16, P17 and P18 feature work remains Beta/Dev-only and is not included in this Stable release.
+- Component package versions remain unchanged from Stable 0.9.0.
+
+
 ## 2026-09-16 — RouterForge 0.9.0 (release preparation)
 
 ### Versioning

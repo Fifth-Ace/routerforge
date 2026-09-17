@@ -17,12 +17,12 @@ import (
 )
 
 const (
-	deviceObserverInterval        = 15 * time.Second
-	deviceStorageWarningPct       = 80.0
-	deviceStorageCriticalPct      = 90.0
-	deviceThermalWarningC         = 80.0
-	deviceThermalCriticalC        = 90.0
-	deviceObserverModuleTimeout   = 3 * time.Second
+	deviceObserverInterval      = 15 * time.Second
+	deviceStorageWarningPct     = 80.0
+	deviceStorageCriticalPct    = 90.0
+	deviceThermalWarningC       = 80.0
+	deviceThermalCriticalC      = 90.0
+	deviceObserverModuleTimeout = 3 * time.Second
 )
 
 type deviceProblem struct {
@@ -35,14 +35,14 @@ type deviceProblem struct {
 }
 
 type deviceObserverRuntime struct {
-	mu                sync.RWMutex
-	network           map[string]bool
-	networkSeenUp     map[string]bool
-	storage           map[string]string
-	thermal           map[string]string
-	watchdogLast      map[string]time.Time
-	active            map[string]deviceProblem
-	started           bool
+	mu            sync.RWMutex
+	network       map[string]bool
+	networkSeenUp map[string]bool
+	storage       map[string]string
+	thermal       map[string]string
+	watchdogLast  map[string]time.Time
+	active        map[string]deviceProblem
+	started       bool
 }
 
 var deviceObserver = deviceObserverRuntime{
@@ -71,14 +71,14 @@ type deviceThermalSample struct {
 
 type deviceWatchdogEnvelope struct {
 	Watchdogs []struct {
-		ID                string    `json:"id"`
-		Name              string    `json:"name"`
-		Enabled           bool      `json:"enabled"`
-		Detected          bool      `json:"detected"`
-		Running           bool      `json:"running"`
-		ServiceID         string    `json:"service_id"`
-		LastAttemptAt     time.Time `json:"last_attempt_at"`
-		LastAttemptOK     bool      `json:"last_attempt_ok"`
+		ID            string    `json:"id"`
+		Name          string    `json:"name"`
+		Enabled       bool      `json:"enabled"`
+		Detected      bool      `json:"detected"`
+		Running       bool      `json:"running"`
+		ServiceID     string    `json:"service_id"`
+		LastAttemptAt time.Time `json:"last_attempt_at"`
+		LastAttemptOK bool      `json:"last_attempt_ok"`
 	} `json:"watchdogs"`
 }
 
@@ -354,8 +354,8 @@ func (runtime *deviceObserverRuntime) observeWatchdogs(now time.Time, envelope d
 
 		id := "watchdog:" + item.ID
 		context := map[string]any{
-			"watchdog": item.ID,
-			"name": item.Name,
+			"watchdog":   item.ID,
+			"name":       item.Name,
 			"service_id": item.ServiceID,
 		}
 		if item.LastAttemptOK {

@@ -168,6 +168,63 @@ upload_release_asset() {
     done
 }
 
+delete_release_asset() {
+    asset="$1"
+    attempt=1
+
+    while [ "$attempt" -le 5 ]; do
+        if gh release delete-asset "$TAG" "$asset" --repo "$GITHUB_REPOSITORY" --yes; then
+            if [ "$attempt" -gt 1 ]; then
+                echo "DEV_ASSET_DELETE_RECOVERED=$asset attempt=$attempt"
+            fi
+            return 0
+        fi
+
+        if [ "$attempt" -ge 5 ]; then
+            echo "$asset: release asset delete failed after $attempt attempts" >&2
+            return 1
+        fi
+
+        delay=$((attempt * 2))
+        echo "$asset: release asset delete attempt $attempt/5 failed; retrying in ${delay}s" >&2
+        sleep "$delay"
+        attempt=$((attempt + 1))
+    done
+}
+
+patch_dev_tag() {
+    attempt=1
+
+    while [ "$attempt" -le 5 ]; do
+        patched="$(
+            gh api \
+                --method PATCH \
+                "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" \
+                -f sha="$GITHUB_SHA" \
+                -F force=true \
+                --jq '.object.sha' \
+                2>/dev/null || true
+        )"
+
+        if [ "$patched" = "$GITHUB_SHA" ]; then
+            if [ "$attempt" -gt 1 ]; then
+                echo "DEV_TAG_WRITE_RECOVERED=attempt=$attempt" >&2
+            fi
+            printf '%s\n' "$patched"
+            return 0
+        fi
+
+        if [ "$attempt" -ge 5 ]; then
+            echo "Dev tag write failed after $attempt attempts: expected $GITHUB_SHA, got ${patched:-<empty>}" >&2
+            return 1
+        fi
+
+        delay=$((attempt * 2))
+        echo "Dev tag write attempt $attempt/5 failed; retrying in ${delay}s" >&2
+        sleep "$delay"
+        attempt=$((attempt + 1))
+    done
+}
 verify_remote_digest() {
     asset="$1"
     path="$2"
@@ -223,7 +280,7 @@ while IFS= read -r asset; do
     case "$asset" in
         routerforge-*.ipk)
             if ! grep -Fxq "$asset" "$CURRENT"; then
-                gh release delete-asset "$TAG" "$asset" --repo "$GITHUB_REPOSITORY" --yes
+                delete_release_asset "$asset"
             fi
             ;;
     esac
@@ -233,14 +290,7 @@ done
 # and their remote digests have been verified successfully. GitHub can briefly serve
 # the previous ref value immediately after a successful PATCH, so validate both the
 # write response and eventual read visibility before declaring the channel published.
-PATCHED_DEV_TAG_SHA="$(
-    gh api \
-        --method PATCH \
-        "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" \
-        -f sha="$GITHUB_SHA" \
-        -F force=true \
-        --jq '.object.sha'
-)"
+PATCHED_DEV_TAG_SHA="$(patch_dev_tag)"
 
 [ "$PATCHED_DEV_TAG_SHA" = "$GITHUB_SHA" ] || {
     echo "Dev tag write mismatch: expected $GITHUB_SHA, got $PATCHED_DEV_TAG_SHA" >&2

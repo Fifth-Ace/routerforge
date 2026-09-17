@@ -45,14 +45,17 @@ type flowNATExplanation struct {
 }
 
 type flowExplorerEntry struct {
-	Protocol             string               `json:"protocol"`
-	State                string               `json:"state"`
-	TimeoutSeconds       int64                `json:"timeout_seconds,omitempty"`
-	Original             flowTuple            `json:"original"`
-	Reply                flowTuple            `json:"reply"`
-	NAT                  flowNATExplanation   `json:"nat"`
-	EffectiveDestination string               `json:"effective_destination,omitempty"`
-	Route                flowRouteExplanation `json:"route"`
+	Protocol             string                `json:"protocol"`
+	State                string                `json:"state"`
+	TimeoutSeconds       int64                 `json:"timeout_seconds,omitempty"`
+	Mark                 string                `json:"mark,omitempty"`
+	Original             flowTuple             `json:"original"`
+	Reply                flowTuple             `json:"reply"`
+	NAT                  flowNATExplanation    `json:"nat"`
+	EffectiveDestination string                `json:"effective_destination,omitempty"`
+	Route                flowRouteExplanation  `json:"route"`
+	Socket               flowSocketAttribution `json:"socket"`
+	Policy               flowPolicyExplanation `json:"policy"`
 }
 
 type flowExplorerFilter struct {
@@ -99,6 +102,7 @@ func handleFlowExplorer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	entries, source := readFlowExplorer(limit, filter)
+	enrichment := enrichFlowExplorer(r.Context(), entries)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"generated_at": time.Now().UTC(),
 		"flows":        entries,
@@ -107,6 +111,7 @@ func handleFlowExplorer(w http.ResponseWriter, r *http.Request) {
 		"bounded":      true,
 		"sampling":     "first-matching-conntrack-entries",
 		"source":       source,
+		"enrichment":   enrichment,
 		"mutation_api": false,
 		"dpi":          false,
 	})
@@ -185,6 +190,10 @@ func parseFlowExplorer(line string) (flowExplorerEntry, bool) {
 			}
 		}
 		switch key {
+		case "mark":
+			if entry.Mark == "" {
+				entry.Mark = value
+			}
 		case "src":
 			tuple.Source = value
 		case "dst":

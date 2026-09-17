@@ -73,6 +73,8 @@ run_probe \
 
 grep -Fxq 'target=mips-3.4' "$TMP/mips-ready.out"
 grep -Fxq 'module_dns=ready' "$TMP/mips-ready.out"
+grep -Fxq 'platform_status=ready' "$TMP/mips-ready.out"
+grep -Fxq 'gate_status=ready' "$TMP/mips-ready.out"
 grep -Fxq 'overall=ready' "$TMP/mips-ready.out"
 grep -Fxq 'selected_status=ready' "$TMP/mips-ready.out"
 
@@ -96,7 +98,8 @@ run_probe \
     "$TMP/degraded.out"
 
 grep -Fxq 'module_storage=degraded' "$TMP/degraded.out"
-grep -Fxq 'module_thermal=degraded' "$TMP/degraded.out"
+grep -Fxq 'module_thermal=unsupported' "$TMP/degraded.out"
+grep -Fxq 'gate_status=ready' "$TMP/degraded.out"
 grep -Fxq 'overall=degraded' "$TMP/degraded.out"
 grep -Fxq 'selected_status=degraded' "$TMP/degraded.out"
 
@@ -132,7 +135,46 @@ set -e
 grep -Fxq 'module_admin=blocked' "$TMP/admin-blocked.out"
 grep -Fxq 'selected_status=blocked' "$TMP/admin-blocked.out"
 
+set +e
+
+run_probe \
+    all \
+    mips-3.4 \
+    mips-3.4 \
+    "$TMP/all-admin-blocked.out"
+
+rc=$?
+
+set -e
+
+[ "$rc" -eq 0 ]
+grep -Fxq 'module_admin=blocked' "$TMP/all-admin-blocked.out"
+grep -Fxq 'gate_status=ready' "$TMP/all-admin-blocked.out"
+grep -Fxq 'overall=blocked' "$TMP/all-admin-blocked.out"
+grep -Fxq 'selected_status=blocked' "$TMP/all-admin-blocked.out"
+
 : > "$ROOT/proc/stat"
+
+mv "$BIN/ndmc" "$BIN/ndmc.off"
+
+set +e
+
+run_probe \
+    all \
+    mips-3.4 \
+    mips-3.4 \
+    "$TMP/platform-blocked.out"
+
+rc=$?
+
+set -e
+
+[ "$rc" -eq 2 ]
+grep -Fxq 'ndmc_read=no' "$TMP/platform-blocked.out"
+grep -Fxq 'platform_status=blocked' "$TMP/platform-blocked.out"
+grep -Fxq 'gate_status=blocked' "$TMP/platform-blocked.out"
+
+mv "$BIN/ndmc.off" "$BIN/ndmc"
 
 set +e
 
@@ -148,6 +190,7 @@ set -e
 
 [ "$rc" -eq 2 ]
 grep -Fxq 'target_match=no' "$TMP/abi-blocked.out"
+grep -Fxq 'gate_status=blocked' "$TMP/abi-blocked.out"
 grep -Fxq 'overall=blocked' "$TMP/abi-blocked.out"
 grep -Fxq 'selected_status=blocked' "$TMP/abi-blocked.out"
 
@@ -156,6 +199,8 @@ printf '%s\n' \
     'mipsel-3.4 ready: PASS' \
     'optional capability degradation: PASS' \
     'DNS AF_PACKET degradation: PASS' \
-    'missing /proc/stat block: PASS' \
+    'module-specific block semantics: PASS' \
+    'optional blocked module does not block all/core gate: PASS' \
+    'platform ndmc block: PASS' \
     'ABI mismatch block: PASS' \
     'RouterForge compatibility probe: PASS'

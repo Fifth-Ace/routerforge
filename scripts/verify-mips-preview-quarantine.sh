@@ -157,6 +157,8 @@ MIPSEL_BOOTSTRAP="$(render_target mipsel-3.4)"
 
 grep -Fq 'ROUTERFORGE_MIPS_PREVIEW' "$MIPS_BOOTSTRAP"
 grep -Fq 'runtime-compat-probe.sh' "$MIPS_BOOTSTRAP"
+grep -Fq 'gate_status' "$MIPS_BOOTSTRAP"
+grep -Fq 'http://127.0.0.1:2233/api/health' "$MIPS_BOOTSTRAP"
 grep -Fq 'ROUTERFORGE_MIPS_PREVIEW' "$MIPSEL_BOOTSTRAP"
 
 run_case no-optin mips-3.4 "$MIPS_BOOTSTRAP" 0 0
@@ -167,6 +169,7 @@ grep -Fq \
 
 run_case mips-ready mips-3.4 "$MIPS_BOOTSTRAP" 1 0
 [ "$CASE_RC" -eq 0 ]
+grep -Fxq 'gate_status=ready' "$TMP/mips-ready.out"
 grep -Fxq 'selected_status=ready' "$TMP/mips-ready.out"
 grep -Fq \
     'MIPS/MIPSel compatibility: ready.' \
@@ -174,6 +177,7 @@ grep -Fq \
 
 run_case mipsel-ready mipsel-3.4 "$MIPSEL_BOOTSTRAP" 1 0
 [ "$CASE_RC" -eq 0 ]
+grep -Fxq 'gate_status=ready' "$TMP/mipsel-ready.out"
 grep -Fxq 'selected_status=ready' "$TMP/mipsel-ready.out"
 grep -Fq \
     'MIPS/MIPSel compatibility: ready.' \
@@ -183,37 +187,33 @@ rm -f \
     "$ROOTFS/proc/diskstats" \
     "$ROOTFS/sys/class/thermal/thermal_zone0/temp"
 
-run_case degraded-rejected mips-3.4 "$MIPS_BOOTSTRAP" 1 0
-[ "$CASE_RC" -eq 1 ]
-grep -Fxq 'selected_status=degraded' "$TMP/degraded-rejected.out"
-grep -Fq \
-    'Set ROUTERFORGE_MIPS_ALLOW_DEGRADED=1' \
-    "$TMP/degraded-rejected.out"
-
-run_case degraded-accepted mips-3.4 "$MIPS_BOOTSTRAP" 1 1
+run_case optional-degraded mips-3.4 "$MIPS_BOOTSTRAP" 1 0
 [ "$CASE_RC" -eq 0 ]
-grep -Fxq 'selected_status=degraded' "$TMP/degraded-accepted.out"
-grep -Fq \
-    'Degraded experimental operation explicitly accepted.' \
-    "$TMP/degraded-accepted.out"
+grep -Fxq 'module_storage=degraded' "$TMP/optional-degraded.out"
+grep -Fxq 'module_thermal=unsupported' "$TMP/optional-degraded.out"
+grep -Fxq 'gate_status=ready' "$TMP/optional-degraded.out"
+grep -Fq 'MIPS/MIPSel compatibility: ready.' "$TMP/optional-degraded.out"
 
 : > "$ROOTFS/proc/diskstats"
 printf '42000\n' > "$ROOTFS/sys/class/thermal/thermal_zone0/temp"
-rm -f "$ROOTFS/proc/stat"
 
-run_case blocked mips-3.4 "$MIPS_BOOTSTRAP" 1 1
+mv "$BIN/ndmc" "$BIN/ndmc.off"
+
+run_case platform-blocked mips-3.4 "$MIPS_BOOTSTRAP" 1 1
 [ "$CASE_RC" -eq 1 ]
-grep -Fxq 'selected_status=blocked' "$TMP/blocked.out"
+grep -Fxq 'gate_status=blocked' "$TMP/platform-blocked.out"
 grep -Fq \
     'MIPS/MIPSel compatibility is blocked on this router.' \
-    "$TMP/blocked.out"
+    "$TMP/platform-blocked.out"
+
+mv "$BIN/ndmc.off" "$BIN/ndmc"
 
 printf '%s\n' \
     'AArch64 quarantine exclusion: PASS' \
     'MIPS preview explicit opt-in: PASS' \
     'mips-3.4 ready: PASS' \
     'mipsel-3.4 ready: PASS' \
-    'degraded default reject: PASS' \
-    'degraded explicit override: PASS' \
-    'blocked cannot be overridden: PASS' \
+    'optional degradation does not block core install: PASS' \
+    'platform block cannot be overridden: PASS' \
+    'core runtime health verification rendered: PASS' \
     'MIPS/MIPSel preview quarantine: PASS'

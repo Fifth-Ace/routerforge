@@ -1341,7 +1341,7 @@ The persistent/public activation API remains disabled until this exact acceptanc
 ### Hardening debt closed in R106
 
 - zero-valued `ordinal`, `rule_priority`, and `specificity` are explicit in JSON;
-- persisted store `Load()` performs semantic rule validation and canonicalization;
+- persisted store `Load()` performs semantic rule validation while preserving stored rule order;
 - repeated atomic store overwrite is covered by regression test;
 - HEAD for generic GET-only API and `/v1/policy-rules` suppresses response bodies;
 - PUT content-type gate was already enforced by the existing mutation-header helper and is retained unchanged.

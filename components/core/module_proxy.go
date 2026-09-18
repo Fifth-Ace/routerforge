@@ -58,7 +58,7 @@ const (
 	dnsModuleMutationBodyLimit     int64 = 64 << 10
 	adminModuleMutationBodyLimit   int64 = 8 << 10
 	adminFileWriteRequestBodyLimit int64 = 272 << 10
-	nfqwsManagerMutationBodyLimit  int64 = 140 << 10
+	nfqwsManagerMutationBodyLimit  int64 = (2 << 20) + (64 << 10)
 )
 
 func moduleMutationBodyLimit(moduleID string) int64 {

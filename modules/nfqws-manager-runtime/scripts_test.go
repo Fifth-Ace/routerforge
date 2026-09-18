@@ -14,6 +14,7 @@ func TestSafeScriptName(t *testing.T) {
 		{"sub/evil.lua", false},
 		{".hidden.lua", false},
 		{"zapret-lib.lua.old", false},
+		{"zapret-lib.lua.gz", false},
 		{"not-lua.txt", false},
 		{"", false},
 	}
@@ -24,12 +25,32 @@ func TestSafeScriptName(t *testing.T) {
 	}
 }
 
+func TestScriptDisplayName(t *testing.T) {
+	tests := []struct {
+		input string
+		name  string
+		ok    bool
+	}{
+		{"zapret-lib.lua", "zapret-lib.lua", true},
+		{"zapret-lib.lua.gz", "zapret-lib.lua", true},
+		{"/opt/etc/nfqws2/lua/zapret-auto.LUA.GZ", "zapret-auto.LUA", true},
+		{"not-lua.txt", "", false},
+	}
+	for _, tt := range tests {
+		name, ok := scriptDisplayName(tt.input)
+		if ok != tt.ok || name != tt.name {
+			t.Fatalf("scriptDisplayName(%q)=(%q,%v) want (%q,%v)", tt.input, name, ok, tt.name, tt.ok)
+		}
+	}
+}
+
 func TestScriptTargetAllowed(t *testing.T) {
 	tests := []struct {
 		path string
 		want bool
 	}{
 		{"/opt/etc/nfqws2/lua/zapret-lib.lua", true},
+		{"/opt/etc/nfqws2/lua/zapret-lib.lua.gz", true},
 		{"/opt/share/zapret2/lua/zapret-lib.lua", true},
 		{"/opt/usr/share/nfqws2/zapret-auto.LUA", true},
 		{"/opt/etc/nfqws2/lua/not-lua.txt", false},

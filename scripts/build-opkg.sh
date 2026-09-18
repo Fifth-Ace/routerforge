@@ -49,6 +49,7 @@ marketplace_install_http.go
 app_center_entware.go
 app_center_jobs.go
 user_app_sources.go
+unmanaged_github_release.go
 core_platform.go
 platform_events.go
 platform_event_producers.go

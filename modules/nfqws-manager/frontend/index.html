@@ -653,8 +653,6 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   applyRouterForgeTheme();
   loadListGroupState();
 
-  setupResizableWorkspaces();
-
   const syntaxEditors=new WeakMap();
   const nfqwsValueWords=new Set(['http','https','tls','quic','tcp','udp','wireguard','stun','discord','mtproto','unknown','fake','circular','multisplit','hostfakesplit','http_methodeol','tls_client_hello','quic_initial','http_req','MODE_LIST','MODE_ALL','MODE_AUTO']);
   const systemLists=new Set(['user.list','auto.list','exclude.list','ipset.list','ipset_exclude.list']);
@@ -759,6 +757,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     let timer=null;const observer=new ResizeObserver(()=>{const h=Math.round(node.getBoundingClientRect().height);if(h<420||h>900)return;clearTimeout(timer);timer=setTimeout(()=>{try{localStorage.setItem(key,String(h))}catch(_){}reportHeight()},120)});observer.observe(node);
   }
   function setupResizableWorkspaces(){setupResizableWorkspace('listWorkspace');setupResizableWorkspace('scriptWorkspace')}
+  setupResizableWorkspaces();
 
   async function api(path,options={}){
     const r=await fetch(base+path,{cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},...options});

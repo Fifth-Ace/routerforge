@@ -136,6 +136,47 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   .mode-card strong,.policy-card strong{font-size:11.5px}
 }
 
+
+/* R11 NFQWS-aware editor experience + deterministic list grouping. */
+:root{
+  --syn-flag:#67c8ff;--syn-key:#8bd5ff;--syn-param:#9cc7ff;--syn-value:#8ed9a6;
+  --syn-number:#e7c66b;--syn-variable:#c4a7e7;--syn-resource:#63d6c5;--syn-comment:#76808c;
+  --syn-strategy:#f0a85d;--syn-operator:#8b949e;
+}
+.syntax-editor-shell{display:grid;gap:6px;min-width:0}
+.syntax-editor-toolbar{min-height:30px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 7px;border:1px solid var(--border);border-bottom:0;border-radius:6px 6px 0 0;background:var(--surface2)}
+.syntax-editor-caption{display:flex;align-items:center;gap:7px;min-width:0;color:var(--muted);font-size:var(--rf-font-small)}
+.syntax-editor-caption:before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:var(--accent);box-shadow:0 0 7px color-mix(in srgb,var(--accent) 48%,transparent)}
+.syntax-editor-caption strong{color:var(--text);font-size:var(--rf-font-small);font-weight:650}
+.syntax-editor-hint{color:var(--muted);font-size:var(--rf-font-meta);white-space:nowrap}
+.syntax-editor-actions{display:flex;align-items:center;gap:5px}
+.syntax-editor-actions button,.editor-toolbar-actions button{min-height:27px;padding:0 8px;font-size:var(--rf-font-small)}
+.syntax-editor-body{position:relative;min-width:0;border:1px solid var(--border);border-radius:0 0 6px 6px;background:var(--code);overflow:hidden}
+.syntax-editor-shell .syntax-editor-body:focus-within,.editor-main .syntax-editor-body:focus-within{border-color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 32%,transparent)}
+.syntax-editor-highlight{position:absolute;z-index:1;inset:0;margin:0;padding:9px 11px;overflow:hidden;pointer-events:none;color:#d7dde4;background:var(--code);font:var(--rf-font-control)/1.5 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:2}
+.syntax-editor-body textarea{position:relative;z-index:2;margin:0!important;background:transparent!important;color:transparent!important;caret-color:var(--text)!important;border:0!important;border-radius:0!important;box-shadow:none!important;text-shadow:none!important;font:var(--rf-font-control)/1.5 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace!important;tab-size:2}
+.syntax-editor-body textarea::selection{background:color-mix(in srgb,var(--accent) 27%,transparent);color:transparent}
+.editor-main .syntax-editor-body{border:0;border-radius:0;min-width:0}
+.editor-main .syntax-editor-highlight{padding:10px 12px;white-space:pre;overflow-wrap:normal;font-size:12px;line-height:1.55}
+.editor-main .syntax-editor-body textarea.editor{white-space:pre;font-size:12px!important;line-height:1.55!important}
+.editor-toolbar-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.syn-key{color:var(--syn-key);font-weight:650}.syn-flag{color:var(--syn-flag)}.syn-param{color:var(--syn-param)}.syn-value{color:var(--syn-value)}.syn-number{color:var(--syn-number)}.syn-variable{color:var(--syn-variable)}.syn-resource{color:var(--syn-resource)}.syn-comment{color:var(--syn-comment);font-style:italic}.syn-strategy{color:var(--syn-strategy);font-weight:650}.syn-operator{color:var(--syn-operator)}.syn-string{color:#b9c2cc}
+.resource-chips{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-height:0}
+.resource-chips[hidden]{display:none}.resource-label{color:var(--muted);font-size:var(--rf-font-meta);font-weight:650;text-transform:uppercase;letter-spacing:.05em}
+.resource-chip{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 7px;border:1px solid var(--border);border-radius:999px;background:var(--surface2);color:var(--muted);font:600 var(--rf-font-meta)/1 ui-monospace,Consolas,monospace}
+button.resource-chip{cursor:pointer}.resource-chip.good{color:#34d399;border-color:color-mix(in srgb,#34d399 32%,var(--border));background:color-mix(in srgb,#34d399 7%,var(--surface2))}.resource-chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 36%,var(--border));background:color-mix(in srgb,var(--warn) 7%,var(--surface2))}.resource-chip.info{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,var(--border))}
+.syntax-editor-shell.syntax-fullscreen{position:fixed!important;inset:8px!important;z-index:50!important;grid-template-rows:auto minmax(0,1fr) auto;padding:10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--bg);box-shadow:0 25px 80px rgba(0,0,0,.72);overflow:hidden}
+.syntax-editor-shell.syntax-fullscreen .syntax-editor-body{height:100%;min-height:0;border-radius:0 0 6px 6px}
+.syntax-editor-shell.syntax-fullscreen textarea{height:100%!important;min-height:0!important;resize:none!important}
+.syntax-editor-shell.syntax-fullscreen .syntax-editor-highlight{height:100%}
+body.syntax-fullscreen-open{overflow:hidden}
+.full-editor .editor-main{min-height:calc(100vh - 150px)}.full-editor .editor-main .syntax-editor-body{height:calc(100vh - 150px)}.full-editor .editor-main textarea.editor{height:100%!important;min-height:0!important;resize:none!important}.full-editor .editor-main .syntax-editor-highlight{height:100%}
+.file-group-label{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 5px 3px;margin-top:10px;font-size:var(--rf-font-meta)}
+.file-group-label:first-child{margin-top:2px}.file-group-label.system{color:var(--accent)}.file-group-label.user{color:#34d399}.file-group-label.opkg{color:var(--warn)}
+.file-group-count{display:inline-grid;place-items:center;min-width:22px;height:18px;padding:0 5px;border:1px solid currentColor;border-radius:999px;font:700 9px/1 ui-monospace,Consolas,monospace;opacity:.8}
+.file-item[data-group="system"] .file-icon{color:var(--accent)}.file-item[data-group="user"] .file-icon{color:#34d399}.file-item[data-group="opkg"] .file-icon{color:var(--warn)}
+@media(max-width:700px){.syntax-editor-hint{display:none}.syntax-editor-shell.syntax-fullscreen{inset:4px!important;padding:6px}.resource-label{width:100%}}
+
 </style>
 </head>
 <body>
@@ -322,7 +363,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
 <section id="view-lists" class="view">
   <div class="list-grid">
     <article class="panel">
-      <div class="panel-head"><div><h2>Списки</h2><div class="section-kicker">Полное редактирование файлов lists/</div></div><button id="newList" class="primary">+ Новый</button></div>
+      <div class="panel-head"><div><h2>Списки</h2><div class="section-kicker">Системные · Пользовательские · OPKG</div></div><button id="newList" class="primary">+ Новый</button></div>
       <input id="listSearch" class="search" placeholder="Поиск списка…">
       <div id="fileList" class="file-list"></div>
     </article>
@@ -394,6 +435,100 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
     try{root.lang=q.get('locale')||'ru'}catch(_){}
   }
   applyRouterForgeTheme();
+
+  const syntaxEditors=new WeakMap();
+  const nfqwsValueWords=new Set(['http','https','tls','quic','tcp','udp','wireguard','stun','discord','mtproto','unknown','fake','circular','multisplit','hostfakesplit','http_methodeol','tls_client_hello','quic_initial','http_req','MODE_LIST','MODE_ALL','MODE_AUTO']);
+  const systemLists=new Set(['auto.list','exclude.list','ipset.list','ipset_exclude.list']);
+
+  function syn(cls,value){return `<span class="${cls}">${esc(value)}</span>`}
+  function highlightArgsLine(line){
+    const text=String(line||''),trimmed=text.trimStart(),lead=text.slice(0,text.length-trimmed.length);
+    if(trimmed.startsWith('#'))return esc(lead)+syn(/^#\s*(?:Strategy|Стратегия)\b/i.test(trimmed)?'syn-strategy':'syn-comment',trimmed);
+    let out='',i=0;
+    while(i<text.length){
+      const c=text[i];
+      if(/\s/.test(c)){let j=i+1;while(j<text.length&&/\s/.test(text[j]))j++;out+=esc(text.slice(i,j));i=j;continue}
+      if(text.startsWith('--',i)){let j=i+2;while(j<text.length&&/[A-Za-z0-9_-]/.test(text[j]))j++;out+=syn('syn-flag',text.slice(i,j));i=j;continue}
+      if(c==='$'){
+        let j=i+1;if(text[j]==='{'){j++;while(j<text.length&&/[A-Za-z0-9_]/.test(text[j]))j++;if(text[j]==='}')j++}else while(j<text.length&&/[A-Za-z0-9_]/.test(text[j]))j++;
+        out+=syn('syn-variable',text.slice(i,j));i=j;continue
+      }
+      if(c==='#'){out+=syn(/^#\s*(?:Strategy|Стратегия)\b/i.test(text.slice(i))?'syn-strategy':'syn-comment',text.slice(i));break}
+      if((c==='@'&&text[i+1]==='/')||c==='/'){
+        let j=i+1;while(j<text.length&&!/[\s,:]/.test(text[j]))j++;out+=syn('syn-resource',text.slice(i,j));i=j;continue
+      }
+      if(c==='"'||c==="'"){
+        const q=c;let j=i+1,escaped=false;for(;j<text.length;j++){const x=text[j];if(x===q&&!escaped){j++;break}escaped=x==='\\'&&!escaped;if(x!=='\\')escaped=false}out+=syn('syn-string',text.slice(i,j));i=j;continue
+      }
+      if('=:,'.includes(c)){out+=syn('syn-operator',c);i++;continue}
+      if(/[0-9]/.test(c)||((c==='-'||c==='+'||c==='<'||c==='>')&&/[A-Za-z0-9]/.test(text[i+1]||''))){
+        let j=i+1;while(j<text.length&&/[A-Za-z0-9._+<>-]/.test(text[j]))j++;const v=text.slice(i,j);out+=syn(/^[-+<>]?[A-Za-z]*\d/.test(v)?'syn-number':'syn-value',v);i=j;continue
+      }
+      let j=i+1;while(j<text.length&&!/[\s=:,#"']/.test(text[j]))j++;const v=text.slice(i,j);
+      let cls='syn-value';if(/^0x[0-9a-f]+$/i.test(v)||/^\d+(?:[-:]\d+)*(?:,\d+(?:[-:]\d+)*)*$/.test(v))cls='syn-number';else if(v.includes('/')||(/^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+$/.test(v)&&/[A-Za-z]/.test(v)))cls='syn-resource';else if(text[j]==='=')cls='syn-param';else if(!nfqwsValueWords.has(v)&&!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(v))cls='syn-string';
+      out+=syn(cls,v);i=j;
+    }
+    return out;
+  }
+  function highlightArgs(text){return lines(text).map(highlightArgsLine).join('\n')||'&#8203;'}
+  function closingQuoteIndex(text,quote,start){let escaped=false;for(let i=start;i<text.length;i++){const c=text[i];if(c===quote&&!escaped)return i;escaped=c==='\\'&&!escaped;if(c!=='\\')escaped=false}return-1}
+  function highlightConfig(text){
+    const src=lines(text),out=[];let quoted=false,quote='"';
+    for(const line of src){
+      if(quoted){const end=closingQuoteIndex(line,quote,0);if(end<0){out.push(highlightArgsLine(line));continue}out.push(highlightArgsLine(line.slice(0,end))+syn('syn-string',quote)+highlightArgsLine(line.slice(end+1)));quoted=false;continue}
+      const t=line.trimStart(),lead=line.slice(0,line.length-t.length);if(t.startsWith('#')){out.push(esc(lead)+syn('syn-comment',t));continue}
+      const m=/^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*)(=)(.*)$/.exec(line);if(!m){out.push(highlightArgsLine(line));continue}
+      let rendered=esc(m[1])+syn('syn-key',m[2])+esc(m[3])+syn('syn-operator',m[4]),rest=m[5],prefix='';const ws=/^\s*/.exec(rest)?.[0]||'';prefix+=esc(ws);rest=rest.slice(ws.length);
+      if(rest[0]==='"'||rest[0]==="'"){quote=rest[0];rendered+=prefix+syn('syn-string',quote);const end=closingQuoteIndex(rest,quote,1);if(end<0){quoted=true;rendered+=highlightArgsLine(rest.slice(1))}else rendered+=highlightArgsLine(rest.slice(1,end))+syn('syn-string',quote)+highlightArgsLine(rest.slice(end+1));}
+      else rendered+=prefix+highlightArgsLine(rest);
+      out.push(rendered);
+    }
+    return out.join('\n')||'&#8203;';
+  }
+  function refreshSyntaxEditor(textarea){
+    const state=syntaxEditors.get(textarea);if(!state)return;state.pre.innerHTML=state.mode==='config'?highlightConfig(textarea.value):highlightArgs(textarea.value);state.pre.scrollTop=textarea.scrollTop;state.pre.scrollLeft=textarea.scrollLeft;if(state.resources)renderEditorResources(textarea,state.resources,state.resourceKind);
+  }
+  function insertTab(textarea){const a=textarea.selectionStart,b=textarea.selectionEnd;textarea.value=textarea.value.slice(0,a)+'  '+textarea.value.slice(b);textarea.selectionStart=textarea.selectionEnd=a+2;textarea.dispatchEvent(new Event('input',{bubbles:true}))}
+  function closeSyntaxFullscreen(shell){if(!shell)return;shell.classList.remove('syntax-fullscreen');if(!document.querySelector('.syntax-fullscreen')&&!document.querySelector('.full-editor'))document.body.classList.remove('syntax-fullscreen-open');reportHeight()}
+  function toggleStrategyFullscreen(shell,button){const on=!shell.classList.contains('syntax-fullscreen');document.querySelectorAll('.syntax-fullscreen').forEach(x=>x!==shell&&closeSyntaxFullscreen(x));shell.classList.toggle('syntax-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);button.textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()}
+  function mountSyntaxTextarea(textarea,{mode='args',caption='NFQWS args',resources=true,resourceKind='strategy'}={}){
+    if(!textarea)return null;const existing=syntaxEditors.get(textarea);if(existing){refreshSyntaxEditor(textarea);return existing}
+    const shell=document.createElement('div');shell.className='syntax-editor-shell';const bar=document.createElement('div');bar.className='syntax-editor-toolbar';bar.innerHTML=`<div class="syntax-editor-caption"><strong>${esc(caption)}</strong><span class="syntax-editor-hint">NFQWS syntax · Ctrl+S = diff</span></div><div class="syntax-editor-actions"><button type="button">На весь экран</button></div>`;
+    const body=document.createElement('div');body.className='syntax-editor-body';const pre=document.createElement('pre');pre.className='syntax-editor-highlight';const resourceHost=document.createElement('div');resourceHost.className='resource-chips';resourceHost.hidden=!resources;
+    textarea.parentNode.insertBefore(shell,textarea);shell.append(bar,body);body.append(pre,textarea);if(resources)shell.append(resourceHost);
+    const button=bar.querySelector('button');button.onclick=()=>toggleStrategyFullscreen(shell,button);
+    const state={pre,mode,shell,resources:resources?resourceHost:null,resourceKind};syntaxEditors.set(textarea,state);textarea.dataset.syntaxReady='1';
+    textarea.addEventListener('input',()=>refreshSyntaxEditor(textarea));textarea.addEventListener('scroll',()=>{pre.scrollTop=textarea.scrollTop;pre.scrollLeft=textarea.scrollLeft});textarea.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();insertTab(textarea)}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();updateFlowState();if(flowDirty())previewFlow()}if(e.key==='Escape'&&shell.classList.contains('syntax-fullscreen'))closeSyntaxFullscreen(shell)});
+    refreshSyntaxEditor(textarea);return state;
+  }
+  function mountRawSyntaxEditor(){
+    const textarea=$('config');if(!textarea)return;let state=syntaxEditors.get(textarea);if(!state){const body=document.createElement('div');body.className='syntax-editor-body';const pre=document.createElement('pre');pre.className='syntax-editor-highlight';textarea.parentNode.insertBefore(body,textarea);body.append(pre,textarea);state={pre,mode:'config',shell:body,resources:null};syntaxEditors.set(textarea,state);textarea.dataset.syntaxReady='1';textarea.addEventListener('input',()=>refreshSyntaxEditor(textarea));textarea.addEventListener('scroll',()=>{pre.scrollTop=textarea.scrollTop;pre.scrollLeft=textarea.scrollLeft})}
+    const panel=textarea.closest('.editor-shell');if(panel){panel.id='configEditorPanel';const toolbar=panel.querySelector('.editor-toolbar');if(toolbar&&!$('fullscreenConfig')){const hint=toolbar.lastElementChild,actions=document.createElement('div');actions.className='editor-toolbar-actions';if(hint)actions.append(hint);const button=document.createElement('button');button.id='fullscreenConfig';button.type='button';button.textContent='На весь экран';actions.append(button);toolbar.append(actions);button.onclick=()=>{const on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);button.textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()}}}
+    refreshSyntaxEditor(textarea);
+  }
+  function baseResourceDefinitions(){
+    const source=String(flowValues.NFQWS_BASE_ARGS||''),blobs=new Map(),lua=[];let m;const br=/--blob=([^:\s]+):(@?\/[^\s]+)/g;while((m=br.exec(source))!==null)blobs.set(m[1],m[2]);const lr=/--lua-init=(@?\/[^\s]+)/g;while((m=lr.exec(source))!==null)lua.push(m[1]);return{blobs,lua};
+  }
+  function editorResources(text,kind){
+    const source=String(text||''),items=[],seen=new Set(),push=(type,name,path='')=>{const key=`${type}:${name}:${path}`;if(!seen.has(key)){seen.add(key);items.push({type,name,path})}};let m;
+    if(kind==='base'){const defs=baseResourceDefinitions();for(const[pathName,path]of defs.blobs)push('blobdef',pathName,path);for(const path of defs.lua)push('lua',path.split('/').pop(),path);return items}
+    const lr=/--(?:hostlist|hostlist-exclude|hostlist-auto|ipset|ipset-exclude)=([^\s]+)/g;while((m=lr.exec(source))!==null){const path=m[1].replace(/["']/g,'');push('list',path.split('/').pop(),path)}
+    const br=/(?:^|:)blob=([^:\s,]+)/gm;while((m=br.exec(source))!==null)push('blob',m[1]);return items;
+  }
+  function renderEditorResources(textarea,host,kind){
+    const items=editorResources(textarea.value,kind);if(!items.length){host.hidden=true;host.innerHTML='';return}host.hidden=false;const known=new Set((current?.lists||[]).map(x=>String(x.name||''))),defs=baseResourceDefinitions();host.innerHTML='<span class="resource-label">Ресурсы</span>'+items.map(item=>{
+      if(item.type==='list'){const ok=known.has(item.name);return `<button type="button" class="resource-chip ${ok?'good':'warn'}" data-resource-list="${esc(item.name)}" title="${esc(item.path)}">list ${esc(item.name)} ${ok?'✓':'?'}</button>`}
+      if(item.type==='blob'){const inline=/^0x[0-9a-f]+$/i.test(item.name),ok=inline||defs.blobs.has(item.name);return `<span class="resource-chip ${ok?'good':'warn'}" title="${esc(ok?(inline?'inline blob':defs.blobs.get(item.name)||'declared'):'Нет объявления в NFQWS_BASE_ARGS')}">blob ${esc(item.name)} ${ok?'✓':'?'}</span>`}
+      if(item.type==='blobdef')return `<span class="resource-chip info" title="${esc(item.path)}">blob ${esc(item.name)}</span>`;
+      return `<span class="resource-chip info" title="${esc(item.path)}">lua ${esc(item.name)}</span>`;
+    }).join('');host.querySelectorAll('[data-resource-list]').forEach(button=>button.onclick=()=>openListFromSetup(button.dataset.resourceList));
+  }
+  function renderAllEditorResources(){document.querySelectorAll('textarea[data-syntax-ready="1"]').forEach(ta=>{const state=syntaxEditors.get(ta);if(state?.resources)renderEditorResources(ta,state.resources,state.resourceKind)})}
+  function mountStrategyEditors(){
+    const specs=[['flowBaseArgs','BASE_ARGS','base'],['flowArgs','HTTPS / TCP','strategy'],['flowQuic','QUIC','strategy'],['flowUdp','UDP','strategy'],['flowIpset','IPSET','strategy']];for(const[id,caption,kind]of specs)mountSyntaxTextarea($(id),{caption,resourceKind:kind});
+    document.querySelectorAll('.custom-block[data-index]').forEach(card=>{const i=Number(card.dataset.index),caption=normalizeCustomLabel(customLabels[i])||`CUSTOM #${i+1}`;mountSyntaxTextarea(card.querySelector('textarea'),{caption,resourceKind:'strategy'})});renderAllEditorResources();
+  }
+
 
   async function api(path,options={}){
     const r=await fetch(base+path,{cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},...options});
@@ -592,19 +727,20 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
       card.querySelector('.custom-down').onclick=()=>{if(i<customBlocks.length-1){[customBlocks[i+1],customBlocks[i]]=[customBlocks[i],customBlocks[i+1]];[customLabels[i+1],customLabels[i]]=[customLabels[i],customLabels[i+1]];renderFlow()}};
       card.querySelector('.custom-clone').onclick=()=>{customBlocks.splice(i+1,0,customBlocks[i]);customLabels.splice(i+1,0,customLabels[i]?`${customLabels[i]} — копия`:'');renderFlow()};card.querySelector('.custom-delete').onclick=()=>{if(confirm(`Удалить custom-блок ${i+1}?`)){customBlocks.splice(i,1);customLabels.splice(i,1);renderFlow()}};
     });
+    mountStrategyEditors();
   }
   function updateFlowState(){
     flowValues.ISP_INTERFACE=$('flowInterface').value;flowValues.NFQWS_BASE_ARGS=$('flowBaseArgs').value;flowValues.NFQWS_ARGS=$('flowArgs').value;flowValues.NFQWS_ARGS_QUIC=$('flowQuic').value;flowValues.NFQWS_ARGS_UDP=$('flowUdp').value;flowValues.NFQWS_ARGS_IPSET=$('flowIpset').value;
     flowValues.IPV6_ENABLED=$('flowIPv6').checked?'1':'0';flowValues.TCP_PORTS=$('flowTcpPorts').value;flowValues.UDP_PORTS=$('flowUdpPorts').value;flowValues.POLICY_NAME=policyMode==='none'?'':$('flowPolicyName').value;flowValues.POLICY_EXCLUDE=policyMode==='exclude'?'1':'0';flowValues.LOG_LEVEL=$('flowLogLevel').checked?'1':'0';flowValues.LOG_DEBUG_PATH=$('flowLogPath').value;
     const dirty=flowDirty();$('setupState').textContent=dirty?'UNSAVED':'CLEAN';$('setupState').className='setup-state '+(dirty?'dirty':'');$('resetSetup').disabled=!dirty;$('diffSetup').disabled=!dirty;$('applySetup').disabled=!dirty||busy||diagnostics().some(x=>x[0]==='bad');
     $('sumMain').innerHTML=summaryChips(flowValues.NFQWS_ARGS);$('sumQuic').innerHTML=summaryChips(flowValues.NFQWS_ARGS_QUIC);$('sumUdp').innerHTML=summaryChips(flowValues.NFQWS_ARGS_UDP);$('sumIpset').innerHTML=summaryChips(flowValues.NFQWS_ARGS_IPSET);renderCollapsedSummaries();
-    $('strategyCount').textContent=customBlocks.length?`(${customBlocks.length})`:'';$('mStrategies').textContent=String(3+customBlocks.length);renderProcessingOverview();renderDiagnostics();renderChangeSummary();
+    $('strategyCount').textContent=customBlocks.length?`(${customBlocks.length})`:'';$('mStrategies').textContent=String(3+customBlocks.length);renderProcessingOverview();renderDiagnostics();renderChangeSummary();renderAllEditorResources();
   }
   function renderFlow(){
     $('flowInterface').value=flowValues.ISP_INTERFACE||'';$('flowBaseArgs').value=flowValues.NFQWS_BASE_ARGS||'';$('flowArgs').value=flowValues.NFQWS_ARGS||'';$('flowQuic').value=flowValues.NFQWS_ARGS_QUIC||'';$('flowUdp').value=flowValues.NFQWS_ARGS_UDP||'';$('flowIpset').value=flowValues.NFQWS_ARGS_IPSET||'';
     $('flowIPv6').checked=/^(1|true|yes)$/i.test(flowValues.IPV6_ENABLED||'');$('flowTcpPorts').value=flowValues.TCP_PORTS||'';$('flowUdpPorts').value=flowValues.UDP_PORTS||'';$('flowPolicyName').value=flowValues.POLICY_NAME||'';$('flowPolicyExclude').value=flowValues.POLICY_EXCLUDE||'0';$('flowLogLevel').checked=/^(1|true|yes)$/i.test(flowValues.LOG_LEVEL||'');$('flowLogPath').value=flowValues.LOG_DEBUG_PATH||'';
     $('flowQueue').textContent=assignmentValue(flowOriginal,'NFQUEUE_NUM')||'—';$('flowUser').textContent=assignmentValue(flowOriginal,'USER')||'—';$('flowConfigVersion').textContent=assignmentValue(flowOriginal,'CONFIG_VERSION')||'—';
-    updateModeCards();renderPolicy();renderPortEditor('tcp');renderPortEditor('udp');renderCustomBlocks();updateFlowState();addCollapseControls();reportHeight();
+    updateModeCards();renderPolicy();renderPortEditor('tcp');renderPortEditor('udp');renderCustomBlocks();mountStrategyEditors();updateFlowState();addCollapseControls();reportHeight();
   }
   function resetFlow(){loadFlow(flowOriginal);renderFlow()}
   function previewFlow(){
@@ -627,28 +763,22 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   }
   function updateConfigEditor(){
     const v=$('config').value,c=lines(v).length;$('gutter').textContent=Array.from({length:c},(_,i)=>i+1).join('\n');$('editorStats').textContent=`${c} lines · ${bytes(new Blob([v]).size)}`;
-    const dirty=v!==original;$('editorState').textContent=dirty?'UNSAVED':'CLEAN';$('editorState').className='mono '+(dirty?'dirty':'good-text');$('save').disabled=busy||!current?.mutation_ready||!dirty;$('undoConfig').disabled=!dirty;$('diffConfig').disabled=!dirty;
+    const dirty=v!==original;$('editorState').textContent=dirty?'UNSAVED':'CLEAN';$('editorState').className='mono '+(dirty?'dirty':'good-text');$('save').disabled=busy||!current?.mutation_ready||!dirty;$('undoConfig').disabled=!dirty;$('diffConfig').disabled=!dirty;refreshSyntaxEditor($('config'));
   }
   function editableStatusLists(){
     return (current?.lists||[]).filter(item=>/\.(list|list-opkg|list-old)$/i.test(String(item?.name||'')));
   }
+  function listGroup(item){
+    const name=String(item?.name||'').toLowerCase();if(name.endsWith('.list-opkg'))return'opkg';const baseName=name.endsWith('.list-old')?name.slice(0,-4):name;if(systemLists.has(baseName))return'system';return'user';
+  }
   function sortLists(items){
-    return [...items].sort((a,b)=>{
-      const an=String(a.name||''),bn=String(b.name||''),ao=/-opkg$/i.test(an),bo=/-opkg$/i.test(bn);
-      if(ao!==bo)return ao?1:-1;
-      return an.localeCompare(bn,undefined,{numeric:true,sensitivity:'base'});
-    });
+    const order={system:0,user:1,opkg:2};return [...items].sort((a,b)=>{const ga=listGroup(a),gb=listGroup(b);if(order[ga]!==order[gb])return order[ga]-order[gb];return String(a.name||'').localeCompare(String(b.name||''),undefined,{numeric:true,sensitivity:'base'})});
   }
   function renderListFiles(){
-    const list=sortLists(editableStatusLists()),q=$('listSearch').value.trim().toLowerCase();$('listCount').textContent=list.length?`(${list.length})`:'';$('fileList').innerHTML='';
-    const visible=list.filter(x=>!q||String(x.name).toLowerCase().includes(q));if(!visible.length){$('fileList').innerHTML='<div class="empty">Списки не найдены.</div>';return}
-    let systemStarted=false;
-    visible.forEach(item=>{
-      const system=/-opkg$/i.test(item.name);
-      if(system&&!systemStarted){const label=document.createElement('div');label.className='file-group-label system';label.textContent='Системные / OPKG';$('fileList').append(label);systemStarted=true}
-      if(!system&&$('fileList').children.length===0){const label=document.createElement('div');label.className='file-group-label';label.textContent='Рабочие списки';$('fileList').append(label)}
-      const row=document.createElement('div');row.className='file-item'+(selectedList===item.name?' active':'');row.innerHTML=`<div><div class="file-name"><span class="file-icon">${system?'◆':'≡'}</span>${esc(item.name)}</div><div class="file-meta">${esc(item.modified_at||'')}${system?' · package copy':''}</div></div><div class="file-meta">${bytes(item.size)}</div>`;row.onclick=()=>selectList(item.name);$('fileList').append(row);
-    });
+    const list=sortLists(editableStatusLists()),q=$('listSearch').value.trim().toLowerCase();$('listCount').textContent=list.length?`(${list.length})`:'';$('fileList').innerHTML='';const visible=list.filter(x=>!q||String(x.name).toLowerCase().includes(q));if(!visible.length){$('fileList').innerHTML='<div class="empty">Списки не найдены.</div>';return}
+    const groups=[['system','Системные'],['user','Пользовательские'],['opkg','OPKG']];for(const[key,label]of groups){const items=visible.filter(item=>listGroup(item)===key);if(!items.length)continue;const groupLabel=document.createElement('div');groupLabel.className=`file-group-label ${key}`;groupLabel.innerHTML=`<span>${label}</span><span class="file-group-count">${items.length}</span>`;$('fileList').append(groupLabel);
+      items.forEach(item=>{const row=document.createElement('div'),kind=listGroup(item),meta=kind==='system'?'upstream / служебный':kind==='opkg'?'package copy':'пользовательский';row.dataset.group=kind;row.className='file-item'+(selectedList===item.name?' active':'');row.innerHTML=`<div><div class="file-name"><span class="file-icon">${kind==='system'?'◆':kind==='opkg'?'◇':'≡'}</span>${esc(item.name)}</div><div class="file-meta">${esc(item.modified_at||'')} · ${meta}${String(item.name||'').toLowerCase().endsWith('.list-old')?' · old':''}</div></div><div class="file-meta">${bytes(item.size)}</div>`;row.onclick=()=>selectList(item.name);$('fileList').append(row)});
+    }
   }
   async function selectList(name){
     selectedList=name;renderListFiles();$('selectedListTitle').textContent=name;$('selectedListMeta').textContent='Loading…';$('listEditor').value='';listMeta=null;listOriginal='';updateListButtons();
@@ -689,7 +819,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
     if(!available)notice('NFQWS target не найден.','error');else if(!running)notice('NFQWS обнаружен, но сервис остановлен.','error');else notice('NFQWS runtime обнаружен. RouterForge управляет установленным внешним пакетом, не заменяя его lifecycle.','good');
     original=s?.config||'';loadFlow(original);$('config').value=original;$('configMeta').textContent=`${s?.config_path||'—'} · ${bytes(s?.config_size)} · SHA256 ${(s?.config_sha256||'—').slice(0,20)}…`;
     $('backupCount').textContent=s?.backup_count||0;$('backupCountTab').textContent=s?.backup_count?`(${s.backup_count})`:'';
-    renderOverview();renderFlow();renderListFiles();renderLog();updateConfigEditor();setBusy(false);reportHeight();
+    renderOverview();renderFlow();renderListFiles();renderLog();mountRawSyntaxEditor();updateConfigEditor();refreshSyntaxEditor($('config'));setBusy(false);reportHeight();
   }
   async function load(){setBusy(true);try{render(await api('/status'));if(!selectedList&&editableStatusLists().length)await selectList(sortLists(editableStatusLists())[0].name)}catch(e){notice(e.message,'error');setBusy(false)}}
   async function action(name){if(busy||!current?.mutation_ready)return;if(!confirm(`NFQWS: ${name}?`))return;setBusy(true);try{const r=await api('/action',{method:'POST',body:JSON.stringify({action:name,confirm:'NFQWS'})});render(r.status);notice(`${name}: успешно`,'good')}catch(e){notice(e.message,'error');setBusy(false)}}
@@ -717,10 +847,11 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));reportHeight()});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
-  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor()};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});$('basicMode').onclick=()=>{expertMode=false;document.documentElement.classList.remove('expert-mode');$('basicMode').classList.add('active');$('expertMode').classList.remove('active');reportHeight()};$('expertMode').onclick=()=>{expertMode=true;document.documentElement.classList.add('expert-mode');$('expertMode').classList.add('active');$('basicMode').classList.remove('active');reportHeight()};$('addTcpPort').onclick=()=>addPort('tcp');$('addUdpPort').onclick=()=>addPort('udp');$('tcpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('tcp')}};$('udpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('udp')}};document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
+  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});$('basicMode').onclick=()=>{expertMode=false;document.documentElement.classList.remove('expert-mode');$('basicMode').classList.add('active');$('expertMode').classList.remove('active');reportHeight()};$('expertMode').onclick=()=>{expertMode=true;document.documentElement.classList.add('expert-mode');$('expertMode').classList.add('active');$('basicMode').classList.remove('active');reportHeight()};$('addTcpPort').onclick=()=>addPort('tcp');$('addUdpPort').onclick=()=>addPort('udp');$('tcpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('tcp')}};$('udpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('udp')}};document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('fullscreenList').onclick=()=>{$('listEditorPanel').classList.toggle('full-editor');$('fullscreenList').textContent=$('listEditorPanel').classList.contains('full-editor')?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){const panel=$('configEditorPanel');if(panel?.classList.contains('full-editor')){$('fullscreenConfig')?.click()}}});
   load();
 })();
 </script>

@@ -312,58 +312,61 @@ body.syntax-fullscreen-open{overflow:hidden}
 .setup-section.collapsible-section.collapsed .setup-section-collapse{display:none}
 @keyframes rf-section-enter{from{grid-template-rows:0fr;opacity:0;transform:translate3d(0,-4px,0)}to{grid-template-rows:1fr;opacity:1;transform:translate3d(0,0,0)}}
 
-#view-lists,#view-scripts{padding-top:12px}
-#view-lists .list-grid,#view-scripts .script-layout{height:var(--nfqws-workspace-height,620px);min-height:460px;align-items:stretch}
-#view-lists .list-grid>.panel,#view-scripts .script-layout>.panel{min-height:0;overflow:hidden}
-#view-lists .list-grid>.panel:first-child,#view-scripts .script-layout>.panel:first-child{display:grid;grid-template-rows:auto auto minmax(0,1fr)}
-#listEditorPanel{display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:0;overflow:hidden}
-#scriptPanel{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;overflow:hidden}
-#view-lists .file-list,#view-scripts .script-list{min-height:0;max-height:none;height:auto;overflow:auto;margin-top:7px}
-#listEditor{height:100%;min-height:0!important;max-height:none;resize:none;overflow:auto}
-#scriptCode.script-code-shell,#scriptCode.script-reader-empty{height:100%;min-height:0;max-height:none;overflow:auto}
-#view-lists .panel-head,#view-scripts .panel-head{min-height:34px;margin-bottom:7px;align-items:center;gap:8px}
-#view-lists .panel-head h2,#view-scripts .panel-head h2{font-size:13px;line-height:1.2}
-#view-lists .panel-head .section-kicker,#view-scripts .panel-head .section-kicker{margin-top:2px;font-size:9.5px;line-height:1.25}
-#view-lists .panel-head .toolbar,#view-scripts .panel-head .toolbar{gap:5px}
-#view-lists .panel-head button,#view-scripts .panel-head button{min-height:29px;padding:0 9px;font-size:11px}
-#view-lists .search,#view-scripts .search{height:31px}
-#view-lists .editor-foot{min-height:28px;padding:5px 8px}
-.full-editor{overflow:hidden!important}
-#listEditorPanel.full-editor{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important;padding:10px!important}
-#listEditorPanel.full-editor textarea.editor{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important;resize:none!important}
-.script-panel.script-fullscreen{overflow:hidden!important}
-.script-panel.script-fullscreen .script-code-shell,.script-panel.script-fullscreen .script-reader-empty{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important}
-@media(max-width:900px){#view-lists .list-grid,#view-scripts .script-layout{height:auto;min-height:0}#view-lists .list-grid>.panel:first-child,#view-scripts .script-layout>.panel:first-child{min-height:260px}#view-lists .file-list,#view-scripts .script-list{max-height:280px}.list-grid,.script-layout{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.setup-section-collapse,.setup-section.collapsible-section .setup-head:after{animation:none!important;transition:none!important}}
 
-/* R16: bounded workspaces, no iframe height feedback loop, compact collapsed groups and true single-scroll fullscreen. */
-html.syntax-fullscreen-open,body.syntax-fullscreen-open{height:100%!important;overflow:hidden!important;overscroll-behavior:none}
+/* R17: one RouterForge split-workspace pattern for Lists and Scripts.
+   Mirrors Admin File Manager: desktop split, narrow stack, one resize model. */
 #view-lists,#view-scripts{padding-top:10px}
-#view-lists .list-grid,#view-scripts .script-layout{height:560px!important;min-height:0!important;align-items:stretch}
-#view-lists .list-grid>.panel,#view-scripts .script-layout>.panel{min-height:0;overflow:hidden}
-#view-lists .list-grid>.panel:first-child,#view-scripts .script-layout>.panel:first-child{display:grid;grid-template-rows:auto auto minmax(0,1fr);align-content:stretch}
-#view-lists .file-list,#view-scripts .script-list{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important;align-content:start!important;grid-auto-rows:max-content}
-#view-lists .file-list{display:block!important}
-#view-lists .file-group{display:block!important;margin:7px 0 0!important;height:auto!important;min-height:0!important}
-#view-lists .file-group:first-child{margin-top:2px!important}
-#view-lists .file-group-header{height:30px!important;min-height:30px!important;padding:4px 6px!important}
-#view-lists .file-group.collapsed{height:30px!important;min-height:30px!important;overflow:hidden!important}
-#view-lists .file-group.collapsed .file-group-items{display:none!important}
-#view-scripts .script-list{display:flex!important;flex-direction:column!important;justify-content:flex-start!important;gap:3px!important}
-#view-scripts .script-item{flex:0 0 auto!important;min-height:52px!important;padding:8px 9px!important}
-#listEditorPanel,#scriptPanel{min-height:0;overflow:hidden}
-#listEditor{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important;resize:none!important}
-#scriptCode.script-code-shell,#scriptCode.script-reader-empty{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important}
-#view-lists .panel-head,#view-scripts .panel-head{min-height:30px!important;margin-bottom:6px!important;padding-block:0!important}
-#view-lists .panel-head h2,#view-scripts .panel-head h2{font-size:12.5px!important}
-#view-lists .panel-head .section-kicker,#view-scripts .panel-head .section-kicker{font-size:9px!important;margin-top:1px!important}
-.full-editor,.syntax-editor-shell.syntax-fullscreen,.script-panel.script-fullscreen{inset:0!important;margin:0!important;border-radius:0!important;box-shadow:none!important;max-width:none!important;max-height:none!important;overflow:hidden!important}
-#listEditorPanel.full-editor{padding:8px!important;grid-template-rows:auto minmax(0,1fr) auto!important}
-#listEditorPanel.full-editor textarea.editor{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important}
-.syntax-editor-shell.syntax-fullscreen{padding:8px!important}
-.script-panel.script-fullscreen{padding:8px!important;grid-template-rows:auto minmax(0,1fr)!important}
-.script-panel.script-fullscreen .script-code-shell,.script-panel.script-fullscreen .script-reader-empty{height:100%!important;overflow:auto!important;overscroll-behavior:contain}
-@media(max-width:900px){#view-lists .list-grid,#view-scripts .script-layout{height:auto!important;min-height:0!important}#view-lists .list-grid>.panel:first-child,#view-scripts .script-layout>.panel:first-child{min-height:240px}#view-lists .file-list,#view-scripts .script-list{height:auto!important;max-height:260px!important}.list-grid,.script-layout{grid-template-columns:1fr}}
+.rf-workspace{
+  display:grid;
+  grid-template-columns:minmax(250px,300px) minmax(0,1fr);
+  gap:12px;
+  height:620px;
+  min-height:420px;
+  max-height:900px;
+  resize:vertical;
+  overflow:hidden;
+  align-items:stretch;
+}
+.rf-workspace>.panel{min-width:0;min-height:0;overflow:hidden}
+.rf-workspace>.panel:first-child{display:grid;grid-template-rows:auto auto minmax(0,1fr);align-content:stretch}
+.rf-workspace .panel-head{min-height:30px;margin-bottom:6px;align-items:center;gap:8px}
+.rf-workspace .panel-head h2{font-size:12.5px;line-height:1.2}
+.rf-workspace .panel-head .section-kicker{font-size:9px;line-height:1.25;margin-top:1px}
+.rf-workspace .panel-head .toolbar{gap:5px}
+.rf-workspace .panel-head button{min-height:29px;padding:0 9px;font-size:11px}
+.rf-workspace .search{height:31px}
+.rf-workspace .file-list,.rf-workspace .script-list{height:auto;min-height:0;max-height:none;overflow:auto;align-content:start;margin-top:7px}
+.rf-workspace .file-list{display:block}
+.rf-workspace .file-group{display:block;height:auto;min-height:0;margin:7px 0 0}
+.rf-workspace .file-group:first-child{margin-top:2px}
+.rf-workspace .file-group-header{height:30px;min-height:30px;padding:4px 6px}
+.rf-workspace .file-group.collapsed{height:30px;min-height:30px;overflow:hidden}
+.rf-workspace .file-group.collapsed .file-group-items{display:none}
+.rf-workspace .script-list{display:flex;flex-direction:column;justify-content:flex-start;gap:3px}
+.rf-workspace .script-item{flex:0 0 auto;min-height:56px}
+#listEditorPanel{display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:0;overflow:hidden}
+#listEditorPanel textarea.editor{height:100%;min-height:0;max-height:none;resize:none;overflow:auto}
+#scriptPanel{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;overflow:hidden}
+#scriptPanel .script-code-shell,#scriptPanel .script-reader-empty{height:100%;min-height:0;max-height:none;overflow:auto}
+/* The split workspace itself is the resize target, identical for Lists/Scripts. */
+.rf-workspace{box-sizing:border-box}
+/* Settings strategy editors stay inline and vertically resizable; no fullscreen control. */
+.setup-flow .syntax-editor-actions{display:none}
+.setup-flow .syntax-editor-body textarea{resize:vertical}
+/* Fullscreen belongs only to Raw/Lists/Scripts and owns the only scrollbar. */
+html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;overflow:hidden!important;overscroll-behavior:none}
+#listEditorPanel.full-editor,.script-panel.script-fullscreen{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:8px!important;box-sizing:border-box!important;border-radius:0!important;overflow:hidden!important;z-index:60!important}
+#listEditorPanel.full-editor{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important}
+#listEditorPanel.full-editor textarea.editor{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important;resize:none!important}
+.script-panel.script-fullscreen{display:grid!important;grid-template-rows:auto minmax(0,1fr)!important}
+.script-panel.script-fullscreen .script-code-shell,.script-panel.script-fullscreen .script-reader-empty{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important;overscroll-behavior:contain}
+/* Both workspaces stack at exactly the same breakpoint, like Admin File Manager. */
+@media(max-width:760px){
+  .rf-workspace{grid-template-columns:1fr;grid-template-rows:210px minmax(0,1fr);height:660px;min-height:520px;max-height:900px}
+  .rf-workspace>.panel:first-child{min-height:0}
+  .rf-workspace .file-list,.rf-workspace .script-list{height:100%;max-height:none}
+}
 
 </style>
 </head>
@@ -558,7 +561,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{height:100%!important;ov
 </section>
 
 <section id="view-lists" class="view">
-  <div class="list-grid">
+  <div id="listWorkspace" class="list-grid rf-workspace">
     <article class="panel">
       <div class="panel-head"><div><h2>Списки</h2><div class="section-kicker">Системные · Пользовательские · OPKG</div></div><button id="newList" class="primary">+ Новый</button></div>
       <input id="listSearch" class="search" placeholder="Поиск списка…">
@@ -585,7 +588,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{height:100%!important;ov
 </section>
 
 <section id="view-scripts" class="view">
-  <div class="script-layout">
+  <div id="scriptWorkspace" class="script-layout rf-workspace">
     <article class="panel">
       <div class="panel-head"><div><h2>Lua-скрипты</h2><div id="scriptRoot" class="section-kicker mono">/opt/etc/nfqws2/lua</div></div></div>
       <input id="scriptSearch" class="search" placeholder="Поиск скрипта…">
@@ -650,6 +653,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{height:100%!important;ov
   applyRouterForgeTheme();
   loadListGroupState();
 
+  setupResizableWorkspaces();
+
   const syntaxEditors=new WeakMap();
   const nfqwsValueWords=new Set(['http','https','tls','quic','tcp','udp','wireguard','stun','discord','mtproto','unknown','fake','circular','multisplit','hostfakesplit','http_methodeol','tls_client_hello','quic_initial','http_req','MODE_LIST','MODE_ALL','MODE_AUTO']);
   const systemLists=new Set(['user.list','auto.list','exclude.list','ipset.list','ipset_exclude.list']);
@@ -707,10 +712,9 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{height:100%!important;ov
   function toggleStrategyFullscreen(shell,button){const on=!shell.classList.contains('syntax-fullscreen');document.querySelectorAll('.syntax-fullscreen').forEach(x=>x!==shell&&closeSyntaxFullscreen(x));shell.classList.toggle('syntax-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);button.textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()}
   function mountSyntaxTextarea(textarea,{mode='args',caption='NFQWS args',resources=true,resourceKind='strategy'}={}){
     if(!textarea)return null;const existing=syntaxEditors.get(textarea);if(existing){refreshSyntaxEditor(textarea);return existing}
-    const shell=document.createElement('div');shell.className='syntax-editor-shell';const bar=document.createElement('div');bar.className='syntax-editor-toolbar';bar.innerHTML=`<div class="syntax-editor-caption"><strong>${esc(caption)}</strong><span class="syntax-editor-hint">NFQWS syntax · Ctrl+S = diff</span></div><div class="syntax-editor-actions"><button type="button">На весь экран</button></div>`;
+    const shell=document.createElement('div');shell.className='syntax-editor-shell';const bar=document.createElement('div');bar.className='syntax-editor-toolbar';bar.innerHTML=`<div class="syntax-editor-caption"><strong>${esc(caption)}</strong><span class="syntax-editor-hint">NFQWS syntax · Ctrl+S = diff</span></div>`;
     const body=document.createElement('div');body.className='syntax-editor-body';const pre=document.createElement('pre');pre.className='syntax-editor-highlight';const resourceHost=document.createElement('div');resourceHost.className='resource-chips';resourceHost.hidden=!resources;
     textarea.parentNode.insertBefore(shell,textarea);shell.append(bar,body);body.append(pre,textarea);if(resources)shell.append(resourceHost);
-    const button=bar.querySelector('button');button.onclick=()=>toggleStrategyFullscreen(shell,button);
     const state={pre,mode,shell,resources:resources?resourceHost:null,resourceKind};syntaxEditors.set(textarea,state);textarea.dataset.syntaxReady='1';
     textarea.addEventListener('input',()=>refreshSyntaxEditor(textarea));textarea.addEventListener('scroll',()=>{pre.scrollTop=textarea.scrollTop;pre.scrollLeft=textarea.scrollLeft});textarea.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();insertTab(textarea)}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();updateFlowState();if(flowDirty())previewFlow()}if(e.key==='Escape'&&shell.classList.contains('syntax-fullscreen'))closeSyntaxFullscreen(shell)});
     refreshSyntaxEditor(textarea);return state;
@@ -748,6 +752,13 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{height:100%!important;ov
     document.querySelectorAll('.custom-block[data-index]').forEach(card=>{const i=Number(card.dataset.index),caption=normalizeCustomLabel(customLabels[i])||`CUSTOM #${i+1}`;mountSyntaxTextarea(card.querySelector('textarea'),{caption,resourceKind:'strategy'})});renderAllEditorResources();
   }
 
+
+  const workspaceHeightKeys={listWorkspace:'routerforge.nfqws.workspace.lists.height',scriptWorkspace:'routerforge.nfqws.workspace.scripts.height'};
+  function setupResizableWorkspace(id){
+    const node=$(id);if(!node)return;const key=workspaceHeightKeys[id];let saved=0;try{saved=Number(localStorage.getItem(key)||0)}catch(_){}if(saved>=420&&saved<=900)node.style.height=`${Math.round(saved)}px`;
+    let timer=null;const observer=new ResizeObserver(()=>{const h=Math.round(node.getBoundingClientRect().height);if(h<420||h>900)return;clearTimeout(timer);timer=setTimeout(()=>{try{localStorage.setItem(key,String(h))}catch(_){}reportHeight()},120)});observer.observe(node);
+  }
+  function setupResizableWorkspaces(){setupResizableWorkspace('listWorkspace');setupResizableWorkspace('scriptWorkspace')}
 
   async function api(path,options={}){
     const r=await fetch(base+path,{cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},...options});

@@ -253,8 +253,7 @@
     ['packages', t(locale, 'manage.tabs.packages')],
     ['files', copy.files],
     ['terminal', copy.terminal],
-    ['maintenance', copy.maintenance],
-    ['integrations', copy.integrations]
+    ['maintenance', copy.maintenance]
   ];
 
   $: q = search.trim().toLowerCase();
@@ -290,7 +289,6 @@
     if (next === 'files') return;
     if (next === 'terminal') return;
     if (next === 'maintenance') return loadMaintenance();
-    if (next === 'integrations') return loadIntegrations();
 
     if (next === 'packages') {
       packageLoading = true;

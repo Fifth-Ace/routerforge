@@ -33,6 +33,12 @@
                            "min_core_version":  "0.8.5~dev"
                        },
                        {
+                           "id":  "nfqws-manager",
+                           "package":  "routerforge-nfqws-manager",
+                           "version":  "0.8.5~dev",
+                           "min_core_version":  "0.8.5~dev"
+                       },
+                       {
                            "id":  "profiling",
                            "package":  "routerforge-profiling",
                            "version":  "0.8.5~dev",

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RouterForge NFQWS Manager</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color:#f5f7fa;background:#0b0d10}
+*{box-sizing:border-box}body{margin:0;padding:16px;background:transparent;color:inherit}
+.wrap{display:grid;gap:12px}.head,.row,.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.panel{border:1px solid #29313a;border-radius:8px;background:#12151a;padding:14px}
+.badge{font:600 11px/1 monospace;padding:5px 7px;border:1px solid #36414d;border-radius:999px}.good{color:#3fb950}.bad{color:#f85149}.muted{color:#8d98a4}
+.actions{display:flex;gap:8px;flex-wrap:wrap}button{border:1px solid #36414d;background:#171b20;color:#f5f7fa;padding:7px 10px;border-radius:6px;cursor:pointer}button.primary{border-color:#2f81f7}button:disabled{opacity:.45;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:12px}
+textarea{width:100%;min-height:420px;background:#0b0d10;color:#f5f7fa;border:1px solid #29313a;border-radius:6px;padding:10px;resize:vertical;font:12px/1.45 "Roboto Mono",monospace}
+pre{margin:8px 0 0;max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#0b0d10;border-radius:6px;padding:8px;font:11px/1.4 "Roboto Mono",monospace}
+details{border-top:1px solid #29313a;padding:8px 0}summary{cursor:pointer}.meta{font:11px/1.4 monospace;color:#8d98a4}.notice{padding:8px 10px;border-radius:6px;background:#171b20}.error{color:#f85149}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.head,.section-head{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div><strong>NFQWS Manager</strong><div class="muted">RouterForge extension · installed-only · nfqws2-keenetic</div></div>
+    <div class="actions"><span id="state" class="badge">...</span><button id="reload">Reload</button><button id="restart">Restart</button></div>
+  </div>
+  <div id="notice" class="notice muted">Loading…</div>
+  <div id="content" class="grid" hidden>
+    <section class="panel">
+      <div class="section-head"><div><strong>nfqws2.conf</strong><div id="configMeta" class="meta"></div></div><button id="save" class="primary">Save + reload</button></div>
+      <textarea id="config" spellcheck="false"></textarea>
+      <div class="meta">Safety backup → atomic write → reload → automatic rollback on failure. Max 8 backups.</div>
+    </section>
+    <aside class="panel">
+      <strong>Lists</strong><div id="lists"></div>
+      <details open><summary>Recent log tail</summary><pre id="log">—</pre></details>
+    </aside>
+  </div>
+</div>
+<script>
+(() => {
+  const marker='/ui/';
+  const pos=location.pathname.indexOf(marker);
+  const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
+  const el=id=>document.getElementById(id);
+  let original='', busy=false, current=null;
+
+  async function json(path, options={}) {
+    const r=await fetch(base+path,{cache:'no-store',headers:{Accept:'application/json','Content-Type':'application/json'},...options});
+    const text=await r.text(); let body={}; try{body=text?JSON.parse(text):{}}catch{}
+    if(!r.ok) throw new Error(body.error||`${path} HTTP ${r.status}`);
+    return body;
+  }
+  function setBusy(value){busy=value;for(const id of ['reload','restart','save'])el(id).disabled=value||!current?.mutation_ready}
+  function render(s){
+    current=s;
+    el('state').textContent=!s.available?'NOT AVAILABLE':s.running?'RUNNING':'STOPPED';
+    el('state').className='badge '+(s.available&&s.running?'good':s.available?'':'bad');
+    el('notice').textContent=s.available?'Managed target detected. No package install/update is performed by this module.':'nfqws2-keenetic is not available; manager stays dormant.';
+    el('content').hidden=!s.available;
+    el('config').value=s.config||''; original=s.config||'';
+    el('configMeta').textContent=`${s.config_path} · ${s.config_size||0} B · SHA256 ${s.config_sha256||'—'} · backups ${s.backup_count||0}`;
+    el('log').textContent=s.log_tail||'—';
+    const lists=el('lists'); lists.textContent='';
+    for(const item of s.lists||[]){
+      const d=document.createElement('details'), sum=document.createElement('summary'), pre=document.createElement('pre');
+      sum.textContent=`${item.name} · ${item.size} B${item.truncated?' · preview truncated':''}`;
+      pre.textContent=item.preview||'';
+      d.append(sum,pre); lists.append(d);
+    }
+    setBusy(false);
+    el('save').disabled=!s.mutation_ready||el('config').value===original;
+  }
+  async function load(){
+    try{render(await json('/status'))}catch(e){el('notice').textContent=e.message;el('notice').className='notice error'}
+  }
+  async function action(name){
+    if(busy||!confirm(`nfqws2: ${name}?`))return;setBusy(true);
+    try{const r=await json('/action',{method:'POST',body:JSON.stringify({action:name,confirm:'NFQWS'})});render(r.status)}
+    catch(e){el('notice').textContent=e.message;el('notice').className='notice error';setBusy(false)}
+  }
+  el('reload').onclick=()=>action('reload'); el('restart').onclick=()=>action('restart');
+  el('config').oninput=()=>{el('save').disabled=busy||!current?.mutation_ready||el('config').value===original};
+  el('save').onclick=async()=>{
+    if(busy||el('config').value===original)return;
+    if(!confirm('Save nfqws2.conf, create safety backup and reload?'))return;
+    setBusy(true);
+    try{const r=await json('/config',{method:'POST',body:JSON.stringify({content:el('config').value,confirm:'NFQWS_CONFIG'})});render(r.status);el('notice').textContent=`Config applied. Backup: ${r.backup}`}
+    catch(e){el('notice').textContent=e.message;el('notice').className='notice error';setBusy(false)}
+  };
+  load();
+})();
+</script>
+</body>
+</html>

@@ -185,6 +185,64 @@ CONTROL
     chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
     pack_ipk "$WORK" "$DIST/$PKGFILE"
 }
+build_nfqws_manager() {
+    PACKAGE="routerforge-nfqws-manager"
+    WORK="$DIST/${PACKAGE}-channel-work"
+    PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
+    UI="$ROOT/modules/nfqws-manager/frontend"
+
+    rm -rf "$WORK"
+    mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
+        "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui" \
+        "$WORK/data/opt/share/routerforge/modules/nfqws-manager" \
+        "$WORK/data/opt/share/licenses/$PACKAGE" "$WORK/control"
+
+    (
+      cd "$ROOT"
+      routerforge_go build -trimpath \
+          -ldflags="-s -w -X main.version=$VERSION" \
+          -o "$WORK/data/opt/bin/routerforge-nfqws-manager" ./modules/nfqws-manager-runtime
+    )
+    chmod 0755 "$WORK/data/opt/bin/routerforge-nfqws-manager"
+    sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-nfqws-manager"
+    cp "$ROOT/modules/nfqws-manager-runtime/packaging/S96routerforge-nfqws-manager" "$WORK/data/opt/etc/init.d/S96routerforge-nfqws-manager"
+    chmod 0755 "$WORK/data/opt/etc/init.d/S96routerforge-nfqws-manager"
+    cp -R "$UI"/. "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/"
+
+    cat > "$WORK/data/opt/share/routerforge/modules/nfqws-manager/manifest.json" <<MANIFEST
+{
+  "schema_version": 1,
+  "id": "nfqws-manager",
+  "version": "$VERSION",
+  "api_version": 1,
+  "socket": "/opt/var/run/routerforge-nfqws-manager.sock",
+  "api_base": "/api/modules/nfqws-manager",
+  "ui_entry": "/api/modules/nfqws-manager/ui/index.html"
+}
+MANIFEST
+
+    cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
+    chmod 0644 "$WORK/data/opt/share/routerforge/modules/nfqws-manager/manifest.json" \
+        "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
+
+    cat > "$WORK/control/control" <<CONTROL
+Package: $PACKAGE
+Version: $VERSION
+Section: net
+Priority: optional
+Architecture: $ARCH
+Depends: routerforge-core
+Maintainer: Fifth-Ace
+Source: https://github.com/Fifth-Ace/routerforge
+Homepage: https://github.com/Fifth-Ace/routerforge
+License: MIT
+Description: Optional RouterForge integration manager for an existing nfqws2-keenetic runtime.
+CONTROL
+    cp "$ROOT/modules/nfqws-manager-runtime/packaging/postinst" "$WORK/control/postinst"
+    cp "$ROOT/modules/nfqws-manager-runtime/packaging/prerm" "$WORK/control/prerm"
+    chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
+    pack_ipk "$WORK" "$DIST/$PKGFILE"
+}
 build_profiling() {
     PACKAGE="routerforge-profiling"; LEGACY="dns-monitor-profiling"
     WORK="$DIST/${PACKAGE}-channel-work"; PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
@@ -230,6 +288,7 @@ pack_ipk() {
 case "$ID" in
     dns) build_dns ;;
     monitoring) build_monitoring ;;
+    nfqws-manager) build_nfqws_manager ;;
     profiling) build_profiling ;;
     *) echo "unsupported RouterForge module id: $ID" >&2; exit 2 ;;
 esac

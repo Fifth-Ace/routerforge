@@ -1,0 +1,13 @@
+#!/bin/sh
+ENABLED=no
+PROCS=routerforge-nfqws-manager
+ARGS="-socket /opt/var/run/routerforge-nfqws-manager.sock -ui /opt/share/routerforge/modules/nfqws-manager/ui"
+PREARGS=""
+DESC="RouterForge NFQWS Manager"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+if [ -f /opt/etc/routerforge/module-abi-v1 ]; then
+    ENABLED=yes
+fi
+
+. /opt/etc/init.d/rc.func

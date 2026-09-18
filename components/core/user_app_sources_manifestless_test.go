@@ -20,6 +20,8 @@ func TestGitHubManifestlessRepositoryFallsBackAfterManifest404s(t *testing.T) {
 			return nil, fmt.Errorf("source HTTP 404")
 		case rawURL == "https://api.github.com/repos/Runnin4ik/dpi-detector/branches/main":
 			return []byte(`{"commit":{"sha":"` + headSHA + `"}}`), nil
+		case strings.Contains(rawURL, "/releases?per_page=20"):
+			return []byte(`[]`), nil
 		default:
 			return nil, fmt.Errorf("unexpected URL: %s", rawURL)
 		}
@@ -46,11 +48,14 @@ func TestGitHubManifestlessRepositoryFallsBackAfterManifest404s(t *testing.T) {
 	if item.ID != "dpi-detector" || item.Kind != "integration" {
 		t.Fatalf("unexpected synthetic item: %#v", item)
 	}
-	if len(item.Detection.Packages) != 1 || item.Detection.Packages[0] != "dpi-detector" {
-		t.Fatalf("safe opkg package candidate missing: %#v", item.Detection.Packages)
+	if len(item.Detection.Packages) != 0 {
+		t.Fatalf("manifestless source retained legacy opkg package guess: %#v", item.Detection.Packages)
 	}
 	if item.Install.Method != "" || item.Update.Method != "" || item.Remove.Method != "" {
-		t.Fatalf("manifestless source unexpectedly gained declared executable lifecycle: %#v", item)
+		t.Fatalf("raw source unexpectedly gained lifecycle before catalog channel selection: %#v", item)
+	}
+	if item.UnmanagedGitHub == nil {
+		t.Fatal("GitHub release metadata container missing")
 	}
 	if len(cache.ManifestSHA256) != 64 {
 		t.Fatalf("fingerprint length=%d, want 64", len(cache.ManifestSHA256))
@@ -62,14 +67,6 @@ func TestGitHubManifestlessRepositoryFallsBackAfterManifest404s(t *testing.T) {
 	preview := previewFromAppSourceCache(cache)
 	if !preview.Manifestless || preview.Fingerprint != cache.ManifestSHA256 {
 		t.Fatalf("manifestless preview metadata missing: %#v", preview)
-	}
-
-	// Existing safety model may expose a direct opkg action only after the
-	// package is actually present in configured feeds.
-	item.AvailableVersion = "1.0.0"
-	plan, ok := unverifiedDirectOpkgPlan(item, "install")
-	if !ok || plan.Method != "opkg" || len(plan.Packages) != 1 || plan.Packages[0] != "dpi-detector" {
-		t.Fatalf("safe direct-opkg fallback unavailable: ok=%v plan=%#v", ok, plan)
 	}
 }
 

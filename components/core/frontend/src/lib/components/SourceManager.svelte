@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import {
     getAppSources, previewAppSource, addAppSource, refreshAppSource,
-    setAppSourceEnabled, removeAppSource, setAppSourceSecurity, getAppLegal
+    setAppSourceEnabled, setAppSourceReleaseChannel, removeAppSource, setAppSourceSecurity, getAppLegal
   } from '$lib/api.js';
 
   export let locale = 'ru';
@@ -92,6 +92,32 @@
     catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
+
+  async function changeSourceReleaseChannel(source, event) {
+    if (busy || source.read_only || !source.manifestless) return;
+    const select = event.currentTarget;
+    const current = String(source.release_channel || 'auto').toLowerCase();
+    const next = String(select.value || 'auto').toLowerCase();
+    if (next === current) return;
+    if (next === 'beta') {
+      const question = ru()
+        ? 'Переключить этот источник на Beta? Будут использоваться prerelease-сборки GitHub, если под архитектуру устройства найден совместимый бинарник.'
+        : 'Switch this source to Beta? GitHub prerelease builds will be used when a compatible binary exists for this device architecture.';
+      if (!window.confirm(question)) {
+        select.value = current;
+        return;
+      }
+    }
+    busy = `channel:${source.id}`; error = '';
+    try {
+      await setAppSourceReleaseChannel(source.id, next);
+      await load(); await onchanged();
+    } catch (e) {
+      select.value = current;
+      error = e?.payload?.error || e?.message || 'error';
+    } finally { busy = ''; }
+  }
+
 
   async function deleteSource(source) {
     if (busy || source.read_only) return;
@@ -248,6 +274,20 @@
             </div>
             <div class="source-actions">
               {#if !source.read_only}
+                {#if source.manifestless}
+                  <select
+                    class="source-channel-select"
+                    value={source.release_channel || 'auto'}
+                    disabled={Boolean(busy)}
+                    aria-label={ru() ? 'Канал GitHub Releases' : 'GitHub Releases channel'}
+                    onchange={(event) => changeSourceReleaseChannel(source, event)}
+                  >
+                    <option value="auto">AUTO</option>
+                    <option value="release">RELEASE</option>
+                    <option value="beta">BETA</option>
+                  </select>
+                {/if}
+
                 <button class="button compact" disabled={Boolean(busy)} onclick={() => refreshSource(source)}>{ru() ? 'Проверить' : 'Refresh'}</button>
                 <button class="button compact" disabled={Boolean(busy)} onclick={() => toggleSource(source)}>{source.enabled ? (ru() ? 'Отключить' : 'Disable') : (ru() ? 'Включить' : 'Enable')}</button>
                 <button class="button danger-subtle compact" disabled={Boolean(busy)} onclick={() => deleteSource(source)}>{ru() ? 'Удалить' : 'Remove'}</button>
@@ -299,8 +339,8 @@
           </div>
           {#if preview.manifestless}
             <div class="source-preview-warning">{ru()
-              ? `В репозитории нет RouterForge manifest. Он будет добавлен как непроверенный unmanaged-источник. Автоматическая установка появится только если пакет ${preview.entries?.[0]?.package || 'с таким же именем'} уже доступен в настроенных opkg feeds. Скрипты установки из репозитория RouterForge автоматически не запускает.`
-              : `This repository has no RouterForge manifest. It will be added as an unverified unmanaged source. Automatic installation is exposed only if package ${preview.entries?.[0]?.package || 'with the same name'} already exists in configured opkg feeds. RouterForge never executes repository install scripts automatically.`}</div>
+              ? 'В репозитории нет RouterForge manifest. RouterForge проверит GitHub Releases, сопоставит готовые raw Linux binaries с архитектурой устройства и разрешит автоматическую установку только при совместимом asset. Stable и Beta выбираются отдельно; Beta никогда не включается автоматически. Если подходящего бинарника нет — только ручная установка. Upstream install scripts автоматически не запускаются.'
+              : 'This repository has no RouterForge manifest. RouterForge will inspect GitHub Releases, match raw Linux binaries to the device architecture, and expose automatic installation only for a compatible asset. Stable and Beta are separate; Beta is never selected automatically. If no compatible binary exists, installation remains manual. Upstream install scripts are never executed automatically.'}</div>
           {:else}
             <div class="source-preview-warning">{ru()
               ? `Источник не проверен RouterForge. Разрешены только безопасные lifecycle-механизмы; архитектура ${preview.entries?.[0]?.detected_target || 'не определена'} проверяется отдельно.${preview.local ? ' Источник находится в локальной сети.' : ''}`

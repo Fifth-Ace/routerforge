@@ -166,6 +166,8 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 		err = runDirectOpkgPlan(ctx, action, plan, &result, log)
 	case "structured":
 		err = runStructuredCatalogPlan(ctx, item, action, plan, &result, log)
+	case "github-release-binary":
+		err = runUnmanagedGitHubReleasePlan(ctx, item, action, plan, &result, log)
 	default:
 		err = fmt.Errorf("unsupported executable lifecycle method %q", plan.Method)
 	}
@@ -244,6 +246,9 @@ func catalogPlanForAction(item catalogItem, action string) catalogInstallPlan {
 	status := strings.ToLower(item.Trust.Status)
 	if (status == "official" || status == "verified") && executableCatalogPlan(plan) {
 		return plan
+	}
+	if fallback, ok := unverifiedGitHubReleasePlan(item, action); ok {
+		return fallback
 	}
 	if fallback, ok := unverifiedDirectOpkgPlan(item, action); ok {
 		return fallback

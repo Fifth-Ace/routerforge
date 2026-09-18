@@ -103,6 +103,8 @@ export const addAppSource = (body) => postJSON('/api/apps/sources', body);
 export const refreshAppSource = (id) => postJSON(`/api/apps/sources/${encodeURIComponent(id)}/refresh`, {});
 export const setAppSourceEnabled = (id, enabled) =>
   postJSON(`/api/apps/sources/${encodeURIComponent(id)}/toggle`, { enabled });
+export const setAppSourceReleaseChannel = (id, channel) =>
+  postJSON(`/api/apps/sources/${encodeURIComponent(id)}/channel`, { channel });
 export const removeAppSource = (id) => deleteRequest(`/api/apps/sources/${encodeURIComponent(id)}`);
 export const setAppSourceSecurity = (body) => postJSON('/api/apps/sources/security', body);
 export const getAppLegal = (locale = 'ru') => request(`/api/apps/legal?locale=${encodeURIComponent(locale)}`);

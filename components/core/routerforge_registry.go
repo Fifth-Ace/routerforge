@@ -731,10 +731,26 @@ func deriveCatalogActions(item catalogItem) catalogActions {
 		if status != "" && status != "unverified" {
 			return catalogActions{Reason: "Manifest trust state does not allow automatic actions."}
 		}
-		_, installAllowed = unverifiedDirectOpkgPlan(item, "install")
-		_, updateAllowed = unverifiedDirectOpkgPlan(item, "update")
-		_, removeAllowed = unverifiedDirectOpkgPlan(item, "remove")
-		reason = "No verified manifest. Direct actions use only packages exposed by configured opkg feeds; upstream scripts are never executed automatically."
+
+		_, installAllowed = unverifiedGitHubReleasePlan(item, "install")
+		_, updateAllowed = unverifiedGitHubReleasePlan(item, "update")
+		_, removeAllowed = unverifiedGitHubReleasePlan(item, "remove")
+
+		if !installAllowed {
+			_, installAllowed = unverifiedDirectOpkgPlan(item, "install")
+		}
+		if !updateAllowed {
+			_, updateAllowed = unverifiedDirectOpkgPlan(item, "update")
+		}
+		if !removeAllowed {
+			_, removeAllowed = unverifiedDirectOpkgPlan(item, "remove")
+		}
+
+		if item.UnmanagedGitHub != nil {
+			reason = unmanagedGitHubActionReason(item)
+		} else {
+			reason = "No verified manifest. Direct actions use only packages exposed by configured opkg feeds; upstream scripts are never executed automatically."
+		}
 	}
 
 	return catalogActions{
@@ -786,7 +802,7 @@ func executableCatalogPlan(plan catalogInstallPlan) bool {
 		return false
 	}
 	switch plan.Method {
-	case "routerforge-release", "opkg", "structured":
+	case "routerforge-release", "opkg", "structured", "github-release-binary":
 		return true
 	default:
 		return false

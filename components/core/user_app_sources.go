@@ -55,24 +55,25 @@ type appSourcesConfig struct {
 }
 
 type appSourceRecord struct {
-	ID           string `json:"id"`
-	Kind         string `json:"kind"`
-	Name         string `json:"name"`
-	URL          string `json:"url"`
-	ResolvedURL  string `json:"resolved_url,omitempty"`
-	RegistryID   string `json:"registry_id,omitempty"`
-	Revision     string `json:"revision,omitempty"`
-	Trust        string `json:"trust"`
-	Enabled      bool   `json:"enabled"`
-	ReadOnly     bool   `json:"read_only,omitempty"`
-	Local        bool   `json:"local,omitempty"`
-	Manifestless bool   `json:"manifestless,omitempty"`
-	Online       bool   `json:"online"`
-	Cached       bool   `json:"cached,omitempty"`
-	EntryCount   int    `json:"entry_count"`
-	AddedAt      string `json:"added_at,omitempty"`
-	LastSync     string `json:"last_sync,omitempty"`
-	Error        string `json:"error,omitempty"`
+	ID             string `json:"id"`
+	Kind           string `json:"kind"`
+	Name           string `json:"name"`
+	URL            string `json:"url"`
+	ResolvedURL    string `json:"resolved_url,omitempty"`
+	RegistryID     string `json:"registry_id,omitempty"`
+	Revision       string `json:"revision,omitempty"`
+	Trust          string `json:"trust"`
+	Enabled        bool   `json:"enabled"`
+	ReadOnly       bool   `json:"read_only,omitempty"`
+	Local          bool   `json:"local,omitempty"`
+	Manifestless   bool   `json:"manifestless,omitempty"`
+	ReleaseChannel string `json:"release_channel,omitempty"`
+	Online         bool   `json:"online"`
+	Cached         bool   `json:"cached,omitempty"`
+	EntryCount     int    `json:"entry_count"`
+	AddedAt        string `json:"added_at,omitempty"`
+	LastSync       string `json:"last_sync,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 type appSourceCache struct {
@@ -567,16 +568,8 @@ func resolveGitHubManifestlessSource(ctx context.Context, rawURL, owner, repo, b
 		itemID = "github-" + headSHA[:12]
 	}
 
-	packageName := strings.ToLower(strings.TrimSpace(repo))
-	detection := catalogDetection{}
-	versionSource := ""
-	if safeCatalogPackageName(packageName) && packageName != "opkg" && !strings.HasPrefix(packageName, "routerforge-") {
-		detection.Packages = []string{packageName}
-		versionSource = "opkg"
-	}
-
 	identity := strings.Join([]string{
-		"github-manifestless-v1",
+		"github-manifestless-v2",
 		strings.ToLower(strings.TrimSpace(owner)),
 		strings.ToLower(strings.TrimSpace(repo)),
 		strings.TrimSpace(branch),
@@ -589,27 +582,27 @@ func resolveGitHubManifestlessSource(ctx context.Context, rawURL, owner, repo, b
 		url.PathEscape(owner), url.PathEscape(repo), headSHA)
 
 	item := catalogItem{
-		ID:            itemID,
-		Kind:          "integration",
-		Name:          repo,
-		Category:      "Unmanaged GitHub",
-		Description:   "GitHub repository without a RouterForge manifest. Automatic lifecycle is limited to a matching package already exposed by configured opkg feeds; upstream scripts are never executed automatically.",
-		ProjectURL:    rawURL,
-		Source:        "github-manifestless",
-		VersionSource: versionSource,
+		ID:          itemID,
+		Kind:        "integration",
+		Name:        repo,
+		Category:    "Unmanaged GitHub",
+		Description: "GitHub repository without a RouterForge manifest. RouterForge can install a matching raw Linux binary from GitHub Releases; otherwise manual installation is required.",
+		ProjectURL:  rawURL,
+		Source:      "github-manifestless",
 		Publisher: catalogPublisher{
 			ID:   strings.ToLower(strings.TrimSpace(owner)),
 			Name: owner,
 			URL:  "https://github.com/" + owner,
 		},
-		Trust:     catalogTrust{Status: "unverified"},
-		Detection: detection,
+		Trust:           catalogTrust{Status: "unverified"},
+		UnmanagedGitHub: discoverUnmanagedGitHubReleases(ctx, owner, repo, normalizedReleaseTarget()),
 		Compatibility: catalogCompatibility{
 			Status: "unknown",
 			Hints: []string{
 				"No RouterForge manifest.",
-				"Lifecycle is restricted to an existing package from configured opkg feeds.",
-				"Upstream install scripts are not executed automatically.",
+				"RouterForge checks GitHub Release assets against the current architecture.",
+				"Stable Release and Beta are separate per-source channels.",
+				"Upstream install scripts are never executed automatically.",
 			},
 		},
 	}
@@ -1032,9 +1025,18 @@ func applyUserAppSources(snapshot *catalogSnapshot, installed map[string]string,
 		}
 		for _, original := range cache.Entries {
 			item := normalizeUserSourceItem(source, cache, original)
-			applyUserSourceTargetCompatibility(&item, resolution)
 			resetCatalogRuntime(&item)
+			if source.Manifestless && item.UnmanagedGitHub == nil {
+				item.Detection.Packages = nil
+				item.Install = catalogInstallPlan{}
+				item.Update = catalogInstallPlan{}
+				item.Remove = catalogInstallPlan{}
+				item.Compatibility.Hints = appendUniqueString(item.Compatibility.Hints, "Refresh this source to discover architecture-matched GitHub Release assets.")
+			}
+			selectUnmanagedGitHubRelease(&item, source.ReleaseChannel)
+			applyUserSourceTargetCompatibility(&item, resolution)
 			finalizeCatalogItem(&item, installed, processes, exists)
+			applyUnmanagedGitHubInstalledMetadata(&item)
 			snapshot.Integrations = append(snapshot.Integrations, item)
 		}
 	}
@@ -1055,9 +1057,10 @@ func appSourceApplyActionPolicy(item *catalogItem) {
 	}
 	cfg, err := loadAppSourcesConfig()
 	if err != nil || !cfg.AllowUnverified {
+		hadExecutableAction := item.Actions.Install || item.Actions.Update
 		item.Actions.Install = false
 		item.Actions.Update = false
-		if item.Actions.Reason == "" || strings.Contains(item.Actions.Reason, "No verified manifest") {
+		if hadExecutableAction || item.Actions.Reason == "" || strings.Contains(item.Actions.Reason, "No verified manifest") {
 			item.Actions.Reason = "Installation from unverified sources is disabled. Open App Center Sources to enable it."
 		}
 	}
@@ -1205,22 +1208,23 @@ func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSou
 	cache.SourceID = id
 	now := time.Now().UTC().Format(time.RFC3339)
 	source := appSourceRecord{
-		ID:           id,
-		Kind:         cache.Kind,
-		Name:         cache.Name,
-		URL:          rawURL,
-		ResolvedURL:  cache.ResolvedURL,
-		RegistryID:   cache.RegistryID,
-		Revision:     cache.Revision,
-		Trust:        "unsigned",
-		Enabled:      true,
-		Local:        cache.Local,
-		Manifestless: cache.Manifestless,
-		Online:       true,
-		Cached:       true,
-		EntryCount:   len(cache.Entries),
-		AddedAt:      now,
-		LastSync:     now,
+		ID:             id,
+		Kind:           cache.Kind,
+		Name:           cache.Name,
+		URL:            rawURL,
+		ResolvedURL:    cache.ResolvedURL,
+		RegistryID:     cache.RegistryID,
+		Revision:       cache.Revision,
+		Trust:          "unsigned",
+		Enabled:        true,
+		Local:          cache.Local,
+		Manifestless:   cache.Manifestless,
+		ReleaseChannel: "auto",
+		Online:         true,
+		Cached:         true,
+		EntryCount:     len(cache.Entries),
+		AddedAt:        now,
+		LastSync:       now,
 	}
 	if err := saveAppSourceCache(cache); err != nil {
 		return appSourceRecord{}, appSourcePreview{}, err
@@ -1599,6 +1603,20 @@ func handleAppSourcePath(w http.ResponseWriter, r *http.Request) {
 		source, err := setAppSourceEnabled(id, request.Enabled)
 		if err != nil {
 			writeCatalogJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
+			return
+		}
+		writeCatalogJSON(w, http.StatusOK, map[string]any{
+			"source":  source,
+			"catalog": refreshCatalog(),
+		})
+	case "channel":
+		var request appSourceReleaseChannelRequest
+		if err := decodeSmallJSON(w, r, &request); err != nil {
+			return
+		}
+		source, err := setAppSourceReleaseChannel(id, request.Channel)
+		if err != nil {
+			writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 			return
 		}
 		writeCatalogJSON(w, http.StatusOK, map[string]any{

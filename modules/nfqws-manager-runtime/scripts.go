@@ -22,6 +22,41 @@ func safeScriptName(name string) bool {
 	return strings.HasSuffix(strings.ToLower(name), ".lua")
 }
 
+func scriptTargetAllowed(path string) bool {
+	clean := filepath.Clean(path)
+	if !strings.HasSuffix(strings.ToLower(clean), ".lua") {
+		return false
+	}
+	rel, err := filepath.Rel("/opt", clean)
+	if err != nil || rel == ".." || filepath.IsAbs(rel) {
+		return false
+	}
+	return !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
+}
+
+func resolveScriptPath(name string) (string, string, os.FileInfo, error) {
+	if !safeScriptName(name) {
+		return "", "", nil, errors.New("invalid lua script filename")
+	}
+	logical := filepath.Join(scriptsRoot, name)
+	resolved, err := filepath.EvalSymlinks(logical)
+	if err != nil {
+		return logical, "", nil, err
+	}
+	resolved = filepath.Clean(resolved)
+	if !scriptTargetAllowed(resolved) {
+		return logical, resolved, nil, errors.New("lua script target must stay below /opt and end with .lua")
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return logical, resolved, nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return logical, resolved, nil, errors.New("lua script target must be a regular file")
+	}
+	return logical, resolved, info, nil
+}
+
 func readScriptInventory() []filePreview {
 	entries, err := os.ReadDir(scriptsRoot)
 	if err != nil {
@@ -32,16 +67,13 @@ func readScriptInventory() []filePreview {
 		if entry.IsDir() || !safeScriptName(entry.Name()) {
 			continue
 		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			continue
-		}
-		info, err := entry.Info()
-		if err != nil || !info.Mode().IsRegular() {
+		logical, _, info, err := resolveScriptPath(entry.Name())
+		if err != nil {
 			continue
 		}
 		out = append(out, filePreview{
 			Name:      entry.Name(),
-			Path:      filepath.Join(scriptsRoot, entry.Name()),
+			Path:      logical,
 			Size:      info.Size(),
 			Modified:  info.ModTime().UTC().Format(time.RFC3339),
 			Truncated: info.Size() > scriptFileMaxBytes,
@@ -61,25 +93,16 @@ func handleScripts(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if !safeScriptName(name) {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid lua script filename"})
-		return
-	}
-	path := filepath.Join(scriptsRoot, name)
-	info, err := os.Lstat(path)
+	logical, resolved, info, err := resolveScriptPath(name)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "lua script not found"})
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "stat lua script: " + err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "lua script is not readable: " + err.Error()})
 		return
 	}
-	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "lua script must be a regular file"})
-		return
-	}
-	data, cut, err := readBoundedFile(path, scriptFileMaxBytes)
+	data, cut, err := readBoundedFile(resolved, scriptFileMaxBytes)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "lua script not found"})
@@ -94,7 +117,7 @@ func handleScripts(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"name":      name,
-		"path":      path,
+		"path":      logical,
 		"content":   string(data),
 		"size":      len(data),
 		"read_only": true,

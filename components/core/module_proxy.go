@@ -17,25 +17,25 @@ import (
 )
 
 var moduleSockets = map[string][]string{
-	"dns":        {"/opt/var/run/routerforge-dns.sock"},
-	"admin":      {"/opt/var/run/routerforge-admin.sock", "/opt/var/run/dns-monitor-admin.sock"},
+	"dns":           {"/opt/var/run/routerforge-dns.sock"},
+	"admin":         {"/opt/var/run/routerforge-admin.sock", "/opt/var/run/dns-monitor-admin.sock"},
 	"monitoring":    {"/opt/var/run/routerforge-monitoring.sock"},
 	"nfqws-manager": {"/opt/var/run/routerforge-nfqws-manager.sock"},
-	"system":     {"/opt/var/run/routerforge-system.sock", "/opt/var/run/dns-monitor-system.sock"},
-	"thermal":    {"/opt/var/run/routerforge-thermal.sock", "/opt/var/run/dns-monitor-thermal.sock"},
-	"storage":    {"/opt/var/run/routerforge-storage.sock", "/opt/var/run/dns-monitor-storage.sock"},
-	"network":    {"/opt/var/run/routerforge-network.sock", "/opt/var/run/dns-monitor-network.sock"},
+	"system":        {"/opt/var/run/routerforge-system.sock", "/opt/var/run/dns-monitor-system.sock"},
+	"thermal":       {"/opt/var/run/routerforge-thermal.sock", "/opt/var/run/dns-monitor-thermal.sock"},
+	"storage":       {"/opt/var/run/routerforge-storage.sock", "/opt/var/run/dns-monitor-storage.sock"},
+	"network":       {"/opt/var/run/routerforge-network.sock", "/opt/var/run/dns-monitor-network.sock"},
 }
 
 var modulePackageNames = map[string]string{
-	"dns":        "routerforge-dns",
-	"admin":      "routerforge-admin",
+	"dns":           "routerforge-dns",
+	"admin":         "routerforge-admin",
 	"monitoring":    "routerforge-monitoring",
 	"nfqws-manager": "routerforge-nfqws-manager",
-	"system":     "routerforge-monitoring",
-	"thermal":    "routerforge-monitoring",
-	"storage":    "routerforge-monitoring",
-	"network":    "routerforge-monitoring",
+	"system":        "routerforge-monitoring",
+	"thermal":       "routerforge-monitoring",
+	"storage":       "routerforge-monitoring",
+	"network":       "routerforge-monitoring",
 }
 
 var moduleInstalledPackages = readInstalledPackages
@@ -43,11 +43,11 @@ var moduleInstalledPackages = readInstalledPackages
 type moduleProxyContextKey string
 
 const (
-	adminMutationAuthorizedKey       moduleProxyContextKey = "admin-mutation-authorized"
-	adminMutationAuthorizationHeader                       = "X-RouterForge-Admin-Authorized"
-	adminMutationAuthorizationValue                        = "core-authorized-v1"
-	moduleMutationAuthorizationHeader                            = "X-RouterForge-Module-Authorized"
-	moduleMutationAuthorizationValue                             = "core-authorized-v1"
+	adminMutationAuthorizedKey        moduleProxyContextKey = "admin-mutation-authorized"
+	adminMutationAuthorizationHeader                        = "X-RouterForge-Admin-Authorized"
+	adminMutationAuthorizationValue                         = "core-authorized-v1"
+	moduleMutationAuthorizationHeader                       = "X-RouterForge-Module-Authorized"
+	moduleMutationAuthorizationValue                        = "core-authorized-v1"
 )
 
 func moduleMutationAPI(moduleID string) bool {
@@ -58,7 +58,7 @@ const (
 	dnsModuleMutationBodyLimit     int64 = 64 << 10
 	adminModuleMutationBodyLimit   int64 = 8 << 10
 	adminFileWriteRequestBodyLimit int64 = 272 << 10
-	nfqwsManagerMutationBodyLimit int64 = 140 << 10
+	nfqwsManagerMutationBodyLimit  int64 = 140 << 10
 )
 
 func moduleMutationBodyLimit(moduleID string) int64 {
@@ -233,9 +233,9 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 				user, authenticated := auth.sessionUser(r)
 				if !authenticated || user != "root" {
 					message := "authenticated RouterForge root session required for Admin mutation"
-				if nfqwsMutation {
-					message = "authenticated RouterForge root session required for module mutation"
-				}
+					if nfqwsMutation {
+						message = "authenticated RouterForge root session required for module mutation"
+					}
 					if adminFiles && !adminMutation {
 						message = "authenticated RouterForge root session required for Admin file access"
 					}

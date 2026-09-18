@@ -23,3 +23,23 @@ func TestSafeScriptName(t *testing.T) {
 		}
 	}
 }
+
+func TestScriptTargetAllowed(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"/opt/etc/nfqws2/lua/zapret-lib.lua", true},
+		{"/opt/share/zapret2/lua/zapret-lib.lua", true},
+		{"/opt/usr/share/nfqws2/zapret-auto.LUA", true},
+		{"/opt/etc/nfqws2/lua/not-lua.txt", false},
+		{"/etc/passwd.lua", false},
+		{"/tmp/zapret-lib.lua", false},
+		{"/opt/../etc/passwd.lua", false},
+	}
+	for _, tt := range tests {
+		if got := scriptTargetAllowed(tt.path); got != tt.want {
+			t.Fatalf("scriptTargetAllowed(%q)=%v want %v", tt.path, got, tt.want)
+		}
+	}
+}

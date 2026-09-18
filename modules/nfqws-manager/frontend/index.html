@@ -53,7 +53,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .fixed-check{display:flex;align-items:center;justify-content:space-between;gap:12px}.fixed-check label{font-size:12px}
 .internal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.internal-item{padding:9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2)}.internal-item span{display:block;color:var(--muted);font-size:8px}.internal-item strong{display:block;margin-top:4px;color:var(--text);font:600 10px/1.3 ui-monospace,Consolas,monospace}
 .setup-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);position:sticky;top:0;z-index:6}.setup-mode{display:flex;gap:5px}.setup-mode button.active{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--border));background:var(--accent-soft)}.setup-overview{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.setup-overview .card{padding:10px}.setup-overview .metric-value{font-size:13px}
-.setup-section.collapsed .setup-body{display:none}.setup-section.collapsed .setup-head{border-bottom:0}.setup-collapse{min-height:32px;padding:0 10px;font-size:11px;color:var(--muted)}.expert-only{display:none}.expert-mode .expert-only{display:block}
+.setup-section.collapsed .setup-body{display:none}.setup-section.collapsed .setup-head{border-bottom:0}.setup-collapse{min-height:32px;padding:0 10px;font-size:11px;color:var(--muted)}.expert-only{display:block}
 .port-editor{display:grid;gap:7px}.port-chips{display:flex;gap:5px;flex-wrap:wrap;min-height:25px}.port-chip{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 7px;border:1px solid var(--border);border-radius:999px;background:var(--surface2);font:9px/1 ui-monospace,Consolas,monospace;color:var(--text)}.port-chip button{min-height:18px;width:18px;padding:0;border:0;background:transparent;color:var(--bad)}.port-add{display:flex;gap:6px}.port-add input{max-width:180px}
 .policy-name-compact{display:grid;grid-template-columns:minmax(130px,.28fr) minmax(220px,420px);gap:10px;align-items:center;padding-top:2px}.policy-name-compact .setup-label strong{margin-bottom:1px}
 .list-links{display:flex;gap:6px;flex-wrap:wrap}.list-link{min-height:26px;font-size:9px;color:#34d399}
@@ -226,6 +226,22 @@ body.syntax-fullscreen-open{overflow:hidden}
 @media(max-width:900px){.script-layout{grid-template-columns:1fr}.script-list{min-height:0;max-height:260px}.log-columns-head{display:none}.log-entry{grid-template-columns:120px minmax(0,1fr) auto;gap:6px 9px;padding:9px 10px}.log-host{grid-column:2}.log-profile{grid-column:2}.log-client{grid-column:2}.log-proto{grid-column:3;grid-row:1/3}.log-event{grid-column:2/4}.log-entry.raw{grid-template-columns:120px minmax(0,1fr)}}
 @media(max-width:600px){.log-entry,.log-entry.raw{grid-template-columns:1fr}.log-time,.log-host,.log-profile,.log-client,.log-proto,.log-event,.log-entry.raw .log-raw-text{grid-column:1}.log-proto{grid-row:auto}.script-panel.script-fullscreen{inset:4px!important;padding:6px!important}}
 
+/* R12 FIX2: Raw config uses page scrolling in normal mode; internal scrolling only in fullscreen. */
+#configEditorPanel:not(.full-editor) .editor-main .syntax-editor-body{overflow:hidden}
+#configEditorPanel:not(.full-editor) textarea.editor{height:auto;overflow-y:hidden;resize:none}
+#configEditorPanel.full-editor textarea.editor{overflow:auto!important}
+
+
+/* R13 unified setup page: single full mode, aligned fields, traffic cards and diagnostics. */
+.setup-topbar-full{padding:11px 14px;background:color-mix(in srgb,var(--surface2) 72%,var(--surface));border-color:var(--border-strong)}
+.setup-topbar-full strong{font-size:var(--rf-font-control);font-weight:700}.setup-full-badge{display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border:1px solid color-mix(in srgb,var(--good) 36%,var(--border));border-radius:999px;background:color-mix(in srgb,var(--good) 7%,var(--surface2));color:var(--good);font:700 var(--rf-font-meta)/1 ui-monospace,Consolas,monospace;white-space:nowrap}
+.expert-only{display:block!important}.setup-mode{display:none!important}
+.form-stack{gap:10px!important}.form-row{display:grid;grid-template-columns:240px minmax(320px,760px);gap:18px;align-items:center;justify-content:start;min-width:0}.form-row .setup-label{align-self:center}.form-control{width:100%;min-width:0}.form-control .setup-input{width:100%;min-height:38px;padding:8px 11px}.compact-line{grid-template-columns:240px minmax(320px,760px);gap:18px;justify-content:start}.policy-name-compact{grid-template-columns:240px minmax(320px,760px);gap:18px;padding-top:5px}.config-check{display:inline-flex;align-items:center;gap:9px;min-height:38px;padding:0 11px;border:1px solid var(--border);border-radius:6px;background:var(--code);color:var(--text);font-size:var(--rf-font-body)}.config-check input{width:15px;height:15px}
+.traffic-section .setup-body{padding:12px 14px 14px!important}.traffic-grid{display:grid;grid-template-columns:minmax(230px,.68fr) repeat(2,minmax(340px,1fr));gap:10px}.traffic-card{min-width:0;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);display:grid;align-content:start;gap:9px}.traffic-card:hover{border-color:var(--border-strong)}.traffic-card-head{display:flex;align-items:center;gap:9px}.traffic-card-head>div{min-width:0}.traffic-card-head strong{display:block;color:var(--text);font-size:var(--rf-font-control);line-height:1.25}.traffic-card-head span:not(.traffic-card-num){display:block;margin-top:2px;color:var(--muted);font:var(--rf-font-meta)/1.25 ui-monospace,Consolas,monospace}.traffic-card-num{width:28px;height:28px;display:grid;place-items:center;flex:0 0 28px;border:1px solid var(--border-strong);border-radius:6px;background:var(--code);color:var(--accent);font:700 9px/1 ui-monospace,Consolas,monospace}.traffic-card p{margin:0;color:var(--muted);font-size:var(--rf-font-small);line-height:1.4}.traffic-card .port-editor{gap:8px}.traffic-card .port-chips{min-height:28px;gap:6px}.traffic-card .port-chip{min-height:27px;padding:0 8px;font-size:var(--rf-font-meta)}.traffic-card .port-add{display:grid;grid-template-columns:minmax(180px,240px) auto;gap:6px;justify-content:start}.traffic-card .port-add input{max-width:none!important;min-height:36px!important;height:36px!important;padding:7px 10px!important}.traffic-card .port-add button{min-height:36px!important;padding:0 12px!important}.traffic-switch{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;min-height:40px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--code)}.traffic-switch input{position:absolute;opacity:0;pointer-events:none}.traffic-switch-track{position:relative;width:36px;height:20px;flex:0 0 36px;border-radius:999px;background:var(--border-strong);transition:.15s ease}.traffic-switch-track:after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--muted);transition:.15s ease}.traffic-switch input:checked+.traffic-switch-track{background:color-mix(in srgb,var(--accent) 45%,var(--border-strong))}.traffic-switch input:checked+.traffic-switch-track:after{left:19px;background:var(--accent)}.traffic-switch strong{font-size:var(--rf-font-body);font-weight:600;color:var(--text)}
+.diagnostics-section .setup-body{padding:12px 14px 14px}.diagnostics-body{gap:10px!important}.diagnostic-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}.diagnostic-state{display:flex;align-items:center;gap:9px;min-width:0}.diagnostic-state>span{display:inline-grid;place-items:center;min-width:62px;height:26px;padding:0 8px;border:1px solid currentColor;border-radius:999px;font:800 9px/1 ui-monospace,Consolas,monospace}.diagnostic-state>strong{font-size:var(--rf-font-body);color:var(--text)}.diagnostic-state.good{color:var(--good)}.diagnostic-state.warn{color:var(--warn)}.diagnostic-state.bad{color:var(--bad)}.diagnostic-counts{display:flex;gap:6px;flex-wrap:wrap}.diagnostic-counts>span{display:inline-flex;align-items:center;gap:5px;min-height:25px;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--code);color:var(--muted);font-size:var(--rf-font-meta)}.diagnostic-counts .good b{color:var(--good)}.diagnostic-counts .warn b{color:var(--warn)}.diagnostic-counts .bad b{color:var(--bad)}.diagnostics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.diag{display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:center;min-height:42px;padding:8px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);font-size:var(--rf-font-small);line-height:1.4}.diag:before{display:none!important}.diag-mark{width:24px;height:24px;display:grid;place-items:center;border:1px solid currentColor;border-radius:6px;font:800 10px/1 ui-monospace,Consolas,monospace}.diag.good{color:color-mix(in srgb,var(--good) 78%,var(--text))}.diag.warn{color:color-mix(in srgb,var(--warn) 82%,var(--text))}.diag.bad{color:color-mix(in srgb,var(--bad) 82%,var(--text))}
+@media(max-width:1200px){.traffic-grid{grid-template-columns:1fr 1fr}.traffic-card-ipv6{grid-column:1/-1}.form-row,.compact-line,.policy-name-compact{grid-template-columns:220px minmax(280px,1fr)}}
+@media(max-width:760px){.form-row,.compact-line,.policy-name-compact{grid-template-columns:1fr;gap:7px}.traffic-grid{grid-template-columns:1fr}.traffic-card-ipv6{grid-column:auto}.traffic-card .port-add{grid-template-columns:1fr}.diagnostic-summary{align-items:flex-start;flex-direction:column}.diagnostics{grid-template-columns:1fr}.setup-full-badge{display:none}}
+
 </style>
 </head>
 <body>
@@ -282,18 +298,18 @@ body.syntax-fullscreen-open{overflow:hidden}
 
 <section id="view-strategies" class="view">
   <div class="setup-flow">
-    <div class="setup-topbar">
+    <div class="setup-topbar setup-topbar-full">
       <div>
-        <strong>Настройка nfqws2 сверху вниз</strong>
-        <div class="muted small" style="margin-top:3px">Обычный режим показывает только основные вещи. Экспертный — базовые и служебные детали.</div>
+        <strong>Полная настройка nfqws2 сверху вниз</strong>
+        <div class="muted small" style="margin-top:3px">Все параметры upstream доступны сразу. RouterForge сохраняет исходный порядок nfqws2.conf и не прячет служебные блоки.</div>
       </div>
-      <div class="setup-mode"><button id="basicMode" class="active">Обычный</button><button id="expertMode">Экспертный</button></div>
+      <span class="setup-full-badge">Полный режим</span>
     </div>
     <div id="processingOverview" class="setup-overview"></div>
 
     <article class="setup-section fixed-section compact-section" data-fixed="true">
       <div class="setup-head"><div class="setup-num">01</div><div><div class="setup-title">Интернет-интерфейс</div><div class="setup-key">ISP_INTERFACE</div></div><div class="setup-help">Куда уходит интернет-трафик. Обычно eth3 / eth2.2 / ppp0. Можно указать несколько интерфейсов через пробел.</div></div>
-      <div class="setup-body"><div class="compact-line"><div class="setup-label"><strong>Интерфейс провайдера</strong>WAN-интерфейс, через который выходит интернет.</div><input id="flowInterface" class="setup-input" spellcheck="false"></div></div>
+      <div class="setup-body"><div class="form-row"><div class="setup-label"><strong>Интерфейс провайдера</strong>WAN-интерфейс, через который выходит интернет.</div><div class="form-control"><input id="flowInterface" class="setup-input" spellcheck="false"></div></div></div>
     </article>
 
     <article class="setup-section expert-only">
@@ -344,19 +360,24 @@ body.syntax-fullscreen-open{overflow:hidden}
     </article>
 
     <article class="setup-section fixed-section traffic-section" data-fixed="true">
-      <div class="setup-head"><div class="setup-num traffic-range">09–11</div><div><div class="setup-title">Обработка трафика</div><div class="setup-key">IPV6_ENABLED / TCP_PORTS / UDP_PORTS</div></div><div class="setup-help">Компактно задаёт IPv6 и порты, которые iptables отправляет в NFQUEUE.</div></div>
+      <div class="setup-head"><div class="setup-num traffic-range">09–11</div><div><div class="setup-title">Обработка трафика</div><div class="setup-key">IPV6_ENABLED / TCP_PORTS / UDP_PORTS</div></div><div class="setup-help">Какие семейства и порты iptables отправляет в NFQUEUE. Порты здесь — реальная граница захвата трафика.</div></div>
       <div class="setup-body">
-        <div class="traffic-row">
-          <div class="traffic-mini-num">09</div><div class="traffic-copy"><strong>IPv6</strong><span>IPV6_ENABLED</span></div>
-          <div class="traffic-control"><label class="traffic-toggle"><input id="flowIPv6" type="checkbox"> Включить обработку IPv6</label></div>
-        </div>
-        <div class="traffic-row">
-          <div class="traffic-mini-num">10</div><div class="traffic-copy"><strong>TCP → NFQUEUE</strong><span>TCP_PORTS</span></div>
-          <div class="traffic-control"><input id="flowTcpPorts" type="hidden"><div class="port-editor"><div id="tcpPortChips" class="port-chips"></div><div class="port-add"><input id="tcpPortAdd" class="setup-input" placeholder="443 или 1000:2000"><button id="addTcpPort">+ Добавить</button></div></div></div>
-        </div>
-        <div class="traffic-row">
-          <div class="traffic-mini-num">11</div><div class="traffic-copy"><strong>UDP → NFQUEUE</strong><span>UDP_PORTS</span></div>
-          <div class="traffic-control"><input id="flowUdpPorts" type="hidden"><div class="port-editor"><div id="udpPortChips" class="port-chips"></div><div class="port-add"><input id="udpPortAdd" class="setup-input" placeholder="443 или 3478:3481"><button id="addUdpPort">+ Добавить</button></div></div></div>
+        <div class="traffic-grid">
+          <section class="traffic-card traffic-card-ipv6">
+            <div class="traffic-card-head"><span class="traffic-card-num">09</span><div><strong>IPv6</strong><span>IPV6_ENABLED</span></div></div>
+            <p>Применять те же правила обработки к IPv6-трафику.</p>
+            <label class="traffic-switch"><input id="flowIPv6" type="checkbox"><span class="traffic-switch-track"></span><strong>Обрабатывать IPv6</strong></label>
+          </section>
+          <section class="traffic-card">
+            <div class="traffic-card-head"><span class="traffic-card-num">10</span><div><strong>TCP → NFQUEUE</strong><span>TCP_PORTS</span></div></div>
+            <p>Порты TCP, которые будут переданы nfqws2.</p>
+            <input id="flowTcpPorts" type="hidden"><div class="port-editor"><div id="tcpPortChips" class="port-chips"></div><div class="port-add"><input id="tcpPortAdd" class="setup-input" placeholder="443 или 1000:2000"><button id="addTcpPort">+ Добавить</button></div></div>
+          </section>
+          <section class="traffic-card">
+            <div class="traffic-card-head"><span class="traffic-card-num">11</span><div><strong>UDP → NFQUEUE</strong><span>UDP_PORTS</span></div></div>
+            <p>QUIC и другие UDP-порты, которые будут переданы nfqws2.</p>
+            <input id="flowUdpPorts" type="hidden"><div class="port-editor"><div id="udpPortChips" class="port-chips"></div><div class="port-add"><input id="udpPortAdd" class="setup-input" placeholder="443 или 3478:3481"><button id="addUdpPort">+ Добавить</button></div></div>
+          </section>
         </div>
       </div>
     </article>
@@ -369,16 +390,16 @@ body.syntax-fullscreen-open{overflow:hidden}
           <label class="policy-card" data-policy-mode="include"><input type="radio" name="policyMode" value="include"><strong>Только политика</strong><span>только POLICY_NAME</span></label>
           <label class="policy-card" data-policy-mode="exclude"><input type="radio" name="policyMode" value="exclude"><strong>Исключить политику</strong><span>кроме POLICY_NAME</span></label>
         </div>
-        <div id="policyNameRow" class="policy-name-compact"><div class="setup-label"><strong>Имя политики</strong>Точное имя Keenetic.</div><input id="flowPolicyName" class="setup-input" spellcheck="false"></div>
+        <div id="policyNameRow" class="form-row policy-name-compact"><div class="setup-label"><strong>Имя политики</strong>Точное имя политики Keenetic.</div><div class="form-control"><input id="flowPolicyName" class="setup-input" spellcheck="false"></div></div>
         <input id="flowPolicyExclude" type="hidden">
       </div>
     </article>
 
     <article class="setup-section expert-only">
       <div class="setup-head"><div class="setup-num">13</div><div><div class="setup-title">Логирование</div><div class="setup-key">LOG_LEVEL / LOG_DEBUG_PATH</div></div><div class="setup-help">Debug-лог нужен только для диагностики. Постоянно держать его включённым обычно не требуется.</div></div>
-      <div class="setup-body">
-        <label class="config-check"><input id="flowLogLevel" type="checkbox"> Включить debug-логирование</label>
-        <div class="setup-row"><div class="setup-label"><strong>Файл debug-лога</strong>Путь используется при LOG_LEVEL=1.</div><input id="flowLogPath" class="setup-input" spellcheck="false"></div>
+      <div class="setup-body form-stack">
+        <div class="form-row"><div class="setup-label"><strong>Debug-логирование</strong>Включай только на время диагностики.</div><div class="form-control"><label class="config-check"><input id="flowLogLevel" type="checkbox"> Включить LOG_LEVEL=1</label></div></div>
+        <div class="form-row"><div class="setup-label"><strong>Файл debug-лога</strong>Путь используется при LOG_LEVEL=1.</div><div class="form-control"><input id="flowLogPath" class="setup-input" spellcheck="false"></div></div>
       </div>
     </article>
 
@@ -387,9 +408,12 @@ body.syntax-fullscreen-open{overflow:hidden}
       <div class="setup-body"><div class="internal-grid"><div class="internal-item"><span>NFQUEUE_NUM</span><strong id="flowQueue">—</strong></div><div class="internal-item"><span>USER</span><strong id="flowUser">—</strong></div><div class="internal-item"><span>CONFIG_VERSION</span><strong id="flowConfigVersion">—</strong></div></div></div>
     </article>
 
-    <article class="setup-section fixed-section compact-section" data-fixed="true">
-      <div class="setup-head"><div class="setup-num">✓</div><div><div class="setup-title">Проверка перед применением</div><div class="setup-key">RouterForge diagnostics</div></div><div class="setup-help">Ищем самые частые логические ошибки до записи файла.</div></div>
-      <div class="setup-body"><div class="compact-line"><div class="setup-label"><strong>Автопроверка</strong>Ошибки блокируют применение; предупреждения требуют внимания.</div><div id="flowDiagnostics" class="diagnostics"></div></div></div>
+    <article class="setup-section fixed-section diagnostics-section" data-fixed="true">
+      <div class="setup-head"><div class="setup-num">✓</div><div><div class="setup-title">Проверка перед применением</div><div class="setup-key">RouterForge diagnostics</div></div><div class="setup-help">Проверяем порты, режимы, ссылки на списки и критические противоречия до записи файла.</div></div>
+      <div class="setup-body diagnostics-body">
+        <div id="diagnosticSummary" class="diagnostic-summary"></div>
+        <div id="flowDiagnostics" class="diagnostics"></div>
+      </div>
     </article>
     <div class="setup-sticky"><div><span id="setupState" class="setup-state">CLEAN</span><div id="changeSummary" class="change-summary"></div><div class="muted small" style="margin-top:3px">Сохраняется в тот же nfqws2.conf → backup → atomic write → reload → rollback при ошибке.</div></div><div class="toolbar"><button id="resetSetup" disabled>Отменить</button><button id="diffSetup" disabled>Diff</button><button id="applySetup" class="primary" disabled>Сохранить и применить</button></div></div>
   </div>
@@ -472,7 +496,7 @@ body.syntax-fullscreen-open{overflow:hidden}
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, expertMode=false, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='';
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
   const esc=(s='')=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -568,10 +592,15 @@ body.syntax-fullscreen-open{overflow:hidden}
     textarea.addEventListener('input',()=>refreshSyntaxEditor(textarea));textarea.addEventListener('scroll',()=>{pre.scrollTop=textarea.scrollTop;pre.scrollLeft=textarea.scrollLeft});textarea.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();insertTab(textarea)}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();updateFlowState();if(flowDirty())previewFlow()}if(e.key==='Escape'&&shell.classList.contains('syntax-fullscreen'))closeSyntaxFullscreen(shell)});
     refreshSyntaxEditor(textarea);return state;
   }
+  function resizeRawEditor(){
+    const textarea=$('config');if(!textarea)return;const panel=textarea.closest('.editor-shell');
+    if(panel?.classList.contains('full-editor')){textarea.style.height='';return}
+    if(!textarea.offsetParent)return;const before=textarea.offsetHeight;textarea.style.height='auto';const next=Math.max(500,textarea.scrollHeight);textarea.style.height=`${next}px`;textarea.scrollTop=0;const state=syntaxEditors.get(textarea);if(state)state.pre.scrollTop=0;if(Math.abs(before-next)>1)requestAnimationFrame(reportHeight);
+  }
   function mountRawSyntaxEditor(){
     const textarea=$('config');if(!textarea)return;let state=syntaxEditors.get(textarea);if(!state){const body=document.createElement('div');body.className='syntax-editor-body';const pre=document.createElement('pre');pre.className='syntax-editor-highlight';textarea.parentNode.insertBefore(body,textarea);body.append(pre,textarea);state={pre,mode:'config',shell:body,resources:null};syntaxEditors.set(textarea,state);textarea.dataset.syntaxReady='1';textarea.addEventListener('input',()=>refreshSyntaxEditor(textarea));textarea.addEventListener('scroll',()=>{pre.scrollTop=textarea.scrollTop;pre.scrollLeft=textarea.scrollLeft})}
-    const panel=textarea.closest('.editor-shell');if(panel){panel.id='configEditorPanel';const toolbar=panel.querySelector('.editor-toolbar');if(toolbar&&!$('fullscreenConfig')){const hint=toolbar.lastElementChild,actions=document.createElement('div');actions.className='editor-toolbar-actions';if(hint)actions.append(hint);const button=document.createElement('button');button.id='fullscreenConfig';button.type='button';button.textContent='На весь экран';actions.append(button);toolbar.append(actions);button.onclick=()=>{const on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);button.textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()}}}
-    refreshSyntaxEditor(textarea);
+    const panel=textarea.closest('.editor-shell');if(panel){panel.id='configEditorPanel';const toolbar=panel.querySelector('.editor-toolbar');if(toolbar&&!$('fullscreenConfig')){const hint=toolbar.lastElementChild,actions=document.createElement('div');actions.className='editor-toolbar-actions';if(hint)actions.append(hint);const button=document.createElement('button');button.id='fullscreenConfig';button.type='button';button.textContent='На весь экран';actions.append(button);toolbar.append(actions);button.onclick=()=>{const on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);button.textContent=on?'Закрыть fullscreen':'На весь экран';resizeRawEditor();reportHeight()}}}
+    refreshSyntaxEditor(textarea);resizeRawEditor();
   }
   function baseResourceDefinitions(){
     const source=String(flowValues.NFQWS_BASE_ARGS||''),blobs=new Map(),lua=[];let m;const br=/--blob=([^:\s]+):(@?\/[^\s]+)/g;while((m=br.exec(source))!==null)blobs.set(m[1],m[2]);const lr=/--lua-init=(@?\/[^\s]+)/g;while((m=lr.exec(source))!==null)lua.push(m[1]);return{blobs,lua};
@@ -707,7 +736,7 @@ body.syntax-fullscreen-open{overflow:hidden}
     document.querySelectorAll('.setup-section').forEach((section,i)=>{
       const head=section.querySelector('.setup-head');if(!head||head.querySelector('.setup-collapse')||section.dataset.fixed==='true')return;
       const button=document.createElement('button');button.className='setup-collapse';button.textContent=i<4?'Свернуть':'Развернуть';head.append(button);
-      if(i>=4&&!section.classList.contains('expert-only'))section.classList.add('collapsed');
+      if(i>=4)section.classList.add('collapsed');
       button.onclick=()=>{section.classList.toggle('collapsed');button.textContent=section.classList.contains('collapsed')?'Развернуть':'Свернуть';reportHeight()};
     });
   }
@@ -740,7 +769,12 @@ body.syntax-fullscreen-open{overflow:hidden}
     if(!out.some(x=>x[0]==='bad'))out.push(['good','Критических противоречий перед сохранением не найдено.']);
     return out;
   }
-  function renderDiagnostics(){$('flowDiagnostics').innerHTML=diagnostics().map(([type,msg])=>`<div class="diag ${type}">${esc(msg)}</div>`).join('')}
+  function renderDiagnostics(){
+    const items=diagnostics(),bad=items.filter(x=>x[0]==='bad').length,warn=items.filter(x=>x[0]==='warn').length,good=items.filter(x=>x[0]==='good').length;
+    const state=bad?'BLOCKED':warn?'CHECK':'READY',stateClass=bad?'bad':warn?'warn':'good';
+    $('diagnosticSummary').innerHTML=`<div class="diagnostic-state ${stateClass}"><span>${state}</span><strong>${bad?`${bad} ошибок`:warn?`${warn} предупреждений`:'можно применять'}</strong></div><div class="diagnostic-counts"><span class="bad">Ошибки <b>${bad}</b></span><span class="warn">Предупреждения <b>${warn}</b></span><span class="good">Проверки <b>${good}</b></span></div>`;
+    $('flowDiagnostics').innerHTML=items.map(([type,msg])=>`<div class="diag ${type}"><span class="diag-mark">${type==='bad'?'!':type==='warn'?'!':'✓'}</span><span>${esc(msg)}</span></div>`).join('');
+  }
   function changedKeys(){const next=flowConfig(),out=[];for(const key of flowKeys)if(assignmentValue(flowOriginal,key)!==assignmentValue(next,key))out.push(key);const before=parseCustomLabelMetadata(flowOriginal).labels.map(normalizeCustomLabel),after=customLabels.map(normalizeCustomLabel);if(JSON.stringify(before)!==JSON.stringify(after))out.push('CUSTOM_LABELS');return out}
   function renderChangeSummary(){const keys=changedKeys();$('changeSummary').innerHTML=keys.slice(0,8).map(k=>`<span class="change-chip">${esc(k)}</span>`).join('')+(keys.length>8?`<span class="change-chip">+${keys.length-8}</span>`:'')}
   function loadFlow(config){
@@ -830,7 +864,7 @@ body.syntax-fullscreen-open{overflow:hidden}
   }
   function updateConfigEditor(){
     const v=$('config').value,c=lines(v).length;$('gutter').textContent=Array.from({length:c},(_,i)=>i+1).join('\n');$('editorStats').textContent=`${c} lines · ${bytes(new Blob([v]).size)}`;
-    const dirty=v!==original;$('editorState').textContent=dirty?'UNSAVED':'CLEAN';$('editorState').className='mono '+(dirty?'dirty':'good-text');$('save').disabled=busy||!current?.mutation_ready||!dirty;$('undoConfig').disabled=!dirty;$('diffConfig').disabled=!dirty;refreshSyntaxEditor($('config'));
+    const dirty=v!==original;$('editorState').textContent=dirty?'UNSAVED':'CLEAN';$('editorState').className='mono '+(dirty?'dirty':'good-text');$('save').disabled=busy||!current?.mutation_ready||!dirty;$('undoConfig').disabled=!dirty;$('diffConfig').disabled=!dirty;resizeRawEditor();refreshSyntaxEditor($('config'));
   }
   function editableStatusLists(){
     return (current?.lists||[]).filter(item=>/\.(list|list-opkg|list-old)$/i.test(String(item?.name||'')));
@@ -935,10 +969,10 @@ body.syntax-fullscreen-open{overflow:hidden}
   function stopDomainCheck(){checkGeneration++}
   function closeCheck(){stopDomainCheck();$('checkModal').classList.remove('open')}
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();reportHeight()});
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else reportHeight()});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
-  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});$('basicMode').onclick=()=>{expertMode=false;document.documentElement.classList.remove('expert-mode');$('basicMode').classList.add('active');$('expertMode').classList.remove('active');reportHeight()};$('expertMode').onclick=()=>{expertMode=true;document.documentElement.classList.add('expert-mode');$('expertMode').classList.add('active');$('basicMode').classList.remove('active');reportHeight()};$('addTcpPort').onclick=()=>addPort('tcp');$('addUdpPort').onclick=()=>addPort('udp');$('tcpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('tcp')}};$('udpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('udp')}};document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
+  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});$('addTcpPort').onclick=()=>addPort('tcp');$('addUdpPort').onclick=()=>addPort('udp');$('tcpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('tcp')}};$('udpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('udp')}};document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('fullscreenList').onclick=()=>{$('listEditorPanel').classList.toggle('full-editor');$('fullscreenList').textContent=$('listEditorPanel').classList.contains('full-editor')?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));$('scriptSearch').oninput=renderScriptList;$('copyScript').onclick=()=>navigator.clipboard?.writeText(scriptContent);$('fullscreenScript').onclick=()=>{const panel=$('scriptPanel'),on=!panel.classList.contains('script-fullscreen');panel.classList.toggle('script-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);$('fullscreenScript').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};

@@ -33,14 +33,16 @@
 <svelte:head><title>RouterForge — {text('Интеграции','Integrations')}</title></svelte:head>
 
 {#if activeProvider}
-  <div class="integration-workspace-head">
-    <a class="button" href="/integrations">← {text('Все интеграции','All integrations')}</a>
-    <div>
-      <strong>{activeProvider.presentation?.integration?.label || activeProvider.name}</strong>
-      <span>{text('RouterForge extension для внешней интеграции','RouterForge extension for an external integration')}</span>
+  <div class="page integration-workspace">
+    <div class="integration-workspace-head">
+      <a class="button" href="/integrations">← {text('Все интеграции','All integrations')}</a>
+      <div>
+        <strong>{activeProvider.presentation?.integration?.label || activeProvider.name}</strong>
+        <span>{text('RouterForge extension для внешней интеграции','RouterForge extension for an external integration')}</span>
+      </div>
     </div>
+    <ModuleFrame moduleId={activeProvider.id} />
   </div>
-  <ModuleFrame moduleId={activeProvider.id} />
 {:else}
   <div class="page integrations-hub">
     <div class="page-head">
@@ -116,7 +118,8 @@
   .integration-card p{margin:0 0 8px;color:var(--rf-muted,#8d98a4);line-height:1.45}
   .integration-card small{color:var(--rf-muted,#8d98a4)}
   .integration-managed-note{font-size:12px;color:var(--rf-muted,#8d98a4)}
-  .integration-workspace-head{display:flex;align-items:center;gap:14px;margin:0 0 12px}
+  .integration-workspace{display:grid;gap:12px}
+  .integration-workspace-head{display:flex;align-items:center;gap:14px;margin:0}
   .integration-workspace-head>div{display:grid;gap:3px}
   .integration-workspace-head span{color:var(--rf-muted,#8d98a4);font-size:12px}
 </style>

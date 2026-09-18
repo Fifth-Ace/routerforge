@@ -139,6 +139,7 @@ func main() {
 	registerBlobRoutes(mux)
 	registerListSourceRoutes(mux)
 	registerSmartApplyRoutes(mux)
+	registerBackupCenterRoutes(mux)
 	mux.HandleFunc("/v1/list", getOnly(handleListRead))
 	mux.HandleFunc("/v1/list/create", mutationOnly(handleListCreate))
 	mux.HandleFunc("/v1/list/save", mutationOnly(handleListSave))
@@ -752,6 +753,9 @@ func createNamedBackup(label string, data []byte, mode os.FileMode) (string, err
 	path := filepath.Join(backupRoot, fmt.Sprintf("nfqws-%d-%s.bak", time.Now().UTC().UnixNano(), safe))
 	if err := safety.WriteFileAtomic(path, data, mode); err != nil {
 		return "", err
+	}
+	if _, err := recordPersistentBackup(label, data, mode); err != nil {
+		return "", fmt.Errorf("create persistent backup: %w", err)
 	}
 	return path, nil
 }

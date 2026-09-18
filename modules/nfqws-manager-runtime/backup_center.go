@@ -193,7 +193,7 @@ func recordPersistentBackupTarget(label, kind, target string, data []byte, mode 
 	manifest := persistentBackupManifest{
 		ID: id, Label: label, Kind: kind, Target: target,
 		Created: time.Now().UTC().Format(time.RFC3339Nano),
-		Size: int64(len(data)), Mode: uint32(mode.Perm()), SHA256: blobSHA256(data),
+		Size:    int64(len(data)), Mode: uint32(mode.Perm()), SHA256: blobSHA256(data),
 	}
 	raw, err := json.Marshal(manifest)
 	if err != nil {
@@ -370,10 +370,10 @@ func prunePersistentBackups() error {
 func backupCenterResponse() map[string]any {
 	files := readBackupCenterInventory()
 	return map[string]any{
-		"root": persistentBackupRoot,
-		"files": files,
-		"count": len(files),
-		"max": persistentBackupMax,
+		"root":         persistentBackupRoot,
+		"files":        files,
+		"count":        len(files),
+		"max":          persistentBackupMax,
 		"safety_count": countBackups(),
 	}
 }
@@ -527,7 +527,7 @@ func handleBackupCenterRestore(w http.ResponseWriter, r *http.Request) {
 	if !exists || !strings.EqualFold(currentHash, manifest.SHA256) {
 		rolledBack, rollbackErr := rollbackRestore(target, before, beforeMode, existed, manifest.Kind == "config" && status.Running)
 		writeJSON(w, http.StatusBadGateway, map[string]any{
-			"error": "restored backup verification failed",
+			"error":       "restored backup verification failed",
 			"rolled_back": rolledBack, "rollback_error": rollbackErr,
 		})
 		return
@@ -535,7 +535,7 @@ func handleBackupCenterRestore(w http.ResponseWriter, r *http.Request) {
 	if manifest.Kind == "config" && status.Running && !readStatus().Running {
 		rolledBack, rollbackErr := rollbackRestore(target, before, beforeMode, existed, true)
 		writeJSON(w, http.StatusBadGateway, map[string]any{
-			"error": "nfqws2 is not running after config restore",
+			"error":       "nfqws2 is not running after config restore",
 			"rolled_back": rolledBack, "rollback_error": rollbackErr,
 		})
 		return

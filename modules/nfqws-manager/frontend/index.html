@@ -468,6 +468,14 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 @media(max-width:1000px){.catalog-layout{grid-template-columns:1fr}.catalog-list{max-height:300px}.catalog-sources{grid-template-columns:1fr}.catalog-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.catalog-detail-head{grid-template-columns:1fr}.catalog-diff-row{grid-template-columns:1fr}.catalog-diff-row.head{display:none}.catalog-summary{grid-template-columns:1fr 1fr}}
 
+
+.blob-shell{display:flex;flex-direction:column;gap:12px}
+.blob-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start;padding:14px 15px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.blob-title-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.blob-summary{display:grid;grid-template-columns:repeat(4,minmax(90px,1fr));gap:7px}.blob-stat{padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}.blob-stat span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}.blob-stat strong{display:block;margin-top:3px;font:700 13px ui-monospace,"Roboto Mono",Consolas,monospace}
+.blob-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.blob-list,.blob-deps{display:flex;flex-direction:column;gap:6px;max-height:61vh;overflow:auto}.blob-row,.blob-dep-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}.blob-row:hover,.blob-dep-row:hover{background:var(--hover)}
+.blob-name{font:700 11px/1.4 ui-monospace,"Roboto Mono",Consolas,monospace;overflow-wrap:anywhere}.blob-meta{font:10px/1.4 ui-monospace,"Roboto Mono",Consolas,monospace;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}.blob-refs{font-size:9px;color:var(--muted);margin-top:3px}.blob-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.blob-state{font:700 9px ui-monospace,"Roboto Mono",Consolas,monospace;padding:3px 6px;border:1px solid var(--border);border-radius:999px}.blob-state.ok{color:var(--good);border-color:color-mix(in srgb,var(--good) 50%,var(--border))}.blob-state.missing{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 50%,var(--border))}.blob-state.update{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,var(--border))}.blob-note{padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);font-size:10px;color:var(--muted);line-height:1.55}.blob-source{font:10px ui-monospace,"Roboto Mono",Consolas,monospace;color:var(--muted)}
+@media(max-width:900px){.blob-hero{grid-template-columns:1fr}.blob-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.blob-layout{grid-template-columns:1fr}.blob-list,.blob-deps{max-height:42vh}}
+
 </style>
 </head>
 <body>
@@ -492,6 +500,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   <button class="tab" data-tab="strategies">Настройка <span id="strategyCount"></span></button>
   <button class="tab" data-tab="configs">Конфиги <span id="configLibraryCount"></span></button>
   <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState"></span></button>
+  <button class="tab" data-tab="blobs">Blobs <span id="blobTabState"></span></button>
   <button class="tab" data-tab="config">Raw конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount"></span></button>
   <button class="tab" data-tab="preflight">Диагностика <span id="preflightTabState"></span></button>
@@ -833,6 +842,36 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   </div>
 </section>
 
+
+<section id="view-blobs" class="view">
+  <div class="blob-shell">
+    <div class="blob-hero">
+      <div>
+        <div class="blob-title-row"><h2 style="margin:0">Blob Manager</h2><span class="config-badge active">SHA256 GUARDED</span><span id="blobRuntimeBadge" class="config-badge">DISK ONLY</span></div>
+        <div class="muted small" style="margin-top:5px">Локальный inventory <span class="mono">/opt/etc/nfqws2/blobs</span> + зависимости выбранной стратегии из Catalog. Upstream blob ставится только с exact ref и SHA256 из того же manifest.</div>
+      </div>
+      <div class="toolbar"><button id="refreshBlobs">Обновить inventory</button></div>
+    </div>
+    <div class="blob-summary">
+      <div class="blob-stat"><span>Установлено</span><strong id="blobInstalledCount">0</strong></div>
+      <div class="blob-stat"><span>Требуется</span><strong id="blobRequiredCount">0</strong></div>
+      <div class="blob-stat"><span>Missing / update</span><strong id="blobMissingCount">0</strong></div>
+      <div class="blob-stat"><span>Referenced</span><strong id="blobReferencedCount">0</strong></div>
+    </div>
+    <div class="blob-layout">
+      <article class="panel">
+        <div class="panel-head"><div><h2>Локальные blobs</h2><div id="blobRootMeta" class="section-kicker mono">/opt/etc/nfqws2/blobs</div></div></div>
+        <div id="blobInventoryList" class="blob-list"><div class="empty">Открой вкладку — прочитаем inventory.</div></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><div><h2>Зависимости Catalog</h2><div id="blobCatalogMeta" class="section-kicker">Выберите config в Catalog</div></div><button id="openBlobCatalog">Открыть Catalog</button></div>
+        <div id="blobDependencyList" class="blob-deps"><div class="empty">Выберите стратегию в Catalog, чтобы проверить её blobs.</div></div>
+      </article>
+    </div>
+    <div class="blob-note"><b>Boundary R26:</b> установка/замена пишет только blob-файл через atomic write и safety backup. RouterForge <b>не</b> выполняет restart/reload и не утверждает, что running nfqws уже использует новый файл. Удаление запрещено, пока blob упоминается active или stored config. Координированное применение config + dependencies + verify/rollback остаётся за R28 Smart Apply.</div>
+  </div>
+</section>
+
 <section id="view-runs" class="view">
   <div class="run-history-shell">
     <div class="run-history-hero">
@@ -928,7 +967,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''};
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={};
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -1841,7 +1880,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     const iface=assignmentValue(text,'ISP_INTERFACE');add(iface?'good':'warn',iface?'ISP_INTERFACE задан':'ISP_INTERFACE отсутствует',iface||'Перед Smart Apply понадобится WAN interface.');
     for(const key of ['NFQUEUE_NUM','USER','CONFIG_VERSION'])if(!assignmentValue(text,key))add('warn',`${key} не найден`,'Полный config стоит проверить перед Smart Apply.');
     const missing=deps.lists.filter(x=>!known.has(x));add(missing.length?'warn':'good',missing.length?'Есть отсутствующие локально list dependencies':'List dependencies разрешены',missing.length?missing.join(', '):(deps.lists.join(', ')||'Ссылок на list-файлы нет.'));
-    if(deps.blobs.length)add('info',`${deps.blobs.length} blob dependencies`,`Inventory/verify blobs будет в R26: ${deps.blobs.map(x=>x.name).join(', ')}`);else add('info','Blob dependencies не обнаружены','R26 всё равно проверит локальный blob inventory.');
+    if(deps.blobs.length)add('info',`${deps.blobs.length} blob dependencies`,`Проверь Blob Manager: ${deps.blobs.map(x=>x.name).join(', ')}`);else add('info','Blob dependencies не обнаружены','R26 всё равно проверит локальный blob inventory.');
     if(deps.lua.length)add('info',`${deps.lua.length} Lua dependencies`,deps.lua.map(catalogNormalizeRefPath).join(', '));
     if(integrity==='verified')add('good','SHA256 integrity: VERIFIED','Файл совпадает с hash из upstream SHA256SUMS.');else if(integrity==='mismatch')add('bad','SHA256 integrity: MISMATCH','Полученный config не совпадает с upstream manifest.');else add('info','SHA256 integrity: LOCAL/UNAVAILABLE','Для локального файла используется локальный SHA; upstream manifest не применим.');
     const bad=checks.filter(x=>x.severity==='bad').length,warn=checks.filter(x=>x.severity==='warn').length;return{checks,deps,status:bad?'BLOCKED':warn?'CHECK':'COMPATIBLE'};
@@ -1882,11 +1921,75 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     const checkHtml=model.checks.map(x=>`<div class="catalog-check ${x.severity}"><span class="catalog-check-mark">${x.severity==='good'?'✓':x.severity==='bad'?'!':x.severity==='warn'?'!':'i'}</span><div><div class="catalog-check-title">${esc(x.title)}</div><div class="catalog-check-detail">${esc(x.detail)}</div></div></div>`).join('');
     const depHtml=[...deps.lists.map(x=>`<span class="catalog-dep ${(current?.lists||[]).some(y=>y.name===x)?'present':'missing'}">LIST ${esc(x)}</span>`),...deps.blobs.map(x=>`<span class="catalog-dep">BLOB ${esc(x.name)}</span>`),...deps.lua.map(x=>`<span class="catalog-dep">LUA ${esc(catalogNormalizeRefPath(x))}</span>`),deps.tcp?`<span class="catalog-dep">TCP ${esc(deps.tcp)}</span>`:'',deps.udp?`<span class="catalog-dep">UDP ${esc(deps.udp)}</span>`:''].filter(Boolean).join('')||'<span class="muted small">Явные dependencies не найдены.</span>';
     const diffHtml=`<div class="catalog-diff"><div class="catalog-diff-row head"><span>Assignment</span><span>State</span><span>Active</span><span>Candidate</span></div>${diff.map(x=>`<div class="catalog-diff-row"><b>${esc(x.key)}</b><span class="catalog-diff-state ${x.state}">${esc(x.state.toUpperCase())}</span><span class="catalog-diff-value">${esc(x.active||'—')}</span><span class="catalog-diff-value">${esc(x.candidate||'—')}</span></div>`).join('')}</div>`;
-    $('catalogDetail').className='catalog-detail';$('catalogDetail').innerHTML=`<div class="catalog-detail-head"><div><div class="catalog-detail-name">${esc(item.name)}</div><div class="catalog-detail-meta">source=${esc(item.source)} · ref=${esc(item.ref||'local')} · path=${esc(item.path||'—')}<br>sha256=${esc(d.sha256||item.sha256||'—')} · integrity=${esc(d.integrity.toUpperCase())}</div></div><div class="toolbar"><span class="catalog-verdict ${model.status.toLowerCase()}">${esc(model.status)}</span><button id="catalogToSandbox">В Sandbox · HTTPS</button>${item.kind==='local'?'<button id="catalogOpenLocal">Открыть в Configs</button>':''}</div></div><div class="catalog-summary"><div class="catalog-stat"><span>Diff assignments</span><strong>${changed}</strong></div><div class="catalog-stat"><span>Lists</span><strong>${deps.lists.length}${missing?` / ${missing} missing`:''}</strong></div><div class="catalog-stat"><span>Blobs</span><strong>${deps.blobs.length}</strong></div><div class="catalog-stat"><span>Lua</span><strong>${deps.lua.length}</strong></div></div><div><div class="section-kicker" style="margin-bottom:6px">Compatibility</div><div class="catalog-checks">${checkHtml}</div></div><div><div class="section-kicker" style="margin-bottom:6px">Dependencies</div><div class="catalog-deps">${depHtml}</div></div><div><div class="section-kicker" style="margin-bottom:6px">Semantic diff vs active canonical</div>${diffHtml}</div><div><div class="section-kicker" style="margin-bottom:6px">Config preview · read-only</div><pre class="catalog-preview">${esc(d.content)}</pre></div>`;
+    $('catalogDetail').className='catalog-detail';$('catalogDetail').innerHTML=`<div class="catalog-detail-head"><div><div class="catalog-detail-name">${esc(item.name)}</div><div class="catalog-detail-meta">source=${esc(item.source)} · ref=${esc(item.ref||'local')} · path=${esc(item.path||'—')}<br>sha256=${esc(d.sha256||item.sha256||'—')} · integrity=${esc(d.integrity.toUpperCase())}</div></div><div class="toolbar"><span class="catalog-verdict ${model.status.toLowerCase()}">${esc(model.status)}</span><button id="catalogToSandbox">В Sandbox · HTTPS</button>${deps.blobs.length?`<button id="catalogOpenBlobs">Blobs · ${deps.blobs.length}</button>`:''}${item.kind==='local'?'<button id="catalogOpenLocal">Открыть в Configs</button>':''}</div></div><div class="catalog-summary"><div class="catalog-stat"><span>Diff assignments</span><strong>${changed}</strong></div><div class="catalog-stat"><span>Lists</span><strong>${deps.lists.length}${missing?` / ${missing} missing`:''}</strong></div><div class="catalog-stat"><span>Blobs</span><strong>${deps.blobs.length}</strong></div><div class="catalog-stat"><span>Lua</span><strong>${deps.lua.length}</strong></div></div><div><div class="section-kicker" style="margin-bottom:6px">Compatibility</div><div class="catalog-checks">${checkHtml}</div></div><div><div class="section-kicker" style="margin-bottom:6px">Dependencies</div><div class="catalog-deps">${depHtml}</div></div><div><div class="section-kicker" style="margin-bottom:6px">Semantic diff vs active canonical</div>${diffHtml}</div><div><div class="section-kicker" style="margin-bottom:6px">Config preview · read-only</div><pre class="catalog-preview">${esc(d.content)}</pre></div>`;
     $('catalogToSandbox').onclick=()=>{const candidate=assignmentValue(d.content,'NFQWS_ARGS');if(!candidate){notice('В выбранном config NFQWS_ARGS пуст — нечего отправлять в HTTPS Sandbox.','error');return}$('sandboxCandidate').value=candidate;sandboxResultsData=[];const tab=document.querySelector('.tab[data-tab="sandbox"]');if(tab)tab.click();renderSandbox();notice(`Sandbox candidate загружен из ${item.name}. Active config не изменён.`,'good')};
+    if($('catalogOpenBlobs'))$('catalogOpenBlobs').onclick=async()=>{const tab=document.querySelector('.tab[data-tab="blobs"]');if(tab)tab.click();await loadBlobs(true)};
     if(item.kind==='local'&&$('catalogOpenLocal'))$('catalogOpenLocal').onclick=async()=>{const tab=document.querySelector('.tab[data-tab="configs"]');if(tab)tab.click();await loadConfigLibrary();await selectStoredConfig(item.name)};
   }
   function setCatalogFilter(value){catalogFilter=value;for(const[id,v]of[['catalogAll','all'],['catalogLocal','local'],['catalogUpstream','upstream']])$(id).classList.toggle('active',v===value);renderCatalogList()}
+
+
+  function blobBasename(path){return String(path||'').split('/').pop().replace(/["']/g,'')}
+  function blobInstalledByName(name){return blobFiles.find(x=>String(x.name)===String(name))}
+  async function blobManifestForRef(ref){
+    const key=String(ref||'');if(!key)return new Map();if(blobManifestCache[key])return blobManifestCache[key];
+    const r=await catalogFetch(`https://raw.githubusercontent.com/${catalogRepo}/${key}/SHA256SUMS`,10000),text=await r.text(),map=new Map();
+    for(const line of text.split(/\r?\n/)){const m=line.match(/^([0-9a-fA-F]{64})\s+(strategies\/blobs\/([^\s/]+\.bin))$/);if(m)map.set(m[3],{sha256:m[1].toLowerCase(),path:m[2]})}
+    blobManifestCache[key]=map;return map;
+  }
+  async function blobSha256Bytes(buffer){
+    if(!globalThis.crypto?.subtle)throw new Error('WebCrypto SHA-256 недоступен в этом браузере.');
+    const d=await crypto.subtle.digest('SHA-256',buffer);return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  }
+  function blobBase64(buffer){
+    const bytes=new Uint8Array(buffer);let out='';for(let i=0;i<bytes.length;i+=0x8000)out+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));return btoa(out);
+  }
+  async function loadBlobs(force=false){
+    if(blobLoading||blobLoaded&&!force){await refreshBlobDependencies();renderBlobs();return}blobLoading=true;
+    try{const d=await api('/blobs');blobFiles=Array.isArray(d.files)?d.files:[];blobRoot=d.root||'/opt/etc/nfqws2/blobs';blobLoaded=true;await refreshBlobDependencies();renderBlobs()}
+    catch(e){blobLoaded=false;notice(`Blob inventory: ${e.message}`,'error');if($('blobInventoryList'))$('blobInventoryList').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}
+    finally{blobLoading=false}
+  }
+  async function refreshBlobDependencies(){
+    blobExpectedMap={};if(!catalogSelectedData)return;
+    const item=catalogSelectedData.item,deps=catalogDependencyModel(catalogSelectedData.content).blobs;
+    if(item?.kind!=='upstream'||!item.ref)return;
+    try{const manifest=await blobManifestForRef(item.ref);for(const dep of deps){const name=blobBasename(dep.path)||`${dep.name}.bin`,meta=manifest.get(name);if(meta)blobExpectedMap[name]=meta}}catch(e){notice(`Blob manifest: ${e.message}`,'error')}
+  }
+  function blobDependencyRows(){
+    if(!catalogSelectedData)return[];const deps=catalogDependencyModel(catalogSelectedData.content).blobs,item=catalogSelectedData.item;
+    return deps.map(dep=>{const name=blobBasename(dep.path),installed=blobInstalledByName(name),expected=blobExpectedMap[name]||null;let state='missing';
+      if(installed){state=expected&&String(installed.sha256).toLowerCase()!==expected.sha256?'update':'ok'}
+      return{dep,name,installed,expected,state,item};
+    });
+  }
+  function renderBlobs(){
+    if(!$('blobInventoryList'))return;const deps=blobDependencyRows(),missing=deps.filter(x=>x.state!=='ok').length,referenced=blobFiles.filter(x=>x.referenced).length;
+    $('blobInstalledCount').textContent=blobFiles.length;$('blobRequiredCount').textContent=deps.length;$('blobMissingCount').textContent=missing;$('blobReferencedCount').textContent=referenced;$('blobTabState').textContent=missing?`(${missing}!)`:blobFiles.length?`(${blobFiles.length})`:'';
+    $('blobRootMeta').textContent=blobRoot||'/opt/etc/nfqws2/blobs';
+    $('blobInventoryList').innerHTML=blobFiles.length?blobFiles.map(x=>`<div class="blob-row"><div><div class="blob-name">${esc(x.name)}</div><div class="blob-meta">${bytes(x.size)} · sha256 ${esc(String(x.sha256||'').slice(0,16))}…</div><div class="blob-refs">${x.referenced?`refs: ${esc((x.references||[]).join(', '))}`:'unreferenced'}</div></div><div class="blob-actions"><span class="blob-state ok">INSTALLED</span><button class="danger" data-blob-delete="${esc(x.name)}" ${x.referenced?'disabled title="Referenced blob cannot be deleted"':''}>Удалить</button></div></div>`).join(''):'<div class="empty">Blob-файлы не найдены.</div>';
+    $('blobInventoryList').querySelectorAll('[data-blob-delete]').forEach(b=>b.onclick=()=>deleteBlob(b.dataset.blobDelete));
+    if(!catalogSelectedData){$('blobCatalogMeta').textContent='Выберите config в Catalog';$('blobDependencyList').innerHTML='<div class="empty">Выберите стратегию в Catalog, чтобы проверить её blobs.</div>';return}
+    const item=catalogSelectedData.item;$('blobCatalogMeta').textContent=`${item.name} · ${item.kind==='upstream'?`exact ref ${String(item.ref).slice(0,12)}`:item.source}`;
+    $('blobDependencyList').innerHTML=deps.length?deps.map(x=>{const canFetch=x.item.kind==='upstream'&&x.expected,action=x.state==='missing'?'Установить':x.state==='update'?'Заменить':'';return `<div class="blob-dep-row"><div><div class="blob-name">${esc(x.name||x.dep.name)}</div><div class="blob-meta">symbol=${esc(x.dep.name)}${x.expected?` · expected ${esc(x.expected.sha256.slice(0,16))}…`:' · upstream hash unavailable'}${x.installed?` · local ${esc(String(x.installed.sha256).slice(0,16))}…`:''}</div></div><div class="blob-actions"><span class="blob-state ${x.state}">${x.state==='ok'?'VERIFIED':x.state==='update'?'UPDATE':'MISSING'}</span>${action?`<button data-blob-install="${esc(x.name)}" ${canFetch?'':'disabled'}>${esc(action)}</button>`:''}</div></div>`}).join(''):'<div class="empty">У выбранного config явные --blob dependencies не найдены.</div>';
+    $('blobDependencyList').querySelectorAll('[data-blob-install]').forEach(b=>b.onclick=()=>installCatalogBlob(b.dataset.blobInstall));
+  }
+  async function installCatalogBlob(name){
+    const row=blobDependencyRows().find(x=>x.name===name);if(!row||row.item.kind!=='upstream'||!row.expected)return;
+    const replace=!!row.installed;if(replace&&!confirm(`Заменить ${name}? Будет создан safety backup. Running nfqws НЕ перезапускается; новый файл на диске вступит в силу только при будущем controlled restart/apply.`))return;
+    if(!replace&&!confirm(`Установить ${name} из ${catalogRepo} @ ${String(row.item.ref).slice(0,12)} с проверкой SHA256?`))return;
+    const button=document.querySelector(`[data-blob-install="${CSS.escape(name)}"]`);if(button)button.disabled=true;
+    try{
+      const r=await catalogFetch(`https://raw.githubusercontent.com/${catalogRepo}/${row.item.ref}/${row.expected.path}`,12000),buffer=await r.arrayBuffer();if(buffer.byteLength>1048576)throw new Error('blob > 1 MiB safety limit');
+      const actual=await blobSha256Bytes(buffer);if(actual!==row.expected.sha256)throw new Error(`SHA256 mismatch before install: ${actual}`);
+      const d=await api('/blobs/install',{method:'POST',body:JSON.stringify({name,content_base64:blobBase64(buffer),expected_sha256:row.expected.sha256,replace,confirm:replace?'NFQWS_BLOB_REPLACE':'NFQWS_BLOB_INSTALL'})});
+      blobFiles=Array.isArray(d.inventory?.files)?d.inventory.files:blobFiles;blobLoaded=true;renderBlobs();notice(`${name}: ${replace?'заменён':'установлен'}; SHA256 verified. Runtime restart не выполнялся.`,'good')
+    }catch(e){notice(`Blob ${name}: ${e.message}`,'error');renderBlobs()}
+  }
+  async function deleteBlob(name){
+    const item=blobInstalledByName(name);if(!item||item.referenced)return;if(!confirm(`Удалить unreferenced blob ${name}? Перед удалением будет создан safety backup.`))return;
+    try{const d=await api('/blobs/delete',{method:'POST',body:JSON.stringify({name,confirm:'NFQWS_BLOB_DELETE'})});blobFiles=Array.isArray(d.inventory?.files)?d.inventory.files:blobFiles;renderBlobs();notice(`${name}: удалён, backup=${d.backup||'created'}`,'good')}catch(e){notice(`Удаление ${name}: ${e.message}`,'error')}
+  }
 
   const runHistoryKey='routerforge.nfqws.run-history.v1',runHistoryMax=24;
   function clamp01(value){return Math.max(0,Math.min(1,Number(value)||0))}
@@ -1973,9 +2076,9 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs')renderRunHistory();if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs')renderRunHistory();if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
-  $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
+  $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():$('diffApply').dataset.mode==='stored-config'?saveStoredConfig():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('configLibrarySearch').oninput=renderConfigLibraryList;$('newStoredConfig').onclick=()=>openConfigName('create-empty');$('saveCurrentConfig').onclick=()=>openConfigName('create-current');$('refreshNeighborConfigs').onclick=()=>{configLibraryLoaded=false;loadConfigLibrary(true)};$('storedConfigEditor').oninput=updateStoredConfigButtons;$('saveStoredConfig').onclick=showStoredConfigDiff;$('diffStoredConfig').onclick=showStoredConfigDiff;$('undoStoredConfig').onclick=()=>{$('storedConfigEditor').value=storedConfigOriginal;updateStoredConfigButtons()};$('fullscreenStoredConfig').onclick=()=>{const shell=$('storedConfigEditorShell'),on=!shell.classList.contains('full-editor');shell.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenStoredConfig').textContent=on?'Закрыть fullscreen':'На весь экран';resizeStoredConfigEditor();reportHeight()};$('activateStoredConfig').onclick=activateStoredConfig;$('deleteStoredConfig').onclick=deleteStoredConfig;$('renameStoredConfig').onclick=()=>openConfigName('rename',selectedStoredConfig);$('duplicateStoredConfig').onclick=()=>openConfigName('duplicate',selectedStoredConfig);$('closeConfigName').onclick=closeConfigName;$('configNameCancel').onclick=closeConfigName;$('configNameConfirm').onclick=confirmConfigName;$('configNameInput').onkeydown=e=>{if(e.key==='Enter')confirmConfigName()};$('configNameModal').onclick=e=>{if(e.target===$('configNameModal'))closeConfigName()};

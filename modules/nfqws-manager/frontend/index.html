@@ -543,6 +543,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   <button class="tab" data-tab="runs">История <span id="runHistoryTabState"></span></button>
   <button class="tab" data-tab="logs">Логи</button>
   <button class="tab" data-tab="scripts">Скрипты <span id="scriptCount"></span></button>
+  <button class="tab" data-tab="keenetic">Keenetic <span id="keeneticTabState"></span></button>
   <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab"></span></button>
 </nav>
 
@@ -996,6 +997,45 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   </div>
 </section>
 
+<section id="view-keenetic" class="view">
+  <div class="backup-center-shell">
+    <div class="backup-center-hero">
+      <div>
+        <div class="backup-center-title-row"><h2 style="margin:0">Keenetic Integration</h2><span class="config-badge active">READ-ONLY</span><span id="keeneticState" class="config-badge">IDLE</span></div>
+        <div class="muted small" style="margin-top:5px">Сверяем RouterForge с реальным Keenetic/Entware окружением: ndmc, RCI, default route, интерфейсы и /opt. Эта вкладка ничего не меняет в KeeneticOS.</div>
+      </div>
+      <div class="toolbar"><button id="refreshKeenetic">Обновить</button></div>
+    </div>
+    <div class="backup-center-summary">
+      <div class="backup-center-stat"><span>Platform</span><strong id="keeneticPlatform">—</strong></div>
+      <div class="backup-center-stat"><span>NDMC</span><strong id="keeneticNdmc">—</strong></div>
+      <div class="backup-center-stat"><span>RCI</span><strong id="keeneticRci">—</strong></div>
+      <div class="backup-center-stat"><span>Entware</span><strong id="keeneticEntware">—</strong></div>
+    </div>
+    <div class="backup-center-layout">
+      <article class="panel">
+        <div class="panel-head"><div><h2>Router / network</h2><div id="keeneticModelMeta" class="section-kicker mono">—</div></div></div>
+        <div id="keeneticNetwork" class="diagnostics"><div class="empty">Открой вкладку — загрузим read-only snapshot.</div></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><div><h2>nfqws binding</h2><div class="section-kicker">ISP_INTERFACE ↔ default IPv4 route</div></div><div class="toolbar"><button id="keeneticUseDefault" disabled>Вставить default в Настройку</button></div></div>
+        <div id="keeneticBinding" class="diagnostics"><div class="empty">Нет snapshot.</div></div>
+      </article>
+    </div>
+    <div class="backup-center-layout" style="margin-top:14px">
+      <article class="panel">
+        <div class="panel-head"><div><h2>Entware /opt</h2><div class="section-kicker">mount + filesystem capacity</div></div></div>
+        <div id="keeneticStorage" class="diagnostics"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><div><h2>Keenetic policy identity</h2><div class="section-kicker">GET /rci/show/ip/policy · raw policy data is not exposed</div></div></div>
+        <div id="keeneticPolicy" class="diagnostics"></div>
+      </article>
+    </div>
+    <div class="backup-center-note"><b>Safety boundary:</b> R31 выполняет только локальные read-only reads. Нет RCI POST/DELETE, нет ndmc mutation/save, нет изменения policy/interface. Default route можно лишь подставить в поле <span class="mono">ISP_INTERFACE</span> редактора — фактическая запись всё равно проходит обычный RouterForge diff/apply gate.</div>
+  </div>
+</section>
+
 <section id="view-backups" class="view">
   <div class="backup-center-shell">
     <div class="backup-center-hero">
@@ -1075,7 +1115,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='';
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -2382,6 +2422,70 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   function stopDomainCheck(){checkGeneration++}
   function closeCheck(){stopDomainCheck();$('checkModal').classList.remove('open')}
 
+
+  function keeneticBytes(n){
+    const value=Number(n||0);if(!value)return'—';if(value<1048576)return`${Math.round(value/1024)} KB`;if(value<1073741824)return`${(value/1048576).toFixed(1)} MB`;return`${(value/1073741824).toFixed(1)} GB`;
+  }
+  function keeneticDiag(kind,title,detail){
+    const icon=kind==='good'?'✓':kind==='bad'?'!':kind==='warn'?'!':'i';
+    return `<div class="diagnostic ${kind}"><div class="diagnostic-icon">${icon}</div><div><div class="diagnostic-title">${esc(title)}</div><div class="diagnostic-detail">${esc(detail||'')}</div></div></div>`;
+  }
+  function renderKeenetic(){
+    const d=keeneticSnapshot;if(!$('keeneticState'))return;
+    if(!d){
+      $('keeneticState').textContent=keeneticLoading?'LOADING':'IDLE';$('keeneticTabState').textContent='';
+      return;
+    }
+    $('keeneticState').textContent=d.detected?'KEENETIC':'GENERIC';$('keeneticState').className='config-badge '+(d.detected?'active':'');
+    $('keeneticTabState').textContent=d.detected?'✓':'•';
+    $('keeneticPlatform').textContent=d.detected?'KEENETIC':'GENERIC';
+    $('keeneticNdmc').textContent=d.ndmc_available?'READY':'NO';
+    $('keeneticRci').textContent=d.rci_available?'READY':'NO';
+    $('keeneticEntware').textContent=d.opkg_available?'OPKG':'CHECK';
+    $('keeneticModelMeta').textContent=[d.model||'model unknown',d.version||'version unknown'].join(' · ');
+
+    const interfaces=Array.isArray(d.interfaces)?d.interfaces:[];
+    $('keeneticNetwork').innerHTML=[
+      keeneticDiag(d.default_ipv4_interface?'good':'warn','Default IPv4 route',d.default_ipv4_interface||'не определён'),
+      ...interfaces.map(x=>keeneticDiag(x.default_v4?'good':x.up?'info':'warn',`${x.name}${x.default_v4?' · DEFAULT':''}`,`operstate=${x.oper_state||'unknown'}`)),
+      ...(d.warnings||[]).map(x=>keeneticDiag('warn','Read warning',x))
+    ].join('');
+
+    const configISP=d.config_isp_interface||'',def=d.default_ipv4_interface||'',match=!!d.config_isp_matches_default;
+    $('keeneticBinding').innerHTML=[
+      keeneticDiag(configISP?'info':'warn','Configured ISP_INTERFACE',configISP||'не задан'),
+      keeneticDiag(def?'info':'warn','Kernel default-route interface',def||'не определён'),
+      keeneticDiag(configISP&&def?(match?'good':'warn'):'warn',match?'Binding MATCH':'Binding CHECK',configISP&&def?(match?'ISP_INTERFACE совпадает с default IPv4 route.':'Значения различаются. Это может быть нормально при policy routing/VLAN/PPP, поэтому RouterForge ничего не меняет автоматически.'):'Недостаточно данных для сравнения.')
+    ].join('');
+    $('keeneticUseDefault').disabled=!def;
+
+    const used=d.entware_total_bytes?Math.max(0,Number(d.entware_total_bytes)-Number(d.entware_free_bytes||0)):0;
+    $('keeneticStorage').innerHTML=[
+      keeneticDiag(d.entware_mounted?'good':'warn','/opt mount',d.entware_mounted?`${d.entware_device||'device unknown'} · ${d.entware_fs_type||'fs unknown'}`:'отдельный mount не подтверждён'),
+      keeneticDiag(d.opkg_available?'good':'warn','Entware opkg',d.opkg_available?'/opt/bin/opkg executable':'/opt/bin/opkg не найден или не executable'),
+      keeneticDiag(d.entware_total_bytes?'info':'warn','Filesystem',d.entware_total_bytes?`${keeneticBytes(used)} used · ${keeneticBytes(d.entware_free_bytes)} free · ${keeneticBytes(d.entware_total_bytes)} total`:'statfs /opt недоступен')
+    ].join('');
+
+    $('keeneticPolicy').innerHTML=[
+      keeneticDiag(d.rci_available?'good':'warn','RCI read endpoint',d.rci_available?'GET /rci/show/ip/policy доступен':'endpoint недоступен'),
+      keeneticDiag(d.policy_identity?'info':'warn','Policy identity',d.policy_identity||'не получен'),
+      keeneticDiag(d.policy_shape?'info':'warn','JSON shape',d.policy_shape?`${d.policy_shape} · top-level items ${d.policy_items||0}`:'не определён')
+    ].join('');
+    reportHeight();
+  }
+  async function loadKeenetic(force=false){
+    if(keeneticLoading||keeneticLoaded&&!force){renderKeenetic();return}
+    keeneticLoading=true;renderKeenetic();
+    try{keeneticSnapshot=await api('/keenetic');keeneticLoaded=true;renderKeenetic()}
+    catch(e){keeneticSnapshot=null;notice(`Keenetic integration: ${e.message}`,'error');renderKeenetic()}
+    finally{keeneticLoading=false;renderKeenetic()}
+  }
+  function useKeeneticDefaultInterface(){
+    const iface=String(keeneticSnapshot?.default_ipv4_interface||'');if(!iface)return;
+    const tab=document.querySelector('.tab[data-tab="strategies"]');if(tab)tab.click();
+    $('flowInterface').value=iface;updateFlowState();notice(`ISP_INTERFACE draft ← ${iface}. Ничего не сохранено.`,'good');
+  }
+
   function handleEditorSaveShortcut(e){
     if(!(e.ctrlKey||e.metaKey)||String(e.key||'').toLowerCase()!=='s')return;
     const active=document.querySelector('.view.active'),view=active?.id||'';
@@ -2393,8 +2497,9 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='lists')loadListSources();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs'){renderRunHistory();renderAutoPick()};if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='backups')loadBackupCenter();if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='lists')loadListSources();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs'){renderRunHistory();renderAutoPick()};if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='backups')loadBackupCenter();if(btn.dataset.tab==='keenetic')loadKeenetic();if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
+  $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;loadKeenetic(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;
   $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
   $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
   $('closeSmartApply').onclick=closeSmartApply;$('refreshSmartApply').onclick=async()=>{if(smartApplyBusy)return;$('smartApplyPlan').innerHTML='<div class="empty">Пересчитываю exact plan…</div>';$('applySmartApply').disabled=true;try{smartApplyPlan=await buildSmartApplyPlan();renderSmartApplyPlan()}catch(e){smartApplyPlan=null;$('smartApplyPlan').innerHTML=`<div class="smart-apply-error">${esc(e.message)}</div>`}};$('applySmartApply').onclick=applySmartApply;$('smartApplyModal').onclick=e=>{if(e.target===$('smartApplyModal'))closeSmartApply()};

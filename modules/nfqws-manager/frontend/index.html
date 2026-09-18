@@ -480,6 +480,36 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 .smart-apply-plan{display:grid;gap:10px}.smart-apply-head{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.smart-apply-stat{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}.smart-apply-stat span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.smart-apply-stat strong{display:block;margin-top:3px;font:700 13px ui-monospace,"Roboto Mono",Consolas,monospace}.smart-apply-section{border:1px solid var(--border);border-radius:8px;overflow:hidden}.smart-apply-section-head{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;font-weight:700}.smart-apply-rows{display:grid}.smart-apply-row{display:grid;grid-template-columns:minmax(130px,.8fr) minmax(0,1.5fr) auto;gap:10px;align-items:start;padding:7px 10px;border-bottom:1px solid var(--border);font-size:10px}.smart-apply-row:last-child{border-bottom:0}.smart-apply-row code{overflow-wrap:anywhere;white-space:pre-wrap}.smart-apply-state{font:700 9px ui-monospace,"Roboto Mono",Consolas,monospace;padding:3px 6px;border:1px solid var(--border);border-radius:999px}.smart-apply-state.ok{color:var(--good)}.smart-apply-state.write{color:var(--warn)}.smart-apply-state.blocked{color:var(--bad)}.smart-apply-warning{padding:9px 10px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--border));border-radius:8px;background:color-mix(in srgb,var(--warn) 7%,var(--surface));font-size:10px;line-height:1.5}.smart-apply-error{padding:9px 10px;border:1px solid color-mix(in srgb,var(--bad) 45%,var(--border));border-radius:8px;background:color-mix(in srgb,var(--bad) 7%,var(--surface));font-size:10px;line-height:1.5;color:var(--bad)}
 @media(max-width:900px){.smart-apply-head{grid-template-columns:repeat(2,minmax(0,1fr))}.smart-apply-row{grid-template-columns:1fr}}
 
+
+  .backup-center-shell{display:flex;flex-direction:column;gap:var(--space)}
+  .backup-center-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  .backup-center-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .backup-center-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .backup-center-stat{padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  .backup-center-stat span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+  .backup-center-stat strong{font-size:20px}
+  .backup-center-layout{display:grid;grid-template-columns:minmax(300px,.82fr) minmax(0,1.45fr);gap:var(--space)}
+  .backup-center-list{display:flex;flex-direction:column;gap:7px;margin-top:10px;max-height:660px;overflow:auto}
+  .backup-center-item{display:flex;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--panel-2)}
+  .backup-center-item:hover,.backup-center-item.selected{border-color:var(--accent)}
+  .backup-center-name{font-weight:700;overflow-wrap:anywhere}
+  .backup-center-meta{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.45}
+  .backup-center-state{font-size:10px;font-weight:800;letter-spacing:.04em;white-space:nowrap}
+  .backup-center-state.current{color:var(--good)}
+  .backup-center-state.changed{color:var(--warn)}
+  .backup-center-state.missing{color:var(--bad)}
+  .backup-center-detail-empty{display:flex;align-items:center;justify-content:center;min-height:260px;color:var(--muted);text-align:center}
+  .backup-center-detail{display:flex;flex-direction:column;gap:12px}
+  .backup-center-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .backup-center-detail-name{font-size:18px;font-weight:800;overflow-wrap:anywhere}
+  .backup-center-detail-meta{font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}
+  .backup-center-kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 10px;font-size:12px}
+  .backup-center-kv div:nth-child(odd){color:var(--muted)}
+  .backup-center-diff{max-height:390px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--editor);padding:10px;font:11px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+  .backup-center-preview{max-height:390px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--editor);padding:10px;font:11px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+  .backup-center-note{font-size:11px;color:var(--muted);line-height:1.55}
+  @media(max-width:900px){.backup-center-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.backup-center-layout{grid-template-columns:1fr}.backup-center-hero{flex-direction:column}}
+
 </style>
 </head>
 <body>
@@ -949,8 +979,33 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 </section>
 
 <section id="view-backups" class="view">
-  <article class="panel"><div class="backup-hero"><div id="backupCount" class="backup-count">0</div><div><h2 style="margin:0 0 5px;color:var(--text)">Safety backups</h2><div class="muted small">Backup создаётся перед изменением основного конфига и перед сохранением/удалением list-файла. Хранилище ограничено 8 последними копиями.</div></div></div></article>
-  <div class="empty" style="margin-top:var(--space)">Compare / Restore подключим отдельным API. Сейчас показываем только реальное количество сохранённых safety-копий.</div>
+  <div class="backup-center-shell">
+    <div class="backup-center-hero">
+      <div>
+        <div class="backup-center-title-row"><h2 style="margin:0">Backup Center</h2><span class="config-badge active">PERSISTENT</span><span id="backupCenterState" class="config-badge">IDLE</span></div>
+        <div class="muted small" style="margin-top:5px">Постоянные snapshots до config/list/blob/library mutation. Inventory, diff и restore живут на роутере и переживают reboot.</div>
+        <div id="backupCenterRoot" class="section-kicker mono" style="margin-top:7px">/opt/var/lib/routerforge/nfqws-manager/backups</div>
+      </div>
+      <div class="toolbar"><button id="refreshBackups">Обновить</button></div>
+    </div>
+    <div class="backup-center-summary">
+      <div class="backup-center-stat"><span>Persistent</span><strong id="backupPersistentCount">0</strong></div>
+      <div class="backup-center-stat"><span>Changed / missing</span><strong id="backupChangedCount">0</strong></div>
+      <div class="backup-center-stat"><span>Restorable</span><strong id="backupRestorableCount">0</strong></div>
+      <div class="backup-center-stat"><span>Temporary safety</span><strong id="backupCount">0</strong></div>
+    </div>
+    <div class="backup-center-layout">
+      <article class="panel">
+        <div class="panel-head"><div><h2>История</h2><div class="section-kicker">до 64 persistent snapshots</div></div></div>
+        <input id="backupCenterSearch" class="search" style="width:100%;max-width:none" placeholder="label / target / kind / sha…">
+        <div id="backupCenterList" class="backup-center-list"><div class="empty">Открой вкладку — загрузим persistent inventory.</div></div>
+      </article>
+      <article class="panel">
+        <div id="backupCenterDetail" class="backup-center-detail-empty">Выберите backup слева. Restore сначала создаёт новый persistent snapshot текущего target и только потом меняет файл.</div>
+      </article>
+    </div>
+    <div class="backup-center-note"><b>Safety boundary:</b> config restore → verify SHA → controlled restart только если nfqws2 был запущен → verify running; при первой ошибке возвращается предыдущий файл и runtime. List/blob/library restore не перезапускает сервис. Старые временные safety-копии в <span class="mono">/tmp</span> остаются быстрым rollback-слоем и по-прежнему ограничены 8 файлами.</div>
+  </div>
 </section>
 </main>
 </div>
@@ -1002,7 +1057,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false;
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='';
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -1768,12 +1823,59 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   async function loadScripts(force=false){if(scriptsLoading||scriptsLoaded&&!force)return;scriptsLoading=true;$('scriptList').innerHTML='<div class="empty">Загрузка Lua inventory…</div>';try{const d=await api('/scripts');scriptFiles=Array.isArray(d.files)?d.files:[];scriptsLoaded=true;const roots=Array.isArray(d.roots)?d.roots:[];$('scriptRoot').textContent=d.root||roots[0]||'/opt/etc/nfqws2/lua';$('scriptCount').textContent=scriptFiles.length?`(${scriptFiles.length})`:'';renderScriptList();if(!scriptFiles.length&&roots.length)$('scriptList').innerHTML=`<div class="empty">Lua-скрипты не найдены.<br><span class="muted">Проверено: ${roots.map(esc).join(' · ')}</span></div>`}catch(e){$('scriptList').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}finally{scriptsLoading=false}}
   async function selectScript(name){if(!name)return;selectedScript=name;renderScriptList();$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Loading…';$('copyScript').disabled=true;$('fullscreenScript').disabled=true;try{const d=await api(`/scripts?name=${encodeURIComponent(name)}`);scriptContent=d.content||'';$('selectedScriptMeta').textContent=`${d.path||name} · ${bytes(d.size)} · read-only`;$('copyScript').disabled=false;$('fullscreenScript').disabled=false;renderScriptCode()}catch(e){scriptContent='';$('selectedScriptMeta').textContent=e.message;renderScriptCode()}}
   async function openScriptFromSetup(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='scripts'));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-scripts'));await loadScripts();const exact=scriptFiles.find(x=>String(x.name)===String(name));if(exact)await selectScript(exact.name);else{$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Скрипт упомянут в BASE_ARGS, но не найден в runtime inventory';selectedScript='';scriptContent='';renderScriptCode()}reportHeight()}
+
+  function backupStateClass(state){return String(state||'').toLowerCase()}
+  function backupCenterVisible(){
+    const q=String($('backupCenterSearch')?.value||'').trim().toLowerCase();
+    return backupCenterFiles.filter(x=>!q||[x.label,x.kind,x.target,x.sha256,x.state].join(' ').toLowerCase().includes(q));
+  }
+  function renderBackupCenter(){
+    if(!$('backupCenterList'))return;
+    const files=backupCenterFiles,visible=backupCenterVisible(),changed=files.filter(x=>x.state==='CHANGED'||x.state==='MISSING').length,restorable=files.filter(x=>x.restorable).length;
+    $('backupPersistentCount').textContent=files.length;$('backupChangedCount').textContent=changed;$('backupRestorableCount').textContent=restorable;$('backupCenterRoot').textContent=backupCenterRoot||'/opt/var/lib/routerforge/nfqws-manager/backups';$('backupCountTab').textContent=files.length?`(${files.length})`:'';
+    $('backupCenterList').innerHTML=visible.length?visible.map(x=>`<div class="backup-center-item${backupCenterSelected===x.id?' selected':''}" data-backup-id="${esc(x.id)}"><div><div class="backup-center-name">${esc(x.label)}</div><div class="backup-center-meta">${esc(x.kind.toUpperCase())} · ${esc(x.created_at||'—')}<br>${esc(x.target||'unbound')} · ${bytes(x.size)} · ${esc((x.sha256||'').slice(0,12))}</div></div><span class="backup-center-state ${backupStateClass(x.state)}">${esc(x.state)}</span></div>`).join(''):'<div class="empty">Persistent backups не найдены.</div>';
+    $('backupCenterList').querySelectorAll('[data-backup-id]').forEach(row=>row.onclick=()=>selectBackupCenter(row.dataset.backupId));
+    $('backupCenterState').textContent=backupCenterLoading?'LOADING':files.length?'READY':'EMPTY';$('backupCenterState').className='config-badge '+(files.length?'active':'');
+  }
+  async function loadBackupCenter(force=false){
+    if(backupCenterLoading||backupCenterLoaded&&!force){renderBackupCenter();return}
+    backupCenterLoading=true;renderBackupCenter();
+    try{
+      const d=await api('/backups');backupCenterFiles=Array.isArray(d.files)?d.files:[];backupCenterRoot=d.root||'';backupCenterLoaded=true;$('backupCount').textContent=d.safety_count||current?.backup_count||0;
+      if(backupCenterSelected&&!backupCenterFiles.some(x=>x.id===backupCenterSelected)){backupCenterSelected='';backupCenterSelectedData=null;$('backupCenterDetail').className='backup-center-detail-empty';$('backupCenterDetail').textContent='Выберите backup слева.'}
+      renderBackupCenter();
+    }catch(e){$('backupCenterState').textContent='ERROR';$('backupCenterState').className='config-badge empty';$('backupCenterList').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}
+    finally{backupCenterLoading=false;renderBackupCenter()}
+  }
+  async function selectBackupCenter(id){
+    const item=backupCenterFiles.find(x=>x.id===id);if(!item)return;backupCenterSelected=id;backupCenterSelectedData=null;renderBackupCenter();$('backupCenterDetail').className='backup-center-detail-empty';$('backupCenterDetail').textContent='Загрузка backup и текущего target…';
+    try{const d=await api(`/backups/read?id=${encodeURIComponent(id)}`);backupCenterSelectedData=d;renderBackupCenterDetail()}catch(e){$('backupCenterDetail').className='backup-center-detail-empty bad-text';$('backupCenterDetail').textContent=e.message}
+  }
+  function renderBackupCenterDetail(){
+    if(!backupCenterSelectedData)return;const d=backupCenterSelectedData,e=d.entry||{},isText=typeof d.content==='string',diff=isText?makeDiff(String(d.current_content||''),String(d.content||'')):[];
+    const diffHtml=isText?`<div><div class="section-kicker" style="margin-bottom:6px">Current → backup diff</div><pre class="backup-center-diff">${diff.map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">No textual differences</span>'}</pre></div>`:`<div><div class="section-kicker" style="margin-bottom:6px">Binary backup</div><div class="backup-center-preview">Binary payload · ${bytes(e.size)} · SHA256 ${esc(e.sha256||'—')}</div></div>`;
+    $('backupCenterDetail').className='backup-center-detail';$('backupCenterDetail').innerHTML=`<div class="backup-center-detail-head"><div><div class="backup-center-detail-name">${esc(e.label||e.id)}</div><div class="backup-center-detail-meta">id=${esc(e.id||'—')}<br>target=${esc(e.target||'—')}</div></div><div class="toolbar"><span class="backup-center-state ${backupStateClass(e.state)}">${esc(e.state||'—')}</span><button id="restoreSelectedBackup" class="primary"${e.restorable?'':' disabled'}>Restore</button><button id="deleteSelectedBackup" class="danger">Удалить backup</button></div></div><div class="backup-center-kv"><div>Kind</div><div>${esc(e.kind||'—')}</div><div>Created</div><div>${esc(e.created_at||'—')}</div><div>Backup SHA256</div><div class="mono">${esc(e.sha256||'—')}</div><div>Current SHA256</div><div class="mono">${esc(e.current_sha256||'—')}</div><div>Size / mode</div><div>${bytes(e.size)} · ${Number(e.mode||0).toString(8)}</div></div>${diffHtml}${isText?`<div><div class="section-kicker" style="margin-bottom:6px">Backup content</div><pre class="backup-center-preview">${esc(d.content)}</pre></div>`:''}`;
+    $('restoreSelectedBackup').onclick=restoreBackupCenter;$('deleteSelectedBackup').onclick=deleteBackupCenter;
+  }
+  async function restoreBackupCenter(){
+    const e=backupCenterSelectedData?.entry;if(!e?.id||!e.restorable)return;
+    if(!confirm(`Restore ${e.label} → ${e.target}?\n\nПеред записью RouterForge создаст persistent snapshot текущего target. Для config работающий nfqws2 будет перезапущен и проверен.`))return;
+    try{const r=await api('/backups/restore',{method:'POST',body:JSON.stringify({id:e.id,confirm:'NFQWS_BACKUP_RESTORE'})});backupCenterLoaded=false;backupCenterSelected='';backupCenterSelectedData=null;if(r.status)render(r.status);await loadBackupCenter(true);notice(`Backup restored: ${e.label}`,'good')}
+    catch(err){notice(err.message,'error')}
+  }
+  async function deleteBackupCenter(){
+    const e=backupCenterSelectedData?.entry;if(!e?.id)return;
+    if(!confirm(`Удалить persistent backup ${e.label}?\n\nЭто удаляет только snapshot, runtime-файлы не меняются.`))return;
+    try{await api('/backups/delete',{method:'POST',body:JSON.stringify({id:e.id,confirm:'NFQWS_BACKUP_DELETE'})});backupCenterSelected='';backupCenterSelectedData=null;backupCenterLoaded=false;$('backupCenterDetail').className='backup-center-detail-empty';$('backupCenterDetail').textContent='Выберите backup слева.';await loadBackupCenter(true);notice('Persistent backup удалён.','good')}
+    catch(err){notice(err.message,'error')}
+  }
+
   function render(s){
     current=s;const available=!!s?.available,running=!!s?.running;$('state').textContent=!available?'NOT AVAILABLE':running?'RUNNING':'STOPPED';$('state').className='status '+(available&&running?'good':available?'warn':'bad');$('targetChip').textContent=s?.target_name||'nfqws';$('subtitle').textContent=`RouterForge extension · ${s?.config_path||'target not detected'}`;
     $('start').style.display=running?'none':'';$('stop').style.display=running?'':'none';$('reload').disabled=!running||busy;$('restart').disabled=!running||busy;
     if(!available)notice('NFQWS target не найден.','error');else if(!running)notice('NFQWS обнаружен, но сервис остановлен.','error');else notice('NFQWS runtime обнаружен. RouterForge управляет установленным внешним пакетом, не заменяя его lifecycle.','good');
     original=s?.config||'';loadFlow(original);$('config').value=original;$('configMeta').textContent=`${s?.config_path||'—'} · ${bytes(s?.config_size)} · SHA256 ${(s?.config_sha256||'—').slice(0,20)}…`;
-    $('backupCount').textContent=s?.backup_count||0;$('backupCountTab').textContent=s?.backup_count?`(${s.backup_count})`:'';
+    $('backupCount').textContent=s?.backup_count||0;
     renderOverview();renderFlow();renderListFiles();renderLog();mountRawSyntaxEditor();updateConfigEditor();refreshSyntaxEditor($('config'));setBusy(false);reportHeight();
   }
   async function load(){setBusy(true);try{render(await api('/status'));void loadConfigLibrary(true);if(!selectedList&&editableStatusLists().length)await selectList(sortLists(editableStatusLists())[0].name)}catch(e){notice(e.message,'error');setBusy(false)}}
@@ -2190,9 +2292,9 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='lists')loadListSources();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs')renderRunHistory();if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='lists')loadListSources();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs')renderRunHistory();if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='backups')loadBackupCenter();if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
-  $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
+  $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
   $('closeSmartApply').onclick=closeSmartApply;$('refreshSmartApply').onclick=async()=>{if(smartApplyBusy)return;$('smartApplyPlan').innerHTML='<div class="empty">Пересчитываю exact plan…</div>';$('applySmartApply').disabled=true;try{smartApplyPlan=await buildSmartApplyPlan();renderSmartApplyPlan()}catch(e){smartApplyPlan=null;$('smartApplyPlan').innerHTML=`<div class="smart-apply-error">${esc(e.message)}</div>`}};$('applySmartApply').onclick=applySmartApply;$('smartApplyModal').onclick=e=>{if(e.target===$('smartApplyModal'))closeSmartApply()};
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():$('diffApply').dataset.mode==='stored-config'?saveStoredConfig():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};

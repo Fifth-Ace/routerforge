@@ -346,7 +346,9 @@ body.syntax-fullscreen-open{overflow:hidden}
 .rf-workspace .script-list{display:flex;flex-direction:column;justify-content:flex-start;gap:3px}
 .rf-workspace .script-item{flex:0 0 auto;min-height:56px}
 #listEditorPanel{display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:0;overflow:hidden}
-#listEditorPanel textarea.editor{height:100%;min-height:0;max-height:none;resize:none;overflow:auto}
+.list-editor-main{display:grid;grid-template-columns:auto minmax(0,1fr);min-height:0;overflow:hidden;border:1px solid var(--border);background:var(--code)}
+.list-line-gutter{margin:0;min-width:44px;padding:10px 7px 10px 9px;text-align:right;color:color-mix(in srgb,var(--muted) 65%,var(--bg));background:color-mix(in srgb,var(--surface2) 35%,var(--code));border-right:1px solid var(--border);user-select:none;overflow:hidden;font:11px/1.5 ui-monospace,Consolas,monospace}
+#listEditorPanel textarea.editor{height:100%;min-height:0;max-height:none;resize:none;overflow:auto;border:0;border-radius:0}
 #scriptPanel{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;overflow:hidden}
 #scriptPanel .script-code-shell,#scriptPanel .script-reader-empty{height:100%;min-height:0;max-height:none;overflow:auto}
 /* The split workspace itself is the resize target, identical for Lists/Scripts. */
@@ -359,6 +361,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 #listEditorPanel.full-editor,.script-panel.script-fullscreen{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:8px!important;box-sizing:border-box!important;border-radius:0!important;overflow:hidden!important;z-index:60!important}
 #listEditorPanel.full-editor{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important}
 #listEditorPanel.full-editor textarea.editor{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important;resize:none!important}
+#listEditorPanel.full-editor .list-editor-main{min-height:0;height:100%}
 .script-panel.script-fullscreen{display:grid!important;grid-template-rows:auto minmax(0,1fr)!important}
 .script-panel.script-fullscreen .script-code-shell,.script-panel.script-fullscreen .script-reader-empty{height:100%!important;min-height:0!important;max-height:none!important;overflow:auto!important;overscroll-behavior:contain}
 /* Both workspaces stack at exactly the same breakpoint, like Admin File Manager. */
@@ -572,7 +575,10 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
         <div><h2 id="selectedListTitle">Выберите список</h2><div id="selectedListMeta" class="section-kicker mono">—</div></div>
         <div class="toolbar"><button id="checkList" disabled>Проверить</button><button id="normalizeList" disabled>Очистить дубли</button><button id="fullscreenList" disabled>На весь экран</button><button id="undoList" disabled>Отменить</button><button id="saveList" class="primary" disabled>Сохранить</button><button id="deleteList" class="danger" disabled>Удалить</button></div>
       </div>
-      <textarea id="listEditor" class="editor list-editor" spellcheck="false" placeholder="Выберите список слева."></textarea>
+      <div class="list-editor-main">
+        <pre id="listGutter" class="list-line-gutter" aria-hidden="true">1</pre>
+        <textarea id="listEditor" class="editor list-editor" spellcheck="false" placeholder="Выберите список слева."></textarea>
+      </div>
       <div class="editor-foot"><div id="listStats" class="list-stats">—</div><span>save → safety backup → atomic write</span></div>
     </article>
   </div>
@@ -1043,8 +1049,12 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     try{const d=await api(`/list?name=${encodeURIComponent(name)}`);listMeta=d;listOriginal=d.content||'';$('listEditor').value=listOriginal;$('selectedListMeta').textContent=`${d.path} · ${bytes(d.size)}${d.protected?' · protected':''}`;updateListButtons()}
     catch(e){notice(e.message,'error')}
   }
+  function updateListGutter(){
+    const editor=$('listEditor'),gutter=$('listGutter');if(!editor||!gutter)return;const count=Math.max(1,lines(editor.value).length);gutter.textContent=Array.from({length:count},(_,i)=>i+1).join('\n');gutter.scrollTop=editor.scrollTop;
+  }
   function updateListButtons(){
     const loaded=Boolean(listMeta),dirty=loaded&&$('listEditor').value!==listOriginal;
+    updateListGutter();
     $('saveList').disabled=busy||!loaded||!dirty;$('undoList').disabled=!dirty;$('normalizeList').disabled=!loaded;$('checkList').disabled=!loaded;$('fullscreenList').disabled=!loaded;$('deleteList').disabled=busy||!loaded||Boolean(listMeta?.protected);
     if(!loaded){$('listStats').textContent='—';return}
     const arr=lines($('listEditor').value),data=arr.map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')&&!x.startsWith('//'));$('listStats').textContent=`${arr.length} lines · ${data.length} entries · ${bytes(new Blob([$('listEditor').value]).size)}${dirty?' · UNSAVED':''}`;
@@ -1125,7 +1135,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
-  $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
+  $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('listEditor').onscroll=()=>{$('listGutter').scrollTop=$('listEditor').scrollTop};$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));$('scriptSearch').oninput=renderScriptList;$('copyScript').onclick=()=>navigator.clipboard?.writeText(scriptContent);$('fullscreenScript').onclick=()=>{const panel=$('scriptPanel'),on=!panel.classList.contains('script-fullscreen');panel.classList.toggle('script-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenScript').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){const panel=$('configEditorPanel');if(panel?.classList.contains('full-editor')){$('fullscreenConfig')?.click()}const listPanel=$('listEditorPanel');if(listPanel?.classList.contains('full-editor'))$('fullscreenList')?.click();const scriptPanel=$('scriptPanel');if(scriptPanel?.classList.contains('script-fullscreen'))$('fullscreenScript')?.click()}});

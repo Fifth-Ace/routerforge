@@ -351,6 +351,19 @@ body.syntax-fullscreen-open{overflow:hidden}
 .list-editor-body{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--code)}
 .list-editor-highlight{position:absolute;z-index:1;inset:0;margin:0;padding:10px 12px;overflow:hidden;pointer-events:none;color:color-mix(in srgb,var(--text) 90%,var(--accent));background:var(--code);font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace;white-space:pre;tab-size:2}
 .list-editor-highlight .list-comment{color:var(--syn-comment);font-style:italic}
+.analysis-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.analysis-stat{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.analysis-stat span{font-size:11px;color:var(--muted)}.analysis-stat strong{font:700 13px ui-monospace,"Roboto Mono",Consolas,monospace}
+.analysis-filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.analysis-filters button.active{border-color:var(--accent);color:var(--text);background:var(--accent-soft)}
+.analysis-results{display:flex;flex-direction:column;gap:7px;max-height:55vh;overflow:auto;padding-right:2px}
+.analysis-row{display:grid;grid-template-columns:82px minmax(0,1fr) auto;gap:10px;align-items:start;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}
+.analysis-row.conflict{border-color:color-mix(in srgb,var(--bad) 55%,var(--border));background:color-mix(in srgb,var(--bad) 7%,var(--surface2))}
+.analysis-row.warn{border-color:color-mix(in srgb,var(--warn) 50%,var(--border));background:color-mix(in srgb,var(--warn) 6%,var(--surface2))}
+.analysis-kind{font:700 10px ui-monospace,"Roboto Mono",Consolas,monospace;color:var(--muted);white-space:nowrap}.analysis-row.conflict .analysis-kind{color:var(--bad)}.analysis-row.warn .analysis-kind{color:var(--warn)}
+.analysis-main{min-width:0}.analysis-value{font:12px/1.45 ui-monospace,"Roboto Mono",Consolas,monospace;overflow-wrap:anywhere}.analysis-meta{margin-top:3px;font-size:10px;color:var(--muted)}
+.analysis-open{font-size:10px;white-space:nowrap}.analysis-empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:8px}
+@media(max-width:760px){.analysis-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.analysis-row{grid-template-columns:72px minmax(0,1fr)}.analysis-open{grid-column:2;justify-self:start}}
+
 #listEditorPanel textarea.editor{position:relative;z-index:2;height:100%;min-height:0;max-height:none;resize:none;overflow:auto;border:0;border-radius:0;background:transparent!important;color:transparent!important;caret-color:var(--text)!important;text-shadow:none!important;font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace!important;white-space:pre;tab-size:2}
 #listEditorPanel textarea.editor::selection{background:color-mix(in srgb,var(--accent) 27%,transparent);color:transparent}
 #scriptPanel{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;overflow:hidden}
@@ -577,7 +590,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     <article id="listEditorPanel" class="panel">
       <div class="panel-head">
         <div><h2 id="selectedListTitle">Выберите список</h2><div id="selectedListMeta" class="section-kicker mono">—</div></div>
-        <div class="toolbar"><button id="checkList" disabled>Проверить</button><button id="normalizeList" disabled>Очистить дубли</button><button id="fullscreenList" disabled>На весь экран</button><button id="undoList" disabled>Отменить</button><button id="saveList" class="primary" disabled>Сохранить</button><button id="deleteList" class="danger" disabled>Удалить</button></div>
+        <div class="toolbar"><button id="analyzeLists" disabled>Пересечения</button><button id="checkList" disabled>Проверить</button><button id="normalizeList" disabled>Очистить дубли</button><button id="fullscreenList" disabled>На весь экран</button><button id="undoList" disabled>Отменить</button><button id="saveList" class="primary" disabled>Сохранить</button><button id="deleteList" class="danger" disabled>Удалить</button></div>
       </div>
       <div class="list-editor-main">
         <pre id="listGutter" class="list-line-gutter" aria-hidden="true">1</pre>
@@ -630,12 +643,18 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   <div class="progress"><span id="checkBar"></span></div><div id="checkResults" class="domain-results"></div>
 </div><div class="dialog-foot"><button id="stopCheck">Остановить</button><button id="retryCheck" class="primary">Проверить снова</button></div></div></div>
 
+<div id="analysisModal" class="modal"><div class="dialog"><div class="dialog-head"><div><strong>Пересечения списков</strong><div id="analysisScope" class="section-kicker mono">—</div></div><button id="closeAnalysis">Закрыть</button></div><div class="dialog-body">
+  <div class="analysis-summary"><div class="analysis-stat"><span>Найдено</span><strong id="analysisTotal">0</strong></div><div class="analysis-stat"><span>Конфликты</span><strong id="analysisConflicts" class="bad-text">0</strong></div><div class="analysis-stat"><span>Пересечения</span><strong id="analysisWarnings" class="warn-text">0</strong></div><div class="analysis-stat"><span>Списки</span><strong id="analysisFiles">0</strong></div></div>
+  <div class="analysis-filters"><button id="analysisAll" class="active">Все</button><button id="analysisConflict">Конфликты</button><button id="analysisDomain">Домены</button><button id="analysisNetwork">IP / CIDR</button></div>
+  <div id="analysisProgress" class="muted small" style="margin-bottom:8px"></div><div id="analysisResults" class="analysis-results"></div>
+</div><div class="dialog-foot"><span class="muted small">Read-only анализ: файлы не изменяются.</span><button id="rerunAnalysis" class="primary">Пересчитать</button></div></div></div>
+
 <script>
 (() => {
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='';
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false;
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
   const esc=(s='')=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1068,7 +1087,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   function updateListButtons(){
     const loaded=Boolean(listMeta),dirty=loaded&&$('listEditor').value!==listOriginal;
     updateListGutter();updateListHighlight();
-    $('saveList').disabled=busy||!loaded||!dirty;$('undoList').disabled=!dirty;$('normalizeList').disabled=!loaded;$('checkList').disabled=!loaded;$('fullscreenList').disabled=!loaded;$('deleteList').disabled=busy||!loaded||Boolean(listMeta?.protected);
+    $('saveList').disabled=busy||!loaded||!dirty;$('undoList').disabled=!dirty;$('normalizeList').disabled=!loaded;$('analyzeLists').disabled=!loaded||analysisRunning;$('checkList').disabled=!loaded;$('fullscreenList').disabled=!loaded;$('deleteList').disabled=busy||!loaded||Boolean(listMeta?.protected);
     if(!loaded){$('listStats').textContent='—';return}
     const arr=lines($('listEditor').value),data=arr.map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')&&!x.startsWith('//'));$('listStats').textContent=`${arr.length} lines · ${data.length} entries · ${bytes(new Blob([$('listEditor').value]).size)}${dirty?' · UNSAVED':''}`;
   }
@@ -1089,6 +1108,78 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     const stem=$('newListName').value.trim();$('createError').textContent='';if(!/^[A-Za-z0-9_-]+$/.test(stem)){$('createError').textContent='Используй только буквы, цифры, _ и -';return}
     const name=`${stem}.list`;try{const r=await api('/list/create',{method:'POST',body:JSON.stringify({name,confirm:'NFQWS_LIST_CREATE'})});closeCreate();render(r.status);await selectList(name);notice(`Создан ${name}`,'good')}catch(e){$('createError').textContent=e.message}
   }
+  function normalizeListDataLine(raw){
+    let text=String(raw??'').trim();if(!text||text.startsWith('#')||text.startsWith('//'))return'';
+    const hash=text.indexOf('#');if(hash>0)text=text.slice(0,hash).trim();return text;
+  }
+  function parseIPv4(value){const p=String(value).split('.');if(p.length!==4)return null;let n=0;for(const x of p){if(!/^\d+$/.test(x))return null;const v=Number(x);if(v<0||v>255)return null;n=n*256+v}return BigInt(n)}
+  function parseIPv6(value){
+    let text=String(value).toLowerCase();if(text.includes('%'))text=text.split('%')[0];
+    if(text.includes('.')){const cut=text.lastIndexOf(':');if(cut<0)return null;const v4=parseIPv4(text.slice(cut+1));if(v4===null)return null;text=text.slice(0,cut)+':'+Number((v4>>16n)&65535n).toString(16)+':'+Number(v4&65535n).toString(16)}
+    if((text.match(/::/g)||[]).length>1)return null;let parts=[];if(text.includes('::')){const [a,b]=text.split('::'),left=a?a.split(':'):[],right=b?b.split(':'):[],fill=8-left.length-right.length;if(fill<1)return null;parts=[...left,...Array(fill).fill('0'),...right]}else parts=text.split(':');if(parts.length!==8)return null;
+    let out=0n;for(const part of parts){if(!/^[0-9a-f]{1,4}$/.test(part||'0'))return null;out=(out<<16n)+BigInt(parseInt(part||'0',16))}return out;
+  }
+  function parseAddressEntry(value){
+    const raw=String(value).trim(),slash=raw.indexOf('/'),host=slash>=0?raw.slice(0,slash):raw,prefixText=slash>=0?raw.slice(slash+1):'';
+    const family=host.includes(':')?6:4,bits=family===6?128:32,ip=family===6?parseIPv6(host):parseIPv4(host);if(ip===null)return null;
+    const prefix=slash>=0&&/^\d+$/.test(prefixText)?Number(prefixText):bits;if(prefix<0||prefix>bits)return null;
+    const shift=BigInt(bits-prefix),network=shift===0n?ip:(ip>>shift)<<shift,end=shift===0n?network:network+((1n<<shift)-1n);
+    return{kind:prefix===bits?'ip':'cidr',family,bits,ip,prefix,network,end,raw};
+  }
+  function normalizeDomain(value){let v=String(value).trim().toLowerCase();if(v.endsWith('.'))v=v.slice(0,-1);if(/^https?:\/\//.test(v)){try{v=new URL(v).hostname.toLowerCase()}catch(_){return''}}if(v.includes('/'))return'';if(v.startsWith('*.'))v=v.slice(2);return /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/.test(v)?v:''}
+  function listRole(name){const n=String(name||'').toLowerCase();return n.includes('exclude')?'exclude':'include'}
+  function conflictSeverity(a,b){return listRole(a)!==listRole(b)?'conflict':'warn'}
+  function findingKey(f){return[f.kind,f.a.file,f.a.line,f.b.file,f.b.line].join('|')}
+  function buildListRecords(name,content){
+    const out=[];String(content||'').split(/\r?\n/).forEach((raw,i)=>{const value=normalizeListDataLine(raw);if(!value)return;const net=parseAddressEntry(value);if(net){out.push({type:net.kind,file:name,line:i+1,value,net});return}const domain=normalizeDomain(value);if(domain)out.push({type:'domain',file:name,line:i+1,value,domain})});return out;
+  }
+  function lowerBound(items,key,project){let lo=0,hi=items.length;while(lo<hi){const mid=(lo+hi)>>1;if(project(items[mid])<key)lo=mid+1;else hi=mid}return lo}
+  function pushFinding(findings,seen,kind,detail,a,b,scope){const f={kind,detail,a,b,severity:conflictSeverity(a.file,b.file),scope},key=findingKey(f);if(seen.has(key))return;seen.add(key);findings.push(f)}
+  function compareDomainLists(selected,other,findings,seen){
+    const exact=new Map(),reversed=[];for(const b of other){if(b.type!=='domain')continue;if(!exact.has(b.domain))exact.set(b.domain,[]);exact.get(b.domain).push(b);reversed.push({key:b.domain.split('.').reverse().join('.'),record:b})}reversed.sort((a,b)=>a.key.localeCompare(b.key));
+    for(const a of selected){if(a.type!=='domain')continue;for(const b of exact.get(a.domain)||[])pushFinding(findings,seen,'EXACT_DOMAIN',a.domain,a,b,'domain');
+      const labels=a.domain.split('.');for(let i=1;i<labels.length-1;i++){const parent=labels.slice(i).join('.');for(const b of exact.get(parent)||[])pushFinding(findings,seen,'DOMAIN_CHILD',`${a.domain} ⊂ ${b.domain}`,a,b,'domain')}
+      const prefix=a.domain.split('.').reverse().join('.')+'.',from=lowerBound(reversed,prefix,x=>x.key);for(let i=from;i<reversed.length&&reversed[i].key.startsWith(prefix);i++){const b=reversed[i].record;pushFinding(findings,seen,'DOMAIN_PARENT',`${a.domain} ⊃ ${b.domain}`,a,b,'domain')}
+    }
+  }
+  function compareNetworkLists(selected,other,findings,seen){
+    for(const family of [4,6]){const A=selected.filter(x=>x.type!=='domain'&&x.net.family===family).sort((a,b)=>a.net.network<b.net.network?-1:a.net.network>b.net.network?1:a.net.end<b.net.end?-1:1),B=other.filter(x=>x.type!=='domain'&&x.net.family===family).sort((a,b)=>a.net.network<b.net.network?-1:a.net.network>b.net.network?1:a.net.end<b.net.end?-1:1);let j=0,active=[];
+      for(const a of A){while(j<B.length&&B[j].net.network<=a.net.end)active.push(B[j++]);active=active.filter(b=>b.net.end>=a.net.network);for(const b of active){const an=a.net,bn=b.net;if(an.network>bn.end||bn.network>an.end)continue;let kind='',detail='';
+          if(an.network===bn.network&&an.end===bn.end){kind=an.kind==='ip'&&bn.kind==='ip'?'EXACT_IP':'EXACT_CIDR';detail=a.value}
+          else if(an.kind==='ip'&&bn.kind==='cidr'){kind='IP_IN_CIDR';detail=`${a.value} ∈ ${b.value}`}
+          else if(bn.kind==='ip'&&an.kind==='cidr'){kind='IP_IN_CIDR';detail=`${b.value} ∈ ${a.value}`}
+          else if(an.network<=bn.network&&an.end>=bn.end){kind='CIDR_CONTAINS';detail=`${a.value} ⊃ ${b.value}`}
+          else if(bn.network<=an.network&&bn.end>=an.end){kind='CIDR_CONTAINS';detail=`${b.value} ⊃ ${a.value}`}
+          else{kind='CIDR_OVERLAP';detail=`${a.value} ↔ ${b.value}`}
+          pushFinding(findings,seen,kind,detail,a,b,'network')
+      }}
+    }
+  }
+  function analyzeCrossLists(all,selectedName){
+    const findings=[],seen=new Set(),selected=buildListRecords(selectedName,all[selectedName]||'');for(const[name,content]of Object.entries(all)){if(name===selectedName)continue;const other=buildListRecords(name,content);compareDomainLists(selected,other,findings,seen);compareNetworkLists(selected,other,findings,seen)}
+    const rank={conflict:0,warn:1};findings.sort((a,b)=>rank[a.severity]-rank[b.severity]||a.scope.localeCompare(b.scope)||a.b.file.localeCompare(b.b.file)||a.a.line-b.a.line);return findings;
+  }
+  async function loadNeighborListContents(){
+    const items=editableStatusLists().filter(item=>item.name!==selectedList),out={[selectedList]:$('listEditor').value},queue=[...items],workers=[],errors=[];let done=0;$('analysisProgress').textContent=`Загрузка соседних списков: 0/${items.length}`;
+    async function worker(){while(queue.length){const item=queue.shift();if(!item)break;try{const d=await api(`/list?name=${encodeURIComponent(item.name)}`);out[item.name]=d.content||''}catch(e){errors.push(`${item.name}: ${e.message||'не удалось прочитать'}`)}done++;$('analysisProgress').textContent=`Загрузка соседних списков: ${done}/${items.length}`}}
+    for(let i=0;i<Math.min(4,items.length);i++)workers.push(worker());await Promise.all(workers);return{contents:out,errors};
+  }
+  function renderAnalysis(){
+    const selected=selectedList,scoped=analysisFindings.filter(f=>f.a.file===selected||f.b.file===selected),visible=scoped.filter(f=>analysisFilter==='all'||analysisFilter==='conflict'&&f.severity==='conflict'||analysisFilter==='domain'&&f.scope==='domain'||analysisFilter==='network'&&f.scope==='network');
+    const conflicts=scoped.filter(f=>f.severity==='conflict').length,warns=scoped.length-conflicts,files=new Set(scoped.flatMap(f=>[f.a.file,f.b.file]));$('analysisTotal').textContent=scoped.length;$('analysisConflicts').textContent=conflicts;$('analysisWarnings').textContent=warns;$('analysisFiles').textContent=files.size;$('analysisScope').textContent=selected?`${selected} ↔ остальные списки`:'—';
+    for(const[id,val]of[['analysisAll','all'],['analysisConflict','conflict'],['analysisDomain','domain'],['analysisNetwork','network']])$(id).classList.toggle('active',analysisFilter===val);
+    $('analysisResults').innerHTML=visible.length?visible.map((f,i)=>{const other=f.a.file===selected?f.b:f.a;return `<div class="analysis-row ${f.severity}"><div class="analysis-kind">${esc(f.kind)}</div><div class="analysis-main"><div class="analysis-value">${esc(f.detail)}</div><div class="analysis-meta">${esc(f.a.file)}:${f.a.line} ↔ ${esc(f.b.file)}:${f.b.line} · ${f.severity==='conflict'?'include/exclude conflict':'overlap'}</div></div><button class="analysis-open" data-analysis-index="${i}" data-file="${esc(other.file)}" data-line="${other.line}">Открыть ${esc(other.file)}:${other.line}</button></div>`}).join(''):'<div class="analysis-empty">Для выбранного фильтра пересечений не найдено.</div>';
+    $('analysisResults').querySelectorAll('[data-file]').forEach(btn=>btn.onclick=()=>openListAtLine(btn.dataset.file,Number(btn.dataset.line)||1));
+  }
+  async function openListAtLine(name,line){
+    $('analysisModal').classList.remove('open');await selectList(name);const editor=$('listEditor'),rows=String(editor.value||'').split(/\r?\n/);let pos=0;for(let i=0;i<Math.max(0,line-1)&&i<rows.length;i++)pos+=rows[i].length+1;editor.focus();editor.setSelectionRange(pos,Math.min(editor.value.length,pos+(rows[line-1]?.length||0)));const lh=parseFloat(getComputedStyle(editor).lineHeight)||16.5;editor.scrollTop=Math.max(0,(line-3)*lh);editor.onscroll?.();
+  }
+  async function runListAnalysis(){
+    if(analysisRunning||!selectedList)return;analysisRunning=true;updateListButtons();$('analysisModal').classList.add('open');$('analysisResults').innerHTML='<div class="analysis-empty">Читаю списки и строю граф пересечений…</div>';$('analysisScope').textContent=`${selectedList} ↔ остальные списки`;
+    try{const loaded=await loadNeighborListContents(),all=loaded.contents;analysisFindings=analyzeCrossLists(all,selectedList);analysisFilter='all';$('analysisProgress').textContent=`Проанализировано ${Object.keys(all).length} списков · read-only${loaded.errors.length?` · пропущено ${loaded.errors.length}`:''}`;renderAnalysis()}catch(e){$('analysisProgress').textContent='Ошибка анализа';$('analysisResults').innerHTML=`<div class="analysis-empty bad-text">${esc(e.message)}</div>`}finally{analysisRunning=false;updateListButtons()}
+  }
+  function closeAnalysis(){$('analysisModal').classList.remove('open')}
+
   function parseLogLine(raw){
     const text=String(raw||''),parts=text.split(/\s+:\s+/);if(parts.length>=6&&/^\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(parts[0])){return{raw:text,time:parts[0],host:parts[1],profile:parts[2].replace(/^profile\s+/i,''),client:parts[3].replace(/^client\s+/i,''),proto:parts[4].replace(/^proto\s+/i,''),event:parts.slice(5).join(' : ')}}return{raw:text,time:'',host:'',profile:'',client:'',proto:'',event:text};
   }
@@ -1158,8 +1249,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
-  $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('listEditor').onscroll=()=>{$('listGutter').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollLeft=$('listEditor').scrollLeft};$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
-  $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
+  $('listSearch').oninput=renderListFiles;$('analyzeLists').onclick=runListAnalysis;$('listEditor').oninput=updateListButtons;$('listEditor').onscroll=()=>{$('listGutter').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollLeft=$('listEditor').scrollLeft};$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
+  $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;$('closeAnalysis').onclick=closeAnalysis;$('rerunAnalysis').onclick=runListAnalysis;for(const[id,val]of[['analysisAll','all'],['analysisConflict','conflict'],['analysisDomain','domain'],['analysisNetwork','network']])$(id).onclick=()=>{analysisFilter=val;renderAnalysis()};$('analysisModal').onclick=e=>{if(e.target===$('analysisModal'))closeAnalysis()};
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));$('scriptSearch').oninput=renderScriptList;$('copyScript').onclick=()=>navigator.clipboard?.writeText(scriptContent);$('fullscreenScript').onclick=()=>{const panel=$('scriptPanel'),on=!panel.classList.contains('script-fullscreen');panel.classList.toggle('script-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenScript').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};
   document.addEventListener('keydown',handleEditorSaveShortcut,true);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){const panel=$('configEditorPanel');if(panel?.classList.contains('full-editor')){$('fullscreenConfig')?.click()}const listPanel=$('listEditorPanel');if(listPanel?.classList.contains('full-editor'))$('fullscreenList')?.click();const scriptPanel=$('scriptPanel');if(scriptPanel?.classList.contains('script-fullscreen'))$('fullscreenScript')?.click()}});

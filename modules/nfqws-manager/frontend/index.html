@@ -952,7 +952,25 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     <div class="run-history-score-note"><b>Test Lab SCORE 0–100</b>: reachability 50% + stability 25% + latency 15% + decisive static-path coverage 10%. Latency получает максимум до 250 ms и плавно снижается до нуля к 2000 ms. <b>Sandbox READINESS</b> — отдельная оценка только семантической готовности candidate; active HTTP baseline в неё не входит и не выдаётся за результат candidate.</div>
     <div id="runHistoryList" class="run-history-list"></div>
     <div class="run-history-local">Хранится в localStorage текущего браузера, максимум 24 завершённых прогона. Это не router-side archive; постоянное серверное хранилище можно вынести в отдельный этап без смешивания с safety backups.</div>
-  </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-head">
+        <div><h2>Auto-pick &amp; Recovery</h2><div class="section-kicker">Measured evidence only · no blind strategy ranking</div></div>
+        <div class="toolbar"><button id="refreshAutoPick">Пересчитать</button></div>
+      </div>
+      <div class="setup-note">Auto-pick использует только завершённые <b>Test Lab</b> прогоны реального active runtime. Sandbox readiness не считается performance evidence и в выбор не попадает.</div>
+      <div id="autoPickSummary" class="diagnostics" style="margin-top:10px"></div>
+      <div class="setup-note warn" style="margin-top:10px"><b>Recovery Guard:</b> после Smart Apply повторяет последний измеренный baseline на тех же целях. При существенной регрессии может автоматически восстановить persistent pre-apply snapshots. Guard не запускается без подходящего baseline.</div>
+      <div class="form-row" style="margin-top:10px">
+        <div class="setup-label"><strong>Recovery Guard</strong>Порог задаётся падением reachability/stability относительно последнего baseline текущего config SHA.</div>
+        <div class="form-control">
+          <label class="config-check"><input id="recoveryGuardEnabled" type="checkbox"> Включить автоматический recovery после Smart Apply</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:7px"><span class="muted small">Порог</span><select id="recoveryGuardThreshold"><option value="15">15 п.п.</option><option value="20" selected>20 п.п.</option><option value="25">25 п.п.</option><option value="30">30 п.п.</option></select><span id="recoveryGuardState" class="config-badge">DISARMED</span></div>
+        </div>
+      </div>
+      <div id="recoveryGuardLast" class="muted small" style="margin-top:8px">Recovery ещё не запускался.</div>
+    </div>
+</div>
 </section>
 
 <section id="view-logs" class="view">
@@ -1057,7 +1075,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='';
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='';
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -2138,8 +2156,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(row.state!=='write'||!row.expected)return null;const url=`https://raw.githubusercontent.com/${catalogRepo}/${ref}/${row.expected.path}`,r=await catalogFetch(url,15000),buffer=await r.arrayBuffer(),actual=kind==='list'?await listSourceSha256(buffer):await blobSha256Bytes(buffer);if(actual.toLowerCase()!==row.expected.sha256.toLowerCase())throw new Error(`${row.name}: upstream SHA256 mismatch before transaction`);return{name:row.name,content_base64:listSourceBase64(buffer),expected_sha256:row.expected.sha256};
   }
   async function applySmartApply(){
-    const p=smartApplyPlan;if(!p||p.blocked.length||smartApplyBusy)return;if(!confirm(`Smart Apply ${p.item.name}?\nDependencies to write: ${[...p.lists,...p.blobs].filter(x=>x.state==='write').length}\nConfig: semantic merge\n${p.wasRunning?'Service restart: YES':'Service restart: NO'}\nRollback on first failure: YES`))return;smartApplyBusy=true;$('applySmartApply').disabled=true;$('refreshSmartApply').disabled=true;
-    try{const lists=(await Promise.all(p.lists.map(x=>smartApplyFetchDependency('list',x,p.ref)))).filter(Boolean),blobs=(await Promise.all(p.blobs.map(x=>smartApplyFetchDependency('blob',x,p.ref)))).filter(Boolean);const latest=await api('/status');if(String(latest.config_sha256||'').toLowerCase()!==String(p.expectedActiveSha).toLowerCase())throw new Error('Active config изменился после построения плана. Пересчитайте Smart Apply.');const expected_lists=Object.fromEntries(p.lists.filter(x=>x.expected).map(x=>[x.name,x.expected.sha256])),expected_blobs=Object.fromEntries(p.blobs.filter(x=>x.expected).map(x=>[x.name,x.expected.sha256])),result=await api('/smart-apply',{method:'POST',body:JSON.stringify({config:p.config,expected_active_sha256:p.expectedActiveSha,expected_config_sha256:p.configSha,lists,blobs,expected_lists,expected_blobs,confirm:'NFQWS_SMART_APPLY'})});current=result.status||current;original=current?.config||p.config;loadFlow(original);$('config').value=original;listSourceLoaded=false;blobLoaded=false;configLibraryLoaded=false;catalogLoaded=false;smartApplyPlan=null;render(current);$('smartApplyModal').classList.remove('open');notice(`Smart Apply: PASS · ${p.item.name} · lists ${result.applied_lists?.length||0} · blobs ${result.applied_blobs?.length||0}${result.service_restarted?' · runtime restarted':''}`,'good')}
+    const p=smartApplyPlan;const recoveryBaseline=$('recoveryGuardEnabled')?.checked?latestRecoveryBaselineForCurrent():null,recoveryStartedAt=new Date().toISOString();if(!p||p.blocked.length||smartApplyBusy)return;if(!confirm(`Smart Apply ${p.item.name}?\nDependencies to write: ${[...p.lists,...p.blobs].filter(x=>x.state==='write').length}\nConfig: semantic merge\n${p.wasRunning?'Service restart: YES':'Service restart: NO'}\nRollback on first failure: YES`))return;smartApplyBusy=true;$('applySmartApply').disabled=true;$('refreshSmartApply').disabled=true;
+    try{const lists=(await Promise.all(p.lists.map(x=>smartApplyFetchDependency('list',x,p.ref)))).filter(Boolean),blobs=(await Promise.all(p.blobs.map(x=>smartApplyFetchDependency('blob',x,p.ref)))).filter(Boolean);const latest=await api('/status');if(String(latest.config_sha256||'').toLowerCase()!==String(p.expectedActiveSha).toLowerCase())throw new Error('Active config изменился после построения плана. Пересчитайте Smart Apply.');const expected_lists=Object.fromEntries(p.lists.filter(x=>x.expected).map(x=>[x.name,x.expected.sha256])),expected_blobs=Object.fromEntries(p.blobs.filter(x=>x.expected).map(x=>[x.name,x.expected.sha256])),result=await api('/smart-apply',{method:'POST',body:JSON.stringify({config:p.config,expected_active_sha256:p.expectedActiveSha,expected_config_sha256:p.configSha,lists,blobs,expected_lists,expected_blobs,confirm:'NFQWS_SMART_APPLY'})});current=result.status||current;original=current?.config||p.config;loadFlow(original);$('config').value=original;listSourceLoaded=false;blobLoaded=false;configLibraryLoaded=false;catalogLoaded=false;smartApplyPlan=null;render(current);$('smartApplyModal').classList.remove('open');notice(`Smart Apply: PASS · ${p.item.name} · lists ${result.applied_lists?.length||0} · blobs ${result.applied_blobs?.length||0}${result.service_restarted?' · runtime restarted':''}`,'good');if(recoveryBaseline)void runRecoveryGuard(recoveryBaseline,recoveryStartedAt,p.item.name)}
     catch(e){$('smartApplyPlan').insertAdjacentHTML('afterbegin',`<div class="smart-apply-error">Smart Apply FAIL: ${esc(e.message)}. Если runtime начал mutation, серверный ответ содержит rollback state.</div>`);notice(`Smart Apply: ${e.message}`,'error')}
     finally{smartApplyBusy=false;$('refreshSmartApply').disabled=false;if(smartApplyPlan)renderSmartApplyPlan()}
   }
@@ -2207,15 +2225,98 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     try{const d=await api('/blobs/delete',{method:'POST',body:JSON.stringify({name,confirm:'NFQWS_BLOB_DELETE'})});blobFiles=Array.isArray(d.inventory?.files)?d.inventory.files:blobFiles;renderBlobs();notice(`${name}: удалён, backup=${d.backup||'created'}`,'good')}catch(e){notice(`Удаление ${name}: ${e.message}`,'error')}
   }
 
+
+  function testLabEvidenceByConfig(){
+    const groups=new Map();
+    for(const run of runHistory){
+      if(run.kind!=='testlab'||!run.active_config_sha256||!Number.isFinite(Number(run.score)))continue;
+      const sha=String(run.active_config_sha256).toLowerCase(),arr=groups.get(sha)||[];arr.push(run);groups.set(sha,arr);
+    }
+    const median=a=>{const x=a.slice().sort((m,n)=>m-n);if(!x.length)return null;const i=Math.floor(x.length/2);return x.length%2?x[i]:(x[i-1]+x[i])/2};
+    return [...groups.entries()].map(([sha,runs])=>{
+      const scores=runs.map(x=>Number(x.score)).filter(Number.isFinite);
+      const reach=runs.map(x=>Number(x.metrics?.success_ratio)).filter(Number.isFinite);
+      const stable=runs.map(x=>Number(x.metrics?.stable_ratio)).filter(Number.isFinite);
+      const targets=runs.map(x=>Number(x.metrics?.targets)||0);
+      const latest=runs.slice().sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)))[0];
+      return{sha,runs:runs.length,median_score:median(scores),min_score:scores.length?Math.min(...scores):0,latest_score:Number(latest?.score)||0,reach:median(reach)??0,stable:median(stable)??0,targets:Math.max(...targets,0),latest};
+    }).sort((a,b)=>(b.median_score-a.median_score)||(b.runs-a.runs)||(b.latest_score-a.latest_score));
+  }
+  function autoPickMapName(sha){
+    if(String(current?.config_sha256||'').toLowerCase()===sha)return'ACTIVE nfqws2.conf';
+    const local=configLibraryFiles.find(x=>String(x.sha256||'').toLowerCase()===sha);return local?local.name:'SHA '+sha.slice(0,12);
+  }
+  function autoPickEligible(row){return row.runs>=2&&row.targets>=3&&row.reach>=.75&&row.stable>=.60}
+  async function renderAutoPick(){
+    if(!$('autoPickSummary'))return;
+    if(!configLibraryLoaded){try{await loadConfigLibrary()}catch(_){}}
+    const rows=testLabEvidenceByConfig(),eligible=rows.filter(autoPickEligible),winner=eligible[0]||null;
+    const state=$('recoveryGuardState'),enabled=!!$('recoveryGuardEnabled')?.checked,baseline=latestRecoveryBaselineForCurrent();
+    if(state){state.textContent=enabled&&baseline?'ARMED':enabled?'NO BASELINE':'DISARMED';state.className='config-badge '+(enabled&&baseline?'active':'')}
+    if(!rows.length){$('autoPickSummary').innerHTML='<div class="analysis-empty">Нет измеренных Test Lab run. Сначала прогони реальный active runtime хотя бы два раза на ≥3 целях.</div>';return}
+    const item=row=>`<div class="diagnostic ${autoPickEligible(row)?'good':'warn'}"><div class="diagnostic-icon">${winner===row?'★':'i'}</div><div><div class="diagnostic-title">${esc(autoPickMapName(row.sha))} · median ${Math.round(row.median_score)}</div><div class="diagnostic-detail">runs ${row.runs} · targets ${row.targets} · reach ${Math.round(row.reach*100)}% · stable ${Math.round(row.stable*100)}% · min ${Math.round(row.min_score)} · latest ${Math.round(row.latest_score)}${autoPickEligible(row)?' · ELIGIBLE':' · NEED MORE EVIDENCE'}</div></div></div>`;
+    $('autoPickSummary').innerHTML=(winner?`<div class="setup-note" style="margin-bottom:8px"><b>Auto-pick:</b> ${esc(autoPickMapName(winner.sha))}. Это лучший из <u>измеренных active runtime</u> по median ACTIVE SCORE; выбор не применяет config автоматически.</div>`:'<div class="setup-note warn" style="margin-bottom:8px">Пока нет eligible config: нужно ≥2 Test Lab runs, ≥3 targets, reach ≥75%, stable ≥60%.</div>')+rows.slice(0,6).map(item).join('');
+  }
+  function latestRecoveryBaselineForCurrent(){
+    const sha=String(current?.config_sha256||'').toLowerCase();
+    return runHistory.find(x=>x.kind==='testlab'&&String(x.active_config_sha256||'').toLowerCase()===sha&&Array.isArray(x.payload?.results)&&x.payload.results.length>=3)||null;
+  }
+  function recoveryBaselineMetrics(run){
+    const rows=run?.payload?.results||[],attempts=rows.flatMap(x=>x.attempts||[]),ok=attempts.filter(x=>x.ok).length,stable=rows.filter(x=>x.attempts?.length&&x.attempts.every(a=>a.ok)).length;
+    return{targets:rows.map(x=>x.target).filter(Boolean).slice(0,64),reach:attempts.length?ok/attempts.length:0,stable:rows.length?stable/rows.length:0,rounds:Math.max(1,...rows.map(x=>x.attempts?.length||1))};
+  }
+  async function recoveryProbeTargets(targets,rounds){
+    const rows=targets.map(target=>({target,attempts:[]})),queue=[];rows.forEach((_,i)=>{for(let r=0;r<rounds;r++)queue.push({i,r})});
+    async function worker(){while(queue.length){const job=queue.shift(),row=rows[job.i],start=performance.now();try{const d=await api('/check',{method:'POST',body:JSON.stringify({url:row.target})});row.attempts.push({ok:!!d.reachable,status:d.status_code||0,ms:performance.now()-start,error:d.error||''})}catch(e){row.attempts.push({ok:false,status:0,ms:performance.now()-start,error:e.message||'probe failed'})}}}
+    await Promise.all(Array.from({length:Math.min(4,queue.length)},worker));
+    const attempts=rows.flatMap(x=>x.attempts),ok=attempts.filter(x=>x.ok).length,stable=rows.filter(x=>x.attempts.length&&x.attempts.every(a=>a.ok)).length;
+    return{rows,reach:attempts.length?ok/attempts.length:0,stable:rows.length?stable/rows.length:0};
+  }
+  async function recoverySnapshotSet(sinceIso){
+    await loadBackupCenter(true);
+    const since=Date.parse(sinceIso)||0;
+    return backupCenterFiles.filter(x=>Date.parse(x.created_at||x.created||0)>=since&&/^smart-apply-(config|list-|blob-)/.test(String(x.label||''))).sort((a,b)=>String(a.created_at||a.created).localeCompare(String(b.created_at||b.created)));
+  }
+  async function restoreRecoverySnapshots(entries){
+    const deps=entries.filter(x=>x.kind!=='config').sort((a,b)=>String(b.created_at||b.created).localeCompare(String(a.created_at||a.created)));
+    const config=entries.filter(x=>x.kind==='config').sort((a,b)=>String(b.created_at||b.created).localeCompare(String(a.created_at||a.created))).slice(0,1);
+    const ordered=[...deps,...config];
+    if(!config.length)throw new Error('persistent pre-apply config snapshot не найден');
+    for(const entry of ordered)await api('/backups/restore',{method:'POST',body:JSON.stringify({id:entry.id,confirm:'NFQWS_BACKUP_RESTORE'})});
+    return ordered;
+  }
+  async function runRecoveryGuard(baseline,startedAt,label){
+    if(recoveryGuardRunning||!baseline)return;recoveryGuardRunning=true;
+    const state=$('recoveryGuardState');if(state){state.textContent='PROBING';state.className='config-badge active'}
+    try{
+      const b=recoveryBaselineMetrics(baseline),after=await recoveryProbeTargets(b.targets,Math.min(3,b.rounds)),threshold=(Number($('recoveryGuardThreshold')?.value)||20)/100,reachDrop=b.reach-after.reach,stableDrop=b.stable-after.stable,regressed=reachDrop>=threshold||stableDrop>=threshold;
+      if(!regressed){
+        recoveryGuardLastResult={state:'PASS',label,reach_before:b.reach,reach_after:after.reach,stable_before:b.stable,stable_after:after.stable};
+        if($('recoveryGuardLast'))$('recoveryGuardLast').textContent=`PASS · ${label} · reach ${Math.round(b.reach*100)}→${Math.round(after.reach*100)}% · stable ${Math.round(b.stable*100)}→${Math.round(after.stable*100)}%`;
+        notice('Recovery Guard: PASS · regression threshold не достигнут.','good');return;
+      }
+      if(state){state.textContent='RECOVERING';state.className='config-badge'}
+      const snapshots=await recoverySnapshotSet(startedAt),restored=await restoreRecoverySnapshots(snapshots);
+      await load();backupCenterLoaded=false;await loadBackupCenter(true);
+      recoveryGuardLastResult={state:'RECOVERED',label,reach_before:b.reach,reach_after:after.reach,stable_before:b.stable,stable_after:after.stable,restored:restored.map(x=>x.id)};
+      if($('recoveryGuardLast'))$('recoveryGuardLast').textContent=`RECOVERED · regression reach ${Math.round(b.reach*100)}→${Math.round(after.reach*100)}%, stable ${Math.round(b.stable*100)}→${Math.round(after.stable*100)}% · restored ${restored.length} snapshot(s)`;
+      notice(`Recovery Guard: regression detected; restored ${restored.length} persistent snapshot(s).`,'error');
+    }catch(e){
+      recoveryGuardLastResult={state:'ERROR',error:e.message};if($('recoveryGuardLast'))$('recoveryGuardLast').textContent=`ERROR · ${e.message}`;notice(`Recovery Guard: ${e.message}`,'error');
+    }finally{
+      recoveryGuardRunning=false;renderAutoPick();
+    }
+  }
+
   const runHistoryKey='routerforge.nfqws.run-history.v1',runHistoryMax=24;
   function clamp01(value){return Math.max(0,Math.min(1,Number(value)||0))}
   function runHistoryLoad(){
     try{const parsed=JSON.parse(localStorage.getItem(runHistoryKey)||'[]');runHistory=Array.isArray(parsed)?parsed.slice(0,runHistoryMax):[]}catch(_){runHistory=[]}
-    renderRunHistory();
+    renderRunHistory();renderAutoPick();
   }
   function runHistoryPersist(){
     let data=runHistory.slice(0,runHistoryMax);
-    try{localStorage.setItem(runHistoryKey,JSON.stringify(data));runHistory=data}
+    try{localStorage.setItem(runHistoryKey,JSON.stringify(data));runHistory=data;renderAutoPick()}
     catch(_){data=data.slice(0,Math.max(4,Math.floor(data.length/2)));try{localStorage.setItem(runHistoryKey,JSON.stringify(data));runHistory=data}catch(__){}}
   }
   function latencyScore(ms){
@@ -2292,9 +2393,10 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='lists')loadListSources();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs')renderRunHistory();if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='backups')loadBackupCenter();if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='lists')loadListSources();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs'){renderRunHistory();renderAutoPick()};if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='backups')loadBackupCenter();if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
-  $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
+  $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
+  $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
   $('closeSmartApply').onclick=closeSmartApply;$('refreshSmartApply').onclick=async()=>{if(smartApplyBusy)return;$('smartApplyPlan').innerHTML='<div class="empty">Пересчитываю exact plan…</div>';$('applySmartApply').disabled=true;try{smartApplyPlan=await buildSmartApplyPlan();renderSmartApplyPlan()}catch(e){smartApplyPlan=null;$('smartApplyPlan').innerHTML=`<div class="smart-apply-error">${esc(e.message)}</div>`}};$('applySmartApply').onclick=applySmartApply;$('smartApplyModal').onclick=e=>{if(e.target===$('smartApplyModal'))closeSmartApply()};
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():$('diffApply').dataset.mode==='stored-config'?saveStoredConfig():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};

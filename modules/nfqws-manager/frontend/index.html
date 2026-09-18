@@ -3,91 +3,508 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RouterForge NFQWS Manager</title>
+<title>RouterForge NFQWS</title>
 <style>
-:root{font-family:Inter,system-ui,sans-serif;color:#f5f7fa;background:#0b0d10}
-*{box-sizing:border-box}body{margin:0;padding:16px;background:transparent;color:inherit}
-.wrap{display:grid;gap:12px}.head,.row,.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.panel{border:1px solid #29313a;border-radius:8px;background:#12151a;padding:14px}
-.badge{font:600 11px/1 monospace;padding:5px 7px;border:1px solid #36414d;border-radius:999px}.good{color:#3fb950}.bad{color:#f85149}.muted{color:#8d98a4}
-.actions{display:flex;gap:8px;flex-wrap:wrap}button{border:1px solid #36414d;background:#171b20;color:#f5f7fa;padding:7px 10px;border-radius:6px;cursor:pointer}button.primary{border-color:#2f81f7}button:disabled{opacity:.45;cursor:not-allowed}
-.grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:12px}
-textarea{width:100%;min-height:420px;background:#0b0d10;color:#f5f7fa;border:1px solid #29313a;border-radius:6px;padding:10px;resize:vertical;font:12px/1.45 "Roboto Mono",monospace}
-pre{margin:8px 0 0;max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#0b0d10;border-radius:6px;padding:8px;font:11px/1.4 "Roboto Mono",monospace}
-details{border-top:1px solid #29313a;padding:8px 0}summary{cursor:pointer}.meta{font:11px/1.4 monospace;color:#8d98a4}.notice{padding:8px 10px;border-radius:6px;background:#171b20}.error{color:#f85149}
-@media(max-width:900px){.grid{grid-template-columns:1fr}.head,.section-head{align-items:flex-start;flex-direction:column}}
+:root{
+  color-scheme:dark;
+  --bg:#0c0f13;--panel:#11161c;--panel2:#151b22;--line:#26313c;
+  --text:#edf2f7;--muted:#8d9aa8;--good:#3fb950;--warn:#d29922;--bad:#f85149;
+  --accent:#58a6ff;--accent2:#1f6feb;--chip:#18212b;--shadow:0 12px 30px rgba(0,0,0,.22);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:transparent;color:var(--text)}
+body{padding:14px}
+button,input,textarea{font:inherit}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:7px;padding:7px 10px;cursor:pointer}
+button:hover:not(:disabled){border-color:#3c4d5e;background:#19212a}
+button:disabled{opacity:.46;cursor:not-allowed}
+button.primary{background:var(--accent2);border-color:var(--accent2);color:#fff}
+button.danger{border-color:#63343a;color:#ff9ca4}
+a{color:var(--accent)}
+.shell{display:grid;gap:12px;max-width:1600px;margin:0 auto}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--line);background:linear-gradient(180deg,#121820,#0f141a);border-radius:10px;box-shadow:var(--shadow)}
+.hero-left{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:42px;height:42px;border:1px solid #334252;border-radius:10px;display:grid;place-items:center;background:#0f141a;font:700 15px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.5px}
+.title-wrap{min-width:0}.title-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+h1{font-size:18px;margin:0}.subtitle{color:var(--muted);font-size:12px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.status{display:inline-flex;align-items:center;gap:6px;font:700 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace;padding:6px 8px;border:1px solid var(--line);border-radius:999px;background:var(--chip)}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.status.good{color:#8ee99c;border-color:#285c34}.status.good::before{background:var(--good);box-shadow:0 0 9px rgba(63,185,80,.45)}
+.status.bad{color:#ff9ca4;border-color:#62343b}.status.bad::before{background:var(--bad)}
+.status.warn{color:#e6c36a;border-color:#5f512d}.status.warn::before{background:var(--warn)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding:0 2px;overflow:auto}
+.tab{appearance:none;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:10px 12px;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{background:transparent;color:var(--text);border-bottom-color:#3b4652}
+.tab.active{color:var(--text);border-bottom-color:var(--accent);background:transparent}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;gap:12px}.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card,.panel{border:1px solid var(--line);background:var(--panel);border-radius:9px}
+.card{padding:13px}.metric-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.metric-value{font-size:18px;font-weight:700;margin-top:5px}.metric-sub{color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}
+.panel{padding:14px}
+.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.panel-head h2,.panel-head h3{margin:0}.panel-head h2{font-size:15px}.panel-head h3{font-size:13px}
+.muted{color:var(--muted)}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.small{font-size:11px}.notice{border:1px solid var(--line);background:var(--panel2);padding:9px 11px;border-radius:8px;color:var(--muted);font-size:12px}
+.notice.error{border-color:#65343b;color:#ff9ca4}.notice.good{border-color:#285c34;color:#8ee99c}
+.kv{display:grid;grid-template-columns:160px minmax(0,1fr);gap:8px 14px;font-size:12px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;overflow-wrap:anywhere}
+.activity{display:grid;gap:7px}.activity-row{display:grid;grid-template-columns:9px minmax(0,1fr) auto;gap:9px;align-items:center;padding:7px 0;border-top:1px solid #1d2730}.activity-row:first-child{border-top:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}.dot.good{background:var(--good)}.dot.warn{background:var(--warn)}
+.strategy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:10px}
+.strategy{border:1px solid var(--line);background:#0f141a;border-radius:8px;padding:12px;display:grid;gap:9px}
+.strategy-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.strategy-title{font-weight:700}.chips{display:flex;gap:5px;flex-wrap:wrap}.chip{font:600 10px/1 ui-monospace,SFMono-Regular,Consolas,monospace;border:1px solid #32404d;background:var(--chip);border-radius:999px;padding:5px 6px;color:#b9c5d1}
+.strategy-code{font:11px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;color:#b9c5d1;background:#0a0e12;border:1px solid #202a33;border-radius:6px;padding:8px;max-height:100px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.editor-shell{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#0a0e12}
+.editor-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);background:#121820}
+.editor-main{display:grid;grid-template-columns:auto minmax(0,1fr)}
+.gutter{margin:0;padding:10px 8px 10px 10px;min-width:44px;text-align:right;color:#53606d;background:#0d1116;border-right:1px solid #1d2730;user-select:none;overflow:hidden;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+textarea{border:0;outline:0;width:100%;min-height:500px;resize:vertical;padding:10px 12px;background:#0a0e12;color:#dbe5ee;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre}
+.editor-foot{display:flex;justify-content:space-between;gap:12px;padding:7px 10px;border-top:1px solid #1d2730;background:#0d1116;color:var(--muted);font-size:10px}
+.dirty{color:#e6c36a}
+.toolbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.search{min-width:220px;border:1px solid var(--line);background:#0b1015;color:var(--text);border-radius:7px;padding:7px 9px}
+.list-grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:12px}
+.file-list{display:grid;gap:5px;max-height:620px;overflow:auto}
+.file-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:9px;border:1px solid transparent;border-radius:7px;cursor:pointer}
+.file-item:hover{background:#151c24}.file-item.active{background:#18212b;border-color:#32404d}
+.file-name{font:600 12px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace;overflow:hidden;text-overflow:ellipsis}
+.file-meta{color:var(--muted);font-size:10px}
+.preview{margin:0;min-height:420px;max-height:620px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid #202a33;border-radius:7px;background:#0a0e12;padding:11px;font:11px/1.48 ui-monospace,SFMono-Regular,Consolas,monospace;color:#cbd6df}
+.logbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:9px}
+.log{margin:0;min-height:480px;max-height:680px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#080c10;border:1px solid #202a33;border-radius:7px;padding:10px;font:11px/1.48 ui-monospace,SFMono-Regular,Consolas,monospace;color:#cbd6df}
+.backup-hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:15px;align-items:center}
+.backup-count{width:72px;height:72px;border-radius:14px;border:1px solid #334252;background:#0c1116;display:grid;place-items:center;font-size:24px;font-weight:800}
+.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed #2b3742;border-radius:8px}
+.modal{position:fixed;inset:0;background:rgba(4,7,10,.75);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modal.open{display:flex}
+.dialog{width:min(1000px,96vw);max-height:88vh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;border:1px solid #354554;background:#10161c;border-radius:10px;box-shadow:0 20px 70px rgba(0,0,0,.5)}
+.dialog-head,.dialog-foot{padding:11px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px}.dialog-head{border-bottom:1px solid var(--line)}.dialog-foot{border-top:1px solid var(--line);justify-content:flex-end}
+.diff{padding:12px;overflow:auto;margin:0;font:11px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap}.diff .add{color:#8ee99c}.diff .del{color:#ff9ca4}.diff .same{color:#81909e}
+.full-editor{position:fixed!important;inset:10px!important;z-index:15!important;background:#0b0f13!important;box-shadow:0 25px 80px rgba(0,0,0,.7)}.full-editor textarea{min-height:calc(100vh - 130px)}
+@media(max-width:1100px){.grid.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.list-grid{grid-template-columns:1fr}.file-list{max-height:240px}}
+@media(max-width:700px){body{padding:8px}.hero{grid-template-columns:1fr}.actions{justify-content:flex-start}.grid.cards{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.kv dd{margin-bottom:5px}.subtitle{white-space:normal}.search{min-width:0;width:100%}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="head">
-    <div><strong>NFQWS Manager</strong><div class="muted">RouterForge extension · installed-only · nfqws2-keenetic</div></div>
-    <div class="actions"><span id="state" class="badge">...</span><button id="reload">Reload</button><button id="restart">Restart</button></div>
-  </div>
-  <div id="notice" class="notice muted">Loading…</div>
-  <div id="content" class="grid" hidden>
-    <section class="panel">
-      <div class="section-head"><div><strong>nfqws2.conf</strong><div id="configMeta" class="meta"></div></div><button id="save" class="primary">Save + reload</button></div>
-      <textarea id="config" spellcheck="false"></textarea>
-      <div class="meta">Safety backup → atomic write → reload → automatic rollback on failure. Max 8 backups.</div>
+<div class="shell">
+  <header class="hero">
+    <div class="hero-left">
+      <div class="logo">NFQ</div>
+      <div class="title-wrap">
+        <div class="title-line"><h1>NFQWS</h1><span id="state" class="status">...</span></div>
+        <div id="subtitle" class="subtitle">RouterForge integration · loading runtime…</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="reload">Reload</button>
+      <button id="restart">Restart</button>
+      <button id="refresh">Refresh</button>
+    </div>
+  </header>
+
+  <div id="notice" class="notice">Loading NFQWS runtime…</div>
+
+  <nav class="tabs" aria-label="NFQWS workspace">
+    <button class="tab active" data-tab="overview">Обзор</button>
+    <button class="tab" data-tab="strategies">Стратегии <span id="strategyCount"></span></button>
+    <button class="tab" data-tab="config">Конфигурация</button>
+    <button class="tab" data-tab="lists">Списки <span id="listCount"></span></button>
+    <button class="tab" data-tab="logs">Логи</button>
+    <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab"></span></button>
+  </nav>
+
+  <main>
+    <section id="view-overview" class="view active">
+      <div class="grid cards">
+        <article class="card"><div class="metric-label">Сервис</div><div id="mService" class="metric-value">—</div><div id="mServiceSub" class="metric-sub">—</div></article>
+        <article class="card"><div class="metric-label">Конфигурация</div><div id="mConfig" class="metric-value">—</div><div id="mConfigSub" class="metric-sub">—</div></article>
+        <article class="card"><div class="metric-label">Стратегии</div><div id="mStrategies" class="metric-value">—</div><div class="metric-sub">выделено из текущего NFQWS_ARGS</div></article>
+        <article class="card"><div class="metric-label">Списки</div><div id="mLists" class="metric-value">—</div><div id="mListsSub" class="metric-sub">—</div></article>
+      </div>
+      <div class="grid" style="grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);margin-top:12px">
+        <article class="panel">
+          <div class="panel-head"><div><h2>Runtime</h2><div class="muted small">Фактическое состояние внешнего nfqws2</div></div></div>
+          <dl class="kv">
+            <dt>Target</dt><dd id="oTarget" class="mono">—</dd>
+            <dt>Init script</dt><dd id="oInit" class="mono">—</dd>
+            <dt>Config</dt><dd id="oConfigPath" class="mono">—</dd>
+            <dt>Config SHA256</dt><dd id="oSha" class="mono">—</dd>
+            <dt>Lists root</dt><dd id="oListsRoot" class="mono">—</dd>
+            <dt>Log</dt><dd id="oLogPath" class="mono">—</dd>
+            <dt>Mutation boundary</dt><dd id="oMutation">—</dd>
+          </dl>
+        </article>
+        <article class="panel">
+          <div class="panel-head"><div><h2>Состояние</h2><div class="muted small">Быстрая диагностика текущей конфигурации</div></div></div>
+          <div id="healthActivity" class="activity"></div>
+        </article>
+      </div>
     </section>
-    <aside class="panel">
-      <strong>Lists</strong><div id="lists"></div>
-      <details open><summary>Recent log tail</summary><pre id="log">—</pre></details>
-    </aside>
+
+    <section id="view-strategies" class="view">
+      <article class="panel">
+        <div class="panel-head">
+          <div><h2>Стратегии</h2><div class="muted small">Read-only представление текущего NFQWS_ARGS. Никакой магии: ниже показано то, что реально лежит в конфиге.</div></div>
+          <span class="chip">R1 · READ ONLY</span>
+        </div>
+        <div id="strategies" class="strategy-grid"></div>
+      </article>
+    </section>
+
+    <section id="view-config" class="view">
+      <article id="editorPanel" class="panel">
+        <div class="panel-head">
+          <div><h2>nfqws2.conf</h2><div id="configMeta" class="muted small mono">—</div></div>
+          <div class="toolbar">
+            <button id="undoConfig">Отменить изменения</button>
+            <button id="diffConfig">Diff</button>
+            <button id="fullscreenConfig">На весь экран</button>
+            <button id="save" class="primary">Сохранить и применить</button>
+          </div>
+        </div>
+        <div class="editor-shell">
+          <div class="editor-toolbar"><span id="editorState" class="mono small">CLEAN</span><span class="muted small">Ctrl+S · Tab = 2 spaces</span></div>
+          <div class="editor-main"><pre id="gutter" class="gutter">1</pre><textarea id="config" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea></div>
+          <div class="editor-foot"><span id="editorStats">—</span><span>backup → atomic write → reload → rollback on failure</span></div>
+        </div>
+      </article>
+    </section>
+
+    <section id="view-lists" class="view">
+      <div class="list-grid">
+        <article class="panel">
+          <div class="panel-head"><div><h2>Списки</h2><div class="muted small">Файлы из lists/</div></div></div>
+          <input id="listSearch" class="search" placeholder="Поиск списка…">
+          <div id="fileList" class="file-list" style="margin-top:9px"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div><h2 id="selectedListTitle">Выберите список</h2><div id="selectedListMeta" class="muted small mono">—</div></div>
+            <div class="toolbar"><button id="copyList" disabled>Copy</button></div>
+          </div>
+          <pre id="listPreview" class="preview">Выберите файл слева.</pre>
+        </article>
+      </div>
+    </section>
+
+    <section id="view-logs" class="view">
+      <article class="panel">
+        <div class="panel-head"><div><h2>Логи</h2><div id="logMeta" class="muted small mono">—</div></div></div>
+        <div class="logbar">
+          <input id="logSearch" class="search" placeholder="Фильтр по логу…">
+          <div class="toolbar"><button id="logAll" class="primary">Все</button><button id="logErrors">Errors</button><button id="logWarnings">Warnings</button><button id="copyLog">Copy</button></div>
+        </div>
+        <pre id="log" class="log">—</pre>
+      </article>
+    </section>
+
+    <section id="view-backups" class="view">
+      <article class="panel">
+        <div class="backup-hero">
+          <div id="backupCount" class="backup-count">0</div>
+          <div><h2 style="margin:0 0 6px">Safety backups</h2><div class="muted">Текущий backend уже делает backup перед изменением конфига и держит максимум 8 копий. В R1 показываем состояние хранилища; просмотр diff/restore подключим к отдельному read-only API следующим шагом.</div></div>
+        </div>
+      </article>
+      <div class="empty" style="margin-top:12px">История бэкапов пока не раскрывается наружу — это сознательно не эмулируем на UI. Сначала отдельный безопасный API, потом Compare / Restore.</div>
+    </section>
+  </main>
+</div>
+
+<div id="diffModal" class="modal">
+  <div class="dialog">
+    <div class="dialog-head"><strong>Изменения nfqws2.conf</strong><button id="closeDiff">Закрыть</button></div>
+    <pre id="diffBody" class="diff"></pre>
+    <div class="dialog-foot"><button id="diffCancel">Отмена</button><button id="diffApply" class="primary">Сохранить и применить</button></div>
   </div>
 </div>
+
 <script>
 (() => {
   const marker='/ui/';
   const pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
-  const el=id=>document.getElementById(id);
-  let original='', busy=false, current=null;
+  const $=id=>document.getElementById(id);
+  let current=null, original='', busy=false, selectedList='', logMode='all';
 
-  async function json(path, options={}) {
-    const r=await fetch(base+path,{cache:'no-store',headers:{Accept:'application/json','Content-Type':'application/json'},...options});
-    const text=await r.text(); let body={}; try{body=text?JSON.parse(text):{}}catch{}
-    if(!r.ok) throw new Error(body.error||`${path} HTTP ${r.status}`);
+  const esc=(s='')=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const bytes=n=>{
+    n=Number(n||0); if(n<1024)return `${n} B`; if(n<1048576)return `${(n/1024).toFixed(1)} KB`; return `${(n/1048576).toFixed(1)} MB`;
+  };
+  const lines=s=>String(s||'').split(/\r?\n/);
+
+  async function api(path, options={}) {
+    const response=await fetch(base+path,{
+      cache:'no-store',credentials:'same-origin',
+      headers:{Accept:'application/json','Content-Type':'application/json'},
+      ...options
+    });
+    const text=await response.text(); let body={};
+    try{body=text?JSON.parse(text):{}}catch{}
+    if(!response.ok) throw new Error(body.error||`${path} HTTP ${response.status}`);
     return body;
   }
-  function setBusy(value){busy=value;for(const id of ['reload','restart','save'])el(id).disabled=value||!current?.mutation_ready}
+
+  function setNotice(text, type='') {
+    $('notice').textContent=text;
+    $('notice').className='notice'+(type?` ${type}`:'');
+  }
+
+  function setBusy(v){
+    busy=v;
+    for(const id of ['reload','restart','save']) $(id).disabled=v || (id==='save' && (!current?.mutation_ready || $('config').value===original));
+  }
+
+  function getConfigValue(name){
+    const re=new RegExp(`^\\s*${name}\\s*=\\s*(.*)$`,'m');
+    const m=String(current?.config||'').match(re);
+    if(!m)return '';
+    let v=m[1].trim();
+    if((v.startsWith('"')&&v.endsWith('"'))||(v.startsWith("'")&&v.endsWith("'")))v=v.slice(1,-1);
+    return v;
+  }
+
+  function splitStrategies(raw){
+    raw=String(raw||'').trim();
+    if(!raw)return [];
+    const chunks=raw.split(/\s+--new(?:\s+|$)/).map(s=>s.trim()).filter(Boolean);
+    return chunks.map((chunk,i)=>{
+      const tokens=chunk.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)||[];
+      const find=(name)=>{
+        const prefix=`--${name}=`;
+        const token=tokens.find(t=>t.startsWith(prefix));
+        return token?token.slice(prefix.length).replace(/^["']|["']$/g,''):'';
+      };
+      const flags=tokens.filter(t=>t.startsWith('--')).map(t=>t.split('=')[0].replace(/^--/,''));
+      return {
+        index:i+1, raw:chunk,
+        tcp:find('filter-tcp'), udp:find('filter-udp'),
+        hostlist:find('hostlist')||find('hostlist-domains'),
+        ipset:find('ipset'), desync:find('dpi-desync'),
+        fooling:find('dpi-desync-fooling'), flags
+      };
+    });
+  }
+
+  function configStrategies(){
+    const keys=['NFQWS_ARGS','NFQWS_ARGS_TCP','NFQWS_ARGS_UDP','NFQWS_OPT','NFQWS2_ARGS'];
+    for(const key of keys){const v=getConfigValue(key);if(v)return {key,items:splitStrategies(v)}}
+    const config=String(current?.config||'');
+    const guessed=[];
+    const re=/--filter-(?:tcp|udp)[^\n]*/g; let m;
+    while((m=re.exec(config))!==null) guessed.push(...splitStrategies(m[0]));
+    return {key:guessed.length?'detected fragments':'not found',items:guessed};
+  }
+
+  function renderStrategies(){
+    const data=configStrategies();
+    $('strategyCount').textContent=data.items.length?`(${data.items.length})`:'';
+    $('mStrategies').textContent=String(data.items.length);
+    const host=$('strategies'); host.innerHTML='';
+    if(!data.items.length){
+      host.innerHTML='<div class="empty">Стратегии пока не удалось безопасно выделить из текущего конфига. Raw config остаётся источником истины.</div>';
+      return;
+    }
+    data.items.forEach((s,i)=>{
+      const chips=[];
+      if(s.tcp)chips.push(`TCP ${s.tcp}`);
+      if(s.udp)chips.push(`UDP ${s.udp}`);
+      if(s.desync)chips.push(`DESYNC ${s.desync}`);
+      if(s.hostlist)chips.push(`HOSTLIST ${s.hostlist.split('/').pop()}`);
+      if(s.ipset)chips.push(`IPSET ${s.ipset.split('/').pop()}`);
+      if(s.fooling)chips.push(`FOOL ${s.fooling}`);
+      const article=document.createElement('article'); article.className='strategy';
+      article.innerHTML=`
+        <div class="strategy-top">
+          <div><div class="strategy-title">Стратегия ${s.index}</div><div class="muted small mono">${esc(data.key)}</div></div>
+          <span class="chip">ACTIVE CONFIG</span>
+        </div>
+        <div class="chips">${chips.length?chips.map(x=>`<span class="chip">${esc(x)}</span>`).join(''):'<span class="chip">RAW</span>'}</div>
+        <div class="strategy-code">${esc(s.raw)}</div>`;
+      host.append(article);
+    });
+  }
+
+  function renderOverview(){
+    const lists=current?.lists||[];
+    $('mService').textContent=current?.running?'RUNNING':'STOPPED';
+    $('mService').style.color=current?.running?'var(--good)':'var(--bad)';
+    $('mServiceSub').textContent=current?.mutation_ready?'manager ready':'mutation not ready';
+    $('mConfig').textContent=current?.config_exists?'OK':'MISSING';
+    $('mConfig').style.color=current?.config_exists?'var(--good)':'var(--bad)';
+    $('mConfigSub').textContent=`${bytes(current?.config_size)} · ${(current?.config_sha256||'').slice(0,12)||'no SHA'}`;
+    $('mLists').textContent=String(lists.length);
+    $('mListsSub').textContent=`${lists.reduce((a,b)=>a+Number(b.size||0),0)} bytes total`;
+    $('oTarget').textContent=`${current?.target_name||'—'} (${current?.target_id||'—'})`;
+    $('oInit').textContent=current?.init_script||'—';
+    $('oConfigPath').textContent=current?.config_path||'—';
+    $('oSha').textContent=current?.config_sha256||'—';
+    $('oListsRoot').textContent=current?.lists_root||'—';
+    $('oLogPath').textContent=current?.log_path||'—';
+    $('oMutation').textContent=current?.mutation_ready?'Core-guarded · ready':'not ready';
+
+    const rows=[
+      [current?.available,'External target detected',current?.available?'nfqws2 paths are present':'required files are missing'],
+      [current?.running,'Runtime running',current?.running?'nfqws2 process detected':'process is not running'],
+      [current?.config_exists,'Config readable',current?.config_exists?`${bytes(current?.config_size)} · SHA verified`:'config unavailable'],
+      [!current?.config_truncated,'Config fully loaded',current?.config_truncated?'config preview truncated':'full config available'],
+      [current?.mutation_ready,'Safe mutation ready',current?.mutation_ready?'backup + atomic write + rollback boundary':'init script is not executable/ready']
+    ];
+    $('healthActivity').innerHTML=rows.map(([ok,title,sub])=>`
+      <div class="activity-row"><span class="dot ${ok?'good':'warn'}"></span><div><div>${esc(title)}</div><div class="muted small">${esc(sub)}</div></div><span class="mono small">${ok?'PASS':'CHECK'}</span></div>`).join('');
+  }
+
+  function updateEditor(){
+    const v=$('config').value;
+    const count=lines(v).length;
+    $('gutter').textContent=Array.from({length:count},(_,i)=>i+1).join('\n');
+    $('editorStats').textContent=`${count} lines · ${new Blob([v]).size} bytes`;
+    const dirty=v!==original;
+    $('editorState').textContent=dirty?'UNSAVED':'CLEAN';
+    $('editorState').className=`mono small ${dirty?'dirty':''}`;
+    $('save').disabled=busy || !current?.mutation_ready || !dirty;
+    $('undoConfig').disabled=!dirty;
+    $('diffConfig').disabled=!dirty;
+  }
+
+  function renderLists(){
+    const list=current?.lists||[];
+    $('listCount').textContent=list.length?`(${list.length})`:'';
+    const q=$('listSearch').value.trim().toLowerCase();
+    const visible=list.filter(x=>!q || String(x.name).toLowerCase().includes(q));
+    $('fileList').innerHTML='';
+    if(!visible.length){$('fileList').innerHTML='<div class="empty">Списки не найдены.</div>';return}
+    visible.forEach(item=>{
+      const row=document.createElement('div');
+      row.className='file-item'+(selectedList===item.name?' active':'');
+      row.innerHTML=`<div><div class="file-name">${esc(item.name)}</div><div class="file-meta">${esc(item.modified_at||'')}</div></div><div class="file-meta">${bytes(item.size)}${item.truncated?' · cut':''}</div>`;
+      row.onclick=()=>{selectedList=item.name;renderLists();renderSelectedList()};
+      $('fileList').append(row);
+    });
+  }
+
+  function renderSelectedList(){
+    const item=(current?.lists||[]).find(x=>x.name===selectedList);
+    if(!item){$('selectedListTitle').textContent='Выберите список';$('selectedListMeta').textContent='—';$('listPreview').textContent='Выберите файл слева.';$('copyList').disabled=true;return}
+    $('selectedListTitle').textContent=item.name;
+    $('selectedListMeta').textContent=`${item.path} · ${bytes(item.size)}${item.truncated?' · preview truncated':''}`;
+    $('listPreview').textContent=item.preview||'';
+    $('copyList').disabled=false;
+  }
+
+  function filteredLog(){
+    const q=$('logSearch').value.trim().toLowerCase();
+    return lines(current?.log_tail||'').filter(line=>{
+      const low=line.toLowerCase();
+      if(logMode==='errors' && !/(error|fatal|critical|fail)/i.test(line))return false;
+      if(logMode==='warnings' && !/(warn|warning)/i.test(line))return false;
+      return !q || low.includes(q);
+    }).join('\n');
+  }
+  function renderLog(){
+    $('log').textContent=filteredLog()||'—';
+    $('logMeta').textContent=`${current?.log_path||'—'}${current?.log_truncated?' · tail truncated':''}`;
+    for(const [id,mode] of [['logAll','all'],['logErrors','errors'],['logWarnings','warnings']]) $(id).className=logMode===mode?'primary':'';
+  }
+
   function render(s){
     current=s;
-    el('state').textContent=!s.available?'NOT AVAILABLE':s.running?'RUNNING':'STOPPED';
-    el('state').className='badge '+(s.available&&s.running?'good':s.available?'':'bad');
-    el('notice').textContent=s.available?'Managed target detected. No package install/update is performed by this module.':'nfqws2-keenetic is not available; manager stays dormant.';
-    el('content').hidden=!s.available;
-    el('config').value=s.config||''; original=s.config||'';
-    el('configMeta').textContent=`${s.config_path} · ${s.config_size||0} B · SHA256 ${s.config_sha256||'—'} · backups ${s.backup_count||0}`;
-    el('log').textContent=s.log_tail||'—';
-    const lists=el('lists'); lists.textContent='';
-    for(const item of s.lists||[]){
-      const d=document.createElement('details'), sum=document.createElement('summary'), pre=document.createElement('pre');
-      sum.textContent=`${item.name} · ${item.size} B${item.truncated?' · preview truncated':''}`;
-      pre.textContent=item.preview||'';
-      d.append(sum,pre); lists.append(d);
-    }
-    setBusy(false);
-    el('save').disabled=!s.mutation_ready||el('config').value===original;
+    const available=Boolean(s?.available), running=Boolean(s?.running);
+    $('state').textContent=!available?'NOT AVAILABLE':running?'RUNNING':'STOPPED';
+    $('state').className=`status ${available&&running?'good':available?'warn':'bad'}`;
+    $('subtitle').textContent=`RouterForge extension · ${s?.target_name||'nfqws'} · ${s?.config_path||'target not detected'}`;
+    if(!available)setNotice('NFQWS target не найден. Модуль остаётся установлен, но Integration Hub не должен считать его управляемой целью.','error');
+    else if(!running)setNotice('NFQWS обнаружен, но runtime сейчас не запущен.','error');
+    else setNotice('NFQWS runtime обнаружен. Интерфейс работает поверх существующего внешнего пакета; сам nfqws RouterForge не устанавливает и не обновляет.','good');
+
+    original=s?.config||'';
+    $('config').value=original;
+    $('configMeta').textContent=`${s?.config_path||'—'} · ${bytes(s?.config_size)} · SHA256 ${(s?.config_sha256||'—').slice(0,24)}…`;
+    $('backupCount').textContent=String(s?.backup_count||0);
+    $('backupCountTab').textContent=s?.backup_count?`(${s.backup_count})`:'';
+    if(!selectedList && (s?.lists||[]).length) selectedList=s.lists[0].name;
+    renderOverview(); renderStrategies(); renderLists(); renderSelectedList(); renderLog(); updateEditor(); setBusy(false);
   }
+
   async function load(){
-    try{render(await json('/status'))}catch(e){el('notice').textContent=e.message;el('notice').className='notice error'}
-  }
-  async function action(name){
-    if(busy||!confirm(`nfqws2: ${name}?`))return;setBusy(true);
-    try{const r=await json('/action',{method:'POST',body:JSON.stringify({action:name,confirm:'NFQWS'})});render(r.status)}
-    catch(e){el('notice').textContent=e.message;el('notice').className='notice error';setBusy(false)}
-  }
-  el('reload').onclick=()=>action('reload'); el('restart').onclick=()=>action('restart');
-  el('config').oninput=()=>{el('save').disabled=busy||!current?.mutation_ready||el('config').value===original};
-  el('save').onclick=async()=>{
-    if(busy||el('config').value===original)return;
-    if(!confirm('Save nfqws2.conf, create safety backup and reload?'))return;
     setBusy(true);
-    try{const r=await json('/config',{method:'POST',body:JSON.stringify({content:el('config').value,confirm:'NFQWS_CONFIG'})});render(r.status);el('notice').textContent=`Config applied. Backup: ${r.backup}`}
-    catch(e){el('notice').textContent=e.message;el('notice').className='notice error';setBusy(false)}
+    try{render(await api('/status'))}
+    catch(e){setNotice(e.message,'error');setBusy(false)}
+  }
+
+  async function action(name){
+    if(busy||!current?.mutation_ready)return;
+    if(!confirm(`NFQWS: ${name}?`))return;
+    setBusy(true);
+    try{
+      const r=await api('/action',{method:'POST',body:JSON.stringify({action:name,confirm:'NFQWS'})});
+      render(r.status); setNotice(`${name}: успешно`,'good');
+    }catch(e){setNotice(e.message,'error');setBusy(false)}
+  }
+
+  function makeDiff(before, after){
+    const a=lines(before), b=lines(after), out=[];
+    const max=Math.max(a.length,b.length);
+    for(let i=0;i<max;i++){
+      if(a[i]===b[i]){if(a[i]!==undefined)out.push({c:'same',t:`  ${a[i]}`});continue}
+      if(a[i]!==undefined)out.push({c:'del',t:`- ${a[i]}`});
+      if(b[i]!==undefined)out.push({c:'add',t:`+ ${b[i]}`});
+    }
+    return out;
+  }
+  function showDiff(){
+    const diff=makeDiff(original,$('config').value);
+    $('diffBody').innerHTML=diff.map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">No changes</span>';
+    $('diffModal').classList.add('open');
+  }
+  function closeDiff(){$('diffModal').classList.remove('open')}
+
+  async function saveConfig(){
+    if(busy||!current?.mutation_ready||$('config').value===original)return;
+    if(!confirm('Сохранить nfqws2.conf, создать safety backup и выполнить reload?'))return;
+    closeDiff(); setBusy(true);
+    try{
+      const r=await api('/config',{method:'POST',body:JSON.stringify({content:$('config').value,confirm:'NFQWS_CONFIG'})});
+      render(r.status); setNotice(`Конфигурация применена. Backup: ${r.backup}`,'good');
+    }catch(e){setNotice(e.message,'error');setBusy(false)}
+  }
+
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));
+    document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));
+  });
+  $('reload').onclick=()=>action('reload');
+  $('restart').onclick=()=>action('restart');
+  $('refresh').onclick=load;
+  $('save').onclick=showDiff;
+  $('diffConfig').onclick=showDiff;
+  $('undoConfig').onclick=()=>{$('config').value=original;updateEditor()};
+  $('config').oninput=updateEditor;
+  $('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};
+  $('config').onkeydown=e=>{
+    if(e.key==='Tab'){e.preventDefault();const t=e.target,s=t.selectionStart,n=t.selectionEnd;t.value=t.value.slice(0,s)+'  '+t.value.slice(n);t.selectionStart=t.selectionEnd=s+2;updateEditor()}
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}
   };
+  $('fullscreenConfig').onclick=()=>{
+    const p=$('editorPanel');p.classList.toggle('full-editor');
+    $('fullscreenConfig').textContent=p.classList.contains('full-editor')?'Закрыть fullscreen':'На весь экран';
+  };
+  $('listSearch').oninput=renderLists;
+  $('copyList').onclick=()=>navigator.clipboard?.writeText($('listPreview').textContent||'');
+  $('logSearch').oninput=renderLog;
+  $('logAll').onclick=()=>{logMode='all';renderLog()};
+  $('logErrors').onclick=()=>{logMode='errors';renderLog()};
+  $('logWarnings').onclick=()=>{logMode='warnings';renderLog()};
+  $('copyLog').onclick=()=>navigator.clipboard?.writeText($('log').textContent||'');
+  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=saveConfig;
+  $('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
+
+  try{
+    const parentStyle=window.parent.getComputedStyle(window.parent.document.body);
+    if(parentStyle?.fontFamily)document.documentElement.style.fontFamily=parentStyle.fontFamily;
+  }catch(_){}
   load();
 })();
 </script>

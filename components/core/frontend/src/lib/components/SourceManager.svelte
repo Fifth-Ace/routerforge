@@ -233,6 +233,7 @@
               <div class="source-title-row">
                 <strong>{source.name}</strong>
                 <span class="state-chip {source.trust === 'official' ? 'official' : 'neutral'}">{trustLabel(source)}</span>
+                {#if source.manifestless}<span class="state-chip warn">{ru() ? 'БЕЗ МАНИФЕСТА' : 'UNMANAGED'}</span>{/if}
                 <span class="state-chip {st.cls}">{st.text}</span>
               </div>
               <span class="mono source-url">{source.url}</span>
@@ -277,6 +278,7 @@
           <div class="source-title-row">
             <strong>{preview.name}</strong>
             <span class="state-chip warn">{ru() ? 'НЕПОДПИСАН' : 'UNSIGNED'}</span>
+            {#if preview.manifestless}<span class="state-chip warn">{ru() ? 'БЕЗ МАНИФЕСТА' : 'UNMANAGED'}</span>{/if}
             <span class="state-chip neutral">{preview.kind === 'app' ? (ru() ? 'ПРИЛОЖЕНИЕ' : 'APP') : (ru() ? 'РЕПОЗИТОРИЙ' : 'REPOSITORY')}</span>
           </div>
           <div class="source-meta">
@@ -295,9 +297,15 @@
             {/each}
             {#if Number(preview.entry_count || 0) > 8}<span>+{Number(preview.entry_count) - 8}</span>{/if}
           </div>
-          <div class="source-preview-warning">{ru()
-            ? `Источник не проверен RouterForge. Разрешены только opkg/manual lifecycle; архитектура ${preview.entries?.[0]?.detected_target || 'не определена'} проверяется отдельно.${preview.local ? ' Источник находится в локальной сети.' : ''}`
-            : `This source is not verified by RouterForge. Only opkg/manual lifecycle is allowed; architecture ${preview.entries?.[0]?.detected_target || 'is unknown'} is checked separately.${preview.local ? ' The source is on a local network.' : ''}`}</div>
+          {#if preview.manifestless}
+            <div class="source-preview-warning">{ru()
+              ? `В репозитории нет RouterForge manifest. Он будет добавлен как непроверенный unmanaged-источник. Автоматическая установка появится только если пакет ${preview.entries?.[0]?.package || 'с таким же именем'} уже доступен в настроенных opkg feeds. Скрипты установки из репозитория RouterForge автоматически не запускает.`
+              : `This repository has no RouterForge manifest. It will be added as an unverified unmanaged source. Automatic installation is exposed only if package ${preview.entries?.[0]?.package || 'with the same name'} already exists in configured opkg feeds. RouterForge never executes repository install scripts automatically.`}</div>
+          {:else}
+            <div class="source-preview-warning">{ru()
+              ? `Источник не проверен RouterForge. Разрешены только безопасные lifecycle-механизмы; архитектура ${preview.entries?.[0]?.detected_target || 'не определена'} проверяется отдельно.${preview.local ? ' Источник находится в локальной сети.' : ''}`
+              : `This source is not verified by RouterForge. Only bounded lifecycle mechanisms are allowed; architecture ${preview.entries?.[0]?.detected_target || 'is unknown'} is checked separately.${preview.local ? ' The source is on a local network.' : ''}`}</div>
+          {/if}
           <div class="source-preview-warning">{ru()
             ? 'Добавление — отдельное действие: RouterForge повторно загрузит источник и сверит SHA-256 с этим preview.'
             : 'Adding is a separate action: RouterForge will fetch the source again and require the SHA-256 to match this preview.'}</div>

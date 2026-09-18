@@ -11,8 +11,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -23,19 +25,20 @@ import (
 var version = "dev"
 
 const (
-	configPath      = "/opt/etc/nfqws2/nfqws2.conf"
-	initPath        = "/opt/etc/init.d/S51nfqws2"
-	listsRoot       = "/opt/etc/nfqws2/lists"
-	logPath         = "/opt/var/log/nfqws2.log"
-	backupRoot      = "/tmp/routerforge-nfqws-manager-backups"
-	configMaxBytes  = 128 << 10
-	previewMaxBytes = 32 << 10
-	logTailMaxBytes = 64 << 10
-	backupMaxFiles  = 8
-	actionTimeout   = 20 * time.Second
-	authHeader      = "X-RouterForge-Module-Authorized"
-	authValue       = "core-authorized-v1"
-	defaultSocket   = "/opt/var/run/routerforge-nfqws-manager.sock"
+	configPath       = "/opt/etc/nfqws2/nfqws2.conf"
+	initPath         = "/opt/etc/init.d/S51nfqws2"
+	listsRoot        = "/opt/etc/nfqws2/lists"
+	logPath          = "/opt/var/log/nfqws2.log"
+	backupRoot       = "/tmp/routerforge-nfqws-manager-backups"
+	configMaxBytes   = 128 << 10
+	previewMaxBytes  = 32 << 10
+	listFileMaxBytes = 2 << 20
+	logTailMaxBytes  = 64 << 10
+	backupMaxFiles   = 8
+	actionTimeout    = 20 * time.Second
+	authHeader       = "X-RouterForge-Module-Authorized"
+	authValue        = "core-authorized-v1"
+	defaultSocket    = "/opt/var/run/routerforge-nfqws-manager.sock"
 )
 
 type filePreview struct {
@@ -78,6 +81,23 @@ type configRequest struct {
 	Confirm string `json:"confirm"`
 }
 
+type listRequest struct {
+	Name    string `json:"name"`
+	Content string `json:"content,omitempty"`
+	Confirm string `json:"confirm"`
+}
+
+type checkRequest struct {
+	URL string `json:"url"`
+}
+
+type checkResponse struct {
+	Reachable  bool   `json:"reachable"`
+	StatusCode int    `json:"status_code,omitempty"`
+	URL        string `json:"url"`
+	Error      string `json:"error,omitempty"`
+}
+
 func main() {
 	socket := flagValue("-socket", defaultSocket)
 	uiPath := flagValue("-ui", "/opt/share/routerforge/modules/nfqws-manager/ui")
@@ -115,6 +135,11 @@ func main() {
 	}))
 	mux.HandleFunc("/v1/action", mutationOnly(handleAction))
 	mux.HandleFunc("/v1/config", mutationOnly(handleConfig))
+	mux.HandleFunc("/v1/list", getOnly(handleListRead))
+	mux.HandleFunc("/v1/list/create", mutationOnly(handleListCreate))
+	mux.HandleFunc("/v1/list/save", mutationOnly(handleListSave))
+	mux.HandleFunc("/v1/list/delete", mutationOnly(handleListDelete))
+	mux.HandleFunc("/v1/check", mutationOnly(handleCheck))
 
 	ui := http.FileServer(http.Dir(uiPath))
 	mux.HandleFunc("/v1/ui", func(w http.ResponseWriter, r *http.Request) {
@@ -176,7 +201,7 @@ func mutationOnly(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, 140<<10)
+	r.Body = http.MaxBytesReader(w, r.Body, listFileMaxBytes+(64<<10))
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
@@ -332,6 +357,72 @@ func safeListName(name string) bool {
 	return true
 }
 
+func editableListName(name string) bool {
+	if !safeListName(name) {
+		return false
+	}
+	lower := strings.ToLower(name)
+	return strings.HasSuffix(lower, ".list") ||
+		strings.HasSuffix(lower, ".list-opkg") ||
+		strings.HasSuffix(lower, ".list-old")
+}
+
+func protectedListName(name string) bool {
+	switch strings.ToLower(name) {
+	case "user.list", "exclude.list", "auto.list", "ipset.list", "ipset_exclude.list":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateListContent(content string) error {
+	if len(content) > listFileMaxBytes {
+		return fmt.Errorf("list content exceeds %d bytes", listFileMaxBytes)
+	}
+	if strings.IndexByte(content, 0) >= 0 {
+		return errors.New("list content contains NUL byte")
+	}
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for line := 1; scanner.Scan(); line++ {
+		if len(scanner.Bytes()) > 8192 {
+			return fmt.Errorf("list line %d exceeds 8192 bytes", line)
+		}
+	}
+	return scanner.Err()
+}
+
+var checkHostPattern = regexp.MustCompile(`(?i)^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$`)
+
+func normalizeCheckURL(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", errors.New("URL is required")
+	}
+	if !strings.Contains(value, "://") {
+		value = "https://" + value + "/"
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return "", errors.New("invalid URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", errors.New("only http and https are allowed")
+	}
+	if parsed.User != nil {
+		return "", errors.New("userinfo is not allowed")
+	}
+	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
+	if !checkHostPattern.MatchString(host) || net.ParseIP(host) != nil {
+		return "", errors.New("a public DNS hostname is required")
+	}
+	if parsed.Port() != "" {
+		return "", errors.New("custom ports are not allowed")
+	}
+	parsed.Fragment = ""
+	return parsed.String(), nil
+}
+
 func validateConfig(content string) error {
 	if content == "" {
 		return errors.New("nfqws2 config must not be empty")
@@ -362,8 +453,8 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	action := strings.ToLower(strings.TrimSpace(request.Action))
-	if action != "reload" && action != "restart" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "allowed actions: reload, restart"})
+	if action != "reload" && action != "restart" && action != "start" && action != "stop" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "allowed actions: start, stop, reload, restart"})
 		return
 	}
 	if !readStatus().MutationReady {
@@ -376,6 +467,193 @@ func handleAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "action": action, "output": output, "status": readStatus()})
+}
+
+func handleListRead(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if !editableListName(name) {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid list filename"})
+		return
+	}
+	path := filepath.Join(listsRoot, name)
+	data, cut, err := readBoundedFile(path, listFileMaxBytes)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "list file not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "read list: " + err.Error()})
+		return
+	}
+	if cut {
+		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]any{"error": "list file exceeds editor limit"})
+		return
+	}
+	info, _ := os.Stat(path)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"name": name, "path": path, "content": string(data),
+		"size": len(data), "protected": protectedListName(name),
+		"modified_at": func() string {
+			if info == nil {
+				return ""
+			}
+			return info.ModTime().UTC().Format(time.RFC3339)
+		}(),
+	})
+}
+
+func handleListCreate(w http.ResponseWriter, r *http.Request) {
+	var request listRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid list create request"})
+		return
+	}
+	request.Name = strings.TrimSpace(request.Name)
+	if request.Confirm != "NFQWS_LIST_CREATE" {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm must equal NFQWS_LIST_CREATE"})
+		return
+	}
+	if !editableListName(request.Name) || !strings.HasSuffix(strings.ToLower(request.Name), ".list") {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "new list filename must end with .list and contain only safe characters"})
+		return
+	}
+	path := filepath.Join(listsRoot, request.Name)
+	if _, err := os.Stat(path); err == nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "list file already exists"})
+		return
+	} else if !errors.Is(err, os.ErrNotExist) {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "stat list: " + err.Error()})
+		return
+	}
+	if err := safety.WriteFileAtomic(path, []byte{}, 0644); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create list: " + err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "name": request.Name, "status": readStatus()})
+}
+
+func handleListSave(w http.ResponseWriter, r *http.Request) {
+	var request listRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid list save request"})
+		return
+	}
+	request.Name = strings.TrimSpace(request.Name)
+	if request.Confirm != "NFQWS_LIST_SAVE" {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm must equal NFQWS_LIST_SAVE"})
+		return
+	}
+	if !editableListName(request.Name) {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid list filename"})
+		return
+	}
+	if err := validateListContent(request.Content); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	path := filepath.Join(listsRoot, request.Name)
+	before, err := os.ReadFile(path)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "read current list: " + err.Error()})
+		return
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "stat current list: " + err.Error()})
+		return
+	}
+	backup, err := createNamedBackup("list-"+request.Name, before, info.Mode().Perm())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create list backup: " + err.Error()})
+		return
+	}
+	if err := safety.WriteFileAtomic(path, []byte(request.Content), info.Mode().Perm()); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "save list: " + err.Error(), "backup": backup})
+		return
+	}
+	_ = pruneBackups()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "name": request.Name, "backup": backup, "status": readStatus()})
+}
+
+func handleListDelete(w http.ResponseWriter, r *http.Request) {
+	var request listRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid list delete request"})
+		return
+	}
+	request.Name = strings.TrimSpace(request.Name)
+	if request.Confirm != "NFQWS_LIST_DELETE" {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm must equal NFQWS_LIST_DELETE"})
+		return
+	}
+	if !editableListName(request.Name) {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid list filename"})
+		return
+	}
+	if protectedListName(request.Name) {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "core nfqws list is protected from deletion"})
+		return
+	}
+	path := filepath.Join(listsRoot, request.Name)
+	before, err := os.ReadFile(path)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "read list before delete: " + err.Error()})
+		return
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "stat list before delete: " + err.Error()})
+		return
+	}
+	backup, err := createNamedBackup("deleted-"+request.Name, before, info.Mode().Perm())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create delete backup: " + err.Error()})
+		return
+	}
+	if err := os.Remove(path); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "delete list: " + err.Error(), "backup": backup})
+		return
+	}
+	_ = pruneBackups()
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "name": request.Name, "backup": backup, "status": readStatus()})
+}
+
+func handleCheck(w http.ResponseWriter, r *http.Request) {
+	var request checkRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid check request"})
+		return
+	}
+	target, err := normalizeCheckURL(request.URL)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 6*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "build check request: " + err.Error()})
+		return
+	}
+	req.Header.Set("User-Agent", "RouterForge-NFQWS/1")
+	client := &http.Client{
+		Timeout: 6 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return errors.New("too many redirects")
+			}
+			return nil
+		},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		writeJSON(w, http.StatusOK, checkResponse{Reachable: false, URL: target, Error: err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 32<<10))
+	writeJSON(w, http.StatusOK, checkResponse{Reachable: true, StatusCode: resp.StatusCode, URL: target})
 }
 
 func handleConfig(w http.ResponseWriter, r *http.Request) {
@@ -452,10 +730,21 @@ func runInit(action string) (string, error) {
 }
 
 func createBackup(data []byte, mode os.FileMode) (string, error) {
+	return createNamedBackup("config", data, mode)
+}
+
+func createNamedBackup(label string, data []byte, mode os.FileMode) (string, error) {
 	if err := os.MkdirAll(backupRoot, 0700); err != nil {
 		return "", err
 	}
-	path := filepath.Join(backupRoot, fmt.Sprintf("nfqws-%d.conf", time.Now().UTC().UnixNano()))
+	safe := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			return r
+		}
+		return '_'
+	}, label)
+	path := filepath.Join(backupRoot, fmt.Sprintf("nfqws-%d-%s.bak", time.Now().UTC().UnixNano(), safe))
 	if err := safety.WriteFileAtomic(path, data, mode); err != nil {
 		return "", err
 	}
@@ -469,7 +758,7 @@ func countBackups() int {
 	}
 	count := 0
 	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "nfqws-") && strings.HasSuffix(entry.Name(), ".conf") {
+		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "nfqws-") {
 			count++
 		}
 	}
@@ -490,7 +779,7 @@ func pruneBackups() error {
 	}
 	var items []item
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "nfqws-") || !strings.HasSuffix(entry.Name(), ".conf") {
+		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "nfqws-") {
 			continue
 		}
 		info, err := entry.Info()

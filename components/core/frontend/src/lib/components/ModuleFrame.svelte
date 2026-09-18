@@ -20,7 +20,7 @@
   }
 
   function usesVisibleWorkspaceFloor() {
-    return moduleId === 'admin' || moduleId === 'monitoring';
+    return moduleId === 'admin' || moduleId === 'monitoring' || moduleId === 'nfqws-manager';
   }
 
   function applyFrameHeight(reportedHeight = frameHeight) {
@@ -38,7 +38,7 @@
   }
 
   $: locale = $settings.locale === 'en' ? 'en' : 'ru';
-  $: moduleThemeQuery = moduleId === 'network-tools'
+  $: moduleThemeQuery = moduleId === 'network-tools' || moduleId === 'nfqws-manager'
     ? `&theme=${encodeURIComponent($settings.theme || 'forge')}&accent=${encodeURIComponent($settings.accent || '#38bdf8')}&background=${encodeURIComponent($settings.background || '#0b0d10')}&text=${encodeURIComponent($settings.text || '#f5f7fa')}&density=${encodeURIComponent($settings.density || 'normal')}&radius=${encodeURIComponent($settings.radius || 'default')}`
     : '';
   $: src = `/api/modules/${encodeURIComponent(moduleId)}/ui/index.html?locale=${encodeURIComponent(locale)}&view=${encodeURIComponent(view)}&rev=${encodeURIComponent(moduleUIRevision)}${moduleThemeQuery}`;

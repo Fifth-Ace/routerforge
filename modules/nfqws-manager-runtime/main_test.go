@@ -32,3 +32,42 @@ func TestSafeListName(t *testing.T) {
 		}
 	}
 }
+
+func TestEditableListName(t *testing.T) {
+	for _, name := range []string{"user.list", "exclude.list-opkg", "backup.list-old"} {
+		if !editableListName(name) {
+			t.Fatalf("expected editable list name: %s", name)
+		}
+	}
+	for _, name := range []string{"nfqws2.conf", "../user.list", ".hidden.list", "bad name.list"} {
+		if editableListName(name) {
+			t.Fatalf("expected invalid list name: %s", name)
+		}
+	}
+}
+
+func TestProtectedListName(t *testing.T) {
+	for _, name := range []string{"user.list", "exclude.list", "auto.list", "ipset.list", "ipset_exclude.list"} {
+		if !protectedListName(name) {
+			t.Fatalf("expected protected list: %s", name)
+		}
+	}
+	if protectedListName("youtube.list") {
+		t.Fatal("custom list must not be protected")
+	}
+}
+
+func TestNormalizeCheckURL(t *testing.T) {
+	got, err := normalizeCheckURL("example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "https://example.com/" {
+		t.Fatalf("unexpected normalized URL: %s", got)
+	}
+	for _, value := range []string{"http://127.0.0.1/", "file:///etc/passwd", "localhost", "http://example.com:8080/"} {
+		if _, err := normalizeCheckURL(value); err == nil {
+			t.Fatalf("expected URL rejection: %s", value)
+		}
+	}
+}

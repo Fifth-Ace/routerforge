@@ -136,6 +136,7 @@ func main() {
 	mux.HandleFunc("/v1/action", mutationOnly(handleAction))
 	mux.HandleFunc("/v1/config", mutationOnly(handleConfig))
 	registerConfigLibraryRoutes(mux)
+	registerBlobRoutes(mux)
 	mux.HandleFunc("/v1/list", getOnly(handleListRead))
 	mux.HandleFunc("/v1/list/create", mutationOnly(handleListCreate))
 	mux.HandleFunc("/v1/list/save", mutationOnly(handleListSave))

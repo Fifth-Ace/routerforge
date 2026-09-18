@@ -177,6 +177,55 @@ body.syntax-fullscreen-open{overflow:hidden}
 .file-item[data-group="system"] .file-icon{color:var(--accent)}.file-item[data-group="user"] .file-icon{color:#34d399}.file-item[data-group="opkg"] .file-icon{color:var(--warn)}
 @media(max-width:700px){.syntax-editor-hint{display:none}.syntax-editor-shell.syntax-fullscreen{inset:4px!important;padding:6px}.resource-label{width:100%}}
 
+
+/* R12 navigation, collapsible list groups, structured logs and read-only Lua scripts. */
+.tabs{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none}
+.tabs::-webkit-scrollbar{display:none;width:0;height:0}
+.editor-main{min-width:0;overflow:hidden}
+.editor-main>.syntax-editor-body{min-width:0;overflow:hidden}
+
+.file-group{display:grid;gap:3px;margin-top:8px}
+.file-group:first-child{margin-top:2px}
+.file-group-header{width:100%;min-height:30px;padding:4px 6px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:0;border-radius:5px;background:transparent;text-align:left;color:var(--muted)}
+.file-group-header:hover{background:var(--hover)}
+.file-group-header-main{display:flex;align-items:center;gap:7px;min-width:0}
+.file-group-chevron{width:12px;display:inline-grid;place-items:center;color:currentColor;font:700 10px/1 ui-monospace,Consolas,monospace;transition:transform .12s ease}
+.file-group.collapsed .file-group-chevron{transform:rotate(-90deg)}
+.file-group-title{font-size:var(--rf-font-small);font-weight:700;letter-spacing:.035em;text-transform:uppercase}
+.file-group.system .file-group-header{color:var(--accent)}.file-group.user .file-group-header{color:#34d399}.file-group.opkg .file-group-header{color:var(--warn)}
+.file-group-items{display:grid;gap:3px}.file-group.collapsed .file-group-items{display:none}
+.file-group-count{min-width:24px;height:20px;font-size:9px}
+
+.log-summary{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 9px}
+.log-stat{display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface2);color:var(--muted);font-size:var(--rf-font-small)}
+.log-stat b{color:var(--text);font:700 var(--rf-font-small)/1 ui-monospace,Consolas,monospace}.log-stat.error b{color:var(--bad)}.log-stat.warn b{color:var(--warn)}.log-stat.good b{color:#34d399}.log-stat.info b{color:var(--accent)}
+.logbar{margin-bottom:9px}.logbar .toolbar{padding:0;background:transparent;border:0}
+.log-stream{min-height:500px;max-height:700px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--code)}
+.log-columns-head,.log-entry{display:grid;grid-template-columns:142px minmax(180px,1.05fr) 112px 190px 74px minmax(220px,1.4fr);gap:10px;align-items:center}
+.log-columns-head{position:sticky;top:0;z-index:3;min-height:32px;padding:0 11px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface2) 96%,transparent);color:var(--muted);font-size:var(--rf-font-meta);font-weight:650;text-transform:uppercase;letter-spacing:.035em}
+.log-entry{min-height:36px;padding:7px 11px;border-bottom:1px solid color-mix(in srgb,var(--border) 78%,transparent);box-shadow:inset 3px 0 transparent;font:var(--rf-font-small)/1.35 ui-monospace,"Roboto Mono",Consolas,monospace}
+.log-entry:last-child{border-bottom:0}.log-entry:hover{background:rgba(255,255,255,.018)}
+.log-entry.error{box-shadow:inset 3px 0 var(--bad)}.log-entry.warn{box-shadow:inset 3px 0 var(--warn)}.log-entry.good{box-shadow:inset 3px 0 #34d399}.log-entry.info{box-shadow:inset 3px 0 var(--accent)}
+.log-time{color:#7f8995;white-space:nowrap}.log-host{min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--syn-resource);font-weight:600;white-space:nowrap}.log-profile{color:var(--muted);white-space:nowrap}.log-client{color:#9cc7ff;white-space:nowrap}.log-proto{justify-self:start;display:inline-flex;align-items:center;min-height:22px;padding:0 7px;border:1px solid var(--border-strong);border-radius:999px;background:var(--surface2);color:var(--accent);font-size:var(--rf-font-meta);font-weight:700;text-transform:uppercase}.log-event{min-width:0;overflow-wrap:anywhere;color:#ccd3da}.log-event .log-token-key{color:#9cc7ff}.log-event .log-token-number{color:var(--syn-number)}.log-event .log-token-op{color:#c4a7e7}.log-entry.warn .log-event{color:#d9bf78}.log-entry.error .log-event{color:#ff9892}
+.log-entry.raw{grid-template-columns:142px minmax(0,1fr)}.log-entry.raw .log-raw-text{grid-column:2;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.log-empty{min-height:130px;display:grid;place-items:center;color:var(--muted);font-size:var(--rf-font-small)}
+
+.script-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:var(--space);align-items:stretch;padding-top:10px}
+.script-list{display:grid;gap:3px;min-height:520px;max-height:720px;overflow:auto;margin-top:9px}
+.script-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid transparent;border-radius:6px;cursor:pointer}
+.script-item:hover{background:var(--hover)}.script-item.active{border-color:color-mix(in srgb,var(--accent) 32%,var(--border));background:var(--accent-soft)}
+.script-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font:600 var(--rf-font-small)/1.3 ui-monospace,Consolas,monospace}.script-name:before{content:"{}";margin-right:7px;color:var(--accent);font-size:9px}.script-meta{color:var(--muted);font-size:var(--rf-font-meta)}
+.script-panel{min-width:0}.script-code-shell{min-height:560px;max-height:720px;overflow:auto;border:1px solid var(--border);border-radius:6px;background:var(--code)}
+.script-code-line{display:grid;grid-template-columns:48px minmax(0,1fr);min-height:20px;font:12px/1.55 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace}
+.script-code-line:hover{background:rgba(255,255,255,.015)}.script-line-number{padding:0 9px 0 5px;border-right:1px solid var(--border);color:#59616c;text-align:right;user-select:none}.script-code-line code{display:block;padding:0 10px;color:#d7dde4;white-space:pre;min-width:max-content}.script-reader-empty{min-height:560px;display:grid;place-items:center;color:var(--muted)}
+.script-panel.script-fullscreen{position:fixed!important;inset:8px!important;z-index:55!important;margin:0!important;padding:10px!important;display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--bg);border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 25px 80px rgba(0,0,0,.72)}
+.script-panel.script-fullscreen .script-code-shell,.script-panel.script-fullscreen .script-reader-empty{min-height:0;max-height:none;height:100%}
+.script-panel.script-fullscreen .panel-head{margin-bottom:8px}
+
+@media(max-width:1250px){.log-columns-head,.log-entry{grid-template-columns:132px minmax(170px,1fr) 100px 160px 68px minmax(200px,1.2fr)}}
+@media(max-width:900px){.script-layout{grid-template-columns:1fr}.script-list{min-height:0;max-height:260px}.log-columns-head{display:none}.log-entry{grid-template-columns:120px minmax(0,1fr) auto;gap:6px 9px;padding:9px 10px}.log-host{grid-column:2}.log-profile{grid-column:2}.log-client{grid-column:2}.log-proto{grid-column:3;grid-row:1/3}.log-event{grid-column:2/4}.log-entry.raw{grid-template-columns:120px minmax(0,1fr)}}
+@media(max-width:600px){.log-entry,.log-entry.raw{grid-template-columns:1fr}.log-time,.log-host,.log-profile,.log-client,.log-proto,.log-event,.log-entry.raw .log-raw-text{grid-column:1}.log-proto{grid-row:auto}.script-panel.script-fullscreen{inset:4px!important;padding:6px!important}}
+
 </style>
 </head>
 <body>
@@ -202,6 +251,7 @@ body.syntax-fullscreen-open{overflow:hidden}
   <button class="tab" data-tab="config">Raw конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount"></span></button>
   <button class="tab" data-tab="logs">Логи</button>
+  <button class="tab" data-tab="scripts">Скрипты <span id="scriptCount"></span></button>
   <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab"></span></button>
 </nav>
 
@@ -380,10 +430,25 @@ body.syntax-fullscreen-open{overflow:hidden}
 
 <section id="view-logs" class="view">
   <article class="panel">
-    <div class="panel-head"><div><h2>Логи</h2><div id="logMeta" class="section-kicker mono">—</div></div></div>
-    <div class="logbar"><input id="logSearch" class="search" placeholder="Фильтр по логу…"><div class="toolbar"><button id="logAll" class="primary">Все</button><button id="logErrors">Errors</button><button id="logWarnings">Warnings</button><button id="copyLog">Copy</button></div></div>
-    <div id="log" class="log">—</div>
+    <div class="panel-head"><div><h2>Логи</h2><div id="logMeta" class="section-kicker mono">—</div></div><button id="copyLog">Копировать raw</button></div>
+    <div id="logSummary" class="log-summary"></div>
+    <div class="logbar"><input id="logSearch" class="search" placeholder="Хост, клиент, протокол, событие…"><div class="toolbar"><button id="logAll" class="primary">Все</button><button id="logErrors">Ошибки</button><button id="logWarnings">Fail / warnings</button></div></div>
+    <div id="log" class="log-stream">—</div>
   </article>
+</section>
+
+<section id="view-scripts" class="view">
+  <div class="script-layout">
+    <article class="panel">
+      <div class="panel-head"><div><h2>Lua-скрипты</h2><div id="scriptRoot" class="section-kicker mono">/opt/etc/nfqws2/lua</div></div></div>
+      <input id="scriptSearch" class="search" placeholder="Поиск скрипта…">
+      <div id="scriptList" class="script-list"><div class="empty">Открой вкладку — загрузим inventory.</div></div>
+    </article>
+    <article id="scriptPanel" class="panel script-panel">
+      <div class="panel-head"><div><h2 id="selectedScriptTitle">Выберите скрипт</h2><div id="selectedScriptMeta" class="section-kicker mono">read-only · как в upstream web</div></div><div class="toolbar"><button id="copyScript" disabled>Копировать</button><button id="fullscreenScript" disabled>На весь экран</button></div></div>
+      <div id="scriptCode" class="script-reader-empty">Lua-скрипты nfqws2 доступны только для чтения.</div>
+    </article>
+  </div>
 </section>
 
 <section id="view-backups" class="view">
@@ -407,7 +472,8 @@ body.syntax-fullscreen-open{overflow:hidden}
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, expertMode=false, policyMode='none';
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, expertMode=false, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='';
+  let listGroupCollapsed={system:false,user:false,opkg:false};
 
   const esc=(s='')=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const lines=s=>String(s||'').split(/\r?\n/);
@@ -435,10 +501,11 @@ body.syntax-fullscreen-open{overflow:hidden}
     try{root.lang=q.get('locale')||'ru'}catch(_){}
   }
   applyRouterForgeTheme();
+  loadListGroupState();
 
   const syntaxEditors=new WeakMap();
   const nfqwsValueWords=new Set(['http','https','tls','quic','tcp','udp','wireguard','stun','discord','mtproto','unknown','fake','circular','multisplit','hostfakesplit','http_methodeol','tls_client_hello','quic_initial','http_req','MODE_LIST','MODE_ALL','MODE_AUTO']);
-  const systemLists=new Set(['auto.list','exclude.list','ipset.list','ipset_exclude.list']);
+  const systemLists=new Set(['user.list','auto.list','exclude.list','ipset.list','ipset_exclude.list']);
 
   function syn(cls,value){return `<span class="${cls}">${esc(value)}</span>`}
   function highlightArgsLine(line){
@@ -520,8 +587,8 @@ body.syntax-fullscreen-open{overflow:hidden}
       if(item.type==='list'){const ok=known.has(item.name);return `<button type="button" class="resource-chip ${ok?'good':'warn'}" data-resource-list="${esc(item.name)}" title="${esc(item.path)}">list ${esc(item.name)} ${ok?'✓':'?'}</button>`}
       if(item.type==='blob'){const inline=/^0x[0-9a-f]+$/i.test(item.name),ok=inline||defs.blobs.has(item.name);return `<span class="resource-chip ${ok?'good':'warn'}" title="${esc(ok?(inline?'inline blob':defs.blobs.get(item.name)||'declared'):'Нет объявления в NFQWS_BASE_ARGS')}">blob ${esc(item.name)} ${ok?'✓':'?'}</span>`}
       if(item.type==='blobdef')return `<span class="resource-chip info" title="${esc(item.path)}">blob ${esc(item.name)}</span>`;
-      return `<span class="resource-chip info" title="${esc(item.path)}">lua ${esc(item.name)}</span>`;
-    }).join('');host.querySelectorAll('[data-resource-list]').forEach(button=>button.onclick=()=>openListFromSetup(button.dataset.resourceList));
+      return `<button type="button" class="resource-chip info" data-resource-script="${esc(item.name)}" title="${esc(item.path)}">lua ${esc(item.name)}</button>`;
+    }).join('');host.querySelectorAll('[data-resource-list]').forEach(button=>button.onclick=()=>openListFromSetup(button.dataset.resourceList));host.querySelectorAll('[data-resource-script]').forEach(button=>button.onclick=()=>openScriptFromSetup(button.dataset.resourceScript));
   }
   function renderAllEditorResources(){document.querySelectorAll('textarea[data-syntax-ready="1"]').forEach(ta=>{const state=syntaxEditors.get(ta);if(state?.resources)renderEditorResources(ta,state.resources,state.resourceKind)})}
   function mountStrategyEditors(){
@@ -768,6 +835,11 @@ body.syntax-fullscreen-open{overflow:hidden}
   function editableStatusLists(){
     return (current?.lists||[]).filter(item=>/\.(list|list-opkg|list-old)$/i.test(String(item?.name||'')));
   }
+  const listGroupStateKey='routerforge.nfqws.list-groups.v1';
+  function loadListGroupState(){
+    try{const saved=JSON.parse(localStorage.getItem(listGroupStateKey)||'{}');for(const key of ['system','user','opkg'])if(typeof saved[key]==='boolean')listGroupCollapsed[key]=saved[key]}catch(_){}
+  }
+  function saveListGroupState(){try{localStorage.setItem(listGroupStateKey,JSON.stringify(listGroupCollapsed))}catch(_){}}
   function listGroup(item){
     const name=String(item?.name||'').toLowerCase();if(name.endsWith('.list-opkg'))return'opkg';const baseName=name.endsWith('.list-old')?name.slice(0,-4):name;if(systemLists.has(baseName))return'system';return'user';
   }
@@ -776,12 +848,12 @@ body.syntax-fullscreen-open{overflow:hidden}
   }
   function renderListFiles(){
     const list=sortLists(editableStatusLists()),q=$('listSearch').value.trim().toLowerCase();$('listCount').textContent=list.length?`(${list.length})`:'';$('fileList').innerHTML='';const visible=list.filter(x=>!q||String(x.name).toLowerCase().includes(q));if(!visible.length){$('fileList').innerHTML='<div class="empty">Списки не найдены.</div>';return}
-    const groups=[['system','Системные'],['user','Пользовательские'],['opkg','OPKG']];for(const[key,label]of groups){const items=visible.filter(item=>listGroup(item)===key);if(!items.length)continue;const groupLabel=document.createElement('div');groupLabel.className=`file-group-label ${key}`;groupLabel.innerHTML=`<span>${label}</span><span class="file-group-count">${items.length}</span>`;$('fileList').append(groupLabel);
-      items.forEach(item=>{const row=document.createElement('div'),kind=listGroup(item),meta=kind==='system'?'upstream / служебный':kind==='opkg'?'package copy':'пользовательский';row.dataset.group=kind;row.className='file-item'+(selectedList===item.name?' active':'');row.innerHTML=`<div><div class="file-name"><span class="file-icon">${kind==='system'?'◆':kind==='opkg'?'◇':'≡'}</span>${esc(item.name)}</div><div class="file-meta">${esc(item.modified_at||'')} · ${meta}${String(item.name||'').toLowerCase().endsWith('.list-old')?' · old':''}</div></div><div class="file-meta">${bytes(item.size)}</div>`;row.onclick=()=>selectList(item.name);$('fileList').append(row)});
+    const groups=[['system','Системные'],['user','Пользовательские'],['opkg','OPKG']];for(const[key,label]of groups){const items=visible.filter(item=>listGroup(item)===key);if(!items.length)continue;const collapsed=!q&&!!listGroupCollapsed[key],group=document.createElement('section');group.className=`file-group ${key}${collapsed?' collapsed':''}`;const header=document.createElement('button');header.type='button';header.className='file-group-header';header.innerHTML=`<span class="file-group-header-main"><span class="file-group-chevron">▼</span><span class="file-group-title">${label}</span></span><span class="file-group-count">${items.length}</span>`;header.onclick=()=>{listGroupCollapsed[key]=!listGroupCollapsed[key];saveListGroupState();renderListFiles()};const host=document.createElement('div');host.className='file-group-items';
+      items.forEach(item=>{const row=document.createElement('div'),kind=listGroup(item),meta=kind==='system'?'служебный / upstream':kind==='opkg'?'package copy':'пользовательский';row.dataset.group=kind;row.className='file-item'+(selectedList===item.name?' active':'');row.innerHTML=`<div><div class="file-name"><span class="file-icon">${kind==='system'?'◆':kind==='opkg'?'◇':'≡'}</span>${esc(item.name)}</div><div class="file-meta">${esc(item.modified_at||'')} · ${meta}${String(item.name||'').toLowerCase().endsWith('.list-old')?' · old':''}</div></div><div class="file-meta">${bytes(item.size)}</div>`;row.onclick=()=>selectList(item.name);host.append(row)});group.append(header,host);$('fileList').append(group);
     }
   }
   async function selectList(name){
-    selectedList=name;renderListFiles();$('selectedListTitle').textContent=name;$('selectedListMeta').textContent='Loading…';$('listEditor').value='';listMeta=null;listOriginal='';updateListButtons();
+    selectedList=name;const item=editableStatusLists().find(x=>String(x.name)===String(name));if(item){listGroupCollapsed[listGroup(item)]=false;saveListGroupState()}renderListFiles();$('selectedListTitle').textContent=name;$('selectedListMeta').textContent='Loading…';$('listEditor').value='';listMeta=null;listOriginal='';updateListButtons();
     try{const d=await api(`/list?name=${encodeURIComponent(name)}`);listMeta=d;listOriginal=d.content||'';$('listEditor').value=listOriginal;$('selectedListMeta').textContent=`${d.path} · ${bytes(d.size)}${d.protected?' · protected':''}`;updateListButtons()}
     catch(e){notice(e.message,'error')}
   }
@@ -808,11 +880,30 @@ body.syntax-fullscreen-open{overflow:hidden}
     const stem=$('newListName').value.trim();$('createError').textContent='';if(!/^[A-Za-z0-9_-]+$/.test(stem)){$('createError').textContent='Используй только буквы, цифры, _ и -';return}
     const name=`${stem}.list`;try{const r=await api('/list/create',{method:'POST',body:JSON.stringify({name,confirm:'NFQWS_LIST_CREATE'})});closeCreate();render(r.status);await selectList(name);notice(`Создан ${name}`,'good')}catch(e){$('createError').textContent=e.message}
   }
-  function logClass(line){if(/error|fatal|critical| fail(?:ed)?\b/i.test(line))return'error';if(/warn|warning|retry/i.test(line))return'warn';if(/success|started|running|added|profile/i.test(line))return'good';if(/udp|tcp|quic|tls|http/i.test(line))return'info';return'dim'}
-  function renderLog(){
-    const q=$('logSearch').value.trim().toLowerCase(),rows=lines(current?.log_tail||'').filter(line=>{const l=line.toLowerCase();if(logMode==='errors'&&!/(error|fatal|critical|fail)/i.test(line))return false;if(logMode==='warnings'&&!/(warn|warning|retry)/i.test(line))return false;return !q||l.includes(q)});
-    $('log').innerHTML=rows.length?rows.map(x=>`<div class="log-line ${logClass(x)}">${esc(x)}</div>`).join(''):'—';$('logMeta').textContent=`${current?.log_path||'—'}${current?.log_truncated?' · tail truncated':''}`;for(const[id,m]of[['logAll','all'],['logErrors','errors'],['logWarnings','warnings']])$(id).className=logMode===m?'primary':'';
+  function parseLogLine(raw){
+    const text=String(raw||''),parts=text.split(/\s+:\s+/);if(parts.length>=6&&/^\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(parts[0])){return{raw:text,time:parts[0],host:parts[1],profile:parts[2].replace(/^profile\s+/i,''),client:parts[3].replace(/^client\s+/i,''),proto:parts[4].replace(/^proto\s+/i,''),event:parts.slice(5).join(' : ')}}return{raw:text,time:'',host:'',profile:'',client:'',proto:'',event:text};
   }
+  function logSeverity(entry){const text=`${entry.raw} ${entry.event}`;if(/\b(?:ERROR|FATAL|CRITICAL|PANIC)\b/i.test(text)||/\bfailed\b/i.test(text))return'error';if(/\bfail counter\b/i.test(text)||/\b(?:WARN|WARNING|retry|timeout)\b/i.test(text))return'warn';if(/\b(?:udp_in|udp_out|started|running|success|recovered|added)\b/i.test(text))return'good';return'info'}
+  function highlightLogEvent(value){
+    const text=String(value||''),re=/(fail counter|udp_in|udp_out|retrans|timeout|retry|counter|threshold|\d+(?:\/\d+)?|<=|>=|==>|<==|<=>)/gi;let out='',last=0,m;while((m=re.exec(text))!==null){out+=esc(text.slice(last,m.index));const v=m[0],cls=/^\d/.test(v)?'log-token-number':/^(?:<=|>=|==>|<==|<=>)$/.test(v)?'log-token-op':'log-token-key';out+=`<span class="${cls}">${esc(v)}</span>`;last=m.index+v.length}return out+esc(text.slice(last));
+  }
+  function renderLog(){
+    const rawRows=lines(current?.log_tail||'').filter(Boolean),entries=rawRows.map(parseLogLine),q=$('logSearch').value.trim().toLowerCase();let errors=0,warns=0,fails=0,quic=0,tcp=0,udp=0;for(const e of entries){const sev=logSeverity(e);if(sev==='error')errors++;if(sev==='warn')warns++;if(/fail counter/i.test(e.raw))fails++;const p=e.proto.toLowerCase();if(p==='quic')quic++;if(p==='tcp')tcp++;if(p==='udp')udp++}
+    $('logSummary').innerHTML=`<span class="log-stat"><span>Строк</span><b>${entries.length}</b></span><span class="log-stat error"><span>Ошибки</span><b>${errors}</b></span><span class="log-stat warn"><span>Fail</span><b>${fails}</b></span><span class="log-stat info"><span>QUIC</span><b>${quic}</b></span><span class="log-stat good"><span>TCP / UDP</span><b>${tcp} / ${udp}</b></span>`;
+    const visible=entries.filter(e=>{const sev=logSeverity(e);if(logMode==='errors'&&sev!=='error')return false;if(logMode==='warnings'&&sev!=='warn')return false;return !q||e.raw.toLowerCase().includes(q)});
+    if(!visible.length){$('log').innerHTML='<div class="log-empty">По текущему фильтру записей нет.</div>'}else{$('log').innerHTML='<div class="log-columns-head"><span>Время</span><span>Хост</span><span>Профиль</span><span>Клиент</span><span>Proto</span><span>Событие</span></div>'+visible.map(e=>{const sev=logSeverity(e);if(!e.time)return `<div class="log-entry raw ${sev}"><span class="log-time">RAW</span><span class="log-raw-text">${esc(e.raw)}</span></div>`;return `<div class="log-entry ${sev}"><span class="log-time">${esc(e.time)}</span><span class="log-host" title="${esc(e.host)}">${esc(e.host)}</span><span class="log-profile">${esc(e.profile)}</span><span class="log-client">${esc(e.client)}</span><span class="log-proto">${esc(e.proto||'—')}</span><span class="log-event">${highlightLogEvent(e.event)}</span></div>`}).join('')}
+    $('logMeta').textContent=`${current?.log_path||'—'}${current?.log_truncated?' · tail truncated':''}`;for(const[id,m]of[['logAll','all'],['logErrors','errors'],['logWarnings','warnings']])$(id).className=logMode===m?'primary':'';
+  }
+
+  const luaKeywords=new Set(['and','break','do','else','elseif','end','false','for','function','goto','if','in','local','nil','not','or','repeat','return','then','true','until','while']);
+  function highlightLuaLine(line){
+    const text=String(line||'');let out='',i=0;while(i<text.length){if(text.startsWith('--',i)){out+=syn('syn-comment',text.slice(i));break}const c=text[i];if(/\s/.test(c)){let j=i+1;while(j<text.length&&/\s/.test(text[j]))j++;out+=esc(text.slice(i,j));i=j;continue}if(c==='"'||c==="'"){const q=c;let j=i+1,escaped=false;for(;j<text.length;j++){const x=text[j];if(x===q&&!escaped){j++;break}escaped=x==='\\'&&!escaped;if(x!=='\\')escaped=false}out+=syn('syn-string',text.slice(i,j));i=j;continue}if(/[0-9]/.test(c)){let j=i+1;while(j<text.length&&/[0-9A-Fa-fxX._]/.test(text[j]))j++;out+=syn('syn-number',text.slice(i,j));i=j;continue}if(/[A-Za-z_]/.test(c)){let j=i+1;while(j<text.length&&/[A-Za-z0-9_]/.test(text[j]))j++;const v=text.slice(i,j);out+=syn(luaKeywords.has(v)?'syn-key':'syn-value',v);i=j;continue}if('=+-*/%^#<>~{}[]():,.'.includes(c)){out+=syn('syn-operator',c);i++;continue}out+=esc(c);i++}return out||'&#8203;';
+  }
+  function renderScriptCode(){const host=$('scriptCode');if(!selectedScript){host.className='script-reader-empty';host.innerHTML='Lua-скрипты nfqws2 доступны только для чтения.';return}host.className='script-code-shell';host.innerHTML=lines(scriptContent).map((line,i)=>`<div class="script-code-line"><span class="script-line-number">${i+1}</span><code>${highlightLuaLine(line)}</code></div>`).join('')}
+  function renderScriptList(){const q=$('scriptSearch').value.trim().toLowerCase();const files=scriptFiles.filter(x=>!q||String(x.name||'').toLowerCase().includes(q));$('scriptList').innerHTML=files.length?files.map(item=>`<div class="script-item${selectedScript===item.name?' active':''}" data-script-name="${esc(item.name)}"><div><div class="script-name">${esc(item.name)}</div><div class="script-meta">${esc(item.modified_at||'')} · read-only</div></div><div class="script-meta">${bytes(item.size)}</div></div>`).join(''):'<div class="empty">Lua-скрипты не найдены.</div>';$('scriptList').querySelectorAll('[data-script-name]').forEach(row=>row.onclick=()=>selectScript(row.dataset.scriptName))}
+  async function loadScripts(force=false){if(scriptsLoading||scriptsLoaded&&!force)return;scriptsLoading=true;$('scriptList').innerHTML='<div class="empty">Загрузка Lua inventory…</div>';try{const d=await api('/scripts');scriptFiles=Array.isArray(d.files)?d.files:[];scriptsLoaded=true;$('scriptRoot').textContent=d.root||'/opt/etc/nfqws2/lua';$('scriptCount').textContent=scriptFiles.length?`(${scriptFiles.length})`:'';renderScriptList()}catch(e){$('scriptList').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}finally{scriptsLoading=false}}
+  async function selectScript(name){if(!name)return;selectedScript=name;renderScriptList();$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Loading…';$('copyScript').disabled=true;$('fullscreenScript').disabled=true;try{const d=await api(`/scripts?name=${encodeURIComponent(name)}`);scriptContent=d.content||'';$('selectedScriptMeta').textContent=`${d.path||name} · ${bytes(d.size)} · read-only`;$('copyScript').disabled=false;$('fullscreenScript').disabled=false;renderScriptCode()}catch(e){scriptContent='';$('selectedScriptMeta').textContent=e.message;renderScriptCode()}}
+  async function openScriptFromSetup(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='scripts'));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-scripts'));await loadScripts();const exact=scriptFiles.find(x=>String(x.name)===String(name));if(exact)await selectScript(exact.name);else{$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Скрипт упомянут в BASE_ARGS, но не найден в runtime inventory';selectedScript='';scriptContent='';renderScriptCode()}reportHeight()}
   function render(s){
     current=s;const available=!!s?.available,running=!!s?.running;$('state').textContent=!available?'NOT AVAILABLE':running?'RUNNING':'STOPPED';$('state').className='status '+(available&&running?'good':available?'warn':'bad');$('targetChip').textContent=s?.target_name||'nfqws';$('subtitle').textContent=`RouterForge extension · ${s?.config_path||'target not detected'}`;
     $('start').style.display=running?'none':'';$('stop').style.display=running?'':'none';$('reload').disabled=!running||busy;$('restart').disabled=!running||busy;
@@ -844,14 +935,14 @@ body.syntax-fullscreen-open{overflow:hidden}
   function stopDomainCheck(){checkGeneration++}
   function closeCheck(){stopDomainCheck();$('checkModal').classList.remove('open')}
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));reportHeight()});
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();reportHeight()});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});$('basicMode').onclick=()=>{expertMode=false;document.documentElement.classList.remove('expert-mode');$('basicMode').classList.add('active');$('expertMode').classList.remove('active');reportHeight()};$('expertMode').onclick=()=>{expertMode=true;document.documentElement.classList.add('expert-mode');$('expertMode').classList.add('active');$('basicMode').classList.remove('active');reportHeight()};$('addTcpPort').onclick=()=>addPort('tcp');$('addUdpPort').onclick=()=>addPort('udp');$('tcpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('tcp')}};$('udpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('udp')}};document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('fullscreenList').onclick=()=>{$('listEditorPanel').classList.toggle('full-editor');$('fullscreenList').textContent=$('listEditorPanel').classList.contains('full-editor')?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
-  $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'){const panel=$('configEditorPanel');if(panel?.classList.contains('full-editor')){$('fullscreenConfig')?.click()}}});
+  $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));$('scriptSearch').oninput=renderScriptList;$('copyScript').onclick=()=>navigator.clipboard?.writeText(scriptContent);$('fullscreenScript').onclick=()=>{const panel=$('scriptPanel'),on=!panel.classList.contains('script-fullscreen');panel.classList.toggle('script-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);$('fullscreenScript').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){const panel=$('configEditorPanel');if(panel?.classList.contains('full-editor')){$('fullscreenConfig')?.click()}const scriptPanel=$('scriptPanel');if(scriptPanel?.classList.contains('script-fullscreen'))$('fullscreenScript')?.click()}});
   load();
 })();
 </script>

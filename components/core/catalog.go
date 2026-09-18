@@ -201,7 +201,7 @@ func refreshCatalog() catalogSnapshot {
 }
 
 func buildCatalog(installed map[string]string, processes map[string]bool, exists func(string) bool) catalogSnapshot {
-	modules := append(builtinModuleCatalog(), networkToolsSeedModules()...)
+	modules := append(append(builtinModuleCatalog(), networkToolsSeedModules()...), integrationManagerSeedModules()...)
 	integrations := bundledRegistryIntegrations()
 
 	for i := range modules {
@@ -237,6 +237,7 @@ func moduleOrder(id string) int {
 		"dns":              3,
 		"admin":            4,
 		"network-tools":    5,
+		"nfqws-manager":    6,
 		"profiling":        90,
 		// Legacy logical IDs remain sortable while cached pre-consolidation
 		// registries are being replaced by the rolling Dev registry.
@@ -256,6 +257,55 @@ func builtinModuleCatalog() []catalogItem {
 			Source:      "builtin", Builtin: true, Enabled: true,
 			Capabilities:  []string{"web-shell", "auth", "app-center", "registry", "module-routing", "settings", "package-lifecycle"},
 			Compatibility: catalogCompatibility{Status: "built-in"},
+		},
+	}
+}
+
+func integrationManagerSeedModules() []catalogItem {
+	return []catalogItem{
+		{
+			ID: "nfqws-manager", Kind: "module", Name: "RouterForge NFQWS Manager", Category: "Integrations",
+			Description: "Installable RouterForge extension for safe management of an existing nfqws2-keenetic runtime.",
+			ProjectURL: "https://github.com/Fifth-Ace/routerforge",
+			Source: "routerforge-official", Managed: true, PackageAuthoritative: true,
+			Publisher: catalogPublisher{ID: "routerforge", Name: "RouterForge", URL: "https://github.com/Fifth-Ace/routerforge"},
+			Trust: catalogTrust{
+				Status: "official", ReviewedBy: "routerforge",
+				Note: "Official RouterForge integration-manager module. It never installs or upgrades nfqws2 itself.",
+			},
+			Capabilities: []string{"integration-manager", "nfqws2-status", "nfqws2-config", "nfqws2-lists", "nfqws2-log", "guarded-reload", "guarded-restart"},
+			Detection: catalogDetection{
+				Packages: []string{"routerforge-nfqws-manager"},
+				Services: []string{"/opt/etc/init.d/S96routerforge-nfqws-manager"},
+			},
+			ProcessNames: []string{"routerforge-nfqws-manager"},
+			Compatibility: catalogCompatibility{
+				Status: "requirements",
+				Hints: []string{"RouterForge Core", "Entware", "installed nfqws2-keenetic"},
+				Targets: []string{"aarch64-3.10"},
+			},
+			Install: catalogInstallPlan{
+				Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-nfqws-manager"},
+				Notes: []string{"Installs only the RouterForge manager. nfqws2 remains an independent external package."},
+			},
+			Update: catalogInstallPlan{
+				Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-nfqws-manager"},
+				Notes: []string{"Updates only the RouterForge manager module."},
+			},
+			Remove: catalogInstallPlan{
+				Method: "opkg", Packages: []string{"routerforge-nfqws-manager"},
+				Notes: []string{"Removes only the RouterForge manager. nfqws2 configuration and package are untouched."},
+			},
+			Presentation: map[string]any{
+				"dashboard": map[string]any{"enabled": false, "priority": 60},
+				"integration": map[string]any{
+					"enabled": true,
+					"label": "NFQWS / NFQWS2",
+					"href": "/integrations?open=nfqws-manager",
+					"order": 10,
+					"target_ids": []string{"nfqws2"},
+				},
+			},
 		},
 	}
 }

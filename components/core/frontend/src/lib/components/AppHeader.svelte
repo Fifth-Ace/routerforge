@@ -7,9 +7,12 @@
   import { authState, logoutAuth } from '$lib/stores/auth.js';
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
+  import { integrationHubAvailable } from '$lib/integrations.js';
 
   $: locale = $settings.locale || 'ru';
   $: modules = $catalog.modules || [];
+  $: integrations = $catalog.integrations || [];
+  $: showIntegrationHub = integrationHubAvailable(modules, integrations);
   $: telemetryInstalled = modules.some((item) =>
     ['system', 'thermal', 'storage', 'network'].includes(item.id) && item.installed
   );
@@ -26,6 +29,7 @@
     { href: '/', labelKey: 'nav.home', order: 10 },
     ...(telemetryInstalled ? [{ href: '/monitoring', labelKey: 'nav.monitoring', order: 20 }] : []),
     ...dynamicModuleItems,
+    ...(showIntegrationHub ? [{ href: '/integrations', label: locale === 'ru' ? 'Интеграции' : 'Integrations', order: 60 }] : []),
     { href: '/apps', labelKey: 'nav.marketplace', order: 80 },
     { href: '/settings', labelKey: 'nav.settings', order: 90 }
   ].sort((a, b) => a.order - b.order);

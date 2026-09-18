@@ -140,6 +140,7 @@ verify_plain "dist/routerforge-admin_${ASSET_VERSION}_${TARGET}.ipk" routerforge
 verify_plain "dist/routerforge-dns_${ASSET_VERSION}_${TARGET}.ipk" routerforge-dns
 verify_plain "dist/routerforge-monitoring_${ASSET_VERSION}_${TARGET}.ipk" routerforge-monitoring
 verify_plain "dist/routerforge-network-tools_${ASSET_VERSION}_${TARGET}.ipk" routerforge-network-tools
+verify_plain "dist/routerforge-nfqws-manager_${ASSET_VERSION}_${TARGET}.ipk" routerforge-nfqws-manager
 
 echo "DEV_PLAIN_BINARY_GATE=PASS"
 

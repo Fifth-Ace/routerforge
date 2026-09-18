@@ -22,6 +22,7 @@
   import { authState, refreshAuth } from '$lib/stores/auth.js';
   import { startSerialPolling } from '$lib/polling.js';
   import { t } from '$lib/i18n/index.js';
+  import { integrationHubAvailable } from '$lib/integrations.js';
 
   let stopStream = null;
   let lastInterval = 0;
@@ -40,6 +41,8 @@
   }
 
   $: modules = $catalog.modules || [];
+  $: integrations = $catalog.integrations || [];
+  $: integrationsAvailable = integrationHubAvailable(modules, integrations);
   $: adminInstalled = modules.some((item) => item.id === 'admin' && item.installed);
   $: dnsInstalled = modules.some((item) => item.id === 'dns' && item.installed);
   $: monitoringInstalled = modules.some((item) => item.id === 'monitoring' && item.installed)
@@ -47,6 +50,7 @@
   $: path = $page.url.pathname;
   $: protectedPathMissing =
     (path === '/manage' && !adminInstalled)
+    || ((path === '/integrations' || path.startsWith('/integrations/')) && !integrationsAvailable)
     || ((path === '/monitoring' || path.startsWith('/monitoring/')) && !monitoringInstalled)
     || ((path === '/dns' || path.startsWith('/dns/')) && !dnsInstalled);
 

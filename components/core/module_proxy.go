@@ -19,7 +19,8 @@ import (
 var moduleSockets = map[string][]string{
 	"dns":        {"/opt/var/run/routerforge-dns.sock"},
 	"admin":      {"/opt/var/run/routerforge-admin.sock", "/opt/var/run/dns-monitor-admin.sock"},
-	"monitoring": {"/opt/var/run/routerforge-monitoring.sock"},
+	"monitoring":    {"/opt/var/run/routerforge-monitoring.sock"},
+	"nfqws-manager": {"/opt/var/run/routerforge-nfqws-manager.sock"},
 	"system":     {"/opt/var/run/routerforge-system.sock", "/opt/var/run/dns-monitor-system.sock"},
 	"thermal":    {"/opt/var/run/routerforge-thermal.sock", "/opt/var/run/dns-monitor-thermal.sock"},
 	"storage":    {"/opt/var/run/routerforge-storage.sock", "/opt/var/run/dns-monitor-storage.sock"},
@@ -29,7 +30,8 @@ var moduleSockets = map[string][]string{
 var modulePackageNames = map[string]string{
 	"dns":        "routerforge-dns",
 	"admin":      "routerforge-admin",
-	"monitoring": "routerforge-monitoring",
+	"monitoring":    "routerforge-monitoring",
+	"nfqws-manager": "routerforge-nfqws-manager",
 	"system":     "routerforge-monitoring",
 	"thermal":    "routerforge-monitoring",
 	"storage":    "routerforge-monitoring",
@@ -44,16 +46,19 @@ const (
 	adminMutationAuthorizedKey       moduleProxyContextKey = "admin-mutation-authorized"
 	adminMutationAuthorizationHeader                       = "X-RouterForge-Admin-Authorized"
 	adminMutationAuthorizationValue                        = "core-authorized-v1"
+	moduleMutationAuthorizationHeader                            = "X-RouterForge-Module-Authorized"
+	moduleMutationAuthorizationValue                             = "core-authorized-v1"
 )
 
 func moduleMutationAPI(moduleID string) bool {
-	return moduleID == "dns" || moduleID == "admin"
+	return moduleID == "dns" || moduleID == "admin" || moduleID == "nfqws-manager"
 }
 
 const (
 	dnsModuleMutationBodyLimit     int64 = 64 << 10
 	adminModuleMutationBodyLimit   int64 = 8 << 10
 	adminFileWriteRequestBodyLimit int64 = 272 << 10
+	nfqwsManagerMutationBodyLimit int64 = 140 << 10
 )
 
 func moduleMutationBodyLimit(moduleID string) int64 {
@@ -62,6 +67,8 @@ func moduleMutationBodyLimit(moduleID string) int64 {
 		return dnsModuleMutationBodyLimit
 	case "admin":
 		return adminModuleMutationBodyLimit
+	case "nfqws-manager":
+		return nfqwsManagerMutationBodyLimit
 	default:
 		return 0
 	}
@@ -142,6 +149,19 @@ func adminModuleMutationRequest(r *http.Request) bool {
 	return len(parts) > 0 && strings.EqualFold(strings.TrimSpace(parts[0]), "admin")
 }
 
+func nfqwsManagerMutationRequest(r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return false
+	}
+	const prefix = "/api/modules/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return false
+	}
+	rest := strings.TrimPrefix(r.URL.Path, prefix)
+	parts := strings.SplitN(rest, "/", 2)
+	return len(parts) > 0 && strings.EqualFold(strings.TrimSpace(parts[0]), "nfqws-manager")
+}
+
 func adminModuleFileRequest(r *http.Request) bool {
 	const prefix = "/api/modules/"
 	if !strings.HasPrefix(r.URL.Path, prefix) {
@@ -181,12 +201,16 @@ func adminMutationAuthorized(r *http.Request) bool {
 func securedModuleProxy(auth *authManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		adminMutation := adminModuleMutationRequest(r)
+		nfqwsMutation := nfqwsManagerMutationRequest(r)
 		adminFiles := adminModuleFileRequest(r)
 		adminTerminal := adminModuleTerminalRequest(r)
-		guarded := adminMutation || adminFiles || adminTerminal
+		guarded := adminMutation || nfqwsMutation || adminFiles || adminTerminal
 		if guarded {
 			if !sameOriginRequest(r) {
 				message := "cross-origin Admin mutation rejected"
+				if nfqwsMutation {
+					message = "cross-origin RouterForge module mutation rejected"
+				}
 				if adminFiles && !adminMutation {
 					message = "cross-origin Admin file access rejected"
 				}
@@ -209,6 +233,9 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 				user, authenticated := auth.sessionUser(r)
 				if !authenticated || user != "root" {
 					message := "authenticated RouterForge root session required for Admin mutation"
+				if nfqwsMutation {
+					message = "authenticated RouterForge root session required for module mutation"
+				}
 					if adminFiles && !adminMutation {
 						message = "authenticated RouterForge root session required for Admin file access"
 					}
@@ -332,7 +359,7 @@ func moduleMethodAllowed(moduleID, method string) bool {
 			return false
 		}
 	}
-	if moduleID == "admin" {
+	if moduleID == "admin" || moduleID == "nfqws-manager" {
 		switch method {
 		case http.MethodGet, http.MethodPost:
 			return true
@@ -418,7 +445,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		allow := "GET, HEAD"
 		if moduleID == "dns" {
 			allow = "GET, HEAD, POST, PATCH, DELETE"
-		} else if moduleID == "admin" {
+		} else if moduleID == "admin" || moduleID == "nfqws-manager" {
 			allow = "GET, HEAD, POST"
 		}
 		w.Header().Set("Allow", allow)
@@ -468,6 +495,12 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 			req.Header.Del(adminMutationAuthorizationHeader)
 			if adminMutationAuthorized(r) {
 				req.Header.Set(adminMutationAuthorizationHeader, adminMutationAuthorizationValue)
+			}
+		}
+		if moduleID == "nfqws-manager" {
+			req.Header.Del(moduleMutationAuthorizationHeader)
+			if adminMutationAuthorized(r) {
+				req.Header.Set(moduleMutationAuthorizationHeader, moduleMutationAuthorizationValue)
 			}
 		}
 	}

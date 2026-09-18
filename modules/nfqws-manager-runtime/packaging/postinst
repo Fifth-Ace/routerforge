@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+mkdir -p /opt/var/run
+rm -f /opt/var/run/routerforge-nfqws-manager.sock
+if [ -x /opt/etc/init.d/S96routerforge-nfqws-manager ]; then
+    /opt/etc/init.d/S96routerforge-nfqws-manager stop >/dev/null 2>&1 || true
+    /opt/etc/init.d/S96routerforge-nfqws-manager start >/dev/null 2>&1 || true
+fi
+exit 0

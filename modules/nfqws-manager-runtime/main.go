@@ -139,6 +139,7 @@ func main() {
 	mux.HandleFunc("/v1/list/create", mutationOnly(handleListCreate))
 	mux.HandleFunc("/v1/list/save", mutationOnly(handleListSave))
 	mux.HandleFunc("/v1/list/delete", mutationOnly(handleListDelete))
+	mux.HandleFunc("/v1/scripts", getOnly(handleScripts))
 	mux.HandleFunc("/v1/check", mutationOnly(handleCheck))
 
 	ui := http.FileServer(http.Dir(uiPath))

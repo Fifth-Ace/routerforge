@@ -39,9 +39,22 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .muted{color:var(--muted)}.mono{font-family:ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace}.small{font-size:9px}.accent{color:var(--accent)}.good-text{color:var(--good)}.warn-text{color:var(--warn)}.bad-text{color:var(--bad)}
 .kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 12px;font-size:10px}.kv dt{color:var(--muted)}.kv dd{margin:0;overflow-wrap:anywhere;color:var(--text)}.kv dd.mono{color:color-mix(in srgb,var(--text) 88%,var(--accent))}
 .activity{display:grid}.activity-row{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--border)}.activity-row:first-child{border-top:0}.dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}.dot.good{background:var(--good)}.dot.warn{background:var(--warn)}
-.strategy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}.strategy-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}.strategy-summary .card{background:color-mix(in srgb,var(--surface2) 72%,var(--surface))}.strategy-links{display:grid;gap:5px}.strategy-link{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);background:var(--surface2);font-size:9px}.strategy-link strong{color:#34d399}.strategy-label{color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.06em}.strategy-value{margin-top:3px;color:var(--text);font:600 10px/1.35 ui-monospace,Consolas,monospace}.strategy{border:1px solid var(--border);background:color-mix(in srgb,var(--surface2) 56%,var(--surface));border-radius:var(--radius);padding:14px;display:grid;gap:12px;min-height:340px}.strategy-top{display:flex;justify-content:space-between;gap:10px}.strategy-title{font-weight:700;color:var(--accent)}.chips{display:flex;gap:5px;flex-wrap:wrap}.chip{color:var(--muted)}.chip.tcp{color:#60a5fa}.chip.udp{color:#22d3ee}.chip.desync{color:#d7824b}.chip.list{color:#34d399}.strategy-code{font:10px/1.45 ui-monospace,Consolas,monospace;color:var(--text);background:var(--code);border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);padding:8px;min-height:88px;max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
-.strategy-toolbar{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.strategy-param-list{display:grid;gap:6px}.strategy-param-row{display:grid;grid-template-columns:minmax(150px,.85fr) minmax(0,1.4fr) auto;gap:7px;align-items:center}.strategy-param-row input{width:100%;height:30px;padding:0 8px;font:10px/1 ui-monospace,Consolas,monospace}.strategy-param-row .raw-token{color:var(--warn)}.strategy-editor-section{display:grid;gap:7px}.strategy-editor-section>label{color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.06em}.strategy-raw-edit{width:100%;min-height:92px;resize:vertical;padding:8px;background:var(--code);color:color-mix(in srgb,var(--text) 90%,var(--accent));font:10px/1.45 ui-monospace,Consolas,monospace}.strategy-dirty{border-color:color-mix(in srgb,var(--warn) 55%,var(--border));box-shadow:inset 3px 0 0 var(--warn)}.strategy-source{height:30px;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);padding:0 8px;font:10px/1 ui-monospace,Consolas,monospace}.strategy-actions-main{display:flex;gap:7px;flex-wrap:wrap}.strategy-save-state{font:600 9px/1 ui-monospace,Consolas,monospace;color:var(--muted)}.strategy-save-state.dirty{color:var(--warn)}
+.strategy-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}.strategy-summary .card{background:color-mix(in srgb,var(--surface2) 72%,var(--surface))}
+.strategy-workspace{display:grid;grid-template-columns:250px minmax(0,1fr);gap:12px;align-items:stretch}
+.strategy-vars{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);padding:8px;display:grid;gap:5px;align-content:start}
+.strategy-var{display:grid;gap:3px;text-align:left;padding:9px 10px;height:auto;min-height:48px;background:transparent;border-color:transparent}
+.strategy-var:hover{background:var(--hover)}.strategy-var.active{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,var(--border))}
+.strategy-var strong{font:700 10px/1.2 ui-monospace,Consolas,monospace;color:var(--text)}.strategy-var span{font-size:8px;color:var(--muted)}
+.strategy-main{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:12px;display:grid;gap:10px;min-width:0}
+.strategy-main-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.strategy-main-title{font-weight:700;color:var(--accent);font-size:13px}.strategy-main-sub{margin-top:3px;color:var(--muted);font-size:9px}
+.strategy-chips{display:flex;gap:5px;flex-wrap:wrap}.strategy-blocks{display:flex;gap:5px;flex-wrap:wrap}
+.strategy-block{min-height:24px;padding:0 8px;font-size:8px;color:var(--muted)}.strategy-block.active{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 36%,var(--border));background:var(--accent-soft)}
+.strategy-editor{width:100%;min-height:390px;resize:vertical;padding:12px;background:var(--code);color:color-mix(in srgb,var(--text) 92%,var(--accent));caret-color:var(--accent);font:11px/1.55 ui-monospace,"Roboto Mono",Consolas,monospace;tab-size:2;white-space:pre-wrap}
+.strategy-helper{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:9px}.strategy-helper-label{color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.06em;margin-right:3px}
+.strategy-helper button{min-height:26px;font-size:9px}.strategy-save-state{font:600 9px/1 ui-monospace,Consolas,monospace;color:var(--muted)}.strategy-save-state.dirty{color:var(--warn)}
+.strategy-value{margin-top:3px;color:var(--text);font:600 10px/1.35 ui-monospace,Consolas,monospace}
+.config-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.config-field{display:grid;gap:5px}.config-field.wide{grid-column:1/-1}.config-field label{font-size:9px;color:var(--muted)}.config-field input,.config-field select,.config-field textarea{width:100%;min-height:32px;padding:7px 9px;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);font:10px/1.4 ui-monospace,Consolas,monospace}.config-field textarea{min-height:82px;resize:vertical}.config-checks{grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap}.config-check{display:flex;align-items:center;gap:7px;color:var(--text);font-size:10px}.config-check input{width:auto}
+.advanced-config{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}.advanced-config summary{cursor:pointer;color:var(--muted);font-size:9px}.advanced-config[open] summary{color:var(--accent);margin-bottom:9px}
 .editor-shell{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--code)}.editor-toolbar,.editor-foot{display:flex;justify-content:space-between;gap:10px;padding:7px 9px;background:var(--surface2);color:var(--muted);font-size:9px}.editor-toolbar{border-bottom:1px solid var(--border)}.editor-foot{border-top:1px solid var(--border)}
 .editor-main{display:grid;grid-template-columns:auto minmax(0,1fr)}.gutter{margin:0;padding:10px 7px 10px 9px;min-width:42px;text-align:right;color:color-mix(in srgb,var(--muted) 65%,var(--bg));background:color-mix(in srgb,var(--surface2) 35%,var(--code));border-right:1px solid var(--border);user-select:none;overflow:hidden;font:11px/1.5 ui-monospace,Consolas,monospace}
 textarea.editor{border:0;border-radius:0;width:100%;min-height:500px;resize:vertical;padding:10px 12px;background:var(--code);color:color-mix(in srgb,var(--text) 90%,var(--accent));caret-color:var(--accent);font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace;tab-size:2;white-space:pre}
@@ -56,8 +69,8 @@ textarea.editor{border:0;border-radius:0;width:100%;min-height:500px;resize:vert
 .domain-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}.domain-stat{padding:9px;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);background:var(--surface2)}.domain-stat span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase}.domain-stat strong{display:block;margin-top:4px;font:700 16px/1 ui-monospace,Consolas,monospace}.progress{height:4px;background:var(--border);border-radius:4px;overflow:hidden;margin:8px 0 12px}.progress span{display:block;height:100%;width:0;background:var(--accent);transition:width .15s linear}.domain-results{display:grid;gap:4px;max-height:48vh;overflow:auto}.domain-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:7px 9px;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);font:10px/1.3 ui-monospace,Consolas,monospace}.domain-row.ok{border-left:3px solid var(--good)}.domain-row.fail{border-left:3px solid var(--bad)}.domain-row.pending{opacity:.7}.domain-row .result.ok{color:var(--good)}.domain-row .result.fail{color:var(--bad)}
 .full-editor{position:fixed!important;inset:8px!important;z-index:20!important;background:var(--bg)!important;box-shadow:0 25px 80px rgba(0,0,0,.7);overflow:auto}.full-editor textarea.editor{min-height:calc(100vh - 145px)}
 html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--space:16px}
-@media(max-width:1250px){.strategy-grid{grid-template-columns:1fr}}@media(max-width:1050px){.grid.cards,.strategy-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.list-grid{grid-template-columns:1fr}.file-list{min-height:0;max-height:260px}.list-editor{min-height:520px}}
-@media(max-width:700px){.hero{grid-template-columns:1fr}.actions{justify-content:flex-start}.grid.cards{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.domain-summary{grid-template-columns:repeat(2,1fr)}.subtitle{white-space:normal}.search{min-width:0;width:100%}}
+@media(max-width:1050px){.grid.cards,.strategy-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.strategy-workspace{grid-template-columns:1fr}.strategy-vars{grid-template-columns:repeat(2,minmax(0,1fr))}.list-grid{grid-template-columns:1fr}.file-list{min-height:0;max-height:260px}.list-editor{min-height:520px}}
+@media(max-width:700px){.hero{grid-template-columns:1fr}.actions{justify-content:flex-start}.grid.cards,.strategy-summary,.config-form{grid-template-columns:1fr}.strategy-vars{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.domain-summary{grid-template-columns:repeat(2,1fr)}.subtitle{white-space:normal}.search{min-width:0;width:100%}}
 </style>
 </head>
 <body>
@@ -114,31 +127,78 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
 <section id="view-strategies" class="view">
   <article class="panel">
     <div class="panel-head">
-      <div><h2>Стратегии обхода</h2><div class="section-kicker">Полный редактор аргументов nfqws. Простые параметры доступны отдельными полями, raw-режим остаётся источником истины для любых нестандартных флагов.</div></div>
-      <div class="strategy-actions-main">
+      <div>
+        <h2>Стратегии обхода</h2>
+        <div class="section-kicker">Как в штатной веб-морде nfqws: выбираешь NFQWS_ARGS-переменную и редактируешь её целиком. Никакой таблицы из каждого CLI-токена.</div>
+      </div>
+      <div class="toolbar">
         <span id="strategySaveState" class="strategy-save-state">CLEAN</span>
-        <button id="addStrategy">+ Стратегия</button>
-        <button id="resetStrategies" disabled>Отменить изменения</button>
+        <button id="resetStrategies" disabled>Отменить</button>
         <button id="previewStrategies" disabled>Diff</button>
         <button id="applyStrategies" class="primary" disabled>Сохранить и применить</button>
       </div>
     </div>
     <div id="strategySummary" class="strategy-summary"></div>
-    <div id="strategies" class="strategy-grid"></div>
+    <div class="strategy-workspace">
+      <div id="strategyVars" class="strategy-vars"></div>
+      <div class="strategy-main">
+        <div class="strategy-main-head">
+          <div>
+            <div id="strategyTitle" class="strategy-main-title">—</div>
+            <div id="strategyDescription" class="strategy-main-sub">—</div>
+          </div>
+          <div id="strategyChips" class="strategy-chips"></div>
+        </div>
+        <div>
+          <div class="strategy-helper-label" style="margin-bottom:6px">Блоки --new</div>
+          <div id="strategyBlocks" class="strategy-blocks"></div>
+        </div>
+        <textarea id="strategyEditor" class="strategy-editor" spellcheck="false" placeholder="Аргументы nfqws…"></textarea>
+        <div class="strategy-helper">
+          <span class="strategy-helper-label">Вставить</span>
+          <button data-insert="--filter-tcp=">TCP filter</button>
+          <button data-insert="--filter-udp=">UDP filter</button>
+          <button data-insert="--filter-l7=">L7</button>
+          <button data-insert="--hostlist=">hostlist</button>
+          <button data-insert="--ipset=">ipset</button>
+          <button data-insert="--dpi-desync=">desync</button>
+          <button data-insert="--payload=">payload</button>
+          <button data-insert="--new">+ --new</button>
+        </div>
+      </div>
+    </div>
   </article>
 </section>
 
 <section id="view-config" class="view">
   <article id="editorPanel" class="panel">
     <div class="panel-head">
-      <div><h2>nfqws2.conf</h2><div id="configMeta" class="section-kicker mono">—</div></div>
+      <div><h2>Конфигурация</h2><div id="configMeta" class="section-kicker mono">—</div></div>
       <div class="toolbar"><button id="undoConfig">Отменить</button><button id="diffConfig">Diff</button><button id="save" class="primary">Сохранить и применить</button></div>
     </div>
-    <div class="editor-shell">
-      <div class="editor-toolbar"><span id="editorState" class="mono">CLEAN</span><span>Ctrl+S · Tab = 2 spaces</span></div>
-      <div class="editor-main"><pre id="gutter" class="gutter">1</pre><textarea id="config" class="editor" spellcheck="false"></textarea></div>
-      <div class="editor-foot"><span id="editorStats">—</span><span>backup → atomic write → reload → rollback</span></div>
+
+    <div class="config-form">
+      <div class="config-field"><label for="cfgInterface">Интерфейс провайдера · ISP_INTERFACE</label><input id="cfgInterface" spellcheck="false"></div>
+      <div class="config-field"><label for="cfgExtraMode">Режим · NFQWS_EXTRA_ARGS</label><select id="cfgExtraMode"><option value="MODE_AUTO">Auto</option><option value="MODE_LIST">List</option><option value="MODE_ALL">All</option></select></div>
+      <div class="config-field"><label for="cfgTcpPorts">TCP порты · TCP_PORTS</label><input id="cfgTcpPorts" spellcheck="false"></div>
+      <div class="config-field"><label for="cfgUdpPorts">UDP порты · UDP_PORTS</label><input id="cfgUdpPorts" spellcheck="false"></div>
+      <div class="config-field"><label for="cfgPolicy">Политика · POLICY_NAME</label><input id="cfgPolicy" spellcheck="false"></div>
+      <div class="config-field wide"><label for="cfgBaseArgs">Базовые аргументы · NFQWS_BASE_ARGS</label><textarea id="cfgBaseArgs" spellcheck="false"></textarea></div>
+      <div class="config-checks">
+        <label class="config-check"><input id="cfgPolicyExclude" type="checkbox"> POLICY_EXCLUDE</label>
+        <label class="config-check"><input id="cfgIPv6" type="checkbox"> IPv6</label>
+        <label class="config-check"><input id="cfgLog" type="checkbox"> Logging</label>
+      </div>
     </div>
+
+    <details class="advanced-config">
+      <summary>Advanced · raw nfqws2.conf</summary>
+      <div class="editor-shell">
+        <div class="editor-toolbar"><span id="editorState" class="mono">CLEAN</span><span>Raw editor · Ctrl+S · Tab = 2 spaces</span></div>
+        <div class="editor-main"><pre id="gutter" class="gutter">1</pre><textarea id="config" class="editor" spellcheck="false"></textarea></div>
+        <div class="editor-foot"><span id="editorStats">—</span><span>backup → atomic write → reload → rollback</span></div>
+      </div>
+    </details>
   </article>
 </section>
 
@@ -189,7 +249,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, strategyModel=null, strategyOriginalConfig='';
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, strategyValues=null, strategyOriginalConfig='', selectedStrategyKey='NFQWS_ARGS';
 
   const esc=(s='')=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const lines=s=>String(s||'').split(/\r?\n/);
@@ -230,7 +290,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
 
   function scanAssignment(config,key){
     const re=new RegExp(`^([\\t ]*)${key}\\s*=\\s*`,'m'),m=re.exec(config);if(!m)return null;
-    const start=m.index,endPrefix=start+m[0].length;let i=endPrefix,quote='';
+    const start=m.index;let i=m.index+m[0].length,quote='';
     if(config[i]==='"'||config[i]==="'"){quote=config[i];i++}
     const valueStart=i;let escaped=false;
     if(quote){
@@ -238,151 +298,124 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
       if(i>=config.length)return null;
       return{key,start,end:i+1,valueStart,valueEnd:i,quote,indent:m[1],raw:config.slice(valueStart,i)};
     }
-    for(;i<config.length;i++){
-      const c=config[i];
-      if((c==='\n'||c==='\r')&&!escaped)break;
-      escaped=c==='\\'&&!escaped;if(c!=='\\')escaped=false;
-    }
+    for(;i<config.length;i++){const c=config[i];if((c==='\n'||c==='\r')&&!escaped)break;escaped=c==='\\'&&!escaped;if(c!=='\\')escaped=false}
     return{key,start,end:i,valueStart,valueEnd:i,quote:'',indent:m[1],raw:config.slice(valueStart,i)};
   }
-  function normalizeAssignmentRaw(raw){return String(raw||'').replace(/\\\r?\n\s*/g,' ').replace(/\s+/g,' ').trim()}
-  function tokenizeArgs(raw){
-    const tokens=String(raw||'').match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)||[];
-    return tokens.map((token)=>{
-      if(!token.startsWith('--'))return{kind:'raw',name:'RAW',value:token};
-      const p=token.indexOf('=');
-      return p<0?{kind:'flag',name:token,value:''}:{kind:'option',name:token.slice(0,p),value:token.slice(p+1)};
-    });
+  function normalizeAssignmentRaw(raw){return String(raw||'').replace(/\\\r?\n\s*/g,' ').trim()}
+  function unquoteValue(raw){
+    let v=normalizeAssignmentRaw(raw);return v.replace(/\\\\/g,'\\').replace(/\\"/g,'"').replace(/\\'/g,"'");
   }
-  function tokenToRaw(t){
-    if(t.kind==='raw')return String(t.value||'').trim();
-    const name=String(t.name||'').trim();if(!name)return'';
-    const value=String(t.value??'').trim();
-    return value?`${name}=${value}`:name;
-  }
-  function parseStrategyBlocks(raw,key){
-    return normalizeAssignmentRaw(raw).split(/\s+--new(?:\s+|$)/).map(x=>x.trim()).filter(Boolean).map((raw,index)=>({id:`${key}:${index}:${Math.random().toString(36).slice(2,8)}`,sourceKey:key,raw,originalRaw:raw,tokens:tokenizeArgs(raw)}));
-  }
-  function buildStrategyModel(config){
-    const known=['NFQWS_ARGS','NFQWS_ARGS_TCP','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_CUSTOM','NFQWS_ARGS_IPSET','NFQWS2_ARGS'],sources=[];
-    for(const key of known){const a=scanAssignment(config,key);if(a&&normalizeAssignmentRaw(a.raw))sources.push({key,assignment:a,blocks:parseStrategyBlocks(a.raw,key)})}
-    return{known,sources};
-  }
-  function allStrategyBlocks(){return strategyModel?strategyModel.sources.flatMap(s=>s.blocks):[]}
-  function strategyDirty(){
-    if(!strategyModel)return false;
-    const rebuilt=buildConfigFromStrategies(strategyOriginalConfig);
-    return rebuilt!==strategyOriginalConfig;
-  }
-  function sourceForKey(key){return strategyModel?.sources.find(s=>s.key===key)||null}
-  function ensureSource(key){
-    let s=sourceForKey(key);if(s)return s;
-    s={key,assignment:scanAssignment(strategyOriginalConfig,key),blocks:[]};strategyModel.sources.push(s);return s;
-  }
-  function blockSummary(block){
-    const find=n=>{const t=block.tokens.find(x=>x.kind!=='raw'&&x.name===`--${n}`);return t?String(t.value||''):''};
-    return{tcp:find('filter-tcp'),udp:find('filter-udp'),l7:find('filter-l7'),desync:find('dpi-desync'),hostlist:find('hostlist'),ipset:find('ipset')};
-  }
-  function updateBlockRaw(block){block.raw=block.tokens.map(tokenToRaw).filter(Boolean).join(' ')}
-  function rebuildTokensFromRaw(block,raw){block.raw=raw;block.tokens=tokenizeArgs(raw)}
+  function assignmentValue(config,key){const a=scanAssignment(config,key);return a?unquoteValue(a.raw):''}
+  function boolAssignment(config,key){return /^(1|true|yes)$/i.test(assignmentValue(config,key))}
   function escapeForQuote(value,quote){
-    if(quote==='"')return value.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
-    if(quote==="'")return value.replace(/'/g,"'\\''");
-    return value;
+    if(quote==='"')return String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+    if(quote==="'")return String(value).replace(/'/g,"'\\''");
+    return String(value);
   }
   function formatAssignment(key,value,assignment){
-    const quote=assignment?.quote||'"',indent=assignment?.indent||'';
-    return `${indent}${key}=${quote}${escapeForQuote(value,quote)}${quote}`;
+    const quote=assignment?.quote||((String(value).includes(' ')||String(value).includes('\n')||String(value)==='')?'"':'');
+    const indent=assignment?.indent||'',escaped=escapeForQuote(value,quote);
+    return `${indent}${key}=${quote}${escaped}${quote}`;
   }
-  function replaceOrAppendAssignment(config,key,value){
+  function replaceOrAppendAssignment(config,key,value,appendWhenMissing=true){
     const a=scanAssignment(config,key),replacement=formatAssignment(key,value,a);
     if(a)return config.slice(0,a.start)+replacement+config.slice(a.end);
+    if(!appendWhenMissing)return config;
     return config.replace(/\s*$/,'')+`\n\n${replacement}\n`;
   }
+
+  const strategyDefs=[
+    {key:'NFQWS_ARGS',title:'Основная / TCP',desc:'Основной HTTPS/TCP обход.'},
+    {key:'NFQWS_ARGS_QUIC',title:'QUIC',desc:'Правила для QUIC/UDP 443.'},
+    {key:'NFQWS_ARGS_UDP',title:'UDP',desc:'Дополнительные UDP-правила.'},
+    {key:'NFQWS_ARGS_IPSET',title:'IPSET',desc:'Правила для IP-наборов.'},
+    {key:'NFQWS_ARGS_CUSTOM',title:'Custom',desc:'Пользовательские и специальные стратегии.'}
+  ];
+  function buildStrategyValues(config){return Object.fromEntries(strategyDefs.map(d=>[d.key,assignmentValue(config,d.key)]))}
   function buildConfigFromStrategies(base){
     let cfg=base;
-    for(const source of strategyModel?.sources||[]){
-      const value=source.blocks.map(b=>b.raw.trim()).filter(Boolean).join(' --new ');
-      cfg=replaceOrAppendAssignment(cfg,source.key,value);
+    for(const d of strategyDefs){
+      const value=String(strategyValues?.[d.key]??'');
+      const exists=Boolean(scanAssignment(cfg,d.key));
+      if(exists||value.trim())cfg=replaceOrAppendAssignment(cfg,d.key,value,true);
     }
     return cfg;
   }
-  function moveBlock(blockId,dir){
-    for(const source of strategyModel.sources){const i=source.blocks.findIndex(b=>b.id===blockId);if(i<0)continue;const j=i+dir;if(j<0||j>=source.blocks.length)return;[source.blocks[i],source.blocks[j]]=[source.blocks[j],source.blocks[i]];renderStrategies();return}
+  function strategyDirty(){return strategyValues&&buildConfigFromStrategies(strategyOriginalConfig)!==strategyOriginalConfig}
+  function strategyBlocks(value){return String(value||'').split(/\s+--new(?:\s+|$)/).map(x=>x.trim()).filter(Boolean)}
+  function strategyTokens(value){return String(value||'').match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)||[]}
+  function strategySummary(value){
+    const tokens=strategyTokens(value),find=n=>{const p=`--${n}=`;const t=tokens.find(x=>x.startsWith(p));return t?t.slice(p.length).replace(/^["']|["']$/g,''):''};
+    return{tcp:find('filter-tcp'),udp:find('filter-udp'),l7:find('filter-l7'),desync:find('dpi-desync'),hostlist:find('hostlist'),ipset:find('ipset')};
   }
-  function removeBlock(blockId){
-    for(const source of strategyModel.sources){const i=source.blocks.findIndex(b=>b.id===blockId);if(i>=0){source.blocks.splice(i,1);renderStrategies();return}}
-  }
-  function cloneBlock(blockId){
-    for(const source of strategyModel.sources){const i=source.blocks.findIndex(b=>b.id===blockId);if(i>=0){const b=source.blocks[i],copy={id:`${source.key}:${Date.now()}`,sourceKey:source.key,raw:b.raw,originalRaw:'',tokens:b.tokens.map(x=>({...x}))};source.blocks.splice(i+1,0,copy);renderStrategies();return}}
-  }
-  function changeBlockSource(blockId,newKey){
-    let block=null;
-    for(const source of strategyModel.sources){const i=source.blocks.findIndex(b=>b.id===blockId);if(i>=0){block=source.blocks.splice(i,1)[0];break}}
-    if(!block)return;block.sourceKey=newKey;ensureSource(newKey).blocks.push(block);renderStrategies();
-  }
-  function renderStrategyParams(block){
-    return `<div class="strategy-param-list">${block.tokens.map((t,i)=>`<div class="strategy-param-row" data-token="${i}">
-      <input class="strategy-param-name ${t.kind==='raw'?'raw-token':''}" value="${esc(t.name)}" ${t.kind==='raw'?'readonly':''}>
-      <input class="strategy-param-value" value="${esc(t.value)}" placeholder="${t.kind==='raw'?'raw token':'значение (пусто = flag)'}">
-      <button class="strategy-param-remove danger" title="Удалить параметр">×</button>
-    </div>`).join('')}</div>`;
-  }
-  function renderStrategies(){
-    const blocks=allStrategyBlocks(),sources=strategyModel?.sources.filter(s=>s.blocks.length)||[];
-    $('strategyCount').textContent=blocks.length?`(${blocks.length})`:'';$('mStrategies').textContent=blocks.length;
-    const protocols=new Set(),methods=new Set(),resourceSet=new Set();
-    for(const b of blocks){const s=blockSummary(b);if(s.tcp)protocols.add('TCP');if(s.udp)protocols.add('UDP/QUIC');if(s.l7)s.l7.split(',').forEach(x=>protocols.add(x.toUpperCase()));if(s.desync)s.desync.split(',').forEach(x=>methods.add(x));if(s.hostlist)resourceSet.add(s.hostlist);if(s.ipset)resourceSet.add(s.ipset)}
-    $('strategySummary').innerHTML=[
-      ['Источник',sources.map(s=>s.key).join(', ')||'—'],['Стратегий',String(blocks.length)],['Протоколы',[...protocols].join(', ')||'—'],['Связанных списков',String(resourceSet.size)]
-    ].map(([k,v])=>`<article class="card"><div class="metric-label">${esc(k)}</div><div class="strategy-value">${esc(v)}</div></article>`).join('');
-    const dirty=strategyDirty();$('strategySaveState').textContent=dirty?'UNSAVED':'CLEAN';$('strategySaveState').className='strategy-save-state '+(dirty?'dirty':'');$('resetStrategies').disabled=!dirty;$('previewStrategies').disabled=!dirty;$('applyStrategies').disabled=!dirty||busy;
-    if(!blocks.length){$('strategies').innerHTML='<div class="empty">Стратегии не найдены. Нажми «+ Стратегия», чтобы создать первую в NFQWS_ARGS_CUSTOM.</div>';return}
-    $('strategies').innerHTML=blocks.map((b,index)=>{
-      const s=blockSummary(b),source=sourceForKey(b.sourceKey),sourceIndex=source?.blocks.findIndex(x=>x.id===b.id)??0;
-      const options=strategyModel.known.map(k=>`<option value="${esc(k)}" ${k===b.sourceKey?'selected':''}>${esc(k)}</option>`).join('');
-      return `<article class="strategy ${b.raw!==b.originalRaw?'strategy-dirty':''}" data-block="${esc(b.id)}">
-        <div class="strategy-top">
-          <div><div class="strategy-title">Стратегия ${index+1}</div><div class="muted small">Источник переменной</div><select class="strategy-source">${options}</select></div>
-          <div class="strategy-toolbar"><button class="strategy-up" ${sourceIndex<=0?'disabled':''}>↑</button><button class="strategy-down" ${!source||sourceIndex>=source.blocks.length-1?'disabled':''}>↓</button><button class="strategy-clone">Клонировать</button><button class="strategy-delete danger">Удалить</button></div>
-        </div>
-        <div class="chips">${s.tcp?`<span class="chip tcp">TCP ${esc(s.tcp)}</span>`:''}${s.udp?`<span class="chip udp">UDP ${esc(s.udp)}</span>`:''}${s.desync?`<span class="chip desync">${esc(s.desync)}</span>`:''}${s.hostlist?`<span class="chip list">${esc(s.hostlist.split('/').pop())}</span>`:''}${s.ipset?`<span class="chip list">${esc(s.ipset.split('/').pop())}</span>`:''}</div>
-        <div class="strategy-editor-section"><label>Все параметры</label>${renderStrategyParams(b)}<button class="strategy-add-param">+ Параметр</button></div>
-        <div class="strategy-editor-section"><label>Advanced / Raw arguments</label><textarea class="strategy-raw-edit" spellcheck="false">${esc(b.raw)}</textarea><div class="muted small">Raw и поля синхронизируются. Нестандартные токены сохраняются как RAW.</div></div>
-      </article>`;
+  function renderStrategyTabs(){
+    $('strategyVars').innerHTML=strategyDefs.map(d=>{
+      const value=String(strategyValues?.[d.key]||''),blocks=strategyBlocks(value).length;
+      return `<button class="strategy-var ${selectedStrategyKey===d.key?'active':''}" data-key="${d.key}"><strong>${esc(d.title)}</strong><span>${esc(d.key)} · ${blocks||0} блок.</span></button>`;
     }).join('');
-    bindStrategyCards();
-    reportHeight();
+    document.querySelectorAll('.strategy-var[data-key]').forEach(b=>b.onclick=()=>{selectedStrategyKey=b.dataset.key;renderStrategies()});
   }
-  function bindStrategyCards(){
-    document.querySelectorAll('.strategy[data-block]').forEach(card=>{
-      const id=card.dataset.block,block=allStrategyBlocks().find(b=>b.id===id);if(!block)return;
-      card.querySelector('.strategy-source').onchange=e=>changeBlockSource(id,e.target.value);
-      card.querySelector('.strategy-up').onclick=()=>moveBlock(id,-1);card.querySelector('.strategy-down').onclick=()=>moveBlock(id,1);card.querySelector('.strategy-clone').onclick=()=>cloneBlock(id);card.querySelector('.strategy-delete').onclick=()=>{if(confirm('Удалить эту стратегию из конфигурации?'))removeBlock(id)};
-      card.querySelectorAll('.strategy-param-row').forEach(row=>{
-        const idx=Number(row.dataset.token),name=row.querySelector('.strategy-param-name'),value=row.querySelector('.strategy-param-value');
-        const sync=()=>{const t=block.tokens[idx];if(!t)return;if(t.kind!=='raw'){t.name=name.value.trim();t.kind=value.value.trim()?'option':'flag'}t.value=value.value;updateBlockRaw(block);card.querySelector('.strategy-raw-edit').value=block.raw;renderStrategies()};
-        name.onchange=sync;value.onchange=sync;row.querySelector('.strategy-param-remove').onclick=()=>{block.tokens.splice(idx,1);updateBlockRaw(block);renderStrategies()};
-      });
-      card.querySelector('.strategy-add-param').onclick=()=>{block.tokens.push({kind:'option',name:'--',value:''});updateBlockRaw(block);renderStrategies()};
-      const raw=card.querySelector('.strategy-raw-edit');raw.onchange=()=>{rebuildTokensFromRaw(block,raw.value);renderStrategies()};
+  function renderStrategyEditor(){
+    const def=strategyDefs.find(d=>d.key===selectedStrategyKey)||strategyDefs[0],value=String(strategyValues?.[def.key]||''),sum=strategySummary(value),blocks=strategyBlocks(value);
+    $('strategyTitle').textContent=def.title;$('strategyDescription').textContent=`${def.key} · ${def.desc}`;
+    const chips=[];if(sum.tcp)chips.push(`<span class="chip tcp">TCP ${esc(sum.tcp)}</span>`);if(sum.udp)chips.push(`<span class="chip udp">UDP ${esc(sum.udp)}</span>`);if(sum.l7)chips.push(`<span class="chip">${esc(sum.l7)}</span>`);if(sum.desync)chips.push(`<span class="chip desync">${esc(sum.desync)}</span>`);if(sum.hostlist)chips.push(`<span class="chip list">${esc(sum.hostlist.split('/').pop())}</span>`);if(sum.ipset)chips.push(`<span class="chip list">${esc(sum.ipset.split('/').pop())}</span>`);
+    $('strategyChips').innerHTML=chips.join('')||'<span class="chip">пусто</span>';
+    $('strategyEditor').value=value;
+    $('strategyBlocks').innerHTML=(blocks.length?blocks:['']).map((_,i)=>`<button class="strategy-block" data-block="${i}">Блок ${i+1}</button>`).join('');
+    document.querySelectorAll('.strategy-block').forEach(b=>b.onclick=()=>{
+      const index=Number(b.dataset.block),editor=$('strategyEditor');let pos=0;
+      if(index>0){let from=0;for(let i=0;i<index;i++){const found=editor.value.indexOf('--new',from);if(found<0)break;pos=found+5;from=pos}}
+      editor.focus();editor.setSelectionRange(pos,pos);document.querySelectorAll('.strategy-block').forEach(x=>x.classList.toggle('active',x===b));
     });
   }
-  function addStrategy(){
-    const preferred=sourceForKey('NFQWS_ARGS_CUSTOM')?'NFQWS_ARGS_CUSTOM':(strategyModel.sources[0]?.key||'NFQWS_ARGS_CUSTOM'),source=ensureSource(preferred);
-    source.blocks.push({id:`${preferred}:${Date.now()}`,sourceKey:preferred,raw:'--filter-tcp=443 --dpi-desync=fake',originalRaw:'',tokens:tokenizeArgs('--filter-tcp=443 --dpi-desync=fake')});renderStrategies();
+  function renderStrategies(){
+    renderStrategyTabs();renderStrategyEditor();
+    const values=Object.values(strategyValues||{}),blocks=values.reduce((n,v)=>n+strategyBlocks(v).length,0),active=values.filter(v=>String(v).trim()).length;
+    const protocols=new Set(),lists=new Set();
+    values.forEach(v=>{const s=strategySummary(v);if(s.tcp)protocols.add('TCP');if(s.udp)protocols.add('UDP/QUIC');if(s.l7)s.l7.split(',').forEach(x=>protocols.add(x.toUpperCase()));if(s.hostlist)lists.add(s.hostlist);if(s.ipset)lists.add(s.ipset)});
+    $('strategySummary').innerHTML=[
+      ['Активных переменных',String(active)],['Блоков --new',String(blocks)],['Протоколы',[...protocols].join(', ')||'—'],['Связанных списков',String(lists.size)]
+    ].map(([k,v])=>`<article class="card"><div class="metric-label">${esc(k)}</div><div class="strategy-value">${esc(v)}</div></article>`).join('');
+    $('strategyCount').textContent=blocks?`(${blocks})`:'';$('mStrategies').textContent=blocks;
+    const dirty=strategyDirty();$('strategySaveState').textContent=dirty?'UNSAVED':'CLEAN';$('strategySaveState').className='strategy-save-state '+(dirty?'dirty':'');$('resetStrategies').disabled=!dirty;$('previewStrategies').disabled=!dirty;$('applyStrategies').disabled=!dirty||busy;
+    reportHeight();
+  }
+  function insertStrategyText(value){
+    const editor=$('strategyEditor'),start=editor.selectionStart,end=editor.selectionEnd,before=editor.value.slice(0,start),after=editor.value.slice(end);
+    const pad=before&&!/\s$/.test(before)?' ':'',tail=after&&!/^\s/.test(after)?' ':'';
+    editor.value=before+pad+value+tail+after;const pos=(before+pad+value).length;editor.setSelectionRange(pos,pos);editor.focus();
+    strategyValues[selectedStrategyKey]=editor.value;renderStrategies();$('strategyEditor').focus();$('strategyEditor').setSelectionRange(pos,pos);
   }
   function previewStrategyChanges(){
     const next=buildConfigFromStrategies(strategyOriginalConfig);$('diffBody').innerHTML=makeDiff(strategyOriginalConfig,next).map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">No changes</span>';$('diffModal').classList.add('open');$('diffApply').dataset.mode='strategies';
   }
   async function applyStrategyChanges(){
     if(!strategyDirty()||busy)return;const next=buildConfigFromStrategies(strategyOriginalConfig);
-    if(!confirm('Сохранить изменённые стратегии в nfqws2.conf и выполнить безопасный reload?'))return;
+    if(!confirm('Сохранить NFQWS_ARGS-стратегии в nfqws2.conf и выполнить безопасный reload?'))return;
     closeDiff();setBusy(true);
     try{const r=await api('/config',{method:'POST',body:JSON.stringify({content:next,confirm:'NFQWS_CONFIG'})});render(r.status);notice(`Стратегии применены. Backup: ${r.backup}`,'good')}
     catch(e){notice(e.message,'error');setBusy(false)}
   }
-  function resetStrategyChanges(){strategyModel=buildStrategyModel(strategyOriginalConfig);renderStrategies()}
+  function resetStrategyChanges(){strategyValues=buildStrategyValues(strategyOriginalConfig);renderStrategies()}
+
+  const configFields=[
+    ['cfgInterface','ISP_INTERFACE','text'],['cfgBaseArgs','NFQWS_BASE_ARGS','text'],['cfgTcpPorts','TCP_PORTS','text'],['cfgUdpPorts','UDP_PORTS','text'],['cfgPolicy','POLICY_NAME','text']
+  ];
+  function populateConfigForm(config){
+    for(const [id,key] of configFields)$(id).value=assignmentValue(config,key);
+    let mode=assignmentValue(config,'NFQWS_EXTRA_ARGS').replace(/^\$\{?|\}?$/g,'');if(!['MODE_AUTO','MODE_LIST','MODE_ALL'].includes(mode))mode='MODE_AUTO';$('cfgExtraMode').value=mode;
+    $('cfgPolicyExclude').checked=boolAssignment(config,'POLICY_EXCLUDE');$('cfgIPv6').checked=boolAssignment(config,'IPV6_ENABLED');$('cfgLog').checked=boolAssignment(config,'LOG_LEVEL');
+  }
+  function configFromForm(base){
+    let cfg=base;
+    for(const [id,key] of configFields)cfg=replaceOrAppendAssignment(cfg,key,$(id).value,true);
+    cfg=replaceOrAppendAssignment(cfg,'NFQWS_EXTRA_ARGS',`$${$('cfgExtraMode').value}`,true);
+    cfg=replaceOrAppendAssignment(cfg,'POLICY_EXCLUDE',$('cfgPolicyExclude').checked?'1':'0',true);
+    cfg=replaceOrAppendAssignment(cfg,'IPV6_ENABLED',$('cfgIPv6').checked?'1':'0',true);
+    cfg=replaceOrAppendAssignment(cfg,'LOG_LEVEL',$('cfgLog').checked?'1':'0',true);
+    return cfg;
+  }
+  function syncFormToRaw(){$('config').value=configFromForm(original);updateConfigEditor()}
     function renderOverview(){
     const ls=current?.lists||[];$('mService').textContent=current?.running?'RUNNING':'STOPPED';$('mService').className='metric-value '+(current?.running?'good-text':'bad-text');$('mServiceSub').textContent=current?.mutation_ready?'manager ready':'mutation not ready';
     $('mConfig').textContent=current?.config_exists?'OK':'MISSING';$('mConfig').className='metric-value '+(current?.config_exists?'good-text':'bad-text');$('mConfigSub').textContent=`${bytes(current?.config_size)} · ${(current?.config_sha256||'').slice(0,12)||'no SHA'}`;
@@ -453,7 +486,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
     current=s;const available=!!s?.available,running=!!s?.running;$('state').textContent=!available?'NOT AVAILABLE':running?'RUNNING':'STOPPED';$('state').className='status '+(available&&running?'good':available?'warn':'bad');$('targetChip').textContent=s?.target_name||'nfqws';$('subtitle').textContent=`RouterForge extension · ${s?.config_path||'target not detected'}`;
     $('start').style.display=running?'none':'';$('stop').style.display=running?'':'none';$('reload').disabled=!running||busy;$('restart').disabled=!running||busy;
     if(!available)notice('NFQWS target не найден.','error');else if(!running)notice('NFQWS обнаружен, но сервис остановлен.','error');else notice('NFQWS runtime обнаружен. RouterForge управляет установленным внешним пакетом, не заменяя его lifecycle.','good');
-    original=s?.config||'';strategyOriginalConfig=original;strategyModel=buildStrategyModel(original);$('config').value=original;$('configMeta').textContent=`${s?.config_path||'—'} · ${bytes(s?.config_size)} · SHA256 ${(s?.config_sha256||'—').slice(0,20)}…`;
+    original=s?.config||'';strategyOriginalConfig=original;strategyValues=buildStrategyValues(original);$('config').value=original;populateConfigForm(original);$('configMeta').textContent=`${s?.config_path||'—'} · ${bytes(s?.config_size)} · SHA256 ${(s?.config_sha256||'—').slice(0,20)}…`;
     $('backupCount').textContent=s?.backup_count||0;$('backupCountTab').textContent=s?.backup_count?`(${s.backup_count})`:'';
     renderOverview();renderStrategies();renderListFiles();renderLog();updateConfigEditor();setBusy(false);reportHeight();
   }
@@ -482,8 +515,8 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
 
   document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));reportHeight()});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
-  $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
-  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor()};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='strategies'?applyStrategyChanges():saveConfig()};$('addStrategy').onclick=addStrategy;$('resetStrategies').onclick=resetStrategyChanges;$('previewStrategies').onclick=previewStrategyChanges;$('applyStrategies').onclick=previewStrategyChanges;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
+  $('config').oninput=()=>{updateConfigEditor();populateConfigForm($('config').value)};$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
+  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;populateConfigForm(original);updateConfigEditor()};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='strategies'?applyStrategyChanges():saveConfig()};$('resetStrategies').onclick=resetStrategyChanges;$('previewStrategies').onclick=previewStrategyChanges;$('applyStrategies').onclick=previewStrategyChanges;$('strategyEditor').oninput=e=>{strategyValues[selectedStrategyKey]=e.target.value;renderStrategies();};document.querySelectorAll('[data-insert]').forEach(b=>b.onclick=()=>insertStrategyText(b.dataset.insert));for(const [id] of configFields)$(id).oninput=syncFormToRaw;$('cfgExtraMode').onchange=syncFormToRaw;$('cfgPolicyExclude').onchange=syncFormToRaw;$('cfgIPv6').onchange=syncFormToRaw;$('cfgLog').onchange=syncFormToRaw;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('fullscreenList').onclick=()=>{$('listEditorPanel').classList.toggle('full-editor');$('fullscreenList').textContent=$('listEditorPanel').classList.contains('full-editor')?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));

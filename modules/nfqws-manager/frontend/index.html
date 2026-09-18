@@ -40,20 +40,22 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 12px;font-size:10px}.kv dt{color:var(--muted)}.kv dd{margin:0;overflow-wrap:anywhere;color:var(--text)}.kv dd.mono{color:color-mix(in srgb,var(--text) 88%,var(--accent))}
 .activity{display:grid}.activity-row{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--border)}.activity-row:first-child{border-top:0}.dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}.dot.good{background:var(--good)}.dot.warn{background:var(--warn)}
 .setup-flow{display:grid;gap:10px}.setup-section{border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);overflow:hidden}.setup-head{display:grid;grid-template-columns:42px minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;row-gap:4px;align-items:center;padding:13px 14px;background:color-mix(in srgb,var(--surface2) 70%,var(--surface));border-bottom:1px solid var(--border)}.setup-head>.setup-num{grid-column:1;grid-row:1/3}.setup-head>div:nth-child(2){grid-column:2;grid-row:1}.setup-help{grid-column:2;grid-row:2;color:var(--muted);font-size:11px;max-width:none;text-align:left;line-height:1.45}.setup-collapse{grid-column:3;grid-row:1/3;align-self:center;min-width:92px}.setup-num{width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--border-strong);border-radius:7px;background:var(--code);color:var(--accent);font:700 10px/1 ui-monospace,Consolas,monospace}.setup-title{font-weight:700;color:var(--text);font-size:14px}.setup-key{margin-top:3px;color:var(--muted);font:10px/1.35 ui-monospace,Consolas,monospace}.setup-body{padding:12px;display:grid;gap:10px}.setup-row{display:grid;grid-template-columns:minmax(160px,.45fr) minmax(0,1fr);gap:12px;align-items:start}.setup-label{color:var(--muted);font-size:11px}.setup-label strong{display:block;color:var(--text);font-size:12px;margin-bottom:3px}.setup-input,.setup-select,.setup-textarea{width:100%;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);padding:9px 11px;font:12px/1.45 ui-monospace,Consolas,monospace}.setup-input,.setup-select{min-height:36px}.setup-textarea{min-height:126px;resize:vertical;white-space:pre-wrap}.setup-textarea.large{min-height:220px}.setup-note{padding:9px 11px;border-left:3px solid var(--accent);background:var(--accent-soft);color:var(--muted);font-size:10px;line-height:1.5}.setup-note.warn{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--surface));color:color-mix(in srgb,var(--warn) 75%,var(--text))}.setup-note.good{border-left-color:var(--good);background:color-mix(in srgb,var(--good) 8%,var(--surface));color:color-mix(in srgb,var(--good) 72%,var(--text))}.setup-chips{display:flex;gap:5px;flex-wrap:wrap}.setup-chip{display:inline-flex;align-items:center;min-height:24px;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface2);color:var(--muted);font:8px/1 ui-monospace,Consolas,monospace}.setup-chip.good{color:var(--good)}.setup-chip.warn{color:var(--warn)}.setup-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.setup-sticky{position:sticky;bottom:0;z-index:5;display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 11px;border:1px solid var(--border-strong);border-radius:var(--radius);background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(8px)}.setup-state{font:600 9px/1 ui-monospace,Consolas,monospace;color:var(--muted)}.setup-state.dirty{color:var(--warn)}
-.mode-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.mode-card{display:grid;gap:4px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);cursor:pointer}.mode-card.active{border-color:color-mix(in srgb,var(--accent) 55%,var(--border));background:var(--accent-soft)}.mode-card strong{color:var(--text);font-size:10px}.mode-card span{color:var(--muted);font-size:8px;line-height:1.4}
+.mode-grid,.policy-grid{display:flex;gap:6px;flex-wrap:wrap;align-items:stretch}.mode-card,.policy-card{display:grid;grid-template-columns:auto auto;grid-template-areas:"radio title" "radio meta";column-gap:6px;row-gap:1px;align-items:center;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);cursor:pointer;min-height:38px}.mode-card.active,.policy-card.active{border-color:color-mix(in srgb,var(--accent) 55%,var(--border));background:var(--accent-soft)}.mode-card input,.policy-card input{grid-area:radio;margin:0;width:13px;height:13px}.mode-card strong,.policy-card strong{grid-area:title;color:var(--text);font-size:10px;line-height:1.15;white-space:nowrap}.mode-card span,.policy-card span{grid-area:meta;color:var(--muted);font-size:8px;line-height:1.2;white-space:nowrap}
 .custom-blocks{display:grid;gap:9px}.custom-block{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);padding:11px;display:grid;gap:9px}.custom-block-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.custom-block-title{font-weight:700;color:var(--accent);font-size:12px}.custom-block-actions{display:flex;gap:5px}.custom-block textarea{width:100%;min-height:116px;resize:vertical;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);padding:10px;font:12px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap}.custom-add{width:100%;border-style:dashed;color:var(--accent)}
 .custom-label-row{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px;align-items:center}.custom-label-row label{color:var(--muted);font-size:11px}.custom-label-input{width:100%;min-height:36px;padding:8px 10px;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);font:12px/1.4 ui-monospace,Consolas,monospace}.label-help{font-size:10px;color:var(--muted);line-height:1.45}.custom-live-summary{margin-top:-1px}
 .setup-head-summary{display:none;gap:5px;flex-wrap:wrap;margin-top:6px}.setup-section.collapsed .setup-head-summary{display:flex}
 .setup-section.fixed-section .setup-head{grid-template-columns:42px minmax(0,1fr);grid-template-rows:auto auto}.setup-section.fixed-section .setup-help{grid-column:2;grid-row:2}.setup-section.fixed-section .setup-body{padding:10px 14px 13px}.setup-section.fixed-section .setup-collapse{display:none}
 .setup-section.compact-section .setup-head{padding:10px 14px}.setup-section.compact-section .setup-body{padding:10px 14px}.compact-line{display:grid;grid-template-columns:minmax(220px,.45fr) minmax(0,1fr);gap:14px;align-items:center}.compact-line .setup-label{align-self:center}
 .setup-section.choice-section .setup-body{padding:12px 14px}.setup-section.choice-section .setup-head{padding:10px 14px}.setup-section.choice-section .setup-collapse{display:none}
+.setup-section.choice-section .setup-body{gap:7px;padding:8px 14px 10px}.setup-section.choice-section .setup-note{padding:6px 9px;line-height:1.35}.setup-section.choice-section .list-links{gap:5px}.setup-section.choice-section .list-link{min-height:24px;padding:0 8px}
+.traffic-section .setup-head{padding:10px 14px}.traffic-section .setup-body{padding:0;gap:0}.traffic-range{width:38px;font-size:8px}.traffic-row{display:grid;grid-template-columns:30px minmax(150px,.32fr) minmax(0,1fr);gap:10px;align-items:center;padding:8px 14px;border-top:1px solid var(--border)}.traffic-row:first-child{border-top:0}.traffic-mini-num{width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--border);border-radius:6px;background:var(--code);color:var(--muted);font:700 8px/1 ui-monospace,Consolas,monospace}.traffic-copy{min-width:0}.traffic-copy strong{display:block;color:var(--text);font-size:11px;line-height:1.2}.traffic-copy span{display:block;margin-top:2px;color:var(--muted);font:8px/1.2 ui-monospace,Consolas,monospace}.traffic-control{min-width:0}.traffic-toggle{display:flex;align-items:center;gap:7px;justify-content:flex-start;font-size:11px}.traffic-section .port-editor{gap:5px}.traffic-section .port-chips{min-height:22px}.traffic-section .port-chip{min-height:22px;padding:0 6px}.traffic-section .port-add{gap:5px}.traffic-section .port-add input{min-height:30px;height:30px;max-width:180px;padding:5px 8px}.traffic-section .port-add button{min-height:30px;padding:0 10px}
 .choice-intro{display:flex;align-items:center;justify-content:space-between;gap:12px}.choice-intro .setup-help{position:static;display:block}
 .fixed-check{display:flex;align-items:center;justify-content:space-between;gap:12px}.fixed-check label{font-size:12px}
 .internal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.internal-item{padding:9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2)}.internal-item span{display:block;color:var(--muted);font-size:8px}.internal-item strong{display:block;margin-top:4px;color:var(--text);font:600 10px/1.3 ui-monospace,Consolas,monospace}
 .setup-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);position:sticky;top:0;z-index:6}.setup-mode{display:flex;gap:5px}.setup-mode button.active{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--border));background:var(--accent-soft)}.setup-overview{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.setup-overview .card{padding:10px}.setup-overview .metric-value{font-size:13px}
 .setup-section.collapsed .setup-body{display:none}.setup-section.collapsed .setup-head{border-bottom:0}.setup-collapse{min-height:32px;padding:0 10px;font-size:11px;color:var(--muted)}.expert-only{display:none}.expert-mode .expert-only{display:block}
 .port-editor{display:grid;gap:7px}.port-chips{display:flex;gap:5px;flex-wrap:wrap;min-height:25px}.port-chip{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 7px;border:1px solid var(--border);border-radius:999px;background:var(--surface2);font:9px/1 ui-monospace,Consolas,monospace;color:var(--text)}.port-chip button{min-height:18px;width:18px;padding:0;border:0;background:transparent;color:var(--bad)}.port-add{display:flex;gap:6px}.port-add input{max-width:180px}
-.policy-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.policy-card{display:grid;gap:4px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);cursor:pointer}.policy-card.active{border-color:color-mix(in srgb,var(--accent) 55%,var(--border));background:var(--accent-soft)}.policy-card strong{font-size:10px}.policy-card span{font-size:8px;color:var(--muted);line-height:1.4}
+.policy-name-compact{display:grid;grid-template-columns:minmax(130px,.28fr) minmax(220px,420px);gap:10px;align-items:center;padding-top:2px}.policy-name-compact .setup-label strong{margin-bottom:1px}
 .list-links{display:flex;gap:6px;flex-wrap:wrap}.list-link{min-height:26px;font-size:9px;color:#34d399}
 .diagnostics{display:grid;gap:6px}.diag{display:grid;grid-template-columns:8px minmax(0,1fr);gap:8px;align-items:start;padding:7px 8px;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);background:var(--surface2);font-size:9px}.diag:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--muted);margin-top:3px}.diag.good:before{background:var(--good)}.diag.warn:before{background:var(--warn)}.diag.bad:before{background:var(--bad)}.diag.good{color:color-mix(in srgb,var(--good) 75%,var(--text))}.diag.warn{color:color-mix(in srgb,var(--warn) 75%,var(--text))}.diag.bad{color:color-mix(in srgb,var(--bad) 75%,var(--text))}
 .change-summary{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.change-chip{display:inline-flex;align-items:center;min-height:20px;padding:0 6px;border-radius:999px;border:1px solid color-mix(in srgb,var(--warn) 35%,var(--border));background:color-mix(in srgb,var(--warn) 8%,var(--surface));color:var(--warn);font:8px/1 ui-monospace,Consolas,monospace}
@@ -71,8 +73,8 @@ textarea.editor{border:0;border-radius:0;width:100%;min-height:500px;resize:vert
 .domain-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}.domain-stat{padding:9px;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);background:var(--surface2)}.domain-stat span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase}.domain-stat strong{display:block;margin-top:4px;font:700 16px/1 ui-monospace,Consolas,monospace}.progress{height:4px;background:var(--border);border-radius:4px;overflow:hidden;margin:8px 0 12px}.progress span{display:block;height:100%;width:0;background:var(--accent);transition:width .15s linear}.domain-results{display:grid;gap:4px;max-height:48vh;overflow:auto}.domain-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:7px 9px;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);font:10px/1.3 ui-monospace,Consolas,monospace}.domain-row.ok{border-left:3px solid var(--good)}.domain-row.fail{border-left:3px solid var(--bad)}.domain-row.pending{opacity:.7}.domain-row .result.ok{color:var(--good)}.domain-row .result.fail{color:var(--bad)}
 .full-editor{position:fixed!important;inset:8px!important;z-index:20!important;background:var(--bg)!important;box-shadow:0 25px 80px rgba(0,0,0,.7);overflow:auto}.full-editor textarea.editor{min-height:calc(100vh - 145px)}
 html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--space:16px}
-@media(max-width:1050px){.grid.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.setup-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.setup-row{grid-template-columns:1fr}.mode-grid,.policy-grid{grid-template-columns:1fr}.internal-grid{grid-template-columns:1fr}.setup-help{text-align:left;max-width:none}.list-grid{grid-template-columns:1fr}.file-list{min-height:0;max-height:260px}.list-editor{min-height:520px}}
-@media(max-width:700px){.hero{grid-template-columns:1fr}.actions{justify-content:flex-start}.grid.cards{grid-template-columns:1fr}.setup-head{grid-template-columns:36px minmax(0,1fr) auto}.setup-help{grid-column:2}.kv{grid-template-columns:1fr}.domain-summary{grid-template-columns:repeat(2,1fr)}.subtitle{white-space:normal}.search{min-width:0;width:100%}}
+@media(max-width:1050px){.grid.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.setup-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.setup-row{grid-template-columns:1fr}.internal-grid{grid-template-columns:1fr}.setup-help{text-align:left;max-width:none}.list-grid{grid-template-columns:1fr}.file-list{min-height:0;max-height:260px}.list-editor{min-height:520px}.traffic-row{grid-template-columns:30px minmax(120px,.38fr) minmax(0,1fr)}}
+@media(max-width:700px){.hero{grid-template-columns:1fr}.actions{justify-content:flex-start}.grid.cards{grid-template-columns:1fr}.setup-head{grid-template-columns:36px minmax(0,1fr) auto}.setup-help{grid-column:2}.kv{grid-template-columns:1fr}.domain-summary{grid-template-columns:repeat(2,1fr)}.subtitle{white-space:normal}.search{min-width:0;width:100%}.mode-grid,.policy-grid{display:grid;grid-template-columns:1fr}.mode-card,.policy-card{width:100%}.policy-name-compact{grid-template-columns:1fr}.traffic-row{grid-template-columns:26px minmax(0,1fr);align-items:start}.traffic-control{grid-column:2}.traffic-section .port-add{flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -167,7 +169,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
       <div class="setup-body">
         <div class="mode-grid">
           <label class="mode-card" data-mode="MODE_LIST"><input type="radio" name="flowMode" value="MODE_LIST"><strong>Только мой список</strong><span>user.list</span></label>
-          <label class="mode-card" data-mode="MODE_AUTO"><input type="radio" name="flowMode" value="MODE_AUTO"><strong>Автоматически</strong><span>user.list + auto.list − exclude.list</span></label>
+          <label class="mode-card" data-mode="MODE_AUTO"><input type="radio" name="flowMode" value="MODE_AUTO"><strong>Автоматически</strong><span>user.list + auto.list</span></label>
           <label class="mode-card" data-mode="MODE_ALL"><input type="radio" name="flowMode" value="MODE_ALL"><strong>Весь трафик</strong><span>всё − exclude.list</span></label>
         </div>
         <div class="setup-note">Это именно <span class="mono">NFQWS_EXTRA_ARGS</span>. Upstream помечает MODE_LIST / MODE_ALL / MODE_AUTO как «don't change» — поэтому они здесь только как понятный переключатель.</div>
@@ -189,19 +191,22 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
       </div>
     </article>
 
-    <article class="setup-section fixed-section compact-section" data-fixed="true">
-      <div class="setup-head"><div class="setup-num">09</div><div><div class="setup-title">IPv6</div><div class="setup-key">IPV6_ENABLED</div></div><div class="setup-help">Включает аналогичные правила обработки для IPv6.</div></div>
-      <div class="setup-body"><div class="fixed-check"><span class="setup-label"><strong>Обработка IPv6</strong>Включает аналогичные правила для IPv6-трафика.</span><label class="config-check"><input id="flowIPv6" type="checkbox"> Включено</label></div></div>
-    </article>
-
-    <article class="setup-section fixed-section compact-section" data-fixed="true">
-      <div class="setup-head"><div class="setup-num">10</div><div><div class="setup-title">TCP-порты</div><div class="setup-key">TCP_PORTS</div></div><div class="setup-help">Какие TCP-порты iptables отправляет в NFQUEUE. Пустое значение отключает обработку TCP.</div></div>
-      <div class="setup-body"><input id="flowTcpPorts" type="hidden"><div class="compact-line"><div class="setup-label"><strong>TCP → NFQUEUE</strong>Добавь порт или диапазон. Крестик удаляет значение.</div><div class="port-editor"><div id="tcpPortChips" class="port-chips"></div><div class="port-add"><input id="tcpPortAdd" class="setup-input" placeholder="443 или 1000:2000"><button id="addTcpPort">+ Добавить</button></div></div></div></div>
-    </article>
-
-    <article class="setup-section fixed-section compact-section" data-fixed="true">
-      <div class="setup-head"><div class="setup-num">11</div><div><div class="setup-title">UDP-порты</div><div class="setup-key">UDP_PORTS</div></div><div class="setup-help">Какие UDP-порты попадают в NFQUEUE. Убери 443, если QUIC обрабатывать не нужно.</div></div>
-      <div class="setup-body"><input id="flowUdpPorts" type="hidden"><div class="compact-line"><div class="setup-label"><strong>UDP → NFQUEUE</strong>443 нужен для QUIC; остальные порты — для UDP-протоколов.</div><div class="port-editor"><div id="udpPortChips" class="port-chips"></div><div class="port-add"><input id="udpPortAdd" class="setup-input" placeholder="443 или 3478:3481"><button id="addUdpPort">+ Добавить</button></div></div></div></div>
+    <article class="setup-section fixed-section traffic-section" data-fixed="true">
+      <div class="setup-head"><div class="setup-num traffic-range">09–11</div><div><div class="setup-title">Обработка трафика</div><div class="setup-key">IPV6_ENABLED / TCP_PORTS / UDP_PORTS</div></div><div class="setup-help">Компактно задаёт IPv6 и порты, которые iptables отправляет в NFQUEUE.</div></div>
+      <div class="setup-body">
+        <div class="traffic-row">
+          <div class="traffic-mini-num">09</div><div class="traffic-copy"><strong>IPv6</strong><span>IPV6_ENABLED</span></div>
+          <div class="traffic-control"><label class="traffic-toggle"><input id="flowIPv6" type="checkbox"> Включить обработку IPv6</label></div>
+        </div>
+        <div class="traffic-row">
+          <div class="traffic-mini-num">10</div><div class="traffic-copy"><strong>TCP → NFQUEUE</strong><span>TCP_PORTS</span></div>
+          <div class="traffic-control"><input id="flowTcpPorts" type="hidden"><div class="port-editor"><div id="tcpPortChips" class="port-chips"></div><div class="port-add"><input id="tcpPortAdd" class="setup-input" placeholder="443 или 1000:2000"><button id="addTcpPort">+ Добавить</button></div></div></div>
+        </div>
+        <div class="traffic-row">
+          <div class="traffic-mini-num">11</div><div class="traffic-copy"><strong>UDP → NFQUEUE</strong><span>UDP_PORTS</span></div>
+          <div class="traffic-control"><input id="flowUdpPorts" type="hidden"><div class="port-editor"><div id="udpPortChips" class="port-chips"></div><div class="port-add"><input id="udpPortAdd" class="setup-input" placeholder="443 или 3478:3481"><button id="addUdpPort">+ Добавить</button></div></div></div>
+        </div>
+      </div>
     </article>
 
     <article class="setup-section fixed-section choice-section" data-fixed="true">
@@ -209,10 +214,10 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
       <div class="setup-body">
         <div class="policy-grid">
           <label class="policy-card" data-policy-mode="none"><input type="radio" name="policyMode" value="none"><strong>Без политики</strong><span>все устройства</span></label>
-          <label class="policy-card" data-policy-mode="include"><input type="radio" name="policyMode" value="include"><strong>Только политика</strong><span>обрабатывать только POLICY_NAME</span></label>
-          <label class="policy-card" data-policy-mode="exclude"><input type="radio" name="policyMode" value="exclude"><strong>Исключить политику</strong><span>POLICY_NAME не обрабатывать</span></label>
+          <label class="policy-card" data-policy-mode="include"><input type="radio" name="policyMode" value="include"><strong>Только политика</strong><span>только POLICY_NAME</span></label>
+          <label class="policy-card" data-policy-mode="exclude"><input type="radio" name="policyMode" value="exclude"><strong>Исключить политику</strong><span>кроме POLICY_NAME</span></label>
         </div>
-        <div id="policyNameRow" class="setup-row"><div class="setup-label"><strong>Имя политики</strong>Точное имя политики Keenetic.</div><input id="flowPolicyName" class="setup-input" spellcheck="false"></div>
+        <div id="policyNameRow" class="policy-name-compact"><div class="setup-label"><strong>Имя политики</strong>Точное имя Keenetic.</div><input id="flowPolicyName" class="setup-input" spellcheck="false"></div>
         <input id="flowPolicyExclude" type="hidden">
       </div>
     </article>
@@ -352,7 +357,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
     for(;i<config.length;i++){const c=config[i];if((c==='\n'||c==='\r')&&!escaped)break;escaped=c==='\\'&&!escaped;if(c!=='\\')escaped=false}
     return{key,start,end:i,quote:'',indent:m[1],raw:config.slice(valueStart,i)};
   }
-  function normalizeAssignmentRaw(raw){return String(raw||'').replace(/\\\r?\n[ \t]*/g,'\n').trim()}
+  function normalizeAssignmentRaw(raw){return String(raw||'').replace(/\\\r?\n[ \t]*/g,'\n').split(/\r?\n/).map(line=>line.trim()).join('\n').trim()}
   function assignmentValue(config,key){const a=scanAssignment(config,key);return a?normalizeAssignmentRaw(a.raw).replace(/\\"/g,'"').replace(/\\\\/g,'\\'):''}
   function boolAssignment(config,key){return /^(1|true|yes)$/i.test(assignmentValue(config,key))}
   function escapeForQuote(value,quote){
@@ -362,8 +367,15 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   }
   function formatAssignment(key,value,a){
     const quote=a?.quote||((String(value).includes(' ')||String(value).includes('\n')||String(value)==='')?'"':'');
-    const indent=a?.indent||'',escaped=escapeForQuote(value,quote).replace(/\n/g,'\\\n                 ');
-    return `${indent}${key}=${quote}${escaped}${quote}`;
+    const indent=a?.indent||'',logical=escapeForQuote(value,quote).replace(/\r\n/g,'\n');
+    if(!logical.includes('\n'))return `${indent}${key}=${quote}${logical}${quote}`;
+    const continuation=indent+' '.repeat(key.length+2);
+    const formatted=logical.split('\n').map((line,i)=>{
+      const clean=line.trim();
+      if(i===0)return clean;
+      return clean?continuation+clean:'';
+    }).join('\n');
+    return `${indent}${key}=${quote}${formatted}${quote}`;
   }
   function replaceAssignment(config,key,value){
     const a=scanAssignment(config,key);if(!a)return config;
@@ -371,7 +383,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   }
 
   const flowKeys=['ISP_INTERFACE','NFQWS_BASE_ARGS','NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_EXTRA_ARGS','NFQWS_ARGS_IPSET','NFQWS_ARGS_CUSTOM','IPV6_ENABLED','TCP_PORTS','UDP_PORTS','POLICY_NAME','POLICY_EXCLUDE','LOG_LEVEL','LOG_DEBUG_PATH'];
-  let flowOriginal='',flowValues={},customBlocks=[],customLabels=[];
+  let flowOriginal='',flowValues={},customBlocks=[],customOriginalBlocks=[],customLabels=[];
 
   function customLabelStoreKey(){const target=String(current?.config_path||current?.target_id||'default');return `routerforge.nfqws.custom-labels.v1:${target}`}
   function normalizeCustomLabel(value){return String(value||'').replace(/[\r\n]+/g,' ').trim().slice(0,120)}
@@ -397,7 +409,8 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
     return clean.slice(0,lineStart)+meta.join('\n')+'\n'+clean.slice(lineStart);
   }
   function parseCustom(value){return String(value||'').split(/\s+--new(?:\s+|$)/).map(x=>x.trim()).filter(Boolean)}
-  function buildCustom(){return customBlocks.map(x=>x.trim()).filter(Boolean).join(' --new ')}
+  function buildCustom(){return customBlocks.map(x=>x.trim()).filter(Boolean).join('\n--new\n')}
+  function customBlocksChanged(){return JSON.stringify(customBlocks.map(x=>x.trim()))!==JSON.stringify(customOriginalBlocks.map(x=>x.trim()))}
   function parsePorts(value){return String(value||'').split(',').map(x=>x.trim()).filter(Boolean)}
   function validPortToken(value){return /^\d{1,5}(?::\d{1,5})?$/.test(value)&&value.split(':').every(x=>Number(x)>=1&&Number(x)<=65535)}
   function renderPortEditor(kind){
@@ -468,12 +481,15 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   function changedKeys(){const next=flowConfig(),out=[];for(const key of flowKeys)if(assignmentValue(flowOriginal,key)!==assignmentValue(next,key))out.push(key);const before=parseCustomLabelMetadata(flowOriginal).labels.map(normalizeCustomLabel),after=customLabels.map(normalizeCustomLabel);if(JSON.stringify(before)!==JSON.stringify(after))out.push('CUSTOM_LABELS');return out}
   function renderChangeSummary(){const keys=changedKeys();$('changeSummary').innerHTML=keys.slice(0,8).map(k=>`<span class="change-chip">${esc(k)}</span>`).join('')+(keys.length>8?`<span class="change-chip">+${keys.length-8}</span>`:'')}
   function loadFlow(config){
-    flowOriginal=config;flowValues=Object.fromEntries(flowKeys.map(k=>[k,assignmentValue(config,k)]));customBlocks=parseCustom(flowValues.NFQWS_ARGS_CUSTOM);loadCustomLabels(config);
+    flowOriginal=config;flowValues=Object.fromEntries(flowKeys.map(k=>[k,assignmentValue(config,k)]));customBlocks=parseCustom(flowValues.NFQWS_ARGS_CUSTOM);customOriginalBlocks=[...customBlocks];loadCustomLabels(config);
   }
   function flowConfig(){
     let cfg=flowOriginal;
-    const vals={...flowValues,NFQWS_ARGS_CUSTOM:buildCustom()};
-    for(const key of flowKeys)cfg=replaceAssignment(cfg,key,vals[key]??'');
+    const vals={...flowValues,NFQWS_ARGS_CUSTOM:customBlocksChanged()?buildCustom():flowValues.NFQWS_ARGS_CUSTOM};
+    for(const key of flowKeys){
+      const next=String(vals[key]??'');
+      if(assignmentValue(flowOriginal,key)!==next)cfg=replaceAssignment(cfg,key,next);
+    }
     cfg=replaceCustomLabelMetadata(cfg);
     return cfg;
   }

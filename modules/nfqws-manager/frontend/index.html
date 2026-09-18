@@ -348,7 +348,11 @@ body.syntax-fullscreen-open{overflow:hidden}
 #listEditorPanel{display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:0;overflow:hidden}
 .list-editor-main{display:grid;grid-template-columns:auto minmax(0,1fr);min-height:0;overflow:hidden;border:1px solid var(--border);background:var(--code)}
 .list-line-gutter{margin:0;min-width:44px;padding:10px 7px 10px 9px;text-align:right;color:color-mix(in srgb,var(--muted) 65%,var(--bg));background:color-mix(in srgb,var(--surface2) 35%,var(--code));border-right:1px solid var(--border);user-select:none;overflow:hidden;font:11px/1.5 ui-monospace,Consolas,monospace}
-#listEditorPanel textarea.editor{height:100%;min-height:0;max-height:none;resize:none;overflow:auto;border:0;border-radius:0}
+.list-editor-body{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--code)}
+.list-editor-highlight{position:absolute;z-index:1;inset:0;margin:0;padding:10px 12px;overflow:hidden;pointer-events:none;color:color-mix(in srgb,var(--text) 90%,var(--accent));background:var(--code);font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace;white-space:pre;tab-size:2}
+.list-editor-highlight .list-comment{color:var(--syn-comment);font-style:italic}
+#listEditorPanel textarea.editor{position:relative;z-index:2;height:100%;min-height:0;max-height:none;resize:none;overflow:auto;border:0;border-radius:0;background:transparent!important;color:transparent!important;caret-color:var(--text)!important;text-shadow:none!important;font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace!important;white-space:pre;tab-size:2}
+#listEditorPanel textarea.editor::selection{background:color-mix(in srgb,var(--accent) 27%,transparent);color:transparent}
 #scriptPanel{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;overflow:hidden}
 #scriptPanel .script-code-shell,#scriptPanel .script-reader-empty{height:100%;min-height:0;max-height:none;overflow:auto}
 /* The split workspace itself is the resize target, identical for Lists/Scripts. */
@@ -556,7 +560,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     </div>
     <div class="setup-note warn" style="margin-bottom:10px">Это полный исходный конфиг без упрощений. Для обычной настройки используй вкладку «Настройка» — она идёт в том же порядке, что и upstream nfqws2.conf.</div>
     <div class="editor-shell">
-      <div class="editor-toolbar"><span id="editorState" class="mono">CLEAN</span><span>Ctrl+S · Tab = 2 spaces</span></div>
+      <div class="editor-toolbar"><span id="editorState" class="mono">CLEAN</span><span>Ctrl+S → Diff · Tab = 2 spaces</span></div>
       <div class="editor-main"><pre id="gutter" class="gutter">1</pre><textarea id="config" class="editor" spellcheck="false"></textarea></div>
       <div class="editor-foot"><span id="editorStats">—</span><span>backup → atomic write → reload → rollback</span></div>
     </div>
@@ -577,7 +581,10 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       </div>
       <div class="list-editor-main">
         <pre id="listGutter" class="list-line-gutter" aria-hidden="true">1</pre>
-        <textarea id="listEditor" class="editor list-editor" spellcheck="false" placeholder="Выберите список слева."></textarea>
+        <div class="list-editor-body">
+          <pre id="listHighlight" class="list-editor-highlight" aria-hidden="true"></pre>
+          <textarea id="listEditor" class="editor list-editor" spellcheck="false" placeholder="Выберите список слева."></textarea>
+        </div>
       </div>
       <div class="editor-foot"><div id="listStats" class="list-stats">—</div><span>save → safety backup → atomic write</span></div>
     </article>
@@ -716,11 +723,11 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   function toggleStrategyFullscreen(shell,button){const on=!shell.classList.contains('syntax-fullscreen');document.querySelectorAll('.syntax-fullscreen').forEach(x=>x!==shell&&closeSyntaxFullscreen(x));shell.classList.toggle('syntax-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);button.textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()}
   function mountSyntaxTextarea(textarea,{mode='args',caption='NFQWS args',resources=true,resourceKind='strategy'}={}){
     if(!textarea)return null;const existing=syntaxEditors.get(textarea);if(existing){refreshSyntaxEditor(textarea);return existing}
-    const shell=document.createElement('div');shell.className='syntax-editor-shell';const bar=document.createElement('div');bar.className='syntax-editor-toolbar';bar.innerHTML=`<div class="syntax-editor-caption"><strong>${esc(caption)}</strong><span class="syntax-editor-hint">NFQWS syntax · Ctrl+S = diff</span></div>`;
+    const shell=document.createElement('div');shell.className='syntax-editor-shell';const bar=document.createElement('div');bar.className='syntax-editor-toolbar';bar.innerHTML=`<div class="syntax-editor-caption"><strong>${esc(caption)}</strong><span class="syntax-editor-hint">NFQWS syntax · Ctrl+S → Diff</span></div>`;
     const body=document.createElement('div');body.className='syntax-editor-body';const pre=document.createElement('pre');pre.className='syntax-editor-highlight';const resourceHost=document.createElement('div');resourceHost.className='resource-chips';resourceHost.hidden=!resources;
     textarea.parentNode.insertBefore(shell,textarea);shell.append(bar,body);body.append(pre,textarea);if(resources)shell.append(resourceHost);
     const state={pre,mode,shell,resources:resources?resourceHost:null,resourceKind};syntaxEditors.set(textarea,state);textarea.dataset.syntaxReady='1';
-    textarea.addEventListener('input',()=>refreshSyntaxEditor(textarea));textarea.addEventListener('scroll',()=>{pre.scrollTop=textarea.scrollTop;pre.scrollLeft=textarea.scrollLeft});textarea.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();insertTab(textarea)}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();updateFlowState();if(flowDirty())previewFlow()}if(e.key==='Escape'&&shell.classList.contains('syntax-fullscreen'))closeSyntaxFullscreen(shell)});
+    textarea.addEventListener('input',()=>refreshSyntaxEditor(textarea));textarea.addEventListener('scroll',()=>{pre.scrollTop=textarea.scrollTop;pre.scrollLeft=textarea.scrollLeft});textarea.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();insertTab(textarea)}if(e.key==='Escape'&&shell.classList.contains('syntax-fullscreen'))closeSyntaxFullscreen(shell)});
     refreshSyntaxEditor(textarea);return state;
   }
   function resizeRawEditor(){
@@ -1052,9 +1059,15 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   function updateListGutter(){
     const editor=$('listEditor'),gutter=$('listGutter');if(!editor||!gutter)return;const count=Math.max(1,lines(editor.value).length);gutter.textContent=Array.from({length:count},(_,i)=>i+1).join('\n');gutter.scrollTop=editor.scrollTop;
   }
+  function highlightListLine(line){
+    const raw=String(line??''),match=raw.match(/^(\s*)(#|\/\/)(.*)$/);if(match)return `${esc(match[1])}<span class="list-comment">${esc(match[2]+match[3])}</span>`;return esc(raw)||'&#8203;';
+  }
+  function updateListHighlight(){
+    const editor=$('listEditor'),highlight=$('listHighlight');if(!editor||!highlight)return;const rows=String(editor.value??'').split(/\r?\n/);highlight.innerHTML=rows.map(highlightListLine).join('\n')+(editor.value.endsWith('\n')?' ':'');highlight.scrollTop=editor.scrollTop;highlight.scrollLeft=editor.scrollLeft;
+  }
   function updateListButtons(){
     const loaded=Boolean(listMeta),dirty=loaded&&$('listEditor').value!==listOriginal;
-    updateListGutter();
+    updateListGutter();updateListHighlight();
     $('saveList').disabled=busy||!loaded||!dirty;$('undoList').disabled=!dirty;$('normalizeList').disabled=!loaded;$('checkList').disabled=!loaded;$('fullscreenList').disabled=!loaded;$('deleteList').disabled=busy||!loaded||Boolean(listMeta?.protected);
     if(!loaded){$('listStats').textContent='—';return}
     const arr=lines($('listEditor').value),data=arr.map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')&&!x.startsWith('//'));$('listStats').textContent=`${arr.length} lines · ${data.length} entries · ${bytes(new Blob([$('listEditor').value]).size)}${dirty?' · UNSAVED':''}`;
@@ -1131,13 +1144,24 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   function stopDomainCheck(){checkGeneration++}
   function closeCheck(){stopDomainCheck();$('checkModal').classList.remove('open')}
 
+  function handleEditorSaveShortcut(e){
+    if(!(e.ctrlKey||e.metaKey)||String(e.key||'').toLowerCase()!=='s')return;
+    const active=document.querySelector('.view.active'),view=active?.id||'';
+    if(!['view-strategies','view-config','view-lists','view-scripts'].includes(view))return;
+    e.preventDefault();e.stopPropagation();
+    if(view==='view-strategies'){updateFlowState();if(flowDirty())previewFlow();return}
+    if(view==='view-config'){if($('config').value!==original)showDiff();return}
+    if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
+  }
+
   document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
-  $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
+  $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
-  $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('listEditor').onscroll=()=>{$('listGutter').scrollTop=$('listEditor').scrollTop};$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
+  $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('listEditor').onscroll=()=>{$('listGutter').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollLeft=$('listEditor').scrollLeft};$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));$('scriptSearch').oninput=renderScriptList;$('copyScript').onclick=()=>navigator.clipboard?.writeText(scriptContent);$('fullscreenScript').onclick=()=>{const panel=$('scriptPanel'),on=!panel.classList.contains('script-fullscreen');panel.classList.toggle('script-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenScript').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};
+  document.addEventListener('keydown',handleEditorSaveShortcut,true);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){const panel=$('configEditorPanel');if(panel?.classList.contains('full-editor')){$('fullscreenConfig')?.click()}const listPanel=$('listEditorPanel');if(listPanel?.classList.contains('full-editor'))$('fullscreenList')?.click();const scriptPanel=$('scriptPanel');if(scriptPanel?.classList.contains('script-fullscreen'))$('fullscreenScript')?.click()}});
   load();
 })();

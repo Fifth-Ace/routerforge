@@ -98,8 +98,9 @@ type catalogItem struct {
 	RegistrySource   string                  `json:"registry_source,omitempty"`
 	Presentation     map[string]any          `json:"presentation,omitempty"`
 
-	Release         catalogRelease `json:"release,omitempty"`
-	UpdateAvailable bool           `json:"update_available,omitempty"`
+	UnmanagedGitHub *catalogUnmanagedGitHub `json:"unmanaged_github,omitempty"`
+	Release         catalogRelease          `json:"release,omitempty"`
+	UpdateAvailable bool                    `json:"update_available,omitempty"`
 
 	ProcessNames         []string `json:"process_names,omitempty"`
 	RunningPaths         []string `json:"running_paths,omitempty"`

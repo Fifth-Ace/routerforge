@@ -12,6 +12,7 @@
   $: packages=install.packages||item?.detection?.packages||[];
   $: notes=install.notes||[];
   $: packageMeta=item?.package_meta||{};
+  $: unmanaged=item?.unmanaged_github||null;
   $: webPort=catalogWebPort(item);
 </script>
 
@@ -51,6 +52,13 @@
               {#if packageMeta.depends?.length}<div class="check-row"><span>{locale === 'ru' ? 'Зависимости' : 'Depends'}</span><code>{packageMeta.depends.join(', ')}</code></div>{/if}
               {#if packageMeta.conflicts?.length}<div class="check-row"><span>{locale === 'ru' ? 'Конфликты' : 'Conflicts'}</span><code>{packageMeta.conflicts.join(', ')}</code></div>{/if}
               <div class="check-row"><span>{locale === 'ru' ? 'Издатель' : 'Publisher'}</span><code>{item.publisher?.name || item.source || '—'}</code></div>
+              {#if unmanaged}
+                <div class="check-row"><span>{locale === 'ru' ? 'GitHub канал' : 'GitHub channel'}</span><code>{unmanaged.selected_channel || unmanaged.requested_channel || 'auto'}</code></div>
+                {#if unmanaged.selected?.tag}<div class="check-row"><span>{locale === 'ru' ? 'GitHub Release' : 'GitHub Release'}</span><code>{unmanaged.selected.tag}</code></div>{/if}
+                {#if unmanaged.selected?.asset}<div class="check-row"><span>{locale === 'ru' ? 'Asset' : 'Asset'}</span><code>{unmanaged.selected.asset}</code></div>{/if}
+                {#if unmanaged.manual_reason && !unmanaged.selected}<div class="check-row"><span>{locale === 'ru' ? 'Автоустановка' : 'Auto install'}</span><code>{unmanaged.manual_reason}</code></div>{/if}
+              {/if}
+
               {#if item.manifest_sha256}<div class="check-row"><span>Manifest</span><code>{item.manifest_sha256}</code></div>{/if}
             </div>
             <div class="check-card">

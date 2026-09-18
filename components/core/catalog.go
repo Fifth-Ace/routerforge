@@ -266,8 +266,8 @@ func integrationManagerSeedModules() []catalogItem {
 		{
 			ID: "nfqws-manager", Kind: "module", Name: "RouterForge NFQWS Manager", Category: "Integrations",
 			Description: "Installable RouterForge extension for safe management of an existing nfqws2-keenetic runtime.",
-			ProjectURL: "https://github.com/Fifth-Ace/routerforge",
-			Source: "routerforge-official", Managed: true, PackageAuthoritative: true,
+			ProjectURL:  "https://github.com/Fifth-Ace/routerforge",
+			Source:      "routerforge-official", Managed: true, PackageAuthoritative: true,
 			Publisher: catalogPublisher{ID: "routerforge", Name: "RouterForge", URL: "https://github.com/Fifth-Ace/routerforge"},
 			Trust: catalogTrust{
 				Status: "official", ReviewedBy: "routerforge",
@@ -280,8 +280,8 @@ func integrationManagerSeedModules() []catalogItem {
 			},
 			ProcessNames: []string{"routerforge-nfqws-manager"},
 			Compatibility: catalogCompatibility{
-				Status: "requirements",
-				Hints: []string{"RouterForge Core", "Entware", "installed nfqws2-keenetic"},
+				Status:  "requirements",
+				Hints:   []string{"RouterForge Core", "Entware", "installed nfqws2-keenetic"},
 				Targets: []string{"aarch64-3.10"},
 			},
 			Install: catalogInstallPlan{
@@ -299,10 +299,10 @@ func integrationManagerSeedModules() []catalogItem {
 			Presentation: map[string]any{
 				"dashboard": map[string]any{"enabled": false, "priority": 60},
 				"integration": map[string]any{
-					"enabled": true,
-					"label": "NFQWS / NFQWS2",
-					"href": "/integrations?open=nfqws-manager",
-					"order": 10,
+					"enabled":    true,
+					"label":      "NFQWS / NFQWS2",
+					"href":       "/integrations?open=nfqws-manager",
+					"order":      10,
 					"target_ids": []string{"nfqws2"},
 				},
 			},

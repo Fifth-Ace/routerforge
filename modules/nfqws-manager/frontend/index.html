@@ -41,8 +41,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .activity{display:grid}.activity-row{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--border)}.activity-row:first-child{border-top:0}.dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}.dot.good{background:var(--good)}.dot.warn{background:var(--warn)}
 .setup-flow{display:grid;gap:10px}.setup-section{border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);overflow:hidden}.setup-head{display:grid;grid-template-columns:42px minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;row-gap:4px;align-items:center;padding:13px 14px;background:color-mix(in srgb,var(--surface2) 70%,var(--surface));border-bottom:1px solid var(--border)}.setup-head>.setup-num{grid-column:1;grid-row:1/3}.setup-head>div:nth-child(2){grid-column:2;grid-row:1}.setup-help{grid-column:2;grid-row:2;color:var(--muted);font-size:11px;max-width:none;text-align:left;line-height:1.45}.setup-collapse{grid-column:3;grid-row:1/3;align-self:center;min-width:92px}.setup-num{width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--border-strong);border-radius:7px;background:var(--code);color:var(--accent);font:700 10px/1 ui-monospace,Consolas,monospace}.setup-title{font-weight:700;color:var(--text);font-size:14px}.setup-key{margin-top:3px;color:var(--muted);font:10px/1.35 ui-monospace,Consolas,monospace}.setup-body{padding:12px;display:grid;gap:10px}.setup-row{display:grid;grid-template-columns:minmax(160px,.45fr) minmax(0,1fr);gap:12px;align-items:start}.setup-label{color:var(--muted);font-size:11px}.setup-label strong{display:block;color:var(--text);font-size:12px;margin-bottom:3px}.setup-input,.setup-select,.setup-textarea{width:100%;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);padding:9px 11px;font:12px/1.45 ui-monospace,Consolas,monospace}.setup-input,.setup-select{min-height:36px}.setup-textarea{min-height:126px;resize:vertical;white-space:pre-wrap}.setup-textarea.large{min-height:220px}.setup-note{padding:9px 11px;border-left:3px solid var(--accent);background:var(--accent-soft);color:var(--muted);font-size:10px;line-height:1.5}.setup-note.warn{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--surface));color:color-mix(in srgb,var(--warn) 75%,var(--text))}.setup-note.good{border-left-color:var(--good);background:color-mix(in srgb,var(--good) 8%,var(--surface));color:color-mix(in srgb,var(--good) 72%,var(--text))}.setup-chips{display:flex;gap:5px;flex-wrap:wrap}.setup-chip{display:inline-flex;align-items:center;min-height:24px;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface2);color:var(--muted);font:8px/1 ui-monospace,Consolas,monospace}.setup-chip.good{color:var(--good)}.setup-chip.warn{color:var(--warn)}.setup-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}.setup-sticky{position:sticky;bottom:0;z-index:5;display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 11px;border:1px solid var(--border-strong);border-radius:var(--radius);background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(8px)}.setup-state{font:600 9px/1 ui-monospace,Consolas,monospace;color:var(--muted)}.setup-state.dirty{color:var(--warn)}
 .mode-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.mode-card{display:grid;gap:4px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);cursor:pointer}.mode-card.active{border-color:color-mix(in srgb,var(--accent) 55%,var(--border));background:var(--accent-soft)}.mode-card strong{color:var(--text);font-size:10px}.mode-card span{color:var(--muted);font-size:8px;line-height:1.4}
-.custom-blocks{display:grid;gap:9px}.custom-block{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);padding:10px;display:grid;gap:8px}.custom-block-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.custom-block-title{font-weight:700;color:var(--accent);font-size:10px}.custom-block-actions{display:flex;gap:5px}.custom-block textarea{width:100%;min-height:110px;resize:vertical;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);padding:9px;font:10px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap}.custom-add{width:100%;border-style:dashed;color:var(--accent)}
-.custom-label-row{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px;align-items:center}.custom-label-row label{color:var(--muted);font-size:10px}.custom-label-input{width:100%;min-height:34px;padding:7px 9px;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px)}.label-help{font-size:9px;color:var(--muted);line-height:1.4}
+.custom-blocks{display:grid;gap:9px}.custom-block{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);padding:11px;display:grid;gap:9px}.custom-block-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.custom-block-title{font-weight:700;color:var(--accent);font-size:12px}.custom-block-actions{display:flex;gap:5px}.custom-block textarea{width:100%;min-height:116px;resize:vertical;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);padding:10px;font:12px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap}.custom-add{width:100%;border-style:dashed;color:var(--accent)}
+.custom-label-row{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px;align-items:center}.custom-label-row label{color:var(--muted);font-size:11px}.custom-label-input{width:100%;min-height:36px;padding:8px 10px;border:1px solid var(--border);background:var(--code);color:var(--text);border-radius:calc(var(--radius) - 3px);font:12px/1.4 ui-monospace,Consolas,monospace}.label-help{font-size:10px;color:var(--muted);line-height:1.45}.custom-live-summary{margin-top:-1px}
+.setup-head-summary{display:none;gap:5px;flex-wrap:wrap;margin-top:6px}.setup-section.collapsed .setup-head-summary{display:flex}
 .setup-section.fixed-section .setup-head{grid-template-columns:42px minmax(0,1fr);grid-template-rows:auto auto}.setup-section.fixed-section .setup-help{grid-column:2;grid-row:2}.setup-section.fixed-section .setup-body{padding:10px 14px 13px}.setup-section.fixed-section .setup-collapse{display:none}
 .setup-section.compact-section .setup-head{padding:10px 14px}.setup-section.compact-section .setup-body{padding:10px 14px}.compact-line{display:grid;grid-template-columns:minmax(220px,.45fr) minmax(0,1fr);gap:14px;align-items:center}.compact-line .setup-label{align-self:center}
 .setup-section.choice-section .setup-body{padding:12px 14px}.setup-section.choice-section .setup-head{padding:10px 14px}.setup-section.choice-section .setup-collapse{display:none}
@@ -146,17 +147,17 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
       <div class="setup-body"><textarea id="flowBaseArgs" class="setup-textarea large" spellcheck="false"></textarea><div class="setup-note warn">В этом блоке upstream запрещает <span class="mono">--new</span>. Профили здесь не переставляем и не дробим.</div></div>
     </article>
 
-    <article class="setup-section">
+    <article class="setup-section" data-summary-key="NFQWS_ARGS">
       <div class="setup-head"><div class="setup-num">03</div><div><div class="setup-title">HTTPS / TCP</div><div class="setup-key">NFQWS_ARGS</div></div><div class="setup-help">Главная стратегия для HTTPS/TCP. Применяется к доменам в зависимости от выбранного режима работы.</div></div>
       <div class="setup-body"><div id="sumMain" class="setup-chips"></div><textarea id="flowArgs" class="setup-textarea large" spellcheck="false"></textarea><div class="setup-note">Порядок внутри этого блока сохраняем как в исходном конфиге. <span class="mono">--new</span> здесь не допускается самим nfqws2-keenetic.</div></div>
     </article>
 
-    <article class="setup-section">
+    <article class="setup-section" data-summary-key="NFQWS_ARGS_QUIC">
       <div class="setup-head"><div class="setup-num">04</div><div><div class="setup-title">QUIC</div><div class="setup-key">NFQWS_ARGS_QUIC</div></div><div class="setup-help">Отдельная стратегия для QUIC, обычно UDP/443. При запуске nfqws2 к ней автоматически добавляются режим доменов и IPSET.</div></div>
       <div class="setup-body"><div id="sumQuic" class="setup-chips"></div><textarea id="flowQuic" class="setup-textarea" spellcheck="false"></textarea></div>
     </article>
 
-    <article class="setup-section">
+    <article class="setup-section" data-summary-key="NFQWS_ARGS_UDP">
       <div class="setup-head"><div class="setup-num">05</div><div><div class="setup-title">Прочий UDP</div><div class="setup-key">NFQWS_ARGS_UDP</div></div><div class="setup-help">WireGuard, STUN, Discord, MTProto и другие UDP-протоколы. Этот блок не использует NFQWS_EXTRA_ARGS.</div></div>
       <div class="setup-body"><div id="sumUdp" class="setup-chips"></div><textarea id="flowUdp" class="setup-textarea large" spellcheck="false"></textarea><div class="setup-note good">Это отдельный UDP-профиль: доменные MODE_LIST / MODE_AUTO / MODE_ALL на него не навешиваются.</div></div>
     </article>
@@ -174,12 +175,12 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
       </div>
     </article>
 
-    <article class="setup-section">
+    <article class="setup-section" data-summary-key="NFQWS_ARGS_IPSET">
       <div class="setup-head"><div class="setup-num">07</div><div><div class="setup-title">IP-списки</div><div class="setup-key">NFQWS_ARGS_IPSET</div></div><div class="setup-help">IP/CIDR, которые обрабатываются независимо от доменного режима. Обычно это ipset.list и ipset_exclude.list.</div></div>
       <div class="setup-body"><div id="sumIpset" class="setup-chips"></div><textarea id="flowIpset" class="setup-textarea" spellcheck="false"></textarea><div class="list-links"><button class="list-link" data-open-list="ipset.list">Открыть ipset.list</button><button class="list-link" data-open-list="ipset_exclude.list">Открыть ipset_exclude.list</button></div></div>
     </article>
 
-    <article class="setup-section">
+    <article class="setup-section" data-summary-key="CUSTOM">
       <div class="setup-head"><div class="setup-num">08</div><div><div class="setup-title">Дополнительные стратегии</div><div class="setup-key">NFQWS_ARGS_CUSTOM</div></div><div class="setup-help">Единственное место, где upstream разрешает несколько профилей через --new. Только здесь можно менять блоки местами.</div></div>
       <div class="setup-body">
         <div id="customBlocks" class="custom-blocks"></div>
@@ -373,12 +374,28 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   let flowOriginal='',flowValues={},customBlocks=[],customLabels=[];
 
   function customLabelStoreKey(){const target=String(current?.config_path||current?.target_id||'default');return `routerforge.nfqws.custom-labels.v1:${target}`}
-  function loadCustomLabels(){
-    try{const data=JSON.parse(localStorage.getItem(customLabelStoreKey())||'[]');customLabels=Array.isArray(data)?data:[]}catch(_){customLabels=[]}
+  function normalizeCustomLabel(value){return String(value||'').replace(/[\r\n]+/g,' ').trim().slice(0,120)}
+  function parseCustomLabelMetadata(config){
+    const labels=[],re=/^[ \t]*# RouterForge: NFQWS_ARGS_CUSTOM label\[(\d+)\]=(.*)$/gm;let m,count=0;
+    while((m=re.exec(String(config||'')))!==null){const i=Number(m[1])-1;if(i>=0){labels[i]=normalizeCustomLabel(m[2]);count++}}
+    return{labels,count};
+  }
+  function legacyCustomLabels(){try{const data=JSON.parse(localStorage.getItem(customLabelStoreKey())||'[]');return Array.isArray(data)?data:[]}catch(_){return[]}}
+  function clearLegacyCustomLabels(){try{localStorage.removeItem(customLabelStoreKey())}catch(_){}}
+  function loadCustomLabels(config){
+    const stored=parseCustomLabelMetadata(config),legacy=stored.count?[]:legacyCustomLabels();customLabels=stored.count?stored.labels:legacy;
     while(customLabels.length<customBlocks.length)customLabels.push('');
     if(customLabels.length>customBlocks.length)customLabels=customLabels.slice(0,customBlocks.length);
+    customLabels=customLabels.map(normalizeCustomLabel);
   }
-  function saveCustomLabels(){try{localStorage.setItem(customLabelStoreKey(),JSON.stringify(customLabels))}catch(_){}}
+  function replaceCustomLabelMetadata(config){
+    const clean=String(config||'').replace(/^[ \t]*# RouterForge: NFQWS_ARGS_CUSTOM label\[\d+\]=.*(?:\r?\n|$)/gm,'');
+    const a=scanAssignment(clean,'NFQWS_ARGS_CUSTOM');if(!a)return clean;
+    const lineStart=clean.lastIndexOf('\n',Math.max(0,a.start-1))+1;
+    const meta=customLabels.map((value,i)=>{const label=normalizeCustomLabel(value);return label?`# RouterForge: NFQWS_ARGS_CUSTOM label[${i+1}]=${label}`:''}).filter(Boolean);
+    if(!meta.length)return clean;
+    return clean.slice(0,lineStart)+meta.join('\n')+'\n'+clean.slice(lineStart);
+  }
   function parseCustom(value){return String(value||'').split(/\s+--new(?:\s+|$)/).map(x=>x.trim()).filter(Boolean)}
   function buildCustom(){return customBlocks.map(x=>x.trim()).filter(Boolean).join(' --new ')}
   function parsePorts(value){return String(value||'').split(',').map(x=>x.trim()).filter(Boolean)}
@@ -438,27 +455,44 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
     for(const name of referencedListNames())out.push([known.has(name)?'good':'warn',known.has(name)?`Связанный список ${name} найден.`:`Стратегия ссылается на ${name}, но файл не найден.`]);
     if(policyMode!=='none'&&!String(flowValues.POLICY_NAME||'').trim())out.push(['bad','Выбран режим политики, но POLICY_NAME пуст.']);
     if(currentMode()==='MODE_LIST'&&!known.has('user.list'))out.push(['warn','MODE_LIST выбран, но user.list не найден.']);
+    const seenCustom=new Map();customBlocks.forEach((value,i)=>{
+      const name=normalizeCustomLabel(customLabels[i])||`#${i+1}`,raw=String(value||'').trim(),normalized=raw.replace(/\s+/g,' ');
+      if(!raw)out.push(['bad',`Custom ${name}: блок пуст.`]);
+      if(/(^|\s)--new(?:\s|$)/.test(raw))out.push(['bad',`Custom ${name}: --new внутри одного UI-блока запрещён. Используй отдельные блоки.`]);
+      if(normalized){if(seenCustom.has(normalized))out.push(['warn',`Custom ${name}: полный дубль блока ${seenCustom.get(normalized)}.`]);else seenCustom.set(normalized,name)}
+    });
     if(!out.some(x=>x[0]==='bad'))out.push(['good','Критических противоречий перед сохранением не найдено.']);
     return out;
   }
   function renderDiagnostics(){$('flowDiagnostics').innerHTML=diagnostics().map(([type,msg])=>`<div class="diag ${type}">${esc(msg)}</div>`).join('')}
-  function changedKeys(){const next=flowConfig(),out=[];for(const key of flowKeys)if(assignmentValue(flowOriginal,key)!==assignmentValue(next,key))out.push(key);return out}
+  function changedKeys(){const next=flowConfig(),out=[];for(const key of flowKeys)if(assignmentValue(flowOriginal,key)!==assignmentValue(next,key))out.push(key);const before=parseCustomLabelMetadata(flowOriginal).labels.map(normalizeCustomLabel),after=customLabels.map(normalizeCustomLabel);if(JSON.stringify(before)!==JSON.stringify(after))out.push('CUSTOM_LABELS');return out}
   function renderChangeSummary(){const keys=changedKeys();$('changeSummary').innerHTML=keys.slice(0,8).map(k=>`<span class="change-chip">${esc(k)}</span>`).join('')+(keys.length>8?`<span class="change-chip">+${keys.length-8}</span>`:'')}
   function loadFlow(config){
-    flowOriginal=config;flowValues=Object.fromEntries(flowKeys.map(k=>[k,assignmentValue(config,k)]));customBlocks=parseCustom(flowValues.NFQWS_ARGS_CUSTOM);loadCustomLabels();
+    flowOriginal=config;flowValues=Object.fromEntries(flowKeys.map(k=>[k,assignmentValue(config,k)]));customBlocks=parseCustom(flowValues.NFQWS_ARGS_CUSTOM);loadCustomLabels(config);
   }
   function flowConfig(){
     let cfg=flowOriginal;
     const vals={...flowValues,NFQWS_ARGS_CUSTOM:buildCustom()};
     for(const key of flowKeys)cfg=replaceAssignment(cfg,key,vals[key]??'');
+    cfg=replaceCustomLabelMetadata(cfg);
     return cfg;
   }
   function flowDirty(){return flowConfig()!==flowOriginal}
   function summaryChips(value){
     const tokens=String(value||'').match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)||[],chips=[];
     const pick=(name,label,klass='')=>{const p=`--${name}=`;const t=tokens.find(x=>x.startsWith(p));if(t)chips.push(`<span class="setup-chip ${klass}">${esc(label)} ${esc(t.slice(p.length))}</span>`)};
-    pick('filter-tcp','TCP','good');pick('filter-udp','UDP','good');pick('filter-l7','L7');pick('dpi-desync','desync','warn');pick('hostlist','hostlist');pick('ipset','ipset');
+    pick('filter-tcp','TCP','good');pick('filter-udp','UDP','good');pick('filter-l7','L7');pick('payload','payload');pick('lua-desync','lua','warn');pick('dpi-desync','desync','warn');pick('hostlist','hostlist');pick('ipset','ipset');
     return chips.join('')||'<span class="setup-chip">Без краткого summary</span>';
+  }
+  function renderCollapsedSummaries(){
+    document.querySelectorAll('.setup-section[data-summary-key]').forEach(section=>{
+      const title=section.querySelector('.setup-head>div:nth-child(2)');if(!title)return;let host=title.querySelector('.setup-head-summary');
+      if(!host){host=document.createElement('div');host.className='setup-head-summary';title.append(host)}
+      const key=section.dataset.summaryKey;if(key==='CUSTOM'){
+        if(!customBlocks.length){host.innerHTML='<span class="setup-chip">Custom: нет</span>';return}
+        const labels=customBlocks.map((_,i)=>normalizeCustomLabel(customLabels[i])||`#${i+1}`);host.innerHTML=labels.slice(0,4).map(x=>`<span class="setup-chip good">${esc(x)}</span>`).join('')+(labels.length>4?`<span class="setup-chip">+${labels.length-4}</span>`:'');
+      }else host.innerHTML=summaryChips(flowValues[key]||'');
+    });
   }
   function updateModeCards(){
     const mode=String(flowValues.NFQWS_EXTRA_ARGS||'').replace(/^\$/,'').replace(/[{}]/g,'');
@@ -468,24 +502,25 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
     $('customBlocks').innerHTML=customBlocks.length?customBlocks.map((value,i)=>`<div class="custom-block" data-index="${i}">
       <div class="custom-block-head"><div><div class="custom-block-title">${esc(customLabels[i]||`Custom-блок ${i+1}`)}</div><div class="muted small">NFQWS_ARGS_CUSTOM${customBlocks.length>1?` · позиция ${i+1}/${customBlocks.length}`:''}</div></div>
       <div class="custom-block-actions"><button class="custom-up" ${i===0?'disabled':''}>↑</button><button class="custom-down" ${i===customBlocks.length-1?'disabled':''}>↓</button><button class="custom-clone">Клонировать</button><button class="custom-delete danger">Удалить</button></div></div>
-      <div class="custom-label-row"><label>Название блока</label><input class="custom-label-input" value="${esc(customLabels[i]||'')}" placeholder="Например: YouTube, Discord, игры"></div>
+      <div class="custom-label-row"><label>Название блока</label><input class="custom-label-input" value="${esc(customLabels[i]||'')}" maxlength="120" placeholder="Например: YouTube / основной обход"></div>
+      <div class="custom-live-summary setup-chips">${summaryChips(value)}</div>
       <textarea spellcheck="false">${esc(value)}</textarea>
-      <div class="label-help">Название хранится только в RouterForge и не меняет nfqws2.conf.</div>
+      <div class="label-help">Название сохраняется в raw-конфиге как безопасный комментарий <span class="mono"># RouterForge:</span> и не передаётся nfqws2 как аргумент.</div>
     </div>`).join(''):'<div class="empty">Custom-стратегий нет. Это нормально — базовые HTTPS / QUIC / UDP выше работают независимо.</div>';
     document.querySelectorAll('.custom-block[data-index]').forEach(card=>{
       const i=Number(card.dataset.index),ta=card.querySelector('textarea'),label=card.querySelector('.custom-label-input');
-      ta.oninput=e=>{customBlocks[i]=e.target.value;updateFlowState()};
-      label.oninput=e=>{customLabels[i]=e.target.value;saveCustomLabels();card.querySelector('.custom-block-title').textContent=e.target.value.trim()||`Custom-блок ${i+1}`};
-      card.querySelector('.custom-up').onclick=()=>{if(i>0){[customBlocks[i-1],customBlocks[i]]=[customBlocks[i],customBlocks[i-1]];[customLabels[i-1],customLabels[i]]=[customLabels[i],customLabels[i-1]];saveCustomLabels();renderFlow()}};
-      card.querySelector('.custom-down').onclick=()=>{if(i<customBlocks.length-1){[customBlocks[i+1],customBlocks[i]]=[customBlocks[i],customBlocks[i+1]];[customLabels[i+1],customLabels[i]]=[customLabels[i],customLabels[i+1]];saveCustomLabels();renderFlow()}};
-      card.querySelector('.custom-clone').onclick=()=>{customBlocks.splice(i+1,0,customBlocks[i]);customLabels.splice(i+1,0,customLabels[i]?`${customLabels[i]} — копия`:'');saveCustomLabels();renderFlow()};card.querySelector('.custom-delete').onclick=()=>{if(confirm(`Удалить custom-блок ${i+1}?`)){customBlocks.splice(i,1);customLabels.splice(i,1);saveCustomLabels();renderFlow()}};
+      ta.oninput=e=>{customBlocks[i]=e.target.value;card.querySelector('.custom-live-summary').innerHTML=summaryChips(customBlocks[i]);updateFlowState()};
+      label.oninput=e=>{customLabels[i]=normalizeCustomLabel(e.target.value);card.querySelector('.custom-block-title').textContent=customLabels[i]||`Custom-блок ${i+1}`;updateFlowState()};
+      card.querySelector('.custom-up').onclick=()=>{if(i>0){[customBlocks[i-1],customBlocks[i]]=[customBlocks[i],customBlocks[i-1]];[customLabels[i-1],customLabels[i]]=[customLabels[i],customLabels[i-1]];renderFlow()}};
+      card.querySelector('.custom-down').onclick=()=>{if(i<customBlocks.length-1){[customBlocks[i+1],customBlocks[i]]=[customBlocks[i],customBlocks[i+1]];[customLabels[i+1],customLabels[i]]=[customLabels[i],customLabels[i+1]];renderFlow()}};
+      card.querySelector('.custom-clone').onclick=()=>{customBlocks.splice(i+1,0,customBlocks[i]);customLabels.splice(i+1,0,customLabels[i]?`${customLabels[i]} — копия`:'');renderFlow()};card.querySelector('.custom-delete').onclick=()=>{if(confirm(`Удалить custom-блок ${i+1}?`)){customBlocks.splice(i,1);customLabels.splice(i,1);renderFlow()}};
     });
   }
   function updateFlowState(){
     flowValues.ISP_INTERFACE=$('flowInterface').value;flowValues.NFQWS_BASE_ARGS=$('flowBaseArgs').value;flowValues.NFQWS_ARGS=$('flowArgs').value;flowValues.NFQWS_ARGS_QUIC=$('flowQuic').value;flowValues.NFQWS_ARGS_UDP=$('flowUdp').value;flowValues.NFQWS_ARGS_IPSET=$('flowIpset').value;
     flowValues.IPV6_ENABLED=$('flowIPv6').checked?'1':'0';flowValues.TCP_PORTS=$('flowTcpPorts').value;flowValues.UDP_PORTS=$('flowUdpPorts').value;flowValues.POLICY_NAME=policyMode==='none'?'':$('flowPolicyName').value;flowValues.POLICY_EXCLUDE=policyMode==='exclude'?'1':'0';flowValues.LOG_LEVEL=$('flowLogLevel').checked?'1':'0';flowValues.LOG_DEBUG_PATH=$('flowLogPath').value;
     const dirty=flowDirty();$('setupState').textContent=dirty?'UNSAVED':'CLEAN';$('setupState').className='setup-state '+(dirty?'dirty':'');$('resetSetup').disabled=!dirty;$('diffSetup').disabled=!dirty;$('applySetup').disabled=!dirty||busy||diagnostics().some(x=>x[0]==='bad');
-    $('sumMain').innerHTML=summaryChips(flowValues.NFQWS_ARGS);$('sumQuic').innerHTML=summaryChips(flowValues.NFQWS_ARGS_QUIC);$('sumUdp').innerHTML=summaryChips(flowValues.NFQWS_ARGS_UDP);$('sumIpset').innerHTML=summaryChips(flowValues.NFQWS_ARGS_IPSET);
+    $('sumMain').innerHTML=summaryChips(flowValues.NFQWS_ARGS);$('sumQuic').innerHTML=summaryChips(flowValues.NFQWS_ARGS_QUIC);$('sumUdp').innerHTML=summaryChips(flowValues.NFQWS_ARGS_UDP);$('sumIpset').innerHTML=summaryChips(flowValues.NFQWS_ARGS_IPSET);renderCollapsedSummaries();
     $('strategyCount').textContent=customBlocks.length?`(${customBlocks.length})`:'';$('mStrategies').textContent=String(3+customBlocks.length);renderProcessingOverview();renderDiagnostics();renderChangeSummary();
   }
   function renderFlow(){
@@ -502,7 +537,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
     updateFlowState();if(!flowDirty()||busy)return;const next=flowConfig();
     if(!confirm('Сохранить настройки nfqws2.conf и выполнить безопасный reload?'))return;
     closeDiff();setBusy(true);
-    try{const r=await api('/config',{method:'POST',body:JSON.stringify({content:next,confirm:'NFQWS_CONFIG'})});render(r.status);notice(`Настройки применены. Backup: ${r.backup}`,'good')}
+    try{const r=await api('/config',{method:'POST',body:JSON.stringify({content:next,confirm:'NFQWS_CONFIG'})});clearLegacyCustomLabels();render(r.status);notice(`Настройки применены. Backup: ${r.backup}`,'good')}
     catch(e){notice(e.message,'error');setBusy(false)}
   }
     function renderOverview(){
@@ -584,7 +619,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   function makeDiff(a,b){const A=lines(a),B=lines(b),out=[];for(let i=0;i<Math.max(A.length,B.length);i++){if(A[i]===B[i]){if(A[i]!==undefined)out.push({c:'same',t:`  ${A[i]}`});continue}if(A[i]!==undefined)out.push({c:'del',t:`- ${A[i]}`});if(B[i]!==undefined)out.push({c:'add',t:`+ ${B[i]}`})}return out}
   function showDiff(){$('diffApply').dataset.mode='config';$('diffBody').innerHTML=makeDiff(original,$('config').value).map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">No changes</span>';$('diffModal').classList.add('open')}
   function closeDiff(){$('diffModal').classList.remove('open')}
-  async function saveConfig(){if(busy||!current?.mutation_ready||$('config').value===original)return;if(!confirm('Сохранить nfqws2.conf, создать backup и выполнить reload?'))return;closeDiff();setBusy(true);try{const r=await api('/config',{method:'POST',body:JSON.stringify({content:$('config').value,confirm:'NFQWS_CONFIG'})});render(r.status);notice(`Конфигурация применена. Backup: ${r.backup}`,'good')}catch(e){notice(e.message,'error');setBusy(false)}}
+  async function saveConfig(){if(busy||!current?.mutation_ready||$('config').value===original)return;if(!confirm('Сохранить nfqws2.conf, создать backup и выполнить reload?'))return;closeDiff();setBusy(true);try{const r=await api('/config',{method:'POST',body:JSON.stringify({content:$('config').value,confirm:'NFQWS_CONFIG'})});clearLegacyCustomLabels();render(r.status);notice(`Конфигурация применена. Backup: ${r.backup}`,'good')}catch(e){notice(e.message,'error');setBusy(false)}}
 
   function openCreate(){$('newListName').value='';$('createError').textContent='';$('createModal').classList.add('open');setTimeout(()=>$('newListName').focus(),20)}function closeCreate(){$('createModal').classList.remove('open')}
   function extractDomains(text){const set=new Set();for(let line of lines(text)){line=line.trim();if(!line||line.startsWith('#')||line.startsWith('//'))continue;line=line.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split('#')[0].split('/')[0].split(':')[0].trim();if(/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(line))set.add(line)}return [...set]}
@@ -605,7 +640,7 @@ html[data-density="compact"]{--space:8px}html[data-density="comfortable"]{--spac
   document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));reportHeight()});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
-  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor()};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');saveCustomLabels();renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});$('basicMode').onclick=()=>{expertMode=false;document.documentElement.classList.remove('expert-mode');$('basicMode').classList.add('active');$('expertMode').classList.remove('active');reportHeight()};$('expertMode').onclick=()=>{expertMode=true;document.documentElement.classList.add('expert-mode');$('expertMode').classList.add('active');$('basicMode').classList.remove('active');reportHeight()};$('addTcpPort').onclick=()=>addPort('tcp');$('addUdpPort').onclick=()=>addPort('udp');$('tcpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('tcp')}};$('udpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('udp')}};document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
+  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor()};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});$('basicMode').onclick=()=>{expertMode=false;document.documentElement.classList.remove('expert-mode');$('basicMode').classList.add('active');$('expertMode').classList.remove('active');reportHeight()};$('expertMode').onclick=()=>{expertMode=true;document.documentElement.classList.add('expert-mode');$('expertMode').classList.add('active');$('basicMode').classList.remove('active');reportHeight()};$('addTcpPort').onclick=()=>addPort('tcp');$('addUdpPort').onclick=()=>addPort('udp');$('tcpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('tcp')}};$('udpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('udp')}};document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('fullscreenList').onclick=()=>{$('listEditorPanel').classList.toggle('full-editor');$('fullscreenList').textContent=$('listEditorPanel').classList.contains('full-editor')?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));

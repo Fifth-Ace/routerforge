@@ -375,6 +375,15 @@ body.syntax-fullscreen-open{overflow:hidden}
 .static-path-step.include{border-color:color-mix(in srgb,var(--good) 34%,var(--border))}.static-path-step.exclude{border-color:color-mix(in srgb,var(--bad) 40%,var(--border))}.static-path-step.neutral{opacity:.82}.static-path-index{text-align:center;color:var(--muted);font:700 10px ui-monospace,"Roboto Mono",Consolas,monospace}.static-path-role{font:800 9px ui-monospace,"Roboto Mono",Consolas,monospace}.static-path-role.include{color:var(--good)}.static-path-role.exclude{color:var(--bad)}.static-path-role.neutral{color:var(--muted)}
 .static-path-value{font:11px/1.4 ui-monospace,"Roboto Mono",Consolas,monospace;overflow-wrap:anywhere}.static-path-meta{font-size:10px;color:var(--muted);margin-top:2px}.static-path-open{white-space:nowrap}.static-path-footnote{margin-top:9px;padding:8px 10px;border:1px dashed var(--border);border-radius:7px;color:var(--muted);font-size:10px}
 @media(max-width:720px){.static-path-verdict{grid-template-columns:1fr}.static-path-mode{justify-self:start}.static-path-step{grid-template-columns:28px 90px minmax(0,1fr)}.static-path-open{grid-column:2/4;justify-self:start}}
+
+.preflight-shell{display:grid;gap:var(--space);padding-top:10px}
+.preflight-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.preflight-title-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.preflight-verdict{display:inline-flex;align-items:center;justify-content:center;min-width:92px;padding:5px 9px;border-radius:999px;border:1px solid var(--border);font:800 11px ui-monospace,"Roboto Mono",Consolas,monospace;letter-spacing:.05em}.preflight-verdict.ready{color:var(--good);border-color:color-mix(in srgb,var(--good) 55%,var(--border));background:color-mix(in srgb,var(--good) 8%,var(--surface2))}.preflight-verdict.check{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 55%,var(--border));background:color-mix(in srgb,var(--warn) 8%,var(--surface2))}.preflight-verdict.blocked{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 55%,var(--border));background:color-mix(in srgb,var(--bad) 8%,var(--surface2))}
+.preflight-sub{margin-top:5px;color:var(--muted);font-size:10px;line-height:1.45}.preflight-counts{display:grid;grid-template-columns:repeat(3,minmax(70px,1fr));gap:7px}.preflight-count{padding:8px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);text-align:center}.preflight-count span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.preflight-count strong{display:block;margin-top:2px;font:800 14px ui-monospace,"Roboto Mono",Consolas,monospace}
+.preflight-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space)}.preflight-group{border:1px solid var(--border);border-radius:9px;background:var(--surface);overflow:hidden}.preflight-group-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border-bottom:1px solid var(--border);background:var(--surface2)}.preflight-group-title{font-weight:700;font-size:11px}.preflight-group-meta{font:10px ui-monospace,"Roboto Mono",Consolas,monospace;color:var(--muted)}.preflight-items{display:flex;flex-direction:column}.preflight-item{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:start;padding:9px 10px;border-top:1px solid color-mix(in srgb,var(--border) 70%,transparent)}.preflight-item:first-child{border-top:0}.preflight-mark{display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:999px;font:800 10px ui-monospace,"Roboto Mono",Consolas,monospace;border:1px solid var(--border)}.preflight-item.good .preflight-mark{color:var(--good);border-color:color-mix(in srgb,var(--good) 50%,var(--border))}.preflight-item.warn .preflight-mark{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,var(--border))}.preflight-item.bad .preflight-mark{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 50%,var(--border))}.preflight-item.info .preflight-mark{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+.preflight-item-title{font-size:11px;line-height:1.35}.preflight-item-detail{margin-top:2px;color:var(--muted);font-size:10px;line-height:1.4;overflow-wrap:anywhere}.preflight-jump{min-height:25px;padding:0 7px;font-size:9px;white-space:nowrap}.preflight-note{padding:10px 12px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:10px;line-height:1.45}
+@media(max-width:850px){.preflight-hero{grid-template-columns:1fr}.preflight-groups{grid-template-columns:1fr}.preflight-counts{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
 .analysis-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
 .analysis-stat{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);display:flex;justify-content:space-between;gap:8px;align-items:center}
 .analysis-stat span{font-size:11px;color:var(--muted)}.analysis-stat strong{font:700 13px ui-monospace,"Roboto Mono",Consolas,monospace}
@@ -439,6 +448,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   <button class="tab" data-tab="configs">Конфиги <span id="configLibraryCount"></span></button>
   <button class="tab" data-tab="config">Raw конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount"></span></button>
+  <button class="tab" data-tab="preflight">Диагностика <span id="preflightTabState"></span></button>
   <button class="tab" data-tab="logs">Логи</button>
   <button class="tab" data-tab="scripts">Скрипты <span id="scriptCount"></span></button>
   <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab"></span></button>
@@ -466,6 +476,23 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       </dl>
     </article>
     <article class="panel"><div class="panel-head"><div><h2>Состояние</h2><div class="section-kicker">Быстрая проверка runtime и safety boundary</div></div></div><div id="healthActivity" class="activity"></div></article>
+  </div>
+</section>
+
+<section id="view-preflight" class="view">
+  <div class="preflight-shell">
+    <div class="preflight-hero">
+      <div>
+        <div class="preflight-title-row"><h2 style="margin:0">Diagnostics Preflight</h2><span id="preflightVerdict" class="preflight-verdict check">CHECK</span><span id="preflightScopeBadge" class="config-badge">ACTIVE</span></div>
+        <div id="preflightSubtitle" class="preflight-sub">Проверка runtime, активного/draft-конфига, ссылок на списки и базовой готовности перед применением.</div>
+      </div>
+      <div>
+        <div class="preflight-counts"><div class="preflight-count"><span>Ошибки</span><strong id="preflightBad" class="bad-text">0</strong></div><div class="preflight-count"><span>Проверить</span><strong id="preflightWarn" class="warn-text">0</strong></div><div class="preflight-count"><span>PASS</span><strong id="preflightGood" class="good-text">0</strong></div></div>
+        <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button id="refreshPreflight">Обновить runtime</button></div>
+      </div>
+    </div>
+    <div id="preflightGroups" class="preflight-groups"></div>
+    <div class="preflight-note">Это preflight конфигурации и доступных runtime-сигналов RouterForge. Он не доказывает фактический захват конкретного пакета NFQUEUE и не заменяет live-тест стратегии — это пойдёт отдельным слоем Test Lab.</div>
   </div>
 </section>
 
@@ -1095,7 +1122,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     flowValues.IPV6_ENABLED=$('flowIPv6').checked?'1':'0';flowValues.TCP_PORTS=$('flowTcpPorts').value;flowValues.UDP_PORTS=$('flowUdpPorts').value;flowValues.POLICY_NAME=policyMode==='none'?'':$('flowPolicyName').value;flowValues.POLICY_EXCLUDE=policyMode==='exclude'?'1':'0';flowValues.LOG_LEVEL=$('flowLogLevel').checked?'1':'0';flowValues.LOG_DEBUG_PATH=$('flowLogPath').value;
     const dirty=flowDirty();$('setupState').textContent=dirty?'UNSAVED':'CLEAN';$('setupState').className='setup-state '+(dirty?'dirty':'');$('resetSetup').disabled=!dirty;$('diffSetup').disabled=!dirty;$('applySetup').disabled=!dirty||busy||diagnostics().some(x=>x[0]==='bad');
     $('sumMain').innerHTML=summaryChips(flowValues.NFQWS_ARGS);$('sumQuic').innerHTML=summaryChips(flowValues.NFQWS_ARGS_QUIC);$('sumUdp').innerHTML=summaryChips(flowValues.NFQWS_ARGS_UDP);$('sumIpset').innerHTML=summaryChips(flowValues.NFQWS_ARGS_IPSET);renderCollapsedSummaries();
-    $('strategyCount').textContent=customBlocks.length?`(${customBlocks.length})`:'';$('mStrategies').textContent=String(3+customBlocks.length);renderProcessingOverview();renderDiagnostics();renderChangeSummary();renderAllEditorResources();
+    $('strategyCount').textContent=customBlocks.length?`(${customBlocks.length})`:'';$('mStrategies').textContent=String(3+customBlocks.length);renderProcessingOverview();renderDiagnostics();renderChangeSummary();renderAllEditorResources();renderPreflight();
   }
   function renderFlow(){
     $('flowInterface').value=flowValues.ISP_INTERFACE||'';$('flowBaseArgs').value=flowValues.NFQWS_BASE_ARGS||'';$('flowArgs').value=flowValues.NFQWS_ARGS||'';$('flowQuic').value=flowValues.NFQWS_ARGS_QUIC||'';$('flowUdp').value=flowValues.NFQWS_ARGS_UDP||'';$('flowIpset').value=flowValues.NFQWS_ARGS_IPSET||'';
@@ -1114,6 +1141,68 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     try{const r=await api('/config',{method:'POST',body:JSON.stringify({content:next,confirm:'NFQWS_CONFIG'})});clearLegacyCustomLabels();render(r.status);notice(`Настройки применены. Backup: ${r.backup}`,'good')}
     catch(e){notice(e.message,'error');setBusy(false)}
   }
+
+  function preflightJumpButton(tab,label='Открыть'){
+    if(!tab)return'';return `<button type="button" class="preflight-jump" data-preflight-tab="${esc(tab)}">${esc(label)}</button>`;
+  }
+  function preflightItem(group,severity,title,detail,tab=''){
+    return{group,severity,title,detail,tab};
+  }
+  function buildPreflight(){
+    const out=[],known=new Set((current?.lists||[]).map(x=>String(x.name||''))),mode=currentMode(),tcp=parsePorts(flowValues.TCP_PORTS),udp=parsePorts(flowValues.UDP_PORTS),refs=referencedListNames();
+    const add=(g,s,t,d,tab='')=>out.push(preflightItem(g,s,t,d,tab));
+    add('Runtime',current?.available?'good':'bad',current?.available?'nfqws2 target обнаружен':'nfqws2 target не найден',current?.available?`${current?.target_name||'nfqws2'} · ${current?.init_script||'init path unknown'}`:'Нужны init script и canonical config.','overview');
+    add('Runtime',current?.running?'good':'warn',current?.running?'Сервис запущен':'Сервис остановлен',current?.running?'Процесс nfqws2 найден в /proc.':'Конфиг можно анализировать, но обработка трафика сейчас не подтверждена.','overview');
+    add('Runtime',current?.mutation_ready?'good':'bad',current?.mutation_ready?'Safety mutation boundary готов':'Mutation boundary не готов',current?.mutation_ready?'Init script исполняемый; доступны backup + atomic write + guarded action.':'RouterForge не будет безопасно применять изменения при текущем состоянии.','overview');
+    add('Config',current?.config_exists?'good':'bad',current?.config_exists?'Canonical config читается':'Canonical config отсутствует',`${current?.config_path||'/opt/etc/nfqws2/nfqws2.conf'} · ${bytes(current?.config_size)}`,'config');
+    add('Config',current?.config_truncated?'bad':'good',current?.config_truncated?'Config превышает лимит анализа':'Config загружен полностью',current?.config_truncated?'Статический анализ неполон — редактор получил усечённый config.':`SHA256 ${(current?.config_sha256||'—').slice(0,20)}…`,'config');
+    const dirty=flowDirty();
+    add('Config',dirty?'warn':'good',dirty?'Есть несохранённый setup draft':'Setup совпадает с active config',dirty?'Preflight ниже учитывает текущий draft из вкладки «Настройка».':'Проверяется активный canonical config.','strategies');
+    if(['MODE_LIST','MODE_AUTO','MODE_ALL'].includes(mode))add('Config','good',`Режим ${mode} распознан`,mode==='MODE_LIST'?'Статическая выборка опирается на user.list.':mode==='MODE_AUTO'?'Статическая выборка использует user.list + auto.list.':'Базовый режим — всё, с исключениями по exclude.','strategies');
+    else add('Config','bad','Режим доменов не распознан',`NFQWS_EXTRA_ARGS → ${mode||'пусто'}. Ожидался MODE_LIST / MODE_AUTO / MODE_ALL.`,'strategies');
+    const iface=String(flowValues.ISP_INTERFACE||'').trim();
+    add('Traffic',iface?'good':'warn',iface?'ISP_INTERFACE задан':'ISP_INTERFACE пуст',iface||'Проверь WAN-интерфейс перед применением.','strategies');
+    const queue=assignmentValue(flowOriginal,'NFQUEUE_NUM');
+    add('Traffic',queue?'good':'warn',queue?'NFQUEUE_NUM задан':'NFQUEUE_NUM не найден',queue?`queue ${queue}`:'Preflight не может подтвердить номер очереди из canonical config.','strategies');
+    const user=assignmentValue(flowOriginal,'USER');
+    add('Traffic',user?'good':'warn',user?'Runtime USER задан':'USER не найден',user||'Проверь пользователя запуска nfqws2.','strategies');
+    if(!tcp.length)add('Traffic','warn','TCP_PORTS пуст','TCP-трафик не будет отправляться в NFQUEUE.','strategies');
+    else add('Traffic',tcp.some(x=>!validPortToken(x))?'bad':'good',tcp.some(x=>!validPortToken(x))?'TCP_PORTS содержит ошибку':'TCP ports валидны',tcp.join(', '),'strategies');
+    if(!udp.length)add('Traffic','warn','UDP_PORTS пуст','UDP/QUIC не будет отправляться в NFQUEUE.','strategies');
+    else add('Traffic',udp.some(x=>!validPortToken(x))?'bad':'good',udp.some(x=>!validPortToken(x))?'UDP_PORTS содержит ошибку':'UDP ports валидны',udp.join(', '),'strategies');
+    if(udp.includes('443')&&!String(flowValues.NFQWS_ARGS_QUIC||'').trim())add('Traffic','warn','UDP/443 есть, QUIC-стратегия пустая','UDP 443 включён, но NFQWS_ARGS_QUIC не задаёт обработку.','strategies');
+    const strategyValues=[['NFQWS_BASE_ARGS',flowValues.NFQWS_BASE_ARGS],['NFQWS_ARGS',flowValues.NFQWS_ARGS],['NFQWS_ARGS_QUIC',flowValues.NFQWS_ARGS_QUIC],['NFQWS_ARGS_UDP',flowValues.NFQWS_ARGS_UDP],['NFQWS_ARGS_IPSET',flowValues.NFQWS_ARGS_IPSET]];
+    for(const [key,val] of strategyValues)if(/\s--new(?:\s|$)/.test(String(val||'')))add('Traffic','bad',`${key}: запрещён --new`,'Upstream допускает --new только между NFQWS_ARGS_CUSTOM блоками.','strategies');
+    const anyStrategy=[flowValues.NFQWS_ARGS,flowValues.NFQWS_ARGS_QUIC,flowValues.NFQWS_ARGS_UDP,flowValues.NFQWS_ARGS_IPSET,...customBlocks].some(x=>String(x||'').trim());
+    add('Traffic',anyStrategy?'good':'bad',anyStrategy?'Есть активные strategy args':'Все strategy args пусты',anyStrategy?`${3+customBlocks.length} UI strategy slots; пустые блоки могут быть допустимы по отдельности.`:'Нет ни одной стратегии, которую можно применить к трафику.','strategies');
+    if(policyMode!=='none'&&!String(flowValues.POLICY_NAME||'').trim())add('Traffic','bad','Policy mode без POLICY_NAME','Выбран policy include/exclude, но имя политики пустое.','strategies');
+    if(mode==='MODE_LIST')add('Lists',known.has('user.list')?'good':'bad',known.has('user.list')?'user.list найден':'user.list отсутствует','MODE_LIST требует user.list для основной выборки.','lists');
+    if(mode==='MODE_AUTO'){
+      add('Lists',known.has('user.list')?'good':'bad',known.has('user.list')?'user.list найден':'user.list отсутствует','MODE_AUTO использует пользовательский список.','lists');
+      add('Lists',known.has('auto.list')?'good':'warn',known.has('auto.list')?'auto.list найден':'auto.list отсутствует','Автоматически накопленные домены не будут доступны.','lists');
+    }
+    if(mode==='MODE_ALL')add('Lists',known.has('exclude.list')?'good':'info',known.has('exclude.list')?'exclude.list найден':'exclude.list отсутствует','MODE_ALL работает и без exclude, но исключений не будет.','lists');
+    for(const name of refs)add('Lists',known.has(name)?'good':'bad',known.has(name)?`Ссылка ${name} разрешена`:`Ссылка ${name} не найдена`,known.has(name)?'Файл присутствует в runtime inventory.':'Strategy args ссылаются на отсутствующий list-файл.','lists');
+    const listDirty=Boolean(listMeta&&$('listEditor')&&$('listEditor').value!==listOriginal);
+    if(listDirty)add('Lists','warn','Есть несохранённый list draft',`${selectedList}: preflight inventory отражает файл на роутере, а не этот draft.`,'lists');
+    const logEnabled=/^(1|true|yes)$/i.test(flowValues.LOG_LEVEL||'');
+    if(logEnabled)add('Observability',String(current?.log_tail||'').trim()?'good':'warn',String(current?.log_tail||'').trim()?'Логирование даёт события':'Логирование включено, tail пуст',current?.log_path||flowValues.LOG_DEBUG_PATH||'/opt/var/log/nfqws2.log','logs');
+    else add('Observability','info','Debug logging выключен','Это нормально для production; live-причины будет сложнее разбирать без временного логирования.','logs');
+    add('Observability',current?.log_truncated?'warn':'good',current?.log_truncated?'Log tail усечён':'Log tail в лимите',current?.log_truncated?'UI показывает только хвост файла.':'Нет признака усечения текущего tail.','logs');
+    add('Safety','good','Safety backup policy активна',`${current?.backup_count||0} / 8 текущих safety backup.`,'backups');
+    add('Safety','info','Preflight read-only','Эта вкладка ничего не применяет, не перезапускает и не удаляет.','');
+    return out;
+  }
+  function renderPreflight(){
+    if(!$('preflightGroups'))return;const items=buildPreflight(),bad=items.filter(x=>x.severity==='bad').length,warn=items.filter(x=>x.severity==='warn').length,good=items.filter(x=>x.severity==='good').length,state=bad?'BLOCKED':warn?'CHECK':'READY',klass=state.toLowerCase(),dirty=flowDirty();
+    $('preflightVerdict').textContent=state;$('preflightVerdict').className=`preflight-verdict ${klass}`;$('preflightTabState').textContent=state==='READY'?'✓':state==='BLOCKED'?'!':'•';$('preflightScopeBadge').textContent=dirty?'DRAFT':'ACTIVE';$('preflightScopeBadge').className='config-badge '+(dirty?'empty':'active');$('preflightBad').textContent=bad;$('preflightWarn').textContent=warn;$('preflightGood').textContent=good;$('preflightSubtitle').textContent=dirty?'Проверяется текущий setup draft + свежий runtime snapshot. Ничего не применяется.':'Проверяется active canonical config + текущий runtime snapshot. Ничего не применяется.';
+    const order=['Runtime','Config','Traffic','Lists','Observability','Safety'];$('preflightGroups').innerHTML=order.map(group=>{const rows=items.filter(x=>x.group===group);if(!rows.length)return'';const gb=rows.filter(x=>x.severity==='bad').length,gw=rows.filter(x=>x.severity==='warn').length,summary=gb?`${gb} BLOCK`:gw?`${gw} CHECK`:'PASS';return `<section class="preflight-group"><div class="preflight-group-head"><span class="preflight-group-title">${esc(group)}</span><span class="preflight-group-meta">${esc(summary)}</span></div><div class="preflight-items">${rows.map(x=>`<div class="preflight-item ${x.severity}"><span class="preflight-mark">${x.severity==='good'?'✓':x.severity==='bad'?'!':x.severity==='warn'?'!':'i'}</span><div><div class="preflight-item-title">${esc(x.title)}</div><div class="preflight-item-detail">${esc(x.detail)}</div></div>${preflightJumpButton(x.tab)}</div>`).join('')}</div></section>`}).join('');
+    $('preflightGroups').querySelectorAll('[data-preflight-tab]').forEach(button=>button.onclick=()=>{const tab=document.querySelector(`.tab[data-tab="${button.dataset.preflightTab}"]`);if(tab)tab.click()});
+  }
+  async function refreshPreflightRuntime(){
+    const button=$('refreshPreflight');if(button)button.disabled=true;try{const s=await api('/status');current=s;renderPreflight();notice('Preflight runtime snapshot обновлён.','good')}catch(e){notice(e.message,'error')}finally{if(button)button.disabled=false}
+  }
+
     function renderOverview(){
     const ls=current?.lists||[];$('mService').textContent=current?.running?'RUNNING':'STOPPED';$('mService').className='metric-value '+(current?.running?'good-text':'bad-text');$('mServiceSub').textContent=current?.mutation_ready?'manager ready':'mutation not ready';
     $('mConfig').textContent=current?.config_exists?'OK':'MISSING';$('mConfig').className='metric-value '+(current?.config_exists?'good-text':'bad-text');$('mConfigSub').textContent=`${bytes(current?.config_size)} · ${(current?.config_sha256||'').slice(0,12)||'no SHA'}`;
@@ -1475,8 +1564,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
-  $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
+  $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():$('diffApply').dataset.mode==='stored-config'?saveStoredConfig():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('configLibrarySearch').oninput=renderConfigLibraryList;$('newStoredConfig').onclick=()=>openConfigName('create-empty');$('saveCurrentConfig').onclick=()=>openConfigName('create-current');$('refreshNeighborConfigs').onclick=()=>{configLibraryLoaded=false;loadConfigLibrary(true)};$('storedConfigEditor').oninput=updateStoredConfigButtons;$('saveStoredConfig').onclick=showStoredConfigDiff;$('diffStoredConfig').onclick=showStoredConfigDiff;$('undoStoredConfig').onclick=()=>{$('storedConfigEditor').value=storedConfigOriginal;updateStoredConfigButtons()};$('fullscreenStoredConfig').onclick=()=>{const shell=$('storedConfigEditorShell'),on=!shell.classList.contains('full-editor');shell.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenStoredConfig').textContent=on?'Закрыть fullscreen':'На весь экран';resizeStoredConfigEditor();reportHeight()};$('activateStoredConfig').onclick=activateStoredConfig;$('deleteStoredConfig').onclick=deleteStoredConfig;$('renameStoredConfig').onclick=()=>openConfigName('rename',selectedStoredConfig);$('duplicateStoredConfig').onclick=()=>openConfigName('duplicate',selectedStoredConfig);$('closeConfigName').onclick=closeConfigName;$('configNameCancel').onclick=closeConfigName;$('configNameConfirm').onclick=confirmConfigName;$('configNameInput').onkeydown=e=>{if(e.key==='Enter')confirmConfigName()};$('configNameModal').onclick=e=>{if(e.target===$('configNameModal'))closeConfigName()};

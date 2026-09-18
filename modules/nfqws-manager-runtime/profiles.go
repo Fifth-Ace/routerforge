@@ -38,6 +38,8 @@ type configLibraryRequest struct {
 func registerConfigLibraryRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/configs", getOnly(handleConfigLibraryList))
 	mux.HandleFunc("/v1/configs/read", getOnly(handleConfigLibraryRead))
+	mux.HandleFunc("/v1/configs/neighbors", getOnly(handleNeighborConfigList))
+	mux.HandleFunc("/v1/configs/import-neighbor", mutationOnly(handleNeighborConfigImport))
 	mux.HandleFunc("/v1/configs/create", mutationOnly(handleConfigLibraryCreate))
 	mux.HandleFunc("/v1/configs/save", mutationOnly(handleConfigLibrarySave))
 	mux.HandleFunc("/v1/configs/rename", mutationOnly(handleConfigLibraryRename))

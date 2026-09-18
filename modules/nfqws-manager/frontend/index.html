@@ -351,6 +351,14 @@ body.syntax-fullscreen-open{overflow:hidden}
 .list-editor-body{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--code)}
 .list-editor-highlight{position:absolute;z-index:1;inset:0;margin:0;padding:10px 12px;overflow:hidden;pointer-events:none;color:color-mix(in srgb,var(--text) 90%,var(--accent));background:var(--code);font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace;white-space:pre;tab-size:2}
 .list-editor-highlight .list-comment{color:var(--syn-comment);font-style:italic}
+.config-library-grid{display:grid;grid-template-columns:310px minmax(0,1fr);gap:var(--space);align-items:stretch;padding-top:10px}
+.config-library-list{display:flex;flex-direction:column;gap:6px;min-height:420px;max-height:68vh;overflow:auto;margin-top:9px;padding-right:2px}
+.config-library-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);cursor:pointer}
+.config-library-item:hover{background:var(--hover)}.config-library-item.active{border-color:color-mix(in srgb,var(--good) 55%,var(--border));background:color-mix(in srgb,var(--good) 7%,var(--surface2))}.config-library-item.selected{outline:1px solid var(--accent)}
+.config-library-name{font:700 11px/1.4 ui-monospace,"Roboto Mono",Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.config-library-sub{font-size:10px;color:var(--muted);margin-top:2px}.config-library-badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.config-badge{padding:2px 5px;border-radius:999px;border:1px solid var(--border);font:700 9px ui-monospace,"Roboto Mono",Consolas,monospace;color:var(--muted)}.config-badge.active{color:var(--good);border-color:color-mix(in srgb,var(--good) 50%,var(--border))}.config-badge.empty{color:var(--warn)}
+.config-library-editor{width:100%;height:58vh;min-height:420px;resize:vertical;border:1px solid var(--border);border-radius:8px;background:var(--code);padding:10px 12px;color:var(--text);font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace;tab-size:2;white-space:pre;overflow:auto}
+.config-library-editor:focus{outline:none;border-color:var(--accent)}.config-library-empty{padding:28px;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:8px}.config-library-path{font:10px/1.45 ui-monospace,"Roboto Mono",Consolas,monospace;color:var(--muted);overflow-wrap:anywhere}.config-library-note{margin-bottom:10px}
+@media(max-width:900px){.config-library-grid{grid-template-columns:1fr}.config-library-list{min-height:0;max-height:260px}.config-library-editor{min-height:360px;height:52vh}}
 .analysis-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
 .analysis-stat{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);display:flex;justify-content:space-between;gap:8px;align-items:center}
 .analysis-stat span{font-size:11px;color:var(--muted)}.analysis-stat strong{font:700 13px ui-monospace,"Roboto Mono",Consolas,monospace}
@@ -412,6 +420,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 <nav class="tabs">
   <button class="tab active" data-tab="overview">Обзор</button>
   <button class="tab" data-tab="strategies">Настройка <span id="strategyCount"></span></button>
+  <button class="tab" data-tab="configs">Конфиги <span id="configLibraryCount"></span></button>
   <button class="tab" data-tab="config">Raw конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount"></span></button>
   <button class="tab" data-tab="logs">Логи</button>
@@ -567,6 +576,27 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   </div>
 </section>
 
+<section id="view-configs" class="view">
+  <div class="config-library-grid">
+    <article class="panel">
+      <div class="panel-head"><div><h2>Полные конфиги</h2><div id="configLibraryRoot" class="section-kicker mono">/opt/etc/nfqws2/routerforge-configs</div></div></div>
+      <div class="setup-note config-library-note">Здесь хранятся полные <span class="mono">nfqws2.conf</span>. Профиль не влияет на сервис, пока ты явно не нажмёшь «Активировать».</div>
+      <div class="toolbar"><button id="newStoredConfig" class="primary">+ Пустой</button><button id="saveCurrentConfig">Сохранить текущий как…</button></div>
+      <input id="configLibrarySearch" class="search" style="width:100%;max-width:none;margin-top:9px" placeholder="Поиск конфига…">
+      <div id="configLibraryList" class="config-library-list"><div class="empty">Загрузка…</div></div>
+    </article>
+    <article class="panel">
+      <div class="panel-head">
+        <div><h2 id="storedConfigTitle">Выберите конфиг</h2><div id="storedConfigMeta" class="section-kicker mono">—</div></div>
+        <div class="toolbar"><button id="renameStoredConfig" disabled>Переименовать</button><button id="duplicateStoredConfig" disabled>Копия</button><button id="deleteStoredConfig" class="danger" disabled>Удалить</button><button id="saveStoredConfig" disabled>Сохранить</button><button id="activateStoredConfig" class="primary" disabled>Активировать</button></div>
+      </div>
+      <div id="configLibraryEditorEmpty" class="config-library-empty">Создай пустой конфиг, сохрани текущий как отдельный файл или выбери существующий слева.</div>
+      <textarea id="storedConfigEditor" class="config-library-editor" spellcheck="false" style="display:none" placeholder="Вставь сюда полный nfqws2.conf"></textarea>
+      <div class="editor-foot"><span id="storedConfigState">—</span><span>library save ≠ activation · activate → backup → atomic switch → restart/verify</span></div>
+    </article>
+  </div>
+</section>
+
 <section id="view-config" class="view">
   <article id="editorPanel" class="panel">
     <div class="panel-head">
@@ -640,6 +670,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 
 <div id="createModal" class="modal"><div class="dialog small-dialog"><div class="dialog-head"><strong>Новый список</strong><button id="closeCreate">Закрыть</button></div><div class="dialog-body"><label class="muted small">Имя файла</label><div style="display:flex;align-items:center;gap:7px;margin-top:6px"><input id="newListName" class="search" style="flex:1;max-width:none" placeholder="youtube"><span class="mono muted">.list</span></div><div id="createError" class="bad-text small" style="margin-top:7px"></div></div><div class="dialog-foot"><button id="createCancel">Отмена</button><button id="createConfirm" class="primary">Создать</button></div></div></div>
 
+<div id="configNameModal" class="modal"><div class="dialog small-dialog"><div class="dialog-head"><strong id="configNameTitle">Имя конфига</strong><button id="closeConfigName">Закрыть</button></div><div class="dialog-body"><label class="muted small">Имя файла</label><div style="display:flex;align-items:center;gap:7px;margin-top:6px"><input id="configNameInput" class="search" style="flex:1;max-width:none" placeholder="youtube"><span class="mono muted">.conf</span></div><div id="configNameError" class="bad-text small" style="margin-top:7px"></div></div><div class="dialog-foot"><button id="configNameCancel">Отмена</button><button id="configNameConfirm" class="primary">Продолжить</button></div></div></div>
+
 <div id="checkModal" class="modal"><div class="dialog"><div class="dialog-head"><strong>Проверка доступности доменов</strong><button id="closeCheck">Закрыть</button></div><div class="dialog-body">
   <div class="domain-summary"><div class="domain-stat"><span>Всего</span><strong id="checkTotal">0</strong></div><div class="domain-stat"><span>Доступны</span><strong id="checkOk" class="good-text">0</strong></div><div class="domain-stat"><span>Недоступны</span><strong id="checkFail" class="bad-text">0</strong></div><div class="domain-stat"><span>Прогресс</span><strong id="checkProgress">0%</strong></div></div>
   <div class="progress"><span id="checkBar"></span></div><div id="checkResults" class="domain-results"></div>
@@ -664,6 +696,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
   let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false;
+  let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
   const esc=(s='')=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1212,6 +1245,43 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   }
   function closeAnalysis(){$('analysisModal').classList.remove('open');$('analysisCleanup').classList.remove('open')}
 
+  function normalizeStoredConfigName(raw){
+    let name=String(raw||'').trim();if(!name)return'';if(!/\.conf$/i.test(name))name+='.conf';return/^[A-Za-z0-9][A-Za-z0-9._-]*\.conf$/i.test(name)?name:'';
+  }
+  function storedConfigByName(name){return configLibraryFiles.find(x=>x.name===name)||null}
+  function updateStoredConfigButtons(){
+    const has=!!selectedStoredConfig,editor=$('storedConfigEditor'),dirty=has&&editor.value!==storedConfigOriginal,meta=storedConfigByName(selectedStoredConfig)||storedConfigMeta;
+    $('saveStoredConfig').disabled=!has||!dirty||configLibraryLoading;$('activateStoredConfig').disabled=!has||!String(editor.value||'').trim()||configLibraryLoading;$('renameStoredConfig').disabled=!has||configLibraryLoading;$('duplicateStoredConfig').disabled=!has||configLibraryLoading;$('deleteStoredConfig').disabled=!has||configLibraryLoading;
+    $('storedConfigState').textContent=!has?'—':dirty?'UNSAVED':meta?.active?'ACTIVE':meta?.empty?'EMPTY':'STORED';$('storedConfigState').className=dirty?'dirty':meta?.active?'good-text':meta?.empty?'warn-text':'';
+  }
+  function renderConfigLibraryList(){
+    const q=$('configLibrarySearch').value.trim().toLowerCase(),files=configLibraryFiles.filter(x=>!q||String(x.name||'').toLowerCase().includes(q));$('configLibraryCount').textContent=configLibraryFiles.length?`(${configLibraryFiles.length})`:'';
+    $('configLibraryList').innerHTML=files.length?files.map(item=>`<div class="config-library-item${item.active?' active':''}${selectedStoredConfig===item.name?' selected':''}" data-config-name="${esc(item.name)}"><div style="min-width:0"><div class="config-library-name">${esc(item.name)}</div><div class="config-library-sub">${bytes(item.size)} · ${(item.sha256||'').slice(0,12)}…</div></div><div class="config-library-badges">${item.active?'<span class="config-badge active">ACTIVE</span>':''}${item.empty?'<span class="config-badge empty">EMPTY</span>':''}</div></div>`).join(''):'<div class="empty">Полных конфигов пока нет.</div>';
+    $('configLibraryList').querySelectorAll('[data-config-name]').forEach(row=>row.onclick=()=>selectStoredConfig(row.dataset.configName));
+  }
+  async function loadConfigLibrary(force=false){
+    if(configLibraryLoading||configLibraryLoaded&&!force)return;configLibraryLoading=true;try{const d=await api('/configs');configLibraryFiles=Array.isArray(d.files)?d.files:[];configLibraryLoaded=true;$('configLibraryRoot').textContent=d.root||'/opt/etc/nfqws2/routerforge-configs';renderConfigLibraryList();if(selectedStoredConfig&&!storedConfigByName(selectedStoredConfig)){selectedStoredConfig='';storedConfigOriginal='';storedConfigMeta=null;$('storedConfigEditor').value='';$('storedConfigEditor').style.display='none';$('configLibraryEditorEmpty').style.display='';$('storedConfigTitle').textContent='Выберите конфиг';$('storedConfigMeta').textContent='—'}updateStoredConfigButtons()}catch(e){$('configLibraryList').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}finally{configLibraryLoading=false;updateStoredConfigButtons();reportHeight()}
+  }
+  async function selectStoredConfig(name){
+    if(!name)return;if(selectedStoredConfig&&$('storedConfigEditor').value!==storedConfigOriginal&&!confirm('Есть несохранённые изменения. Переключиться без сохранения?'))return;configLibraryLoading=true;updateStoredConfigButtons();try{const d=await api(`/configs/read?name=${encodeURIComponent(name)}`);selectedStoredConfig=name;storedConfigOriginal=d.content||'';storedConfigMeta=d;$('storedConfigEditor').value=storedConfigOriginal;$('storedConfigEditor').style.display='';$('configLibraryEditorEmpty').style.display='none';$('storedConfigTitle').textContent=name;$('storedConfigMeta').textContent=`${d.path||name} · ${bytes(d.size)} · SHA ${(d.sha256||'').slice(0,16)}…${d.active?' · ACTIVE':''}`;renderConfigLibraryList()}catch(e){notice(e.message,'error')}finally{configLibraryLoading=false;updateStoredConfigButtons();reportHeight()}
+  }
+  function openConfigName(mode,source=''){
+    configNameMode=mode;configNameSource=source;$('configNameError').textContent='';$('configNameInput').value=mode==='rename'?String(source||'').replace(/\.conf$/i,''):mode==='duplicate'?String(source||'').replace(/\.conf$/i,'')+'-copy':'';$('configNameTitle').textContent=mode==='create-current'?'Сохранить текущий как':mode==='create-empty'?'Новый пустой конфиг':mode==='rename'?'Переименовать конфиг':'Создать копию';$('configNameModal').classList.add('open');setTimeout(()=>$('configNameInput').focus(),20)
+  }
+  function closeConfigName(){$('configNameModal').classList.remove('open');configNameMode='';configNameSource=''}
+  async function confirmConfigName(){
+    const name=normalizeStoredConfigName($('configNameInput').value);if(!name){$('configNameError').textContent='Используй буквы, цифры, точку, _ и -';return}configLibraryLoading=true;updateStoredConfigButtons();try{let r;if(configNameMode==='create-empty'||configNameMode==='create-current'){r=await api('/configs/create',{method:'POST',body:JSON.stringify({name,from_current:configNameMode==='create-current',content:'',confirm:'NFQWS_CONFIG_LIBRARY_CREATE'})})}else if(configNameMode==='rename'){r=await api('/configs/rename',{method:'POST',body:JSON.stringify({name:configNameSource,new_name:name,confirm:'NFQWS_CONFIG_LIBRARY_RENAME'})})}else if(configNameMode==='duplicate'){r=await api('/configs/duplicate',{method:'POST',body:JSON.stringify({name:configNameSource,new_name:name,confirm:'NFQWS_CONFIG_LIBRARY_DUPLICATE'})})}else return;const finishedMode=configNameMode;closeConfigName();configLibraryLoading=false;configLibraryLoaded=false;await loadConfigLibrary(true);await selectStoredConfig(name);notice(finishedMode==='create-empty'?'Пустой полный конфиг создан. Вставь содержимое и сохрани.':'Конфиг сохранён в библиотеке.','good')}catch(e){$('configNameError').textContent=e.message}finally{configLibraryLoading=false;updateStoredConfigButtons()}
+  }
+  async function saveStoredConfig(){
+    if(!selectedStoredConfig||$('storedConfigEditor').value===storedConfigOriginal)return;configLibraryLoading=true;updateStoredConfigButtons();try{const r=await api('/configs/save',{method:'POST',body:JSON.stringify({name:selectedStoredConfig,content:$('storedConfigEditor').value,confirm:'NFQWS_CONFIG_LIBRARY_SAVE'})});storedConfigOriginal=$('storedConfigEditor').value;configLibraryLoading=false;configLibraryLoaded=false;await loadConfigLibrary(true);await selectStoredConfig(selectedStoredConfig);notice(`Конфиг сохранён в библиотеке. Backup: ${r.backup}`,'good')}catch(e){notice(e.message,'error')}finally{configLibraryLoading=false;updateStoredConfigButtons()}
+  }
+  async function deleteStoredConfig(){
+    if(!selectedStoredConfig)return;const name=selectedStoredConfig;if(!confirm(`Удалить ${name} из библиотеки? Перед удалением будет создан backup.`))return;configLibraryLoading=true;updateStoredConfigButtons();try{const r=await api('/configs/delete',{method:'POST',body:JSON.stringify({name,confirm:'NFQWS_CONFIG_LIBRARY_DELETE'})});selectedStoredConfig='';storedConfigOriginal='';storedConfigMeta=null;$('storedConfigEditor').value='';$('storedConfigEditor').style.display='none';$('configLibraryEditorEmpty').style.display='';$('storedConfigTitle').textContent='Выберите конфиг';$('storedConfigMeta').textContent='—';configLibraryLoading=false;configLibraryLoaded=false;await loadConfigLibrary(true);notice(`Конфиг удалён. Backup: ${r.backup}`,'good')}catch(e){notice(e.message,'error')}finally{configLibraryLoading=false;updateStoredConfigButtons()}
+  }
+  async function activateStoredConfig(){
+    if(!selectedStoredConfig)return;if($('storedConfigEditor').value!==storedConfigOriginal){notice('Сначала сохрани изменения в библиотечный файл.','error');return}const name=selectedStoredConfig;if(!confirm(`Активировать полный конфиг ${name}? Текущий nfqws2.conf будет сохранён в backup.${current?.running?' Сервис будет перезапущен.':' Сервис останется остановленным.'}`))return;configLibraryLoading=true;updateStoredConfigButtons();try{const r=await api('/configs/activate',{method:'POST',body:JSON.stringify({name,confirm:'NFQWS_CONFIG_LIBRARY_ACTIVATE'})});if(r.status)render(r.status);configLibraryLoading=false;configLibraryLoaded=false;await loadConfigLibrary(true);await selectStoredConfig(name);notice(r.already_active?`${name} уже совпадает с активным nfqws2.conf.`:`${name} активирован.${r.service_restarted?' NFQWS перезапущен.':' Сервис оставлен остановленным.'} Backup: ${r.backup}`,'good')}catch(e){notice(e.message,'error')}finally{configLibraryLoading=false;updateStoredConfigButtons()}
+  }
+
   function parseLogLine(raw){
     const text=String(raw||''),parts=text.split(/\s+:\s+/);if(parts.length>=6&&/^\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2}$/.test(parts[0])){return{raw:text,time:parts[0],host:parts[1],profile:parts[2].replace(/^profile\s+/i,''),client:parts[3].replace(/^client\s+/i,''),proto:parts[4].replace(/^proto\s+/i,''),event:parts.slice(5).join(' : ')}}return{raw:text,time:'',host:'',profile:'',client:'',proto:'',event:text};
   }
@@ -1244,7 +1314,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('backupCount').textContent=s?.backup_count||0;$('backupCountTab').textContent=s?.backup_count?`(${s.backup_count})`:'';
     renderOverview();renderFlow();renderListFiles();renderLog();mountRawSyntaxEditor();updateConfigEditor();refreshSyntaxEditor($('config'));setBusy(false);reportHeight();
   }
-  async function load(){setBusy(true);try{render(await api('/status'));if(!selectedList&&editableStatusLists().length)await selectList(sortLists(editableStatusLists())[0].name)}catch(e){notice(e.message,'error');setBusy(false)}}
+  async function load(){setBusy(true);try{render(await api('/status'));void loadConfigLibrary(true);if(!selectedList&&editableStatusLists().length)await selectList(sortLists(editableStatusLists())[0].name)}catch(e){notice(e.message,'error');setBusy(false)}}
   async function action(name){if(busy||!current?.mutation_ready)return;if(!confirm(`NFQWS: ${name}?`))return;setBusy(true);try{const r=await api('/action',{method:'POST',body:JSON.stringify({action:name,confirm:'NFQWS'})});render(r.status);notice(`${name}: успешно`,'good')}catch(e){notice(e.message,'error');setBusy(false)}}
   function makeDiff(a,b){const A=lines(a),B=lines(b),out=[];for(let i=0;i<Math.max(A.length,B.length);i++){if(A[i]===B[i]){if(A[i]!==undefined)out.push({c:'same',t:`  ${A[i]}`});continue}if(A[i]!==undefined)out.push({c:'del',t:`- ${A[i]}`});if(B[i]!==undefined)out.push({c:'add',t:`+ ${B[i]}`})}return out}
   function showDiff(){$('diffApply').dataset.mode='config';$('diffBody').innerHTML=makeDiff(original,$('config').value).map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">No changes</span>';$('diffModal').classList.add('open')}
@@ -1270,17 +1340,19 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   function handleEditorSaveShortcut(e){
     if(!(e.ctrlKey||e.metaKey)||String(e.key||'').toLowerCase()!=='s')return;
     const active=document.querySelector('.view.active'),view=active?.id||'';
-    if(!['view-strategies','view-config','view-lists','view-scripts'].includes(view))return;
+    if(!['view-strategies','view-configs','view-config','view-lists','view-scripts'].includes(view))return;
     e.preventDefault();e.stopPropagation();
     if(view==='view-strategies'){updateFlowState();if(flowDirty())previewFlow();return}
+    if(view==='view-configs'){if(selectedStoredConfig&&$('storedConfigEditor').value!==storedConfigOriginal)void saveStoredConfig();return}
     if(view==='view-config'){if($('config').value!==original)showDiff();return}
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
+  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='configs')loadConfigLibrary();if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
   $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
+  $('configLibrarySearch').oninput=renderConfigLibraryList;$('newStoredConfig').onclick=()=>openConfigName('create-empty');$('saveCurrentConfig').onclick=()=>openConfigName('create-current');$('storedConfigEditor').oninput=updateStoredConfigButtons;$('saveStoredConfig').onclick=saveStoredConfig;$('activateStoredConfig').onclick=activateStoredConfig;$('deleteStoredConfig').onclick=deleteStoredConfig;$('renameStoredConfig').onclick=()=>openConfigName('rename',selectedStoredConfig);$('duplicateStoredConfig').onclick=()=>openConfigName('duplicate',selectedStoredConfig);$('closeConfigName').onclick=closeConfigName;$('configNameCancel').onclick=closeConfigName;$('configNameConfirm').onclick=confirmConfigName;$('configNameInput').onkeydown=e=>{if(e.key==='Enter')confirmConfigName()};$('configNameModal').onclick=e=>{if(e.target===$('configNameModal'))closeConfigName()};
   $('listSearch').oninput=renderListFiles;$('analyzeLists').onclick=runListAnalysis;$('listEditor').oninput=updateListButtons;$('listEditor').onscroll=()=>{$('listGutter').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollLeft=$('listEditor').scrollLeft};$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;$('closeAnalysis').onclick=closeAnalysis;$('rerunAnalysis').onclick=runListAnalysis;for(const[id,val]of[['analysisAll','all'],['analysisConflict','conflict'],['analysisDomain','domain'],['analysisNetwork','network']])$(id).onclick=()=>{analysisFilter=val;renderAnalysis()};$('analysisPeer').onchange=()=>{analysisPeer=$('analysisPeer').value;renderAnalysis()};$('openAnalysisPeer').onclick=()=>{if(analysisPeer)openListAtLine(analysisPeer,pairSideRecords(pairFindings(analysisPeer,false),analysisPeer)[0]?.line||1)};$('cleanupAnalysis').onclick=openAnalysisCleanup;$('cleanupCancel').onclick=()=>$('analysisCleanup').classList.remove('open');$('cleanupLeft').onclick=()=>cleanupAnalysisSide('left');$('cleanupRight').onclick=()=>cleanupAnalysisSide('right');$('analysisModal').onclick=e=>{if(e.target===$('analysisModal'))closeAnalysis()};
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));$('scriptSearch').oninput=renderScriptList;$('copyScript').onclick=()=>navigator.clipboard?.writeText(scriptContent);$('fullscreenScript').onclick=()=>{const panel=$('scriptPanel'),on=!panel.classList.contains('script-fullscreen');panel.classList.toggle('script-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenScript').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};

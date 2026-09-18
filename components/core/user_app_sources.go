@@ -55,23 +55,24 @@ type appSourcesConfig struct {
 }
 
 type appSourceRecord struct {
-	ID          string `json:"id"`
-	Kind        string `json:"kind"`
-	Name        string `json:"name"`
-	URL         string `json:"url"`
-	ResolvedURL string `json:"resolved_url,omitempty"`
-	RegistryID  string `json:"registry_id,omitempty"`
-	Revision    string `json:"revision,omitempty"`
-	Trust       string `json:"trust"`
-	Enabled     bool   `json:"enabled"`
-	ReadOnly    bool   `json:"read_only,omitempty"`
-	Local       bool   `json:"local,omitempty"`
-	Online      bool   `json:"online"`
-	Cached      bool   `json:"cached,omitempty"`
-	EntryCount  int    `json:"entry_count"`
-	AddedAt     string `json:"added_at,omitempty"`
-	LastSync    string `json:"last_sync,omitempty"`
-	Error       string `json:"error,omitempty"`
+	ID           string `json:"id"`
+	Kind         string `json:"kind"`
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	ResolvedURL  string `json:"resolved_url,omitempty"`
+	RegistryID   string `json:"registry_id,omitempty"`
+	Revision     string `json:"revision,omitempty"`
+	Trust        string `json:"trust"`
+	Enabled      bool   `json:"enabled"`
+	ReadOnly     bool   `json:"read_only,omitempty"`
+	Local        bool   `json:"local,omitempty"`
+	Manifestless bool   `json:"manifestless,omitempty"`
+	Online       bool   `json:"online"`
+	Cached       bool   `json:"cached,omitempty"`
+	EntryCount   int    `json:"entry_count"`
+	AddedAt      string `json:"added_at,omitempty"`
+	LastSync     string `json:"last_sync,omitempty"`
+	Error        string `json:"error,omitempty"`
 }
 
 type appSourceCache struct {
@@ -83,6 +84,7 @@ type appSourceCache struct {
 	Revision       string        `json:"revision,omitempty"`
 	ResolvedURL    string        `json:"resolved_url"`
 	Local          bool          `json:"local,omitempty"`
+	Manifestless   bool          `json:"manifestless,omitempty"`
 	ManifestSHA256 string        `json:"manifest_sha256"`
 	Entries        []catalogItem `json:"entries"`
 }
@@ -120,6 +122,7 @@ type appSourcePreview struct {
 	Revision       string                  `json:"revision,omitempty"`
 	ResolvedURL    string                  `json:"resolved_url"`
 	Local          bool                    `json:"local,omitempty"`
+	Manifestless   bool                    `json:"manifestless,omitempty"`
 	Trust          string                  `json:"trust"`
 	Fingerprint    string                  `json:"fingerprint"`
 	EntryCount     int                     `json:"entry_count"`
@@ -536,6 +539,93 @@ func fetchGitHubRepositoryFile(ctx context.Context, owner, repo, path, branch st
 	return decoded, resolved, nil
 }
 
+func resolveGitHubManifestlessSource(ctx context.Context, rawURL, owner, repo, branch string) (appSourceCache, error) {
+	branchURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/branches/%s",
+		url.PathEscape(owner), url.PathEscape(repo), url.PathEscape(branch))
+	branchData, err := appSourceFetchBytes(ctx, branchURL)
+	if err != nil {
+		return appSourceCache{}, fmt.Errorf("GitHub default branch metadata: %w", err)
+	}
+	var branchMeta struct {
+		Commit struct {
+			SHA string `json:"sha"`
+		} `json:"commit"`
+	}
+	if err := json.Unmarshal(branchData, &branchMeta); err != nil {
+		return appSourceCache{}, fmt.Errorf("GitHub default branch metadata: %w", err)
+	}
+	headSHA := strings.ToLower(strings.TrimSpace(branchMeta.Commit.SHA))
+	if len(headSHA) != 40 {
+		return appSourceCache{}, fmt.Errorf("GitHub default branch HEAD is unavailable")
+	}
+	if _, err := hex.DecodeString(headSHA); err != nil {
+		return appSourceCache{}, fmt.Errorf("GitHub default branch HEAD is invalid")
+	}
+
+	itemID := strings.ToLower(strings.TrimSpace(repo))
+	if !safeCatalogID(itemID) {
+		itemID = "github-" + headSHA[:12]
+	}
+
+	packageName := strings.ToLower(strings.TrimSpace(repo))
+	detection := catalogDetection{}
+	versionSource := ""
+	if safeCatalogPackageName(packageName) && packageName != "opkg" && !strings.HasPrefix(packageName, "routerforge-") {
+		detection.Packages = []string{packageName}
+		versionSource = "opkg"
+	}
+
+	identity := strings.Join([]string{
+		"github-manifestless-v1",
+		strings.ToLower(strings.TrimSpace(owner)),
+		strings.ToLower(strings.TrimSpace(repo)),
+		strings.TrimSpace(branch),
+		headSHA,
+	}, "\n")
+	sum := sha256.Sum256([]byte(identity))
+	fingerprint := hex.EncodeToString(sum[:])
+
+	resolved := fmt.Sprintf("https://github.com/%s/%s/commit/%s",
+		url.PathEscape(owner), url.PathEscape(repo), headSHA)
+
+	item := catalogItem{
+		ID:            itemID,
+		Kind:          "integration",
+		Name:          repo,
+		Category:      "Unmanaged GitHub",
+		Description:   "GitHub repository without a RouterForge manifest. Automatic lifecycle is limited to a matching package already exposed by configured opkg feeds; upstream scripts are never executed automatically.",
+		ProjectURL:    rawURL,
+		Source:        "github-manifestless",
+		VersionSource: versionSource,
+		Publisher: catalogPublisher{
+			ID:   strings.ToLower(strings.TrimSpace(owner)),
+			Name: owner,
+			URL:  "https://github.com/" + owner,
+		},
+		Trust:     catalogTrust{Status: "unverified"},
+		Detection: detection,
+		Compatibility: catalogCompatibility{
+			Status: "unknown",
+			Hints: []string{
+				"No RouterForge manifest.",
+				"Lifecycle is restricted to an existing package from configured opkg feeds.",
+				"Upstream install scripts are not executed automatically.",
+			},
+		},
+	}
+
+	return appSourceCache{
+		SchemaVersion:  appSourcesSchemaVersion,
+		Kind:           "app",
+		RegistryID:     "github-manifestless",
+		Name:           repo,
+		Revision:       headSHA[:12],
+		ResolvedURL:    resolved,
+		Manifestless:   true,
+		ManifestSHA256: fingerprint,
+		Entries:        []catalogItem{item},
+	}, nil
+}
 func resolveGitHubSource(ctx context.Context, rawURL, kind string) (appSourceCache, error) {
 	owner, repo, ok := githubRepositoryParts(rawURL)
 	if !ok {
@@ -552,6 +642,7 @@ func resolveGitHubSource(ctx context.Context, rawURL, kind string) (appSourceCac
 	if err := json.Unmarshal(metaData, &meta); err != nil || strings.TrimSpace(meta.DefaultBranch) == "" {
 		return appSourceCache{}, fmt.Errorf("GitHub repository default branch unavailable")
 	}
+
 	type candidate struct{ kind, path string }
 	var candidates []candidate
 	if kind == "auto" || kind == "repository" {
@@ -564,21 +655,42 @@ func resolveGitHubSource(ctx context.Context, rawURL, kind string) (appSourceCac
 			candidate{"app", ".routerforge/manifest.json"},
 			candidate{"app", "routerforge.json"})
 	}
+
 	var lastErr error
+	documentFound := false
+	onlyNotFound := true
+
 	for _, candidate := range candidates {
 		data, resolved, fetchErr := fetchGitHubRepositoryFile(ctx, owner, repo, candidate.path, meta.DefaultBranch)
 		if fetchErr != nil {
 			lastErr = fetchErr
+			if !strings.Contains(fetchErr.Error(), "source HTTP 404") {
+				onlyNotFound = false
+			}
 			continue
 		}
+
+		documentFound = true
 		cache, parseErr := parseThirdPartySourceDocument(data, resolved, candidate.kind)
 		if parseErr == nil {
 			return cache, nil
 		}
 		lastErr = parseErr
 	}
+
+	if documentFound || !onlyNotFound {
+		if lastErr == nil {
+			lastErr = fmt.Errorf("RouterForge manifest lookup failed")
+		}
+		return appSourceCache{}, fmt.Errorf("GitHub source: %w", lastErr)
+	}
+
+	if kind == "auto" || kind == "app" {
+		return resolveGitHubManifestlessSource(ctx, rawURL, owner, repo, meta.DefaultBranch)
+	}
+
 	if lastErr == nil {
-		lastErr = fmt.Errorf("RouterForge manifest not found")
+		lastErr = fmt.Errorf("RouterForge repository manifest not found")
 	}
 	return appSourceCache{}, fmt.Errorf("GitHub source: %w", lastErr)
 }
@@ -870,6 +982,7 @@ func previewFromAppSourceCache(cache appSourceCache) appSourcePreview {
 		Revision:       cache.Revision,
 		ResolvedURL:    cache.ResolvedURL,
 		Local:          cache.Local,
+		Manifestless:   cache.Manifestless,
 		Trust:          "unsigned",
 		Fingerprint:    cache.ManifestSHA256,
 		EntryCount:     len(cache.Entries),
@@ -1092,21 +1205,22 @@ func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSou
 	cache.SourceID = id
 	now := time.Now().UTC().Format(time.RFC3339)
 	source := appSourceRecord{
-		ID:          id,
-		Kind:        cache.Kind,
-		Name:        cache.Name,
-		URL:         rawURL,
-		ResolvedURL: cache.ResolvedURL,
-		RegistryID:  cache.RegistryID,
-		Revision:    cache.Revision,
-		Trust:       "unsigned",
-		Enabled:     true,
-		Local:       cache.Local,
-		Online:      true,
-		Cached:      true,
-		EntryCount:  len(cache.Entries),
-		AddedAt:     now,
-		LastSync:    now,
+		ID:           id,
+		Kind:         cache.Kind,
+		Name:         cache.Name,
+		URL:          rawURL,
+		ResolvedURL:  cache.ResolvedURL,
+		RegistryID:   cache.RegistryID,
+		Revision:     cache.Revision,
+		Trust:        "unsigned",
+		Enabled:      true,
+		Local:        cache.Local,
+		Manifestless: cache.Manifestless,
+		Online:       true,
+		Cached:       true,
+		EntryCount:   len(cache.Entries),
+		AddedAt:      now,
+		LastSync:     now,
 	}
 	if err := saveAppSourceCache(cache); err != nil {
 		return appSourceRecord{}, appSourcePreview{}, err
@@ -1177,6 +1291,7 @@ func refreshOneAppSource(ctx context.Context, id string) (appSourceRecord, error
 	cfg.Sources[index].RegistryID = cache.RegistryID
 	cfg.Sources[index].Revision = cache.Revision
 	cfg.Sources[index].Local = cache.Local
+	cfg.Sources[index].Manifestless = cache.Manifestless
 	cfg.Sources[index].EntryCount = len(cache.Entries)
 	cfg.Sources[index].LastSync = now
 	cfg.Sources[index].Error = ""

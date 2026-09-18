@@ -242,6 +242,54 @@ body.syntax-fullscreen-open{overflow:hidden}
 @media(max-width:1200px){.traffic-grid{grid-template-columns:1fr 1fr}.traffic-card-ipv6{grid-column:1/-1}.form-row,.compact-line,.policy-name-compact{grid-template-columns:220px minmax(280px,1fr)}}
 @media(max-width:760px){.form-row,.compact-line,.policy-name-compact{grid-template-columns:1fr;gap:7px}.traffic-grid{grid-template-columns:1fr}.traffic-card-ipv6{grid-column:auto}.traffic-card .port-add{grid-template-columns:1fr}.diagnostic-summary{align-items:flex-start;flex-direction:column}.diagnostics{grid-template-columns:1fr}.setup-full-badge{display:none}}
 
+
+/* R14 polish: aligned overview, compact traffic rows, header-click collapse animation and lower list workspace. */
+#view-overview{display:none}
+#view-overview.active{display:block}
+.overview-metrics.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.overview-metrics .card{min-height:92px;display:flex;flex-direction:column;justify-content:center}
+.overview-details{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px;align-items:stretch}
+.overview-details .panel{height:100%;padding:15px}
+.overview-runtime .kv{grid-template-columns:132px minmax(0,1fr);gap:9px 14px}
+.overview-runtime .kv dt{align-self:start}.overview-runtime .kv dd{min-width:0}
+#oSha{word-break:break-all}
+.overview-details .activity-row{min-height:47px;padding:8px 0}
+
+#view-lists{padding-top:18px}
+#view-lists .file-list{margin-top:14px}
+
+.traffic-section .setup-body{padding:0!important}
+.traffic-rows{display:grid}
+.traffic-line{display:grid;grid-template-columns:34px minmax(190px,260px) minmax(0,760px);gap:12px;align-items:center;padding:9px 14px;border-top:1px solid var(--border)}
+.traffic-line:first-child{border-top:0}
+.traffic-line-copy{min-width:0}.traffic-line-copy strong{display:block;color:var(--text);font-size:var(--rf-font-control);font-weight:650;line-height:1.25}.traffic-line-copy span{display:block;margin-top:2px;color:var(--muted);font:var(--rf-font-meta)/1.25 ui-monospace,Consolas,monospace}
+.traffic-line-control{min-width:0;width:100%}.traffic-line-control .setup-input{width:100%;min-height:38px;padding:8px 10px}
+.traffic-line .traffic-switch{max-width:280px;min-height:38px;padding:7px 10px}
+.traffic-card-num{width:26px;height:26px;flex-basis:26px}
+
+.setup-section{display:grid;grid-template-rows:auto minmax(0,1fr);transition:grid-template-rows .22s ease}
+.setup-section .setup-body{min-height:0;overflow:hidden;transition:opacity .16s ease,padding-top .22s ease,padding-bottom .22s ease}
+.setup-section.collapsible-section .setup-head{cursor:pointer;grid-template-columns:42px minmax(0,1fr) 26px;user-select:none}
+.setup-section.collapsible-section .setup-head:after{content:"";grid-column:3;grid-row:1/3;justify-self:center;align-self:center;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(225deg);transition:transform .2s ease,border-color .2s ease}
+.setup-section.collapsible-section .setup-head:hover{background:color-mix(in srgb,var(--surface2) 88%,var(--surface))}
+.setup-section.collapsible-section .setup-head:hover:after{border-color:var(--text)}
+.setup-section.collapsible-section.collapsed{grid-template-rows:auto 0fr}
+.setup-section.collapsible-section.collapsed .setup-head:after{transform:rotate(45deg)}
+.setup-section.collapsible-section.collapsed .setup-body{display:grid!important;opacity:0;pointer-events:none}
+.setup-section.collapsible-section:not(.collapsed) .setup-body{opacity:1}
+.setup-collapse{display:none!important}
+
+@media(max-width:900px){
+  .overview-metrics.grid.cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .overview-details{grid-template-columns:1fr}
+  .traffic-line{grid-template-columns:32px minmax(150px,220px) minmax(0,1fr)}
+}
+@media(max-width:620px){
+  .overview-metrics.grid.cards{grid-template-columns:1fr}
+  .traffic-line{grid-template-columns:30px minmax(0,1fr);gap:7px 10px}
+  .traffic-line-control{grid-column:2}
+}
+
 </style>
 </head>
 <body>
@@ -273,14 +321,14 @@ body.syntax-fullscreen-open{overflow:hidden}
 
 <main>
 <section id="view-overview" class="view active">
-  <div class="grid cards">
+  <div class="grid cards overview-metrics">
     <article class="card"><div class="metric-label">Сервис</div><div id="mService" class="metric-value">—</div><div id="mServiceSub" class="metric-sub">—</div></article>
     <article class="card"><div class="metric-label">Конфигурация</div><div id="mConfig" class="metric-value">—</div><div id="mConfigSub" class="metric-sub">—</div></article>
     <article class="card"><div class="metric-label">Стратегии</div><div id="mStrategies" class="metric-value accent">—</div><div class="metric-sub">разобрано из активного конфига</div></article>
     <article class="card"><div class="metric-label">Списки</div><div id="mLists" class="metric-value">—</div><div id="mListsSub" class="metric-sub">—</div></article>
   </div>
-  <div class="grid" style="grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);margin-top:var(--space)">
-    <article class="panel">
+  <div class="grid overview-details">
+    <article class="panel overview-runtime">
       <div class="panel-head"><div><h2>Runtime</h2><div class="section-kicker">Фактическое состояние внешнего nfqws</div></div></div>
       <dl class="kv">
         <dt>Target</dt><dd id="oTarget" class="mono">—</dd>
@@ -360,24 +408,24 @@ body.syntax-fullscreen-open{overflow:hidden}
     </article>
 
     <article class="setup-section fixed-section traffic-section" data-fixed="true">
-      <div class="setup-head"><div class="setup-num traffic-range">09–11</div><div><div class="setup-title">Обработка трафика</div><div class="setup-key">IPV6_ENABLED / TCP_PORTS / UDP_PORTS</div></div><div class="setup-help">Какие семейства и порты iptables отправляет в NFQUEUE. Порты здесь — реальная граница захвата трафика.</div></div>
+      <div class="setup-head"><div class="setup-num traffic-range">09–11</div><div><div class="setup-title">Обработка трафика</div><div class="setup-key">IPV6_ENABLED / TCP_PORTS / UDP_PORTS</div></div><div class="setup-help">Три компактных параметра, которые определяют, какой трафик попадёт в NFQUEUE.</div></div>
       <div class="setup-body">
-        <div class="traffic-grid">
-          <section class="traffic-card traffic-card-ipv6">
-            <div class="traffic-card-head"><span class="traffic-card-num">09</span><div><strong>IPv6</strong><span>IPV6_ENABLED</span></div></div>
-            <p>Применять те же правила обработки к IPv6-трафику.</p>
-            <label class="traffic-switch"><input id="flowIPv6" type="checkbox"><span class="traffic-switch-track"></span><strong>Обрабатывать IPv6</strong></label>
-          </section>
-          <section class="traffic-card">
-            <div class="traffic-card-head"><span class="traffic-card-num">10</span><div><strong>TCP → NFQUEUE</strong><span>TCP_PORTS</span></div></div>
-            <p>Порты TCP, которые будут переданы nfqws2.</p>
-            <input id="flowTcpPorts" type="hidden"><div class="port-editor"><div id="tcpPortChips" class="port-chips"></div><div class="port-add"><input id="tcpPortAdd" class="setup-input" placeholder="443 или 1000:2000"><button id="addTcpPort">+ Добавить</button></div></div>
-          </section>
-          <section class="traffic-card">
-            <div class="traffic-card-head"><span class="traffic-card-num">11</span><div><strong>UDP → NFQUEUE</strong><span>UDP_PORTS</span></div></div>
-            <p>QUIC и другие UDP-порты, которые будут переданы nfqws2.</p>
-            <input id="flowUdpPorts" type="hidden"><div class="port-editor"><div id="udpPortChips" class="port-chips"></div><div class="port-add"><input id="udpPortAdd" class="setup-input" placeholder="443 или 3478:3481"><button id="addUdpPort">+ Добавить</button></div></div>
-          </section>
+        <div class="traffic-rows">
+          <div class="traffic-line">
+            <span class="traffic-card-num">09</span>
+            <div class="traffic-line-copy"><strong>IPv6</strong><span>IPV6_ENABLED</span></div>
+            <div class="traffic-line-control"><label class="traffic-switch"><input id="flowIPv6" type="checkbox"><span class="traffic-switch-track"></span><strong>Обрабатывать IPv6</strong></label></div>
+          </div>
+          <div class="traffic-line">
+            <span class="traffic-card-num">10</span>
+            <div class="traffic-line-copy"><strong>TCP → NFQUEUE</strong><span>TCP_PORTS</span></div>
+            <div class="traffic-line-control"><input id="flowTcpPorts" class="setup-input" spellcheck="false" placeholder="80,443,1984,2053,2083,2087,2096,5222,8443"></div>
+          </div>
+          <div class="traffic-line">
+            <span class="traffic-card-num">11</span>
+            <div class="traffic-line-copy"><strong>UDP → NFQUEUE</strong><span>UDP_PORTS</span></div>
+            <div class="traffic-line-control"><input id="flowUdpPorts" class="setup-input" spellcheck="false" placeholder="443,590:600,1400,3478:3481,5349"></div>
+          </div>
         </div>
       </div>
     </article>
@@ -734,10 +782,16 @@ body.syntax-fullscreen-open{overflow:hidden}
   }
   function addCollapseControls(){
     document.querySelectorAll('.setup-section').forEach((section,i)=>{
-      const head=section.querySelector('.setup-head');if(!head||head.querySelector('.setup-collapse')||section.dataset.fixed==='true')return;
-      const button=document.createElement('button');button.className='setup-collapse';button.textContent=i<4?'Свернуть':'Развернуть';head.append(button);
+      const head=section.querySelector('.setup-head');if(!head||section.dataset.fixed==='true')return;
+      section.classList.add('collapsible-section');
+      if(section.dataset.collapseReady==='1')return;
+      section.dataset.collapseReady='1';
       if(i>=4)section.classList.add('collapsed');
-      button.onclick=()=>{section.classList.toggle('collapsed');button.textContent=section.classList.contains('collapsed')?'Развернуть':'Свернуть';reportHeight()};
+      const sync=()=>head.setAttribute('aria-expanded',section.classList.contains('collapsed')?'false':'true');
+      const toggle=()=>{section.classList.toggle('collapsed');sync();reportHeight();setTimeout(reportHeight,240)};
+      head.setAttribute('role','button');head.tabIndex=0;sync();
+      head.onclick=e=>{if(e.target.closest('button,input,textarea,select,a,label'))return;toggle()};
+      head.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle()}};
     });
   }
   function renderProcessingOverview(){
@@ -841,7 +895,7 @@ body.syntax-fullscreen-open{overflow:hidden}
     $('flowInterface').value=flowValues.ISP_INTERFACE||'';$('flowBaseArgs').value=flowValues.NFQWS_BASE_ARGS||'';$('flowArgs').value=flowValues.NFQWS_ARGS||'';$('flowQuic').value=flowValues.NFQWS_ARGS_QUIC||'';$('flowUdp').value=flowValues.NFQWS_ARGS_UDP||'';$('flowIpset').value=flowValues.NFQWS_ARGS_IPSET||'';
     $('flowIPv6').checked=/^(1|true|yes)$/i.test(flowValues.IPV6_ENABLED||'');$('flowTcpPorts').value=flowValues.TCP_PORTS||'';$('flowUdpPorts').value=flowValues.UDP_PORTS||'';$('flowPolicyName').value=flowValues.POLICY_NAME||'';$('flowPolicyExclude').value=flowValues.POLICY_EXCLUDE||'0';$('flowLogLevel').checked=/^(1|true|yes)$/i.test(flowValues.LOG_LEVEL||'');$('flowLogPath').value=flowValues.LOG_DEBUG_PATH||'';
     $('flowQueue').textContent=assignmentValue(flowOriginal,'NFQUEUE_NUM')||'—';$('flowUser').textContent=assignmentValue(flowOriginal,'USER')||'—';$('flowConfigVersion').textContent=assignmentValue(flowOriginal,'CONFIG_VERSION')||'—';
-    updateModeCards();renderPolicy();renderPortEditor('tcp');renderPortEditor('udp');renderCustomBlocks();mountStrategyEditors();updateFlowState();addCollapseControls();reportHeight();
+    updateModeCards();renderPolicy();renderCustomBlocks();mountStrategyEditors();updateFlowState();addCollapseControls();reportHeight();
   }
   function resetFlow(){loadFlow(flowOriginal);renderFlow()}
   function previewFlow(){
@@ -935,7 +989,7 @@ body.syntax-fullscreen-open{overflow:hidden}
   }
   function renderScriptCode(){const host=$('scriptCode');if(!selectedScript){host.className='script-reader-empty';host.innerHTML='Lua-скрипты nfqws2 доступны только для чтения.';return}host.className='script-code-shell';host.innerHTML=lines(scriptContent).map((line,i)=>`<div class="script-code-line"><span class="script-line-number">${i+1}</span><code>${highlightLuaLine(line)}</code></div>`).join('')}
   function renderScriptList(){const q=$('scriptSearch').value.trim().toLowerCase();const files=scriptFiles.filter(x=>!q||String(x.name||'').toLowerCase().includes(q));$('scriptList').innerHTML=files.length?files.map(item=>`<div class="script-item${selectedScript===item.name?' active':''}" data-script-name="${esc(item.name)}"><div><div class="script-name">${esc(item.name)}</div><div class="script-meta">${esc(item.modified_at||'')} · read-only</div></div><div class="script-meta">${bytes(item.size)}</div></div>`).join(''):'<div class="empty">Lua-скрипты не найдены.</div>';$('scriptList').querySelectorAll('[data-script-name]').forEach(row=>row.onclick=()=>selectScript(row.dataset.scriptName))}
-  async function loadScripts(force=false){if(scriptsLoading||scriptsLoaded&&!force)return;scriptsLoading=true;$('scriptList').innerHTML='<div class="empty">Загрузка Lua inventory…</div>';try{const d=await api('/scripts');scriptFiles=Array.isArray(d.files)?d.files:[];scriptsLoaded=true;$('scriptRoot').textContent=d.root||'/opt/etc/nfqws2/lua';$('scriptCount').textContent=scriptFiles.length?`(${scriptFiles.length})`:'';renderScriptList()}catch(e){$('scriptList').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}finally{scriptsLoading=false}}
+  async function loadScripts(force=false){if(scriptsLoading||scriptsLoaded&&!force)return;scriptsLoading=true;$('scriptList').innerHTML='<div class="empty">Загрузка Lua inventory…</div>';try{const d=await api('/scripts');scriptFiles=Array.isArray(d.files)?d.files:[];scriptsLoaded=true;const roots=Array.isArray(d.roots)?d.roots:[];$('scriptRoot').textContent=d.root||roots[0]||'/opt/etc/nfqws2/lua';$('scriptCount').textContent=scriptFiles.length?`(${scriptFiles.length})`:'';renderScriptList();if(!scriptFiles.length&&roots.length)$('scriptList').innerHTML=`<div class="empty">Lua-скрипты не найдены.<br><span class="muted">Проверено: ${roots.map(esc).join(' · ')}</span></div>`}catch(e){$('scriptList').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}finally{scriptsLoading=false}}
   async function selectScript(name){if(!name)return;selectedScript=name;renderScriptList();$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Loading…';$('copyScript').disabled=true;$('fullscreenScript').disabled=true;try{const d=await api(`/scripts?name=${encodeURIComponent(name)}`);scriptContent=d.content||'';$('selectedScriptMeta').textContent=`${d.path||name} · ${bytes(d.size)} · read-only`;$('copyScript').disabled=false;$('fullscreenScript').disabled=false;renderScriptCode()}catch(e){scriptContent='';$('selectedScriptMeta').textContent=e.message;renderScriptCode()}}
   async function openScriptFromSetup(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='scripts'));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-scripts'));await loadScripts();const exact=scriptFiles.find(x=>String(x.name)===String(name));if(exact)await selectScript(exact.name);else{$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Скрипт упомянут в BASE_ARGS, но не найден в runtime inventory';selectedScript='';scriptContent='';renderScriptCode()}reportHeight()}
   function render(s){
@@ -972,7 +1026,7 @@ body.syntax-fullscreen-open{overflow:hidden}
   document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else reportHeight()});
   $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('config').value!==original)showDiff()}};
-  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});$('addTcpPort').onclick=()=>addPort('tcp');$('addUdpPort').onclick=()=>addPort('udp');$('tcpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('tcp')}};$('udpPortAdd').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addPort('udp')}};document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
+  $('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('listSearch').oninput=renderListFiles;$('listEditor').oninput=updateListButtons;$('fullscreenList').onclick=()=>{$('listEditorPanel').classList.toggle('full-editor');$('fullscreenList').textContent=$('listEditorPanel').classList.contains('full-editor')?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};
   $('checkList').onclick=runDomainCheck;$('closeCheck').onclick=closeCheck;$('stopCheck').onclick=stopDomainCheck;$('retryCheck').onclick=runDomainCheck;
   $('logSearch').oninput=renderLog;$('logAll').onclick=()=>{logMode='all';renderLog()};$('logErrors').onclick=()=>{logMode='errors';renderLog()};$('logWarnings').onclick=()=>{logMode='warnings';renderLog()};$('copyLog').onclick=()=>navigator.clipboard?.writeText(lines(current?.log_tail||'').join('\n'));$('scriptSearch').oninput=renderScriptList;$('copyScript').onclick=()=>navigator.clipboard?.writeText(scriptContent);$('fullscreenScript').onclick=()=>{const panel=$('scriptPanel'),on=!panel.classList.contains('script-fullscreen');panel.classList.toggle('script-fullscreen',on);document.body.classList.toggle('syntax-fullscreen-open',on);$('fullscreenScript').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};

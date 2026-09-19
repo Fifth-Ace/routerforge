@@ -279,7 +279,28 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 .ux-task-action{color:var(--accent);font-size:10px;font-weight:800;white-space:nowrap}
 .ux-task-card.planned{opacity:.72;cursor:default}.ux-task-card.planned .ux-task-icon{color:var(--muted)}.ux-task-card.planned .ux-task-action{color:var(--muted)}
 .ux-task-foot{margin-top:10px;color:var(--muted);font-size:9.5px;line-height:1.45}
-@media(max-width:760px){.ux-task-head{align-items:flex-start;flex-direction:column}.ux-task-head-note{text-align:left}.ux-task-grid{grid-template-columns:1fr}}
+
+/* UX1.2: guided troubleshooting layer on top of Processing Map evidence. */
+.guided-shell{display:grid;gap:10px;margin-bottom:12px}
+.guided-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.guided-step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);min-width:0}
+.guided-step-num{display:grid;place-items:center;width:28px;height:28px;border-radius:7px;border:1px solid var(--border-strong);background:var(--code);color:var(--accent);font:800 10px/1 ui-monospace,Consolas,monospace}
+.guided-step strong{display:block;font-size:10.5px;line-height:1.25}.guided-step span:last-child{display:block;margin-top:2px;color:var(--muted);font-size:9px;line-height:1.35}
+.guided-result{display:none;padding:13px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.guided-result.visible{display:block}
+.guided-result-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.guided-result-title{font-size:14px;font-weight:850;line-height:1.25}.guided-result-detail{margin-top:5px;color:var(--muted);font-size:10.5px;line-height:1.5;max-width:900px}
+.guided-result-badge{flex:0 0 auto;padding:5px 8px;border:1px solid var(--border);border-radius:999px;font:800 9px/1 ui-monospace,Consolas,monospace}
+.guided-result-badge.good{color:var(--good)}.guided-result-badge.warn{color:var(--warn)}.guided-result-badge.bad{color:var(--bad)}
+.guided-evidence{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:11px}
+.guided-evidence-item{padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);min-width:0}
+.guided-evidence-item span{display:block;color:var(--muted);font-size:8.5px;text-transform:uppercase;letter-spacing:.05em}.guided-evidence-item strong{display:block;margin-top:4px;font-size:10px;overflow-wrap:anywhere}
+.guided-next{margin-top:12px;padding-top:11px;border-top:1px solid var(--border)}
+.guided-next-title{font-size:10px;font-weight:800}.guided-next-text{margin-top:4px;color:var(--muted);font-size:10px;line-height:1.45}
+.guided-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.guided-actions button{min-height:32px}
+@media(max-width:760px){.guided-steps{grid-template-columns:1fr}.guided-evidence{grid-template-columns:repeat(2,minmax(0,1fr))}.ux-task-head{align-items:flex-start;flex-direction:column}.ux-task-head-note{text-align:left}.ux-task-grid{grid-template-columns:1fr}}
+@media(max-width:420px){.guided-evidence{grid-template-columns:1fr}.guided-result-head{flex-direction:column}}
+
 @media(max-width:420px){.ux-task-center{padding:12px}.ux-task-card{grid-template-columns:34px minmax(0,1fr);padding:11px}.ux-task-icon{width:34px;height:34px}.ux-task-action{grid-column:2}}
 .overview-metrics.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .overview-metrics .card{min-height:92px;display:flex;flex-direction:column;justify-content:center}
@@ -687,10 +708,34 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   <div class="testlab-shell">
     <div class="testlab-hero">
       <div>
-        <div class="testlab-title-row"><h2 style="margin:0">Why domain broken? / Processing Map</h2><span id="processingMapState" class="testlab-state idle">IDLE</span><span class="config-badge">READ-ONLY</span></div>
-        <div class="preflight-sub">Один домен → active config → list decision → runtime → interface binding → router-side HTTP/HTTPS probe. RouterForge показывает, что известно точно, и не выдаёт статический вывод за доказанный NFQUEUE path.</div>
+        <div class="testlab-title-row"><h2 style="margin:0">Диагностика сайта</h2><span id="processingMapState" class="testlab-state idle">IDLE</span><span class="config-badge">READ-ONLY</span></div>
+        <div class="preflight-sub">Введите домен один раз. RouterForge сам проверит текущий runtime, списки, статический путь, интернет-интерфейс и доступность с роутера, а затем предложит следующий шаг.</div>
       </div>
-      <div class="toolbar"><button id="copyProcessingMap" disabled>Копировать JSON</button><button id="runProcessingMap" class="primary">Разобрать домен</button></div>
+      <div class="toolbar"><button id="copyProcessingMap" disabled>Копировать детали</button><button id="runProcessingMap" class="primary">Проверить</button></div>
+    </div>
+    <div class="guided-shell">
+      <div class="guided-steps" aria-label="Этапы диагностики">
+        <div class="guided-step"><span class="guided-step-num">1</span><span><strong>Укажите сайт</strong><span>Например youtube.com</span></span></div>
+        <div class="guided-step"><span class="guided-step-num">2</span><span><strong>Автоматическая проверка</strong><span>Runtime · списки · маршрут · probe</span></span></div>
+        <div class="guided-step"><span class="guided-step-num">3</span><span><strong>Следующий шаг</strong><span>Понятное действие по результату</span></span></div>
+      </div>
+      <article id="guidedTroubleshooter" class="guided-result" aria-live="polite">
+        <div class="guided-result-head">
+          <div><div id="guidedTitle" class="guided-result-title">Результат диагностики</div><div id="guidedDetail" class="guided-result-detail"></div></div>
+          <span id="guidedBadge" class="guided-result-badge warn">CHECK</span>
+        </div>
+        <div class="guided-evidence">
+          <div class="guided-evidence-item"><span>nfqws2</span><strong id="guidedRuntime">—</strong></div>
+          <div class="guided-evidence-item"><span>Списки</span><strong id="guidedLists">—</strong></div>
+          <div class="guided-evidence-item"><span>Интерфейс</span><strong id="guidedInterface">—</strong></div>
+          <div class="guided-evidence-item"><span>Проверка с роутера</span><strong id="guidedProbe">—</strong></div>
+        </div>
+        <div class="guided-next">
+          <div class="guided-next-title">Что делать дальше</div>
+          <div id="guidedNextText" class="guided-next-text"></div>
+          <div id="guidedActions" class="guided-actions"></div>
+        </div>
+      </article>
     </div>
     <div class="testlab-layout">
       <article class="panel testlab-targets">
@@ -2696,6 +2741,51 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     reasons.push(keeneticDiag('info','Observability boundary','Static config/list analysis + router-side probe не доказывают фактический захват конкретного LAN packet NFQUEUE.'));
     return{domain,verdict,kind,detail,reasons,running,mode};
   }
+  function guidedActionButton(tab,label,extra=''){
+    return `<button type="button" data-guided-tab="${esc(tab)}" ${extra}>${esc(label)}</button>`;
+  }
+  function guidedTroubleshooterModel(result){
+    const running=!!result.summary.running,inc=result.staticPath.includes.length,exc=result.staticPath.excludes.length,mode=result.staticPath.mode||'UNKNOWN',probeOK=!!result.probe?.reachable;
+    const ifaceMismatch=!!(result.keenetic?.config_isp_interface&&result.keenetic?.default_ipv4_interface&&!result.keenetic.config_isp_matches_default);
+    let title='Нужна дополнительная проверка',detail=result.summary.detail||'RouterForge собрал доступные сигналы.',kind='warn',next='Откройте технические детали ниже или выполните дополнительную проверку.',actions=[guidedActionButton('preflight','Проверить конфигурацию')];
+    if(!running){
+      title='nfqws2 сейчас остановлен';detail='Без запущенного nfqws2 нельзя подтвердить работу обхода. Списки и конфиг ниже всё ещё можно анализировать.';kind='bad';next='Сначала проверьте состояние сервиса и только потом повторите диагностику.';actions=[guidedActionButton('overview','Открыть Обзор')];
+    }else if(inc&&exc){
+      title='Домен одновременно включён и исключён';detail=`Найдены include (${inc}) и exclude (${exc}) совпадения. По статическому анализу нельзя честно выбрать, какое правило реально определяет путь.`;kind='warn';next='Откройте списки и проверьте конфликтующие записи.';actions=[guidedActionButton('lists','Открыть списки')];
+    }else if(exc){
+      title='Домен попадает в исключение';detail='Активный exclude-path может объяснять, почему nfqws-стратегия к этому домену не применяется.';kind='warn';next='Проверьте запись в списках. RouterForge покажет конкретные совпадения ниже.';actions=[guidedActionButton('lists','Проверить списки')];
+    }else if(!inc&&['MODE_LIST','MODE_AUTO'].includes(mode)){
+      title='Домен не найден в активном списке';detail=`Текущий режим ${mode} ожидает include-match, но RouterForge его не нашёл.`;kind='warn';next='Добавьте или исправьте домен в нужном списке, затем повторите проверку.';actions=[guidedActionButton('lists','Открыть списки')];
+    }else if(ifaceMismatch){
+      title='Стоит проверить интернет-интерфейс';detail=`В конфиге указан ${result.keenetic.config_isp_interface}, а default IPv4 interface сейчас ${result.keenetic.default_ipv4_interface}. Это может быть нормой при policy routing/VLAN/PPP, поэтому RouterForge не считает это доказанной ошибкой.`;kind='warn';next='Сверьте интерфейс в разделе «Система», затем повторите диагностику.';actions=[guidedActionButton('keenetic','Открыть Систему')];
+    }else if(probeOK){
+      title='С роутера сайт доступен';detail='Router-side probe прошёл успешно. Если проблема остаётся на телефоне или ПК, её причина может находиться дальше по клиентскому пути или в фактическом попадании трафика в NFQUEUE.';kind='good';next='Повторите несколько проверок в Test Lab. Это поможет отделить единичный успех от стабильного результата.';actions=[guidedActionButton('testlab','Проверить несколько раз','data-guided-fill-testlab="1"')];
+    }else if(result.probe&&!probeOK&&inc){
+      title='Домен выбран стратегией, но проверка не прошла';detail='Статический путь включает домен, однако HTTPS probe с роутера завершился ошибкой. Это сужает область поиска, но не доказывает конкретную причину.';kind='bad';next='Сначала проверьте конфигурацию, затем повторите домен в Test Lab.';actions=[guidedActionButton('preflight','Проверить конфигурацию'),guidedActionButton('testlab','Открыть Test Lab','data-guided-fill-testlab="1"')];
+    }else if(result.probe&&!probeOK){
+      title='Роутер не смог открыть сайт';detail='Проверка доступности с самого роутера завершилась ошибкой, а статический путь не дал однозначного объяснения.';kind='bad';next='Проверьте конфигурацию и системный интернет-интерфейс.';actions=[guidedActionButton('preflight','Проверить конфигурацию'),guidedActionButton('keenetic','Открыть Систему')];
+    }
+    if(result.listErrors.length&&!actions.some(x=>x.includes('lists'))){actions.push(guidedActionButton('lists','Проверить списки'))}
+    return{title,detail,kind,next,actions,running,inc,exc,mode,probeOK,ifaceMismatch};
+  }
+  function renderGuidedTroubleshooter(result){
+    const model=guidedTroubleshooterModel(result),root=$('guidedTroubleshooter');
+    $('guidedTitle').textContent=model.title;$('guidedDetail').textContent=model.detail;
+    $('guidedBadge').textContent=model.kind==='good'?'OK':model.kind==='bad'?'ПРОБЛЕМА':'ПРОВЕРИТЬ';$('guidedBadge').className=`guided-result-badge ${model.kind}`;
+    $('guidedRuntime').textContent=model.running?'Работает':'Остановлен';
+    $('guidedLists').textContent=model.exc?`exclude: ${model.exc}`:model.inc?`include: ${model.inc}`:['MODE_LIST','MODE_AUTO'].includes(model.mode)?'совпадений нет':'без явного include';
+    $('guidedInterface').textContent=model.ifaceMismatch?'нужно проверить':result.keenetic?.default_ipv4_interface||'нет данных';
+    $('guidedProbe').textContent=model.probeOK?`Доступен${result.probe?.status_code?` · HTTP ${result.probe.status_code}`:''}`:result.probe?'Ошибка':'нет данных';
+    $('guidedNextText').textContent=model.next;$('guidedActions').innerHTML=model.actions.join('');
+    $('guidedActions').querySelectorAll('[data-guided-tab]').forEach(button=>button.onclick=()=>{
+      const tab=button.dataset.guidedTab;
+      if(button.dataset.guidedFillTestlab==='1'&&result.domain){$('testLabTargets').value=result.domain;testLabResultsData=[]}
+      activateNFQWSTab(tab);
+      if(tab==='testlab')renderTestLab();
+    });
+    root.classList.add('visible');
+  }
+
   function renderProcessingMap(result){
     processingMapResult=result;
     $('processingMapMode').textContent=result.staticPath.mode||'UNKNOWN';
@@ -2716,6 +2806,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     ].join('');
     $('processingMapSteps').querySelectorAll('[data-processing-file]').forEach(button=>button.onclick=()=>{document.querySelector('.tab[data-tab="lists"]')?.click();openListAtLine(button.dataset.processingFile,Number(button.dataset.processingLine)||1)});
     $('processingMapMeta').textContent=`${result.domain} · ${Object.keys(result.lists).length} lists · active config`;
+    renderGuidedTroubleshooter(result);
     $('copyProcessingMap').disabled=false;reportHeight();
   }
   async function runProcessingMap(){
@@ -2723,8 +2814,9 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     const domain=normalizeProcessingMapDomain($('processingMapDomain').value);
     if(!domain){notice('Processing Map: нужен корректный публичный DNS hostname.','error');return}
     processingMapRunning=true;processingMapResult=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;
+    $('guidedTroubleshooter').classList.remove('visible');$('guidedActions').innerHTML='';
     $('processingMapState').textContent='RUNNING';$('processingMapState').className='testlab-state running';
-    $('processingMapVerdict').innerHTML='<div class="analysis-empty">Строю static path и router-side probe…</div>';
+    $('processingMapVerdict').innerHTML='<div class="analysis-empty">Проверяю runtime, списки, путь и доступность с роутера…</div>';
     try{
       const loaded=await loadProcessingMapLists(),record={file:'<query>',line:0,value:domain,type:'domain'},staticPath=buildStaticPath(record,loaded.contents);
       let probe=null,keenetic=null;

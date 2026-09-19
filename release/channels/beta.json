@@ -1,50 +1,50 @@
 {
     "schema_version":  1,
     "channel":  "beta",
-    "release_version":  "0.10.0-beta.1",
+    "release_version":  "0.10.0-beta.2",
     "release_notes":  {
                           "ru":  {
                                      "new":  [
-                                                 "P16 Config Vault завершён: snapshot manifest, bounded retention, ACTIVE/SAVED/LAST WORKING, component restore и общий transaction evidence доведены до рабочего состояния.",
-                                                 "P17 Network Doctor / Route Inspector завершён в принятом scope: causal diagnostics и explain-route foundation сведены с shared safety/transaction contracts.",
-                                                 "P18 DNS Policy Router завершён и принят на реальном ARM64 Keenetic: persisted policies, PolicyN → SO_MARK, reversible IPv4 ingress takeover, transaction commit/rollback и external PREROUTING proof."
+                                                 "NFQWS2 Manager вырос в полноценное рабочее пространство: Мастер/Config Library/Raw, локальные списки, NFQWS Menu, Processing Map, Test Lab, Sandbox, Backup Center, System и guarded Smart Apply/Recovery flows.",
+                                                 "Интерфейс NFQWS переразложен по задачам: Конфигурация, Списки, NFQWS Menu, реальные Инструменты и Обслуживание; навигация адаптируется к узким экранам без горизонтального уезда.",
+                                                 "NFQWS Menu получил явный credit для rndnaame/nfqws-menu и exact-ref resolver с GitHub API, Git smart-HTTP fallback и stale exact-SHA cache."
                                              ],
                                      "fixes":  [
-                                                   "Bootstrap MIPS/MIPSel больше не блокирует установку Core из-за отсутствия необязательного thermal sensor: такая capability получает unsupported, а install gate отделён от optional module status.",
-                                                   "Bootstrap проверяет platform gate отдельно и после установки подтверждает локальный Core health через /api/health.",
-                                                   "Сохранены fail-closed semantics для реальных platform blockers и module-specific blocked states."
+                                                   "Исправлена очистка stale Unix socket NFQWS Manager при stop с hardware acceptance на Keenetic Hopper.",
+                                                   "Исправлена геометрия Test Lab: внутренние grid/select больше не раздвигают панель за её границы.",
+                                                   "GitHub API 403/429 больше не трактуется автоматически как падение upstream: rate limit, stale cache и реальный offline различаются."
                                                ],
                                      "compatibility":  [
-                                                           "Все шесть Beta-пакетов выпускаются единым train 0.10.0~beta.1; GitHub release/tag использует 0.10.0-beta.1.",
-                                                           "Beta публикуется для aarch64-3.10, mips-3.4 и mipsel-3.4: 6 компонентов × 3 target = 18 IPK.",
-                                                           "ARM64 остаётся production target; MIPS и MIPSel остаются experimental. KN-1010 даёт отдельное MIPS physical evidence; KN-2311 Hero 4G+ подтвердил MIPSel Core install/UI/runtime."
+                                                           "Beta 0.10.0-beta.2 впервые включает routerforge-nfqws-manager в coherent Beta train.",
+                                                           "Beta публикуется для aarch64-3.10, mips-3.4 и mipsel-3.4: 7 компонентов × 3 target = 21 IPK.",
+                                                           "ARM64 остаётся production target; MIPS и MIPSel остаются experimental. Stable/main этим Beta-выпуском не продвигается."
                                                        ],
                                      "technical":  [
-                                                       "P18 production driver ready=true, blocking unknowns=0; public persistent activation остаётся выключенным, IPv6 takeover не входит в принятый P18 scope.",
-                                                       "Rolling routerforge-beta публикуется транзакционно и создаёт immutable routerforge-v0.10.0-beta.1 на exact release SHA.",
-                                                       "Release preparation начинается от exact Dev c3de3316d75c26a4be04247611c02c38b90a9a04; Stable/main этим Beta-выпуском не продвигается."
+                                                       "Beta train использует 0.10.0~beta.2 для всех семи компонентов; immutable snapshot — routerforge-v0.10.0-beta.2.",
+                                                       "NFQWS Manager остаётся installed-only интеграцией: RouterForge не устанавливает и не обновляет внешний nfqws2-keenetic автоматически.",
+                                                       "Следующий активный workstream — NFQWS User Experience Roadmap: task-first Home, Import from Zapret, Guided Troubleshooter, Strategy Bench/AutoTune, recommendations + Safe Apply и consumer hardening."
                                                    ]
                                  },
                           "en":  {
                                      "new":  [
-                                                 "P16 Config Vault is complete: snapshot manifests, bounded retention, ACTIVE/SAVED/LAST WORKING, component restore, and shared transaction evidence are operational.",
-                                                 "P17 Network Doctor / Route Inspector is complete for the accepted scope, combining causal diagnostics and explain-route foundations with shared safety/transaction contracts.",
-                                                 "P18 DNS Policy Router is complete and hardware-accepted on a real ARM64 Keenetic, including persisted policies, PolicyN → SO_MARK, reversible IPv4 ingress takeover, transaction commit/rollback, and an external PREROUTING proof."
+                                                 "NFQWS2 Manager has grown into a complete workspace: Master/Config Library/Raw, local lists, NFQWS Menu, Processing Map, Test Lab, Sandbox, Backup Center, System, and guarded Smart Apply/Recovery flows.",
+                                                 "The NFQWS UI is reorganized by user task: Configuration, Lists, NFQWS Menu, real Tools, and Maintenance; navigation adapts to narrow screens without horizontal escape.",
+                                                 "NFQWS Menu now carries explicit credit for rndnaame/nfqws-menu and uses an exact-ref resolver with GitHub API, Git smart-HTTP fallback, and stale exact-SHA cache."
                                              ],
                                      "fixes":  [
-                                                   "The MIPS/MIPSel bootstrap no longer blocks Core installation when an optional thermal sensor is absent: the capability is reported as unsupported and the install gate is separated from optional module status.",
-                                                   "The bootstrap evaluates a separate platform gate and verifies local Core health through /api/health after installation.",
-                                                   "Fail-closed behavior remains for real platform blockers and module-specific blocked states."
+                                                   "NFQWS Manager stale Unix socket cleanup on stop is hardened and hardware-accepted on Keenetic Hopper.",
+                                                   "Test Lab layout containment is fixed so inner grids/selects no longer expand outside the panel.",
+                                                   "GitHub API 403/429 is no longer treated as automatic upstream failure: rate limiting, stale cache, and real offline states are distinguished."
                                                ],
                                      "compatibility":  [
-                                                           "All six Beta packages use the coherent 0.10.0~beta.1 train; the GitHub release/tag uses 0.10.0-beta.1.",
-                                                           "Beta is published for aarch64-3.10, mips-3.4, and mipsel-3.4: 6 components × 3 targets = 18 IPKs.",
-                                                           "ARM64 remains the production target; MIPS and MIPSel remain experimental. KN-1010 provides separate MIPS physical evidence, while KN-2311 Hero 4G+ confirmed MIPSel Core install/UI/runtime."
+                                                           "Beta 0.10.0-beta.2 includes routerforge-nfqws-manager in the coherent Beta train for the first time.",
+                                                           "Beta is published for aarch64-3.10, mips-3.4, and mipsel-3.4: 7 components × 3 targets = 21 IPKs.",
+                                                           "ARM64 remains the production target; MIPS and MIPSel remain experimental. Stable/main is not promoted by this Beta release."
                                                        ],
                                      "technical":  [
-                                                       "The P18 production driver reports ready=true with zero blocking unknowns; public persistent activation remains disabled and IPv6 takeover is outside the accepted P18 scope.",
-                                                       "The rolling routerforge-beta channel is published transactionally and creates immutable routerforge-v0.10.0-beta.1 at the exact release SHA.",
-                                                       "Release preparation starts from exact Dev c3de3316d75c26a4be04247611c02c38b90a9a04; Stable/main is not promoted by this Beta release."
+                                                       "The Beta train uses 0.10.0~beta.2 for all seven components; the immutable snapshot is routerforge-v0.10.0-beta.2.",
+                                                       "NFQWS Manager remains an installed-only integration: RouterForge does not automatically install or update the external nfqws2-keenetic package.",
+                                                       "The next active workstream is the NFQWS User Experience Roadmap: task-first Home, Import from Zapret, Guided Troubleshooter, Strategy Bench/AutoTune, recommendations + Safe Apply, and consumer hardening."
                                                    ]
                                  }
                       },
@@ -52,37 +52,43 @@
                        {
                            "id":  "routerforge-core",
                            "package":  "routerforge-core",
-                           "version":  "0.10.0~beta.1"
+                           "version":  "0.10.0~beta.2"
                        },
                        {
                            "id":  "dns",
                            "package":  "routerforge-dns",
-                           "version":  "0.10.0~beta.1",
-                           "min_core_version":  "0.10.0~beta.1"
+                           "version":  "0.10.0~beta.2",
+                           "min_core_version":  "0.10.0~beta.2"
                        },
                        {
                            "id":  "admin",
                            "package":  "routerforge-admin",
-                           "version":  "0.10.0~beta.1",
-                           "min_core_version":  "0.10.0~beta.1"
+                           "version":  "0.10.0~beta.2",
+                           "min_core_version":  "0.10.0~beta.2"
                        },
                        {
                            "id":  "monitoring",
                            "package":  "routerforge-monitoring",
-                           "version":  "0.10.0~beta.1",
-                           "min_core_version":  "0.10.0~beta.1"
+                           "version":  "0.10.0~beta.2",
+                           "min_core_version":  "0.10.0~beta.2"
                        },
                        {
                            "id":  "network-tools",
                            "package":  "routerforge-network-tools",
-                           "version":  "0.10.0~beta.1",
-                           "min_core_version":  "0.10.0~beta.1"
+                           "version":  "0.10.0~beta.2",
+                           "min_core_version":  "0.10.0~beta.2"
+                       },
+                       {
+                           "id":  "nfqws-manager",
+                           "package":  "routerforge-nfqws-manager",
+                           "version":  "0.10.0~beta.2",
+                           "min_core_version":  "0.10.0~beta.2"
                        },
                        {
                            "id":  "profiling",
                            "package":  "routerforge-profiling",
-                           "version":  "0.10.0~beta.1",
-                           "min_core_version":  "0.10.0~beta.1"
+                           "version":  "0.10.0~beta.2",
+                           "min_core_version":  "0.10.0~beta.2"
                        }
                    ]
 }

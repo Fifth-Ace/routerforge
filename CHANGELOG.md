@@ -4,6 +4,29 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-19 — RouterForge 0.10.0-beta.2
+
+### NFQWS workspace
+- NFQWS2 Manager is promoted into the Beta train as the seventh RouterForge package.
+- The workspace now covers task-oriented configuration, Config Library, local lists, NFQWS Menu sources, Processing Map, Test Lab, Sandbox, Backup Center, System diagnostics and guarded apply/recovery flows.
+- NFQWS navigation is reorganized by task and wraps on narrow displays without horizontal navigation scrolling.
+
+### Upstream / reliability
+- `rndnaame/nfqws-menu` integration keeps explicit upstream credit and exact-SHA content pinning.
+- Exact-ref resolution moves behind the RouterForge runtime with GitHub API -> Git smart-HTTP fallback -> stale exact-SHA cache.
+- GitHub API rate limiting is distinguished from actual upstream unavailability.
+
+### Safety / fixes
+- NFQWS Manager stale Unix socket cleanup is hardened and accepted on Keenetic Hopper.
+- Test Lab control-grid overflow is fixed.
+- NFQWS remains installed-only and does not auto-install or auto-update `nfqws2-keenetic`.
+
+### Release
+- Beta train advances to `0.10.0-beta.2` (`0.10.0~beta.2` for opkg).
+- Beta topology is 7 components × 3 targets = 21 IPKs.
+- Stable/main is not promoted by this Beta release.
+- Next active workstream: `docs/NFQWS_USER_EXPERIENCE_ROADMAP.md`.
+
 ## 2026-09-17 — RouterForge 0.10.0-beta.1
 
 ### Platform

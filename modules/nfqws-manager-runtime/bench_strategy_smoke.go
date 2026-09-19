@@ -379,8 +379,8 @@ func handleBenchTLSStrategySmoke(w http.ResponseWriter, r *http.Request) {
 		StrategyPathExercised: ops.strategyPathExercised,
 		Result:                result,
 		CleanupBaselineAfter:  after.CleanupBaselineProven,
-		BenchEnabled:          false,
-		SafeToBench:           false,
+		BenchEnabled:          after.BenchEnabled,
+		SafeToBench:           after.SafeToBench,
 	}
 	if !ok {
 		writeJSON(w, http.StatusBadGateway, response)

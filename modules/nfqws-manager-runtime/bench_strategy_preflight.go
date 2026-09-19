@@ -235,6 +235,8 @@ func handleBenchStrategyPreflight(w http.ResponseWriter, r *http.Request) {
 	cleanupErr := ops.VerifyCleanup(context.Background(), spec)
 	after := readBenchCapabilities()
 	response.CleanupBaselineAfter = after.CleanupBaselineProven
+	response.BenchEnabled = after.BenchEnabled
+	response.SafeToBench = after.SafeToBench
 	response.CleanupProven = stopErr == nil && cleanupErr == nil && after.CleanupBaselineProven
 
 	var failures []string

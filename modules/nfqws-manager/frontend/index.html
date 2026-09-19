@@ -3250,7 +3250,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('processingMapState').textContent='RUNNING';$('processingMapState').className='testlab-state running';
     $('processingMapVerdict').innerHTML='<div class="analysis-empty">Проверяю runtime, списки, путь и доступность с роутера…</div>';
     try{
-      const loaded=await loadProcessingMapLists(),record={file:'<query>',line:0,value:domain,type:'domain'},staticPath=buildStaticPath(record,loaded.contents);
+      const loaded=await loadProcessingMapLists(),record={file:'<query>',line:0,value:domain,domain,type:'domain'},staticPath=buildStaticPath(record,loaded.contents);
       let probe=null,keenetic=null;
       try{probe=await api('/check',{method:'POST',body:JSON.stringify({url:`https://${domain}/`})})}catch(e){probe={reachable:false,error:e.message||'probe failed'}}
       try{keenetic=await api('/keenetic')}catch(_){}

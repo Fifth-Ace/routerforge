@@ -152,6 +152,9 @@ type v2BenchAttempt struct {
 
 type v2CandidateResult struct {
 	Baseline           bool             `json:"baseline"`
+	CandidateID        string           `json:"candidate_id,omitempty"`
+	CandidateName      string           `json:"candidate_name,omitempty"`
+	CandidateSource    string           `json:"candidate_source,omitempty"`
 	SourceProfileIndex int              `json:"source_profile_index"`
 	StrategyTags       []int            `json:"strategy_tags,omitempty"`
 	Args               []string         `json:"args,omitempty"`
@@ -178,39 +181,55 @@ type v2BenchResponse struct {
 	CleanupBaselineAfter bool              `json:"cleanup_baseline_after"`
 }
 
+type v2SelectorCandidateInput struct {
+	ID     string   `json:"id,omitempty"`
+	Name   string   `json:"name,omitempty"`
+	Source string   `json:"source,omitempty"`
+	Args   []string `json:"args"`
+}
+
 type v2SelectorRequest struct {
-	Mode                 string `json:"mode"`
-	ServerName           string `json:"server_name"`
-	ExpectedConfigSHA256 string `json:"expected_config_sha256"`
-	Concurrency          int    `json:"concurrency,omitempty"`
-	Confirm              string `json:"confirm"`
+	Mode                 string                     `json:"mode"`
+	ServerName           string                     `json:"server_name"`
+	ExpectedConfigSHA256 string                     `json:"expected_config_sha256"`
+	Concurrency          int                        `json:"concurrency,omitempty"`
+	SessionID            string                     `json:"session_id,omitempty"`
+	IncludeProduction    *bool                      `json:"include_production,omitempty"`
+	Candidates           []v2SelectorCandidateInput `json:"candidates,omitempty"`
+	Confirm              string                     `json:"confirm"`
 }
 
 type v2SelectorResponse struct {
-	OK                      bool                `json:"ok"`
-	Mode                    benchAutoTuneMode   `json:"mode"`
-	ServerName              string              `json:"server_name"`
-	DestinationIPv4         string              `json:"destination_ipv4"`
-	MetricScope             string              `json:"metric_scope"`
-	Baseline                v2CandidateResult   `json:"baseline"`
-	Candidates              []v2CandidateResult `json:"candidates"`
-	RecommendationAvailable bool                `json:"recommendation_available"`
-	RecommendedProfileIndex int                 `json:"recommended_profile_index"`
-	StrategyNeeded          bool                `json:"strategy_needed"`
-	RecommendationReason    string              `json:"recommendation_reason"`
-	CleanupBaselineAfter    bool                `json:"cleanup_baseline_after"`
-	BenchEnabled            bool                `json:"bench_enabled"`
-	SafeToBench             bool                `json:"safe_to_bench"`
-	ApplyEnabled            bool                `json:"apply_enabled"`
-	ApplyGateEligible       bool                `json:"apply_gate_eligible"`
-	ApplyGateToken          string              `json:"apply_gate_token,omitempty"`
-	ApplyGateExpiresAt      string              `json:"apply_gate_expires_at,omitempty"`
-	ApplyGateReason         string              `json:"apply_gate_reason"`
-	Concurrency             int                 `json:"concurrency"`
-	CandidateSource         string              `json:"candidate_source"`
+	OK                         bool                `json:"ok"`
+	SessionID                  string              `json:"session_id,omitempty"`
+	Mode                       benchAutoTuneMode   `json:"mode"`
+	ServerName                 string              `json:"server_name"`
+	DestinationIPv4            string              `json:"destination_ipv4"`
+	MetricScope                string              `json:"metric_scope"`
+	Baseline                   v2CandidateResult   `json:"baseline"`
+	Candidates                 []v2CandidateResult `json:"candidates"`
+	RecommendationAvailable    bool                `json:"recommendation_available"`
+	RecommendedProfileIndex    int                 `json:"recommended_profile_index"`
+	RecommendedCandidateID     string              `json:"recommended_candidate_id,omitempty"`
+	RecommendedCandidateName   string              `json:"recommended_candidate_name,omitempty"`
+	RecommendedCandidateSource string              `json:"recommended_candidate_source,omitempty"`
+	StrategyNeeded             bool                `json:"strategy_needed"`
+	RecommendationReason       string              `json:"recommendation_reason"`
+	CleanupBaselineAfter       bool                `json:"cleanup_baseline_after"`
+	BenchEnabled               bool                `json:"bench_enabled"`
+	SafeToBench                bool                `json:"safe_to_bench"`
+	ApplyEnabled               bool                `json:"apply_enabled"`
+	ApplyGateEligible          bool                `json:"apply_gate_eligible"`
+	ApplyGateToken             string              `json:"apply_gate_token,omitempty"`
+	ApplyGateExpiresAt         string              `json:"apply_gate_expires_at,omitempty"`
+	ApplyGateReason            string              `json:"apply_gate_reason"`
+	Concurrency                int                 `json:"concurrency"`
+	CandidateSource            string              `json:"candidate_source"`
 }
 
 func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
+	registerStrategyLibraryV2Routes(mux)
+	registerSelectorProgressV2Route(mux)
 	mux.HandleFunc("/v1/v2/inspect-target", mutationOnly(handleV2InspectTarget))
 	mux.HandleFunc("/v1/v2/detect", mutationOnly(handleV2Detect))
 	mux.HandleFunc("/v1/v2/target-sources", getOnly(handleV2TargetSources))
@@ -933,6 +952,13 @@ func v2CustomProfile(args []string, target string) (benchStrategyProfile, error)
 	if len(args) == 0 || len(args) > 256 {
 		return benchStrategyProfile{}, errors.New("custom candidate args are empty or too large")
 	}
+	// External Catalog/Zapret candidates often carry hostlist/ipset selectors.
+	// The isolated bench already narrows traffic to one exact destination + local
+	// source port, so these selection-only file filters are compiled away rather
+	// than copied into the temporary candidate. This keeps the strategy technique
+	// while avoiding hidden dependence on production list files.
+	compiled := make([]string, 0, len(args)+1)
+	hasTargetDomain := false
 	for _, arg := range args {
 		switch {
 		case arg == "--new",
@@ -942,9 +968,21 @@ func v2CustomProfile(args []string, target string) (benchStrategyProfile, error)
 			strings.HasPrefix(arg, "--qnum"),
 			strings.HasPrefix(arg, "--fwmark"):
 			return benchStrategyProfile{}, errors.New("custom candidate contains reserved runtime argument: " + arg)
+		case strings.HasPrefix(arg, "--hostlist="),
+			strings.HasPrefix(arg, "--hostlist-auto="),
+			strings.HasPrefix(arg, "--hostlist-exclude="),
+			strings.HasPrefix(arg, "--ipset="),
+			strings.HasPrefix(arg, "--ipset-exclude="):
+			continue
+		case strings.HasPrefix(arg, "--hostlist-domains="):
+			hasTargetDomain = true
 		}
+		compiled = append(compiled, arg)
 	}
-	profile := analyzeBenchStrategyProfile(0, args)
+	if !hasTargetDomain {
+		compiled = append([]string{"--hostlist-domains=" + target}, compiled...)
+	}
+	profile := analyzeBenchStrategyProfile(0, compiled)
 	if !profile.CandidateEligible {
 		return benchStrategyProfile{}, errors.New("custom candidate is not eligible: " + strings.Join(profile.Reasons, "; "))
 	}
@@ -1085,17 +1123,34 @@ func validateV2SelectorRequest(req v2SelectorRequest) error {
 	if !smartApplyHashPattern.MatchString(strings.TrimSpace(req.ExpectedConfigSHA256)) {
 		return errors.New("expected_config_sha256 must be SHA256")
 	}
+	if req.SessionID != "" && !v2SelectorSessionValid(req.SessionID) {
+		return errors.New("invalid selector session_id")
+	}
+	if len(req.Candidates) > 32 {
+		return errors.New("selector candidates exceed limit")
+	}
+	for _, candidate := range req.Candidates {
+		if len(candidate.Args) == 0 || len(candidate.Args) > v2StrategyArgsMax {
+			return errors.New("selector candidate args are empty or exceed limit")
+		}
+		if candidate.ID != "" && !v2StrategySafeID(candidate.ID) {
+			return errors.New("selector candidate id is invalid")
+		}
+		if candidate.Name != "" && !v2StrategySafeName(candidate.Name) {
+			return errors.New("selector candidate name is invalid")
+		}
+	}
 	return nil
 }
 
-func v2ChooseRecommendation(baseline v2CandidateResult, candidates []v2CandidateResult) (bool, int, bool, string) {
+func v2ChooseRecommendation(baseline v2CandidateResult, candidates []v2CandidateResult) (bool, *v2CandidateResult, bool, string) {
 	if baseline.ResultClass == "WORKING" && baseline.SuccessRate == 1 {
-		return false, 0, false, "baseline completed reliably; bypass strategy is not required for this target"
+		return false, nil, false, "baseline completed reliably; bypass strategy is not required for this target"
 	}
 	var best *v2CandidateResult
 	for i := range candidates {
 		c := &candidates[i]
-		if !c.CleanupProven || c.Successes == 0 || c.ResultClass == "PARTIAL" {
+		if !c.CleanupProven || !c.InfrastructureOK || c.Successes == 0 || c.ResultClass == "PARTIAL" {
 			continue
 		}
 		if best == nil || v2CandidateBetter(*c, *best) {
@@ -1103,12 +1158,13 @@ func v2ChooseRecommendation(baseline v2CandidateResult, candidates []v2Candidate
 		}
 	}
 	if best == nil {
-		return false, 0, false, "no candidate proved a working HTTP response through isolated NFQUEUE"
+		return false, nil, false, "no candidate proved a working HTTP response through isolated NFQUEUE"
 	}
 	if best.SuccessRate <= baseline.SuccessRate && best.CompleteRate <= baseline.CompleteRate {
-		return false, 0, false, "best candidate did not improve reliability/completeness over baseline"
+		return false, nil, false, "best candidate did not improve reliability/completeness over baseline"
 	}
-	return true, best.SourceProfileIndex, true, "candidate improved verified HTTP reachability over baseline"
+	copyBest := *best
+	return true, &copyBest, true, "candidate improved verified HTTP reachability over baseline"
 }
 
 func handleV2Selector(w http.ResponseWriter, r *http.Request) {
@@ -1121,50 +1177,125 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
+	sessionID := strings.TrimSpace(req.SessionID)
+	if sessionID == "" {
+		generated, err := newBenchSessionID()
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create selector session: " + err.Error()})
+			return
+		}
+		sessionID = generated
+	}
+	setV2SelectorProgress(sessionID, "PLAN", 0, 0, "building candidate plan", false, false)
+
 	if !atomic.CompareAndSwapInt32(&benchSmokeActive, 0, 1) {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "another bench session is active"})
+		setV2SelectorProgress(sessionID, "FAILED", 0, 0, "another bench session is active", true, true)
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "another bench session is active", "session_id": sessionID})
 		return
 	}
 	defer atomic.StoreInt32(&benchSmokeActive, 0)
+
 	mode, _ := v2SelectorMode(req.Mode)
 	target, _ := v2NormalizeTarget(req.ServerName)
 	status := readStatus()
 	if !strings.EqualFold(status.ConfigSHA256, strings.TrimSpace(req.ExpectedConfigSHA256)) {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "production config changed before selector", "current_sha256": status.ConfigSHA256})
+		setV2SelectorProgress(sessionID, "FAILED", 0, 0, "production config changed before selector", true, true)
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "production config changed before selector", "current_sha256": status.ConfigSHA256, "session_id": sessionID})
 		return
 	}
 	capabilities := readBenchCapabilities()
 	if !benchExecutionReady(capabilities) {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "selector capability gates are not proven"})
+		setV2SelectorProgress(sessionID, "FAILED", 0, 0, "selector capability gates are not proven", true, true)
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "selector capability gates are not proven", "session_id": sessionID})
 		return
 	}
 	inventory := readBenchStrategyInventory()
 	if !inventory.BaseDependenciesProven {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "strategy base dependencies are not proven"})
+		setV2SelectorProgress(sessionID, "FAILED", 0, 0, "strategy base dependencies are not proven", true, true)
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "strategy base dependencies are not proven", "session_id": sessionID})
 		return
 	}
-	templates := []benchStrategyProfile{}
-	for _, p := range inventory.Profiles {
-		if !p.CandidateEligible {
-			continue
+
+	type selectorTemplate struct {
+		profile    benchStrategyProfile
+		id         string
+		name       string
+		source     string
+		production bool
+	}
+	templates := []selectorTemplate{}
+	seen := map[string]bool{}
+	includeProduction := true
+	if req.IncludeProduction != nil {
+		includeProduction = *req.IncludeProduction
+	}
+	if includeProduction {
+		for _, p := range inventory.Profiles {
+			if !p.CandidateEligible {
+				continue
+			}
+			retargeted, err := retargetBenchStrategyProfile(p, target)
+			if err != nil {
+				continue
+			}
+			fp := v2StrategyFingerprint(retargeted.Args)
+			if seen[fp] {
+				continue
+			}
+			seen[fp] = true
+			templates = append(templates, selectorTemplate{
+				profile: retargeted, id: fmt.Sprintf("production-%d", p.Index),
+				name: fmt.Sprintf("Production profile %d", p.Index), source: "production", production: true,
+			})
+			if len(templates) >= mode.MaxCandidates {
+				break
+			}
 		}
-		retargeted, err := retargetBenchStrategyProfile(p, target)
-		if err == nil {
-			templates = append(templates, retargeted)
-		}
+	}
+	for i, candidate := range req.Candidates {
 		if len(templates) >= mode.MaxCandidates {
 			break
 		}
+		profile, err := v2CustomProfile(candidate.Args, target)
+		if err != nil {
+			setV2SelectorProgress(sessionID, "FAILED", 0, len(templates), "external candidate validation failed", true, true)
+			writeJSON(w, http.StatusConflict, map[string]any{
+				"error":           "candidate validation failed: " + err.Error(),
+				"candidate_index": i, "candidate_id": candidate.ID, "session_id": sessionID,
+			})
+			return
+		}
+		profile.Index = -1
+		fp := v2StrategyFingerprint(profile.Args)
+		if seen[fp] {
+			continue
+		}
+		seen[fp] = true
+		id := strings.TrimSpace(candidate.ID)
+		if id == "" {
+			id = "external-" + fp[:16]
+		}
+		name := strings.TrimSpace(candidate.Name)
+		if name == "" {
+			name = "External candidate " + fmt.Sprintf("%d", i+1)
+		}
+		source := v2StrategySource(candidate.Source)
+		templates = append(templates, selectorTemplate{
+			profile: profile, id: id, name: name, source: source, production: false,
+		})
 	}
 	if len(templates) == 0 {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "no retargetable production strategy candidates"})
+		setV2SelectorProgress(sessionID, "FAILED", 0, 0, "no retargetable strategy candidates", true, true)
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "no retargetable strategy candidates", "session_id": sessionID})
 		return
 	}
+
 	resolveCtx, cancelResolve := context.WithTimeout(r.Context(), 4*time.Second)
 	ip, err := resolveBenchServerIPv4(resolveCtx, target)
 	cancelResolve()
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "resolve target: " + err.Error()})
+		setV2SelectorProgress(sessionID, "FAILED", 0, len(templates), "resolve target failed", true, true)
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "resolve target: " + err.Error(), "session_id": sessionID})
 		return
 	}
 	concurrency := req.Concurrency
@@ -1182,13 +1313,19 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		concurrency = len(queues)
 	}
 	if concurrency < 1 {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "no free reserved NFQUEUE for selector"})
+		setV2SelectorProgress(sessionID, "FAILED", 0, len(templates), "no free reserved NFQUEUE", true, true)
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "no free reserved NFQUEUE for selector", "session_id": sessionID})
 		return
 	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(mode.TimeoutSec)*time.Second)
 	defer cancel()
 
-	baseline := v2CandidateResult{Baseline: true, CleanupProven: true}
+	setV2SelectorProgress(sessionID, "BASELINE", 0, len(templates), "testing baseline without desync strategy", false, false)
+	baseline := v2CandidateResult{
+		Baseline: true, CandidateID: "baseline", CandidateName: "Baseline",
+		CandidateSource: "baseline", SourceProfileIndex: -1, CleanupProven: true,
+	}
 	for i := 0; i < mode.Attempts; i++ {
 		a := v2RunAttempt(ctx, capabilities, status.ConfigSHA256, target, ip, inventory, nil, queues[0])
 		baseline.Attempts = append(baseline.Attempts, a)
@@ -1202,17 +1339,18 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		if !baseline.CleanupProven {
 			reason = "baseline cleanup proof failed; selector stopped fail-closed"
 		}
+		setV2SelectorProgress(sessionID, "FAILED", 0, len(templates), reason, true, true)
 		writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
-			OK: false, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
+			OK: false, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
 			Baseline: baseline, RecommendationReason: reason,
-			CleanupBaselineAfter: false, Concurrency: concurrency, CandidateSource: "live-production-proc-cmdline",
+			CleanupBaselineAfter: false, Concurrency: concurrency, CandidateSource: "mixed",
 		})
 		return
 	}
 
 	type job struct {
-		index   int
-		profile benchStrategyProfile
+		index int
+		item  selectorTemplate
 	}
 	type jobResult struct {
 		index  int
@@ -1221,6 +1359,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	jobs := make(chan job)
 	results := make(chan jobResult, len(templates))
 	var wg sync.WaitGroup
+	setV2SelectorProgress(sessionID, "BENCH", 0, len(templates), "testing isolated strategy candidates", false, false)
 	for worker := 0; worker < concurrency; worker++ {
 		queue := queues[worker]
 		wg.Add(1)
@@ -1228,12 +1367,13 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			defer wg.Done()
 			for j := range jobs {
 				c := v2CandidateResult{
-					SourceProfileIndex: j.profile.Index,
-					StrategyTags:       append([]int{}, j.profile.StrategyTags...),
-					Args:               append([]string{}, j.profile.Args...), CleanupProven: true,
+					CandidateID: j.item.id, CandidateName: j.item.name, CandidateSource: j.item.source,
+					SourceProfileIndex: j.item.profile.Index,
+					StrategyTags:       append([]int{}, j.item.profile.StrategyTags...),
+					Args:               append([]string{}, j.item.profile.Args...), CleanupProven: true,
 				}
 				for i := 0; i < mode.Attempts; i++ {
-					a := v2RunAttempt(ctx, capabilities, status.ConfigSHA256, target, ip, inventory, &j.profile, q)
+					a := v2RunAttempt(ctx, capabilities, status.ConfigSHA256, target, ip, inventory, &j.item.profile, q)
 					c.Attempts = append(c.Attempts, a)
 					if !a.CleanupProven {
 						break
@@ -1245,16 +1385,22 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		}(queue)
 	}
 	go func() {
-		for i, profile := range templates {
-			jobs <- job{index: i, profile: profile}
+		for i, item := range templates {
+			jobs <- job{index: i, item: item}
 		}
 		close(jobs)
 		wg.Wait()
 		close(results)
 	}()
 	candidates := make([]v2CandidateResult, len(templates))
+	completed := 0
 	for jr := range results {
 		candidates[jr.index] = jr.result
+		completed++
+		setV2SelectorProgress(
+			sessionID, "BENCH", completed, len(templates),
+			fmt.Sprintf("completed %d of %d candidates", completed, len(templates)), false, false,
+		)
 	}
 	for _, c := range candidates {
 		if !c.CleanupProven || !c.InfrastructureOK {
@@ -1262,52 +1408,77 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			if !c.CleanupProven {
 				reason = "candidate cleanup proof failed; selector stopped fail-closed"
 			}
+			setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), reason, true, true)
 			writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
-				OK: false, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
+				OK: false, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
 				Baseline: baseline, Candidates: candidates,
 				RecommendationReason: reason,
-				CleanupBaselineAfter: false, Concurrency: concurrency, CandidateSource: "live-production-proc-cmdline",
+				CleanupBaselineAfter: false, Concurrency: concurrency, CandidateSource: "mixed",
 			})
 			return
 		}
 	}
-	recommend, profileIndex, needed, reason := v2ChooseRecommendation(baseline, candidates)
+
+	setV2SelectorProgress(sessionID, "RANK", completed, len(templates), "ranking verified candidate results", false, false)
+	recommend, best, needed, reason := v2ChooseRecommendation(baseline, candidates)
 	after := readBenchCapabilities()
 	ok := after.CleanupBaselineProven && strings.EqualFold(readStatus().ConfigSHA256, status.ConfigSHA256)
 
+	profileIndex := 0
+	if best != nil {
+		profileIndex = best.SourceProfileIndex
+	}
 	applyEligible := false
 	token, expires, applyReason := "", "", "no selector recommendation is available"
 	clearBenchAutoTuneApplyPlan()
-	if ok && recommend && needed {
-		for _, p := range templates {
-			if p.Index != profileIndex {
-				continue
-			}
-			plan, planErr := storeBenchAutoTuneApplyPlan(status.ConfigSHA256, target, ip, p)
-			if planErr != nil {
-				ok = false
-				applyReason = "create apply gate: " + planErr.Error()
+	if ok && recommend && needed && best != nil {
+		if best.CandidateSource != "production" || best.SourceProfileIndex < 0 {
+			applyReason = "recommended candidate is not a live production profile; save/open its source and use the existing Smart Apply workflow"
+		} else {
+			for _, item := range templates {
+				if !item.production || item.profile.Index != best.SourceProfileIndex {
+					continue
+				}
+				plan, planErr := storeBenchAutoTuneApplyPlan(status.ConfigSHA256, target, ip, item.profile)
+				if planErr != nil {
+					ok = false
+					applyReason = "create apply gate: " + planErr.Error()
+					break
+				}
+				applyEligible = true
+				token = plan.Token
+				expires = plan.ExpiresAt.Format(time.RFC3339)
+				applyReason = "verified production-profile recommendation is eligible for deterministic preview"
 				break
 			}
-			applyEligible = true
-			token = plan.Token
-			expires = plan.ExpiresAt.Format(time.RFC3339)
-			applyReason = "verified selector recommendation is eligible for deterministic preview"
-			break
 		}
 	}
+	sourceKind := "mixed"
+	if len(req.Candidates) == 0 {
+		sourceKind = "live-production-proc-cmdline"
+	} else if !includeProduction {
+		sourceKind = "external"
+	}
+	recommendedID, recommendedName, recommendedSource := "", "", ""
+	if best != nil {
+		recommendedID, recommendedName, recommendedSource = best.CandidateID, best.CandidateName, best.CandidateSource
+	}
 	resp := v2SelectorResponse{
-		OK: ok, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
+		OK: ok, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
 		Baseline: baseline, Candidates: candidates,
-		RecommendationAvailable: recommend, RecommendedProfileIndex: profileIndex, StrategyNeeded: needed,
+		RecommendationAvailable: recommend, RecommendedProfileIndex: profileIndex,
+		RecommendedCandidateID: recommendedID, RecommendedCandidateName: recommendedName, RecommendedCandidateSource: recommendedSource,
+		StrategyNeeded:       needed,
 		RecommendationReason: reason, CleanupBaselineAfter: after.CleanupBaselineProven,
 		BenchEnabled: after.BenchEnabled, SafeToBench: after.SafeToBench, ApplyEnabled: false,
 		ApplyGateEligible: applyEligible, ApplyGateToken: token, ApplyGateExpiresAt: expires,
-		ApplyGateReason: applyReason, Concurrency: concurrency, CandidateSource: "live-production-proc-cmdline",
+		ApplyGateReason: applyReason, Concurrency: concurrency, CandidateSource: sourceKind,
 	}
 	if !ok {
+		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), applyReason, true, true)
 		writeJSON(w, http.StatusBadGateway, resp)
 		return
 	}
+	setV2SelectorProgress(sessionID, "DONE", completed, len(templates), reason, true, false)
 	writeJSON(w, http.StatusOK, resp)
 }

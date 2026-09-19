@@ -78,6 +78,10 @@ func TestV2RoutesUseModuleABIPath(t *testing.T) {
 		"/v1/v2/targets/resolve",
 		"/v1/v2/bench",
 		"/v1/v2/selector",
+		"/v1/v2/selector-progress",
+		"/v1/v2/strategies",
+		"/v1/v2/strategies/save",
+		"/v1/v2/strategies/delete",
 	} {
 		req, err := http.NewRequest(http.MethodGet, "http://unix"+path, nil)
 		if err != nil {
@@ -128,5 +132,64 @@ func TestV2FinalizeCandidateKeepsLegitimateCandidateFailure(t *testing.T) {
 	}
 	if c.ResultClass != "FAILED" {
 		t.Fatalf("result_class=%q want FAILED", c.ResultClass)
+	}
+}
+
+func TestV2ChooseRecommendationReturnsCandidateIdentity(t *testing.T) {
+	baseline := v2CandidateResult{
+		ResultClass: "FAILED", SuccessRate: 0, CompleteRate: 0,
+		CleanupProven: true, InfrastructureOK: true,
+	}
+	candidates := []v2CandidateResult{{
+		CandidateID: "s-abc", CandidateName: "Saved", CandidateSource: "custom",
+		SourceProfileIndex: -1, Successes: 1, SuccessRate: 1, CompleteRate: 1,
+		ResultClass: "WORKING", CleanupProven: true, InfrastructureOK: true,
+	}}
+	ok, best, needed, _ := v2ChooseRecommendation(baseline, candidates)
+	if !ok || !needed || best == nil {
+		t.Fatalf("recommendation missing: ok=%v needed=%v best=%+v", ok, needed, best)
+	}
+	if best.CandidateID != "s-abc" || best.CandidateSource != "custom" {
+		t.Fatalf("candidate identity lost: %+v", best)
+	}
+}
+
+func TestV2SelectorRequestRejectsBadSession(t *testing.T) {
+	req := v2SelectorRequest{
+		Mode: "fast", ServerName: "example.com",
+		ExpectedConfigSHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		SessionID:            "../bad", Confirm: v2SelectorConfirm,
+	}
+	if validateV2SelectorRequest(req) == nil {
+		t.Fatal("bad selector session was accepted")
+	}
+}
+
+func TestV2CustomProfileCompilesAwaySelectionFiles(t *testing.T) {
+	args := []string{
+		"--hostlist=/opt/etc/nfqws2/lists/youtube.list",
+		"--filter-tcp=443",
+		"--filter-l7=tls",
+		"--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=2",
+	}
+	profile, err := v2CustomProfile(args, "youtube.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, arg := range profile.Args {
+		if arg == "--hostlist=/opt/etc/nfqws2/lists/youtube.list" {
+			t.Fatal("file-bound selector leaked into isolated candidate")
+		}
+	}
+	found := false
+	for _, arg := range profile.Args {
+		if arg == "--hostlist-domains=youtube.com" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("target hostlist-domain missing: %+v", profile.Args)
 	}
 }

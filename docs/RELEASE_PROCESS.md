@@ -19,6 +19,10 @@ Pre-release ordering использует `~` в OPKG version, например:
 Stable manifest может содержать разные версии компонентов. Beta release train,
 напротив, намеренно публикуется единым coherent prerelease train.
 
+Начиная с `0.10.0-beta.2`, Beta topology включает семь пакетов:
+Core, DNS, Admin, Monitoring, Network Tools, NFQWS Manager и Profiling.
+Stable topology остаётся отдельным контрактом и не расширяется автоматически вместе с Beta.
+
 ## Prep gate
 
 Exact dev/main SHAs, clean tree/staging, docs+CHANGELOG+channel manifest updated,

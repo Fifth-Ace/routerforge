@@ -29,7 +29,7 @@ type benchProcessInfo struct {
 }
 
 type benchCapabilities struct {
-	ReadOnly               bool               `json:"read_only"`
+	ReadOnly                bool               `json:"read_only"`
 	BenchEnabled            bool               `json:"bench_enabled"`
 	SafeToBench             bool               `json:"safe_to_bench"`
 	CandidateBinary         string             `json:"candidate_binary,omitempty"`
@@ -58,9 +58,9 @@ func handleBenchCapabilities(w http.ResponseWriter, _ *http.Request) {
 }
 
 var (
-	benchQNumPattern       = regexp.MustCompile(`(?i)(?:--qnum|--queue-num)(?:=|\s+)(\d{1,5})`)
-	benchQBalancePattern   = regexp.MustCompile(`(?i)--queue-balance(?:=|\s+)(\d{1,5}):(\d{1,5})`)
-	benchNFTQueuePattern   = regexp.MustCompile(`(?i)\bqueue\s+num\s+(\d{1,5})(?:-(\d{1,5}))?`)
+	benchQNumPattern     = regexp.MustCompile(`(?i)(?:--qnum|--queue-num)(?:=|\s+)(\d{1,5})`)
+	benchQBalancePattern = regexp.MustCompile(`(?i)--queue-balance(?:=|\s+)(\d{1,5}):(\d{1,5})`)
+	benchNFTQueuePattern = regexp.MustCompile(`(?i)\bqueue\s+num\s+(\d{1,5})(?:-(\d{1,5}))?`)
 )
 
 func appendQueueRange(set map[int]bool, start, end int) {
@@ -242,7 +242,7 @@ func readKernelQueueInventory() ([]int, bool) {
 
 func readBenchCapabilities() benchCapabilities {
 	result := benchCapabilities{
-		ReadOnly:               true,
+		ReadOnly:                true,
 		BenchEnabled:            false,
 		SafeToBench:             false,
 		ActiveNFQWS2:            []benchProcessInfo{},

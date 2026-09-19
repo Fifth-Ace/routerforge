@@ -42,8 +42,9 @@ func registerBenchAutoTuneApplyGateRoute(mux *http.ServeMux) {
 
 func clearBenchAutoTuneApplyPlan() {
 	benchAutoTuneApplyGateState.Lock()
-	defer benchAutoTuneApplyGateState.Unlock()
 	benchAutoTuneApplyGateState.plan = nil
+	benchAutoTuneApplyGateState.Unlock()
+	clearBenchAutoTuneApplyReceipt()
 }
 
 func storeBenchAutoTuneApplyPlan(configSHA, serverName, destinationIPv4 string, profile benchStrategyProfile) (*benchAutoTuneApplyPlan, error) {

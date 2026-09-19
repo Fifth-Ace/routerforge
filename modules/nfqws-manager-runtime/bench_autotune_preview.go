@@ -44,6 +44,7 @@ type configTokenOffset struct {
 
 func registerBenchAutoTuneApplyPreviewRoute(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/bench-autotune/apply-preview", mutationOnly(handleBenchAutoTuneApplyPreview))
+	registerBenchAutoTuneApplyRoute(mux)
 }
 
 func configSpaceAt(text string, offset int) (bool, int) {
@@ -260,6 +261,10 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	candidateHash := smartApplySHA256([]byte(candidateConfig))
+	if err := storeBenchAutoTuneApplyReceipt(plan, candidateConfig, candidateHash); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create AutoTune preview receipt: " + err.Error()})
+		return
+	}
 	writeJSON(w, http.StatusOK, benchAutoTunePreviewResponse{
 		OK:                    true,
 		PreviewOnly:           true,

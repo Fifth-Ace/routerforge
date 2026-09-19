@@ -135,17 +135,19 @@ type v2BenchRequest struct {
 }
 
 type v2BenchAttempt struct {
-	OK                   bool          `json:"ok"`
-	ResultClass          string        `json:"result_class"`
-	SessionID            string        `json:"session_id"`
-	DestinationIPv4      string        `json:"destination_ipv4"`
-	LocalPort            int           `json:"local_port"`
-	Queue                int           `json:"queue"`
-	OutboundQueuePackets uint64        `json:"outbound_queue_packets"`
-	InboundQueuePackets  uint64        `json:"inbound_queue_packets"`
-	CleanupProven        bool          `json:"cleanup_proven"`
-	Metrics              v2HTTPMetrics `json:"metrics"`
-	Error                string        `json:"error,omitempty"`
+	OK                    bool          `json:"ok"`
+	InfrastructureOK      bool          `json:"infrastructure_ok"`
+	StrategyPathExercised bool          `json:"strategy_path_exercised"`
+	ResultClass           string        `json:"result_class"`
+	SessionID             string        `json:"session_id"`
+	DestinationIPv4       string        `json:"destination_ipv4"`
+	LocalPort             int           `json:"local_port"`
+	Queue                 int           `json:"queue"`
+	OutboundQueuePackets  uint64        `json:"outbound_queue_packets"`
+	InboundQueuePackets   uint64        `json:"inbound_queue_packets"`
+	CleanupProven         bool          `json:"cleanup_proven"`
+	Metrics               v2HTTPMetrics `json:"metrics"`
+	Error                 string        `json:"error,omitempty"`
 }
 
 type v2CandidateResult struct {
@@ -163,6 +165,7 @@ type v2CandidateResult struct {
 	MedianThroughput   int64            `json:"median_throughput_bps,omitempty"`
 	ResultClass        string           `json:"result_class"`
 	CleanupProven      bool             `json:"cleanup_proven"`
+	InfrastructureOK   bool             `json:"infrastructure_ok"`
 }
 
 type v2BenchResponse struct {
@@ -688,10 +691,13 @@ func (o *v2BenchOps) Probe(ctx context.Context, spec benchTransactionSpec) error
 	if inAfter > inBefore {
 		o.inboundQueuePackets = inAfter - inBefore
 	}
-	o.strategyPathExercised = metrics.TLSComplete && o.outboundQueuePackets > 0 && o.inboundQueuePackets > 0
+	// Infrastructure proof and candidate success are deliberately separate.
+	// An outbound queue counter increase proves that the isolated candidate path
+	// actually saw the probe even when the candidate subsequently fails TLS/HTTP.
+	o.strategyPathExercised = o.outboundQueuePackets > 0
 	v2StoreMetrics(spec.SessionID, metrics)
 	if !o.strategyPathExercised {
-		return errors.New("candidate NFQUEUE path was not proven")
+		return errors.New("candidate outbound NFQUEUE path was not proven")
 	}
 	if probeErr != nil {
 		return probeErr
@@ -817,11 +823,12 @@ func v2RunAttempt(ctx context.Context, capabilities benchCapabilities, configSHA
 	metrics := v2TakeMetrics(sessionID)
 	afterConfig := readStatus().ConfigSHA256
 	cleanup := result.CleanupProven && afterConfig == configSHA
-	ok := result.Error == "" && result.State == benchLifecycleStateClean && cleanup &&
-		metrics.TLSComplete && metrics.ProgressProven &&
-		ops.outboundQueuePackets > 0 && ops.inboundQueuePackets > 0
+	infrastructureOK := cleanup && ops.strategyPathExercised
+	ok := result.Error == "" && result.State == benchLifecycleStateClean && infrastructureOK &&
+		metrics.TLSComplete && metrics.ProgressProven
 	attempt := v2BenchAttempt{
-		OK: ok, SessionID: sessionID, DestinationIPv4: ip, LocalPort: localPort, Queue: queue,
+		OK: ok, InfrastructureOK: infrastructureOK, StrategyPathExercised: ops.strategyPathExercised,
+		SessionID: sessionID, DestinationIPv4: ip, LocalPort: localPort, Queue: queue,
 		OutboundQueuePackets: ops.outboundQueuePackets, InboundQueuePackets: ops.inboundQueuePackets,
 		CleanupProven: cleanup, Metrics: metrics,
 	}
@@ -847,7 +854,8 @@ func v2MedianInt64(values []int64) int64 {
 
 func v2FinalizeCandidate(c *v2CandidateResult) {
 	c.Successes, c.Failures = 0, 0
-	c.CleanupProven = true
+	c.CleanupProven = len(c.Attempts) > 0
+	c.InfrastructureOK = len(c.Attempts) > 0
 	ttfb, duration, throughput := []int64{}, []int64{}, []int64{}
 	complete := 0
 	partial := false
@@ -859,6 +867,9 @@ func v2FinalizeCandidate(c *v2CandidateResult) {
 		}
 		if !a.CleanupProven {
 			c.CleanupProven = false
+		}
+		if !a.InfrastructureOK {
+			c.InfrastructureOK = false
 		}
 		if a.Metrics.ResponseComplete {
 			complete++
@@ -884,6 +895,8 @@ func v2FinalizeCandidate(c *v2CandidateResult) {
 	c.MedianDurationMS = v2MedianInt64(duration)
 	c.MedianThroughput = v2MedianInt64(throughput)
 	switch {
+	case !c.InfrastructureOK:
+		c.ResultClass = "INCONCLUSIVE"
 	case c.SuccessRate == 1 && c.CleanupProven:
 		c.ResultClass = "WORKING"
 	case partial:
@@ -1030,7 +1043,7 @@ func handleV2Bench(w http.ResponseWriter, r *http.Request) {
 	}
 	v2FinalizeCandidate(&result)
 	after := readBenchCapabilities()
-	ok := result.CleanupProven && after.CleanupBaselineProven
+	ok := result.CleanupProven && result.InfrastructureOK && after.CleanupBaselineProven
 	resp := v2BenchResponse{OK: ok, Target: target, ConfigSHA256: status.ConfigSHA256, Source: source, ProfileIndex: profile.Index, Result: result, CleanupBaselineAfter: after.CleanupBaselineProven}
 	if !ok {
 		writeJSON(w, http.StatusBadGateway, resp)
@@ -1184,10 +1197,14 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	v2FinalizeCandidate(&baseline)
-	if !baseline.CleanupProven {
+	if !baseline.CleanupProven || !baseline.InfrastructureOK {
+		reason := "baseline infrastructure proof failed; selector stopped fail-closed"
+		if !baseline.CleanupProven {
+			reason = "baseline cleanup proof failed; selector stopped fail-closed"
+		}
 		writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
 			OK: false, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
-			Baseline: baseline, RecommendationReason: "baseline cleanup proof failed; selector stopped fail-closed",
+			Baseline: baseline, RecommendationReason: reason,
 			CleanupBaselineAfter: false, Concurrency: concurrency, CandidateSource: "live-production-proc-cmdline",
 		})
 		return
@@ -1240,11 +1257,15 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		candidates[jr.index] = jr.result
 	}
 	for _, c := range candidates {
-		if !c.CleanupProven {
+		if !c.CleanupProven || !c.InfrastructureOK {
+			reason := "candidate infrastructure proof failed; selector stopped fail-closed"
+			if !c.CleanupProven {
+				reason = "candidate cleanup proof failed; selector stopped fail-closed"
+			}
 			writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
 				OK: false, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
 				Baseline: baseline, Candidates: candidates,
-				RecommendationReason: "candidate cleanup proof failed; selector stopped fail-closed",
+				RecommendationReason: reason,
 				CleanupBaselineAfter: false, Concurrency: concurrency, CandidateSource: "live-production-proc-cmdline",
 			})
 			return

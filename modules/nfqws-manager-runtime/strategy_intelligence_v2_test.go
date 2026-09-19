@@ -98,3 +98,35 @@ func TestV2RoutesUseModuleABIPath(t *testing.T) {
 		t.Fatalf("legacy non-ABI route unexpectedly registered: %q", pattern)
 	}
 }
+
+func TestV2FinalizeCandidateSeparatesInfrastructureFailure(t *testing.T) {
+	c := v2CandidateResult{
+		Attempts: []v2BenchAttempt{{
+			OK: false, CleanupProven: true, InfrastructureOK: false,
+			StrategyPathExercised: false,
+		}},
+	}
+	v2FinalizeCandidate(&c)
+	if c.InfrastructureOK {
+		t.Fatal("infrastructure failure was hidden")
+	}
+	if c.ResultClass != "INCONCLUSIVE" {
+		t.Fatalf("result_class=%q want INCONCLUSIVE", c.ResultClass)
+	}
+}
+
+func TestV2FinalizeCandidateKeepsLegitimateCandidateFailure(t *testing.T) {
+	c := v2CandidateResult{
+		Attempts: []v2BenchAttempt{{
+			OK: false, CleanupProven: true, InfrastructureOK: true,
+			StrategyPathExercised: true,
+		}},
+	}
+	v2FinalizeCandidate(&c)
+	if !c.InfrastructureOK {
+		t.Fatal("legitimate candidate failure was mislabeled as infrastructure failure")
+	}
+	if c.ResultClass != "FAILED" {
+		t.Fatalf("result_class=%q want FAILED", c.ResultClass)
+	}
+}

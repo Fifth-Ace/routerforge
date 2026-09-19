@@ -1,10 +1,23 @@
 #!/bin/sh
 ENABLED=no
 PROCS=routerforge-nfqws-manager
-ARGS="-socket /opt/var/run/routerforge-nfqws-manager.sock -ui /opt/share/routerforge/modules/nfqws-manager/ui"
+SOCKET=/opt/var/run/routerforge-nfqws-manager.sock
+ARGS="-socket $SOCKET -ui /opt/share/routerforge/modules/nfqws-manager/ui"
 PREARGS=""
 DESC="RouterForge NFQWS Manager"
 PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+cleanup_nfqws_manager_socket() {
+    if [ -z "$(pidof "$PROCS" 2>/dev/null)" ]; then
+        rm -f "$SOCKET"
+    fi
+}
+
+case "$1" in
+    stop|kill)
+        trap cleanup_nfqws_manager_socket 0
+        ;;
+esac
 
 if [ -f /opt/etc/routerforge/module-abi-v1 ]; then
     ENABLED=yes

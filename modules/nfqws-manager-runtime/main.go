@@ -138,6 +138,7 @@ func main() {
 	registerConfigLibraryRoutes(mux)
 	registerBlobRoutes(mux)
 	registerListSourceRoutes(mux)
+	registerUpstreamRoutes(mux)
 	registerSmartApplyRoutes(mux)
 	registerBackupCenterRoutes(mux)
 	registerKeeneticRoutes(mux)

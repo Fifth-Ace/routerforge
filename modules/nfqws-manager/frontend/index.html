@@ -3368,7 +3368,7 @@ button{min-height:var(--ui-control-h)}
 
   function processingLiveModel(){
     const d=processingMapLiveResult;
-    if(processingMapLiveRunning)return{kind:'info',label:'идёт проверка',detail:'Fast-тест выполняется в тестовой NFQUEUE.',proven:false};
+    if(processingMapLiveRunning&&!d)return{kind:'info',label:'идёт проверка',detail:'Fast-тест выполняется в тестовой NFQUEUE.',proven:false};
     if(!d)return{kind:'info',label:'не запускался',detail:'Live-проверка NFQWS ещё не выполнялась.',proven:false};
     if(d.error)return{kind:'bad',label:'ОШИБКА',detail:d.error,proven:false};
     const samples=(d.candidates||[]).flatMap(c=>(c.attempts||[]).map(a=>({profile:c.source_profile_index,attempt:a})));

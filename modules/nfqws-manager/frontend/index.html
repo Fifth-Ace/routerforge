@@ -958,7 +958,40 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
         <div><span>TLS execution</span><strong id="benchTLSExecution">—</strong></div>
       </div>
       <div id="benchReadinessDetails" class="bench-readiness-details">Проверка ещё не запускалась.</div>
-      <div class="sandbox-note">UX4.5A добавляет server-side Apply gate: право на следующий шаг выдаётся только свежей AutoTune-рекомендации и привязано к exact config SHA / target / profile на 5 минут. Без рекомендации Apply остаётся LOCKED; config preview и mutation появятся следующим этапом.</div>
+      <div class="sandbox-note">UX4.5 backend safety chain активен: recommendation привязана к exact config SHA / target / profile и живёт 5 минут. Direct Apply запрещён: сначала обязательный deterministic Preview, затем одноразовый receipt и существующий Smart Apply.</div>
+    <article class="panel">
+      <div class="panel-head">
+        <div><h2>AutoTune Apply</h2><div class="section-kicker">UX4.5D · recommendation → deterministic preview → one-shot Smart Apply</div></div>
+        <span id="autoTuneFlowState" class="config-badge empty">LOCKED</span>
+      </div>
+      <div class="setup-row">
+        <div class="setup-label"><strong>Target</strong><span>TLS hostname, который RouterForge проверит isolated AutoTune.</span></div>
+        <input id="autoTuneTarget" class="setup-input" value="www.youtube.com" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="setup-row">
+        <div class="setup-label"><strong>Mode</strong><span>Fast — 1 attempt, Normal — 2, Thorough — 3. Apply не выполняется во время AutoTune.</span></div>
+        <select id="autoTuneMode" class="setup-select"><option value="fast">Fast</option><option value="normal">Normal</option><option value="thorough">Thorough</option></select>
+      </div>
+      <div class="toolbar" style="margin-top:10px">
+        <button id="runAutoTuneFlow" class="primary">1 · AutoTune</button>
+        <button id="buildAutoTunePreview" disabled>2 · Preview</button>
+        <button id="applyAutoTunePreview" class="danger" disabled>3 · Apply</button>
+        <button id="resetAutoTuneFlow">Reset</button>
+      </div>
+      <div id="autoTuneFlowMessage" class="sandbox-note" style="margin-top:10px">Apply заблокирован. Сначала запусти AutoTune; если baseline уже не хуже candidate, RouterForge честно не создаст recommendation.</div>
+      <dl class="kv" style="margin-top:10px">
+        <dt>Server</dt><dd id="autoTuneServer" class="mono">—</dd>
+        <dt>Profile</dt><dd id="autoTuneProfile" class="mono">—</dd>
+        <dt>Active SHA</dt><dd id="autoTuneActiveSha" class="mono">—</dd>
+        <dt>Candidate SHA</dt><dd id="autoTuneCandidateSha" class="mono">—</dd>
+        <dt>Receipt expires</dt><dd id="autoTuneExpires" class="mono">—</dd>
+      </dl>
+      <div class="section-kicker" style="margin-top:12px">Tested strategy args</div>
+      <pre id="autoTuneStrategyArgs" class="catalog-preview" style="max-height:160px;overflow:auto">—</pre>
+      <div class="section-kicker" style="margin-top:12px">Deterministic candidate config · preview only</div>
+      <pre id="autoTunePreviewConfig" class="catalog-preview" style="display:none;max-height:320px;overflow:auto"></pre>
+      <div class="sandbox-note" style="margin-top:10px">Token/receipt никогда не выводится в DOM и не сохраняется в localStorage. Apply доступен только после успешного preview с exact active/candidate SHA. Фактическая mutation идёт через существующий Smart Apply с backup, atomic write, restart verification и rollback.</div>
+    </article>
     </article>
     <div class="sandbox-layout">
       <article class="panel sandbox-editor">
@@ -1450,7 +1483,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null;
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null, autoTuneRunning=false, autoTuneStage='', autoTuneResult=null, autoTunePreviewData=null, autoTuneApplyResult=null, autoTuneToken='', autoTuneActiveSha='', autoTuneMessage='';
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -2361,6 +2394,100 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     try{benchReadiness=await api('/bench-capabilities')}
     catch(e){benchReadiness={safe_to_bench:false,blockers:[e.message],warnings:[]}}
     finally{benchReadinessLoading=false;$('refreshBenchReadiness').disabled=false;renderBenchReadiness();reportHeight()}
+  }
+
+
+  function autoTuneShortSha(value){const v=String(value||'');return v?v.slice(0,16)+(v.length>16?'…':''):'—'}
+  function resetAutoTuneUI(message='Apply заблокирован. Запусти новый AutoTune.'){
+    autoTuneRunning=false;autoTuneStage='';autoTuneResult=null;autoTunePreviewData=null;autoTuneApplyResult=null;autoTuneToken='';autoTuneActiveSha='';autoTuneMessage=message;renderAutoTuneControl();
+  }
+  function renderAutoTuneControl(){
+    const state=$('autoTuneFlowState');if(!state)return;
+    let label='LOCKED',klass='empty';
+    if(autoTuneRunning){label=autoTuneStage||'RUNNING';klass='active'}
+    else if(autoTuneApplyResult){label='APPLIED';klass='active'}
+    else if(autoTunePreviewData){label=autoTunePreviewData.changed?'PREVIEW READY':'NO CHANGE';klass=autoTunePreviewData.changed?'active':'empty'}
+    else if(autoTuneToken){label='RECOMMENDED';klass='active'}
+    else if(autoTuneResult){label='NO RECOMMENDATION';klass='empty'}
+    state.textContent=label;state.className='config-badge '+klass;
+    $('runAutoTuneFlow').disabled=autoTuneRunning;
+    $('buildAutoTunePreview').disabled=autoTuneRunning||!autoTuneToken||!!autoTunePreviewData;
+    $('applyAutoTunePreview').disabled=autoTuneRunning||!autoTuneToken||!autoTunePreviewData||!autoTunePreviewData.changed;
+    $('resetAutoTuneFlow').disabled=autoTuneRunning;
+    const source=autoTunePreviewData||autoTuneResult||{};
+    $('autoTuneServer').textContent=source.server_name||$('autoTuneTarget').value||'—';
+    $('autoTuneProfile').textContent=Number.isInteger(source.source_profile_index)?String(source.source_profile_index):Number.isInteger(source.recommended_profile_index)?String(source.recommended_profile_index):'—';
+    $('autoTuneActiveSha').textContent=autoTuneShortSha(autoTunePreviewData?.active_config_sha256||autoTuneActiveSha);
+    $('autoTuneCandidateSha').textContent=autoTuneShortSha(autoTunePreviewData?.candidate_config_sha256||'');
+    $('autoTuneExpires').textContent=autoTunePreviewData?.gate_expires_at||autoTuneResult?.apply_gate_expires_at||'—';
+    const args=autoTunePreviewData?.candidate_strategy_args||[];
+    $('autoTuneStrategyArgs').textContent=args.length?args.join('\n'):'—';
+    const preview=$('autoTunePreviewConfig'),config=String(autoTunePreviewData?.candidate_config||'');
+    preview.style.display=config?'block':'none';preview.textContent=config;
+    $('autoTuneFlowMessage').textContent=autoTuneMessage||'Apply заблокирован.';
+    reportHeight();
+  }
+  async function runAutoTuneFlow(){
+    if(autoTuneRunning)return;
+    const target=normalizeProcessingMapDomain($('autoTuneTarget').value),mode=String($('autoTuneMode').value||'fast');
+    if(!target){notice('AutoTune: введи корректный TLS hostname.','error');return}
+    autoTuneResult=null;autoTunePreviewData=null;autoTuneApplyResult=null;autoTuneToken='';autoTuneActiveSha='';autoTuneRunning=true;autoTuneStage='AUTOTUNE';autoTuneMessage=`AutoTune ${mode}: ${target}. Production config не изменяется.`;renderAutoTuneControl();
+    try{
+      const latest=await api('/status');
+      if(!latest?.mutation_ready||!latest?.config_sha256)throw new Error('nfqws2 runtime не готов или active config SHA недоступен.');
+      autoTuneActiveSha=String(latest.config_sha256).toLowerCase();
+      const result=await api('/bench-autotune',{method:'POST',body:JSON.stringify({mode,server_name:target,expected_config_sha256:autoTuneActiveSha,confirm:'ROUTERFORGE_AUTOTUNE_TLS'})});
+      autoTuneResult=result;
+      if(result.apply_gate_eligible&&result.apply_gate_token){
+        autoTuneToken=String(result.apply_gate_token);
+        autoTuneMessage=`Recommendation готова: profile ${result.recommended_profile_index}. Apply всё ещё LOCKED — сначала построй deterministic preview.`;
+      }else{
+        autoTuneToken='';
+        autoTuneMessage=`Recommendation не создана: ${result.recommendation_reason||result.apply_gate_reason||'baseline не хуже candidate'}. Ничего применять не нужно.`;
+      }
+    }catch(e){
+      autoTuneResult=null;autoTuneToken='';autoTuneMessage=`AutoTune FAIL: ${e.message}`;notice(autoTuneMessage,'error');
+    }finally{
+      autoTuneRunning=false;autoTuneStage='';renderAutoTuneControl();
+    }
+  }
+  async function buildAutoTunePreviewUI(){
+    if(autoTuneRunning||!autoTuneToken||!autoTuneActiveSha)return;
+    autoTuneRunning=true;autoTuneStage='PREVIEW';autoTuneMessage='Перестраиваю candidate на сервере и сверяю tested strategy identity…';renderAutoTuneControl();
+    try{
+      const preview=await api('/bench-autotune/apply-preview',{method:'POST',body:JSON.stringify({token:autoTuneToken,expected_config_sha256:autoTuneActiveSha,confirm:'ROUTERFORGE_AUTOTUNE_PREVIEW'})});
+      if(preview.ok!==true||preview.preview_only!==true||preview.apply_enabled!==false)throw new Error('preview contract mismatch');
+      if(String(preview.active_config_sha256||'').toLowerCase()!==autoTuneActiveSha)throw new Error('active config SHA changed during preview');
+      if(!preview.candidate_config_sha256||!preview.candidate_config)throw new Error('candidate config identity missing');
+      autoTunePreviewData=preview;autoTuneApplyResult=null;
+      autoTuneMessage=preview.changed?'Preview готов. Проверь candidate SHA/config; Apply потребует ещё одно явное подтверждение.':'Preview совпадает с active config. Apply оставлен заблокированным как бессмысленный no-op.';
+    }catch(e){
+      autoTunePreviewData=null;autoTuneToken='';autoTuneMessage=`Preview FAIL: ${e.message}. Recommendation discarded; запусти AutoTune заново.`;notice(autoTuneMessage,'error');
+    }finally{
+      autoTuneRunning=false;autoTuneStage='';renderAutoTuneControl();
+    }
+  }
+  async function applyAutoTunePreviewUI(){
+    const preview=autoTunePreviewData;
+    if(autoTuneRunning||!autoTuneToken||!preview?.changed)return;
+    try{
+      const latest=await api('/status');
+      if(String(latest.config_sha256||'').toLowerCase()!==String(preview.active_config_sha256||'').toLowerCase())throw new Error('Active config изменился после preview. Нужен новый AutoTune.');
+      const ok=confirm(`AutoTune Apply?\\nTarget: ${preview.server_name}\\nProfile: ${preview.source_profile_index}\\nActive: ${preview.active_config_sha256}\\nCandidate: ${preview.candidate_config_sha256}\\n\\nSmart Apply создаст backup и при running service выполнит controlled restart. При первой runtime-ошибке сервер выполнит rollback.`);
+      if(!ok)return;
+      autoTuneRunning=true;autoTuneStage='APPLY';autoTuneMessage='One-shot receipt принят. Перед mutation сервер ещё раз проверит active SHA, profile и deterministic candidate…';renderAutoTuneControl();
+      const result=await api('/bench-autotune/apply',{method:'POST',body:JSON.stringify({receipt_token:autoTuneToken,expected_active_sha256:preview.active_config_sha256,expected_candidate_sha256:preview.candidate_config_sha256,confirm:'ROUTERFORGE_AUTOTUNE_APPLY'})});
+      autoTuneApplyResult=result;autoTuneToken='';
+      if(result.status)render(result.status);else render(await api('/status'));
+      autoTuneMessage=`AutoTune Apply PASS · candidate ${autoTuneShortSha(preview.candidate_config_sha256)}${result.service_restarted?' · runtime restarted':''}${result.backups?.length?` · backups ${result.backups.length}`:''}. Receipt consumed.`;
+      notice(autoTuneMessage,'good');
+    }catch(e){
+      autoTuneToken='';autoTuneResult=null;autoTunePreviewData=null;autoTuneApplyResult=null;
+      autoTuneMessage=`AutoTune Apply FAIL: ${e.message}. UI discard'нул receipt; перед повтором нужен новый AutoTune + Preview.`;
+      notice(autoTuneMessage,'error');
+    }finally{
+      autoTuneRunning=false;autoTuneStage='';renderAutoTuneControl();
+    }
   }
 
   function sandboxStrategySources(){
@@ -3400,7 +3527,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(tab==='backups')loadBackupCenter();
     if(tab==='keenetic'){loadKeenetic();loadDPIDetector()}
     if(tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')}
-    if(tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE');loadBenchReadiness()}
+    if(tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE');renderAutoTuneControl();loadBenchReadiness()}
     if(tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}
     if(tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});
     else requestAnimationFrame(reportHeight);
@@ -3440,6 +3567,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   $('zapretSandboxProfile').onchange=()=>{$('zapretSandboxOpen').disabled=!zapretImportResult?.ready};
   $('zapretSandboxOpen').onclick=sendZapretProfileToSandbox;
   $('refreshBenchReadiness').onclick=()=>loadBenchReadiness(true);
+  $('runAutoTuneFlow').onclick=runAutoTuneFlow;$('buildAutoTunePreview').onclick=buildAutoTunePreviewUI;$('applyAutoTunePreview').onclick=applyAutoTunePreviewUI;$('resetAutoTuneFlow').onclick=()=>resetAutoTuneUI();
 
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;

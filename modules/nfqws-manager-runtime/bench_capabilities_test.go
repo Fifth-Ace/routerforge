@@ -38,11 +38,12 @@ func TestBenchSafetyContractLocked(t *testing.T) {
 		ReadOnly: true, BenchEnabled: false, SafeToBench: false,
 		LifecycleContractImplemented: true,
 		CleanupProofImplemented:      true,
+		SelectorContractImplemented:  true,
 	}
 	if got.BenchEnabled || got.SafeToBench {
 		t.Fatal("UX4.2 foundation must not enable active bench")
 	}
-	if !got.LifecycleContractImplemented || !got.CleanupProofImplemented {
-		t.Fatal("UX4.2 lifecycle and cleanup proof foundation must be present")
+	if !got.LifecycleContractImplemented || !got.CleanupProofImplemented || !got.SelectorContractImplemented {
+		t.Fatal("UX4.2 lifecycle, cleanup proof and selector contract foundations must be present")
 	}
 }

@@ -948,9 +948,11 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
         <div><span>Suggested queue</span><strong id="benchQueue">—</strong></div>
         <div><span>Lifecycle</span><strong id="benchLifecycle">—</strong></div>
         <div><span>Cleanup baseline</span><strong id="benchCleanup">—</strong></div>
+        <div><span>Traffic selector</span><strong id="benchSelector">—</strong></div>
+        <div><span>Probe isolation</span><strong id="benchIsolation">—</strong></div>
       </div>
       <div id="benchReadinessDetails" class="bench-readiness-details">Проверка ещё не запускалась.</div>
-      <div class="sandbox-note">UX4.2A+B реализует read-only lifecycle contract и доказуемую cleanup baseline для зарезервированного диапазона NFQUEUE. AutoTune остаётся LOCKED: RouterForge ещё не создаёт candidate process/rule и не направляет тестовый трафик в bench queue.</div>
+      <div class="sandbox-note">UX4.2C фиксирует read-only traffic-selector contract: IPv4 TCP/443, exact destination + exact dynamically-bound local port, transient mark 0x40000000 and hooks around production nfqws_pre/nfqws_post. AutoTune остаётся LOCKED: firewall/session mutation ещё не реализована.</div>
     </article>
     <div class="sandbox-layout">
       <article class="panel sandbox-editor">
@@ -2320,7 +2322,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 
 
   function renderBenchReadiness(){
-    const d=benchReadiness,state=$('benchReadinessState'),lifecycle=d?.lifecycle||{},cleanup=lifecycle.cleanup||{};
+    const d=benchReadiness,state=$('benchReadinessState'),lifecycle=d?.lifecycle||{},cleanup=lifecycle.cleanup||{},selector=d?.selector||{};
     if(!d){state.textContent=benchReadinessLoading?'CHECKING':'LOCKED';state.className='config-badge empty';return}
     state.textContent=d.safe_to_bench?'READY':'LOCKED';state.className='config-badge '+(d.safe_to_bench?'active':'empty');
     $('benchBinary').textContent=d.candidate_spawn_capable?(d.candidate_binary||'FOUND'):'NOT PROVEN';
@@ -2329,8 +2331,11 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('benchQueue').textContent=d.recommended_queue||'—';
     $('benchLifecycle').textContent=d.lifecycle_contract_implemented?(lifecycle.state||'FOUNDATION'):'NOT IMPLEMENTED';
     $('benchCleanup').textContent=d.cleanup_proof_implemented?(d.cleanup_baseline_proven?'BASELINE CLEAN':'UNPROVEN'):'NOT IMPLEMENTED';
+    $('benchSelector').textContent=d.selector_contract_implemented?(selector.mutation_implemented?'ACTIVE':'CONTRACT ONLY'):'NOT IMPLEMENTED';
+    $('benchIsolation').textContent=d.selector_contract_implemented&&selector.production_queue_bypass&&!selector.connmark_required?'EXACT TUPLE + MARK':'UNPROVEN';
     const rows=[
       ...(d.cleanup_baseline_proven?[['','CLEANUP · reserved NFQUEUE range '+(cleanup.reserved_queue_min||'?')+'–'+(cleanup.reserved_queue_max||'?')+' is clean']]:[]),
+      ...(d.selector_contract_implemented?[['','SELECTOR · IPv4 '+String(selector.protocol||'').toUpperCase()+'/'+(selector.remote_port||'?')+' · exact destination/local port · mark 0x'+Number(selector.packet_mark||0).toString(16)]]:[]),
       ...(d.blockers||[]).map(x=>['bad','BLOCKER · '+x]),
       ...(d.warnings||[]).map(x=>['warn','CHECK · '+x])
     ];

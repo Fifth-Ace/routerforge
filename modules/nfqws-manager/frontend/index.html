@@ -317,6 +317,14 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 .zapret-import-preview{min-height:160px;max-height:420px;overflow:auto;margin:0;padding:11px;border:1px solid var(--border);border-radius:7px;background:var(--code);color:var(--text);font:10.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:900px){.zapret-import-layout,.zapret-import-results{grid-template-columns:1fr}.zapret-import-hero{flex-direction:column}.zapret-import-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.zapret-import-credit{align-items:flex-start;flex-direction:column}.zapret-import-summary{grid-template-columns:1fr}.zapret-import-hero .toolbar{width:100%}.zapret-import-hero .toolbar button{flex:1}}
+.zapret-library-panel{margin-top:10px}
+.zapret-library-grid{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr);gap:12px}
+.zapret-library-label{display:grid;gap:6px;color:var(--muted);font-size:10px}.zapret-library-label .search{width:100%;max-width:none}
+.zapret-library-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.zapret-library-diff-title{margin-bottom:6px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em}
+.zapret-library-diff{min-height:180px;max-height:360px;overflow:auto;margin:0;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--code);font:9.5px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.zapret-library-diff .add{color:#8ee99c}.zapret-library-diff .del{color:#ff9ca4}.zapret-library-diff .same{color:var(--muted)}
+@media(max-width:900px){.zapret-library-grid{grid-template-columns:1fr}}
 
 @media(max-width:420px){.ux-task-center{padding:12px}.ux-task-card{grid-template-columns:34px minmax(0,1fr);padding:11px}.ux-task-icon{width:34px;height:34px}.ux-task-action{grid-column:2}}
 .overview-metrics.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -750,9 +758,33 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     </div>
 
     <article class="panel" style="margin-top:10px">
-      <div class="panel-head"><div><h2>Candidate preview</h2><div class="section-kicker">Фрагмент для дальнейшего Sandbox / Config Library · пока без сохранения</div></div><button id="zapretImportCopy" disabled>Копировать</button></div>
+      <div class="panel-head"><div><h2>Candidate preview</h2><div class="section-kicker">Импортированная стратегия до встраивания в полный nfqws2.conf</div></div><button id="zapretImportCopy" disabled>Копировать</button></div>
       <pre id="zapretImportPreview" class="zapret-import-preview">Preview ещё не построен.</pre>
       <div class="zapret-import-note">RouterForge намеренно не подставляет неизвестные Windows-переменные и не переименовывает payload-файлы «по догадке». Если вход неоднозначен, результат остаётся CHECK вместо притворного готового конфига.</div>
+    </article>
+
+    <article id="zapretLibraryPanel" class="panel zapret-library-panel">
+      <div class="panel-head">
+        <div><h2>Сохранить как вариант конфигурации</h2><div class="section-kicker">Config Library · inactive until separate activation</div></div>
+        <span id="zapretLibraryState" class="config-badge">WAITING</span>
+      </div>
+      <div class="zapret-library-grid">
+        <div>
+          <label class="zapret-library-label">Имя файла
+            <input id="zapretLibraryName" class="search" placeholder="zapret-import.conf" autocomplete="off">
+          </label>
+          <div id="zapretLibraryPlan" class="zapret-import-note">Сначала нужен READY preview. CHECK не сохраняется.</div>
+          <div class="zapret-library-actions">
+            <button id="zapretLibrarySave" class="primary" disabled>Сохранить в Config Library</button>
+            <button id="zapretLibraryOpen" disabled>Открыть библиотеку</button>
+          </div>
+          <div class="zapret-import-note">Сохранение создаёт новый инертный файл. Active nfqws2.conf не меняется, сервис не перезапускается и стратегия не применяется.</div>
+        </div>
+        <div>
+          <div class="zapret-library-diff-title">Точный diff относительно active config</div>
+          <pre id="zapretLibraryDiff" class="zapret-library-diff">Diff появится после READY preview.</pre>
+        </div>
+      </div>
     </article>
   </div>
 </section>
@@ -3007,7 +3039,66 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       '"'
     ].join('\n');
     const ready=commands.length===1&&!warnings.some(x=>x[0]==='bad');
-    return{type,commands,profiles,transforms:[...new Map(transforms.map(x=>[x.join('|'),x])).values()],warnings,deps,preview,ready};
+    return{type,commands,profiles,tcp,udp,transforms:[...new Map(transforms.map(x=>[x.join('|'),x])).values()],warnings,deps,preview,ready};
+  }
+  let zapretImportResult=null,zapretLibraryCandidate='',zapretLibrarySavedName='';
+  function zapretImportedCustom(result){return (result?.profiles||[]).map(x=>String(x||'').trim()).filter(Boolean).join('\n--new\n')}
+  function zapretBuildLibraryCandidate(result){
+    const active=String(current?.config||'');
+    if(!active)return{ok:false,error:'Active canonical config недоступен в текущем runtime response.'};
+    const required=['NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_IPSET','NFQWS_ARGS_CUSTOM','TCP_PORTS','UDP_PORTS'];
+    const missing=required.filter(key=>!scanAssignment(active,key));
+    if(missing.length)return{ok:false,error:`В active config не найдены обязательные assignments: ${missing.join(', ')}. RouterForge не будет достраивать структуру по догадке.`};
+    const custom=zapretImportedCustom(result);
+    if(!custom)return{ok:false,error:'Импорт не содержит strategy profiles для NFQWS_ARGS_CUSTOM.'};
+    let cfg=active;
+    for(const key of ['NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_IPSET'])cfg=replaceAssignment(cfg,key,'');
+    cfg=replaceAssignment(cfg,'NFQWS_ARGS_CUSTOM',custom);
+    if(String(result.tcp||'').trim())cfg=replaceAssignment(cfg,'TCP_PORTS',String(result.tcp).trim());
+    if(String(result.udp||'').trim())cfg=replaceAssignment(cfg,'UDP_PORTS',String(result.udp).trim());
+    return{ok:true,content:cfg};
+  }
+  function defaultZapretLibraryName(){
+    const d=new Date(),pad=n=>String(n).padStart(2,'0');
+    return `zapret-import-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.conf`;
+  }
+  function updateZapretLibrarySave(){
+    const name=normalizeStoredConfigName($('zapretLibraryName').value);
+    $('zapretLibrarySave').disabled=!(zapretImportResult?.ready&&zapretLibraryCandidate&&name);
+  }
+  function renderZapretLibrary(result){
+    zapretImportResult=result;zapretLibraryCandidate='';zapretLibrarySavedName='';$('zapretLibraryOpen').disabled=true;
+    if(!result?.ready){
+      $('zapretLibraryState').textContent=result?.preview?'CHECK':'WAITING';$('zapretLibrarySave').disabled=true;
+      $('zapretLibraryPlan').textContent=result?.preview?'Есть блокирующие или неоднозначные места. Исправьте их до сохранения.':'Сначала нужен READY preview. CHECK не сохраняется.';
+      $('zapretLibraryDiff').textContent='Diff недоступен.';return;
+    }
+    const built=zapretBuildLibraryCandidate(result);
+    if(!built.ok){
+      $('zapretLibraryState').textContent='CHECK';$('zapretLibrarySave').disabled=true;$('zapretLibraryPlan').textContent=built.error;$('zapretLibraryDiff').textContent='Diff недоступен.';return;
+    }
+    zapretLibraryCandidate=built.content;
+    if(!$('zapretLibraryName').value.trim())$('zapretLibraryName').value=defaultZapretLibraryName();
+    $('zapretLibraryState').textContent='READY';
+    $('zapretLibraryPlan').textContent=`Будет создан новый library config. Environment/system settings сохраняются из active config; стандартные strategy slots очищаются; ${result.profiles.length} импортированных profiles записываются в NFQWS_ARGS_CUSTOM${result.tcp?'; TCP_PORTS берётся из --wf-tcp':''}${result.udp?'; UDP_PORTS берётся из --wf-udp':''}.`;
+    $('zapretLibraryDiff').innerHTML=makeDiff(String(current?.config||''),built.content).map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">Нет изменений.</span>';
+    updateZapretLibrarySave();
+  }
+  async function saveZapretLibraryCandidate(){
+    if(!zapretImportResult?.ready||!zapretLibraryCandidate){notice('Zapret import: сохранять можно только READY candidate.','error');return}
+    const name=normalizeStoredConfigName($('zapretLibraryName').value);
+    if(!name){notice('Имя конфига: только буквы, цифры, точка, _ и -, расширение .conf.','error');return}
+    if(!confirm(`Создать ${name} в Config Library? Active nfqws2.conf и runtime не изменятся.`))return;
+    $('zapretLibrarySave').disabled=true;
+    try{
+      await api('/configs/create',{method:'POST',body:JSON.stringify({name,content:zapretLibraryCandidate,from_current:false,confirm:'NFQWS_CONFIG_LIBRARY_CREATE'})});
+      zapretLibrarySavedName=name;configLibraryLoaded=false;$('zapretLibraryState').textContent='SAVED';$('zapretLibraryOpen').disabled=false;
+      notice(`Импорт сохранён как ${name}. Active config не менялся, nfqws2 не перезапускался.`,'good');
+    }catch(e){notice(e.message,'error')}finally{updateZapretLibrarySave()}
+  }
+  function openSavedZapretConfig(){
+    if(!zapretLibrarySavedName)return;
+    activateNFQWSTab('configs');loadConfigLibrary(true).then(()=>selectStoredConfig(zapretLibrarySavedName));
   }
   function renderZapretImport(result){
     $('zapretImportType').textContent=result.type==='batch'?'Windows batch':result.type==='command'?'Команда':result.type==='log'?'Лог теста':'Неизвестно';
@@ -3018,7 +3109,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('zapretImportWarnings').innerHTML=result.warnings.map(x=>`<div class="zapret-import-warning ${x[0]}">${esc(x[1])}</div>`).join('');
     $('zapretImportTransforms').innerHTML=result.transforms.length?result.transforms.map(x=>`<div class="zapret-import-row"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></div>`).join(''):'<div class="analysis-empty">Автоматических преобразований нет.</div>';
     $('zapretImportDeps').innerHTML=result.deps.length?result.deps.map(x=>`<div class="zapret-import-row"><b>${esc(x[0])}</b><span class="mono">${esc(x[1])}</span></div>`).join(''):'<div class="analysis-empty">Явные list/blob зависимости не найдены.</div>';
-    $('zapretImportPreview').textContent=result.preview||'Preview не построен.';$('zapretImportCopy').disabled=!result.preview;reportHeight();
+    $('zapretImportPreview').textContent=result.preview||'Preview не построен.';$('zapretImportCopy').disabled=!result.preview;
+    renderZapretLibrary(result);reportHeight();
   }
   function runZapretImport(){
     const content=$('zapretImportInput').value;
@@ -3027,7 +3119,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   }
   function clearZapretImport(){
     $('zapretImportInput').value='';$('zapretImportSourceMeta').textContent='Команда · .bat · .cmd · .txt · лог теста';
-    renderZapretImport({type:'unknown',commands:[],profiles:[],transforms:[],warnings:[],deps:[],preview:'',ready:false});
+    $('zapretLibraryName').value='';
+    renderZapretImport({type:'unknown',commands:[],profiles:[],tcp:'',udp:'',transforms:[],warnings:[],deps:[],preview:'',ready:false});
   }
   function loadZapretImportFile(file){
     if(!file)return;if(file.size>262144){notice('Импорт из Zapret: файл больше 256 KiB.','error');return}
@@ -3122,6 +3215,9 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   $('zapretImportPick').onclick=()=>$('zapretImportFile').click();
   $('zapretImportFile').onchange=e=>{const file=e.target.files&&e.target.files[0];loadZapretImportFile(file);e.target.value=''};
   $('zapretImportCopy').onclick=()=>{const text=$('zapretImportPreview').textContent;if(text&&text!=='Preview не построен.'){navigator.clipboard?.writeText(text);notice('Zapret preview скопирован.','good')}};
+  $('zapretLibraryName').oninput=updateZapretLibrarySave;
+  $('zapretLibrarySave').onclick=saveZapretLibraryCandidate;
+  $('zapretLibraryOpen').onclick=openSavedZapretConfig;
 
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;

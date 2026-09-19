@@ -32,6 +32,8 @@ type benchTransactionSpec struct {
 type benchTransactionContract struct {
 	Implemented              bool `json:"implemented"`
 	MutationEnabled          bool `json:"mutation_enabled"`
+	ControlledSmokeOnly      bool `json:"controlled_smoke_only"`
+	SystemMutatorImplemented bool `json:"system_mutator_implemented"`
 	RuleCount                int  `json:"rule_count"`
 	ReverseOrderRollback     bool `json:"reverse_order_rollback"`
 	CleanupMandatory         bool `json:"cleanup_mandatory"`
@@ -64,7 +66,9 @@ type benchTransactionOps interface {
 func buildBenchTransactionContract() benchTransactionContract {
 	return benchTransactionContract{
 		Implemented:              true,
-		MutationEnabled:          false,
+		MutationEnabled:          true,
+		ControlledSmokeOnly:      true,
+		SystemMutatorImplemented: true,
 		RuleCount:                6,
 		ReverseOrderRollback:     true,
 		CleanupMandatory:         true,
@@ -81,8 +85,9 @@ func validateBenchTransactionSpec(spec benchTransactionSpec) error {
 		return errors.New("invalid bench session id")
 	}
 	ip := net.ParseIP(spec.DestinationIPv4)
-	if ip == nil || ip.To4() == nil || ip.IsUnspecified() || ip.IsLoopback() || ip.IsMulticast() {
-		return errors.New("destination must be an exact unicast IPv4 address")
+	if ip == nil || ip.To4() == nil || !ip.IsGlobalUnicast() || ip.IsPrivate() ||
+		ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsMulticast() {
+		return errors.New("destination must be an exact public unicast IPv4 address")
 	}
 	if spec.LocalPort < 1024 || spec.LocalPort > 65535 {
 		return errors.New("local port must be in range 1024-65535")

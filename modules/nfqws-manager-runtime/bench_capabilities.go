@@ -58,6 +58,7 @@ type benchCapabilities struct {
 
 func registerBenchCapabilityRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/bench-capabilities", getOnly(handleBenchCapabilities))
+	registerBenchSmokeRoute(mux)
 }
 
 func handleBenchCapabilities(w http.ResponseWriter, _ *http.Request) {
@@ -325,7 +326,7 @@ func readBenchCapabilities() benchCapabilities {
 	if !result.CleanupBaselineProven {
 		result.Blockers = append(result.Blockers, "reserved bench queue cleanup baseline is not proven")
 	}
-	result.Blockers = append(result.Blockers, "transaction engine is implemented but system mutator and active bench endpoint are not enabled yet")
+	result.Blockers = append(result.Blockers, "controlled smoke mutator is available, but AutoTune strategy execution remains locked")
 
 	if len(result.ActiveNFQWS2) == 0 {
 		result.Warnings = append(result.Warnings, "active nfqws2 process was not detected")

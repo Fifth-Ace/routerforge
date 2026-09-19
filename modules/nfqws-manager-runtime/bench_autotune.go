@@ -67,10 +67,15 @@ type benchAutoTuneResponse struct {
 	BenchEnabled            bool                     `json:"bench_enabled"`
 	SafeToBench             bool                     `json:"safe_to_bench"`
 	ApplyEnabled            bool                     `json:"apply_enabled"`
+	ApplyGateEligible  bool   `json:"apply_gate_eligible"`
+	ApplyGateToken     string `json:"apply_gate_token,omitempty"`
+	ApplyGateExpiresAt string `json:"apply_gate_expires_at,omitempty"`
+	ApplyGateReason    string `json:"apply_gate_reason"`
 }
 
 func registerBenchAutoTuneRoute(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/bench-autotune", mutationOnly(handleBenchAutoTune))
+	registerBenchAutoTuneApplyGateRoute(mux)
 }
 
 func parseBenchAutoTuneMode(raw string) (benchAutoTuneMode, error) {
@@ -385,6 +390,34 @@ func handleBenchAutoTune(w http.ResponseWriter, r *http.Request) {
 	after := readBenchCapabilities()
 	ok := after.CleanupBaselineProven
 
+	applyGateEligible := false
+	applyGateToken := ""
+	applyGateExpiresAt := ""
+	applyGateReason := "no AutoTune strategy recommendation is available"
+	clearBenchAutoTuneApplyPlan()
+	if ok && recommendationAvailable && strategyNeeded {
+		for _, profile := range templates {
+			if profile.Index != profileIndex {
+				continue
+			}
+			plan, planErr := storeBenchAutoTuneApplyPlan(status.ConfigSHA256, serverName, destinationIPv4, profile)
+			if planErr != nil {
+				ok = false
+				applyGateReason = "create AutoTune apply gate: " + planErr.Error()
+				break
+			}
+			applyGateEligible = true
+			applyGateToken = plan.Token
+			applyGateExpiresAt = plan.ExpiresAt.Format(time.RFC3339)
+			applyGateReason = "fresh server-side recommendation is eligible for preview"
+			break
+		}
+		if !applyGateEligible && ok {
+			ok = false
+			applyGateReason = "recommended profile is not present in the tested template set"
+		}
+	}
+
 	response := benchAutoTuneResponse{
 		OK:                      ok,
 		Mode:                    mode,
@@ -401,6 +434,10 @@ func handleBenchAutoTune(w http.ResponseWriter, r *http.Request) {
 		BenchEnabled:            false,
 		SafeToBench:             false,
 		ApplyEnabled:            false,
+		ApplyGateEligible:       applyGateEligible,
+		ApplyGateToken:          applyGateToken,
+		ApplyGateExpiresAt:      applyGateExpiresAt,
+		ApplyGateReason:         applyGateReason,
 	}
 	if !ok {
 		writeJSON(w, http.StatusBadGateway, response)

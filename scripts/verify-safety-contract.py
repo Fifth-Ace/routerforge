@@ -39,7 +39,6 @@ for rel in sorted(ALLOWED_DIRECT_COMMAND_FILES):
     if not path.is_file():
         errors.append(f"missing intentional direct-command file: {rel}")
 
-# Guard against the hand-written replace-file patterns that P15 consolidated.
 for path in sorted(ROOT.rglob("*.go")):
     rel = path.relative_to(ROOT).as_posix()
     text = path.read_text(encoding="utf-8")
@@ -48,7 +47,6 @@ for path in sorted(ROOT.rglob("*.go")):
     if "os.O_CREATE|os.O_TRUNC|os.O_WRONLY" in text:
         errors.append(f"direct truncating final-file create remains: {rel}")
 
-# Shared safety primitives must stay present.
 required = {
     "internal/safety/path.go": ["type Resolver struct"],
     "internal/safety/atomic.go": ["func WriteFileAtomic(", "func CreateExclusiveFile("],
@@ -65,6 +63,32 @@ for rel, needles in required.items():
         if needle not in text:
             errors.append(f"missing shared safety primitive {needle!r} in {rel}")
 
+nfqws_init_rel = "modules/nfqws-manager-runtime/packaging/S96routerforge-nfqws-manager"
+nfqws_init = ROOT / nfqws_init_rel
+if not nfqws_init.is_file():
+    errors.append(f"missing nfqws-manager init script: {nfqws_init_rel}")
+else:
+    init_text = nfqws_init.read_text(encoding="utf-8")
+    nfqws_required = [
+        "SOCKET=/opt/var/run/routerforge-nfqws-manager.sock",
+        "cleanup_nfqws_manager_socket()",
+        'if [ -z "$(pidof "$PROCS" 2>/dev/null)" ]; then',
+        'rm -f "$SOCKET"',
+        "stop|kill)",
+        "trap cleanup_nfqws_manager_socket 0",
+        ". /opt/etc/init.d/rc.func",
+    ]
+    for needle in nfqws_required:
+        if needle not in init_text:
+            errors.append(
+                f"missing nfqws-manager stale-socket safety contract {needle!r} "
+                f"in {nfqws_init_rel}"
+            )
+    if re.search(r"(?ms)^\s*start\).*?rm\s+-f\s+\"?\$SOCKET", init_text):
+        errors.append(
+            "nfqws-manager start path must not blindly unlink the live Unix socket"
+        )
+
 print(f"DIRECT_COMMAND_HITS={len(direct_command_hits)}")
 for rel, line in direct_command_hits:
     print(f"INTENTIONAL_DIRECT_COMMAND={rel}:{line}")
@@ -78,4 +102,5 @@ if errors:
 print("UNMIGRATED_ACTIONABLE=0")
 print("INTENTIONAL_LOW_LEVEL_EXCEPTIONS=VERIFIED")
 print("DUPLICATE_SAFETY_LOGIC=NONE")
+print("R34_NFQWS_STALE_SOCKET_CONTRACT=PASS")
 print("P15_SAFETY_CONTRACT=PASS")

@@ -29,24 +29,27 @@ type benchProcessInfo struct {
 }
 
 type benchCapabilities struct {
-	ReadOnly                bool               `json:"read_only"`
-	BenchEnabled            bool               `json:"bench_enabled"`
-	SafeToBench             bool               `json:"safe_to_bench"`
-	CandidateBinary         string             `json:"candidate_binary,omitempty"`
-	CandidateSpawnCapable   bool               `json:"candidate_spawn_capable"`
-	IPTablesPath            string             `json:"iptables_path,omitempty"`
-	IPTablesSavePath        string             `json:"iptables_save_path,omitempty"`
-	NFTPath                 string             `json:"nft_path,omitempty"`
-	FirewallBackend         string             `json:"firewall_backend,omitempty"`
-	FirewallInventoryOK     bool               `json:"firewall_inventory_ok"`
-	KernelQueueInventoryOK  bool               `json:"kernel_queue_inventory_ok"`
-	QueueInventoryComplete  bool               `json:"queue_inventory_complete"`
-	OccupiedQueues          []int              `json:"occupied_queues"`
-	RecommendedQueue        int                `json:"recommended_queue,omitempty"`
-	ActiveNFQWS2            []benchProcessInfo `json:"active_nfqws2"`
-	CleanupProofImplemented bool               `json:"cleanup_proof_implemented"`
-	Blockers                []string           `json:"blockers"`
-	Warnings                []string           `json:"warnings"`
+	ReadOnly                     bool                   `json:"read_only"`
+	BenchEnabled                 bool                   `json:"bench_enabled"`
+	SafeToBench                  bool                   `json:"safe_to_bench"`
+	CandidateBinary              string                 `json:"candidate_binary,omitempty"`
+	CandidateSpawnCapable        bool                   `json:"candidate_spawn_capable"`
+	IPTablesPath                 string                 `json:"iptables_path,omitempty"`
+	IPTablesSavePath             string                 `json:"iptables_save_path,omitempty"`
+	NFTPath                      string                 `json:"nft_path,omitempty"`
+	FirewallBackend              string                 `json:"firewall_backend,omitempty"`
+	FirewallInventoryOK          bool                   `json:"firewall_inventory_ok"`
+	KernelQueueInventoryOK       bool                   `json:"kernel_queue_inventory_ok"`
+	QueueInventoryComplete       bool                   `json:"queue_inventory_complete"`
+	OccupiedQueues               []int                  `json:"occupied_queues"`
+	RecommendedQueue             int                    `json:"recommended_queue,omitempty"`
+	ActiveNFQWS2                 []benchProcessInfo     `json:"active_nfqws2"`
+	LifecycleContractImplemented bool                   `json:"lifecycle_contract_implemented"`
+	CleanupProofImplemented      bool                   `json:"cleanup_proof_implemented"`
+	CleanupBaselineProven        bool                   `json:"cleanup_baseline_proven"`
+	Lifecycle                    benchLifecycleContract `json:"lifecycle"`
+	Blockers                     []string               `json:"blockers"`
+	Warnings                     []string               `json:"warnings"`
 }
 
 func registerBenchCapabilityRoutes(mux *http.ServeMux) {
@@ -244,14 +247,15 @@ func readKernelQueueInventory() ([]int, bool) {
 
 func readBenchCapabilities() benchCapabilities {
 	result := benchCapabilities{
-		ReadOnly:                true,
-		BenchEnabled:            false,
-		SafeToBench:             false,
-		ActiveNFQWS2:            []benchProcessInfo{},
-		OccupiedQueues:          []int{},
-		Blockers:                []string{},
-		Warnings:                []string{},
-		CleanupProofImplemented: false,
+		ReadOnly:                     true,
+		BenchEnabled:                 false,
+		SafeToBench:                  false,
+		ActiveNFQWS2:                 []benchProcessInfo{},
+		OccupiedQueues:               []int{},
+		Blockers:                     []string{},
+		Warnings:                     []string{},
+		LifecycleContractImplemented: true,
+		CleanupProofImplemented:      true,
 	}
 
 	result.IPTablesPath = findExecutable("iptables")
@@ -287,6 +291,17 @@ func readBenchCapabilities() benchCapabilities {
 		result.RecommendedQueue = firstFreeBenchQueue(result.OccupiedQueues)
 	}
 
+	status := readStatus()
+	result.Lifecycle = buildBenchLifecycleContract(
+		result.RecommendedQueue,
+		result.QueueInventoryComplete,
+		processQueues,
+		firewallQueues,
+		kernelQueues,
+		status.ConfigSHA256,
+	)
+	result.CleanupBaselineProven = result.Lifecycle.Cleanup.Proven
+
 	if !result.CandidateSpawnCapable {
 		result.Blockers = append(result.Blockers, "candidate nfqws2 executable was not proven")
 	}
@@ -299,7 +314,10 @@ func readBenchCapabilities() benchCapabilities {
 	if result.RecommendedQueue == 0 && result.QueueInventoryComplete {
 		result.Blockers = append(result.Blockers, "no free queue found in RouterForge reserved bench range")
 	}
-	result.Blockers = append(result.Blockers, "isolated bench lifecycle and cleanup proof are not implemented yet")
+	if !result.CleanupBaselineProven {
+		result.Blockers = append(result.Blockers, "reserved bench queue cleanup baseline is not proven")
+	}
+	result.Blockers = append(result.Blockers, "isolated traffic selector and active bench session mutation are not implemented yet")
 
 	if len(result.ActiveNFQWS2) == 0 {
 		result.Warnings = append(result.Warnings, "active nfqws2 process was not detected")

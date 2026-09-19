@@ -321,7 +321,10 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 .zapret-library-grid{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr);gap:12px}
 .zapret-library-label{display:grid;gap:6px;color:var(--muted);font-size:10px}.zapret-library-label .search{width:100%;max-width:none}
 .zapret-library-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.zapret-sandbox-handoff{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin-top:10px}
+.zapret-sandbox-handoff label{display:grid;gap:5px;color:var(--muted);font-size:9.5px}.zapret-sandbox-handoff select{width:100%}
 .zapret-library-diff-title{margin-bottom:6px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em}
+@media(max-width:520px){.zapret-sandbox-handoff{grid-template-columns:1fr}.zapret-sandbox-handoff button{width:100%}}
 .zapret-library-diff{min-height:180px;max-height:360px;overflow:auto;margin:0;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--code);font:9.5px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 .zapret-library-diff .add{color:#8ee99c}.zapret-library-diff .del{color:#ff9ca4}.zapret-library-diff .same{color:var(--muted)}
 @media(max-width:900px){.zapret-library-grid{grid-template-columns:1fr}}
@@ -777,6 +780,12 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
           <div class="zapret-library-actions">
             <button id="zapretLibrarySave" class="primary" disabled>Сохранить в Config Library</button>
             <button id="zapretLibraryOpen" disabled>Открыть библиотеку</button>
+          </div>
+          <div class="zapret-sandbox-handoff">
+            <label>Профиль для Sandbox
+              <select id="zapretSandboxProfile" class="search" disabled></select>
+            </label>
+            <button id="zapretSandboxOpen" disabled>Проверить в Sandbox</button>
           </div>
           <div class="zapret-import-note">Сохранение создаёт новый инертный файл. Active nfqws2.conf не меняется, сервис не перезапускается и стратегия не применяется.</div>
         </div>
@@ -3066,8 +3075,26 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     const name=normalizeStoredConfigName($('zapretLibraryName').value);
     $('zapretLibrarySave').disabled=!(zapretImportResult?.ready&&zapretLibraryCandidate&&name);
   }
+  function renderZapretSandboxProfiles(result){
+    const select=$('zapretSandboxProfile'),profiles=Array.isArray(result?.profiles)?result.profiles:[];
+    select.innerHTML=profiles.map((_,i)=>`<option value="${i}">Профиль ${i+1}${profiles.length>1?` из ${profiles.length}`:''}</option>`).join('');
+    select.disabled=!result?.ready||!profiles.length;
+    $('zapretSandboxOpen').disabled=!result?.ready||!profiles.length;
+  }
+  function sendZapretProfileToSandbox(){
+    if(!zapretImportResult?.ready){notice('Zapret import: Sandbox доступен только для READY preview.','error');return}
+    const index=Number($('zapretSandboxProfile').value||0),profile=zapretImportResult.profiles?.[index];
+    if(!profile){notice('Не удалось выбрать импортированный профиль.','error');return}
+    $('sandboxCandidate').value=profile;
+    sandboxResultsData=[];
+    activateNFQWSTab('sandbox');
+    renderSandbox();
+    $('sandboxMeta').textContent=`Zapret import · профиль ${index+1}/${zapretImportResult.profiles.length} загружен в Sandbox. Candidate не применялся.`;
+    requestAnimationFrame(()=>$('sandboxCandidate').focus());
+  }
   function renderZapretLibrary(result){
     zapretImportResult=result;zapretLibraryCandidate='';zapretLibrarySavedName='';$('zapretLibraryOpen').disabled=true;
+    renderZapretSandboxProfiles(result);
     if(!result?.ready){
       $('zapretLibraryState').textContent=result?.preview?'CHECK':'WAITING';$('zapretLibrarySave').disabled=true;
       $('zapretLibraryPlan').textContent=result?.preview?'Есть блокирующие или неоднозначные места. Исправьте их до сохранения.':'Сначала нужен READY preview. CHECK не сохраняется.';
@@ -3218,6 +3245,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   $('zapretLibraryName').oninput=updateZapretLibrarySave;
   $('zapretLibrarySave').onclick=saveZapretLibraryCandidate;
   $('zapretLibraryOpen').onclick=openSavedZapretConfig;
+  $('zapretSandboxProfile').onchange=()=>{$('zapretSandboxOpen').disabled=!zapretImportResult?.ready};
+  $('zapretSandboxOpen').onclick=sendZapretProfileToSandbox;
 
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;

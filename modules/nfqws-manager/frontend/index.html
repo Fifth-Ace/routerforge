@@ -295,11 +295,22 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 .guided-evidence{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:11px}
 .guided-evidence-item{padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);min-width:0}
 .guided-evidence-item span{display:block;color:var(--muted);font-size:8.5px;text-transform:uppercase;letter-spacing:.05em}.guided-evidence-item strong{display:block;margin-top:4px;font-size:10px;overflow-wrap:anywhere}
+.guided-timeline-wrap{margin-top:12px;padding-top:11px;border-top:1px solid var(--border)}
+.guided-timeline-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.guided-timeline-head strong{font-size:10.5px}.guided-timeline-head span{color:var(--muted);font:8.5px/1 ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:.05em}
+.guided-timeline{display:grid;gap:0}
+.guided-timeline-row{position:relative;display:grid;grid-template-columns:22px 110px minmax(0,1fr);gap:8px;align-items:start;min-width:0;padding:7px 0}
+.guided-timeline-row:not(:last-child):before{content:"";position:absolute;left:10px;top:25px;bottom:-4px;width:1px;background:var(--border)}
+.guided-timeline-mark{position:relative;z-index:1;display:grid;place-items:center;width:21px;height:21px;border:1px solid var(--border-strong);border-radius:50%;background:var(--surface);font:800 9px/1 ui-monospace,Consolas,monospace}
+.guided-timeline-row.good .guided-timeline-mark{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,var(--border))}
+.guided-timeline-row.warn .guided-timeline-mark{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--border))}
+.guided-timeline-row.bad .guided-timeline-mark{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--border))}
+.guided-timeline-row.info .guided-timeline-mark{color:var(--muted)}
+.guided-timeline-label{padding-top:3px;font-size:9.5px;font-weight:800}.guided-timeline-detail{padding-top:3px;color:var(--muted);font-size:9.5px;line-height:1.4;overflow-wrap:anywhere}
 .guided-next{margin-top:12px;padding-top:11px;border-top:1px solid var(--border)}
 .guided-next-title{font-size:10px;font-weight:800}.guided-next-text{margin-top:4px;color:var(--muted);font-size:10px;line-height:1.45}
 .guided-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.guided-actions button{min-height:32px}
 @media(max-width:760px){.guided-steps{grid-template-columns:1fr}.guided-evidence{grid-template-columns:repeat(2,minmax(0,1fr))}.ux-task-head{align-items:flex-start;flex-direction:column}.ux-task-head-note{text-align:left}.ux-task-grid{grid-template-columns:1fr}}
-@media(max-width:420px){.guided-evidence{grid-template-columns:1fr}.guided-result-head{flex-direction:column}}
+@media(max-width:420px){.guided-evidence{grid-template-columns:1fr}.guided-result-head{flex-direction:column}.guided-timeline-row{grid-template-columns:22px minmax(0,1fr)}.guided-timeline-label{grid-column:2}.guided-timeline-detail{grid-column:2;padding-top:0}}
 
 /* UX2.1: preview-only Zapret importer. */
 .zapret-import-shell{display:grid;gap:10px}
@@ -842,6 +853,10 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
           <div class="guided-evidence-item"><span>Интерфейс</span><strong id="guidedInterface">—</strong></div>
           <div class="guided-evidence-item"><span>Проверка с роутера</span><strong id="guidedProbe">—</strong></div>
         </div>
+        <section class="guided-timeline-wrap" aria-labelledby="guidedTimelineTitle">
+          <div class="guided-timeline-head"><strong id="guidedTimelineTitle">Что удалось доказать</strong><span>evidence timeline</span></div>
+          <div id="guidedTimeline" class="guided-timeline"></div>
+        </section>
         <div class="guided-next">
           <div class="guided-next-title">Что делать дальше</div>
           <div id="guidedNextText" class="guided-next-text"></div>
@@ -2880,6 +2895,43 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(result.listErrors.length&&!actions.some(x=>x.includes('lists'))){actions.push(guidedActionButton('lists','Проверить списки'))}
     return{title,detail,kind,next,actions,running,inc,exc,mode,probeOK,ifaceMismatch};
   }
+  function guidedTimelineModel(result,model){
+    const rows=[],add=(kind,label,detail)=>rows.push({kind,label,detail});
+    add(model.running?'good':'bad','Runtime',model.running?'nfqws2 запущен.':'nfqws2 остановлен.');
+
+    const preflight=buildPreflight(),preBad=preflight.filter(x=>x.severity==='bad').length,preWarn=preflight.filter(x=>x.severity==='warn').length;
+    add(preBad?'bad':preWarn?'warn':'good','Preflight',preBad?`${preBad} блокирующих проверок.`:preWarn?`${preWarn} пунктов требуют проверки.`:'Блокирующих проблем в текущем preflight не найдено.');
+
+    if(model.inc&&model.exc)add('warn','Списки',`Есть одновременно include (${model.inc}) и exclude (${model.exc}) совпадения.`);
+    else if(model.exc)add('warn','Списки',`Найдено exclude совпадений: ${model.exc}.`);
+    else if(model.inc)add('good','Списки',`Найдено include совпадений: ${model.inc}.`);
+    else if(['MODE_LIST','MODE_AUTO'].includes(model.mode))add('warn','Списки',`Для ${model.mode} include-match не найден.`);
+    else add('info','Списки','Явный include-match для этого режима не обязателен.');
+
+    const staticVerdict=String(result.staticPath?.verdict||'UNKNOWN'),staticReason=String(result.staticPath?.reason||'Статический анализ завершён.');
+    add(model.exc||model.inc?'good':'info','Static path',`${staticVerdict}: ${staticReason} Это вывод из config/list semantics, не live packet trace.`);
+
+    if(model.ifaceMismatch)add('warn','WAN / interface',`ISP_INTERFACE=${result.keenetic?.config_isp_interface||'—'}, default IPv4=${result.keenetic?.default_ipv4_interface||'—'}. Несовпадение само по себе не доказывает ошибку.`);
+    else if(result.keenetic?.default_ipv4_interface)add('good','WAN / interface',`default IPv4=${result.keenetic.default_ipv4_interface}${result.keenetic?.config_isp_interface?` · ISP_INTERFACE=${result.keenetic.config_isp_interface}`:''}.`);
+    else add('info','WAN / interface','Keenetic interface evidence недоступно.');
+
+    if(result.probe)add(model.probeOK?'good':'bad','Router probe',model.probeOK?`Router-side HTTPS доступен${result.probe.status_code?` · HTTP ${result.probe.status_code}`:''}.`:`Router-side HTTPS probe завершился ошибкой${result.probe.error?`: ${result.probe.error}`:'.'}`);
+    else add('info','Router probe','Router-side probe evidence отсутствует.');
+
+    const tail=String(current?.log_tail||''),domain=String(result.domain||'').toLowerCase(),domainLines=tail.split(/\r?\n/).filter(x=>domain&&x.toLowerCase().includes(domain));
+    const debugEnabled=/^(1|true|yes)$/i.test(String(flowValues.LOG_LEVEL||''));
+    if(domainLines.length)add('good','Logs',`В текущем log tail найдено строк с ${result.domain}: ${domainLines.length}. Это наблюдаемые события, но не полный packet trace.`);
+    else if(debugEnabled&&tail.trim())add('info','Logs',`Log tail доступен, но строк с ${result.domain} не найдено. Отсутствие строки не доказывает отсутствие обработки.`);
+    else if(debugEnabled)add('warn','Logs','Debug logging включён, но текущий tail пуст.');
+    else add('info','Logs','Debug logging выключен; live evidence из nfqws2 log сейчас ограничено.');
+
+    add('info','Граница наблюдаемости','RouterForge не наблюдал конкретный пакет LAN-клиента на входе и выходе NFQUEUE. Static path и router-side probe не являются доказательством такого прохождения.');
+    return rows;
+  }
+  function renderGuidedTimeline(result,model){
+    const rows=guidedTimelineModel(result,model);
+    $('guidedTimeline').innerHTML=rows.map(row=>`<div class="guided-timeline-row ${esc(row.kind)}"><span class="guided-timeline-mark">${row.kind==='good'?'✓':row.kind==='bad'?'!':row.kind==='warn'?'!':'i'}</span><span class="guided-timeline-label">${esc(row.label)}</span><span class="guided-timeline-detail">${esc(row.detail)}</span></div>`).join('');
+  }
   function renderGuidedTroubleshooter(result){
     const model=guidedTroubleshooterModel(result),root=$('guidedTroubleshooter');
     $('guidedTitle').textContent=model.title;$('guidedDetail').textContent=model.detail;
@@ -2888,6 +2940,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('guidedLists').textContent=model.exc?`exclude: ${model.exc}`:model.inc?`include: ${model.inc}`:['MODE_LIST','MODE_AUTO'].includes(model.mode)?'совпадений нет':'без явного include';
     $('guidedInterface').textContent=model.ifaceMismatch?'нужно проверить':result.keenetic?.default_ipv4_interface||'нет данных';
     $('guidedProbe').textContent=model.probeOK?`Доступен${result.probe?.status_code?` · HTTP ${result.probe.status_code}`:''}`:result.probe?'Ошибка':'нет данных';
+    renderGuidedTimeline(result,model);
+    if((model.kind==='bad'||model.kind==='warn')&&!model.actions.some(x=>x.includes('data-guided-tab="logs"')))model.actions.push(guidedActionButton('logs','Посмотреть логи'));
     $('guidedNextText').textContent=model.next;$('guidedActions').innerHTML=model.actions.join('');
     $('guidedActions').querySelectorAll('[data-guided-tab]').forEach(button=>button.onclick=()=>{
       const tab=button.dataset.guidedTab;
@@ -2926,7 +2980,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     const domain=normalizeProcessingMapDomain($('processingMapDomain').value);
     if(!domain){notice('Processing Map: нужен корректный публичный DNS hostname.','error');return}
     processingMapRunning=true;processingMapResult=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;
-    $('guidedTroubleshooter').classList.remove('visible');$('guidedActions').innerHTML='';
+    $('guidedTroubleshooter').classList.remove('visible');$('guidedActions').innerHTML='';$('guidedTimeline').innerHTML='';
     $('processingMapState').textContent='RUNNING';$('processingMapState').className='testlab-state running';
     $('processingMapVerdict').innerHTML='<div class="analysis-empty">Проверяю runtime, списки, путь и доступность с роутера…</div>';
     try{

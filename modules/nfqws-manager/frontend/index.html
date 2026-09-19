@@ -946,9 +946,11 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
         <div><span>Firewall inventory</span><strong id="benchFirewall">—</strong></div>
         <div><span>Kernel queues</span><strong id="benchKernelQueues">—</strong></div>
         <div><span>Suggested queue</span><strong id="benchQueue">—</strong></div>
+        <div><span>Lifecycle</span><strong id="benchLifecycle">—</strong></div>
+        <div><span>Cleanup baseline</span><strong id="benchCleanup">—</strong></div>
       </div>
       <div id="benchReadinessDetails" class="bench-readiness-details">Проверка ещё не запускалась.</div>
-      <div class="sandbox-note">UX4.1 ничего не запускает и не меняет. Даже при полном наборе capabilities AutoTune остаётся LOCKED, пока RouterForge не реализует изолированный lifecycle и доказуемый cleanup без leftover NFQUEUE/process rules.</div>
+      <div class="sandbox-note">UX4.2A+B реализует read-only lifecycle contract и доказуемую cleanup baseline для зарезервированного диапазона NFQUEUE. AutoTune остаётся LOCKED: RouterForge ещё не создаёт candidate process/rule и не направляет тестовый трафик в bench queue.</div>
     </article>
     <div class="sandbox-layout">
       <article class="panel sandbox-editor">
@@ -2318,14 +2320,17 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 
 
   function renderBenchReadiness(){
-    const d=benchReadiness,state=$('benchReadinessState');
+    const d=benchReadiness,state=$('benchReadinessState'),lifecycle=d?.lifecycle||{},cleanup=lifecycle.cleanup||{};
     if(!d){state.textContent=benchReadinessLoading?'CHECKING':'LOCKED';state.className='config-badge empty';return}
     state.textContent=d.safe_to_bench?'READY':'LOCKED';state.className='config-badge '+(d.safe_to_bench?'active':'empty');
     $('benchBinary').textContent=d.candidate_spawn_capable?(d.candidate_binary||'FOUND'):'NOT PROVEN';
     $('benchFirewall').textContent=d.firewall_inventory_ok?(d.firewall_backend||'READABLE'):'NOT PROVEN';
     $('benchKernelQueues').textContent=d.kernel_queue_inventory_ok?`${(d.occupied_queues||[]).length} occupied`:'NOT PROVEN';
     $('benchQueue').textContent=d.recommended_queue||'—';
+    $('benchLifecycle').textContent=d.lifecycle_contract_implemented?(lifecycle.state||'FOUNDATION'):'NOT IMPLEMENTED';
+    $('benchCleanup').textContent=d.cleanup_proof_implemented?(d.cleanup_baseline_proven?'BASELINE CLEAN':'UNPROVEN'):'NOT IMPLEMENTED';
     const rows=[
+      ...(d.cleanup_baseline_proven?[['','CLEANUP · reserved NFQUEUE range '+(cleanup.reserved_queue_min||'?')+'–'+(cleanup.reserved_queue_max||'?')+' is clean']]:[]),
       ...(d.blockers||[]).map(x=>['bad','BLOCKER · '+x]),
       ...(d.warnings||[]).map(x=>['warn','CHECK · '+x])
     ];

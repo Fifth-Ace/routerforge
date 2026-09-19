@@ -36,9 +36,13 @@ func TestFirstFreeBenchQueue(t *testing.T) {
 func TestBenchSafetyContractLocked(t *testing.T) {
 	got := benchCapabilities{
 		ReadOnly: true, BenchEnabled: false, SafeToBench: false,
-		CleanupProofImplemented: false,
+		LifecycleContractImplemented: true,
+		CleanupProofImplemented:      true,
 	}
-	if got.BenchEnabled || got.SafeToBench || got.CleanupProofImplemented {
-		t.Fatal("UX4.1 capability audit must not enable active bench")
+	if got.BenchEnabled || got.SafeToBench {
+		t.Fatal("UX4.2 foundation must not enable active bench")
+	}
+	if !got.LifecycleContractImplemented || !got.CleanupProofImplemented {
+		t.Fatal("UX4.2 lifecycle and cleanup proof foundation must be present")
 	}
 }

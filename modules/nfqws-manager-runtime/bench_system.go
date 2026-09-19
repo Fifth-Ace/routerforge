@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -97,7 +98,18 @@ func allocateBenchLocalPort() (int, error) {
 	return port, nil
 }
 
+var benchFirewallCommandMu sync.Mutex
+
+func benchFirewallCommand(program string) bool {
+	return program == "iptables" || program == "iptables-save" ||
+		strings.HasSuffix(program, "/iptables") || strings.HasSuffix(program, "/iptables-save")
+}
+
 func runBenchCommand(ctx context.Context, program string, args ...string) ([]byte, error) {
+	if benchFirewallCommand(program) {
+		benchFirewallCommandMu.Lock()
+		defer benchFirewallCommandMu.Unlock()
+	}
 	commandCtx, cancel := context.WithTimeout(ctx, benchMutationCommandTimeout)
 	output, err := safety.RunCommand(commandCtx, benchOutputMax, program, args...)
 	ctxErr := commandCtx.Err()

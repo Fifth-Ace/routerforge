@@ -33,22 +33,23 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .status:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--muted)}.status.good{color:var(--good)}.status.good:before{background:var(--good)}.status.warn{color:var(--warn)}.status.warn:before{background:var(--warn)}.status.bad{color:var(--bad)}.status.bad:before{background:var(--bad)}
 .notice{padding:10px 12px;color:var(--muted);font-size:11px}.notice.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 36%,var(--border));background:color-mix(in srgb,var(--good) 7%,var(--surface))}.notice.error{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 36%,var(--border))}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);overflow:auto}.tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:10px 13px;font-size:12px;margin-bottom:-1px;white-space:nowrap;min-height:34px}.tab:hover{background:transparent;color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent}
-/* UI NAV1: compact primary navigation with tools subnavigation. */
+/* UI IA v2: task-oriented navigation with responsive wrapping. */
+.nav-meta{display:none!important}
 .nfqws-primary-tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow:visible}
-.nfqws-primary-tabs .tab,.nfqws-tool-tabs .tab{display:flex;align-items:center;justify-content:center;gap:5px;margin:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--muted);min-height:40px;padding:9px 12px;font-weight:650}
+.nfqws-primary-tabs .tab,.nfqws-tool-tabs .tab{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;margin:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--muted);min-height:40px;padding:9px 10px;font-weight:650;white-space:normal;text-align:center;line-height:1.2;overflow-wrap:anywhere}
 .nfqws-primary-tabs .tab:hover,.nfqws-tool-tabs .tab:hover{color:var(--text);background:var(--hover)}
 .nfqws-primary-tabs .tab.active,.nfqws-tool-tabs .tab.active{color:var(--text);background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 55%,var(--border));box-shadow:inset 0 -2px 0 var(--accent)}
-.nfqws-tool-tabs{display:none;gap:4px;margin-top:10px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow-x:auto}
-.nfqws-tool-tabs.visible{display:flex}
+.nfqws-tool-tabs{display:none;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:4px;margin-top:10px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow:visible}
+.nfqws-tool-tabs.visible{display:grid}
 .nfqws-menu-credit{display:none;align-items:center;justify-content:space-between;gap:14px;margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
 .nfqws-menu-credit.visible{display:flex}
 .nfqws-menu-credit-title{font-weight:800;font-size:11px}
 .nfqws-menu-credit-text{margin-top:3px;color:var(--muted);font-size:10px;line-height:1.4}
 .nfqws-menu-credit-link{flex:0 0 auto;display:inline-flex;align-items:center;min-height:32px;padding:0 10px;border:1px solid var(--border);border-radius:6px;color:var(--text);text-decoration:none;font-size:10px;font-weight:700;background:var(--surface2)}
 .nfqws-menu-credit-link:hover{border-color:var(--accent);background:var(--accent-soft)}
-@media(max-width:760px){.nfqws-menu-credit{align-items:flex-start;flex-direction:column}.nfqws-menu-credit-link{width:100%;justify-content:center}}
-.nfqws-tool-tabs .tab{flex:1 0 auto;min-width:120px}
-@media(max-width:760px){.nfqws-primary-tabs{display:flex;overflow-x:auto}.nfqws-primary-tabs .tab{flex:1 0 130px}.nfqws-tool-tabs .tab{min-width:130px}}
+@media(max-width:900px){.nfqws-primary-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}.nfqws-tool-tabs{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}}
+@media(max-width:560px){.nfqws-primary-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.nfqws-tool-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.nfqws-primary-tabs .tab,.nfqws-tool-tabs .tab{padding:8px 6px;font-size:11px}.nfqws-menu-credit{align-items:flex-start;flex-direction:column}.nfqws-menu-credit-link{width:100%;justify-content:center}}
+@media(max-width:340px){.nfqws-tool-tabs{grid-template-columns:1fr}}
 .view{display:none}.view.active{display:block}.grid{display:grid;gap:var(--space)}.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr))}
 .card{padding:13px;min-width:0}.metric-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}.metric-value{font:700 19px/1.1 ui-monospace,Consolas,monospace;margin-top:5px;color:var(--text)}.metric-sub{color:var(--muted);font-size:10px;margin-top:5px;overflow-wrap:anywhere}
 .panel{padding:13px;min-width:0}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}.panel-head h2{font-size:14px;margin:0;color:var(--accent)}.panel-head .section-kicker{margin-top:4px;color:var(--muted);font-size:10px}.panel-head strong{color:var(--text)}
@@ -547,11 +548,17 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 
 <nav class="tabs nfqws-primary-tabs" id="nfqwsPrimaryTabs" aria-label="Основная навигация NFQWS">
   <button class="tab active" data-tab="overview">Обзор</button>
-  <button class="tab" data-tab="strategies">Настройка <span id="strategyCount"></span></button>
-  <button class="tab" data-tab="configs">Конфиги <span id="configLibraryCount"></span></button>
-  <button class="tab" data-tab="lists">Списки <span id="listCount"></span></button>
+  <button class="tab" data-primary-tab="configuration">Конфигурация</button>
+  <button class="tab" data-tab="lists">Списки <span id="listCount" class="nav-meta"></span></button>
   <button class="tab" data-primary-tab="nfqws-menu">NFQWS Menu</button>
   <button class="tab" data-primary-tab="tools">Инструменты</button>
+  <button class="tab" data-primary-tab="maintenance">Обслуживание</button>
+</nav>
+
+<nav class="tabs nfqws-tool-tabs nfqws-config-tabs" id="nfqwsConfigTabs" aria-label="Конфигурация NFQWS">
+  <button class="tab" data-tab="strategies">Мастер <span id="strategyCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="configs">Конфиги <span id="configLibraryCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="config">Raw</button>
 </nav>
 
 <div class="nfqws-menu-credit" id="nfqwsMenuCredit">
@@ -563,22 +570,24 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 </div>
 
 <nav class="tabs nfqws-tool-tabs nfqws-menu-tabs" id="nfqwsMenuTabs" aria-label="NFQWS Menu sources">
-  <button class="tab" data-tab="catalog">Стратегии <span id="catalogTabState"></span></button>
-  <button class="tab" data-tab="upstream-lists">Списки <span id="listSourceStateNav"></span></button>
-  <button class="tab" data-tab="blobs">Blobs <span id="blobTabState"></span></button>
+  <button class="tab" data-tab="catalog">Стратегии <span id="catalogTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="upstream-lists">Списки <span id="listSourceStateNav" class="nav-meta"></span></button>
+  <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Инструменты NFQWS">
-  <button class="tab" data-tab="preflight">Диагностика <span id="preflightTabState"></span></button>
-  <button class="tab" data-tab="processing">Processing Map <span id="processingMapTabState"></span></button>
-  <button class="tab" data-tab="testlab">Test Lab <span id="testLabTabState"></span></button>
-  <button class="tab" data-tab="sandbox">Sandbox <span id="sandboxTabState"></span></button>
-  <button class="tab" data-tab="runs">История <span id="runHistoryTabState"></span></button>
-  <button class="tab" data-tab="keenetic">Keenetic <span id="keeneticTabState"></span></button>
+  <button class="tab" data-tab="preflight">Диагностика <span id="preflightTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="processing">Processing Map <span id="processingMapTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="testlab">Test Lab <span id="testLabTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="sandbox">Sandbox <span id="sandboxTabState" class="nav-meta"></span></button>
+</nav>
+
+<nav class="tabs nfqws-tool-tabs nfqws-maintenance-tabs" id="nfqwsMaintenanceTabs" aria-label="Обслуживание NFQWS">
+  <button class="tab" data-tab="runs">История <span id="runHistoryTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="logs">Логи</button>
-  <button class="tab" data-tab="scripts">Скрипты <span id="scriptCount"></span></button>
-  <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab"></span></button>
-  <button class="tab" data-tab="config">Raw конфиг</button>
+  <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab" class="nav-meta"></span></button>
+  <button class="tab" data-tab="scripts">Скрипты <span id="scriptCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="keenetic">Система <span id="keeneticTabState" class="nav-meta"></span></button>
 </nav>
 
 <main>
@@ -2683,22 +2692,37 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
+  const nfqwsConfigTabs=new Set(['strategies','configs','config']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
-  const nfqwsToolTabs=new Set(['preflight','processing','testlab','sandbox','runs','keenetic','logs','scripts','backups','config']);
+  const nfqwsToolTabs=new Set(['preflight','processing','testlab','sandbox']);
+  const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
+  let nfqwsActiveConfig='strategies';
   let nfqwsActiveMenu='catalog';
   let nfqwsActiveTool='preflight';
+  let nfqwsActiveMaintenance='runs';
 
   function activateNFQWSTab(tab){
-    const isMenu=nfqwsMenuTabs.has(tab),isTool=nfqwsToolTabs.has(tab);
+    const isConfig=nfqwsConfigTabs.has(tab),isMenu=nfqwsMenuTabs.has(tab),isTool=nfqwsToolTabs.has(tab),isMaintenance=nfqwsMaintenanceTabs.has(tab);
+    if(isConfig)nfqwsActiveConfig=tab;
     if(isMenu)nfqwsActiveMenu=tab;
     if(isTool)nfqwsActiveTool=tab;
-    document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(x=>x.classList.toggle('active',isMenu?x.dataset.primaryTab==='nfqws-menu':isTool?x.dataset.primaryTab==='tools':x.dataset.tab===tab));
-    const menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs');
+    if(isMaintenance)nfqwsActiveMaintenance=tab;
+    document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(x=>x.classList.toggle('active',
+      isConfig?x.dataset.primaryTab==='configuration':
+      isMenu?x.dataset.primaryTab==='nfqws-menu':
+      isTool?x.dataset.primaryTab==='tools':
+      isMaintenance?x.dataset.primaryTab==='maintenance':
+      x.dataset.tab===tab));
+    const configStrip=$('nfqwsConfigTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
+    if(configStrip)configStrip.classList.toggle('visible',isConfig);
     if(menuCredit)menuCredit.classList.toggle('visible',isMenu);
     if(menuStrip)menuStrip.classList.toggle('visible',isMenu);
     if(toolStrip)toolStrip.classList.toggle('visible',isTool);
+    if(maintenanceStrip)maintenanceStrip.classList.toggle('visible',isMaintenance);
+    document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsToolTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+    document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${tab}`));
     if(tab==='scripts')loadScripts();
     if(tab==='upstream-lists')loadListSources();
@@ -2716,12 +2740,16 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   }
 
   document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(btn=>btn.onclick=()=>{
-    if(btn.dataset.primaryTab==='nfqws-menu')activateNFQWSTab(nfqwsActiveMenu);
+    if(btn.dataset.primaryTab==='configuration')activateNFQWSTab(nfqwsActiveConfig);
+    else if(btn.dataset.primaryTab==='nfqws-menu')activateNFQWSTab(nfqwsActiveMenu);
     else if(btn.dataset.primaryTab==='tools')activateNFQWSTab(nfqwsActiveTool);
+    else if(btn.dataset.primaryTab==='maintenance')activateNFQWSTab(nfqwsActiveMaintenance);
     else activateNFQWSTab(btn.dataset.tab);
   });
+  document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
+  document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;
   $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;

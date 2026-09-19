@@ -20,17 +20,17 @@ import (
 )
 
 const (
-	v2DetectTimeout          = 10 * time.Second
-	v2HTTPProbeTimeout       = 12 * time.Second
-	v2HTTPReadLimit          = 256 << 10
-	v2WorkingProgressBytes   = 32 << 10
-	v2CutoffLowBytes         = 12 << 10
-	v2CutoffHighBytes        = 20 << 10
-	v2BenchConfirm           = "ROUTERFORGE_V2_BENCH"
-	v2SelectorConfirm        = "ROUTERFORGE_V2_SELECTOR"
-	v2MaxTargets             = 64
-	v2MaxAttempts            = 5
-	v2MaxConcurrency         = 4
+	v2DetectTimeout        = 10 * time.Second
+	v2HTTPProbeTimeout     = 12 * time.Second
+	v2HTTPReadLimit        = 256 << 10
+	v2WorkingProgressBytes = 32 << 10
+	v2CutoffLowBytes       = 12 << 10
+	v2CutoffHighBytes      = 20 << 10
+	v2BenchConfirm         = "ROUTERFORGE_V2_BENCH"
+	v2SelectorConfirm      = "ROUTERFORGE_V2_SELECTOR"
+	v2MaxTargets           = 64
+	v2MaxAttempts          = 5
+	v2MaxConcurrency       = 4
 )
 
 type v2StageResult struct {
@@ -74,11 +74,11 @@ type v2HTTPMetrics struct {
 }
 
 type v2InspectorProfile struct {
-	Index           int      `json:"index"`
-	StrategyTags    []int    `json:"strategy_tags,omitempty"`
-	Args            []string `json:"args"`
-	MatchReason     string   `json:"match_reason"`
-	CandidateReady  bool     `json:"candidate_ready"`
+	Index          int      `json:"index"`
+	StrategyTags   []int    `json:"strategy_tags,omitempty"`
+	Args           []string `json:"args"`
+	MatchReason    string   `json:"match_reason"`
+	CandidateReady bool     `json:"candidate_ready"`
 }
 
 type v2ListMatch struct {
@@ -106,9 +106,9 @@ type v2InspectResponse struct {
 }
 
 type v2TargetSource struct {
-	Name    string `json:"name"`
-	Size    int64  `json:"size"`
-	Count   int    `json:"count"`
+	Name  string `json:"name"`
+	Size  int64  `json:"size"`
+	Count int    `json:"count"`
 }
 
 type v2TargetsResolveRequest struct {
@@ -184,27 +184,27 @@ type v2SelectorRequest struct {
 }
 
 type v2SelectorResponse struct {
-	OK                      bool                     `json:"ok"`
-	Mode                    benchAutoTuneMode        `json:"mode"`
-	ServerName              string                   `json:"server_name"`
-	DestinationIPv4         string                   `json:"destination_ipv4"`
-	MetricScope             string                   `json:"metric_scope"`
-	Baseline                v2CandidateResult        `json:"baseline"`
-	Candidates              []v2CandidateResult      `json:"candidates"`
-	RecommendationAvailable bool                     `json:"recommendation_available"`
-	RecommendedProfileIndex int                      `json:"recommended_profile_index"`
-	StrategyNeeded          bool                     `json:"strategy_needed"`
-	RecommendationReason    string                   `json:"recommendation_reason"`
-	CleanupBaselineAfter    bool                     `json:"cleanup_baseline_after"`
-	BenchEnabled            bool                     `json:"bench_enabled"`
-	SafeToBench             bool                     `json:"safe_to_bench"`
-	ApplyEnabled            bool                     `json:"apply_enabled"`
-	ApplyGateEligible       bool                     `json:"apply_gate_eligible"`
-	ApplyGateToken          string                   `json:"apply_gate_token,omitempty"`
-	ApplyGateExpiresAt      string                   `json:"apply_gate_expires_at,omitempty"`
-	ApplyGateReason         string                   `json:"apply_gate_reason"`
-	Concurrency             int                      `json:"concurrency"`
-	CandidateSource         string                   `json:"candidate_source"`
+	OK                      bool                `json:"ok"`
+	Mode                    benchAutoTuneMode   `json:"mode"`
+	ServerName              string              `json:"server_name"`
+	DestinationIPv4         string              `json:"destination_ipv4"`
+	MetricScope             string              `json:"metric_scope"`
+	Baseline                v2CandidateResult   `json:"baseline"`
+	Candidates              []v2CandidateResult `json:"candidates"`
+	RecommendationAvailable bool                `json:"recommendation_available"`
+	RecommendedProfileIndex int                 `json:"recommended_profile_index"`
+	StrategyNeeded          bool                `json:"strategy_needed"`
+	RecommendationReason    string              `json:"recommendation_reason"`
+	CleanupBaselineAfter    bool                `json:"cleanup_baseline_after"`
+	BenchEnabled            bool                `json:"bench_enabled"`
+	SafeToBench             bool                `json:"safe_to_bench"`
+	ApplyEnabled            bool                `json:"apply_enabled"`
+	ApplyGateEligible       bool                `json:"apply_gate_eligible"`
+	ApplyGateToken          string              `json:"apply_gate_token,omitempty"`
+	ApplyGateExpiresAt      string              `json:"apply_gate_expires_at,omitempty"`
+	ApplyGateReason         string              `json:"apply_gate_reason"`
+	Concurrency             int                 `json:"concurrency"`
+	CandidateSource         string              `json:"candidate_source"`
 }
 
 func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
@@ -1212,8 +1212,8 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			for j := range jobs {
 				c := v2CandidateResult{
 					SourceProfileIndex: j.profile.Index,
-					StrategyTags: append([]int{}, j.profile.StrategyTags...),
-					Args: append([]string{}, j.profile.Args...), CleanupProven: true,
+					StrategyTags:       append([]int{}, j.profile.StrategyTags...),
+					Args:               append([]string{}, j.profile.Args...), CleanupProven: true,
 				}
 				for i := 0; i < mode.Attempts; i++ {
 					a := v2RunAttempt(ctx, capabilities, status.ConfigSHA256, target, ip, inventory, &j.profile, q)

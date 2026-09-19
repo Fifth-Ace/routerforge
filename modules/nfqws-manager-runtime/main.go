@@ -141,6 +141,7 @@ func main() {
 	registerSmartApplyRoutes(mux)
 	registerBackupCenterRoutes(mux)
 	registerKeeneticRoutes(mux)
+	registerDPIDetectorRoutes(mux)
 	mux.HandleFunc("/v1/list", getOnly(handleListRead))
 	mux.HandleFunc("/v1/list/create", mutationOnly(handleListCreate))
 	mux.HandleFunc("/v1/list/save", mutationOnly(handleListSave))

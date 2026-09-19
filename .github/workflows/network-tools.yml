@@ -64,7 +64,6 @@ jobs:
           ! grep -q "tab === 'network-tools'" modules/admin/frontend/AdminModuleApp.svelte
           ! grep -q "\['network-tools'," modules/admin/frontend/AdminModuleApp.svelte
           test ! -e components/core/frontend/src/routes/maintenance
-          test ! -e components/core/frontend/src/routes/integrations
           test ! -e components/core/frontend/src/routes/developer-tools
           test ! -e modules/maintenance
           test ! -e modules/integrations

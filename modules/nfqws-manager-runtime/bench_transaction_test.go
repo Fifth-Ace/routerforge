@@ -164,3 +164,26 @@ func TestBenchTransactionRejectsInvalidSpecBeforeMutation(t *testing.T) {
 		t.Fatalf("mutation happened before validation: %v", ops.events)
 	}
 }
+func TestBenchTransactionRejectsPrivateDestinationBeforeMutation(t *testing.T) {
+	ops := &benchFakeOps{}
+	spec := benchTestSpec()
+	spec.DestinationIPv4 = "192.168.1.1"
+
+	got := runBenchTransaction(context.Background(), ops, spec)
+	if got.State != benchLifecycleStateFailed || got.CleanupAttempted {
+		t.Fatalf("result=%+v", got)
+	}
+	if len(ops.events) != 0 {
+		t.Fatalf("mutation happened before destination validation: %v", ops.events)
+	}
+}
+
+func TestBenchTransactionContractControlledSmokeOnly(t *testing.T) {
+	got := buildBenchTransactionContract()
+	if !got.MutationEnabled || !got.ControlledSmokeOnly || !got.SystemMutatorImplemented {
+		t.Fatalf("contract=%+v", got)
+	}
+	if got.ProductionConfigMutation || got.ProductionRestart {
+		t.Fatalf("controlled smoke must not mutate production config/runtime: %+v", got)
+	}
+}

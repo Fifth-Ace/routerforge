@@ -2942,6 +2942,12 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       return i>=0?line.slice(i+len).replace(/^"?\s*/,'').trim():'';
     }).filter(Boolean);
   }
+  function zapretNormalizeCmdEscapes(text,transforms){
+    let out=String(text||'');
+    if(out.includes('^!')){out=out.replace(/\^!/g,'!');transforms.push(['CMD','^! → ! (Windows cmd escape)'])}
+    if(out.includes('^^')){out=out.replace(/\^\^/g,'^');transforms.push(['CMD','^^ → ^ (Windows cmd escape)'])}
+    return out;
+  }
   function zapretExpandKnownVars(text,vars,transforms,warnings){
     let out=String(text||'');
     out=out.replace(/%~dp0bin\\/gi,()=>{transforms.push(['PATH','%~dp0bin\\ → /opt/etc/nfqws2/blobs/']);return'/opt/etc/nfqws2/blobs/'});
@@ -2953,12 +2959,32 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       if(value!==undefined&&!/%~dp0/i.test(value)){transforms.push(['VAR',`${all} → ${value}`]);return value}
       warnings.push(['bad',`Переменная ${all} не разрешена. RouterForge не будет подставлять значение по догадке.`]);return all;
     });
+    out=zapretNormalizeCmdEscapes(out,transforms);
     return out.replace(/\\/g,'/').replace(/"/g,'').replace(/\s+/g,' ').trim();
   }
+  function zapretDependencyKind(flag,value){
+    const f=String(flag||'').toLowerCase(),v=String(value||'');
+    if(['--hostlist','--hostlist-exclude','--ipset','--ipset-exclude'].includes(f))return'LIST';
+    if(f==='--dpi-desync-split-seqovl-pattern')return'BLOB';
+    if(f.startsWith('--dpi-desync-fake-')){
+      if(/^0x[0-9a-f]+$/i.test(v)||v==='!'||v==='?'||/^(none|rnd)$/i.test(v))return'';
+      if(/[\/]/.test(v)||/\.(?:bin|dat|raw)$/i.test(v))return'BLOB';
+    }
+    return'';
+  }
+  function zapretCollectDependencies(args,warnings){
+    const deps=[],re=/(--[A-Za-z0-9_-]+)=([^\s]+)/g;let m;
+    while((m=re.exec(String(args||'')))!==null){
+      const kind=zapretDependencyKind(m[1],m[2]);if(!kind)continue;
+      const path=m[2];deps.push([kind,path]);
+      if(/^[A-Za-z]:|%|\\/.test(path))warnings.push(['warn',`Windows/path variable остался в зависимости: ${path}`]);
+    }
+    return[...new Map(deps.map(x=>[x.join('|'),x])).values()];
+  }
   function zapretAnalyze(content){
-    const type=zapretDetectType(content),vars=zapretVariables(content),commands=zapretExtractCommands(content),transforms=[],warnings=[],deps=[];
-    if(type==='log'&&!commands.length)return{type,commands:[],profiles:[],transforms,warnings:[['warn','Распознан лог тестирования. UX2.1 умеет определить его, но для построения candidate нужен .bat или сама команда стратегии.']],deps,preview:'',ready:false};
-    if(!commands.length)return{type,commands,profiles:[],transforms,warnings:[['bad','Не найден запуск winws.exe/nfqws и аргументы стратегии.']],deps,preview:'',ready:false};
+    const type=zapretDetectType(content),vars=zapretVariables(content),commands=zapretExtractCommands(content),transforms=[],warnings=[];
+    if(type==='log'&&!commands.length)return{type,commands:[],profiles:[],transforms,warnings:[['warn','Распознан лог тестирования. UX2.1 умеет определить его, но для построения candidate нужен .bat или сама команда стратегии.']],deps:[],preview:'',ready:false};
+    if(!commands.length)return{type,commands,profiles:[],transforms,warnings:[['bad','Не найден запуск winws.exe/nfqws и аргументы стратегии.']],deps:[],preview:'',ready:false};
     if(commands.length>1)warnings.push(['bad',`Найдено несколько запусков (${commands.length}). UX2.1 не объединяет разные процессы автоматически.`]);
     let args=zapretExpandKnownVars(commands[0],vars,transforms,warnings);
     let tcp='',udp='';
@@ -2967,14 +2993,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     args=args.replace(/\s+/g,' ').trim();
     const profiles=args.split(/\s+--new\s+/i).map(x=>x.trim()).filter(Boolean);
     if(profiles.length>1)transforms.push(['PROFILE',`Сохранён порядок ${profiles.length} профилей через --new`]);
-    const depRe=/(--(?:hostlist|hostlist-exclude|ipset|ipset-exclude|dpi-desync-fake-[A-Za-z0-9_-]+|dpi-desync-split-seqovl-pattern)=)([^\s]+)/ig;
-    let m;
-    while((m=depRe.exec(args))!==null){
-      const path=m[2],kind=/hostlist|ipset/i.test(m[1])?'LIST':'BLOB';
-      deps.push([kind,path]);
-      if(/^[A-Za-z]:|%|\\/.test(path))warnings.push(['warn',`Windows/path variable остался в зависимости: ${path}`]);
-    }
-    const unresolved=[...new Set((args.match(/%[A-Za-z_][A-Za-z0-9_]*%/g)||[]))];
+    const deps=zapretCollectDependencies(args,warnings);
+    const unresolved=[...new Set((`${tcp} ${udp} ${args}`.match(/%[A-Za-z_][A-Za-z0-9_]*%/g)||[]))];
     unresolved.forEach(v=>{if(!warnings.some(x=>x[1].includes(v)))warnings.push(['bad',`Неразрешённая переменная ${v}.`])});
     const preview=[
       '# RouterForge Zapret import preview',
@@ -2987,7 +3007,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       '"'
     ].join('\n');
     const ready=commands.length===1&&!warnings.some(x=>x[0]==='bad');
-    return{type,commands,profiles,transforms:[...new Map(transforms.map(x=>[x.join('|'),x])).values()],warnings,deps:[...new Map(deps.map(x=>[x.join('|'),x])).values()],preview,ready};
+    return{type,commands,profiles,transforms:[...new Map(transforms.map(x=>[x.join('|'),x])).values()],warnings,deps,preview,ready};
   }
   function renderZapretImport(result){
     $('zapretImportType').textContent=result.type==='batch'?'Windows batch':result.type==='command'?'Команда':result.type==='log'?'Лог теста':'Неизвестно';

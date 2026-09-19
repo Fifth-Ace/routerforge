@@ -56,6 +56,7 @@ type benchCapabilities struct {
 	StrategyPreflightImplemented bool                     `json:"strategy_preflight_implemented"`
 	TLSStrategySmokeImplemented  bool                     `json:"tls_strategy_smoke_implemented"`
 	AutoTuneTLSLoopImplemented   bool                     `json:"autotune_tls_loop_implemented"`
+	AutoTuneApplyGateImplemented bool                     `json:"autotune_apply_gate_implemented"`
 	StrategyProfileCount         int                      `json:"strategy_profile_count"`
 	StrategyCandidateCount       int                      `json:"strategy_candidate_count"`
 	Blockers                     []string                 `json:"blockers"`
@@ -276,6 +277,7 @@ func readBenchCapabilities() benchCapabilities {
 		StrategyPreflightImplemented: true,
 		TLSStrategySmokeImplemented:  true,
 		AutoTuneTLSLoopImplemented:   true,
+		AutoTuneApplyGateImplemented: true,
 	}
 
 	result.IPTablesPath = findExecutable("iptables")
@@ -343,7 +345,7 @@ func readBenchCapabilities() benchCapabilities {
 	if !strategyInventory.BaseDependenciesProven {
 		result.Warnings = append(result.Warnings, "live strategy base dependencies are not fully proven")
 	}
-	result.Blockers = append(result.Blockers, "TLS AutoTune execution loop is available; production Apply remains locked")
+	result.Blockers = append(result.Blockers, "server-side AutoTune Apply gate is available; config preview and production Apply remain locked")
 
 	if len(result.ActiveNFQWS2) == 0 {
 		result.Warnings = append(result.Warnings, "active nfqws2 process was not detected")

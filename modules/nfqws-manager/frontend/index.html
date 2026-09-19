@@ -538,6 +538,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   <button class="tab" data-tab="config">Raw конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount"></span></button>
   <button class="tab" data-tab="preflight">Диагностика <span id="preflightTabState"></span></button>
+  <button class="tab" data-tab="processing">Processing Map <span id="processingMapTabState"></span></button>
   <button class="tab" data-tab="testlab">Test Lab <span id="testLabTabState"></span></button>
   <button class="tab" data-tab="sandbox">Sandbox <span id="sandboxTabState"></span></button>
   <button class="tab" data-tab="runs">История <span id="runHistoryTabState"></span></button>
@@ -589,6 +590,39 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   </div>
 </section>
 
+
+<section id="view-processing" class="view">
+  <div class="testlab-shell">
+    <div class="testlab-hero">
+      <div>
+        <div class="testlab-title-row"><h2 style="margin:0">Why domain broken? / Processing Map</h2><span id="processingMapState" class="testlab-state idle">IDLE</span><span class="config-badge">READ-ONLY</span></div>
+        <div class="preflight-sub">Один домен → active config → list decision → runtime → interface binding → router-side HTTP/HTTPS probe. RouterForge показывает, что известно точно, и не выдаёт статический вывод за доказанный NFQUEUE path.</div>
+      </div>
+      <div class="toolbar"><button id="copyProcessingMap" disabled>Копировать JSON</button><button id="runProcessingMap" class="primary">Разобрать домен</button></div>
+    </div>
+    <div class="testlab-layout">
+      <article class="panel testlab-targets">
+        <div class="panel-head"><div><h2>Домен</h2><div class="section-kicker">public DNS hostname · один за запуск</div></div></div>
+        <input id="processingMapDomain" class="search" style="width:100%;max-width:none" placeholder="youtube.com">
+        <div class="testlab-note">Probe идёт с самого роутера через текущий active runtime. Это не доказывает, что конкретный LAN-клиент попал в ту же NFQUEUE/маршрутизацию; такие места явно помечаются как граница наблюдаемости.</div>
+        <div id="processingMapHints" class="diagnostics" style="margin-top:12px"></div>
+      </article>
+      <article class="panel">
+        <div class="testlab-summary">
+          <div class="testlab-stat"><span>Mode</span><strong id="processingMapMode">—</strong></div>
+          <div class="testlab-stat"><span>Static path</span><strong id="processingMapStatic">—</strong></div>
+          <div class="testlab-stat"><span>Router probe</span><strong id="processingMapProbe">—</strong></div>
+          <div class="testlab-stat"><span>Runtime</span><strong id="processingMapRuntime">—</strong></div>
+        </div>
+        <div id="processingMapVerdict" class="diagnostics" style="margin-top:12px"><div class="analysis-empty">Введи домен и запусти Processing Map.</div></div>
+      </article>
+    </div>
+    <article class="panel" style="margin-top:14px">
+      <div class="panel-head"><div><h2>Processing path</h2><div id="processingMapMeta" class="section-kicker">active config + local lists + runtime signals</div></div></div>
+      <div id="processingMapSteps" class="static-path-steps"><div class="analysis-empty">Путь ещё не построен.</div></div>
+    </article>
+  </div>
+</section>
 
 <section id="view-testlab" class="view">
   <div class="testlab-shell">
@@ -1121,7 +1155,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null;
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -2512,6 +2546,96 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     finally{dpiDetectorLoading=false;renderDPIDetector()}
   }
 
+  function normalizeProcessingMapDomain(raw){
+    let value=String(raw||'').trim().toLowerCase().replace(/\.$/,'');
+    if(value.includes('://')){try{value=new URL(value).hostname.toLowerCase().replace(/\.$/,'')}catch(_){return''}}
+    if(value.length>253||!checkDomainName(value))return'';
+    return value;
+  }
+  function checkDomainName(value){
+    return /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(String(value||''));
+  }
+  async function loadProcessingMapLists(){
+    const items=editableStatusLists(),out={},queue=[...items],errors=[];let done=0;
+    $('processingMapMeta').textContent=`читаю списки: 0/${items.length}`;
+    async function worker(){
+      while(queue.length){
+        const item=queue.shift();if(!item)break;
+        try{const d=await api(`/list?name=${encodeURIComponent(item.name)}`);out[item.name]=d.content||''}
+        catch(e){errors.push(`${item.name}: ${e.message||'read failed'}`)}
+        done++;$('processingMapMeta').textContent=`читаю списки: ${done}/${items.length}`;
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(4,Math.max(1,items.length))},worker));
+    return{contents:out,errors};
+  }
+  function processingMapSummary(domain,staticPath,probe,keenetic){
+    const reasons=[],running=!!current?.running,mode=staticPath.mode,inc=staticPath.includes.length,exc=staticPath.excludes.length;
+    let verdict='CHECK',kind='warn',detail='Недостаточно сигналов для однозначной причины.';
+    if(!running){verdict='RUNTIME STOPPED';kind='bad';detail='nfqws2 не запущен. Статический list/config path ниже остаётся справочным.'}
+    else if(inc&&exc){verdict='AMBIGUOUS STATIC PATH';kind='warn';detail=`Одновременно активны include (${inc}) и exclude (${exc}) совпадения. RouterForge не угадывает runtime order.`}
+    else if(exc){verdict='STATICALLY EXCLUDED';kind='warn';detail='Домен попадает в активный exclude path; это сильный кандидат на объяснение, почему nfqws strategy к нему не применяется.'}
+    else if(!inc&&['MODE_LIST','MODE_AUTO'].includes(mode)){verdict='NO ACTIVE LIST MATCH';kind='warn';detail=`В ${mode} не найден active include-match. Домен может проходить без выбранной nfqws strategy.`}
+    else if(probe?.reachable){verdict='ROUTER REACHABLE';kind='good';detail='Router-side HTTP/HTTPS probe успешен. Если проблема остаётся только у клиента, смотри client path/NFQUEUE/interface policy.'}
+    else if(probe&&!probe.reachable&&inc){verdict='MATCHED BUT PROBE FAILED';kind='bad';detail='Статический active path включает домен, но router-side probe не прошёл. Проверяй strategy/runtime/upstream path; это не доказывает конкретную причину.'}
+    else if(probe&&!probe.reachable){verdict='ROUTER PROBE FAILED';kind='bad';detail='Router-side probe не прошёл; статический nfqws path не даёт достаточного объяснения.'}
+    if(keenetic?.config_isp_interface&&keenetic?.default_ipv4_interface&&!keenetic.config_isp_matches_default){
+      reasons.push(keeneticDiag('warn','Interface binding',`ISP_INTERFACE=${keenetic.config_isp_interface} · default=${keenetic.default_ipv4_interface}. Несовпадение может быть нормальным при policy routing/VLAN/PPP.`));
+    }else if(keenetic?.default_ipv4_interface){
+      reasons.push(keeneticDiag('good','Interface binding',`default IPv4=${keenetic.default_ipv4_interface}${keenetic.config_isp_interface?` · ISP_INTERFACE=${keenetic.config_isp_interface}`:''}`));
+    }
+    reasons.push(keeneticDiag(kind,verdict,detail));
+    reasons.push(keeneticDiag('info','Observability boundary','Static config/list analysis + router-side probe не доказывают фактический захват конкретного LAN packet NFQUEUE.'));
+    return{domain,verdict,kind,detail,reasons,running,mode};
+  }
+  function renderProcessingMap(result){
+    processingMapResult=result;
+    $('processingMapMode').textContent=result.staticPath.mode||'UNKNOWN';
+    $('processingMapStatic').textContent=result.staticPath.verdict||'—';
+    $('processingMapProbe').textContent=result.probe?.reachable?`OK ${result.probe.status_code||''}`.trim():result.probe?'FAIL':'—';
+    $('processingMapRuntime').textContent=result.summary.running?'RUNNING':'STOPPED';
+    $('processingMapVerdict').innerHTML=result.summary.reasons.join('');
+    $('processingMapHints').innerHTML=[
+      keeneticDiag(result.staticPath.includes.length?'good':'info','Active include matches',String(result.staticPath.includes.length)),
+      keeneticDiag(result.staticPath.excludes.length?'warn':'good','Active exclude matches',String(result.staticPath.excludes.length)),
+      result.listErrors.length?keeneticDiag('warn','List read warnings',result.listErrors.join(' · ')):keeneticDiag('good','List inventory','Все доступные list-файлы прочитаны')
+    ].join('');
+    const hits=result.staticPath.hits.filter(h=>h.file!=='<query>');
+    $('processingMapSteps').innerHTML=[
+      `<div class="static-path-step neutral"><div class="static-path-index">1</div><div><div class="static-path-role neutral">INPUT</div><div class="inspector-meta">DOMAIN</div></div><div><div class="static-path-value">${esc(result.domain)}</div><div class="static-path-meta">Processing Map query</div></div></div>`,
+      ...hits.map((h,i)=>`<div class="static-path-step ${h.effective}"><div class="static-path-index">${i+2}</div><div><div class="static-path-role ${h.effective}">${esc(h.role.label)}</div><div class="inspector-meta">${esc(h.relation)}</div></div><div><div class="static-path-value">${esc(h.value)}</div><div class="static-path-meta">${esc(h.file)}:${h.line} · ${esc(h.role.reason)}${h.detail?` · ${esc(h.detail)}`:''}</div></div><button class="static-path-open" data-processing-file="${esc(h.file)}" data-processing-line="${h.line}">Открыть</button></div>`),
+      `<div class="static-path-step ${result.probe?.reachable?'include':'neutral'}"><div class="static-path-index">${hits.length+2}</div><div><div class="static-path-role ${result.probe?.reachable?'include':'neutral'}">PROBE</div><div class="inspector-meta">ROUTER SIDE</div></div><div><div class="static-path-value">${result.probe?.reachable?`HTTP ${result.probe.status_code||'OK'}`:'FAILED'}</div><div class="static-path-meta">${esc(result.probe?.error||'current active runtime')}</div></div></div>`
+    ].join('');
+    $('processingMapSteps').querySelectorAll('[data-processing-file]').forEach(button=>button.onclick=()=>{document.querySelector('.tab[data-tab="lists"]')?.click();openListAtLine(button.dataset.processingFile,Number(button.dataset.processingLine)||1)});
+    $('processingMapMeta').textContent=`${result.domain} · ${Object.keys(result.lists).length} lists · active config`;
+    $('copyProcessingMap').disabled=false;reportHeight();
+  }
+  async function runProcessingMap(){
+    if(processingMapRunning)return;
+    const domain=normalizeProcessingMapDomain($('processingMapDomain').value);
+    if(!domain){notice('Processing Map: нужен корректный публичный DNS hostname.','error');return}
+    processingMapRunning=true;processingMapResult=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;
+    $('processingMapState').textContent='RUNNING';$('processingMapState').className='testlab-state running';
+    $('processingMapVerdict').innerHTML='<div class="analysis-empty">Строю static path и router-side probe…</div>';
+    try{
+      const loaded=await loadProcessingMapLists(),record={file:'<query>',line:0,value:domain,type:'domain'},staticPath=buildStaticPath(record,loaded.contents);
+      let probe=null,keenetic=null;
+      try{probe=await api('/check',{method:'POST',body:JSON.stringify({url:`https://${domain}/`})})}catch(e){probe={reachable:false,error:e.message||'probe failed'}}
+      try{keenetic=await api('/keenetic')}catch(_){}
+      const summary=processingMapSummary(domain,staticPath,probe,keenetic);
+      renderProcessingMap({domain,staticPath,probe,keenetic,summary,lists:loaded.contents,listErrors:loaded.errors});
+      $('processingMapState').textContent='DONE';$('processingMapState').className='testlab-state done';
+    }catch(e){
+      $('processingMapState').textContent='FAIL';$('processingMapState').className='testlab-state fail';
+      $('processingMapVerdict').innerHTML=keeneticDiag('bad','Processing Map failed',e.message||String(e));
+    }finally{processingMapRunning=false;$('runProcessingMap').disabled=false;reportHeight()}
+  }
+  function copyProcessingMap(){
+    if(!processingMapResult)return;
+    const safe={domain:processingMapResult.domain,static_path:{mode:processingMapResult.staticPath.mode,verdict:processingMapResult.staticPath.verdict,reason:processingMapResult.staticPath.reason,includes:processingMapResult.staticPath.includes,excludes:processingMapResult.staticPath.excludes,hits:processingMapResult.staticPath.hits},probe:processingMapResult.probe,keenetic:processingMapResult.keenetic,summary:{verdict:processingMapResult.summary.verdict,detail:processingMapResult.summary.detail,runtime_running:processingMapResult.summary.running},list_errors:processingMapResult.listErrors};
+    navigator.clipboard?.writeText(JSON.stringify(safe,null,2));notice('Processing Map JSON скопирован.','good');
+  }
+
   function handleEditorSaveShortcut(e){
     if(!(e.ctrlKey||e.metaKey)||String(e.key||'').toLowerCase()!=='s')return;
     const active=document.querySelector('.view.active'),view=active?.id||'';
@@ -2524,7 +2648,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   }
 
   document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='lists')loadListSources();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs'){renderRunHistory();renderAutoPick()};if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='backups')loadBackupCenter();if(btn.dataset.tab==='keenetic'){loadKeenetic();loadDPIDetector()};if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
-  $('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
+  $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;
   $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
   $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');

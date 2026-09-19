@@ -315,6 +315,52 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 @media(max-width:760px){.guided-steps{grid-template-columns:1fr}.guided-evidence{grid-template-columns:repeat(2,minmax(0,1fr))}.ux-task-head{align-items:flex-start;flex-direction:column}.ux-task-head-note{text-align:left}.ux-task-grid{grid-template-columns:1fr}}
 @media(max-width:420px){.guided-evidence{grid-template-columns:1fr}.guided-result-head{flex-direction:column}.guided-timeline-row,.guided-timeline-row.actionable{grid-template-columns:22px minmax(0,1fr)}.guided-timeline-label{grid-column:2}.guided-timeline-detail{grid-column:2;padding-top:0}.guided-timeline-action{grid-column:2;justify-self:start}}
 
+/* Processing Map UX: human verdict first, technical evidence on demand.
+   Typography follows the RouterForge 10/11/12/14px hierarchy used by panels and controls. */
+#view-processing .testlab-hero{padding:13px 14px}
+#view-processing .preflight-sub{font-size:11px;line-height:1.5}
+#view-processing .guided-step{padding:10px 11px}
+#view-processing .guided-step strong{font-size:12px}
+#view-processing .guided-step span:last-child{font-size:10px;line-height:1.4}
+#view-processing .guided-result{padding:14px}
+#view-processing .guided-result-title{font-size:15px;line-height:1.3}
+#view-processing .guided-result-detail{font-size:11px;line-height:1.55;max-width:980px}
+#view-processing .guided-result-tools button{min-height:32px;padding:0 10px;font-size:11px}
+#view-processing .guided-result-badge{font-size:10px;padding:6px 9px}
+#view-processing .guided-evidence{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+#view-processing .guided-evidence-item{padding:9px 10px}
+#view-processing .guided-evidence-item span{font-size:9.5px}
+#view-processing .guided-evidence-item strong{font-size:11.5px;line-height:1.35}
+#view-processing .guided-next-title{font-size:11px}
+#view-processing .guided-next-text{font-size:11px;line-height:1.5}
+#view-processing .guided-actions button{font-size:11px}
+#view-processing .panel-head h2{font-size:14px}
+#view-processing .section-kicker{font-size:10px;line-height:1.4}
+#view-processing .diagnostics .diag{font-size:10.5px;line-height:1.45}
+.processing-technical{margin-top:12px;border-top:1px solid var(--border)}
+.processing-technical>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0 3px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;list-style:none}
+.processing-technical>summary::-webkit-details-marker{display:none}
+.processing-technical>summary:after{content:"▾";font:800 11px/1 ui-monospace,Consolas,monospace;transition:transform .18s ease}
+.processing-technical:not([open])>summary:after{transform:rotate(-90deg)}
+.processing-technical .guided-timeline-wrap{margin-top:5px;padding-top:7px;border-top:0}
+.processing-technical .guided-timeline-head strong{font-size:11px}
+.processing-technical .guided-timeline-head span{font-size:9px}
+#view-processing .guided-timeline-label{font-size:10.5px}
+#view-processing .guided-timeline-detail{font-size:10.5px;line-height:1.45}
+#view-processing .guided-timeline-action{font-size:10px;min-height:28px}
+.processing-live-good{color:var(--good)!important}
+.processing-live-warn{color:var(--warn)!important}
+.processing-live-bad{color:var(--bad)!important}
+.processing-path-state{font-weight:800}
+.processing-path-state.good{color:var(--good)}
+.processing-path-state.warn{color:var(--warn)}
+.processing-path-state.bad{color:var(--bad)}
+.processing-path-state.info{color:var(--accent)}
+#processingLiveCheck.running{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+@media(max-width:980px){#view-processing .guided-evidence{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){#view-processing .guided-evidence{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){#view-processing .guided-evidence{grid-template-columns:1fr}}
+
 /* UX2.1: preview-only Zapret importer. */
 .zapret-import-shell{display:grid;gap:10px}
 .zapret-import-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
@@ -836,57 +882,61 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     <div class="testlab-hero">
       <div>
         <div class="testlab-title-row"><h2 style="margin:0">Диагностика сайта</h2><span id="processingMapState" class="testlab-state idle">IDLE</span><span class="config-badge">READ-ONLY</span></div>
-        <div class="preflight-sub">Введите домен один раз. RouterForge сам проверит текущий runtime, списки, статический путь, интернет-интерфейс и доступность с роутера, а затем предложит следующий шаг.</div>
+        <div class="preflight-sub">Введите домен. Сначала RouterForge объяснит, что известно из active config и списков; затем при необходимости можно отдельно доказать live-прохождение через тестовую NFQUEUE.</div>
       </div>
-      <div class="toolbar"><button id="copyProcessingMap" disabled>Копировать детали</button><button id="runProcessingMap" class="primary">Проверить</button></div>
+      <div class="toolbar"><button id="copyProcessingMap" disabled>Копировать отчёт</button><button id="runProcessingMap" class="primary">Проверить</button></div>
     </div>
     <div class="guided-shell">
       <div class="guided-steps" aria-label="Этапы диагностики">
         <div class="guided-step"><span class="guided-step-num">1</span><span><strong>Укажите сайт</strong><span>Например youtube.com</span></span></div>
-        <div class="guided-step"><span class="guided-step-num">2</span><span><strong>Автоматическая проверка</strong><span>Runtime · списки · маршрут · probe</span></span></div>
-        <div class="guided-step"><span class="guided-step-num">3</span><span><strong>Следующий шаг</strong><span>Понятное действие по результату</span></span></div>
+        <div class="guided-step"><span class="guided-step-num">2</span><span><strong>Проверка текущего состояния</strong><span>Runtime · списки · WAN · HTTP</span></span></div>
+        <div class="guided-step"><span class="guided-step-num">3</span><span><strong>Live NFQWS при необходимости</strong><span>Reserved NFQUEUE · TLS · cleanup</span></span></div>
       </div>
       <article id="guidedTroubleshooter" class="guided-result" aria-live="polite">
         <div class="guided-result-head">
           <div><div id="guidedTitle" class="guided-result-title">Результат диагностики</div><div id="guidedDetail" class="guided-result-detail"></div></div>
-          <div class="guided-result-tools"><button id="copyGuidedReport" disabled>Копировать отчёт</button><span id="guidedBadge" class="guided-result-badge warn">CHECK</span></div>
+          <div class="guided-result-tools"><button id="processingLiveCheck" disabled>Проверить через NFQWS</button><button id="copyGuidedReport" disabled>Копировать отчёт</button><span id="guidedBadge" class="guided-result-badge warn">CHECK</span></div>
         </div>
         <div class="guided-evidence">
           <div class="guided-evidence-item"><span>nfqws2</span><strong id="guidedRuntime">—</strong></div>
-          <div class="guided-evidence-item"><span>Списки</span><strong id="guidedLists">—</strong></div>
+          <div class="guided-evidence-item"><span>Совпадения в списках</span><strong id="guidedLists">—</strong></div>
           <div class="guided-evidence-item"><span>Интерфейс</span><strong id="guidedInterface">—</strong></div>
-          <div class="guided-evidence-item"><span>Проверка с роутера</span><strong id="guidedProbe">—</strong></div>
+          <div class="guided-evidence-item"><span>HTTP с роутера</span><strong id="guidedProbe">—</strong></div>
+          <div class="guided-evidence-item"><span>Live NFQWS</span><strong id="processingLiveState">не запускался</strong></div>
         </div>
-        <section class="guided-timeline-wrap" aria-labelledby="guidedTimelineTitle">
-          <div class="guided-timeline-head"><strong id="guidedTimelineTitle">Что удалось доказать</strong><span>evidence timeline</span></div>
-          <div id="guidedTimeline" class="guided-timeline"></div>
-        </section>
         <div class="guided-next">
-          <div class="guided-next-title">Что делать дальше</div>
+          <div class="guided-next-title">Что это значит</div>
           <div id="guidedNextText" class="guided-next-text"></div>
           <div id="guidedActions" class="guided-actions"></div>
         </div>
+        <details id="processingTechnical" class="processing-technical">
+          <summary>Технические детали <span class="muted">config/list semantics · logs · observability</span></summary>
+          <section class="guided-timeline-wrap" aria-labelledby="guidedTimelineTitle">
+            <div class="guided-timeline-head"><strong id="guidedTimelineTitle">Что удалось доказать</strong><span>evidence timeline</span></div>
+            <div id="guidedTimeline" class="guided-timeline"></div>
+          </section>
+        </details>
       </article>
     </div>
     <div class="testlab-layout">
       <article class="panel testlab-targets">
         <div class="panel-head"><div><h2>Домен</h2><div class="section-kicker">public DNS hostname · один за запуск</div></div></div>
         <input id="processingMapDomain" class="search" style="width:100%;max-width:none" placeholder="youtube.com">
-        <div class="testlab-note">Probe идёт с самого роутера через текущий active runtime. Это не доказывает, что конкретный LAN-клиент попал в ту же NFQUEUE/маршрутизацию; такие места явно помечаются как граница наблюдаемости.</div>
+        <div class="testlab-note">Обычная проверка не меняет конфигурацию. Кнопка «Проверить через NFQWS» запускает изолированный Fast bench в reserved queue 30000–30127 и после теста обязана доказать cleanup.</div>
         <div id="processingMapHints" class="diagnostics" style="margin-top:12px"></div>
       </article>
       <article class="panel">
         <div class="testlab-summary">
-          <div class="testlab-stat"><span>Mode</span><strong id="processingMapMode">—</strong></div>
-          <div class="testlab-stat"><span>Static path</span><strong id="processingMapStatic">—</strong></div>
-          <div class="testlab-stat"><span>Router probe</span><strong id="processingMapProbe">—</strong></div>
+          <div class="testlab-stat"><span>Режим</span><strong id="processingMapMode">—</strong></div>
+          <div class="testlab-stat"><span>Списки</span><strong id="processingMapStatic">—</strong></div>
+          <div class="testlab-stat"><span>HTTP</span><strong id="processingMapProbe">—</strong></div>
           <div class="testlab-stat"><span>Runtime</span><strong id="processingMapRuntime">—</strong></div>
         </div>
-        <div id="processingMapVerdict" class="diagnostics" style="margin-top:12px"><div class="analysis-empty">Введи домен и запусти Processing Map.</div></div>
+        <div id="processingMapVerdict" class="diagnostics" style="margin-top:12px"><div class="analysis-empty">Введите домен и нажмите «Проверить».</div></div>
       </article>
     </div>
     <article class="panel" style="margin-top:14px">
-      <div class="panel-head"><div><h2>Processing path</h2><div id="processingMapMeta" class="section-kicker">active config + local lists + runtime signals</div></div></div>
+      <div class="panel-head"><div><h2>Путь обработки</h2><div id="processingMapMeta" class="section-kicker">домен → списки → стратегия → NFQUEUE → HTTP/TLS evidence</div></div></div>
       <div id="processingMapSteps" class="static-path-steps"><div class="analysis-empty">Путь ещё не построен.</div></div>
     </article>
   </div>
@@ -1484,6 +1534,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
   let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null, autoTuneRunning=false, autoTuneStage='', autoTuneResult=null, autoTunePreviewData=null, autoTuneApplyResult=null, autoTuneToken='', autoTuneActiveSha='', autoTuneMessage='';
+  let processingMapLiveRunning=false, processingMapLiveResult=null;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -3041,24 +3092,39 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     await Promise.all(Array.from({length:Math.min(4,Math.max(1,items.length))},worker));
     return{contents:out,errors};
   }
+  function processingListModel(staticPath){
+    const hits=(staticPath?.hits||[]).filter(h=>h.file&&h.file!=='<query>'),activeInclude=hits.filter(h=>h.effective==='include'),activeExclude=hits.filter(h=>h.effective==='exclude'),unknown=hits.filter(h=>h.effective==='neutral');
+    return{hits,found:hits.length,activeInclude,activeExclude,active:activeInclude.length+activeExclude.length,unknown};
+  }
+  function processingProbeModel(probe){
+    if(!probe)return{kind:'info',label:'нет данных',reachable:false,contentOK:false,detail:'HTTP probe не выполнялся.'};
+    const status=Number(probe.status_code||0),networkOK=!!probe.reachable;
+    if(!networkOK)return{kind:'bad',label:'ошибка',reachable:false,contentOK:false,detail:probe.error||'Соединение с сайта с роутера не установлено.'};
+    if(status>=200&&status<300)return{kind:'good',label:`HTTP ${status}`,reachable:true,contentOK:true,detail:'Сайт отвечает с роутера нормальным HTTP-ответом.'};
+    if(status>=300&&status<400)return{kind:'good',label:`HTTP ${status}`,reachable:true,contentOK:true,detail:'Сайт достижим; сервер ответил перенаправлением.'};
+    if(status>=400&&status<500)return{kind:'warn',label:`HTTP ${status}`,reachable:true,contentOK:false,detail:'Сеть и TLS до сайта работают, но сервер ограничил HTTP-запрос.'};
+    if(status>=500)return{kind:'warn',label:`HTTP ${status}`,reachable:true,contentOK:false,detail:'Сайт достижим, но сервер вернул ошибку 5xx.'};
+    return{kind:'good',label:status?`HTTP ${status}`:'доступен',reachable:true,contentOK:true,detail:'Сайт достижим с роутера.'};
+  }
   function processingMapSummary(domain,staticPath,probe,keenetic){
-    const reasons=[],running=!!current?.running,mode=staticPath.mode,inc=staticPath.includes.length,exc=staticPath.excludes.length;
-    let verdict='CHECK',kind='warn',detail='Недостаточно сигналов для однозначной причины.';
-    if(!running){verdict='RUNTIME STOPPED';kind='bad';detail='nfqws2 не запущен. Статический list/config path ниже остаётся справочным.'}
-    else if(inc&&exc){verdict='AMBIGUOUS STATIC PATH';kind='warn';detail=`Одновременно активны include (${inc}) и exclude (${exc}) совпадения. RouterForge не угадывает runtime order.`}
-    else if(exc){verdict='STATICALLY EXCLUDED';kind='warn';detail='Домен попадает в активный exclude path; это сильный кандидат на объяснение, почему nfqws strategy к нему не применяется.'}
-    else if(!inc&&['MODE_LIST','MODE_AUTO'].includes(mode)){verdict='NO ACTIVE LIST MATCH';kind='warn';detail=`В ${mode} не найден active include-match. Домен может проходить без выбранной nfqws strategy.`}
-    else if(probe?.reachable){verdict='ROUTER REACHABLE';kind='good';detail='Router-side HTTP/HTTPS probe успешен. Если проблема остаётся только у клиента, смотри client path/NFQUEUE/interface policy.'}
-    else if(probe&&!probe.reachable&&inc){verdict='MATCHED BUT PROBE FAILED';kind='bad';detail='Статический active path включает домен, но router-side probe не прошёл. Проверяй strategy/runtime/upstream path; это не доказывает конкретную причину.'}
-    else if(probe&&!probe.reachable){verdict='ROUTER PROBE FAILED';kind='bad';detail='Router-side probe не прошёл; статический nfqws path не даёт достаточного объяснения.'}
+    const reasons=[],running=!!current?.running,mode=staticPath.mode,lists=processingListModel(staticPath),inc=lists.activeInclude.length,exc=lists.activeExclude.length,probeModel=processingProbeModel(probe);
+    let verdict='CHECK',kind='warn',detail='Недостаточно сигналов для однозначного вывода.';
+    if(!running){verdict='NFQWS2 ОСТАНОВЛЕН';kind='bad';detail='nfqws2 не запущен. Списки и конфиг можно анализировать, но обход сейчас не работает.'}
+    else if(inc&&exc){verdict='КОНФЛИКТ АКТИВНЫХ СПИСКОВ';kind='warn';detail=`Есть одновременно active include (${inc}) и exclude (${exc}) совпадения. Нужно проверить правила списков.`}
+    else if(exc){verdict='ДОМЕН ИСКЛЮЧЁН';kind='warn';detail='Домен попадает в активный exclude path; nfqws-стратегия для него может не применяться.'}
+    else if(lists.found&&!lists.active){verdict='СОВПАДЕНИЯ НАЙДЕНЫ · АКТИВНОСТЬ НЕ ПОДТВЕРЖДЕНА';kind='warn';detail=`Домен найден в ${lists.found} list-файл(ах), но active config не доказывает, что эти файлы выбирают текущую nfqws-стратегию.`}
+    else if(!lists.found&&['MODE_LIST','MODE_AUTO'].includes(mode)){verdict='ДОМЕН НЕ НАЙДЕН В АКТИВНОМ ПУТИ';kind='warn';detail=`В ${mode} домен не найден в доступных list-файлах. Он может проходить без выбранной nfqws-стратегии.`}
+    else if(probeModel.contentOK){verdict='САЙТ ДОСТУПЕН';kind='good';detail=probeModel.detail}
+    else if(probeModel.reachable){verdict='СЕТЬ ДО САЙТА РАБОТАЕТ';kind='warn';detail=probeModel.detail}
+    else if(probe){verdict='САЙТ С РОУТЕРА НЕДОСТУПЕН';kind='bad';detail=probeModel.detail}
     if(keenetic?.config_isp_interface&&keenetic?.default_ipv4_interface&&!keenetic.config_isp_matches_default){
-      reasons.push(keeneticDiag('warn','Interface binding',`ISP_INTERFACE=${keenetic.config_isp_interface} · default=${keenetic.default_ipv4_interface}. Несовпадение может быть нормальным при policy routing/VLAN/PPP.`));
+      reasons.push(keeneticDiag('warn','WAN / interface',`ISP_INTERFACE=${keenetic.config_isp_interface} · default=${keenetic.default_ipv4_interface}.`));
     }else if(keenetic?.default_ipv4_interface){
-      reasons.push(keeneticDiag('good','Interface binding',`default IPv4=${keenetic.default_ipv4_interface}${keenetic.config_isp_interface?` · ISP_INTERFACE=${keenetic.config_isp_interface}`:''}`));
+      reasons.push(keeneticDiag('good','WAN / interface',`default IPv4=${keenetic.default_ipv4_interface}${keenetic.config_isp_interface?` · ISP_INTERFACE=${keenetic.config_isp_interface}`:''}`));
     }
     reasons.push(keeneticDiag(kind,verdict,detail));
-    reasons.push(keeneticDiag('info','Observability boundary','Static config/list analysis + router-side probe не доказывают фактический захват конкретного LAN packet NFQUEUE.'));
-    return{domain,verdict,kind,detail,reasons,running,mode};
+    reasons.push(keeneticDiag(probeModel.kind,'HTTP с роутера',`${probeModel.label} · ${probeModel.detail}`));
+    return{domain,verdict,kind,detail,reasons,running,mode,lists,probeModel};
   }
   function guidedActionButton(tab,label,extra=''){
     return `<button type="button" data-guided-tab="${esc(tab)}" ${extra}>${esc(label)}</button>`;
@@ -3096,10 +3162,12 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 
     const hits=(result.staticPath?.hits||[]).filter(h=>h.file&&h.file!=='<query>');
     const firstHit=hits[0]||null,listAction=firstHit?{kind:'list',file:firstHit.file,line:firstHit.line||1,label:'К совпадению'}:{kind:'tab',tab:'lists',label:'Списки'};
-    if(model.inc&&model.exc)add('warn','Списки',`Есть одновременно include (${model.inc}) и exclude (${model.exc}) совпадения.`,listAction);
-    else if(model.exc)add('warn','Списки',`Найдено exclude совпадений: ${model.exc}.`,listAction);
-    else if(model.inc)add('good','Списки',`Найдено include совпадений: ${model.inc}.`,listAction);
-    else if(['MODE_LIST','MODE_AUTO'].includes(model.mode))add('warn','Списки',`Для ${model.mode} include-match не найден.`,{kind:'tab',tab:'lists',label:'Списки'});
+    const foundMatches=Number(model.found||0),unknownMatches=Number(model.unknown||0);
+    if(model.inc&&model.exc)add('warn','Списки',`Есть одновременно active include (${model.inc}) и exclude (${model.exc}) совпадения.`,listAction);
+    else if(model.exc)add('warn','Списки',`Найдено active exclude совпадений: ${model.exc}.`,listAction);
+    else if(model.inc)add('good','Списки',`Найдено active include совпадений: ${model.inc}.`,listAction);
+    else if(foundMatches)add('warn','Списки',`Найдено совпадений: ${foundMatches}; активность ${unknownMatches} из них не подтверждена active config.`,listAction);
+    else if(['MODE_LIST','MODE_AUTO'].includes(model.mode))add('warn','Списки',`В доступных list-файлах совпадений для ${model.mode} не найдено.`,{kind:'tab',tab:'lists',label:'Списки'});
     else add('info','Списки','Явный include-match для этого режима не обязателен.',{kind:'tab',tab:'lists',label:'Списки'});
 
     const staticVerdict=String(result.staticPath?.verdict||'UNKNOWN'),staticReason=String(result.staticPath?.reason||'Статический анализ завершён.');
@@ -3197,14 +3265,33 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     navigator.clipboard?.writeText(text);
     notice('Диагностический отчёт скопирован.','good');
   }
+  function processingHumanModel(result){
+    const lists=processingListModel(result.staticPath),probe=processingProbeModel(result.probe),running=!!result.summary.running,mode=result.staticPath.mode||'UNKNOWN';
+    const inc=lists.activeInclude.length,exc=lists.activeExclude.length,found=lists.found,unknown=lists.unknown.length;
+    const ifaceMismatch=!!(result.keenetic?.config_isp_interface&&result.keenetic?.default_ipv4_interface&&!result.keenetic.config_isp_matches_default);
+    let title='Нужна дополнительная проверка',detail='RouterForge собрал доступные сигналы.',kind='warn',next='Откройте технические детали или запустите live NFQWS-проверку.',actions=[guidedActionButton('preflight','Проверить конфигурацию')];
+    if(!running){title='nfqws2 сейчас остановлен';detail='Сервис не работает. Статический анализ ниже остаётся справочным.';kind='bad';next='Сначала запустите nfqws2 и повторите диагностику.';actions=[guidedActionButton('overview','Открыть Обзор')]}
+    else if(inc&&exc){title='Конфликт активных списков';detail=`Для ${result.domain} одновременно найдены active include (${inc}) и exclude (${exc}) совпадения.`;kind='warn';next='Проверьте конфликтующие записи в списках.';actions=[guidedActionButton('lists','Открыть списки')]}
+    else if(exc){title='Домен исключён из обработки';detail='Active exclude-match может объяснять, почему nfqws-стратегия к этому домену не применяется.';kind='warn';next='Проверьте запись в exclude-списке.';actions=[guidedActionButton('lists','Открыть списки')]}
+    else if(inc){title=probe.contentOK?'Домен выбран, сайт доступен':'Домен выбран активным списком';detail=`Найдено active include совпадений: ${inc}. ${probe.detail}`;kind=probe.kind==='bad'?'bad':'good';next='Если нужно доказать прохождение именно через тестовую NFQUEUE, запустите «Проверить через NFQWS».';actions=[guidedActionButton('lists','Показать совпадения')]}
+    else if(found){title='Домен найден в списках, но их активность не подтверждена';detail=`Найдено ${found} совпадений, из них ${unknown} RouterForge не может связать с active strategy по текущему config. ${probe.detail}`;kind='warn';next='Это не означает «домен не найден». Для фактической проверки стратегии запустите live NFQWS-тест.';actions=[guidedActionButton('lists','Показать списки')]}
+    else if(['MODE_LIST','MODE_AUTO'].includes(mode)){title='Домен не найден в доступных списках';detail=`Текущий ${mode} ожидает list-match, но RouterForge не нашёл его. ${probe.detail}`;kind=probe.kind==='bad'?'bad':'warn';next=probe.contentOK?'Сайт работает напрямую. Если обход ему не нужен, ничего менять не требуется.':'Если домен должен идти через nfqws, добавьте его в нужный active список.';actions=[guidedActionButton('lists','Открыть списки')]}
+    else if(probe.contentOK){title='Сайт доступен с роутера';detail=probe.detail;kind='good';next='Если у LAN-клиента сайт всё равно не работает, запустите live NFQWS-тест или проверьте клиентский маршрут.';actions=[guidedActionButton('testlab','Открыть Test Lab','data-guided-fill-testlab="1"')]}
+    else if(probe.reachable){title='Сеть до сайта работает, HTTP ограничен';detail=probe.detail;kind='warn';next='HTTP 4xx/5xx не равен сетевому отказу. При необходимости запустите live NFQWS-тест.';actions=[guidedActionButton('testlab','Открыть Test Lab','data-guided-fill-testlab="1"')]}
+    else if(result.probe){title='Сайт с роутера недоступен';detail=probe.detail;kind='bad';next='Проверьте WAN/config, затем повторите тест.';actions=[guidedActionButton('preflight','Проверить конфигурацию'),guidedActionButton('keenetic','Открыть Систему')]}
+    return{title,detail,kind,next,actions,running,inc,exc,found,unknown,mode,probeOK:probe.contentOK,probe,ifaceMismatch};
+  }
   function renderGuidedTroubleshooter(result){
-    const model=guidedTroubleshooterModel(result),root=$('guidedTroubleshooter');
+    const model=processingHumanModel(result),root=$('guidedTroubleshooter');
     $('guidedTitle').textContent=model.title;$('guidedDetail').textContent=model.detail;
     $('guidedBadge').textContent=model.kind==='good'?'OK':model.kind==='bad'?'ПРОБЛЕМА':'ПРОВЕРИТЬ';$('guidedBadge').className=`guided-result-badge ${model.kind}`;
     $('guidedRuntime').textContent=model.running?'Работает':'Остановлен';
-    $('guidedLists').textContent=model.exc?`exclude: ${model.exc}`:model.inc?`include: ${model.inc}`:['MODE_LIST','MODE_AUTO'].includes(model.mode)?'совпадений нет':'без явного include';
+    $('guidedLists').textContent=model.found?`${model.found} найдено · ${model.inc+model.exc} active${model.unknown?` · ${model.unknown} ?`:''}`:'не найдено';
     $('guidedInterface').textContent=model.ifaceMismatch?'нужно проверить':result.keenetic?.default_ipv4_interface||'нет данных';
-    $('guidedProbe').textContent=model.probeOK?`Доступен${result.probe?.status_code?` · HTTP ${result.probe.status_code}`:''}`:result.probe?'Ошибка':'нет данных';
+    $('guidedProbe').textContent=model.probe.label;
+    $('guidedProbe').className=model.probe.kind==='good'?'processing-live-good':model.probe.kind==='bad'?'processing-live-bad':'processing-live-warn';
+    $('processingLiveCheck').disabled=processingMapLiveRunning||!result.domain||!model.running;
+    $('processingLiveCheck').classList.toggle('running',processingMapLiveRunning);
     renderGuidedTimeline(result,model);
     $('copyGuidedReport').disabled=false;$('copyGuidedReport').onclick=()=>copyGuidedSupportReport(result,model);
     if((model.kind==='bad'||model.kind==='warn')&&!model.actions.some(x=>x.includes('data-guided-tab="logs"')))model.actions.push(guidedActionButton('logs','Посмотреть логи'));
@@ -3218,26 +3305,49 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     root.classList.add('visible');
   }
 
+  function processingLiveModel(){
+    const d=processingMapLiveResult;
+    if(processingMapLiveRunning)return{kind:'info',label:'идёт проверка',detail:'Fast bench выполняется в reserved NFQUEUE.',proven:false};
+    if(!d)return{kind:'info',label:'не запускался',detail:'Live NFQWS-проверка ещё не выполнялась.',proven:false};
+    if(d.error)return{kind:'bad',label:'FAIL',detail:d.error,proven:false};
+    const attempts=(d.candidates||[]).flatMap(c=>c.attempts||[]),proven=attempts.some(a=>a.ok&&Number(a.outbound_queue_packets||0)>0&&Number(a.inbound_queue_packets||0)>0);
+    const packets=attempts.reduce((s,a)=>s+Number(a.outbound_queue_packets||0)+Number(a.inbound_queue_packets||0),0);
+    const cleanup=!!d.cleanup_baseline_after;
+    if(proven&&cleanup)return{kind:'good',label:`PASS · ${packets} pkt`,detail:`Candidate NFQUEUE path доказан; cleanup ${cleanup?'PASS':'FAIL'}.`,proven:true};
+    return{kind:'warn',label:d.ok?'CHECK':'FAIL',detail:d.recommendation_reason||'Live candidate path не удалось доказать.',proven:false};
+  }
   function renderProcessingMap(result){
     processingMapResult=result;
+    const lists=processingListModel(result.staticPath),probe=processingProbeModel(result.probe),live=processingLiveModel();
     $('processingMapMode').textContent=result.staticPath.mode||'UNKNOWN';
-    $('processingMapStatic').textContent=result.staticPath.verdict||'—';
-    $('processingMapProbe').textContent=result.probe?.reachable?`OK ${result.probe.status_code||''}`.trim():result.probe?'FAIL':'—';
+    $('processingMapStatic').textContent=lists.found?`${lists.found} найдено · ${lists.active} active`:'не найдено';
+    $('processingMapProbe').textContent=probe.label;
     $('processingMapRuntime').textContent=result.summary.running?'RUNNING':'STOPPED';
     $('processingMapVerdict').innerHTML=result.summary.reasons.join('');
+    $('processingLiveState').textContent=live.label;
+    $('processingLiveState').className=live.kind==='good'?'processing-live-good':live.kind==='bad'?'processing-live-bad':live.kind==='warn'?'processing-live-warn':'';
     $('processingMapHints').innerHTML=[
-      keeneticDiag(result.staticPath.includes.length?'good':'info','Active include matches',String(result.staticPath.includes.length)),
-      keeneticDiag(result.staticPath.excludes.length?'warn':'good','Active exclude matches',String(result.staticPath.excludes.length)),
-      result.listErrors.length?keeneticDiag('warn','List read warnings',result.listErrors.join(' · ')):keeneticDiag('good','List inventory','Все доступные list-файлы прочитаны')
+      keeneticDiag(lists.found?'good':'info','Найдено в list-файлах',String(lists.found)),
+      keeneticDiag(lists.active?'good':'info','Подтверждено active config',String(lists.active)),
+      lists.unknown.length?keeneticDiag('warn','Активность не подтверждена',String(lists.unknown.length)):keeneticDiag('good','Неопределённых совпадений','0'),
+      result.listErrors.length?keeneticDiag('warn','Ошибки чтения списков',result.listErrors.join(' · ')):keeneticDiag('good','List inventory','Все доступные list-файлы прочитаны')
     ].join('');
-    const hits=result.staticPath.hits.filter(h=>h.file!=='<query>');
+    const hits=lists.hits;
+    const hitRows=hits.map((h,i)=>{
+      const unknown=h.effective==='neutral',role=unknown?'НАЙДЕН · ?':h.effective==='include'?'ACTIVE INCLUDE':'ACTIVE EXCLUDE',tone=unknown?'neutral':h.effective;
+      return `<div class="static-path-step ${tone}"><div class="static-path-index">${i+3}</div><div><div class="static-path-role ${tone}">${role}</div><div class="inspector-meta">${esc(h.relation)}</div></div><div><div class="static-path-value">${esc(h.file)}</div><div class="static-path-meta">${unknown?'Совпадение найдено, но active config не подтвердил роль.':esc(h.role.reason)} · ${esc(h.value)}${h.detail?` · ${esc(h.detail)}`:''}</div></div><button class="static-path-open" data-processing-file="${esc(h.file)}" data-processing-line="${h.line}">Открыть</button></div>`;
+    });
+    const listState=lists.active?'active path proven':lists.found?'matches found · active role unknown':'no list match';
+    const liveTone=live.kind==='good'?'include':live.kind==='bad'?'exclude':'neutral';
     $('processingMapSteps').innerHTML=[
-      `<div class="static-path-step neutral"><div class="static-path-index">1</div><div><div class="static-path-role neutral">INPUT</div><div class="inspector-meta">DOMAIN</div></div><div><div class="static-path-value">${esc(result.domain)}</div><div class="static-path-meta">Processing Map query</div></div></div>`,
-      ...hits.map((h,i)=>`<div class="static-path-step ${h.effective}"><div class="static-path-index">${i+2}</div><div><div class="static-path-role ${h.effective}">${esc(h.role.label)}</div><div class="inspector-meta">${esc(h.relation)}</div></div><div><div class="static-path-value">${esc(h.value)}</div><div class="static-path-meta">${esc(h.file)}:${h.line} · ${esc(h.role.reason)}${h.detail?` · ${esc(h.detail)}`:''}</div></div><button class="static-path-open" data-processing-file="${esc(h.file)}" data-processing-line="${h.line}">Открыть</button></div>`),
-      `<div class="static-path-step ${result.probe?.reachable?'include':'neutral'}"><div class="static-path-index">${hits.length+2}</div><div><div class="static-path-role ${result.probe?.reachable?'include':'neutral'}">PROBE</div><div class="inspector-meta">ROUTER SIDE</div></div><div><div class="static-path-value">${result.probe?.reachable?`HTTP ${result.probe.status_code||'OK'}`:'FAILED'}</div><div class="static-path-meta">${esc(result.probe?.error||'current active runtime')}</div></div></div>`
+      `<div class="static-path-step neutral"><div class="static-path-index">1</div><div><div class="static-path-role neutral">ДОМЕН</div><div class="inspector-meta">INPUT</div></div><div><div class="static-path-value">${esc(result.domain)}</div><div class="static-path-meta">Запрос Processing Map</div></div></div>`,
+      `<div class="static-path-step ${lists.active?'include':'neutral'}"><div class="static-path-index">2</div><div><div class="static-path-role ${lists.active?'include':'neutral'}">СПИСКИ</div><div class="inspector-meta">${esc(result.staticPath.mode||'UNKNOWN')}</div></div><div><div class="static-path-value">${lists.found} найдено · ${lists.active} active · ${lists.unknown.length} unknown</div><div class="static-path-meta">${esc(listState)}</div></div></div>`,
+      ...hitRows,
+      `<div class="static-path-step ${liveTone}"><div class="static-path-index">${hits.length+3}</div><div><div class="static-path-role ${liveTone}">NFQWS LIVE</div><div class="inspector-meta">RESERVED QUEUE</div></div><div><div class="static-path-value">${esc(live.label)}</div><div class="static-path-meta">${esc(live.detail)}</div></div></div>`,
+      `<div class="static-path-step ${probe.kind==='good'?'include':probe.kind==='bad'?'exclude':'neutral'}"><div class="static-path-index">${hits.length+4}</div><div><div class="static-path-role ${probe.kind==='good'?'include':probe.kind==='bad'?'exclude':'neutral'}">HTTP</div><div class="inspector-meta">ROUTER SIDE</div></div><div><div class="static-path-value">${esc(probe.label)}</div><div class="static-path-meta">${esc(probe.detail)}</div></div></div>`
     ].join('');
     $('processingMapSteps').querySelectorAll('[data-processing-file]').forEach(button=>button.onclick=()=>{document.querySelector('.tab[data-tab="lists"]')?.click();openListAtLine(button.dataset.processingFile,Number(button.dataset.processingLine)||1)});
-    $('processingMapMeta').textContent=`${result.domain} · ${Object.keys(result.lists).length} lists · active config`;
+    $('processingMapMeta').textContent=`${result.domain} · ${Object.keys(result.lists).length} list-файлов · active config`;
     renderGuidedTroubleshooter(result);
     $('copyProcessingMap').disabled=false;reportHeight();
   }
@@ -3245,7 +3355,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(processingMapRunning)return;
     const domain=normalizeProcessingMapDomain($('processingMapDomain').value);
     if(!domain){notice('Processing Map: нужен корректный публичный DNS hostname.','error');return}
-    processingMapRunning=true;processingMapResult=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;$('copyGuidedReport').disabled=true;
+    processingMapRunning=true;processingMapResult=null;processingMapLiveResult=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;$('copyGuidedReport').disabled=true;$('processingLiveCheck').disabled=true;$('processingLiveState').textContent='не запускался';
     $('guidedTroubleshooter').classList.remove('visible');$('guidedActions').innerHTML='';$('guidedTimeline').innerHTML='';
     $('processingMapState').textContent='RUNNING';$('processingMapState').className='testlab-state running';
     $('processingMapVerdict').innerHTML='<div class="analysis-empty">Проверяю runtime, списки, путь и доступность с роутера…</div>';
@@ -3262,9 +3372,29 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       $('processingMapVerdict').innerHTML=keeneticDiag('bad','Processing Map failed',e.message||String(e));
     }finally{processingMapRunning=false;$('runProcessingMap').disabled=false;reportHeight()}
   }
+  async function runProcessingMapLiveProof(){
+    if(processingMapLiveRunning||!processingMapResult?.domain)return;
+    processingMapLiveRunning=true;processingMapLiveResult=null;$('processingLiveCheck').disabled=true;$('processingLiveCheck').classList.add('running');$('processingLiveState').textContent='RUNNING';
+    try{
+      const latest=await api('/status');
+      if(!latest?.running||!latest?.config_sha256)throw new Error('nfqws2 runtime не готов или active config SHA недоступен.');
+      const d=await api('/bench-autotune',{method:'POST',body:JSON.stringify({mode:'fast',server_name:processingMapResult.domain,expected_config_sha256:String(latest.config_sha256).toLowerCase(),confirm:'ROUTERFORGE_AUTOTUNE_TLS'})});
+      if(d.ok!==true)throw new Error('AutoTune Fast не подтвердил выполнение.');
+      if(d.cleanup_baseline_after!==true)throw new Error('Cleanup reserved NFQUEUE не доказан.');
+      processingMapLiveResult=d;
+      const live=processingLiveModel();
+      notice(live.proven?'Live NFQWS path доказан; production config не изменялся.':'Live тест завершён, но candidate NFQUEUE path не доказан полностью.',live.proven?'good':'error');
+    }catch(e){
+      processingMapLiveResult={error:e.message||String(e)};
+      notice(`Live NFQWS FAIL: ${e.message||e}`,'error');
+    }finally{
+      processingMapLiveRunning=false;$('processingLiveCheck').classList.remove('running');
+      if(processingMapResult)renderProcessingMap(processingMapResult);
+    }
+  }
   function copyProcessingMap(){
     if(!processingMapResult)return;
-    const safe={domain:processingMapResult.domain,static_path:{mode:processingMapResult.staticPath.mode,verdict:processingMapResult.staticPath.verdict,reason:processingMapResult.staticPath.reason,includes:processingMapResult.staticPath.includes,excludes:processingMapResult.staticPath.excludes,hits:processingMapResult.staticPath.hits},probe:processingMapResult.probe,keenetic:processingMapResult.keenetic,summary:{verdict:processingMapResult.summary.verdict,detail:processingMapResult.summary.detail,runtime_running:processingMapResult.summary.running},list_errors:processingMapResult.listErrors};
+    const safe={domain:processingMapResult.domain,static_path:{mode:processingMapResult.staticPath.mode,verdict:processingMapResult.staticPath.verdict,reason:processingMapResult.staticPath.reason,includes:processingMapResult.staticPath.includes,excludes:processingMapResult.staticPath.excludes,hits:processingMapResult.staticPath.hits,list_summary:processingListModel(processingMapResult.staticPath)},probe:processingMapResult.probe,live_nfqws:processingMapLiveResult?{ok:processingMapLiveResult.ok||false,cleanup_baseline_after:processingMapLiveResult.cleanup_baseline_after||false,recommendation_available:processingMapLiveResult.recommendation_available||false,recommendation_reason:processingMapLiveResult.recommendation_reason||'',candidates:processingMapLiveResult.candidates||[],error:processingMapLiveResult.error||''}:null,keenetic:processingMapResult.keenetic,summary:{verdict:processingMapResult.summary.verdict,detail:processingMapResult.summary.detail,runtime_running:processingMapResult.summary.running},list_errors:processingMapResult.listErrors};
     navigator.clipboard?.writeText(JSON.stringify(safe,null,2));notice('Processing Map JSON скопирован.','good');
   }
 
@@ -3569,6 +3699,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   $('zapretSandboxOpen').onclick=sendZapretProfileToSandbox;
   $('refreshBenchReadiness').onclick=()=>loadBenchReadiness(true);
   $('runAutoTuneFlow').onclick=runAutoTuneFlow;$('buildAutoTunePreview').onclick=buildAutoTunePreviewUI;$('applyAutoTunePreview').onclick=applyAutoTunePreviewUI;$('resetAutoTuneFlow').onclick=()=>resetAutoTuneUI();
+  $('processingLiveCheck').onclick=runProcessingMapLiveProof;
 
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;

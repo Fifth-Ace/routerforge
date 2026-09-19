@@ -497,7 +497,8 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 .sandbox-layout{display:grid;grid-template-columns:minmax(300px,420px) minmax(0,1fr);gap:var(--space);align-items:start}.sandbox-editor{display:grid;gap:9px}.sandbox-editor textarea{width:100%;min-height:220px;resize:vertical;border:1px solid var(--border);border-radius:8px;background:var(--code);padding:10px 12px;color:var(--text);font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace;tab-size:2}.sandbox-editor textarea:focus{outline:none;border-color:var(--accent)}
 .sandbox-sourcebar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}.sandbox-sourcebar label{display:grid;gap:4px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.sandbox-sourcebar select{width:100%;min-height:31px}.sandbox-validation{display:flex;flex-direction:column;gap:5px}.sandbox-check{display:grid;grid-template-columns:18px minmax(0,1fr);gap:7px;align-items:start;padding:7px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}.sandbox-check.good .sandbox-check-mark{color:var(--good)}.sandbox-check.warn .sandbox-check-mark{color:var(--warn)}.sandbox-check.bad .sandbox-check-mark{color:var(--bad)}.sandbox-check-mark{font:900 11px ui-monospace,Consolas,monospace}.sandbox-check-title{font-size:10px;font-weight:700}.sandbox-check-detail{font-size:9px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
 .sandbox-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.sandbox-stat{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}.sandbox-stat span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.sandbox-stat strong{display:block;margin-top:2px;font:800 13px ui-monospace,"Roboto Mono",Consolas,monospace}.sandbox-results{display:flex;flex-direction:column;gap:6px;max-height:54vh;overflow:auto;margin-top:10px}.sandbox-row{display:grid;grid-template-columns:minmax(150px,1.3fr) 115px 115px 90px minmax(150px,1fr);gap:8px;align-items:center;padding:8px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}.sandbox-row.head{position:sticky;top:0;z-index:2;background:var(--surface);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.sandbox-target{font:700 11px/1.4 ui-monospace,"Roboto Mono",Consolas,monospace;overflow-wrap:anywhere}.sandbox-candidate{font:800 9px ui-monospace,"Roboto Mono",Consolas,monospace}.sandbox-candidate.match{color:var(--good)}.sandbox-candidate.exclude{color:var(--bad)}.sandbox-candidate.unknown{color:var(--warn)}.sandbox-note{padding:10px 12px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:10px;line-height:1.45}
-@media(max-width:980px){.sandbox-layout{grid-template-columns:1fr}.sandbox-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bench-readiness{margin-bottom:10px}.bench-readiness-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.bench-readiness-grid>div{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);min-width:0}.bench-readiness-grid span{display:block;color:var(--muted);font-size:8.5px;text-transform:uppercase;letter-spacing:.04em}.bench-readiness-grid strong{display:block;margin-top:3px;font:800 10px/1.35 ui-monospace,"Roboto Mono",Consolas,monospace;overflow-wrap:anywhere}.bench-readiness-details{display:grid;gap:5px;margin:9px 0;color:var(--muted);font-size:9.5px}.bench-readiness-line{padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)}.bench-readiness-line.bad{color:var(--bad)}.bench-readiness-line.warn{color:var(--warn)}
+@media(max-width:980px){.sandbox-layout{grid-template-columns:1fr}.sandbox-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.bench-readiness-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.sandbox-row{grid-template-columns:1fr 1fr}.sandbox-row.head{display:none}.sandbox-summary{grid-template-columns:1fr 1fr}.sandbox-sourcebar{grid-template-columns:1fr}}
 .analysis-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
 .analysis-stat{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);display:flex;justify-content:space-between;gap:8px;align-items:center}
@@ -935,6 +936,20 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       </div>
       <div class="toolbar"><button id="copySandbox" disabled>Копировать JSON</button><button id="stopSandbox" disabled>Стоп</button><button id="runSandbox" class="primary">Запустить sandbox</button></div>
     </div>
+    <article class="panel bench-readiness">
+      <div class="panel-head">
+        <div><h2>AutoTune readiness</h2><div class="section-kicker">UX4 safety contract · read-only capability audit</div></div>
+        <div class="toolbar"><span id="benchReadinessState" class="config-badge empty">LOCKED</span><button id="refreshBenchReadiness">Обновить</button></div>
+      </div>
+      <div class="bench-readiness-grid">
+        <div><span>Candidate binary</span><strong id="benchBinary">—</strong></div>
+        <div><span>Firewall inventory</span><strong id="benchFirewall">—</strong></div>
+        <div><span>Kernel queues</span><strong id="benchKernelQueues">—</strong></div>
+        <div><span>Suggested queue</span><strong id="benchQueue">—</strong></div>
+      </div>
+      <div id="benchReadinessDetails" class="bench-readiness-details">Проверка ещё не запускалась.</div>
+      <div class="sandbox-note">UX4.1 ничего не запускает и не меняет. Даже при полном наборе capabilities AutoTune остаётся LOCKED, пока RouterForge не реализует изолированный lifecycle и доказуемый cleanup без leftover NFQUEUE/process rules.</div>
+    </article>
     <div class="sandbox-layout">
       <article class="panel sandbox-editor">
         <div class="panel-head"><div><h2>Candidate</h2><div class="section-kicker">не сохраняется · не применяется · не перезапускает nfqws2</div></div></div>
@@ -1425,7 +1440,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null;
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -2301,6 +2316,29 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(!testLabResultsData.length)return;const doc={generated_at:new Date().toISOString(),scope:'router-side-reachability-plus-static-path',runtime_running:!!current?.running,config_sha256:current?.config_sha256||'',mode:currentMode(),results:testLabResultsData};navigator.clipboard?.writeText(JSON.stringify(doc,null,2));notice('Test Lab JSON скопирован.','good');
   }
 
+
+  function renderBenchReadiness(){
+    const d=benchReadiness,state=$('benchReadinessState');
+    if(!d){state.textContent=benchReadinessLoading?'CHECKING':'LOCKED';state.className='config-badge empty';return}
+    state.textContent=d.safe_to_bench?'READY':'LOCKED';state.className='config-badge '+(d.safe_to_bench?'active':'empty');
+    $('benchBinary').textContent=d.candidate_spawn_capable?(d.candidate_binary||'FOUND'):'NOT PROVEN';
+    $('benchFirewall').textContent=d.firewall_inventory_ok?(d.firewall_backend||'READABLE'):'NOT PROVEN';
+    $('benchKernelQueues').textContent=d.kernel_queue_inventory_ok?`${(d.occupied_queues||[]).length} occupied`:'NOT PROVEN';
+    $('benchQueue').textContent=d.recommended_queue||'—';
+    const rows=[
+      ...(d.blockers||[]).map(x=>['bad','BLOCKER · '+x]),
+      ...(d.warnings||[]).map(x=>['warn','CHECK · '+x])
+    ];
+    $('benchReadinessDetails').innerHTML=rows.length?rows.map(([kind,text])=>`<div class="bench-readiness-line ${kind}">${esc(text)}</div>`).join(''):'<div class="bench-readiness-line">Capability inventory complete.</div>';
+  }
+  async function loadBenchReadiness(force=false){
+    if(benchReadinessLoading)return;
+    if(benchReadiness&&!force){renderBenchReadiness();return}
+    benchReadinessLoading=true;renderBenchReadiness();$('refreshBenchReadiness').disabled=true;
+    try{benchReadiness=await api('/bench-capabilities')}
+    catch(e){benchReadiness={safe_to_bench:false,blockers:[e.message],warnings:[]}}
+    finally{benchReadinessLoading=false;$('refreshBenchReadiness').disabled=false;renderBenchReadiness();reportHeight()}
+  }
 
   function sandboxStrategySources(){
     const out=[['https','HTTPS · NFQWS_ARGS',String(flowValues.NFQWS_ARGS||'')],['quic','QUIC · NFQWS_ARGS_QUIC',String(flowValues.NFQWS_ARGS_QUIC||'')],['udp','UDP · NFQWS_ARGS_UDP',String(flowValues.NFQWS_ARGS_UDP||'')],['ipset','IPSET · NFQWS_ARGS_IPSET',String(flowValues.NFQWS_ARGS_IPSET||'')]];customBlocks.forEach((value,i)=>out.push([`custom-${i}`,normalizeCustomLabel(customLabels[i])||`Custom ${i+1}`,String(value||'')]));return out;
@@ -3339,7 +3377,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(tab==='backups')loadBackupCenter();
     if(tab==='keenetic'){loadKeenetic();loadDPIDetector()}
     if(tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')}
-    if(tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')}
+    if(tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE');loadBenchReadiness()}
     if(tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}
     if(tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});
     else requestAnimationFrame(reportHeight);
@@ -3378,6 +3416,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   $('zapretLibraryOpen').onclick=openSavedZapretConfig;
   $('zapretSandboxProfile').onchange=()=>{$('zapretSandboxOpen').disabled=!zapretImportResult?.ready};
   $('zapretSandboxOpen').onclick=sendZapretProfileToSandbox;
+  $('refreshBenchReadiness').onclick=()=>loadBenchReadiness(true);
 
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;

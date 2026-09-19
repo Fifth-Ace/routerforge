@@ -716,6 +716,38 @@ button{min-height:var(--ui-control-h)}
 #view-processing .search{font-size:var(--ui-small)}
 #view-processing .analysis-empty{font-size:var(--ui-small);line-height:1.5}
 
+/* Processing Map: make the two fundamentally different probes visually explicit. */
+.processing-how{margin-top:14px;padding:16px!important}
+.processing-how-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.processing-how-head h2{margin:0;font-size:15px!important;line-height:1.3}
+.processing-how-head p{max-width:900px;margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+.processing-route-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.processing-route-card{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 92%,var(--surface)),var(--surface2));padding:14px}
+.processing-route-card.direct{border-top:2px solid color-mix(in srgb,var(--accent) 65%,var(--border))}
+.processing-route-card.live{border-top:2px solid color-mix(in srgb,var(--good) 65%,var(--border))}
+.processing-route-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.processing-route-title{font-size:13px;font-weight:800;line-height:1.3}
+.processing-route-sub{margin-top:3px;color:var(--muted);font-size:11px;line-height:1.45}
+.processing-route-badge{flex:0 0 auto;padding:5px 7px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font:800 9px/1 ui-monospace,Consolas,monospace;white-space:nowrap}
+.processing-route-badge.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 48%,var(--border));background:color-mix(in srgb,var(--good) 6%,transparent)}
+.processing-route-badge.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--border));background:color-mix(in srgb,var(--warn) 5%,transparent)}
+.processing-route-badge.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--border));background:color-mix(in srgb,var(--bad) 5%,transparent)}
+.processing-route-flow{display:grid;gap:5px}
+.processing-route-node{display:grid;grid-template-columns:94px minmax(0,1fr);gap:10px;align-items:start;padding:8px 9px;border:1px solid color-mix(in srgb,var(--border) 82%,transparent);border-radius:7px;background:color-mix(in srgb,var(--surface) 65%,transparent)}
+.processing-route-node span{color:var(--muted);font-size:10px;line-height:1.35;text-transform:uppercase;letter-spacing:.025em}
+.processing-route-node strong{min-width:0;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.processing-route-node.good strong{color:var(--good)}.processing-route-node.warn strong{color:var(--warn)}.processing-route-node.bad strong{color:var(--bad)}
+.processing-route-arrow{height:9px;margin-left:45px;border-left:1px solid var(--border-strong)}
+.processing-route-note{margin-top:11px;padding:9px 10px;border-left:2px solid var(--border-strong);border-radius:0 6px 6px 0;background:color-mix(in srgb,var(--surface) 55%,transparent);color:var(--muted);font-size:11px;line-height:1.5}
+.processing-route-note strong{color:var(--text)}
+.processing-safety-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.processing-safety-item{padding:9px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}
+.processing-safety-item span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}
+.processing-safety-item strong{display:block;margin-top:4px;font-size:11px;line-height:1.4}
+.processing-safety-item.good strong{color:var(--good)}
+@media(max-width:880px){.processing-route-grid{grid-template-columns:1fr}.processing-safety-strip{grid-template-columns:1fr}}
+@media(max-width:520px){.processing-how{padding:12px!important}.processing-route-node{grid-template-columns:1fr;gap:2px}.processing-route-arrow{margin-left:15px}.processing-how-head{flex-direction:column}}
+
 </style>
 </head>
 <body>
@@ -943,7 +975,7 @@ button{min-height:var(--ui-control-h)}
     <div class="testlab-hero">
       <div>
         <div class="testlab-title-row"><h2 style="margin:0">Диагностика сайта</h2><span id="processingMapState" class="testlab-state idle">IDLE</span><span class="config-badge">READ-ONLY</span></div>
-        <div class="preflight-sub">Введите домен. Сначала RouterForge объяснит, что известно из active config и списков; затем при необходимости можно отдельно доказать live-прохождение через тестовую NFQUEUE.</div>
+        <div class="preflight-sub">Введите домен. RouterForge отдельно покажет обычную проверку с самого роутера и изолированный Live NFQWS-тест — это два разных сетевых пути и они не подменяют друг друга.</div>
       </div>
       <div class="toolbar"><button id="copyProcessingMap" disabled>Копировать отчёт</button><button id="runProcessingMap" class="primary">Проверить</button></div>
     </div>
@@ -996,8 +1028,41 @@ button{min-height:var(--ui-control-h)}
         <div id="processingMapVerdict" class="diagnostics" style="margin-top:12px"><div class="analysis-empty">Введите домен и нажмите «Проверить».</div></div>
       </article>
     </div>
+
+    <article class="panel processing-how">
+      <div class="processing-how-head">
+        <div>
+          <h2>Как именно выполняется проверка</h2>
+          <p>Обычная проверка показывает доступность сайта с самого роутера. Live NFQWS запускает отдельный временный candidate через тестовую NFQUEUE. Рабочая production-очередь q300 не используется как тестовая и не перенастраивается.</p>
+        </div>
+      </div>
+      <div class="processing-route-grid">
+        <section class="processing-route-card direct">
+          <div class="processing-route-head">
+            <div><div class="processing-route-title">1 · Обычная проверка</div><div class="processing-route-sub">Router-side HTTPS probe через системный маршрут</div></div>
+            <span id="processingDirectBadge" class="processing-route-badge">НЕ ЗАПУСКАЛАСЬ</span>
+          </div>
+          <div id="processingDirectRoute" class="processing-route-flow"><div class="analysis-empty">Сначала нажмите «Проверить».</div></div>
+          <div class="processing-route-note"><strong>Важно:</strong> этот probe не форсирует трафик через production NFQUEUE q300 и не доказывает путь пакета LAN-клиента.</div>
+        </section>
+        <section class="processing-route-card live">
+          <div class="processing-route-head">
+            <div><div class="processing-route-title">2 · Live NFQWS</div><div class="processing-route-sub">Изолированный Fast-тест временного candidate</div></div>
+            <span id="processingLiveBadge" class="processing-route-badge">НЕ ЗАПУСКАЛСЯ</span>
+          </div>
+          <div id="processingLiveRoute" class="processing-route-flow"><div class="analysis-empty">После обычной проверки нажмите «Проверить через NFQWS».</div></div>
+          <div class="processing-route-note"><strong>Важно:</strong> создаётся узкое временное правило только для тестового socket → тестовая NFQUEUE 30000–30127 → временный nfqws2 candidate → обязательная очистка.</div>
+        </section>
+      </div>
+      <div class="processing-safety-strip">
+        <div class="processing-safety-item good"><span>Production config</span><strong>не перезаписывается</strong></div>
+        <div class="processing-safety-item good"><span>Production q300</span><strong>не перенастраивается</strong></div>
+        <div class="processing-safety-item good"><span>Live cleanup</span><strong id="processingCleanupProof">не запускался</strong></div>
+      </div>
+    </article>
+
     <article class="panel" style="margin-top:14px">
-      <div class="panel-head"><div><h2>Путь обработки</h2><div id="processingMapMeta" class="section-kicker">домен → списки → NFQWS → HTTP/TLS</div></div></div>
+      <div class="panel-head"><div><h2>Подробный путь и найденные списки</h2><div id="processingMapMeta" class="section-kicker">статический анализ + live evidence</div></div></div>
       <div id="processingMapSteps" class="static-path-steps"><div class="analysis-empty">Путь ещё не построен.</div></div>
     </article>
   </div>
@@ -3381,6 +3446,79 @@ button{min-height:var(--ui-control-h)}
     }
     return{kind:'warn',label:d.ok?'ТРЕБУЕТ ПРОВЕРКИ':'ОШИБКА',detail:d.recommendation_reason||'Live-путь через candidate NFQUEUE не удалось доказать полностью.',proven:false};
   }
+  function processingProbeSocket(errorText){
+    const raw=String(errorText||''),m=raw.match(/(?:read|dial) tcp\s+([0-9.]+):(\d+)->([0-9.]+):(\d+)/i);
+    return m?{source:`${m[1]}:${m[2]}`,destination:`${m[3]}:${m[4]}`}:{source:'процесс RouterForge на роутере',destination:''};
+  }
+  function processingRouteNode(label,value,tone=''){
+    return `<div class="processing-route-node ${tone}"><span>${esc(label)}</span><strong>${esc(value||'—')}</strong></div>`;
+  }
+  function processingRouteArrow(){return '<div class="processing-route-arrow"></div>'}
+  function renderProcessingNetworkRoutes(result){
+    const probe=processingProbeModel(result.probe),sock=processingProbeSocket(result.probe?.error),iface=result.keenetic?.default_ipv4_interface||result.keenetic?.config_isp_interface||'системный маршрут';
+    const directTone=probe.kind==='good'?'good':probe.kind==='bad'?'bad':'warn';
+    $('processingDirectBadge').textContent=probe.label.toUpperCase();$('processingDirectBadge').className=`processing-route-badge ${directTone}`;
+    $('processingDirectRoute').innerHTML=[
+      processingRouteNode('Источник',sock.source),
+      processingRouteArrow(),
+      processingRouteNode('Маршрут',iface),
+      processingRouteArrow(),
+      processingRouteNode('Production q300','не форсируется / не измеряется'),
+      processingRouteArrow(),
+      processingRouteNode('Назначение',sock.destination||`https://${result.domain}:443`),
+      processingRouteArrow(),
+      processingRouteNode('Результат',probe.detail,directTone)
+    ].join('');
+
+    const d=processingMapLiveResult,live=processingLiveModel();
+    const badgeTone=live.kind==='good'?'good':live.kind==='bad'?'bad':'warn';
+    $('processingLiveBadge').textContent=live.label.toUpperCase();$('processingLiveBadge').className=`processing-route-badge ${badgeTone}`;
+    if(!d){
+      $('processingLiveRoute').innerHTML=[
+        processingRouteNode('Источник','тестовый socket RouterForge'),
+        processingRouteArrow(),
+        processingRouteNode('Отбор трафика','точный dst IPv4:443 + локальный source port'),
+        processingRouteArrow(),
+        processingRouteNode('NFQUEUE','30000–30127 · будет выбрана свободная'),
+        processingRouteArrow(),
+        processingRouteNode('Candidate','временный nfqws2 · Fast mode'),
+        processingRouteArrow(),
+        processingRouteNode('Результат','ещё не запускался')
+      ].join('');
+      $('processingCleanupProof').textContent='не запускался';
+      return;
+    }
+    if(d.error){
+      $('processingLiveRoute').innerHTML=[
+        processingRouteNode('Источник','тестовый socket RouterForge'),
+        processingRouteArrow(),
+        processingRouteNode('Live NFQWS','не завершён','bad'),
+        processingRouteArrow(),
+        processingRouteNode('Ошибка',d.error,'bad')
+      ].join('');
+      $('processingCleanupProof').textContent='не доказана';return;
+    }
+    const samples=[d.baseline,...(d.candidates||[])].flatMap(c=>(c?.attempts||[]).map(a=>({profile:c.source_profile_index,baseline:!!c.baseline,attempt:a})));
+    const successful=samples.find(x=>x.attempt.ok&&Number(x.attempt.outbound_queue_packets||0)>0&&Number(x.attempt.inbound_queue_packets||0)>0);
+    const representative=successful||samples.find(x=>x.attempt)||null;
+    const a=representative?.attempt||{},profile=representative?.baseline?'baseline':Number.isInteger(Number(representative?.profile))?String(representative.profile):'—';
+    const out=Number(a.outbound_queue_packets||0),incoming=Number(a.inbound_queue_packets||0);
+    $('processingLiveRoute').innerHTML=[
+      processingRouteNode('Источник',a.local_port?`RouterForge :${a.local_port}`:'тестовый socket RouterForge'),
+      processingRouteArrow(),
+      processingRouteNode('Отбор трафика',`dst ${a.destination_ipv4||d.destination_ipv4||result.domain}:443 + exact source port`),
+      processingRouteArrow(),
+      processingRouteNode('NFQUEUE',a.queue?String(a.queue):'тестовая 30000–30127',successful?'good':'warn'),
+      processingRouteArrow(),
+      processingRouteNode('Candidate',`временный nfqws2 · профиль ${profile}`),
+      processingRouteArrow(),
+      processingRouteNode('Пакеты',`${out} исходящих · ${incoming} входящих`,successful?'good':'warn'),
+      processingRouteArrow(),
+      processingRouteNode('TLS / результат',successful?'путь через candidate доказан':(a.error||d.recommendation_reason||'успешный путь не доказан'),successful?'good':'warn')
+    ].join('');
+    $('processingCleanupProof').textContent=d.cleanup_baseline_after?'PASS · тестовые правила и процесс убраны':'НЕ ДОКАЗАНА';
+    $('processingCleanupProof').style.color=d.cleanup_baseline_after?'var(--good)':'var(--bad)';
+  }
   function renderProcessingMap(result){
     processingMapResult=result;
     const lists=processingListModel(result.staticPath),probe=processingProbeModel(result.probe),live=processingLiveModel();
@@ -3414,6 +3552,7 @@ button{min-height:var(--ui-control-h)}
     $('processingMapSteps').querySelectorAll('[data-processing-file]').forEach(button=>button.onclick=()=>{document.querySelector('.tab[data-tab="lists"]')?.click();openListAtLine(button.dataset.processingFile,Number(button.dataset.processingLine)||1)});
     $('processingMapMeta').textContent=`${result.domain} · ${Object.keys(result.lists).length} list-файлов · текущий конфиг`;
     renderGuidedTroubleshooter(result);
+    renderProcessingNetworkRoutes(result);
     $('copyProcessingMap').disabled=false;reportHeight();
   }
   async function runProcessingMap(){
@@ -3448,7 +3587,7 @@ button{min-height:var(--ui-control-h)}
       if(d.cleanup_baseline_after!==true)throw new Error('Очистка тестовой NFQUEUE не доказана.');
       processingMapLiveResult=d;
       const live=processingLiveModel();
-      notice(live.proven?'Live NFQWS-путь доказан; рабочий конфиг не изменялся.':'Live-тест завершён, но путь через candidate NFQUEUE не доказан полностью.',live.proven?'good':'error');
+      notice(live.proven?'Live NFQWS: временный candidate и тестовая NFQUEUE доказаны пакетами; q300 и рабочий конфиг не изменялись.':'Live NFQWS завершён: cleanup выполнен, но успешный TLS-путь через candidate NFQUEUE не доказан.',live.proven?'good':'error');
     }catch(e){
       processingMapLiveResult={error:e.message||String(e)};
       notice(`Live NFQWS FAIL: ${e.message||e}`,'error');

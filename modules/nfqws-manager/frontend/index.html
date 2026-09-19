@@ -950,9 +950,11 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
         <div><span>Cleanup baseline</span><strong id="benchCleanup">—</strong></div>
         <div><span>Traffic selector</span><strong id="benchSelector">—</strong></div>
         <div><span>Probe isolation</span><strong id="benchIsolation">—</strong></div>
+        <div><span>Transaction engine</span><strong id="benchTransaction">—</strong></div>
+        <div><span>Rollback plan</span><strong id="benchRollback">—</strong></div>
       </div>
       <div id="benchReadinessDetails" class="bench-readiness-details">Проверка ещё не запускалась.</div>
-      <div class="sandbox-note">UX4.2C фиксирует read-only traffic-selector contract: IPv4 TCP/443, exact destination + exact dynamically-bound local port, transient mark 0x40000000 and hooks around production nfqws_pre/nfqws_post. AutoTune остаётся LOCKED: firewall/session mutation ещё не реализована.</div>
+      <div class="sandbox-note">UX4.2D1 добавляет transactional engine foundation: candidate-first, 6 exact MARK/NFQUEUE/CLEAR rules, reverse-order rollback и обязательный cleanup proof. Системный mutator и active endpoint ещё отключены, поэтому AutoTune остаётся LOCKED.</div>
     </article>
     <div class="sandbox-layout">
       <article class="panel sandbox-editor">
@@ -2333,6 +2335,9 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('benchCleanup').textContent=d.cleanup_proof_implemented?(d.cleanup_baseline_proven?'BASELINE CLEAN':'UNPROVEN'):'NOT IMPLEMENTED';
     $('benchSelector').textContent=d.selector_contract_implemented?(selector.mutation_implemented?'ACTIVE':'CONTRACT ONLY'):'NOT IMPLEMENTED';
     $('benchIsolation').textContent=d.selector_contract_implemented&&selector.production_queue_bypass&&!selector.connmark_required?'EXACT TUPLE + MARK':'UNPROVEN';
+    const tx=d.transaction||{};
+    $('benchTransaction').textContent=d.transaction_engine_implemented?(tx.mutation_enabled?'ACTIVE':'FOUNDATION'):'NOT IMPLEMENTED';
+    $('benchRollback').textContent=d.transaction_engine_implemented&&tx.reverse_order_rollback&&tx.cleanup_mandatory?'REVERSE + VERIFY':'UNPROVEN';
     const rows=[
       ...(d.cleanup_baseline_proven?[['','CLEANUP · reserved NFQUEUE range '+(cleanup.reserved_queue_min||'?')+'–'+(cleanup.reserved_queue_max||'?')+' is clean']]:[]),
       ...(d.selector_contract_implemented?[['','SELECTOR · IPv4 '+String(selector.protocol||'').toUpperCase()+'/'+(selector.remote_port||'?')+' · exact destination/local port · mark 0x'+Number(selector.packet_mark||0).toString(16)]]:[]),

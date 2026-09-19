@@ -5,8 +5,8 @@ import "testing"
 func TestBenchSelectorContractIsNarrowAndLocked(t *testing.T) {
 	got := buildBenchSelectorContract()
 
-	if !got.Implemented || got.MutationImplemented {
-		t.Fatalf("selector contract=%+v", got)
+	if !got.Implemented || !got.MutationImplemented {
+		t.Fatalf("selector mutation contract must be active for controlled TLS smoke: %+v", got)
 	}
 	if !got.IPv4Only || got.Protocol != "tcp" || got.RemotePort != 443 {
 		t.Fatalf("unexpected first active selector scope=%+v", got)

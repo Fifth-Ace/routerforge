@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+)
 
 func TestV2DomainMatches(t *testing.T) {
 	cases := []struct {
@@ -61,5 +64,37 @@ func TestV2FreeBenchQueues(t *testing.T) {
 	got := v2FreeBenchQueues([]int{30000, 30002}, 3)
 	if len(got) != 3 || got[0] != 30001 || got[1] != 30003 || got[2] != 30004 {
 		t.Fatalf("unexpected queues %v", got)
+	}
+}
+
+func TestV2RoutesUseModuleABIPath(t *testing.T) {
+	mux := http.NewServeMux()
+	registerStrategyIntelligenceV2Routes(mux)
+
+	for _, path := range []string{
+		"/v1/v2/inspect-target",
+		"/v1/v2/detect",
+		"/v1/v2/target-sources",
+		"/v1/v2/targets/resolve",
+		"/v1/v2/bench",
+		"/v1/v2/selector",
+	} {
+		req, err := http.NewRequest(http.MethodGet, "http://unix"+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, pattern := mux.Handler(req)
+		if pattern != path {
+			t.Fatalf("route %q pattern=%q", path, pattern)
+		}
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "http://unix/v2/target-sources", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, pattern := mux.Handler(req)
+	if pattern != "" {
+		t.Fatalf("legacy non-ABI route unexpectedly registered: %q", pattern)
 	}
 }

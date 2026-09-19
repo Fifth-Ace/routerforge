@@ -306,11 +306,13 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 .guided-timeline-row.bad .guided-timeline-mark{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--border))}
 .guided-timeline-row.info .guided-timeline-mark{color:var(--muted)}
 .guided-timeline-label{padding-top:3px;font-size:9.5px;font-weight:800}.guided-timeline-detail{padding-top:3px;color:var(--muted);font-size:9.5px;line-height:1.4;overflow-wrap:anywhere}
+.guided-timeline-action{justify-self:end;min-height:25px;padding:0 8px;font-size:8.5px;white-space:nowrap}
+.guided-timeline-row.actionable{grid-template-columns:22px 110px minmax(0,1fr) auto}
 .guided-next{margin-top:12px;padding-top:11px;border-top:1px solid var(--border)}
 .guided-next-title{font-size:10px;font-weight:800}.guided-next-text{margin-top:4px;color:var(--muted);font-size:10px;line-height:1.45}
 .guided-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.guided-actions button{min-height:32px}
 @media(max-width:760px){.guided-steps{grid-template-columns:1fr}.guided-evidence{grid-template-columns:repeat(2,minmax(0,1fr))}.ux-task-head{align-items:flex-start;flex-direction:column}.ux-task-head-note{text-align:left}.ux-task-grid{grid-template-columns:1fr}}
-@media(max-width:420px){.guided-evidence{grid-template-columns:1fr}.guided-result-head{flex-direction:column}.guided-timeline-row{grid-template-columns:22px minmax(0,1fr)}.guided-timeline-label{grid-column:2}.guided-timeline-detail{grid-column:2;padding-top:0}}
+@media(max-width:420px){.guided-evidence{grid-template-columns:1fr}.guided-result-head{flex-direction:column}.guided-timeline-row,.guided-timeline-row.actionable{grid-template-columns:22px minmax(0,1fr)}.guided-timeline-label{grid-column:2}.guided-timeline-detail{grid-column:2;padding-top:0}.guided-timeline-action{grid-column:2;justify-self:start}}
 
 /* UX2.1: preview-only Zapret importer. */
 .zapret-import-shell{display:grid;gap:10px}
@@ -2896,41 +2898,62 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     return{title,detail,kind,next,actions,running,inc,exc,mode,probeOK,ifaceMismatch};
   }
   function guidedTimelineModel(result,model){
-    const rows=[],add=(kind,label,detail)=>rows.push({kind,label,detail});
-    add(model.running?'good':'bad','Runtime',model.running?'nfqws2 запущен.':'nfqws2 остановлен.');
+    const rows=[],add=(kind,label,detail,action=null)=>rows.push({kind,label,detail,action});
+    add(model.running?'good':'bad','Runtime',model.running?'nfqws2 запущен.':'nfqws2 остановлен.',{kind:'tab',tab:'overview',label:'Обзор'});
 
     const preflight=buildPreflight(),preBad=preflight.filter(x=>x.severity==='bad').length,preWarn=preflight.filter(x=>x.severity==='warn').length;
-    add(preBad?'bad':preWarn?'warn':'good','Preflight',preBad?`${preBad} блокирующих проверок.`:preWarn?`${preWarn} пунктов требуют проверки.`:'Блокирующих проблем в текущем preflight не найдено.');
+    add(preBad?'bad':preWarn?'warn':'good','Preflight',preBad?`${preBad} блокирующих проверок.`:preWarn?`${preWarn} пунктов требуют проверки.`:'Блокирующих проблем в текущем preflight не найдено.',{kind:'tab',tab:'preflight',label:'Открыть'});
 
-    if(model.inc&&model.exc)add('warn','Списки',`Есть одновременно include (${model.inc}) и exclude (${model.exc}) совпадения.`);
-    else if(model.exc)add('warn','Списки',`Найдено exclude совпадений: ${model.exc}.`);
-    else if(model.inc)add('good','Списки',`Найдено include совпадений: ${model.inc}.`);
-    else if(['MODE_LIST','MODE_AUTO'].includes(model.mode))add('warn','Списки',`Для ${model.mode} include-match не найден.`);
-    else add('info','Списки','Явный include-match для этого режима не обязателен.');
+    const hits=(result.staticPath?.hits||[]).filter(h=>h.file&&h.file!=='<query>');
+    const firstHit=hits[0]||null,listAction=firstHit?{kind:'list',file:firstHit.file,line:firstHit.line||1,label:'К совпадению'}:{kind:'tab',tab:'lists',label:'Списки'};
+    if(model.inc&&model.exc)add('warn','Списки',`Есть одновременно include (${model.inc}) и exclude (${model.exc}) совпадения.`,listAction);
+    else if(model.exc)add('warn','Списки',`Найдено exclude совпадений: ${model.exc}.`,listAction);
+    else if(model.inc)add('good','Списки',`Найдено include совпадений: ${model.inc}.`,listAction);
+    else if(['MODE_LIST','MODE_AUTO'].includes(model.mode))add('warn','Списки',`Для ${model.mode} include-match не найден.`,{kind:'tab',tab:'lists',label:'Списки'});
+    else add('info','Списки','Явный include-match для этого режима не обязателен.',{kind:'tab',tab:'lists',label:'Списки'});
 
     const staticVerdict=String(result.staticPath?.verdict||'UNKNOWN'),staticReason=String(result.staticPath?.reason||'Статический анализ завершён.');
-    add(model.exc||model.inc?'good':'info','Static path',`${staticVerdict}: ${staticReason} Это вывод из config/list semantics, не live packet trace.`);
+    add(model.exc||model.inc?'good':'info','Static path',`${staticVerdict}: ${staticReason} Это вывод из config/list semantics, не live packet trace.`,{kind:'scroll',target:'processingMapSteps',label:'Детали'});
 
-    if(model.ifaceMismatch)add('warn','WAN / interface',`ISP_INTERFACE=${result.keenetic?.config_isp_interface||'—'}, default IPv4=${result.keenetic?.default_ipv4_interface||'—'}. Несовпадение само по себе не доказывает ошибку.`);
-    else if(result.keenetic?.default_ipv4_interface)add('good','WAN / interface',`default IPv4=${result.keenetic.default_ipv4_interface}${result.keenetic?.config_isp_interface?` · ISP_INTERFACE=${result.keenetic.config_isp_interface}`:''}.`);
-    else add('info','WAN / interface','Keenetic interface evidence недоступно.');
+    if(model.ifaceMismatch)add('warn','WAN / interface',`ISP_INTERFACE=${result.keenetic?.config_isp_interface||'—'}, default IPv4=${result.keenetic?.default_ipv4_interface||'—'}. Несовпадение само по себе не доказывает ошибку.`,{kind:'tab',tab:'keenetic',label:'Система'});
+    else if(result.keenetic?.default_ipv4_interface)add('good','WAN / interface',`default IPv4=${result.keenetic.default_ipv4_interface}${result.keenetic?.config_isp_interface?` · ISP_INTERFACE=${result.keenetic.config_isp_interface}`:''}.`,{kind:'tab',tab:'keenetic',label:'Система'});
+    else add('info','WAN / interface','Keenetic interface evidence недоступно.',{kind:'tab',tab:'keenetic',label:'Система'});
 
-    if(result.probe)add(model.probeOK?'good':'bad','Router probe',model.probeOK?`Router-side HTTPS доступен${result.probe.status_code?` · HTTP ${result.probe.status_code}`:''}.`:`Router-side HTTPS probe завершился ошибкой${result.probe.error?`: ${result.probe.error}`:'.'}`);
-    else add('info','Router probe','Router-side probe evidence отсутствует.');
+    if(result.probe)add(model.probeOK?'good':'bad','Router probe',model.probeOK?`Router-side HTTPS доступен${result.probe.status_code?` · HTTP ${result.probe.status_code}`:''}.`:`Router-side HTTPS probe завершился ошибкой${result.probe.error?`: ${result.probe.error}`:'.'}`,{kind:'testlab',label:'Test Lab'});
+    else add('info','Router probe','Router-side probe evidence отсутствует.',{kind:'testlab',label:'Test Lab'});
 
     const tail=String(current?.log_tail||''),domain=String(result.domain||'').toLowerCase(),domainLines=tail.split(/\r?\n/).filter(x=>domain&&x.toLowerCase().includes(domain));
     const debugEnabled=/^(1|true|yes)$/i.test(String(flowValues.LOG_LEVEL||''));
-    if(domainLines.length)add('good','Logs',`В текущем log tail найдено строк с ${result.domain}: ${domainLines.length}. Это наблюдаемые события, но не полный packet trace.`);
-    else if(debugEnabled&&tail.trim())add('info','Logs',`Log tail доступен, но строк с ${result.domain} не найдено. Отсутствие строки не доказывает отсутствие обработки.`);
-    else if(debugEnabled)add('warn','Logs','Debug logging включён, но текущий tail пуст.');
-    else add('info','Logs','Debug logging выключен; live evidence из nfqws2 log сейчас ограничено.');
+    if(domainLines.length)add('good','Logs',`В текущем log tail найдено строк с ${result.domain}: ${domainLines.length}. Это наблюдаемые события, но не полный packet trace.`,{kind:'logs',label:'Показать'});
+    else if(debugEnabled&&tail.trim())add('info','Logs',`Log tail доступен, но строк с ${result.domain} не найдено. Отсутствие строки не доказывает отсутствие обработки.`,{kind:'logs',label:'Искать'});
+    else if(debugEnabled)add('warn','Logs','Debug logging включён, но текущий tail пуст.',{kind:'tab',tab:'logs',label:'Логи'});
+    else add('info','Logs','Debug logging выключен; live evidence из nfqws2 log сейчас ограничено.',{kind:'tab',tab:'logs',label:'Логи'});
 
     add('info','Граница наблюдаемости','RouterForge не наблюдал конкретный пакет LAN-клиента на входе и выходе NFQUEUE. Static path и router-side probe не являются доказательством такого прохождения.');
     return rows;
   }
+  async function runGuidedTimelineAction(action,result){
+    if(!action)return;
+    if(action.kind==='tab'){activateNFQWSTab(action.tab);return}
+    if(action.kind==='scroll'){document.getElementById(action.target)?.scrollIntoView({behavior:'smooth',block:'start'});return}
+    if(action.kind==='list'){
+      activateNFQWSTab('lists');
+      await openListAtLine(action.file,Number(action.line)||1);
+      return;
+    }
+    if(action.kind==='testlab'){
+      if(result.domain){$('testLabTargets').value=result.domain;testLabResultsData=[]}
+      activateNFQWSTab('testlab');renderTestLab();return;
+    }
+    if(action.kind==='logs'){
+      $('logSearch').value=result.domain||'';
+      logMode='all';activateNFQWSTab('logs');renderLog();return;
+    }
+  }
   function renderGuidedTimeline(result,model){
     const rows=guidedTimelineModel(result,model);
-    $('guidedTimeline').innerHTML=rows.map(row=>`<div class="guided-timeline-row ${esc(row.kind)}"><span class="guided-timeline-mark">${row.kind==='good'?'✓':row.kind==='bad'?'!':row.kind==='warn'?'!':'i'}</span><span class="guided-timeline-label">${esc(row.label)}</span><span class="guided-timeline-detail">${esc(row.detail)}</span></div>`).join('');
+    $('guidedTimeline').innerHTML=rows.map((row,i)=>`<div class="guided-timeline-row ${esc(row.kind)}${row.action?' actionable':''}"><span class="guided-timeline-mark">${row.kind==='good'?'✓':row.kind==='bad'?'!':row.kind==='warn'?'!':'i'}</span><span class="guided-timeline-label">${esc(row.label)}</span><span class="guided-timeline-detail">${esc(row.detail)}</span>${row.action?`<button type="button" class="guided-timeline-action" data-guided-evidence="${i}">${esc(row.action.label)}</button>`:''}</div>`).join('');
+    $('guidedTimeline').querySelectorAll('[data-guided-evidence]').forEach(button=>button.onclick=()=>{const row=rows[Number(button.dataset.guidedEvidence)];void runGuidedTimelineAction(row?.action,result)});
   }
   function renderGuidedTroubleshooter(result){
     const model=guidedTroubleshooterModel(result),root=$('guidedTroubleshooter');

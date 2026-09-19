@@ -208,12 +208,12 @@ type v2SelectorResponse struct {
 }
 
 func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
-	mux.HandleFunc("/v2/inspect-target", mutationOnly(handleV2InspectTarget))
-	mux.HandleFunc("/v2/detect", mutationOnly(handleV2Detect))
-	mux.HandleFunc("/v2/target-sources", getOnly(handleV2TargetSources))
-	mux.HandleFunc("/v2/targets/resolve", mutationOnly(handleV2TargetsResolve))
-	mux.HandleFunc("/v2/bench", mutationOnly(handleV2Bench))
-	mux.HandleFunc("/v2/selector", mutationOnly(handleV2Selector))
+	mux.HandleFunc("/v1/v2/inspect-target", mutationOnly(handleV2InspectTarget))
+	mux.HandleFunc("/v1/v2/detect", mutationOnly(handleV2Detect))
+	mux.HandleFunc("/v1/v2/target-sources", getOnly(handleV2TargetSources))
+	mux.HandleFunc("/v1/v2/targets/resolve", mutationOnly(handleV2TargetsResolve))
+	mux.HandleFunc("/v1/v2/bench", mutationOnly(handleV2Bench))
+	mux.HandleFunc("/v1/v2/selector", mutationOnly(handleV2Selector))
 }
 
 func v2NormalizeTarget(raw string) (string, error) {

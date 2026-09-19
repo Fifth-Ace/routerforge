@@ -2133,30 +2133,41 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 
 
   const listSourceRepo='rndnaame/nfqws-menu',listSourceBranch='main',listSourcePrefix='strategies/lists/';
+  let nfqwsMenuResolvedRef=null,listSourceResolution=null;
+  async function resolveNFQWSMenuRef(force=false){
+    if(nfqwsMenuResolvedRef&&!force)return nfqwsMenuResolvedRef;
+    const resolved=await api('/upstream/nfqws-menu');
+    nfqwsMenuResolvedRef=resolved;
+    return resolved;
+  }
   function listSourceLocalByName(name){return listSourceFiles.find(x=>String(x.name)===String(name))||null}
   async function listSourceFetch(url,timeout=10000){const c=new AbortController(),timer=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(url,{cache:'no-store',signal:c.signal,headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r}finally{clearTimeout(timer)}}
   async function listSourceSha256(buffer){if(!globalThis.crypto?.subtle)throw new Error('WebCrypto SHA-256 недоступен в этом браузере.');const d=await crypto.subtle.digest('SHA-256',buffer);return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,'0')).join('')}
   function listSourceBase64(buffer){const bytes=new Uint8Array(buffer);let out='';for(let i=0;i<bytes.length;i+=0x8000)out+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));return btoa(out)}
   function listSourceStateFor(item){const local=listSourceLocalByName(item.name);if(!local)return'missing';return String(local.sha256||'').toLowerCase()===String(item.sha256||'').toLowerCase()?'ok':'update'}
-  async function resolveListSourceUpstream(){
-    const commitRes=await listSourceFetch(`https://api.github.com/repos/${listSourceRepo}/commits/${listSourceBranch}`,8000),commit=await commitRes.json(),sha=String(commit?.sha||'').trim();if(!/^[0-9a-f]{40}$/i.test(sha))throw new Error('upstream exact commit не получен');
+  async function resolveListSourceUpstream(force=false){
+    const resolved=await resolveNFQWSMenuRef(force);listSourceResolution=resolved;const sha=String(resolved?.sha||'').trim();
+    if(!/^[0-9a-f]{40}$/i.test(sha))throw new Error(resolved?.error||'upstream exact commit не получен');
     const manifestRes=await listSourceFetch(`https://raw.githubusercontent.com/${listSourceRepo}/${sha}/SHA256SUMS`,10000),manifest=await manifestRes.text(),items=[];
     for(const line of manifest.split(/\r?\n/)){const m=line.match(/^([0-9a-fA-F]{64})\s+(strategies\/lists\/([^\s/]+\.list))$/);if(m)items.push({name:m[3],path:m[2],sha256:m[1].toLowerCase(),ref:sha})}
     if(!items.length)throw new Error('upstream list manifest пуст');listSourceRef=sha;listSourceUpstream=items.sort((a,b)=>a.name.localeCompare(b.name));
   }
   async function loadListSources(force=false){
     if(listSourceLoading||listSourceLoaded&&!force){renderListSources();return}listSourceLoading=true;listSourceError='';if($('listSourceState')){$('listSourceState').textContent='LOADING';$('listSourceState').className='config-badge'}
-    try{const local=await api('/list-sources');listSourceFiles=Array.isArray(local.files)?local.files:[];$('listSourceRootMeta').textContent=local.root||'/opt/etc/nfqws2/lists';try{await resolveListSourceUpstream()}catch(e){listSourceUpstream=[];listSourceRef='';listSourceError=e?.name==='AbortError'?'timeout':String(e.message||e)}listSourceLoaded=true;renderListSources()}
+    try{const local=await api('/list-sources');listSourceFiles=Array.isArray(local.files)?local.files:[];$('listSourceRootMeta').textContent=local.root||'/opt/etc/nfqws2/lists';try{await resolveListSourceUpstream(force)}catch(e){listSourceUpstream=[];listSourceRef='';listSourceError=e?.name==='AbortError'?'timeout':String(e.message||e)}listSourceLoaded=true;renderListSources()}
     catch(e){listSourceLoaded=false;listSourceError=String(e.message||e);if($('listSourceLocalList'))$('listSourceLocalList').innerHTML=`<div class="empty bad-text">${esc(listSourceError)}</div>`;renderListSources()}
     finally{listSourceLoading=false}
   }
   function renderListSources(){
     if(!$('listSourceLocalList'))return;const changed=listSourceUpstream.filter(x=>listSourceStateFor(x)!=='ok').length,referenced=listSourceFiles.filter(x=>x.referenced).length;
     $('listSourceLocalCount').textContent=listSourceFiles.length;$('listSourceUpstreamCount').textContent=listSourceUpstream.length;$('listSourceMissingCount').textContent=changed;$('listSourceReferencedCount').textContent=referenced;
-    $('listSourceState').textContent=listSourceError?'OFFLINE':listSourceRef?'SYNCED':'LOCAL';$('listSourceState').className='config-badge '+(listSourceError?'empty':'active');$('listSourceUpstreamMeta').textContent=listSourceRef?`${listSourceRepo} · exact ref ${listSourceRef.slice(0,12)}`:`${listSourceRepo} · ${listSourceError||'not synced'}`;
+    const resolutionState=String(listSourceResolution?.state||''),sourceLabel=String(listSourceResolution?.source||'');
+    const listState=listSourceError?(resolutionState==='rate_limited'?'RATE LIMITED':'OFFLINE'):resolutionState==='stale_cache'?'STALE CACHE':listSourceRef?'SYNCED':'LOCAL';
+    $('listSourceState').textContent=listState;$('listSourceState').className='config-badge '+(listState==='SYNCED'?'active':listState==='OFFLINE'?'empty':'');
+    $('listSourceUpstreamMeta').textContent=listSourceRef?`${listSourceRepo} · exact ref ${listSourceRef.slice(0,12)}${sourceLabel?` · ${sourceLabel}`:''}`:`${listSourceRepo} · ${listSourceError||resolutionState||'not synced'}`;
     $('listSourceLocalList').innerHTML=listSourceFiles.length?listSourceFiles.map(x=>`<div class="blob-row"><div><div class="blob-name">${esc(x.name)} ${x.protected?'<span class="config-badge">CORE</span>':''}</div><div class="blob-meta">${bytes(x.size)} · sha256 ${esc(String(x.sha256||'').slice(0,16))}…</div><div class="blob-refs">${x.referenced?`refs: ${esc((x.references||[]).join(', '))}`:'unreferenced'}</div></div><div class="blob-actions"><span class="blob-state ok">LOCAL</span><button data-list-source-open="${esc(x.name)}">Открыть</button></div></div>`).join(''):'<div class="empty">Локальные .list не найдены.</div>';
     $('listSourceLocalList').querySelectorAll('[data-list-source-open]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.listSourceOpen));
-    if(listSourceError){$('listSourceUpstreamList').innerHTML=`<div class="empty bad-text">Upstream OFFLINE: ${esc(listSourceError)}<br><span class="muted">Локальные списки остаются доступны.</span></div>`;return}
+    if(listSourceError){const title=String(listSourceResolution?.state||'')==='rate_limited'?'GitHub API rate limited':'Upstream unavailable';$('listSourceUpstreamList').innerHTML=`<div class="empty bad-text">${esc(title)}: ${esc(listSourceError)}<br><span class="muted">Локальные списки остаются доступны.</span></div>`;return}
     $('listSourceUpstreamList').innerHTML=listSourceUpstream.length?listSourceUpstream.map(item=>{const local=listSourceLocalByName(item.name),state=listSourceStateFor(item),action=state==='missing'?'Установить':state==='update'?'Заменить':'';return `<div class="blob-dep-row"><div><div class="blob-name">${esc(item.name)}</div><div class="blob-meta">expected ${esc(item.sha256.slice(0,16))}…${local?` · local ${esc(String(local.sha256||'').slice(0,16))}…`:''}${local?.protected?' · protected':''}</div></div><div class="blob-actions"><span class="blob-state ${state}">${state==='ok'?'VERIFIED':state==='update'?'UPDATE':'MISSING'}</span>${action?`<button data-list-source-install="${esc(item.name)}">${esc(action)}</button>`:`<button data-list-source-open="${esc(item.name)}">Открыть</button>`}</div></div>`}).join(''):'<div class="empty">Upstream manifest не содержит strategies/lists/*.list.</div>';
     $('listSourceUpstreamList').querySelectorAll('[data-list-source-install]').forEach(b=>b.onclick=()=>installListSource(b.dataset.listSourceInstall));$('listSourceUpstreamList').querySelectorAll('[data-list-source-open]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.listSourceOpen));
   }
@@ -2210,16 +2221,18 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   }
   function renderCatalogSources(){
     if(!$('catalogLocalSource'))return;const local=catalogItems.filter(x=>x.kind!=='upstream').length,up=catalogItems.filter(x=>x.kind==='upstream').length;$('catalogLocalSource').textContent=`${local} items · active canonical + Config Library`;
-    const u=catalogUpstream;$('catalogUpstreamSource').innerHTML=u.state==='ready'?`<span class="catalog-source-status good">SYNCED</span> ${esc(up)} configs · ref ${esc((u.sha||u.ref||'main').slice(0,12))}`:u.state==='error'?`<span class="catalog-source-status bad">OFFLINE</span> ${esc(u.error||'upstream unavailable')} · локальный каталог продолжает работать`:`<span class="catalog-source-status warn">${esc(u.state.toUpperCase())}</span> ref ${esc(u.ref||'main')}`;
+    const u=catalogUpstream,ref=esc((u.sha||u.ref||'main').slice(0,12)),source=u.source?` · ${esc(u.source)}`:'';
+    $('catalogUpstreamSource').innerHTML=u.state==='ready'?`<span class="catalog-source-status good">SYNCED</span> ${esc(up)} configs · ref ${ref}${source}`:u.state==='stale'?`<span class="catalog-source-status warn">STALE CACHE</span> ${esc(up)} configs · ref ${ref}${source}`:u.state==='rate_limited'?`<span class="catalog-source-status warn">RATE LIMITED</span> ${esc(u.error||'GitHub API limit')} · локальный каталог продолжает работать`:u.state==='error'?`<span class="catalog-source-status bad">OFFLINE</span> ${esc(u.error||'upstream unavailable')} · локальный каталог продолжает работать`:`<span class="catalog-source-status warn">${esc(u.state.toUpperCase())}</span> ref ${ref}`;
   }
   async function loadCatalog(force=false){
     if(catalogLoading||catalogLoaded&&!force){renderCatalogList();return}catalogLoading=true;catalogUpstream={state:'loading',ref:catalogBranch,sha:'',error:''};renderCatalogSources();try{
       if(!configLibraryLoaded)await loadConfigLibrary(true);const local=[{id:'active:canonical',kind:'active',name:'nfqws2.conf',path:current?.config_path||'/opt/etc/nfqws2/nfqws2.conf',source:'RouterForge active',ref:'active',sha256:current?.config_sha256||''},...configLibraryFiles.map(x=>({id:`local:${x.name}`,kind:'local',name:x.name,path:x.path,source:'Config Library',ref:'local',sha256:x.sha256||'',active:!!x.active}))];
       let upstream=[];try{
-        const commitRes=await catalogFetch(`https://api.github.com/repos/${catalogRepo}/commits/${catalogBranch}`,8000),commit=await commitRes.json(),sha=String(commit?.sha||'').trim();catalogUpstream.sha=sha;catalogUpstream.ref=catalogBranch;
-        const ref=sha||catalogBranch,manifestRes=await catalogFetch(`https://raw.githubusercontent.com/${catalogRepo}/${ref}/SHA256SUMS`,10000),manifest=await manifestRes.text();
-        upstream=manifest.split(/\r?\n/).map(line=>{const m=line.match(/^([0-9a-fA-F]{64})\s+(strategies\/nfqws2\/[^\s]+\.conf)$/);if(!m)return null;return{id:`upstream:${m[2]}`,kind:'upstream',name:m[2].split('/').pop(),path:m[2],source:catalogRepo,ref:ref,sha256:m[1].toLowerCase()}}).filter(Boolean);catalogUpstream.state='ready';catalogUpstream.count=upstream.length;
-      }catch(e){catalogUpstream.state='error';catalogUpstream.error=e?.name==='AbortError'?'timeout':String(e.message||e)}
+        const resolved=await resolveNFQWSMenuRef(force),sha=String(resolved?.sha||'').trim();catalogUpstream.sha=sha;catalogUpstream.ref=catalogBranch;catalogUpstream.source=String(resolved?.source||'');
+        if(!/^[0-9a-f]{40}$/i.test(sha)){catalogUpstream.state=resolved?.state==='rate_limited'?'rate_limited':'error';throw new Error(resolved?.error||'upstream exact commit не получен')}
+        const ref=sha,manifestRes=await catalogFetch(`https://raw.githubusercontent.com/${catalogRepo}/${ref}/SHA256SUMS`,10000),manifest=await manifestRes.text();
+        upstream=manifest.split(/\r?\n/).map(line=>{const m=line.match(/^([0-9a-fA-F]{64})\s+(strategies\/nfqws2\/[^\s]+\.conf)$/);if(!m)return null;return{id:`upstream:${m[2]}`,kind:'upstream',name:m[2].split('/').pop(),path:m[2],source:catalogRepo,ref:ref,sha256:m[1].toLowerCase()}}).filter(Boolean);catalogUpstream.state=resolved?.state==='stale_cache'?'stale':'ready';catalogUpstream.count=upstream.length;
+      }catch(e){if(catalogUpstream.state!=='rate_limited')catalogUpstream.state='error';catalogUpstream.error=e?.name==='AbortError'?'timeout':String(e.message||e)}
       catalogItems=[...local,...upstream];catalogLoaded=true;renderCatalogSources();renderCatalogList();if(catalogSelected&&!catalogItems.some(x=>x.id===catalogSelected)){catalogSelected='';catalogSelectedData=null;$('catalogDetail').className='catalog-empty';$('catalogDetail').textContent='Выберите стратегию слева.'}
     }finally{catalogLoading=false;renderCatalogSources()}
   }

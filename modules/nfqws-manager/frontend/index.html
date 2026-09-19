@@ -290,6 +290,7 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 .guided-result.visible{display:block}
 .guided-result-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .guided-result-title{font-size:14px;font-weight:850;line-height:1.25}.guided-result-detail{margin-top:5px;color:var(--muted);font-size:10.5px;line-height:1.5;max-width:900px}
+.guided-result-tools{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}.guided-result-tools button{min-height:28px;padding:0 9px;font-size:8.5px}
 .guided-result-badge{flex:0 0 auto;padding:5px 8px;border:1px solid var(--border);border-radius:999px;font:800 9px/1 ui-monospace,Consolas,monospace}
 .guided-result-badge.good{color:var(--good)}.guided-result-badge.warn{color:var(--warn)}.guided-result-badge.bad{color:var(--bad)}
 .guided-evidence{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:11px}
@@ -847,7 +848,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
       <article id="guidedTroubleshooter" class="guided-result" aria-live="polite">
         <div class="guided-result-head">
           <div><div id="guidedTitle" class="guided-result-title">Результат диагностики</div><div id="guidedDetail" class="guided-result-detail"></div></div>
-          <span id="guidedBadge" class="guided-result-badge warn">CHECK</span>
+          <div class="guided-result-tools"><button id="copyGuidedReport" disabled>Копировать отчёт</button><span id="guidedBadge" class="guided-result-badge warn">CHECK</span></div>
         </div>
         <div class="guided-evidence">
           <div class="guided-evidence-item"><span>nfqws2</span><strong id="guidedRuntime">—</strong></div>
@@ -2955,6 +2956,58 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('guidedTimeline').innerHTML=rows.map((row,i)=>`<div class="guided-timeline-row ${esc(row.kind)}${row.action?' actionable':''}"><span class="guided-timeline-mark">${row.kind==='good'?'✓':row.kind==='bad'?'!':row.kind==='warn'?'!':'i'}</span><span class="guided-timeline-label">${esc(row.label)}</span><span class="guided-timeline-detail">${esc(row.detail)}</span>${row.action?`<button type="button" class="guided-timeline-action" data-guided-evidence="${i}">${esc(row.action.label)}</button>`:''}</div>`).join('');
     $('guidedTimeline').querySelectorAll('[data-guided-evidence]').forEach(button=>button.onclick=()=>{const row=rows[Number(button.dataset.guidedEvidence)];void runGuidedTimelineAction(row?.action,result)});
   }
+  function guidedSupportReport(result,model){
+    const evidence=guidedTimelineModel(result,model).map(row=>({state:row.kind,label:row.label,detail:row.detail}));
+    return{
+      generated_at:new Date().toISOString(),
+      scope:'guided-troubleshooter-read-only',
+      domain:String(result.domain||''),
+      verdict:{state:model.kind,title:model.title,detail:model.detail},
+      next_step:model.next,
+      active_config_sha256:String(current?.config_sha256||''),
+      runtime_running:!!model.running,
+      mode:String(model.mode||'UNKNOWN'),
+      static_path:{
+        verdict:String(result.staticPath?.verdict||'UNKNOWN'),
+        reason:String(result.staticPath?.reason||''),
+        include_matches:Number(model.inc||0),
+        exclude_matches:Number(model.exc||0)
+      },
+      router_probe:result.probe?{
+        reachable:!!result.probe.reachable,
+        status_code:Number(result.probe.status_code||0),
+        error:String(result.probe.error||'')
+      }:null,
+      evidence,
+      observability_boundary:'RouterForge does not directly observe the diagnosed LAN client packet entering and leaving NFQUEUE.'
+    };
+  }
+  function guidedSupportReportText(report){
+    const lines=[
+      'RouterForge Guided Diagnostics',
+      `Generated: ${report.generated_at}`,
+      `Domain: ${report.domain||'—'}`,
+      `Verdict: ${String(report.verdict.state||'').toUpperCase()} · ${report.verdict.title}`,
+      `Detail: ${report.verdict.detail}`,
+      `Next: ${report.next_step}`,
+      `Active config SHA256: ${report.active_config_sha256||'—'}`,
+      `Runtime: ${report.runtime_running?'RUNNING':'STOPPED'}`,
+      `Mode: ${report.mode}`,
+      `Static path: ${report.static_path.verdict}${report.static_path.reason?` · ${report.static_path.reason}`:''}`,
+      `Matches: include=${report.static_path.include_matches} exclude=${report.static_path.exclude_matches}`,
+      `Router probe: ${report.router_probe?(report.router_probe.reachable?`OK${report.router_probe.status_code?` HTTP ${report.router_probe.status_code}`:''}`:`FAIL${report.router_probe.error?` · ${report.router_probe.error}`:''}`):'NO DATA'}`,
+      '',
+      'Evidence:'
+    ];
+    for(const row of report.evidence)lines.push(`[${String(row.state||'info').toUpperCase()}] ${row.label}: ${row.detail}`);
+    lines.push('',`Observability boundary: ${report.observability_boundary}`);
+    return lines.join('\n');
+  }
+  function copyGuidedSupportReport(result,model){
+    const report=guidedSupportReport(result,model),text=guidedSupportReportText(report);
+    navigator.clipboard?.writeText(text);
+    notice('Диагностический отчёт скопирован.','good');
+  }
   function renderGuidedTroubleshooter(result){
     const model=guidedTroubleshooterModel(result),root=$('guidedTroubleshooter');
     $('guidedTitle').textContent=model.title;$('guidedDetail').textContent=model.detail;
@@ -2964,6 +3017,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('guidedInterface').textContent=model.ifaceMismatch?'нужно проверить':result.keenetic?.default_ipv4_interface||'нет данных';
     $('guidedProbe').textContent=model.probeOK?`Доступен${result.probe?.status_code?` · HTTP ${result.probe.status_code}`:''}`:result.probe?'Ошибка':'нет данных';
     renderGuidedTimeline(result,model);
+    $('copyGuidedReport').disabled=false;$('copyGuidedReport').onclick=()=>copyGuidedSupportReport(result,model);
     if((model.kind==='bad'||model.kind==='warn')&&!model.actions.some(x=>x.includes('data-guided-tab="logs"')))model.actions.push(guidedActionButton('logs','Посмотреть логи'));
     $('guidedNextText').textContent=model.next;$('guidedActions').innerHTML=model.actions.join('');
     $('guidedActions').querySelectorAll('[data-guided-tab]').forEach(button=>button.onclick=()=>{
@@ -3002,7 +3056,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(processingMapRunning)return;
     const domain=normalizeProcessingMapDomain($('processingMapDomain').value);
     if(!domain){notice('Processing Map: нужен корректный публичный DNS hostname.','error');return}
-    processingMapRunning=true;processingMapResult=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;
+    processingMapRunning=true;processingMapResult=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;$('copyGuidedReport').disabled=true;
     $('guidedTroubleshooter').classList.remove('visible');$('guidedActions').innerHTML='';$('guidedTimeline').innerHTML='';
     $('processingMapState').textContent='RUNNING';$('processingMapState').className='testlab-state running';
     $('processingMapVerdict').innerHTML='<div class="analysis-empty">Проверяю runtime, списки, путь и доступность с роутера…</div>';

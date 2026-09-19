@@ -2416,7 +2416,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('resetAutoTuneFlow').disabled=autoTuneRunning;
     const source=autoTunePreviewData||autoTuneResult||{};
     $('autoTuneServer').textContent=source.server_name||$('autoTuneTarget').value||'—';
-    $('autoTuneProfile').textContent=Number.isInteger(source.source_profile_index)?String(source.source_profile_index):Number.isInteger(source.recommended_profile_index)?String(source.recommended_profile_index):'—';
+    const hasRecommendation=!!autoTuneToken||!!autoTunePreviewData||!!autoTuneApplyResult;
+    $('autoTuneProfile').textContent=hasRecommendation?(Number.isInteger(source.source_profile_index)?String(source.source_profile_index):Number.isInteger(source.recommended_profile_index)?String(source.recommended_profile_index):'—'):'—';
     $('autoTuneActiveSha').textContent=autoTuneShortSha(autoTunePreviewData?.active_config_sha256||autoTuneActiveSha);
     $('autoTuneCandidateSha').textContent=autoTuneShortSha(autoTunePreviewData?.candidate_config_sha256||'');
     $('autoTuneExpires').textContent=autoTunePreviewData?.gate_expires_at||autoTuneResult?.apply_gate_expires_at||'—';

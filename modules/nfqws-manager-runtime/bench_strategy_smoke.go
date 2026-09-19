@@ -57,6 +57,7 @@ type benchTLSStrategyOps struct {
 	outboundQueuePackets  uint64
 	inboundQueuePackets   uint64
 	strategyPathExercised bool
+	probeDurationMS       int64
 }
 
 func registerBenchTLSStrategySmokeRoute(mux *http.ServeMux) {
@@ -162,6 +163,7 @@ func (o *benchTLSStrategyOps) VerifyInstalled(ctx context.Context, spec benchTra
 }
 
 func (o *benchTLSStrategyOps) Probe(ctx context.Context, spec benchTransactionSpec) error {
+	probeStarted := time.Now()
 	outComment := benchRuleComment(spec.SessionID, "out-queue")
 	inComment := benchRuleComment(spec.SessionID, "in-queue")
 
@@ -232,6 +234,7 @@ func (o *benchTLSStrategyOps) Probe(ctx context.Context, spec benchTransactionSp
 		return errors.New("strategy candidate NFQUEUE binding was lost during TLS probe")
 	}
 
+	o.probeDurationMS = time.Since(probeStarted).Milliseconds()
 	o.strategyPathExercised = o.tlsHandshakeComplete &&
 		o.outboundQueuePackets > 0 && o.inboundQueuePackets > 0
 	if !o.strategyPathExercised {

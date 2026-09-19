@@ -44,6 +44,7 @@ func TestBenchSafetyContractLocked(t *testing.T) {
 		StrategyCompilerImplemented:  true,
 		StrategyPreflightImplemented: true,
 		TLSStrategySmokeImplemented:  true,
+		AutoTuneTLSLoopImplemented:   true,
 	}
 	if got.BenchEnabled || got.SafeToBench {
 		t.Fatal("controlled smoke must not enable general AutoTune bench")
@@ -51,8 +52,8 @@ func TestBenchSafetyContractLocked(t *testing.T) {
 	if !got.LifecycleContractImplemented || !got.CleanupProofImplemented ||
 		!got.SelectorContractImplemented || !got.TransactionEngineImplemented ||
 		!got.StrategyCompilerImplemented || !got.StrategyPreflightImplemented ||
-		!got.TLSStrategySmokeImplemented {
-		t.Fatal("lifecycle, cleanup, selector, transaction, compiler, preflight and TLS smoke foundations must be present")
+		!got.TLSStrategySmokeImplemented || !got.AutoTuneTLSLoopImplemented {
+		t.Fatal("lifecycle, cleanup, selector, transaction, compiler, preflight, TLS smoke and AutoTune loop foundations must be present")
 	}
 	if !got.Transaction.MutationEnabled || !got.Transaction.ControlledSmokeOnly {
 		t.Fatal("D2 system mutator must remain limited to controlled smoke")

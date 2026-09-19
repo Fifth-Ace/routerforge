@@ -958,7 +958,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
         <div><span>TLS execution</span><strong id="benchTLSExecution">—</strong></div>
       </div>
       <div id="benchReadinessDetails" class="bench-readiness-details">Проверка ещё не запускалась.</div>
-      <div class="sandbox-note">UX4.3C добавляет controlled TLS/SNI strategy smoke: один eligible live profile, один exact IPv4/local port, 6 временных MARK/NFQUEUE/CLEAR rules, TLS handshake, NFQUEUE counter proof и обязательный reverse cleanup. Multi-candidate AutoTune всё ещё LOCKED.</div>
+      <div class="sandbox-note">UX4.4 запускает TLS AutoTune loop: queue-only baseline, затем retargeted strategy templates на одном SNI, режимы Fast / Normal / Thorough, success-rate + median probe latency и cleanup после каждой попытки. Production Apply пока LOCKED.</div>
     </article>
     <div class="sandbox-layout">
       <article class="panel sandbox-editor">
@@ -2345,7 +2345,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('benchStrategyCompiler').textContent=d.strategy_compiler_implemented?'LIVE ARGV':'NOT IMPLEMENTED';
     $('benchStrategyCandidates').textContent=d.strategy_compiler_implemented?String(d.strategy_candidate_count||0)+' / '+String(d.strategy_profile_count||0):'—';
     $('benchStrategyPreflight').textContent=d.strategy_preflight_implemented?'START/BIND/STOP':'NOT IMPLEMENTED';
-    $('benchTLSExecution').textContent=d.tls_strategy_smoke_implemented?'CONTROLLED SMOKE':'LOCKED';
+    $('benchTLSExecution').textContent=d.autotune_tls_loop_implemented?'AUTOTUNE TLS':(d.tls_strategy_smoke_implemented?'CONTROLLED SMOKE':'LOCKED');
     const rows=[
       ...(d.cleanup_baseline_proven?[['','CLEANUP · reserved NFQUEUE range '+(cleanup.reserved_queue_min||'?')+'–'+(cleanup.reserved_queue_max||'?')+' is clean']]:[]),
       ...(d.selector_contract_implemented?[['','SELECTOR · IPv4 '+String(selector.protocol||'').toUpperCase()+'/'+(selector.remote_port||'?')+' · exact destination/local port · mark 0x'+Number(selector.packet_mark||0).toString(16)]]:[]),

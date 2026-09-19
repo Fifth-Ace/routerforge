@@ -263,6 +263,24 @@ body.syntax-fullscreen-open{overflow:hidden}
 /* R14 polish: aligned overview, compact traffic rows, header-click collapse animation and lower list workspace. */
 #view-overview{display:none}
 #view-overview.active{display:block}
+/* UX1: task-first entry point for non-admin users. */
+.ux-task-center{margin-bottom:12px;padding:16px;border:1px solid var(--border);border-radius:var(--radius);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 7%,var(--surface)),var(--surface) 42%)}
+.ux-task-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:12px}
+.ux-task-head h2{margin:0;color:var(--text);font-size:18px;line-height:1.2}
+.ux-task-head p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.5;max-width:760px}
+.ux-task-head-note{flex:0 0 auto;color:var(--muted);font:9px/1.3 ui-monospace,Consolas,monospace;text-align:right}
+.ux-task-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ux-task-card{position:relative;display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:11px;align-items:center;min-width:0;padding:13px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);text-align:left;color:var(--text)}
+button.ux-task-card{width:100%;cursor:pointer}
+button.ux-task-card:hover{border-color:color-mix(in srgb,var(--accent) 60%,var(--border));background:var(--accent-soft)}
+button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ux-task-icon{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--border-strong);border-radius:9px;background:var(--code);color:var(--accent);font:800 15px/1 ui-monospace,Consolas,monospace}
+.ux-task-copy{min-width:0}.ux-task-title{font-size:12px;font-weight:800;line-height:1.3}.ux-task-desc{margin-top:4px;color:var(--muted);font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+.ux-task-action{color:var(--accent);font-size:10px;font-weight:800;white-space:nowrap}
+.ux-task-card.planned{opacity:.72;cursor:default}.ux-task-card.planned .ux-task-icon{color:var(--muted)}.ux-task-card.planned .ux-task-action{color:var(--muted)}
+.ux-task-foot{margin-top:10px;color:var(--muted);font-size:9.5px;line-height:1.45}
+@media(max-width:760px){.ux-task-head{align-items:flex-start;flex-direction:column}.ux-task-head-note{text-align:left}.ux-task-grid{grid-template-columns:1fr}}
+@media(max-width:420px){.ux-task-center{padding:12px}.ux-task-card{grid-template-columns:34px minmax(0,1fr);padding:11px}.ux-task-icon{width:34px;height:34px}.ux-task-action{grid-column:2}}
 .overview-metrics.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .overview-metrics .card{min-height:92px;display:flex;flex-direction:column;justify-content:center}
 .overview-details{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px;align-items:stretch}
@@ -592,6 +610,38 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 
 <main>
 <section id="view-overview" class="view active">
+  <section class="ux-task-center" aria-labelledby="uxTaskTitle">
+    <div class="ux-task-head">
+      <div>
+        <h2 id="uxTaskTitle">Что хотите сделать?</h2>
+        <p>Выберите задачу обычными словами. RouterForge откроет нужный инструмент; технические детали и ручные настройки никуда не исчезают.</p>
+      </div>
+      <div class="ux-task-head-note">Начните с задачи<br>детали — по необходимости</div>
+    </div>
+    <div class="ux-task-grid">
+      <button type="button" class="ux-task-card" id="uxTaskBroken">
+        <span class="ux-task-icon">01</span>
+        <span class="ux-task-copy"><span class="ux-task-title">Сайт или приложение не работает</span><span class="ux-task-desc">Разберём домен: списки, активный конфиг, runtime, интернет-интерфейс и проверку доступности с роутера.</span></span>
+        <span class="ux-task-action">Начать диагностику</span>
+      </button>
+      <button type="button" class="ux-task-card" id="uxTaskCheck">
+        <span class="ux-task-icon">02</span>
+        <span class="ux-task-copy"><span class="ux-task-title">Проверить текущую настройку</span><span class="ux-task-desc">Проверим сервис, конфигурацию, зависимости и доступные runtime-сигналы без изменения настроек.</span></span>
+        <span class="ux-task-action">Проверить</span>
+      </button>
+      <article class="ux-task-card planned" aria-label="Автоподбор — следующий этап разработки">
+        <span class="ux-task-icon">03</span>
+        <span class="ux-task-copy"><span class="ux-task-title">Подобрать настройку автоматически</span><span class="ux-task-desc">Безопасный Strategy Bench будет тестировать кандидатов изолированно, не подменяя рабочую конфигурацию во время поиска.</span></span>
+        <span class="ux-task-action">Скоро</span>
+      </article>
+      <article class="ux-task-card planned" aria-label="Импорт из Zapret — следующий этап разработки">
+        <span class="ux-task-icon">04</span>
+        <span class="ux-task-copy"><span class="ux-task-title">Импортировать настройку из Zapret</span><span class="ux-task-desc">RouterForge распознает Windows-стратегию, объяснит преобразования и даст проверить результат до сохранения или применения.</span></span>
+        <span class="ux-task-action">Скоро</span>
+      </article>
+    </div>
+    <div class="ux-task-foot">Эти быстрые сценарии не скрывают экспертные возможности: полная конфигурация, списки, NFQWS Menu, инструменты и обслуживание остаются доступны в верхней навигации.</div>
+  </section>
   <div class="grid cards overview-metrics">
     <article class="card"><div class="metric-label">Сервис</div><div id="mService" class="metric-value">—</div><div id="mServiceSub" class="metric-sub">—</div></article>
     <article class="card"><div class="metric-label">Конфигурация</div><div id="mConfig" class="metric-value">—</div><div id="mConfigSub" class="metric-sub">—</div></article>
@@ -2763,6 +2813,18 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
+
+  function openOverviewTask(tab,focusId){
+    activateNFQWSTab(tab);
+    requestAnimationFrame(()=>{
+      const target=focusId?$(focusId):null;
+      if(target){target.focus();if(typeof target.select==='function'&&target.value)target.select()}
+      reportHeight();
+    });
+  }
+  $('uxTaskBroken').onclick=()=>openOverviewTask('processing','processingMapDomain');
+  $('uxTaskCheck').onclick=()=>openOverviewTask('preflight','');
+
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;
   $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;

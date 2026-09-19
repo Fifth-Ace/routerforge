@@ -954,9 +954,11 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
         <div><span>Rollback plan</span><strong id="benchRollback">—</strong></div>
         <div><span>Strategy compiler</span><strong id="benchStrategyCompiler">—</strong></div>
         <div><span>Eligible profiles</span><strong id="benchStrategyCandidates">—</strong></div>
+        <div><span>Strategy preflight</span><strong id="benchStrategyPreflight">—</strong></div>
+        <div><span>TLS execution</span><strong id="benchTLSExecution">—</strong></div>
       </div>
       <div id="benchReadinessDetails" class="bench-readiness-details">Проверка ещё не запускалась.</div>
-      <div class="sandbox-note">UX4.3A компилирует candidate-профили из живого production argv (/proc), а не из шаблонного nfqws2.conf. Компилятор пока read-only: strategy execution и пользовательский AutoTune остаются LOCKED.</div>
+      <div class="sandbox-note">UX4.3B умеет собрать exact candidate argv из live runtime и выполнить controlled start/bind/stop preflight без firewall rules и пользовательского трафика. TLS/SNI strategy execution пока LOCKED.</div>
     </article>
     <div class="sandbox-layout">
       <article class="panel sandbox-editor">
@@ -2342,6 +2344,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     $('benchRollback').textContent=d.transaction_engine_implemented&&tx.reverse_order_rollback&&tx.cleanup_mandatory?'REVERSE + VERIFY':'UNPROVEN';
     $('benchStrategyCompiler').textContent=d.strategy_compiler_implemented?'LIVE ARGV':'NOT IMPLEMENTED';
     $('benchStrategyCandidates').textContent=d.strategy_compiler_implemented?String(d.strategy_candidate_count||0)+' / '+String(d.strategy_profile_count||0):'—';
+    $('benchStrategyPreflight').textContent=d.strategy_preflight_implemented?'START/BIND/STOP':'NOT IMPLEMENTED';
+    $('benchTLSExecution').textContent='LOCKED';
     const rows=[
       ...(d.cleanup_baseline_proven?[['','CLEANUP · reserved NFQUEUE range '+(cleanup.reserved_queue_min||'?')+'–'+(cleanup.reserved_queue_max||'?')+' is clean']]:[]),
       ...(d.selector_contract_implemented?[['','SELECTOR · IPv4 '+String(selector.protocol||'').toUpperCase()+'/'+(selector.remote_port||'?')+' · exact destination/local port · mark 0x'+Number(selector.packet_mark||0).toString(16)]]:[]),

@@ -54,6 +54,7 @@ type benchCapabilities struct {
 	Transaction                  benchTransactionContract `json:"transaction"`
 	StrategyCompilerImplemented  bool                     `json:"strategy_compiler_implemented"`
 	StrategyPreflightImplemented bool                     `json:"strategy_preflight_implemented"`
+	TLSStrategySmokeImplemented  bool                     `json:"tls_strategy_smoke_implemented"`
 	StrategyProfileCount         int                      `json:"strategy_profile_count"`
 	StrategyCandidateCount       int                      `json:"strategy_candidate_count"`
 	Blockers                     []string                 `json:"blockers"`
@@ -272,6 +273,7 @@ func readBenchCapabilities() benchCapabilities {
 		Transaction:                  buildBenchTransactionContract(),
 		StrategyCompilerImplemented:  true,
 		StrategyPreflightImplemented: true,
+		TLSStrategySmokeImplemented:  true,
 	}
 
 	result.IPTablesPath = findExecutable("iptables")
@@ -339,7 +341,7 @@ func readBenchCapabilities() benchCapabilities {
 	if !strategyInventory.BaseDependenciesProven {
 		result.Warnings = append(result.Warnings, "live strategy base dependencies are not fully proven")
 	}
-	result.Blockers = append(result.Blockers, "strategy candidate preflight is available; TLS traffic execution remains locked")
+	result.Blockers = append(result.Blockers, "controlled TLS strategy smoke is available; multi-candidate AutoTune remains locked")
 
 	if len(result.ActiveNFQWS2) == 0 {
 		result.Warnings = append(result.Warnings, "active nfqws2 process was not detected")

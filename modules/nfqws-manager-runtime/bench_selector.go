@@ -39,7 +39,7 @@ type benchSelectorContract struct {
 func buildBenchSelectorContract() benchSelectorContract {
 	return benchSelectorContract{
 		Implemented:           true,
-		MutationImplemented:   false,
+		MutationImplemented:   true,
 		IPv4Only:              true,
 		Protocol:              benchProbeProtocol,
 		RemotePort:            benchProbePort,

@@ -33,6 +33,15 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .status:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--muted)}.status.good{color:var(--good)}.status.good:before{background:var(--good)}.status.warn{color:var(--warn)}.status.warn:before{background:var(--warn)}.status.bad{color:var(--bad)}.status.bad:before{background:var(--bad)}
 .notice{padding:10px 12px;color:var(--muted);font-size:11px}.notice.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 36%,var(--border));background:color-mix(in srgb,var(--good) 7%,var(--surface))}.notice.error{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 36%,var(--border))}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);overflow:auto}.tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:10px 13px;font-size:12px;margin-bottom:-1px;white-space:nowrap;min-height:34px}.tab:hover{background:transparent;color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent}
+/* UI NAV1: compact primary navigation with tools subnavigation. */
+.nfqws-primary-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow:visible}
+.nfqws-primary-tabs .tab,.nfqws-tool-tabs .tab{display:flex;align-items:center;justify-content:center;gap:5px;margin:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--muted);min-height:40px;padding:9px 12px;font-weight:650}
+.nfqws-primary-tabs .tab:hover,.nfqws-tool-tabs .tab:hover{color:var(--text);background:var(--hover)}
+.nfqws-primary-tabs .tab.active,.nfqws-tool-tabs .tab.active{color:var(--text);background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 55%,var(--border));box-shadow:inset 0 -2px 0 var(--accent)}
+.nfqws-tool-tabs{display:none;gap:4px;margin-top:10px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow-x:auto}
+.nfqws-tool-tabs.visible{display:flex}
+.nfqws-tool-tabs .tab{flex:1 0 auto;min-width:120px}
+@media(max-width:760px){.nfqws-primary-tabs{display:flex;overflow-x:auto}.nfqws-primary-tabs .tab{flex:1 0 130px}.nfqws-tool-tabs .tab{min-width:130px}}
 .view{display:none}.view.active{display:block}.grid{display:grid;gap:var(--space)}.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr))}
 .card{padding:13px;min-width:0}.metric-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}.metric-value{font:700 19px/1.1 ui-monospace,Consolas,monospace;margin-top:5px;color:var(--text)}.metric-sub{color:var(--muted);font-size:10px;margin-top:5px;overflow-wrap:anywhere}
 .panel{padding:13px;min-width:0}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}.panel-head h2{font-size:14px;margin:0;color:var(--accent)}.panel-head .section-kicker{margin-top:4px;color:var(--muted);font-size:10px}.panel-head strong{color:var(--text)}
@@ -529,23 +538,27 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
 
 <div id="notice" class="notice">Loading NFQWS runtime…</div>
 
-<nav class="tabs">
+<nav class="tabs nfqws-primary-tabs" id="nfqwsPrimaryTabs" aria-label="Основная навигация NFQWS">
   <button class="tab active" data-tab="overview">Обзор</button>
   <button class="tab" data-tab="strategies">Настройка <span id="strategyCount"></span></button>
   <button class="tab" data-tab="configs">Конфиги <span id="configLibraryCount"></span></button>
-  <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState"></span></button>
-  <button class="tab" data-tab="blobs">Blobs <span id="blobTabState"></span></button>
-  <button class="tab" data-tab="config">Raw конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount"></span></button>
+  <button class="tab" data-primary-tab="tools">Инструменты</button>
+</nav>
+
+<nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Инструменты NFQWS">
   <button class="tab" data-tab="preflight">Диагностика <span id="preflightTabState"></span></button>
   <button class="tab" data-tab="processing">Processing Map <span id="processingMapTabState"></span></button>
   <button class="tab" data-tab="testlab">Test Lab <span id="testLabTabState"></span></button>
   <button class="tab" data-tab="sandbox">Sandbox <span id="sandboxTabState"></span></button>
   <button class="tab" data-tab="runs">История <span id="runHistoryTabState"></span></button>
+  <button class="tab" data-tab="keenetic">Keenetic <span id="keeneticTabState"></span></button>
   <button class="tab" data-tab="logs">Логи</button>
   <button class="tab" data-tab="scripts">Скрипты <span id="scriptCount"></span></button>
-  <button class="tab" data-tab="keenetic">Keenetic <span id="keeneticTabState"></span></button>
   <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab"></span></button>
+  <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState"></span></button>
+  <button class="tab" data-tab="blobs">Blobs <span id="blobTabState"></span></button>
+  <button class="tab" data-tab="config">Raw конфиг</button>
 </nav>
 
 <main>
@@ -1920,7 +1933,7 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
   function renderScriptList(){const q=$('scriptSearch').value.trim().toLowerCase();const files=scriptFiles.filter(x=>!q||String(x.name||'').toLowerCase().includes(q));$('scriptList').innerHTML=files.length?files.map(item=>`<div class="script-item${selectedScript===item.name?' active':''}" data-script-name="${esc(item.name)}"><div><div class="script-name">${esc(item.name)}</div><div class="script-meta">${esc(item.modified_at||'')} · read-only</div></div><div class="script-meta">${bytes(item.size)}</div></div>`).join(''):'<div class="empty">Lua-скрипты не найдены.</div>';$('scriptList').querySelectorAll('[data-script-name]').forEach(row=>row.onclick=()=>selectScript(row.dataset.scriptName))}
   async function loadScripts(force=false){if(scriptsLoading||scriptsLoaded&&!force)return;scriptsLoading=true;$('scriptList').innerHTML='<div class="empty">Загрузка Lua inventory…</div>';try{const d=await api('/scripts');scriptFiles=Array.isArray(d.files)?d.files:[];scriptsLoaded=true;const roots=Array.isArray(d.roots)?d.roots:[];$('scriptRoot').textContent=d.root||roots[0]||'/opt/etc/nfqws2/lua';$('scriptCount').textContent=scriptFiles.length?`(${scriptFiles.length})`:'';renderScriptList();if(!scriptFiles.length&&roots.length)$('scriptList').innerHTML=`<div class="empty">Lua-скрипты не найдены.<br><span class="muted">Проверено: ${roots.map(esc).join(' · ')}</span></div>`}catch(e){$('scriptList').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}finally{scriptsLoading=false}}
   async function selectScript(name){if(!name)return;selectedScript=name;renderScriptList();$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Loading…';$('copyScript').disabled=true;$('fullscreenScript').disabled=true;try{const d=await api(`/scripts?name=${encodeURIComponent(name)}`);scriptContent=d.content||'';$('selectedScriptMeta').textContent=`${d.path||name} · ${bytes(d.size)} · read-only`;$('copyScript').disabled=false;$('fullscreenScript').disabled=false;renderScriptCode()}catch(e){scriptContent='';$('selectedScriptMeta').textContent=e.message;renderScriptCode()}}
-  async function openScriptFromSetup(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='scripts'));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-scripts'));await loadScripts();const exact=scriptFiles.find(x=>String(x.name)===String(name));if(exact)await selectScript(exact.name);else{$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Скрипт упомянут в BASE_ARGS, но не найден в runtime inventory';selectedScript='';scriptContent='';renderScriptCode()}reportHeight()}
+  async function openScriptFromSetup(name){activateNFQWSTab('scripts');await loadScripts();const exact=scriptFiles.find(x=>String(x.name)===String(name));if(exact)await selectScript(exact.name);else{$('selectedScriptTitle').textContent=name;$('selectedScriptMeta').textContent='Скрипт упомянут в BASE_ARGS, но не найден в runtime inventory';selectedScript='';scriptContent='';renderScriptCode()}reportHeight()}
 
   function backupStateClass(state){return String(state||'').toLowerCase()}
   function backupCenterVisible(){
@@ -2647,7 +2660,37 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  document.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${btn.dataset.tab}`));if(btn.dataset.tab==='scripts')loadScripts();if(btn.dataset.tab==='lists')loadListSources();if(btn.dataset.tab==='preflight')renderPreflight();if(btn.dataset.tab==='runs'){renderRunHistory();renderAutoPick()};if(btn.dataset.tab==='catalog')loadCatalog();if(btn.dataset.tab==='blobs')loadBlobs();if(btn.dataset.tab==='backups')loadBackupCenter();if(btn.dataset.tab==='keenetic'){loadKeenetic();loadDPIDetector()};if(btn.dataset.tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')};if(btn.dataset.tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')};if(btn.dataset.tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}if(btn.dataset.tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});else requestAnimationFrame(reportHeight)});
+  const nfqwsToolTabs=new Set(['preflight','processing','testlab','sandbox','runs','keenetic','logs','scripts','backups','catalog','blobs','config']);
+  let nfqwsActiveTool='preflight';
+
+  function activateNFQWSTab(tab){
+    const isTool=nfqwsToolTabs.has(tab);
+    if(isTool)nfqwsActiveTool=tab;
+    document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(x=>x.classList.toggle('active',isTool?x.dataset.primaryTab==='tools':x.dataset.tab===tab));
+    const toolStrip=$('nfqwsToolTabs');
+    if(toolStrip)toolStrip.classList.toggle('visible',isTool);
+    document.querySelectorAll('#nfqwsToolTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+    document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${tab}`));
+    if(tab==='scripts')loadScripts();
+    if(tab==='lists')loadListSources();
+    if(tab==='preflight')renderPreflight();
+    if(tab==='runs'){renderRunHistory();renderAutoPick()}
+    if(tab==='catalog')loadCatalog();
+    if(tab==='blobs')loadBlobs();
+    if(tab==='backups')loadBackupCenter();
+    if(tab==='keenetic'){loadKeenetic();loadDPIDetector()}
+    if(tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')}
+    if(tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE')}
+    if(tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}
+    if(tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});
+    else requestAnimationFrame(reportHeight);
+  }
+
+  document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(btn=>btn.onclick=()=>{
+    if(btn.dataset.primaryTab==='tools')activateNFQWSTab(nfqwsActiveTool);
+    else activateNFQWSTab(btn.dataset.tab);
+  });
+  document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;
   $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;

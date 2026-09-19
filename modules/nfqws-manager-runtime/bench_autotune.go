@@ -41,7 +41,7 @@ type benchAutoTuneAttempt struct {
 
 type benchAutoTuneCandidate struct {
 	Baseline           bool                   `json:"baseline"`
-	SourceProfileIndex int                    `json:"source_profile_index,omitempty"`
+	SourceProfileIndex int                    `json:"source_profile_index"`
 	StrategyTags       []int                  `json:"strategy_tags,omitempty"`
 	Attempts           []benchAutoTuneAttempt `json:"attempts"`
 	Successes          int                    `json:"successes"`
@@ -60,7 +60,7 @@ type benchAutoTuneResponse struct {
 	Baseline                benchAutoTuneCandidate   `json:"baseline"`
 	Candidates              []benchAutoTuneCandidate `json:"candidates"`
 	RecommendationAvailable bool                     `json:"recommendation_available"`
-	RecommendedProfileIndex int                      `json:"recommended_profile_index,omitempty"`
+	RecommendedProfileIndex int                      `json:"recommended_profile_index"`
 	StrategyNeeded          bool                     `json:"strategy_needed"`
 	RecommendationReason    string                   `json:"recommendation_reason"`
 	CleanupBaselineAfter    bool                     `json:"cleanup_baseline_after"`

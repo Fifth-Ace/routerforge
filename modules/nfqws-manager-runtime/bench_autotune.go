@@ -67,10 +67,10 @@ type benchAutoTuneResponse struct {
 	BenchEnabled            bool                     `json:"bench_enabled"`
 	SafeToBench             bool                     `json:"safe_to_bench"`
 	ApplyEnabled            bool                     `json:"apply_enabled"`
-	ApplyGateEligible  bool   `json:"apply_gate_eligible"`
-	ApplyGateToken     string `json:"apply_gate_token,omitempty"`
-	ApplyGateExpiresAt string `json:"apply_gate_expires_at,omitempty"`
-	ApplyGateReason    string `json:"apply_gate_reason"`
+	ApplyGateEligible       bool                     `json:"apply_gate_eligible"`
+	ApplyGateToken          string                   `json:"apply_gate_token,omitempty"`
+	ApplyGateExpiresAt      string                   `json:"apply_gate_expires_at,omitempty"`
+	ApplyGateReason         string                   `json:"apply_gate_reason"`
 }
 
 func registerBenchAutoTuneRoute(mux *http.ServeMux) {

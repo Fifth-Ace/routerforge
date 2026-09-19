@@ -48,6 +48,8 @@ type benchCapabilities struct {
 	CleanupProofImplemented      bool                   `json:"cleanup_proof_implemented"`
 	CleanupBaselineProven        bool                   `json:"cleanup_baseline_proven"`
 	Lifecycle                    benchLifecycleContract `json:"lifecycle"`
+	SelectorContractImplemented  bool                   `json:"selector_contract_implemented"`
+	Selector                     benchSelectorContract  `json:"selector"`
 	Blockers                     []string               `json:"blockers"`
 	Warnings                     []string               `json:"warnings"`
 }
@@ -256,6 +258,8 @@ func readBenchCapabilities() benchCapabilities {
 		Warnings:                     []string{},
 		LifecycleContractImplemented: true,
 		CleanupProofImplemented:      true,
+		SelectorContractImplemented:  true,
+		Selector:                     buildBenchSelectorContract(),
 	}
 
 	result.IPTablesPath = findExecutable("iptables")
@@ -317,7 +321,7 @@ func readBenchCapabilities() benchCapabilities {
 	if !result.CleanupBaselineProven {
 		result.Blockers = append(result.Blockers, "reserved bench queue cleanup baseline is not proven")
 	}
-	result.Blockers = append(result.Blockers, "isolated traffic selector and active bench session mutation are not implemented yet")
+	result.Blockers = append(result.Blockers, "active bench session mutation is not implemented yet")
 
 	if len(result.ActiveNFQWS2) == 0 {
 		result.Warnings = append(result.Warnings, "active nfqws2 process was not detected")

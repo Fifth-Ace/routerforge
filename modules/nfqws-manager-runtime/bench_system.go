@@ -534,8 +534,8 @@ func handleBenchSmoke(w http.ResponseWriter, r *http.Request) {
 		Queue:                spec.Queue,
 		Result:               result,
 		CleanupBaselineAfter: after.CleanupBaselineProven,
-		BenchEnabled:         false,
-		SafeToBench:          false,
+		BenchEnabled:         after.BenchEnabled,
+		SafeToBench:          after.SafeToBench,
 	}
 	if !ok {
 		writeJSON(w, http.StatusBadGateway, response)

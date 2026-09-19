@@ -258,6 +258,23 @@ func readKernelQueueInventory() ([]int, bool) {
 	return parseNFNetlinkQueue(string(data)), true
 }
 
+func benchExecutionReady(result benchCapabilities) bool {
+	return result.CandidateSpawnCapable &&
+		result.IPTablesPath != "" &&
+		result.IPTablesSavePath != "" &&
+		result.FirewallInventoryOK &&
+		result.KernelQueueInventoryOK &&
+		result.QueueInventoryComplete &&
+		result.RecommendedQueue != 0 &&
+		result.LifecycleContractImplemented &&
+		result.CleanupProofImplemented &&
+		result.CleanupBaselineProven &&
+		result.SelectorContractImplemented &&
+		result.Selector.MutationImplemented &&
+		result.TransactionEngineImplemented &&
+		result.Transaction.MutationEnabled
+}
+
 func readBenchCapabilities() benchCapabilities {
 	result := benchCapabilities{
 		ReadOnly:                     true,
@@ -345,11 +362,13 @@ func readBenchCapabilities() benchCapabilities {
 	if !strategyInventory.BaseDependenciesProven {
 		result.Warnings = append(result.Warnings, "live strategy base dependencies are not fully proven")
 	}
-	result.Blockers = append(result.Blockers, "server-side AutoTune Apply gate is available; config preview and production Apply remain locked")
 
 	if len(result.ActiveNFQWS2) == 0 {
 		result.Warnings = append(result.Warnings, "active nfqws2 process was not detected")
 	}
+
+	result.SafeToBench = benchExecutionReady(result)
+	result.BenchEnabled = result.SafeToBench
 
 	return result
 }

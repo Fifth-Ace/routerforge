@@ -33,31 +33,38 @@ func TestFirstFreeBenchQueue(t *testing.T) {
 	}
 }
 
-func TestBenchSafetyContractLocked(t *testing.T) {
+func TestBenchExecutionReady(t *testing.T) {
 	got := benchCapabilities{
-		ReadOnly: true, BenchEnabled: false, SafeToBench: false,
+		CandidateSpawnCapable:        true,
+		IPTablesPath:                 "/opt/sbin/iptables",
+		IPTablesSavePath:             "/opt/sbin/iptables-save",
+		FirewallInventoryOK:          true,
+		KernelQueueInventoryOK:       true,
+		QueueInventoryComplete:       true,
+		RecommendedQueue:             30000,
 		LifecycleContractImplemented: true,
 		CleanupProofImplemented:      true,
+		CleanupBaselineProven:        true,
 		SelectorContractImplemented:  true,
+		Selector:                     buildBenchSelectorContract(),
 		TransactionEngineImplemented: true,
 		Transaction:                  buildBenchTransactionContract(),
-		StrategyCompilerImplemented:  true,
-		StrategyPreflightImplemented: true,
-		TLSStrategySmokeImplemented:  true,
-		AutoTuneTLSLoopImplemented:   true,
-		AutoTuneApplyGateImplemented: true,
 	}
-	if got.BenchEnabled || got.SafeToBench {
-		t.Fatal("controlled smoke must not enable general AutoTune bench")
+	if !benchExecutionReady(got) {
+		t.Fatal("fully proven bench capability set must be ready")
 	}
-	if !got.LifecycleContractImplemented || !got.CleanupProofImplemented ||
-		!got.SelectorContractImplemented || !got.TransactionEngineImplemented ||
-		!got.StrategyCompilerImplemented || !got.StrategyPreflightImplemented ||
-		!got.TLSStrategySmokeImplemented || !got.AutoTuneTLSLoopImplemented ||
-		!got.AutoTuneApplyGateImplemented {
-		t.Fatal("lifecycle, cleanup, selector, transaction, compiler, preflight, TLS smoke, AutoTune loop and Apply gate foundations must be present")
+	got.RecommendedQueue = 0
+	if benchExecutionReady(got) {
+		t.Fatal("missing reserved queue must lock bench readiness")
 	}
-	if !got.Transaction.MutationEnabled || !got.Transaction.ControlledSmokeOnly {
-		t.Fatal("D2 system mutator must remain limited to controlled smoke")
+	got.RecommendedQueue = 30000
+	got.CleanupBaselineProven = false
+	if benchExecutionReady(got) {
+		t.Fatal("unproven cleanup baseline must lock bench readiness")
+	}
+	got.CleanupBaselineProven = true
+	got.Selector.MutationImplemented = false
+	if benchExecutionReady(got) {
+		t.Fatal("inactive selector mutation must lock bench readiness")
 	}
 }

@@ -952,9 +952,11 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
         <div><span>Probe isolation</span><strong id="benchIsolation">—</strong></div>
         <div><span>Transaction engine</span><strong id="benchTransaction">—</strong></div>
         <div><span>Rollback plan</span><strong id="benchRollback">—</strong></div>
+        <div><span>Strategy compiler</span><strong id="benchStrategyCompiler">—</strong></div>
+        <div><span>Eligible profiles</span><strong id="benchStrategyCandidates">—</strong></div>
       </div>
       <div id="benchReadinessDetails" class="bench-readiness-details">Проверка ещё не запускалась.</div>
-      <div class="sandbox-note">UX4.2D2 добавляет системный mutator только для controlled smoke: минимальный queue-only candidate, 6 exact MARK/NFQUEUE/CLEAR rules, reverse-order rollback и обязательный cleanup proof. Пользовательский AutoTune всё ещё LOCKED — UI не запускает активный bench.</div>
+      <div class="sandbox-note">UX4.3A компилирует candidate-профили из живого production argv (/proc), а не из шаблонного nfqws2.conf. Компилятор пока read-only: strategy execution и пользовательский AutoTune остаются LOCKED.</div>
     </article>
     <div class="sandbox-layout">
       <article class="panel sandbox-editor">
@@ -2338,6 +2340,8 @@ html.syntax-fullscreen-open,body.syntax-fullscreen-open{width:100%;height:100%;o
     const tx=d.transaction||{};
     $('benchTransaction').textContent=d.transaction_engine_implemented?(tx.mutation_enabled?(tx.controlled_smoke_only?'CONTROLLED SMOKE':'ACTIVE'):'FOUNDATION'):'NOT IMPLEMENTED';
     $('benchRollback').textContent=d.transaction_engine_implemented&&tx.reverse_order_rollback&&tx.cleanup_mandatory?'REVERSE + VERIFY':'UNPROVEN';
+    $('benchStrategyCompiler').textContent=d.strategy_compiler_implemented?'LIVE ARGV':'NOT IMPLEMENTED';
+    $('benchStrategyCandidates').textContent=d.strategy_compiler_implemented?String(d.strategy_candidate_count||0)+' / '+String(d.strategy_profile_count||0):'—';
     const rows=[
       ...(d.cleanup_baseline_proven?[['','CLEANUP · reserved NFQUEUE range '+(cleanup.reserved_queue_min||'?')+'–'+(cleanup.reserved_queue_max||'?')+' is clean']]:[]),
       ...(d.selector_contract_implemented?[['','SELECTOR · IPv4 '+String(selector.protocol||'').toUpperCase()+'/'+(selector.remote_port||'?')+' · exact destination/local port · mark 0x'+Number(selector.packet_mark||0).toString(16)]]:[]),

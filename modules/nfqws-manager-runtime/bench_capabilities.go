@@ -52,6 +52,9 @@ type benchCapabilities struct {
 	Selector                     benchSelectorContract    `json:"selector"`
 	TransactionEngineImplemented bool                     `json:"transaction_engine_implemented"`
 	Transaction                  benchTransactionContract `json:"transaction"`
+	StrategyCompilerImplemented  bool                     `json:"strategy_compiler_implemented"`
+	StrategyProfileCount         int                      `json:"strategy_profile_count"`
+	StrategyCandidateCount       int                      `json:"strategy_candidate_count"`
 	Blockers                     []string                 `json:"blockers"`
 	Warnings                     []string                 `json:"warnings"`
 }
@@ -59,6 +62,7 @@ type benchCapabilities struct {
 func registerBenchCapabilityRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/bench-capabilities", getOnly(handleBenchCapabilities))
 	registerBenchSmokeRoute(mux)
+	registerBenchStrategyRoute(mux)
 }
 
 func handleBenchCapabilities(w http.ResponseWriter, _ *http.Request) {
@@ -265,6 +269,7 @@ func readBenchCapabilities() benchCapabilities {
 		Selector:                     buildBenchSelectorContract(),
 		TransactionEngineImplemented: true,
 		Transaction:                  buildBenchTransactionContract(),
+		StrategyCompilerImplemented:  true,
 	}
 
 	result.IPTablesPath = findExecutable("iptables")
@@ -326,7 +331,13 @@ func readBenchCapabilities() benchCapabilities {
 	if !result.CleanupBaselineProven {
 		result.Blockers = append(result.Blockers, "reserved bench queue cleanup baseline is not proven")
 	}
-	result.Blockers = append(result.Blockers, "controlled smoke mutator is available, but AutoTune strategy execution remains locked")
+	strategyInventory := readBenchStrategyInventory()
+	result.StrategyProfileCount = strategyInventory.ProfileCount
+	result.StrategyCandidateCount = strategyInventory.EligibleProfileCount
+	if !strategyInventory.BaseDependenciesProven {
+		result.Warnings = append(result.Warnings, "live strategy base dependencies are not fully proven")
+	}
+	result.Blockers = append(result.Blockers, "strategy compiler is read-only; candidate strategy execution remains locked")
 
 	if len(result.ActiveNFQWS2) == 0 {
 		result.Warnings = append(result.Warnings, "active nfqws2 process was not detected")

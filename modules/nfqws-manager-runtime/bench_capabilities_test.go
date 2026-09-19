@@ -41,13 +41,15 @@ func TestBenchSafetyContractLocked(t *testing.T) {
 		SelectorContractImplemented:  true,
 		TransactionEngineImplemented: true,
 		Transaction:                  buildBenchTransactionContract(),
+		StrategyCompilerImplemented:  true,
 	}
 	if got.BenchEnabled || got.SafeToBench {
 		t.Fatal("controlled smoke must not enable general AutoTune bench")
 	}
 	if !got.LifecycleContractImplemented || !got.CleanupProofImplemented ||
-		!got.SelectorContractImplemented || !got.TransactionEngineImplemented {
-		t.Fatal("UX4.2 lifecycle, cleanup, selector and transaction foundations must be present")
+		!got.SelectorContractImplemented || !got.TransactionEngineImplemented ||
+		!got.StrategyCompilerImplemented {
+		t.Fatal("lifecycle, cleanup, selector, transaction and strategy compiler foundations must be present")
 	}
 	if !got.Transaction.MutationEnabled || !got.Transaction.ControlledSmokeOnly {
 		t.Fatal("D2 system mutator must remain limited to controlled smoke")

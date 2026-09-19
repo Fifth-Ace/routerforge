@@ -774,6 +774,48 @@ button{min-height:var(--ui-control-h)}
 .processing-strategy-note strong{color:var(--text)}
 @media(max-width:640px){.processing-strategy-row{grid-template-columns:1fr}.processing-strategy-result{text-align:left;white-space:normal}.processing-strategy-head{flex-direction:column}.processing-strategy-head span{text-align:left}}
 
+.nfqws-primary-tabs{grid-template-columns:repeat(5,minmax(0,1fr))}
+
+/* NFQWS V2 functional workspaces. Cosmetic pass intentionally deferred. */
+.v2-shell{display:grid;gap:14px}
+.v2-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}
+.v2-hero h2{margin:0;font-size:16px}
+.v2-input-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.v2-input-row .search{flex:1;max-width:none;min-width:220px}
+.v2-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.v2-card-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.v2-card{padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}
+.v2-card span{display:block;color:var(--muted);font-size:10px}
+.v2-card strong{display:block;margin-top:4px;font-size:13px;overflow-wrap:anywhere}
+.v2-label{display:grid;gap:5px;margin-bottom:10px;color:var(--muted);font-size:11px}
+.v2-label>.search,.v2-label>select{width:100%;max-width:none}
+.v2-textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--border);border-radius:7px;background:var(--editor);color:var(--text);padding:10px;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+.v2-textarea.compact{min-height:92px}
+.v2-inline{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:10px 0}
+.v2-inline label{display:grid;gap:4px;color:var(--muted);font-size:10px}
+.v2-check{display:flex;align-items:center;gap:7px;margin:8px 0;font-size:12px}
+.v2-stage-list,.v2-list{display:grid;gap:8px}
+.v2-row{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(0,2fr) auto;gap:10px;align-items:start;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}
+.v2-row.good{border-color:color-mix(in srgb,var(--good) 40%,var(--border))}
+.v2-row.bad{border-color:color-mix(in srgb,var(--bad) 40%,var(--border))}
+.v2-row.warn{border-color:color-mix(in srgb,var(--warn) 40%,var(--border))}
+.v2-row .meta{color:var(--muted);font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+.v2-row .value{font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.v2-pill{display:inline-flex;align-items:center;min-height:22px;padding:0 7px;border:1px solid var(--border);border-radius:999px;font:700 9px/1 ui-monospace,Consolas,monospace}
+.v2-pill.good{color:var(--good)}.v2-pill.bad{color:var(--bad)}.v2-pill.warn{color:var(--warn)}.v2-pill.info{color:var(--accent)}
+.v2-boundary{padding:9px 10px;border-left:2px solid var(--border-strong);background:var(--surface2);color:var(--muted);font-size:11px;line-height:1.5}
+.v2-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 0}
+.v2-stats>div{padding:9px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}
+.v2-stats span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}
+.v2-stats strong{display:block;margin-top:4px;font-size:12px}
+.v2-recommendation{margin-bottom:12px}
+.v2-result-title{font-weight:700}
+.v2-args{margin-top:5px;padding:7px;border-radius:6px;background:var(--code);font:10px/1.45 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+.v2-library-actions{display:flex;gap:5px;flex-wrap:wrap}
+.v2-muted{color:var(--muted);font-size:10px;line-height:1.45}
+@media(max-width:900px){.v2-two,.v2-card-grid{grid-template-columns:1fr}.v2-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.v2-row{grid-template-columns:1fr}.v2-stats{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -795,38 +837,32 @@ button{min-height:var(--ui-control-h)}
 
 <nav class="tabs nfqws-primary-tabs" id="nfqwsPrimaryTabs" aria-label="Основная навигация NFQWS">
   <button class="tab active" data-tab="overview">Обзор</button>
-  <button class="tab" data-primary-tab="configuration">Конфигурация</button>
-  <button class="tab" data-tab="lists">Списки <span id="listCount" class="nav-meta"></span></button>
-  <button class="tab" data-primary-tab="nfqws-menu">NFQWS Menu</button>
-  <button class="tab" data-primary-tab="tools">Инструменты</button>
+  <button class="tab" data-primary-tab="configuration">Настройка</button>
+  <button class="tab" data-primary-tab="tools">Диагностика</button>
+  <button class="tab" data-primary-tab="nfqws-menu">Стратегии</button>
   <button class="tab" data-primary-tab="maintenance">Обслуживание</button>
 </nav>
 
-<nav class="tabs nfqws-tool-tabs nfqws-config-tabs" id="nfqwsConfigTabs" aria-label="Конфигурация NFQWS">
-  <button class="tab" data-tab="strategies">Мастер <span id="strategyCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="configs">Конфиги <span id="configLibraryCount" class="nav-meta"></span></button>
+<nav class="tabs nfqws-tool-tabs nfqws-config-tabs" id="nfqwsConfigTabs" aria-label="Настройка NFQWS">
+  <button class="tab" data-tab="strategies">Конфигурация <span id="strategyCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="configs">Сохранённые конфиги <span id="configLibraryCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="config">Raw</button>
+  <button class="tab" data-tab="lists">Списки <span id="listCount" class="nav-meta"></span></button>
 </nav>
 
-<div class="nfqws-menu-credit" id="nfqwsMenuCredit">
-  <div>
-    <div class="nfqws-menu-credit-title">NFQWS Menu upstream</div>
-    <div class="nfqws-menu-credit-text">Стратегии, списки и blobs предоставляются проектом <span class="mono">rndnaame/nfqws-menu</span>. Спасибо rndnaame за проект и поддержку этой экосистемы.</div>
-  </div>
-  <a class="nfqws-menu-credit-link" href="https://github.com/rndnaame/nfqws-menu" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
-</div>
+<nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Диагностика NFQWS">
+  <button class="tab" data-tab="preflight">Проверка системы <span id="preflightTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="domain-v2">Разбор домена</button>
+  <button class="tab" data-tab="prodlab-v2">Test Lab</button>
+</nav>
 
-<nav class="tabs nfqws-tool-tabs nfqws-menu-tabs" id="nfqwsMenuTabs" aria-label="NFQWS Menu sources">
-  <button class="tab" data-tab="catalog">Стратегии <span id="catalogTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="upstream-lists">Списки <span id="listSourceStateNav" class="nav-meta"></span></button>
+<nav class="tabs nfqws-tool-tabs nfqws-menu-tabs" id="nfqwsMenuTabs" aria-label="Стратегии NFQWS">
+  <button class="tab" data-tab="selector-v2">Автоподбор</button>
+  <button class="tab" data-tab="sandbox-v2">Sandbox</button>
+  <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
+  <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="upstream-lists">Источники списков <span id="listSourceStateNav" class="nav-meta"></span></button>
   <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
-</nav>
-
-<nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Инструменты NFQWS">
-  <button class="tab" data-tab="preflight">Диагностика <span id="preflightTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="processing">Processing Map <span id="processingMapTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="testlab">Test Lab <span id="testLabTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="sandbox">Sandbox <span id="sandboxTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="zapret-import">Импорт из Zapret</button>
 </nav>
 
@@ -838,7 +874,172 @@ button{min-height:var(--ui-control-h)}
   <button class="tab" data-tab="keenetic">Система <span id="keeneticTabState" class="nav-meta"></span></button>
 </nav>
 
+<div id="nfqwsMenuCredit" style="display:none!important"><span id="testLabTabState"></span><span id="sandboxTabState"></span></div>
+
+
 <main>
+
+<section id="view-domain-v2" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Разбор домена</h2><div class="section-kicker">production inventory + DNS → TCP → TLS → HTTP</div></div>
+      <span id="v2DomainState" class="config-badge">IDLE</span>
+    </div>
+    <div class="v2-input-row">
+      <input id="v2DomainTarget" class="search" placeholder="youtube.com" autocomplete="off" spellcheck="false">
+      <button id="v2DomainRun" class="primary">Разобрать</button>
+      <button id="v2DomainToSelector">В Автоподбор</button>
+      <button id="v2DomainToLab">В Test Lab</button>
+    </div>
+    <div id="v2DomainSummary" class="v2-card-grid">
+      <div class="panel"><div class="analysis-empty">Введите домен. Никаких изменений production не выполняется.</div></div>
+    </div>
+    <article class="panel">
+      <div class="panel-head"><div><h2>Этапы доступа</h2><div class="section-kicker">read-only staged detector</div></div></div>
+      <div id="v2DomainStages" class="v2-stage-list"><div class="analysis-empty">Проверка ещё не запускалась.</div></div>
+    </article>
+    <div class="v2-two">
+      <article class="panel"><div class="panel-head"><div><h2>Списки</h2><div class="section-kicker">совпадения в локальных list-файлах</div></div></div><div id="v2DomainLists" class="v2-list"></div></article>
+      <article class="panel"><div class="panel-head"><div><h2>Production profiles</h2><div class="section-kicker">связь с live /proc argv, где её можно доказать</div></div></div><div id="v2DomainProfiles" class="v2-list"></div></article>
+    </div>
+    <div class="v2-boundary">Разбор домена не утверждает, что конкретный LAN-пакет прошёл через q300. Он показывает production inventory и отдельный router-side staged probe. Для изолированной проверки candidate используйте Sandbox или Автоподбор.</div>
+  </div>
+</section>
+
+<section id="view-prodlab-v2" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Test Lab · текущая система</h2><div class="section-kicker">несколько целей · без переключения candidate strategy</div></div>
+      <span id="v2LabState" class="config-badge">IDLE</span>
+    </div>
+    <div class="v2-two">
+      <article class="panel">
+        <div class="panel-head"><div><h2>Target Picker</h2><div class="section-kicker">явный источник, никакого hidden selectedList</div></div></div>
+        <label class="v2-label">Источник
+          <select id="v2LabSource" class="search"><option value="manual">Ручной ввод</option><option value="list">Список</option></select>
+        </label>
+        <label class="v2-label">Список
+          <select id="v2LabList" class="search" disabled><option>загрузка…</option></select>
+        </label>
+        <textarea id="v2LabTargets" class="v2-textarea" placeholder="youtube.com&#10;discord.com"></textarea>
+        <div class="v2-inline">
+          <label>Повторы <select id="v2LabRounds" class="search"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option></select></label>
+          <label>Параллельно <select id="v2LabConcurrency" class="search"><option value="1">1</option><option value="2">2</option><option value="4" selected>4</option></select></label>
+        </div>
+        <div class="toolbar"><button id="v2LabResolve">Загрузить цели</button><button id="v2LabRun" class="primary">Запустить</button><button id="v2LabStop" disabled>Стоп</button></div>
+      </article>
+      <article class="panel">
+        <div class="v2-stats">
+          <div><span>Целей</span><strong id="v2LabCount">0</strong></div>
+          <div><span>Успешных attempts</span><strong id="v2LabOK">0</strong></div>
+          <div><span>Ошибок</span><strong id="v2LabFail">0</strong></div>
+          <div><span>Прогресс</span><strong id="v2LabProgress">0%</strong></div>
+        </div>
+        <div id="v2LabResults" class="v2-list"><div class="analysis-empty">Сначала выберите цели.</div></div>
+      </article>
+    </div>
+    <div class="v2-boundary">Test Lab не подставляет альтернативные стратегии. Он наблюдает текущую систему с роутера и дополняет результат production mapping из Inspector. Это не packet-trace q300.</div>
+  </div>
+</section>
+
+<section id="view-selector-v2" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Автоподбор стратегии</h2><div class="section-kicker">baseline → isolated candidates → ranking → preview → Safe Apply</div></div>
+      <span id="v2SelectorState" class="config-badge">IDLE</span>
+    </div>
+    <div class="v2-two">
+      <article class="panel">
+        <label class="v2-label">Цель<input id="v2SelectorTarget" class="search" placeholder="youtube.com" autocomplete="off"></label>
+        <div class="v2-inline">
+          <label>Режим<select id="v2SelectorMode" class="search"><option value="fast">Fast</option><option value="normal" selected>Normal</option><option value="thorough">Thorough</option></select></label>
+          <label>Workers<select id="v2SelectorConcurrency" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
+        </div>
+        <label class="v2-check"><input id="v2SelectorProduction" type="checkbox" checked> Production profiles из live nfqws2</label>
+        <label class="v2-check"><input id="v2SelectorLibrary" type="checkbox" checked> Сохранённые стратегии из Candidate Library</label>
+        <label class="v2-label">Дополнительный candidate
+          <input id="v2SelectorExtraName" class="search" placeholder="Название (необязательно)">
+          <textarea id="v2SelectorExtraArgs" class="v2-textarea compact" placeholder="--hostlist-domains=... --filter-tcp=443 ..."></textarea>
+        </label>
+        <div class="toolbar"><button id="v2SelectorRun" class="primary">Запустить Автоподбор</button><button id="v2SelectorStop" disabled>Стоп</button></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><div><h2>Live progress</h2><div id="v2SelectorSession" class="section-kicker mono">—</div></div></div>
+        <div class="testlab-progress"><span id="v2SelectorBar" style="width:0%"></span></div>
+        <div id="v2SelectorProgressText" class="v2-boundary">Готов к запуску.</div>
+        <div class="v2-stats">
+          <div><span>Phase</span><strong id="v2SelectorPhase">IDLE</strong></div>
+          <div><span>Completed</span><strong id="v2SelectorCompleted">0 / 0</strong></div>
+          <div><span>Workers</span><strong id="v2SelectorWorkers">—</strong></div>
+          <div><span>Cleanup</span><strong id="v2SelectorCleanup">—</strong></div>
+        </div>
+      </article>
+    </div>
+    <article class="panel">
+      <div class="panel-head"><div><h2>Результаты</h2><div class="section-kicker">reliability / completeness first, затем TTFB / throughput</div></div></div>
+      <div id="v2SelectorRecommendation" class="v2-recommendation"><div class="analysis-empty">Автоподбор ещё не запускался.</div></div>
+      <div id="v2SelectorResults" class="v2-list"></div>
+    </article>
+    <article id="v2SelectorApplyPanel" class="panel" style="display:none">
+      <div class="panel-head"><div><h2>Safe Apply</h2><div class="section-kicker">одноразовый recommendation token → deterministic preview → existing Smart Apply</div></div></div>
+      <div id="v2SelectorApplyReason" class="v2-boundary"></div>
+      <div class="toolbar"><button id="v2SelectorPreview" disabled>Построить Preview</button><button id="v2SelectorApply" class="primary" disabled>Применить через Smart Apply</button></div>
+      <pre id="v2SelectorPreviewBody" class="catalog-preview">Preview ещё не построен.</pre>
+    </article>
+  </div>
+</section>
+
+<section id="view-sandbox-v2" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Strategy Sandbox</h2><div class="section-kicker">реальный isolated bench, production не меняется</div></div>
+      <span id="v2SandboxState" class="config-badge">IDLE</span>
+    </div>
+    <div class="v2-two">
+      <article class="panel">
+        <div class="panel-head"><div><h2>Target Picker</h2><div class="section-kicker">manual или явный list source</div></div></div>
+        <label class="v2-label">Источник целей<select id="v2SandboxTargetSource" class="search"><option value="manual">Ручной ввод</option><option value="list">Список</option></select></label>
+        <label class="v2-label">Список<select id="v2SandboxTargetList" class="search" disabled><option>загрузка…</option></select></label>
+        <textarea id="v2SandboxTargets" class="v2-textarea compact" placeholder="youtube.com"></textarea>
+        <div class="panel-head" style="margin-top:12px"><div><h2>Candidate</h2><div id="v2SandboxSeedMeta" class="section-kicker">выберите источник</div></div></div>
+        <label class="v2-label">Источник candidate<select id="v2SandboxCandidateSource" class="search"><option value="production">Production profile</option><option value="library">Candidate Library</option><option value="custom">Custom args</option></select></label>
+        <label class="v2-label">Production profile<select id="v2SandboxProfile" class="search"></select></label>
+        <label class="v2-label">Saved strategy<select id="v2SandboxLibrary" class="search" disabled></select></label>
+        <label class="v2-label">Args<textarea id="v2SandboxArgs" class="v2-textarea compact" placeholder="Custom / Catalog / Zapret candidate args"></textarea></label>
+        <div class="v2-inline"><label>Attempts<select id="v2SandboxAttempts" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="5">5</option></select></label><label>Имя для Library<input id="v2SandboxSaveName" class="search" placeholder="My strategy"></label></div>
+        <div class="toolbar"><button id="v2SandboxRun" class="primary">Запустить Sandbox</button><button id="v2SandboxStop" disabled>Стоп</button><button id="v2SandboxSave">Сохранить candidate</button></div>
+      </article>
+      <article class="panel">
+        <div id="v2SandboxResults" class="v2-list"><div class="analysis-empty">Результатов пока нет.</div></div>
+      </article>
+    </div>
+    <div class="v2-boundary">Sandbox использует тот же Bench Executor, что Автоподбор: reserved NFQUEUE 30000–30127, exact source port selector, temporary nfqws2, обязательный cleanup proof.</div>
+  </div>
+</section>
+
+<section id="view-strategy-library-v2" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Свои стратегии</h2><div class="section-kicker">persistent Candidate Library на роутере</div></div>
+      <span id="v2LibraryState" class="config-badge">IDLE</span>
+    </div>
+    <div class="v2-two">
+      <article class="panel">
+        <div class="panel-head"><div><h2>Сохранённые candidates</h2><div id="v2LibraryCount" class="section-kicker">0</div></div><button id="v2LibraryRefresh">Обновить</button></div>
+        <div id="v2LibraryList" class="v2-list"><div class="analysis-empty">Загрузка…</div></div>
+      </article>
+      <article class="panel">
+        <label class="v2-label">Название<input id="v2LibraryName" class="search" placeholder="YouTube strategy"></label>
+        <label class="v2-label">Источник<select id="v2LibrarySource" class="search"><option value="custom">Custom</option><option value="catalog">Catalog</option><option value="zapret">Zapret</option><option value="import">Import</option></select></label>
+        <label class="v2-label">Args<textarea id="v2LibraryArgs" class="v2-textarea" placeholder="--filter-tcp=443 ..."></textarea></label>
+        <input id="v2LibraryID" type="hidden">
+        <div class="toolbar"><button id="v2LibrarySave" class="primary">Сохранить</button><button id="v2LibraryClear">Новая</button><button id="v2LibraryToSandbox">В Sandbox</button></div>
+      </article>
+    </div>
+    <div class="v2-boundary">Library хранит только bench-eligible candidate args и fingerprint. Она не меняет active nfqws2.conf и не запускает сервис.</div>
+  </div>
+</section>
+
 <section id="view-overview" class="view active">
   <section class="ux-task-center" aria-labelledby="uxTaskTitle">
     <div class="ux-task-head">
@@ -859,11 +1060,11 @@ button{min-height:var(--ui-control-h)}
         <span class="ux-task-copy"><span class="ux-task-title">Проверить текущую настройку</span><span class="ux-task-desc">Проверим сервис, конфигурацию, зависимости и доступные runtime-сигналы без изменения настроек.</span></span>
         <span class="ux-task-action">Проверить</span>
       </button>
-      <article class="ux-task-card planned" aria-label="Автоподбор — следующий этап разработки">
+      <button type="button" class="ux-task-card" id="uxTaskAutoV2">
         <span class="ux-task-icon">03</span>
-        <span class="ux-task-copy"><span class="ux-task-title">Подобрать настройку автоматически</span><span class="ux-task-desc">Безопасный Strategy Bench будет тестировать кандидатов изолированно, не подменяя рабочую конфигурацию во время поиска.</span></span>
-        <span class="ux-task-action">Скоро</span>
-      </article>
+        <span class="ux-task-copy"><span class="ux-task-title">Подобрать настройку автоматически</span><span class="ux-task-desc">Baseline, production profiles и Candidate Library тестируются в изолированных NFQUEUE. Результат отделяет strategy failure от infrastructure failure.</span></span>
+        <span class="ux-task-action">Открыть Автоподбор</span>
+      </button>
       <button type="button" class="ux-task-card" id="uxTaskImport">
         <span class="ux-task-icon">04</span>
         <span class="ux-task-copy"><span class="ux-task-title">Импортировать настройку из Zapret</span><span class="ux-task-desc">Вставьте команду или загрузите .bat/.txt. RouterForge разберёт вход, покажет все преобразования и соберёт preview без сохранения.</span></span>
@@ -2872,7 +3073,7 @@ button{min-height:var(--ui-control-h)}
     const depHtml=[...deps.lists.map(x=>`<span class="catalog-dep ${(current?.lists||[]).some(y=>y.name===x)?'present':'missing'}">LIST ${esc(x)}</span>`),...deps.blobs.map(x=>`<span class="catalog-dep">BLOB ${esc(x.name)}</span>`),...deps.lua.map(x=>`<span class="catalog-dep">LUA ${esc(catalogNormalizeRefPath(x))}</span>`),deps.tcp?`<span class="catalog-dep">TCP ${esc(deps.tcp)}</span>`:'',deps.udp?`<span class="catalog-dep">UDP ${esc(deps.udp)}</span>`:''].filter(Boolean).join('')||'<span class="muted small">Явные dependencies не найдены.</span>';
     const diffHtml=`<div class="catalog-diff"><div class="catalog-diff-row head"><span>Assignment</span><span>State</span><span>Active</span><span>Candidate</span></div>${diff.map(x=>`<div class="catalog-diff-row"><b>${esc(x.key)}</b><span class="catalog-diff-state ${x.state}">${esc(x.state.toUpperCase())}</span><span class="catalog-diff-value">${esc(x.active||'—')}</span><span class="catalog-diff-value">${esc(x.candidate||'—')}</span></div>`).join('')}</div>`;
     $('catalogDetail').className='catalog-detail';$('catalogDetail').innerHTML=`<div class="catalog-detail-head"><div><div class="catalog-detail-name">${esc(item.name)}</div><div class="catalog-detail-meta">source=${esc(item.source)} · ref=${esc(item.ref||'local')} · path=${esc(item.path||'—')}<br>sha256=${esc(d.sha256||item.sha256||'—')} · integrity=${esc(d.integrity.toUpperCase())}</div></div><div class="toolbar"><span class="catalog-verdict ${model.status.toLowerCase()}">${esc(model.status)}</span><button id="catalogToSandbox">В Sandbox · HTTPS</button><button id="catalogSmartApply" class="primary">Smart Apply</button>${deps.blobs.length?`<button id="catalogOpenBlobs">Blobs · ${deps.blobs.length}</button>`:''}${item.kind==='local'?'<button id="catalogOpenLocal">Открыть в Configs</button>':''}</div></div><div class="catalog-summary"><div class="catalog-stat"><span>Diff assignments</span><strong>${changed}</strong></div><div class="catalog-stat"><span>Lists</span><strong>${deps.lists.length}${missing?` / ${missing} missing`:''}</strong></div><div class="catalog-stat"><span>Blobs</span><strong>${deps.blobs.length}</strong></div><div class="catalog-stat"><span>Lua</span><strong>${deps.lua.length}</strong></div></div><div><div class="section-kicker" style="margin-bottom:6px">Compatibility</div><div class="catalog-checks">${checkHtml}</div></div><div><div class="section-kicker" style="margin-bottom:6px">Dependencies</div><div class="catalog-deps">${depHtml}</div></div><div><div class="section-kicker" style="margin-bottom:6px">Semantic diff vs active canonical</div>${diffHtml}</div><div><div class="section-kicker" style="margin-bottom:6px">Config preview · read-only</div><pre class="catalog-preview">${esc(d.content)}</pre></div>`;
-    $('catalogToSandbox').onclick=()=>{const candidate=assignmentValue(d.content,'NFQWS_ARGS');if(!candidate){notice('В выбранном config NFQWS_ARGS пуст — нечего отправлять в HTTPS Sandbox.','error');return}$('sandboxCandidate').value=candidate;sandboxResultsData=[];const tab=document.querySelector('.tab[data-tab="sandbox"]');if(tab)tab.click();renderSandbox();notice(`Sandbox candidate загружен из ${item.name}. Active config не изменён.`,'good')};
+    $('catalogToSandbox').onclick=()=>{const candidate=assignmentValue(d.content,'NFQWS_ARGS');if(!candidate){notice('В выбранном config NFQWS_ARGS пуст — нечего отправлять в Sandbox.','error');return}v2OpenSandboxFromArgs(candidate,item.name,'catalog');notice(`Candidate ${item.name} загружен в реальный V2 Sandbox. Active config не изменён.`,'good')};
     $('catalogSmartApply').onclick=()=>openSmartApply();
     if($('catalogOpenBlobs'))$('catalogOpenBlobs').onclick=async()=>{const tab=document.querySelector('.tab[data-tab="blobs"]');if(tab)tab.click();await loadBlobs(true)};
     if(item.kind==='local'&&$('catalogOpenLocal'))$('catalogOpenLocal').onclick=async()=>{const tab=document.querySelector('.tab[data-tab="configs"]');if(tab)tab.click();await loadConfigLibrary();await selectStoredConfig(item.name)};
@@ -3104,20 +3305,39 @@ button{min-height:var(--ui-control-h)}
   function runHistoryDelta(entry){
     const prev=runHistoryPrevious(entry);if(!prev)return{cls:'same',text:'первый'};const d=Number(entry.score)-Number(prev.score);return{cls:d>0?'up':d<0?'down':'same',text:d>0?`+${d}`:`${d}`};
   }
+  function runHistoryKindLabel(kind){
+    switch(String(kind||'')){
+      case'testlab':return'TEST LAB LEGACY';
+      case'sandbox':return'SANDBOX LEGACY';
+      case'v2-prodlab':return'TEST LAB V2';
+      case'v2-sandbox':return'SANDBOX V2';
+      case'v2-selector':return'AUTOSELECT V2';
+      default:return String(kind||'RUN').toUpperCase();
+    }
+  }
   function runHistoryChips(entry){
-    const m=entry.metrics||{};if(entry.kind==='testlab')return [`targets ${m.targets||0}`,`reach ${percentText(m.success_ratio)}`,`stable ${percentText(m.stable_ratio)}`,`median ${m.median_ms==null?'—':Math.round(m.median_ms)+'ms'}`,`static ${percentText(m.static_decisive_ratio)}`];
-    return[`targets ${m.targets||0}`,`match ${m.candidate_match||0}`,`refs ${percentText(m.reference_resolution_ratio)}`,`determinate ${percentText(m.determinate_ratio)}`,`baseline ${percentText(m.active_baseline_success_ratio)}`];
+    const m=entry.metrics||{};
+    if(entry.kind==='testlab')return[`targets ${m.targets||0}`,`reach ${percentText(m.success_ratio)}`,`stable ${percentText(m.stable_ratio)}`,`median ${m.median_ms==null?'—':Math.round(m.median_ms)+'ms'}`,`static ${percentText(m.static_decisive_ratio)}`];
+    if(entry.kind==='sandbox')return[`targets ${m.targets||0}`,`match ${m.candidate_match||0}`,`refs ${percentText(m.reference_resolution_ratio)}`,`determinate ${percentText(m.determinate_ratio)}`,`baseline ${percentText(m.active_baseline_success_ratio)}`];
+    if(entry.kind==='v2-selector')return[`candidates ${m.candidates||0}`,`working ${m.working||0}`,`success ${percentText(m.success_ratio)}`,`recommend ${m.recommendation?'yes':'no'}`];
+    return[`targets ${m.targets||0}`,`attempts ${m.attempts||0}`,`success ${percentText(m.success_ratio)}`];
   }
   function runHistoryDetails(entry){
-    const m=entry.metrics||{},rows=entry.kind==='testlab'?[['Reachability',percentText(m.success_ratio)],['Stable targets',percentText(m.stable_ratio)],['Median latency',m.median_ms==null?'—':`${Math.round(m.median_ms)} ms`],['Static decisive',percentText(m.static_decisive_ratio)]]:[['Candidate MATCH',m.candidate_match||0],['Candidate EXCLUDED',m.candidate_excluded||0],['Candidate NO MATCH',m.candidate_no_match||0],['Validation warnings',m.validation_warnings||0],['List refs resolved',percentText(m.reference_resolution_ratio)],['Deterministic classification',percentText(m.determinate_ratio)],['Active baseline success',percentText(m.active_baseline_success_ratio)],['Active baseline median',m.active_baseline_median_ms==null?'—':`${Math.round(m.active_baseline_median_ms)} ms`]];
+    const m=entry.metrics||{};
+    let rows;
+    if(entry.kind==='testlab')rows=[['Reachability',percentText(m.success_ratio)],['Stable targets',percentText(m.stable_ratio)],['Median latency',m.median_ms==null?'—':`${Math.round(m.median_ms)} ms`],['Static decisive',percentText(m.static_decisive_ratio)]];
+    else if(entry.kind==='sandbox')rows=[['Candidate MATCH',m.candidate_match||0],['Candidate EXCLUDED',m.candidate_excluded||0],['Candidate NO MATCH',m.candidate_no_match||0],['Validation warnings',m.validation_warnings||0],['List refs resolved',percentText(m.reference_resolution_ratio)],['Deterministic classification',percentText(m.determinate_ratio)],['Active baseline success',percentText(m.active_baseline_success_ratio)],['Active baseline median',m.active_baseline_median_ms==null?'—':`${Math.round(m.active_baseline_median_ms)} ms`]];
+    else if(entry.kind==='v2-selector')rows=[['Candidates tested',m.candidates||0],['Working candidates',m.working||0],['Candidate success ratio',percentText(m.success_ratio)],['Recommendation',m.recommendation?'AVAILABLE':'NONE']];
+    else rows=[['Targets',m.targets||0],['Attempts',m.attempts||0],['Success ratio',percentText(m.success_ratio)]];
     return rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
   }
-  function renderRunHistory(){
+
+    function renderRunHistory(){
     if(!$('runHistoryList'))return;const visible=runHistory.filter(x=>runHistoryFilter==='all'||x.kind===runHistoryFilter),latest=runHistory[0],json=JSON.stringify(runHistory);
     $('runHistoryCount').textContent=runHistory.length;$('runHistoryLatestScore').textContent=latest?`${latest.score} ${latest.score_type==='READINESS'?'R':'S'}`:'—';$('runHistorySize').textContent=`${Math.max(0.1,new Blob([json]).size/1024).toFixed(1)} KB`;$('runHistoryTabState').textContent=runHistory.length?String(runHistory.length):'';$('copyRunHistory').disabled=!runHistory.length;$('clearRunHistory').disabled=!runHistory.length;
     for(const[id,f]of[['runHistoryAll','all'],['runHistoryTestLab','testlab'],['runHistorySandbox','sandbox']])$(id)?.classList.toggle('active',runHistoryFilter===f);
     if(!visible.length){$('runHistoryList').innerHTML='<div class="run-history-empty">Завершённых прогонов в этом фильтре пока нет.</div>';return}
-    $('runHistoryList').innerHTML=visible.map(entry=>{const delta=runHistoryDelta(entry),date=new Date(entry.created_at),stamp=Number.isNaN(date.getTime())?entry.created_at:date.toLocaleString(),chips=runHistoryChips(entry).map(x=>`<span class="run-history-chip">${esc(x)}</span>`).join('');return `<details class="run-history-item"><summary><div><div class="run-history-kind ${entry.kind}">${entry.kind==='testlab'?'TEST LAB':'SANDBOX'}</div><div class="run-history-time">${esc(stamp)}</div></div><div class="run-history-main">${esc((entry.active_config_sha256||'').slice(0,12)||'no config SHA')} · ${esc(entry.active_mode||'—')}</div><div><div class="run-history-score ${scoreClass(entry.score)}">${entry.score}</div><div class="run-history-time">${esc(entry.score_type||'SCORE')}</div></div><div class="run-history-metrics">${chips}</div><div class="run-history-delta ${delta.cls}">${esc(delta.text)}</div></summary><div class="run-history-body"><dl class="run-history-kv"><dt>Scope</dt><dd>${esc(entry.scope||'—')}</dd><dt>Runtime</dt><dd>${entry.runtime_running?'RUNNING':'STOPPED'}</dd><dt>Config SHA</dt><dd class="mono">${esc(entry.active_config_sha256||'—')}</dd>${runHistoryDetails(entry)}</dl><div class="run-history-actions"><button type="button" data-run-copy="${esc(entry.id)}">JSON</button><button type="button" class="danger" data-run-delete="${esc(entry.id)}">Удалить</button></div></div></details>`}).join('');
+    $('runHistoryList').innerHTML=visible.map(entry=>{const delta=runHistoryDelta(entry),date=new Date(entry.created_at),stamp=Number.isNaN(date.getTime())?entry.created_at:date.toLocaleString(),chips=runHistoryChips(entry).map(x=>`<span class="run-history-chip">${esc(x)}</span>`).join('');return `<details class="run-history-item"><summary><div><div class="run-history-kind ${entry.kind}">${runHistoryKindLabel(entry.kind)}</div><div class="run-history-time">${esc(stamp)}</div></div><div class="run-history-main">${esc((entry.active_config_sha256||'').slice(0,12)||'no config SHA')} · ${esc(entry.active_mode||'—')}</div><div><div class="run-history-score ${scoreClass(entry.score)}">${entry.score}</div><div class="run-history-time">${esc(entry.score_type||'SCORE')}</div></div><div class="run-history-metrics">${chips}</div><div class="run-history-delta ${delta.cls}">${esc(delta.text)}</div></summary><div class="run-history-body"><dl class="run-history-kv"><dt>Scope</dt><dd>${esc(entry.scope||'—')}</dd><dt>Runtime</dt><dd>${entry.runtime_running?'RUNNING':'STOPPED'}</dd><dt>Config SHA</dt><dd class="mono">${esc(entry.active_config_sha256||'—')}</dd>${runHistoryDetails(entry)}</dl><div class="run-history-actions"><button type="button" data-run-copy="${esc(entry.id)}">JSON</button><button type="button" class="danger" data-run-delete="${esc(entry.id)}">Удалить</button></div></div></details>`}).join('');
     $('runHistoryList').querySelectorAll('[data-run-copy]').forEach(b=>b.onclick=e=>{e.preventDefault();const item=runHistory.find(x=>x.id===b.dataset.runCopy);if(item){navigator.clipboard?.writeText(JSON.stringify(item,null,2));notice('JSON прогона скопирован.','good')}});
     $('runHistoryList').querySelectorAll('[data-run-delete]').forEach(b=>b.onclick=e=>{e.preventDefault();runHistory=runHistory.filter(x=>x.id!==b.dataset.runDelete);runHistoryPersist();renderRunHistory()});
   }
@@ -3817,12 +4037,8 @@ button{min-height:var(--ui-control-h)}
     if(!zapretImportResult?.ready){notice('Zapret import: Sandbox доступен только для READY preview.','error');return}
     const index=Number($('zapretSandboxProfile').value||0),profile=zapretImportResult.profiles?.[index];
     if(!profile){notice('Не удалось выбрать импортированный профиль.','error');return}
-    $('sandboxCandidate').value=profile;
-    sandboxResultsData=[];
-    activateNFQWSTab('sandbox');
-    renderSandbox();
-    $('sandboxMeta').textContent=`Zapret import · профиль ${index+1}/${zapretImportResult.profiles.length} загружен в Sandbox. Candidate не применялся.`;
-    requestAnimationFrame(()=>$('sandboxCandidate').focus());
+    v2OpenSandboxFromArgs(profile,`Zapret profile ${index+1}`,'zapret');
+    notice(`Zapret import · профиль ${index+1}/${zapretImportResult.profiles.length} загружен в реальный V2 Sandbox. Candidate не применялся.`,'good');
   }
   function renderZapretLibrary(result){
     zapretImportResult=result;zapretLibraryCandidate='';zapretLibrarySavedName='';$('zapretLibraryOpen').disabled=true;
@@ -3888,6 +4104,296 @@ button{min-height:var(--ui-control-h)}
     reader.onerror=()=>notice('Не удалось прочитать файл в браузере.','error');reader.readAsText(file);
   }
 
+
+  /* NFQWS V2 functional workflow. Legacy workspaces stay in DOM for compatibility
+     but are no longer exposed by navigation. */
+  let v2TargetSources=[],v2Profiles=[],v2Library=[],v2DomainLast=null;
+  let v2LabAbort=null,v2SandboxAbort=null,v2SelectorAbort=null,v2SelectorPoll=0,v2SelectorLast=null,v2SelectorPreviewData=null;
+
+  function v2Tone(value){
+    const v=String(value||'').toUpperCase();
+    if(['PASS','WORKING','CLEAR','DONE','OK'].includes(v))return'good';
+    if(['FAILED','FAIL','DNS_FAILURE','TCP_FAILURE','TLS_FAILURE','HTTP_FAILURE','ERROR','INCONCLUSIVE'].includes(v))return'bad';
+    if(['UNSTABLE','PARTIAL','HTTP_RESTRICTED','PARTIAL_16K_SUSPECTED','CHECK'].includes(v))return'warn';
+    return'info';
+  }
+  function v2Pill(value){const v=String(value||'—');return`<span class="v2-pill ${v2Tone(v)}">${esc(v)}</span>`}
+  function v2ArgTokens(value){
+    const raw=String(value||'').match(/(?:[^\s"'\\]+|"(?:\\.|[^"])*"|'(?:\\.|[^'])*')+/g)||[];
+    return raw.map(x=>{
+      if(x.length>=2&&((x[0]==='"'&&x[x.length-1]==='"')||(x[0]==="'"&&x[x.length-1]==="'")))return x.slice(1,-1).replace(/\\(["'\\])/g,'$1');
+      return x;
+    }).filter(Boolean);
+  }
+  function v2ArgsText(args){return(Array.isArray(args)?args:[]).join(' ')}
+  function v2SessionID(){
+    const a=new Uint8Array(8);if(globalThis.crypto?.getRandomValues)crypto.getRandomValues(a);else for(let i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256);
+    return'ui-'+[...a].map(x=>x.toString(16).padStart(2,'0')).join('');
+  }
+  async function v2EnsureStatus(){if(current?.config_sha256)return current;current=await api('/status');original=current?.config||original;return current}
+  async function v2LoadTargetSources(force=false){
+    if(v2TargetSources.length&&!force)return v2TargetSources;
+    const d=await api('/v2/target-sources');v2TargetSources=Array.isArray(d.sources)?d.sources:[];
+    const options=v2TargetSources.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${Number(x.count||0)}</option>`).join('');
+    for(const id of['v2LabList','v2SandboxTargetList']){const n=$(id);if(n)n.innerHTML=options||'<option value="">Нет списков</option>'}
+    return v2TargetSources;
+  }
+  async function v2LoadProfiles(force=false){
+    if(v2Profiles.length&&!force)return v2Profiles;
+    const d=await api('/bench-strategies');v2Profiles=(Array.isArray(d.profiles)?d.profiles:[]).filter(x=>x.candidate_eligible);
+    const sel=$('v2SandboxProfile');if(sel)sel.innerHTML=v2Profiles.map(p=>`<option value="${Number(p.index)}">Profile ${Number(p.index)}${Array.isArray(p.strategy_tags)&&p.strategy_tags.length?` · tags ${p.strategy_tags.join(',')}`:''}</option>`).join('');
+    return v2Profiles;
+  }
+  async function v2LoadLibrary(force=false){
+    if(v2Library.length&&!force)return v2Library;
+    const d=await api('/v2/strategies');v2Library=Array.isArray(d.strategies)?d.strategies:[];
+    const sel=$('v2SandboxLibrary');if(sel)sel.innerHTML=v2Library.map(x=>`<option value="${esc(x.id)}">${esc(x.name)} · ${esc(x.source)}</option>`).join('')||'<option value="">Library пуста</option>';
+    renderV2Library();
+    return v2Library;
+  }
+  async function v2ResolveTargets(source,listName,text){
+    if(source==='list'){
+      const d=await api('/v2/targets/resolve',{method:'POST',body:JSON.stringify({source:'list',list_name:listName,limit:64})});
+      return d.targets||[];
+    }
+    const raw=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const d=await api('/v2/targets/resolve',{method:'POST',body:JSON.stringify({source:'manual',targets:raw,limit:64})});
+    return d.targets||[];
+  }
+  function v2StageRow(name,row){
+    const state=String(row?.state||'skipped'),detail=row?.detail||'',extra=[row?.status_code?`HTTP ${row.status_code}`:'',Number.isFinite(Number(row?.bytes))&&Number(row.bytes)>0?`${row.bytes} B`:'',Number.isFinite(Number(row?.latency_ms))?`${row.latency_ms} ms`:''].filter(Boolean).join(' · ');
+    return`<div class="v2-row ${v2Tone(state)}"><div class="v2-result-title">${esc(name.toUpperCase())}</div><div><div class="value">${esc(detail||'—')}</div><div class="meta">${esc(extra)}</div></div>${v2Pill(state)}</div>`;
+  }
+
+  async function runV2Domain(){
+    const target=String($('v2DomainTarget').value||'').trim();if(!target){notice('Разбор домена: укажите hostname.','error');return}
+    $('v2DomainState').textContent='RUNNING';$('v2DomainRun').disabled=true;
+    try{
+      const [inspect,detect]=await Promise.all([
+        api('/v2/inspect-target',{method:'POST',body:JSON.stringify({target})}),
+        api('/v2/detect',{method:'POST',body:JSON.stringify({target})})
+      ]);
+      v2DomainLast={inspect,detect};$('v2DomainTarget').value=inspect.target||detect.target||target;
+      $('v2DomainState').textContent=String(detect.classification||'DONE').toUpperCase();
+      $('v2DomainSummary').innerHTML=[
+        ['Classification',detect.classification||'—'],['Production',inspect.runtime_running?'RUNNING':'STOPPED'],
+        ['Binding',inspect.binding_verdict||'—'],['IPv4',detect.destination_ipv4||'—']
+      ].map(([a,b])=>`<div class="v2-card"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`).join('');
+      $('v2DomainStages').innerHTML=['dns','tcp','tls','http'].map(k=>v2StageRow(k,detect.stages?.[k])).join('');
+      const lists=inspect.list_matches||[];$('v2DomainLists').innerHTML=lists.length?lists.map(x=>`<div class="v2-row"><div class="v2-result-title">${esc(x.name)}</div><div class="meta">${esc(x.path||'')} · ${esc(x.relation||'present')}</div>${v2Pill('MATCH')}</div>`).join(''):'<div class="analysis-empty">Совпадений в локальных list-файлах не найдено.</div>';
+      const profiles=inspect.production_profile_matches||[];$('v2DomainProfiles').innerHTML=profiles.length?profiles.map(p=>`<div class="v2-row"><div class="v2-result-title">Profile ${Number(p.index)}</div><div><div class="value">${esc(p.match_reason||'')}</div><div class="v2-args">${esc(v2ArgsText(p.args))}</div></div>${v2Pill(p.candidate_ready?'READY':'CHECK')}</div>`).join(''):'<div class="analysis-empty">Прямую production profile binding доказать не удалось.</div>';
+      notice(`Разбор ${inspect.target||target}: ${detect.classification_text||detect.classification||'готово'}`,detect.classification==='clear'?'good':'');
+    }catch(e){$('v2DomainState').textContent='FAIL';notice(`Разбор домена: ${e.message}`,'error')}
+    finally{$('v2DomainRun').disabled=false;reportHeight()}
+  }
+  function v2DomainSend(tab){
+    const target=String(v2DomainLast?.inspect?.target||$('v2DomainTarget').value||'').trim();if(!target)return;
+    if(tab==='selector-v2')$('v2SelectorTarget').value=target;
+    if(tab==='prodlab-v2'){$('v2LabSource').value='manual';$('v2LabTargets').value=target;v2TargetMode('lab')}
+    activateNFQWSTab(tab);
+  }
+
+  function v2TargetMode(kind){
+    const lab=kind==='lab',src=$(lab?'v2LabSource':'v2SandboxTargetSource'),list=$(lab?'v2LabList':'v2SandboxTargetList'),targets=$(lab?'v2LabTargets':'v2SandboxTargets');
+    if(!src||!list)return;const fromList=src.value==='list';list.disabled=!fromList;if(targets)targets.disabled=fromList;
+  }
+  async function v2ResolveLabTargets(){
+    await v2LoadTargetSources();const source=$('v2LabSource').value,targets=await v2ResolveTargets(source,$('v2LabList').value,$('v2LabTargets').value);
+    $('v2LabTargets').value=targets.join('\n');$('v2LabCount').textContent=targets.length;return targets;
+  }
+  function renderV2LabResults(rows,done,total){
+    let ok=0,fail=0;
+    for(const row of rows)for(const a of row.attempts||[])(a.ok?ok++:fail++);
+    $('v2LabOK').textContent=ok;$('v2LabFail').textContent=fail;$('v2LabProgress').textContent=total?`${Math.round(done/total*100)}%`:'0%';
+    $('v2LabResults').innerHTML=rows.length?rows.map(row=>{
+      const good=(row.attempts||[]).filter(x=>x.ok).length,totalA=(row.attempts||[]).length,last=row.attempts?.[row.attempts.length-1];
+      return`<div class="v2-row ${good===totalA&&totalA?'good':good?'warn':'bad'}"><div class="v2-result-title">${esc(row.target)}</div><div><div class="value">${good}/${totalA} successful · ${esc(last?.classification_text||last?.classification||'')}</div><div class="meta">binding=${esc(row.inspect?.binding_verdict||'—')} · lists=${row.inspect?.list_matches?.length||0}</div></div>${v2Pill(good===totalA&&totalA?'WORKING':good?'UNSTABLE':'FAILED')}</div>`;
+    }).join(''):'<div class="analysis-empty">Нет результатов.</div>';
+  }
+  async function runV2Lab(){
+    if(v2LabAbort)return;let targets;try{targets=await v2ResolveLabTargets()}catch(e){notice(`Target Picker: ${e.message}`,'error');return}
+    if(!targets.length)return;
+    const rounds=Math.max(1,Math.min(5,Number($('v2LabRounds').value||1))),workers=Math.max(1,Math.min(4,Number($('v2LabConcurrency').value||1)));
+    const controller=new AbortController();v2LabAbort=controller;$('v2LabRun').disabled=true;$('v2LabStop').disabled=false;$('v2LabState').textContent='RUNNING';
+    const rows=targets.map(x=>({target:x,attempts:[],inspect:null}));let next=0,done=0,total=targets.length*rounds;
+    async function worker(){
+      while(!controller.signal.aborted){
+        const i=next++;if(i>=targets.length)return;const row=rows[i];
+        try{row.inspect=await api('/v2/inspect-target',{method:'POST',signal:controller.signal,body:JSON.stringify({target:row.target})})}catch(e){if(controller.signal.aborted)return}
+        for(let n=0;n<rounds&&!controller.signal.aborted;n++){
+          try{const d=await api('/v2/detect',{method:'POST',signal:controller.signal,body:JSON.stringify({target:row.target})});row.attempts.push({ok:!!d.ok,...d})}
+          catch(e){if(controller.signal.aborted)return;row.attempts.push({ok:false,classification:'error',classification_text:e.message})}
+          done++;renderV2LabResults(rows,done,total);
+        }
+      }
+    }
+    try{await Promise.all(Array.from({length:Math.min(workers,targets.length)},worker));$('v2LabState').textContent=controller.signal.aborted?'STOPPED':'DONE';if(!controller.signal.aborted){const attempts=rows.flatMap(x=>x.attempts||[]),ok=attempts.filter(x=>x.ok).length;v2HistoryAdd('v2-prodlab',{targets:targets.length,attempts:attempts.length,success_ratio:attempts.length?ok/attempts.length:0},rows);notice(`Test Lab: ${targets.length} целей · ${rounds} повторов завершены.`,'good')}}
+    finally{v2LabAbort=null;$('v2LabRun').disabled=false;$('v2LabStop').disabled=true;reportHeight()}
+  }
+
+  function v2SandboxCandidateMode(){
+    const source=$('v2SandboxCandidateSource').value;
+    $('v2SandboxProfile').disabled=source!=='production';$('v2SandboxLibrary').disabled=source!=='library';$('v2SandboxArgs').disabled=source==='production'||source==='library';
+    if(source==='library'){const item=v2Library.find(x=>x.id===$('v2SandboxLibrary').value);if(item)$('v2SandboxArgs').value=v2ArgsText(item.args)}
+    if(source==='production'){const p=v2Profiles.find(x=>Number(x.index)===Number($('v2SandboxProfile').value));if(p)$('v2SandboxArgs').value=v2ArgsText(p.args)}
+  }
+  async function v2ResolveSandboxTargets(){
+    await v2LoadTargetSources();const source=$('v2SandboxTargetSource').value,targets=await v2ResolveTargets(source,$('v2SandboxTargetList').value,$('v2SandboxTargets').value);
+    $('v2SandboxTargets').value=targets.join('\n');return targets;
+  }
+  function renderV2CandidateResult(result,target){
+    const c=result?.result||result,attempts=c?.attempts||[],packets=attempts.reduce((n,a)=>n+Number(a.outbound_queue_packets||0)+Number(a.inbound_queue_packets||0),0);
+    return`<div class="v2-row ${v2Tone(c?.result_class)}"><div><div class="v2-result-title">${esc(target||result?.target||c?.candidate_name||'candidate')}</div><div class="meta">${esc(c?.candidate_source||result?.source||'')}</div></div><div><div class="value">${esc(c?.result_class||'—')} · success ${Math.round(Number(c?.success_rate||0)*100)}% · complete ${Math.round(Number(c?.complete_rate||0)*100)}%</div><div class="meta">infra=${c?.infrastructure_ok?'PASS':'FAIL'} · cleanup=${c?.cleanup_proven?'PASS':'FAIL'} · packets=${packets} · TTFB=${c?.median_ttfb_ms||'—'} ms</div><div class="v2-args">${esc(v2ArgsText(c?.args||[]))}</div></div>${v2Pill(c?.result_class||'—')}</div>`;
+  }
+  async function runV2Sandbox(){
+    if(v2SandboxAbort)return;let targets;try{targets=await v2ResolveSandboxTargets();await Promise.all([v2LoadProfiles(),v2LoadLibrary(),v2EnsureStatus()])}catch(e){notice(`Sandbox: ${e.message}`,'error');return}
+    if(!targets.length){notice('Sandbox: нет целей.','error');return}
+    const source=$('v2SandboxCandidateSource').value,attempts=Math.max(1,Math.min(5,Number($('v2SandboxAttempts').value||1))),controller=new AbortController();v2SandboxAbort=controller;
+    const common={attempts,expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_V2_BENCH'};
+    if(source==='production')common.profile_index=Number($('v2SandboxProfile').value);
+    else{
+      let args=[];
+      if(source==='library'){const item=v2Library.find(x=>x.id===$('v2SandboxLibrary').value);args=item?.args||[]}
+      else args=v2ArgTokens($('v2SandboxArgs').value);
+      if(!args.length){notice('Sandbox: candidate args пусты.','error');v2SandboxAbort=null;return}
+      common.args=args;
+    }
+    $('v2SandboxState').textContent='RUNNING';$('v2SandboxRun').disabled=true;$('v2SandboxStop').disabled=false;$('v2SandboxResults').innerHTML='';
+    const results=[];
+    try{
+      for(const target of targets){
+        if(controller.signal.aborted)break;
+        try{const d=await api('/v2/bench',{method:'POST',signal:controller.signal,body:JSON.stringify({target,...common})});results.push({target,data:d})}
+        catch(e){if(controller.signal.aborted)break;results.push({target,error:e.message})}
+        $('v2SandboxResults').innerHTML=results.map(x=>x.error?`<div class="v2-row bad"><div class="v2-result-title">${esc(x.target)}</div><div class="value">${esc(x.error)}</div>${v2Pill('ERROR')}</div>`:renderV2CandidateResult(x.data,x.target)).join('');
+      }
+      $('v2SandboxState').textContent=controller.signal.aborted?'STOPPED':'DONE';
+      if(!controller.signal.aborted){const good=results.filter(x=>x.data?.result?.success_rate>0).length;v2HistoryAdd('v2-sandbox',{targets:results.length,success_ratio:results.length?good/results.length:0},results);notice(`Sandbox: завершено ${results.length}/${targets.length}. Production не менялся.`,'good');}
+    }finally{v2SandboxAbort=null;$('v2SandboxRun').disabled=false;$('v2SandboxStop').disabled=true;reportHeight()}
+  }
+  function v2OpenSandboxFromArgs(argsText,name='Imported candidate',source='custom'){
+    activateNFQWSTab('sandbox-v2');$('v2SandboxCandidateSource').value='custom';$('v2SandboxArgs').value=String(argsText||'');$('v2SandboxSaveName').value=String(name||'');$('v2SandboxSeedMeta').textContent=`${source} · imported into real V2 Sandbox`;v2SandboxCandidateMode();requestAnimationFrame(()=>$('v2SandboxTargets')?.focus());
+  }
+  async function saveV2SandboxCandidate(){
+    try{
+      await v2LoadLibrary();let args=[],source=$('v2SandboxCandidateSource').value,name=String($('v2SandboxSaveName').value||'').trim()||'Sandbox candidate';
+      if(source==='production'){const p=v2Profiles.find(x=>Number(x.index)===Number($('v2SandboxProfile').value));args=p?.args||[];source='custom'}
+      else if(source==='library'){const item=v2Library.find(x=>x.id===$('v2SandboxLibrary').value);args=item?.args||[];name=String($('v2SandboxSaveName').value||'').trim()||item?.name||name;source=item?.source||'custom'}
+      else args=v2ArgTokens($('v2SandboxArgs').value);
+      const d=await api('/v2/strategies/save',{method:'POST',body:JSON.stringify({name,source,args,confirm:'ROUTERFORGE_V2_STRATEGY_SAVE'})});
+      v2Library=[];await v2LoadLibrary(true);notice(`Candidate сохранён: ${d.strategy?.name||name}`,'good');
+    }catch(e){notice(`Сохранение candidate: ${e.message}`,'error')}
+  }
+
+  function renderV2Library(){
+    if(!$('v2LibraryList'))return;$('v2LibraryCount').textContent=`${v2Library.length} / 64`;
+    $('v2LibraryList').innerHTML=v2Library.length?v2Library.map(x=>`<div class="v2-row"><div><div class="v2-result-title">${esc(x.name)}</div><div class="meta">${esc(x.source)} · ${esc(String(x.fingerprint||'').slice(0,16))}</div></div><div class="v2-args">${esc(v2ArgsText(x.args))}</div><div class="v2-library-actions"><button data-v2-lib-edit="${esc(x.id)}">Редактировать</button><button data-v2-lib-sandbox="${esc(x.id)}">Sandbox</button><button class="danger" data-v2-lib-delete="${esc(x.id)}">Удалить</button></div></div>`).join(''):'<div class="analysis-empty">Candidate Library пуста.</div>';
+    $('v2LibraryList').querySelectorAll('[data-v2-lib-edit]').forEach(b=>b.onclick=()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibEdit);if(!x)return;$('v2LibraryID').value=x.id;$('v2LibraryName').value=x.name;$('v2LibrarySource').value=x.source;$('v2LibraryArgs').value=v2ArgsText(x.args)});
+    $('v2LibraryList').querySelectorAll('[data-v2-lib-sandbox]').forEach(b=>b.onclick=()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibSandbox);if(x)v2OpenSandboxFromArgs(v2ArgsText(x.args),x.name,x.source)});
+    $('v2LibraryList').querySelectorAll('[data-v2-lib-delete]').forEach(b=>b.onclick=async()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibDelete);if(!x||!confirm(`Удалить ${x.name} из Candidate Library?`))return;try{await api('/v2/strategies/delete',{method:'POST',body:JSON.stringify({id:x.id,confirm:'ROUTERFORGE_V2_STRATEGY_DELETE'})});v2Library=[];await v2LoadLibrary(true);notice('Candidate удалён.','good')}catch(e){notice(e.message,'error')}});
+  }
+  async function saveV2LibraryEditor(){
+    try{
+      const req={id:$('v2LibraryID').value||undefined,name:$('v2LibraryName').value.trim(),source:$('v2LibrarySource').value,args:v2ArgTokens($('v2LibraryArgs').value),confirm:'ROUTERFORGE_V2_STRATEGY_SAVE'};
+      const d=await api('/v2/strategies/save',{method:'POST',body:JSON.stringify(req)});v2Library=[];await v2LoadLibrary(true);$('v2LibraryID').value=d.strategy?.id||'';notice(`Candidate Library: ${d.strategy?.name||req.name} сохранён.`,'good');
+    }catch(e){notice(`Candidate Library: ${e.message}`,'error')}
+  }
+  function clearV2LibraryEditor(){$('v2LibraryID').value='';$('v2LibraryName').value='';$('v2LibrarySource').value='custom';$('v2LibraryArgs').value=''}
+
+  function renderV2SelectorCandidate(c,label){
+    const attempts=c?.attempts||[],packets=attempts.reduce((n,a)=>n+Number(a.outbound_queue_packets||0)+Number(a.inbound_queue_packets||0),0);
+    return`<div class="v2-row ${v2Tone(c?.result_class)}"><div><div class="v2-result-title">${esc(label||c?.candidate_name||c?.candidate_id||'candidate')}</div><div class="meta">${esc(c?.candidate_source||'')}</div></div><div><div class="value">${esc(c?.result_class||'—')} · success ${Math.round(Number(c?.success_rate||0)*100)}% · complete ${Math.round(Number(c?.complete_rate||0)*100)}%</div><div class="meta">infra=${c?.infrastructure_ok?'PASS':'FAIL'} · cleanup=${c?.cleanup_proven?'PASS':'FAIL'} · packets=${packets} · TTFB=${c?.median_ttfb_ms||'—'} ms · throughput=${c?.median_throughput_bps||'—'} B/s</div><div class="v2-args">${esc(v2ArgsText(c?.args||[]))}</div></div>${v2Pill(c?.result_class||'—')}</div>`;
+  }
+  function renderV2SelectorResult(d){
+    v2SelectorLast=d;$('v2SelectorCleanup').textContent=d.cleanup_baseline_after?'PASS':'FAIL';$('v2SelectorWorkers').textContent=String(d.concurrency||'—');
+    const best=d.recommendation_available?`${d.recommended_candidate_name||d.recommended_candidate_id||('Profile '+d.recommended_profile_index)} · ${d.recommended_candidate_source||'production'}`:'Нет рекомендации';
+    $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(d.recommendation_reason||'')}</div><div class="meta">${esc(d.apply_gate_reason||'')}</div></div>${v2Pill(d.recommendation_available?'RECOMMEND':'NO CHANGE')}</div>`;
+    $('v2SelectorResults').innerHTML=renderV2SelectorCandidate(d.baseline,'Baseline')+(d.candidates||[]).map(c=>renderV2SelectorCandidate(c)).join('');
+    const panel=$('v2SelectorApplyPanel');panel.style.display=d.recommendation_available?'block':'none';$('v2SelectorApplyReason').textContent=d.apply_gate_reason||'';
+    $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorApply').disabled=true;$('v2SelectorPreviewBody').textContent=d.apply_gate_eligible?'Recommendation готова. Сначала постройте deterministic Preview.':'Для этого winner автоматический receipt Apply не выдаётся; используйте его source workflow / Candidate Library.';
+    v2SelectorPreviewData=null;reportHeight();
+  }
+  async function pollV2Selector(session,signal){
+    clearInterval(v2SelectorPoll);
+    const tick=async()=>{
+      if(signal.aborted)return;
+      try{
+        const p=await api(`/v2/selector-progress?session=${encodeURIComponent(session)}`);
+        $('v2SelectorPhase').textContent=p.phase||'—';$('v2SelectorCompleted').textContent=`${Number(p.completed||0)} / ${Number(p.total||0)}`;
+        $('v2SelectorProgressText').textContent=p.message||'';const pct=p.total?Math.round(Number(p.completed||0)/Number(p.total)*100):(p.phase==='BASELINE'?5:0);$('v2SelectorBar').style.width=`${Math.max(0,Math.min(100,pct))}%`;
+        if(p.done)clearInterval(v2SelectorPoll);
+      }catch(_){}
+    };
+    await tick();v2SelectorPoll=setInterval(tick,900);
+  }
+  async function runV2Selector(){
+    if(v2SelectorAbort)return;const target=$('v2SelectorTarget').value.trim();if(!target){notice('Автоподбор: укажите target.','error');return}
+    try{await Promise.all([v2EnsureStatus(),v2LoadLibrary()])}catch(e){notice(e.message,'error');return}
+    const candidates=[];
+    if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
+    const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
+    if(!$('v2SelectorProduction').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
+    const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';
+    void pollV2Selector(session,controller.signal);
+    try{
+      const d=await api('/v2/selector',{method:'POST',signal:controller.signal,body:JSON.stringify({
+        mode:$('v2SelectorMode').value,server_name:target,expected_config_sha256:current.config_sha256,
+        concurrency:Number($('v2SelectorConcurrency').value||2),session_id:session,
+        include_production:$('v2SelectorProduction').checked,candidates,confirm:'ROUTERFORGE_V2_SELECTOR'
+      })});
+      $('v2SelectorState').textContent='DONE';$('v2SelectorBar').style.width='100%';renderV2SelectorResult(d);{const all=d.candidates||[],working=all.filter(x=>x.result_class==='WORKING').length;v2HistoryAdd('v2-selector',{targets:1,candidates:all.length,working,success_ratio:all.length?working/all.length:0,recommendation:!!d.recommendation_available},d)}notice(`Автоподбор завершён: ${d.recommendation_reason||'готово'}`,'good');
+    }catch(e){
+      if(controller.signal.aborted){$('v2SelectorState').textContent='STOPPED';notice('Автоподбор остановлен.','')}
+      else{$('v2SelectorState').textContent='FAIL';notice(`Автоподбор: ${e.message}`,'error')}
+    }finally{clearInterval(v2SelectorPoll);v2SelectorPoll=0;v2SelectorAbort=null;$('v2SelectorRun').disabled=false;$('v2SelectorStop').disabled=true;reportHeight()}
+  }
+  async function buildV2SelectorPreview(){
+    const d=v2SelectorLast;if(!d?.apply_gate_eligible||!d.apply_gate_token)return;
+    $('v2SelectorPreview').disabled=true;
+    try{
+      const p=await api('/bench-autotune/apply-preview',{method:'POST',body:JSON.stringify({token:d.apply_gate_token,expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_AUTOTUNE_PREVIEW'})});
+      if(!p.ok||!p.preview_only)throw new Error('preview contract mismatch');v2SelectorPreviewData=p;$('v2SelectorPreviewBody').textContent=p.candidate_config||'';
+      $('v2SelectorApply').disabled=!p.changed;notice(`Preview готов · ${String(p.candidate_config_sha256||'').slice(0,16)}…`,'good');
+    }catch(e){v2SelectorPreviewData=null;notice(`Preview: ${e.message}`,'error')}
+    finally{$('v2SelectorPreview').disabled=false}
+  }
+  async function applyV2SelectorPreview(){
+    const d=v2SelectorLast,p=v2SelectorPreviewData;if(!d?.apply_gate_token||!p?.changed)return;
+    if(!confirm(`Применить recommendation через существующий Smart Apply?\nTarget: ${p.server_name}\nActive: ${p.active_config_sha256}\nCandidate: ${p.candidate_config_sha256}\n\nBackup + verify + rollback остаются обязательными.`))return;
+    $('v2SelectorApply').disabled=true;
+    try{
+      const latest=await api('/status');if(String(latest.config_sha256).toLowerCase()!==String(p.active_config_sha256).toLowerCase())throw new Error('active config changed after preview');
+      const result=await api('/bench-autotune/apply',{method:'POST',body:JSON.stringify({receipt_token:d.apply_gate_token,expected_active_sha256:p.active_config_sha256,expected_candidate_sha256:p.candidate_config_sha256,confirm:'ROUTERFORGE_AUTOTUNE_APPLY'})});
+      current=result.status||await api('/status');original=current?.config||original;render(current);v2SelectorLast=null;v2SelectorPreviewData=null;$('v2SelectorApply').disabled=true;notice('Safe Apply: PASS. Receipt consumed.','good');
+    }catch(e){v2SelectorLast=null;v2SelectorPreviewData=null;notice(`Safe Apply: ${e.message}`,'error')}
+  }
+
+
+  function v2HistoryAdd(kind,metrics,payload){
+    if(!Array.isArray(runHistory))return;
+    const successRatio=Number(metrics?.success_ratio||0),score=Math.round(Math.max(0,Math.min(1,successRatio))*100);
+    const entry={id:`${Date.now()}-${kind}`,kind,created_at:new Date().toISOString(),active_config_sha256:current?.config_sha256||'',active_mode:currentMode(),runtime_running:!!current?.running,score,score_type:'SUCCESS%',metrics:metrics||{},scope:'nfqws-v2-verified-workflow',payload};
+    runHistory.unshift(entry);runHistory=runHistory.slice(0,runHistoryMax);runHistoryPersist();renderRunHistory();
+  }
+
+  async function openV2Workspace(tab){
+    if(tab==='domain-v2')return;
+    if(tab==='prodlab-v2'){await v2LoadTargetSources();v2TargetMode('lab');return}
+    if(tab==='sandbox-v2'){await Promise.all([v2LoadTargetSources(),v2LoadProfiles(),v2LoadLibrary()]);v2TargetMode('sandbox');v2SandboxCandidateMode();return}
+    if(tab==='selector-v2'){await Promise.all([v2LoadLibrary(),v2EnsureStatus()]);return}
+    if(tab==='strategy-library-v2'){await v2LoadLibrary(true);return}
+  }
+
+  // New workflow event bindings.
+  $('v2DomainRun').onclick=runV2Domain;$('v2DomainTarget').onkeydown=e=>{if(e.key==='Enter')runV2Domain()};$('v2DomainToSelector').onclick=()=>v2DomainSend('selector-v2');$('v2DomainToLab').onclick=()=>v2DomainSend('prodlab-v2');
+  $('v2LabSource').onchange=()=>v2TargetMode('lab');$('v2LabResolve').onclick=async()=>{try{await v2ResolveLabTargets()}catch(e){notice(e.message,'error')}};$('v2LabRun').onclick=runV2Lab;$('v2LabStop').onclick=()=>v2LabAbort?.abort();
+  $('v2SandboxTargetSource').onchange=()=>v2TargetMode('sandbox');$('v2SandboxCandidateSource').onchange=v2SandboxCandidateMode;$('v2SandboxProfile').onchange=v2SandboxCandidateMode;$('v2SandboxLibrary').onchange=v2SandboxCandidateMode;$('v2SandboxRun').onclick=runV2Sandbox;$('v2SandboxStop').onclick=()=>v2SandboxAbort?.abort();$('v2SandboxSave').onclick=saveV2SandboxCandidate;
+  $('v2SelectorRun').onclick=runV2Selector;$('v2SelectorStop').onclick=()=>v2SelectorAbort?.abort();$('v2SelectorPreview').onclick=buildV2SelectorPreview;$('v2SelectorApply').onclick=applyV2SelectorPreview;
+  $('v2LibraryRefresh').onclick=()=>{v2Library=[];v2LoadLibrary(true)};$('v2LibrarySave').onclick=saveV2LibraryEditor;$('v2LibraryClear').onclick=clearV2LibraryEditor;$('v2LibraryToSandbox').onclick=()=>v2OpenSandboxFromArgs($('v2LibraryArgs').value,$('v2LibraryName').value||'Library editor',$('v2LibrarySource').value);
+
+  if($('uxTaskAutoV2'))$('uxTaskAutoV2').onclick=()=>openOverviewTask('selector-v2','v2SelectorTarget');
+
+
   function handleEditorSaveShortcut(e){
     if(!(e.ctrlKey||e.metaKey)||String(e.key||'').toLowerCase()!=='s')return;
     const active=document.querySelector('.view.active'),view=active?.id||'';
@@ -3899,13 +4405,13 @@ button{min-height:var(--ui-control-h)}
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  const nfqwsConfigTabs=new Set(['strategies','configs','config']);
-  const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
-  const nfqwsToolTabs=new Set(['preflight','processing','testlab','sandbox','zapret-import']);
+  const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
+  const nfqwsMenuTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','catalog','upstream-lists','blobs','zapret-import']);
+  const nfqwsToolTabs=new Set(['preflight','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
-  let nfqwsActiveMenu='catalog';
-  let nfqwsActiveTool='preflight';
+  let nfqwsActiveMenu='selector-v2';
+  let nfqwsActiveTool='domain-v2';
   let nfqwsActiveMaintenance='runs';
 
   function activateNFQWSTab(tab){
@@ -3939,6 +4445,7 @@ button{min-height:var(--ui-control-h)}
     if(tab==='blobs')loadBlobs();
     if(tab==='backups')loadBackupCenter();
     if(tab==='keenetic'){loadKeenetic();loadDPIDetector()}
+    if(['domain-v2','prodlab-v2','selector-v2','sandbox-v2','strategy-library-v2'].includes(tab))void openV2Workspace(tab);
     if(tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')}
     if(tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE');renderAutoTuneControl();loadBenchReadiness()}
     if(tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}
@@ -3966,7 +4473,7 @@ button{min-height:var(--ui-control-h)}
       reportHeight();
     });
   }
-  $('uxTaskBroken').onclick=()=>openOverviewTask('processing','processingMapDomain');
+  $('uxTaskBroken').onclick=()=>openOverviewTask('domain-v2','v2DomainTarget');
   $('uxTaskCheck').onclick=()=>openOverviewTask('preflight','');
   $('uxTaskImport').onclick=()=>openOverviewTask('zapret-import','zapretImportInput');
   $('zapretImportRun').onclick=runZapretImport;

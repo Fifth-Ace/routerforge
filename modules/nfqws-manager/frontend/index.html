@@ -748,6 +748,32 @@ button{min-height:var(--ui-control-h)}
 @media(max-width:880px){.processing-route-grid{grid-template-columns:1fr}.processing-safety-strip{grid-template-columns:1fr}}
 @media(max-width:520px){.processing-how{padding:12px!important}.processing-route-node{grid-template-columns:1fr;gap:2px}.processing-route-arrow{margin-left:15px}.processing-how-head{flex-direction:column}}
 
+.processing-strategy-box{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.processing-strategy-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.processing-strategy-head strong{font-size:12px;line-height:1.35}
+.processing-strategy-head span{color:var(--muted);font-size:10px;line-height:1.4;text-align:right}
+.processing-strategy-list{display:grid;gap:7px}
+.processing-strategy-row{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 60%,transparent)}
+.processing-strategy-row.baseline{border-style:dashed}
+.processing-strategy-row.good{border-color:color-mix(in srgb,var(--good) 42%,var(--border))}
+.processing-strategy-row.bad{border-color:color-mix(in srgb,var(--bad) 42%,var(--border))}
+.processing-strategy-row.warn{border-color:color-mix(in srgb,var(--warn) 38%,var(--border))}
+.processing-strategy-id{font:800 10px/1.35 ui-monospace,Consolas,monospace;color:var(--accent)}
+.processing-strategy-row.baseline .processing-strategy-id{color:var(--muted)}
+.processing-strategy-main{min-width:0}
+.processing-strategy-title{font-size:12px;font-weight:800;line-height:1.4}
+.processing-strategy-summary{margin-top:2px;color:var(--muted);font-size:10.5px;line-height:1.45}
+.processing-strategy-args{margin-top:6px;padding:7px 8px;border-radius:6px;background:var(--code);color:color-mix(in srgb,var(--text) 85%,var(--muted));font:10px/1.45 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+.processing-strategy-result{text-align:right;white-space:nowrap}
+.processing-strategy-result b{display:block;font:800 10px/1.25 ui-monospace,Consolas,monospace}
+.processing-strategy-result span{display:block;margin-top:3px;color:var(--muted);font-size:9.5px;line-height:1.35}
+.processing-strategy-row.good .processing-strategy-result b{color:var(--good)}
+.processing-strategy-row.bad .processing-strategy-result b{color:var(--bad)}
+.processing-strategy-row.warn .processing-strategy-result b{color:var(--warn)}
+.processing-strategy-note{margin-top:8px;color:var(--muted);font-size:10.5px;line-height:1.5}
+.processing-strategy-note strong{color:var(--text)}
+@media(max-width:640px){.processing-strategy-row{grid-template-columns:1fr}.processing-strategy-result{text-align:left;white-space:normal}.processing-strategy-head{flex-direction:column}.processing-strategy-head span{text-align:left}}
+
 </style>
 </head>
 <body>
@@ -1051,6 +1077,11 @@ button{min-height:var(--ui-control-h)}
             <span id="processingLiveBadge" class="processing-route-badge">НЕ ЗАПУСКАЛСЯ</span>
           </div>
           <div id="processingLiveRoute" class="processing-route-flow"><div class="analysis-empty">После обычной проверки нажмите «Проверить через NFQWS».</div></div>
+          <div class="processing-strategy-box">
+            <div class="processing-strategy-head"><strong>Какие стратегии будут проверены</strong><span id="processingStrategyMode">Fast · baseline + до 3 профилей</span></div>
+            <div id="processingStrategyPlan" class="processing-strategy-list"><div class="analysis-empty">План стратегий появится после обычной проверки.</div></div>
+            <div class="processing-strategy-note"><strong>Baseline</strong> — контроль без desync-стратегии. Затем RouterForge по очереди берёт первые eligible профили из текущего production nfqws2, временно подставляет введённый домен и сравнивает TLS-доступность.</div>
+          </div>
           <div class="processing-route-note"><strong>Важно:</strong> создаётся узкое временное правило только для тестового socket → тестовая NFQUEUE 30000–30127 → временный nfqws2 candidate → обязательная очистка.</div>
         </section>
       </div>
@@ -1660,7 +1691,7 @@ button{min-height:var(--ui-control-h)}
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
   let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null, autoTuneRunning=false, autoTuneStage='', autoTuneResult=null, autoTunePreviewData=null, autoTuneApplyResult=null, autoTuneToken='', autoTuneActiveSha='', autoTuneMessage='';
-  let processingMapLiveRunning=false, processingMapLiveResult=null;
+  let processingMapLiveRunning=false, processingMapLiveResult=null, processingMapStrategyInventory=null;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -3454,6 +3485,48 @@ button{min-height:var(--ui-control-h)}
     return `<div class="processing-route-node ${tone}"><span>${esc(label)}</span><strong>${esc(value||'—')}</strong></div>`;
   }
   function processingRouteArrow(){return '<div class="processing-route-arrow"></div>'}
+  function processingStrategyTechnique(profile){
+    if(!profile)return'';
+    const args=Array.isArray(profile.args)?profile.args:[];
+    const desync=args.filter(a=>String(a).startsWith('--lua-desync='));
+    if(desync.length)return desync.join(' ');
+    const relevant=args.filter(a=>/^--(?:dpi-desync|filter-l7|filter-tcp|filter-udp|payload)=/.test(String(a)));
+    return relevant.join(' ');
+  }
+  function processingStrategyShort(profile){
+    if(!profile)return'профиль недоступен';
+    const parts=[];
+    if(Array.isArray(profile.strategy_tags)&&profile.strategy_tags.length)parts.push(`strategy tags: ${profile.strategy_tags.join(', ')}`);
+    if(Array.isArray(profile.tcp_filters)&&profile.tcp_filters.length)parts.push(`TCP ${profile.tcp_filters.join(',')}`);
+    if(Array.isArray(profile.l7_filters)&&profile.l7_filters.length)parts.push(`L7 ${profile.l7_filters.join(',')}`);
+    if(profile.desync_count)parts.push(`desync ×${profile.desync_count}`);
+    return parts.join(' · ')||'eligible strategy profile';
+  }
+  function processingAttemptResult(candidate){
+    const attempts=Array.isArray(candidate?.attempts)?candidate.attempts:[];
+    const a=attempts[0]||null;
+    if(!a)return{tone:'',label:'ОЖИДАЕТ',meta:'ещё не запускалась'};
+    const out=Number(a.outbound_queue_packets||0),inc=Number(a.inbound_queue_packets||0),packets=out+inc;
+    if(a.ok)return{tone:'good',label:'PASS',meta:`q${a.queue||'—'} · ${packets} pkt · ${Number(a.probe_duration_ms||0)} ms`};
+    return{tone:'bad',label:'FAIL',meta:`q${a.queue||'—'} · ${packets} pkt${a.error?` · ${a.error}`:''}`};
+  }
+  function renderProcessingStrategyPlan(){
+    const inv=processingMapStrategyInventory,live=processingMapLiveResult;
+    const eligible=(inv?.profiles||[]).filter(p=>p.candidate_eligible).slice(0,3);
+    const tested=new Map((live?.candidates||[]).map(c=>[Number(c.source_profile_index),c]));
+    const baselineResult=live?.baseline?processingAttemptResult(live.baseline):{tone:'',label:'КОНТРОЛЬ',meta:'без desync'};
+    const rows=[
+      `<div class="processing-strategy-row baseline ${baselineResult.tone}"><div class="processing-strategy-id">BASELINE</div><div class="processing-strategy-main"><div class="processing-strategy-title">Контрольный TLS без стратегии обхода</div><div class="processing-strategy-summary">Только тестовая NFQUEUE и временный candidate без desync. Показывает, работает ли цель без стратегии.</div></div><div class="processing-strategy-result"><b>${esc(baselineResult.label)}</b><span>${esc(baselineResult.meta)}</span></div></div>`,
+      ...eligible.map(p=>{
+        const result=tested.has(Number(p.index))?processingAttemptResult(tested.get(Number(p.index))):{tone:'',label:'ОЖИДАЕТ',meta:'будет проверена'};
+        const technique=processingStrategyTechnique(p);
+        return `<div class="processing-strategy-row ${result.tone}"><div class="processing-strategy-id">PROFILE ${Number(p.index)}</div><div class="processing-strategy-main"><div class="processing-strategy-title">${esc(processingStrategyShort(p))}</div><div class="processing-strategy-summary">Домен для теста: ${esc(processingMapResult?.domain||'—')} · профиль взят из текущего production runtime</div>${technique?`<div class="processing-strategy-args">${esc(technique)}</div>`:''}</div><div class="processing-strategy-result"><b>${esc(result.label)}</b><span>${esc(result.meta)}</span></div></div>`;
+      })
+    ];
+    $('processingStrategyPlan').innerHTML=rows.join('');
+    const mode=live?.mode;
+    $('processingStrategyMode').textContent=mode?.name?`${mode.name.toUpperCase()} · ${Number(mode.attempts||1)} попытка · максимум ${Number(mode.max_candidates||3)} профиля`:`Fast · baseline + ${eligible.length||'до 3'} профиля`;
+  }
   function renderProcessingNetworkRoutes(result){
     const probe=processingProbeModel(result.probe),sock=processingProbeSocket(result.probe?.error),iface=result.keenetic?.default_ipv4_interface||result.keenetic?.config_isp_interface||'системный маршрут';
     const directTone=probe.kind==='good'?'good':probe.kind==='bad'?'bad':'warn';
@@ -3486,6 +3559,7 @@ button{min-height:var(--ui-control-h)}
         processingRouteNode('Результат','ещё не запускался')
       ].join('');
       $('processingCleanupProof').textContent='не запускался';
+      renderProcessingStrategyPlan();
       return;
     }
     if(d.error){
@@ -3496,7 +3570,7 @@ button{min-height:var(--ui-control-h)}
         processingRouteArrow(),
         processingRouteNode('Ошибка',d.error,'bad')
       ].join('');
-      $('processingCleanupProof').textContent='не доказана';return;
+      $('processingCleanupProof').textContent='не доказана';renderProcessingStrategyPlan();return;
     }
     const samples=[d.baseline,...(d.candidates||[])].flatMap(c=>(c?.attempts||[]).map(a=>({profile:c.source_profile_index,baseline:!!c.baseline,attempt:a})));
     const successful=samples.find(x=>x.attempt.ok&&Number(x.attempt.outbound_queue_packets||0)>0&&Number(x.attempt.inbound_queue_packets||0)>0);
@@ -3518,6 +3592,7 @@ button{min-height:var(--ui-control-h)}
     ].join('');
     $('processingCleanupProof').textContent=d.cleanup_baseline_after?'PASS · тестовые правила и процесс убраны':'НЕ ДОКАЗАНА';
     $('processingCleanupProof').style.color=d.cleanup_baseline_after?'var(--good)':'var(--bad)';
+    renderProcessingStrategyPlan();
   }
   function renderProcessingMap(result){
     processingMapResult=result;
@@ -3559,7 +3634,7 @@ button{min-height:var(--ui-control-h)}
     if(processingMapRunning)return;
     const domain=normalizeProcessingMapDomain($('processingMapDomain').value);
     if(!domain){notice('Processing Map: нужен корректный публичный DNS hostname.','error');return}
-    processingMapRunning=true;processingMapResult=null;processingMapLiveResult=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;$('copyGuidedReport').disabled=true;$('processingLiveCheck').disabled=true;$('processingLiveState').textContent='не запускался';
+    processingMapRunning=true;processingMapResult=null;processingMapLiveResult=null;processingMapStrategyInventory=null;$('copyProcessingMap').disabled=true;$('runProcessingMap').disabled=true;$('copyGuidedReport').disabled=true;$('processingLiveCheck').disabled=true;$('processingLiveState').textContent='не запускался';
     $('guidedTroubleshooter').classList.remove('visible');$('guidedActions').innerHTML='';$('guidedTimeline').innerHTML='';
     $('processingMapState').textContent='ПРОВЕРКА';$('processingMapState').className='testlab-state running';
     $('processingMapVerdict').innerHTML='<div class="analysis-empty">Проверяю runtime, списки, путь и доступность с роутера…</div>';
@@ -3568,6 +3643,7 @@ button{min-height:var(--ui-control-h)}
       let probe=null,keenetic=null;
       try{probe=await api('/check',{method:'POST',body:JSON.stringify({url:`https://${domain}/`})})}catch(e){probe={reachable:false,error:e.message||'probe failed'}}
       try{keenetic=await api('/keenetic')}catch(_){}
+      try{processingMapStrategyInventory=await api('/bench-strategies')}catch(_){processingMapStrategyInventory=null}
       const summary=processingMapSummary(domain,staticPath,probe,keenetic);
       renderProcessingMap({domain,staticPath,probe,keenetic,summary,lists:loaded.contents,listErrors:loaded.errors});
       $('processingMapState').textContent='ГОТОВО';$('processingMapState').className='testlab-state done';
@@ -3582,6 +3658,8 @@ button{min-height:var(--ui-control-h)}
     try{
       const latest=await api('/status');
       if(!latest?.running||!latest?.config_sha256)throw new Error('nfqws2 runtime не готов или active config SHA недоступен.');
+      try{processingMapStrategyInventory=await api('/bench-strategies')}catch(_){}
+      renderProcessingStrategyPlan();
       const d=await api('/bench-autotune',{method:'POST',body:JSON.stringify({mode:'fast',server_name:processingMapResult.domain,expected_config_sha256:String(latest.config_sha256).toLowerCase(),confirm:'ROUTERFORGE_AUTOTUNE_TLS'})});
       if(d.ok!==true)throw new Error('Fast-тест NFQWS не подтвердил выполнение.');
       if(d.cleanup_baseline_after!==true)throw new Error('Очистка тестовой NFQUEUE не доказана.');
@@ -3598,7 +3676,7 @@ button{min-height:var(--ui-control-h)}
   }
   function copyProcessingMap(){
     if(!processingMapResult)return;
-    const safe={domain:processingMapResult.domain,static_path:{mode:processingMapResult.staticPath.mode,verdict:processingMapResult.staticPath.verdict,reason:processingMapResult.staticPath.reason,includes:processingMapResult.staticPath.includes,excludes:processingMapResult.staticPath.excludes,hits:processingMapResult.staticPath.hits,list_summary:processingListModel(processingMapResult.staticPath)},probe:processingMapResult.probe,live_nfqws:processingMapLiveResult?{ok:processingMapLiveResult.ok||false,cleanup_baseline_after:processingMapLiveResult.cleanup_baseline_after||false,recommendation_available:processingMapLiveResult.recommendation_available||false,recommendation_reason:processingMapLiveResult.recommendation_reason||'',candidates:processingMapLiveResult.candidates||[],error:processingMapLiveResult.error||''}:null,keenetic:processingMapResult.keenetic,summary:{verdict:processingMapResult.summary.verdict,detail:processingMapResult.summary.detail,runtime_running:processingMapResult.summary.running},list_errors:processingMapResult.listErrors};
+    const safe={domain:processingMapResult.domain,static_path:{mode:processingMapResult.staticPath.mode,verdict:processingMapResult.staticPath.verdict,reason:processingMapResult.staticPath.reason,includes:processingMapResult.staticPath.includes,excludes:processingMapResult.staticPath.excludes,hits:processingMapResult.staticPath.hits,list_summary:processingListModel(processingMapResult.staticPath)},probe:processingMapResult.probe,strategy_plan:(processingMapStrategyInventory?.profiles||[]).filter(p=>p.candidate_eligible).slice(0,3).map(p=>({index:p.index,strategy_tags:p.strategy_tags,args:p.args})),live_nfqws:processingMapLiveResult?{ok:processingMapLiveResult.ok||false,mode:processingMapLiveResult.mode||null,baseline:processingMapLiveResult.baseline||null,cleanup_baseline_after:processingMapLiveResult.cleanup_baseline_after||false,recommendation_available:processingMapLiveResult.recommendation_available||false,recommendation_reason:processingMapLiveResult.recommendation_reason||'',candidates:processingMapLiveResult.candidates||[],error:processingMapLiveResult.error||''}:null,keenetic:processingMapResult.keenetic,summary:{verdict:processingMapResult.summary.verdict,detail:processingMapResult.summary.detail,runtime_running:processingMapResult.summary.running},list_errors:processingMapResult.listErrors};
     navigator.clipboard?.writeText(JSON.stringify(safe,null,2));notice('Processing Map JSON скопирован.','good');
   }
 

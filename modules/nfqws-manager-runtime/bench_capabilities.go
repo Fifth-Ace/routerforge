@@ -210,8 +210,9 @@ func readFirewallQueueInventory(iptablesSavePath, nftPath string) ([]int, string
 	if iptablesSavePath != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), benchCommandTimeout)
 		output, err := safety.RunCommand(ctx, benchOutputMax, iptablesSavePath)
+		ctxErr := ctx.Err()
 		cancel()
-		if err == nil && ctx.Err() == nil {
+		if err == nil && ctxErr == nil {
 			queues = append(queues, parseBenchQueueNumbers(string(output))...)
 			sources = append(sources, "iptables-save")
 		} else {
@@ -221,8 +222,9 @@ func readFirewallQueueInventory(iptablesSavePath, nftPath string) ([]int, string
 	if nftPath != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), benchCommandTimeout)
 		output, err := safety.RunCommand(ctx, benchOutputMax, nftPath, "list", "ruleset")
+		ctxErr := ctx.Err()
 		cancel()
-		if err == nil && ctx.Err() == nil {
+		if err == nil && ctxErr == nil {
 			queues = append(queues, parseBenchQueueNumbers(string(output))...)
 			sources = append(sources, "nft")
 		} else if warning == "" {

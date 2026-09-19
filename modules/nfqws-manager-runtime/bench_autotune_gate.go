@@ -37,6 +37,7 @@ var benchAutoTuneApplyGateState = struct {
 
 func registerBenchAutoTuneApplyGateRoute(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/bench-autotune/apply-gate", getOnly(handleBenchAutoTuneApplyGateStatus))
+	registerBenchAutoTuneApplyPreviewRoute(mux)
 }
 
 func clearBenchAutoTuneApplyPlan() {

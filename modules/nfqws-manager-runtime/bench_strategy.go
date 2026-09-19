@@ -56,6 +56,7 @@ func registerBenchStrategyRoute(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/bench-strategies", getOnly(handleBenchStrategies))
 	registerBenchStrategyPreflightRoute(mux)
 	registerBenchTLSStrategySmokeRoute(mux)
+	registerBenchAutoTuneRoute(mux)
 }
 
 func handleBenchStrategies(w http.ResponseWriter, _ *http.Request) {

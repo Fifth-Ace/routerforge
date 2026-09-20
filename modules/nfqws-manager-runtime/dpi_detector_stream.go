@@ -8,11 +8,12 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 type dpiDetectorV5StreamEvent struct {
@@ -89,7 +90,11 @@ func handleDPIDetectorV5StreamRun(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), dpiDetectorV5Timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, path, buildDPIDetectorV5ConsoleArgs(validated, reportPath)...)
+	cmd, err := safety.CommandContext(ctx, path, buildDPIDetectorV5ConsoleArgs(validated, reportPath)...)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "dpi-detector stream command rejected", "detail": err.Error()})
+		return
+	}
 	reader, writer := io.Pipe()
 	cmd.Stdout = writer
 	cmd.Stderr = writer

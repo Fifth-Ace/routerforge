@@ -27,6 +27,15 @@ func validateCommand(ctx context.Context, program string, args []string) error {
 
 // RunCommand executes a program without a shell, captures combined stdout/stderr,
 // and caps the returned output to maxOutput bytes.
+// CommandContext creates a validated command without a shell for callers that
+// need streaming I/O while preserving the shared RouterForge safety boundary.
+func CommandContext(ctx context.Context, program string, args ...string) (*exec.Cmd, error) {
+	if err := validateCommand(ctx, program, args); err != nil {
+		return nil, err
+	}
+	return exec.CommandContext(ctx, program, args...), nil
+}
+
 func RunCommand(ctx context.Context, maxOutput int, program string, args ...string) ([]byte, error) {
 	if err := validateCommand(ctx, program, args); err != nil {
 		return nil, err

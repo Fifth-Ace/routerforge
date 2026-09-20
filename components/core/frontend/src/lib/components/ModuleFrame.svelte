@@ -127,6 +127,7 @@
       loading="eager"
       onload={refreshVisibleWorkspaceHeight}
       referrerpolicy="same-origin"
+      allow="fullscreen"
       style={`height:${frameHeight}px`}
     ></iframe>
   {:else}

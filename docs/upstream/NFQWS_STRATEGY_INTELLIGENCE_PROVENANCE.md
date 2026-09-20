@@ -159,3 +159,14 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - Failed conditions are returned as explicit machine-readable reasons.
 - The Registry UI surfaces READY/BLOCKED state; it does not change ordering, invoke Smart Apply, create previews, reload/restart nfqws2, or edit production config.
 - Actual autonomous policy execution remains deferred behind a separate future gate.
+
+## NFQWS Intelligence R3-F0 — Recommendation Engine V1
+
+- RouterForge base: `d6b35c4eb0e9ae3f505f8ac527022cb2f6807ffa`.
+- R3 starts with a read-only historical recommendation layer; it does not change Progressive Selector ordering yet.
+- The engine consumes Score Engine V2, Strategy Insights and Policy Automation Gate output.
+- Only bench-ready strategies with verified evidence are ranked.
+- Ranking is protocol-local and deterministic: insight maturity, score, verified count, then fingerprint.
+- `PROVEN`/`PROMISING` top entries may become one advisory primary candidate per protocol.
+- Every recommendation explicitly says that live Selector verification is still required before Preview/Safe Apply.
+- No active config, process, NFQUEUE production rule, service lifecycle or automation state is changed.

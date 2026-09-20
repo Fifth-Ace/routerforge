@@ -201,6 +201,18 @@ export const getAdminMaintenanceLogs = () =>
   request('/api/modules/admin/maintenance/logs');
 export const getAdminMaintenanceTasks = () =>
   request('/api/modules/admin/maintenance/tasks');
+export const getAdminNFQWSJobs = () =>
+  request('/api/modules/admin/maintenance/nfqws-jobs');
+export const configureAdminNFQWSJob = (job) =>
+  postJSON('/api/modules/admin/maintenance/nfqws-jobs/configure', {
+    ...job,
+    confirm_id: job.id
+  });
+export const runAdminNFQWSJob = (id) =>
+  postJSON('/api/modules/admin/maintenance/nfqws-jobs/run', {
+    id,
+    confirm_id: id
+  });
 export const adminMaintenanceBackup = () =>
   postJSON('/api/modules/admin/maintenance/backup', { confirm: 'BACKUP' });
 export const getAdminIntegrations = () =>

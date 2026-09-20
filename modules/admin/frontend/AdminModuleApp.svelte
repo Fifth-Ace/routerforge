@@ -24,6 +24,9 @@
     getAdminSnapshots,
     getAdminWatchdogs,
     getAdminMaintenanceTasks,
+    getAdminNFQWSJobs,
+    configureAdminNFQWSJob,
+    runAdminNFQWSJob,
     getAdminIntegrations,
     getNFQWS2Manager,
     nfqws2ManagerAction,
@@ -79,6 +82,11 @@
   let maintenanceLogs = '';
   let maintenanceLogSource = '';
   let maintenanceTasks = [];
+  let nfqwsJobs = [];
+  let nfqwsJobBusy = '';
+  let nfqwsJobID = 'nfqws-detect';
+  let nfqwsJobTarget = '';
+  let nfqwsJobInterval = 30;
   let maintenanceBusy = false;
   let maintenanceBackups = [];
   let restoreBusyPath = '';
@@ -628,9 +636,10 @@
     maintenanceBusy = true;
     errorText = '';
     try {
-      const [logs, tasks, backups, watchdogResult, snapshotResult] = await Promise.all([
+      const [logs, tasks, jobs, backups, watchdogResult, snapshotResult] = await Promise.all([
         getAdminMaintenanceLogs(),
         getAdminMaintenanceTasks(),
+        getAdminNFQWSJobs(),
         getAdminMaintenanceBackups(),
         getAdminWatchdogs(),
         getAdminSnapshots()
@@ -638,6 +647,7 @@
       maintenanceLogs = logs.content || '';
       maintenanceLogSource = logs.source || '';
       maintenanceTasks = tasks.tasks || [];
+      nfqwsJobs = jobs.jobs || [];
       maintenanceBackups = backups.backups || [];
       watchdogs = watchdogResult.watchdogs || [];
       snapshots = snapshotResult.snapshots || [];
@@ -648,6 +658,68 @@
       errorText = errorMessage(error);
     } finally {
       maintenanceBusy = false;
+    }
+  }
+
+  async function saveNFQWSJob() {
+    const id = nfqwsJobID.trim();
+    const target = nfqwsJobTarget.trim();
+    const interval = Number(nfqwsJobInterval || 30);
+    if (!id || !target || nfqwsJobBusy) return;
+    if (!confirm(`${locale === 'ru' ? 'Сохранить NFQWS job' : 'Save NFQWS job'} ${id}: ${target}, ${interval} min?`)) return;
+    nfqwsJobBusy = id;
+    errorText = '';
+    try {
+      await configureAdminNFQWSJob({
+        id,
+        kind: 'detect-target',
+        target,
+        interval_minutes: interval,
+        enabled: true
+      });
+      await loadMaintenance();
+      setAction(`NFQWS job ${id}: ENABLED`);
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      nfqwsJobBusy = '';
+    }
+  }
+
+  async function toggleNFQWSJob(job) {
+    if (nfqwsJobBusy) return;
+    nfqwsJobBusy = job.id;
+    errorText = '';
+    try {
+      await configureAdminNFQWSJob({
+        id: job.id,
+        kind: job.kind,
+        target: job.target,
+        interval_minutes: job.interval_minutes,
+        enabled: !job.enabled
+      });
+      await loadMaintenance();
+      setAction(`NFQWS job ${job.id}: ${job.enabled ? 'DISABLED' : 'ENABLED'}`);
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      nfqwsJobBusy = '';
+    }
+  }
+
+  async function runNFQWSJobNow(job) {
+    if (nfqwsJobBusy) return;
+    if (!confirm(`${locale === 'ru' ? 'Запустить сейчас' : 'Run now'}: ${job.id} / ${job.target}?`)) return;
+    nfqwsJobBusy = job.id;
+    errorText = '';
+    try {
+      await runAdminNFQWSJob(job.id);
+      setAction(`NFQWS job ${job.id}: RUNNING`);
+      setTimeout(() => loadMaintenance(), 1200);
+    } catch (error) {
+      errorText = errorMessage(error);
+    } finally {
+      nfqwsJobBusy = '';
     }
   }
 
@@ -1283,6 +1355,56 @@
 
       <section class="maintenance-section maintenance-wide-section">
         <div class="maintenance-section-head">
+          <div>
+            <strong>NFQWS Intelligence Jobs</strong>
+            <span>{locale === 'ru' ? 'Maintenance scheduler · detect-target · минимум 15 минут · без изменения production nfqws2' : 'Maintenance scheduler · detect-target · 15 minute minimum · no production nfqws2 mutation'}</span>
+          </div>
+          <span class="state-chip info">{nfqwsJobs.filter((item) => item.enabled).length}/{nfqwsJobs.length}</span>
+        </div>
+        <div class="nfqws-job-create">
+          <input class="input mono" bind:value={nfqwsJobID} placeholder="job-id">
+          <input class="input mono" bind:value={nfqwsJobTarget} placeholder="example.com">
+          <select class="input" bind:value={nfqwsJobInterval}>
+            <option value={15}>15 min</option>
+            <option value={30}>30 min</option>
+            <option value={60}>60 min</option>
+            <option value={180}>3 h</option>
+            <option value={360}>6 h</option>
+            <option value={720}>12 h</option>
+            <option value={1440}>24 h</option>
+          </select>
+          <button class="button primary" onclick={saveNFQWSJob} disabled={!!nfqwsJobBusy || !nfqwsJobID.trim() || !nfqwsJobTarget.trim()}>
+            {locale === 'ru' ? 'Сохранить + включить' : 'Save + enable'}
+          </button>
+        </div>
+        {#if nfqwsJobs.length === 0}
+          <div class="maintenance-empty">{locale === 'ru' ? 'NFQWS jobs ещё не настроены.' : 'No NFQWS jobs configured.'}</div>
+        {:else}
+          <div class="maintenance-list">
+            {#each nfqwsJobs as job}
+              <div class="maintenance-list-row">
+                <div class="maintenance-list-copy">
+                  <strong class="mono">{job.id} · {job.target}</strong>
+                  <span class="cell-sub mono">
+                    {job.kind} · every {job.interval_minutes} min
+                    {job.last_run_at ? ` · last ${new Date(job.last_run_at).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')}` : ''}
+                    {job.last_status ? ` · HTTP ${job.last_status}` : ''}
+                    {job.last_error ? ` · ${job.last_error}` : ''}
+                  </span>
+                </div>
+                <div class="maintenance-row-actions">
+                  <span class="state-chip {job.running ? 'info' : job.last_ok ? 'good' : 'neutral'}">{job.running ? 'RUN' : (job.enabled ? 'ON' : 'OFF')}</span>
+                  <button class="button" onclick={() => runNFQWSJobNow(job)} disabled={!!nfqwsJobBusy || job.running}>{locale === 'ru' ? 'Сейчас' : 'Run now'}</button>
+                  <button class="button" onclick={() => toggleNFQWSJob(job)} disabled={!!nfqwsJobBusy}>{job.enabled ? copy.disable : copy.enable}</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </section>
+
+      <section class="maintenance-section maintenance-wide-section">
+        <div class="maintenance-section-head">
           <div><strong>{copy.backups}</strong><span>{copy.restoreMode}</span></div>
           <span class="state-chip info">{maintenanceBackups.length}</span>
         </div>
@@ -1456,6 +1578,11 @@
 </div>
 
 <style>
+  .nfqws-job-create{display:grid;grid-template-columns:minmax(140px,.7fr) minmax(220px,1.4fr) 120px auto;gap:8px;align-items:center;margin:10px 0}
+  .nfqws-job-create .input{min-width:0;width:100%}
+  @media(max-width:820px){.nfqws-job-create{grid-template-columns:1fr 1fr}.nfqws-job-create .button{width:100%}}
+  @media(max-width:520px){.nfqws-job-create{grid-template-columns:1fr}}
+
   .ui-action-ok,.ui-action-error{margin:.75rem 0;padding:.7rem .9rem;border-radius:var(--rf-radius-control,.65rem);font-weight:600}
   .ui-action-ok{color:var(--good,#2ea043);background:color-mix(in srgb,var(--good,#2ea043) 10%,var(--rf-surface,#12151a));border:1px solid color-mix(in srgb,var(--good,#2ea043) 36%,transparent)}
   .ui-action-error{color:var(--bad,#f85149);background:color-mix(in srgb,var(--bad,#f85149) 10%,var(--rf-surface,#12151a));border:1px solid color-mix(in srgb,var(--bad,#f85149) 36%,transparent)}

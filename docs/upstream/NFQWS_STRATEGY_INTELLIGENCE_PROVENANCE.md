@@ -138,3 +138,14 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - States are descriptive evidence states, not automatic decisions: `NOT_READY`, `UNVERIFIED`, `PROVEN`, `PROMISING`, `MIXED`, `DEGRADED`, `WEAK`.
 - Every insight carries a concise summary and machine-readable signals such as score, verification count, target coverage, confidence and failure/unstable counts.
 - Insights do not alter Registry ordering, progressive selection, Strategy Library, Target Memory, Apply gates or production nfqws2.
+
+## NFQWS Intelligence R2-F8 — NFQWS Jobs via Maintenance scheduler
+
+- RouterForge base: `3804d58ef9fa385c75bc9874dd024dd95cfcdae2`.
+- Admin Maintenance owns a persistent NFQWS job scheduler at `/opt/etc/routerforge/nfqws-jobs.json`.
+- R2-F8 job kind is `detect-target`: a bounded scheduled call to the existing RouterForge NFQWS `/v1/v2/detect` diagnostic route over the local Unix socket.
+- Jobs are disabled until the user explicitly saves/enables one. Minimum interval is 15 minutes; maximum is 24 hours; at most 32 jobs.
+- Scheduler waits one full configured interval after Admin startup/configuration instead of immediately probing on service restart.
+- Run-now remains explicit and confirmed in the UI.
+- The scheduler uses RouterForge's local module authorization header and does not shell out, edit `nfqws2.conf`, restart/reload nfqws2, or alter production firewall rules.
+- Existing detect semantics may enrich RouterForge-owned TCP16 intelligence memory; production nfqws2 remains untouched.

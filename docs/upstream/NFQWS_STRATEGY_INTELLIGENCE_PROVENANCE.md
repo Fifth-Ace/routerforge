@@ -93,3 +93,12 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - RouterForge implementation is native and uses the shared `safety.CommandContext` boundary; tcpdump is never installed automatically.
 - Capture is bounded to 8 seconds, 64 matching packets, 2 MiB pcap and 24 candidates.
 - Capturing does not write nfqws2 config and does not restart/reload production.
+
+## NFQWS Intelligence R2-F3 — Zapret Import V2
+
+- RouterForge base: `8e264fa6aea9c44dd279dbf86dfe37324749fcc1`
+- Converter reference reviewed: `whxtelxs/nfqws-zapret-converter@c37858b8ffead9377f1e27de756c8f5c46c23090`
+- Existing RouterForge preview-first parser remains authoritative and intentionally does not silently apply converter heuristics.
+- R2-F3 adds an atomic Strategy Library handoff: all READY profiles are validated as bench-eligible first, deduplicated by deterministic fingerprint, and then written once with `source=zapret`.
+- An invalid item rejects the whole batch; existing identical fingerprints are preserved and reported as existing.
+- No active nfqws2 config mutation, reload, restart or automatic apply is performed.

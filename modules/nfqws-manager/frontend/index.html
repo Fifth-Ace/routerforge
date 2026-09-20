@@ -381,6 +381,8 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 .zapret-library-grid{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr);gap:12px}
 .zapret-library-label{display:grid;gap:6px;color:var(--muted);font-size:10px}.zapret-library-label .search{width:100%;max-width:none}
 .zapret-library-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.zapret-strategy-import{display:flex;align-items:center;gap:8px;margin-top:8px}
+.zapret-strategy-import .config-badge{margin-left:auto}
 .zapret-sandbox-handoff{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin-top:10px}
 .zapret-sandbox-handoff label{display:grid;gap:5px;color:var(--muted);font-size:9.5px}.zapret-sandbox-handoff select{width:100%}
 .zapret-library-diff-title{margin-bottom:6px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em}
@@ -1614,7 +1616,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
             </label>
             <button id="zapretSandboxOpen" disabled>Проверить в Sandbox</button>
           </div>
-          <div class="zapret-import-note">Сохранение создаёт новый инертный файл. Active nfqws2.conf не меняется, сервис не перезапускается и стратегия не применяется.</div>
+          <div class="zapret-strategy-import">
+            <button id="zapretStrategyImport" disabled>Добавить profiles в Strategy Library</button>
+            <span id="zapretStrategyImportState" class="config-badge">WAITING</span>
+          </div>
+          <div class="zapret-import-note">Config Library хранит полный inactive config. Strategy Library сохраняет только bench-eligible profiles с source=zapret и deterministic fingerprint. Active nfqws2.conf не меняется.</div>
         </div>
         <div>
           <div class="zapret-library-diff-title">Точный diff относительно active config</div>
@@ -5004,6 +5010,25 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     select.innerHTML=profiles.map((_,i)=>`<option value="${i}">Профиль ${i+1}${profiles.length>1?` из ${profiles.length}`:''}</option>`).join('');
     select.disabled=!result?.ready||!profiles.length;
     $('zapretSandboxOpen').disabled=!result?.ready||!profiles.length;
+    $('zapretStrategyImport').disabled=!result?.ready||!profiles.length;
+    $('zapretStrategyImportState').textContent=result?.ready&&profiles.length?'READY':'WAITING';
+  }
+
+  async function importZapretProfilesToStrategyLibrary(){
+    const result=zapretImportResult,profiles=Array.isArray(result?.profiles)?result.profiles:[];
+    if(!result?.ready||!profiles.length){notice('Zapret Import V2: нужен READY preview.','error');return}
+    const items=profiles.map((profile,i)=>({name:`Zapret profile ${i+1}`,args:v2ArgTokens(profile)}));
+    if(items.some(x=>!x.args.length)){notice('Zapret Import V2: найден пустой profile.','error');return}
+    if(!confirm(`Добавить ${items.length} profile(s) в Strategy Library? Active nfqws2.conf не изменится.`))return;
+    $('zapretStrategyImport').disabled=true;$('zapretStrategyImportState').textContent='SAVING';
+    try{
+      const d=await api('/v2/strategies/import',{method:'POST',body:JSON.stringify({items,confirm:'ROUTERFORGE_V2_STRATEGY_IMPORT'})});
+      v2Library=[];v2RegistryData=null;
+      $('zapretStrategyImportState').textContent='SAVED';
+      notice(`Zapret Import V2: added ${Number(d.added||0)}, existing ${Number(d.existing||0)}. Production не изменён.`,'good');
+    }catch(e){
+      $('zapretStrategyImportState').textContent='FAIL';notice(`Zapret Import V2: ${e.message}`,'error');
+    }finally{$('zapretStrategyImport').disabled=false}
   }
   function sendZapretProfileToSandbox(){
     if(!zapretImportResult?.ready){notice('Zapret import: Sandbox доступен только для READY preview.','error');return}
@@ -5667,6 +5692,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('zapretLibraryOpen').onclick=openSavedZapretConfig;
   $('zapretSandboxProfile').onchange=()=>{$('zapretSandboxOpen').disabled=!zapretImportResult?.ready};
   $('zapretSandboxOpen').onclick=sendZapretProfileToSandbox;
+  $('zapretStrategyImport').onclick=importZapretProfilesToStrategyLibrary;
   $('refreshBenchReadiness').onclick=()=>loadBenchReadiness(true);
   $('runAutoTuneFlow').onclick=runAutoTuneFlow;$('buildAutoTunePreview').onclick=buildAutoTunePreviewUI;$('applyAutoTunePreview').onclick=applyAutoTunePreviewUI;$('resetAutoTuneFlow').onclick=()=>resetAutoTuneUI();
   $('processingLiveCheck').onclick=runProcessingMapLiveProof;

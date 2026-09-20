@@ -149,3 +149,13 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - Run-now remains explicit and confirmed in the UI.
 - The scheduler uses RouterForge's local module authorization header and does not shell out, edit `nfqws2.conf`, restart/reload nfqws2, or alter production firewall rules.
 - Existing detect semantics may enrich RouterForge-owned TCP16 intelligence memory; production nfqws2 remains untouched.
+
+## NFQWS Intelligence R2-F9 — Policy Automation Gate
+
+- RouterForge base: `a458298cddd113b94451b7e3031e54f812fa2fd8`.
+- This stage adds a read-only maturity gate, not policy automation itself.
+- `automation_enabled` is hard-coded `false` and policy `action` is `none`.
+- A candidate is gate-ready only when all conditions hold: CandidateReady, `PROVEN` insight, score >= 80, at least 3 verified observations, success rate >= 0.90, STRONG/TRUSTED confidence, zero historical failures, zero unstable observations, and at least one reuse-eligible target.
+- Failed conditions are returned as explicit machine-readable reasons.
+- The Registry UI surfaces READY/BLOCKED state; it does not change ordering, invoke Smart Apply, create previews, reload/restart nfqws2, or edit production config.
+- Actual autonomous policy execution remains deferred behind a separate future gate.

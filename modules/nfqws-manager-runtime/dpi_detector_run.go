@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,10 +26,11 @@ const (
 )
 
 var (
-	dpiDetectorRunActive     int32
-	dpiDetectorCommandRunner = safety.RunCommand
-	dpiDetectorStatusReader  = readStatus
-	dpiDetectorNFQWS2Running = nfqws2Running
+	dpiDetectorRunActive           int32
+	dpiDetectorCommandRunner       = safety.RunCommand
+	dpiDetectorStatusReader        = readStatus
+	dpiDetectorNFQWS2Running       = nfqws2Running
+	dpiDetectorCompatibilityReader = readDPIDetectorCompatibility
 )
 
 type dpiDetectorRunRequest struct {
@@ -57,6 +59,9 @@ type dpiDetectorRunResponse struct {
 	EnvironmentWarning        string `json:"environment_warning"`
 	PersistentMutation        bool   `json:"persistent_mutation"`
 	ManagedByRouterForge      bool   `json:"managed_by_routerforge"`
+	ExecutionReady            bool   `json:"execution_ready"`
+	RequiredInterpreter       string `json:"required_interpreter,omitempty"`
+	InterpreterAvailable      bool   `json:"interpreter_available,omitempty"`
 	ProductionConfigSHA256    string `json:"production_config_sha256"`
 	ProductionConfigUnchanged bool   `json:"production_config_unchanged"`
 }
@@ -114,6 +119,20 @@ func normalizeDPIDetectorRunText(value string) string {
 	return strings.TrimSpace(value)
 }
 
+func classifyDPIDetectorRunError(err error) (string, string) {
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		return "exec_start_failed", pathErr.Err.Error()
+	}
+
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return "detector_exit_nonzero", "exit_code=" + strconv.Itoa(exitErr.ExitCode())
+	}
+
+	return "detector_run_failed", "detector execution failed"
+}
+
 func handleDPIDetectorRun(w http.ResponseWriter, r *http.Request) {
 	var req dpiDetectorRunRequest
 	if err := decodeJSON(w, r, &req); err != nil {
@@ -144,6 +163,20 @@ func handleDPIDetectorRun(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	compatibility := dpiDetectorCompatibilityReader(path)
+	if !compatibility.ExecutionReady {
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"error":                 "dpi-detector external binary is incompatible with this rootfs",
+			"error_kind":            "external_binary_incompatible",
+			"path":                  path,
+			"required_interpreter":  compatibility.RequiredInterpreter,
+			"interpreter_available": compatibility.InterpreterAvailable,
+			"compatibility_reason":  compatibility.Reason,
+		})
+		return
+	}
+
 	if !atomic.CompareAndSwapInt32(&dpiDetectorRunActive, 0, 1) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "another dpi-detector run is active"})
 		return
@@ -166,6 +199,7 @@ func handleDPIDetectorRun(w http.ResponseWriter, r *http.Request) {
 	if ctx.Err() != nil {
 		writeJSON(w, http.StatusGatewayTimeout, map[string]any{
 			"error":       "dpi-detector run timeout",
+			"error_kind":  "timeout",
 			"test":        "domains",
 			"domain":      domain,
 			"duration_ms": durationMS,
@@ -173,8 +207,11 @@ func handleDPIDetectorRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if runErr != nil {
+		errorKind, detail := classifyDPIDetectorRunError(runErr)
 		writeJSON(w, http.StatusBadGateway, map[string]any{
 			"error":       "dpi-detector run failed",
+			"error_kind":  errorKind,
+			"detail":      detail,
 			"test":        "domains",
 			"domain":      domain,
 			"duration_ms": durationMS,
@@ -186,18 +223,20 @@ func handleDPIDetectorRun(w http.ResponseWriter, r *http.Request) {
 	reportBytes, reportCut, err := readBoundedFile(reportPath, dpiDetectorReportMax)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{
-			"error":  "dpi-detector completed without readable report",
-			"test":   "domains",
-			"domain": domain,
+			"error":      "dpi-detector completed without readable report",
+			"error_kind": "report_unreadable",
+			"test":       "domains",
+			"domain":     domain,
 		})
 		return
 	}
 	report := normalizeDPIDetectorRunText(string(reportBytes))
 	if report == "" {
 		writeJSON(w, http.StatusBadGateway, map[string]any{
-			"error":  "dpi-detector completed with empty report",
-			"test":   "domains",
-			"domain": domain,
+			"error":      "dpi-detector completed with empty report",
+			"error_kind": "report_empty",
+			"test":       "domains",
+			"domain":     domain,
 		})
 		return
 	}
@@ -237,6 +276,9 @@ func handleDPIDetectorRun(w http.ResponseWriter, r *http.Request) {
 		EnvironmentWarning:        warning,
 		PersistentMutation:        false,
 		ManagedByRouterForge:      false,
+		ExecutionReady:            true,
+		RequiredInterpreter:       compatibility.RequiredInterpreter,
+		InterpreterAvailable:      compatibility.InterpreterAvailable,
 		ProductionConfigSHA256:    statusAfter.ConfigSHA256,
 		ProductionConfigUnchanged: true,
 	})

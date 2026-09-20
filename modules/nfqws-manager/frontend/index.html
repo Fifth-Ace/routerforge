@@ -5448,8 +5448,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const provenance=(item.provenance||[]).map(p=>`${p.source||p.kind}${p.repository?' · '+p.repository:''}${p.ref?' @ '+String(p.ref).slice(0,12):''}`).join(' | ');
       const caps=item.capabilities||{},bench=(caps.bench_transports||[]);
       const capability=bench.length?`bench: ${bench.join(', ')} · desync ${Number(caps.desync_count||0)}`:'bench: not eligible';
+      const score=item.score?.total;
+      const scoreText=Number.isFinite(Number(score))?`score ${Number(score)}/100`:'score —';
       return `<div class="registry-row">
-        <div class="registry-main"><strong>${esc(item.name||item.id)}</strong>${aliases}<span class="registry-meta">${esc((item.sources||[]).join(' + '))} · ${esc(item.protocol||'—')} · ${esc(item.family||'—')}</span><span class="registry-meta">${esc(capability)}</span></div>
+        <div class="registry-main"><strong>${esc(item.name||item.id)}</strong>${aliases}<span class="registry-meta">${esc((item.sources||[]).join(' + '))} · ${esc(item.protocol||'—')} · ${esc(item.family||'—')}</span><span class="registry-meta">${esc(capability)} · ${esc(scoreText)}</span></div>
         <div class="registry-evidence"><strong>${esc(evidence)}</strong><span>${esc(provenance||'local')}</span></div>
         <details class="registry-args"><summary>Args · ${esc(String((item.fingerprint||'').slice(0,12)))}</summary><pre>${esc((item.args||[]).join('\n'))}</pre></details>
       </div>`;
@@ -5467,7 +5469,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(v2RegistryData&&!force){v2RegistryRender();return}
     $('v2RegistryState').textContent='LOADING';
     try{
-      const data=await api('/v2/strategy-registry');
+      const [data,scores]=await Promise.all([api('/v2/strategy-registry'),api('/v2/strategy-scores')]);
+      const scoreMap=new Map((scores.entries||[]).map(x=>[x.fingerprint,x.score]));
+      (data.entries||[]).forEach(x=>{x.score=scoreMap.get(x.fingerprint)||null});
       v2RegistryData=data;
       $('v2RegistryState').textContent='READ ONLY';
       $('v2RegistryCount').textContent=String(data.count||0);

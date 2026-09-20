@@ -100,6 +100,12 @@ func allocateBenchLocalPort() (int, error) {
 
 var benchFirewallCommandMu sync.Mutex
 
+// benchFirewallRuleMutationMu protects multi-command firewall critical sections.
+// runBenchCommand serializes each individual iptables command, but anchor lookup
+// followed by positional insertion must also be atomic against other RouterForge
+// bench workers or a concurrent insertion can shift the anchor between -S and -I.
+var benchFirewallRuleMutationMu sync.Mutex
+
 func benchFirewallCommand(program string) bool {
 	return program == "iptables" || program == "iptables-save" ||
 		strings.HasSuffix(program, "/iptables") || strings.HasSuffix(program, "/iptables-save")
@@ -231,7 +237,7 @@ func (o *benchSystemOps) StartCandidate(ctx context.Context, spec benchTransacti
 	return errors.New("candidate did not prove pid identity and NFQUEUE binding")
 }
 
-func (o *benchSystemOps) InstallRule(ctx context.Context, rule benchRuleSpec) error {
+func (o *benchSystemOps) installRuleUnlocked(ctx context.Context, rule benchRuleSpec) error {
 	present, err := o.rulePresent(ctx, rule)
 	if err != nil {
 		return err
@@ -256,7 +262,7 @@ func (o *benchSystemOps) InstallRule(ctx context.Context, rule benchRuleSpec) er
 	output, err := runBenchCommand(ctx, o.iptablesPath, args...)
 	if err != nil {
 		if leftover, checkErr := o.rulePresent(context.Background(), rule); checkErr == nil && leftover {
-			_ = o.DeleteRule(context.Background(), rule)
+			_ = o.deleteRuleUnlocked(context.Background(), rule)
 		}
 		return fmt.Errorf("iptables insert failed: %w output=%s", err, strings.TrimSpace(string(output)))
 	}
@@ -271,7 +277,15 @@ func (o *benchSystemOps) InstallRule(ctx context.Context, rule benchRuleSpec) er
 	return nil
 }
 
+func (o *benchSystemOps) InstallRule(ctx context.Context, rule benchRuleSpec) error {
+	benchFirewallRuleMutationMu.Lock()
+	defer benchFirewallRuleMutationMu.Unlock()
+	return o.installRuleUnlocked(ctx, rule)
+}
+
 func (o *benchSystemOps) VerifyInstalled(ctx context.Context, spec benchTransactionSpec, rules []benchRuleSpec) error {
+	benchFirewallRuleMutationMu.Lock()
+	defer benchFirewallRuleMutationMu.Unlock()
 	if len(rules) != 6 {
 		return fmt.Errorf("unexpected bench rule count %d", len(rules))
 	}
@@ -344,7 +358,7 @@ func (o *benchSystemOps) Probe(ctx context.Context, spec benchTransactionSpec) e
 	return conn.Close()
 }
 
-func (o *benchSystemOps) DeleteRule(ctx context.Context, rule benchRuleSpec) error {
+func (o *benchSystemOps) deleteRuleUnlocked(ctx context.Context, rule benchRuleSpec) error {
 	present, err := o.rulePresent(ctx, rule)
 	if err != nil {
 		return err
@@ -370,6 +384,12 @@ func (o *benchSystemOps) DeleteRule(ctx context.Context, rule benchRuleSpec) err
 		return errors.New("deleted bench rule is still observable")
 	}
 	return nil
+}
+
+func (o *benchSystemOps) DeleteRule(ctx context.Context, rule benchRuleSpec) error {
+	benchFirewallRuleMutationMu.Lock()
+	defer benchFirewallRuleMutationMu.Unlock()
+	return o.deleteRuleUnlocked(ctx, rule)
 }
 
 func (o *benchSystemOps) StopCandidate(_ context.Context, spec benchTransactionSpec) error {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"net"
 	"testing"
@@ -58,7 +59,7 @@ func TestParsePCAPClientHello(t *testing.T) {
 }
 
 func TestCaptureRejectsInvalidIP(t *testing.T) {
-	_, _, err := v2CaptureClientHellos(t.Context(), "not-an-ip", "br0", 1)
+	_, _, err := v2CaptureClientHellos(context.Background(), "not-an-ip", "br0", 1)
 	if err == nil {
 		t.Fatal("invalid device ip accepted")
 	}

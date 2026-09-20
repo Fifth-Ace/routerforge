@@ -1027,6 +1027,18 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 #view-dpi-detector #dpiNativeResults{overflow:visible!important}
 #view-dpi-detector .dpi-native-live-shell{overflow:hidden!important}
 
+
+.registry-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.registry-summary>div{display:grid;gap:4px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)}
+.registry-summary span{color:var(--muted);font-size:8px;text-transform:uppercase}.registry-summary strong{font-size:16px;color:var(--text)}
+.registry-filters{display:grid;grid-template-columns:minmax(260px,1fr) 190px 190px;gap:8px;margin-top:10px}
+.registry-list{display:grid;gap:8px}
+.registry-row{display:grid;grid-template-columns:minmax(220px,1.1fr) minmax(260px,1fr);gap:10px;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}
+.registry-main{display:grid;gap:4px;min-width:0}.registry-main>strong{font-size:11px;color:var(--text)}.registry-meta,.registry-aliases{font-size:8.5px;color:var(--muted);overflow-wrap:anywhere}
+.registry-evidence{display:grid;gap:4px;align-content:start}.registry-evidence strong{font-size:9px;color:var(--accent)}.registry-evidence span{font-size:8px;color:var(--muted);overflow-wrap:anywhere}
+.registry-args{grid-column:1/-1;border-top:1px solid var(--border);padding-top:7px}.registry-args summary{cursor:pointer;color:var(--muted);font-size:8.5px}.registry-args pre{margin:7px 0 0;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--code);color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;font:8.5px/1.45 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace}
+@media(max-width:900px){.registry-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.registry-filters{grid-template-columns:1fr}.registry-row{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -1072,6 +1084,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="selector-v2">Автоподбор</button>
   <button class="tab" data-tab="sandbox-v2">Sandbox</button>
   <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
+  <button class="tab" data-tab="strategy-registry-v1">Реестр <span id="v2RegistryTabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="upstream-lists">Источники списков <span id="listSourceStateNav" class="nav-meta"></span></button>
   <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
@@ -1366,6 +1379,40 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </article>
     </div>
     <div class="v2-boundary">Sandbox использует тот же Bench Executor, что Автоподбор: reserved NFQUEUE 30000–30127, exact source port selector, temporary nfqws2, обязательный cleanup proof.</div>
+  </div>
+</section>
+
+
+<section id="view-strategy-registry-v1" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Реестр стратегий</h2><div class="section-kicker">единый read-only слой: built-in + Candidate Library + verified Target Memory</div></div>
+      <span id="v2RegistryState" class="config-badge">IDLE</span>
+    </div>
+
+    <article class="panel">
+      <div class="panel-head">
+        <div><h2>Strategy Registry v1</h2><div class="section-kicker">R2 Foundation · без применения и без изменений production</div></div>
+        <button id="v2RegistryRefresh">Обновить</button>
+      </div>
+      <div class="registry-summary">
+        <div><span>Стратегий</span><strong id="v2RegistryCount">0</strong></div>
+        <div><span>Источников</span><strong id="v2RegistrySourcesCount">0</strong></div>
+        <div><span>Протоколов</span><strong id="v2RegistryProtocolsCount">0</strong></div>
+        <div><span>С evidence</span><strong id="v2RegistryEvidenceCount">0</strong></div>
+      </div>
+      <div class="registry-filters">
+        <input id="v2RegistrySearch" class="search" placeholder="Поиск по имени, source, family, args">
+        <select id="v2RegistryProtocol" class="search"><option value="">Все протоколы</option></select>
+        <select id="v2RegistrySource" class="search"><option value="">Все источники</option></select>
+      </div>
+    </article>
+
+    <article class="panel" style="margin-top:12px">
+      <div id="v2RegistryList" class="registry-list"><div class="analysis-empty">Реестр ещё не загружен.</div></div>
+    </article>
+
+    <div class="v2-boundary">R2-F0 только объединяет существующие стратегии и verified evidence в один контракт. Никаких apply/reload/restart и никаких изменений nfqws2.conf.</div>
   </div>
 </section>
 
@@ -5145,6 +5192,71 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     runHistory.unshift(entry);runHistory=runHistory.slice(0,runHistoryMax);runHistoryPersist();renderRunHistory();
   }
 
+
+  let v2RegistryData=null;
+
+  function v2RegistryPct(value){
+    const n=Number(value||0);
+    return `${Math.round(Math.max(0,Math.min(1,n))*100)}%`;
+  }
+
+  function v2RegistryRender(){
+    const root=$('v2RegistryList');if(!root)return;
+    const data=v2RegistryData;
+    if(!data){root.innerHTML='<div class="analysis-empty">Реестр ещё не загружен.</div>';return}
+    const query=String($('v2RegistrySearch')?.value||'').trim().toLowerCase();
+    const protocol=String($('v2RegistryProtocol')?.value||'');
+    const source=String($('v2RegistrySource')?.value||'');
+    const entries=(data.entries||[]).filter(item=>{
+      if(protocol&&item.protocol!==protocol)return false;
+      if(source&&!(item.sources||[]).includes(source))return false;
+      if(!query)return true;
+      return [item.name,item.family,item.protocol,(item.sources||[]).join(' '),(item.aliases||[]).join(' '),(item.args||[]).join(' ')].join(' ').toLowerCase().includes(query);
+    });
+    if(!entries.length){root.innerHTML='<div class="analysis-empty">По текущему фильтру стратегий нет.</div>';return}
+    root.innerHTML=entries.map(item=>{
+      const e=item.evidence||{};
+      const confidence=e.confidence||'—';
+      const evidence=e.verified_count?`${e.targets||0} target · ${e.verified_count} verify · ${v2RegistryPct(e.success_rate)} · ${confidence}`:'нет verified evidence';
+      const aliases=(item.aliases||[]).length?`<div class="registry-aliases">aliases: ${esc(item.aliases.join(' · '))}</div>`:'';
+      const provenance=(item.provenance||[]).map(p=>`${p.source||p.kind}${p.repository?' · '+p.repository:''}`).join(' | ');
+      return `<div class="registry-row">
+        <div class="registry-main"><strong>${esc(item.name||item.id)}</strong>${aliases}<span class="registry-meta">${esc((item.sources||[]).join(' + '))} · ${esc(item.protocol||'—')} · ${esc(item.family||'—')}</span></div>
+        <div class="registry-evidence"><strong>${esc(evidence)}</strong><span>${esc(provenance||'local')}</span></div>
+        <details class="registry-args"><summary>Args · ${esc(String((item.fingerprint||'').slice(0,12)))}</summary><pre>${esc((item.args||[]).join('\n'))}</pre></details>
+      </div>`;
+    }).join('');
+  }
+
+  function v2RegistryFillSelect(id,values,label){
+    const node=$(id);if(!node)return;
+    const current=node.value;
+    node.innerHTML=`<option value="">${esc(label)}</option>`+(values||[]).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if((values||[]).includes(current))node.value=current;
+  }
+
+  async function loadStrategyRegistryV1(force=false){
+    if(v2RegistryData&&!force){v2RegistryRender();return}
+    $('v2RegistryState').textContent='LOADING';
+    try{
+      const data=await api('/v2/strategy-registry');
+      v2RegistryData=data;
+      $('v2RegistryState').textContent='READ ONLY';
+      $('v2RegistryCount').textContent=String(data.count||0);
+      $('v2RegistryTabCount').textContent=String(data.count||0);
+      $('v2RegistrySourcesCount').textContent=String((data.sources||[]).length);
+      $('v2RegistryProtocolsCount').textContent=String((data.protocols||[]).length);
+      $('v2RegistryEvidenceCount').textContent=String((data.entries||[]).filter(x=>Number(x?.evidence?.verified_count||0)>0).length);
+      v2RegistryFillSelect('v2RegistryProtocol',data.protocols||[],'Все протоколы');
+      v2RegistryFillSelect('v2RegistrySource',data.sources||[],'Все источники');
+      v2RegistryRender();
+    }catch(e){
+      $('v2RegistryState').textContent='FAIL';
+      $('v2RegistryList').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
+    }
+    reportHeight();
+  }
+
   async function openV2Workspace(tab){
     if(tab==='domain-v2')return;
     if(tab==='prodlab-v2'){await v2LoadTargetSources();v2TargetMode('lab');return}
@@ -5152,6 +5264,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(tab==='selector-v2'){await Promise.all([v2LoadLibrary(),v2EnsureStatus()]);return}
     if(tab==='strategy-library-v2'){await v2LoadLibrary(true);return}
   }
+
+
+  $('v2RegistryRefresh').onclick=()=>loadStrategyRegistryV1(true);
+  $('v2RegistrySearch').oninput=v2RegistryRender;
+  $('v2RegistryProtocol').onchange=v2RegistryRender;
+  $('v2RegistrySource').onchange=v2RegistryRender;
 
   // New workflow event bindings.
   $('v2DomainRun').onclick=runV2Domain;$('v2DomainTarget').onkeydown=e=>{if(e.key==='Enter')runV2Domain()};$('v2DomainToSelector').onclick=()=>v2DomainSend('selector-v2');$('v2DomainToLab').onclick=()=>v2DomainSend('prodlab-v2');
@@ -5175,7 +5293,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
-  const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','catalog','upstream-lists','blobs','zapret-import']);
+  const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','catalog','upstream-lists','blobs','zapret-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsToolTabs=new Set(['preflight','dpi-detector','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
@@ -5217,6 +5335,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(tab==='backups')loadBackupCenter();
     if(tab==='keenetic'){loadKeenetic();loadDPIDetector()}
     if(['domain-v2','prodlab-v2','selector-v2','sandbox-v2','strategy-library-v2'].includes(tab))void openV2Workspace(tab);
+    if(tab==='strategy-registry-v1')void loadStrategyRegistryV1();
     if(tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')}
     if(tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE');renderAutoTuneControl();loadBenchReadiness()}
     if(tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}

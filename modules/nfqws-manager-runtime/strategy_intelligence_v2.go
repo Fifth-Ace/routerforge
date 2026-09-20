@@ -259,6 +259,7 @@ func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerStrategyLibraryV2Routes(mux)
 	registerCandidatePoolV2Routes(mux)
 	registerTargetMemoryV2Routes(mux)
+	registerStrategyRegistryV1Routes(mux)
 	registerSelectorProgressV2Route(mux)
 	registerProgressiveSelectorV2Route(mux)
 	registerBenchTransportV2Routes(mux)

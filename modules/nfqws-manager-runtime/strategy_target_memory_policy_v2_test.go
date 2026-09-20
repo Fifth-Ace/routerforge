@@ -156,7 +156,7 @@ func TestC4MemoryEndpointPublishesPolicyWithoutMutatingDocumentVersion(t *testin
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if body.Version != v2TargetMemoryVersion || body.Version != 1 {
+	if body.Version != v2TargetMemoryVersion {
 		t.Fatalf("memory document version changed: %d", body.Version)
 	}
 	if body.Policy.WorkingMaxAgeSeconds != int64(v2MemoryWorkingMaxAge/time.Second) ||

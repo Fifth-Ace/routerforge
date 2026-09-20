@@ -94,6 +94,10 @@ func v2StrategySource(value string) string {
 		return "custom"
 	case "import":
 		return "import"
+	case "builtin":
+		return "builtin"
+	case "memory":
+		return "memory"
 	default:
 		return "custom"
 	}

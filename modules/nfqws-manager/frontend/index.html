@@ -956,7 +956,9 @@ button{min-height:var(--ui-control-h)}
           <label>Workers<select id="v2SelectorConcurrency" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
         </div>
         <label class="v2-check"><input id="v2SelectorProduction" type="checkbox" checked> Production profiles из live nfqws2</label>
+        <label class="v2-check"><input id="v2SelectorAutoPool" type="checkbox" checked> Verified Memory + встроенный Strategy Pool</label>
         <label class="v2-check"><input id="v2SelectorLibrary" type="checkbox" checked> Сохранённые стратегии из Candidate Library</label>
+        <div id="v2SelectorPoolMeta" class="v2-boundary">Auto Pool добавляет проверенную память и curated TLS families; production остаётся отдельным источником.</div>
         <label class="v2-label">Дополнительный candidate
           <input id="v2SelectorExtraName" class="search" placeholder="Название (необязательно)">
           <textarea id="v2SelectorExtraArgs" class="v2-textarea compact" placeholder="--hostlist-domains=... --filter-tcp=443 ..."></textarea>
@@ -4307,7 +4309,8 @@ button{min-height:var(--ui-control-h)}
   function renderV2SelectorResult(d){
     v2SelectorLast=d;$('v2SelectorCleanup').textContent=d.cleanup_baseline_after?'PASS':'FAIL';$('v2SelectorWorkers').textContent=String(d.concurrency||'—');
     const best=d.recommendation_available?`${d.recommended_candidate_name||d.recommended_candidate_id||('Profile '+d.recommended_profile_index)} · ${d.recommended_candidate_source||'production'}`:'Нет рекомендации';
-    $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(d.recommendation_reason||'')}</div><div class="meta">${esc(d.apply_gate_reason||'')}</div></div>${v2Pill(d.recommendation_available?'RECOMMEND':'NO CHANGE')}</div>`;
+    const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.pool_sources||[]).join(' + ')||'no sources'} · memory ${d.memory_updated?'updated':'not updated'}${d.memory_warning?' ('+d.memory_warning+')':''}`:'Auto Pool выключен';
+    $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(d.recommendation_reason||'')}</div><div class="meta">${esc(d.apply_gate_reason||'')}</div><div class="meta">${esc(poolMeta)}</div></div>${v2Pill(d.recommendation_available?'RECOMMEND':'NO CHANGE')}</div>`;
     $('v2SelectorResults').innerHTML=renderV2SelectorCandidate(d.baseline,'Baseline')+(d.candidates||[]).map(c=>renderV2SelectorCandidate(c)).join('');
     const panel=$('v2SelectorApplyPanel');panel.style.display=d.recommendation_available?'block':'none';$('v2SelectorApplyReason').textContent=d.apply_gate_reason||'';
     $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorApply').disabled=true;$('v2SelectorPreviewBody').textContent=d.apply_gate_eligible?'Recommendation готова. Сначала постройте deterministic Preview.':'Для этого winner автоматический receipt Apply не выдаётся; используйте его source workflow / Candidate Library.';
@@ -4332,14 +4335,15 @@ button{min-height:var(--ui-control-h)}
     const candidates=[];
     if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
-    if(!$('v2SelectorProduction').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
+    if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
+    if($('v2SelectorAutoPool').checked){try{const p=await api(`/v2/candidates?target=${encodeURIComponent(target)}&mode=${encodeURIComponent($('v2SelectorMode').value)}`);$('v2SelectorPoolMeta').textContent=`Auto Pool: ${p.count||0} · ${(p.sources||[]).join(' + ')||'нет sources'}${p.warnings?.length?' · warnings '+p.warnings.length:''}`}catch(e){$('v2SelectorPoolMeta').textContent=`Auto Pool preview: ${e.message}`}}
     const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';
     void pollV2Selector(session,controller.signal);
     try{
       const d=await api('/v2/selector',{method:'POST',signal:controller.signal,body:JSON.stringify({
         mode:$('v2SelectorMode').value,server_name:target,expected_config_sha256:current.config_sha256,
         concurrency:Number($('v2SelectorConcurrency').value||2),session_id:session,
-        include_production:$('v2SelectorProduction').checked,candidates,confirm:'ROUTERFORGE_V2_SELECTOR'
+        include_production:$('v2SelectorProduction').checked,auto_pool:$('v2SelectorAutoPool').checked,candidates,confirm:'ROUTERFORGE_V2_SELECTOR'
       })});
       $('v2SelectorState').textContent='DONE';$('v2SelectorBar').style.width='100%';renderV2SelectorResult(d);{const all=d.candidates||[],working=all.filter(x=>x.result_class==='WORKING').length;v2HistoryAdd('v2-selector',{targets:1,candidates:all.length,working,success_ratio:all.length?working/all.length:0,recommendation:!!d.recommendation_available},d)}notice(`Автоподбор завершён: ${d.recommendation_reason||'готово'}`,'good');
     }catch(e){

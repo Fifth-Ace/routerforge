@@ -195,6 +195,7 @@ type v2SelectorRequest struct {
 	Concurrency          int                        `json:"concurrency,omitempty"`
 	SessionID            string                     `json:"session_id,omitempty"`
 	IncludeProduction    *bool                      `json:"include_production,omitempty"`
+	AutoPool             *bool                      `json:"auto_pool,omitempty"`
 	Candidates           []v2SelectorCandidateInput `json:"candidates,omitempty"`
 	Confirm              string                     `json:"confirm"`
 }
@@ -225,10 +226,18 @@ type v2SelectorResponse struct {
 	ApplyGateReason            string              `json:"apply_gate_reason"`
 	Concurrency                int                 `json:"concurrency"`
 	CandidateSource            string              `json:"candidate_source"`
+	AutoPoolEnabled            bool                `json:"auto_pool_enabled"`
+	AutoPoolAdded              int                 `json:"auto_pool_added"`
+	PoolSources                []string            `json:"pool_sources"`
+	PoolWarnings               []string            `json:"pool_warnings"`
+	MemoryUpdated              bool                `json:"memory_updated"`
+	MemoryWarning              string              `json:"memory_warning,omitempty"`
 }
 
 func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerStrategyLibraryV2Routes(mux)
+	registerCandidatePoolV2Routes(mux)
+	registerTargetMemoryV2Routes(mux)
 	registerSelectorProgressV2Route(mux)
 	mux.HandleFunc("/v1/v2/inspect-target", mutationOnly(handleV2InspectTarget))
 	mux.HandleFunc("/v1/v2/detect", mutationOnly(handleV2Detect))
@@ -1173,6 +1182,11 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid v2 selector request"})
 		return
 	}
+	autoPoolMeta, poolErr := populateV2SelectorCandidates(&req)
+	if poolErr != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "candidate pool: " + poolErr.Error()})
+		return
+	}
 	if err := validateV2SelectorRequest(req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
@@ -1229,6 +1243,13 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	if req.IncludeProduction != nil {
 		includeProduction = *req.IncludeProduction
 	}
+	productionCap := mode.MaxCandidates
+	if len(req.Candidates) > 0 {
+		productionCap = mode.MaxCandidates / 2
+		if productionCap < 1 {
+			productionCap = 1
+		}
+	}
 	if includeProduction {
 		for _, p := range inventory.Profiles {
 			if !p.CandidateEligible {
@@ -1247,7 +1268,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 				profile: retargeted, id: fmt.Sprintf("production-%d", p.Index),
 				name: fmt.Sprintf("Production profile %d", p.Index), source: "production", production: true,
 			})
-			if len(templates) >= mode.MaxCandidates {
+			if len(templates) >= productionCap {
 				break
 			}
 		}
@@ -1463,6 +1484,13 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	if best != nil {
 		recommendedID, recommendedName, recommendedSource = best.CandidateID, best.CandidateName, best.CandidateSource
 	}
+	memoryUpdated := false
+	memoryWarning := ""
+	if memoryErr := v2RecordSelectorEvidence(target, status.ConfigSHA256, candidates); memoryErr != nil {
+		memoryWarning = memoryErr.Error()
+	} else {
+		memoryUpdated = true
+	}
 	resp := v2SelectorResponse{
 		OK: ok, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
 		Baseline: baseline, Candidates: candidates,
@@ -1473,6 +1501,9 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		BenchEnabled: after.BenchEnabled, SafeToBench: after.SafeToBench, ApplyEnabled: false,
 		ApplyGateEligible: applyEligible, ApplyGateToken: token, ApplyGateExpiresAt: expires,
 		ApplyGateReason: applyReason, Concurrency: concurrency, CandidateSource: sourceKind,
+		AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
+		PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
+		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {
 		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), applyReason, true, true)

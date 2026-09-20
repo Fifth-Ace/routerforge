@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,20 +8,20 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
 	dpiDetectorV5Confirm        = "ROUTERFORGE_DPI_DETECTOR_V5_RUN"
 	dpiDetectorV5Timeout        = 10 * time.Minute
 	dpiDetectorV5StdoutMax      = 2 << 20
-	dpiDetectorV5StderrMax      = 256 << 10
 	dpiDetectorV5TraceMax       = 512 << 10
 	dpiDetectorV5MaxDomains     = 128
 	dpiDetectorV5MaxConcurrency = 100
@@ -100,26 +99,6 @@ type dpiDetectorV5Validated struct {
 	Trace         bool
 }
 
-type dpiDetectorV5LimitedBuffer struct {
-	buf bytes.Buffer
-	max int
-	cut bool
-}
-
-func (b *dpiDetectorV5LimitedBuffer) Write(p []byte) (int, error) {
-	original := len(p)
-	remaining := b.max - b.buf.Len()
-	if remaining > 0 {
-		if remaining > len(p) {
-			remaining = len(p)
-		}
-		_, _ = b.buf.Write(p[:remaining])
-	}
-	if remaining < len(p) {
-		b.cut = true
-	}
-	return original, nil
-}
 
 func normalizeDPIDetectorV5Tests(value string) (string, error) {
 	seen := map[byte]bool{}
@@ -366,14 +345,11 @@ func dpiDetectorV5VersionOK(version string) bool {
 }
 
 func runDPIDetectorV5Command(ctx context.Context, path string, args ...string) ([]byte, string, bool, error) {
-	stdout := &dpiDetectorV5LimitedBuffer{max: dpiDetectorV5StdoutMax}
-	stderr := &dpiDetectorV5LimitedBuffer{max: dpiDetectorV5StderrMax}
-	cmd := exec.CommandContext(ctx, path, args...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	cmd.Env = append(os.Environ(), "LANG=C.UTF-8")
-	err := cmd.Run()
-	return stdout.buf.Bytes(), strings.TrimSpace(stderr.buf.String()), stderr.cut, err
+	output, err := safety.RunCommandOutput(ctx, path, args...)
+	if len(output) > dpiDetectorV5StdoutMax {
+		output = output[:dpiDetectorV5StdoutMax]
+	}
+	return output, "", false, err
 }
 
 func handleDPIDetectorV5Run(w http.ResponseWriter, r *http.Request) {

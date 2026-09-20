@@ -210,6 +210,7 @@ func TestValidUnmanagedGitHubReleaseURLBindsRepository(t *testing.T) {
 		}
 	}
 }
+
 func TestDPIDetectorV5ProfileRejectsLegacyAndAutoSelectsCurrentPrerelease(t *testing.T) {
 	oldFetch := appSourceFetchBytes
 	t.Cleanup(func() { appSourceFetchBytes = oldFetch })
@@ -275,12 +276,12 @@ func TestDPIDetectorV5ProfileRejectsLegacyAndAutoSelectsCurrentPrerelease(t *tes
 	}
 
 	item := catalogItem{
-		ID:             "src-123456789abc:dpi-detector",
-		ManifestID:     "dpi-detector",
-		RegistrySource: "src-123456789abc",
-		Kind:           "integration",
-		ProjectURL:     "https://github.com/Runnin4ik/dpi-detector",
-		Trust:          catalogTrust{Status: "unverified"},
+		ID:              "src-123456789abc:dpi-detector",
+		ManifestID:      "dpi-detector",
+		RegistrySource:  "src-123456789abc",
+		Kind:            "integration",
+		ProjectURL:      "https://github.com/Runnin4ik/dpi-detector",
+		Trust:           catalogTrust{Status: "unverified"},
 		UnmanagedGitHub: meta,
 	}
 	applyDPIDetectorSourceProfile(&item)
@@ -303,19 +304,19 @@ func TestDPIDetectorV5ProfileRejectsLegacyAndAutoSelectsCurrentPrerelease(t *tes
 func TestDPIDetectorV5StableWinsAutoWhenAvailable(t *testing.T) {
 	item := catalogItem{
 		UnmanagedGitHub: &catalogUnmanagedGitHub{
-			Owner: "Runnin4ik",
-			Repo:  "dpi-detector",
+			Owner:  "Runnin4ik",
+			Repo:   "dpi-detector",
 			Target: "aarch64-3.10",
 			Stable: &catalogUnmanagedGitHubAsset{
 				Channel: "release", Tag: "v5.0.0", Version: "5.0.0",
-				Asset: "dpi-detector-linux-arm64",
-				URL: "https://github.com/Runnin4ik/dpi-detector/releases/download/v5.0.0/dpi-detector-linux-arm64",
+				Asset:        "dpi-detector-linux-arm64",
+				URL:          "https://github.com/Runnin4ik/dpi-detector/releases/download/v5.0.0/dpi-detector-linux-arm64",
 				Architecture: "aarch64-3.10",
 			},
 			Beta: &catalogUnmanagedGitHubAsset{
 				Channel: "beta", Tag: "v5.1.0-alpha.1", Version: "5.1.0-alpha.1",
-				Asset: "dpi-detector-linux-arm64",
-				URL: "https://github.com/Runnin4ik/dpi-detector/releases/download/v5.1.0-alpha.1/dpi-detector-linux-arm64",
+				Asset:        "dpi-detector-linux-arm64",
+				URL:          "https://github.com/Runnin4ik/dpi-detector/releases/download/v5.1.0-alpha.1/dpi-detector-linux-arm64",
 				Architecture: "aarch64-3.10",
 			},
 		},

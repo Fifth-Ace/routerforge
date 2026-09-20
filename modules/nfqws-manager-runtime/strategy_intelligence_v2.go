@@ -61,24 +61,29 @@ type v2DetectResponse struct {
 }
 
 type v2HTTPMetrics struct {
-	TLSComplete        bool   `json:"tls_complete"`
-	HTTPStatus         int    `json:"http_status,omitempty"`
-	TTFBMS             int64  `json:"ttfb_ms,omitempty"`
-	DurationMS         int64  `json:"duration_ms,omitempty"`
-	Bytes              int64  `json:"bytes"`
-	ThroughputBPS      int64  `json:"throughput_bps,omitempty"`
-	ResponseComplete   bool   `json:"response_complete"`
-	ProgressProven     bool   `json:"progress_proven"`
-	Cutoff16KSuspected bool   `json:"cutoff_16k_suspected"`
-	ReadError          string `json:"read_error,omitempty"`
-	UDPWriteBytes      int64  `json:"udp_write_bytes,omitempty"`
-	UDPReadBytes       int64  `json:"udp_read_bytes,omitempty"`
-	UDPReadDatagrams   int    `json:"udp_read_datagrams,omitempty"`
-	QUICLongHeader     bool   `json:"quic_long_header,omitempty"`
-	QUICCIDMatched     bool   `json:"quic_cid_matched,omitempty"`
-	QUICVersion        string `json:"quic_version,omitempty"`
-	QUICResponseType   string `json:"quic_response_type,omitempty"`
-	QUICResponseProven bool   `json:"quic_response_proven,omitempty"`
+	TLSComplete            bool   `json:"tls_complete"`
+	HTTPStatus             int    `json:"http_status,omitempty"`
+	TTFBMS                 int64  `json:"ttfb_ms,omitempty"`
+	DurationMS             int64  `json:"duration_ms,omitempty"`
+	Bytes                  int64  `json:"bytes"`
+	ThroughputBPS          int64  `json:"throughput_bps,omitempty"`
+	ResponseComplete       bool   `json:"response_complete"`
+	ProgressProven         bool   `json:"progress_proven"`
+	Cutoff16KSuspected     bool   `json:"cutoff_16k_suspected"`
+	ReadError              string `json:"read_error,omitempty"`
+	UDPWriteBytes          int64  `json:"udp_write_bytes,omitempty"`
+	UDPReadBytes           int64  `json:"udp_read_bytes,omitempty"`
+	UDPReadDatagrams       int    `json:"udp_read_datagrams,omitempty"`
+	QUICLongHeader         bool   `json:"quic_long_header,omitempty"`
+	QUICCIDMatched         bool   `json:"quic_cid_matched,omitempty"`
+	QUICVersion            string `json:"quic_version,omitempty"`
+	QUICResponseType       string `json:"quic_response_type,omitempty"`
+	QUICResponseProven     bool   `json:"quic_response_proven,omitempty"`
+	STUNTransactionMatched bool   `json:"stun_transaction_matched,omitempty"`
+	STUNMessageType        string `json:"stun_message_type,omitempty"`
+	STUNMappedAddress      string `json:"stun_mapped_address,omitempty"`
+	STUNMappedPort         int    `json:"stun_mapped_port,omitempty"`
+	STUNResponseProven     bool   `json:"stun_response_proven,omitempty"`
 }
 
 type v2InspectorProfile struct {

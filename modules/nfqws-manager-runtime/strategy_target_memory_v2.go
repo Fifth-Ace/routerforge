@@ -18,8 +18,8 @@ import (
 const (
 	v2TargetMemoryVersion        = 1
 	v2TargetMemoryFeatureVersion = 3
-	v2TargetMemoryMax     = 512
-	v2TargetMemoryConfirm = "ROUTERFORGE_V2_MEMORY_CLEAR"
+	v2TargetMemoryMax            = 512
+	v2TargetMemoryConfirm        = "ROUTERFORGE_V2_MEMORY_CLEAR"
 )
 
 var (

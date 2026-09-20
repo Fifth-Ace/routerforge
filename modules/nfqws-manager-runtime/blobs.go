@@ -48,6 +48,7 @@ type blobDeleteRequest struct {
 }
 
 func registerBlobRoutes(mux *http.ServeMux) {
+	registerClientHelloLabV1Routes(mux)
 	mux.HandleFunc("/v1/blobs", getOnly(handleBlobList))
 	mux.HandleFunc("/v1/blobs/install", mutationOnly(handleBlobInstall))
 	mux.HandleFunc("/v1/blobs/delete", mutationOnly(handleBlobDelete))

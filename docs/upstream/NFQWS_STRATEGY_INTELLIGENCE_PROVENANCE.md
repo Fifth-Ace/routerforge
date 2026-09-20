@@ -76,3 +76,11 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - RouterForge implementation is native: its own JSON schema, `/24` network identity fallback, persistence, API, UI and safety boundary.
 - This stage does not copy z2k runtime mutation, scheduler or automatic production configuration behavior.
 - R2-F1 records evidence only from RouterForge's existing domain detect path and exposes a read-only API/UI.
+
+## NFQWS Intelligence R2-F2A — ClientHello Lab
+
+- RouterForge base: `668b6433291ea7ecee072333fae590d04fc7ad84`
+- Omn1z reference reviewed: `Omn1z/nfqws2-keenetic-strategy-selector@bf4e810ef22ffb6671e97dc411234ba9430909c9`
+- Concepts reused with permission: generate a real TLS ClientHello for a chosen SNI, validate the TLS record/handshake shape, and save it as an nfqws2 fake-payload blob.
+- RouterForge implementation uses its existing SHA256-guarded Blob Manager and does not restart/reload nfqws2.
+- Device/tcpdump capture is intentionally deferred to R2-F2B; this patch contains no tcpdump installation or packet capture.

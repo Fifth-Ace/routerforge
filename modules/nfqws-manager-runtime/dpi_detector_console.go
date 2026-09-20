@@ -40,7 +40,7 @@ func buildDPIDetectorV5ConsoleArgs(req dpiDetectorV5Validated, reportPath string
 		}
 		args = append(args, arg)
 	}
-	args = append(args, "-o", reportPath, "--batch")
+	args = append(args, "-o", reportPath)
 	return args
 }
 

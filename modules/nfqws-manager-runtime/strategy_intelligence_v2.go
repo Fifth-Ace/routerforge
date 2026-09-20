@@ -260,6 +260,7 @@ func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerCandidatePoolV2Routes(mux)
 	registerTargetMemoryV2Routes(mux)
 	registerSelectorProgressV2Route(mux)
+	registerProgressiveSelectorV2Route(mux)
 	registerBenchTransportV2Routes(mux)
 	mux.HandleFunc("/v1/v2/inspect-target", mutationOnly(handleV2InspectTarget))
 	mux.HandleFunc("/v1/v2/detect", mutationOnly(handleV2Detect))

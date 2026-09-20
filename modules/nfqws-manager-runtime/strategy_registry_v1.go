@@ -18,28 +18,28 @@ type v2StrategyRegistryProvenance struct {
 }
 
 type v2StrategyRegistryEvidence struct {
-	Targets        int     `json:"targets"`
-	VerifiedCount  int     `json:"verified_count"`
-	WorkingCount   int     `json:"working_count"`
-	UnstableCount  int     `json:"unstable_count"`
-	FailureCount   int     `json:"failure_count"`
-	SuccessRate    float64 `json:"success_rate,omitempty"`
-	Confidence     string  `json:"confidence,omitempty"`
+	Targets       int     `json:"targets"`
+	VerifiedCount int     `json:"verified_count"`
+	WorkingCount  int     `json:"working_count"`
+	UnstableCount int     `json:"unstable_count"`
+	FailureCount  int     `json:"failure_count"`
+	SuccessRate   float64 `json:"success_rate,omitempty"`
+	Confidence    string  `json:"confidence,omitempty"`
 	LastVerified  string  `json:"last_verified,omitempty"`
 	ReuseEligible int     `json:"reuse_eligible_targets"`
 }
 
 type v2StrategyRegistryEntry struct {
-	ID          string                       `json:"id"`
-	Name        string                       `json:"name"`
-	Aliases     []string                     `json:"aliases,omitempty"`
-	Sources     []string                     `json:"sources"`
-	Family      string                       `json:"family"`
-	Protocol    string                       `json:"protocol"`
-	Args        []string                     `json:"args"`
-	Fingerprint string                       `json:"fingerprint"`
+	ID          string                         `json:"id"`
+	Name        string                         `json:"name"`
+	Aliases     []string                       `json:"aliases,omitempty"`
+	Sources     []string                       `json:"sources"`
+	Family      string                         `json:"family"`
+	Protocol    string                         `json:"protocol"`
+	Args        []string                       `json:"args"`
+	Fingerprint string                         `json:"fingerprint"`
 	Provenance  []v2StrategyRegistryProvenance `json:"provenance"`
-	Evidence    v2StrategyRegistryEvidence   `json:"evidence"`
+	Evidence    v2StrategyRegistryEvidence     `json:"evidence"`
 }
 
 type v2StrategyRegistryResponse struct {
@@ -133,13 +133,13 @@ func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
 		return v2StrategyRegistryProvenance{
 			Kind: "routerforge-native", Source: "builtin",
 			Repository: "Fifth-Ace/routerforge",
-			Note: "RouterForge built-in candidate family",
+			Note:       "RouterForge built-in candidate family",
 		}
 	case "memory":
 		return v2StrategyRegistryProvenance{
 			Kind: "runtime-evidence", Source: "memory",
 			Repository: "Fifth-Ace/routerforge",
-			Note: "verified RouterForge target-memory evidence",
+			Note:       "verified RouterForge target-memory evidence",
 		}
 	case "catalog":
 		return v2StrategyRegistryProvenance{

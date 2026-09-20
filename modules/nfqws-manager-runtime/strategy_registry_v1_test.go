@@ -26,7 +26,7 @@ func TestStrategyRegistryMergesBuiltinLibraryAndMemory(t *testing.T) {
 			Args: args, Fingerprint: v2StrategyFingerprint(args),
 			ResultClass: "WORKING", SuccessRate: 1, CompleteRate: 1,
 			VerifiedCount: 3, SuccessStreak: 3, FailureStreak: 0,
-			LastVerified: now.Add(-time.Hour).Format(time.RFC3339Nano),
+			LastVerified:     now.Add(-time.Hour).Format(time.RFC3339Nano),
 			InfrastructureOK: true, CleanupProven: true,
 		}},
 	}

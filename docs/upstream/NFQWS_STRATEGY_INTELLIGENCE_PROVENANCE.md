@@ -110,3 +110,12 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - Registry entries now expose derived bench capabilities from RouterForge's own compiler contract: eligible transports, candidate readiness, desync count and strategy tags.
 - Zapret provenance identifies the pinned import-adapter reference without claiming that an imported strategy itself originated from that repository.
 - Registry remains read-only and does not mutate Strategy Library, target memory or production nfqws2.
+
+## NFQWS Intelligence R2-F5 — Score Engine V2
+
+- RouterForge base: `ec026c39b4281eb83b64e2af6e8989136abcf117`
+- Score Engine V2 is RouterForge-native and read-only.
+- Inputs: registry success rate, verified count, memory confidence, target coverage, candidate readiness, failure count and unstable count.
+- Maximum score is 100. Components are explicit in API output; failures and unstable evidence subtract bounded penalties.
+- The engine does not apply, reorder production rules, or mutate Strategy Library/target memory.
+- Registry UI displays the score but keeps the existing registry ordering; score-driven recommendation wiring is deferred to a later gate.

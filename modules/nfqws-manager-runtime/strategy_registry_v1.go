@@ -70,6 +70,7 @@ type v2StrategyRegistryAccumulator struct {
 }
 
 func registerStrategyRegistryV1Routes(mux *http.ServeMux) {
+	registerStrategyScoreV2Routes(mux)
 	mux.HandleFunc("/v1/v2/strategy-registry", getOnly(handleV2StrategyRegistry))
 }
 

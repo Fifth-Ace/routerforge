@@ -829,7 +829,46 @@ button{min-height:var(--ui-control-h)}
 #dpiWebResults{display:grid;gap:8px}#dpiWebResults>.panel,#dpiWebResults>.dpi-result-section{margin-top:0!important}.dpi-result-summary{padding:10px}.dpi-result-summary .v2-stats{margin:0}.dpi-result-summary .v2-stats>div{padding:7px 8px}.dpi-result-summary .v2-stats strong{font-size:11px}
 .dpi-result-section{padding:0!important;overflow:hidden}.dpi-result-section>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;cursor:pointer;list-style:none;background:color-mix(in srgb,var(--surface2) 78%,var(--surface));user-select:none}.dpi-result-section>summary::-webkit-details-marker{display:none}.dpi-result-section>summary span:first-child{display:grid;gap:2px}.dpi-result-section>summary strong{color:var(--accent);font-size:11px}.dpi-result-section>summary small{color:var(--muted);font-size:8.5px;font-weight:500}.dpi-result-chevron{color:var(--muted);font-size:11px;transition:transform .16s ease}.dpi-result-section:not([open]) .dpi-result-chevron{transform:rotate(-90deg)}.dpi-result-body{padding:9px 10px;border-top:1px solid var(--border)}
 #dpiWebResults .v2-card-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px}#dpiWebResults .card{padding:8px 9px}#dpiWebResults .metric-value{font-size:14px;margin-top:3px}#dpiWebResults .metric-label{font-size:8.5px}.dpi-table-scroll{max-height:36rem;overflow:auto;border:1px solid var(--border);border-radius:6px}.dpi-table-scroll table{width:100%;font-size:9.5px}.dpi-table-scroll th,.dpi-table-scroll td{padding:6px 7px;vertical-align:top}.dpi-table-scroll thead th{position:sticky;top:0;z-index:1;background:var(--surface2)}.dpi-technical{padding:9px 11px!important}.dpi-technical>summary{cursor:pointer;font-size:10px;font-weight:700;color:var(--muted)}
-#dpiConsolePane:fullscreen{box-sizing:border-box;width:100vw;height:100vh;margin:0;padding:10px;border:0;border-radius:0;background:var(--bg);overflow:hidden}#dpiConsolePane:fullscreen #dpiConsoleFrame{height:calc(100vh - 112px)!important;border-radius:4px}#dpiConsolePane:fullscreen .v2-boundary{display:none}
+/* DPI M4B R3: compact diagnostic result layout. */
+#dpiWebResults{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+#dpiWebResults>.dpi-result-summary,#dpiWebResults>.dpi-result-wide,#dpiWebResults>.dpi-technical{flex:1 0 100%;width:100%;max-width:none}
+#dpiWebResults>.dpi-result-compact{flex:1 1 620px;width:100%;max-width:680px;align-self:flex-start}
+.dpi-live-block{display:grid;gap:7px;margin-top:8px;padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:color-mix(in srgb,var(--surface2) 72%,var(--surface))}
+.dpi-live-title{font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.dpi-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 10px}
+.dpi-detail-row{display:grid;grid-template-columns:minmax(92px,.42fr) minmax(0,1fr);gap:7px;align-items:start;padding:4px 0;border-top:1px solid color-mix(in srgb,var(--border) 72%,transparent);font-size:9px}
+.dpi-detail-row:nth-child(-n+2){border-top:0}.dpi-detail-row span:first-child{color:var(--muted)}.dpi-detail-row span:last-child{color:var(--text);overflow-wrap:anywhere}
+.dpi-dc-table td:first-child{font-weight:700}.dpi-dc-ok{color:var(--good)}.dpi-dc-bad{color:var(--bad)}
+.dpi-transfer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}.dpi-transfer-card{padding:8px 9px}.dpi-transfer-card .dpi-transfer-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.dpi-transfer-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin-top:7px;font-size:8.5px}.dpi-transfer-metrics span{color:var(--muted)}.dpi-transfer-metrics strong{display:block;margin-top:1px;color:var(--text);font:600 9px/1.35 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+@media(max-width:700px){#dpiWebResults>.dpi-result-compact{max-width:none}.dpi-detail-grid,.dpi-transfer-grid{grid-template-columns:1fr}.dpi-detail-row:nth-child(2){border-top:1px solid color-mix(in srgb,var(--border) 72%,transparent)}}
+
+#dpiConsolePane:fullscreen{box-sizing:border-box;width:100vw;height:100vh;margin:0;padding:10px;border:0;border-radius:0;background:var(--bg);overflow:hidden}/* DPI M4B R3: compact diagnostic result layout. */
+#dpiWebResults{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+#dpiWebResults>.dpi-result-summary,#dpiWebResults>.dpi-result-wide,#dpiWebResults>.dpi-technical{flex:1 0 100%;width:100%;max-width:none}
+#dpiWebResults>.dpi-result-compact{flex:1 1 620px;width:100%;max-width:680px;align-self:flex-start}
+.dpi-live-block{display:grid;gap:7px;margin-top:8px;padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:color-mix(in srgb,var(--surface2) 72%,var(--surface))}
+.dpi-live-title{font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.dpi-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 10px}
+.dpi-detail-row{display:grid;grid-template-columns:minmax(92px,.42fr) minmax(0,1fr);gap:7px;align-items:start;padding:4px 0;border-top:1px solid color-mix(in srgb,var(--border) 72%,transparent);font-size:9px}
+.dpi-detail-row:nth-child(-n+2){border-top:0}.dpi-detail-row span:first-child{color:var(--muted)}.dpi-detail-row span:last-child{color:var(--text);overflow-wrap:anywhere}
+.dpi-dc-table td:first-child{font-weight:700}.dpi-dc-ok{color:var(--good)}.dpi-dc-bad{color:var(--bad)}
+.dpi-transfer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}.dpi-transfer-card{padding:8px 9px}.dpi-transfer-card .dpi-transfer-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.dpi-transfer-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin-top:7px;font-size:8.5px}.dpi-transfer-metrics span{color:var(--muted)}.dpi-transfer-metrics strong{display:block;margin-top:1px;color:var(--text);font:600 9px/1.35 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+@media(max-width:700px){#dpiWebResults>.dpi-result-compact{max-width:none}.dpi-detail-grid,.dpi-transfer-grid{grid-template-columns:1fr}.dpi-detail-row:nth-child(2){border-top:1px solid color-mix(in srgb,var(--border) 72%,transparent)}}
+
+#dpiConsolePane:fullscreen #dpiConsoleFrame{height:calc(100vh - 112px)!important;border-radius:4px}/* DPI M4B R3: compact diagnostic result layout. */
+#dpiWebResults{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+#dpiWebResults>.dpi-result-summary,#dpiWebResults>.dpi-result-wide,#dpiWebResults>.dpi-technical{flex:1 0 100%;width:100%;max-width:none}
+#dpiWebResults>.dpi-result-compact{flex:1 1 620px;width:100%;max-width:680px;align-self:flex-start}
+.dpi-live-block{display:grid;gap:7px;margin-top:8px;padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:color-mix(in srgb,var(--surface2) 72%,var(--surface))}
+.dpi-live-title{font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.dpi-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 10px}
+.dpi-detail-row{display:grid;grid-template-columns:minmax(92px,.42fr) minmax(0,1fr);gap:7px;align-items:start;padding:4px 0;border-top:1px solid color-mix(in srgb,var(--border) 72%,transparent);font-size:9px}
+.dpi-detail-row:nth-child(-n+2){border-top:0}.dpi-detail-row span:first-child{color:var(--muted)}.dpi-detail-row span:last-child{color:var(--text);overflow-wrap:anywhere}
+.dpi-dc-table td:first-child{font-weight:700}.dpi-dc-ok{color:var(--good)}.dpi-dc-bad{color:var(--bad)}
+.dpi-transfer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}.dpi-transfer-card{padding:8px 9px}.dpi-transfer-card .dpi-transfer-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.dpi-transfer-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin-top:7px;font-size:8.5px}.dpi-transfer-metrics span{color:var(--muted)}.dpi-transfer-metrics strong{display:block;margin-top:1px;color:var(--text);font:600 9px/1.35 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+@media(max-width:700px){#dpiWebResults>.dpi-result-compact{max-width:none}.dpi-detail-grid,.dpi-transfer-grid{grid-template-columns:1fr}.dpi-detail-row:nth-child(2){border-top:1px solid color-mix(in srgb,var(--border) 72%,transparent)}}
+
+#dpiConsolePane:fullscreen .v2-boundary{display:none}
 @media(max-width:900px){.dpi-top-grid{grid-template-columns:1fr}.dpi-upstream-credit{height:auto}}
 @media(max-width:560px){.dpi-mode-switch{grid-template-columns:1fr}.dpi-runtime-strip{align-items:flex-start}.dpi-table-scroll{max-height:30rem}}
 </style>
@@ -855,7 +894,8 @@ button{min-height:var(--ui-control-h)}
   <button class="tab active" data-tab="overview">Обзор</button>
   <button class="tab" data-primary-tab="configuration">Настройка</button>
   <button class="tab" data-primary-tab="tools">Диагностика</button>
-  <button class="tab" data-primary-tab="nfqws-menu">Стратегии</button>
+  <button class="tab" data-primary-tab="strategies">Стратегии</button>
+  <button class="tab" data-primary-tab="nfqws-menu">NFQWS Menu</button>
   <button class="tab" data-primary-tab="maintenance">Обслуживание</button>
 </nav>
 
@@ -873,14 +913,17 @@ button{min-height:var(--ui-control-h)}
   <button class="tab" data-tab="prodlab-v2">Test Lab</button>
 </nav>
 
-<nav class="tabs nfqws-tool-tabs nfqws-menu-tabs" id="nfqwsMenuTabs" aria-label="Стратегии NFQWS">
+<nav class="tabs nfqws-tool-tabs nfqws-strategy-tabs" id="nfqwsStrategyTabs" aria-label="Стратегии RouterForge">
   <button class="tab" data-tab="selector-v2">Автоподбор</button>
   <button class="tab" data-tab="sandbox-v2">Sandbox</button>
   <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
+  <button class="tab" data-tab="zapret-import">Импорт из Zapret</button>
+</nav>
+
+<nav class="tabs nfqws-tool-tabs nfqws-menu-tabs" id="nfqwsMenuTabs" aria-label="NFQWS Menu sources">
   <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="upstream-lists">Источники списков <span id="listSourceStateNav" class="nav-meta"></span></button>
   <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="zapret-import">Импорт из Zapret</button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-maintenance-tabs" id="nfqwsMaintenanceTabs" aria-label="Обслуживание NFQWS">
@@ -892,7 +935,7 @@ button{min-height:var(--ui-control-h)}
 </nav>
 
 <div id="nfqwsMenuCredit" class="zapret-import-credit nfqws-menu-credit">
-  <div><strong>NFQWS Menu upstream · rndnaame/nfqws-menu</strong><span>Каталог стратегий, upstream lists и blobs используют интеграцию RouterForge с NFQWS Menu. Автоподбор, Sandbox и безопасное применение остаются логикой RouterForge.</span></div>
+  <div><strong>NFQWS Menu upstream · rndnaame/nfqws-menu</strong><span>Каталог стратегий, upstream lists и blobs используют интеграцию RouterForge с NFQWS Menu.</span></div>
   <a href="https://github.com/rndnaame/nfqws-menu/" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
   <span id="testLabTabState" hidden></span><span id="sandboxTabState" hidden></span>
 </div>
@@ -3632,9 +3675,47 @@ button{min-height:var(--ui-control-h)}
   function dpiTable(headers,rows){
     return `<div class="table-scroll dpi-table-scroll"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
   }
-  function dpiResultSection(title,kicker,body){return `<details class="panel dpi-result-section" open><summary><span><strong>${esc(title)}</strong><small>${esc(kicker||'')}</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${body}</div></details>`}
+  function dpiResultSection(title,kicker,body,layout='wide'){const cls=layout==='compact'?'dpi-result-compact':'dpi-result-wide';return `<details class="panel dpi-result-section ${cls}" open><summary><span><strong>${esc(title)}</strong><small>${esc(kicker||'')}</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${body}</div></details>`}
   function dpiMetric(label,value,kind='info'){return `<div class="card"><div class="metric-label">${esc(label)}</div><div class="metric-value ${kind==='good'?'good-text':kind==='bad'?'bad-text':kind==='warn'?'warn-text':''}">${esc(value??'—')}</div></div>`}
   function dpiRatioKind(ok,total){ok=Number(ok||0);total=Number(total||0);if(total<=0)return'info';if(ok===total)return'good';if(ok===0)return'bad';return'warn'}
+  function dpiHumanKey(key){return String(key||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
+  function dpiHumanValue(value){
+    if(value===null||value===undefined||value==='')return'—';
+    if(typeof value==='boolean')return value?'yes':'no';
+    if(Array.isArray(value)){
+      if(!value.length)return'—';
+      return value.map(v=>{
+        if(v===null||v===undefined)return'—';
+        if(typeof v!=='object')return String(v);
+        return Object.entries(v).slice(0,6).map(([k,x])=>`${dpiHumanKey(k)}: ${dpiHumanValue(x)}`).join(' · ');
+      }).join(' | ');
+    }
+    if(typeof value==='object')return Object.entries(value).slice(0,8).map(([k,v])=>`${dpiHumanKey(k)}: ${dpiHumanValue(v)}`).join(' · ');
+    return String(value);
+  }
+  function dpiLiveDetails(title,entries){
+    const rows=(entries||[]).filter(x=>x&&x[1]!==undefined&&x[1]!==null&&x[1]!==''&&!(Array.isArray(x[1])&&x[1].length===0));
+    if(!rows.length)return'';
+    return `<div class="dpi-live-block"><div class="dpi-live-title">${esc(title)}</div><div class="dpi-detail-grid">${rows.map(([label,value])=>`<div class="dpi-detail-row"><span>${esc(label)}</span><span>${esc(dpiHumanValue(value))}</span></div>`).join('')}</div></div>`;
+  }
+  function dpiExtraDetails(title,data,skip=[]){
+    if(!data||typeof data!=='object')return'';
+    const deny=new Set(skip);
+    return dpiLiveDetails(title,Object.entries(data).filter(([key])=>!deny.has(key)).map(([key,value])=>[dpiHumanKey(key),value]));
+  }
+  function dpiBytes(value){
+    const n=Number(value||0);if(!Number.isFinite(n)||n<=0)return'0 B';
+    if(n>=1024*1024)return`${(n/(1024*1024)).toFixed(2)} MiB`;
+    if(n>=1024)return`${(n/1024).toFixed(1)} KiB`;
+    return`${Math.round(n)} B`;
+  }
+  function dpiRate(value){
+    const n=Number(value||0);if(!Number.isFinite(n)||n<=0)return'0 B/s';
+    if(n>=1024*1024)return`${(n/(1024*1024)).toFixed(2)} MiB/s`;
+    if(n>=1024)return`${(n/1024).toFixed(1)} KiB/s`;
+    return`${Math.round(n)} B/s`;
+  }
+
   function dpiRenderProgress(){
     const box=$('dpiRunProgress');if(!box)return;
     const p=dpiWebProgress;
@@ -3676,11 +3757,13 @@ button{min-height:var(--ui-control-h)}
     let extra='';
     if((data.tun||[]).length)extra+=`<div class="v2-boundary">TUN: ${esc(data.tun.join(', '))}</div>`;
     if((data.bypass_tools||[]).length)extra+=`<div class="v2-boundary">Bypass tools: ${esc(data.bypass_tools.join(', '))}</div>`;
-    return dpiResultSection('0 · Network info','public path / resolver / bypass inventory',`<div class="v2-card-grid">${cards.join('')}</div>${extra}`);
+    return dpiResultSection('0 · Network info','public path / resolver / bypass inventory',`<div class="v2-card-grid">${cards.join('')}</div>${extra}`,'compact');
   }
   function dpiRenderDNS(data){
     if(!data)return'';
     const subst=Number(data.subst_sub||0),substTotal=Number(data.subst_total||0);
+    const fake=Number(data.fakeip_sub||0),fakeTotal=Number(data.fakeip_total||substTotal||0);
+    const clean=Math.max(0,substTotal-subst);
     const cards=[
       dpiMetric('DoH',`${data.doh_ok??0} / ${data.doh_total??0}`,dpiRatioKind(data.doh_ok,data.doh_total)),
       dpiMetric('DoT',`${data.dot_ok??0} / ${data.dot_total??0}`,dpiRatioKind(data.dot_ok,data.dot_total)),
@@ -3688,8 +3771,14 @@ button{min-height:var(--ui-control-h)}
       dpiMetric('Resolvers',data.resolvers_total??0),
       dpiMetric('Substitution',`${data.subst_sub??0} / ${data.subst_total??0}`,subst===0?'good':substTotal>0&&subst===substTotal?'bad':'warn')
     ];
+    const integrity=dpiLiveDetails('Живые DNS-сигналы',[
+      ['Подменено UDP',substTotal?`${subst} / ${substTotal}`:'—'],
+      ['Без подмены',substTotal?`${clean} / ${substTotal}`:'—'],
+      ['FakeIP ответы',fakeTotal?`${fake} / ${fakeTotal}`:'—'],
+      ['Перехваченные бренды',(data.hijacked_brands||[]).length?data.hijacked_brands:'—']
+    ]);
     const hij=(data.hijacked_brands||[]).length?`<div class="v2-boundary dpi-finding-bad">Hijacked / substituted brands: ${esc(data.hijacked_brands.join(', '))}</div>`:'';
-    return dpiResultSection('1 · DNS availability','DoH / DoT / UDP and substitution signals',`<div class="v2-card-grid">${cards.join('')}</div>${hij}`);
+    return dpiResultSection('1 · DNS availability','DoH / DoT / UDP and substitution signals',`<div class="v2-card-grid">${cards.join('')}</div>${integrity}${hij}`,'compact');
   }
   function dpiRenderDomains(rows){
     if(!Array.isArray(rows))return'';
@@ -3704,15 +3793,33 @@ button{min-height:var(--ui-control-h)}
   function dpiRenderWhitelist(data){
     if(!data)return'';
     const detected=Number(data.detected_as||0),found=Number(data.found_as||0);
-    return dpiResultSection('4 · Whitelist SNI','AS-level white-SNI detection',`<div class="v2-card-grid">${dpiMetric('Detected AS',detected,detected?'warn':'good')}${dpiMetric('Found AS',found,found?'good':detected?'warn':'info')}</div>`);
+    const missing=Math.max(0,detected-found);
+    const coverage=detected>0?Math.round(found*100/detected):100;
+    const details=dpiLiveDetails('Результат white-SNI',[
+      ['Заблокированных AS',detected],
+      ['SNI найден для AS',found],
+      ['Без найденного SNI',missing],
+      ['Покрытие',`${coverage}%`]
+    ]);
+    const extra=dpiExtraDetails('Дополнительные поля upstream',data,['detected_as','found_as']);
+    const note=extra?'':`<div class="v2-boundary">Upstream JSON schema v1 отдаёт для test 4 только detected_as/found_as. Per-AS/SNI строки остаются в native Console; RouterForge не парсит текстовый TUI вместо JSON.</div>`;
+    return dpiResultSection('4 · Whitelist SNI','AS-level white-SNI detection',`<div class="v2-card-grid">${dpiMetric('Detected AS',detected,detected?'warn':'good')}${dpiMetric('Found AS',found,found?'good':detected?'warn':'info')}</div>${details}${extra}${note}`,'compact');
   }
   function dpiTransfer(label,data){
     if(!data)return'';
-    return `<div class="card"><strong>${esc(label)}</strong><div style="margin-top:8px">${dpiChip(data.status)}</div><div class="small muted mono" style="margin-top:7px">avg ${Number(data.avg_bps||0).toFixed(0)} B/s · peak ${Number(data.peak_bps||0).toFixed(0)} B/s · bytes ${data.bytes??0}${data.drop_at_sec!=null?` · drop ${data.drop_at_sec}s`:''}</div></div>`;
+    const avg=data.avg_bps??data.bps??0,peak=data.peak_bps??0;
+    const bytes=data.bytes_total??data.downloaded??data.sent??data.bytes??0;
+    const duration=data.duration??data.elapsed??0;
+    return `<div class="card dpi-transfer-card"><div class="dpi-transfer-head"><strong>${esc(label)}</strong>${dpiChip(data.status)}</div><div class="dpi-transfer-metrics"><div><span>Средняя</span><strong>${esc(dpiRate(avg))}</strong></div><div><span>Пик</span><strong>${esc(dpiRate(peak))}</strong></div><div><span>Передано</span><strong>${esc(dpiBytes(bytes))}</strong></div><div><span>Время</span><strong>${esc(`${Number(duration||0).toFixed(1)} s`)}</strong></div>${data.drop_at_sec!=null?`<div><span>Обрыв</span><strong>${esc(`${data.drop_at_sec} s`)}</strong></div>`:''}</div></div>`;
   }
   function dpiRenderTelegram(data){
     if(!data)return'';
-    return dpiResultSection('5 · Telegram',`verdict ${data.verdict||'—'}`,`<div class="v2-card-grid">${dpiMetric('Verdict',data.verdict||'—',dpiStatusKind(data.verdict))}${dpiMetric('DC reachable',`${data.dc_reachable??0} / ${data.dc_total??0}`,dpiRatioKind(data.dc_reachable,data.dc_total))}${dpiTransfer('Download',data.download)}${dpiTransfer('Upload',data.upload)}</div>`);
+    const dc=Array.isArray(data.dc_results)?data.dc_results:[];
+    const dcRows=dc.map(d=>`<tr><td>${esc(d.label||'—')}</td><td class="mono">${esc(d.ip||'—')}</td><td class="${d.reachable?'dpi-dc-ok':'dpi-dc-bad'}">${d.reachable?'reachable':'blocked'}</td><td>${d.rtt!=null?esc(`${(Number(d.rtt)*1000).toFixed(0)} ms`):'—'}</td></tr>`);
+    const dcTable=dcRows.length?`<div class="dpi-live-block"><div class="dpi-live-title">Telegram DC reachability</div>${dpiTable(['DC','IP','Status','RTT'],dcRows).replace('dpi-table-scroll','dpi-table-scroll dpi-dc-table')}</div>`:`<div class="v2-boundary">Upstream не вернул per-DC записи для этого запуска.</div>`;
+    const transfers=`<div class="dpi-transfer-grid">${dpiTransfer('Download',data.download)}${dpiTransfer('Upload',data.upload)}</div>`;
+    const extra=dpiExtraDetails('Дополнительные поля Telegram',data,['verdict','download','upload','dc_results','dc_reachable','dc_total']);
+    return dpiResultSection('5 · Telegram',`verdict ${data.verdict||'—'}`,`<div class="v2-card-grid">${dpiMetric('Verdict',data.verdict||'—',dpiStatusKind(data.verdict))}${dpiMetric('DC reachable',`${data.dc_reachable??0} / ${data.dc_total??0}`,dpiRatioKind(data.dc_reachable,data.dc_total))}</div>${dcTable}${transfers}${extra}`,'compact');
   }
   function dpiRenderBurst(data){
     if(!data)return'';
@@ -4799,33 +4906,39 @@ button{min-height:var(--ui-control-h)}
   }
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
-  const nfqwsMenuTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','catalog','upstream-lists','blobs','zapret-import']);
+  const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','zapret-import']);
+  const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsToolTabs=new Set(['preflight','dpi-detector','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
-  let nfqwsActiveMenu='selector-v2';
+  let nfqwsActiveStrategy='selector-v2';
+  let nfqwsActiveMenu='catalog';
   let nfqwsActiveTool='domain-v2';
   let nfqwsActiveMaintenance='runs';
 
   function activateNFQWSTab(tab){
-    const isConfig=nfqwsConfigTabs.has(tab),isMenu=nfqwsMenuTabs.has(tab),isTool=nfqwsToolTabs.has(tab),isMaintenance=nfqwsMaintenanceTabs.has(tab);
+    const isConfig=nfqwsConfigTabs.has(tab),isStrategy=nfqwsStrategyTabs.has(tab),isMenu=nfqwsMenuTabs.has(tab),isTool=nfqwsToolTabs.has(tab),isMaintenance=nfqwsMaintenanceTabs.has(tab);
     if(isConfig)nfqwsActiveConfig=tab;
+    if(isStrategy)nfqwsActiveStrategy=tab;
     if(isMenu)nfqwsActiveMenu=tab;
     if(isTool)nfqwsActiveTool=tab;
     if(isMaintenance)nfqwsActiveMaintenance=tab;
     document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(x=>x.classList.toggle('active',
       isConfig?x.dataset.primaryTab==='configuration':
+      isStrategy?x.dataset.primaryTab==='strategies':
       isMenu?x.dataset.primaryTab==='nfqws-menu':
       isTool?x.dataset.primaryTab==='tools':
       isMaintenance?x.dataset.primaryTab==='maintenance':
       x.dataset.tab===tab));
-    const configStrip=$('nfqwsConfigTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
+    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
     if(configStrip)configStrip.classList.toggle('visible',isConfig);
+    if(strategyStrip)strategyStrip.classList.toggle('visible',isStrategy);
     if(menuCredit)menuCredit.classList.toggle('visible',isMenu);
     if(menuStrip)menuStrip.classList.toggle('visible',isMenu);
     if(toolStrip)toolStrip.classList.toggle('visible',isTool);
     if(maintenanceStrip)maintenanceStrip.classList.toggle('visible',isMaintenance);
     document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+    document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsToolTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
@@ -4849,12 +4962,14 @@ button{min-height:var(--ui-control-h)}
 
   document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(btn=>btn.onclick=()=>{
     if(btn.dataset.primaryTab==='configuration')activateNFQWSTab(nfqwsActiveConfig);
+    else if(btn.dataset.primaryTab==='strategies')activateNFQWSTab(nfqwsActiveStrategy);
     else if(btn.dataset.primaryTab==='nfqws-menu')activateNFQWSTab(nfqwsActiveMenu);
     else if(btn.dataset.primaryTab==='tools')activateNFQWSTab(nfqwsActiveTool);
     else if(btn.dataset.primaryTab==='maintenance')activateNFQWSTab(nfqwsActiveMaintenance);
     else activateNFQWSTab(btn.dataset.tab);
   });
   document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
+  document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));

@@ -1048,6 +1048,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .registry-row{display:grid;grid-template-columns:minmax(220px,1.1fr) minmax(260px,1fr);gap:10px;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}
 .registry-main{display:grid;gap:4px;min-width:0}.registry-main>strong{font-size:11px;color:var(--text)}.registry-meta,.registry-aliases{font-size:8.5px;color:var(--muted);overflow-wrap:anywhere}
 .registry-evidence{display:grid;gap:4px;align-content:start}.registry-evidence strong{font-size:9px;color:var(--accent)}.registry-evidence span{font-size:8px;color:var(--muted);overflow-wrap:anywhere}
+.registry-insight{display:block;margin-top:2px;padding:5px 7px;border:1px solid var(--border);border-radius:5px;background:var(--surface);font-size:8.5px;line-height:1.4;color:var(--muted)}
+.registry-insight.proven{color:var(--good);border-color:color-mix(in srgb,var(--good) 35%,var(--border))}
+.registry-insight.promising{color:var(--accent)}.registry-insight.mixed{color:var(--warn)}.registry-insight.degraded,.registry-insight.weak{color:var(--bad)}
 .registry-args{grid-column:1/-1;border-top:1px solid var(--border);padding-top:7px}.registry-args summary{cursor:pointer;color:var(--muted);font-size:8.5px}.registry-args pre{margin:7px 0 0;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--code);color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;font:8.5px/1.45 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace}
 @media(max-width:900px){.registry-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.registry-filters{grid-template-columns:1fr}.registry-row{grid-template-columns:1fr}}
 
@@ -1461,7 +1464,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div id="v2RegistryList" class="registry-list"><div class="analysis-empty">Реестр ещё не загружен.</div></div>
     </article>
 
-    <div class="v2-boundary">R2-F0 только объединяет существующие стратегии и verified evidence в один контракт. Никаких apply/reload/restart и никаких изменений nfqws2.conf.</div>
+    <div class="v2-boundary">Strategy Insights объясняет accumulated evidence поверх Registry + Score Engine. Это read-only аналитика: никаких apply/reload/restart и никаких изменений nfqws2.conf.</div>
   </div>
 </section>
 
@@ -5450,8 +5453,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const capability=bench.length?`bench: ${bench.join(', ')} · desync ${Number(caps.desync_count||0)}`:'bench: not eligible';
       const score=item.score?.total;
       const scoreText=Number.isFinite(Number(score))?`score ${Number(score)}/100`:'score —';
+      const insight=item.insight||{},insightState=insight.state||'—',insightSummary=insight.summary||'Нет insight.';
       return `<div class="registry-row">
-        <div class="registry-main"><strong>${esc(item.name||item.id)}</strong>${aliases}<span class="registry-meta">${esc((item.sources||[]).join(' + '))} · ${esc(item.protocol||'—')} · ${esc(item.family||'—')}</span><span class="registry-meta">${esc(capability)} · ${esc(scoreText)}</span></div>
+        <div class="registry-main"><strong>${esc(item.name||item.id)}</strong>${aliases}<span class="registry-meta">${esc((item.sources||[]).join(' + '))} · ${esc(item.protocol||'—')} · ${esc(item.family||'—')}</span><span class="registry-meta">${esc(capability)} · ${esc(scoreText)}</span><span class="registry-insight ${esc(String(insightState).toLowerCase())}">${esc(insightState)} · ${esc(insightSummary)}</span></div>
         <div class="registry-evidence"><strong>${esc(evidence)}</strong><span>${esc(provenance||'local')}</span></div>
         <details class="registry-args"><summary>Args · ${esc(String((item.fingerprint||'').slice(0,12)))}</summary><pre>${esc((item.args||[]).join('\n'))}</pre></details>
       </div>`;
@@ -5469,9 +5473,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(v2RegistryData&&!force){v2RegistryRender();return}
     $('v2RegistryState').textContent='LOADING';
     try{
-      const [data,scores]=await Promise.all([api('/v2/strategy-registry'),api('/v2/strategy-scores')]);
+      const [data,scores,insights]=await Promise.all([api('/v2/strategy-registry'),api('/v2/strategy-scores'),api('/v2/strategy-insights')]);
       const scoreMap=new Map((scores.entries||[]).map(x=>[x.fingerprint,x.score]));
-      (data.entries||[]).forEach(x=>{x.score=scoreMap.get(x.fingerprint)||null});
+      const insightMap=new Map((insights.entries||[]).map(x=>[x.fingerprint,x.insight]));
+      (data.entries||[]).forEach(x=>{x.score=scoreMap.get(x.fingerprint)||null;x.insight=insightMap.get(x.fingerprint)||null});
       v2RegistryData=data;
       $('v2RegistryState').textContent='READ ONLY';
       $('v2RegistryCount').textContent=String(data.count||0);

@@ -42,6 +42,7 @@ type v2StrategyScoreResponse struct {
 }
 
 func registerStrategyScoreV2Routes(mux *http.ServeMux) {
+	registerStrategyInsightsV2Routes(mux)
 	mux.HandleFunc("/v1/v2/strategy-scores", getOnly(handleV2StrategyScores))
 }
 

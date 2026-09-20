@@ -51,6 +51,7 @@ type v2StrategyDeleteRequest struct {
 }
 
 func registerStrategyLibraryV2Routes(mux *http.ServeMux) {
+	registerStrategyImportV2Routes(mux)
 	mux.HandleFunc("/v1/v2/strategies", getOnly(handleV2StrategiesList))
 	mux.HandleFunc("/v1/v2/strategies/save", mutationOnly(handleV2StrategySave))
 	mux.HandleFunc("/v1/v2/strategies/delete", mutationOnly(handleV2StrategyDelete))

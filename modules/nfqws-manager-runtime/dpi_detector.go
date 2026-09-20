@@ -47,6 +47,8 @@ type dpiDetectorSnapshot struct {
 func registerDPIDetectorRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/dpi-detector", getOnly(handleDPIDetectorSnapshot))
 	mux.HandleFunc("/v1/dpi-detector/run", mutationOnly(handleDPIDetectorRun))
+	mux.HandleFunc("/v1/dpi-detector/v5/run", mutationOnly(handleDPIDetectorV5Run))
+	mux.HandleFunc("/v1/dpi-detector/v5/legend", getOnly(handleDPIDetectorV5Legend))
 }
 
 func handleDPIDetectorSnapshot(w http.ResponseWriter, _ *http.Request) {

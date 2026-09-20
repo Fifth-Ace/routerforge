@@ -5,6 +5,7 @@
   import '@xterm/xterm/css/xterm.css';
 
   export let locale = 'ru';
+  export let autoCommand = '';
 
   let host;
   let terminal;
@@ -19,6 +20,7 @@
   let disposed = false;
   let trimInitialPTYBreaks = true;
   let terminalMode = 'entware';
+  let autoCommandSent = false;
 
   $: copy = locale === 'ru' ? {
     title: 'Entware Terminal',
@@ -146,6 +148,7 @@
   function connect() {
     if (!terminal || connecting || (socket && socket.readyState === WebSocket.OPEN)) return;
     connecting = true;
+    autoCommandSent = false;
     setState(false, copy.connecting);
 
     const ws = new WebSocket(socketURL());
@@ -157,6 +160,10 @@
       connecting = false;
       setState(true, copy.connected);
       sendResize();
+      if (terminalMode === 'entware' && String(autoCommand || '').trim() && !autoCommandSent) {
+        autoCommandSent = true;
+        socket.send(new TextEncoder().encode(`${String(autoCommand).trim()}\r`));
+      }
       terminal.focus();
     };
 

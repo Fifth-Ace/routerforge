@@ -102,3 +102,11 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - R2-F3 adds an atomic Strategy Library handoff: all READY profiles are validated as bench-eligible first, deduplicated by deterministic fingerprint, and then written once with `source=zapret`.
 - An invalid item rejects the whole batch; existing identical fingerprints are preserved and reported as existing.
 - No active nfqws2 config mutation, reload, restart or automatic apply is performed.
+
+## NFQWS Intelligence R2-F4 — Strategy Registry Enrichment
+
+- RouterForge base: `4be686d5cce9a5cdf9b9833d671aef102437bdc3`
+- Zapret converter reference remains pinned to `whxtelxs/nfqws-zapret-converter@c37858b8ffead9377f1e27de756c8f5c46c23090`.
+- Registry entries now expose derived bench capabilities from RouterForge's own compiler contract: eligible transports, candidate readiness, desync count and strategy tags.
+- Zapret provenance identifies the pinned import-adapter reference without claiming that an imported strategy itself originated from that repository.
+- Registry remains read-only and does not mutate Strategy Library, target memory or production nfqws2.

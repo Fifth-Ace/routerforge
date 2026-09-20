@@ -48,6 +48,15 @@ func TestGitHubManifestlessRepositoryFallsBackAfterManifest404s(t *testing.T) {
 	if item.ID != "dpi-detector" || item.Kind != "integration" {
 		t.Fatalf("unexpected synthetic item: %#v", item)
 	}
+	if item.Name != "DPI Detector" || item.Category != "DPI / Diagnostics" {
+		t.Fatalf("DPI Detector curated card profile missing: %#v", item)
+	}
+	if item.Publisher.Name != "Runnin4ik" || item.ProjectURL != "https://github.com/Runnin4ik/dpi-detector" {
+		t.Fatalf("DPI Detector attribution missing: %#v", item)
+	}
+	if !strings.Contains(item.Description, "v5.0.0+") {
+		t.Fatalf("DPI Detector v5-only description missing: %q", item.Description)
+	}
 	if len(item.Detection.Packages) != 0 {
 		t.Fatalf("manifestless source retained legacy opkg package guess: %#v", item.Detection.Packages)
 	}

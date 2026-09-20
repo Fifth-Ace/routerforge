@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -96,6 +97,106 @@ func normalizeUnmanagedReleaseChannel(value string) string {
 	}
 }
 
+func isDPIDetectorRepository(owner, repo string) bool {
+	return strings.EqualFold(strings.TrimSpace(owner), "Runnin4ik") &&
+		strings.EqualFold(strings.TrimSpace(repo), "dpi-detector")
+}
+
+func dpiDetectorV5OrNewer(tag string) bool {
+	value := strings.TrimSpace(tag)
+	if len(value) > 1 && (value[0] == 'v' || value[0] == 'V') {
+		value = value[1:]
+	}
+	majorText := value
+	if dot := strings.IndexByte(value, '.'); dot >= 0 {
+		majorText = value[:dot]
+	}
+	major, err := strconv.Atoi(majorText)
+	return err == nil && major >= 5
+}
+
+func dpiDetectorAssetName(target string) string {
+	switch strings.ToLower(strings.TrimSpace(target)) {
+	case "aarch64-3.10":
+		return "dpi-detector-linux-arm64"
+	case "mipsel-3.4":
+		return "dpi-detector-linux-mipsel"
+	case "mips-3.4":
+		return "dpi-detector-linux-mips"
+	default:
+		return ""
+	}
+}
+
+func dpiDetectorReleaseAssetForTarget(release githubReleaseAPI, target, channel string) (*catalogUnmanagedGitHubAsset, bool) {
+	expected := dpiDetectorAssetName(target)
+	if expected == "" || !dpiDetectorV5OrNewer(release.TagName) {
+		return nil, false
+	}
+	for _, asset := range release.Assets {
+		if asset.Name != expected || !strings.HasPrefix(strings.TrimSpace(asset.BrowserDownloadURL), "https://") {
+			continue
+		}
+		version := strings.TrimSpace(release.TagName)
+		if strings.HasPrefix(strings.ToLower(version), "v") && len(version) > 1 {
+			version = version[1:]
+		}
+		return &catalogUnmanagedGitHubAsset{
+			Channel:      channel,
+			Tag:          strings.TrimSpace(release.TagName),
+			Version:      version,
+			Prerelease:   release.Prerelease,
+			ReleaseID:    release.ID,
+			AssetID:      asset.ID,
+			Asset:        asset.Name,
+			URL:          asset.BrowserDownloadURL,
+			SizeBytes:    asset.Size,
+			Architecture: target,
+			PublishedAt:  release.PublishedAt,
+		}, true
+	}
+	return nil, false
+}
+
+func applyDPIDetectorSourceProfile(item *catalogItem) {
+	if item == nil || item.UnmanagedGitHub == nil ||
+		!isDPIDetectorRepository(item.UnmanagedGitHub.Owner, item.UnmanagedGitHub.Repo) {
+		return
+	}
+
+	meta := item.UnmanagedGitHub
+	if meta.Stable != nil && !dpiDetectorV5OrNewer(meta.Stable.Tag) {
+		meta.Stable = nil
+	}
+	if meta.Beta != nil && !dpiDetectorV5OrNewer(meta.Beta.Tag) {
+		meta.Beta = nil
+	}
+
+	item.Name = "DPI Detector"
+	item.Category = "DPI / Diagnostics"
+	item.Description = "Нативный Rust-инструмент Runnin4ik для диагностики DPI, блокировок и поведения сетевого трафика на роутерах. RouterForge поддерживает только upstream v5.0.0+ и использует официальный статический router binary."
+	item.ProjectURL = "https://github.com/Runnin4ik/dpi-detector"
+	item.Publisher = catalogPublisher{
+		ID:   "runnin4ik",
+		Name: "Runnin4ik",
+		URL:  "https://github.com/Runnin4ik",
+	}
+	item.Capabilities = []string{
+		"dpi-diagnostics",
+		"router-native",
+		"interactive-console",
+		"json-output",
+		"nfqws-diagnostics",
+		"upstream-release-updates",
+	}
+	item.Compatibility.Status = "requirements"
+	item.Compatibility.Hints = []string{
+		"RouterForge supports DPI Detector upstream v5.0.0 and newer only.",
+		"Official static Linux router binaries are used directly; upstream install scripts are never executed automatically.",
+		"Keenetic Hopper/Titan 2 ARM64 uses dpi-detector-linux-arm64.",
+		"Console mode uses the native upstream TUI; RouterForge Web integration consumes machine-readable v5 output.",
+	}
+}
 func unmanagedTargetAliases(target string) ([]string, []string) {
 	switch strings.ToLower(strings.TrimSpace(target)) {
 	case "aarch64-3.10":
@@ -230,20 +331,30 @@ func discoverUnmanagedGitHubReleases(ctx context.Context, owner, repo, target st
 		return meta
 	}
 
+	dpiDetector := isDPIDetectorRepository(owner, repo)
 	for _, release := range releases {
 		if release.Draft {
 			continue
 		}
+		if dpiDetector && !dpiDetectorV5OrNewer(release.TagName) {
+			continue
+		}
+
+		candidateForTarget := unmanagedReleaseAssetForTarget
+		if dpiDetector {
+			candidateForTarget = dpiDetectorReleaseAssetForTarget
+		}
+
 		if release.Prerelease {
 			if meta.Beta == nil {
-				if candidate, ok := unmanagedReleaseAssetForTarget(release, target, "beta"); ok {
+				if candidate, ok := candidateForTarget(release, target, "beta"); ok {
 					meta.Beta = candidate
 				}
 			}
 			continue
 		}
 		if meta.Stable == nil {
-			if candidate, ok := unmanagedReleaseAssetForTarget(release, target, "release"); ok {
+			if candidate, ok := candidateForTarget(release, target, "release"); ok {
 				meta.Stable = candidate
 			}
 		}
@@ -312,8 +423,13 @@ func selectUnmanagedGitHubRelease(item *catalogItem, channel string) {
 	switch meta.RequestedChannel {
 	case "beta":
 		meta.Selected = meta.Beta
-	case "release", "auto":
+	case "release":
 		meta.Selected = meta.Stable
+	case "auto":
+		meta.Selected = meta.Stable
+		if meta.Selected == nil && isDPIDetectorRepository(meta.Owner, meta.Repo) {
+			meta.Selected = meta.Beta
+		}
 	}
 	if meta.Selected != nil {
 		meta.SelectedChannel = meta.Selected.Channel
@@ -366,6 +482,12 @@ func selectUnmanagedGitHubRelease(item *catalogItem, channel string) {
 	notes := []string{
 		"Unverified GitHub Release binary. Explicit unsafe-source confirmation is required.",
 		"RouterForge downloads only the selected release asset and never executes upstream install scripts automatically.",
+	}
+	if isDPIDetectorRepository(meta.Owner, meta.Repo) {
+		notes = append(notes,
+			"DPI Detector policy: upstream v5.0.0+ only; RouterForge selects the exact official router binary for the detected architecture.",
+			"Console mode remains the native upstream application. RouterForge Web integration is a separate presentation layer.",
+		)
 	}
 	item.Install = catalogInstallPlan{
 		Method:        "github-release-binary",

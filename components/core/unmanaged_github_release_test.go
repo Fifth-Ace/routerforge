@@ -210,3 +210,133 @@ func TestValidUnmanagedGitHubReleaseURLBindsRepository(t *testing.T) {
 		}
 	}
 }
+func TestDPIDetectorV5ProfileRejectsLegacyAndAutoSelectsCurrentPrerelease(t *testing.T) {
+	oldFetch := appSourceFetchBytes
+	t.Cleanup(func() { appSourceFetchBytes = oldFetch })
+
+	appSourceFetchBytes = func(ctx context.Context, rawURL string) ([]byte, error) {
+		if !strings.Contains(rawURL, "/releases?per_page=20") {
+			return nil, fmt.Errorf("unexpected URL: %s", rawURL)
+		}
+		return []byte(`[
+		  {
+		    "id": 50,
+		    "tag_name": "v5.0.0-alpha.19",
+		    "draft": false,
+		    "prerelease": true,
+		    "published_at": "2026-09-18T22:12:37Z",
+		    "assets": [
+		      {
+		        "id": 501,
+		        "name": "dpi-detector-linux-arm64",
+		        "browser_download_url": "https://github.com/Runnin4ik/dpi-detector/releases/download/v5.0.0-alpha.19/dpi-detector-linux-arm64",
+		        "size": 3810160
+		      },
+		      {
+		        "id": 502,
+		        "name": "dpi-detector-android-arm64",
+		        "browser_download_url": "https://github.com/Runnin4ik/dpi-detector/releases/download/v5.0.0-alpha.19/dpi-detector-android-arm64",
+		        "size": 3931056
+		      }
+		    ]
+		  },
+		  {
+		    "id": 40,
+		    "tag_name": "v4.2.4",
+		    "draft": false,
+		    "prerelease": false,
+		    "published_at": "2026-09-04T00:00:00Z",
+		    "assets": [
+		      {
+		        "id": 401,
+		        "name": "dpi_detector_v4.2.4_linux_arm64",
+		        "browser_download_url": "https://github.com/Runnin4ik/dpi-detector/releases/download/v4.2.4/dpi_detector_v4.2.4_linux_arm64",
+		        "size": 13683840
+		      }
+		    ]
+		  }
+		]`), nil
+	}
+
+	meta := discoverUnmanagedGitHubReleases(
+		context.Background(),
+		"Runnin4ik",
+		"dpi-detector",
+		"aarch64-3.10",
+	)
+	if meta.Stable != nil {
+		t.Fatalf("legacy v4 stable must not be offered: %#v", meta.Stable)
+	}
+	if meta.Beta == nil || meta.Beta.Tag != "v5.0.0-alpha.19" {
+		t.Fatalf("current v5 prerelease missing: %#v", meta)
+	}
+	if meta.Beta.Asset != "dpi-detector-linux-arm64" || meta.Beta.SizeBytes != 3810160 {
+		t.Fatalf("wrong official ARM64 asset selected: %#v", meta.Beta)
+	}
+
+	item := catalogItem{
+		ID:             "src-123456789abc:dpi-detector",
+		ManifestID:     "dpi-detector",
+		RegistrySource: "src-123456789abc",
+		Kind:           "integration",
+		ProjectURL:     "https://github.com/Runnin4ik/dpi-detector",
+		Trust:          catalogTrust{Status: "unverified"},
+		UnmanagedGitHub: meta,
+	}
+	applyDPIDetectorSourceProfile(&item)
+	selectUnmanagedGitHubRelease(&item, "auto")
+
+	if item.UnmanagedGitHub.Selected == nil || item.UnmanagedGitHub.Selected.Tag != "v5.0.0-alpha.19" {
+		t.Fatalf("DPI Detector auto did not select v5 prerelease: %#v", item.UnmanagedGitHub)
+	}
+	if item.AvailableVersion != "5.0.0-alpha.19" {
+		t.Fatalf("available version=%q", item.AvailableVersion)
+	}
+	if item.Install.Method != "github-release-binary" {
+		t.Fatalf("DPI Detector install lifecycle missing: %#v", item.Install)
+	}
+	if item.Name != "DPI Detector" || item.Category != "DPI / Diagnostics" {
+		t.Fatalf("curated App Center card missing: %#v", item)
+	}
+}
+
+func TestDPIDetectorV5StableWinsAutoWhenAvailable(t *testing.T) {
+	item := catalogItem{
+		UnmanagedGitHub: &catalogUnmanagedGitHub{
+			Owner: "Runnin4ik",
+			Repo:  "dpi-detector",
+			Target: "aarch64-3.10",
+			Stable: &catalogUnmanagedGitHubAsset{
+				Channel: "release", Tag: "v5.0.0", Version: "5.0.0",
+				Asset: "dpi-detector-linux-arm64",
+				URL: "https://github.com/Runnin4ik/dpi-detector/releases/download/v5.0.0/dpi-detector-linux-arm64",
+				Architecture: "aarch64-3.10",
+			},
+			Beta: &catalogUnmanagedGitHubAsset{
+				Channel: "beta", Tag: "v5.1.0-alpha.1", Version: "5.1.0-alpha.1",
+				Asset: "dpi-detector-linux-arm64",
+				URL: "https://github.com/Runnin4ik/dpi-detector/releases/download/v5.1.0-alpha.1/dpi-detector-linux-arm64",
+				Architecture: "aarch64-3.10",
+			},
+		},
+		ProjectURL: "https://github.com/Runnin4ik/dpi-detector",
+	}
+	applyDPIDetectorSourceProfile(&item)
+	selectUnmanagedGitHubRelease(&item, "auto")
+	if item.UnmanagedGitHub.Selected == nil || item.UnmanagedGitHub.Selected.Tag != "v5.0.0" {
+		t.Fatalf("stable v5 must win auto once available: %#v", item.UnmanagedGitHub)
+	}
+}
+
+func TestDPIDetectorExactAssetMapping(t *testing.T) {
+	cases := map[string]string{
+		"aarch64-3.10": "dpi-detector-linux-arm64",
+		"mipsel-3.4":   "dpi-detector-linux-mipsel",
+		"mips-3.4":     "dpi-detector-linux-mips",
+	}
+	for target, want := range cases {
+		if got := dpiDetectorAssetName(target); got != want {
+			t.Fatalf("target %s asset=%q want=%q", target, got, want)
+		}
+	}
+}

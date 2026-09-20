@@ -127,6 +127,7 @@ type v2TargetsResolveResponse struct {
 
 type v2BenchRequest struct {
 	Target               string   `json:"target"`
+	Transport            string   `json:"transport,omitempty"`
 	ProfileIndex         *int     `json:"profile_index,omitempty"`
 	Args                 []string `json:"args,omitempty"`
 	Attempts             int      `json:"attempts,omitempty"`
@@ -141,6 +142,9 @@ type v2BenchAttempt struct {
 	ResultClass           string        `json:"result_class"`
 	SessionID             string        `json:"session_id"`
 	DestinationIPv4       string        `json:"destination_ipv4"`
+	Transport             string        `json:"transport"`
+	Network               string        `json:"network"`
+	RemotePort            int           `json:"remote_port"`
 	LocalPort             int           `json:"local_port"`
 	Queue                 int           `json:"queue"`
 	OutboundQueuePackets  uint64        `json:"outbound_queue_packets"`
@@ -174,6 +178,10 @@ type v2CandidateResult struct {
 type v2BenchResponse struct {
 	OK                   bool              `json:"ok"`
 	Target               string            `json:"target"`
+	Transport            string            `json:"transport"`
+	Network              string            `json:"network"`
+	RemotePort           int               `json:"remote_port"`
+	MetricScope          string            `json:"metric_scope"`
 	ConfigSHA256         string            `json:"config_sha256"`
 	Source               string            `json:"source"`
 	ProfileIndex         int               `json:"profile_index,omitempty"`
@@ -239,6 +247,7 @@ func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerCandidatePoolV2Routes(mux)
 	registerTargetMemoryV2Routes(mux)
 	registerSelectorProgressV2Route(mux)
+	registerBenchTransportV2Routes(mux)
 	mux.HandleFunc("/v1/v2/inspect-target", mutationOnly(handleV2InspectTarget))
 	mux.HandleFunc("/v1/v2/detect", mutationOnly(handleV2Detect))
 	mux.HandleFunc("/v1/v2/target-sources", getOnly(handleV2TargetSources))
@@ -688,6 +697,7 @@ type v2BenchOps struct {
 	*benchTLSStrategyOps
 	productionPID  int
 	productionExec string
+	transport      benchTransportProfile
 }
 
 func (o *v2BenchOps) Probe(ctx context.Context, spec benchTransactionSpec) error {
@@ -701,7 +711,7 @@ func (o *v2BenchOps) Probe(ctx context.Context, spec benchTransactionSpec) error
 	if err != nil {
 		return fmt.Errorf("read inbound queue before probe: %w", err)
 	}
-	metrics, probeErr := v2ReadHTTPS(ctx, o.serverName, spec.DestinationIPv4, spec.LocalPort)
+	metrics, probeErr := v2ProbeTransport(ctx, o.transport, o.serverName, spec.DestinationIPv4, spec.LocalPort)
 	o.tlsHandshakeComplete = metrics.TLSComplete
 	o.probeDurationMS = metrics.DurationMS
 
@@ -801,43 +811,51 @@ func v2FreeBenchQueues(occupied []int, count int) []int {
 }
 
 func v2ResultClass(attempt v2BenchAttempt) string {
-	if attempt.OK && attempt.Metrics.ResponseComplete {
-		return "WORKING"
+	transport, err := normalizeBenchTransport(attempt.Transport)
+	if err != nil {
+		transport, _ = normalizeBenchTransport("")
 	}
-	if attempt.OK && attempt.Metrics.ProgressProven {
-		return "WORKING"
-	}
-	if attempt.Metrics.Cutoff16KSuspected {
-		return "PARTIAL"
-	}
-	if attempt.CleanupProven && attempt.Metrics.TLSComplete {
-		return "INCONCLUSIVE"
-	}
-	return "FAILED"
+	return v2TransportResultClass(attempt, transport)
 }
 
 func v2RunAttempt(ctx context.Context, capabilities benchCapabilities, configSHA, target, ip string, inventory benchStrategyInventory, profile *benchStrategyProfile, queue int) v2BenchAttempt {
+	transport, _ := normalizeBenchTransport("")
+	return v2RunTransportAttempt(ctx, capabilities, configSHA, target, ip, inventory, profile, queue, transport)
+}
+
+func v2RunTransportAttempt(ctx context.Context, capabilities benchCapabilities, configSHA, target, ip string, inventory benchStrategyInventory, profile *benchStrategyProfile, queue int, transport benchTransportProfile) v2BenchAttempt {
 	localPort, err := allocateBenchLocalPort()
 	if err != nil {
-		return v2BenchAttempt{Error: "allocate local port: " + err.Error(), ResultClass: "FAILED"}
+		return v2BenchAttempt{Transport: transport.ID, Network: transport.Network, RemotePort: transport.RemotePort, Error: "allocate local port: " + err.Error(), ResultClass: "FAILED"}
 	}
 	sessionID, err := newBenchSessionID()
 	if err != nil {
-		return v2BenchAttempt{Error: "create session: " + err.Error(), ResultClass: "FAILED"}
+		return v2BenchAttempt{Transport: transport.ID, Network: transport.Network, RemotePort: transport.RemotePort, Error: "create session: " + err.Error(), ResultClass: "FAILED"}
 	}
-	spec := benchTransactionSpec{SessionID: sessionID, DestinationIPv4: ip, LocalPort: localPort, Queue: queue}
+	spec := benchTransactionSpec{
+		SessionID: sessionID, DestinationIPv4: ip, LocalPort: localPort, Queue: queue,
+		Network: transport.Network, RemotePort: transport.RemotePort,
+	}
 	var candidateArgs []string
 	if profile == nil {
 		candidateArgs = benchCandidateArgs(spec)
 	} else {
-		candidateArgs, err = buildBenchStrategyCandidateArgs(spec, inventory, *profile)
+		candidateArgs, err = buildBenchStrategyCandidateArgsForTransport(spec, inventory, *profile, transport)
 		if err != nil {
-			return v2BenchAttempt{SessionID: sessionID, DestinationIPv4: ip, LocalPort: localPort, Queue: queue, Error: err.Error(), ResultClass: "FAILED"}
+			return v2BenchAttempt{
+				SessionID: sessionID, DestinationIPv4: ip,
+				Transport: transport.ID, Network: transport.Network, RemotePort: transport.RemotePort,
+				LocalPort: localPort, Queue: queue, Error: err.Error(), ResultClass: "FAILED",
+			}
 		}
 	}
 	pid, executable, _, prodErr := readProductionNFQWSArgv()
 	if prodErr != nil {
-		return v2BenchAttempt{SessionID: sessionID, DestinationIPv4: ip, LocalPort: localPort, Queue: queue, Error: "production process: " + prodErr.Error(), ResultClass: "FAILED"}
+		return v2BenchAttempt{
+			SessionID: sessionID, DestinationIPv4: ip,
+			Transport: transport.ID, Network: transport.Network, RemotePort: transport.RemotePort,
+			LocalPort: localPort, Queue: queue, Error: "production process: " + prodErr.Error(), ResultClass: "FAILED",
+		}
 	}
 	baselineProcesses, _ := readBenchProcesses()
 	systemOps := &benchSystemOps{
@@ -846,24 +864,29 @@ func v2RunAttempt(ctx context.Context, capabilities benchCapabilities, configSHA
 		baselineProcesses: baselineProcesses,
 	}
 	tlsOps := &benchTLSStrategyOps{benchSystemOps: systemOps, candidateArgs: candidateArgs, serverName: target}
-	ops := &v2BenchOps{benchTLSStrategyOps: tlsOps, productionPID: pid, productionExec: executable}
+	ops := &v2BenchOps{
+		benchTLSStrategyOps: tlsOps, productionPID: pid, productionExec: executable,
+		transport: transport,
+	}
 	result := runBenchTransaction(ctx, ops, spec)
 	metrics := v2TakeMetrics(sessionID)
 	afterConfig := readStatus().ConfigSHA256
 	cleanup := result.CleanupProven && afterConfig == configSHA
 	infrastructureOK := cleanup && ops.strategyPathExercised
 	ok := result.Error == "" && result.State == benchLifecycleStateClean && infrastructureOK &&
-		metrics.TLSComplete && metrics.ProgressProven
+		v2TransportAttemptSucceeded(transport, metrics)
 	attempt := v2BenchAttempt{
 		OK: ok, InfrastructureOK: infrastructureOK, StrategyPathExercised: ops.strategyPathExercised,
-		SessionID: sessionID, DestinationIPv4: ip, LocalPort: localPort, Queue: queue,
+		SessionID: sessionID, DestinationIPv4: ip,
+		Transport: transport.ID, Network: transport.Network, RemotePort: transport.RemotePort,
+		LocalPort: localPort, Queue: queue,
 		OutboundQueuePackets: ops.outboundQueuePackets, InboundQueuePackets: ops.inboundQueuePackets,
 		CleanupProven: cleanup, Metrics: metrics,
 	}
 	if result.Error != "" {
 		attempt.Error = result.Error
 	}
-	attempt.ResultClass = v2ResultClass(attempt)
+	attempt.ResultClass = v2TransportResultClass(attempt, transport)
 	return attempt
 }
 
@@ -1002,6 +1025,9 @@ func validateV2BenchRequest(req v2BenchRequest) error {
 	if _, err := v2NormalizeTarget(req.Target); err != nil {
 		return err
 	}
+	if _, err := normalizeBenchTransport(req.Transport); err != nil {
+		return err
+	}
 	if req.Confirm != v2BenchConfirm {
 		return errors.New("confirm must equal " + v2BenchConfirm)
 	}
@@ -1033,6 +1059,7 @@ func handleV2Bench(w http.ResponseWriter, r *http.Request) {
 	}
 	defer atomic.StoreInt32(&benchSmokeActive, 0)
 	target, _ := v2NormalizeTarget(req.Target)
+	transport, _ := normalizeBenchTransport(req.Transport)
 	status := readStatus()
 	if !strings.EqualFold(status.ConfigSHA256, strings.TrimSpace(req.ExpectedConfigSHA256)) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "production config changed before v2 bench", "current_sha256": status.ConfigSHA256})
@@ -1048,13 +1075,13 @@ func handleV2Bench(w http.ResponseWriter, r *http.Request) {
 	var err error
 	source := "production"
 	if req.ProfileIndex != nil {
-		profile, err = findBenchStrategyProfile(inventory, *req.ProfileIndex)
+		profile, err = findBenchStrategyProfileForTransport(inventory, *req.ProfileIndex, transport)
 		if err == nil {
-			profile, err = retargetBenchStrategyProfile(profile, target)
+			profile, err = retargetBenchStrategyProfileForTransport(profile, target, transport)
 		}
 	} else {
 		source = "custom"
-		profile, err = v2CustomProfile(req.Args, target)
+		profile, err = v2CustomProfileForTransport(req.Args, target, transport)
 	}
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
@@ -1075,14 +1102,14 @@ func handleV2Bench(w http.ResponseWriter, r *http.Request) {
 		attempts = v2MaxAttempts
 	}
 	queue := capabilities.RecommendedQueue
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(attempts)*v2HTTPProbeTimeout+10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(attempts)*benchTransportTimeout(transport)+10*time.Second)
 	defer cancel()
 	result := v2CandidateResult{
 		SourceProfileIndex: profile.Index, StrategyTags: append([]int{}, profile.StrategyTags...),
 		Args: append([]string{}, profile.Args...), CleanupProven: true,
 	}
 	for i := 0; i < attempts; i++ {
-		a := v2RunAttempt(ctx, capabilities, status.ConfigSHA256, target, ip, inventory, &profile, queue)
+		a := v2RunTransportAttempt(ctx, capabilities, status.ConfigSHA256, target, ip, inventory, &profile, queue, transport)
 		result.Attempts = append(result.Attempts, a)
 		if !a.CleanupProven {
 			break
@@ -1091,7 +1118,12 @@ func handleV2Bench(w http.ResponseWriter, r *http.Request) {
 	v2FinalizeCandidate(&result)
 	after := readBenchCapabilities()
 	ok := result.CleanupProven && result.InfrastructureOK && after.CleanupBaselineProven
-	resp := v2BenchResponse{OK: ok, Target: target, ConfigSHA256: status.ConfigSHA256, Source: source, ProfileIndex: profile.Index, Result: result, CleanupBaselineAfter: after.CleanupBaselineProven}
+	resp := v2BenchResponse{
+		OK: ok, Target: target,
+		Transport: transport.ID, Network: transport.Network, RemotePort: transport.RemotePort, MetricScope: transport.MetricScope,
+		ConfigSHA256: status.ConfigSHA256, Source: source, ProfileIndex: profile.Index,
+		Result: result, CleanupBaselineAfter: after.CleanupBaselineProven,
+	}
 	if !ok {
 		writeJSON(w, http.StatusBadGateway, resp)
 		return

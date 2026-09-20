@@ -64,16 +64,24 @@ func registerTargetMemoryV2Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/v2/memory/clear", mutationOnly(handleV2TargetMemoryClear))
 }
 
-func v2MemoryEnvironmentFingerprint(configSHA string) string {
+func v2MemoryEnvironmentFingerprintForProtocol(configSHA, protocol string) string {
+	protocol = strings.ToLower(strings.TrimSpace(protocol))
+	if protocol == "" {
+		protocol = benchTransportHTTPS
+	}
 	h := sha256.New()
 	_, _ = h.Write([]byte(strings.ToLower(strings.TrimSpace(configSHA))))
 	_, _ = h.Write([]byte{0})
 	_, _ = h.Write([]byte(runtime.GOARCH))
 	_, _ = h.Write([]byte{0})
-	_, _ = h.Write([]byte("https"))
+	_, _ = h.Write([]byte(protocol))
 	_, _ = h.Write([]byte{0})
 	_, _ = h.Write([]byte("ipv4"))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func v2MemoryEnvironmentFingerprint(configSHA string) string {
+	return v2MemoryEnvironmentFingerprintForProtocol(configSHA, benchTransportHTTPS)
 }
 
 func ensureV2TargetMemoryRoot() error {
@@ -228,7 +236,7 @@ func v2RecordSelectorEvidence(target, configSHA string, candidates []v2Candidate
 	return writeV2TargetMemory(doc)
 }
 
-func v2TargetMemoryCandidates(target, configSHA string, limit int) ([]v2CandidatePoolItem, error) {
+func v2TargetMemoryCandidatesForTransport(target, configSHA, protocol string, limit int) ([]v2CandidatePoolItem, error) {
 	doc, err := readV2TargetMemory()
 	if err != nil {
 		return nil, err
@@ -236,7 +244,11 @@ func v2TargetMemoryCandidates(target, configSHA string, limit int) ([]v2Candidat
 	if limit <= 0 {
 		limit = 8
 	}
-	env := v2MemoryEnvironmentFingerprint(configSHA)
+	transport, err := normalizeBenchTransport(protocol)
+	if err != nil {
+		return nil, err
+	}
+	env := v2MemoryEnvironmentFingerprintForProtocol(configSHA, transport.ID)
 	target, err = v2NormalizeTarget(target)
 	if err != nil {
 		return nil, err
@@ -244,7 +256,7 @@ func v2TargetMemoryCandidates(target, configSHA string, limit int) ([]v2Candidat
 
 	entries := make([]v2TargetMemoryEntry, 0)
 	for _, entry := range doc.Entries {
-		if entry.Target != target || entry.Protocol != "https" || entry.IPFamily != "ipv4" ||
+		if entry.Target != target || entry.Protocol != transport.ID || entry.IPFamily != "ipv4" ||
 			entry.Environment != env || !entry.InfrastructureOK || !entry.CleanupProven {
 			continue
 		}
@@ -290,6 +302,9 @@ func v2TargetMemoryCandidates(target, configSHA string, limit int) ([]v2Candidat
 	return out, nil
 }
 
+func v2TargetMemoryCandidates(target, configSHA string, limit int) ([]v2CandidatePoolItem, error) {
+	return v2TargetMemoryCandidatesForTransport(target, configSHA, benchTransportHTTPS, limit)
+}
 func handleV2TargetMemory(w http.ResponseWriter, r *http.Request) {
 	doc, err := readV2TargetMemory()
 	if err != nil {

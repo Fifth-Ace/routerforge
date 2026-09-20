@@ -91,8 +91,8 @@ func TestDiscoverUnmanagedGitHubReleaseAndBeta(t *testing.T) {
 
 	meta := discoverUnmanagedGitHubReleases(
 		context.Background(),
-		"Runnin4ik",
-		"dpi-detector",
+		"example",
+		"tool",
 		"aarch64-3.10",
 	)
 	if meta.Stable == nil || meta.Stable.Tag != "v4.2.4" {
@@ -105,16 +105,16 @@ func TestDiscoverUnmanagedGitHubReleaseAndBeta(t *testing.T) {
 
 func TestUnmanagedGitHubChannelSelectionRequiresExplicitBeta(t *testing.T) {
 	item := catalogItem{
-		ID:             "src-123456789abc:dpi-detector",
-		ManifestID:     "dpi-detector",
+		ID:             "src-123456789abc:tool",
+		ManifestID:     "tool",
 		RegistrySource: "src-123456789abc",
 		Kind:           "integration",
-		Name:           "dpi-detector",
-		ProjectURL:     "https://github.com/Runnin4ik/dpi-detector",
+		Name:           "tool",
+		ProjectURL:     "https://github.com/example/tool",
 		Trust:          catalogTrust{Status: "unverified"},
 		UnmanagedGitHub: &catalogUnmanagedGitHub{
-			Owner:  "Runnin4ik",
-			Repo:   "dpi-detector",
+			Owner:  "example",
+			Repo:   "tool",
 			Target: "aarch64-3.10",
 			Beta: &catalogUnmanagedGitHubAsset{
 				Channel:      "beta",

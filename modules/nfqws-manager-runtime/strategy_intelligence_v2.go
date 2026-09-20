@@ -1361,10 +1361,14 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			reason = "baseline cleanup proof failed; selector stopped fail-closed"
 		}
 		setV2SelectorProgress(sessionID, "FAILED", 0, len(templates), reason, true, true)
+		afterFailure := readBenchCapabilities()
 		writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
 			OK: false, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
 			Baseline: baseline, RecommendationReason: reason,
-			CleanupBaselineAfter: false, Concurrency: concurrency, CandidateSource: "mixed",
+			CleanupBaselineAfter: afterFailure.CleanupBaselineProven, BenchEnabled: afterFailure.BenchEnabled,
+			SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
+			AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
+			PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 		})
 		return
 	}
@@ -1430,11 +1434,15 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 				reason = "candidate cleanup proof failed; selector stopped fail-closed"
 			}
 			setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), reason, true, true)
+			afterFailure := readBenchCapabilities()
 			writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
 				OK: false, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
 				Baseline: baseline, Candidates: candidates,
 				RecommendationReason: reason,
-				CleanupBaselineAfter: false, Concurrency: concurrency, CandidateSource: "mixed",
+				CleanupBaselineAfter: afterFailure.CleanupBaselineProven, BenchEnabled: afterFailure.BenchEnabled,
+				SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
+				AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
+				PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 			})
 			return
 		}

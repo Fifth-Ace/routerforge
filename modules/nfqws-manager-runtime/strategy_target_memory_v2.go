@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	v2TargetMemoryVersion = 1
+	v2TargetMemoryVersion        = 1
+	v2TargetMemoryFeatureVersion = 3
 	v2TargetMemoryMax     = 512
 	v2TargetMemoryConfirm = "ROUTERFORGE_V2_MEMORY_CLEAR"
 )
@@ -29,29 +30,34 @@ var (
 )
 
 type v2TargetMemoryEntry struct {
-	Target           string   `json:"target"`
-	Protocol         string   `json:"protocol"`
-	IPFamily         string   `json:"ip_family"`
-	CandidateID      string   `json:"candidate_id"`
-	CandidateName    string   `json:"candidate_name"`
-	CandidateSource  string   `json:"candidate_source"`
-	Fingerprint      string   `json:"fingerprint"`
-	Environment      string   `json:"environment_fingerprint"`
-	ConfigSHA256     string   `json:"config_sha256"`
-	Args             []string `json:"args"`
-	ResultClass      string   `json:"result_class"`
-	SuccessRate      float64  `json:"success_rate"`
-	CompleteRate     float64  `json:"complete_rate"`
-	MedianTTFBMS     int64    `json:"median_ttfb_ms,omitempty"`
-	MedianDurationMS int64    `json:"median_duration_ms,omitempty"`
-	MedianThroughput int64    `json:"median_throughput_bps,omitempty"`
-	VerifiedCount    int      `json:"verified_count"`
-	SuccessStreak    int      `json:"success_streak"`
-	FailureStreak    int      `json:"failure_streak"`
-	LastVerified     string   `json:"last_verified"`
-	LastWorking      string   `json:"last_working,omitempty"`
-	InfrastructureOK bool     `json:"infrastructure_ok"`
-	CleanupProven    bool     `json:"cleanup_proven"`
+	Target               string   `json:"target"`
+	Protocol             string   `json:"protocol"`
+	IPFamily             string   `json:"ip_family"`
+	CandidateID          string   `json:"candidate_id"`
+	CandidateName        string   `json:"candidate_name"`
+	CandidateSource      string   `json:"candidate_source"`
+	Fingerprint          string   `json:"fingerprint"`
+	Environment          string   `json:"environment_fingerprint"`
+	ConfigSHA256         string   `json:"config_sha256"`
+	Args                 []string `json:"args"`
+	ResultClass          string   `json:"result_class"`
+	SuccessRate          float64  `json:"success_rate"`
+	CompleteRate         float64  `json:"complete_rate"`
+	MedianTTFBMS         int64    `json:"median_ttfb_ms,omitempty"`
+	MedianDurationMS     int64    `json:"median_duration_ms,omitempty"`
+	MedianThroughput     int64    `json:"median_throughput_bps,omitempty"`
+	VerifiedCount        int      `json:"verified_count"`
+	ObservationCount     int      `json:"observation_count,omitempty"`
+	WorkingObservations  int      `json:"working_observations,omitempty"`
+	UnstableObservations int      `json:"unstable_observations,omitempty"`
+	FailureObservations  int      `json:"failure_observations,omitempty"`
+	EnvironmentChanges   int      `json:"environment_changes,omitempty"`
+	SuccessStreak        int      `json:"success_streak"`
+	FailureStreak        int      `json:"failure_streak"`
+	LastVerified         string   `json:"last_verified"`
+	LastWorking          string   `json:"last_working,omitempty"`
+	InfrastructureOK     bool     `json:"infrastructure_ok"`
+	CleanupProven        bool     `json:"cleanup_proven"`
 }
 
 type v2TargetMemoryDocument struct {
@@ -316,6 +322,90 @@ func v2MemoryKey(target, protocol, fingerprint string) string {
 		strings.ToLower(strings.TrimSpace(fingerprint))
 }
 
+func v2HydrateLegacyObservationCounters(entry *v2TargetMemoryEntry) {
+	if entry == nil || entry.ObservationCount > 0 || entry.VerifiedCount <= 0 {
+		return
+	}
+	entry.ObservationCount = entry.VerifiedCount
+	switch entry.ResultClass {
+	case "WORKING":
+		entry.WorkingObservations = entry.VerifiedCount
+	case "UNSTABLE":
+		entry.UnstableObservations = entry.VerifiedCount
+	case "FAILED", "PARTIAL":
+		entry.FailureObservations = entry.VerifiedCount
+	}
+}
+
+func v2ResetMemoryEvidenceForEnvironment(entry *v2TargetMemoryEntry) {
+	if entry == nil {
+		return
+	}
+	entry.SuccessRate = 0
+	entry.CompleteRate = 0
+	entry.MedianTTFBMS = 0
+	entry.MedianDurationMS = 0
+	entry.MedianThroughput = 0
+	entry.VerifiedCount = 0
+	entry.ObservationCount = 0
+	entry.WorkingObservations = 0
+	entry.UnstableObservations = 0
+	entry.FailureObservations = 0
+	entry.SuccessStreak = 0
+	entry.FailureStreak = 0
+	entry.LastVerified = ""
+	entry.LastWorking = ""
+}
+
+func v2MergeTargetMemoryObservation(entry v2TargetMemoryEntry, candidate v2CandidateResult, env, configSHA, now string) v2TargetMemoryEntry {
+	env = strings.TrimSpace(env)
+	if entry.Environment != "" && !strings.EqualFold(entry.Environment, env) {
+		entry.EnvironmentChanges++
+		v2ResetMemoryEvidenceForEnvironment(&entry)
+	} else {
+		v2HydrateLegacyObservationCounters(&entry)
+	}
+
+	previous := entry.VerifiedCount
+	entry.CandidateID = candidate.CandidateID
+	entry.CandidateName = candidate.CandidateName
+	entry.CandidateSource = candidate.CandidateSource
+	entry.Environment = env
+	entry.ConfigSHA256 = strings.ToLower(strings.TrimSpace(configSHA))
+	entry.Args = append([]string{}, v2PortableCandidateArgs(candidate.Args)...)
+	entry.ResultClass = candidate.ResultClass
+	entry.SuccessRate = (entry.SuccessRate*float64(previous) + candidate.SuccessRate) / float64(previous+1)
+	entry.CompleteRate = (entry.CompleteRate*float64(previous) + candidate.CompleteRate) / float64(previous+1)
+	entry.MedianTTFBMS = candidate.MedianTTFBMS
+	entry.MedianDurationMS = candidate.MedianDurationMS
+	entry.MedianThroughput = candidate.MedianThroughput
+	entry.VerifiedCount = previous + 1
+	entry.ObservationCount++
+	entry.LastVerified = now
+	entry.InfrastructureOK = candidate.InfrastructureOK
+	entry.CleanupProven = candidate.CleanupProven
+
+	switch candidate.ResultClass {
+	case "WORKING":
+		entry.WorkingObservations++
+		entry.SuccessStreak++
+		entry.FailureStreak = 0
+		entry.LastWorking = now
+	case "UNSTABLE":
+		entry.UnstableObservations++
+		entry.SuccessStreak = 0
+		entry.FailureStreak = 0
+	case "FAILED", "PARTIAL":
+		entry.FailureObservations++
+		entry.FailureStreak++
+		entry.SuccessStreak = 0
+	default:
+		entry.SuccessStreak = 0
+		entry.FailureStreak = 0
+	}
+	return entry
+}
+
 func v2RecordSelectorEvidence(target, configSHA string, candidates []v2CandidateResult) error {
 	doc, err := readV2TargetMemory()
 	if err != nil {
@@ -354,36 +444,8 @@ func v2RecordSelectorEvidence(target, configSHA string, candidates []v2Candidate
 		entry.Target = target
 		entry.Protocol = "https"
 		entry.IPFamily = "ipv4"
-		entry.CandidateID = candidate.CandidateID
-		entry.CandidateName = candidate.CandidateName
-		entry.CandidateSource = candidate.CandidateSource
 		entry.Fingerprint = fp
-		entry.Environment = env
-		entry.ConfigSHA256 = strings.ToLower(strings.TrimSpace(configSHA))
-		entry.Args = append([]string{}, args...)
-		entry.ResultClass = candidate.ResultClass
-		entry.SuccessRate = candidate.SuccessRate
-		entry.CompleteRate = candidate.CompleteRate
-		entry.MedianTTFBMS = candidate.MedianTTFBMS
-		entry.MedianDurationMS = candidate.MedianDurationMS
-		entry.MedianThroughput = candidate.MedianThroughput
-		entry.VerifiedCount++
-		entry.LastVerified = now
-		entry.InfrastructureOK = candidate.InfrastructureOK
-		entry.CleanupProven = candidate.CleanupProven
-
-		switch candidate.ResultClass {
-		case "WORKING":
-			entry.SuccessStreak++
-			entry.FailureStreak = 0
-			entry.LastWorking = now
-		case "FAILED", "PARTIAL":
-			entry.FailureStreak++
-			entry.SuccessStreak = 0
-		default:
-			entry.SuccessStreak = 0
-			entry.FailureStreak = 0
-		}
+		entry = v2MergeTargetMemoryObservation(entry, candidate, env, configSHA, now)
 
 		if i, ok := index[key]; ok {
 			doc.Entries[i] = entry
@@ -522,8 +584,8 @@ func handleV2TargetMemory(w http.ResponseWriter, r *http.Request) {
 		views = append(views, v2TargetMemoryEntryView(entry, now))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true, "version": doc.Version, "entries": views, "count": len(views),
-		"policy": v2TargetMemoryPolicySnapshot(),
+		"ok": true, "version": doc.Version, "feature_version": v2TargetMemoryFeatureVersion,
+		"entries": views, "count": len(views), "policy": v2TargetMemoryPolicySnapshot(),
 	})
 }
 func handleV2TargetMemoryClear(w http.ResponseWriter, r *http.Request) {

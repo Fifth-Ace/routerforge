@@ -17,6 +17,7 @@ const (
 	benchTransportHTTPS = "https"
 	benchTransportHTTP  = "http"
 	benchTransportQUIC  = "quic"
+	benchTransportSTUN  = "stun"
 )
 
 type benchTransportProfile struct {
@@ -61,6 +62,16 @@ var benchTransportProfiles = []benchTransportProfile{
 		IPv4:                true,
 		Implemented:         true,
 	},
+	{
+		ID:                  benchTransportSTUN,
+		Network:             "udp",
+		RemotePort:          3478,
+		MetricScope:         "stun-binding-response",
+		ProbeKind:           "stun-binding",
+		ProbeTimeoutSeconds: 6,
+		IPv4:                true,
+		Implemented:         true,
+	},
 }
 
 func registerBenchTransportV2Routes(mux *http.ServeMux) {
@@ -87,7 +98,7 @@ func normalizeBenchTransport(raw string) (benchTransportProfile, error) {
 			return profile, nil
 		}
 	}
-	return benchTransportProfile{}, errors.New("transport must be https, http or quic")
+	return benchTransportProfile{}, errors.New("transport must be https, http, quic or stun")
 }
 
 func normalizeBenchTransactionTransport(spec benchTransactionSpec) (string, int, error) {
@@ -191,6 +202,19 @@ func benchProfileTransportReasons(profile benchStrategyProfile, transport benchT
 		if !benchProfileHas(profile.Payloads, "quic_initial") {
 			reasons = append(reasons, "profile does not explicitly target quic_initial")
 		}
+	case benchTransportSTUN:
+		if !benchPortListContains(profile.UDPFilters, 3478) {
+			reasons = append(reasons, "profile does not explicitly filter UDP/3478")
+		}
+		if len(profile.TCPFilters) > 0 {
+			reasons = append(reasons, "profile includes TCP and is outside STUN bench scope")
+		}
+		if !benchProfileHas(profile.L7Filters, "stun") {
+			reasons = append(reasons, "profile does not explicitly filter STUN")
+		}
+		if !benchProfileHas(profile.Payloads, "stun") {
+			reasons = append(reasons, "profile does not explicitly target stun payload")
+		}
 	default:
 		reasons = append(reasons, "unsupported bench transport")
 	}
@@ -227,6 +251,15 @@ func findBenchStrategyProfileForTransport(inventory benchStrategyInventory, inde
 	return benchStrategyProfile{}, errors.New("strategy profile index not found")
 }
 
+func benchTransportUsesDomainFilter(transport benchTransportProfile) bool {
+	switch transport.ID {
+	case benchTransportHTTPS, benchTransportHTTP, benchTransportQUIC:
+		return true
+	default:
+		return false
+	}
+}
+
 func retargetBenchStrategyProfileForTransport(profile benchStrategyProfile, serverName string, transport benchTransportProfile) (benchStrategyProfile, error) {
 	serverName, err := normalizeBenchServerName(serverName)
 	if err != nil {
@@ -237,9 +270,15 @@ func retargetBenchStrategyProfileForTransport(profile benchStrategyProfile, serv
 		return benchStrategyProfile{}, errors.New("profile is not eligible for " + transport.ID + " bench: " + strings.Join(profile.Reasons, "; "))
 	}
 
+	extra := 0
+	if benchTransportUsesDomainFilter(transport) {
+		extra = 1
+	}
 	out := profile
-	out.Args = make([]string, 0, len(profile.Args)+1)
-	out.Args = append(out.Args, "--hostlist-domains="+serverName)
+	out.Args = make([]string, 0, len(profile.Args)+extra)
+	if benchTransportUsesDomainFilter(transport) {
+		out.Args = append(out.Args, "--hostlist-domains="+serverName)
+	}
 	for _, arg := range profile.Args {
 		if strings.HasPrefix(arg, "--hostlist-domains=") {
 			continue
@@ -265,8 +304,14 @@ func v2CustomProfileForTransport(args []string, target string, transport benchTr
 		return benchStrategyProfile{}, errors.New("custom candidate args are empty or too large")
 	}
 
-	compiled := make([]string, 0, len(args)+1)
-	compiled = append(compiled, "--hostlist-domains="+target)
+	extra := 0
+	if benchTransportUsesDomainFilter(transport) {
+		extra = 1
+	}
+	compiled := make([]string, 0, len(args)+extra)
+	if benchTransportUsesDomainFilter(transport) {
+		compiled = append(compiled, "--hostlist-domains="+target)
+	}
 
 	for _, arg := range args {
 		switch {
@@ -377,6 +422,8 @@ func v2ProbeTransport(ctx context.Context, transport benchTransportProfile, host
 		return v2ReadPlainHTTP(ctx, host, ip, localPort, transport.RemotePort)
 	case benchTransportQUIC:
 		return v2ProbeQUIC(ctx, host, ip, localPort, transport.RemotePort)
+	case benchTransportSTUN:
+		return v2ProbeSTUN(ctx, ip, localPort, transport.RemotePort)
 	default:
 		return v2HTTPMetrics{}, errors.New("unsupported bench transport")
 	}
@@ -390,6 +437,8 @@ func v2TransportAttemptSucceeded(transport benchTransportProfile, metrics v2HTTP
 		return metrics.ProgressProven
 	case benchTransportQUIC:
 		return metrics.QUICResponseProven && metrics.QUICCIDMatched
+	case benchTransportSTUN:
+		return metrics.STUNResponseProven && metrics.STUNTransactionMatched
 	default:
 		return false
 	}

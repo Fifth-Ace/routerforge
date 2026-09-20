@@ -1539,7 +1539,8 @@
   .nfqws2-list-stack pre,.nfqws2-log pre{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}
   @media(max-width:900px){.nfqws2-grid{grid-template-columns:1fr}.nfqws2-head,.nfqws2-section-head{flex-direction:column}}
 
-  .admin-page.terminal-embed{padding:0!important;gap:0!important;min-height:0!important}
+  .admin-page.terminal-embed{padding:0!important;gap:0!important;min-height:0!important;height:100vh!important;overflow:hidden!important}
   .admin-page.terminal-embed>.page-head,.admin-page.terminal-embed>.admin-safety-banner,.admin-page.terminal-embed>.admin-tabs,.admin-page.terminal-embed>.toolbar,.admin-page.terminal-embed>.ui-action-ok,.admin-page.terminal-embed>.ui-action-error{display:none!important}
-  .admin-page.terminal-embed :global(.terminal-shell){border-radius:0!important;border-left:0!important;border-right:0!important}
-  .admin-page.terminal-embed :global(.terminal-canvas){height:clamp(34rem,78vh,58rem)!important}</style>
+  .admin-page.terminal-embed :global(.terminal-shell){height:100vh!important;min-height:0!important;border-radius:0!important;border-left:0!important;border-right:0!important;display:grid!important;grid-template-rows:auto auto minmax(0,1fr) auto!important}
+  .admin-page.terminal-embed :global(.terminal-bezel){min-height:0!important;display:grid!important;overflow:hidden!important}
+  .admin-page.terminal-embed :global(.terminal-canvas){height:100%!important;min-height:0!important;max-height:none!important}</style>

@@ -5046,7 +5046,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       };
       const response=await fetch(base+'/dpi-detector/v5/console',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(bodyReq)});
       const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
-      if(!response.ok||!body.ok)throw new Error(body.error||`HTTP ${response.status}`);
+      if(!response.ok||!body.ok){const detail=[body.error,body.detail,body.output].filter(Boolean).join(' · ');throw new Error(detail||`HTTP ${response.status}`)}
       dpiWebResult=body;dpiWebProgress.completed=[...tests];dpiWebProgress.current='';notice('DPI Detector: native report готов','good');
     }catch(e){
       const message=String(e.message||e);dpiWebProgress.error=message;dpiWebResult={ok:false,error:message};notice(`DPI Detector: ${message}`,'error');

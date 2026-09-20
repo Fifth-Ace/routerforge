@@ -71,6 +71,14 @@ type v2HTTPMetrics struct {
 	ProgressProven     bool   `json:"progress_proven"`
 	Cutoff16KSuspected bool   `json:"cutoff_16k_suspected"`
 	ReadError          string `json:"read_error,omitempty"`
+	UDPWriteBytes      int64  `json:"udp_write_bytes,omitempty"`
+	UDPReadBytes       int64  `json:"udp_read_bytes,omitempty"`
+	UDPReadDatagrams   int    `json:"udp_read_datagrams,omitempty"`
+	QUICLongHeader     bool   `json:"quic_long_header,omitempty"`
+	QUICCIDMatched     bool   `json:"quic_cid_matched,omitempty"`
+	QUICVersion        string `json:"quic_version,omitempty"`
+	QUICResponseType   string `json:"quic_response_type,omitempty"`
+	QUICResponseProven bool   `json:"quic_response_proven,omitempty"`
 }
 
 type v2InspectorProfile struct {
@@ -824,7 +832,7 @@ func v2RunAttempt(ctx context.Context, capabilities benchCapabilities, configSHA
 }
 
 func v2RunTransportAttempt(ctx context.Context, capabilities benchCapabilities, configSHA, target, ip string, inventory benchStrategyInventory, profile *benchStrategyProfile, queue int, transport benchTransportProfile) v2BenchAttempt {
-	localPort, err := allocateBenchLocalPort()
+	localPort, err := allocateBenchLocalPortForNetwork(transport.Network)
 	if err != nil {
 		return v2BenchAttempt{Transport: transport.ID, Network: transport.Network, RemotePort: transport.RemotePort, Error: "allocate local port: " + err.Error(), ResultClass: "FAILED"}
 	}

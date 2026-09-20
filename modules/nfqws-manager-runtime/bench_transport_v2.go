@@ -16,6 +16,7 @@ import (
 const (
 	benchTransportHTTPS = "https"
 	benchTransportHTTP  = "http"
+	benchTransportQUIC  = "quic"
 )
 
 type benchTransportProfile struct {
@@ -50,6 +51,16 @@ var benchTransportProfiles = []benchTransportProfile{
 		IPv4:                true,
 		Implemented:         true,
 	},
+	{
+		ID:                  benchTransportQUIC,
+		Network:             "udp",
+		RemotePort:          443,
+		MetricScope:         "quic-initial-response",
+		ProbeKind:           "quic-v1-initial",
+		ProbeTimeoutSeconds: 8,
+		IPv4:                true,
+		Implemented:         true,
+	},
 }
 
 func registerBenchTransportV2Routes(mux *http.ServeMux) {
@@ -76,7 +87,7 @@ func normalizeBenchTransport(raw string) (benchTransportProfile, error) {
 			return profile, nil
 		}
 	}
-	return benchTransportProfile{}, errors.New("transport must be https or http")
+	return benchTransportProfile{}, errors.New("transport must be https, http or quic")
 }
 
 func normalizeBenchTransactionTransport(spec benchTransactionSpec) (string, int, error) {
@@ -96,6 +107,28 @@ func normalizeBenchTransactionTransport(spec benchTransactionSpec) (string, int,
 		return "", 0, errors.New("bench remote port must be in range 1-65535")
 	}
 	return network, remotePort, nil
+}
+
+func allocateBenchLocalPortForNetwork(network string) (int, error) {
+	switch network {
+	case "", "tcp":
+		return allocateBenchLocalPort()
+	case "udp":
+		conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+		if err != nil {
+			return 0, err
+		}
+		port := conn.LocalAddr().(*net.UDPAddr).Port
+		if err := conn.Close(); err != nil {
+			return 0, err
+		}
+		if port < 1024 || port > 65535 {
+			return 0, errors.New("allocated UDP local port is outside allowed range")
+		}
+		return port, nil
+	default:
+		return 0, errors.New("unsupported bench network")
+	}
 }
 
 func benchTransportTimeout(profile benchTransportProfile) time.Duration {
@@ -144,6 +177,19 @@ func benchProfileTransportReasons(profile benchStrategyProfile, transport benchT
 		}
 		if !benchProfileHas(profile.Payloads, "http_req") {
 			reasons = append(reasons, "profile does not explicitly target http_req")
+		}
+	case benchTransportQUIC:
+		if !benchPortListContains(profile.UDPFilters, 443) {
+			reasons = append(reasons, "profile does not explicitly filter UDP/443")
+		}
+		if len(profile.TCPFilters) > 0 {
+			reasons = append(reasons, "profile includes TCP and is outside QUIC bench scope")
+		}
+		if !benchProfileHas(profile.L7Filters, "quic") {
+			reasons = append(reasons, "profile does not explicitly filter QUIC")
+		}
+		if !benchProfileHas(profile.Payloads, "quic_initial") {
+			reasons = append(reasons, "profile does not explicitly target quic_initial")
 		}
 	default:
 		reasons = append(reasons, "unsupported bench transport")
@@ -329,6 +375,8 @@ func v2ProbeTransport(ctx context.Context, transport benchTransportProfile, host
 		return v2ReadHTTPS(ctx, host, ip, localPort)
 	case benchTransportHTTP:
 		return v2ReadPlainHTTP(ctx, host, ip, localPort, transport.RemotePort)
+	case benchTransportQUIC:
+		return v2ProbeQUIC(ctx, host, ip, localPort, transport.RemotePort)
 	default:
 		return v2HTTPMetrics{}, errors.New("unsupported bench transport")
 	}
@@ -340,6 +388,8 @@ func v2TransportAttemptSucceeded(transport benchTransportProfile, metrics v2HTTP
 		return metrics.TLSComplete && metrics.ProgressProven
 	case benchTransportHTTP:
 		return metrics.ProgressProven
+	case benchTransportQUIC:
+		return metrics.QUICResponseProven && metrics.QUICCIDMatched
 	default:
 		return false
 	}

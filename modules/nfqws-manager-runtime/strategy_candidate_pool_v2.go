@@ -7,15 +7,19 @@ import (
 )
 
 type v2CandidatePoolItem struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Source      string   `json:"source"`
-	Family      string   `json:"family"`
-	Protocol    string   `json:"protocol"`
-	Args        []string `json:"args"`
-	Fingerprint string   `json:"fingerprint"`
-	MemoryClass string   `json:"memory_class,omitempty"`
-	Stage       string   `json:"stage,omitempty"`
+	ID                  string   `json:"id"`
+	Name                string   `json:"name"`
+	Source              string   `json:"source"`
+	Family              string   `json:"family"`
+	Protocol            string   `json:"protocol"`
+	Args                []string `json:"args"`
+	Fingerprint         string   `json:"fingerprint"`
+	MemoryClass         string   `json:"memory_class,omitempty"`
+	MemoryConfidence    string   `json:"memory_confidence,omitempty"`
+	MemoryAgeSeconds    int64    `json:"memory_age_seconds,omitempty"`
+	MemoryVerifiedCount int      `json:"memory_verified_count,omitempty"`
+	MemorySuccessStreak int      `json:"memory_success_streak,omitempty"`
+	Stage               string   `json:"stage,omitempty"`
 }
 
 type v2CandidatePoolResponse struct {

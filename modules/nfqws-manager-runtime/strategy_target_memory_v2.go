@@ -59,6 +59,176 @@ type v2TargetMemoryDocument struct {
 	Entries []v2TargetMemoryEntry `json:"entries"`
 }
 
+const (
+	v2MemoryPolicyVersion       = 1
+	v2MemoryWorkingMaxAge       = 14 * 24 * time.Hour
+	v2MemoryUnstableMaxAge      = 6 * time.Hour
+	v2MemoryStrongMaxAge        = 72 * time.Hour
+	v2MemoryTrustedMaxAge       = 24 * time.Hour
+	v2MemoryFutureSkew          = 5 * time.Minute
+	v2MemoryUnstableMinVerified = 2
+	v2MemoryStrongMinVerified   = 2
+	v2MemoryStrongMinStreak     = 2
+	v2MemoryTrustedMinVerified  = 3
+	v2MemoryTrustedMinStreak    = 3
+)
+
+const (
+	v2MemoryConfidenceTrusted   = "TRUSTED"
+	v2MemoryConfidenceStrong    = "STRONG"
+	v2MemoryConfidenceFresh     = "FRESH"
+	v2MemoryConfidenceProbation = "PROBATION"
+	v2MemoryConfidenceStale     = "STALE"
+	v2MemoryConfidenceBlocked   = "BLOCKED"
+)
+
+const v2MemoryUnstableMinSuccessRate = 0.5
+
+type v2TargetMemoryPolicy struct {
+	Version                 int     `json:"version"`
+	WorkingMaxAgeSeconds    int64   `json:"working_max_age_seconds"`
+	UnstableMaxAgeSeconds   int64   `json:"unstable_max_age_seconds"`
+	StrongMaxAgeSeconds     int64   `json:"strong_max_age_seconds"`
+	TrustedMaxAgeSeconds    int64   `json:"trusted_max_age_seconds"`
+	FutureSkewSeconds       int64   `json:"future_skew_seconds"`
+	UnstableMinVerified     int     `json:"unstable_min_verified"`
+	UnstableMinSuccessRate  float64 `json:"unstable_min_success_rate"`
+	StrongMinVerified       int     `json:"strong_min_verified"`
+	StrongMinSuccessStreak  int     `json:"strong_min_success_streak"`
+	TrustedMinVerified      int     `json:"trusted_min_verified"`
+	TrustedMinSuccessStreak int     `json:"trusted_min_success_streak"`
+}
+
+type v2TargetMemoryReuseDecision struct {
+	ReuseEligible bool
+	Confidence    string
+	AgeSeconds    int64
+	Reason        string
+}
+
+func v2TargetMemoryPolicySnapshot() v2TargetMemoryPolicy {
+	return v2TargetMemoryPolicy{
+		Version:                 v2MemoryPolicyVersion,
+		WorkingMaxAgeSeconds:    int64(v2MemoryWorkingMaxAge / time.Second),
+		UnstableMaxAgeSeconds:   int64(v2MemoryUnstableMaxAge / time.Second),
+		StrongMaxAgeSeconds:     int64(v2MemoryStrongMaxAge / time.Second),
+		TrustedMaxAgeSeconds:    int64(v2MemoryTrustedMaxAge / time.Second),
+		FutureSkewSeconds:       int64(v2MemoryFutureSkew / time.Second),
+		UnstableMinVerified:     v2MemoryUnstableMinVerified,
+		UnstableMinSuccessRate:  v2MemoryUnstableMinSuccessRate,
+		StrongMinVerified:       v2MemoryStrongMinVerified,
+		StrongMinSuccessStreak:  v2MemoryStrongMinStreak,
+		TrustedMinVerified:      v2MemoryTrustedMinVerified,
+		TrustedMinSuccessStreak: v2MemoryTrustedMinStreak,
+	}
+}
+
+func v2TargetMemoryReuseDecisionForEntry(entry v2TargetMemoryEntry, now time.Time) v2TargetMemoryReuseDecision {
+	decision := v2TargetMemoryReuseDecision{
+		ReuseEligible: false,
+		Confidence:    v2MemoryConfidenceBlocked,
+		AgeSeconds:    -1,
+		Reason:        "result class is not reusable",
+	}
+	if !entry.InfrastructureOK || !entry.CleanupProven {
+		decision.Reason = "infrastructure or cleanup proof is not valid"
+		return decision
+	}
+	if entry.FailureStreak > 0 {
+		decision.Reason = "failure streak is non-zero"
+		return decision
+	}
+	verifiedAt, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(entry.LastVerified))
+	if err != nil {
+		decision.Reason = "last_verified is missing or invalid"
+		return decision
+	}
+	now = now.UTC()
+	verifiedAt = verifiedAt.UTC()
+	if verifiedAt.After(now.Add(v2MemoryFutureSkew)) {
+		decision.Reason = "last_verified is too far in the future"
+		return decision
+	}
+	age := now.Sub(verifiedAt)
+	if age < 0 {
+		age = 0
+	}
+	decision.AgeSeconds = int64(age / time.Second)
+
+	switch entry.ResultClass {
+	case "WORKING":
+		if entry.VerifiedCount < 1 || entry.SuccessStreak < 1 {
+			decision.Reason = "working evidence has no successful verification streak"
+			return decision
+		}
+		if age > v2MemoryWorkingMaxAge {
+			decision.Confidence = v2MemoryConfidenceStale
+			decision.Reason = "working evidence is older than reuse TTL"
+			return decision
+		}
+		decision.ReuseEligible = true
+		decision.Confidence = v2MemoryConfidenceFresh
+		decision.Reason = "working evidence is fresh"
+		if entry.VerifiedCount >= v2MemoryStrongMinVerified && entry.SuccessStreak >= v2MemoryStrongMinStreak && age <= v2MemoryStrongMaxAge {
+			decision.Confidence = v2MemoryConfidenceStrong
+			decision.Reason = "working evidence is repeated"
+		}
+		if entry.VerifiedCount >= v2MemoryTrustedMinVerified && entry.SuccessStreak >= v2MemoryTrustedMinStreak && age <= v2MemoryTrustedMaxAge {
+			decision.Confidence = v2MemoryConfidenceTrusted
+			decision.Reason = "working evidence is repeatedly verified"
+		}
+		return decision
+	case "UNSTABLE":
+		decision.Confidence = v2MemoryConfidenceProbation
+		if age > v2MemoryUnstableMaxAge {
+			decision.Confidence = v2MemoryConfidenceStale
+			decision.Reason = "unstable evidence is older than probation TTL"
+			return decision
+		}
+		if entry.VerifiedCount < v2MemoryUnstableMinVerified {
+			decision.Reason = "unstable evidence needs at least two independent verifications"
+			return decision
+		}
+		if entry.SuccessRate < v2MemoryUnstableMinSuccessRate {
+			decision.Reason = "unstable evidence success rate is below probation threshold"
+			return decision
+		}
+		decision.ReuseEligible = true
+		decision.Reason = "recent repeated unstable evidence is probationary"
+		return decision
+	default:
+		return decision
+	}
+}
+
+func v2MemoryConfidenceRank(value string) int {
+	switch value {
+	case v2MemoryConfidenceTrusted:
+		return 4
+	case v2MemoryConfidenceStrong:
+		return 3
+	case v2MemoryConfidenceFresh:
+		return 2
+	case v2MemoryConfidenceProbation:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func v2TargetMemoryEntryView(entry v2TargetMemoryEntry, now time.Time) map[string]any {
+	view := map[string]any{}
+	if data, err := json.Marshal(entry); err == nil {
+		_ = json.Unmarshal(data, &view)
+	}
+	decision := v2TargetMemoryReuseDecisionForEntry(entry, now)
+	view["reuse_eligible"] = decision.ReuseEligible
+	view["confidence"] = decision.Confidence
+	view["age_seconds"] = decision.AgeSeconds
+	view["reuse_reason"] = decision.Reason
+	return view
+}
+
 func registerTargetMemoryV2Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/v2/memory", getOnly(handleV2TargetMemory))
 	mux.HandleFunc("/v1/v2/memory/clear", mutationOnly(handleV2TargetMemoryClear))
@@ -253,33 +423,52 @@ func v2TargetMemoryCandidatesForTransport(target, configSHA, protocol string, li
 	if err != nil {
 		return nil, err
 	}
+	now := v2TargetMemoryNow().UTC()
 
-	entries := make([]v2TargetMemoryEntry, 0)
+	type rankedMemoryEntry struct {
+		Entry    v2TargetMemoryEntry
+		Decision v2TargetMemoryReuseDecision
+	}
+	entries := make([]rankedMemoryEntry, 0)
 	for _, entry := range doc.Entries {
 		if entry.Target != target || entry.Protocol != transport.ID || entry.IPFamily != "ipv4" ||
-			entry.Environment != env || !entry.InfrastructureOK || !entry.CleanupProven {
+			entry.Environment != env {
 			continue
 		}
-		if entry.ResultClass != "WORKING" && entry.ResultClass != "UNSTABLE" {
+		decision := v2TargetMemoryReuseDecisionForEntry(entry, now)
+		if !decision.ReuseEligible {
 			continue
 		}
-		entries = append(entries, entry)
+		entries = append(entries, rankedMemoryEntry{Entry: entry, Decision: decision})
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
-		if entries[i].ResultClass != entries[j].ResultClass {
-			return entries[i].ResultClass == "WORKING"
+		ri := v2MemoryConfidenceRank(entries[i].Decision.Confidence)
+		rj := v2MemoryConfidenceRank(entries[j].Decision.Confidence)
+		if ri != rj {
+			return ri > rj
 		}
-		if entries[i].SuccessRate != entries[j].SuccessRate {
-			return entries[i].SuccessRate > entries[j].SuccessRate
+		if entries[i].Entry.SuccessStreak != entries[j].Entry.SuccessStreak {
+			return entries[i].Entry.SuccessStreak > entries[j].Entry.SuccessStreak
 		}
-		if entries[i].CompleteRate != entries[j].CompleteRate {
-			return entries[i].CompleteRate > entries[j].CompleteRate
+		if entries[i].Entry.VerifiedCount != entries[j].Entry.VerifiedCount {
+			return entries[i].Entry.VerifiedCount > entries[j].Entry.VerifiedCount
 		}
-		return entries[i].LastVerified > entries[j].LastVerified
+		if entries[i].Entry.SuccessRate != entries[j].Entry.SuccessRate {
+			return entries[i].Entry.SuccessRate > entries[j].Entry.SuccessRate
+		}
+		if entries[i].Entry.CompleteRate != entries[j].Entry.CompleteRate {
+			return entries[i].Entry.CompleteRate > entries[j].Entry.CompleteRate
+		}
+		if entries[i].Decision.AgeSeconds != entries[j].Decision.AgeSeconds {
+			return entries[i].Decision.AgeSeconds < entries[j].Decision.AgeSeconds
+		}
+		return entries[i].Entry.Fingerprint < entries[j].Entry.Fingerprint
 	})
 
 	out := make([]v2CandidatePoolItem, 0, len(entries))
-	for _, entry := range entries {
+	for _, ranked := range entries {
+		entry := ranked.Entry
+		decision := ranked.Decision
 		id := "memory-"
 		if len(entry.Fingerprint) >= 16 {
 			id += entry.Fingerprint[:16]
@@ -294,6 +483,8 @@ func v2TargetMemoryCandidatesForTransport(target, configSHA, protocol string, li
 			ID: id, Name: name, Source: "memory", Family: "verified",
 			Protocol: entry.Protocol, Args: append([]string{}, entry.Args...),
 			Fingerprint: entry.Fingerprint, MemoryClass: entry.ResultClass,
+			MemoryConfidence: decision.Confidence, MemoryAgeSeconds: decision.AgeSeconds,
+			MemoryVerifiedCount: entry.VerifiedCount, MemorySuccessStreak: entry.SuccessStreak,
 		})
 		if len(out) >= limit {
 			break
@@ -301,7 +492,6 @@ func v2TargetMemoryCandidatesForTransport(target, configSHA, protocol string, li
 	}
 	return out, nil
 }
-
 func v2TargetMemoryCandidates(target, configSHA string, limit int) ([]v2CandidatePoolItem, error) {
 	return v2TargetMemoryCandidatesForTransport(target, configSHA, benchTransportHTTPS, limit)
 }
@@ -326,11 +516,16 @@ func handleV2TargetMemory(w http.ResponseWriter, r *http.Request) {
 		}
 		doc.Entries = filtered
 	}
+	now := v2TargetMemoryNow().UTC()
+	views := make([]map[string]any, 0, len(doc.Entries))
+	for _, entry := range doc.Entries {
+		views = append(views, v2TargetMemoryEntryView(entry, now))
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true, "version": doc.Version, "entries": doc.Entries, "count": len(doc.Entries),
+		"ok": true, "version": doc.Version, "entries": views, "count": len(views),
+		"policy": v2TargetMemoryPolicySnapshot(),
 	})
 }
-
 func handleV2TargetMemoryClear(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Target  string `json:"target,omitempty"`

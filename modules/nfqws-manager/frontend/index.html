@@ -852,6 +852,7 @@ button{min-height:var(--ui-control-h)}
 
 <nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Диагностика NFQWS">
   <button class="tab" data-tab="preflight">Проверка системы <span id="preflightTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="dpi-detector">DPI Detector <span id="dpiDetectorTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="domain-v2">Разбор домена</button>
   <button class="tab" data-tab="prodlab-v2">Test Lab</button>
 </nav>
@@ -879,6 +880,95 @@ button{min-height:var(--ui-control-h)}
 
 <main>
 
+<section id="view-dpi-detector" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div>
+        <h2>DPI Detector</h2>
+        <div class="section-kicker">upstream by Runnin4ik · RouterForge compatibility packaging + NFQWS integration</div>
+      </div>
+      <span id="dpiModuleState" class="config-badge">IDLE</span>
+    </div>
+
+    <div class="v2-two">
+      <article class="panel">
+        <div class="panel-head">
+          <div><h2>Режим</h2><div class="section-kicker">один engine · два интерфейса</div></div>
+        </div>
+        <div class="toolbar">
+          <button id="dpiModeConsole">Console</button>
+          <button id="dpiModeWeb" class="primary">Web</button>
+          <button id="dpiModuleRefresh">Обновить состояние</button>
+        </div>
+        <div id="dpiModuleSummary" class="diagnostics" style="margin-top:10px">
+          <div class="empty">Открой вкладку — загрузим состояние DPI Detector.</div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div><h2>Upstream</h2><div class="section-kicker">проект автора остаётся отдельным и явно указан</div></div>
+        </div>
+        <div class="diagnostics">
+          <div class="diagnostic good"><strong>Спасибо Runnin4ik</strong><span>DPI Detector — upstream open-source проект автора. RouterForge добавляет Keenetic/Entware compatibility build и визуальную интеграцию.</span></div>
+          <div class="diagnostic info"><strong>Repository</strong><span><a href="https://github.com/Runnin4ik/dpi-detector" target="_blank" rel="noopener noreferrer">github.com/Runnin4ik/dpi-detector</a></span></div>
+          <div class="diagnostic info"><strong>Update model</strong><span>new upstream → pinned candidate build → CI → hardware acceptance → отдельное обновление routerforge-dpi-detector</span></div>
+        </div>
+      </article>
+    </div>
+
+    <article id="dpiConsolePane" class="panel" style="display:none">
+      <div class="panel-head">
+        <div><h2>Console</h2><div class="section-kicker">оригинальный upstream CLI без нашей интерпретации результата</div></div>
+        <button id="dpiConsoleCopy">Скопировать команду</button>
+      </div>
+      <pre id="dpiConsoleCommand" class="v2-args">/opt/bin/dpi-detector</pre>
+      <div class="v2-boundary">Console mode запускается в RouterForge Terminal или по SSH. Это исходный интерактивный интерфейс DPI Detector; RouterForge не подменяет его меню и вывод.</div>
+    </article>
+
+    <div id="dpiWebPane">
+      <div class="v2-two">
+        <article class="panel">
+          <div class="panel-head">
+            <div><h2>Web · Domains</h2><div class="section-kicker">upstream test 2 · первый hardware-proven RouterForge contract</div></div>
+            <span id="dpiWebState" class="config-badge">IDLE</span>
+          </div>
+          <label class="v2-label">Домен
+            <input id="dpiWebDomain" class="search" placeholder="example.com" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="v2-label">Параллельно
+            <select id="dpiWebConcurrency" class="search">
+              <option value="1">1</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+          <div class="toolbar">
+            <button id="dpiWebRun" class="primary">Запустить Domains</button>
+          </div>
+          <div class="v2-boundary">nfqws2 не отключается. Поэтому результат описывает текущий router path и не объявляется raw ISP truth.</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><div><h2>Результат</h2><div class="section-kicker">нормализованный RouterForge envelope + bounded upstream report</div></div></div>
+          <pre id="dpiWebOutput" class="v2-args">Тест ещё не запускался.</pre>
+        </article>
+      </div>
+
+      <article class="panel" style="margin-top:12px">
+        <div class="panel-head"><div><h2>Следующие Web capabilities</h2><div class="section-kicker">тот же модуль, без смены package/update архитектуры</div></div></div>
+        <div class="v2-card-grid">
+          <div class="card"><strong>TCP 16–20 KB</strong><div class="v2-muted">upstream test 3 · следующий этап D2</div></div>
+          <div class="card"><strong>DNS</strong><div class="v2-muted">upstream test 1 · D3</div></div>
+          <div class="card"><strong>SNI / Whitelist</strong><div class="v2-muted">upstream test 4 · после parser contract</div></div>
+          <div class="card"><strong>Telegram</strong><div class="v2-muted">upstream test 5 · после network safety gate</div></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
 <section id="view-domain-v2" class="view">
   <div class="v2-shell">
     <div class="v2-hero">
@@ -1895,6 +1985,7 @@ button{min-height:var(--ui-control-h)}
   const $=id=>document.getElementById(id);
   let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null, autoTuneRunning=false, autoTuneStage='', autoTuneResult=null, autoTunePreviewData=null, autoTuneApplyResult=null, autoTuneToken='', autoTuneActiveSha='', autoTuneMessage='';
   let processingMapLiveRunning=false, processingMapLiveResult=null, processingMapStrategyInventory=null;
+  let dpiWorkspaceMode='web',dpiWebRunning=false,dpiWebResult=null;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -3429,16 +3520,103 @@ button{min-height:var(--ui-control-h)}
   }
 
   function renderDPIDetector(){
-    const d=dpiDetectorSnapshot;if(!$('dpiDetectorState'))return;
-    if(!d){$('dpiDetectorState').textContent=dpiDetectorLoading?'LOADING':'IDLE';return}
-    $('dpiDetectorState').textContent=d.installed?'DETECTED':'NOT INSTALLED';$('dpiDetectorState').className='config-badge '+(d.installed?'active':'');
-    $('dpiDetectorStatus').innerHTML=d.installed?[
-      keeneticDiag('good','Installed',`${d.path||'path unknown'} · ${keeneticBytes(d.size_bytes||0)}`),
-      keeneticDiag(d.version?'info':'warn','Version',d.version||d.warning||'version unavailable'),
-      keeneticDiag('info','Ownership',`external · ${d.upstream||'Runnin4ik/dpi-detector'} · arch ${d.host_arch||'unknown'}`),
-      keeneticDiag('good','RouterForge boundary','detection + bounded --version only; no install, update or DPI test execution')
-    ].join(''):keeneticDiag('info','Optional component','dpi-detector не найден в штатных локальных путях. RouterForge ничего не устанавливает и не скачивает.');
+    const d=dpiDetectorSnapshot;
+    if($('dpiDetectorState')){
+      if(!d){$('dpiDetectorState').textContent=dpiDetectorLoading?'LOADING':'IDLE'}
+      else{
+        $('dpiDetectorState').textContent=d.installed?(d.execution_ready?'READY':'INCOMPATIBLE'):'NOT INSTALLED';
+        $('dpiDetectorState').className='config-badge '+(d.installed&&d.execution_ready?'active':'');
+        $('dpiDetectorStatus').innerHTML=d.installed?[
+          keeneticDiag(d.execution_ready?'good':'warn','Installed',`${d.path||'path unknown'} · ${keeneticBytes(d.size_bytes||0)}`),
+          keeneticDiag(d.execution_ready?'good':'warn','Execution',d.execution_ready?'ready':(d.compatibility_reason||d.warning||'not ready')),
+          keeneticDiag('info','Upstream',`${d.upstream||'Runnin4ik/dpi-detector'} · arch ${d.host_arch||'unknown'}`),
+          keeneticDiag('info','Required interpreter',d.required_interpreter||'none / static')
+        ].join(''):keeneticDiag('info','Optional module','routerforge-dpi-detector не установлен.');
+      }
+    }
+    renderDPIDetectorWorkspace();
     reportHeight();
+  }
+
+  function setDPIDetectorMode(mode){
+    dpiWorkspaceMode=mode==='console'?'console':'web';
+    renderDPIDetectorWorkspace();
+  }
+
+  function renderDPIDetectorWorkspace(){
+    if(!$('dpiModuleState'))return;
+    const d=dpiDetectorSnapshot;
+    $('dpiConsolePane').style.display=dpiWorkspaceMode==='console'?'block':'none';
+    $('dpiWebPane').style.display=dpiWorkspaceMode==='web'?'block':'none';
+    $('dpiModeConsole').classList.toggle('primary',dpiWorkspaceMode==='console');
+    $('dpiModeWeb').classList.toggle('primary',dpiWorkspaceMode==='web');
+
+    const state=!d?'IDLE':!d.installed?'NOT INSTALLED':d.execution_ready?'READY':'INCOMPATIBLE';
+    $('dpiModuleState').textContent=state;
+    $('dpiModuleState').className='config-badge '+(state==='READY'?'active':'');
+
+    if($('dpiDetectorTabState'))$('dpiDetectorTabState').textContent=d?.installed?(d.execution_ready?'READY':'CHECK'):'';
+
+    $('dpiModuleSummary').innerHTML=!d
+      ?'<div class="empty">Состояние ещё не загружено.</div>'
+      :d.installed
+        ?[
+          keeneticDiag(d.execution_ready?'good':'warn','Package / binary',`${d.path||'unknown'} · ${keeneticBytes(d.size_bytes||0)}`),
+          keeneticDiag(d.execution_ready?'good':'warn','Execution ready',d.execution_ready?'yes':(d.compatibility_reason||d.warning||'no')),
+          keeneticDiag('info','Version probe',d.version||d.warning||'upstream CLI does not expose --version'),
+          keeneticDiag('info','Ownership','separate routerforge-dpi-detector package · NFQWS integration host')
+        ].join('')
+        :keeneticDiag('info','Module not installed','Установите routerforge-dpi-detector. NFQWS manager остаётся отдельным пакетом.');
+
+    $('dpiWebRun').disabled=dpiWebRunning||!d?.installed||!d?.execution_ready;
+    $('dpiWebState').textContent=dpiWebRunning?'RUNNING':dpiWebResult?(dpiWebResult.ok?'PASS':'FAIL'):'IDLE';
+    $('dpiWebState').className='config-badge '+(dpiWebResult?.ok?'active':'');
+    if(dpiWebResult)$('dpiWebOutput').textContent=JSON.stringify(dpiWebResult,null,2);
+  }
+
+  async function runDPIDetectorWeb(){
+    if(dpiWebRunning)return;
+    const domain=String($('dpiWebDomain').value||'').trim();
+    const concurrency=Number($('dpiWebConcurrency').value||2);
+    if(!domain){notice('DPI Detector: укажите домен.','error');return}
+
+    dpiWebRunning=true;dpiWebResult=null;renderDPIDetectorWorkspace();
+    $('dpiWebOutput').textContent='Запуск DPI Detector…';
+
+    try{
+      const status=await api('/status');
+      if(!status?.config_sha256)throw new Error('active config SHA недоступен');
+
+      const response=await fetch(base+'/dpi-detector/run',{
+        method:'POST',
+        cache:'no-store',
+        credentials:'same-origin',
+        headers:{Accept:'application/json','Content-Type':'application/json'},
+        body:JSON.stringify({
+          test:'domains',
+          domain,
+          concurrency,
+          expected_config_sha256:String(status.config_sha256),
+          confirm:'ROUTERFORGE_DPI_DETECTOR_RUN'
+        })
+      });
+
+      const text=await response.text();
+      let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
+      dpiWebResult={http_status:response.status,...body};
+
+      if(!response.ok){
+        notice(`DPI Detector: ${body.error||`HTTP ${response.status}`}`,'error');
+      }else{
+        notice('DPI Detector Domains: PASS','good');
+      }
+    }catch(e){
+      dpiWebResult={ok:false,error:String(e.message||e)};
+      notice(`DPI Detector: ${e.message}`,'error');
+    }finally{
+      dpiWebRunning=false;
+      renderDPIDetectorWorkspace();
+    }
   }
   async function loadDPIDetector(force=false){
     if(dpiDetectorLoading||dpiDetectorLoaded&&!force){renderDPIDetector();return}
@@ -4411,7 +4589,7 @@ button{min-height:var(--ui-control-h)}
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
   const nfqwsMenuTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','catalog','upstream-lists','blobs','zapret-import']);
-  const nfqwsToolTabs=new Set(['preflight','domain-v2','prodlab-v2']);
+  const nfqwsToolTabs=new Set(['preflight','dpi-detector','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
   let nfqwsActiveMenu='selector-v2';
@@ -4444,6 +4622,7 @@ button{min-height:var(--ui-control-h)}
     if(tab==='scripts')loadScripts();
     if(tab==='upstream-lists')loadListSources();
     if(tab==='preflight')renderPreflight();
+    if(tab==='dpi-detector')loadDPIDetector(true);
     if(tab==='runs'){renderRunHistory();renderAutoPick()}
     if(tab==='catalog')loadCatalog();
     if(tab==='blobs')loadBlobs();
@@ -4468,6 +4647,13 @@ button{min-height:var(--ui-control-h)}
   document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
+
+  $('dpiModeConsole').onclick=()=>setDPIDetectorMode('console');
+  $('dpiModeWeb').onclick=()=>setDPIDetectorMode('web');
+  $('dpiModuleRefresh').onclick=()=>loadDPIDetector(true);
+  $('dpiConsoleCopy').onclick=async()=>{try{await navigator.clipboard.writeText('/opt/bin/dpi-detector');notice('Команда DPI Detector скопирована.','good')}catch(_){notice('Не удалось скопировать команду.','error')}};
+  $('dpiWebRun').onclick=runDPIDetectorWeb;
+  $('dpiWebDomain').onkeydown=e=>{if(e.key==='Enter')runDPIDetectorWeb()};
 
   function openOverviewTask(tab,focusId){
     activateNFQWSTab(tab);

@@ -3,14 +3,45 @@ set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 DIST="$ROOT/dist"
+META="$ROOT/modules/dpi-detector/upstream.json"
 TARGET="${ROUTERFORGE_TARGET:-aarch64-3.10}"
 VERSION="${ROUTERFORGE_DPI_PACKAGE_VERSION:?ROUTERFORGE_DPI_PACKAGE_VERSION is required}"
 
-UPSTREAM_REPO='https://github.com/Runnin4ik/dpi-detector.git'
-UPSTREAM_TAG='v4.2.4'
-UPSTREAM_SHA='13ddc49bf5279c7fc08d3f3cca0e974b9a555191'
-PYINSTALLER_VERSION='6.22.3'
-PYTHON_IMAGE='python:3.11-slim-bookworm'
+[ -s "$META" ] || {
+    echo "DPI Detector upstream metadata missing: $META" >&2
+    exit 2
+}
+
+meta_value() {
+    key="$1"
+    python3 - "$META" "$key" <<'PY'
+import json
+import sys
+
+path, key = sys.argv[1:3]
+doc = json.load(open(path, encoding="utf-8"))
+value = doc
+for part in key.split("."):
+    value = value[part]
+if isinstance(value, (dict, list)):
+    raise SystemExit("metadata value is not scalar: " + key)
+print(value)
+PY
+}
+
+UPSTREAM_REPO="$(meta_value upstream.repository)"
+UPSTREAM_TAG="$(meta_value upstream.release_tag)"
+UPSTREAM_SHA="$(meta_value upstream.commit_sha)"
+UPSTREAM_AUTHOR="$(meta_value upstream.author)"
+PYINSTALLER_VERSION="$(meta_value build.pyinstaller)"
+PYTHON_IMAGE="$(meta_value build.python_image)"
+CERTIFI_VERSION="$(meta_value build.certifi)"
+HTTPX_VERSION="$(meta_value build.httpx)"
+H2_VERSION="$(meta_value build.h2)"
+HPACK_VERSION="$(meta_value build.hpack)"
+SOCKSIO_VERSION="$(meta_value build.socksio)"
+RICH_VERSION="$(meta_value build.rich)"
+PYYAML_VERSION="$(meta_value build.pyyaml)"
 
 PACKAGE='routerforge-dpi-detector'
 ARCH='aarch64-3.10'
@@ -18,53 +49,52 @@ ASSET_VERSION="$(printf '%s' "$VERSION" | tr '~' '-')"
 PKGFILE="${PACKAGE}_${ASSET_VERSION}_${ARCH}.ipk"
 
 case "$TARGET" in
-    aarch64-3.10)
-        ;;
+    aarch64-3.10) ;;
     *)
-        echo "DPI detector companion prototype supports only aarch64-3.10." >&2
+        echo "routerforge-dpi-detector currently supports only aarch64-3.10" >&2
         exit 2
         ;;
 esac
 
 case "$VERSION" in
     ''|*[!A-Za-z0-9._~+-]*)
-        echo "unsafe companion package version: $VERSION" >&2
+        echo "unsafe DPI Detector package version: $VERSION" >&2
         exit 2
         ;;
 esac
 
-command -v docker >/dev/null 2>&1 || {
-    echo "docker is required" >&2
-    exit 2
-}
-
-command -v git >/dev/null 2>&1 || {
-    echo "git is required" >&2
-    exit 2
-}
+for tool in docker git python3 tar sha256sum; do
+    command -v "$tool" >/dev/null 2>&1 || {
+        echo "$tool is required" >&2
+        exit 2
+    }
+done
 
 mkdir -p "$DIST"
 
-WORK="$DIST/${PACKAGE}-d1p1-work"
+WORK="$DIST/${PACKAGE}-module-work"
 SRC="$WORK/upstream"
 PKG="$WORK/ipk"
 BUILD_INFO="$WORK/build-info.txt"
 
 rm -rf "$WORK"
-mkdir -p "$WORK" "$PKG/data/opt/bin" \
+mkdir -p \
+    "$WORK" \
+    "$PKG/data/opt/bin" \
     "$PKG/data/opt/libexec/routerforge/dpi-detector" \
     "$PKG/data/opt/share/licenses/$PACKAGE" \
-    "$PKG/data/opt/share/routerforge/dpi-detector" \
+    "$PKG/data/opt/share/routerforge/modules/dpi-detector" \
     "$PKG/control"
 
 git init -q "$SRC"
-git -C "$SRC" remote add origin "$UPSTREAM_REPO"
-git -C "$SRC" fetch -q --depth=1     origin "refs/tags/$UPSTREAM_TAG:refs/tags/$UPSTREAM_TAG"
+git -C "$SRC" remote add origin "${UPSTREAM_REPO}.git"
+git -C "$SRC" fetch -q --depth=1 \
+    origin "refs/tags/$UPSTREAM_TAG:refs/tags/$UPSTREAM_TAG"
 git -C "$SRC" checkout -q --detach "refs/tags/$UPSTREAM_TAG"
 
 ACTUAL_UPSTREAM_SHA="$(git -C "$SRC" rev-parse HEAD)"
 [ "$ACTUAL_UPSTREAM_SHA" = "$UPSTREAM_SHA" ] || {
-    echo "upstream tag $UPSTREAM_TAG resolved to unexpected SHA: $ACTUAL_UPSTREAM_SHA" >&2
+    echo "upstream $UPSTREAM_TAG resolved to $ACTUAL_UPSTREAM_SHA, expected $UPSTREAM_SHA" >&2
     exit 1
 }
 
@@ -75,29 +105,32 @@ docker run --rm --platform linux/arm64 \
     -w /src \
     -e BIN_NAME="$BIN_NAME" \
     -e PYINSTALLER_VERSION="$PYINSTALLER_VERSION" \
+    -e CERTIFI_VERSION="$CERTIFI_VERSION" \
+    -e HTTPX_VERSION="$HTTPX_VERSION" \
+    -e H2_VERSION="$H2_VERSION" \
+    -e HPACK_VERSION="$HPACK_VERSION" \
+    -e SOCKSIO_VERSION="$SOCKSIO_VERSION" \
+    -e RICH_VERSION="$RICH_VERSION" \
+    -e PYYAML_VERSION="$PYYAML_VERSION" \
     "$PYTHON_IMAGE" \
     bash -ceu '
         export DEBIAN_FRONTEND=noninteractive
 
         apt-get update
         apt-get install -y --no-install-recommends \
-            binutils \
-            gcc \
-            libc6-dev \
-            zlib1g-dev
+            binutils gcc libc6-dev zlib1g-dev
         rm -rf /var/lib/apt/lists/*
 
         python -m pip install --no-cache-dir --upgrade pip
-
         python -m pip install --no-cache-dir \
             "PyInstaller==${PYINSTALLER_VERSION}" \
-            "httpx[socks,http2]==0.28.1" \
-            "h2==4.3.0" \
-            "hpack==4.1.0" \
-            "socksio==1.0.0" \
-            "rich==15.0.0" \
-            "PyYAML==6.0.3" \
-            "certifi==2025.8.3"
+            "httpx[socks,http2]==${HTTPX_VERSION}" \
+            "h2==${H2_VERSION}" \
+            "hpack==${HPACK_VERSION}" \
+            "socksio==${SOCKSIO_VERSION}" \
+            "rich==${RICH_VERSION}" \
+            "PyYAML==${PYYAML_VERSION}" \
+            "certifi==${CERTIFI_VERSION}"
 
         python -m PyInstaller --version > /src/pyinstaller-version.txt
         python -m pip freeze > /src/pip-freeze.txt
@@ -126,7 +159,7 @@ docker run --rm --platform linux/arm64 \
     '
 
 [ "$(tr -d '\r\n' < "$SRC/pyinstaller-version.txt")" = "$PYINSTALLER_VERSION" ] || {
-    echo "PyInstaller version gate failed." >&2
+    echo "PyInstaller pin gate failed" >&2
     exit 1
 }
 
@@ -154,11 +187,8 @@ fail() {
 LOADER_REAL="$(readlink -f "$LOADER_LINK" 2>/dev/null || true)"
 
 case "$LOADER_REAL" in
-    /opt/lib/ld-*.so)
-        ;;
-    *)
-        fail "unexpected Entware loader realpath: ${LOADER_REAL:-<empty>}"
-        ;;
+    /opt/lib/ld-*.so) ;;
+    *) fail "unexpected Entware loader realpath: ${LOADER_REAL:-<empty>}" ;;
 esac
 
 TMP="/tmp/routerforge-dpi-loader.$$"
@@ -191,21 +221,44 @@ WRAPPER
 
 chmod 0755 "$PKG/data/opt/bin/dpi-detector"
 
-cp "$SRC/LICENSE" "$PKG/data/opt/share/licenses/$PACKAGE/LICENSE.upstream"
-cp "$ROOT/LICENSE" "$PKG/data/opt/share/licenses/$PACKAGE/LICENSE.routerforge"
-chmod 0644 \
-    "$PKG/data/opt/share/licenses/$PACKAGE/LICENSE.upstream" \
+cp "$SRC/LICENSE" \
+    "$PKG/data/opt/share/licenses/$PACKAGE/LICENSE.upstream"
+cp "$ROOT/LICENSE" \
     "$PKG/data/opt/share/licenses/$PACKAGE/LICENSE.routerforge"
+
+cp "$META" \
+    "$PKG/data/opt/share/routerforge/modules/dpi-detector/upstream.json"
+cp "$SRC/pip-freeze.txt" \
+    "$PKG/data/opt/share/routerforge/modules/dpi-detector/pip-freeze.txt"
 
 PAYLOAD_SHA="$(sha256sum "$PAYLOAD" | awk '{print $1}')"
 PAYLOAD_SIZE="$(wc -c < "$PAYLOAD" | tr -d ' ')"
+
+cat > "$PKG/data/opt/share/routerforge/modules/dpi-detector/manifest.json" <<MANIFEST
+{
+  "schema_version": 1,
+  "id": "dpi-detector",
+  "package": "$PACKAGE",
+  "package_version": "$VERSION",
+  "integration_host": "nfqws-manager",
+  "ui_location": "NFQWS / DPI Detector",
+  "console_command": "/opt/bin/dpi-detector",
+  "upstream_repository": "$UPSTREAM_REPO",
+  "upstream_author": "$UPSTREAM_AUTHOR",
+  "upstream_tag": "$UPSTREAM_TAG",
+  "upstream_sha": "$UPSTREAM_SHA",
+  "payload_sha256": "$PAYLOAD_SHA",
+  "payload_size": $PAYLOAD_SIZE
+}
+MANIFEST
 
 {
     echo "schema_version=1"
     echo "package=$PACKAGE"
     echo "package_version=$VERSION"
     echo "target=$TARGET"
-    echo "upstream_repo=$UPSTREAM_REPO"
+    echo "upstream_repository=$UPSTREAM_REPO"
+    echo "upstream_author=$UPSTREAM_AUTHOR"
     echo "upstream_tag=$UPSTREAM_TAG"
     echo "upstream_sha=$UPSTREAM_SHA"
     echo "pyinstaller_version=$PYINSTALLER_VERSION"
@@ -215,14 +268,15 @@ PAYLOAD_SIZE="$(wc -c < "$PAYLOAD" | tr -d ' ')"
 } > "$BUILD_INFO"
 
 cp "$BUILD_INFO" \
-    "$PKG/data/opt/share/routerforge/dpi-detector/build-info.txt"
-
-cp "$SRC/pip-freeze.txt" \
-    "$PKG/data/opt/share/routerforge/dpi-detector/pip-freeze.txt"
+    "$PKG/data/opt/share/routerforge/modules/dpi-detector/build-info.txt"
 
 chmod 0644 \
-    "$PKG/data/opt/share/routerforge/dpi-detector/build-info.txt" \
-    "$PKG/data/opt/share/routerforge/dpi-detector/pip-freeze.txt"
+    "$PKG/data/opt/share/licenses/$PACKAGE/LICENSE.upstream" \
+    "$PKG/data/opt/share/licenses/$PACKAGE/LICENSE.routerforge" \
+    "$PKG/data/opt/share/routerforge/modules/dpi-detector/upstream.json" \
+    "$PKG/data/opt/share/routerforge/modules/dpi-detector/pip-freeze.txt" \
+    "$PKG/data/opt/share/routerforge/modules/dpi-detector/manifest.json" \
+    "$PKG/data/opt/share/routerforge/modules/dpi-detector/build-info.txt"
 
 cat > "$PKG/control/control" <<CONTROL
 Package: $PACKAGE
@@ -233,9 +287,9 @@ Architecture: $ARCH
 Depends: libc, libgcc, zlib
 Maintainer: Fifth-Ace
 Source: $UPSTREAM_REPO
-Homepage: https://github.com/Runnin4ik/dpi-detector
+Homepage: $UPSTREAM_REPO
 License: MIT
-Description: Experimental RouterForge Entware compatibility companion for dpi-detector $UPSTREAM_TAG. D1/D2 hardware validation only; not part of the RouterForge channel index.
+Description: RouterForge DPI Detector module. Upstream DPI Detector by $UPSTREAM_AUTHOR; RouterForge provides Keenetic/Entware compatibility packaging and NFQWS web integration.
 CONTROL
 
 cat > "$PKG/control/prerm" <<'PRERM'
@@ -270,5 +324,4 @@ rm -f "$OUTPUT"
 )
 
 test -s "$OUTPUT"
-
 printf '%s\n' "$OUTPUT"

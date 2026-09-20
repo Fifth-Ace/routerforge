@@ -24,6 +24,8 @@ jobs:
   test:
     if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      dpi_detector: ${{ steps.scope.outputs.dpi_detector }}
 
     steps:
       - name: Checkout
@@ -46,6 +48,7 @@ jobs:
           LAYOUT=false
           RELEASE=false
           FULL_RELEASE=false
+          DPI_DETECTOR=false
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] &&
              [ "${{ inputs.full_release }}" = "true" ]; then
@@ -59,6 +62,7 @@ jobs:
             LAYOUT=true
             RELEASE=true
             FULL_RELEASE=true
+            DPI_DETECTOR=true
 
           else
             if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -80,6 +84,10 @@ jobs:
 
             while IFS= read -r path; do
               case "$path" in
+
+                modules/dpi-detector/*|scripts/build-dpi-detector-module.sh|scripts/verify-dpi-detector-module.sh|scripts/check-dpi-detector-upstream.py)
+                  DPI_DETECTOR=true
+                  ;;
 
                 .github/workflows/ci.yml)
                   RELEASE=true
@@ -147,6 +155,7 @@ jobs:
           echo "layout=$LAYOUT" >> "$GITHUB_OUTPUT"
           echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
           echo "full_release=$FULL_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "dpi_detector=$DPI_DETECTOR" >> "$GITHUB_OUTPUT"
 
           echo "CORE_FRONTEND=$CORE_FRONTEND"
           echo "DNS_FRONTEND=$DNS_FRONTEND"
@@ -157,6 +166,7 @@ jobs:
           echo "LAYOUT=$LAYOUT"
           echo "RELEASE=$RELEASE"
           echo "FULL_RELEASE=$FULL_RELEASE"
+          echo "DPI_DETECTOR=$DPI_DETECTOR"
 
           if [ -f /tmp/routerforge-changed-files.txt ]; then
             echo
@@ -522,6 +532,9 @@ jobs:
           sh -n modules/dns/packaging/prerm
           sh -n modules/profiling/packaging/postinst
           sh -n modules/profiling/packaging/prerm
+          sh -n scripts/build-dpi-detector-module.sh
+          sh -n scripts/verify-dpi-detector-module.sh
+          python3 -m py_compile scripts/check-dpi-detector-upstream.py
       - name: Verify runtime compatibility probe
         if: steps.scope.outputs.shell == 'true'
         run: sh scripts/verify-runtime-compat-probe.sh
@@ -1021,6 +1034,126 @@ jobs:
             dist/routerforge-stable-candidate-index*.json
           retention-days: 14
 
+  dpi_detector_module:
+    name: Build and publish DPI Detector module
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success' && needs.test.outputs.dpi_detector == 'true'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout exact dev source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: Read DPI Detector upstream metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$(python3 -c 'import json; print(json.load(open("modules/dpi-detector/upstream.json"))["upstream"]["release_tag"])')"
+          short="$(printf '%.12s' "$GITHUB_SHA")"
+          clean_tag="${tag#v}"
+          version="${clean_tag}~rf.r${GITHUB_RUN_NUMBER}.${short}"
+          asset_version="${version//\~/-}"
+          asset="routerforge-dpi-detector_${asset_version}_aarch64-3.10.ipk"
+
+          echo "DPI_UPSTREAM_TAG=$tag" >> "$GITHUB_ENV"
+          echo "DPI_PACKAGE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "DPI_ASSET=$asset" >> "$GITHUB_ENV"
+
+      - name: Check current upstream release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          python3 scripts/check-dpi-detector-upstream.py \
+            --metadata modules/dpi-detector/upstream.json \
+            --json-out dist/dpi-detector-upstream-check.json
+
+      - name: Build DPI Detector module
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROUTERFORGE_DPI_PACKAGE_VERSION="$DPI_PACKAGE_VERSION" \
+            sh scripts/build-dpi-detector-module.sh
+          test -s "dist/$DPI_ASSET"
+
+      - name: Verify DPI Detector module
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh scripts/verify-dpi-detector-module.sh "dist/$DPI_ASSET"
+
+      - name: Upload DPI Detector CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: routerforge-dpi-detector-${{ github.sha }}
+          path: |
+            dist/${{ env.DPI_ASSET }}
+            dist/dpi-detector-upstream-check.json
+          retention-days: 14
+
+      - name: Publish dedicated DPI Detector dev release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          tag='routerforge-dpi-detector-dev'
+          asset_path="dist/$DPI_ASSET"
+          local_sha="$(sha256sum "$asset_path" | awk '{print $1}')"
+
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --prerelease \
+              --title "RouterForge DPI Detector Dev" \
+              --notes "Rolling ARM64 DPI Detector module candidate. Upstream project: Runnin4ik/dpi-detector. Hardware validation required before normal channel promotion."
+          fi
+
+          gh release upload "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            "$asset_path" \
+            dist/dpi-detector-upstream-check.json
+
+          remote_digest="$(
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" \
+              --jq ".assets[] | select(.name == \"$DPI_ASSET\") | .digest"
+          )"
+
+          [ "$remote_digest" = "sha256:$local_sha" ] || {
+            echo "DPI module remote digest mismatch: $remote_digest" >&2
+            exit 1
+          }
+
+          patched="$(
+            gh api \
+              --method PATCH \
+              "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" \
+              -f sha="$GITHUB_SHA" \
+              -F force=true \
+              --jq '.object.sha'
+          )"
+
+          [ "$patched" = "$GITHUB_SHA" ] || {
+            echo "DPI module tag SHA mismatch: $patched" >&2
+            exit 1
+          }
+
+          echo "DPI_MODULE_PUBLISH=PASS"
+          echo "DPI_MODULE_ASSET=$DPI_ASSET"
+          echo "DPI_MODULE_ASSET_SHA256=$local_sha"
   publish_dev:
     name: Publish rolling ARM64 Dev channel
     needs: test

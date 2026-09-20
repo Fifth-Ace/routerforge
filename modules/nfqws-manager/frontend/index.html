@@ -35,7 +35,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);overflow:auto}.tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:10px 13px;font-size:12px;margin-bottom:-1px;white-space:nowrap;min-height:34px}.tab:hover{background:transparent;color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent}
 /* UI IA v2: task-oriented navigation with responsive wrapping. */
 .nav-meta{display:none!important}
-.nfqws-primary-tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow:visible}
+.nfqws-primary-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow:visible}
 .nfqws-primary-tabs .tab,.nfqws-tool-tabs .tab{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;margin:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--muted);min-height:40px;padding:9px 10px;font-weight:650;white-space:normal;text-align:center;line-height:1.2;overflow-wrap:anywhere}
 .nfqws-primary-tabs .tab:hover,.nfqws-tool-tabs .tab:hover{color:var(--text);background:var(--hover)}
 .nfqws-primary-tabs .tab.active,.nfqws-tool-tabs .tab.active{color:var(--text);background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 55%,var(--border));box-shadow:inset 0 -2px 0 var(--accent)}
@@ -885,6 +885,40 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .dpi-tui-green{color:#16e33e}.dpi-tui-red{color:#ff2638}.dpi-tui-yellow{color:#e6c51e}.dpi-tui-cyan{color:#18a9ff}.dpi-tui-dim{color:#777f89}.dpi-tui-white{color:#d8d8d8}
 .dpi-console-report-meta{padding:9px 12px;border-top:1px solid var(--border);background:#0d1014;color:#7f8995;font:9px/1.4 ui-monospace,Consolas,monospace}
 @media(max-width:700px){#dpiConsolePane.dpi-console-overlay{inset:4px!important;padding:7px!important;border-radius:8px!important}.dpi-console-report{font-size:10px;padding:10px;max-height:82vh}}
+
+/* M4D: unified Strategy IA, DPI Visual Web primary + Native secondary, Zapret syntax parity. */
+.nfqws-strategy-tabs{grid-template-columns:repeat(7,minmax(0,1fr))}
+@media(max-width:1180px){.nfqws-strategy-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:760px){.nfqws-strategy-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.dpi-test-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.dpi-test-card,.dpi-test-legend{min-width:0;min-height:64px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);transition:border-color .14s ease,background .14s ease,box-shadow .14s ease}
+.dpi-test-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;cursor:pointer}
+.dpi-test-card:hover,.dpi-test-legend:hover{background:var(--hover);border-color:var(--border-strong)}
+.dpi-test-card:has(input:checked){border-color:color-mix(in srgb,var(--accent) 55%,var(--border));background:var(--accent-soft);box-shadow:inset 0 -2px 0 var(--accent)}
+.dpi-test-card input{width:14px;height:14px;margin:2px 0 0;accent-color:var(--accent)}
+.dpi-test-card span,.dpi-test-legend{display:grid;gap:3px}
+.dpi-test-card strong,.dpi-test-legend strong{color:var(--text);font-size:11px;line-height:1.2}
+.dpi-test-card small,.dpi-test-legend span{color:var(--muted);font-size:8.5px;line-height:1.35;font-weight:500}
+.dpi-test-card:has(input:checked) small{color:color-mix(in srgb,var(--accent) 68%,var(--muted))}
+.dpi-test-legend{justify-items:start;text-align:left;color:var(--text)}
+@media(max-width:1000px){.dpi-test-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.dpi-test-grid{grid-template-columns:1fr}}
+
+.dpi-native-running{display:grid;gap:8px;border-color:color-mix(in srgb,var(--accent) 38%,var(--border))}
+.dpi-native-running-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dpi-native-running-head strong{color:var(--accent);font-size:11px}.dpi-native-running-head span{color:var(--muted);font:9px/1 ui-monospace,Consolas,monospace}
+.dpi-native-running-track{height:4px;overflow:hidden;border-radius:999px;background:var(--border)}
+.dpi-native-running-track span{display:block;width:36%;height:100%;background:var(--accent);border-radius:999px;animation:dpiNativeSweep 1.35s ease-in-out infinite alternate}
+@keyframes dpiNativeSweep{from{transform:translateX(-30%)}to{transform:translateX(210%)}}
+
+.zapret-import-input-panel .syntax-editor-shell{gap:0}
+.zapret-import-input-panel .syntax-editor-toolbar{margin:0;border-radius:6px 6px 0 0}
+.zapret-import-input-panel .syntax-editor-body{border-radius:0 0 6px 6px}
+.zapret-import-input-panel .syntax-editor-body .zapret-import-input{min-height:260px!important;padding:10px 12px!important;white-space:pre!important;overflow:auto!important}
+.zapret-import-input-panel .syntax-editor-highlight{padding:10px 12px;white-space:pre;overflow-wrap:normal}
+.zapret-syntax-preview{margin:0;min-height:180px;max-height:620px;overflow:auto;padding:11px 12px;border:1px solid var(--border);border-radius:6px;background:var(--code);color:#d7dde4;font:var(--rf-font-control)/1.5 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;white-space:pre;tab-size:2}
+
 </style>
 </head>
 <body>
@@ -909,7 +943,6 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-primary-tab="configuration">Настройка</button>
   <button class="tab" data-primary-tab="tools">Диагностика</button>
   <button class="tab" data-primary-tab="strategies">Стратегии</button>
-  <button class="tab" data-primary-tab="nfqws-menu">NFQWS Menu</button>
   <button class="tab" data-primary-tab="maintenance">Обслуживание</button>
 </nav>
 
@@ -931,13 +964,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="selector-v2">Автоподбор</button>
   <button class="tab" data-tab="sandbox-v2">Sandbox</button>
   <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
-  <button class="tab" data-tab="zapret-import">Импорт из Zapret</button>
-</nav>
-
-<nav class="tabs nfqws-tool-tabs nfqws-menu-tabs" id="nfqwsMenuTabs" aria-label="NFQWS Menu sources">
   <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="upstream-lists">Источники списков <span id="listSourceStateNav" class="nav-meta"></span></button>
   <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="zapret-import">Импорт из Zapret</button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-maintenance-tabs" id="nfqwsMaintenanceTabs" aria-label="Обслуживание NFQWS">
@@ -1002,15 +1032,15 @@ body.dpi-console-overlay-open{overflow:hidden!important}
             <div><h2>Web · тесты</h2><div class="section-kicker">выберите любые machine-readable tests 0–6</div></div>
             <span id="dpiWebState" class="config-badge">IDLE</span>
           </div>
-          <div class="v2-card-grid">
-            <label class="card"><strong><input id="dpiTest0" type="checkbox" checked> 0 · Network</strong><div class="v2-muted">IP, ASN, DNS, gateway, tunnels, bypass tools</div></label>
-            <label class="card"><strong><input id="dpiTest1" type="checkbox" checked> 1 · DNS</strong><div class="v2-muted">DoH / DoT / UDP availability and substitutions</div></label>
-            <label class="card"><strong><input id="dpiTest2" type="checkbox" checked> 2 · Domains</strong><div class="v2-muted">DNS → HTTP → TLS 1.2 / 1.3</div></label>
-            <label class="card"><strong><input id="dpiTest3" type="checkbox"> 3 · TCP16</strong><div class="v2-muted">16–20 KB DPI behavior matrix</div></label>
-            <label class="card"><strong><input id="dpiTest4" type="checkbox"> 4 · Whitelist SNI</strong><div class="v2-muted">white-SNI / AS detection</div></label>
-            <label class="card"><strong><input id="dpiTest5" type="checkbox"> 5 · Telegram</strong><div class="v2-muted">DC reachability + download / upload</div></label>
-            <label class="card"><strong><input id="dpiTest6" type="checkbox"> 6 · Fingerprint Burst</strong><div class="v2-muted">browser shapes, TLS, ALPN, overlapping handshakes</div></label>
-            <button id="dpiWebLegend" type="button">7 · Открыть легенду</button>
+          <div class="dpi-test-grid">
+            <label class="dpi-test-card"><input id="dpiTest0" type="checkbox" checked><span><strong>0 · Network</strong><small>IP, ASN, DNS, gateway, tunnels, bypass tools</small></span></label>
+            <label class="dpi-test-card"><input id="dpiTest1" type="checkbox" checked><span><strong>1 · DNS</strong><small>DoH / DoT / UDP availability and substitutions</small></span></label>
+            <label class="dpi-test-card"><input id="dpiTest2" type="checkbox" checked><span><strong>2 · Domains</strong><small>DNS → HTTP → TLS 1.2 / 1.3</small></span></label>
+            <label class="dpi-test-card"><input id="dpiTest3" type="checkbox"><span><strong>3 · TCP16</strong><small>16–20 KB DPI behavior matrix</small></span></label>
+            <label class="dpi-test-card"><input id="dpiTest4" type="checkbox"><span><strong>4 · Whitelist SNI</strong><small>white-SNI / AS detection</small></span></label>
+            <label class="dpi-test-card"><input id="dpiTest5" type="checkbox"><span><strong>5 · Telegram</strong><small>DC reachability + download / upload</small></span></label>
+            <label class="dpi-test-card"><input id="dpiTest6" type="checkbox"><span><strong>6 · Fingerprint Burst</strong><small>browser shapes, TLS, ALPN, overlapping handshakes</small></span></label>
+            <button id="dpiWebLegend" class="dpi-test-legend" type="button"><strong>7 · Легенда</strong><span>upstream status reference</span></button>
           </div>
         </article>
 
@@ -1073,14 +1103,15 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
       <article class="panel dpi-run-panel" style="margin-top:12px">
         <div class="panel-head">
-          <div><h2>Запуск</h2><div class="section-kicker">каждый выбранный test выполняется официальным binary через --json; готовые блоки появляются по мере завершения</div></div>
-          <div class="toolbar"><button id="dpiWebRun" class="primary">Запустить выбранные тесты</button></div>
+          <div><h2>Запуск</h2><div class="section-kicker">Visual Web идёт по JSON test-by-test и заполняет RouterForge-блоки по мере готовности; Native report запускается отдельно как полный upstream-отчёт</div></div>
+          <div class="toolbar"><button id="dpiWebRun" class="primary">Запустить визуальные тесты</button><button id="dpiNativeRun">Native report</button></div>
         </div>
         <div class="v2-boundary">nfqws2, VPN и proxy автоматически не отключаются. Результат описывает текущий router path и не объявляется raw ISP truth.</div>
         <div id="dpiRunProgress" class="dpi-run-progress" style="display:none"></div>
       </article>
 
-      <div id="dpiWebResults" style="margin-top:12px"><article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article></div>
+      <div id="dpiWebResults" style="margin-top:12px"><article class="panel"><div class="analysis-empty">Визуальные тесты ещё не запускались.</div></article></div>
+      <div id="dpiNativeResults" style="display:none;margin-top:12px"></div>
 
       <article id="dpiLegendPane" class="panel" style="display:none;margin-top:12px">
         <div class="panel-head"><div><h2>Upstream Legend</h2><div class="section-kicker">test 7 / --legend</div></div><button id="dpiLegendClose">Закрыть</button></div>
@@ -1356,7 +1387,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
     <article class="panel" style="margin-top:10px">
       <div class="panel-head"><div><h2>Candidate preview</h2><div class="section-kicker">Импортированная стратегия до встраивания в полный nfqws2.conf</div></div><button id="zapretImportCopy" disabled>Копировать</button></div>
-      <pre id="zapretImportPreview" class="zapret-import-preview">Preview ещё не построен.</pre>
+      <pre id="zapretImportPreview" class="zapret-import-preview zapret-syntax-preview">Preview ещё не построен.</pre>
       <div class="zapret-import-note">RouterForge намеренно не подставляет неизвестные Windows-переменные и не переименовывает payload-файлы «по догадке». Если вход неоднозначен, результат остаётся CHECK вместо притворного готового конфига.</div>
     </article>
 
@@ -2107,6 +2138,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null, autoTuneRunning=false, autoTuneStage='', autoTuneResult=null, autoTunePreviewData=null, autoTuneApplyResult=null, autoTuneToken='', autoTuneActiveSha='', autoTuneMessage='';
   let processingMapLiveRunning=false, processingMapLiveResult=null, processingMapStrategyInventory=null;
   let dpiWorkspaceMode='console',dpiWebRunning=false,dpiWebResult=null,dpiWebProgress=null;
+  let dpiNativeRunning=false,dpiNativeResult=null,dpiNativeStartedAt=0,dpiNativeTimer=0;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -3897,6 +3929,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('dpiWebState').className='config-badge '+(!dpiWebRunning&&dpiWebResult&&!dpiWebProgress?.error?'active':'');
     dpiRenderProgress();
     renderDPIDetectorV5Result(dpiWebResult);
+    updateDPINativeState();
     if(dpiWorkspaceMode==='console'&&d?.installed&&d?.execution_ready)ensureDPIConsole();
     syncDPIConsoleFullscreen();
   }
@@ -4596,7 +4629,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('zapretImportWarnings').innerHTML=result.warnings.map(x=>`<div class="zapret-import-warning ${x[0]}">${esc(x[1])}</div>`).join('');
     $('zapretImportTransforms').innerHTML=result.transforms.length?result.transforms.map(x=>`<div class="zapret-import-row"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></div>`).join(''):'<div class="analysis-empty">Автоматических преобразований нет.</div>';
     $('zapretImportDeps').innerHTML=result.deps.length?result.deps.map(x=>`<div class="zapret-import-row"><b>${esc(x[0])}</b><span class="mono">${esc(x[1])}</span></div>`).join(''):'<div class="analysis-empty">Явные list/blob зависимости не найдены.</div>';
-    $('zapretImportPreview').textContent=result.preview||'Preview не построен.';$('zapretImportCopy').disabled=!result.preview;
+    $('zapretImportPreview').innerHTML=result.preview?highlightConfig(result.preview):esc('Preview не построен.');$('zapretImportCopy').disabled=!result.preview;
     renderZapretLibrary(result);reportHeight();
   }
   function runZapretImport(){
@@ -4605,14 +4638,14 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     renderZapretImport(zapretAnalyze(content));
   }
   function clearZapretImport(){
-    $('zapretImportInput').value='';$('zapretImportSourceMeta').textContent='Команда · .bat · .cmd · .txt · лог теста';
+    $('zapretImportInput').value='';refreshSyntaxEditor($('zapretImportInput'));$('zapretImportSourceMeta').textContent='Команда · .bat · .cmd · .txt · лог теста';
     $('zapretLibraryName').value='';
     renderZapretImport({type:'unknown',commands:[],profiles:[],tcp:'',udp:'',transforms:[],warnings:[],deps:[],preview:'',ready:false});
   }
   function loadZapretImportFile(file){
     if(!file)return;if(file.size>262144){notice('Импорт из Zapret: файл больше 256 KiB.','error');return}
     const reader=new FileReader();
-    reader.onload=()=>{$('zapretImportInput').value=String(reader.result||'');$('zapretImportSourceMeta').textContent=`${file.name} · ${bytes(file.size)}`;runZapretImport()};
+    reader.onload=()=>{$('zapretImportInput').value=String(reader.result||'');refreshSyntaxEditor($('zapretImportInput'));$('zapretImportSourceMeta').textContent=`${file.name} · ${bytes(file.size)}`;runZapretImport()};
     reader.onerror=()=>notice('Не удалось прочитать файл в браузере.','error');reader.readAsText(file);
   }
 
@@ -4920,13 +4953,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
-  const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','zapret-import']);
+  const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','catalog','upstream-lists','blobs','zapret-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsToolTabs=new Set(['preflight','dpi-detector','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
   let nfqwsActiveStrategy='selector-v2';
-  let nfqwsActiveMenu='catalog';
   let nfqwsActiveTool='domain-v2';
   let nfqwsActiveMaintenance='runs';
 
@@ -4934,26 +4966,22 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const isConfig=nfqwsConfigTabs.has(tab),isStrategy=nfqwsStrategyTabs.has(tab),isMenu=nfqwsMenuTabs.has(tab),isTool=nfqwsToolTabs.has(tab),isMaintenance=nfqwsMaintenanceTabs.has(tab);
     if(isConfig)nfqwsActiveConfig=tab;
     if(isStrategy)nfqwsActiveStrategy=tab;
-    if(isMenu)nfqwsActiveMenu=tab;
     if(isTool)nfqwsActiveTool=tab;
     if(isMaintenance)nfqwsActiveMaintenance=tab;
     document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(x=>x.classList.toggle('active',
       isConfig?x.dataset.primaryTab==='configuration':
       isStrategy?x.dataset.primaryTab==='strategies':
-      isMenu?x.dataset.primaryTab==='nfqws-menu':
       isTool?x.dataset.primaryTab==='tools':
       isMaintenance?x.dataset.primaryTab==='maintenance':
       x.dataset.tab===tab));
-    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
+    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
     if(configStrip)configStrip.classList.toggle('visible',isConfig);
     if(strategyStrip)strategyStrip.classList.toggle('visible',isStrategy);
     if(menuCredit)menuCredit.classList.toggle('visible',isMenu);
-    if(menuStrip)menuStrip.classList.toggle('visible',isMenu);
     if(toolStrip)toolStrip.classList.toggle('visible',isTool);
     if(maintenanceStrip)maintenanceStrip.classList.toggle('visible',isMaintenance);
     document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
-    document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsToolTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${tab}`));
@@ -4977,14 +5005,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(btn=>btn.onclick=()=>{
     if(btn.dataset.primaryTab==='configuration')activateNFQWSTab(nfqwsActiveConfig);
     else if(btn.dataset.primaryTab==='strategies')activateNFQWSTab(nfqwsActiveStrategy);
-    else if(btn.dataset.primaryTab==='nfqws-menu')activateNFQWSTab(nfqwsActiveMenu);
     else if(btn.dataset.primaryTab==='tools')activateNFQWSTab(nfqwsActiveTool);
     else if(btn.dataset.primaryTab==='maintenance')activateNFQWSTab(nfqwsActiveMaintenance);
     else activateNFQWSTab(btn.dataset.tab);
   });
   document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
-  document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
 
@@ -5021,19 +5047,40 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       return `<div class="dpi-console-line${warn?' warn':''}${title?' title':''}">${dpiParityTokens(line)||' '}</div>`;
     }).join('');
   }
-  function renderDPIDetectorV5Result(envelope){
-    const root=$('dpiWebResults');if(!root)return;
-    if(!envelope){root.innerHTML=dpiWebRunning?'':'<article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article>';return}
+  function dpiNativeElapsed(){
+    if(!dpiNativeStartedAt)return 0;
+    return Math.max(0,Math.floor((Date.now()-dpiNativeStartedAt)/1000));
+  }
+  function renderDPINativeReport(envelope){
+    const root=$('dpiNativeResults');if(!root)return;
+    if(dpiNativeRunning){
+      root.style.display='block';
+      root.innerHTML=`<article class="panel dpi-native-running"><div class="dpi-native-running-head"><strong>Native report выполняется</strong><span>${dpiNativeElapsed()} s</span></div><div class="section-kicker">Это один полный upstream run. В отличие от Visual Web он не обещает фальшивый progress по отдельным тестам — ждём завершения binary.</div><div class="dpi-native-running-track"><span></span></div></article>`;
+      return;
+    }
+    if(!envelope){root.style.display='none';root.innerHTML='';return}
+    root.style.display='block';
     if(envelope.console_report){
       root.innerHTML=`<article class="panel dpi-console-report-shell"><div class="dpi-console-report-head"><strong>DPI Detector · native report</strong><span>${esc(envelope.tests||'—')} · ${esc(envelope.duration_ms||0)} ms · ${esc(envelope.report_bytes||0)} bytes${envelope.report_cut?' · CUT':''}</span></div><div class="dpi-console-report">${dpiParityReportHTML(envelope.console_report)}</div><div class="dpi-console-report-meta">${esc(envelope.environment_warning||'')} · config ${esc(envelope.production_config_unchanged?'UNCHANGED':'CHECK')}</div></article>`;
       return;
     }
-    root.innerHTML=dpiResultSection('Ошибка','native console parity',`<div class="notice error">${esc(envelope.error||'console report unavailable')}</div>`);
+    root.innerHTML=dpiResultSection('Ошибка','native report',`<div class="notice error">${esc(envelope.error||'native report unavailable')}</div>`);
   }
-  async function runDPIDetectorWeb(){
-    if(dpiWebRunning)return;
+  function updateDPINativeState(){
+    const button=$('dpiNativeRun');
+    if(button){
+      const ready=!!dpiDetectorSnapshot?.installed&&!!dpiDetectorSnapshot?.execution_ready;
+      button.disabled=dpiNativeRunning||dpiWebRunning||!ready;
+      button.textContent=dpiNativeRunning?`Native report · ${dpiNativeElapsed()} s`:'Native report';
+    }
+    renderDPINativeReport(dpiNativeResult);
+  }
+  async function runDPINativeReport(){
+    if(dpiNativeRunning)return;
     const tests=selectedDPITests();if(!tests){notice('DPI Detector: выберите хотя бы один тест.','error');return}
-    dpiWebRunning=true;dpiWebResult=null;dpiWebProgress={tests:[...tests],completed:[],current:tests,error:'',started_at:Date.now()};renderDPIDetectorWorkspace();
+    dpiNativeRunning=true;dpiNativeResult=null;dpiNativeStartedAt=Date.now();updateDPINativeState();
+    if(dpiNativeTimer)clearInterval(dpiNativeTimer);
+    dpiNativeTimer=setInterval(updateDPINativeState,1000);
     try{
       const status=await api('/status');if(!status?.config_sha256)throw new Error('active config SHA недоступен');
       const bodyReq={
@@ -5047,11 +5094,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const response=await fetch(base+'/dpi-detector/v5/console',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(bodyReq)});
       const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
       if(!response.ok||!body.ok){const detail=[body.error,body.detail,body.output].filter(Boolean).join(' · ');throw new Error(detail||`HTTP ${response.status}`)}
-      dpiWebResult=body;dpiWebProgress.completed=[...tests];dpiWebProgress.current='';notice('DPI Detector: native report готов','good');
+      dpiNativeResult=body;notice('DPI Detector: native report готов','good');
     }catch(e){
-      const message=String(e.message||e);dpiWebProgress.error=message;dpiWebResult={ok:false,error:message};notice(`DPI Detector: ${message}`,'error');
+      const message=String(e.message||e);dpiNativeResult={ok:false,error:message};notice(`DPI Detector native report: ${message}`,'error');
     }finally{
-      dpiWebRunning=false;dpiWebProgress.current='';renderDPIDetectorWorkspace();
+      if(dpiNativeTimer){clearInterval(dpiNativeTimer);dpiNativeTimer=0}
+      dpiNativeRunning=false;updateDPINativeState();
     }
   }
   document.addEventListener('keydown',e=>{
@@ -5065,6 +5113,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('dpiConsoleFullscreen').onclick=toggleDPIConsoleFullscreen;
   document.addEventListener('fullscreenchange',syncDPIConsoleFullscreen);
   $('dpiWebRun').onclick=runDPIDetectorWeb;
+  $('dpiNativeRun').onclick=runDPINativeReport;
   $('dpiWebLegend').onclick=loadDPILegend;
   $('dpiLegendClose').onclick=()=>{$('dpiLegendPane').style.display='none';reportHeight()};
 
@@ -5079,6 +5128,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('uxTaskBroken').onclick=()=>openOverviewTask('domain-v2','v2DomainTarget');
   $('uxTaskCheck').onclick=()=>openOverviewTask('preflight','');
   $('uxTaskImport').onclick=()=>openOverviewTask('zapret-import','zapretImportInput');
+  const zapretSourceSyntax=mountSyntaxTextarea($('zapretImportInput'),{mode:'config',caption:'Zapret source',resources:false});
+  if(zapretSourceSyntax){const hint=zapretSourceSyntax.shell.querySelector('.syntax-editor-hint');if(hint)hint.textContent='BAT / command syntax · preview only'}
   $('zapretImportRun').onclick=runZapretImport;
   $('zapretImportClear').onclick=clearZapretImport;
   $('zapretImportPick').onclick=()=>$('zapretImportFile').click();

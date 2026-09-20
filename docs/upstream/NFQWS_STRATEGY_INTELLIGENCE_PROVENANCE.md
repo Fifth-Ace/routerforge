@@ -130,3 +130,11 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - A changed environment fingerprint resets trust/streak/rate evidence before recording the new observation, preventing confidence from leaking across production-config/environment changes.
 - Strategy Registry consumes the richer observation counters, so Score Engine V2 receives historical failure/unstable evidence instead of only the latest class.
 - No active nfqws2 config, process or rules are changed.
+
+## NFQWS Intelligence R2-F7 — Strategy Insights
+
+- RouterForge base: `0193f41ba5a989a280c48bfc2ec4ca74b562d518`.
+- Strategy Insights is a deterministic read-only interpretation layer over Strategy Registry + Score Engine V2.
+- States are descriptive evidence states, not automatic decisions: `NOT_READY`, `UNVERIFIED`, `PROVEN`, `PROMISING`, `MIXED`, `DEGRADED`, `WEAK`.
+- Every insight carries a concise summary and machine-readable signals such as score, verification count, target coverage, confidence and failure/unstable counts.
+- Insights do not alter Registry ordering, progressive selection, Strategy Library, Target Memory, Apply gates or production nfqws2.

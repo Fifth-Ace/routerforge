@@ -40,8 +40,13 @@
   import FileManagerPane from './FileManagerPane.svelte';
 
   const FILE_EDITOR_WRITE_LIMIT = 128 * 1024;
+  const adminQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const terminalEmbed = adminQuery.get('embed') === 'terminal';
+  const terminalAutoCommand = terminalEmbed && adminQuery.get('autorun') === 'dpi-detector'
+    ? '/opt/bin/dpi-detector'
+    : '';
 
-  let tab = 'processes';
+  let tab = terminalEmbed || adminQuery.get('view') === 'terminal' ? 'terminal' : 'processes';
   let processes = [];
   let ports = [];
   let services = [];
@@ -821,7 +826,7 @@
 
 <svelte:head><title>RouterForge — {t(locale, 'manage.pageTitle')}</title></svelte:head>
 
-<div class="page admin-page" bind:this={adminPage}>
+<div class="page admin-page" class:terminal-embed={terminalEmbed} bind:this={adminPage}>
   <div class="page-head">
     <div><h1>{t(locale, 'manage.pageTitle')}</h1><p>{t(locale, 'manage.subtitle')}</p></div>
     <span class="state-chip info">CONTROL / DEV</span>
@@ -1139,7 +1144,7 @@
       <FileManagerPane locale={locale} openTarget={fileOpenTarget} />
     {/key}
   {:else if tab === 'terminal'}
-    <TerminalPane locale={locale} />
+    <TerminalPane locale={locale} autoCommand={terminalAutoCommand} />
   {:else if tab === 'maintenance'}
     <section class="maintenance-shell">
       <div class="maintenance-commandbar">
@@ -1533,4 +1538,8 @@
   .nfqws2-list-stack summary{display:flex;justify-content:space-between;gap:8px;cursor:pointer}
   .nfqws2-list-stack pre,.nfqws2-log pre{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}
   @media(max-width:900px){.nfqws2-grid{grid-template-columns:1fr}.nfqws2-head,.nfqws2-section-head{flex-direction:column}}
-</style>
+
+  .admin-page.terminal-embed{padding:0!important;gap:0!important;min-height:0!important}
+  .admin-page.terminal-embed>.page-head,.admin-page.terminal-embed>.admin-safety-banner,.admin-page.terminal-embed>.admin-tabs,.admin-page.terminal-embed>.toolbar,.admin-page.terminal-embed>.ui-action-ok,.admin-page.terminal-embed>.ui-action-error{display:none!important}
+  .admin-page.terminal-embed :global(.terminal-shell){border-radius:0!important;border-left:0!important;border-right:0!important}
+  .admin-page.terminal-embed :global(.terminal-canvas){height:clamp(34rem,78vh,58rem)!important}</style>

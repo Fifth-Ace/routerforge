@@ -920,46 +920,56 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .zapret-syntax-preview{margin:0;min-height:180px;max-height:620px;overflow:auto;padding:11px 12px;border:1px solid var(--border);border-radius:6px;background:var(--code);color:#d7dde4;font:var(--rf-font-control)/1.5 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;white-space:pre;tab-size:2}
 
 
-/* M4E: every numbered DPI result uses one width; native report enriches the visual blocks. */
+/* M4F: single-run rich Visual Web; max two fixed-size result columns on wide screens. */
+#dpiWebResults{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,700px))!important;
+  gap:10px!important;
+  align-items:start!important;
+  justify-content:start!important;
+  max-width:1420px!important;
+}
 #dpiWebResults>.dpi-result-section.dpi-result-uniform{
-  flex:1 1 640px!important;
   width:100%!important;
   max-width:700px!important;
-  align-self:flex-start!important;
+  min-width:0!important;
+  align-self:start!important;
 }
-#dpiWebResults>.dpi-result-section.dpi-result-uniform .dpi-table-scroll{
-  width:100%;
-  max-width:100%;
-  overflow:auto;
+#dpiWebResults>.dpi-result-summary,
+#dpiWebResults>.dpi-rich-wide,
+#dpiWebResults>.dpi-technical{
+  grid-column:1/-1!important;
+  width:100%!important;
+  max-width:1420px!important;
 }
-#dpiWebResults>.dpi-result-section.dpi-result-uniform table{
-  min-width:620px;
+#dpiWebResults>.dpi-result-section .dpi-table-scroll,
+#dpiWebResults>.dpi-rich-wide .dpi-table-scroll{width:100%;max-width:100%;overflow:auto}
+#dpiWebResults>.dpi-result-section table{min-width:620px}
+.dpi-rich-lines{display:grid;gap:4px;padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)}
+.dpi-rich-line{min-width:0;color:var(--text);font:600 9px/1.4 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere}
+.dpi-rich-line.good{color:#16e33e}.dpi-rich-line.bad{color:#ff4050}.dpi-rich-line.warn{color:#e6c51e}
+.dpi-rich-kv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)}
+.dpi-rich-kv{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,1.3fr);gap:8px;align-items:start;padding:5px 7px;border:1px solid var(--border);border-radius:5px;background:var(--surface)}
+.dpi-rich-kv>span{color:var(--muted);font-size:8px;text-transform:none}.dpi-rich-kv>strong{min-width:0;color:var(--text);font:600 9px/1.35 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere}
+.dpi-rich-kv.good>strong{color:#16e33e}.dpi-rich-kv.bad>strong{color:#ff4050}.dpi-rich-kv.warn>strong{color:#e6c51e}
+.dpi-rich-kv-line{margin-bottom:4px}
+.dpi-rich-table-scroll{margin-top:7px;margin-bottom:7px;max-height:430px}
+.dpi-rich-table-scroll table{width:100%;min-width:620px;border-collapse:collapse}
+.dpi-rich-table-scroll th,.dpi-rich-table-scroll td{font-family:ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;font-size:8.5px;vertical-align:top}
+.dpi-rich-table-scroll tr.good td{color:#16e33e}.dpi-rich-table-scroll tr.bad td{color:#ff4050}.dpi-rich-table-scroll tr.warn td{color:#e6c51e}
+.dpi-run-progress.single-run .dpi-run-progress-track span{animation:dpiNativeSweep 1.35s ease-in-out infinite alternate}
+@media(max-width:1500px){
+  #dpiWebResults{grid-template-columns:repeat(2,minmax(0,1fr))!important;max-width:1420px!important}
 }
-.dpi-native-enrich{margin-top:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)}
-.dpi-native-enrich.idle,.dpi-native-enrich.pending{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px}
-.dpi-native-enrich.idle strong,.dpi-native-enrich.pending strong{font-size:9px;color:var(--text)}
-.dpi-native-enrich.idle span,.dpi-native-enrich.pending span{font-size:8.5px;color:var(--muted);text-align:right}
-.dpi-native-enrich.pending{border-color:color-mix(in srgb,var(--accent) 38%,var(--border))}
-.dpi-native-enrich.pending strong{color:var(--accent)}
-.dpi-native-enrich.ready>summary{padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}
-.dpi-native-enrich.ready>summary span:first-child{display:grid;gap:2px}
-.dpi-native-enrich.ready>summary strong{font-size:9px;color:var(--text)}
-.dpi-native-enrich.ready>summary small{font-size:8px;color:var(--muted)}
-.dpi-native-adapted{
-  max-height:430px;
-  overflow:auto;
-  padding:9px 11px;
-  border-top:1px solid var(--border);
-  background:color-mix(in srgb,var(--surface) 72%,#050607);
-  color:var(--text);
-  font:600 9px/1.42 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;
-  white-space:pre;
-  tab-size:4;
+@media(max-width:1080px){
+  #dpiWebResults{grid-template-columns:minmax(0,700px)!important;max-width:700px!important}
+  #dpiWebResults>.dpi-result-summary,#dpiWebResults>.dpi-rich-wide,#dpiWebResults>.dpi-technical{grid-column:1!important;max-width:700px!important}
 }
-.dpi-native-adapted .dpi-console-line{min-height:13px}
 @media(max-width:760px){
-  #dpiWebResults>.dpi-result-section.dpi-result-uniform{max-width:none!important;flex-basis:100%!important}
-  #dpiWebResults>.dpi-result-section.dpi-result-uniform table{min-width:560px}
+  #dpiWebResults{grid-template-columns:minmax(0,1fr)!important;max-width:none!important}
+  #dpiWebResults>.dpi-result-section.dpi-result-uniform{max-width:none!important}
+  #dpiWebResults>.dpi-result-section table{min-width:560px}
+  .dpi-rich-kv-grid{grid-template-columns:1fr}
 }
 
 </style>
@@ -1146,14 +1156,14 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
       <article class="panel dpi-run-panel" style="margin-top:12px">
         <div class="panel-head">
-          <div><h2>Запуск</h2><div class="section-kicker">Visual Web идёт по JSON test-by-test и заполняет RouterForge-блоки по мере готовности; Native report запускается отдельно как полный upstream-отчёт</div></div>
-          <div class="toolbar"><button id="dpiWebRun" class="primary">Запустить визуальные тесты</button><button id="dpiNativeRun">Native report</button></div>
+          <div><h2>Запуск</h2><div class="section-kicker">Один полный upstream run → RouterForge разбирает тот же native report в красивый Web. Повторного теста для детализации нет.</div></div>
+          <div class="toolbar"><button id="dpiWebRun" class="primary">Запустить тест</button><button id="dpiNativeRun">Показать Native report</button></div>
         </div>
         <div class="v2-boundary">nfqws2, VPN и proxy автоматически не отключаются. Результат описывает текущий router path и не объявляется raw ISP truth.</div>
         <div id="dpiRunProgress" class="dpi-run-progress" style="display:none"></div>
       </article>
 
-      <div id="dpiWebResults" style="margin-top:12px"><article class="panel"><div class="analysis-empty">Визуальные тесты ещё не запускались.</div></article></div>
+      <div id="dpiWebResults" style="margin-top:12px"><article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article></div>
       <div id="dpiNativeResults" style="display:none;margin-top:12px"></div>
 
       <article id="dpiLegendPane" class="panel" style="display:none;margin-top:12px">
@@ -3768,41 +3778,116 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     for(let i=Math.max(0,start);i<lines.length;i++)if(patterns.some(re=>re.test(lines[i])))return i;
     return -1;
   }
-  function dpiNativeSection(test){
-    const report=String(dpiNativeResult?.console_report||'').replace(/\r\n?/g,'\n');
-    if(!report)return'';
-    const lines=report.split('\n');
+  function dpiNativeMarkers(report){
+    const lines=String(report||'').replace(/\r\n?/g,'\n').split('\n');
     const markers=[];
-    markers[0]=0;
+    markers[0]=dpiNativeMarkerIndex(lines,[/Информация о сети и системе/i,/Network\s*&?\s*system information/i,/Network information/i],0);
     markers[1]=dpiNativeMarkerIndex(lines,[/Проверка доступности DNS-серверов/i,/DNS server availability/i,/DNS availability/i],0);
-    markers[2]=dpiNativeMarkerIndex(lines,[/Проверка доступности доменов/i,/Результаты проверки доменов/i,/Website availability/i,/Domain availability/i],Math.max(0,markers[1]+1));
-    markers[3]=dpiNativeMarkerIndex(lines,[/Проверка TCP\s*16/i,/TCP\s*16.?20/i,/CDN.*hosting availability/i],Math.max(0,markers[2]+1));
-    markers[4]=dpiNativeMarkerIndex(lines,[/Поиск белых SNI/i,/Whitelist SNI/i,/white.?SNI/i],Math.max(0,markers[3]+1));
-    markers[5]=dpiNativeMarkerIndex(lines,[/Проверка доступности Telegram/i,/Telegram availability/i,/Telegram reachability/i],Math.max(0,markers[4]+1));
-    markers[6]=dpiNativeMarkerIndex(lines,[/^\s*Fingerprint(?:\/|[\s|:]|$)/i,/Сибирская блокировка/i,/Fingerprint burst/i],Math.max(0,markers[5]+1));
-    const summary=dpiNativeMarkerIndex(lines,[/^\s*Итог\b/i,/^\s*Summary\b/i],Math.max(0,markers[6]+1));
-    const start=markers[test];
-    if(start==null||start<0)return'';
-    let end=lines.length;
-    for(let i=test+1;i<=6;i++){if(markers[i]>=0){end=markers[i];break}}
-    if(test===6&&summary>=0)end=summary;
-    return lines.slice(start,end).join('\n').trim();
+    markers[2]=dpiNativeMarkerIndex(lines,[/Проверка доступности доменов/i,/Результаты проверки доменов/i,/Website availability/i,/Domain availability/i],0);
+    markers[3]=dpiNativeMarkerIndex(lines,[/Проверка TCP\s*16/i,/TCP\s*16.?20/i,/CDN.*hosting availability/i],0);
+    markers[4]=dpiNativeMarkerIndex(lines,[/Поиск белых SNI/i,/Whitelist SNI/i,/white.?SNI/i],0);
+    markers[5]=dpiNativeMarkerIndex(lines,[/Проверка доступности Telegram/i,/Telegram availability/i,/Telegram reachability/i],0);
+    markers[6]=dpiNativeMarkerIndex(lines,[/^\s*Fingerprint(?:\/|[\s|:]|$)/i,/Сибирская блокировка/i,/Fingerprint burst/i],0);
+    const summary=dpiNativeMarkerIndex(lines,[/^\s*Итог\b/i,/^\s*Summary\b/i],0);
+    return{lines,markers,summary};
   }
-  function dpiNativeDetail(test){
-    if(dpiNativeRunning){
-      return `<div class="dpi-native-enrich pending"><strong>Полная детализация</strong><span>Собираем upstream Native report · ${dpiNativeElapsed()} s</span></div>`;
+  function dpiNativeSectionFrom(report,test){
+    const parsed=dpiNativeMarkers(report),start=parsed.markers[test];
+    if(start==null||start<0)return'';
+    let end=parsed.lines.length;
+    for(const pos of [...parsed.markers,parsed.summary].filter(x=>Number.isInteger(x)&&x>start))end=Math.min(end,pos);
+    return parsed.lines.slice(start,end).join('\n').trim();
+  }
+  function dpiNativePreamble(report){
+    const parsed=dpiNativeMarkers(report),starts=parsed.markers.filter(x=>x>=0);
+    const end=starts.length?Math.min(...starts):parsed.lines.length;
+    return parsed.lines.slice(0,end).join('\n').trim();
+  }
+  function dpiNativeSummary(report){
+    const parsed=dpiNativeMarkers(report);
+    if(parsed.summary<0)return'';
+    return parsed.lines.slice(parsed.summary).join('\n').trim();
+  }
+  function dpiRichTokenHTML(text){return dpiParityTokens(String(text||''))}
+  function dpiRichRowKind(text){
+    const value=String(text||'');
+    if(/BLOCKED|DETECTED|TIMEOUT|TLS\s*(?:DROP|RST|EOF|ALERT)|SYN\s*DROP|TCP\s*RST|REFUSED|недоступен|заблокирован|перехватывает/i.test(value))return'bad';
+    if(/Частично|WARNING|ВНИМАНИЕ|SLOW|STALL|MIXED|частич/i.test(value))return'warn';
+    if(/\bOK\b|AVAILABLE|reachable|доступен|Найдено белых SNI/i.test(value))return'good';
+    return'';
+  }
+  function dpiRichTableHTML(tableLines){
+    const rows=tableLines.filter(line=>line.includes('│')).map(line=>{
+      let cells=line.split('│');
+      if(cells.length&&cells[0].trim()==='')cells=cells.slice(1);
+      if(cells.length&&cells[cells.length-1].trim()==='')cells=cells.slice(0,-1);
+      return cells.map(cell=>cell.trim());
+    }).filter(row=>row.length&&row.some(Boolean));
+    if(!rows.length)return'';
+    const oneCol=rows.every(row=>row.length===1);
+    if(oneCol){
+      const cards=rows.map(row=>{
+        const text=row[0],m=/^([^:]{1,34}):\s*(.*)$/.exec(text);
+        if(m)return `<div class="dpi-rich-kv"><span>${dpiRichTokenHTML(m[1])}</span><strong>${dpiRichTokenHTML(m[2]||'—')}</strong></div>`;
+        return `<div class="dpi-rich-line ${dpiRichRowKind(text)}">${dpiRichTokenHTML(text)}</div>`;
+      }).join('');
+      return `<div class="dpi-rich-kv-grid">${cards}</div>`;
     }
-    const excerpt=dpiNativeSection(test);
-    if(!excerpt){
-      return `<div class="dpi-native-enrich idle"><strong>Полная детализация</strong><span>После Visual Web RouterForge автоматически добавит сюда данные, которые upstream JSON не отдаёт.</span></div>`;
+    const headerText=rows[0].join(' ');
+    const headerLike=/Провайдер|Provider|Домен|Domain|DC|IP|Fingerprint|Профиль|Profile|ID|ASN|Статус|Status|HTTP|TLS|DoH|DoT|UDP|Регион|Region|Пинг|Ping|Детал/i.test(headerText);
+    const head=headerLike?rows.shift():null;
+    const width=Math.max(...rows.concat(head?[head]:[]).map(row=>row.length));
+    const headHTML=head?`<thead><tr>${Array.from({length:width},(_,i)=>`<th>${dpiRichTokenHTML(head[i]||'')}</th>`).join('')}</tr></thead>`:'';
+    const body=rows.map(row=>`<tr class="${dpiRichRowKind(row.join(' '))}">${Array.from({length:width},(_,i)=>`<td>${dpiRichTokenHTML(row[i]||'')}</td>`).join('')}</tr>`).join('');
+    return `<div class="table-scroll dpi-table-scroll dpi-rich-table-scroll"><table>${headHTML}<tbody>${body}</tbody></table></div>`;
+  }
+  function dpiRichTextHTML(lines){
+    return lines.filter(line=>line.trim()).map(line=>{
+      const text=line.trim(),kind=dpiRichRowKind(text);
+      const m=/^([^:]{2,36}):\s+(.+)$/.exec(text);
+      if(m)return `<div class="dpi-rich-kv dpi-rich-kv-line ${kind}"><span>${dpiRichTokenHTML(m[1])}</span><strong>${dpiRichTokenHTML(m[2])}</strong></div>`;
+      return `<div class="dpi-rich-line ${kind}">${dpiRichTokenHTML(text)}</div>`;
+    }).join('');
+  }
+  function dpiRichSectionBody(section){
+    const lines=String(section||'').replace(/\r\n?/g,'\n').split('\n');
+    let html='',plain=[],table=[];
+    const flushPlain=()=>{if(plain.length){html+=`<div class="dpi-rich-lines">${dpiRichTextHTML(plain)}</div>`;plain=[]}};
+    const flushTable=()=>{if(table.length){html+=dpiRichTableHTML(table);table=[]}};
+    const tableLine=line=>/[│┌┐└┘├┤┬┴┼═─]/.test(line);
+    for(const line of lines){
+      if(tableLine(line)){
+        flushPlain();table.push(line);
+        if(/[└┘╰╯]/.test(line)){flushTable()}
+      }else{
+        flushTable();plain.push(line);
+      }
     }
-    const expanded=[0,1,4,5].includes(Number(test))?' open':'';
-    return `<details class="dpi-native-enrich ready"${expanded}><summary><span><strong>Полная детализация upstream</strong><small>адаптировано из native report</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-native-adapted">${dpiParityReportHTML(excerpt)}</div></details>`;
+    flushTable();flushPlain();
+    return html||'<div class="analysis-empty">Upstream section empty.</div>';
   }
   function dpiResultSection(title,kicker,body,layout='wide'){
-    const match=String(title||'').match(/^([0-6])\s*·/);
-    const detail=match?dpiNativeDetail(Number(match[1])):'';
-    return `<details class="panel dpi-result-section dpi-result-uniform" open><summary><span><strong>${esc(title)}</strong><small>${esc(kicker||'')}</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${body}${detail}</div></details>`;
+    return `<details class="panel dpi-result-section dpi-result-uniform" open><summary><span><strong>${esc(title)}</strong><small>${esc(kicker||'')}</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${body}</div></details>`;
+  }
+  function dpiRenderRichNative(envelope){
+    const report=String(envelope?.console_report||'');
+    if(!report)return'';
+    const selected=[...String(envelope.tests||selectedDPITests())].filter(x=>/[0-6]/.test(x));
+    const version=dpiDetectorSnapshot?.version||'5.x';
+    const profile=String($('dpiWebProfile')?.value||'—');
+    const fp=String($('dpiWebFingerprint')?.value||'upstream/config default');
+    let html=`<article class="panel dpi-result-summary"><div class="v2-stats"><div><span>Upstream</span><strong>${esc(version)}</strong></div><div><span>Source</span><strong>single native run</strong></div><div><span>Profile</span><strong>${esc(profile)}</strong></div><div><span>Fingerprint</span><strong>${esc(fp)}</strong></div><div><span>Duration</span><strong>${esc(envelope.duration_ms??0)} ms</strong></div></div>${envelope.environment_warning?`<div class="v2-boundary">${esc(envelope.environment_warning)}</div>`:''}</article>`;
+    const preamble=dpiNativePreamble(report);
+    if(preamble)html+=`<details class="panel dpi-rich-wide" open><summary><span><strong>Runtime / environment</strong><small>upstream preamble</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${dpiRichSectionBody(preamble)}</div></details>`;
+    for(const test of selected){
+      const section=dpiNativeSectionFrom(report,Number(test));
+      const name=dpiTestNames[test]||`Test ${test}`;
+      html+=dpiResultSection(`${test} · ${name}`,'single-run · full upstream detail',section?dpiRichSectionBody(section):'<div class="analysis-empty">Секция не найдена в upstream report.</div>');
+    }
+    const summary=dpiNativeSummary(report);
+    if(summary)html+=`<details class="panel dpi-rich-wide" open><summary><span><strong>Итог</strong><small>upstream summary</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${dpiRichSectionBody(summary)}</div></details>`;
+    html+=`<details class="panel dpi-technical"><summary>Технические детали · run envelope</summary><pre class="v2-args" style="margin-top:10px">${esc(JSON.stringify({...envelope,console_report:`<${report.length} chars>`},null,2))}</pre></details>`;
+    return html;
   }
   function dpiMetric(label,value,kind='info'){return `<div class="card"><div class="metric-label">${esc(label)}</div><div class="metric-value ${kind==='good'?'good-text':kind==='bad'?'bad-text':kind==='warn'?'warn-text':''}">${esc(value??'—')}</div></div>`}
   function dpiRatioKind(ok,total){ok=Number(ok||0);total=Number(total||0);if(total<=0)return'info';if(ok===total)return'good';if(ok===0)return'bad';return'warn'}
@@ -3848,14 +3933,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const box=$('dpiRunProgress');if(!box)return;
     const p=dpiWebProgress;
     if(!p){box.style.display='none';box.innerHTML='';return}
-    const total=p.tests.length,done=p.completed.length,pct=total?Math.round(done*100/total):0;
-    const current=p.current?`${p.current} · ${dpiTestNames[p.current]||'test'}`:'';
-    const failed=String(p.error||'');
-    const title=failed?'Проверка остановлена':dpiWebRunning?'Идёт проверка — подождите':'Проверка завершена';
-    const detail=failed?failed:dpiWebRunning?(current?`Сейчас выполняется: ${current}`:'Подготовка запуска…'):`Готово: ${done} из ${total}`;
-    box.className=`dpi-run-progress ${failed?'bad':dpiWebRunning?'running':'good'}`;
+    const failed=String(p.error||''),elapsed=Math.max(0,Math.floor((Date.now()-Number(p.started_at||Date.now()))/1000));
+    const title=failed?'Проверка остановлена':dpiWebRunning?'Идёт один полный upstream run':'Проверка завершена';
+    const detail=failed?failed:dpiWebRunning?`Выбраны тесты ${p.tests.join('')} · elapsed ${elapsed} s · повторного native-прогона не будет`:`Готово за ${elapsed} s · тот же report используется для Visual Web и Native view`;
+    box.className=`dpi-run-progress ${failed?'bad':dpiWebRunning?'running single-run':'good'}`;
     box.style.display='grid';
-    box.innerHTML=`<div class="dpi-run-progress-head"><strong>${esc(title)}</strong><span>${done}/${total}</span></div><div class="dpi-run-progress-detail">${esc(detail)}</div><div class="dpi-run-progress-track"><span style="width:${pct}%"></span></div>`;
+    box.innerHTML=`<div class="dpi-run-progress-head"><strong>${esc(title)}</strong><span>${dpiWebRunning?`${elapsed}s`:'DONE'}</span></div><div class="dpi-run-progress-detail">${esc(detail)}</div><div class="dpi-run-progress-track"><span style="width:${dpiWebRunning?'36':'100'}%"></span></div>`;
   }
   function syncDPIConsoleFullscreen(){
     const button=$('dpiConsoleFullscreen'),pane=$('dpiConsolePane');if(!button||!pane)return;
@@ -3963,25 +4046,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function renderDPIDetectorV5Result(envelope){
     const root=$('dpiWebResults');if(!root)return;
     if(!envelope){root.innerHTML=dpiWebRunning?'':'<article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article>';return}
-    const report=envelope.report||{},results=report.results||{};
-    if(!report.version&&dpiWebRunning&&!envelope.partial_error){root.innerHTML='';return}
-    let html='';
-    if(report.version){
-      html+=`<article class="panel dpi-result-summary"><div class="v2-stats"><div><span>Upstream</span><strong>${esc(report.version||'—')}</strong></div><div><span>Schema</span><strong>${esc(report.schema_version??'—')}</strong></div><div><span>Profile</span><strong>${esc(report.profile||'—')}</strong></div><div><span>Fingerprint</span><strong>${esc(report.tls_fingerprint||'—')}</strong></div><div><span>Duration</span><strong>${esc(envelope.duration_ms??0)} ms</strong></div></div>${envelope.environment_warning?`<div class="v2-boundary">${esc(envelope.environment_warning)}</div>`:''}</article>`;
-    }
-    html+=dpiRenderNetwork(results.network_info);
-    html+=dpiRenderDNS(results.dns_availability);
-    html+=dpiRenderDomains(results.domain_inspection);
-    html+=dpiRenderTCP16(results.tcp16);
-    html+=dpiRenderWhitelist(results.whitelist_sni);
-    html+=dpiRenderTelegram(results.telegram);
-    html+=dpiRenderBurst(results.fingerprint_burst);
-    if(envelope.trace)html+=dpiResultSection('Trace','upstream test 6 trace',`<pre class="v2-args">${esc(envelope.trace)}</pre>`);
-    if(envelope.stderr)html+=dpiResultSection('stderr','upstream diagnostics',`<pre class="v2-args">${esc(envelope.stderr)}</pre>`);
-    if(envelope.partial_error)html+=dpiResultSection('Ошибка','часть уже готовых результатов сохранена',`<div class="notice error">${esc(envelope.partial_error)}</div>`);
-    if(envelope.ok===false&&!report.version&&!html)html=dpiResultSection('Ошибка','DPI Detector v5',`<div class="notice error">${esc(envelope.error||'run failed')}</div>`);
-    html+=`<details class="panel dpi-technical"><summary>Технические детали · raw JSON</summary><pre class="v2-args" style="margin-top:10px">${esc(JSON.stringify(envelope,null,2))}</pre></details>`;
-    root.innerHTML=html;
+    if(envelope.console_report){root.innerHTML=dpiRenderRichNative(envelope);return}
+    if(envelope.ok===false){root.innerHTML=dpiResultSection('Ошибка','DPI Detector v5',`<div class="notice error">${esc(envelope.error||'run failed')}</div>`);return}
+    root.innerHTML='<article class="panel"><div class="analysis-empty">Полный upstream report не получен.</div></article>';
   }
 
   function selectedDPITests(){let out='';for(let i=0;i<=6;i++)if($(`dpiTest${i}`)?.checked)out+=String(i);return out}
@@ -4005,9 +4072,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       `<span class="dpi-runtime-pill mono">${esc(d.path||'unknown')} · ${esc(keeneticBytes(d.size_bytes||0))}</span>`
     ].join(''):'<span class="dpi-runtime-pill warn">DPI Detector v5 не установлен</span>';
     $('dpiWebRun').disabled=dpiWebRunning||!d?.installed||!d?.execution_ready;
-    const done=dpiWebProgress?.completed?.length||0,total=dpiWebProgress?.tests?.length||0;
-    $('dpiWebRun').textContent=dpiWebRunning?`Проверка ${done}/${total}…`:'Запустить выбранные тесты';
-    $('dpiWebState').textContent=dpiWebRunning?`RUNNING ${done}/${total}`:dpiWebProgress?.error?'FAIL':dpiWebResult?'DONE':'IDLE';
+    const elapsed=dpiWebProgress?.started_at?Math.max(0,Math.floor((Date.now()-dpiWebProgress.started_at)/1000)):0;
+    $('dpiWebRun').textContent=dpiWebRunning?`Проверка · ${elapsed}s…`:'Запустить тест';
+    $('dpiWebState').textContent=dpiWebRunning?`RUNNING ${elapsed}s`:dpiWebProgress?.error?'FAIL':dpiWebResult?'DONE':'IDLE';
     $('dpiWebState').className='config-badge '+(!dpiWebRunning&&dpiWebResult&&!dpiWebProgress?.error?'active':'');
     dpiRenderProgress();
     renderDPIDetectorV5Result(dpiWebResult);
@@ -4019,46 +4086,31 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   async function runDPIDetectorWeb(){
     if(dpiWebRunning)return;
     const selected=[...selectedDPITests()];if(!selected.length){notice('DPI Detector: выберите хотя бы один тест.','error');return}
-    dpiWebRunning=true;dpiWebResult={ok:true,tests:selected.join(''),duration_ms:0,report:{results:{}},test_runs:[],production_config_unchanged:true};
-    dpiWebProgress={tests:selected,completed:[],current:'',error:'',started_at:Date.now()};
+    dpiWebRunning=true;dpiWebResult=null;dpiNativeResult=null;dpiNativeStartedAt=Date.now();
+    dpiWebProgress={tests:selected,completed:[],current:'',error:'',started_at:Date.now(),single_run:true};
     renderDPIDetectorWorkspace();
+    if(dpiNativeTimer)clearInterval(dpiNativeTimer);
+    dpiNativeTimer=setInterval(()=>renderDPIDetectorWorkspace(),1000);
     try{
       const status=await api('/status');if(!status?.config_sha256)throw new Error('active config SHA недоступен');
-      const common={
-        domains:dpiDomainList(),domains_file:String($('dpiWebDomainsFile').value||'').trim(),tcp16_file:String($('dpiWebTCP16File').value||'').trim(),
+      const bodyReq={
+        tests:selected.join(''),domains:dpiDomainList(),domains_file:String($('dpiWebDomainsFile').value||'').trim(),tcp16_file:String($('dpiWebTCP16File').value||'').trim(),
         concurrency:Number($('dpiWebConcurrency').value||20),language:String($('dpiWebLanguage').value||'ru'),profile:String($('dpiWebProfile').value||'ru'),
         interface:String($('dpiWebInterface').value||'').trim(),proxy:String($('dpiWebProxy').value||'').trim(),fingerprint:String($('dpiWebFingerprint').value||'').trim(),
         burst:Number($('dpiWebBurst').value||5),burst_timeout:Number($('dpiWebBurstTimeout').value||8),burst_profiles:String($('dpiWebBurstProfiles').value||'').trim(),
-        burst_tls:String($('dpiWebBurstTLS').value||'1.3+1.2'),burst_alpn:String($('dpiWebBurstALPN').value||'h2'),trace:!!$('dpiWebTrace').checked,
+        burst_tls:String($('dpiWebBurstTLS').value||'1.3+1.2'),burst_alpn:String($('dpiWebBurstALPN').value||'h2'),trace:false,
         expected_config_sha256:String(status.config_sha256),confirm:'ROUTERFORGE_DPI_DETECTOR_V5_RUN'
       };
-      for(const test of selected){
-        dpiWebProgress.current=test;renderDPIDetectorWorkspace();
-        const response=await fetch(base+'/dpi-detector/v5/run',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({...common,tests:test})});
-        const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
-        dpiWebResult.test_runs.push({test,http_status:response.status,ok:!!body.ok,duration_ms:Number(body.duration_ms||0)});
-        if(!response.ok||!body.ok){
-          const message=body.error||`HTTP ${response.status}`;dpiWebResult.ok=false;dpiWebResult.partial_error=`Test ${test}: ${message}`;dpiWebProgress.error=dpiWebResult.partial_error;break;
-        }
-        const report=body.report||{},bucket=dpiWebResult.report.results;
-        for(const [key,value] of Object.entries(report))if(key!=='results')dpiWebResult.report[key]=value;
-        Object.assign(bucket,report.results||{});
-        dpiWebResult.duration_ms+=Number(body.duration_ms||0);
-        dpiWebResult.environment_warning=body.environment_warning||dpiWebResult.environment_warning||'';
-        dpiWebResult.production_config_sha256=body.production_config_sha256||dpiWebResult.production_config_sha256||'';
-        dpiWebResult.production_config_unchanged=dpiWebResult.production_config_unchanged&&body.production_config_unchanged!==false;
-        if(body.trace)dpiWebResult.trace=[dpiWebResult.trace,body.trace].filter(Boolean).join('\n');
-        if(body.stderr)dpiWebResult.stderr=[dpiWebResult.stderr,body.stderr].filter(Boolean).join('\n');
-        dpiWebProgress.completed.push(test);dpiWebProgress.current='';renderDPIDetectorWorkspace();
-      }
-      if(dpiWebProgress.error)notice(`DPI Detector: ${dpiWebProgress.error}`,'error');
-      else notice('DPI Detector v5: все выбранные тесты завершены','good');
+      const response=await fetch(base+'/dpi-detector/v5/console',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(bodyReq)});
+      const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
+      if(!response.ok||!body.ok){const detail=[body.error,body.detail,body.output].filter(Boolean).join(' · ');throw new Error(detail||`HTTP ${response.status}`)}
+      dpiWebResult=body;dpiNativeResult=body;dpiWebProgress.completed=[...selected];
+      notice('DPI Detector: single-run Visual Web готов','good');
     }catch(e){
-      const message=String(e.message||e);dpiWebResult.ok=false;dpiWebProgress.error=message;dpiWebResult.partial_error=message;notice(`DPI Detector: ${message}`,'error');
+      const message=String(e.message||e);dpiWebProgress.error=message;dpiWebResult={ok:false,error:message};notice(`DPI Detector: ${message}`,'error');
     }finally{
-      const enrich=!dpiWebProgress.error&&selected.length>0;
-      dpiWebRunning=false;dpiWebProgress.current='';renderDPIDetectorWorkspace();
-      if(enrich&&!dpiNativeRunning)setTimeout(()=>{void runDPINativeReport(true)},0);
+      if(dpiNativeTimer){clearInterval(dpiNativeTimer);dpiNativeTimer=0}
+      dpiWebRunning=false;renderDPIDetectorWorkspace();
     }
   }
   async function loadDPILegend(){
@@ -5138,54 +5190,21 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function renderDPINativeReport(envelope){
     const root=$('dpiNativeResults');if(!root)return;
     if(!dpiNativeVisible){root.style.display='none';root.innerHTML='';return}
-    if(dpiNativeRunning){
-      root.style.display='block';
-      root.innerHTML=`<article class="panel dpi-native-running"><div class="dpi-native-running-head"><strong>Native report выполняется</strong><span>${dpiNativeElapsed()} s</span></div><div class="section-kicker">Это один полный upstream run. В отличие от Visual Web он не обещает фальшивый progress по отдельным тестам — ждём завершения binary.</div><div class="dpi-native-running-track"><span></span></div></article>`;
-      return;
-    }
-    if(!envelope){root.style.display='none';root.innerHTML='';return}
+    if(!envelope?.console_report){root.style.display='block';root.innerHTML='<article class="panel"><div class="analysis-empty">Сначала выполните тест. Native view использует тот же самый run.</div></article>';return}
     root.style.display='block';
-    if(envelope.console_report){
-      root.innerHTML=`<article class="panel dpi-console-report-shell"><div class="dpi-console-report-head"><strong>DPI Detector · native report</strong><span>${esc(envelope.tests||'—')} · ${esc(envelope.duration_ms||0)} ms · ${esc(envelope.report_bytes||0)} bytes${envelope.report_cut?' · CUT':''}</span></div><div class="dpi-console-report">${dpiParityReportHTML(envelope.console_report)}</div><div class="dpi-console-report-meta">${esc(envelope.environment_warning||'')} · config ${esc(envelope.production_config_unchanged?'UNCHANGED':'CHECK')}</div></article>`;
-      return;
-    }
-    root.innerHTML=dpiResultSection('Ошибка','native report',`<div class="notice error">${esc(envelope.error||'native report unavailable')}</div>`);
+    root.innerHTML=`<article class="panel dpi-console-report-shell"><div class="dpi-console-report-head"><strong>DPI Detector · native report · same run</strong><span>${esc(envelope.tests||'—')} · ${esc(envelope.duration_ms||0)} ms · ${esc(envelope.report_bytes||0)} bytes${envelope.report_cut?' · CUT':''}</span></div><div class="dpi-console-report">${dpiParityReportHTML(envelope.console_report)}</div><div class="dpi-console-report-meta">${esc(envelope.environment_warning||'')} · config ${esc(envelope.production_config_unchanged?'UNCHANGED':'CHECK')}</div></article>`;
   }
   function updateDPINativeState(){
-    const button=$('dpiNativeRun');
-    if(button){
-      const ready=!!dpiDetectorSnapshot?.installed&&!!dpiDetectorSnapshot?.execution_ready;
-      button.disabled=dpiNativeRunning||dpiWebRunning||!ready;
-      button.textContent=dpiNativeRunning?`Native report · ${dpiNativeElapsed()} s`:'Native report';
-    }
+    const button=$('dpiNativeRun');if(!button)return;
+    const ready=!!dpiDetectorSnapshot?.installed&&!!dpiDetectorSnapshot?.execution_ready;
+    button.disabled=dpiWebRunning||!ready;
+    button.textContent=dpiNativeVisible?'Скрыть Native report':'Показать Native report';
     renderDPINativeReport(dpiNativeResult);
   }
-  async function runDPINativeReport(auto=false){
-    if(dpiNativeRunning)return;
-    const tests=selectedDPITests();if(!tests){if(!auto)notice('DPI Detector: выберите хотя бы один тест.','error');return}
-    dpiNativeVisible=!auto;dpiNativeRunning=true;dpiNativeResult=null;dpiNativeStartedAt=Date.now();updateDPINativeState();renderDPIDetectorV5Result(dpiWebResult);
-    if(dpiNativeTimer)clearInterval(dpiNativeTimer);
-    dpiNativeTimer=setInterval(()=>{updateDPINativeState();renderDPIDetectorV5Result(dpiWebResult)},1000);
-    try{
-      const status=await api('/status');if(!status?.config_sha256)throw new Error('active config SHA недоступен');
-      const bodyReq={
-        tests,domains:dpiDomainList(),domains_file:String($('dpiWebDomainsFile').value||'').trim(),tcp16_file:String($('dpiWebTCP16File').value||'').trim(),
-        concurrency:Number($('dpiWebConcurrency').value||20),language:String($('dpiWebLanguage').value||'ru'),profile:String($('dpiWebProfile').value||'ru'),
-        interface:String($('dpiWebInterface').value||'').trim(),proxy:String($('dpiWebProxy').value||'').trim(),fingerprint:String($('dpiWebFingerprint').value||'').trim(),
-        burst:Number($('dpiWebBurst').value||5),burst_timeout:Number($('dpiWebBurstTimeout').value||8),burst_profiles:String($('dpiWebBurstProfiles').value||'').trim(),
-        burst_tls:String($('dpiWebBurstTLS').value||'1.3+1.2'),burst_alpn:String($('dpiWebBurstALPN').value||'h2'),trace:false,
-        expected_config_sha256:String(status.config_sha256),confirm:'ROUTERFORGE_DPI_DETECTOR_V5_RUN'
-      };
-      const response=await fetch(base+'/dpi-detector/v5/console',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(bodyReq)});
-      const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
-      if(!response.ok||!body.ok){const detail=[body.error,body.detail,body.output].filter(Boolean).join(' · ');throw new Error(detail||`HTTP ${response.status}`)}
-      dpiNativeResult=body;if(!auto)notice('DPI Detector: native report готов','good');
-    }catch(e){
-      const message=String(e.message||e);dpiNativeResult={ok:false,error:message};if(!auto)notice(`DPI Detector native report: ${message}`,'error');
-    }finally{
-      if(dpiNativeTimer){clearInterval(dpiNativeTimer);dpiNativeTimer=0}
-      dpiNativeRunning=false;updateDPINativeState();renderDPIDetectorV5Result(dpiWebResult);
-    }
+  async function runDPINativeReport(){
+    dpiNativeVisible=!dpiNativeVisible;
+    updateDPINativeState();
+    if(dpiNativeVisible&&!dpiNativeResult?.console_report&&!dpiWebRunning)await runDPIDetectorWeb();
   }
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'&&$('dpiConsolePane')?.classList.contains('dpi-console-overlay'))toggleDPIConsoleFullscreen();

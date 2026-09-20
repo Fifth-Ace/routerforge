@@ -223,8 +223,8 @@ func TestD1ClassifyDetectorRunStartError(t *testing.T) {
 	if kind != "exec_start_failed" {
 		t.Fatalf("kind=%q", kind)
 	}
-	if !strings.Contains(detail, "no such file") {
-		t.Fatalf("detail=%q", detail)
+	if detail != os.ErrNotExist.Error() {
+		t.Fatalf("detail=%q want=%q", detail, os.ErrNotExist.Error())
 	}
 }
 

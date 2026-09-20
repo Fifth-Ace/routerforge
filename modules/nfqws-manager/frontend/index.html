@@ -1049,6 +1049,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .registry-args{grid-column:1/-1;border-top:1px solid var(--border);padding-top:7px}.registry-args summary{cursor:pointer;color:var(--muted);font-size:8.5px}.registry-args pre{margin:7px 0 0;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--code);color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;font:8.5px/1.45 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace}
 @media(max-width:900px){.registry-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.registry-filters{grid-template-columns:1fr}.registry-row{grid-template-columns:1fr}}
 
+
+.clienthello-lab{margin-bottom:14px}
+.clienthello-grid{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,1fr);gap:10px}
+.clienthello-result{margin-top:10px}
+@media(max-width:760px){.clienthello-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -2119,6 +2125,25 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </div>
       <div class="toolbar"><button id="refreshBlobs">Обновить inventory</button></div>
     </div>
+
+    <article class="panel clienthello-lab">
+      <div class="panel-head">
+        <div><h2>ClientHello Lab</h2><div class="section-kicker">сгенерировать реальный TLS ClientHello по SNI → проверить → сохранить как blob</div></div>
+        <span id="clientHelloState" class="config-badge">IDLE</span>
+      </div>
+      <div class="clienthello-grid">
+        <label class="v2-label">SNI / домен
+          <input id="clientHelloSNI" class="search" placeholder="example.com">
+        </label>
+        <label class="v2-label">Имя blob
+          <input id="clientHelloName" class="search mono" placeholder="clienthello_example.com.bin">
+        </label>
+      </div>
+      <div class="toolbar"><button id="clientHelloGenerate" class="primary">Сгенерировать</button><button id="clientHelloSave" disabled>Сохранить blob</button></div>
+      <div id="clientHelloResult" class="clienthello-result"><div class="empty">Введите SNI и сгенерируйте ClientHello.</div></div>
+      <div class="setup-note" style="margin-top:8px">Генерация read-only. Запись на диск выполняется только отдельной кнопкой через существующий SHA256-guarded Blob Manager; restart/reload не выполняется.</div>
+    </article>
+
     <div class="blob-summary">
       <div class="blob-stat"><span>Установлено</span><strong id="blobInstalledCount">0</strong></div>
       <div class="blob-stat"><span>Требуется</span><strong id="blobRequiredCount">0</strong></div>
@@ -3562,6 +3587,60 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     finally{smartApplyBusy=false;$('refreshSmartApply').disabled=false;if(smartApplyPlan)renderSmartApplyPlan()}
   }
 
+
+
+  let clientHelloGenerated=null;
+
+  function clientHelloDefaultName(sni){
+    return `clienthello_${String(sni||'site').toLowerCase().replace(/[^a-z0-9._-]+/g,'_')}.bin`;
+  }
+
+  async function generateClientHelloLab(){
+    const sni=String($('clientHelloSNI').value||'').trim();
+    $('clientHelloState').textContent='RUNNING';
+    $('clientHelloSave').disabled=true;
+    clientHelloGenerated=null;
+    try{
+      const d=await api('/clienthello/generate?sni='+encodeURIComponent(sni));
+      clientHelloGenerated=d;
+      $('clientHelloState').textContent=d.valid?'VALID':'INVALID';
+      if(!$('clientHelloName').value.trim())$('clientHelloName').value=clientHelloDefaultName(d.sni||sni);
+      $('clientHelloResult').innerHTML=`<div class="diagnostic ${d.valid?'good':'bad'}"><div class="diagnostic-icon">${d.valid?'✓':'!'}</div><div><div class="diagnostic-title">${d.valid?'Valid ClientHello':'Invalid ClientHello'} · ${esc(d.sni||'no SNI')}</div><div class="diagnostic-detail">${esc(d.detail||'')} · ${Number(d.size||0)} bytes · sha256 ${esc(String(d.sha256||'').slice(0,20))}…</div></div></div>`;
+      $('clientHelloSave').disabled=!d.valid;
+    }catch(e){
+      $('clientHelloState').textContent='FAIL';
+      $('clientHelloResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
+    }
+  }
+
+  async function saveClientHelloLab(){
+    const d=clientHelloGenerated,name=String($('clientHelloName').value||'').trim();
+    if(!d||!d.valid)return;
+    const existing=blobInstalledByName(name),replace=!!existing;
+    if(replace&&!confirm(`Заменить ${name}? Будет создан safety backup. Runtime не перезапускается.`))return;
+    $('clientHelloSave').disabled=true;
+    try{
+      const result=await api('/blobs/install',{method:'POST',body:JSON.stringify({
+        name,
+        content_base64:d.content_base64,
+        expected_sha256:d.sha256,
+        replace,
+        confirm:replace?'NFQWS_BLOB_REPLACE':'NFQWS_BLOB_INSTALL'
+      })});
+      blobFiles=Array.isArray(result.inventory?.files)?result.inventory.files:blobFiles;
+      blobLoaded=true;renderBlobs();
+      $('clientHelloState').textContent='SAVED';
+      notice(`${name}: ClientHello blob сохранён; runtime не перезапускался.`,'good');
+    }catch(e){
+      $('clientHelloState').textContent='FAIL';
+      notice(`ClientHello save: ${e.message}`,'error');
+      $('clientHelloSave').disabled=false;
+    }
+  }
+
+  $('clientHelloGenerate').onclick=generateClientHelloLab;
+  $('clientHelloSave').onclick=saveClientHelloLab;
+  $('clientHelloSNI').onkeydown=e=>{if(e.key==='Enter')generateClientHelloLab()};
 
   function blobBasename(path){return String(path||'').split('/').pop().replace(/["']/g,'')}
   function blobInstalledByName(name){return blobFiles.find(x=>String(x.name)===String(name))}

@@ -99,7 +99,6 @@ type dpiDetectorV5Validated struct {
 	Trace         bool
 }
 
-
 func normalizeDPIDetectorV5Tests(value string) (string, error) {
 	seen := map[byte]bool{}
 	for i := 0; i < len(value); i++ {

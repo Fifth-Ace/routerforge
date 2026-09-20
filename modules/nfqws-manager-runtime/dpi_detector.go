@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"debug/elf"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,8 +16,9 @@ import (
 )
 
 const (
-	dpiDetectorProbeTimeout = 2 * time.Second
-	dpiDetectorOutputMax    = 4 << 10
+	dpiDetectorProbeTimeout        = 2 * time.Second
+	dpiDetectorOutputMax           = 4 << 10
+	dpiDetectorInterpreterMaxBytes = 4 << 10
 )
 
 var dpiDetectorCandidatePaths = []string{
@@ -28,12 +31,16 @@ type dpiDetectorSnapshot struct {
 	Installed             bool   `json:"installed"`
 	ReadOnly              bool   `json:"read_only"`
 	ManagedByRouterForge  bool   `json:"managed_by_routerforge"`
+	ExecutionReady        bool   `json:"execution_ready"`
 	Path                  string `json:"path,omitempty"`
 	Version               string `json:"version,omitempty"`
 	SizeBytes             int64  `json:"size_bytes,omitempty"`
 	HostArch              string `json:"host_arch"`
 	Upstream              string `json:"upstream"`
 	VersionProbeAvailable bool   `json:"version_probe_available"`
+	RequiredInterpreter   string `json:"required_interpreter,omitempty"`
+	InterpreterAvailable  bool   `json:"interpreter_available"`
+	CompatibilityReason   string `json:"compatibility_reason,omitempty"`
 	Warning               string `json:"warning,omitempty"`
 }
 
@@ -63,6 +70,17 @@ func readDPIDetectorSnapshot() dpiDetectorSnapshot {
 	snapshot.Installed = true
 	snapshot.Path = path
 	snapshot.SizeBytes = info.Size()
+
+	compatibility := readDPIDetectorCompatibility(path)
+	snapshot.ExecutionReady = compatibility.ExecutionReady
+	snapshot.RequiredInterpreter = compatibility.RequiredInterpreter
+	snapshot.InterpreterAvailable = compatibility.InterpreterAvailable
+	snapshot.CompatibilityReason = compatibility.Reason
+	if !compatibility.ExecutionReady {
+		snapshot.Warning = dpiDetectorCompatibilityWarning(compatibility)
+		return snapshot
+	}
+
 	version, err := probeDPIDetectorVersion(path)
 	if err != nil {
 		snapshot.Warning = err.Error()
@@ -71,6 +89,74 @@ func readDPIDetectorSnapshot() dpiDetectorSnapshot {
 	snapshot.VersionProbeAvailable = true
 	snapshot.Version = version
 	return snapshot
+}
+
+type dpiDetectorCompatibility struct {
+	ExecutionReady       bool
+	RequiredInterpreter  string
+	InterpreterAvailable bool
+	Reason               string
+}
+
+func readDPIDetectorCompatibility(path string) dpiDetectorCompatibility {
+	compatibility := dpiDetectorCompatibility{ExecutionReady: true}
+
+	file, err := elf.Open(path)
+	if err != nil {
+		return compatibility
+	}
+	defer file.Close()
+
+	for _, program := range file.Progs {
+		if program.Type != elf.PT_INTERP {
+			continue
+		}
+
+		data, err := io.ReadAll(io.LimitReader(program.Open(), dpiDetectorInterpreterMaxBytes))
+		if err != nil {
+			compatibility.ExecutionReady = false
+			compatibility.Reason = "elf_interpreter_unreadable"
+			return compatibility
+		}
+
+		interpreter := strings.TrimSpace(strings.TrimRight(string(data), "\x00"))
+		compatibility.RequiredInterpreter = interpreter
+		if interpreter == "" {
+			compatibility.ExecutionReady = false
+			compatibility.Reason = "elf_interpreter_empty"
+			return compatibility
+		}
+
+		compatibility.InterpreterAvailable = dpiDetectorInterpreterAvailable(interpreter)
+		if !compatibility.InterpreterAvailable {
+			compatibility.ExecutionReady = false
+			compatibility.Reason = "required_elf_interpreter_unavailable"
+		}
+		return compatibility
+	}
+
+	return compatibility
+}
+
+func dpiDetectorInterpreterAvailable(path string) bool {
+	if path == "" || !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular() && info.Mode()&0111 != 0
+}
+
+func dpiDetectorCompatibilityWarning(compatibility dpiDetectorCompatibility) string {
+	switch compatibility.Reason {
+	case "required_elf_interpreter_unavailable":
+		return "required ELF interpreter is unavailable: " + compatibility.RequiredInterpreter
+	case "elf_interpreter_unreadable":
+		return "ELF interpreter metadata is unreadable"
+	case "elf_interpreter_empty":
+		return "ELF interpreter metadata is empty"
+	default:
+		return compatibility.Reason
+	}
 }
 
 func findDPIDetector(paths []string) (string, os.FileInfo) {

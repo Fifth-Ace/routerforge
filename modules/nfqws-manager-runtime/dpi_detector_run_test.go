@@ -20,11 +20,13 @@ func d1UseDetectorStubs(t *testing.T, configSHA string) (string, *[]string) {
 	oldRunner := dpiDetectorCommandRunner
 	oldStatus := dpiDetectorStatusReader
 	oldRunning := dpiDetectorNFQWS2Running
+	oldCompatibility := dpiDetectorCompatibilityReader
 	t.Cleanup(func() {
 		dpiDetectorCandidatePaths = oldPaths
 		dpiDetectorCommandRunner = oldRunner
 		dpiDetectorStatusReader = oldStatus
 		dpiDetectorNFQWS2Running = oldRunning
+		dpiDetectorCompatibilityReader = oldCompatibility
 		atomic.StoreInt32(&dpiDetectorRunActive, 0)
 	})
 
@@ -36,6 +38,9 @@ func d1UseDetectorStubs(t *testing.T, configSHA string) (string, *[]string) {
 	dpiDetectorCandidatePaths = []string{path}
 	dpiDetectorStatusReader = func() managerStatus { return managerStatus{ConfigSHA256: configSHA} }
 	dpiDetectorNFQWS2Running = func() bool { return true }
+	dpiDetectorCompatibilityReader = func(string) dpiDetectorCompatibility {
+		return dpiDetectorCompatibility{ExecutionReady: true}
+	}
 	captured := []string{}
 	dpiDetectorCommandRunner = func(_ context.Context, _ int, program string, args ...string) ([]byte, error) {
 		if program != path {
@@ -128,7 +133,7 @@ func TestD1DetectorRunProducesBoundedEnvelope(t *testing.T) {
 	if !strings.Contains(resp.Report, "example.com OK") || resp.ReportCut || resp.ReportBytes <= 0 {
 		t.Fatalf("report mismatch: %+v", resp)
 	}
-	if !resp.NFQWS2Running || resp.RawProviderTruth || resp.PersistentMutation || resp.ManagedByRouterForge {
+	if !resp.NFQWS2Running || resp.RawProviderTruth || resp.PersistentMutation || resp.ManagedByRouterForge || !resp.ExecutionReady {
 		t.Fatalf("safety/environment flags mismatch: %+v", resp)
 	}
 	if !resp.ProductionConfigUnchanged || resp.ProductionConfigSHA256 != sha {
@@ -169,5 +174,76 @@ func TestD1DetectorRunRouteIsPostOnly(t *testing.T) {
 	mux.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/v1/dpi-detector/run", nil))
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("GET run status=%d body=%s", rr.Code, rr.Body.String())
+	}
+}
+func TestD1DetectorRunRejectsIncompatibleExternalBinary(t *testing.T) {
+	sha := strings.Repeat("a", 64)
+	_, captured := d1UseDetectorStubs(t, sha)
+	dpiDetectorCompatibilityReader = func(string) dpiDetectorCompatibility {
+		return dpiDetectorCompatibility{
+			ExecutionReady:       false,
+			RequiredInterpreter:  "/lib/ld-linux-aarch64.so.1",
+			InterpreterAvailable: false,
+			Reason:               "required_elf_interpreter_unavailable",
+		}
+	}
+
+	body, _ := json.Marshal(dpiDetectorRunRequest{
+		Test: "domains", Domain: "example.com", Concurrency: 2,
+		ExpectedConfigSHA256: sha, Confirm: dpiDetectorRunConfirm,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/dpi-detector/run", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	handleDPIDetectorRun(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	for _, expected := range []string{
+		`"error_kind":"external_binary_incompatible"`,
+		`"required_interpreter":"/lib/ld-linux-aarch64.so.1"`,
+		`"interpreter_available":false`,
+		`"compatibility_reason":"required_elf_interpreter_unavailable"`,
+	} {
+		if !strings.Contains(rr.Body.String(), expected) {
+			t.Fatalf("missing %q in body=%s", expected, rr.Body.String())
+		}
+	}
+	if len(*captured) != 0 {
+		t.Fatalf("incompatible binary unexpectedly executed: %q", *captured)
+	}
+}
+
+func TestD1ClassifyDetectorRunStartError(t *testing.T) {
+	kind, detail := classifyDPIDetectorRunError(&os.PathError{
+		Op:   "fork/exec",
+		Path: "/opt/bin/dpi-detector",
+		Err:  os.ErrNotExist,
+	})
+	if kind != "exec_start_failed" {
+		t.Fatalf("kind=%q", kind)
+	}
+	if !strings.Contains(detail, "no such file") {
+		t.Fatalf("detail=%q", detail)
+	}
+}
+
+func TestD1DetectorInterpreterAvailableRejectsMissingPath(t *testing.T) {
+	if dpiDetectorInterpreterAvailable("/definitely/missing/routerforge-d1-loader") {
+		t.Fatal("missing interpreter unexpectedly reported available")
+	}
+}
+
+func TestD1ReadDetectorCompatibilitySystemELF(t *testing.T) {
+	const path = "/bin/sh"
+	if _, err := os.Stat(path); err != nil {
+		t.Skipf("%s unavailable: %v", path, err)
+	}
+	compatibility := readDPIDetectorCompatibility(path)
+	if compatibility.RequiredInterpreter == "" {
+		t.Skipf("%s has no PT_INTERP on this runner", path)
+	}
+	if !compatibility.ExecutionReady || !compatibility.InterpreterAvailable {
+		t.Fatalf("system ELF compatibility=%+v", compatibility)
 	}
 }

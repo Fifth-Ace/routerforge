@@ -2,12 +2,9 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -106,6 +103,7 @@ type v2ProgressiveTemplate struct {
 
 type v2ProgressivePlan struct {
 	Stages        map[string][]v2ProgressiveTemplate
+	Budgets       map[string]int
 	Warnings      []string
 	ByFingerprint map[string]v2ProgressiveTemplate
 }
@@ -176,69 +174,37 @@ func v2ProgressiveQuickLimit(mode benchAutoTuneMode) int {
 	}
 }
 
+func v2ProgressiveStageBudgets(mode benchAutoTuneMode) map[string]int {
+	budgets := map[string]int{
+		v2ProgressiveStageMemory:     2,
+		v2ProgressiveStageProduction: 3,
+		v2ProgressiveStageQuick:      3,
+		v2ProgressiveStageFull:       5,
+		v2ProgressiveStageLibrary:    3,
+	}
+	switch mode.Name {
+	case "fast":
+		budgets[v2ProgressiveStageMemory] = 1
+		budgets[v2ProgressiveStageProduction] = 1
+		budgets[v2ProgressiveStageQuick] = 2
+		budgets[v2ProgressiveStageFull] = 2
+		budgets[v2ProgressiveStageLibrary] = 2
+	case "thorough":
+		budgets[v2ProgressiveStageMemory] = 4
+		budgets[v2ProgressiveStageProduction] = 6
+		budgets[v2ProgressiveStageQuick] = 4
+		budgets[v2ProgressiveStageFull] = 8
+		budgets[v2ProgressiveStageLibrary] = 10
+	}
+	return budgets
+}
+
 func v2ProgressiveMemoryEnvironmentFingerprint(configSHA, protocol string) string {
-	h := sha256.New()
-	_, _ = h.Write([]byte(strings.ToLower(strings.TrimSpace(configSHA))))
-	_, _ = h.Write([]byte{0})
-	_, _ = h.Write([]byte(runtime.GOARCH))
-	_, _ = h.Write([]byte{0})
-	_, _ = h.Write([]byte(strings.ToLower(strings.TrimSpace(protocol))))
-	_, _ = h.Write([]byte{0})
-	_, _ = h.Write([]byte("ipv4"))
-	return hex.EncodeToString(h.Sum(nil))
+	return v2MemoryEnvironmentFingerprintForProtocol(configSHA, protocol)
 }
 
 func v2ProgressiveBuiltins(transport benchTransportProfile) []v2BuiltinCandidate {
-	switch transport.ID {
-	case benchTransportHTTPS:
-		return append([]v2BuiltinCandidate{}, v2BuiltinHTTPSCandidates...)
-	case benchTransportHTTP:
-		return []v2BuiltinCandidate{
-			{
-				ID: "builtin-http-hostcase", Name: "HTTP hostcase",
-				Family: "http-case", Protocol: "http",
-				Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=http_hostcase"},
-			},
-			{
-				ID: "builtin-http-domcase", Name: "HTTP domcase",
-				Family: "http-case", Protocol: "http",
-				Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=http_domcase"},
-			},
-			{
-				ID: "builtin-http-methodeol", Name: "HTTP method EOL",
-				Family: "http-method", Protocol: "http",
-				Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=http_methodeol"},
-			},
-		}
-	case benchTransportQUIC:
-		return []v2BuiltinCandidate{
-			{
-				ID: "builtin-quic-fake-1", Name: "QUIC fake x1",
-				Family: "fake", Protocol: "quic",
-				Args: []string{"--filter-udp=443", "--filter-l7=quic", "--payload=quic_initial", "--lua-desync=fake:blob=fake_default_quic:repeats=1"},
-			},
-			{
-				ID: "builtin-quic-fake-2", Name: "QUIC fake x2",
-				Family: "fake", Protocol: "quic",
-				Args: []string{"--filter-udp=443", "--filter-l7=quic", "--payload=quic_initial", "--lua-desync=fake:blob=fake_default_quic:repeats=2"},
-			},
-		}
-	case benchTransportSTUN:
-		return []v2BuiltinCandidate{
-			{
-				ID: "builtin-stun-fake-1", Name: "STUN fake x1",
-				Family: "fake", Protocol: "stun",
-				Args: []string{"--filter-udp=3478", "--filter-l7=stun", "--payload=stun", "--lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=1"},
-			},
-			{
-				ID: "builtin-stun-fake-2", Name: "STUN fake x2",
-				Family: "fake", Protocol: "stun",
-				Args: []string{"--filter-udp=3478", "--filter-l7=stun", "--payload=stun", "--lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=2"},
-			},
-		}
-	default:
-		return nil
-	}
+	return v2BuiltinCandidatesForTransport(transport)
 }
 
 func v2ProgressiveAppendTemplate(plan *v2ProgressivePlan, seen map[string]bool, max int, item v2ProgressiveTemplate) bool {
@@ -256,6 +222,9 @@ func v2ProgressiveAppendTemplate(plan *v2ProgressivePlan, seen map[string]bool, 
 	if count >= max {
 		return false
 	}
+	if budget, ok := plan.Budgets[item.Stage]; ok && budget >= 0 && len(plan.Stages[item.Stage]) >= budget {
+		return false
+	}
 	seen[fingerprint] = true
 	item.Fingerprint = fingerprint
 	plan.Stages[item.Stage] = append(plan.Stages[item.Stage], item)
@@ -264,67 +233,28 @@ func v2ProgressiveAppendTemplate(plan *v2ProgressivePlan, seen map[string]bool, 
 }
 
 func v2ProgressiveMemoryTemplates(target, configSHA string, transport benchTransportProfile, limit int) ([]v2ProgressiveTemplate, error) {
-	doc, err := readV2TargetMemory()
+	items, err := v2TargetMemoryCandidatesForTransport(target, configSHA, transport.ID, limit)
 	if err != nil {
 		return nil, err
 	}
-	target, err = v2NormalizeTarget(target)
-	if err != nil {
-		return nil, err
-	}
-	env := v2ProgressiveMemoryEnvironmentFingerprint(configSHA, transport.ID)
-	entries := make([]v2TargetMemoryEntry, 0)
-	for _, entry := range doc.Entries {
-		if entry.Target != target || entry.Protocol != transport.ID || entry.IPFamily != "ipv4" ||
-			entry.Environment != env || !entry.InfrastructureOK || !entry.CleanupProven {
-			continue
-		}
-		if entry.ResultClass != "WORKING" && entry.ResultClass != "UNSTABLE" {
-			continue
-		}
-		entries = append(entries, entry)
-	}
-	sort.SliceStable(entries, func(i, j int) bool {
-		if entries[i].ResultClass != entries[j].ResultClass {
-			return entries[i].ResultClass == "WORKING"
-		}
-		if entries[i].SuccessStreak != entries[j].SuccessStreak {
-			return entries[i].SuccessStreak > entries[j].SuccessStreak
-		}
-		if entries[i].SuccessRate != entries[j].SuccessRate {
-			return entries[i].SuccessRate > entries[j].SuccessRate
-		}
-		return entries[i].LastVerified > entries[j].LastVerified
-	})
-	out := make([]v2ProgressiveTemplate, 0, len(entries))
-	for _, entry := range entries {
-		profile, compileErr := v2CustomProfileForTransport(entry.Args, target, transport)
+	out := make([]v2ProgressiveTemplate, 0, len(items))
+	for _, item := range items {
+		profile, compileErr := v2CustomProfileForTransport(item.Args, target, transport)
 		if compileErr != nil {
 			continue
 		}
 		profile.Index = -1
-		id := "memory-" + entry.Fingerprint
-		if len(entry.Fingerprint) >= 16 {
-			id = "memory-" + entry.Fingerprint[:16]
-		}
-		name := strings.TrimSpace(entry.CandidateName)
-		if name == "" {
-			name = "Verified memory candidate"
-		}
 		out = append(out, v2ProgressiveTemplate{
 			Stage: v2ProgressiveStageMemory, Profile: profile,
-			ID: id, Name: name, Source: "memory",
+			ID: item.ID, Name: item.Name, Source: "memory",
 		})
-		if len(out) >= limit {
-			break
-		}
 	}
 	return out, nil
 }
 
 func v2BuildProgressivePlan(req v2ProgressiveSelectorRequest, mode benchAutoTuneMode, transport benchTransportProfile, target, configSHA string, inventory benchStrategyInventory) v2ProgressivePlan {
 	plan := v2ProgressivePlan{
-		Stages: map[string][]v2ProgressiveTemplate{}, Warnings: []string{},
+		Stages: map[string][]v2ProgressiveTemplate{}, Budgets: v2ProgressiveStageBudgets(mode), Warnings: []string{},
 		ByFingerprint: map[string]v2ProgressiveTemplate{},
 	}
 	for _, stage := range v2ProgressiveStageOrder {
@@ -333,7 +263,7 @@ func v2BuildProgressivePlan(req v2ProgressiveSelectorRequest, mode benchAutoTune
 	seen := map[string]bool{}
 	max := mode.MaxCandidates
 
-	memory, err := v2ProgressiveMemoryTemplates(target, configSHA, transport, max)
+	memory, err := v2ProgressiveMemoryTemplates(target, configSHA, transport, plan.Budgets[v2ProgressiveStageMemory])
 	if err != nil {
 		plan.Warnings = append(plan.Warnings, "memory: "+err.Error())
 	} else {

@@ -2,12 +2,17 @@ package main
 
 import "testing"
 
-func TestV2ImportStrategiesAddsAndDedupes(t *testing.T) {
-	args := []string{
+func v2ImportTestArgs() []string {
+	return []string{
 		"--filter-tcp=443",
-		"--hostlist-domains=example.com",
-		"--lua-desync=fake",
+		"--filter-l7=tls",
+		"--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
 	}
+}
+
+func TestV2ImportStrategiesAddsAndDedupes(t *testing.T) {
+	args := v2ImportTestArgs()
 	doc := v2StrategyLibraryDocument{Version: 1, Strategies: []v2StoredStrategy{}}
 	next, result, err := v2ImportStrategies(doc, []v2StrategyImportItem{
 		{Name: "Zapret profile 1", Args: args},
@@ -25,11 +30,7 @@ func TestV2ImportStrategiesAddsAndDedupes(t *testing.T) {
 }
 
 func TestV2ImportStrategiesKeepsExisting(t *testing.T) {
-	args := []string{
-		"--filter-tcp=443",
-		"--hostlist-domains=example.com",
-		"--lua-desync=fake",
-	}
+	args := v2ImportTestArgs()
 	fp := v2StrategyFingerprint(args)
 	existing := v2StoredStrategy{
 		ID: "s-" + fp[:16], Name: "Existing", Source: "custom", Args: args,
@@ -51,7 +52,7 @@ func TestV2ImportStrategiesKeepsExisting(t *testing.T) {
 }
 
 func TestV2ImportStrategiesRejectsWholeBatchOnInvalidItem(t *testing.T) {
-	valid := []string{"--filter-tcp=443", "--hostlist-domains=example.com", "--lua-desync=fake"}
+	valid := v2ImportTestArgs()
 	doc := v2StrategyLibraryDocument{Version: 1, Strategies: []v2StoredStrategy{}}
 	next, result, err := v2ImportStrategies(doc, []v2StrategyImportItem{
 		{Name: "Valid", Args: valid},

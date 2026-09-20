@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "name": "DPI Detector",
+    "author": "Runnin4ik",
+    "repository": "https://github.com/Runnin4ik/dpi-detector",
+    "release_tag": "v4.2.4",
+    "commit_sha": "13ddc49bf5279c7fc08d3f3cca0e974b9a555191",
+    "license": "MIT"
+  },
+  "routerforge": {
+    "package": "routerforge-dpi-detector",
+    "integration_host": "nfqws-manager",
+    "architectures": ["aarch64-3.10"],
+    "build_revision": 1
+  },
+  "build": {
+    "python_image": "python:3.11-slim-bookworm",
+    "pyinstaller": "6.22.3",
+    "certifi": "2025.8.3",
+    "httpx": "0.28.1",
+    "h2": "4.3.0",
+    "hpack": "4.1.0",
+    "socksio": "1.0.0",
+    "rich": "15.0.0",
+    "pyyaml": "6.0.3"
+  }
+}

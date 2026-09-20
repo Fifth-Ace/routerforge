@@ -1053,6 +1053,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .clienthello-lab{margin-bottom:14px}
 .clienthello-grid{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,1fr);gap:10px}
 .clienthello-result{margin-top:10px}
+.clienthello-capture{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.clienthello-candidates{display:grid;gap:7px;margin-top:10px}
+.clienthello-candidate{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)}
+.clienthello-candidate>div{display:grid;gap:3px;min-width:0}.clienthello-candidate strong{font-size:9.5px}.clienthello-candidate span{font-size:8px;color:var(--muted);overflow-wrap:anywhere}
 @media(max-width:760px){.clienthello-grid{grid-template-columns:1fr}}
 
 </style>
@@ -2142,6 +2146,16 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div class="toolbar"><button id="clientHelloGenerate" class="primary">Сгенерировать</button><button id="clientHelloSave" disabled>Сохранить blob</button></div>
       <div id="clientHelloResult" class="clienthello-result"><div class="empty">Введите SNI и сгенерируйте ClientHello.</div></div>
       <div class="setup-note" style="margin-top:8px">Генерация read-only. Запись на диск выполняется только отдельной кнопкой через существующий SHA256-guarded Blob Manager; restart/reload не выполняется.</div>
+
+      <div class="clienthello-capture">
+        <div class="panel-head"><div><h2>Device capture</h2><div class="section-kicker">короткий tcpdump только TLS ClientHello от выбранного LAN IPv4</div></div><span id="clientHelloCaptureState" class="config-badge">IDLE</span></div>
+        <div class="clienthello-grid">
+          <label class="v2-label">IPv4 устройства<input id="clientHelloDeviceIP" class="search mono" placeholder="192.168.1.50"></label>
+          <label class="v2-label">Интерфейс<input id="clientHelloInterface" class="search mono" placeholder="пусто = br0 / auto"></label>
+        </div>
+        <div class="toolbar"><button id="clientHelloCapture">Снять 5 секунд</button></div>
+        <div id="clientHelloCaptureResult" class="clienthello-candidates"><div class="empty">Capture ещё не запускался.</div></div>
+      </div>
     </article>
 
     <div class="blob-summary">
@@ -3638,8 +3652,36 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     }
   }
 
+  async function captureClientHelloDevice(){
+    const deviceIP=String($('clientHelloDeviceIP').value||'').trim(),iface=String($('clientHelloInterface').value||'').trim();
+    $('clientHelloCaptureState').textContent='CAPTURING';
+    $('clientHelloCapture').disabled=true;
+    try{
+      const d=await api('/clienthello/capture',{method:'POST',body:JSON.stringify({device_ip:deviceIP,interface:iface,seconds:5})});
+      $('clientHelloCaptureState').textContent=`${Number(d.count||0)} FOUND`;
+      const rows=Array.isArray(d.candidates)?d.candidates:[];
+      $('clientHelloCaptureResult').innerHTML=rows.length?rows.map((x,i)=>`<div class="clienthello-candidate">
+        <div><strong>${esc(x.sni||'ClientHello без SNI')}</strong><span>${esc(x.src_ip||'')} → ${esc(x.dst_ip||'')}:443 · ${Number(x.size||0)} bytes · ${esc(x.detail||'')}</span></div>
+        <button data-clienthello-use="${i}" ${x.valid?'':'disabled'}>Взять как blob</button>
+      </div>`).join(''):`<div class="empty">За 5 секунд ClientHello не найден. Открой HTTPS-сайт на выбранном устройстве и повтори.</div>`;
+      $('clientHelloCaptureResult').querySelectorAll('[data-clienthello-use]').forEach(b=>b.onclick=()=>{
+        const x=rows[Number(b.dataset.clienthelloUse)];if(!x)return;
+        clientHelloGenerated={valid:x.valid,sni:x.sni,size:x.size,detail:x.detail,sha256:x.sha256,content_base64:x.content_base64};
+        $('clientHelloSNI').value=x.sni||'';
+        $('clientHelloName').value=clientHelloDefaultName(x.sni||'captured');
+        $('clientHelloState').textContent='CAPTURED';
+        $('clientHelloSave').disabled=!x.valid;
+        $('clientHelloResult').innerHTML=`<div class="diagnostic good"><div class="diagnostic-icon">✓</div><div><div class="diagnostic-title">Captured ClientHello · ${esc(x.sni||'no SNI')}</div><div class="diagnostic-detail">${Number(x.size||0)} bytes · sha256 ${esc(String(x.sha256||'').slice(0,20))}…</div></div></div>`;
+      });
+    }catch(e){
+      $('clientHelloCaptureState').textContent='FAIL';
+      $('clientHelloCaptureResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
+    }finally{$('clientHelloCapture').disabled=false}
+  }
+
   $('clientHelloGenerate').onclick=generateClientHelloLab;
   $('clientHelloSave').onclick=saveClientHelloLab;
+  $('clientHelloCapture').onclick=captureClientHelloDevice;
   $('clientHelloSNI').onkeydown=e=>{if(e.key==='Enter')generateClientHelloLab()};
 
   function blobBasename(path){return String(path||'').split('/').pop().replace(/["']/g,'')}

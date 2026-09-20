@@ -84,3 +84,12 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - Concepts reused with permission: generate a real TLS ClientHello for a chosen SNI, validate the TLS record/handshake shape, and save it as an nfqws2 fake-payload blob.
 - RouterForge implementation uses its existing SHA256-guarded Blob Manager and does not restart/reload nfqws2.
 - Device/tcpdump capture is intentionally deferred to R2-F2B; this patch contains no tcpdump installation or packet capture.
+
+## NFQWS Intelligence R2-F2B — ClientHello Device Capture
+
+- RouterForge base: `8255f3e5c8ef4cffc4714f62f39fb2b9edccc6ff`
+- Omn1z reference: `Omn1z/nfqws2-keenetic-strategy-selector@bf4e810ef22ffb6671e97dc411234ba9430909c9`
+- Concept reused with permission: bounded tcpdump capture of a LAN device's outbound TLS ClientHello, pcap extraction, SNI display, and explicit handoff to blob save.
+- RouterForge implementation is native and uses the shared `safety.CommandContext` boundary; tcpdump is never installed automatically.
+- Capture is bounded to 8 seconds, 64 matching packets, 2 MiB pcap and 24 candidates.
+- Capturing does not write nfqws2 config and does not restart/reload production.

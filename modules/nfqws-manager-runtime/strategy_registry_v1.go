@@ -226,7 +226,7 @@ func v2RegistryEnsure(
 				ID: id, Name: strings.TrimSpace(name),
 				Sources: []string{}, Family: family, Protocol: protocol,
 				Args: append([]string{}, portable...), Fingerprint: fingerprint,
-				Provenance: []v2StrategyRegistryProvenance{},
+				Provenance:   []v2StrategyRegistryProvenance{},
 				Capabilities: v2RegistryCapabilities(portable),
 			},
 			Targets: map[string]bool{},

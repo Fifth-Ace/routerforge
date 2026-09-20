@@ -972,6 +972,61 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   .dpi-rich-kv-grid{grid-template-columns:1fr}
 }
 
+
+/* M4G: hide experimental Visual result blocks; keep only themed Native Live output. */
+#dpiWebResults{display:none!important}
+#dpiNativeResults{display:block!important;width:100%;max-width:1440px;margin:12px 0 0!important}
+.dpi-native-live-shell{padding:0!important;overflow:hidden;border-color:var(--border-strong)!important;background:var(--surface)!important;box-shadow:none!important}
+.dpi-native-live-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.dpi-native-live-head>div:first-child{display:grid;gap:2px}.dpi-native-live-head strong{color:var(--accent);font-size:11px}.dpi-native-live-head span{color:var(--muted);font-size:8.5px}
+.dpi-native-live-state{display:flex!important;align-items:center!important;gap:8px!important}.dpi-native-live-state .mono{font-size:8.5px;color:var(--muted)}
+.dpi-native-live-body{height:min(68vh,820px);min-height:520px;overflow:auto;padding:12px 14px;background:var(--code);color:var(--text);font:600 9.5px/1.42 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;white-space:pre;tab-size:4;scrollbar-gutter:stable}
+.dpi-native-live-body .dpi-console-line{min-height:13px}.dpi-native-live-body .analysis-empty{padding:18px;color:var(--muted);font-family:inherit}
+.dpi-native-live-footer{padding:8px 12px;border-top:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:8.5px}
+@media(max-width:760px){.dpi-native-live-head{align-items:flex-start;flex-direction:column}.dpi-native-live-body{min-height:420px;height:64vh;padding:10px;font-size:9px}}
+
+
+/* M4G follow-up: DPI workspace must behave like the other RouterForge views when the host window narrows. */
+#view-dpi-detector,
+#view-dpi-detector .v2-shell,
+#view-dpi-detector .panel,
+#view-dpi-detector .dpi-top-grid,
+#view-dpi-detector #dpiWebPane,
+#view-dpi-detector #dpiWebPane>*{
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+#view-dpi-detector{overflow-x:hidden!important}
+#view-dpi-detector .dpi-top-grid{grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr)!important}
+#view-dpi-detector #dpiWebPane>.v2-two{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+#view-dpi-detector .dpi-test-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#view-dpi-detector input,
+#view-dpi-detector select,
+#view-dpi-detector textarea{max-width:100%!important;min-width:0!important}
+#view-dpi-detector .dpi-native-live-body{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain;
+}
+@media(max-width:1180px){
+  #view-dpi-detector .dpi-top-grid,
+  #view-dpi-detector #dpiWebPane>.v2-two{grid-template-columns:1fr!important}
+  #view-dpi-detector .dpi-test-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:640px){
+  #view-dpi-detector .dpi-test-grid{grid-template-columns:1fr!important}
+  #view-dpi-detector .dpi-mode-switch{grid-template-columns:1fr!important}
+  #view-dpi-detector .dpi-mode-head,
+  #view-dpi-detector .panel-head{align-items:flex-start!important;flex-direction:column!important}
+}
+/* Keep one bounded report scroller; do not create a second nested result scroller. */
+#view-dpi-detector #dpiWebResults{display:none!important}
+#view-dpi-detector #dpiNativeResults{overflow:visible!important}
+#view-dpi-detector .dpi-native-live-shell{overflow:hidden!important}
+
 </style>
 </head>
 <body>
@@ -1058,7 +1113,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         </div>
         <div class="dpi-mode-switch">
           <button id="dpiModeConsole" class="primary"><strong>Console</strong><span>native upstream TUI · PTY</span></button>
-          <button id="dpiModeWeb"><strong>Web</strong><span>visual UI · JSON schema v1</span></button>
+          <button id="dpiModeWeb"><strong>Native Live</strong><span>RouterForge theme · streaming upstream output</span></button>
         </div>
         <div id="dpiModuleSummary" class="dpi-runtime-strip"><span class="dpi-runtime-pill">Загрузка состояния…</span></div>
       </article>
@@ -1156,15 +1211,15 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
       <article class="panel dpi-run-panel" style="margin-top:12px">
         <div class="panel-head">
-          <div><h2>Запуск</h2><div class="section-kicker">Один полный upstream run → RouterForge разбирает тот же native report в красивый Web. Повторного теста для детализации нет.</div></div>
-          <div class="toolbar"><button id="dpiWebRun" class="primary">Запустить тест</button><button id="dpiNativeRun">Показать Native report</button></div>
+          <div><h2>Запуск</h2><div class="section-kicker">Native Live показывает вывод DPI Detector по мере выполнения. Visual-блоки временно скрыты до следующего UX-прохода.</div></div>
+          <div class="toolbar"><button id="dpiWebRun" class="primary">Запустить DPI Detector</button><button id="dpiNativeRun" style="display:none" aria-hidden="true">Native</button></div>
         </div>
         <div class="v2-boundary">nfqws2, VPN и proxy автоматически не отключаются. Результат описывает текущий router path и не объявляется raw ISP truth.</div>
         <div id="dpiRunProgress" class="dpi-run-progress" style="display:none"></div>
       </article>
 
-      <div id="dpiWebResults" style="margin-top:12px"><article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article></div>
-      <div id="dpiNativeResults" style="display:none;margin-top:12px"></div>
+      <div id="dpiWebResults" style="display:none"></div>
+      <div id="dpiNativeResults" style="display:block;margin-top:12px"></div>
 
       <article id="dpiLegendPane" class="panel" style="display:none;margin-top:12px">
         <div class="panel-head"><div><h2>Upstream Legend</h2><div class="section-kicker">test 7 / --legend</div></div><button id="dpiLegendClose">Закрыть</button></div>
@@ -2191,7 +2246,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null, autoTuneRunning=false, autoTuneStage='', autoTuneResult=null, autoTunePreviewData=null, autoTuneApplyResult=null, autoTuneToken='', autoTuneActiveSha='', autoTuneMessage='';
   let processingMapLiveRunning=false, processingMapLiveResult=null, processingMapStrategyInventory=null;
   let dpiWorkspaceMode='console',dpiWebRunning=false,dpiWebResult=null,dpiWebProgress=null;
-  let dpiNativeRunning=false,dpiNativeResult=null,dpiNativeStartedAt=0,dpiNativeTimer=0,dpiNativeVisible=false;
+  let dpiNativeRunning=false,dpiNativeResult=null,dpiNativeStartedAt=0,dpiNativeTimer=0,dpiNativeVisible=true;
+  let dpiLiveText='',dpiLiveMeta=null,dpiLiveRenderPending=false;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -3748,6 +3804,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     dpiWorkspaceMode=mode==='web'?'web':'console';
     renderDPIDetectorWorkspace();
     if(dpiWorkspaceMode==='console')ensureDPIConsole();
+    requestAnimationFrame(reportHeight);
+    setTimeout(reportHeight,120);
   }
 
   function dpiConsoleURL(){
@@ -4073,8 +4131,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     ].join(''):'<span class="dpi-runtime-pill warn">DPI Detector v5 не установлен</span>';
     $('dpiWebRun').disabled=dpiWebRunning||!d?.installed||!d?.execution_ready;
     const elapsed=dpiWebProgress?.started_at?Math.max(0,Math.floor((Date.now()-dpiWebProgress.started_at)/1000)):0;
-    $('dpiWebRun').textContent=dpiWebRunning?`Проверка · ${elapsed}s…`:'Запустить тест';
-    $('dpiWebState').textContent=dpiWebRunning?`RUNNING ${elapsed}s`:dpiWebProgress?.error?'FAIL':dpiWebResult?'DONE':'IDLE';
+    $('dpiWebRun').textContent=dpiWebRunning?`DPI Detector · ${elapsed}s…`:'Запустить DPI Detector';
+    $('dpiWebState').textContent=dpiWebRunning?`LIVE ${elapsed}s`:dpiWebProgress?.error?'FAIL':dpiNativeResult?.console_report?'DONE':'IDLE';
     $('dpiWebState').className='config-badge '+(!dpiWebRunning&&dpiWebResult&&!dpiWebProgress?.error?'active':'');
     dpiRenderProgress();
     renderDPIDetectorV5Result(dpiWebResult);
@@ -4086,8 +4144,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   async function runDPIDetectorWeb(){
     if(dpiWebRunning)return;
     const selected=[...selectedDPITests()];if(!selected.length){notice('DPI Detector: выберите хотя бы один тест.','error');return}
-    dpiWebRunning=true;dpiWebResult=null;dpiNativeResult=null;dpiNativeStartedAt=Date.now();
-    dpiWebProgress={tests:selected,completed:[],current:'',error:'',started_at:Date.now(),single_run:true};
+    dpiWebRunning=true;dpiWebResult=null;dpiNativeResult=null;dpiLiveText='';dpiLiveMeta=null;dpiNativeStartedAt=Date.now();
+    dpiWebProgress={tests:selected,completed:[],current:'',error:'',started_at:Date.now(),single_run:true,streaming:true};
     renderDPIDetectorWorkspace();
     if(dpiNativeTimer)clearInterval(dpiNativeTimer);
     dpiNativeTimer=setInterval(()=>renderDPIDetectorWorkspace(),1000);
@@ -4101,16 +4159,44 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         burst_tls:String($('dpiWebBurstTLS').value||'1.3+1.2'),burst_alpn:String($('dpiWebBurstALPN').value||'h2'),trace:false,
         expected_config_sha256:String(status.config_sha256),confirm:'ROUTERFORGE_DPI_DETECTOR_V5_RUN'
       };
-      const response=await fetch(base+'/dpi-detector/v5/console',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(bodyReq)});
-      const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
-      if(!response.ok||!body.ok){const detail=[body.error,body.detail,body.output].filter(Boolean).join(' · ');throw new Error(detail||`HTTP ${response.status}`)}
-      dpiWebResult=body;dpiNativeResult=body;dpiWebProgress.completed=[...selected];
-      notice('DPI Detector: single-run Visual Web готов','good');
+      const response=await fetch(base+'/dpi-detector/v5/stream',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/x-ndjson','Content-Type':'application/json'},body:JSON.stringify(bodyReq)});
+      if(!response.ok){
+        const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
+        throw new Error(body.error||body.detail||`HTTP ${response.status}`);
+      }
+      if(!response.body)throw new Error('streaming body unavailable');
+      const reader=response.body.getReader(),decoder=new TextDecoder();let pending='',streamError='';
+      const handleEvent=event=>{
+        if(!event||!event.type)return;
+        if(event.type==='chunk'){dpiLiveText+=String(event.data||'');dpiScheduleLiveRender();return}
+        if(event.type==='snapshot'){dpiLiveText=String(event.report||dpiLiveText);dpiLiveMeta=event;dpiScheduleLiveRender();return}
+        if(event.type==='done'){
+          dpiLiveMeta=event;dpiWebProgress.completed=[...selected];
+          dpiNativeResult={ok:true,tests:event.tests||selected.join(''),duration_ms:Number(event.duration_ms||0),console_report:dpiLiveText,report_bytes:Number(event.report_bytes||0),report_cut:!!event.report_cut,exit_warning:event.exit_warning||'',nfqws2_running:!!event.nfqws2_running,environment_warning:event.environment_warning||'',production_config_sha256:event.production_config_sha256||'',production_config_unchanged:event.production_config_unchanged!==false};
+          return;
+        }
+        if(event.type==='error'){streamError=[event.error,event.detail].filter(Boolean).join(' · ')||'DPI Detector stream failed'}
+      };
+      for(;;){
+        const part=await reader.read();
+        pending+=decoder.decode(part.value||new Uint8Array(),{stream:!part.done});
+        let nl;
+        while((nl=pending.indexOf('\n'))>=0){
+          const line=pending.slice(0,nl).trim();pending=pending.slice(nl+1);
+          if(line){try{handleEvent(JSON.parse(line))}catch(_){}}
+        }
+        if(part.done)break;
+      }
+      const tail=pending.trim();if(tail){try{handleEvent(JSON.parse(tail))}catch(_){}}
+      if(streamError)throw new Error(streamError);
+      if(!dpiNativeResult?.console_report&&dpiLiveText)dpiNativeResult={ok:true,tests:selected.join(''),duration_ms:Date.now()-dpiNativeStartedAt,console_report:dpiLiveText,report_bytes:new TextEncoder().encode(dpiLiveText).length,report_cut:false,production_config_unchanged:true};
+      dpiWebResult=dpiNativeResult;
+      notice('DPI Detector: Native Live завершён','good');
     }catch(e){
       const message=String(e.message||e);dpiWebProgress.error=message;dpiWebResult={ok:false,error:message};notice(`DPI Detector: ${message}`,'error');
     }finally{
       if(dpiNativeTimer){clearInterval(dpiNativeTimer);dpiNativeTimer=0}
-      dpiWebRunning=false;renderDPIDetectorWorkspace();
+      dpiWebRunning=false;renderDPIDetectorWorkspace();dpiScheduleLiveRender();
     }
   }
   async function loadDPILegend(){
@@ -5187,24 +5273,39 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(!dpiNativeStartedAt)return 0;
     return Math.max(0,Math.floor((Date.now()-dpiNativeStartedAt)/1000));
   }
+  function dpiScheduleLiveRender(){
+    if(dpiLiveRenderPending)return;
+    dpiLiveRenderPending=true;
+    requestAnimationFrame(()=>{dpiLiveRenderPending=false;renderDPINativeReport(dpiNativeResult)});
+  }
   function renderDPINativeReport(envelope){
     const root=$('dpiNativeResults');if(!root)return;
-    if(!dpiNativeVisible){root.style.display='none';root.innerHTML='';return}
-    if(!envelope?.console_report){root.style.display='block';root.innerHTML='<article class="panel"><div class="analysis-empty">Сначала выполните тест. Native view использует тот же самый run.</div></article>';return}
     root.style.display='block';
-    root.innerHTML=`<article class="panel dpi-console-report-shell"><div class="dpi-console-report-head"><strong>DPI Detector · native report · same run</strong><span>${esc(envelope.tests||'—')} · ${esc(envelope.duration_ms||0)} ms · ${esc(envelope.report_bytes||0)} bytes${envelope.report_cut?' · CUT':''}</span></div><div class="dpi-console-report">${dpiParityReportHTML(envelope.console_report)}</div><div class="dpi-console-report-meta">${esc(envelope.environment_warning||'')} · config ${esc(envelope.production_config_unchanged?'UNCHANGED':'CHECK')}</div></article>`;
+    const text=dpiLiveText||String(envelope?.console_report||'');
+    const running=!!dpiWebRunning;
+    const elapsed=dpiNativeElapsed();
+    if(!root.querySelector('.dpi-native-live-shell')){
+      root.innerHTML=`<article class="panel dpi-native-live-shell"><div class="dpi-native-live-head"><div><strong>DPI Detector · Native Live</strong><span>официальный upstream output · RouterForge presentation</span></div><div class="dpi-native-live-state"><span id="dpiNativeLiveBadge" class="config-badge">IDLE</span><span id="dpiNativeLiveMeta" class="mono">—</span></div></div><div id="dpiNativeLiveBody" class="dpi-native-live-body"><div class="analysis-empty">Выберите тесты и запустите DPI Detector.</div></div><div id="dpiNativeLiveFooter" class="dpi-native-live-footer">Ожидание запуска.</div></article>`;
+    }
+    const badge=$('dpiNativeLiveBadge'),meta=$('dpiNativeLiveMeta'),body=$('dpiNativeLiveBody'),footer=$('dpiNativeLiveFooter');
+    if(badge){badge.textContent=running?'LIVE':dpiWebProgress?.error?'FAIL':text?'DONE':'IDLE';badge.className='config-badge '+(!running&&text&&!dpiWebProgress?.error?'active':'')}
+    if(meta)meta.textContent=running?`${elapsed}s · streaming`:envelope?.duration_ms?`${envelope.duration_ms} ms · ${envelope.report_bytes||0} bytes${envelope.report_cut?' · CUT':''}`:'—';
+    if(body){
+      const nearBottom=body.scrollHeight-body.scrollTop-body.clientHeight<100;
+      body.innerHTML=text?dpiParityReportHTML(text):'<div class="analysis-empty">Выберите тесты и запустите DPI Detector.</div>';
+      if(running&&nearBottom)body.scrollTop=body.scrollHeight;
+    }
+    if(footer){
+      footer.textContent=dpiWebProgress?.error?dpiWebProgress.error:running?'Данные приходят с роутера по мере выполнения теста.':envelope?.environment_warning||'Готов к запуску.';
+    }
   }
   function updateDPINativeState(){
-    const button=$('dpiNativeRun');if(!button)return;
-    const ready=!!dpiDetectorSnapshot?.installed&&!!dpiDetectorSnapshot?.execution_ready;
-    button.disabled=dpiWebRunning||!ready;
-    button.textContent=dpiNativeVisible?'Скрыть Native report':'Показать Native report';
+    const button=$('dpiNativeRun');
+    if(button)button.disabled=true;
     renderDPINativeReport(dpiNativeResult);
   }
   async function runDPINativeReport(){
-    dpiNativeVisible=!dpiNativeVisible;
-    updateDPINativeState();
-    if(dpiNativeVisible&&!dpiNativeResult?.console_report&&!dpiWebRunning)await runDPIDetectorWeb();
+    if(!dpiWebRunning)await runDPIDetectorWeb();
   }
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'&&$('dpiConsolePane')?.classList.contains('dpi-console-overlay'))toggleDPIConsoleFullscreen();

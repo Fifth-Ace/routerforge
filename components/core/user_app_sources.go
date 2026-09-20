@@ -606,6 +606,7 @@ func resolveGitHubManifestlessSource(ctx context.Context, rawURL, owner, repo, b
 			},
 		},
 	}
+	applyDPIDetectorSourceProfile(&item)
 
 	return appSourceCache{
 		SchemaVersion:  appSourcesSchemaVersion,
@@ -1003,6 +1004,7 @@ func normalizeUserSourceItem(source appSourceRecord, cache appSourceCache, origi
 		Status: "unverified",
 		Note:   trustNote,
 	}
+	applyDPIDetectorSourceProfile(&item)
 	return item
 }
 

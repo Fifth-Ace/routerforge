@@ -885,7 +885,7 @@ button{min-height:var(--ui-control-h)}
     <div class="v2-hero">
       <div>
         <h2>DPI Detector</h2>
-        <div class="section-kicker">upstream by Runnin4ik · RouterForge compatibility packaging + NFQWS integration</div>
+        <div class="section-kicker">upstream by Runnin4ik · official v5 router binary + RouterForge NFQWS integration</div>
       </div>
       <span id="dpiModuleState" class="config-badge">IDLE</span>
     </div>
@@ -912,7 +912,7 @@ button{min-height:var(--ui-control-h)}
         <div class="diagnostics">
           <div class="diagnostic good"><strong>Спасибо Runnin4ik</strong><span>DPI Detector — upstream open-source проект автора. RouterForge добавляет Keenetic/Entware compatibility build и визуальную интеграцию.</span></div>
           <div class="diagnostic info"><strong>Repository</strong><span><a href="https://github.com/Runnin4ik/dpi-detector" target="_blank" rel="noopener noreferrer">github.com/Runnin4ik/dpi-detector</a></span></div>
-          <div class="diagnostic info"><strong>Update model</strong><span>new upstream → pinned candidate build → CI → hardware acceptance → отдельное обновление routerforge-dpi-detector</span></div>
+          <div class="diagnostic info"><strong>Update model</strong><span>upstream v5 release → App Center refresh → exact router asset → install/update with RouterForge safety gates</span></div>
         </div>
       </article>
     </div>
@@ -3564,9 +3564,9 @@ button{min-height:var(--ui-control-h)}
           keeneticDiag(d.execution_ready?'good':'warn','Package / binary',`${d.path||'unknown'} · ${keeneticBytes(d.size_bytes||0)}`),
           keeneticDiag(d.execution_ready?'good':'warn','Execution ready',d.execution_ready?'yes':(d.compatibility_reason||d.warning||'no')),
           keeneticDiag('info','Version probe',d.version||d.warning||'upstream CLI does not expose --version'),
-          keeneticDiag('info','Ownership','separate routerforge-dpi-detector package · NFQWS integration host')
+          keeneticDiag('info','Ownership','official upstream v5 binary · App Center source lifecycle · NFQWS integration host')
         ].join('')
-        :keeneticDiag('info','Module not installed','Установите routerforge-dpi-detector. NFQWS manager остаётся отдельным пакетом.');
+        :keeneticDiag('info','Module not installed','Установите DPI Detector v5+ из App Center через репозиторий Runnin4ik/dpi-detector. NFQWS Manager остаётся отдельным модулем.');
 
     $('dpiWebRun').disabled=dpiWebRunning||!d?.installed||!d?.execution_ready;
     $('dpiWebState').textContent=dpiWebRunning?'RUNNING':dpiWebResult?(dpiWebResult.ok?'PASS':'FAIL'):'IDLE';

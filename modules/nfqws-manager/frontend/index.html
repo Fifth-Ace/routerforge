@@ -871,6 +871,20 @@ button{min-height:var(--ui-control-h)}
 #dpiConsolePane:fullscreen .v2-boundary{display:none}
 @media(max-width:900px){.dpi-top-grid{grid-template-columns:1fr}.dpi-upstream-credit{height:auto}}
 @media(max-width:560px){.dpi-mode-switch{grid-template-columns:1fr}.dpi-runtime-strip{align-items:flex-start}.dpi-table-scroll{max-height:30rem}}
+
+/* DPI M4C: native console parity in Web + integration-style Console overlay. */
+body.dpi-console-overlay-open{overflow:hidden!important}
+#dpiConsolePane.dpi-console-overlay{position:fixed!important;inset:24px!important;z-index:90!important;margin:0!important;padding:12px!important;display:grid!important;grid-template-rows:auto minmax(0,1fr) auto;background:var(--bg)!important;border:1px solid var(--border-strong)!important;border-radius:14px!important;box-shadow:0 30px 100px rgba(0,0,0,.82)!important;overflow:hidden!important}
+#dpiConsolePane.dpi-console-overlay #dpiConsoleFrame{height:100%!important;min-height:0!important;border-radius:8px!important}
+#dpiConsolePane.dpi-console-overlay .v2-boundary{display:none!important}
+.dpi-console-report-shell{flex:1 0 100%;width:100%;max-width:none;padding:0!important;overflow:hidden;background:#090b0e!important}
+.dpi-console-report-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:#11151a}
+.dpi-console-report-head strong{color:#22d3ee;font-size:11px}.dpi-console-report-head span{color:#7f8995;font:9px/1.2 ui-monospace,Consolas,monospace}
+.dpi-console-report{margin:0;max-height:78vh;overflow:auto;padding:14px 16px;background:#050607;color:#d8d8d8;font:600 11px/1.42 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;white-space:pre;tab-size:4}
+.dpi-console-line{min-height:15px}.dpi-console-line.warn{color:#f0c94a}.dpi-console-line.title{color:#f5f7fa;font-weight:800}
+.dpi-tui-green{color:#16e33e}.dpi-tui-red{color:#ff2638}.dpi-tui-yellow{color:#e6c51e}.dpi-tui-cyan{color:#18a9ff}.dpi-tui-dim{color:#777f89}.dpi-tui-white{color:#d8d8d8}
+.dpi-console-report-meta{padding:9px 12px;border-top:1px solid var(--border);background:#0d1014;color:#7f8995;font:9px/1.4 ui-monospace,Consolas,monospace}
+@media(max-width:700px){#dpiConsolePane.dpi-console-overlay{inset:4px!important;padding:7px!important;border-radius:8px!important}.dpi-console-report{font-size:10px;padding:10px;max-height:82vh}}
 </style>
 </head>
 <body>
@@ -4973,6 +4987,76 @@ button{min-height:var(--ui-control-h)}
   document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
+
+  function syncDPIConsoleFullscreen(){
+    const button=$('dpiConsoleFullscreen'),pane=$('dpiConsolePane');if(!button||!pane)return;
+    button.textContent=pane.classList.contains('dpi-console-overlay')?'Закрыть полный экран':'На весь экран';
+  }
+  async function toggleDPIConsoleFullscreen(){
+    const pane=$('dpiConsolePane');if(!pane)return;
+    const on=!pane.classList.contains('dpi-console-overlay');
+    pane.classList.toggle('dpi-console-overlay',on);
+    document.body.classList.toggle('dpi-console-overlay-open',on);
+    syncDPIConsoleFullscreen();
+  }
+  function dpiParityStripANSI(value){
+    return String(value||'').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,'').replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g,'');
+  }
+  function dpiParityTokens(line){
+    let html=esc(line);
+    html=html.replace(/\b((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})\b/gi,'<span class="dpi-tui-cyan">$1</span>');
+    html=html.replace(/\b(AS\d+☆?)\b/g,'<span class="dpi-tui-yellow">$1</span>');
+    html=html.replace(/\b(DC[1-5]|DoH|DoT|UDP|HTTP|TLS1\.2|TLS1\.3)\b/g,'<span class="dpi-tui-cyan">$1</span>');
+    html=html.replace(/(✓|\bOK\b|\bAVAILABLE\b|\breachable\b|\bUP\b)/gi,'<span class="dpi-tui-green">$1</span>');
+    html=html.replace(/(×|\bDETECTED\b|\bTIMEOUT\b|\bBLOCKED\b|\bREFUSED\b|TLS DROP|TLS RST|TLS EOF|TLS ALERT|SYN DROP|TCP RST|недоступен|заблокирован)/gi,'<span class="dpi-tui-red">$1</span>');
+    html=html.replace(/(\b\d+\/\d+\b)/g,'<span class="dpi-tui-yellow">$1</span>');
+    return html;
+  }
+  function dpiParityReportHTML(report){
+    const text=dpiParityStripANSI(report).replace(/\r\n?/g,'\n');
+    return text.split('\n').map(line=>{
+      const trimmed=line.trim();
+      const warn=/^\[!?\]|ВНИМАНИЕ|Частично|перехватывает/i.test(trimmed);
+      const title=/^(Проверка|Результаты|Поиск белых SNI|Итог|Информация о сети|Fingerprint)/i.test(trimmed);
+      return `<div class="dpi-console-line${warn?' warn':''}${title?' title':''}">${dpiParityTokens(line)||' '}</div>`;
+    }).join('');
+  }
+  function renderDPIDetectorV5Result(envelope){
+    const root=$('dpiWebResults');if(!root)return;
+    if(!envelope){root.innerHTML=dpiWebRunning?'':'<article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article>';return}
+    if(envelope.console_report){
+      root.innerHTML=`<article class="panel dpi-console-report-shell"><div class="dpi-console-report-head"><strong>DPI Detector · native report</strong><span>${esc(envelope.tests||'—')} · ${esc(envelope.duration_ms||0)} ms · ${esc(envelope.report_bytes||0)} bytes${envelope.report_cut?' · CUT':''}</span></div><div class="dpi-console-report">${dpiParityReportHTML(envelope.console_report)}</div><div class="dpi-console-report-meta">${esc(envelope.environment_warning||'')} · config ${esc(envelope.production_config_unchanged?'UNCHANGED':'CHECK')}</div></article>`;
+      return;
+    }
+    root.innerHTML=dpiResultSection('Ошибка','native console parity',`<div class="notice error">${esc(envelope.error||'console report unavailable')}</div>`);
+  }
+  async function runDPIDetectorWeb(){
+    if(dpiWebRunning)return;
+    const tests=selectedDPITests();if(!tests){notice('DPI Detector: выберите хотя бы один тест.','error');return}
+    dpiWebRunning=true;dpiWebResult=null;dpiWebProgress={tests:[...tests],completed:[],current:tests,error:'',started_at:Date.now()};renderDPIDetectorWorkspace();
+    try{
+      const status=await api('/status');if(!status?.config_sha256)throw new Error('active config SHA недоступен');
+      const bodyReq={
+        tests,domains:dpiDomainList(),domains_file:String($('dpiWebDomainsFile').value||'').trim(),tcp16_file:String($('dpiWebTCP16File').value||'').trim(),
+        concurrency:Number($('dpiWebConcurrency').value||20),language:String($('dpiWebLanguage').value||'ru'),profile:String($('dpiWebProfile').value||'ru'),
+        interface:String($('dpiWebInterface').value||'').trim(),proxy:String($('dpiWebProxy').value||'').trim(),fingerprint:String($('dpiWebFingerprint').value||'').trim(),
+        burst:Number($('dpiWebBurst').value||5),burst_timeout:Number($('dpiWebBurstTimeout').value||8),burst_profiles:String($('dpiWebBurstProfiles').value||'').trim(),
+        burst_tls:String($('dpiWebBurstTLS').value||'1.3+1.2'),burst_alpn:String($('dpiWebBurstALPN').value||'h2'),trace:false,
+        expected_config_sha256:String(status.config_sha256),confirm:'ROUTERFORGE_DPI_DETECTOR_V5_RUN'
+      };
+      const response=await fetch(base+'/dpi-detector/v5/console',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(bodyReq)});
+      const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
+      if(!response.ok||!body.ok)throw new Error(body.error||`HTTP ${response.status}`);
+      dpiWebResult=body;dpiWebProgress.completed=[...tests];dpiWebProgress.current='';notice('DPI Detector: native report готов','good');
+    }catch(e){
+      const message=String(e.message||e);dpiWebProgress.error=message;dpiWebResult={ok:false,error:message};notice(`DPI Detector: ${message}`,'error');
+    }finally{
+      dpiWebRunning=false;dpiWebProgress.current='';renderDPIDetectorWorkspace();
+    }
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&$('dpiConsolePane')?.classList.contains('dpi-console-overlay'))toggleDPIConsoleFullscreen();
+  });
 
   $('dpiModeConsole').onclick=()=>setDPIDetectorMode('console');
   $('dpiModeWeb').onclick=()=>setDPIDetectorMode('web');

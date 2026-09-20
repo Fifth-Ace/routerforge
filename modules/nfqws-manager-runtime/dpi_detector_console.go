@@ -120,7 +120,7 @@ func handleDPIDetectorV5ConsoleRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dpiDetectorV5ConsoleResponse{
 		OK: true, Tests: validated.Tests, Path: path, Upstream: "Runnin4ik/dpi-detector",
 		DurationMS: durationMS, ConsoleReport: report, ReportBytes: len(output),
-		ReportCut: len(output) >= dpiDetectorV5ConsoleOutputMax,
+		ReportCut:     len(output) >= dpiDetectorV5ConsoleOutputMax,
 		NFQWS2Running: nfqwsRunning, RawProviderTruth: false, EnvironmentWarning: warning,
 		PersistentMutation: false, ProductionConfigSHA256: statusAfter.ConfigSHA256,
 		ProductionConfigUnchanged: true,

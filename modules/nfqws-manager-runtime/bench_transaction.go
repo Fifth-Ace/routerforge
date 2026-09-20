@@ -27,6 +27,8 @@ type benchTransactionSpec struct {
 	DestinationIPv4 string `json:"destination_ipv4"`
 	LocalPort       int    `json:"local_port"`
 	Queue           int    `json:"queue"`
+	Network         string `json:"network,omitempty"`
+	RemotePort      int    `json:"remote_port,omitempty"`
 }
 
 type benchTransactionContract struct {
@@ -92,6 +94,9 @@ func validateBenchTransactionSpec(spec benchTransactionSpec) error {
 	if spec.LocalPort < 1024 || spec.LocalPort > 65535 {
 		return errors.New("local port must be in range 1024-65535")
 	}
+	if _, _, err := normalizeBenchTransactionTransport(spec); err != nil {
+		return err
+	}
 	if spec.Queue < benchQueueMin || spec.Queue > benchQueueMax {
 		return fmt.Errorf("bench queue must be in reserved range %d-%d", benchQueueMin, benchQueueMax)
 	}
@@ -107,13 +112,19 @@ func buildBenchRulePlan(spec benchTransactionSpec) ([]benchRuleSpec, error) {
 		return nil, err
 	}
 
+	network, remotePort, err := normalizeBenchTransactionTransport(spec)
+	if err != nil {
+		return nil, err
+	}
+
 	port := strconv.Itoa(spec.LocalPort)
+	remote := strconv.Itoa(remotePort)
 	queue := strconv.Itoa(spec.Queue)
 	mark := "0x40000000/0x40000000"
 	clearMark := "0x0/0x40000000"
 
-	outTuple := []string{"-p", "tcp", "-d", spec.DestinationIPv4, "--sport", port, "--dport", "443"}
-	inTuple := []string{"-p", "tcp", "-s", spec.DestinationIPv4, "--sport", "443", "--dport", port}
+	outTuple := []string{"-p", network, "-d", spec.DestinationIPv4, "--sport", port, "--dport", remote}
+	inTuple := []string{"-p", network, "-s", spec.DestinationIPv4, "--sport", remote, "--dport", port}
 
 	rule := func(name, chain, relation, anchor string, priority int, comment string, args []string) benchRuleSpec {
 		return benchRuleSpec{

@@ -67,3 +67,12 @@ The registry schema intentionally includes provenance as a first-class field.
 Legacy Candidate Library entries do not yet persist an exact upstream commit, so
 the API reports that limitation instead of inventing provenance. Later import
 workstreams will populate exact source repository/ref metadata at ingestion time.
+
+## NFQWS Intelligence R2-F1 — TCP16 Network Memory
+
+- RouterForge base: `e9639284153dbb2d3409d8e47ea30bad0fb8d23b`
+- z2k TCP16 reference reviewed: `necronicle/z2k@fca1ed5a452f2554b3dfa1ab18571cee7c505174`
+- Concept reused with permission: persistent network-oriented TCP16 evidence and network-to-SNI memory.
+- RouterForge implementation is native: its own JSON schema, `/24` network identity fallback, persistence, API, UI and safety boundary.
+- This stage does not copy z2k runtime mutation, scheduler or automatic production configuration behavior.
+- R2-F1 records evidence only from RouterForge's existing domain detect path and exposes a read-only API/UI.

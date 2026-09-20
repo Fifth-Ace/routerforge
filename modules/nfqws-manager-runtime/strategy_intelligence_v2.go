@@ -260,6 +260,7 @@ func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerCandidatePoolV2Routes(mux)
 	registerTargetMemoryV2Routes(mux)
 	registerStrategyRegistryV1Routes(mux)
+	registerTCP16NetworkMemoryV1Routes(mux)
 	registerSelectorProgressV2Route(mux)
 	registerProgressiveSelectorV2Route(mux)
 	registerBenchTransportV2Routes(mux)
@@ -699,6 +700,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 	}
 	stages["http"] = v2StageResult{State: state, LatencyMS: metrics.DurationMS, Detail: detail, StatusCode: metrics.HTTPStatus, Bytes: metrics.Bytes}
 	class, text := v2ClassifyDetect(stages, metrics)
+	_ = v2RecordTCP16Observation(target, ip, metrics)
 	writeJSON(w, http.StatusOK, v2DetectResponse{
 		OK: state != "fail", Target: target, DestinationIPv4: ip, Stages: stages,
 		Classification: class, ClassificationText: text,

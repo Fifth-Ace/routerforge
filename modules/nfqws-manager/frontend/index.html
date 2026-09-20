@@ -1028,6 +1028,16 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 #view-dpi-detector .dpi-native-live-shell{overflow:hidden!important}
 
 
+
+.tcp16-memory-list{display:grid;gap:8px}
+.tcp16-memory-row{display:grid;grid-template-columns:minmax(180px,1.15fr) minmax(180px,1fr) minmax(150px,.8fr) minmax(170px,.9fr);gap:8px;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}
+.tcp16-memory-main,.tcp16-memory-state,.tcp16-memory-sni,.tcp16-memory-time{display:grid;gap:3px;min-width:0}
+.tcp16-memory-main strong,.tcp16-memory-sni strong,.tcp16-memory-time strong{font-size:9.5px;color:var(--text);overflow-wrap:anywhere}
+.tcp16-memory-main span,.tcp16-memory-state span,.tcp16-memory-sni span,.tcp16-memory-time span{font-size:8px;color:var(--muted);overflow-wrap:anywhere}
+.tcp16-memory-state strong{font-size:9px}.tcp16-memory-state.good strong{color:#16e33e}.tcp16-memory-state.bad strong{color:#ff4050}
+@media(max-width:1000px){.tcp16-memory-row{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.tcp16-memory-row{grid-template-columns:1fr}}
+
 .registry-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
 .registry-summary>div{display:grid;gap:4px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)}
 .registry-summary span{color:var(--muted);font-size:8px;text-transform:uppercase}.registry-summary strong{font-size:16px;color:var(--text)}
@@ -1085,6 +1095,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="sandbox-v2">Sandbox</button>
   <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
   <button class="tab" data-tab="strategy-registry-v1">Реестр <span id="v2RegistryTabCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="tcp16-memory-v1">TCP16 память <span id="v2TCP16TabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="upstream-lists">Источники списков <span id="listSourceStateNav" class="nav-meta"></span></button>
   <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
@@ -1382,6 +1393,32 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   </div>
 </section>
 
+
+
+<section id="view-tcp16-memory-v1" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>TCP16 Network Memory</h2><div class="section-kicker">R2-F1 · наблюдения сети по обрыву 16–20 КБ · без auto apply</div></div>
+      <span id="v2TCP16State" class="config-badge">IDLE</span>
+    </div>
+    <article class="panel">
+      <div class="panel-head">
+        <div><h2>Сетевая память</h2><div class="section-kicker">заполняется существующим «Разбором домена», когда HTTP probe даёт пригодный результат</div></div>
+        <button id="v2TCP16Refresh">Обновить</button>
+      </div>
+      <div class="registry-summary">
+        <div><span>Сетей</span><strong id="v2TCP16Count">0</strong></div>
+        <div><span>Подозрение TCP16</span><strong id="v2TCP16Suspected">0</strong></div>
+        <div><span>Чистых</span><strong id="v2TCP16Clear">0</strong></div>
+        <div><span>Working SNI</span><strong id="v2TCP16SNI">0</strong></div>
+      </div>
+    </article>
+    <article class="panel" style="margin-top:12px">
+      <div id="v2TCP16List" class="tcp16-memory-list"><div class="analysis-empty">Память ещё не загружена.</div></div>
+    </article>
+    <div class="v2-boundary">Этап только запоминает RouterForge-owned evidence. CIDR сейчас нормализуется до IPv4 /24; ASN/provider и verified working-SNI будут обогащаться следующими этапами. Production nfqws2 не меняется.</div>
+  </div>
+</section>
 
 <section id="view-strategy-registry-v1" class="view">
   <div class="v2-shell">
@@ -5193,6 +5230,49 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
 
+
+  let v2TCP16MemoryData=null;
+
+  function renderTCP16MemoryV1(){
+    const root=$('v2TCP16List');if(!root)return;
+    const data=v2TCP16MemoryData;
+    if(!data){root.innerHTML='<div class="analysis-empty">Память ещё не загружена.</div>';return}
+    const entries=data.entries||[];
+    if(!entries.length){root.innerHTML='<div class="analysis-empty">Наблюдений пока нет. «Разбор домена» начнёт заполнять память автоматически.</div>';return}
+    root.innerHTML=entries.map(x=>{
+      const state=x.cutoff_16k_suspected?'TCP16 SUSPECTED':'CLEAR';
+      const cls=x.cutoff_16k_suspected?'bad':'good';
+      const sni=x.working_sni||'—';
+      const network=x.asn?`AS${x.asn} · ${x.provider||''}`:(x.cidr||x.network_key||'—');
+      return `<div class="tcp16-memory-row">
+        <div class="tcp16-memory-main"><strong>${esc(network)}</strong><span>${esc(x.last_target||'—')} · ${esc(x.destination_ipv4||'—')}</span></div>
+        <div class="tcp16-memory-state ${cls}"><strong>${esc(state)}</strong><span>${esc(x.confidence||'NEW')} · suspected ${Number(x.suspected_count||0)} · clear ${Number(x.clear_count||0)}</span></div>
+        <div class="tcp16-memory-sni"><span>Working SNI</span><strong>${esc(sni)}</strong></div>
+        <div class="tcp16-memory-time"><span>Последнее наблюдение</span><strong>${esc(x.last_observed||'—')}</strong></div>
+      </div>`;
+    }).join('');
+  }
+
+  async function loadTCP16MemoryV1(force=false){
+    if(v2TCP16MemoryData&&!force){renderTCP16MemoryV1();return}
+    $('v2TCP16State').textContent='LOADING';
+    try{
+      const data=await api('/v2/tcp16-memory');
+      v2TCP16MemoryData=data;
+      $('v2TCP16State').textContent='READ ONLY';
+      $('v2TCP16Count').textContent=String(data.count||0);
+      $('v2TCP16TabCount').textContent=String(data.count||0);
+      $('v2TCP16Suspected').textContent=String(data.suspected||0);
+      $('v2TCP16Clear').textContent=String(data.clear||0);
+      $('v2TCP16SNI').textContent=String(data.working_sni||0);
+      renderTCP16MemoryV1();
+    }catch(e){
+      $('v2TCP16State').textContent='FAIL';
+      $('v2TCP16List').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
+    }
+    reportHeight();
+  }
+
   let v2RegistryData=null;
 
   function v2RegistryPct(value){
@@ -5266,6 +5346,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
 
+  $('v2TCP16Refresh').onclick=()=>loadTCP16MemoryV1(true);
   $('v2RegistryRefresh').onclick=()=>loadStrategyRegistryV1(true);
   $('v2RegistrySearch').oninput=v2RegistryRender;
   $('v2RegistryProtocol').onchange=v2RegistryRender;
@@ -5293,7 +5374,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
-  const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','catalog','upstream-lists','blobs','zapret-import']);
+  const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','catalog','upstream-lists','blobs','zapret-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsToolTabs=new Set(['preflight','dpi-detector','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
@@ -5336,6 +5417,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(tab==='keenetic'){loadKeenetic();loadDPIDetector()}
     if(['domain-v2','prodlab-v2','selector-v2','sandbox-v2','strategy-library-v2'].includes(tab))void openV2Workspace(tab);
     if(tab==='strategy-registry-v1')void loadStrategyRegistryV1();
+    if(tab==='tcp16-memory-v1')void loadTCP16MemoryV1();
     if(tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')}
     if(tab==='sandbox'){renderSandbox();setSandboxState(sandboxRunning?'RUNNING':sandboxResultsData.length?'READY':'IDLE');renderAutoTuneControl();loadBenchReadiness()}
     if(tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}

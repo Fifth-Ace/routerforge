@@ -31,6 +31,7 @@ type v2PolicyAutomationGateResponse struct {
 }
 
 func registerPolicyAutomationGateV2Routes(mux *http.ServeMux) {
+	registerStrategyRecommendationsV2Routes(mux)
 	mux.HandleFunc("/v1/v2/policy-automation-gate", getOnly(handleV2PolicyAutomationGate))
 }
 

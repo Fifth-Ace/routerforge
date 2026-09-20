@@ -1053,6 +1053,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .registry-insight.promising{color:var(--accent)}.registry-insight.mixed{color:var(--warn)}.registry-insight.degraded,.registry-insight.weak{color:var(--bad)}
 .registry-automation{display:block;margin-top:3px;font:800 8px/1.35 ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:.03em}
 .registry-automation.ready{color:var(--good)}.registry-automation.blocked{color:var(--muted)}
+.registry-recommendation{display:block;margin-top:3px;font:800 8px/1.4 ui-monospace,Consolas,monospace}.registry-recommendation.primary{color:var(--accent)}.registry-recommendation.hint{color:var(--muted)}
 .registry-args{grid-column:1/-1;border-top:1px solid var(--border);padding-top:7px}.registry-args summary{cursor:pointer;color:var(--muted);font-size:8.5px}.registry-args pre{margin:7px 0 0;padding:8px;border:1px solid var(--border);border-radius:5px;background:var(--code);color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;font:8.5px/1.45 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace}
 @media(max-width:900px){.registry-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.registry-filters{grid-template-columns:1fr}.registry-row{grid-template-columns:1fr}}
 
@@ -1455,6 +1456,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <div><span>Протоколов</span><strong id="v2RegistryProtocolsCount">0</strong></div>
         <div><span>С evidence</span><strong id="v2RegistryEvidenceCount">0</strong></div>
         <div><span>Automation-ready</span><strong id="v2RegistryAutomationReady">0</strong></div>
+        <div><span>Historical top</span><strong id="v2RegistryRecommendationTop">0</strong></div>
       </div>
       <div class="registry-filters">
         <input id="v2RegistrySearch" class="search" placeholder="Поиск по имени, source, family, args">
@@ -1467,7 +1469,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div id="v2RegistryList" class="registry-list"><div class="analysis-empty">Реестр ещё не загружен.</div></div>
     </article>
 
-    <div class="v2-boundary">Policy Automation Gate только показывает, какие стратегии когда-нибудь могут быть допущены к автоматизации. Automation сейчас жёстко disabled: endpoint read-only, action=none, никаких apply/reload/restart и изменений nfqws2.conf.</div>
+    <div class="v2-boundary">Recommendation Engine ранжирует только накопленный historical evidence и показывает bench hints. Перед любым применением всё равно обязателен live Selector/Preview. Automation жёстко disabled: никаких apply/reload/restart и изменений nfqws2.conf.</div>
   </div>
 </section>
 
@@ -5458,8 +5460,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const scoreText=Number.isFinite(Number(score))?`score ${Number(score)}/100`:'score —';
       const insight=item.insight||{},insightState=insight.state||'—',insightSummary=insight.summary||'Нет insight.';
       const automation=item.automation||{},automationText=automation.eligible?'AUTOMATION GATE READY':`AUTOMATION BLOCKED${(automation.reasons||[]).length?' · '+automation.reasons.join(', '):''}`;
+      const recommendation=item.recommendation||null,recommendationText=recommendation?(recommendation.primary?`HISTORICAL TOP #${recommendation.rank}`:`HISTORICAL #${recommendation.rank}`):'';
       return `<div class="registry-row">
-        <div class="registry-main"><strong>${esc(item.name||item.id)}</strong>${aliases}<span class="registry-meta">${esc((item.sources||[]).join(' + '))} · ${esc(item.protocol||'—')} · ${esc(item.family||'—')}</span><span class="registry-meta">${esc(capability)} · ${esc(scoreText)}</span><span class="registry-insight ${esc(String(insightState).toLowerCase())}">${esc(insightState)} · ${esc(insightSummary)}</span><span class="registry-automation ${automation.eligible?'ready':'blocked'}">${esc(automationText)}</span></div>
+        <div class="registry-main"><strong>${esc(item.name||item.id)}</strong>${aliases}<span class="registry-meta">${esc((item.sources||[]).join(' + '))} · ${esc(item.protocol||'—')} · ${esc(item.family||'—')}</span><span class="registry-meta">${esc(capability)} · ${esc(scoreText)}</span><span class="registry-insight ${esc(String(insightState).toLowerCase())}">${esc(insightState)} · ${esc(insightSummary)}</span><span class="registry-automation ${automation.eligible?'ready':'blocked'}">${esc(automationText)}</span>${recommendation?`<span class="registry-recommendation ${recommendation.primary?'primary':'hint'}">${esc(recommendationText)} · ${esc(recommendation.reason||'')}</span>`:''}</div>
         <div class="registry-evidence"><strong>${esc(evidence)}</strong><span>${esc(provenance||'local')}</span></div>
         <details class="registry-args"><summary>Args · ${esc(String((item.fingerprint||'').slice(0,12)))}</summary><pre>${esc((item.args||[]).join('\n'))}</pre></details>
       </div>`;
@@ -5477,12 +5480,14 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(v2RegistryData&&!force){v2RegistryRender();return}
     $('v2RegistryState').textContent='LOADING';
     try{
-      const [data,scores,insights,automation]=await Promise.all([api('/v2/strategy-registry'),api('/v2/strategy-scores'),api('/v2/strategy-insights'),api('/v2/policy-automation-gate')]);
+      const [data,scores,insights,automation,recommendations]=await Promise.all([api('/v2/strategy-registry'),api('/v2/strategy-scores'),api('/v2/strategy-insights'),api('/v2/policy-automation-gate'),api('/v2/strategy-recommendations')]);
       const scoreMap=new Map((scores.entries||[]).map(x=>[x.fingerprint,x.score]));
       const insightMap=new Map((insights.entries||[]).map(x=>[x.fingerprint,x.insight]));
       const automationMap=new Map((automation.candidates||[]).map(x=>[x.fingerprint,x]));
-      (data.entries||[]).forEach(x=>{x.score=scoreMap.get(x.fingerprint)||null;x.insight=insightMap.get(x.fingerprint)||null;x.automation=automationMap.get(x.fingerprint)||null});
+      const recommendationMap=new Map((recommendations.items||[]).map(x=>[x.fingerprint,x]));
+      (data.entries||[]).forEach(x=>{x.score=scoreMap.get(x.fingerprint)||null;x.insight=insightMap.get(x.fingerprint)||null;x.automation=automationMap.get(x.fingerprint)||null;x.recommendation=recommendationMap.get(x.fingerprint)||null});
       data.automation_gate=automation;
+      data.recommendations=recommendations;
       v2RegistryData=data;
       $('v2RegistryState').textContent='READ ONLY';
       $('v2RegistryCount').textContent=String(data.count||0);
@@ -5491,6 +5496,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       $('v2RegistryProtocolsCount').textContent=String((data.protocols||[]).length);
       $('v2RegistryEvidenceCount').textContent=String((data.entries||[]).filter(x=>Number(x?.evidence?.verified_count||0)>0).length);
       $('v2RegistryAutomationReady').textContent=String(Number(data.automation_gate?.ready_count||0));
+      $('v2RegistryRecommendationTop').textContent=String(Number(data.recommendations?.primary_count||0));
       v2RegistryFillSelect('v2RegistryProtocol',data.protocols||[],'Все протоколы');
       v2RegistryFillSelect('v2RegistrySource',data.sources||[],'Все источники');
       v2RegistryRender();

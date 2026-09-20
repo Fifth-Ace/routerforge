@@ -119,3 +119,14 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - Maximum score is 100. Components are explicit in API output; failures and unstable evidence subtract bounded penalties.
 - The engine does not apply, reorder production rules, or mutate Strategy Library/target memory.
 - Registry UI displays the score but keeps the existing registry ordering; score-driven recommendation wiring is deferred to a later gate.
+
+## NFQWS Intelligence R2-F6 — Target Memory V3
+
+- RouterForge base: `5c0397fac08b23e2951c1ac2d7181038378c5980`.
+- Storage remains backward-compatible with target-memory document version 1; the API now advertises `feature_version=3`.
+- Independent observations are accumulated instead of replacing the previous success/complete rates.
+- Historical result-class counters are retained: working, unstable and failed/partial observations.
+- Legacy entries are hydrated conservatively from their existing verified count and current result class on first reuse.
+- A changed environment fingerprint resets trust/streak/rate evidence before recording the new observation, preventing confidence from leaking across production-config/environment changes.
+- Strategy Registry consumes the richer observation counters, so Score Engine V2 receives historical failure/unstable evidence instead of only the latest class.
+- No active nfqws2 config, process or rules are changed.

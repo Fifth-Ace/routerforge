@@ -288,13 +288,19 @@ func v2BuildStrategyRegistry(
 			item.Targets[evidence.Target] = true
 		}
 		item.Entry.Evidence.VerifiedCount += evidence.VerifiedCount
-		switch evidence.ResultClass {
-		case "WORKING":
-			item.Entry.Evidence.WorkingCount++
-		case "UNSTABLE":
-			item.Entry.Evidence.UnstableCount++
-		default:
-			item.Entry.Evidence.FailureCount++
+		if evidence.ObservationCount > 0 {
+			item.Entry.Evidence.WorkingCount += evidence.WorkingObservations
+			item.Entry.Evidence.UnstableCount += evidence.UnstableObservations
+			item.Entry.Evidence.FailureCount += evidence.FailureObservations
+		} else {
+			switch evidence.ResultClass {
+			case "WORKING":
+				item.Entry.Evidence.WorkingCount++
+			case "UNSTABLE":
+				item.Entry.Evidence.UnstableCount++
+			default:
+				item.Entry.Evidence.FailureCount++
+			}
 		}
 		weight := evidence.VerifiedCount
 		if weight <= 0 {

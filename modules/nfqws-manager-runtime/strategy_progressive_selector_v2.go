@@ -514,35 +514,8 @@ func v2RecordProgressiveEvidence(target, configSHA string, transport benchTransp
 		entry.Target = target
 		entry.Protocol = transport.ID
 		entry.IPFamily = "ipv4"
-		entry.CandidateID = candidate.CandidateID
-		entry.CandidateName = candidate.CandidateName
-		entry.CandidateSource = candidate.CandidateSource
 		entry.Fingerprint = fingerprint
-		entry.Environment = env
-		entry.ConfigSHA256 = strings.ToLower(strings.TrimSpace(configSHA))
-		entry.Args = append([]string{}, args...)
-		entry.ResultClass = candidate.ResultClass
-		entry.SuccessRate = candidate.SuccessRate
-		entry.CompleteRate = candidate.CompleteRate
-		entry.MedianTTFBMS = candidate.MedianTTFBMS
-		entry.MedianDurationMS = candidate.MedianDurationMS
-		entry.MedianThroughput = candidate.MedianThroughput
-		entry.VerifiedCount++
-		entry.LastVerified = now
-		entry.InfrastructureOK = candidate.InfrastructureOK
-		entry.CleanupProven = candidate.CleanupProven
-		switch candidate.ResultClass {
-		case "WORKING":
-			entry.SuccessStreak++
-			entry.FailureStreak = 0
-			entry.LastWorking = now
-		case "FAILED", "PARTIAL":
-			entry.FailureStreak++
-			entry.SuccessStreak = 0
-		default:
-			entry.SuccessStreak = 0
-			entry.FailureStreak = 0
-		}
+		entry = v2MergeTargetMemoryObservation(entry, candidate, env, configSHA, now)
 		if i, ok := index[key]; ok {
 			doc.Entries[i] = entry
 		} else {

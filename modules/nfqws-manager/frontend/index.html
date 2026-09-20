@@ -816,6 +816,22 @@ button{min-height:var(--ui-control-h)}
 @media(max-width:900px){.v2-two,.v2-card-grid{grid-template-columns:1fr}.v2-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.v2-row{grid-template-columns:1fr}.v2-stats{grid-template-columns:1fr}}
 
+/* DPI M4: compact source cards, progressive results and native status colors. */
+.nfqws-menu-credit{display:none;margin:8px 0 0}.nfqws-menu-credit.visible{display:flex}
+.dpi-top-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:10px;align-items:stretch}
+.dpi-mode-card{display:grid;gap:9px}.dpi-mode-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.dpi-mode-head h2{margin:0;color:var(--accent);font-size:13px}.dpi-mode-head span{display:block;margin-top:3px;color:var(--muted);font-size:9.5px}
+.dpi-mode-switch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.dpi-mode-switch button{display:grid;justify-items:start;gap:2px;min-height:46px;padding:8px 10px}.dpi-mode-switch button strong{font-size:11px}.dpi-mode-switch button span{color:var(--muted);font-size:8.5px;font-weight:500}.dpi-mode-switch button.primary span{color:color-mix(in srgb,var(--accent) 68%,var(--muted))}
+.dpi-runtime-strip{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.dpi-runtime-pill{display:inline-flex;align-items:center;min-height:24px;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface2);color:var(--muted);font-size:9px}.dpi-runtime-pill.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 32%,var(--border))}.dpi-runtime-pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 32%,var(--border))}
+.dpi-upstream-credit{height:100%;box-sizing:border-box}.dpi-upstream-credit strong{font-size:11px}.dpi-upstream-credit span{font-size:9.5px}
+.setup-chip.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 28%,var(--border));background:color-mix(in srgb,var(--good) 7%,var(--surface2))}.setup-chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,var(--border));background:color-mix(in srgb,var(--warn) 7%,var(--surface2))}.setup-chip.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 34%,var(--border));background:color-mix(in srgb,var(--bad) 8%,var(--surface2))}
+.dpi-finding-bad{border-left-color:var(--bad)!important;color:color-mix(in srgb,var(--bad) 78%,var(--text))!important;background:color-mix(in srgb,var(--bad) 7%,var(--surface2))!important}
+.dpi-run-progress{display:none;gap:6px;margin-top:10px;padding:9px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}.dpi-run-progress.running{border-color:color-mix(in srgb,var(--accent) 38%,var(--border))}.dpi-run-progress.good{border-color:color-mix(in srgb,var(--good) 35%,var(--border))}.dpi-run-progress.bad{border-color:color-mix(in srgb,var(--bad) 38%,var(--border))}.dpi-run-progress-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.dpi-run-progress-head strong{font-size:10.5px}.dpi-run-progress-head span,.dpi-run-progress-detail{color:var(--muted);font-size:9px}.dpi-run-progress-track{height:4px;overflow:hidden;border-radius:999px;background:var(--border)}.dpi-run-progress-track span{display:block;height:100%;background:var(--accent);transition:width .2s ease}.dpi-run-progress.good .dpi-run-progress-track span{background:var(--good)}.dpi-run-progress.bad .dpi-run-progress-track span{background:var(--bad)}
+#dpiWebResults{display:grid;gap:8px}#dpiWebResults>.panel,#dpiWebResults>.dpi-result-section{margin-top:0!important}.dpi-result-summary{padding:10px}.dpi-result-summary .v2-stats{margin:0}.dpi-result-summary .v2-stats>div{padding:7px 8px}.dpi-result-summary .v2-stats strong{font-size:11px}
+.dpi-result-section{padding:0!important;overflow:hidden}.dpi-result-section>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;cursor:pointer;list-style:none;background:color-mix(in srgb,var(--surface2) 78%,var(--surface));user-select:none}.dpi-result-section>summary::-webkit-details-marker{display:none}.dpi-result-section>summary span:first-child{display:grid;gap:2px}.dpi-result-section>summary strong{color:var(--accent);font-size:11px}.dpi-result-section>summary small{color:var(--muted);font-size:8.5px;font-weight:500}.dpi-result-chevron{color:var(--muted);font-size:11px;transition:transform .16s ease}.dpi-result-section:not([open]) .dpi-result-chevron{transform:rotate(-90deg)}.dpi-result-body{padding:9px 10px;border-top:1px solid var(--border)}
+#dpiWebResults .v2-card-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px}#dpiWebResults .card{padding:8px 9px}#dpiWebResults .metric-value{font-size:14px;margin-top:3px}#dpiWebResults .metric-label{font-size:8.5px}.dpi-table-scroll{max-height:36rem;overflow:auto;border:1px solid var(--border);border-radius:6px}.dpi-table-scroll table{width:100%;font-size:9.5px}.dpi-table-scroll th,.dpi-table-scroll td{padding:6px 7px;vertical-align:top}.dpi-table-scroll thead th{position:sticky;top:0;z-index:1;background:var(--surface2)}.dpi-technical{padding:9px 11px!important}.dpi-technical>summary{cursor:pointer;font-size:10px;font-weight:700;color:var(--muted)}
+#dpiConsolePane:fullscreen{box-sizing:border-box;width:100vw;height:100vh;margin:0;padding:10px;border:0;border-radius:0;background:var(--bg);overflow:hidden}#dpiConsolePane:fullscreen #dpiConsoleFrame{height:calc(100vh - 112px)!important;border-radius:4px}#dpiConsolePane:fullscreen .v2-boundary{display:none}
+@media(max-width:900px){.dpi-top-grid{grid-template-columns:1fr}.dpi-upstream-credit{height:auto}}
+@media(max-width:560px){.dpi-mode-switch{grid-template-columns:1fr}.dpi-runtime-strip{align-items:flex-start}.dpi-table-scroll{max-height:30rem}}
 </style>
 </head>
 <body>
@@ -839,7 +855,7 @@ button{min-height:var(--ui-control-h)}
   <button class="tab active" data-tab="overview">Обзор</button>
   <button class="tab" data-primary-tab="configuration">Настройка</button>
   <button class="tab" data-primary-tab="tools">Диагностика</button>
-  <button class="tab" data-primary-tab="nfqws-menu">Стратегии</button>
+  <button class="tab" data-primary-tab="nfqws-menu">NFQWS Menu</button>
   <button class="tab" data-primary-tab="maintenance">Обслуживание</button>
 </nav>
 
@@ -875,7 +891,11 @@ button{min-height:var(--ui-control-h)}
   <button class="tab" data-tab="keenetic">Система <span id="keeneticTabState" class="nav-meta"></span></button>
 </nav>
 
-<div id="nfqwsMenuCredit" style="display:none!important"><span id="testLabTabState"></span><span id="sandboxTabState"></span></div>
+<div id="nfqwsMenuCredit" class="zapret-import-credit nfqws-menu-credit">
+  <div><strong>NFQWS Menu upstream · rndnaame/nfqws-menu</strong><span>Каталог стратегий, upstream lists и blobs используют интеграцию RouterForge с NFQWS Menu. Автоподбор, Sandbox и безопасное применение остаются логикой RouterForge.</span></div>
+  <a href="https://github.com/rndnaame/nfqws-menu/" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
+  <span id="testLabTabState" hidden></span><span id="sandboxTabState" hidden></span>
+</div>
 
 
 <main>
@@ -890,37 +910,29 @@ button{min-height:var(--ui-control-h)}
       <span id="dpiModuleState" class="config-badge">IDLE</span>
     </div>
 
-    <div class="v2-two">
-      <article class="panel">
-        <div class="panel-head">
-          <div><h2>Режим</h2><div class="section-kicker">Console = upstream TUI · Web = тот же binary через JSON schema v1</div></div>
+    <div class="dpi-top-grid">
+      <article class="panel dpi-mode-card">
+        <div class="dpi-mode-head">
+          <div><h2>Режим</h2><span>один официальный binary · два представления</span></div>
+          <button id="dpiModuleRefresh">Обновить</button>
         </div>
-        <div class="toolbar">
-          <button id="dpiModeConsole" class="primary">Console</button>
-          <button id="dpiModeWeb">Web</button>
-          <button id="dpiModuleRefresh">Обновить состояние</button>
+        <div class="dpi-mode-switch">
+          <button id="dpiModeConsole" class="primary"><strong>Console</strong><span>native upstream TUI · PTY</span></button>
+          <button id="dpiModeWeb"><strong>Web</strong><span>visual UI · JSON schema v1</span></button>
         </div>
-        <div id="dpiModuleSummary" class="diagnostics" style="margin-top:10px">
-          <div class="empty">Открой вкладку — загрузим состояние DPI Detector.</div>
-        </div>
+        <div id="dpiModuleSummary" class="dpi-runtime-strip"><span class="dpi-runtime-pill">Загрузка состояния…</span></div>
       </article>
 
-      <article class="panel">
-        <div class="panel-head">
-          <div><h2>Upstream</h2><div class="section-kicker">официальный router binary из App Center source</div></div>
-        </div>
-        <div class="diagnostics">
-          <div class="diagnostic good"><strong>Runnin4ik / DPI Detector</strong><span>RouterForge не форкает engine и не пересобирает его. Console и Web используют установленный /opt/bin/dpi-detector.</span></div>
-          <div class="diagnostic info"><strong>Repository</strong><span><a href="https://github.com/Runnin4ik/dpi-detector" target="_blank" rel="noopener noreferrer">github.com/Runnin4ik/dpi-detector</a></span></div>
-          <div class="diagnostic info"><strong>v5 contract</strong><span>tests 0–6 → --json schema v1 · test 7 → upstream legend</span></div>
-        </div>
-      </article>
+      <div class="zapret-import-credit dpi-upstream-credit">
+        <div><strong>DPI Detector upstream · Runnin4ik/dpi-detector</strong><span>Официальный v5 router binary из App Center. RouterForge не форкает и не пересобирает engine; Console и Web используют /opt/bin/dpi-detector.</span></div>
+        <a href="https://github.com/Runnin4ik/dpi-detector" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
+      </div>
     </div>
 
     <article id="dpiConsolePane" class="panel">
       <div class="panel-head">
         <div><h2>Native Console</h2><div class="section-kicker">реальный RouterForge PTY · DPI Detector уже запущен внутри</div></div>
-        <button id="dpiConsoleRestart">Перезапустить DPI Detector</button>
+        <div class="toolbar"><button id="dpiConsoleFullscreen">На весь экран</button><button id="dpiConsoleRestart">Перезапустить DPI Detector</button></div>
       </div>
       <iframe id="dpiConsoleFrame" title="DPI Detector native console" style="display:block;width:100%;height:680px;border:1px solid var(--border);border-radius:8px;background:var(--bg)"></iframe>
       <div class="v2-boundary">Это настоящий upstream TUI. Клавиши, меню и поведение принадлежат DPI Detector; RouterForge только предоставляет PTY/terminal window.</div>
@@ -1002,12 +1014,13 @@ button{min-height:var(--ui-control-h)}
         </article>
       </div>
 
-      <article class="panel" style="margin-top:12px">
+      <article class="panel dpi-run-panel" style="margin-top:12px">
         <div class="panel-head">
-          <div><h2>Запуск</h2><div class="section-kicker">один вызов официального binary · --json · никаких изменений nfqws2</div></div>
+          <div><h2>Запуск</h2><div class="section-kicker">каждый выбранный test выполняется официальным binary через --json; готовые блоки появляются по мере завершения</div></div>
           <div class="toolbar"><button id="dpiWebRun" class="primary">Запустить выбранные тесты</button></div>
         </div>
         <div class="v2-boundary">nfqws2, VPN и proxy автоматически не отключаются. Результат описывает текущий router path и не объявляется raw ISP truth.</div>
+        <div id="dpiRunProgress" class="dpi-run-progress" style="display:none"></div>
       </article>
 
       <div id="dpiWebResults" style="margin-top:12px"><article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article></div>
@@ -2036,7 +2049,7 @@ button{min-height:var(--ui-control-h)}
   const $=id=>document.getElementById(id);
   let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null, autoTuneRunning=false, autoTuneStage='', autoTuneResult=null, autoTunePreviewData=null, autoTuneApplyResult=null, autoTuneToken='', autoTuneActiveSha='', autoTuneMessage='';
   let processingMapLiveRunning=false, processingMapLiveResult=null, processingMapStrategyInventory=null;
-  let dpiWorkspaceMode='console',dpiWebRunning=false,dpiWebResult=null;
+  let dpiWorkspaceMode='console',dpiWebRunning=false,dpiWebResult=null,dpiWebProgress=null;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -3605,21 +3618,48 @@ button{min-height:var(--ui-control-h)}
   }
   function restartDPIConsole(){ensureDPIConsole(true)}
 
+  const dpiTestNames={'0':'Network info','1':'DNS availability','2':'Domain inspection','3':'TCP 16–20 KB','4':'Whitelist SNI','5':'Telegram','6':'Fingerprint Burst'};
   function dpiStatusKind(value){
-    const v=String(value??'').toLowerCase();
+    const v=String(value??'').trim().toLowerCase().replace(/[\s-]+/g,'_');
     if(!v)return'info';
-    if(v.includes('ok')||v.includes('pass')||v.includes('available')||v.includes('reachable')||v.includes('normal'))return'good';
-    if(v.includes('detect')||v.includes('block')||v.includes('fail')||v.includes('timeout')||v.includes('error')||v.includes('reset'))return'bad';
-    if(v.includes('mixed')||v.includes('warn')||v.includes('partial')||v.includes('substitut'))return'warn';
-    return'info';
+    if(['ok','pass','available','reachable','normal'].includes(v))return'good';
+    if(['no_tls13','no_ca','local_ip','dns_fail','nxdomain','stalled','slow','partial','mixed','warn','warning'].includes(v))return'warn';
+    if(v==='err')return'info';
+    return'bad';
   }
   function dpiChip(value){const text=String(value??'—');return `<span class="setup-chip ${dpiStatusKind(text)}">${esc(text)}</span>`}
   function dpiDetail(value){if(value===null||value===undefined||value==='')return'—';return typeof value==='object'?JSON.stringify(value):String(value)}
   function dpiTable(headers,rows){
-    return `<div class="table-scroll"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+    return `<div class="table-scroll dpi-table-scroll"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
   }
-  function dpiResultSection(title,kicker,body){return `<article class="panel" style="margin-top:12px"><div class="panel-head"><div><h2>${esc(title)}</h2><div class="section-kicker">${esc(kicker||'')}</div></div></div>${body}</article>`}
+  function dpiResultSection(title,kicker,body){return `<details class="panel dpi-result-section" open><summary><span><strong>${esc(title)}</strong><small>${esc(kicker||'')}</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${body}</div></details>`}
   function dpiMetric(label,value,kind='info'){return `<div class="card"><div class="metric-label">${esc(label)}</div><div class="metric-value ${kind==='good'?'good-text':kind==='bad'?'bad-text':kind==='warn'?'warn-text':''}">${esc(value??'—')}</div></div>`}
+  function dpiRatioKind(ok,total){ok=Number(ok||0);total=Number(total||0);if(total<=0)return'info';if(ok===total)return'good';if(ok===0)return'bad';return'warn'}
+  function dpiRenderProgress(){
+    const box=$('dpiRunProgress');if(!box)return;
+    const p=dpiWebProgress;
+    if(!p){box.style.display='none';box.innerHTML='';return}
+    const total=p.tests.length,done=p.completed.length,pct=total?Math.round(done*100/total):0;
+    const current=p.current?`${p.current} · ${dpiTestNames[p.current]||'test'}`:'';
+    const failed=String(p.error||'');
+    const title=failed?'Проверка остановлена':dpiWebRunning?'Идёт проверка — подождите':'Проверка завершена';
+    const detail=failed?failed:dpiWebRunning?(current?`Сейчас выполняется: ${current}`:'Подготовка запуска…'):`Готово: ${done} из ${total}`;
+    box.className=`dpi-run-progress ${failed?'bad':dpiWebRunning?'running':'good'}`;
+    box.style.display='grid';
+    box.innerHTML=`<div class="dpi-run-progress-head"><strong>${esc(title)}</strong><span>${done}/${total}</span></div><div class="dpi-run-progress-detail">${esc(detail)}</div><div class="dpi-run-progress-track"><span style="width:${pct}%"></span></div>`;
+  }
+  function syncDPIConsoleFullscreen(){
+    const button=$('dpiConsoleFullscreen'),pane=$('dpiConsolePane');if(!button||!pane)return;
+    button.textContent=document.fullscreenElement===pane?'Выйти из полного экрана':'На весь экран';
+  }
+  async function toggleDPIConsoleFullscreen(){
+    const pane=$('dpiConsolePane');if(!pane)return;
+    try{
+      if(document.fullscreenElement===pane){await document.exitFullscreen();return}
+      if(!pane.requestFullscreen)throw new Error('Fullscreen API недоступен в этом браузере');
+      await pane.requestFullscreen();
+    }catch(e){notice(`DPI Console: ${e.message||e}`,'error')}
+  }
 
   function dpiRenderNetwork(data){
     if(!data)return'';
@@ -3640,14 +3680,15 @@ button{min-height:var(--ui-control-h)}
   }
   function dpiRenderDNS(data){
     if(!data)return'';
+    const subst=Number(data.subst_sub||0),substTotal=Number(data.subst_total||0);
     const cards=[
-      dpiMetric('DoH',`${data.doh_ok??0} / ${data.doh_total??0}`,data.doh_ok===data.doh_total?'good':'warn'),
-      dpiMetric('DoT',`${data.dot_ok??0} / ${data.dot_total??0}`,data.dot_ok===data.dot_total?'good':'warn'),
-      dpiMetric('UDP DNS',`${data.udp_ok??0} / ${data.udp_total??0}`,data.udp_ok===data.udp_total?'good':'warn'),
+      dpiMetric('DoH',`${data.doh_ok??0} / ${data.doh_total??0}`,dpiRatioKind(data.doh_ok,data.doh_total)),
+      dpiMetric('DoT',`${data.dot_ok??0} / ${data.dot_total??0}`,dpiRatioKind(data.dot_ok,data.dot_total)),
+      dpiMetric('UDP DNS',`${data.udp_ok??0} / ${data.udp_total??0}`,dpiRatioKind(data.udp_ok,data.udp_total)),
       dpiMetric('Resolvers',data.resolvers_total??0),
-      dpiMetric('Substitution',`${data.subst_sub??0} / ${data.subst_total??0}`,Number(data.subst_sub||0)?'warn':'good')
+      dpiMetric('Substitution',`${data.subst_sub??0} / ${data.subst_total??0}`,subst===0?'good':substTotal>0&&subst===substTotal?'bad':'warn')
     ];
-    const hij=(data.hijacked_brands||[]).length?`<div class="v2-boundary">Hijacked / substituted brands: ${esc(data.hijacked_brands.join(', '))}</div>`:'';
+    const hij=(data.hijacked_brands||[]).length?`<div class="v2-boundary dpi-finding-bad">Hijacked / substituted brands: ${esc(data.hijacked_brands.join(', '))}</div>`:'';
     return dpiResultSection('1 · DNS availability','DoH / DoT / UDP and substitution signals',`<div class="v2-card-grid">${cards.join('')}</div>${hij}`);
   }
   function dpiRenderDomains(rows){
@@ -3662,7 +3703,8 @@ button{min-height:var(--ui-control-h)}
   }
   function dpiRenderWhitelist(data){
     if(!data)return'';
-    return dpiResultSection('4 · Whitelist SNI','AS-level white-SNI detection',`<div class="v2-card-grid">${dpiMetric('Detected AS',data.detected_as??0,Number(data.detected_as||0)?'warn':'good')}${dpiMetric('Found AS',data.found_as??0)}</div>`);
+    const detected=Number(data.detected_as||0),found=Number(data.found_as||0);
+    return dpiResultSection('4 · Whitelist SNI','AS-level white-SNI detection',`<div class="v2-card-grid">${dpiMetric('Detected AS',detected,detected?'warn':'good')}${dpiMetric('Found AS',found,found?'good':detected?'warn':'info')}</div>`);
   }
   function dpiTransfer(label,data){
     if(!data)return'';
@@ -3670,7 +3712,7 @@ button{min-height:var(--ui-control-h)}
   }
   function dpiRenderTelegram(data){
     if(!data)return'';
-    return dpiResultSection('5 · Telegram',`verdict ${data.verdict||'—'}`,`<div class="v2-card-grid">${dpiMetric('Verdict',data.verdict||'—',dpiStatusKind(data.verdict))}${dpiMetric('DC reachable',`${data.dc_reachable??0} / ${data.dc_total??0}`,data.dc_reachable===data.dc_total?'good':'warn')}${dpiTransfer('Download',data.download)}${dpiTransfer('Upload',data.upload)}</div>`);
+    return dpiResultSection('5 · Telegram',`verdict ${data.verdict||'—'}`,`<div class="v2-card-grid">${dpiMetric('Verdict',data.verdict||'—',dpiStatusKind(data.verdict))}${dpiMetric('DC reachable',`${data.dc_reachable??0} / ${data.dc_total??0}`,dpiRatioKind(data.dc_reachable,data.dc_total))}${dpiTransfer('Download',data.download)}${dpiTransfer('Upload',data.upload)}</div>`);
   }
   function dpiRenderBurst(data){
     if(!data)return'';
@@ -3685,11 +3727,13 @@ button{min-height:var(--ui-control-h)}
   }
   function renderDPIDetectorV5Result(envelope){
     const root=$('dpiWebResults');if(!root)return;
-    if(!envelope){root.innerHTML='<article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article>';return}
-    if(!envelope.ok){root.innerHTML=dpiResultSection('Ошибка','DPI Detector v5',`<div class="notice error">${esc(envelope.error||'run failed')}</div><pre class="v2-args">${esc(JSON.stringify(envelope,null,2))}</pre>`);return}
+    if(!envelope){root.innerHTML=dpiWebRunning?'':'<article class="panel"><div class="analysis-empty">Тесты ещё не запускались.</div></article>';return}
     const report=envelope.report||{},results=report.results||{};
-    const summary=`<article class="panel"><div class="v2-stats"><div><span>Upstream</span><strong>${esc(report.version||'—')}</strong></div><div><span>Schema</span><strong>${esc(report.schema_version??'—')}</strong></div><div><span>Profile</span><strong>${esc(report.profile||'—')}</strong></div><div><span>Fingerprint</span><strong>${esc(report.tls_fingerprint||'—')}</strong></div><div><span>Duration</span><strong>${esc(envelope.duration_ms??0)} ms</strong></div></div><div class="v2-boundary">${esc(envelope.environment_warning||'')}</div></article>`;
-    let html=summary;
+    if(!report.version&&dpiWebRunning&&!envelope.partial_error){root.innerHTML='';return}
+    let html='';
+    if(report.version){
+      html+=`<article class="panel dpi-result-summary"><div class="v2-stats"><div><span>Upstream</span><strong>${esc(report.version||'—')}</strong></div><div><span>Schema</span><strong>${esc(report.schema_version??'—')}</strong></div><div><span>Profile</span><strong>${esc(report.profile||'—')}</strong></div><div><span>Fingerprint</span><strong>${esc(report.tls_fingerprint||'—')}</strong></div><div><span>Duration</span><strong>${esc(envelope.duration_ms??0)} ms</strong></div></div>${envelope.environment_warning?`<div class="v2-boundary">${esc(envelope.environment_warning)}</div>`:''}</article>`;
+    }
     html+=dpiRenderNetwork(results.network_info);
     html+=dpiRenderDNS(results.dns_availability);
     html+=dpiRenderDomains(results.domain_inspection);
@@ -3699,7 +3743,9 @@ button{min-height:var(--ui-control-h)}
     html+=dpiRenderBurst(results.fingerprint_burst);
     if(envelope.trace)html+=dpiResultSection('Trace','upstream test 6 trace',`<pre class="v2-args">${esc(envelope.trace)}</pre>`);
     if(envelope.stderr)html+=dpiResultSection('stderr','upstream diagnostics',`<pre class="v2-args">${esc(envelope.stderr)}</pre>`);
-    html+=`<details class="panel" style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Технические детали · raw JSON</summary><pre class="v2-args" style="margin-top:10px">${esc(JSON.stringify(envelope,null,2))}</pre></details>`;
+    if(envelope.partial_error)html+=dpiResultSection('Ошибка','часть уже готовых результатов сохранена',`<div class="notice error">${esc(envelope.partial_error)}</div>`);
+    if(envelope.ok===false&&!report.version&&!html)html=dpiResultSection('Ошибка','DPI Detector v5',`<div class="notice error">${esc(envelope.error||'run failed')}</div>`);
+    html+=`<details class="panel dpi-technical"><summary>Технические детали · raw JSON</summary><pre class="v2-args" style="margin-top:10px">${esc(JSON.stringify(envelope,null,2))}</pre></details>`;
     root.innerHTML=html;
   }
 
@@ -3718,39 +3764,64 @@ button{min-height:var(--ui-control-h)}
     const state=!d?'IDLE':!d.installed?'NOT INSTALLED':d.execution_ready?'READY':'INCOMPATIBLE';
     $('dpiModuleState').textContent=state;$('dpiModuleState').className='config-badge '+(state==='READY'?'active':'');
     if($('dpiDetectorTabState'))$('dpiDetectorTabState').textContent=d?.installed?(d.execution_ready?'READY':'CHECK'):'';
-    $('dpiModuleSummary').innerHTML=!d?'<div class="empty">Состояние ещё не загружено.</div>':d.installed?[
-      keeneticDiag(d.execution_ready?'good':'warn','Binary',`${d.path||'unknown'} · ${keeneticBytes(d.size_bytes||0)}`),
-      keeneticDiag(d.execution_ready?'good':'warn','Execution',d.execution_ready?'ready':(d.compatibility_reason||d.warning||'not ready')),
-      keeneticDiag('info','Version',d.version||d.warning||'unknown'),
-      keeneticDiag('info','Ownership','official upstream v5 · App Center lifecycle')
-    ].join(''):keeneticDiag('info','Not installed','Установите DPI Detector v5+ из App Center через Runnin4ik/dpi-detector.');
+    $('dpiModuleSummary').innerHTML=!d?'<span class="dpi-runtime-pill">Состояние не загружено</span>':d.installed?[
+      `<span class="dpi-runtime-pill ${d.execution_ready?'good':'warn'}">${d.execution_ready?'● READY':'● CHECK'}</span>`,
+      `<span class="dpi-runtime-pill">${esc(d.version||d.warning||'unknown')}</span>`,
+      `<span class="dpi-runtime-pill mono">${esc(d.path||'unknown')} · ${esc(keeneticBytes(d.size_bytes||0))}</span>`
+    ].join(''):'<span class="dpi-runtime-pill warn">DPI Detector v5 не установлен</span>';
     $('dpiWebRun').disabled=dpiWebRunning||!d?.installed||!d?.execution_ready;
-    $('dpiWebState').textContent=dpiWebRunning?'RUNNING':dpiWebResult?(dpiWebResult.ok?'DONE':'FAIL'):'IDLE';
-    $('dpiWebState').className='config-badge '+(dpiWebResult?.ok?'active':'');
+    const done=dpiWebProgress?.completed?.length||0,total=dpiWebProgress?.tests?.length||0;
+    $('dpiWebRun').textContent=dpiWebRunning?`Проверка ${done}/${total}…`:'Запустить выбранные тесты';
+    $('dpiWebState').textContent=dpiWebRunning?`RUNNING ${done}/${total}`:dpiWebProgress?.error?'FAIL':dpiWebResult?'DONE':'IDLE';
+    $('dpiWebState').className='config-badge '+(!dpiWebRunning&&dpiWebResult&&!dpiWebProgress?.error?'active':'');
+    dpiRenderProgress();
     renderDPIDetectorV5Result(dpiWebResult);
     if(dpiWorkspaceMode==='console'&&d?.installed&&d?.execution_ready)ensureDPIConsole();
+    syncDPIConsoleFullscreen();
   }
 
   async function runDPIDetectorWeb(){
     if(dpiWebRunning)return;
-    const tests=selectedDPITests();if(!tests){notice('DPI Detector: выберите хотя бы один тест.','error');return}
-    dpiWebRunning=true;dpiWebResult=null;renderDPIDetectorWorkspace();
+    const selected=[...selectedDPITests()];if(!selected.length){notice('DPI Detector: выберите хотя бы один тест.','error');return}
+    dpiWebRunning=true;dpiWebResult={ok:true,tests:selected.join(''),duration_ms:0,report:{results:{}},test_runs:[],production_config_unchanged:true};
+    dpiWebProgress={tests:selected,completed:[],current:'',error:'',started_at:Date.now()};
+    renderDPIDetectorWorkspace();
     try{
       const status=await api('/status');if(!status?.config_sha256)throw new Error('active config SHA недоступен');
-      const payload={
-        tests,domains:dpiDomainList(),domains_file:String($('dpiWebDomainsFile').value||'').trim(),tcp16_file:String($('dpiWebTCP16File').value||'').trim(),
+      const common={
+        domains:dpiDomainList(),domains_file:String($('dpiWebDomainsFile').value||'').trim(),tcp16_file:String($('dpiWebTCP16File').value||'').trim(),
         concurrency:Number($('dpiWebConcurrency').value||20),language:String($('dpiWebLanguage').value||'ru'),profile:String($('dpiWebProfile').value||'ru'),
         interface:String($('dpiWebInterface').value||'').trim(),proxy:String($('dpiWebProxy').value||'').trim(),fingerprint:String($('dpiWebFingerprint').value||'').trim(),
         burst:Number($('dpiWebBurst').value||5),burst_timeout:Number($('dpiWebBurstTimeout').value||8),burst_profiles:String($('dpiWebBurstProfiles').value||'').trim(),
         burst_tls:String($('dpiWebBurstTLS').value||'1.3+1.2'),burst_alpn:String($('dpiWebBurstALPN').value||'h2'),trace:!!$('dpiWebTrace').checked,
         expected_config_sha256:String(status.config_sha256),confirm:'ROUTERFORGE_DPI_DETECTOR_V5_RUN'
       };
-      const response=await fetch(base+'/dpi-detector/v5/run',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(payload)});
-      const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
-      dpiWebResult={http_status:response.status,...body};
-      if(!response.ok)notice(`DPI Detector: ${body.error||`HTTP ${response.status}`}`,'error');else notice('DPI Detector v5: DONE','good');
-    }catch(e){dpiWebResult={ok:false,error:String(e.message||e)};notice(`DPI Detector: ${e.message}`,'error')}
-    finally{dpiWebRunning=false;renderDPIDetectorWorkspace()}
+      for(const test of selected){
+        dpiWebProgress.current=test;renderDPIDetectorWorkspace();
+        const response=await fetch(base+'/dpi-detector/v5/run',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({...common,tests:test})});
+        const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
+        dpiWebResult.test_runs.push({test,http_status:response.status,ok:!!body.ok,duration_ms:Number(body.duration_ms||0)});
+        if(!response.ok||!body.ok){
+          const message=body.error||`HTTP ${response.status}`;dpiWebResult.ok=false;dpiWebResult.partial_error=`Test ${test}: ${message}`;dpiWebProgress.error=dpiWebResult.partial_error;break;
+        }
+        const report=body.report||{},bucket=dpiWebResult.report.results;
+        for(const [key,value] of Object.entries(report))if(key!=='results')dpiWebResult.report[key]=value;
+        Object.assign(bucket,report.results||{});
+        dpiWebResult.duration_ms+=Number(body.duration_ms||0);
+        dpiWebResult.environment_warning=body.environment_warning||dpiWebResult.environment_warning||'';
+        dpiWebResult.production_config_sha256=body.production_config_sha256||dpiWebResult.production_config_sha256||'';
+        dpiWebResult.production_config_unchanged=dpiWebResult.production_config_unchanged&&body.production_config_unchanged!==false;
+        if(body.trace)dpiWebResult.trace=[dpiWebResult.trace,body.trace].filter(Boolean).join('\n');
+        if(body.stderr)dpiWebResult.stderr=[dpiWebResult.stderr,body.stderr].filter(Boolean).join('\n');
+        dpiWebProgress.completed.push(test);dpiWebProgress.current='';renderDPIDetectorWorkspace();
+      }
+      if(dpiWebProgress.error)notice(`DPI Detector: ${dpiWebProgress.error}`,'error');
+      else notice('DPI Detector v5: все выбранные тесты завершены','good');
+    }catch(e){
+      const message=String(e.message||e);dpiWebResult.ok=false;dpiWebProgress.error=message;dpiWebResult.partial_error=message;notice(`DPI Detector: ${message}`,'error');
+    }finally{
+      dpiWebRunning=false;dpiWebProgress.current='';renderDPIDetectorWorkspace();
+    }
   }
   async function loadDPILegend(){
     const pane=$('dpiLegendPane'),out=$('dpiLegendOutput');pane.style.display='block';out.textContent='Загрузка upstream legend…';
@@ -4792,6 +4863,8 @@ button{min-height:var(--ui-control-h)}
   $('dpiModeWeb').onclick=()=>setDPIDetectorMode('web');
   $('dpiModuleRefresh').onclick=()=>loadDPIDetector(true);
   $('dpiConsoleRestart').onclick=restartDPIConsole;
+  $('dpiConsoleFullscreen').onclick=toggleDPIConsoleFullscreen;
+  document.addEventListener('fullscreenchange',syncDPIConsoleFullscreen);
   $('dpiWebRun').onclick=runDPIDetectorWeb;
   $('dpiWebLegend').onclick=loadDPILegend;
   $('dpiLegendClose').onclick=()=>{$('dpiLegendPane').style.display='none';reportHeight()};

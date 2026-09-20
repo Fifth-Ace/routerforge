@@ -51,3 +51,19 @@ Planned follow-up workstreams (not claimed complete by C1):
 - C2: multi-protocol bench (HTTP/TCP, QUIC/UDP, generic UDP/voice)
 - D: advanced detector, TCP16 escalation, DNS matrix, ClientHello tooling
 - E: device activity / trace / optional packet capture / geo-list intelligence
+## NFQWS Intelligence R2 — Strategy Registry Foundation
+
+- RouterForge base reviewed: `eac054312891ee2b31e47323039de27a0d88c654`
+- z2k reference reviewed: `fca1ed5a452f2554b3dfa1ab18571cee7c505174`
+- Omn1z selector reference reviewed: `bf4e810ef22ffb6671e97dc411234ba9430909c9`
+- nfqws-zapret-converter reference reviewed: `c37858b8ffead9377f1e27de756c8f5c46c23090`
+
+R2-F0 introduces a RouterForge-native, read-only Strategy Registry contract.
+It aggregates existing RouterForge built-ins, Candidate Library entries and verified
+Target Memory evidence by technique fingerprint. No production configuration,
+runtime lifecycle or Safe Apply behavior changes in this stage.
+
+The registry schema intentionally includes provenance as a first-class field.
+Legacy Candidate Library entries do not yet persist an exact upstream commit, so
+the API reports that limitation instead of inventing provenance. Later import
+workstreams will populate exact source repository/ref metadata at ingestion time.

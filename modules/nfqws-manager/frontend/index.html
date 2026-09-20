@@ -919,6 +919,49 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .zapret-import-input-panel .syntax-editor-highlight{padding:10px 12px;white-space:pre;overflow-wrap:normal}
 .zapret-syntax-preview{margin:0;min-height:180px;max-height:620px;overflow:auto;padding:11px 12px;border:1px solid var(--border);border-radius:6px;background:var(--code);color:#d7dde4;font:var(--rf-font-control)/1.5 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;white-space:pre;tab-size:2}
 
+
+/* M4E: every numbered DPI result uses one width; native report enriches the visual blocks. */
+#dpiWebResults>.dpi-result-section.dpi-result-uniform{
+  flex:1 1 640px!important;
+  width:100%!important;
+  max-width:700px!important;
+  align-self:flex-start!important;
+}
+#dpiWebResults>.dpi-result-section.dpi-result-uniform .dpi-table-scroll{
+  width:100%;
+  max-width:100%;
+  overflow:auto;
+}
+#dpiWebResults>.dpi-result-section.dpi-result-uniform table{
+  min-width:620px;
+}
+.dpi-native-enrich{margin-top:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2)}
+.dpi-native-enrich.idle,.dpi-native-enrich.pending{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px}
+.dpi-native-enrich.idle strong,.dpi-native-enrich.pending strong{font-size:9px;color:var(--text)}
+.dpi-native-enrich.idle span,.dpi-native-enrich.pending span{font-size:8.5px;color:var(--muted);text-align:right}
+.dpi-native-enrich.pending{border-color:color-mix(in srgb,var(--accent) 38%,var(--border))}
+.dpi-native-enrich.pending strong{color:var(--accent)}
+.dpi-native-enrich.ready>summary{padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}
+.dpi-native-enrich.ready>summary span:first-child{display:grid;gap:2px}
+.dpi-native-enrich.ready>summary strong{font-size:9px;color:var(--text)}
+.dpi-native-enrich.ready>summary small{font-size:8px;color:var(--muted)}
+.dpi-native-adapted{
+  max-height:430px;
+  overflow:auto;
+  padding:9px 11px;
+  border-top:1px solid var(--border);
+  background:color-mix(in srgb,var(--surface) 72%,#050607);
+  color:var(--text);
+  font:600 9px/1.42 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;
+  white-space:pre;
+  tab-size:4;
+}
+.dpi-native-adapted .dpi-console-line{min-height:13px}
+@media(max-width:760px){
+  #dpiWebResults>.dpi-result-section.dpi-result-uniform{max-width:none!important;flex-basis:100%!important}
+  #dpiWebResults>.dpi-result-section.dpi-result-uniform table{min-width:560px}
+}
+
 </style>
 </head>
 <body>
@@ -2138,7 +2181,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, sandboxGeneration=0, sandboxRunning=false, sandboxResultsData=[], sandboxLoadedLists=null, benchReadinessLoading=false, benchReadiness=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null, autoTuneRunning=false, autoTuneStage='', autoTuneResult=null, autoTunePreviewData=null, autoTuneApplyResult=null, autoTuneToken='', autoTuneActiveSha='', autoTuneMessage='';
   let processingMapLiveRunning=false, processingMapLiveResult=null, processingMapStrategyInventory=null;
   let dpiWorkspaceMode='console',dpiWebRunning=false,dpiWebResult=null,dpiWebProgress=null;
-  let dpiNativeRunning=false,dpiNativeResult=null,dpiNativeStartedAt=0,dpiNativeTimer=0;
+  let dpiNativeRunning=false,dpiNativeResult=null,dpiNativeStartedAt=0,dpiNativeTimer=0,dpiNativeVisible=false;
   let configLibraryLoaded=false, configLibraryLoading=false, configLibraryFiles=[], neighborConfigFiles=[], selectedStoredConfig='', storedConfigOriginal='', storedConfigMeta=null, configNameMode='', configNameSource='';
   let listGroupCollapsed={system:false,user:false,opkg:false};
 
@@ -3721,7 +3764,46 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function dpiTable(headers,rows){
     return `<div class="table-scroll dpi-table-scroll"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
   }
-  function dpiResultSection(title,kicker,body,layout='wide'){const cls=layout==='compact'?'dpi-result-compact':'dpi-result-wide';return `<details class="panel dpi-result-section ${cls}" open><summary><span><strong>${esc(title)}</strong><small>${esc(kicker||'')}</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${body}</div></details>`}
+  function dpiNativeMarkerIndex(lines,patterns,start=0){
+    for(let i=Math.max(0,start);i<lines.length;i++)if(patterns.some(re=>re.test(lines[i])))return i;
+    return -1;
+  }
+  function dpiNativeSection(test){
+    const report=String(dpiNativeResult?.console_report||'').replace(/\r\n?/g,'\n');
+    if(!report)return'';
+    const lines=report.split('\n');
+    const markers=[];
+    markers[0]=0;
+    markers[1]=dpiNativeMarkerIndex(lines,[/Проверка доступности DNS-серверов/i,/DNS server availability/i,/DNS availability/i],0);
+    markers[2]=dpiNativeMarkerIndex(lines,[/Проверка доступности доменов/i,/Результаты проверки доменов/i,/Website availability/i,/Domain availability/i],Math.max(0,markers[1]+1));
+    markers[3]=dpiNativeMarkerIndex(lines,[/Проверка TCP\s*16/i,/TCP\s*16.?20/i,/CDN.*hosting availability/i],Math.max(0,markers[2]+1));
+    markers[4]=dpiNativeMarkerIndex(lines,[/Поиск белых SNI/i,/Whitelist SNI/i,/white.?SNI/i],Math.max(0,markers[3]+1));
+    markers[5]=dpiNativeMarkerIndex(lines,[/Проверка доступности Telegram/i,/Telegram availability/i,/Telegram reachability/i],Math.max(0,markers[4]+1));
+    markers[6]=dpiNativeMarkerIndex(lines,[/^\s*Fingerprint(?:\/|[\s|:]|$)/i,/Сибирская блокировка/i,/Fingerprint burst/i],Math.max(0,markers[5]+1));
+    const summary=dpiNativeMarkerIndex(lines,[/^\s*Итог\b/i,/^\s*Summary\b/i],Math.max(0,markers[6]+1));
+    const start=markers[test];
+    if(start==null||start<0)return'';
+    let end=lines.length;
+    for(let i=test+1;i<=6;i++){if(markers[i]>=0){end=markers[i];break}}
+    if(test===6&&summary>=0)end=summary;
+    return lines.slice(start,end).join('\n').trim();
+  }
+  function dpiNativeDetail(test){
+    if(dpiNativeRunning){
+      return `<div class="dpi-native-enrich pending"><strong>Полная детализация</strong><span>Собираем upstream Native report · ${dpiNativeElapsed()} s</span></div>`;
+    }
+    const excerpt=dpiNativeSection(test);
+    if(!excerpt){
+      return `<div class="dpi-native-enrich idle"><strong>Полная детализация</strong><span>После Visual Web RouterForge автоматически добавит сюда данные, которые upstream JSON не отдаёт.</span></div>`;
+    }
+    const expanded=[0,1,4,5].includes(Number(test))?' open':'';
+    return `<details class="dpi-native-enrich ready"${expanded}><summary><span><strong>Полная детализация upstream</strong><small>адаптировано из native report</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-native-adapted">${dpiParityReportHTML(excerpt)}</div></details>`;
+  }
+  function dpiResultSection(title,kicker,body,layout='wide'){
+    const match=String(title||'').match(/^([0-6])\s*·/);
+    const detail=match?dpiNativeDetail(Number(match[1])):'';
+    return `<details class="panel dpi-result-section dpi-result-uniform" open><summary><span><strong>${esc(title)}</strong><small>${esc(kicker||'')}</small></span><span class="dpi-result-chevron">▾</span></summary><div class="dpi-result-body">${body}${detail}</div></details>`;
+  }
   function dpiMetric(label,value,kind='info'){return `<div class="card"><div class="metric-label">${esc(label)}</div><div class="metric-value ${kind==='good'?'good-text':kind==='bad'?'bad-text':kind==='warn'?'warn-text':''}">${esc(value??'—')}</div></div>`}
   function dpiRatioKind(ok,total){ok=Number(ok||0);total=Number(total||0);if(total<=0)return'info';if(ok===total)return'good';if(ok===0)return'bad';return'warn'}
   function dpiHumanKey(key){return String(key||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
@@ -3974,7 +4056,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     }catch(e){
       const message=String(e.message||e);dpiWebResult.ok=false;dpiWebProgress.error=message;dpiWebResult.partial_error=message;notice(`DPI Detector: ${message}`,'error');
     }finally{
+      const enrich=!dpiWebProgress.error&&selected.length>0;
       dpiWebRunning=false;dpiWebProgress.current='';renderDPIDetectorWorkspace();
+      if(enrich&&!dpiNativeRunning)setTimeout(()=>{void runDPINativeReport(true)},0);
     }
   }
   async function loadDPILegend(){
@@ -5053,6 +5137,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
   function renderDPINativeReport(envelope){
     const root=$('dpiNativeResults');if(!root)return;
+    if(!dpiNativeVisible){root.style.display='none';root.innerHTML='';return}
     if(dpiNativeRunning){
       root.style.display='block';
       root.innerHTML=`<article class="panel dpi-native-running"><div class="dpi-native-running-head"><strong>Native report выполняется</strong><span>${dpiNativeElapsed()} s</span></div><div class="section-kicker">Это один полный upstream run. В отличие от Visual Web он не обещает фальшивый progress по отдельным тестам — ждём завершения binary.</div><div class="dpi-native-running-track"><span></span></div></article>`;
@@ -5075,12 +5160,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     }
     renderDPINativeReport(dpiNativeResult);
   }
-  async function runDPINativeReport(){
+  async function runDPINativeReport(auto=false){
     if(dpiNativeRunning)return;
-    const tests=selectedDPITests();if(!tests){notice('DPI Detector: выберите хотя бы один тест.','error');return}
-    dpiNativeRunning=true;dpiNativeResult=null;dpiNativeStartedAt=Date.now();updateDPINativeState();
+    const tests=selectedDPITests();if(!tests){if(!auto)notice('DPI Detector: выберите хотя бы один тест.','error');return}
+    dpiNativeVisible=!auto;dpiNativeRunning=true;dpiNativeResult=null;dpiNativeStartedAt=Date.now();updateDPINativeState();renderDPIDetectorV5Result(dpiWebResult);
     if(dpiNativeTimer)clearInterval(dpiNativeTimer);
-    dpiNativeTimer=setInterval(updateDPINativeState,1000);
+    dpiNativeTimer=setInterval(()=>{updateDPINativeState();renderDPIDetectorV5Result(dpiWebResult)},1000);
     try{
       const status=await api('/status');if(!status?.config_sha256)throw new Error('active config SHA недоступен');
       const bodyReq={
@@ -5094,12 +5179,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const response=await fetch(base+'/dpi-detector/v5/console',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(bodyReq)});
       const text=await response.text();let body={};try{body=text?JSON.parse(text):{}}catch{body={error:text||`HTTP ${response.status}`}}
       if(!response.ok||!body.ok){const detail=[body.error,body.detail,body.output].filter(Boolean).join(' · ');throw new Error(detail||`HTTP ${response.status}`)}
-      dpiNativeResult=body;notice('DPI Detector: native report готов','good');
+      dpiNativeResult=body;if(!auto)notice('DPI Detector: native report готов','good');
     }catch(e){
-      const message=String(e.message||e);dpiNativeResult={ok:false,error:message};notice(`DPI Detector native report: ${message}`,'error');
+      const message=String(e.message||e);dpiNativeResult={ok:false,error:message};if(!auto)notice(`DPI Detector native report: ${message}`,'error');
     }finally{
       if(dpiNativeTimer){clearInterval(dpiNativeTimer);dpiNativeTimer=0}
-      dpiNativeRunning=false;updateDPINativeState();
+      dpiNativeRunning=false;updateDPINativeState();renderDPIDetectorV5Result(dpiWebResult);
     }
   }
   document.addEventListener('keydown',e=>{

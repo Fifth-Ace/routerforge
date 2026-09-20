@@ -84,3 +84,34 @@ func TestStrategyRegistryRouteIsGetOnly(t *testing.T) {
 		t.Fatalf("POST status=%d body=%s", rr.Code, rr.Body.String())
 	}
 }
+func TestStrategyRegistryCapabilitiesExposeBenchEligibility(t *testing.T) {
+	args := append([]string{}, v2BuiltinHTTPSCandidates[0].Args...)
+	caps := v2RegistryCapabilities(args)
+	if !caps.CandidateReady {
+		t.Fatal("HTTPS builtin must be candidate-ready")
+	}
+	if caps.DesyncCount == 0 {
+		t.Fatal("desync count not detected")
+	}
+	hasHTTPS := false
+	hasHTTP := false
+	for _, transport := range caps.BenchTransports {
+		if transport == benchTransportHTTPS {
+			hasHTTPS = true
+		}
+		if transport == benchTransportHTTP {
+			hasHTTP = true
+		}
+	}
+	if !hasHTTPS || hasHTTP {
+		t.Fatalf("bench transports=%v", caps.BenchTransports)
+	}
+}
+
+func TestStrategyRegistryZapretProvenancePinsAdapterRef(t *testing.T) {
+	p := v2RegistryProvenanceForSource("zapret")
+	if p.Repository != "whxtelxs/nfqws-zapret-converter" ||
+		p.Ref != "c37858b8ffead9377f1e27de756c8f5c46c23090" {
+		t.Fatalf("provenance=%+v", p)
+	}
+}

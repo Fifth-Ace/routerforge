@@ -29,17 +29,25 @@ type v2StrategyRegistryEvidence struct {
 	ReuseEligible int     `json:"reuse_eligible_targets"`
 }
 
+type v2StrategyRegistryCapabilities struct {
+	BenchTransports []string `json:"bench_transports"`
+	CandidateReady  bool     `json:"candidate_ready"`
+	DesyncCount     int      `json:"desync_count"`
+	StrategyTags    []int    `json:"strategy_tags,omitempty"`
+}
+
 type v2StrategyRegistryEntry struct {
-	ID          string                         `json:"id"`
-	Name        string                         `json:"name"`
-	Aliases     []string                       `json:"aliases,omitempty"`
-	Sources     []string                       `json:"sources"`
-	Family      string                         `json:"family"`
-	Protocol    string                         `json:"protocol"`
-	Args        []string                       `json:"args"`
-	Fingerprint string                         `json:"fingerprint"`
-	Provenance  []v2StrategyRegistryProvenance `json:"provenance"`
-	Evidence    v2StrategyRegistryEvidence     `json:"evidence"`
+	ID           string                         `json:"id"`
+	Name         string                         `json:"name"`
+	Aliases      []string                       `json:"aliases,omitempty"`
+	Sources      []string                       `json:"sources"`
+	Family       string                         `json:"family"`
+	Protocol     string                         `json:"protocol"`
+	Args         []string                       `json:"args"`
+	Fingerprint  string                         `json:"fingerprint"`
+	Provenance   []v2StrategyRegistryProvenance `json:"provenance"`
+	Evidence     v2StrategyRegistryEvidence     `json:"evidence"`
+	Capabilities v2StrategyRegistryCapabilities `json:"capabilities"`
 }
 
 type v2StrategyRegistryResponse struct {
@@ -148,8 +156,11 @@ func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
 		}
 	case "zapret":
 		return v2StrategyRegistryProvenance{
-			Kind: "local-library", Source: "zapret",
-			Note: "Zapret import label preserved; exact upstream ref is not stored by the legacy library schema",
+			Kind:       "import-adapter",
+			Source:     "zapret",
+			Repository: "whxtelxs/nfqws-zapret-converter",
+			Ref:        "c37858b8ffead9377f1e27de756c8f5c46c23090",
+			Note:       "RouterForge Zapret import workflow reference; original strategy upstream ref is not encoded by the library schema",
 		}
 	case "import":
 		return v2StrategyRegistryProvenance{
@@ -162,6 +173,27 @@ func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
 			Note: "local Candidate Library entry",
 		}
 	}
+}
+
+func v2RegistryCapabilities(args []string) v2StrategyRegistryCapabilities {
+	portable := v2PortableCandidateArgs(args)
+	profile := analyzeBenchStrategyProfile(0, portable)
+	out := v2StrategyRegistryCapabilities{
+		BenchTransports: []string{},
+		DesyncCount:     profile.DesyncCount,
+		StrategyTags:    append([]int{}, profile.StrategyTags...),
+	}
+	for _, transport := range benchTransportProfiles {
+		if !transport.Implemented {
+			continue
+		}
+		if _, err := v2CustomProfileForTransport(portable, "example.com", transport); err == nil {
+			out.BenchTransports = append(out.BenchTransports, transport.ID)
+		}
+	}
+	sort.Strings(out.BenchTransports)
+	out.CandidateReady = len(out.BenchTransports) > 0
+	return out
 }
 
 func v2RegistryEnsure(
@@ -195,6 +227,7 @@ func v2RegistryEnsure(
 				Sources: []string{}, Family: family, Protocol: protocol,
 				Args: append([]string{}, portable...), Fingerprint: fingerprint,
 				Provenance: []v2StrategyRegistryProvenance{},
+				Capabilities: v2RegistryCapabilities(portable),
 			},
 			Targets: map[string]bool{},
 		}

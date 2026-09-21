@@ -83,8 +83,10 @@
   let maintenanceLogSource = '';
   let maintenanceTasks = [];
   let nfqwsJobs = [];
+  let nfqwsJobCapabilities = [];
   let nfqwsJobBusy = '';
   let nfqwsJobID = 'nfqws-detect';
+  let nfqwsJobKind = 'detect-target';
   let nfqwsJobTarget = '';
   let nfqwsJobInterval = 30;
   let maintenanceBusy = false;
@@ -648,6 +650,7 @@
       maintenanceLogSource = logs.source || '';
       maintenanceTasks = tasks.tasks || [];
       nfqwsJobs = jobs.jobs || [];
+      nfqwsJobCapabilities = jobs.kind_capabilities || [];
       maintenanceBackups = backups.backups || [];
       watchdogs = watchdogResult.watchdogs || [];
       snapshots = snapshotResult.snapshots || [];
@@ -661,18 +664,23 @@
     }
   }
 
+  function nfqwsJobNeedsTarget(kind = nfqwsJobKind) {
+    return ['detect-target', 'strategy-health-recheck'].includes(kind);
+  }
+
   async function saveNFQWSJob() {
     const id = nfqwsJobID.trim();
+    const kind = nfqwsJobKind;
     const target = nfqwsJobTarget.trim();
     const interval = Number(nfqwsJobInterval || 30);
-    if (!id || !target || nfqwsJobBusy) return;
-    if (!confirm(`${locale === 'ru' ? 'Сохранить NFQWS job' : 'Save NFQWS job'} ${id}: ${target}, ${interval} min?`)) return;
+    if (!id || (nfqwsJobNeedsTarget(kind) && !target) || nfqwsJobBusy) return;
+    if (!confirm(`${locale === 'ru' ? 'Сохранить NFQWS job' : 'Save NFQWS job'} ${id}: ${kind}${target ? ` / ${target}` : ''}, ${interval} min?`)) return;
     nfqwsJobBusy = id;
     errorText = '';
     try {
       await configureAdminNFQWSJob({
         id,
-        kind: 'detect-target',
+        kind,
         target,
         interval_minutes: interval,
         enabled: true
@@ -1357,13 +1365,21 @@
         <div class="maintenance-section-head">
           <div>
             <strong>NFQWS Intelligence Jobs</strong>
-            <span>{locale === 'ru' ? 'Maintenance scheduler · detect-target · минимум 15 минут · без изменения production nfqws2' : 'Maintenance scheduler · detect-target · 15 minute minimum · no production nfqws2 mutation'}</span>
+            <span>{locale === 'ru' ? 'U11 scheduler · bounded retry · single-flight kind+target · last-known-good · без скрытого production mutation' : 'U11 scheduler · bounded retry · single-flight kind+target · last-known-good · no hidden production mutation'}</span>
           </div>
           <span class="state-chip info">{nfqwsJobs.filter((item) => item.enabled).length}/{nfqwsJobs.length}</span>
         </div>
         <div class="nfqws-job-create">
           <input class="input mono" bind:value={nfqwsJobID} placeholder="job-id">
-          <input class="input mono" bind:value={nfqwsJobTarget} placeholder="example.com">
+          <select class="input" bind:value={nfqwsJobKind}>
+            <option value="detect-target">detect-target</option>
+            <option value="tcp16-revalidate">tcp16-revalidate</option>
+            <option value="strategy-health-recheck">strategy-health-recheck</option>
+            <option value="nfqueue-health">nfqueue-health</option>
+            <option value="backup-cleanup">backup-cleanup</option>
+            <option value="list-refresh" disabled>list-refresh · unavailable</option>
+          </select>
+          <input class="input mono" bind:value={nfqwsJobTarget} disabled={!nfqwsJobNeedsTarget(nfqwsJobKind) && nfqwsJobKind !== 'tcp16-revalidate'} placeholder={nfqwsJobKind === 'tcp16-revalidate' ? 'HE-01 (optional)' : 'example.com'}>
           <select class="input" bind:value={nfqwsJobInterval}>
             <option value={15}>15 min</option>
             <option value={30}>30 min</option>
@@ -1373,9 +1389,14 @@
             <option value={720}>12 h</option>
             <option value={1440}>24 h</option>
           </select>
-          <button class="button primary" onclick={saveNFQWSJob} disabled={!!nfqwsJobBusy || !nfqwsJobID.trim() || !nfqwsJobTarget.trim()}>
+          <button class="button primary" onclick={saveNFQWSJob} disabled={!!nfqwsJobBusy || !nfqwsJobID.trim() || (nfqwsJobNeedsTarget(nfqwsJobKind) && !nfqwsJobTarget.trim())}>
             {locale === 'ru' ? 'Сохранить + включить' : 'Save + enable'}
           </button>
+        </div>
+        <div class="cell-sub mono">
+          {#each nfqwsJobCapabilities.filter((item) => !item.available) as capability}
+            {capability.kind}: {capability.reason}
+          {/each}
         </div>
         {#if nfqwsJobs.length === 0}
           <div class="maintenance-empty">{locale === 'ru' ? 'NFQWS jobs ещё не настроены.' : 'No NFQWS jobs configured.'}</div>
@@ -1387,7 +1408,11 @@
                   <strong class="mono">{job.id} · {job.target}</strong>
                   <span class="cell-sub mono">
                     {job.kind} · every {job.interval_minutes} min
+                    {job.last_cadence ? ` · ${job.last_cadence}` : ''}
+                    {job.outcome ? ` · ${job.outcome}` : ''}
+                    {job.retry_count ? ` · retries ${job.retry_count}` : ''}
                     {job.last_run_at ? ` · last ${new Date(job.last_run_at).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')}` : ''}
+                    {job.last_good_at ? ` · LKG ${new Date(job.last_good_at).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')}` : ''}
                     {job.last_status ? ` · HTTP ${job.last_status}` : ''}
                     {job.last_error ? ` · ${job.last_error}` : ''}
                   </span>
@@ -1578,7 +1603,7 @@
 </div>
 
 <style>
-  .nfqws-job-create{display:grid;grid-template-columns:minmax(140px,.7fr) minmax(220px,1.4fr) 120px auto;gap:8px;align-items:center;margin:10px 0}
+  .nfqws-job-create{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(170px,1fr) minmax(170px,1fr) 110px auto;gap:8px;align-items:center;margin:10px 0}
   .nfqws-job-create .input{min-width:0;width:100%}
   @media(max-width:820px){.nfqws-job-create{grid-template-columns:1fr 1fr}.nfqws-job-create .button{width:100%}}
   @media(max-width:520px){.nfqws-job-create{grid-template-columns:1fr}}

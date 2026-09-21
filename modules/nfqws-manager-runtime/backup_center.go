@@ -57,11 +57,16 @@ type backupDeleteRequest struct {
 	Confirm string `json:"confirm"`
 }
 
+type backupPruneRequest struct {
+	Confirm string `json:"confirm"`
+}
+
 func registerBackupCenterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/backups", getOnly(handleBackupCenterList))
 	mux.HandleFunc("/v1/backups/read", getOnly(handleBackupCenterRead))
 	mux.HandleFunc("/v1/backups/restore", mutationOnly(handleBackupCenterRestore))
 	mux.HandleFunc("/v1/backups/delete", mutationOnly(handleBackupCenterDelete))
+	mux.HandleFunc("/v1/backups/prune", mutationOnly(handleBackupCenterPrune))
 }
 
 func safeBackupID(id string) bool {
@@ -545,6 +550,34 @@ func handleBackupCenterRestore(w http.ResponseWriter, r *http.Request) {
 		"ok": true, "id": manifest.ID, "kind": manifest.Kind, "target": target,
 		"sha256": manifest.SHA256, "service_restarted": manifest.Kind == "config" && status.Running,
 		"restart_output": restartOutput, "status": readStatus(), "backups": backupCenterResponse(),
+	})
+}
+
+func handleBackupCenterPrune(w http.ResponseWriter, r *http.Request) {
+	var request backupPruneRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid backup prune request"})
+		return
+	}
+	if request.Confirm != "NFQWS_BACKUP_PRUNE" {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm must equal NFQWS_BACKUP_PRUNE"})
+		return
+	}
+	beforeSafety := countBackups()
+	beforePersistent := len(readBackupCenterInventory())
+	if err := pruneBackups(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "prune safety backups: " + err.Error()})
+		return
+	}
+	if err := prunePersistentBackups(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "prune persistent backups: " + err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok": true,
+		"safety_before": beforeSafety, "safety_after": countBackups(),
+		"persistent_before": beforePersistent, "persistent_after": len(readBackupCenterInventory()),
+		"production_mutation": false, "runtime_restarted": false,
 	})
 }
 

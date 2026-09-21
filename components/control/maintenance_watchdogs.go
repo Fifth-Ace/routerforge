@@ -271,7 +271,12 @@ func handleAdminWatchdogConfigure(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (runtime *adminWatchdogRuntime) statuses(now time.Time, detailed bool) []adminWatchdogStatus {
+func (runtime *adminWatchdogRuntime) statuses(now time.Time, detailedOptions ...bool) []adminWatchdogStatus {
+	detailed := true
+	if len(detailedOptions) > 0 {
+		detailed = detailedOptions[0]
+	}
+
 	var services []serviceInfo
 	if detailed {
 		services = readServices()

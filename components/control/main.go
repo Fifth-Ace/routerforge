@@ -849,7 +849,26 @@ func (s *cpuSampler) WindowSeconds() int {
 
 func (s *cpuSampler) Close() {}
 
+func cpuUsage(prev, current cpuRaw) float64 {
+	if current.Total <= prev.Total {
+		return 0
+	}
+	totalDelta := current.Total - prev.Total
+
+	prevIdle := prev.Idle + prev.IOWait
+	currentIdle := current.Idle + current.IOWait
+	if currentIdle < prevIdle {
+		return 0
+	}
+	idleDelta := currentIdle - prevIdle
+	if idleDelta >= totalDelta {
+		return 0
+	}
+	return float64(totalDelta-idleDelta) / float64(totalDelta) * 100
+}
+
 func readProcesses() []processInfo {
+
 	users := readUsers()
 	entries, err := os.ReadDir("/proc")
 	if err != nil {

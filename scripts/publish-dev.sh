@@ -169,6 +169,12 @@ upload_release_asset() {
     done
 }
 
+release_asset_exists() {
+    asset="$1"
+    gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null |
+        grep -Fxq "$asset"
+}
+
 delete_release_asset() {
     asset="$1"
     attempt=1
@@ -181,13 +187,21 @@ delete_release_asset() {
             return 0
         fi
 
+        # GitHub may return a transient 5xx after the delete was already
+        # committed. In that case the retry sees "asset not found". Treat
+        # confirmed absence as successful idempotent cleanup.
+        if ! release_asset_exists "$asset"; then
+            echo "DEV_ASSET_DELETE_CONFIRMED_ABSENT=$asset attempt=$attempt"
+            return 0
+        fi
+
         if [ "$attempt" -ge 5 ]; then
             echo "$asset: release asset delete failed after $attempt attempts" >&2
             return 1
         fi
 
         delay=$((attempt * 2))
-        echo "$asset: release asset delete attempt $attempt/5 failed; retrying in ${delay}s" >&2
+        echo "$asset: release asset delete attempt $attempt/5 failed; asset still present; retrying in ${delay}s" >&2
         sleep "$delay"
         attempt=$((attempt + 1))
     done

@@ -35,10 +35,10 @@ type v2ClientHelloCaptureRequest struct {
 }
 
 type v2ClientHelloCaptureStats struct {
-	TCPPackets     int `json:"tcp_packets"`
-	TCPPayloads    int `json:"tcp_payload_packets"`
-	UDP443Packets  int `json:"udp_443_packets"`
-	TotalPackets   int `json:"total_packets"`
+	TCPPackets    int `json:"tcp_packets"`
+	TCPPayloads   int `json:"tcp_payload_packets"`
+	UDP443Packets int `json:"udp_443_packets"`
+	TotalPackets  int `json:"total_packets"`
 }
 
 type v2ClientHelloCandidate struct {

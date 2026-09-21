@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	adminNFQWSJobTargetPattern  = regexp.MustCompile(`(?i)^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$`)
+	adminNFQWSJobTargetPattern   = regexp.MustCompile(`(?i)^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$`)
 	adminNFQWSTCP16TargetPattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9-]{1,31}$`)
 )
 
@@ -99,7 +99,7 @@ type adminNFQWSJobRuntime struct {
 }
 
 var adminNFQWSJobs = adminNFQWSJobRuntime{
-	config: adminNFQWSJobsConfig{Version: adminNFQWSJobsVersion, Items: map[string]adminNFQWSJob{}},
+	config:      adminNFQWSJobsConfig{Version: adminNFQWSJobsVersion, Items: map[string]adminNFQWSJob{}},
 	state:       map[string]adminNFQWSJobState{},
 	runningKeys: map[string]bool{},
 	now:         time.Now,
@@ -476,7 +476,7 @@ func (runtime *adminNFQWSJobRuntime) statuses() []adminNFQWSJobState {
 
 func handleAdminNFQWSJobs(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"jobs": adminNFQWSJobs.statuses(),
+		"jobs":  adminNFQWSJobs.statuses(),
 		"kinds": []string{
 			"detect-target",
 			"tcp16-revalidate",

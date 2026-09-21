@@ -2317,6 +2317,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </div>
 
       <div class="setup-note"><b>Основной режим:</b> RouterForge берёт настоящий ClientHello выбранного устройства и меняет только SNI. Остальной TLS fingerprint сохраняется.</div>
+      <div id="clientHelloCapabilitiesDetail" class="setup-note" style="margin-top:8px">Проверяю tcpdump и поддержку tls_client_hello_clone…</div>
 
       <div class="clienthello-capture">
         <div class="panel-head"><div><h2>1. Поймать ClientHello устройства</h2><div class="section-kicker">во время захвата открой новый HTTPS-сайт на выбранном устройстве</div></div><span id="clientHelloCaptureState" class="config-badge">IDLE</span></div>
@@ -3891,9 +3892,16 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const d=await api('/clienthello/capabilities');clientHelloCapabilities=d;
       $('clientHelloCloneCapability').textContent=d.dynamic_clone_available?'CLONE: ЕСТЬ':'STATIC BLOB';
       $('clientHelloCloneCapability').className='config-badge '+(d.dynamic_clone_available?'active':'');
+      const tcp=d.tcpdump_available?`tcpdump: ЕСТЬ · ${d.tcpdump_path||'PATH'}`:'tcpdump: НЕТ';
+      const lua=d.lua_available?`zapret-antidpi.lua: НАЙДЕН${d.dynamic_clone_source?` · ${d.dynamic_clone_source}`:''}`:'zapret-antidpi.lua: НЕ НАЙДЕН';
+      const clone=d.dynamic_clone_available?'tls_client_hello_clone: ЕСТЬ':`tls_client_hello_clone: НЕТ · ${d.clone_reason||'причина неизвестна'}`;
+      const read=d.lua_read_error?` · ошибка чтения: ${d.lua_read_error}`:'';
+      $('clientHelloCapabilitiesDetail').textContent=`${tcp} | ${lua} | ${clone}${read}`;
+      $('clientHelloCapture').disabled=!d.tcpdump_available;
       renderClientHelloUsage();
     }catch(e){
       $('clientHelloCloneCapability').textContent='НЕИЗВЕСТНО';
+      $('clientHelloCapabilitiesDetail').textContent=`Проверка возможностей: ${e.message}`;
     }
   }
   function renderClientHelloResult(d,title){

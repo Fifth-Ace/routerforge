@@ -231,7 +231,7 @@ Version: $VERSION
 Section: net
 Priority: optional
 Architecture: $ARCH
-Depends: routerforge-core
+Depends: routerforge-core, tcpdump
 Maintainer: Fifth-Ace
 Source: https://github.com/Fifth-Ace/routerforge
 Homepage: https://github.com/Fifth-Ace/routerforge

@@ -27,6 +27,7 @@ type v2StrategyImportResult struct {
 
 func registerStrategyImportV2Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/v2/strategies/import", mutationOnly(handleV2StrategyImport))
+	mux.HandleFunc("/v1/v2/zapret/parse", mutationOnly(handleV2ZapretParse))
 }
 
 func v2ImportStrategies(doc v2StrategyLibraryDocument, items []v2StrategyImportItem, now string) (v2StrategyLibraryDocument, v2StrategyImportResult, error) {

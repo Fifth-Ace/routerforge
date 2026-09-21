@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -61,5 +62,43 @@ func TestBenchCandidatePIDFileIsSessionScoped(t *testing.T) {
 	want := "/tmp/routerforge-bench-rf-0123456789abcdef.pid"
 	if got != want {
 		t.Fatalf("pidfile=%q want=%q", got, want)
+	}
+}
+
+func TestBenchStartCandidateBlocksActiveManagementSessionBeforeLaunch(t *testing.T) {
+	previous := benchManagementSessionInventory
+	benchManagementSessionInventory = func() ([]int, bool) {
+		return []int{222}, true
+	}
+	t.Cleanup(func() {
+		benchManagementSessionInventory = previous
+	})
+
+	ops := &benchSystemOps{candidateBinary: "/definitely/must-not-run/nfqws2"}
+	spec := benchTransactionSpec{
+		SessionID:       "session-1234",
+		DestinationIPv4: "1.1.1.1",
+		LocalPort:       43123,
+		Queue:           30000,
+	}
+	err := ops.StartCandidate(context.Background(), spec)
+	if err == nil || !strings.Contains(err.Error(), "active management SSH session") {
+		t.Fatalf("StartCandidate error=%v, want management-session blocker", err)
+	}
+}
+
+func TestBenchStartCandidateBlocksUnprovenManagementInventory(t *testing.T) {
+	previous := benchManagementSessionInventory
+	benchManagementSessionInventory = func() ([]int, bool) {
+		return nil, false
+	}
+	t.Cleanup(func() {
+		benchManagementSessionInventory = previous
+	})
+
+	ops := &benchSystemOps{candidateBinary: "/definitely/must-not-run/nfqws2"}
+	err := ops.StartCandidate(context.Background(), benchTransactionSpec{})
+	if err == nil || !strings.Contains(err.Error(), "inventory is not proven") {
+		t.Fatalf("StartCandidate error=%v, want inventory blocker", err)
 	}
 }

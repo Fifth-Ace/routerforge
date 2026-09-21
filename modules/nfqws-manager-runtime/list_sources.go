@@ -41,6 +41,7 @@ type listSourceInstallRequest struct {
 func registerListSourceRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/list-sources", getOnly(handleListSourceList))
 	mux.HandleFunc("/v1/list-sources/install", mutationOnly(handleListSourceInstall))
+	registerGeoListIntelligenceV1Routes(mux)
 }
 
 func safeListSourceName(name string) bool {

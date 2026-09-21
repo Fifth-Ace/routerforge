@@ -2120,7 +2120,19 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <div id="listSourceUpstreamList" class="blob-deps"><div class="empty">Источник ещё не синхронизирован.</div></div>
       </article>
     </div>
-    <div class="blob-note"><b>Boundary R27:</b> RouterForge принимает только файлы из configured upstream на exact Git commit и проверяет SHA256 дважды — в браузере и runtime. Произвольные URL не принимаются. Replace не делает reload/restart; координация config + lists + blobs остаётся за R28 Smart Apply.</div>
+    <article class="panel" style="margin-top:12px">
+      <div class="panel-head"><div><h2>GeoSite / GeoIP Intelligence</h2><div class="section-kicker">upload → inspect categories → preview → explicit list save</div></div><span id="geoState" class="config-badge">IDLE</span></div>
+      <div class="setup-row"><div class="setup-label"><strong>Geo asset</strong>geosite.dat / geoip.dat / text</div><div><input id="geoFile" type="file"><select id="geoKind" class="setup-select" style="margin-top:6px"><option value="geosite">GeoSite</option><option value="geoip">GeoIP</option><option value="text">Text</option></select></div></div>
+      <div class="setup-row"><div class="setup-label"><strong>Provenance</strong>optional metadata only</div><div><input id="geoSource" class="setup-input" placeholder="source label"><input id="geoSourceRef" class="setup-input" style="margin-top:6px" placeholder="exact ref / version"></div></div>
+      <div class="toolbar"><button id="geoUpload" class="primary">Upload asset</button><button id="geoRefresh">Refresh</button></div>
+      <div id="geoAssets" class="blob-list" style="margin-top:10px"><div class="empty">Geo assets ещё не загружены.</div></div>
+      <div class="setup-row" style="margin-top:10px"><div class="setup-label"><strong>Category</strong>preview is read-only</div><div><select id="geoAssetSelect" class="setup-select"></select><select id="geoCategorySelect" class="setup-select" style="margin-top:6px"></select><input id="geoListName" class="setup-input mono" style="margin-top:6px" placeholder="geo-category.list"></div></div>
+      <div class="toolbar"><button id="geoPreview">Preview</button><button id="geoSaveList">Save as list…</button></div>
+      <pre id="geoPreviewResult" class="v2-args" style="max-height:260px;overflow:auto">Preview не запускался.</pre>
+      <div id="geoAutohostlist" class="setup-note" style="margin-top:8px">Autohostlist capability ещё не проверялась.</div>
+      <div class="setup-note warn" style="margin-top:8px">Geo upload/list extraction не меняет nfqws2.conf и не делает reload/restart. Применение списка к production остаётся отдельным явным workflow.</div>
+    </article>
+    <div class="blob-note"><b>Boundary R27/U7:</b> upstream lists по-прежнему SHA256/exact-ref guarded. Geo assets дополнительно поддерживают локальный SHA256-guarded upload и category extraction. Ни один из этих путей не редактирует production config автоматически.</div>
   </div>
 </section>
 
@@ -3511,6 +3523,62 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     catch(e){notice(`List Source ${name}: ${e.message}`,'error')}
     finally{listSourceLoading=false}
   }
+
+  let geoAssets=[];
+  function geoAssetSelected(){return geoAssets.find(x=>x.name===$('geoAssetSelect')?.value)}
+  function renderGeoAssets(){
+    if(!$('geoAssets'))return;
+    $('geoAssets').innerHTML=geoAssets.length?geoAssets.map(x=>`<div class="blob-row"><div><div class="blob-name">${esc(x.name)} <span class="config-badge">${esc(String(x.kind||'').toUpperCase())}</span></div><div class="blob-meta">${bytes(x.size||0)} · sha256 ${esc(String(x.sha256||'').slice(0,16))}… · ${Number(x.categories?.length||0)} categories</div><div class="blob-refs">${esc(x.source||'local upload')}${x.source_ref?` · ref ${esc(x.source_ref)}`:''}</div></div></div>`).join(''):'<div class="empty">Geo assets ещё не загружены.</div>';
+    $('geoAssetSelect').innerHTML=geoAssets.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${esc(x.kind)}</option>`).join('');
+    renderGeoCategories();
+  }
+  function renderGeoCategories(){
+    const asset=geoAssetSelected(),cats=Array.isArray(asset?.categories)?asset.categories:[];
+    $('geoCategorySelect').innerHTML=cats.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${Number(x.count||0)}</option>`).join('');
+    if(asset&&cats.length&&!$('geoListName').value.trim())$('geoListName').value=`geo-${String(cats[0].name).replace(/[^A-Za-z0-9._-]+/g,'-')}.list`;
+  }
+  async function loadGeoAssets(){
+    if(!$('geoAssets'))return;
+    try{
+      const d=await api('/v2/geo/assets');geoAssets=Array.isArray(d.assets)?d.assets:[];renderGeoAssets();
+      const a=await api('/v2/geo/autohostlist');
+      $('geoAutohostlist').textContent=`Autohostlist: ${a.supported?'SUPPORTED':'NOT PROVEN'} · configured=${a.configured?'YES':'NO'} · engine=${a.engine||'installed-nfqws2'} · evidence=${a.evidence_source||'unknown'}`;
+    }catch(e){$('geoAssets').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}
+  }
+  async function geoSHA256(buffer){const d=await crypto.subtle.digest('SHA-256',buffer);return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+  function geoBase64(buffer){let out='',bytes=new Uint8Array(buffer),step=0x8000;for(let i=0;i<bytes.length;i+=step)out+=String.fromCharCode(...bytes.subarray(i,i+step));return btoa(out)}
+  async function uploadGeoAsset(){
+    const file=$('geoFile').files?.[0];if(!file){notice('Geo: выберите файл.','error');return}
+    if(file.size>24*1024*1024){notice('Geo: файл больше 24 MiB.','error');return}
+    $('geoUpload').disabled=true;$('geoState').textContent='UPLOADING';
+    try{
+      const buffer=await file.arrayBuffer(),sha=await geoSHA256(buffer);
+      const d=await api('/v2/geo/upload',{method:'POST',body:JSON.stringify({name:file.name,kind:$('geoKind').value,content_base64:geoBase64(buffer),expected_sha256:sha,source:$('geoSource').value.trim(),source_ref:$('geoSourceRef').value.trim(),confirm:'ROUTERFORGE_GEO_UPLOAD'})});
+      $('geoState').textContent='SAVED';notice(`Geo ${d.asset?.name||file.name}: ${Number(d.asset?.categories?.length||0)} categories · production untouched.`,'good');await loadGeoAssets();
+    }catch(e){$('geoState').textContent='FAIL';notice(`Geo upload: ${e.message}`,'error')}finally{$('geoUpload').disabled=false}
+  }
+  async function previewGeoCategory(){
+    const asset=geoAssetSelected(),category=$('geoCategorySelect').value;if(!asset||!category)return;
+    try{
+      const d=await api('/v2/geo/preview',{method:'POST',body:JSON.stringify({name:asset.name,category,limit:500})});
+      $('geoPreviewResult').textContent=`${asset.name}:${category}\n${d.count}/${d.total}${d.truncated?' (preview truncated)':''}\n\n${(d.entries||[]).join('\n')}`;
+    }catch(e){notice(`Geo preview: ${e.message}`,'error')}
+  }
+  async function saveGeoCategory(){
+    const asset=geoAssetSelected(),category=$('geoCategorySelect').value,name=String($('geoListName').value||'').trim();if(!asset||!category||!name){notice('Geo: asset/category/list name required.','error');return}
+    const existing=(listSourceFiles||[]).some(x=>x.name===name),replace=existing;
+    if(!confirm(`Geo category ${asset.name}:${category} → ${name}?\n\n${replace?'Existing list will be backed up and replaced.':'New list will be created.'}\nReload/restart: NO`))return;
+    try{
+      const d=await api('/v2/geo/save-list',{method:'POST',body:JSON.stringify({name:asset.name,category,list_name:name,limit:20000,replace,confirm:replace?'ROUTERFORGE_GEO_LIST_REPLACE':'ROUTERFORGE_GEO_LIST_CREATE'})});
+      listSourceLoaded=false;await loadListSources(true);renderListFiles();notice(`Geo list ${name}: ${d.count} entries · production config unchanged.`,'good');
+    }catch(e){notice(`Geo save list: ${e.message}`,'error')}
+  }
+  $('geoAssetSelect')?.addEventListener('change',renderGeoCategories);
+  $('geoCategorySelect')?.addEventListener('change',()=>{const c=$('geoCategorySelect').value;if(c)$('geoListName').value=`geo-${String(c).replace(/[^A-Za-z0-9._-]+/g,'-')}.list`});
+  $('geoUpload')?.addEventListener('click',uploadGeoAsset);
+  $('geoRefresh')?.addEventListener('click',loadGeoAssets);
+  $('geoPreview')?.addEventListener('click',previewGeoCategory);
+  $('geoSaveList')?.addEventListener('click',saveGeoCategory);
 
   const catalogRepo='rndnaame/nfqws-menu',catalogBranch='main',catalogPrefix='strategies/nfqws2/';
   const catalogDiffKeys=['ISP_INTERFACE','NFQWS_BASE_ARGS','NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_IPSET','NFQWS_ARGS_CUSTOM','NFQWS_EXTRA_ARGS','IPV6_ENABLED','TCP_PORTS','UDP_PORTS','POLICY_NAME','POLICY_EXCLUDE','NFQUEUE_NUM','USER','CONFIG_VERSION'];
@@ -5815,7 +5883,7 @@ const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.p
 
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;
-  $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
+  $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true);loadGeoAssets()};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
   $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
   $('closeSmartApply').onclick=closeSmartApply;$('refreshSmartApply').onclick=async()=>{if(smartApplyBusy)return;$('smartApplyPlan').innerHTML='<div class="empty">Пересчитываю exact plan…</div>';$('applySmartApply').disabled=true;try{smartApplyPlan=await buildSmartApplyPlan();renderSmartApplyPlan()}catch(e){smartApplyPlan=null;$('smartApplyPlan').innerHTML=`<div class="smart-apply-error">${esc(e.message)}</div>`}};$('applySmartApply').onclick=applySmartApply;$('smartApplyModal').onclick=e=>{if(e.target===$('smartApplyModal'))closeSmartApply()};
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};

@@ -1110,6 +1110,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-strategy-tabs" id="nfqwsStrategyTabs" aria-label="Стратегии RouterForge">
+  <button class="tab" data-tab="auto-setup-v1">Автонастройка</button>
   <button class="tab" data-tab="selector-v2">Автоподбор</button>
   <button class="tab" data-tab="sandbox-v2">Sandbox</button>
   <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
@@ -1299,6 +1300,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     <div class="v2-input-row">
       <input id="v2DomainTarget" class="search" placeholder="youtube.com" autocomplete="off" spellcheck="false">
       <button id="v2DomainRun" class="primary">Разобрать</button>
+      <button id="v2DomainToSetup">В Автонастройку</button>
       <button id="v2DomainToSelector">В Автоподбор</button>
       <button id="v2DomainToLab">В Test Lab</button>
     </div>
@@ -1350,6 +1352,90 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </article>
     </div>
     <div class="v2-boundary">Test Lab не подставляет альтернативные стратегии. Он наблюдает текущую систему с роутера и дополняет результат production mapping из Inspector. Это не packet-trace q300.</div>
+  </div>
+</section>
+
+
+<section id="view-auto-setup-v1" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Автонастройка</h2><div class="section-kicker">target → diagnosis → bounded planner → live verify → Preview → explicit Safe Apply</div></div>
+      <span id="v2AutoSetupState" class="config-badge">IDLE</span>
+    </div>
+
+    <div class="v2-two">
+      <article class="panel">
+        <div class="panel-head"><div><h2>1. Откуда взять цель</h2><div class="section-kicker">manual · Observed Targets · list/domain</div></div></div>
+        <label class="v2-label">Источник
+          <select id="v2AutoSetupSource" class="search">
+            <option value="manual">Ручной target</option>
+            <option value="observed">Observed Target</option>
+            <option value="list">Список / домен</option>
+          </select>
+        </label>
+        <label id="v2AutoSetupManualWrap" class="v2-label">Target
+          <input id="v2AutoSetupTarget" class="search" placeholder="youtube.com" autocomplete="off" spellcheck="false">
+        </label>
+        <label id="v2AutoSetupObservedWrap" class="v2-label" style="display:none">Observed Target
+          <select id="v2AutoSetupObserved" class="search"><option value="">Загрузка…</option></select>
+        </label>
+        <div id="v2AutoSetupListWrap" style="display:none">
+          <label class="v2-label">Список
+            <select id="v2AutoSetupList" class="search"><option value="">Загрузка…</option></select>
+          </label>
+          <label class="v2-label">Домен
+            <select id="v2AutoSetupListTarget" class="search"><option value="">Сначала выберите список</option></select>
+          </label>
+        </div>
+        <div class="v2-inline">
+          <label>Режим
+            <select id="v2AutoSetupMode" class="search">
+              <option value="fast">Fast</option>
+              <option value="normal" selected>Normal</option>
+              <option value="thorough">Thorough</option>
+            </select>
+          </label>
+          <label>Workers
+            <select id="v2AutoSetupConcurrency" class="search">
+              <option value="1">1</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+        </div>
+        <div class="toolbar">
+          <button id="v2AutoSetupRun" class="primary">Диагностировать и подобрать</button>
+          <button id="v2AutoSetupReset">Сбросить</button>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head"><div><h2>2. Текущее состояние</h2><div class="section-kicker">без универсального «failed»</div></div></div>
+        <div id="v2AutoSetupStatus" class="v2-recommendation"><div class="analysis-empty">Выберите target и запустите workflow.</div></div>
+        <div id="v2AutoSetupTimeline" class="v2-list" style="margin-top:10px"></div>
+      </article>
+    </div>
+
+    <article id="v2AutoSetupWinner" class="panel" style="display:none">
+      <div class="panel-head"><div><h2>3. Verified winner</h2><div class="section-kicker">historical hints не являются proof · live Selector остаётся authority</div></div></div>
+      <div id="v2AutoSetupWinnerBody" class="v2-recommendation"></div>
+    </article>
+
+    <article id="v2AutoSetupPreviewPanel" class="panel" style="display:none">
+      <div class="panel-head"><div><h2>4. Exact Preview</h2><div class="section-kicker">one-shot receipt · exact SHA/resources · production ещё не изменён</div></div></div>
+      <div id="v2AutoSetupPreviewMeta" class="v2-boundary"></div>
+      <pre id="v2AutoSetupPreviewBody" class="catalog-preview">Preview ещё не построен.</pre>
+      <div class="toolbar">
+        <button id="v2AutoSetupRebuildPreview">Перестроить Preview</button>
+        <button id="v2AutoSetupApply" class="primary" disabled>Явно применить через Smart Apply</button>
+      </div>
+    </article>
+
+    <div class="v2-boundary">
+      Автонастройка не делает скрытый Apply. До последней кнопки разрешены только диагностика, TCP16 evidence, isolated NFQUEUE tests и deterministic Preview.
+      Production mutation выполняет только существующий Smart Apply с backup, verify и rollback.
+    </div>
   </div>
 </section>
 
@@ -5219,6 +5305,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
      but are no longer exposed by navigation. */
   let v2TargetSources=[],v2Profiles=[],v2Library=[],v2DomainLast=null;
   let v2LabAbort=null,v2SandboxAbort=null,v2SelectorAbort=null,v2SelectorPoll=0,v2SelectorLast=null,v2SelectorPreviewData=null;
+  let v2SelectorLastError='',v2SelectorPreviewError='',v2SelectorApplyError='';
+  let v2AutoSetupRunning=false,v2AutoSetupTimeline=[],v2AutoSetupDetect=null,v2AutoSetupInspect=null,v2AutoSetupTarget='';
 
   function v2Tone(value){
     const v=String(value||'').toUpperCase();
@@ -5245,7 +5333,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(v2TargetSources.length&&!force)return v2TargetSources;
     const d=await api('/v2/target-sources');v2TargetSources=Array.isArray(d.sources)?d.sources:[];
     const options=v2TargetSources.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${Number(x.count||0)}</option>`).join('');
-    for(const id of['v2LabList','v2SandboxTargetList']){const n=$(id);if(n)n.innerHTML=options||'<option value="">Нет списков</option>'}
+    for(const id of['v2LabList','v2SandboxTargetList','v2AutoSetupList']){const n=$(id);if(n)n.innerHTML=options||'<option value="">Нет списков</option>'}
     return v2TargetSources;
   }
   async function v2LoadProfiles(force=false){
@@ -5273,6 +5361,158 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function v2StageRow(name,row){
     const state=String(row?.state||'skipped'),detail=row?.detail||'',extra=[row?.status_code?`HTTP ${row.status_code}`:'',Number.isFinite(Number(row?.bytes))&&Number(row.bytes)>0?`${row.bytes} B`:'',Number.isFinite(Number(row?.latency_ms))?`${row.latency_ms} ms`:''].filter(Boolean).join(' · ');
     return`<div class="v2-row ${v2Tone(state)}"><div class="v2-result-title">${esc(name.toUpperCase())}</div><div><div class="value">${esc(detail||'—')}</div><div class="meta">${esc(extra)}</div></div>${v2Pill(state)}</div>`;
+  }
+
+
+  function v2AutoSetupPush(code,title,detail='',tone='info'){
+    v2AutoSetupTimeline.push({code,title,detail,tone});
+    const root=$('v2AutoSetupTimeline');if(!root)return;
+    root.innerHTML=v2AutoSetupTimeline.map(x=>`<div class="v2-row ${esc(x.tone||'info')}"><div class="v2-result-title">${esc(x.code)}</div><div><div class="value">${esc(x.title)}</div><div class="meta">${esc(x.detail||'')}</div></div>${v2Pill(x.code)}</div>`).join('');
+  }
+  function v2AutoSetupState(code,message,tone='info'){
+    $('v2AutoSetupState').textContent=code;
+    $('v2AutoSetupStatus').innerHTML=`<div class="v2-row ${esc(tone)}"><div class="v2-result-title">${esc(code)}</div><div class="value">${esc(message||'')}</div>${v2Pill(code)}</div>`;
+    reportHeight();
+  }
+  function v2AutoSetupErrorCode(message){
+    const m=String(message||'').toLowerCase();
+    if(m.includes('cleanup'))return'CLEANUP_FAILURE';
+    if(m.includes('config changed')||m.includes('active config changed'))return'CONFIG_CHANGED_WHILE_TESTING';
+    if(m.includes('rollback')||m.includes('rolled back'))return'APPLY_ROLLBACK';
+    if(m.includes('dependency')||m.includes('capability')||m.includes('not installed')||m.includes('missing'))return'DEPENDENCY_MISSING';
+    if(m.includes('preview')&&(m.includes('stale')||m.includes('changed')||m.includes('expired')||m.includes('mismatch')))return'PREVIEW_STALE';
+    return'WORKFLOW_ERROR';
+  }
+  function v2AutoSetupReset(){
+    v2AutoSetupRunning=false;v2AutoSetupTimeline=[];v2AutoSetupDetect=null;v2AutoSetupInspect=null;v2AutoSetupTarget='';
+    $('v2AutoSetupRun').disabled=false;$('v2AutoSetupApply').disabled=true;
+    $('v2AutoSetupWinner').style.display='none';$('v2AutoSetupPreviewPanel').style.display='none';
+    $('v2AutoSetupTimeline').innerHTML='';$('v2AutoSetupPreviewBody').textContent='Preview ещё не построен.';
+    v2AutoSetupState('IDLE','Выберите target и запустите workflow.');
+  }
+  async function v2AutoSetupLoadObserved(){
+    const d=await api('/v2/observed-targets');v2ObservedData=d||v2ObservedData||{};
+    const rows=(d.observed||[]).filter(v2ObservedCanDomain);
+    $('v2AutoSetupObserved').innerHTML=rows.map(x=>`<option value="${esc(v2ObservedTargetValue(x))}">${esc(v2ObservedTargetValue(x))} · ${esc(v2ObservedReasonText(x.reason))} · ${Number(x.count||0)}</option>`).join('')||'<option value="">Нет domain-like Observed targets</option>';
+  }
+  async function v2AutoSetupLoadListTargets(){
+    const name=$('v2AutoSetupList').value;if(!name){$('v2AutoSetupListTarget').innerHTML='<option value="">Нет списка</option>';return}
+    const d=await api('/v2/targets/resolve',{method:'POST',body:JSON.stringify({source:'list',list_name:name,limit:64})});
+    const targets=d.targets||[];$('v2AutoSetupListTarget').innerHTML=targets.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')||'<option value="">В списке нет пригодных domain targets</option>';
+  }
+  async function v2AutoSetupSourceChanged(){
+    const source=$('v2AutoSetupSource').value;
+    $('v2AutoSetupManualWrap').style.display=source==='manual'?'':'none';
+    $('v2AutoSetupObservedWrap').style.display=source==='observed'?'':'none';
+    $('v2AutoSetupListWrap').style.display=source==='list'?'':'none';
+    try{
+      if(source==='observed')await v2AutoSetupLoadObserved();
+      if(source==='list'){await v2LoadTargetSources(true);await v2AutoSetupLoadListTargets()}
+    }catch(e){v2AutoSetupState(v2AutoSetupErrorCode(e.message),e.message,'bad')}
+  }
+  function v2AutoSetupSelectedTarget(){
+    const source=$('v2AutoSetupSource').value;
+    if(source==='observed')return String($('v2AutoSetupObserved').value||'').trim();
+    if(source==='list')return String($('v2AutoSetupListTarget').value||'').trim();
+    return String($('v2AutoSetupTarget').value||'').trim();
+  }
+  function v2AutoSetupSeed(target,source='manual'){
+    activateNFQWSTab('auto-setup-v1');
+    $('v2AutoSetupSource').value='manual';$('v2AutoSetupTarget').value=String(target||'').trim();
+    void v2AutoSetupSourceChanged();
+    v2AutoSetupState('READY',`Target получен из ${source}: ${String(target||'').trim()}`);
+  }
+  function v2AutoSetupDiagnosisStop(detect){
+    const diag=detect?.diagnostic||{},code=String(diag.code||'').toUpperCase(),fault=String(diag.fault_domain||'').toLowerCase();
+    if(String(detect?.classification||'').toLowerCase()==='clear'||code==='CLEAR_END_TO_END')return['TARGET_ALREADY_HEALTHY','Baseline уже здоров; strategy mutation не нужна.','good'];
+    if(code.startsWith('DNS_')||fault==='dns')return['DNS_FAILURE',diag.suggested_action||'DNS stage не прошёл.','bad'];
+    if(fault==='routing'||code==='ROUTING_FAILURE')return['ROUTING_FAILURE',diag.suggested_action||'Проблема маршрута не должна маскироваться стратегией NFQWS.','bad'];
+    return null;
+  }
+  async function v2AutoSetupBuildPreview(){
+    v2SelectorPreviewError='';
+    const p=await buildV2SelectorPreview();
+    if(!p){
+      const code=v2AutoSetupErrorCode(v2SelectorPreviewError);
+      v2AutoSetupState(code,v2SelectorPreviewError||'Preview не построен.','bad');
+      v2AutoSetupPush(code,'Exact Preview не готов',v2SelectorPreviewError,'bad');
+      return null;
+    }
+    $('v2AutoSetupPreviewPanel').style.display='block';
+    $('v2AutoSetupPreviewMeta').textContent=`active=${p.active_config_sha256} · candidate=${p.candidate_config_sha256} · source=${p.candidate_source||'production'} · fingerprint=${p.candidate_fingerprint||'—'} · resources=${(p.required_resources||[]).length}`;
+    $('v2AutoSetupPreviewBody').textContent=p.candidate_config||'';
+    $('v2AutoSetupApply').disabled=!p.changed;
+    v2AutoSetupPush('PREVIEW_READY','Exact deterministic Preview готов',`${p.candidate_config_sha256||''} · production не изменён`,'good');
+    v2AutoSetupState('PREVIEW_READY','Winner проверен и exact config готов. Следующий шаг требует явного Apply.','good');
+    return p;
+  }
+  async function runV2AutoSetup(){
+    if(v2AutoSetupRunning)return;
+    const target=v2AutoSetupSelectedTarget();if(!target){v2AutoSetupState('TARGET_REQUIRED','Выберите или введите target.','bad');return}
+    v2AutoSetupRunning=true;v2AutoSetupTimeline=[];v2AutoSetupTarget=target;v2SelectorLastError='';v2SelectorPreviewError='';v2SelectorApplyError='';
+    $('v2AutoSetupRun').disabled=true;$('v2AutoSetupApply').disabled=true;$('v2AutoSetupWinner').style.display='none';$('v2AutoSetupPreviewPanel').style.display='none';
+    try{
+      await Promise.all([v2EnsureStatus(),v2LoadLibrary()]);
+      v2AutoSetupState('INSPECTING',`Проверяю ${target}: production mapping + baseline DNS/TCP/TLS/HTTP.`,'info');
+      const [inspect,detect]=await Promise.all([
+        api('/v2/inspect-target',{method:'POST',body:JSON.stringify({target})}),
+        api('/v2/detect',{method:'POST',body:JSON.stringify({target})})
+      ]);
+      v2AutoSetupInspect=inspect;v2AutoSetupDetect=detect;
+      const diag=detect.diagnostic||{};
+      v2AutoSetupPush('INSPECTED','Target inspection завершён',`binding=${inspect.binding_verdict||'—'} · lists=${(inspect.list_matches||[]).length}`,'good');
+      v2AutoSetupPush(diag.code||detect.classification||'BASELINE','Baseline diagnosis',`${diag.fault_domain||'—'} · ${diag.confidence||'—'} · ${diag.suggested_action||detect.classification_text||''}`,detect.classification==='clear'?'good':'warn');
+      const stop=v2AutoSetupDiagnosisStop(detect);if(stop){v2AutoSetupState(stop[0],stop[1],stop[2]);return}
+
+      if(String(diag.code||'').toUpperCase()==='HTTP_STREAM_CUTOFF_12_20K_SUSPECTED'){
+        v2AutoSetupState('TCP16_REVALIDATE','Диагностика указывает на 12–20 KiB cutoff; запускаю bounded TCP16 network probe.','warn');
+        const tcp16=await api('/v2/tcp16-probe',{method:'POST',body:JSON.stringify({scan_sni:true,expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_TCP16_PROBE_V2'})});
+        v2AutoSetupPush('TCP16_DONE','TCP16 branch завершён',`detected=${Number(tcp16.detected_count||0)} · working SNI=${Number(tcp16.working_sni_count||0)} · production read-only=${!!tcp16.read_only_production}`,'good');
+      }
+
+      v2AutoSetupState('LIVE_VERIFY','Строю bounded plan и запускаю isolated live Selector.','info');
+      $('v2SelectorTarget').value=target;$('v2SelectorMode').value=$('v2AutoSetupMode').value;$('v2SelectorConcurrency').value=$('v2AutoSetupConcurrency').value;
+      $('v2SelectorProduction').checked=true;$('v2SelectorAutoPool').checked=true;$('v2SelectorLibrary').checked=true;
+      const selected=await runV2Selector();
+      if(!selected){
+        const code=v2AutoSetupErrorCode(v2SelectorLastError);v2AutoSetupState(code,v2SelectorLastError||'Selector не завершился.','bad');v2AutoSetupPush(code,'Live Selector остановлен',v2SelectorLastError,'bad');return
+      }
+      if(!selected.cleanup_baseline_after){v2AutoSetupState('CLEANUP_FAILURE','Isolated test не доказал cleanup baseline. Apply заблокирован.','bad');v2AutoSetupPush('CLEANUP_FAILURE','Cleanup proof failed','','bad');return}
+      if(!(selected.candidates||[]).length){v2AutoSetupState('NO_CANDIDATES_COMPILE','Нет пригодных кандидатов для live verification.','bad');v2AutoSetupPush('NO_CANDIDATES_COMPILE','Candidate set пуст после compiler/gates','','bad');return}
+      if(!selected.recommendation_available){v2AutoSetupState('NO_CANDIDATE_WORKS',selected.recommendation_reason||'Ни один candidate не улучшил baseline.','warn');v2AutoSetupPush('NO_CANDIDATE_WORKS','Live verification не нашёл winner',selected.recommendation_reason||'','warn');return}
+      if(!selected.apply_gate_eligible){v2AutoSetupState('WINNER_VERIFIED','Winner подтверждён, но unique production slot для Safe Apply не доказан.','warn');v2AutoSetupPush('WINNER_VERIFIED','Winner live-verified',selected.apply_gate_reason||'Apply gate blocked','warn');return}
+
+      $('v2AutoSetupWinner').style.display='block';
+      $('v2AutoSetupWinnerBody').innerHTML=`<div class="v2-row good"><div class="v2-result-title">${esc(selected.recommended_candidate_name||selected.recommended_candidate_id||'winner')}</div><div><div class="value">${esc(selected.recommendation_reason||'Live verified')}</div><div class="meta">${esc(selected.recommended_candidate_source||'')} · ${esc(selected.apply_gate_reason||'')}</div></div>${v2Pill('WINNER VERIFIED')}</div>`;
+      v2AutoSetupPush('WINNER_VERIFIED','Live winner повторно подтверждён',`${selected.recommended_candidate_source||''} · ${selected.recommended_candidate_id||''}`,'good');
+      await v2AutoSetupBuildPreview();
+    }catch(e){
+      const code=v2AutoSetupErrorCode(e.message);v2AutoSetupState(code,e.message,'bad');v2AutoSetupPush(code,'Workflow остановлен',e.message,'bad');
+    }finally{
+      v2AutoSetupRunning=false;$('v2AutoSetupRun').disabled=false;reportHeight();
+    }
+  }
+  async function applyV2AutoSetup(){
+    if(v2AutoSetupRunning||!v2SelectorPreviewData?.changed)return;
+    v2AutoSetupRunning=true;$('v2AutoSetupApply').disabled=true;v2SelectorApplyError='';
+    try{
+      const result=await applyV2SelectorPreview();
+      if(!result){
+        const code=v2AutoSetupErrorCode(v2SelectorApplyError);
+        v2AutoSetupState(code,v2SelectorApplyError||'Apply не выполнен.','bad');
+        v2AutoSetupPush(code,'Safe Apply не завершён',v2SelectorApplyError,'bad');
+        return
+      }
+      if(result.rolled_back){v2AutoSetupState('APPLY_ROLLBACK','Smart Apply откатил изменение после failed verify.','bad');v2AutoSetupPush('APPLY_ROLLBACK','Rollback выполнен','','bad');return}
+      const latest=await api('/status');
+      if(String(latest.config_sha256||'').toLowerCase()!==String(result.config_sha256||'').toLowerCase()){
+        v2AutoSetupState('APPLY_ROLLBACK','Post-Apply production SHA не совпал с verified candidate.','bad');v2AutoSetupPush('APPLY_ROLLBACK','Production verification mismatch','','bad');return
+      }
+      v2AutoSetupPush('APPLY_SUCCESS','Production verification PASS',`config=${latest.config_sha256} · running=${!!latest.running}`,'good');
+      v2AutoSetupState('APPLY_SUCCESS','Готово: exact candidate применён через Smart Apply и production verify прошёл.','good');
+    }catch(e){
+      const code=v2AutoSetupErrorCode(e.message);v2AutoSetupState(code,e.message,'bad');v2AutoSetupPush(code,'Apply workflow остановлен',e.message,'bad');
+    }finally{v2AutoSetupRunning=false;$('v2AutoSetupApply').disabled=false;reportHeight()}
   }
 
   async function runV2Domain(){
@@ -5446,7 +5686,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     await tick();v2SelectorPoll=setInterval(tick,900);
   }
   async function runV2Selector(){
-    if(v2SelectorAbort)return;const target=$('v2SelectorTarget').value.trim();if(!target){notice('Автоподбор: укажите target.','error');return}
+    v2SelectorLastError='';
+    if(v2SelectorAbort)return null;const target=$('v2SelectorTarget').value.trim();if(!target){notice('Автоподбор: укажите target.','error');return}
     try{await Promise.all([v2EnsureStatus(),v2LoadLibrary()])}catch(e){notice(e.message,'error');return}
     let plannerDiagnostic={code:'',fault_domain:'',strategy_relevant:false};
     try{
@@ -5468,33 +5709,36 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         diagnostic_code:plannerDiagnostic.code||'',diagnostic_fault_domain:plannerDiagnostic.fault_domain||'',diagnostic_strategy_relevant:!!plannerDiagnostic.strategy_relevant,
         confirm:'ROUTERFORGE_V2_SELECTOR'
       })});
-      $('v2SelectorState').textContent='DONE';$('v2SelectorBar').style.width='100%';renderV2SelectorResult(d);{const all=d.candidates||[],working=all.filter(x=>x.result_class==='WORKING').length;v2HistoryAdd('v2-selector',{targets:1,candidates:all.length,working,success_ratio:all.length?working/all.length:0,recommendation:!!d.recommendation_available},d)}notice(`Автоподбор завершён: ${d.recommendation_reason||'готово'}`,'good');
+      $('v2SelectorState').textContent='DONE';$('v2SelectorBar').style.width='100%';renderV2SelectorResult(d);{const all=d.candidates||[],working=all.filter(x=>x.result_class==='WORKING').length;v2HistoryAdd('v2-selector',{targets:1,candidates:all.length,working,success_ratio:all.length?working/all.length:0,recommendation:!!d.recommendation_available},d)}notice(`Автоподбор завершён: ${d.recommendation_reason||'готово'}`,'good');return d;
     }catch(e){
       if(controller.signal.aborted){$('v2SelectorState').textContent='STOPPED';notice('Автоподбор остановлен.','')}
-      else{$('v2SelectorState').textContent='FAIL';notice(`Автоподбор: ${e.message}`,'error')}
+      else{v2SelectorLastError=e.message||'selector failed';$('v2SelectorState').textContent='FAIL';notice(`Автоподбор: ${e.message}`,'error')}
+      return null;
     }finally{clearInterval(v2SelectorPoll);v2SelectorPoll=0;v2SelectorAbort=null;$('v2SelectorRun').disabled=false;$('v2SelectorStop').disabled=true;reportHeight()}
   }
   async function buildV2SelectorPreview(){
-    const d=v2SelectorLast;if(!d?.apply_gate_eligible||!d.apply_gate_token)return;
+    v2SelectorPreviewError='';
+    const d=v2SelectorLast;if(!d?.apply_gate_eligible||!d.apply_gate_token)return null;
     $('v2SelectorPreview').disabled=true;
     try{
       const p=await api('/bench-autotune/apply-preview',{method:'POST',body:JSON.stringify({token:d.apply_gate_token,expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_AUTOTUNE_PREVIEW'})});
       if(!p.ok||!p.preview_only)throw new Error('preview contract mismatch');v2SelectorPreviewData=p;
       const meta=[`Source: ${p.candidate_source||'production'}`,`Transport: ${p.transport||'https'}`,`Session: ${p.session_id||'legacy'}`,`Fingerprint: ${p.candidate_fingerprint||'—'}`,`Live: ${p.live_result_class||'—'} / ${Number(p.live_success_rate||0)*100}%`,`Resources: ${(p.required_resources||[]).join(', ')||'none'}`,`Reload: ${p.reload_method||'Smart Apply'}`].join('\n');
       $('v2SelectorPreviewBody').textContent=`${meta}\n\n${p.candidate_config||''}`;
-      $('v2SelectorApply').disabled=!p.changed;notice(`Generic Safe Apply Preview готов · ${String(p.candidate_config_sha256||'').slice(0,16)}…`,'good');
-    }catch(e){v2SelectorPreviewData=null;notice(`Preview: ${e.message}`,'error')}
+      $('v2SelectorApply').disabled=!p.changed;notice(`Generic Safe Apply Preview готов · ${String(p.candidate_config_sha256||'').slice(0,16)}…`,'good');return p;
+    }catch(e){v2SelectorPreviewError=e.message||'preview failed';v2SelectorPreviewData=null;notice(`Preview: ${e.message}`,'error');return null}
     finally{$('v2SelectorPreview').disabled=false}
   }
   async function applyV2SelectorPreview(){
-    const d=v2SelectorLast,p=v2SelectorPreviewData;if(!d?.apply_gate_token||!p?.changed)return;
-    if(!confirm(`Применить live-verified candidate через Smart Apply?\nTarget: ${p.server_name}\nSource: ${p.candidate_source||'production'}\nTransport: ${p.transport||'https'}\nFingerprint: ${p.candidate_fingerprint||'—'}\nActive: ${p.active_config_sha256}\nCandidate: ${p.candidate_config_sha256}\n\nReceipt one-shot. Dependency hashes + backup + verify + rollback обязательны.`))return;
+    v2SelectorApplyError='';
+    const d=v2SelectorLast,p=v2SelectorPreviewData;if(!d?.apply_gate_token||!p?.changed)return null;
+    if(!confirm(`Применить live-verified candidate через Smart Apply?\nTarget: ${p.server_name}\nSource: ${p.candidate_source||'production'}\nTransport: ${p.transport||'https'}\nFingerprint: ${p.candidate_fingerprint||'—'}\nActive: ${p.active_config_sha256}\nCandidate: ${p.candidate_config_sha256}\n\nReceipt one-shot. Dependency hashes + backup + verify + rollback обязательны.`))return null;
     $('v2SelectorApply').disabled=true;
     try{
       const latest=await api('/status');if(String(latest.config_sha256).toLowerCase()!==String(p.active_config_sha256).toLowerCase())throw new Error('active config changed after preview');
       const result=await api('/bench-autotune/apply',{method:'POST',body:JSON.stringify({receipt_token:d.apply_gate_token,expected_active_sha256:p.active_config_sha256,expected_candidate_sha256:p.candidate_config_sha256,confirm:'ROUTERFORGE_AUTOTUNE_APPLY'})});
-      current=result.status||await api('/status');original=current?.config||original;render(current);v2SelectorLast=null;v2SelectorPreviewData=null;$('v2SelectorApply').disabled=true;notice('Safe Apply: PASS. Receipt consumed.','good');
-    }catch(e){v2SelectorLast=null;v2SelectorPreviewData=null;notice(`Safe Apply: ${e.message}`,'error')}
+      current=result.status||await api('/status');original=current?.config||original;render(current);v2SelectorLast=null;v2SelectorPreviewData=null;$('v2SelectorApply').disabled=true;notice('Safe Apply: PASS. Receipt consumed.','good');return result;
+    }catch(e){v2SelectorApplyError=e.message||'apply failed';v2SelectorLast=null;v2SelectorPreviewData=null;notice(`Safe Apply: ${e.message}`,'error');return null}
   }
 
 
@@ -5644,7 +5888,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('v2ObservedMeta').textContent=`visible=${rows.length} · suppressed=${Number(data?.suppressed_count||0)} · ignored=${Number(data?.ignored_count||0)} · min events=${Number(data?.min_events||2)} · source=${data?.flow_source||'stored evidence'}`;
     $('v2ObservedList').innerHTML=rows.length?rows.map((x,i)=>{
       const target=v2ObservedTargetValue(x),domain=v2ObservedCanDomain(x);
-      return `<div class="v2-row ${x.active?'warn':'info'}"><div><div class="v2-result-title">${esc(target||x.destination||'—')}</div><div class="meta">device=${esc(x.device||'—')} · ${esc(x.protocol||'')} / ${Number(x.port||0)} · ${esc(v2ObservedReasonText(x.reason))} · count=${Number(x.count||0)} · last=${esc(x.last_seen||'—')}</div></div><div class="toolbar"><button data-observed-action="diagnose" data-index="${i}" ${domain?'':'disabled'}>Diagnose</button><button data-observed-action="sandbox" data-index="${i}" ${domain?'':'disabled'}>Sandbox</button><button data-observed-action="selector" data-index="${i}" ${domain?'':'disabled'}>Auto Select</button><button data-observed-action="list" data-index="${i}" ${domain?'':'disabled'}>В user.list</button><button data-observed-action="ignore" data-index="${i}">Ignore</button></div>${v2Pill(x.active?'ACTIVE':'SEEN')}</div>`;
+      return `<div class="v2-row ${x.active?'warn':'info'}"><div><div class="v2-result-title">${esc(target||x.destination||'—')}</div><div class="meta">device=${esc(x.device||'—')} · ${esc(x.protocol||'')} / ${Number(x.port||0)} · ${esc(v2ObservedReasonText(x.reason))} · count=${Number(x.count||0)} · last=${esc(x.last_seen||'—')}</div></div><div class="toolbar"><button data-observed-action="setup" data-index="${i}" ${domain?'':'disabled'}>Auto Setup</button><button data-observed-action="diagnose" data-index="${i}" ${domain?'':'disabled'}>Diagnose</button><button data-observed-action="sandbox" data-index="${i}" ${domain?'':'disabled'}>Sandbox</button><button data-observed-action="selector" data-index="${i}" ${domain?'':'disabled'}>Auto Select</button><button data-observed-action="list" data-index="${i}" ${domain?'':'disabled'}>В user.list</button><button data-observed-action="ignore" data-index="${i}">Ignore</button></div>${v2Pill(x.active?'ACTIVE':'SEEN')}</div>`;
     }).join(''):`<div class="analysis-empty">Повторных suspected failures пока нет. Для отсечения случайного шума первое событие скрывается; повторите scan позже, если проблема сохраняется.</div>`;
     $('v2ObservedList').querySelectorAll('[data-observed-action]').forEach(btn=>btn.onclick=()=>v2ObservedAction(btn.dataset.observedAction,Number(btn.dataset.index)));
     reportHeight();
@@ -5661,6 +5905,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
   async function v2ObservedAction(action,index){
     const x=v2ObservedData?.observed?.[index];if(!x)return;const target=v2ObservedTargetValue(x);
+    if(action==='setup'&&v2ObservedCanDomain(x)){v2AutoSetupSeed(target,'Observed Targets');return}
     if(action==='diagnose'&&v2ObservedCanDomain(x)){$('v2DomainTarget').value=target;activateNFQWSTab('domain-v2');return}
     if(action==='selector'&&v2ObservedCanDomain(x)){$('v2SelectorTarget').value=target;activateNFQWSTab('selector-v2');return}
     if(action==='sandbox'&&v2ObservedCanDomain(x)){await v2LoadTargetSources();$('v2SandboxTargetSource').value='manual';$('v2SandboxTargets').value=target;v2TargetMode('sandbox');activateNFQWSTab('sandbox-v2');return}
@@ -5678,6 +5923,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
   async function openV2Workspace(tab){
     if(tab==='domain-v2')return;
+    if(tab==='auto-setup-v1'){await Promise.all([v2LoadTargetSources(),v2AutoSetupLoadObserved().catch(()=>null)]);await v2AutoSetupSourceChanged();return}
     if(tab==='prodlab-v2'){await v2LoadTargetSources();v2TargetMode('lab');return}
     if(tab==='sandbox-v2'){await Promise.all([v2LoadTargetSources(),v2LoadProfiles(),v2LoadLibrary()]);v2TargetMode('sandbox');v2SandboxCandidateMode();return}
     if(tab==='selector-v2'){await Promise.all([v2LoadLibrary(),v2EnsureStatus()]);return}
@@ -5694,7 +5940,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('v2RegistrySource').onchange=v2RegistryRender;
 
   // New workflow event bindings.
-  $('v2DomainRun').onclick=runV2Domain;$('v2DomainTarget').onkeydown=e=>{if(e.key==='Enter')runV2Domain()};$('v2DomainToSelector').onclick=()=>v2DomainSend('selector-v2');$('v2DomainToLab').onclick=()=>v2DomainSend('prodlab-v2');
+  $('v2AutoSetupSource').onchange=v2AutoSetupSourceChanged;$('v2AutoSetupList').onchange=v2AutoSetupLoadListTargets;$('v2AutoSetupRun').onclick=runV2AutoSetup;$('v2AutoSetupReset').onclick=v2AutoSetupReset;$('v2AutoSetupRebuildPreview').onclick=v2AutoSetupBuildPreview;$('v2AutoSetupApply').onclick=applyV2AutoSetup;
+  $('v2DomainRun').onclick=runV2Domain;$('v2DomainTarget').onkeydown=e=>{if(e.key==='Enter')runV2Domain()};$('v2DomainToSetup').onclick=()=>v2AutoSetupSeed(String(v2DomainLast?.inspect?.target||$('v2DomainTarget').value||'').trim(),'Domain Inspector');$('v2DomainToSelector').onclick=()=>v2DomainSend('selector-v2');$('v2DomainToLab').onclick=()=>v2DomainSend('prodlab-v2');
   $('v2LabSource').onchange=()=>v2TargetMode('lab');$('v2LabResolve').onclick=async()=>{try{await v2ResolveLabTargets()}catch(e){notice(e.message,'error')}};$('v2LabRun').onclick=runV2Lab;$('v2LabStop').onclick=()=>v2LabAbort?.abort();
   $('v2SandboxTargetSource').onchange=()=>v2TargetMode('sandbox');$('v2SandboxCandidateSource').onchange=v2SandboxCandidateMode;$('v2SandboxProfile').onchange=v2SandboxCandidateMode;$('v2SandboxLibrary').onchange=v2SandboxCandidateMode;$('v2SandboxRun').onclick=runV2Sandbox;$('v2SandboxStop').onclick=()=>v2SandboxAbort?.abort();$('v2SandboxSave').onclick=saveV2SandboxCandidate;
   $('v2SelectorRun').onclick=runV2Selector;$('v2SelectorStop').onclick=()=>v2SelectorAbort?.abort();$('v2SelectorPreview').onclick=buildV2SelectorPreview;$('v2SelectorApply').onclick=applyV2SelectorPreview;
@@ -5715,7 +5962,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
-  const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','catalog','upstream-lists','blobs','zapret-import']);
+  const nfqwsStrategyTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','catalog','upstream-lists','blobs','zapret-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
@@ -5757,7 +6004,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(tab==='blobs')loadBlobs();
     if(tab==='backups')loadBackupCenter();
     if(tab==='keenetic'){loadKeenetic();loadDPIDetector()}
-    if(['domain-v2','prodlab-v2','selector-v2','sandbox-v2','strategy-library-v2'].includes(tab))void openV2Workspace(tab);
+    if(['domain-v2','prodlab-v2','auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2'].includes(tab))void openV2Workspace(tab);
     if(tab==='strategy-registry-v1')void loadStrategyRegistryV1();
     if(tab==='tcp16-memory-v1')void loadTCP16MemoryV1();
     if(tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')}

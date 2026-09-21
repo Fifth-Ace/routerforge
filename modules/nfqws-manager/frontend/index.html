@@ -3962,10 +3962,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const d=await api('/clienthello/capture',{method:'POST',body:JSON.stringify({device_ip:deviceIP,interface:iface,seconds:5})});
       $('clientHelloCaptureState').textContent=`${Number(d.count||0)} FOUND`;
       const rows=Array.isArray(d.candidates)?d.candidates:[];
+      const stats=d.capture_stats||{},diag=`Интерфейс: ${d.interface||'?'}. TCP: ${Number(stats.tcp_packets||0)}, TCP с данными: ${Number(stats.tcp_payload_packets||0)}, UDP/443: ${Number(stats.udp_443_packets||0)}.`;
       $('clientHelloCaptureResult').innerHTML=rows.length?rows.map((x,i)=>`<div class="clienthello-candidate">
         <div><strong>${esc(x.sni||'ClientHello без SNI')}</strong><span>${esc(x.src_ip||'')} → ${esc(x.dst_ip||'')}:${Number(x.dst_port||0)} · ${Number(x.size||0)} bytes · ${esc(x.detail||'')}</span></div>
         <button data-clienthello-use="${i}" ${x.valid?'':'disabled'}>Использовать как основу</button>
-      </div>`).join(''):`<div class="empty">За 5 секунд ClientHello не найден. Во время захвата открой новый HTTPS-сайт на выбранном устройстве.</div>`;
+      </div>`).join(''):`<div class="empty">${esc(d.hint||'За 5 секунд ClientHello не найден.')}<br>${esc(diag)}</div>`;
       $('clientHelloCaptureResult').querySelectorAll('[data-clienthello-use]').forEach(b=>b.onclick=()=>{
         const x=rows[Number(b.dataset.clienthelloUse)];if(!x)return;
         clientHelloCaptured=x;clientHelloGenerated=null;

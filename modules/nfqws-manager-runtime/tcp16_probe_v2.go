@@ -72,15 +72,15 @@ type v2TCP16ProbeRequest struct {
 }
 
 type v2TCP16ProbeResponse struct {
-	OK                 bool                     `json:"ok"`
-	ConfigSHA256       string                   `json:"config_sha256"`
-	ReadOnlyProduction bool                     `json:"read_only_production"`
-	MemoryUpdated      bool                     `json:"memory_updated"`
-	TargetCount        int                      `json:"target_count"`
-	AliveCount         int                      `json:"alive_count"`
-	DetectedCount      int                      `json:"detected_count"`
-	WorkingSNICount    int                      `json:"working_sni_count"`
-	Results            []v2TCP16ProbeRun        `json:"results"`
+	OK                 bool              `json:"ok"`
+	ConfigSHA256       string            `json:"config_sha256"`
+	ReadOnlyProduction bool              `json:"read_only_production"`
+	MemoryUpdated      bool              `json:"memory_updated"`
+	TargetCount        int               `json:"target_count"`
+	AliveCount         int               `json:"alive_count"`
+	DetectedCount      int               `json:"detected_count"`
+	WorkingSNICount    int               `json:"working_sni_count"`
+	Results            []v2TCP16ProbeRun `json:"results"`
 }
 
 var v2TCP16ProbeTargets = []v2TCP16ProbeTarget{

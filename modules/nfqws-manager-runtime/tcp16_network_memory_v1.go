@@ -57,7 +57,6 @@ type v2TCP16MemoryResponse struct {
 	Entries    []v2TCP16NetworkEntry    `json:"entries"`
 }
 
-
 func registerTCP16NetworkMemoryV1Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/v2/tcp16-memory", getOnly(handleV2TCP16NetworkMemory))
 	mux.HandleFunc("/v1/v2/tcp16-probe", mutationOnly(handleV2TCP16Probe))

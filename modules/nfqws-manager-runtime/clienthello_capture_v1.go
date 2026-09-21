@@ -94,8 +94,8 @@ func v2CaptureClientHellos(ctx context.Context, deviceIP, iface string, seconds 
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(seconds)*time.Second)
 	defer cancel()
 	cmd, err := safety.CommandContext(runCtx, tcpdump,
-		"-i", iface, "-nn", "-U", "-s", "0", "-c", "64", "-w", "-",
-		"host", ip.String(), "and", "tcp", "dst", "port", "443")
+		"-i", iface, "-nn", "-U", "-s", "0", "-c", "128", "-w", "-",
+		"src", "host", ip.String(), "and", "tcp")
 	if err != nil {
 		return nil, iface, err
 	}
@@ -119,7 +119,7 @@ func v2CaptureClientHellos(ctx context.Context, deviceIP, iface string, seconds 
 	return items, iface, nil
 }
 
-func v2ParsePCAPClientHellos(data []byte) ([]v2ClientHelloCandidate, error) {
+func v2ParsePCAPClientHellosLegacy(data []byte) ([]v2ClientHelloCandidate, error) {
 	if len(data) < 24 {
 		return nil, errors.New("pcap is too short")
 	}
@@ -204,6 +204,10 @@ func v2ParsePCAPClientHellos(data []byte) ([]v2ClientHelloCandidate, error) {
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Size < out[j].Size })
 	return out, nil
+}
+
+func v2ParsePCAPClientHellos(data []byte) ([]v2ClientHelloCandidate, error) {
+	return v2ParsePCAPClientHellosRobust(data)
 }
 
 func v2CaptureL3(linkType uint32, packet []byte) (string, string, int, []byte, bool) {

@@ -34,6 +34,13 @@ type v2ClientHelloCaptureRequest struct {
 	Seconds   int    `json:"seconds,omitempty"`
 }
 
+type v2ClientHelloCaptureStats struct {
+	TCPPackets     int `json:"tcp_packets"`
+	TCPPayloads    int `json:"tcp_payload_packets"`
+	UDP443Packets  int `json:"udp_443_packets"`
+	TotalPackets   int `json:"total_packets"`
+}
+
 type v2ClientHelloCandidate struct {
 	SrcIP         string `json:"src_ip"`
 	DstIP         string `json:"dst_ip"`
@@ -57,28 +64,23 @@ func v2ClientHelloCaptureInterface(raw string) (string, error) {
 		}
 		return raw, nil
 	}
-	for _, name := range []string{"br0", "bridge0"} {
-		if _, err := os.Stat(filepath.Join("/sys/class/net", name)); err == nil {
-			return name, nil
-		}
-	}
 	return "any", nil
 }
 
-func v2CaptureClientHellos(ctx context.Context, deviceIP, iface string, seconds int) ([]v2ClientHelloCandidate, string, error) {
+func v2CaptureClientHellos(ctx context.Context, deviceIP, iface string, seconds int) ([]v2ClientHelloCandidate, string, v2ClientHelloCaptureStats, error) {
 	ip := net.ParseIP(strings.TrimSpace(deviceIP))
 	if ip == nil {
-		return nil, "", errors.New("device_ip must be an IPv4 or IPv6 address")
+		return nil, "", v2ClientHelloCaptureStats{}, errors.New("device_ip must be an IPv4 or IPv6 address")
 	}
 	if seconds <= 0 {
 		seconds = 5
 	}
 	if seconds > v2ClientHelloCaptureMaxSeconds {
-		return nil, "", errors.New("seconds exceeds capture limit")
+		return nil, "", v2ClientHelloCaptureStats{}, errors.New("seconds exceeds capture limit")
 	}
 	iface, err := v2ClientHelloCaptureInterface(iface)
 	if err != nil {
-		return nil, "", err
+		return nil, "", v2ClientHelloCaptureStats{}, err
 	}
 	tcpdump, err := exec.LookPath("tcpdump")
 	if err != nil {
@@ -87,36 +89,40 @@ func v2CaptureClientHellos(ctx context.Context, deviceIP, iface string, seconds 
 		} else if executableFile("/opt/bin/tcpdump") {
 			tcpdump = "/opt/bin/tcpdump"
 		} else {
-			return nil, iface, errors.New("tcpdump is not installed")
+			return nil, iface, v2ClientHelloCaptureStats{}, errors.New("tcpdump is not installed")
 		}
 	}
 
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(seconds)*time.Second)
 	defer cancel()
 	cmd, err := safety.CommandContext(runCtx, tcpdump,
-		"-i", iface, "-nn", "-U", "-s", "0", "-c", "128", "-w", "-",
-		"src", "host", ip.String(), "and", "tcp")
+		"-i", iface, "-nn", "-U", "-s", "0", "-c", "256", "-w", "-",
+		"src", "host", ip.String(), "and", "(", "tcp", "or", "udp", "dst", "port", "443", ")")
 	if err != nil {
-		return nil, iface, err
+		return nil, iface, v2ClientHelloCaptureStats{}, err
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	runErr := cmd.Run()
 	if stdout.Len() > v2ClientHelloCaptureMaxPCAP {
-		return nil, iface, errors.New("capture exceeded safety limit")
+		return nil, iface, v2ClientHelloCaptureStats{}, errors.New("capture exceeded safety limit")
 	}
 	if stdout.Len() < 24 {
 		if runErr != nil && runCtx.Err() == nil {
-			return nil, iface, errors.New(strings.TrimSpace(stderr.String()))
+			return nil, iface, v2ClientHelloCaptureStats{}, errors.New(strings.TrimSpace(stderr.String()))
 		}
-		return []v2ClientHelloCandidate{}, iface, nil
+		return []v2ClientHelloCandidate{}, iface, v2ClientHelloCaptureStats{}, nil
+	}
+	stats, err := v2CapturePCAPStats(stdout.Bytes())
+	if err != nil {
+		return nil, iface, v2ClientHelloCaptureStats{}, err
 	}
 	items, err := v2ParsePCAPClientHellos(stdout.Bytes())
 	if err != nil {
-		return nil, iface, err
+		return nil, iface, stats, err
 	}
-	return items, iface, nil
+	return items, iface, stats, nil
 }
 
 func v2ParsePCAPClientHellosLegacy(data []byte) ([]v2ClientHelloCandidate, error) {
@@ -257,9 +263,66 @@ func v2CaptureL3(linkType uint32, packet []byte) (string, string, int, []byte, b
 		default:
 			return "", "", 0, nil, false
 		}
+	case 276:
+		if len(packet) < 20 {
+			return "", "", 0, nil, false
+		}
+		switch int(packet[0])<<8 | int(packet[1]) {
+		case 0x0800:
+			return v2CaptureIPv4(packet[20:])
+		case 0x86dd:
+			return v2CaptureIPv6(packet[20:])
+		default:
+			return "", "", 0, nil, false
+		}
 	default:
 		return "", "", 0, nil, false
 	}
+}
+
+func v2CapturePCAPStats(data []byte) (v2ClientHelloCaptureStats, error) {
+	var stats v2ClientHelloCaptureStats
+	if len(data) < 24 {
+		return stats, errors.New("pcap is too short")
+	}
+	var order binary.ByteOrder
+	switch {
+	case data[0] == 0xd4 && data[1] == 0xc3 && data[2] == 0xb2 && data[3] == 0xa1:
+		order = binary.LittleEndian
+	case data[0] == 0xa1 && data[1] == 0xb2 && data[2] == 0xc3 && data[3] == 0xd4:
+		order = binary.BigEndian
+	default:
+		return stats, errors.New("unsupported pcap header")
+	}
+	linkType := order.Uint32(data[20:24])
+	offset := 24
+	for offset+16 <= len(data) {
+		incl := int(order.Uint32(data[offset+8 : offset+12]))
+		offset += 16
+		if incl <= 0 || offset+incl > len(data) {
+			break
+		}
+		packet := data[offset : offset+incl]
+		offset += incl
+		stats.TotalPackets++
+		_, _, proto, l4, ok := v2CaptureL3(linkType, packet)
+		if !ok {
+			continue
+		}
+		switch proto {
+		case 6:
+			stats.TCPPackets++
+			_, _, _, payload, ok := v2CaptureTCP(l4)
+			if ok && len(payload) > 0 {
+				stats.TCPPayloads++
+			}
+		case 17:
+			if len(l4) >= 8 && int(binary.BigEndian.Uint16(l4[2:4])) == 443 {
+				stats.UDP443Packets++
+			}
+		}
+	}
+	return stats, nil
 }
 
 func v2CaptureIPv4(data []byte) (string, string, int, []byte, bool) {
@@ -316,7 +379,7 @@ func handleV2ClientHelloCapture(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid capture request"})
 		return
 	}
-	items, iface, err := v2CaptureClientHellos(r.Context(), req.DeviceIP, req.Interface, req.Seconds)
+	items, iface, stats, err := v2CaptureClientHellos(r.Context(), req.DeviceIP, req.Interface, req.Seconds)
 	if err != nil {
 		status := http.StatusBadRequest
 		if strings.Contains(err.Error(), "not installed") {
@@ -325,9 +388,20 @@ func handleV2ClientHelloCapture(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, status, map[string]any{"error": err.Error(), "tcpdump_required": strings.Contains(err.Error(), "not installed")})
 		return
 	}
+	hint := ""
+	if len(items) == 0 {
+		switch {
+		case stats.UDP443Packets > 0 && stats.TCPPayloads == 0:
+			hint = "Виден UDP/443, но нет TCP ClientHello: браузер, вероятно, использует HTTP/3/QUIC."
+		case stats.TCPPackets > 0:
+			hint = "TCP-трафик устройства виден, но TLS ClientHello не найден. Открой новое HTTPS-соединение и повтори."
+		case stats.TotalPackets == 0:
+			hint = "Трафик выбранного устройства не попал в захват. Проверь IP устройства."
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok": true, "interface": iface, "device_ip": strings.TrimSpace(req.DeviceIP),
-		"count": len(items), "candidates": items,
+		"count": len(items), "candidates": items, "capture_stats": stats, "hint": hint,
 		"read_only_capture": true, "production_mutation": false,
 	})
 }

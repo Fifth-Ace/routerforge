@@ -55,6 +55,7 @@ type systemCollector struct {
 	latest    []cpuSample
 	sampledAt time.Time
 	ready     bool
+	processes *processCollector
 	stop      chan struct{}
 	done      chan struct{}
 }
@@ -64,13 +65,18 @@ func newSystemCollector() (*systemCollector, error) {
 	if err != nil {
 		return nil, err
 	}
+	processes, err := newProcessCollector(time.Second)
+	if err != nil {
+		return nil, err
+	}
 	s := &systemCollector{
-		interval: time.Second,
-		window:   5,
-		previous: make(map[string]cpuRaw, len(raw)),
-		history:  make(map[string][]float64, len(raw)),
-		stop:     make(chan struct{}),
-		done:     make(chan struct{}),
+		interval:  time.Second,
+		window:    5,
+		previous:  make(map[string]cpuRaw, len(raw)),
+		history:   make(map[string][]float64, len(raw)),
+		processes: processes,
+		stop:      make(chan struct{}),
+		done:      make(chan struct{}),
 	}
 	for _, item := range raw {
 		s.previous[item.Name] = item
@@ -80,6 +86,9 @@ func newSystemCollector() (*systemCollector, error) {
 }
 
 func (s *systemCollector) Close() {
+	if s.processes != nil {
+		s.processes.Close()
+	}
 	select {
 	case <-s.stop:
 		return
@@ -181,6 +190,23 @@ func (s *moduleServer) registerSystem(mux *http.ServeMux) {
 			"sampled_at":     sampledAt,
 			"ready":          ready,
 			"window_seconds": s.system.window,
+		})
+	}))
+
+	mux.HandleFunc("/v1/processes", getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		processes, sampledAt, ready := s.system.processes.snapshot()
+		cpuCount := runtime.NumCPU()
+		if cpuCount < 1 {
+			cpuCount = 1
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"processes":        processes,
+			"total":            len(processes),
+			"sampled_at":       sampledAt,
+			"ready":            ready,
+			"interval_ms":      s.system.processes.intervalMillis(),
+			"cpu_scale":        "per-core",
+			"cpu_capacity_pct": cpuCount * 100,
 		})
 	}))
 

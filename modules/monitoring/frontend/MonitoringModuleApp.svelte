@@ -11,6 +11,7 @@
 
   const moduleDefs = [
     { id: 'system', nameKey: 'monitoring.modules.system', short: 'SYS', package: 'routerforge-monitoring' },
+    { id: 'processes', nameKey: 'monitoring.modules.processes', short: 'PRC', package: 'routerforge-monitoring' },
     { id: 'thermal', nameKey: 'monitoring.modules.thermal', short: 'TMP', package: 'routerforge-monitoring' },
     { id: 'storage', nameKey: 'monitoring.modules.storage', short: 'DSK', package: 'routerforge-monitoring' },
     { id: 'network', nameKey: 'monitoring.modules.network', short: 'NET', package: 'routerforge-monitoring' },
@@ -25,6 +26,8 @@
   let interfaceSort = { key: 'display_name', dir: 'asc' };
   let systemInterfaceSort = { key: 'name', dir: 'asc' };
   let routeSort = { key: 'destination', dir: 'asc' };
+  let processSort = { key: 'cpu', dir: 'desc' };
+  let processQuery = '';
 
   $: locale = $settings.locale || 'ru';
   $: advanced = $settings.uiLevel === 'advanced';
@@ -36,6 +39,11 @@
   $: visibleInterfaces = sortInterfaces(data.interfaces?.interfaces || [], interfaceSort);
   $: systemInterfaces = sortInterfaces(data.interfaces?.system_interfaces || [], systemInterfaceSort);
   $: sortedRoutes = sortRoutes(data.routes?.routes || [], routeSort);
+  $: processItems = data.processes?.processes || [];
+  $: filteredProcessItems = filterProcesses(processItems, processQuery);
+  $: sortedProcessItems = sortProcesses(filteredProcessItems, processSort);
+  $: topCPUProcess = processItems[0] || null;
+  $: topMemoryProcess = processItems.length ? [...processItems].sort((a, b) => Number(b.rss_kb || 0) - Number(a.rss_kb || 0))[0] : null;
 
   $: if (installedDefs.length && !installedDefs.some((item) => item.id === tab)) {
     tab = installedDefs[0].id;
@@ -67,6 +75,10 @@
     return { summary, cpu, memory };
   }
 
+  async function loadProcesses() {
+    return { processes: await getModule('system', 'processes') };
+  }
+
   async function loadThermal() {
     return { thermal: await getModule('thermal', 'sensors') };
   }
@@ -91,6 +103,7 @@
     if (showLoading) loading = true;
     try {
       if (tab === 'system') data = await loadSystem();
+      if (tab === 'processes') data = await loadProcesses();
       if (tab === 'thermal') data = await loadThermal();
       if (tab === 'storage') data = await loadStorage();
       if (tab === 'network') data = await loadNetwork();
@@ -107,7 +120,7 @@
   function startTimer(showLoading = false) {
     if (tab === 'events') { if (stopPolling) stopPolling(); stopPolling = null; loading = false; errorText = ''; return; }
     if (stopPolling) stopPolling();
-    const interval = tab === 'thermal' ? 10000 : tab === 'profiling' ? 5000 : 3000;
+    const interval = tab === 'processes' ? 1000 : tab === 'thermal' ? 10000 : tab === 'profiling' ? 5000 : 3000;
     let first = true;
     stopPolling = startSerialPolling(() => {
       if (document.hidden) return;
@@ -172,6 +185,43 @@
       const primary = compareValues(routeSortValue(a, sort.key), routeSortValue(b, sort.key), sort.dir);
       return primary || compareValues(a.interface, b.interface, 'asc');
     });
+  }
+
+  function processSortValue(item, key) {
+    if (key === 'cpu') return Number(item.cpu_pct || 0);
+    if (key === 'memory') return Number(item.rss_kb || 0);
+    if (key === 'pid') return Number(item.pid || 0);
+    if (key === 'ppid') return Number(item.ppid || 0);
+    if (key === 'threads') return Number(item.threads || 0);
+    if (key === 'user') return item.user || '';
+    if (key === 'state') return item.state || '';
+    return item.name || item.command || '';
+  }
+
+  function filterProcesses(items, query) {
+    const needle = String(query || '').trim().toLowerCase();
+    if (!needle) return [...items];
+    return items.filter((item) => [item.name, item.command, item.user, item.state, item.pid, item.ppid]
+      .some((value) => String(value ?? '').toLowerCase().includes(needle)));
+  }
+
+  function sortProcesses(items, sort) {
+    return [...items].sort((a, b) => {
+      const primary = compareValues(processSortValue(a, sort.key), processSortValue(b, sort.key), sort.dir);
+      return primary || compareValues(a.pid, b.pid, 'asc');
+    });
+  }
+
+  function processStateName(item) {
+    const key = ({ R: 'running', S: 'sleeping', D: 'diskSleep', T: 'stopped', t: 'tracing', Z: 'zombie', I: 'idle' })[String(item.state || '')] || 'unknown';
+    return t(locale, `monitoring.processes.states.${key}`);
+  }
+
+  function processStateClass(item) {
+    const state = String(item.state || '');
+    if (state === 'R') return 'good';
+    if (state === 'D' || state === 'Z') return 'warn';
+    return 'neutral';
   }
 
   function interfaceState(item) {
@@ -296,6 +346,52 @@
         <div class="info-row"><div><strong>{t(locale, 'monitoring.system.swap')}</strong><span>{t(locale, 'monitoring.system.swapHint')}</span></div><div class="info-value">{bytes((Number(data.memory?.swap_total_kb || 0) - Number(data.memory?.swap_free_kb || 0)) * 1024)} / {bytes(Number(data.memory?.swap_total_kb || 0) * 1024)}</div></div>
       </section>
     </div>
+
+  {:else if tab === 'processes' && data.processes}
+    <section class="metric-grid module-metric-grid">
+      <div class="metric-card"><span>{t(locale, 'monitoring.processes.total')}</span><strong>{fmtInt(data.processes.total || processItems.length)}</strong><small>{t(locale, 'monitoring.processes.visible', { visible: fmtInt(filteredProcessItems.length), total: fmtInt(data.processes.total || processItems.length) })}</small></div>
+      <div class="metric-card"><span>{t(locale, 'monitoring.processes.topCpu')}</span><strong>{topCPUProcess ? cpuText(topCPUProcess.cpu_pct) : '—'}</strong><small>{topCPUProcess ? `${topCPUProcess.name} · PID ${topCPUProcess.pid}` : '—'}</small></div>
+      <div class="metric-card"><span>{t(locale, 'monitoring.processes.topRam')}</span><strong>{topMemoryProcess ? bytes(Number(topMemoryProcess.rss_kb || 0) * 1024) : '—'}</strong><small>{topMemoryProcess ? `${topMemoryProcess.name} · ${Number(topMemoryProcess.memory_pct || 0).toFixed(1)}%` : '—'}</small></div>
+      <div class="metric-card"><span>{t(locale, 'monitoring.processes.refresh')}</span><strong>{Number(data.processes.interval_ms || 1000) / 1000}s</strong><small>{t(locale, 'monitoring.processes.cpuHint')}</small></div>
+    </section>
+
+    <section class="panel table-panel process-manager-panel">
+      <div class="panel-head process-manager-head">
+        <div><strong>{t(locale, 'monitoring.processes.title')}</strong><span>{t(locale, 'monitoring.processes.subtitle')}</span></div>
+        <div class="process-manager-toolbar">
+          <input class="process-search" type="search" value={processQuery} oninput={(event) => processQuery = event.currentTarget.value} placeholder={t(locale, 'monitoring.processes.search')} aria-label={t(locale, 'monitoring.processes.search')} />
+          <span class="state-chip {data.processes.ready ? 'good' : 'info'}">{data.processes.ready ? t(locale, 'common.live') : t(locale, 'common.sampling')}</span>
+        </div>
+      </div>
+
+      {#if sortedProcessItems.length}
+        <div class="table-scroll"><table class="sortable-table process-table"><thead><tr>
+          <th><button onclick={() => processSort = nextSort(processSort, 'name')}>{t(locale, 'monitoring.processes.columns.process')} <span>{sortArrow(processSort, 'name')}</span></button></th>
+          <th><button onclick={() => processSort = nextSort(processSort, 'pid')}>PID <span>{sortArrow(processSort, 'pid')}</span></button></th>
+          <th><button onclick={() => processSort = nextSort(processSort, 'user')}>{t(locale, 'monitoring.processes.columns.user')} <span>{sortArrow(processSort, 'user')}</span></button></th>
+          <th><button onclick={() => processSort = nextSort(processSort, 'state')}>{t(locale, 'monitoring.processes.columns.state')} <span>{sortArrow(processSort, 'state')}</span></button></th>
+          <th><button onclick={() => processSort = nextSort(processSort, 'cpu')}>CPU <span>{sortArrow(processSort, 'cpu')}</span></button></th>
+          <th><button onclick={() => processSort = nextSort(processSort, 'memory')}>{t(locale, 'monitoring.processes.columns.ram')} <span>{sortArrow(processSort, 'memory')}</span></button></th>
+          <th><button onclick={() => processSort = nextSort(processSort, 'threads')}>{t(locale, 'monitoring.processes.columns.threads')} <span>{sortArrow(processSort, 'threads')}</span></button></th>
+          <th><button onclick={() => processSort = nextSort(processSort, 'ppid')}>PPID <span>{sortArrow(processSort, 'ppid')}</span></button></th>
+        </tr></thead><tbody>
+          {#each sortedProcessItems as proc (proc.pid)}
+            <tr>
+              <td><strong>{proc.name || '—'}</strong><div class="cell-sub mono process-command" title={proc.command}>{proc.command || '—'}</div></td>
+              <td class="mono">{proc.pid}</td>
+              <td>{proc.user || proc.uid}</td>
+              <td><span class="state-chip {processStateClass(proc)}" title={proc.state}>{processStateName(proc)}</span></td>
+              <td><div class="process-usage"><div><strong>{cpuText(proc.cpu_pct)}</strong></div><div class="progress"><span style={`width:${pct(proc.cpu_pct)}%`}></span></div></div></td>
+              <td><div class="process-usage"><div><strong>{bytes(Number(proc.rss_kb || 0) * 1024)}</strong><span>{Number(proc.memory_pct || 0).toFixed(1)}%</span></div><div class="progress"><span style={`width:${Math.max(proc.memory_pct > 0 ? 1 : 0, pct(proc.memory_pct))}%`}></span></div></div></td>
+              <td class="mono">{fmtInt(proc.threads || 0)}</td>
+              <td class="mono">{proc.ppid || 0}</td>
+            </tr>
+          {/each}
+        </tbody></table></div>
+      {:else}
+        <div class="empty">{t(locale, 'monitoring.processes.none')}</div>
+      {/if}
+    </section>
 
   {:else if tab === 'thermal' && data.thermal}
     <div class="module-meta-strip mono">
@@ -529,5 +625,80 @@
     gap: .35rem;
     color: var(--rf-muted, var(--muted));
     font-size: .82rem;
+  }
+  .process-manager-head {
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .process-manager-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .65rem;
+    min-width: min(30rem, 48vw);
+  }
+
+  .process-search {
+    width: min(25rem, 42vw);
+    min-width: 13rem;
+    box-sizing: border-box;
+    border: 1px solid var(--rf-border, var(--border));
+    border-radius: .65rem;
+    background: var(--rf-surface-2, var(--surface-2));
+    color: var(--rf-text, var(--text));
+    padding: .58rem .72rem;
+    font: inherit;
+    outline: none;
+  }
+
+  .process-search:focus {
+    border-color: var(--rf-accent, var(--accent));
+  }
+
+  .process-table td {
+    vertical-align: middle;
+  }
+
+  .process-command {
+    max-width: 30rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .process-usage {
+    display: grid;
+    gap: .32rem;
+    min-width: 7.5rem;
+  }
+
+  .process-usage > div:first-child {
+    display: flex;
+    justify-content: space-between;
+    gap: .6rem;
+    white-space: nowrap;
+  }
+
+  .process-usage > div:first-child span {
+    color: var(--rf-muted, var(--muted));
+    font-size: .76rem;
+  }
+
+  @media (max-width: 760px) {
+    .process-manager-head {
+      align-items: stretch;
+    }
+
+    .process-manager-toolbar {
+      width: 100%;
+      min-width: 0;
+      justify-content: space-between;
+    }
+
+    .process-search {
+      width: 100%;
+      min-width: 0;
+    }
   }
 </style>

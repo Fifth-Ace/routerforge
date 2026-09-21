@@ -731,6 +731,7 @@ export default {
     "loading": "Читаю {name}…",
     "modules": {
       "system": "Система",
+      "processes": "Процессы",
       "thermal": "Температуры",
       "storage": "Накопители",
       "network": "Сеть"
@@ -750,6 +751,35 @@ export default {
       "cachedHint": "Page cache + reclaimable",
       "swap": "Swap",
       "swapHint": "Использовано / всего"
+    },
+    "processes": {
+      "title": "Диспетчер процессов",
+      "subtitle": "Живое потребление CPU и ОЗУ из /proc без запуска ps/top на каждом обновлении.",
+      "total": "ПРОЦЕССЫ",
+      "visible": "показано {visible} из {total}",
+      "topCpu": "МАКС. CPU",
+      "topRam": "МАКС. ОЗУ",
+      "refresh": "ОБНОВЛЕНИЕ",
+      "cpuHint": "100% CPU = одно полностью занятое ядро",
+      "search": "Поиск по имени, PID, пользователю или команде",
+      "none": "Процессы по текущему фильтру не найдены",
+      "columns": {
+        "process": "Процесс",
+        "user": "Пользователь",
+        "state": "Состояние",
+        "ram": "ОЗУ / RSS",
+        "threads": "Потоки"
+      },
+      "states": {
+        "running": "Работает",
+        "sleeping": "Ожидание",
+        "diskSleep": "I/O wait",
+        "stopped": "Остановлен",
+        "tracing": "Трассировка",
+        "zombie": "Zombie",
+        "idle": "Idle",
+        "unknown": "Неизвестно"
+      }
     },
     "thermal": {
       "sensors": "ДАТЧИКИ",

@@ -29,15 +29,15 @@ type v2CandidatePoolItem struct {
 }
 
 type v2CandidatePoolResponse struct {
-	OK          bool                  `json:"ok"`
-	Target      string                `json:"target"`
-	Mode        string                `json:"mode"`
-	Transport   string                `json:"transport"`
-	Network     string                `json:"network"`
-	RemotePort  int                   `json:"remote_port"`
-	MetricScope string                `json:"metric_scope"`
-	ConfigSHA   string                `json:"config_sha256"`
-	Candidates  []v2CandidatePoolItem `json:"candidates"`
+	OK                  bool                  `json:"ok"`
+	Target              string                `json:"target"`
+	Mode                string                `json:"mode"`
+	Transport           string                `json:"transport"`
+	Network             string                `json:"network"`
+	RemotePort          int                   `json:"remote_port"`
+	MetricScope         string                `json:"metric_scope"`
+	ConfigSHA           string                `json:"config_sha256"`
+	Candidates          []v2CandidatePoolItem `json:"candidates"`
 	Count               int                   `json:"count"`
 	Sources             []string              `json:"sources"`
 	Warnings            []string              `json:"warnings"`
@@ -47,16 +47,16 @@ type v2CandidatePoolResponse struct {
 }
 
 type v2SelectorAutoPoolMeta struct {
-	Enabled              bool
-	Added                int
-	MemoryCandidates     int
-	LibraryCandidates    int
-	BuiltinCandidates    int
-	Sources              []string
-	Warnings             []string
-	RecommendationAware  bool
-	RecommendationHints  int
-	RecommendationAdded  int
+	Enabled             bool
+	Added               int
+	MemoryCandidates    int
+	LibraryCandidates   int
+	BuiltinCandidates   int
+	Sources             []string
+	Warnings            []string
+	RecommendationAware bool
+	RecommendationHints int
+	RecommendationAdded int
 }
 
 type v2BuiltinCandidate struct {

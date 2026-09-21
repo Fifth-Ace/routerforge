@@ -1588,7 +1588,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 		HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 		HistoricalPromoted: autoPoolMeta.RecommendationAdded,
-		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,
+		MemoryUpdated:      memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {
 		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), applyReason, true, true)

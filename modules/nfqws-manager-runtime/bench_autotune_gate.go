@@ -24,7 +24,7 @@ type benchAutoTuneApplyPlan struct {
 	CandidateFingerprint  string
 	// StrategyArgs is retained as a compatibility alias for older internal
 	// callers/tests. It always mirrors CandidateStrategyArgs.
-	StrategyArgs          []string
+	StrategyArgs []string
 }
 
 type benchAutoTuneApplyGateStatus struct {

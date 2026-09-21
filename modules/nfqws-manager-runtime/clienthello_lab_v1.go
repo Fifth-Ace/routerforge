@@ -219,6 +219,7 @@ func registerClientHelloLabV1Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/clienthello/generate", getOnly(handleV2ClientHelloGenerate))
 	mux.HandleFunc("/v1/clienthello/validate", getOnly(handleV2ClientHelloValidate))
 	mux.HandleFunc("/v1/clienthello/capture", mutationOnly(handleV2ClientHelloCapture))
+	registerClientHelloForgeV2Routes(mux)
 }
 
 func handleV2ClientHelloGenerate(w http.ResponseWriter, r *http.Request) {

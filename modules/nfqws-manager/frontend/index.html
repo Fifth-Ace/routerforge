@@ -2312,32 +2312,42 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <div class="blob-shell">
     <article class="panel clienthello-lab">
       <div class="panel-head">
-        <div><h2>ClientHello Lab</h2><div class="section-kicker">сгенерировать реальный TLS ClientHello по SNI → проверить → сохранить как blob</div></div>
+        <div><h2>ClientHello Forge</h2><div class="section-kicker">поймать настоящий ClientHello → заменить SNI → получить рабочий blob для nfqws2</div></div>
         <span id="clientHelloState" class="config-badge">IDLE</span>
       </div>
-      <div class="clienthello-grid">
-        <label class="v2-label">SNI / домен
-          <input id="clientHelloSNI" class="search" placeholder="example.com">
-        </label>
-        <label class="v2-label">Имя blob
-          <input id="clientHelloName" class="search mono" placeholder="clienthello_example.com.bin">
-        </label>
-      </div>
-      <div class="toolbar"><button id="clientHelloGenerate" class="primary">Сгенерировать</button><button id="clientHelloSave" disabled>Сохранить blob</button></div>
-      <div id="clientHelloResult" class="clienthello-result"><div class="empty">Введите SNI и сгенерируйте ClientHello.</div></div>
-      <div class="setup-note" style="margin-top:8px">Генерация read-only. Запись на диск выполняется только отдельной кнопкой через существующий SHA256-guarded Blob Manager; restart/reload не выполняется.</div>
+
+      <div class="setup-note"><b>Основной режим:</b> RouterForge берёт настоящий ClientHello выбранного устройства и меняет только SNI. Остальной TLS fingerprint сохраняется.</div>
 
       <div class="clienthello-capture">
-        <div class="panel-head"><div><h2>Device capture</h2><div class="section-kicker">короткий tcpdump только TLS ClientHello от выбранного LAN IPv4</div></div><span id="clientHelloCaptureState" class="config-badge">IDLE</span></div>
+        <div class="panel-head"><div><h2>1. Поймать ClientHello устройства</h2><div class="section-kicker">во время захвата открой новый HTTPS-сайт на выбранном устройстве</div></div><span id="clientHelloCaptureState" class="config-badge">IDLE</span></div>
         <div class="clienthello-grid">
-          <label class="v2-label">IPv4 устройства<input id="clientHelloDeviceIP" class="search mono" placeholder="192.168.1.50"></label>
+          <label class="v2-label">IP устройства<input id="clientHelloDeviceIP" class="search mono" placeholder="192.168.1.50"></label>
           <label class="v2-label">Интерфейс<input id="clientHelloInterface" class="search mono" placeholder="пусто = br0 / auto"></label>
         </div>
-        <div class="toolbar"><button id="clientHelloCapture">Снять 5 секунд</button></div>
+        <div class="toolbar"><button id="clientHelloCapture" class="primary">Снять 5 секунд</button></div>
         <div id="clientHelloCaptureResult" class="clienthello-candidates"><div class="empty">Capture ещё не запускался.</div></div>
       </div>
+
+      <div style="margin-top:14px">
+        <div class="panel-head"><div><h2>2. Создать blob</h2><div class="section-kicker">укажи SNI, который должен быть внутри fake ClientHello</div></div><span id="clientHelloCloneCapability" class="config-badge">ПРОВЕРКА</span></div>
+        <div class="clienthello-grid">
+          <label class="v2-label">Новый SNI
+            <input id="clientHelloSNI" class="search" placeholder="www.google.com">
+          </label>
+          <label class="v2-label">Имя blob
+            <input id="clientHelloName" class="search mono" placeholder="tls_clienthello_www_google_com.bin">
+          </label>
+        </div>
+        <div class="toolbar">
+          <button id="clientHelloForge" class="primary" disabled>Создать из захваченного</button>
+          <button id="clientHelloGenerate">Синтетический fallback</button>
+          <button id="clientHelloSave" disabled>Сохранить blob</button>
+        </div>
+        <div id="clientHelloResult" class="clienthello-result"><div class="empty">Сначала поймай ClientHello устройства или используй синтетический fallback.</div></div>
+        <pre id="clientHelloUsage" class="v2-args" style="margin-top:10px;white-space:pre-wrap">После создания здесь появятся параметры для nfqws2.</pre>
+      </div>
     </article>
-    <div class="blob-note">ClientHello Lab — инструмент диагностики RouterForge. Сохранение результата использует существующий Blob Manager, но сам инструмент не относится к NFQWS Menu.</div>
+    <div class="blob-note">Сохранение пишет только .bin через Blob Manager. Конфиг nfqws2 и runtime автоматически не меняются.</div>
   </div>
 </section>
 
@@ -3854,28 +3864,70 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
 
 
-  let clientHelloGenerated=null;
+  let clientHelloGenerated=null,clientHelloCaptured=null,clientHelloCapabilities=null;
 
   function clientHelloDefaultName(sni){
-    return `clienthello_${String(sni||'site').toLowerCase().replace(/[^a-z0-9._-]+/g,'_')}.bin`;
+    return `tls_clienthello_${String(sni||'site').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')}.bin`;
+  }
+  function clientHelloBlobID(name){
+    const base=String(name||'blob').toLowerCase().replace(/\.bin$/,'').replace(/[^a-z0-9_]+/g,'_').replace(/^_+|_+$/g,'');
+    return `rf_${base||'clienthello'}`;
+  }
+  function renderClientHelloUsage(){
+    const d=clientHelloGenerated,name=String($('clientHelloName').value||'').trim(),sni=String($('clientHelloSNI').value||'').trim();
+    if(!d||!d.valid||!name){$('clientHelloUsage').textContent='После создания здесь появятся параметры для nfqws2.';return}
+    const id=clientHelloBlobID(name),path=`/opt/etc/nfqws2/blobs/${name}`;
+    const lines=[`--blob=${id}:@${path}`];
+    if(clientHelloCapabilities?.dynamic_clone_available){
+      lines.push(`--lua-desync=tls_client_hello_clone:payload=tls_client_hello:dir=out:blob=rf_live_clienthello:sni_del:sni_first=${sni}:sni_snt_new=0:fallback=${id}`);
+      lines.push(`--lua-desync=fake:payload=tls_client_hello:dir=out:blob=rf_live_clienthello:tls_mod=rnd,dupsid`);
+    }else{
+      lines.push(`--lua-desync=fake:payload=tls_client_hello:dir=out:blob=${id}:tls_mod=rnd,dupsid`);
+    }
+    $('clientHelloUsage').textContent=lines.join('\n');
+  }
+  async function loadClientHelloCapabilities(){
+    try{
+      const d=await api('/clienthello/capabilities');clientHelloCapabilities=d;
+      $('clientHelloCloneCapability').textContent=d.dynamic_clone_available?'CLONE: ЕСТЬ':'STATIC BLOB';
+      $('clientHelloCloneCapability').className='config-badge '+(d.dynamic_clone_available?'active':'');
+      renderClientHelloUsage();
+    }catch(e){
+      $('clientHelloCloneCapability').textContent='НЕИЗВЕСТНО';
+    }
+  }
+  function renderClientHelloResult(d,title){
+    const extra=[
+      Array.isArray(d.alpn)&&d.alpn.length?`ALPN ${d.alpn.join(', ')}`:'',
+      Array.isArray(d.supported_versions)&&d.supported_versions.length?d.supported_versions.join(', '):'',
+      d.extension_count?`${d.extension_count} extensions`:''
+    ].filter(Boolean).join(' · ');
+    $('clientHelloResult').innerHTML=`<div class="diagnostic ${d.valid?'good':'bad'}"><div class="diagnostic-icon">${d.valid?'✓':'!'}</div><div><div class="diagnostic-title">${esc(title)} · ${esc(d.sni||'no SNI')}</div><div class="diagnostic-detail">${esc(d.detail||'')} · ${Number(d.size||0)} bytes · sha256 ${esc(String(d.sha256||'').slice(0,20))}…${extra?` · ${esc(extra)}`:''}</div></div></div>`;
   }
 
   async function generateClientHelloLab(){
     const sni=String($('clientHelloSNI').value||'').trim();
-    $('clientHelloState').textContent='RUNNING';
-    $('clientHelloSave').disabled=true;
-    clientHelloGenerated=null;
+    $('clientHelloState').textContent='RUNNING';$('clientHelloSave').disabled=true;clientHelloGenerated=null;
     try{
       const d=await api('/clienthello/generate?sni='+encodeURIComponent(sni));
-      clientHelloGenerated=d;
-      $('clientHelloState').textContent=d.valid?'VALID':'INVALID';
+      clientHelloGenerated=d;$('clientHelloState').textContent=d.valid?'VALID':'INVALID';
       if(!$('clientHelloName').value.trim())$('clientHelloName').value=clientHelloDefaultName(d.sni||sni);
-      $('clientHelloResult').innerHTML=`<div class="diagnostic ${d.valid?'good':'bad'}"><div class="diagnostic-icon">${d.valid?'✓':'!'}</div><div><div class="diagnostic-title">${d.valid?'Valid ClientHello':'Invalid ClientHello'} · ${esc(d.sni||'no SNI')}</div><div class="diagnostic-detail">${esc(d.detail||'')} · ${Number(d.size||0)} bytes · sha256 ${esc(String(d.sha256||'').slice(0,20))}…</div></div></div>`;
-      $('clientHelloSave').disabled=!d.valid;
-    }catch(e){
-      $('clientHelloState').textContent='ОШИБКА';
-      $('clientHelloResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
-    }
+      renderClientHelloResult(d,'Синтетический ClientHello');
+      $('clientHelloSave').disabled=!d.valid;renderClientHelloUsage();
+    }catch(e){$('clientHelloState').textContent='ОШИБКА';$('clientHelloResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
+  }
+
+  async function forgeClientHello(){
+    const sni=String($('clientHelloSNI').value||'').trim();
+    if(!clientHelloCaptured)return;
+    $('clientHelloState').textContent='FORGING';$('clientHelloSave').disabled=true;clientHelloGenerated=null;
+    try{
+      const d=await api('/clienthello/forge',{method:'POST',body:JSON.stringify({content_base64:clientHelloCaptured.content_base64,sni})});
+      clientHelloGenerated=d;$('clientHelloState').textContent=d.valid?'VALID':'INVALID';
+      if(!$('clientHelloName').value.trim())$('clientHelloName').value=clientHelloDefaultName(d.sni||sni);
+      renderClientHelloResult(d,`Клон ${d.source_sni||'captured'} →`);
+      $('clientHelloSave').disabled=!d.valid;renderClientHelloUsage();
+    }catch(e){$('clientHelloState').textContent='ОШИБКА';$('clientHelloResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
   }
 
   async function saveClientHelloLab(){
@@ -3886,54 +3938,46 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('clientHelloSave').disabled=true;
     try{
       const result=await api('/blobs/install',{method:'POST',body:JSON.stringify({
-        name,
-        content_base64:d.content_base64,
-        expected_sha256:d.sha256,
-        replace,
+        name,content_base64:d.content_base64,expected_sha256:d.sha256,replace,
         confirm:replace?'NFQWS_BLOB_REPLACE':'NFQWS_BLOB_INSTALL'
       })});
-      blobFiles=Array.isArray(result.inventory?.files)?result.inventory.files:blobFiles;
-      blobLoaded=true;renderBlobs();
-      $('clientHelloState').textContent='СОХРАНЕНО';
-      notice(`${name}: ClientHello blob сохранён; runtime не перезапускался.`,'good');
-    }catch(e){
-      $('clientHelloState').textContent='ОШИБКА';
-      notice(`ClientHello save: ${e.message}`,'error');
-      $('clientHelloSave').disabled=false;
-    }
+      blobFiles=Array.isArray(result.inventory?.files)?result.inventory.files:blobFiles;blobLoaded=true;renderBlobs();
+      $('clientHelloState').textContent='СОХРАНЕНО';renderClientHelloUsage();
+      notice(`${name}: рабочий ClientHello blob сохранён. Конфиг и runtime не менялись.`,'good');
+    }catch(e){$('clientHelloState').textContent='ОШИБКА';notice(`ClientHello save: ${e.message}`,'error');$('clientHelloSave').disabled=false}
   }
 
   async function captureClientHelloDevice(){
     const deviceIP=String($('clientHelloDeviceIP').value||'').trim(),iface=String($('clientHelloInterface').value||'').trim();
-    $('clientHelloCaptureState').textContent='CAPTURING';
-    $('clientHelloCapture').disabled=true;
+    $('clientHelloCaptureState').textContent='CAPTURING';$('clientHelloCapture').disabled=true;
     try{
       const d=await api('/clienthello/capture',{method:'POST',body:JSON.stringify({device_ip:deviceIP,interface:iface,seconds:5})});
       $('clientHelloCaptureState').textContent=`${Number(d.count||0)} FOUND`;
       const rows=Array.isArray(d.candidates)?d.candidates:[];
       $('clientHelloCaptureResult').innerHTML=rows.length?rows.map((x,i)=>`<div class="clienthello-candidate">
-        <div><strong>${esc(x.sni||'ClientHello без SNI')}</strong><span>${esc(x.src_ip||'')} → ${esc(x.dst_ip||'')}:443 · ${Number(x.size||0)} bytes · ${esc(x.detail||'')}</span></div>
-        <button data-clienthello-use="${i}" ${x.valid?'':'disabled'}>Взять как blob</button>
-      </div>`).join(''):`<div class="empty">За 5 секунд ClientHello не найден. Открой HTTPS-сайт на выбранном устройстве и повтори.</div>`;
+        <div><strong>${esc(x.sni||'ClientHello без SNI')}</strong><span>${esc(x.src_ip||'')} → ${esc(x.dst_ip||'')}:${Number(x.dst_port||0)} · ${Number(x.size||0)} bytes · ${esc(x.detail||'')}</span></div>
+        <button data-clienthello-use="${i}" ${x.valid?'':'disabled'}>Использовать как основу</button>
+      </div>`).join(''):`<div class="empty">За 5 секунд ClientHello не найден. Во время захвата открой новый HTTPS-сайт на выбранном устройстве.</div>`;
       $('clientHelloCaptureResult').querySelectorAll('[data-clienthello-use]').forEach(b=>b.onclick=()=>{
         const x=rows[Number(b.dataset.clienthelloUse)];if(!x)return;
-        clientHelloGenerated={valid:x.valid,sni:x.sni,size:x.size,detail:x.detail,sha256:x.sha256,content_base64:x.content_base64};
-        $('clientHelloSNI').value=x.sni||'';
-        $('clientHelloName').value=clientHelloDefaultName(x.sni||'captured');
-        $('clientHelloState').textContent='CAPTURED';
-        $('clientHelloSave').disabled=!x.valid;
-        $('clientHelloResult').innerHTML=`<div class="diagnostic good"><div class="diagnostic-icon">✓</div><div><div class="diagnostic-title">Captured ClientHello · ${esc(x.sni||'no SNI')}</div><div class="diagnostic-detail">${Number(x.size||0)} bytes · sha256 ${esc(String(x.sha256||'').slice(0,20))}…</div></div></div>`;
+        clientHelloCaptured=x;clientHelloGenerated=null;
+        $('clientHelloForge').disabled=!x.valid;
+        $('clientHelloState').textContent='CAPTURED';$('clientHelloSave').disabled=true;
+        $('clientHelloResult').innerHTML=`<div class="diagnostic good"><div class="diagnostic-icon">✓</div><div><div class="diagnostic-title">Основа: ${esc(x.sni||'ClientHello без SNI')}</div><div class="diagnostic-detail">${Number(x.size||0)} bytes · порт ${Number(x.dst_port||0)} · sha256 ${esc(String(x.sha256||'').slice(0,20))}…</div></div></div>`;
+        if(!$('clientHelloSNI').value.trim())$('clientHelloSNI').value='www.google.com';
+        if(!$('clientHelloName').value.trim())$('clientHelloName').value=clientHelloDefaultName($('clientHelloSNI').value);
+        renderClientHelloUsage();
       });
-    }catch(e){
-      $('clientHelloCaptureState').textContent='ОШИБКА';
-      $('clientHelloCaptureResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
-    }finally{$('clientHelloCapture').disabled=false}
+    }catch(e){$('clientHelloCaptureState').textContent='ОШИБКА';$('clientHelloCaptureResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
+    finally{$('clientHelloCapture').disabled=false}
   }
 
+  $('clientHelloForge').onclick=forgeClientHello;
   $('clientHelloGenerate').onclick=generateClientHelloLab;
   $('clientHelloSave').onclick=saveClientHelloLab;
   $('clientHelloCapture').onclick=captureClientHelloDevice;
-  $('clientHelloSNI').onkeydown=e=>{if(e.key==='Enter')generateClientHelloLab()};
+  $('clientHelloSNI').oninput=()=>{if($('clientHelloSNI').value.trim())$('clientHelloName').value=clientHelloDefaultName($('clientHelloSNI').value);renderClientHelloUsage()};
+  $('clientHelloName').oninput=renderClientHelloUsage;
 
   function blobBasename(path){return String(path||'').split('/').pop().replace(/["']/g,'')}
   function blobInstalledByName(name){return blobFiles.find(x=>String(x.name)===String(name))}
@@ -6153,7 +6197,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(tab==='scripts')loadScripts();
     if(tab==='upstream-lists')loadListSources();
     if(tab==='geo-assets')loadGeoAssets();
-    if(tab==='clienthello')loadBlobs();
+    if(tab==='clienthello'){loadBlobs();loadClientHelloCapabilities();}
     if(tab==='preflight')renderPreflight();
     if(tab==='dpi-detector')loadDPIDetector(true);
     if(tab==='observed-v1')void loadV2Observed();

@@ -35,7 +35,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);overflow:auto}.tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:10px 13px;font-size:12px;margin-bottom:-1px;white-space:nowrap;min-height:34px}.tab:hover{background:transparent;color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:transparent}
 /* UI IA v2: task-oriented navigation with responsive wrapping. */
 .nav-meta{display:none!important}
-.nfqws-primary-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow:visible}
+.nfqws-primary-tabs{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;padding:5px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface) 94%,var(--background));overflow:visible}
 .nfqws-primary-tabs .tab,.nfqws-tool-tabs .tab{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;margin:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--muted);min-height:40px;padding:9px 10px;font-weight:650;white-space:normal;text-align:center;line-height:1.2;overflow-wrap:anywhere}
 .nfqws-primary-tabs .tab:hover,.nfqws-tool-tabs .tab:hover{color:var(--text);background:var(--hover)}
 .nfqws-primary-tabs .tab.active,.nfqws-tool-tabs .tab.active{color:var(--text);background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 55%,var(--border));box-shadow:inset 0 -2px 0 var(--accent)}
@@ -1089,8 +1089,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <nav class="tabs nfqws-primary-tabs" id="nfqwsPrimaryTabs" aria-label="Основная навигация NFQWS">
   <button class="tab active" data-tab="overview">Обзор</button>
   <button class="tab" data-primary-tab="configuration">Настройка</button>
-  <button class="tab" data-primary-tab="tools">Диагностика</button>
   <button class="tab" data-primary-tab="strategies">Стратегии</button>
+  <button class="tab" data-primary-tab="menu">NFQWS Menu</button>
+  <button class="tab" data-primary-tab="tools">Диагностика</button>
+  <button class="tab" data-primary-tab="selection">Подбор</button>
   <button class="tab" data-primary-tab="maintenance">Обслуживание</button>
 </nav>
 
@@ -1101,26 +1103,32 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="lists">Списки <span id="listCount" class="nav-meta"></span></button>
 </nav>
 
+<nav class="tabs nfqws-tool-tabs nfqws-strategy-tabs" id="nfqwsStrategyTabs" aria-label="Стратегии RouterForge">
+  <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
+  <button class="tab" data-tab="strategy-registry-v1">База стратегий <span id="v2RegistryTabCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="strategy-import">Импорт стратегии</button>
+</nav>
+
+<nav class="tabs nfqws-tool-tabs" id="nfqwsMenuTabs" aria-label="NFQWS Menu">
+  <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="upstream-lists">Списки <span id="listSourceStateNav" class="nav-meta"></span></button>
+  <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
+</nav>
+
 <nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Диагностика NFQWS">
   <button class="tab" data-tab="preflight">Проверка системы <span id="preflightTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="dpi-detector">DPI Detector <span id="dpiDetectorTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="observed-v1">Проблемные адреса <span id="v2ObservedTabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="domain-v2">Разбор домена</button>
   <button class="tab" data-tab="prodlab-v2">Тестирование</button>
+  <button class="tab" data-tab="tcp16-memory-v1">Обрывы 16 КБ <span id="v2TCP16TabCount" class="nav-meta"></span></button>
 </nav>
 
-<nav class="tabs nfqws-tool-tabs nfqws-strategy-tabs" id="nfqwsStrategyTabs" aria-label="Стратегии RouterForge">
+<nav class="tabs nfqws-tool-tabs" id="nfqwsSelectionTabs" aria-label="Подбор стратегий">
   <button class="tab" data-tab="auto-setup-v1">Автонастройка</button>
   <button class="tab" data-tab="selector-v2">Автоподбор</button>
   <button class="tab" data-tab="sandbox-v2">Песочница</button>
-  <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
-  <button class="tab" data-tab="strategy-registry-v1">База стратегий <span id="v2RegistryTabCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="tcp16-memory-v1">Обрывы 16 КБ <span id="v2TCP16TabCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="target-memory-v2">История проверок <span id="v2MemoryTabCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="upstream-lists">Источники списков <span id="listSourceStateNav" class="nav-meta"></span></button>
-  <button class="tab" data-tab="blobs">TLS-заготовки <span id="blobTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="strategy-import">Импорт стратегии</button>
+  <button class="tab" data-tab="target-memory-v2">История подборов <span id="v2MemoryTabCount" class="nav-meta"></span></button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-maintenance-tabs" id="nfqwsMaintenanceTabs" aria-label="Обслуживание NFQWS">
@@ -1133,7 +1141,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 </nav>
 
 <div id="nfqwsMenuCredit" class="strategy-import-credit nfqws-menu-credit">
-  <div><strong>NFQWS Menu</strong><span>Источник готовых стратегий, списков и дополнительных файлов.</span></div>
+  <div><strong>NFQWS Menu</strong><span>Интегрированный источник готовых стратегий, списков и blobs.</span></div>
   <a href="https://github.com/rndnaame/nfqws-menu/" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
   <span id="testLabTabState" hidden></span><span id="sandboxTabState" hidden></span>
 </div>
@@ -6086,36 +6094,47 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
-  const nfqwsStrategyTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','target-memory-v2','catalog','upstream-lists','blobs','strategy-import']);
+  const nfqwsStrategyTabs=new Set(['strategy-library-v2','strategy-registry-v1','strategy-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
-  const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2']);
+  const nfqwsSelectionTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','target-memory-v2']);
+  const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2','tcp16-memory-v1']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','runtime-health-v2','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
-  let nfqwsActiveStrategy='selector-v2';
+  let nfqwsActiveStrategy='strategy-library-v2';
+  let nfqwsActiveMenu='catalog';
   let nfqwsActiveTool='domain-v2';
+  let nfqwsActiveSelection='selector-v2';
   let nfqwsActiveMaintenance='runs';
 
   function activateNFQWSTab(tab){
-    const isConfig=nfqwsConfigTabs.has(tab),isStrategy=nfqwsStrategyTabs.has(tab),isMenu=nfqwsMenuTabs.has(tab),isTool=nfqwsToolTabs.has(tab),isMaintenance=nfqwsMaintenanceTabs.has(tab);
+    const isConfig=nfqwsConfigTabs.has(tab),isStrategy=nfqwsStrategyTabs.has(tab),isMenu=nfqwsMenuTabs.has(tab),isTool=nfqwsToolTabs.has(tab),isSelection=nfqwsSelectionTabs.has(tab),isMaintenance=nfqwsMaintenanceTabs.has(tab);
     if(isConfig)nfqwsActiveConfig=tab;
     if(isStrategy)nfqwsActiveStrategy=tab;
+    if(isMenu)nfqwsActiveMenu=tab;
     if(isTool)nfqwsActiveTool=tab;
+    if(isSelection)nfqwsActiveSelection=tab;
     if(isMaintenance)nfqwsActiveMaintenance=tab;
     document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(x=>x.classList.toggle('active',
       isConfig?x.dataset.primaryTab==='configuration':
       isStrategy?x.dataset.primaryTab==='strategies':
+      isMenu?x.dataset.primaryTab==='menu':
       isTool?x.dataset.primaryTab==='tools':
+      isSelection?x.dataset.primaryTab==='selection':
       isMaintenance?x.dataset.primaryTab==='maintenance':
       x.dataset.tab===tab));
-    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
+    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),selectionStrip=$('nfqwsSelectionTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
     if(configStrip)configStrip.classList.toggle('visible',isConfig);
     if(strategyStrip)strategyStrip.classList.toggle('visible',isStrategy);
+    if(menuStrip)menuStrip.classList.toggle('visible',isMenu);
     if(menuCredit)menuCredit.classList.toggle('visible',isMenu);
     if(toolStrip)toolStrip.classList.toggle('visible',isTool);
+    if(selectionStrip)selectionStrip.classList.toggle('visible',isSelection);
     if(maintenanceStrip)maintenanceStrip.classList.toggle('visible',isMaintenance);
     document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+    document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsToolTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+    document.querySelectorAll('#nfqwsSelectionTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${tab}`));
     if(tab==='scripts')loadScripts();
@@ -6143,13 +6162,17 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   document.querySelectorAll('#nfqwsPrimaryTabs .tab').forEach(btn=>btn.onclick=()=>{
     if(btn.dataset.primaryTab==='configuration')activateNFQWSTab(nfqwsActiveConfig);
     else if(btn.dataset.primaryTab==='strategies')activateNFQWSTab(nfqwsActiveStrategy);
+    else if(btn.dataset.primaryTab==='menu')activateNFQWSTab(nfqwsActiveMenu);
     else if(btn.dataset.primaryTab==='tools')activateNFQWSTab(nfqwsActiveTool);
+    else if(btn.dataset.primaryTab==='selection')activateNFQWSTab(nfqwsActiveSelection);
     else if(btn.dataset.primaryTab==='maintenance')activateNFQWSTab(nfqwsActiveMaintenance);
     else activateNFQWSTab(btn.dataset.tab);
   });
   document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
+  document.querySelectorAll('#nfqwsMenuTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
+  document.querySelectorAll('#nfqwsSelectionTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   $('v2MemoryRefresh').onclick=loadV2TargetMemory;
   $('v2MemoryFilter').onkeydown=e=>{if(e.key==='Enter')loadV2TargetMemory()};

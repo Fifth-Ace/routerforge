@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -627,8 +626,7 @@ func v2GeoAutohostlistCapability() map[string]any {
 	if err == nil && pid > 0 && executable != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, executable, "--help")
-		out, _ := cmd.CombinedOutput()
+		out, _ := safety.RunCommand(ctx, 256<<10, executable, "--help")
 		if strings.Contains(string(out), "--hostlist-auto") {
 			supported = true
 			source = "installed-binary-help"

@@ -262,6 +262,7 @@ func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerStrategyLibraryV2Routes(mux)
 	registerCandidatePoolV2Routes(mux)
 	registerTargetMemoryV2Routes(mux)
+	registerObservedTargetsV1Routes(mux)
 	registerStrategyRegistryV1Routes(mux)
 	registerTCP16NetworkMemoryV1Routes(mux)
 	registerSelectorProgressV2Route(mux)

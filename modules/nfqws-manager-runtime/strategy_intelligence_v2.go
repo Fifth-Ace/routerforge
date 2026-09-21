@@ -211,63 +211,63 @@ type v2SelectorCandidateInput struct {
 }
 
 type v2SelectorRequest struct {
-	Mode                 string                     `json:"mode"`
-	ServerName           string                     `json:"server_name"`
-	ExpectedConfigSHA256 string                     `json:"expected_config_sha256"`
-	Concurrency          int                        `json:"concurrency,omitempty"`
-	SessionID            string                     `json:"session_id,omitempty"`
-	IncludeProduction    *bool                      `json:"include_production,omitempty"`
-	AutoPool             *bool                      `json:"auto_pool,omitempty"`
+	Mode                       string                     `json:"mode"`
+	ServerName                 string                     `json:"server_name"`
+	ExpectedConfigSHA256       string                     `json:"expected_config_sha256"`
+	Concurrency                int                        `json:"concurrency,omitempty"`
+	SessionID                  string                     `json:"session_id,omitempty"`
+	IncludeProduction          *bool                      `json:"include_production,omitempty"`
+	AutoPool                   *bool                      `json:"auto_pool,omitempty"`
 	Candidates                 []v2SelectorCandidateInput `json:"candidates,omitempty"`
-	DiagnosticCode              string                     `json:"diagnostic_code,omitempty"`
-	DiagnosticFaultDomain       string                     `json:"diagnostic_fault_domain,omitempty"`
+	DiagnosticCode             string                     `json:"diagnostic_code,omitempty"`
+	DiagnosticFaultDomain      string                     `json:"diagnostic_fault_domain,omitempty"`
 	DiagnosticStrategyRelevant bool                       `json:"diagnostic_strategy_relevant,omitempty"`
 	Confirm                    string                     `json:"confirm"`
 }
 
 type v2SelectorResponse struct {
-	OK                         bool                `json:"ok"`
-	SessionID                  string              `json:"session_id,omitempty"`
-	Mode                       benchAutoTuneMode   `json:"mode"`
-	ServerName                 string              `json:"server_name"`
-	DestinationIPv4            string              `json:"destination_ipv4"`
-	MetricScope                string              `json:"metric_scope"`
-	Baseline                   v2CandidateResult   `json:"baseline"`
-	Candidates                 []v2CandidateResult `json:"candidates"`
-	RecommendationAvailable    bool                `json:"recommendation_available"`
-	RecommendedProfileIndex    int                 `json:"recommended_profile_index"`
-	RecommendedCandidateID     string              `json:"recommended_candidate_id,omitempty"`
-	RecommendedCandidateName   string              `json:"recommended_candidate_name,omitempty"`
-	RecommendedCandidateSource string              `json:"recommended_candidate_source,omitempty"`
-	StrategyNeeded             bool                `json:"strategy_needed"`
-	RecommendationReason       string              `json:"recommendation_reason"`
-	CleanupBaselineAfter       bool                `json:"cleanup_baseline_after"`
-	BenchEnabled               bool                `json:"bench_enabled"`
-	SafeToBench                bool                `json:"safe_to_bench"`
-	ApplyEnabled               bool                `json:"apply_enabled"`
-	ApplyGateEligible          bool                `json:"apply_gate_eligible"`
-	ApplyGateToken             string              `json:"apply_gate_token,omitempty"`
-	ApplyGateExpiresAt         string              `json:"apply_gate_expires_at,omitempty"`
-	ApplyGateReason            string              `json:"apply_gate_reason"`
-	Concurrency                int                 `json:"concurrency"`
-	CandidateSource            string              `json:"candidate_source"`
-	AutoPoolEnabled            bool                `json:"auto_pool_enabled"`
-	AutoPoolAdded              int                 `json:"auto_pool_added"`
-	PoolSources                []string            `json:"pool_sources"`
-	PoolWarnings               []string            `json:"pool_warnings"`
-	HistoricalPlanning         bool                `json:"historical_planning"`
-	HistoricalHints            int                 `json:"historical_hints"`
-	HistoricalPromoted         int                 `json:"historical_promoted"`
-	PlannerVersion             int                 `json:"planner_version"`
-	PlannerDiagnosticCode      string              `json:"planner_diagnostic_code,omitempty"`
-	PlannerFaultDomain         string              `json:"planner_fault_domain,omitempty"`
-	PlannerStrategyRelevant    bool                `json:"planner_strategy_relevant"`
-	PlannerCompatibleCount     int                 `json:"planner_compatible_count"`
-	PlannerPromotedCount       int                 `json:"planner_promoted_count"`
-	PlannerAdmittedRegistry    int                 `json:"planner_admitted_registry_count"`
+	OK                         bool                  `json:"ok"`
+	SessionID                  string                `json:"session_id,omitempty"`
+	Mode                       benchAutoTuneMode     `json:"mode"`
+	ServerName                 string                `json:"server_name"`
+	DestinationIPv4            string                `json:"destination_ipv4"`
+	MetricScope                string                `json:"metric_scope"`
+	Baseline                   v2CandidateResult     `json:"baseline"`
+	Candidates                 []v2CandidateResult   `json:"candidates"`
+	RecommendationAvailable    bool                  `json:"recommendation_available"`
+	RecommendedProfileIndex    int                   `json:"recommended_profile_index"`
+	RecommendedCandidateID     string                `json:"recommended_candidate_id,omitempty"`
+	RecommendedCandidateName   string                `json:"recommended_candidate_name,omitempty"`
+	RecommendedCandidateSource string                `json:"recommended_candidate_source,omitempty"`
+	StrategyNeeded             bool                  `json:"strategy_needed"`
+	RecommendationReason       string                `json:"recommendation_reason"`
+	CleanupBaselineAfter       bool                  `json:"cleanup_baseline_after"`
+	BenchEnabled               bool                  `json:"bench_enabled"`
+	SafeToBench                bool                  `json:"safe_to_bench"`
+	ApplyEnabled               bool                  `json:"apply_enabled"`
+	ApplyGateEligible          bool                  `json:"apply_gate_eligible"`
+	ApplyGateToken             string                `json:"apply_gate_token,omitempty"`
+	ApplyGateExpiresAt         string                `json:"apply_gate_expires_at,omitempty"`
+	ApplyGateReason            string                `json:"apply_gate_reason"`
+	Concurrency                int                   `json:"concurrency"`
+	CandidateSource            string                `json:"candidate_source"`
+	AutoPoolEnabled            bool                  `json:"auto_pool_enabled"`
+	AutoPoolAdded              int                   `json:"auto_pool_added"`
+	PoolSources                []string              `json:"pool_sources"`
+	PoolWarnings               []string              `json:"pool_warnings"`
+	HistoricalPlanning         bool                  `json:"historical_planning"`
+	HistoricalHints            int                   `json:"historical_hints"`
+	HistoricalPromoted         int                   `json:"historical_promoted"`
+	PlannerVersion             int                   `json:"planner_version"`
+	PlannerDiagnosticCode      string                `json:"planner_diagnostic_code,omitempty"`
+	PlannerFaultDomain         string                `json:"planner_fault_domain,omitempty"`
+	PlannerStrategyRelevant    bool                  `json:"planner_strategy_relevant"`
+	PlannerCompatibleCount     int                   `json:"planner_compatible_count"`
+	PlannerPromotedCount       int                   `json:"planner_promoted_count"`
+	PlannerAdmittedRegistry    int                   `json:"planner_admitted_registry_count"`
 	PlannerPlan                []v2CandidatePoolItem `json:"planner_plan,omitempty"`
-	MemoryUpdated              bool                `json:"memory_updated"`
-	MemoryWarning              string              `json:"memory_warning,omitempty"`
+	MemoryUpdated              bool                  `json:"memory_updated"`
+	MemoryWarning              string                `json:"memory_warning,omitempty"`
 }
 
 func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {

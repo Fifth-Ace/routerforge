@@ -42,15 +42,43 @@ type v2ClientHelloInfo struct {
 }
 
 func v2GenerateClientHello(sni string) ([]byte, error) {
+	return v2GenerateClientHelloWithOptions(sni, []string{"h2", "http/1.1"}, tls.VersionTLS12)
+}
+
+func v2GenerateClientHelloWithOptions(sni string, alpn []string, minVersion uint16) ([]byte, error) {
 	normalized, err := v2NormalizeTarget(sni)
 	if err != nil {
 		return nil, err
 	}
+	if len(alpn) == 0 {
+		alpn = []string{"h2", "http/1.1"}
+	}
+	if len(alpn) > 8 {
+		return nil, errors.New("too many ALPN values")
+	}
+	cleanALPN := make([]string, 0, len(alpn))
+	seenALPN := map[string]bool{}
+	for _, value := range alpn {
+		value = strings.TrimSpace(value)
+		if value == "" || len(value) > 64 || strings.IndexFunc(value, func(r rune) bool { return r < 0x21 || r > 0x7e }) >= 0 {
+			return nil, errors.New("invalid ALPN value")
+		}
+		if !seenALPN[value] {
+			seenALPN[value] = true
+			cleanALPN = append(cleanALPN, value)
+		}
+	}
+	if minVersion == 0 {
+		minVersion = tls.VersionTLS12
+	}
+	if minVersion != tls.VersionTLS12 && minVersion != tls.VersionTLS13 {
+		return nil, errors.New("minimum TLS version must be TLS 1.2 or TLS 1.3")
+	}
 	conn := &v2ClientHelloCaptureConn{}
 	client := tls.Client(conn, &tls.Config{
 		ServerName:         normalized,
-		NextProtos:         []string{"h2", "http/1.1"},
-		MinVersion:         tls.VersionTLS12,
+		NextProtos:         cleanALPN,
+		MinVersion:         minVersion,
 		InsecureSkipVerify: true,
 	})
 	_ = client.Handshake()
@@ -195,7 +223,22 @@ func registerClientHelloLabV1Routes(mux *http.ServeMux) {
 
 func handleV2ClientHelloGenerate(w http.ResponseWriter, r *http.Request) {
 	sni := strings.TrimSpace(r.URL.Query().Get("sni"))
-	data, err := v2GenerateClientHello(sni)
+	alpn := []string{"h2", "http/1.1"}
+	if raw := strings.TrimSpace(r.URL.Query().Get("alpn")); raw != "" {
+		alpn = strings.Split(raw, ",")
+	}
+	minTLS := strings.TrimSpace(r.URL.Query().Get("min_tls"))
+	minVersion := uint16(tls.VersionTLS12)
+	switch minTLS {
+	case "", "1.2":
+		minTLS = "1.2"
+	case "1.3":
+		minVersion = tls.VersionTLS13
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "min_tls must be 1.2 or 1.3"})
+		return
+	}
+	data, err := v2GenerateClientHelloWithOptions(sni, alpn, minVersion)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
@@ -204,6 +247,7 @@ func handleV2ClientHelloGenerate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok": true, "source": "generated", "sni": info.SNI, "size": len(data),
 		"valid": info.Valid, "detail": info.Detail, "sha256": blobSHA256(data),
+		"alpn": alpn, "min_tls": minTLS,
 		"content_base64": base64.StdEncoding.EncodeToString(data),
 		"upstream_reference": map[string]string{
 			"repository": "Omn1z/nfqws2-keenetic-strategy-selector",

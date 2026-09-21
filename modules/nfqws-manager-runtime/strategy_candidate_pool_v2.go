@@ -20,6 +20,12 @@ type v2CandidatePoolItem struct {
 	MemoryVerifiedCount int      `json:"memory_verified_count,omitempty"`
 	MemorySuccessStreak int      `json:"memory_success_streak,omitempty"`
 	Stage               string   `json:"stage,omitempty"`
+	HistoricalRank      int      `json:"historical_rank,omitempty"`
+	HistoricalScore     int      `json:"historical_score,omitempty"`
+	HistoricalInsight   string   `json:"historical_insight,omitempty"`
+	HistoricalPrimary   bool     `json:"historical_primary,omitempty"`
+	HistoricalPromoted  bool     `json:"historical_promoted,omitempty"`
+	HistoricalReason    string   `json:"historical_reason,omitempty"`
 }
 
 type v2CandidatePoolResponse struct {
@@ -32,19 +38,25 @@ type v2CandidatePoolResponse struct {
 	MetricScope string                `json:"metric_scope"`
 	ConfigSHA   string                `json:"config_sha256"`
 	Candidates  []v2CandidatePoolItem `json:"candidates"`
-	Count       int                   `json:"count"`
-	Sources     []string              `json:"sources"`
-	Warnings    []string              `json:"warnings"`
+	Count               int                   `json:"count"`
+	Sources             []string              `json:"sources"`
+	Warnings            []string              `json:"warnings"`
+	RecommendationAware bool                  `json:"recommendation_aware"`
+	RecommendationHints int                   `json:"recommendation_hints"`
+	RecommendationAdded int                   `json:"recommendation_added"`
 }
 
 type v2SelectorAutoPoolMeta struct {
-	Enabled           bool
-	Added             int
-	MemoryCandidates  int
-	LibraryCandidates int
-	BuiltinCandidates int
-	Sources           []string
-	Warnings          []string
+	Enabled              bool
+	Added                int
+	MemoryCandidates     int
+	LibraryCandidates    int
+	BuiltinCandidates    int
+	Sources              []string
+	Warnings             []string
+	RecommendationAware  bool
+	RecommendationHints  int
+	RecommendationAdded  int
 }
 
 type v2BuiltinCandidate struct {
@@ -200,6 +212,89 @@ func v2AppendPoolItem(out []v2CandidatePoolItem, seen map[string]bool, item v2Ca
 	return append(out, item)
 }
 
+func v2RecommendationSource(entry v2StrategyRegistryEntry) string {
+	for _, preferred := range []string{"zapret", "catalog", "import", "custom", "builtin", "memory"} {
+		for _, source := range entry.Sources {
+			if strings.EqualFold(strings.TrimSpace(source), preferred) {
+				return preferred
+			}
+		}
+	}
+	if len(entry.Sources) > 0 {
+		return strings.ToLower(strings.TrimSpace(entry.Sources[0]))
+	}
+	return "registry"
+}
+
+func v2RecommendationProtocolCompatible(protocol string, transport benchTransportProfile) bool {
+	return strings.EqualFold(strings.TrimSpace(protocol), strings.TrimSpace(transport.ID))
+}
+
+func v2BuildRecommendationPoolItems(target string, transport benchTransportProfile, limit int) ([]v2CandidatePoolItem, int, error) {
+	if limit <= 0 {
+		return []v2CandidatePoolItem{}, 0, nil
+	}
+	library, err := readV2StrategyLibrary()
+	if err != nil {
+		return nil, 0, err
+	}
+	memory, err := readV2TargetMemory()
+	if err != nil {
+		return nil, 0, err
+	}
+	registry := v2BuildStrategyRegistry(library, memory, v2TargetMemoryNow().UTC())
+	scores := v2BuildStrategyScores(registry)
+	insights := v2BuildStrategyInsights(scores)
+	gate := v2BuildPolicyAutomationGate(scores, insights)
+	recommendations := v2BuildStrategyRecommendations(scores, insights, gate)
+
+	entryByFingerprint := map[string]v2StrategyRegistryEntry{}
+	for _, entry := range registry.Entries {
+		entryByFingerprint[entry.Fingerprint] = entry
+	}
+	out := make([]v2CandidatePoolItem, 0, limit)
+	compatible := 0
+	for _, recommendation := range recommendations.Items {
+		if !v2RecommendationProtocolCompatible(recommendation.Protocol, transport) {
+			continue
+		}
+		compatible++
+		if len(out) >= limit {
+			continue
+		}
+		entry, ok := entryByFingerprint[recommendation.Fingerprint]
+		if !ok || !entry.Capabilities.CandidateReady {
+			continue
+		}
+		transportReady := false
+		for _, candidateTransport := range entry.Capabilities.BenchTransports {
+			if strings.EqualFold(candidateTransport, transport.ID) {
+				transportReady = true
+				break
+			}
+		}
+		if !transportReady {
+			continue
+		}
+		if _, compileErr := v2CustomProfileForTransport(entry.Args, target, transport); compileErr != nil {
+			continue
+		}
+		source := v2RecommendationSource(entry)
+		stage := v2ProgressiveStageQuick
+		if source == "memory" {
+			stage = v2ProgressiveStageMemory
+		}
+		out = append(out, v2CandidatePoolItem{
+			ID: entry.ID, Name: entry.Name, Source: source, Family: entry.Family,
+			Protocol: transport.ID, Args: append([]string{}, entry.Args...), Stage: stage,
+			HistoricalRank: recommendation.Rank, HistoricalScore: recommendation.Score,
+			HistoricalInsight: recommendation.Insight, HistoricalPrimary: recommendation.Primary,
+			HistoricalPromoted: true, HistoricalReason: recommendation.Reason,
+		})
+	}
+	return out, compatible, nil
+}
+
 func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2CandidatePoolResponse, error) {
 	target, err := v2NormalizeTarget(target)
 	if err != nil {
@@ -230,6 +325,26 @@ func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2Candi
 			resp.Candidates = v2AppendPoolItem(resp.Candidates, seen, item)
 			if len(resp.Candidates) >= m.MaxCandidates {
 				break
+			}
+		}
+	}
+
+	if len(resp.Candidates) < m.MaxCandidates {
+		recommended, compatible, recommendationErr := v2BuildRecommendationPoolItems(target, transport, m.MaxCandidates-len(resp.Candidates))
+		if recommendationErr != nil {
+			resp.Warnings = append(resp.Warnings, "recommendations: "+recommendationErr.Error())
+		} else {
+			resp.RecommendationAware = true
+			resp.RecommendationHints = compatible
+			for _, item := range recommended {
+				before := len(resp.Candidates)
+				resp.Candidates = v2AppendPoolItem(resp.Candidates, seen, item)
+				if len(resp.Candidates) > before {
+					resp.RecommendationAdded++
+				}
+				if len(resp.Candidates) >= m.MaxCandidates {
+					break
+				}
 			}
 		}
 	}
@@ -322,6 +437,9 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 	}
 	meta.Sources = append(meta.Sources, pool.Sources...)
 	meta.Warnings = append(meta.Warnings, pool.Warnings...)
+	meta.RecommendationAware = pool.RecommendationAware
+	meta.RecommendationHints = pool.RecommendationHints
+	meta.RecommendationAdded = pool.RecommendationAdded
 
 	seen := map[string]bool{}
 	for _, existing := range req.Candidates {

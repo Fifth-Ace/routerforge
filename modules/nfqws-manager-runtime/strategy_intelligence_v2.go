@@ -251,6 +251,9 @@ type v2SelectorResponse struct {
 	AutoPoolAdded              int                 `json:"auto_pool_added"`
 	PoolSources                []string            `json:"pool_sources"`
 	PoolWarnings               []string            `json:"pool_warnings"`
+	HistoricalPlanning         bool                `json:"historical_planning"`
+	HistoricalHints            int                 `json:"historical_hints"`
+	HistoricalPromoted         int                 `json:"historical_promoted"`
 	MemoryUpdated              bool                `json:"memory_updated"`
 	MemoryWarning              string              `json:"memory_warning,omitempty"`
 }
@@ -1418,6 +1421,8 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
 			AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 			PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
+			HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
+			HistoricalPromoted: autoPoolMeta.RecommendationAdded,
 		})
 		return
 	}
@@ -1492,6 +1497,8 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 				SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
 				AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 				PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
+				HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
+				HistoricalPromoted: autoPoolMeta.RecommendationAdded,
 			})
 			return
 		}
@@ -1502,7 +1509,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	after := readBenchCapabilities()
 	ok := after.CleanupBaselineProven && strings.EqualFold(readStatus().ConfigSHA256, status.ConfigSHA256)
 
-	profileIndex := 0
+	profileIndex := -1
 	if best != nil {
 		profileIndex = best.SourceProfileIndex
 	}
@@ -1510,24 +1517,43 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	token, expires, applyReason := "", "", "no selector recommendation is available"
 	clearBenchAutoTuneApplyPlan()
 	if ok && recommend && needed && best != nil {
-		if best.CandidateSource != "production" || best.SourceProfileIndex < 0 {
-			applyReason = "recommended candidate is not a live production profile; save/open its source and use the existing Smart Apply workflow"
-		} else {
-			for _, item := range templates {
-				if !item.production || item.profile.Index != best.SourceProfileIndex {
-					continue
-				}
-				plan, planErr := storeBenchAutoTuneApplyPlan(status.ConfigSHA256, target, ip, item.profile)
-				if planErr != nil {
-					ok = false
-					applyReason = "create apply gate: " + planErr.Error()
+		var sourceProfile *benchStrategyProfile
+		if best.CandidateSource == "production" && best.SourceProfileIndex >= 0 {
+			for i := range inventory.Profiles {
+				if inventory.Profiles[i].Index == best.SourceProfileIndex && inventory.Profiles[i].CandidateEligible {
+					candidate := inventory.Profiles[i]
+					sourceProfile = &candidate
 					break
 				}
-				applyEligible = true
-				token = plan.Token
-				expires = plan.ExpiresAt.Format(time.RFC3339)
-				applyReason = "verified production-profile recommendation is eligible for deterministic preview"
-				break
+			}
+		} else {
+			matches := v2ProductionProfilesMatchingTarget(target, inventory)
+			if len(matches) == 1 {
+				candidate := matches[0]
+				sourceProfile = &candidate
+			} else if len(matches) == 0 {
+				applyReason = "verified candidate has no unique production profile binding for this target"
+			} else {
+				applyReason = "verified candidate matches multiple production profiles; explicit slot selection is required"
+			}
+		}
+		if sourceProfile != nil {
+			boundArgs, bindErr := v2BindCandidateToSourceProfile(*sourceProfile, best.Args)
+			if bindErr != nil {
+				applyReason = "bind candidate to production profile: " + bindErr.Error()
+			} else {
+				plan, planErr := storeBenchAutoTuneApplyPlanForCandidate(
+					status.ConfigSHA256, target, ip, *sourceProfile, boundArgs,
+					best.CandidateSource, v2CandidateTechniqueFingerprint(best.Args),
+				)
+				if planErr != nil {
+					applyReason = "create apply gate: " + planErr.Error()
+				} else {
+					applyEligible = true
+					token = plan.Token
+					expires = plan.ExpiresAt.Format(time.RFC3339)
+					applyReason = "live-verified candidate is bound to one production profile and eligible for deterministic preview"
+				}
 			}
 		}
 	}
@@ -1560,6 +1586,8 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		ApplyGateReason: applyReason, Concurrency: concurrency, CandidateSource: sourceKind,
 		AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 		PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
+		HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
+		HistoricalPromoted: autoPoolMeta.RecommendationAdded,
 		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {

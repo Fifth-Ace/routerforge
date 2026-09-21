@@ -216,10 +216,28 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "tested source profile identity is no longer eligible"})
 		return
 	}
-	recomputed, err := retargetBenchStrategyProfile(*source, plan.ServerName)
-	if err != nil || !stringSlicesEqual(recomputed.Args, plan.StrategyArgs) {
+	sourceArgs := plan.SourceStrategyArgs
+	if len(sourceArgs) == 0 {
+		sourceArgs = source.Args
+	}
+	if !stringSlicesEqual(source.Args, sourceArgs) {
 		clearBenchAutoTuneApplyReceipt()
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "tested strategy identity drifted since AutoTune preview"})
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "source production profile drifted since AutoTune preview"})
+		return
+	}
+	candidateArgs := plan.CandidateStrategyArgs
+	if len(candidateArgs) == 0 {
+		candidateArgs = plan.StrategyArgs
+	}
+	if err := validatePreviewArgs(candidateArgs); err != nil {
+		clearBenchAutoTuneApplyReceipt()
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "candidate strategy identity is invalid: " + err.Error()})
+		return
+	}
+	fingerprint := v2CandidateTechniqueFingerprint(candidateArgs)
+	if fingerprint == "" || (plan.CandidateFingerprint != "" && fingerprint != plan.CandidateFingerprint) {
+		clearBenchAutoTuneApplyReceipt()
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "candidate technique fingerprint drifted since AutoTune preview"})
 		return
 	}
 
@@ -252,7 +270,7 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	candidate, err := buildAutoTuneCandidateConfig(string(configData), source.Args, plan.StrategyArgs)
+	candidate, err := buildAutoTuneCandidateConfig(string(configData), source.Args, candidateArgs)
 	if err != nil {
 		clearBenchAutoTuneApplyReceipt()
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "rebuild deterministic AutoTune candidate: " + err.Error()})

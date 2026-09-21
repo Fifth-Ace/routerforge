@@ -22,24 +22,24 @@ type benchAutoTuneApplyRequest struct {
 }
 
 type benchAutoTuneApplyReceipt struct {
-	Token              string
-	ActiveConfigSHA256 string
-	CandidateSHA256    string
-	CandidateConfig    string
-	ServerName         string
-	SourceProfileIndex int
-	Transport          string
-	SessionID          string
-	CandidateID        string
-	CandidateName      string
-	CandidateSource    string
+	Token                string
+	ActiveConfigSHA256   string
+	CandidateSHA256      string
+	CandidateConfig      string
+	ServerName           string
+	SourceProfileIndex   int
+	Transport            string
+	SessionID            string
+	CandidateID          string
+	CandidateName        string
+	CandidateSource      string
 	CandidateFingerprint string
-	LiveResultClass    string
-	LiveSuccessRate    float64
-	LiveCompleteRate   float64
-	ExpectedLists      map[string]string
-	ExpectedBlobs      map[string]string
-	ExpiresAt          time.Time
+	LiveResultClass      string
+	LiveSuccessRate      float64
+	LiveCompleteRate     float64
+	ExpectedLists        map[string]string
+	ExpectedBlobs        map[string]string
+	ExpiresAt            time.Time
 }
 
 var benchAutoTuneApplyReceiptState = struct {
@@ -76,10 +76,10 @@ func storeBenchAutoTuneApplyReceiptWithResources(
 		return errors.New("AutoTune candidate config must not be empty")
 	}
 	receipt := &benchAutoTuneApplyReceipt{
-		Token:              plan.Token,
-		ActiveConfigSHA256: strings.ToLower(plan.ConfigSHA256),
-		CandidateSHA256:    strings.ToLower(candidateSHA),
-		CandidateConfig:    candidateConfig,
+		Token:                plan.Token,
+		ActiveConfigSHA256:   strings.ToLower(plan.ConfigSHA256),
+		CandidateSHA256:      strings.ToLower(candidateSHA),
+		CandidateConfig:      candidateConfig,
 		ServerName:           plan.ServerName,
 		SourceProfileIndex:   plan.SourceProfileIndex,
 		Transport:            plan.Transport,

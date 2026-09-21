@@ -54,10 +54,17 @@ func clearBenchAutoTuneApplyPlan() {
 }
 
 func storeBenchAutoTuneApplyPlan(configSHA, serverName, destinationIPv4 string, profile benchStrategyProfile) (*benchAutoTuneApplyPlan, error) {
-	return storeBenchAutoTuneApplyPlanForCandidate(
-		configSHA, serverName, destinationIPv4, profile, profile.Args,
-		"production", v2CandidateTechniqueFingerprint(profile.Args),
-	)
+	inventory := readBenchStrategyInventory()
+	for _, sourceProfile := range inventory.Profiles {
+		if sourceProfile.Index != profile.Index {
+			continue
+		}
+		return storeBenchAutoTuneApplyPlanForCandidate(
+			configSHA, serverName, destinationIPv4, sourceProfile, profile.Args,
+			"production", v2CandidateTechniqueFingerprint(profile.Args),
+		)
+	}
+	return nil, errors.New("source production profile is no longer present")
 }
 
 func storeBenchAutoTuneApplyPlanForCandidate(

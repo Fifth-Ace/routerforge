@@ -13,8 +13,11 @@ func TestV2BindCandidateToSourceProfilePreservesSourceSelection(t *testing.T) {
 		"--payload=tls_client_hello",
 		"--lua-desync=multisplit:pos=1,midsld",
 	})
-	if !source.CandidateEligible {
-		t.Fatalf("source not eligible: %+v", source.Reasons)
+	if source.CandidateEligible {
+		t.Fatal("fixture must exercise a file-bound production source, not a bench candidate")
+	}
+	if !v2ProductionSourceProfileEligible(source) {
+		t.Fatalf("production source rejected: %+v", source.Reasons)
 	}
 	tested := []string{
 		"--hostlist-domains=example.com",

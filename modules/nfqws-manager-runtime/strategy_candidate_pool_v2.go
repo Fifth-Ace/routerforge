@@ -26,6 +26,16 @@ type v2CandidatePoolItem struct {
 	HistoricalPrimary   bool     `json:"historical_primary,omitempty"`
 	HistoricalPromoted  bool     `json:"historical_promoted,omitempty"`
 	HistoricalReason    string   `json:"historical_reason,omitempty"`
+
+	PlannerOriginalOrder  int    `json:"planner_original_order,omitempty"`
+	PlannerEffectiveOrder int    `json:"planner_effective_order,omitempty"`
+	PlannerOriginalStage  string `json:"planner_original_stage,omitempty"`
+	PlannerEffectiveStage string `json:"planner_effective_stage,omitempty"`
+	PlannerScore          int    `json:"planner_score,omitempty"`
+	PlannerReason         string `json:"planner_reason,omitempty"`
+	PlannerHistoricalHint bool   `json:"planner_historical_hint,omitempty"`
+	PlannerDiagnosticHint bool   `json:"planner_diagnostic_hint,omitempty"`
+	PlannerAlreadyInPool  bool   `json:"planner_already_in_pool,omitempty"`
 }
 
 type v2CandidatePoolResponse struct {
@@ -41,9 +51,19 @@ type v2CandidatePoolResponse struct {
 	Count               int                   `json:"count"`
 	Sources             []string              `json:"sources"`
 	Warnings            []string              `json:"warnings"`
-	RecommendationAware bool                  `json:"recommendation_aware"`
-	RecommendationHints int                   `json:"recommendation_hints"`
-	RecommendationAdded int                   `json:"recommendation_added"`
+	RecommendationAware      bool `json:"recommendation_aware"`
+	RecommendationHints       int  `json:"recommendation_hints"`
+	RecommendationAdded       int  `json:"recommendation_added"`
+	HistoricalExistingPromoted int `json:"historical_existing_promoted"`
+
+	PlannerVersion               int    `json:"planner_version"`
+	PlannerReadOnly              bool   `json:"planner_read_only"`
+	PlannerDiagnosticCode        string `json:"planner_diagnostic_code,omitempty"`
+	PlannerFaultDomain           string `json:"planner_fault_domain,omitempty"`
+	PlannerStrategyRelevant      bool   `json:"planner_strategy_relevant"`
+	PlannerCompatibleCount       int    `json:"planner_compatible_count"`
+	PlannerPromotedCount         int    `json:"planner_promoted_count"`
+	PlannerAdmittedRegistryCount int    `json:"planner_admitted_registry_count"`
 }
 
 type v2SelectorAutoPoolMeta struct {
@@ -57,6 +77,15 @@ type v2SelectorAutoPoolMeta struct {
 	RecommendationAware bool
 	RecommendationHints int
 	RecommendationAdded int
+
+	PlannerVersion               int
+	PlannerDiagnosticCode        string
+	PlannerFaultDomain           string
+	PlannerStrategyRelevant      bool
+	PlannerCompatibleCount       int
+	PlannerPromotedCount         int
+	PlannerAdmittedRegistryCount int
+	PlannerPlan                  []v2CandidatePoolItem
 }
 
 type v2BuiltinCandidate struct {
@@ -337,6 +366,14 @@ func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2Candi
 			resp.RecommendationAware = true
 			resp.RecommendationHints = compatible
 			for _, item := range recommended {
+				item.Args = v2PortableCandidateArgs(item.Args)
+				item.Fingerprint = v2CandidateTechniqueFingerprint(item.Args)
+				if item.Fingerprint != "" && seen[item.Fingerprint] {
+					if v2MergeHistoricalRecommendation(resp.Candidates, item) {
+						resp.HistoricalExistingPromoted++
+					}
+					continue
+				}
 				before := len(resp.Candidates)
 				resp.Candidates = v2AppendPoolItem(resp.Candidates, seen, item)
 				if len(resp.Candidates) > before {
@@ -422,7 +459,7 @@ func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2Candi
 }
 
 func v2BuildCandidatePool(target, mode string) (v2CandidatePoolResponse, error) {
-	return v2BuildCandidatePoolForTransport(target, mode, benchTransportHTTPS)
+	return v2PlanCandidatePoolForTransport(target, mode, benchTransportHTTPS, v2PlannerHint{})
 }
 
 func handleV2CandidatePool(w http.ResponseWriter, r *http.Request) {
@@ -432,7 +469,12 @@ func handleV2CandidatePool(w http.ResponseWriter, r *http.Request) {
 		mode = "normal"
 	}
 	transport := strings.TrimSpace(r.URL.Query().Get("transport"))
-	resp, err := v2BuildCandidatePoolForTransport(target, mode, transport)
+	hint := v2PlannerHint{
+		DiagnosticCode: strings.TrimSpace(r.URL.Query().Get("diagnostic_code")),
+		FaultDomain: strings.TrimSpace(r.URL.Query().Get("fault_domain")),
+		StrategyRelevant: strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("strategy_relevant")), "true"),
+	}
+	resp, err := v2PlanCandidatePoolForTransport(target, mode, transport, hint)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
@@ -454,7 +496,11 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 	if err != nil {
 		return meta, err
 	}
-	pool, err := v2BuildCandidatePool(target, req.Mode)
+	pool, err := v2PlanCandidatePoolForTransport(target, req.Mode, benchTransportHTTPS, v2PlannerHint{
+		DiagnosticCode: req.DiagnosticCode,
+		FaultDomain: req.DiagnosticFaultDomain,
+		StrategyRelevant: req.DiagnosticStrategyRelevant,
+	})
 	if err != nil {
 		return meta, err
 	}
@@ -463,6 +509,14 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 	meta.RecommendationAware = pool.RecommendationAware
 	meta.RecommendationHints = pool.RecommendationHints
 	meta.RecommendationAdded = pool.RecommendationAdded
+	meta.PlannerVersion = pool.PlannerVersion
+	meta.PlannerDiagnosticCode = pool.PlannerDiagnosticCode
+	meta.PlannerFaultDomain = pool.PlannerFaultDomain
+	meta.PlannerStrategyRelevant = pool.PlannerStrategyRelevant
+	meta.PlannerCompatibleCount = pool.PlannerCompatibleCount
+	meta.PlannerPromotedCount = pool.PlannerPromotedCount
+	meta.PlannerAdmittedRegistryCount = pool.PlannerAdmittedRegistryCount
+	meta.PlannerPlan = append([]v2CandidatePoolItem{}, pool.Candidates...)
 
 	seen := map[string]bool{}
 	for _, existing := range req.Candidates {

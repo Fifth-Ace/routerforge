@@ -218,8 +218,11 @@ type v2SelectorRequest struct {
 	SessionID            string                     `json:"session_id,omitempty"`
 	IncludeProduction    *bool                      `json:"include_production,omitempty"`
 	AutoPool             *bool                      `json:"auto_pool,omitempty"`
-	Candidates           []v2SelectorCandidateInput `json:"candidates,omitempty"`
-	Confirm              string                     `json:"confirm"`
+	Candidates                 []v2SelectorCandidateInput `json:"candidates,omitempty"`
+	DiagnosticCode              string                     `json:"diagnostic_code,omitempty"`
+	DiagnosticFaultDomain       string                     `json:"diagnostic_fault_domain,omitempty"`
+	DiagnosticStrategyRelevant bool                       `json:"diagnostic_strategy_relevant,omitempty"`
+	Confirm                    string                     `json:"confirm"`
 }
 
 type v2SelectorResponse struct {
@@ -255,6 +258,14 @@ type v2SelectorResponse struct {
 	HistoricalPlanning         bool                `json:"historical_planning"`
 	HistoricalHints            int                 `json:"historical_hints"`
 	HistoricalPromoted         int                 `json:"historical_promoted"`
+	PlannerVersion             int                 `json:"planner_version"`
+	PlannerDiagnosticCode      string              `json:"planner_diagnostic_code,omitempty"`
+	PlannerFaultDomain         string              `json:"planner_fault_domain,omitempty"`
+	PlannerStrategyRelevant    bool                `json:"planner_strategy_relevant"`
+	PlannerCompatibleCount     int                 `json:"planner_compatible_count"`
+	PlannerPromotedCount       int                 `json:"planner_promoted_count"`
+	PlannerAdmittedRegistry    int                 `json:"planner_admitted_registry_count"`
+	PlannerPlan                []v2CandidatePoolItem `json:"planner_plan,omitempty"`
 	MemoryUpdated              bool                `json:"memory_updated"`
 	MemoryWarning              string              `json:"memory_warning,omitempty"`
 }
@@ -1430,6 +1441,10 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 			HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 			HistoricalPromoted: autoPoolMeta.RecommendationAdded,
+			PlannerVersion: autoPoolMeta.PlannerVersion, PlannerDiagnosticCode: autoPoolMeta.PlannerDiagnosticCode,
+			PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
+			PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
+			PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
 		})
 		return
 	}
@@ -1506,6 +1521,10 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 				PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 				HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 				HistoricalPromoted: autoPoolMeta.RecommendationAdded,
+				PlannerVersion: autoPoolMeta.PlannerVersion, PlannerDiagnosticCode: autoPoolMeta.PlannerDiagnosticCode,
+				PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
+				PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
+				PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
 			})
 			return
 		}
@@ -1595,6 +1614,10 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 		HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 		HistoricalPromoted: autoPoolMeta.RecommendationAdded,
+		PlannerVersion: autoPoolMeta.PlannerVersion, PlannerDiagnosticCode: autoPoolMeta.PlannerDiagnosticCode,
+		PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
+		PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
+		PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
 		MemoryUpdated:      memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {

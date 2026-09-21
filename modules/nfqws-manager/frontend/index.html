@@ -5199,14 +5199,18 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       ]);
       v2DomainLast={inspect,detect};$('v2DomainTarget').value=inspect.target||detect.target||target;
       $('v2DomainState').textContent=String(detect.classification||'DONE').toUpperCase();
+      const diag=detect.diagnostic||{};
       $('v2DomainSummary').innerHTML=[
-        ['Classification',detect.classification||'—'],['Production',inspect.runtime_running?'RUNNING':'STOPPED'],
+        ['Classification',detect.classification||'—'],['Diagnostic',diag.code||'—'],
+        ['Fault domain',diag.fault_domain||'—'],['Confidence',diag.confidence||'—'],
+        ['Strategy relevant',diag.strategy_relevant?'YES':'NO'],['Production',inspect.runtime_running?'RUNNING':'STOPPED'],
         ['Binding',inspect.binding_verdict||'—'],['IPv4',detect.destination_ipv4||'—']
       ].map(([a,b])=>`<div class="v2-card"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`).join('');
       $('v2DomainStages').innerHTML=['dns','tcp','tls','http'].map(k=>v2StageRow(k,detect.stages?.[k])).join('');
       const lists=inspect.list_matches||[];$('v2DomainLists').innerHTML=lists.length?lists.map(x=>`<div class="v2-row"><div class="v2-result-title">${esc(x.name)}</div><div class="meta">${esc(x.path||'')} · ${esc(x.relation||'present')}</div>${v2Pill('MATCH')}</div>`).join(''):'<div class="analysis-empty">Совпадений в локальных list-файлах не найдено.</div>';
       const profiles=inspect.production_profile_matches||[];$('v2DomainProfiles').innerHTML=profiles.length?profiles.map(p=>`<div class="v2-row"><div class="v2-result-title">Profile ${Number(p.index)}</div><div><div class="value">${esc(p.match_reason||'')}</div><div class="v2-args">${esc(v2ArgsText(p.args))}</div></div>${v2Pill(p.candidate_ready?'READY':'CHECK')}</div>`).join(''):'<div class="analysis-empty">Прямую production profile binding доказать не удалось.</div>';
-      notice(`Разбор ${inspect.target||target}: ${detect.classification_text||detect.classification||'готово'}`,detect.classification==='clear'?'good':'');
+      const action=String(detect.diagnostic?.suggested_action||'').trim();
+      notice(`Разбор ${inspect.target||target}: ${detect.classification_text||detect.classification||'готово'}${action?` · ${action}`:''}`,detect.classification==='clear'?'good':'');
     }catch(e){$('v2DomainState').textContent='FAIL';notice(`Разбор домена: ${e.message}`,'error')}
     finally{$('v2DomainRun').disabled=false;reportHeight()}
   }

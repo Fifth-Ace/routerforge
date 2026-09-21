@@ -1101,6 +1101,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="configs">Сохранённые конфиги <span id="configLibraryCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="config">Полный конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="geo-assets">GeoSite / GeoIP</button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-strategy-tabs" id="nfqwsStrategyTabs" aria-label="Стратегии RouterForge">
@@ -1122,6 +1123,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="domain-v2">Разбор домена</button>
   <button class="tab" data-tab="prodlab-v2">Тестирование</button>
   <button class="tab" data-tab="tcp16-memory-v1">Обрывы 16 КБ <span id="v2TCP16TabCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="clienthello">ClientHello</button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs" id="nfqwsSelectionTabs" aria-label="Подбор стратегий">
@@ -2255,7 +2257,13 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <div id="listSourceUpstreamList" class="blob-deps"><div class="empty">Источник ещё не синхронизирован.</div></div>
       </article>
     </div>
-    <article class="panel" style="margin-top:12px">
+    <div class="blob-note">Файлы проверяются перед установкой. Эти действия не меняют рабочий nfqws2.conf автоматически.</div>
+  </div>
+</section>
+
+<section id="view-geo-assets" class="view">
+  <div class="blob-shell">
+    <article class="panel">
       <div class="panel-head"><div><h2>GeoSite / GeoIP Intelligence</h2><div class="section-kicker">upload → inspect categories → preview → explicit list save</div></div><span id="geoState" class="config-badge">IDLE</span></div>
       <div class="setup-row"><div class="setup-label"><strong>Geo asset</strong>geosite.dat / geoip.dat / text</div><div><input id="geoFile" type="file"><select id="geoKind" class="setup-select" style="margin-top:6px"><option value="geosite">GeoSite</option><option value="geoip">GeoIP</option><option value="text">Text</option></select></div></div>
       <div class="setup-row"><div class="setup-label"><strong>Provenance</strong>optional metadata only</div><div><input id="geoSource" class="setup-input" placeholder="source label"><input id="geoSourceRef" class="setup-input" style="margin-top:6px" placeholder="exact ref / version"></div></div>
@@ -2267,7 +2275,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div id="geoAutohostlist" class="setup-note" style="margin-top:8px">Autohostlist capability ещё не проверялась.</div>
       <div class="setup-note warn" style="margin-top:8px">Geo upload/list extraction не меняет nfqws2.conf и не делает reload/restart. Применение списка к production остаётся отдельным явным workflow.</div>
     </article>
-    <div class="blob-note">Файлы проверяются перед установкой. Эти действия не меняют рабочий nfqws2.conf автоматически.</div>
+    <div class="blob-note">GeoSite / GeoIP относится к настройке списков RouterForge и не является частью NFQWS Menu.</div>
   </div>
 </section>
 
@@ -2300,16 +2308,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 </section>
 
 
-<section id="view-blobs" class="view">
+<section id="view-clienthello" class="view">
   <div class="blob-shell">
-    <div class="blob-hero">
-      <div>
-        <div class="blob-title-row"><h2 style="margin:0">TLS-заготовки</h2><span id="blobRuntimeBadge" class="config-badge">ФАЙЛЫ</span></div>
-        <div class="muted small" style="margin-top:5px">Локальные заготовки и файлы, необходимые выбранной стратегии. Перед установкой RouterForge проверяет их целостность.</div>
-      </div>
-      <div class="toolbar"><button id="refreshBlobs">Обновить inventory</button></div>
-    </div>
-
     <article class="panel clienthello-lab">
       <div class="panel-head">
         <div><h2>ClientHello Lab</h2><div class="section-kicker">сгенерировать реальный TLS ClientHello по SNI → проверить → сохранить как blob</div></div>
@@ -2337,6 +2337,19 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <div id="clientHelloCaptureResult" class="clienthello-candidates"><div class="empty">Capture ещё не запускался.</div></div>
       </div>
     </article>
+    <div class="blob-note">ClientHello Lab — инструмент диагностики RouterForge. Сохранение результата использует существующий Blob Manager, но сам инструмент не относится к NFQWS Menu.</div>
+  </div>
+</section>
+
+<section id="view-blobs" class="view">
+  <div class="blob-shell">
+    <div class="blob-hero">
+      <div>
+        <div class="blob-title-row"><h2 style="margin:0">TLS-заготовки</h2><span id="blobRuntimeBadge" class="config-badge">ФАЙЛЫ</span></div>
+        <div class="muted small" style="margin-top:5px">Локальные заготовки и файлы, необходимые выбранной стратегии. Перед установкой RouterForge проверяет их целостность.</div>
+      </div>
+      <div class="toolbar"><button id="refreshBlobs">Обновить inventory</button></div>
+    </div>
 
     <div class="blob-summary">
       <div class="blob-stat"><span>Установлено</span><strong id="blobInstalledCount">0</strong></div>
@@ -6093,11 +6106,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(view==='view-lists'){if(listMeta&&$('listEditor').value!==listOriginal)void saveList();return}
   }
 
-  const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
+  const nfqwsConfigTabs=new Set(['strategies','configs','config','lists','geo-assets']);
   const nfqwsStrategyTabs=new Set(['strategy-library-v2','strategy-registry-v1','strategy-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsSelectionTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','target-memory-v2']);
-  const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2','tcp16-memory-v1']);
+  const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2','tcp16-memory-v1','clienthello']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','runtime-health-v2','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
   let nfqwsActiveStrategy='strategy-library-v2';
@@ -6139,6 +6152,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${tab}`));
     if(tab==='scripts')loadScripts();
     if(tab==='upstream-lists')loadListSources();
+    if(tab==='geo-assets')loadGeoAssets();
+    if(tab==='clienthello')loadBlobs();
     if(tab==='preflight')renderPreflight();
     if(tab==='dpi-detector')loadDPIDetector(true);
     if(tab==='observed-v1')void loadV2Observed();
@@ -6297,7 +6312,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
   $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};$('runSandbox').onclick=runSandbox;$('stopSandbox').onclick=stopSandbox;$('copySandbox').onclick=copySandboxJSON;$('sandboxImport').onclick=importSandboxSource;$('sandboxTargetsFromTestLab').onclick=sandboxTargetsFromTestLab;$('sandboxTargetsFromSelected').onclick=sandboxTargetsFromSelected;$('sandboxTargetsFromUser').onclick=sandboxTargetsFromUser;$('sandboxCandidate').oninput=()=>{if(!sandboxRunning){sandboxResultsData=[];renderSandbox()}};$('sandboxTargets').oninput=()=>{if(!sandboxRunning&&!sandboxResultsData.length)renderSandbox()};$('sandboxSource').onchange=()=>{if(!sandboxRunning&&sandboxResultsData.length){sandboxResultsData=[];renderSandbox()}};
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;
-  $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true);loadGeoAssets()};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
+  $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
   $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
   $('closeSmartApply').onclick=closeSmartApply;$('refreshSmartApply').onclick=async()=>{if(smartApplyBusy)return;$('smartApplyPlan').innerHTML='<div class="empty">Пересчитываю exact plan…</div>';$('applySmartApply').disabled=true;try{smartApplyPlan=await buildSmartApplyPlan();renderSmartApplyPlan()}catch(e){smartApplyPlan=null;$('smartApplyPlan').innerHTML=`<div class="smart-apply-error">${esc(e.message)}</div>`}};$('applySmartApply').onclick=applySmartApply;$('smartApplyModal').onclick=e=>{if(e.target===$('smartApplyModal'))closeSmartApply()};
   $('config').oninput=updateConfigEditor;$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};

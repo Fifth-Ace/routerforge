@@ -467,7 +467,6 @@ func handleV2TCP16Probe(w http.ResponseWriter, r *http.Request) {
 		DetectedCount:      detectedCount,
 		WorkingSNICount:    workingCount,
 		Results:            runs,
-		},
 	}
 	writeJSON(w, http.StatusOK, resp)
 }

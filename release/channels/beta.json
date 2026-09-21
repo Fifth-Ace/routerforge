@@ -1,50 +1,48 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.10.0-beta.3",
+    "release_version": "0.10.0-beta.4",
     "release_notes": {
         "ru": {
             "new": [
-                "NFQWS2 Manager получил полный цикл strategy intelligence: evidence-aware диагностику, Strategy Bench и AutoSelect, target memory, scoring/recommendations, curated upstream/Zapret strategy corpus и guarded Safe Apply.",
-                "NFQWS workspace интегрирует расширенный DPI Detector v5: managed runtime foundation, нативную console/web диагностику, live report stream и детальное представление результатов.",
-                "Monitoring получил живой диспетчер процессов с CPU/RSS, поиском и сортировкой; таблица обновляется без прыжков страницы и компактно укладывает все колонки на обычном desktop."
+                "RouterForge стал заметно легче работать в фоне: когда интерфейс закрыт или раздел не используется, модули почти не делают лишнюю работу.",
+                "Monitoring теперь собирает тяжёлые данные только когда они нужны, поэтому в простое почти не использует процессор.",
+                "DNS стал экономнее расходовать память и реже запускает фоновые проверки; объём внутренней истории автоматически подстраивается под память роутера."
             ],
             "fixes": [
-                "Live bench блокируется во время management SSH-сессий; firewall insertion для parallel bench сделан атомарным, а command execution проходит через shared safety runner.",
-                "Закрыты ошибки Processing Map, tcp16 probe/memory, strategy registry, Zapret parsing и recommendation planner; maintenance jobs дополнительно hardened.",
-                "Исправлена геометрия Process Manager: длинные имя/команда не раздвигают таблицу, CPU/RAM/Threads/PPID остаются видимыми без штатного горизонтального скролла."
+                "Уменьшено количество лишних опросов диска, температуры, служб и других системных данных.",
+                "Снижено потребление памяти у Core, DNS и особенно Monitoring без отключения функций."
             ],
             "compatibility": [
-                "Beta 0.10.0-beta.3 сохраняет coherent train из семи RouterForge-компонентов.",
-                "Beta публикуется для aarch64-3.10, mips-3.4 и mipsel-3.4: 7 компонентов × 3 target = 21 IPK.",
-                "ARM64 остаётся production target; MIPS и MIPSel остаются experimental. Stable/main этим Beta-выпуском не продвигается."
+                "Beta 0.10.0-beta.4 содержит те же семь компонентов RouterForge.",
+                "Пакеты доступны для aarch64-3.10, mips-3.4 и mipsel-3.4; ARM64 остаётся основной платформой, MIPS и MIPSel — экспериментальными.",
+                "Stable/main этим выпуском не обновляется."
             ],
             "technical": [
-                "Beta train использует 0.10.0~beta.3 для всех семи компонентов; immutable snapshot — routerforge-v0.10.0-beta.3.",
-                "Beta.3 объединяет 120 проверенных dev-коммитов после immutable Beta.2, включая NFQWS intelligence/web-complete workstream и Monitoring Process Manager.",
-                "Следующий активный workstream — P23 RouterForge Idle Footprint Reduction: adaptive collectors, polling consolidation и снижение DNS hot-retention."
+                "На Keenetic Hopper KN-3811 после изменений весь основной RouterForge в простое использовал в среднем меньше 1% CPU.",
+                "В сопоставимом замере Core, DNS и Monitoring вместе использовали примерно на 20% меньше памяти, чем до оптимизации.",
+                "Неизменяемый снимок выпуска: routerforge-v0.10.0-beta.4."
             ]
         },
         "en": {
             "new": [
-                "NFQWS2 Manager now provides a complete strategy-intelligence cycle: evidence-aware diagnostics, Strategy Bench and AutoSelect, target memory, scoring/recommendations, a curated upstream/Zapret strategy corpus, and guarded Safe Apply.",
-                "The NFQWS workspace integrates an expanded DPI Detector v5 experience with a managed runtime foundation, native console/web diagnostics, live report streaming, and detailed result rendering.",
-                "Monitoring now includes a live process manager with CPU/RSS, search, and sorting; the table refreshes without page jumps and keeps all columns compact on a normal desktop."
+                "RouterForge now does much less work in the background when the UI is closed or a section is not being used.",
+                "Monitoring now collects heavier data only when it is needed, so it uses almost no CPU while idle.",
+                "DNS now uses memory more carefully and runs background checks less often; its internal history size adapts to the router's available memory."
             ],
             "fixes": [
-                "Live bench execution is blocked during management SSH sessions; parallel-bench firewall insertion is atomic and command execution uses the shared safety runner.",
-                "Processing Map, tcp16 probe/memory, strategy registry, Zapret parsing, and recommendation-planner issues are fixed, with additional maintenance-job hardening.",
-                "Process Manager layout is compacted so long process names/commands cannot stretch the table and CPU/RAM/Threads/PPID remain visible without normal horizontal scrolling."
+                "Reduced unnecessary polling of storage, temperature, services, and other system data.",
+                "Reduced memory usage in Core, DNS, and especially Monitoring without removing features."
             ],
             "compatibility": [
-                "Beta 0.10.0-beta.3 keeps the coherent seven-component RouterForge train.",
-                "Beta is published for aarch64-3.10, mips-3.4, and mipsel-3.4: 7 components × 3 targets = 21 IPKs.",
-                "ARM64 remains the production target; MIPS and MIPSel remain experimental. Stable/main is not promoted by this Beta release."
+                "Beta 0.10.0-beta.4 keeps the same seven RouterForge components.",
+                "Packages are available for aarch64-3.10, mips-3.4, and mipsel-3.4; ARM64 remains the primary platform, while MIPS and MIPSel remain experimental.",
+                "Stable/main is not promoted by this release."
             ],
             "technical": [
-                "The Beta train uses 0.10.0~beta.3 for all seven components; the immutable snapshot is routerforge-v0.10.0-beta.3.",
-                "Beta.3 consolidates 120 validated dev commits after immutable Beta.2, including the NFQWS intelligence/web-complete workstream and Monitoring Process Manager.",
-                "The next active workstream is P23 RouterForge Idle Footprint Reduction: adaptive collectors, polling consolidation, and lower DNS hot-retention."
+                "On Keenetic Hopper KN-3811, the main RouterForge processes averaged under 1% total CPU while idle after these changes.",
+                "In a comparable measurement, Core, DNS, and Monitoring together used about 20% less memory than before the optimization work.",
+                "Immutable release snapshot: routerforge-v0.10.0-beta.4."
             ]
         }
     },
@@ -52,43 +50,43 @@
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.10.0~beta.3"
+            "version": "0.10.0~beta.4"
         },
         {
             "id": "dns",
             "package": "routerforge-dns",
-            "version": "0.10.0~beta.3",
-            "min_core_version": "0.10.0~beta.3"
+            "version": "0.10.0~beta.4",
+            "min_core_version": "0.10.0~beta.4"
         },
         {
             "id": "admin",
             "package": "routerforge-admin",
-            "version": "0.10.0~beta.3",
-            "min_core_version": "0.10.0~beta.3"
+            "version": "0.10.0~beta.4",
+            "min_core_version": "0.10.0~beta.4"
         },
         {
             "id": "monitoring",
             "package": "routerforge-monitoring",
-            "version": "0.10.0~beta.3",
-            "min_core_version": "0.10.0~beta.3"
+            "version": "0.10.0~beta.4",
+            "min_core_version": "0.10.0~beta.4"
         },
         {
             "id": "network-tools",
             "package": "routerforge-network-tools",
-            "version": "0.10.0~beta.3",
-            "min_core_version": "0.10.0~beta.3"
+            "version": "0.10.0~beta.4",
+            "min_core_version": "0.10.0~beta.4"
         },
         {
             "id": "nfqws-manager",
             "package": "routerforge-nfqws-manager",
-            "version": "0.10.0~beta.3",
-            "min_core_version": "0.10.0~beta.3"
+            "version": "0.10.0~beta.4",
+            "min_core_version": "0.10.0~beta.4"
         },
         {
             "id": "profiling",
             "package": "routerforge-profiling",
-            "version": "0.10.0~beta.3",
-            "min_core_version": "0.10.0~beta.3"
+            "version": "0.10.0~beta.4",
+            "min_core_version": "0.10.0~beta.4"
         }
     ]
 }

@@ -5111,10 +5111,28 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('zapretImportPreview').innerHTML=result.preview?highlightConfig(result.preview):esc('Preview не построен.');$('zapretImportCopy').disabled=!result.preview;
     renderZapretLibrary(result);reportHeight();
   }
-  function runZapretImport(){
+  async function runZapretImport(){
     const content=$('zapretImportInput').value;
     if(!String(content||'').trim()){notice('Импорт из Zapret: добавьте команду или файл.','error');return}
-    renderZapretImport(zapretAnalyze(content));
+    $('zapretImportRun').disabled=true;$('zapretImportState').textContent='PARSING';
+    try{
+      const d=await api('/v2/zapret/parse',{method:'POST',body:JSON.stringify({content})});
+      const result={
+        type:d.type||'unknown',commands:Array.isArray(d.commands)?d.commands:[],profiles:Array.isArray(d.profiles)?d.profiles:[],
+        tcp:d.tcp||'',udp:d.udp||'',
+        transforms:(d.transforms||[]).map(x=>[x.kind||'',x.text||'']),
+        warnings:(d.warnings||[]).map(x=>[x.level||'warn',x.text||'']),
+        deps:(d.deps||[]).map(x=>[x.kind||'',x.path||'']),
+        preview:d.preview||'',ready:!!d.ready,log:d.log||null
+      };
+      if(result.type==='log'&&result.log){
+        result.warnings.unshift(['warn',`Log parity: format=${result.log.format||'unknown'} · strategies=${Number(result.log.strategies||0)} · targets=${Number(result.log.targets||0)} · tests=${Number(result.log.tests||0)} · passed=${Number(result.log.passed||0)} · failed=${Number(result.log.failed||0)}`]);
+      }
+      renderZapretImport(result);
+      notice(`Zapret parser: ${result.type} · ${result.profiles.length} profile(s) · ${result.ready?'READY':'CHECK'}`,result.ready?'good':'');
+    }catch(e){
+      $('zapretImportState').textContent='FAIL';notice(`Zapret parser: ${e.message}`,'error');
+    }finally{$('zapretImportRun').disabled=false;reportHeight()}
   }
   function clearZapretImport(){
     $('zapretImportInput').value='';refreshSyntaxEditor($('zapretImportInput'));$('zapretImportSourceMeta').textContent='Команда · .bat · .cmd · .txt · лог теста';

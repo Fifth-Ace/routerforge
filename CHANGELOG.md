@@ -4,6 +4,30 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-21 — RouterForge 0.10.0-beta.3
+
+### NFQWS strategy intelligence
+- NFQWS2 Manager now covers evidence-aware diagnostics, Strategy Bench/AutoSelect, target memory, scoring/recommendations, curated upstream/Zapret strategy sources and guarded Safe Apply.
+- DPI Detector v5 integration gained managed runtime foundations, native console/web diagnostics, live report streaming and richer result presentation.
+- Processing Map and the strategy workspace were completed into actionable end-to-end workflows.
+
+### Safety / reliability
+- Live bench execution is blocked during management SSH sessions.
+- Parallel-bench firewall insertion is atomic and command execution is routed through shared safety primitives.
+- tcp16, Zapret parsing, strategy registry, recommendation planning and maintenance-job paths received follow-up hardening.
+
+### Monitoring
+- Monitoring now includes a live process manager with per-process CPU/RSS, search and sortable columns.
+- Live refresh no longer drags the page scroll position.
+- Process columns are compacted so the normal desktop layout keeps CPU/RAM/Threads/PPID visible without a horizontal scrollbar.
+
+### Release
+- Beta train advances to `0.10.0-beta.3` (`0.10.0~beta.3` for opkg).
+- Beta topology remains 7 components × 3 targets = 21 IPKs.
+- Immutable snapshot: `routerforge-v0.10.0-beta.3`.
+- Stable/main is not promoted by this Beta release.
+- Next active workstream: P23 RouterForge Idle Footprint Reduction.
+
 ## 2026-09-19 — RouterForge 0.10.0-beta.2
 
 ### NFQWS workspace

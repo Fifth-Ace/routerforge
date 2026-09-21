@@ -5479,14 +5479,16 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('v2SelectorPreview').disabled=true;
     try{
       const p=await api('/bench-autotune/apply-preview',{method:'POST',body:JSON.stringify({token:d.apply_gate_token,expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_AUTOTUNE_PREVIEW'})});
-      if(!p.ok||!p.preview_only)throw new Error('preview contract mismatch');v2SelectorPreviewData=p;$('v2SelectorPreviewBody').textContent=p.candidate_config||'';
-      $('v2SelectorApply').disabled=!p.changed;notice(`Preview готов · ${String(p.candidate_config_sha256||'').slice(0,16)}…`,'good');
+      if(!p.ok||!p.preview_only)throw new Error('preview contract mismatch');v2SelectorPreviewData=p;
+      const meta=[`Source: ${p.candidate_source||'production'}`,`Transport: ${p.transport||'https'}`,`Session: ${p.session_id||'legacy'}`,`Fingerprint: ${p.candidate_fingerprint||'—'}`,`Live: ${p.live_result_class||'—'} / ${Number(p.live_success_rate||0)*100}%`,`Resources: ${(p.required_resources||[]).join(', ')||'none'}`,`Reload: ${p.reload_method||'Smart Apply'}`].join('\n');
+      $('v2SelectorPreviewBody').textContent=`${meta}\n\n${p.candidate_config||''}`;
+      $('v2SelectorApply').disabled=!p.changed;notice(`Generic Safe Apply Preview готов · ${String(p.candidate_config_sha256||'').slice(0,16)}…`,'good');
     }catch(e){v2SelectorPreviewData=null;notice(`Preview: ${e.message}`,'error')}
     finally{$('v2SelectorPreview').disabled=false}
   }
   async function applyV2SelectorPreview(){
     const d=v2SelectorLast,p=v2SelectorPreviewData;if(!d?.apply_gate_token||!p?.changed)return;
-    if(!confirm(`Применить recommendation через существующий Smart Apply?\nTarget: ${p.server_name}\nActive: ${p.active_config_sha256}\nCandidate: ${p.candidate_config_sha256}\n\nBackup + verify + rollback остаются обязательными.`))return;
+    if(!confirm(`Применить live-verified candidate через Smart Apply?\nTarget: ${p.server_name}\nSource: ${p.candidate_source||'production'}\nTransport: ${p.transport||'https'}\nFingerprint: ${p.candidate_fingerprint||'—'}\nActive: ${p.active_config_sha256}\nCandidate: ${p.candidate_config_sha256}\n\nReceipt one-shot. Dependency hashes + backup + verify + rollback обязательны.`))return;
     $('v2SelectorApply').disabled=true;
     try{
       const latest=await api('/status');if(String(latest.config_sha256).toLowerCase()!==String(p.active_config_sha256).toLowerCase())throw new Error('active config changed after preview');

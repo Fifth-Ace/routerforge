@@ -33,6 +33,18 @@ type benchAutoTunePreviewResponse struct {
 	SourceStrategyArgs    []string `json:"source_strategy_args"`
 	CandidateStrategyArgs []string `json:"candidate_strategy_args"`
 	GateExpiresAt         string   `json:"gate_expires_at"`
+	Transport             string   `json:"transport,omitempty"`
+	SessionID             string   `json:"session_id,omitempty"`
+	CandidateID           string   `json:"candidate_id,omitempty"`
+	CandidateName         string   `json:"candidate_name,omitempty"`
+	CandidateSource       string   `json:"candidate_source,omitempty"`
+	CandidateFingerprint  string   `json:"candidate_fingerprint,omitempty"`
+	LiveResultClass       string   `json:"live_result_class,omitempty"`
+	LiveSuccessRate       float64  `json:"live_success_rate,omitempty"`
+	LiveCompleteRate      float64  `json:"live_complete_rate,omitempty"`
+	RequiredResources     []string `json:"required_resources"`
+	ReloadMethod          string   `json:"reload_method"`
+	Warnings              []string `json:"warnings"`
 	Reason                string   `json:"reason"`
 }
 
@@ -281,7 +293,12 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	candidateHash := smartApplySHA256([]byte(candidateConfig))
-	if err := storeBenchAutoTuneApplyReceipt(plan, candidateConfig, candidateHash); err != nil {
+	expectedLists, expectedBlobs, resources, err := v2SnapshotCandidateDependencies(candidateConfig)
+	if err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "snapshot candidate dependencies: " + err.Error()})
+		return
+	}
+	if err := storeBenchAutoTuneApplyReceiptWithResources(plan, candidateConfig, candidateHash, expectedLists, expectedBlobs); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create AutoTune preview receipt: " + err.Error()})
 		return
 	}
@@ -298,7 +315,19 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		Changed:               candidateHash != activeHash,
 		SourceStrategyArgs:    append([]string{}, source.Args...),
 		CandidateStrategyArgs: append([]string{}, candidateArgs...),
-		GateExpiresAt:         plan.ExpiresAt.Format(time.RFC3339),
-		Reason:                "deterministic preview only; production Apply remains locked",
+		GateExpiresAt:        plan.ExpiresAt.Format(time.RFC3339),
+		Transport:            plan.Transport,
+		SessionID:            plan.SessionID,
+		CandidateID:          plan.CandidateID,
+		CandidateName:        plan.CandidateName,
+		CandidateSource:      plan.CandidateSource,
+		CandidateFingerprint: plan.CandidateFingerprint,
+		LiveResultClass:      plan.LiveResultClass,
+		LiveSuccessRate:      plan.LiveSuccessRate,
+		LiveCompleteRate:     plan.LiveCompleteRate,
+		RequiredResources:    resources,
+		ReloadMethod:         "Smart Apply: controlled restart when service is running; no restart when stopped",
+		Warnings:             []string{},
+		Reason:               "deterministic preview only; production Apply remains locked",
 	})
 }

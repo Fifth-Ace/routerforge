@@ -1568,9 +1568,9 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			if bindErr != nil {
 				applyReason = "bind candidate to production profile: " + bindErr.Error()
 			} else {
-				plan, planErr := storeBenchAutoTuneApplyPlanForCandidate(
-					status.ConfigSHA256, target, ip, *sourceProfile, boundArgs,
-					best.CandidateSource, v2CandidateTechniqueFingerprint(best.Args),
+				plan, planErr := v2StoreGenericCandidateApplyPlan(
+					status.ConfigSHA256, target, ip, benchTransportHTTPS, sessionID,
+					*sourceProfile, boundArgs, best,
 				)
 				if planErr != nil {
 					applyReason = "create apply gate: " + planErr.Error()

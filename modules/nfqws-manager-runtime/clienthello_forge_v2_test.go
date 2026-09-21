@@ -57,7 +57,7 @@ func TestClientHelloForgeHTTP(t *testing.T) {
 	}
 	body, _ := json.Marshal(v2ClientHelloForgeRequest{
 		ContentBase64: base64.StdEncoding.EncodeToString(src),
-		SNI: "www.google.com",
+		SNI:           "www.google.com",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/v1/clienthello/forge", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

@@ -470,8 +470,8 @@ func handleV2CandidatePool(w http.ResponseWriter, r *http.Request) {
 	}
 	transport := strings.TrimSpace(r.URL.Query().Get("transport"))
 	hint := v2PlannerHint{
-		DiagnosticCode: strings.TrimSpace(r.URL.Query().Get("diagnostic_code")),
-		FaultDomain: strings.TrimSpace(r.URL.Query().Get("fault_domain")),
+		DiagnosticCode:   strings.TrimSpace(r.URL.Query().Get("diagnostic_code")),
+		FaultDomain:      strings.TrimSpace(r.URL.Query().Get("fault_domain")),
 		StrategyRelevant: strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("strategy_relevant")), "true"),
 	}
 	resp, err := v2PlanCandidatePoolForTransport(target, mode, transport, hint)
@@ -497,8 +497,8 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 		return meta, err
 	}
 	pool, err := v2PlanCandidatePoolForTransport(target, req.Mode, benchTransportHTTPS, v2PlannerHint{
-		DiagnosticCode: req.DiagnosticCode,
-		FaultDomain: req.DiagnosticFaultDomain,
+		DiagnosticCode:   req.DiagnosticCode,
+		FaultDomain:      req.DiagnosticFaultDomain,
 		StrategyRelevant: req.DiagnosticStrategyRelevant,
 	})
 	if err != nil {

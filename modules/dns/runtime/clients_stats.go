@@ -133,7 +133,7 @@ func (s *Store) RecordClientQuery(now time.Time, transport, srcIP, srcMAC string
 	st, info, key := s.ensureClientStateLocked(srcIP, srcMAC)
 	st.requests++
 	st.lastSeen = now
-	if _, exists := st.domains[d.QName]; exists || len(st.domains) < 1000 {
+	if _, exists := st.domains[d.QName]; exists || len(st.domains) < s.clientDomainCap {
 		st.domains[d.QName]++
 	}
 

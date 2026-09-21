@@ -38,6 +38,22 @@ func readSystemInfo() systemInfo {
 	return out
 }
 
+func readMemTotalKB(path string) int64 {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		if strings.HasPrefix(line, "MemTotal:") {
+			return parseStatusKB(line)
+		}
+	}
+	return 0
+}
+
 func parseStatusKB(line string) int64 {
 	f := strings.Fields(line)
 	if len(f) < 2 {

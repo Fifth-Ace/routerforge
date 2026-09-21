@@ -11,12 +11,36 @@ import (
 var latencyBoundsMS = [...]float64{10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 8000, 16000}
 
 const (
-	defaultFlowRetentionCap = 10000
-	maxClientDetailEvents   = 2000
-	topDomainsCacheTTL      = 15 * time.Second
-	topDomainsCacheFloor    = 30
-	topDomainsCacheMax      = 100
+	defaultFlowRetentionCap       = 10000
+	defaultDomainCountCap         = 20000
+	defaultClientDomainCap        = 1000
+	maxClientDetailEvents         = 2000
+	topDomainsCacheTTL            = 15 * time.Second
+	topDomainsCacheFloor          = 30
+	topDomainsCacheMax            = 100
+	dnsMemorySmallMaxKB     int64 = 128 * 1024
+	dnsMemoryMediumMaxKB    int64 = 256 * 1024
 )
+
+type dnsMemoryProfile struct {
+	Name             string
+	FlowRetentionCap int
+	DomainCountCap   int
+	ClientDomainCap  int
+}
+
+func dnsMemoryProfileFor(totalKB int64) dnsMemoryProfile {
+	switch {
+	case totalKB <= 0:
+		return dnsMemoryProfile{Name: "legacy", FlowRetentionCap: defaultFlowRetentionCap, DomainCountCap: defaultDomainCountCap, ClientDomainCap: defaultClientDomainCap}
+	case totalKB <= dnsMemorySmallMaxKB:
+		return dnsMemoryProfile{Name: "small", FlowRetentionCap: 2048, DomainCountCap: 4096, ClientDomainCap: 256}
+	case totalKB <= dnsMemoryMediumMaxKB:
+		return dnsMemoryProfile{Name: "medium", FlowRetentionCap: 4096, DomainCountCap: 8192, ClientDomainCap: 384}
+	default:
+		return dnsMemoryProfile{Name: "large", FlowRetentionCap: 8192, DomainCountCap: 12000, ClientDomainCap: 512}
+	}
+}
 
 type upstreamState struct {
 	meta               UpstreamMeta
@@ -128,6 +152,7 @@ type Store struct {
 	errors                  []ErrorEvent
 	errorCap                int
 	domainCounts            map[string]uint64
+	domainCountCap          int
 	topDomainsMu            sync.Mutex
 	topDomainsCache         []DomainCount
 	topDomainsCacheAt       time.Time
@@ -146,6 +171,7 @@ type Store struct {
 	lastDiscovery           time.Time
 	clientRegistry          map[string]ClientInfo
 	clientStats             map[string]*clientState
+	clientDomainCap         int
 	recentClients           map[string][]*clientQuery
 	clientPending           map[string][]*clientQuery
 	clientDedup             map[string]time.Time
@@ -162,12 +188,18 @@ type Store struct {
 }
 
 func NewStore(flowCap, errorCap int) *Store {
+	return newStoreWithLimits(flowCap, errorCap, defaultDomainCountCap, defaultClientDomainCap)
+}
+func newStoreWithLimits(flowCap, errorCap, domainCountCap, clientDomainCap int) *Store {
+	flowCap = maxInt(1, flowCap)
+	domainCountCap = maxInt(1, domainCountCap)
+	clientDomainCap = maxInt(1, clientDomainCap)
 	return &Store{
 		started: time.Now(), upstreams: make(map[uint16]*upstreamState), portIdentity: make(map[uint16]string), pending: make(map[pendingKey]pendingQuery), timedOut: make(map[pendingKey]timedOutQuery),
-		recentByName: make(map[string][]recentQuery), flow: make([]compactFlowEvent, maxInt(1, flowCap)), flowCap: maxInt(1, flowCap), errorCap: errorCap,
-		domainCounts: make(map[string]uint64), fallbackEdges: make(map[[2]uint16]uint64), errorDedup: make(map[string]time.Time), history: make([]minuteBucket, 1440),
-		clientRegistry: make(map[string]ClientInfo), clientStats: make(map[string]*clientState), recentClients: make(map[string][]*clientQuery), clientPending: make(map[string][]*clientQuery), clientDedup: make(map[string]time.Time), clientResponseDedup: make(map[string]time.Time),
-		clientFlow: make([]compactClientFlowEvent, maxInt(1, flowCap)), clientFlowCap: maxInt(1, flowCap), eventStrings: newEventStringPool(), policyRoutes: make(map[string]PolicyRouteView),
+		recentByName: make(map[string][]recentQuery), flow: make([]compactFlowEvent, flowCap), flowCap: flowCap, errorCap: errorCap,
+		domainCounts: make(map[string]uint64), domainCountCap: domainCountCap, fallbackEdges: make(map[[2]uint16]uint64), errorDedup: make(map[string]time.Time), history: make([]minuteBucket, 1440),
+		clientRegistry: make(map[string]ClientInfo), clientStats: make(map[string]*clientState), clientDomainCap: clientDomainCap, recentClients: make(map[string][]*clientQuery), clientPending: make(map[string][]*clientQuery), clientDedup: make(map[string]time.Time), clientResponseDedup: make(map[string]time.Time),
+		clientFlow: make([]compactClientFlowEvent, flowCap), clientFlowCap: flowCap, eventStrings: newEventStringPool(), policyRoutes: make(map[string]PolicyRouteView),
 	}
 }
 
@@ -429,7 +461,7 @@ func (s *Store) RecordQuery(now time.Time, transport string, proxyPort, clientPo
 	b := s.historyBucketLocked(now)
 	b.requests++
 	resolverBucketLocked(b, proxyPort).requests++
-	if _, exists := s.domainCounts[d.QName]; exists || len(s.domainCounts) < 20000 {
+	if _, exists := s.domainCounts[d.QName]; exists || len(s.domainCounts) < s.domainCountCap {
 		s.domainCounts[d.QName]++
 	}
 	clientKey, clientInfo, clientTxn := s.matchClientLocked(now, st.meta.Profile, d.QName, d.QType, d.ID, proxyPort)

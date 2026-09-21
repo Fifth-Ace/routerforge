@@ -150,6 +150,18 @@ func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
 			Repository: "Fifth-Ace/routerforge",
 			Note:       "verified RouterForge target-memory evidence",
 		}
+	case "omn1z":
+		return v2StrategyRegistryProvenance{
+			Kind: "upstream-corpus", Source: "omn1z",
+			Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef,
+			Note: "curated resource-free candidate from the pinned Omn1z strategy catalog",
+		}
+	case "z2k":
+		return v2StrategyRegistryProvenance{
+			Kind: "upstream-corpus", Source: "z2k",
+			Repository: v2CorpusZ2KRepository, Ref: v2CorpusZ2KRef,
+			Note: "curated resource-free technique adapted from the pinned z2k strategy pools",
+		}
 	case "catalog":
 		return v2StrategyRegistryProvenance{
 			Kind: "local-library", Source: "catalog",
@@ -269,6 +281,9 @@ func v2BuildStrategyRegistry(
 	builtins = append(builtins, v2BuiltinSTUNCandidates...)
 	for _, builtin := range builtins {
 		v2RegistryEnsure(acc, builtin.Name, "builtin", builtin.Protocol, builtin.Family, builtin.Args)
+	}
+	for _, upstream := range v2StaticStrategyCorpus() {
+		v2RegistryEnsure(acc, upstream.Name, upstream.Source, upstream.Protocol, upstream.Family, upstream.Args)
 	}
 
 	for _, stored := range library.Strategies {

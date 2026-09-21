@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const healthPrefix = "dnsmon-"
+const (
+	healthPrefix              = "dnsmon-"
+	healthObservedFreshWindow = 90 * time.Second
+)
 
 func isHealthDomain(s string) bool { return strings.HasPrefix(strings.ToLower(s), healthPrefix) }
 
@@ -18,22 +21,48 @@ func shouldHealthCheck(u UpstreamView) bool {
 	return u.Profile == "System" || u.PolicyMark == 0 || u.PolicyHasDefault
 }
 
+func shouldSyntheticHealthProbe(u UpstreamView, now time.Time) bool {
+	if !shouldHealthCheck(u) {
+		return false
+	}
+	if u.LastObserved.IsZero() {
+		return true
+	}
+	return now.Sub(u.LastObserved) > healthObservedFreshWindow
+}
+
+func (s *Store) healthCandidates(now time.Time) []UpstreamView {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	out := make([]UpstreamView, 0, len(s.upstreams))
+	for _, st := range s.upstreams {
+		if st == nil {
+			continue
+		}
+		view := UpstreamView{
+			UpstreamMeta: st.meta,
+			LastObserved: st.lastObserved,
+		}
+		if shouldSyntheticHealthProbe(view, now) {
+			out = append(out, view)
+		}
+	}
+	return out
+}
+
 func healthLoop(store *Store, interval time.Duration, log *EventLogger) {
 	// Discovery runs immediately. Give it enough time to populate the first map.
 	time.Sleep(3 * time.Second)
 
 	checkAll := func() {
-		snap := store.Snapshot(0, 0, 0)
-		ups, _ := snap["upstreams"].([]UpstreamView)
+		ups := store.healthCandidates(time.Now())
 
 		// Avoid a burst of dozens of simultaneous encrypted-DNS probes on a small router.
 		sem := make(chan struct{}, 6)
 		var wg sync.WaitGroup
 		for _, u := range ups {
 			u := u
-			if !shouldHealthCheck(u) {
-				continue
-			}
 			wg.Add(1)
 			sem <- struct{}{}
 			go func() {

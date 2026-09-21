@@ -476,7 +476,7 @@ func (runtime *adminNFQWSJobRuntime) statuses() []adminNFQWSJobState {
 
 func handleAdminNFQWSJobs(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"jobs":  adminNFQWSJobs.statuses(),
+		"jobs": adminNFQWSJobs.statuses(),
 		"kinds": []string{
 			"detect-target",
 			"tcp16-revalidate",

@@ -19,13 +19,24 @@ func v2StrategySelectionArg(arg string) bool {
 	}
 }
 
+func v2ProductionSourceProfileEligible(profile benchStrategyProfile) bool {
+	if profile.Index < 0 || len(profile.Args) == 0 {
+		return false
+	}
+	return validatePreviewArgs(profile.Args) == nil
+}
+
 func v2BindCandidateToSourceProfile(source benchStrategyProfile, testedArgs []string) ([]string, error) {
-	if source.Index < 0 || len(source.Args) == 0 || !source.CandidateEligible {
+	if !v2ProductionSourceProfileEligible(source) {
 		return nil, errors.New("source production profile is not eligible")
 	}
 	technique := v2PortableCandidateArgs(testedArgs)
 	if len(technique) == 0 {
 		return nil, errors.New("candidate technique is empty")
+	}
+	techniqueProfile := analyzeBenchStrategyProfile(-1, technique)
+	if !techniqueProfile.CandidateEligible {
+		return nil, errors.New("candidate technique is not eligible: " + strings.Join(techniqueProfile.Reasons, "; "))
 	}
 	bound := make([]string, 0, len(source.Args)+len(technique))
 	for _, arg := range source.Args {
@@ -34,9 +45,8 @@ func v2BindCandidateToSourceProfile(source benchStrategyProfile, testedArgs []st
 		}
 	}
 	bound = append(bound, technique...)
-	profile := analyzeBenchStrategyProfile(source.Index, bound)
-	if !profile.CandidateEligible {
-		return nil, errors.New("bound candidate is not eligible: " + strings.Join(profile.Reasons, "; "))
+	if err := validatePreviewArgs(bound); err != nil {
+		return nil, errors.New("bound candidate is invalid: " + err.Error())
 	}
 	return bound, nil
 }
@@ -76,7 +86,7 @@ func v2ProductionProfilesMatchingTarget(target string, inventory benchStrategyIn
 	}
 	out := []benchStrategyProfile{}
 	for _, profile := range inventory.Profiles {
-		if !profile.CandidateEligible {
+		if !v2ProductionSourceProfileEligible(profile) {
 			continue
 		}
 		if v2ProfileMatchesTargetWithLists(target, profile, matchedLists) {

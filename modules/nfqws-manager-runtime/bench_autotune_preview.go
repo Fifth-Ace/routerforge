@@ -245,7 +245,7 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	if source == nil || !source.CandidateEligible {
+	if source == nil || !v2ProductionSourceProfileEligible(*source) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "tested source profile identity is no longer eligible"})
 		return
 	}

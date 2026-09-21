@@ -132,7 +132,6 @@ func (s *systemCollector) cpuSnapshot() ([]cpuSample, time.Time, bool) {
 	return append([]cpuSample(nil), s.latest...), s.sampledAt, s.ready
 }
 
-
 func (s *moduleServer) registerSystem(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/summary", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		load := readLoadAverage()

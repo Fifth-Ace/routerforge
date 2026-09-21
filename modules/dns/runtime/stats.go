@@ -10,8 +10,13 @@ import (
 
 var latencyBoundsMS = [...]float64{10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 8000, 16000}
 
-const defaultFlowRetentionCap = 10000
-const maxClientDetailEvents = 2000
+const (
+	defaultFlowRetentionCap = 10000
+	maxClientDetailEvents   = 2000
+	topDomainsCacheTTL      = 15 * time.Second
+	topDomainsCacheFloor    = 30
+	topDomainsCacheMax      = 100
+)
 
 type upstreamState struct {
 	meta               UpstreamMeta
@@ -123,6 +128,10 @@ type Store struct {
 	errors                  []ErrorEvent
 	errorCap                int
 	domainCounts            map[string]uint64
+	topDomainsMu            sync.Mutex
+	topDomainsCache         []DomainCount
+	topDomainsCacheAt       time.Time
+	topDomainsCacheLimit    int
 	fallbackEdges           map[[2]uint16]uint64
 	errorDedup              map[string]time.Time
 	history                 []minuteBucket
@@ -840,6 +849,42 @@ func (s *Store) edgesFromCountsLocked(counts map[[2]uint16]uint64, limit int) []
 	return edges
 }
 
+func (s *Store) topDomainsLocked(topN int, now time.Time) []DomainCount {
+	s.topDomainsMu.Lock()
+	defer s.topDomainsMu.Unlock()
+
+	cacheable := topN > 0 && topN <= topDomainsCacheMax
+	if cacheable && !s.topDomainsCacheAt.IsZero() && s.topDomainsCacheLimit >= topN {
+		age := now.Sub(s.topDomainsCacheAt)
+		if age >= 0 && age < topDomainsCacheTTL {
+			n := minInt(topN, len(s.topDomainsCache))
+			return append([]DomainCount(nil), s.topDomainsCache[:n]...)
+		}
+	}
+
+	tops := make([]DomainCount, 0, len(s.domainCounts))
+	for domain, count := range s.domainCounts {
+		tops = append(tops, DomainCount{Domain: domain, Count: count})
+	}
+	sort.Slice(tops, func(i, j int) bool { return tops[i].Count > tops[j].Count })
+
+	if cacheable {
+		cacheLimit := maxInt(topDomainsCacheFloor, topN)
+		if cacheLimit > topDomainsCacheMax {
+			cacheLimit = topDomainsCacheMax
+		}
+		n := minInt(cacheLimit, len(tops))
+		s.topDomainsCache = append(s.topDomainsCache[:0], tops[:n]...)
+		s.topDomainsCacheAt = now
+		s.topDomainsCacheLimit = cacheLimit
+	}
+
+	if topN > 0 && len(tops) > topN {
+		tops = tops[:topN]
+	}
+	return tops
+}
+
 func (s *Store) Snapshot(flowN, topN, errorN int) map[string]any {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -931,14 +976,7 @@ func (s *Store) Snapshot(flowN, topN, errorN int) map[string]any {
 	})
 	flow := s.flowTailLocked(flowN)
 	errs := tailCopy(s.errors, errorN)
-	tops := make([]DomainCount, 0, len(s.domainCounts))
-	for d, c := range s.domainCounts {
-		tops = append(tops, DomainCount{Domain: d, Count: c})
-	}
-	sort.Slice(tops, func(i, j int) bool { return tops[i].Count > tops[j].Count })
-	if topN > 0 && len(tops) > topN {
-		tops = tops[:topN]
-	}
+	tops := s.topDomainsLocked(topN, now)
 	edges := s.edgesFromCountsLocked(s.fallbackEdges, 30)
 	return map[string]any{
 		"started": s.started, "uptime_seconds": int64(time.Since(s.started).Seconds()), "total_requests": s.totalRequests, "total_responses": s.totalResponses, "total_late_responses": s.totalLateResponses, "total_unmatched_responses": s.totalUnmatchedResponses, "total_fallbacks": s.totalFallbacks, "total_timeouts": s.totalTimeouts,
@@ -1178,11 +1216,6 @@ func (s *Store) CleanupTransient(now time.Time, log *EventLogger) {
 			delete(s.timedOut, k)
 		}
 	}
-	for k, t := range s.errorDedup {
-		if now.Sub(t) > 10*time.Minute {
-			delete(s.errorDedup, k)
-		}
-	}
 	for k, items := range s.recentClients {
 		keep := items[:0]
 		for _, it := range items {
@@ -1212,6 +1245,17 @@ func (s *Store) CleanupTransient(now time.Time, log *EventLogger) {
 			delete(s.clientPending, k)
 		} else {
 			s.clientPending[k] = keep
+		}
+	}
+}
+
+func (s *Store) CleanupLongLived(now time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for k, t := range s.errorDedup {
+		if now.Sub(t) > 10*time.Minute {
+			delete(s.errorDedup, k)
 		}
 	}
 	for k, t := range s.clientDedup {

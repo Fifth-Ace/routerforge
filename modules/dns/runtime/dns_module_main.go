@@ -190,12 +190,23 @@ func main() {
 	go diagnosticLoop(store, eventLog)
 
 	go func() {
-		t := time.NewTicker(2 * time.Second)
-		defer t.Stop()
-		for now := range t.C {
-			store.CleanupTransient(now, eventLog)
-			plainDNS.Sweep(now)
-			eventLog.FlushDNSFailures()
+		fast := time.NewTicker(2 * time.Second)
+		dedup := time.NewTicker(10 * time.Second)
+		flush := time.NewTicker(30 * time.Second)
+		defer fast.Stop()
+		defer dedup.Stop()
+		defer flush.Stop()
+
+		for {
+			select {
+			case now := <-fast.C:
+				store.CleanupTransient(now, eventLog)
+				plainDNS.Sweep(now)
+			case now := <-dedup.C:
+				store.CleanupLongLived(now)
+			case <-flush.C:
+				eventLog.FlushDNSFailures()
+			}
 		}
 	}()
 

@@ -165,7 +165,6 @@ func (n *networkCollector) snapshot() (map[string]netRate, time.Time) {
 	return out, n.sampled
 }
 
-
 func (n *networkCollector) keeneticSnapshot() []keeneticInterface {
 	return n.keenetic.snapshotForRequest()
 }

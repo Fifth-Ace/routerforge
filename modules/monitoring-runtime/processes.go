@@ -143,7 +143,6 @@ func (c *processCollector) intervalMillis() int64 {
 	return c.interval.Milliseconds()
 }
 
-
 func readTotalCPUJiffies() (uint64, error) {
 	f, err := os.Open("/proc/stat")
 	if err != nil {

@@ -110,7 +110,6 @@ func (s *storageCollector) sample() {
 	s.ready = true
 }
 
-
 func counterDelta(current, previous uint64) float64 {
 	if current < previous {
 		return 0
@@ -128,7 +127,6 @@ func (s *storageCollector) rateSnapshot() (map[string]diskRate, time.Time) {
 	}
 	return out, s.sampled
 }
-
 
 func (s *moduleServer) registerStorage(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/storage", getOnly(func(w http.ResponseWriter, _ *http.Request) {

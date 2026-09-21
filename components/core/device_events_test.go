@@ -81,6 +81,28 @@ func TestNetworkOnlyAlertsAfterObservedUp(t *testing.T) {
 	}
 }
 
+func TestDeviceObserverCadence(t *testing.T) {
+	if deviceObserverTickInterval != 15*time.Second || deviceNetworkInterval != 15*time.Second || deviceThermalInterval != 30*time.Second || deviceWatchdogInterval != 30*time.Second || deviceStorageInterval != 60*time.Second {
+		t.Fatalf("unexpected observer intervals: tick=%s network=%s thermal=%s watchdog=%s storage=%s", deviceObserverTickInterval, deviceNetworkInterval, deviceThermalInterval, deviceWatchdogInterval, deviceStorageInterval)
+	}
+
+	cases := []struct {
+		tick uint64
+		want deviceObserverCadence
+	}{
+		{0, deviceObserverCadence{Network: true, Storage: true, Thermal: true, Watchdogs: true}},
+		{1, deviceObserverCadence{Network: true}},
+		{2, deviceObserverCadence{Network: true, Thermal: true, Watchdogs: true}},
+		{3, deviceObserverCadence{Network: true}},
+		{4, deviceObserverCadence{Network: true, Storage: true, Thermal: true, Watchdogs: true}},
+	}
+	for _, tc := range cases {
+		if got := deviceObserverCadenceForTick(tc.tick); got != tc.want {
+			t.Fatalf("tick %d: got %#v want %#v", tc.tick, got, tc.want)
+		}
+	}
+}
+
 func TestPreferDeviceStorageMount(t *testing.T) {
 	if !preferDeviceStorageMount("/opt", "/tmp/mnt/uuid") {
 		t.Fatal("/opt must win over duplicate removable mount")

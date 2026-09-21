@@ -1116,6 +1116,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
   <button class="tab" data-tab="strategy-registry-v1">Реестр <span id="v2RegistryTabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="tcp16-memory-v1">TCP16 память <span id="v2TCP16TabCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="target-memory-v2">Target Memory <span id="v2MemoryTabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="upstream-lists">Источники списков <span id="listSourceStateNav" class="nav-meta"></span></button>
   <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
@@ -1126,6 +1127,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="runs">История <span id="runHistoryTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="logs">Логи</button>
   <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab" class="nav-meta"></span></button>
+  <button class="tab" data-tab="runtime-health-v2">Runtime health <span id="runtimeHealthTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="scripts">Скрипты <span id="scriptCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="keenetic">Система <span id="keeneticTabState" class="nav-meta"></span></button>
 </nav>
@@ -1355,6 +1357,50 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   </div>
 </section>
 
+
+
+<section id="view-target-memory-v2" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Target Memory</h2><div class="section-kicker">live-verified history · confidence/TTL · read-only until explicit clear</div></div>
+      <span id="v2MemoryState" class="config-badge">IDLE</span>
+    </div>
+    <div class="toolbar">
+      <input id="v2MemoryFilter" class="search" placeholder="target filter · example.com">
+      <button id="v2MemoryRefresh">Обновить</button>
+      <button id="v2MemoryClearTarget" class="danger">Очистить target…</button>
+      <button id="v2MemoryClearAll" class="danger">Очистить всю память…</button>
+    </div>
+    <div id="v2MemoryPolicy" class="v2-boundary">Policy ещё не загружена.</div>
+    <div id="v2MemoryList" class="v2-list" style="margin-top:10px"><div class="analysis-empty">Открой вкладку — загрузим Target Memory.</div></div>
+    <div class="v2-boundary">Target Memory — исторический hint для planner. Она не создаёт Apply eligibility сама по себе: live verification остаётся authority.</div>
+  </div>
+</section>
+
+<section id="view-runtime-health-v2" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>NFQWS Runtime health</h2><div class="section-kicker">NFQUEUE binding · transport capabilities · automation boundary</div></div>
+      <span id="runtimeHealthState" class="config-badge">IDLE</span>
+    </div>
+    <div class="toolbar"><button id="runtimeHealthRefresh">Обновить</button></div>
+    <div class="v2-two">
+      <article class="panel">
+        <div class="panel-head"><div><h2>NFQUEUE</h2><div class="section-kicker">process ↔ firewall ↔ kernel · observation-only</div></div></div>
+        <div id="runtimeNFQueueHealth" class="diagnostics"><div class="analysis-empty">Нет snapshot.</div></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><div><h2>Transport profiles</h2><div class="section-kicker">runtime-advertised bench capabilities</div></div></div>
+        <div id="runtimeTransportProfiles" class="diagnostics"><div class="analysis-empty">Нет snapshot.</div></div>
+      </article>
+    </div>
+    <article class="panel" style="margin-top:12px">
+      <div class="panel-head"><div><h2>Automation policy</h2><div class="section-kicker">historical evidence never bypasses live verification</div></div></div>
+      <div id="runtimeAutomationPolicy" class="diagnostics"><div class="analysis-empty">Нет snapshot.</div></div>
+    </article>
+    <div class="v2-boundary">Эта вкладка не чинит firewall, не перезапускает nfqws2 и не применяет стратегии. Любая mutation остаётся отдельным explicit workflow.</div>
+  </div>
+</section>
 
 <section id="view-auto-setup-v1" class="view">
   <div class="v2-shell">
@@ -2210,7 +2256,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div class="panel-head"><div><h2>GeoSite / GeoIP Intelligence</h2><div class="section-kicker">upload → inspect categories → preview → explicit list save</div></div><span id="geoState" class="config-badge">IDLE</span></div>
       <div class="setup-row"><div class="setup-label"><strong>Geo asset</strong>geosite.dat / geoip.dat / text</div><div><input id="geoFile" type="file"><select id="geoKind" class="setup-select" style="margin-top:6px"><option value="geosite">GeoSite</option><option value="geoip">GeoIP</option><option value="text">Text</option></select></div></div>
       <div class="setup-row"><div class="setup-label"><strong>Provenance</strong>optional metadata only</div><div><input id="geoSource" class="setup-input" placeholder="source label"><input id="geoSourceRef" class="setup-input" style="margin-top:6px" placeholder="exact ref / version"></div></div>
-      <div class="toolbar"><button id="geoUpload" class="primary">Upload asset</button><button id="geoRefresh">Refresh</button></div>
+      <div class="toolbar"><button id="geoUpload" class="primary">Upload asset</button><button id="geoSaveProvenance">Сохранить provenance</button><button id="geoRefresh">Refresh</button></div>
       <div id="geoAssets" class="blob-list" style="margin-top:10px"><div class="empty">Geo assets ещё не загружены.</div></div>
       <div class="setup-row" style="margin-top:10px"><div class="setup-label"><strong>Category</strong>preview is read-only</div><div><select id="geoAssetSelect" class="setup-select"></select><select id="geoCategorySelect" class="setup-select" style="margin-top:6px"></select><input id="geoListName" class="setup-input mono" style="margin-top:6px" placeholder="geo-category.list"></div></div>
       <div class="toolbar"><button id="geoPreview">Preview</button><button id="geoSaveList">Save as list…</button></div>
@@ -2426,7 +2472,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <div class="muted small" style="margin-top:5px">Постоянные snapshots до config/list/blob/library mutation. Inventory, diff и restore живут на роутере и переживают reboot.</div>
         <div id="backupCenterRoot" class="section-kicker mono" style="margin-top:7px">/opt/var/lib/routerforge/nfqws-manager/backups</div>
       </div>
-      <div class="toolbar"><button id="refreshBackups">Обновить</button></div>
+      <div class="toolbar"><button id="refreshBackups">Обновить</button><button id="pruneBackups" class="danger">Очистить старые…</button></div>
     </div>
     <div class="backup-center-summary">
       <div class="backup-center-stat"><span>Persistent</span><strong id="backupPersistentCount">0</strong></div>
@@ -3620,6 +3666,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
   function renderGeoCategories(){
     const asset=geoAssetSelected(),cats=Array.isArray(asset?.categories)?asset.categories:[];
+    if(asset){$('geoSource').value=asset.source||'';$('geoSourceRef').value=asset.source_ref||''}
     $('geoCategorySelect').innerHTML=cats.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${Number(x.count||0)}</option>`).join('');
     if(asset&&cats.length&&!$('geoListName').value.trim())$('geoListName').value=`geo-${String(cats[0].name).replace(/[^A-Za-z0-9._-]+/g,'-')}.list`;
   }
@@ -3662,6 +3709,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('geoAssetSelect')?.addEventListener('change',renderGeoCategories);
   $('geoCategorySelect')?.addEventListener('change',()=>{const c=$('geoCategorySelect').value;if(c)$('geoListName').value=`geo-${String(c).replace(/[^A-Za-z0-9._-]+/g,'-')}.list`});
   $('geoUpload')?.addEventListener('click',uploadGeoAsset);
+  $('geoSaveProvenance')?.addEventListener('click',saveGeoProvenance);
   $('geoRefresh')?.addEventListener('click',loadGeoAssets);
   $('geoPreview')?.addEventListener('click',previewGeoCategory);
   $('geoSaveList')?.addEventListener('click',saveGeoCategory);
@@ -3909,7 +3957,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(!$('blobInventoryList'))return;const deps=blobDependencyRows(),missing=deps.filter(x=>x.state!=='ok').length,referenced=blobFiles.filter(x=>x.referenced).length;
     $('blobInstalledCount').textContent=blobFiles.length;$('blobRequiredCount').textContent=deps.length;$('blobMissingCount').textContent=missing;$('blobReferencedCount').textContent=referenced;$('blobTabState').textContent=missing?`(${missing}!)`:blobFiles.length?`(${blobFiles.length})`:'';
     $('blobRootMeta').textContent=blobRoot||'/opt/etc/nfqws2/blobs';
-    $('blobInventoryList').innerHTML=blobFiles.length?blobFiles.map(x=>`<div class="blob-row"><div><div class="blob-name">${esc(x.name)}</div><div class="blob-meta">${bytes(x.size)} · sha256 ${esc(String(x.sha256||'').slice(0,16))}…</div><div class="blob-refs">${x.referenced?`refs: ${esc((x.references||[]).join(', '))}`:'unreferenced'}</div></div><div class="blob-actions"><span class="blob-state ok">INSTALLED</span><button class="danger" data-blob-delete="${esc(x.name)}" ${x.referenced?'disabled title="Referenced blob cannot be deleted"':''}>Удалить</button></div></div>`).join(''):'<div class="empty">Blob-файлы не найдены.</div>';
+    $('blobInventoryList').innerHTML=blobFiles.length?blobFiles.map(x=>`<div class="blob-row"><div><div class="blob-name">${esc(x.name)}</div><div class="blob-meta">${bytes(x.size)} · sha256 ${esc(String(x.sha256||'').slice(0,16))}…</div><div class="blob-refs">${x.referenced?`refs: ${esc((x.references||[]).join(', '))}`:'unreferenced'}</div></div><div class="blob-actions"><span class="blob-state ok">INSTALLED</span><button data-blob-validate="${esc(x.name)}">ClientHello?</button><button class="danger" data-blob-delete="${esc(x.name)}" ${x.referenced?'disabled title="Referenced blob cannot be deleted"':''}>Удалить</button></div></div>`).join(''):'<div class="empty">Blob-файлы не найдены.</div>';
+    $('blobInventoryList').querySelectorAll('[data-blob-validate]').forEach(b=>b.onclick=()=>validateInstalledClientHello(b.dataset.blobValidate));
     $('blobInventoryList').querySelectorAll('[data-blob-delete]').forEach(b=>b.onclick=()=>deleteBlob(b.dataset.blobDelete));
     if(!catalogSelectedData){$('blobCatalogMeta').textContent='Выберите config в Catalog';$('blobDependencyList').innerHTML='<div class="empty">Выберите стратегию в Catalog, чтобы проверить её blobs.</div>';return}
     const item=catalogSelectedData.item;$('blobCatalogMeta').textContent=`${item.name} · ${item.kind==='upstream'?`exact ref ${String(item.ref).slice(0,12)}`:item.source}`;
@@ -3933,6 +3982,86 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     try{const d=await api('/blobs/delete',{method:'POST',body:JSON.stringify({name,confirm:'NFQWS_BLOB_DELETE'})});blobFiles=Array.isArray(d.inventory?.files)?d.inventory.files:blobFiles;renderBlobs();notice(`${name}: удалён, backup=${d.backup||'created'}`,'good')}catch(e){notice(`Удаление ${name}: ${e.message}`,'error')}
   }
 
+
+
+  async function validateInstalledClientHello(name){
+    try{
+      const d=await api(`/clienthello/validate?name=${encodeURIComponent(name)}`);
+      notice(`${name}: ${d.valid?'VALID ClientHello':'not a valid ClientHello'}${d.sni?` · SNI ${d.sni}`:''} · ${d.detail||''}`,d.valid?'good':'error');
+    }catch(e){notice(`ClientHello validate ${name}: ${e.message}`,'error')}
+  }
+
+  let v2MemoryData=null;
+  function renderV2TargetMemory(){
+    const d=v2MemoryData||{},rows=Array.isArray(d.entries)?d.entries:[];
+    $('v2MemoryTabCount').textContent=rows.length?`(${rows.length})`:'';
+    $('v2MemoryState').textContent=`${rows.length} ENTRIES`;
+    const p=d.policy||{};
+    $('v2MemoryPolicy').textContent=`policy v${p.version||'—'} · working TTL ${Math.round(Number(p.working_max_age_seconds||0)/3600)}h · unstable TTL ${Math.round(Number(p.unstable_max_age_seconds||0)/3600)}h · strong verified≥${Number(p.strong_min_verified||0)} · trusted verified≥${Number(p.trusted_min_verified||0)}`;
+    $('v2MemoryList').innerHTML=rows.length?rows.map(x=>{
+      const confidence=String(x.confidence||'BLOCKED'),good=!!x.reuse_eligible;
+      return `<div class="v2-row ${good?'good':'warn'}"><div class="v2-result-title">${esc(x.target||'—')}</div><div><div class="value">${esc(x.candidate_name||x.candidate_id||'candidate')} · ${esc(x.protocol||'https')} · ${esc(confidence)}</div><div class="meta">${esc(x.candidate_source||'')} · ${esc(x.result_class||'')} · verified=${Number(x.verified_count||0)} · streak=${Number(x.success_streak||0)} · success=${Math.round(Number(x.success_rate||0)*100)}% · age=${Number(x.age_seconds||0)}s<br>${esc(x.reuse_reason||'')}</div><details><summary>args / fingerprint</summary><pre class="v2-args">${esc((x.args||[]).join(' '))}\n\n${esc(x.fingerprint||'')}</pre></details></div>${v2Pill(good?'REUSE':'HISTORY')}</div>`;
+    }).join(''):'<div class="analysis-empty">Target Memory пуста.</div>';
+    reportHeight();
+  }
+  async function loadV2TargetMemory(){
+    const filter=String($('v2MemoryFilter')?.value||'').trim();
+    $('v2MemoryState').textContent='LOADING';
+    try{
+      v2MemoryData=await api('/v2/memory'+(filter?`?target=${encodeURIComponent(filter)}`:''));
+      renderV2TargetMemory();
+    }catch(e){$('v2MemoryState').textContent='FAIL';$('v2MemoryList').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
+  }
+  async function clearV2TargetMemory(all=false){
+    const target=all?'':String($('v2MemoryFilter')?.value||'').trim();
+    if(!all&&!target){notice('Target Memory: для точечной очистки укажите target.','error');return}
+    const label=all?'ВСЮ Target Memory':`Target Memory для ${target}`;
+    if(!confirm(`Очистить ${label}?\n\nЭто удаляет только historical planner memory. Production config/runtime не меняются.`))return;
+    try{
+      await api('/v2/memory/clear',{method:'POST',body:JSON.stringify({target,confirm:'ROUTERFORGE_V2_MEMORY_CLEAR'})});
+      await loadV2TargetMemory();notice(`${label}: очищена. Production untouched.`,'good');
+    }catch(e){notice(`Target Memory clear: ${e.message}`,'error')}
+  }
+
+  async function loadRuntimeHealthV2(){
+    $('runtimeHealthState').textContent='LOADING';
+    try{
+      const [q,t,p]=await Promise.all([
+        api('/v2/nfqueue-health'),
+        api('/v2/bench-profiles'),
+        api('/v2/policy-automation-gate')
+      ]);
+      const qClass=q.state==='HEALTHY'?'good':q.state==='UNHEALTHY'?'bad':'warn';
+      $('runtimeNFQueueHealth').innerHTML=`<div class="diagnostic ${qClass}"><div class="diagnostic-icon">${q.ok?'✓':'!'}</div><div><div class="diagnostic-title">${esc(q.state||'UNKNOWN')} · production q${esc((q.production_queues||[]).join(','))}</div><div class="diagnostic-detail">${esc(q.reason||'')}<br>firewall=${esc((q.firewall_queues||[]).join(','))} · kernel=${esc((q.kernel_queues||[]).join(','))} · config ${esc(String(q.config_sha256||'').slice(0,16))}… · read-only=${q.read_only?'YES':'NO'}</div></div></div>`;
+      $('runtimeTransportProfiles').innerHTML=(t.profiles||[]).map(x=>`<div class="diagnostic ${x.implemented?'good':'warn'}"><div class="diagnostic-icon">${x.implemented?'✓':'i'}</div><div><div class="diagnostic-title">${esc(String(x.id||'').toUpperCase())} · ${esc(x.network||'')} / ${Number(x.remote_port||0)}</div><div class="diagnostic-detail">${esc(x.metric_scope||'')} · ${esc(x.probe_kind||'')} · timeout ${Number(x.probe_timeout_seconds||0)}s · IPv4=${x.ipv4?'YES':'NO'}</div></div></div>`).join('')||'<div class="analysis-empty">Transport profiles отсутствуют.</div>';
+      $('runtimeAutomationPolicy').innerHTML=`<div class="diagnostic ${p.automation_enabled?'good':'warn'}"><div class="diagnostic-icon">${p.automation_enabled?'✓':'i'}</div><div><div class="diagnostic-title">Automation ${p.automation_enabled?'ENABLED':'GATED'}</div><div class="diagnostic-detail">${esc(p.reason||p.automation_reason||'policy gate loaded')} · historical-only evidence cannot create Apply eligibility.</div></div></div>`;
+      $('runtimeHealthTabState').textContent=q.state||'';
+      $('runtimeHealthState').textContent=q.state||'READY';
+    }catch(e){
+      $('runtimeHealthState').textContent='FAIL';
+      $('runtimeNFQueueHealth').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
+    }
+    reportHeight();
+  }
+
+  async function pruneBackupCenter(){
+    if(!confirm('Очистить старые NFQWS backups по встроенной retention policy?\n\nRuntime/config не меняются. Удаляются только snapshots сверх retention limits.'))return;
+    try{
+      const d=await api('/backups/prune',{method:'POST',body:JSON.stringify({confirm:'NFQWS_BACKUP_PRUNE'})});
+      backupCenterLoaded=false;await loadBackupCenter(true);
+      notice(`Backup prune: persistent ${Number(d.persistent_before||0)} → ${Number(d.persistent_after||0)}, safety ${Number(d.safety_before||0)} → ${Number(d.safety_after||0)}.`,'good');
+    }catch(e){notice(`Backup prune: ${e.message}`,'error')}
+  }
+
+  async function saveGeoProvenance(){
+    const asset=geoAssetSelected();if(!asset){notice('Geo provenance: выберите asset.','error');return}
+    const source=String($('geoSource').value||'').trim(),sourceRef=String($('geoSourceRef').value||'').trim();
+    if(!confirm(`Обновить provenance metadata для ${asset.name}?\n\nAsset bytes, lists и production config не меняются.`))return;
+    try{
+      const d=await api('/v2/geo/source',{method:'POST',body:JSON.stringify({name:asset.name,source,source_ref:sourceRef,source_url:asset.source_url||'',confirm:'ROUTERFORGE_GEO_SOURCE'})});
+      await loadGeoAssets();notice(`Geo provenance ${d.asset?.name||asset.name}: saved. Production untouched.`,'good');
+    }catch(e){notice(`Geo provenance: ${e.message}`,'error')}
+  }
 
   function testLabEvidenceByConfig(){
     const groups=new Map();
@@ -5962,10 +6091,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
-  const nfqwsStrategyTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','catalog','upstream-lists','blobs','zapret-import']);
+  const nfqwsStrategyTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','target-memory-v2','catalog','upstream-lists','blobs','zapret-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2']);
-  const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
+  const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','runtime-health-v2','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
   let nfqwsActiveStrategy='selector-v2';
   let nfqwsActiveTool='domain-v2';
@@ -6003,6 +6132,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(tab==='catalog')loadCatalog();
     if(tab==='blobs')loadBlobs();
     if(tab==='backups')loadBackupCenter();
+    if(tab==='target-memory-v2')void loadV2TargetMemory();
+    if(tab==='runtime-health-v2')void loadRuntimeHealthV2();
     if(tab==='keenetic'){loadKeenetic();loadDPIDetector()}
     if(['domain-v2','prodlab-v2','auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2'].includes(tab))void openV2Workspace(tab);
     if(tab==='strategy-registry-v1')void loadStrategyRegistryV1();
@@ -6025,6 +6156,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsToolTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
   document.querySelectorAll('#nfqwsMaintenanceTabs .tab').forEach(btn=>btn.onclick=()=>activateNFQWSTab(btn.dataset.tab));
+  $('v2MemoryRefresh').onclick=loadV2TargetMemory;
+  $('v2MemoryFilter').onkeydown=e=>{if(e.key==='Enter')loadV2TargetMemory()};
+  $('v2MemoryClearTarget').onclick=()=>clearV2TargetMemory(false);
+  $('v2MemoryClearAll').onclick=()=>clearV2TargetMemory(true);
+  $('runtimeHealthRefresh').onclick=loadRuntimeHealthV2;
+  $('pruneBackups').onclick=pruneBackupCenter;
 
   function syncDPIConsoleFullscreen(){
     const button=$('dpiConsoleFullscreen'),pane=$('dpiConsolePane');if(!button||!pane)return;

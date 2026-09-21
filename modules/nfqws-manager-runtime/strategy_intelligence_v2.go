@@ -58,6 +58,7 @@ type v2DetectResponse struct {
 	TTFBMS             int64                    `json:"ttfb_ms,omitempty"`
 	DurationMS         int64                    `json:"duration_ms,omitempty"`
 	ThroughputBPS      int64                    `json:"throughput_bps,omitempty"`
+	Diagnostic         v2DiagnosticVerdict      `json:"diagnostic"`
 }
 
 type v2HTTPMetrics struct {
@@ -672,7 +673,8 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		stages["dns"] = v2StageResult{State: "fail", LatencyMS: d.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, Stages: stages, Classification: class, ClassificationText: text})
+		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
+		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic})
 		return
 	}
 	stages["dns"] = v2StageResult{State: "pass", LatencyMS: d.Milliseconds(), Detail: ip}
@@ -680,7 +682,8 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		stages["tcp"] = v2StageResult{State: "fail", LatencyMS: td.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text})
+		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
+		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic})
 		return
 	}
 	stages["tcp"] = v2StageResult{State: "pass", LatencyMS: td.Milliseconds(), Detail: ip + ":443"}
@@ -688,7 +691,8 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		stages["tls"] = v2StageResult{State: "fail", LatencyMS: tld.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text})
+		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
+		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic})
 		return
 	}
 	stages["tls"] = v2StageResult{State: "pass", LatencyMS: tld.Milliseconds(), Detail: "TLS handshake complete"}
@@ -704,6 +708,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 	}
 	stages["http"] = v2StageResult{State: state, LatencyMS: metrics.DurationMS, Detail: detail, StatusCode: metrics.HTTPStatus, Bytes: metrics.Bytes}
 	class, text := v2ClassifyDetect(stages, metrics)
+	diagnostic := v2ClassifyDiagnostic(stages, metrics)
 	_ = v2RecordTCP16Observation(target, ip, metrics)
 	writeJSON(w, http.StatusOK, v2DetectResponse{
 		OK: state != "fail", Target: target, DestinationIPv4: ip, Stages: stages,
@@ -711,6 +716,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		ResponseComplete: metrics.ResponseComplete, ProgressProven: metrics.ProgressProven,
 		Cutoff16KSuspected: metrics.Cutoff16KSuspected, TTFBMS: metrics.TTFBMS,
 		DurationMS: metrics.DurationMS, ThroughputBPS: metrics.ThroughputBPS,
+		Diagnostic: diagnostic,
 	})
 }
 

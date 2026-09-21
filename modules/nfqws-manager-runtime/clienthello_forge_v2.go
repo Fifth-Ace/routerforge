@@ -341,10 +341,10 @@ func handleV2ClientHelloCapabilities(w http.ResponseWriter, _ *http.Request) {
 	dynamic, source := v2ClientHelloDynamicCloneCapability()
 	writeJSON(w, http.StatusOK, v2ClientHelloCapability{
 		DynamicCloneAvailable: dynamic,
-		DynamicCloneSource: source,
-		StaticForgeAvailable: true,
-		CaptureAvailable: v2TCPDumpAvailable(),
-		TCPDumpAvailable: v2TCPDumpAvailable(),
+		DynamicCloneSource:    source,
+		StaticForgeAvailable:  true,
+		CaptureAvailable:      v2TCPDumpAvailable(),
+		TCPDumpAvailable:      v2TCPDumpAvailable(),
 	})
 }
 

@@ -3870,6 +3870,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function clientHelloDefaultName(sni){
     return `tls_clienthello_${String(sni||'site').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')}.bin`;
   }
+  function clientHelloCapturedName(sni){
+    return `tls_clienthello_from_${String(sni||'captured').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')}.bin`;
+  }
   function clientHelloBlobID(name){
     const base=String(name||'blob').toLowerCase().replace(/\.bin$/,'').replace(/[^a-z0-9_]+/g,'_').replace(/^_+|_+$/g,'');
     return `rf_${base||'clienthello'}`;
@@ -3974,7 +3977,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         $('clientHelloState').textContent='CAPTURED';$('clientHelloSave').disabled=true;
         $('clientHelloResult').innerHTML=`<div class="diagnostic good"><div class="diagnostic-icon">✓</div><div><div class="diagnostic-title">Основа: ${esc(x.sni||'ClientHello без SNI')}</div><div class="diagnostic-detail">${Number(x.size||0)} bytes · порт ${Number(x.dst_port||0)} · sha256 ${esc(String(x.sha256||'').slice(0,20))}…</div></div></div>`;
         if(!$('clientHelloSNI').value.trim())$('clientHelloSNI').value='www.google.com';
-        if(!$('clientHelloName').value.trim())$('clientHelloName').value=clientHelloDefaultName($('clientHelloSNI').value);
+        $('clientHelloName').value=clientHelloCapturedName(x.sni||'captured');
         renderClientHelloUsage();
       });
     }catch(e){$('clientHelloCaptureState').textContent='ОШИБКА';$('clientHelloCaptureResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
@@ -3985,7 +3988,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('clientHelloGenerate').onclick=generateClientHelloLab;
   $('clientHelloSave').onclick=saveClientHelloLab;
   $('clientHelloCapture').onclick=captureClientHelloDevice;
-  $('clientHelloSNI').oninput=()=>{if($('clientHelloSNI').value.trim())$('clientHelloName').value=clientHelloDefaultName($('clientHelloSNI').value);renderClientHelloUsage()};
+  $('clientHelloSNI').oninput=()=>{
+    if(!clientHelloCaptured&&$('clientHelloSNI').value.trim())$('clientHelloName').value=clientHelloDefaultName($('clientHelloSNI').value);
+    renderClientHelloUsage();
+  };
   $('clientHelloName').oninput=renderClientHelloUsage;
 
   function blobBasename(path){return String(path||'').split('/').pop().replace(/["']/g,'')}

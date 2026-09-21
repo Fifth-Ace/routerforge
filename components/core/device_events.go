@@ -17,7 +17,11 @@ import (
 )
 
 const (
-	deviceObserverInterval      = 15 * time.Second
+	deviceObserverTickInterval  = 15 * time.Second
+	deviceNetworkInterval       = 15 * time.Second
+	deviceThermalInterval       = 30 * time.Second
+	deviceWatchdogInterval      = 30 * time.Second
+	deviceStorageInterval       = 60 * time.Second
 	deviceStorageWarningPct     = 80.0
 	deviceStorageCriticalPct    = 90.0
 	deviceThermalWarningC       = 80.0
@@ -82,6 +86,29 @@ type deviceWatchdogEnvelope struct {
 	} `json:"watchdogs"`
 }
 
+type deviceObserverCadence struct {
+	Network   bool
+	Storage   bool
+	Thermal   bool
+	Watchdogs bool
+}
+
+func deviceObserverCadenceForTick(tick uint64) deviceObserverCadence {
+	if tick == 0 {
+		return deviceObserverCadence{Network: true, Storage: true, Thermal: true, Watchdogs: true}
+	}
+	networkEvery := uint64(deviceNetworkInterval / deviceObserverTickInterval)
+	storageEvery := uint64(deviceStorageInterval / deviceObserverTickInterval)
+	thermalEvery := uint64(deviceThermalInterval / deviceObserverTickInterval)
+	watchdogEvery := uint64(deviceWatchdogInterval / deviceObserverTickInterval)
+	return deviceObserverCadence{
+		Network:   tick%networkEvery == 0,
+		Storage:   tick%storageEvery == 0,
+		Thermal:   tick%thermalEvery == 0,
+		Watchdogs: tick%watchdogEvery == 0,
+	}
+}
+
 func startDeviceEventObserver() {
 	deviceObserver.mu.Lock()
 	if deviceObserver.started {
@@ -94,19 +121,33 @@ func startDeviceEventObserver() {
 	deviceObserver.observe(time.Now().UTC())
 
 	go func() {
-		ticker := time.NewTicker(deviceObserverInterval)
+		ticker := time.NewTicker(deviceObserverTickInterval)
 		defer ticker.Stop()
+		var tick uint64
 		for now := range ticker.C {
-			deviceObserver.observe(now.UTC())
+			tick++
+			deviceObserver.observeCadence(now.UTC(), deviceObserverCadenceForTick(tick))
 		}
 	}()
 }
 
 func (runtime *deviceObserverRuntime) observe(now time.Time) {
-	runtime.observeNetwork(now, readDeviceNetworkStates())
-	runtime.observeStorage(now, readDeviceStorageSamples())
-	runtime.observeThermal(now, readDeviceThermalSamples())
-	runtime.observeWatchdogs(now, readDeviceWatchdogs())
+	runtime.observeCadence(now, deviceObserverCadenceForTick(0))
+}
+
+func (runtime *deviceObserverRuntime) observeCadence(now time.Time, cadence deviceObserverCadence) {
+	if cadence.Network {
+		runtime.observeNetwork(now, readDeviceNetworkStates())
+	}
+	if cadence.Storage {
+		runtime.observeStorage(now, readDeviceStorageSamples())
+	}
+	if cadence.Thermal {
+		runtime.observeThermal(now, readDeviceThermalSamples())
+	}
+	if cadence.Watchdogs {
+		runtime.observeWatchdogs(now, readDeviceWatchdogs())
+	}
 }
 
 func (runtime *deviceObserverRuntime) observeNetwork(now time.Time, current map[string]bool) {

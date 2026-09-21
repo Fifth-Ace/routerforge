@@ -64,90 +64,38 @@ type processCollector struct {
 	latest        []processInfo
 	sampledAt     time.Time
 	ready         bool
-
-	stop chan struct{}
-	done chan struct{}
 }
 
 func newProcessCollector(interval time.Duration) (*processCollector, error) {
 	if interval <= 0 {
 		interval = time.Second
 	}
-
-	total, err := readTotalCPUJiffies()
-	if err != nil {
-		return nil, err
-	}
-
-	users := readProcessUsers()
-	raw := readProcessStats()
-	previous := make(map[int]processCPUState, len(raw))
-	identities := make(map[int]processIdentity, len(raw))
-	latest := make([]processInfo, 0, len(raw))
-	memoryTotalKB := readMemory().TotalKB
-
-	for _, item := range raw {
-		previous[item.PID] = processCPUState{CPUTime: item.CPUTime, StartTime: item.StartTime}
-		identity := readProcessIdentity(item, users)
-		identities[item.PID] = identity
-		latest = append(latest, processInfoFromRaw(item, identity, memoryTotalKB, 0))
-	}
-	sortProcessInfos(latest)
-
-	collector := &processCollector{
-		interval:      interval,
-		previousTotal: total,
-		previous:      previous,
-		identities:    identities,
-		users:         users,
-		latest:        latest,
-		sampledAt:     time.Now(),
-		stop:          make(chan struct{}),
-		done:          make(chan struct{}),
-	}
-	go collector.run()
-	return collector, nil
+	return &processCollector{
+		interval:   interval,
+		previous:   make(map[int]processCPUState),
+		identities: make(map[int]processIdentity),
+		users:      readProcessUsers(),
+	}, nil
 }
 
-func (c *processCollector) Close() {
-	select {
-	case <-c.stop:
-		return
-	default:
-		close(c.stop)
-	}
-	<-c.done
-}
-
-func (c *processCollector) run() {
-	defer close(c.done)
-	ticker := time.NewTicker(c.interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-c.stop:
-			return
-		case <-ticker.C:
-			c.sample()
-		}
-	}
-}
+func (c *processCollector) Close() {}
 
 func (c *processCollector) sample() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := time.Now()
+	if !c.sampledAt.IsZero() && now.Sub(c.sampledAt) < c.interval/2 {
+		return
+	}
+
 	currentTotal, err := readTotalCPUJiffies()
 	if err != nil {
 		return
 	}
 	current := readProcessStats()
 	memoryTotalKB := readMemory().TotalKB
-
-	c.mu.RLock()
-	previousTotal := c.previousTotal
-	previous := c.previous
-	identities := c.identities
-	users := c.users
-	c.mu.RUnlock()
+	initialized := c.previousTotal != 0
 
 	nextPrevious := make(map[int]processCPUState, len(current))
 	nextIdentities := make(map[int]processIdentity, len(current))
@@ -158,14 +106,16 @@ func (c *processCollector) sample() {
 	}
 
 	for _, item := range current {
-		identity, ok := identities[item.PID]
+		identity, ok := c.identities[item.PID]
 		if !ok || identity.StartTime != item.StartTime || identity.Name != item.Name {
-			identity = readProcessIdentity(item, users)
+			identity = readProcessIdentity(item, c.users)
 		}
 
 		cpuPct := 0.0
-		if prev, ok := previous[item.PID]; ok && prev.StartTime == item.StartTime {
-			cpuPct = processCPUPercent(prev.CPUTime, item.CPUTime, previousTotal, currentTotal, cpuCount)
+		if initialized {
+			if prev, ok := c.previous[item.PID]; ok && prev.StartTime == item.StartTime {
+				cpuPct = processCPUPercent(prev.CPUTime, item.CPUTime, c.previousTotal, currentTotal, cpuCount)
+			}
 		}
 
 		nextPrevious[item.PID] = processCPUState{CPUTime: item.CPUTime, StartTime: item.StartTime}
@@ -174,17 +124,16 @@ func (c *processCollector) sample() {
 	}
 	sortProcessInfos(latest)
 
-	c.mu.Lock()
 	c.previousTotal = currentTotal
 	c.previous = nextPrevious
 	c.identities = nextIdentities
 	c.latest = latest
-	c.sampledAt = time.Now()
-	c.ready = true
-	c.mu.Unlock()
+	c.sampledAt = now
+	c.ready = initialized
 }
 
 func (c *processCollector) snapshot() ([]processInfo, time.Time, bool) {
+	c.sample()
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return append([]processInfo(nil), c.latest...), c.sampledAt, c.ready
@@ -193,6 +142,7 @@ func (c *processCollector) snapshot() ([]processInfo, time.Time, bool) {
 func (c *processCollector) intervalMillis() int64 {
 	return c.interval.Milliseconds()
 }
+
 
 func readTotalCPUJiffies() (uint64, error) {
 	f, err := os.Open("/proc/stat")

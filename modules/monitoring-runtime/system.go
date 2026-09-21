@@ -51,13 +51,10 @@ type systemCollector struct {
 	interval  time.Duration
 	window    int
 	previous  map[string]cpuRaw
-	history   map[string][]float64
 	latest    []cpuSample
 	sampledAt time.Time
 	ready     bool
 	processes *processCollector
-	stop      chan struct{}
-	done      chan struct{}
 }
 
 func newSystemCollector() (*systemCollector, error) {
@@ -70,18 +67,15 @@ func newSystemCollector() (*systemCollector, error) {
 		return nil, err
 	}
 	s := &systemCollector{
-		interval:  time.Second,
-		window:    5,
+		interval:  500 * time.Millisecond,
+		window:    1,
 		previous:  make(map[string]cpuRaw, len(raw)),
-		history:   make(map[string][]float64, len(raw)),
+		sampledAt: time.Now(),
 		processes: processes,
-		stop:      make(chan struct{}),
-		done:      make(chan struct{}),
 	}
 	for _, item := range raw {
 		s.previous[item.Name] = item
 	}
-	go s.run()
 	return s, nil
 }
 
@@ -89,39 +83,22 @@ func (s *systemCollector) Close() {
 	if s.processes != nil {
 		s.processes.Close()
 	}
-	select {
-	case <-s.stop:
-		return
-	default:
-		close(s.stop)
-	}
-	<-s.done
-}
-
-func (s *systemCollector) run() {
-	defer close(s.done)
-	ticker := time.NewTicker(s.interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-s.stop:
-			return
-		case <-ticker.C:
-			s.sample()
-		}
-	}
 }
 
 func (s *systemCollector) sample() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now()
+	if s.ready && now.Sub(s.sampledAt) < s.interval {
+		return
+	}
+
 	current, err := readCPURaw()
 	if err != nil {
 		return
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	elapsed := now.Sub(s.sampledAt)
 	latest := make([]cpuSample, 0, len(current))
 	for _, item := range current {
 		prev, ok := s.previous[item.Name]
@@ -130,21 +107,8 @@ func (s *systemCollector) sample() {
 			continue
 		}
 
-		usage := cpuUsage(prev, item)
-		values := append(s.history[item.Name], usage)
-		if len(values) > s.window {
-			values = values[len(values)-s.window:]
-		}
-		s.history[item.Name] = values
-
-		sum := 0.0
-		for _, value := range values {
-			sum += value
-		}
-		rolling := sum / float64(len(values))
-
 		latest = append(latest, cpuSample{
-			Name: item.Name, UsagePct: rolling, User: item.User,
+			Name: item.Name, UsagePct: cpuUsage(prev, item), User: item.User,
 			System: item.System, Idle: item.Idle, Total: item.Total,
 		})
 	}
@@ -152,16 +116,22 @@ func (s *systemCollector) sample() {
 	sort.Slice(latest, func(i, j int) bool { return latest[i].Name < latest[j].Name })
 	if len(latest) > 0 {
 		s.latest = latest
-		s.sampledAt = time.Now()
+		s.sampledAt = now
+		s.window = int(elapsed / time.Second)
+		if s.window < 1 {
+			s.window = 1
+		}
 		s.ready = true
 	}
 }
 
 func (s *systemCollector) cpuSnapshot() ([]cpuSample, time.Time, bool) {
+	s.sample()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return append([]cpuSample(nil), s.latest...), s.sampledAt, s.ready
 }
+
 
 func (s *moduleServer) registerSystem(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/summary", getOnly(func(w http.ResponseWriter, _ *http.Request) {

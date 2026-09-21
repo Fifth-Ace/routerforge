@@ -98,8 +98,7 @@ type networkCollector struct {
 	previous map[string]netCounters
 	rates    map[string]netRate
 	sampled  time.Time
-	stop     chan struct{}
-	done     chan struct{}
+	ready    bool
 
 	keenetic        *keeneticSnapshotCache[keeneticInterface]
 	keeneticNamesMu sync.Mutex
@@ -115,47 +114,23 @@ func newNetworkCollector(interval time.Duration) *networkCollector {
 		previous:    readNetCounters(),
 		rates:       map[string]netRate{},
 		sampled:     time.Now(),
-		stop:        make(chan struct{}),
-		done:        make(chan struct{}),
 		systemNames: map[string]string{},
 	}
 	n.keenetic = newKeeneticSnapshotCache(15*time.Second, n.readKeeneticSnapshot)
-	go n.run()
 	return n
 }
 
-func (n *networkCollector) Close() {
-	select {
-	case <-n.stop:
-		return
-	default:
-		close(n.stop)
-	}
-	<-n.done
-}
-
-func (n *networkCollector) run() {
-	defer close(n.done)
-	ticker := time.NewTicker(n.interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-n.stop:
-			return
-		case <-ticker.C:
-			n.sample()
-		}
-	}
-}
+func (n *networkCollector) Close() {}
 
 func (n *networkCollector) sample() {
-	now := time.Now()
-	current := readNetCounters()
-
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
+	now := time.Now()
+	if n.ready && now.Sub(n.sampled) < n.interval {
+		return
+	}
+	current := readNetCounters()
 	elapsed := now.Sub(n.sampled).Seconds()
 	if elapsed <= 0 {
 		elapsed = n.interval.Seconds()
@@ -176,9 +151,11 @@ func (n *networkCollector) sample() {
 	n.previous = current
 	n.rates = rates
 	n.sampled = now
+	n.ready = true
 }
 
 func (n *networkCollector) snapshot() (map[string]netRate, time.Time) {
+	n.sample()
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	out := make(map[string]netRate, len(n.rates))
@@ -187,6 +164,7 @@ func (n *networkCollector) snapshot() (map[string]netRate, time.Time) {
 	}
 	return out, n.sampled
 }
+
 
 func (n *networkCollector) keeneticSnapshot() []keeneticInterface {
 	return n.keenetic.snapshotForRequest()

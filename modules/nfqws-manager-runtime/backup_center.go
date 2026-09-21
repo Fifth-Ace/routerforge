@@ -574,7 +574,7 @@ func handleBackupCenterPrune(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true,
+		"ok":            true,
 		"safety_before": beforeSafety, "safety_after": countBackups(),
 		"persistent_before": beforePersistent, "persistent_after": len(readBackupCenterInventory()),
 		"production_mutation": false, "runtime_restarted": false,

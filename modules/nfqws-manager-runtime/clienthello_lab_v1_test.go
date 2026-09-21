@@ -33,3 +33,20 @@ func TestGenerateClientHelloRejectsIP(t *testing.T) {
 		t.Fatal("IP SNI accepted")
 	}
 }
+
+func TestGenerateClientHelloTLS13Options(t *testing.T) {
+	data, err := v2GenerateClientHelloWithOptions("example.com", []string{"h2"}, 0x0304)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := v2ValidateClientHello(data)
+	if !info.Valid || info.SNI != "example.com" {
+		t.Fatalf("generated TLS1.3 ClientHello invalid: %+v", info)
+	}
+}
+
+func TestGenerateClientHelloRejectsInvalidALPN(t *testing.T) {
+	if _, err := v2GenerateClientHelloWithOptions("example.com", []string{"h2", "bad value"}, 0x0303); err == nil {
+		t.Fatal("invalid ALPN accepted")
+	}
+}

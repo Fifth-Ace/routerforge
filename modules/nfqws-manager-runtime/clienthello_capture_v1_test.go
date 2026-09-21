@@ -64,3 +64,55 @@ func TestCaptureRejectsInvalidIP(t *testing.T) {
 		t.Fatal("invalid device ip accepted")
 	}
 }
+
+func v2TestPCAPWithIPv6ClientHello(t *testing.T, hello []byte) []byte {
+	t.Helper()
+	eth := make([]byte, 14)
+	eth[12], eth[13] = 0x86, 0xdd
+	ip := make([]byte, 40)
+	ip[0] = 0x60
+	binary.BigEndian.PutUint16(ip[4:6], uint16(20+len(hello)))
+	ip[6] = 6
+	ip[7] = 64
+	copy(ip[8:24], net.ParseIP("2001:db8::50").To16())
+	copy(ip[24:40], net.ParseIP("2001:db8::34").To16())
+	tcp := make([]byte, 20)
+	binary.BigEndian.PutUint16(tcp[0:2], 50000)
+	binary.BigEndian.PutUint16(tcp[2:4], 443)
+	binary.BigEndian.PutUint32(tcp[4:8], 100)
+	tcp[12] = 5 << 4
+	packet := append(append(append([]byte{}, eth...), ip...), tcp...)
+	packet = append(packet, hello...)
+
+	var out bytes.Buffer
+	out.Write([]byte{0xd4, 0xc3, 0xb2, 0xa1})
+	_ = binary.Write(&out, binary.LittleEndian, uint16(2))
+	_ = binary.Write(&out, binary.LittleEndian, uint16(4))
+	_ = binary.Write(&out, binary.LittleEndian, int32(0))
+	_ = binary.Write(&out, binary.LittleEndian, uint32(0))
+	_ = binary.Write(&out, binary.LittleEndian, uint32(65535))
+	_ = binary.Write(&out, binary.LittleEndian, uint32(1))
+	_ = binary.Write(&out, binary.LittleEndian, uint32(0))
+	_ = binary.Write(&out, binary.LittleEndian, uint32(0))
+	_ = binary.Write(&out, binary.LittleEndian, uint32(len(packet)))
+	_ = binary.Write(&out, binary.LittleEndian, uint32(len(packet)))
+	out.Write(packet)
+	return out.Bytes()
+}
+
+func TestParsePCAPClientHelloIPv6(t *testing.T) {
+	hello, err := v2GenerateClientHello("example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := v2ParsePCAPClientHellos(v2TestPCAPWithIPv6ClientHello(t, hello))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items=%d", len(items))
+	}
+	if !items[0].Valid || items[0].SNI != "example.com" || net.ParseIP(items[0].DstIP).To4() != nil {
+		t.Fatalf("candidate=%+v", items[0])
+	}
+}

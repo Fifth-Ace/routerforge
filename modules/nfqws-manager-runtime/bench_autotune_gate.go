@@ -11,14 +11,20 @@ import (
 const benchAutoTuneApplyGateTTL = 5 * time.Minute
 
 type benchAutoTuneApplyPlan struct {
-	Token              string
-	CreatedAt          time.Time
-	ExpiresAt          time.Time
-	ConfigSHA256       string
-	ServerName         string
-	DestinationIPv4    string
-	SourceProfileIndex int
-	StrategyArgs       []string
+	Token                 string
+	CreatedAt             time.Time
+	ExpiresAt             time.Time
+	ConfigSHA256          string
+	ServerName            string
+	DestinationIPv4       string
+	SourceProfileIndex    int
+	SourceStrategyArgs    []string
+	CandidateStrategyArgs []string
+	CandidateSource       string
+	CandidateFingerprint  string
+	// StrategyArgs is retained as a compatibility alias for older internal
+	// callers/tests. It always mirrors CandidateStrategyArgs.
+	StrategyArgs          []string
 }
 
 type benchAutoTuneApplyGateStatus struct {
@@ -48,20 +54,52 @@ func clearBenchAutoTuneApplyPlan() {
 }
 
 func storeBenchAutoTuneApplyPlan(configSHA, serverName, destinationIPv4 string, profile benchStrategyProfile) (*benchAutoTuneApplyPlan, error) {
+	return storeBenchAutoTuneApplyPlanForCandidate(
+		configSHA, serverName, destinationIPv4, profile, profile.Args,
+		"production", v2CandidateTechniqueFingerprint(profile.Args),
+	)
+}
+
+func storeBenchAutoTuneApplyPlanForCandidate(
+	configSHA, serverName, destinationIPv4 string,
+	sourceProfile benchStrategyProfile,
+	candidateArgs []string,
+	candidateSource, candidateFingerprint string,
+) (*benchAutoTuneApplyPlan, error) {
+	if sourceProfile.Index < 0 || len(sourceProfile.Args) == 0 {
+		return nil, errors.New("source production profile is required")
+	}
+	if len(candidateArgs) == 0 {
+		return nil, errors.New("candidate strategy args are required")
+	}
+	if err := validatePreviewArgs(candidateArgs); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(candidateFingerprint) == "" {
+		candidateFingerprint = v2CandidateTechniqueFingerprint(candidateArgs)
+	}
+	if candidateFingerprint == "" {
+		return nil, errors.New("candidate technique fingerprint is required")
+	}
 	token, err := newBenchSessionID()
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
+	candidateArgsCopy := append([]string{}, candidateArgs...)
 	plan := &benchAutoTuneApplyPlan{
-		Token:              token,
-		CreatedAt:          now,
-		ExpiresAt:          now.Add(benchAutoTuneApplyGateTTL),
-		ConfigSHA256:       strings.ToLower(strings.TrimSpace(configSHA)),
-		ServerName:         serverName,
-		DestinationIPv4:    destinationIPv4,
-		SourceProfileIndex: profile.Index,
-		StrategyArgs:       append([]string{}, profile.Args...),
+		Token:                 token,
+		CreatedAt:             now,
+		ExpiresAt:             now.Add(benchAutoTuneApplyGateTTL),
+		ConfigSHA256:          strings.ToLower(strings.TrimSpace(configSHA)),
+		ServerName:            serverName,
+		DestinationIPv4:       destinationIPv4,
+		SourceProfileIndex:    sourceProfile.Index,
+		SourceStrategyArgs:    append([]string{}, sourceProfile.Args...),
+		CandidateStrategyArgs: candidateArgsCopy,
+		CandidateSource:       strings.ToLower(strings.TrimSpace(candidateSource)),
+		CandidateFingerprint:  candidateFingerprint,
+		StrategyArgs:          append([]string{}, candidateArgsCopy...),
 	}
 	benchAutoTuneApplyGateState.Lock()
 	benchAutoTuneApplyGateState.plan = plan
@@ -87,6 +125,8 @@ func currentBenchAutoTuneApplyPlan() (*benchAutoTuneApplyPlan, error) {
 		return nil, errors.New("active config changed since AutoTune recommendation")
 	}
 	copyPlan := *plan
+	copyPlan.SourceStrategyArgs = append([]string{}, plan.SourceStrategyArgs...)
+	copyPlan.CandidateStrategyArgs = append([]string{}, plan.CandidateStrategyArgs...)
 	copyPlan.StrategyArgs = append([]string{}, plan.StrategyArgs...)
 	return &copyPlan, nil
 }

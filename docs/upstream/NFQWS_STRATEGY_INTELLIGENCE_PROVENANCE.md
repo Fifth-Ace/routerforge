@@ -170,3 +170,17 @@ workstreams will populate exact source repository/ref metadata at ingestion time
 - `PROVEN`/`PROMISING` top entries may become one advisory primary candidate per protocol.
 - Every recommendation explicitly says that live Selector verification is still required before Preview/Safe Apply.
 - No active config, process, NFQUEUE production rule, service lifecycle or automation state is changed.
+
+## NFQWS WEB COMPLETE Campaign R1 — upstream integration batch
+
+- RouterForge base: `578c45761563a9a7375307fd5def0f94913c9eee`.
+- z2k reference: `necronicle/z2k@fca1ed5a452f2554b3dfa1ab18571cee7c505174`.
+- Omn1z selector reference: `Omn1z/nfqws2-keenetic-strategy-selector@bf4e810ef22ffb6671e97dc411234ba9430909c9`.
+- Zapret converter reference: `whxtelxs/nfqws-zapret-converter@c37858b8ffead9377f1e27de756c8f5c46c23090`.
+- Developer reports explicit upstream permission to reuse/adapt source.
+- Campaign R1 deliberately excludes VPN/WARP/AWG/VPS functionality.
+- R1 additions:
+  - ClientHello generation options and IPv6 pcap parsing adapted from Omn1z `internal/tools/tlsblob/*`;
+  - Recommendation Engine output becomes an Auto Pool planning hint only; all candidates still require RouterForge live reserved-NFQUEUE verification;
+  - Generic Safe Apply can bind a live-verified non-production candidate only when exactly one existing production profile matches the target; the candidate inherits that source profile's production selection scope before Preview;
+  - active config SHA, one-time receipt, deterministic preview, Smart Apply verification and rollback remain RouterForge-native authorities.

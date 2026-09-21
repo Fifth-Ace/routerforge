@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "workstream": "RouterForge NFQWS WEB COMPLETE",
+  "routerforge_base": "578c45761563a9a7375307fd5def0f94913c9eee",
+  "upstreams": [
+    {
+      "repository": "necronicle/z2k",
+      "ref": "fca1ed5a452f2554b3dfa1ab18571cee7c505174",
+      "reuse": [
+        "tcp16",
+        "strategy families",
+        "runtime evidence semantics",
+        "scheduler robustness",
+        "failure classification"
+      ],
+      "vpn_content": "excluded"
+    },
+    {
+      "repository": "Omn1z/nfqws2-keenetic-strategy-selector",
+      "ref": "bf4e810ef22ffb6671e97dc411234ba9430909c9",
+      "reuse": [
+        "strategy catalog concepts",
+        "sandbox comparison",
+        "device/conntrack observation",
+        "ClientHello/PCAP",
+        "GeoSite/GeoIP"
+      ],
+      "vpn_content": "excluded"
+    },
+    {
+      "repository": "whxtelxs/nfqws-zapret-converter",
+      "ref": "c37858b8ffead9377f1e27de756c8f5c46c23090",
+      "reuse": [
+        "Zapret log grammar",
+        "BAT normalization",
+        "compatibility fixtures"
+      ],
+      "runtime_node_dependency": false
+    }
+  ],
+  "campaign_r1": {
+    "scope": [
+      "U0 provenance lock",
+      "U5 ClientHello IPv6/options parity",
+      "U8 recommendation-aware Auto Pool planning",
+      "U9 generic candidate Safe Apply when a unique production binding exists"
+    ],
+    "production_mutation": "only through existing explicit Preview -> Smart Apply transaction",
+    "historical_evidence": "planning hint only; live selector verification remains mandatory"
+  }
+}

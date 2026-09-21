@@ -67,8 +67,8 @@ func v2ClientHelloCaptureInterface(raw string) (string, error) {
 
 func v2CaptureClientHellos(ctx context.Context, deviceIP, iface string, seconds int) ([]v2ClientHelloCandidate, string, error) {
 	ip := net.ParseIP(strings.TrimSpace(deviceIP))
-	if ip == nil || ip.To4() == nil {
-		return nil, "", errors.New("device_ip must be an IPv4 address")
+	if ip == nil {
+		return nil, "", errors.New("device_ip must be an IPv4 or IPv6 address")
 	}
 	if seconds <= 0 {
 		seconds = 5
@@ -221,17 +221,38 @@ func v2CaptureL3(linkType uint32, packet []byte) (string, string, int, []byte, b
 			etherType = int(packet[pos+2])<<8 | int(packet[pos+3])
 			pos += 4
 		}
-		if etherType != 0x0800 {
+		switch etherType {
+		case 0x0800:
+			return v2CaptureIPv4(packet[pos:])
+		case 0x86dd:
+			return v2CaptureIPv6(packet[pos:])
+		default:
 			return "", "", 0, nil, false
 		}
-		return v2CaptureIPv4(packet[pos:])
 	case 113:
-		if len(packet) < 16 || int(packet[14])<<8|int(packet[15]) != 0x0800 {
+		if len(packet) < 16 {
 			return "", "", 0, nil, false
 		}
-		return v2CaptureIPv4(packet[16:])
+		switch int(packet[14])<<8 | int(packet[15]) {
+		case 0x0800:
+			return v2CaptureIPv4(packet[16:])
+		case 0x86dd:
+			return v2CaptureIPv6(packet[16:])
+		default:
+			return "", "", 0, nil, false
+		}
 	case 101:
-		return v2CaptureIPv4(packet)
+		if len(packet) < 1 {
+			return "", "", 0, nil, false
+		}
+		switch packet[0] >> 4 {
+		case 4:
+			return v2CaptureIPv4(packet)
+		case 6:
+			return v2CaptureIPv6(packet)
+		default:
+			return "", "", 0, nil, false
+		}
 	default:
 		return "", "", 0, nil, false
 	}
@@ -249,6 +270,27 @@ func v2CaptureIPv4(data []byte) (string, string, int, []byte, bool) {
 		return "", "", 0, nil, false
 	}
 	return net.IP(data[12:16]).String(), net.IP(data[16:20]).String(), int(data[9]), data[ihl:], true
+}
+
+func v2CaptureIPv6(data []byte) (string, string, int, []byte, bool) {
+	if len(data) < 40 || data[0]>>4 != 6 {
+		return "", "", 0, nil, false
+	}
+	if data[6] != 6 {
+		// ClientHello capture deliberately supports the common direct TCP case.
+		// Extension-header reassembly is not guessed here; unsupported packets
+		// are skipped rather than misparsed.
+		return "", "", 0, nil, false
+	}
+	payloadLen := int(binary.BigEndian.Uint16(data[4:6]))
+	if payloadLen > 0 && 40+payloadLen > len(data) {
+		return "", "", 0, nil, false
+	}
+	end := len(data)
+	if payloadLen > 0 && 40+payloadLen < end {
+		end = 40 + payloadLen
+	}
+	return net.IP(data[8:24]).String(), net.IP(data[24:40]).String(), 6, data[40:end], true
 }
 
 func v2CaptureTCP(data []byte) (string, int, uint32, []byte, bool) {

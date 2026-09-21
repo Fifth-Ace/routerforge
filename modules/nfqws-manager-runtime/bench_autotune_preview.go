@@ -249,13 +249,33 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "tested source profile identity is no longer eligible"})
 		return
 	}
-	recomputed, err := retargetBenchStrategyProfile(*source, plan.ServerName)
-	if err != nil || !stringSlicesEqual(recomputed.Args, plan.StrategyArgs) {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "tested strategy identity drifted since AutoTune recommendation"})
+	sourceArgs := plan.SourceStrategyArgs
+	if len(sourceArgs) == 0 {
+		sourceArgs = source.Args
+	}
+	if !stringSlicesEqual(source.Args, sourceArgs) {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "source production profile drifted since AutoTune recommendation"})
+		return
+	}
+	candidateArgs := plan.CandidateStrategyArgs
+	if len(candidateArgs) == 0 {
+		candidateArgs = plan.StrategyArgs
+	}
+	if err := validatePreviewArgs(candidateArgs); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "candidate strategy identity is invalid: " + err.Error()})
+		return
+	}
+	fingerprint := v2CandidateTechniqueFingerprint(candidateArgs)
+	if fingerprint == "" || (plan.CandidateFingerprint != "" && fingerprint != plan.CandidateFingerprint) {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "candidate technique fingerprint drifted since live verification"})
+		return
+	}
+	if _, err := v2CustomProfile(v2PortableCandidateArgs(candidateArgs), plan.ServerName); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "candidate technique no longer compiles: " + err.Error()})
 		return
 	}
 
-	candidateConfig, err := buildAutoTuneCandidateConfig(string(configData), source.Args, plan.StrategyArgs)
+	candidateConfig, err := buildAutoTuneCandidateConfig(string(configData), source.Args, candidateArgs)
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "build deterministic AutoTune candidate: " + err.Error()})
 		return
@@ -277,7 +297,7 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		CandidateConfig:       candidateConfig,
 		Changed:               candidateHash != activeHash,
 		SourceStrategyArgs:    append([]string{}, source.Args...),
-		CandidateStrategyArgs: append([]string{}, plan.StrategyArgs...),
+		CandidateStrategyArgs: append([]string{}, candidateArgs...),
 		GateExpiresAt:         plan.ExpiresAt.Format(time.RFC3339),
 		Reason:                "deterministic preview only; production Apply remains locked",
 	})

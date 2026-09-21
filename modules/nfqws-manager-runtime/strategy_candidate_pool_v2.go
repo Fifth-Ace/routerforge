@@ -39,22 +39,22 @@ type v2CandidatePoolItem struct {
 }
 
 type v2CandidatePoolResponse struct {
-	OK                  bool                  `json:"ok"`
-	Target              string                `json:"target"`
-	Mode                string                `json:"mode"`
-	Transport           string                `json:"transport"`
-	Network             string                `json:"network"`
-	RemotePort          int                   `json:"remote_port"`
-	MetricScope         string                `json:"metric_scope"`
-	ConfigSHA           string                `json:"config_sha256"`
-	Candidates          []v2CandidatePoolItem `json:"candidates"`
-	Count               int                   `json:"count"`
-	Sources             []string              `json:"sources"`
-	Warnings            []string              `json:"warnings"`
-	RecommendationAware      bool `json:"recommendation_aware"`
-	RecommendationHints       int  `json:"recommendation_hints"`
-	RecommendationAdded       int  `json:"recommendation_added"`
-	HistoricalExistingPromoted int `json:"historical_existing_promoted"`
+	OK                         bool                  `json:"ok"`
+	Target                     string                `json:"target"`
+	Mode                       string                `json:"mode"`
+	Transport                  string                `json:"transport"`
+	Network                    string                `json:"network"`
+	RemotePort                 int                   `json:"remote_port"`
+	MetricScope                string                `json:"metric_scope"`
+	ConfigSHA                  string                `json:"config_sha256"`
+	Candidates                 []v2CandidatePoolItem `json:"candidates"`
+	Count                      int                   `json:"count"`
+	Sources                    []string              `json:"sources"`
+	Warnings                   []string              `json:"warnings"`
+	RecommendationAware        bool                  `json:"recommendation_aware"`
+	RecommendationHints        int                   `json:"recommendation_hints"`
+	RecommendationAdded        int                   `json:"recommendation_added"`
+	HistoricalExistingPromoted int                   `json:"historical_existing_promoted"`
 
 	PlannerVersion               int    `json:"planner_version"`
 	PlannerReadOnly              bool   `json:"planner_read_only"`

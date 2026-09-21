@@ -1,94 +1,94 @@
 {
-    "schema_version":  1,
-    "channel":  "beta",
-    "release_version":  "0.10.0-beta.2",
-    "release_notes":  {
-                          "ru":  {
-                                     "new":  [
-                                                 "NFQWS2 Manager вырос в полноценное рабочее пространство: Мастер/Config Library/Raw, локальные списки, NFQWS Menu, Processing Map, Test Lab, Sandbox, Backup Center, System и guarded Smart Apply/Recovery flows.",
-                                                 "Интерфейс NFQWS переразложен по задачам: Конфигурация, Списки, NFQWS Menu, реальные Инструменты и Обслуживание; навигация адаптируется к узким экранам без горизонтального уезда.",
-                                                 "NFQWS Menu получил явный credit для rndnaame/nfqws-menu и exact-ref resolver с GitHub API, Git smart-HTTP fallback и stale exact-SHA cache."
-                                             ],
-                                     "fixes":  [
-                                                   "Исправлена очистка stale Unix socket NFQWS Manager при stop с hardware acceptance на Keenetic Hopper.",
-                                                   "Исправлена геометрия Test Lab: внутренние grid/select больше не раздвигают панель за её границы.",
-                                                   "GitHub API 403/429 больше не трактуется автоматически как падение upstream: rate limit, stale cache и реальный offline различаются."
-                                               ],
-                                     "compatibility":  [
-                                                           "Beta 0.10.0-beta.2 впервые включает routerforge-nfqws-manager в coherent Beta train.",
-                                                           "Beta публикуется для aarch64-3.10, mips-3.4 и mipsel-3.4: 7 компонентов × 3 target = 21 IPK.",
-                                                           "ARM64 остаётся production target; MIPS и MIPSel остаются experimental. Stable/main этим Beta-выпуском не продвигается."
-                                                       ],
-                                     "technical":  [
-                                                       "Beta train использует 0.10.0~beta.2 для всех семи компонентов; immutable snapshot — routerforge-v0.10.0-beta.2.",
-                                                       "NFQWS Manager остаётся installed-only интеграцией: RouterForge не устанавливает и не обновляет внешний nfqws2-keenetic автоматически.",
-                                                       "Следующий активный workstream — NFQWS User Experience Roadmap: task-first Home, Import from Zapret, Guided Troubleshooter, Strategy Bench/AutoTune, recommendations + Safe Apply и consumer hardening."
-                                                   ]
-                                 },
-                          "en":  {
-                                     "new":  [
-                                                 "NFQWS2 Manager has grown into a complete workspace: Master/Config Library/Raw, local lists, NFQWS Menu, Processing Map, Test Lab, Sandbox, Backup Center, System, and guarded Smart Apply/Recovery flows.",
-                                                 "The NFQWS UI is reorganized by user task: Configuration, Lists, NFQWS Menu, real Tools, and Maintenance; navigation adapts to narrow screens without horizontal escape.",
-                                                 "NFQWS Menu now carries explicit credit for rndnaame/nfqws-menu and uses an exact-ref resolver with GitHub API, Git smart-HTTP fallback, and stale exact-SHA cache."
-                                             ],
-                                     "fixes":  [
-                                                   "NFQWS Manager stale Unix socket cleanup on stop is hardened and hardware-accepted on Keenetic Hopper.",
-                                                   "Test Lab layout containment is fixed so inner grids/selects no longer expand outside the panel.",
-                                                   "GitHub API 403/429 is no longer treated as automatic upstream failure: rate limiting, stale cache, and real offline states are distinguished."
-                                               ],
-                                     "compatibility":  [
-                                                           "Beta 0.10.0-beta.2 includes routerforge-nfqws-manager in the coherent Beta train for the first time.",
-                                                           "Beta is published for aarch64-3.10, mips-3.4, and mipsel-3.4: 7 components × 3 targets = 21 IPKs.",
-                                                           "ARM64 remains the production target; MIPS and MIPSel remain experimental. Stable/main is not promoted by this Beta release."
-                                                       ],
-                                     "technical":  [
-                                                       "The Beta train uses 0.10.0~beta.2 for all seven components; the immutable snapshot is routerforge-v0.10.0-beta.2.",
-                                                       "NFQWS Manager remains an installed-only integration: RouterForge does not automatically install or update the external nfqws2-keenetic package.",
-                                                       "The next active workstream is the NFQWS User Experience Roadmap: task-first Home, Import from Zapret, Guided Troubleshooter, Strategy Bench/AutoTune, recommendations + Safe Apply, and consumer hardening."
-                                                   ]
-                                 }
-                      },
-    "components":  [
-                       {
-                           "id":  "routerforge-core",
-                           "package":  "routerforge-core",
-                           "version":  "0.10.0~beta.2"
-                       },
-                       {
-                           "id":  "dns",
-                           "package":  "routerforge-dns",
-                           "version":  "0.10.0~beta.2",
-                           "min_core_version":  "0.10.0~beta.2"
-                       },
-                       {
-                           "id":  "admin",
-                           "package":  "routerforge-admin",
-                           "version":  "0.10.0~beta.2",
-                           "min_core_version":  "0.10.0~beta.2"
-                       },
-                       {
-                           "id":  "monitoring",
-                           "package":  "routerforge-monitoring",
-                           "version":  "0.10.0~beta.2",
-                           "min_core_version":  "0.10.0~beta.2"
-                       },
-                       {
-                           "id":  "network-tools",
-                           "package":  "routerforge-network-tools",
-                           "version":  "0.10.0~beta.2",
-                           "min_core_version":  "0.10.0~beta.2"
-                       },
-                       {
-                           "id":  "nfqws-manager",
-                           "package":  "routerforge-nfqws-manager",
-                           "version":  "0.10.0~beta.2",
-                           "min_core_version":  "0.10.0~beta.2"
-                       },
-                       {
-                           "id":  "profiling",
-                           "package":  "routerforge-profiling",
-                           "version":  "0.10.0~beta.2",
-                           "min_core_version":  "0.10.0~beta.2"
-                       }
-                   ]
+    "schema_version": 1,
+    "channel": "beta",
+    "release_version": "0.10.0-beta.3",
+    "release_notes": {
+        "ru": {
+            "new": [
+                "NFQWS2 Manager получил полный цикл strategy intelligence: evidence-aware диагностику, Strategy Bench и AutoSelect, target memory, scoring/recommendations, curated upstream/Zapret strategy corpus и guarded Safe Apply.",
+                "NFQWS workspace интегрирует расширенный DPI Detector v5: managed runtime foundation, нативную console/web диагностику, live report stream и детальное представление результатов.",
+                "Monitoring получил живой диспетчер процессов с CPU/RSS, поиском и сортировкой; таблица обновляется без прыжков страницы и компактно укладывает все колонки на обычном desktop."
+            ],
+            "fixes": [
+                "Live bench блокируется во время management SSH-сессий; firewall insertion для parallel bench сделан атомарным, а command execution проходит через shared safety runner.",
+                "Закрыты ошибки Processing Map, tcp16 probe/memory, strategy registry, Zapret parsing и recommendation planner; maintenance jobs дополнительно hardened.",
+                "Исправлена геометрия Process Manager: длинные имя/команда не раздвигают таблицу, CPU/RAM/Threads/PPID остаются видимыми без штатного горизонтального скролла."
+            ],
+            "compatibility": [
+                "Beta 0.10.0-beta.3 сохраняет coherent train из семи RouterForge-компонентов.",
+                "Beta публикуется для aarch64-3.10, mips-3.4 и mipsel-3.4: 7 компонентов × 3 target = 21 IPK.",
+                "ARM64 остаётся production target; MIPS и MIPSel остаются experimental. Stable/main этим Beta-выпуском не продвигается."
+            ],
+            "technical": [
+                "Beta train использует 0.10.0~beta.3 для всех семи компонентов; immutable snapshot — routerforge-v0.10.0-beta.3.",
+                "Beta.3 объединяет 120 проверенных dev-коммитов после immutable Beta.2, включая NFQWS intelligence/web-complete workstream и Monitoring Process Manager.",
+                "Следующий активный workstream — P23 RouterForge Idle Footprint Reduction: adaptive collectors, polling consolidation и снижение DNS hot-retention."
+            ]
+        },
+        "en": {
+            "new": [
+                "NFQWS2 Manager now provides a complete strategy-intelligence cycle: evidence-aware diagnostics, Strategy Bench and AutoSelect, target memory, scoring/recommendations, a curated upstream/Zapret strategy corpus, and guarded Safe Apply.",
+                "The NFQWS workspace integrates an expanded DPI Detector v5 experience with a managed runtime foundation, native console/web diagnostics, live report streaming, and detailed result rendering.",
+                "Monitoring now includes a live process manager with CPU/RSS, search, and sorting; the table refreshes without page jumps and keeps all columns compact on a normal desktop."
+            ],
+            "fixes": [
+                "Live bench execution is blocked during management SSH sessions; parallel-bench firewall insertion is atomic and command execution uses the shared safety runner.",
+                "Processing Map, tcp16 probe/memory, strategy registry, Zapret parsing, and recommendation-planner issues are fixed, with additional maintenance-job hardening.",
+                "Process Manager layout is compacted so long process names/commands cannot stretch the table and CPU/RAM/Threads/PPID remain visible without normal horizontal scrolling."
+            ],
+            "compatibility": [
+                "Beta 0.10.0-beta.3 keeps the coherent seven-component RouterForge train.",
+                "Beta is published for aarch64-3.10, mips-3.4, and mipsel-3.4: 7 components × 3 targets = 21 IPKs.",
+                "ARM64 remains the production target; MIPS and MIPSel remain experimental. Stable/main is not promoted by this Beta release."
+            ],
+            "technical": [
+                "The Beta train uses 0.10.0~beta.3 for all seven components; the immutable snapshot is routerforge-v0.10.0-beta.3.",
+                "Beta.3 consolidates 120 validated dev commits after immutable Beta.2, including the NFQWS intelligence/web-complete workstream and Monitoring Process Manager.",
+                "The next active workstream is P23 RouterForge Idle Footprint Reduction: adaptive collectors, polling consolidation, and lower DNS hot-retention."
+            ]
+        }
+    },
+    "components": [
+        {
+            "id": "routerforge-core",
+            "package": "routerforge-core",
+            "version": "0.10.0~beta.3"
+        },
+        {
+            "id": "dns",
+            "package": "routerforge-dns",
+            "version": "0.10.0~beta.3",
+            "min_core_version": "0.10.0~beta.3"
+        },
+        {
+            "id": "admin",
+            "package": "routerforge-admin",
+            "version": "0.10.0~beta.3",
+            "min_core_version": "0.10.0~beta.3"
+        },
+        {
+            "id": "monitoring",
+            "package": "routerforge-monitoring",
+            "version": "0.10.0~beta.3",
+            "min_core_version": "0.10.0~beta.3"
+        },
+        {
+            "id": "network-tools",
+            "package": "routerforge-network-tools",
+            "version": "0.10.0~beta.3",
+            "min_core_version": "0.10.0~beta.3"
+        },
+        {
+            "id": "nfqws-manager",
+            "package": "routerforge-nfqws-manager",
+            "version": "0.10.0~beta.3",
+            "min_core_version": "0.10.0~beta.3"
+        },
+        {
+            "id": "profiling",
+            "package": "routerforge-profiling",
+            "version": "0.10.0~beta.3",
+            "min_core_version": "0.10.0~beta.3"
+        }
+    ]
 }

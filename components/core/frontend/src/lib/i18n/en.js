@@ -731,6 +731,7 @@ export default {
     "loading": "Reading {name}…",
     "modules": {
       "system": "System",
+      "processes": "Processes",
       "thermal": "Thermal",
       "storage": "Storage",
       "network": "Network"
@@ -750,6 +751,35 @@ export default {
       "cachedHint": "Page cache + reclaimable",
       "swap": "Swap",
       "swapHint": "Used / total"
+    },
+    "processes": {
+      "title": "Process manager",
+      "subtitle": "Live CPU and RAM usage from /proc without spawning ps/top on every refresh.",
+      "total": "PROCESSES",
+      "visible": "showing {visible} of {total}",
+      "topCpu": "TOP CPU",
+      "topRam": "TOP RAM",
+      "refresh": "REFRESH",
+      "cpuHint": "100% CPU = one fully utilized core",
+      "search": "Search by name, PID, user, or command",
+      "none": "No processes match the current filter",
+      "columns": {
+        "process": "Process",
+        "user": "User",
+        "state": "State",
+        "ram": "RAM / RSS",
+        "threads": "Threads"
+      },
+      "states": {
+        "running": "Running",
+        "sleeping": "Sleeping",
+        "diskSleep": "I/O wait",
+        "stopped": "Stopped",
+        "tracing": "Tracing",
+        "zombie": "Zombie",
+        "idle": "Idle",
+        "unknown": "Unknown"
+      }
     },
     "thermal": {
       "sensors": "SENSORS",

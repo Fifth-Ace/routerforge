@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"os/exec"
@@ -32,6 +33,9 @@ type benchCapabilities struct {
 	ReadOnly                     bool                     `json:"read_only"`
 	BenchEnabled                 bool                     `json:"bench_enabled"`
 	SafeToBench                  bool                     `json:"safe_to_bench"`
+	ManagementSessionInventoryOK bool                     `json:"management_session_inventory_ok"`
+	ManagementSessionActive      bool                     `json:"management_session_active"`
+	ManagementSessionPorts       []int                    `json:"management_session_ports"`
 	CandidateBinary              string                   `json:"candidate_binary,omitempty"`
 	CandidateSpawnCapable        bool                     `json:"candidate_spawn_capable"`
 	IPTablesPath                 string                   `json:"iptables_path,omitempty"`
@@ -145,6 +149,69 @@ func parseNFNetlinkQueue(text string) []int {
 	sort.Ints(out)
 	return out
 }
+
+func parseManagementSessionPorts(text string) []int {
+	set := map[int]bool{}
+	for _, line := range strings.Split(text, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 || fields[3] != "01" {
+			continue
+		}
+		local := fields[1]
+		colon := strings.LastIndexByte(local, ':')
+		if colon < 0 || colon+1 >= len(local) {
+			continue
+		}
+		value, err := strconv.ParseUint(local[colon+1:], 16, 16)
+		if err != nil {
+			continue
+		}
+		port := int(value)
+		if port == 22 || port == 222 {
+			set[port] = true
+		}
+	}
+	out := make([]int, 0, len(set))
+	for port := range set {
+		out = append(out, port)
+	}
+	sort.Ints(out)
+	return out
+}
+
+func mergeManagementSessionPorts(groups ...[]int) []int {
+	set := map[int]bool{}
+	for _, group := range groups {
+		for _, port := range group {
+			if port == 22 || port == 222 {
+				set[port] = true
+			}
+		}
+	}
+	out := make([]int, 0, len(set))
+	for port := range set {
+		out = append(out, port)
+	}
+	sort.Ints(out)
+	return out
+}
+
+func readBenchManagementSessionInventory() ([]int, bool) {
+	ipv4, err := os.ReadFile("/proc/net/tcp")
+	if err != nil {
+		return []int{}, false
+	}
+	ports := parseManagementSessionPorts(string(ipv4))
+	ipv6, err := os.ReadFile("/proc/net/tcp6")
+	if err == nil {
+		ports = mergeManagementSessionPorts(ports, parseManagementSessionPorts(string(ipv6)))
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return []int{}, false
+	}
+	return ports, true
+}
+
+var benchManagementSessionInventory = readBenchManagementSessionInventory
 
 func mergeBenchQueues(groups ...[]int) []int {
 	set := map[int]bool{}
@@ -264,6 +331,8 @@ func benchExecutionReady(result benchCapabilities) bool {
 		result.IPTablesSavePath != "" &&
 		result.FirewallInventoryOK &&
 		result.KernelQueueInventoryOK &&
+		result.ManagementSessionInventoryOK &&
+		!result.ManagementSessionActive &&
 		result.QueueInventoryComplete &&
 		result.RecommendedQueue != 0 &&
 		result.LifecycleContractImplemented &&
@@ -282,6 +351,7 @@ func readBenchCapabilities() benchCapabilities {
 		SafeToBench:                  false,
 		ActiveNFQWS2:                 []benchProcessInfo{},
 		OccupiedQueues:               []int{},
+		ManagementSessionPorts:       []int{},
 		Blockers:                     []string{},
 		Warnings:                     []string{},
 		LifecycleContractImplemented: true,
@@ -303,6 +373,11 @@ func readBenchCapabilities() benchCapabilities {
 
 	processes, processQueues := readBenchProcesses()
 	result.ActiveNFQWS2 = processes
+
+	managementPorts, managementOK := benchManagementSessionInventory()
+	result.ManagementSessionInventoryOK = managementOK
+	result.ManagementSessionPorts = managementPorts
+	result.ManagementSessionActive = len(managementPorts) > 0
 
 	for _, proc := range processes {
 		if result.CandidateBinary == "" && proc.Executable != "" && executableFile(proc.Executable) {
@@ -355,6 +430,18 @@ func readBenchCapabilities() benchCapabilities {
 	}
 	if !result.CleanupBaselineProven {
 		result.Blockers = append(result.Blockers, "reserved bench queue cleanup baseline is not proven")
+	}
+	if !result.ManagementSessionInventoryOK {
+		result.Blockers = append(result.Blockers, "management SSH session inventory is not proven")
+	} else if result.ManagementSessionActive {
+		ports := make([]string, 0, len(result.ManagementSessionPorts))
+		for _, port := range result.ManagementSessionPorts {
+			ports = append(ports, strconv.Itoa(port))
+		}
+		result.Blockers = append(
+			result.Blockers,
+			"active management SSH session blocks live bench mutation on port(s): "+strings.Join(ports, ","),
+		)
 	}
 	strategyInventory := readBenchStrategyInventory()
 	result.StrategyProfileCount = strategyInventory.ProfileCount

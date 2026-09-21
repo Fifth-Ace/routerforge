@@ -285,9 +285,7 @@ func handleBenchTLSStrategySmoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	capabilities := readBenchCapabilities()
-	if !capabilities.CandidateSpawnCapable || !capabilities.QueueInventoryComplete ||
-		!capabilities.CleanupBaselineProven || capabilities.RecommendedQueue == 0 ||
-		capabilities.IPTablesSavePath == "" {
+	if !benchExecutionReady(capabilities) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "TLS strategy smoke capability gates are not proven"})
 		return
 	}

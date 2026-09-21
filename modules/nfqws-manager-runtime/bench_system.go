@@ -204,6 +204,21 @@ func (o *benchSystemOps) anchorPosition(ctx context.Context, rule benchRuleSpec)
 }
 
 func (o *benchSystemOps) StartCandidate(ctx context.Context, spec benchTransactionSpec) error {
+	managementPorts, managementOK := benchManagementSessionInventory()
+	if !managementOK {
+		return errors.New("management SSH session inventory is not proven")
+	}
+	if len(managementPorts) > 0 {
+		ports := make([]string, 0, len(managementPorts))
+		for _, port := range managementPorts {
+			ports = append(ports, strconv.Itoa(port))
+		}
+		return fmt.Errorf(
+			"active management SSH session blocks live bench mutation on port(s): %s",
+			strings.Join(ports, ","),
+		)
+	}
+
 	pidFile := benchCandidatePIDFile(spec.SessionID)
 	if _, err := os.Stat(pidFile); err == nil {
 		return errors.New("bench candidate pidfile already exists")
@@ -511,8 +526,7 @@ func handleBenchSmoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	capabilities := readBenchCapabilities()
-	if !capabilities.CandidateSpawnCapable || !capabilities.QueueInventoryComplete ||
-		!capabilities.CleanupBaselineProven || capabilities.RecommendedQueue == 0 {
+	if !benchExecutionReady(capabilities) {
 		writeJSON(w, http.StatusConflict, map[string]any{
 			"error":        "bench smoke preconditions are not proven",
 			"capabilities": capabilities,

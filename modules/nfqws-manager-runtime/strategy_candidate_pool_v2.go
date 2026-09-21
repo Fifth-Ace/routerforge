@@ -213,7 +213,7 @@ func v2AppendPoolItem(out []v2CandidatePoolItem, seen map[string]bool, item v2Ca
 }
 
 func v2RecommendationSource(entry v2StrategyRegistryEntry) string {
-	for _, preferred := range []string{"zapret", "catalog", "import", "custom", "builtin", "memory"} {
+	for _, preferred := range []string{"zapret", "catalog", "import", "custom", "omn1z", "z2k", "builtin", "memory"} {
 		for _, source := range entry.Sources {
 			if strings.EqualFold(strings.TrimSpace(source), preferred) {
 				return preferred
@@ -366,6 +366,29 @@ func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2Candi
 				if len(resp.Candidates) >= m.MaxCandidates {
 					break
 				}
+			}
+		}
+	}
+
+	if len(resp.Candidates) < m.MaxCandidates {
+		corpus := v2CorpusCandidatesForTransport(transport)
+		quickLimit := v2ProgressiveQuickLimit(m)
+		for i, item := range corpus {
+			if _, compileErr := v2CustomProfileForTransport(item.Args, target, transport); compileErr != nil {
+				resp.Warnings = append(resp.Warnings, item.ID+": "+compileErr.Error())
+				continue
+			}
+			stage := v2ProgressiveStageFull
+			if i < quickLimit {
+				stage = v2ProgressiveStageQuick
+			}
+			poolItem := v2CandidatePoolItem{
+				ID: item.ID, Name: item.Name, Source: item.Source, Family: item.Family,
+				Protocol: item.Protocol, Args: append([]string{}, item.Args...), Stage: stage,
+			}
+			resp.Candidates = v2AppendPoolItem(resp.Candidates, seen, poolItem)
+			if len(resp.Candidates) >= m.MaxCandidates {
+				break
 			}
 		}
 	}

@@ -42,8 +42,7 @@
   $: processItems = data.processes?.processes || [];
   $: filteredProcessItems = filterProcesses(processItems, processQuery);
   $: sortedProcessItems = sortProcesses(filteredProcessItems, processSort);
-  $: topCPUProcess = processItems[0] || null;
-  $: topMemoryProcess = processItems.length ? [...processItems].sort((a, b) => Number(b.rss_kb || 0) - Number(a.rss_kb || 0))[0] : null;
+
 
   $: if (installedDefs.length && !installedDefs.some((item) => item.id === tab)) {
     tab = installedDefs[0].id;
@@ -348,10 +347,8 @@
     </div>
 
   {:else if tab === 'processes' && data.processes}
-    <section class="metric-grid module-metric-grid">
+        <section class="metric-grid module-metric-grid process-metric-grid">
       <div class="metric-card"><span>{t(locale, 'monitoring.processes.total')}</span><strong>{fmtInt(data.processes.total || processItems.length)}</strong><small>{t(locale, 'monitoring.processes.visible', { visible: fmtInt(filteredProcessItems.length), total: fmtInt(data.processes.total || processItems.length) })}</small></div>
-      <div class="metric-card"><span>{t(locale, 'monitoring.processes.topCpu')}</span><strong>{topCPUProcess ? cpuText(topCPUProcess.cpu_pct) : '—'}</strong><small>{topCPUProcess ? `${topCPUProcess.name} · PID ${topCPUProcess.pid}` : '—'}</small></div>
-      <div class="metric-card"><span>{t(locale, 'monitoring.processes.topRam')}</span><strong>{topMemoryProcess ? bytes(Number(topMemoryProcess.rss_kb || 0) * 1024) : '—'}</strong><small>{topMemoryProcess ? `${topMemoryProcess.name} · ${Number(topMemoryProcess.memory_pct || 0).toFixed(1)}%` : '—'}</small></div>
       <div class="metric-card"><span>{t(locale, 'monitoring.processes.refresh')}</span><strong>{Number(data.processes.interval_ms || 1000) / 1000}s</strong><small>{t(locale, 'monitoring.processes.cpuHint')}</small></div>
     </section>
 
@@ -626,6 +623,10 @@
     color: var(--rf-muted, var(--muted));
     font-size: .82rem;
   }
+  .process-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .process-manager-head {
     gap: 1rem;
     align-items: center;

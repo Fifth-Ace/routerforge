@@ -60,58 +60,32 @@ type storageCollector struct {
 	previous map[string]diskCounters
 	rates    map[string]diskRate
 	sampled  time.Time
-	stop     chan struct{}
-	done     chan struct{}
+	ready    bool
 }
 
 func newStorageCollector(interval time.Duration) *storageCollector {
 	if interval < time.Second {
 		interval = 2 * time.Second
 	}
-	s := &storageCollector{
+	return &storageCollector{
 		interval: interval,
 		previous: readDiskCounters(),
 		rates:    map[string]diskRate{},
 		sampled:  time.Now(),
-		stop:     make(chan struct{}),
-		done:     make(chan struct{}),
-	}
-	go s.run()
-	return s
-}
-
-func (s *storageCollector) Close() {
-	select {
-	case <-s.stop:
-		return
-	default:
-		close(s.stop)
-	}
-	<-s.done
-}
-
-func (s *storageCollector) run() {
-	defer close(s.done)
-	ticker := time.NewTicker(s.interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-s.stop:
-			return
-		case <-ticker.C:
-			s.sample()
-		}
 	}
 }
+
+func (s *storageCollector) Close() {}
 
 func (s *storageCollector) sample() {
-	now := time.Now()
-	current := readDiskCounters()
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	now := time.Now()
+	if s.ready && now.Sub(s.sampled) < s.interval {
+		return
+	}
+	current := readDiskCounters()
 	elapsed := now.Sub(s.sampled).Seconds()
 	if elapsed <= 0 {
 		elapsed = s.interval.Seconds()
@@ -133,7 +107,9 @@ func (s *storageCollector) sample() {
 	s.previous = current
 	s.rates = rates
 	s.sampled = now
+	s.ready = true
 }
+
 
 func counterDelta(current, previous uint64) float64 {
 	if current < previous {
@@ -143,6 +119,7 @@ func counterDelta(current, previous uint64) float64 {
 }
 
 func (s *storageCollector) rateSnapshot() (map[string]diskRate, time.Time) {
+	s.sample()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := make(map[string]diskRate, len(s.rates))
@@ -151,6 +128,7 @@ func (s *storageCollector) rateSnapshot() (map[string]diskRate, time.Time) {
 	}
 	return out, s.sampled
 }
+
 
 func (s *moduleServer) registerStorage(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/storage", getOnly(func(w http.ResponseWriter, _ *http.Request) {

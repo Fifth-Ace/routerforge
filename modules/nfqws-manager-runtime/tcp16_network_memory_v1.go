@@ -47,14 +47,14 @@ type v2TCP16MemoryDocument struct {
 }
 
 type v2TCP16MemoryResponse struct {
-	OK         bool                     `json:"ok"`
-	Version    int                      `json:"version"`
-	ReadOnly   bool                     `json:"read_only"`
-	Count      int                      `json:"count"`
-	Suspected  int                      `json:"suspected"`
-	Clear      int                      `json:"clear"`
-	WorkingSNI int                      `json:"working_sni"`
-	Entries    []v2TCP16NetworkEntry    `json:"entries"`
+OK         bool                  `json:"ok"`
+Version    int                   `json:"version"`
+ReadOnly   bool                  `json:"read_only"`
+Count      int                   `json:"count"`
+Suspected  int                   `json:"suspected"`
+Clear      int                   `json:"clear"`
+WorkingSNI int                   `json:"working_sni"`
+Entries    []v2TCP16NetworkEntry `json:"entries"`
 }
 
 func registerTCP16NetworkMemoryV1Routes(mux *http.ServeMux) {

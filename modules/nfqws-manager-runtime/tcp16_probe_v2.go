@@ -81,7 +81,6 @@ type v2TCP16ProbeResponse struct {
 	DetectedCount      int                      `json:"detected_count"`
 	WorkingSNICount    int                      `json:"working_sni_count"`
 	Results            []v2TCP16ProbeRun        `json:"results"`
-	References         []v2TCP16MemoryReference `json:"references"`
 }
 
 var v2TCP16ProbeTargets = []v2TCP16ProbeTarget{
@@ -468,12 +467,6 @@ func handleV2TCP16Probe(w http.ResponseWriter, r *http.Request) {
 		DetectedCount:      detectedCount,
 		WorkingSNICount:    workingCount,
 		Results:            runs,
-		References: []v2TCP16MemoryReference{
-			{
-				Repository: "necronicle/z2k",
-				Ref:        "fca1ed5a452f2554b3dfa1ab18571cee7c505174",
-				Note:       "bounded keep-alive TCP16 probe and per-network SNI scan behavior adapted into RouterForge-native Go with stricter persistence gates",
-			},
 		},
 	}
 	writeJSON(w, http.StatusOK, resp)

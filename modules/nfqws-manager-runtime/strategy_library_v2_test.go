@@ -26,7 +26,7 @@ func TestV2StrategyFingerprintDeterministic(t *testing.T) {
 }
 
 func TestV2StrategySourceWhitelist(t *testing.T) {
-	if v2StrategySource("catalog") != "catalog" || v2StrategySource("zapret") != "zapret" {
+	if v2StrategySource("catalog") != "catalog" || v2StrategySource("import") != "import" {
 		t.Fatal("known source not preserved")
 	}
 	if v2StrategySource("whatever") != "custom" {

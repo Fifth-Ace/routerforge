@@ -1,19 +1,9 @@
 package main
 
-const (
-	v2CorpusOmn1zRepository = "Omn1z/nfqws2-keenetic-strategy-selector"
-	v2CorpusOmn1zRef        = "bf4e810ef22ffb6671e97dc411234ba9430909c9"
-	v2CorpusZ2KRepository   = "necronicle/z2k"
-	v2CorpusZ2KRef          = "fca1ed5a452f2554b3dfa1ab18571cee7c505174"
-)
-
 type v2StaticCorpusEntry struct {
 	ID           string
 	Name         string
 	Source       string
-	Repository   string
-	Ref          string
-	UpstreamName string
 	Protocol     string
 	Family       string
 	Args         []string
@@ -21,164 +11,137 @@ type v2StaticCorpusEntry struct {
 
 var v2StaticCorpusEntries = []v2StaticCorpusEntry{
 	{
-		ID: "omn1z-tls-ms-1", Name: "Omn1z · multisplit pos=1", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-1",
+		ID: "rf-tls-ms-1", Name: "RouterForge · multisplit pos=1", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1"},
 	},
 	{
-		ID: "omn1z-tls-ms-midsld", Name: "Omn1z · multisplit midsld", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-midsld",
+		ID: "rf-tls-ms-midsld", Name: "RouterForge · multisplit midsld", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld"},
 	},
 	{
-		ID: "omn1z-tls-ms-midsld2", Name: "Omn1z · multisplit 2,midsld-2", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-midsld2",
+		ID: "rf-tls-ms-midsld2", Name: "RouterForge · multisplit 2,midsld-2", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=2,midsld-2"},
 	},
 	{
-		ID: "omn1z-tls-ms-sniext", Name: "Omn1z · multisplit sniext+1", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-sniext",
+		ID: "rf-tls-ms-sniext", Name: "RouterForge · multisplit sniext+1", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,sniext+1"},
 	},
 	{
-		ID: "omn1z-tls-ms-host", Name: "Omn1z · multisplit host+1", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-host",
+		ID: "rf-tls-ms-host", Name: "RouterForge · multisplit host+1", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,host+1"},
 	},
 	{
-		ID: "omn1z-tls-ms-sld", Name: "Omn1z · multisplit sld+1", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-sld",
+		ID: "rf-tls-ms-sld", Name: "RouterForge · multisplit sld+1", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=sld+1"},
 	},
 	{
-		ID: "omn1z-tls-md-midsld", Name: "Omn1z · multidisorder midsld", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-md-midsld",
+		ID: "rf-tls-md-midsld", Name: "RouterForge · multidisorder midsld", Source: "curated",
 		Protocol: "https", Family: "disorder",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:pos=1,midsld"},
 	},
 	{
-		ID: "omn1z-tls-md-sniext", Name: "Omn1z · multidisorder sniext+1", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-md-sniext",
+		ID: "rf-tls-md-sniext", Name: "RouterForge · multidisorder sniext+1", Source: "curated",
 		Protocol: "https", Family: "disorder",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:pos=1,sniext+1"},
 	},
 	{
-		ID: "omn1z-tls-md-multi", Name: "Omn1z · multidisorder midsld+sniext", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-md-multi",
+		ID: "rf-tls-md-multi", Name: "RouterForge · multidisorder midsld+sniext", Source: "curated",
 		Protocol: "https", Family: "disorder",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:pos=1,midsld,sniext+1"},
 	},
 	{
-		ID: "omn1z-tls-fds-midsld", Name: "Omn1z · fakedsplit midsld", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-fds-midsld",
+		ID: "rf-tls-fds-midsld", Name: "RouterForge · fakedsplit midsld", Source: "curated",
 		Protocol: "https", Family: "fake-split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakedsplit:pos=midsld"},
 	},
 	{
-		ID: "omn1z-tls-fdd-midsld", Name: "Omn1z · fakeddisorder midsld", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-fdd-midsld",
+		ID: "rf-tls-fdd-midsld", Name: "RouterForge · fakeddisorder midsld", Source: "curated",
 		Protocol: "https", Family: "fake-disorder",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakeddisorder:pos=midsld"},
 	},
 	{
-		ID: "omn1z-tls-ms-sld2", Name: "Omn1z · multisplit sld+2", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-sld2",
+		ID: "rf-tls-ms-sld2", Name: "RouterForge · multisplit sld+2", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=sld+2"},
 	},
 	{
-		ID: "omn1z-tls-ms-multi3", Name: "Omn1z · multisplit multi-position", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-multi3",
+		ID: "rf-tls-ms-multi3", Name: "RouterForge · multisplit multi-position", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,sniext+1,host+1,midsld"},
 	},
 	{
-		ID: "omn1z-tls-ms-tsup", Name: "Omn1z · multisplit tcp_ts_up", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-tsup",
+		ID: "rf-tls-ms-tsup", Name: "RouterForge · multisplit tcp_ts_up", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld:tcp_ts_up"},
 	},
 	{
-		ID: "omn1z-tls-ms-md5", Name: "Omn1z · multisplit tcp_md5", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-md5",
+		ID: "rf-tls-ms-md5", Name: "RouterForge · multisplit tcp_md5", Source: "curated",
 		Protocol: "https", Family: "split",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld:tcp_md5"},
 	},
 	{
-		ID: "omn1z-tls-md-host", Name: "Omn1z · multidisorder host+1", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-md-host",
+		ID: "rf-tls-md-host", Name: "RouterForge · multidisorder host+1", Source: "curated",
 		Protocol: "https", Family: "disorder",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:pos=1,host+1"},
 	},
 	{
-		ID: "omn1z-tls-md-tsup", Name: "Omn1z · multidisorder tcp_ts_up", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-md-tsup",
+		ID: "rf-tls-md-tsup", Name: "RouterForge · multidisorder tcp_ts_up", Source: "curated",
 		Protocol: "https", Family: "disorder",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:pos=1,midsld:tcp_ts_up"},
 	},
 	{
-		ID: "omn1z-tls-md-badsum", Name: "Omn1z · multidisorder badsum", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-md-badsum",
+		ID: "rf-tls-md-badsum", Name: "RouterForge · multidisorder badsum", Source: "curated",
 		Protocol: "https", Family: "disorder",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:pos=1,midsld:badsum"},
 	},
 	{
-		ID: "omn1z-tls-fdd-badsum-md5", Name: "Omn1z · fakeddisorder badsum+md5", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-fdd-badsum-md5",
+		ID: "rf-tls-fdd-badsum-md5", Name: "RouterForge · fakeddisorder badsum+md5", Source: "curated",
 		Protocol: "https", Family: "fake-disorder",
 		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakeddisorder:pos=midsld:badsum:tcp_md5"},
 	},
 	{
-		ID: "omn1z-http-methodeol", Name: "Omn1z · HTTP methodeol badsum", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-methodeol",
+		ID: "rf-http-methodeol", Name: "RouterForge · HTTP methodeol badsum", Source: "curated",
 		Protocol: "http", Family: "http-method",
 		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=http_methodeol:badsum"},
 	},
 	{
-		ID: "omn1z-http-ms-method", Name: "Omn1z · HTTP multisplit method+2", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-method",
+		ID: "rf-http-ms-method", Name: "RouterForge · HTTP multisplit method+2", Source: "curated",
 		Protocol: "http", Family: "split",
 		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=multisplit:pos=method+2"},
 	},
 	{
-		ID: "omn1z-http-md-method", Name: "Omn1z · HTTP multidisorder method+host", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-md-method",
+		ID: "rf-http-md-method", Name: "RouterForge · HTTP multidisorder method+host", Source: "curated",
 		Protocol: "http", Family: "disorder",
 		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=multidisorder:pos=method+2,host+1"},
 	},
 	{
-		ID: "omn1z-http-ms-method-host", Name: "Omn1z · HTTP multisplit method+host", Source: "omn1z",
-		Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef, UpstreamName: "auto-ms-method-host",
+		ID: "rf-http-ms-method-host", Name: "RouterForge · HTTP multisplit method+host", Source: "curated",
 		Protocol: "http", Family: "split",
 		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=multisplit:pos=method+2,host+1"},
 	},
 	{
-		ID: "z2k-quic-udplen-4", Name: "z2k · QUIC udplen +4", Source: "z2k",
-		Repository: v2CorpusZ2KRepository, Ref: v2CorpusZ2KRef, UpstreamName: "quic_autocircular strategy=5",
+		ID: "rf-quic-udplen-4", Name: "RouterForge · QUIC udplen +4", Source: "curated",
 		Protocol: "quic", Family: "udplen",
 		Args: []string{"--filter-udp=443", "--filter-l7=quic", "--payload=quic_initial", "--lua-desync=udplen:payload=quic_initial:dir=out:increment=4"},
 	},
 	{
-		ID: "z2k-quic-udplen-8", Name: "z2k · QUIC udplen +8 pattern", Source: "z2k",
-		Repository: v2CorpusZ2KRepository, Ref: v2CorpusZ2KRef, UpstreamName: "quic_autocircular strategy=6",
+		ID: "rf-quic-udplen-8", Name: "RouterForge · QUIC udplen +8 pattern", Source: "curated",
 		Protocol: "quic", Family: "udplen",
 		Args: []string{"--filter-udp=443", "--filter-l7=quic", "--payload=quic_initial", "--lua-desync=udplen:payload=quic_initial:dir=out:increment=8:pattern=0xFEA82025"},
 	},
 	{
-		ID: "z2k-quic-udplen-25", Name: "z2k · QUIC udplen +25", Source: "z2k",
-		Repository: v2CorpusZ2KRepository, Ref: v2CorpusZ2KRef, UpstreamName: "quic_autocircular strategy=7",
+		ID: "rf-quic-udplen-25", Name: "RouterForge · QUIC udplen +25", Source: "curated",
 		Protocol: "quic", Family: "udplen",
 		Args: []string{"--filter-udp=443", "--filter-l7=quic", "--payload=quic_initial", "--lua-desync=udplen:payload=quic_initial:dir=out:increment=25"},
 	},
 	{
-		ID: "z2k-quic-ipfrag-send-drop", Name: "z2k · QUIC ipfrag send/drop", Source: "z2k",
-		Repository: v2CorpusZ2KRepository, Ref: v2CorpusZ2KRef, UpstreamName: "quic_autocircular strategy=4",
+		ID: "rf-quic-ipfrag-send-drop", Name: "RouterForge · QUIC ipfrag send/drop", Source: "curated",
 		Protocol: "quic", Family: "ipfrag",
 		Args: []string{
 			"--filter-udp=443", "--filter-l7=quic", "--payload=quic_initial",

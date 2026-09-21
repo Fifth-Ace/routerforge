@@ -242,7 +242,7 @@ func v2AppendPoolItem(out []v2CandidatePoolItem, seen map[string]bool, item v2Ca
 }
 
 func v2RecommendationSource(entry v2StrategyRegistryEntry) string {
-	for _, preferred := range []string{"zapret", "catalog", "import", "custom", "omn1z", "z2k", "builtin", "memory"} {
+	for _, preferred := range []string{"catalog", "import", "custom", "curated", "builtin", "memory"} {
 		for _, source := range entry.Sources {
 			if strings.EqualFold(strings.TrimSpace(source), preferred) {
 				return preferred

@@ -55,14 +55,8 @@ type v2TCP16MemoryResponse struct {
 	Clear      int                      `json:"clear"`
 	WorkingSNI int                      `json:"working_sni"`
 	Entries    []v2TCP16NetworkEntry    `json:"entries"`
-	References []v2TCP16MemoryReference `json:"references"`
 }
 
-type v2TCP16MemoryReference struct {
-	Repository string `json:"repository"`
-	Ref        string `json:"ref"`
-	Note       string `json:"note"`
-}
 
 func registerTCP16NetworkMemoryV1Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/v2/tcp16-memory", getOnly(handleV2TCP16NetworkMemory))
@@ -215,10 +209,5 @@ func handleV2TCP16NetworkMemory(w http.ResponseWriter, _ *http.Request) {
 		OK: true, Version: doc.Version, ReadOnly: true,
 		Count: len(doc.Entries), Suspected: suspected, Clear: clear, WorkingSNI: working,
 		Entries: doc.Entries,
-		References: []v2TCP16MemoryReference{{
-			Repository: "necronicle/z2k",
-			Ref:        "fca1ed5a452f2554b3dfa1ab18571cee7c505174",
-			Note:       "network-to-SNI memory concept reviewed; RouterForge storage and safety contract are native",
-		}},
 	})
 }

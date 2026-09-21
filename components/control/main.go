@@ -759,75 +759,48 @@ func readCPURaw() ([]cpuRaw, error) {
 }
 
 type cpuSampler struct {
-	mu        sync.RWMutex
-	interval  time.Duration
-	window    int
-	previous  map[string]cpuRaw
-	history   map[string][]float64
-	latest    []cpuSample
-	sampledAt time.Time
-	ready     bool
-	stop      chan struct{}
-	done      chan struct{}
+	mu            sync.RWMutex
+	minInterval   time.Duration
+	previous      map[string]cpuRaw
+	latest        []cpuSample
+	sampledAt     time.Time
+	ready         bool
+	windowSeconds int
 }
 
-func newCPUSampler(interval time.Duration, window int) (*cpuSampler, error) {
+func newCPUSampler(interval time.Duration, _ int) (*cpuSampler, error) {
 	if interval <= 0 {
 		interval = time.Second
 	}
-	if window < 1 {
-		window = 1
-	}
-
 	raw, err := readCPURaw()
 	if err != nil {
 		return nil, err
 	}
-
-	s := &cpuSampler{
-		interval: interval,
-		window:   window,
-		previous: make(map[string]cpuRaw, len(raw)),
-		history:  make(map[string][]float64, len(raw)),
-		stop:     make(chan struct{}),
-		done:     make(chan struct{}),
+	sampler := &cpuSampler{
+		minInterval: interval,
+		previous:    make(map[string]cpuRaw, len(raw)),
+		sampledAt:   time.Now(),
 	}
 	for _, item := range raw {
-		s.previous[item.Name] = item
+		sampler.previous[item.Name] = item
 	}
-
-	go s.run()
-	return s, nil
-}
-
-func (s *cpuSampler) run() {
-	defer close(s.done)
-
-	// First result becomes available after one full interval, then the endpoint
-	// serves cached rolling data without sleeping inside HTTP requests.
-	timer := time.NewTimer(s.interval)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-s.stop:
-			return
-		case <-timer.C:
-			s.sample()
-			timer.Reset(s.interval)
-		}
-	}
+	return sampler, nil
 }
 
 func (s *cpuSampler) sample() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now()
+	if s.ready && now.Sub(s.sampledAt) < s.minInterval {
+		return
+	}
+
 	current, err := readCPURaw()
 	if err != nil {
 		return
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	elapsed := now.Sub(s.sampledAt)
 	latest := make([]cpuSample, 0, len(current))
 	for _, item := range current {
 		prev, ok := s.previous[item.Name]
@@ -835,80 +808,46 @@ func (s *cpuSampler) sample() {
 		if !ok || item.Total <= prev.Total {
 			continue
 		}
-
-		usage := cpuUsage(prev, item)
-		values := append(s.history[item.Name], usage)
-		if len(values) > s.window {
-			values = values[len(values)-s.window:]
-		}
-		s.history[item.Name] = values
-
-		sum := 0.0
-		for _, value := range values {
-			sum += value
-		}
-		rolling := sum / float64(len(values))
-
 		latest = append(latest, cpuSample{
 			Name:   item.Name,
-			Usage:  rolling,
+			Usage:  cpuUsage(prev, item),
 			User:   item.User,
 			System: item.System,
 			Idle:   item.Idle,
 			Total:  item.Total,
 		})
 	}
-
 	sort.Slice(latest, func(i, j int) bool { return latest[i].Name < latest[j].Name })
-	if len(latest) > 0 {
-		s.latest = latest
-		s.sampledAt = time.Now()
-		s.ready = true
+	if len(latest) == 0 {
+		return
 	}
-}
 
-func cpuUsage(prev, current cpuRaw) float64 {
-	if current.Total <= prev.Total {
-		return 0
+	s.latest = latest
+	s.sampledAt = now
+	s.windowSeconds = int(elapsed / time.Second)
+	if s.windowSeconds < 1 {
+		s.windowSeconds = 1
 	}
-	totalDelta := current.Total - prev.Total
-
-	prevIdle := prev.Idle + prev.IOWait
-	currentIdle := current.Idle + current.IOWait
-	if currentIdle < prevIdle {
-		return 0
-	}
-	idleDelta := currentIdle - prevIdle
-	if idleDelta >= totalDelta {
-		return 0
-	}
-	return float64(totalDelta-idleDelta) / float64(totalDelta) * 100
+	s.ready = true
 }
 
 func (s *cpuSampler) Snapshot() ([]cpuSample, time.Time, bool) {
+	s.sample()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	out := append([]cpuSample(nil), s.latest...)
-	return out, s.sampledAt, s.ready
+	return append([]cpuSample(nil), s.latest...), s.sampledAt, s.ready
 }
 
 func (s *cpuSampler) WindowSeconds() int {
-	seconds := int(s.interval.Seconds()) * s.window
-	if seconds < 1 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.windowSeconds < 1 {
 		return 1
 	}
-	return seconds
+	return s.windowSeconds
 }
 
-func (s *cpuSampler) Close() {
-	select {
-	case <-s.stop:
-		return
-	default:
-		close(s.stop)
-	}
-	<-s.done
-}
+func (s *cpuSampler) Close() {}
 
 func readProcesses() []processInfo {
 	users := readUsers()

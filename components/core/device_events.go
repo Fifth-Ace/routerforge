@@ -609,7 +609,7 @@ func classifyDeviceThermal(tempC float64) string {
 func readDeviceWatchdogs() deviceWatchdogEnvelope {
 	ctx, cancel := context.WithTimeout(context.Background(), deviceObserverModuleTimeout)
 	defer cancel()
-	raw, err := readModuleRaw(ctx, "admin", "/v1/maintenance/watchdogs", deviceObserverModuleTimeout)
+	raw, err := readModuleRaw(ctx, "admin", "/v1/maintenance/watchdogs?detail=0", deviceObserverModuleTimeout)
 	if err != nil {
 		return deviceWatchdogEnvelope{}
 	}

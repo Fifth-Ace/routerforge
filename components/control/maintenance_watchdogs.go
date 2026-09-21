@@ -61,6 +61,7 @@ type adminWatchdogRuntime struct {
 	attempts    map[string][]time.Time
 	lastAttempt map[string]adminWatchdogAttempt
 	started     bool
+	wake        chan struct{}
 }
 
 type adminWatchdogAttempt struct {
@@ -92,15 +93,67 @@ func (runtime *adminWatchdogRuntime) start() {
 	}
 	runtime.started = true
 	runtime.config = loadAdminWatchdogConfig()
+	if runtime.wake == nil {
+		runtime.wake = make(chan struct{}, 1)
+	}
 	runtime.mu.Unlock()
 
-	go func() {
-		ticker := time.NewTicker(adminWatchdogInterval)
-		defer ticker.Stop()
-		for range ticker.C {
-			runtime.tick(time.Now())
+	go runtime.run()
+}
+
+func (runtime *adminWatchdogRuntime) run() {
+	for {
+		runtime.mu.Lock()
+		enabled := runtime.anyEnabledLocked()
+		wake := runtime.wake
+		runtime.mu.Unlock()
+
+		if !enabled {
+			<-wake
+			continue
 		}
-	}()
+
+		timer := time.NewTimer(adminWatchdogInterval)
+		select {
+		case now := <-timer.C:
+			runtime.tick(now)
+		case <-wake:
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+		}
+	}
+}
+
+func (runtime *adminWatchdogRuntime) anyEnabledLocked() bool {
+	for _, item := range runtime.config.Items {
+		if item.Enabled {
+			return true
+		}
+	}
+	return false
+}
+
+func (runtime *adminWatchdogRuntime) anyEnabled() bool {
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	return runtime.anyEnabledLocked()
+}
+
+func (runtime *adminWatchdogRuntime) signalConfigChanged() {
+	runtime.mu.Lock()
+	wake := runtime.wake
+	runtime.mu.Unlock()
+	if wake == nil {
+		return
+	}
+	select {
+	case wake <- struct{}{}:
+	default:
+	}
 }
 
 func loadAdminWatchdogConfig() adminWatchdogConfig {
@@ -168,13 +221,15 @@ func adminWatchdogDefinition(id string) (adminIntegrationDefinition, bool) {
 	return adminIntegrationDefinition{}, false
 }
 
-func handleAdminWatchdogs(w http.ResponseWriter, _ *http.Request) {
+func handleAdminWatchdogs(w http.ResponseWriter, r *http.Request) {
+	detailed := r.URL.Query().Get("detail") != "0"
 	writeJSON(w, http.StatusOK, map[string]any{
-		"watchdogs":             adminWatchdogs.statuses(time.Now()),
+		"watchdogs":             adminWatchdogs.statuses(time.Now(), detailed),
 		"interval_seconds":      int(adminWatchdogInterval / time.Second),
 		"cooldown_seconds":      int(adminWatchdogCooldown / time.Second),
 		"max_attempts_per_hour": adminWatchdogMaxAttempts,
 		"default_enabled":       false,
+		"detail":                detailed,
 	})
 }
 
@@ -207,6 +262,7 @@ func handleAdminWatchdogConfigure(w http.ResponseWriter, r *http.Request) {
 	}
 	adminWatchdogs.config = next
 	adminWatchdogs.mu.Unlock()
+	adminWatchdogs.signalConfigChanged()
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":      true,
@@ -215,8 +271,11 @@ func handleAdminWatchdogConfigure(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (runtime *adminWatchdogRuntime) statuses(now time.Time) []adminWatchdogStatus {
-	services := readServices()
+func (runtime *adminWatchdogRuntime) statuses(now time.Time, detailed bool) []adminWatchdogStatus {
+	var services []serviceInfo
+	if detailed {
+		services = readServices()
+	}
 
 	runtime.mu.Lock()
 	defer runtime.mu.Unlock()
@@ -224,7 +283,11 @@ func (runtime *adminWatchdogRuntime) statuses(now time.Time) []adminWatchdogStat
 
 	statuses := make([]adminWatchdogStatus, 0, len(adminIntegrationDefinitions))
 	for _, definition := range adminIntegrationDefinitions {
-		service, detected := findAdminWatchdogService(definition, services)
+		var service serviceInfo
+		detected := false
+		if detailed {
+			service, detected = findAdminWatchdogService(definition, services)
+		}
 		item := runtime.config.Items[definition.ID]
 		attempts := runtime.attempts[definition.ID]
 		last := runtime.lastAttempt[definition.ID]
@@ -253,6 +316,9 @@ func (runtime *adminWatchdogRuntime) statuses(now time.Time) []adminWatchdogStat
 }
 
 func (runtime *adminWatchdogRuntime) tick(now time.Time) {
+	if !runtime.anyEnabled() {
+		return
+	}
 	services := readServices()
 
 	for _, definition := range adminIntegrationDefinitions {

@@ -365,7 +365,7 @@
       </div>
 
       {#if sortedProcessItems.length}
-        <div class="table-scroll"><table class="sortable-table process-table"><thead><tr>
+        <div class="table-scroll process-table-scroll"><table class="sortable-table process-table"><thead><tr>
           <th><button onclick={() => processSort = nextSort(processSort, 'name')}>{t(locale, 'monitoring.processes.columns.process')} <span>{sortArrow(processSort, 'name')}</span></button></th>
           <th><button onclick={() => processSort = nextSort(processSort, 'pid')}>PID <span>{sortArrow(processSort, 'pid')}</span></button></th>
           <th><button onclick={() => processSort = nextSort(processSort, 'user')}>{t(locale, 'monitoring.processes.columns.user')} <span>{sortArrow(processSort, 'user')}</span></button></th>
@@ -654,6 +654,31 @@
 
   .process-search:focus {
     border-color: var(--rf-accent, var(--accent));
+  }
+
+  .process-manager-panel {
+    overflow-anchor: none;
+  }
+
+  .process-table-scroll {
+    max-height: min(68vh, 720px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    overflow-anchor: none;
+    scrollbar-gutter: stable;
+  }
+
+  .process-table-scroll .process-table,
+  .process-table-scroll .process-table tbody,
+  .process-table-scroll .process-table tr,
+  .process-table-scroll .process-table td {
+    overflow-anchor: none;
+  }
+
+  .process-table-scroll .process-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
   }
 
   .process-table td {

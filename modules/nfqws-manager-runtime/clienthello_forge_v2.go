@@ -1,9 +1,11 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -42,6 +44,11 @@ type v2ClientHelloCapability struct {
 	StaticForgeAvailable  bool   `json:"static_forge_available"`
 	CaptureAvailable      bool   `json:"capture_available"`
 	TCPDumpAvailable      bool   `json:"tcpdump_available"`
+	TCPDumpPath           string `json:"tcpdump_path,omitempty"`
+	LuaAvailable          bool   `json:"lua_available"`
+	LuaSource             string `json:"lua_source,omitempty"`
+	LuaReadError          string `json:"lua_read_error,omitempty"`
+	CloneReason           string `json:"clone_reason,omitempty"`
 }
 
 func registerClientHelloForgeV2Routes(mux *http.ServeMux) {
@@ -299,52 +306,113 @@ func handleV2ClientHelloForge(w http.ResponseWriter, r *http.Request) {
 }
 
 func v2ClientHelloLuaPaths() []string {
-	return []string{
+	bases := []string{
 		"/opt/etc/nfqws2/lua/zapret-antidpi.lua",
 		"/opt/share/nfqws2/lua/zapret-antidpi.lua",
 		"/opt/share/zapret2/lua/zapret-antidpi.lua",
 		"/opt/zapret2/lua/zapret-antidpi.lua",
 		"/opt/zapret2/files/lua/zapret-antidpi.lua",
 	}
+	paths := make([]string, 0, len(bases)*2)
+	for _, path := range bases {
+		paths = append(paths, path, path+".gz")
+	}
+	return paths
 }
 
-func v2ClientHelloDynamicCloneCapability() (bool, string) {
-	for _, path := range v2ClientHelloLuaPaths() {
-		info, err := os.Lstat(path)
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() > 2<<20 {
+func v2ReadClientHelloLua(path string) ([]byte, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errors.New("not a regular file")
+	}
+	if info.Size() > 2<<20 {
+		return nil, errors.New("file exceeds 2 MiB safety limit")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var reader io.Reader = f
+	var gz *gzip.Reader
+	if strings.HasSuffix(strings.ToLower(path), ".gz") {
+		gz, err = gzip.NewReader(f)
+		if err != nil {
+			return nil, err
+		}
+		defer gz.Close()
+		reader = gz
+	}
+	data, err := io.ReadAll(io.LimitReader(reader, (2<<20)+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > 2<<20 {
+		return nil, errors.New("decompressed file exceeds 2 MiB safety limit")
+	}
+	return data, nil
+}
+
+func v2DetectClientHelloCloneFromPaths(paths []string) (bool, string, bool, string, string) {
+	var firstFound string
+	var firstReadError string
+	for _, path := range paths {
+		if _, err := os.Stat(path); err != nil {
 			continue
 		}
-		data, err := os.ReadFile(path)
+		if firstFound == "" {
+			firstFound = path
+		}
+		data, err := v2ReadClientHelloLua(path)
 		if err != nil {
+			if firstReadError == "" {
+				firstReadError = err.Error()
+			}
 			continue
 		}
 		text := string(data)
 		if strings.Contains(text, "function tls_client_hello_clone") &&
 			strings.Contains(text, "tls_client_hello_mod") &&
 			strings.Contains(text, "desync.reasm_data") {
-			return true, path
+			return true, path, true, "", "tls_client_hello_clone найден"
 		}
 	}
-	return false, ""
+	if firstFound == "" {
+		return false, "", false, "", "zapret-antidpi.lua не найден"
+	}
+	if firstReadError != "" {
+		return false, "", true, firstReadError, "zapret-antidpi.lua найден, но не прочитан"
+	}
+	return false, "", true, "", "zapret-antidpi.lua найден, но tls_client_hello_clone не найден"
 }
 
-func v2TCPDumpAvailable() bool {
+func v2TCPDumpPath() string {
 	for _, path := range []string{"/opt/sbin/tcpdump", "/opt/bin/tcpdump", "/usr/sbin/tcpdump", "/usr/bin/tcpdump"} {
 		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() && info.Mode()&0111 != 0 {
-			return true
+			return path
 		}
 	}
-	return false
+	return ""
 }
 
 func handleV2ClientHelloCapabilities(w http.ResponseWriter, _ *http.Request) {
-	dynamic, source := v2ClientHelloDynamicCloneCapability()
+	dynamic, source, luaAvailable, luaReadError, cloneReason := v2DetectClientHelloCloneFromPaths(v2ClientHelloLuaPaths())
+	tcpdumpPath := v2TCPDumpPath()
 	writeJSON(w, http.StatusOK, v2ClientHelloCapability{
 		DynamicCloneAvailable: dynamic,
 		DynamicCloneSource:    source,
 		StaticForgeAvailable:  true,
-		CaptureAvailable:      v2TCPDumpAvailable(),
-		TCPDumpAvailable:      v2TCPDumpAvailable(),
+		CaptureAvailable:      tcpdumpPath != "",
+		TCPDumpAvailable:      tcpdumpPath != "",
+		TCPDumpPath:           tcpdumpPath,
+		LuaAvailable:          luaAvailable,
+		LuaSource:             source,
+		LuaReadError:          luaReadError,
+		CloneReason:           cloneReason,
 	})
 }
 

@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -95,5 +98,49 @@ func TestRobustCaptureAcceptsNon443TLS(t *testing.T) {
 func TestClientHelloBlobIDAlwaysStartsSafe(t *testing.T) {
 	if got := v2ClientHelloBlobID("4pda.to.bin"); got != "rf_4pda_to" {
 		t.Fatalf("id=%q", got)
+	}
+}
+
+func TestClientHelloCloneCapabilityReadsPlainAndGzipLua(t *testing.T) {
+	const lua = `function tls_client_hello_clone(ctx, desync)
+desync[desync.arg.blob] = tls_client_hello_mod(desync.reasm_data or desync.dis.payload, desync.arg)
+end`
+
+	dir := t.TempDir()
+	plain := filepath.Join(dir, "zapret-antidpi.lua")
+	if err := os.WriteFile(plain, []byte(lua), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ok, source, found, readErr, _ := v2DetectClientHelloCloneFromPaths([]string{plain})
+	if !ok || !found || source != plain || readErr != "" {
+		t.Fatalf("plain detection: ok=%v found=%v source=%q readErr=%q", ok, found, source, readErr)
+	}
+
+	gzPath := filepath.Join(dir, "zapret-antidpi.lua.gz")
+	f, err := os.Create(gzPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gz := gzip.NewWriter(f)
+	if _, err := gz.Write([]byte(lua)); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	ok, source, found, readErr, _ = v2DetectClientHelloCloneFromPaths([]string{gzPath})
+	if !ok || !found || source != gzPath || readErr != "" {
+		t.Fatalf("gzip detection: ok=%v found=%v source=%q readErr=%q", ok, found, source, readErr)
+	}
+}
+
+func TestClientHelloCloneCapabilityExplainsMissingLua(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing.lua")
+	ok, source, found, readErr, reason := v2DetectClientHelloCloneFromPaths([]string{missing})
+	if ok || found || source != "" || readErr != "" || !strings.Contains(reason, "не найден") {
+		t.Fatalf("unexpected missing result: ok=%v found=%v source=%q readErr=%q reason=%q", ok, found, source, readErr, reason)
 	}
 }

@@ -9,24 +9,24 @@ import (
 	"strings"
 )
 
-const v2ZapretParseMax = 256 << 10
+const v2StrategyImportParseMax = 256 << 10
 
-type v2ZapretWarning struct {
+type v2StrategyImportWarning struct {
 	Level string `json:"level"`
 	Text  string `json:"text"`
 }
 
-type v2ZapretTransform struct {
+type v2StrategyImportTransform struct {
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
 
-type v2ZapretDependency struct {
+type v2StrategyImportDependency struct {
 	Kind string `json:"kind"`
 	Path string `json:"path"`
 }
 
-type v2ZapretLogSummary struct {
+type v2StrategyImportLogSummary struct {
 	Format     string `json:"format,omitempty"`
 	Strategies int    `json:"strategies,omitempty"`
 	Targets    int    `json:"targets,omitempty"`
@@ -35,44 +35,44 @@ type v2ZapretLogSummary struct {
 	Failed     int    `json:"failed,omitempty"`
 }
 
-type v2ZapretParseRequest struct {
+type v2StrategyImportParseRequest struct {
 	Content string `json:"content"`
 }
 
-type v2ZapretParseResponse struct {
+type v2StrategyImportParseResponse struct {
 	OK         bool                 `json:"ok"`
 	Type       string               `json:"type"`
 	Commands   []string             `json:"commands"`
 	Profiles   []string             `json:"profiles"`
 	TCP        string               `json:"tcp,omitempty"`
 	UDP        string               `json:"udp,omitempty"`
-	Transforms []v2ZapretTransform  `json:"transforms"`
-	Warnings   []v2ZapretWarning    `json:"warnings"`
-	Deps       []v2ZapretDependency `json:"deps"`
+	Transforms []v2StrategyImportTransform  `json:"transforms"`
+	Warnings   []v2StrategyImportWarning    `json:"warnings"`
+	Deps       []v2StrategyImportDependency `json:"deps"`
 	Preview    string               `json:"preview,omitempty"`
 	Ready      bool                 `json:"ready"`
-	Log        v2ZapretLogSummary   `json:"log,omitempty"`
+	Log        v2StrategyImportLogSummary   `json:"log,omitempty"`
 
 	ProductionMutation bool `json:"production_mutation"`
 }
 
 var (
-	v2ZapretSetRE     = regexp.MustCompile(`(?i)^set\s+"?([A-Za-z_][A-Za-z0-9_]*)=([^"]*)"?\s*$`)
-	v2ZapretVarRE     = regexp.MustCompile(`%([A-Za-z_][A-Za-z0-9_]*)%`)
-	v2ZapretDepRE     = regexp.MustCompile(`(--[A-Za-z0-9_-]+)=([^\s]+)`)
-	v2ZapretFormat1RE = regexp.MustCompile(`(?i)^Config:\s+(.+?)\s+\(Type:`)
-	v2ZapretFormat2RE = regexp.MustCompile(`^\[(\d+)/(\d+)\]\s+(.+)$`)
-	v2ZapretTarget1RE = regexp.MustCompile(`^\s*Target:\s+(.+?)\s+\((.+?)\)$`)
-	v2ZapretTarget2RE = regexp.MustCompile(`^===\s+(.+?)\s+\[(.+?)\]\s+===$`)
-	v2ZapretResult1RE = regexp.MustCompile(`(?i)^\s+(HTTP|TLS1\.2|TLS1\.3):\s+code=(\d+)\s+size=([\d.]+)\s+(KB|MB|bytes?)\s+status=(OK|FAIL|LIKELY_BLOCKED)$`)
-	v2ZapretResult2RE = regexp.MustCompile(`^\[(.+?)\]\[(.+?)\]\s+code=(\d+)\s+size=(\d+)\s+bytes.*status=(OK|FAIL)$`)
+	v2StrategyImportSetRE     = regexp.MustCompile(`(?i)^set\s+"?([A-Za-z_][A-Za-z0-9_]*)=([^"]*)"?\s*$`)
+	v2StrategyImportVarRE     = regexp.MustCompile(`%([A-Za-z_][A-Za-z0-9_]*)%`)
+	v2StrategyImportDepRE     = regexp.MustCompile(`(--[A-Za-z0-9_-]+)=([^\s]+)`)
+	v2StrategyImportFormat1RE = regexp.MustCompile(`(?i)^Config:\s+(.+?)\s+\(Type:`)
+	v2StrategyImportFormat2RE = regexp.MustCompile(`^\[(\d+)/(\d+)\]\s+(.+)$`)
+	v2StrategyImportTarget1RE = regexp.MustCompile(`^\s*Target:\s+(.+?)\s+\((.+?)\)$`)
+	v2StrategyImportTarget2RE = regexp.MustCompile(`^===\s+(.+?)\s+\[(.+?)\]\s+===$`)
+	v2StrategyImportResult1RE = regexp.MustCompile(`(?i)^\s+(HTTP|TLS1\.2|TLS1\.3):\s+code=(\d+)\s+size=([\d.]+)\s+(KB|MB|bytes?)\s+status=(OK|FAIL|LIKELY_BLOCKED)$`)
+	v2StrategyImportResult2RE = regexp.MustCompile(`^\[(.+?)\]\[(.+?)\]\s+code=(\d+)\s+size=(\d+)\s+bytes.*status=(OK|FAIL)$`)
 )
 
-func v2ZapretDetectType(content string) string {
+func v2StrategyImportDetectType(content string) string {
 	lines := strings.Split(strings.ReplaceAll(content, "\r", ""), "\n")
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
-		if v2ZapretFormat1RE.MatchString(line) || v2ZapretFormat2RE.MatchString(line) {
+		if v2StrategyImportFormat1RE.MatchString(line) || v2StrategyImportFormat2RE.MatchString(line) {
 			return "log"
 		}
 	}
@@ -94,7 +94,7 @@ func v2ZapretDetectType(content string) string {
 	return "unknown"
 }
 
-func v2ZapretLogicalLines(content string) []string {
+func v2StrategyImportLogicalLines(content string) []string {
 	var out []string
 	buf := ""
 	for _, raw := range strings.Split(strings.ReplaceAll(content, "\r", ""), "\n") {
@@ -124,19 +124,19 @@ func v2ZapretLogicalLines(content string) []string {
 	return out
 }
 
-func v2ZapretVariables(content string) map[string]string {
+func v2StrategyImportVariables(content string) map[string]string {
 	out := map[string]string{}
 	for _, raw := range strings.Split(strings.ReplaceAll(content, "\r", ""), "\n") {
-		if m := v2ZapretSetRE.FindStringSubmatch(strings.TrimSpace(raw)); len(m) == 3 {
+		if m := v2StrategyImportSetRE.FindStringSubmatch(strings.TrimSpace(raw)); len(m) == 3 {
 			out[strings.ToUpper(m[1])] = strings.TrimSpace(m[2])
 		}
 	}
 	return out
 }
 
-func v2ZapretExtractCommands(content string) []string {
+func v2StrategyImportExtractCommands(content string) []string {
 	var out []string
-	for _, line := range v2ZapretLogicalLines(content) {
+	for _, line := range v2StrategyImportLogicalLines(content) {
 		lower := strings.ToLower(line)
 		idx, n := strings.Index(lower, "winws.exe"), len("winws.exe")
 		if idx < 0 {
@@ -156,25 +156,25 @@ func v2ZapretExtractCommands(content string) []string {
 	return out
 }
 
-func v2ZapretAppendTransform(dst *[]v2ZapretTransform, kind, text string) {
+func v2StrategyImportAppendTransform(dst *[]v2StrategyImportTransform, kind, text string) {
 	for _, item := range *dst {
 		if item.Kind == kind && item.Text == text {
 			return
 		}
 	}
-	*dst = append(*dst, v2ZapretTransform{Kind: kind, Text: text})
+	*dst = append(*dst, v2StrategyImportTransform{Kind: kind, Text: text})
 }
 
-func v2ZapretAppendWarning(dst *[]v2ZapretWarning, level, text string) {
+func v2StrategyImportAppendWarning(dst *[]v2StrategyImportWarning, level, text string) {
 	for _, item := range *dst {
 		if item.Level == level && item.Text == text {
 			return
 		}
 	}
-	*dst = append(*dst, v2ZapretWarning{Level: level, Text: text})
+	*dst = append(*dst, v2StrategyImportWarning{Level: level, Text: text})
 }
 
-func v2ZapretExpand(raw string, vars map[string]string, transforms *[]v2ZapretTransform, warnings *[]v2ZapretWarning) string {
+func v2StrategyImportExpand(raw string, vars map[string]string, transforms *[]v2StrategyImportTransform, warnings *[]v2StrategyImportWarning) string {
 	out := raw
 	replacements := []struct{ old, new, label string }{
 		{`%~dp0bin\`, `/opt/etc/nfqws2/blobs/`, `%~dp0bin\ -> /opt/etc/nfqws2/blobs/`},
@@ -188,25 +188,25 @@ func v2ZapretExpand(raw string, vars map[string]string, transforms *[]v2ZapretTr
 		out = strings.ReplaceAll(out, rep.old, rep.new)
 		out = strings.ReplaceAll(out, strings.ToLower(rep.old), rep.new)
 		if out != before {
-			v2ZapretAppendTransform(transforms, "PATH", rep.label)
+			v2StrategyImportAppendTransform(transforms, "PATH", rep.label)
 		}
 	}
-	out = v2ZapretVarRE.ReplaceAllStringFunc(out, func(all string) string {
+	out = v2StrategyImportVarRE.ReplaceAllStringFunc(out, func(all string) string {
 		name := strings.ToUpper(strings.Trim(all, "%"))
 		if value, ok := vars[name]; ok && !strings.Contains(strings.ToLower(value), "%~dp0") {
-			v2ZapretAppendTransform(transforms, "VAR", all+" -> "+value)
+			v2StrategyImportAppendTransform(transforms, "VAR", all+" -> "+value)
 			return value
 		}
-		v2ZapretAppendWarning(warnings, "bad", "Unresolved variable "+all)
+		v2StrategyImportAppendWarning(warnings, "bad", "Unresolved variable "+all)
 		return all
 	})
 	if strings.Contains(out, "^!") {
 		out = strings.ReplaceAll(out, "^!", "!")
-		v2ZapretAppendTransform(transforms, "CMD", "^! -> !")
+		v2StrategyImportAppendTransform(transforms, "CMD", "^! -> !")
 	}
 	if strings.Contains(out, "^^") {
 		out = strings.ReplaceAll(out, "^^", "^")
-		v2ZapretAppendTransform(transforms, "CMD", "^^ -> ^")
+		v2StrategyImportAppendTransform(transforms, "CMD", "^^ -> ^")
 	}
 	out = strings.ReplaceAll(out, `\`, "/")
 	out = strings.ReplaceAll(out, `"`, "")
@@ -220,13 +220,13 @@ func v2ZapretExpand(raw string, vars map[string]string, transforms *[]v2ZapretTr
 		if strings.Contains(strings.ToLower(out), strings.ToLower(rep.old)) {
 			re := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(rep.old))
 			out = re.ReplaceAllString(out, rep.new)
-			v2ZapretAppendTransform(transforms, "COMPAT", rep.old+" -> "+rep.new)
+			v2StrategyImportAppendTransform(transforms, "COMPAT", rep.old+" -> "+rep.new)
 		}
 	}
 	return strings.Join(strings.Fields(out), " ")
 }
 
-func v2ZapretSplitProfiles(args string) []string {
+func v2StrategyImportSplitProfiles(args string) []string {
 	re := regexp.MustCompile(`(?i)\s+--new\s+`)
 	parts := re.Split(strings.TrimSpace(args), -1)
 	out := make([]string, 0, len(parts))
@@ -238,7 +238,7 @@ func v2ZapretSplitProfiles(args string) []string {
 	return out
 }
 
-func v2ZapretDependencyKind(flag, value string) string {
+func v2StrategyImportDependencyKind(flag, value string) string {
 	flag = strings.ToLower(flag)
 	switch flag {
 	case "--hostlist", "--hostlist-exclude", "--hostlist-auto", "--ipset", "--ipset-exclude":
@@ -258,11 +258,11 @@ func v2ZapretDependencyKind(flag, value string) string {
 	return ""
 }
 
-func v2ZapretDependencies(args string, warnings *[]v2ZapretWarning) []v2ZapretDependency {
+func v2StrategyImportDependencies(args string, warnings *[]v2StrategyImportWarning) []v2StrategyImportDependency {
 	seen := map[string]bool{}
-	out := []v2ZapretDependency{}
-	for _, m := range v2ZapretDepRE.FindAllStringSubmatch(args, -1) {
-		kind := v2ZapretDependencyKind(m[1], m[2])
+	out := []v2StrategyImportDependency{}
+	for _, m := range v2StrategyImportDepRE.FindAllStringSubmatch(args, -1) {
+		kind := v2StrategyImportDependencyKind(m[1], m[2])
 		if kind == "" {
 			continue
 		}
@@ -271,9 +271,9 @@ func v2ZapretDependencies(args string, warnings *[]v2ZapretWarning) []v2ZapretDe
 			continue
 		}
 		seen[key] = true
-		out = append(out, v2ZapretDependency{Kind: kind, Path: m[2]})
+		out = append(out, v2StrategyImportDependency{Kind: kind, Path: m[2]})
 		if strings.Contains(m[2], "%") || strings.Contains(m[2], `\`) || regexp.MustCompile(`^[A-Za-z]:`).MatchString(m[2]) {
-			v2ZapretAppendWarning(warnings, "warn", "Windows/path variable remains in dependency: "+m[2])
+			v2StrategyImportAppendWarning(warnings, "warn", "Windows/path variable remains in dependency: "+m[2])
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -285,41 +285,41 @@ func v2ZapretDependencies(args string, warnings *[]v2ZapretWarning) []v2ZapretDe
 	return out
 }
 
-func v2ZapretParseLog(content string) v2ZapretLogSummary {
+func v2StrategyImportParseLog(content string) v2StrategyImportLogSummary {
 	lines := strings.Split(strings.ReplaceAll(content, "\r", ""), "\n")
-	s := v2ZapretLogSummary{}
+	s := v2StrategyImportLogSummary{}
 	targets := map[string]bool{}
 	for _, raw := range lines {
 		line := strings.TrimSpace(raw)
 		switch {
-		case v2ZapretFormat1RE.MatchString(line):
+		case v2StrategyImportFormat1RE.MatchString(line):
 			s.Format = "format1"
 			s.Strategies++
-		case v2ZapretFormat2RE.MatchString(line):
+		case v2StrategyImportFormat2RE.MatchString(line):
 			if s.Format == "" {
 				s.Format = "format2"
 			}
 			s.Strategies++
-		case v2ZapretTarget1RE.MatchString(raw):
-			m := v2ZapretTarget1RE.FindStringSubmatch(raw)
+		case v2StrategyImportTarget1RE.MatchString(raw):
+			m := v2StrategyImportTarget1RE.FindStringSubmatch(raw)
 			if len(m) > 1 {
 				targets[m[1]] = true
 			}
-		case v2ZapretTarget2RE.MatchString(line):
-			m := v2ZapretTarget2RE.FindStringSubmatch(line)
+		case v2StrategyImportTarget2RE.MatchString(line):
+			m := v2StrategyImportTarget2RE.FindStringSubmatch(line)
 			if len(m) > 1 {
 				targets[m[1]] = true
 			}
-		case v2ZapretResult1RE.MatchString(raw):
-			m := v2ZapretResult1RE.FindStringSubmatch(raw)
+		case v2StrategyImportResult1RE.MatchString(raw):
+			m := v2StrategyImportResult1RE.FindStringSubmatch(raw)
 			s.Tests++
 			if strings.EqualFold(m[5], "OK") {
 				s.Passed++
 			} else {
 				s.Failed++
 			}
-		case v2ZapretResult2RE.MatchString(line):
-			m := v2ZapretResult2RE.FindStringSubmatch(line)
+		case v2StrategyImportResult2RE.MatchString(line):
+			m := v2StrategyImportResult2RE.FindStringSubmatch(line)
 			s.Tests++
 			if m[5] == "OK" {
 				s.Passed++
@@ -332,54 +332,54 @@ func v2ZapretParseLog(content string) v2ZapretLogSummary {
 	return s
 }
 
-func v2ZapretParse(content string) (v2ZapretParseResponse, error) {
-	if len(content) == 0 || len(content) > v2ZapretParseMax {
-		return v2ZapretParseResponse{}, errors.New("zapret source is empty or exceeds 256 KiB")
+func v2StrategyImportParse(content string) (v2StrategyImportParseResponse, error) {
+	if len(content) == 0 || len(content) > v2StrategyImportParseMax {
+		return v2StrategyImportParseResponse{}, errors.New("strategy source is empty or exceeds 256 KiB")
 	}
-	resp := v2ZapretParseResponse{
-		OK: true, Type: v2ZapretDetectType(content),
-		Commands: []string{}, Profiles: []string{}, Transforms: []v2ZapretTransform{},
-		Warnings: []v2ZapretWarning{}, Deps: []v2ZapretDependency{}, ProductionMutation: false,
+	resp := v2StrategyImportParseResponse{
+		OK: true, Type: v2StrategyImportDetectType(content),
+		Commands: []string{}, Profiles: []string{}, Transforms: []v2StrategyImportTransform{},
+		Warnings: []v2StrategyImportWarning{}, Deps: []v2StrategyImportDependency{}, ProductionMutation: false,
 	}
 	if resp.Type == "log" {
-		resp.Log = v2ZapretParseLog(content)
-		v2ZapretAppendWarning(&resp.Warnings, "warn", "Zapret test log recognized; log evidence is parsed, but a .bat/command is still required to build an NFQWS candidate.")
+		resp.Log = v2StrategyImportParseLog(content)
+		v2StrategyImportAppendWarning(&resp.Warnings, "warn", "Test log recognized; a .bat/command is still required to build an NFQWS candidate.")
 		return resp, nil
 	}
-	resp.Commands = v2ZapretExtractCommands(content)
+	resp.Commands = v2StrategyImportExtractCommands(content)
 	if len(resp.Commands) == 0 {
-		v2ZapretAppendWarning(&resp.Warnings, "bad", "No winws.exe/nfqws strategy command found.")
+		v2StrategyImportAppendWarning(&resp.Warnings, "bad", "No winws.exe/nfqws strategy command found.")
 		return resp, nil
 	}
 	if len(resp.Commands) > 1 {
-		v2ZapretAppendWarning(&resp.Warnings, "bad", "Multiple strategy process launches found ("+strconv.Itoa(len(resp.Commands))+"); RouterForge will not merge them automatically.")
+		v2StrategyImportAppendWarning(&resp.Warnings, "bad", "Multiple strategy process launches found ("+strconv.Itoa(len(resp.Commands))+"); RouterForge will not merge them automatically.")
 	}
-	args := v2ZapretExpand(resp.Commands[0], v2ZapretVariables(content), &resp.Transforms, &resp.Warnings)
+	args := v2StrategyImportExpand(resp.Commands[0], v2StrategyImportVariables(content), &resp.Transforms, &resp.Warnings)
 	wfTCP := regexp.MustCompile(`(?i)--wf-tcp=([^\s]+)`)
 	wfUDP := regexp.MustCompile(`(?i)--wf-udp=([^\s]+)`)
 	if m := wfTCP.FindStringSubmatch(args); len(m) == 2 {
 		resp.TCP = m[1]
 		args = wfTCP.ReplaceAllString(args, "")
-		v2ZapretAppendTransform(&resp.Transforms, "WF", "--wf-tcp -> TCP_PORTS preview")
+		v2StrategyImportAppendTransform(&resp.Transforms, "WF", "--wf-tcp -> TCP_PORTS preview")
 	}
 	if m := wfUDP.FindStringSubmatch(args); len(m) == 2 {
 		resp.UDP = m[1]
 		args = wfUDP.ReplaceAllString(args, "")
-		v2ZapretAppendTransform(&resp.Transforms, "WF", "--wf-udp -> UDP_PORTS preview")
+		v2StrategyImportAppendTransform(&resp.Transforms, "WF", "--wf-udp -> UDP_PORTS preview")
 	}
 	args = strings.Join(strings.Fields(args), " ")
-	resp.Profiles = v2ZapretSplitProfiles(args)
+	resp.Profiles = v2StrategyImportSplitProfiles(args)
 	if len(resp.Profiles) > 1 {
-		v2ZapretAppendTransform(&resp.Transforms, "PROFILE", "Preserved "+strconv.Itoa(len(resp.Profiles))+" profile order through --new")
+		v2StrategyImportAppendTransform(&resp.Transforms, "PROFILE", "Preserved "+strconv.Itoa(len(resp.Profiles))+" profile order through --new")
 	}
-	resp.Deps = v2ZapretDependencies(args, &resp.Warnings)
-	if v2ZapretVarRE.MatchString(resp.TCP + " " + resp.UDP + " " + args) {
-		for _, m := range v2ZapretVarRE.FindAllString(resp.TCP+" "+resp.UDP+" "+args, -1) {
-			v2ZapretAppendWarning(&resp.Warnings, "bad", "Unresolved variable "+m)
+	resp.Deps = v2StrategyImportDependencies(args, &resp.Warnings)
+	if v2StrategyImportVarRE.MatchString(resp.TCP + " " + resp.UDP + " " + args) {
+		for _, m := range v2StrategyImportVarRE.FindAllString(resp.TCP+" "+resp.UDP+" "+args, -1) {
+			v2StrategyImportAppendWarning(&resp.Warnings, "bad", "Unresolved variable "+m)
 		}
 	}
 	var preview []string
-	preview = append(preview, "# RouterForge Zapret import preview", "# PREVIEW ONLY - not saved or applied")
+	preview = append(preview, "# RouterForge strategy import preview", "# PREVIEW ONLY - not saved or applied")
 	if resp.TCP != "" {
 		preview = append(preview, `TCP_PORTS="`+resp.TCP+`"`)
 	} else {
@@ -409,13 +409,13 @@ func v2ZapretParse(content string) (v2ZapretParseResponse, error) {
 	return resp, nil
 }
 
-func handleV2ZapretParse(w http.ResponseWriter, r *http.Request) {
-	var req v2ZapretParseRequest
+func handleV2StrategyImportParse(w http.ResponseWriter, r *http.Request) {
+	var req v2StrategyImportParseRequest
 	if err := decodeJSON(w, r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid zapret parse request"})
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid strategy import parse request"})
 		return
 	}
-	resp, err := v2ZapretParse(req.Content)
+	resp, err := v2StrategyImportParse(req.Content)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return

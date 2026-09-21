@@ -7,8 +7,8 @@ func TestRecommendationPlannerPromotesTLSFamily(t *testing.T) {
 		RecommendationHints: 2,
 		Candidates: []v2CandidatePoolItem{
 			{ID: "a", Source: "builtin", Family: "fake", Stage: "full", Fingerprint: "a"},
-			{ID: "b", Source: "z2k", Family: "split", Stage: "quick", Fingerprint: "b"},
-			{ID: "c", Source: "omn1z", Family: "disorder", Stage: "quick", Fingerprint: "c"},
+			{ID: "b", Source: "curated", Family: "split", Stage: "quick", Fingerprint: "b"},
+			{ID: "c", Source: "curated", Family: "disorder", Stage: "quick", Fingerprint: "c"},
 		},
 	}
 	v2ApplyRecommendationPlanner(&resp, v2PlannerHint{
@@ -29,7 +29,7 @@ func TestRecommendationPlannerDoesNotUseDiagnosticWhenIrrelevant(t *testing.T) {
 	resp := v2CandidatePoolResponse{
 		Candidates: []v2CandidatePoolItem{
 			{ID: "a", Source: "builtin", Family: "fake", Stage: "quick", Fingerprint: "a"},
-			{ID: "b", Source: "z2k", Family: "split", Stage: "quick", Fingerprint: "b"},
+			{ID: "b", Source: "curated", Family: "split", Stage: "quick", Fingerprint: "b"},
 		},
 	}
 	v2ApplyRecommendationPlanner(&resp, v2PlannerHint{
@@ -66,7 +66,7 @@ func TestMergeHistoricalRecommendationPreservesSourceIdentity(t *testing.T) {
 		{ID: "memory-id", Source: "memory", Family: "split", Fingerprint: "fp", Args: []string{"--filter-tcp=443"}},
 	}
 	hint := v2CandidatePoolItem{
-		ID: "registry-id", Source: "z2k", Family: "split", Fingerprint: "fp",
+		ID: "registry-id", Source: "curated", Family: "split", Fingerprint: "fp",
 		HistoricalRank: 1, HistoricalScore: 91, HistoricalInsight: "PROVEN",
 		HistoricalPrimary: true, HistoricalPromoted: true, HistoricalReason: "historical evidence",
 	}

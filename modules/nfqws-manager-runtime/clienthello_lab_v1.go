@@ -249,10 +249,6 @@ func handleV2ClientHelloGenerate(w http.ResponseWriter, r *http.Request) {
 		"valid": info.Valid, "detail": info.Detail, "sha256": blobSHA256(data),
 		"alpn": alpn, "min_tls": minTLS,
 		"content_base64": base64.StdEncoding.EncodeToString(data),
-		"upstream_reference": map[string]string{
-			"repository": "Omn1z/nfqws2-keenetic-strategy-selector",
-			"ref":        "bf4e810ef22ffb6671e97dc411234ba9430909c9",
-		},
 	})
 }
 

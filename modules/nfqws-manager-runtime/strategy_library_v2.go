@@ -89,8 +89,7 @@ func v2StrategySource(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "catalog":
 		return "catalog"
-	case "zapret":
-		return "zapret"
+
 	case "custom":
 		return "custom"
 	case "import":
@@ -158,7 +157,9 @@ func readV2StrategyLibrary() (v2StrategyLibraryDocument, error) {
 	if len(doc.Strategies) > v2StrategyLibraryMax {
 		return doc, errors.New("strategy library exceeds entry limit")
 	}
-	for _, item := range doc.Strategies {
+	for i := range doc.Strategies {
+		doc.Strategies[i].Source = v2StrategySource(doc.Strategies[i].Source)
+		item := doc.Strategies[i]
 		if !v2StrategySafeID(item.ID) || !v2StrategySafeName(item.Name) ||
 			item.Fingerprint != v2StrategyFingerprint(item.Args) ||
 			v2ValidateStoredStrategyArgs(item.Args) != nil {

@@ -135,8 +135,20 @@ func v2RegistryInferProtocolFamily(args []string) (string, string) {
 	return protocol, family
 }
 
-func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
+func v2NormalizeStrategySource(source string) string {
 	source = strings.ToLower(strings.TrimSpace(source))
+	switch source {
+	case "builtin", "memory", "catalog", "import", "custom", "curated":
+		return source
+	case "":
+		return "saved"
+	default:
+		return "saved"
+	}
+}
+
+func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
+	source = v2NormalizeStrategySource(source)
 	switch source {
 	case "builtin":
 		return v2StrategyRegistryProvenance{
@@ -144,46 +156,37 @@ func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
 			Repository: "Fifth-Ace/routerforge",
 			Note:       "RouterForge built-in candidate family",
 		}
+	case "curated":
+		return v2StrategyRegistryProvenance{
+			Kind: "routerforge-curated", Source: "curated",
+			Repository: "Fifth-Ace/routerforge",
+			Note:       "RouterForge curated candidate family",
+		}
 	case "memory":
 		return v2StrategyRegistryProvenance{
 			Kind: "runtime-evidence", Source: "memory",
 			Repository: "Fifth-Ace/routerforge",
 			Note:       "verified RouterForge target-memory evidence",
 		}
-	case "omn1z":
-		return v2StrategyRegistryProvenance{
-			Kind: "upstream-corpus", Source: "omn1z",
-			Repository: v2CorpusOmn1zRepository, Ref: v2CorpusOmn1zRef,
-			Note: "curated resource-free candidate from the pinned Omn1z strategy catalog",
-		}
-	case "z2k":
-		return v2StrategyRegistryProvenance{
-			Kind: "upstream-corpus", Source: "z2k",
-			Repository: v2CorpusZ2KRepository, Ref: v2CorpusZ2KRef,
-			Note: "curated resource-free technique adapted from the pinned z2k strategy pools",
-		}
 	case "catalog":
 		return v2StrategyRegistryProvenance{
 			Kind: "local-library", Source: "catalog",
-			Note: "catalog label preserved; exact upstream ref is not stored by the legacy library schema",
-		}
-	case "zapret":
-		return v2StrategyRegistryProvenance{
-			Kind:       "import-adapter",
-			Source:     "zapret",
-			Repository: "whxtelxs/nfqws-zapret-converter",
-			Ref:        "c37858b8ffead9377f1e27de756c8f5c46c23090",
-			Note:       "RouterForge Zapret import workflow reference; original strategy upstream ref is not encoded by the library schema",
+			Note: "catalog entry",
 		}
 	case "import":
 		return v2StrategyRegistryProvenance{
-			Kind: "local-library", Source: "import",
-			Note: "imported candidate; exact original upstream ref is not stored by the legacy library schema",
+			Kind: "import-adapter", Source: "import",
+			Note: "imported strategy",
+		}
+	case "custom":
+		return v2StrategyRegistryProvenance{
+			Kind: "local-library", Source: "custom",
+			Note: "user strategy",
 		}
 	default:
 		return v2StrategyRegistryProvenance{
-			Kind: "local-library", Source: source,
-			Note: "local Candidate Library entry",
+			Kind: "local-library", Source: "saved",
+			Note: "saved Candidate Library entry",
 		}
 	}
 }
@@ -246,12 +249,13 @@ func v2RegistryEnsure(
 		}
 		acc[fingerprint] = item
 	}
+	normalizedSource := v2NormalizeStrategySource(source)
 	if item.Entry.Name == "" {
 		item.Entry.Name = strings.TrimSpace(name)
-	} else if strings.TrimSpace(name) != "" && item.Entry.Name != strings.TrimSpace(name) {
+	} else if strings.TrimSpace(name) != "" && item.Entry.Name != strings.TrimSpace(name) && normalizedSource != "memory" && normalizedSource != "saved" {
 		item.Entry.Aliases = v2RegistryAddUnique(item.Entry.Aliases, strings.TrimSpace(name))
 	}
-	item.Entry.Sources = v2RegistryAddUnique(item.Entry.Sources, strings.ToLower(strings.TrimSpace(source)))
+	item.Entry.Sources = v2RegistryAddUnique(item.Entry.Sources, v2NormalizeStrategySource(source))
 	item.Entry.Provenance = v2RegistryAddProvenance(item.Entry.Provenance, v2RegistryProvenanceForSource(source))
 	if item.Entry.Protocol == "" || item.Entry.Family == "" {
 		inferredProtocol, inferredFamily := v2RegistryInferProtocolFamily(item.Entry.Args)
@@ -296,8 +300,11 @@ func v2BuildStrategyRegistry(
 			continue
 		}
 		if evidence.CandidateSource != "" {
-			item.Entry.Sources = v2RegistryAddUnique(item.Entry.Sources, strings.ToLower(evidence.CandidateSource))
-			item.Entry.Provenance = v2RegistryAddProvenance(item.Entry.Provenance, v2RegistryProvenanceForSource(evidence.CandidateSource))
+			normalizedEvidenceSource := v2NormalizeStrategySource(evidence.CandidateSource)
+			if normalizedEvidenceSource != "saved" {
+				item.Entry.Sources = v2RegistryAddUnique(item.Entry.Sources, normalizedEvidenceSource)
+				item.Entry.Provenance = v2RegistryAddProvenance(item.Entry.Provenance, v2RegistryProvenanceForSource(normalizedEvidenceSource))
+			}
 		}
 		if evidence.Target != "" {
 			item.Targets[evidence.Target] = true

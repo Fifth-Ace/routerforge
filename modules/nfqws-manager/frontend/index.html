@@ -361,35 +361,35 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 @media(max-width:700px){#view-processing .guided-evidence{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){#view-processing .guided-evidence{grid-template-columns:1fr}}
 
-/* UX2.1: preview-only Zapret importer. */
-.zapret-import-shell{display:grid;gap:10px}
-.zapret-import-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
-.zapret-import-credit{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}
-.zapret-import-credit strong{display:block;font-size:10.5px}.zapret-import-credit span{display:block;margin-top:3px;color:var(--muted);font-size:9.5px;line-height:1.4}.zapret-import-credit a{flex:0 0 auto;color:var(--accent);font-size:10px;font-weight:750;text-decoration:none}
-.zapret-import-layout,.zapret-import-results{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.1fr);gap:10px}
-.zapret-import-input{width:100%;min-height:310px;resize:vertical;border:1px solid var(--border);border-radius:7px;background:var(--code);color:var(--text);padding:10px;font:11px/1.5 ui-monospace,Consolas,monospace;white-space:pre;overflow:auto}
-.zapret-import-note{margin-top:9px;color:var(--muted);font-size:9.5px;line-height:1.5}
-.zapret-import-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
-.zapret-import-summary>div{padding:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);min-width:0}.zapret-import-summary span{display:block;color:var(--muted);font-size:8.5px;text-transform:uppercase;letter-spacing:.05em}.zapret-import-summary strong{display:block;margin-top:5px;font-size:11px;overflow-wrap:anywhere}
-.zapret-import-message{margin-top:10px;padding:10px;border-left:3px solid var(--accent);background:var(--accent-soft);font-size:10.5px;line-height:1.5}
-.zapret-import-warnings{display:grid;gap:6px;margin-top:9px}.zapret-import-warning{padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);font-size:9.5px;line-height:1.4}.zapret-import-warning.bad{color:var(--bad)}.zapret-import-warning.warn{color:var(--warn)}
-.zapret-import-list{display:grid;gap:6px}.zapret-import-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);font-size:9.5px;line-height:1.4}.zapret-import-row b{color:var(--accent);font:800 9px/1.4 ui-monospace,Consolas,monospace}
-.zapret-import-preview{min-height:160px;max-height:420px;overflow:auto;margin:0;padding:11px;border:1px solid var(--border);border-radius:7px;background:var(--code);color:var(--text);font:10.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:900px){.zapret-import-layout,.zapret-import-results{grid-template-columns:1fr}.zapret-import-hero{flex-direction:column}.zapret-import-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:520px){.zapret-import-credit{align-items:flex-start;flex-direction:column}.zapret-import-summary{grid-template-columns:1fr}.zapret-import-hero .toolbar{width:100%}.zapret-import-hero .toolbar button{flex:1}}
-.zapret-library-panel{margin-top:10px}
-.zapret-library-grid{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr);gap:12px}
-.zapret-library-label{display:grid;gap:6px;color:var(--muted);font-size:10px}.zapret-library-label .search{width:100%;max-width:none}
-.zapret-library-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
-.zapret-strategy-import{display:flex;align-items:center;gap:8px;margin-top:8px}
-.zapret-strategy-import .config-badge{margin-left:auto}
-.zapret-sandbox-handoff{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin-top:10px}
-.zapret-sandbox-handoff label{display:grid;gap:5px;color:var(--muted);font-size:9.5px}.zapret-sandbox-handoff select{width:100%}
-.zapret-library-diff-title{margin-bottom:6px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em}
-@media(max-width:520px){.zapret-sandbox-handoff{grid-template-columns:1fr}.zapret-sandbox-handoff button{width:100%}}
-.zapret-library-diff{min-height:180px;max-height:360px;overflow:auto;margin:0;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--code);font:9.5px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
-.zapret-library-diff .add{color:#8ee99c}.zapret-library-diff .del{color:#ff9ca4}.zapret-library-diff .same{color:var(--muted)}
-@media(max-width:900px){.zapret-library-grid{grid-template-columns:1fr}}
+/* UX2.1: preview-only StrategyImport importer. */
+.strategy-import-shell{display:grid;gap:10px}
+.strategy-import-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.strategy-import-credit{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}
+.strategy-import-credit strong{display:block;font-size:10.5px}.strategy-import-credit span{display:block;margin-top:3px;color:var(--muted);font-size:9.5px;line-height:1.4}.strategy-import-credit a{flex:0 0 auto;color:var(--accent);font-size:10px;font-weight:750;text-decoration:none}
+.strategy-import-layout,.strategy-import-results{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.1fr);gap:10px}
+.strategy-import-input{width:100%;min-height:310px;resize:vertical;border:1px solid var(--border);border-radius:7px;background:var(--code);color:var(--text);padding:10px;font:11px/1.5 ui-monospace,Consolas,monospace;white-space:pre;overflow:auto}
+.strategy-import-note{margin-top:9px;color:var(--muted);font-size:9.5px;line-height:1.5}
+.strategy-import-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.strategy-import-summary>div{padding:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);min-width:0}.strategy-import-summary span{display:block;color:var(--muted);font-size:8.5px;text-transform:uppercase;letter-spacing:.05em}.strategy-import-summary strong{display:block;margin-top:5px;font-size:11px;overflow-wrap:anywhere}
+.strategy-import-message{margin-top:10px;padding:10px;border-left:3px solid var(--accent);background:var(--accent-soft);font-size:10.5px;line-height:1.5}
+.strategy-import-warnings{display:grid;gap:6px;margin-top:9px}.strategy-import-warning{padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);font-size:9.5px;line-height:1.4}.strategy-import-warning.bad{color:var(--bad)}.strategy-import-warning.warn{color:var(--warn)}
+.strategy-import-list{display:grid;gap:6px}.strategy-import-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);font-size:9.5px;line-height:1.4}.strategy-import-row b{color:var(--accent);font:800 9px/1.4 ui-monospace,Consolas,monospace}
+.strategy-import-preview{min-height:160px;max-height:420px;overflow:auto;margin:0;padding:11px;border:1px solid var(--border);border-radius:7px;background:var(--code);color:var(--text);font:10.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:900px){.strategy-import-layout,.strategy-import-results{grid-template-columns:1fr}.strategy-import-hero{flex-direction:column}.strategy-import-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.strategy-import-credit{align-items:flex-start;flex-direction:column}.strategy-import-summary{grid-template-columns:1fr}.strategy-import-hero .toolbar{width:100%}.strategy-import-hero .toolbar button{flex:1}}
+.strategy-import-library-panel{margin-top:10px}
+.strategy-import-library-grid{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr);gap:12px}
+.strategy-import-library-label{display:grid;gap:6px;color:var(--muted);font-size:10px}.strategy-import-library-label .search{width:100%;max-width:none}
+.strategy-import-library-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.strategy-import-strategy-import{display:flex;align-items:center;gap:8px;margin-top:8px}
+.strategy-import-strategy-import .config-badge{margin-left:auto}
+.strategy-import-sandbox-handoff{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin-top:10px}
+.strategy-import-sandbox-handoff label{display:grid;gap:5px;color:var(--muted);font-size:9.5px}.strategy-import-sandbox-handoff select{width:100%}
+.strategy-import-library-diff-title{margin-bottom:6px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.05em}
+@media(max-width:520px){.strategy-import-sandbox-handoff{grid-template-columns:1fr}.strategy-import-sandbox-handoff button{width:100%}}
+.strategy-import-library-diff{min-height:180px;max-height:360px;overflow:auto;margin:0;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--code);font:9.5px/1.45 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.strategy-import-library-diff .add{color:#8ee99c}.strategy-import-library-diff .del{color:#ff9ca4}.strategy-import-library-diff .same{color:var(--muted)}
+@media(max-width:900px){.strategy-import-library-grid{grid-template-columns:1fr}}
 
 @media(max-width:420px){.ux-task-center{padding:12px}.ux-task-card{grid-template-columns:34px minmax(0,1fr);padding:11px}.ux-task-icon{width:34px;height:34px}.ux-task-action{grid-column:2}}
 .overview-metrics.grid.cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -888,7 +888,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .dpi-console-report-meta{padding:9px 12px;border-top:1px solid var(--border);background:#0d1014;color:#7f8995;font:9px/1.4 ui-monospace,Consolas,monospace}
 @media(max-width:700px){#dpiConsolePane.dpi-console-overlay{inset:4px!important;padding:7px!important;border-radius:8px!important}.dpi-console-report{font-size:10px;padding:10px;max-height:82vh}}
 
-/* M4D: unified Strategy IA, DPI Visual Web primary + Native secondary, Zapret syntax parity. */
+/* M4D: unified Strategy IA, DPI Visual Web primary + Native secondary, StrategyImport syntax parity. */
 .nfqws-strategy-tabs{grid-template-columns:repeat(7,minmax(0,1fr))}
 @media(max-width:1180px){.nfqws-strategy-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:760px){.nfqws-strategy-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -914,12 +914,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .dpi-native-running-track span{display:block;width:36%;height:100%;background:var(--accent);border-radius:999px;animation:dpiNativeSweep 1.35s ease-in-out infinite alternate}
 @keyframes dpiNativeSweep{from{transform:translateX(-30%)}to{transform:translateX(210%)}}
 
-.zapret-import-input-panel .syntax-editor-shell{gap:0}
-.zapret-import-input-panel .syntax-editor-toolbar{margin:0;border-radius:6px 6px 0 0}
-.zapret-import-input-panel .syntax-editor-body{border-radius:0 0 6px 6px}
-.zapret-import-input-panel .syntax-editor-body .zapret-import-input{min-height:260px!important;padding:10px 12px!important;white-space:pre!important;overflow:auto!important}
-.zapret-import-input-panel .syntax-editor-highlight{padding:10px 12px;white-space:pre;overflow-wrap:normal}
-.zapret-syntax-preview{margin:0;min-height:180px;max-height:620px;overflow:auto;padding:11px 12px;border:1px solid var(--border);border-radius:6px;background:var(--code);color:#d7dde4;font:var(--rf-font-control)/1.5 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;white-space:pre;tab-size:2}
+.strategy-import-input-panel .syntax-editor-shell{gap:0}
+.strategy-import-input-panel .syntax-editor-toolbar{margin:0;border-radius:6px 6px 0 0}
+.strategy-import-input-panel .syntax-editor-body{border-radius:0 0 6px 6px}
+.strategy-import-input-panel .syntax-editor-body .strategy-import-input{min-height:260px!important;padding:10px 12px!important;white-space:pre!important;overflow:auto!important}
+.strategy-import-input-panel .syntax-editor-highlight{padding:10px 12px;white-space:pre;overflow-wrap:normal}
+.strategy-import-syntax-preview{margin:0;min-height:180px;max-height:620px;overflow:auto;padding:11px 12px;border:1px solid var(--border);border-radius:6px;background:var(--code);color:#d7dde4;font:var(--rf-font-control)/1.5 ui-monospace,"Roboto Mono","Cascadia Mono",Consolas,monospace;white-space:pre;tab-size:2}
 
 
 /* M4F: single-run rich Visual Web; max two fixed-size result columns on wide screens. */
@@ -1080,11 +1080,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     </div>
   </div>
   <div class="actions">
-    <button id="start">Start</button><button id="stop">Stop</button><button id="reload">Reload</button><button id="restart">Restart</button><button id="refresh">Refresh</button>
+    <button id="start">Запустить</button><button id="stop">Остановить</button><button id="reload">Перечитать настройки</button><button id="restart">Перезапустить</button><button id="refresh">Обновить</button>
   </div>
 </header>
 
-<div id="notice" class="notice">Loading NFQWS runtime…</div>
+<div id="notice" class="notice">Загрузка состояния NFQWS…</div>
 
 <nav class="tabs nfqws-primary-tabs" id="nfqwsPrimaryTabs" aria-label="Основная навигация NFQWS">
   <button class="tab active" data-tab="overview">Обзор</button>
@@ -1097,43 +1097,43 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <nav class="tabs nfqws-tool-tabs nfqws-config-tabs" id="nfqwsConfigTabs" aria-label="Настройка NFQWS">
   <button class="tab" data-tab="strategies">Конфигурация <span id="strategyCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="configs">Сохранённые конфиги <span id="configLibraryCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="config">Raw</button>
+  <button class="tab" data-tab="config">Полный конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount" class="nav-meta"></span></button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Диагностика NFQWS">
   <button class="tab" data-tab="preflight">Проверка системы <span id="preflightTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="dpi-detector">DPI Detector <span id="dpiDetectorTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="observed-v1">Observed <span id="v2ObservedTabCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="observed-v1">Проблемные адреса <span id="v2ObservedTabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="domain-v2">Разбор домена</button>
-  <button class="tab" data-tab="prodlab-v2">Test Lab</button>
+  <button class="tab" data-tab="prodlab-v2">Тестирование</button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-strategy-tabs" id="nfqwsStrategyTabs" aria-label="Стратегии RouterForge">
   <button class="tab" data-tab="auto-setup-v1">Автонастройка</button>
   <button class="tab" data-tab="selector-v2">Автоподбор</button>
-  <button class="tab" data-tab="sandbox-v2">Sandbox</button>
+  <button class="tab" data-tab="sandbox-v2">Песочница</button>
   <button class="tab" data-tab="strategy-library-v2">Свои стратегии</button>
-  <button class="tab" data-tab="strategy-registry-v1">Реестр <span id="v2RegistryTabCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="tcp16-memory-v1">TCP16 память <span id="v2TCP16TabCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="target-memory-v2">Target Memory <span id="v2MemoryTabCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="strategy-registry-v1">База стратегий <span id="v2RegistryTabCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="tcp16-memory-v1">Обрывы 16 КБ <span id="v2TCP16TabCount" class="nav-meta"></span></button>
+  <button class="tab" data-tab="target-memory-v2">История проверок <span id="v2MemoryTabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="catalog">Каталог <span id="catalogTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="upstream-lists">Источники списков <span id="listSourceStateNav" class="nav-meta"></span></button>
-  <button class="tab" data-tab="blobs">Blobs <span id="blobTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="zapret-import">Импорт из Zapret</button>
+  <button class="tab" data-tab="blobs">TLS-заготовки <span id="blobTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="strategy-import">Импорт стратегии</button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-maintenance-tabs" id="nfqwsMaintenanceTabs" aria-label="Обслуживание NFQWS">
   <button class="tab" data-tab="runs">История <span id="runHistoryTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="logs">Логи</button>
-  <button class="tab" data-tab="backups">Бэкапы <span id="backupCountTab" class="nav-meta"></span></button>
-  <button class="tab" data-tab="runtime-health-v2">Runtime health <span id="runtimeHealthTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="backups">Резервные копии <span id="backupCountTab" class="nav-meta"></span></button>
+  <button class="tab" data-tab="runtime-health-v2">Состояние NFQWS <span id="runtimeHealthTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="scripts">Скрипты <span id="scriptCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="keenetic">Система <span id="keeneticTabState" class="nav-meta"></span></button>
 </nav>
 
-<div id="nfqwsMenuCredit" class="zapret-import-credit nfqws-menu-credit">
-  <div><strong>NFQWS Menu upstream · rndnaame/nfqws-menu</strong><span>Каталог стратегий, upstream lists и blobs используют интеграцию RouterForge с NFQWS Menu.</span></div>
+<div id="nfqwsMenuCredit" class="strategy-import-credit nfqws-menu-credit">
+  <div><strong>NFQWS Menu</strong><span>Источник готовых стратегий, списков и дополнительных файлов.</span></div>
   <a href="https://github.com/rndnaame/nfqws-menu/" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
   <span id="testLabTabState" hidden></span><span id="sandboxTabState" hidden></span>
 </div>
@@ -1146,7 +1146,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     <div class="v2-hero">
       <div>
         <h2>DPI Detector</h2>
-        <div class="section-kicker">Runnin4ik upstream v5 · один engine · native Console + visual Web</div>
+        <div class="section-kicker">Официальный DPI Detector · консольный и графический режимы</div>
       </div>
       <span id="dpiModuleState" class="config-badge">IDLE</span>
     </div>
@@ -1158,25 +1158,25 @@ body.dpi-console-overlay-open{overflow:hidden!important}
           <button id="dpiModuleRefresh">Обновить</button>
         </div>
         <div class="dpi-mode-switch">
-          <button id="dpiModeConsole" class="primary"><strong>Console</strong><span>native upstream TUI · PTY</span></button>
-          <button id="dpiModeWeb"><strong>Native Live</strong><span>RouterForge theme · streaming upstream output</span></button>
+          <button id="dpiModeConsole" class="primary"><strong>Консоль</strong><span>оригинальное меню DPI Detector</span></button>
+          <button id="dpiModeWeb"><strong>Графический режим</strong><span>результаты в интерфейсе RouterForge</span></button>
         </div>
         <div id="dpiModuleSummary" class="dpi-runtime-strip"><span class="dpi-runtime-pill">Загрузка состояния…</span></div>
       </article>
 
-      <div class="zapret-import-credit dpi-upstream-credit">
-        <div><strong>DPI Detector upstream · Runnin4ik/dpi-detector</strong><span>Официальный v5 router binary из App Center. RouterForge не форкает и не пересобирает engine; Console и Web используют /opt/bin/dpi-detector.</span></div>
+      <div class="strategy-import-credit dpi-upstream-credit">
+        <div><strong>DPI Detector · Runnin4ik/dpi-detector</strong><span>Официальный компонент из App Center. RouterForge использует установленный /opt/bin/dpi-detector.</span></div>
         <a href="https://github.com/Runnin4ik/dpi-detector" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
       </div>
     </div>
 
     <article id="dpiConsolePane" class="panel">
       <div class="panel-head">
-        <div><h2>Native Console</h2><div class="section-kicker">реальный RouterForge PTY · DPI Detector уже запущен внутри</div></div>
+        <div><h2>Консоль DPI Detector</h2><div class="section-kicker">оригинальное меню диагностики</div></div>
         <div class="toolbar"><button id="dpiConsoleFullscreen">На весь экран</button><button id="dpiConsoleRestart">Перезапустить DPI Detector</button></div>
       </div>
       <iframe id="dpiConsoleFrame" title="DPI Detector native console" style="display:block;width:100%;height:680px;border:1px solid var(--border);border-radius:8px;background:var(--bg)"></iframe>
-      <div class="v2-boundary">Это настоящий upstream TUI. Клавиши, меню и поведение принадлежат DPI Detector; RouterForge только предоставляет PTY/terminal window.</div>
+      <div class="v2-boundary">Это оригинальное консольное меню DPI Detector. RouterForge только отображает его в веб-интерфейсе.</div>
     </article>
 
     <div id="dpiWebPane" style="display:none">
@@ -1194,12 +1194,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
             <label class="dpi-test-card"><input id="dpiTest4" type="checkbox"><span><strong>4 · Whitelist SNI</strong><small>white-SNI / AS detection</small></span></label>
             <label class="dpi-test-card"><input id="dpiTest5" type="checkbox"><span><strong>5 · Telegram</strong><small>DC reachability + download / upload</small></span></label>
             <label class="dpi-test-card"><input id="dpiTest6" type="checkbox"><span><strong>6 · Fingerprint Burst</strong><small>browser shapes, TLS, ALPN, overlapping handshakes</small></span></label>
-            <button id="dpiWebLegend" class="dpi-test-legend" type="button"><strong>7 · Легенда</strong><span>upstream status reference</span></button>
+            <button id="dpiWebLegend" class="dpi-test-legend" type="button"><strong>7 · Обозначения</strong><span>расшифровка результатов</span></button>
           </div>
         </article>
 
         <article class="panel">
-          <div class="panel-head"><div><h2>Общие параметры</h2><div class="section-kicker">ровно CLI options upstream v5</div></div></div>
+          <div class="panel-head"><div><h2>Общие параметры</h2><div class="section-kicker">основные параметры проверки</div></div></div>
           <div class="v2-two">
             <label class="v2-label">Профиль
               <select id="dpiWebProfile" class="search"><option value="ru" selected>RU</option><option value="global">Global</option><option value="ir">IR</option><option value="cn">CN</option></select>
@@ -1219,7 +1219,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
           </label>
           <label class="v2-label">TLS fingerprint
             <select id="dpiWebFingerprint" class="search">
-              <option value="" selected>upstream/config default</option>
+              <option value="" selected>По умолчанию</option>
               <option>rustls</option><option>chrome146</option><option>chrome131</option><option>chrome131_android</option><option>chrome123</option><option>chrome116</option><option>chrome107</option><option>chrome99_android</option><option>edge101</option><option>firefox147</option><option>firefox133</option><option>safari260</option><option>safari260_ios</option><option>safari184_ios</option><option>safari180</option><option>safari172_ios</option><option>safari170</option><option>safari155</option><option>safari153</option><option>tor145</option>
             </select>
           </label>
@@ -1249,9 +1249,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
             <label class="v2-label">ALPN<select id="dpiWebBurstALPN" class="search"><option value="h2" selected>h2</option><option value="http/1.1">http/1.1</option></select></label>
           </div>
           <label class="v2-label">Burst profiles
-            <input id="dpiWebBurstProfiles" class="search mono" placeholder="пусто = upstream default · all · rustls,chrome146,...">
+            <input id="dpiWebBurstProfiles" class="search mono" placeholder="пусто = по умолчанию · all · rustls,chrome146,...">
           </label>
-          <label class="v2-check"><input id="dpiWebTrace" type="checkbox"> Сохранить и показать upstream trace</label>
+          <label class="v2-check"><input id="dpiWebTrace" type="checkbox"> Сохранить подробный журнал</label>
         </article>
       </div>
 
@@ -1268,7 +1268,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div id="dpiNativeResults" style="display:block;margin-top:12px"></div>
 
       <article id="dpiLegendPane" class="panel" style="display:none;margin-top:12px">
-        <div class="panel-head"><div><h2>Upstream Legend</h2><div class="section-kicker">test 7 / --legend</div></div><button id="dpiLegendClose">Закрыть</button></div>
+        <div class="panel-head"><div><h2>Обозначения результатов</h2><div class="section-kicker">справка DPI Detector</div></div><button id="dpiLegendClose">Закрыть</button></div>
         <pre id="dpiLegendOutput" class="v2-args">—</pre>
       </article>
     </div>
@@ -1278,18 +1278,18 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-observed-v1" class="view">
   <div class="v2-shell">
     <div class="v2-hero">
-      <div><h2>Observed Targets</h2><div class="section-kicker">Network Tools flow evidence → suspected failures → one-click diagnostics</div></div>
+      <div><h2>Проблемные адреса</h2><div class="section-kicker">подозрительные сетевые сбои, найденные RouterForge</div></div>
       <span id="v2ObservedState" class="config-badge">READ ONLY</span>
     </div>
     <article class="panel">
       <div class="panel-head">
-        <div><h2>Кандидаты из LAN activity</h2><div class="section-kicker">показываются только после повторного независимого появления failure signal</div></div>
-        <div class="toolbar"><button id="v2ObservedLoad">Обновить</button><button id="v2ObservedScan" class="primary">Сканировать flow snapshot</button></div>
+        <div><h2>Найденные проблемы в локальной сети</h2><div class="section-kicker">показываются только после повторного независимого появления failure signal</div></div>
+        <div class="toolbar"><button id="v2ObservedLoad">Обновить</button><button id="v2ObservedScan" class="primary">Проверить сетевые соединения</button></div>
       </div>
-      <div id="v2ObservedMeta" class="v2-boundary">Observed не меняет production. Источник — существующий Network Tools flow explorer.</div>
+      <div id="v2ObservedMeta" class="v2-boundary">Проверка ничего не меняет в рабочей конфигурации NFQWS.</div>
       <div id="v2ObservedList" class="v2-list"><div class="analysis-empty">Загрузка…</div></div>
     </article>
-    <div class="v2-boundary">Это suspected failure candidates, а не утверждение «заблокировано». Private destinations отбрасываются, шум требует повторного события, retention ограничен.</div>
+    <div class="v2-boundary">Здесь показываются только повторяющиеся подозрительные сбои. Это не означает автоматически, что адрес заблокирован.</div>
   </div>
 </section>
 
@@ -1307,7 +1307,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <button id="v2DomainToLab">В Test Lab</button>
     </div>
     <div id="v2DomainSummary" class="v2-card-grid">
-      <div class="panel"><div class="analysis-empty">Введите домен. Никаких изменений production не выполняется.</div></div>
+      <div class="panel"><div class="analysis-empty">Введите домен. Рабочие настройки не изменяются.</div></div>
     </div>
     <article class="panel">
       <div class="panel-head"><div><h2>Этапы доступа</h2><div class="section-kicker">read-only staged detector</div></div></div>
@@ -1550,7 +1550,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <label class="v2-label">Источник candidate<select id="v2SandboxCandidateSource" class="search"><option value="production">Production profile</option><option value="library">Candidate Library</option><option value="custom">Custom args</option></select></label>
         <label class="v2-label">Production profile<select id="v2SandboxProfile" class="search"></select></label>
         <label class="v2-label">Saved strategy<select id="v2SandboxLibrary" class="search" disabled></select></label>
-        <label class="v2-label">Args<textarea id="v2SandboxArgs" class="v2-textarea compact" placeholder="Custom / Catalog / Zapret candidate args"></textarea></label>
+        <label class="v2-label">Args<textarea id="v2SandboxArgs" class="v2-textarea compact" placeholder="Custom / Catalog / StrategyImport candidate args"></textarea></label>
         <div class="v2-inline"><label>Attempts<select id="v2SandboxAttempts" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="5">5</option></select></label><label>Имя для Library<input id="v2SandboxSaveName" class="search" placeholder="My strategy"></label></div>
         <div class="toolbar"><button id="v2SandboxRun" class="primary">Запустить Sandbox</button><button id="v2SandboxStop" disabled>Стоп</button><button id="v2SandboxSave">Сохранить candidate</button></div>
       </article>
@@ -1637,7 +1637,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </article>
       <article class="panel">
         <label class="v2-label">Название<input id="v2LibraryName" class="search" placeholder="YouTube strategy"></label>
-        <label class="v2-label">Источник<select id="v2LibrarySource" class="search"><option value="custom">Custom</option><option value="catalog">Catalog</option><option value="zapret">Zapret</option><option value="import">Import</option></select></label>
+        <label class="v2-label">Источник<select id="v2LibrarySource" class="search"><option value="custom">Своя</option><option value="catalog">Из каталога</option><option value="import">Импортированная</option></select></label>
         <label class="v2-label">Args<textarea id="v2LibraryArgs" class="v2-textarea" placeholder="--filter-tcp=443 ..."></textarea></label>
         <input id="v2LibraryID" type="hidden">
         <div class="toolbar"><button id="v2LibrarySave" class="primary">Сохранить</button><button id="v2LibraryClear">Новая</button><button id="v2LibraryToSandbox">В Sandbox</button></div>
@@ -1674,7 +1674,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </button>
       <button type="button" class="ux-task-card" id="uxTaskImport">
         <span class="ux-task-icon">04</span>
-        <span class="ux-task-copy"><span class="ux-task-title">Импортировать настройку из Zapret</span><span class="ux-task-desc">Вставьте команду или загрузите .bat/.txt. RouterForge разберёт вход, покажет все преобразования и соберёт preview без сохранения.</span></span>
+        <span class="ux-task-copy"><span class="ux-task-title">Импортировать готовую стратегию</span><span class="ux-task-desc">Вставьте команду или загрузите .bat/.txt. RouterForge разберёт вход, покажет все преобразования и соберёт preview без сохранения.</span></span>
         <span class="ux-task-action">Разобрать</span>
       </button>
     </div>
@@ -1703,87 +1703,82 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   </div>
 </section>
 
-<section id="view-zapret-import" class="view">
-  <div class="zapret-import-shell">
-    <div class="zapret-import-hero">
+<section id="view-strategy-import" class="view">
+  <div class="strategy-import-shell">
+    <div class="strategy-import-hero">
       <div>
-        <div class="testlab-title-row"><h2 style="margin:0">Импорт из Zapret</h2><span id="zapretImportState" class="testlab-state idle">IDLE</span><span class="config-badge">PREVIEW ONLY</span></div>
-        <div class="preflight-sub">Вставьте Windows-команду zapret или загрузите .bat/.txt. RouterForge ничего не сохраняет и не применяет: сначала только определяет формат, объясняет преобразования и строит candidate preview.</div>
+        <div class="testlab-title-row"><h2 style="margin:0">Импорт стратегии</h2><span id="strategyImportState" class="testlab-state idle">IDLE</span><span class="config-badge">ТОЛЬКО ПРОСМОТР</span></div>
+        <div class="preflight-sub">Вставьте команду NFQWS/Windows или загрузите .bat/.txt. Сначала RouterForge только проверит и покажет результат — ничего не будет применено.</div>
       </div>
-      <div class="toolbar"><input id="zapretImportFile" type="file" accept=".bat,.cmd,.txt" hidden><button id="zapretImportPick">Выбрать файл</button><button id="zapretImportRun" class="primary">Разобрать</button></div>
+      <div class="toolbar"><input id="strategyImportFile" type="file" accept=".bat,.cmd,.txt" hidden><button id="strategyImportPick">Выбрать файл</button><button id="strategyImportRun" class="primary">Разобрать</button></div>
     </div>
 
-    <div class="zapret-import-credit">
-      <div><strong>Upstream inspiration</strong><span>Поддержка сценария вдохновлена проектом whxtelxs/nfqws-zapret-converter. RouterForge использует собственный preview-first parser и не копирует молча его эвристики преобразования.</span></div>
-      <a href="https://github.com/whxtelxs/nfqws-zapret-converter" target="_blank" rel="noopener noreferrer">Открыть проект ↗</a>
-    </div>
-
-    <div class="zapret-import-layout">
-      <article class="panel zapret-import-input-panel">
-        <div class="panel-head"><div><h2>Исходник</h2><div id="zapretImportSourceMeta" class="section-kicker">Команда · .bat · .cmd · .txt · лог теста</div></div><button id="zapretImportClear">Очистить</button></div>
-        <textarea id="zapretImportInput" class="zapret-import-input" spellcheck="false" placeholder="@echo off&#10;start &quot;zapret&quot; /min &quot;%BIN%winws.exe&quot; --wf-tcp=80,443 ^&#10;--filter-tcp=443 --hostlist=&quot;%LISTS%list-general.txt&quot; --dpi-desync=fake"></textarea>
-        <div class="zapret-import-note">Файл читается только браузером этой страницы. На роутер исходник не загружается. UX2.1 не пишет nfqws2.conf, списки или blobs.</div>
+    <div class="strategy-import-layout">
+      <article class="panel strategy-import-input-panel">
+        <div class="panel-head"><div><h2>Исходник</h2><div id="strategyImportSourceMeta" class="section-kicker">Команда · .bat · .cmd · .txt · лог теста</div></div><button id="strategyImportClear">Очистить</button></div>
+        <textarea id="strategyImportInput" class="strategy-import-input" spellcheck="false" placeholder="@echo off&#10;start &quot;NFQWS&quot; /min &quot;%BIN%winws.exe&quot; --wf-tcp=80,443 ^&#10;--filter-tcp=443 --hostlist=&quot;%LISTS%list-general.txt&quot; --dpi-desync=fake"></textarea>
+        <div class="strategy-import-note">Файл читается только браузером этой страницы. На роутер исходник не загружается. UX2.1 не пишет nfqws2.conf, списки или blobs.</div>
       </article>
 
       <article class="panel">
-        <div class="zapret-import-summary">
-          <div><span>Тип</span><strong id="zapretImportType">—</strong></div>
-          <div><span>Команд</span><strong id="zapretImportCommands">0</strong></div>
-          <div><span>Профилей</span><strong id="zapretImportProfiles">0</strong></div>
-          <div><span>Статус</span><strong id="zapretImportVerdict">—</strong></div>
+        <div class="strategy-import-summary">
+          <div><span>Тип</span><strong id="strategyImportType">—</strong></div>
+          <div><span>Команд</span><strong id="strategyImportCommands">0</strong></div>
+          <div><span>Профилей</span><strong id="strategyImportProfiles">0</strong></div>
+          <div><span>Статус</span><strong id="strategyImportVerdict">—</strong></div>
         </div>
-        <div id="zapretImportMessage" class="zapret-import-message">Добавьте исходник и нажмите «Разобрать».</div>
-        <div id="zapretImportWarnings" class="zapret-import-warnings"></div>
+        <div id="strategyImportMessage" class="strategy-import-message">Добавьте исходник и нажмите «Разобрать».</div>
+        <div id="strategyImportWarnings" class="strategy-import-warnings"></div>
       </article>
     </div>
 
-    <div class="zapret-import-results">
+    <div class="strategy-import-results">
       <article class="panel">
         <div class="panel-head"><div><h2>Что RouterForge изменит</h2><div class="section-kicker">Каждое преобразование показывается явно</div></div></div>
-        <div id="zapretImportTransforms" class="zapret-import-list"><div class="analysis-empty">Преобразований пока нет.</div></div>
+        <div id="strategyImportTransforms" class="strategy-import-list"><div class="analysis-empty">Преобразований пока нет.</div></div>
       </article>
       <article class="panel">
         <div class="panel-head"><div><h2>Зависимости</h2><div class="section-kicker">Списки, blobs и неразрешённые переменные</div></div></div>
-        <div id="zapretImportDeps" class="zapret-import-list"><div class="analysis-empty">Зависимости пока не определены.</div></div>
+        <div id="strategyImportDeps" class="strategy-import-list"><div class="analysis-empty">Зависимости пока не определены.</div></div>
       </article>
     </div>
 
     <article class="panel" style="margin-top:10px">
-      <div class="panel-head"><div><h2>Candidate preview</h2><div class="section-kicker">Импортированная стратегия до встраивания в полный nfqws2.conf</div></div><button id="zapretImportCopy" disabled>Копировать</button></div>
-      <pre id="zapretImportPreview" class="zapret-import-preview zapret-syntax-preview">Preview ещё не построен.</pre>
-      <div class="zapret-import-note">RouterForge намеренно не подставляет неизвестные Windows-переменные и не переименовывает payload-файлы «по догадке». Если вход неоднозначен, результат остаётся CHECK вместо притворного готового конфига.</div>
+      <div class="panel-head"><div><h2>Предварительный результат</h2><div class="section-kicker">стратегия до добавления в полный nfqws2.conf</div></div><button id="strategyImportCopy" disabled>Копировать</button></div>
+      <pre id="strategyImportPreview" class="strategy-import-preview strategy-import-syntax-preview">Preview ещё не построен.</pre>
+      <div class="strategy-import-note">RouterForge намеренно не подставляет неизвестные Windows-переменные и не переименовывает payload-файлы «по догадке». Если вход неоднозначен, результат остаётся CHECK вместо притворного готового конфига.</div>
     </article>
 
-    <article id="zapretLibraryPanel" class="panel zapret-library-panel">
+    <article id="strategyImportLibraryPanel" class="panel strategy-import-library-panel">
       <div class="panel-head">
         <div><h2>Сохранить как вариант конфигурации</h2><div class="section-kicker">Config Library · inactive until separate activation</div></div>
-        <span id="zapretLibraryState" class="config-badge">WAITING</span>
+        <span id="strategyImportLibraryState" class="config-badge">WAITING</span>
       </div>
-      <div class="zapret-library-grid">
+      <div class="strategy-import-library-grid">
         <div>
-          <label class="zapret-library-label">Имя файла
-            <input id="zapretLibraryName" class="search" placeholder="zapret-import.conf" autocomplete="off">
+          <label class="strategy-import-library-label">Имя файла
+            <input id="strategyImportLibraryName" class="search" placeholder="strategy-import.conf" autocomplete="off">
           </label>
-          <div id="zapretLibraryPlan" class="zapret-import-note">Сначала нужен READY preview. CHECK не сохраняется.</div>
-          <div class="zapret-library-actions">
-            <button id="zapretLibrarySave" class="primary" disabled>Сохранить в Config Library</button>
-            <button id="zapretLibraryOpen" disabled>Открыть библиотеку</button>
+          <div id="strategyImportLibraryPlan" class="strategy-import-note">Сначала нужна успешная проверка. Результат с замечаниями не сохраняется.</div>
+          <div class="strategy-import-library-actions">
+            <button id="strategyImportLibrarySave" class="primary" disabled>Сохранить конфигурацию</button>
+            <button id="strategyImportLibraryOpen" disabled>Открыть библиотеку</button>
           </div>
-          <div class="zapret-sandbox-handoff">
+          <div class="strategy-import-sandbox-handoff">
             <label>Профиль для Sandbox
-              <select id="zapretSandboxProfile" class="search" disabled></select>
+              <select id="strategyImportSandboxProfile" class="search" disabled></select>
             </label>
-            <button id="zapretSandboxOpen" disabled>Проверить в Sandbox</button>
+            <button id="strategyImportSandboxOpen" disabled>Проверить в песочнице</button>
           </div>
-          <div class="zapret-strategy-import">
-            <button id="zapretStrategyImport" disabled>Добавить profiles в Strategy Library</button>
-            <span id="zapretStrategyImportState" class="config-badge">WAITING</span>
+          <div class="strategy-import-strategy-import">
+            <button id="strategyImportStrategyImport" disabled>Добавить профили в библиотеку стратегий</button>
+            <span id="strategyImportStrategyImportState" class="config-badge">WAITING</span>
           </div>
-          <div class="zapret-import-note">Config Library хранит полный inactive config. Strategy Library сохраняет только bench-eligible profiles с source=zapret и deterministic fingerprint. Active nfqws2.conf не меняется.</div>
+          <div class="strategy-import-note">Config Library хранит полный inactive config. Strategy Library сохраняет только bench-eligible profiles с source=import и deterministic fingerprint. Active nfqws2.conf не меняется.</div>
         </div>
         <div>
-          <div class="zapret-library-diff-title">Точный diff относительно active config</div>
-          <pre id="zapretLibraryDiff" class="zapret-library-diff">Diff появится после READY preview.</pre>
+          <div class="strategy-import-library-diff-title">Точный diff относительно active config</div>
+          <pre id="strategyImportLibraryDiff" class="strategy-import-library-diff">Diff появится после READY preview.</pre>
         </div>
       </div>
     </article>
@@ -2189,10 +2184,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-config" class="view">
   <article id="editorPanel" class="panel">
     <div class="panel-head">
-      <div><h2>Raw nfqws2.conf</h2><div id="configMeta" class="section-kicker mono">—</div></div>
+      <div><h2>Полный nfqws2.conf</h2><div id="configMeta" class="section-kicker mono">—</div></div>
       <div class="toolbar"><button id="undoConfig">Отменить</button><button id="diffConfig">Diff</button><button id="save" class="primary">Сохранить и применить</button></div>
     </div>
-    <div class="setup-note warn" style="margin-bottom:10px">Это полный исходный конфиг без упрощений. Для обычной настройки используй вкладку «Настройка» — она идёт в том же порядке, что и upstream nfqws2.conf.</div>
+    <div class="setup-note warn" style="margin-bottom:10px">Это полный конфиг nfqws2.conf. Для обычной настройки используйте вкладку «Настройка».</div>
     <div class="editor-shell">
       <div class="editor-toolbar"><span id="editorState" class="mono">CLEAN</span><span>Ctrl+S → Diff · Tab = 2 spaces</span></div>
       <div class="editor-main"><pre id="gutter" class="gutter">1</pre><textarea id="config" class="editor" spellcheck="false"></textarea></div>
@@ -2231,24 +2226,24 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <div class="blob-shell">
     <div class="blob-hero">
       <div>
-        <div class="blob-title-row"><h2 style="margin:0">NFQWS Menu · List Sources</h2><span class="config-badge active">SHA256 GUARDED</span><span id="listSourceState" class="config-badge">IDLE</span></div>
-        <div class="muted small" style="margin-top:5px">Локальный inventory <span class="mono">/opt/etc/nfqws2/lists</span> + exact-ref upstream <span class="mono">rndnaame/nfqws-menu</span>. Install/replace создаёт safety backup и не перезапускает nfqws2.</div>
+        <div class="blob-title-row"><h2 style="margin:0">Списки NFQWS Menu</h2><span id="listSourceState" class="config-badge">ОЖИДАНИЕ</span></div>
+        <div class="muted small" style="margin-top:5px">Локальные списки и готовые списки из NFQWS Menu. Перед заменой RouterForge создаёт резервную копию.</div>
       </div>
       <div class="toolbar"><button id="refreshListSources">Обновить sources</button></div>
     </div>
     <div class="blob-summary">
       <div class="blob-stat"><span>Локально</span><strong id="listSourceLocalCount">0</strong></div>
-      <div class="blob-stat"><span>Upstream</span><strong id="listSourceUpstreamCount">0</strong></div>
-      <div class="blob-stat"><span>Missing / update</span><strong id="listSourceMissingCount">0</strong></div>
-      <div class="blob-stat"><span>Referenced</span><strong id="listSourceReferencedCount">0</strong></div>
+      <div class="blob-stat"><span>NFQWS Menu</span><strong id="listSourceUpstreamCount">0</strong></div>
+      <div class="blob-stat"><span>Нужно установить/обновить</span><strong id="listSourceMissingCount">0</strong></div>
+      <div class="blob-stat"><span>Используются</span><strong id="listSourceReferencedCount">0</strong></div>
     </div>
     <div class="blob-layout">
       <article class="panel">
-        <div class="panel-head"><div><h2>Локальный inventory</h2><div id="listSourceRootMeta" class="section-kicker mono">/opt/etc/nfqws2/lists</div></div></div>
+        <div class="panel-head"><div><h2>Локальные списки</h2><div id="listSourceRootMeta" class="section-kicker mono">/opt/etc/nfqws2/lists</div></div></div>
         <div id="listSourceLocalList" class="blob-list"><div class="empty">Нажмите «Обновить sources».</div></div>
       </article>
       <article class="panel">
-        <div class="panel-head"><div><h2>Upstream lists</h2><div id="listSourceUpstreamMeta" class="section-kicker">rndnaame/nfqws-menu · main → exact commit</div></div></div>
+        <div class="panel-head"><div><h2>Списки NFQWS Menu</h2><div id="listSourceUpstreamMeta" class="section-kicker">официальный источник</div></div></div>
         <div id="listSourceUpstreamList" class="blob-deps"><div class="empty">Источник ещё не синхронизирован.</div></div>
       </article>
     </div>
@@ -2264,7 +2259,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div id="geoAutohostlist" class="setup-note" style="margin-top:8px">Autohostlist capability ещё не проверялась.</div>
       <div class="setup-note warn" style="margin-top:8px">Geo upload/list extraction не меняет nfqws2.conf и не делает reload/restart. Применение списка к production остаётся отдельным явным workflow.</div>
     </article>
-    <div class="blob-note"><b>Boundary R27/U7:</b> upstream lists по-прежнему SHA256/exact-ref guarded. Geo assets дополнительно поддерживают локальный SHA256-guarded upload и category extraction. Ни один из этих путей не редактирует production config автоматически.</div>
+    <div class="blob-note">Файлы проверяются перед установкой. Эти действия не меняют рабочий nfqws2.conf автоматически.</div>
   </div>
 </section>
 
@@ -2272,27 +2267,27 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <div class="catalog-shell">
     <div class="catalog-hero">
       <div>
-        <div class="catalog-title-row"><h2 style="margin:0">Strategy Catalog &amp; Source Hub</h2><span class="config-badge active">READ-ONLY</span></div>
-        <div class="muted small" style="margin-top:5px">Полные nfqws2-конфиги из локальной Config Library и настроенного upstream. Preview, integrity, semantic diff и зависимости — без прямой замены рабочего конфига.</div>
+        <div class="catalog-title-row"><h2 style="margin:0">Каталог стратегий</h2><span class="config-badge active">ТОЛЬКО ПРОСМОТР</span></div>
+        <div class="muted small" style="margin-top:5px">Сохранённые и готовые конфигурации NFQWS. Просмотр и проверка не меняют рабочие настройки.</div>
       </div>
       <div class="toolbar"><button id="refreshCatalog">Обновить источники</button></div>
     </div>
     <div class="catalog-sources">
-      <div class="catalog-source-card"><div class="catalog-source-name">Active + Config Library</div><div id="catalogLocalSource" class="catalog-source-meta">Локальный источник · загрузка…</div></div>
+      <div class="catalog-source-card"><div class="catalog-source-name">Рабочая и сохранённые конфигурации</div><div id="catalogLocalSource" class="catalog-source-meta">Локальный источник · загрузка…</div></div>
       <div class="catalog-source-card"><div class="catalog-source-name">rndnaame/nfqws-menu</div><div id="catalogUpstreamSource" class="catalog-source-meta">Configured upstream · main · не синхронизирован</div></div>
-      <div class="catalog-source-card"><div class="catalog-source-name">Custom source</div><div class="catalog-source-meta">Запланирован позже. R25 не принимает произвольные URL и не расширяет SSRF surface.</div></div>
+
     </div>
     <div class="catalog-layout">
       <article class="panel catalog-browser">
         <input id="catalogSearch" class="search" placeholder="Стратегия / source / ref…">
-        <div class="catalog-filters"><button id="catalogAll" class="active">Все</button><button id="catalogLocal">Локальные</button><button id="catalogUpstream">Upstream</button></div>
+        <div class="catalog-filters"><button id="catalogAll" class="active">Все</button><button id="catalogLocal">Локальные</button><button id="catalogUpstream">NFQWS Menu</button></div>
         <div id="catalogList" class="catalog-list"><div class="empty">Открой вкладку — соберём каталог.</div></div>
       </article>
       <article class="panel catalog-detail">
-        <div id="catalogDetail" class="catalog-empty">Выберите стратегию слева. Ни один catalog item не применяется напрямую — Smart Apply будет отдельным R28.</div>
+        <div id="catalogDetail" class="catalog-empty">Выберите стратегию слева. Просмотр не меняет рабочую конфигурацию.</div>
       </article>
     </div>
-    <div class="catalog-note"><b>Boundary R25:</b> каталог только читает и анализирует. Upstream фиксируется на exact Git commit, если GitHub API доступен; SHA256 проверяется по upstream <span class="mono">SHA256SUMS</span>. Загрузка/замена blobs — R26, источники списков — R27, безопасное применение полного конфига — R28.</div>
+    <div class="catalog-note">Перед использованием RouterForge проверяет целостность полученных файлов.</div>
   </div>
 </section>
 
@@ -2301,8 +2296,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <div class="blob-shell">
     <div class="blob-hero">
       <div>
-        <div class="blob-title-row"><h2 style="margin:0">Blob Manager</h2><span class="config-badge active">SHA256 GUARDED</span><span id="blobRuntimeBadge" class="config-badge">DISK ONLY</span></div>
-        <div class="muted small" style="margin-top:5px">Локальный inventory <span class="mono">/opt/etc/nfqws2/blobs</span> + зависимости выбранной стратегии из Catalog. Upstream blob ставится только с exact ref и SHA256 из того же manifest.</div>
+        <div class="blob-title-row"><h2 style="margin:0">TLS-заготовки</h2><span id="blobRuntimeBadge" class="config-badge">ФАЙЛЫ</span></div>
+        <div class="muted small" style="margin-top:5px">Локальные заготовки и файлы, необходимые выбранной стратегии. Перед установкой RouterForge проверяет их целостность.</div>
       </div>
       <div class="toolbar"><button id="refreshBlobs">Обновить inventory</button></div>
     </div>
@@ -2369,7 +2364,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </div>
     </div>
     <div class="run-history-controls">
-      <div class="run-history-filters"><button id="runHistoryAll" class="active">Все</button><button id="runHistoryTestLab">Test Lab</button><button id="runHistorySandbox">Sandbox</button></div>
+      <div class="run-history-filters"><button id="runHistoryAll" class="active">Все</button><button id="runHistoryTestLab">Тестирование</button><button id="runHistorySandbox">Песочница</button></div>
       <div class="toolbar"><button id="copyRunHistory">Копировать JSON</button><button id="clearRunHistory" class="danger">Очистить историю</button></div>
     </div>
     <div class="run-history-score-note"><b>Test Lab SCORE 0–100</b>: reachability 50% + stability 25% + latency 15% + decisive static-path coverage 10%. Latency получает максимум до 250 ms и плавно снижается до нуля к 2000 ms. <b>Sandbox READINESS</b> — отдельная оценка только семантической готовности candidate; active HTTP baseline в неё не входит и не выдаётся за результат candidate.</div>
@@ -2413,7 +2408,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div id="scriptList" class="script-list"><div class="empty">Открой вкладку — загрузим inventory.</div></div>
     </article>
     <article id="scriptPanel" class="panel script-panel">
-      <div class="panel-head"><div><h2 id="selectedScriptTitle">Выберите скрипт</h2><div id="selectedScriptMeta" class="section-kicker mono">read-only · как в upstream web</div></div><div class="toolbar"><button id="copyScript" disabled>Копировать</button><button id="fullscreenScript" disabled>На весь экран</button></div></div>
+      <div class="panel-head"><div><h2 id="selectedScriptTitle">Выберите скрипт</h2><div id="selectedScriptMeta" class="section-kicker mono">только просмотр</div></div><div class="toolbar"><button id="copyScript" disabled>Копировать</button><button id="fullscreenScript" disabled>На весь экран</button></div></div>
       <div id="scriptCode" class="script-reader-empty">Lua-скрипты nfqws2 доступны только для чтения.</div>
     </article>
   </div>
@@ -2436,11 +2431,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     </div>
     <div class="backup-center-layout">
       <article class="panel">
-        <div class="panel-head"><div><h2>Router / network</h2><div id="keeneticModelMeta" class="section-kicker mono">—</div></div></div>
+        <div class="panel-head"><div><h2>Роутер и сеть</h2><div id="keeneticModelMeta" class="section-kicker mono">—</div></div></div>
         <div id="keeneticNetwork" class="diagnostics"><div class="empty">Открой вкладку — загрузим read-only snapshot.</div></div>
       </article>
       <article class="panel">
-        <div class="panel-head"><div><h2>nfqws binding</h2><div class="section-kicker">ISP_INTERFACE ↔ default IPv4 route</div></div><div class="toolbar"><button id="keeneticUseDefault" disabled>Вставить default в Настройку</button></div></div>
+        <div class="panel-head"><div><h2>Подключение NFQWS</h2><div class="section-kicker">ISP_INTERFACE ↔ default IPv4 route</div></div><div class="toolbar"><button id="keeneticUseDefault" disabled>Вставить default в Настройку</button></div></div>
         <div id="keeneticBinding" class="diagnostics"><div class="empty">Нет snapshot.</div></div>
       </article>
     </div>
@@ -2450,17 +2445,17 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <div id="keeneticStorage" class="diagnostics"></div>
       </article>
       <article class="panel">
-        <div class="panel-head"><div><h2>Keenetic policy identity</h2><div class="section-kicker">GET /rci/show/ip/policy · raw policy data is not exposed</div></div></div>
+        <div class="panel-head"><div><h2>Сетевая политика Keenetic</h2><div class="section-kicker">GET /rci/show/ip/policy · raw policy data is not exposed</div></div></div>
         <div id="keeneticPolicy" class="diagnostics"></div>
       </article>
     </div>
     <div class="backup-center-layout" style="margin-top:14px">
       <article class="panel">
-        <div class="panel-head"><div><h2>DPI Detector <span class="config-badge">OPTIONAL</span></h2><div class="section-kicker">external component detection only · RouterForge does not install or update it</div></div><span id="dpiDetectorState" class="config-badge">IDLE</span></div>
+        <div class="panel-head"><div><h2>DPI Detector <span class="config-badge">ДОПОЛНИТЕЛЬНО</span></h2><div class="section-kicker">проверка установленного компонента</div></div><span id="dpiDetectorState" class="config-badge">IDLE</span></div>
         <div id="dpiDetectorStatus" class="diagnostics"><div class="empty">Открой вкладку — проверим только наличие локального dpi-detector.</div></div>
       </article>
     </div>
-    <div class="backup-center-note"><b>Safety boundary:</b> R31 выполняет только локальные read-only reads. Нет RCI POST/DELETE, нет ndmc mutation/save, нет изменения policy/interface. Default route можно лишь подставить в поле <span class="mono">ISP_INTERFACE</span> редактора — фактическая запись всё равно проходит обычный RouterForge diff/apply gate.</div>
+    <div class="backup-center-note">Этот раздел только показывает состояние системы. Изменения здесь не выполняются.</div>
   </div>
 </section>
 
@@ -3687,8 +3682,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     try{
       const buffer=await file.arrayBuffer(),sha=await geoSHA256(buffer);
       const d=await api('/v2/geo/upload',{method:'POST',body:JSON.stringify({name:file.name,kind:$('geoKind').value,content_base64:geoBase64(buffer),expected_sha256:sha,source:$('geoSource').value.trim(),source_ref:$('geoSourceRef').value.trim(),confirm:'ROUTERFORGE_GEO_UPLOAD'})});
-      $('geoState').textContent='SAVED';notice(`Geo ${d.asset?.name||file.name}: ${Number(d.asset?.categories?.length||0)} categories · production untouched.`,'good');await loadGeoAssets();
-    }catch(e){$('geoState').textContent='FAIL';notice(`Geo upload: ${e.message}`,'error')}finally{$('geoUpload').disabled=false}
+      $('geoState').textContent='СОХРАНЕНО';notice(`Geo ${d.asset?.name||file.name}: ${Number(d.asset?.categories?.length||0)} categories · production untouched.`,'good');await loadGeoAssets();
+    }catch(e){$('geoState').textContent='ОШИБКА';notice(`Geo upload: ${e.message}`,'error')}finally{$('geoUpload').disabled=false}
   }
   async function previewGeoCategory(){
     const asset=geoAssetSelected(),category=$('geoCategorySelect').value;if(!asset||!category)return;
@@ -3857,7 +3852,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       $('clientHelloResult').innerHTML=`<div class="diagnostic ${d.valid?'good':'bad'}"><div class="diagnostic-icon">${d.valid?'✓':'!'}</div><div><div class="diagnostic-title">${d.valid?'Valid ClientHello':'Invalid ClientHello'} · ${esc(d.sni||'no SNI')}</div><div class="diagnostic-detail">${esc(d.detail||'')} · ${Number(d.size||0)} bytes · sha256 ${esc(String(d.sha256||'').slice(0,20))}…</div></div></div>`;
       $('clientHelloSave').disabled=!d.valid;
     }catch(e){
-      $('clientHelloState').textContent='FAIL';
+      $('clientHelloState').textContent='ОШИБКА';
       $('clientHelloResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
     }
   }
@@ -3878,10 +3873,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       })});
       blobFiles=Array.isArray(result.inventory?.files)?result.inventory.files:blobFiles;
       blobLoaded=true;renderBlobs();
-      $('clientHelloState').textContent='SAVED';
+      $('clientHelloState').textContent='СОХРАНЕНО';
       notice(`${name}: ClientHello blob сохранён; runtime не перезапускался.`,'good');
     }catch(e){
-      $('clientHelloState').textContent='FAIL';
+      $('clientHelloState').textContent='ОШИБКА';
       notice(`ClientHello save: ${e.message}`,'error');
       $('clientHelloSave').disabled=false;
     }
@@ -3909,7 +3904,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         $('clientHelloResult').innerHTML=`<div class="diagnostic good"><div class="diagnostic-icon">✓</div><div><div class="diagnostic-title">Captured ClientHello · ${esc(x.sni||'no SNI')}</div><div class="diagnostic-detail">${Number(x.size||0)} bytes · sha256 ${esc(String(x.sha256||'').slice(0,20))}…</div></div></div>`;
       });
     }catch(e){
-      $('clientHelloCaptureState').textContent='FAIL';
+      $('clientHelloCaptureState').textContent='ОШИБКА';
       $('clientHelloCaptureResult').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
     }finally{$('clientHelloCapture').disabled=false}
   }
@@ -4010,7 +4005,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     try{
       v2MemoryData=await api('/v2/memory'+(filter?`?target=${encodeURIComponent(filter)}`:''));
       renderV2TargetMemory();
-    }catch(e){$('v2MemoryState').textContent='FAIL';$('v2MemoryList').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
+    }catch(e){$('v2MemoryState').textContent='ОШИБКА';$('v2MemoryList').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
   }
   async function clearV2TargetMemory(all=false){
     const target=all?'':String($('v2MemoryFilter')?.value||'').trim();
@@ -4038,7 +4033,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       $('runtimeHealthTabState').textContent=q.state||'';
       $('runtimeHealthState').textContent=q.state||'READY';
     }catch(e){
-      $('runtimeHealthState').textContent='FAIL';
+      $('runtimeHealthState').textContent='ОШИБКА';
       $('runtimeNFQueueHealth').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
     }
     reportHeight();
@@ -5188,7 +5183,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     navigator.clipboard?.writeText(JSON.stringify(safe,null,2));notice('Processing Map JSON скопирован.','good');
   }
 
-  function zapretDetectType(content){
+  function strategyImportDetectType(content){
     const s=String(content||''),lines=s.split(/\r?\n/);
     if(lines.some(x=>/^Config:\s+.+?\s+\(Type:/i.test(x.trim()))||lines.some(x=>/^\[\d+\/\d+\]\s+.+/.test(x.trim())))return'log';
     const hasExec=/(?:winws(?:\.exe)?|nfqws(?:\.exe)?)/i.test(s);
@@ -5196,7 +5191,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(hasExec||/--(?:filter|dpi-desync|wf)-/i.test(s))return'command';
     return'unknown';
   }
-  function zapretLogicalLines(content){
+  function strategyImportLogicalLines(content){
     const out=[];let buf='';
     for(const raw of String(content||'').replace(/\r/g,'').split('\n')){
       const line=raw.trim();if(!line&&!buf)continue;
@@ -5207,7 +5202,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(buf)out.push(buf);
     return out;
   }
-  function zapretVariables(content){
+  function strategyImportVariables(content){
     const vars={};
     for(const raw of String(content||'').replace(/\r/g,'').split('\n')){
       const m=raw.trim().match(/^set\s+"?([A-Za-z_][A-Za-z0-9_]*)=([^"]*)"?\s*$/i);
@@ -5215,21 +5210,21 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     }
     return vars;
   }
-  function zapretExtractCommands(content){
-    return zapretLogicalLines(content).filter(line=>/(?:winws(?:\.exe)?|nfqws(?:\.exe)?)/i.test(line)).map(line=>{
+  function strategyImportExtractCommands(content){
+    return strategyImportLogicalLines(content).filter(line=>/(?:winws(?:\.exe)?|nfqws(?:\.exe)?)/i.test(line)).map(line=>{
       const low=line.toLowerCase();let i=low.indexOf('winws.exe'),len=9;
       if(i<0){i=low.indexOf('nfqws.exe');len=9}
       if(i<0){i=low.indexOf('nfqws');len=5}
       return i>=0?line.slice(i+len).replace(/^"?\s*/,'').trim():'';
     }).filter(Boolean);
   }
-  function zapretNormalizeCmdEscapes(text,transforms){
+  function strategyImportNormalizeCmdEscapes(text,transforms){
     let out=String(text||'');
     if(out.includes('^!')){out=out.replace(/\^!/g,'!');transforms.push(['CMD','^! → ! (Windows cmd escape)'])}
     if(out.includes('^^')){out=out.replace(/\^\^/g,'^');transforms.push(['CMD','^^ → ^ (Windows cmd escape)'])}
     return out;
   }
-  function zapretExpandKnownVars(text,vars,transforms,warnings){
+  function strategyImportExpandKnownVars(text,vars,transforms,warnings){
     let out=String(text||'');
     out=out.replace(/%~dp0bin\\/gi,()=>{transforms.push(['PATH','%~dp0bin\\ → /opt/etc/nfqws2/blobs/']);return'/opt/etc/nfqws2/blobs/'});
     out=out.replace(/%~dp0lists\\/gi,()=>{transforms.push(['PATH','%~dp0lists\\ → /opt/etc/nfqws2/lists/']);return'/opt/etc/nfqws2/lists/'});
@@ -5240,10 +5235,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       if(value!==undefined&&!/%~dp0/i.test(value)){transforms.push(['VAR',`${all} → ${value}`]);return value}
       warnings.push(['bad',`Переменная ${all} не разрешена. RouterForge не будет подставлять значение по догадке.`]);return all;
     });
-    out=zapretNormalizeCmdEscapes(out,transforms);
+    out=strategyImportNormalizeCmdEscapes(out,transforms);
     return out.replace(/\\/g,'/').replace(/"/g,'').replace(/\s+/g,' ').trim();
   }
-  function zapretDependencyKind(flag,value){
+  function strategyImportDependencyKind(flag,value){
     const f=String(flag||'').toLowerCase(),v=String(value||'');
     if(['--hostlist','--hostlist-exclude','--ipset','--ipset-exclude'].includes(f))return'LIST';
     if(f==='--dpi-desync-split-seqovl-pattern')return'BLOB';
@@ -5253,33 +5248,33 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     }
     return'';
   }
-  function zapretCollectDependencies(args,warnings){
+  function strategyImportCollectDependencies(args,warnings){
     const deps=[],re=/(--[A-Za-z0-9_-]+)=([^\s]+)/g;let m;
     while((m=re.exec(String(args||'')))!==null){
-      const kind=zapretDependencyKind(m[1],m[2]);if(!kind)continue;
+      const kind=strategyImportDependencyKind(m[1],m[2]);if(!kind)continue;
       const path=m[2];deps.push([kind,path]);
       if(/^[A-Za-z]:|%|\\/.test(path))warnings.push(['warn',`Windows/path variable остался в зависимости: ${path}`]);
     }
     return[...new Map(deps.map(x=>[x.join('|'),x])).values()];
   }
-  function zapretAnalyze(content){
-    const type=zapretDetectType(content),vars=zapretVariables(content),commands=zapretExtractCommands(content),transforms=[],warnings=[];
+  function strategyImportAnalyze(content){
+    const type=strategyImportDetectType(content),vars=strategyImportVariables(content),commands=strategyImportExtractCommands(content),transforms=[],warnings=[];
     if(type==='log'&&!commands.length)return{type,commands:[],profiles:[],transforms,warnings:[['warn','Распознан лог тестирования. UX2.1 умеет определить его, но для построения candidate нужен .bat или сама команда стратегии.']],deps:[],preview:'',ready:false};
     if(!commands.length)return{type,commands,profiles:[],transforms,warnings:[['bad','Не найден запуск winws.exe/nfqws и аргументы стратегии.']],deps:[],preview:'',ready:false};
     if(commands.length>1)warnings.push(['bad',`Найдено несколько запусков (${commands.length}). UX2.1 не объединяет разные процессы автоматически.`]);
-    let args=zapretExpandKnownVars(commands[0],vars,transforms,warnings);
+    let args=strategyImportExpandKnownVars(commands[0],vars,transforms,warnings);
     let tcp='',udp='';
     args=args.replace(/--wf-tcp=([^\s]+)/ig,(_,v)=>{tcp=v;transforms.push(['WF','--wf-tcp перенесён в TCP_PORTS preview']);return''});
     args=args.replace(/--wf-udp=([^\s]+)/ig,(_,v)=>{udp=v;transforms.push(['WF','--wf-udp перенесён в UDP_PORTS preview']);return''});
     args=args.replace(/\s+/g,' ').trim();
     const profiles=args.split(/\s+--new\s+/i).map(x=>x.trim()).filter(Boolean);
     if(profiles.length>1)transforms.push(['PROFILE',`Сохранён порядок ${profiles.length} профилей через --new`]);
-    const deps=zapretCollectDependencies(args,warnings);
+    const deps=strategyImportCollectDependencies(args,warnings);
     const unresolved=[...new Set((`${tcp} ${udp} ${args}`.match(/%[A-Za-z_][A-Za-z0-9_]*%/g)||[]))];
     unresolved.forEach(v=>{if(!warnings.some(x=>x[1].includes(v)))warnings.push(['bad',`Неразрешённая переменная ${v}.`])});
     const preview=[
-      '# RouterForge Zapret import preview',
-      '# PREVIEW ONLY - not saved or applied',
+      '# RouterForge StrategyImport import preview',
+      '# ТОЛЬКО ПРОСМОТР - not saved or applied',
       tcp?`TCP_PORTS="${tcp}"`:'# TCP_PORTS: not present in source',
       udp?`UDP_PORTS="${udp}"`:'# UDP_PORTS: not present in source',
       '',
@@ -5290,15 +5285,15 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const ready=commands.length===1&&!warnings.some(x=>x[0]==='bad');
     return{type,commands,profiles,tcp,udp,transforms:[...new Map(transforms.map(x=>[x.join('|'),x])).values()],warnings,deps,preview,ready};
   }
-  let zapretImportResult=null,zapretLibraryCandidate='',zapretLibrarySavedName='';
-  function zapretImportedCustom(result){return (result?.profiles||[]).map(x=>String(x||'').trim()).filter(Boolean).join('\n--new\n')}
-  function zapretBuildLibraryCandidate(result){
+  let strategyImportResult=null,strategyImportLibraryCandidate='',strategyImportLibrarySavedName='';
+  function strategyImportedCustom(result){return (result?.profiles||[]).map(x=>String(x||'').trim()).filter(Boolean).join('\n--new\n')}
+  function strategyImportBuildLibraryCandidate(result){
     const active=String(current?.config||'');
     if(!active)return{ok:false,error:'Active canonical config недоступен в текущем runtime response.'};
     const required=['NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_IPSET','NFQWS_ARGS_CUSTOM','TCP_PORTS','UDP_PORTS'];
     const missing=required.filter(key=>!scanAssignment(active,key));
     if(missing.length)return{ok:false,error:`В active config не найдены обязательные assignments: ${missing.join(', ')}. RouterForge не будет достраивать структуру по догадке.`};
-    const custom=zapretImportedCustom(result);
+    const custom=strategyImportedCustom(result);
     if(!custom)return{ok:false,error:'Импорт не содержит strategy profiles для NFQWS_ARGS_CUSTOM.'};
     let cfg=active;
     for(const key of ['NFQWS_ARGS','NFQWS_ARGS_QUIC','NFQWS_ARGS_UDP','NFQWS_ARGS_IPSET'])cfg=replaceAssignment(cfg,key,'');
@@ -5307,99 +5302,99 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(String(result.udp||'').trim())cfg=replaceAssignment(cfg,'UDP_PORTS',String(result.udp).trim());
     return{ok:true,content:cfg};
   }
-  function defaultZapretLibraryName(){
+  function defaultStrategyImportLibraryName(){
     const d=new Date(),pad=n=>String(n).padStart(2,'0');
-    return `zapret-import-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.conf`;
+    return `strategy-import-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.conf`;
   }
-  function updateZapretLibrarySave(){
-    const name=normalizeStoredConfigName($('zapretLibraryName').value);
-    $('zapretLibrarySave').disabled=!(zapretImportResult?.ready&&zapretLibraryCandidate&&name);
+  function updateStrategyImportLibrarySave(){
+    const name=normalizeStoredConfigName($('strategyImportLibraryName').value);
+    $('strategyImportLibrarySave').disabled=!(strategyImportResult?.ready&&strategyImportLibraryCandidate&&name);
   }
-  function renderZapretSandboxProfiles(result){
-    const select=$('zapretSandboxProfile'),profiles=Array.isArray(result?.profiles)?result.profiles:[];
+  function renderStrategyImportSandboxProfiles(result){
+    const select=$('strategyImportSandboxProfile'),profiles=Array.isArray(result?.profiles)?result.profiles:[];
     select.innerHTML=profiles.map((_,i)=>`<option value="${i}">Профиль ${i+1}${profiles.length>1?` из ${profiles.length}`:''}</option>`).join('');
     select.disabled=!result?.ready||!profiles.length;
-    $('zapretSandboxOpen').disabled=!result?.ready||!profiles.length;
-    $('zapretStrategyImport').disabled=!result?.ready||!profiles.length;
-    $('zapretStrategyImportState').textContent=result?.ready&&profiles.length?'READY':'WAITING';
+    $('strategyImportSandboxOpen').disabled=!result?.ready||!profiles.length;
+    $('strategyImportStrategyImport').disabled=!result?.ready||!profiles.length;
+    $('strategyImportStrategyImportState').textContent=result?.ready&&profiles.length?'READY':'WAITING';
   }
 
-  async function importZapretProfilesToStrategyLibrary(){
-    const result=zapretImportResult,profiles=Array.isArray(result?.profiles)?result.profiles:[];
-    if(!result?.ready||!profiles.length){notice('Zapret Import V2: нужен READY preview.','error');return}
-    const items=profiles.map((profile,i)=>({name:`Zapret profile ${i+1}`,args:v2ArgTokens(profile)}));
-    if(items.some(x=>!x.args.length)){notice('Zapret Import V2: найден пустой profile.','error');return}
+  async function importStrategyImportProfilesToStrategyLibrary(){
+    const result=strategyImportResult,profiles=Array.isArray(result?.profiles)?result.profiles:[];
+    if(!result?.ready||!profiles.length){notice('Импорт стратегии: нужен READY preview.','error');return}
+    const items=profiles.map((profile,i)=>({name:`Импортированный профиль ${i+1}`,args:v2ArgTokens(profile)}));
+    if(items.some(x=>!x.args.length)){notice('Импорт стратегии: найден пустой profile.','error');return}
     if(!confirm(`Добавить ${items.length} profile(s) в Strategy Library? Active nfqws2.conf не изменится.`))return;
-    $('zapretStrategyImport').disabled=true;$('zapretStrategyImportState').textContent='SAVING';
+    $('strategyImportStrategyImport').disabled=true;$('strategyImportStrategyImportState').textContent='СОХРАНЕНИЕ';
     try{
       const d=await api('/v2/strategies/import',{method:'POST',body:JSON.stringify({items,confirm:'ROUTERFORGE_V2_STRATEGY_IMPORT'})});
       v2Library=[];v2RegistryData=null;
-      $('zapretStrategyImportState').textContent='SAVED';
-      notice(`Zapret Import V2: added ${Number(d.added||0)}, existing ${Number(d.existing||0)}. Production не изменён.`,'good');
+      $('strategyImportStrategyImportState').textContent='СОХРАНЕНО';
+      notice(`Импорт стратегии: added ${Number(d.added||0)}, existing ${Number(d.existing||0)}. Production не изменён.`,'good');
     }catch(e){
-      $('zapretStrategyImportState').textContent='FAIL';notice(`Zapret Import V2: ${e.message}`,'error');
-    }finally{$('zapretStrategyImport').disabled=false}
+      $('strategyImportStrategyImportState').textContent='ОШИБКА';notice(`Импорт стратегии: ${e.message}`,'error');
+    }finally{$('strategyImportStrategyImport').disabled=false}
   }
-  function sendZapretProfileToSandbox(){
-    if(!zapretImportResult?.ready){notice('Zapret import: Sandbox доступен только для READY preview.','error');return}
-    const index=Number($('zapretSandboxProfile').value||0),profile=zapretImportResult.profiles?.[index];
+  function sendStrategyImportProfileToSandbox(){
+    if(!strategyImportResult?.ready){notice('Импорт стратегии: Песочница доступна только после успешной проверки.','error');return}
+    const index=Number($('strategyImportSandboxProfile').value||0),profile=strategyImportResult.profiles?.[index];
     if(!profile){notice('Не удалось выбрать импортированный профиль.','error');return}
-    v2OpenSandboxFromArgs(profile,`Zapret profile ${index+1}`,'zapret');
-    notice(`Zapret import · профиль ${index+1}/${zapretImportResult.profiles.length} загружен в реальный V2 Sandbox. Candidate не применялся.`,'good');
+    v2OpenSandboxFromArgs(profile,`Импортированный профиль ${index+1}`,'import');
+    notice(`Импорт стратегии · профиль ${index+1}/${strategyImportResult.profiles.length} загружен в песочницу. Рабочая настройка не изменялась.`,'good');
   }
-  function renderZapretLibrary(result){
-    zapretImportResult=result;zapretLibraryCandidate='';zapretLibrarySavedName='';$('zapretLibraryOpen').disabled=true;
-    renderZapretSandboxProfiles(result);
+  function renderStrategyImportLibrary(result){
+    strategyImportResult=result;strategyImportLibraryCandidate='';strategyImportLibrarySavedName='';$('strategyImportLibraryOpen').disabled=true;
+    renderStrategyImportSandboxProfiles(result);
     if(!result?.ready){
-      $('zapretLibraryState').textContent=result?.preview?'CHECK':'WAITING';$('zapretLibrarySave').disabled=true;
-      $('zapretLibraryPlan').textContent=result?.preview?'Есть блокирующие или неоднозначные места. Исправьте их до сохранения.':'Сначала нужен READY preview. CHECK не сохраняется.';
-      $('zapretLibraryDiff').textContent='Diff недоступен.';return;
+      $('strategyImportLibraryState').textContent=result?.preview?'CHECK':'WAITING';$('strategyImportLibrarySave').disabled=true;
+      $('strategyImportLibraryPlan').textContent=result?.preview?'Есть блокирующие или неоднозначные места. Исправьте их до сохранения.':'Сначала нужна успешная проверка. Результат с замечаниями не сохраняется.';
+      $('strategyImportLibraryDiff').textContent='Diff недоступен.';return;
     }
-    const built=zapretBuildLibraryCandidate(result);
+    const built=strategyImportBuildLibraryCandidate(result);
     if(!built.ok){
-      $('zapretLibraryState').textContent='CHECK';$('zapretLibrarySave').disabled=true;$('zapretLibraryPlan').textContent=built.error;$('zapretLibraryDiff').textContent='Diff недоступен.';return;
+      $('strategyImportLibraryState').textContent='CHECK';$('strategyImportLibrarySave').disabled=true;$('strategyImportLibraryPlan').textContent=built.error;$('strategyImportLibraryDiff').textContent='Diff недоступен.';return;
     }
-    zapretLibraryCandidate=built.content;
-    if(!$('zapretLibraryName').value.trim())$('zapretLibraryName').value=defaultZapretLibraryName();
-    $('zapretLibraryState').textContent='READY';
-    $('zapretLibraryPlan').textContent=`Будет создан новый library config. Environment/system settings сохраняются из active config; стандартные strategy slots очищаются; ${result.profiles.length} импортированных profiles записываются в NFQWS_ARGS_CUSTOM${result.tcp?'; TCP_PORTS берётся из --wf-tcp':''}${result.udp?'; UDP_PORTS берётся из --wf-udp':''}.`;
-    $('zapretLibraryDiff').innerHTML=makeDiff(String(current?.config||''),built.content).map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">Нет изменений.</span>';
-    updateZapretLibrarySave();
+    strategyImportLibraryCandidate=built.content;
+    if(!$('strategyImportLibraryName').value.trim())$('strategyImportLibraryName').value=defaultStrategyImportLibraryName();
+    $('strategyImportLibraryState').textContent='READY';
+    $('strategyImportLibraryPlan').textContent=`Будет создан новый library config. Environment/system settings сохраняются из active config; стандартные strategy slots очищаются; ${result.profiles.length} импортированных profiles записываются в NFQWS_ARGS_CUSTOM${result.tcp?'; TCP_PORTS берётся из --wf-tcp':''}${result.udp?'; UDP_PORTS берётся из --wf-udp':''}.`;
+    $('strategyImportLibraryDiff').innerHTML=makeDiff(String(current?.config||''),built.content).map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">Нет изменений.</span>';
+    updateStrategyImportLibrarySave();
   }
-  async function saveZapretLibraryCandidate(){
-    if(!zapretImportResult?.ready||!zapretLibraryCandidate){notice('Zapret import: сохранять можно только READY candidate.','error');return}
-    const name=normalizeStoredConfigName($('zapretLibraryName').value);
+  async function saveStrategyImportLibraryCandidate(){
+    if(!strategyImportResult?.ready||!strategyImportLibraryCandidate){notice('Импорт стратегии: сохранение доступно только после успешной проверки.','error');return}
+    const name=normalizeStoredConfigName($('strategyImportLibraryName').value);
     if(!name){notice('Имя конфига: только буквы, цифры, точка, _ и -, расширение .conf.','error');return}
     if(!confirm(`Создать ${name} в Config Library? Active nfqws2.conf и runtime не изменятся.`))return;
-    $('zapretLibrarySave').disabled=true;
+    $('strategyImportLibrarySave').disabled=true;
     try{
-      await api('/configs/create',{method:'POST',body:JSON.stringify({name,content:zapretLibraryCandidate,from_current:false,confirm:'NFQWS_CONFIG_LIBRARY_CREATE'})});
-      zapretLibrarySavedName=name;configLibraryLoaded=false;$('zapretLibraryState').textContent='SAVED';$('zapretLibraryOpen').disabled=false;
+      await api('/configs/create',{method:'POST',body:JSON.stringify({name,content:strategyImportLibraryCandidate,from_current:false,confirm:'NFQWS_CONFIG_LIBRARY_CREATE'})});
+      strategyImportLibrarySavedName=name;configLibraryLoaded=false;$('strategyImportLibraryState').textContent='СОХРАНЕНО';$('strategyImportLibraryOpen').disabled=false;
       notice(`Импорт сохранён как ${name}. Active config не менялся, nfqws2 не перезапускался.`,'good');
-    }catch(e){notice(e.message,'error')}finally{updateZapretLibrarySave()}
+    }catch(e){notice(e.message,'error')}finally{updateStrategyImportLibrarySave()}
   }
-  function openSavedZapretConfig(){
-    if(!zapretLibrarySavedName)return;
-    activateNFQWSTab('configs');loadConfigLibrary(true).then(()=>selectStoredConfig(zapretLibrarySavedName));
+  function openSavedStrategyImportConfig(){
+    if(!strategyImportLibrarySavedName)return;
+    activateNFQWSTab('configs');loadConfigLibrary(true).then(()=>selectStoredConfig(strategyImportLibrarySavedName));
   }
-  function renderZapretImport(result){
-    $('zapretImportType').textContent=result.type==='batch'?'Windows batch':result.type==='command'?'Команда':result.type==='log'?'Лог теста':'Неизвестно';
-    $('zapretImportCommands').textContent=String(result.commands.length);$('zapretImportProfiles').textContent=String(result.profiles.length);
-    $('zapretImportVerdict').textContent=result.ready?'READY':result.preview?'CHECK':'NEED INPUT';
-    $('zapretImportState').textContent=result.ready?'READY':result.preview?'CHECK':'IDLE';$('zapretImportState').className=`testlab-state ${result.ready?'done':result.preview?'running':'idle'}`;
-    $('zapretImportMessage').textContent=result.ready?'Preview построен. Ничего не сохранено: сначала проверьте преобразования и зависимости.':result.preview?'Preview построен с блокирующими/неоднозначными местами. Исправьте их до следующего этапа импорта.':'RouterForge пока не может построить candidate из этого входа.';
-    $('zapretImportWarnings').innerHTML=result.warnings.map(x=>`<div class="zapret-import-warning ${x[0]}">${esc(x[1])}</div>`).join('');
-    $('zapretImportTransforms').innerHTML=result.transforms.length?result.transforms.map(x=>`<div class="zapret-import-row"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></div>`).join(''):'<div class="analysis-empty">Автоматических преобразований нет.</div>';
-    $('zapretImportDeps').innerHTML=result.deps.length?result.deps.map(x=>`<div class="zapret-import-row"><b>${esc(x[0])}</b><span class="mono">${esc(x[1])}</span></div>`).join(''):'<div class="analysis-empty">Явные list/blob зависимости не найдены.</div>';
-    $('zapretImportPreview').innerHTML=result.preview?highlightConfig(result.preview):esc('Preview не построен.');$('zapretImportCopy').disabled=!result.preview;
-    renderZapretLibrary(result);reportHeight();
+  function renderStrategyImport(result){
+    $('strategyImportType').textContent=result.type==='batch'?'Windows batch':result.type==='command'?'Команда':result.type==='log'?'Лог теста':'Неизвестно';
+    $('strategyImportCommands').textContent=String(result.commands.length);$('strategyImportProfiles').textContent=String(result.profiles.length);
+    $('strategyImportVerdict').textContent=result.ready?'ГОТОВО':result.preview?'ПРОВЕРЬТЕ':'НУЖНЫ ДАННЫЕ';
+    $('strategyImportState').textContent=result.ready?'ГОТОВО':result.preview?'ПРОВЕРЬТЕ':'ОЖИДАНИЕ';$('strategyImportState').className=`testlab-state ${result.ready?'done':result.preview?'running':'idle'}`;
+    $('strategyImportMessage').textContent=result.ready?'Preview построен. Ничего не сохранено: сначала проверьте преобразования и зависимости.':result.preview?'Preview построен с блокирующими/неоднозначными местами. Исправьте их до следующего этапа импорта.':'RouterForge пока не может собрать стратегию из этих данных.';
+    $('strategyImportWarnings').innerHTML=result.warnings.map(x=>`<div class="strategy-import-warning ${x[0]}">${esc(x[1])}</div>`).join('');
+    $('strategyImportTransforms').innerHTML=result.transforms.length?result.transforms.map(x=>`<div class="strategy-import-row"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></div>`).join(''):'<div class="analysis-empty">Автоматических преобразований нет.</div>';
+    $('strategyImportDeps').innerHTML=result.deps.length?result.deps.map(x=>`<div class="strategy-import-row"><b>${esc(x[0])}</b><span class="mono">${esc(x[1])}</span></div>`).join(''):'<div class="analysis-empty">Явные list/blob зависимости не найдены.</div>';
+    $('strategyImportPreview').innerHTML=result.preview?highlightConfig(result.preview):esc('Preview не построен.');$('strategyImportCopy').disabled=!result.preview;
+    renderStrategyImportLibrary(result);reportHeight();
   }
-  async function runZapretImport(){
-    const content=$('zapretImportInput').value;
-    if(!String(content||'').trim()){notice('Импорт из Zapret: добавьте команду или файл.','error');return}
-    $('zapretImportRun').disabled=true;$('zapretImportState').textContent='PARSING';
+  async function runStrategyImport(){
+    const content=$('strategyImportInput').value;
+    if(!String(content||'').trim()){notice('Импорт стратегии: добавьте команду или файл.','error');return}
+    $('strategyImportRun').disabled=true;$('strategyImportState').textContent='ПРОВЕРКА';
     try{
-      const d=await api('/v2/zapret/parse',{method:'POST',body:JSON.stringify({content})});
+      const d=await api('/v2/import/parse',{method:'POST',body:JSON.stringify({content})});
       const result={
         type:d.type||'unknown',commands:Array.isArray(d.commands)?d.commands:[],profiles:Array.isArray(d.profiles)?d.profiles:[],
         tcp:d.tcp||'',udp:d.udp||'',
@@ -5411,21 +5406,21 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       if(result.type==='log'&&result.log){
         result.warnings.unshift(['warn',`Log parity: format=${result.log.format||'unknown'} · strategies=${Number(result.log.strategies||0)} · targets=${Number(result.log.targets||0)} · tests=${Number(result.log.tests||0)} · passed=${Number(result.log.passed||0)} · failed=${Number(result.log.failed||0)}`]);
       }
-      renderZapretImport(result);
-      notice(`Zapret parser: ${result.type} · ${result.profiles.length} profile(s) · ${result.ready?'READY':'CHECK'}`,result.ready?'good':'');
+      renderStrategyImport(result);
+      notice(`Импорт стратегии: ${result.type} · ${result.profiles.length} profile(s) · ${result.ready?'READY':'CHECK'}`,result.ready?'good':'');
     }catch(e){
-      $('zapretImportState').textContent='FAIL';notice(`Zapret parser: ${e.message}`,'error');
-    }finally{$('zapretImportRun').disabled=false;reportHeight()}
+      $('strategyImportState').textContent='ОШИБКА';notice(`Импорт стратегии: ${e.message}`,'error');
+    }finally{$('strategyImportRun').disabled=false;reportHeight()}
   }
-  function clearZapretImport(){
-    $('zapretImportInput').value='';refreshSyntaxEditor($('zapretImportInput'));$('zapretImportSourceMeta').textContent='Команда · .bat · .cmd · .txt · лог теста';
-    $('zapretLibraryName').value='';
-    renderZapretImport({type:'unknown',commands:[],profiles:[],tcp:'',udp:'',transforms:[],warnings:[],deps:[],preview:'',ready:false});
+  function clearStrategyImport(){
+    $('strategyImportInput').value='';refreshSyntaxEditor($('strategyImportInput'));$('strategyImportSourceMeta').textContent='Команда · .bat · .cmd · .txt · лог теста';
+    $('strategyImportLibraryName').value='';
+    renderStrategyImport({type:'unknown',commands:[],profiles:[],tcp:'',udp:'',transforms:[],warnings:[],deps:[],preview:'',ready:false});
   }
-  function loadZapretImportFile(file){
-    if(!file)return;if(file.size>262144){notice('Импорт из Zapret: файл больше 256 KiB.','error');return}
+  function loadStrategyImportFile(file){
+    if(!file)return;if(file.size>262144){notice('Импорт стратегии: файл больше 256 KiB.','error');return}
     const reader=new FileReader();
-    reader.onload=()=>{$('zapretImportInput').value=String(reader.result||'');refreshSyntaxEditor($('zapretImportInput'));$('zapretImportSourceMeta').textContent=`${file.name} · ${bytes(file.size)}`;runZapretImport()};
+    reader.onload=()=>{$('strategyImportInput').value=String(reader.result||'');refreshSyntaxEditor($('strategyImportInput'));$('strategyImportSourceMeta').textContent=`${file.name} · ${bytes(file.size)}`;runStrategyImport()};
     reader.onerror=()=>notice('Не удалось прочитать файл в браузере.','error');reader.readAsText(file);
   }
 
@@ -5666,7 +5661,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const profiles=inspect.production_profile_matches||[];$('v2DomainProfiles').innerHTML=profiles.length?profiles.map(p=>`<div class="v2-row"><div class="v2-result-title">Profile ${Number(p.index)}</div><div><div class="value">${esc(p.match_reason||'')}</div><div class="v2-args">${esc(v2ArgsText(p.args))}</div></div>${v2Pill(p.candidate_ready?'READY':'CHECK')}</div>`).join(''):'<div class="analysis-empty">Прямую production profile binding доказать не удалось.</div>';
       const action=String(detect.diagnostic?.suggested_action||'').trim();
       notice(`Разбор ${inspect.target||target}: ${detect.classification_text||detect.classification||'готово'}${action?` · ${action}`:''}`,detect.classification==='clear'?'good':'');
-    }catch(e){$('v2DomainState').textContent='FAIL';notice(`Разбор домена: ${e.message}`,'error')}
+    }catch(e){$('v2DomainState').textContent='ОШИБКА';notice(`Разбор домена: ${e.message}`,'error')}
     finally{$('v2DomainRun').disabled=false;reportHeight()}
   }
   function v2DomainSend(tab){
@@ -5770,7 +5765,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
   function renderV2Library(){
     if(!$('v2LibraryList'))return;$('v2LibraryCount').textContent=`${v2Library.length} / 64`;
-    $('v2LibraryList').innerHTML=v2Library.length?v2Library.map(x=>`<div class="v2-row"><div><div class="v2-result-title">${esc(x.name)}</div><div class="meta">${esc(x.source)} · ${esc(String(x.fingerprint||'').slice(0,16))}</div></div><div class="v2-args">${esc(v2ArgsText(x.args))}</div><div class="v2-library-actions"><button data-v2-lib-edit="${esc(x.id)}">Редактировать</button><button data-v2-lib-sandbox="${esc(x.id)}">Sandbox</button><button class="danger" data-v2-lib-delete="${esc(x.id)}">Удалить</button></div></div>`).join(''):'<div class="analysis-empty">Candidate Library пуста.</div>';
+    $('v2LibraryList').innerHTML=v2Library.length?v2Library.map(x=>`<div class="v2-row"><div><div class="v2-result-title">${esc(x.name)}</div><div class="meta">${esc(x.source)} · ${esc(String(x.fingerprint||'').slice(0,16))}</div></div><div class="v2-args">${esc(v2ArgsText(x.args))}</div><div class="v2-library-actions"><button data-v2-lib-edit="${esc(x.id)}">Редактировать</button><button data-v2-lib-sandbox="${esc(x.id)}">Песочница</button><button class="danger" data-v2-lib-delete="${esc(x.id)}">Удалить</button></div></div>`).join(''):'<div class="analysis-empty">Библиотека стратегий пуста.</div>';
     $('v2LibraryList').querySelectorAll('[data-v2-lib-edit]').forEach(b=>b.onclick=()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibEdit);if(!x)return;$('v2LibraryID').value=x.id;$('v2LibraryName').value=x.name;$('v2LibrarySource').value=x.source;$('v2LibraryArgs').value=v2ArgsText(x.args)});
     $('v2LibraryList').querySelectorAll('[data-v2-lib-sandbox]').forEach(b=>b.onclick=()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibSandbox);if(x)v2OpenSandboxFromArgs(v2ArgsText(x.args),x.name,x.source)});
     $('v2LibraryList').querySelectorAll('[data-v2-lib-delete]').forEach(b=>b.onclick=async()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibDelete);if(!x||!confirm(`Удалить ${x.name} из Candidate Library?`))return;try{await api('/v2/strategies/delete',{method:'POST',body:JSON.stringify({id:x.id,confirm:'ROUTERFORGE_V2_STRATEGY_DELETE'})});v2Library=[];await v2LoadLibrary(true);notice('Candidate удалён.','good')}catch(e){notice(e.message,'error')}});
@@ -5841,7 +5836,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       $('v2SelectorState').textContent='DONE';$('v2SelectorBar').style.width='100%';renderV2SelectorResult(d);{const all=d.candidates||[],working=all.filter(x=>x.result_class==='WORKING').length;v2HistoryAdd('v2-selector',{targets:1,candidates:all.length,working,success_ratio:all.length?working/all.length:0,recommendation:!!d.recommendation_available},d)}notice(`Автоподбор завершён: ${d.recommendation_reason||'готово'}`,'good');return d;
     }catch(e){
       if(controller.signal.aborted){$('v2SelectorState').textContent='STOPPED';notice('Автоподбор остановлен.','')}
-      else{v2SelectorLastError=e.message||'selector failed';$('v2SelectorState').textContent='FAIL';notice(`Автоподбор: ${e.message}`,'error')}
+      else{v2SelectorLastError=e.message||'selector failed';$('v2SelectorState').textContent='ОШИБКА';notice(`Автоподбор: ${e.message}`,'error')}
       return null;
     }finally{clearInterval(v2SelectorPoll);v2SelectorPoll=0;v2SelectorAbort=null;$('v2SelectorRun').disabled=false;$('v2SelectorStop').disabled=true;reportHeight()}
   }
@@ -5916,7 +5911,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       $('v2TCP16SNI').textContent=String(data.working_sni||0);
       renderTCP16MemoryV1();
     }catch(e){
-      $('v2TCP16State').textContent='FAIL';
+      $('v2TCP16State').textContent='ОШИБКА';
       $('v2TCP16List').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
     }
     reportHeight();
@@ -5996,7 +5991,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       v2RegistryFillSelect('v2RegistrySource',data.sources||[],'Все источники');
       v2RegistryRender();
     }catch(e){
-      $('v2RegistryState').textContent='FAIL';
+      $('v2RegistryState').textContent='ОШИБКА';
       $('v2RegistryList').innerHTML=`<div class="notice error">${esc(e.message)}</div>`;
     }
     reportHeight();
@@ -6017,19 +6012,19 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('v2ObservedMeta').textContent=`visible=${rows.length} · suppressed=${Number(data?.suppressed_count||0)} · ignored=${Number(data?.ignored_count||0)} · min events=${Number(data?.min_events||2)} · source=${data?.flow_source||'stored evidence'}`;
     $('v2ObservedList').innerHTML=rows.length?rows.map((x,i)=>{
       const target=v2ObservedTargetValue(x),domain=v2ObservedCanDomain(x);
-      return `<div class="v2-row ${x.active?'warn':'info'}"><div><div class="v2-result-title">${esc(target||x.destination||'—')}</div><div class="meta">device=${esc(x.device||'—')} · ${esc(x.protocol||'')} / ${Number(x.port||0)} · ${esc(v2ObservedReasonText(x.reason))} · count=${Number(x.count||0)} · last=${esc(x.last_seen||'—')}</div></div><div class="toolbar"><button data-observed-action="setup" data-index="${i}" ${domain?'':'disabled'}>Auto Setup</button><button data-observed-action="diagnose" data-index="${i}" ${domain?'':'disabled'}>Diagnose</button><button data-observed-action="sandbox" data-index="${i}" ${domain?'':'disabled'}>Sandbox</button><button data-observed-action="selector" data-index="${i}" ${domain?'':'disabled'}>Auto Select</button><button data-observed-action="list" data-index="${i}" ${domain?'':'disabled'}>В user.list</button><button data-observed-action="ignore" data-index="${i}">Ignore</button></div>${v2Pill(x.active?'ACTIVE':'SEEN')}</div>`;
+      return `<div class="v2-row ${x.active?'warn':'info'}"><div><div class="v2-result-title">${esc(target||x.destination||'—')}</div><div class="meta">device=${esc(x.device||'—')} · ${esc(x.protocol||'')} / ${Number(x.port||0)} · ${esc(v2ObservedReasonText(x.reason))} · count=${Number(x.count||0)} · last=${esc(x.last_seen||'—')}</div></div><div class="toolbar"><button data-observed-action="setup" data-index="${i}" ${domain?'':'disabled'}>Auto Setup</button><button data-observed-action="diagnose" data-index="${i}" ${domain?'':'disabled'}>Diagnose</button><button data-observed-action="sandbox" data-index="${i}" ${domain?'':'disabled'}>Песочница</button><button data-observed-action="selector" data-index="${i}" ${domain?'':'disabled'}>Auto Select</button><button data-observed-action="list" data-index="${i}" ${domain?'':'disabled'}>В user.list</button><button data-observed-action="ignore" data-index="${i}">Ignore</button></div>${v2Pill(x.active?'ACTIVE':'SEEN')}</div>`;
     }).join(''):`<div class="analysis-empty">Повторных suspected failures пока нет. Для отсечения случайного шума первое событие скрывается; повторите scan позже, если проблема сохраняется.</div>`;
     $('v2ObservedList').querySelectorAll('[data-observed-action]').forEach(btn=>btn.onclick=()=>v2ObservedAction(btn.dataset.observedAction,Number(btn.dataset.index)));
     reportHeight();
   }
   async function loadV2Observed(){
     try{$('v2ObservedState').textContent='READ ONLY';renderV2Observed(await api('/v2/observed-targets'))}
-    catch(e){$('v2ObservedState').textContent='FAIL';$('v2ObservedList').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
+    catch(e){$('v2ObservedState').textContent='ОШИБКА';$('v2ObservedList').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
   }
   async function scanV2Observed(){
     $('v2ObservedScan').disabled=true;$('v2ObservedState').textContent='SCANNING';
     try{const d=await api('/v2/observed-targets/scan',{method:'POST',body:JSON.stringify({confirm:'ROUTERFORGE_OBSERVED_SCAN'})});$('v2ObservedState').textContent='READY';renderV2Observed(d);notice(`Observed: ${Number(d.count||0)} visible · ${Number(d.suppressed_count||0)} suppressed.`,'good')}
-    catch(e){$('v2ObservedState').textContent='FAIL';notice(`Observed scan: ${e.message}`,'error')}
+    catch(e){$('v2ObservedState').textContent='ОШИБКА';notice(`Observed scan: ${e.message}`,'error')}
     finally{$('v2ObservedScan').disabled=false;reportHeight()}
   }
   async function v2ObservedAction(action,index){
@@ -6091,7 +6086,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
-  const nfqwsStrategyTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','target-memory-v2','catalog','upstream-lists','blobs','zapret-import']);
+  const nfqwsStrategyTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','target-memory-v2','catalog','upstream-lists','blobs','strategy-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','runtime-health-v2','scripts','keenetic']);
@@ -6259,20 +6254,20 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
   $('uxTaskBroken').onclick=()=>openOverviewTask('domain-v2','v2DomainTarget');
   $('uxTaskCheck').onclick=()=>openOverviewTask('preflight','');
-  $('uxTaskImport').onclick=()=>openOverviewTask('zapret-import','zapretImportInput');
-  const zapretSourceSyntax=mountSyntaxTextarea($('zapretImportInput'),{mode:'config',caption:'Zapret source',resources:false});
-  if(zapretSourceSyntax){const hint=zapretSourceSyntax.shell.querySelector('.syntax-editor-hint');if(hint)hint.textContent='BAT / command syntax · preview only'}
-  $('zapretImportRun').onclick=runZapretImport;
-  $('zapretImportClear').onclick=clearZapretImport;
-  $('zapretImportPick').onclick=()=>$('zapretImportFile').click();
-  $('zapretImportFile').onchange=e=>{const file=e.target.files&&e.target.files[0];loadZapretImportFile(file);e.target.value=''};
-  $('zapretImportCopy').onclick=()=>{const text=$('zapretImportPreview').textContent;if(text&&text!=='Preview не построен.'){navigator.clipboard?.writeText(text);notice('Zapret preview скопирован.','good')}};
-  $('zapretLibraryName').oninput=updateZapretLibrarySave;
-  $('zapretLibrarySave').onclick=saveZapretLibraryCandidate;
-  $('zapretLibraryOpen').onclick=openSavedZapretConfig;
-  $('zapretSandboxProfile').onchange=()=>{$('zapretSandboxOpen').disabled=!zapretImportResult?.ready};
-  $('zapretSandboxOpen').onclick=sendZapretProfileToSandbox;
-  $('zapretStrategyImport').onclick=importZapretProfilesToStrategyLibrary;
+  $('uxTaskImport').onclick=()=>openOverviewTask('strategy-import','strategyImportInput');
+  const strategyImportSourceSyntax=mountSyntaxTextarea($('strategyImportInput'),{mode:'config',caption:'StrategyImport source',resources:false});
+  if(strategyImportSourceSyntax){const hint=strategyImportSourceSyntax.shell.querySelector('.syntax-editor-hint');if(hint)hint.textContent='BAT / command syntax · preview only'}
+  $('strategyImportRun').onclick=runStrategyImport;
+  $('strategyImportClear').onclick=clearStrategyImport;
+  $('strategyImportPick').onclick=()=>$('strategyImportFile').click();
+  $('strategyImportFile').onchange=e=>{const file=e.target.files&&e.target.files[0];loadStrategyImportFile(file);e.target.value=''};
+  $('strategyImportCopy').onclick=()=>{const text=$('strategyImportPreview').textContent;if(text&&text!=='Preview не построен.'){navigator.clipboard?.writeText(text);notice('Предпросмотр стратегии скопирован.','good')}};
+  $('strategyImportLibraryName').oninput=updateStrategyImportLibrarySave;
+  $('strategyImportLibrarySave').onclick=saveStrategyImportLibraryCandidate;
+  $('strategyImportLibraryOpen').onclick=openSavedStrategyImportConfig;
+  $('strategyImportSandboxProfile').onchange=()=>{$('strategyImportSandboxOpen').disabled=!strategyImportResult?.ready};
+  $('strategyImportSandboxOpen').onclick=sendStrategyImportProfileToSandbox;
+  $('strategyImportStrategyImport').onclick=importStrategyImportProfilesToStrategyLibrary;
   $('refreshBenchReadiness').onclick=()=>loadBenchReadiness(true);
   $('runAutoTuneFlow').onclick=runAutoTuneFlow;$('buildAutoTunePreview').onclick=buildAutoTunePreviewUI;$('applyAutoTunePreview').onclick=applyAutoTunePreviewUI;$('resetAutoTuneFlow').onclick=()=>resetAutoTuneUI();
   $('processingLiveCheck').onclick=runProcessingMapLiveProof;

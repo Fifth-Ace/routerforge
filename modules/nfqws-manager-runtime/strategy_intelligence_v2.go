@@ -1022,7 +1022,7 @@ func v2CustomProfile(args []string, target string) (benchStrategyProfile, error)
 	if len(args) == 0 || len(args) > 256 {
 		return benchStrategyProfile{}, errors.New("custom candidate args are empty or too large")
 	}
-	// External Catalog/Zapret candidates often carry hostlist/ipset selectors.
+	// Imported and catalog candidates can carry hostlist/ipset selectors.
 	// The isolated bench already narrows traffic to one exact destination + local
 	// source port, so these selection-only file filters are compiled away rather
 	// than copied into the temporary candidate. This keeps the strategy technique

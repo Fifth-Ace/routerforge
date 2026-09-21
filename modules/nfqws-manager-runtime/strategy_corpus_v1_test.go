@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestStaticStrategyCorpusIsSubstantialPinnedAndCompilable(t *testing.T) {
+func TestStaticStrategyCorpusIsSubstantialCuratedAndCompilable(t *testing.T) {
 	items := v2StaticStrategyCorpus()
 	if len(items) < 24 {
 		t.Fatalf("strategy corpus unexpectedly small: %d", len(items))
@@ -19,9 +19,6 @@ func TestStaticStrategyCorpusIsSubstantialPinnedAndCompilable(t *testing.T) {
 		}
 		ids[item.ID] = true
 		sources[item.Source] = true
-		if item.Repository == "" || item.Ref == "" || item.UpstreamName == "" {
-			t.Fatalf("missing provenance for %s: %+v", item.ID, item)
-		}
 		if strings.Contains(strings.Join(item.Args, " "), "--hostlist") ||
 			strings.Contains(strings.Join(item.Args, " "), "--ipset") {
 			t.Fatalf("selection-only args leaked into static corpus candidate %s", item.ID)
@@ -34,8 +31,8 @@ func TestStaticStrategyCorpusIsSubstantialPinnedAndCompilable(t *testing.T) {
 			t.Fatalf("%s does not compile through RouterForge candidate compiler: %v", item.ID, err)
 		}
 	}
-	if !sources["omn1z"] || !sources["z2k"] {
-		t.Fatalf("expected both upstream sources, got %v", sources)
+	if !sources["curated"] {
+		t.Fatalf("expected RouterForge curated source, got %v", sources)
 	}
 }
 
@@ -49,7 +46,7 @@ func TestStaticStrategyCorpusHasNoExternalResourceDependency(t *testing.T) {
 	}
 }
 
-func TestStrategyRegistryMergesCorpusProvenanceWithBuiltinTechnique(t *testing.T) {
+func TestStrategyRegistryMergesCuratedCorpusWithBuiltinTechnique(t *testing.T) {
 	now := time.Date(2026, 9, 21, 0, 0, 0, 0, time.UTC)
 	registry := v2BuildStrategyRegistry(
 		v2StrategyLibraryDocument{Version: 1, Strategies: []v2StoredStrategy{}},
@@ -70,25 +67,19 @@ func TestStrategyRegistryMergesCorpusProvenanceWithBuiltinTechnique(t *testing.T
 	if found == nil {
 		t.Fatal("merged builtin/corpus technique not found")
 	}
-	hasBuiltin, hasOmn1z := false, false
-	hasPinnedOmn1z := false
+	hasBuiltin, hasCurated := false, false
 	for _, source := range found.Sources {
 		hasBuiltin = hasBuiltin || source == "builtin"
-		hasOmn1z = hasOmn1z || source == "omn1z"
+		hasCurated = hasCurated || source == "curated"
 	}
-	for _, p := range found.Provenance {
-		if p.Source == "omn1z" && p.Repository == v2CorpusOmn1zRepository && p.Ref == v2CorpusOmn1zRef {
-			hasPinnedOmn1z = true
-		}
-	}
-	if !hasBuiltin || !hasOmn1z || !hasPinnedOmn1z {
-		t.Fatalf("merged provenance incomplete: sources=%v provenance=%+v", found.Sources, found.Provenance)
+	if !hasBuiltin || !hasCurated {
+		t.Fatalf("merged sources incomplete: %v", found.Sources)
 	}
 }
 
-func TestCorpusSourcePreferencePreservesConcreteUpstream(t *testing.T) {
-	entry := v2StrategyRegistryEntry{Sources: []string{"memory", "builtin", "omn1z"}}
-	if got := v2RecommendationSource(entry); got != "omn1z" {
-		t.Fatalf("source=%q want omn1z", got)
+func TestCorpusSourcePreferencePreservesCuratedSource(t *testing.T) {
+	entry := v2StrategyRegistryEntry{Sources: []string{"memory", "builtin", "curated"}}
+	if got := v2RecommendationSource(entry); got != "curated" {
+		t.Fatalf("source=%q want curated", got)
 	}
 }

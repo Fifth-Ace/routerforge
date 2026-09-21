@@ -27,7 +27,7 @@ type v2StrategyImportResult struct {
 
 func registerStrategyImportV2Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/v2/strategies/import", mutationOnly(handleV2StrategyImport))
-	mux.HandleFunc("/v1/v2/zapret/parse", mutationOnly(handleV2ZapretParse))
+	mux.HandleFunc("/v1/v2/import/parse", mutationOnly(handleV2StrategyImportParse))
 }
 
 func v2ImportStrategies(doc v2StrategyLibraryDocument, items []v2StrategyImportItem, now string) (v2StrategyLibraryDocument, v2StrategyImportResult, error) {
@@ -73,7 +73,7 @@ func v2ImportStrategies(doc v2StrategyLibraryDocument, items []v2StrategyImportI
 			return doc, result, errors.New("strategy id collision")
 		}
 		item := v2StoredStrategy{
-			ID: id, Name: name, Source: "zapret", Args: args, Fingerprint: fingerprint,
+			ID: id, Name: name, Source: "import", Args: args, Fingerprint: fingerprint,
 			CreatedAt: now, UpdatedAt: now,
 		}
 		toAdd = append(toAdd, item)
@@ -118,6 +118,6 @@ func handleV2StrategyImport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok": true, "added": result.Added, "existing": result.Existing,
 		"count": len(next.Strategies), "strategies": result.Items,
-		"source": "zapret", "production_mutation": false,
+		"source": "import", "production_mutation": false,
 	})
 }

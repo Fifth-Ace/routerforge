@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestZapretParserBatchParity(t *testing.T) {
+func TestStrategyImportParserBatchParity(t *testing.T) {
 	src := `@echo off
 set "BIN=%~dp0bin\"
 set "LISTS=%~dp0lists\"
@@ -15,7 +15,7 @@ start "" "%BIN%winws.exe" --wf-tcp=80,443 --wf-udp=443 ^
  --new ^
  --filter-udp=443 --dpi-desync=fake --dpi-desync-repeats=6
 `
-	got, err := v2ZapretParse(src)
+	got, err := v2StrategyImportParse(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,8 +40,8 @@ start "" "%BIN%winws.exe" --wf-tcp=80,443 --wf-udp=443 ^
 	}
 }
 
-func TestZapretParserRejectsAmbiguousMultipleProcesses(t *testing.T) {
-	got, err := v2ZapretParse("winws.exe --filter-tcp=443 --dpi-desync=fake\nwinws.exe --filter-tcp=80 --dpi-desync=fake")
+func TestStrategyImportParserRejectsAmbiguousMultipleProcesses(t *testing.T) {
+	got, err := v2StrategyImportParse("winws.exe --filter-tcp=443 --dpi-desync=fake\nwinws.exe --filter-tcp=80 --dpi-desync=fake")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,8 +59,8 @@ func TestZapretParserRejectsAmbiguousMultipleProcesses(t *testing.T) {
 	}
 }
 
-func TestZapretParserUnresolvedVariableFailsClosed(t *testing.T) {
-	got, err := v2ZapretParse(`winws.exe --filter-tcp=443 --hostlist=%MISSING% --dpi-desync=fake`)
+func TestStrategyImportParserUnresolvedVariableFailsClosed(t *testing.T) {
+	got, err := v2StrategyImportParse(`winws.exe --filter-tcp=443 --hostlist=%MISSING% --dpi-desync=fake`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,13 +69,13 @@ func TestZapretParserUnresolvedVariableFailsClosed(t *testing.T) {
 	}
 }
 
-func TestZapretParserLogFormat1(t *testing.T) {
+func TestStrategyImportParserLogFormat1(t *testing.T) {
 	src := `Config: general ALT (Type: TCP)
   Target: youtube.com (Google)
   HTTP: code=200 size=12.5 KB status=OK
   TLS1.2: code=0 size=0 bytes status=FAIL
 `
-	got, err := v2ZapretParse(src)
+	got, err := v2StrategyImportParse(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,13 +85,13 @@ func TestZapretParserLogFormat1(t *testing.T) {
 	}
 }
 
-func TestZapretParserLogFormat2(t *testing.T) {
+func TestStrategyImportParserLogFormat2(t *testing.T) {
 	src := `[1/2] general ALT
 === youtube.com [Google] ===
 [youtube.com][HTTP] code=200 size=12000 bytes status=OK
 [youtube.com][TLS1.3] code=0 size=0 bytes status=FAIL
 `
-	got, err := v2ZapretParse(src)
+	got, err := v2StrategyImportParse(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,8 +101,8 @@ func TestZapretParserLogFormat2(t *testing.T) {
 	}
 }
 
-func TestZapretParserProductionMutationAlwaysFalse(t *testing.T) {
-	got, err := v2ZapretParse(`nfqws --filter-tcp=443 --dpi-desync=fake`)
+func TestStrategyImportParserProductionMutationAlwaysFalse(t *testing.T) {
+	got, err := v2StrategyImportParse(`nfqws --filter-tcp=443 --dpi-desync=fake`)
 	if err != nil {
 		t.Fatal(err)
 	}

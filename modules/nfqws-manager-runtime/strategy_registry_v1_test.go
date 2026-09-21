@@ -84,6 +84,7 @@ func TestStrategyRegistryRouteIsGetOnly(t *testing.T) {
 		t.Fatalf("POST status=%d body=%s", rr.Code, rr.Body.String())
 	}
 }
+
 func TestStrategyRegistryCapabilitiesExposeBenchEligibility(t *testing.T) {
 	args := append([]string{}, v2BuiltinHTTPSCandidates[0].Args...)
 	caps := v2RegistryCapabilities(args)
@@ -108,10 +109,12 @@ func TestStrategyRegistryCapabilitiesExposeBenchEligibility(t *testing.T) {
 	}
 }
 
-func TestStrategyRegistryZapretProvenancePinsAdapterRef(t *testing.T) {
-	p := v2RegistryProvenanceForSource("zapret")
-	if p.Repository != "whxtelxs/nfqws-zapret-converter" ||
-		p.Ref != "c37858b8ffead9377f1e27de756c8f5c46c23090" {
+func TestStrategyRegistryNormalizesUnknownSource(t *testing.T) {
+	if got := v2NormalizeStrategySource("legacy-external"); got != "saved" {
+		t.Fatalf("source=%q want saved", got)
+	}
+	p := v2RegistryProvenanceForSource("curated")
+	if p.Source != "curated" || p.Repository != "Fifth-Ace/routerforge" {
 		t.Fatalf("provenance=%+v", p)
 	}
 }

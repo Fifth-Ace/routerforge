@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   import { catalog, catalogOnline, catalogReady, startCatalogPolling } from '$lib/stores/catalog.js';
   import { settings } from '$lib/stores/settings.js';
   import { overview, refreshOverview, startOverviewPolling, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
@@ -8,6 +9,7 @@
   let stopCatalog = null;
   let stopCatalogSync = null;
   let stopOverview = null;
+  let stopPageSync = null;
   let narrowRailOpen = true;
 
   function toggleNarrowRail() {
@@ -40,11 +42,26 @@
       const fingerprint = `${moduleIds.join(',')}|${integrationIds.join(',')}`;
       if (fingerprint === lastInstalledFingerprint) return;
       lastInstalledFingerprint = fingerprint;
-      refreshOverview(value);
+      refreshOverview(value, $page.url.pathname === '/');
     });
 
-    stopOverview = startOverviewPolling(() => $catalog, 10000);
-    return () => { stopCatalogSync?.(); stopCatalog?.(); stopOverview?.(); };
+    let lastOverviewPath = $page.url.pathname;
+    stopPageSync = page.subscribe((value) => {
+      const nextPath = value.url.pathname;
+      if (nextPath === lastOverviewPath) return;
+      const detailChanged = (lastOverviewPath === '/') !== (nextPath === '/');
+      lastOverviewPath = nextPath;
+      if (detailChanged && !document.hidden) {
+        refreshOverview($catalog, nextPath === '/');
+      }
+    });
+
+    stopOverview = startOverviewPolling(
+      () => $catalog,
+      15000,
+      () => $page.url.pathname === '/'
+    );
+    return () => { stopPageSync?.(); stopCatalogSync?.(); stopCatalog?.(); stopOverview?.(); };
   });
 
   $: locale = $settings.locale || 'ru';

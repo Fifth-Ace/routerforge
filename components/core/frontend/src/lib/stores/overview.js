@@ -16,7 +16,7 @@ let lastCatalog = null;
 let cpuHighSince = 0;
 let refreshGeneration = 0;
 
-export async function refreshOverview(nextCatalog = lastCatalog) {
+export async function refreshOverview(nextCatalog = lastCatalog, detailed = false) {
   lastCatalog = nextCatalog || lastCatalog;
   const generation = ++refreshGeneration;
   const modules = lastCatalog?.modules || [];
@@ -50,21 +50,23 @@ export async function refreshOverview(nextCatalog = lastCatalog) {
       ? safe(() => getAdminThermal())
       : Promise.resolve(null);
 
-  const storagePromise = installed('storage')
+  const storagePromise = detailed && installed('storage')
     ? safe(() => getModule('storage','storage'))
-    : installed('admin')
+    : detailed && installed('admin')
       ? safe(() => getAdminStorage())
       : Promise.resolve(null);
 
-  const plainDnsPromise = installed('dns')
+  const plainDnsPromise = detailed && installed('dns')
     ? safe(() => getPlainDNS(500))
     : Promise.resolve(null);
 
-  const networkPromise = installed('network')
+  const networkPromise = detailed && installed('network')
     ? safe(() => getModule('network','routes'))
     : Promise.resolve(null);
 
-  const actionsPromise = safe(() => getAppActions());
+  const actionsPromise = detailed
+    ? safe(() => getAppActions())
+    : Promise.resolve(null);
 
   const [platform, systemRows, thermal, storage] = await Promise.all([
     platformPromise,
@@ -97,10 +99,15 @@ export async function refreshOverview(nextCatalog = lastCatalog) {
   return result;
 }
 
-export function startOverviewPolling(getCatalog, intervalMs = 10000) {
+export function startOverviewPolling(getCatalog, intervalMs = 15000, getDetailed = () => false) {
   users += 1;
 
-  const tick = () => refreshOverview(typeof getCatalog === 'function' ? getCatalog() : getCatalog);
+  const tick = () => {
+    if (typeof document !== 'undefined' && document.hidden) return null;
+    const nextCatalog = typeof getCatalog === 'function' ? getCatalog() : getCatalog;
+    const detailed = typeof getDetailed === 'function' ? Boolean(getDetailed()) : Boolean(getDetailed);
+    return refreshOverview(nextCatalog, detailed);
+  };
   if (!stopPolling) {
     stopPolling = startSerialPolling(tick, intervalMs);
   }

@@ -27,17 +27,20 @@
   let stopStream = null;
   let lastInterval = 0;
   let panelAccess = false;
+  let snapshotRouteActive = false;
+  let pageVisible = true;
   let redirecting = false;
 
   $: locale = $settings.locale || 'ru';
 
   function reconcileStream() {
-    if (!panelAccess) {
+    if (!panelAccess || !snapshotRouteActive || !pageVisible) {
       stopStream?.(); stopStream = null;
       return;
     }
     if (stopStream) return;
-    stopStream = startSnapshotStream(lastInterval || 2000);
+    const interval = Math.max(5000, lastInterval || 2000);
+    stopStream = startSnapshotStream(interval);
   }
 
   $: modules = $catalog.modules || [];
@@ -73,6 +76,18 @@
       reconcileStream();
     });
 
+    const unsubscribePage = page.subscribe((value) => {
+      snapshotRouteActive = value.url.pathname === '/';
+      reconcileStream();
+    });
+
+    const handleVisibility = () => {
+      pageVisible = !document.hidden;
+      reconcileStream();
+    };
+    pageVisible = !document.hidden;
+    document.addEventListener('visibilitychange', handleVisibility);
+
     refreshAuth().catch(() => {});
     const stopAuthPolling = startSerialPolling(
       () => refreshAuth().catch(() => {}),
@@ -84,6 +99,8 @@
       stopAuthPolling();
       unsubscribeSettings();
       unsubscribeAuth();
+      unsubscribePage();
+      document.removeEventListener('visibilitychange', handleVisibility);
       stopStream?.();
     };
   });
@@ -93,7 +110,7 @@
   <AppHeader />
   <main class="app-main">
     <AppShell>
-      {#if $snapshot.discovery_error || $snapshot.capture_error || $snapshot.client_registry_error || $snapshot.client_capture_error}
+      {#if path === '/' && ($snapshot.discovery_error || $snapshot.capture_error || $snapshot.client_registry_error || $snapshot.client_capture_error)}
         <div class="global-alerts shell-alerts">
           {#if $snapshot.discovery_error}<div class="global-alert">{t(locale, 'errors.dnsDiscovery')}: {$snapshot.discovery_error}</div>{/if}
           {#if $snapshot.capture_error}<div class="global-alert">{t(locale, 'errors.dnsCapture')}: {$snapshot.capture_error}</div>{/if}

@@ -180,9 +180,11 @@ func main() {
 		return
 	}
 
-	store := NewStore(defaultFlowRetentionCap, 500)
+	totalMemoryKB := readMemTotalKB("/proc/meminfo")
+	memoryProfile := dnsMemoryProfileFor(totalMemoryKB)
+	store := newStoreWithLimits(memoryProfile.FlowRetentionCap, 500, memoryProfile.DomainCountCap, memoryProfile.ClientDomainCap)
 	eventLog := NewEventLogger(*logPath)
-	eventLog.Event("START", fmt.Sprintf("routerforge-dns v%s socket=%s", version, *socket))
+	eventLog.Event("START", fmt.Sprintf("routerforge-dns v%s socket=%s memory_profile=%s mem_kb=%d flow_cap=%d domain_cap=%d client_domain_cap=%d", version, *socket, memoryProfile.Name, totalMemoryKB, memoryProfile.FlowRetentionCap, memoryProfile.DomainCountCap, memoryProfile.ClientDomainCap))
 
 	go discoveryLoop(store, *discoveryEvery, eventLog)
 	go clientRegistryLoop(store, eventLog)
@@ -231,6 +233,7 @@ func main() {
 	fmt.Printf("RouterForge DNS v%s\n", version)
 	fmt.Printf("socket: %s\n", *socket)
 	fmt.Printf("UI: %s\n", *uiPath)
+	fmt.Printf("memory profile: %s (MemTotal=%d KiB, flow=%d, domains=%d, client-domains=%d)\n", memoryProfile.Name, totalMemoryKB, memoryProfile.FlowRetentionCap, memoryProfile.DomainCountCap, memoryProfile.ClientDomainCap)
 
 	server := newDNSModuleServer(store, version, *socket, *uiPath)
 	if err := server.Serve(); err != nil {

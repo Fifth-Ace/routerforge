@@ -28,6 +28,17 @@ type benchAutoTuneApplyReceipt struct {
 	CandidateConfig    string
 	ServerName         string
 	SourceProfileIndex int
+	Transport          string
+	SessionID          string
+	CandidateID        string
+	CandidateName      string
+	CandidateSource    string
+	CandidateFingerprint string
+	LiveResultClass    string
+	LiveSuccessRate    float64
+	LiveCompleteRate   float64
+	ExpectedLists      map[string]string
+	ExpectedBlobs      map[string]string
 	ExpiresAt          time.Time
 }
 
@@ -47,6 +58,13 @@ func clearBenchAutoTuneApplyReceipt() {
 }
 
 func storeBenchAutoTuneApplyReceipt(plan *benchAutoTuneApplyPlan, candidateConfig, candidateSHA string) error {
+	return storeBenchAutoTuneApplyReceiptWithResources(plan, candidateConfig, candidateSHA, nil, nil)
+}
+
+func storeBenchAutoTuneApplyReceiptWithResources(
+	plan *benchAutoTuneApplyPlan, candidateConfig, candidateSHA string,
+	expectedLists, expectedBlobs map[string]string,
+) error {
 	if plan == nil || strings.TrimSpace(plan.Token) == "" {
 		return errors.New("AutoTune apply plan is required")
 	}
@@ -62,9 +80,20 @@ func storeBenchAutoTuneApplyReceipt(plan *benchAutoTuneApplyPlan, candidateConfi
 		ActiveConfigSHA256: strings.ToLower(plan.ConfigSHA256),
 		CandidateSHA256:    strings.ToLower(candidateSHA),
 		CandidateConfig:    candidateConfig,
-		ServerName:         plan.ServerName,
-		SourceProfileIndex: plan.SourceProfileIndex,
-		ExpiresAt:          plan.ExpiresAt,
+		ServerName:           plan.ServerName,
+		SourceProfileIndex:   plan.SourceProfileIndex,
+		Transport:            plan.Transport,
+		SessionID:            plan.SessionID,
+		CandidateID:          plan.CandidateID,
+		CandidateName:        plan.CandidateName,
+		CandidateSource:      plan.CandidateSource,
+		CandidateFingerprint: plan.CandidateFingerprint,
+		LiveResultClass:      plan.LiveResultClass,
+		LiveSuccessRate:      plan.LiveSuccessRate,
+		LiveCompleteRate:     plan.LiveCompleteRate,
+		ExpectedLists:        v2CopyStringMap(expectedLists),
+		ExpectedBlobs:        v2CopyStringMap(expectedBlobs),
+		ExpiresAt:            plan.ExpiresAt,
 	}
 	benchAutoTuneApplyReceiptState.Lock()
 	benchAutoTuneApplyReceiptState.receipt = receipt
@@ -80,6 +109,8 @@ func currentBenchAutoTuneApplyReceipt(token string) (*benchAutoTuneApplyReceipt,
 		return nil, errors.New("no active AutoTune preview receipt")
 	}
 	copyReceipt := *receipt
+	copyReceipt.ExpectedLists = v2CopyStringMap(receipt.ExpectedLists)
+	copyReceipt.ExpectedBlobs = v2CopyStringMap(receipt.ExpectedBlobs)
 	benchAutoTuneApplyReceiptState.Unlock()
 
 	if time.Now().UTC().After(copyReceipt.ExpiresAt) {
@@ -98,7 +129,11 @@ func currentBenchAutoTuneApplyReceipt(token string) (*benchAutoTuneApplyReceipt,
 	if subtle.ConstantTimeCompare([]byte(plan.Token), []byte(copyReceipt.Token)) != 1 ||
 		!strings.EqualFold(plan.ConfigSHA256, copyReceipt.ActiveConfigSHA256) ||
 		plan.ServerName != copyReceipt.ServerName ||
-		plan.SourceProfileIndex != copyReceipt.SourceProfileIndex {
+		plan.SourceProfileIndex != copyReceipt.SourceProfileIndex ||
+		plan.SessionID != copyReceipt.SessionID ||
+		plan.Transport != copyReceipt.Transport ||
+		plan.CandidateSource != copyReceipt.CandidateSource ||
+		plan.CandidateFingerprint != copyReceipt.CandidateFingerprint {
 		clearBenchAutoTuneApplyReceipt()
 		return nil, errors.New("AutoTune preview receipt no longer matches the active recommendation")
 	}
@@ -288,6 +323,8 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		Config:               candidate,
 		ExpectedActiveSHA256: receipt.ActiveConfigSHA256,
 		ExpectedConfigSHA256: receipt.CandidateSHA256,
+		ExpectedLists:        v2CopyStringMap(receipt.ExpectedLists),
+		ExpectedBlobs:        v2CopyStringMap(receipt.ExpectedBlobs),
 		Confirm:              "NFQWS_SMART_APPLY",
 	}
 
@@ -304,6 +341,13 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 	result["receipt_consumed"] = true
 	result["server_name"] = receipt.ServerName
 	result["source_profile_index"] = receipt.SourceProfileIndex
+	result["candidate_source"] = receipt.CandidateSource
+	result["candidate_id"] = receipt.CandidateID
+	result["candidate_name"] = receipt.CandidateName
+	result["candidate_fingerprint"] = receipt.CandidateFingerprint
+	result["session_id"] = receipt.SessionID
+	result["transport"] = receipt.Transport
+	result["live_result_class"] = receipt.LiveResultClass
 	result["preview_candidate_sha256"] = receipt.CandidateSHA256
 	writeJSON(w, code, result)
 }

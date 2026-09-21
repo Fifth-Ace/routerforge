@@ -22,6 +22,15 @@ type benchAutoTuneApplyPlan struct {
 	CandidateStrategyArgs []string
 	CandidateSource       string
 	CandidateFingerprint  string
+	Transport             string
+	SessionID             string
+	CandidateID           string
+	CandidateName         string
+	LiveResultClass       string
+	LiveSuccessRate       float64
+	LiveCompleteRate      float64
+	LiveCleanupProven     bool
+	LiveInfrastructureOK  bool
 	// StrategyArgs is retained as a compatibility alias for older internal
 	// callers/tests. It always mirrors CandidateStrategyArgs.
 	StrategyArgs []string

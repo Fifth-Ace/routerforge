@@ -1104,6 +1104,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Диагностика NFQWS">
   <button class="tab" data-tab="preflight">Проверка системы <span id="preflightTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="dpi-detector">DPI Detector <span id="dpiDetectorTabState" class="nav-meta"></span></button>
+  <button class="tab" data-tab="observed-v1">Observed <span id="v2ObservedTabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="domain-v2">Разбор домена</button>
   <button class="tab" data-tab="prodlab-v2">Test Lab</button>
 </nav>
@@ -1268,6 +1269,24 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <pre id="dpiLegendOutput" class="v2-args">—</pre>
       </article>
     </div>
+  </div>
+</section>
+
+<section id="view-observed-v1" class="view">
+  <div class="v2-shell">
+    <div class="v2-hero">
+      <div><h2>Observed Targets</h2><div class="section-kicker">Network Tools flow evidence → suspected failures → one-click diagnostics</div></div>
+      <span id="v2ObservedState" class="config-badge">READ ONLY</span>
+    </div>
+    <article class="panel">
+      <div class="panel-head">
+        <div><h2>Кандидаты из LAN activity</h2><div class="section-kicker">показываются только после повторного независимого появления failure signal</div></div>
+        <div class="toolbar"><button id="v2ObservedLoad">Обновить</button><button id="v2ObservedScan" class="primary">Сканировать flow snapshot</button></div>
+      </div>
+      <div id="v2ObservedMeta" class="v2-boundary">Observed не меняет production. Источник — существующий Network Tools flow explorer.</div>
+      <div id="v2ObservedList" class="v2-list"><div class="analysis-empty">Загрузка…</div></div>
+    </article>
+    <div class="v2-boundary">Это suspected failure candidates, а не утверждение «заблокировано». Private destinations отбрасываются, шум требует повторного события, retention ограничен.</div>
   </div>
 </section>
 
@@ -5508,6 +5527,53 @@ const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.p
     reportHeight();
   }
 
+
+  let v2ObservedData=null;
+  function v2ObservedTargetValue(x){return String(x?.target||x?.destination||'').trim()}
+  function v2ObservedCanDomain(x){const v=v2ObservedTargetValue(x);return !!v&&!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(v)}
+  function v2ObservedReasonText(reason){
+    const map={tcp_syn_no_reply:'TCP SYN без SYN/ACK',tcp_unreplied:'TCP без ответа',tcp_rst_or_early_close:'TCP RST / раннее закрытие',udp_no_reply:'UDP egress без ответа'};
+    return map[String(reason||'')]||String(reason||'suspected failure');
+  }
+  function renderV2Observed(data){
+    v2ObservedData=data||{};
+    const rows=Array.isArray(data?.observed)?data.observed:[];
+    $('v2ObservedTabCount').textContent=String(rows.length);
+    $('v2ObservedMeta').textContent=`visible=${rows.length} · suppressed=${Number(data?.suppressed_count||0)} · ignored=${Number(data?.ignored_count||0)} · min events=${Number(data?.min_events||2)} · source=${data?.flow_source||'stored evidence'}`;
+    $('v2ObservedList').innerHTML=rows.length?rows.map((x,i)=>{
+      const target=v2ObservedTargetValue(x),domain=v2ObservedCanDomain(x);
+      return `<div class="v2-row ${x.active?'warn':'info'}"><div><div class="v2-result-title">${esc(target||x.destination||'—')}</div><div class="meta">device=${esc(x.device||'—')} · ${esc(x.protocol||'')} / ${Number(x.port||0)} · ${esc(v2ObservedReasonText(x.reason))} · count=${Number(x.count||0)} · last=${esc(x.last_seen||'—')}</div></div><div class="toolbar"><button data-observed-action="diagnose" data-index="${i}" ${domain?'':'disabled'}>Diagnose</button><button data-observed-action="sandbox" data-index="${i}" ${domain?'':'disabled'}>Sandbox</button><button data-observed-action="selector" data-index="${i}" ${domain?'':'disabled'}>Auto Select</button><button data-observed-action="list" data-index="${i}" ${domain?'':'disabled'}>В user.list</button><button data-observed-action="ignore" data-index="${i}">Ignore</button></div>${v2Pill(x.active?'ACTIVE':'SEEN')}</div>`;
+    }).join(''):`<div class="analysis-empty">Повторных suspected failures пока нет. Для отсечения случайного шума первое событие скрывается; повторите scan позже, если проблема сохраняется.</div>`;
+    $('v2ObservedList').querySelectorAll('[data-observed-action]').forEach(btn=>btn.onclick=()=>v2ObservedAction(btn.dataset.observedAction,Number(btn.dataset.index)));
+    reportHeight();
+  }
+  async function loadV2Observed(){
+    try{$('v2ObservedState').textContent='READ ONLY';renderV2Observed(await api('/v2/observed-targets'))}
+    catch(e){$('v2ObservedState').textContent='FAIL';$('v2ObservedList').innerHTML=`<div class="notice error">${esc(e.message)}</div>`}
+  }
+  async function scanV2Observed(){
+    $('v2ObservedScan').disabled=true;$('v2ObservedState').textContent='SCANNING';
+    try{const d=await api('/v2/observed-targets/scan',{method:'POST',body:JSON.stringify({confirm:'ROUTERFORGE_OBSERVED_SCAN'})});$('v2ObservedState').textContent='READY';renderV2Observed(d);notice(`Observed: ${Number(d.count||0)} visible · ${Number(d.suppressed_count||0)} suppressed.`,'good')}
+    catch(e){$('v2ObservedState').textContent='FAIL';notice(`Observed scan: ${e.message}`,'error')}
+    finally{$('v2ObservedScan').disabled=false;reportHeight()}
+  }
+  async function v2ObservedAction(action,index){
+    const x=v2ObservedData?.observed?.[index];if(!x)return;const target=v2ObservedTargetValue(x);
+    if(action==='diagnose'&&v2ObservedCanDomain(x)){$('v2DomainTarget').value=target;activateNFQWSTab('domain-v2');return}
+    if(action==='selector'&&v2ObservedCanDomain(x)){$('v2SelectorTarget').value=target;activateNFQWSTab('selector-v2');return}
+    if(action==='sandbox'&&v2ObservedCanDomain(x)){await v2LoadTargetSources();$('v2SandboxTargetSource').value='manual';$('v2SandboxTargets').value=target;v2TargetMode('sandbox');activateNFQWSTab('sandbox-v2');return}
+    if(action==='ignore'){try{await api('/v2/observed-targets/ignore',{method:'POST',body:JSON.stringify({target,ignore:true,confirm:'ROUTERFORGE_OBSERVED_IGNORE'})});await loadV2Observed();notice(`Observed: ${target} скрыт.`,'good')}catch(e){notice(e.message,'error')}return}
+    if(action==='list'&&v2ObservedCanDomain(x)){
+      try{
+        const f=await api('/list?name=user.list'),lines=String(f.content||'').split(/\r?\n/),normalized=target.toLowerCase();
+        if(lines.some(line=>line.trim().toLowerCase()===normalized)){notice(`${target} уже есть в user.list.`,'good');return}
+        const content=String(f.content||'').replace(/\s*$/,'\n')+target+'\n';
+        await api('/list/save',{method:'POST',body:JSON.stringify({name:'user.list',content,confirm:'NFQWS_LIST_SAVE'})});
+        notice(`${target} добавлен в user.list через backup + atomic save.`,'good');
+      }catch(e){notice(`user.list: ${e.message}`,'error')}
+    }
+  }
+
   async function openV2Workspace(tab){
     if(tab==='domain-v2')return;
     if(tab==='prodlab-v2'){await v2LoadTargetSources();v2TargetMode('lab');return}
@@ -5518,6 +5584,8 @@ const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.p
 
 
   $('v2TCP16Refresh').onclick=()=>loadTCP16MemoryV1(true);
+  $('v2ObservedLoad').onclick=()=>loadV2Observed();
+  $('v2ObservedScan').onclick=()=>scanV2Observed();
   $('v2RegistryRefresh').onclick=()=>loadStrategyRegistryV1(true);
   $('v2RegistrySearch').oninput=v2RegistryRender;
   $('v2RegistryProtocol').onchange=v2RegistryRender;
@@ -5547,7 +5615,7 @@ const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.p
   const nfqwsConfigTabs=new Set(['strategies','configs','config','lists']);
   const nfqwsStrategyTabs=new Set(['selector-v2','sandbox-v2','strategy-library-v2','strategy-registry-v1','tcp16-memory-v1','catalog','upstream-lists','blobs','zapret-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
-  const nfqwsToolTabs=new Set(['preflight','dpi-detector','domain-v2','prodlab-v2']);
+  const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
   let nfqwsActiveStrategy='selector-v2';
@@ -5581,6 +5649,7 @@ const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.p
     if(tab==='upstream-lists')loadListSources();
     if(tab==='preflight')renderPreflight();
     if(tab==='dpi-detector')loadDPIDetector(true);
+    if(tab==='observed-v1')void loadV2Observed();
     if(tab==='runs'){renderRunHistory();renderAutoPick()}
     if(tab==='catalog')loadCatalog();
     if(tab==='blobs')loadBlobs();

@@ -1,12 +1,12 @@
 package main
 
 type v2StaticCorpusEntry struct {
-	ID           string
-	Name         string
-	Source       string
-	Protocol     string
-	Family       string
-	Args         []string
+	ID       string
+	Name     string
+	Source   string
+	Protocol string
+	Family   string
+	Args     []string
 }
 
 var v2StaticCorpusEntries = []v2StaticCorpusEntry{

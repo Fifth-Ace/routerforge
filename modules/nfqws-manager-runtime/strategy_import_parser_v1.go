@@ -40,17 +40,17 @@ type v2StrategyImportParseRequest struct {
 }
 
 type v2StrategyImportParseResponse struct {
-	OK         bool                 `json:"ok"`
-	Type       string               `json:"type"`
-	Commands   []string             `json:"commands"`
-	Profiles   []string             `json:"profiles"`
-	TCP        string               `json:"tcp,omitempty"`
-	UDP        string               `json:"udp,omitempty"`
+	OK         bool                         `json:"ok"`
+	Type       string                       `json:"type"`
+	Commands   []string                     `json:"commands"`
+	Profiles   []string                     `json:"profiles"`
+	TCP        string                       `json:"tcp,omitempty"`
+	UDP        string                       `json:"udp,omitempty"`
 	Transforms []v2StrategyImportTransform  `json:"transforms"`
 	Warnings   []v2StrategyImportWarning    `json:"warnings"`
 	Deps       []v2StrategyImportDependency `json:"deps"`
-	Preview    string               `json:"preview,omitempty"`
-	Ready      bool                 `json:"ready"`
+	Preview    string                       `json:"preview,omitempty"`
+	Ready      bool                         `json:"ready"`
 	Log        v2StrategyImportLogSummary   `json:"log,omitempty"`
 
 	ProductionMutation bool `json:"production_mutation"`

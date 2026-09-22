@@ -32,19 +32,19 @@ type benchTransactionSpec struct {
 }
 
 type benchTransactionContract struct {
-	Implemented              bool `json:"implemented"`
-	MutationEnabled          bool `json:"mutation_enabled"`
-	ControlledSmokeOnly      bool `json:"controlled_smoke_only"`
-	SystemMutatorImplemented bool `json:"system_mutator_implemented"`
-	RuleCount                int  `json:"rule_count"`
-	ReverseOrderRollback     bool `json:"reverse_order_rollback"`
-	CleanupMandatory         bool `json:"cleanup_mandatory"`
-	CleanupVerification      bool `json:"cleanup_verification"`
+	Implemented                bool `json:"implemented"`
+	MutationEnabled            bool `json:"mutation_enabled"`
+	ControlledSmokeOnly        bool `json:"controlled_smoke_only"`
+	SystemMutatorImplemented   bool `json:"system_mutator_implemented"`
+	RuleCount                  int  `json:"rule_count"`
+	ReverseOrderRollback       bool `json:"reverse_order_rollback"`
+	CleanupMandatory           bool `json:"cleanup_mandatory"`
+	CleanupVerification        bool `json:"cleanup_verification"`
 	FailClosed                 bool `json:"fail_closed"`
 	ManagementTrafficIsolation bool `json:"management_traffic_isolation"`
 	CandidateStartedFirst      bool `json:"candidate_started_first"`
-	ProductionConfigMutation bool `json:"production_config_mutation"`
-	ProductionRestart        bool `json:"production_restart"`
+	ProductionConfigMutation   bool `json:"production_config_mutation"`
+	ProductionRestart          bool `json:"production_restart"`
 }
 
 type benchTransactionResult struct {
@@ -68,19 +68,19 @@ type benchTransactionOps interface {
 
 func buildBenchTransactionContract() benchTransactionContract {
 	return benchTransactionContract{
-		Implemented:              true,
-		MutationEnabled:          true,
-		ControlledSmokeOnly:      true,
-		SystemMutatorImplemented: true,
-		RuleCount:                6,
-		ReverseOrderRollback:     true,
-		CleanupMandatory:         true,
-		CleanupVerification:      true,
+		Implemented:                true,
+		MutationEnabled:            true,
+		ControlledSmokeOnly:        true,
+		SystemMutatorImplemented:   true,
+		RuleCount:                  6,
+		ReverseOrderRollback:       true,
+		CleanupMandatory:           true,
+		CleanupVerification:        true,
 		FailClosed:                 true,
 		ManagementTrafficIsolation: true,
 		CandidateStartedFirst:      true,
-		ProductionConfigMutation: false,
-		ProductionRestart:        false,
+		ProductionConfigMutation:   false,
+		ProductionRestart:          false,
 	}
 }
 

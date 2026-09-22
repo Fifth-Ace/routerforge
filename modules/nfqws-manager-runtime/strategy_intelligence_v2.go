@@ -1194,6 +1194,21 @@ func v2DefaultConcurrency() int {
 	return 1
 }
 
+func v2SelectorBenchTimeout(mode benchAutoTuneMode, concurrency int) time.Duration {
+	if concurrency < 1 {
+		concurrency = 1
+	}
+	baselineConcurrency := v2DefaultConcurrency()
+	if baselineConcurrency < 1 {
+		baselineConcurrency = 1
+	}
+	scale := (baselineConcurrency + concurrency - 1) / concurrency
+	if scale < 1 {
+		scale = 1
+	}
+	return time.Duration(mode.TimeoutSec*scale) * time.Second
+}
+
 func validateV2SelectorRequest(req v2SelectorRequest) error {
 	if _, err := v2SelectorMode(req.Mode); err != nil {
 		return err
@@ -1417,8 +1432,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(mode.TimeoutSec)*time.Second)
-	defer cancel()
+	baselineCtx, cancelBaseline := context.WithTimeout(r.Context(), time.Duration(mode.TimeoutSec)*time.Second)
 
 	setV2SelectorProgress(sessionID, "BASELINE", 0, len(templates), "testing baseline without desync strategy", false, false)
 	baseline := v2CandidateResult{
@@ -1426,13 +1440,14 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		CandidateSource: "baseline", SourceProfileIndex: -1, CleanupProven: true,
 	}
 	for i := 0; i < mode.Attempts; i++ {
-		a := v2RunAttempt(ctx, capabilities, status.ConfigSHA256, target, ip, inventory, nil, queues[0])
+		a := v2RunAttempt(baselineCtx, capabilities, status.ConfigSHA256, target, ip, inventory, nil, queues[0])
 		baseline.Attempts = append(baseline.Attempts, a)
 		if !a.CleanupProven {
 			break
 		}
 	}
 	v2FinalizeCandidate(&baseline)
+	cancelBaseline()
 	if !baseline.CleanupProven || !baseline.InfrastructureOK {
 		reason := "baseline infrastructure proof failed; selector stopped fail-closed"
 		if !baseline.CleanupProven {
@@ -1456,6 +1471,8 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	benchCtx, cancelBench := context.WithTimeout(r.Context(), v2SelectorBenchTimeout(mode, concurrency))
 
 	type job struct {
 		index int
@@ -1482,7 +1499,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 					Args:               append([]string{}, j.item.profile.Args...), CleanupProven: true,
 				}
 				for i := 0; i < mode.Attempts; i++ {
-					a := v2RunAttempt(ctx, capabilities, status.ConfigSHA256, target, ip, inventory, &j.item.profile, q)
+					a := v2RunAttempt(benchCtx, capabilities, status.ConfigSHA256, target, ip, inventory, &j.item.profile, q)
 					c.Attempts = append(c.Attempts, a)
 					if !a.CleanupProven {
 						break
@@ -1494,10 +1511,16 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		}(queue)
 	}
 	go func() {
+		defer close(jobs)
 		for i, item := range templates {
-			jobs <- job{index: i, item: item}
+			select {
+			case jobs <- job{index: i, item: item}:
+			case <-benchCtx.Done():
+				wg.Wait()
+				close(results)
+				return
+			}
 		}
-		close(jobs)
 		wg.Wait()
 		close(results)
 	}()
@@ -1510,6 +1533,18 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			sessionID, "BENCH", completed, len(templates),
 			fmt.Sprintf("completed %d of %d candidates", completed, len(templates)), false, false,
 		)
+	}
+	benchTimedOut := benchCtx.Err() != nil
+	cancelBench()
+	if benchTimedOut {
+		reason := fmt.Sprintf("selector candidate time budget exhausted after %d of %d candidates", completed, len(templates))
+		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), reason, true, true)
+		afterFailure := readBenchCapabilities()
+		writeJSON(w, http.StatusGatewayTimeout, map[string]any{
+			"error": reason, "session_id": sessionID, "completed": completed, "planned": len(templates),
+			"cleanup_baseline_after": afterFailure.CleanupBaselineProven,
+		})
+		return
 	}
 	for _, c := range candidates {
 		if !c.CleanupProven || !c.InfrastructureOK {
@@ -1568,10 +1603,12 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("testing %d adaptive mutations from %d live seeds", len(mutationRound.Candidates), mutationRound.Trace.SeedPlan.Selected),
 			false, false,
 		)
+		mutationCtx, cancelMutation := context.WithTimeout(r.Context(), time.Duration(mode.TimeoutSec)*time.Second)
 		mutationResults, mutationErr := v2RunMutationRound(
-			ctx, capabilities, status.ConfigSHA256, target, ip, inventory,
+			mutationCtx, capabilities, status.ConfigSHA256, target, ip, inventory,
 			mutationTransport, mode, mutationRound.Candidates, queues,
 		)
+		cancelMutation()
 		if mutationErr != nil {
 			setV2SelectorProgress(sessionID, "FAILED", 0, len(mutationRound.Candidates), "adaptive mutation compile/run failed", true, true)
 			writeJSON(w, http.StatusBadGateway, map[string]any{"error": mutationErr.Error(), "session_id": sessionID})

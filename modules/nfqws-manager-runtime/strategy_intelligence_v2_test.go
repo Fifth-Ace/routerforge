@@ -3,7 +3,21 @@ package main
 import (
 	"net/http"
 	"testing"
+	"time"
 )
+
+func TestV2SelectorBenchTimeoutScalesForLowerConcurrency(t *testing.T) {
+	mode := benchAutoTuneMode{Name: "normal", Attempts: 2, MaxCandidates: 16, TimeoutSec: 180}
+	base := v2SelectorBenchTimeout(mode, v2DefaultConcurrency())
+	if base != 180*time.Second {
+		t.Fatalf("default concurrency timeout=%v want=180s", base)
+	}
+	if v2DefaultConcurrency() >= 2 {
+		if got := v2SelectorBenchTimeout(mode, 1); got != 360*time.Second {
+			t.Fatalf("single-worker timeout=%v want=360s", got)
+		}
+	}
+}
 
 func TestV2DomainMatches(t *testing.T) {
 	cases := []struct {

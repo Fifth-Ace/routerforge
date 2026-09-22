@@ -116,19 +116,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/health", getOnly(func(w http.ResponseWriter, _ *http.Request) {
-		status := readStatus()
-		writeJSON(w, http.StatusOK, map[string]any{
-			"ok":             true,
-			"module":         "nfqws-manager",
-			"version":        version,
-			"api_version":    1,
-			"mode":           "integration-manager",
-			"mutation_api":   true,
-			"mutation_auth":  "core-guarded",
-			"available":      status.Available,
-			"target_id":      status.TargetID,
-			"target_running": status.Running,
-		})
+		writeJSON(w, http.StatusOK, nfqwsManagerHealthPayload(readStatus()))
 	}))
 	mux.HandleFunc("/v1/status", getOnly(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, readStatus())
@@ -173,6 +161,22 @@ func main() {
 	server := &http.Server{Handler: mux, ReadHeaderTimeout: 3 * time.Second}
 	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		panic(err)
+	}
+}
+
+func nfqwsManagerHealthPayload(status managerStatus) map[string]any {
+	return map[string]any{
+		"ok":             true,
+		"module":         "nfqws-manager",
+		"version":        version,
+		"api_version":    1,
+		"mode":           "integration-manager",
+		"mutation_api":   true,
+		"mutation_auth":  "core-guarded",
+		"available":      status.Available,
+		"target_id":      status.TargetID,
+		"target_running": status.Running,
+		"config_sha256":  status.ConfigSHA256,
 	}
 }
 

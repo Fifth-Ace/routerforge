@@ -149,7 +149,221 @@ var v2StaticCorpusEntries = []v2StaticCorpusEntry{
 			"--lua-desync=drop:payload=quic_initial:dir=out:out_range=-n3",
 		},
 	},
-}
+	{
+		ID: "omn1z-tls-ms-ovl1", Name: "Omn1z · multisplit midsld seqovl1", Source: "omn1z",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-tls-ms-ovl336", Name: "Omn1z · multisplit midsld seqovl336", Source: "omn1z",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld:seqovl=336:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-tls-ms-ovl681", Name: "Omn1z · multisplit midsld seqovl681", Source: "omn1z",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld:seqovl=681:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-tls-md-ovl1", Name: "Omn1z · multidisorder midsld seqovl1", Source: "omn1z",
+		Protocol: "https", Family: "disorder",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:pos=1,midsld:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-tls-fds-midsld-ovl1", Name: "Omn1z · fakedsplit midsld seqovl1", Source: "omn1z",
+		Protocol: "https", Family: "fake-split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakedsplit:pos=midsld:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-tls-fdd-midsld-ovl1", Name: "Omn1z · fakeddisorder midsld seqovl1", Source: "omn1z",
+		Protocol: "https", Family: "fake-disorder",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakeddisorder:pos=midsld:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-tls-fake-google-ms", Name: "Omn1z · fake google SNI + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:tls_mod=rnd,dupsid,sni=www.google.com", "--lua-desync=multisplit:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-ack-ms", Name: "Omn1z · fake ack + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=0x00000000:tcp_ack=-66000:repeats=2", "--lua-desync=multisplit:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-badsum-ms", Name: "Omn1z · fake badsum + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:badsum", "--lua-desync=multisplit:pos=1,midsld:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-tls-fake-md5-ms", Name: "Omn1z · fake tcp_md5 + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:tcp_md5", "--lua-desync=multisplit:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-rep6-md", Name: "Omn1z · fake repeats + multidisorder", Source: "omn1z",
+		Protocol: "https", Family: "fake+disorder",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:repeats=6:tcp_ack=-66000", "--lua-desync=multidisorder:pos=1,midsld:tcp_ack=-66000"},
+	},
+	{
+		ID: "omn1z-tls-fake-ttl4-ms", Name: "Omn1z · fake TTL4 + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:ip_ttl=4:ip6_ttl=4", "--lua-desync=multisplit:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-autottl-ms", Name: "Omn1z · fake autottl + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:ip_autottl=0,3-20", "--lua-desync=multisplit:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-rep2-fds", Name: "Omn1z · fake repeats + fakedsplit", Source: "omn1z",
+		Protocol: "https", Family: "fake-split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:repeats=2", "--lua-desync=fakedsplit:pos=midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-padencap-ms", Name: "Omn1z · fake padencap + multisplit sniext", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:tls_mod=rnd,padencap", "--lua-desync=multisplit:pos=1,sniext+1"},
+	},
+	{
+		ID: "omn1z-tls-fake-google-only", Name: "Omn1z · fake google SNI only", Source: "omn1z",
+		Protocol: "https", Family: "fake",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:tls_mod=rnd,dupsid,sni=www.google.com:tcp_seq=10000"},
+	},
+	{
+		ID: "omn1z-tls-ms-ovl-tsup", Name: "Omn1z · multisplit seqovl tcp_ts_up", Source: "omn1z",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld:seqovl=1:seqovl_pattern=tls_clienthello:tcp_ts_up"},
+	},
+	{
+		ID: "omn1z-tls-fake-fonts-ms", Name: "Omn1z · fake fonts.google SNI + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:tls_mod=rnd,dupsid,sni=fonts.google.com:tcp_seq=10000", "--lua-desync=multisplit:pos=1,midsld:seqovl=1:seqovl_pattern=tls_clienthello:tcp_ts_up"},
+	},
+	{
+		ID: "omn1z-tls-fake-msft-md", Name: "Omn1z · fake microsoft SNI + multidisorder", Source: "omn1z",
+		Protocol: "https", Family: "fake+disorder",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:tls_mod=rnd,dupsid,sni=www.microsoft.com", "--lua-desync=multidisorder:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-md5-ts-ms", Name: "Omn1z · fake md5 ts + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:tcp_md5:tcp_ts_up", "--lua-desync=multisplit:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-ttl2-md", Name: "Omn1z · fake ttl2 + multidisorder", Source: "omn1z",
+		Protocol: "https", Family: "fake+disorder",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:ip_ttl=2:ip6_ttl=2", "--lua-desync=multidisorder:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fake-2x-ms", Name: "Omn1z · two fakes + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:repeats=2", "--lua-desync=fake:blob=tls_clienthello:tcp_ack=-66000", "--lua-desync=multisplit:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-tls-fds-ts", Name: "Omn1z · fakedsplit tcp_ts_up", Source: "omn1z",
+		Protocol: "https", Family: "fake-split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakedsplit:pos=midsld:seqovl=1:seqovl_pattern=tls_clienthello:tcp_ts_up"},
+	},
+	{
+		ID: "omn1z-tls-fdd-sniext", Name: "Omn1z · fakeddisorder sniext seqovl", Source: "omn1z",
+		Protocol: "https", Family: "fake-disorder",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakeddisorder:pos=sniext+1:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-tls-hfs-sniext", Name: "Omn1z · hostfakesplit sniext", Source: "omn1z",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:midhost=host-2:seqovl=sniext+3:seqovl_pattern=tls_clienthello:badsum:tcp_md5:tcp_ts_up", "--lua-desync=hostfakesplit:tcp_md5:tcp_ts_up"},
+	},
+	{
+		ID: "omn1z-tls-hfs-google", Name: "Omn1z · hostfakesplit google host", Source: "omn1z",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:host=www.google.com:seqovl=sniext+3:seqovl_pattern=tls_clienthello:badsum", "--lua-desync=hostfakesplit:tcp_ts_up"},
+	},
+	{
+		ID: "omn1z-http-fake-ms", Name: "Omn1z · HTTP fake + multisplit", Source: "omn1z",
+		Protocol: "http", Family: "fake+split",
+		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=fake:blob=http_req", "--lua-desync=multisplit:pos=method+2"},
+	},
+	{
+		ID: "omn1z-http-fake-md", Name: "Omn1z · HTTP fake + multidisorder", Source: "omn1z",
+		Protocol: "http", Family: "fake+disorder",
+		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=fake:blob=http_req", "--lua-desync=multidisorder:pos=method+2"},
+	},
+	{
+		ID: "z2k-tls-hostfakesplit-badseq", Name: "z2k · hostfakesplit badseq/badsum", Source: "z2k",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:payload=tls_client_hello:dir=out:badseq:badsum:badseq_increment=0"},
+	},
+	{
+		ID: "z2k-tls-hostfakesplit-repeats-ts", Name: "z2k · hostfakesplit repeats tcp_ts", Source: "z2k",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:payload=tls_client_hello:dir=out:repeats=4:tcp_ts=-43210:badsum"},
+	},
+	{
+		ID: "z2k-tls-hostfakesplit-midhost", Name: "z2k · hostfakesplit midhost seqovl", Source: "z2k",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:payload=tls_client_hello:dir=out:midhost=host-2:seqovl=726:badsum:badseq:badseq_increment=0"},
+	},
+	{
+		ID: "z2k-tls-fake-zero-repeats-seq2", Name: "z2k · fake zero repeats tcp_seq=2", Source: "z2k",
+		Protocol: "https", Family: "fake",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:payload=tls_client_hello:dir=out:blob=0x00000000:repeats=11:tcp_seq=2"},
+	},
+	{
+		ID: "z2k-tls-fake-zero-repeats-seq1000000", Name: "z2k · fake zero repeats tcp_seq=1000000", Source: "z2k",
+		Protocol: "https", Family: "fake",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:payload=tls_client_hello:dir=out:blob=0x00000000:repeats=11:tcp_seq=1000000"},
+	},
+	{
+		ID: "z2k-tls-fake-0f-badsum-badseq", Name: "z2k · fake 0f badsum badseq", Source: "z2k",
+		Protocol: "https", Family: "fake",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:payload=tls_client_hello:dir=out:blob=0x0F0F0F0F:badsum:badseq"},
+	},
+	{
+		ID: "z2k-tls-fake-0f-md5", Name: "z2k · fake 0f tcp_md5", Source: "z2k",
+		Protocol: "https", Family: "fake",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:payload=tls_client_hello:dir=out:blob=0x0F0F0E0F:tcp_md5"},
+	},
+	{
+		ID: "z2k-tls-ms-z2k-681", Name: "z2k · multisplit seqovl681", Source: "z2k",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:payload=tls_client_hello:dir=out:pos=1:seqovl=681:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "z2k-tls-ms-sniext-seqovl", Name: "z2k · multisplit sniext seqovl", Source: "z2k",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:payload=tls_client_hello:dir=out:pos=1,sniext+1:seqovl=1"},
+	},
+	{
+		ID: "z2k-tls-ms-multi-endsld", Name: "z2k · multisplit sld endsld", Source: "z2k",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:payload=tls_client_hello:dir=out:pos=1,sld+1,endsld-2:seqovl=1"},
+	},
+	{
+		ID: "z2k-tls-md-wide-positions", Name: "z2k · multidisorder wide positions", Source: "z2k",
+		Protocol: "https", Family: "disorder",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:payload=tls_client_hello:dir=out:pos=2,5,105,host+5,sld-1,endsld-5,endsld"},
+	},
+	{
+		ID: "z2k-tls-md-full-positions", Name: "z2k · multidisorder full positions", Source: "z2k",
+		Protocol: "https", Family: "disorder",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:payload=tls_client_hello:dir=out:pos=1,sniext+1,host+1,midsld-2,midsld,midsld+2,endhost-1"},
+	},
+	{
+		ID: "z2k-tls-fds-pos1-seq2", Name: "z2k · fakedsplit pos1 tcp_seq=2", Source: "z2k",
+		Protocol: "https", Family: "fake-split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakedsplit:payload=tls_client_hello:dir=out:pos=1:tcp_seq=2"},
+	},
+	{
+		ID: "z2k-tls-syndata-md", Name: "z2k · syndata + multidisorder", Source: "z2k",
+		Protocol: "https", Family: "syndata",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=syndata:payload=tls_client_hello:dir=out:blob=syn_packet", "--lua-desync=multidisorder:payload=tls_client_hello:dir=out:pos=1,midsld"},
+	},
+	{
+		ID: "z2k-tls-send-empty-md5", Name: "z2k · send empty tcp_md5", Source: "z2k",
+		Protocol: "https", Family: "send",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=send:payload=empty:dir=out:repeats=2:tcp_md5"},
+	},}
 
 func v2StaticStrategyCorpus() []v2StaticCorpusEntry {
 	out := make([]v2StaticCorpusEntry, len(v2StaticCorpusEntries))

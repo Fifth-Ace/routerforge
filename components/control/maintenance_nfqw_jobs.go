@@ -27,8 +27,9 @@ const (
 	adminNFQWSJobsOutputMax  = 4096
 	adminNFQWSJobsMinMinutes = 15
 	adminNFQWSJobsMaxMinutes = 1440
-	adminNFQWSJobsRetryMax   = 1
-	adminNFQWSJobsSocket     = "/opt/var/run/routerforge-nfqws-manager.sock"
+	adminNFQWSJobsRetryMax          = 1
+	adminNFQWSJobsSocket            = "/opt/var/run/routerforge-nfqws-manager.sock"
+	adminNFQWSJobRecheckResponseMax = 128 << 10
 )
 
 const (
@@ -254,10 +255,14 @@ func (runtime *adminNFQWSJobRuntime) tick(now time.Time) {
 }
 
 func adminNFQWSJobTimeout(job adminNFQWSJob) time.Duration {
-	if job.Kind == "tcp16-revalidate" {
+	switch job.Kind {
+	case "strategy-health-recheck":
+		return 120 * time.Second
+	case "tcp16-revalidate":
 		return 90 * time.Second
+	default:
+		return 25 * time.Second
 	}
-	return 25 * time.Second
 }
 
 func shouldRetryAdminNFQWSJob(status int, err error) bool {
@@ -271,8 +276,19 @@ func classifyAdminNFQWSJobOutcome(job adminNFQWSJob, status int, output string, 
 	var body map[string]any
 	_ = json.Unmarshal([]byte(output), &body)
 	switch job.Kind {
-	case "detect-target", "strategy-health-recheck":
+	case "detect-target":
 		if strings.EqualFold(fmt.Sprint(body["classification"]), "inconclusive") {
+			return adminNFQWSJobOutcomeInconclusive
+		}
+	case "strategy-health-recheck":
+		ok, _ := body["ok"].(bool)
+		cleanup, _ := body["cleanup_baseline_after"].(bool)
+		strategyNeeded, _ := body["strategy_needed"].(bool)
+		recommendationAvailable, _ := body["recommendation_available"].(bool)
+		if !ok || !cleanup {
+			return adminNFQWSJobOutcomeUnhealthy
+		}
+		if strategyNeeded && !recommendationAvailable {
 			return adminNFQWSJobOutcomeInconclusive
 		}
 	case "tcp16-revalidate":
@@ -354,7 +370,10 @@ func truncateAdminNFQWSJobOutput(value string) string {
 	return value
 }
 
-func adminNFQWSManagerRequest(ctx context.Context, method, path string, body []byte) (int, string, error) {
+func adminNFQWSManagerRequestLimit(ctx context.Context, method, path string, body []byte, limit int64) (int, string, error) {
+	if limit <= 0 {
+		limit = adminNFQWSJobsOutputMax
+	}
 	var reader io.Reader
 	if body != nil {
 		reader = bytes.NewReader(body)
@@ -379,15 +398,23 @@ func adminNFQWSManagerRequest(ctx context.Context, method, path string, body []b
 		return 0, "", err
 	}
 	defer response.Body.Close()
-	data, readErr := io.ReadAll(io.LimitReader(response.Body, adminNFQWSJobsOutputMax+1))
-	output := truncateAdminNFQWSJobOutput(string(data))
+	data, readErr := io.ReadAll(io.LimitReader(response.Body, limit+1))
 	if readErr != nil {
-		return response.StatusCode, output, readErr
+		return response.StatusCode, string(data), readErr
 	}
+	if int64(len(data)) > limit {
+		return response.StatusCode, string(data[:limit]), errors.New("nfqws-manager response exceeds job limit")
+	}
+	output := string(data)
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return response.StatusCode, output, fmt.Errorf("nfqws-manager returned HTTP %d", response.StatusCode)
 	}
 	return response.StatusCode, output, nil
+}
+
+func adminNFQWSManagerRequest(ctx context.Context, method, path string, body []byte) (int, string, error) {
+	status, output, err := adminNFQWSManagerRequestLimit(ctx, method, path, body, adminNFQWSJobsOutputMax)
+	return status, truncateAdminNFQWSJobOutput(output), err
 }
 
 func parseAdminNFQWSManagerConfigSHA(output string) (string, error) {
@@ -417,7 +444,7 @@ func runAdminNFQWSJob(ctx context.Context, job adminNFQWSJob) (int, string, erro
 		return 0, "", err
 	}
 	switch normalized.Kind {
-	case "detect-target", "strategy-health-recheck":
+	case "detect-target":
 		before, err := adminNFQWSManagerConfigSHA(ctx)
 		if err != nil {
 			return 0, "", err
@@ -433,6 +460,33 @@ func runAdminNFQWSJob(ctx context.Context, job adminNFQWSJob) (int, string, erro
 		}
 		if !strings.EqualFold(before, after) {
 			return http.StatusConflict, output, errors.New("production config changed during NFQWS job; result is stale")
+		}
+		return status, output, nil
+	case "strategy-health-recheck":
+		expectedSHA, err := adminNFQWSManagerConfigSHA(ctx)
+		if err != nil {
+			return 0, "", err
+		}
+		body, _ := json.Marshal(map[string]any{
+			"mode":                   "fast",
+			"server_name":            normalized.Target,
+			"transport":              "https",
+			"expected_config_sha256": expectedSHA,
+			"concurrency":            1,
+			"confirm":                "ROUTERFORGE_V2_PROGRESSIVE_SELECTOR",
+		})
+		status, output, runErr := adminNFQWSManagerRequestLimit(
+			ctx, http.MethodPost, "/v1/v2/selector-progressive", body, adminNFQWSJobRecheckResponseMax,
+		)
+		if runErr != nil {
+			return status, truncateAdminNFQWSJobOutput(output), runErr
+		}
+		after, err := adminNFQWSManagerConfigSHA(ctx)
+		if err != nil {
+			return status, truncateAdminNFQWSJobOutput(output), err
+		}
+		if !strings.EqualFold(expectedSHA, after) {
+			return http.StatusConflict, truncateAdminNFQWSJobOutput(output), errors.New("production config changed during strategy health recheck")
 		}
 		return status, output, nil
 	case "tcp16-revalidate":

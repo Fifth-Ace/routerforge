@@ -268,8 +268,7 @@ type v2SelectorResponse struct {
 	PlannerAdmittedRegistry    int                    `json:"planner_admitted_registry_count"`
 	PlannerPlan                []v2CandidatePoolItem  `json:"planner_plan,omitempty"`
 	PropertyVector             *v2DPIPropertyVector   `json:"property_vector,omitempty"`
-	MutationRound              v2MutationRoundTrace   `json:"mutation_round"`
-	MutationStop               v2MutationStopDecision `json:"mutation_stop"`
+
 	MemoryUpdated              bool                   `json:"memory_updated"`
 	MemoryWarning              string                 `json:"memory_warning,omitempty"`
 }
@@ -1659,20 +1658,7 @@ executionLoop:
 			return
 		}
 	}
-	mutationRound := v2MutationRoundPlan{
-		Trace: v2MutationRoundTrace{
-			Version: v2MutationSearchVersion,
-			Budget:  0,
-		},
-		Candidates: []v2CandidatePoolItem{},
-	}
-	mutationStop := v2MutationStopDecision{
-		Version:  v2MutationStopPolicyVersion,
-		Continue: false,
-		Code:     "DIRECT_CATALOG_EXECUTION",
-		Reason:   "P26 direct catalog selector ranks real candidate executions without adaptive mutation",
-		Budget:   0,
-	}
+
 	setV2SelectorProgress(sessionID, "RANK", completed, len(candidates), "ranking direct worker live results", false, false)
 	recommend, best, needed, reason := v2ChooseRecommendation(baseline, candidates)
 	after := readBenchCapabilities()
@@ -1762,8 +1748,7 @@ executionLoop:
 		PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
 		PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
 		PropertyVector: req.PropertyVector,
-		MutationRound:  mutationRound.Trace,
-		MutationStop:   mutationStop,
+
 		MemoryUpdated:  memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {

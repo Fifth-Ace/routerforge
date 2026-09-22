@@ -40,8 +40,9 @@ type benchTransactionContract struct {
 	ReverseOrderRollback     bool `json:"reverse_order_rollback"`
 	CleanupMandatory         bool `json:"cleanup_mandatory"`
 	CleanupVerification      bool `json:"cleanup_verification"`
-	FailClosed               bool `json:"fail_closed"`
-	CandidateStartedFirst    bool `json:"candidate_started_first"`
+	FailClosed                 bool `json:"fail_closed"`
+	ManagementTrafficIsolation bool `json:"management_traffic_isolation"`
+	CandidateStartedFirst      bool `json:"candidate_started_first"`
 	ProductionConfigMutation bool `json:"production_config_mutation"`
 	ProductionRestart        bool `json:"production_restart"`
 }
@@ -75,8 +76,9 @@ func buildBenchTransactionContract() benchTransactionContract {
 		ReverseOrderRollback:     true,
 		CleanupMandatory:         true,
 		CleanupVerification:      true,
-		FailClosed:               true,
-		CandidateStartedFirst:    true,
+		FailClosed:                 true,
+		ManagementTrafficIsolation: true,
+		CandidateStartedFirst:      true,
 		ProductionConfigMutation: false,
 		ProductionRestart:        false,
 	}
@@ -103,12 +105,29 @@ func validateBenchTransactionSpec(spec benchTransactionSpec) error {
 	return nil
 }
 
+func validateBenchManagementIsolation(spec benchTransactionSpec) error {
+	if err := validateBenchTransactionSpec(spec); err != nil {
+		return err
+	}
+	_, remotePort, err := normalizeBenchTransactionTransport(spec)
+	if err != nil {
+		return err
+	}
+	if spec.LocalPort == 22 || spec.LocalPort == 222 {
+		return errors.New("bench local port overlaps management SSH")
+	}
+	if remotePort == 22 || remotePort == 222 {
+		return errors.New("bench remote port overlaps management SSH")
+	}
+	return nil
+}
+
 func benchRuleComment(sessionID, suffix string) string {
 	return "routerforge-bench:" + sessionID + ":" + suffix
 }
 
 func buildBenchRulePlan(spec benchTransactionSpec) ([]benchRuleSpec, error) {
-	if err := validateBenchTransactionSpec(spec); err != nil {
+	if err := validateBenchManagementIsolation(spec); err != nil {
 		return nil, err
 	}
 

@@ -85,6 +85,32 @@ func TestBenchRulePlanHasSixExactRules(t *testing.T) {
 	}
 }
 
+func TestBenchRulePlanIsolatedFromManagementSSH(t *testing.T) {
+	spec := benchTestSpec()
+	rules, err := buildBenchRulePlan(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range rules {
+		args := strings.Join(rule.RuleArgs, " ")
+		if !strings.Contains(args, spec.DestinationIPv4) || !strings.Contains(args, "43123") {
+			t.Fatalf("rule is not pinned to exact probe tuple: %+v", rule)
+		}
+		if strings.Contains(args, "--sport 22 ") || strings.Contains(args, "--sport 222 ") ||
+			strings.Contains(args, "--dport 22 ") || strings.Contains(args, "--dport 222 ") {
+			t.Fatalf("rule overlaps management SSH: %+v", rule)
+		}
+	}
+}
+
+func TestBenchManagementIsolationRejectsManagementRemotePort(t *testing.T) {
+	spec := benchTestSpec()
+	spec.RemotePort = 222
+	if err := validateBenchManagementIsolation(spec); err == nil {
+		t.Fatal("management SSH remote port was accepted")
+	}
+}
+
 func TestBenchTransactionSuccessAlwaysCleansReverseOrder(t *testing.T) {
 	ops := &benchFakeOps{}
 	got := runBenchTransaction(context.Background(), ops, benchTestSpec())
@@ -180,7 +206,8 @@ func TestBenchTransactionRejectsPrivateDestinationBeforeMutation(t *testing.T) {
 
 func TestBenchTransactionContractControlledSmokeOnly(t *testing.T) {
 	got := buildBenchTransactionContract()
-	if !got.MutationEnabled || !got.ControlledSmokeOnly || !got.SystemMutatorImplemented {
+	if !got.MutationEnabled || !got.ControlledSmokeOnly || !got.SystemMutatorImplemented ||
+		!got.ManagementTrafficIsolation {
 		t.Fatalf("contract=%+v", got)
 	}
 	if got.ProductionConfigMutation || got.ProductionRestart {

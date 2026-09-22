@@ -86,7 +86,7 @@ func TestBenchCandidatePIDFileIsSessionScoped(t *testing.T) {
 	}
 }
 
-func TestBenchStartCandidateBlocksActiveManagementSessionBeforeLaunch(t *testing.T) {
+func TestBenchStartCandidateAllowsActiveManagementSessionPastSafetyGate(t *testing.T) {
 	previous := benchManagementSessionInventory
 	benchManagementSessionInventory = func() ([]int, bool) {
 		return []int{222}, true
@@ -103,8 +103,12 @@ func TestBenchStartCandidateBlocksActiveManagementSessionBeforeLaunch(t *testing
 		Queue:           30000,
 	}
 	err := ops.StartCandidate(context.Background(), spec)
-	if err == nil || !strings.Contains(err.Error(), "active management SSH session") {
-		t.Fatalf("StartCandidate error=%v, want management-session blocker", err)
+	if err == nil {
+		t.Fatal("missing candidate binary unexpectedly started")
+	}
+	if strings.Contains(err.Error(), "active management SSH session") ||
+		strings.Contains(err.Error(), "management traffic isolation is not proven") {
+		t.Fatalf("active SSH was blocked before isolated candidate launch: %v", err)
 	}
 }
 

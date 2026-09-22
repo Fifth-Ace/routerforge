@@ -332,7 +332,6 @@ func benchExecutionReady(result benchCapabilities) bool {
 		result.FirewallInventoryOK &&
 		result.KernelQueueInventoryOK &&
 		result.ManagementSessionInventoryOK &&
-		!result.ManagementSessionActive &&
 		result.QueueInventoryComplete &&
 		result.RecommendedQueue != 0 &&
 		result.LifecycleContractImplemented &&
@@ -341,7 +340,8 @@ func benchExecutionReady(result benchCapabilities) bool {
 		result.SelectorContractImplemented &&
 		result.Selector.MutationImplemented &&
 		result.TransactionEngineImplemented &&
-		result.Transaction.MutationEnabled
+		result.Transaction.MutationEnabled &&
+		result.Transaction.ManagementTrafficIsolation
 }
 
 func readBenchCapabilities() benchCapabilities {
@@ -438,9 +438,9 @@ func readBenchCapabilities() benchCapabilities {
 		for _, port := range result.ManagementSessionPorts {
 			ports = append(ports, strconv.Itoa(port))
 		}
-		result.Blockers = append(
-			result.Blockers,
-			"active management SSH session blocks live bench mutation on port(s): "+strings.Join(ports, ","),
+		result.Warnings = append(
+			result.Warnings,
+			"active management SSH session remains outside exact bench traffic on port(s): "+strings.Join(ports, ","),
 		)
 	}
 	strategyInventory := readBenchStrategyInventory()

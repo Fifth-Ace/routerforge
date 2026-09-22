@@ -236,19 +236,12 @@ func (o *benchSystemOps) anchorPosition(ctx context.Context, rule benchRuleSpec)
 }
 
 func (o *benchSystemOps) StartCandidate(ctx context.Context, spec benchTransactionSpec) error {
-	managementPorts, managementOK := benchManagementSessionInventory()
+	_, managementOK := benchManagementSessionInventory()
 	if !managementOK {
 		return errors.New("management SSH session inventory is not proven")
 	}
-	if len(managementPorts) > 0 {
-		ports := make([]string, 0, len(managementPorts))
-		for _, port := range managementPorts {
-			ports = append(ports, strconv.Itoa(port))
-		}
-		return fmt.Errorf(
-			"active management SSH session blocks live bench mutation on port(s): %s",
-			strings.Join(ports, ","),
-		)
+	if err := validateBenchManagementIsolation(spec); err != nil {
+		return fmt.Errorf("management traffic isolation is not proven: %w", err)
 	}
 
 	pidFile := benchCandidatePIDFile(spec.SessionID)

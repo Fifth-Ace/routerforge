@@ -363,7 +363,8 @@ var v2StaticCorpusEntries = []v2StaticCorpusEntry{
 		ID: "z2k-tls-send-empty-md5", Name: "z2k · send empty tcp_md5", Source: "z2k",
 		Protocol: "https", Family: "send",
 		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=send:payload=empty:dir=out:repeats=2:tcp_md5"},
-	},}
+	},
+}
 
 func v2StaticStrategyCorpus() []v2StaticCorpusEntry {
 	out := make([]v2StaticCorpusEntry, len(v2StaticCorpusEntries))

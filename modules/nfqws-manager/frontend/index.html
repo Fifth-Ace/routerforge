@@ -5965,7 +5965,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       return `<div class="v2-search-trace-seed"><div class="v2-search-trace-rank">#${Number(s.rank||0)||'—'}</div><div class="v2-search-trace-seed-main"><strong>${esc(name)}</strong><span>${esc(meta)}</span><span>${esc(s.reason||'')}</span></div>${v2Pill(s.outcome||'—')}</div>`;
     }).join(''):'<div class="v2-search-trace-empty">Eligible mutation seeds не выбраны.</div>';
     root.style.display='grid';
-    root.innerHTML=`<div class="v2-search-trace-head"><div><strong>Adaptive Search Trace</strong><span>${esc(decisionCode)} · ${esc(decisionReason)}</span></div>${v2Pill(continueSearch?'CONTINUE':'STOP')}</div>
+    root.innerHTML=`<div class="v2-search-trace-head"><div><strong>Direct execution trace</strong><span>${esc(decisionCode)} · ${esc(decisionReason)}</span></div>${v2Pill(continueSearch?'CONTINUE':'STOP')}</div>
       <div class="v2-search-trace-grid">
         <div class="v2-search-trace-stat"><span>Budget</span><strong>${budget}</strong></div>
         <div class="v2-search-trace-stat"><span>Seeds</span><strong>${Number(seedPlan.selected||0)} / ${Number(seedPlan.eligible||0)}</strong></div>
@@ -6014,7 +6014,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
-    if($('v2SelectorAutoPool').checked){try{const q=`&diagnostic_code=${encodeURIComponent(plannerDiagnostic.code||'')}&fault_domain=${encodeURIComponent(plannerDiagnostic.fault_domain||'')}&strategy_relevant=${plannerDiagnostic.strategy_relevant?'true':'false'}`;const p=await api(`/v2/candidates?target=${encodeURIComponent(target)}&mode=${encodeURIComponent($('v2SelectorMode').value)}${q}`);const hist=p.recommendation_aware?` · historical ${Number(p.planner_compatible_count||p.recommendation_hints||0)} · promoted ${Number(p.planner_promoted_count||0)} · registry +${Number(p.planner_admitted_registry_count||0)}`:'';const synth=Number(p.synthesis_version||0)?` · synth ${Number(p.synthesis_admitted||0)}/${Number(p.synthesis_generated||0)} · ${(p.synthesis_families||[]).join(', ')||'no families'}`:'';const prop=propertyVector?` · property ${(propertyVector.preferred_families||[]).join(', ')||'broad'}`:'';const diag=p.planner_diagnostic_code?` · diagnostic ${p.planner_diagnostic_code}${p.planner_strategy_relevant?' / relevant':' / observe only'}`:'';$('v2SelectorPoolMeta').textContent=`Auto Pool: ${p.count||0} · ${(p.sources||[]).join(' + ')||'нет sources'}${synth}${prop}${hist}${diag}${p.warnings?.length?' · warnings '+p.warnings.length:''}`}catch(e){$('v2SelectorPoolMeta').textContent=`Auto Pool preview: ${e.message}`}}
+    if($('v2SelectorAutoPool').checked){
+      const limits={fast:8,normal:16,thorough:32},limit=limits[String($('v2SelectorMode').value||'normal')]||16;
+      $('v2SelectorPoolMeta').textContent=`Direct Auto Pool: до ${limit} portable candidates · persistent worker sandbox · source-port ranges · isolated NFQUEUE`;
+    }
     const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';$('v2SelectorTrace').style.display='none';$('v2SelectorTrace').innerHTML='';
     void pollV2Selector(session,controller.signal);
     try{

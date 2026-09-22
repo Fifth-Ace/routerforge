@@ -100,6 +100,8 @@ func v2StrategySource(value string) string {
 		return "memory"
 	case "synthesized":
 		return "synthesized"
+	case "mutated":
+		return "mutated"
 	case "curated":
 		return "curated"
 	default:

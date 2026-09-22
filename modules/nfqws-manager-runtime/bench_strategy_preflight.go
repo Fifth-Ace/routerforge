@@ -10,8 +10,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -106,7 +104,7 @@ func startBenchCandidateWithArgs(ctx context.Context, ops *benchSystemOps, spec 
 	}
 
 	startCtx, cancel := context.WithTimeout(ctx, benchCandidateStartTimeout)
-	output, err := safety.RunCommand(startCtx, benchOutputMax, ops.candidateBinary, args...)
+	output, err := runBenchCandidateStartCommand(startCtx, ops.candidateBinary, args...)
 	ctxErr := startCtx.Err()
 	cancel()
 	if err != nil || ctxErr != nil {

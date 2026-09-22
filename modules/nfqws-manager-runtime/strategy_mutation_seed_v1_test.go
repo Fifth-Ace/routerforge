@@ -61,6 +61,8 @@ func TestV2MutationSeedSelectionRejectsInconclusiveFallback(t *testing.T) {
 		"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello",
 		"--lua-desync=multisplit:pos=1,midsld",
 	)
+	inconclusive.InfrastructureOK = false
+	inconclusive.Attempts[0].InfrastructureOK = false
 	plan := v2MutationSelectSeeds(mode, transport, []v2CandidateResult{inconclusive})
 	if plan.Selected != 0 || plan.Eligible != 0 {
 		t.Fatalf("inconclusive candidate became mutation seed: %+v", plan)

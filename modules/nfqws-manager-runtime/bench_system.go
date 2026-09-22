@@ -126,6 +126,38 @@ func runBenchCommand(ctx context.Context, program string, args ...string) ([]byt
 	return output, err
 }
 
+func runBenchCandidateStartCommand(ctx context.Context, program string, args ...string) ([]byte, error) {
+	capture, err := os.CreateTemp("/tmp", "routerforge-bench-start-*.log")
+	if err != nil {
+		return nil, err
+	}
+	path := capture.Name()
+	defer os.Remove(path)
+
+	cmd, err := safety.CommandContext(ctx, program, args...)
+	if err != nil {
+		_ = capture.Close()
+		return nil, err
+	}
+	cmd.Stdout = capture
+	cmd.Stderr = capture
+
+	runErr := cmd.Run()
+	_ = capture.Close()
+
+	output, readErr := os.ReadFile(path)
+	if len(output) > benchOutputMax {
+		output = output[:benchOutputMax]
+	}
+	if runErr != nil {
+		return output, runErr
+	}
+	if readErr != nil {
+		return output, readErr
+	}
+	return output, nil
+}
+
 func readBenchCandidatePID(sessionID string) (int, error) {
 	data, err := os.ReadFile(benchCandidatePIDFile(sessionID))
 	if err != nil {
@@ -227,7 +259,7 @@ func (o *benchSystemOps) StartCandidate(ctx context.Context, spec benchTransacti
 	}
 
 	startCtx, cancel := context.WithTimeout(ctx, benchCandidateStartTimeout)
-	output, err := safety.RunCommand(startCtx, benchOutputMax, o.candidateBinary, benchCandidateArgs(spec)...)
+	output, err := runBenchCandidateStartCommand(startCtx, o.candidateBinary, benchCandidateArgs(spec)...)
 	ctxErr := startCtx.Err()
 	cancel()
 	if err != nil || ctxErr != nil {

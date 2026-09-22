@@ -2,9 +2,30 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestRunBenchCandidateStartCommandDoesNotWaitForDaemonDescendant(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "daemonish.sh")
+	content := "#!/bin/sh\n(sleep 3) &\nexit 0\n"
+	if err := os.WriteFile(script, []byte(content), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	if _, err := runBenchCandidateStartCommand(ctx, script); err != nil {
+		t.Fatalf("candidate start helper waited on daemon descendant: %v", err)
+	}
+	if elapsed := time.Since(started); elapsed >= 750*time.Millisecond {
+		t.Fatalf("candidate start helper took %v; want parent-process completion without waiting for descendant", elapsed)
+	}
+}
 
 func TestBenchCandidateArgsAreMinimalAndIsolated(t *testing.T) {
 	spec := benchTransactionSpec{

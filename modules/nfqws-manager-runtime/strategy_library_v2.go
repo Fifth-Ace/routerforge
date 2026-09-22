@@ -92,6 +92,10 @@ func v2StrategySource(value string) string {
 
 	case "custom":
 		return "custom"
+	case "z2k":
+		return "z2k"
+	case "omn1z":
+		return "omn1z"
 	case "import":
 		return "import"
 	case "builtin":

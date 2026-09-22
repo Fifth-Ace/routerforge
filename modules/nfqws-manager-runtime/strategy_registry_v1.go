@@ -117,6 +117,12 @@ func v2RegistryInferProtocolFamily(args []string) (string, string) {
 
 	family := "custom"
 	switch {
+	case strings.Contains(joined, "hostfakesplit"):
+		family = "hostfakesplit"
+	case strings.Contains(joined, "syndata"):
+		family = "syndata"
+	case strings.Contains(joined, "--lua-desync=send"):
+		family = "send"
 	case strings.Contains(joined, "fakeddisorder"):
 		family = "fake-disorder"
 	case strings.Contains(joined, "fakedsplit"):
@@ -138,7 +144,7 @@ func v2RegistryInferProtocolFamily(args []string) (string, string) {
 func v2NormalizeStrategySource(source string) string {
 	source = strings.ToLower(strings.TrimSpace(source))
 	switch source {
-	case "builtin", "memory", "catalog", "import", "custom", "curated":
+	case "builtin", "memory", "catalog", "import", "custom", "curated", "z2k", "omn1z":
 		return source
 	case "":
 		return "saved"

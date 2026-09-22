@@ -53,6 +53,36 @@ func TestV2MutationSeedSelectionUsesCleanDeadOnlyAsExploratoryFallback(t *testin
 	}
 }
 
+func TestV2MutationSeedSelectionRejectsInconclusiveFallback(t *testing.T) {
+	mode, _ := v2SelectorMode("normal")
+	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
+	inconclusive := v2MutationSeedTestResult(
+		"inconclusive", "INCONCLUSIVE", 0, 0,
+		"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	)
+	plan := v2MutationSelectSeeds(mode, transport, []v2CandidateResult{inconclusive})
+	if plan.Selected != 0 || plan.Eligible != 0 {
+		t.Fatalf("inconclusive candidate became mutation seed: %+v", plan)
+	}
+}
+
+func TestV2MutationSeedSelectionRejectsInfraFailedDeadFallback(t *testing.T) {
+	mode, _ := v2SelectorMode("normal")
+	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
+	dead := v2MutationSeedTestResult(
+		"dead-infra", "FAILED", 0, 0,
+		"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	)
+	dead.InfrastructureOK = false
+	dead.Attempts[0].InfrastructureOK = false
+	plan := v2MutationSelectSeeds(mode, transport, []v2CandidateResult{dead})
+	if plan.Selected != 0 || plan.Eligible != 0 {
+		t.Fatalf("infra-failed dead candidate became exploratory seed: %+v", plan)
+	}
+}
+
 func TestV2MutationSeedSelectionNeverUsesDeadFallbackWhenNormalSeedExists(t *testing.T) {
 	mode, _ := v2SelectorMode("normal")
 	transport, _ := normalizeBenchTransport(benchTransportHTTPS)

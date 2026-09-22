@@ -1625,7 +1625,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
 		PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
 		PropertyVector: req.PropertyVector,
-		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,
+		MemoryUpdated:  memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {
 		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), applyReason, true, true)

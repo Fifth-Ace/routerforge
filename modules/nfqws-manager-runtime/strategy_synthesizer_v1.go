@@ -62,7 +62,7 @@ func v2SynthesisBaseArgs(transport benchTransportProfile) []string {
 
 func (b *v2SynthesisBuilder) add(name, family string, actions ...string) {
 	b.generated++
-	if len(b.items) >= b.limit || len(actions) == 0 {
+	if len(actions) == 0 {
 		return
 	}
 	args := append([]string{}, v2SynthesisBaseArgs(b.transport)...)
@@ -91,14 +91,19 @@ func (b *v2SynthesisBuilder) add(name, family string, actions ...string) {
 }
 
 func v2SynthesisDiagnosticBasis(hint v2PlannerHint) string {
+	basis := "transport grammar + live verification"
 	code := strings.TrimSpace(hint.DiagnosticCode)
-	if code == "" {
-		return "transport grammar + live verification"
+	if code != "" {
+		if hint.StrategyRelevant {
+			basis = "diagnostic " + code + " + " + basis
+		} else {
+			basis += "; diagnostic " + code + " is observe-only"
+		}
 	}
-	if hint.StrategyRelevant {
-		return "diagnostic " + code + " + transport grammar + live verification"
+	if hint.Properties != nil {
+		basis = v2DPIPropertyVectorSummary(hint.Properties) + " + " + basis
 	}
-	return "transport grammar + live verification; diagnostic " + code + " is observe-only"
+	return basis
 }
 
 func v2SynthesisHTTPS(b *v2SynthesisBuilder) {
@@ -239,9 +244,28 @@ func v2SynthesizeCandidates(target string, transport benchTransportProfile, mode
 	case benchTransportSTUN:
 		v2SynthesisSTUN(b)
 	}
+	// Generate broadly, then use measured properties only to order the bounded
+	// admission set. NO_EFFECT lowers priority; it never blacklists a family.
+	sort.SliceStable(b.items, func(i, j int) bool {
+		left := v2PropertyFamilyScore(hint.Properties, b.items[i].Family)
+		right := v2PropertyFamilyScore(hint.Properties, b.items[j].Family)
+		return left > right
+	})
+	if len(b.items) > b.limit {
+		b.items = b.items[:b.limit]
+	}
+	quickLimit := v2ProgressiveQuickLimit(mode)
+	families := map[string]bool{}
+	for i := range b.items {
+		b.items[i].Stage = v2ProgressiveStageFull
+		if i < quickLimit {
+			b.items[i].Stage = v2ProgressiveStageQuick
+		}
+		families[b.items[i].Family] = true
+	}
 	meta.Generated = b.generated
 	meta.Compilable = len(b.items)
-	for family := range b.families {
+	for family := range families {
 		meta.Families = append(meta.Families, family)
 	}
 	sort.Strings(meta.Families)

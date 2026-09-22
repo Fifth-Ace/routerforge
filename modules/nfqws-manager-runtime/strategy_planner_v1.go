@@ -11,6 +11,7 @@ type v2PlannerHint struct {
 	DiagnosticCode   string
 	FaultDomain      string
 	StrategyRelevant bool
+	Properties       *v2DPIPropertyVector
 }
 
 type v2PlannerRankedCandidate struct {

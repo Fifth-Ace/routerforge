@@ -222,6 +222,7 @@ type v2SelectorRequest struct {
 	DiagnosticCode             string                     `json:"diagnostic_code,omitempty"`
 	DiagnosticFaultDomain      string                     `json:"diagnostic_fault_domain,omitempty"`
 	DiagnosticStrategyRelevant bool                       `json:"diagnostic_strategy_relevant,omitempty"`
+	PropertyVector             *v2DPIPropertyVector       `json:"property_vector,omitempty"`
 	Confirm                    string                     `json:"confirm"`
 }
 
@@ -266,6 +267,7 @@ type v2SelectorResponse struct {
 	PlannerPromotedCount       int                   `json:"planner_promoted_count"`
 	PlannerAdmittedRegistry    int                   `json:"planner_admitted_registry_count"`
 	PlannerPlan                []v2CandidatePoolItem `json:"planner_plan,omitempty"`
+	PropertyVector             *v2DPIPropertyVector  `json:"property_vector,omitempty"`
 	MemoryUpdated              bool                  `json:"memory_updated"`
 	MemoryWarning              string                `json:"memory_warning,omitempty"`
 }
@@ -278,6 +280,7 @@ func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerStrategyRegistryV1Routes(mux)
 	registerTCP16NetworkMemoryV1Routes(mux)
 	registerSelectorProgressV2Route(mux)
+	registerDPIPropertyProbeV1Route(mux)
 	registerProgressiveSelectorV2Route(mux)
 	registerBenchTransportV2Routes(mux)
 	mux.HandleFunc("/v1/v2/inspect-target", mutationOnly(handleV2InspectTarget))
@@ -1205,6 +1208,9 @@ func validateV2SelectorRequest(req v2SelectorRequest) error {
 	if req.SessionID != "" && !v2SelectorSessionValid(req.SessionID) {
 		return errors.New("invalid selector session_id")
 	}
+	if _, err := v2NormalizeDPIPropertyVector(req.PropertyVector, benchTransportHTTPS); err != nil {
+		return err
+	}
 	if len(req.Candidates) > 32 {
 		return errors.New("selector candidates exceed limit")
 	}
@@ -1618,6 +1624,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
 		PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
 		PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
+		PropertyVector: req.PropertyVector,
 		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {

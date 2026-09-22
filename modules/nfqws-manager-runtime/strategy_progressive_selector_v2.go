@@ -43,6 +43,7 @@ type v2ProgressiveSelectorRequest struct {
 	SessionID            string                     `json:"session_id,omitempty"`
 	IncludeProduction    *bool                      `json:"include_production,omitempty"`
 	Candidates           []v2SelectorCandidateInput `json:"candidates,omitempty"`
+	PropertyVector       *v2DPIPropertyVector       `json:"property_vector,omitempty"`
 	Confirm              string                     `json:"confirm"`
 }
 
@@ -87,6 +88,7 @@ type v2ProgressiveSelectorResponse struct {
 	Concurrency                int                         `json:"concurrency"`
 	VerifyAttempts             int                         `json:"verify_attempts"`
 	Warnings                   []string                    `json:"warnings"`
+	PropertyVector             *v2DPIPropertyVector        `json:"property_vector,omitempty"`
 	MemoryUpdated              bool                        `json:"memory_updated"`
 	MemoryWarning              string                      `json:"memory_warning,omitempty"`
 }
@@ -135,6 +137,9 @@ func validateV2ProgressiveSelectorRequest(req v2ProgressiveSelectorRequest) erro
 	}
 	if req.Concurrency < 0 || req.Concurrency > v2MaxConcurrency {
 		return fmt.Errorf("concurrency must be in range 0-%d", v2MaxConcurrency)
+	}
+	if _, err := v2NormalizeDPIPropertyVector(req.PropertyVector, transport.ID); err != nil {
+		return err
 	}
 	if len(req.Candidates) > 32 {
 		return errors.New("progressive selector candidates exceed limit")
@@ -297,7 +302,7 @@ func v2BuildProgressivePlan(req v2ProgressiveSelectorRequest, mode benchAutoTune
 
 	// Dynamic synthesis owns QUICK/FULL first. Builtins remain a deterministic
 	// fallback when synthesis cannot fill a stage or produces duplicates.
-	synthesized, synthMeta := v2SynthesizeCandidates(target, transport, mode, v2PlannerHint{}, v2SynthesisBudget(mode, max))
+	synthesized, synthMeta := v2SynthesizeCandidates(target, transport, mode, v2PlannerHint{Properties: req.PropertyVector}, v2SynthesisBudget(mode, max))
 	for _, item := range synthesized {
 		profile, compileErr := v2CustomProfileForTransport(item.Args, target, transport)
 		if compileErr != nil {
@@ -591,6 +596,8 @@ func handleV2ProgressiveSelector(w http.ResponseWriter, r *http.Request) {
 	mode, _ := v2SelectorMode(req.Mode)
 	transport, _ := normalizeBenchTransport(req.Transport)
 	target, _ := v2NormalizeTarget(req.ServerName)
+	propertyVector, _ := v2NormalizeDPIPropertyVector(req.PropertyVector, transport.ID)
+	req.PropertyVector = propertyVector
 	verifyAttempts := v2ProgressiveVerifyAttempts(mode)
 	status := readStatus()
 	if !strings.EqualFold(status.ConfigSHA256, strings.TrimSpace(req.ExpectedConfigSHA256)) {
@@ -797,7 +804,8 @@ func handleV2ProgressiveSelector(w http.ResponseWriter, r *http.Request) {
 		CleanupBaselineAfter: after.CleanupBaselineProven, BenchEnabled: after.BenchEnabled, SafeToBench: after.SafeToBench,
 		ApplyEnabled: false, ApplyGateEligible: false,
 		ApplyGateReason: "C3A progressive selection is recommendation-only; existing Preview/Safe Apply gates remain separate",
-		Concurrency:     concurrency, VerifyAttempts: verifyAttempts, Warnings: plan.Warnings,
+		Concurrency: concurrency, VerifyAttempts: verifyAttempts, Warnings: plan.Warnings,
+		PropertyVector: req.PropertyVector,
 		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {

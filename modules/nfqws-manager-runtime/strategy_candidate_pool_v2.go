@@ -514,10 +514,16 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 	if err != nil {
 		return meta, err
 	}
+	propertyVector, propertyErr := v2NormalizeDPIPropertyVector(req.PropertyVector, benchTransportHTTPS)
+	if propertyErr != nil {
+		return meta, propertyErr
+	}
+	req.PropertyVector = propertyVector
 	pool, err := v2PlanCandidatePoolForTransport(target, req.Mode, benchTransportHTTPS, v2PlannerHint{
 		DiagnosticCode:   req.DiagnosticCode,
 		FaultDomain:      req.DiagnosticFaultDomain,
 		StrategyRelevant: req.DiagnosticStrategyRelevant,
+		Properties:       propertyVector,
 	})
 	if err != nil {
 		return meta, err

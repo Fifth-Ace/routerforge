@@ -804,9 +804,9 @@ func handleV2ProgressiveSelector(w http.ResponseWriter, r *http.Request) {
 		CleanupBaselineAfter: after.CleanupBaselineProven, BenchEnabled: after.BenchEnabled, SafeToBench: after.SafeToBench,
 		ApplyEnabled: false, ApplyGateEligible: false,
 		ApplyGateReason: "C3A progressive selection is recommendation-only; existing Preview/Safe Apply gates remain separate",
-		Concurrency: concurrency, VerifyAttempts: verifyAttempts, Warnings: plan.Warnings,
+		Concurrency:     concurrency, VerifyAttempts: verifyAttempts, Warnings: plan.Warnings,
 		PropertyVector: req.PropertyVector,
-		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,
+		MemoryUpdated:  memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {
 		setV2SelectorProgress(sessionID, "FAILED", len(allCandidates), len(allCandidates), "final cleanup/config proof failed", true, true)

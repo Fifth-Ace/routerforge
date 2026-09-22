@@ -54,6 +54,55 @@ func TestRecommendationEngineExcludesUnverifiedAndNotReady(t *testing.T) {
 	}
 }
 
+func TestRecommendationSemanticChainPreservesMatureStrategy(t *testing.T) {
+	registry := v2StrategyRegistryResponse{
+		OK: true, Version: v2StrategyRegistryVersion, ReadOnly: true,
+		Entries: []v2StrategyRegistryEntry{{
+			ID: "semantic-chain", Name: "Semantic Chain", Protocol: "https", Family: "split",
+			Fingerprint: "semantic-chain-fingerprint",
+			Capabilities: v2StrategyRegistryCapabilities{CandidateReady: true},
+			Evidence: v2StrategyRegistryEvidence{
+				Targets: 5, VerifiedCount: 5, WorkingCount: 5,
+				SuccessRate: 1, Confidence: v2MemoryConfidenceTrusted, ReuseEligible: 3,
+			},
+		}},
+	}
+
+	scores := v2BuildStrategyScores(registry)
+	if !scores.ReadOnly || len(scores.Entries) != 1 {
+		t.Fatalf("scores=%+v", scores)
+	}
+	score := scores.Entries[0]
+	if score.Fingerprint != "semantic-chain-fingerprint" || score.Score.Total < v2PolicyAutomationMinScore {
+		t.Fatalf("score identity/threshold lost: %+v", score)
+	}
+
+	insights := v2BuildStrategyInsights(scores)
+	if !insights.ReadOnly || len(insights.Entries) != 1 {
+		t.Fatalf("insights=%+v", insights)
+	}
+	if insights.Entries[0].Fingerprint != score.Fingerprint || insights.Entries[0].Insight.State != "PROVEN" {
+		t.Fatalf("insight semantic mismatch: %+v", insights.Entries[0])
+	}
+
+	gate := v2BuildPolicyAutomationGate(scores, insights)
+	if gate.AutomationEnabled || !gate.ReadOnly || gate.ReadyCount != 1 || len(gate.Candidates) != 1 {
+		t.Fatalf("policy gate=%+v", gate)
+	}
+	if !gate.Candidates[0].Eligible || gate.Candidates[0].Fingerprint != score.Fingerprint {
+		t.Fatalf("policy identity/eligibility mismatch: %+v", gate.Candidates[0])
+	}
+
+	recommendations := v2BuildStrategyRecommendations(scores, insights, gate)
+	if !recommendations.ReadOnly || recommendations.Count != 1 || recommendations.Primary != 1 {
+		t.Fatalf("recommendations=%+v", recommendations)
+	}
+	item := recommendations.Items[0]
+	if item.Fingerprint != score.Fingerprint || item.Insight != "PROVEN" ||
+		!item.AutomationReady || !item.Primary || item.Rank != 1 {
+		t.Fatalf("recommendation semantic mismatch: %+v", item)
+	}
+}
 func TestRecommendationEngineKeepsProtocolsIndependent(t *testing.T) {
 	scores := v2StrategyScoreResponse{Entries: []v2StrategyScoreEntry{
 		{

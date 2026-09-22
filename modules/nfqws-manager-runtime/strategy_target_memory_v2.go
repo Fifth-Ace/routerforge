@@ -406,14 +406,14 @@ func v2MergeTargetMemoryObservation(entry v2TargetMemoryEntry, candidate v2Candi
 	return entry
 }
 
-func v2RecordSelectorEvidence(target, configSHA string, candidates []v2CandidateResult) error {
+func v2RecordSelectorEvidence(target, configSHA string, candidates []v2CandidateResult) (bool, error) {
 	doc, err := readV2TargetMemory()
 	if err != nil {
-		return err
+		return false, err
 	}
 	target, err = v2NormalizeTarget(target)
 	if err != nil {
-		return err
+		return false, err
 	}
 	now := v2TargetMemoryNow().UTC().Format(time.RFC3339)
 	env := v2MemoryEnvironmentFingerprint(configSHA)
@@ -456,7 +456,7 @@ func v2RecordSelectorEvidence(target, configSHA string, candidates []v2Candidate
 		changed = true
 	}
 	if !changed {
-		return nil
+		return false, nil
 	}
 
 	sort.SliceStable(doc.Entries, func(i, j int) bool {
@@ -465,7 +465,10 @@ func v2RecordSelectorEvidence(target, configSHA string, candidates []v2Candidate
 	if len(doc.Entries) > v2TargetMemoryMax {
 		doc.Entries = doc.Entries[:v2TargetMemoryMax]
 	}
-	return writeV2TargetMemory(doc)
+	if err := writeV2TargetMemory(doc); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func v2TargetMemoryCandidatesForTransport(target, configSHA, protocol string, limit int) ([]v2CandidatePoolItem, error) {

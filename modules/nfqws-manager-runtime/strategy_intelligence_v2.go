@@ -1714,10 +1714,10 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	}
 	memoryUpdated := false
 	memoryWarning := ""
-	if memoryErr := v2RecordSelectorEvidence(target, status.ConfigSHA256, candidates); memoryErr != nil {
+	if updated, memoryErr := v2RecordSelectorEvidence(target, status.ConfigSHA256, candidates); memoryErr != nil {
 		memoryWarning = memoryErr.Error()
 	} else {
-		memoryUpdated = true
+		memoryUpdated = updated
 	}
 	resp := v2SelectorResponse{
 		OK: ok, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",

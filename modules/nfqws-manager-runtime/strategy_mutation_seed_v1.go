@@ -189,8 +189,8 @@ func v2MutationSelectSeeds(mode benchAutoTuneMode, transport benchTransportProfi
 					}
 					exploratory = append(exploratory, ranked{
 						seed: v2MutationSeed{
-							Outcome: v2MutationSeedOutcomeExploratory,
-							Reason: v2MutationSeedReason(result, v2MutationSeedOutcomeExploratory),
+							Outcome:     v2MutationSeedOutcomeExploratory,
+							Reason:      v2MutationSeedReason(result, v2MutationSeedOutcomeExploratory),
 							Fingerprint: fp, Seed: item, Result: result,
 						},
 						score: 0, order: i,

@@ -19,8 +19,13 @@ func TestP26DirectSelectorAutoPoolUsesCorpusWithoutIntelligenceLayers(t *testing
 	if len(req.Candidates) == 0 {
 		t.Fatal("direct auto pool returned no corpus candidates")
 	}
-	if len(req.Candidates) > 32 {
-		t.Fatalf("direct auto pool exceeded thorough candidate budget: %d", len(req.Candidates))
+	transport, err := normalizeBenchTransport(benchTransportHTTPS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := len(v2CorpusCandidatesForTransport(transport))
+	if len(req.Candidates) != expected {
+		t.Fatalf("thorough direct auto pool=%d want full HTTPS corpus=%d", len(req.Candidates), expected)
 	}
 	hasOther := false
 	for _, candidate := range req.Candidates {

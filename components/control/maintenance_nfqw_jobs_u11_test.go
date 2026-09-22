@@ -145,3 +145,26 @@ func TestParseAdminNFQWSManagerConfigSHAFromCompactHealth(t *testing.T) {
 		t.Fatal("health without config_sha256 was accepted")
 	}
 }
+func TestAdminNFQWSStrategyHealthRecheckOutcomeClassification(t *testing.T) {
+	job := adminNFQWSJob{Kind: "strategy-health-recheck"}
+
+	if got := classifyAdminNFQWSJobOutcome(job, 200, `{"ok":true,"cleanup_baseline_after":true,"strategy_needed":false,"recommendation_available":false}`, nil); got != adminNFQWSJobOutcomeOK {
+		t.Fatalf("stable baseline outcome=%q", got)
+	}
+	if got := classifyAdminNFQWSJobOutcome(job, 200, `{"ok":true,"cleanup_baseline_after":true,"strategy_needed":true,"recommendation_available":true}`, nil); got != adminNFQWSJobOutcomeOK {
+		t.Fatalf("verified recommendation outcome=%q", got)
+	}
+	if got := classifyAdminNFQWSJobOutcome(job, 200, `{"ok":true,"cleanup_baseline_after":true,"strategy_needed":true,"recommendation_available":false}`, nil); got != adminNFQWSJobOutcomeInconclusive {
+		t.Fatalf("missing recommendation outcome=%q", got)
+	}
+	if got := classifyAdminNFQWSJobOutcome(job, 200, `{"ok":false,"cleanup_baseline_after":false}`, nil); got != adminNFQWSJobOutcomeUnhealthy {
+		t.Fatalf("failed cleanup outcome=%q", got)
+	}
+}
+
+func TestAdminNFQWSStrategyHealthRecheckTimeoutCoversFastSelector(t *testing.T) {
+	job := adminNFQWSJob{Kind: "strategy-health-recheck"}
+	if got := adminNFQWSJobTimeout(job); got != 120*time.Second {
+		t.Fatalf("strategy health recheck timeout=%v want=120s", got)
+	}
+}

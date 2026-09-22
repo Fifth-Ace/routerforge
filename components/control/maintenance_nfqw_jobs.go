@@ -21,12 +21,12 @@ import (
 )
 
 const (
-	adminNFQWSJobsConfigPath = "/opt/etc/routerforge/nfqws-jobs.json"
-	adminNFQWSJobsVersion    = 1
-	adminNFQWSJobsMax        = 32
-	adminNFQWSJobsOutputMax  = 4096
-	adminNFQWSJobsMinMinutes = 15
-	adminNFQWSJobsMaxMinutes = 1440
+	adminNFQWSJobsConfigPath        = "/opt/etc/routerforge/nfqws-jobs.json"
+	adminNFQWSJobsVersion           = 1
+	adminNFQWSJobsMax               = 32
+	adminNFQWSJobsOutputMax         = 4096
+	adminNFQWSJobsMinMinutes        = 15
+	adminNFQWSJobsMaxMinutes        = 1440
 	adminNFQWSJobsRetryMax          = 1
 	adminNFQWSJobsSocket            = "/opt/var/run/routerforge-nfqws-manager.sock"
 	adminNFQWSJobRecheckResponseMax = 128 << 10

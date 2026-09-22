@@ -1484,13 +1484,8 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		Baseline: true, CandidateID: "baseline", CandidateName: "Baseline",
 		CandidateSource: "baseline", SourceProfileIndex: -1, CleanupProven: true,
 	}
-	for i := 0; i < mode.Attempts; i++ {
-		a := v2RunAttempt(baselineCtx, capabilities, status.ConfigSHA256, target, ip, inventory, nil, queues[0])
-		baseline.Attempts = append(baseline.Attempts, a)
-		if !a.CleanupProven {
-			break
-		}
-	}
+	a := v2RunDirectBaseline(baselineCtx, capabilities, inventory, concurrency, target, ip)
+	baseline.Attempts = append(baseline.Attempts, a)
 	v2FinalizeCandidate(&baseline)
 	cancelBaseline()
 	if !baseline.CleanupProven || !baseline.InfrastructureOK {
@@ -1530,12 +1525,15 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	jobs := make(chan job)
 	results := make(chan jobResult, len(templates))
 	var wg sync.WaitGroup
-	setV2SelectorProgress(sessionID, "BENCH", 0, len(templates), "testing direct catalog candidates", false, false)
+	setV2SelectorProgress(sessionID, "BENCH", 0, len(templates), "testing direct worker sandboxes", false, false)
 	for worker := 0; worker < concurrency; worker++ {
 		queue := queues[worker]
+		sb := newV2DirectSandbox(capabilities, inventory, worker, queue, target, ip)
+		ruleErr := sb.RulesUp(true)
 		wg.Add(1)
-		go func(q int) {
+		go func(sandbox *v2DirectSandbox, setupErr error) {
 			defer wg.Done()
+			defer sandbox.RulesDown()
 			for j := range jobs {
 				c := v2CandidateResult{
 					CandidateID: j.item.id, CandidateName: j.item.name, CandidateSource: j.item.source,
@@ -1543,17 +1541,25 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 					StrategyTags:       append([]int{}, j.item.profile.StrategyTags...),
 					Args:               append([]string{}, j.item.profile.Args...), CleanupProven: true,
 				}
-				for i := 0; i < mode.Attempts; i++ {
-					a := v2RunAttempt(benchCtx, capabilities, status.ConfigSHA256, target, ip, inventory, &j.item.profile, q)
-					c.Attempts = append(c.Attempts, a)
-					if !a.CleanupProven {
-						break
-					}
+				if setupErr != nil {
+					c.Attempts = append(c.Attempts, v2BenchAttempt{
+						InfrastructureOK: false,
+						CleanupProven:    false,
+						Transport:        benchTransportHTTPS,
+						Network:          "tcp",
+						RemotePort:       443,
+						Queue:            sandbox.queue,
+						DestinationIPv4:  ip,
+						ResultClass:      "INCONCLUSIVE",
+						Error:            "direct worker rules: " + setupErr.Error(),
+					})
+				} else {
+					c.Attempts = append(c.Attempts, sandbox.RunCandidate(benchCtx, j.item.profile))
 				}
 				v2FinalizeCandidate(&c)
 				results <- jobResult{index: j.index, result: c}
 			}
-		}(queue)
+		}(sb, ruleErr)
 	}
 	go func() {
 		for i, item := range templates {
@@ -1633,7 +1639,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		Reason:   "P26 direct catalog selector ranks real candidate executions without adaptive mutation",
 		Budget:   0,
 	}
-	setV2SelectorProgress(sessionID, "RANK", completed, len(candidates), "ranking direct catalog live results", false, false)
+	setV2SelectorProgress(sessionID, "RANK", completed, len(candidates), "ranking direct worker live results", false, false)
 	recommend, best, needed, reason := v2ChooseRecommendation(baseline, candidates)
 	after := readBenchCapabilities()
 	ok := after.CleanupBaselineProven && strings.EqualFold(readStatus().ConfigSHA256, status.ConfigSHA256)

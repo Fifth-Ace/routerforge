@@ -117,33 +117,33 @@ func (s *v2DirectSandbox) RulesUp(queue bool) error {
 	// RouterForge production already treats the nfqws process mark as excluded;
 	// this gives the direct selector the same isolation semantics without the old
 	// anchor/order transaction machinery.
-	if err := s.ipt("-t", "mangle", "-A", s.postChain, append(append([]string{}, outTuple...), "-j", "MARK", "--set-xmark", v2DirectProcMark)...); err != nil {
+	if err := s.ipt(append([]string{"-t", "mangle", "-A", s.postChain}, append(append([]string{}, outTuple...), "-j", "MARK", "--set-xmark", v2DirectProcMark)...)...); err != nil {
 		return err
 	}
 	if queue {
 		args := append(append([]string{}, outTuple...),
 			"-m", "connbytes", "--connbytes", "1:16", "--connbytes-mode", "packets", "--connbytes-dir", "original",
 			"-j", "NFQUEUE", "--queue-num", q, "--queue-bypass")
-		if err := s.ipt("-t", "mangle", "-A", s.postChain, args...); err != nil {
+		if err := s.ipt(append([]string{"-t", "mangle", "-A", s.postChain}, args...)...); err != nil {
 			return err
 		}
 	}
-	if err := s.ipt("-t", "mangle", "-A", s.postChain, append(append([]string{}, outTuple...), "-j", "RETURN")...); err != nil {
+	if err := s.ipt(append([]string{"-t", "mangle", "-A", s.postChain}, append(append([]string{}, outTuple...), "-j", "RETURN")...)...); err != nil {
 		return err
 	}
 
-	if err := s.ipt("-t", "mangle", "-A", s.preChain, append(append([]string{}, inTuple...), "-j", "MARK", "--set-xmark", v2DirectProcMark)...); err != nil {
+	if err := s.ipt(append([]string{"-t", "mangle", "-A", s.preChain}, append(append([]string{}, inTuple...), "-j", "MARK", "--set-xmark", v2DirectProcMark)...)...); err != nil {
 		return err
 	}
 	if queue {
 		args := append(append([]string{}, inTuple...),
 			"-m", "connbytes", "--connbytes", "1:16", "--connbytes-mode", "packets", "--connbytes-dir", "reply",
 			"-j", "NFQUEUE", "--queue-num", q, "--queue-bypass")
-		if err := s.ipt("-t", "mangle", "-A", s.preChain, args...); err != nil {
+		if err := s.ipt(append([]string{"-t", "mangle", "-A", s.preChain}, args...)...); err != nil {
 			return err
 		}
 	}
-	if err := s.ipt("-t", "mangle", "-A", s.preChain, append(append([]string{}, inTuple...), "-j", "RETURN")...); err != nil {
+	if err := s.ipt(append([]string{"-t", "mangle", "-A", s.preChain}, append(append([]string{}, inTuple...), "-j", "RETURN")...)...); err != nil {
 		return err
 	}
 

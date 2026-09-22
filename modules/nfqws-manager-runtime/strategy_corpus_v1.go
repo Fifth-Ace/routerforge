@@ -463,7 +463,8 @@ var v2StaticCorpusEntries = []v2StaticCorpusEntry{
 		ID: "omn1z-p25b2-http-fake-md-host", Name: "Omn1z P25B2 · HTTP fake + multidisorder host", Source: "omn1z",
 		Protocol: "http", Family: "fake+disorder",
 		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=fake:blob=http_req", "--lua-desync=multidisorder:pos=method+2,host+1"},
-	},}
+	},
+}
 
 func v2StaticStrategyCorpus() []v2StaticCorpusEntry {
 	out := make([]v2StaticCorpusEntry, len(v2StaticCorpusEntries))

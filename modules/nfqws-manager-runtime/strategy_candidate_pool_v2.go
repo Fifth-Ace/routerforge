@@ -55,6 +55,11 @@ type v2CandidatePoolResponse struct {
 	RecommendationHints        int                   `json:"recommendation_hints"`
 	RecommendationAdded        int                   `json:"recommendation_added"`
 	HistoricalExistingPromoted int                   `json:"historical_existing_promoted"`
+	SynthesisVersion           int                   `json:"synthesis_version"`
+	SynthesisGenerated         int                   `json:"synthesis_generated"`
+	SynthesisAdmitted          int                   `json:"synthesis_admitted"`
+	SynthesisFamilies          []string              `json:"synthesis_families,omitempty"`
+	SynthesisBasis             string                `json:"synthesis_basis,omitempty"`
 
 	PlannerVersion               int    `json:"planner_version"`
 	PlannerReadOnly              bool   `json:"planner_read_only"`
@@ -67,16 +72,17 @@ type v2CandidatePoolResponse struct {
 }
 
 type v2SelectorAutoPoolMeta struct {
-	Enabled             bool
-	Added               int
-	MemoryCandidates    int
-	LibraryCandidates   int
-	BuiltinCandidates   int
-	Sources             []string
-	Warnings            []string
-	RecommendationAware bool
-	RecommendationHints int
-	RecommendationAdded int
+	Enabled               bool
+	Added                 int
+	MemoryCandidates      int
+	LibraryCandidates     int
+	BuiltinCandidates     int
+	SynthesizedCandidates int
+	Sources               []string
+	Warnings              []string
+	RecommendationAware   bool
+	RecommendationHints   int
+	RecommendationAdded   int
 
 	PlannerVersion               int
 	PlannerDiagnosticCode        string
@@ -324,7 +330,7 @@ func v2BuildRecommendationPoolItems(target string, transport benchTransportProfi
 	return out, compatible, nil
 }
 
-func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2CandidatePoolResponse, error) {
+func v2BuildCandidatePoolForTransportWithHint(target, mode, transportID string, hint v2PlannerHint) (v2CandidatePoolResponse, error) {
 	target, err := v2NormalizeTarget(target)
 	if err != nil {
 		return v2CandidatePoolResponse{}, err
@@ -345,21 +351,29 @@ func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2Candi
 	}
 	seen := map[string]bool{}
 
-	memory, memoryErr := v2TargetMemoryCandidatesForTransport(target, status.ConfigSHA256, transport.ID, m.MaxCandidates)
+	// Reserve half of every selector mode for newly composed candidates. Historical
+	// evidence stays valuable, but it must never consume the entire search budget.
+	synthesisReserve := v2SynthesisBudget(m, m.MaxCandidates)
+	knownLimit := m.MaxCandidates - synthesisReserve
+	if knownLimit < 0 {
+		knownLimit = 0
+	}
+
+	memory, memoryErr := v2TargetMemoryCandidatesForTransport(target, status.ConfigSHA256, transport.ID, knownLimit)
 	if memoryErr != nil {
 		resp.Warnings = append(resp.Warnings, "memory: "+memoryErr.Error())
 	} else {
 		for _, item := range memory {
 			item.Stage = v2ProgressiveStageMemory
 			resp.Candidates = v2AppendPoolItem(resp.Candidates, seen, item)
-			if len(resp.Candidates) >= m.MaxCandidates {
+			if len(resp.Candidates) >= knownLimit {
 				break
 			}
 		}
 	}
 
-	if len(resp.Candidates) < m.MaxCandidates {
-		recommended, compatible, recommendationErr := v2BuildRecommendationPoolItems(target, transport, m.MaxCandidates-len(resp.Candidates))
+	if len(resp.Candidates) < knownLimit {
+		recommended, compatible, recommendationErr := v2BuildRecommendationPoolItems(target, transport, knownLimit-len(resp.Candidates))
 		if recommendationErr != nil {
 			resp.Warnings = append(resp.Warnings, "recommendations: "+recommendationErr.Error())
 		} else {
@@ -379,33 +393,33 @@ func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2Candi
 				if len(resp.Candidates) > before {
 					resp.RecommendationAdded++
 				}
-				if len(resp.Candidates) >= m.MaxCandidates {
+				if len(resp.Candidates) >= knownLimit {
 					break
 				}
 			}
 		}
 	}
 
-	if len(resp.Candidates) < m.MaxCandidates {
-		doc, libErr := readV2StrategyLibrary()
-		if libErr != nil {
-			resp.Warnings = append(resp.Warnings, "library: "+libErr.Error())
-		} else {
-			for _, item := range doc.Strategies {
-				if _, compileErr := v2CustomProfileForTransport(item.Args, target, transport); compileErr != nil {
-					continue
-				}
-				poolItem := v2CandidatePoolItem{
-					ID: item.ID, Name: item.Name, Source: item.Source, Family: "saved",
-					Protocol: transport.ID, Args: append([]string{}, item.Args...), Stage: v2ProgressiveStageLibrary,
-				}
-				resp.Candidates = v2AppendPoolItem(resp.Candidates, seen, poolItem)
-				if len(resp.Candidates) >= m.MaxCandidates {
-					break
-				}
-			}
+	synthesisBudget := v2SynthesisBudget(m, m.MaxCandidates-len(resp.Candidates))
+	synthesized, synthesisMeta := v2SynthesizeCandidates(target, transport, m, hint, synthesisBudget)
+	resp.SynthesisVersion = synthesisMeta.Version
+	resp.SynthesisGenerated = synthesisMeta.Generated
+	resp.SynthesisFamilies = append([]string{}, synthesisMeta.Families...)
+	resp.SynthesisBasis = synthesisMeta.Basis
+	for _, item := range synthesized {
+		before := len(resp.Candidates)
+		resp.Candidates = v2AppendPoolItem(resp.Candidates, seen, item)
+		if len(resp.Candidates) > before {
+			resp.SynthesisAdmitted++
+		}
+		if len(resp.Candidates) >= m.MaxCandidates {
+			break
 		}
 	}
+
+	// Unverified saved Library entries are deliberately not injected into Auto Pool.
+	// The UI sends them separately when the user enables Candidate Library; proven
+	// library entries may still return through historical recommendations above.
 
 	if len(resp.Candidates) < m.MaxCandidates {
 		corpus := v2CorpusCandidatesForTransport(transport)
@@ -456,6 +470,10 @@ func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2Candi
 	resp.Count = len(resp.Candidates)
 	resp.Sources = v2CandidateSourceList(resp.Candidates)
 	return resp, nil
+}
+
+func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2CandidatePoolResponse, error) {
+	return v2BuildCandidatePoolForTransportWithHint(target, mode, transportID, v2PlannerHint{})
 }
 
 func v2BuildCandidatePool(target, mode string) (v2CandidatePoolResponse, error) {
@@ -518,10 +536,12 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 	meta.PlannerAdmittedRegistryCount = pool.PlannerAdmittedRegistryCount
 	meta.PlannerPlan = append([]v2CandidatePoolItem{}, pool.Candidates...)
 
+	// Auto Pool is the search plan, not a decorative appendix. Put it before
+	// caller-supplied library candidates so mode.MaxCandidates cannot silently
+	// starve synthesized candidates. External candidates remain as fallbacks.
+	external := append([]v2SelectorCandidateInput{}, req.Candidates...)
+	req.Candidates = []v2SelectorCandidateInput{}
 	seen := map[string]bool{}
-	for _, existing := range req.Candidates {
-		seen[v2CandidateTechniqueFingerprint(existing.Args)] = true
-	}
 
 	for _, item := range pool.Candidates {
 		if len(req.Candidates) >= 32 {
@@ -539,11 +559,24 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 		switch item.Source {
 		case "memory":
 			meta.MemoryCandidates++
+		case "synthesized":
+			meta.SynthesizedCandidates++
 		case "builtin":
 			meta.BuiltinCandidates++
 		default:
 			meta.LibraryCandidates++
 		}
+	}
+	for _, existing := range external {
+		if len(req.Candidates) >= 32 {
+			break
+		}
+		fp := v2CandidateTechniqueFingerprint(existing.Args)
+		if fp == "" || seen[fp] {
+			continue
+		}
+		seen[fp] = true
+		req.Candidates = append(req.Candidates, existing)
 	}
 	return meta, nil
 }

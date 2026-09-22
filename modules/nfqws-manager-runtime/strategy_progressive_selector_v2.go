@@ -295,6 +295,24 @@ func v2BuildProgressivePlan(req v2ProgressiveSelectorRequest, mode benchAutoTune
 		}
 	}
 
+	// Dynamic synthesis owns QUICK/FULL first. Builtins remain a deterministic
+	// fallback when synthesis cannot fill a stage or produces duplicates.
+	synthesized, synthMeta := v2SynthesizeCandidates(target, transport, mode, v2PlannerHint{}, v2SynthesisBudget(mode, max))
+	for _, item := range synthesized {
+		profile, compileErr := v2CustomProfileForTransport(item.Args, target, transport)
+		if compileErr != nil {
+			plan.Warnings = append(plan.Warnings, item.ID+": "+compileErr.Error())
+			continue
+		}
+		profile.Index = -1
+		v2ProgressiveAppendTemplate(&plan, seen, max, v2ProgressiveTemplate{
+			Stage: item.Stage, Profile: profile, ID: item.ID, Name: item.Name, Source: "synthesized",
+		})
+	}
+	if synthMeta.Generated > 0 && len(synthesized) == 0 {
+		plan.Warnings = append(plan.Warnings, "strategy synthesizer generated no compilable candidates")
+	}
+
 	builtins := v2ProgressiveBuiltins(transport)
 	quickLimit := v2ProgressiveQuickLimit(mode)
 	if quickLimit > len(builtins) {

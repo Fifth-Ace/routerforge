@@ -1,31 +1,44 @@
-# RouterForge P24 — NFQWS2 Manager
+# RouterForge NFQWS2 Manager
 
-Installed-only adapter for an existing `nfqws2-keenetic` installation.
+RouterForge provides an installed-only management, diagnostics and strategy-selection layer for an existing `nfqws2-keenetic` installation. It does not silently install or replace nfqws2.
 
-## Read surface
-- detection/running state;
-- exact init/config/list/log paths;
-- current config (bounded 128 KiB);
-- SHA-256 of current config;
-- bounded list inventory/preview (32 KiB each);
-- bounded log tail (64 KiB);
-- safety backup count.
+## Safety model
 
-## Mutation surface
-All mutations are reachable only through the existing Core-guarded Admin mutation boundary.
+- production mutations pass through the Core-guarded Admin boundary;
+- candidate tests use isolated NFQUEUE transactions and do not replace the active strategy while measuring;
+- Apply is explicit and uses exact config/dependency hashes, backup, post-apply verification and rollback;
+- historical results can change search priority, but never bypass live verification.
 
-Supported:
-- reload;
-- restart;
-- config save.
+## Strategy selection
 
-Config save:
-1. exact installed-runtime precheck;
-2. bounded content validation;
-3. safety backup in `/tmp/routerforge-nfqws2-backups`;
-4. atomic write of `/opt/etc/nfqws2/nfqws2.conf`;
-5. `S51nfqws2 reload`;
-6. if reload fails, restore previous bytes atomically and attempt reload again;
-7. keep at most 8 backups.
+AutoSelect is designed as a search system rather than a fixed preset chooser. Its sources are:
 
-No package install/update and no automatic DPI strategy generation are part of P24.
+1. target-specific verified memory;
+2. historically proven recommendations;
+3. dynamically synthesized candidates;
+4. saved/imported candidates;
+5. curated corpus and builtins as deterministic fallbacks.
+
+The Strategy Synthesizer composes candidates from transport-specific technique axes (split/disorder/fake/overlap/fooling/repeats/TTL/length variants) and validates every candidate through the existing RouterForge candidate compiler before it can enter an isolated live test. Selector modes reserve search capacity for synthesis so a large saved/static pool cannot starve newly composed candidates.
+
+This is the first synthesis layer. The next development stages add direct property probes, evidence-driven mutation of promising candidates, and multi-target composition.
+
+## Credits / design references
+
+RouterForge's implementation is independent, but the AutoSelect architecture was informed by ideas from:
+
+- `necronicle/z2k` — https://github.com/necronicle/z2k — especially property/probe-driven DPI analysis and composing a strategy from measured behavior instead of relying only on preset enumeration; reviewed at `4192519cad13c7253b70fa56cbca05bc83e6dcfb`.
+- `Omn1z/nfqws2-keenetic-strategy-selector` — https://github.com/Omn1z/nfqws2-keenetic-strategy-selector — especially isolated NFQUEUE strategy scanning and live result ranking; reviewed at `0514a18209b0f33e68df6f6657339e912d756049`.
+- `rndnaame/nfqws-menu` — https://github.com/rndnaame/nfqws-menu — source/reference for strategy, list and blob integration already credited in the NFQWS UI.
+
+No source code from the two AutoSelect reference projects is vendored into this implementation.
+
+## Current workstream
+
+P24 Strategy Synthesis:
+
+- P24A — dynamic candidate synthesis and search-budget integration;
+- P24B — direct DPI property probing;
+- P24C — adaptive mutation/search from live outcomes;
+- P24D — multi-target/multi-transport composition;
+- P24E — hardware acceptance.

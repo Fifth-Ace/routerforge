@@ -204,7 +204,7 @@ func v2ApplyRecommendationPlanner(resp *v2CandidatePoolResponse, hint v2PlannerH
 }
 
 func v2PlanCandidatePoolForTransport(target, mode, transportID string, hint v2PlannerHint) (v2CandidatePoolResponse, error) {
-	resp, err := v2BuildCandidatePoolForTransport(target, mode, transportID)
+	resp, err := v2BuildCandidatePoolForTransportWithHint(target, mode, transportID, hint)
 	if err != nil {
 		return v2CandidatePoolResponse{}, err
 	}

@@ -1146,6 +1146,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <span id="testLabTabState" hidden></span><span id="sandboxTabState" hidden></span>
 </div>
 
+<div id="nfqwsSelectionCredit" class="strategy-import-credit nfqws-menu-credit">
+  <div><strong>AutoSelect · идеи и референсы</strong><span>Подход к измерению свойств DPI и составлению стратегии вдохновлён z2k; изолированный перебор и ranking — nfqws2-keenetic-strategy-selector. Реализация RouterForge независимая.</span></div>
+  <div class="toolbar"><a class="nfqws-menu-credit-link" href="https://github.com/necronicle/z2k" target="_blank" rel="noopener noreferrer">z2k ↗</a><a class="nfqws-menu-credit-link" href="https://github.com/Omn1z/nfqws2-keenetic-strategy-selector" target="_blank" rel="noopener noreferrer">strategy-selector ↗</a></div>
+</div>
+
 
 <main>
 
@@ -1505,9 +1510,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
           <label>Workers<select id="v2SelectorConcurrency" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
         </div>
         <label class="v2-check"><input id="v2SelectorProduction" type="checkbox" checked> Production profiles из live nfqws2</label>
-        <label class="v2-check"><input id="v2SelectorAutoPool" type="checkbox" checked> Verified Memory + встроенный Strategy Pool</label>
+        <label class="v2-check"><input id="v2SelectorAutoPool" type="checkbox" checked> Verified Memory + динамический Strategy Synthesizer</label>
         <label class="v2-check"><input id="v2SelectorLibrary" type="checkbox" checked> Сохранённые стратегии из Candidate Library</label>
-        <div id="v2SelectorPoolMeta" class="v2-boundary">Auto Pool добавляет проверенную память и curated TLS families; production остаётся отдельным источником.</div>
+        <div id="v2SelectorPoolMeta" class="v2-boundary">Auto Pool сначала использует проверенную память, затем сам составляет новые варианты из техник, позиций и fooling-параметров. Curated/builtin pool остаётся fallback.</div>
         <label class="v2-label">Дополнительный candidate
           <input id="v2SelectorExtraName" class="search" placeholder="Название (необязательно)">
           <textarea id="v2SelectorExtraArgs" class="v2-textarea compact" placeholder="--hostlist-domains=... --filter-tcp=443 ..."></textarea>
@@ -5963,7 +5968,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
-    if($('v2SelectorAutoPool').checked){try{const q=`&diagnostic_code=${encodeURIComponent(plannerDiagnostic.code||'')}&fault_domain=${encodeURIComponent(plannerDiagnostic.fault_domain||'')}&strategy_relevant=${plannerDiagnostic.strategy_relevant?'true':'false'}`;const p=await api(`/v2/candidates?target=${encodeURIComponent(target)}&mode=${encodeURIComponent($('v2SelectorMode').value)}${q}`);const hist=p.recommendation_aware?` · historical ${Number(p.planner_compatible_count||p.recommendation_hints||0)} · promoted ${Number(p.planner_promoted_count||0)} · registry +${Number(p.planner_admitted_registry_count||0)}`:'';const diag=p.planner_diagnostic_code?` · diagnostic ${p.planner_diagnostic_code}${p.planner_strategy_relevant?' / relevant':' / observe only'}`:'';$('v2SelectorPoolMeta').textContent=`Auto Pool: ${p.count||0} · ${(p.sources||[]).join(' + ')||'нет sources'}${hist}${diag}${p.warnings?.length?' · warnings '+p.warnings.length:''}`}catch(e){$('v2SelectorPoolMeta').textContent=`Auto Pool preview: ${e.message}`}}
+    if($('v2SelectorAutoPool').checked){try{const q=`&diagnostic_code=${encodeURIComponent(plannerDiagnostic.code||'')}&fault_domain=${encodeURIComponent(plannerDiagnostic.fault_domain||'')}&strategy_relevant=${plannerDiagnostic.strategy_relevant?'true':'false'}`;const p=await api(`/v2/candidates?target=${encodeURIComponent(target)}&mode=${encodeURIComponent($('v2SelectorMode').value)}${q}`);const hist=p.recommendation_aware?` · historical ${Number(p.planner_compatible_count||p.recommendation_hints||0)} · promoted ${Number(p.planner_promoted_count||0)} · registry +${Number(p.planner_admitted_registry_count||0)}`:'';const synth=Number(p.synthesis_version||0)?` · synth ${Number(p.synthesis_admitted||0)}/${Number(p.synthesis_generated||0)} · ${(p.synthesis_families||[]).join(', ')||'no families'}`:'';const diag=p.planner_diagnostic_code?` · diagnostic ${p.planner_diagnostic_code}${p.planner_strategy_relevant?' / relevant':' / observe only'}`:'';$('v2SelectorPoolMeta').textContent=`Auto Pool: ${p.count||0} · ${(p.sources||[]).join(' + ')||'нет sources'}${synth}${hist}${diag}${p.warnings?.length?' · warnings '+p.warnings.length:''}`}catch(e){$('v2SelectorPoolMeta').textContent=`Auto Pool preview: ${e.message}`}}
     const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';
     void pollV2Selector(session,controller.signal);
     try{
@@ -6255,13 +6260,14 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       isSelection?x.dataset.primaryTab==='selection':
       isMaintenance?x.dataset.primaryTab==='maintenance':
       x.dataset.tab===tab));
-    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),selectionStrip=$('nfqwsSelectionTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
+    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),selectionStrip=$('nfqwsSelectionTabs'),selectionCredit=$('nfqwsSelectionCredit'),maintenanceStrip=$('nfqwsMaintenanceTabs');
     if(configStrip)configStrip.classList.toggle('visible',isConfig);
     if(strategyStrip)strategyStrip.classList.toggle('visible',isStrategy);
     if(menuStrip)menuStrip.classList.toggle('visible',isMenu);
     if(menuCredit)menuCredit.classList.toggle('visible',isMenu);
     if(toolStrip)toolStrip.classList.toggle('visible',isTool);
     if(selectionStrip)selectionStrip.classList.toggle('visible',isSelection);
+    if(selectionCredit)selectionCredit.classList.toggle('visible',isSelection);
     if(maintenanceStrip)maintenanceStrip.classList.toggle('visible',isMaintenance);
     document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));

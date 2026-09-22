@@ -1278,7 +1278,7 @@ func validateV2SelectorRequest(req v2SelectorRequest) error {
 	if _, err := v2NormalizeDPIPropertyVector(req.PropertyVector, benchTransportHTTPS); err != nil {
 		return err
 	}
-	if len(req.Candidates) > 32 {
+	if len(req.Candidates) > v2DirectSelectorMaxCandidates {
 		return errors.New("selector candidates exceed limit")
 	}
 	for _, candidate := range req.Candidates {
@@ -1392,7 +1392,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	// Production profiles are fallback candidates, not a reservation that can
 	// starve the portable strategy corpus.
 	for i, candidate := range req.Candidates {
-		if len(templates) >= mode.MaxCandidates {
+		if len(templates) >= v2DirectSelectorMaxCandidates {
 			break
 		}
 		profile, err := v2CustomProfile(candidate.Args, target)
@@ -1419,7 +1419,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if includeProduction && len(templates) < mode.MaxCandidates {
+	if includeProduction && len(templates) < v2DirectSelectorMaxCandidates {
 		for _, p := range inventory.Profiles {
 			if !p.CandidateEligible {
 				continue
@@ -1438,7 +1438,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 				name:   fmt.Sprintf("Production profile %d", p.Index),
 				source: "production", production: true,
 			})
-			if len(templates) >= mode.MaxCandidates {
+			if len(templates) >= v2DirectSelectorMaxCandidates {
 				break
 			}
 		}
@@ -1512,7 +1512,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	benchCtx, cancelBench := context.WithTimeout(r.Context(), v2SelectorBenchTimeout(mode, concurrency))
+	benchCtx, cancelBench := context.WithTimeout(r.Context(), v2DirectBenchTimeout(mode, len(templates), concurrency))
 
 	type job struct {
 		index int
@@ -1561,33 +1561,64 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			}
 		}(sb, ruleErr)
 	}
-	go func() {
-		for i, item := range templates {
+
+	candidateSlots := make([]v2CandidateResult, len(templates))
+	tested := make([]bool, len(templates))
+	completed := 0
+	working := 0
+	next := 0
+	benchTimedOut := false
+
+executionLoop:
+	for next < len(templates) {
+		remaining := len(templates) - next
+		batchSize := v2DirectBatchSize(mode.Name, remaining)
+		if batchSize <= 0 {
+			break
+		}
+		batchEnd := next + batchSize
+
+		for i := next; i < batchEnd; i++ {
 			select {
-			case jobs <- job{index: i, item: item}:
+			case jobs <- job{index: i, item: templates[i]}:
 			case <-benchCtx.Done():
-				close(jobs)
-				wg.Wait()
-				close(results)
-				return
+				benchTimedOut = true
+				break executionLoop
 			}
 		}
-		close(jobs)
-		wg.Wait()
-		close(results)
-	}()
-	candidates := make([]v2CandidateResult, len(templates))
-	completed := 0
-	for jr := range results {
-		candidates[jr.index] = jr.result
-		completed++
-		setV2SelectorProgress(
-			sessionID, "BENCH", completed, len(templates),
-			fmt.Sprintf("completed %d of %d candidates", completed, len(templates)), false, false,
-		)
+
+		for received := 0; received < batchSize; received++ {
+			select {
+			case jr := <-results:
+				candidateSlots[jr.index] = jr.result
+				tested[jr.index] = true
+				completed++
+				if jr.result.ResultClass == "WORKING" {
+					working++
+				}
+				setV2SelectorProgress(
+					sessionID, "BENCH", completed, len(templates),
+					fmt.Sprintf("completed %d of %d candidates · working %d", completed, len(templates), working), false, false,
+				)
+			case <-benchCtx.Done():
+				benchTimedOut = true
+				break executionLoop
+			}
+		}
+
+		next = batchEnd
+		if v2DirectShouldStopAfterBatch(mode.Name, working, next, len(templates)) {
+			break
+		}
 	}
-	benchTimedOut := benchCtx.Err() != nil
+
+	close(jobs)
+	wg.Wait()
 	cancelBench()
+
+	if benchCtx.Err() != nil {
+		benchTimedOut = true
+	}
 	if benchTimedOut {
 		reason := fmt.Sprintf("selector candidate time budget exhausted after %d of %d candidates", completed, len(templates))
 		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), reason, true, true)
@@ -1597,6 +1628,13 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			"cleanup_baseline_after": afterFailure.CleanupBaselineProven,
 		})
 		return
+	}
+
+	candidates := make([]v2CandidateResult, 0, completed)
+	for i := range candidateSlots {
+		if tested[i] {
+			candidates = append(candidates, candidateSlots[i])
+		}
 	}
 	for _, c := range candidates {
 		if !c.CleanupProven {
@@ -1621,7 +1659,6 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
 	mutationRound := v2MutationRoundPlan{
 		Trace: v2MutationRoundTrace{
 			Version: v2MutationSearchVersion,

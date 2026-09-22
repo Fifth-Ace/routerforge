@@ -6017,8 +6017,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
     if($('v2SelectorAutoPool').checked){
-      const limits={fast:8,normal:16,thorough:32},limit=limits[String($('v2SelectorMode').value||'normal')]||16;
-      $('v2SelectorPoolMeta').textContent=`Direct Auto Pool: до ${limit} portable candidates · persistent worker sandbox · source-port ranges · isolated NFQUEUE`;
+      const m=String($('v2SelectorMode').value||'normal');
+      const breadth=m==='fast'?'Fast: 30% HTTPS corpus':m==='normal'?'Normal: batches of 20 until 2 WORKING':'Thorough: full HTTPS corpus';
+      $('v2SelectorPoolMeta').textContent=`Direct Auto Pool · ${breadth} · persistent worker sandbox · isolated NFQUEUE`;
     }
     const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';$('v2SelectorTrace').style.display='none';$('v2SelectorTrace').innerHTML='';
     void pollV2Selector(session,controller.signal);

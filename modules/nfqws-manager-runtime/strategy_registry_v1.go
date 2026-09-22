@@ -30,10 +30,11 @@ type v2StrategyRegistryEvidence struct {
 }
 
 type v2StrategyRegistryCapabilities struct {
-	BenchTransports []string `json:"bench_transports"`
-	CandidateReady  bool     `json:"candidate_ready"`
-	DesyncCount     int      `json:"desync_count"`
-	StrategyTags    []int    `json:"strategy_tags,omitempty"`
+	BenchTransports      []string                       `json:"bench_transports"`
+	CandidateReady       bool                           `json:"candidate_ready"`
+	DesyncCount          int                            `json:"desync_count"`
+	StrategyTags         []int                          `json:"strategy_tags,omitempty"`
+	ExternalDependencies []v2StrategyExternalDependency `json:"external_dependencies,omitempty"`
 }
 
 type v2StrategyRegistryEntry struct {
@@ -217,9 +218,13 @@ func v2RegistryCapabilities(args []string) v2StrategyRegistryCapabilities {
 	portable := v2PortableCandidateArgs(args)
 	profile := analyzeBenchStrategyProfile(0, portable)
 	out := v2StrategyRegistryCapabilities{
-		BenchTransports: []string{},
-		DesyncCount:     profile.DesyncCount,
-		StrategyTags:    append([]int{}, profile.StrategyTags...),
+		BenchTransports:      []string{},
+		DesyncCount:          profile.DesyncCount,
+		StrategyTags:         append([]int{}, profile.StrategyTags...),
+		ExternalDependencies: v2StrategyExternalDependencies(portable),
+	}
+	if len(out.ExternalDependencies) > 0 {
+		return out
 	}
 	for _, transport := range benchTransportProfiles {
 		if !transport.Implemented {

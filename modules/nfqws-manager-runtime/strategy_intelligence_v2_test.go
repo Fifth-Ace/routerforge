@@ -223,3 +223,67 @@ func TestV2CustomProfileCompilesAwaySelectionFiles(t *testing.T) {
 		t.Fatalf("target hostlist-domain missing: %+v", profile.Args)
 	}
 }
+func TestV2InspectProfileMatchReasonsUsesIPSetIPv4Match(t *testing.T) {
+	profile := analyzeBenchStrategyProfile(2, []string{
+		"--ipset=/opt/etc/nfqws2/lists/video.list",
+		"--filter-tcp=443",
+		"--filter-l7=tls",
+		"--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	})
+	reasons := v2InspectProfileMatchReasons(
+		"video.example",
+		profile,
+		map[string]bool{},
+		map[string]bool{"video.list": true},
+	)
+	if len(reasons) != 1 || reasons[0] != "ipset video.list" {
+		t.Fatalf("unexpected ipset inspect reasons: %v", reasons)
+	}
+	if got := v2InspectProfileMatchReasons(
+		"video.example",
+		profile,
+		map[string]bool{"video.list": true},
+		map[string]bool{},
+	); len(got) != 0 {
+		t.Fatalf("domain-only match incorrectly satisfied ipset selector: %v", got)
+	}
+}
+
+func TestV2InspectProfileMatchReasonsHonorsExcludeVeto(t *testing.T) {
+	profile := analyzeBenchStrategyProfile(2, []string{
+		"--hostlist=/opt/etc/nfqws2/lists/user.list",
+		"--hostlist-exclude=/opt/etc/nfqws2/lists/exclude.list",
+		"--filter-tcp=443",
+		"--filter-l7=tls",
+		"--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	})
+	reasons := v2InspectProfileMatchReasons(
+		"example.com",
+		profile,
+		map[string]bool{"user.list": true, "exclude.list": true},
+		map[string]bool{},
+	)
+	if len(reasons) != 0 {
+		t.Fatalf("excluded target must not appear as inspector profile match: %v", reasons)
+	}
+}
+
+func TestV2InspectProfileMatchReasonsIncludesSelectorlessProfile(t *testing.T) {
+	profile := analyzeBenchStrategyProfile(2, []string{
+		"--filter-tcp=443",
+		"--filter-l7=tls",
+		"--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	})
+	reasons := v2InspectProfileMatchReasons(
+		"example.com",
+		profile,
+		map[string]bool{},
+		map[string]bool{},
+	)
+	if len(reasons) != 1 || reasons[0] != "profile has no target selector" {
+		t.Fatalf("selectorless production profile must be visible in inspector: %v", reasons)
+	}
+}

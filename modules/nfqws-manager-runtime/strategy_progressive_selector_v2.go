@@ -501,14 +501,14 @@ func v2ProgressiveChooseRecommendation(baseline v2CandidateResult, candidates []
 	return true, &copyBest, true, "candidate reached repeated protocol evidence and cleanup stability for " + transport.ID
 }
 
-func v2RecordProgressiveEvidence(target, configSHA string, transport benchTransportProfile, candidates []v2CandidateResult) error {
+func v2RecordProgressiveEvidence(target, configSHA string, transport benchTransportProfile, candidates []v2CandidateResult) (bool, error) {
 	doc, err := readV2TargetMemory()
 	if err != nil {
-		return err
+		return false, err
 	}
 	target, err = v2NormalizeTarget(target)
 	if err != nil {
-		return err
+		return false, err
 	}
 	now := v2TargetMemoryNow().UTC().Format(time.RFC3339)
 	env := v2ProgressiveMemoryEnvironmentFingerprint(configSHA, transport.ID)
@@ -548,7 +548,7 @@ func v2RecordProgressiveEvidence(target, configSHA string, transport benchTransp
 		changed = true
 	}
 	if !changed {
-		return nil
+		return false, nil
 	}
 	sort.SliceStable(doc.Entries, func(i, j int) bool {
 		return doc.Entries[i].LastVerified > doc.Entries[j].LastVerified
@@ -556,7 +556,10 @@ func v2RecordProgressiveEvidence(target, configSHA string, transport benchTransp
 	if len(doc.Entries) > v2TargetMemoryMax {
 		doc.Entries = doc.Entries[:v2TargetMemoryMax]
 	}
-	return writeV2TargetMemory(doc)
+	if err := writeV2TargetMemory(doc); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func handleV2ProgressiveSelector(w http.ResponseWriter, r *http.Request) {
@@ -787,10 +790,10 @@ func handleV2ProgressiveSelector(w http.ResponseWriter, r *http.Request) {
 	memoryUpdated := false
 	memoryWarning := ""
 	if ok {
-		if memoryErr := v2RecordProgressiveEvidence(target, status.ConfigSHA256, transport, allCandidates); memoryErr != nil {
+		if updated, memoryErr := v2RecordProgressiveEvidence(target, status.ConfigSHA256, transport, allCandidates); memoryErr != nil {
 			memoryWarning = memoryErr.Error()
-		} else if len(allCandidates) > 0 {
-			memoryUpdated = true
+		} else {
+			memoryUpdated = updated
 		}
 	}
 	response := v2ProgressiveSelectorResponse{

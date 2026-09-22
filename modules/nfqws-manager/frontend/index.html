@@ -1135,7 +1135,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="configs">Сохранённые конфиги <span id="configLibraryCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="config">Полный конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="geo-assets">Геоданные</button>
+  <button class="tab" data-tab="geo-assets">Геоданные <span class="nav-meta">В разработке</span></button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-strategy-tabs" id="nfqwsStrategyTabs" aria-label="Стратегии RouterForge">
@@ -2167,20 +2167,22 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-geo-assets" class="view">
   <div class="blob-shell">
     <article class="panel">
-      <div class="panel-head"><div><h2>Геоданные</h2><div class="section-kicker">импорт GeoSite / GeoIP и создание обычных списков для nfqws2</div></div><span id="geoState" class="config-badge">ГОТОВО</span></div>
-      <div class="setup-row"><div class="setup-label"><strong>Файл геоданных</strong>geosite.dat / geoip.dat / текстовый список</div><div><input id="geoFile" type="file"><select id="geoKind" class="setup-select" style="margin-top:6px"><option value="geosite">GeoSite</option><option value="geoip">GeoIP</option><option value="text">Текст</option></select></div></div>
-      <div class="setup-row"><div class="setup-label"><strong>Источник</strong>необязательная информация о происхождении файла</div><div><input id="geoSource" class="setup-input" placeholder="Название источника"><input id="geoSourceRef" class="setup-input" style="margin-top:6px" placeholder="Версия или идентификатор"></div></div>
-      <div class="toolbar"><button id="geoUpload" class="primary">Загрузить файл</button><button id="geoSaveProvenance">Сохранить источник</button><button id="geoRefresh">Обновить</button></div>
-      <div id="geoAssets" class="blob-list" style="margin-top:10px"><div class="empty">Файлы геоданных ещё не загружены.</div></div>
-      <div class="setup-row" style="margin-top:10px"><div class="setup-label"><strong>Категория</strong>сначала можно посмотреть содержимое, затем сохранить его как список</div><div><select id="geoAssetSelect" class="setup-select"></select><select id="geoCategorySelect" class="setup-select" style="margin-top:6px"></select><input id="geoListName" class="setup-input mono" style="margin-top:6px" placeholder="geo-category.list"></div></div>
-      <div class="toolbar"><button id="geoPreview">Посмотреть</button><button id="geoSaveList">Сохранить как список</button></div>
-      <pre id="geoPreviewResult" class="v2-args" style="max-height:260px;overflow:auto">Просмотр ещё не запускался.</pre>
-      <div id="geoAutohostlist" class="setup-note" style="margin-top:8px">Проверка поддержки autohostlist ещё не выполнялась.</div>
-      <div class="setup-note" style="margin-top:8px">Создание списка не меняет рабочую конфигурацию nfqws2. Подключить сохранённый список можно во вкладке «Конфигурация».</div>
+      <div class="panel-head">
+        <div>
+          <h2>Геоданные</h2>
+          <div class="section-kicker">GeoSite / GeoIP и геосписки</div>
+        </div>
+        <span class="config-badge">В РАЗРАБОТКЕ</span>
+      </div>
+      <div class="setup-note" style="margin-top:10px">
+        Раздел готовится. Здесь появятся импорт GeoSite / GeoIP, работа с категориями и создание геосписков для nfqws2.
+      </div>
+      <div class="setup-note" style="margin-top:8px">
+        Текущие списки nfqws2 остаются доступны во вкладке «Списки». Рабочая конфигурация и runtime этим разделом сейчас не изменяются.
+      </div>
     </article>
   </div>
-</section>
-<section id="view-catalog" class="view">
+</section><section id="view-catalog" class="view">
   <div class="catalog-shell">
     <div class="catalog-hero">
       <div>
@@ -5989,7 +5991,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${tab}`));
     if(tab==='scripts')loadScripts();
     if(tab==='upstream-lists')loadListSources();
-    if(tab==='geo-assets')loadGeoAssets();
+
     if(tab==='clienthello'){loadBlobs();loadClientHelloCapabilities();}
     if(tab==='preflight')renderPreflight();
     if(tab==='dpi-detector')loadDPIDetector(true);

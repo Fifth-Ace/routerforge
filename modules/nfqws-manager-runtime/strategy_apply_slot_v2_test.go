@@ -65,7 +65,7 @@ func TestV2ProfileMatchesTargetWithListsExcludeVetoesInclude(t *testing.T) {
 	if v2ProfileMatchesTargetWithLists("example.com", profile, map[string]bool{
 		"user.list":    true,
 		"exclude.list": true,
-	}) {
+	}, map[string]bool{}) {
 		t.Fatal("exclude-list match must veto a positive include-list match")
 	}
 }

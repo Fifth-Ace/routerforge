@@ -530,8 +530,10 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 	seen := map[string]bool{}
 	sourceSet := map[string]bool{}
 
-	for _, item := range v2CorpusCandidatesForTransport(transport) {
-		if len(req.Candidates) >= mode.MaxCandidates {
+	corpus := v2CorpusCandidatesForTransport(transport)
+	autoLimit := v2DirectAutoPoolLimit(mode.Name, len(corpus))
+	for _, item := range corpus {
+		if len(req.Candidates) >= autoLimit {
 			break
 		}
 		fp := v2CandidateTechniqueFingerprint(item.Args)
@@ -550,7 +552,7 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 	}
 
 	for _, existing := range external {
-		if len(req.Candidates) >= mode.MaxCandidates {
+		if len(req.Candidates) >= v2DirectSelectorMaxCandidates {
 			break
 		}
 		fp := v2CandidateTechniqueFingerprint(existing.Args)

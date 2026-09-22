@@ -811,6 +811,24 @@ button{min-height:var(--ui-control-h)}
 .v2-stats span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}
 .v2-stats strong{display:block;margin-top:4px;font-size:12px}
 .v2-recommendation{margin-bottom:12px}
+.v2-search-trace{display:grid;gap:9px;margin:0 0 12px;padding:11px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--surface2) 78%,var(--surface))}
+.v2-search-trace-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.v2-search-trace-head>div{display:grid;gap:3px;min-width:0}
+.v2-search-trace-head strong{font-size:11px;color:var(--text)}
+.v2-search-trace-head span{font-size:9.5px;color:var(--muted);line-height:1.4;overflow-wrap:anywhere}
+.v2-search-trace-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.v2-search-trace-stat{padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+.v2-search-trace-stat span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.04em}
+.v2-search-trace-stat strong{display:block;margin-top:4px;font-size:11px;overflow-wrap:anywhere}
+.v2-search-trace-seeds{display:grid;gap:6px}
+.v2-search-trace-seed{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:8px;align-items:start;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+.v2-search-trace-rank{display:grid;place-items:center;min-height:30px;border-radius:5px;background:var(--surface2);color:var(--accent);font:800 10px/1 ui-monospace,Consolas,monospace}
+.v2-search-trace-seed-main{min-width:0;display:grid;gap:3px}
+.v2-search-trace-seed-main strong{font-size:10.5px;overflow-wrap:anywhere}
+.v2-search-trace-seed-main span{color:var(--muted);font-size:9px;line-height:1.4;overflow-wrap:anywhere}
+.v2-search-trace-empty{color:var(--muted);font-size:9.5px;line-height:1.4}
+@media(max-width:760px){.v2-search-trace-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.v2-search-trace-head{flex-direction:column}}
+@media(max-width:520px){.v2-search-trace-grid{grid-template-columns:1fr}.v2-search-trace-seed{grid-template-columns:36px minmax(0,1fr)}.v2-search-trace-seed>.v2-pill{grid-column:2}}
 .v2-result-title{font-weight:700}
 .v2-args{margin-top:5px;padding:7px;border-radius:6px;background:var(--code);font:10px/1.45 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
 .v2-library-actions{display:flex;gap:5px;flex-wrap:wrap}
@@ -1534,6 +1552,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     <article class="panel">
       <div class="panel-head"><div><h2>Результаты</h2><div class="section-kicker">reliability / completeness first, затем TTFB / throughput</div></div></div>
       <div id="v2SelectorRecommendation" class="v2-recommendation"><div class="analysis-empty">Автоподбор ещё не запускался.</div></div>
+      <div id="v2SelectorTrace" class="v2-search-trace" style="display:none"></div>
       <div id="v2SelectorResults" class="v2-list"></div>
     </article>
     <article id="v2SelectorApplyPanel" class="panel" style="display:none">
@@ -5928,6 +5947,34 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const attempts=c?.attempts||[],packets=attempts.reduce((n,a)=>n+Number(a.outbound_queue_packets||0)+Number(a.inbound_queue_packets||0),0);
     return`<div class="v2-row ${v2Tone(c?.result_class)}"><div><div class="v2-result-title">${esc(label||c?.candidate_name||c?.candidate_id||'candidate')}</div><div class="meta">${esc(c?.candidate_source||'')}</div></div><div><div class="value">${esc(c?.result_class||'—')} · success ${Math.round(Number(c?.success_rate||0)*100)}% · complete ${Math.round(Number(c?.complete_rate||0)*100)}%</div><div class="meta">infra=${c?.infrastructure_ok?'PASS':'FAIL'} · cleanup=${c?.cleanup_proven?'PASS':'FAIL'} · packets=${packets} · TTFB=${c?.median_ttfb_ms||'—'} ms · throughput=${c?.median_throughput_bps||'—'} B/s</div><div class="v2-args">${esc(v2ArgsText(c?.args||[]))}</div></div>${v2Pill(c?.result_class||'—')}</div>`;
   }
+  function renderV2SelectorSearchTrace(d){
+    const root=$('v2SelectorTrace');if(!root)return;
+    const stop=d?.mutation_stop,round=d?.mutation_round;
+    if(!stop&&!round){root.style.display='none';root.innerHTML='';return}
+    const seedPlan=stop?.seed_plan||round?.seed_plan||{},seeds=Array.isArray(seedPlan.seeds)?seedPlan.seeds:[];
+    const continueSearch=stop?!!stop.continue:!!round?.executed;
+    const decisionCode=stop?.code||(round?.executed?'CONTINUE_ADAPTIVE_SEARCH':'NO_TRACE');
+    const decisionReason=stop?.reason||(round?.executed?'Adaptive mutation round выполнен.':'Нет данных stop-policy.');
+    const budget=Number(stop?.budget??round?.budget??0),admitted=Number(round?.admitted||0),generated=Number(round?.generated||0),duplicates=Number(round?.duplicates||0),completed=Number(round?.completed||0);
+    const executed=!!round?.executed;
+    const decisionTone=continueSearch?'warn':'good';
+    const seedHTML=seeds.length?seeds.map(s=>{
+      const item=s.seed||{},result=s.result||{},fp=String(s.fingerprint||item.fingerprint||'');
+      const family=item.family||'—',source=item.source||result.candidate_source||'—',name=item.name||result.candidate_name||result.candidate_id||'seed';
+      const meta=`${source} · ${family}${fp?` · ${fp.slice(0,16)}`:''}`;
+      return `<div class="v2-search-trace-seed"><div class="v2-search-trace-rank">#${Number(s.rank||0)||'—'}</div><div class="v2-search-trace-seed-main"><strong>${esc(name)}</strong><span>${esc(meta)}</span><span>${esc(s.reason||'')}</span></div>${v2Pill(s.outcome||'—')}</div>`;
+    }).join(''):'<div class="v2-search-trace-empty">Eligible mutation seeds не выбраны.</div>';
+    root.style.display='grid';
+    root.innerHTML=`<div class="v2-search-trace-head"><div><strong>Adaptive Search Trace</strong><span>${esc(decisionCode)} · ${esc(decisionReason)}</span></div>${v2Pill(continueSearch?'CONTINUE':'STOP')}</div>
+      <div class="v2-search-trace-grid">
+        <div class="v2-search-trace-stat"><span>Budget</span><strong>${budget}</strong></div>
+        <div class="v2-search-trace-stat"><span>Seeds</span><strong>${Number(seedPlan.selected||0)} / ${Number(seedPlan.eligible||0)}</strong></div>
+        <div class="v2-search-trace-stat"><span>Mutants</span><strong>${admitted} admitted · ${generated} generated</strong></div>
+        <div class="v2-search-trace-stat"><span>Execution</span><strong>${executed?`${completed}/${admitted} complete`:'SKIPPED'}${duplicates?` · ${duplicates} dup`:''}</strong></div>
+      </div>
+      <div class="v2-search-trace-seeds">${seedHTML}</div>`;
+  }
+
   function renderV2SelectorResult(d){
     v2SelectorLast=d;$('v2SelectorCleanup').textContent=d.cleanup_baseline_after?'PASS':'FAIL';$('v2SelectorWorkers').textContent=String(d.concurrency||'—');
     const best=d.recommendation_available?`${d.recommended_candidate_name||d.recommended_candidate_id||('Profile '+d.recommended_profile_index)} · ${d.recommended_candidate_source||'production'}`:'Нет рекомендации';
@@ -5938,6 +5985,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const plan=(d.planner_plan||[]).slice(0,6);
     const planHTML=plan.length?`<div class="v2-boundary" style="margin-top:8px"><b>Pre-live planner v${Number(d.planner_version||1)}</b> · historical/diagnostic hints only; live outcome below.<br>${plan.map(x=>`${Number(x.planner_effective_order||0)}. ${esc(x.name||x.id||'candidate')} · ${esc(x.source||'')} · ${esc(x.family||'')} · ${esc(x.planner_reason||'normal order')}`).join('<br>')}</div>`:'';
     $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(d.recommendation_reason||'')}</div><div class="meta">${esc(d.apply_gate_reason||'')}</div><div class="meta">${esc(poolMeta)}</div></div>${v2Pill(d.recommendation_available?'RECOMMEND':'NO CHANGE')}</div>${planHTML}`;
+    renderV2SelectorSearchTrace(d);
     $('v2SelectorResults').innerHTML=renderV2SelectorCandidate(d.baseline,'Baseline')+(d.candidates||[]).map(c=>renderV2SelectorCandidate(c)).join('');
     const panel=$('v2SelectorApplyPanel');panel.style.display=d.recommendation_available?'block':'none';$('v2SelectorApplyReason').textContent=d.apply_gate_reason||'';
     $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorApply').disabled=true;$('v2SelectorPreviewBody').textContent=d.apply_gate_eligible?'Recommendation готова. Сначала постройте deterministic Preview.':'Для этого winner автоматический receipt Apply не выдаётся; используйте его source workflow / Candidate Library.';
@@ -5981,7 +6029,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
     if($('v2SelectorAutoPool').checked){try{const q=`&diagnostic_code=${encodeURIComponent(plannerDiagnostic.code||'')}&fault_domain=${encodeURIComponent(plannerDiagnostic.fault_domain||'')}&strategy_relevant=${plannerDiagnostic.strategy_relevant?'true':'false'}`;const p=await api(`/v2/candidates?target=${encodeURIComponent(target)}&mode=${encodeURIComponent($('v2SelectorMode').value)}${q}`);const hist=p.recommendation_aware?` · historical ${Number(p.planner_compatible_count||p.recommendation_hints||0)} · promoted ${Number(p.planner_promoted_count||0)} · registry +${Number(p.planner_admitted_registry_count||0)}`:'';const synth=Number(p.synthesis_version||0)?` · synth ${Number(p.synthesis_admitted||0)}/${Number(p.synthesis_generated||0)} · ${(p.synthesis_families||[]).join(', ')||'no families'}`:'';const prop=propertyVector?` · property ${(propertyVector.preferred_families||[]).join(', ')||'broad'}`:'';const diag=p.planner_diagnostic_code?` · diagnostic ${p.planner_diagnostic_code}${p.planner_strategy_relevant?' / relevant':' / observe only'}`:'';$('v2SelectorPoolMeta').textContent=`Auto Pool: ${p.count||0} · ${(p.sources||[]).join(' + ')||'нет sources'}${synth}${prop}${hist}${diag}${p.warnings?.length?' · warnings '+p.warnings.length:''}`}catch(e){$('v2SelectorPoolMeta').textContent=`Auto Pool preview: ${e.message}`}}
-    const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';
+    const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';$('v2SelectorTrace').style.display='none';$('v2SelectorTrace').innerHTML='';
     void pollV2Selector(session,controller.signal);
     try{
       const d=await api('/v2/selector',{method:'POST',signal:controller.signal,body:JSON.stringify({

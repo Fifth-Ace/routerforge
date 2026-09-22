@@ -59,7 +59,7 @@ func TestRecommendationSemanticChainPreservesMatureStrategy(t *testing.T) {
 		OK: true, Version: v2StrategyRegistryVersion, ReadOnly: true,
 		Entries: []v2StrategyRegistryEntry{{
 			ID: "semantic-chain", Name: "Semantic Chain", Protocol: "https", Family: "split",
-			Fingerprint: "semantic-chain-fingerprint",
+			Fingerprint:  "semantic-chain-fingerprint",
 			Capabilities: v2StrategyRegistryCapabilities{CandidateReady: true},
 			Evidence: v2StrategyRegistryEvidence{
 				Targets: 5, VerifiedCount: 5, WorkingCount: 5,

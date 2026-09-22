@@ -1435,7 +1435,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			seen[fp] = true
 			templates = append(templates, selectorTemplate{
 				profile: retargeted, id: fmt.Sprintf("production-%d", p.Index),
-				name: fmt.Sprintf("Production profile %d", p.Index),
+				name:   fmt.Sprintf("Production profile %d", p.Index),
 				source: "production", production: true,
 			})
 			if len(templates) >= mode.MaxCandidates {

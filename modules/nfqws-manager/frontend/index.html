@@ -6010,7 +6010,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     try{await Promise.all([v2EnsureStatus(),v2LoadLibrary()])}catch(e){notice(e.message,'error');return}
     let plannerDiagnostic={code:'',fault_domain:'',strategy_relevant:false};
     let propertyVector=null;
-    const candidates=[];    const candidates=[];
+    const candidates=[];
     if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}

@@ -171,8 +171,11 @@ func v2MutationSelectSeeds(mode benchAutoTuneMode, transport benchTransportProfi
 		}
 		if existing, found := unique[fp]; found {
 			plan.Duplicates++
-			if entry.score > existing.score ||
-				(entry.score == existing.score && v2CandidateBetter(entry.seed.Result, existing.seed.Result)) {
+			entryPriority := v2MutationOutcomePriority(entry.seed.Outcome)
+			existingPriority := v2MutationOutcomePriority(existing.seed.Outcome)
+			if entryPriority > existingPriority ||
+				(entryPriority == existingPriority && (entry.score > existing.score ||
+					(entry.score == existing.score && v2CandidateBetter(entry.seed.Result, existing.seed.Result)))) {
 				unique[fp] = entry
 			}
 			continue
@@ -185,6 +188,11 @@ func v2MutationSelectSeeds(mode benchAutoTuneMode, transport benchTransportProfi
 	}
 	plan.Eligible = len(rankedSeeds)
 	sort.SliceStable(rankedSeeds, func(i, j int) bool {
+		leftPriority := v2MutationOutcomePriority(rankedSeeds[i].seed.Outcome)
+		rightPriority := v2MutationOutcomePriority(rankedSeeds[j].seed.Outcome)
+		if leftPriority != rightPriority {
+			return leftPriority > rightPriority
+		}
 		if rankedSeeds[i].score != rankedSeeds[j].score {
 			return rankedSeeds[i].score > rankedSeeds[j].score
 		}

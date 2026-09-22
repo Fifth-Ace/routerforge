@@ -1085,6 +1085,22 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .clienthello-candidate>div{display:grid;gap:3px;min-width:0}.clienthello-candidate strong{font-size:9.5px}.clienthello-candidate span{font-size:8px;color:var(--muted);overflow-wrap:anywhere}
 @media(max-width:760px){.clienthello-grid{grid-template-columns:1fr}}
 
+
+/* P28A — user-facing typography and diagnostics cleanup. */
+.nfqws-primary-tabs .tab,.nfqws-tool-tabs .tab{font-size:13px;line-height:1.3}
+.panel-head h2{font-size:15px;line-height:1.3}
+.panel-head .section-kicker,.section-kicker{font-size:12px;line-height:1.45}
+.v2-label,.v2-check,.v2-boundary,.setup-label,.setup-note{font-size:12px;line-height:1.5}
+.v2-result-title{font-size:14px;line-height:1.35}
+.v2-row .value{font-size:13px;line-height:1.45}
+.v2-row .meta{font-size:12px;line-height:1.45}
+.v2-stats span{font-size:11px}
+.v2-stats strong{font-size:14px}
+.v2-args{font-size:11.5px;line-height:1.5}
+.v2-tech-details{margin-top:8px;border-top:1px solid var(--border);padding-top:7px}
+.v2-tech-details summary{color:var(--muted);font-size:11px;cursor:pointer;user-select:none}
+.v2-tech-details pre{margin:7px 0 0;padding:8px 9px;max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--code);border:1px solid var(--border);border-radius:6px;color:var(--muted);font:11px/1.45 ui-monospace,Consolas,monospace}
+#view-selector-v2 .v2-search-trace{display:none!important}
 </style>
 </head>
 <body>
@@ -1119,7 +1135,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <button class="tab" data-tab="configs">Сохранённые конфиги <span id="configLibraryCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="config">Полный конфиг</button>
   <button class="tab" data-tab="lists">Списки <span id="listCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="geo-assets">GeoSite / GeoIP</button>
+  <button class="tab" data-tab="geo-assets">Геоданные</button>
 </nav>
 
 <nav class="tabs nfqws-tool-tabs nfqws-strategy-tabs" id="nfqwsStrategyTabs" aria-label="Стратегии RouterForge">
@@ -1163,12 +1179,6 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <a href="https://github.com/rndnaame/nfqws-menu/" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
   <span id="testLabTabState" hidden></span><span id="sandboxTabState" hidden></span>
 </div>
-
-<div id="nfqwsSelectionCredit" class="strategy-import-credit nfqws-menu-credit">
-  <div><strong>AutoSelect · идеи и референсы</strong><span>Подход к измерению свойств DPI и составлению стратегии вдохновлён z2k; изолированный перебор и ranking — nfqws2-keenetic-strategy-selector. Реализация RouterForge независимая.</span></div>
-  <div class="toolbar"><a class="nfqws-menu-credit-link" href="https://github.com/necronicle/z2k" target="_blank" rel="noopener noreferrer">z2k ↗</a><a class="nfqws-menu-credit-link" href="https://github.com/Omn1z/nfqws2-keenetic-strategy-selector" target="_blank" rel="noopener noreferrer">strategy-selector ↗</a></div>
-</div>
-
 
 <main>
 
@@ -1274,7 +1284,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <article class="panel">
           <div class="panel-head"><div><h2>Fingerprint / Burst</h2><div class="section-kicker">используется test 6</div></div></div>
           <div class="v2-two">
-            <label class="v2-label">Attempts<input id="dpiWebBurst" class="search" type="number" min="1" max="100" value="5"></label>
+            <label class="v2-label">Попытки<input id="dpiWebBurst" class="search" type="number" min="1" max="100" value="5"></label>
             <label class="v2-label">Timeout, sec<input id="dpiWebBurstTimeout" class="search" type="number" min="1" max="120" value="8"></label>
             <label class="v2-label">TLS<select id="dpiWebBurstTLS" class="search"><option value="1.3+1.2" selected>1.3 + 1.2</option><option value="1.3">1.3</option><option value="1.2">1.2</option></select></label>
             <label class="v2-label">ALPN<select id="dpiWebBurstALPN" class="search"><option value="h2" selected>h2</option><option value="http/1.1">http/1.1</option></select></label>
@@ -1524,42 +1534,42 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <article class="panel">
         <label class="v2-label">Цель<input id="v2SelectorTarget" class="search" placeholder="youtube.com" autocomplete="off"></label>
         <div class="v2-inline">
-          <label>Режим<select id="v2SelectorMode" class="search"><option value="fast">Fast</option><option value="normal" selected>Normal</option><option value="thorough">Thorough</option></select></label>
-          <label>Workers<select id="v2SelectorConcurrency" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
+          <label>Режим<select id="v2SelectorMode" class="search"><option value="fast">Быстрый</option><option value="normal" selected>Обычный</option><option value="thorough">Полный</option></select></label>
+          <label>Потоки<select id="v2SelectorConcurrency" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
         </div>
-        <label class="v2-check"><input id="v2SelectorProduction" type="checkbox" checked> Production profiles из live nfqws2</label>
-        <label class="v2-check"><input id="v2SelectorAutoPool" type="checkbox" checked> Другие стратегии + RouterForge corpus · direct test</label>
-        <label class="v2-check"><input id="v2SelectorLibrary" type="checkbox" checked> Сохранённые стратегии из Candidate Library</label>
-        <div id="v2SelectorPoolMeta" class="v2-boundary">Direct catalog: RouterForge реально тестирует portable corpus по очереди. Planner / synthesis / adaptive mutation не участвуют в выборе.</div>
-        <label class="v2-label">Дополнительный candidate
+        <label class="v2-check"><input id="v2SelectorProduction" type="checkbox" checked> Профили текущей конфигурации nfqws2</label>
+        <label class="v2-check"><input id="v2SelectorAutoPool" type="checkbox" checked> Стратегии из встроенного пула RouterForge</label>
+        <label class="v2-check"><input id="v2SelectorLibrary" type="checkbox" checked> Сохранённые пользовательские стратегии</label>
+        <div id="v2SelectorPoolMeta" class="v2-boundary">RouterForge проверяет стратегии из встроенного пула реальными HTTPS-запросами.</div>
+        <label class="v2-label">Дополнительная стратегия
           <input id="v2SelectorExtraName" class="search" placeholder="Название (необязательно)">
           <textarea id="v2SelectorExtraArgs" class="v2-textarea compact" placeholder="--hostlist-domains=... --filter-tcp=443 ..."></textarea>
         </label>
-        <div class="toolbar"><button id="v2SelectorRun" class="primary">Запустить Автоподбор</button><button id="v2SelectorStop" disabled>Стоп</button></div>
+        <div class="toolbar"><button id="v2SelectorRun" class="primary">Запустить подбор</button><button id="v2SelectorStop" disabled>Стоп</button></div>
       </article>
       <article class="panel">
-        <div class="panel-head"><div><h2>Live progress</h2><div id="v2SelectorSession" class="section-kicker mono">—</div></div></div>
+        <div class="panel-head"><div><h2>Ход проверки</h2><div id="v2SelectorSession" class="section-kicker mono">—</div></div></div>
         <div class="testlab-progress"><span id="v2SelectorBar" style="width:0%"></span></div>
         <div id="v2SelectorProgressText" class="v2-boundary">Готов к запуску.</div>
         <div class="v2-stats">
-          <div><span>Phase</span><strong id="v2SelectorPhase">IDLE</strong></div>
-          <div><span>Completed</span><strong id="v2SelectorCompleted">0 / 0</strong></div>
-          <div><span>Workers</span><strong id="v2SelectorWorkers">—</strong></div>
-          <div><span>Cleanup</span><strong id="v2SelectorCleanup">—</strong></div>
+          <div><span>Этап</span><strong id="v2SelectorPhase">ОЖИДАНИЕ</strong></div>
+          <div><span>Проверено</span><strong id="v2SelectorCompleted">0 / 0</strong></div>
+          <div><span>Потоки</span><strong id="v2SelectorWorkers">—</strong></div>
+          <div><span>Очистка</span><strong id="v2SelectorCleanup">—</strong></div>
         </div>
       </article>
     </div>
     <article class="panel">
-      <div class="panel-head"><div><h2>Результаты</h2><div class="section-kicker">reliability / completeness first, затем TTFB / throughput</div></div></div>
+      <div class="panel-head"><div><h2>Результаты</h2><div class="section-kicker">сначала надёжность ответа, затем задержка и скорость</div></div></div>
       <div id="v2SelectorRecommendation" class="v2-recommendation"><div class="analysis-empty">Автоподбор ещё не запускался.</div></div>
-      <div id="v2SelectorTrace" class="v2-search-trace" style="display:none"></div>
+
       <div id="v2SelectorResults" class="v2-list"></div>
     </article>
     <article id="v2SelectorApplyPanel" class="panel" style="display:none">
-      <div class="panel-head"><div><h2>Safe Apply</h2><div class="section-kicker">одноразовый recommendation token → deterministic preview → existing Smart Apply</div></div></div>
+      <div class="panel-head"><div><h2>Применение</h2><div class="section-kicker">предпросмотр изменений перед применением рабочей стратегии</div></div></div>
       <div id="v2SelectorApplyReason" class="v2-boundary"></div>
-      <div class="toolbar"><button id="v2SelectorPreview" disabled>Построить Preview</button><button id="v2SelectorApply" class="primary" disabled>Применить через Smart Apply</button></div>
-      <pre id="v2SelectorPreviewBody" class="catalog-preview">Preview ещё не построен.</pre>
+      <div class="toolbar"><button id="v2SelectorPreview" disabled>Предпросмотр</button><button id="v2SelectorApply" class="primary" disabled>Применить стратегию</button></div>
+      <pre id="v2SelectorPreviewBody" class="catalog-preview">Предпросмотр ещё не построен.</pre>
     </article>
   </div>
 </section>
@@ -1567,22 +1577,22 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-sandbox-v2" class="view">
   <div class="v2-shell">
     <div class="v2-hero">
-      <div><h2>Strategy Sandbox</h2><div class="section-kicker">реальный isolated bench, production не меняется</div></div>
+      <div><h2>Песочница стратегий</h2><div class="section-kicker">проверка стратегии без изменения рабочей конфигурации</div></div>
       <span id="v2SandboxState" class="config-badge">IDLE</span>
     </div>
     <div class="v2-two">
       <article class="panel">
-        <div class="panel-head"><div><h2>Target Picker</h2><div class="section-kicker">manual или явный list source</div></div></div>
+        <div class="panel-head"><div><h2>Цели проверки</h2><div class="section-kicker">ручной ввод или список доменов</div></div></div>
         <label class="v2-label">Источник целей<select id="v2SandboxTargetSource" class="search"><option value="manual">Ручной ввод</option><option value="list">Список</option></select></label>
         <label class="v2-label">Список<select id="v2SandboxTargetList" class="search" disabled><option>загрузка…</option></select></label>
         <textarea id="v2SandboxTargets" class="v2-textarea compact" placeholder="youtube.com"></textarea>
-        <div class="panel-head" style="margin-top:12px"><div><h2>Candidate</h2><div id="v2SandboxSeedMeta" class="section-kicker">выберите источник</div></div></div>
-        <label class="v2-label">Источник candidate<select id="v2SandboxCandidateSource" class="search"><option value="production">Production profile</option><option value="library">Candidate Library</option><option value="custom">Custom args</option></select></label>
-        <label class="v2-label">Production profile<select id="v2SandboxProfile" class="search"></select></label>
-        <label class="v2-label">Saved strategy<select id="v2SandboxLibrary" class="search" disabled></select></label>
+        <div class="panel-head" style="margin-top:12px"><div><h2>Стратегия</h2><div id="v2SandboxSeedMeta" class="section-kicker">выберите источник</div></div></div>
+        <label class="v2-label">Источник стратегии<select id="v2SandboxCandidateSource" class="search"><option value="production">Профиль nfqws2</option><option value="library">Библиотека стратегий</option><option value="custom">Свои аргументы</option></select></label>
+        <label class="v2-label">Профиль nfqws2<select id="v2SandboxProfile" class="search"></select></label>
+        <label class="v2-label">Сохранённая стратегия<select id="v2SandboxLibrary" class="search" disabled></select></label>
         <label class="v2-label">Args<textarea id="v2SandboxArgs" class="v2-textarea compact" placeholder="Custom / Catalog / StrategyImport candidate args"></textarea></label>
-        <div class="v2-inline"><label>Attempts<select id="v2SandboxAttempts" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="5">5</option></select></label><label>Имя для Library<input id="v2SandboxSaveName" class="search" placeholder="My strategy"></label></div>
-        <div class="toolbar"><button id="v2SandboxRun" class="primary">Запустить Sandbox</button><button id="v2SandboxStop" disabled>Стоп</button><button id="v2SandboxSave">Сохранить candidate</button></div>
+        <div class="v2-inline"><label>Попытки<select id="v2SandboxПопытки" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="5">5</option></select></label><label>Имя для Library<input id="v2SandboxSaveName" class="search" placeholder="My strategy"></label></div>
+        <div class="toolbar"><button id="v2SandboxRun" class="primary">Запустить проверку</button><button id="v2SandboxStop" disabled>Стоп</button><button id="v2SandboxSave">Сохранить стратегию</button></div>
       </article>
       <article class="panel">
         <div id="v2SandboxResults" class="v2-list"><div class="analysis-empty">Результатов пока нет.</div></div>
@@ -1622,7 +1632,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-strategy-registry-v1" class="view">
   <div class="v2-shell">
     <div class="v2-hero">
-      <div><h2>Реестр стратегий</h2><div class="section-kicker">единый read-only слой: built-in + Candidate Library + verified Target Memory</div></div>
+      <div><h2>Реестр стратегий</h2><div class="section-kicker">единый read-only слой: built-in + Библиотека стратегий + verified Target Memory</div></div>
       <span id="v2RegistryState" class="config-badge">IDLE</span>
     </div>
 
@@ -1657,7 +1667,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-strategy-library-v2" class="view">
   <div class="v2-shell">
     <div class="v2-hero">
-      <div><h2>Свои стратегии</h2><div class="section-kicker">persistent Candidate Library на роутере</div></div>
+      <div><h2>Свои стратегии</h2><div class="section-kicker">persistent Библиотека стратегий на роутере</div></div>
       <span id="v2LibraryState" class="config-badge">IDLE</span>
     </div>
     <div class="v2-two">
@@ -1699,7 +1709,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </button>
       <button type="button" class="ux-task-card" id="uxTaskAutoV2">
         <span class="ux-task-icon">03</span>
-        <span class="ux-task-copy"><span class="ux-task-title">Подобрать настройку автоматически</span><span class="ux-task-desc">Baseline, production profiles и Candidate Library тестируются в изолированных NFQUEUE. Результат отделяет strategy failure от infrastructure failure.</span></span>
+        <span class="ux-task-copy"><span class="ux-task-title">Подобрать настройку автоматически</span><span class="ux-task-desc">Baseline, production profiles и Библиотека стратегий тестируются в изолированных NFQUEUE. Результат отделяет strategy failure от infrastructure failure.</span></span>
         <span class="ux-task-action">Открыть Автоподбор</span>
       </button>
       <button type="button" class="ux-task-card" id="uxTaskImport">
@@ -2284,21 +2294,19 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-geo-assets" class="view">
   <div class="blob-shell">
     <article class="panel">
-      <div class="panel-head"><div><h2>GeoSite / GeoIP Intelligence</h2><div class="section-kicker">upload → inspect categories → preview → explicit list save</div></div><span id="geoState" class="config-badge">IDLE</span></div>
-      <div class="setup-row"><div class="setup-label"><strong>Geo asset</strong>geosite.dat / geoip.dat / text</div><div><input id="geoFile" type="file"><select id="geoKind" class="setup-select" style="margin-top:6px"><option value="geosite">GeoSite</option><option value="geoip">GeoIP</option><option value="text">Text</option></select></div></div>
-      <div class="setup-row"><div class="setup-label"><strong>Provenance</strong>optional metadata only</div><div><input id="geoSource" class="setup-input" placeholder="source label"><input id="geoSourceRef" class="setup-input" style="margin-top:6px" placeholder="exact ref / version"></div></div>
-      <div class="toolbar"><button id="geoUpload" class="primary">Upload asset</button><button id="geoSaveProvenance">Сохранить provenance</button><button id="geoRefresh">Refresh</button></div>
-      <div id="geoAssets" class="blob-list" style="margin-top:10px"><div class="empty">Geo assets ещё не загружены.</div></div>
-      <div class="setup-row" style="margin-top:10px"><div class="setup-label"><strong>Category</strong>preview is read-only</div><div><select id="geoAssetSelect" class="setup-select"></select><select id="geoCategorySelect" class="setup-select" style="margin-top:6px"></select><input id="geoListName" class="setup-input mono" style="margin-top:6px" placeholder="geo-category.list"></div></div>
-      <div class="toolbar"><button id="geoPreview">Preview</button><button id="geoSaveList">Save as list…</button></div>
-      <pre id="geoPreviewResult" class="v2-args" style="max-height:260px;overflow:auto">Preview не запускался.</pre>
-      <div id="geoAutohostlist" class="setup-note" style="margin-top:8px">Autohostlist capability ещё не проверялась.</div>
-      <div class="setup-note warn" style="margin-top:8px">Geo upload/list extraction не меняет nfqws2.conf и не делает reload/restart. Применение списка к production остаётся отдельным явным workflow.</div>
+      <div class="panel-head"><div><h2>Геоданные</h2><div class="section-kicker">импорт GeoSite / GeoIP и создание обычных списков для nfqws2</div></div><span id="geoState" class="config-badge">ГОТОВО</span></div>
+      <div class="setup-row"><div class="setup-label"><strong>Файл геоданных</strong>geosite.dat / geoip.dat / текстовый список</div><div><input id="geoFile" type="file"><select id="geoKind" class="setup-select" style="margin-top:6px"><option value="geosite">GeoSite</option><option value="geoip">GeoIP</option><option value="text">Текст</option></select></div></div>
+      <div class="setup-row"><div class="setup-label"><strong>Источник</strong>необязательная информация о происхождении файла</div><div><input id="geoSource" class="setup-input" placeholder="Название источника"><input id="geoSourceRef" class="setup-input" style="margin-top:6px" placeholder="Версия или идентификатор"></div></div>
+      <div class="toolbar"><button id="geoUpload" class="primary">Загрузить файл</button><button id="geoSaveProvenance">Сохранить источник</button><button id="geoRefresh">Обновить</button></div>
+      <div id="geoAssets" class="blob-list" style="margin-top:10px"><div class="empty">Файлы геоданных ещё не загружены.</div></div>
+      <div class="setup-row" style="margin-top:10px"><div class="setup-label"><strong>Категория</strong>сначала можно посмотреть содержимое, затем сохранить его как список</div><div><select id="geoAssetSelect" class="setup-select"></select><select id="geoCategorySelect" class="setup-select" style="margin-top:6px"></select><input id="geoListName" class="setup-input mono" style="margin-top:6px" placeholder="geo-category.list"></div></div>
+      <div class="toolbar"><button id="geoPreview">Посмотреть</button><button id="geoSaveList">Сохранить как список</button></div>
+      <pre id="geoPreviewResult" class="v2-args" style="max-height:260px;overflow:auto">Просмотр ещё не запускался.</pre>
+      <div id="geoAutohostlist" class="setup-note" style="margin-top:8px">Проверка поддержки autohostlist ещё не выполнялась.</div>
+      <div class="setup-note" style="margin-top:8px">Создание списка не меняет рабочую конфигурацию nfqws2. Подключить сохранённый список можно во вкладке «Конфигурация».</div>
     </article>
-    <div class="blob-note">GeoSite / GeoIP относится к настройке списков RouterForge и не является частью NFQWS Menu.</div>
   </div>
 </section>
-
 <section id="view-catalog" class="view">
   <div class="catalog-shell">
     <div class="catalog-hero">
@@ -3707,7 +3715,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function geoAssetSelected(){return geoAssets.find(x=>x.name===$('geoAssetSelect')?.value)}
   function renderGeoAssets(){
     if(!$('geoAssets'))return;
-    $('geoAssets').innerHTML=geoAssets.length?geoAssets.map(x=>`<div class="blob-row"><div><div class="blob-name">${esc(x.name)} <span class="config-badge">${esc(String(x.kind||'').toUpperCase())}</span></div><div class="blob-meta">${bytes(x.size||0)} · sha256 ${esc(String(x.sha256||'').slice(0,16))}… · ${Number(x.categories?.length||0)} categories</div><div class="blob-refs">${esc(x.source||'local upload')}${x.source_ref?` · ref ${esc(x.source_ref)}`:''}</div></div></div>`).join(''):'<div class="empty">Geo assets ещё не загружены.</div>';
+    $('geoAssets').innerHTML=geoAssets.length?geoAssets.map(x=>`<div class="blob-row"><div><div class="blob-name">${esc(x.name)} <span class="config-badge">${esc(String(x.kind||'').toUpperCase())}</span></div><div class="blob-meta">${bytes(x.size||0)} · sha256 ${esc(String(x.sha256||'').slice(0,16))}… · ${Number(x.categories?.length||0)} категорий</div><div class="blob-refs">${esc(x.source||'локальный файл')}${x.source_ref?` · ref ${esc(x.source_ref)}`:''}</div></div></div>`).join(''):'<div class="empty">Geo assets ещё не загружены.</div>';
     $('geoAssetSelect').innerHTML=geoAssets.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} · ${esc(x.kind)}</option>`).join('');
     renderGeoCategories();
   }
@@ -3722,14 +3730,14 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     try{
       const d=await api('/v2/geo/assets');geoAssets=Array.isArray(d.assets)?d.assets:[];renderGeoAssets();
       const a=await api('/v2/geo/autohostlist');
-      $('geoAutohostlist').textContent=`Autohostlist: ${a.supported?'SUPPORTED':'NOT PROVEN'} · configured=${a.configured?'YES':'NO'} · engine=${a.engine||'installed-nfqws2'} · evidence=${a.evidence_source||'unknown'}`;
+      $('geoAutohostlist').textContent=`Autohostlist: ${a.supported?'поддерживается':'не подтверждён'} · ${a.configured?'настроен':'не настроен'}`;
     }catch(e){$('geoAssets').innerHTML=`<div class="empty bad-text">${esc(e.message)}</div>`}
   }
   async function geoSHA256(buffer){const d=await crypto.subtle.digest('SHA-256',buffer);return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,'0')).join('')}
   function geoBase64(buffer){let out='',bytes=new Uint8Array(buffer),step=0x8000;for(let i=0;i<bytes.length;i+=step)out+=String.fromCharCode(...bytes.subarray(i,i+step));return btoa(out)}
   async function uploadGeoAsset(){
-    const file=$('geoFile').files?.[0];if(!file){notice('Geo: выберите файл.','error');return}
-    if(file.size>24*1024*1024){notice('Geo: файл больше 24 MiB.','error');return}
+    const file=$('geoFile').files?.[0];if(!file){notice('Геоданные: выберите файл.','error');return}
+    if(file.size>24*1024*1024){notice('Геоданные: файл больше 24 МиБ.','error');return}
     $('geoUpload').disabled=true;$('geoState').textContent='UPLOADING';
     try{
       const buffer=await file.arrayBuffer(),sha=await geoSHA256(buffer);
@@ -4255,8 +4263,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const n=Number(ms);if(!Number.isFinite(n))return 0;if(n<=250)return 1;if(n>=2000)return 0;return 1-(n-250)/1750;
   }
   function summarizeTestLabHistory(){
-    const data=testLabResultsData||[],attempts=data.flatMap(x=>x.attempts||[]),okAttempts=attempts.filter(x=>x.ok).length,stable=data.filter(x=>x.attempts?.length&&x.attempts.every(a=>a.ok)).length,successfulLat=attempts.filter(x=>x.ok).map(x=>Number(x.ms)).filter(Number.isFinite),median=medianNumber(successfulLat),decisive=data.filter(x=>['INCLUDED','EXCLUDED','INCLUDED BY MODE'].includes(String(x.static?.verdict||''))).length;
-    const successRatio=attempts.length?okAttempts/attempts.length:0,stableRatio=data.length?stable/data.length:0,staticRatio=data.length?decisive/data.length:0,score=Math.round(100*(.50*successRatio+.25*stableRatio+.15*latencyScore(median)+.10*staticRatio));
+    const data=testLabResultsData||[],attempts=data.flatMap(x=>x.attempts||[]),okПопытки=attempts.filter(x=>x.ok).length,stable=data.filter(x=>x.attempts?.length&&x.attempts.every(a=>a.ok)).length,successfulLat=attempts.filter(x=>x.ok).map(x=>Number(x.ms)).filter(Number.isFinite),median=medianNumber(successfulLat),decisive=data.filter(x=>['INCLUDED','EXCLUDED','INCLUDED BY MODE'].includes(String(x.static?.verdict||''))).length;
+    const successRatio=attempts.length?okПопытки/attempts.length:0,stableRatio=data.length?stable/data.length:0,staticRatio=data.length?decisive/data.length:0,score=Math.round(100*(.50*successRatio+.25*stableRatio+.15*latencyScore(median)+.10*staticRatio));
     return{score,score_type:'ACTIVE SCORE',metrics:{targets:data.length,attempts:attempts.length,success_ratio:successRatio,stable_ratio:stableRatio,median_ms:median,static_decisive_ratio:staticRatio},results:data};
   }
   function summarizeSandboxHistory(){
@@ -4299,7 +4307,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(entry.kind==='testlab')rows=[['Reachability',percentText(m.success_ratio)],['Stable targets',percentText(m.stable_ratio)],['Median latency',m.median_ms==null?'—':`${Math.round(m.median_ms)} ms`],['Static decisive',percentText(m.static_decisive_ratio)]];
     else if(entry.kind==='sandbox')rows=[['Candidate MATCH',m.candidate_match||0],['Candidate EXCLUDED',m.candidate_excluded||0],['Candidate NO MATCH',m.candidate_no_match||0],['Validation warnings',m.validation_warnings||0],['List refs resolved',percentText(m.reference_resolution_ratio)],['Deterministic classification',percentText(m.determinate_ratio)],['Active baseline success',percentText(m.active_baseline_success_ratio)],['Active baseline median',m.active_baseline_median_ms==null?'—':`${Math.round(m.active_baseline_median_ms)} ms`]];
     else if(entry.kind==='v2-selector')rows=[['Candidates tested',m.candidates||0],['Working candidates',m.working||0],['Candidate success ratio',percentText(m.success_ratio)],['Recommendation',m.recommendation?'AVAILABLE':'NONE']];
-    else rows=[['Targets',m.targets||0],['Attempts',m.attempts||0],['Success ratio',percentText(m.success_ratio)]];
+    else rows=[['Targets',m.targets||0],['Попытки',m.attempts||0],['Success ratio',percentText(m.success_ratio)]];
     return rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
   }
 
@@ -5891,7 +5899,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   async function runV2Sandbox(){
     if(v2SandboxAbort)return;let targets;try{targets=await v2ResolveSandboxTargets();await Promise.all([v2LoadProfiles(),v2LoadLibrary(),v2EnsureStatus()])}catch(e){notice(`Sandbox: ${e.message}`,'error');return}
     if(!targets.length){notice('Sandbox: нет целей.','error');return}
-    const source=$('v2SandboxCandidateSource').value,attempts=Math.max(1,Math.min(5,Number($('v2SandboxAttempts').value||1))),controller=new AbortController();v2SandboxAbort=controller;
+    const source=$('v2SandboxCandidateSource').value,attempts=Math.max(1,Math.min(5,Number($('v2SandboxПопытки').value||1))),controller=new AbortController();v2SandboxAbort=controller;
     const common={attempts,expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_V2_BENCH'};
     if(source==='production')common.profile_index=Number($('v2SandboxProfile').value);
     else{
@@ -5933,64 +5941,74 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('v2LibraryList').innerHTML=v2Library.length?v2Library.map(x=>`<div class="v2-row"><div><div class="v2-result-title">${esc(x.name)}</div><div class="meta">${esc(x.source)} · ${esc(String(x.fingerprint||'').slice(0,16))}</div></div><div class="v2-args">${esc(v2ArgsText(x.args))}</div><div class="v2-library-actions"><button data-v2-lib-edit="${esc(x.id)}">Редактировать</button><button data-v2-lib-sandbox="${esc(x.id)}">Песочница</button><button class="danger" data-v2-lib-delete="${esc(x.id)}">Удалить</button></div></div>`).join(''):'<div class="analysis-empty">Библиотека стратегий пуста.</div>';
     $('v2LibraryList').querySelectorAll('[data-v2-lib-edit]').forEach(b=>b.onclick=()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibEdit);if(!x)return;$('v2LibraryID').value=x.id;$('v2LibraryName').value=x.name;$('v2LibrarySource').value=x.source;$('v2LibraryArgs').value=v2ArgsText(x.args)});
     $('v2LibraryList').querySelectorAll('[data-v2-lib-sandbox]').forEach(b=>b.onclick=()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibSandbox);if(x)v2OpenSandboxFromArgs(v2ArgsText(x.args),x.name,x.source)});
-    $('v2LibraryList').querySelectorAll('[data-v2-lib-delete]').forEach(b=>b.onclick=async()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibDelete);if(!x||!confirm(`Удалить ${x.name} из Candidate Library?`))return;try{await api('/v2/strategies/delete',{method:'POST',body:JSON.stringify({id:x.id,confirm:'ROUTERFORGE_V2_STRATEGY_DELETE'})});v2Library=[];await v2LoadLibrary(true);notice('Candidate удалён.','good')}catch(e){notice(e.message,'error')}});
+    $('v2LibraryList').querySelectorAll('[data-v2-lib-delete]').forEach(b=>b.onclick=async()=>{const x=v2Library.find(y=>y.id===b.dataset.v2LibDelete);if(!x||!confirm(`Удалить ${x.name} из Библиотека стратегий?`))return;try{await api('/v2/strategies/delete',{method:'POST',body:JSON.stringify({id:x.id,confirm:'ROUTERFORGE_V2_STRATEGY_DELETE'})});v2Library=[];await v2LoadLibrary(true);notice('Candidate удалён.','good')}catch(e){notice(e.message,'error')}});
   }
   async function saveV2LibraryEditor(){
     try{
       const req={id:$('v2LibraryID').value||undefined,name:$('v2LibraryName').value.trim(),source:$('v2LibrarySource').value,args:v2ArgTokens($('v2LibraryArgs').value),confirm:'ROUTERFORGE_V2_STRATEGY_SAVE'};
-      const d=await api('/v2/strategies/save',{method:'POST',body:JSON.stringify(req)});v2Library=[];await v2LoadLibrary(true);$('v2LibraryID').value=d.strategy?.id||'';notice(`Candidate Library: ${d.strategy?.name||req.name} сохранён.`,'good');
-    }catch(e){notice(`Candidate Library: ${e.message}`,'error')}
+      const d=await api('/v2/strategies/save',{method:'POST',body:JSON.stringify(req)});v2Library=[];await v2LoadLibrary(true);$('v2LibraryID').value=d.strategy?.id||'';notice(`Библиотека стратегий: ${d.strategy?.name||req.name} сохранён.`,'good');
+    }catch(e){notice(`Библиотека стратегий: ${e.message}`,'error')}
   }
   function clearV2LibraryEditor(){$('v2LibraryID').value='';$('v2LibraryName').value='';$('v2LibrarySource').value='custom';$('v2LibraryArgs').value=''}
 
+  function v2ResultText(value){
+    const v=String(value||'').toUpperCase();
+    const map={WORKING:'Работает',FAILED:'Не работает',FAIL:'Не работает',INCONCLUSIVE:'Не удалось проверить',PARTIAL:'Частично',PASS:'Готово',DONE:'Готово',OK:'Готово'};
+    return map[v]||String(value||'—');
+  }
+  function v2ResultPill(value){const raw=String(value||'—');return`<span class="v2-pill ${v2Tone(raw)}">${esc(v2ResultText(raw))}</span>`}
+  function v2SourceText(value){
+    const v=String(value||'').toLowerCase();
+    const map={production:'Текущая конфигурация',curated:'RouterForge',other:'Встроенный пул',custom:'Пользовательская',library:'Библиотека',baseline:'Без обхода'};
+    return map[v]||String(value||'');
+  }
+  function v2ReasonText(value){
+    const v=String(value||'');
+    const map={
+      'baseline completed reliably; bypass strategy is not required for this target':'Сайт работает без обхода — дополнительная стратегия не требуется.',
+      'candidate improved verified HTTP reachability over baseline':'Найдена рабочая стратегия, которая открывает сайт лучше исходного соединения.',
+      'no candidate proved a working HTTP response through isolated NFQUEUE':'Среди проверенных стратегий рабочая не найдена.',
+      'best candidate did not improve reliability/completeness over baseline':'Проверенные стратегии не дали результата лучше исходного соединения.',
+      'no selector recommendation is available':'Рекомендация пока недоступна.',
+      'verified candidate matches multiple production profiles; explicit slot selection is required':'Стратегия найдена, но нужно выбрать профиль nfqws2, к которому её применить.',
+      'verified candidate has no unique production profile binding for this target':'Стратегия найдена, но для этого домена не определён единственный профиль nfqws2.'
+    };
+    return map[v]||v;
+  }
+  function v2PhaseText(value){
+    const v=String(value||'').toUpperCase();
+    const map={PLAN:'ПОДГОТОВКА',BASELINE:'ИСХОДНОЕ СОЕДИНЕНИЕ',BENCH:'ПРОВЕРКА',RANK:'СРАВНЕНИЕ',FAILED:'ОШИБКА',DONE:'ГОТОВО',IDLE:'ОЖИДАНИЕ'};
+    return map[v]||v||'—';
+  }
+  function v2ProgressText(value){
+    const v=String(value||'');
+    let m=v.match(/^completed (\d+) of (\d+) candidates(?: · working (\d+))?$/);
+    if(m)return`Проверено ${m[1]} из ${m[2]}${m[3]?` · рабочих: ${m[3]}`:''}`;
+    if(v==='testing baseline without desync strategy')return'Проверяю сайт без стратегии обхода';
+    if(v==='testing direct worker sandboxes')return'Проверяю стратегии';
+    if(v==='ranking direct worker live results')return'Сравниваю найденные результаты';
+    if(v==='building direct catalog')return'Готовлю список стратегий';
+    return v;
+  }
   function renderV2SelectorCandidate(c,label){
     const attempts=c?.attempts||[],packets=attempts.reduce((n,a)=>n+Number(a.outbound_queue_packets||0)+Number(a.inbound_queue_packets||0),0);
     const firstError=attempts.map(a=>String(a?.error||'').trim()).find(Boolean)||'';
-    const errorHTML=firstError?`<div class="meta" style="white-space:pre-wrap;margin-top:6px">${esc(firstError)}</div>`:'';
-    return`<div class="v2-row ${v2Tone(c?.result_class)}"><div><div class="v2-result-title">${esc(label||c?.candidate_name||c?.candidate_id||'candidate')}</div><div class="meta">${esc(c?.candidate_source||'')}</div></div><div><div class="value">${esc(c?.result_class||'—')} · success ${Math.round(Number(c?.success_rate||0)*100)}% · complete ${Math.round(Number(c?.complete_rate||0)*100)}%</div><div class="meta">infra=${c?.infrastructure_ok?'PASS':'FAIL'} · cleanup=${c?.cleanup_proven?'PASS':'FAIL'} · packets=${packets} · TTFB=${c?.median_ttfb_ms||'—'} ms · throughput=${c?.median_throughput_bps||'—'} B/s</div><div class="v2-args">${esc(v2ArgsText(c?.args||[]))}</div>${errorHTML}</div>${v2Pill(c?.result_class||'—')}</div>`;
+    const errorHTML=firstError?`<details class="v2-tech-details"><summary>Диагностика</summary><pre>${esc(firstError)}</pre></details>`:'';
+    const metrics=[`успех ${Math.round(Number(c?.success_rate||0)*100)}%`,`полный ответ ${Math.round(Number(c?.complete_rate||0)*100)}%`];
+    if(c?.median_ttfb_ms)metrics.push(`TTFB ${c.median_ttfb_ms} мс`);
+    if(c?.median_throughput_bps)metrics.push(`скорость ${c.median_throughput_bps} Б/с`);
+    return`<div class="v2-row ${v2Tone(c?.result_class)}"><div><div class="v2-result-title">${esc(label||c?.candidate_name||c?.candidate_id||'Стратегия')}</div><div class="meta">${esc(v2SourceText(c?.candidate_source||''))}</div></div><div><div class="value">${esc(metrics.join(' · '))}</div><div class="v2-args">${esc(v2ArgsText(c?.args||[]))}</div>${errorHTML}</div>${v2ResultPill(c?.result_class||'—')}</div>`;
   }
-  function renderV2SelectorSearchTrace(d){
-    const root=$('v2SelectorTrace');if(!root)return;
-    const stop=d?.mutation_stop,round=d?.mutation_round;
-    if(!stop&&!round){root.style.display='none';root.innerHTML='';return}
-    const seedPlan=stop?.seed_plan||round?.seed_plan||{},seeds=Array.isArray(seedPlan.seeds)?seedPlan.seeds:[];
-    const continueSearch=stop?!!stop.continue:!!round?.executed;
-    const decisionCode=stop?.code||(round?.executed?'CONTINUE_ADAPTIVE_SEARCH':'NO_TRACE');
-    const decisionReason=stop?.reason||(round?.executed?'Adaptive mutation round выполнен.':'Нет данных stop-policy.');
-    const budget=Number(stop?.budget??round?.budget??0),admitted=Number(round?.admitted||0),generated=Number(round?.generated||0),duplicates=Number(round?.duplicates||0),completed=Number(round?.completed||0);
-    const executed=!!round?.executed;
-    const decisionTone=continueSearch?'warn':'good';
-    const seedHTML=seeds.length?seeds.map(s=>{
-      const item=s.seed||{},result=s.result||{},fp=String(s.fingerprint||item.fingerprint||'');
-      const family=item.family||'—',source=item.source||result.candidate_source||'—',name=item.name||result.candidate_name||result.candidate_id||'seed';
-      const meta=`${source} · ${family}${fp?` · ${fp.slice(0,16)}`:''}`;
-      return `<div class="v2-search-trace-seed"><div class="v2-search-trace-rank">#${Number(s.rank||0)||'—'}</div><div class="v2-search-trace-seed-main"><strong>${esc(name)}</strong><span>${esc(meta)}</span><span>${esc(s.reason||'')}</span></div>${v2Pill(s.outcome||'—')}</div>`;
-    }).join(''):'<div class="v2-search-trace-empty">Eligible mutation seeds не выбраны.</div>';
-    root.style.display='grid';
-    root.innerHTML=`<div class="v2-search-trace-head"><div><strong>Direct execution trace</strong><span>${esc(decisionCode)} · ${esc(decisionReason)}</span></div>${v2Pill(continueSearch?'CONTINUE':'STOP')}</div>
-      <div class="v2-search-trace-grid">
-        <div class="v2-search-trace-stat"><span>Budget</span><strong>${budget}</strong></div>
-        <div class="v2-search-trace-stat"><span>Seeds</span><strong>${Number(seedPlan.selected||0)} / ${Number(seedPlan.eligible||0)}</strong></div>
-        <div class="v2-search-trace-stat"><span>Mutants</span><strong>${admitted} admitted · ${generated} generated</strong></div>
-        <div class="v2-search-trace-stat"><span>Execution</span><strong>${executed?`${completed}/${admitted} complete`:'SKIPPED'}${duplicates?` · ${duplicates} dup`:''}</strong></div>
-      </div>
-      <div class="v2-search-trace-seeds">${seedHTML}</div>`;
-  }
-
   function renderV2SelectorResult(d){
-    v2SelectorLast=d;$('v2SelectorCleanup').textContent=d.cleanup_baseline_after?'PASS':'FAIL';$('v2SelectorWorkers').textContent=String(d.concurrency||'—');
-    const best=d.recommendation_available?`${d.recommended_candidate_name||d.recommended_candidate_id||('Profile '+d.recommended_profile_index)} · ${d.recommended_candidate_source||'production'}`:'Нет рекомендации';
-    const historical=d.historical_planning?` · historical hints ${Number(d.planner_compatible_count||d.historical_hints||0)} · promoted ${Number(d.planner_promoted_count||d.historical_promoted||0)} · registry +${Number(d.planner_admitted_registry_count||0)}`:'';
-    const diagnostic=d.planner_diagnostic_code?` · diagnostic ${d.planner_diagnostic_code}${d.planner_strategy_relevant?' / strategy-relevant':' / observe-only'}`:'';
-    const property=d.property_vector,propertyMeta=property?` · property v${Number(property.version||1)} ${property.baseline_working?'baseline works':`${(property.preferred_families||[]).join(', ')||'broad search'} · ${(property.probes||[]).filter(x=>x.state!=='UNMEASURED').length}/${(property.probes||[]).length} measured`}`:'';
-    const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.pool_sources||[]).join(' + ')||'no sources'}${propertyMeta}${historical}${diagnostic} · memory ${d.memory_updated?'updated':'not updated'}${d.memory_warning?' ('+d.memory_warning+')':''}`:'Auto Pool выключен';
-    const plan=(d.planner_plan||[]).slice(0,6);
-    const planHTML=plan.length?`<div class="v2-boundary" style="margin-top:8px"><b>Pre-live planner v${Number(d.planner_version||1)}</b> · historical/diagnostic hints only; live outcome below.<br>${plan.map(x=>`${Number(x.planner_effective_order||0)}. ${esc(x.name||x.id||'candidate')} · ${esc(x.source||'')} · ${esc(x.family||'')} · ${esc(x.planner_reason||'normal order')}`).join('<br>')}</div>`:'';
-    $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(d.recommendation_reason||'')}</div><div class="meta">${esc(d.apply_gate_reason||'')}</div><div class="meta">${esc(poolMeta)}</div></div>${v2Pill(d.recommendation_available?'RECOMMEND':'NO CHANGE')}</div>${planHTML}`;
-    renderV2SelectorSearchTrace(d);
-    $('v2SelectorResults').innerHTML=renderV2SelectorCandidate(d.baseline,'Baseline')+(d.candidates||[]).map(c=>renderV2SelectorCandidate(c)).join('');
-    const panel=$('v2SelectorApplyPanel');panel.style.display=d.recommendation_available?'block':'none';$('v2SelectorApplyReason').textContent=d.apply_gate_reason||'';
-    $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorApply').disabled=true;$('v2SelectorPreviewBody').textContent=d.apply_gate_eligible?'Recommendation готова. Сначала постройте deterministic Preview.':'Для этого winner автоматический receipt Apply не выдаётся; используйте его source workflow / Candidate Library.';
+    v2SelectorLast=d;
+    $('v2SelectorCleanup').textContent=d.cleanup_baseline_after?'Готово':'Ошибка';
+    $('v2SelectorWorkers').textContent=String(d.concurrency||'—');
+    const best=d.recommendation_available?`${d.recommended_candidate_name||d.recommended_candidate_id||('Профиль '+d.recommended_profile_index)} · ${v2SourceText(d.recommended_candidate_source||'production')}`:'Нет рекомендации';
+    const poolText=d.auto_pool_enabled?`Проверено стратегий: ${(d.candidates||[]).length}.`:'Встроенный пул отключён.';
+    $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(v2ReasonText(d.recommendation_reason||''))}</div><div class="meta">${esc(v2ReasonText(d.apply_gate_reason||''))}</div><div class="meta">${esc(poolText)}</div></div>${v2ResultPill(d.recommendation_available?'WORKING':'—')}</div>`;
+    $('v2SelectorResults').innerHTML=renderV2SelectorCandidate(d.baseline,'Без обхода')+(d.candidates||[]).map(c=>renderV2SelectorCandidate(c)).join('');
+    const panel=$('v2SelectorApplyPanel');panel.style.display=d.recommendation_available?'block':'none';$('v2SelectorApplyReason').textContent=v2ReasonText(d.apply_gate_reason||'');
+    $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorApply').disabled=true;$('v2SelectorPreviewBody').textContent=d.apply_gate_eligible?'Рабочая стратегия готова. Сначала откройте предпросмотр изменений.':'Для этой стратегии автоматическое применение пока недоступно.';
     v2SelectorPreviewData=null;reportHeight();
   }
   async function pollV2Selector(session,signal){
@@ -5999,8 +6017,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       if(signal.aborted)return;
       try{
         const p=await api(`/v2/selector-progress?session=${encodeURIComponent(session)}`);
-        $('v2SelectorPhase').textContent=p.phase||'—';$('v2SelectorCompleted').textContent=`${Number(p.completed||0)} / ${Number(p.total||0)}`;
-        $('v2SelectorProgressText').textContent=p.message||'';const pct=p.total?Math.round(Number(p.completed||0)/Number(p.total)*100):(p.phase==='BASELINE'?5:0);$('v2SelectorBar').style.width=`${Math.max(0,Math.min(100,pct))}%`;
+        $('v2SelectorPhase').textContent=v2PhaseText(p.phase);$('v2SelectorCompleted').textContent=`${Number(p.completed||0)} / ${Number(p.total||0)}`;
+        $('v2SelectorProgressText').textContent=v2ProgressText(p.message||'');const pct=p.total?Math.round(Number(p.completed||0)/Number(p.total)*100):(p.phase==='BASELINE'?5:0);$('v2SelectorBar').style.width=`${Math.max(0,Math.min(100,pct))}%`;
         if(p.done)clearInterval(v2SelectorPoll);
       }catch(_){}
     };
@@ -6018,8 +6036,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
     if($('v2SelectorAutoPool').checked){
       const m=String($('v2SelectorMode').value||'normal');
-      const breadth=m==='fast'?'Fast: 30% HTTPS corpus':m==='normal'?'Normal: batches of 20 until 2 WORKING':'Thorough: full HTTPS corpus';
-      $('v2SelectorPoolMeta').textContent=`Direct Auto Pool · ${breadth} · persistent worker sandbox · isolated NFQUEUE`;
+      const breadth=m==='fast'?'Быстрый: 30% пула':m==='normal'?'Обычный: по 20 до двух рабочих':'Полный: весь пул';
+      $('v2SelectorPoolMeta').textContent=`${breadth}. Проверка выполняется реальными HTTPS-запросами.`;
     }
     const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';$('v2SelectorTrace').style.display='none';$('v2SelectorTrace').innerHTML='';
     void pollV2Selector(session,controller.signal);
@@ -6313,14 +6331,14 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       isSelection?x.dataset.primaryTab==='selection':
       isMaintenance?x.dataset.primaryTab==='maintenance':
       x.dataset.tab===tab));
-    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),selectionStrip=$('nfqwsSelectionTabs'),selectionCredit=$('nfqwsSelectionCredit'),maintenanceStrip=$('nfqwsMaintenanceTabs');
+    const configStrip=$('nfqwsConfigTabs'),strategyStrip=$('nfqwsStrategyTabs'),menuStrip=$('nfqwsMenuTabs'),menuCredit=$('nfqwsMenuCredit'),toolStrip=$('nfqwsToolTabs'),selectionStrip=$('nfqwsSelectionTabs'),maintenanceStrip=$('nfqwsMaintenanceTabs');
     if(configStrip)configStrip.classList.toggle('visible',isConfig);
     if(strategyStrip)strategyStrip.classList.toggle('visible',isStrategy);
     if(menuStrip)menuStrip.classList.toggle('visible',isMenu);
     if(menuCredit)menuCredit.classList.toggle('visible',isMenu);
     if(toolStrip)toolStrip.classList.toggle('visible',isTool);
     if(selectionStrip)selectionStrip.classList.toggle('visible',isSelection);
-    if(selectionCredit)selectionCredit.classList.toggle('visible',isSelection);
+
     if(maintenanceStrip)maintenanceStrip.classList.toggle('visible',isMaintenance);
     document.querySelectorAll('#nfqwsConfigTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
     document.querySelectorAll('#nfqwsStrategyTabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));

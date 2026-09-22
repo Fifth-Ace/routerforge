@@ -47,35 +47,78 @@ func v2BuildMutationRound(target string, transport benchTransportProfile, mode b
 		}
 	}
 
-	remaining := totalBudget
+	type seedNeighborhood struct {
+		seedIndex int
+		items     []v2CandidatePoolItem
+		cursor    int
+	}
+	neighborhoods := make([]seedNeighborhood, 0, len(seedPlan.Seeds))
 	for seedIndex, seed := range seedPlan.Seeds {
-		if remaining <= 0 {
-			break
-		}
-		seedsLeft := len(seedPlan.Seeds) - seedIndex
-		share := (remaining + seedsLeft - 1) / seedsLeft
-		neighbors, meta := v2MutateCandidateNeighbors(target, transport, mode, seed.Seed, share)
+		neighbors, meta := v2MutateCandidateNeighbors(target, transport, mode, seed.Seed, totalBudget)
 		plan.Trace.Generated += meta.Generated
-		for neighborIndex, item := range neighbors {
-			if remaining <= 0 {
-				break
-			}
+		neighborhoods = append(neighborhoods, seedNeighborhood{
+			seedIndex: seedIndex,
+			items:     neighbors,
+		})
+	}
+
+	remaining := totalBudget
+	admit := func(neighborhood *seedNeighborhood, quota int) int {
+		admitted := 0
+		for neighborhood.cursor < len(neighborhood.items) && remaining > 0 && admitted < quota {
+			neighborIndex := neighborhood.cursor
+			item := neighborhood.items[neighborIndex]
+			neighborhood.cursor++
 			fp := v2CandidateTechniqueFingerprint(item.Args)
 			if fp == "" || seen[fp] {
 				plan.Trace.Duplicates++
 				continue
 			}
 			seen[fp] = true
-			item.ID = fmt.Sprintf("mut-v%d-%s-s%02d-%02d", v2StrategyMutationVersion, transport.ID, seedIndex+1, neighborIndex+1)
-			item.Name = fmt.Sprintf("Mutation · seed %d · %s", seedIndex+1, item.Name[len("Mutation · "):])
+			item.ID = fmt.Sprintf(
+				"mut-v%d-%s-s%02d-%02d",
+				v2StrategyMutationVersion, transport.ID, neighborhood.seedIndex+1, neighborIndex+1,
+			)
+			label := item.Name
+			if len(label) >= len("Mutation · ") && label[:len("Mutation · ")] == "Mutation · " {
+				label = label[len("Mutation · "):]
+			}
+			item.Name = fmt.Sprintf("Mutation · seed %d · %s", neighborhood.seedIndex+1, label)
 			item.Source = "mutated"
 			item.Protocol = transport.ID
 			item.Fingerprint = fp
 			plan.Candidates = append(plan.Candidates, item)
 			plan.Trace.Admitted++
 			remaining--
+			admitted++
+		}
+		return admitted
+	}
+
+	for seedIndex := range neighborhoods {
+		if remaining <= 0 {
+			break
+		}
+		seedsLeft := len(neighborhoods) - seedIndex
+		share := (remaining + seedsLeft - 1) / seedsLeft
+		admit(&neighborhoods[seedIndex], share)
+	}
+
+	for remaining > 0 {
+		progress := false
+		for seedIndex := range neighborhoods {
+			if remaining <= 0 {
+				break
+			}
+			if admit(&neighborhoods[seedIndex], 1) > 0 {
+				progress = true
+			}
+		}
+		if !progress {
+			break
 		}
 	}
+
 	return plan
 }
 

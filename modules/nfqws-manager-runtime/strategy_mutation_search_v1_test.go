@@ -78,6 +78,9 @@ func TestV2MutationRoundSharesBudgetAcrossSeeds(t *testing.T) {
 	if plan.Trace.Admitted != 4 {
 		t.Fatalf("admitted=%d want=4 trace=%+v", plan.Trace.Admitted, plan.Trace)
 	}
+	if plan.Trace.Duplicates == 0 {
+		t.Fatalf("test must exercise cross-seed dedupe/refill: %+v", plan.Trace)
+	}
 	seenFirst, seenSecond := false, false
 	for _, item := range plan.Candidates {
 		if strings.Contains(item.ID, "-s01-") {

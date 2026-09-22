@@ -4,9 +4,9 @@ import "time"
 
 const (
 	v2DirectSelectorMaxCandidates = 512
-	v2DirectNormalBatchSize        = 20
-	v2DirectNormalWorkingTarget    = 2
-	v2DirectFastPercent            = 30
+	v2DirectNormalBatchSize       = 20
+	v2DirectNormalWorkingTarget   = 2
+	v2DirectFastPercent           = 30
 )
 
 func v2DirectAutoPoolLimit(mode string, corpusCount int) int {

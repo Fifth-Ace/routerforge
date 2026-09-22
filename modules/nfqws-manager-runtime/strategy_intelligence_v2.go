@@ -268,6 +268,7 @@ type v2SelectorResponse struct {
 	PlannerAdmittedRegistry    int                   `json:"planner_admitted_registry_count"`
 	PlannerPlan                []v2CandidatePoolItem `json:"planner_plan,omitempty"`
 	PropertyVector             *v2DPIPropertyVector  `json:"property_vector,omitempty"`
+	MutationRound              v2MutationRoundTrace  `json:"mutation_round"`
 	MemoryUpdated              bool                  `json:"memory_updated"`
 	MemoryWarning              string                `json:"memory_warning,omitempty"`
 }
@@ -1536,7 +1537,63 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	setV2SelectorProgress(sessionID, "RANK", completed, len(templates), "ranking verified candidate results", false, false)
+	mutationTransport, mutationTransportErr := normalizeBenchTransport(benchTransportHTTPS)
+	if mutationTransportErr != nil {
+		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), "adaptive mutation transport normalization failed", true, true)
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": mutationTransportErr.Error(), "session_id": sessionID})
+		return
+	}
+	mutationRound := v2BuildMutationRound(target, mutationTransport, mode, candidates)
+	if len(mutationRound.Candidates) > 0 {
+		setV2SelectorProgress(
+			sessionID, "MUTATE", 0, len(mutationRound.Candidates),
+			fmt.Sprintf("testing %d adaptive mutations from %d live seeds", len(mutationRound.Candidates), mutationRound.Trace.SeedPlan.Selected),
+			false, false,
+		)
+		mutationResults, mutationErr := v2RunMutationRound(
+			ctx, capabilities, status.ConfigSHA256, target, ip, inventory,
+			mutationTransport, mode, mutationRound.Candidates, queues,
+		)
+		if mutationErr != nil {
+			setV2SelectorProgress(sessionID, "FAILED", 0, len(mutationRound.Candidates), "adaptive mutation compile/run failed", true, true)
+			writeJSON(w, http.StatusBadGateway, map[string]any{"error": mutationErr.Error(), "session_id": sessionID})
+			return
+		}
+		for i, mutation := range mutationResults {
+			if !mutation.CleanupProven || !mutation.InfrastructureOK {
+				reason := "adaptive mutation infrastructure/cleanup proof failed; selector stopped fail-closed"
+				setV2SelectorProgress(sessionID, "FAILED", i+1, len(mutationResults), reason, true, true)
+				afterFailure := readBenchCapabilities()
+				writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
+					OK: false, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
+					Baseline: baseline, Candidates: append(candidates, mutationResults...),
+					RecommendationReason: reason,
+					CleanupBaselineAfter: afterFailure.CleanupBaselineProven, BenchEnabled: afterFailure.BenchEnabled,
+					SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
+					AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
+					PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
+					HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
+					HistoricalPromoted: autoPoolMeta.RecommendationAdded,
+					PlannerVersion:     autoPoolMeta.PlannerVersion, PlannerDiagnosticCode: autoPoolMeta.PlannerDiagnosticCode,
+					PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
+					PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
+					PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
+					PropertyVector: req.PropertyVector, MutationRound: mutationRound.Trace,
+				})
+				return
+			}
+			mutationRound.Trace.Completed = i + 1
+			setV2SelectorProgress(
+				sessionID, "MUTATE", i+1, len(mutationResults),
+				fmt.Sprintf("completed adaptive mutation %d of %d", i+1, len(mutationResults)), false, false,
+			)
+		}
+		mutationRound.Trace.Executed = len(mutationResults) > 0
+		candidates = append(candidates, mutationResults...)
+		completed += len(mutationResults)
+	}
+
+	setV2SelectorProgress(sessionID, "RANK", completed, len(candidates), "ranking original and mutated live results", false, false)
 	recommend, best, needed, reason := v2ChooseRecommendation(baseline, candidates)
 	after := readBenchCapabilities()
 	ok := after.CleanupBaselineProven && strings.EqualFold(readStatus().ConfigSHA256, status.ConfigSHA256)
@@ -1625,6 +1682,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
 		PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
 		PropertyVector: req.PropertyVector,
+		MutationRound:  mutationRound.Trace,
 		MemoryUpdated:  memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {

@@ -5933,7 +5933,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const best=d.recommendation_available?`${d.recommended_candidate_name||d.recommended_candidate_id||('Profile '+d.recommended_profile_index)} · ${d.recommended_candidate_source||'production'}`:'Нет рекомендации';
     const historical=d.historical_planning?` · historical hints ${Number(d.planner_compatible_count||d.historical_hints||0)} · promoted ${Number(d.planner_promoted_count||d.historical_promoted||0)} · registry +${Number(d.planner_admitted_registry_count||0)}`:'';
     const diagnostic=d.planner_diagnostic_code?` · diagnostic ${d.planner_diagnostic_code}${d.planner_strategy_relevant?' / strategy-relevant':' / observe-only'}`:'';
-    const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.pool_sources||[]).join(' + ')||'no sources'}${historical}${diagnostic} · memory ${d.memory_updated?'updated':'not updated'}${d.memory_warning?' ('+d.memory_warning+')':''}`:'Auto Pool выключен';
+    const property=d.property_vector,propertyMeta=property?` · property v${Number(property.version||1)} ${property.baseline_working?'baseline works':`${(property.preferred_families||[]).join(', ')||'broad search'} · ${(property.probes||[]).filter(x=>x.state!=='UNMEASURED').length}/${(property.probes||[]).length} measured`}`:'';
+    const poolMeta=d.auto_pool_enabled?`Auto Pool +${d.auto_pool_added||0} · ${(d.pool_sources||[]).join(' + ')||'no sources'}${propertyMeta}${historical}${diagnostic} · memory ${d.memory_updated?'updated':'not updated'}${d.memory_warning?' ('+d.memory_warning+')':''}`:'Auto Pool выключен';
     const plan=(d.planner_plan||[]).slice(0,6);
     const planHTML=plan.length?`<div class="v2-boundary" style="margin-top:8px"><b>Pre-live planner v${Number(d.planner_version||1)}</b> · historical/diagnostic hints only; live outcome below.<br>${plan.map(x=>`${Number(x.planner_effective_order||0)}. ${esc(x.name||x.id||'candidate')} · ${esc(x.source||'')} · ${esc(x.family||'')} · ${esc(x.planner_reason||'normal order')}`).join('<br>')}</div>`:'';
     $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(d.recommendation_reason||'')}</div><div class="meta">${esc(d.apply_gate_reason||'')}</div><div class="meta">${esc(poolMeta)}</div></div>${v2Pill(d.recommendation_available?'RECOMMEND':'NO CHANGE')}</div>${planHTML}`;
@@ -5964,11 +5965,22 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const det=await api('/v2/detect',{method:'POST',body:JSON.stringify({target})});
       if(det?.diagnostic)plannerDiagnostic={code:det.diagnostic.code||'',fault_domain:det.diagnostic.fault_domain||'',strategy_relevant:!!det.diagnostic.strategy_relevant};
     }catch(_){}
+    let propertyVector=null;
+    if($('v2SelectorAutoPool').checked){
+      $('v2SelectorPoolMeta').textContent='Property probe: проверяю поведение DPI в isolated NFQUEUE…';
+      try{
+        const pp=await api('/v2/property-probe',{method:'POST',body:JSON.stringify({mode:$('v2SelectorMode').value,server_name:target,transport:'https',expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_DPI_PROPERTY_PROBE_V1'})});
+        if(!pp?.ok||!pp?.cleanup_baseline_after)throw new Error('property probe cleanup proof failed');
+        propertyVector=pp.vector||null;
+        const pref=(propertyVector?.preferred_families||[]).join(', ')||'broad search';
+        $('v2SelectorPoolMeta').textContent=`Property probe: ${propertyVector?.baseline_working?'baseline works':pref} · ${(propertyVector?.probes||[]).filter(x=>x.state!=='UNMEASURED').length}/${(propertyVector?.probes||[]).length} measured`;
+      }catch(e){notice(`Property probe: ${e.message}`,'error');return null}
+    }
     const candidates=[];
     if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
-    if($('v2SelectorAutoPool').checked){try{const q=`&diagnostic_code=${encodeURIComponent(plannerDiagnostic.code||'')}&fault_domain=${encodeURIComponent(plannerDiagnostic.fault_domain||'')}&strategy_relevant=${plannerDiagnostic.strategy_relevant?'true':'false'}`;const p=await api(`/v2/candidates?target=${encodeURIComponent(target)}&mode=${encodeURIComponent($('v2SelectorMode').value)}${q}`);const hist=p.recommendation_aware?` · historical ${Number(p.planner_compatible_count||p.recommendation_hints||0)} · promoted ${Number(p.planner_promoted_count||0)} · registry +${Number(p.planner_admitted_registry_count||0)}`:'';const synth=Number(p.synthesis_version||0)?` · synth ${Number(p.synthesis_admitted||0)}/${Number(p.synthesis_generated||0)} · ${(p.synthesis_families||[]).join(', ')||'no families'}`:'';const diag=p.planner_diagnostic_code?` · diagnostic ${p.planner_diagnostic_code}${p.planner_strategy_relevant?' / relevant':' / observe only'}`:'';$('v2SelectorPoolMeta').textContent=`Auto Pool: ${p.count||0} · ${(p.sources||[]).join(' + ')||'нет sources'}${synth}${hist}${diag}${p.warnings?.length?' · warnings '+p.warnings.length:''}`}catch(e){$('v2SelectorPoolMeta').textContent=`Auto Pool preview: ${e.message}`}}
+    if($('v2SelectorAutoPool').checked){try{const q=`&diagnostic_code=${encodeURIComponent(plannerDiagnostic.code||'')}&fault_domain=${encodeURIComponent(plannerDiagnostic.fault_domain||'')}&strategy_relevant=${plannerDiagnostic.strategy_relevant?'true':'false'}`;const p=await api(`/v2/candidates?target=${encodeURIComponent(target)}&mode=${encodeURIComponent($('v2SelectorMode').value)}${q}`);const hist=p.recommendation_aware?` · historical ${Number(p.planner_compatible_count||p.recommendation_hints||0)} · promoted ${Number(p.planner_promoted_count||0)} · registry +${Number(p.planner_admitted_registry_count||0)}`:'';const synth=Number(p.synthesis_version||0)?` · synth ${Number(p.synthesis_admitted||0)}/${Number(p.synthesis_generated||0)} · ${(p.synthesis_families||[]).join(', ')||'no families'}`:'';const prop=propertyVector?` · property ${(propertyVector.preferred_families||[]).join(', ')||'broad'}`:'';const diag=p.planner_diagnostic_code?` · diagnostic ${p.planner_diagnostic_code}${p.planner_strategy_relevant?' / relevant':' / observe only'}`:'';$('v2SelectorPoolMeta').textContent=`Auto Pool: ${p.count||0} · ${(p.sources||[]).join(' + ')||'нет sources'}${synth}${prop}${hist}${diag}${p.warnings?.length?' · warnings '+p.warnings.length:''}`}catch(e){$('v2SelectorPoolMeta').textContent=`Auto Pool preview: ${e.message}`}}
     const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='RUNNING';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';
     void pollV2Selector(session,controller.signal);
     try{
@@ -5977,6 +5989,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         concurrency:Number($('v2SelectorConcurrency').value||2),session_id:session,
         include_production:$('v2SelectorProduction').checked,auto_pool:$('v2SelectorAutoPool').checked,candidates,
         diagnostic_code:plannerDiagnostic.code||'',diagnostic_fault_domain:plannerDiagnostic.fault_domain||'',diagnostic_strategy_relevant:!!plannerDiagnostic.strategy_relevant,
+        property_vector:propertyVector,
         confirm:'ROUTERFORGE_V2_SELECTOR'
       })});
       $('v2SelectorState').textContent='DONE';$('v2SelectorBar').style.width='100%';renderV2SelectorResult(d);{const all=d.candidates||[],working=all.filter(x=>x.result_class==='WORKING').length;v2HistoryAdd('v2-selector',{targets:1,candidates:all.length,working,success_ratio:all.length?working/all.length:0,recommendation:!!d.recommendation_available},d)}notice(`Автоподбор завершён: ${d.recommendation_reason||'готово'}`,'good');return d;

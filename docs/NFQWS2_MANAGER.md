@@ -21,7 +21,9 @@ AutoSelect is designed as a search system rather than a fixed preset chooser. It
 
 The Strategy Synthesizer composes candidates from transport-specific technique axes (split/disorder/fake/overlap/fooling/repeats/TTL/length variants) and validates every candidate through the existing RouterForge candidate compiler before it can enter an isolated live test. Selector modes reserve search capacity for synthesis so a large saved/static pool cannot starve newly composed candidates.
 
-This is the first synthesis layer. The next development stages add direct property probes, evidence-driven mutation of promising candidates, and multi-target composition.
+Before an AutoSelect run, the Property Probe executes a bounded set of isolated live questions against the target. Every probe uses the same NFQUEUE transaction and cleanup proof as normal candidate testing. Results are recorded as `HELPS`, `MIXED`, `NO_EFFECT`, or `UNMEASURED`; a missing or infrastructure-invalid measurement is never treated as a negative result. Measured-positive families move to the front of the synthesis budget, while negative evidence only de-prioritizes a family and never blacklists combinations that may still work.
+
+The next development stages add evidence-driven mutation of promising candidates and multi-target composition.
 
 ## Credits / design references
 
@@ -38,7 +40,7 @@ No source code from the two AutoSelect reference projects is vendored into this 
 P24 Strategy Synthesis:
 
 - P24A — dynamic candidate synthesis and search-budget integration;
-- P24B — direct DPI property probing;
+- P24B — direct DPI property probing and property-guided synthesis;
 - P24C — adaptive mutation/search from live outcomes;
 - P24D — multi-target/multi-transport composition;
 - P24E — hardware acceptance.

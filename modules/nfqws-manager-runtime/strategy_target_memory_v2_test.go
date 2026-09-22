@@ -38,8 +38,12 @@ func TestV2TargetMemoryRecordsPortableVerifiedEvidence(t *testing.T) {
 		Successes: 2, SuccessRate: 1, CompleteRate: 1, ResultClass: "WORKING",
 		CleanupProven: true, InfrastructureOK: true, MedianTTFBMS: 50, MedianThroughput: 100000,
 	}
-	if err := v2RecordSelectorEvidence("example.com", configSHA, []v2CandidateResult{candidate}); err != nil {
+	updated, err := v2RecordSelectorEvidence("example.com", configSHA, []v2CandidateResult{candidate})
+	if err != nil {
 		t.Fatal(err)
+	}
+	if !updated {
+		t.Fatal("clean selector evidence must report memory update")
 	}
 	doc, err := readV2TargetMemory()
 	if err != nil {
@@ -88,8 +92,12 @@ func TestV2TargetMemoryIgnoresInfrastructureFailure(t *testing.T) {
 		Args:        []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld"},
 		ResultClass: "INCONCLUSIVE", CleanupProven: true, InfrastructureOK: false,
 	}
-	if err := v2RecordSelectorEvidence("example.com", strings.Repeat("b", 64), []v2CandidateResult{candidate}); err != nil {
+	updated, err := v2RecordSelectorEvidence("example.com", strings.Repeat("b", 64), []v2CandidateResult{candidate})
+	if err != nil {
 		t.Fatal(err)
+	}
+	if updated {
+		t.Fatal("ignored infrastructure failure must not report memory update")
 	}
 	doc, err := readV2TargetMemory()
 	if err != nil {
@@ -97,5 +105,29 @@ func TestV2TargetMemoryIgnoresInfrastructureFailure(t *testing.T) {
 	}
 	if len(doc.Entries) != 0 {
 		t.Fatalf("infrastructure failure must not poison target memory: %+v", doc.Entries)
+	}
+}
+func TestV2TargetMemoryNoCandidatesReportsNoUpdate(t *testing.T) {
+	oldRoot, oldPath, oldBackup := v2TargetMemoryRoot, v2TargetMemoryPath, v2TargetMemoryBackup
+	defer func() {
+		v2TargetMemoryRoot, v2TargetMemoryPath, v2TargetMemoryBackup = oldRoot, oldPath, oldBackup
+	}()
+
+	tmp := t.TempDir()
+	v2TargetMemoryRoot = tmp
+	v2TargetMemoryPath = filepath.Join(tmp, "target-memory.json")
+	v2TargetMemoryBackup = func(string, string, string, []byte, os.FileMode) (string, error) {
+		return "", nil
+	}
+
+	updated, err := v2RecordSelectorEvidence("example.com", strings.Repeat("c", 64), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated {
+		t.Fatal("empty selector evidence must not report memory update")
+	}
+	if _, err := os.Stat(v2TargetMemoryPath); !os.IsNotExist(err) {
+		t.Fatalf("no-op selector evidence unexpectedly wrote memory file: err=%v", err)
 	}
 }

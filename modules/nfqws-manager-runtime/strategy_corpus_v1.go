@@ -718,22 +718,50 @@ func v2CorpusSourcePriority(source string) int {
 }
 
 func v2CorpusCandidatesForTransport(transport benchTransportProfile) []v2StaticCorpusEntry {
-	out := []v2StaticCorpusEntry{}
+	buckets := map[int][]v2StaticCorpusEntry{}
+	priorities := []int{}
+	seenPriority := map[int]bool{}
+
 	for _, item := range v2StaticStrategyCorpus() {
-		if item.Protocol == transport.ID {
-			out = append(out, item)
+		if item.Protocol != transport.ID {
+			continue
+		}
+		priority := v2CorpusFamilyPriority(item.Family)
+		if !seenPriority[priority] {
+			seenPriority[priority] = true
+			priorities = append(priorities, priority)
+		}
+		buckets[priority] = append(buckets[priority], item)
+	}
+
+	sort.Ints(priorities)
+	for _, priority := range priorities {
+		bucket := buckets[priority]
+		sort.SliceStable(bucket, func(i, j int) bool {
+			leftSource, rightSource := v2CorpusSourcePriority(bucket[i].Source), v2CorpusSourcePriority(bucket[j].Source)
+			if leftSource != rightSource {
+				return leftSource < rightSource
+			}
+			return bucket[i].ID < bucket[j].ID
+		})
+		buckets[priority] = bucket
+	}
+
+	out := []v2StaticCorpusEntry{}
+	for {
+		added := false
+		for _, priority := range priorities {
+			bucket := buckets[priority]
+			if len(bucket) == 0 {
+				continue
+			}
+			out = append(out, bucket[0])
+			buckets[priority] = bucket[1:]
+			added = true
+		}
+		if !added {
+			break
 		}
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		leftFamily, rightFamily := v2CorpusFamilyPriority(out[i].Family), v2CorpusFamilyPriority(out[j].Family)
-		if leftFamily != rightFamily {
-			return leftFamily < rightFamily
-		}
-		leftSource, rightSource := v2CorpusSourcePriority(out[i].Source), v2CorpusSourcePriority(out[j].Source)
-		if leftSource != rightSource {
-			return leftSource < rightSource
-		}
-		return out[i].ID < out[j].ID
-	})
 	return out
 }

@@ -478,6 +478,46 @@ func v2ProfileFileRelation(arg string) (string, string) {
 	return "", ""
 }
 
+func v2InspectProfileMatchReasons(
+	target string,
+	profile benchStrategyProfile,
+	domainMatches map[string]bool,
+	ipMatches map[string]bool,
+) []string {
+	if !v2ProfileMatchesTargetWithLists(target, profile, domainMatches, ipMatches) {
+		return nil
+	}
+	reasons := []string{}
+	for _, domain := range profile.HostlistDomains {
+		if v2DomainMatches(target, domain) {
+			reasons = append(reasons, "hostlist-domains="+domain)
+		}
+	}
+	for _, arg := range profile.FileBoundFilters {
+		name, relation := v2ProfileFileRelation(arg)
+		if name == "" {
+			continue
+		}
+		switch relation {
+		case "include", "include-auto":
+			if domainMatches[name] {
+				reasons = append(reasons, relation+" "+name)
+			}
+		case "ipset":
+			if ipMatches[name] {
+				reasons = append(reasons, relation+" "+name)
+			}
+		}
+	}
+	if len(reasons) > 0 {
+		return reasons
+	}
+	if len(profile.HostlistDomains) == 0 && len(profile.FileBoundFilters) == 0 {
+		return []string{"profile has no target selector"}
+	}
+	return []string{"target is not excluded by profile filters"}
+}
+
 func handleV2InspectTarget(w http.ResponseWriter, r *http.Request) {
 	var req v2InspectRequest
 	if err := decodeJSON(w, r, &req); err != nil {
@@ -489,34 +529,44 @@ func handleV2InspectTarget(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
+
+	destinationIPv4 := ""
+	resolveCtx, cancelResolve := context.WithTimeout(r.Context(), 4*time.Second)
+	if resolved, resolveErr := resolveBenchServerIPv4(resolveCtx, target); resolveErr == nil {
+		destinationIPv4 = resolved
+	}
+	cancelResolve()
+
 	status := readStatus()
 	inventory := readBenchStrategyInventory()
 	listMatches := []v2ListMatch{}
-	matchedLists := map[string]bool{}
+	domainMatches := map[string]bool{}
+	ipMatches := map[string]bool{}
 	for _, item := range status.Lists {
 		data, path, readErr := v2ReadListByName(item.Name)
 		if readErr != nil {
 			continue
 		}
-		if v2ListContainsTarget(string(data), target) {
-			matchedLists[item.Name] = true
+		text := string(data)
+		domainMatch := v2ListContainsTarget(text, target)
+		ipMatch := destinationIPv4 != "" && v2ListContainsIPv4(text, destinationIPv4)
+		if domainMatch {
+			domainMatches[item.Name] = true
+		}
+		if ipMatch {
+			ipMatches[item.Name] = true
+		}
+		if domainMatch || ipMatch {
 			listMatches = append(listMatches, v2ListMatch{Name: item.Name, Path: path, Relation: "present"})
 		}
 	}
+
 	profiles := []v2InspectorProfile{}
 	for _, profile := range inventory.Profiles {
-		reasons := []string{}
-		for _, domain := range profile.HostlistDomains {
-			if v2DomainMatches(target, domain) {
-				reasons = append(reasons, "hostlist-domains="+domain)
-			}
+		if !v2ProductionSourceProfileEligible(profile) {
+			continue
 		}
-		for _, arg := range profile.FileBoundFilters {
-			name, relation := v2ProfileFileRelation(arg)
-			if name != "" && matchedLists[name] {
-				reasons = append(reasons, relation+" "+name)
-			}
-		}
+		reasons := v2InspectProfileMatchReasons(target, profile, domainMatches, ipMatches)
 		if len(reasons) == 0 {
 			continue
 		}

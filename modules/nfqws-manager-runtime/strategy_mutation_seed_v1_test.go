@@ -72,6 +72,35 @@ func TestV2MutationSeedSelectionPrioritizesVerifiedThenPartialThenUnstable(t *te
 	}
 }
 
+func TestV2MutationSeedMetricsCannotCrossOutcomeClass(t *testing.T) {
+	mode, _ := v2SelectorMode("normal")
+	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
+	base := []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello"}
+
+	partial := v2MutationSeedTestResult(
+		"partial", "PARTIAL", 0, 0,
+		append(base, "--lua-desync=multisplit:pos=1,midsld")...,
+	)
+	unstable := v2MutationSeedTestResult(
+		"unstable", "UNSTABLE", 0.99, 1,
+		append(base, "--lua-desync=multidisorder:pos=1,midsld")...,
+	)
+	unstable.Successes = 5
+	unstable.MedianTTFBMS = 10
+	unstable.MedianThroughput = 10 * 1024 * 1024
+
+	plan := v2MutationSelectSeeds(mode, transport, []v2CandidateResult{unstable, partial})
+	if plan.Selected != 2 {
+		t.Fatalf("selected=%d want=2 plan=%+v", plan.Selected, plan)
+	}
+	if plan.Seeds[0].Outcome != v2MutationOutcomePartial {
+		t.Fatalf("metrics crossed outcome class: first=%s want PARTIAL", plan.Seeds[0].Outcome)
+	}
+	if plan.Seeds[1].Outcome != v2MutationOutcomeUnstable {
+		t.Fatalf("second=%s want UNSTABLE", plan.Seeds[1].Outcome)
+	}
+}
+
 func TestV2MutationSeedSelectionHonorsModeBudget(t *testing.T) {
 	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
 	base := []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello"}

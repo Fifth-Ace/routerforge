@@ -1511,16 +1511,17 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		}(queue)
 	}
 	go func() {
-		defer close(jobs)
 		for i, item := range templates {
 			select {
 			case jobs <- job{index: i, item: item}:
 			case <-benchCtx.Done():
+				close(jobs)
 				wg.Wait()
 				close(results)
 				return
 			}
 		}
+		close(jobs)
 		wg.Wait()
 		close(results)
 	}()

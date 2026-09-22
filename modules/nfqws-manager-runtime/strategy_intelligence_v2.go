@@ -1599,11 +1599,8 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, c := range candidates {
-		if !c.CleanupProven || !c.InfrastructureOK {
-			reason := "candidate infrastructure proof failed; selector stopped fail-closed"
-			if !c.CleanupProven {
-				reason = "candidate cleanup proof failed; selector stopped fail-closed"
-			}
+		if !c.CleanupProven {
+			reason := "candidate cleanup proof failed; selector stopped"
 			setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), reason, true, true)
 			afterFailure := readBenchCapabilities()
 			writeJSON(w, http.StatusBadGateway, v2SelectorResponse{

@@ -5945,7 +5945,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
   function renderV2SelectorCandidate(c,label){
     const attempts=c?.attempts||[],packets=attempts.reduce((n,a)=>n+Number(a.outbound_queue_packets||0)+Number(a.inbound_queue_packets||0),0);
-    return`<div class="v2-row ${v2Tone(c?.result_class)}"><div><div class="v2-result-title">${esc(label||c?.candidate_name||c?.candidate_id||'candidate')}</div><div class="meta">${esc(c?.candidate_source||'')}</div></div><div><div class="value">${esc(c?.result_class||'—')} · success ${Math.round(Number(c?.success_rate||0)*100)}% · complete ${Math.round(Number(c?.complete_rate||0)*100)}%</div><div class="meta">infra=${c?.infrastructure_ok?'PASS':'FAIL'} · cleanup=${c?.cleanup_proven?'PASS':'FAIL'} · packets=${packets} · TTFB=${c?.median_ttfb_ms||'—'} ms · throughput=${c?.median_throughput_bps||'—'} B/s</div><div class="v2-args">${esc(v2ArgsText(c?.args||[]))}</div></div>${v2Pill(c?.result_class||'—')}</div>`;
+    const firstError=attempts.map(a=>String(a?.error||'').trim()).find(Boolean)||'';
+    const errorHTML=firstError?`<div class="meta" style="white-space:pre-wrap;margin-top:6px">${esc(firstError)}</div>`:'';
+    return`<div class="v2-row ${v2Tone(c?.result_class)}"><div><div class="v2-result-title">${esc(label||c?.candidate_name||c?.candidate_id||'candidate')}</div><div class="meta">${esc(c?.candidate_source||'')}</div></div><div><div class="value">${esc(c?.result_class||'—')} · success ${Math.round(Number(c?.success_rate||0)*100)}% · complete ${Math.round(Number(c?.complete_rate||0)*100)}%</div><div class="meta">infra=${c?.infrastructure_ok?'PASS':'FAIL'} · cleanup=${c?.cleanup_proven?'PASS':'FAIL'} · packets=${packets} · TTFB=${c?.median_ttfb_ms||'—'} ms · throughput=${c?.median_throughput_bps||'—'} B/s</div><div class="v2-args">${esc(v2ArgsText(c?.args||[]))}</div>${errorHTML}</div>${v2Pill(c?.result_class||'—')}</div>`;
   }
   function renderV2SelectorSearchTrace(d){
     const root=$('v2SelectorTrace');if(!root)return;

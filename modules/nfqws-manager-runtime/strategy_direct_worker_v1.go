@@ -20,11 +20,13 @@ import (
 )
 
 const (
-	v2DirectPortBase       = 40000
-	v2DirectPortsPerWorker = 64
+	v2DirectPortBase       = 50000
+	v2DirectPortsPerWorker = 200
 	v2DirectReadCap        = int64(128 << 10)
 	v2DirectMinBytes       = int64(16 << 10)
 	v2DirectProcMark       = "0x40000000/0x40000000"
+	v2DirectExclMark       = "0x20000000/0x20000000"
+	v2DirectNoExit         = -2
 )
 
 type v2DirectSandbox struct {
@@ -39,13 +41,16 @@ type v2DirectSandbox struct {
 	writableDir  string
 	postChain    string
 	preChain     string
+	wanIfaces    []string
 
-	mu     sync.Mutex
-	cmd    *exec.Cmd
-	done   chan struct{}
-	log    string
-	next   int
-	active bool
+	mu       sync.Mutex
+	cmd      *exec.Cmd
+	done     chan struct{}
+	log      string
+	lastArgs []string
+	lastExit int
+	next     int
+	active   bool
 }
 
 type v2DirectProbeResult struct {
@@ -55,8 +60,23 @@ type v2DirectProbeResult struct {
 	LocalPort int
 }
 
+func v2DirectWANInterfaces(ip string) ([]string, error) {
+	out, err := exec.Command("ip", "-4", "route", "get", ip).Output()
+	if err != nil {
+		return nil, fmt.Errorf("resolve WAN interface for %s: %w", ip, err)
+	}
+	fields := strings.Fields(string(out))
+	for i := 0; i+1 < len(fields); i++ {
+		if fields[i] == "dev" && strings.TrimSpace(fields[i+1]) != "" {
+			return []string{fields[i+1]}, nil
+		}
+	}
+	return nil, fmt.Errorf("route to %s did not expose a dev interface: %s", ip, strings.TrimSpace(string(out)))
+}
+
 func newV2DirectSandbox(capabilities benchCapabilities, inventory benchStrategyInventory, worker, queue int, target, ip string) *v2DirectSandbox {
 	lo := v2DirectPortBase + worker*v2DirectPortsPerWorker
+	ifaces, _ := v2DirectWANInterfaces(ip)
 	return &v2DirectSandbox{
 		capabilities: capabilities,
 		inventory:    inventory,
@@ -69,6 +89,8 @@ func newV2DirectSandbox(capabilities benchCapabilities, inventory benchStrategyI
 		writableDir:  filepath.Join("/tmp/routerforge-direct-selector", fmt.Sprintf("w%d", worker)),
 		postChain:    fmt.Sprintf("RFDS_POST_%d", worker),
 		preChain:     fmt.Sprintf("RFDS_PRE_%d", worker),
+		wanIfaces:    ifaces,
+		lastExit:     v2DirectNoExit,
 	}
 }
 
@@ -88,15 +110,19 @@ func (s *v2DirectSandbox) iptQuiet(args ...string) {
 
 func (s *v2DirectSandbox) RulesUp(queue bool) error {
 	s.RulesDown()
-	if err := s.ipt("-t", "mangle", "-N", s.postChain); err != nil && !strings.Contains(err.Error(), "Chain already exists") {
-		return err
+	if len(s.wanIfaces) == 0 {
+		ifaces, err := v2DirectWANInterfaces(s.ip)
+		if err != nil {
+			return err
+		}
+		s.wanIfaces = ifaces
 	}
+
+	s.iptQuiet("-t", "mangle", "-N", s.postChain)
 	if err := s.ipt("-t", "mangle", "-F", s.postChain); err != nil {
 		return err
 	}
-	if err := s.ipt("-t", "mangle", "-N", s.preChain); err != nil && !strings.Contains(err.Error(), "Chain already exists") {
-		return err
-	}
+	s.iptQuiet("-t", "mangle", "-N", s.preChain)
 	if err := s.ipt("-t", "mangle", "-F", s.preChain); err != nil {
 		return err
 	}
@@ -104,47 +130,39 @@ func (s *v2DirectSandbox) RulesUp(queue bool) error {
 	sport := fmt.Sprintf("%d:%d", s.portLo, s.portHi)
 	q := strconv.Itoa(s.queue)
 
-	// nfqws-generated packets keep the process mark and must never loop back
-	// through the candidate queue.
 	if err := s.ipt("-t", "mangle", "-A", s.postChain, "-m", "mark", "--mark", v2DirectProcMark, "-j", "RETURN"); err != nil {
 		return err
 	}
 
-	outTuple := []string{"-p", "tcp", "-d", s.ip, "--sport", sport, "--dport", "443"}
-	inTuple := []string{"-p", "tcp", "-s", s.ip, "--sport", "443", "--dport", sport}
+	for _, ifc := range s.wanIfaces {
+		if err := s.ipt(
+			"-t", "mangle", "-A", s.postChain,
+			"-o", ifc, "-p", "tcp", "--dport", "443", "--sport", sport,
+			"-j", "CONNMARK", "--set-xmark", v2DirectExclMark,
+		); err != nil {
+			return err
+		}
+		if !queue {
+			continue
+		}
 
-	// Mark every probe packet before the normal production nfqws chains see it.
-	// RouterForge production already treats the nfqws process mark as excluded;
-	// this gives the direct selector the same isolation semantics without the old
-	// anchor/order transaction machinery.
-	if err := s.ipt(append([]string{"-t", "mangle", "-A", s.postChain}, append(append([]string{}, outTuple...), "-j", "MARK", "--set-xmark", v2DirectProcMark)...)...); err != nil {
-		return err
-	}
-	if queue {
-		args := append(append([]string{}, outTuple...),
+		if err := s.ipt(
+			"-t", "mangle", "-A", s.postChain,
+			"-o", ifc, "-p", "tcp", "--dport", "443", "--sport", sport,
 			"-m", "connbytes", "--connbytes", "1:16", "--connbytes-mode", "packets", "--connbytes-dir", "original",
-			"-j", "NFQUEUE", "--queue-num", q, "--queue-bypass")
-		if err := s.ipt(append([]string{"-t", "mangle", "-A", s.postChain}, args...)...); err != nil {
+			"-j", "NFQUEUE", "--queue-num", q, "--queue-bypass",
+		); err != nil {
 			return err
 		}
-	}
-	if err := s.ipt(append([]string{"-t", "mangle", "-A", s.postChain}, append(append([]string{}, outTuple...), "-j", "RETURN")...)...); err != nil {
-		return err
-	}
 
-	if err := s.ipt(append([]string{"-t", "mangle", "-A", s.preChain}, append(append([]string{}, inTuple...), "-j", "MARK", "--set-xmark", v2DirectProcMark)...)...); err != nil {
-		return err
-	}
-	if queue {
-		args := append(append([]string{}, inTuple...),
+		if err := s.ipt(
+			"-t", "mangle", "-A", s.preChain,
+			"-i", ifc, "-p", "tcp", "--sport", "443", "--dport", sport,
 			"-m", "connbytes", "--connbytes", "1:16", "--connbytes-mode", "packets", "--connbytes-dir", "reply",
-			"-j", "NFQUEUE", "--queue-num", q, "--queue-bypass")
-		if err := s.ipt(append([]string{"-t", "mangle", "-A", s.preChain}, args...)...); err != nil {
+			"-j", "NFQUEUE", "--queue-num", q, "--queue-bypass",
+		); err != nil {
 			return err
 		}
-	}
-	if err := s.ipt(append([]string{"-t", "mangle", "-A", s.preChain}, append(append([]string{}, inTuple...), "-j", "RETURN")...)...); err != nil {
-		return err
 	}
 
 	if err := s.ipt("-t", "mangle", "-I", "POSTROUTING", "1", "-j", s.postChain); err != nil {
@@ -168,36 +186,30 @@ func (s *v2DirectSandbox) RulesDown() {
 	s.active = false
 }
 
-func v2DirectStripRuntimeArgs(args []string) []string {
+func v2DirectStripDaemon(args []string) []string {
 	out := make([]string, 0, len(args))
 	for _, arg := range args {
-		switch {
-		case arg == "--daemon", arg == "-D",
-			strings.HasPrefix(arg, "--pidfile="),
-			strings.HasPrefix(arg, "--qnum="),
-			strings.HasPrefix(arg, "--fwmark="),
-			strings.HasPrefix(arg, "--user="):
+		if arg == "--daemon" || arg == "-D" {
 			continue
-		default:
-			out = append(out, arg)
 		}
+		out = append(out, arg)
 	}
 	return out
 }
 
 func (s *v2DirectSandbox) StartNfqws(profile benchStrategyProfile) error {
-	s.StopNfqws()
+	_ = s.StopNfqws()
 	if err := os.MkdirAll(s.writableDir, 0o755); err != nil {
 		return err
 	}
 
 	args := []string{
 		"--qnum=" + strconv.Itoa(s.queue),
-		"--fwmark=0x40000000",
 		"--writable=" + s.writableDir,
 	}
-	args = append(args, v2DirectStripRuntimeArgs(s.inventory.BaseArgs)...)
-	args = append(args, v2DirectStripRuntimeArgs(profile.Args)...)
+	args = append(args, s.inventory.BaseArgs...)
+	args = append(args, profile.Args...)
+	args = v2DirectStripDaemon(args)
 
 	logPath := filepath.Join(s.writableDir, "launch.log")
 	lf, err := os.Create(logPath)
@@ -218,29 +230,83 @@ func (s *v2DirectSandbox) StartNfqws(profile benchStrategyProfile) error {
 	s.cmd = cmd
 	s.done = done
 	s.log = logPath
+	s.lastArgs = append([]string{s.capabilities.CandidateBinary}, args...)
+	s.lastExit = v2DirectNoExit
 	s.mu.Unlock()
 
 	go func() {
-		_, _ = cmd.Process.Wait()
+		state, _ := cmd.Process.Wait()
+		s.mu.Lock()
+		if state != nil {
+			s.lastExit = state.ExitCode()
+		}
+		s.mu.Unlock()
 		close(done)
 	}()
 
-	deadline := time.Now().Add(8 * time.Second)
-	for time.Now().Before(deadline) {
+	deadline := time.Now().Add(10 * time.Second)
+	exited := false
+	doneCh := done
+	for {
 		bound, qerr := benchQueueIsBound(s.queue)
 		if qerr == nil && bound {
 			return nil
 		}
 		select {
-		case <-done:
-			data, _ := os.ReadFile(logPath)
-			return fmt.Errorf("nfqws2 exited before queue %d bind: %s", s.queue, strings.TrimSpace(string(data)))
-		default:
+		case <-doneCh:
+			bound, _ := benchQueueIsBound(s.queue)
+			if bound {
+				return nil
+			}
+			s.mu.Lock()
+			exitCode := s.lastExit
+			s.mu.Unlock()
+			if exitCode != 0 {
+				return fmt.Errorf("nfqws2 exited (code %d) before binding queue %d", exitCode, s.queue)
+			}
+			exited = true
+			doneCh = nil
+		case <-time.After(50 * time.Millisecond):
 		}
-		time.Sleep(50 * time.Millisecond)
+		if time.Now().After(deadline) {
+			_ = s.StopNfqws()
+			if exited {
+				return fmt.Errorf("nfqws2 exited before binding queue %d", s.queue)
+			}
+			return fmt.Errorf("nfqws2 start timeout: queue %d not bound", s.queue)
+		}
 	}
-	s.StopNfqws()
-	return fmt.Errorf("nfqws2 queue %d bind timeout", s.queue)
+}
+
+func (s *v2DirectSandbox) Diagnostics() string {
+	s.mu.Lock()
+	args := append([]string{}, s.lastArgs...)
+	exitCode := s.lastExit
+	logPath := s.log
+	s.mu.Unlock()
+
+	var b strings.Builder
+	if len(args) > 0 {
+		fmt.Fprintf(&b, "$ %s\n", strings.Join(args, " "))
+	}
+	switch exitCode {
+	case v2DirectNoExit:
+		b.WriteString("status: process still running / queue not proven\n")
+	case -1:
+		b.WriteString("status: process terminated by signal\n")
+	default:
+		fmt.Fprintf(&b, "exit_code: %d\n", exitCode)
+	}
+	if logPath != "" {
+		if data, err := os.ReadFile(logPath); err == nil && strings.TrimSpace(string(data)) != "" {
+			b.WriteString("stdout_stderr:\n")
+			b.Write(data)
+			if !strings.HasSuffix(string(data), "\n") {
+				b.WriteByte('\n')
+			}
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 func (s *v2DirectSandbox) StopNfqws() error {
@@ -382,12 +448,13 @@ func (s *v2DirectSandbox) RunCandidate(ctx context.Context, profile benchStrateg
 		CleanupProven:    false,
 	}
 	if err := s.StartNfqws(profile); err != nil {
-		// A candidate that cannot start is a candidate failure, not a reason to
-		// abort the whole catalog. The worker sandbox itself is still healthy.
-		attempt.InfrastructureOK = true
+		attempt.InfrastructureOK = false
 		attempt.CleanupProven = true
 		attempt.Error = err.Error()
-		attempt.ResultClass = "FAILED"
+		if diagnostic := s.Diagnostics(); diagnostic != "" {
+			attempt.Error += "\n" + diagnostic
+		}
+		attempt.ResultClass = "INCONCLUSIVE"
 		return attempt
 	}
 	attempt.InfrastructureOK = true

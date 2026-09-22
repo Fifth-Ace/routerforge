@@ -8,6 +8,8 @@ import (
 
 const v2MutationSeedSelectorVersion = 1
 
+const v2MutationSeedOutcomeExploratory = "EXPLORATORY"
+
 type v2MutationSeed struct {
 	Rank        int                 `json:"rank"`
 	Outcome     string              `json:"outcome"`
@@ -49,6 +51,8 @@ func v2MutationOutcomePriority(outcome string) int {
 		return 350
 	case v2MutationOutcomeUnstable:
 		return 300
+	case v2MutationSeedOutcomeExploratory:
+		return 100
 	default:
 		return 0
 	}
@@ -64,6 +68,8 @@ func v2MutationSeedReason(result v2CandidateResult, outcome string) string {
 		return "candidate produced partial transport progress; mutate around the partial breakthrough"
 	case v2MutationOutcomeUnstable:
 		return "candidate worked inconsistently; explore nearby values for a stable variant"
+	case v2MutationSeedOutcomeExploratory:
+		return "clean dead candidate selected only because the first live batch produced no normal mutation seed; explore nearby values as a bounded fallback"
 	default:
 		return "candidate is not eligible for adaptive mutation"
 	}
@@ -151,9 +157,47 @@ func v2MutationSelectSeeds(mode benchAutoTuneMode, transport benchTransportProfi
 		order int
 	}
 	unique := map[string]ranked{}
+	exploratory := make([]ranked, 0)
 	for i, result := range results {
 		item, fp, ok := v2MutationSeedFromResult(result, transport)
 		if !ok {
+			if !result.Baseline &&
+				len(result.Args) > 0 &&
+				result.CleanupProven &&
+				result.InfrastructureOK &&
+				len(result.Attempts) > 0 &&
+				v2MutationOutcome(result) == v2MutationOutcomeDead {
+				fp := v2CandidateTechniqueFingerprint(result.Args)
+				if fp != "" {
+					id := strings.TrimSpace(result.CandidateID)
+					if id == "" {
+						id = "seed-" + fp[:16]
+					}
+					name := strings.TrimSpace(result.CandidateName)
+					if name == "" {
+						name = "Exploratory seed " + fp[:8]
+					}
+					source := strings.TrimSpace(result.CandidateSource)
+					if source == "" {
+						source = "custom"
+					}
+					item := v2CandidatePoolItem{
+						ID: id, Name: name, Source: source,
+						Family: v2MutationFamily(result.Args, ""), Protocol: transport.ID,
+						Args: append([]string{}, result.Args...), Fingerprint: fp,
+						Stage: v2ProgressiveStageFull,
+					}
+					exploratory = append(exploratory, ranked{
+						seed: v2MutationSeed{
+							Outcome: v2MutationSeedOutcomeExploratory,
+							Reason: v2MutationSeedReason(result, v2MutationSeedOutcomeExploratory),
+							Fingerprint: fp, Seed: item, Result: result,
+						},
+						score: 0, order: i,
+					})
+					continue
+				}
+			}
 			plan.Rejected++
 			continue
 		}
@@ -185,6 +229,24 @@ func v2MutationSelectSeeds(mode benchAutoTuneMode, transport benchTransportProfi
 	rankedSeeds := make([]ranked, 0, len(unique))
 	for _, entry := range unique {
 		rankedSeeds = append(rankedSeeds, entry)
+	}
+	if len(rankedSeeds) == 0 && len(exploratory) > 0 {
+		fallbackUnique := map[string]ranked{}
+		for _, entry := range exploratory {
+			if existing, found := fallbackUnique[entry.seed.Fingerprint]; found {
+				plan.Duplicates++
+				if v2CandidateBetter(entry.seed.Result, existing.seed.Result) {
+					fallbackUnique[entry.seed.Fingerprint] = entry
+				}
+				continue
+			}
+			fallbackUnique[entry.seed.Fingerprint] = entry
+		}
+		for _, entry := range fallbackUnique {
+			rankedSeeds = append(rankedSeeds, entry)
+		}
+	} else {
+		plan.Rejected += len(exploratory)
 	}
 	plan.Eligible = len(rankedSeeds)
 	sort.SliceStable(rankedSeeds, func(i, j int) bool {

@@ -32,13 +32,29 @@ func TestV2MutationStopPolicyStopsWhenBaselineWorking(t *testing.T) {
 	}
 }
 
-func TestV2MutationStopPolicyStopsWhenNoEligibleSeed(t *testing.T) {
+func TestV2MutationStopPolicyContinuesWithCleanDeadExploratoryFallback(t *testing.T) {
 	mode, _ := v2SelectorMode("normal")
 	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
 	baseline := v2MutationPolicyTestResult("baseline", "FAILED", 0)
 	baseline.Baseline = true
 	dead := v2MutationPolicyTestResult("dead", "FAILED", 0)
 	decision := v2MutationEvaluateStopPolicy(mode, transport, baseline, []v2CandidateResult{dead})
+	if !decision.Continue || decision.Code != v2MutationStopContinue {
+		t.Fatalf("decision=%+v", decision)
+	}
+	if decision.SelectedSeeds != 1 || decision.SeedPlan.Seeds[0].Outcome != v2MutationSeedOutcomeExploratory {
+		t.Fatalf("exploratory fallback missing: %+v", decision)
+	}
+}
+
+func TestV2MutationStopPolicyStillStopsWhenOnlyInconclusiveCandidateExists(t *testing.T) {
+	mode, _ := v2SelectorMode("normal")
+	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
+	baseline := v2MutationPolicyTestResult("baseline", "FAILED", 0)
+	baseline.Baseline = true
+	inconclusive := v2MutationPolicyTestResult("inconclusive", "INCONCLUSIVE", 0)
+	inconclusive.InfrastructureOK = false
+	decision := v2MutationEvaluateStopPolicy(mode, transport, baseline, []v2CandidateResult{inconclusive})
 	if decision.Continue || decision.Code != v2MutationStopNoEligibleSeeds {
 		t.Fatalf("decision=%+v", decision)
 	}

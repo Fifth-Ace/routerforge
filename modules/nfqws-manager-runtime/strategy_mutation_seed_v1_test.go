@@ -32,7 +32,7 @@ func TestV2MutationSeedBudgets(t *testing.T) {
 	}
 }
 
-func TestV2MutationSeedSelectionRejectsDeadInconclusiveAndBaseline(t *testing.T) {
+func TestV2MutationSeedSelectionUsesCleanDeadOnlyAsExploratoryFallback(t *testing.T) {
 	mode, _ := v2SelectorMode("thorough")
 	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
 	args := []string{
@@ -45,8 +45,38 @@ func TestV2MutationSeedSelectionRejectsDeadInconclusiveAndBaseline(t *testing.T)
 	baseline := v2MutationSeedTestResult("baseline", "PARTIAL", 0, 0, args...)
 	baseline.Baseline = true
 	plan := v2MutationSelectSeeds(mode, transport, []v2CandidateResult{dead, inconclusive, baseline})
-	if plan.Selected != 0 || plan.Eligible != 0 || plan.Rejected != 3 {
+	if plan.Selected != 1 || plan.Eligible != 1 {
 		t.Fatalf("unexpected plan: %+v", plan)
+	}
+	if plan.Seeds[0].Outcome != v2MutationSeedOutcomeExploratory {
+		t.Fatalf("outcome=%q want EXPLORATORY", plan.Seeds[0].Outcome)
+	}
+}
+
+func TestV2MutationSeedSelectionNeverUsesDeadFallbackWhenNormalSeedExists(t *testing.T) {
+	mode, _ := v2SelectorMode("normal")
+	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
+	base := []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello"}
+	dead := v2MutationSeedTestResult("dead", "FAILED", 0, 0, append(base, "--lua-desync=multisplit:pos=1,midsld")...)
+	partial := v2MutationSeedTestResult("partial", "PARTIAL", 0, 0, append(base, "--lua-desync=multidisorder:pos=1,midsld")...)
+	plan := v2MutationSelectSeeds(mode, transport, []v2CandidateResult{dead, partial})
+	if plan.Selected != 1 || plan.Seeds[0].Outcome != v2MutationOutcomePartial {
+		t.Fatalf("dead fallback competed with normal seed: %+v", plan)
+	}
+}
+
+func TestV2MutationSeedSelectionRejectsDirtyDeadFallback(t *testing.T) {
+	mode, _ := v2SelectorMode("normal")
+	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
+	dead := v2MutationSeedTestResult(
+		"dead", "FAILED", 0, 0,
+		"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	)
+	dead.CleanupProven = false
+	plan := v2MutationSelectSeeds(mode, transport, []v2CandidateResult{dead})
+	if plan.Selected != 0 || plan.Eligible != 0 {
+		t.Fatalf("dirty dead candidate became exploratory seed: %+v", plan)
 	}
 }
 

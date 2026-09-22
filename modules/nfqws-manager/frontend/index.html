@@ -1119,10 +1119,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <nav class="tabs nfqws-tool-tabs" id="nfqwsToolTabs" aria-label="Диагностика NFQWS">
   <button class="tab" data-tab="preflight">Проверка системы <span id="preflightTabState" class="nav-meta"></span></button>
   <button class="tab" data-tab="dpi-detector">DPI Detector <span id="dpiDetectorTabState" class="nav-meta"></span></button>
-  <button class="tab" data-tab="observed-v1">Проблемные адреса <span id="v2ObservedTabCount" class="nav-meta"></span></button>
-  <button class="tab" data-tab="domain-v2">Разбор домена</button>
+  <button class="tab" data-tab="domain-v2">Проверка домена</button>
   <button class="tab" data-tab="prodlab-v2">Тестирование</button>
-  <button class="tab" data-tab="tcp16-memory-v1">Обрывы 16 КБ <span id="v2TCP16TabCount" class="nav-meta"></span></button>
   <button class="tab" data-tab="clienthello">ClientHello</button>
 </nav>
 
@@ -1306,28 +1304,26 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-domain-v2" class="view">
   <div class="v2-shell">
     <div class="v2-hero">
-      <div><h2>Разбор домена</h2><div class="section-kicker">production inventory + DNS → TCP → TLS → HTTP</div></div>
+      <div><h2>Проверка домена</h2><div class="section-kicker">где ломается доступ: DNS → TCP → TLS → HTTP</div></div>
       <span id="v2DomainState" class="config-badge">IDLE</span>
     </div>
     <div class="v2-input-row">
       <input id="v2DomainTarget" class="search" placeholder="youtube.com" autocomplete="off" spellcheck="false">
-      <button id="v2DomainRun" class="primary">Разобрать</button>
-      <button id="v2DomainToSetup">В Автонастройку</button>
-      <button id="v2DomainToSelector">В Автоподбор</button>
-      <button id="v2DomainToLab">В Test Lab</button>
+      <button id="v2DomainRun" class="primary">Проверить</button>
+      <button id="v2DomainToSelector" style="display:none">Подобрать рабочую стратегию</button>
     </div>
     <div id="v2DomainSummary" class="v2-card-grid">
       <div class="panel"><div class="analysis-empty">Введите домен. Рабочие настройки не изменяются.</div></div>
     </div>
     <article class="panel">
-      <div class="panel-head"><div><h2>Этапы доступа</h2><div class="section-kicker">read-only staged detector</div></div></div>
+      <div class="panel-head"><div><h2>Этапы проверки</h2><div class="section-kicker">проверка ничего не меняет в рабочей конфигурации</div></div></div>
       <div id="v2DomainStages" class="v2-stage-list"><div class="analysis-empty">Проверка ещё не запускалась.</div></div>
     </article>
     <div class="v2-two">
-      <article class="panel"><div class="panel-head"><div><h2>Списки</h2><div class="section-kicker">совпадения в локальных list-файлах</div></div></div><div id="v2DomainLists" class="v2-list"></div></article>
-      <article class="panel"><div class="panel-head"><div><h2>Production profiles</h2><div class="section-kicker">связь с live /proc argv, где её можно доказать</div></div></div><div id="v2DomainProfiles" class="v2-list"></div></article>
+      <article class="panel"><div class="panel-head"><div><h2>Списки</h2><div class="section-kicker">где найден этот домен</div></div></div><div id="v2DomainLists" class="v2-list"></div></article>
+      <article class="panel"><div class="panel-head"><div><h2>Активные правила</h2><div class="section-kicker">какие текущие профили могут относиться к домену</div></div></div><div id="v2DomainProfiles" class="v2-list"></div></article>
     </div>
-    <div class="v2-boundary">Разбор домена не утверждает, что конкретный LAN-пакет прошёл через q300. Он показывает production inventory и отдельный router-side staged probe. Для изолированной проверки candidate используйте Sandbox или Автоподбор.</div>
+    <div class="v2-boundary">Проверка домена только диагностирует доступ и текущую конфигурацию. Если проблема относится к стратегии NFQWS, появится отдельное действие для подбора рабочего варианта.</div>
   </div>
 </section>
 
@@ -1415,13 +1411,13 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-auto-setup-v1" class="view">
   <div class="v2-shell">
     <div class="v2-hero">
-      <div><h2>Автонастройка</h2><div class="section-kicker">target → diagnosis → bounded planner → live verify → Preview → explicit Safe Apply</div></div>
+      <div><h2>Автонастройка</h2><div class="section-kicker">проверить сайт → найти проблему → подобрать рабочую стратегию → показать изменения → применить</div></div>
       <span id="v2AutoSetupState" class="config-badge">IDLE</span>
     </div>
 
     <div class="v2-two">
       <article class="panel">
-        <div class="panel-head"><div><h2>1. Откуда взять цель</h2><div class="section-kicker">manual · Observed Targets · list/domain</div></div></div>
+        <div class="panel-head"><div><h2>1. Что проверить</h2><div class="section-kicker">домен можно ввести вручную или выбрать из списка</div></div></div>
         <label class="v2-label">Источник
           <select id="v2AutoSetupSource" class="search">
             <option value="manual">Ручной target</option>
@@ -1467,8 +1463,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       </article>
 
       <article class="panel">
-        <div class="panel-head"><div><h2>2. Текущее состояние</h2><div class="section-kicker">без универсального «failed»</div></div></div>
-        <div id="v2AutoSetupStatus" class="v2-recommendation"><div class="analysis-empty">Выберите target и запустите workflow.</div></div>
+        <div class="panel-head"><div><h2>2. Что происходит</h2><div class="section-kicker">что проверено, что найдено и почему выбран следующий шаг</div></div></div>
+        <div id="v2AutoSetupStatus" class="v2-recommendation"><div class="analysis-empty">Выберите сайт и запустите проверку.</div></div>
         <div id="v2AutoSetupTimeline" class="v2-list" style="margin-top:10px"></div>
       </article>
     </div>
@@ -5568,15 +5564,58 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
 
+  function v2AutoSetupLabel(code){
+    const labels={
+      IDLE:'Готово к запуску',READY:'Цель выбрана',INSPECTING:'Проверяю сайт',
+      TARGET_ALREADY_HEALTHY:'Сайт уже работает',DNS_FAILURE:'Проблема с DNS',
+      ROUTING_FAILURE:'Проблема с маршрутом',LIVE_VERIFY:'Подбираю стратегию',
+      DEPENDENCY_MISSING:'Автоподбор не запущен',NO_CANDIDATES_COMPILE:'Нет кандидатов для проверки',
+      NO_CANDIDATE_WORKS:'Рабочая стратегия не найдена',CLEANUP_FAILURE:'Безопасная проверка остановлена',
+      WINNER_VERIFIED:'Рабочая стратегия найдена',PREVIEW_READY:'Изменения готовы к просмотру',
+      APPLY_SUCCESS:'Изменения применены',APPLY_ROLLBACK:'Изменения отменены',
+      TLS_HANDSHAKE_RESET:'TLS-соединение сбрасывается',CLEAR_END_TO_END:'Проверка доступа успешна',
+      INSPECTED:'Проверена текущая конфигурация',CHECKS:'Проверена цепочка доступа',
+      NO_CHANGES:'Изменения не требуются',SELECTOR_BLOCKED:'Автоподбор не запущен'
+    };
+    return labels[String(code||'').toUpperCase()]||String(code||'Состояние').replaceAll('_',' ');
+  }
   function v2AutoSetupPush(code,title,detail='',tone='info'){
     v2AutoSetupTimeline.push({code,title,detail,tone});
     const root=$('v2AutoSetupTimeline');if(!root)return;
-    root.innerHTML=v2AutoSetupTimeline.map(x=>`<div class="v2-row ${esc(x.tone||'info')}"><div class="v2-result-title">${esc(x.code)}</div><div><div class="value">${esc(x.title)}</div><div class="meta">${esc(x.detail||'')}</div></div>${v2Pill(x.code)}</div>`).join('');
+    root.innerHTML=v2AutoSetupTimeline.map(x=>`<div class="v2-row ${esc(x.tone||'info')}"><div class="v2-result-title">${esc(x.title||v2AutoSetupLabel(x.code))}</div><div><div class="value">${esc(x.detail||'')}</div><div class="meta">Технический код: ${esc(x.code)}</div></div>${v2Pill(v2AutoSetupLabel(x.code))}</div>`).join('');
   }
   function v2AutoSetupState(code,message,tone='info'){
-    $('v2AutoSetupState').textContent=code;
-    $('v2AutoSetupStatus').innerHTML=`<div class="v2-row ${esc(tone)}"><div class="v2-result-title">${esc(code)}</div><div class="value">${esc(message||'')}</div>${v2Pill(code)}</div>`;
+    $('v2AutoSetupState').textContent=v2AutoSetupLabel(code);
+    $('v2AutoSetupStatus').innerHTML=`<div class="v2-row ${esc(tone)}"><div class="v2-result-title">${esc(v2AutoSetupLabel(code))}</div><div><div class="value">${esc(message||'')}</div><div class="meta">Технический код: ${esc(code)}</div></div>${v2Pill(v2AutoSetupLabel(code))}</div>`;
     reportHeight();
+  }
+  function v2AutoSetupStageSummary(detect){
+    return ['dns','tcp','tls','http'].map(k=>{
+      const state=String(detect?.stages?.[k]?.state||'skipped').toUpperCase();
+      const mark=['PASS','OK','CLEAR','WORKING'].includes(state)?'✓':state==='SKIPPED'?'—':'✕';
+      return `${k.toUpperCase()} ${mark}`;
+    }).join(' · ');
+  }
+  function v2AutoSetupBlockerText(value){
+    const s=String(value||'');
+    const l=s.toLowerCase();
+    if(l.includes('active management ssh session'))return 'Активна SSH-сессия управления; live-тесты специально заблокированы.';
+    if(l.includes('candidate nfqws2 executable'))return 'Не удалось подтвердить исполняемый файл nfqws2 для тестового процесса.';
+    if(l.includes('firewall nfqueue inventory'))return 'Не удалось безопасно прочитать NFQUEUE-правила firewall.';
+    if(l.includes('kernel nfqueue binding inventory'))return 'Не удалось подтвердить состояние NFQUEUE в ядре.';
+    if(l.includes('no free queue'))return 'Нет свободной тестовой NFQUEUE в зарезервированном диапазоне.';
+    if(l.includes('cleanup baseline'))return 'Не доказано, что тестовый NFQUEUE-диапазон чист до запуска.';
+    if(l.includes('management ssh session inventory'))return 'Не удалось безопасно определить активные SSH-сессии управления.';
+    return s;
+  }
+  async function v2AutoSetupCapabilityDetails(){
+    try{
+      const d=await api('/bench-capabilities');
+      const blockers=(d.blockers||[]).map(v2AutoSetupBlockerText);
+      return blockers.length?blockers:['Безопасность тестового стенда не подтверждена, но конкретный blocker не указан.'];
+    }catch(e){
+      return [`Не удалось получить детали готовности тестового стенда: ${e.message}`];
+    }
   }
   function v2AutoSetupErrorCode(message){
     const m=String(message||'').toLowerCase();
@@ -5663,10 +5702,21 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         api('/v2/detect',{method:'POST',body:JSON.stringify({target})})
       ]);
       v2AutoSetupInspect=inspect;v2AutoSetupDetect=detect;
-      const diag=detect.diagnostic||{};
-      v2AutoSetupPush('INSPECTED','Target inspection завершён',`binding=${inspect.binding_verdict||'—'} · lists=${(inspect.list_matches||[]).length}`,'good');
-      v2AutoSetupPush(diag.code||detect.classification||'BASELINE','Baseline diagnosis',`${diag.fault_domain||'—'} · ${diag.confidence||'—'} · ${diag.suggested_action||detect.classification_text||''}`,detect.classification==='clear'?'good':'warn');
-      const stop=v2AutoSetupDiagnosisStop(detect);if(stop){v2AutoSetupState(stop[0],stop[1],stop[2]);return}
+      const diag=detect.diagnostic||{},stageSummary=v2AutoSetupStageSummary(detect);
+      v2AutoSetupPush('INSPECTED','Проверена текущая конфигурация',`Подходящих активных профилей: ${(inspect.production_profile_matches||[]).length} · совпадений в списках: ${(inspect.list_matches||[]).length}`,'good');
+      v2AutoSetupPush('CHECKS','Проверена цепочка доступа',stageSummary,detect.classification==='clear'?'good':'warn');
+      v2AutoSetupPush(diag.code||detect.classification||'BASELINE',v2AutoSetupLabel(diag.code||detect.classification||'BASELINE'),diag.suggested_action||detect.classification_text||'Диагностика завершена.',detect.classification==='clear'?'good':'warn');
+      const stop=v2AutoSetupDiagnosisStop(detect);
+      if(stop){
+        if(stop[0]==='TARGET_ALREADY_HEALTHY'){
+          v2AutoSetupPush('NO_CHANGES','Изменения не требуются','Сайт уже доступен. Автоподбор не запускался, рабочая конфигурация не изменялась.','good');
+          v2AutoSetupState(stop[0],`Сайт уже работает. ${stageSummary}. Ничего менять не требуется.`,'good');
+        }else{
+          v2AutoSetupPush('NO_CHANGES','Стратегии NFQWS не подбирались','Проблема находится вне этапа, который должна исправлять стратегия NFQWS. Рабочая конфигурация не изменялась.','warn');
+          v2AutoSetupState(stop[0],`${stop[1]} ${stageSummary}`.trim(),stop[2]);
+        }
+        return
+      }
 
       if(String(diag.code||'').toUpperCase()==='HTTP_STREAM_CUTOFF_12_20K_SUSPECTED'){
         v2AutoSetupState('TCP16_REVALIDATE','Диагностика указывает на 12–20 KiB cutoff; запускаю bounded TCP16 network probe.','warn');
@@ -5679,7 +5729,16 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       $('v2SelectorProduction').checked=true;$('v2SelectorAutoPool').checked=true;$('v2SelectorLibrary').checked=true;
       const selected=await runV2Selector();
       if(!selected){
-        const code=v2AutoSetupErrorCode(v2SelectorLastError);v2AutoSetupState(code,v2SelectorLastError||'Selector не завершился.','bad');v2AutoSetupPush(code,'Live Selector остановлен',v2SelectorLastError,'bad');return
+        const raw=v2SelectorLastError||'Автоподбор не завершился.';
+        if(String(raw).toLowerCase().includes('capability gates')){
+          const blockers=await v2AutoSetupCapabilityDetails();
+          const detail=blockers.join(' ');
+          v2AutoSetupState('DEPENDENCY_MISSING',`Проблема найдена, но безопасный Автоподбор не был запущен. ${detail}`,'bad');
+          v2AutoSetupPush('SELECTOR_BLOCKED','Автоподбор не запущен',detail,'bad');
+          v2AutoSetupPush('NO_CHANGES','Ничего не изменено','Production-конфигурация осталась без изменений.','good');
+          return
+        }
+        const code=v2AutoSetupErrorCode(raw);v2AutoSetupState(code,raw,'bad');v2AutoSetupPush(code,'Автоподбор остановлен',raw,'bad');return
       }
       if(!selected.cleanup_baseline_after){v2AutoSetupState('CLEANUP_FAILURE','Isolated test не доказал cleanup baseline. Apply заблокирован.','bad');v2AutoSetupPush('CLEANUP_FAILURE','Cleanup proof failed','','bad');return}
       if(!(selected.candidates||[]).length){v2AutoSetupState('NO_CANDIDATES_COMPILE','Нет пригодных кандидатов для live verification.','bad');v2AutoSetupPush('NO_CANDIDATES_COMPILE','Candidate set пуст после compiler/gates','','bad');return}
@@ -5720,8 +5779,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
 
   async function runV2Domain(){
-    const target=String($('v2DomainTarget').value||'').trim();if(!target){notice('Разбор домена: укажите hostname.','error');return}
-    $('v2DomainState').textContent='RUNNING';$('v2DomainRun').disabled=true;
+    const target=String($('v2DomainTarget').value||'').trim();if(!target){notice('Проверка домена: укажите hostname.','error');return}
+    $('v2DomainState').textContent='RUNNING';$('v2DomainRun').disabled=true;$('v2DomainToSelector').style.display='none';
     try{
       const [inspect,detect]=await Promise.all([
         api('/v2/inspect-target',{method:'POST',body:JSON.stringify({target})}),
@@ -5740,8 +5799,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const lists=inspect.list_matches||[];$('v2DomainLists').innerHTML=lists.length?lists.map(x=>`<div class="v2-row"><div class="v2-result-title">${esc(x.name)}</div><div class="meta">${esc(x.path||'')} · ${esc(x.relation||'present')}</div>${v2Pill('MATCH')}</div>`).join(''):'<div class="analysis-empty">Совпадений в локальных list-файлах не найдено.</div>';
       const profiles=inspect.production_profile_matches||[];$('v2DomainProfiles').innerHTML=profiles.length?profiles.map(p=>`<div class="v2-row"><div class="v2-result-title">Profile ${Number(p.index)}</div><div><div class="value">${esc(p.match_reason||'')}</div><div class="v2-args">${esc(v2ArgsText(p.args))}</div></div>${v2Pill(p.candidate_ready?'READY':'CHECK')}</div>`).join(''):'<div class="analysis-empty">Прямую production profile binding доказать не удалось.</div>';
       const action=String(detect.diagnostic?.suggested_action||'').trim();
-      notice(`Разбор ${inspect.target||target}: ${detect.classification_text||detect.classification||'готово'}${action?` · ${action}`:''}`,detect.classification==='clear'?'good':'');
-    }catch(e){$('v2DomainState').textContent='ОШИБКА';notice(`Разбор домена: ${e.message}`,'error')}
+      const needsStrategy=!!diag.strategy_relevant&&String(detect.classification||'').toLowerCase()!=='clear';
+      $('v2DomainToSelector').style.display=needsStrategy?'':'none';
+      notice(`Проверка ${inspect.target||target}: ${detect.classification_text||detect.classification||'готово'}${action?` · ${action}`:''}`,detect.classification==='clear'?'good':'');
+    }catch(e){$('v2DomainState').textContent='ОШИБКА';notice(`Проверка домена: ${e.message}`,'error')}
     finally{$('v2DomainRun').disabled=false;reportHeight()}
   }
   function v2DomainSend(tab){
@@ -5916,7 +5977,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       $('v2SelectorState').textContent='DONE';$('v2SelectorBar').style.width='100%';renderV2SelectorResult(d);{const all=d.candidates||[],working=all.filter(x=>x.result_class==='WORKING').length;v2HistoryAdd('v2-selector',{targets:1,candidates:all.length,working,success_ratio:all.length?working/all.length:0,recommendation:!!d.recommendation_available},d)}notice(`Автоподбор завершён: ${d.recommendation_reason||'готово'}`,'good');return d;
     }catch(e){
       if(controller.signal.aborted){$('v2SelectorState').textContent='STOPPED';notice('Автоподбор остановлен.','')}
-      else{v2SelectorLastError=e.message||'selector failed';$('v2SelectorState').textContent='ОШИБКА';notice(`Автоподбор: ${e.message}`,'error')}
+      else{v2SelectorLastError=e.message||'selector failed';$('v2SelectorState').textContent='ОШИБКА';if(!v2AutoSetupRunning)notice(`Автоподбор: ${e.message}`,'error')}
       return null;
     }finally{clearInterval(v2SelectorPoll);v2SelectorPoll=0;v2SelectorAbort=null;$('v2SelectorRun').disabled=false;$('v2SelectorStop').disabled=true;reportHeight()}
   }
@@ -6145,7 +6206,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
   // New workflow event bindings.
   $('v2AutoSetupSource').onchange=v2AutoSetupSourceChanged;$('v2AutoSetupList').onchange=v2AutoSetupLoadListTargets;$('v2AutoSetupRun').onclick=runV2AutoSetup;$('v2AutoSetupReset').onclick=v2AutoSetupReset;$('v2AutoSetupRebuildPreview').onclick=v2AutoSetupBuildPreview;$('v2AutoSetupApply').onclick=applyV2AutoSetup;
-  $('v2DomainRun').onclick=runV2Domain;$('v2DomainTarget').onkeydown=e=>{if(e.key==='Enter')runV2Domain()};$('v2DomainToSetup').onclick=()=>v2AutoSetupSeed(String(v2DomainLast?.inspect?.target||$('v2DomainTarget').value||'').trim(),'Domain Inspector');$('v2DomainToSelector').onclick=()=>v2DomainSend('selector-v2');$('v2DomainToLab').onclick=()=>v2DomainSend('prodlab-v2');
+  $('v2DomainRun').onclick=runV2Domain;$('v2DomainTarget').onkeydown=e=>{if(e.key==='Enter')runV2Domain()};$('v2DomainToSelector').onclick=()=>v2DomainSend('selector-v2');
   $('v2LabSource').onchange=()=>v2TargetMode('lab');$('v2LabResolve').onclick=async()=>{try{await v2ResolveLabTargets()}catch(e){notice(e.message,'error')}};$('v2LabRun').onclick=runV2Lab;$('v2LabStop').onclick=()=>v2LabAbort?.abort();
   $('v2SandboxTargetSource').onchange=()=>v2TargetMode('sandbox');$('v2SandboxCandidateSource').onchange=v2SandboxCandidateMode;$('v2SandboxProfile').onchange=v2SandboxCandidateMode;$('v2SandboxLibrary').onchange=v2SandboxCandidateMode;$('v2SandboxRun').onclick=runV2Sandbox;$('v2SandboxStop').onclick=()=>v2SandboxAbort?.abort();$('v2SandboxSave').onclick=saveV2SandboxCandidate;
   $('v2SelectorRun').onclick=runV2Selector;$('v2SelectorStop').onclick=()=>v2SelectorAbort?.abort();$('v2SelectorPreview').onclick=buildV2SelectorPreview;$('v2SelectorApply').onclick=applyV2SelectorPreview;
@@ -6169,7 +6230,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   const nfqwsStrategyTabs=new Set(['strategy-library-v2','strategy-registry-v1','strategy-import']);
   const nfqwsMenuTabs=new Set(['catalog','upstream-lists','blobs']);
   const nfqwsSelectionTabs=new Set(['auto-setup-v1','selector-v2','sandbox-v2','target-memory-v2']);
-  const nfqwsToolTabs=new Set(['preflight','dpi-detector','observed-v1','domain-v2','prodlab-v2','tcp16-memory-v1','clienthello']);
+  const nfqwsToolTabs=new Set(['preflight','dpi-detector','domain-v2','prodlab-v2','clienthello']);
   const nfqwsMaintenanceTabs=new Set(['runs','logs','backups','runtime-health-v2','scripts','keenetic']);
   let nfqwsActiveConfig='strategies';
   let nfqwsActiveStrategy='strategy-library-v2';

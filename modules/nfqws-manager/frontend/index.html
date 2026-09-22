@@ -1528,9 +1528,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
           <label>Workers<select id="v2SelectorConcurrency" class="search"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></label>
         </div>
         <label class="v2-check"><input id="v2SelectorProduction" type="checkbox" checked> Production profiles из live nfqws2</label>
-        <label class="v2-check"><input id="v2SelectorAutoPool" type="checkbox" checked> Verified Memory + динамический Strategy Synthesizer</label>
+        <label class="v2-check"><input id="v2SelectorAutoPool" type="checkbox" checked> Другие стратегии + RouterForge corpus · direct test</label>
         <label class="v2-check"><input id="v2SelectorLibrary" type="checkbox" checked> Сохранённые стратегии из Candidate Library</label>
-        <div id="v2SelectorPoolMeta" class="v2-boundary">Auto Pool сначала использует проверенную память, затем сам составляет новые варианты из техник, позиций и fooling-параметров. Curated/builtin pool остаётся fallback.</div>
+        <div id="v2SelectorPoolMeta" class="v2-boundary">Direct catalog: RouterForge реально тестирует portable corpus по очереди. Planner / synthesis / adaptive mutation не участвуют в выборе.</div>
         <label class="v2-label">Дополнительный candidate
           <input id="v2SelectorExtraName" class="search" placeholder="Название (необязательно)">
           <textarea id="v2SelectorExtraArgs" class="v2-textarea compact" placeholder="--hostlist-domains=... --filter-tcp=443 ..."></textarea>
@@ -6009,22 +6009,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(v2SelectorAbort)return null;const target=$('v2SelectorTarget').value.trim();if(!target){notice('Автоподбор: укажите target.','error');return}
     try{await Promise.all([v2EnsureStatus(),v2LoadLibrary()])}catch(e){notice(e.message,'error');return}
     let plannerDiagnostic={code:'',fault_domain:'',strategy_relevant:false};
-    try{
-      const det=await api('/v2/detect',{method:'POST',body:JSON.stringify({target})});
-      if(det?.diagnostic)plannerDiagnostic={code:det.diagnostic.code||'',fault_domain:det.diagnostic.fault_domain||'',strategy_relevant:!!det.diagnostic.strategy_relevant};
-    }catch(_){}
     let propertyVector=null;
-    if($('v2SelectorAutoPool').checked){
-      $('v2SelectorPoolMeta').textContent='Property probe: проверяю поведение DPI в isolated NFQUEUE…';
-      try{
-        const pp=await api('/v2/property-probe',{method:'POST',body:JSON.stringify({mode:$('v2SelectorMode').value,server_name:target,transport:'https',expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_DPI_PROPERTY_PROBE_V1'})});
-        if(!pp?.ok||!pp?.cleanup_baseline_after)throw new Error('property probe cleanup proof failed');
-        propertyVector=pp.vector||null;
-        const pref=(propertyVector?.preferred_families||[]).join(', ')||'broad search';
-        $('v2SelectorPoolMeta').textContent=`Property probe: ${propertyVector?.baseline_working?'baseline works':pref} · ${(propertyVector?.probes||[]).filter(x=>x.state!=='UNMEASURED').length}/${(propertyVector?.probes||[]).length} measured`;
-      }catch(e){notice(`Property probe: ${e.message}`,'error');return null}
-    }
-    const candidates=[];
+    const candidates=[];    const candidates=[];
     if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}

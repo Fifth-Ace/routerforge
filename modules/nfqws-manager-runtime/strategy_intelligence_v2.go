@@ -1343,7 +1343,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		}
 		sessionID = generated
 	}
-	setV2SelectorProgress(sessionID, "PLAN", 0, 0, "building candidate plan", false, false)
+	setV2SelectorProgress(sessionID, "PLAN", 0, 0, "building direct catalog", false, false)
 
 	if !atomic.CompareAndSwapInt32(&benchSmokeActive, 0, 1) {
 		setV2SelectorProgress(sessionID, "FAILED", 0, 0, "another bench session is active", true, true)
@@ -1353,6 +1353,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	defer atomic.StoreInt32(&benchSmokeActive, 0)
 
 	mode, _ := v2SelectorMode(req.Mode)
+	mode.Attempts = 1
 	target, _ := v2NormalizeTarget(req.ServerName)
 	status := readStatus()
 	if !strings.EqualFold(status.ConfigSHA256, strings.TrimSpace(req.ExpectedConfigSHA256)) {
@@ -1386,14 +1387,39 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	if req.IncludeProduction != nil {
 		includeProduction = *req.IncludeProduction
 	}
-	productionCap := mode.MaxCandidates
-	if len(req.Candidates) > 0 {
-		productionCap = mode.MaxCandidates / 2
-		if productionCap < 1 {
-			productionCap = 1
+
+	// P26 direct catalog model: execute the actual corpus/library candidates first.
+	// Production profiles are fallback candidates, not a reservation that can
+	// starve the portable strategy corpus.
+	for i, candidate := range req.Candidates {
+		if len(templates) >= mode.MaxCandidates {
+			break
 		}
+		profile, err := v2CustomProfile(candidate.Args, target)
+		if err != nil {
+			continue
+		}
+		profile.Index = -1
+		fp := v2StrategyFingerprint(profile.Args)
+		if fp == "" || seen[fp] {
+			continue
+		}
+		seen[fp] = true
+		id := strings.TrimSpace(candidate.ID)
+		if id == "" {
+			id = fmt.Sprintf("direct-%d", i+1)
+		}
+		name := strings.TrimSpace(candidate.Name)
+		if name == "" {
+			name = fmt.Sprintf("Direct candidate %d", i+1)
+		}
+		templates = append(templates, selectorTemplate{
+			profile: profile, id: id, name: name,
+			source: v2StrategySource(candidate.Source), production: false,
+		})
 	}
-	if includeProduction {
+
+	if includeProduction && len(templates) < mode.MaxCandidates {
 		for _, p := range inventory.Profiles {
 			if !p.CandidateEligible {
 				continue
@@ -1403,50 +1429,19 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			fp := v2StrategyFingerprint(retargeted.Args)
-			if seen[fp] {
+			if fp == "" || seen[fp] {
 				continue
 			}
 			seen[fp] = true
 			templates = append(templates, selectorTemplate{
 				profile: retargeted, id: fmt.Sprintf("production-%d", p.Index),
-				name: fmt.Sprintf("Production profile %d", p.Index), source: "production", production: true,
+				name: fmt.Sprintf("Production profile %d", p.Index),
+				source: "production", production: true,
 			})
-			if len(templates) >= productionCap {
+			if len(templates) >= mode.MaxCandidates {
 				break
 			}
 		}
-	}
-	for i, candidate := range req.Candidates {
-		if len(templates) >= mode.MaxCandidates {
-			break
-		}
-		profile, err := v2CustomProfile(candidate.Args, target)
-		if err != nil {
-			setV2SelectorProgress(sessionID, "FAILED", 0, len(templates), "external candidate validation failed", true, true)
-			writeJSON(w, http.StatusConflict, map[string]any{
-				"error":           "candidate validation failed: " + err.Error(),
-				"candidate_index": i, "candidate_id": candidate.ID, "session_id": sessionID,
-			})
-			return
-		}
-		profile.Index = -1
-		fp := v2StrategyFingerprint(profile.Args)
-		if seen[fp] {
-			continue
-		}
-		seen[fp] = true
-		id := strings.TrimSpace(candidate.ID)
-		if id == "" {
-			id = "external-" + fp[:16]
-		}
-		name := strings.TrimSpace(candidate.Name)
-		if name == "" {
-			name = "External candidate " + fmt.Sprintf("%d", i+1)
-		}
-		source := v2StrategySource(candidate.Source)
-		templates = append(templates, selectorTemplate{
-			profile: profile, id: id, name: name, source: source, production: false,
-		})
 	}
 	if len(templates) == 0 {
 		setV2SelectorProgress(sessionID, "FAILED", 0, 0, "no retargetable strategy candidates", true, true)
@@ -1535,7 +1530,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	jobs := make(chan job)
 	results := make(chan jobResult, len(templates))
 	var wg sync.WaitGroup
-	setV2SelectorProgress(sessionID, "BENCH", 0, len(templates), "testing isolated strategy candidates", false, false)
+	setV2SelectorProgress(sessionID, "BENCH", 0, len(templates), "testing direct catalog candidates", false, false)
 	for worker := 0; worker < concurrency; worker++ {
 		queue := queues[worker]
 		wg.Add(1)
@@ -1624,82 +1619,21 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	mutationTransport, mutationTransportErr := normalizeBenchTransport(benchTransportHTTPS)
-	if mutationTransportErr != nil {
-		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), "adaptive mutation transport normalization failed", true, true)
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": mutationTransportErr.Error(), "session_id": sessionID})
-		return
-	}
-	mutationStop := v2MutationEvaluateStopPolicy(mode, mutationTransport, baseline, candidates)
 	mutationRound := v2MutationRoundPlan{
 		Trace: v2MutationRoundTrace{
-			Version:  v2MutationSearchVersion,
-			Budget:   mutationStop.Budget,
-			SeedPlan: mutationStop.SeedPlan,
+			Version: v2MutationSearchVersion,
+			Budget:  0,
 		},
 		Candidates: []v2CandidatePoolItem{},
 	}
-	if mutationStop.Continue {
-		mutationRound = v2BuildMutationRound(target, mutationTransport, mode, candidates)
-	} else {
-		setV2SelectorProgress(
-			sessionID, "MUTATE", 0, 0,
-			"adaptive mutation skipped: "+mutationStop.Code+" — "+mutationStop.Reason,
-			false, false,
-		)
+	mutationStop := v2MutationStopDecision{
+		Version:  v2MutationStopPolicyVersion,
+		Continue: false,
+		Code:     "DIRECT_CATALOG_EXECUTION",
+		Reason:   "P26 direct catalog selector ranks real candidate executions without adaptive mutation",
+		Budget:   0,
 	}
-	if len(mutationRound.Candidates) > 0 {
-		setV2SelectorProgress(
-			sessionID, "MUTATE", 0, len(mutationRound.Candidates),
-			fmt.Sprintf("testing %d adaptive mutations from %d live seeds", len(mutationRound.Candidates), mutationRound.Trace.SeedPlan.Selected),
-			false, false,
-		)
-		mutationCtx, cancelMutation := context.WithTimeout(r.Context(), time.Duration(mode.TimeoutSec)*time.Second)
-		mutationResults, mutationErr := v2RunMutationRound(
-			mutationCtx, capabilities, status.ConfigSHA256, target, ip, inventory,
-			mutationTransport, mode, mutationRound.Candidates, queues,
-		)
-		cancelMutation()
-		if mutationErr != nil {
-			setV2SelectorProgress(sessionID, "FAILED", 0, len(mutationRound.Candidates), "adaptive mutation compile/run failed", true, true)
-			writeJSON(w, http.StatusBadGateway, map[string]any{"error": mutationErr.Error(), "session_id": sessionID})
-			return
-		}
-		for i, mutation := range mutationResults {
-			if !mutation.CleanupProven || !mutation.InfrastructureOK {
-				reason := "adaptive mutation infrastructure/cleanup proof failed; selector stopped fail-closed"
-				setV2SelectorProgress(sessionID, "FAILED", i+1, len(mutationResults), reason, true, true)
-				afterFailure := readBenchCapabilities()
-				writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
-					OK: false, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip, MetricScope: "https-full-response",
-					Baseline: baseline, Candidates: append(candidates, mutationResults...),
-					RecommendationReason: reason,
-					CleanupBaselineAfter: afterFailure.CleanupBaselineProven, BenchEnabled: afterFailure.BenchEnabled,
-					SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
-					AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
-					PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
-					HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
-					HistoricalPromoted: autoPoolMeta.RecommendationAdded,
-					PlannerVersion:     autoPoolMeta.PlannerVersion, PlannerDiagnosticCode: autoPoolMeta.PlannerDiagnosticCode,
-					PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
-					PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
-					PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
-					PropertyVector: req.PropertyVector, MutationRound: mutationRound.Trace, MutationStop: mutationStop,
-				})
-				return
-			}
-			mutationRound.Trace.Completed = i + 1
-			setV2SelectorProgress(
-				sessionID, "MUTATE", i+1, len(mutationResults),
-				fmt.Sprintf("completed adaptive mutation %d of %d", i+1, len(mutationResults)), false, false,
-			)
-		}
-		mutationRound.Trace.Executed = len(mutationResults) > 0
-		candidates = append(candidates, mutationResults...)
-		completed += len(mutationResults)
-	}
-
-	setV2SelectorProgress(sessionID, "RANK", completed, len(candidates), "ranking original and mutated live results", false, false)
+	setV2SelectorProgress(sessionID, "RANK", completed, len(candidates), "ranking direct catalog live results", false, false)
 	recommend, best, needed, reason := v2ChooseRecommendation(baseline, candidates)
 	after := readBenchCapabilities()
 	ok := after.CleanupBaselineProven && strings.EqualFold(readStatus().ConfigSHA256, status.ConfigSHA256)

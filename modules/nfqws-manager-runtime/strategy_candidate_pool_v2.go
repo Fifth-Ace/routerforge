@@ -510,47 +510,28 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 		return meta, nil
 	}
 
-	target, err := v2NormalizeTarget(req.ServerName)
+	if _, err := v2NormalizeTarget(req.ServerName); err != nil {
+		return meta, err
+	}
+	mode, err := v2SelectorMode(req.Mode)
 	if err != nil {
 		return meta, err
 	}
-	propertyVector, propertyErr := v2NormalizeDPIPropertyVector(req.PropertyVector, benchTransportHTTPS)
-	if propertyErr != nil {
-		return meta, propertyErr
-	}
-	req.PropertyVector = propertyVector
-	pool, err := v2PlanCandidatePoolForTransport(target, req.Mode, benchTransportHTTPS, v2PlannerHint{
-		DiagnosticCode:   req.DiagnosticCode,
-		FaultDomain:      req.DiagnosticFaultDomain,
-		StrategyRelevant: req.DiagnosticStrategyRelevant,
-		Properties:       propertyVector,
-	})
+	transport, err := normalizeBenchTransport(benchTransportHTTPS)
 	if err != nil {
 		return meta, err
 	}
-	meta.Sources = append(meta.Sources, pool.Sources...)
-	meta.Warnings = append(meta.Warnings, pool.Warnings...)
-	meta.RecommendationAware = pool.RecommendationAware
-	meta.RecommendationHints = pool.RecommendationHints
-	meta.RecommendationAdded = pool.RecommendationAdded
-	meta.PlannerVersion = pool.PlannerVersion
-	meta.PlannerDiagnosticCode = pool.PlannerDiagnosticCode
-	meta.PlannerFaultDomain = pool.PlannerFaultDomain
-	meta.PlannerStrategyRelevant = pool.PlannerStrategyRelevant
-	meta.PlannerCompatibleCount = pool.PlannerCompatibleCount
-	meta.PlannerPromotedCount = pool.PlannerPromotedCount
-	meta.PlannerAdmittedRegistryCount = pool.PlannerAdmittedRegistryCount
-	meta.PlannerPlan = append([]v2CandidatePoolItem{}, pool.Candidates...)
 
-	// Auto Pool is the search plan, not a decorative appendix. Put it before
-	// caller-supplied library candidates so mode.MaxCandidates cannot silently
-	// starve synthesized candidates. External candidates remain as fallbacks.
+	// P26A direct execution model:
+	// Auto Pool is the portable corpus itself. No planner, synthesis, historical
+	// promotion or adaptive mutation is allowed to replace real candidate execution.
 	external := append([]v2SelectorCandidateInput{}, req.Candidates...)
 	req.Candidates = []v2SelectorCandidateInput{}
 	seen := map[string]bool{}
+	sourceSet := map[string]bool{}
 
-	for _, item := range pool.Candidates {
-		if len(req.Candidates) >= 32 {
+	for _, item := range v2CorpusCandidatesForTransport(transport) {
+		if len(req.Candidates) >= mode.MaxCandidates {
 			break
 		}
 		fp := v2CandidateTechniqueFingerprint(item.Args)
@@ -562,19 +543,14 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 			ID: item.ID, Name: item.Name, Source: item.Source, Args: append([]string{}, item.Args...),
 		})
 		meta.Added++
-		switch item.Source {
-		case "memory":
-			meta.MemoryCandidates++
-		case "synthesized":
-			meta.SynthesizedCandidates++
-		case "builtin":
-			meta.BuiltinCandidates++
-		default:
-			meta.LibraryCandidates++
+		meta.LibraryCandidates++
+		if item.Source != "" {
+			sourceSet[item.Source] = true
 		}
 	}
+
 	for _, existing := range external {
-		if len(req.Candidates) >= 32 {
+		if len(req.Candidates) >= mode.MaxCandidates {
 			break
 		}
 		fp := v2CandidateTechniqueFingerprint(existing.Args)
@@ -583,6 +559,15 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 		}
 		seen[fp] = true
 		req.Candidates = append(req.Candidates, existing)
+		if existing.Source != "" {
+			sourceSet[v2StrategySource(existing.Source)] = true
+		}
 	}
+
+	for source := range sourceSet {
+		meta.Sources = append(meta.Sources, source)
+	}
+	sort.Strings(meta.Sources)
+	meta.Warnings = append(meta.Warnings, "P26 direct catalog execution: planner, synthesis and adaptive mutation are bypassed")
 	return meta, nil
 }

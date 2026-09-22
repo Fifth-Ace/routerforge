@@ -37,13 +37,24 @@ func TestV2MutationRoundBudgetsByMode(t *testing.T) {
 	}
 }
 
-func TestV2MutationRoundSkipsWhenNoEligibleSeed(t *testing.T) {
+func TestV2MutationRoundBuildsExploratoryFallbackFromCleanDead(t *testing.T) {
 	mode, _ := v2SelectorMode("normal")
 	transport, _ := normalizeBenchTransport(benchTransportHTTPS)
 	dead := v2MutationSearchTestResult("dead", "FAILED", "--lua-desync=multisplit:pos=1,midsld", 0)
 	plan := v2BuildMutationRound("example.com", transport, mode, []v2CandidateResult{dead})
-	if plan.Trace.SeedPlan.Selected != 0 || plan.Trace.Admitted != 0 || len(plan.Candidates) != 0 {
-		t.Fatalf("unexpected mutation round: %+v", plan)
+	if plan.Trace.SeedPlan.Selected != 1 || plan.Trace.SeedPlan.Eligible != 1 {
+		t.Fatalf("unexpected seed plan: %+v", plan.Trace.SeedPlan)
+	}
+	if plan.Trace.SeedPlan.Seeds[0].Outcome != v2MutationSeedOutcomeExploratory {
+		t.Fatalf("outcome=%q want EXPLORATORY", plan.Trace.SeedPlan.Seeds[0].Outcome)
+	}
+	if plan.Trace.Admitted == 0 || len(plan.Candidates) == 0 {
+		t.Fatalf("expected exploratory mutations: %+v", plan)
+	}
+	for _, item := range plan.Candidates {
+		if item.Source != "mutated" {
+			t.Fatalf("source=%q want mutated", item.Source)
+		}
 	}
 }
 

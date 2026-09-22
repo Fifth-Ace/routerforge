@@ -168,6 +168,22 @@ func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
 			Repository: "Fifth-Ace/routerforge",
 			Note:       "RouterForge curated candidate family",
 		}
+	case "z2k":
+		return v2StrategyRegistryProvenance{
+			Kind:       "upstream-corpus",
+			Source:     "z2k",
+			Repository: "necronicle/z2k",
+			Ref:        "d3f67d4e1489c34b4c2eb8406e03368b53faeb82",
+			Note:       "portable strategy corpus imported with permission",
+		}
+	case "omn1z":
+		return v2StrategyRegistryProvenance{
+			Kind:       "upstream-corpus",
+			Source:     "omn1z",
+			Repository: "Omn1z/nfqws2-keenetic-strategy-selector",
+			Ref:        "039c9c07ce24c468b20f152ffafdcbfaa917f2eb",
+			Note:       "portable strategy corpus imported with permission",
+		}
 	case "memory":
 		return v2StrategyRegistryProvenance{
 			Kind: "runtime-evidence", Source: "memory",

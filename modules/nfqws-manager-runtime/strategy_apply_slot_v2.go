@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"errors"
+	"net/netip"
 	"strings"
 )
 
@@ -51,7 +53,40 @@ func v2BindCandidateToSourceProfile(source benchStrategyProfile, testedArgs []st
 	return bound, nil
 }
 
-func v2ProfileMatchesTargetWithLists(target string, profile benchStrategyProfile, matchedLists map[string]bool) bool {
+func v2ListContainsIPv4(text, destinationIPv4 string) bool {
+	address, err := netip.ParseAddr(strings.TrimSpace(destinationIPv4))
+	if err != nil || !address.Is4() {
+		return false
+	}
+	scanner := bufio.NewScanner(strings.NewReader(text))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+		if cut := strings.IndexAny(line, " \t#;"); cut >= 0 {
+			line = strings.TrimSpace(line[:cut])
+		}
+		line = strings.Trim(line, "\"'")
+		if prefix, prefixErr := netip.ParsePrefix(line); prefixErr == nil {
+			if prefix.Addr().Is4() && prefix.Contains(address) {
+				return true
+			}
+			continue
+		}
+		if item, itemErr := netip.ParseAddr(line); itemErr == nil && item.Is4() && item == address {
+			return true
+		}
+	}
+	return false
+}
+
+func v2ProfileMatchesTargetWithLists(
+	target string,
+	profile benchStrategyProfile,
+	domainMatches map[string]bool,
+	ipMatches map[string]bool,
+) bool {
 	matched := false
 	hasPositiveSelector := false
 	for _, domain := range profile.HostlistDomains {
@@ -61,21 +96,29 @@ func v2ProfileMatchesTargetWithLists(target string, profile benchStrategyProfile
 		}
 	}
 	for _, arg := range profile.FileBoundFilters {
-		name, _ := v2ProfileFileRelation(arg)
+		name, relation := v2ProfileFileRelation(arg)
 		if name == "" {
 			continue
 		}
-		exclude := strings.HasPrefix(arg, "--hostlist-exclude=") ||
-			strings.HasPrefix(arg, "--ipset-exclude=")
-		if exclude {
-			if matchedLists[name] {
+		switch relation {
+		case "exclude":
+			if domainMatches[name] {
 				return false
 			}
-			continue
-		}
-		hasPositiveSelector = true
-		if matchedLists[name] {
-			matched = true
+		case "ipset-exclude":
+			if ipMatches[name] {
+				return false
+			}
+		case "ipset":
+			hasPositiveSelector = true
+			if ipMatches[name] {
+				matched = true
+			}
+		default:
+			hasPositiveSelector = true
+			if domainMatches[name] {
+				matched = true
+			}
 		}
 	}
 	if !hasPositiveSelector {
@@ -84,12 +127,20 @@ func v2ProfileMatchesTargetWithLists(target string, profile benchStrategyProfile
 	return matched
 }
 
-func v2ProductionProfilesMatchingTarget(target string, inventory benchStrategyInventory) []benchStrategyProfile {
-	matchedLists := map[string]bool{}
+func v2ProductionProfilesMatchingTarget(target, destinationIPv4 string, inventory benchStrategyInventory) []benchStrategyProfile {
+	domainMatches := map[string]bool{}
+	ipMatches := map[string]bool{}
 	for _, item := range readStatus().Lists {
 		data, _, err := v2ReadListByName(item.Name)
-		if err == nil && v2ListContainsTarget(string(data), target) {
-			matchedLists[item.Name] = true
+		if err != nil {
+			continue
+		}
+		text := string(data)
+		if v2ListContainsTarget(text, target) {
+			domainMatches[item.Name] = true
+		}
+		if v2ListContainsIPv4(text, destinationIPv4) {
+			ipMatches[item.Name] = true
 		}
 	}
 	out := []benchStrategyProfile{}
@@ -97,7 +148,7 @@ func v2ProductionProfilesMatchingTarget(target string, inventory benchStrategyIn
 		if !v2ProductionSourceProfileEligible(profile) {
 			continue
 		}
-		if v2ProfileMatchesTargetWithLists(target, profile, matchedLists) {
+		if v2ProfileMatchesTargetWithLists(target, profile, domainMatches, ipMatches) {
 			out = append(out, profile)
 		}
 	}

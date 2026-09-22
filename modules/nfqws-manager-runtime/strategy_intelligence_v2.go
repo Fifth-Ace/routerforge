@@ -1672,7 +1672,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		} else {
-			matches := v2ProductionProfilesMatchingTarget(target, inventory)
+			matches := v2ProductionProfilesMatchingTarget(target, ip, inventory)
 			if len(matches) == 1 {
 				candidate := matches[0]
 				sourceProfile = &candidate

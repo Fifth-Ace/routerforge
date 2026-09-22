@@ -464,6 +464,106 @@ var v2StaticCorpusEntries = []v2StaticCorpusEntry{
 		Protocol: "http", Family: "fake+disorder",
 		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=fake:blob=http_req", "--lua-desync=multidisorder:pos=method+2,host+1"},
 	},
+	{
+		ID: "z2k-p25b3-tls-hfs-sniext-md5", Name: "z2k P25B3 · hostfakesplit sniext md5", Source: "z2k",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:payload=tls_client_hello:dir=out:midhost=host-2:seqovl=sniext+3:seqovl_pattern=tls_clienthello:tcp_md5"},
+	},
+	{
+		ID: "z2k-p25b3-tls-hfs-sld-badsum", Name: "z2k P25B3 · hostfakesplit sld badsum", Source: "z2k",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:payload=tls_client_hello:dir=out:midhost=sld+1:seqovl=1:seqovl_pattern=tls_clienthello:badsum"},
+	},
+	{
+		ID: "z2k-p25b3-tls-hfs-host-ts", Name: "z2k P25B3 · hostfakesplit host tcp_ts", Source: "z2k",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:payload=tls_client_hello:dir=out:midhost=host+1:seqovl=1:seqovl_pattern=tls_clienthello:tcp_ts_up"},
+	},
+	{
+		ID: "z2k-p25b3-tls-ms-endhost", Name: "z2k P25B3 · multisplit endhost", Source: "z2k",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:payload=tls_client_hello:dir=out:pos=endhost-1,endhost:seqovl=1"},
+	},
+	{
+		ID: "z2k-p25b3-tls-md-endhost", Name: "z2k P25B3 · multidisorder endhost", Source: "z2k",
+		Protocol: "https", Family: "disorder",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:payload=tls_client_hello:dir=out:pos=endhost-1,endhost:seqovl=1"},
+	},
+	{
+		ID: "z2k-p25b3-tls-ms-midsld-sniext", Name: "z2k P25B3 · multisplit midsld+sniext", Source: "z2k",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:payload=tls_client_hello:dir=out:pos=midsld-2,midsld,sniext+1:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "z2k-p25b3-tls-md-host-midsld", Name: "z2k P25B3 · multidisorder host+midsld", Source: "z2k",
+		Protocol: "https", Family: "disorder",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:payload=tls_client_hello:dir=out:pos=host+1,midsld,midsld+2:seqovl=1"},
+	},
+	{
+		ID: "z2k-p25b3-tls-fds-sld", Name: "z2k P25B3 · fakedsplit sld", Source: "z2k",
+		Protocol: "https", Family: "fake-split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakedsplit:payload=tls_client_hello:dir=out:pos=sld+1:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "z2k-p25b3-tls-fdd-sld", Name: "z2k P25B3 · fakeddisorder sld", Source: "z2k",
+		Protocol: "https", Family: "fake-disorder",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fakeddisorder:payload=tls_client_hello:dir=out:pos=sld+1:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "z2k-p25b3-tls-fake-autottl-ms", Name: "z2k P25B3 · fake autottl + multisplit", Source: "z2k",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:payload=tls_client_hello:dir=out:blob=0x00000000:ip_autottl=0,3-20", "--lua-desync=multisplit:payload=tls_client_hello:dir=out:pos=1,midsld"},
+	},
+	{
+		ID: "z2k-p25b3-tls-fake-repeats-fds", Name: "z2k P25B3 · fake repeats + fakedsplit", Source: "z2k",
+		Protocol: "https", Family: "fake-split",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:payload=tls_client_hello:dir=out:blob=0x00000000:repeats=4", "--lua-desync=fakedsplit:payload=tls_client_hello:dir=out:pos=midsld"},
+	},
+	{
+		ID: "z2k-p25b3-tls-syndata-ms", Name: "z2k P25B3 · syndata + multisplit", Source: "z2k",
+		Protocol: "https", Family: "syndata",
+		Args: []string{"--filter-tcp=443,2053,2083,2087,2096,8443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=syndata:payload=tls_client_hello:dir=out:blob=syn_packet", "--lua-desync=multisplit:payload=tls_client_hello:dir=out:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-p25b3-tls-hfs-host-md5", Name: "Omn1z P25B3 · hostfakesplit host md5", Source: "omn1z",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:midhost=host+1:seqovl=1:seqovl_pattern=tls_clienthello:tcp_md5"},
+	},
+	{
+		ID: "omn1z-p25b3-tls-hfs-sniext-badsum", Name: "Omn1z P25B3 · hostfakesplit sniext badsum", Source: "omn1z",
+		Protocol: "https", Family: "hostfakesplit",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=hostfakesplit:midhost=sniext+1:seqovl=1:seqovl_pattern=tls_clienthello:badsum"},
+	},
+	{
+		ID: "omn1z-p25b3-tls-ms-endhost", Name: "Omn1z P25B3 · multisplit endhost", Source: "omn1z",
+		Protocol: "https", Family: "split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=endhost-1,endhost:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-p25b3-tls-md-endhost", Name: "Omn1z P25B3 · multidisorder endhost", Source: "omn1z",
+		Protocol: "https", Family: "disorder",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multidisorder:pos=endhost-1,endhost:seqovl=1:seqovl_pattern=tls_clienthello"},
+	},
+	{
+		ID: "omn1z-p25b3-tls-fake-autottl-md", Name: "Omn1z P25B3 · fake autottl + multidisorder", Source: "omn1z",
+		Protocol: "https", Family: "fake+disorder",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:ip_autottl=0,3-20", "--lua-desync=multidisorder:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-p25b3-tls-fake-repeats-ms", Name: "Omn1z P25B3 · fake repeats + multisplit", Source: "omn1z",
+		Protocol: "https", Family: "fake+split",
+		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=fake:blob=tls_clienthello:repeats=4", "--lua-desync=multisplit:pos=1,midsld"},
+	},
+	{
+		ID: "omn1z-p25b3-http-ms-host-sld", Name: "Omn1z P25B3 · HTTP multisplit host+sld", Source: "omn1z",
+		Protocol: "http", Family: "split",
+		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=multisplit:pos=method+2,host+1,sld+1"},
+	},
+	{
+		ID: "omn1z-p25b3-http-md-host-sld", Name: "Omn1z P25B3 · HTTP multidisorder host+sld", Source: "omn1z",
+		Protocol: "http", Family: "disorder",
+		Args: []string{"--filter-tcp=80", "--filter-l7=http", "--payload=http_req", "--lua-desync=multidisorder:pos=method+2,host+1,sld+1"},
+	},
 }
 
 func v2StaticStrategyCorpus() []v2StaticCorpusEntry {

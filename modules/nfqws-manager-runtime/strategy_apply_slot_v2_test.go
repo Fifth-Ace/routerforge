@@ -55,3 +55,39 @@ func TestV2ProfileMatchesTargetWithLists(t *testing.T) {
 		t.Fatal("unmatched list must not bind production profile")
 	}
 }
+func TestV2ProfileMatchesTargetWithListsExcludeVetoesInclude(t *testing.T) {
+	profile := analyzeBenchStrategyProfile(1, []string{
+		"--hostlist=/opt/etc/nfqws2/lists/user.list",
+		"--hostlist-exclude=/opt/etc/nfqws2/lists/exclude.list",
+		"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	})
+	if v2ProfileMatchesTargetWithLists("example.com", profile, map[string]bool{
+		"user.list":    true,
+		"exclude.list": true,
+	}) {
+		t.Fatal("exclude-list match must veto a positive include-list match")
+	}
+}
+
+func TestV2ProfileMatchesTargetWithListsExcludeOnlyAllowsNonExcludedTarget(t *testing.T) {
+	profile := analyzeBenchStrategyProfile(1, []string{
+		"--hostlist-exclude=/opt/etc/nfqws2/lists/exclude.list",
+		"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	})
+	if !v2ProfileMatchesTargetWithLists("example.com", profile, map[string]bool{}) {
+		t.Fatal("exclude-only profile must match a target that is not excluded")
+	}
+}
+
+func TestV2ProfileMatchesTargetWithListsExcludeOnlyRejectsExcludedTarget(t *testing.T) {
+	profile := analyzeBenchStrategyProfile(1, []string{
+		"--hostlist-exclude=/opt/etc/nfqws2/lists/exclude.list",
+		"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello",
+		"--lua-desync=multisplit:pos=1,midsld",
+	})
+	if v2ProfileMatchesTargetWithLists("example.com", profile, map[string]bool{"exclude.list": true}) {
+		t.Fatal("exclude-only profile must reject a target present in its exclude list")
+	}
+}

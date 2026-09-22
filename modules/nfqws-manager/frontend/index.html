@@ -533,10 +533,10 @@ button.ux-task-card:focus-visible{outline:2px solid var(--accent);outline-offset
 
 .testlab-shell{display:grid;gap:var(--space);padding-top:10px}
 .testlab-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
-.testlab-title-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.testlab-state{display:inline-flex;align-items:center;justify-content:center;min-width:88px;padding:5px 9px;border-radius:999px;border:1px solid var(--border);font:800 10px ui-monospace,"Roboto Mono",Consolas,monospace;letter-spacing:.04em}.testlab-state.idle{color:var(--muted)}.testlab-state.running{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}.testlab-state.done{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,var(--border))}.testlab-state.stopped{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--border))}
+.testlab-title-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .testlab-layout{display:grid;grid-template-columns:minmax(300px,420px) minmax(0,1fr);gap:var(--space);align-items:start}.testlab-targets{display:grid;gap:8px}.testlab-targets textarea{width:100%;min-height:260px;resize:vertical;border:1px solid var(--border);border-radius:8px;background:var(--code);padding:10px 12px;color:var(--text);font:11px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace}.testlab-targets textarea:focus{outline:none;border-color:var(--accent)}.testlab-options{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.testlab-options label{display:grid;min-width:0;gap:4px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.testlab-options select{width:100%;min-width:0;min-height:31px}
 .testlab-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.testlab-stat{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}.testlab-stat span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.testlab-stat strong{display:block;margin-top:2px;font:800 14px ui-monospace,"Roboto Mono",Consolas,monospace}.testlab-progress{height:5px;border-radius:999px;background:var(--surface2);overflow:hidden}.testlab-progress span{display:block;height:100%;width:0;background:var(--accent);transition:width .16s ease}.testlab-meta{color:var(--muted);font-size:10px;line-height:1.4}
-.testlab-results{display:flex;flex-direction:column;gap:6px;max-height:58vh;overflow:auto}.testlab-row{display:grid;grid-template-columns:minmax(160px,1.4fr) 120px 74px 82px minmax(150px,1fr);gap:8px;align-items:center;padding:8px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}.testlab-row.head{position:sticky;top:0;z-index:2;background:var(--surface);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.testlab-domain{font:700 11px/1.4 ui-monospace,"Roboto Mono",Consolas,monospace;overflow-wrap:anywhere}.testlab-static{font:700 9px ui-monospace,"Roboto Mono",Consolas,monospace}.testlab-static.include{color:var(--good)}.testlab-static.exclude{color:var(--bad)}.testlab-static.warn{color:var(--warn)}.testlab-probe{font:700 10px ui-monospace,"Roboto Mono",Consolas,monospace}.testlab-probe.good{color:var(--good)}.testlab-probe.bad{color:var(--bad)}.testlab-detail{font-size:10px;color:var(--muted);overflow-wrap:anywhere}.testlab-note{padding:10px 12px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:10px;line-height:1.45}
+.testlab-note{padding:10px 12px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:10px;line-height:1.45}
 @media(max-width:980px){.testlab-layout{grid-template-columns:1fr}.testlab-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.testlab-targets textarea{min-height:180px}}
 @media(max-width:700px){.testlab-row{grid-template-columns:1fr 1fr}.testlab-row.head{display:none}.testlab-summary{grid-template-columns:1fr 1fr}}
 .sandbox-shell{display:grid;gap:var(--space);padding-top:10px}
@@ -1177,7 +1177,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <div id="nfqwsMenuCredit" class="strategy-import-credit nfqws-menu-credit">
   <div><strong>NFQWS Menu</strong><span>Интегрированный источник готовых стратегий, списков и blobs.</span></div>
   <a href="https://github.com/rndnaame/nfqws-menu/" target="_blank" rel="noopener noreferrer">Открыть GitHub ↗</a>
-  <span id="testLabTabState" hidden></span>
+
 </div>
 
 <main>
@@ -1945,41 +1945,6 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   </div>
 </section>
 
-<section id="view-testlab" class="view">
-  <div class="testlab-shell">
-    <div class="testlab-hero">
-      <div>
-        <div class="testlab-title-row"><h2 style="margin:0">Test Lab v1</h2><span id="testLabState" class="testlab-state idle">IDLE</span><span id="testLabRuntimeBadge" class="config-badge">ACTIVE RUNTIME</span></div>
-        <div class="preflight-sub">Пакетная проверка доменов: статический путь из active config + router-side HTTP/HTTPS probe. Никаких переключений стратегии и перезапусков.</div>
-      </div>
-      <div class="toolbar"><button id="copyTestLab" disabled>Копировать JSON</button><button id="stopTestLab" disabled>Стоп</button><button id="runTestLab" class="primary">Запустить</button></div>
-    </div>
-    <div class="testlab-layout">
-      <article class="panel testlab-targets">
-        <div class="panel-head"><div><h2>Цели</h2><div class="section-kicker">до 64 публичных DNS-имён</div></div></div>
-        <textarea id="testLabTargets" spellcheck="false" placeholder="youtube.com&#10;discord.com&#10;example.org"></textarea>
-        <div class="toolbar"><button id="testLabFromSelected">Из выбранного списка</button><button id="testLabFromUser">Из user.list</button><button id="clearTestLab">Очистить</button></div>
-        <div class="testlab-options">
-          <label>Повторы<select id="testLabRounds" class="search"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option></select></label>
-          <label>Параллельно<select id="testLabConcurrency" class="search"><option value="2">2</option><option value="4" selected>4</option><option value="6">6</option></select></label>
-        </div>
-        <div class="testlab-note">Probe выполняется самим RouterForge на роутере. Это проверяет router-side reachability и стабильность ответа, но не доказывает прохождение клиентского пакета через NFQUEUE. Strategy Sandbox ниже анализирует candidate отдельно и тоже ничего не применяет.</div>
-      </article>
-      <article class="panel">
-        <div class="testlab-summary">
-          <div class="testlab-stat"><span>Целей</span><strong id="testLabTargetCount">0</strong></div>
-          <div class="testlab-stat"><span>Успешных</span><strong id="testLabOk" class="good-text">0</strong></div>
-          <div class="testlab-stat"><span>С ошибками</span><strong id="testLabFail" class="bad-text">0</strong></div>
-          <div class="testlab-stat"><span>Median</span><strong id="testLabMedian">—</strong></div>
-        </div>
-        <div class="testlab-progress" style="margin-top:10px"><span id="testLabBar"></span></div>
-        <div id="testLabMeta" class="testlab-meta" style="margin:7px 0 10px">Готов к запуску.</div>
-        <div id="testLabResults" class="testlab-results"><div class="analysis-empty">Добавь домены слева и запусти тест.</div></div>
-      </article>
-    </div>
-  </div>
-</section>
-
 <section id="view-strategies" class="view">
   <div class="setup-flow">
     <div class="setup-topbar setup-topbar-full">
@@ -2506,7 +2471,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   const marker='/ui/', pos=location.pathname.indexOf(marker);
   const base=pos>=0?location.pathname.slice(0,pos):'/api/modules/nfqws-manager';
   const $=id=>document.getElementById(id);
-  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, testLabGeneration=0, testLabRunning=false, testLabResultsData=[], testLabListCache=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null;
+  let current=null, original='', busy=false, selectedList='', listOriginal='', listMeta=null, logMode='all', checkGeneration=0, policyMode='none', scriptsLoaded=false, scriptsLoading=false, scriptFiles=[], selectedScript='', scriptContent='', analysisFindings=[], analysisFilter='all', analysisRunning=false, analysisSources={}, analysisPeer='', analysisSelectedDirty=false, entryInspectorRunning=false, entryInspectorRecord=null, entryInspectorFindings=[], staticPathRunning=false, staticPathRecord=null, staticPathResult=null, runHistoryFilter='all', runHistory=[], recoveryGuardRunning=false, recoveryGuardLastResult=null, listSourceLoaded=false, listSourceLoading=false, listSourceFiles=[], listSourceUpstream=[], listSourceRef='', listSourceError='', catalogLoaded=false, catalogLoading=false, catalogItems=[], catalogFilter='all', catalogSelected='', catalogSelectedData=null, catalogUpstream={state:'idle',ref:'main',sha:'',error:''}, blobLoaded=false, blobLoading=false, blobFiles=[], blobRoot='', blobManifestCache={}, blobExpectedMap={}, smartApplyPlan=null, smartApplyBusy=false, backupCenterLoaded=false, backupCenterLoading=false, backupCenterFiles=[], backupCenterSelected='', backupCenterSelectedData=null, backupCenterRoot='', keeneticLoaded=false, keeneticLoading=false, keeneticSnapshot=null, dpiDetectorLoaded=false, dpiDetectorLoading=false, dpiDetectorSnapshot=null, processingMapRunning=false, processingMapResult=null;
   let processingMapLiveRunning=false, processingMapLiveResult=null, processingMapStrategyInventory=null;
   let dpiWorkspaceMode='console',dpiWebRunning=false,dpiWebResult=null,dpiWebProgress=null;
   let dpiNativeRunning=false,dpiNativeResult=null,dpiNativeStartedAt=0,dpiNativeTimer=0,dpiNativeVisible=true;
@@ -3340,52 +3305,6 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
   function openCreate(){$('newListName').value='';$('createError').textContent='';$('createModal').classList.add('open');setTimeout(()=>$('newListName').focus(),20)}function closeCreate(){$('createModal').classList.remove('open')}
   function extractDomains(text){const set=new Set();for(let line of lines(text)){line=line.trim();if(!line||line.startsWith('#')||line.startsWith('//'))continue;line=line.replace(/^https?:\/\//i,'').replace(/^www\./i,'').split('#')[0].split('/')[0].split(':')[0].trim();if(/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(line))set.add(line)}return [...set]}
-
-  function testLabTargets(){
-    const out=[],seen=new Set();for(const raw of String($('testLabTargets')?.value||'').split(/\r?\n/)){const d=normalizeDomain(normalizeListDataLine(raw));if(!d||seen.has(d))continue;seen.add(d);out.push(d);if(out.length>=64)break}return out;
-  }
-  function medianNumber(values){
-    const a=values.map(Number).filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;
-  }
-  function testLabStaticClass(verdict){
-    if(verdict==='INCLUDED'||verdict==='INCLUDED BY MODE')return'include';if(verdict==='EXCLUDED')return'exclude';if(verdict==='AMBIGUOUS')return'warn';return'';
-  }
-  async function loadTestLabListContents(){
-    const items=editableStatusLists(),out={},queue=[...items],workers=[];let done=0,errors=[];
-    async function worker(){while(queue.length){const item=queue.shift();if(!item)break;try{if(item.name===selectedList&&listMeta)out[item.name]=$('listEditor').value;else{const d=await api(`/list?name=${encodeURIComponent(item.name)}`);out[item.name]=d.content||''}}catch(e){errors.push(`${item.name}: ${e.message||'read failed'}`)}done++;$('testLabMeta').textContent=`Загрузка списков: ${done}/${items.length}`}}
-    for(let i=0;i<Math.min(4,items.length);i++)workers.push(worker());await Promise.all(workers);return{contents:out,errors};
-  }
-  function renderTestLab(){
-    const data=testLabResultsData||[],attempts=data.reduce((s,x)=>s+x.attempts.length,0),oks=data.filter(x=>x.attempts.length&&x.attempts.every(a=>a.ok)).length,fails=data.filter(x=>x.attempts.some(a=>!a.ok)).length,lat=data.flatMap(x=>x.attempts.filter(a=>a.ok).map(a=>a.ms)),med=medianNumber(lat);
-    $('testLabTargetCount').textContent=data.length||testLabTargets().length;$('testLabOk').textContent=oks;$('testLabFail').textContent=fails;$('testLabMedian').textContent=med===null?'—':`${Math.round(med)} ms`;$('copyTestLab').disabled=!data.length;
-    if(!data.length){$('testLabResults').innerHTML='<div class="analysis-empty">Добавь домены слева и запусти тест.</div>';return}
-    $('testLabResults').innerHTML='<div class="testlab-row head"><span>Цель</span><span>Static path</span><span>Probe</span><span>Median</span><span>Последний результат</span></div>'+data.map(row=>{const allOk=row.attempts.length&&row.attempts.every(a=>a.ok),anyOk=row.attempts.some(a=>a.ok),passed=row.attempts.filter(a=>a.ok).length,median=medianNumber(row.attempts.filter(a=>a.ok).map(a=>a.ms)),last=row.attempts[row.attempts.length-1]||{},probe=allOk?'STABLE':anyOk?'FLAKY':'FAIL';return `<div class="testlab-row"><div class="testlab-domain">${esc(row.target)}</div><div class="testlab-static ${testLabStaticClass(row.static.verdict)}">${esc(row.static.verdict)}</div><div class="testlab-probe ${allOk?'good':'bad'}">${probe} ${passed}/${row.attempts.length}</div><div class="mono small">${median===null?'—':`${Math.round(median)} ms`}</div><div class="testlab-detail">${last.ok?`HTTP ${last.status||'—'} · ${Math.round(last.ms)} ms`:esc(last.error||'нет ответа')}</div></div>`}).join('');
-  }
-  function setTestLabState(state){
-    const node=$('testLabState');node.textContent=state;node.className='testlab-state '+(state==='RUNNING'?'running':state==='DONE'?'done':state==='STOPPED'?'stopped':'idle');$('testLabTabState').textContent=state==='RUNNING'?'…':state==='DONE'?'✓':state==='STOPPED'?'•':'';$('runTestLab').disabled=testLabRunning;$('stopTestLab').disabled=!testLabRunning;
-  }
-  async function fillTestLabFromSelected(){
-    if(!listMeta){notice('Сначала выбери list-файл.','error');return}const domains=extractDomains($('listEditor').value).slice(0,64);$('testLabTargets').value=domains.join('\n');testLabResultsData=[];renderTestLab();$('testLabMeta').textContent=`Загружено ${domains.length} доменов из ${selectedList}${$('listEditor').value!==listOriginal?' · включая unsaved draft':''}.`;
-  }
-  async function fillTestLabFromUser(){
-    try{const d=await api('/list?name=user.list'),domains=extractDomains(d.content||'').slice(0,64);$('testLabTargets').value=domains.join('\n');testLabResultsData=[];renderTestLab();$('testLabMeta').textContent=`Загружено ${domains.length} доменов из user.list.`}catch(e){notice(e.message,'error')}
-  }
-  async function runTestLab(){
-    if(testLabRunning)return;const targets=testLabTargets();if(!targets.length){notice('Добавь хотя бы один корректный домен.','error');return}
-    const rounds=Math.max(1,Math.min(5,Number($('testLabRounds').value)||3)),concurrency=Math.max(1,Math.min(6,Number($('testLabConcurrency').value)||4)),generation=++testLabGeneration;testLabRunning=true;testLabResultsData=[];setTestLabState('RUNNING');$('testLabBar').style.width='0%';$('testLabMeta').textContent='Читаю runtime list inventory…';$('testLabRuntimeBadge').textContent=current?.running?'ACTIVE RUNTIME':'SERVICE STOPPED';$('testLabRuntimeBadge').className='config-badge '+(current?.running?'active':'empty');
-    try{
-      const loaded=await loadTestLabListContents();if(generation!==testLabGeneration)return;const total=targets.length*rounds,queue=[];targets.forEach((target,index)=>{const record={type:'domain',file:'test-lab',line:index+1,value:target,domain:target},staticResult=buildStaticPath(record,loaded.contents);testLabResultsData.push({target,static:{verdict:staticResult.verdict,reason:staticResult.reason,mode:staticResult.mode},attempts:[]});for(let round=0;round<rounds;round++)queue.push({index,round})});renderTestLab();let done=0;
-      async function worker(){while(queue.length&&generation===testLabGeneration){const job=queue.shift();if(!job)break;const row=testLabResultsData[job.index],start=performance.now();let attempt;try{const r=await api('/check',{method:'POST',body:JSON.stringify({url:row.target})});attempt={round:job.round+1,ok:!!r.reachable,status:r.status_code||0,url:r.url||row.target,error:r.error||'',ms:performance.now()-start}}catch(e){attempt={round:job.round+1,ok:false,status:0,url:row.target,error:e.message||'probe failed',ms:performance.now()-start}}row.attempts.push(attempt);done++;$('testLabBar').style.width=`${Math.round(done/total*100)}%`;$('testLabMeta').textContent=`${done}/${total} probes · ${targets.length} целей · ${rounds} повторов · concurrency ${concurrency}${loaded.errors.length?` · list read errors ${loaded.errors.length}`:''}`;renderTestLab()}}
-      await Promise.all(Array.from({length:Math.min(concurrency,queue.length)},worker));if(generation!==testLabGeneration)return;$('testLabBar').style.width='100%';$('testLabMeta').textContent=`Готово: ${targets.length} целей × ${rounds} повторов. Static path построен по active config; HTTP probe выполнен с роутера.`;setTestLabState('DONE');saveCompletedRun('testlab');
-    }catch(e){notice(e.message,'error');setTestLabState('STOPPED')}finally{if(generation===testLabGeneration){testLabRunning=false;$('runTestLab').disabled=false;$('stopTestLab').disabled=true}}
-  }
-  function stopTestLab(){
-    if(!testLabRunning)return;testLabGeneration++;testLabRunning=false;setTestLabState('STOPPED');$('testLabMeta').textContent='Остановлено пользователем. Уже полученные результаты сохранены в таблице.';
-  }
-  function copyTestLabJSON(){
-    if(!testLabResultsData.length)return;const doc={generated_at:new Date().toISOString(),scope:'router-side-reachability-plus-static-path',runtime_running:!!current?.running,config_sha256:current?.config_sha256||'',mode:currentMode(),results:testLabResultsData};navigator.clipboard?.writeText(JSON.stringify(doc,null,2));notice('Test Lab JSON скопирован.','good');
-  }
-
 
   const listSourceRepo='rndnaame/nfqws-menu',listSourceBranch='main',listSourcePrefix='strategies/lists/';
   let nfqwsMenuResolvedRef=null,listSourceResolution=null;
@@ -4634,9 +4553,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     }else if(ifaceMismatch){
       title='Стоит проверить интернет-интерфейс';detail=`В конфиге указан ${result.keenetic.config_isp_interface}, а default IPv4 interface сейчас ${result.keenetic.default_ipv4_interface}. Это может быть нормой при policy routing/VLAN/PPP, поэтому RouterForge не считает это доказанной ошибкой.`;kind='warn';next='Сверьте интерфейс в разделе «Система», затем повторите диагностику.';actions=[guidedActionButton('keenetic','Открыть Систему')];
     }else if(probeOK){
-      title='С роутера сайт доступен';detail='Router-side probe прошёл успешно. Если проблема остаётся на телефоне или ПК, её причина может находиться дальше по клиентскому пути или в фактическом попадании трафика в NFQUEUE.';kind='good';next='Повторите несколько проверок в Test Lab. Это поможет отделить единичный успех от стабильного результата.';actions=[guidedActionButton('testlab','Проверить несколько раз','data-guided-fill-testlab="1"')];
+      title='С роутера сайт доступен';detail='Router-side probe прошёл успешно. Если проблема остаётся на телефоне или ПК, её причина может находиться дальше по клиентскому пути или в фактическом попадании трафика в NFQUEUE.';kind='good';next='Повторите несколько проверок в Test Lab. Это поможет отделить единичный успех от стабильного результата.';actions=[guidedActionButton('prodlab-v2','Проверить текущую систему','data-guided-fill-prodlab="1"')];
     }else if(result.probe&&!probeOK&&inc){
-      title='Домен выбран стратегией, но проверка не прошла';detail='Статический путь включает домен, однако HTTPS probe с роутера завершился ошибкой. Это сужает область поиска, но не доказывает конкретную причину.';kind='bad';next='Сначала проверьте конфигурацию, затем повторите домен в Test Lab.';actions=[guidedActionButton('preflight','Проверить конфигурацию'),guidedActionButton('testlab','Открыть Test Lab','data-guided-fill-testlab="1"')];
+      title='Домен выбран стратегией, но проверка не прошла';detail='Статический путь включает домен, однако HTTPS probe с роутера завершился ошибкой. Это сужает область поиска, но не доказывает конкретную причину.';kind='bad';next='Сначала проверьте конфигурацию, затем повторите домен в Test Lab.';actions=[guidedActionButton('preflight','Проверить конфигурацию'),guidedActionButton('prodlab-v2','Проверить текущую систему','data-guided-fill-prodlab="1"')];
     }else if(result.probe&&!probeOK){
       title='Роутер не смог открыть сайт';detail='Проверка доступности с самого роутера завершилась ошибкой, а статический путь не дал однозначного объяснения.';kind='bad';next='Проверьте конфигурацию и системный интернет-интерфейс.';actions=[guidedActionButton('preflight','Проверить конфигурацию'),guidedActionButton('keenetic','Открыть Систему')];
     }
@@ -4667,8 +4586,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     else if(result.keenetic?.default_ipv4_interface)add('good','WAN / interface',`default IPv4=${result.keenetic.default_ipv4_interface}${result.keenetic?.config_isp_interface?` · ISP_INTERFACE=${result.keenetic.config_isp_interface}`:''}.`,{kind:'tab',tab:'keenetic',label:'Система'});
     else add('info','WAN / interface','Keenetic interface evidence недоступно.',{kind:'tab',tab:'keenetic',label:'Система'});
 
-    if(result.probe)add(model.probeOK?'good':'bad','Router probe',model.probeOK?`Router-side HTTPS доступен${result.probe.status_code?` · HTTP ${result.probe.status_code}`:''}.`:`Router-side HTTPS probe завершился ошибкой${result.probe.error?`: ${result.probe.error}`:'.'}`,{kind:'testlab',label:'Test Lab'});
-    else add('info','Router probe','Router-side probe evidence отсутствует.',{kind:'testlab',label:'Test Lab'});
+    if(result.probe)add(model.probeOK?'good':'bad','Router probe',model.probeOK?`Router-side HTTPS доступен${result.probe.status_code?` · HTTP ${result.probe.status_code}`:''}.`:`Router-side HTTPS probe завершился ошибкой${result.probe.error?`: ${result.probe.error}`:'.'}`,{kind:'prodlab',label:'Проверка текущей системы'});
+    else add('info','Router probe','Router-side probe evidence отсутствует.',{kind:'prodlab',label:'Проверка текущей системы'});
 
     const tail=String(current?.log_tail||''),domain=String(result.domain||'').toLowerCase(),domainLines=tail.split(/\r?\n/).filter(x=>domain&&x.toLowerCase().includes(domain));
     const debugEnabled=/^(1|true|yes)$/i.test(String(flowValues.LOG_LEVEL||''));
@@ -4689,9 +4608,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       await openListAtLine(action.file,Number(action.line)||1);
       return;
     }
-    if(action.kind==='testlab'){
-      if(result.domain){$('testLabTargets').value=result.domain;testLabResultsData=[]}
-      activateNFQWSTab('testlab');renderTestLab();return;
+    if(action.kind==='prodlab'){
+      if(result.domain){$('v2LabSource').value='manual';$('v2LabTargets').value=result.domain}
+      activateNFQWSTab('prodlab-v2');return;
     }
     if(action.kind==='logs'){
       $('logSearch').value=result.domain||'';
@@ -4766,8 +4685,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     else if(inc){title=probe.contentOK?'Домен выбран, сайт доступен':'Домен выбран активным списком';detail=`Найдено active include совпадений: ${inc}. ${probe.detail}`;kind=probe.kind==='bad'?'bad':'good';next='Если нужно доказать прохождение именно через тестовую NFQUEUE, запустите «Проверить через NFQWS».';actions=[guidedActionButton('lists','Показать совпадения')]}
     else if(found){title='Домен найден в списках, но их активность не подтверждена';detail=`Найдено ${found} совпадений, из них ${unknown} RouterForge не может связать с active strategy по текущему config. ${probe.detail}`;kind='warn';next='Это не означает «домен не найден». Для фактической проверки стратегии запустите live NFQWS-тест.';actions=[guidedActionButton('lists','Показать списки')]}
     else if(['MODE_LIST','MODE_AUTO'].includes(mode)){title='Домен не найден в доступных списках';detail=`Текущий ${mode} ожидает list-match, но RouterForge не нашёл его. ${probe.detail}`;kind=probe.kind==='bad'?'bad':'warn';next=probe.contentOK?'Сайт работает напрямую. Если обход ему не нужен, ничего менять не требуется.':'Если домен должен идти через nfqws, добавьте его в нужный active список.';actions=[guidedActionButton('lists','Открыть списки')]}
-    else if(probe.contentOK){title='Сайт доступен с роутера';detail=probe.detail;kind='good';next='Если у LAN-клиента сайт всё равно не работает, запустите live NFQWS-тест или проверьте клиентский маршрут.';actions=[guidedActionButton('testlab','Открыть Test Lab','data-guided-fill-testlab="1"')]}
-    else if(probe.reachable){title='Сеть до сайта работает, HTTP ограничен';detail=probe.detail;kind='warn';next='HTTP 4xx/5xx не равен сетевому отказу. При необходимости запустите live NFQWS-тест.';actions=[guidedActionButton('testlab','Открыть Test Lab','data-guided-fill-testlab="1"')]}
+    else if(probe.contentOK){title='Сайт доступен с роутера';detail=probe.detail;kind='good';next='Если у LAN-клиента сайт всё равно не работает, запустите live NFQWS-тест или проверьте клиентский маршрут.';actions=[guidedActionButton('prodlab-v2','Проверить текущую систему','data-guided-fill-prodlab="1"')]}
+    else if(probe.reachable){title='Сеть до сайта работает, HTTP ограничен';detail=probe.detail;kind='warn';next='HTTP 4xx/5xx не равен сетевому отказу. При необходимости запустите live NFQWS-тест.';actions=[guidedActionButton('prodlab-v2','Проверить текущую систему','data-guided-fill-prodlab="1"')]}
     else if(result.probe){title='Сайт с роутера недоступен';detail=probe.detail;kind='bad';next='Проверьте WAN/config, затем повторите тест.';actions=[guidedActionButton('preflight','Проверить конфигурацию'),guidedActionButton('keenetic','Открыть Систему')]}
     return{title,detail,kind,next,actions,running,inc,exc,found,unknown,mode,probeOK:probe.contentOK,probe,ifaceMismatch};
   }
@@ -4788,9 +4707,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('guidedNextText').textContent=model.next;$('guidedActions').innerHTML=model.actions.join('');
     $('guidedActions').querySelectorAll('[data-guided-tab]').forEach(button=>button.onclick=()=>{
       const tab=button.dataset.guidedTab;
-      if(button.dataset.guidedFillTestlab==='1'&&result.domain){$('testLabTargets').value=result.domain;testLabResultsData=[]}
+      if(button.dataset.guidedFillProdlab==='1'&&result.domain){$('v2LabSource').value='manual';$('v2LabTargets').value=result.domain}
       activateNFQWSTab(tab);
-      if(tab==='testlab')renderTestLab();
     });
     root.classList.add('visible');
   }
@@ -6086,7 +6004,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if(['domain-v2','prodlab-v2','auto-setup-v1','selector-v2','sandbox-v2','strategy-library-v2'].includes(tab))void openV2Workspace(tab);
     if(tab==='strategy-registry-v1')void loadStrategyRegistryV1();
     if(tab==='tcp16-memory-v1')void loadTCP16MemoryV1();
-    if(tab==='testlab'){renderTestLab();setTestLabState(testLabRunning?'RUNNING':testLabResultsData.length?'DONE':'IDLE')}
+
 
     if(tab==='configs'){loadConfigLibrary();requestAnimationFrame(()=>{if(selectedStoredConfig){mountStoredConfigSyntaxEditor();updateStoredConfigEditor()}reportHeight()})}
     if(tab==='config')requestAnimationFrame(()=>{resizeRawEditor();refreshSyntaxEditor($('config'));reportHeight()});
@@ -6228,7 +6146,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 
   $('processingLiveCheck').onclick=runProcessingMapLiveProof;
 
-  $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;$('runTestLab').onclick=runTestLab;$('stopTestLab').onclick=stopTestLab;$('copyTestLab').onclick=copyTestLabJSON;$('testLabFromSelected').onclick=fillTestLabFromSelected;$('testLabFromUser').onclick=fillTestLabFromUser;$('clearTestLab').onclick=()=>{if(testLabRunning)stopTestLab();$('testLabTargets').value='';testLabResultsData=[];$('testLabBar').style.width='0%';$('testLabMeta').textContent='Готов к запуску.';setTestLabState('IDLE');renderTestLab()};$('testLabTargets').oninput=()=>{if(!testLabRunning&&!testLabResultsData.length)renderTestLab()};
+  $('runProcessingMap').onclick=runProcessingMap;$('copyProcessingMap').onclick=copyProcessingMap;$('processingMapDomain').onkeydown=e=>{if(e.key==='Enter')runProcessingMap()};$('start').onclick=()=>action('start');$('stop').onclick=()=>action('stop');$('reload').onclick=()=>action('reload');$('restart').onclick=()=>action('restart');$('refresh').onclick=load;$('refreshPreflight').onclick=refreshPreflightRuntime;$('runHistoryAll').onclick=()=>{runHistoryFilter='all';renderRunHistory()};$('runHistoryTestLab').onclick=()=>{runHistoryFilter='testlab';renderRunHistory()};$('runHistorySandbox').onclick=()=>{runHistoryFilter='sandbox';renderRunHistory()};$('copyRunHistory').onclick=copyRunHistory;$('clearRunHistory').onclick=clearRunHistory;
   $('refreshKeenetic').onclick=()=>{keeneticLoaded=false;dpiDetectorLoaded=false;loadKeenetic(true);loadDPIDetector(true)};$('keeneticUseDefault').onclick=useKeeneticDefaultInterface;
   $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
   $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');

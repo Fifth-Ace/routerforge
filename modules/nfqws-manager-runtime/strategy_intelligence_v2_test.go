@@ -96,6 +96,18 @@ func TestV2RoutesUseModuleABIPath(t *testing.T) {
 		"/v1/v2/strategies",
 		"/v1/v2/strategies/save",
 		"/v1/v2/strategies/delete",
+		"/v1/v2/candidates",
+		"/v1/v2/memory",
+		"/v1/v2/memory/clear",
+		"/v1/v2/observed-targets",
+		"/v1/v2/observed-targets/scan",
+		"/v1/v2/observed-targets/ignore",
+		"/v1/v2/strategy-registry",
+		"/v1/v2/tcp16-memory",
+		"/v1/v2/tcp16-probe",
+		"/v1/v2/property-probe",
+		"/v1/v2/selector-progressive",
+		"/v1/v2/bench-profiles",
 	} {
 		req, err := http.NewRequest(http.MethodGet, "http://unix"+path, nil)
 		if err != nil {

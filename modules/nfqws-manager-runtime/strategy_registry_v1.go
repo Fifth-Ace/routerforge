@@ -144,7 +144,7 @@ func v2RegistryInferProtocolFamily(args []string) (string, string) {
 func v2NormalizeStrategySource(source string) string {
 	source = strings.ToLower(strings.TrimSpace(source))
 	switch source {
-	case "builtin", "memory", "catalog", "import", "custom", "curated", "z2k", "omn1z":
+	case "builtin", "memory", "catalog", "import", "custom", "curated", "other":
 		return source
 	case "":
 		return "saved"
@@ -168,21 +168,11 @@ func v2RegistryProvenanceForSource(source string) v2StrategyRegistryProvenance {
 			Repository: "Fifth-Ace/routerforge",
 			Note:       "RouterForge curated candidate family",
 		}
-	case "z2k":
+	case "other":
 		return v2StrategyRegistryProvenance{
-			Kind:       "upstream-corpus",
-			Source:     "z2k",
-			Repository: "necronicle/z2k",
-			Ref:        "d3f67d4e1489c34b4c2eb8406e03368b53faeb82",
-			Note:       "portable strategy corpus imported with permission",
-		}
-	case "omn1z":
-		return v2StrategyRegistryProvenance{
-			Kind:       "upstream-corpus",
-			Source:     "omn1z",
-			Repository: "Omn1z/nfqws2-keenetic-strategy-selector",
-			Ref:        "039c9c07ce24c468b20f152ffafdcbfaa917f2eb",
-			Note:       "portable strategy corpus imported with permission",
+			Kind:   "other-strategy-corpus",
+			Source: "other",
+			Note:   "neutral imported strategy corpus",
 		}
 	case "memory":
 		return v2StrategyRegistryProvenance{
@@ -308,8 +298,8 @@ func v2BuildStrategyRegistry(
 	for _, builtin := range builtins {
 		v2RegistryEnsure(acc, builtin.Name, "builtin", builtin.Protocol, builtin.Family, builtin.Args)
 	}
-	for _, upstream := range v2StaticStrategyCorpus() {
-		v2RegistryEnsure(acc, upstream.Name, upstream.Source, upstream.Protocol, upstream.Family, upstream.Args)
+	for _, external := range v2StaticStrategyCorpus() {
+		v2RegistryEnsure(acc, external.Name, external.Source, external.Protocol, external.Family, external.Args)
 	}
 
 	for _, stored := range library.Strategies {

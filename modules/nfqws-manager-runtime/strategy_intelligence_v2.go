@@ -268,8 +268,9 @@ type v2SelectorResponse struct {
 	PlannerAdmittedRegistry    int                   `json:"planner_admitted_registry_count"`
 	PlannerPlan                []v2CandidatePoolItem `json:"planner_plan,omitempty"`
 	PropertyVector             *v2DPIPropertyVector  `json:"property_vector,omitempty"`
-	MutationRound              v2MutationRoundTrace  `json:"mutation_round"`
-	MemoryUpdated              bool                  `json:"memory_updated"`
+	MutationRound              v2MutationRoundTrace   `json:"mutation_round"`
+	MutationStop               v2MutationStopDecision `json:"mutation_stop"`
+	MemoryUpdated              bool                   `json:"memory_updated"`
 	MemoryWarning              string                `json:"memory_warning,omitempty"`
 }
 
@@ -1543,7 +1544,24 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": mutationTransportErr.Error(), "session_id": sessionID})
 		return
 	}
-	mutationRound := v2BuildMutationRound(target, mutationTransport, mode, candidates)
+	mutationStop := v2MutationEvaluateStopPolicy(mode, mutationTransport, baseline, candidates)
+	mutationRound := v2MutationRoundPlan{
+		Trace: v2MutationRoundTrace{
+			Version:  v2MutationSearchVersion,
+			Budget:   mutationStop.Budget,
+			SeedPlan: mutationStop.SeedPlan,
+		},
+		Candidates: []v2CandidatePoolItem{},
+	}
+	if mutationStop.Continue {
+		mutationRound = v2BuildMutationRound(target, mutationTransport, mode, candidates)
+	} else {
+		setV2SelectorProgress(
+			sessionID, "MUTATE", 0, 0,
+			"adaptive mutation skipped: "+mutationStop.Code+" — "+mutationStop.Reason,
+			false, false,
+		)
+	}
 	if len(mutationRound.Candidates) > 0 {
 		setV2SelectorProgress(
 			sessionID, "MUTATE", 0, len(mutationRound.Candidates),
@@ -1578,7 +1596,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 					PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
 					PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
 					PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
-					PropertyVector: req.PropertyVector, MutationRound: mutationRound.Trace,
+					PropertyVector: req.PropertyVector, MutationRound: mutationRound.Trace, MutationStop: mutationStop,
 				})
 				return
 			}
@@ -1683,6 +1701,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
 		PropertyVector: req.PropertyVector,
 		MutationRound:  mutationRound.Trace,
+		MutationStop:   mutationStop,
 		MemoryUpdated:  memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {

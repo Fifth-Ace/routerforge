@@ -22,6 +22,9 @@ func v2GenericWinnerApplyEligible(best *v2CandidateResult) error {
 	if best.ResultClass != "WORKING" || best.SuccessRate != 1 {
 		return errors.New("live winner must be repeatedly verified as WORKING")
 	}
+	if len(best.Attempts) < 2 || best.Successes < 2 {
+		return errors.New("live winner requires at least two successful verification attempts before apply")
+	}
 	if len(best.Args) == 0 {
 		return errors.New("live winner args are empty")
 	}

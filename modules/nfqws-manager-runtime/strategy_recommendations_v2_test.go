@@ -103,6 +103,7 @@ func TestRecommendationSemanticChainPreservesMatureStrategy(t *testing.T) {
 		t.Fatalf("recommendation semantic mismatch: %+v", item)
 	}
 }
+
 func TestRecommendationEngineKeepsProtocolsIndependent(t *testing.T) {
 	scores := v2StrategyScoreResponse{Entries: []v2StrategyScoreEntry{
 		{

@@ -53,9 +53,9 @@ func v2BindCandidateToSourceProfile(source benchStrategyProfile, testedArgs []st
 
 func v2ProfileMatchesTargetWithLists(target string, profile benchStrategyProfile, matchedLists map[string]bool) bool {
 	matched := false
-	hasSelector := false
+	hasPositiveSelector := false
 	for _, domain := range profile.HostlistDomains {
-		hasSelector = true
+		hasPositiveSelector = true
 		if v2DomainMatches(target, domain) {
 			matched = true
 		}
@@ -65,12 +65,20 @@ func v2ProfileMatchesTargetWithLists(target string, profile benchStrategyProfile
 		if name == "" {
 			continue
 		}
-		hasSelector = true
+		exclude := strings.HasPrefix(arg, "--hostlist-exclude=") ||
+			strings.HasPrefix(arg, "--ipset-exclude=")
+		if exclude {
+			if matchedLists[name] {
+				return false
+			}
+			continue
+		}
+		hasPositiveSelector = true
 		if matchedLists[name] {
 			matched = true
 		}
 	}
-	if !hasSelector {
+	if !hasPositiveSelector {
 		return true
 	}
 	return matched

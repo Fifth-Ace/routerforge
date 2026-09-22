@@ -348,30 +348,57 @@ func (s *v2DirectSandbox) pickPort() int {
 	return port
 }
 
+func (s *v2DirectSandbox) dialProbe(ctx context.Context, addr string) (net.Conn, int, error) {
+	span := s.portHi - s.portLo + 1
+	if span < 1 {
+		span = 1
+	}
+	var lastErr error
+	lastPort := 0
+	for attempt := 0; attempt < span; attempt++ {
+		port := s.pickPort()
+		lastPort = port
+		dialer := &net.Dialer{
+			Timeout:   6 * time.Second,
+			LocalAddr: &net.TCPAddr{Port: port},
+			Control: func(_, _ string, c syscall.RawConn) error {
+				return c.Control(func(fd uintptr) {
+					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+				})
+			},
+		}
+		conn, err := dialer.DialContext(ctx, "tcp4", addr)
+		if err == nil {
+			return conn, port, nil
+		}
+		lastErr = err
+		if !strings.Contains(strings.ToLower(err.Error()), "cannot assign requested address") &&
+			!strings.Contains(strings.ToLower(err.Error()), "address already in use") {
+			return nil, port, err
+		}
+	}
+	if lastErr == nil {
+		lastErr = errors.New("no source port available")
+	}
+	return nil, lastPort, lastErr
+}
+
 func (s *v2DirectSandbox) Probe(ctx context.Context) v2DirectProbeResult {
-	port := s.pickPort()
-	result := v2DirectProbeResult{LocalPort: port}
+	result := v2DirectProbeResult{}
 	probeCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
-	dialer := &net.Dialer{
-		Timeout:   6 * time.Second,
-		LocalAddr: &net.TCPAddr{Port: port},
-		Control: func(_, _ string, c syscall.RawConn) error {
-			return c.Control(func(fd uintptr) {
-				_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-			})
-		},
-	}
+	lastPort := 0
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
-			_, remotePort, err := net.SplitHostPort(addr)
-			if err != nil {
-				remotePort = "443"
+			conn, port, err := s.dialProbe(ctx, addr)
+			if port != 0 {
+				lastPort = port
+				result.LocalPort = port
 			}
-			return dialer.DialContext(ctx, "tcp4", net.JoinHostPort(s.ip, remotePort))
+			return conn, err
 		},
-		TLSClientConfig:     &tls.Config{ServerName: s.target, InsecureSkipVerify: true},
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 		TLSHandshakeTimeout: 6 * time.Second,
 		DisableKeepAlives:   true,
 		ForceAttemptHTTP2:   true,
@@ -392,6 +419,7 @@ func (s *v2DirectSandbox) Probe(ctx context.Context) v2DirectProbeResult {
 	if err != nil {
 		result.Error = err.Error()
 		result.Metrics.DurationMS = time.Since(start).Milliseconds()
+		result.LocalPort = lastPort
 		return result
 	}
 	defer resp.Body.Close()
@@ -425,18 +453,21 @@ func (s *v2DirectSandbox) Probe(ctx context.Context) v2DirectProbeResult {
 			result.Metrics.Cutoff16KSuspected = true
 		}
 	}
-	result.Metrics.ProgressProven = resp.StatusCode >= 200 && resp.StatusCode < 400 && total > v2DirectMinBytes && !result.Metrics.Cutoff16KSuspected && result.Metrics.ResponseComplete
+	result.Metrics.ProgressProven = resp.StatusCode >= 200 && resp.StatusCode < 400 &&
+		total > v2DirectMinBytes && !result.Metrics.Cutoff16KSuspected && result.Metrics.ResponseComplete
 	result.OK = result.Metrics.ProgressProven
 	if !result.OK {
 		if result.Metrics.ReadError != "" {
 			result.Error = result.Metrics.ReadError
 		} else {
-			result.Error = fmt.Sprintf("HTTP %d bytes=%d complete=%t truncated=%t", resp.StatusCode, total, result.Metrics.ResponseComplete, result.Metrics.Cutoff16KSuspected)
+			result.Error = fmt.Sprintf(
+				"HTTP %d bytes=%d complete=%t truncated=%t",
+				resp.StatusCode, total, result.Metrics.ResponseComplete, result.Metrics.Cutoff16KSuspected,
+			)
 		}
 	}
 	return result
 }
-
 func (s *v2DirectSandbox) RunCandidate(ctx context.Context, profile benchStrategyProfile) v2BenchAttempt {
 	attempt := v2BenchAttempt{
 		Transport:        benchTransportHTTPS,

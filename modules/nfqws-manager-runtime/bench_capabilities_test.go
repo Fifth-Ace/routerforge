@@ -93,9 +93,14 @@ func TestBenchExecutionReady(t *testing.T) {
 	got.Selector.MutationImplemented = true
 	got.ManagementSessionActive = true
 	got.ManagementSessionPorts = []int{222}
-	if benchExecutionReady(got) {
-		t.Fatal("active management SSH session must lock bench readiness")
+	if !benchExecutionReady(got) {
+		t.Fatal("active management SSH session must remain ready when exact bench isolation is proven")
 	}
+	got.Transaction.ManagementTrafficIsolation = false
+	if benchExecutionReady(got) {
+		t.Fatal("unproven management traffic isolation must lock bench readiness")
+	}
+	got.Transaction.ManagementTrafficIsolation = true
 	got.ManagementSessionActive = false
 	got.ManagementSessionInventoryOK = false
 	if benchExecutionReady(got) {

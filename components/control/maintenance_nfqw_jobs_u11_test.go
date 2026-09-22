@@ -132,3 +132,16 @@ func TestAdminNFQWSJobBoundedRetryAndLastKnownGood(t *testing.T) {
 		t.Fatalf("last known good was overwritten: before=%q after=%q", state.LastGoodOutput, failed.LastGoodOutput)
 	}
 }
+func TestParseAdminNFQWSManagerConfigSHAFromCompactHealth(t *testing.T) {
+	want := strings.Repeat("b", 64)
+	got, err := parseAdminNFQWSManagerConfigSHA(`{"ok":true,"module":"nfqws-manager","config_sha256":"` + want + `"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("config sha=%q want=%q", got, want)
+	}
+	if _, err := parseAdminNFQWSManagerConfigSHA(`{"ok":true}`); err == nil {
+		t.Fatal("health without config_sha256 was accepted")
+	}
+}

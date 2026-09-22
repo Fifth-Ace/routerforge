@@ -71,3 +71,18 @@ func TestNormalizeCheckURL(t *testing.T) {
 		}
 	}
 }
+func TestNFQWSManagerHealthPayloadIncludesConfigSHA(t *testing.T) {
+	status := managerStatus{
+		Available:    true,
+		TargetID:     "nfqws2",
+		Running:      true,
+		ConfigSHA256: strings.Repeat("a", 64),
+	}
+	payload := nfqwsManagerHealthPayload(status)
+	if payload["config_sha256"] != status.ConfigSHA256 {
+		t.Fatalf("health config_sha256=%v want=%s", payload["config_sha256"], status.ConfigSHA256)
+	}
+	if payload["target_id"] != "nfqws2" || payload["target_running"] != true {
+		t.Fatalf("health identity changed: %+v", payload)
+	}
+}

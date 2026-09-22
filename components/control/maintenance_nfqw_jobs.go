@@ -390,21 +390,25 @@ func adminNFQWSManagerRequest(ctx context.Context, method, path string, body []b
 	return response.StatusCode, output, nil
 }
 
-func adminNFQWSManagerConfigSHA(ctx context.Context) (string, error) {
-	status, output, err := adminNFQWSManagerRequest(ctx, http.MethodGet, "/v1/status", nil)
-	if err != nil {
-		return "", err
-	}
-	if status != http.StatusOK {
-		return "", fmt.Errorf("nfqws-manager status returned HTTP %d", status)
-	}
+func parseAdminNFQWSManagerConfigSHA(output string) (string, error) {
 	var body struct {
 		ConfigSHA256 string `json:"config_sha256"`
 	}
 	if json.Unmarshal([]byte(output), &body) != nil || strings.TrimSpace(body.ConfigSHA256) == "" {
-		return "", errors.New("nfqws-manager status did not return config_sha256")
+		return "", errors.New("nfqws-manager health did not return config_sha256")
 	}
 	return strings.TrimSpace(body.ConfigSHA256), nil
+}
+
+func adminNFQWSManagerConfigSHA(ctx context.Context) (string, error) {
+	status, output, err := adminNFQWSManagerRequest(ctx, http.MethodGet, "/v1/health", nil)
+	if err != nil {
+		return "", err
+	}
+	if status != http.StatusOK {
+		return "", fmt.Errorf("nfqws-manager health returned HTTP %d", status)
+	}
+	return parseAdminNFQWSManagerConfigSHA(output)
 }
 
 func runAdminNFQWSJob(ctx context.Context, job adminNFQWSJob) (int, string, error) {

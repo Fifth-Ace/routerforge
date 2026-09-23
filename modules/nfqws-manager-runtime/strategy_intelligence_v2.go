@@ -269,8 +269,8 @@ type v2SelectorResponse struct {
 	PlannerPlan                []v2CandidatePoolItem  `json:"planner_plan,omitempty"`
 	PropertyVector             *v2DPIPropertyVector   `json:"property_vector,omitempty"`
 
-	MemoryUpdated              bool                   `json:"memory_updated"`
-	MemoryWarning              string                 `json:"memory_warning,omitempty"`
+	MemoryUpdated bool   `json:"memory_updated"`
+	MemoryWarning string `json:"memory_warning,omitempty"`
 }
 
 func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
@@ -1749,7 +1749,7 @@ executionLoop:
 		PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
 		PropertyVector: req.PropertyVector,
 
-		MemoryUpdated:  memoryUpdated, MemoryWarning: memoryWarning,
+		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,
 	}
 	if !ok {
 		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), applyReason, true, true)

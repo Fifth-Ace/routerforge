@@ -26,15 +26,6 @@ type v2CandidatePoolItem struct {
 	HistoricalPromoted  bool     `json:"historical_promoted,omitempty"`
 	HistoricalReason    string   `json:"historical_reason,omitempty"`
 
-	PlannerOriginalOrder  int    `json:"planner_original_order,omitempty"`
-	PlannerEffectiveOrder int    `json:"planner_effective_order,omitempty"`
-	PlannerOriginalStage  string `json:"planner_original_stage,omitempty"`
-	PlannerEffectiveStage string `json:"planner_effective_stage,omitempty"`
-	PlannerScore          int    `json:"planner_score,omitempty"`
-	PlannerReason         string `json:"planner_reason,omitempty"`
-	PlannerHistoricalHint bool   `json:"planner_historical_hint,omitempty"`
-	PlannerDiagnosticHint bool   `json:"planner_diagnostic_hint,omitempty"`
-	PlannerAlreadyInPool  bool   `json:"planner_already_in_pool,omitempty"`
 }
 
 type v2CandidatePoolResponse struct {
@@ -59,15 +50,6 @@ type v2CandidatePoolResponse struct {
 	SynthesisAdmitted          int                   `json:"synthesis_admitted"`
 	SynthesisFamilies          []string              `json:"synthesis_families,omitempty"`
 	SynthesisBasis             string                `json:"synthesis_basis,omitempty"`
-
-	PlannerVersion               int    `json:"planner_version"`
-	PlannerReadOnly              bool   `json:"planner_read_only"`
-	PlannerDiagnosticCode        string `json:"planner_diagnostic_code,omitempty"`
-	PlannerFaultDomain           string `json:"planner_fault_domain,omitempty"`
-	PlannerStrategyRelevant      bool   `json:"planner_strategy_relevant"`
-	PlannerCompatibleCount       int    `json:"planner_compatible_count"`
-	PlannerPromotedCount         int    `json:"planner_promoted_count"`
-	PlannerAdmittedRegistryCount int    `json:"planner_admitted_registry_count"`
 }
 
 type v2SelectorAutoPoolMeta struct {
@@ -227,6 +209,19 @@ func v2CandidateSourceList(items []v2CandidatePoolItem) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func v2AppendPoolItem(out []v2CandidatePoolItem, seen map[string]bool, item v2CandidatePoolItem) []v2CandidatePoolItem {
+	item.Args = v2PortableCandidateArgs(item.Args)
+	if len(item.Args) == 0 {
+		return out
+	}
+	item.Fingerprint = v2CandidateTechniqueFingerprint(item.Args)
+	if item.Fingerprint == "" || seen[item.Fingerprint] {
+		return out
+	}
+	seen[item.Fingerprint] = true
+	return append(out, item)
 }
 
 func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMeta, error) {

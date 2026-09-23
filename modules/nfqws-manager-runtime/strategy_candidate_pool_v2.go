@@ -467,14 +467,6 @@ func v2BuildCandidatePoolForTransportWithHint(target, mode, transportID string, 
 	return resp, nil
 }
 
-func v2BuildCandidatePoolForTransport(target, mode, transportID string) (v2CandidatePoolResponse, error) {
-	return v2BuildCandidatePoolForTransportWithHint(target, mode, transportID, v2PlannerHint{})
-}
-
-func v2BuildCandidatePool(target, mode string) (v2CandidatePoolResponse, error) {
-	return v2PlanCandidatePoolForTransport(target, mode, benchTransportHTTPS, v2PlannerHint{})
-}
-
 func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMeta, error) {
 	meta := v2SelectorAutoPoolMeta{Sources: []string{}, Warnings: []string{}}
 	enabled := true

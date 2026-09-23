@@ -275,14 +275,14 @@ type v2SelectorResponse struct {
 
 func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerStrategyLibraryV2Routes(mux)
-	registerCandidatePoolV2Routes(mux)
+
 	registerTargetMemoryV2Routes(mux)
 	registerObservedTargetsV1Routes(mux)
 	registerStrategyRegistryV1Routes(mux)
 	registerTCP16NetworkMemoryV1Routes(mux)
 	registerSelectorProgressV2Route(mux)
 	registerDPIPropertyProbeV1Route(mux)
-	registerProgressiveSelectorV2Route(mux)
+
 	registerBenchTransportV2Routes(mux)
 	mux.HandleFunc("/v1/v2/inspect-target", mutationOnly(handleV2InspectTarget))
 	mux.HandleFunc("/v1/v2/detect", mutationOnly(handleV2Detect))

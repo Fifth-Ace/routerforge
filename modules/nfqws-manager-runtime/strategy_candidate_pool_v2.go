@@ -229,19 +229,6 @@ func v2CandidateSourceList(items []v2CandidatePoolItem) []string {
 	return out
 }
 
-func v2AppendPoolItem(out []v2CandidatePoolItem, seen map[string]bool, item v2CandidatePoolItem) []v2CandidatePoolItem {
-	item.Args = v2PortableCandidateArgs(item.Args)
-	if len(item.Args) == 0 {
-		return out
-	}
-	item.Fingerprint = v2CandidateTechniqueFingerprint(item.Args)
-	if item.Fingerprint == "" || seen[item.Fingerprint] {
-		return out
-	}
-	seen[item.Fingerprint] = true
-	return append(out, item)
-}
-
 func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMeta, error) {
 	meta := v2SelectorAutoPoolMeta{Sources: []string{}, Warnings: []string{}}
 	enabled := true

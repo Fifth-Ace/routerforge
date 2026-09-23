@@ -203,12 +203,3 @@ func v2ApplyRecommendationPlanner(resp *v2CandidatePoolResponse, hint v2PlannerH
 	resp.Count = len(resp.Candidates)
 	resp.Sources = v2CandidateSourceList(resp.Candidates)
 }
-
-func v2PlanCandidatePoolForTransport(target, mode, transportID string, hint v2PlannerHint) (v2CandidatePoolResponse, error) {
-	resp, err := v2BuildCandidatePoolForTransportWithHint(target, mode, transportID, hint)
-	if err != nil {
-		return v2CandidatePoolResponse{}, err
-	}
-	v2ApplyRecommendationPlanner(&resp, hint)
-	return resp, nil
-}

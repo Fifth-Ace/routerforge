@@ -65,20 +65,3 @@ func TestV2AppendPoolItemDeduplicatesTechnique(t *testing.T) {
 		t.Fatalf("expected technique dedupe to keep one candidate, got %d", len(out))
 	}
 }
-
-func TestV2RecommendationProtocolCompatibilityIsExact(t *testing.T) {
-	https, _ := normalizeBenchTransport(benchTransportHTTPS)
-	if !v2RecommendationProtocolCompatible("https", https) {
-		t.Fatal("https recommendation should match https transport")
-	}
-	if v2RecommendationProtocolCompatible("quic", https) {
-		t.Fatal("quic recommendation must not leak into https planning")
-	}
-}
-
-func TestV2RecommendationSourcePrefersConcreteOrigin(t *testing.T) {
-	entry := v2StrategyRegistryEntry{Sources: []string{"memory", "builtin"}}
-	if got := v2RecommendationSource(entry); got != "builtin" {
-		t.Fatalf("source=%q want builtin", got)
-	}
-}

@@ -272,6 +272,7 @@ type v2SelectorResponse struct {
 	MemoryUpdated bool   `json:"memory_updated"`
 	MemoryWarning string `json:"memory_warning,omitempty"`
 }
+
 func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerStrategyLibraryV2Routes(mux)
 	registerCandidatePoolV2Routes(mux)

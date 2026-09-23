@@ -1,6 +1,6 @@
 package main
 
-func v2SynthesisBaseArgs(transport benchTransportProfile) []string {
+func v2TransportBaseArgs(transport benchTransportProfile) []string {
 	switch transport.ID {
 	case benchTransportHTTPS:
 		return []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello"}

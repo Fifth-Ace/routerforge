@@ -98,7 +98,7 @@ func v2DPIPropertyProbeAttempts(mode benchAutoTuneMode) int {
 }
 
 func v2DPIPropertyProbeCatalog(transport benchTransportProfile) []v2DPIPropertyProbeSpec {
-	base := v2SynthesisBaseArgs(transport)
+	base := v2TransportBaseArgs(transport)
 	with := func(actions ...string) []string {
 		out := append([]string{}, base...)
 		return append(out, actions...)
@@ -209,9 +209,9 @@ func v2FinalizeDPIPropertyVector(vector *v2DPIPropertyVector) {
 	} else if len(vector.PreferredFamilies) > 0 {
 		vector.Reason = "live property probes prioritize: " + strings.Join(vector.PreferredFamilies, ", ")
 	} else if vector.EvidenceComplete {
-		vector.Reason = "live property probes found no directly successful family; synthesis remains broad"
+		vector.Reason = "live property probes found no directly successful family; direct catalog remains broad"
 	} else {
-		vector.Reason = "property evidence is incomplete; synthesis remains broad and live verification stays authoritative"
+		vector.Reason = "property evidence is incomplete; direct catalog remains broad and live verification stays authoritative"
 	}
 }
 

@@ -39,8 +39,8 @@ func TestP26DirectSelectorAutoPoolUsesCorpusWithoutIntelligenceLayers(t *testing
 	if !hasOther {
 		t.Fatal("neutral other-strategy corpus did not reach direct selector pool")
 	}
-	if meta.SynthesizedCandidates != 0 || meta.MemoryCandidates != 0 {
-		t.Fatalf("direct selector metadata still reports intelligence candidates: %+v", meta)
+	if meta.MemoryCandidates != 0 {
+		t.Fatalf("direct selector metadata still reports memory candidates: %+v", meta)
 	}
 }
 

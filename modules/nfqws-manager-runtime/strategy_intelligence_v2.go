@@ -211,19 +211,16 @@ type v2SelectorCandidateInput struct {
 }
 
 type v2SelectorRequest struct {
-	Mode                       string                     `json:"mode"`
-	ServerName                 string                     `json:"server_name"`
-	ExpectedConfigSHA256       string                     `json:"expected_config_sha256"`
-	Concurrency                int                        `json:"concurrency,omitempty"`
-	SessionID                  string                     `json:"session_id,omitempty"`
-	IncludeProduction          *bool                      `json:"include_production,omitempty"`
-	AutoPool                   *bool                      `json:"auto_pool,omitempty"`
-	Candidates                 []v2SelectorCandidateInput `json:"candidates,omitempty"`
-	DiagnosticCode             string                     `json:"diagnostic_code,omitempty"`
-	DiagnosticFaultDomain      string                     `json:"diagnostic_fault_domain,omitempty"`
-	DiagnosticStrategyRelevant bool                       `json:"diagnostic_strategy_relevant,omitempty"`
-	PropertyVector             *v2DPIPropertyVector       `json:"property_vector,omitempty"`
-	Confirm                    string                     `json:"confirm"`
+	Mode                 string                     `json:"mode"`
+	ServerName           string                     `json:"server_name"`
+	ExpectedConfigSHA256 string                     `json:"expected_config_sha256"`
+	Concurrency          int                        `json:"concurrency,omitempty"`
+	SessionID            string                     `json:"session_id,omitempty"`
+	IncludeProduction    *bool                      `json:"include_production,omitempty"`
+	AutoPool             *bool                      `json:"auto_pool,omitempty"`
+	Candidates           []v2SelectorCandidateInput `json:"candidates,omitempty"`
+	PropertyVector       *v2DPIPropertyVector       `json:"property_vector,omitempty"`
+	Confirm              string                     `json:"confirm"`
 }
 
 type v2SelectorResponse struct {
@@ -256,9 +253,7 @@ type v2SelectorResponse struct {
 	AutoPoolAdded              int                 `json:"auto_pool_added"`
 	PoolSources                []string            `json:"pool_sources"`
 	PoolWarnings               []string            `json:"pool_warnings"`
-	HistoricalPlanning         bool                `json:"historical_planning"`
-	HistoricalHints            int                 `json:"historical_hints"`
-	HistoricalPromoted         int                 `json:"historical_promoted"`
+
 
 	PropertyVector *v2DPIPropertyVector `json:"property_vector,omitempty"`
 
@@ -1494,8 +1489,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
 			AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 			PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
-			HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
-			HistoricalPromoted: autoPoolMeta.RecommendationAdded,
+
 		})
 		return
 	}
@@ -1637,8 +1631,7 @@ executionLoop:
 				SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
 				AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 				PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
-				HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
-				HistoricalPromoted: autoPoolMeta.RecommendationAdded,
+
 			})
 			return
 		}
@@ -1726,8 +1719,7 @@ executionLoop:
 		ApplyGateReason: applyReason, Concurrency: concurrency, CandidateSource: sourceKind,
 		AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 		PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
-		HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
-		HistoricalPromoted: autoPoolMeta.RecommendationAdded,
+
 
 		PropertyVector: req.PropertyVector,
 

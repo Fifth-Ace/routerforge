@@ -64,14 +64,6 @@ type v2SelectorAutoPoolMeta struct {
 	RecommendationHints   int
 	RecommendationAdded   int
 
-	PlannerVersion               int
-	PlannerDiagnosticCode        string
-	PlannerFaultDomain           string
-	PlannerStrategyRelevant      bool
-	PlannerCompatibleCount       int
-	PlannerPromotedCount         int
-	PlannerAdmittedRegistryCount int
-	PlannerPlan                  []v2CandidatePoolItem
 }
 
 type v2BuiltinCandidate struct {

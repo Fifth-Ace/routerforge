@@ -259,14 +259,7 @@ type v2SelectorResponse struct {
 	HistoricalPlanning         bool                  `json:"historical_planning"`
 	HistoricalHints            int                   `json:"historical_hints"`
 	HistoricalPromoted         int                   `json:"historical_promoted"`
-	PlannerVersion             int                   `json:"planner_version"`
-	PlannerDiagnosticCode      string                `json:"planner_diagnostic_code,omitempty"`
-	PlannerFaultDomain         string                `json:"planner_fault_domain,omitempty"`
-	PlannerStrategyRelevant    bool                  `json:"planner_strategy_relevant"`
-	PlannerCompatibleCount     int                   `json:"planner_compatible_count"`
-	PlannerPromotedCount       int                   `json:"planner_promoted_count"`
-	PlannerAdmittedRegistry    int                   `json:"planner_admitted_registry_count"`
-	PlannerPlan                []v2CandidatePoolItem `json:"planner_plan,omitempty"`
+
 	PropertyVector             *v2DPIPropertyVector  `json:"property_vector,omitempty"`
 
 	MemoryUpdated bool   `json:"memory_updated"`
@@ -694,27 +687,27 @@ func v2ReadHTTPS(ctx context.Context, host, ip string, localPort int) (v2HTTPMet
 
 func v2ClassifyDetect(stages map[string]v2StageResult, m v2HTTPMetrics) (string, string) {
 	if stages["dns"].State == "fail" {
-		return "dns_failure", "DNS не смог получить публичный IPv4-адрес."
+		return "dns_failure", "DNS ╨╜╨╡ ╤Б╨╝╨╛╨│ ╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╨┐╤Г╨▒╨╗╨╕╤З╨╜╤Л╨╣ IPv4-╨░╨┤╤А╨╡╤Б."
 	}
 	if stages["tcp"].State == "fail" {
-		return "tcp_failure", "TCP/443 не устанавливается. Причина может быть в маршруте, адресной блокировке или удалённой стороне."
+		return "tcp_failure", "TCP/443 ╨╜╨╡ ╤Г╤Б╤В╨░╨╜╨░╨▓╨╗╨╕╨▓╨░╨╡╤В╤Б╤П. ╨Я╤А╨╕╤З╨╕╨╜╨░ ╨╝╨╛╨╢╨╡╤В ╨▒╤Л╤В╤М ╨▓ ╨╝╨░╤А╤И╤А╤Г╤В╨╡, ╨░╨┤╤А╨╡╤Б╨╜╨╛╨╣ ╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨║╨╡ ╨╕╨╗╨╕ ╤Г╨┤╨░╨╗╤С╨╜╨╜╨╛╨╣ ╤Б╤В╨╛╤А╨╛╨╜╨╡."
 	}
 	if stages["tls"].State == "fail" {
-		return "tls_failure", "TCP соединяется, но TLS handshake не завершается. Это подходящий случай для подбора TCP/TLS стратегии."
+		return "tls_failure", "TCP ╤Б╨╛╨╡╨┤╨╕╨╜╤П╨╡╤В╤Б╤П, ╨╜╨╛ TLS handshake ╨╜╨╡ ╨╖╨░╨▓╨╡╤А╤И╨░╨╡╤В╤Б╤П. ╨н╤В╨╛ ╨┐╨╛╨┤╤Е╨╛╨┤╤П╤Й╨╕╨╣ ╤Б╨╗╤Г╤З╨░╨╣ ╨┤╨╗╤П ╨┐╨╛╨┤╨▒╨╛╤А╨░ TCP/TLS ╤Б╤В╤А╨░╤В╨╡╨│╨╕╨╕."
 	}
 	if m.Cutoff16KSuspected {
-		return "partial_16k_suspected", "TLS и HTTP начинаются, но поток обрывается примерно в районе 16 КБ. Нужна отдельная проверка раннего обрыва."
+		return "partial_16k_suspected", "TLS ╨╕ HTTP ╨╜╨░╤З╨╕╨╜╨░╤О╤В╤Б╤П, ╨╜╨╛ ╨┐╨╛╤В╨╛╨║ ╨╛╨▒╤А╤Л╨▓╨░╨╡╤В╤Б╤П ╨┐╤А╨╕╨╝╨╡╤А╨╜╨╛ ╨▓ ╤А╨░╨╣╨╛╨╜╨╡ 16 ╨Ъ╨С. ╨Э╤Г╨╢╨╜╨░ ╨╛╤В╨┤╨╡╨╗╤М╨╜╨░╤П ╨┐╤А╨╛╨▓╨╡╤А╨║╨░ ╤А╨░╨╜╨╜╨╡╨│╨╛ ╨╛╨▒╤А╤Л╨▓╨░."
 	}
 	if stages["http"].State == "fail" {
-		return "http_failure", "TLS проходит, но HTTP-проверка не подтверждает рабочий ответ."
+		return "http_failure", "TLS ╨┐╤А╨╛╤Е╨╛╨┤╨╕╤В, ╨╜╨╛ HTTP-╨┐╤А╨╛╨▓╨╡╤А╨║╨░ ╨╜╨╡ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨░╨╡╤В ╤А╨░╨▒╨╛╤З╨╕╨╣ ╨╛╤В╨▓╨╡╤В."
 	}
 	if stages["http"].State == "warn" {
-		return "http_restricted", "Сеть и TLS работают, но сервер вернул ограничивающий HTTP-ответ."
+		return "http_restricted", "╨б╨╡╤В╤М ╨╕ TLS ╤А╨░╨▒╨╛╤В╨░╤О╤В, ╨╜╨╛ ╤Б╨╡╤А╨▓╨╡╤А ╨▓╨╡╤А╨╜╤Г╨╗ ╨╛╨│╤А╨░╨╜╨╕╤З╨╕╨▓╨░╤О╤Й╨╕╨╣ HTTP-╨╛╤В╨▓╨╡╤В."
 	}
 	if stages["http"].State == "pass" {
-		return "clear", "С роутера DNS, TCP, TLS и HTTP проходят."
+		return "clear", "╨б ╤А╨╛╤Г╤В╨╡╤А╨░ DNS, TCP, TLS ╨╕ HTTP ╨┐╤А╨╛╤Е╨╛╨┤╤П╤В."
 	}
-	return "inconclusive", "Сигналов недостаточно для однозначного вывода."
+	return "inconclusive", "╨б╨╕╨│╨╜╨░╨╗╨╛╨▓ ╨╜╨╡╨┤╨╛╤Б╤В╨░╤В╨╛╤З╨╜╨╛ ╨┤╨╗╤П ╨╛╨┤╨╜╨╛╨╖╨╜╨░╤З╨╜╨╛╨│╨╛ ╨▓╤Л╨▓╨╛╨┤╨░."
 }
 
 func handleV2Detect(w http.ResponseWriter, r *http.Request) {
@@ -1503,10 +1496,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 			HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 			HistoricalPromoted: autoPoolMeta.RecommendationAdded,
-			PlannerVersion:     autoPoolMeta.PlannerVersion, PlannerDiagnosticCode: autoPoolMeta.PlannerDiagnosticCode,
-			PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
-			PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
-			PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
+
 		})
 		return
 	}
@@ -1597,7 +1587,7 @@ executionLoop:
 				}
 				setV2SelectorProgress(
 					sessionID, "BENCH", completed, len(templates),
-					fmt.Sprintf("completed %d of %d candidates · working %d", completed, len(templates), working), false, false,
+					fmt.Sprintf("completed %d of %d candidates ┬╖ working %d", completed, len(templates), working), false, false,
 				)
 			case <-benchCtx.Done():
 				benchTimedOut = true
@@ -1650,10 +1640,7 @@ executionLoop:
 				PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 				HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 				HistoricalPromoted: autoPoolMeta.RecommendationAdded,
-				PlannerVersion:     autoPoolMeta.PlannerVersion, PlannerDiagnosticCode: autoPoolMeta.PlannerDiagnosticCode,
-				PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
-				PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
-				PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
+
 			})
 			return
 		}
@@ -1743,10 +1730,7 @@ executionLoop:
 		PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 		HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 		HistoricalPromoted: autoPoolMeta.RecommendationAdded,
-		PlannerVersion:     autoPoolMeta.PlannerVersion, PlannerDiagnosticCode: autoPoolMeta.PlannerDiagnosticCode,
-		PlannerFaultDomain: autoPoolMeta.PlannerFaultDomain, PlannerStrategyRelevant: autoPoolMeta.PlannerStrategyRelevant,
-		PlannerCompatibleCount: autoPoolMeta.PlannerCompatibleCount, PlannerPromotedCount: autoPoolMeta.PlannerPromotedCount,
-		PlannerAdmittedRegistry: autoPoolMeta.PlannerAdmittedRegistryCount, PlannerPlan: append([]v2CandidatePoolItem{}, autoPoolMeta.PlannerPlan...),
+
 		PropertyVector: req.PropertyVector,
 
 		MemoryUpdated: memoryUpdated, MemoryWarning: memoryWarning,

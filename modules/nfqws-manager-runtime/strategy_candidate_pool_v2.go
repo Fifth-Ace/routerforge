@@ -19,50 +19,17 @@ type v2CandidatePoolItem struct {
 	MemoryVerifiedCount int      `json:"memory_verified_count,omitempty"`
 	MemorySuccessStreak int      `json:"memory_success_streak,omitempty"`
 	Stage               string   `json:"stage,omitempty"`
-	HistoricalRank      int      `json:"historical_rank,omitempty"`
-	HistoricalScore     int      `json:"historical_score,omitempty"`
-	HistoricalInsight   string   `json:"historical_insight,omitempty"`
-	HistoricalPrimary   bool     `json:"historical_primary,omitempty"`
-	HistoricalPromoted  bool     `json:"historical_promoted,omitempty"`
-	HistoricalReason    string   `json:"historical_reason,omitempty"`
 }
 
-type v2CandidatePoolResponse struct {
-	OK                         bool                  `json:"ok"`
-	Target                     string                `json:"target"`
-	Mode                       string                `json:"mode"`
-	Transport                  string                `json:"transport"`
-	Network                    string                `json:"network"`
-	RemotePort                 int                   `json:"remote_port"`
-	MetricScope                string                `json:"metric_scope"`
-	ConfigSHA                  string                `json:"config_sha256"`
-	Candidates                 []v2CandidatePoolItem `json:"candidates"`
-	Count                      int                   `json:"count"`
-	Sources                    []string              `json:"sources"`
-	Warnings                   []string              `json:"warnings"`
-	RecommendationAware        bool                  `json:"recommendation_aware"`
-	RecommendationHints        int                   `json:"recommendation_hints"`
-	RecommendationAdded        int                   `json:"recommendation_added"`
-	HistoricalExistingPromoted int                   `json:"historical_existing_promoted"`
-	SynthesisVersion           int                   `json:"synthesis_version"`
-	SynthesisGenerated         int                   `json:"synthesis_generated"`
-	SynthesisAdmitted          int                   `json:"synthesis_admitted"`
-	SynthesisFamilies          []string              `json:"synthesis_families,omitempty"`
-	SynthesisBasis             string                `json:"synthesis_basis,omitempty"`
-}
 
 type v2SelectorAutoPoolMeta struct {
-	Enabled               bool
-	Added                 int
-	MemoryCandidates      int
-	LibraryCandidates     int
-	BuiltinCandidates     int
-	SynthesizedCandidates int
-	Sources               []string
-	Warnings              []string
-	RecommendationAware   bool
-	RecommendationHints   int
-	RecommendationAdded   int
+	Enabled           bool
+	Added             int
+	MemoryCandidates  int
+	LibraryCandidates int
+	BuiltinCandidates int
+	Sources           []string
+	Warnings          []string
 }
 
 type v2BuiltinCandidate struct {
@@ -272,6 +239,6 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 		meta.Sources = append(meta.Sources, source)
 	}
 	sort.Strings(meta.Sources)
-	meta.Warnings = append(meta.Warnings, "P26 direct catalog execution: planner, synthesis and adaptive mutation are bypassed")
+	meta.Warnings = append(meta.Warnings, "P26 direct catalog execution: portable corpus candidates are executed directly")
 	return meta, nil
 }

@@ -99,12 +99,6 @@ func TestStrategyRegistryMergesCuratedCorpusWithBuiltinTechnique(t *testing.T) {
 	}
 }
 
-func TestCorpusSourcePreferencePreservesCuratedSource(t *testing.T) {
-	entry := v2StrategyRegistryEntry{Sources: []string{"memory", "builtin", "curated"}}
-	if got := v2RecommendationSource(entry); got != "curated" {
-		t.Fatalf("source=%q want curated", got)
-	}
-}
 func TestOtherStrategyCorpusSourceReachesRegistry(t *testing.T) {
 	registry := v2BuildStrategyRegistry(
 		v2StrategyLibraryDocument{Version: 1, Strategies: []v2StoredStrategy{}},

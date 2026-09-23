@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"sort"
 	"strings"
 )
@@ -192,10 +191,6 @@ func v2BuiltinCandidatesForTransport(transport benchTransportProfile) []v2Builti
 		return nil
 	}
 	return append([]v2BuiltinCandidate{}, items...)
-}
-
-func registerCandidatePoolV2Routes(mux *http.ServeMux) {
-	mux.HandleFunc("/v1/v2/candidates", getOnly(handleV2CandidatePool))
 }
 
 func v2PortableCandidateArgs(args []string) []string {
@@ -480,25 +475,6 @@ func v2BuildCandidatePool(target, mode string) (v2CandidatePoolResponse, error) 
 	return v2PlanCandidatePoolForTransport(target, mode, benchTransportHTTPS, v2PlannerHint{})
 }
 
-func handleV2CandidatePool(w http.ResponseWriter, r *http.Request) {
-	target := strings.TrimSpace(r.URL.Query().Get("target"))
-	mode := strings.TrimSpace(r.URL.Query().Get("mode"))
-	if mode == "" {
-		mode = "normal"
-	}
-	transport := strings.TrimSpace(r.URL.Query().Get("transport"))
-	hint := v2PlannerHint{
-		DiagnosticCode:   strings.TrimSpace(r.URL.Query().Get("diagnostic_code")),
-		FaultDomain:      strings.TrimSpace(r.URL.Query().Get("fault_domain")),
-		StrategyRelevant: strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("strategy_relevant")), "true"),
-	}
-	resp, err := v2PlanCandidatePoolForTransport(target, mode, transport, hint)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, resp)
-}
 func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMeta, error) {
 	meta := v2SelectorAutoPoolMeta{Sources: []string{}, Warnings: []string{}}
 	enabled := true

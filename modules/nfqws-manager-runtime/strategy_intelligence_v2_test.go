@@ -96,7 +96,6 @@ func TestV2RoutesUseModuleABIPath(t *testing.T) {
 		"/v1/v2/strategies",
 		"/v1/v2/strategies/save",
 		"/v1/v2/strategies/delete",
-		"/v1/v2/candidates",
 		"/v1/v2/memory",
 		"/v1/v2/memory/clear",
 		"/v1/v2/observed-targets",
@@ -110,7 +109,6 @@ func TestV2RoutesUseModuleABIPath(t *testing.T) {
 		"/v1/v2/tcp16-memory",
 		"/v1/v2/tcp16-probe",
 		"/v1/v2/property-probe",
-		"/v1/v2/selector-progressive",
 		"/v1/v2/bench-profiles",
 	} {
 		req, err := http.NewRequest(http.MethodGet, "http://unix"+path, nil)
@@ -120,6 +118,20 @@ func TestV2RoutesUseModuleABIPath(t *testing.T) {
 		_, pattern := mux.Handler(req)
 		if pattern != path {
 			t.Fatalf("route %q pattern=%q", path, pattern)
+		}
+	}
+
+	for _, path := range []string{
+		"/v1/v2/candidates",
+		"/v1/v2/selector-progressive",
+	} {
+		req, err := http.NewRequest(http.MethodGet, "http://unix"+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, pattern := mux.Handler(req)
+		if pattern != "" {
+			t.Fatalf("retired route unexpectedly registered: path=%q pattern=%q", path, pattern)
 		}
 	}
 

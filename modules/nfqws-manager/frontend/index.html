@@ -3762,7 +3762,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const target=all?'':String($('v2MemoryFilter')?.value||'').trim();
     if(!all&&!target){notice('Target Memory: для точечной очистки укажите target.','error');return}
     const label=all?'ВСЮ Target Memory':`Target Memory для ${target}`;
-    if(!confirm(`Очистить ${label}?\n\nЭто удаляет только historical planner memory. Production config/runtime не меняются.`))return;
+    if(!confirm(`Очистить ${label}?\n\nЭто удаляет только СЃРѕС…СЂР°РЅС‘РЅРЅСѓСЋ РёСЃС‚РѕСЂРёСЋ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ. Production config/runtime не меняются.`))return;
     try{
       await api('/v2/memory/clear',{method:'POST',body:JSON.stringify({target,confirm:'ROUTERFORGE_V2_MEMORY_CLEAR'})});
       await loadV2TargetMemory();notice(`${label}: очищена. Production untouched.`,'good');
@@ -5670,7 +5670,6 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     v2SelectorLastError='';
     if(v2SelectorAbort)return null;const target=$('v2SelectorTarget').value.trim();if(!target){notice('Автоподбор: укажите target.','error');return}
     try{await Promise.all([v2EnsureStatus(),v2LoadLibrary()])}catch(e){notice(e.message,'error');return}
-    let plannerDiagnostic={code:'',fault_domain:'',strategy_relevant:false};
     let propertyVector=null;
     const candidates=[];
     if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
@@ -5688,7 +5687,6 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         mode:$('v2SelectorMode').value,server_name:target,expected_config_sha256:current.config_sha256,
         concurrency:Number($('v2SelectorConcurrency').value||2),session_id:session,
         include_production:$('v2SelectorProduction').checked,auto_pool:$('v2SelectorAutoPool').checked,candidates,
-        diagnostic_code:plannerDiagnostic.code||'',diagnostic_fault_domain:plannerDiagnostic.fault_domain||'',diagnostic_strategy_relevant:!!plannerDiagnostic.strategy_relevant,
         property_vector:propertyVector,
         confirm:'ROUTERFORGE_V2_SELECTOR'
       })});

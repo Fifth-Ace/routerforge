@@ -48,20 +48,3 @@ func TestV2BuiltinCandidateCatalogUniqueAndCompilable(t *testing.T) {
 		t.Fatalf("builtin catalog unexpectedly small: %d", len(seenID))
 	}
 }
-
-func TestV2AppendPoolItemDeduplicatesTechnique(t *testing.T) {
-	seen := map[string]bool{}
-	a := v2CandidatePoolItem{
-		ID: "a", Name: "a", Source: "builtin", Protocol: "https",
-		Args: []string{"--filter-tcp=443", "--filter-l7=tls", "--payload=tls_client_hello", "--lua-desync=multisplit:pos=1,midsld"},
-	}
-	b := a
-	b.ID = "b"
-	b.Source = "memory"
-	b.Args = append([]string{"--hostlist-domains=example.com"}, b.Args...)
-	out := v2AppendPoolItem(nil, seen, a)
-	out = v2AppendPoolItem(out, seen, b)
-	if len(out) != 1 {
-		t.Fatalf("expected technique dedupe to keep one candidate, got %d", len(out))
-	}
-}

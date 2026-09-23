@@ -21,7 +21,6 @@ type v2CandidatePoolItem struct {
 	Stage               string   `json:"stage,omitempty"`
 }
 
-
 type v2SelectorAutoPoolMeta struct {
 	Enabled           bool
 	Added             int

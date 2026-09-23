@@ -254,7 +254,6 @@ type v2SelectorResponse struct {
 	PoolSources                []string            `json:"pool_sources"`
 	PoolWarnings               []string            `json:"pool_warnings"`
 
-
 	PropertyVector *v2DPIPropertyVector `json:"property_vector,omitempty"`
 
 	MemoryUpdated bool   `json:"memory_updated"`
@@ -1489,7 +1488,6 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
 			AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 			PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
-
 		})
 		return
 	}
@@ -1631,7 +1629,6 @@ executionLoop:
 				SafeToBench: afterFailure.SafeToBench, Concurrency: concurrency, CandidateSource: "mixed",
 				AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 				PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
-
 			})
 			return
 		}
@@ -1719,7 +1716,6 @@ executionLoop:
 		ApplyGateReason: applyReason, Concurrency: concurrency, CandidateSource: sourceKind,
 		AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
 		PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
-
 
 		PropertyVector: req.PropertyVector,
 

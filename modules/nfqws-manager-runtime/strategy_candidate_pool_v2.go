@@ -63,7 +63,6 @@ type v2SelectorAutoPoolMeta struct {
 	RecommendationAware   bool
 	RecommendationHints   int
 	RecommendationAdded   int
-
 }
 
 type v2BuiltinCandidate struct {

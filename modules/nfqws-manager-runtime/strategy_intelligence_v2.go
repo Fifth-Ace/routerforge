@@ -227,40 +227,40 @@ type v2SelectorRequest struct {
 }
 
 type v2SelectorResponse struct {
-	OK                         bool                  `json:"ok"`
-	SessionID                  string                `json:"session_id,omitempty"`
-	Mode                       benchAutoTuneMode     `json:"mode"`
-	ServerName                 string                `json:"server_name"`
-	DestinationIPv4            string                `json:"destination_ipv4"`
-	MetricScope                string                `json:"metric_scope"`
-	Baseline                   v2CandidateResult     `json:"baseline"`
-	Candidates                 []v2CandidateResult   `json:"candidates"`
-	RecommendationAvailable    bool                  `json:"recommendation_available"`
-	RecommendedProfileIndex    int                   `json:"recommended_profile_index"`
-	RecommendedCandidateID     string                `json:"recommended_candidate_id,omitempty"`
-	RecommendedCandidateName   string                `json:"recommended_candidate_name,omitempty"`
-	RecommendedCandidateSource string                `json:"recommended_candidate_source,omitempty"`
-	StrategyNeeded             bool                  `json:"strategy_needed"`
-	RecommendationReason       string                `json:"recommendation_reason"`
-	CleanupBaselineAfter       bool                  `json:"cleanup_baseline_after"`
-	BenchEnabled               bool                  `json:"bench_enabled"`
-	SafeToBench                bool                  `json:"safe_to_bench"`
-	ApplyEnabled               bool                  `json:"apply_enabled"`
-	ApplyGateEligible          bool                  `json:"apply_gate_eligible"`
-	ApplyGateToken             string                `json:"apply_gate_token,omitempty"`
-	ApplyGateExpiresAt         string                `json:"apply_gate_expires_at,omitempty"`
-	ApplyGateReason            string                `json:"apply_gate_reason"`
-	Concurrency                int                   `json:"concurrency"`
-	CandidateSource            string                `json:"candidate_source"`
-	AutoPoolEnabled            bool                  `json:"auto_pool_enabled"`
-	AutoPoolAdded              int                   `json:"auto_pool_added"`
-	PoolSources                []string              `json:"pool_sources"`
-	PoolWarnings               []string              `json:"pool_warnings"`
-	HistoricalPlanning         bool                  `json:"historical_planning"`
-	HistoricalHints            int                   `json:"historical_hints"`
-	HistoricalPromoted         int                   `json:"historical_promoted"`
+	OK                         bool                `json:"ok"`
+	SessionID                  string              `json:"session_id,omitempty"`
+	Mode                       benchAutoTuneMode   `json:"mode"`
+	ServerName                 string              `json:"server_name"`
+	DestinationIPv4            string              `json:"destination_ipv4"`
+	MetricScope                string              `json:"metric_scope"`
+	Baseline                   v2CandidateResult   `json:"baseline"`
+	Candidates                 []v2CandidateResult `json:"candidates"`
+	RecommendationAvailable    bool                `json:"recommendation_available"`
+	RecommendedProfileIndex    int                 `json:"recommended_profile_index"`
+	RecommendedCandidateID     string              `json:"recommended_candidate_id,omitempty"`
+	RecommendedCandidateName   string              `json:"recommended_candidate_name,omitempty"`
+	RecommendedCandidateSource string              `json:"recommended_candidate_source,omitempty"`
+	StrategyNeeded             bool                `json:"strategy_needed"`
+	RecommendationReason       string              `json:"recommendation_reason"`
+	CleanupBaselineAfter       bool                `json:"cleanup_baseline_after"`
+	BenchEnabled               bool                `json:"bench_enabled"`
+	SafeToBench                bool                `json:"safe_to_bench"`
+	ApplyEnabled               bool                `json:"apply_enabled"`
+	ApplyGateEligible          bool                `json:"apply_gate_eligible"`
+	ApplyGateToken             string              `json:"apply_gate_token,omitempty"`
+	ApplyGateExpiresAt         string              `json:"apply_gate_expires_at,omitempty"`
+	ApplyGateReason            string              `json:"apply_gate_reason"`
+	Concurrency                int                 `json:"concurrency"`
+	CandidateSource            string              `json:"candidate_source"`
+	AutoPoolEnabled            bool                `json:"auto_pool_enabled"`
+	AutoPoolAdded              int                 `json:"auto_pool_added"`
+	PoolSources                []string            `json:"pool_sources"`
+	PoolWarnings               []string            `json:"pool_warnings"`
+	HistoricalPlanning         bool                `json:"historical_planning"`
+	HistoricalHints            int                 `json:"historical_hints"`
+	HistoricalPromoted         int                 `json:"historical_promoted"`
 
-	PropertyVector             *v2DPIPropertyVector  `json:"property_vector,omitempty"`
+	PropertyVector *v2DPIPropertyVector `json:"property_vector,omitempty"`
 
 	MemoryUpdated bool   `json:"memory_updated"`
 	MemoryWarning string `json:"memory_warning,omitempty"`
@@ -1496,7 +1496,6 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 			PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 			HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 			HistoricalPromoted: autoPoolMeta.RecommendationAdded,
-
 		})
 		return
 	}
@@ -1640,7 +1639,6 @@ executionLoop:
 				PoolSources: append([]string{}, autoPoolMeta.Sources...), PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
 				HistoricalPlanning: autoPoolMeta.RecommendationAware, HistoricalHints: autoPoolMeta.RecommendationHints,
 				HistoricalPromoted: autoPoolMeta.RecommendationAdded,
-
 			})
 			return
 		}

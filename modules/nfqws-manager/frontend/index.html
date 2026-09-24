@@ -2849,7 +2849,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('flowInterface').value=flowValues.ISP_INTERFACE||'';$('flowBaseArgs').value=flowValues.NFQWS_BASE_ARGS||'';$('flowArgs').value=flowValues.NFQWS_ARGS||'';$('flowQuic').value=flowValues.NFQWS_ARGS_QUIC||'';$('flowUdp').value=flowValues.NFQWS_ARGS_UDP||'';$('flowIpset').value=flowValues.NFQWS_ARGS_IPSET||'';
     $('flowIPv6').checked=/^(1|true|yes)$/i.test(flowValues.IPV6_ENABLED||'');$('flowTcpPorts').value=flowValues.TCP_PORTS||'';$('flowUdpPorts').value=flowValues.UDP_PORTS||'';$('flowPolicyName').value=flowValues.POLICY_NAME||'';$('flowPolicyExclude').value=flowValues.POLICY_EXCLUDE||'0';$('flowLogLevel').checked=/^(1|true|yes)$/i.test(flowValues.LOG_LEVEL||'');$('flowLogPath').value=flowValues.LOG_DEBUG_PATH||'';
     $('flowQueue').textContent=assignmentValue(flowOriginal,'NFQUEUE_NUM')||'—';$('flowUser').textContent=assignmentValue(flowOriginal,'USER')||'—';$('flowConfigVersion').textContent=assignmentValue(flowOriginal,'CONFIG_VERSION')||'—';
-    updateModeCards();renderPolicy();renderCustomBlocks();mountStrategyEditors();updateFlowState();renderSandboxSources();addCollapseControls();reportHeight();
+    updateModeCards();renderPolicy();renderCustomBlocks();mountStrategyEditors();updateFlowState();addCollapseControls();reportHeight();
   }
   function resetFlow(){loadFlow(flowOriginal);renderFlow()}
   function previewFlow(){

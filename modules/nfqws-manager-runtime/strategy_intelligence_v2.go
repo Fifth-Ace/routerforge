@@ -1502,7 +1502,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		index  int
 		result v2CandidateResult
 	}
-	jobs := make(chan job)
+	jobs := make(chan job, len(templates))
 	results := make(chan jobResult, len(templates))
 	var wg sync.WaitGroup
 	setV2SelectorProgress(sessionID, "BENCH", 0, len(templates), "testing direct worker sandboxes", false, false)

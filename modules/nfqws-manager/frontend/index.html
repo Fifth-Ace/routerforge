@@ -5653,14 +5653,23 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorApply').disabled=true;$('v2SelectorPreviewBody').textContent=d.apply_gate_eligible?'Рабочая стратегия готова. Сначала откройте предпросмотр изменений.':'Для этой стратегии автоматическое применение пока недоступно.';
     v2SelectorPreviewData=null;reportHeight();
   }
+  function v2SelectorProgressView(p){
+    const completed=Number(p?.completed||0),total=Number(p?.total||0),mode=String($('v2SelectorMode')?.value||'normal');
+    if(mode==='normal'&&total>0){
+      const batchIndex=completed>0?Math.floor((completed-1)/20):0,start=batchIndex*20,size=Math.max(1,Math.min(20,total-start)),done=Math.max(0,Math.min(size,completed-start));
+      return{label:`${done} / ${size} · всего ${completed} / ${total}`,pct:Math.round(done/size*100)};
+    }
+    return{label:`${completed} / ${total}`,pct:total?Math.round(completed/total*100):0};
+  }
   async function pollV2Selector(session,signal){
     clearInterval(v2SelectorPoll);
+    const startedAt=Date.now();
     const tick=async()=>{
       if(signal.aborted)return;
       try{
         const p=await api(`/v2/selector-progress?session=${encodeURIComponent(session)}`);
-        $('v2SelectorPhase').textContent=v2PhaseText(p.phase);$('v2SelectorCompleted').textContent=`${Number(p.completed||0)} / ${Number(p.total||0)}`;
-        $('v2SelectorProgressText').textContent=v2ProgressText(p.message||'');const pct=p.total?Math.round(Number(p.completed||0)/Number(p.total)*100):(p.phase==='BASELINE'?5:0);$('v2SelectorBar').style.width=`${Math.max(0,Math.min(100,pct))}%`;
+        $('v2SelectorPhase').textContent=v2PhaseText(p.phase);const progressView=v2SelectorProgressView(p);$('v2SelectorCompleted').textContent=progressView.label;
+        $('v2SelectorProgressText').textContent=`${v2ProgressText(p.message||'')} · ${Math.floor((Date.now()-startedAt)/1000)} с`;const pct=p.phase==='BASELINE'?5:progressView.pct;$('v2SelectorBar').style.width=`${Math.max(0,Math.min(100,pct))}%`;
         if(p.done)clearInterval(v2SelectorPoll);
       }catch(_){}
     };
@@ -5680,7 +5689,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const breadth=m==='fast'?'Быстрый: 30% пула':m==='normal'?'Обычный: по 20 до двух рабочих':'Полный: весь пул';
       $('v2SelectorPoolMeta').textContent=`${breadth}. Проверка выполняется реальными HTTPS-запросами.`;
     }
-    const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='ВЫПОЛНЯЕТСЯ';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';
+    const session=v2SessionID(),controller=new AbortController();v2SelectorAbort=controller;v2SelectorPreviewData=null;$('v2SelectorSession').textContent=session;$('v2SelectorState').textContent='ВЫПОЛНЯЕТСЯ';$('v2SelectorRun').disabled=true;$('v2SelectorStop').disabled=false;$('v2SelectorBar').style.width='0%';$('v2SelectorProgressText').textContent='Подготовка запуска · 0 с';
     void pollV2Selector(session,controller.signal);
     try{
       const d=await api('/v2/selector',{method:'POST',signal:controller.signal,body:JSON.stringify({

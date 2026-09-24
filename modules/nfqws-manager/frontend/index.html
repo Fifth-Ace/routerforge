@@ -806,6 +806,12 @@ button{min-height:var(--ui-control-h)}
 .v2-pill{display:inline-flex;align-items:center;min-height:22px;padding:0 7px;border:1px solid var(--border);border-radius:999px;font:700 9px/1 ui-monospace,Consolas,monospace}
 .v2-pill.good{color:var(--good)}.v2-pill.bad{color:var(--bad)}.v2-pill.warn{color:var(--warn)}.v2-pill.info{color:var(--accent)}
 .v2-boundary{padding:9px 10px;border-left:2px solid var(--border-strong);background:var(--surface2);color:var(--muted);font-size:11px;line-height:1.5}
+.v2-bind-intro{margin-bottom:9px;color:var(--muted);font-size:10px;line-height:1.5}.v2-bind-intro strong{color:var(--text)}.v2-bind-intro code{font:9px ui-monospace,"Roboto Mono",Consolas,monospace;color:var(--accent)}
+.v2-bind-profile-card{display:grid;gap:7px;margin:9px 0;padding:10px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2)}
+.v2-bind-profile-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.v2-bind-profile-head strong{font-size:11px}.v2-bind-chip{padding:3px 6px;border:1px solid var(--border);border-radius:999px;font:700 8px ui-monospace,Consolas,monospace;white-space:nowrap}
+.v2-bind-chip.exact{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,var(--border))}.v2-bind-chip.list{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}.v2-bind-chip.ipset{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--border))}.v2-bind-chip.general{color:var(--muted)}
+.v2-bind-reason{font-size:10px;color:var(--muted);line-height:1.5}.v2-bind-reason strong{color:var(--text)}.v2-bind-args{padding:8px 9px;border:1px solid var(--border);border-radius:6px;background:var(--code);font:9px/1.5 ui-monospace,"Roboto Mono",Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text)}
+.v2-bind-hint{margin-top:7px;color:var(--muted);font-size:9px;line-height:1.45}
 .v2-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 0}
 .v2-stats>div{padding:9px;border:1px solid var(--border);border-radius:7px;background:var(--surface2)}
 .v2-stats span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}
@@ -1568,11 +1574,14 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <div class="panel-head"><div><h2>Применение</h2><div class="section-kicker">предпросмотр изменений перед применением рабочей стратегии</div></div></div>
       <div id="v2SelectorApplyReason" class="v2-boundary"></div>
       <div id="v2SelectorBindPanel" style="display:none;margin-top:10px">
-        <label id="v2SelectorBindProfileWrap" class="v2-label" style="display:none">Профиль назначения
+        <div id="v2SelectorBindIntro" class="v2-bind-intro" style="display:none">Профили ниже — это реальные блоки <strong>NFQWS_ARGS_CUSTOM</strong> из <code>nfqws2.conf</code>. Причина совпадения показана отдельно и не является именем профиля.</div>
+        <label id="v2SelectorBindProfileWrap" class="v2-label" style="display:none">Профиль назначения из nfqws2.conf
           <select id="v2SelectorBindProfile" class="search"></select>
         </label>
+        <div id="v2SelectorBindProfileDetail" class="v2-bind-profile-card" style="display:none"></div>
+        <div id="v2SelectorBindHint" class="v2-bind-hint" style="display:none"></div>
         <div class="toolbar">
-          <button id="v2SelectorBindProfileButton" style="display:none">Привязать к выбранному профилю</button>
+          <button id="v2SelectorBindProfileButton" style="display:none">Использовать выбранный профиль</button>
           <button id="v2SelectorCreateProfileButton" style="display:none">Создать новый профиль</button>
         </div>
       </div>
@@ -5662,20 +5671,63 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorApply').disabled=true;$('v2SelectorPreviewBody').textContent=d.apply_gate_eligible?'Рабочая стратегия готова. Сначала откройте предпросмотр изменений.':'Для этой стратегии автоматическое применение пока недоступно.';
     v2SelectorPreviewData=null;void prepareV2SelectorBinding(d);reportHeight();
   }
+  function v2SelectorProfileQuality(p){
+    const reason=String(p?.match_reason||'').toLowerCase();
+    if(reason.includes('hostlist-domains='))return{rank:400,key:'exact',label:'ТОЧНЫЙ ДОМЕН'};
+    if(/(^|;\s*)include-auto\s/.test(reason))return{rank:320,key:'list',label:'HOSTLIST AUTO'};
+    if(/(^|;\s*)include\s/.test(reason))return{rank:300,key:'list',label:'HOSTLIST'};
+    if(/(^|;\s*)ipset\s/.test(reason))return{rank:200,key:'ipset',label:'IPSET'};
+    if(reason.includes('target is not excluded'))return{rank:50,key:'general',label:'ОБЩИЙ MATCH'};
+    if(reason.includes('profile has no target selector'))return{rank:10,key:'general',label:'БЕЗ SELECTOR'};
+    return{rank:100,key:'general',label:'MATCH'};
+  }
+  function v2SelectorProfileReasonText(reason){
+    return String(reason||'совпадает с целью').split(';').map(x=>x.trim()).filter(Boolean).map(x=>{
+      if(x.startsWith('hostlist-domains='))return`Домен указан прямо в профиле: ${x.slice('hostlist-domains='.length)}`;
+      if(x.startsWith('include-auto '))return`Домен найден в автосписке: ${x.slice('include-auto '.length)}`;
+      if(x.startsWith('include '))return`Домен найден в hostlist: ${x.slice('include '.length)}`;
+      if(x.startsWith('ipset '))return`IP-адрес цели найден в IP-списке: ${x.slice('ipset '.length)}`;
+      if(x==='profile has no target selector')return'Общий профиль без ограничения по hostlist/ipset';
+      if(x==='target is not excluded by profile filters')return'Цель допускается текущими фильтрами профиля';
+      return x;
+    }).join(' · ');
+  }
+  function renderV2SelectorBindProfileDetail(p){
+    const detail=$('v2SelectorBindProfileDetail');if(!p){detail.style.display='none';detail.innerHTML='';return}
+    const q=v2SelectorProfileQuality(p),args=v2ArgsText(p.args||[]);
+    detail.innerHTML=`<div class="v2-bind-profile-head"><strong>Профиль ${Number(p.index)} из NFQWS_ARGS_CUSTOM</strong><span class="v2-bind-chip ${q.key}">${q.label}</span></div><div class="v2-bind-reason"><strong>Почему подходит:</strong> ${esc(v2SelectorProfileReasonText(p.match_reason))}</div><div class="v2-bind-args">${esc(args||'аргументы профиля отсутствуют')}</div>`;
+    detail.style.display='';
+  }
   async function prepareV2SelectorBinding(d){
-    const panel=$('v2SelectorBindPanel'),wrap=$('v2SelectorBindProfileWrap'),select=$('v2SelectorBindProfile'),bind=$('v2SelectorBindProfileButton'),create=$('v2SelectorCreateProfileButton');
-    panel.style.display='none';wrap.style.display='none';bind.style.display='none';create.style.display='none';
+    const panel=$('v2SelectorBindPanel'),intro=$('v2SelectorBindIntro'),wrap=$('v2SelectorBindProfileWrap'),select=$('v2SelectorBindProfile'),detail=$('v2SelectorBindProfileDetail'),hint=$('v2SelectorBindHint'),bind=$('v2SelectorBindProfileButton'),create=$('v2SelectorCreateProfileButton');
+    panel.style.display='none';intro.style.display='none';wrap.style.display='none';detail.style.display='none';hint.style.display='none';bind.style.display='none';create.style.display='none';
     if(!d?.recommendation_available||d.apply_gate_eligible||!d.session_id)return;
     try{
       const inspect=await api('/v2/inspect-target',{method:'POST',body:JSON.stringify({target:d.server_name})});
-      const profiles=inspect.production_profile_matches||[];
-      if(profiles.length>1){
-        select.innerHTML=profiles.map(p=>`<option value="${Number(p.index)}">Profile ${Number(p.index)} · ${esc(p.match_reason||'совпадает с target')}</option>`).join('');
-        wrap.style.display='';bind.style.display='';
-      }else if(profiles.length===0){
-        create.style.display='';
+      const allProfiles=(inspect.production_profile_matches||[]).slice().sort((a,b)=>v2SelectorProfileQuality(b).rank-v2SelectorProfileQuality(a).rank||Number(a.index)-Number(b.index));
+      const scoped=allProfiles.filter(p=>v2SelectorProfileQuality(p).rank>10);
+      const profiles=scoped.length?scoped:allProfiles;
+      const hidden=allProfiles.length-profiles.length;
+      if(profiles.length){
+        select.innerHTML=profiles.map(p=>{const q=v2SelectorProfileQuality(p);return`<option value="${Number(p.index)}">Профиль ${Number(p.index)} · ${q.label} · ${esc(v2SelectorProfileReasonText(p.match_reason))}</option>`}).join('');
+        const selected=()=>profiles.find(p=>Number(p.index)===Number(select.value))||profiles[0];
+        select.onchange=()=>renderV2SelectorBindProfileDetail(selected());
+        intro.style.display='';wrap.style.display='';bind.style.display='';
+        renderV2SelectorBindProfileDetail(selected());
+        if(hidden>0){
+          hint.textContent=`Скрыто общих профилей без target selector: ${hidden}. Они не предлагаются, пока есть более точные совпадения для ${d.server_name}.`;
+          hint.style.display='';
+        }else if(profiles.length===1){
+          hint.textContent='Найден один подходящий профиль назначения. Проверьте его аргументы перед привязкой.';
+          hint.style.display='';
+        }else{
+          hint.textContent=`Найдено подходящих профилей: ${profiles.length}. Сначала показаны наиболее точные совпадения.`;
+          hint.style.display='';
+        }
       }else{
-        return;
+        create.style.display='';
+        hint.textContent='В nfqws2.conf нет подходящего блока NFQWS_ARGS_CUSTOM для этой цели. Можно подготовить новый профиль из найденной стратегии.';
+        hint.style.display='';
       }
       panel.style.display='';
     }catch(e){

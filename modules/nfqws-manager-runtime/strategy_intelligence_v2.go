@@ -1594,11 +1594,11 @@ executionLoop:
 
 	close(jobs)
 	wg.Wait()
-	cancelBench()
 
 	if benchCtx.Err() != nil {
 		benchTimedOut = true
 	}
+	cancelBench()
 	if benchTimedOut {
 		reason := fmt.Sprintf("selector candidate time budget exhausted after %d of %d candidates", completed, len(templates))
 		setV2SelectorProgress(sessionID, "FAILED", completed, len(templates), reason, true, true)

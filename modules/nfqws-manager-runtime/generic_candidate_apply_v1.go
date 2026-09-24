@@ -76,6 +76,46 @@ func v2StoreGenericCandidateApplyPlan(
 	return plan, nil
 }
 
+func v2StoreGenericCandidateAppendPlan(
+	configSHA, serverName, destinationIPv4, transport, sessionID string,
+	best *v2CandidateResult,
+) (*benchAutoTuneApplyPlan, error) {
+	if err := v2GenericWinnerApplyEligible(best); err != nil {
+		return nil, err
+	}
+	target, err := v2NormalizeTarget(serverName)
+	if err != nil {
+		return nil, err
+	}
+	profile, err := v2CustomProfile(v2PortableCandidateArgs(best.Args), target)
+	if err != nil {
+		return nil, errors.New("live winner technique no longer compiles: " + err.Error())
+	}
+	plan, err := storeBenchAutoTuneAppendPlanForCandidate(
+		configSHA, target, destinationIPv4, profile.Args,
+		best.CandidateSource, v2CandidateTechniqueFingerprint(best.Args),
+	)
+	if err != nil {
+		return nil, err
+	}
+	benchAutoTuneApplyGateState.Lock()
+	if benchAutoTuneApplyGateState.plan != plan {
+		benchAutoTuneApplyGateState.Unlock()
+		return nil, errors.New("generic candidate append plan changed during creation")
+	}
+	plan.Transport = strings.ToLower(strings.TrimSpace(transport))
+	plan.SessionID = strings.TrimSpace(sessionID)
+	plan.CandidateID = strings.TrimSpace(best.CandidateID)
+	plan.CandidateName = strings.TrimSpace(best.CandidateName)
+	plan.LiveResultClass = best.ResultClass
+	plan.LiveSuccessRate = best.SuccessRate
+	plan.LiveCompleteRate = best.CompleteRate
+	plan.LiveCleanupProven = best.CleanupProven
+	plan.LiveInfrastructureOK = best.InfrastructureOK
+	benchAutoTuneApplyGateState.Unlock()
+	return plan, nil
+}
+
 func v2SnapshotCandidateDependencies(config string) (map[string]string, map[string]string, []string, error) {
 	listRefs, blobRefs := smartApplyReferencedNames(config)
 	lists := map[string]string{}

@@ -115,8 +115,7 @@ run_case() {
     name="$1"
     target="$2"
     bootstrap="$3"
-    preview="$4"
-    allow_degraded="$5"
+    allow_degraded="$4"
     output="$TMP/${name}.out"
     work="$TMP/work-${name}"
 
@@ -124,7 +123,6 @@ run_case() {
 
     set +e
 
-    ROUTERFORGE_MIPS_PREVIEW="$preview" \
     ROUTERFORGE_MIPS_ALLOW_DEGRADED="$allow_degraded" \
     ROUTERFORGE_PREINSTALL_ONLY=1 \
     ROUTERFORGE_TMP="$work" \
@@ -155,19 +153,22 @@ fi
 MIPS_BOOTSTRAP="$(render_target mips-3.4)"
 MIPSEL_BOOTSTRAP="$(render_target mipsel-3.4)"
 
-grep -Fq 'ROUTERFORGE_MIPS_PREVIEW' "$MIPS_BOOTSTRAP"
+if grep -Fq 'ROUTERFORGE_MIPS_PREVIEW' "$MIPS_BOOTSTRAP"; then
+    echo "MIPS bootstrap still contains retired preview opt-in" >&2
+    exit 1
+fi
+if grep -Fq 'ROUTERFORGE_MIPS_PREVIEW' "$MIPSEL_BOOTSTRAP"; then
+    echo "MIPSel bootstrap still contains retired preview opt-in" >&2
+    exit 1
+fi
+
 grep -Fq 'runtime-compat-probe.sh' "$MIPS_BOOTSTRAP"
 grep -Fq 'gate_status' "$MIPS_BOOTSTRAP"
 grep -Fq 'http://127.0.0.1:2233/api/health' "$MIPS_BOOTSTRAP"
-grep -Fq 'ROUTERFORGE_MIPS_PREVIEW' "$MIPSEL_BOOTSTRAP"
-
-run_case no-optin mips-3.4 "$MIPS_BOOTSTRAP" 0 0
-[ "$CASE_RC" -eq 1 ]
-grep -Fq \
-    'Set ROUTERFORGE_MIPS_PREVIEW=1 to continue.' \
-    "$TMP/no-optin.out"
-
-run_case mips-ready mips-3.4 "$MIPS_BOOTSTRAP" 1 0
+grep -Fq 'RAM: ${ram_mib} MiB' "$MIPS_BOOTSTRAP"
+grep -Fq 'CPU cores: ${cpu_cores}' "$MIPS_BOOTSTRAP"
+grep -Fq 'Swap: ${swap_mib} MiB' "$MIPS_BOOTSTRAP"
+run_case mips-ready mips-3.4 "$MIPS_BOOTSTRAP" 0
 [ "$CASE_RC" -eq 0 ]
 grep -Fxq 'gate_status=ready' "$TMP/mips-ready.out"
 grep -Fxq 'selected_status=ready' "$TMP/mips-ready.out"
@@ -175,7 +176,7 @@ grep -Fq \
     'MIPS/MIPSel compatibility: ready.' \
     "$TMP/mips-ready.out"
 
-run_case mipsel-ready mipsel-3.4 "$MIPSEL_BOOTSTRAP" 1 0
+run_case mipsel-ready mipsel-3.4 "$MIPSEL_BOOTSTRAP" 0
 [ "$CASE_RC" -eq 0 ]
 grep -Fxq 'gate_status=ready' "$TMP/mipsel-ready.out"
 grep -Fxq 'selected_status=ready' "$TMP/mipsel-ready.out"
@@ -187,7 +188,7 @@ rm -f \
     "$ROOTFS/proc/diskstats" \
     "$ROOTFS/sys/class/thermal/thermal_zone0/temp"
 
-run_case optional-degraded mips-3.4 "$MIPS_BOOTSTRAP" 1 0
+run_case optional-degraded mips-3.4 "$MIPS_BOOTSTRAP" 0
 [ "$CASE_RC" -eq 0 ]
 grep -Fxq 'module_storage=degraded' "$TMP/optional-degraded.out"
 grep -Fxq 'module_thermal=unsupported' "$TMP/optional-degraded.out"
@@ -199,7 +200,7 @@ printf '42000\n' > "$ROOTFS/sys/class/thermal/thermal_zone0/temp"
 
 mv "$BIN/ndmc" "$BIN/ndmc.off"
 
-run_case platform-blocked mips-3.4 "$MIPS_BOOTSTRAP" 1 1
+run_case platform-blocked mips-3.4 "$MIPS_BOOTSTRAP" 1
 [ "$CASE_RC" -eq 1 ]
 grep -Fxq 'gate_status=blocked' "$TMP/platform-blocked.out"
 grep -Fq \
@@ -210,10 +211,10 @@ mv "$BIN/ndmc.off" "$BIN/ndmc"
 
 printf '%s\n' \
     'AArch64 quarantine exclusion: PASS' \
-    'MIPS preview explicit opt-in: PASS' \
+    'MIPS/MIPSel preview opt-in retired: PASS' \
     'mips-3.4 ready: PASS' \
     'mipsel-3.4 ready: PASS' \
     'optional degradation does not block core install: PASS' \
     'platform block cannot be overridden: PASS' \
     'core runtime health verification rendered: PASS' \
-    'MIPS/MIPSel preview quarantine: PASS'
+    'MIPS/MIPSel runtime compatibility gate: PASS'

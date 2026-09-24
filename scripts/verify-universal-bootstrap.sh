@@ -30,11 +30,24 @@ python3 "$ROOT/scripts/render_universal_bootstrap.py" \
 sh -n "$BETA"
 sh -n "$STABLE"
 
-grep -Fq '1) ARM64  — aarch64-3.10' "$BETA"
-grep -Fq '2) MIPS   — mips-3.4' "$BETA"
-grep -Fq '3) MIPSel — mipsel-3.4' "$BETA"
+grep -Fq '1) ARM64  тАФ aarch64-3.10' "$BETA"
+grep -Fq '2) MIPS   тАФ mips-3.4' "$BETA"
+grep -Fq '3) MIPSel тАФ mipsel-3.4' "$BETA"
 grep -Fq 'ROUTERFORGE_TTY:-/dev/tty' "$BETA"
 grep -Fq 'bootstrap-${TARGET}.sh' "$BETA"
+grep -Fq 'normalize_input() {' "$BETA"
+grep -Fq 'tty_ready() {' "$BETA"
+grep -Fq '/opt/bin/curl -q -fL' "$BETA"
+
+if grep -Fq 'ROUTERFORGE_MIPS_PREVIEW' "$BETA"; then
+    echo "retired MIPS preview gate is still present" >&2
+    exit 1
+fi
+
+if grep -Fq 'Continue /' "$BETA"; then
+    echo "retired MIPS confirmation prompt is still present" >&2
+    exit 1
+fi
 
 make_opkg() {
     file="$1"
@@ -86,27 +99,25 @@ run_ok \
     "$BIN/opkg-arm"
 
 grep -Fq \
-    'Selected target / Выбранная архитектура: aarch64-3.10 (auto)' \
+    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: aarch64-3.10 (auto)' \
     "$TMP/auto-arm.out"
 
 run_ok \
     auto-mips \
     "$BETA" \
     "$BIN/opkg-mips" \
-    ROUTERFORGE_MIPS_PREVIEW=1
 
 grep -Fq \
-    'Selected target / Выбранная архитектура: mips-3.4 (auto)' \
+    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mips-3.4 (auto)' \
     "$TMP/auto-mips.out"
 
 run_ok \
     auto-mipsel \
     "$BETA" \
     "$BIN/opkg-mipsel" \
-    ROUTERFORGE_MIPS_PREVIEW=1
 
 grep -Fq \
-    'Selected target / Выбранная архитектура: mipsel-3.4 (auto)' \
+    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mipsel-3.4 (auto)' \
     "$TMP/auto-mipsel.out"
 
 run_ok \
@@ -116,7 +127,7 @@ run_ok \
     ROUTERFORGE_TARGET_CHOICE=1
 
 grep -Fq \
-    'Selected target / Выбранная архитектура: aarch64-3.10 (manual)' \
+    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: aarch64-3.10 (manual)' \
     "$TMP/manual-arm.out"
 
 run_ok \
@@ -124,10 +135,9 @@ run_ok \
     "$BETA" \
     "$BIN/opkg-unknown" \
     ROUTERFORGE_TARGET_CHOICE=2 \
-    ROUTERFORGE_MIPS_PREVIEW=1
 
 grep -Fq \
-    'Selected target / Выбранная архитектура: mips-3.4 (manual)' \
+    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mips-3.4 (manual)' \
     "$TMP/manual-mips.out"
 
 run_ok \
@@ -135,10 +145,9 @@ run_ok \
     "$BETA" \
     "$BIN/opkg-ambiguous" \
     ROUTERFORGE_TARGET_CHOICE=3 \
-    ROUTERFORGE_MIPS_PREVIEW=1
 
 grep -Fq \
-    'Selected target / Выбранная архитектура: mipsel-3.4 (manual)' \
+    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mipsel-3.4 (manual)' \
     "$TMP/manual-mipsel.out"
 
 run_ok \
@@ -146,21 +155,10 @@ run_ok \
     "$BETA" \
     "$BIN/opkg-unknown" \
     ROUTERFORGE_TARGET=mips-3.4 \
-    ROUTERFORGE_MIPS_PREVIEW=1
 
 grep -Fq \
-    'Selected target / Выбранная архитектура: mips-3.4 (override)' \
+    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mips-3.4 (override)' \
     "$TMP/explicit-target.out"
-
-run_ok \
-    mips-confirm \
-    "$BETA" \
-    "$BIN/opkg-mips" \
-    ROUTERFORGE_MIPS_CONFIRM=yes
-
-grep -Fq \
-    'Selected target / Выбранная архитектура: mips-3.4 (auto)' \
-    "$TMP/mips-confirm.out"
 
 set +e
 
@@ -168,7 +166,6 @@ env \
     ROUTERFORGE_OPKG="$BIN/opkg-arm" \
     ROUTERFORGE_DISPATCH_ONLY=1 \
     ROUTERFORGE_TARGET=mips-3.4 \
-    ROUTERFORGE_MIPS_PREVIEW=1 \
     sh "$BETA" \
     > "$TMP/conflict.out" 2>&1
 
@@ -211,7 +208,6 @@ env \
     ROUTERFORGE_OPKG="$BIN/opkg-unknown" \
     ROUTERFORGE_DISPATCH_ONLY=1 \
     ROUTERFORGE_TARGET_CHOICE=2 \
-    ROUTERFORGE_MIPS_PREVIEW=1 \
     sh "$STABLE" \
     > "$TMP/stable-mips.out" 2>&1
 
@@ -235,5 +231,5 @@ printf '%s\n' \
     'conflicting override rejected: PASS' \
     'no-TTY guidance: PASS' \
     'unpublished target rejected: PASS' \
-    'MIPS experimental confirmation: PASS' \
+    'MIPS/MIPSel confirmation gate retired: PASS' \
     'Universal bootstrap dispatcher: PASS'

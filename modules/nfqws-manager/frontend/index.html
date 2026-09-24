@@ -1567,6 +1567,15 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     <article id="v2SelectorApplyPanel" class="panel" style="display:none">
       <div class="panel-head"><div><h2>Применение</h2><div class="section-kicker">предпросмотр изменений перед применением рабочей стратегии</div></div></div>
       <div id="v2SelectorApplyReason" class="v2-boundary"></div>
+      <div id="v2SelectorBindPanel" style="display:none;margin-top:10px">
+        <label id="v2SelectorBindProfileWrap" class="v2-label" style="display:none">Профиль назначения
+          <select id="v2SelectorBindProfile" class="search"></select>
+        </label>
+        <div class="toolbar">
+          <button id="v2SelectorBindProfileButton" style="display:none">Привязать к выбранному профилю</button>
+          <button id="v2SelectorCreateProfileButton" style="display:none">Создать новый профиль</button>
+        </div>
+      </div>
       <div class="toolbar"><button id="v2SelectorPreview" disabled>Предпросмотр</button><button id="v2SelectorApply" class="primary" disabled>Применить стратегию</button></div>
       <pre id="v2SelectorPreviewBody" class="catalog-preview">Предпросмотр ещё не построен.</pre>
     </article>
@@ -5651,7 +5660,43 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     $('v2SelectorResults').innerHTML=renderV2SelectorCandidate(d.baseline,'Без обхода')+(d.candidates||[]).map(c=>renderV2SelectorCandidate(c)).join('');
     const panel=$('v2SelectorApplyPanel');panel.style.display=d.recommendation_available?'block':'none';$('v2SelectorApplyReason').textContent=v2ReasonText(d.apply_gate_reason||'');
     $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorApply').disabled=true;$('v2SelectorPreviewBody').textContent=d.apply_gate_eligible?'Рабочая стратегия готова. Сначала откройте предпросмотр изменений.':'Для этой стратегии автоматическое применение пока недоступно.';
-    v2SelectorPreviewData=null;reportHeight();
+    v2SelectorPreviewData=null;void prepareV2SelectorBinding(d);reportHeight();
+  }
+  async function prepareV2SelectorBinding(d){
+    const panel=$('v2SelectorBindPanel'),wrap=$('v2SelectorBindProfileWrap'),select=$('v2SelectorBindProfile'),bind=$('v2SelectorBindProfileButton'),create=$('v2SelectorCreateProfileButton');
+    panel.style.display='none';wrap.style.display='none';bind.style.display='none';create.style.display='none';
+    if(!d?.recommendation_available||d.apply_gate_eligible||!d.session_id)return;
+    try{
+      const inspect=await api('/v2/inspect-target',{method:'POST',body:JSON.stringify({target:d.server_name})});
+      const profiles=(inspect.production_profile_matches||[]).filter(p=>p.candidate_ready);
+      if(profiles.length>1){
+        select.innerHTML=profiles.map(p=>`<option value="${Number(p.index)}">Profile ${Number(p.index)} · ${esc(p.match_reason||'совпадает с target')}</option>`).join('');
+        wrap.style.display='';bind.style.display='';
+      }else if(profiles.length===0){
+        create.style.display='';
+      }else{
+        return;
+      }
+      panel.style.display='';
+    }catch(e){
+      $('v2SelectorApplyReason').textContent=`${v2ReasonText(d.apply_gate_reason||'')} · ${e.message}`;
+    }
+  }
+  async function bindV2SelectorRecommendation(createCustom){
+    const d=v2SelectorLast;if(!d?.session_id||d.apply_gate_eligible)return;
+    const body={session_id:d.session_id,expected_config_sha256:current.config_sha256,create_custom:!!createCustom,confirm:'ROUTERFORGE_V2_SELECTOR_BIND'};
+    if(!createCustom)body.profile_index=Number($('v2SelectorBindProfile').value);
+    $('v2SelectorBindProfileButton').disabled=true;$('v2SelectorCreateProfileButton').disabled=true;
+    try{
+      const result=await api('/v2/selector-bind',{method:'POST',body:JSON.stringify(body)});
+      d.apply_gate_eligible=!!result.apply_gate_eligible;d.apply_gate_token=result.apply_gate_token||'';d.apply_gate_expires_at=result.apply_gate_expires_at||'';d.apply_gate_reason=result.apply_gate_reason||'';
+      if(Number.isInteger(result.source_profile_index))d.recommended_profile_index=result.source_profile_index;
+      $('v2SelectorApplyReason').textContent=v2ReasonText(d.apply_gate_reason||'');
+      $('v2SelectorPreview').disabled=!d.apply_gate_eligible;$('v2SelectorBindPanel').style.display='none';
+      $('v2SelectorPreviewBody').textContent=result.created_custom_profile?'Новый custom-профиль подготовлен. Откройте предпросмотр перед применением.':'Профиль назначения выбран. Откройте предпросмотр перед применением.';
+      notice(result.created_custom_profile?'Новый профиль подготовлен для предпросмотра.':'Профиль назначения выбран.','good');
+    }catch(e){notice(`Привязка стратегии: ${e.message}`,'error')}
+    finally{$('v2SelectorBindProfileButton').disabled=false;$('v2SelectorCreateProfileButton').disabled=false;reportHeight()}
   }
   function v2SelectorProgressView(p){
     const completed=Number(p?.completed||0),total=Number(p?.total||0),mode=String($('v2SelectorMode')?.value||'normal');
@@ -5934,7 +5979,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('v2DomainRun').onclick=runV2Domain;$('v2DomainTarget').onkeydown=e=>{if(e.key==='Enter')runV2Domain()};$('v2DomainToSelector').onclick=()=>v2DomainSend('selector-v2');
   $('v2LabSource').onchange=()=>v2TargetMode('lab');$('v2LabResolve').onclick=async()=>{try{await v2ResolveLabTargets()}catch(e){notice(e.message,'error')}};$('v2LabRun').onclick=runV2Lab;$('v2LabStop').onclick=()=>v2LabAbort?.abort();
   $('v2SandboxTargetSource').onchange=()=>v2TargetMode('sandbox');$('v2SandboxCandidateSource').onchange=v2SandboxCandidateMode;$('v2SandboxProfile').onchange=v2SandboxCandidateMode;$('v2SandboxLibrary').onchange=v2SandboxCandidateMode;$('v2SandboxRun').onclick=runV2Sandbox;$('v2SandboxStop').onclick=()=>v2SandboxAbort?.abort();$('v2SandboxSave').onclick=saveV2SandboxCandidate;
-  $('v2SelectorRun').onclick=runV2Selector;$('v2SelectorStop').onclick=()=>v2SelectorAbort?.abort();$('v2SelectorPreview').onclick=buildV2SelectorPreview;$('v2SelectorApply').onclick=applyV2SelectorPreview;
+  $('v2SelectorRun').onclick=runV2Selector;$('v2SelectorStop').onclick=()=>v2SelectorAbort?.abort();$('v2SelectorPreview').onclick=buildV2SelectorPreview;$('v2SelectorApply').onclick=applyV2SelectorPreview;$('v2SelectorBindProfileButton').onclick=()=>bindV2SelectorRecommendation(false);$('v2SelectorCreateProfileButton').onclick=()=>bindV2SelectorRecommendation(true);
   $('v2LibraryRefresh').onclick=()=>{v2Library=[];v2LoadLibrary(true)};$('v2LibrarySave').onclick=saveV2LibraryEditor;$('v2LibraryClear').onclick=clearV2LibraryEditor;$('v2LibraryToSandbox').onclick=()=>v2OpenSandboxFromArgs($('v2LibraryArgs').value,$('v2LibraryName').value||'Library editor',$('v2LibrarySource').value);
 
   if($('uxTaskAutoV2'))$('uxTaskAutoV2').onclick=()=>openOverviewTask('selector-v2','v2SelectorTarget');

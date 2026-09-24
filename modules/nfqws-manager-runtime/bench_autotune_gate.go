@@ -18,6 +18,7 @@ type benchAutoTuneApplyPlan struct {
 	ServerName            string
 	DestinationIPv4       string
 	SourceProfileIndex    int
+	AppendProfile         bool
 	SourceStrategyArgs    []string
 	CandidateStrategyArgs []string
 	CandidateSource       string
@@ -112,6 +113,49 @@ func storeBenchAutoTuneApplyPlanForCandidate(
 		DestinationIPv4:       destinationIPv4,
 		SourceProfileIndex:    sourceProfile.Index,
 		SourceStrategyArgs:    append([]string{}, sourceProfile.Args...),
+		CandidateStrategyArgs: candidateArgsCopy,
+		CandidateSource:       strings.ToLower(strings.TrimSpace(candidateSource)),
+		CandidateFingerprint:  candidateFingerprint,
+		StrategyArgs:          append([]string{}, candidateArgsCopy...),
+	}
+	benchAutoTuneApplyGateState.Lock()
+	benchAutoTuneApplyGateState.plan = plan
+	benchAutoTuneApplyGateState.Unlock()
+	return plan, nil
+}
+
+func storeBenchAutoTuneAppendPlanForCandidate(
+	configSHA, serverName, destinationIPv4 string,
+	candidateArgs []string,
+	candidateSource, candidateFingerprint string,
+) (*benchAutoTuneApplyPlan, error) {
+	if len(candidateArgs) == 0 {
+		return nil, errors.New("candidate strategy args are required")
+	}
+	if err := validatePreviewArgs(candidateArgs); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(candidateFingerprint) == "" {
+		candidateFingerprint = v2CandidateTechniqueFingerprint(candidateArgs)
+	}
+	if candidateFingerprint == "" {
+		return nil, errors.New("candidate technique fingerprint is required")
+	}
+	token, err := newBenchSessionID()
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	candidateArgsCopy := append([]string{}, candidateArgs...)
+	plan := &benchAutoTuneApplyPlan{
+		Token:                 token,
+		CreatedAt:             now,
+		ExpiresAt:             now.Add(benchAutoTuneApplyGateTTL),
+		ConfigSHA256:          strings.ToLower(strings.TrimSpace(configSHA)),
+		ServerName:            serverName,
+		DestinationIPv4:       destinationIPv4,
+		SourceProfileIndex:    -1,
+		AppendProfile:         true,
 		CandidateStrategyArgs: candidateArgsCopy,
 		CandidateSource:       strings.ToLower(strings.TrimSpace(candidateSource)),
 		CandidateFingerprint:  candidateFingerprint,

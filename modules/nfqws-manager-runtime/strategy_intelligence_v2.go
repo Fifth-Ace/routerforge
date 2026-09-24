@@ -277,6 +277,7 @@ func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/v2/targets/resolve", mutationOnly(handleV2TargetsResolve))
 	mux.HandleFunc("/v1/v2/bench", mutationOnly(handleV2Bench))
 	mux.HandleFunc("/v1/v2/selector", mutationOnly(handleV2Selector))
+	mux.HandleFunc("/v1/v2/selector-bind", mutationOnly(handleV2SelectorBind))
 }
 
 func v2NormalizeTarget(raw string) (string, error) {
@@ -1646,6 +1647,7 @@ executionLoop:
 	applyEligible := false
 	token, expires, applyReason := "", "", "no selector recommendation is available"
 	clearBenchAutoTuneApplyPlan()
+	clearV2SelectorPendingBinding()
 	if ok && recommend && needed && best != nil {
 		var sourceProfile *benchStrategyProfile
 		if best.CandidateSource == "production" && best.SourceProfileIndex >= 0 {
@@ -1663,8 +1665,10 @@ executionLoop:
 				sourceProfile = &candidate
 			} else if len(matches) == 0 {
 				applyReason = "verified candidate has no unique production profile binding for this target"
+				storeV2SelectorPendingBinding(status.ConfigSHA256, target, ip, sessionID, best, matches)
 			} else {
 				applyReason = "verified candidate matches multiple production profiles; explicit slot selection is required"
+				storeV2SelectorPendingBinding(status.ConfigSHA256, target, ip, sessionID, best, matches)
 			}
 		}
 		if sourceProfile != nil {

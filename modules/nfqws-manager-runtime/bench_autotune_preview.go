@@ -205,6 +205,28 @@ func buildAutoTuneCandidateConfig(config string, sourceArgs, candidateArgs []str
 	return candidate, nil
 }
 
+func buildAutoTuneAppendProfileConfig(config string, candidateArgs []string) (string, error) {
+	if err := validatePreviewArgs(candidateArgs); err != nil {
+		return "", err
+	}
+	valueStart, valueEnd, body, err := quotedAssignmentValue(config, "NFQWS_ARGS_CUSTOM")
+	if err != nil {
+		return "", err
+	}
+	addition := strings.Join(candidateArgs, " ")
+	newBody := strings.TrimSpace(body)
+	if newBody == "" {
+		newBody = addition
+	} else {
+		newBody += " --new " + addition
+	}
+	candidate := config[:valueStart] + newBody + config[valueEnd:]
+	if err := validateConfig(candidate); err != nil {
+		return "", err
+	}
+	return candidate, nil
+}
+
 func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 	var request benchAutoTunePreviewRequest
 	if err := decodeJSON(w, r, &request); err != nil {
@@ -249,26 +271,6 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inventory := readBenchStrategyInventory()
-	var source *benchStrategyProfile
-	for i := range inventory.Profiles {
-		if inventory.Profiles[i].Index == plan.SourceProfileIndex {
-			source = &inventory.Profiles[i]
-			break
-		}
-	}
-	if source == nil || !v2ProductionSourceProfileEligible(*source) {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "tested source profile identity is no longer eligible"})
-		return
-	}
-	sourceArgs := plan.SourceStrategyArgs
-	if len(sourceArgs) == 0 {
-		sourceArgs = source.Args
-	}
-	if !stringSlicesEqual(source.Args, sourceArgs) {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "source production profile drifted since AutoTune recommendation"})
-		return
-	}
 	candidateArgs := plan.CandidateStrategyArgs
 	if len(candidateArgs) == 0 {
 		candidateArgs = plan.StrategyArgs
@@ -287,7 +289,33 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	candidateConfig, err := buildAutoTuneCandidateConfig(string(configData), source.Args, candidateArgs)
+	sourceArgs := []string{}
+	candidateConfig := ""
+	if plan.AppendProfile {
+		candidateConfig, err = buildAutoTuneAppendProfileConfig(string(configData), candidateArgs)
+	} else {
+		inventory := readBenchStrategyInventory()
+		var source *benchStrategyProfile
+		for i := range inventory.Profiles {
+			if inventory.Profiles[i].Index == plan.SourceProfileIndex {
+				source = &inventory.Profiles[i]
+				break
+			}
+		}
+		if source == nil || !v2ProductionSourceProfileEligible(*source) {
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "tested source profile identity is no longer eligible"})
+			return
+		}
+		sourceArgs = plan.SourceStrategyArgs
+		if len(sourceArgs) == 0 {
+			sourceArgs = source.Args
+		}
+		if !stringSlicesEqual(source.Args, sourceArgs) {
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "source production profile drifted since AutoTune recommendation"})
+			return
+		}
+		candidateConfig, err = buildAutoTuneCandidateConfig(string(configData), source.Args, candidateArgs)
+	}
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "build deterministic AutoTune candidate: " + err.Error()})
 		return
@@ -313,7 +341,7 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		CandidateConfigSHA256: candidateHash,
 		CandidateConfig:       candidateConfig,
 		Changed:               candidateHash != activeHash,
-		SourceStrategyArgs:    append([]string{}, source.Args...),
+		SourceStrategyArgs:    append([]string{}, sourceArgs...),
 		CandidateStrategyArgs: append([]string{}, candidateArgs...),
 		GateExpiresAt:         plan.ExpiresAt.Format(time.RFC3339),
 		Transport:             plan.Transport,

@@ -213,13 +213,31 @@ func buildAutoTuneAppendProfileConfig(config string, candidateArgs []string) (st
 	if err != nil {
 		return "", err
 	}
-	addition := strings.Join(candidateArgs, " ")
-	newBody := strings.TrimSpace(body)
-	if newBody == "" {
-		newBody = addition
-	} else {
-		newBody += " --new " + addition
+
+	addition := strings.Join(candidateArgs, "\n")
+	contentEnd := len(body)
+	for contentEnd > 0 {
+		r, size := utf8.DecodeLastRuneInString(body[:contentEnd])
+		if !unicode.IsSpace(r) {
+			break
+		}
+		contentEnd -= size
 	}
+	content := body[:contentEnd]
+	trailing := body[contentEnd:]
+
+	var newBody string
+	if strings.TrimSpace(content) == "" {
+		newBody = "\n" + addition + "\n"
+	} else {
+		newBody = content + "\n--new\n" + addition
+		if strings.Contains(trailing, "\n") {
+			newBody += trailing
+		} else {
+			newBody += "\n" + trailing
+		}
+	}
+
 	candidate := config[:valueStart] + newBody + config[valueEnd:]
 	if err := validateConfig(candidate); err != nil {
 		return "", err

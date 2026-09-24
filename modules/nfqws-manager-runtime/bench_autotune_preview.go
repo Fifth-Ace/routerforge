@@ -214,7 +214,6 @@ func buildAutoTuneAppendProfileConfig(config string, candidateArgs []string) (st
 		return "", err
 	}
 
-	addition := strings.Join(candidateArgs, "\n")
 	contentEnd := len(body)
 	for contentEnd > 0 {
 		r, size := utf8.DecodeLastRuneInString(body[:contentEnd])
@@ -226,11 +225,22 @@ func buildAutoTuneAppendProfileConfig(config string, candidateArgs []string) (st
 	content := body[:contentEnd]
 	trailing := body[contentEnd:]
 
+	indent := ""
+	if lineStart := strings.LastIndex(content, "\n") + 1; lineStart > 0 && lineStart < len(content) {
+		line := content[lineStart:]
+		indent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+	}
+	formattedArgs := make([]string, len(candidateArgs))
+	for i, arg := range candidateArgs {
+		formattedArgs[i] = indent + arg
+	}
+	addition := strings.Join(formattedArgs, "\n")
+
 	var newBody string
 	if strings.TrimSpace(content) == "" {
 		newBody = "\n" + addition + "\n"
 	} else {
-		newBody = content + "\n--new\n" + addition
+		newBody = content + "\n" + indent + "--new\n" + addition
 		if strings.Contains(trailing, "\n") {
 			newBody += trailing
 		} else {

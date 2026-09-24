@@ -30,9 +30,9 @@ python3 "$ROOT/scripts/render_universal_bootstrap.py" \
 sh -n "$BETA"
 sh -n "$STABLE"
 
-grep -Fq '1) ARM64  тАФ aarch64-3.10' "$BETA"
-grep -Fq '2) MIPS   тАФ mips-3.4' "$BETA"
-grep -Fq '3) MIPSel тАФ mipsel-3.4' "$BETA"
+grep -Fq '1) ARM64  — aarch64-3.10' "$BETA"
+grep -Fq '2) MIPS   — mips-3.4' "$BETA"
+grep -Fq '3) MIPSel — mipsel-3.4' "$BETA"
 grep -Fq 'ROUTERFORGE_TTY:-/dev/tty' "$BETA"
 grep -Fq 'bootstrap-${TARGET}.sh' "$BETA"
 grep -Fq 'normalize_input() {' "$BETA"
@@ -99,7 +99,7 @@ run_ok \
     "$BIN/opkg-arm"
 
 grep -Fq \
-    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: aarch64-3.10 (auto)' \
+    'Selected target / Выбранная архитектура: aarch64-3.10 (auto)' \
     "$TMP/auto-arm.out"
 
 run_ok \
@@ -108,7 +108,7 @@ run_ok \
     "$BIN/opkg-mips" \
 
 grep -Fq \
-    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mips-3.4 (auto)' \
+    'Selected target / Выбранная архитектура: mips-3.4 (auto)' \
     "$TMP/auto-mips.out"
 
 run_ok \
@@ -117,7 +117,7 @@ run_ok \
     "$BIN/opkg-mipsel" \
 
 grep -Fq \
-    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mipsel-3.4 (auto)' \
+    'Selected target / Выбранная архитектура: mipsel-3.4 (auto)' \
     "$TMP/auto-mipsel.out"
 
 run_ok \
@@ -127,7 +127,7 @@ run_ok \
     ROUTERFORGE_TARGET_CHOICE=1
 
 grep -Fq \
-    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: aarch64-3.10 (manual)' \
+    'Selected target / Выбранная архитектура: aarch64-3.10 (manual)' \
     "$TMP/manual-arm.out"
 
 run_ok \
@@ -137,7 +137,7 @@ run_ok \
     ROUTERFORGE_TARGET_CHOICE=2 \
 
 grep -Fq \
-    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mips-3.4 (manual)' \
+    'Selected target / Выбранная архитектура: mips-3.4 (manual)' \
     "$TMP/manual-mips.out"
 
 run_ok \
@@ -147,7 +147,7 @@ run_ok \
     ROUTERFORGE_TARGET_CHOICE=3 \
 
 grep -Fq \
-    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mipsel-3.4 (manual)' \
+    'Selected target / Выбранная архитектура: mipsel-3.4 (manual)' \
     "$TMP/manual-mipsel.out"
 
 run_ok \
@@ -157,7 +157,7 @@ run_ok \
     ROUTERFORGE_TARGET=mips-3.4 \
 
 grep -Fq \
-    'Selected target / ╨Т╤Л╨▒╤А╨░╨╜╨╜╨░╤П ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╨░: mips-3.4 (override)' \
+    'Selected target / Выбранная архитектура: mips-3.4 (override)' \
     "$TMP/explicit-target.out"
 
 set +e

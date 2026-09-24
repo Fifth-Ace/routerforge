@@ -1,92 +1,116 @@
 {
     "schema_version": 1,
     "channel": "beta",
-    "release_version": "0.10.0-beta.4",
+    "release_version": "0.10.0-beta.5",
     "release_notes": {
         "ru": {
             "new": [
-                "RouterForge стал заметно легче работать в фоне: когда интерфейс закрыт или раздел не используется, модули почти не делают лишнюю работу.",
-                "Monitoring теперь собирает тяжёлые данные только когда они нужны, поэтому в простое почти не использует процессор.",
-                "DNS стал экономнее расходовать память и реже запускает фоновые проверки; объём внутренней истории автоматически подстраивается под память роутера."
+                "Автоподбор обхода в NFQWS Manager полностью переработан: теперь достаточно указать нужный сайт, а RouterForge сам проверяет подходящие варианты.",
+                "Во время автоподбора сразу видно живой прогресс, сколько вариантов уже проверено и что происходит прямо сейчас.",
+                "После поиска показываются все найденные рабочие варианты. Рекомендованный вариант отмечается отдельно, но выбрать можно любой из успешно прошедших проверку.",
+                "Перед применением выбранный вариант дополнительно перепроверяется, чтобы случайный единичный успех не попал в рабочую конфигурацию.",
+                "Найденная настройка добавляется отдельным новым профилем и не заменяет уже существующие правила NFQWS.",
+                "Перед применением RouterForge показывает предварительный результат и предупреждает, если новое правило может пересекаться с уже существующими профилями.",
+                "Предпросмотр конфигурации стал заметно удобнее: нормальное выравнивание, подсветка и более читаемый размер текста.",
+                "Набор проверяемых вариантов обхода значительно расширен, поэтому автоподбор лучше справляется с разными типами блокировок и разными сайтами.",
+                "Инструменты ClientHello получили законченный рабочий сценарий: образец можно получить с устройства и использовать при подборе обхода.",
+                "Раздел NFQWS стал чище и понятнее: переработана навигация, убраны старые экспериментальные экраны и улучшен русский интерфейс."
             ],
             "fixes": [
-                "Уменьшено количество лишних опросов диска, температуры, служб и других системных данных.",
-                "Снижено потребление памяти у Core, DNS и особенно Monitoring без отключения функций."
+                "Исправлен ложный тайм-аут, который мог появляться уже после фактически успешного завершения автоподбора.",
+                "Исправлена ситуация, когда автоподбор долго выглядел зависшим и начинал показывать заметный прогресс только ближе к концу.",
+                "Исправлено применение найденной стратегии после автоподбора: выбранный рабочий вариант теперь можно нормально перепроверить и подготовить к применению.",
+                "Убрана путаница между найденными рабочими стратегиями и существующими профилями NFQWS.",
+                "Существующие пользовательские профили больше не подменяются новым результатом автоподбора.",
+                "Улучшен выбор подходящих правил для сайтов и адресов, включая более аккуратную работу с уже существующими списками и исключениями.",
+                "Убраны устаревшие части старого автоподбора, которые больше не использовались и могли путать интерфейс.",
+                "Установка на MIPS и MIPSel больше не требует лишнего подтверждения об экспериментальном режиме. Проверка совместимости конкретного роутера при этом сохранена.",
+                "Предупреждения для роутеров с малым объёмом памяти, одноядерным процессором или без swap сохранены и продолжают показываться при установке."
             ],
             "compatibility": [
-                "Beta 0.10.0-beta.4 содержит те же семь компонентов RouterForge.",
-                "Пакеты доступны для aarch64-3.10, mips-3.4 и mipsel-3.4; ARM64 остаётся основной платформой, MIPS и MIPSel — экспериментальными.",
+                "Beta 0.10.0-beta.5 сохраняет тот же набор из семи компонентов RouterForge.",
+                "Пакеты доступны для aarch64-3.10, mips-3.4 и mipsel-3.4.",
+                "Для MIPS и MIPSel убрано отдельное предупреждение с ручным подтверждением, но RouterForge по-прежнему проверяет совместимость устройства перед установкой.",
+                "Предупреждения о недостатке ресурсов устройства остаются без изменений.",
                 "Stable/main этим выпуском не обновляется."
             ],
-            "technical": [
-                "На Keenetic Hopper KN-3811 после изменений весь основной RouterForge в простое использовал в среднем меньше 1% CPU.",
-                "В сопоставимом замере Core, DNS и Monitoring вместе использовали примерно на 20% меньше памяти, чем до оптимизации.",
-                "Неизменяемый снимок выпуска: routerforge-v0.10.0-beta.4."
-            ]
+            "technical": []
         },
         "en": {
             "new": [
-                "RouterForge now does much less work in the background when the UI is closed or a section is not being used.",
-                "Monitoring now collects heavier data only when it is needed, so it uses almost no CPU while idle.",
-                "DNS now uses memory more carefully and runs background checks less often; its internal history size adapts to the router's available memory."
+                "NFQWS Manager automatic bypass search has been fully reworked: enter the target site and RouterForge checks suitable options automatically.",
+                "Automatic search now shows live progress, including how many options have already been checked and what is happening right now.",
+                "All working results are shown after the search. RouterForge marks its recommendation, but any successfully verified option can be selected.",
+                "The selected result is verified once more before it can be applied, reducing the chance of saving a one-off lucky result.",
+                "A discovered configuration is appended as a new NFQWS profile and does not replace existing user rules.",
+                "Before applying a result, RouterForge shows a preview and warns about possible overlap with existing profiles.",
+                "Configuration preview is easier to read with improved alignment, highlighting, and a larger font.",
+                "The set of bypass options checked by automatic search has been expanded substantially, improving coverage across different sites and blocking conditions.",
+                "ClientHello tools now have a complete usable workflow: a sample can be captured from the device and used during bypass search.",
+                "The NFQWS section is cleaner and easier to navigate, with old experimental screens removed and interface wording improved."
             ],
             "fixes": [
-                "Reduced unnecessary polling of storage, temperature, services, and other system data.",
-                "Reduced memory usage in Core, DNS, and especially Monitoring without removing features."
+                "Fixed a false timeout that could appear after automatic search had actually completed successfully.",
+                "Fixed long periods where automatic search looked stuck and only began showing meaningful progress near the end.",
+                "Fixed applying a working result after automatic search: the selected option can now be rechecked and prepared for application normally.",
+                "Removed confusion between discovered working strategies and existing NFQWS profiles.",
+                "Existing user profiles are no longer replaced by a newly discovered automatic-search result.",
+                "Improved matching of rules to sites and addresses, including safer handling of existing lists and exclusions.",
+                "Removed obsolete parts of the previous automatic-search flow that were no longer used and could make the interface confusing.",
+                "MIPS and MIPSel installation no longer asks for an extra experimental-mode confirmation. Per-device compatibility checking remains in place.",
+                "Warnings for routers with low memory, a single-core CPU, or no swap remain enabled during installation."
             ],
             "compatibility": [
-                "Beta 0.10.0-beta.4 keeps the same seven RouterForge components.",
-                "Packages are available for aarch64-3.10, mips-3.4, and mipsel-3.4; ARM64 remains the primary platform, while MIPS and MIPSel remain experimental.",
-                "Stable/main is not promoted by this release."
+                "Beta 0.10.0-beta.5 keeps the same seven RouterForge components.",
+                "Packages are available for aarch64-3.10, mips-3.4, and mipsel-3.4.",
+                "The separate manual experimental confirmation has been removed for MIPS and MIPSel, while device compatibility is still checked before installation.",
+                "Low-resource device warnings remain unchanged.",
+                "Stable/main is not updated by this release."
             ],
-            "technical": [
-                "On Keenetic Hopper KN-3811, the main RouterForge processes averaged under 1% total CPU while idle after these changes.",
-                "In a comparable measurement, Core, DNS, and Monitoring together used about 20% less memory than before the optimization work.",
-                "Immutable release snapshot: routerforge-v0.10.0-beta.4."
-            ]
+            "technical": []
         }
     },
     "components": [
         {
             "id": "routerforge-core",
             "package": "routerforge-core",
-            "version": "0.10.0~beta.4"
+            "version": "0.10.0~beta.5"
         },
         {
             "id": "dns",
             "package": "routerforge-dns",
-            "version": "0.10.0~beta.4",
-            "min_core_version": "0.10.0~beta.4"
+            "version": "0.10.0~beta.5",
+            "min_core_version": "0.10.0~beta.5"
         },
         {
             "id": "admin",
             "package": "routerforge-admin",
-            "version": "0.10.0~beta.4",
-            "min_core_version": "0.10.0~beta.4"
+            "version": "0.10.0~beta.5",
+            "min_core_version": "0.10.0~beta.5"
         },
         {
             "id": "monitoring",
             "package": "routerforge-monitoring",
-            "version": "0.10.0~beta.4",
-            "min_core_version": "0.10.0~beta.4"
+            "version": "0.10.0~beta.5",
+            "min_core_version": "0.10.0~beta.5"
         },
         {
             "id": "network-tools",
             "package": "routerforge-network-tools",
-            "version": "0.10.0~beta.4",
-            "min_core_version": "0.10.0~beta.4"
+            "version": "0.10.0~beta.5",
+            "min_core_version": "0.10.0~beta.5"
         },
         {
             "id": "nfqws-manager",
             "package": "routerforge-nfqws-manager",
-            "version": "0.10.0~beta.4",
-            "min_core_version": "0.10.0~beta.4"
+            "version": "0.10.0~beta.5",
+            "min_core_version": "0.10.0~beta.5"
         },
         {
             "id": "profiling",
             "package": "routerforge-profiling",
-            "version": "0.10.0~beta.4",
-            "min_core_version": "0.10.0~beta.4"
+            "version": "0.10.0~beta.5",
+            "min_core_version": "0.10.0~beta.5"
         }
     ]
 }

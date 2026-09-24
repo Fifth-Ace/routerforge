@@ -5809,7 +5809,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const p=await api('/bench-autotune/apply-preview',{method:'POST',body:JSON.stringify({token:d.apply_gate_token,expected_config_sha256:current.config_sha256,confirm:'ROUTERFORGE_AUTOTUNE_PREVIEW'})});
       if(!p.ok||!p.preview_only)throw new Error('preview contract mismatch');v2SelectorPreviewData=p;
       const meta=[`Источник: ${v2SourceText(p.candidate_source||'production')}`,`Транспорт: ${p.transport||'https'}`,`Сессия: ${p.session_id||'—'}`,`Отпечаток: ${p.candidate_fingerprint||'—'}`,`Результат: ${v2ResultText(p.live_result_class||'—')} / ${Number(p.live_success_rate||0)*100}%`,`Ресурсы: ${(p.required_resources||[]).join(', ')||'нет'}`,`Применение: ${p.reload_method||'Smart Apply'}`].join('\n');
-      $('v2SelectorPreviewBody').textContent=`${meta}\n\n${p.candidate_config||''}`;
+      $('v2SelectorPreviewBody').innerHTML=`${esc(meta)}\n\n${highlightConfig(p.candidate_config||'')}`;
       $('v2SelectorApply').disabled=!p.changed;notice(`Предпросмотр готов · ${String(p.candidate_config_sha256||'').slice(0,16)}…`,'good');return p;
     }catch(e){v2SelectorPreviewError=e.message||'preview failed';v2SelectorPreviewData=null;notice(`Предпросмотр: ${e.message}`,'error');return null}
     finally{$('v2SelectorPreview').disabled=false}

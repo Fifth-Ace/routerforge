@@ -1649,47 +1649,8 @@ executionLoop:
 	clearBenchAutoTuneApplyPlan()
 	clearV2SelectorPendingBinding()
 	if ok && recommend && needed && best != nil {
-		var sourceProfile *benchStrategyProfile
-		if best.CandidateSource == "production" && best.SourceProfileIndex >= 0 {
-			for i := range inventory.Profiles {
-				if inventory.Profiles[i].Index == best.SourceProfileIndex && inventory.Profiles[i].CandidateEligible {
-					candidate := inventory.Profiles[i]
-					sourceProfile = &candidate
-					break
-				}
-			}
-		} else {
-			matches := v2ProductionProfilesMatchingTarget(target, ip, inventory)
-			if len(matches) == 1 {
-				candidate := matches[0]
-				sourceProfile = &candidate
-			} else if len(matches) == 0 {
-				applyReason = "verified candidate has no unique production profile binding for this target"
-				storeV2SelectorPendingBinding(status.ConfigSHA256, target, ip, sessionID, best, matches)
-			} else {
-				applyReason = "verified candidate matches multiple production profiles; explicit slot selection is required"
-				storeV2SelectorPendingBinding(status.ConfigSHA256, target, ip, sessionID, best, matches)
-			}
-		}
-		if sourceProfile != nil {
-			boundArgs, bindErr := v2BindCandidateToSourceProfile(*sourceProfile, best.Args)
-			if bindErr != nil {
-				applyReason = "bind candidate to production profile: " + bindErr.Error()
-			} else {
-				plan, planErr := v2StoreGenericCandidateApplyPlan(
-					status.ConfigSHA256, target, ip, benchTransportHTTPS, sessionID,
-					*sourceProfile, boundArgs, best,
-				)
-				if planErr != nil {
-					applyReason = "create apply gate: " + planErr.Error()
-				} else {
-					applyEligible = true
-					token = plan.Token
-					expires = plan.ExpiresAt.Format(time.RFC3339)
-					applyReason = "live-verified candidate is bound to one production profile and eligible for deterministic preview"
-				}
-			}
-		}
+		storeV2SelectorPendingBinding(status.ConfigSHA256, target, ip, sessionID, candidates)
+		applyReason = "choose a working strategy; RouterForge will re-verify only that strategy and append it as a new NFQWS_ARGS_CUSTOM profile"
 	}
 	sourceKind := "mixed"
 	if len(req.Candidates) == 0 {

@@ -1,23 +1,24 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const v2SelectorBindConfirm = "ROUTERFORGE_V2_SELECTOR_BIND"
 
 type v2SelectorPendingBinding struct {
-	ConfigSHA256           string
-	ServerName             string
-	DestinationIPv4        string
-	SessionID              string
-	Candidate              v2CandidateResult
-	MatchingProfileIndexes []int
-	ExpiresAt              time.Time
+	ConfigSHA256    string
+	ServerName      string
+	DestinationIPv4 string
+	SessionID       string
+	Candidates      []v2CandidateResult
+	ExpiresAt       time.Time
 }
 
 var v2SelectorPendingBindingState = struct {
@@ -28,8 +29,7 @@ var v2SelectorPendingBindingState = struct {
 type v2SelectorBindRequest struct {
 	SessionID            string `json:"session_id"`
 	ExpectedConfigSHA256 string `json:"expected_config_sha256"`
-	ProfileIndex         *int   `json:"profile_index,omitempty"`
-	CreateCustom         bool   `json:"create_custom,omitempty"`
+	CandidateID          string `json:"candidate_id"`
 	Confirm              string `json:"confirm"`
 }
 
@@ -39,29 +39,39 @@ func clearV2SelectorPendingBinding() {
 	v2SelectorPendingBindingState.Unlock()
 }
 
+func copyV2SelectorCandidate(in v2CandidateResult) v2CandidateResult {
+	out := in
+	out.Args = append([]string{}, in.Args...)
+	out.Attempts = append([]v2BenchAttempt{}, in.Attempts...)
+	out.StrategyTags = append([]int{}, in.StrategyTags...)
+	return out
+}
+
 func storeV2SelectorPendingBinding(
 	configSHA, serverName, destinationIPv4, sessionID string,
-	best *v2CandidateResult, matches []benchStrategyProfile,
+	candidates []v2CandidateResult,
 ) {
-	if best == nil || !v2SelectorSessionValid(sessionID) {
+	if !v2SelectorSessionValid(sessionID) {
 		return
 	}
-	copyCandidate := *best
-	copyCandidate.Args = append([]string{}, best.Args...)
-	copyCandidate.Attempts = append([]v2BenchAttempt{}, best.Attempts...)
-	indexes := make([]int, 0, len(matches))
-	for _, profile := range matches {
-		indexes = append(indexes, profile.Index)
+	working := make([]v2CandidateResult, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.ResultClass != "WORKING" || candidate.Successes < 1 || !candidate.CleanupProven || !candidate.InfrastructureOK {
+			continue
+		}
+		working = append(working, copyV2SelectorCandidate(candidate))
+	}
+	if len(working) == 0 {
+		return
 	}
 	v2SelectorPendingBindingState.Lock()
 	v2SelectorPendingBindingState.item = &v2SelectorPendingBinding{
-		ConfigSHA256:           strings.ToLower(strings.TrimSpace(configSHA)),
-		ServerName:             serverName,
-		DestinationIPv4:        destinationIPv4,
-		SessionID:              sessionID,
-		Candidate:              copyCandidate,
-		MatchingProfileIndexes: indexes,
-		ExpiresAt:              time.Now().UTC().Add(benchAutoTuneApplyGateTTL),
+		ConfigSHA256:    strings.ToLower(strings.TrimSpace(configSHA)),
+		ServerName:      serverName,
+		DestinationIPv4: destinationIPv4,
+		SessionID:       sessionID,
+		Candidates:      working,
+		ExpiresAt:       time.Now().UTC().Add(benchAutoTuneApplyGateTTL),
 	}
 	v2SelectorPendingBindingState.Unlock()
 }
@@ -71,18 +81,18 @@ func currentV2SelectorPendingBinding(sessionID, expectedConfigSHA string) (*v2Se
 	item := v2SelectorPendingBindingState.item
 	if item == nil {
 		v2SelectorPendingBindingState.Unlock()
-		return nil, errors.New("no selector winner is waiting for profile binding")
+		return nil, errors.New("no selector result is waiting for apply preparation")
 	}
 	copyItem := *item
-	copyItem.Candidate = item.Candidate
-	copyItem.Candidate.Args = append([]string{}, item.Candidate.Args...)
-	copyItem.Candidate.Attempts = append([]v2BenchAttempt{}, item.Candidate.Attempts...)
-	copyItem.MatchingProfileIndexes = append([]int{}, item.MatchingProfileIndexes...)
+	copyItem.Candidates = make([]v2CandidateResult, len(item.Candidates))
+	for i := range item.Candidates {
+		copyItem.Candidates[i] = copyV2SelectorCandidate(item.Candidates[i])
+	}
 	v2SelectorPendingBindingState.Unlock()
 
 	if time.Now().UTC().After(copyItem.ExpiresAt) {
 		clearV2SelectorPendingBinding()
-		return nil, errors.New("selector winner binding window expired")
+		return nil, errors.New("selector apply preparation window expired")
 	}
 	if strings.TrimSpace(sessionID) != copyItem.SessionID {
 		return nil, errors.New("selector binding session mismatch")
@@ -97,13 +107,56 @@ func currentV2SelectorPendingBinding(sessionID, expectedConfigSHA string) (*v2Se
 	return &copyItem, nil
 }
 
-func v2SelectorBindingAllowsProfile(item *v2SelectorPendingBinding, index int) bool {
-	for _, allowed := range item.MatchingProfileIndexes {
-		if allowed == index {
-			return true
+func v2SelectorPendingCandidate(item *v2SelectorPendingBinding, candidateID string) (*v2CandidateResult, error) {
+	candidateID = strings.TrimSpace(candidateID)
+	if candidateID == "" {
+		return nil, errors.New("candidate_id is required")
+	}
+	for i := range item.Candidates {
+		if item.Candidates[i].CandidateID == candidateID {
+			candidate := copyV2SelectorCandidate(item.Candidates[i])
+			return &candidate, nil
 		}
 	}
-	return false
+	return nil, errors.New("selected candidate is not one of the working selector results")
+}
+
+func v2ReverifySelectorCandidate(ctx context.Context, item *v2SelectorPendingBinding, candidate *v2CandidateResult) error {
+	if err := v2GenericWinnerApplyEligible(candidate); err == nil {
+		return nil
+	}
+	if candidate.ResultClass != "WORKING" || candidate.Successes < 1 || !candidate.CleanupProven || !candidate.InfrastructureOK {
+		return errors.New("selected candidate is not eligible for focused verification")
+	}
+
+	capabilities := readBenchCapabilities()
+	if !benchExecutionReady(capabilities) {
+		return errors.New("selector verification capability gates are not proven")
+	}
+	inventory := readBenchStrategyInventory()
+	profile, err := v2CustomProfile(v2PortableCandidateArgs(candidate.Args), item.ServerName)
+	if err != nil {
+		return errors.New("compile selected candidate for verification: " + err.Error())
+	}
+	queues := v2FreeBenchQueues(capabilities.OccupiedQueues, 1)
+	if len(queues) != 1 {
+		return errors.New("no free reserved NFQUEUE for selected candidate verification")
+	}
+
+	sandbox := newV2DirectSandbox(capabilities, inventory, 0, queues[0], item.ServerName, item.DestinationIPv4)
+	if err := sandbox.RulesUp(true); err != nil {
+		return errors.New("selected candidate verification rules: " + err.Error())
+	}
+	defer sandbox.RulesDown()
+
+	verifyCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+	candidate.Attempts = append(candidate.Attempts, sandbox.RunCandidate(verifyCtx, profile))
+	v2FinalizeCandidate(candidate)
+	if err := v2GenericWinnerApplyEligible(candidate); err != nil {
+		return err
+	}
+	return nil
 }
 
 func handleV2SelectorBind(w http.ResponseWriter, r *http.Request) {
@@ -120,70 +173,47 @@ func handleV2SelectorBind(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "expected_config_sha256 must be SHA256"})
 		return
 	}
-	if req.CreateCustom == (req.ProfileIndex != nil) {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "choose exactly one binding mode"})
-		return
-	}
 
 	item, err := currentV2SelectorPendingBinding(req.SessionID, req.ExpectedConfigSHA256)
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
 		return
 	}
-
-	var plan *benchAutoTuneApplyPlan
-	reason := ""
-	if req.CreateCustom {
-		if len(item.MatchingProfileIndexes) != 0 {
-			writeJSON(w, http.StatusConflict, map[string]any{"error": "new custom profile is only available when no production profile matches the target"})
-			return
-		}
-		plan, err = v2StoreGenericCandidateAppendPlan(
-			item.ConfigSHA256, item.ServerName, item.DestinationIPv4,
-			benchTransportHTTPS, item.SessionID, &item.Candidate,
-		)
-		reason = "live-verified candidate will be appended as a new custom profile and is eligible for deterministic preview"
-	} else {
-		index := *req.ProfileIndex
-		if !v2SelectorBindingAllowsProfile(item, index) {
-			writeJSON(w, http.StatusConflict, map[string]any{"error": "selected production profile is not one of the verified target matches"})
-			return
-		}
-		inventory := readBenchStrategyInventory()
-		var source *benchStrategyProfile
-		for i := range inventory.Profiles {
-			if inventory.Profiles[i].Index == index && v2ProductionSourceProfileEligible(inventory.Profiles[i]) {
-				candidate := inventory.Profiles[i]
-				source = &candidate
-				break
-			}
-		}
-		if source == nil {
-			writeJSON(w, http.StatusConflict, map[string]any{"error": "selected production profile is no longer eligible"})
-			return
-		}
-		var boundArgs []string
-		boundArgs, err = v2BindCandidateToSourceProfile(*source, item.Candidate.Args)
-		if err == nil {
-			plan, err = v2StoreGenericCandidateApplyPlan(
-				item.ConfigSHA256, item.ServerName, item.DestinationIPv4,
-				benchTransportHTTPS, item.SessionID, *source, boundArgs, &item.Candidate,
-			)
-		}
-		reason = "live-verified candidate is bound to the selected production profile and eligible for deterministic preview"
-	}
+	candidate, err := v2SelectorPendingCandidate(item, req.CandidateID)
 	if err != nil {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "create selector apply binding: " + err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
 		return
 	}
+
+	if !atomic.CompareAndSwapInt32(&benchSmokeActive, 0, 1) {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "another bench session is active"})
+		return
+	}
+	defer atomic.StoreInt32(&benchSmokeActive, 0)
+
+	if err := v2ReverifySelectorCandidate(r.Context(), item, candidate); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "selected strategy verification: " + err.Error()})
+		return
+	}
+	plan, err := v2StoreGenericCandidateAppendPlan(
+		item.ConfigSHA256, item.ServerName, item.DestinationIPv4,
+		benchTransportHTTPS, item.SessionID, candidate,
+	)
+	if err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "prepare new selector profile: " + err.Error()})
+		return
+	}
+
 	clearV2SelectorPendingBinding()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":                     true,
 		"apply_gate_eligible":    true,
 		"apply_gate_token":       plan.Token,
 		"apply_gate_expires_at":  plan.ExpiresAt.Format(time.RFC3339),
-		"apply_gate_reason":      reason,
-		"source_profile_index":   plan.SourceProfileIndex,
-		"created_custom_profile": plan.AppendProfile,
+		"apply_gate_reason":      "selected strategy was re-verified and will be appended as a new NFQWS_ARGS_CUSTOM profile",
+		"created_custom_profile": true,
+		"candidate_id":           candidate.CandidateID,
+		"verification_attempts":  len(candidate.Attempts),
+		"verification_successes": candidate.Successes,
 	})
 }

@@ -201,6 +201,7 @@ def main():
             "admin",
             "monitoring",
             "network-tools",
+            "nfqws-manager",
             "profiling",
         ]
     else:

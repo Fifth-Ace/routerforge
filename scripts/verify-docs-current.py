@@ -17,7 +17,8 @@ ACTIVE = [
     "docs/FRONTEND_ARCHITECTURE.md", "docs/EXECUTABLE_COMPRESSION.md",
     "docs/APP_CENTER_RELEASE_FEED_ADR.md", "docs/RELEASE_NOTES_0.7.1.md",
     "docs/RELEASE_NOTES_0.7.2.md", "docs/RELEASE_NOTES_0.8.0.md",
-    "docs/RELEASE_NOTES_0.9.0.md", "docs/VERSIONING.md",
+    "docs/RELEASE_NOTES_0.9.0.md", "docs/RELEASE_NOTES_0.9.1.md",
+    "docs/RELEASE_NOTES_0.10.0.md", "docs/VERSIONING.md",
     "docs/VNEXT_MODULES_DEV_FOUNDATION.md", "docs/FORGEJO_FAILOVER.md",
     "docs/UI_CONTRACT.md",
 ]
@@ -27,47 +28,25 @@ for rel in ACTIVE:
         raise SystemExit(f"missing active documentation: {rel}")
 
 required = {
-    "README.md": [
-        "Stable 0.9.0", "routerforge-network-tools", "routerforge-monitoring",
-        "Keenetic NDM Console", "docs/RELEASE_NOTES_0.9.0.md",
-    ],
-    "README_EN.md": [
-        "Stable 0.9.0", "routerforge-network-tools", "routerforge-monitoring",
-        "Keenetic NDM Console", "docs/RELEASE_NOTES_0.9.0.md",
-    ],
-    "modules/README.md": [
-        "Current Stable 0.9.0 topology", "network-tools/",
-        "Legacy split source directories",
-    ],
-    "docs/REPOSITORY_LAYOUT.md": [
-        "Stable 0.9.0 release topology", "modules/network-tools/",
-        "not build targets", "internal/safety/",
-    ],
-    "docs/VNEXT_MODULES_DEV_FOUNDATION.md": [
-        "Historical / superseded", "Maintenance remains under Management",
-        "Network Tools is the only new top-level module",
-    ],
-    "docs/NETWORK_TOOLS_CONSOLIDATION.md": [
-        "routerforge-network-tools", "sole first-class", "Stable 0.9.0",
-    ],
-    "docs/MANAGEMENT_V2_API.md": [
-        "mode=<entware|keenetic>", "ndmc", "authentication is disabled",
-    ],
-    "docs/RELEASE_PROCESS.md": [
-        "publish_beta=false", "routerforge-stable-promotion", "VERSIONING.md",
-    ],
-    "docs/RELEASE_NOTES_0.9.0.md": [
-        "RouterForge 0.9.0", "70 коммитов", "DNS 0.8.1",
-        "Admin 0.8.1", "Monitoring 0.8.0", "Network Tools 0.9.0",
-        "Profiling 0.7.1", "Shared Safety Engines", "Private Forgejo",
-    ],
+    "README.md": ["Stable 0.10.0", "routerforge-network-tools", "routerforge-nfqws-manager", "Release Notes 0.10.0"],
+    "README_EN.md": ["Stable 0.10.0", "routerforge-network-tools", "routerforge-nfqws-manager", "Release Notes 0.10.0"],
+    "modules/README.md": ["Current Stable 0.10.0 topology", "network-tools/", "nfqws-manager-runtime/", "Legacy split source directories"],
+    "docs/REPOSITORY_LAYOUT.md": ["Stable 0.10.0 release topology", "modules/network-tools/", "modules/nfqws-manager-runtime/", "not build targets", "internal/safety/"],
+    "docs/MODULES.md": ["Stable 0.10.0 topology", "routerforge-nfqws-manager", "min_core_version=0.7.1"],
+    "docs/INSTALLATION.md": ["Stable 0.10.0", "routerforge-nfqws-manager", "Upgrade с Stable 0.9.1", "runtime compatibility probe"],
+    "release/channels/README.md": ["Current Stable: **0.10.0**", "routerforge-nfqws-manager", "routerforge-stable-promotion"],
+    "docs/README.md": ["Stable 0.10.0", "RELEASE_NOTES_0.10.0.md"],
+    "docs/VNEXT_MODULES_DEV_FOUNDATION.md": ["Historical / superseded", "Maintenance remains under Management", "Network Tools is the only new top-level module"],
+    "docs/NETWORK_TOOLS_CONSOLIDATION.md": ["routerforge-network-tools", "sole first-class", "Stable 0.9.0"],
+    "docs/MANAGEMENT_V2_API.md": ["mode=<entware|keenetic>", "ndmc", "authentication is disabled"],
+    "docs/RELEASE_PROCESS.md": ["publish_beta=false", "routerforge-stable-promotion", "VERSIONING.md"],
+    "docs/RELEASE_NOTES_0.9.0.md": ["RouterForge 0.9.0", "70 коммитов", "DNS 0.8.1", "Admin 0.8.1", "Monitoring 0.8.0", "Network Tools 0.9.0", "Profiling 0.7.1", "Shared Safety Engines", "Private Forgejo"],
+    "docs/RELEASE_NOTES_0.9.1.md": ["RouterForge 0.9.1", "thermal", "unsupported", "/api/health", "P16", "P17", "P18"],
+    "docs/RELEASE_NOTES_0.10.0.md": ["RouterForge 0.10.0", "NFQWS Manager", "Runnin4ik/dpi-detector", "rndnaame/nfqws-menu", "DNS Policy Router", "0.10.0-beta.5"],
     "docs/VERSIONING.md": ["MAJOR.MINOR.PATCH", "PATCH", "MINOR", "1.0.0"],
     "docs/RELEASE_NOTES_0.7.1.md": ["RouterForge 0.7.1", "Keenetic NDM Console"],
     "docs/RELEASE_NOTES_0.7.2.md": ["RouterForge 0.7.2", "routerforge-dns", "DNS hotfix"],
-    "docs/RELEASE_NOTES_0.8.0.md": [
-        "RouterForge 0.8.0", "routerforge-network-tools",
-        "routerforge-monitoring", "publish_beta=false",
-    ],
+    "docs/RELEASE_NOTES_0.8.0.md": ["RouterForge 0.8.0", "routerforge-network-tools", "routerforge-monitoring", "publish_beta=false"],
 }
 
 for rel, needles in required.items():
@@ -77,24 +56,26 @@ for rel, needles in required.items():
             raise SystemExit(f"{rel}: missing current marker {needle}")
 
 stable = json.loads((ROOT / "release/channels/stable.json").read_text(encoding="utf-8"))
-if stable.get("release_version") != "0.9.0":
+if stable.get("release_version") != "0.10.0":
     raise SystemExit("stable.json release_version mismatch")
 
 expected = [
     "routerforge-core", "routerforge-dns", "routerforge-admin",
-    "routerforge-monitoring", "routerforge-network-tools", "routerforge-profiling",
+    "routerforge-monitoring", "routerforge-network-tools",
+    "routerforge-nfqws-manager", "routerforge-profiling",
 ]
 components = stable.get("components", [])
 if [x.get("package") for x in components] != expected:
     raise SystemExit("stable.json topology mismatch")
 
 versions = {
-    "routerforge-core": ("0.9.0", ""),
-    "routerforge-dns": ("0.8.1", "0.9.0"),
-    "routerforge-admin": ("0.8.1", "0.9.0"),
-    "routerforge-monitoring": ("0.8.0", "0.9.0"),
-    "routerforge-network-tools": ("0.9.0", "0.9.0"),
-    "routerforge-profiling": ("0.7.1", "0.7.1"),
+    "routerforge-core": ("0.10.0", ""),
+    "routerforge-dns": ("0.10.0", "0.10.0"),
+    "routerforge-admin": ("0.10.0", "0.10.0"),
+    "routerforge-monitoring": ("0.10.0", "0.10.0"),
+    "routerforge-network-tools": ("0.10.0", "0.10.0"),
+    "routerforge-nfqws-manager": ("0.10.0", "0.10.0"),
+    "routerforge-profiling": ("0.10.0", "0.7.1"),
 }
 for item in components:
     version, min_core = versions[item["package"]]
@@ -132,6 +113,7 @@ for required_call in (
     'build-module-opkg.sh" dns',
     'build-module-opkg.sh" monitoring',
     'build-network-tools-opkg.sh"',
+    'build-module-opkg.sh" nfqws-manager',
     'build-module-opkg.sh" profiling',
 ):
     if required_call not in aggregate:
@@ -153,8 +135,8 @@ for rel in ACTIVE:
             raise SystemExit(f"{rel}: broken local link: {raw}")
 
 print("DOCS_CURRENT=PASS")
-print("STABLE_RELEASE_VERSION=0.9.0")
-print("STABLE_COMPONENT_VERSIONS=core:0.9.0,dns:0.8.1,admin:0.8.1,monitoring:0.8.0,network-tools:0.9.0,profiling:0.7.1")
+print("STABLE_RELEASE_VERSION=0.10.0")
+print("STABLE_COMPONENT_VERSIONS=core:0.10.0,dns:0.10.0,admin:0.10.0,monitoring:0.10.0,network-tools:0.10.0,nfqws-manager:0.10.0,profiling:0.10.0")
 print("LEGACY_SPLIT_SOURCE_DIRS=ABSENT")
 print("ORPHAN_SPLIT_APPROVALS=ABSENT")
-print("ACTIVE_BUILD_TOPOLOGY=dns,monitoring,network-tools,profiling")
+print("ACTIVE_BUILD_TOPOLOGY=dns,monitoring,network-tools,nfqws-manager,profiling")

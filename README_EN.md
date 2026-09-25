@@ -3,11 +3,11 @@
 [Русский](README.md) | **English**
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.9.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/beta-0.8.5--beta.2-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/badge/stable-0.10.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/beta-0.10.0--beta.5-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RouterForge 0.9.0** is a modular web platform purpose-built for **Keenetic / Netcraze routers with Entware**: monitoring, DNS, management, network diagnostics and maintenance in one interface.
+**RouterForge 0.10.0** is a modular web platform purpose-built for **Keenetic / Netcraze routers with Entware**: monitoring, DNS, management, network diagnostics and maintenance in one interface.
 
 RouterForge works directly with KeeneticOS/NDMS and Entware capabilities including `ndmc`, RCI, interfaces, routes, DNS, policy routing, processes and services. Users work through one Web UI on **`:2233`** while internal modules connect to Core through Unix sockets.
 
@@ -27,17 +27,17 @@ RouterForge works directly with KeeneticOS/NDMS and Entware capabilities includi
 - **Guarded operations.** Sensitive actions use constrained server-side contracts, path validation, confirmations and rollback where it actually matters.
 - **Verifiable release chain.** Stable is published from a validated exact SHA with multi-arch indexes, SHA256 checks and an immutable release snapshot.
 
-## RouterForge modules — Stable 0.9.0
+## RouterForge modules — Stable 0.10.0
 
 ### Core — one control point
-`routerforge-core` · **0.9.0**
+`routerforge-core` · **0.10.0**
 
 RouterForge itself: the shared Web UI, authentication, settings, App Center, Registry and the host for every other module.
 
 **Everyone needs it:** Core is the platform foundation. Installation starts here and the rest of RouterForge is managed through it.
 
 ### DNS — more control than stock DNS settings
-`routerforge-dns` · **0.8.1**
+`routerforge-dns` · **0.10.0**
 
 More than a list of DNS servers. The module gives DNS its own workspace: classic DNS, DoT and DoH, resolver management, current health, latency, errors, fallback and a clear explanation of **what is unhealthy right now and why**.
 
@@ -54,28 +54,35 @@ It also:
 **Useful if:** you want to do more than simply “set DNS” — you want to **control it, compare resolvers and quickly understand failures**, especially with multiple DNS providers, DoT/DoH or more complex network policy.
 
 ### Management — administration without living in SSH
-`routerforge-admin` · **0.8.1**
+`routerforge-admin` · **0.10.0**
 
 Processes and Entware services, File Manager, Maintenance, full Entware Terminal and Keenetic NDM Console in one UI.
 
 **Useful if:** you want most day-to-day administration in the browser — inspect a process, restart a service, edit a file, open a shell or enter `ndmc` without jumping between separate tools.
 
 ### Monitoring — the router's health at a glance
-`routerforge-monitoring` · **0.8.0**
+`routerforge-monitoring` · **0.10.0**
 
 System, Thermal, Storage and Network in one place: CPU load, memory, temperatures, storage and interface state.
 
 **Useful if:** you want one page that answers “is the router healthy?” without opening `top`, `df`, `ip` or hunting through thermal sensors manually.
 
 ### Network Tools — see where traffic is really going
-`routerforge-network-tools` · **0.9.0**
+`routerforge-network-tools` · **0.10.0**
 
 Network Doctor, Route Inspector, Flow Explorer and Active Probes: routing, active flows, reachability and path diagnostics in one module.
 
 **Useful if:** you have multiple WAN/VPN links, policy routing, complex routes, or regularly ask “why is this destination going that way?”.
 
+### NFQWS Manager — bypass management without the manual marathon
+`routerforge-nfqws-manager` · **0.10.0**
+
+Management for an existing `nfqws2-keenetic` runtime: profiles and lists, strategy library/import, diagnostics, Auto Setup/AutoSelect, ClientHello, sandboxing, history, backups, plus DPI Detector and NFQWS Menu integrations.
+
+**Useful if:** you use nfqws2 and want more than manual config editing — diagnose a target, test strategies safely and apply a verified result through preview/verification/rollback.
+
 ### Profiling — RouterForge internals
-`routerforge-profiling` · **0.7.1**
+`routerforge-profiling` · **0.10.0**
 
 Local Core profiling for development and deep performance diagnostics.
 
@@ -105,11 +112,17 @@ RouterForge Core
      │    ├── Thermal
      │    ├── Storage
      │    └── Network
-     └── Network Tools
-          ├── Network Doctor
-          ├── Route Inspector
-          ├── Flow Explorer
-          └── Active Probes
+     ├── Network Tools
+     │    ├── Network Doctor
+     │    ├── Route Inspector
+     │    ├── Flow Explorer
+     │    └── Active Probes
+     └── NFQWS Manager
+          ├── Diagnostics / AutoSelect
+          ├── Strategy Library / Import
+          ├── ClientHello
+          ├── DPI Detector
+          └── NFQWS Menu
 ```
 
 `routerforge-profiling` is separate and loopback-only by default at `127.0.0.1:6061`.
@@ -159,7 +172,7 @@ Bugs and technical tasks can be filed in [GitHub Issues](https://github.com/Fift
 ## Documentation
 
 - [Documentation index](docs/README.md)
-- [Release Notes 0.9.0](docs/RELEASE_NOTES_0.9.0.md)
+- [Release Notes 0.10.0](docs/RELEASE_NOTES_0.10.0.md)
 - [Installation](docs/INSTALLATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Modules](docs/MODULES.md)

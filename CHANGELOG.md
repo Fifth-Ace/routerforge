@@ -4,6 +4,24 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-09-25 — RouterForge 0.10.0
+
+### Stable release
+- Stable 0.10.0 promotes the complete 0.10 Beta train on top of the 0.9.1 maintenance history.
+- Adds the seventh first-class package: `routerforge-nfqws-manager`.
+- NFQWS Manager includes Auto Setup/AutoSelect, isolated NFQUEUE testing, guarded Apply, strategy library/import, ClientHello, DPI Detector and NFQWS Menu integrations.
+- Network Tools, Monitoring and Admin/Recovery workspaces are promoted together with the 0.10 resource-usage reductions.
+- DNS policy-routing work remains an internal foundation; there is no separate user-facing DNS Policy Router in 0.10.0.
+- Stable publishes 7 components × 3 targets = 21 IPKs and an immutable `routerforge-v0.10.0` snapshot.
+
+## 2026-09-25 — RouterForge 0.10.0-beta.5
+
+### NFQWS Manager completion
+- AutoSelect live progress, recommendation/recheck/apply flow and profile binding were completed.
+- Existing NFQWS profiles are preserved; discovered results are appended as new profiles.
+- ClientHello workflow and the strategy corpus were expanded.
+- MIPS/MIPSel no longer require the retired manual preview confirmation; runtime compatibility/resource checks remain.
+
 ## 2026-09-21 — RouterForge 0.10.0-beta.4
 
 ### Производительность
@@ -88,6 +106,15 @@ RouterForge components are versioned independently. Entries below describe platf
 - Targets: aarch64-3.10, mips-3.4 and mipsel-3.4.
 - Stable/main is not promoted by this Beta release.
 
+
+## 2026-09-17 — RouterForge 0.9.1
+
+### Stable hotfix
+- Backports only the bootstrap/runtime-compatibility fix onto the Stable 0.9.0 line.
+- Missing optional thermal sensors no longer block Core installation on MIPS/MIPSel.
+- Core install gating is separated from optional module status and post-install Core health is verified locally.
+- P16/P17/P18 feature work remained Beta/Dev-only in 0.9.1.
+- Component package versions remained unchanged from Stable 0.9.0.
 
 ## 2026-09-16 — RouterForge 0.9.0 (release preparation)
 

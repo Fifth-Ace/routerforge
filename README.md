@@ -7,11 +7,11 @@
 **Русский** | [English](README_EN.md)
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.9.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/beta-0.8.5--beta.2-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/badge/stable-0.10.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/beta-0.10.0--beta.5-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RouterForge 0.9.0** — модульная веб-платформа, созданная специально для роутеров **Keenetic / Netcraze с Entware**: мониторинг, DNS, управление, диагностика сети и обслуживание в одном интерфейсе.
+**RouterForge 0.10.0** — модульная веб-платформа, созданная специально для роутеров **Keenetic / Netcraze с Entware**: мониторинг, DNS, управление, диагностика сети и обслуживание в одном интерфейсе.
 
 RouterForge работает напрямую с KeeneticOS/NDMS и Entware: `ndmc`, RCI, интерфейсы, маршруты, DNS, policy routing, процессы и службы. Пользователь работает через единый Web UI на **`:2233`**, а внутренние модули подключаются к Core через Unix sockets.
 
@@ -31,17 +31,17 @@ RouterForge работает напрямую с KeeneticOS/NDMS и Entware: `nd
 - **Контролируемые изменения.** Чувствительные действия выполняются через ограниченные server-side контракты, проверки путей, подтверждения и rollback там, где он действительно нужен.
 - **Проверяемая цепочка релиза.** Stable публикуется из заранее проверенного exact SHA; multi-arch индексы, SHA256 и immutable release snapshot позволяют проверить, что именно установлено.
 
-## Модули RouterForge — Stable 0.9.0
+## Модули RouterForge — Stable 0.10.0
 
 ### Core — единая точка управления
-`routerforge-core` · **0.9.0**
+`routerforge-core` · **0.10.0**
 
 Сам RouterForge: единый Web UI, авторизация, настройки, Центр приложений, Registry и подключение остальных модулей.
 
 **Нужен всем:** Core — база платформы. С него начинается установка и через него вы управляете остальными возможностями.
 
 ### DNS — больше контроля, чем штатные настройки DNS
-`routerforge-dns` · **0.8.1**
+`routerforge-dns` · **0.10.0**
 
 Не просто список DNS-серверов. Модуль даёт отдельное рабочее место для DNS: обычный DNS, DoT и DoH, управление резолверами, текущий health, задержки, ошибки, fallback и понятное объяснение, **что именно сейчас работает плохо и почему**.
 
@@ -58,28 +58,35 @@ RouterForge работает напрямую с KeeneticOS/NDMS и Entware: `nd
 **Нужен, если:** хотите не просто «задать DNS», а реально **управлять им, сравнивать резолверы и быстро понимать причину проблем** — особенно при нескольких DNS, DoT/DoH и сложной сетевой политике.
 
 ### Management — администрирование без постоянного SSH
-`routerforge-admin` · **0.8.1**
+`routerforge-admin` · **0.10.0**
 
 Процессы и службы Entware, File Manager, Maintenance, полноценный Entware Terminal и Keenetic NDM Console в одном интерфейсе.
 
 **Нужен, если:** хотите большую часть обычного обслуживания делать из браузера — посмотреть процесс, перезапустить службу, поправить файл, открыть терминал или зайти в `ndmc`, не прыгая между отдельными инструментами.
 
 ### Monitoring — всё важное о состоянии роутера
-`routerforge-monitoring` · **0.8.0**
+`routerforge-monitoring` · **0.10.0**
 
 System, Thermal, Storage и Network в одном месте: загрузка CPU, память, температура, хранилища и состояние сетевых интерфейсов.
 
 **Нужен, если:** хотите открыть одну страницу и сразу понять, всё ли нормально с роутером — без `top`, `df`, `ip` и ручного поиска датчиков температуры.
 
 ### Network Tools — когда нужно понять, куда на самом деле идёт трафик
-`routerforge-network-tools` · **0.9.0**
+`routerforge-network-tools` · **0.10.0**
 
 Network Doctor, Route Inspector, Flow Explorer и Active Probes: маршруты, активные потоки, проверки доступности и разбор сетевого пути в одном модуле.
 
 **Нужен, если:** у вас несколько WAN/VPN, policy routing, сложная маршрутизация или периодически возникает вопрос «почему этот адрес идёт не туда?».
 
+### NFQWS Manager — управление обходом без ручного марафона
+`routerforge-nfqws-manager` · **0.10.0**
+
+Управление существующим `nfqws2-keenetic`: профили и списки, библиотека/импорт стратегий, диагностика, Auto Setup/AutoSelect, ClientHello, песочница, история, backups, а также интеграции DPI Detector и NFQWS Menu.
+
+**Нужен, если:** используете nfqws2 и хотите не только редактировать конфиг, но и безопасно диагностировать проблему, проверить несколько стратегий и применить результат через preview/verification/rollback.
+
 ### Profiling — диагностика самого RouterForge
-`routerforge-profiling` · **0.7.1**
+`routerforge-profiling` · **0.10.0**
 
 Локальное профилирование Core для разработки и глубокой диагностики производительности.
 
@@ -109,11 +116,17 @@ RouterForge Core
      │    ├── Thermal
      │    ├── Storage
      │    └── Network
-     └── Network Tools
-          ├── Network Doctor
-          ├── Route Inspector
-          ├── Flow Explorer
-          └── Active Probes
+     ├── Network Tools
+     │    ├── Network Doctor
+     │    ├── Route Inspector
+     │    ├── Flow Explorer
+     │    └── Active Probes
+     └── NFQWS Manager
+          ├── Diagnostics / AutoSelect
+          ├── Strategy Library / Import
+          ├── ClientHello
+          ├── DPI Detector
+          └── NFQWS Menu
 ```
 
 `routerforge-profiling` работает отдельно и по умолчанию доступен только на `127.0.0.1:6061`.
@@ -163,7 +176,7 @@ RouterForge разрабатывается для **Keenetic / Netcraze с Entwa
 ## Документация
 
 - [Документация RouterForge](docs/README.md)
-- [Release Notes 0.9.0](docs/RELEASE_NOTES_0.9.0.md)
+- [Release Notes 0.10.0](docs/RELEASE_NOTES_0.10.0.md)
 - [Установка и обновление](docs/INSTALLATION.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Модули](docs/MODULES.md)

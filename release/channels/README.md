@@ -6,7 +6,7 @@
 | Beta | exact `dev` FULL RELEASE | prerelease validation |
 | Stable | exact validated SHA on `main` | production |
 
-Current Stable: **0.7.1**.
+Current Stable: **0.10.0**.
 
 Current package set:
 
@@ -15,10 +15,12 @@ routerforge-core
 routerforge-dns
 routerforge-admin
 routerforge-monitoring
+routerforge-network-tools
+routerforge-nfqws-manager
 routerforge-profiling
 ```
 
-Targets: `aarch64-3.10` production; `mipsel-3.4` experimental with partial KN-1010 evidence; `mips-3.4` experimental without physical validation.
+Targets: `aarch64-3.10` primary; `mipsel-3.4` and `mips-3.4` are published with runtime compatibility checks and resource warnings.
 
 Source manifests: `dev.json`, `beta.json`, `stable.json`.
 Release-index is authoritative for version, asset, URL, SHA256 and min-core metadata.

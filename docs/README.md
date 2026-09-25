@@ -1,17 +1,17 @@
 # RouterForge documentation
 
-Актуальная документация RouterForge **Stable 0.9.0 release candidate** и текущей ветки Dev.
+Актуальная документация RouterForge **Stable 0.10.0** и текущей ветки Dev.
 Исторические release notes сохраняются как история и не переписываются под текущий релиз.
 
 ## Пользователю
-- [RELEASE_NOTES_0.9.0.md](RELEASE_NOTES_0.9.0.md) — полный патчноут Stable 0.9.0 относительно Stable 0.8.0.
+- [RELEASE_NOTES_0.10.0.md](RELEASE_NOTES_0.10.0.md) — полный патчноут Stable 0.10.0 относительно Stable 0.9.1.
 - [VERSIONING.md](VERSIONING.md) — правила MAJOR/MINOR/PATCH и независимого versioning компонентов.
 - [INSTALLATION.md](INSTALLATION.md) — установка, обновление и channels.
 - [MODULES.md](MODULES.md) — актуальные пакеты и Module ABI boundaries.
 - [MARKETPLACE.md](MARKETPLACE.md) — App Center, Registry/Manifest Platform, sources/trust и Web UI discovery.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — диагностика.
-- [RELEASE_NOTES_0.8.0.md](RELEASE_NOTES_0.8.0.md) — предыдущий Stable.
-- [RELEASE_NOTES_0.7.2.md](RELEASE_NOTES_0.7.2.md) и [RELEASE_NOTES_0.7.1.md](RELEASE_NOTES_0.7.1.md) — история.
+- [RELEASE_NOTES_0.9.1.md](RELEASE_NOTES_0.9.1.md) и [RELEASE_NOTES_0.9.0.md](RELEASE_NOTES_0.9.0.md) — предыдущий Stable train.
+- [RELEASE_NOTES_0.8.0.md](RELEASE_NOTES_0.8.0.md), [RELEASE_NOTES_0.7.2.md](RELEASE_NOTES_0.7.2.md) и [RELEASE_NOTES_0.7.1.md](RELEASE_NOTES_0.7.1.md) — история.
 
 ## Management
 - [MANAGEMENT_V2_API.md](MANAGEMENT_V2_API.md) — process/service mutations, auth semantics, Terminal/PTTY и security.

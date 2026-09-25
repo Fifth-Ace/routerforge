@@ -1,30 +1,30 @@
 # Установка и обновление RouterForge
 
-## Stable 0.9.0
+## Stable 0.10.0
 
-Текущий Stable train после promotion:
+Текущий Stable train:
 
 ```text
-routerforge-core           0.9.0
-routerforge-dns            0.8.1   (min Core 0.9.0)
-routerforge-admin          0.8.1   (min Core 0.9.0)
-routerforge-monitoring     0.8.0   (min Core 0.9.0)
-routerforge-network-tools  0.9.0   (min Core 0.9.0)
-routerforge-profiling      0.7.1   (min Core 0.7.1)
+routerforge-core           0.10.0
+routerforge-dns            0.10.0   (min Core 0.10.0)
+routerforge-admin          0.10.0   (min Core 0.10.0)
+routerforge-monitoring     0.10.0   (min Core 0.10.0)
+routerforge-network-tools  0.10.0   (min Core 0.10.0)
+routerforge-nfqws-manager  0.10.0   (min Core 0.10.0)
+routerforge-profiling      0.10.0   (min Core 0.7.1)
 ```
 
-Компоненты версионируются независимо; см. [VERSIONING.md](VERSIONING.md).
+Компоненты версионируются независимо; см. [VERSIONING.md](VERSIONING.md). В train 0.10 package versions синхронизированы с `0.10.0`, потому что публичные prerelease-пакеты уже использовали `0.10.0~beta.x`.
 
-Fresh bootstrap устанавливает Core. DNS, Management, Monitoring, Network Tools и Profiling
-выбираются через **Центр приложений**.
+Fresh bootstrap устанавливает Core. DNS, Management, Monitoring, Network Tools, NFQWS Manager и Profiling выбираются через **Центр приложений**.
 
 ## Targets
 
 | Target | Статус |
 | --- | --- |
 | `aarch64-3.10` | primary fully hardware-validated Stable target |
-| `mipsel-3.4` | experimental, partial physical validation на KN-1010 |
-| `mips-3.4` | experimental, no physical hardware validation |
+| `mipsel-3.4` | published; runtime compatibility probe before installation |
+| `mips-3.4` | published; runtime compatibility probe before installation |
 
 Требуются Keenetic/Netcraze с KeeneticOS/NDMS, Entware в `/opt`, `opkg`, `sha256sum`
 и `curl`/`wget`.
@@ -45,7 +45,7 @@ echo
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
 ```
 
-## Upgrade с Stable 0.8.0
+## Upgrade с Stable 0.9.1
 
 1. Запустите Stable bootstrap.
 2. Откройте **Центр приложений**.
@@ -55,35 +55,28 @@ echo
 
 Не удаляйте package-owned files вручную.
 
+Пользователи `0.10.0-beta.x` переходят на `0.10.0` как на обычный более новый Stable package train.
+
 ## Monitoring migration
 
 Исторический переход split System/Thermal/Storage/Network → `routerforge-monitoring`
 остаётся поддерживаемым migration contract.
 
-После Stable 0.9.0 ожидаемая версия consolidated package:
+После Stable 0.10.0 ожидаемая версия consolidated package:
 
 ```sh
-ROUTERFORGE_MONITORING_EXPECTED_VERSION='0.8.0' \
-  sh scripts/verify-monitoring-migration.sh runtime
+ROUTERFORGE_MONITORING_EXPECTED_VERSION='0.10.0'   sh scripts/verify-monitoring-migration.sh runtime
 ```
 
 Подробнее: [MONITORING_MIGRATION.md](MONITORING_MIGRATION.md).
 
 ## MIPS / MIPSel
 
-Non-ARM64 требует explicit experimental opt-in:
+Отдельное ручное подтверждение preview/experimental mode больше не требуется.
 
-```sh
-ROUTERFORGE_MIPS_PREVIEW=1
-```
+Bootstrap выполняет read-only runtime compatibility probe и блокирует установку только при реальной несовместимости platform prerequisites. Предупреждения о малом объёме RAM, одном CPU core и отсутствии swap остаются.
 
-Для `degraded` probe:
-
-```sh
-ROUTERFORGE_MIPS_ALLOW_DEGRADED=1
-```
-
-`blocked` override не допускается. См. [ARCHITECTURES.md](ARCHITECTURES.md).
+`blocked` compatibility state не обходится пользовательским флагом. См. [ARCHITECTURES.md](ARCHITECTURES.md).
 
 ## Beta
 
@@ -100,8 +93,16 @@ Pre-release package versions используют `~`, чтобы сортиро
 2. форсируйте проверку в App Center;
 3. приведите installed RouterForge packages к versions целевого release-index.
 
+Если целевой channel содержит более старую package version, обычный upgrade-path не выполняет downgrade автоматически.
+
 Stable → `routerforge-stable` + Registry `main`.
 Beta → `routerforge-beta` + Registry `dev`.
+
+## NFQWS Manager
+
+`routerforge-nfqws-manager` управляет уже установленным `nfqws2-keenetic`: профили, списки, стратегии, диагностика, AutoSelect, ClientHello, DPI Detector и NFQWS Menu.
+
+Сам NFQWS Manager не устанавливает nfqws2 молча. Явные install/update операции `nfqws2-keenetic` и `nfqws-keenetic-web` доступны как отдельные проверенные App Center integrations.
 
 ## Management
 

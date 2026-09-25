@@ -1,56 +1,86 @@
 {
   "schema_version": 1,
   "channel": "stable",
-  "release_version": "0.9.0",
+  "release_version": "0.10.0",
   "release_notes": {
     "ru": {
       "new": [
-        "App Center получил завершённую Registry / Manifest Platform: bundled manifests стали источником истины для интеграций, local/private sources получили namespaced identity, preview + explicit add с SHA-256 и conservative trust-модель.",
-        "Private Forgejo оформлен как hot-backup Git authority с fail-closed promotion/restore procedure; GitHub остаётся primary и автоматический Forgejo -> GitHub sync запрещён.",
-        "Shared Safety Engines объединяют path validation, atomic file/config writes, swap/rollback и bounded command execution для пользовательских control paths.",
-        "App Center получил Jobs + History, сохранение технических логов, безопасное открытие локальных Web UI и устойчивый переход между каналами.",
-        "Network Tools существенно расширен: Route Inspector и runtime/UI диагностика маршрутов и сетевого состояния."
+        "В RouterForge появился седьмой полноценный компонент — **NFQWS Manager**. Он объединяет конфигурацию, списки, стратегии, диагностику, автоподбор, песочницу, историю, логи, резервные копии и обслуживание существующего `nfqws2-keenetic`. Shell никуда не исчез; он просто снова стал инструментом, а не обязательной формой приветствия.",
+        "**Автонастройка и AutoSelect NFQWS** умеют проверить проблемный сайт, собрать кандидатов из текущих профилей, встроенного пула и пользовательской библиотеки, прогнать их через изолированные NFQUEUE и показать живой прогресс. Компьютер наконец занимается тем, для чего его и покупали: повторяет однообразные действия вместо человека.",
+        "Найденная стратегия не получает божественного права немедленно переписать production. Перед Apply выполняются повторная live-проверка, preview, проверка ожидаемого SHA конфигурации, backup, post-apply verification и rollback; результат добавляется новым профилем и не заменяет существующие `NFQWS_ARGS_CUSTOM`.",
+        "Добавлены **библиотека и импорт стратегий**: RouterForge разбирает команды и `.bat`/`.txt`, показывает преобразования и позволяет сохранить пригодные профили без автоматического изменения активного `nfqws2.conf`. Случайный файл из интернета всё ещё не считается достаточным основанием для root-мутаций — невероятный прогресс цивилизации.",
+        "Инструменты **ClientHello** получили законченный рабочий сценарий: образец можно получить с устройства и использовать при диагностике и подборе стратегий, когда приблизительного «браузер вроде шлёт что-то такое» уже недостаточно.",
+        "В NFQWS Manager встроена интеграция с **[rndnaame/nfqws-menu](https://github.com/rndnaame/nfqws-menu)** как внешним источником готовых стратегий, списков и blobs. Источник показывается явно; чужая работа не переименовывается в «уникальную RouterForge AI Cyber Enterprise Technology» только потому, что маркетологам скучно.",
+        "Добавлена полноценная интеграция **[Runnin4ik/dpi-detector](https://github.com/Runnin4ik/dpi-detector)**: обнаружение и проверка установленного binary, оригинальный консольный режим и графический режим RouterForge для machine-readable тестов DPI Detector v5. RouterForge отдельно предупреждает, если результат получен поверх уже работающего NFQWS/VPN/proxy и потому описывает текущий сетевой путь, а не «чистую истину провайдера».",
+        "**Network Tools** теперь предоставляет четыре законченных рабочих области: Сетевой доктор, Маршруты, Потоки и Активные проверки. Можно смотреть reachability/RTT/loss, route decision и traceroute, conntrack/flows и запускать ограниченные диагностические probes без изменения конфигурации.",
+        "**Monitoring** получил нормальный менеджер процессов: CPU, RSS, PID/PPID, user, state, threads, command, поиск и сортировку. Диагностика загрузки процессора теперь может закончиться чем-то точнее, чем «ну, наверное, опять сеть».",
+        "**Admin / Control** расширен Service Inspector, Backup / Restore, diagnostic snapshots, Support & Recovery, watchdogs, File Manager и Terminal. Внутри опасные операции всё чаще используют общие transaction/atomic-write/recovery primitives вместо того, чтобы каждый модуль изобретал собственный уникальный способ испортить вечер.",
+        "RouterForge стал заметно тише в простое: тяжёлые Monitoring/DNS/system reads выполняются реже или по требованию. На Keenetic Hopper KN-3811 четыре основных процесса RouterForge в проверенном idle-сценарии вместе использовали в среднем меньше 1% CPU; Core, DNS и Monitoring в сопоставимом замере использовали примерно на 20% меньше памяти.",
+        "В DNS построен большой **внутренний фундамент будущего policy routing**: inventory политик Keenetic, evaluator, persistent rules, dry-run, transaction/rollback и hardware-validated recovery primitives. Отдельного пользовательского DNS Policy Router в `0.10.0` нет — мы не продаём архитектурный фундамент как готовую кнопку только потому, что название красиво звучит."
       ],
       "fixes": [
-        "DNS health переведён с накопительных lifetime-счётчиков на rolling window: старые ошибки больше не держат резолвер в вечном DEGRADED, NXDOMAIN информационный, а текущая причина проблемы показывается по конкретному резолверу.",
-        "Management same-origin actions работают при отключённой авторизации RouterForge; при включённой авторизации root-session остаётся обязательной. Cross-origin, exact-target confirmations и process/path guards сохранены.",
-        "Обновления между каналами выполняют модули до Core и Core последним; transient empty/invalid JSON во время рестарта Core обрабатывается явно.",
-        "Исправлены module UI caching/revisioning, history workspace, resolver details drawer и thermal sensor discovery/presentation на Keenetic."
+        "Закрыты ложные тайм-ауты и долгие «зависшие» периоды NFQWS AutoSelect: live progress появляется во время работы, а не в тот момент, когда пользователь уже начал подозревать философский саботаж.",
+        "Исправлена подготовка найденной стратегии к Apply, разделены найденные кандидаты и существующие профили, улучшена работа со списками/исключениями и привязкой правил к целевым адресам.",
+        "Тестовые NFQWS worker'ы и NFQUEUE cleanup усилены: infrastructure failure не маскируется под «стратегия не работает», а Apply блокируется, если cleanup baseline не доказан.",
+        "Stable сохраняет bootstrap/runtime-compatibility hotfix из `0.9.1`: отсутствие необязательного thermal sensor не блокирует Core на MIPS/MIPSel, platform gate отделён от optional module health, а после установки Core проверяется локальный `/api/health`.",
+        "Лишнее ручное подтверждение experimental-mode для MIPS/MIPSel убрано. Runtime compatibility checks и предупреждения о малой RAM, одном ядре или отсутствии swap сохранены.",
+        "Release tooling обновлён под семь компонентов: Network Tools и NFQWS Manager больше не могут физически существовать в assets и одновременно мистически исчезать из таблицы релиза."
       ],
       "compatibility": [
-        "Компоненты версионируются независимо: Core 0.9.0, DNS 0.8.1, Admin 0.8.1, Monitoring 0.8.0, Network Tools 0.9.0, Profiling 0.7.1.",
-        "DNS/Admin/Monitoring/Network Tools требуют Core 0.9.0; неизменённый Profiling сохраняет min_core_version 0.7.1.",
-        "Stable остаётся multiarch: aarch64-3.10 production; mipsel-3.4 и mips-3.4 experimental."
+        "Stable `0.10.0` выпускается для `aarch64-3.10`, `mips-3.4` и `mipsel-3.4`; перед установкой non-ARM64 выполняется runtime compatibility probe.",
+        "Stable содержит семь пакетов: Core, DNS, Control/Admin, Monitoring, Network Tools, NFQWS Manager и Profiling.",
+        "Все семь package versions — `0.10.0`. Profiling функционально почти не менялся, но его package version синхронизирован с release train, потому что публичная Beta уже была `0.10.0~beta.x`; его `min_core_version` остаётся `0.7.1`.",
+        "NFQWS Manager управляет существующим `nfqws2-keenetic` и не устанавливает его молча. Явная установка/обновление `nfqws2-keenetic` и `nfqws-keenetic-web` остаётся отдельной проверенной интеграцией App Center.",
+        "Раздел GeoSite / GeoIP в NFQWS Manager по-прежнему помечен «В разработке» и не заявляется готовой функцией этого релиза.",
+        "Отдельного пользовательского DNS Policy Router в `0.10.0` нет; наружу выходит только уже доступная DNS-функциональность, а policy-routing foundation остаётся внутренней платформой."
       ],
       "technical": [
-        "Stable 0.9.0 готовится относительно Stable 0.8.0; между базовым Stable SHA и release-prep базой накоплено 70 коммитов.",
-        "Stable promotion выполняется только из exact Dev SHA после успешного FULL RELEASE с publish_beta=false.",
-        "Публикуются 6 компонентов × 3 target = 18 IPK; rolling routerforge-stable обновляется только после валидации exact promotion artifact."
+        "Stable `0.10.0` готовится как merge release: feature-line `dev` сохраняет весь текущий Beta train, а история maintenance Stable `0.9.1` становится вторым родителем release commit вместо того, чтобы тихо исчезнуть из графа Git.",
+        "FULL RELEASE запускается на exact Dev SHA с `publish_beta=false`; Stable/main продвигается только после успешного workflow_dispatch и наличия exact `routerforge-stable-promotion` artifact.",
+        "Публикуются 7 компонентов × 3 target = 21 IPK плюс multiarch indexes, SHA256SUMS, target bootstraps и universal bootstrap; immutable snapshot — `routerforge-v0.10.0`.",
+        "Спасибо разработчикам **[nfqws/nfqws2-keenetic](https://github.com/nfqws/nfqws2-keenetic)** и **[nfqws/nfqws-keenetic-web](https://github.com/nfqws/nfqws-keenetic-web)** за экосистему NFQWS для Keenetic/Netcraze.",
+        "Спасибо **[Runnin4ik/dpi-detector](https://github.com/Runnin4ik/dpi-detector)** и **[rndnaame/nfqws-menu](https://github.com/rndnaame/nfqws-menu)** — оба проекта интегрированы в NFQWS Manager с явным указанием upstream.",
+        "Отдельное спасибо **[necronicle/z2k](https://github.com/necronicle/z2k)** и **[Omn1z/nfqws2-keenetic-strategy-selector](https://github.com/Omn1z/nfqws2-keenetic-strategy-selector)**: их публичные идеи использовались как design references для DPI-analysis и AutoSelect. Исходный код этих двух reference-проектов в RouterForge не vendored."
       ]
     },
     "en": {
       "new": [
-        "App Center now includes the completed Registry / Manifest Platform: bundled manifests are the integration source of truth, local/private sources use namespaced identity, explicit preview/add with SHA-256, and a conservative trust model.",
-        "Private Forgejo is documented as a hot-backup Git authority with fail-closed promotion/restore; GitHub remains primary and Forgejo -> GitHub synchronization is never automatic.",
-        "Shared Safety Engines centralize path validation, atomic file/config writes, swap/rollback and bounded command execution for user-facing control paths.",
-        "App Center now has Jobs + History, persisted technical logs, safe local Web UI opening and hardened channel transitions.",
-        "Network Tools received a substantial Route Inspector and runtime/UI diagnostics expansion."
+        "RouterForge now has a seventh first-class component: **NFQWS Manager**. It brings configuration, lists, strategies, diagnostics, automatic selection, sandboxing, history, logs, backups and maintenance for an existing `nfqws2-keenetic` runtime into one workspace.",
+        "**Auto Setup and AutoSelect** can inspect a failing target, build candidates from production profiles, the built-in pool and the user strategy library, execute them through isolated NFQUEUE workers and report live progress.",
+        "A successful candidate is not applied just because one request happened to work. RouterForge re-verifies the selection, builds a preview, checks the expected config SHA, creates a backup, verifies the post-apply state and can roll back; existing `NFQWS_ARGS_CUSTOM` profiles are not replaced.",
+        "The strategy library and importer can parse commands and `.bat`/`.txt` input, show transformations and save eligible profiles without silently changing the active `nfqws2.conf`.",
+        "**ClientHello** tooling now has a complete workflow for capturing a sample on the device and reusing it during diagnostics and strategy selection.",
+        "NFQWS Manager integrates **[rndnaame/nfqws-menu](https://github.com/rndnaame/nfqws-menu)** as an explicit upstream source for ready-made strategies, lists and blobs.",
+        "RouterForge now integrates **[Runnin4ik/dpi-detector](https://github.com/Runnin4ik/dpi-detector)**: installed-binary detection and compatibility checks, the original console experience, and a RouterForge graphical mode for DPI Detector v5 machine-readable tests.",
+        "**Network Tools** now exposes Network Doctor, Routes, Flows and Active Probes as complete user-facing workspaces.",
+        "**Monitoring** adds a real process manager with CPU, RSS, PID/PPID, user, state, thread count, command, search and sorting.",
+        "**Admin / Control** expands Service Inspector, Backup / Restore, diagnostic snapshots, Support & Recovery, watchdogs, File Manager and Terminal workflows.",
+        "Background work was reduced substantially. On the validated Keenetic Hopper KN-3811 idle scenario, the four main RouterForge processes averaged below 1% CPU together; Core, DNS and Monitoring used roughly 20% less memory in a comparable measurement.",
+        "DNS gains substantial internal policy-routing foundations — policy inventory, evaluator, persistent rules, dry-run, transaction/rollback and hardware-validated recovery primitives. There is intentionally no separate user-facing DNS Policy Router in `0.10.0` yet."
       ],
       "fixes": [
-        "DNS health now uses rolling windows rather than lifetime counters; historical errors no longer keep resolvers permanently DEGRADED, NXDOMAIN is informational, and current problems are attributed per resolver.",
-        "Management same-origin actions work when RouterForge authentication is disabled; auth-enabled deployments still require a root session. Cross-origin, exact-target and process/path guards remain.",
-        "Channel updates apply modules before Core and Core last; transient empty/invalid JSON during Core restart is handled explicitly.",
-        "Module UI caching/revisioning, history workspace behavior, resolver details and Keenetic thermal discovery/presentation were corrected."
+        "NFQWS AutoSelect no longer spends long periods looking frozen and no longer reports a false timeout after a successful run; live progress is emitted while work is happening.",
+        "Candidate-to-Apply preparation, separation from existing profiles, list/exclusion handling and target binding were corrected.",
+        "Isolated NFQUEUE worker cleanup is stricter and infrastructure failures are no longer misreported as ordinary strategy failures.",
+        "Stable keeps the `0.9.1` bootstrap/runtime-compatibility hotfix: an optional missing thermal sensor does not block Core on MIPS/MIPSel, the platform gate is separated from optional module health, and local Core `/api/health` is verified after installation.",
+        "The extra manual experimental-mode confirmation for MIPS/MipSel is removed while runtime compatibility and low-resource warnings remain.",
+        "Release tooling now understands all seven components, so Network Tools and NFQWS Manager can no longer exist in release assets while disappearing from the generated component table."
       ],
       "compatibility": [
-        "Components are independently versioned: Core 0.9.0, DNS 0.8.1, Admin 0.8.1, Monitoring 0.8.0, Network Tools 0.9.0, Profiling 0.7.1.",
-        "DNS/Admin/Monitoring/Network Tools require Core 0.9.0; unchanged Profiling keeps min_core_version 0.7.1.",
-        "Stable remains multi-arch: aarch64-3.10 production; mipsel-3.4 and mips-3.4 experimental."
+        "Stable `0.10.0` ships for `aarch64-3.10`, `mips-3.4` and `mipsel-3.4`; non-ARM64 installs still run the runtime compatibility probe.",
+        "The Stable set contains seven packages: Core, DNS, Control/Admin, Monitoring, Network Tools, NFQWS Manager and Profiling.",
+        "All seven package versions are `0.10.0`. Profiling itself changed little, but its package version is synchronized because the public Beta train already used `0.10.0~beta.x`; its `min_core_version` remains `0.7.1`.",
+        "NFQWS Manager manages an existing `nfqws2-keenetic` runtime and does not silently install it. Explicit nfqws2/Web UI installation and updates remain separate verified App Center integrations.",
+        "The GeoSite / GeoIP workspace remains marked as work in progress and is not advertised as a completed `0.10.0` feature.",
+        "There is no separate user-facing DNS Policy Router in `0.10.0`; the new policy-routing work is internal foundation only."
       ],
       "technical": [
-        "Stable 0.9.0 is prepared relative to Stable 0.8.0; 70 commits separate the Stable base SHA from the release-prep base.",
-        "Stable promotion is allowed only from an exact Dev SHA after successful FULL RELEASE validation with publish_beta=false.",
-        "Stable publishes 6 components × 3 targets = 18 IPKs; the rolling routerforge-stable channel is updated only after exact promotion artifact validation."
+        "Stable `0.10.0` is prepared as a merge release: the Dev feature line keeps the complete Beta train while the Stable `0.9.1` maintenance history becomes the second parent of the release commit.",
+        "FULL RELEASE runs on the exact Dev SHA with `publish_beta=false`; main is promoted only after the successful workflow_dispatch and exact `routerforge-stable-promotion` artifact are proven.",
+        "The release publishes 7 components × 3 targets = 21 IPKs plus multi-arch indexes, SHA256SUMS, target bootstraps and the universal bootstrap; the immutable snapshot is `routerforge-v0.10.0`.",
+        "Thanks to **[nfqws/nfqws2-keenetic](https://github.com/nfqws/nfqws2-keenetic)** and **[nfqws/nfqws-keenetic-web](https://github.com/nfqws/nfqws-keenetic-web)** for the Keenetic/Netcraze NFQWS ecosystem.",
+        "Thanks to **[Runnin4ik/dpi-detector](https://github.com/Runnin4ik/dpi-detector)** and **[rndnaame/nfqws-menu](https://github.com/rndnaame/nfqws-menu)**; both are integrated with explicit upstream attribution.",
+        "Additional thanks to **[necronicle/z2k](https://github.com/necronicle/z2k)** and **[Omn1z/nfqws2-keenetic-strategy-selector](https://github.com/Omn1z/nfqws2-keenetic-strategy-selector)** whose public ideas informed DPI-analysis and AutoSelect design. Source from those two reference projects is not vendored into RouterForge."
       ]
     }
   },
@@ -58,36 +88,42 @@
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.9.0"
+      "version": "0.10.0"
     },
     {
       "id": "dns",
       "package": "routerforge-dns",
-      "version": "0.8.1",
-      "min_core_version": "0.9.0"
+      "version": "0.10.0",
+      "min_core_version": "0.10.0"
     },
     {
       "id": "admin",
       "package": "routerforge-admin",
-      "version": "0.8.1",
-      "min_core_version": "0.9.0"
+      "version": "0.10.0",
+      "min_core_version": "0.10.0"
     },
     {
       "id": "monitoring",
       "package": "routerforge-monitoring",
-      "version": "0.8.0",
-      "min_core_version": "0.9.0"
+      "version": "0.10.0",
+      "min_core_version": "0.10.0"
     },
     {
       "id": "network-tools",
       "package": "routerforge-network-tools",
-      "version": "0.9.0",
-      "min_core_version": "0.9.0"
+      "version": "0.10.0",
+      "min_core_version": "0.10.0"
+    },
+    {
+      "id": "nfqws-manager",
+      "package": "routerforge-nfqws-manager",
+      "version": "0.10.0",
+      "min_core_version": "0.10.0"
     },
     {
       "id": "profiling",
       "package": "routerforge-profiling",
-      "version": "0.7.1",
+      "version": "0.10.0",
       "min_core_version": "0.7.1"
     }
   ]

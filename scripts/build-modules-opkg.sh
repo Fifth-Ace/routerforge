@@ -13,4 +13,5 @@ fi
 "$ROOT/scripts/build-module-opkg.sh" dns "$PKG_VERSION"
 "$ROOT/scripts/build-module-opkg.sh" monitoring "$PKG_VERSION"
 "$ROOT/scripts/build-network-tools-opkg.sh" "$PKG_VERSION"
+"$ROOT/scripts/build-module-opkg.sh" nfqws-manager "$PKG_VERSION"
 "$ROOT/scripts/build-module-opkg.sh" profiling "$PKG_VERSION"

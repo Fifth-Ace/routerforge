@@ -204,6 +204,7 @@ let configDirty = false;
 let configBaseline = '';
 let configBaseSHA = '';
 let historyLoaded = false;
+let diagnosticsLoaded = false;
 
 function api(path) {
   return fetch(`../${path}`, {
@@ -651,6 +652,81 @@ async function applyConfigEditor() {
   }
 }
 
+function diagnosticStateView(state) {
+  return {
+    pass: ['good', 'ГОТОВО'],
+    warn: ['warn', 'ВНИМАНИЕ'],
+    fail: ['bad', 'ОШИБКА'],
+    info: ['info', 'ИНФО']
+  }[state] || ['neutral', 'НЕИЗВЕСТНО'];
+}
+
+function renderDiagnostics(payload) {
+  const overall = diagnosticStateView(payload?.overall || 'info');
+  const state = $('diagnosticsState');
+  state.className = `state ${overall[0]}`;
+  state.textContent = overall[1];
+
+  const generated = payload?.generated_at ? fmtAuditTime(payload.generated_at) : '—';
+  $('diagnosticsMeta').textContent = `Проверено: ${generated} · Antiscan ${payload?.installed_version || 'не определён'} · ${payload?.running ? 'работает' : 'остановлен'}`;
+
+  const contract = payload?.contract || {};
+  const rows = [
+    ['Upstream', contract.repository || '—'],
+    ['Зафиксированная версия', contract.version || '—'],
+    ['Upstream SHA', contract.pinned_sha || '—'],
+    ['Параметры ascn.conf', `${(contract.config_keys || []).length} / 25`],
+    ['Известные ipset', `${(contract.ipsets || []).length} / 11`],
+    ['CLI-команды', String((contract.commands || []).length)],
+    ['Разрешённые cron-задачи', (contract.valid_tasks || []).join(' · ') || '—']
+  ];
+  $('diagnosticsContract').innerHTML = rows.map(([key, value]) => `
+    <div class="kv"><span>${escapeHTML(key)}</span><strong>${escapeHTML(String(value))}</strong></div>
+  `).join('');
+
+  const checks = payload?.checks || [];
+  const root = $('diagnosticsChecks');
+  if (!checks.length) {
+    root.className = 'diagnostics-list empty-state';
+    root.textContent = 'Проверки не вернули данных.';
+    return;
+  }
+
+  root.className = 'diagnostics-list';
+  root.innerHTML = checks.map((check) => {
+    const view = diagnosticStateView(check.state);
+    const details = (check.details || []).map((detail) => `<small class="mono">${escapeHTML(detail)}</small>`).join('');
+    return `
+      <article class="diagnostic-row">
+        <div class="diagnostic-main">
+          <div class="diagnostic-title"><strong>${escapeHTML(check.label || check.id || 'Проверка')}</strong><span class="state ${view[0]}">${view[1]}</span></div>
+          <p>${escapeHTML(check.summary || '—')}</p>
+          ${details}
+        </div>
+      </article>`;
+  }).join('');
+}
+
+async function loadDiagnostics() {
+  const button = $('reloadDiagnostics');
+  if (button) button.disabled = true;
+  $('diagnosticsState').className = 'state info';
+  $('diagnosticsState').textContent = 'ПРОВЕРКА…';
+  try {
+    const payload = await api('diagnostics');
+    diagnosticsLoaded = true;
+    renderDiagnostics(payload);
+  } catch (error) {
+    diagnosticsLoaded = true;
+    $('diagnosticsState').className = 'state bad';
+    $('diagnosticsState').textContent = 'ОШИБКА';
+    $('diagnosticsMeta').textContent = localizeMessage(error.message || 'Не удалось выполнить диагностику Antiscan.');
+    $('diagnosticsChecks').className = 'diagnostics-list empty-state bad-text';
+    $('diagnosticsChecks').textContent = 'Диагностика недоступна.';
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
 function activateTab(name) {
   document.querySelectorAll('.tab').forEach((button) => {
     button.classList.toggle('active', button.dataset.tab === name);
@@ -1188,6 +1264,7 @@ document.querySelectorAll('.tab').forEach((button) => {
     if (button.dataset.tab === 'blocked' && !browserState.blocked) loadSet('blocked');
     if (button.dataset.tab === 'lists' && !browserState.lists) loadSet('lists');
     if (button.dataset.tab === 'history' && !historyLoaded) loadHistory();
+    if (button.dataset.tab === 'diagnostics' && !diagnosticsLoaded) loadDiagnostics();
   });
 });
 
@@ -1196,6 +1273,7 @@ $('refresh').addEventListener('click', async () => {
   if (browserState.blocked) await loadSet('blocked');
   if (browserState.lists) await loadSet('lists');
   if (historyLoaded) await loadHistory();
+  if (diagnosticsLoaded) await loadDiagnostics();
 });
 $('inspectButton').addEventListener('click', inspectIP);
 $('inspectIp').addEventListener('keydown', (event) => {
@@ -1211,6 +1289,7 @@ $('startAntiscan').addEventListener('click', () => performLifecycle('start'));
 $('reloadAntiscan').addEventListener('click', () => performLifecycle('reload'));
 $('stopAntiscan').addEventListener('click', () => performLifecycle('stop'));
 $('reloadHistory').addEventListener('click', loadHistory);
+$('reloadDiagnostics').addEventListener('click', loadDiagnostics);
 $('configForm').addEventListener('submit', (event) => event.preventDefault());
 $('configForm').addEventListener('input', updateConfigEditorState);
 $('configForm').addEventListener('change', updateConfigEditorState);

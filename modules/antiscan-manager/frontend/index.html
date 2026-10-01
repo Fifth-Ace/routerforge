@@ -35,6 +35,7 @@
 
     <nav class="tabs" aria-label="Antiscan Manager sections">
       <button class="tab active" type="button" data-tab="overview">Обзор</button>
+      <button class="tab" type="button" data-tab="diagnostics">Диагностика</button>
       <button class="tab" type="button" data-tab="inspect">Почему заблокирован?</button>
       <button class="tab" type="button" data-tab="blocked">Блокировки</button>
       <button class="tab" type="button" data-tab="lists">Списки и Geo</button>
@@ -108,6 +109,34 @@
       </section>
     </section>
 
+    <section class="tab-page" data-page="diagnostics">
+      <section class="panel diagnostics-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">ГОТОВНОСТЬ ANTISCAN</span>
+            <h2>Диагностика окружения</h2>
+            <p>Проверяем штатные файлы, зависимости, Netfilter, hook, cron, RCI и lock-состояние без изменения настроек.</p>
+          </div>
+          <div class="diagnostics-head-actions">
+            <span id="diagnosticsState" class="state neutral">НЕ ЗАГРУЖЕНО</span>
+            <button id="reloadDiagnostics" class="button" type="button">↻ Проверить</button>
+          </div>
+        </div>
+        <div id="diagnosticsMeta" class="diagnostics-meta mono muted">Откройте вкладку, чтобы выполнить read-only проверку.</div>
+        <div id="diagnosticsChecks" class="diagnostics-list empty-state">Диагностика ещё не запускалась.</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">СОВМЕСТИМОСТЬ</span>
+            <h2>Учтённый функционал upstream</h2>
+            <p>Контракт привязан к конкретной версии Antiscan, чтобы новые параметры и команды не потерялись незаметно.</p>
+          </div>
+        </div>
+        <div id="diagnosticsContract" class="kv-grid"></div>
+      </section>
+    </section>
     <section class="tab-page" data-page="inspect">
       <section class="panel inspector-panel">
         <div class="panel-head">

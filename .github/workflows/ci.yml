@@ -286,6 +286,10 @@ jobs:
           test -f modules/network-tools/runtime/network_tools.go
           test -f modules/network-tools/packaging/S97routerforge-network-tools
           test -f modules/network-tools/frontend/index.html
+          test -f modules/antiscan-manager-runtime/main.go
+          test -f modules/antiscan-manager-runtime/antiscan.go
+          test -f modules/antiscan-manager-runtime/packaging/S98routerforge-antiscan-manager
+          test -f modules/antiscan-manager/frontend/index.html
           test -f release/channels/dev.json
           test -f release/channels/beta.json
           test -f release/channels/stable.json
@@ -491,6 +495,9 @@ jobs:
           sh -n modules/network-tools/packaging/S97routerforge-network-tools
           sh -n modules/network-tools/packaging/postinst
           sh -n modules/network-tools/packaging/prerm
+          sh -n modules/antiscan-manager-runtime/packaging/S98routerforge-antiscan-manager
+          sh -n modules/antiscan-manager-runtime/packaging/postinst
+          sh -n modules/antiscan-manager-runtime/packaging/prerm
           sh -n scripts/target-env.sh
           sh -n scripts/install-repo.sh
           sh -n scripts/remove-repo.sh

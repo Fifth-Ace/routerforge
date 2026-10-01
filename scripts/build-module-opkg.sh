@@ -243,6 +243,68 @@ CONTROL
     chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
     pack_ipk "$WORK" "$DIST/$PKGFILE"
 }
+build_antiscan_manager() {
+    PACKAGE="routerforge-antiscan-manager"
+    WORK="$DIST/${PACKAGE}-channel-work"
+    PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
+    UI="$ROOT/modules/antiscan-manager/frontend"
+
+    rm -rf "$WORK"
+    mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
+        "$WORK/data/opt/share/routerforge/modules/antiscan-manager/ui" \
+        "$WORK/data/opt/share/routerforge/modules/antiscan-manager" \
+        "$WORK/data/opt/share/licenses/$PACKAGE" "$WORK/control"
+
+    (
+      cd "$ROOT"
+      routerforge_go build -trimpath \
+          -ldflags="-s -w -X main.version=$VERSION" \
+          -o "$WORK/data/opt/bin/routerforge-antiscan-manager" ./modules/antiscan-manager-runtime
+    )
+    chmod 0755 "$WORK/data/opt/bin/routerforge-antiscan-manager"
+    sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-antiscan-manager"
+    cp "$ROOT/modules/antiscan-manager-runtime/packaging/S98routerforge-antiscan-manager" "$WORK/data/opt/etc/init.d/S98routerforge-antiscan-manager"
+    chmod 0755 "$WORK/data/opt/etc/init.d/S98routerforge-antiscan-manager"
+
+    for file in index.html app.js module.css; do
+        cp "$UI/$file" "$WORK/data/opt/share/routerforge/modules/antiscan-manager/ui/$file"
+    done
+
+    cat > "$WORK/data/opt/share/routerforge/modules/antiscan-manager/manifest.json" <<MANIFEST
+{
+  "schema_version": 1,
+  "id": "antiscan-manager",
+  "version": "$VERSION",
+  "api_version": 1,
+  "socket": "/opt/var/run/routerforge-antiscan-manager.sock",
+  "api_base": "/api/modules/antiscan-manager",
+  "ui_entry": "/api/modules/antiscan-manager/ui/index.html",
+  "mode": "read-only-intelligence"
+}
+MANIFEST
+
+    cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
+    chmod 0644 "$WORK/data/opt/share/routerforge/modules/antiscan-manager/manifest.json" \
+        "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
+
+    cat > "$WORK/control/control" <<CONTROL
+Package: $PACKAGE
+Version: $VERSION
+Section: net
+Priority: optional
+Architecture: $ARCH
+Depends: routerforge-core
+Maintainer: Fifth-Ace
+Source: https://github.com/Fifth-Ace/routerforge
+Homepage: https://github.com/Fifth-Ace/routerforge
+License: MIT
+Description: RouterForge read-only management and diagnostic workspace for an existing dimon27254/antiscan installation.
+CONTROL
+    cp "$ROOT/modules/antiscan-manager-runtime/packaging/postinst" "$WORK/control/postinst"
+    cp "$ROOT/modules/antiscan-manager-runtime/packaging/prerm" "$WORK/control/prerm"
+    chmod 0755 "$WORK/control/postinst" "$WORK/control/prerm"
+    pack_ipk "$WORK" "$DIST/$PKGFILE"
+}
 build_profiling() {
     PACKAGE="routerforge-profiling"; LEGACY="dns-monitor-profiling"
     WORK="$DIST/${PACKAGE}-channel-work"; PKGFILE="${PACKAGE}_${VERSION}_${ARCH}.ipk"
@@ -289,6 +351,7 @@ case "$ID" in
     dns) build_dns ;;
     monitoring) build_monitoring ;;
     nfqws-manager) build_nfqws_manager ;;
+    antiscan-manager) build_antiscan_manager ;;
     profiling) build_profiling ;;
     *) echo "unsupported RouterForge module id: $ID" >&2; exit 2 ;;
 esac

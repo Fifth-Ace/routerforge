@@ -361,3 +361,21 @@ func TestModuleUIProxyOverridesStaleUpstreamCache(t *testing.T) {
 		t.Fatalf("Cache-Control=%q, want no-store", got)
 	}
 }
+
+func TestAntiscanManagerProxyIsReadOnlyInP26A(t *testing.T) {
+	if moduleMutationAPI("antiscan-manager") {
+		t.Fatal("P26A Antiscan Manager unexpectedly exposes mutation API")
+	}
+	if !moduleMethodAllowed("antiscan-manager", http.MethodGet) {
+		t.Fatal("Antiscan Manager GET was rejected")
+	}
+	if moduleMethodAllowed("antiscan-manager", http.MethodPost) {
+		t.Fatal("P26A Antiscan Manager POST was accepted")
+	}
+	if got := modulePackageNames["antiscan-manager"]; got != "routerforge-antiscan-manager" {
+		t.Fatalf("package=%q", got)
+	}
+	if sockets := moduleSockets["antiscan-manager"]; len(sockets) != 1 || sockets[0] != "/opt/var/run/routerforge-antiscan-manager.sock" {
+		t.Fatalf("sockets=%v", sockets)
+	}
+}

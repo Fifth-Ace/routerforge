@@ -11,6 +11,11 @@ Current Stable 0.10.0 topology:
 - `nfqws-manager/frontend/` - NFQWS Manager UI, including DPI Detector and NFQWS Menu integrations.
 - `profiling/` - optional Core profiling lifecycle, Stable package 0.10.0 (runtime compatibility remains min Core 0.7.1).
 
+Current Dev additionally contains the P26 Antiscan integration-manager foundation:
+
+- `antiscan-manager-runtime/` - dedicated read-only Antiscan runtime/API and package lifecycle.
+- `antiscan-manager/frontend/` - standalone Antiscan Manager workspace. It is not part of Admin/Control.
+
 Legacy split source directories `system/`, `thermal/`, `storage/`, and `network/` are intentionally absent. Their historical package names and compatibility sockets remain only where the consolidated Monitoring migration contract needs them; they are not active build targets or product modules.
 
 Components are independently versioned; see [`../docs/VERSIONING.md`](../docs/VERSIONING.md).

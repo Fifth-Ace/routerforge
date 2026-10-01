@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "8363e418819ce4124dfc94ae9fe6a0a62f7879c45441e0b70c401af70a6d8e32",
+  "revision": "4e060134fe5ed1bf16b67492f215b1ec9f4051fa145f5b8314802dfcd2230cac",
   "entries": [
     {
       "id": "adguardhome-keenetic",
@@ -188,6 +188,72 @@
         "status": "official",
         "reviewed_by": "routerforge",
         "note": "Официальный модуль RouterForge beta."
+      }
+    },
+    {
+      "id": "antiscan",
+      "kind": "integration",
+      "name": "Antiscan",
+      "category": "Security",
+      "description": "Защита Keenetic/Netcraze от подозрительной TCP-активности, распределённого сканирования, honeypot-событий и пользовательских/Geo списков.",
+      "publisher": {
+        "id": "dimon27254",
+        "name": "dimon27254",
+        "url": "https://github.com/dimon27254"
+      },
+      "project_url": "https://github.com/dimon27254/antiscan",
+      "source": "project-official",
+      "package_authoritative": true,
+      "version_source": "opkg",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "security",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "antiscan"
+        ],
+        "services": [
+          "/opt/etc/init.d/S99ascn"
+        ],
+        "paths": [
+          "/opt/etc/antiscan/ascn.conf"
+        ]
+      },
+      "running_paths": [
+        "/tmp/ascn.run"
+      ],
+      "compatibility": {
+        "status": "requirements",
+        "hints": [
+          "Keenetic / Netcraze",
+          "Entware",
+          "Netfilter kernel modules",
+          "IPv4 TCP only"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "https://raw.githubusercontent.com/dimon27254/antiscan/refs/heads/main/install.sh",
+        "packages": [
+          "antiscan"
+        ],
+        "notes": [
+          "Antiscan — отдельный upstream-проект. RouterForge не устанавливает его автоматически.",
+          "RouterForge Antiscan Manager устанавливается отдельно и управляет только уже существующим Antiscan."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "antiscan",
+      "manifest_sha256": "475970d13669350838608b8c27fd9ef06fd46f5020a55f708916843593812ad3",
+      "manifest_source": "marketplace/submissions/antiscan.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
       }
     },
     {

@@ -239,6 +239,7 @@ func moduleOrder(id string) int {
 		"admin":            4,
 		"network-tools":    5,
 		"nfqws-manager":    6,
+		"antiscan-manager": 7,
 		"profiling":        90,
 		// Legacy logical IDs remain sortable while cached pre-consolidation
 		// registries are being replaced by the rolling Dev registry.
@@ -305,6 +306,50 @@ func integrationManagerSeedModules() []catalogItem {
 					"href":       "/integrations?open=nfqws-manager",
 					"order":      10,
 					"target_ids": []string{"nfqws2"},
+				},
+			},
+		},
+		{
+			ID: "antiscan-manager", Kind: "module", Name: "RouterForge Antiscan Manager", Category: "Integrations",
+			Description: "Dedicated RouterForge workspace for status, block diagnostics and safe management of an existing dimon27254/antiscan installation.",
+			ProjectURL:  "https://github.com/Fifth-Ace/routerforge",
+			Source:      "routerforge-official", Managed: true, PackageAuthoritative: true,
+			Publisher: catalogPublisher{ID: "routerforge", Name: "RouterForge", URL: "https://github.com/Fifth-Ace/routerforge"},
+			Trust: catalogTrust{
+				Status: "official", ReviewedBy: "routerforge",
+				Note: "Official RouterForge integration-manager module. It does not install, replace or fork Antiscan.",
+			},
+			Capabilities: []string{"integration-manager", "antiscan-status", "antiscan-config-read", "antiscan-ipsets", "antiscan-why-blocked", "read-only"},
+			Detection: catalogDetection{
+				Packages: []string{"routerforge-antiscan-manager"},
+				Services: []string{"/opt/etc/init.d/S98routerforge-antiscan-manager"},
+			},
+			ProcessNames: []string{"routerforge-antiscan-manager"},
+			Compatibility: catalogCompatibility{
+				Status:  "requirements",
+				Hints:   []string{"RouterForge Core", "Entware", "installed dimon27254/antiscan"},
+				Targets: []string{"aarch64-3.10"},
+			},
+			Install: catalogInstallPlan{
+				Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-antiscan-manager"},
+				Notes: []string{"Installs only the RouterForge manager. Antiscan remains an independent upstream package."},
+			},
+			Update: catalogInstallPlan{
+				Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-antiscan-manager"},
+				Notes: []string{"Updates only the RouterForge manager module."},
+			},
+			Remove: catalogInstallPlan{
+				Method: "opkg", Packages: []string{"routerforge-antiscan-manager"},
+				Notes: []string{"Removes only the RouterForge manager. Antiscan package, configuration and firewall state are untouched."},
+			},
+			Presentation: map[string]any{
+				"dashboard": map[string]any{"enabled": false, "priority": 61},
+				"integration": map[string]any{
+					"enabled":    true,
+					"label":      "Antiscan",
+					"href":       "/integrations?open=antiscan-manager",
+					"order":      20,
+					"target_ids": []string{"antiscan"},
 				},
 			},
 		},

@@ -1,0 +1,26 @@
+#!/bin/sh
+ENABLED=no
+PROCS=routerforge-antiscan-manager
+SOCKET=/opt/var/run/routerforge-antiscan-manager.sock
+ARGS="-socket $SOCKET -ui /opt/share/routerforge/modules/antiscan-manager/ui"
+PREARGS=""
+DESC="RouterForge Antiscan Manager"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+cleanup_antiscan_manager_socket() {
+    if [ -z "$(pidof "$PROCS" 2>/dev/null)" ]; then
+        rm -f "$SOCKET"
+    fi
+}
+
+case "$1" in
+    stop|kill)
+        trap cleanup_antiscan_manager_socket 0
+        ;;
+esac
+
+if [ -f /opt/etc/routerforge/module-abi-v1 ]; then
+    ENABLED=yes
+fi
+
+. /opt/etc/init.d/rc.func

@@ -43,7 +43,7 @@ required = {
     "docs/RELEASE_NOTES_0.9.0.md": ["RouterForge 0.9.0", "70 коммитов", "DNS 0.8.1", "Admin 0.8.1", "Monitoring 0.8.0", "Network Tools 0.9.0", "Profiling 0.7.1", "Shared Safety Engines", "Private Forgejo"],
     "docs/RELEASE_NOTES_0.9.1.md": ["RouterForge 0.9.1", "thermal", "unsupported", "/api/health", "P16", "P17", "P18"],
     "docs/RELEASE_NOTES_0.10.0.md": ["RouterForge 0.10.0", "NFQWS Manager", "Runnin4ik/dpi-detector", "rndnaame/nfqws-menu", "DNS Policy Router", "0.10.0-beta.5"],
-    "docs/RELEASE_NOTES_0.11.0.md": ["RouterForge 0.11.0", "Antiscan Manager", "Keenetic Entware Extras", "Geo Split", "routerforge-core", "0.10.1"],
+    "docs/RELEASE_NOTES_0.11.0.md": ["RouterForge 0.11.0", "Antiscan Manager", "Keenetic Entware Extras", "Geo Split", "RouterForge Core", "0.10.1"],
     "docs/VERSIONING.md": ["MAJOR.MINOR.PATCH", "PATCH", "MINOR", "1.0.0", "Stable 0.11.0 example"],
     "docs/RELEASE_NOTES_0.7.1.md": ["RouterForge 0.7.1", "Keenetic NDM Console"],
     "docs/RELEASE_NOTES_0.7.2.md": ["RouterForge 0.7.2", "routerforge-dns", "DNS hotfix"],

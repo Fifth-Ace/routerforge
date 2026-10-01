@@ -117,3 +117,65 @@ func TestCatalogUnverifiedInstallPlansStayPreviewOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalogDetectsKeeneticEntwareExtrasNonDaemonRuntime(t *testing.T) {
+	installed := map[string]string{
+		"keenetic-entware-extras": "0.18.2",
+		"geo-split":                "0.19.1",
+	}
+	existing := map[string]bool{
+		"/opt/etc/init.d/S99geo-split": true,
+		"/opt/tmp/geo-split.pid":       true,
+	}
+
+	snap := buildCatalog(installed, map[string]bool{}, func(path string) bool {
+		return existing[path]
+	})
+
+	var extras *catalogItem
+	for i := range snap.Integrations {
+		if snap.Integrations[i].ID == "keenetic-entware-extras" {
+			extras = &snap.Integrations[i]
+			break
+		}
+	}
+
+	if extras == nil {
+		t.Fatal("keenetic-entware-extras integration missing")
+	}
+	if !extras.Installed {
+		t.Fatalf("integration not detected: %#v", extras)
+	}
+	if extras.Service != "/opt/etc/init.d/S99geo-split" {
+		t.Fatalf("service=%q, want S99geo-split", extras.Service)
+	}
+	if !extras.ServiceRunning {
+		t.Fatalf("non-daemon geo-split runtime marker was not treated as running: %#v", extras)
+	}
+}
+
+func TestCatalogKeeneticEntwareExtrasBasePackageDoesNotInventRuntime(t *testing.T) {
+	installed := map[string]string{
+		"keenetic-entware-extras": "0.18.2",
+	}
+
+	snap := buildCatalog(installed, map[string]bool{}, func(string) bool { return false })
+
+	var extras *catalogItem
+	for i := range snap.Integrations {
+		if snap.Integrations[i].ID == "keenetic-entware-extras" {
+			extras = &snap.Integrations[i]
+			break
+		}
+	}
+
+	if extras == nil || !extras.Installed {
+		t.Fatalf("base package was not detected: %#v", extras)
+	}
+	if extras.Service != "" {
+		t.Fatalf("optional service was invented: %q", extras.Service)
+	}
+	if extras.ServiceRunning {
+		t.Fatalf("base package incorrectly reported as running: %#v", extras)
+	}
+}

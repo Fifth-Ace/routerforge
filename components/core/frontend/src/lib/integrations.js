@@ -36,3 +36,8 @@ export function integrationHubAvailable(modules = [], integrations = []) {
   return integrationProviders(modules, integrations).length > 0 ||
     manageableExternalIntegrations(modules, integrations).length > 0;
 }
+
+export function catalogItemServiceNeedsAttention(item) {
+  if (!item?.installed || item?.builtin || item?.service_running) return false;
+  return Boolean(item?.service);
+}

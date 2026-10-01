@@ -29,12 +29,19 @@
       "webui"
     ],
     "services": [
+      "/opt/etc/init.d/S99geo-split",
+      "/opt/etc/init.d/S39smartdns-redirect",
       "/opt/etc/init.d/S80nginx-webui"
     ],
     "paths": [
       "/opt/keenetic-entware-extras"
     ]
   },
+  "running_paths": [
+    "/opt/tmp/geo-split.pid",
+    "/opt/tmp/smartdns-redirect.pid",
+    "/opt/tmp/nginx-webui.pid"
+  ],
   "web_port": 8080,
   "web_port_source": "webui-default",
   "web_requires_package": "webui",

@@ -15,7 +15,7 @@
           <h1>Antiscan Manager</h1>
           <span class="read-only-chip guarded">GUARDED CONTROL</span>
         </div>
-        <p>Диагностика Antiscan плюс точечные guarded-действия: снять конкретный бан или добавить адрес в exclude/whitelist.</p>
+        <p>Диагностика Antiscan, точечные guarded-действия и штатное управление lifecycle через upstream S99ascn.</p>
       </div>
       <div class="hero-actions">
         <span id="targetState" class="state neutral">ПРОВЕРКА…</span>
@@ -66,6 +66,28 @@
           <div id="riskSummary" class="risk-summary"></div>
         </section>
       </div>
+
+      <section class="panel lifecycle-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">UPSTREAM LIFECYCLE</span>
+            <h2>Управление Antiscan</h2>
+            <p>Только штатные команды <span class="mono">S99ascn start/stop/reload</span>. RouterForge не подменяет firewall-логику upstream.</p>
+          </div>
+          <span id="lifecycleState" class="state neutral">ПРОВЕРКА…</span>
+        </div>
+        <div class="lifecycle-body">
+          <div class="lifecycle-copy">
+            <strong>Guarded lifecycle</strong>
+            <span id="lifecycleHint">Состояние загружается…</span>
+          </div>
+          <div class="lifecycle-actions">
+            <button id="startAntiscan" class="button success" type="button" disabled>▶ Запустить</button>
+            <button id="reloadAntiscan" class="button primary" type="button" disabled>↻ Reload</button>
+            <button id="stopAntiscan" class="button danger" type="button" disabled>■ Остановить</button>
+          </div>
+        </div>
+      </section>
 
       <section class="panel">
         <div class="panel-head">
@@ -213,11 +235,11 @@
       <div class="panel-head">
         <div>
           <span class="section-kicker">BOUNDARY</span>
-          <h2>P26C1 · Guarded single-entry control</h2>
+          <h2>P26C2 · Guarded lifecycle control</h2>
         </div>
         <span class="state good">MUTATION API: GUARDED</span>
       </div>
-      <p class="boundary-copy">Разрешены только точечный unban из <span class="mono">ascn_ips</span>/<span class="mono">ascn_subnets</span>/<span class="mono">ascn_honeypot</span> и добавление IPv4/CIDR в upstream exclude/whitelist. Массовый flush, start/stop/reload и редактирование <span class="mono">ascn.conf</span> по-прежнему недоступны.</p>
+      <p class="boundary-copy">Разрешены точечный unban, добавление IPv4/CIDR в upstream exclude/whitelist и guarded <span class="mono">start/stop/reload</span> через штатный <span class="mono">S99ascn</span>. Массовый flush, restart и редактирование <span class="mono">ascn.conf</span> по-прежнему недоступны.</p>
     </section>
   </main>
   <script type="module" src="app.js"></script>

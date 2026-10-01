@@ -27,6 +27,21 @@ const (
 	antiscanMutationTimeout     = 15 * time.Second
 )
 
+var antiscanMutationGate = make(chan struct{}, 1)
+
+func acquireAntiscanMutationGate() bool {
+	select {
+	case antiscanMutationGate <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func releaseAntiscanMutationGate() {
+	<-antiscanMutationGate
+}
+
 type antiscanUnbanRequest struct {
 	Set     string `json:"set"`
 	Entry   string `json:"entry"`
@@ -69,6 +84,15 @@ func mutationOnly(next http.HandlerFunc) http.HandlerFunc {
 			})
 			return
 		}
+		if !acquireAntiscanMutationGate() {
+			writeJSON(w, http.StatusConflict, map[string]any{
+				"error":        "another Antiscan mutation is already running",
+				"mutation_api": true,
+			})
+			return
+		}
+		defer releaseAntiscanMutationGate()
+
 		w.Header().Set("Cache-Control", "no-store")
 		next(w, r)
 	}

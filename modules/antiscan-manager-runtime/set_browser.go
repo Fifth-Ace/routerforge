@@ -35,7 +35,7 @@ type antiscanSetPage struct {
 	Detected    bool               `json:"detected"`
 	Running     bool               `json:"running"`
 	Exists      bool               `json:"exists"`
-	Count       int64              `json:"count,omitempty"`
+	Count       int64              `json:"count"`
 	CountKnown  bool               `json:"count_known"`
 	Limit       int                `json:"limit"`
 	Truncated   bool               `json:"truncated"`
@@ -201,6 +201,10 @@ func parseAntiscanSetList(r io.Reader, limit int) ([]antiscanSetEntry, int64, bo
 	}
 	if err := scanner.Err(); err != nil {
 		return entries, count, countKnown, seen > len(entries), err
+	}
+	if !countKnown && inMembers {
+		count = int64(seen)
+		countKnown = true
 	}
 	truncated := seen > len(entries)
 	if countKnown && count > int64(len(entries)) {

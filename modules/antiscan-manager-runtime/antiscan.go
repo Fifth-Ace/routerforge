@@ -77,7 +77,7 @@ type antiscanConfig struct {
 type antiscanSetInfo struct {
 	Name       string `json:"name"`
 	Exists     bool   `json:"exists"`
-	Count      int64  `json:"count,omitempty"`
+	Count      int64  `json:"count"`
 	CountKnown bool   `json:"count_known"`
 	Error      string `json:"error,omitempty"`
 }

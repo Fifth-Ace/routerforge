@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -64,6 +65,70 @@ Members:
 	}
 	if truncated || len(entries) != 1 || entries[0].Value != "100.64.10.0/24" {
 		t.Fatalf("entries=%+v truncated=%v", entries, truncated)
+	}
+}
+
+func TestParseAntiscanSetListCountsMembersWhenHeaderOmitted(t *testing.T) {
+	fixture := `Name: ascn_ips
+Type: hash:ip
+Revision: 4
+Header: family inet hashsize 1024 maxelem 65536 timeout 864000
+Size in memory: 96
+References: 3
+Members:
+198.51.100.7 timeout 400
+203.0.113.9 timeout 300
+`
+	entries, count, known, truncated, err := parseAntiscanSetList(strings.NewReader(fixture), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !known || count != 2 || !truncated {
+		t.Fatalf("count=%d known=%v truncated=%v entries=%+v", count, known, truncated, entries)
+	}
+
+	emptyFixture := `Name: ascn_ips
+Type: hash:ip
+Revision: 4
+Header: family inet hashsize 1024 maxelem 65536 timeout 864000
+Size in memory: 96
+References: 3
+Members:
+`
+	emptyEntries, emptyCount, emptyKnown, emptyTruncated, err := parseAntiscanSetList(strings.NewReader(emptyFixture), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !emptyKnown || emptyCount != 0 || emptyTruncated || len(emptyEntries) != 0 {
+		t.Fatalf("empty count=%d known=%v truncated=%v entries=%+v", emptyCount, emptyKnown, emptyTruncated, emptyEntries)
+	}
+}
+
+func TestAntiscanZeroCountJSONContract(t *testing.T) {
+	for name, value := range map[string]any{
+		"status": antiscanSetInfo{
+			Name:       "ascn_ips",
+			Exists:     true,
+			Count:      0,
+			CountKnown: true,
+		},
+		"browser": antiscanSetPage{
+			Name:        "ascn_ips",
+			Exists:      true,
+			Count:       0,
+			CountKnown:  true,
+			Entries:     []antiscanSetEntry{},
+			MutationAPI: true,
+		},
+	} {
+		data, err := json.Marshal(value)
+		if err != nil {
+			t.Fatalf("%s marshal: %v", name, err)
+		}
+		text := string(data)
+		if !strings.Contains(text, `"count":0`) || !strings.Contains(text, `"count_known":true`) {
+			t.Fatalf("%s zero-count JSON contract missing: %s", name, text)
+		}
 	}
 }
 

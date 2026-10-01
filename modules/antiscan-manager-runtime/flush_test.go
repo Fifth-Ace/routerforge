@@ -108,6 +108,34 @@ func TestAntiscanFlushRestartRequirementsMatchUpstreamPersistenceBranch(t *testi
 	}
 }
 
+func TestParseAntiscanFlushSaveCount(t *testing.T) {
+	fixture := `create ascn_candidates hash:ip family inet hashsize 1024 maxelem 65536 timeout 864000
+add ascn_candidates 198.51.100.7 timeout 60
+add ascn_candidates 203.0.113.9 timeout 120
+`
+	count, err := parseAntiscanFlushSaveCount(strings.NewReader(fixture), "ascn_candidates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("count=%d, want 2", count)
+	}
+
+	empty := `create ascn_candidates hash:ip family inet hashsize 1024 maxelem 65536 timeout 864000
+`
+	count, err = parseAntiscanFlushSaveCount(strings.NewReader(empty), "ascn_candidates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("empty count=%d, want 0", count)
+	}
+
+	if _, err := parseAntiscanFlushSaveCount(strings.NewReader("add ascn_candidates 192.0.2.1\n"), "ascn_candidates"); err == nil {
+		t.Fatal("save output without create header was accepted")
+	}
+}
+
 func TestVerifyAntiscanFlushFileEffects(t *testing.T) {
 	dir := t.TempDir()
 	truncated := filepath.Join(dir, "custom.txt")

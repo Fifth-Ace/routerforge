@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -14,7 +15,10 @@ import (
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
-const antiscanFlushTimeout = 90 * time.Second
+const (
+	antiscanFlushTimeout         = 90 * time.Second
+	antiscanFlushSetCountTimeout = 10 * time.Second
+)
 
 var antiscanFlushTargets = []string{
 	"candidates",
@@ -222,9 +226,9 @@ func buildAntiscanFlushPreview(parent context.Context, cfg runtimeConfig, target
 		MutationAPI:     true,
 	}
 	for _, name := range antiscanFlushSetNames(target) {
-		info := inventory[name]
-		if info.Exists && (!info.CountKnown || info.Error != "") {
-			return antiscanFlushPreview{}, fmt.Errorf("cannot verify %s before flush", name)
+		info, countErr := resolveAntiscanFlushSetCount(parent, binary, inventory[name])
+		if countErr != nil {
+			return antiscanFlushPreview{}, fmt.Errorf("cannot verify %s before flush: %w", name, countErr)
 		}
 		preview.AffectedSets = append(preview.AffectedSets, antiscanFlushSetPreview{
 			Name:       name,
@@ -420,12 +424,12 @@ func verifyAntiscanFlushSets(parent context.Context, binary, target string) (int
 	}
 	var total int64
 	for _, name := range antiscanFlushSetNames(target) {
-		info := inventory[name]
+		info, countErr := resolveAntiscanFlushSetCount(parent, binary, inventory[name])
+		if countErr != nil {
+			return 0, fmt.Errorf("flush verification failed: cannot read %s: %w", name, countErr)
+		}
 		if !info.Exists {
 			continue
-		}
-		if !info.CountKnown || info.Error != "" {
-			return 0, fmt.Errorf("flush verification failed: cannot read %s", name)
 		}
 		if info.Count != 0 {
 			return 0, fmt.Errorf("flush verification failed: %s still contains %d entries", name, info.Count)
@@ -433,6 +437,90 @@ func verifyAntiscanFlushSets(parent context.Context, binary, target string) (int
 		total += info.Count
 	}
 	return total, nil
+}
+
+func resolveAntiscanFlushSetCount(parent context.Context, binary string, info antiscanSetInfo) (antiscanSetInfo, error) {
+	if !info.Exists {
+		return info, nil
+	}
+	if info.CountKnown && info.Error == "" {
+		return info, nil
+	}
+	count, err := readAntiscanFlushSetCount(parent, binary, info.Name)
+	if err != nil {
+		return info, err
+	}
+	info.Count = count
+	info.CountKnown = true
+	info.Error = ""
+	return info, nil
+}
+
+func readAntiscanFlushSetCount(parent context.Context, binary, setName string) (int64, error) {
+	if !knownAntiscanSet(setName) {
+		return 0, errors.New("unknown Antiscan ipset")
+	}
+	ctx, cancel := context.WithTimeout(parent, antiscanFlushSetCountTimeout)
+	defer cancel()
+
+	cmd, err := safety.CommandContext(ctx, binary, "save", setName)
+	if err != nil {
+		return 0, err
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return 0, err
+	}
+	cmd.Stderr = io.Discard
+	if err := cmd.Start(); err != nil {
+		return 0, err
+	}
+
+	count, parseErr := parseAntiscanFlushSaveCount(stdout, setName)
+	waitErr := cmd.Wait()
+	if parseErr != nil {
+		return 0, parseErr
+	}
+	if ctx.Err() != nil {
+		return 0, ctx.Err()
+	}
+	if waitErr != nil {
+		return 0, waitErr
+	}
+	return count, nil
+}
+
+func parseAntiscanFlushSaveCount(r io.Reader, setName string) (int64, error) {
+	if !knownAntiscanSet(setName) {
+		return 0, errors.New("unknown Antiscan ipset")
+	}
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 4096), 128<<10)
+	createSeen := false
+	var count int64
+	for scanner.Scan() {
+		fields := strings.Fields(strings.TrimSpace(scanner.Text()))
+		if len(fields) < 2 {
+			continue
+		}
+		switch fields[0] {
+		case "create":
+			if fields[1] == setName {
+				createSeen = true
+			}
+		case "add":
+			if fields[1] == setName {
+				count++
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+	if !createSeen {
+		return 0, errors.New("ipset save set header missing")
+	}
+	return count, nil
 }
 
 func snapshotAntiscanFlushFileEffects(cfg runtimeConfig, config antiscanConfig, target string) ([]antiscanFlushFileEffect, error) {

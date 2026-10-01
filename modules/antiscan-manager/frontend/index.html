@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RouterForge Antiscan Manager</title>
+  <link rel="stylesheet" href="module.css">
+</head>
+<body>
+  <main class="as-page">
+    <header class="hero">
+      <div>
+        <span class="eyebrow">ROUTERFORGE / ANTISCAN MANAGER</span>
+        <h1>Antiscan Manager</h1>
+        <p>Статус, защита, ipset-состояние и объяснение блокировок установленного Antiscan.</p>
+      </div>
+      <div class="hero-actions">
+        <span id="targetState" class="state neutral">ПРОВЕРКА…</span>
+        <button id="refresh" class="button" type="button">↻ Обновить</button>
+      </div>
+    </header>
+
+    <section id="notice" class="notice" hidden></section>
+
+    <section class="metrics" aria-label="Antiscan summary">
+      <article class="metric"><span>Версия</span><strong id="version">—</strong><small>upstream Antiscan</small></article>
+      <article class="metric"><span>Заблокировано IP</span><strong id="blockedIps">—</strong><small>ascn_ips</small></article>
+      <article class="metric"><span>Заблокировано /24</span><strong id="blockedSubnets">—</strong><small>ascn_subnets</small></article>
+      <article class="metric"><span>Ловушка</span><strong id="honeypotCount">—</strong><small id="honeypotMode">—</small></article>
+    </section>
+
+    <section class="panel inspector-panel">
+      <div class="panel-head">
+        <div>
+          <span class="section-kicker">WHY BLOCKED?</span>
+          <h2>Почему заблокирован этот IP?</h2>
+          <p>Проверка штатных ascn_* ipset в том же порядке, в котором Antiscan применяет правила.</p>
+        </div>
+      </div>
+      <div class="inspect-form">
+        <input id="inspectIp" autocomplete="off" inputmode="decimal" placeholder="Например, 100.64.10.77">
+        <button id="inspectButton" class="button primary" type="button">Проверить IP</button>
+      </div>
+      <div id="inspectResult" class="inspect-result empty">Введите IPv4-адрес. Никаких изменений конфигурации эта проверка не делает.</div>
+    </section>
+
+    <div class="two-column">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">PROTECTION</span>
+            <h2>Активная политика</h2>
+          </div>
+        </div>
+        <div id="protection" class="kv-grid"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">RISK SIGNALS</span>
+            <h2>Что стоит проверить</h2>
+          </div>
+        </div>
+        <div id="warnings" class="warning-list"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <span class="section-kicker">RUNTIME STATE</span>
+          <h2>Antiscan ipset</h2>
+          <p>Read-only inventory. Пустой/отсутствующий set не считается доказательством блокировки.</p>
+        </div>
+        <span id="ipsetBinary" class="mono muted">ipset: —</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Набор</th><th>Назначение</th><th>Состояние</th><th>Записей</th></tr></thead>
+          <tbody id="sets"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel compact-panel">
+      <div class="panel-head">
+        <div>
+          <span class="section-kicker">BOUNDARY</span>
+          <h2>P26A · Read-only foundation</h2>
+        </div>
+        <span class="state info">MUTATION API: NONE</span>
+      </div>
+      <p class="boundary-copy">Модуль ничего не устанавливает, не редактирует <span class="mono">ascn.conf</span>, не очищает ipset и не перезапускает Antiscan. Управление появится отдельным guarded-этапом после read-only acceptance.</p>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

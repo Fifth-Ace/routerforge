@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "antiscan",
+  "kind": "integration",
+  "name": "Antiscan",
+  "category": "Security",
+  "description": "Защита Keenetic/Netcraze от подозрительной TCP-активности, распределённого сканирования, honeypot-событий и пользовательских/Geo списков.",
+  "publisher": {
+    "id": "dimon27254",
+    "name": "dimon27254",
+    "url": "https://github.com/dimon27254"
+  },
+  "project_url": "https://github.com/dimon27254/antiscan",
+  "source": "project-official",
+  "package_authoritative": true,
+  "version_source": "opkg",
+  "capabilities": [
+    "detect",
+    "version",
+    "service-status",
+    "security",
+    "install-preview"
+  ],
+  "detection": {
+    "packages": [
+      "antiscan"
+    ],
+    "services": [
+      "/opt/etc/init.d/S99ascn"
+    ],
+    "paths": [
+      "/opt/etc/antiscan/ascn.conf"
+    ]
+  },
+  "running_paths": [
+    "/tmp/ascn.run"
+  ],
+  "compatibility": {
+    "status": "requirements",
+    "hints": [
+      "Keenetic / Netcraze",
+      "Entware",
+      "Netfilter kernel modules",
+      "IPv4 TCP only"
+    ]
+  },
+  "install": {
+    "method": "official-script",
+    "installer_url": "https://raw.githubusercontent.com/dimon27254/antiscan/refs/heads/main/install.sh",
+    "packages": [
+      "antiscan"
+    ],
+    "notes": [
+      "Antiscan — отдельный upstream-проект. RouterForge не устанавливает его автоматически.",
+      "RouterForge Antiscan Manager устанавливается отдельно и управляет только уже существующим Antiscan."
+    ],
+    "preview_only": true
+  }
+}

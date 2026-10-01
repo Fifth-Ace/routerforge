@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+mkdir -p /opt/var/run
+if [ -x /opt/etc/init.d/S98routerforge-antiscan-manager ]; then
+    /opt/etc/init.d/S98routerforge-antiscan-manager stop >/dev/null 2>&1 || true
+fi
+rm -f /opt/var/run/routerforge-antiscan-manager.sock
+if [ -x /opt/etc/init.d/S98routerforge-antiscan-manager ]; then
+    /opt/etc/init.d/S98routerforge-antiscan-manager start >/dev/null 2>&1 || true
+fi
+exit 0

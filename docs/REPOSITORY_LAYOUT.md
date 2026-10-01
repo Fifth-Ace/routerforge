@@ -11,6 +11,8 @@ modules/monitoring/frontend/      Monitoring UI
 modules/network-tools/            standalone Network Tools runtime/UI/packaging
 modules/nfqws-manager-runtime/    NFQWS Manager backend/runtime/packaging
 modules/nfqws-manager/frontend/   NFQWS Manager UI
+modules/antiscan-manager-runtime/ Antiscan Manager backend/runtime/packaging (Dev P26)
+modules/antiscan-manager/frontend/ Antiscan Manager UI (Dev P26)
 modules/profiling/packaging/      optional Core profiling lifecycle
 release/channels/                 dev/beta/stable release topology
 marketplace/                      public App Center registry sources/manifests
@@ -34,6 +36,11 @@ may expose read-only network telemetry, but active probes and diagnostic tools b
 
 `routerforge-nfqws-manager` owns RouterForge NFQWS management/diagnostics and the explicit
 DPI Detector / NFQWS Menu integrations. The upstream nfqws2 package remains a separate project.
+
+`routerforge-antiscan-manager` is a Dev-only P26 integration-manager for the independent
+`dimon27254/antiscan` project. It has its own runtime, Unix socket, API, UI and IPK; it is
+not part of Admin/Control and does not install or replace upstream Antiscan. Stable 0.10.0
+remains the seven-package topology described above.
 
 `marketplace/` remains root-level for public compatibility paths; the embedded Registry mirror
 is CI-checked. Bundled manifests are the source of truth for integration metadata.

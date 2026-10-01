@@ -30,8 +30,8 @@ for rel in ACTIVE:
 required = {
     "README.md": ["Stable 0.10.0", "routerforge-network-tools", "routerforge-nfqws-manager", "Release Notes 0.10.0"],
     "README_EN.md": ["Stable 0.10.0", "routerforge-network-tools", "routerforge-nfqws-manager", "Release Notes 0.10.0"],
-    "modules/README.md": ["Current Stable 0.10.0 topology", "network-tools/", "nfqws-manager-runtime/", "Legacy split source directories"],
-    "docs/REPOSITORY_LAYOUT.md": ["Stable 0.10.0 release topology", "modules/network-tools/", "modules/nfqws-manager-runtime/", "not build targets", "internal/safety/"],
+    "modules/README.md": ["Current Stable 0.10.0 topology", "network-tools/", "nfqws-manager-runtime/", "antiscan-manager-runtime/", "Legacy split source directories"],
+    "docs/REPOSITORY_LAYOUT.md": ["Stable 0.10.0 release topology", "modules/network-tools/", "modules/nfqws-manager-runtime/", "modules/antiscan-manager-runtime/", "not build targets", "internal/safety/"],
     "docs/MODULES.md": ["Stable 0.10.0 topology", "routerforge-nfqws-manager", "min_core_version=0.7.1"],
     "docs/INSTALLATION.md": ["Stable 0.10.0", "routerforge-nfqws-manager", "Upgrade с Stable 0.9.1", "runtime compatibility probe"],
     "release/channels/README.md": ["Current Stable: **0.10.0**", "routerforge-nfqws-manager", "routerforge-stable-promotion"],
@@ -114,6 +114,7 @@ for required_call in (
     'build-module-opkg.sh" monitoring',
     'build-network-tools-opkg.sh"',
     'build-module-opkg.sh" nfqws-manager',
+    'build-module-opkg.sh" antiscan-manager',
     'build-module-opkg.sh" profiling',
 ):
     if required_call not in aggregate:
@@ -139,4 +140,4 @@ print("STABLE_RELEASE_VERSION=0.10.0")
 print("STABLE_COMPONENT_VERSIONS=core:0.10.0,dns:0.10.0,admin:0.10.0,monitoring:0.10.0,network-tools:0.10.0,nfqws-manager:0.10.0,profiling:0.10.0")
 print("LEGACY_SPLIT_SOURCE_DIRS=ABSENT")
 print("ORPHAN_SPLIT_APPROVALS=ABSENT")
-print("ACTIVE_BUILD_TOPOLOGY=dns,monitoring,network-tools,nfqws-manager,profiling")
+print("ACTIVE_BUILD_TOPOLOGY=dns,monitoring,network-tools,nfqws-manager,antiscan-manager,profiling")

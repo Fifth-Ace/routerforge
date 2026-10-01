@@ -179,3 +179,50 @@ func TestCatalogKeeneticEntwareExtrasBasePackageDoesNotInventRuntime(t *testing.
 		t.Fatalf("base package incorrectly reported as running: %#v", extras)
 	}
 }
+
+func TestCatalogDetectsAntiscanAndDedicatedManager(t *testing.T) {
+	installed := map[string]string{
+		"antiscan":                     "1.10.6",
+		"routerforge-antiscan-manager": "0.8.0~dev.test",
+	}
+	processes := map[string]bool{
+		"routerforge-antiscan-manager": true,
+	}
+	existing := map[string]bool{
+		"/opt/etc/init.d/S99ascn":                         true,
+		"/opt/etc/antiscan/ascn.conf":                     true,
+		"/tmp/ascn.run":                                   true,
+		"/opt/etc/init.d/S98routerforge-antiscan-manager": true,
+	}
+
+	snap := buildCatalog(installed, processes, func(path string) bool {
+		return existing[path]
+	})
+
+	var target, manager *catalogItem
+	for i := range snap.Integrations {
+		if snap.Integrations[i].ID == "antiscan" {
+			target = &snap.Integrations[i]
+			break
+		}
+	}
+	for i := range snap.Modules {
+		if snap.Modules[i].ID == "antiscan-manager" {
+			manager = &snap.Modules[i]
+			break
+		}
+	}
+
+	if target == nil || !target.Installed || !target.ServiceRunning {
+		t.Fatalf("bad Antiscan target state: %#v", target)
+	}
+	if target.Version != "1.10.6" {
+		t.Fatalf("Antiscan version=%q", target.Version)
+	}
+	if manager == nil || !manager.Installed || !manager.ServiceRunning {
+		t.Fatalf("bad Antiscan Manager state: %#v", manager)
+	}
+	if manager.Kind != "module" || manager.Category != "Integrations" {
+		t.Fatalf("bad Antiscan Manager catalog contract: %#v", manager)
+	}
+}

@@ -210,6 +210,11 @@ let historyLoaded = false;
 let diagnosticsLoaded = false;
 let rciTokenLoaded = false;
 let rciTokenBusy = false;
+let schedulerLoaded = false;
+let schedulerBusy = false;
+let schedulerSnapshot = null;
+let schedulerBaseline = '';
+let schedulerDirty = false;
 
 function api(path) {
   return fetch(`../${path}`, {
@@ -403,7 +408,16 @@ const exactMessageTranslations = {
   'upstream RCI token delete failed; encrypted token files were restored': 'Удалить RCI-токен не удалось; зашифрованные token/key файлы восстановлены.',
   'RCI token delete verification failed; encrypted token files were restored': 'Проверка удаления RCI-токена не пройдена; зашифрованные token/key файлы восстановлены.',
   'RCI token/key files are already absent.': 'RCI token/key уже отсутствуют.',
-  'Antiscan stopped because this firmware requires RCI authentication after token deletion.': 'После удаления токена Antiscan остановлен: эта прошивка требует RCI-аутентификацию.'
+  'Antiscan stopped because this firmware requires RCI authentication after token deletion.': 'После удаления токена Antiscan остановлен: эта прошивка требует RCI-аутентификацию.',
+  'invalid scheduler request': 'Некорректный запрос изменения расписания Antiscan.',
+  'confirm must equal APPLY_SCHEDULE': 'Не подтверждено применение расписания Antiscan.',
+  'ascn_crontab.conf changed since it was loaded; refresh before applying': 'ascn_crontab.conf изменился после загрузки. Обновите расписание перед применением.',
+  'ascn_crontab.conf contains lines outside the pinned upstream scheduler contract': 'В ascn_crontab.conf есть строки вне разрешённого upstream-контракта. Автоматическое применение заблокировано.',
+  'at least one managed scheduler task must remain enabled': 'Хотя бы одна обычная задача Antiscan должна оставаться включённой.',
+  'cron expression must contain exactly five fields': 'Cron-выражение должно состоять ровно из пяти полей.',
+  'cron expression contains characters unsupported by upstream': 'Cron-выражение содержит символы, которые upstream Antiscan не принимает.',
+  'retry_load_geo is managed automatically by upstream Antiscan and was preserved unchanged.': 'Автоматическая задача retry_load_geo сохранена без изменений.',
+  'scheduler verification failed; previous scheduler state was restored': 'Проверка расписания не пройдена; предыдущее состояние восстановлено.'
 };
 
 const messageRules = [
@@ -910,6 +924,143 @@ async function performRCITokenAction(action) {
     }
   }
 }
+const schedulerTaskLabels = {
+  read_candidates: ['Обработка кандидатов', 'Проверка накопленных IP-кандидатов и перенос /24 при достижении порога.'],
+  read_ndm_ipsets: ['Импорт блокировок Keenetic', 'Перенос системных lockout IP из Keenetic в runtime Antiscan.'],
+  save_ipsets: ['Сохранение ipset', 'Периодический экспорт runtime-наборов согласно SAVE_IPSETS.'],
+  'update_ipsets geo': ['Обновление Geo', 'Плановое обновление списков подсетей настроенных стран.'],
+  retry_load_geo: ['Повтор Geo после ошибки', 'Временная аварийная задача, которую создаёт и удаляет сам upstream Antiscan.']
+};
+
+function schedulerManagedPayload() {
+  return Array.from(document.querySelectorAll('[data-scheduler-task]'))
+    .filter((row) => row.dataset.automatic !== 'true')
+    .map((row) => ({
+      task: row.dataset.schedulerTask || '',
+      enabled: Boolean(row.querySelector('[data-scheduler-enabled]')?.checked),
+      schedule: (row.querySelector('[data-scheduler-expression]')?.value || '').trim().replace(/\s+/g, ' ')
+    }));
+}
+
+function updateSchedulerState() {
+  const apply = $('applyScheduler');
+  const reset = $('resetScheduler');
+  const state = $('schedulerState');
+  if (!schedulerSnapshot || !apply || !reset || !state) return;
+
+  const current = JSON.stringify(schedulerManagedPayload());
+  schedulerDirty = Boolean(schedulerBaseline) && current !== schedulerBaseline;
+  if (!schedulerSnapshot.valid) {
+    state.className = 'state bad';
+    state.textContent = 'ОШИБКА ФАЙЛА';
+  } else if (schedulerBusy) {
+    state.className = 'state info';
+    state.textContent = 'ПРИМЕНЕНИЕ…';
+  } else if (schedulerDirty) {
+    state.className = 'state warn';
+    state.textContent = 'ИЗМЕНЕНО';
+  } else if (!schedulerSnapshot.synced) {
+    state.className = 'state warn';
+    state.textContent = 'НЕ СИНХРОНИЗИРОВАНО';
+  } else {
+    state.className = 'state good';
+    state.textContent = 'СИНХРОНИЗИРОВАНО';
+  }
+
+  apply.disabled = schedulerBusy || !schedulerSnapshot.valid || (!schedulerDirty && schedulerSnapshot.synced);
+  reset.disabled = schedulerBusy || !schedulerDirty;
+}
+
+function renderScheduler(payload, force = false) {
+  schedulerLoaded = true;
+  schedulerSnapshot = payload;
+  const root = $('schedulerTaskRows');
+  const meta = $('schedulerMeta');
+  if (!root || !meta) return;
+
+  const errors = payload?.errors || [];
+  meta.textContent = `ascn_crontab.conf: ${payload?.task_count ?? 0} задач · active crontab: ${payload?.active_count ?? 0} · ${payload?.synced ? 'синхронизировано' : 'есть расхождение'} · SHA256 ${(payload?.source_sha256 || '—').slice(0, 16)}…`;
+  if (errors.length) {
+    root.className = 'scheduler-list';
+    root.innerHTML = `<div class="notice bad">${errors.map((item) => escapeHTML(localizeMessage(item))).join(' · ')}</div>`;
+    schedulerBaseline = '';
+    schedulerDirty = false;
+    updateSchedulerState();
+    return;
+  }
+
+  root.className = 'scheduler-list';
+  root.innerHTML = (payload?.tasks || []).map((item) => {
+    const copy = schedulerTaskLabels[item.task] || [item.task, 'Штатная задача Antiscan.'];
+    const automatic = Boolean(item.automatic);
+    return `
+      <article class="scheduler-row" data-scheduler-task="${escapeHTML(item.task)}" data-automatic="${automatic}">
+        <label class="scheduler-toggle">
+          <input data-scheduler-enabled type="checkbox" ${item.enabled ? 'checked' : ''} ${automatic ? 'disabled' : ''}>
+          <span><strong>${escapeHTML(copy[0])}</strong><small class="mono">${escapeHTML(item.task)}</small></span>
+        </label>
+        <div class="scheduler-expression-wrap">
+          <input data-scheduler-expression class="mono" value="${escapeHTML(item.schedule || '')}" spellcheck="false" ${automatic ? 'disabled' : ''} aria-label="Cron ${escapeHTML(item.task)}">
+          <small>${escapeHTML(copy[1])}</small>
+        </div>
+        ${automatic ? '<span class="state info">АВТОМАТИЧЕСКИ</span>' : '<span class="state neutral">5 полей cron</span>'}
+      </article>`;
+  }).join('');
+
+  if (force || !schedulerBaseline) {
+    schedulerBaseline = JSON.stringify(schedulerManagedPayload());
+    schedulerDirty = false;
+  }
+  updateSchedulerState();
+}
+
+async function loadScheduler() {
+  const button = $('reloadScheduler');
+  if (button) button.disabled = true;
+  try {
+    const payload = await api('schedule');
+    schedulerBaseline = '';
+    renderScheduler(payload, true);
+  } catch (error) {
+    schedulerLoaded = true;
+    schedulerSnapshot = null;
+    $('schedulerState').className = 'state bad';
+    $('schedulerState').textContent = 'ОШИБКА';
+    $('schedulerMeta').textContent = localizeMessage(error.message || 'Не удалось прочитать расписание Antiscan.');
+    $('schedulerTaskRows').className = 'scheduler-list empty-state bad-text';
+    $('schedulerTaskRows').textContent = 'Расписание недоступно.';
+    $('applyScheduler').disabled = true;
+    $('resetScheduler').disabled = true;
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function applyScheduler() {
+  if (!schedulerSnapshot?.source_sha256 || !schedulerSnapshot?.valid) return;
+  const tasks = schedulerManagedPayload();
+  if (!window.confirm('Применить расписание Antiscan?\n\nRouterForge атомарно обновит ascn_crontab.conf, вызовет штатный update_crontab и проверит активный crontab. При ошибке будет восстановлено предыдущее состояние.')) return;
+
+  schedulerBusy = true;
+  updateSchedulerState();
+  try {
+    const result = await mutate('schedule-action', {
+      tasks,
+      base_sha256: schedulerSnapshot.source_sha256,
+      confirm: 'APPLY_SCHEDULE'
+    });
+    showMutationResult(result, false, 'schedule:apply');
+    await loadScheduler();
+    if (diagnosticsLoaded) await loadDiagnostics();
+  } catch (error) {
+    showMutationResult(error.payload || { error: error.message }, true, 'schedule:apply');
+    await loadScheduler();
+  } finally {
+    schedulerBusy = false;
+    if (schedulerSnapshot) updateSchedulerState();
+  }
+}
+
 function activateTab(name) {
   document.querySelectorAll('.tab').forEach((button) => {
     button.classList.toggle('active', button.dataset.tab === name);
@@ -1285,6 +1436,7 @@ function mutationSuccessMessage(context, payload) {
     if (context === 'list-entry') return 'Такая запись уже есть в выбранном списке.';
     if (context === 'lifecycle:start') return 'Antiscan уже запущен.';
     if (context === 'lifecycle:stop') return 'Antiscan уже остановлен.';
+    if (context === 'schedule:apply') return 'ascn_crontab.conf уже совпадал с формой; активный crontab синхронизирован.';
     if (context.startsWith('operation:')) return 'Команда не потребовалась: текущее состояние уже корректно.';
     return 'Состояние уже соответствовало запросу.';
   }
@@ -1297,6 +1449,7 @@ function mutationSuccessMessage(context, payload) {
   if (context === 'rci-token:set') return 'RCI-токен сохранён и проверен штатной командой Antiscan.';
   if (context === 'rci-token:check') return 'Сохранённый RCI-токен прошёл проверку Keenetic.';
   if (context === 'rci-token:delete') return 'RCI-токен удалён, состояние проверено.';
+  if (context === 'schedule:apply') return 'Расписание Antiscan обновлено и синхронизировано с активным crontab.';
   if (context.startsWith('operation:')) return 'Штатная сервисная команда Antiscan выполнена и проверена.';
   if (context === 'config') {
     return payload?.runtime_applied
@@ -1539,6 +1692,7 @@ function auditActionTitle(action) {
     'operation:update_ipsets:geo': 'Обновление Geo-списков',
     'operation:retry_load_geo': 'Повторная загрузка Geo',
     'operation:update_crontab': 'Синхронизация cron',
+    'schedule:apply': 'Изменение расписания Antiscan',
     config: 'Изменение конфигурации'
   }[action] || action || 'Действие Antiscan Manager';
 }
@@ -1655,6 +1809,7 @@ document.querySelectorAll('.tab').forEach((button) => {
     if (button.dataset.tab === 'history' && !historyLoaded) loadHistory();
     if (button.dataset.tab === 'diagnostics' && !diagnosticsLoaded) loadDiagnostics();
     if (button.dataset.tab === 'diagnostics' && !rciTokenLoaded) loadRCITokenStatus();
+    if (button.dataset.tab === 'schedule' && !schedulerLoaded) loadScheduler();
   });
 });
 
@@ -1666,6 +1821,7 @@ $('refresh').addEventListener('click', async () => {
   if (historyLoaded) await loadHistory();
   if (diagnosticsLoaded) await loadDiagnostics();
   if (rciTokenLoaded) await loadRCITokenStatus();
+  if (schedulerLoaded) await loadScheduler();
 });
 $('inspectButton').addEventListener('click', inspectIP);
 $('inspectIp').addEventListener('keydown', (event) => {
@@ -1701,6 +1857,13 @@ $('deleteRCIToken').addEventListener('click', () => performRCITokenAction('delet
 $('rciTokenInput').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') performRCITokenAction('set');
 });
+$('reloadScheduler').addEventListener('click', loadScheduler);
+$('resetScheduler').addEventListener('click', () => {
+  if (schedulerSnapshot) renderScheduler(schedulerSnapshot, true);
+});
+$('applyScheduler').addEventListener('click', applyScheduler);
+$('schedulerTaskRows').addEventListener('input', updateSchedulerState);
+$('schedulerTaskRows').addEventListener('change', updateSchedulerState);
 $('configForm').addEventListener('submit', (event) => event.preventDefault());
 $('configForm').addEventListener('input', updateConfigEditorState);
 $('configForm').addEventListener('change', updateConfigEditorState);

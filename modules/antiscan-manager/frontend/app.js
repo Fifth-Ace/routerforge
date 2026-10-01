@@ -208,6 +208,7 @@ let configBaseline = '';
 let configBaseSHA = '';
 let historyLoaded = false;
 let diagnosticsLoaded = false;
+let compatibilityLoaded = false;
 let rciTokenLoaded = false;
 let rciTokenBusy = false;
 let schedulerLoaded = false;
@@ -822,6 +823,83 @@ async function loadDiagnostics() {
     if (button) button.disabled = false;
   }
 }
+
+function renderCompatibility(payload) {
+  compatibilityLoaded = true;
+  const state = $('compatibilityState');
+  const meta = $('compatibilityMeta');
+  const grid = $('compatibilityGrid');
+  const warnings = $('compatibilityWarnings');
+  if (!state || !meta || !grid || !warnings) return;
+
+  const view = diagnosticStateView(payload?.state || 'info');
+  state.className = `state ${view[0]}`;
+  state.textContent = view[1];
+  meta.textContent = payload?.summary || 'Состояние совместимости не определено.';
+
+  const update = payload?.update || {};
+  const firmware = payload?.firmware || {};
+  const hook = payload?.hook || {};
+  const packageVersion = payload?.package_version || 'не найден';
+  const packageMatch = payload?.package_version
+    ? (payload?.package_runtime_match ? 'совпадает' : 'расходится')
+    : 'не проверено';
+  const updateValue = update.available
+    ? `${update.available_version || '—'} · ${update.available_channel || 'upstream'}`
+    : (update.eligibility_known ? 'по текущему upstream cache нет' : 'не определено');
+  const cacheValue = !update.cache_present
+    ? 'нет'
+    : `${update.cache_fresh ? 'свежий' : 'устарел'} · ${Number(update.cache_age_seconds || 0)} сек.`;
+  const netfilterValue = !firmware.netfilter_known
+    ? 'не определено'
+    : (firmware.netfilter_present ? 'есть' : 'не найден');
+  const hookValue = hook.present
+    ? (hook.executable ? 'установлен · исполняем' : 'установлен · не исполняем')
+    : 'не найден';
+
+  const rows = [
+    ['Runtime S99ascn', payload?.script_version || '—'],
+    ['OPKG Antiscan', packageVersion],
+    ['Пакет / runtime', packageMatch],
+    ['Проверенный RouterForge', payload?.pinned_version || '—'],
+    ['Pinned contract', payload?.contract_exact ? 'точное совпадение' : 'не совпадает'],
+    ['Доступное обновление', updateValue],
+    ['Upstream update cache', cacheValue],
+    ['Прошивка Keenetic', firmware.version || 'не определена'],
+    ['Netfilter', netfilterValue],
+    ['Netfilter hook', hookValue],
+    ['Кто обновляет Antiscan', payload?.update_owner === 'upstream-opkg' ? 'официальный upstream OPKG' : (payload?.update_owner || '—')]
+  ];
+  grid.innerHTML = rows.map(([key, value]) => `
+    <div class="kv"><span>${escapeHTML(key)}</span><strong>${escapeHTML(String(value))}</strong></div>
+  `).join('');
+
+  const messages = payload?.warnings || [];
+  warnings.innerHTML = messages.length
+    ? messages.map((item) => `<div class="warning-item"><span>⚠</span><p>${escapeHTML(String(item))}</p></div>`).join('')
+    : '<div class="ok-note">Версия, package metadata, Netfilter и hook согласованы с проверенным контрактом RouterForge.</div>';
+}
+
+async function loadCompatibility() {
+  const button = $('reloadCompatibility');
+  if (button) button.disabled = true;
+  $('compatibilityState').className = 'state info';
+  $('compatibilityState').textContent = 'ПРОВЕРКА…';
+  try {
+    const payload = await api('compatibility');
+    renderCompatibility(payload);
+  } catch (error) {
+    compatibilityLoaded = true;
+    $('compatibilityState').className = 'state bad';
+    $('compatibilityState').textContent = 'ОШИБКА';
+    $('compatibilityMeta').textContent = localizeMessage(error.message || 'Не удалось проверить совместимость Antiscan.');
+    $('compatibilityGrid').innerHTML = '';
+    $('compatibilityWarnings').innerHTML = '';
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 function rciAuthLabel(state) {
   return {
     required: 'требуется',
@@ -1938,6 +2016,7 @@ document.querySelectorAll('.tab').forEach((button) => {
     if (button.dataset.tab === 'lists' && !browserState.customSource) loadCustomList();
     if (button.dataset.tab === 'history' && !historyLoaded) loadHistory();
     if (button.dataset.tab === 'diagnostics' && !diagnosticsLoaded) loadDiagnostics();
+    if (button.dataset.tab === 'diagnostics' && !compatibilityLoaded) loadCompatibility();
     if (button.dataset.tab === 'diagnostics' && !rciTokenLoaded) loadRCITokenStatus();
     if (button.dataset.tab === 'schedule' && !schedulerLoaded) loadScheduler();
   });
@@ -1951,6 +2030,7 @@ $('refresh').addEventListener('click', async () => {
   if (browserState.customSource) await loadCustomList();
   if (historyLoaded) await loadHistory();
   if (diagnosticsLoaded) await loadDiagnostics();
+  if (compatibilityLoaded) await loadCompatibility();
   if (rciTokenLoaded) await loadRCITokenStatus();
   if (schedulerLoaded) await loadScheduler();
 });
@@ -1984,6 +2064,7 @@ document.querySelectorAll('[data-operation]').forEach((button) => {
 });
 $('reloadHistory').addEventListener('click', loadHistory);
 $('reloadDiagnostics').addEventListener('click', loadDiagnostics);
+$('reloadCompatibility').addEventListener('click', loadCompatibility);
 $('reloadRCIToken').addEventListener('click', loadRCITokenStatus);
 $('setRCIToken').addEventListener('click', () => performRCITokenAction('set'));
 $('checkRCIToken').addEventListener('click', () => performRCITokenAction('check'));

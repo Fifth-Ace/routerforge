@@ -25,6 +25,7 @@ let configBusy = false;
 let configDirty = false;
 let configBaseline = '';
 let configBaseSHA = '';
+let historyLoaded = false;
 
 function api(path) {
   return fetch(`../${path}`, {
@@ -89,6 +90,55 @@ function countFor(name) {
 
 function boolText(value) {
   return value ? 'Включено' : 'Выключено';
+}
+
+function fmtBytes(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return '—';
+  if (number < 1024) return `${number} B`;
+  if (number < 1024 * 1024) return `${(number / 1024).toFixed(1)} KiB`;
+  if (number < 1024 * 1024 * 1024) return `${(number / 1024 / 1024).toFixed(1)} MiB`;
+  return `${(number / 1024 / 1024 / 1024).toFixed(1)} GiB`;
+}
+
+function fmtAuditTime(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value || '—');
+  return parsed.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'medium' });
+}
+
+function setOperationalExplanation(name) {
+  return {
+    ascn_candidates: 'Кандидат сам по себе не блокирует IP; несколько адресов одной /24 могут позже продвинуть всю подсеть в ascn_subnets.',
+    ascn_ips: 'Прямой ban-set. Upstream не хранит, был ли точным trigger recent-hitcount или concurrent limit.',
+    ascn_subnets: 'Блокируется вся /24 после накопления разных IP-кандидатов; особенно внимательно для мобильных и вращающихся пулов.',
+    ascn_honeypot: 'IP попал в ловушку на одном из HONEYPOT_PORTS.',
+    ascn_ndm_lockout: 'Запись импортирована из Keenetic ip lockout-policy; direct unban здесь намеренно не предлагается.',
+    ascn_custom_exclude: 'Пользовательское исключение имеет приоритет перед blocking rules.',
+    ascn_custom_blacklist: 'Активный пользовательский blacklist при CUSTOM_LISTS_BLOCK_MODE=blacklist.',
+    ascn_custom_whitelist: 'В whitelist-mode отсутствие адреса в этом set означает блокировку.',
+    ascn_geo_blacklist: 'Подсеть страны из активного Geo blacklist.',
+    ascn_geo_whitelist: 'В Geo whitelist-mode отсутствие подсети в этом set означает блокировку.',
+    ascn_geo_exclude: 'Geo-исключение имеет приоритет перед blocking rules.'
+  }[name] || 'Runtime member Antiscan.';
+}
+
+function reasonExplanation(result) {
+  const descriptions = {
+    'custom-exclude': 'IP найден в пользовательских исключениях. Antiscan возвращает трафик раньше blocking rules.',
+    'geo-exclude': 'IP попал в Geo-исключение и не должен блокироваться последующими правилами.',
+    'custom-blacklist': 'IP совпал с активным пользовательским blacklist.',
+    'custom-whitelist-miss': 'Включён whitelist-mode, но IP отсутствует в разрешённом пользовательском set.',
+    'geo-blacklist': 'IP относится к подсети страны из активного Geo blacklist.',
+    'geo-whitelist-miss': 'Включён Geo whitelist-mode, но IP не относится к разрешённым Geo-подсетям.',
+    'ndm-lockout': 'IP импортирован из Keenetic ip lockout-policy.',
+    honeypot: 'IP находится в honeypot ban-set после обращения к порту-ловушке.',
+    'distributed-subnet': 'Заблокирована вся /24: Antiscan накопил порог разных IP-кандидатов из одной подсети.',
+    'direct-ip': 'IP находится в прямом ban-set. Upstream не сохраняет, что именно сработало: recent-hitcount или concurrent limit.',
+    'candidate-only': 'IP пока только кандидат для /24-анализа и этим set сам по себе не блокируется.',
+    'no-active-set-match': 'Совпадений с активными blocking sets не найдено.'
+  };
+  return descriptions[result?.reason] || '';
 }
 
 function configNumber(id) {
@@ -493,6 +543,7 @@ function renderInspect(result) {
     </div>
   `).join('');
   const warnings = (result.warnings || []).map((item) => `<div class="inspect-warning">${escapeHTML(item)}</div>`).join('');
+  const explanation = reasonExplanation(result);
   const actions = result.ip && (result.blocked || result.verdict === 'candidate') ? `
     <div class="inspect-actions">
       <button class="button small" type="button" data-action="exclude" data-entry="${escapeHTML(result.ip)}">Добавить IP в исключения</button>
@@ -503,6 +554,7 @@ function renderInspect(result) {
       <div><span class="mono">${escapeHTML(result.ip || '')}</span><strong>${verdictTitle(result)}</strong></div>
       <span class="state ${cls}">${escapeHTML(result.reason || result.verdict || 'unknown')}</span>
     </div>
+    ${explanation ? `<div class="reason-explanation">${escapeHTML(explanation)}</div>` : ''}
     ${evidence || '<div class="muted inspect-empty">Совпадения в доступных runtime sets не найдены.</div>'}
     ${warnings}
     ${actions}
@@ -511,9 +563,17 @@ function renderInspect(result) {
 
 function entrySecondary(entry) {
   const bits = [];
-  if (entry.timeout_known) bits.push(`timeout ${fmtDuration(entry.timeout_seconds)}`);
+  if (entry.timeout_known) {
+    const seconds = Number(entry.timeout_seconds || 0);
+    if (seconds === 0) {
+      bits.push('без таймаута');
+    } else {
+      const expires = new Date(Date.now() + seconds * 1000);
+      bits.push(`осталось ${fmtDuration(seconds)} · примерно до ${expires.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
+    }
+  }
   if (entry.packets_known) bits.push(`${entry.packets} pkt`);
-  if (entry.bytes_known) bits.push(`${entry.bytes} B`);
+  if (entry.bytes_known) bits.push(fmtBytes(entry.bytes));
   return bits.join(' · ') || 'runtime member';
 }
 
@@ -574,7 +634,10 @@ function renderSetPage(kind) {
     return `
       <div class="entry-row ${actions ? 'has-actions' : ''}">
         <span class="mono entry-value">${escapeHTML(entry.value)}</span>
-        <span class="entry-meta">${escapeHTML(entrySecondary(entry))}</span>
+        <span class="entry-meta-wrap">
+          <span class="entry-meta">${escapeHTML(entrySecondary(entry))}</span>
+          <small>${escapeHTML(setOperationalExplanation(page.name))}</small>
+        </span>
         ${actions}
       </div>`;
   }).join('');
@@ -661,6 +724,76 @@ async function performLifecycle(action) {
   }
 }
 
+function auditActionTitle(action) {
+  return {
+    unban: 'Single-entry unban',
+    'list-entry': 'Custom list update',
+    'lifecycle:start': 'Start',
+    'lifecycle:stop': 'Stop',
+    'lifecycle:reload': 'Reload',
+    config: 'Transactional config'
+  }[action] || action || 'Guarded action';
+}
+
+function renderHistory(page) {
+  const events = page?.events || [];
+  const target = $('historyEntries');
+  const meta = $('historyMeta');
+  historyLoaded = true;
+  meta.textContent = `${events.length} событий · последние сверху${page?.skipped_invalid_lines ? ` · пропущено повреждённых строк: ${page.skipped_invalid_lines}` : ''}`;
+
+  if (!events.length) {
+    target.className = 'history-list empty-state';
+    target.textContent = 'Guarded-действий в bounded audit пока нет.';
+    return;
+  }
+
+  target.className = 'history-list';
+  target.innerHTML = events.map((event) => {
+    const failed = event.outcome !== 'success';
+    const flags = [];
+    if (event.changed) flags.push('<span class="history-flag">changed</span>');
+    if (event.verified) flags.push('<span class="history-flag good">verified</span>');
+    if (event.rollback) flags.push('<span class="history-flag bad">rollback</span>');
+    if (event.restart_required) flags.push('<span class="history-flag warn">restart required</span>');
+    const warnings = (event.warnings || []).map((item) => `<small>⚠ ${escapeHTML(item)}</small>`).join('');
+    return `
+      <article class="history-row ${failed ? 'failed' : ''}">
+        <div class="history-main">
+          <div class="history-title">
+            <span class="state ${failed ? 'bad' : 'good'}">${failed ? 'FAIL' : 'PASS'}</span>
+            <strong>${escapeHTML(auditActionTitle(event.action))}</strong>
+            <span class="mono muted">${escapeHTML(fmtAuditTime(event.timestamp))}</span>
+          </div>
+          <p>${escapeHTML(event.summary || '—')}</p>
+          ${event.target ? `<span class="mono history-target">${escapeHTML(event.target)}</span>` : ''}
+          ${warnings}
+        </div>
+        <div class="history-side">
+          <span class="mono">${Number(event.duration_ms || 0)} ms</span>
+          <span class="mono">HTTP ${escapeHTML(String(event.http_status || '—'))}</span>
+          <div class="history-flags">${flags.join('')}</div>
+        </div>
+      </article>`;
+  }).join('');
+}
+
+async function loadHistory() {
+  const button = $('reloadHistory');
+  if (button) button.disabled = true;
+  try {
+    const page = await api('history?limit=50');
+    renderHistory(page);
+  } catch (error) {
+    historyLoaded = true;
+    $('historyMeta').textContent = 'Ошибка чтения history';
+    $('historyEntries').className = 'history-list empty-state bad-text';
+    $('historyEntries').textContent = error.message || 'Не удалось прочитать bounded audit.';
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 async function loadStatus() {
   $('refresh').disabled = true;
   try {
@@ -710,6 +843,7 @@ document.querySelectorAll('.tab').forEach((button) => {
     activateTab(button.dataset.tab);
     if (button.dataset.tab === 'blocked' && !browserState.blocked) loadSet('blocked');
     if (button.dataset.tab === 'lists' && !browserState.lists) loadSet('lists');
+    if (button.dataset.tab === 'history' && !historyLoaded) loadHistory();
   });
 });
 
@@ -717,6 +851,7 @@ $('refresh').addEventListener('click', async () => {
   await loadStatus();
   if (browserState.blocked) await loadSet('blocked');
   if (browserState.lists) await loadSet('lists');
+  if (historyLoaded) await loadHistory();
 });
 $('inspectButton').addEventListener('click', inspectIP);
 $('inspectIp').addEventListener('keydown', (event) => {
@@ -731,6 +866,7 @@ $('listFilter').addEventListener('input', () => renderSetPage('lists'));
 $('startAntiscan').addEventListener('click', () => performLifecycle('start'));
 $('reloadAntiscan').addEventListener('click', () => performLifecycle('reload'));
 $('stopAntiscan').addEventListener('click', () => performLifecycle('stop'));
+$('reloadHistory').addEventListener('click', loadHistory);
 $('configForm').addEventListener('submit', (event) => event.preventDefault());
 $('configForm').addEventListener('input', updateConfigEditorState);
 $('configForm').addEventListener('change', updateConfigEditorState);

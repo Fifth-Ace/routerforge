@@ -197,6 +197,9 @@ func TestModuleMutationBodyLimitsMatchDownstreamContracts(t *testing.T) {
 	if got, want := moduleMutationBodyLimit("admin"), int64(8<<10); got != want {
 		t.Fatalf("admin limit=%d, want %d", got, want)
 	}
+	if got, want := moduleMutationBodyLimit("antiscan-manager"), int64(8<<10); got != want {
+		t.Fatalf("antiscan-manager limit=%d, want %d", got, want)
+	}
 	if got := moduleMutationBodyLimit("monitoring"); got != 0 {
 		t.Fatalf("monitoring limit=%d, want 0", got)
 	}
@@ -362,15 +365,19 @@ func TestModuleUIProxyOverridesStaleUpstreamCache(t *testing.T) {
 	}
 }
 
-func TestAntiscanManagerProxyIsReadOnlyInP26A(t *testing.T) {
-	if moduleMutationAPI("antiscan-manager") {
-		t.Fatal("P26A Antiscan Manager unexpectedly exposes mutation API")
+func TestAntiscanManagerProxyGuardedMutationContract(t *testing.T) {
+	if !moduleMutationAPI("antiscan-manager") {
+		t.Fatal("P26C1 Antiscan Manager mutation API is not registered")
 	}
-	if !moduleMethodAllowed("antiscan-manager", http.MethodGet) {
-		t.Fatal("Antiscan Manager GET was rejected")
+	if !moduleMethodAllowed("antiscan-manager", http.MethodGet) || !moduleMethodAllowed("antiscan-manager", http.MethodPost) {
+		t.Fatal("Antiscan Manager GET/POST contract was rejected")
 	}
-	if moduleMethodAllowed("antiscan-manager", http.MethodPost) {
-		t.Fatal("P26A Antiscan Manager POST was accepted")
+	if moduleMethodAllowed("antiscan-manager", http.MethodDelete) {
+		t.Fatal("Antiscan Manager DELETE was accepted")
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/modules/antiscan-manager/unban", strings.NewReader(`{"set":"ascn_ips"}`))
+	if !antiscanManagerMutationRequest(req) {
+		t.Fatal("Antiscan Manager POST was not classified as guarded mutation")
 	}
 	if got := modulePackageNames["antiscan-manager"]; got != "routerforge-antiscan-manager" {
 		t.Fatalf("package=%q", got)

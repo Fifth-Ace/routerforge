@@ -75,7 +75,7 @@ func TestParseAntiscanSetEntryRejectsUnexpectedData(t *testing.T) {
 
 func TestBrowseAntiscanSetRejectsUnknownName(t *testing.T) {
 	page, status := browseAntiscanSet(context.Background(), runtimeConfig{}, "ascn_not_real", 20)
-	if status != 400 || page.Error == "" || page.MutationAPI {
+	if status != 400 || page.Error == "" || !page.MutationAPI {
 		t.Fatalf("status=%d page=%+v", status, page)
 	}
 }

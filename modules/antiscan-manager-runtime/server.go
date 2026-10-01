@@ -56,8 +56,9 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 			"module":         "antiscan-manager",
 			"version":        version,
 			"api_version":    1,
-			"mode":           "read-only-intelligence",
-			"mutation_api":   false,
+			"mode":           "guarded-control",
+			"mutation_api":   true,
+			"mutation_auth":  "core-guarded",
 			"upstream":       antiscanUpstreamURL,
 			"uptime_seconds": time.Since(started).Seconds(),
 		})
@@ -83,6 +84,8 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 		result, status := browseAntiscanSet(r.Context(), cfg, name, limit)
 		writeJSON(w, status, result)
 	}))
+	mux.HandleFunc("/v1/unban", mutationOnly(handleAntiscanUnban(cfg)))
+	mux.HandleFunc("/v1/list-entry", mutationOnly(handleAntiscanListEntry(cfg)))
 	registerUIRoutes(mux, cfg.UIPath)
 
 	server := &http.Server{

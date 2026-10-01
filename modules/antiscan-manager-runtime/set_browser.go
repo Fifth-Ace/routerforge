@@ -62,7 +62,7 @@ func browseAntiscanSet(parent context.Context, cfg runtimeConfig, name string, l
 		Name:        name,
 		Limit:       limit,
 		Entries:     []antiscanSetEntry{},
-		MutationAPI: false,
+		MutationAPI: true,
 	}
 	if !knownAntiscanSet(name) {
 		page.Error = "unknown Antiscan ipset"

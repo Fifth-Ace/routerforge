@@ -279,7 +279,7 @@ build_antiscan_manager() {
   "socket": "/opt/var/run/routerforge-antiscan-manager.sock",
   "api_base": "/api/modules/antiscan-manager",
   "ui_entry": "/api/modules/antiscan-manager/ui/index.html",
-  "mode": "read-only-intelligence"
+  "mode": "guarded-control"
 }
 MANIFEST
 
@@ -298,7 +298,7 @@ Maintainer: Fifth-Ace
 Source: https://github.com/Fifth-Ace/routerforge
 Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
-Description: RouterForge read-only management and diagnostic workspace for an existing dimon27254/antiscan installation.
+Description: RouterForge guarded management and diagnostic workspace for an existing dimon27254/antiscan installation.
 CONTROL
     cp "$ROOT/modules/antiscan-manager-runtime/packaging/postinst" "$WORK/control/postinst"
     cp "$ROOT/modules/antiscan-manager-runtime/packaging/prerm" "$WORK/control/prerm"

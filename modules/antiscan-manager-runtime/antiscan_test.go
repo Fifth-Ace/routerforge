@@ -83,7 +83,7 @@ func TestClassifyAntiscanMembershipDistributedSubnet(t *testing.T) {
 		Running:     true,
 		Config:      cfg,
 		Protection:  protectionFromConfig(cfg),
-		MutationAPI: false,
+		MutationAPI: true,
 	}
 	existing := map[string]bool{"ascn_subnets": true}
 	matches := map[string]bool{"ascn_subnets": true}

@@ -149,8 +149,8 @@ func buildAntiscanSnapshot(ctx context.Context, cfg runtimeConfig) antiscanSnaps
 		Detected:     detected,
 		Running:      running,
 		Version:      version,
-		MutationAPI:  false,
-		Mode:         "read-only-intelligence",
+		MutationAPI:  true,
+		Mode:         "guarded-control",
 		Upstream:     antiscanUpstreamURL,
 		InitScript:   cfg.InitScript,
 		ConfigPath:   configPath,
@@ -200,7 +200,7 @@ func inspectAntiscanIP(ctx context.Context, cfg runtimeConfig, rawIP string) (an
 			Conclusive:  false,
 			Verdict:     "invalid-ip",
 			Warnings:    []string{"IPv4 address required"},
-			MutationAPI: false,
+			MutationAPI: true,
 		}, http.StatusBadRequest
 	}
 
@@ -255,7 +255,7 @@ func baseAntiscanInspectResult(snapshot antiscanSnapshot, ip string) antiscanIns
 		Verdict:     "unknown",
 		Protection:  snapshot.Protection,
 		Warnings:    append([]string(nil), snapshot.Warnings...),
-		MutationAPI: false,
+		MutationAPI: true,
 	}
 }
 

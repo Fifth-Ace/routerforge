@@ -37,6 +37,24 @@ function api(path) {
   });
 }
 
+function mutate(path, body) {
+  return fetch(`../${path}`, {
+    method: 'POST',
+    cache: 'no-store',
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(async (response) => {
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(payload.error || `${path}: HTTP ${response.status}`);
+      error.payload = payload;
+      throw error;
+    }
+    return payload;
+  });
+}
+
 function escapeHTML(value) {
   return String(value ?? '').replace(/[&<>'"]/g, (char) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -234,6 +252,10 @@ function renderInspect(result) {
     </div>
   `).join('');
   const warnings = (result.warnings || []).map((item) => `<div class="inspect-warning">${escapeHTML(item)}</div>`).join('');
+  const actions = result.ip && (result.blocked || result.verdict === 'candidate') ? `
+    <div class="inspect-actions">
+      <button class="button small" type="button" data-action="exclude" data-entry="${escapeHTML(result.ip)}">Добавить IP в исключения</button>
+    </div>` : '';
   root.className = `inspect-result ${cls}`;
   root.innerHTML = `
     <div class="inspect-verdict">
@@ -242,6 +264,7 @@ function renderInspect(result) {
     </div>
     ${evidence || '<div class="muted inspect-empty">Совпадения в доступных runtime sets не найдены.</div>'}
     ${warnings}
+    ${actions}
   `;
 }
 
@@ -251,6 +274,21 @@ function entrySecondary(entry) {
   if (entry.packets_known) bits.push(`${entry.packets} pkt`);
   if (entry.bytes_known) bits.push(`${entry.bytes} B`);
   return bits.join(' · ') || 'runtime member';
+}
+
+function canUnbanSet(name) {
+  return ['ascn_ips', 'ascn_subnets', 'ascn_honeypot'].includes(name);
+}
+
+function blockedEntryActions(setName, entry) {
+  const buttons = [];
+  if (canUnbanSet(setName)) {
+    buttons.push(`<button class="button small danger" type="button" data-action="unban" data-set="${escapeHTML(setName)}" data-entry="${escapeHTML(entry.value)}">Снять бан</button>`);
+  }
+  if (['ascn_ips', 'ascn_subnets', 'ascn_honeypot', 'ascn_ndm_lockout', 'ascn_candidates'].includes(setName)) {
+    buttons.push(`<button class="button small" type="button" data-action="exclude" data-entry="${escapeHTML(entry.value)}">В исключения</button>`);
+  }
+  return buttons.length ? `<span class="entry-actions">${buttons.join('')}</span>` : '';
 }
 
 function renderSetPage(kind) {
@@ -290,12 +328,15 @@ function renderSetPage(kind) {
   }
 
   target.className = 'entry-table';
-  target.innerHTML = entries.map((entry) => `
-    <div class="entry-row">
-      <span class="mono entry-value">${escapeHTML(entry.value)}</span>
-      <span class="entry-meta">${escapeHTML(entrySecondary(entry))}</span>
-    </div>
-  `).join('');
+  target.innerHTML = entries.map((entry) => {
+    const actions = kind === 'blocked' ? blockedEntryActions(page.name, entry) : '';
+    return `
+      <div class="entry-row ${actions ? 'has-actions' : ''}">
+        <span class="mono entry-value">${escapeHTML(entry.value)}</span>
+        <span class="entry-meta">${escapeHTML(entrySecondary(entry))}</span>
+        ${actions}
+      </div>`;
+  }).join('');
 }
 
 async function loadSet(kind) {
@@ -313,6 +354,45 @@ async function loadSet(kind) {
     renderSetPage(kind);
   } finally {
     button.disabled = false;
+  }
+}
+
+function showMutationResult(payload, failed = false) {
+  const notice = $('actionNotice');
+  notice.hidden = false;
+  notice.className = `notice action-notice ${failed ? 'bad' : 'good'}`;
+  if (failed) {
+    notice.textContent = payload?.error || payload?.message || 'Guarded action failed.';
+    return;
+  }
+  const warnings = payload?.warnings || [];
+  const state = payload?.changed ? 'Изменение применено и проверено.' : 'Состояние уже соответствовало запросу.';
+  notice.textContent = [state, ...warnings].join(' · ');
+}
+
+async function performUnban(setName, entry) {
+  if (!window.confirm(`Снять только эту запись из ${setName}?\n\n${entry}\n\nМассовый flush не выполняется.`)) return;
+  try {
+    const result = await mutate('unban', { set: setName, entry, confirm: 'UNBAN' });
+    showMutationResult(result);
+    await loadStatus();
+    if (browserState.blocked) await loadSet('blocked');
+  } catch (error) {
+    showMutationResult(error.payload || { error: error.message }, true);
+  }
+}
+
+async function performListEntry(listName, entry) {
+  const target = listName === 'exclude' ? 'Custom exclude' : 'Custom whitelist';
+  if (!entry) return;
+  if (!window.confirm(`Добавить запись в ${target}?\n\n${entry}\n\nФайл будет изменён атомарно; активный список затем перечитается штатным Antiscan.`)) return;
+  try {
+    const result = await mutate('list-entry', { list: listName, entry, confirm: 'ADD' });
+    showMutationResult(result);
+    await loadStatus();
+    if (browserState.lists) await loadSet('lists');
+  } catch (error) {
+    showMutationResult(error.payload || { error: error.message }, true);
   }
 }
 
@@ -382,5 +462,17 @@ $('blockedSet').addEventListener('change', () => loadSet('blocked'));
 $('listSet').addEventListener('change', () => loadSet('lists'));
 $('blockedFilter').addEventListener('input', () => renderSetPage('blocked'));
 $('listFilter').addEventListener('input', () => renderSetPage('lists'));
+$('addListEntry').addEventListener('click', () => performListEntry($('listAction').value, $('listActionEntry').value.trim()));
+$('listActionEntry').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') performListEntry($('listAction').value, $('listActionEntry').value.trim());
+});
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  const action = button.dataset.action;
+  const entry = button.dataset.entry || '';
+  if (action === 'unban') performUnban(button.dataset.set || '', entry);
+  if (action === 'exclude') performListEntry('exclude', entry);
+});
 
 loadStatus();

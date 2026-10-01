@@ -8,6 +8,7 @@
   import { probeCatalogWeb } from '$lib/api.js';
   import { bytes, fmtDuration, catalogWebURL, catalogWebSecurityDecision, catalogWebResolvedURL, catalogWebProbeStatusAllowed } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
+  import { catalogItemServiceNeedsAttention } from '$lib/integrations.js';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
 
 
@@ -116,9 +117,7 @@
 
     for (const item of [...modules, ...integrations]) {
       if (!item.installed || item.builtin) continue;
-      const declaredServices = Array.isArray(item.detection?.services) ? item.detection.services : [];
-      const hasServiceContract = Boolean(item.service) || declaredServices.length > 0;
-      if (hasServiceContract && !item.service_running) {
+      if (catalogItemServiceNeedsAttention(item)) {
         push('warning', `${item.name}: ${text('\u0441\u043b\u0443\u0436\u0431\u0430 \u043d\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442','service is not running')}`, '', '/apps?tab=installed');
       }
       const trust = String(item.trust?.status || '').toLowerCase();

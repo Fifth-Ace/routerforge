@@ -70,6 +70,19 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 		result, status := inspectAntiscanIP(r.Context(), cfg, ip)
 		writeJSON(w, status, result)
 	}))
+	mux.HandleFunc("/v1/sets", getOnly(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimSpace(r.URL.Query().Get("name"))
+		limit, err := parseAntiscanSetLimit(r.URL.Query().Get("limit"))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"error":        err.Error(),
+				"mutation_api": false,
+			})
+			return
+		}
+		result, status := browseAntiscanSet(r.Context(), cfg, name, limit)
+		writeJSON(w, status, result)
+	}))
 	registerUIRoutes(mux, cfg.UIPath)
 
 	server := &http.Server{

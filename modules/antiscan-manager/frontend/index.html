@@ -9,10 +9,13 @@
 <body>
   <main class="as-page">
     <header class="hero">
-      <div>
+      <div class="hero-copy">
         <span class="eyebrow">ROUTERFORGE / ANTISCAN MANAGER</span>
-        <h1>Antiscan Manager</h1>
-        <p>Статус, защита, ipset-состояние и объяснение блокировок установленного Antiscan.</p>
+        <div class="hero-title-row">
+          <h1>Antiscan Manager</h1>
+          <span class="read-only-chip">READ ONLY</span>
+        </div>
+        <p>Разбирает текущее состояние Antiscan: блокировки, списки, защитные пороги и причину блокировки конкретного IP.</p>
       </div>
       <div class="hero-actions">
         <span id="targetState" class="state neutral">ПРОВЕРКА…</span>
@@ -24,74 +27,184 @@
 
     <section class="metrics" aria-label="Antiscan summary">
       <article class="metric"><span>Версия</span><strong id="version">—</strong><small>upstream Antiscan</small></article>
-      <article class="metric"><span>Заблокировано IP</span><strong id="blockedIps">—</strong><small>ascn_ips</small></article>
+      <article class="metric"><span>Прямые блокировки</span><strong id="blockedIps">—</strong><small>ascn_ips</small></article>
       <article class="metric"><span>Заблокировано /24</span><strong id="blockedSubnets">—</strong><small>ascn_subnets</small></article>
-      <article class="metric"><span>Ловушка</span><strong id="honeypotCount">—</strong><small id="honeypotMode">—</small></article>
+      <article class="metric"><span>Кандидаты</span><strong id="candidateCount">—</strong><small>ascn_candidates</small></article>
     </section>
 
-    <section class="panel inspector-panel">
-      <div class="panel-head">
-        <div>
-          <span class="section-kicker">WHY BLOCKED?</span>
-          <h2>Почему заблокирован этот IP?</h2>
-          <p>Проверка штатных ascn_* ipset в том же порядке, в котором Antiscan применяет правила.</p>
-        </div>
-      </div>
-      <div class="inspect-form">
-        <input id="inspectIp" autocomplete="off" inputmode="decimal" placeholder="Например, 100.64.10.77">
-        <button id="inspectButton" class="button primary" type="button">Проверить IP</button>
-      </div>
-      <div id="inspectResult" class="inspect-result empty">Введите IPv4-адрес. Никаких изменений конфигурации эта проверка не делает.</div>
-    </section>
+    <nav class="tabs" aria-label="Antiscan Manager sections">
+      <button class="tab active" type="button" data-tab="overview">Обзор</button>
+      <button class="tab" type="button" data-tab="inspect">Почему заблокирован?</button>
+      <button class="tab" type="button" data-tab="blocked">Блокировки</button>
+      <button class="tab" type="button" data-tab="lists">Списки и Geo</button>
+      <button class="tab" type="button" data-tab="protection">Защита</button>
+    </nav>
 
-    <div class="two-column">
+    <section class="tab-page active" data-page="overview">
+      <div class="two-column overview-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">RUNTIME</span>
+              <h2>Что сейчас работает</h2>
+              <p>Штатные runtime-сигналы Antiscan без изменения состояния.</p>
+            </div>
+            <span id="ipsetBinary" class="mono muted">ipset: —</span>
+          </div>
+          <div id="runtimeSummary" class="kv-grid"></div>
+        </section>
+
+        <section class="panel risk-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">FALSE POSITIVE RISK</span>
+              <h2>Мобильные сети и /24</h2>
+              <p>Проверяем сочетания настроек, которые могут случайно зацепить динамические адреса оператора.</p>
+            </div>
+          </div>
+          <div id="riskSummary" class="risk-summary"></div>
+        </section>
+      </div>
+
       <section class="panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">PROTECTION</span>
-            <h2>Активная политика</h2>
+            <span class="section-kicker">IPSET INVENTORY</span>
+            <h2>Состояние наборов</h2>
+            <p>Количество записей во всех известных Antiscan ipset.</p>
           </div>
         </div>
-        <div id="protection" class="kv-grid"></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Набор</th><th>Назначение</th><th>Состояние</th><th>Записей</th></tr></thead>
+            <tbody id="sets"></tbody>
+          </table>
+        </div>
       </section>
+    </section>
 
-      <section class="panel">
+    <section class="tab-page" data-page="inspect">
+      <section class="panel inspector-panel">
         <div class="panel-head">
           <div>
-            <span class="section-kicker">RISK SIGNALS</span>
-            <h2>Что стоит проверить</h2>
+            <span class="section-kicker">WHY BLOCKED?</span>
+            <h2>Почему заблокирован этот IP?</h2>
+            <p>Проверяем известные ascn_* sets в порядке приоритета правил Antiscan.</p>
           </div>
         </div>
-        <div id="warnings" class="warning-list"></div>
-      </section>
-    </div>
-
-    <section class="panel">
-      <div class="panel-head">
-        <div>
-          <span class="section-kicker">RUNTIME STATE</span>
-          <h2>Antiscan ipset</h2>
-          <p>Read-only inventory. Пустой/отсутствующий set не считается доказательством блокировки.</p>
+        <div class="inspect-form">
+          <input id="inspectIp" autocomplete="off" inputmode="decimal" spellcheck="false" placeholder="Например, 100.64.10.77">
+          <button id="inspectButton" class="button primary" type="button">Проверить IP</button>
         </div>
-        <span id="ipsetBinary" class="mono muted">ipset: —</span>
-      </div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Набор</th><th>Назначение</th><th>Состояние</th><th>Записей</th></tr></thead>
-          <tbody id="sets"></tbody>
-        </table>
+        <div id="inspectResult" class="inspect-result empty">Введите IPv4-адрес. Эта проверка ничего не меняет в Antiscan.</div>
+      </section>
+
+      <section class="panel mobile-help">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">MOBILE CASE</span>
+            <h2>Почему мобильный адрес может попасть под раздачу</h2>
+          </div>
+        </div>
+        <div class="explain-grid">
+          <article><strong>1</strong><span>Antiscan запоминает адреса-кандидаты.</span></article>
+          <article><strong>2</strong><span>Несколько адресов одной /24 могут накопиться за период хранения.</span></article>
+          <article><strong>3</strong><span>После порога вся /24 попадает в <span class="mono">ascn_subnets</span>.</span></article>
+          <article><strong>4</strong><span>Новый легитимный мобильный IP из этой /24 тоже оказывается заблокирован.</span></article>
+        </div>
+      </section>
+    </section>
+
+    <section class="tab-page" data-page="blocked">
+      <section class="panel set-browser-panel">
+        <div class="panel-head set-browser-head">
+          <div>
+            <span class="section-kicker">LIVE BLOCK STATE</span>
+            <h2>Блокировки и кандидаты</h2>
+            <p>Показываем реальные записи выбранного ipset. До 500 записей за запрос.</p>
+          </div>
+          <div class="browser-controls">
+            <select id="blockedSet" aria-label="Выберите Antiscan set">
+              <option value="ascn_ips">Прямые IP · ascn_ips</option>
+              <option value="ascn_subnets">Подсети /24 · ascn_subnets</option>
+              <option value="ascn_honeypot">Honeypot · ascn_honeypot</option>
+              <option value="ascn_ndm_lockout">Keenetic lockout · ascn_ndm_lockout</option>
+              <option value="ascn_candidates">Кандидаты · ascn_candidates</option>
+            </select>
+            <button id="reloadBlocked" class="button" type="button">Загрузить</button>
+          </div>
+        </div>
+        <div class="browser-toolbar">
+          <input id="blockedFilter" autocomplete="off" spellcheck="false" placeholder="Фильтр по IP или подсети">
+          <span id="blockedMeta" class="mono muted">—</span>
+        </div>
+        <div id="blockedEntries" class="entry-table empty-state">Выберите набор и загрузите текущее состояние.</div>
+      </section>
+    </section>
+
+    <section class="tab-page" data-page="lists">
+      <section class="panel set-browser-panel">
+        <div class="panel-head set-browser-head">
+          <div>
+            <span class="section-kicker">LISTS / GEO</span>
+            <h2>Пользовательские и Geo-наборы</h2>
+            <p>Read-only просмотр активных runtime ipset. Большие Geo-наборы ограничиваются первыми 500 записями.</p>
+          </div>
+          <div class="browser-controls">
+            <select id="listSet" aria-label="Выберите list set">
+              <option value="ascn_custom_exclude">Custom exclude</option>
+              <option value="ascn_custom_blacklist">Custom blacklist</option>
+              <option value="ascn_custom_whitelist">Custom whitelist</option>
+              <option value="ascn_geo_exclude">Geo exclude</option>
+              <option value="ascn_geo_blacklist">Geo blacklist</option>
+              <option value="ascn_geo_whitelist">Geo whitelist</option>
+            </select>
+            <button id="reloadList" class="button" type="button">Загрузить</button>
+          </div>
+        </div>
+        <div class="browser-toolbar">
+          <input id="listFilter" autocomplete="off" spellcheck="false" placeholder="Фильтр по IP или подсети">
+          <span id="listMeta" class="mono muted">—</span>
+        </div>
+        <div id="listEntries" class="entry-table empty-state">Выберите набор и загрузите текущее состояние.</div>
+      </section>
+    </section>
+
+    <section class="tab-page" data-page="protection">
+      <div class="two-column">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">PROTECTION</span>
+              <h2>Активная политика</h2>
+              <p>Значения прочитаны из <span class="mono">ascn.conf</span>.</p>
+            </div>
+          </div>
+          <div id="protection" class="kv-grid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">RISK SIGNALS</span>
+              <h2>Что стоит проверить</h2>
+              <p>Не приговор, а подсказки по потенциально агрессивным сочетаниям параметров.</p>
+            </div>
+          </div>
+          <div id="warnings" class="warning-list"></div>
+        </section>
       </div>
     </section>
 
-    <section class="panel compact-panel">
+    <section class="panel compact-panel boundary-panel">
       <div class="panel-head">
         <div>
           <span class="section-kicker">BOUNDARY</span>
-          <h2>P26A · Read-only foundation</h2>
+          <h2>P26B · Operational read-only workspace</h2>
         </div>
         <span class="state info">MUTATION API: NONE</span>
       </div>
-      <p class="boundary-copy">Модуль ничего не устанавливает, не редактирует <span class="mono">ascn.conf</span>, не очищает ipset и не перезапускает Antiscan. Управление появится отдельным guarded-этапом после read-only acceptance.</p>
+      <p class="boundary-copy">Можно смотреть статус, реальные блокировки, runtime-списки и причины. Нельзя снять бан, изменить <span class="mono">ascn.conf</span>, очистить ipset или перезапустить Antiscan — это будет отдельный guarded-этап.</p>
     </section>
   </main>
   <script type="module" src="app.js"></script>

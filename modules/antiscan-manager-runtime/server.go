@@ -88,6 +88,7 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 		writeJSON(w, status, result)
 	}))
 	mux.HandleFunc("/v1/custom-lists", getOnly(handleAntiscanCustomListRead(cfg)))
+	mux.HandleFunc("/v1/rci-token", getOnly(handleAntiscanRCITokenStatus(cfg)))
 	mux.HandleFunc("/v1/history", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		limit, err := parseAntiscanAuditLimit(r.URL.Query().Get("limit"))
 		if err != nil {
@@ -110,6 +111,7 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 	mux.HandleFunc("/v1/unban", mutationOnly(auditAntiscanMutation(cfg, "unban", handleAntiscanUnban(cfg))))
 	mux.HandleFunc("/v1/list-entry", mutationOnly(auditAntiscanMutation(cfg, "list-entry", handleAntiscanListEntry(cfg))))
 	mux.HandleFunc("/v1/custom-list", mutationOnly(auditAntiscanMutation(cfg, "custom-list", handleAntiscanCustomListMutation(cfg))))
+	mux.HandleFunc("/v1/rci-token-action", mutationOnly(auditAntiscanMutation(cfg, "rci-token", handleAntiscanRCITokenMutation(cfg))))
 	mux.HandleFunc("/v1/lifecycle", mutationOnly(auditAntiscanMutation(cfg, "lifecycle", handleAntiscanLifecycle(cfg))))
 	mux.HandleFunc("/v1/operation", mutationOnly(auditAntiscanMutation(cfg, "operation", handleAntiscanOperation(cfg))))
 	mux.HandleFunc("/v1/config", mutationOnly(auditAntiscanMutation(cfg, "config", handleAntiscanConfigApply(cfg))))

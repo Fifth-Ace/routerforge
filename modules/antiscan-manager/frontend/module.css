@@ -526,3 +526,13 @@ th,
 .diagnostic-main p{margin:0;color:var(--muted);font-size:var(--ui-xs,12px);line-height:1.45}
 .diagnostic-main small{display:block;color:var(--muted);font-size:var(--ui-micro,11.5px);line-height:1.4;overflow-wrap:anywhere}
 @media(max-width:650px){.diagnostics-head-actions{justify-content:flex-start}.diagnostic-title{align-items:flex-start}}
+/* P26I-D - RCI token manager without plaintext token exposure. */
+.rci-token-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,.9fr);gap:16px;align-items:center;padding:13px}
+.rci-token-copy{display:grid;gap:5px;min-width:0}
+.rci-token-copy strong{font-size:var(--ui-small,13px)}
+.rci-token-copy span{color:var(--muted);font-size:var(--ui-xs,12px);line-height:1.45}
+.rci-token-security{padding:8px 10px;border:1px solid var(--rf-accent-border,rgba(56,189,248,.30));border-radius:var(--rf-radius-control,5px);background:var(--accent-soft);color:var(--text)!important}
+.rci-token-controls{display:grid;grid-template-columns:minmax(180px,1fr) auto auto auto;gap:var(--control-gap-shell);align-items:center}
+.rci-token-controls input{min-width:0;width:100%}
+@media(max-width:980px){.rci-token-body{grid-template-columns:1fr}.rci-token-controls{grid-template-columns:minmax(0,1fr) auto auto auto}}
+@media(max-width:650px){.rci-token-controls{grid-template-columns:1fr}.rci-token-controls .button{width:100%}}

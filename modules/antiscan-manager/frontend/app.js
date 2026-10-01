@@ -208,6 +208,8 @@ let configBaseline = '';
 let configBaseSHA = '';
 let historyLoaded = false;
 let diagnosticsLoaded = false;
+let rciTokenLoaded = false;
+let rciTokenBusy = false;
 
 function api(path) {
   return fetch(`../${path}`, {
@@ -381,7 +383,27 @@ const exactMessageTranslations = {
   'unknown Antiscan ipset': 'Неизвестный набор ipset Antiscan.',
   'invalid IPv4 address': 'Некорректный IPv4-адрес.',
   'history limit must be between 1 and 100': 'Количество событий истории должно быть от 1 до 100.',
-  'invalid Antiscan history limit': 'Некорректный лимит истории Antiscan.'
+  'invalid Antiscan history limit': 'Некорректный лимит истории Antiscan.',
+  'invalid RCI token request': 'Некорректный запрос управления RCI-токеном.',
+  'RCI token action must be set, check or delete': 'Допустимы только установка, проверка или удаление RCI-токена.',
+  'confirm must equal SET_TOKEN': 'Не подтверждена установка RCI-токена.',
+  'confirm must equal CHECK_TOKEN': 'Не подтверждена проверка RCI-токена.',
+  'confirm must equal DELETE_TOKEN': 'Не подтверждено удаление RCI-токена.',
+  'RCI token must not be empty': 'RCI-токен не может быть пустым.',
+  'RCI token exceeds RouterForge safety limit': 'RCI-токен превышает безопасный лимит RouterForge.',
+  'RCI token must contain only ASCII letters and digits': 'RCI-токен может содержать только латинские буквы и цифры.',
+  'RCI token flow is not supported by this firmware': 'Эта прошивка не поддерживает token-flow Antiscan.',
+  'RCI token/key pair is incomplete': 'Комплект token/key Antiscan неполный.',
+  'RCI token check does not accept a token value': 'Для проверки используется уже сохранённый токен; новое значение передавать не нужно.',
+  'RCI token delete does not accept a token value': 'Для удаления значение токена передавать не нужно.',
+  'upstream RCI token check failed': 'Сохранённый RCI-токен не прошёл проверку Keenetic.',
+  'upstream RCI token set failed; previous encrypted token state was restored': 'Установить RCI-токен не удалось; прежнее зашифрованное состояние восстановлено.',
+  'RCI token set verification failed; previous encrypted token state was restored': 'Проверка сохранения RCI-токена не пройдена; прежнее зашифрованное состояние восстановлено.',
+  'RCI token validation failed; previous encrypted token state was restored': 'Новый RCI-токен не прошёл проверку; прежнее зашифрованное состояние восстановлено.',
+  'upstream RCI token delete failed; encrypted token files were restored': 'Удалить RCI-токен не удалось; зашифрованные token/key файлы восстановлены.',
+  'RCI token delete verification failed; encrypted token files were restored': 'Проверка удаления RCI-токена не пройдена; зашифрованные token/key файлы восстановлены.',
+  'RCI token/key files are already absent.': 'RCI token/key уже отсутствуют.',
+  'Antiscan stopped because this firmware requires RCI authentication after token deletion.': 'После удаления токена Antiscan остановлен: эта прошивка требует RCI-аутентификацию.'
 };
 
 const messageRules = [
@@ -762,6 +784,130 @@ async function loadDiagnostics() {
     $('diagnosticsChecks').textContent = 'Диагностика недоступна.';
   } finally {
     if (button) button.disabled = false;
+  }
+}
+function rciAuthLabel(state) {
+  return {
+    required: 'требуется',
+    not_required: 'не требуется',
+    unknown: 'ещё не определено'
+  }[state] || 'неизвестно';
+}
+
+function renderRCITokenStatus(payload) {
+  rciTokenLoaded = true;
+  const state = $('rciTokenState');
+  const summary = $('rciTokenSummary');
+  const meta = $('rciTokenMeta');
+  const setButton = $('setRCIToken');
+  const checkButton = $('checkRCIToken');
+  const deleteButton = $('deleteRCIToken');
+  if (!state || !summary || !meta) return;
+
+  const complete = Boolean(payload?.complete);
+  const supported = Boolean(payload?.supported);
+  const authState = payload?.auth_state || 'unknown';
+
+  state.className = 'state';
+  if (!supported) {
+    state.classList.add('neutral');
+    state.textContent = 'НЕ ПОДДЕРЖИВАЕТСЯ';
+    summary.textContent = 'Upstream отключил token-flow для этой версии прошивки.';
+  } else if (authState === 'required' && !complete) {
+    state.classList.add('bad');
+    state.textContent = 'НУЖЕН ТОКЕН';
+    summary.textContent = 'RCI требует токен, но комплект token/key Antiscan неполный.';
+  } else if (complete) {
+    state.classList.add('good');
+    state.textContent = 'НАСТРОЕН';
+    summary.textContent = authState === 'required'
+      ? 'RCI требует токен; зашифрованный token/key комплект Antiscan присутствует.'
+      : 'Зашифрованный token/key комплект Antiscan присутствует.';
+  } else if (authState === 'not_required') {
+    state.classList.add('info');
+    state.textContent = 'НЕ ТРЕБУЕТСЯ';
+    summary.textContent = 'Upstream cache сообщает, что этой прошивке RCI-токен сейчас не требуется.';
+  } else {
+    state.classList.add('warn');
+    state.textContent = 'НЕ ОПРЕДЕЛЕНО';
+    summary.textContent = 'Требование RCI ещё не закэшировано upstream.';
+  }
+
+  meta.textContent = `RCI: ${rciAuthLabel(authState)} · token ${payload?.token_present ? 'есть' : 'нет'} · key ${payload?.key_present ? 'есть' : 'нет'} · Antiscan ${payload?.running ? 'работает' : 'остановлен'}`;
+  setButton.disabled = rciTokenBusy || !supported;
+  checkButton.disabled = rciTokenBusy || !supported || !complete;
+  deleteButton.disabled = rciTokenBusy || (!payload?.token_present && !payload?.key_present);
+}
+
+async function loadRCITokenStatus() {
+  const button = $('reloadRCIToken');
+  if (button) button.disabled = true;
+  try {
+    const payload = await api('rci-token');
+    renderRCITokenStatus(payload);
+  } catch (error) {
+    rciTokenLoaded = true;
+    $('rciTokenState').className = 'state bad';
+    $('rciTokenState').textContent = 'ОШИБКА';
+    $('rciTokenSummary').textContent = localizeMessage(error.message || 'Не удалось прочитать состояние RCI-токена.');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function performRCITokenAction(action) {
+  const input = $('rciTokenInput');
+  let token = '';
+  let confirmValue = '';
+  let prompt = '';
+
+  if (action === 'set') {
+    token = input.value.trim();
+    if (!token) return;
+    if (!/^[A-Za-z0-9]+$/.test(token)) {
+      showMutationResult({ error: 'RCI token must contain only ASCII letters and digits' }, true, 'rci-token:set');
+      return;
+    }
+    confirmValue = 'SET_TOKEN';
+    prompt = 'Сохранить новый RCI-токен?\n\nТокен будет передан штатной команде Antiscan через stdin, проверен upstream и не попадёт в argv или журнал.';
+  } else if (action === 'check') {
+    confirmValue = 'CHECK_TOKEN';
+    prompt = 'Проверить сохранённый RCI-токен через штатную команду Antiscan?';
+  } else if (action === 'delete') {
+    confirmValue = 'DELETE_TOKEN';
+    prompt = 'Удалить RCI-токен Antiscan?\n\nЕсли прошивка требует RCI-аутентификацию, upstream может штатно остановить Antiscan после удаления.';
+  } else {
+    return;
+  }
+
+  if (!window.confirm(prompt)) return;
+
+  const body = { action, confirm: confirmValue };
+  if (action === 'set') body.token = token;
+  if (input) input.value = '';
+  token = '';
+
+  rciTokenBusy = true;
+  try {
+    const result = await mutate('rci-token-action', body);
+    showMutationResult(result, false, `rci-token:${action}`);
+    await loadRCITokenStatus();
+    await loadStatus();
+    if (diagnosticsLoaded) await loadDiagnostics();
+  } catch (error) {
+    showMutationResult(error.payload || { error: error.message }, true, `rci-token:${action}`);
+    await loadRCITokenStatus();
+    await loadStatus();
+  } finally {
+    rciTokenBusy = false;
+    if (rciTokenLoaded) {
+      try {
+        const payload = await api('rci-token');
+        renderRCITokenStatus(payload);
+      } catch (_) {
+        // Previous error state is already visible.
+      }
+    }
   }
 }
 function activateTab(name) {
@@ -1148,6 +1294,9 @@ function mutationSuccessMessage(context, payload) {
   if (context === 'lifecycle:stop') return 'Antiscan остановлен. Защита отключена до следующего запуска.';
   if (context === 'lifecycle:reload') return 'Antiscan перечитал конфигурацию, состояние проверено.';
   if (context === 'lifecycle:restart') return 'Antiscan штатно перезапущен, состояние проверено.';
+  if (context === 'rci-token:set') return 'RCI-токен сохранён и проверен штатной командой Antiscan.';
+  if (context === 'rci-token:check') return 'Сохранённый RCI-токен прошёл проверку Keenetic.';
+  if (context === 'rci-token:delete') return 'RCI-токен удалён, состояние проверено.';
   if (context.startsWith('operation:')) return 'Штатная сервисная команда Antiscan выполнена и проверена.';
   if (context === 'config') {
     return payload?.runtime_applied
@@ -1375,6 +1524,9 @@ function auditActionTitle(action) {
     'custom-list:delete': 'Удаление из пользовательского списка',
     'custom-list:clear': 'Очистка пользовательского списка',
     'custom-list:reload': 'Перечитывание пользовательского списка',
+    'rci-token:set': 'Установка RCI-токена',
+    'rci-token:check': 'Проверка RCI-токена',
+    'rci-token:delete': 'Удаление RCI-токена',
     'lifecycle:start': 'Запуск Antiscan',
     'lifecycle:stop': 'Остановка Antiscan',
     'lifecycle:reload': 'Перечитывание конфигурации',
@@ -1502,6 +1654,7 @@ document.querySelectorAll('.tab').forEach((button) => {
     if (button.dataset.tab === 'lists' && !browserState.customSource) loadCustomList();
     if (button.dataset.tab === 'history' && !historyLoaded) loadHistory();
     if (button.dataset.tab === 'diagnostics' && !diagnosticsLoaded) loadDiagnostics();
+    if (button.dataset.tab === 'diagnostics' && !rciTokenLoaded) loadRCITokenStatus();
   });
 });
 
@@ -1512,6 +1665,7 @@ $('refresh').addEventListener('click', async () => {
   if (browserState.customSource) await loadCustomList();
   if (historyLoaded) await loadHistory();
   if (diagnosticsLoaded) await loadDiagnostics();
+  if (rciTokenLoaded) await loadRCITokenStatus();
 });
 $('inspectButton').addEventListener('click', inspectIP);
 $('inspectIp').addEventListener('keydown', (event) => {
@@ -1540,6 +1694,13 @@ document.querySelectorAll('[data-operation]').forEach((button) => {
 });
 $('reloadHistory').addEventListener('click', loadHistory);
 $('reloadDiagnostics').addEventListener('click', loadDiagnostics);
+$('reloadRCIToken').addEventListener('click', loadRCITokenStatus);
+$('setRCIToken').addEventListener('click', () => performRCITokenAction('set'));
+$('checkRCIToken').addEventListener('click', () => performRCITokenAction('check'));
+$('deleteRCIToken').addEventListener('click', () => performRCITokenAction('delete'));
+$('rciTokenInput').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') performRCITokenAction('set');
+});
 $('configForm').addEventListener('submit', (event) => event.preventDefault());
 $('configForm').addEventListener('input', updateConfigEditorState);
 $('configForm').addEventListener('change', updateConfigEditorState);

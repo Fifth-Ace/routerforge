@@ -3,11 +3,11 @@
 [Русский](README.md) | **English**
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.10.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/beta-0.10.0--beta.5-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/badge/stable-0.11.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/beta-0.11.0--beta.1-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RouterForge 0.10.0** is a modular web platform purpose-built for **Keenetic / Netcraze routers with Entware**: monitoring, DNS, management, network diagnostics and maintenance in one interface.
+**RouterForge 0.11.0** is a modular web platform purpose-built for **Keenetic / Netcraze routers with Entware**: monitoring, DNS, management, network diagnostics and maintenance in one interface.
 
 RouterForge works directly with KeeneticOS/NDMS and Entware capabilities including `ndmc`, RCI, interfaces, routes, DNS, policy routing, processes and services. Users work through one Web UI on **`:2233`** while internal modules connect to Core through Unix sockets.
 
@@ -27,10 +27,10 @@ RouterForge works directly with KeeneticOS/NDMS and Entware capabilities includi
 - **Guarded operations.** Sensitive actions use constrained server-side contracts, path validation, confirmations and rollback where it actually matters.
 - **Verifiable release chain.** Stable is published from a validated exact SHA with multi-arch indexes, SHA256 checks and an immutable release snapshot.
 
-## RouterForge modules — Stable 0.10.0
+## RouterForge modules — Stable 0.11.0
 
 ### Core — one control point
-`routerforge-core` · **0.10.0**
+`routerforge-core` · **0.10.1**
 
 RouterForge itself: the shared Web UI, authentication, settings, App Center, Registry and the host for every other module.
 
@@ -81,6 +81,13 @@ Management for an existing `nfqws2-keenetic` runtime: profiles and lists, strate
 
 **Useful if:** you use nfqws2 and want more than manual config editing — diagnose a target, test strategies safely and apply a verified result through preview/verification/rollback.
 
+### Antiscan Manager — Antiscan management without shell marathons
+`routerforge-antiscan-manager` · **0.11.0**
+
+A separate module for an existing `dimon27254/antiscan` installation: status, diagnostics, configuration, ipsets, Custom Lists, lifecycle/operations, flush/recovery, RCI token, Scheduler and action history.
+
+**Useful if:** you run Antiscan and want to manage it from RouterForge. The manager does not install or update upstream Antiscan itself.
+
 ### Profiling — RouterForge internals
 `routerforge-profiling` · **0.10.0**
 
@@ -117,12 +124,16 @@ RouterForge Core
      │    ├── Route Inspector
      │    ├── Flow Explorer
      │    └── Active Probes
-     └── NFQWS Manager
-          ├── Diagnostics / AutoSelect
-          ├── Strategy Library / Import
-          ├── ClientHello
-          ├── DPI Detector
-          └── NFQWS Menu
+     ├── NFQWS Manager
+     │    ├── Diagnostics / AutoSelect
+     │    ├── Strategy Library / Import
+     │    ├── ClientHello
+     │    ├── DPI Detector
+     │    └── NFQWS Menu
+     └── Antiscan Manager
+          ├── Status / Diagnostics / Why blocked
+          ├── Config / Custom Lists / ipset
+          └── Guarded operations / Scheduler / Recovery
 ```
 
 `routerforge-profiling` is separate and loopback-only by default at `127.0.0.1:6061`.
@@ -172,7 +183,7 @@ Bugs and technical tasks can be filed in [GitHub Issues](https://github.com/Fift
 ## Documentation
 
 - [Documentation index](docs/README.md)
-- [Release Notes 0.10.0](docs/RELEASE_NOTES_0.10.0.md)
+- [Release Notes 0.11.0](docs/RELEASE_NOTES_0.11.0.md)
 - [Installation](docs/INSTALLATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Modules](docs/MODULES.md)

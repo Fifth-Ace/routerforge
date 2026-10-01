@@ -53,6 +53,7 @@ def release_asset_version(version):
 
 
 BETA_RELEASE_VERSION = re.compile(r"^(.+)-beta\.([0-9]+)$")
+BETA_COMPONENT_VERSION = re.compile(r"^.+~beta\.[0-9]+$")
 
 
 def validate_release_train(config, channel, components):
@@ -60,27 +61,30 @@ def validate_release_train(config, channel, components):
         return
 
     release_version = str(config.get("release_version", "")).strip()
-    match = BETA_RELEASE_VERSION.fullmatch(release_version)
-    if not match:
+    if not BETA_RELEASE_VERSION.fullmatch(release_version):
         raise SystemExit(
             "beta release_version %r must match <base>-beta.<n>" % release_version
         )
 
-    expected = "%s~beta.%s" % (match.group(1), match.group(2))
+    seen = set()
     for component in components:
-        cid = component.get("id")
+        cid = str(component.get("id", "")).strip()
         version = str(component.get("version", "")).strip()
-        if version != expected:
-            raise SystemExit(
-                "beta release train mismatch: %s version=%r, " % (cid, version)
-                + "expected %r from release_version=%r" % (expected, release_version)
-            )
-
         min_core = str(component.get("min_core_version", "")).strip()
-        if min_core and min_core != expected:
+
+        if not cid or cid in seen:
+            raise SystemExit("beta component id is missing or duplicated: %r" % cid)
+        seen.add(cid)
+
+        if not version:
+            raise SystemExit("beta component %s has no version" % cid)
+        if "~beta." in version and not BETA_COMPONENT_VERSION.fullmatch(version):
             raise SystemExit(
-                "beta release train mismatch: %s min_core_version=%r, " % (cid, min_core)
-                + "expected %r from release_version=%r" % (expected, release_version)
+                "beta component %s has malformed prerelease version %r" % (cid, version)
+            )
+        if min_core and "~beta." in min_core and not BETA_COMPONENT_VERSION.fullmatch(min_core):
+            raise SystemExit(
+                "beta component %s has malformed min_core_version %r" % (cid, min_core)
             )
 
 def parse_control_fields(raw):
@@ -203,6 +207,7 @@ def main():
             "monitoring",
             "network-tools",
             "nfqws-manager",
+            "antiscan-manager",
             "profiling",
         ]
     elif channel == "stable":
@@ -213,6 +218,7 @@ def main():
             "monitoring",
             "network-tools",
             "nfqws-manager",
+            "antiscan-manager",
             "profiling",
         ]
     else:

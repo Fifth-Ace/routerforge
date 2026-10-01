@@ -405,6 +405,7 @@ jobs:
             ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh dns 0.0.0-ci
             ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh monitoring 0.0.0-ci
             ROUTERFORGE_TARGET="$target" ./scripts/build-network-tools-opkg.sh 0.0.0-ci
+            ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh antiscan-manager 0.0.0-ci
             ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh profiling 0.0.0-ci
 
             for package in \
@@ -413,6 +414,7 @@ jobs:
               "dist/routerforge-dns_0.0.0-ci_${target}.ipk" \
               "dist/routerforge-monitoring_0.0.0-ci_${target}.ipk" \
               "dist/routerforge-network-tools_0.0.0-ci_${target}.ipk" \
+              "dist/routerforge-antiscan-manager_0.0.0-ci_${target}.ipk" \
               "dist/routerforge-profiling_0.0.0-ci_${target}.ipk"
             do
               test -s "$package"
@@ -566,6 +568,7 @@ jobs:
           dist/routerforge-admin_0.0.0-ci_aarch64-3.10.ipk
           dist/routerforge-monitoring_0.0.0-ci_aarch64-3.10.ipk
           dist/routerforge-network-tools_0.0.0-ci_aarch64-3.10.ipk
+          dist/routerforge-antiscan-manager_0.0.0-ci_aarch64-3.10.ipk
           dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk
           "
 
@@ -585,6 +588,9 @@ jobs:
           tar -xzOf dist/routerforge-monitoring_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/init.d/S92routerforge-monitoring'
           tar -xzOf dist/routerforge-network-tools_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-network-tools'
           tar -xzOf dist/routerforge-network-tools_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/init.d/S97routerforge-network-tools'
+          tar -xzOf dist/routerforge-antiscan-manager_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge-antiscan-manager'
+          tar -xzOf dist/routerforge-antiscan-manager_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/init.d/S98routerforge-antiscan-manager'
+          tar -xzOf dist/routerforge-antiscan-manager_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/share/routerforge/modules/antiscan-manager/ui/index.html'
           tar -xzOf dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/profiling.enabled'
       - name: Verify AArch64 production executables are UPX packed
         if: steps.scope.outputs.full_release == 'true'
@@ -627,6 +633,10 @@ jobs:
           verify_upx_payload \
             dist/routerforge-network-tools_0.0.0-ci_aarch64-3.10.ipk \
             routerforge-network-tools
+
+          verify_upx_payload \
+            dist/routerforge-antiscan-manager_0.0.0-ci_aarch64-3.10.ipk \
+            routerforge-antiscan-manager
       - name: Verify Core runtime version injection
         if: steps.scope.outputs.full_release == 'true'
         run: |
@@ -938,7 +948,7 @@ jobs:
 
           echo "Synthetic bootstrap preflight profiles: OK"
 
-      - name: Verify Beta release train consistency
+      - name: Verify independent Beta component versioning
         if: steps.scope.outputs.release == 'true'
         run: |
           python3 - <<'PY'
@@ -954,25 +964,39 @@ jobs:
 
           validate(config, config["channel"], config["components"])
 
+          versions = {item["id"]: item["version"] for item in config["components"]}
+          expected = {
+              "routerforge-core": "0.10.1~beta.1",
+              "dns": "0.10.0~beta.5",
+              "admin": "0.10.0~beta.5",
+              "monitoring": "0.10.0~beta.5",
+              "network-tools": "0.10.0~beta.5",
+              "nfqws-manager": "0.10.0~beta.5",
+              "antiscan-manager": "0.11.0~beta.1",
+              "profiling": "0.10.0~beta.5",
+          }
+          if versions != expected:
+              raise SystemExit(f"unexpected Beta component matrix: {versions!r}")
+
           bad = copy.deepcopy(config)
-          bad["components"][0]["version"] = "0.7.1~beta.999"
+          bad["release_version"] = "0.11.0-rc.1"
           try:
               validate(bad, bad["channel"], bad["components"])
           except SystemExit:
               pass
           else:
-              raise SystemExit("beta release train mismatch was not rejected")
+              raise SystemExit("invalid beta release_version was not rejected")
 
           bad = copy.deepcopy(config)
-          bad["components"][1]["min_core_version"] = "0.7.1~beta.999"
+          bad["components"][0]["version"] = "0.10.1~beta.bad"
           try:
               validate(bad, bad["channel"], bad["components"])
           except SystemExit:
               pass
           else:
-              raise SystemExit("beta min_core_version mismatch was not rejected")
+              raise SystemExit("malformed component prerelease was not rejected")
 
-          print("BETA_RELEASE_TRAIN_GUARD=PASS")
+          print("BETA_INDEPENDENT_VERSIONING_GUARD=PASS")
           PY
       - name: Build RouterForge beta channel
         if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true

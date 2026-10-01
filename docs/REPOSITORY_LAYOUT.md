@@ -11,8 +11,8 @@ modules/monitoring/frontend/      Monitoring UI
 modules/network-tools/            standalone Network Tools runtime/UI/packaging
 modules/nfqws-manager-runtime/    NFQWS Manager backend/runtime/packaging
 modules/nfqws-manager/frontend/   NFQWS Manager UI
-modules/antiscan-manager-runtime/ Antiscan Manager backend/runtime/packaging (Dev P26)
-modules/antiscan-manager/frontend/ Antiscan Manager UI (Dev P26)
+modules/antiscan-manager-runtime/ Antiscan Manager backend/runtime/packaging
+modules/antiscan-manager/frontend/ Antiscan Manager UI
 modules/profiling/packaging/      optional Core profiling lifecycle
 release/channels/                 dev/beta/stable release topology
 marketplace/                      public App Center registry sources/manifests
@@ -21,10 +21,10 @@ docs/                             active and historical documentation
 archive/                          explicitly archived historical material
 ```
 
-Stable 0.10.0 release topology contains seven packages: Core, DNS, Admin, Monitoring,
-Network Tools, NFQWS Manager and Profiling. Package versions remain independently governed;
-the 0.10 train synchronizes published package versions to 0.10.0 because the public Beta
-train already used 0.10.0~beta.x. See [VERSIONING.md](VERSIONING.md).
+Stable 0.11.0 release topology contains eight packages: Core, DNS, Admin, Monitoring,
+Network Tools, NFQWS Manager, Antiscan Manager and Profiling. Component versions are
+independent: Core is 0.10.1, Antiscan Manager is 0.11.0 and unchanged packages remain
+0.10.0. See [VERSIONING.md](VERSIONING.md).
 
 The legacy split source directories `modules/system`, `modules/thermal`, `modules/storage`,
 and `modules/network` are intentionally absent. Compatibility package names, legacy init-script
@@ -37,10 +37,9 @@ may expose read-only network telemetry, but active probes and diagnostic tools b
 `routerforge-nfqws-manager` owns RouterForge NFQWS management/diagnostics and the explicit
 DPI Detector / NFQWS Menu integrations. The upstream nfqws2 package remains a separate project.
 
-`routerforge-antiscan-manager` is a Dev-only P26 integration-manager for the independent
+`routerforge-antiscan-manager` is a first-class integration-manager for the independent
 `dimon27254/antiscan` project. It has its own runtime, Unix socket, API, UI and IPK; it is
-not part of Admin/Control and does not install or replace upstream Antiscan. Stable 0.10.0
-remains the seven-package topology described above.
+not part of Admin/Control and does not install, update or replace upstream Antiscan.
 
 `marketplace/` remains root-level for public compatibility paths; the embedded Registry mirror
 is CI-checked. Bundled manifests are the source of truth for integration metadata.

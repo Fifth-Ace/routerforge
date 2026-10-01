@@ -1,22 +1,23 @@
 # Установка и обновление RouterForge
 
-## Stable 0.10.0
+## Stable 0.11.0
 
 Текущий Stable train:
 
 ```text
-routerforge-core           0.10.0
-routerforge-dns            0.10.0   (min Core 0.10.0)
-routerforge-admin          0.10.0   (min Core 0.10.0)
-routerforge-monitoring     0.10.0   (min Core 0.10.0)
-routerforge-network-tools  0.10.0   (min Core 0.10.0)
-routerforge-nfqws-manager  0.10.0   (min Core 0.10.0)
-routerforge-profiling      0.10.0   (min Core 0.7.1)
+routerforge-core              0.10.1
+routerforge-dns               0.10.0   (min Core 0.10.0)
+routerforge-admin             0.10.0   (min Core 0.10.0)
+routerforge-monitoring        0.10.0   (min Core 0.10.0)
+routerforge-network-tools     0.10.0   (min Core 0.10.0)
+routerforge-nfqws-manager     0.10.0   (min Core 0.10.0)
+routerforge-antiscan-manager  0.11.0   (min Core 0.10.1)
+routerforge-profiling         0.10.0   (min Core 0.7.1)
 ```
 
-Компоненты версионируются независимо; см. [VERSIONING.md](VERSIONING.md). В train 0.10 package versions синхронизированы с `0.10.0`, потому что публичные prerelease-пакеты уже использовали `0.10.0~beta.x`.
+Компоненты версионируются независимо; см. [VERSIONING.md](VERSIONING.md). В Stable 0.11.0 изменены только Core (`0.10.1`) и новый Antiscan Manager (`0.11.0`); остальные package versions сохранены.
 
-Fresh bootstrap устанавливает Core. DNS, Management, Monitoring, Network Tools, NFQWS Manager и Profiling выбираются через **Центр приложений**.
+Fresh bootstrap устанавливает Core. DNS, Management, Monitoring, Network Tools, NFQWS Manager, Antiscan Manager и Profiling выбираются через **Центр приложений**.
 
 ## Targets
 
@@ -45,7 +46,7 @@ echo
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
 ```
 
-## Upgrade с Stable 0.9.1
+## Upgrade с Stable 0.10.0
 
 1. Запустите Stable bootstrap.
 2. Откройте **Центр приложений**.
@@ -55,14 +56,14 @@ echo
 
 Не удаляйте package-owned files вручную.
 
-Пользователи `0.10.0-beta.x` переходят на `0.10.0` как на обычный более новый Stable package train.
+Пользователи `0.11.0-beta.1` переходят на Stable 0.11.0 component-wise: Core `0.10.1~beta.1 → 0.10.1`, Antiscan Manager `0.11.0~beta.1 → 0.11.0`; unchanged packages не требуют косметической переустановки.
 
 ## Monitoring migration
 
 Исторический переход split System/Thermal/Storage/Network → `routerforge-monitoring`
 остаётся поддерживаемым migration contract.
 
-После Stable 0.10.0 ожидаемая версия consolidated package:
+В Stable 0.11.0 версия consolidated Monitoring package остаётся:
 
 ```sh
 ROUTERFORGE_MONITORING_EXPECTED_VERSION='0.10.0'   sh scripts/verify-monitoring-migration.sh runtime
@@ -103,6 +104,10 @@ Beta → `routerforge-beta` + Registry `dev`.
 `routerforge-nfqws-manager` управляет уже установленным `nfqws2-keenetic`: профили, списки, стратегии, диагностика, AutoSelect, ClientHello, DPI Detector и NFQWS Menu.
 
 Сам NFQWS Manager не устанавливает nfqws2 молча. Явные install/update операции `nfqws2-keenetic` и `nfqws-keenetic-web` доступны как отдельные проверенные App Center integrations.
+
+## Antiscan Manager
+
+`routerforge-antiscan-manager` управляет уже установленным `dimon27254/antiscan` и не устанавливает, не обновляет и не заменяет upstream Antiscan. Stable 0.11.0 package version — `0.11.0`, min Core — `0.10.1`.
 
 ## Management
 

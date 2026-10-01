@@ -103,6 +103,49 @@ PY
 
     sh -n "$TARGET_BOOTSTRAP"
 
+    ASSET_LIST="$SNAP/.${CHANNEL}-${target}-assets.tsv"
+    python3 - "$DST_INDEX" > "$ASSET_LIST" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as fh:
+    doc = json.load(fh)
+
+for item in doc.get("components", []):
+    asset = item.get("asset")
+    digest = str(item.get("sha256", "")).lower()
+    if not asset or len(digest) != 64:
+        raise SystemExit(f"{sys.argv[1]}: invalid component asset metadata")
+    print(f"{asset}\t{digest}")
+PY
+
+    tab="$(printf '\t')"
+    while IFS="$tab" read -r asset expected_sha; do
+        [ -n "$asset" ] || continue
+        source="$DIST/$asset"
+        actual_sha=""
+
+        if [ -f "$source" ]; then
+            actual_sha="$(sha256sum "$source" | awk '{print $1}')"
+        fi
+
+        if [ "$actual_sha" != "$expected_sha" ]; then
+            rm -f "$source"
+            gh release download "routerforge-$CHANNEL" \
+                -p "$asset" \
+                -D "$DIST" \
+                >/dev/null
+            actual_sha="$(sha256sum "$source" | awk '{print $1}')"
+        fi
+
+        [ "$actual_sha" = "$expected_sha" ] || {
+            echo "$asset: immutable snapshot digest mismatch" >&2
+            echo "expected: $expected_sha" >&2
+            echo "actual:   ${actual_sha:-<missing>}" >&2
+            exit 1
+        }
+    done < "$ASSET_LIST"
+
     python3 - "$DST_INDEX" "$DIST" "$SNAP" <<'PY'
 import json
 import shutil

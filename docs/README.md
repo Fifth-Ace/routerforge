@@ -1,10 +1,11 @@
 # RouterForge documentation
 
-Актуальная документация RouterForge **Stable 0.10.0** и текущей ветки Dev.
+Актуальная документация RouterForge **Stable 0.11.0** и текущей ветки Dev.
 Исторические release notes сохраняются как история и не переписываются под текущий релиз.
 
 ## Пользователю
-- [RELEASE_NOTES_0.10.0.md](RELEASE_NOTES_0.10.0.md) — полный патчноут Stable 0.10.0 относительно Stable 0.9.1.
+- [RELEASE_NOTES_0.11.0.md](RELEASE_NOTES_0.11.0.md) — патчноут Stable 0.11.0: Antiscan Manager и исправление статуса Keenetic Entware Extras / Geo Split.
+- [RELEASE_NOTES_0.10.0.md](RELEASE_NOTES_0.10.0.md) — предыдущий большой Stable train.
 - [VERSIONING.md](VERSIONING.md) — правила MAJOR/MINOR/PATCH и независимого versioning компонентов.
 - [INSTALLATION.md](INSTALLATION.md) — установка, обновление и channels.
 - [MODULES.md](MODULES.md) — актуальные пакеты и Module ABI boundaries.

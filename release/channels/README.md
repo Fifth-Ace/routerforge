@@ -6,7 +6,7 @@
 | Beta | exact `dev` FULL RELEASE | prerelease validation |
 | Stable | exact validated SHA on `main` | production |
 
-Current Stable: **0.10.0**.
+Current Stable: **0.11.0**.
 
 Current package set:
 
@@ -17,6 +17,7 @@ routerforge-admin
 routerforge-monitoring
 routerforge-network-tools
 routerforge-nfqws-manager
+routerforge-antiscan-manager
 routerforge-profiling
 ```
 

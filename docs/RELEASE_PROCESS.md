@@ -16,12 +16,14 @@ Pre-release ordering использует `~` в OPKG version, например:
 0.9.0~dev.rN.sha < 0.9.0~beta.N < 0.9.0
 ```
 
-Stable manifest может содержать разные версии компонентов. Beta release train,
-напротив, намеренно публикуется единым coherent prerelease train.
+Stable и Beta manifests могут содержать разные версии компонентов. Release-level version
+описывает RouterForge train, но не заставляет неизменённые package versions косметически
+двигаться вместе с ним.
 
-Начиная с `0.10.0-beta.2`, Beta topology включает семь пакетов:
-Core, DNS, Admin, Monitoring, Network Tools, NFQWS Manager и Profiling.
-Stable topology остаётся отдельным контрактом и не расширяется автоматически вместе с Beta.
+`0.11.0-beta.1` включает восемь пакетов. Меняются только Core
+(`0.10.1~beta.1`) и новый Antiscan Manager (`0.11.0~beta.1`); остальные шесть
+компонентов сохраняют ранее опубликованные `0.10.0~beta.5`. Stable 0.11.0
+аналогично сохраняет unchanged package versions `0.10.0`.
 
 ## Prep gate
 
@@ -55,8 +57,8 @@ gh workflow run ci.yml --ref dev -f full_release=true -f publish_beta=false
 7. Publish coherent rolling `routerforge-stable`.
 8. Create immutable `routerforge-v<stable-version>` without clobber.
 
-Stable 0.9.0 topology = 6 packages × 3 targets = 18 IPKs, with independent package versions:
-Core 0.9.0, DNS 0.8.1, Admin 0.8.1, Monitoring 0.8.0, Network Tools 0.9.0, Profiling 0.7.1.
+Stable 0.11.0 topology = 8 packages × 3 targets = 24 current IPKs. Only two package IDs change relative to Stable 0.10.0:
+Core 0.10.1 and new Antiscan Manager 0.11.0. DNS/Admin/Monitoring/Network Tools/NFQWS Manager/Profiling remain 0.10.0.
 
 Post-verify: exact run SHA, rolling/immutable assets, 3 indexes, SHA256SUMS, bootstraps,
 exact immutable tag target, main/dev exact SHA, Beta unchanged when `publish_beta=false`.

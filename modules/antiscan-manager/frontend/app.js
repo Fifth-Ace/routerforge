@@ -1,5 +1,63 @@
 const $ = (id) => document.getElementById(id);
 
+const routerForgeParams = new URLSearchParams(window.location.search);
+let routerForgeResizeObserver = null;
+let routerForgeHeightFrame = 0;
+
+function applyRouterForgeFrameSettings() {
+  const root = document.documentElement;
+  const colorPattern = /^#[0-9a-f]{6}$/i;
+  const colors = {
+    accent: '--rf-accent',
+    background: '--rf-bg',
+    text: '--rf-text'
+  };
+
+  Object.entries(colors).forEach(([key, variable]) => {
+    const value = routerForgeParams.get(key) || '';
+    if (colorPattern.test(value)) root.style.setProperty(variable, value);
+  });
+
+  const density = routerForgeParams.get('density');
+  if (density === 'compact' || density === 'normal') root.dataset.density = density;
+
+  const radius = routerForgeParams.get('radius');
+  if (radius === 'sharp' || radius === 'default' || radius === 'soft') {
+    root.dataset.radius = radius;
+    root.style.setProperty('--rf-radius', radius === 'sharp' ? '2px' : radius === 'soft' ? '12px' : '8px');
+  }
+
+  const theme = routerForgeParams.get('theme');
+  if (theme) root.dataset.theme = theme;
+}
+
+function reportRouterForgeModuleHeight() {
+  if (window.parent === window) return;
+  if (routerForgeHeightFrame) cancelAnimationFrame(routerForgeHeightFrame);
+  routerForgeHeightFrame = requestAnimationFrame(() => {
+    const workspace = document.querySelector('.as-page');
+    if (!workspace) return;
+    const height = Math.ceil(Math.max(workspace.scrollHeight, workspace.getBoundingClientRect().height, 360) + 2);
+    window.parent.postMessage({
+      type: 'routerforge-module-height',
+      moduleId: 'antiscan-manager',
+      height
+    }, window.location.origin);
+  });
+}
+
+function startRouterForgeBridge() {
+  applyRouterForgeFrameSettings();
+  reportRouterForgeModuleHeight();
+
+  const workspace = document.querySelector('.as-page');
+  if (workspace && 'ResizeObserver' in window) {
+    routerForgeResizeObserver = new ResizeObserver(reportRouterForgeModuleHeight);
+    routerForgeResizeObserver.observe(workspace);
+  }
+  window.addEventListener('resize', reportRouterForgeModuleHeight);
+}
+
 const setDescriptions = {
   ascn_candidates: 'Кандидаты для распределённой /24-защиты',
   ascn_ips: 'Прямые IP-блокировки',
@@ -1054,4 +1112,5 @@ document.addEventListener('click', (event) => {
   if (action === 'exclude') performListEntry('exclude', entry);
 });
 
+startRouterForgeBridge();
 loadStatus();

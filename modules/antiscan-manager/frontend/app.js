@@ -215,6 +215,9 @@ let schedulerBusy = false;
 let schedulerSnapshot = null;
 let schedulerBaseline = '';
 let schedulerDirty = false;
+let flushPreviewLoaded = false;
+let flushBusy = false;
+let flushPreview = null;
 
 function api(path) {
   return fetch(`../${path}`, {
@@ -417,7 +420,26 @@ const exactMessageTranslations = {
   'cron expression must contain exactly five fields': 'Cron-выражение должно состоять ровно из пяти полей.',
   'cron expression contains characters unsupported by upstream': 'Cron-выражение содержит символы, которые upstream Antiscan не принимает.',
   'retry_load_geo is managed automatically by upstream Antiscan and was preserved unchanged.': 'Автоматическая задача retry_load_geo сохранена без изменений.',
-  'scheduler verification failed; previous scheduler state was restored': 'Проверка расписания не пройдена; предыдущее состояние восстановлено.'
+  'scheduler verification failed; previous scheduler state was restored': 'Проверка расписания не пройдена; предыдущее состояние восстановлено.',
+  'invalid flush request': 'Некорректный запрос штатной очистки Antiscan.',
+  'flush target must be candidates, ips, subnets, custom_whitelist, custom_blacklist, custom_exclude, geo, ndm_lockout, honeypot or all': 'Выбрана неподдерживаемая цель очистки Antiscan.',
+  'flush confirmation does not match target': 'Подтверждение очистки не соответствует выбранной цели.',
+  'Antiscan must be running before flush': 'Для штатной очистки Antiscan должен быть запущен.',
+  'flush blocked because active custom whitelist with SAVE_IPSETS=0 could lock out access': 'Очистка активного пользовательского whitelist заблокирована: при SAVE_IPSETS=0 пустой whitelist может перекрыть доступ. Сначала отключите whitelist в настройках.',
+  'flush blocked because active Geo whitelist with SAVE_IPSETS=0 could lock out access': 'Очистка активного Geo whitelist заблокирована: при SAVE_IPSETS=0 пустой whitelist может перекрыть доступ. Сначала отключите Geo whitelist в настройках.',
+  'Dynamic protection sets can repopulate while Antiscan keeps running.': 'Динамические наборы могут снова наполниться, пока Antiscan продолжает работать.',
+  'Keenetic lockout entries can be imported again by read_ndm_ipsets.': 'Блокировки Keenetic могут снова импортироваться задачей read_ndm_ipsets.',
+  'This flush clears the upstream source file, not only the runtime ipset.': 'Эта очистка стирает штатный исходный файл списка, а не только runtime ipset.',
+  'Custom exclusion entries will be erased from the source file; removed exceptions may expose addresses to blocking rules.': 'Записи пользовательских исключений будут удалены из исходного файла; адреса могут снова попасть под блокирующие правила.',
+  'Geo flush removes downloaded Geo files and empties all three Geo runtime sets.': 'Geo-очистка удаляет скачанные Geo-файлы и очищает все три Geo runtime-набора.',
+  'The upstream all flush does not clear custom lists or ascn_geo_exclude.': 'Штатный flush без цели не очищает пользовательские списки и ascn_geo_exclude.',
+  'Geo files are removed because upstream all flush includes geo blacklist and whitelist sets.': 'Geo-файлы удаляются, потому что штатный общий flush включает Geo blacklist и whitelist.',
+  'Active custom whitelist protection will be removed by upstream; repopulate the list or change mode before restart.': 'Upstream снимет активную защиту custom whitelist. До перезапуска заполните список заново или смените режим.',
+  'Active Geo whitelist protection will be removed by upstream; reload Geo or change mode before restart.': 'Upstream снимет активную защиту Geo whitelist. До перезапуска загрузите Geo заново или смените режим.',
+  'Selected Antiscan sets were already empty; upstream flush completed and verification passed.': 'Выбранные наборы уже были пусты; штатная очистка выполнена и проверена.',
+  'upstream Antiscan flush command failed': 'Штатная команда очистки Antiscan завершилась ошибкой.',
+  'Antiscan stopped during flush': 'Во время очистки Antiscan неожиданно остановился.',
+  'upstream flush returned while an Antiscan reload lock is still present': 'Очистка завершилась, но Antiscan всё ещё держит lock-файл.'
 };
 
 const messageRules = [
@@ -1061,6 +1083,106 @@ async function applyScheduler() {
   }
 }
 
+const flushTargetLabels = {
+  candidates: 'Кандидаты',
+  ips: 'Прямые IP',
+  subnets: 'Подсети /24',
+  custom_whitelist: 'Пользовательский белый список',
+  custom_blacklist: 'Пользовательский чёрный список',
+  custom_exclude: 'Пользовательские исключения',
+  geo: 'Все Geo-наборы',
+  ndm_lockout: 'Блокировки Keenetic',
+  honeypot: 'Ловушка',
+  all: 'Upstream «все»'
+};
+
+function flushTargetLabel(target) {
+  return flushTargetLabels[target] || target || 'Наборы Antiscan';
+}
+
+function renderFlushPreview(payload) {
+  flushPreviewLoaded = true;
+  flushPreview = payload;
+  const state = $('flushState');
+  const meta = $('flushMeta');
+  const warnings = $('flushWarnings');
+  const button = $('flushSelected');
+  if (!state || !meta || !warnings || !button) return;
+
+  state.className = `state ${payload?.allowed ? 'warn' : 'bad'}`;
+  state.textContent = payload?.allowed ? 'ГОТОВО К ОЧИСТКЕ' : 'ЗАБЛОКИРОВАНО';
+  const sets = (payload?.affected_sets || []).map((item) => {
+    const count = item.count_known ? Number(item.count || 0) : '—';
+    return `${item.name}: ${count}`;
+  });
+  meta.textContent = `${flushTargetLabel(payload?.target)} · записей сейчас ${Number(payload?.before_entries || 0)} · ${sets.join(' · ') || 'наборы не найдены'}`;
+
+  const messages = [...localizeMessages(payload?.warnings || [])];
+  if (payload?.destructive_file) messages.unshift('Операция затрагивает сохранённые файлы upstream, а не только runtime.');
+  if (payload?.restart_required) messages.push('После этой очистки upstream требует восстановить данные и перезапустить Antiscan перед возвратом соответствующей защиты.');
+  if (payload?.block_reason) messages.unshift(localizeMessage(payload.block_reason));
+  warnings.innerHTML = messages.length
+    ? messages.map((item) => `<div class="warning-item"><span>⚠</span><p>${escapeHTML(item)}</p></div>`).join('')
+    : '<div class="empty-state">Дополнительных предупреждений для этой цели нет.</div>';
+  button.disabled = flushBusy || !payload?.allowed;
+}
+
+async function loadFlushPreview() {
+  const select = $('flushTarget');
+  const reload = $('reloadFlushPreview');
+  if (!select || !reload) return;
+  reload.disabled = true;
+  try {
+    const payload = await api(`flush-preview?target=${encodeURIComponent(select.value)}`);
+    renderFlushPreview(payload);
+  } catch (error) {
+    flushPreviewLoaded = true;
+    flushPreview = null;
+    $('flushState').className = 'state bad';
+    $('flushState').textContent = 'ОШИБКА';
+    $('flushMeta').textContent = localizeMessage(error.message || 'Не удалось построить preview очистки.');
+    $('flushWarnings').innerHTML = '';
+    $('flushSelected').disabled = true;
+  } finally {
+    reload.disabled = false;
+  }
+}
+
+async function performFlush() {
+  const target = $('flushTarget')?.value || '';
+  if (!flushPreview || flushPreview.target !== target || !flushPreview.allowed) return;
+  const warnings = localizeMessages(flushPreview.warnings || []);
+  const detail = [
+    `Цель: ${flushTargetLabel(target)}`,
+    `Записей сейчас: ${Number(flushPreview.before_entries || 0)}`,
+    flushPreview.destructive_file ? 'Будут изменены/удалены сохранённые файлы upstream.' : '',
+    ...warnings
+  ].filter(Boolean).join('\n');
+  if (!window.confirm(`Выполнить штатный Antiscan flush?\n\n${detail}\n\nОперация необратимо очищает выбранные данные.`)) return;
+
+  flushBusy = true;
+  $('flushSelected').disabled = true;
+  try {
+    const result = await mutate('flush', {
+      target,
+      confirm: flushPreview.confirm
+    });
+    showMutationResult(result, false, `flush:${target}`);
+    await loadFlushPreview();
+    await loadStatus();
+    if (browserState.blocked) await loadSet('blocked');
+    if (browserState.lists) await loadSet('lists');
+    if (browserState.customSource) await loadCustomList();
+    if (diagnosticsLoaded) await loadDiagnostics();
+  } catch (error) {
+    showMutationResult(error.payload || { error: error.message }, true, `flush:${target}`);
+    await loadFlushPreview();
+  } finally {
+    flushBusy = false;
+    if (flushPreview) $('flushSelected').disabled = !flushPreview.allowed;
+  }
+}
+
 function activateTab(name) {
   document.querySelectorAll('.tab').forEach((button) => {
     button.classList.toggle('active', button.dataset.tab === name);
@@ -1437,6 +1559,7 @@ function mutationSuccessMessage(context, payload) {
     if (context === 'lifecycle:start') return 'Antiscan уже запущен.';
     if (context === 'lifecycle:stop') return 'Antiscan уже остановлен.';
     if (context === 'schedule:apply') return 'ascn_crontab.conf уже совпадал с формой; активный crontab синхронизирован.';
+    if (context.startsWith('flush:')) return 'Выбранные данные уже были пусты; штатная очистка проверена.';
     if (context.startsWith('operation:')) return 'Команда не потребовалась: текущее состояние уже корректно.';
     return 'Состояние уже соответствовало запросу.';
   }
@@ -1450,6 +1573,7 @@ function mutationSuccessMessage(context, payload) {
   if (context === 'rci-token:check') return 'Сохранённый RCI-токен прошёл проверку Keenetic.';
   if (context === 'rci-token:delete') return 'RCI-токен удалён, состояние проверено.';
   if (context === 'schedule:apply') return 'Расписание Antiscan обновлено и синхронизировано с активным crontab.';
+  if (context.startsWith('flush:')) return 'Штатная очистка Antiscan выполнена, результат проверен.';
   if (context.startsWith('operation:')) return 'Штатная сервисная команда Antiscan выполнена и проверена.';
   if (context === 'config') {
     return payload?.runtime_applied
@@ -1474,7 +1598,9 @@ function showMutationResult(payload, failed = false, context = '') {
   }
   const messages = [mutationSuccessMessage(context, payload), ...warnings];
   if (payload?.restart_required) {
-    messages.push('Требуется остановить и снова запустить Antiscan, чтобы полностью применить новый IPSETS_DIRECTORY.');
+    messages.push(context.startsWith('flush:')
+      ? 'После штатной очистки восстановите нужные данные и перезапустите Antiscan перед возвратом соответствующей защиты.'
+      : 'Требуется остановить и снова запустить Antiscan, чтобы полностью применить новый IPSETS_DIRECTORY.');
   }
   notice.textContent = messages.filter(Boolean).join(' · ');
 }
@@ -1670,6 +1796,9 @@ async function performOperation(action, scope = '') {
 }
 
 function auditActionTitle(action) {
+  if (String(action || '').startsWith('flush:')) {
+    return `Очистка / восстановление: ${flushTargetLabel(String(action).slice(6))}`;
+  }
   return {
     unban: 'Снятие одной блокировки',
     'list-entry': 'Изменение пользовательского списка',
@@ -1804,6 +1933,7 @@ document.querySelectorAll('.tab').forEach((button) => {
   button.addEventListener('click', () => {
     activateTab(button.dataset.tab);
     if (button.dataset.tab === 'blocked' && !browserState.blocked) loadSet('blocked');
+    if (button.dataset.tab === 'blocked' && !flushPreviewLoaded) loadFlushPreview();
     if (button.dataset.tab === 'lists' && !browserState.lists) loadSet('lists');
     if (button.dataset.tab === 'lists' && !browserState.customSource) loadCustomList();
     if (button.dataset.tab === 'history' && !historyLoaded) loadHistory();
@@ -1816,6 +1946,7 @@ document.querySelectorAll('.tab').forEach((button) => {
 $('refresh').addEventListener('click', async () => {
   await loadStatus();
   if (browserState.blocked) await loadSet('blocked');
+  if (flushPreviewLoaded) await loadFlushPreview();
   if (browserState.lists) await loadSet('lists');
   if (browserState.customSource) await loadCustomList();
   if (historyLoaded) await loadHistory();
@@ -1833,6 +1964,9 @@ $('blockedSet').addEventListener('change', () => loadSet('blocked'));
 $('listSet').addEventListener('change', () => loadSet('lists'));
 $('blockedFilter').addEventListener('input', () => renderSetPage('blocked'));
 $('listFilter').addEventListener('input', () => renderSetPage('lists'));
+$('flushTarget').addEventListener('change', loadFlushPreview);
+$('reloadFlushPreview').addEventListener('click', loadFlushPreview);
+$('flushSelected').addEventListener('click', performFlush);
 $('customListName').addEventListener('change', loadCustomList);
 $('reloadCustomList').addEventListener('click', loadCustomList);
 $('addCustomListEntry').addEventListener('click', () => performCustomListMutation('add', $('customListEntry').value.trim()));

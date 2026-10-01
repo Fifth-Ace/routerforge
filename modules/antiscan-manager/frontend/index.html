@@ -251,6 +251,40 @@
         </div>
         <div id="blockedEntries" class="entry-table empty-state">Выберите набор и загрузите текущее состояние.</div>
       </section>
+
+      <section class="panel flush-panel">
+        <div class="panel-head set-browser-head">
+          <div>
+            <span class="section-kicker">ШТАТНАЯ ОЧИСТКА / ВОССТАНОВЛЕНИЕ</span>
+            <h2>Очистить набор Antiscan</h2>
+            <p>RouterForge вызывает только штатный <span class="mono">S99ascn flush</span>, заранее показывает затрагиваемые наборы и после операции проверяет фактическое состояние.</p>
+          </div>
+          <div class="browser-controls">
+            <select id="flushTarget" aria-label="Выберите набор для очистки">
+              <option value="ips">Прямые IP</option>
+              <option value="subnets">Подсети /24</option>
+              <option value="candidates">Кандидаты</option>
+              <option value="honeypot">Ловушка</option>
+              <option value="ndm_lockout">Блокировки Keenetic</option>
+              <option value="custom_blacklist">Пользовательский чёрный список</option>
+              <option value="custom_whitelist">Пользовательский белый список</option>
+              <option value="custom_exclude">Пользовательские исключения</option>
+              <option value="geo">Все Geo-наборы</option>
+              <option value="all">Upstream «все»</option>
+            </select>
+            <button id="reloadFlushPreview" class="button" type="button">↻ Проверить</button>
+          </div>
+        </div>
+        <div class="flush-summary">
+          <span id="flushState" class="state neutral">НЕ ЗАГРУЖЕНО</span>
+          <div id="flushMeta" class="diagnostics-meta mono muted">Выберите цель, чтобы увидеть точные последствия штатной команды flush.</div>
+        </div>
+        <div id="flushWarnings" class="warning-list"></div>
+        <div class="flush-actions">
+          <button id="flushSelected" class="button danger" type="button" disabled>Очистить выбранное</button>
+          <span class="muted">Для активных whitelist с опасной комбинацией настроек операция блокируется до изменения конфигурации.</span>
+        </div>
+      </section>
     </section>
 
     <section class="tab-page" data-page="lists">

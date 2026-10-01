@@ -1,19 +1,21 @@
 :root{
   color-scheme:dark;
   --bg:var(--rf-bg,#0b0d10);
-  --text:var(--rf-text,#f4f7fa);
-  --surface:color-mix(in srgb,var(--bg) 94%,var(--text));
-  --surface2:color-mix(in srgb,var(--bg) 90%,var(--text));
-  --surface3:color-mix(in srgb,var(--bg) 87%,var(--text));
-  --hover:color-mix(in srgb,var(--bg) 84%,var(--text));
-  --muted:color-mix(in srgb,var(--text) 58%,var(--bg));
-  --border:color-mix(in srgb,var(--text) 15%,var(--bg));
-  --border-strong:color-mix(in srgb,var(--text) 21%,var(--bg));
+  --surface:var(--rf-surface,#12151a);
+  --surface2:var(--rf-surface-2,#171b21);
+  --surface3:var(--rf-hover,#1d2229);
+  --hover:var(--rf-hover,#1d2229);
+  --text:var(--rf-text,#f5f7fa);
+  --muted:var(--rf-muted,#8d98a4);
+  --border:var(--rf-border,#29313a);
+  --border-strong:var(--rf-border-strong,#36414d);
   --accent:var(--rf-accent,#38bdf8);
-  --accent-soft:color-mix(in srgb,var(--accent) 10%,transparent);
-  --good:#34d399;--warn:#f0b65a;--bad:#fb7185;
+  --accent-soft:rgba(56,189,248,.10);
+  --good:#2ea043;--warn:#d29922;--bad:#f85149;
   --radius:var(--rf-radius,8px);
-  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-sans:'Inter','Segoe UI Variable Text','Segoe UI',sans-serif;
+  --font-mono:'Roboto Mono','Cascadia Mono',Consolas,monospace;
+  font-family:var(--font-sans);
 }
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:transparent;color:var(--text)}button,input,select{font:inherit}body{padding:0}
 .as-page{display:grid;gap:12px;padding:2px 0 18px}.mono{font-family:"Roboto Mono","Cascadia Mono",Consolas,monospace}.muted{color:var(--muted)}
@@ -51,76 +53,141 @@
 @media(max-width:980px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.two-column,.overview-grid{grid-template-columns:1fr}.explain-grid{grid-template-columns:1fr 1fr}.list-mutation{grid-template-columns:1fr 1fr}.list-mutation>div{grid-column:1/-1}}
 @media(max-width:650px){.hero{display:grid}.hero-actions{justify-content:flex-start}.metrics{grid-template-columns:1fr 1fr}.inspect-form{grid-template-columns:1fr}.evidence-row{grid-template-columns:1fr}.panel-head,.set-browser-head{align-items:flex-start;flex-direction:column}.browser-controls{width:100%;justify-content:flex-start}.browser-controls select{flex:1}.browser-toolbar{display:grid}.browser-toolbar input{max-width:none}.browser-toolbar span{text-align:left}.entry-row,.entry-row.has-actions{grid-template-columns:1fr;gap:3px}.entry-actions{margin-top:4px}.list-mutation{grid-template-columns:1fr}.list-mutation>div{grid-column:auto}.explain-grid{grid-template-columns:1fr}.risk-pairs{grid-template-columns:1fr}.history-toolbar,.history-row{display:grid}.history-side{justify-items:start}.history-flags{justify-content:flex-start}.tabs{scrollbar-width:thin}}
 
-/* P26G — canonical RouterForge workspace geometry and typography. */
-:root{
-  --rf-ui-panel-radius:8px;
-  --rf-ui-control-radius:6px;
-  --rf-ui-control-h:38px;
-  --rf-ui-panel-head-min:50px;
-  --rf-ui-row-min:42px;
-  --font-sans:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  --font-mono:ui-monospace,SFMono-Regular,"Cascadia Mono",Consolas,"Liberation Mono",monospace;
-}
+/* P26H — native RouterForge visual contract. */
 html,body{width:100%;min-width:0}
-body{font-family:var(--font-sans);font-size:12px;overflow-x:hidden}
-.as-page{width:100%;max-width:none;min-width:0;gap:14px;padding:10px 0 18px}
-.hero{padding:12px 2px 6px;gap:18px}
-.hero h1{margin:7px 0 4px;font-size:28px;line-height:1.08;font-weight:720;letter-spacing:-.025em}
-.hero p,.panel-head p{font-size:13px;line-height:1.45}
-.eyebrow,.section-kicker{font-family:var(--font-mono)}
-.mono,.state,.metric strong,.kv strong,.config-transaction-strip,.history-flag{font-family:var(--font-mono)}
-.button{min-height:var(--rf-ui-control-h);padding:7px 13px;border-radius:var(--rf-ui-control-radius);font-size:12px;line-height:1.2}
-.button.small{min-height:32px;padding:5px 9px;font-size:11px}
-input,select{min-height:var(--rf-ui-control-h);border-radius:var(--rf-ui-control-radius);font-size:12px}
-.tabs{gap:6px;padding:5px;border-radius:var(--rf-ui-panel-radius)}
-.tab{flex:1 0 150px;min-width:150px;min-height:40px;padding:10px 16px;border-radius:var(--rf-ui-control-radius);font-size:12px;font-weight:650;line-height:1.2;text-align:center}
-.tab.active{box-shadow:inset 0 -2px 0 var(--accent)}
-.panel,.metric{border-radius:var(--rf-ui-panel-radius)}
-.panel-head{min-height:var(--rf-ui-panel-head-min);padding:11px 14px}
-.panel-head h2{margin:4px 0 2px;font-size:13px;line-height:1.25}
-.compact-panel .panel-head{min-height:var(--rf-ui-panel-head-min)}
-.metric{min-height:104px;padding:14px 16px 12px}
-.metric span{font-size:11px}
-.metric strong{font-size:22px}
-.metric small{font-size:10px}
-.kv{min-height:var(--rf-ui-row-min);padding:9px 12px}
-.kv span,.kv strong{font-size:12px}
-.risk-verdict strong{font-size:13px}
-.risk-verdict p{font-size:12px}
-.risk-pairs span,.risk-pairs strong{font-size:11px}
-.inspect-result{font-size:12px}
-.evidence-row p,.warning-item p,.reason-explanation{font-size:12px}
-.entry-row{min-height:var(--rf-ui-row-min)}
-.entry-value{font-size:12px}
-.entry-meta{font-size:11px}
-.entry-meta-wrap small{font-size:10px}
-.lifecycle-copy strong,.config-apply-copy strong,.list-mutation>div strong{font-size:12px}
-.lifecycle-copy span,.config-apply-copy span{font-size:11px}
-.field>span{font-size:11px}
-.field small,.switch-field small{font-size:10px}
-.switch-field strong{font-size:11px}
-.config-grid,.two-column{gap:14px}
-.field-grid{gap:10px;padding:12px}
-.history-title strong{font-size:12px}
-.history-main p{font-size:11px}
-.history-main small,.history-side{font-size:10px}
-table{font-size:12px}
-th{font-size:10px;font-weight:650}
+body{font-family:var(--font-sans);font-size:13px;overflow-x:hidden}
+.as-page{width:100%;max-width:none;min-width:0;gap:12px;padding:2px 0 18px}
+
+.hero{min-height:48px;padding:0 2px 8px;gap:20px}
+.hero h1{margin:0;color:#fff;font-size:20px;line-height:1.2;font-weight:650;letter-spacing:0}
+.hero p,.panel-head p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.45}
+.hero-title-row{display:block}
+.hero-actions{padding-top:0}
+
+.eyebrow{display:none}
+.read-only-chip{display:none}
+
+.button{
+  min-height:30px;
+  padding:0 11px;
+  border:1px solid #303641;
+  border-radius:5px;
+  background:#1b1e24;
+  color:#d7dde4;
+  font-size:11px;
+  font-weight:500;
+  line-height:1.2
+}
+.button:hover{background:#232730;border-color:#424a56}
+.button.primary{color:var(--accent);border-color:rgba(56,189,248,.32);background:rgba(56,189,248,.08)}
+.button.small{min-height:30px;padding:0 8px;font-size:10px}
+input,select{min-height:30px;border-radius:5px;font-size:11px}
+
+.metrics{gap:12px}
+.metric{
+  min-height:104px;
+  padding:15px 16px;
+  border-radius:var(--radius);
+  background:var(--surface);
+  display:flex;
+  flex-direction:column;
+  justify-content:center
+}
+.metric span{font-size:10px}
+.metric strong{margin-top:6px;font:600 24px/1 var(--font-mono)}
+.metric small{margin-top:8px;font-size:10px}
+
+.tabs{
+  margin-bottom:2px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  padding:0;
+  overflow:visible;
+  border:0;
+  border-bottom:1px solid var(--border);
+  border-radius:0;
+  background:transparent
+}
+.tab{
+  flex:0 0 auto;
+  min-width:0;
+  min-height:34px;
+  padding:0 12px;
+  border:0;
+  border-bottom:2px solid transparent;
+  border-radius:0;
+  background:transparent;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:500
+}
+.tab:hover{color:var(--text);background:transparent}
+.tab.active{
+  color:var(--accent);
+  border-bottom-color:var(--accent);
+  background:transparent;
+  box-shadow:none
+}
+
+.panel,.metric{border-radius:var(--radius)}
+.panel-head{min-height:46px;padding:0 14px}
+.panel-head h2{margin:0;color:#fff;font-size:12px;line-height:1.25;font-weight:600}
+.panel-head p{margin-top:2px;font-size:9px}
+.section-kicker{font-size:9px}
+.compact-panel .panel-head{min-height:46px}
+
+.kv{min-height:42px;padding:9px 12px}
+.kv span{font-size:11px}
+.kv strong{font:600 11px/1.4 var(--font-mono)}
+
+.risk-verdict strong{font-size:12px}
+.risk-verdict p{font-size:11px}
+.risk-pairs span,.risk-pairs strong{font-size:10px}
+
+.inspect-result{font-size:11px}
+.evidence-row p,.warning-item p,.reason-explanation{font-size:11px}
+.entry-row{min-height:42px}
+.entry-value{font-size:11px}
+.entry-meta{font-size:10px}
+.entry-meta-wrap small{font-size:9px}
+
+.lifecycle-copy strong,.config-apply-copy strong,.list-mutation>div strong{font-size:11px}
+.lifecycle-copy span,.config-apply-copy span{font-size:10px}
+.field>span{font-size:10px}
+.field small,.switch-field small{font-size:9px}
+.switch-field strong{font-size:10px}
+.config-grid,.two-column{gap:12px}
+.field-grid{gap:9px;padding:11px}
+
+.history-title strong{font-size:11px}
+.history-main p{font-size:10px}
+.history-main small,.history-side{font-size:9px}
+table{font-size:11px}
+th{font-size:9px;font-weight:600}
 th,td{padding:9px 11px}
-.empty-state{font-size:12px}
-html[data-density="compact"] .as-page{gap:10px}
-html[data-density="compact"] .panel-head{padding-top:9px;padding-bottom:9px}
+.empty-state{font-size:11px}
+
+.mono,.state,.metric strong,.kv strong,.config-transaction-strip,.history-flag,
+.eyebrow,.section-kicker{font-family:var(--font-mono)}
+
+html[data-density="compact"] .as-page{gap:9px}
+html[data-density="compact"] .panel-head{min-height:42px}
+html[data-density="comfortable"] .as-page{gap:16px}
+html[data-density="comfortable"] .panel-head{min-height:52px}
+
 html[data-radius="sharp"] .panel,
-html[data-radius="sharp"] .metric,
-html[data-radius="sharp"] .tabs{border-radius:2px}
+html[data-radius="sharp"] .metric{border-radius:2px}
 html[data-radius="soft"] .panel,
-html[data-radius="soft"] .metric,
-html[data-radius="soft"] .tabs{border-radius:12px}
+html[data-radius="soft"] .metric{border-radius:12px}
+
 @media(max-width:980px){
-  .tab{flex:0 0 150px}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .two-column,.overview-grid,.config-grid{grid-template-columns:1fr}
 }
 @media(max-width:650px){
-  .as-page{padding-top:6px}
-  .hero{padding-top:8px}
-  .tab{flex:0 0 140px;min-width:140px}
+  .hero{display:grid}
+  .hero-actions{justify-content:flex-start}
+  .metrics{grid-template-columns:1fr 1fr}
+  .tab{padding:0 9px}
 }

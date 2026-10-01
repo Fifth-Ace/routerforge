@@ -63,10 +63,10 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 			"uptime_seconds": time.Since(started).Seconds(),
 		})
 	}))
-		mux.HandleFunc("/v1/diagnostics", getOnly(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/diagnostics", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, buildAntiscanDiagnostics(r.Context(), cfg))
 	}))
-mux.HandleFunc("/v1/status", getOnly(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/status", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, buildAntiscanSnapshot(r.Context(), cfg))
 	}))
 	mux.HandleFunc("/v1/inspect", getOnly(func(w http.ResponseWriter, r *http.Request) {

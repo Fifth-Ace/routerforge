@@ -344,8 +344,9 @@ func compareAntiscanVersionPart(left, right string) int {
 		if result := compareAntiscanNonDigits(leftNonDigit, rightNonDigit); result != 0 {
 			return result
 		}
-		leftDigits, left := takeAntiscanVersionRun(leftRest, true)
-		rightDigits, right := takeAntiscanVersionRun(rightRest, true)
+		var leftDigits, rightDigits string
+		leftDigits, left = takeAntiscanVersionRun(leftRest, true)
+		rightDigits, right = takeAntiscanVersionRun(rightRest, true)
 		if result := compareAntiscanDigits(leftDigits, rightDigits); result != 0 {
 			return result
 		}

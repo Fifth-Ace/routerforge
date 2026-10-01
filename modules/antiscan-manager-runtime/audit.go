@@ -154,6 +154,12 @@ func antiscanAuditRequestMetadata(route string, body []byte) (string, string) {
 	case "list-entry":
 		listName, entry := stringValue("list"), stringValue("entry")
 		target = strings.Trim(strings.Join([]string{listName, entry}, " · "), " ·")
+	case "custom-list":
+		if sub := strings.ToLower(stringValue("action")); sub != "" {
+			action = "custom-list:" + sub
+			listName, entry := stringValue("list"), stringValue("entry")
+			target = strings.Trim(strings.Join([]string{listName, entry}, " · "), " ·")
+		}
 	case "lifecycle":
 		if sub := strings.ToLower(stringValue("action")); sub != "" {
 			action = "lifecycle:" + sub
@@ -184,6 +190,9 @@ func antiscanAuditSuccessSummary(event antiscanAuditEvent) string {
 		"lifecycle:restart": "Antiscan перезапущен штатной командой upstream.",
 		"config":            "Транзакция ascn.conf завершена.",
 	}[event.Action]
+	if base == "" && strings.HasPrefix(event.Action, "custom-list:") {
+		base = "Пользовательский список Antiscan обновлён."
+	}
 	if base == "" && strings.HasPrefix(event.Action, "operation:") {
 		base = "Штатная сервисная операция Antiscan завершена."
 	}

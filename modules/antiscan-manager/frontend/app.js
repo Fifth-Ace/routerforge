@@ -194,12 +194,14 @@ const setDescriptions = {
 
 const browserState = {
   blocked: null,
-  lists: null
+  lists: null,
+  customSource: null
 };
 
 let snapshot = null;
 let lifecycleBusy = false;
 let operationBusy = false;
+let customListBusy = false;
 let configBusy = false;
 let configDirty = false;
 let configBaseline = '';
@@ -344,6 +346,21 @@ const exactMessageTranslations = {
   'IPSETS_DIRECTORY must resolve to an existing directory': 'IPSETS_DIRECTORY должен указывать на существующий каталог.',
   'SAVE_IPSETS is enabled but IPSETS_DIRECTORY is empty': 'SAVE_IPSETS включён, но IPSETS_DIRECTORY не задан.',
   'IPSETS_DIRECTORY is unavailable': 'Каталог IPSETS_DIRECTORY недоступен.',
+  'invalid custom-list request': 'Некорректный запрос изменения пользовательского списка.',
+  'custom list action must be add, delete, clear or reload': 'Допустимы только добавление, удаление, очистка или перечитывание пользовательского списка.',
+  'list must be blacklist, whitelist or exclude': 'Можно выбрать только чёрный список, белый список или исключения.',
+  'reload does not accept an entry': 'Для перечитывания списка адрес указывать не нужно.',
+  'clear does not accept an entry': 'Для очистки списка адрес указывать не нужно.',
+  'configured custom list cannot be emptied; disable it in ascn.conf before deleting the final entry': 'Нельзя удалить последнюю запись включённого списка. Сначала отключите этот список в ascn.conf.',
+  'configured custom list cannot be cleared; disable it in ascn.conf before clearing': 'Нельзя очистить включённый список. Сначала отключите его в ascn.conf.',
+  'custom list reload requires at least one valid entry': 'Активный список нельзя перечитать без единой корректной записи.',
+  'Custom list is not configured; there is nothing to reload.': 'Этот пользовательский список сейчас выключен — перечитывать runtime нечего.',
+  'Antiscan is stopped; reload was not executed.': 'Antiscan остановлен — перечитывание runtime не выполнялось.',
+  'Entry already exists in the custom list.': 'Такая запись уже есть в исходном пользовательском списке.',
+  'Entry was already absent from the custom list.': 'Этой записи уже нет в исходном пользовательском списке.',
+  'Antiscan is stopped; source file was updated without runtime reload.': 'Исходный файл обновлён, но Antiscan остановлен — runtime не перечитывался.',
+  'Custom list is not configured; source file was updated without runtime reload.': 'Исходный файл обновлён. Этот список сейчас выключен, поэтому runtime не перечитывался.',
+  'custom list file verification failed; original file was restored': 'Проверка исходного файла не пройдена; предыдущий файл восстановлен.',
   'Entry was already absent from the runtime set.': 'Этой записи уже нет в активном наборе.',
   'Entry already exists in the upstream custom list file.': 'Запись уже есть в пользовательском списке Antiscan.',
   'Entry is stored, but Antiscan is stopped; it will become effective when the matching list mode is loaded.': 'Запись сохранена. Antiscan остановлен, поэтому она начнёт действовать после следующего запуска соответствующего режима списка.',
@@ -378,6 +395,10 @@ const messageRules = [
   [/^(.+) supports at most 8 country codes$/, (m) => `${m[1]} поддерживает не более 8 кодов стран.`],
   [/^(.+) contains invalid country code "(.+)"$/, (m) => `${m[1]} содержит некорректный код страны ${m[2]}.`],
   [/^(.+) does not exist$/, (m) => `Набор ${m[1]} отсутствует.`],
+  [/^confirm must equal (ADD|DELETE|CLEAR|RELOAD)$/, (m) => `Для этой операции требуется подтверждение ${m[1]}.`],
+  [/^Ignored (\d+) invalid custom-list lines\.$/, (m) => `Пропущено некорректных строк исходного списка: ${m[1]}.`],
+  [/^runtime list state could not be verified: (.*)$/, (m) => `Не удалось проверить runtime-состояние списка: ${m[1]}`],
+  [/^custom-list verification failed: (.*)$/, (m) => `Проверка пользовательского списка не пройдена: ${m[1]}`],
   [/^upstream (start|stop|reload|restart) failed: (.*)$/, (m) => `Штатная команда Antiscan ${m[1]} завершилась ошибкой: ${m[2]}`],
   [/^upstream (.+) failed: (.*)$/, (m) => `Штатная операция Antiscan ${m[1]} завершилась ошибкой: ${m[2]}`],
   [/^start verification failed: \/tmp\/ascn\.run is absent$/, () => 'Проверка запуска не пройдена: /tmp/ascn.run не появился.'],
@@ -1182,6 +1203,108 @@ async function performListEntry(listName, entry) {
   }
 }
 
+function customListLabel(name) {
+  return {
+    blacklist: 'Чёрный список',
+    whitelist: 'Белый список',
+    exclude: 'Исключения'
+  }[name] || name || 'Пользовательский список';
+}
+
+function renderCustomList(page) {
+  browserState.customSource = page;
+  const target = $('customListEntries');
+  const meta = $('customListMeta');
+  const clearButton = $('clearCustomList');
+  const reloadRuntimeButton = $('reloadCustomListRuntime');
+  if (!target || !meta) return;
+
+  if (page?.error) {
+    target.className = 'entry-table empty-state bad-text';
+    target.textContent = localizeMessage(page.error);
+    meta.textContent = customListLabel(page.list);
+    return;
+  }
+
+  const state = page?.active ? 'активен' : page?.configured ? 'включён, Antiscan остановлен' : 'выключен';
+  const runtime = page?.active ? (page.runtime_exists ? 'runtime есть' : 'runtime отсутствует') : 'runtime не требуется';
+  const skipped = Number(page?.skipped_invalid || 0);
+  meta.textContent = `${customListLabel(page?.list)} · записей ${Number(page?.count || 0)} · ${state} · ${runtime}${skipped ? ` · пропущено строк ${skipped}` : ''}`;
+
+  if (clearButton) {
+    clearButton.disabled = customListBusy || Boolean(page?.configured) || Number(page?.count || 0) === 0;
+    clearButton.title = page?.configured ? 'Сначала отключите список в ascn.conf.' : '';
+  }
+  if (reloadRuntimeButton) {
+    reloadRuntimeButton.disabled = customListBusy || !page?.configured || !page?.running || Number(page?.count || 0) === 0;
+  }
+
+  const entries = page?.entries || [];
+  if (!entries.length) {
+    target.className = 'entry-table empty-state';
+    target.textContent = 'В исходном файле нет корректных IPv4/CIDR записей.';
+    return;
+  }
+
+  target.className = 'entry-table';
+  target.innerHTML = entries.map((entry) => {
+    const finalConfiguredEntry = Boolean(page?.configured) && entries.length === 1;
+    return `<div class="entry-row has-actions">
+      <span class="mono entry-value">${escapeHTML(entry)}</span>
+      <span class="entry-meta-wrap"><span class="entry-meta">исходный файл ${escapeHTML(page?.set || '')}</span><small>${page?.active ? 'Изменение будет применено через штатный update_ipsets custom.' : 'Изменение затронет только исходный файл.'}</small></span>
+      <span class="entry-actions"><button class="button small danger" type="button" data-custom-delete="${escapeHTML(entry)}" ${finalConfiguredEntry ? 'disabled title="Сначала отключите список в ascn.conf."' : ''}>Удалить</button></span>
+    </div>`;
+  }).join('');
+}
+
+async function loadCustomList() {
+  const select = $('customListName');
+  const button = $('reloadCustomList');
+  if (!select || !button) return;
+  button.disabled = true;
+  try {
+    const page = await api(`custom-lists?list=${encodeURIComponent(select.value)}`);
+    renderCustomList(page);
+  } catch (error) {
+    renderCustomList({ list: select.value, error: error.message || 'Не удалось прочитать исходный пользовательский список.' });
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function performCustomListMutation(action, entry = '') {
+  const list = $('customListName')?.value || '';
+  const prompts = {
+    add: `Добавить запись в ${customListLabel(list)}?\n\n${entry}\n\nФайл будет изменён атомарно. Если список активен, Antiscan штатно перечитает custom ipset и RouterForge проверит результат.`,
+    delete: `Удалить запись из ${customListLabel(list)}?\n\n${entry}\n\nЕсли список активен, Antiscan перечитает custom ipset и RouterForge проверит удаление.`,
+    clear: `Очистить все адреса из ${customListLabel(list)}?\n\nКомментарии сохранятся. Очистка разрешена только для списка, отключённого в ascn.conf.`,
+    reload: `Перечитать ${customListLabel(list)} из исходного файла?\n\nБудет вызван штатный update_ipsets custom и проверен runtime ipset.`
+  };
+  if (!prompts[action]) return;
+  if ((action === 'add' || action === 'delete') && !entry) return;
+  if (!window.confirm(prompts[action])) return;
+
+  customListBusy = true;
+  try {
+    const result = await mutate('custom-list', {
+      action,
+      list,
+      entry: action === 'add' || action === 'delete' ? entry : '',
+      confirm: action.toUpperCase()
+    });
+    showMutationResult(result, false, `custom-list:${action}`);
+    if (action === 'add') $('customListEntry').value = '';
+    await loadCustomList();
+    await loadStatus();
+    if (browserState.lists) await loadSet('lists');
+  } catch (error) {
+    showMutationResult(error.payload || { error: error.message }, true, `custom-list:${action}`);
+    await loadCustomList();
+  } finally {
+    customListBusy = false;
+  }
+}
+
 async function performLifecycle(action) {
   const prompts = {
     start: 'Запустить Antiscan?\n\nБудут созданы штатные наборы ipset и правила фильтрации Antiscan.',
@@ -1248,6 +1371,10 @@ function auditActionTitle(action) {
   return {
     unban: 'Снятие одной блокировки',
     'list-entry': 'Изменение пользовательского списка',
+    'custom-list:add': 'Добавление в пользовательский список',
+    'custom-list:delete': 'Удаление из пользовательского списка',
+    'custom-list:clear': 'Очистка пользовательского списка',
+    'custom-list:reload': 'Перечитывание пользовательского списка',
     'lifecycle:start': 'Запуск Antiscan',
     'lifecycle:stop': 'Остановка Antiscan',
     'lifecycle:reload': 'Перечитывание конфигурации',
@@ -1372,6 +1499,7 @@ document.querySelectorAll('.tab').forEach((button) => {
     activateTab(button.dataset.tab);
     if (button.dataset.tab === 'blocked' && !browserState.blocked) loadSet('blocked');
     if (button.dataset.tab === 'lists' && !browserState.lists) loadSet('lists');
+    if (button.dataset.tab === 'lists' && !browserState.customSource) loadCustomList();
     if (button.dataset.tab === 'history' && !historyLoaded) loadHistory();
     if (button.dataset.tab === 'diagnostics' && !diagnosticsLoaded) loadDiagnostics();
   });
@@ -1381,6 +1509,7 @@ $('refresh').addEventListener('click', async () => {
   await loadStatus();
   if (browserState.blocked) await loadSet('blocked');
   if (browserState.lists) await loadSet('lists');
+  if (browserState.customSource) await loadCustomList();
   if (historyLoaded) await loadHistory();
   if (diagnosticsLoaded) await loadDiagnostics();
 });
@@ -1394,6 +1523,14 @@ $('blockedSet').addEventListener('change', () => loadSet('blocked'));
 $('listSet').addEventListener('change', () => loadSet('lists'));
 $('blockedFilter').addEventListener('input', () => renderSetPage('blocked'));
 $('listFilter').addEventListener('input', () => renderSetPage('lists'));
+$('customListName').addEventListener('change', loadCustomList);
+$('reloadCustomList').addEventListener('click', loadCustomList);
+$('addCustomListEntry').addEventListener('click', () => performCustomListMutation('add', $('customListEntry').value.trim()));
+$('customListEntry').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') performCustomListMutation('add', $('customListEntry').value.trim());
+});
+$('reloadCustomListRuntime').addEventListener('click', () => performCustomListMutation('reload'));
+$('clearCustomList').addEventListener('click', () => performCustomListMutation('clear'));
 $('startAntiscan').addEventListener('click', () => performLifecycle('start'));
 $('reloadAntiscan').addEventListener('click', () => performLifecycle('reload'));
 $('restartAntiscan').addEventListener('click', () => performLifecycle('restart'));
@@ -1411,11 +1548,12 @@ $('resetConfig').addEventListener('click', () => {
   populateConfigEditor(true);
 });
 $('applyConfig').addEventListener('click', applyConfigEditor);
-$('addListEntry').addEventListener('click', () => performListEntry($('listAction').value, $('listActionEntry').value.trim()));
-$('listActionEntry').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') performListEntry($('listAction').value, $('listActionEntry').value.trim());
-});
 document.addEventListener('click', (event) => {
+  const customDelete = event.target.closest('[data-custom-delete]');
+  if (customDelete) {
+    performCustomListMutation('delete', customDelete.dataset.customDelete || '');
+    return;
+  }
   const button = event.target.closest('[data-action]');
   if (!button) return;
   const action = button.dataset.action;

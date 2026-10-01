@@ -66,17 +66,17 @@ func TestAntiscanUIRoutesServeAssetsWithoutRedirect(t *testing.T) {
 	}
 }
 
-func TestAntiscanUIRoutesRejectTraversal(t *testing.T) {
+func TestAntiscanUIRoutesRejectEncodedTraversal(t *testing.T) {
 	uiDir := t.TempDir()
 	mux := http.NewServeMux()
 	registerUIRoutes(mux, uiDir)
 
-	request := httptest.NewRequest(http.MethodGet, "/v1/ui/../secret", nil)
+	request := httptest.NewRequest(http.MethodGet, "/v1/ui/%2e%2e/secret", nil)
 	response := httptest.NewRecorder()
 	mux.ServeHTTP(response, request)
 
 	if response.Code != http.StatusNotFound {
-		t.Fatalf("status=%d want=%d", response.Code, http.StatusNotFound)
+		t.Fatalf("status=%d want=%d location=%q", response.Code, http.StatusNotFound, response.Header().Get("Location"))
 	}
 }
 

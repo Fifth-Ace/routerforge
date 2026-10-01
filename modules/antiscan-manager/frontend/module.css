@@ -513,3 +513,16 @@ th,
   .lifecycle-body,
   .config-apply-panel{padding-top:10px;padding-bottom:10px}
 }
+
+/* P26I-A - read-only Antiscan environment diagnostics. */
+.diagnostics-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.diagnostics-meta{min-height:40px;padding:10px 13px;display:flex;align-items:center;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface) 82%,var(--bg));font-size:var(--ui-micro,11.5px)}
+.diagnostics-list{display:grid}
+.diagnostic-row{min-height:62px;padding:11px 13px;border-bottom:1px solid var(--border);background:var(--surface)}
+.diagnostic-row:last-child{border-bottom:0}
+.diagnostic-main{display:grid;gap:5px;min-width:0}
+.diagnostic-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.diagnostic-title strong{font-size:var(--ui-xs,12px);font-weight:600}
+.diagnostic-main p{margin:0;color:var(--muted);font-size:var(--ui-xs,12px);line-height:1.45}
+.diagnostic-main small{display:block;color:var(--muted);font-size:var(--ui-micro,11.5px);line-height:1.4;overflow-wrap:anywhere}
+@media(max-width:650px){.diagnostics-head-actions{justify-content:flex-start}.diagnostic-title{align-items:flex-start}}

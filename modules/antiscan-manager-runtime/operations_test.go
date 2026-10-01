@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -107,9 +108,15 @@ func fakeAntiscanOperationConfig(t *testing.T) runtimeConfig {
 	if err := os.MkdirAll(antiscanDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(antiscanDir, "ascn.conf"), []byte(antiscanDefaultConfigFixture), 0644); err != nil {
+
+	fixture := strings.Replace(antiscanDefaultConfigFixture, `ENABLE_IPS_BAN="1"`, `ENABLE_IPS_BAN="0"`, 1)
+	if fixture == antiscanDefaultConfigFixture {
+		t.Fatal("test fixture did not disable ENABLE_IPS_BAN")
+	}
+	if err := os.WriteFile(filepath.Join(antiscanDir, "ascn.conf"), []byte(fixture), 0644); err != nil {
 		t.Fatal(err)
 	}
+
 	scriptPath := filepath.Join(dir, "S99ascn")
 	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
 		t.Fatal(err)

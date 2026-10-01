@@ -17,6 +17,7 @@ type runtimeConfig struct {
 	StatusFile     string
 	ConfigLockFile string
 	GeoLockFile    string
+	AuditLog       string
 }
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 	statusFile := flag.String("antiscan-status", "/tmp/ascn.run", "Antiscan runtime marker")
 	configLock := flag.String("antiscan-config-lock", "/tmp/ascn.lock", "Antiscan config reload marker")
 	geoLock := flag.String("antiscan-geo-lock", "/tmp/ascn_geo.lock", "Antiscan geo reload marker")
+	auditLog := flag.String("audit-log", "/opt/var/log/routerforge/antiscan-manager.jsonl", "Bounded Antiscan Manager audit log")
 	flag.Parse()
 
 	cfg := runtimeConfig{
@@ -37,8 +39,9 @@ func main() {
 		StatusFile:     strings.TrimSpace(*statusFile),
 		ConfigLockFile: strings.TrimSpace(*configLock),
 		GeoLockFile:    strings.TrimSpace(*geoLock),
+		AuditLog:       strings.TrimSpace(*auditLog),
 	}
-	if cfg.Socket == "" || cfg.UIPath == "" || cfg.AntiscanDir == "" || cfg.InitScript == "" || cfg.StatusFile == "" {
+	if cfg.Socket == "" || cfg.UIPath == "" || cfg.AntiscanDir == "" || cfg.InitScript == "" || cfg.StatusFile == "" || cfg.AuditLog == "" {
 		fmt.Fprintln(os.Stderr, "antiscan-manager: socket, ui and Antiscan paths are required")
 		os.Exit(2)
 	}

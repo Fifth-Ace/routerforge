@@ -84,10 +84,29 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 		result, status := browseAntiscanSet(r.Context(), cfg, name, limit)
 		writeJSON(w, status, result)
 	}))
-	mux.HandleFunc("/v1/unban", mutationOnly(handleAntiscanUnban(cfg)))
-	mux.HandleFunc("/v1/list-entry", mutationOnly(handleAntiscanListEntry(cfg)))
-	mux.HandleFunc("/v1/lifecycle", mutationOnly(handleAntiscanLifecycle(cfg)))
-	mux.HandleFunc("/v1/config", mutationOnly(handleAntiscanConfigApply(cfg)))
+	mux.HandleFunc("/v1/history", getOnly(func(w http.ResponseWriter, r *http.Request) {
+		limit, err := parseAntiscanAuditLimit(r.URL.Query().Get("limit"))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"error":        err.Error(),
+				"mutation_api": false,
+			})
+			return
+		}
+		page, err := readAntiscanAudit(cfg, limit)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{
+				"error":        err.Error(),
+				"mutation_api": false,
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, page)
+	}))
+	mux.HandleFunc("/v1/unban", mutationOnly(auditAntiscanMutation(cfg, "unban", handleAntiscanUnban(cfg))))
+	mux.HandleFunc("/v1/list-entry", mutationOnly(auditAntiscanMutation(cfg, "list-entry", handleAntiscanListEntry(cfg))))
+	mux.HandleFunc("/v1/lifecycle", mutationOnly(auditAntiscanMutation(cfg, "lifecycle", handleAntiscanLifecycle(cfg))))
+	mux.HandleFunc("/v1/config", mutationOnly(auditAntiscanMutation(cfg, "config", handleAntiscanConfigApply(cfg))))
 	registerUIRoutes(mux, cfg.UIPath)
 
 	server := &http.Server{

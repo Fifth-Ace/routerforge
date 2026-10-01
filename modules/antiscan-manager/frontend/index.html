@@ -15,7 +15,7 @@
           <h1>Antiscan Manager</h1>
           <span class="read-only-chip guarded">GUARDED CONTROL</span>
         </div>
-        <p>Диагностика, guarded-control, штатный lifecycle и транзакционная настройка ascn.conf без raw shell-редактора.</p>
+        <p>Диагностика и guarded-control Antiscan с транзакционным конфигом, объяснениями runtime-состояния и bounded audit history.</p>
       </div>
       <div class="hero-actions">
         <span id="targetState" class="state neutral">ПРОВЕРКА…</span>
@@ -40,6 +40,7 @@
       <button class="tab" type="button" data-tab="lists">Списки и Geo</button>
       <button class="tab" type="button" data-tab="protection">Защита</button>
       <button class="tab" type="button" data-tab="config">Настройки</button>
+      <button class="tab" type="button" data-tab="history">История</button>
     </nav>
 
     <section class="tab-page active" data-page="overview">
@@ -322,15 +323,43 @@
       </form>
     </section>
 
+    <section class="tab-page" data-page="history">
+      <section class="panel history-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">OPERATION HISTORY</span>
+            <h2>Последние guarded-действия</h2>
+            <p>Bounded persistent audit: действие, результат, target, rollback/restart-required и длительность. Содержимое формы ascn.conf в журнал не пишется.</p>
+          </div>
+          <button id="reloadHistory" class="button" type="button">↻ Обновить историю</button>
+        </div>
+        <div class="history-toolbar">
+          <span id="historyMeta" class="mono muted">История ещё не загружена.</span>
+          <span class="state good">JSONL · 0600 · bounded</span>
+        </div>
+        <div id="historyEntries" class="history-list empty-state">Откройте вкладку, чтобы загрузить последние события.</div>
+      </section>
+
+      <section class="panel compact-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">AUDIT BOUNDARY</span>
+            <h2>Что попадает в историю</h2>
+          </div>
+        </div>
+        <p class="boundary-copy">Журнал хранит только тип операции, безопасный target, HTTP-result, duration, changed/verified, rollback/restart-required и короткие warnings. Полный request body, значения конфигурации и confirm-токены не сохраняются.</p>
+      </section>
+    </section>
+
     <section class="panel compact-panel boundary-panel">
       <div class="panel-head">
         <div>
           <span class="section-kicker">BOUNDARY</span>
-          <h2>P26C3 · Transactional configuration</h2>
+          <h2>P26D · Operational polish</h2>
         </div>
         <span class="state good">MUTATION API: GUARDED</span>
       </div>
-      <p class="boundary-copy">Разрешены single-entry control, guarded <span class="mono">start/stop/reload</span> и структурированная транзакционная настройка <span class="mono">ascn.conf</span>. Raw shell-текст, массовый flush и restart по-прежнему не экспонируются.</p>
+      <p class="boundary-copy">P26 Dev-функционал завершён: диагностика, Why blocked, live sets, single-entry control, guarded lifecycle, transactional config и bounded operational history. Raw shell-текст, массовый flush и restart не экспонируются.</p>
     </section>
   </main>
   <script type="module" src="app.js"></script>

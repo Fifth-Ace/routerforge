@@ -536,3 +536,20 @@ th,
 .rci-token-controls input{min-width:0;width:100%}
 @media(max-width:980px){.rci-token-body{grid-template-columns:1fr}.rci-token-controls{grid-template-columns:minmax(0,1fr) auto auto auto}}
 @media(max-width:650px){.rci-token-controls{grid-template-columns:1fr}.rci-token-controls .button{width:100%}}
+/* P26I-E - pinned Antiscan scheduler editor. */
+.scheduler-panel{display:grid;gap:14px}
+.scheduler-list{display:grid;border:1px solid var(--border);border-radius:var(--rf-radius-card,var(--rf-radius,8px));overflow:hidden;background:var(--surface)}
+.scheduler-row{display:grid;grid-template-columns:minmax(210px,.9fr) minmax(260px,1.35fr) auto;gap:14px;align-items:center;padding:12px 13px;border-bottom:1px solid var(--border)}
+.scheduler-row:last-child{border-bottom:0}
+.scheduler-toggle{display:flex;align-items:center;gap:10px;min-width:0}
+.scheduler-toggle input{width:16px;height:16px;margin:0}
+.scheduler-toggle span,.scheduler-expression-wrap{display:grid;gap:3px;min-width:0}
+.scheduler-toggle strong{font-size:var(--ui-xs,12px)}
+.scheduler-toggle small,.scheduler-expression-wrap small{color:var(--muted);font-size:var(--ui-micro,11.5px);line-height:1.4}
+.scheduler-expression-wrap input{width:100%;min-width:0}
+.scheduler-row[data-automatic="true"]{background:var(--surface-2)}
+.scheduler-note{display:grid;gap:4px;padding:11px 13px;border:1px solid var(--border);border-radius:var(--rf-radius-card,var(--rf-radius,8px));background:var(--surface-2)}
+.scheduler-note strong{font-size:var(--ui-xs,12px)}
+.scheduler-note span{color:var(--muted);font-size:var(--ui-xs,12px);line-height:1.45}
+.scheduler-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@media(max-width:850px){.scheduler-row{grid-template-columns:1fr}.scheduler-row>.state{justify-self:start}}

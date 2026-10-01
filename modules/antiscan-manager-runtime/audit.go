@@ -165,6 +165,9 @@ func antiscanAuditRequestMetadata(route string, body []byte) (string, string) {
 			action = "rci-token:" + sub
 			target = sub
 		}
+	case "schedule":
+		action = "schedule:apply"
+		target = "ascn_crontab.conf"
 	case "lifecycle":
 		if sub := strings.ToLower(stringValue("action")); sub != "" {
 			action = "lifecycle:" + sub
@@ -200,6 +203,9 @@ func antiscanAuditSuccessSummary(event antiscanAuditEvent) string {
 	}
 	if base == "" && strings.HasPrefix(event.Action, "rci-token:") {
 		base = "Операция RCI-токена Antiscan завершена."
+	}
+	if base == "" && strings.HasPrefix(event.Action, "schedule:") {
+		base = "Расписание Antiscan обновлено и синхронизировано."
 	}
 	if base == "" && strings.HasPrefix(event.Action, "operation:") {
 		base = "Штатная сервисная операция Antiscan завершена."

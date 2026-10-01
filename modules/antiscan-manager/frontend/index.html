@@ -40,6 +40,7 @@
       <button class="tab" type="button" data-tab="blocked">Блокировки</button>
       <button class="tab" type="button" data-tab="lists">Списки и Geo</button>
       <button class="tab" type="button" data-tab="protection">Защита</button>
+      <button class="tab" type="button" data-tab="schedule">Расписание</button>
       <button class="tab" type="button" data-tab="config">Настройки</button>
       <button class="tab" type="button" data-tab="history">История</button>
     </nav>
@@ -332,6 +333,32 @@
           <div id="warnings" class="warning-list"></div>
         </section>
       </div>
+    </section>
+
+    <section class="tab-page" data-page="schedule">
+      <section class="panel scheduler-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">ПЛАНИРОВЩИК</span>
+            <h2>Расписание Antiscan</h2>
+            <p>Редактор управляет только штатными задачами из <span class="mono">VALID_TASKS</span>. Произвольные команды и shell-текст не принимаются.</p>
+          </div>
+          <div class="diagnostics-head-actions">
+            <span id="schedulerState" class="state neutral">НЕ ЗАГРУЖЕНО</span>
+            <button id="reloadScheduler" class="button" type="button">↻ Обновить</button>
+          </div>
+        </div>
+        <div id="schedulerMeta" class="diagnostics-meta mono muted">Откройте вкладку, чтобы загрузить ascn_crontab.conf и активный crontab.</div>
+        <div id="schedulerTaskRows" class="scheduler-list empty-state">Расписание ещё не загружено.</div>
+        <div class="scheduler-note">
+          <strong>Автоматическая задача retry_load_geo</strong>
+          <span>Этой строкой управляет сам upstream Antiscan при ошибках Geo. RouterForge показывает и сохраняет её, но не позволяет вручную подменять расписание.</span>
+        </div>
+        <div class="scheduler-actions">
+          <button id="resetScheduler" class="button" type="button" disabled>Сбросить изменения</button>
+          <button id="applyScheduler" class="button primary" type="button" disabled>Применить расписание</button>
+        </div>
+      </section>
     </section>
 
     <section class="tab-page" data-page="config">

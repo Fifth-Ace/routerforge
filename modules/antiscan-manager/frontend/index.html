@@ -229,9 +229,37 @@
       <section class="panel set-browser-panel">
         <div class="panel-head set-browser-head">
           <div>
-            <span class="section-kicker">СПИСКИ И GEO</span>
-            <h2>Пользовательские и Geo-списки</h2>
-            <p>Просмотр активных наборов ipset без изменения состояния. Для больших Geo-наборов показываются первые 500 записей.</p>
+            <span class="section-kicker">ПОЛЬЗОВАТЕЛЬСКИЕ СПИСКИ</span>
+            <h2>Исходные списки Antiscan</h2>
+            <p>Полное управление файлами blacklist, whitelist и exclude. Изменения атомарные; активный список перечитывается штатной командой Antiscan и проверяется по runtime ipset.</p>
+          </div>
+          <div class="browser-controls">
+            <select id="customListName" aria-label="Выберите пользовательский список">
+              <option value="blacklist">Чёрный список</option>
+              <option value="whitelist">Белый список</option>
+              <option value="exclude">Исключения</option>
+            </select>
+            <button id="reloadCustomList" class="button" type="button">Загрузить</button>
+          </div>
+        </div>
+        <div class="browser-toolbar">
+          <input id="customListEntry" autocomplete="off" spellcheck="false" placeholder="IPv4 или CIDR, например 100.64.10.0/24">
+          <span class="entry-actions">
+            <button id="addCustomListEntry" class="button primary" type="button">Добавить</button>
+            <button id="reloadCustomListRuntime" class="button" type="button">Перечитать runtime</button>
+            <button id="clearCustomList" class="button danger" type="button">Очистить</button>
+          </span>
+        </div>
+        <div id="customListMeta" class="diagnostics-meta mono muted">Выберите список и загрузите его исходный файл.</div>
+        <div id="customListEntries" class="entry-table empty-state">Исходный список ещё не загружен.</div>
+      </section>
+
+      <section class="panel set-browser-panel">
+        <div class="panel-head set-browser-head">
+          <div>
+            <span class="section-kicker">RUNTIME IPSET</span>
+            <h2>Активные пользовательские и Geo-наборы</h2>
+            <p>Текущее содержимое runtime ipset. Для больших Geo-наборов показываются первые 500 записей.</p>
           </div>
           <div class="browser-controls">
             <select id="listSet" aria-label="Выберите list set">
@@ -248,18 +276,6 @@
         <div class="browser-toolbar">
           <input id="listFilter" autocomplete="off" spellcheck="false" placeholder="Фильтр по IP или подсети">
           <span id="listMeta" class="mono muted">—</span>
-        </div>
-        <div class="list-mutation">
-          <div>
-            <strong>Добавить адрес</strong>
-            <span>Файл изменяется атомарно. Если список активен, Antiscan штатно перечитает его, а RouterForge проверит результат.</span>
-          </div>
-          <select id="listAction" aria-label="Куда добавить адрес">
-            <option value="exclude">Пользовательские исключения</option>
-            <option value="whitelist">Пользовательский белый список</option>
-          </select>
-          <input id="listActionEntry" autocomplete="off" spellcheck="false" placeholder="IPv4 или CIDR, например 100.64.10.0/24">
-          <button id="addListEntry" class="button primary" type="button">Добавить</button>
         </div>
         <div id="listEntries" class="entry-table empty-state">Выберите набор и загрузите текущее состояние.</div>
       </section>

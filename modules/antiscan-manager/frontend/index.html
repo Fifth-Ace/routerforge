@@ -155,6 +155,33 @@
         <div id="diagnosticsChecks" class="diagnostics-list empty-state">Диагностика ещё не запускалась.</div>
       </section>
 
+      <section class="panel rci-token-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">RCI / KEENETIC</span>
+            <h2>RCI-токен</h2>
+            <p>Статус token-flow Antiscan и безопасное управление штатными командами <span class="mono">token set/check/delete</span>.</p>
+          </div>
+          <div class="diagnostics-head-actions">
+            <span id="rciTokenState" class="state neutral">НЕ ЗАГРУЖЕНО</span>
+            <button id="reloadRCIToken" class="button" type="button">↻ Обновить</button>
+          </div>
+        </div>
+        <div class="rci-token-body">
+          <div class="rci-token-copy">
+            <strong id="rciTokenSummary">Состояние RCI-токена ещё не загружено.</strong>
+            <span id="rciTokenMeta">Значение токена RouterForge не читает и не показывает.</span>
+            <span class="rci-token-security">Токен передаётся upstream только через stdin. Он не попадает в argv, URL, ответ API или журнал операций.</span>
+          </div>
+          <div class="rci-token-controls">
+            <input id="rciTokenInput" type="password" autocomplete="new-password" spellcheck="false" placeholder="Новый RCI-токен" aria-label="Новый RCI-токен">
+            <button id="setRCIToken" class="button primary" type="button" disabled>Сохранить токен</button>
+            <button id="checkRCIToken" class="button" type="button" disabled>Проверить</button>
+            <button id="deleteRCIToken" class="button danger" type="button" disabled>Удалить</button>
+          </div>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="panel-head">
           <div>

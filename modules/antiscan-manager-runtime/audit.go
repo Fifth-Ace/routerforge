@@ -160,6 +160,11 @@ func antiscanAuditRequestMetadata(route string, body []byte) (string, string) {
 			listName, entry := stringValue("list"), stringValue("entry")
 			target = strings.Trim(strings.Join([]string{listName, entry}, " · "), " ·")
 		}
+	case "rci-token":
+		if sub := strings.ToLower(stringValue("action")); sub != "" {
+			action = "rci-token:" + sub
+			target = sub
+		}
 	case "lifecycle":
 		if sub := strings.ToLower(stringValue("action")); sub != "" {
 			action = "lifecycle:" + sub
@@ -192,6 +197,9 @@ func antiscanAuditSuccessSummary(event antiscanAuditEvent) string {
 	}[event.Action]
 	if base == "" && strings.HasPrefix(event.Action, "custom-list:") {
 		base = "Пользовательский список Antiscan обновлён."
+	}
+	if base == "" && strings.HasPrefix(event.Action, "rci-token:") {
+		base = "Операция RCI-токена Antiscan завершена."
 	}
 	if base == "" && strings.HasPrefix(event.Action, "operation:") {
 		base = "Штатная сервисная операция Antiscan завершена."

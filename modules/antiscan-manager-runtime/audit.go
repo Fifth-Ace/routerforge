@@ -159,6 +159,15 @@ func antiscanAuditRequestMetadata(route string, body []byte) (string, string) {
 			action = "lifecycle:" + sub
 			target = sub
 		}
+	case "operation":
+		if sub := strings.ToLower(stringValue("action")); sub != "" {
+			action = "operation:" + sub
+			target = sub
+			if scope := strings.ToLower(stringValue("scope")); scope != "" {
+				action += ":" + scope
+				target += " " + scope
+			}
+		}
 	case "config":
 		target = "ascn.conf"
 	}
@@ -167,13 +176,17 @@ func antiscanAuditRequestMetadata(route string, body []byte) (string, string) {
 
 func antiscanAuditSuccessSummary(event antiscanAuditEvent) string {
 	base := map[string]string{
-		"unban":            "Точечный unban завершён.",
-		"list-entry":       "Пользовательский список обновлён.",
-		"lifecycle:start":  "Antiscan запущен штатной командой upstream.",
-		"lifecycle:stop":   "Antiscan остановлен штатной командой upstream.",
-		"lifecycle:reload": "Конфигурация Antiscan перечитана штатной командой upstream.",
-		"config":           "Транзакция ascn.conf завершена.",
+		"unban":             "Точечный unban завершён.",
+		"list-entry":        "Пользовательский список обновлён.",
+		"lifecycle:start":   "Antiscan запущен штатной командой upstream.",
+		"lifecycle:stop":    "Antiscan остановлен штатной командой upstream.",
+		"lifecycle:reload":  "Конфигурация Antiscan перечитана штатной командой upstream.",
+		"lifecycle:restart": "Antiscan перезапущен штатной командой upstream.",
+		"config":            "Транзакция ascn.conf завершена.",
 	}[event.Action]
+	if base == "" && strings.HasPrefix(event.Action, "operation:") {
+		base = "Штатная сервисная операция Antiscan завершена."
+	}
 	if base == "" {
 		base = "Guarded operation завершена."
 	}

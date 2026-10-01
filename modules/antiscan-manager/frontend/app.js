@@ -199,6 +199,7 @@ const browserState = {
 
 let snapshot = null;
 let lifecycleBusy = false;
+let operationBusy = false;
 let configBusy = false;
 let configDirty = false;
 let configBaseline = '';
@@ -296,7 +297,20 @@ const exactMessageTranslations = {
   'invalid list-entry request': 'Некорректный запрос на изменение пользовательского списка.',
   'confirm must equal ADD': 'Не подтверждено добавление записи.',
   'invalid lifecycle request': 'Некорректная команда управления Antiscan.',
-  'lifecycle action must be start, stop or reload': 'Допустимы только запуск, остановка или перечитывание конфигурации.',
+  'lifecycle action must be start, stop, reload or restart': 'Допустимы запуск, остановка, перечитывание конфигурации или штатный перезапуск.',
+  'invalid operation request': 'Некорректная сервисная операция Antiscan.',
+  'confirm must equal RUN': 'Сервисная операция не подтверждена.',
+  'Antiscan must be running before this operation': 'Для этой сервисной операции Antiscan должен быть запущен.',
+  'Antiscan stopped during the operation': 'Во время сервисной операции Antiscan неожиданно остановился.',
+  'upstream operation returned while an Antiscan reload lock is still present': 'Штатная операция завершилась, но Antiscan всё ещё держит lock-файл.',
+  'iptables binary not found': 'Исполняемый файл iptables не найден.',
+  'Antiscan rule chain is already present; update_rules was not repeated to avoid duplicate jump rules.': 'Цепочка Antiscan уже на месте; повторный update_rules не запускался, чтобы не создать дублирующие переходы.',
+  'ENABLE_IPS_BAN is disabled; there are no candidate sets to process.': 'ENABLE_IPS_BAN выключен — обрабатывать кандидатов сейчас нечего.',
+  'READ_NDM_LOCKOUT_IPSETS is disabled; there is no active Keenetic lockout import to refresh.': 'Импорт блокировок Keenetic выключен — обновлять системный список сейчас нечего.',
+  'SAVE_IPSETS is disabled; no persistent ipset export was requested.': 'SAVE_IPSETS выключен — сохранять runtime-наборы в файлы сейчас не требуется.',
+  'No custom blocking or exclusion list is enabled; there is nothing to reload.': 'Пользовательские блокирующие списки и исключения выключены — перечитывать нечего.',
+  'Geo blocking and Geo exclusions are disabled; there is nothing to download or reload.': 'Geo-блокировка и Geo-исключения выключены — обновлять Geo сейчас нечего.',
+  'Antiscan was stopped; upstream restart will start it.': 'Antiscan был остановлен; штатная команда restart запустила его.',
   'Antiscan is already running; no lifecycle command was executed.': 'Antiscan уже запущен; дополнительных действий не выполнялось.',
   'Antiscan is already stopped; no lifecycle command was executed.': 'Antiscan уже остановлен; дополнительных действий не выполнялось.',
   'Antiscan must be running before reload': 'Для перечитывания конфигурации Antiscan должен быть запущен.',
@@ -364,10 +378,12 @@ const messageRules = [
   [/^(.+) supports at most 8 country codes$/, (m) => `${m[1]} поддерживает не более 8 кодов стран.`],
   [/^(.+) contains invalid country code "(.+)"$/, (m) => `${m[1]} содержит некорректный код страны ${m[2]}.`],
   [/^(.+) does not exist$/, (m) => `Набор ${m[1]} отсутствует.`],
-  [/^upstream (start|stop|reload) failed: (.*)$/, (m) => `Штатная команда Antiscan ${m[1]} завершилась ошибкой: ${m[2]}`],
+  [/^upstream (start|stop|reload|restart) failed: (.*)$/, (m) => `Штатная команда Antiscan ${m[1]} завершилась ошибкой: ${m[2]}`],
+  [/^upstream (.+) failed: (.*)$/, (m) => `Штатная операция Antiscan ${m[1]} завершилась ошибкой: ${m[2]}`],
   [/^start verification failed: \/tmp\/ascn\.run is absent$/, () => 'Проверка запуска не пройдена: /tmp/ascn.run не появился.'],
   [/^stop verification failed: \/tmp\/ascn\.run is still present$/, () => 'Проверка остановки не пройдена: /tmp/ascn.run всё ещё существует.'],
-  [/^reload verification failed: Antiscan stopped during reload$/, () => 'Проверка перечитывания не пройдена: Antiscan остановился во время операции.']
+  [/^reload verification failed: Antiscan stopped during reload$/, () => 'Проверка перечитывания не пройдена: Antiscan остановился во время операции.'],
+  [/^restart verification failed: \/tmp\/ascn\.run is absent$/, () => 'Проверка перезапуска не пройдена: /tmp/ascn.run не появился.']
 ];
 
 function localizeMessage(value) {
@@ -780,23 +796,30 @@ function renderLifecycleControls() {
   const start = $('startAntiscan');
   const stop = $('stopAntiscan');
   const reload = $('reloadAntiscan');
+  const restart = $('restartAntiscan');
   const state = $('lifecycleState');
   const hint = $('lifecycleHint');
-  if (!start || !stop || !reload || !state || !hint) return;
+  if (!start || !stop || !reload || !restart || !state || !hint) return;
 
   const detected = Boolean(snapshot?.detected);
   const running = Boolean(snapshot?.running);
   const upstreamBusy = Boolean(snapshot?.config_reload_in_progress || snapshot?.geo_reload_in_progress);
+  const busy = lifecycleBusy || operationBusy || configBusy;
 
-  start.disabled = lifecycleBusy || configBusy || !detected || running || upstreamBusy;
-  stop.disabled = lifecycleBusy || configBusy || !detected || !running || upstreamBusy;
-  reload.disabled = lifecycleBusy || configBusy || !detected || !running || upstreamBusy;
+  start.disabled = busy || !detected || running || upstreamBusy;
+  stop.disabled = busy || !detected || !running || upstreamBusy;
+  reload.disabled = busy || !detected || !running || upstreamBusy;
+  restart.disabled = busy || !detected || upstreamBusy;
 
   state.className = 'state';
   if (lifecycleBusy) {
     state.classList.add('info');
     state.textContent = 'ОПЕРАЦИЯ…';
     hint.textContent = 'Ждём завершения штатной команды Antiscan и проверяем итоговое состояние.';
+  } else if (operationBusy) {
+    state.classList.add('info');
+    state.textContent = 'ОБСЛУЖИВАНИЕ…';
+    hint.textContent = 'Выполняется штатная сервисная команда Antiscan.';
   } else if (!detected) {
     state.classList.add('neutral');
     state.textContent = 'НЕДОСТУПНО';
@@ -808,11 +831,47 @@ function renderLifecycleControls() {
   } else if (running) {
     state.classList.add('good');
     state.textContent = 'РАБОТАЕТ';
-    hint.textContent = 'Можно перечитать текущий ascn.conf или штатно остановить Antiscan.';
+    hint.textContent = 'Можно перечитать ascn.conf, штатно перезапустить или остановить Antiscan.';
   } else {
     state.classList.add('warn');
     state.textContent = 'ОСТАНОВЛЕН';
-    hint.textContent = 'Можно штатно запустить Antiscan.';
+    hint.textContent = 'Можно штатно запустить Antiscan; restart в этом состоянии также выполнит запуск upstream-командой.';
+  }
+
+  renderOperationControls();
+}
+
+function renderOperationControls() {
+  const state = $('operationState');
+  const buttons = Array.from(document.querySelectorAll('[data-operation]'));
+  if (!state || !buttons.length) return;
+
+  const detected = Boolean(snapshot?.detected);
+  const running = Boolean(snapshot?.running);
+  const upstreamBusy = Boolean(snapshot?.config_reload_in_progress || snapshot?.geo_reload_in_progress);
+  const busy = lifecycleBusy || operationBusy || configBusy;
+
+  buttons.forEach((button) => {
+    const requiresRunning = button.dataset.operation !== 'update_crontab';
+    button.disabled = busy || !detected || upstreamBusy || (requiresRunning && !running);
+  });
+
+  state.className = 'state';
+  if (operationBusy) {
+    state.classList.add('info');
+    state.textContent = 'ВЫПОЛНЕНИЕ…';
+  } else if (!detected) {
+    state.classList.add('neutral');
+    state.textContent = 'НЕДОСТУПНО';
+  } else if (upstreamBusy) {
+    state.classList.add('warn');
+    state.textContent = 'ANTISCAN ЗАНЯТ';
+  } else if (!running) {
+    state.classList.add('warn');
+    state.textContent = 'ТОЛЬКО CRON';
+  } else {
+    state.classList.add('good');
+    state.textContent = 'ГОТОВО';
   }
 }
 
@@ -1059,6 +1118,7 @@ function mutationSuccessMessage(context, payload) {
     if (context === 'list-entry') return 'Такая запись уже есть в выбранном списке.';
     if (context === 'lifecycle:start') return 'Antiscan уже запущен.';
     if (context === 'lifecycle:stop') return 'Antiscan уже остановлен.';
+    if (context.startsWith('operation:')) return 'Команда не потребовалась: текущее состояние уже корректно.';
     return 'Состояние уже соответствовало запросу.';
   }
   if (context === 'unban') return 'Блокировка снята, результат проверен.';
@@ -1066,6 +1126,8 @@ function mutationSuccessMessage(context, payload) {
   if (context === 'lifecycle:start') return 'Antiscan запущен, состояние проверено.';
   if (context === 'lifecycle:stop') return 'Antiscan остановлен. Защита отключена до следующего запуска.';
   if (context === 'lifecycle:reload') return 'Antiscan перечитал конфигурацию, состояние проверено.';
+  if (context === 'lifecycle:restart') return 'Antiscan штатно перезапущен, состояние проверено.';
+  if (context.startsWith('operation:')) return 'Штатная сервисная команда Antiscan выполнена и проверена.';
   if (context === 'config') {
     return payload?.runtime_applied
       ? 'Настройки сохранены, применены и проверены.'
@@ -1124,7 +1186,8 @@ async function performLifecycle(action) {
   const prompts = {
     start: 'Запустить Antiscan?\n\nБудут созданы штатные наборы ipset и правила фильтрации Antiscan.',
     stop: 'Остановить Antiscan?\n\nЗащита Antiscan будет отключена до следующего запуска. Сохранение состояния при остановке выполняет сам Antiscan согласно SAVE_ON_EXIT.',
-    reload: 'Перечитать текущий ascn.conf?\n\nAntiscan штатно перестроит необходимые правила и наборы, после чего RouterForge проверит итоговое состояние.'
+    reload: 'Перечитать текущий ascn.conf?\n\nAntiscan штатно перестроит необходимые правила и наборы, после чего RouterForge проверит итоговое состояние.',
+    restart: 'Штатно перезапустить Antiscan?\n\nБудет вызван именно S99ascn restart. Upstream выполнит свой stop 1, затем start и сохранит предусмотренную им семантику перезапуска.'
   };
   if (!prompts[action] || !window.confirm(prompts[action])) return;
 
@@ -1136,10 +1199,47 @@ async function performLifecycle(action) {
     await loadStatus();
     if (browserState.blocked) await loadSet('blocked');
     if (browserState.lists) await loadSet('lists');
+    if (diagnosticsLoaded) await loadDiagnostics();
   } catch (error) {
     showMutationResult(error.payload || { error: error.message }, true, `lifecycle:${action}`);
   } finally {
     lifecycleBusy = false;
+    renderLifecycleControls();
+  }
+}
+
+async function performOperation(action, scope = '') {
+  const key = scope ? `${action}:${scope}` : action;
+  const prompts = {
+    update_rules: 'Восстановить правила Antiscan?\n\nКоманда update_rules будет вызвана только если цепочка ANTISCAN сейчас отсутствует. Это защищает от повторного добавления jump-правил.',
+    read_candidates: 'Обработать текущих кандидатов?\n\nAntiscan проверит накопленные адреса и при достижении порога перенесёт соответствующие /24 в блокировку подсетей.',
+    read_ndm_ipsets: 'Импортировать текущие блокировки Keenetic?\n\nAntiscan перечитает системные lockout ipset и добавит найденные IPv4 в свой runtime-набор.',
+    save_ipsets: 'Сохранить runtime ipset?\n\nAntiscan выполнит штатный save_ipsets согласно SAVE_IPSETS и IPSETS_DIRECTORY.',
+    'update_ipsets:custom': 'Перечитать активные пользовательские списки?\n\nAntiscan штатно пересоздаст активные custom ipset и восстановит правила.',
+    'update_ipsets:geo': 'Обновить Geo-списки сейчас?\n\nAntiscan скачает актуальные подсети настроенных стран. Операция может занять несколько минут.',
+    retry_load_geo: 'Повторить неудачную загрузку Geo?\n\nAntiscan выполнит штатный retry_load_geo и при успехе уберёт временную retry-задачу.',
+    update_crontab: 'Синхронизировать cron с ascn_crontab.conf?\n\nБудут изменены только строки Antiscan, штатной командой update_crontab.'
+  };
+  if (!prompts[key] || !window.confirm(prompts[key])) return;
+
+  operationBusy = true;
+  renderLifecycleControls();
+  const output = $('operationOutput');
+  if (output) output.textContent = 'Выполняется штатная команда Antiscan…';
+  try {
+    const result = await mutate('operation', { action, scope, confirm: 'RUN' });
+    showMutationResult(result, false, `operation:${key}`);
+    if (output) output.textContent = result.output || 'Команда завершена без текстового вывода.';
+    await loadStatus();
+    if (browserState.blocked) await loadSet('blocked');
+    if (browserState.lists) await loadSet('lists');
+    if (diagnosticsLoaded) await loadDiagnostics();
+  } catch (error) {
+    const payload = error.payload || { error: error.message };
+    showMutationResult(payload, true, `operation:${key}`);
+    if (output) output.textContent = localizeMessage(payload.error || error.message || 'Ошибка сервисной операции.');
+  } finally {
+    operationBusy = false;
     renderLifecycleControls();
   }
 }
@@ -1151,6 +1251,15 @@ function auditActionTitle(action) {
     'lifecycle:start': 'Запуск Antiscan',
     'lifecycle:stop': 'Остановка Antiscan',
     'lifecycle:reload': 'Перечитывание конфигурации',
+    'lifecycle:restart': 'Перезапуск Antiscan',
+    'operation:update_rules': 'Восстановление правил Antiscan',
+    'operation:read_candidates': 'Обработка кандидатов',
+    'operation:read_ndm_ipsets': 'Импорт блокировок Keenetic',
+    'operation:save_ipsets': 'Сохранение runtime ipset',
+    'operation:update_ipsets:custom': 'Перечитывание пользовательских списков',
+    'operation:update_ipsets:geo': 'Обновление Geo-списков',
+    'operation:retry_load_geo': 'Повторная загрузка Geo',
+    'operation:update_crontab': 'Синхронизация cron',
     config: 'Изменение конфигурации'
   }[action] || action || 'Действие Antiscan Manager';
 }
@@ -1287,7 +1396,11 @@ $('blockedFilter').addEventListener('input', () => renderSetPage('blocked'));
 $('listFilter').addEventListener('input', () => renderSetPage('lists'));
 $('startAntiscan').addEventListener('click', () => performLifecycle('start'));
 $('reloadAntiscan').addEventListener('click', () => performLifecycle('reload'));
+$('restartAntiscan').addEventListener('click', () => performLifecycle('restart'));
 $('stopAntiscan').addEventListener('click', () => performLifecycle('stop'));
+document.querySelectorAll('[data-operation]').forEach((button) => {
+  button.addEventListener('click', () => performOperation(button.dataset.operation || '', button.dataset.scope || ''));
+});
 $('reloadHistory').addEventListener('click', loadHistory);
 $('reloadDiagnostics').addEventListener('click', loadDiagnostics);
 $('configForm').addEventListener('submit', (event) => event.preventDefault());

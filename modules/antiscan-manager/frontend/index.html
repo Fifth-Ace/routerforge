@@ -87,9 +87,38 @@
           <div class="lifecycle-actions">
             <button id="startAntiscan" class="button success" type="button" disabled>▶ Запустить</button>
             <button id="reloadAntiscan" class="button primary" type="button" disabled>↻ Перечитать</button>
+            <button id="restartAntiscan" class="button" type="button" disabled>↻ Перезапустить</button>
             <button id="stopAntiscan" class="button danger" type="button" disabled>■ Остановить</button>
           </div>
         </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">СЕРВИСНЫЕ ОПЕРАЦИИ</span>
+            <h2>Штатные команды Antiscan</h2>
+            <p>RouterForge вызывает только поддерживаемые команды <span class="mono">S99ascn</span>, блокирует конфликтующие операции и проверяет результат.</p>
+          </div>
+          <span id="operationState" class="state neutral">ГОТОВО</span>
+        </div>
+        <div class="lifecycle-body">
+          <div class="lifecycle-copy">
+            <strong>Обслуживание без SSH</strong>
+            <span>Кандидаты, Keenetic lockout, сохранение ipset, пользовательские и Geo-списки, cron и восстановление правил.</span>
+          </div>
+          <div class="lifecycle-actions">
+            <button class="button" type="button" data-operation="update_rules">Восстановить правила</button>
+            <button class="button" type="button" data-operation="read_candidates">Обработать кандидатов</button>
+            <button class="button" type="button" data-operation="read_ndm_ipsets">Импорт Keenetic</button>
+            <button class="button" type="button" data-operation="save_ipsets">Сохранить ipset</button>
+            <button class="button" type="button" data-operation="update_ipsets" data-scope="custom">Перечитать списки</button>
+            <button class="button" type="button" data-operation="update_ipsets" data-scope="geo">Обновить Geo</button>
+            <button class="button" type="button" data-operation="retry_load_geo">Повторить Geo</button>
+            <button class="button" type="button" data-operation="update_crontab">Синхронизировать cron</button>
+          </div>
+        </div>
+        <div id="operationOutput" class="boundary-copy mono muted">Последняя сервисная операция ещё не запускалась.</div>
       </section>
 
       <section class="panel">

@@ -195,6 +195,7 @@ const setDescriptions = {
 const browserState = {
   blocked: null,
   lists: null,
+  geo: null,
   customSource: null
 };
 
@@ -739,6 +740,7 @@ async function applyConfigEditor() {
     populateConfigEditor(true);
     if (browserState.blocked) await loadSet('blocked');
     if (browserState.lists) await loadSet('lists');
+    if (browserState.geo) await loadSet('geo');
   } catch (error) {
     showMutationResult(error.payload || { error: error.message }, true, 'config');
     await loadStatus();
@@ -1250,6 +1252,7 @@ async function performFlush() {
     await loadStatus();
     if (browserState.blocked) await loadSet('blocked');
     if (browserState.lists) await loadSet('lists');
+    if (browserState.geo) await loadSet('geo');
     if (browserState.customSource) await loadCustomList();
     if (diagnosticsLoaded) await loadDiagnostics();
   } catch (error) {
@@ -1262,11 +1265,17 @@ async function performFlush() {
 }
 
 function activateTab(name) {
+  document.documentElement.dataset.section = name;
   document.querySelectorAll('.tab').forEach((button) => {
     button.classList.toggle('active', button.dataset.tab === name);
   });
   document.querySelectorAll('.tab-page').forEach((page) => {
-    page.classList.toggle('active', page.dataset.page === name);
+    const pageName = page.dataset.page;
+    const grouped =
+      (name === 'overview' && pageName === 'protection') ||
+      (name === 'blocked' && pageName === 'inspect') ||
+      (name === 'geo' && pageName === 'lists');
+    page.classList.toggle('active', pageName === name || grouped);
   });
 }
 
@@ -1561,11 +1570,67 @@ function blockedEntryActions(setName, entry) {
   return buttons.length ? `<span class="entry-actions">${buttons.join('')}</span>` : '';
 }
 
+function currentRuntimeListMode() {
+  return document.documentElement.dataset.section === 'geo' ? 'geo' : 'lists';
+}
+
+function runtimeListOptions(mode) {
+  return mode === 'geo'
+    ? [
+        ['ascn_geo_exclude', 'Geo-исключения'],
+        ['ascn_geo_blacklist', 'Geo-чёрный список'],
+        ['ascn_geo_whitelist', 'Geo-белый список']
+      ]
+    : [
+        ['ascn_custom_exclude', 'Пользовательские исключения'],
+        ['ascn_custom_blacklist', 'Пользовательский чёрный список'],
+        ['ascn_custom_whitelist', 'Пользовательский белый список']
+      ];
+}
+
+function configureListSetMode(mode) {
+  const select = $('listSet');
+  const title = $('runtimeListsTitle');
+  const description = $('runtimeListsDescription');
+  const filter = $('listFilter');
+  if (!select || !title || !description || !filter) return;
+
+  const options = runtimeListOptions(mode);
+  const previousName = browserState[mode]?.name || '';
+  const changedMode = select.dataset.mode !== mode;
+  select.dataset.mode = mode;
+  select.innerHTML = options.map(([value, label]) =>
+    `<option value="${value}">${label}</option>`
+  ).join('');
+  if (previousName && options.some(([value]) => value === previousName)) {
+    select.value = previousName;
+  }
+  if (changedMode) filter.value = '';
+
+  if (mode === 'geo') {
+    title.textContent = 'Geo-наборы Antiscan';
+    description.textContent = 'Текущее содержимое Geo ipset. Для больших наборов показываются первые 500 записей.';
+  } else {
+    title.textContent = 'Активные пользовательские списки';
+    description.textContent = 'Текущее содержимое runtime ipset для blacklist, whitelist и exclude.';
+  }
+
+  if (browserState[mode]) {
+    renderSetPage(mode);
+  } else {
+    $('listMeta').textContent = '—';
+    $('listEntries').className = 'entry-table empty-state';
+    $('listEntries').textContent = 'Выберите набор и загрузите текущее состояние.';
+  }
+}
+
 function renderSetPage(kind) {
   const page = browserState[kind];
-  const target = kind === 'blocked' ? $('blockedEntries') : $('listEntries');
-  const meta = kind === 'blocked' ? $('blockedMeta') : $('listMeta');
-  const filter = (kind === 'blocked' ? $('blockedFilter').value : $('listFilter').value).trim().toLowerCase();
+  const blocked = kind === 'blocked';
+  if (!blocked && kind !== currentRuntimeListMode()) return;
+  const target = blocked ? $('blockedEntries') : $('listEntries');
+  const meta = blocked ? $('blockedMeta') : $('listMeta');
+  const filter = (blocked ? $('blockedFilter').value : $('listFilter').value).trim().toLowerCase();
 
   if (!page) {
     target.className = 'entry-table empty-state';
@@ -1599,7 +1664,7 @@ function renderSetPage(kind) {
 
   target.className = 'entry-table';
   target.innerHTML = entries.map((entry) => {
-    const actions = kind === 'blocked' ? blockedEntryActions(page.name, entry) : '';
+    const actions = blocked ? blockedEntryActions(page.name, entry) : '';
     return `
       <div class="entry-row ${actions ? 'has-actions' : ''}">
         <span class="mono entry-value">${escapeHTML(entry.value)}</span>
@@ -1613,12 +1678,15 @@ function renderSetPage(kind) {
 }
 
 async function loadSet(kind) {
-  const select = kind === 'blocked' ? $('blockedSet') : $('listSet');
-  const button = kind === 'blocked' ? $('reloadBlocked') : $('reloadList');
-  const target = kind === 'blocked' ? $('blockedEntries') : $('listEntries');
+  const blocked = kind === 'blocked';
+  const select = blocked ? $('blockedSet') : $('listSet');
+  const button = blocked ? $('reloadBlocked') : $('reloadList');
+  const target = blocked ? $('blockedEntries') : $('listEntries');
   button.disabled = true;
-  target.className = 'entry-table empty-state';
-  target.textContent = 'Читаем текущий набор ipset…';
+  if (blocked || kind === currentRuntimeListMode()) {
+    target.className = 'entry-table empty-state';
+    target.textContent = 'Читаем текущий набор ipset…';
+  }
   try {
     browserState[kind] = await api(`sets?name=${encodeURIComponent(select.value)}&limit=500`);
     renderSetPage(kind);
@@ -1704,6 +1772,7 @@ async function performListEntry(listName, entry) {
     showMutationResult(result, false, 'list-entry');
     await loadStatus();
     if (browserState.lists) await loadSet('lists');
+    if (browserState.geo) await loadSet('geo');
   } catch (error) {
     showMutationResult(error.payload || { error: error.message }, true, 'list-entry');
   }
@@ -1803,6 +1872,7 @@ async function performCustomListMutation(action, entry = '') {
     await loadCustomList();
     await loadStatus();
     if (browserState.lists) await loadSet('lists');
+    if (browserState.geo) await loadSet('geo');
   } catch (error) {
     showMutationResult(error.payload || { error: error.message }, true, `custom-list:${action}`);
     await loadCustomList();
@@ -1828,6 +1898,7 @@ async function performLifecycle(action) {
     await loadStatus();
     if (browserState.blocked) await loadSet('blocked');
     if (browserState.lists) await loadSet('lists');
+    if (browserState.geo) await loadSet('geo');
     if (diagnosticsLoaded) await loadDiagnostics();
   } catch (error) {
     showMutationResult(error.payload || { error: error.message }, true, `lifecycle:${action}`);
@@ -1862,6 +1933,7 @@ async function performOperation(action, scope = '') {
     await loadStatus();
     if (browserState.blocked) await loadSet('blocked');
     if (browserState.lists) await loadSet('lists');
+    if (browserState.geo) await loadSet('geo');
     if (diagnosticsLoaded) await loadDiagnostics();
   } catch (error) {
     const payload = error.payload || { error: error.message };
@@ -2009,16 +2081,24 @@ async function inspectIP() {
 
 document.querySelectorAll('.tab').forEach((button) => {
   button.addEventListener('click', () => {
-    activateTab(button.dataset.tab);
-    if (button.dataset.tab === 'blocked' && !browserState.blocked) loadSet('blocked');
-    if (button.dataset.tab === 'blocked' && !flushPreviewLoaded) loadFlushPreview();
-    if (button.dataset.tab === 'lists' && !browserState.lists) loadSet('lists');
-    if (button.dataset.tab === 'lists' && !browserState.customSource) loadCustomList();
-    if (button.dataset.tab === 'history' && !historyLoaded) loadHistory();
-    if (button.dataset.tab === 'diagnostics' && !diagnosticsLoaded) loadDiagnostics();
-    if (button.dataset.tab === 'diagnostics' && !compatibilityLoaded) loadCompatibility();
-    if (button.dataset.tab === 'diagnostics' && !rciTokenLoaded) loadRCITokenStatus();
-    if (button.dataset.tab === 'schedule' && !schedulerLoaded) loadScheduler();
+    const section = button.dataset.tab;
+    activateTab(section);
+    if (section === 'blocked' && !browserState.blocked) loadSet('blocked');
+    if (section === 'blocked' && !flushPreviewLoaded) loadFlushPreview();
+    if (section === 'lists') {
+      configureListSetMode('lists');
+      if (!browserState.lists) loadSet('lists');
+      if (!browserState.customSource) loadCustomList();
+    }
+    if (section === 'geo') {
+      configureListSetMode('geo');
+      if (!browserState.geo) loadSet('geo');
+    }
+    if (section === 'history' && !historyLoaded) loadHistory();
+    if (section === 'diagnostics' && !diagnosticsLoaded) loadDiagnostics();
+    if (section === 'diagnostics' && !compatibilityLoaded) loadCompatibility();
+    if (section === 'diagnostics' && !rciTokenLoaded) loadRCITokenStatus();
+    if (section === 'schedule' && !schedulerLoaded) loadScheduler();
   });
 });
 
@@ -2039,11 +2119,11 @@ $('inspectIp').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') inspectIP();
 });
 $('reloadBlocked').addEventListener('click', () => loadSet('blocked'));
-$('reloadList').addEventListener('click', () => loadSet('lists'));
+$('reloadList').addEventListener('click', () => loadSet(currentRuntimeListMode()));
 $('blockedSet').addEventListener('change', () => loadSet('blocked'));
-$('listSet').addEventListener('change', () => loadSet('lists'));
+$('listSet').addEventListener('change', () => loadSet(currentRuntimeListMode()));
 $('blockedFilter').addEventListener('input', () => renderSetPage('blocked'));
-$('listFilter').addEventListener('input', () => renderSetPage('lists'));
+$('listFilter').addEventListener('input', () => renderSetPage(currentRuntimeListMode()));
 $('flushTarget').addEventListener('change', loadFlushPreview);
 $('reloadFlushPreview').addEventListener('click', loadFlushPreview);
 $('flushSelected').addEventListener('click', performFlush);

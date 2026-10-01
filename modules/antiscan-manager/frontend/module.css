@@ -560,3 +560,106 @@ th,
 .flush-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:2px}
 .flush-actions .muted{font-size:var(--ui-xs,12px);line-height:1.45;max-width:760px}
 @media(max-width:650px){.flush-actions{align-items:stretch}.flush-actions .button{width:100%}}
+/* P26I-H - final Antiscan Manager workspace consolidation. */
+.section-kicker,
+#diagnosticsContract,
+.config-transaction-strip,
+#configHash,
+#ipsetBinary,
+.tab-page[data-page="history"] .compact-panel,
+html[data-section="history"] .history-toolbar .state{
+  display:none!important;
+}
+
+.geo-service-panel{display:none}
+html[data-section="geo"] .custom-source-panel{display:none}
+html[data-section="geo"] .geo-service-panel{display:block}
+
+.hero p{max-width:900px}
+.panel-head{
+  padding-top:12px;
+  padding-bottom:12px;
+}
+.panel-head>div:first-child{min-width:0}
+
+.mobile-help,
+.lifecycle-panel,
+.config-apply-panel,
+.inspector-panel,
+.rci-token-security,
+.scheduler-note{
+  border-color:var(--border);
+}
+
+.explain-grid article,
+.risk-verdict,
+.risk-pairs>div,
+.switch-field,
+.scheduler-note{
+  background:var(--surface2);
+  border-color:var(--border);
+}
+
+.browser-toolbar,
+.history-toolbar,
+.lifecycle-body,
+.config-apply-panel,
+.list-mutation,
+.diagnostics-meta{
+  background:color-mix(in srgb,var(--surface) 88%,var(--bg));
+}
+
+.browser-controls select{
+  min-width:220px;
+}
+
+.browser-toolbar input,
+.inspect-form input,
+.rci-token-controls input,
+.field input,
+.field select{
+  background:var(--surface2);
+  border-radius:var(--rf-radius-control,5px);
+}
+
+.config-apply-panel{
+  min-height:var(--setting-row-h);
+}
+
+.config-apply-copy strong,
+.lifecycle-copy strong,
+.rci-token-copy strong{
+  font-size:var(--ui-small,13px);
+  font-weight:600;
+}
+
+.button:disabled,
+.button.primary:disabled,
+.button.success:disabled,
+.button.danger:disabled{
+  opacity:.48;
+  cursor:not-allowed;
+  color:var(--muted);
+  border-color:var(--border);
+  background:var(--surface2);
+}
+
+.runtime-lists-panel .panel-head,
+.custom-source-panel .panel-head{
+  align-items:center;
+}
+
+.geo-service-panel .panel-head{
+  align-items:center;
+}
+
+html[data-section="overview"] .tab-page[data-page="protection"],
+html[data-section="blocked"] .tab-page[data-page="inspect"]{
+  margin-top:0;
+}
+
+@media(max-width:760px){
+  .browser-controls select{min-width:0;width:100%}
+  .geo-service-panel .panel-head{align-items:flex-start}
+  .geo-service-panel .lifecycle-actions{width:100%;justify-content:flex-start}
+}

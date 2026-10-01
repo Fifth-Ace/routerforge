@@ -103,6 +103,7 @@ type antiscanSnapshot struct {
 	Upstream     string                    `json:"upstream"`
 	InitScript   string                    `json:"init_script"`
 	ConfigPath   string                    `json:"config_path"`
+	ConfigSHA256 string                    `json:"config_sha256,omitempty"`
 	StatusMarker string                    `json:"status_marker"`
 	ConfigReload bool                      `json:"config_reload_in_progress"`
 	GeoReload    bool                      `json:"geo_reload_in_progress"`
@@ -154,6 +155,7 @@ func buildAntiscanSnapshot(ctx context.Context, cfg runtimeConfig) antiscanSnaps
 		Upstream:     antiscanUpstreamURL,
 		InitScript:   cfg.InitScript,
 		ConfigPath:   configPath,
+		ConfigSHA256: hashAntiscanConfigFile(configPath),
 		StatusMarker: cfg.StatusFile,
 		ConfigReload: pathExists(cfg.ConfigLockFile),
 		GeoReload:    pathExists(cfg.GeoLockFile),

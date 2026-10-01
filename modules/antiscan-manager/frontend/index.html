@@ -15,7 +15,7 @@
           <h1>Antiscan Manager</h1>
           <span class="read-only-chip guarded">GUARDED CONTROL</span>
         </div>
-        <p>Диагностика Antiscan, точечные guarded-действия и штатное управление lifecycle через upstream S99ascn.</p>
+        <p>Диагностика, guarded-control, штатный lifecycle и транзакционная настройка ascn.conf без raw shell-редактора.</p>
       </div>
       <div class="hero-actions">
         <span id="targetState" class="state neutral">ПРОВЕРКА…</span>
@@ -39,6 +39,7 @@
       <button class="tab" type="button" data-tab="blocked">Блокировки</button>
       <button class="tab" type="button" data-tab="lists">Списки и Geo</button>
       <button class="tab" type="button" data-tab="protection">Защита</button>
+      <button class="tab" type="button" data-tab="config">Настройки</button>
     </nav>
 
     <section class="tab-page active" data-page="overview">
@@ -231,15 +232,105 @@
       </div>
     </section>
 
+    <section class="tab-page" data-page="config">
+      <form id="configForm" class="config-workspace" autocomplete="off">
+        <section class="panel config-header-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">TRANSACTIONAL CONFIG</span>
+              <h2>Настройки ascn.conf</h2>
+              <p>Без raw shell-текста: только известные upstream-параметры. Комментарии существующего файла сохраняются.</p>
+            </div>
+            <div class="config-state-wrap">
+              <span id="configState" class="state neutral">ПРОВЕРКА…</span>
+              <span id="configHash" class="mono muted">SHA256 —</span>
+            </div>
+          </div>
+          <div class="config-transaction-strip">
+            <span>validate</span><b>→</b><span>backup</span><b>→</b><span>atomic write</span><b>→</b><span>upstream reload</span><b>→</b><span>verify</span><b>→</b><span>rollback on fail</span>
+          </div>
+          <div id="configMobileRisk" class="config-risk good">Проверяем /24 risk-profile…</div>
+        </section>
+
+        <div class="config-grid">
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">TRAFFIC</span><h2>Интерфейсы и порты</h2></div></div>
+            <div class="field-grid">
+              <label class="field wide"><span>ISP interfaces</span><input id="cfgIspInterfaces" spellcheck="false" placeholder="eth3 ppp0"><small>1–10 unix-имён через пробел.</small></label>
+              <label class="field"><span>Порты роутера</span><input id="cfgPorts" spellcheck="false" placeholder="22,80,443"><small>Порты/диапазоны через запятую.</small></label>
+              <label class="field"><span>Forwarded ports</span><input id="cfgForwardedPorts" spellcheck="false" placeholder="22,80,443"><small>Поле «направлять на порт».</small></label>
+            </div>
+          </section>
+
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">DIRECT / SUBNET</span><h2>IP и /24 защита</h2></div></div>
+            <div class="field-grid">
+              <label class="switch-field wide"><input id="cfgEnableIpsBan" type="checkbox"><span><strong>ENABLE_IPS_BAN</strong><small>Прямые IP и распределённая /24 защита.</small></span></label>
+              <label class="field"><span>RULES_MASK</span><input id="cfgRulesMask" spellcheck="false" placeholder="255.255.255.255"></label>
+              <label class="field"><span>Окно NEW, сек.</span><input id="cfgRecentTime" type="number" min="2" max="3600"></label>
+              <label class="field"><span>Порог NEW</span><input id="cfgRecentHitcount" type="number" min="2" max="100"></label>
+              <label class="field"><span>Concurrent limit</span><input id="cfgRecentLimit" type="number" min="3" max="1000"></label>
+              <label class="field"><span>Direct IP ban, сек.</span><input id="cfgRecentBanTime" type="number" min="0" max="2147483"></label>
+              <label class="field"><span>Кандидаты /24 живут, сек.</span><input id="cfgCandidateStorage" type="number" min="0" max="2147483"></label>
+              <label class="field"><span>Порог разных IP в /24</span><input id="cfgDifferentThreshold" type="number" min="2" max="254"></label>
+              <label class="field"><span>Subnet ban, сек.</span><input id="cfgSubnetBanTime" type="number" min="0" max="2147483"></label>
+            </div>
+          </section>
+
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">HONEYPOT</span><h2>Ловушка</h2></div></div>
+            <div class="field-grid">
+              <label class="switch-field wide"><input id="cfgEnableHoneypot" type="checkbox"><span><strong>ENABLE_HONEYPOT</strong><small>При включении список портов обязателен.</small></span></label>
+              <label class="field"><span>Honeypot ports</span><input id="cfgHoneypotPorts" spellcheck="false" placeholder="23,2323,3389"></label>
+              <label class="field"><span>Ban time, сек.</span><input id="cfgHoneypotBanTime" type="number" min="0" max="2147483"></label>
+            </div>
+          </section>
+
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">CUSTOM / GEO</span><h2>Списки и страны</h2></div></div>
+            <div class="field-grid">
+              <label class="switch-field wide"><input id="cfgUseCustomExclude" type="checkbox"><span><strong>Custom exclude</strong><small>Включить ascn_custom_exclude.</small></span></label>
+              <label class="field"><span>Custom list mode</span><select id="cfgCustomMode"><option value="0">Выключено</option><option value="blacklist">Blacklist</option><option value="whitelist">Whitelist</option></select></label>
+              <label class="field"><span>Geo mode</span><select id="cfgGeoMode"><option value="0">Выключено</option><option value="blacklist">Blacklist</option><option value="whitelist">Whitelist</option></select></label>
+              <label class="field wide"><span>Geo countries</span><input id="cfgGeoCountries" spellcheck="false" placeholder="RU US DE"><small>До 8 ISO-кодов; Manager нормализует в верхний регистр.</small></label>
+              <label class="field wide"><span>Geo exclude countries</span><input id="cfgGeoExcludeCountries" spellcheck="false" placeholder="FI DE"></label>
+            </div>
+          </section>
+
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">PERSISTENCE / KEENETIC</span><h2>Хранение и lockout</h2></div></div>
+            <div class="field-grid">
+              <label class="field wide"><span>IPSETS_DIRECTORY</span><input id="cfgIPSetsDirectory" spellcheck="false" placeholder="/tmp/mnt/DISK/antiscan"><small>Существующий каталог под /opt или /tmp; /opt/etc запрещён.</small></label>
+              <label class="switch-field"><input id="cfgSaveIPSets" type="checkbox"><span><strong>SAVE_IPSETS</strong><small>Сохранять накопленные sets.</small></span></label>
+              <label class="switch-field"><input id="cfgSaveOnExit" type="checkbox"><span><strong>SAVE_ON_EXIT</strong><small>Экспорт при stop.</small></span></label>
+              <label class="switch-field"><input id="cfgReadNDM" type="checkbox"><span><strong>NDM lockout</strong><small>Импорт ip lockout-policy.</small></span></label>
+              <label class="field"><span>Lockout ban, сек.</span><input id="cfgLockoutBanTime" type="number" min="0" max="2147483"></label>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel config-apply-panel">
+          <div class="config-apply-copy">
+            <strong>Guarded transaction</strong>
+            <span id="configHint">Состояние конфигурации загружается…</span>
+          </div>
+          <div class="config-actions">
+            <button id="resetConfig" class="button" type="button" disabled>Сбросить форму</button>
+            <button id="applyConfig" class="button primary" type="button" disabled>Применить конфигурацию</button>
+          </div>
+        </section>
+      </form>
+    </section>
+
     <section class="panel compact-panel boundary-panel">
       <div class="panel-head">
         <div>
           <span class="section-kicker">BOUNDARY</span>
-          <h2>P26C2 · Guarded lifecycle control</h2>
+          <h2>P26C3 · Transactional configuration</h2>
         </div>
         <span class="state good">MUTATION API: GUARDED</span>
       </div>
-      <p class="boundary-copy">Разрешены точечный unban, добавление IPv4/CIDR в upstream exclude/whitelist и guarded <span class="mono">start/stop/reload</span> через штатный <span class="mono">S99ascn</span>. Массовый flush, restart и редактирование <span class="mono">ascn.conf</span> по-прежнему недоступны.</p>
+      <p class="boundary-copy">Разрешены single-entry control, guarded <span class="mono">start/stop/reload</span> и структурированная транзакционная настройка <span class="mono">ascn.conf</span>. Raw shell-текст, массовый flush и restart по-прежнему не экспонируются.</p>
     </section>
   </main>
   <script type="module" src="app.js"></script>

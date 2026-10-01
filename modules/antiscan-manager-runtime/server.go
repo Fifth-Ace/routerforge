@@ -87,6 +87,7 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 	mux.HandleFunc("/v1/unban", mutationOnly(handleAntiscanUnban(cfg)))
 	mux.HandleFunc("/v1/list-entry", mutationOnly(handleAntiscanListEntry(cfg)))
 	mux.HandleFunc("/v1/lifecycle", mutationOnly(handleAntiscanLifecycle(cfg)))
+	mux.HandleFunc("/v1/config", mutationOnly(handleAntiscanConfigApply(cfg)))
 	registerUIRoutes(mux, cfg.UIPath)
 
 	server := &http.Server{

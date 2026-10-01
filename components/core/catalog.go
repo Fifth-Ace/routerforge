@@ -319,7 +319,7 @@ func integrationManagerSeedModules() []catalogItem {
 				Status: "official", ReviewedBy: "routerforge",
 				Note: "Official RouterForge integration-manager module. It does not install, replace or fork Antiscan.",
 			},
-			Capabilities: []string{"integration-manager", "antiscan-status", "antiscan-config-read", "antiscan-ipsets", "antiscan-why-blocked", "antiscan-unban", "antiscan-custom-lists", "guarded-control", "guarded-lifecycle"},
+			Capabilities: []string{"integration-manager", "antiscan-status", "antiscan-config-read", "antiscan-ipsets", "antiscan-why-blocked", "antiscan-unban", "antiscan-custom-lists", "guarded-control", "guarded-lifecycle", "transactional-config"},
 			Detection: catalogDetection{
 				Packages: []string{"routerforge-antiscan-manager"},
 				Services: []string{"/opt/etc/init.d/S98routerforge-antiscan-manager"},

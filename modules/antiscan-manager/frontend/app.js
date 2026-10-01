@@ -21,6 +21,10 @@ const browserState = {
 
 let snapshot = null;
 let lifecycleBusy = false;
+let configBusy = false;
+let configDirty = false;
+let configBaseline = '';
+let configBaseSHA = '';
 
 function api(path) {
   return fetch(`../${path}`, {
@@ -87,6 +91,200 @@ function boolText(value) {
   return value ? 'Включено' : 'Выключено';
 }
 
+function configNumber(id) {
+  const raw = $(id).value.trim();
+  return raw === '' ? 0 : Number(raw);
+}
+
+function currentConfigFormPayload() {
+  return {
+    isp_interfaces: $('cfgIspInterfaces').value.trim(),
+    ports: $('cfgPorts').value.trim(),
+    forwarded_ports: $('cfgForwardedPorts').value.trim(),
+    enable_honeypot: $('cfgEnableHoneypot').checked,
+    honeypot_ports: $('cfgHoneypotPorts').value.trim(),
+    honeypot_bantime_seconds: configNumber('cfgHoneypotBanTime'),
+    enable_ips_ban: $('cfgEnableIpsBan').checked,
+    rules_mask: $('cfgRulesMask').value.trim(),
+    recent_connections_time_seconds: configNumber('cfgRecentTime'),
+    recent_connections_hitcount: configNumber('cfgRecentHitcount'),
+    recent_connections_limit: configNumber('cfgRecentLimit'),
+    recent_connections_bantime_seconds: configNumber('cfgRecentBanTime'),
+    different_ip_candidates_storage_seconds: configNumber('cfgCandidateStorage'),
+    different_ip_threshold: configNumber('cfgDifferentThreshold'),
+    subnets_bantime_seconds: configNumber('cfgSubnetBanTime'),
+    ipsets_directory: $('cfgIPSetsDirectory').value.trim(),
+    save_ipsets: $('cfgSaveIPSets').checked,
+    save_on_exit: $('cfgSaveOnExit').checked,
+    use_custom_exclude_list: $('cfgUseCustomExclude').checked,
+    custom_lists_block_mode: $('cfgCustomMode').value,
+    geoblock_mode: $('cfgGeoMode').value,
+    geoblock_countries: $('cfgGeoCountries').value.trim(),
+    geo_exclude_countries: $('cfgGeoExcludeCountries').value.trim(),
+    read_ndm_lockout_ipsets: $('cfgReadNDM').checked,
+    lockout_ipset_bantime_seconds: configNumber('cfgLockoutBanTime')
+  };
+}
+
+function configPayloadFromSnapshot(cfg) {
+  return {
+    isp_interfaces: (cfg.isp_interfaces || []).join(' '),
+    ports: (cfg.ports || []).join(','),
+    forwarded_ports: (cfg.forwarded_ports || []).join(','),
+    enable_honeypot: Boolean(cfg.enable_honeypot),
+    honeypot_ports: (cfg.honeypot_ports || []).join(','),
+    honeypot_bantime_seconds: Number(cfg.honeypot_bantime_seconds || 0),
+    enable_ips_ban: Boolean(cfg.enable_ips_ban),
+    rules_mask: cfg.rules_mask || '255.255.255.255',
+    recent_connections_time_seconds: Number(cfg.recent_connections_time_seconds || 0),
+    recent_connections_hitcount: Number(cfg.recent_connections_hitcount || 0),
+    recent_connections_limit: Number(cfg.recent_connections_limit || 0),
+    recent_connections_bantime_seconds: Number(cfg.recent_connections_bantime_seconds || 0),
+    different_ip_candidates_storage_seconds: Number(cfg.different_ip_candidates_storage_seconds || 0),
+    different_ip_threshold: Number(cfg.different_ip_threshold || 0),
+    subnets_bantime_seconds: Number(cfg.subnets_bantime_seconds || 0),
+    ipsets_directory: cfg.ipsets_directory || '',
+    save_ipsets: Boolean(cfg.save_ipsets),
+    save_on_exit: Boolean(cfg.save_on_exit),
+    use_custom_exclude_list: Boolean(cfg.use_custom_exclude_list),
+    custom_lists_block_mode: cfg.custom_lists_block_mode || '0',
+    geoblock_mode: cfg.geoblock_mode || '0',
+    geoblock_countries: (cfg.geoblock_countries || []).join(' '),
+    geo_exclude_countries: (cfg.geo_exclude_countries || []).join(' '),
+    read_ndm_lockout_ipsets: Boolean(cfg.read_ndm_lockout_ipsets),
+    lockout_ipset_bantime_seconds: Number(cfg.lockout_ipset_bantime_seconds || 0)
+  };
+}
+
+function setConfigFormPayload(cfg) {
+  $('cfgIspInterfaces').value = cfg.isp_interfaces;
+  $('cfgPorts').value = cfg.ports;
+  $('cfgForwardedPorts').value = cfg.forwarded_ports;
+  $('cfgEnableHoneypot').checked = cfg.enable_honeypot;
+  $('cfgHoneypotPorts').value = cfg.honeypot_ports;
+  $('cfgHoneypotBanTime').value = cfg.honeypot_bantime_seconds;
+  $('cfgEnableIpsBan').checked = cfg.enable_ips_ban;
+  $('cfgRulesMask').value = cfg.rules_mask;
+  $('cfgRecentTime').value = cfg.recent_connections_time_seconds;
+  $('cfgRecentHitcount').value = cfg.recent_connections_hitcount;
+  $('cfgRecentLimit').value = cfg.recent_connections_limit;
+  $('cfgRecentBanTime').value = cfg.recent_connections_bantime_seconds;
+  $('cfgCandidateStorage').value = cfg.different_ip_candidates_storage_seconds;
+  $('cfgDifferentThreshold').value = cfg.different_ip_threshold;
+  $('cfgSubnetBanTime').value = cfg.subnets_bantime_seconds;
+  $('cfgIPSetsDirectory').value = cfg.ipsets_directory;
+  $('cfgSaveIPSets').checked = cfg.save_ipsets;
+  $('cfgSaveOnExit').checked = cfg.save_on_exit;
+  $('cfgUseCustomExclude').checked = cfg.use_custom_exclude_list;
+  $('cfgCustomMode').value = cfg.custom_lists_block_mode;
+  $('cfgGeoMode').value = cfg.geoblock_mode;
+  $('cfgGeoCountries').value = cfg.geoblock_countries;
+  $('cfgGeoExcludeCountries').value = cfg.geo_exclude_countries;
+  $('cfgReadNDM').checked = cfg.read_ndm_lockout_ipsets;
+  $('cfgLockoutBanTime').value = cfg.lockout_ipset_bantime_seconds;
+}
+
+function populateConfigEditor(force = false) {
+  const form = $('configForm');
+  if (!form) return;
+  if (!snapshot?.detected || !snapshot?.config) {
+    $('configState').className = 'state neutral';
+    $('configState').textContent = 'UNAVAILABLE';
+    $('configHint').textContent = 'Antiscan или ascn.conf не обнаружен.';
+    $('applyConfig').disabled = true;
+    $('resetConfig').disabled = true;
+    return;
+  }
+
+  if (!configDirty || force) {
+    const payload = configPayloadFromSnapshot(snapshot.config);
+    setConfigFormPayload(payload);
+    configBaseline = JSON.stringify(payload);
+    configBaseSHA = snapshot.config_sha256 || '';
+    configDirty = false;
+  }
+  updateConfigEditorState();
+}
+
+function updateConfigEditorState() {
+  if (!$('configForm')) return;
+  const current = currentConfigFormPayload();
+  configDirty = Boolean(configBaseline) && JSON.stringify(current) !== configBaseline;
+  const upstreamBusy = Boolean(snapshot?.config_reload_in_progress || snapshot?.geo_reload_in_progress);
+  const stale = Boolean(configDirty && configBaseSHA && snapshot?.config_sha256 && snapshot.config_sha256 !== configBaseSHA);
+
+  const state = $('configState');
+  const hint = $('configHint');
+  state.className = 'state';
+  if (configBusy) {
+    state.classList.add('info');
+    state.textContent = 'APPLYING…';
+    hint.textContent = 'Backup → atomic write → upstream reload → verify. При ошибке выполняется rollback.';
+  } else if (stale) {
+    state.classList.add('bad');
+    state.textContent = 'STALE';
+    hint.textContent = 'ascn.conf изменился после открытия формы. Сбрось форму к свежему snapshot перед применением.';
+  } else if (upstreamBusy) {
+    state.classList.add('warn');
+    state.textContent = 'UPSTREAM BUSY';
+    hint.textContent = 'Сейчас идёт config/Geo reload. Применение временно заблокировано.';
+  } else if (configDirty) {
+    state.classList.add('warn');
+    state.textContent = 'CHANGED';
+    hint.textContent = snapshot?.running
+      ? 'Изменения будут применены транзакционно через S99ascn reload.'
+      : 'Antiscan остановлен: файл будет сохранён и проверен, а настройки активируются при следующем start.';
+  } else {
+    state.classList.add('good');
+    state.textContent = 'SYNCED';
+    hint.textContent = snapshot?.running ? 'Форма соответствует активному ascn.conf.' : 'Форма соответствует сохранённому ascn.conf.';
+  }
+
+  $('configHash').textContent = configBaseSHA ? `SHA256 ${configBaseSHA.slice(0, 16)}…` : 'SHA256 —';
+  $('applyConfig').disabled = configBusy || !configDirty || !configBaseSHA || upstreamBusy || stale;
+  $('resetConfig').disabled = configBusy || !configDirty;
+
+  const mobileRisk = current.enable_ips_ban && current.different_ip_threshold > 0 &&
+    current.different_ip_threshold <= 5 && current.different_ip_candidates_storage_seconds >= 86400;
+  const risk = $('configMobileRisk');
+  risk.className = `config-risk ${mobileRisk ? 'warn' : 'good'}`;
+  risk.textContent = mobileRisk
+    ? `⚠ /24: порог ${current.different_ip_threshold}, кандидаты ${fmtDuration(current.different_ip_candidates_storage_seconds)} — для мобильных пулов настройка агрессивная.`
+    : '✓ Текущие /24 threshold/retention не попадают под встроенный mobile-risk профиль.';
+}
+
+async function applyConfigEditor() {
+  if (!configDirty || !configBaseSHA) return;
+  const current = currentConfigFormPayload();
+  const warning = snapshot?.running
+    ? 'Будет создан backup, ascn.conf запишется атомарно, затем Antiscan выполнит штатный reload. При ошибке RouterForge вернёт предыдущий файл и попытается восстановить runtime.'
+    : 'Antiscan остановлен. Будет создан backup и атомарно сохранён ascn.conf; runtime применится при следующем запуске.';
+  if (!window.confirm(`Применить изменения ascn.conf?\n\n${warning}`)) return;
+
+  configBusy = true;
+  updateConfigEditorState();
+  try {
+    const result = await mutate('config', { ...current, base_sha256: configBaseSHA, confirm: 'APPLY_CONFIG' });
+    showMutationResult(result);
+    if (result.restart_required) {
+      const notice = $('actionNotice');
+      notice.textContent += ' · IPSETS_DIRECTORY изменён: upstream требует stop/start для полного перехода на новый каталог.';
+    }
+    configDirty = false;
+    configBaseline = '';
+    await loadStatus();
+    populateConfigEditor(true);
+    if (browserState.blocked) await loadSet('blocked');
+    if (browserState.lists) await loadSet('lists');
+  } catch (error) {
+    showMutationResult(error.payload || { error: error.message }, true);
+    await loadStatus();
+  } finally {
+    configBusy = false;
+    updateConfigEditorState();
+  }
+}
+
 function activateTab(name) {
   document.querySelectorAll('.tab').forEach((button) => {
     button.classList.toggle('active', button.dataset.tab === name);
@@ -148,9 +346,9 @@ function renderLifecycleControls() {
   const running = Boolean(snapshot?.running);
   const upstreamBusy = Boolean(snapshot?.config_reload_in_progress || snapshot?.geo_reload_in_progress);
 
-  start.disabled = lifecycleBusy || !detected || running || upstreamBusy;
-  stop.disabled = lifecycleBusy || !detected || !running || upstreamBusy;
-  reload.disabled = lifecycleBusy || !detected || !running || upstreamBusy;
+  start.disabled = lifecycleBusy || configBusy || !detected || running || upstreamBusy;
+  stop.disabled = lifecycleBusy || configBusy || !detected || !running || upstreamBusy;
+  reload.disabled = lifecycleBusy || configBusy || !detected || !running || upstreamBusy;
 
   state.className = 'state';
   if (lifecycleBusy) {
@@ -473,6 +671,7 @@ async function loadStatus() {
     renderProtection();
     renderWarnings();
     renderSets();
+    populateConfigEditor(false);
   } catch (error) {
     const notice = $('notice');
     notice.hidden = false;
@@ -532,6 +731,14 @@ $('listFilter').addEventListener('input', () => renderSetPage('lists'));
 $('startAntiscan').addEventListener('click', () => performLifecycle('start'));
 $('reloadAntiscan').addEventListener('click', () => performLifecycle('reload'));
 $('stopAntiscan').addEventListener('click', () => performLifecycle('stop'));
+$('configForm').addEventListener('submit', (event) => event.preventDefault());
+$('configForm').addEventListener('input', updateConfigEditorState);
+$('configForm').addEventListener('change', updateConfigEditorState);
+$('resetConfig').addEventListener('click', () => {
+  configDirty = false;
+  populateConfigEditor(true);
+});
+$('applyConfig').addEventListener('click', applyConfigEditor);
 $('addListEntry').addEventListener('click', () => performListEntry($('listAction').value, $('listActionEntry').value.trim()));
 $('listActionEntry').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') performListEntry($('listAction').value, $('listActionEntry').value.trim());

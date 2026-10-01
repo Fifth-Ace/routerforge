@@ -121,7 +121,7 @@ func TestCatalogUnverifiedInstallPlansStayPreviewOnly(t *testing.T) {
 func TestCatalogDetectsKeeneticEntwareExtrasNonDaemonRuntime(t *testing.T) {
 	installed := map[string]string{
 		"keenetic-entware-extras": "0.18.2",
-		"geo-split":                "0.19.1",
+		"geo-split":               "0.19.1",
 	}
 	existing := map[string]bool{
 		"/opt/etc/init.d/S99geo-split": true,

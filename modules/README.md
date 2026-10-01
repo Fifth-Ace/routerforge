@@ -13,7 +13,7 @@ Current Stable 0.10.0 topology:
 
 Current Dev additionally contains the P26 Antiscan integration-manager foundation:
 
-- `antiscan-manager-runtime/` - dedicated Antiscan runtime/API and package lifecycle; P26E completes Russian UI/error localization and UX hardening while preserving all C1-C3 machine/API contracts.
+- `antiscan-manager-runtime/` - dedicated Antiscan runtime/API and package lifecycle; P26F fixes the module UI index redirect loop by serving UI files with ServeContent while preserving P26E localization and all C1-C3 machine/API contracts.
 - `antiscan-manager/frontend/` - standalone Antiscan Manager workspace. It is not part of Admin/Control.
 
 Legacy split source directories `system/`, `thermal/`, `storage/`, and `network/` are intentionally absent. Their historical package names and compatibility sockets remain only where the consolidated Monitoring migration contract needs them; they are not active build targets or product modules.

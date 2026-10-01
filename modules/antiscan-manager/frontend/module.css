@@ -277,3 +277,239 @@ html[data-radius="sharp"] .panel,
 html[data-radius="sharp"] .metric,
 html[data-radius="soft"] .panel,
 html[data-radius="soft"] .metric{border-radius:var(--rf-radius-panel,6px)}
+
+/* P26H.2 R2 вЂ” finish RouterForge host-theme alignment for structural controls. */
+:root{
+  --setting-row-h:62px;
+  --control-gap-shell:var(--rf-control-gap,10px);
+}
+html[data-density="compact"]{--setting-row-h:52px}
+html[data-density="comfortable"]{--setting-row-h:72px}
+
+.button,
+input,
+select{
+  min-height:34px;
+}
+
+.button:disabled,
+.button.primary:disabled{
+  color:var(--muted);
+  border-color:var(--border);
+  background:var(--surface2);
+  opacity:.58;
+  cursor:not-allowed;
+}
+
+.state.info{
+  color:var(--accent);
+  border-color:var(--rf-accent-border,rgba(56,189,248,.30));
+  background:var(--accent-soft);
+}
+
+.inspector-panel{
+  border-color:var(--border);
+}
+
+input:focus,
+select:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px var(--accent-soft);
+}
+
+.hero,
+.tabs,
+.metrics,
+.two-column,
+.overview-grid,
+.config-grid,
+.field-grid,
+.explain-grid{
+  gap:12px;
+}
+
+.panel-head,
+.browser-toolbar,
+.history-toolbar,
+.lifecycle-body,
+.config-apply-panel,
+.list-mutation,
+.inspect-form{
+  padding-left:13px;
+  padding-right:13px;
+}
+
+.browser-toolbar,
+.history-toolbar,
+.lifecycle-body,
+.config-apply-panel,
+.list-mutation{
+  min-height:var(--setting-row-h);
+  align-items:center;
+}
+
+.browser-toolbar,
+.history-toolbar{
+  background:color-mix(in srgb,var(--surface) 82%,var(--bg));
+}
+
+.inspect-form{
+  padding-top:12px;
+  padding-bottom:12px;
+}
+
+.list-mutation{
+  gap:var(--control-gap-shell);
+  background:color-mix(in srgb,var(--surface) 88%,var(--bg));
+}
+
+.list-mutation > div strong,
+.lifecycle-copy strong,
+.config-apply-copy strong{
+  font-size:var(--ui-small,13px);
+  line-height:1.3;
+}
+
+.list-mutation > div span,
+.lifecycle-copy span,
+.config-apply-copy span{
+  color:var(--muted);
+  font-size:var(--ui-xs,12px);
+  line-height:1.45;
+}
+
+.config-apply-panel{
+  border-color:var(--border);
+  background:color-mix(in srgb,var(--surface) 86%,var(--bg));
+}
+
+.reason-explanation{
+  border-color:var(--rf-accent-border,rgba(56,189,248,.30));
+  background:var(--accent-soft);
+  color:var(--text);
+}
+
+.button.success{
+  color:var(--accent);
+  border-color:var(--rf-accent-border,rgba(56,189,248,.30));
+  background:var(--accent-soft);
+}
+
+.button.success:hover{
+  color:var(--accent);
+  border-color:var(--accent);
+  background:var(--rf-accent-hover,var(--accent-soft));
+}
+
+.config-actions,
+.lifecycle-actions,
+.browser-controls,
+.entry-actions,
+.inspect-actions{
+  gap:var(--control-gap-shell);
+}
+
+.field-grid,
+.risk-summary,
+.warning-list,
+.table-scroll,
+.history-list,
+.config-workspace,
+.config-state-wrap,
+.lifecycle-copy,
+.config-apply-copy{
+  min-width:0;
+}
+
+.field,
+.switch-field,
+.risk-pairs > div,
+.risk-verdict,
+.warning-item,
+.entry-row,
+.history-row,
+.explain-grid article{
+  border-radius:var(--rf-radius-control,5px);
+}
+
+.switch-field{
+  min-height:56px;
+  padding:10px 11px;
+  align-items:center;
+}
+
+.switch-field strong,
+.field > span,
+.entry-value,
+.history-title strong,
+.risk-verdict strong,
+.reason-explanation,
+.inspect-result{
+  font-size:var(--ui-xs,12px);
+}
+
+.switch-field small,
+.field small,
+.entry-meta,
+.entry-meta-wrap small,
+.history-main p,
+.history-main small,
+.history-side,
+.risk-pairs span,
+.risk-pairs strong,
+th,
+.browser-toolbar span,
+.empty-state{
+  font-size:var(--ui-micro,11.5px);
+}
+
+.explain-grid article{
+  min-height:92px;
+  padding:12px;
+  background:var(--surface);
+}
+
+.explain-grid strong{
+  width:30px;
+  height:30px;
+  border-radius:var(--rf-radius-control,5px);
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-size:var(--ui-micro,11.5px);
+}
+
+.explain-grid span{
+  color:var(--muted);
+  font-size:var(--ui-xs,12px);
+  line-height:1.45;
+}
+
+.entry-row,
+.history-row,
+.kv{
+  min-height:44px;
+}
+
+.browser-toolbar input{
+  max-width:420px;
+}
+
+.config-actions .button,
+.lifecycle-actions .button,
+.browser-controls .button,
+.entry-actions .button,
+.inspect-actions .button{
+  min-width:0;
+}
+
+@media(max-width:980px){
+  .explain-grid{grid-template-columns:1fr 1fr}
+}
+
+@media(max-width:650px){
+  .explain-grid{grid-template-columns:1fr}
+  .browser-toolbar,
+  .history-toolbar,
+  .lifecycle-body,
+  .config-apply-panel{padding-top:10px;padding-bottom:10px}
+}

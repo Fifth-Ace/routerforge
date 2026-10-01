@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-section="overview">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -36,10 +36,9 @@
     <nav class="tabs" aria-label="Antiscan Manager sections">
       <button class="tab active" type="button" data-tab="overview">Обзор</button>
       <button class="tab" type="button" data-tab="diagnostics">Диагностика</button>
-      <button class="tab" type="button" data-tab="inspect">Почему заблокирован?</button>
       <button class="tab" type="button" data-tab="blocked">Блокировки</button>
-      <button class="tab" type="button" data-tab="lists">Списки и Geo</button>
-      <button class="tab" type="button" data-tab="protection">Защита</button>
+      <button class="tab" type="button" data-tab="lists">Списки</button>
+      <button class="tab" type="button" data-tab="geo">Geo</button>
       <button class="tab" type="button" data-tab="schedule">Расписание</button>
       <button class="tab" type="button" data-tab="config">Настройки</button>
       <button class="tab" type="button" data-tab="history">История</button>
@@ -98,25 +97,21 @@
         <div class="panel-head">
           <div>
             <span class="section-kicker">СЕРВИСНЫЕ ОПЕРАЦИИ</span>
-            <h2>Штатные команды Antiscan</h2>
-            <p>RouterForge вызывает только поддерживаемые команды <span class="mono">S99ascn</span>, блокирует конфликтующие операции и проверяет результат.</p>
+            <h2>Обслуживание</h2>
+            <p>Восстановление правил, обработка кандидатов, импорт блокировок Keenetic и сохранение текущего состояния.</p>
           </div>
           <span id="operationState" class="state neutral">ГОТОВО</span>
         </div>
         <div class="lifecycle-body">
           <div class="lifecycle-copy">
-            <strong>Обслуживание без SSH</strong>
-            <span>Кандидаты, Keenetic lockout, сохранение ipset, пользовательские и Geo-списки, cron и восстановление правил.</span>
+            <strong>Сервисные действия</strong>
+            <span>Редкие операции, которые обычно нужны только при диагностике или восстановлении Antiscan.</span>
           </div>
           <div class="lifecycle-actions">
             <button class="button" type="button" data-operation="update_rules">Восстановить правила</button>
             <button class="button" type="button" data-operation="read_candidates">Обработать кандидатов</button>
             <button class="button" type="button" data-operation="read_ndm_ipsets">Импорт Keenetic</button>
             <button class="button" type="button" data-operation="save_ipsets">Сохранить ipset</button>
-            <button class="button" type="button" data-operation="update_ipsets" data-scope="custom">Перечитать списки</button>
-            <button class="button" type="button" data-operation="update_ipsets" data-scope="geo">Обновить Geo</button>
-            <button class="button" type="button" data-operation="retry_load_geo">Повторить Geo</button>
-            <button class="button" type="button" data-operation="update_crontab">Синхронизировать cron</button>
           </div>
         </div>
         <div id="operationOutput" class="boundary-copy mono muted">Последняя сервисная операция ещё не запускалась.</div>
@@ -295,7 +290,7 @@
     </section>
 
     <section class="tab-page" data-page="lists">
-      <section class="panel set-browser-panel">
+      <section class="panel set-browser-panel custom-source-panel">
         <div class="panel-head set-browser-head">
           <div>
             <span class="section-kicker">ПОЛЬЗОВАТЕЛЬСКИЕ СПИСКИ</span>
@@ -314,7 +309,7 @@
         <div class="browser-toolbar">
           <input id="customListEntry" autocomplete="off" spellcheck="false" placeholder="IPv4 или CIDR, например 100.64.10.0/24">
           <span class="entry-actions">
-            <button id="addCustomListEntry" class="button primary" type="button">Добавить</button>
+            <button id="addCustomListEntry" class="button primary" type="button">Добавить адрес</button>
             <button id="reloadCustomListRuntime" class="button" type="button">Перечитать runtime</button>
             <button id="clearCustomList" class="button danger" type="button">Очистить</button>
           </span>
@@ -323,12 +318,12 @@
         <div id="customListEntries" class="entry-table empty-state">Исходный список ещё не загружен.</div>
       </section>
 
-      <section class="panel set-browser-panel">
+      <section class="panel set-browser-panel runtime-lists-panel">
         <div class="panel-head set-browser-head">
           <div>
             <span class="section-kicker">RUNTIME IPSET</span>
-            <h2>Активные пользовательские и Geo-наборы</h2>
-            <p>Текущее содержимое runtime ipset. Для больших Geo-наборов показываются первые 500 записей.</p>
+            <h2 id="runtimeListsTitle">Активные пользовательские списки</h2>
+            <p id="runtimeListsDescription">Текущее содержимое runtime ipset для blacklist, whitelist и exclude.</p>
           </div>
           <div class="browser-controls">
             <select id="listSet" aria-label="Выберите list set">
@@ -347,6 +342,20 @@
           <span id="listMeta" class="mono muted">—</span>
         </div>
         <div id="listEntries" class="entry-table empty-state">Выберите набор и загрузите текущее состояние.</div>
+      </section>
+
+      <section class="panel geo-service-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">GEO</span>
+            <h2>Обновление Geo-данных</h2>
+            <p>Штатные операции Antiscan для загрузки Geo-наборов и повторной попытки после ошибки. RouterForge не подменяет upstream-логику.</p>
+          </div>
+          <div class="lifecycle-actions">
+            <button class="button primary" type="button" data-operation="update_ipsets" data-scope="geo">Обновить Geo</button>
+            <button class="button" type="button" data-operation="retry_load_geo">Повторить после ошибки</button>
+          </div>
+        </div>
       </section>
     </section>
 
@@ -481,7 +490,7 @@
 
         <section class="panel config-apply-panel">
           <div class="config-apply-copy">
-            <strong>Безопасное применение</strong>
+            <strong>Применение настроек</strong>
             <span id="configHint">Состояние конфигурации загружается…</span>
           </div>
           <div class="config-actions">

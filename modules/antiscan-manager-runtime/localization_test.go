@@ -20,12 +20,13 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 	js := readLocalizationFixture(t, "../antiscan-manager/frontend/app.js")
 
 	requiredHTML := []string{
-		"ЗАЩИЩЁННОЕ УПРАВЛЕНИЕ",
+		"Управление Antiscan",
 		"РИСК ЛОЖНЫХ БЛОКИРОВОК",
+		"ГОТОВНОСТЬ ANTISCAN",
+		"Учтённый функционал upstream",
 		"ДИАГНОСТИКА БЛОКИРОВКИ",
 		"БЕЗОПАСНАЯ НАСТРОЙКА",
 		"ИСТОРИЯ ОПЕРАЦИЙ",
-		"P26E · Локализация и UX",
 	}
 	for _, needle := range requiredHTML {
 		if !strings.Contains(html, needle) {
@@ -39,6 +40,8 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"function reasonLabel(value)",
 		"function evidenceSummary(item)",
 		"function mutationSuccessMessage(context, payload)",
+		"function renderDiagnostics(payload)",
+		"function loadDiagnostics()",
 		"Предыдущее состояние восстановлено",
 		"Защита отключена до следующего запуска",
 		"нужен перезапуск",
@@ -50,11 +53,14 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 	}
 }
 
-func TestAntiscanFrontendRejectsDeveloperEnglishCopy(t *testing.T) {
+func TestAntiscanFrontendRejectsRemovedOrDeveloperCopy(t *testing.T) {
 	combined := readLocalizationFixture(t, "../antiscan-manager/frontend/index.html") + "\n" +
 		readLocalizationFixture(t, "../antiscan-manager/frontend/app.js")
 
 	forbidden := []string{
+		"ЗАЩИЩЁННОЕ УПРАВЛЕНИЕ",
+		"P26E · Локализация и UX",
+		"ГРАНИЦЫ МОДУЛЯ",
 		"GUARDED CONTROL",
 		"FALSE POSITIVE RISK",
 		"UPSTREAM LIFECYCLE",
@@ -78,7 +84,7 @@ func TestAntiscanFrontendRejectsDeveloperEnglishCopy(t *testing.T) {
 	}
 	for _, needle := range forbidden {
 		if strings.Contains(combined, needle) {
-			t.Fatalf("developer-facing English copy leaked into Antiscan UI: %q", needle)
+			t.Fatalf("removed/developer-facing copy leaked into Antiscan UI: %q", needle)
 		}
 	}
 }

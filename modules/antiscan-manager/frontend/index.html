@@ -13,9 +13,9 @@
         <span class="eyebrow">ROUTERFORGE / ANTISCAN MANAGER</span>
         <div class="hero-title-row">
           <h1>Antiscan Manager</h1>
-          <span class="read-only-chip">READ ONLY</span>
+          <span class="read-only-chip guarded">GUARDED CONTROL</span>
         </div>
-        <p>Разбирает текущее состояние Antiscan: блокировки, списки, защитные пороги и причину блокировки конкретного IP.</p>
+        <p>Диагностика Antiscan плюс точечные guarded-действия: снять конкретный бан или добавить адрес в exclude/whitelist.</p>
       </div>
       <div class="hero-actions">
         <span id="targetState" class="state neutral">ПРОВЕРКА…</span>
@@ -24,6 +24,7 @@
     </header>
 
     <section id="notice" class="notice" hidden></section>
+    <section id="actionNotice" class="notice action-notice" hidden></section>
 
     <section class="metrics" aria-label="Antiscan summary">
       <article class="metric"><span>Версия</span><strong id="version">—</strong><small>upstream Antiscan</small></article>
@@ -121,7 +122,7 @@
           <div>
             <span class="section-kicker">LIVE BLOCK STATE</span>
             <h2>Блокировки и кандидаты</h2>
-            <p>Показываем реальные записи выбранного ipset. До 500 записей за запрос.</p>
+            <p>Реальные записи выбранного ipset. Для Antiscan-owned ban sets доступен точечный guarded unban; массового flush здесь нет.</p>
           </div>
           <div class="browser-controls">
             <select id="blockedSet" aria-label="Выберите Antiscan set">
@@ -166,6 +167,18 @@
           <input id="listFilter" autocomplete="off" spellcheck="false" placeholder="Фильтр по IP или подсети">
           <span id="listMeta" class="mono muted">—</span>
         </div>
+        <div class="list-mutation">
+          <div>
+            <strong>Добавить адрес</strong>
+            <span>Файл меняется атомарно. Активный runtime-list перечитывается штатной командой Antiscan и проверяется после reload.</span>
+          </div>
+          <select id="listAction" aria-label="Куда добавить адрес">
+            <option value="exclude">Custom exclude</option>
+            <option value="whitelist">Custom whitelist</option>
+          </select>
+          <input id="listActionEntry" autocomplete="off" spellcheck="false" placeholder="IPv4 или CIDR, например 100.64.10.0/24">
+          <button id="addListEntry" class="button primary" type="button">Добавить</button>
+        </div>
         <div id="listEntries" class="entry-table empty-state">Выберите набор и загрузите текущее состояние.</div>
       </section>
     </section>
@@ -200,11 +213,11 @@
       <div class="panel-head">
         <div>
           <span class="section-kicker">BOUNDARY</span>
-          <h2>P26B · Operational read-only workspace</h2>
+          <h2>P26C1 · Guarded single-entry control</h2>
         </div>
-        <span class="state info">MUTATION API: NONE</span>
+        <span class="state good">MUTATION API: GUARDED</span>
       </div>
-      <p class="boundary-copy">Можно смотреть статус, реальные блокировки, runtime-списки и причины. Нельзя снять бан, изменить <span class="mono">ascn.conf</span>, очистить ipset или перезапустить Antiscan — это будет отдельный guarded-этап.</p>
+      <p class="boundary-copy">Разрешены только точечный unban из <span class="mono">ascn_ips</span>/<span class="mono">ascn_subnets</span>/<span class="mono">ascn_honeypot</span> и добавление IPv4/CIDR в upstream exclude/whitelist. Массовый flush, start/stop/reload и редактирование <span class="mono">ascn.conf</span> по-прежнему недоступны.</p>
     </section>
   </main>
   <script type="module" src="app.js"></script>

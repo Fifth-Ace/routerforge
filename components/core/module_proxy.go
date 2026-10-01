@@ -53,14 +53,15 @@ const (
 )
 
 func moduleMutationAPI(moduleID string) bool {
-	return moduleID == "dns" || moduleID == "admin" || moduleID == "nfqws-manager"
+	return moduleID == "dns" || moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager"
 }
 
 const (
-	dnsModuleMutationBodyLimit     int64 = 64 << 10
-	adminModuleMutationBodyLimit   int64 = 8 << 10
-	adminFileWriteRequestBodyLimit int64 = 272 << 10
-	nfqwsManagerMutationBodyLimit  int64 = (2 << 20) + (64 << 10)
+	dnsModuleMutationBodyLimit       int64 = 64 << 10
+	adminModuleMutationBodyLimit     int64 = 8 << 10
+	adminFileWriteRequestBodyLimit   int64 = 272 << 10
+	nfqwsManagerMutationBodyLimit    int64 = (2 << 20) + (64 << 10)
+	antiscanManagerMutationBodyLimit int64 = 8 << 10
 )
 
 func moduleMutationBodyLimit(moduleID string) int64 {
@@ -71,6 +72,8 @@ func moduleMutationBodyLimit(moduleID string) int64 {
 		return adminModuleMutationBodyLimit
 	case "nfqws-manager":
 		return nfqwsManagerMutationBodyLimit
+	case "antiscan-manager":
+		return antiscanManagerMutationBodyLimit
 	default:
 		return 0
 	}
@@ -164,6 +167,19 @@ func nfqwsManagerMutationRequest(r *http.Request) bool {
 	return len(parts) > 0 && strings.EqualFold(strings.TrimSpace(parts[0]), "nfqws-manager")
 }
 
+func antiscanManagerMutationRequest(r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return false
+	}
+	const prefix = "/api/modules/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return false
+	}
+	rest := strings.TrimPrefix(r.URL.Path, prefix)
+	parts := strings.SplitN(rest, "/", 2)
+	return len(parts) > 0 && strings.EqualFold(strings.TrimSpace(parts[0]), "antiscan-manager")
+}
+
 func adminModuleFileRequest(r *http.Request) bool {
 	const prefix = "/api/modules/"
 	if !strings.HasPrefix(r.URL.Path, prefix) {
@@ -204,13 +220,15 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		adminMutation := adminModuleMutationRequest(r)
 		nfqwsMutation := nfqwsManagerMutationRequest(r)
+		antiscanMutation := antiscanManagerMutationRequest(r)
+		moduleMutation := nfqwsMutation || antiscanMutation
 		adminFiles := adminModuleFileRequest(r)
 		adminTerminal := adminModuleTerminalRequest(r)
-		guarded := adminMutation || nfqwsMutation || adminFiles || adminTerminal
+		guarded := adminMutation || moduleMutation || adminFiles || adminTerminal
 		if guarded {
 			if !sameOriginRequest(r) {
 				message := "cross-origin Admin mutation rejected"
-				if nfqwsMutation {
+				if moduleMutation {
 					message = "cross-origin RouterForge module mutation rejected"
 				}
 				if adminFiles && !adminMutation {
@@ -221,7 +239,7 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 				}
 				writeModuleJSON(w, http.StatusForbidden, map[string]any{
 					"error":        message,
-					"mutation_api": adminMutation,
+					"mutation_api": adminMutation || moduleMutation,
 				})
 				return
 			}
@@ -235,7 +253,7 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 				user, authenticated := auth.sessionUser(r)
 				if !authenticated || user != "root" {
 					message := "authenticated RouterForge root session required for Admin mutation"
-					if nfqwsMutation {
+					if moduleMutation {
 						message = "authenticated RouterForge root session required for module mutation"
 					}
 					if adminFiles && !adminMutation {
@@ -247,7 +265,7 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 					writeModuleJSON(w, http.StatusUnauthorized, map[string]any{
 						"error":         message,
 						"auth_required": true,
-						"mutation_api":  adminMutation,
+						"mutation_api":  adminMutation || moduleMutation,
 					})
 					return
 				}
@@ -361,7 +379,7 @@ func moduleMethodAllowed(moduleID, method string) bool {
 			return false
 		}
 	}
-	if moduleID == "admin" || moduleID == "nfqws-manager" {
+	if moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager" {
 		switch method {
 		case http.MethodGet, http.MethodPost:
 			return true
@@ -447,7 +465,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		allow := "GET, HEAD"
 		if moduleID == "dns" {
 			allow = "GET, HEAD, POST, PATCH, DELETE"
-		} else if moduleID == "admin" || moduleID == "nfqws-manager" {
+		} else if moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager" {
 			allow = "GET, HEAD, POST"
 		}
 		w.Header().Set("Allow", allow)
@@ -499,7 +517,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 				req.Header.Set(adminMutationAuthorizationHeader, adminMutationAuthorizationValue)
 			}
 		}
-		if moduleID == "nfqws-manager" {
+		if moduleID == "nfqws-manager" || moduleID == "antiscan-manager" {
 			req.Header.Del(moduleMutationAuthorizationHeader)
 			if adminMutationAuthorized(r) {
 				req.Header.Set(moduleMutationAuthorizationHeader, moduleMutationAuthorizationValue)

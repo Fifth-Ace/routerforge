@@ -559,9 +559,10 @@ func readAntiscanSetCount(parent context.Context, binary, setName string) (int64
 		return 0, errors.New("unknown Antiscan ipset")
 	}
 
-	// Entware ipset 7.24 accepts -terse but omits "Number of entries".
-	// Keep the cheap path first, then fall back to the ordinary header and stop
-	// reading as soon as the count is known. This avoids walking large Geo sets.
+	// Entware ipset 7.24 can omit "Number of entries" from -terse when used
+	// with an older kernel ipset protocol. Keep the cheap path first. The plain
+	// fallback is streaming and, if the count header is still absent, counts
+	// member lines after "Members:" without buffering the full set in memory.
 	ctx, cancel := context.WithTimeout(parent, antiscanCommandTimeout)
 	data, terseErr := safety.RunCommand(ctx, antiscanCommandOutputMax, binary, "list", setName, "-terse")
 	cancel()
@@ -620,23 +621,41 @@ func scanIPSetCount(reader io.Reader) (int64, error) {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 4096), 64<<10)
 	lines := 0
+	inMembers := false
+	var memberCount int64
+
 	for scanner.Scan() {
-		lines++
 		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "Number of entries:") {
-			value := strings.TrimSpace(strings.TrimPrefix(line, "Number of entries:"))
-			count, err := strconv.ParseInt(value, 10, 64)
-			if err != nil || count < 0 {
-				return 0, errors.New("invalid ipset entry count")
+
+		if !inMembers {
+			lines++
+			if strings.HasPrefix(line, "Number of entries:") {
+				value := strings.TrimSpace(strings.TrimPrefix(line, "Number of entries:"))
+				count, err := strconv.ParseInt(value, 10, 64)
+				if err != nil || count < 0 {
+					return 0, errors.New("invalid ipset entry count")
+				}
+				return count, nil
 			}
-			return count, nil
+			if line == "Members:" {
+				inMembers = true
+				continue
+			}
+			if lines >= 64 {
+				return 0, errors.New("ipset entry count missing")
+			}
+			continue
 		}
-		if line == "Members:" || lines >= 64 {
-			break
+
+		if line != "" {
+			memberCount++
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		return 0, err
+	}
+	if inMembers {
+		return memberCount, nil
 	}
 	return 0, errors.New("ipset entry count missing")
 }

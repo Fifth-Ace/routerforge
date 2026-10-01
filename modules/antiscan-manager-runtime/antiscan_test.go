@@ -156,6 +156,24 @@ func TestParseIPSetCount(t *testing.T) {
 	}
 }
 
+func TestParseIPSetCountFallsBackToMemberLines(t *testing.T) {
+	got, err := parseIPSetCount("Name: ascn_ips\nType: hash:ip\nMembers:\n198.51.100.7 timeout 400\n203.0.113.9 timeout 300\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 2 {
+		t.Fatalf("count=%d", got)
+	}
+
+	empty, err := parseIPSetCount("Name: ascn_ips\nType: hash:ip\nMembers:\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty != 0 {
+		t.Fatalf("empty count=%d", empty)
+	}
+}
+
 func TestReadAntiscanSetCountFallsBackFromTerse(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("fixture uses a POSIX executable script")
@@ -164,18 +182,25 @@ func TestReadAntiscanSetCountFallsBackFromTerse(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "ipset")
 	script := `#!/bin/sh
 if [ "$3" = "-terse" ]; then
-	printf '%s\n' 'Name: ascn_ips' 'Type: hash:ip'
+	printf '%s\n' \
+		'Name: ascn_ips' \
+		'Type: hash:ip' \
+		'Revision: 4' \
+		'Header: family inet hashsize 1024 maxelem 65536 timeout 864000' \
+		'Size in memory: 96' \
+		'References: 3'
 	exit 0
 fi
 printf '%s\n' \
 	'Name: ascn_ips' \
 	'Type: hash:ip' \
-	'Header: family inet hashsize 1024 maxelem 65536' \
-	'Size in memory: 512' \
-	'References: 1' \
-	'Number of entries: 17' \
+	'Revision: 4' \
+	'Header: family inet hashsize 1024 maxelem 65536 timeout 864000' \
+	'Size in memory: 96' \
+	'References: 3' \
 	'Members:' \
-	'198.51.100.7 timeout 400'
+	'198.51.100.7 timeout 400' \
+	'203.0.113.9 timeout 300'
 `
 	if err := os.WriteFile(binary, []byte(script), 0755); err != nil {
 		t.Fatal(err)
@@ -185,7 +210,7 @@ printf '%s\n' \
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != 17 {
+	if got != 2 {
 		t.Fatalf("count=%d", got)
 	}
 }

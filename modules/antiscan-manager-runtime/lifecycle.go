@@ -14,6 +14,7 @@ import (
 
 const (
 	antiscanLifecycleTimeout   = 90 * time.Second
+	antiscanRestartTimeout     = 12 * time.Minute
 	antiscanLifecycleOutputMax = 32 << 10
 )
 
@@ -66,10 +67,10 @@ func handleAntiscanLifecycle(cfg runtimeConfig) http.HandlerFunc {
 func normalizeAntiscanLifecycleAction(raw string) (string, error) {
 	action := strings.ToLower(strings.TrimSpace(raw))
 	switch action {
-	case "start", "stop", "reload":
+	case "start", "stop", "reload", "restart":
 		return action, nil
 	default:
-		return "", errors.New("lifecycle action must be start, stop or reload")
+		return "", errors.New("lifecycle action must be start, stop, reload or restart")
 	}
 }
 
@@ -104,7 +105,14 @@ func applyAntiscanLifecycle(parent context.Context, cfg runtimeConfig, action st
 		return result, http.StatusConflict, err
 	}
 
-	ctx, cancel := context.WithTimeout(parent, antiscanLifecycleTimeout)
+	timeout := antiscanLifecycleTimeout
+	if action == "restart" {
+		timeout = antiscanRestartTimeout
+		if !result.BeforeRunning {
+			result.Warnings = append(result.Warnings, "Antiscan was stopped; upstream restart will start it.")
+		}
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	output, runErr := safety.RunCommand(ctx, antiscanLifecycleOutputMax, cfg.InitScript, action)
 	result.Output = strings.TrimSpace(string(output))
@@ -131,6 +139,11 @@ func applyAntiscanLifecycle(parent context.Context, cfg runtimeConfig, action st
 	case "reload":
 		if !result.AfterRunning {
 			return result, http.StatusConflict, errors.New("reload verification failed: Antiscan stopped during reload")
+		}
+		result.Changed = true
+	case "restart":
+		if !result.AfterRunning {
+			return result, http.StatusConflict, errors.New("restart verification failed: /tmp/ascn.run is absent")
 		}
 		result.Changed = true
 	}

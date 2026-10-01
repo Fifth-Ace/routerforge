@@ -10,24 +10,29 @@ import (
 )
 
 func TestNormalizeAntiscanLifecycleAction(t *testing.T) {
-	for _, action := range []string{"start", "STOP", " reload "} {
+	for _, action := range []string{"start", "STOP", " reload ", "restart"} {
 		if _, err := normalizeAntiscanLifecycleAction(action); err != nil {
 			t.Fatalf("action %q rejected: %v", action, err)
 		}
 	}
-	for _, action := range []string{"", "restart", "flush", "status"} {
+	for _, action := range []string{"", "flush", "status"} {
 		if _, err := normalizeAntiscanLifecycleAction(action); err == nil {
 			t.Fatalf("action %q accepted", action)
 		}
 	}
 }
 
-func TestApplyAntiscanLifecycleStartReloadStop(t *testing.T) {
+func TestApplyAntiscanLifecycleStartRestartReloadStop(t *testing.T) {
 	cfg := fakeAntiscanLifecycleConfig(t)
 
 	start, status, err := applyAntiscanLifecycle(context.Background(), cfg, "start")
 	if err != nil || status != http.StatusOK || !start.Changed || !start.Verified || !start.AfterRunning {
 		t.Fatalf("start status=%d err=%v result=%+v", status, err, start)
+	}
+
+	restart, status, err := applyAntiscanLifecycle(context.Background(), cfg, "restart")
+	if err != nil || status != http.StatusOK || !restart.Changed || !restart.Verified || !restart.BeforeRunning || !restart.AfterRunning {
+		t.Fatalf("restart status=%d err=%v result=%+v", status, err, restart)
 	}
 
 	reload, status, err := applyAntiscanLifecycle(context.Background(), cfg, "reload")
@@ -38,6 +43,17 @@ func TestApplyAntiscanLifecycleStartReloadStop(t *testing.T) {
 	stop, status, err := applyAntiscanLifecycle(context.Background(), cfg, "stop")
 	if err != nil || status != http.StatusOK || !stop.Changed || !stop.Verified || stop.AfterRunning {
 		t.Fatalf("stop status=%d err=%v result=%+v", status, err, stop)
+	}
+}
+
+func TestApplyAntiscanLifecycleRestartStartsStoppedUpstream(t *testing.T) {
+	cfg := fakeAntiscanLifecycleConfig(t)
+	result, status, err := applyAntiscanLifecycle(context.Background(), cfg, "restart")
+	if err != nil || status != http.StatusOK || !result.Changed || !result.Verified || result.BeforeRunning || !result.AfterRunning {
+		t.Fatalf("restart status=%d err=%v result=%+v", status, err, result)
+	}
+	if len(result.Warnings) == 0 {
+		t.Fatalf("restart-from-stopped warning missing: %+v", result)
 	}
 }
 
@@ -113,6 +129,11 @@ case "$1" in
   stop)
     rm -f "$STATUS"
     printf 'stopped\n'
+    ;;
+  restart)
+    rm -f "$STATUS"
+    printf '1\n' > "$STATUS"
+    printf 'restarted\n'
     ;;
   reload)
     [ -f "$STATUS" ] || exit 3

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/netip"
 	"os"
@@ -557,29 +558,91 @@ func readAntiscanSetCount(parent context.Context, binary, setName string) (int64
 	if !knownAntiscanSet(setName) {
 		return 0, errors.New("unknown Antiscan ipset")
 	}
+
+	// Entware ipset 7.24 accepts -terse but omits "Number of entries".
+	// Keep the cheap path first, then fall back to the ordinary header and stop
+	// reading as soon as the count is known. This avoids walking large Geo sets.
+	ctx, cancel := context.WithTimeout(parent, antiscanCommandTimeout)
+	data, terseErr := safety.RunCommand(ctx, antiscanCommandOutputMax, binary, "list", setName, "-terse")
+	cancel()
+	if terseErr == nil {
+		if count, parseErr := parseIPSetCount(string(data)); parseErr == nil {
+			return count, nil
+		}
+	}
+
+	return readAntiscanSetCountHeader(parent, binary, setName)
+}
+
+func readAntiscanSetCountHeader(parent context.Context, binary, setName string) (int64, error) {
+	if !knownAntiscanSet(setName) {
+		return 0, errors.New("unknown Antiscan ipset")
+	}
+
 	ctx, cancel := context.WithTimeout(parent, antiscanCommandTimeout)
 	defer cancel()
-	data, err := safety.RunCommand(ctx, antiscanCommandOutputMax, binary, "list", setName, "-terse")
+
+	cmd, err := safety.CommandContext(ctx, binary, "list", setName)
 	if err != nil {
 		return 0, err
 	}
-	return parseIPSetCount(string(data))
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return 0, err
+	}
+	if err := cmd.Start(); err != nil {
+		return 0, err
+	}
+
+	count, scanErr := scanIPSetCount(stdout)
+	if scanErr == nil {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		_ = cmd.Wait()
+		return count, nil
+	}
+
+	waitErr := cmd.Wait()
+	if ctx.Err() != nil {
+		return 0, ctx.Err()
+	}
+	if scanErr != nil {
+		return 0, scanErr
+	}
+	if waitErr != nil {
+		return 0, waitErr
+	}
+	return 0, errors.New("ipset entry count missing")
+}
+
+func scanIPSetCount(reader io.Reader) (int64, error) {
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 4096), 64<<10)
+	lines := 0
+	for scanner.Scan() {
+		lines++
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "Number of entries:") {
+			value := strings.TrimSpace(strings.TrimPrefix(line, "Number of entries:"))
+			count, err := strconv.ParseInt(value, 10, 64)
+			if err != nil || count < 0 {
+				return 0, errors.New("invalid ipset entry count")
+			}
+			return count, nil
+		}
+		if line == "Members:" || lines >= 64 {
+			break
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+	return 0, errors.New("ipset entry count missing")
 }
 
 func parseIPSetCount(text string) (int64, error) {
-	for _, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "Number of entries:") {
-			continue
-		}
-		value := strings.TrimSpace(strings.TrimPrefix(line, "Number of entries:"))
-		count, err := strconv.ParseInt(value, 10, 64)
-		if err != nil || count < 0 {
-			return 0, errors.New("invalid ipset entry count")
-		}
-		return count, nil
-	}
-	return 0, errors.New("ipset entry count missing")
+	return scanIPSetCount(strings.NewReader(text))
 }
 
 func antiscanIPSetContains(parent context.Context, binary, setName, ip string) (bool, error) {

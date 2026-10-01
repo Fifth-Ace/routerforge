@@ -1,6 +1,10 @@
 package main
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -144,6 +148,40 @@ func TestClassifyAntiscanMembershipCandidateIsNotBlocked(t *testing.T) {
 
 func TestParseIPSetCount(t *testing.T) {
 	got, err := parseIPSetCount("Name: ascn_ips\nType: hash:ip\nNumber of entries: 17\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 17 {
+		t.Fatalf("count=%d", got)
+	}
+}
+
+func TestReadAntiscanSetCountFallsBackFromTerse(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture uses a POSIX executable script")
+	}
+
+	binary := filepath.Join(t.TempDir(), "ipset")
+	script := `#!/bin/sh
+if [ "$3" = "-terse" ]; then
+	printf '%s\n' 'Name: ascn_ips' 'Type: hash:ip'
+	exit 0
+fi
+printf '%s\n' \
+	'Name: ascn_ips' \
+	'Type: hash:ip' \
+	'Header: family inet hashsize 1024 maxelem 65536' \
+	'Size in memory: 512' \
+	'References: 1' \
+	'Number of entries: 17' \
+	'Members:' \
+	'198.51.100.7 timeout 400'
+`
+	if err := os.WriteFile(binary, []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := readAntiscanSetCount(context.Background(), binary, "ascn_ips")
 	if err != nil {
 		t.Fatal(err)
 	}

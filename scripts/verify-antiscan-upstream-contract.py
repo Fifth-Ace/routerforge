@@ -162,9 +162,15 @@ def shell_assignment(text, name):
 
 def parse_main_commands(text):
     marker = 'case "$1" in'
-    start = text.find(marker)
-    if start < 0:
+    starts = [match.start() for match in re.finditer(re.escape(marker), text)]
+    if not starts:
         fail("upstream main command dispatcher missing")
+
+    # S99ascn also contains an earlier case "$1" dispatcher inside edit_file().
+    # The top-level CLI dispatcher is the final case "$1" block in the pinned
+    # upstream script. Selecting the first block would only inspect edit aliases
+    # and produce a false contract drift.
+    start = starts[-1]
     end = text.find("\nesac", start)
     if end < 0:
         fail("upstream main command dispatcher is unterminated")
@@ -260,7 +266,10 @@ def check_remote_contract(manifest):
     if parse_config_keys(texts["config"]) != manifest["config_keys"]:
         fail("upstream default ascn.conf keys differ from RouterForge contract")
 
-    if parse_main_commands(texts["init"]) != manifest["commands"]:
+    actual_commands = parse_main_commands(texts["init"])
+    if actual_commands != manifest["commands"]:
+        print("EXPECTED_COMMANDS=" + ",".join(manifest["commands"]))
+        print("ACTUAL_COMMANDS=" + ",".join(actual_commands))
         fail("upstream S99ascn command surface differs from RouterForge contract")
 
     if parse_default_cron(texts["cron"]) != manifest["default_cron"]:

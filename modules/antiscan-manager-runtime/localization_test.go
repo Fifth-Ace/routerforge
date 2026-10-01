@@ -27,7 +27,7 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"Токен передаётся upstream только через stdin",
 		"Расписание Antiscan",
 		"Автоматическая задача retry_load_geo",
-		"Штатная очистка / восстановление",
+		"ШТАТНАЯ ОЧИСТКА / ВОССТАНОВЛЕНИЕ",
 		"Учтённый функционал upstream",
 		"ДИАГНОСТИКА БЛОКИРОВКИ",
 		"БЕЗОПАСНАЯ НАСТРОЙКА",

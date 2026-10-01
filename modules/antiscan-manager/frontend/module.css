@@ -191,3 +191,89 @@ html[data-radius="soft"] .metric{border-radius:12px}
   .metrics{grid-template-columns:1fr 1fr}
   .tab{padding:0 9px}
 }
+
+/* P26H.1 — consume the live RouterForge shell contract instead of approximating it. */
+:root{
+  --radius:var(--rf-radius-panel,6px);
+  --control-radius:var(--rf-radius-control,5px);
+  --card-radius:var(--rf-radius-card,8px);
+  --accent-soft:var(--rf-accent-soft,rgba(56,189,248,.10))
+}
+
+body{
+  font-size:var(--ui-body,14px);
+  line-height:1.42
+}
+
+.hero h1{
+  color:var(--text);
+  font-size:calc(var(--ui-panel-title,14px) + 6px)
+}
+.hero p,.panel-head p{font-size:var(--ui-xs,12px)}
+
+.button{
+  border-color:var(--border);
+  border-radius:var(--control-radius);
+  background:var(--surface2);
+  color:color-mix(in srgb,var(--text) 86%,var(--muted));
+  font-size:var(--ui-xs,12px)
+}
+.button:hover{border-color:var(--border-strong);background:var(--hover)}
+.button.primary{
+  color:var(--accent);
+  border-color:var(--rf-accent-border,rgba(56,189,248,.30));
+  background:var(--accent-soft)
+}
+.button.small{font-size:var(--ui-micro,11.5px)}
+
+input,select{
+  border-radius:var(--control-radius);
+  background:var(--surface2);
+  color:var(--text);
+  font-size:var(--ui-xs,12px)
+}
+
+.metric{
+  border-radius:var(--rf-radius-panel,6px);
+  background:var(--surface)
+}
+.metric span,.metric small{font-size:var(--ui-xs,12px)}
+.metric strong{font-size:var(--rf-type-metric,24px)}
+
+.tab{font-size:var(--ui-xs,12px)}
+
+.panel,.metric{border-radius:var(--rf-radius-panel,6px)}
+.panel-head{
+  min-height:var(--rf-panel-head-h,50px);
+  background:color-mix(in srgb,var(--surface) 82%,var(--bg))
+}
+.compact-panel .panel-head{min-height:var(--rf-panel-head-h,50px)}
+.panel-head h2{color:var(--text);font-size:var(--ui-panel-title,14px)}
+.panel-head p,.section-kicker{font-size:var(--ui-micro,11.5px)}
+
+.kv span,.kv strong,
+.risk-verdict strong,.risk-verdict p,
+.inspect-result,.evidence-row p,.warning-item p,.reason-explanation,
+.entry-value,
+.lifecycle-copy strong,.config-apply-copy strong,.list-mutation>div strong,
+.history-title strong,table,.empty-state{
+  font-size:var(--ui-xs,12px)
+}
+
+.state,
+.risk-pairs span,.risk-pairs strong,
+.entry-meta,.entry-meta-wrap small,
+.lifecycle-copy span,.config-apply-copy span,.list-mutation>div span,
+.field>span,.field small,.switch-field small,.switch-field strong,
+.history-main p,.history-main small,.history-side,
+.browser-toolbar span,th{
+  font-size:var(--ui-micro,11.5px)
+}
+
+html[data-density="compact"] .panel-head{min-height:var(--rf-panel-head-h,44px)}
+html[data-density="comfortable"] .panel-head{min-height:var(--rf-panel-head-h,56px)}
+
+html[data-radius="sharp"] .panel,
+html[data-radius="sharp"] .metric,
+html[data-radius="soft"] .panel,
+html[data-radius="soft"] .metric{border-radius:var(--rf-radius-panel,6px)}

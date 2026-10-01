@@ -3,6 +3,53 @@ const $ = (id) => document.getElementById(id);
 const routerForgeParams = new URLSearchParams(window.location.search);
 let routerForgeResizeObserver = null;
 let routerForgeHeightFrame = 0;
+let routerForgeHostObserver = null;
+
+const routerForgeHostTokens = [
+  '--rf-bg',
+  '--rf-surface',
+  '--rf-surface-2',
+  '--rf-hover',
+  '--rf-text',
+  '--rf-muted',
+  '--rf-border',
+  '--rf-border-strong',
+  '--rf-accent',
+  '--rf-accent-soft',
+  '--rf-accent-hover',
+  '--rf-accent-border',
+  '--rf-radius-panel',
+  '--rf-radius-control',
+  '--rf-radius-card',
+  '--rf-panel-head-h',
+  '--rf-control-gap',
+  '--ui-body',
+  '--ui-small',
+  '--ui-xs',
+  '--ui-micro',
+  '--ui-panel-title',
+  '--rf-type-metric'
+];
+
+function syncRouterForgeHostTheme() {
+  if (window.parent === window) return false;
+  try {
+    const root = document.documentElement;
+    const hostRoot = window.parent.document.documentElement;
+    const hostStyle = window.parent.getComputedStyle(hostRoot);
+    routerForgeHostTokens.forEach((token) => {
+      const value = hostStyle.getPropertyValue(token).trim();
+      if (value) root.style.setProperty(token, value);
+    });
+    ['theme', 'density', 'radius', 'uiScale'].forEach((key) => {
+      const value = hostRoot.dataset[key];
+      if (value) root.dataset[key] = value;
+    });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 const routerForgeThemes = {
   forge: {
@@ -87,6 +134,8 @@ function applyRouterForgeFrameSettings() {
     root.dataset.radius = radius;
     root.style.setProperty('--rf-radius', radius === 'sharp' ? '2px' : radius === 'soft' ? '12px' : '8px');
   }
+
+  syncRouterForgeHostTheme();
 }
 
 function reportRouterForgeModuleHeight() {
@@ -107,6 +156,19 @@ function reportRouterForgeModuleHeight() {
 function startRouterForgeBridge() {
   applyRouterForgeFrameSettings();
   reportRouterForgeModuleHeight();
+
+  if (window.parent !== window && 'MutationObserver' in window) {
+    try {
+      const hostRoot = window.parent.document.documentElement;
+      routerForgeHostObserver = new MutationObserver(() => syncRouterForgeHostTheme());
+      routerForgeHostObserver.observe(hostRoot, {
+        attributes: true,
+        attributeFilter: ['style', 'class', 'data-theme', 'data-density', 'data-radius', 'data-ui-scale']
+      });
+    } catch (_) {
+      routerForgeHostObserver = null;
+    }
+  }
 
   const workspace = document.querySelector('.as-page');
   if (workspace && 'ResizeObserver' in window) {

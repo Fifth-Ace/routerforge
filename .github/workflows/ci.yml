@@ -190,6 +190,11 @@ jobs:
       - name: Verify shared safety contract
         run: python3 scripts/verify-safety-contract.py
 
+      - name: Verify Antiscan upstream drift guard
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/verify-antiscan-upstream-contract.py --remote
+
       - name: Set up Node
         if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
         uses: actions/setup-node@v4

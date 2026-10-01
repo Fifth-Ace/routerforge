@@ -1,116 +1,82 @@
 {
-    "schema_version": 1,
-    "channel": "beta",
-    "release_version": "0.10.0-beta.5",
-    "release_notes": {
-        "ru": {
-            "new": [
-                "Автоподбор обхода в NFQWS Manager полностью переработан: теперь достаточно указать нужный сайт, а RouterForge сам проверяет подходящие варианты.",
-                "Во время автоподбора сразу видно живой прогресс, сколько вариантов уже проверено и что происходит прямо сейчас.",
-                "После поиска показываются все найденные рабочие варианты. Рекомендованный вариант отмечается отдельно, но выбрать можно любой из успешно прошедших проверку.",
-                "Перед применением выбранный вариант дополнительно перепроверяется, чтобы случайный единичный успех не попал в рабочую конфигурацию.",
-                "Найденная настройка добавляется отдельным новым профилем и не заменяет уже существующие правила NFQWS.",
-                "Перед применением RouterForge показывает предварительный результат и предупреждает, если новое правило может пересекаться с уже существующими профилями.",
-                "Предпросмотр конфигурации стал заметно удобнее: нормальное выравнивание, подсветка и более читаемый размер текста.",
-                "Набор проверяемых вариантов обхода значительно расширен, поэтому автоподбор лучше справляется с разными типами блокировок и разными сайтами.",
-                "Инструменты ClientHello получили законченный рабочий сценарий: образец можно получить с устройства и использовать при подборе обхода.",
-                "Раздел NFQWS стал чище и понятнее: переработана навигация, убраны старые экспериментальные экраны и улучшен русский интерфейс."
-            ],
-            "fixes": [
-                "Исправлен ложный тайм-аут, который мог появляться уже после фактически успешного завершения автоподбора.",
-                "Исправлена ситуация, когда автоподбор долго выглядел зависшим и начинал показывать заметный прогресс только ближе к концу.",
-                "Исправлено применение найденной стратегии после автоподбора: выбранный рабочий вариант теперь можно нормально перепроверить и подготовить к применению.",
-                "Убрана путаница между найденными рабочими стратегиями и существующими профилями NFQWS.",
-                "Существующие пользовательские профили больше не подменяются новым результатом автоподбора.",
-                "Улучшен выбор подходящих правил для сайтов и адресов, включая более аккуратную работу с уже существующими списками и исключениями.",
-                "Убраны устаревшие части старого автоподбора, которые больше не использовались и могли путать интерфейс.",
-                "Установка на MIPS и MIPSel больше не требует лишнего подтверждения об экспериментальном режиме. Проверка совместимости конкретного роутера при этом сохранена.",
-                "Предупреждения для роутеров с малым объёмом памяти, одноядерным процессором или без swap сохранены и продолжают показываться при установке."
-            ],
-            "compatibility": [
-                "Beta 0.10.0-beta.5 сохраняет тот же набор из семи компонентов RouterForge.",
-                "Пакеты доступны для aarch64-3.10, mips-3.4 и mipsel-3.4.",
-                "Для MIPS и MIPSel убрано отдельное предупреждение с ручным подтверждением, но RouterForge по-прежнему проверяет совместимость устройства перед установкой.",
-                "Предупреждения о недостатке ресурсов устройства остаются без изменений.",
-                "Stable/main этим выпуском не обновляется."
-            ],
-            "technical": []
-        },
-        "en": {
-            "new": [
-                "NFQWS Manager automatic bypass search has been fully reworked: enter the target site and RouterForge checks suitable options automatically.",
-                "Automatic search now shows live progress, including how many options have already been checked and what is happening right now.",
-                "All working results are shown after the search. RouterForge marks its recommendation, but any successfully verified option can be selected.",
-                "The selected result is verified once more before it can be applied, reducing the chance of saving a one-off lucky result.",
-                "A discovered configuration is appended as a new NFQWS profile and does not replace existing user rules.",
-                "Before applying a result, RouterForge shows a preview and warns about possible overlap with existing profiles.",
-                "Configuration preview is easier to read with improved alignment, highlighting, and a larger font.",
-                "The set of bypass options checked by automatic search has been expanded substantially, improving coverage across different sites and blocking conditions.",
-                "ClientHello tools now have a complete usable workflow: a sample can be captured from the device and used during bypass search.",
-                "The NFQWS section is cleaner and easier to navigate, with old experimental screens removed and interface wording improved."
-            ],
-            "fixes": [
-                "Fixed a false timeout that could appear after automatic search had actually completed successfully.",
-                "Fixed long periods where automatic search looked stuck and only began showing meaningful progress near the end.",
-                "Fixed applying a working result after automatic search: the selected option can now be rechecked and prepared for application normally.",
-                "Removed confusion between discovered working strategies and existing NFQWS profiles.",
-                "Existing user profiles are no longer replaced by a newly discovered automatic-search result.",
-                "Improved matching of rules to sites and addresses, including safer handling of existing lists and exclusions.",
-                "Removed obsolete parts of the previous automatic-search flow that were no longer used and could make the interface confusing.",
-                "MIPS and MIPSel installation no longer asks for an extra experimental-mode confirmation. Per-device compatibility checking remains in place.",
-                "Warnings for routers with low memory, a single-core CPU, or no swap remain enabled during installation."
-            ],
-            "compatibility": [
-                "Beta 0.10.0-beta.5 keeps the same seven RouterForge components.",
-                "Packages are available for aarch64-3.10, mips-3.4, and mipsel-3.4.",
-                "The separate manual experimental confirmation has been removed for MIPS and MIPSel, while device compatibility is still checked before installation.",
-                "Low-resource device warnings remain unchanged.",
-                "Stable/main is not updated by this release."
-            ],
-            "technical": []
-        }
+  "schema_version": 1,
+  "channel": "beta",
+  "release_version": "0.11.0-beta.1",
+  "release_notes": {
+    "ru": {
+      "new": [
+        "Beta `0.11.0-beta.1` добавляет **Antiscan Manager** — отдельный интерфейс для уже установленного `dimon27254/antiscan`, без тихой установки или подмены upstream.",
+        "В одном месте собраны состояние, настройки, списки, блокировки, управление и расписание Antiscan."
+      ],
+      "fixes": [
+        "Исправлен ложный `OFF` у **Keenetic Entware Extras / Geo Split**: если Geo Split реально работает, RouterForge больше не изображает свидетеля его смерти."
+      ],
+      "compatibility": [
+        "Core: `0.10.1~beta.1`; Antiscan Manager: `0.11.0~beta.1`; остальные компоненты сохраняют свои ранее опубликованные Beta-версии."
+      ],
+      "technical": []
     },
-    "components": [
-        {
-            "id": "routerforge-core",
-            "package": "routerforge-core",
-            "version": "0.10.0~beta.5"
-        },
-        {
-            "id": "dns",
-            "package": "routerforge-dns",
-            "version": "0.10.0~beta.5",
-            "min_core_version": "0.10.0~beta.5"
-        },
-        {
-            "id": "admin",
-            "package": "routerforge-admin",
-            "version": "0.10.0~beta.5",
-            "min_core_version": "0.10.0~beta.5"
-        },
-        {
-            "id": "monitoring",
-            "package": "routerforge-monitoring",
-            "version": "0.10.0~beta.5",
-            "min_core_version": "0.10.0~beta.5"
-        },
-        {
-            "id": "network-tools",
-            "package": "routerforge-network-tools",
-            "version": "0.10.0~beta.5",
-            "min_core_version": "0.10.0~beta.5"
-        },
-        {
-            "id": "nfqws-manager",
-            "package": "routerforge-nfqws-manager",
-            "version": "0.10.0~beta.5",
-            "min_core_version": "0.10.0~beta.5"
-        },
-        {
-            "id": "profiling",
-            "package": "routerforge-profiling",
-            "version": "0.10.0~beta.5",
-            "min_core_version": "0.10.0~beta.5"
-        }
-    ]
+    "en": {
+      "new": [
+        "Beta `0.11.0-beta.1` adds **Antiscan Manager** — a separate UI for an existing `dimon27254/antiscan` installation, without silently installing or replacing upstream.",
+        "Antiscan status, settings, lists, blocks, lifecycle and scheduling are now available in one place."
+      ],
+      "fixes": [
+        "Fixed the false **Keenetic Entware Extras / Geo Split** `OFF` state: if Geo Split is actually running, RouterForge no longer performs a small public funeral for it."
+      ],
+      "compatibility": [
+        "Core: `0.10.1~beta.1`; Antiscan Manager: `0.11.0~beta.1`; unchanged components keep their previously published Beta versions."
+      ],
+      "technical": []
+    }
+  },
+  "components": [
+    {
+      "id": "routerforge-core",
+      "package": "routerforge-core",
+      "version": "0.10.1~beta.1"
+    },
+    {
+      "id": "dns",
+      "package": "routerforge-dns",
+      "version": "0.10.0~beta.5",
+      "min_core_version": "0.10.0~beta.5"
+    },
+    {
+      "id": "admin",
+      "package": "routerforge-admin",
+      "version": "0.10.0~beta.5",
+      "min_core_version": "0.10.0~beta.5"
+    },
+    {
+      "id": "monitoring",
+      "package": "routerforge-monitoring",
+      "version": "0.10.0~beta.5",
+      "min_core_version": "0.10.0~beta.5"
+    },
+    {
+      "id": "network-tools",
+      "package": "routerforge-network-tools",
+      "version": "0.10.0~beta.5",
+      "min_core_version": "0.10.0~beta.5"
+    },
+    {
+      "id": "nfqws-manager",
+      "package": "routerforge-nfqws-manager",
+      "version": "0.10.0~beta.5",
+      "min_core_version": "0.10.0~beta.5"
+    },
+    {
+      "id": "antiscan-manager",
+      "package": "routerforge-antiscan-manager",
+      "version": "0.11.0~beta.1",
+      "min_core_version": "0.10.1~beta.1"
+    },
+    {
+      "id": "profiling",
+      "package": "routerforge-profiling",
+      "version": "0.10.0~beta.5",
+      "min_core_version": "0.10.0~beta.5"
+    }
+  ]
 }

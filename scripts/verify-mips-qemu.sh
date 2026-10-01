@@ -146,6 +146,55 @@ smoke_server() {
     cleanup_active
 }
 
+smoke_health_only() {
+    emulator="$1"
+    binary="$2"
+    socket="$3"
+    expected_module="$4"
+    expected_mode="$5"
+    shift 5
+
+    log="$TMP/$(basename "$binary").health.log"
+
+    cleanup_active
+    ACTIVE_SOCKET="$socket"
+    rm -f "$socket"
+
+    "$emulator" "$binary" "$@" >"$log" 2>&1 &
+    ACTIVE_PID=$!
+
+    i=0
+    while [ ! -S "$socket" ] && [ "$i" -lt 50 ]; do
+        if ! kill -0 "$ACTIVE_PID" 2>/dev/null; then
+            echo "$(basename "$binary"): exited before creating $socket" >&2
+            cat "$log" >&2
+            wait "$ACTIVE_PID" 2>/dev/null || true
+            ACTIVE_PID=""
+            return 1
+        fi
+        sleep 0.1
+        i=$((i + 1))
+    done
+
+    if [ ! -S "$socket" ]; then
+        echo "$(basename "$binary"): socket timeout: $socket" >&2
+        cat "$log" >&2
+        return 1
+    fi
+
+    health="$(
+        curl --fail --silent --show-error \
+            --unix-socket "$socket" \
+            http://unix/v1/health
+    )"
+
+    printf '%s\n' "$health" | grep -Fq '"ok":true'
+    printf '%s\n' "$health" | grep -Fq "\"module\":\"$expected_module\""
+    printf '%s\n' "$health" | grep -Fq "\"mode\":\"$expected_mode\""
+
+    cleanup_active
+}
+
 for target in mips-3.4 mipsel-3.4; do
 
     case "$target" in
@@ -173,6 +222,7 @@ for target in mips-3.4 mipsel-3.4; do
     dns="$target_tmp/routerforge-dns"
     monitoring="$target_tmp/routerforge-monitoring"
     network_tools="$target_tmp/routerforge-network-tools"
+    antiscan_manager="$target_tmp/routerforge-antiscan-manager"
 
     extract_binary \
         "$DIST/routerforge-core_0.0.0-ci_${target}.ipk" \
@@ -198,6 +248,11 @@ for target in mips-3.4 mipsel-3.4; do
         "$DIST/routerforge-network-tools_0.0.0-ci_${target}.ipk" \
         routerforge-network-tools \
         "$network_tools"
+
+    extract_binary \
+        "$DIST/routerforge-antiscan-manager_0.0.0-ci_${target}.ipk" \
+        routerforge-antiscan-manager \
+        "$antiscan_manager"
 
     # Core and DNS require root/router-specific runtime resources.
     # -h still executes the actual cross-built ELF but exits before those checks.
@@ -242,6 +297,16 @@ for target in mips-3.4 mipsel-3.4; do
         -module system \
         -socket "$monitoring_socket"
 
+    antiscan_socket="$TMP/${target}-antiscan-manager.sock"
+    smoke_health_only \
+        "$emulator" \
+        "$antiscan_manager" \
+        "$antiscan_socket" \
+        antiscan-manager \
+        guarded-control \
+        -socket "$antiscan_socket"
+
+    echo "$target Antiscan Manager QEMU health: PASS"
     echo "$target QEMU runtime smoke: PASS"
 done
 

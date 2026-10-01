@@ -57,3 +57,18 @@ compatibility/product boundary — выбираем PATCH.
 - Monitoring `0.7.1 -> 0.8.0`
 - Network Tools `0.8.0 -> 0.9.0`
 - Profiling `0.7.1 -> 0.7.1`
+
+## Stable 0.11.0 example
+
+Release-level `0.11.0` — MINOR, потому что появился новый самостоятельный Antiscan Manager.
+
+- Core `0.10.0 -> 0.10.1` — совместимый bugfix Keenetic Entware Extras / Geo Split и integration glue.
+- Antiscan Manager — первый публичный Stable `0.11.0`.
+- DNS `0.10.0 -> 0.10.0`.
+- Admin `0.10.0 -> 0.10.0`.
+- Monitoring `0.10.0 -> 0.10.0`.
+- Network Tools `0.10.0 -> 0.10.0`.
+- NFQWS Manager `0.10.0 -> 0.10.0`.
+- Profiling `0.10.0 -> 0.10.0`.
+
+Это намеренно: новый RouterForge release не является командой «поднять версию каждого IPK».

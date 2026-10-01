@@ -1,6 +1,6 @@
 # RouterForge modules
 
-Current Stable 0.10.0 topology:
+Current Stable 0.11.0 topology:
 
 - `dns/` - independent DNS Module ABI v1 runtime/frontend/packaging, Stable package 0.10.0.
 - `admin/frontend/` - Management UI; backend/packaging live under `components/control/`, Stable package 0.10.0.
@@ -9,12 +9,9 @@ Current Stable 0.10.0 topology:
 - `network-tools/` - standalone Network Tools runtime/UI/packaging, Stable package 0.10.0.
 - `nfqws-manager-runtime/` - NFQWS Manager backend/runtime/packaging, Stable package 0.10.0.
 - `nfqws-manager/frontend/` - NFQWS Manager UI, including DPI Detector and NFQWS Menu integrations.
+- `antiscan-manager-runtime/` - dedicated Antiscan Manager runtime/API/packaging, Stable package 0.11.0 (min Core 0.10.1).
+- `antiscan-manager/frontend/` - standalone Antiscan Manager workspace for an existing upstream Antiscan installation.
 - `profiling/` - optional Core profiling lifecycle, Stable package 0.10.0 (runtime compatibility remains min Core 0.7.1).
-
-Current Dev additionally contains the P26 Antiscan integration-manager foundation:
-
-- `antiscan-manager-runtime/` - dedicated Antiscan runtime/API and package lifecycle; P26F fixes the module UI index redirect loop by serving UI files with ServeContent while preserving P26E localization and all C1-C3 machine/API contracts.
-- `antiscan-manager/frontend/` - standalone Antiscan Manager workspace. It is not part of Admin/Control.
 
 Legacy split source directories `system/`, `thermal/`, `storage/`, and `network/` are intentionally absent. Their historical package names and compatibility sockets remain only where the consolidated Monitoring migration contract needs them; they are not active build targets or product modules.
 

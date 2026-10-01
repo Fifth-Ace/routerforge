@@ -7,11 +7,11 @@
 **Русский** | [English](README_EN.md)
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.10.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/beta-0.10.0--beta.5-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/badge/stable-0.11.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/beta-0.11.0--beta.1-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RouterForge 0.10.0** — модульная веб-платформа, созданная специально для роутеров **Keenetic / Netcraze с Entware**: мониторинг, DNS, управление, диагностика сети и обслуживание в одном интерфейсе.
+**RouterForge 0.11.0** — модульная веб-платформа, созданная специально для роутеров **Keenetic / Netcraze с Entware**: мониторинг, DNS, управление, диагностика сети и обслуживание в одном интерфейсе.
 
 RouterForge работает напрямую с KeeneticOS/NDMS и Entware: `ndmc`, RCI, интерфейсы, маршруты, DNS, policy routing, процессы и службы. Пользователь работает через единый Web UI на **`:2233`**, а внутренние модули подключаются к Core через Unix sockets.
 
@@ -31,10 +31,10 @@ RouterForge работает напрямую с KeeneticOS/NDMS и Entware: `nd
 - **Контролируемые изменения.** Чувствительные действия выполняются через ограниченные server-side контракты, проверки путей, подтверждения и rollback там, где он действительно нужен.
 - **Проверяемая цепочка релиза.** Stable публикуется из заранее проверенного exact SHA; multi-arch индексы, SHA256 и immutable release snapshot позволяют проверить, что именно установлено.
 
-## Модули RouterForge — Stable 0.10.0
+## Модули RouterForge — Stable 0.11.0
 
 ### Core — единая точка управления
-`routerforge-core` · **0.10.0**
+`routerforge-core` · **0.10.1**
 
 Сам RouterForge: единый Web UI, авторизация, настройки, Центр приложений, Registry и подключение остальных модулей.
 
@@ -85,6 +85,13 @@ Network Doctor, Route Inspector, Flow Explorer и Active Probes: маршрут�
 
 **Нужен, если:** используете nfqws2 и хотите не только редактировать конфиг, но и безопасно диагностировать проблему, проверить несколько стратегий и применить результат через preview/verification/rollback.
 
+### Antiscan Manager — управление Antiscan без ручного марафона
+`routerforge-antiscan-manager` · **0.11.0**
+
+Отдельный модуль для уже установленного `dimon27254/antiscan`: статус, диагностика, конфигурация, ipset, Custom Lists, lifecycle/operations, flush/recovery, RCI token, Scheduler и журнал действий.
+
+**Нужен, если:** используете Antiscan и хотите управлять им из RouterForge. Сам upstream Antiscan модуль не устанавливает и не обновляет.
+
 ### Profiling — диагностика самого RouterForge
 `routerforge-profiling` · **0.10.0**
 
@@ -121,12 +128,16 @@ RouterForge Core
      │    ├── Route Inspector
      │    ├── Flow Explorer
      │    └── Active Probes
-     └── NFQWS Manager
-          ├── Diagnostics / AutoSelect
-          ├── Strategy Library / Import
-          ├── ClientHello
-          ├── DPI Detector
-          └── NFQWS Menu
+     ├── NFQWS Manager
+     │    ├── Diagnostics / AutoSelect
+     │    ├── Strategy Library / Import
+     │    ├── ClientHello
+     │    ├── DPI Detector
+     │    └── NFQWS Menu
+     └── Antiscan Manager
+          ├── Status / Diagnostics / Why blocked
+          ├── Config / Custom Lists / ipset
+          └── Guarded operations / Scheduler / Recovery
 ```
 
 `routerforge-profiling` работает отдельно и по умолчанию доступен только на `127.0.0.1:6061`.
@@ -176,7 +187,7 @@ RouterForge разрабатывается для **Keenetic / Netcraze с Entwa
 ## Документация
 
 - [Документация RouterForge](docs/README.md)
-- [Release Notes 0.10.0](docs/RELEASE_NOTES_0.10.0.md)
+- [Release Notes 0.11.0](docs/RELEASE_NOTES_0.11.0.md)
 - [Установка и обновление](docs/INSTALLATION.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Модули](docs/MODULES.md)

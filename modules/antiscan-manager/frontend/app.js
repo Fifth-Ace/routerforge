@@ -3,15 +3,15 @@ const $ = (id) => document.getElementById(id);
 const setDescriptions = {
   ascn_candidates: 'Кандидаты для распределённой /24-защиты',
   ascn_ips: 'Прямые IP-блокировки',
-  ascn_subnets: 'Заблокированные подсети',
+  ascn_subnets: 'Заблокированные подсети /24',
   ascn_custom_exclude: 'Пользовательские исключения',
-  ascn_custom_blacklist: 'Пользовательский blacklist',
-  ascn_custom_whitelist: 'Пользовательский whitelist',
-  ascn_geo_blacklist: 'Geo blacklist',
-  ascn_geo_whitelist: 'Geo whitelist',
-  ascn_geo_exclude: 'Geo исключения',
-  ascn_ndm_lockout: 'Keenetic lockout-policy',
-  ascn_honeypot: 'Honeypot'
+  ascn_custom_blacklist: 'Пользовательский чёрный список',
+  ascn_custom_whitelist: 'Пользовательский белый список',
+  ascn_geo_blacklist: 'Geo-чёрный список',
+  ascn_geo_whitelist: 'Geo-белый список',
+  ascn_geo_exclude: 'Geo-исключения',
+  ascn_ndm_lockout: 'Блокировки Keenetic',
+  ascn_honeypot: 'Ловушка'
 };
 
 const browserState = {
@@ -107,36 +107,178 @@ function fmtAuditTime(value) {
   return parsed.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'medium' });
 }
 
+const exactMessageTranslations = {
+  'POST required': 'Для этого действия требуется POST-запрос.',
+  'authorized RouterForge Core request required': 'Действие разрешено только через авторизованный RouterForge Core.',
+  'another Antiscan mutation is already running': 'Другая операция Antiscan уже выполняется. Дождитесь её завершения.',
+  'multiple JSON values are not allowed': 'В запросе передано несколько JSON-значений.',
+  'invalid unban request': 'Некорректный запрос на снятие блокировки.',
+  'confirm must equal UNBAN': 'Не подтверждено снятие блокировки.',
+  'invalid list-entry request': 'Некорректный запрос на изменение пользовательского списка.',
+  'confirm must equal ADD': 'Не подтверждено добавление записи.',
+  'invalid lifecycle request': 'Некорректная команда управления Antiscan.',
+  'lifecycle action must be start, stop or reload': 'Допустимы только запуск, остановка или перечитывание конфигурации.',
+  'Antiscan is already running; no lifecycle command was executed.': 'Antiscan уже запущен; дополнительных действий не выполнялось.',
+  'Antiscan is already stopped; no lifecycle command was executed.': 'Antiscan уже остановлен; дополнительных действий не выполнялось.',
+  'Antiscan must be running before reload': 'Для перечитывания конфигурации Antiscan должен быть запущен.',
+  'Antiscan reload is already in progress': 'Antiscan уже перечитывает конфигурацию. Дождитесь завершения.',
+  'Antiscan reload is in progress': 'Antiscan сейчас перечитывает конфигурацию. Дождитесь завершения.',
+  'Antiscan init script is unavailable or not executable': 'Штатный скрипт запуска Antiscan отсутствует или не исполняется.',
+  'Antiscan init script is unavailable': 'Штатный скрипт запуска Antiscan недоступен.',
+  'Antiscan is not running': 'Antiscan не запущен.',
+  'Antiscan is not detected on this device': 'Antiscan не обнаружен на этом устройстве.',
+  'Antiscan runtime marker is absent; live blocking state is not authoritative': 'Маркер работы Antiscan отсутствует; текущее состояние блокировок нельзя считать достоверным.',
+  'ipset is unavailable; live membership cannot be checked': 'Команда ipset недоступна; проверить текущее содержимое наборов невозможно.',
+  'ipset binary not found': 'Исполняемый файл ipset не найден.',
+  'custom whitelist mode is configured but the runtime ipset is absent': 'Включён пользовательский белый список, но его активный набор ipset отсутствует.',
+  'geo whitelist mode is configured but the runtime ipset is absent': 'Включён Geo-белый список, но его активный набор ipset отсутствует.',
+  'Mobile carrier address pools can legitimately rotate through many addresses in one /24; review candidate retention and subnet threshold before changing policy.': 'Мобильные операторы могут легитимно выдавать много адресов из одной /24. Перед изменением политики проверьте время хранения кандидатов и порог блокировки подсети.',
+  'invalid config request': 'Некорректный запрос на изменение конфигурации.',
+  'confirm must equal APPLY_CONFIG': 'Не подтверждено применение конфигурации.',
+  'ascn.conf changed since it was loaded; refresh before applying': 'ascn.conf изменился после загрузки формы. Обновите данные перед применением.',
+  'ascn.conf already matches the requested settings.': 'ascn.conf уже соответствует выбранным настройкам.',
+  'IPSETS_DIRECTORY changed. Upstream Antiscan requires a stop/start cycle before the new storage directory is fully active.': 'Изменён IPSETS_DIRECTORY. Для полного перехода на новый каталог нужно остановить и снова запустить Antiscan.',
+  'Antiscan is stopped. Settings were stored and will become active on the next start.': 'Antiscan остановлен. Настройки сохранены и вступят в силу при следующем запуске.',
+  'PORTS and PORTS_FORWARDED cannot both be empty': 'Поля PORTS и PORTS_FORWARDED не могут быть пустыми одновременно.',
+  'HONEYPOT_PORTS is required when honeypot is enabled': 'При включённой ловушке необходимо указать HONEYPOT_PORTS.',
+  'RULES_MASK must be a dotted IPv4 mask': 'RULES_MASK должен быть маской IPv4 в точечной записи.',
+  'GEOBLOCK_COUNTRIES is required when GEOBLOCK_MODE is enabled': 'При включённом GEOBLOCK_MODE необходимо указать GEOBLOCK_COUNTRIES.',
+  'IPSETS_DIRECTORY contains unsupported characters': 'IPSETS_DIRECTORY содержит недопустимые символы.',
+  'IPSETS_DIRECTORY is required for persistence or Geo lists': 'Для сохранения наборов или Geo-списков необходимо указать IPSETS_DIRECTORY.',
+  'IPSETS_DIRECTORY is required by the selected persistence/Geo settings': 'Выбранные настройки хранения или Geo требуют IPSETS_DIRECTORY.',
+  'IPSETS_DIRECTORY must be an absolute path without parent traversal': 'IPSETS_DIRECTORY должен быть абсолютным путём без переходов через ..',
+  'IPSETS_DIRECTORY must not be inside /opt/etc': 'IPSETS_DIRECTORY нельзя размещать внутри /opt/etc.',
+  'IPSETS_DIRECTORY must resolve to an existing directory': 'IPSETS_DIRECTORY должен указывать на существующий каталог.',
+  'SAVE_IPSETS is enabled but IPSETS_DIRECTORY is empty': 'SAVE_IPSETS включён, но IPSETS_DIRECTORY не задан.',
+  'IPSETS_DIRECTORY is unavailable': 'Каталог IPSETS_DIRECTORY недоступен.',
+  'Entry was already absent from the runtime set.': 'Этой записи уже нет в активном наборе.',
+  'Entry already exists in the upstream custom list file.': 'Запись уже есть в пользовательском списке Antiscan.',
+  'Entry is stored, but Antiscan is stopped; it will become effective when the matching list mode is loaded.': 'Запись сохранена. Antiscan остановлен, поэтому она начнёт действовать после следующего запуска соответствующего режима списка.',
+  'Entry is stored, but USE_CUSTOM_EXCLUDE_LIST is disabled in ascn.conf.': 'Запись сохранена, но USE_CUSTOM_EXCLUDE_LIST сейчас выключен в ascn.conf.',
+  'Entry is stored, but CUSTOM_LISTS_BLOCK_MODE is not whitelist.': 'Запись сохранена, но CUSTOM_LISTS_BLOCK_MODE сейчас не работает в режиме whitelist.',
+  'unban verification failed: entry is still present': 'Проверка снятия блокировки не пройдена: запись всё ещё присутствует.',
+  'unban verification failed; runtime state was restored': 'Снять блокировку не удалось; прежнее состояние восстановлено.',
+  'ipset verification unavailable; file/runtime were restored': 'Проверить ipset не удалось; файл и рабочее состояние восстановлены.',
+  'custom list verification failed; file/runtime were restored': 'Проверка пользовательского списка не пройдена; файл и рабочее состояние восстановлены.',
+  'unban target must be an IPv4 address': 'Для снятия блокировки нужен IPv4-адрес.',
+  'ascn_subnets unban target must be an IPv4 /24 prefix': 'Для ascn_subnets нужно указать IPv4-подсеть /24.',
+  'single-entry unban is allowed only for ascn_ips, ascn_subnets and ascn_honeypot': 'Точечное снятие блокировки разрешено только для ascn_ips, ascn_subnets и ascn_honeypot.',
+  'custom list entry must be an IPv4 address or CIDR prefix': 'Запись списка должна быть IPv4-адресом или CIDR-подсетью.',
+  'list must be exclude or whitelist': 'Можно выбрать только список исключений или белый список.',
+  'custom list exceeds RouterForge safety limit': 'Пользовательский список превышает безопасный лимит RouterForge.',
+  'custom list would exceed RouterForge safety limit': 'После добавления пользовательский список превысит безопасный лимит RouterForge.',
+  'custom list is not a regular file': 'Файл пользовательского списка имеет неподдерживаемый тип.',
+  'unknown Antiscan ipset': 'Неизвестный набор ipset Antiscan.',
+  'invalid IPv4 address': 'Некорректный IPv4-адрес.',
+  'history limit must be between 1 and 100': 'Количество событий истории должно быть от 1 до 100.',
+  'invalid Antiscan history limit': 'Некорректный лимит истории Antiscan.'
+};
+
+const messageRules = [
+  [/^line (\d+): expected KEY="VALUE"$/, (m) => `Строка ${m[1]}: ожидается формат KEY="VALUE".`],
+  [/^line (\d+): invalid Antiscan config syntax$/, (m) => `Строка ${m[1]}: некорректный синтаксис конфигурации Antiscan.`],
+  [/^line (\d+): unsupported config value$/, (m) => `Строка ${m[1]}: неподдерживаемое значение конфигурации.`],
+  [/^line (\d+): unsupported Antiscan config key (.+)$/, (m) => `Строка ${m[1]}: неподдерживаемый параметр Antiscan ${m[2]}.`],
+  [/^line (\d+): duplicate Antiscan config key (.+)$/, (m) => `Строка ${m[1]}: параметр ${m[2]} указан повторно.`],
+  [/^(.+) must be between (\d+) and (\d+)$/, (m) => `${m[1]} должен быть в диапазоне ${m[2]}–${m[3]}.`],
+  [/^(.+) ports must be between 1 and 65535$/, (m) => `Порты ${m[1]} должны быть в диапазоне 1–65535.`],
+  [/^(.+) supports at most 8 country codes$/, (m) => `${m[1]} поддерживает не более 8 кодов стран.`],
+  [/^(.+) contains invalid country code "(.+)"$/, (m) => `${m[1]} содержит некорректный код страны ${m[2]}.`],
+  [/^(.+) does not exist$/, (m) => `Набор ${m[1]} отсутствует.`],
+  [/^upstream (start|stop|reload) failed: (.*)$/, (m) => `Штатная команда Antiscan ${m[1]} завершилась ошибкой: ${m[2]}`],
+  [/^start verification failed: \/tmp\/ascn\.run is absent$/, () => 'Проверка запуска не пройдена: /tmp/ascn.run не появился.'],
+  [/^stop verification failed: \/tmp\/ascn\.run is still present$/, () => 'Проверка остановки не пройдена: /tmp/ascn.run всё ещё существует.'],
+  [/^reload verification failed: Antiscan stopped during reload$/, () => 'Проверка перечитывания не пройдена: Antiscan остановился во время операции.']
+];
+
+function localizeMessage(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  if (exactMessageTranslations[text]) return exactMessageTranslations[text];
+  for (const [pattern, formatter] of messageRules) {
+    const match = text.match(pattern);
+    if (match) return formatter(match);
+  }
+  if (/[А-Яа-яЁё]/.test(text)) return text;
+  return `Техническая причина: ${text}`;
+}
+
+function localizeMessages(values) {
+  return (values || []).map(localizeMessage).filter(Boolean);
+}
+
+const reasonLabels = {
+  'custom-exclude': 'Пользовательское исключение',
+  'geo-exclude': 'Geo-исключение',
+  'custom-blacklist': 'Пользовательский чёрный список',
+  'custom-whitelist': 'Пользовательский белый список',
+  'custom-whitelist-miss': 'Нет в пользовательском белом списке',
+  'geo-blacklist': 'Geo-чёрный список',
+  'geo-whitelist': 'Geo-белый список',
+  'geo-whitelist-miss': 'Нет в Geo-белом списке',
+  'ndm-lockout': 'Блокировка Keenetic',
+  honeypot: 'Ловушка',
+  'distributed-subnet': 'Блокировка подсети /24',
+  'direct-ip': 'Прямая блокировка IP',
+  candidate: 'Кандидат /24',
+  'candidate-only': 'Кандидат /24',
+  'no-active-set-match': 'Совпадений нет',
+  unknown: 'Причина не определена',
+  'invalid-ip': 'Некорректный IPv4-адрес'
+};
+
+function reasonLabel(value) {
+  return reasonLabels[value] || value || 'Причина не определена';
+}
+
+function evidenceSummary(item) {
+  return {
+    'custom-exclude': 'Адрес найден в пользовательских исключениях. Эти правила проверяются раньше блокирующих.',
+    'geo-exclude': 'Адрес попал в Geo-исключение и не должен блокироваться последующими правилами.',
+    'custom-blacklist': 'Адрес найден в активном пользовательском чёрном списке.',
+    'custom-whitelist': 'Адрес присутствует в активном пользовательском белом списке.',
+    'custom-whitelist-miss': 'Адрес отсутствует в активном пользовательском белом списке.',
+    'geo-blacklist': 'Адрес относится к подсети из активного Geo-чёрного списка.',
+    'geo-whitelist': 'Адрес относится к разрешённой подсети активного Geo-белого списка.',
+    'geo-whitelist-miss': 'Адрес отсутствует в разрешённых подсетях активного Geo-белого списка.',
+    'ndm-lockout': 'Адрес импортирован из политики блокировок Keenetic.',
+    honeypot: 'Адрес находится в наборе блокировок ловушки Antiscan.',
+    'distributed-subnet': 'Адрес входит в /24, заблокированную после накопления разных IP-кандидатов.',
+    'direct-ip': 'Адрес находится в прямом наборе блокировок. Antiscan не сохраняет, какой именно механизм был точным триггером.',
+    candidate: 'Адрес является кандидатом для анализа /24, но сам этот набор его не блокирует.'
+  }[item?.kind] || localizeMessage(item?.summary || '');
+}
+
 function setOperationalExplanation(name) {
   return {
-    ascn_candidates: 'Кандидат сам по себе не блокирует IP; несколько адресов одной /24 могут позже продвинуть всю подсеть в ascn_subnets.',
-    ascn_ips: 'Прямой ban-set. Upstream не хранит, был ли точным trigger recent-hitcount или concurrent limit.',
-    ascn_subnets: 'Блокируется вся /24 после накопления разных IP-кандидатов; особенно внимательно для мобильных и вращающихся пулов.',
-    ascn_honeypot: 'IP попал в ловушку на одном из HONEYPOT_PORTS.',
-    ascn_ndm_lockout: 'Запись импортирована из Keenetic ip lockout-policy; direct unban здесь намеренно не предлагается.',
-    ascn_custom_exclude: 'Пользовательское исключение имеет приоритет перед blocking rules.',
-    ascn_custom_blacklist: 'Активный пользовательский blacklist при CUSTOM_LISTS_BLOCK_MODE=blacklist.',
-    ascn_custom_whitelist: 'В whitelist-mode отсутствие адреса в этом set означает блокировку.',
-    ascn_geo_blacklist: 'Подсеть страны из активного Geo blacklist.',
-    ascn_geo_whitelist: 'В Geo whitelist-mode отсутствие подсети в этом set означает блокировку.',
-    ascn_geo_exclude: 'Geo-исключение имеет приоритет перед blocking rules.'
-  }[name] || 'Runtime member Antiscan.';
+    ascn_candidates: 'Кандидат сам по себе не блокирует IP; несколько адресов одной /24 могут позднее привести к блокировке всей подсети.',
+    ascn_ips: 'Прямая блокировка IP. Antiscan не сохраняет точную причину срабатывания внутри этого набора.',
+    ascn_subnets: 'Блокируется вся /24 после накопления разных IP-кандидатов. Это особенно важно для мобильных и динамических пулов.',
+    ascn_honeypot: 'IP заблокирован после обращения к одному из портов ловушки HONEYPOT_PORTS.',
+    ascn_ndm_lockout: 'Запись импортирована из политики блокировок Keenetic; прямое снятие такой блокировки здесь намеренно отключено.',
+    ascn_custom_exclude: 'Пользовательское исключение имеет приоритет перед блокирующими правилами.',
+    ascn_custom_blacklist: 'Активный пользовательский чёрный список при CUSTOM_LISTS_BLOCK_MODE=blacklist.',
+    ascn_custom_whitelist: 'В режиме whitelist отсутствие адреса в этом наборе означает блокировку.',
+    ascn_geo_blacklist: 'Подсети стран из активного Geo-чёрного списка.',
+    ascn_geo_whitelist: 'В режиме Geo whitelist отсутствие подсети в разрешённом наборе означает блокировку.',
+    ascn_geo_exclude: 'Geo-исключение имеет приоритет перед блокирующими правилами.'
+  }[name] || 'Запись активного набора Antiscan.';
 }
 
 function reasonExplanation(result) {
   const descriptions = {
-    'custom-exclude': 'IP найден в пользовательских исключениях. Antiscan возвращает трафик раньше blocking rules.',
+    'custom-exclude': 'IP найден в пользовательских исключениях. Antiscan пропускает такой адрес до проверки блокирующих правил.',
     'geo-exclude': 'IP попал в Geo-исключение и не должен блокироваться последующими правилами.',
-    'custom-blacklist': 'IP совпал с активным пользовательским blacklist.',
-    'custom-whitelist-miss': 'Включён whitelist-mode, но IP отсутствует в разрешённом пользовательском set.',
-    'geo-blacklist': 'IP относится к подсети страны из активного Geo blacklist.',
-    'geo-whitelist-miss': 'Включён Geo whitelist-mode, но IP не относится к разрешённым Geo-подсетям.',
-    'ndm-lockout': 'IP импортирован из Keenetic ip lockout-policy.',
-    honeypot: 'IP находится в honeypot ban-set после обращения к порту-ловушке.',
-    'distributed-subnet': 'Заблокирована вся /24: Antiscan накопил порог разных IP-кандидатов из одной подсети.',
-    'direct-ip': 'IP находится в прямом ban-set. Upstream не сохраняет, что именно сработало: recent-hitcount или concurrent limit.',
-    'candidate-only': 'IP пока только кандидат для /24-анализа и этим set сам по себе не блокируется.',
-    'no-active-set-match': 'Совпадений с активными blocking sets не найдено.'
+    'custom-blacklist': 'IP найден в активном пользовательском чёрном списке.',
+    'custom-whitelist-miss': 'Включён режим белого списка, но IP отсутствует среди разрешённых адресов.',
+    'geo-blacklist': 'IP относится к подсети страны из активного Geo-чёрного списка.',
+    'geo-whitelist-miss': 'Включён Geo-белый список, но IP не относится к разрешённым подсетям.',
+    'ndm-lockout': 'IP импортирован из политики блокировок Keenetic.',
+    honeypot: 'IP находится в наборе блокировок ловушки после обращения к порту-приманке.',
+    'distributed-subnet': 'Заблокирована вся /24: Antiscan накопил заданное количество разных IP-кандидатов из одной подсети.',
+    'direct-ip': 'IP находится в прямом наборе блокировок. Antiscan не сохраняет, какой именно механизм был точным триггером.',
+    'candidate-only': 'IP пока только кандидат для анализа /24 и этим набором сам по себе не блокируется.',
+    'no-active-set-match': 'Совпадений с активными блокирующими наборами не найдено.'
   };
   return descriptions[result?.reason] || '';
 }
@@ -239,7 +381,7 @@ function populateConfigEditor(force = false) {
   if (!form) return;
   if (!snapshot?.detected || !snapshot?.config) {
     $('configState').className = 'state neutral';
-    $('configState').textContent = 'UNAVAILABLE';
+    $('configState').textContent = 'НЕДОСТУПНО';
     $('configHint').textContent = 'Antiscan или ascn.conf не обнаружен.';
     $('applyConfig').disabled = true;
     $('resetConfig').disabled = true;
@@ -268,25 +410,25 @@ function updateConfigEditorState() {
   state.className = 'state';
   if (configBusy) {
     state.classList.add('info');
-    state.textContent = 'APPLYING…';
-    hint.textContent = 'Backup → atomic write → upstream reload → verify. При ошибке выполняется rollback.';
+    state.textContent = 'ПРИМЕНЕНИЕ…';
+    hint.textContent = 'Создаём резервную копию → атомарно записываем → перечитываем Antiscan → проверяем результат. При ошибке выполняется откат.';
   } else if (stale) {
     state.classList.add('bad');
-    state.textContent = 'STALE';
-    hint.textContent = 'ascn.conf изменился после открытия формы. Сбрось форму к свежему snapshot перед применением.';
+    state.textContent = 'УСТАРЕЛО';
+    hint.textContent = 'ascn.conf изменился после открытия формы. Сбросьте форму к свежим данным перед применением.';
   } else if (upstreamBusy) {
     state.classList.add('warn');
-    state.textContent = 'UPSTREAM BUSY';
-    hint.textContent = 'Сейчас идёт config/Geo reload. Применение временно заблокировано.';
+    state.textContent = 'ANTISCAN ЗАНЯТ';
+    hint.textContent = 'Antiscan сейчас перечитывает конфигурацию или Geo-данные. Применение временно заблокировано.';
   } else if (configDirty) {
     state.classList.add('warn');
-    state.textContent = 'CHANGED';
+    state.textContent = 'ИЗМЕНЕНО';
     hint.textContent = snapshot?.running
-      ? 'Изменения будут применены транзакционно через S99ascn reload.'
-      : 'Antiscan остановлен: файл будет сохранён и проверен, а настройки активируются при следующем start.';
+      ? 'Изменения будут безопасно применены через штатное перечитывание S99ascn.'
+      : 'Antiscan остановлен: файл будет сохранён и проверен, а настройки вступят в силу при следующем запуске.';
   } else {
     state.classList.add('good');
-    state.textContent = 'SYNCED';
+    state.textContent = 'СИНХРОНИЗИРОВАНО';
     hint.textContent = snapshot?.running ? 'Форма соответствует активному ascn.conf.' : 'Форма соответствует сохранённому ascn.conf.';
   }
 
@@ -299,27 +441,23 @@ function updateConfigEditorState() {
   const risk = $('configMobileRisk');
   risk.className = `config-risk ${mobileRisk ? 'warn' : 'good'}`;
   risk.textContent = mobileRisk
-    ? `⚠ /24: порог ${current.different_ip_threshold}, кандидаты ${fmtDuration(current.different_ip_candidates_storage_seconds)} — для мобильных пулов настройка агрессивная.`
-    : '✓ Текущие /24 threshold/retention не попадают под встроенный mobile-risk профиль.';
+    ? `⚠ /24: порог ${current.different_ip_threshold}, кандидаты хранятся ${fmtDuration(current.different_ip_candidates_storage_seconds)} — для мобильных пулов настройка может быть слишком агрессивной.`
+    : '✓ Сочетание порога /24 и времени хранения кандидатов не попадает под встроенный профиль повышенного риска.';
 }
 
 async function applyConfigEditor() {
   if (!configDirty || !configBaseSHA) return;
   const current = currentConfigFormPayload();
   const warning = snapshot?.running
-    ? 'Будет создан backup, ascn.conf запишется атомарно, затем Antiscan выполнит штатный reload. При ошибке RouterForge вернёт предыдущий файл и попытается восстановить runtime.'
-    : 'Antiscan остановлен. Будет создан backup и атомарно сохранён ascn.conf; runtime применится при следующем запуске.';
+    ? 'Будет создана резервная копия, ascn.conf запишется атомарно, затем Antiscan штатно перечитает настройки. При ошибке RouterForge восстановит предыдущий файл и рабочее состояние.'
+    : 'Antiscan остановлен. Будет создана резервная копия и атомарно сохранён ascn.conf; настройки вступят в силу при следующем запуске.';
   if (!window.confirm(`Применить изменения ascn.conf?\n\n${warning}`)) return;
 
   configBusy = true;
   updateConfigEditorState();
   try {
     const result = await mutate('config', { ...current, base_sha256: configBaseSHA, confirm: 'APPLY_CONFIG' });
-    showMutationResult(result);
-    if (result.restart_required) {
-      const notice = $('actionNotice');
-      notice.textContent += ' · IPSETS_DIRECTORY изменён: upstream требует stop/start для полного перехода на новый каталог.';
-    }
+    showMutationResult(result, false, 'config');
     configDirty = false;
     configBaseline = '';
     await loadStatus();
@@ -327,7 +465,7 @@ async function applyConfigEditor() {
     if (browserState.blocked) await loadSet('blocked');
     if (browserState.lists) await loadSet('lists');
   } catch (error) {
-    showMutationResult(error.payload || { error: error.message }, true);
+    showMutationResult(error.payload || { error: error.message }, true, 'config');
     await loadStatus();
   } finally {
     configBusy = false;
@@ -368,15 +506,15 @@ function renderState() {
   if (!snapshot?.detected) {
     notice.hidden = false;
     notice.className = 'notice warn';
-    notice.textContent = 'Antiscan не обнаружен. Manager не устанавливает upstream-пакет автоматически.';
+    notice.textContent = 'Antiscan не обнаружен. RouterForge не устанавливает пакет Antiscan автоматически.';
   } else if (!snapshot.running) {
     notice.hidden = false;
     notice.className = 'notice warn';
-    notice.textContent = 'Antiscan обнаружен, но /tmp/ascn.run отсутствует. Runtime-состояние блокировок нельзя считать авторитетным.';
+    notice.textContent = 'Antiscan обнаружен, но /tmp/ascn.run отсутствует. Текущее состояние блокировок нельзя считать достоверным.';
   } else if ((snapshot.errors || []).length) {
     notice.hidden = false;
     notice.className = 'notice warn';
-    notice.textContent = snapshot.errors.join(' · ');
+    notice.textContent = localizeMessages(snapshot.errors).join(' · ');
   } else {
     notice.hidden = true;
   }
@@ -404,23 +542,23 @@ function renderLifecycleControls() {
   if (lifecycleBusy) {
     state.classList.add('info');
     state.textContent = 'ОПЕРАЦИЯ…';
-    hint.textContent = 'Ждём завершения штатной команды Antiscan и post-action verification.';
+    hint.textContent = 'Ждём завершения штатной команды Antiscan и проверяем итоговое состояние.';
   } else if (!detected) {
     state.classList.add('neutral');
-    state.textContent = 'UNAVAILABLE';
-    hint.textContent = 'Antiscan не обнаружен — lifecycle-команды недоступны.';
+    state.textContent = 'НЕДОСТУПНО';
+    hint.textContent = 'Antiscan не обнаружен — команды управления недоступны.';
   } else if (upstreamBusy) {
     state.classList.add('warn');
-    state.textContent = 'UPSTREAM BUSY';
-    hint.textContent = 'Antiscan уже выполняет config/Geo reload. Новая mutation заблокирована.';
+    state.textContent = 'ANTISCAN ЗАНЯТ';
+    hint.textContent = 'Antiscan уже перечитывает конфигурацию или Geo-данные. Новое действие временно заблокировано.';
   } else if (running) {
     state.classList.add('good');
-    state.textContent = 'RUNNING';
-    hint.textContent = 'Можно выполнить reload текущего ascn.conf или штатно остановить Antiscan.';
+    state.textContent = 'РАБОТАЕТ';
+    hint.textContent = 'Можно перечитать текущий ascn.conf или штатно остановить Antiscan.';
   } else {
     state.classList.add('warn');
-    state.textContent = 'STOPPED';
-    hint.textContent = 'Можно запустить Antiscan штатной командой S99ascn start.';
+    state.textContent = 'ОСТАНОВЛЕН';
+    hint.textContent = 'Можно штатно запустить Antiscan.';
   }
 }
 
@@ -428,9 +566,9 @@ function renderRuntimeSummary() {
   const cfg = snapshot?.config || {};
   const rows = [
     ['Antiscan', snapshot?.detected ? 'Обнаружен' : 'Не обнаружен'],
-    ['Runtime marker', snapshot?.running ? 'Есть · /tmp/ascn.run' : 'Нет'],
-    ['Config reload', snapshot?.config_reload_in_progress ? 'Выполняется' : 'Нет'],
-    ['Geo reload', snapshot?.geo_reload_in_progress ? 'Выполняется' : 'Нет'],
+    ['Маркер работы', snapshot?.running ? 'Есть · /tmp/ascn.run' : 'Нет'],
+    ['Перечитывание конфигурации', snapshot?.config_reload_in_progress ? 'Выполняется' : 'Нет'],
+    ['Обновление Geo', snapshot?.geo_reload_in_progress ? 'Выполняется' : 'Нет'],
     ['Интерфейсы', (cfg.isp_interfaces || []).join(', ') || '—'],
     ['Защищаемые порты', (cfg.ports || []).join(', ') || '—']
   ];
@@ -452,17 +590,17 @@ function renderRiskSummary() {
     <div class="risk-verdict ${risk ? 'warn' : 'good'}">
       <span>${risk ? '!' : '✓'}</span>
       <div>
-        <strong>${risk ? 'Есть риск ложной /24-блокировки' : 'Явного /24 risk-pattern не видно'}</strong>
+        <strong>${risk ? 'Есть риск ложной /24-блокировки' : 'Явного риска ложной /24-блокировки не видно'}</strong>
         <p>${risk
-          ? `Порог ${escapeHTML(String(p.different_ip_threshold))} адресов сочетается с хранением кандидатов ${escapeHTML(fmtDuration(p.candidate_storage_seconds))}. Для мобильных пулов это может быть агрессивно.`
-          : 'Текущая комбинация threshold/retention не попала под встроенный предупреждающий профиль.'}</p>
+          ? `Порог ${escapeHTML(String(p.different_ip_threshold))} адресов сочетается с хранением кандидатов ${escapeHTML(fmtDuration(p.candidate_storage_seconds))}. Для мобильных пулов это может быть слишком агрессивно.`
+          : 'Текущее сочетание порога и времени хранения кандидатов не попало под встроенный профиль повышенного риска.'}</p>
       </div>
     </div>
     <div class="risk-pairs">
       <div><span>Порог /24</span><strong>${escapeHTML(String(p.different_ip_threshold || '—'))}</strong></div>
-      <div><span>Кандидаты живут</span><strong>${escapeHTML(fmtDuration(p.candidate_storage_seconds))}</strong></div>
-      <div><span>Бан подсети</span><strong>${escapeHTML(fmtDuration(p.subnet_ban_seconds))}</strong></div>
-      <div><span>Порог NEW</span><strong>${escapeHTML(String(p.recent_hitcount || '—'))}</strong></div>
+      <div><span>Кандидаты хранятся</span><strong>${escapeHTML(fmtDuration(p.candidate_storage_seconds))}</strong></div>
+      <div><span>Блокировка подсети</span><strong>${escapeHTML(fmtDuration(p.subnet_ban_seconds))}</strong></div>
+      <div><span>Порог новых подключений</span><strong>${escapeHTML(String(p.recent_hitcount || '—'))}</strong></div>
     </div>
   `;
 }
@@ -473,24 +611,24 @@ function renderProtection() {
   const rows = [
     ['Интерфейсы', (cfg.isp_interfaces || []).join(', ') || '—'],
     ['Порты роутера', (cfg.ports || []).join(', ') || '—'],
-    ['Forwarded ports', (cfg.forwarded_ports || []).join(', ') || '—'],
-    ['IP / subnet protection', boolText(Boolean(p.ips_ban_enabled))],
+    ['Проброшенные порты', (cfg.forwarded_ports || []).join(', ') || '—'],
+    ['Защита IP и подсетей', boolText(Boolean(p.ips_ban_enabled))],
     ['Окно новых соединений', fmtDuration(p.recent_window_seconds)],
-    ['Порог NEW', p.recent_hitcount || '—'],
-    ['Concurrent limit', p.concurrent_connection_limit || '—'],
-    ['Direct IP ban', fmtDuration(p.direct_ip_ban_seconds)],
+    ['Порог новых подключений', p.recent_hitcount || '—'],
+    ['Лимит одновременных соединений', p.concurrent_connection_limit || '—'],
+    ['Блокировка IP', fmtDuration(p.direct_ip_ban_seconds)],
     ['Порог разных IP в /24', p.different_ip_threshold || '—'],
     ['Хранение кандидатов', fmtDuration(p.candidate_storage_seconds)],
-    ['Subnet ban', fmtDuration(p.subnet_ban_seconds)],
-    ['Honeypot', boolText(Boolean(p.honeypot_enabled))],
-    ['Honeypot ports', (cfg.honeypot_ports || []).join(', ') || '—'],
-    ['Custom exclude', boolText(Boolean(cfg.use_custom_exclude_list))],
-    ['Custom list mode', cfg.custom_lists_block_mode || '0'],
-    ['Geo mode', cfg.geoblock_mode || '0'],
-    ['Geo countries', (cfg.geoblock_countries || []).join(', ') || '—'],
-    ['Geo exclude countries', (cfg.geo_exclude_countries || []).join(', ') || '—'],
-    ['NDM lockout import', boolText(Boolean(cfg.read_ndm_lockout_ipsets))],
-    ['Save ipsets', boolText(Boolean(cfg.save_ipsets))]
+    ['Блокировка /24', fmtDuration(p.subnet_ban_seconds)],
+    ['Ловушка', boolText(Boolean(p.honeypot_enabled))],
+    ['Порты ловушки', (cfg.honeypot_ports || []).join(', ') || '—'],
+    ['Пользовательские исключения', boolText(Boolean(cfg.use_custom_exclude_list))],
+    ['Режим пользовательского списка', cfg.custom_lists_block_mode || '0'],
+    ['Режим Geo', cfg.geoblock_mode || '0'],
+    ['Страны Geo', (cfg.geoblock_countries || []).join(', ') || '—'],
+    ['Страны-исключения Geo', (cfg.geo_exclude_countries || []).join(', ') || '—'],
+    ['Импорт блокировок Keenetic', boolText(Boolean(cfg.read_ndm_lockout_ipsets))],
+    ['Сохранение наборов ipset', boolText(Boolean(cfg.save_ipsets))]
   ];
   $('protection').innerHTML = rows.map(([key, value]) => `
     <div class="kv"><span>${escapeHTML(key)}</span><strong>${escapeHTML(String(value))}</strong></div>
@@ -498,9 +636,9 @@ function renderProtection() {
 }
 
 function renderWarnings() {
-  const warnings = [...(snapshot?.warnings || []), ...(snapshot?.errors || [])];
+  const warnings = localizeMessages([...(snapshot?.warnings || []), ...(snapshot?.errors || [])]);
   if (!warnings.length) {
-    $('warnings').innerHTML = '<div class="ok-note">Явных risk-сигналов по текущему read-only snapshot нет.</div>';
+    $('warnings').innerHTML = '<div class="ok-note">Явных признаков повышенного риска в текущем состоянии не найдено.</div>';
     return;
   }
   $('warnings').innerHTML = warnings.map((warning) => `
@@ -511,13 +649,13 @@ function renderWarnings() {
 function renderSets() {
   const sets = snapshot?.ipsets || [];
   $('sets').innerHTML = sets.map((item) => {
-    const state = item.exists ? (item.error ? 'PARTIAL' : 'ACTIVE') : 'ABSENT';
+    const state = item.exists ? (item.error ? 'ЧАСТИЧНО' : 'АКТИВЕН') : 'НЕТ';
     const cls = item.exists ? (item.error ? 'warn' : 'good') : 'neutral';
     const count = item.count_known ? String(item.count ?? 0) : '—';
     return `<tr>
       <td class="mono strong">${escapeHTML(item.name)}</td>
-      <td>${escapeHTML(setDescriptions[item.name] || 'Antiscan runtime set')}</td>
-      <td><span class="state ${cls}">${state}</span>${item.error ? `<small class="row-error">${escapeHTML(item.error)}</small>` : ''}</td>
+      <td>${escapeHTML(setDescriptions[item.name] || 'Набор Antiscan')}</td>
+      <td><span class="state ${cls}">${state}</span>${item.error ? `<small class="row-error">${escapeHTML(localizeMessage(item.error))}</small>` : ''}</td>
       <td class="mono">${count}</td>
     </tr>`;
   }).join('');
@@ -538,11 +676,11 @@ function renderInspect(result) {
   const cls = result.blocked ? 'bad' : result.conclusive ? 'good' : 'warn';
   const evidence = (result.evidence || []).map((item) => `
     <div class="evidence-row">
-      <div><strong>${escapeHTML(item.kind)}</strong><span class="mono">${escapeHTML(item.set || '')}</span></div>
-      <p>${escapeHTML(item.summary || '')}</p>
+      <div><strong>${escapeHTML(reasonLabel(item.kind))}</strong><span class="mono">${escapeHTML(item.set || '')}</span></div>
+      <p>${escapeHTML(evidenceSummary(item))}</p>
     </div>
   `).join('');
-  const warnings = (result.warnings || []).map((item) => `<div class="inspect-warning">${escapeHTML(item)}</div>`).join('');
+  const warnings = localizeMessages(result.warnings).map((item) => `<div class="inspect-warning">${escapeHTML(item)}</div>`).join('');
   const explanation = reasonExplanation(result);
   const actions = result.ip && (result.blocked || result.verdict === 'candidate') ? `
     <div class="inspect-actions">
@@ -552,10 +690,10 @@ function renderInspect(result) {
   root.innerHTML = `
     <div class="inspect-verdict">
       <div><span class="mono">${escapeHTML(result.ip || '')}</span><strong>${verdictTitle(result)}</strong></div>
-      <span class="state ${cls}">${escapeHTML(result.reason || result.verdict || 'unknown')}</span>
+      <span class="state ${cls}">${escapeHTML(reasonLabel(result.reason || result.verdict || 'unknown'))}</span>
     </div>
     ${explanation ? `<div class="reason-explanation">${escapeHTML(explanation)}</div>` : ''}
-    ${evidence || '<div class="muted inspect-empty">Совпадения в доступных runtime sets не найдены.</div>'}
+    ${evidence || '<div class="muted inspect-empty">Совпадения в доступных наборах Antiscan не найдены.</div>'}
     ${warnings}
     ${actions}
   `;
@@ -572,9 +710,9 @@ function entrySecondary(entry) {
       bits.push(`осталось ${fmtDuration(seconds)} · примерно до ${expires.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
     }
   }
-  if (entry.packets_known) bits.push(`${entry.packets} pkt`);
+  if (entry.packets_known) bits.push(`${entry.packets} пак.`);
   if (entry.bytes_known) bits.push(fmtBytes(entry.bytes));
-  return bits.join(' · ') || 'runtime member';
+  return bits.join(' · ') || 'запись в наборе';
 }
 
 function canUnbanSet(name) {
@@ -584,7 +722,7 @@ function canUnbanSet(name) {
 function blockedEntryActions(setName, entry) {
   const buttons = [];
   if (canUnbanSet(setName)) {
-    buttons.push(`<button class="button small danger" type="button" data-action="unban" data-set="${escapeHTML(setName)}" data-entry="${escapeHTML(entry.value)}">Снять бан</button>`);
+    buttons.push(`<button class="button small danger" type="button" data-action="unban" data-set="${escapeHTML(setName)}" data-entry="${escapeHTML(entry.value)}">Снять блокировку</button>`);
   }
   if (['ascn_ips', 'ascn_subnets', 'ascn_honeypot', 'ascn_ndm_lockout', 'ascn_candidates'].includes(setName)) {
     buttons.push(`<button class="button small" type="button" data-action="exclude" data-entry="${escapeHTML(entry.value)}">В исключения</button>`);
@@ -606,14 +744,14 @@ function renderSetPage(kind) {
   }
   if (page.error) {
     target.className = 'entry-table empty-state bad-text';
-    target.textContent = page.error;
+    target.textContent = localizeMessage(page.error);
     meta.textContent = page.name || '—';
     return;
   }
   if (!page.exists) {
     target.className = 'entry-table empty-state';
     target.textContent = `${page.name}: набор сейчас отсутствует.`;
-    meta.textContent = 'ABSENT';
+    meta.textContent = 'НЕТ';
     return;
   }
 
@@ -649,7 +787,7 @@ async function loadSet(kind) {
   const target = kind === 'blocked' ? $('blockedEntries') : $('listEntries');
   button.disabled = true;
   target.className = 'entry-table empty-state';
-  target.textContent = 'Читаем runtime ipset…';
+  target.textContent = 'Читаем текущий набор ipset…';
   try {
     browserState[kind] = await api(`sets?name=${encodeURIComponent(select.value)}&limit=500`);
     renderSetPage(kind);
@@ -661,50 +799,78 @@ async function loadSet(kind) {
   }
 }
 
-function showMutationResult(payload, failed = false) {
+function mutationSuccessMessage(context, payload) {
+  if (!payload?.changed) {
+    if (context === 'unban') return 'Запись уже отсутствовала в активной блокировке.';
+    if (context === 'list-entry') return 'Такая запись уже есть в выбранном списке.';
+    if (context === 'lifecycle:start') return 'Antiscan уже запущен.';
+    if (context === 'lifecycle:stop') return 'Antiscan уже остановлен.';
+    return 'Состояние уже соответствовало запросу.';
+  }
+  if (context === 'unban') return 'Блокировка снята, результат проверен.';
+  if (context === 'list-entry') return 'Запись добавлена в список и результат проверен.';
+  if (context === 'lifecycle:start') return 'Antiscan запущен, состояние проверено.';
+  if (context === 'lifecycle:stop') return 'Antiscan остановлен. Защита отключена до следующего запуска.';
+  if (context === 'lifecycle:reload') return 'Antiscan перечитал конфигурацию, состояние проверено.';
+  if (context === 'config') {
+    return payload?.runtime_applied
+      ? 'Настройки сохранены, применены и проверены.'
+      : 'Настройки сохранены и проверены. Они вступят в силу при следующем запуске Antiscan.';
+  }
+  return 'Изменение применено и проверено.';
+}
+
+function showMutationResult(payload, failed = false, context = '') {
   const notice = $('actionNotice');
   notice.hidden = false;
   notice.className = `notice action-notice ${failed ? 'bad' : 'good'}`;
+  const warnings = localizeMessages(payload?.warnings);
   if (failed) {
-    notice.textContent = payload?.error || payload?.message || 'Guarded action failed.';
+    const prefix = payload?.rollback_performed
+      ? 'Операция не выполнена. Предыдущее состояние восстановлено.'
+      : 'Операцию выполнить не удалось.';
+    const reason = localizeMessage(payload?.error || payload?.message || '');
+    notice.textContent = [prefix, reason, ...warnings].filter(Boolean).join(' · ');
     return;
   }
-  const warnings = payload?.warnings || [];
-  const state = payload?.changed ? 'Изменение применено и проверено.' : 'Состояние уже соответствовало запросу.';
-  notice.textContent = [state, ...warnings].join(' · ');
+  const messages = [mutationSuccessMessage(context, payload), ...warnings];
+  if (payload?.restart_required) {
+    messages.push('Требуется остановить и снова запустить Antiscan, чтобы полностью применить новый IPSETS_DIRECTORY.');
+  }
+  notice.textContent = messages.filter(Boolean).join(' · ');
 }
 
 async function performUnban(setName, entry) {
-  if (!window.confirm(`Снять только эту запись из ${setName}?\n\n${entry}\n\nМассовый flush не выполняется.`)) return;
+  if (!window.confirm(`Снять блокировку только с этой записи?\n\n${setName}\n${entry}\n\nОстальные записи не изменятся.`)) return;
   try {
     const result = await mutate('unban', { set: setName, entry, confirm: 'UNBAN' });
-    showMutationResult(result);
+    showMutationResult(result, false, 'unban');
     await loadStatus();
     if (browserState.blocked) await loadSet('blocked');
   } catch (error) {
-    showMutationResult(error.payload || { error: error.message }, true);
+    showMutationResult(error.payload || { error: error.message }, true, 'unban');
   }
 }
 
 async function performListEntry(listName, entry) {
-  const target = listName === 'exclude' ? 'Custom exclude' : 'Custom whitelist';
+  const target = listName === 'exclude' ? 'пользовательские исключения' : 'пользовательский белый список';
   if (!entry) return;
-  if (!window.confirm(`Добавить запись в ${target}?\n\n${entry}\n\nФайл будет изменён атомарно; активный список затем перечитается штатным Antiscan.`)) return;
+  if (!window.confirm(`Добавить запись в ${target}?\n\n${entry}\n\nФайл изменится атомарно. Если список активен, Antiscan перечитает его и RouterForge проверит результат.`)) return;
   try {
     const result = await mutate('list-entry', { list: listName, entry, confirm: 'ADD' });
-    showMutationResult(result);
+    showMutationResult(result, false, 'list-entry');
     await loadStatus();
     if (browserState.lists) await loadSet('lists');
   } catch (error) {
-    showMutationResult(error.payload || { error: error.message }, true);
+    showMutationResult(error.payload || { error: error.message }, true, 'list-entry');
   }
 }
 
 async function performLifecycle(action) {
   const prompts = {
-    start: 'Запустить Antiscan штатной командой S99ascn start?\n\nUpstream создаст свои ipset и firewall rules.',
-    stop: 'Остановить Antiscan штатной командой S99ascn stop?\n\nUpstream удалит свои active rules/ipset. SAVE_ON_EXIT обрабатывается самим Antiscan.',
-    reload: 'Перечитать текущий ascn.conf штатной командой S99ascn reload?\n\nUpstream может перестроить rules/ipset. RouterForge проверит runtime marker после завершения.'
+    start: 'Запустить Antiscan?\n\nБудут созданы штатные наборы ipset и правила фильтрации Antiscan.',
+    stop: 'Остановить Antiscan?\n\nЗащита Antiscan будет отключена до следующего запуска. Сохранение состояния при остановке выполняет сам Antiscan согласно SAVE_ON_EXIT.',
+    reload: 'Перечитать текущий ascn.conf?\n\nAntiscan штатно перестроит необходимые правила и наборы, после чего RouterForge проверит итоговое состояние.'
   };
   if (!prompts[action] || !window.confirm(prompts[action])) return;
 
@@ -712,12 +878,12 @@ async function performLifecycle(action) {
   renderLifecycleControls();
   try {
     const result = await mutate('lifecycle', { action, confirm: action.toUpperCase() });
-    showMutationResult(result);
+    showMutationResult(result, false, `lifecycle:${action}`);
     await loadStatus();
     if (browserState.blocked) await loadSet('blocked');
     if (browserState.lists) await loadSet('lists');
   } catch (error) {
-    showMutationResult(error.payload || { error: error.message }, true);
+    showMutationResult(error.payload || { error: error.message }, true, `lifecycle:${action}`);
   } finally {
     lifecycleBusy = false;
     renderLifecycleControls();
@@ -726,13 +892,13 @@ async function performLifecycle(action) {
 
 function auditActionTitle(action) {
   return {
-    unban: 'Single-entry unban',
-    'list-entry': 'Custom list update',
-    'lifecycle:start': 'Start',
-    'lifecycle:stop': 'Stop',
-    'lifecycle:reload': 'Reload',
-    config: 'Transactional config'
-  }[action] || action || 'Guarded action';
+    unban: 'Снятие одной блокировки',
+    'list-entry': 'Изменение пользовательского списка',
+    'lifecycle:start': 'Запуск Antiscan',
+    'lifecycle:stop': 'Остановка Antiscan',
+    'lifecycle:reload': 'Перечитывание конфигурации',
+    config: 'Изменение конфигурации'
+  }[action] || action || 'Действие Antiscan Manager';
 }
 
 function renderHistory(page) {
@@ -740,11 +906,11 @@ function renderHistory(page) {
   const target = $('historyEntries');
   const meta = $('historyMeta');
   historyLoaded = true;
-  meta.textContent = `${events.length} событий · последние сверху${page?.skipped_invalid_lines ? ` · пропущено повреждённых строк: ${page.skipped_invalid_lines}` : ''}`;
+  meta.textContent = `${events.length} событий · новые сверху${page?.skipped_invalid_lines ? ` · пропущено повреждённых строк: ${page.skipped_invalid_lines}` : ''}`;
 
   if (!events.length) {
     target.className = 'history-list empty-state';
-    target.textContent = 'Guarded-действий в bounded audit пока нет.';
+    target.textContent = 'В журнале пока нет действий Antiscan Manager.';
     return;
   }
 
@@ -752,25 +918,25 @@ function renderHistory(page) {
   target.innerHTML = events.map((event) => {
     const failed = event.outcome !== 'success';
     const flags = [];
-    if (event.changed) flags.push('<span class="history-flag">changed</span>');
-    if (event.verified) flags.push('<span class="history-flag good">verified</span>');
-    if (event.rollback) flags.push('<span class="history-flag bad">rollback</span>');
-    if (event.restart_required) flags.push('<span class="history-flag warn">restart required</span>');
-    const warnings = (event.warnings || []).map((item) => `<small>⚠ ${escapeHTML(item)}</small>`).join('');
+    if (event.changed) flags.push('<span class="history-flag">изменено</span>');
+    if (event.verified) flags.push('<span class="history-flag good">проверено</span>');
+    if (event.rollback) flags.push('<span class="history-flag bad">выполнен откат</span>');
+    if (event.restart_required) flags.push('<span class="history-flag warn">нужен перезапуск</span>');
+    const warnings = localizeMessages(event.warnings).map((item) => `<small>⚠ ${escapeHTML(item)}</small>`).join('');
     return `
       <article class="history-row ${failed ? 'failed' : ''}">
         <div class="history-main">
           <div class="history-title">
-            <span class="state ${failed ? 'bad' : 'good'}">${failed ? 'FAIL' : 'PASS'}</span>
+            <span class="state ${failed ? 'bad' : 'good'}">${failed ? 'ОШИБКА' : 'УСПЕХ'}</span>
             <strong>${escapeHTML(auditActionTitle(event.action))}</strong>
             <span class="mono muted">${escapeHTML(fmtAuditTime(event.timestamp))}</span>
           </div>
-          <p>${escapeHTML(event.summary || '—')}</p>
+          <p>${escapeHTML(localizeMessage(event.summary || '—'))}</p>
           ${event.target ? `<span class="mono history-target">${escapeHTML(event.target)}</span>` : ''}
           ${warnings}
         </div>
         <div class="history-side">
-          <span class="mono">${Number(event.duration_ms || 0)} ms</span>
+          <span class="mono">${Number(event.duration_ms || 0)} мс</span>
           <span class="mono">HTTP ${escapeHTML(String(event.http_status || '—'))}</span>
           <div class="history-flags">${flags.join('')}</div>
         </div>
@@ -786,9 +952,9 @@ async function loadHistory() {
     renderHistory(page);
   } catch (error) {
     historyLoaded = true;
-    $('historyMeta').textContent = 'Ошибка чтения history';
+    $('historyMeta').textContent = 'Не удалось прочитать историю';
     $('historyEntries').className = 'history-list empty-state bad-text';
-    $('historyEntries').textContent = error.message || 'Не удалось прочитать bounded audit.';
+    $('historyEntries').textContent = localizeMessage(error.message || 'Не удалось прочитать журнал действий.');
   } finally {
     if (button) button.disabled = false;
   }
@@ -809,7 +975,7 @@ async function loadStatus() {
     const notice = $('notice');
     notice.hidden = false;
     notice.className = 'notice bad';
-    notice.textContent = error.message || 'Не удалось получить статус Antiscan Manager.';
+    notice.textContent = localizeMessage(error.message || 'Не удалось получить статус Antiscan Manager.');
   } finally {
     $('refresh').disabled = false;
   }
@@ -820,7 +986,7 @@ async function inspectIP() {
   if (!ip) return;
   $('inspectButton').disabled = true;
   $('inspectResult').className = 'inspect-result empty';
-  $('inspectResult').textContent = 'Проверяем runtime state…';
+  $('inspectResult').textContent = 'Проверяем текущее состояние Antiscan…';
   try {
     const result = await api(`inspect?ip=${encodeURIComponent(ip)}`);
     renderInspect(result);
@@ -831,7 +997,7 @@ async function inspectIP() {
       conclusive: false,
       blocked: false,
       verdict: payload.verdict || 'unknown',
-      warnings: payload.warnings || [error.message || 'Ошибка проверки']
+      warnings: localizeMessages(payload.warnings || [error.message || 'Ошибка проверки'])
     });
   } finally {
     $('inspectButton').disabled = false;

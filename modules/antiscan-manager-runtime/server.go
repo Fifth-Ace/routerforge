@@ -66,6 +66,9 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 	mux.HandleFunc("/v1/diagnostics", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, buildAntiscanDiagnostics(r.Context(), cfg))
 	}))
+	mux.HandleFunc("/v1/compatibility", getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, buildAntiscanCompatibility(cfg))
+	}))
 	mux.HandleFunc("/v1/status", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, buildAntiscanSnapshot(r.Context(), cfg))
 	}))

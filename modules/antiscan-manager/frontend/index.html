@@ -187,10 +187,17 @@
         <div class="panel-head">
           <div>
             <span class="section-kicker">СОВМЕСТИМОСТЬ</span>
-            <h2>Учтённый функционал upstream</h2>
-            <p>Контракт привязан к конкретной версии Antiscan, чтобы новые параметры и команды не потерялись незаметно.</p>
+            <h2>Совместимость и обновления</h2>
+            <p>Учтённый функционал upstream привязан к проверенной версии. RouterForge не устанавливает обновления Antiscan: здесь только read-only состояние пакета, update cache, прошивки, Netfilter и hook.</p>
+          </div>
+          <div class="diagnostics-head-actions">
+            <span id="compatibilityState" class="state neutral">НЕ ЗАГРУЖЕНО</span>
+            <button id="reloadCompatibility" class="button" type="button">↻ Перечитать</button>
           </div>
         </div>
+        <div id="compatibilityMeta" class="diagnostics-meta mono muted">Откройте вкладку, чтобы проверить совместимость без сетевых запросов и изменений системы.</div>
+        <div id="compatibilityGrid" class="kv-grid"></div>
+        <div id="compatibilityWarnings" class="warning-list"></div>
         <div id="diagnosticsContract" class="kv-grid"></div>
       </section>
     </section>

@@ -1486,16 +1486,29 @@ function renderWarnings() {
   `).join('');
 }
 
+function isBenignUnknownSetCount(item) {
+  return Boolean(
+    item?.exists &&
+    !item?.count_known &&
+    item?.error === 'ipset entry count missing'
+  );
+}
+
 function renderSets() {
   const sets = snapshot?.ipsets || [];
   $('sets').innerHTML = sets.map((item) => {
-    const state = item.exists ? (item.error ? 'ЧАСТИЧНО' : 'АКТИВЕН') : 'НЕТ';
-    const cls = item.exists ? (item.error ? 'warn' : 'good') : 'neutral';
+    const countUnavailable = isBenignUnknownSetCount(item);
+    const hasOperationalError = Boolean(item.error) && !countUnavailable;
+    const state = item.exists ? (hasOperationalError ? 'ЧАСТИЧНО' : 'АКТИВЕН') : 'НЕТ';
+    const cls = item.exists ? (hasOperationalError ? 'warn' : 'good') : 'neutral';
     const count = item.count_known ? String(item.count ?? 0) : '—';
+    const detail = countUnavailable
+      ? '<small class="row-note">Число записей недоступно</small>'
+      : (hasOperationalError ? `<small class="row-error">${escapeHTML(localizeMessage(item.error))}</small>` : '');
     return `<tr>
       <td class="mono strong">${escapeHTML(item.name)}</td>
       <td>${escapeHTML(setDescriptions[item.name] || 'Набор Antiscan')}</td>
-      <td><span class="state ${cls}">${state}</span>${item.error ? `<small class="row-error">${escapeHTML(localizeMessage(item.error))}</small>` : ''}</td>
+      <td><span class="state ${cls}">${state}</span>${detail}</td>
       <td class="mono">${count}</td>
     </tr>`;
   }).join('');

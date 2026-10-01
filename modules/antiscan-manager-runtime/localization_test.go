@@ -62,6 +62,8 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"function applyScheduler()",
 		"function renderFlushPreview(payload)",
 		"function configureListSetMode(mode)",
+		"function isBenignUnknownSetCount(item)",
+		"Число записей недоступно",
 		"function loadFlushPreview()",
 		"function performFlush()",
 		"Предыдущее состояние восстановлено",

@@ -124,20 +124,14 @@ func serveAntiscanManager(cfg runtimeConfig) error {
 }
 
 func registerUIRoutes(mux *http.ServeMux, uiPath string) {
-	uiFS := http.FileServer(http.Dir(uiPath))
-	mux.HandleFunc("/v1/ui", func(w http.ResponseWriter, r *http.Request) {
+	serveUI := func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.NotFound(w, r)
 			return
 		}
-		http.Redirect(w, r, "/v1/ui/", http.StatusTemporaryRedirect)
-	})
-	mux.HandleFunc("/v1/ui/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.NotFound(w, r)
-			return
-		}
-		rel := strings.TrimPrefix(r.URL.Path, "/v1/ui/")
+
+		rel := strings.TrimPrefix(r.URL.Path, "/v1/ui")
+		rel = strings.TrimPrefix(rel, "/")
 		clean := filepath.Clean(rel)
 		if clean == "." {
 			clean = "index.html"
@@ -146,10 +140,29 @@ func registerUIRoutes(mux *http.ServeMux, uiPath string) {
 			http.NotFound(w, r)
 			return
 		}
+
+		fullPath := filepath.Join(uiPath, clean)
+		info, err := os.Stat(fullPath)
+		if err != nil || !info.Mode().IsRegular() {
+			http.NotFound(w, r)
+			return
+		}
+		file, err := os.Open(fullPath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer file.Close()
+
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		clone := r.Clone(r.Context())
-		clone.URL.Path = "/" + clean
-		uiFS.ServeHTTP(w, clone)
-	})
+		// ServeContent is deliberate here. http.FileServer/http.ServeFile
+		// canonicalize any URL ending in /index.html back to ./, which loops
+		// forever behind the RouterForge module proxy when /v1/ui/ itself is
+		// resolved to index.html.
+		http.ServeContent(w, r, filepath.Base(clean), info.ModTime(), file)
+	}
+
+	mux.HandleFunc("/v1/ui", serveUI)
+	mux.HandleFunc("/v1/ui/", serveUI)
 }

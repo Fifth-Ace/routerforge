@@ -658,6 +658,14 @@ html[data-section="blocked"] .tab-page[data-page="inspect"]{
   margin-top:0;
 }
 
+.row-note{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+  font-size:var(--ui-micro,11.5px);
+  line-height:1.35;
+}
+
 @media(max-width:760px){
   .browser-controls select{min-width:0;width:100%}
   .geo-service-panel .panel-head{align-items:flex-start}

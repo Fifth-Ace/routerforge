@@ -168,6 +168,11 @@ func antiscanAuditRequestMetadata(route string, body []byte) (string, string) {
 	case "schedule":
 		action = "schedule:apply"
 		target = "ascn_crontab.conf"
+	case "flush":
+		if sub := strings.ToLower(stringValue("target")); sub != "" {
+			action = "flush:" + sub
+			target = sub
+		}
 	case "lifecycle":
 		if sub := strings.ToLower(stringValue("action")); sub != "" {
 			action = "lifecycle:" + sub
@@ -206,6 +211,9 @@ func antiscanAuditSuccessSummary(event antiscanAuditEvent) string {
 	}
 	if base == "" && strings.HasPrefix(event.Action, "schedule:") {
 		base = "Расписание Antiscan обновлено и синхронизировано."
+	}
+	if base == "" && strings.HasPrefix(event.Action, "flush:") {
+		base = "Штатная очистка наборов Antiscan завершена и проверена."
 	}
 	if base == "" && strings.HasPrefix(event.Action, "operation:") {
 		base = "Штатная сервисная операция Antiscan завершена."

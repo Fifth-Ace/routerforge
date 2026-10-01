@@ -553,3 +553,10 @@ th,
 .scheduler-note span{color:var(--muted);font-size:var(--ui-xs,12px);line-height:1.45}
 .scheduler-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 @media(max-width:850px){.scheduler-row{grid-template-columns:1fr}.scheduler-row>.state{justify-self:start}}
+/* P26I-F - guarded native Antiscan flush / recovery. */
+.flush-panel{display:grid;gap:12px}
+.flush-summary{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.flush-summary .diagnostics-meta{flex:1;min-width:240px}
+.flush-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:2px}
+.flush-actions .muted{font-size:var(--ui-xs,12px);line-height:1.45;max-width:760px}
+@media(max-width:650px){.flush-actions{align-items:stretch}.flush-actions .button{width:100%}}

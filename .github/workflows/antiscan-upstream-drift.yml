@@ -1,0 +1,25 @@
+name: Antiscan upstream drift
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: antiscan-upstream-drift
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RouterForge
+        uses: actions/checkout@v5
+
+      - name: Verify pinned Antiscan upstream contract
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/verify-antiscan-upstream-contract.py --remote

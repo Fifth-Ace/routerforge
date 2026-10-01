@@ -20,6 +20,7 @@ const browserState = {
 };
 
 let snapshot = null;
+let lifecycleBusy = false;
 
 function api(path) {
   return fetch(`../${path}`, {
@@ -130,6 +131,48 @@ function renderState() {
     notice.textContent = snapshot.errors.join(' · ');
   } else {
     notice.hidden = true;
+  }
+
+  renderLifecycleControls();
+}
+
+function renderLifecycleControls() {
+  const start = $('startAntiscan');
+  const stop = $('stopAntiscan');
+  const reload = $('reloadAntiscan');
+  const state = $('lifecycleState');
+  const hint = $('lifecycleHint');
+  if (!start || !stop || !reload || !state || !hint) return;
+
+  const detected = Boolean(snapshot?.detected);
+  const running = Boolean(snapshot?.running);
+  const upstreamBusy = Boolean(snapshot?.config_reload_in_progress || snapshot?.geo_reload_in_progress);
+
+  start.disabled = lifecycleBusy || !detected || running || upstreamBusy;
+  stop.disabled = lifecycleBusy || !detected || !running || upstreamBusy;
+  reload.disabled = lifecycleBusy || !detected || !running || upstreamBusy;
+
+  state.className = 'state';
+  if (lifecycleBusy) {
+    state.classList.add('info');
+    state.textContent = 'ОПЕРАЦИЯ…';
+    hint.textContent = 'Ждём завершения штатной команды Antiscan и post-action verification.';
+  } else if (!detected) {
+    state.classList.add('neutral');
+    state.textContent = 'UNAVAILABLE';
+    hint.textContent = 'Antiscan не обнаружен — lifecycle-команды недоступны.';
+  } else if (upstreamBusy) {
+    state.classList.add('warn');
+    state.textContent = 'UPSTREAM BUSY';
+    hint.textContent = 'Antiscan уже выполняет config/Geo reload. Новая mutation заблокирована.';
+  } else if (running) {
+    state.classList.add('good');
+    state.textContent = 'RUNNING';
+    hint.textContent = 'Можно выполнить reload текущего ascn.conf или штатно остановить Antiscan.';
+  } else {
+    state.classList.add('warn');
+    state.textContent = 'STOPPED';
+    hint.textContent = 'Можно запустить Antiscan штатной командой S99ascn start.';
   }
 }
 
@@ -396,6 +439,30 @@ async function performListEntry(listName, entry) {
   }
 }
 
+async function performLifecycle(action) {
+  const prompts = {
+    start: 'Запустить Antiscan штатной командой S99ascn start?\n\nUpstream создаст свои ipset и firewall rules.',
+    stop: 'Остановить Antiscan штатной командой S99ascn stop?\n\nUpstream удалит свои active rules/ipset. SAVE_ON_EXIT обрабатывается самим Antiscan.',
+    reload: 'Перечитать текущий ascn.conf штатной командой S99ascn reload?\n\nUpstream может перестроить rules/ipset. RouterForge проверит runtime marker после завершения.'
+  };
+  if (!prompts[action] || !window.confirm(prompts[action])) return;
+
+  lifecycleBusy = true;
+  renderLifecycleControls();
+  try {
+    const result = await mutate('lifecycle', { action, confirm: action.toUpperCase() });
+    showMutationResult(result);
+    await loadStatus();
+    if (browserState.blocked) await loadSet('blocked');
+    if (browserState.lists) await loadSet('lists');
+  } catch (error) {
+    showMutationResult(error.payload || { error: error.message }, true);
+  } finally {
+    lifecycleBusy = false;
+    renderLifecycleControls();
+  }
+}
+
 async function loadStatus() {
   $('refresh').disabled = true;
   try {
@@ -462,6 +529,9 @@ $('blockedSet').addEventListener('change', () => loadSet('blocked'));
 $('listSet').addEventListener('change', () => loadSet('lists'));
 $('blockedFilter').addEventListener('input', () => renderSetPage('blocked'));
 $('listFilter').addEventListener('input', () => renderSetPage('lists'));
+$('startAntiscan').addEventListener('click', () => performLifecycle('start'));
+$('reloadAntiscan').addEventListener('click', () => performLifecycle('reload'));
+$('stopAntiscan').addEventListener('click', () => performLifecycle('stop'));
 $('addListEntry').addEventListener('click', () => performListEntry($('listAction').value, $('listActionEntry').value.trim()));
 $('listActionEntry').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') performListEntry($('listAction').value, $('listActionEntry').value.trim());

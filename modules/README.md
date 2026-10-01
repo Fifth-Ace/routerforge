@@ -13,7 +13,7 @@ Current Stable 0.10.0 topology:
 
 Current Dev additionally contains the P26 Antiscan integration-manager foundation:
 
-- `antiscan-manager-runtime/` - dedicated Antiscan runtime/API and package lifecycle; P26C1 exposes only core-guarded single-entry unban and custom exclude/whitelist mutations.
+- `antiscan-manager-runtime/` - dedicated Antiscan runtime/API and package lifecycle; P26C2 adds serialized, core-guarded upstream start/stop/reload on top of C1 single-entry control.
 - `antiscan-manager/frontend/` - standalone Antiscan Manager workspace. It is not part of Admin/Control.
 
 Legacy split source directories `system/`, `thermal/`, `storage/`, and `network/` are intentionally absent. Their historical package names and compatibility sockets remain only where the consolidated Monitoring migration contract needs them; they are not active build targets or product modules.

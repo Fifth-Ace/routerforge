@@ -17,27 +17,27 @@ import (
 )
 
 var moduleSockets = map[string][]string{
-	"dns":           {"/opt/var/run/routerforge-dns.sock"},
-	"admin":         {"/opt/var/run/routerforge-admin.sock", "/opt/var/run/dns-monitor-admin.sock"},
-	"monitoring":    {"/opt/var/run/routerforge-monitoring.sock"},
+	"dns":              {"/opt/var/run/routerforge-dns.sock"},
+	"admin":            {"/opt/var/run/routerforge-admin.sock", "/opt/var/run/dns-monitor-admin.sock"},
+	"monitoring":       {"/opt/var/run/routerforge-monitoring.sock"},
 	"nfqws-manager":    {"/opt/var/run/routerforge-nfqws-manager.sock"},
 	"antiscan-manager": {"/opt/var/run/routerforge-antiscan-manager.sock"},
-	"system":        {"/opt/var/run/routerforge-system.sock", "/opt/var/run/dns-monitor-system.sock"},
-	"thermal":       {"/opt/var/run/routerforge-thermal.sock", "/opt/var/run/dns-monitor-thermal.sock"},
-	"storage":       {"/opt/var/run/routerforge-storage.sock", "/opt/var/run/dns-monitor-storage.sock"},
-	"network":       {"/opt/var/run/routerforge-network.sock", "/opt/var/run/dns-monitor-network.sock"},
+	"system":           {"/opt/var/run/routerforge-system.sock", "/opt/var/run/dns-monitor-system.sock"},
+	"thermal":          {"/opt/var/run/routerforge-thermal.sock", "/opt/var/run/dns-monitor-thermal.sock"},
+	"storage":          {"/opt/var/run/routerforge-storage.sock", "/opt/var/run/dns-monitor-storage.sock"},
+	"network":          {"/opt/var/run/routerforge-network.sock", "/opt/var/run/dns-monitor-network.sock"},
 }
 
 var modulePackageNames = map[string]string{
-	"dns":           "routerforge-dns",
-	"admin":         "routerforge-admin",
-	"monitoring":    "routerforge-monitoring",
+	"dns":              "routerforge-dns",
+	"admin":            "routerforge-admin",
+	"monitoring":       "routerforge-monitoring",
 	"nfqws-manager":    "routerforge-nfqws-manager",
 	"antiscan-manager": "routerforge-antiscan-manager",
-	"system":        "routerforge-monitoring",
-	"thermal":       "routerforge-monitoring",
-	"storage":       "routerforge-monitoring",
-	"network":       "routerforge-monitoring",
+	"system":           "routerforge-monitoring",
+	"thermal":          "routerforge-monitoring",
+	"storage":          "routerforge-monitoring",
+	"network":          "routerforge-monitoring",
 }
 
 var moduleInstalledPackages = readInstalledPackages

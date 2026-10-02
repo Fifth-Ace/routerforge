@@ -18,7 +18,7 @@ type catalogActionRequest struct {
 	Confirm string `json:"confirm,omitempty"`
 }
 
-func handleCatalogInstallTest(w http.ResponseWriter, r *http.Request) {
+func handleCatalogInstall(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST required"})
@@ -36,7 +36,7 @@ func handleCatalogInstallTest(w http.ResponseWriter, r *http.Request) {
 	runCatalogHTTPAction(w, r, request.ID, "install", "")
 }
 
-func handleCatalogActionTest(w http.ResponseWriter, r *http.Request) {
+func handleCatalogAction(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		writeCatalogJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "POST required"})
@@ -55,10 +55,10 @@ func handleCatalogActionTest(w http.ResponseWriter, r *http.Request) {
 }
 
 func runCatalogHTTPAction(w http.ResponseWriter, r *http.Request, id, action, confirmation string) {
-	if !marketplaceTestInstallEnabled() {
+	if !packageManagementAllowsAction(action) {
 		writeCatalogJSON(w, http.StatusForbidden, map[string]any{
-			"error":  "marketplace test package management is disabled",
-			"marker": marketplaceTestInstallMarker,
+			"error":  "RouterForge package management is disabled",
+			"detail": "accept the current App Center risk agreement to install or update packages",
 		})
 		return
 	}

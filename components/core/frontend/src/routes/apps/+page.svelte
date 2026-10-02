@@ -68,7 +68,7 @@
 
   $: locale = $settings.locale || 'ru';
   $: data = $catalog || { modules:[], integrations:[], read_only:true, package_management_enabled:false };
-  $: packageMode = Boolean(data.package_management_enabled ?? data.install_test_mode);
+  $: packageMode = Boolean(data.package_management_enabled);
   $: releaseChannel = data.release?.channel || 'beta';
   $: releaseTarget = data.release?.target || '—';
   $: modules = data.modules || [];
@@ -415,7 +415,7 @@
   }
 
   function canAction(item, action) {
-    return packageMode && Boolean(item.actions?.[action]);
+    return Boolean(item.actions?.[action]) && (action === 'remove' || packageMode);
   }
 
   function webSecurityDecision(item) {
@@ -1468,7 +1468,7 @@
                 <button class="button" disabled={Boolean(busyId)} onclick={() => showEntwareDetail(pkg)}>{a(locale,'details')}</button>
                 {#if !pkg.installed && packageMode}<button class="button primary" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'install')}>{busyId === `entware:${pkg.name}` ? a(locale,'installing') : a(locale,'install')}</button>{/if}
                 {#if pkg.installed && pkg.upgradable && packageMode}<button class="button" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'update')}>{busyId === `entware:${pkg.name}` ? a(locale,'updating') : a(locale,'update')}</button>{/if}
-                {#if pkg.installed && packageMode && !pkg.name.startsWith('routerforge-') && pkg.name !== 'opkg'}<button class="button danger-subtle" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'remove')}>{busyId === `entware:${pkg.name}` ? a(locale,'removing') : a(locale,'remove')}</button>{/if}
+                {#if pkg.installed && !pkg.name.startsWith('routerforge-') && pkg.name !== 'opkg'}<button class="button danger-subtle" disabled={Boolean(busyId)} onclick={() => runEntwareAction(pkg,'remove')}>{busyId === `entware:${pkg.name}` ? a(locale,'removing') : a(locale,'remove')}</button>{/if}
               </div>
             </article>
           {/each}

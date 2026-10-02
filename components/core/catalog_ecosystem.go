@@ -63,6 +63,14 @@ func auditedEcosystemIntegrations() []catalogItem {
 		aiwayManagerCatalogItem(),
 		bird4StaticCatalogItem(),
 		ipset4StaticCatalogItem(),
+		keeGeoSplitCatalogItem(),
+		keeSmartDNSGeoConfCatalogItem(),
+		keeSmartDNSRedirectCatalogItem(),
+		keeNetCheckCatalogItem(),
+		keeWebUICatalogItem(),
+		trustTunnelNativeCatalogItem(),
+		tgWSKeeneticCatalogItem(),
+		wireguardDPIBypassCatalogItem(),
 	}
 }
 
@@ -798,6 +806,221 @@ func ipset4StaticCatalogItem() catalogItem {
 			Method:      "manual",
 			PreviewOnly: true,
 			Notes:       []string{"Upstream installation clones the repository and runs an interactive install.sh after DNS prerequisite setup."},
+		},
+	}
+}
+
+func keePackageCatalogItem(id, name, category, description, pkg string, capabilities []string) catalogItem {
+	install := catalogInstallPlan{
+		Method:       "official-script",
+		InstallerURL: "https://raw.githubusercontent.com/0xkee/keenetic-entware-extras/master/scripts/install.sh",
+		Args:         []string{pkg},
+		Packages:     []string{pkg},
+		Notes: []string{
+			"Uses the upstream noninteractive package-selection form of the Keenetic Entware Extras installer.",
+			"The upstream script configures its HTTPS opkg feeds and installs the selected package with dependencies.",
+		},
+	}
+	return catalogItem{
+		ID:           id,
+		Kind:         "integration",
+		Name:         name,
+		Category:     category,
+		Description:  description,
+		ProjectURL:   "https://github.com/0xkee/keenetic-entware-extras",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("0xkee", "https://github.com/0xkee/keenetic-entware-extras"),
+		Trust:        auditedTrust("Keenetic Entware Extras package lifecycle and noninteractive package-selection installer were reviewed on 2026-10-03."),
+		Capabilities: capabilities,
+		Detection: catalogDetection{
+			Packages: []string{pkg},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"KeeneticOS 5.0+", "Entware", "curl", "dependencies resolved by upstream opkg feed"},
+		},
+		Install: install,
+		Update:  install,
+		Remove: catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{pkg},
+			Notes:    []string{"Removes only the selected package; the shared Keenetic Entware Extras feed remains for other installed components."},
+		},
+	}
+}
+
+func keeGeoSplitCatalogItem() catalogItem {
+	return keePackageCatalogItem(
+		"kee-geo-split",
+		"Keenetic Extras: Geo Split",
+		"Routing",
+		"Country/region-aware policy routing for Keenetic using GeoIP subnet and domain data.",
+		"geo-split",
+		[]string{"detect", "version", "package-lifecycle", "routing", "geoip"},
+	)
+}
+
+func keeSmartDNSGeoConfCatalogItem() catalogItem {
+	return keePackageCatalogItem(
+		"kee-smartdns-geo-conf",
+		"Keenetic Extras: SmartDNS Geo",
+		"DNS / Routing",
+		"Regional SmartDNS configuration with selectable local/international providers and optional tunnel binding.",
+		"smartdns-geo-conf",
+		[]string{"detect", "version", "package-lifecycle", "dns", "routing"},
+	)
+}
+
+func keeSmartDNSRedirectCatalogItem() catalogItem {
+	return keePackageCatalogItem(
+		"kee-smartdns-redirect",
+		"Keenetic Extras: SmartDNS Redirect",
+		"DNS / Routing",
+		"LAN DNS interception/redirect helper for local SmartDNS, AdGuard Home or Unbound on Keenetic.",
+		"smartdns-redirect",
+		[]string{"detect", "version", "package-lifecycle", "dns", "iptables"},
+	)
+}
+
+func keeNetCheckCatalogItem() catalogItem {
+	return keePackageCatalogItem(
+		"kee-net-check",
+		"Keenetic Extras: Net Check",
+		"Diagnostics",
+		"Network diagnostic toolkit for egress, DNS, TLS MITM, IPv6 leaks, reachability and interface comparison.",
+		"net-check",
+		[]string{"detect", "version", "package-lifecycle", "diagnostics", "dns", "tls"},
+	)
+}
+
+func keeWebUICatalogItem() catalogItem {
+	item := keePackageCatalogItem(
+		"kee-webui",
+		"Keenetic Extras: Web UI",
+		"Administration",
+		"Web dashboard and configuration editor for the Keenetic Entware Extras package family.",
+		"webui",
+		[]string{"detect", "version", "open-ui", "package-lifecycle", "configuration"},
+	)
+	item.Web = &catalogWebMetadata{
+		Scheme: "http",
+		Port:   8080,
+		Path:   "/",
+		Mode:   "probe-required",
+		Embed:  true,
+	}
+	return item
+}
+
+func trustTunnelNativeCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "trusttunnel-keenetic-native",
+		Kind:         "integration",
+		Name:         "TrustTunnel Keenetic Native",
+		Category:     "VPN / Routing",
+		Description:  "Extended TrustTunnel integration for Keenetic with native OpkgTun attach mode and dashboard traffic statistics.",
+		ProjectURL:   "https://github.com/alex-combine/TrustTunnel-Keenetic-Native",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("alex-combine", "https://github.com/alex-combine/TrustTunnel-Keenetic-Native"),
+		Trust:        auditedTrust("Release installer, attach-mode statistics flow and rollback protections were reviewed on 2026-10-03; install remains preview-only because mode/interface selection is interactive."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "routing", "trusttunnel", "statistics"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99trusttunnel"},
+			Paths:    []string{"/opt/trusttunnel_client/mode.conf", "/opt/bin/tt-stats"},
+		},
+		ProcessNames: []string{"trusttunnel_client"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "TrustTunnel server", "interactive SOCKS5/TUN and interface selection", "TUN attach statistics require compatible client/KeeneticOS"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/alex-combine/TrustTunnel-Keenetic-Native/main/install.sh",
+			PreviewOnly:  true,
+			Notes:        []string{"Upstream installer prompts for mode and Keenetic interface operations; RouterForge does not guess those choices."},
+		},
+	}
+}
+
+func tgWSKeeneticCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "tg-ws-keenetic",
+		Kind:         "integration",
+		Name:         "TG WS Keenetic",
+		Category:     "Proxy",
+		Description:  "Native Rust Telegram MTProto WebSocket proxy for Keenetic/Entware with built-in lightweight Web panel.",
+		ProjectURL:   "https://github.com/Omn1z/tg-ws-keenetic",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("Omn1z", "https://github.com/Omn1z/tg-ws-keenetic"),
+		Trust:        auditedTrust("Installer, release checksum flow, Entware service layout and built-in Web UI were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "proxy", "telegram"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99tgwsproxy"},
+			Paths:    []string{"/opt/bin/tgwsproxy", "/opt/etc/tgwsproxy/config.json"},
+		},
+		ProcessNames: []string{"tgwsproxy"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   1434,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4", "x64-3.2"},
+			Hints:   []string{"Keenetic / Entware", "supported static release architecture", "ca-bundle for TLS downloads"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/main/scripts/install.sh",
+			Args:         []string{"--system", "entware"},
+			Notes:        []string{"Uses upstream installer with explicit Entware mode; installer selects the stable release and verifies release metadata/checksums."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/main/scripts/install.sh",
+			Args:         []string{"--system", "entware"},
+		},
+		Remove: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/main/scripts/uninstall.sh",
+			Args:         []string{"--system", "entware"},
+			Notes:        []string{"Uses upstream uninstall while preserving configuration; destructive --purge is intentionally not exposed."},
+		},
+	}
+}
+
+func wireguardDPIBypassCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "wireguard-dpi-bypass",
+		Kind:         "integration",
+		Name:         "WireGuard DPI Handshake Bypass",
+		Category:     "DPI / Bypass",
+		Description:  "Keenetic helper that recovers stalled WireGuard/AmneziaWG handshakes by probing and rotating the local listen port.",
+		ProjectURL:   "https://github.com/Ground-Zerro/Wireguard-DPI-blocking-bypass",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("Ground-Zerro", "https://github.com/Ground-Zerro/Wireguard-DPI-blocking-bypass"),
+		Trust:        auditedTrust("Official one-command installer and interface-triggered WireGuard/AmneziaWG recovery model were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "package-lifecycle", "dpi-bypass", "wireguard", "amneziawg"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/etc/ndm/netfilter.d", "/opt/etc/ndm/wan.d"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"KeeneticOS 4.x", "Entware", "curl", "WireGuard or AmneziaWG interfaces"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://github.com/Ground-Zerro/Wireguard-DPI-blocking-bypass/raw/refs/heads/main/install.sh",
+			Notes:        []string{"Uses the upstream automatic-mode installer exactly as documented."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://github.com/Ground-Zerro/Wireguard-DPI-blocking-bypass/raw/refs/heads/main/install.sh",
 		},
 	}
 }

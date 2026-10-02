@@ -45,6 +45,13 @@
   "web_port": 8080,
   "web_port_source": "webui-default",
   "web_requires_package": "webui",
+  "web": {
+    "scheme": "http",
+    "port": 8080,
+    "path": "/custom/",
+    "mode": "probe-required",
+    "embed": true
+  },
   "compatibility": {
     "status": "requirements",
     "hints": [

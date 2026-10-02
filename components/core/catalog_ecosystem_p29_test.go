@@ -11,7 +11,7 @@ func TestP29EcosystemBatchA(t *testing.T) {
 		remove     bool
 	}{
 		{"antigoblin", true, false, false},
-		{"xkeen-panel", false, true, false},
+		{"xkeen-panel", true, false, false},
 		{"keensnap", true, false, true},
 		{"sms2gram", true, false, true},
 		{"web4static", true, false, true},
@@ -34,7 +34,7 @@ func TestP29EcosystemBatchA(t *testing.T) {
 				t.Fatalf("trust=%q", item.Trust.Status)
 			}
 			if item.Install.PreviewOnly != tt.preview {
-				t.Fatalf("preview=%v", item.Install.PreviewOnly)
+				t.Fatalf("preview=%v want=%v", item.Install.PreviewOnly, tt.preview)
 			}
 			if got := executableCatalogPlan(item.Install); got != tt.executable {
 				t.Fatalf("executable=%v want=%v plan=%#v", got, tt.executable, item.Install)
@@ -54,7 +54,7 @@ func TestP29EcosystemBatchA(t *testing.T) {
 func TestP29ExecutableBatchUsesApprovedHTTPSInstallerHosts(t *testing.T) {
 	for _, item := range auditedEcosystemIntegrations() {
 		switch item.ID {
-		case "antigoblin", "keensnap", "sms2gram", "web4static":
+		case "antigoblin", "xkeen-panel", "keensnap", "sms2gram", "web4static":
 			if item.Install.Method != "official-script" {
 				t.Fatalf("%s method=%q", item.ID, item.Install.Method)
 			}

@@ -412,6 +412,11 @@ func validateCatalogPlan(plan catalogInstallPlan) error {
 	default:
 		return fmt.Errorf("unsupported lifecycle method %q", plan.Method)
 	}
+	if plan.Method == "official-script" {
+		if err := validateOfficialScriptPlan(plan); err != nil {
+			return err
+		}
+	}
 	for _, pkg := range plan.Packages {
 		if !safeCatalogPackageName(pkg) {
 			return fmt.Errorf("unsafe package name %q", pkg)
@@ -802,7 +807,7 @@ func executableCatalogPlan(plan catalogInstallPlan) bool {
 		return false
 	}
 	switch plan.Method {
-	case "routerforge-release", "opkg", "structured", "github-release-binary":
+	case "routerforge-release", "opkg", "structured", "official-script", "github-release-binary":
 		return true
 	default:
 		return false

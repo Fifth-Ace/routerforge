@@ -45,6 +45,7 @@ auth.go
 auth_crypt.go
 catalog.go
 module_lifecycle.go
+official_script.go
 marketplace_install.go
 marketplace_install_http.go
 app_center_entware.go

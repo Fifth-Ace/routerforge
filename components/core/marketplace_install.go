@@ -177,6 +177,8 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 		err = runDirectOpkgPlan(ctx, action, plan, &result, log)
 	case "structured":
 		err = runStructuredCatalogPlan(ctx, item, action, plan, &result, log)
+	case "official-script":
+		err = runOfficialScriptPlan(ctx, item, action, plan, &result, log)
 	case "github-release-binary":
 		err = runUnmanagedGitHubReleasePlan(ctx, item, action, plan, &result, log)
 	default:

@@ -1,9 +1,9 @@
 <script>
   import { page } from '$app/stores';
-  import { snapshot, backendOnline, streamMode } from '$lib/stores/snapshot.js';
+  import { snapshot, streamMode } from '$lib/stores/snapshot.js';
   import { adminSummary, adminOnline } from '$lib/stores/admin.js';
   import { systemModuleSummary, systemModuleOnline } from '$lib/stores/systemModule.js';
-  import { catalog } from '$lib/stores/catalog.js';
+  import { catalog, catalogOnline } from '$lib/stores/catalog.js';
   import { authState, logoutAuth } from '$lib/stores/auth.js';
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
@@ -35,6 +35,8 @@
   ].sort((a, b) => a.order - b.order);
 
   $: s = $snapshot || {};
+  $: coreModule = modules.find((item) => item.id === 'routerforge-core');
+  $: coreVersion = String(coreModule?.version || s.version || '').trim();
   $: current = $page.url.pathname;
   $: hostTelemetry = $adminOnline ? $adminSummary : $systemModuleOnline ? $systemModuleSummary : null;
   $: dnsInstalled = modules.some((item) => item.id === 'dns' && item.installed);
@@ -83,7 +85,7 @@
         <strong>RouterForge</strong>
         <span>Router Console</span>
       </span>
-      <span class="version-badge">v{s.version || 'beta'}</span>
+      <span class="version-badge">v{coreVersion || '…'}</span>
     </a>
 
     <nav class="main-nav" data-sveltekit-preload-code="eager" data-sveltekit-preload-data="hover">
@@ -110,7 +112,7 @@
       <span class="stream-label">{$streamMode.toUpperCase()}</span>
       <span class="core-state {stateClass}">
         <span class="status-dot {stateClass}"></span>
-        CORE: {$backendOnline ? t(locale, 'common.online') : t(locale, 'common.offline')}
+        CORE: {$catalogOnline ? t(locale, 'common.online') : t(locale, 'common.offline')}
       </span>
     </div>
   </div>

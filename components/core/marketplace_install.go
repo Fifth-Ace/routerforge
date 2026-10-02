@@ -55,7 +55,13 @@ func (e *catalogInstallFailure) Error() string {
 }
 
 func marketplaceTestInstallEnabled() bool {
-	return pathExists(marketplaceTestInstallMarker) || pathExists(legacyMarketplaceTestInstallMarker)
+	cfg, err := loadAppSourcesConfig()
+	if err != nil {
+		return false
+	}
+	return cfg.AllowUnverified &&
+		cfg.AgreementVersion == appSourcesAgreementVersion &&
+		strings.TrimSpace(cfg.AgreementAccepted) != ""
 }
 
 func catalogItemByID(id string) (catalogItem, bool) {

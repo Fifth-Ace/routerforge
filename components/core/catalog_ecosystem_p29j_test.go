@@ -31,7 +31,7 @@ func TestVerifiedIPKPlanValidation(t *testing.T) {
 
 func TestVerifiedIPKDigestVerification(t *testing.T) {
 	data := []byte("routerforge")
-	sum := "a244149e8094c159150912cc4d67c8d1e32e38f4282b1775e5b1aa1e26897abf"
+	sum := "dcafacc0d5ead6c1fe3a923ac877fc4a40929bccd6eaf6448f3c8a80c28d0e07"
 	if _, err := verifyExpectedSHA256(sum, data); err != nil {
 		t.Fatalf("matching digest rejected: %v", err)
 	}

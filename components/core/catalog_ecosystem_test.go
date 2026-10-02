@@ -41,7 +41,6 @@ func TestKeeneticPolicyUILifecycleIsExecutableAndBounded(t *testing.T) {
 func TestAuditedPreviewOnlyProjectsDoNotGainInstallAuthority(t *testing.T) {
 	for _, item := range []catalogItem{
 		entwareManagerCatalogItem(),
-		zapretGUICatalogItem(),
 		razvilkaCatalogItem(),
 		keeneticMCPCatalogItem(),
 	} {

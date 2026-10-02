@@ -56,6 +56,15 @@ for rel, needles in required.items():
         if needle not in text:
             raise SystemExit(f"{rel}: missing current marker {needle}")
 
+renderer = (ROOT / "scripts/render_release_notes.py").read_text(encoding="utf-8")
+for marker in (
+    'if args.channel == "stable":',
+    'RELEASE_NOTES_{release_version}.md',
+    'write_bytes(canonical.read_bytes())',
+):
+    if marker not in renderer:
+        raise SystemExit(f"stable canonical release-notes renderer missing marker: {marker}")
+
 stable = json.loads((ROOT / "release/channels/stable.json").read_text(encoding="utf-8"))
 if stable.get("release_version") != "0.11.0":
     raise SystemExit("stable.json release_version mismatch")

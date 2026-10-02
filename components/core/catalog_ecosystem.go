@@ -71,6 +71,12 @@ func auditedEcosystemIntegrations() []catalogItem {
 		trustTunnelNativeCatalogItem(),
 		tgWSKeeneticCatalogItem(),
 		wireguardDPIBypassCatalogItem(),
+		magiTrickleBadigitCatalogItem(),
+		magiTrickleLarinCatalogItem(),
+		xkeenUIFan92CatalogItem(),
+		dropwebXKeenCatalogItem(),
+		wdttServerEntwareCatalogItem(),
+		netcrazeAWG3CatalogItem(),
 	}
 }
 
@@ -1021,6 +1027,232 @@ func wireguardDPIBypassCatalogItem() catalogItem {
 		Update: catalogInstallPlan{
 			Method:       "official-script",
 			InstallerURL: "https://github.com/Ground-Zerro/Wireguard-DPI-blocking-bypass/raw/refs/heads/main/install.sh",
+		},
+	}
+}
+
+func magiTrickleBadigitCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "magitrickle-badigit",
+		Kind:         "integration",
+		Name:         "MagiTrickle mod_badigit",
+		Category:     "Routing",
+		Description:  "MagiTrickle fork with redir/TPROXY mode, rule subscriptions, DNS capture and extended routing features.",
+		ProjectURL:   "https://github.com/badigit/MagiTrickle_mod_badigit",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("badigit", "https://github.com/badigit/MagiTrickle_mod_badigit"),
+		Trust:        auditedTrust("Official Entware/OpenWrt installer and same-command update flow were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "routing", "tproxy", "dns"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99magitrickle"},
+			Paths:    []string{"/opt/var/lib/magitrickle/config.yaml"},
+		},
+		ProcessNames: []string{"magitrickle"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   8080,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic / Entware", "wget-ssl", "ca-certificates", "transparent proxy features require compatible proxy/netfilter setup"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/badigit/MagiTrickle_mod_badigit/mod_badigit/scripts/install.sh",
+			Notes:        []string{"Installer auto-detects Entware/OpenWrt and architecture; the same command is documented for update."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/badigit/MagiTrickle_mod_badigit/mod_badigit/scripts/install.sh",
+		},
+	}
+}
+
+func magiTrickleLarinCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "magitrickle-larin",
+		Kind:         "integration",
+		Name:         "MagiTrickle Mod",
+		Category:     "Routing",
+		Description:  "Extended MagiTrickle fork with optimized rule lookup, bulk UI operations, conflict detection and built-in updates.",
+		ProjectURL:   "https://github.com/LarinIvan/MagiTrickle_Mod",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("LarinIvan", "https://github.com/LarinIvan/MagiTrickle_Mod"),
+		Trust:        auditedTrust("Official repository bootstrap, Entware install/update flow, Web UI and opkg removal were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "package-lifecycle", "routing"},
+		Detection: catalogDetection{
+			Packages: []string{"magitrickle_mod"},
+			Services: []string{"/opt/etc/init.d/S99magitrickle"},
+			Paths:    []string{"/opt/var/lib/magitrickle/config.yaml"},
+		},
+		ProcessNames: []string{"magitrickle"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   8080,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic / Entware", "wget-ssl", "ca-certificates", "original magitrickle package must be removed before installing this fork"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh",
+			Packages:     []string{"magitrickle_mod"},
+			Notes:        []string{"Upstream bootstrap auto-detects Entware/OpenWrt, adds its repository and installs/starts magitrickle_mod."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh",
+			Packages:     []string{"magitrickle_mod"},
+		},
+		Remove: catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{"magitrickle_mod"},
+		},
+	}
+}
+
+func xkeenUIFan92CatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "xkeen-ui-fan92",
+		Kind:         "integration",
+		Name:         "XKEEN-UI (fan92rus)",
+		Category:     "VPN / Routing",
+		Description:  "Single-binary Web UI for XKeen configuration, logs, commands, Xray/Mihomo switching and optional AmneziaWG management.",
+		ProjectURL:   "https://github.com/fan92rus/xkeen-ui",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("fan92rus", "https://github.com/fan92rus/xkeen-ui"),
+		Trust:        auditedTrust("Official setup.sh one-command install, Web UI port and service lifecycle were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "xkeen", "xray", "mihomo", "amneziawg"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/bin/xkeen-ui", "/opt/etc/xkeen-ui/config.json"},
+		},
+		ProcessNames: []string{"xkeen-ui"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   8089,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "XKeen installed", "default first-login password must be changed"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/fan92rus/xkeen-ui/master/xkeen-go/scripts/setup.sh",
+			Notes:        []string{"Uses the upstream quick-install setup.sh exactly as documented."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/fan92rus/xkeen-ui/master/xkeen-go/scripts/setup.sh",
+		},
+	}
+}
+
+func dropwebXKeenCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "dropweb-xkeen",
+		Kind:         "integration",
+		Name:         "dropweb-xkeen",
+		Category:     "VPN / Routing",
+		Description:  "Mihomo/XKeen selective-routing deployment with subscription refresh, watchdog and local Web controls.",
+		ProjectURL:   "https://github.com/enkinvsh/dropweb-xkeen",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("enkinvsh", "https://github.com/enkinvsh/dropweb-xkeen"),
+		Trust:        auditedTrust("Official install script, subscription/HWID prompts, Web panel defaults and uninstall path were reviewed on 2026-10-03; install stays preview-only because credentials/subscription input is required."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "routing", "mihomo", "xkeen"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S96mihomo-panel", "/opt/etc/init.d/S99xkeen"},
+			Paths:    []string{"/opt/etc/mihomo/config.yaml", "/opt/sbin/mihomo-panel.py"},
+		},
+		ProcessNames: []string{"mihomo"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   8181,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "XKeen", "Mihomo/Clash subscription URL", "optional HWID/device headers"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/enkinvsh/dropweb-xkeen/main/install.sh",
+			PreviewOnly:  true,
+			Notes:        []string{"Installer prompts for subscription URL, HWID, device metadata and Web port; RouterForge does not collect or guess these secrets yet."},
+		},
+	}
+}
+
+func wdttServerEntwareCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "wdtt-server-entware",
+		Kind:         "integration",
+		Name:         "WDTT Server Entware",
+		Category:     "VPN / Routing",
+		Description:  "Entware server deployment for WDTT with architecture-specific binaries, init service and firewall/NAT integration.",
+		ProjectURL:   "https://github.com/kkvoru/wdtt-server-entware",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("kkvoru", "https://github.com/kkvoru/wdtt-server-entware"),
+		Trust:        auditedTrust("Architecture-specific release bundle, installer, service layout and uninstall command were reviewed on 2026-10-03; automatic install remains disabled because upstream setup is interactive and bundle-local."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "vpn", "wireguard"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99wdtt"},
+			Paths:    []string{"/opt/bin/wdtt-server", "/opt/etc/wdtt/wdtt.env"},
+		},
+		ProcessNames: []string{"wdtt-server"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic / Entware", "interactive firewall/NAT setup", "matching architecture binary and installer must be staged together"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream installer prompts for confirmation/network choices and is designed to run beside architecture-specific payload files."},
+		},
+	}
+}
+
+func netcrazeAWG3CatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "netcraze-giga-awg3",
+		Kind:         "integration",
+		Name:         "Netcraze Giga AWG3",
+		Category:     "VPN / Routing",
+		Description:  "Hardware-specific AmneziaWG v3 kernel/module integration for Keenetic/Netcraze Giga KN-1012 / MT7981.",
+		ProjectURL:   "https://github.com/Sergekkk/netcraze-giga-awg3.1",
+		Source:       "community",
+		Publisher:    auditedPublisher("Sergekkk", "https://github.com/Sergekkk/netcraze-giga-awg3.1"),
+		Trust:        auditedTrust("Hardware/kernel requirements, local router installer, service and watchdog layout were reviewed on 2026-10-03; deployment stays manual because the prebuilt kernel module is device/firmware specific."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "amneziawg", "kernel-module", "routing"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99awg3", "/opt/etc/init.d/S100awg3-watchdog"},
+			Paths:    []string{"/opt/etc/awg3", "/opt/bin/awg3-split-config"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10"},
+			Hints:   []string{"Keenetic/Netcraze Giga KN-1012 / NC-1012", "MT7981", "KeeneticOS kernel 4.9.337-ndm-5 compatible build", "Entware"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream quick start copies router/ plus prebuilt KN-1012 kernel/module payloads and runs the local install.sh; RouterForge must not apply it to generic ARM64 devices."},
 		},
 	}
 }

@@ -73,7 +73,7 @@
 {#if available}
   <details class="module-lifecycle-menu" bind:open={menuOpen}>
     <summary
-      class="button compact module-lifecycle-trigger"
+      class="button module-lifecycle-trigger"
       class:primary={item.disabled || !item.service_running}
       aria-label={text('Управление модулем','Module controls')}
     >

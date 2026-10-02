@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "4e060134fe5ed1bf16b67492f215b1ec9f4051fa145f5b8314802dfcd2230cac",
+  "revision": "51e40aa91484e4708842a4956fa298d5639f34a5efa8833341644360a6bcaad5",
   "entries": [
     {
       "id": "adguardhome-keenetic",
@@ -710,6 +710,13 @@
       "web_port": 8080,
       "web_port_source": "webui-default",
       "web_requires_package": "webui",
+      "web": {
+        "scheme": "http",
+        "port": 8080,
+        "path": "/custom/",
+        "mode": "probe-required",
+        "embed": true
+      },
       "compatibility": {
         "status": "requirements",
         "hints": [
@@ -736,7 +743,7 @@
         "preview_only": true
       },
       "manifest_id": "keenetic-entware-extras",
-      "manifest_sha256": "4dc95859e80ddb1e2a9a286c2e6f1d4d30a81a50f6511cb170a9aded08de898d",
+      "manifest_sha256": "e8f6775e7fb52938d0b4ff856561184f1a49acbf8f94d681e41091862afded7c",
       "manifest_source": "marketplace/submissions/keenetic-entware-extras.json",
       "registry_source": "routerforge-community",
       "trust": {

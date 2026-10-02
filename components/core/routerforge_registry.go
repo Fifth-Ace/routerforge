@@ -424,7 +424,7 @@ func validateCatalogPlan(plan catalogInstallPlan) error {
 	}
 	for _, step := range plan.Steps {
 		switch step.Type {
-		case "opkg-update", "opkg-install", "opkg-upgrade", "opkg-remove", "write-opkg-feed":
+		case "opkg-update", "opkg-install", "opkg-upgrade", "opkg-remove", "write-opkg-feed", "write-opkg-feed-arch":
 		default:
 			return fmt.Errorf("unsupported lifecycle step %q", step.Type)
 		}
@@ -433,12 +433,25 @@ func validateCatalogPlan(plan catalogInstallPlan) error {
 				return fmt.Errorf("unsafe step package %q", pkg)
 			}
 		}
-		if step.Type == "write-opkg-feed" {
+		if step.Type == "write-opkg-feed" || step.Type == "write-opkg-feed-arch" {
 			if !strings.HasPrefix(step.Path, "/opt/etc/opkg/") || strings.Contains(step.Path, "..") {
 				return fmt.Errorf("unsafe opkg feed path %q", step.Path)
 			}
 			if !strings.HasPrefix(strings.TrimSpace(step.Content), "src/gz ") || !strings.Contains(step.Content, "https://") {
 				return fmt.Errorf("invalid opkg feed content")
+			}
+		}
+		if step.Type == "write-opkg-feed-arch" {
+			if !strings.Contains(step.Content, "{arch}") {
+				return fmt.Errorf("architecture-aware opkg feed requires {arch} template")
+			}
+			if len(step.Args) == 0 {
+				return fmt.Errorf("architecture-aware opkg feed requires supported architectures")
+			}
+			for _, arch := range step.Args {
+				if !safeCatalogPackageName(arch) {
+					return fmt.Errorf("unsafe opkg architecture %q", arch)
+				}
 			}
 		}
 	}

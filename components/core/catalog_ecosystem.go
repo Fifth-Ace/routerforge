@@ -659,8 +659,8 @@ func tgWSProxyGoCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/spatiumstas/tg-ws-proxy-go",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("spatiumstas", "https://github.com/spatiumstas/tg-ws-proxy-go"),
-		Trust:        auditedTrust("Keenetic feed/package lifecycle, service path and configuration locations were reviewed on 2026-10-03."),
-		Capabilities: []string{"detect", "version", "service-status", "install-preview", "proxy", "telegram"},
+		Trust:        auditedTrust("Keenetic feed/package lifecycle, feedly architecture bootstrap, service path and configuration locations were re-audited on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "package-lifecycle", "proxy", "telegram"},
 		Detection: catalogDetection{
 			Packages: []string{"tg-ws-proxy"},
 			Services: []string{"/opt/etc/init.d/S99tg-ws-proxy"},
@@ -673,12 +673,31 @@ func tgWSProxyGoCatalogItem() catalogItem {
 			Hints:   []string{"Keenetic", "Entware", "spatiumstas feedly repository"},
 		},
 		Install: catalogInstallPlan{
-			Method:      "manual",
-			Packages:    []string{"tg-ws-proxy"},
-			PreviewOnly: true,
+			Method:   "structured",
+			Packages: []string{"tg-ws-proxy"},
 			Notes: []string{
-				"Upstream Keenetic flow runs feedly add-repo.sh and then opkg install tg-ws-proxy.",
-				"Automatic install waits for a RouterForge architecture-aware feed bootstrap primitive.",
+				"Mirrors the reviewed feedly add-repo.sh contract without piping a remote shell script.",
+				"RouterForge selects only architectures reported by opkg and supported by upstream feedly.",
+			},
+			Steps: []catalogLifecycleStep{
+				{Type: "opkg-install", Packages: []string{"ca-certificates", "wget-ssl"}},
+				{Type: "opkg-remove", Packages: []string{"wget-nossl"}, IgnoreFailure: true},
+				{
+					Type:    "write-opkg-feed-arch",
+					Path:    "/opt/etc/opkg/feedly.conf",
+					Content: "src/gz feedly_{arch} https://spatiumstas.github.io/feedly/{arch}",
+					Args:    []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4"},
+				},
+				{Type: "opkg-update"},
+				{Type: "opkg-install", Packages: []string{"tg-ws-proxy"}},
+			},
+		},
+		Update: catalogInstallPlan{
+			Method:   "structured",
+			Packages: []string{"tg-ws-proxy"},
+			Steps: []catalogLifecycleStep{
+				{Type: "opkg-update"},
+				{Type: "opkg-upgrade", Packages: []string{"tg-ws-proxy"}},
 			},
 		},
 		Remove: catalogInstallPlan{

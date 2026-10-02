@@ -387,24 +387,74 @@ func runStructuredCatalogPlan(ctx context.Context, item catalogItem, action stri
 	return nil
 }
 
+func writeStructuredOpkgFeed(path, content string, log *catalogActionLog) error {
+	if !strings.HasPrefix(path, "/opt/etc/opkg/") || strings.Contains(path, "..") {
+		return fmt.Errorf("unsafe opkg feed path")
+	}
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "src/gz ") || !strings.Contains(content, "https://") {
+		return fmt.Errorf("invalid opkg feed content")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	if err := safety.WriteFileAtomic(path, []byte(content+"\n"), 0644); err != nil {
+		return err
+	}
+	fmt.Fprintf(log, "$ write %s\n%s\n", path, content)
+	return nil
+}
+
+func architectureAwareFeedContent(opkgOutput, template string, supported []string) (string, error) {
+	allowed := make(map[string]bool, len(supported))
+	for _, arch := range supported {
+		if !safeCatalogPackageName(arch) {
+			return "", fmt.Errorf("unsafe opkg architecture %q", arch)
+		}
+		allowed[arch] = true
+	}
+
+	var lines []string
+	seen := map[string]bool{}
+	scanner := bufio.NewScanner(strings.NewReader(opkgOutput))
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 2 {
+			continue
+		}
+		arch := fields[1]
+		if !allowed[arch] || seen[arch] {
+			continue
+		}
+		seen[arch] = true
+		lines = append(lines, strings.ReplaceAll(template, "{arch}", arch))
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	if len(lines) == 0 {
+		return "", fmt.Errorf("no supported opkg architecture found")
+	}
+	return strings.Join(lines, "\n"), nil
+}
+
 func executeStructuredStep(ctx context.Context, opkg string, step catalogLifecycleStep, log *catalogActionLog) error {
 	switch step.Type {
 	case "write-opkg-feed":
-		if !strings.HasPrefix(step.Path, "/opt/etc/opkg/") || strings.Contains(step.Path, "..") {
-			return fmt.Errorf("unsafe opkg feed path")
+		return writeStructuredOpkgFeed(step.Path, step.Content, log)
+	case "write-opkg-feed-arch":
+		if !strings.Contains(step.Content, "{arch}") || len(step.Args) == 0 {
+			return fmt.Errorf("invalid architecture-aware opkg feed")
 		}
-		content := strings.TrimSpace(step.Content)
-		if !strings.HasPrefix(content, "src/gz ") || !strings.Contains(content, "https://") {
-			return fmt.Errorf("invalid opkg feed content")
+		output, err := runCommandStreaming(ctx, opkg, []string{"print-architecture"}, log.EmitLine)
+		if err != nil {
+			return fmt.Errorf("opkg print-architecture: %s", strings.TrimSpace(output))
 		}
-		if err := os.MkdirAll(filepath.Dir(step.Path), 0755); err != nil {
+		content, err := architectureAwareFeedContent(output, step.Content, step.Args)
+		if err != nil {
 			return err
 		}
-		if err := safety.WriteFileAtomic(step.Path, []byte(content+"\n"), 0644); err != nil {
-			return err
-		}
-		fmt.Fprintf(log, "$ write %s\n%s\n", step.Path, content)
-		return nil
+		return writeStructuredOpkgFeed(step.Path, content, log)
 	case "opkg-update":
 		return runOpkgStep(ctx, opkg, []string{"update"}, log)
 	case "opkg-install", "opkg-upgrade", "opkg-remove":

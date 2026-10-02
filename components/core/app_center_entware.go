@@ -143,7 +143,7 @@ func handleEntwareCatalog(w http.ResponseWriter, r *http.Request) {
 		writeCatalogJSON(w, http.StatusServiceUnavailable, entwareCatalogResponse{
 			GeneratedAt:              time.Now(),
 			Online:                   false,
-			PackageManagementEnabled: marketplaceTestInstallEnabled(),
+			PackageManagementEnabled: packageManagementEnabled(),
 			Items:                    []entwarePackage{},
 			Error:                    err.Error(),
 		})
@@ -203,7 +203,7 @@ func handleEntwareCatalog(w http.ResponseWriter, r *http.Request) {
 	writeCatalogJSON(w, http.StatusOK, entwareCatalogResponse{
 		GeneratedAt:              time.Now(),
 		Online:                   true,
-		PackageManagementEnabled: marketplaceTestInstallEnabled(),
+		PackageManagementEnabled: packageManagementEnabled(),
 		Total:                    total,
 		InstalledCount:           installedCount,
 		UpgradableCount:          upgradableCount,
@@ -287,10 +287,10 @@ func handleEntwareRefresh(w http.ResponseWriter, r *http.Request) {
 		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "cross-origin package-list refresh rejected"})
 		return
 	}
-	if !marketplaceTestInstallEnabled() {
+	if !packageManagementEnabled() {
 		writeCatalogJSON(w, http.StatusForbidden, map[string]any{
 			"error":  "RouterForge package management is disabled",
-			"marker": marketplaceTestInstallMarker,
+			"detail": "accept the current App Center risk agreement before refreshing package lists",
 		})
 		return
 	}
@@ -343,14 +343,6 @@ func handleEntwareAction(w http.ResponseWriter, r *http.Request) {
 		writeCatalogJSON(w, http.StatusForbidden, map[string]any{"error": "cross-origin Entware action rejected"})
 		return
 	}
-	if !marketplaceTestInstallEnabled() {
-		writeCatalogJSON(w, http.StatusForbidden, map[string]any{
-			"error":  "RouterForge package management is disabled",
-			"marker": marketplaceTestInstallMarker,
-		})
-		return
-	}
-
 	var request entwareActionRequest
 	if err := decodeSmallJSON(w, r, &request); err != nil {
 		return
@@ -358,6 +350,13 @@ func handleEntwareAction(w http.ResponseWriter, r *http.Request) {
 
 	request.Package = strings.TrimSpace(request.Package)
 	request.Action = normalizeEntwareAction(request.Action)
+	if !packageManagementAllowsAction(request.Action) {
+		writeCatalogJSON(w, http.StatusForbidden, map[string]any{
+			"error":  "RouterForge package management is disabled",
+			"detail": "accept the current App Center risk agreement to install or update packages",
+		})
+		return
+	}
 
 	if !safeCatalogPackageName(request.Package) {
 		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid package name"})
@@ -896,7 +895,7 @@ func buildEntwarePreflight(ctx context.Context, name, action string) (entwareAct
 	preflight := entwareActionPreflight{
 		Package:           name,
 		Action:            action,
-		PackageManagement: marketplaceTestInstallEnabled(),
+		PackageManagement: packageManagementEnabled(),
 	}
 	if !safeCatalogPackageName(name) {
 		preflight.Reason = "invalid package name"
@@ -976,8 +975,8 @@ func buildEntwarePreflight(ctx context.Context, name, action string) (entwareAct
 		preflight.Warnings = append(preflight.Warnings, "additional dependencies are not currently installed")
 	}
 
-	if !preflight.PackageManagement {
-		preflight.Reason = "RouterForge package management is disabled"
+	if action != "remove" && !preflight.PackageManagement {
+		preflight.Reason = "RouterForge package management is disabled; accept the current risk agreement to install or update packages"
 		return preflight, nil
 	}
 	switch action {

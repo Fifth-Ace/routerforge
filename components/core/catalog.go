@@ -111,14 +111,14 @@ type catalogItem struct {
 }
 
 type catalogSnapshot struct {
-	GeneratedAt     time.Time                 `json:"generated_at"`
-	ReadOnly        bool                      `json:"read_only"`
-	InstallTestMode bool                      `json:"install_test_mode"`
-	Phase           string                    `json:"phase"`
-	Brand           string                    `json:"brand"`
-	Registry        routerForgeRegistryStatus `json:"registry"`
-	Modules         []catalogItem             `json:"modules"`
-	Integrations    []catalogItem             `json:"integrations"`
+	GeneratedAt                    time.Time                 `json:"generated_at"`
+	ReadOnly                       bool                      `json:"read_only"`
+	LegacyPackageManagementEnabled bool                      `json:"install_test_mode"`
+	Phase                          string                    `json:"phase"`
+	Brand                          string                    `json:"brand"`
+	Registry                       routerForgeRegistryStatus `json:"registry"`
+	Modules                        []catalogItem             `json:"modules"`
+	Integrations                   []catalogItem             `json:"integrations"`
 
 	PackageManagementEnabled bool                     `json:"package_management_enabled"`
 	Release                  routerForgeReleaseStatus `json:"release"`
@@ -190,11 +190,12 @@ func refreshCatalog() catalogSnapshot {
 	catalogApplyRuntimeWebDiscovery(&snapshot, installed)
 
 	applyRouterForgeReleaseIndex(&snapshot)
-	snapshot.InstallTestMode = marketplaceTestInstallEnabled()
-	snapshot.PackageManagementEnabled = snapshot.InstallTestMode
+	snapshot.PackageManagementEnabled = packageManagementEnabled()
+	// Compatibility alias for older clients. New UI/API consumers use package_management_enabled.
+	snapshot.LegacyPackageManagementEnabled = snapshot.PackageManagementEnabled
 	if snapshot.PackageManagementEnabled {
 		snapshot.ReadOnly = false
-		snapshot.Phase = "routerforge-package-mode"
+		snapshot.Phase = "package-management"
 	}
 
 	storeCatalogSnapshot(snapshot)

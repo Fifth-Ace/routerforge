@@ -19,10 +19,8 @@ import (
 )
 
 const (
-	marketplaceTestInstallMarker       = "/opt/etc/routerforge/package-management.enabled"
-	legacyMarketplaceTestInstallMarker = "/opt/etc/dns-monitor/marketplace-test-install.enabled"
-	marketplaceDownloadDir             = "/opt/tmp/routerforge-marketplace"
-	marketplaceDownloadMaxBytes        = 64 << 20
+	marketplaceDownloadDir      = "/opt/tmp/routerforge-marketplace"
+	marketplaceDownloadMaxBytes = 64 << 20
 )
 
 var marketplaceInstallMu sync.Mutex
@@ -54,7 +52,7 @@ func (e *catalogInstallFailure) Error() string {
 	return e.Message
 }
 
-func marketplaceTestInstallEnabled() bool {
+func packageManagementEnabled() bool {
 	cfg, err := loadAppSourcesConfig()
 	if err != nil {
 		return false
@@ -62,6 +60,13 @@ func marketplaceTestInstallEnabled() bool {
 	return cfg.AllowUnverified &&
 		cfg.AgreementVersion == appSourcesAgreementVersion &&
 		strings.TrimSpace(cfg.AgreementAccepted) != ""
+}
+
+func packageManagementAllowsAction(action string) bool {
+	if strings.EqualFold(strings.TrimSpace(action), "remove") {
+		return true
+	}
+	return packageManagementEnabled()
 }
 
 func catalogItemByID(id string) (catalogItem, bool) {
@@ -127,21 +132,21 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 	marketplaceInstallMu.Lock()
 	defer marketplaceInstallMu.Unlock()
 
-	if !marketplaceTestInstallEnabled() {
+	action = strings.TrimSpace(strings.ToLower(action))
+	if action != "install" && action != "update" && action != "remove" {
+		return catalogActionResult{}, &catalogInstallFailure{Status: 400, Message: "unsupported catalog action"}
+	}
+	if !packageManagementAllowsAction(action) {
 		return catalogActionResult{}, &catalogInstallFailure{
-			Status: 403, Message: "RouterForge package management is disabled",
-			Detail: marketplaceTestInstallMarker + " is missing",
+			Status:  403,
+			Message: "RouterForge package management is disabled",
+			Detail:  "accept the current App Center risk agreement to install or update packages",
 		}
 	}
 
 	item, ok := catalogItemByID(id)
 	if !ok {
 		return catalogActionResult{}, &catalogInstallFailure{Status: 404, Message: "catalog item not found"}
-	}
-
-	action = strings.TrimSpace(strings.ToLower(action))
-	if action != "install" && action != "update" && action != "remove" {
-		return catalogActionResult{}, &catalogInstallFailure{Status: 400, Message: "unsupported catalog action"}
 	}
 	if !catalogActionAllowed(item, action) {
 		reason := item.Actions.Reason

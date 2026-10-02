@@ -403,8 +403,8 @@ func startWeb(listen string, version string) error {
 
 	mux.HandleFunc("/api/catalog/refresh", handleCatalogRefresh)
 
-	mux.HandleFunc("/api/catalog/action", handleCatalogActionTest)
-	mux.HandleFunc("/api/catalog/install", handleCatalogInstallTest)
+	mux.HandleFunc("/api/catalog/action", handleCatalogAction)
+	mux.HandleFunc("/api/catalog/install", handleCatalogInstall)
 	mux.HandleFunc("/api/catalog", handleCatalogRead)
 
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {

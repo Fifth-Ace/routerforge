@@ -1164,7 +1164,7 @@
           <option value="dev">RouterForge Dev</option>
         </select>
         <button class="button check-updates-button" disabled={checkingUpdates || checkingAll || channelBusy || Boolean(busyId)} onclick={checkCurrentUpdates}>
-          {checkingUpdates ? a(locale,'checking') : (locale === 'ru' ? 'Проверить RouterForge' : 'Check RouterForge')}
+          {checkingUpdates ? a(locale,'checking') : (locale === 'ru' ? 'Проверить обновления' : 'Check updates')}
         </button>
       {:else if tab === 'integrations'}
         <button class="button check-updates-button" disabled={checkingUpdates || checkingAll || Boolean(busyId)} onclick={checkCurrentUpdates}>

@@ -9,5 +9,6 @@ PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
 if [ -f /opt/etc/routerforge/module-abi-v1 ]; then
     ENABLED=yes
 fi
+[ -f /opt/etc/routerforge/modules-disabled/monitoring ] && ENABLED=no
 
 . /opt/etc/init.d/rc.func

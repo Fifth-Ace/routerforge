@@ -250,6 +250,7 @@ func startWeb(listen string, version string) error {
 	auth := newAuthManager()
 	auth.registerHandlers(mux)
 	registerAppCenterHandlers(mux)
+	registerModuleLifecycleHandlers(mux, auth)
 	registerAppSourceHandlers(mux)
 	registerAppActionHandlers(mux)
 	registerPlatformHandlers(mux)

@@ -16,6 +16,7 @@
   import RemoveConfirm from '$lib/components/RemoveConfirm.svelte';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
   import SourceManager from '$lib/components/SourceManager.svelte';
+  import ModuleLifecycleControls from '$lib/components/ModuleLifecycleControls.svelte';
 
   const acronyms = {
     'awg-manager':'AWG', nfqws2:'NQ2', nfqws:'NQ1', 'nfqws-web':'NQW', 'hydraroute-neo':'HRN',
@@ -238,6 +239,7 @@
 
   function serviceStatusText(item) {
     if (item?.id === 'routerforge-core') return a(locale,'coreService');
+    if (item?.disabled) return locale === 'ru' ? 'ОТКЛЮЧЕН' : 'DISABLED';
     return item?.service_running ? a(locale,'running') : a(locale,'stopped');
   }
 
@@ -1432,6 +1434,13 @@
                 {#if item.project_url}
                   <a class="button compact" target="_blank" rel="noopener noreferrer" href={item.project_url}>{a(locale,'project')}</a>
                 {/if}
+
+                <ModuleLifecycleControls
+                  {item}
+                  {locale}
+                  disabled={Boolean(busyId)}
+                  onnotice={(notice) => actionNotice = notice}
+                />
 
                 {#if item.installed && canAction(item,'remove')}
                   <button class="button danger-subtle compact" disabled={Boolean(busyId)} onclick={() => removeItem = item}>{a(locale,'remove')}</button>

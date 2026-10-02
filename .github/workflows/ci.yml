@@ -45,6 +45,7 @@ jobs:
           REGISTRY=false
           LAYOUT=false
           RELEASE=false
+          DOCS=false
           FULL_RELEASE=false
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] &&
@@ -58,6 +59,7 @@ jobs:
             REGISTRY=true
             LAYOUT=true
             RELEASE=true
+            DOCS=true
             FULL_RELEASE=true
 
           else
@@ -80,6 +82,10 @@ jobs:
 
             while IFS= read -r path; do
               case "$path" in
+
+                README.md|README_EN.md|modules/README.md|release/channels/README.md|docs/*|scripts/verify-docs-current.py)
+                  DOCS=true
+                  ;;
 
 
                 .github/workflows/ci.yml)
@@ -147,6 +153,7 @@ jobs:
           echo "registry=$REGISTRY" >> "$GITHUB_OUTPUT"
           echo "layout=$LAYOUT" >> "$GITHUB_OUTPUT"
           echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+          echo "docs=$DOCS" >> "$GITHUB_OUTPUT"
           echo "full_release=$FULL_RELEASE" >> "$GITHUB_OUTPUT"
 
 
@@ -158,6 +165,7 @@ jobs:
           echo "REGISTRY=$REGISTRY"
           echo "LAYOUT=$LAYOUT"
           echo "RELEASE=$RELEASE"
+          echo "DOCS=$DOCS"
           echo "FULL_RELEASE=$FULL_RELEASE"
 
 
@@ -170,27 +178,35 @@ jobs:
         run: python3 scripts/verify-public-tree.py
 
       - name: Verify documentation currency
+        if: steps.scope.outputs.docs == 'true' || steps.scope.outputs.release == 'true' || steps.scope.outputs.full_release == 'true'
         run: python3 scripts/verify-docs-current.py
 
       - name: Verify UI contract
+        if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'
         run: python3 scripts/verify-ui-contract.py
 
       - name: Verify marketplace contract
+        if: steps.scope.outputs.registry == 'true' || steps.scope.outputs.go == 'true' || steps.scope.outputs.full_release == 'true'
         run: python3 scripts/verify-marketplace-contract.py
 
       - name: Verify legacy fallback removal readiness
+        if: steps.scope.outputs.full_release == 'true'
         run: python3 scripts/verify-legacy-fallback-removal.py
 
       - name: Verify private registry completion
+        if: steps.scope.outputs.registry == 'true' || steps.scope.outputs.full_release == 'true'
         run: python3 scripts/verify-private-registry-contract.py
 
       - name: Verify Forgejo failover contract
+        if: steps.scope.outputs.full_release == 'true'
         run: python3 scripts/verify-forgejo-failover-contract.py
 
       - name: Verify shared safety contract
+        if: steps.scope.outputs.go == 'true' || steps.scope.outputs.shell == 'true' || steps.scope.outputs.registry == 'true' || steps.scope.outputs.full_release == 'true'
         run: python3 scripts/verify-safety-contract.py
 
       - name: Verify Antiscan upstream drift guard
+        if: steps.scope.outputs.full_release == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/verify-antiscan-upstream-contract.py --remote

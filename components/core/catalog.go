@@ -50,6 +50,7 @@ type catalogInstallPlan struct {
 	Repository    string                 `json:"repository,omitempty"`
 	RepositoryURL string                 `json:"repository_url,omitempty"`
 	Packages      []string               `json:"packages,omitempty"`
+	Args          []string               `json:"args,omitempty"`
 	InstallerURL  string                 `json:"installer_url,omitempty"`
 	ChecksumURL   string                 `json:"checksum_url,omitempty"`
 	AssetTemplate string                 `json:"asset_template,omitempty"`

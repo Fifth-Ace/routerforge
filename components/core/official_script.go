@@ -86,8 +86,8 @@ func fetchOfficialScript(ctx context.Context, rawURL string) ([]byte, error) {
 			if len(via) >= 5 {
 				return fmt.Errorf("too many redirects")
 			}
-			if req.URL.Scheme != "https" || req.URL.User != nil {
-				return fmt.Errorf("official-script redirect must remain HTTPS")
+			if !validOfficialScriptURL(req.URL.String()) {
+				return fmt.Errorf("official-script redirect left the approved HTTPS source set")
 			}
 			return nil
 		},

@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
 mkdir -p /opt/etc/routerforge /opt/var/run /opt/var/log
+
+DISABLED_MARKER=/opt/etc/routerforge/modules-disabled/dns
+if [ -f "$DISABLED_MARKER" ]; then
+    rm -f /opt/etc/routerforge/dns.enabled
+    exit 0
+fi
+
 : > /opt/etc/routerforge/dns.enabled
 
 dns_diag() {

@@ -11,5 +11,6 @@ PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
 if [ ! -f /opt/etc/routerforge/module-abi-v1 ]; then
     ENABLED=no
 fi
+[ -f /opt/etc/routerforge/modules-disabled/dns ] && ENABLED=no
 
 . /opt/etc/init.d/rc.func

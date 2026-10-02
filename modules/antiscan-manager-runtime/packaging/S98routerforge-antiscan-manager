@@ -22,5 +22,6 @@ esac
 if [ -f /opt/etc/routerforge/module-abi-v1 ]; then
     ENABLED=yes
 fi
+[ -f /opt/etc/routerforge/modules-disabled/antiscan-manager ] && ENABLED=no
 
 . /opt/etc/init.d/rc.func

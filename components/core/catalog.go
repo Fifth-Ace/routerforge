@@ -78,6 +78,8 @@ type catalogItem struct {
 	PackageInstalled bool                    `json:"package_installed,omitempty"`
 	Service          string                  `json:"service,omitempty"`
 	ServiceRunning   bool                    `json:"service_running"`
+	Disabled         bool                    `json:"disabled,omitempty"`
+	LifecycleManaged bool                    `json:"lifecycle_managed,omitempty"`
 	Web              *catalogWebMetadata     `json:"web,omitempty"`
 	WebPort          int                     `json:"web_port,omitempty"`
 	WebPortSource    string                  `json:"web_port_source,omitempty"`
@@ -508,6 +510,13 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 		}
 	}
 
+	if spec, ok := moduleLifecycleSpecFor(item.ID); ok {
+		item.LifecycleManaged = true
+		item.Service = moduleLifecycleServicePath(spec, exists)
+		item.Disabled = exists(moduleLifecycleDisabledMarker(item.ID))
+		item.ServiceRunning = moduleLifecycleRuntimeState(spec, processes)
+	}
+
 	if item.WebRequiresPackage != "" {
 		if _, ok := installed[item.WebRequiresPackage]; !ok {
 			item.WebPort = 0
@@ -522,7 +531,7 @@ func finalizeCatalogItem(item *catalogItem, installed map[string]string, process
 		} else {
 			item.State = "installed_external"
 		}
-		item.Enabled = item.ServiceRunning
+		item.Enabled = item.ServiceRunning && !item.Disabled
 	} else {
 		item.State = "available"
 	}

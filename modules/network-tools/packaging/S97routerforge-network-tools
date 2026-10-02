@@ -6,4 +6,5 @@ PREARGS=""
 DESC="RouterForge Network Tools"
 PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
 [ -f /opt/etc/routerforge/module-abi-v1 ] && ENABLED=yes
+[ -f /opt/etc/routerforge/modules-disabled/network-tools ] && ENABLED=no
 . /opt/etc/init.d/rc.func

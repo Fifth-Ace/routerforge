@@ -5,4 +5,5 @@ ARGS="-socket /opt/var/run/routerforge-admin.sock"
 PREARGS=""
 DESC="RouterForge Control"
 PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+[ -f /opt/etc/routerforge/modules-disabled/admin ] && ENABLED=no
 . /opt/etc/init.d/rc.func

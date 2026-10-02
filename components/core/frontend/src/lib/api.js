@@ -122,6 +122,8 @@ export const installCatalogItem = (id) =>
   postJSON('/api/catalog/install', { id }, PACKAGE_WRITE_TIMEOUT_MS);
 export const catalogAction = (id, action, confirm = '') =>
   postJSON('/api/catalog/action', { id, action, confirm }, PACKAGE_WRITE_TIMEOUT_MS);
+export const moduleLifecycleAction = (id, action) =>
+  postJSON('/api/apps/modules/lifecycle', { id, action, confirm_id:id }, WRITE_TIMEOUT_MS);
 export const getClients = () => request('/api/clients');
 export const getInterfaces = () => request('/api/interfaces');
 export const getHistory = (minutes = 60) => request(`/api/history?minutes=${encodeURIComponent(minutes)}`);

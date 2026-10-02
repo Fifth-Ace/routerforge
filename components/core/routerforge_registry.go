@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -408,13 +409,27 @@ func validateCatalogPlan(plan catalogInstallPlan) error {
 		return nil
 	}
 	switch plan.Method {
-	case "routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy":
+	case "routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy", "verified-ipk":
 	default:
 		return fmt.Errorf("unsupported lifecycle method %q", plan.Method)
 	}
 	if plan.Method == "official-script" {
 		if err := validateOfficialScriptPlan(plan); err != nil {
 			return err
+		}
+	}
+	if plan.Method == "verified-ipk" {
+		if len(plan.Packages) != 1 {
+			return fmt.Errorf("verified-ipk requires exactly one package")
+		}
+		if !validVerifiedIPKURL(plan.InstallerURL) {
+			return fmt.Errorf("verified-ipk URL must be an immutable GitHub Release .ipk asset")
+		}
+		if len(plan.ExpectedSHA256) != 64 {
+			return fmt.Errorf("verified-ipk expected_sha256 must be 64 hex characters")
+		}
+		if _, err := hex.DecodeString(plan.ExpectedSHA256); err != nil {
+			return fmt.Errorf("verified-ipk expected_sha256 must be 64 hex characters")
 		}
 	}
 	for _, pkg := range plan.Packages {
@@ -820,7 +835,7 @@ func executableCatalogPlan(plan catalogInstallPlan) bool {
 		return false
 	}
 	switch plan.Method {
-	case "routerforge-release", "opkg", "structured", "official-script", "github-release-binary":
+	case "routerforge-release", "opkg", "structured", "official-script", "verified-ipk", "github-release-binary":
 		return true
 	default:
 		return false

@@ -208,6 +208,16 @@ func entwareManagerCatalogItem() catalogItem {
 }
 
 func zapretGUICatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:         "verified-ipk",
+		Packages:       []string{"zapret-gui"},
+		InstallerURL:   "https://github.com/avatarDD/zapret-gui/releases/download/v0.25.5/zapret-gui-keenetic.ipk",
+		ExpectedSHA256: "76d9b57e911ccc9b4ce03712be983c1559101bed80c3b887b26acb90ec536274",
+		Notes: []string{
+			"Pins the exact upstream v0.25.5 Keenetic IPK and GitHub-published SHA256 digest.",
+			"RouterForge verifies the complete IPK before handing it to opkg.",
+		},
+	}
 	return catalogItem{
 		ID:           "zapret-gui",
 		Kind:         "integration",
@@ -217,8 +227,8 @@ func zapretGUICatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/avatarDD/zapret-gui",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("avatarDD", "https://github.com/avatarDD/zapret-gui"),
-		Trust:        auditedTrust("Keenetic IPK lifecycle, service path and default Web UI were reviewed against upstream documentation on 2026-10-02."),
-		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "nfqws2", "routing"},
+		Trust:        auditedTrust("Keenetic IPK lifecycle, exact v0.25.5 GitHub Release asset digest, service path and default Web UI were re-audited on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "nfqws2", "routing"},
 		Detection: catalogDetection{
 			Packages: []string{"zapret-gui"},
 			Services: []string{"/opt/etc/init.d/S99zapret-gui"},
@@ -236,22 +246,8 @@ func zapretGUICatalogItem() catalogItem {
 			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
 			Hints:   []string{"Keenetic", "Entware", "Python 3.11+", "nfqws2/tunnel components are optional and managed separately"},
 		},
-		Install: catalogInstallPlan{
-			Method:      "release-deploy",
-			Repository:  "https://github.com/avatarDD/zapret-gui/releases",
-			Packages:    []string{"zapret-gui"},
-			PreviewOnly: true,
-			Notes: []string{
-				"Upstream recommends zapret-gui-keenetic.ipk from GitHub Releases.",
-				"Automatic latest-asset download remains disabled until RouterForge has pinned checksum metadata.",
-			},
-		},
-		Update: catalogInstallPlan{
-			Method:      "manual",
-			Packages:    []string{"zapret-gui"},
-			PreviewOnly: true,
-			Notes:       []string{"Upstream documents opkg upgrade for package-managed installations."},
-		},
+		Install: install,
+		Update:  install,
 		Remove: catalogInstallPlan{
 			Method:   "opkg",
 			Packages: []string{"zapret-gui"},

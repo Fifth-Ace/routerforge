@@ -82,6 +82,8 @@ func auditedEcosystemIntegrations() []catalogItem {
 		ssClashGoCatalogItem(),
 		broRayCatalogItem(),
 		keeneticAutoSetupCatalogItem(),
+		qeliKeeneticCatalogItem(),
+		xkeenUIUmarchehCatalogItem(),
 	}
 }
 
@@ -1460,6 +1462,72 @@ func keeneticAutoSetupCatalogItem() catalogItem {
 			InstallerURL: "https://raw.githubusercontent.com/saymer-alt/keenetic-auto-setup/stable/setup.sh",
 			PreviewOnly:  true,
 			Notes:        []string{"The bootstrap is safety-gated but intentionally interactive after installation; RouterForge does not synthesize or paste a Mihomo config on the user's behalf."},
+		},
+	}
+}
+
+func qeliKeeneticCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "qeli-keenetic",
+		Kind:         "integration",
+		Name:         "Qeli for Keenetic",
+		Category:     "VPN / Routing",
+		Description:  "Qeli client deployment for Keenetic/Entware with TUN gateway mode, optional split routing and native OpkgTun integration.",
+		ProjectURL:   "https://github.com/litvinovtd/qeli",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("litvinovtd", "https://github.com/litvinovtd/qeli"),
+		Trust:        auditedTrust("Keenetic deployment guide, architecture-specific client bundle, TUN requirements and service layout were reviewed on 2026-10-03; installation remains preview-only because server-issued credentials and interface choices must be supplied by the user."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "vpn", "tun", "routing", "opkgtun"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99qeli"},
+			Paths:    []string{"/opt/bin/qeli-client", "/opt/etc/qeli/client.conf"},
+		},
+		ProcessNames: []string{"qeli-client"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "KeeneticOS VPN component providing /dev/net/tun", "ip-full", "iptables", "matching Qeli server credentials"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes: []string{
+				"Upstream Keenetic bundle chooses the architecture and installs S99qeli, but requires a qeli server profile, credentials and server public-key policy.",
+				"RouterForge exposes the project without inventing VPN credentials, LAN interface names or full-tunnel/split-tunnel choices.",
+			},
+		},
+	}
+}
+
+func xkeenUIUmarchehCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "xkeen-ui-umarcheh",
+		Kind:         "integration",
+		Name:         "Xkeen UI (umarcheh001)",
+		Category:     "VPN / Routing",
+		Description:  "Feature-rich XKeen/Xray/Mihomo Web UI with subscriptions, PTY, file manager, DAT tools, diagnostics and optional Android companion.",
+		ProjectURL:   "https://github.com/umarcheh001/Xkeen-UI",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("umarcheh001", "https://github.com/umarcheh001/Xkeen-UI"),
+		Trust:        auditedTrust("Release archive install flow, init-script ownership guard, optional components and dynamic Web port selection were reviewed on 2026-10-03; installation remains preview-only because upstream install.sh is bundle-local and depends on release archive contents."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "xkeen", "xray", "mihomo", "subscriptions", "diagnostics"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99xkeen-ui-umarcheh001", "/opt/etc/init.d/S99xkeen-ui"},
+			Paths:    []string{"/opt/etc/xkeen-ui/run_server.py", "/opt/etc/xkeen-ui/app.py"},
+		},
+		ProcessNames: []string{"python3"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "Python 3", "XKeen", "release archive xkeen-ui-routing.tar.gz", "Web port auto-selects 8088, then 8091, then 8100-8199"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes: []string{
+				"Upstream online install downloads xkeen-ui-routing.tar.gz, extracts it under /opt and runs the bundled xkeen-ui/install.sh.",
+				"RouterForge does not execute the raw repository install.sh by itself because it relies on sibling files from the release archive.",
+			},
 		},
 	}
 }

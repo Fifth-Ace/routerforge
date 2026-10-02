@@ -116,18 +116,29 @@ func applyReviewedOfficialScriptLifecycle(snapshot *catalogSnapshot) {
 	if item := findCatalogItem(snapshot, "keen-pbr", "integration"); item != nil {
 		item.Source = "project-official"
 		item.Publisher = auditedPublisher("maksimkurb", "https://github.com/maksimkurb/keen-pbr")
-		item.Trust = auditedTrust("Dedicated Keenetic/Entware feed, full/headless package split and Web UI behavior were reviewed on 2026-10-03; install remains preview-only because choosing keen-pbr versus keen-pbr-headless is an explicit user decision.")
-		item.Install = catalogInstallPlan{
-			Method:      "manual",
-			Packages:    []string{"keen-pbr", "keen-pbr-headless"},
-			PreviewOnly: true,
-			Notes: []string{
-				"Upstream provides a dedicated Keenetic Entware repository.",
-				"Choose exactly one package variant: keen-pbr with Web UI or keen-pbr-headless without it.",
+		item.Trust = auditedTrust("Keenetic/NetCraze stable repository layout, full package, Web UI port, supported Entware architectures and non-TTY postinst behavior were re-audited on 2026-10-03.")
+		item.Capabilities = lifecycleCapabilities(item.Capabilities)
+		item.Detection.Packages = []string{"keen-pbr"}
+		item.Web = &catalogWebMetadata{
+			Scheme: "http",
+			Port:   12121,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		}
+		item.Install = keenPBRStructuredPlan("keen-pbr")
+		item.Update = catalogInstallPlan{
+			Method:   "structured",
+			Packages: []string{"keen-pbr"},
+			Steps: []catalogLifecycleStep{
+				{Type: "opkg-update"},
+				{Type: "opkg-upgrade", Packages: []string{"keen-pbr"}},
 			},
 		}
-		item.Update = catalogInstallPlan{}
-		item.Remove = catalogInstallPlan{}
+		item.Remove = catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{"keen-pbr"},
+		}
 		refreshReviewedLifecycle(item)
 	}
 }

@@ -385,8 +385,8 @@ func xkeenPanelCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/Dearonski/xkeen-panel",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("Dearonski", "https://github.com/Dearonski/xkeen-panel"),
-		Trust:        auditedTrust("Official installer and default Web UI were reviewed on 2026-10-03; automatic execution remains disabled because upstream installer accepts architecture arguments and defaults to aarch64."),
-		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "routing"},
+		Trust:        auditedTrust("Official installer, current architecture auto-detection and default Web UI were re-audited against upstream README/install.sh on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "routing"},
 		Detection: catalogDetection{
 			Services: []string{"/opt/etc/init.d/S99xkeen-panel"},
 			Paths:    []string{"/opt/etc/xkeen-panel"},
@@ -402,16 +402,20 @@ func xkeenPanelCatalogItem() catalogItem {
 		Compatibility: catalogCompatibility{
 			Status:  "requirements",
 			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
-			Hints:   []string{"Keenetic", "Entware", "XKeen", "installer architecture must match router"},
+			Hints:   []string{"Keenetic", "Entware", "XKeen", "installer auto-detects uname architecture and normalizes arm64/mips/mipsel"},
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
 			InstallerURL: "https://raw.githubusercontent.com/Dearonski/xkeen-panel/main/install.sh",
-			PreviewOnly:  true,
 			Notes: []string{
-				"Upstream installer accepts aarch64/mips/mipsel and defaults to aarch64.",
-				"RouterForge keeps this preview-only until architecture-specific script arguments are selected dynamically.",
+				"Current upstream installer auto-detects the router architecture from uname and maps aarch64/arm64, mips and mipsel/mipsle to matching release assets.",
+				"Existing config.yaml is preserved during reinstall/update.",
 			},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/Dearonski/xkeen-panel/main/install.sh",
+			Notes:        []string{"Upstream documents rerunning install.sh as the update path; existing configuration is not overwritten."},
 		},
 	}
 }

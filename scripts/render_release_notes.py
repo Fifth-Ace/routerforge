@@ -202,6 +202,13 @@ def main():
     if not release_version:
         raise SystemExit("release_version is missing")
 
+    if args.channel == "stable":
+        canonical = Path("docs") / f"RELEASE_NOTES_{release_version}.md"
+        if not canonical.is_file() or canonical.stat().st_size == 0:
+            raise SystemExit(f"missing canonical Stable release notes: {canonical}")
+        Path(args.output).write_bytes(canonical.read_bytes())
+        return
+
     lines = [
         f"# RouterForge {release_version}",
         "",

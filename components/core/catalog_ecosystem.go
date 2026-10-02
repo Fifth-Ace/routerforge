@@ -33,6 +33,8 @@ func applyAuditedEcosystemCatalog(snapshot *catalogSnapshot, installed map[strin
 		snapshot.Integrations = append(snapshot.Integrations, incoming)
 	}
 
+	applyReviewedOfficialScriptLifecycle(snapshot)
+
 	sort.SliceStable(snapshot.Integrations, func(i, j int) bool {
 		if snapshot.Integrations[i].Category != snapshot.Integrations[j].Category {
 			return snapshot.Integrations[i].Category < snapshot.Integrations[j].Category

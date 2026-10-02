@@ -1669,7 +1669,7 @@ func wayHopCatalogItem() catalogItem {
 			Paths:    []string{"/opt/etc/wayhop"},
 		},
 		ProcessNames: []string{"wayhop"},
-		Web: &catalogWebMetadata{Scheme: "http", Port: 8088, Path: "/", Mode: "probe-required", Embed: true},
+		Web:          &catalogWebMetadata{Scheme: "http", Port: 8088, Path: "/", Mode: "probe-required", Embed: true},
 		Compatibility: catalogCompatibility{
 			Status:  "requirements",
 			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4"},
@@ -1718,7 +1718,7 @@ func qWDTTKeeneticCatalogItem() catalogItem {
 			Paths:    []string{"/opt/etc/qwdtt/config.json"},
 		},
 		ProcessNames: []string{"qwdtt"},
-		Web: &catalogWebMetadata{Scheme: "http", Port: 3333, Path: "/", Mode: "probe-required", Embed: true},
+		Web:          &catalogWebMetadata{Scheme: "http", Port: 3333, Path: "/", Mode: "probe-required", Embed: true},
 		Compatibility: catalogCompatibility{
 			Status:  "requirements",
 			Targets: []string{"aarch64-3.10", "armv7-3.2", "mipsel-3.4"},
@@ -1829,7 +1829,7 @@ func xkeenSmartRouteCatalogItem() catalogItem {
 			Paths:    []string{"/opt/share/xkeen-smartroute", "/opt/etc/xray/configs/05_routing.smartroute.json"},
 		},
 		ProcessNames: []string{"smartroute-gateway"},
-		Web: &catalogWebMetadata{Scheme: "http", Port: 1001, Path: "/", Mode: "probe-required", Embed: true},
+		Web:          &catalogWebMetadata{Scheme: "http", Port: 1001, Path: "/", Mode: "probe-required", Embed: true},
 		Compatibility: catalogCompatibility{
 			Status:  "requirements",
 			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4", "x64-3.2"},

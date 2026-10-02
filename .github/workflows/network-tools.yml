@@ -84,6 +84,7 @@ jobs:
               "monitoring",
               "network-tools",
               "nfqws-manager",
+              "antiscan-manager",
               "profiling",
           ]
           actual = [item.get("id") for item in doc.get("components", [])]

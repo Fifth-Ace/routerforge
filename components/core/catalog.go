@@ -51,8 +51,9 @@ type catalogInstallPlan struct {
 	RepositoryURL string                 `json:"repository_url,omitempty"`
 	Packages      []string               `json:"packages,omitempty"`
 	Args          []string               `json:"args,omitempty"`
-	InstallerURL  string                 `json:"installer_url,omitempty"`
-	ChecksumURL   string                 `json:"checksum_url,omitempty"`
+	InstallerURL   string                 `json:"installer_url,omitempty"`
+	ExpectedSHA256 string                 `json:"expected_sha256,omitempty"`
+	ChecksumURL    string                 `json:"checksum_url,omitempty"`
 	AssetTemplate string                 `json:"asset_template,omitempty"`
 	Notes         []string               `json:"notes,omitempty"`
 	Steps         []catalogLifecycleStep `json:"steps,omitempty"`

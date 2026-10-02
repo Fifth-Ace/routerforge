@@ -1396,8 +1396,8 @@ func broRayCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/BROadmin/BROray",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("BROadmin", "https://github.com/BROadmin/BROray"),
-		Trust:        auditedTrust("Stable installer contract, signed release index, Web UI and aarch64-only compatibility were reviewed on 2026-10-03; RouterForge keeps execution preview-only until expected installer digest pinning is represented in the lifecycle model."),
-		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "xray", "routing", "subscriptions", "dns"},
+		Trust:        auditedTrust("Stable installer contract, signed release index, exact installer SHA256, Web UI and aarch64-only compatibility were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "xray", "routing", "subscriptions", "dns"},
 		Detection: catalogDetection{
 			Services: []string{"/opt/etc/init.d/S24broray", "/opt/etc/init.d/S25broray-web"},
 			Paths:    []string{"/opt/broray"},
@@ -1416,13 +1416,19 @@ func broRayCatalogItem() catalogItem {
 			Hints:   []string{"Keenetic", "Entware aarch64-3.10", "proxy/opkg/ndns components", "curl", "jq", "sufficient /opt and /tmp free space"},
 		},
 		Install: catalogInstallPlan{
-			Method:       "official-script",
-			InstallerURL: "https://api.brovibe.cloud/releases/stable/broray/3.1.1-r12/INSTALL-ON-ROUTER.sh",
-			PreviewOnly:  true,
+			Method:         "official-script",
+			InstallerURL:   "https://api.brovibe.cloud/releases/stable/broray/3.1.1-r12/INSTALL-ON-ROUTER.sh",
+			ExpectedSHA256: "ac334c4f3ce16e9119dcc3b84e21bd076ba5fce5252cf0f6aef2df5510edba1a",
 			Notes: []string{
-				"Upstream documents an exact SHA256 for the stable installer and validates signed release metadata.",
-				"RouterForge will enable execution after the lifecycle model can pin and verify the expected installer digest before launch.",
+				"RouterForge verifies the exact upstream-published SHA256 before executing the Stable installer.",
+				"The installer then validates BROray signed release metadata and its own target payloads.",
 			},
+		},
+		Update: catalogInstallPlan{
+			Method:         "official-script",
+			InstallerURL:   "https://api.brovibe.cloud/releases/stable/broray/3.1.1-r12/INSTALL-ON-ROUTER.sh",
+			ExpectedSHA256: "ac334c4f3ce16e9119dcc3b84e21bd076ba5fce5252cf0f6aef2df5510edba1a",
+			Notes:          []string{"Uses the same upstream Stable installer contract; installed Xray is preserved by BROray updater semantics."},
 		},
 	}
 }

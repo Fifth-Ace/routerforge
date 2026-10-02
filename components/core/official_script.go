@@ -22,6 +22,7 @@ var officialScriptAllowedHosts = map[string]bool{
 	"raw.githubusercontent.com": true,
 	"git.zerrolabs.org":         true,
 	"astronaut808.github.io":    true,
+	"api.brovibe.cloud":         true,
 }
 
 func validateOfficialScriptPlan(plan catalogInstallPlan) error {
@@ -38,6 +39,16 @@ func validateOfficialScriptPlan(plan catalogInstallPlan) error {
 
 	if !validOfficialScriptURL(plan.InstallerURL) {
 		return fmt.Errorf("official-script requires an approved HTTPS installer URL")
+	}
+	if plan.ExpectedSHA256 != "" {
+		if len(plan.ExpectedSHA256) != 64 {
+			return fmt.Errorf("official-script expected_sha256 must be 64 lowercase hex characters")
+		}
+		for _, ch := range plan.ExpectedSHA256 {
+			if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f')) {
+				return fmt.Errorf("official-script expected_sha256 must be 64 lowercase hex characters")
+			}
+		}
 	}
 	if len(plan.Args) > 32 {
 		return fmt.Errorf("official-script has too many arguments")
@@ -118,6 +129,18 @@ func fetchOfficialScript(ctx context.Context, rawURL string) ([]byte, error) {
 	return data, nil
 }
 
+func verifyOfficialScriptDigest(plan catalogInstallPlan, data []byte) error {
+	if plan.ExpectedSHA256 == "" {
+		return nil
+	}
+	digest := sha256.Sum256(data)
+	actual := hex.EncodeToString(digest[:])
+	if actual != plan.ExpectedSHA256 {
+		return fmt.Errorf("official-script sha256 mismatch: expected %s, got %s", plan.ExpectedSHA256, actual)
+	}
+	return nil
+}
+
 func runOfficialScriptPlan(
 	ctx context.Context,
 	item catalogItem,
@@ -142,6 +165,9 @@ func runOfficialScriptPlan(
 
 	data, err := fetchOfficialScript(ctx, plan.InstallerURL)
 	if err != nil {
+		return err
+	}
+	if err := verifyOfficialScriptDigest(plan, data); err != nil {
 		return err
 	}
 	digest := sha256.Sum256(data)

@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "svelte-kit sync && vite build",
-    "check": "svelte-kit sync && svelte-check --threshold error && node --test tests/polling.test.mjs tests/http.test.mjs tests/catalog-web-security.test.mjs tests/integrations.test.mjs"
+    "generate:release-notes": "node scripts/generate-release-notes.mjs",
+    "build": "npm run generate:release-notes && svelte-kit sync && vite build",
+    "check": "npm run generate:release-notes && svelte-kit sync && svelte-check --threshold error && node --test tests/polling.test.mjs tests/http.test.mjs tests/catalog-web-security.test.mjs tests/integrations.test.mjs tests/release-notes.test.mjs"
   },
   "devDependencies": {
     "@fontsource/inter": "5.2.8",

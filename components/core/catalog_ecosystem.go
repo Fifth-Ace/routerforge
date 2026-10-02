@@ -65,15 +65,15 @@ func auditedTrust(note string) catalogTrust {
 
 func keeneticPolicyUICatalogItem() catalogItem {
 	return catalogItem{
-		ID:          "keenetic-policy-ui",
-		Kind:        "integration",
-		Name:        "Keenetic Policy UI",
-		Category:    "Routing",
-		Description: "Entware Web UI for assigning Keenetic/Netcraze connection policies and DNS profiles per device.",
-		ProjectURL:  "https://github.com/JohnDoe150489/keenetic-policy-ui",
-		Source:      "project-official",
-		Publisher:   auditedPublisher("JohnDoe150489", "https://github.com/JohnDoe150489/keenetic-policy-ui"),
-		Trust:       auditedTrust("Lifecycle manually matched against the upstream README on 2026-10-02."),
+		ID:           "keenetic-policy-ui",
+		Kind:         "integration",
+		Name:         "Keenetic Policy UI",
+		Category:     "Routing",
+		Description:  "Entware Web UI for assigning Keenetic/Netcraze connection policies and DNS profiles per device.",
+		ProjectURL:   "https://github.com/JohnDoe150489/keenetic-policy-ui",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("JohnDoe150489", "https://github.com/JohnDoe150489/keenetic-policy-ui"),
+		Trust:        auditedTrust("Lifecycle manually matched against the upstream README on 2026-10-02."),
 		Capabilities: []string{"detect", "version", "open-ui", "package-lifecycle", "policy-routing"},
 		Detection: catalogDetection{
 			Packages: []string{"keenetic-policy-ui"},
@@ -125,15 +125,15 @@ func keeneticPolicyUICatalogItem() catalogItem {
 
 func entwareManagerCatalogItem() catalogItem {
 	return catalogItem{
-		ID:          "entware-manager",
-		Kind:        "integration",
-		Name:        "Entware Manager",
-		Category:    "Administration",
-		Description: "Web panel for Entware package/service/process/log/file administration, monitoring, SMART and terminal access.",
-		ProjectURL:  "https://github.com/Di1r1/entware-manager",
-		Source:      "project-official",
-		Publisher:   auditedPublisher("Di1r1", "https://github.com/Di1r1/entware-manager"),
-		Trust:       auditedTrust("Upstream release/IPK lifecycle and default Web UI were reviewed on 2026-10-02; automatic install stays disabled until RouterForge can verify release assets by checksum."),
+		ID:           "entware-manager",
+		Kind:         "integration",
+		Name:         "Entware Manager",
+		Category:     "Administration",
+		Description:  "Web panel for Entware package/service/process/log/file administration, monitoring, SMART and terminal access.",
+		ProjectURL:   "https://github.com/Di1r1/entware-manager",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("Di1r1", "https://github.com/Di1r1/entware-manager"),
+		Trust:        auditedTrust("Upstream release/IPK lifecycle and default Web UI were reviewed on 2026-10-02; automatic install stays disabled until RouterForge can verify release assets by checksum."),
 		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview", "entware-management"},
 		Detection: catalogDetection{
 			Packages: []string{"entware-manager"},
@@ -172,15 +172,15 @@ func entwareManagerCatalogItem() catalogItem {
 
 func zapretGUICatalogItem() catalogItem {
 	return catalogItem{
-		ID:          "zapret-gui",
-		Kind:        "integration",
-		Name:        "Zapret Web-GUI",
-		Category:    "DPI / Bypass",
-		Description: "Web UI for nfqws2/zapret2, VPN/tunnel helpers and routing on Keenetic/Entware and OpenWrt.",
-		ProjectURL:  "https://github.com/avatarDD/zapret-gui",
-		Source:      "project-official",
-		Publisher:   auditedPublisher("avatarDD", "https://github.com/avatarDD/zapret-gui"),
-		Trust:       auditedTrust("Keenetic IPK lifecycle, service path and default Web UI were reviewed against upstream documentation on 2026-10-02."),
+		ID:           "zapret-gui",
+		Kind:         "integration",
+		Name:         "Zapret Web-GUI",
+		Category:     "DPI / Bypass",
+		Description:  "Web UI for nfqws2/zapret2, VPN/tunnel helpers and routing on Keenetic/Entware and OpenWrt.",
+		ProjectURL:   "https://github.com/avatarDD/zapret-gui",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("avatarDD", "https://github.com/avatarDD/zapret-gui"),
+		Trust:        auditedTrust("Keenetic IPK lifecycle, service path and default Web UI were reviewed against upstream documentation on 2026-10-02."),
 		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "nfqws2", "routing"},
 		Detection: catalogDetection{
 			Packages: []string{"zapret-gui"},
@@ -225,15 +225,15 @@ func zapretGUICatalogItem() catalogItem {
 
 func razvilkaCatalogItem() catalogItem {
 	return catalogItem{
-		ID:          "razvilka",
-		Kind:        "integration",
-		Name:        "RAZVILKA",
-		Category:    "VPN / Routing",
-		Description: "Local Keenetic/Netcraze panel that evaluates available bypass methods and prepares routing plans for selected services/devices.",
-		ProjectURL:  "https://github.com/ArtixSx/RAZVILKA",
-		Source:      "project-official",
-		Publisher:   auditedPublisher("ArtixSx", "https://github.com/ArtixSx/RAZVILKA"),
-		Trust:       auditedTrust("Architecture support, bootstrap flow, healthcheck and default Web UI were reviewed against upstream documentation on 2026-10-02."),
+		ID:           "razvilka",
+		Kind:         "integration",
+		Name:         "RAZVILKA",
+		Category:     "VPN / Routing",
+		Description:  "Local Keenetic/Netcraze panel that evaluates available bypass methods and prepares routing plans for selected services/devices.",
+		ProjectURL:   "https://github.com/ArtixSx/RAZVILKA",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("ArtixSx", "https://github.com/ArtixSx/RAZVILKA"),
+		Trust:        auditedTrust("Architecture support, bootstrap flow, healthcheck and default Web UI were reviewed against upstream documentation on 2026-10-02."),
 		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview", "routing"},
 		Detection: catalogDetection{
 			Services: []string{"/opt/etc/init.d/S99razvilka"},
@@ -266,15 +266,15 @@ func razvilkaCatalogItem() catalogItem {
 
 func keeneticMCPCatalogItem() catalogItem {
 	return catalogItem{
-		ID:          "keenetic-mcp",
-		Kind:        "integration",
-		Name:        "Keenetic MCP Server",
-		Category:    "Automation",
-		Description: "MCP/HTTP server for monitoring and managing Keenetic through RCI, with dry-run writes, watcher rules and backups.",
-		ProjectURL:  "https://github.com/st412m/keenetic-mcp",
-		Source:      "community",
-		Publisher:   auditedPublisher("st412m", "https://github.com/st412m/keenetic-mcp"),
-		Trust:       auditedTrust("Entware/Python requirements and installation model were reviewed on 2026-10-02; git-clone deployment remains manual."),
+		ID:           "keenetic-mcp",
+		Kind:         "integration",
+		Name:         "Keenetic MCP Server",
+		Category:     "Automation",
+		Description:  "MCP/HTTP server for monitoring and managing Keenetic through RCI, with dry-run writes, watcher rules and backups.",
+		ProjectURL:   "https://github.com/st412m/keenetic-mcp",
+		Source:       "community",
+		Publisher:    auditedPublisher("st412m", "https://github.com/st412m/keenetic-mcp"),
+		Trust:        auditedTrust("Entware/Python requirements and installation model were reviewed on 2026-10-02; git-clone deployment remains manual."),
 		Capabilities: []string{"detect", "service-status", "install-preview", "mcp", "rci"},
 		Detection: catalogDetection{
 			Paths: []string{"/opt/keenetic-mcp/server.py", "/opt/keenetic-mcp/.env"},

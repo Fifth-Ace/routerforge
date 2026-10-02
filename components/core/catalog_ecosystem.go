@@ -1628,7 +1628,6 @@ func keenPBRHeadlessCatalogItem() catalogItem {
 	}
 }
 
-
 func wayHopCatalogItem() catalogItem {
 	install := catalogInstallPlan{
 		Method:   "verified-ipk-target",

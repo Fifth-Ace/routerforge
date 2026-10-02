@@ -51,19 +51,19 @@ type catalogVerifiedIPKAsset struct {
 }
 
 type catalogInstallPlan struct {
-	Method             string                              `json:"method,omitempty"`
-	Repository         string                              `json:"repository,omitempty"`
-	RepositoryURL      string                              `json:"repository_url,omitempty"`
-	Packages           []string                            `json:"packages,omitempty"`
-	Args               []string                            `json:"args,omitempty"`
-	InstallerURL       string                              `json:"installer_url,omitempty"`
-	ExpectedSHA256     string                              `json:"expected_sha256,omitempty"`
+	Method             string                             `json:"method,omitempty"`
+	Repository         string                             `json:"repository,omitempty"`
+	RepositoryURL      string                             `json:"repository_url,omitempty"`
+	Packages           []string                           `json:"packages,omitempty"`
+	Args               []string                           `json:"args,omitempty"`
+	InstallerURL       string                             `json:"installer_url,omitempty"`
+	ExpectedSHA256     string                             `json:"expected_sha256,omitempty"`
 	VerifiedIPKTargets map[string]catalogVerifiedIPKAsset `json:"verified_ipk_targets,omitempty"`
-	ChecksumURL        string                              `json:"checksum_url,omitempty"`
-	AssetTemplate      string                              `json:"asset_template,omitempty"`
-	Notes              []string                            `json:"notes,omitempty"`
-	Steps              []catalogLifecycleStep              `json:"steps,omitempty"`
-	PreviewOnly        bool                                `json:"preview_only"`
+	ChecksumURL        string                             `json:"checksum_url,omitempty"`
+	AssetTemplate      string                             `json:"asset_template,omitempty"`
+	Notes              []string                           `json:"notes,omitempty"`
+	Steps              []catalogLifecycleStep             `json:"steps,omitempty"`
+	PreviewOnly        bool                               `json:"preview_only"`
 }
 
 type catalogItem struct {

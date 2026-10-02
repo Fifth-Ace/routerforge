@@ -84,6 +84,7 @@ func auditedEcosystemIntegrations() []catalogItem {
 		keeneticAutoSetupCatalogItem(),
 		qeliKeeneticCatalogItem(),
 		xkeenUIUmarchehCatalogItem(),
+		keenPBRHeadlessCatalogItem(),
 	}
 }
 
@@ -1551,6 +1552,67 @@ func xkeenUIUmarchehCatalogItem() catalogItem {
 				"Upstream online install downloads xkeen-ui-routing.tar.gz, extracts it under /opt and runs the bundled xkeen-ui/install.sh.",
 				"RouterForge does not execute the raw repository install.sh by itself because it relies on sibling files from the release archive.",
 			},
+		},
+	}
+}
+
+func keenPBRStructuredPlan(pkg string) catalogInstallPlan {
+	return catalogInstallPlan{
+		Method:   "structured",
+		Packages: []string{pkg},
+		Notes: []string{
+			"Uses the upstream stable Keenetic/NetCraze package feed with runtime architecture selection.",
+			"Upstream postinst is noninteractive when RouterForge runs it without a TTY; existing dnsmasq.conf is left unchanged unless explicitly requested by the user outside RouterForge.",
+		},
+		Steps: []catalogLifecycleStep{
+			{
+				Type:    "write-opkg-feed-arch",
+				Path:    "/opt/etc/opkg/keen-pbr.conf",
+				Content: "src/gz keen_pbr_{arch} https://repo.keen-pbr.fyi/repository/stable/keenetic/current/{arch}",
+				Args:    []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4", "armv7-3.2", "x64-3.2"},
+			},
+			{Type: "opkg-update"},
+			{Type: "opkg-install", Packages: []string{pkg}},
+		},
+	}
+}
+
+func keenPBRHeadlessCatalogItem() catalogItem {
+	install := keenPBRStructuredPlan("keen-pbr-headless")
+	return catalogItem{
+		ID:           "keen-pbr-headless",
+		Kind:         "integration",
+		Name:         "keen-pbr Headless",
+		Category:     "Routing",
+		Description:  "Headless keen-pbr policy-routing daemon for Keenetic/NetCraze without the API server and Web UI.",
+		ProjectURL:   "https://github.com/maksimkurb/keen-pbr",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("maksimkurb", "https://github.com/maksimkurb/keen-pbr"),
+		Trust:        auditedTrust("Keenetic/NetCraze stable repository layout, supported Entware architectures, headless package and non-TTY postinst behavior were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "package-lifecycle", "policy-routing"},
+		Detection: catalogDetection{
+			Packages: []string{"keen-pbr-headless"},
+			Services: []string{"/opt/etc/init.d/S80keen-pbr"},
+			Paths:    []string{"/opt/etc/keen-pbr/config.json"},
+		},
+		ProcessNames: []string{"keen-pbr"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4", "armv7-3.2", "x64-3.2"},
+			Hints:   []string{"Keenetic / NetCraze", "Entware", "Netfilter subsystem", "Xtables-addons", "dnsmasq integration may require explicit user configuration"},
+		},
+		Install: install,
+		Update: catalogInstallPlan{
+			Method:   "structured",
+			Packages: []string{"keen-pbr-headless"},
+			Steps: []catalogLifecycleStep{
+				{Type: "opkg-update"},
+				{Type: "opkg-upgrade", Packages: []string{"keen-pbr-headless"}},
+			},
+		},
+		Remove: catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{"keen-pbr-headless"},
 		},
 	}
 }

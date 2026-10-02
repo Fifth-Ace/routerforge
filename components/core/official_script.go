@@ -27,6 +27,14 @@ func validateOfficialScriptPlan(plan catalogInstallPlan) error {
 	if plan.Method != "official-script" {
 		return nil
 	}
+
+	// Preview-only entries are metadata, not execution authority. Keep legacy
+	// upstream contracts visible even when they use HTTP or another source that
+	// RouterForge would refuse to execute automatically.
+	if plan.PreviewOnly {
+		return nil
+	}
+
 	if !validOfficialScriptURL(plan.InstallerURL) {
 		return fmt.Errorf("official-script requires an approved HTTPS installer URL")
 	}
@@ -120,6 +128,9 @@ func runOfficialScriptPlan(
 	status := strings.ToLower(strings.TrimSpace(item.Trust.Status))
 	if status != "official" && status != "verified" {
 		return fmt.Errorf("official-script requires official or verified catalog trust")
+	}
+	if plan.PreviewOnly {
+		return fmt.Errorf("preview-only official-script cannot execute")
 	}
 	if err := validateOfficialScriptPlan(plan); err != nil {
 		return err

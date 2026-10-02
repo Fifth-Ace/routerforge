@@ -22,16 +22,19 @@ func TestOfficialScriptPlanValidation(t *testing.T) {
 		{Method: "official-script", InstallerURL: "https://raw.githubusercontent.com/example/project/main/install.sh", Args: []string{"bad\narg"}},
 	} {
 		if err := validateCatalogPlan(bad); err == nil {
-			t.Fatalf("unsafe official-script accepted: %#v", bad)
+			t.Fatalf("unsafe executable official-script accepted: %#v", bad)
 		}
 	}
 }
 
-func TestOfficialScriptPreviewOnlyStaysNonExecutable(t *testing.T) {
+func TestOfficialScriptPreviewOnlyMetadataMayDescribeNonExecutableUpstream(t *testing.T) {
 	plan := catalogInstallPlan{
 		Method:       "official-script",
-		InstallerURL: "https://raw.githubusercontent.com/example/project/main/install.sh",
+		InstallerURL: "http://kvas.zeleza.ru/install",
 		PreviewOnly:  true,
+	}
+	if err := validateCatalogPlan(plan); err != nil {
+		t.Fatalf("preview-only upstream metadata rejected: %v", err)
 	}
 	if executableCatalogPlan(plan) {
 		t.Fatal("preview-only official-script became executable")

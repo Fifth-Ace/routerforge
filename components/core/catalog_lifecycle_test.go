@@ -44,20 +44,37 @@ func TestCatalogProfilingUsesMarkerAsRunningState(t *testing.T) {
 	}
 }
 
-func TestCatalogDNSUsesEnabledMarkerAsRunningState(t *testing.T) {
+func TestCatalogDNSLifecycleUsesProcessStateOverEnabledMarker(t *testing.T) {
 	item := testBundledRegistryModule(t, "dns")
 	const marker = "/opt/etc/routerforge/dns.enabled"
 	exists := func(path string) bool {
 		return path == marker
 	}
+
 	finalizeCatalogItem(
 		&item,
 		map[string]string{"routerforge-dns": "0.7.0-dev.test"},
 		map[string]bool{},
 		exists,
 	)
+
+	if !item.Installed || item.ServiceRunning || item.Enabled || item.State != "installed" {
+		t.Fatalf("DNS marker must not masquerade as live runtime state: %#v", item)
+	}
+	if !item.LifecycleManaged {
+		t.Fatalf("DNS lifecycle flag missing: %#v", item)
+	}
+
+	item = testBundledRegistryModule(t, "dns")
+	finalizeCatalogItem(
+		&item,
+		map[string]string{"routerforge-dns": "0.7.0-dev.test"},
+		map[string]bool{"routerforge-dns": true},
+		exists,
+	)
+
 	if !item.Installed || !item.ServiceRunning || !item.Enabled || item.State != "installed" {
-		t.Fatalf("bad DNS marker state: %#v", item)
+		t.Fatalf("DNS process state was not reflected in catalog: %#v", item)
 	}
 }
 

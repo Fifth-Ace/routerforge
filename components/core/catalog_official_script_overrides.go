@@ -94,6 +94,42 @@ func applyReviewedOfficialScriptLifecycle(snapshot *catalogSnapshot) {
 		}
 		refreshReviewedLifecycle(item)
 	}
+
+	if item := findCatalogItem(snapshot, "xkeen-ui", "integration"); item != nil {
+		item.Source = "project-official"
+		item.Publisher = auditedPublisher("zxc-rv", "https://github.com/zxc-rv/XKeen-UI")
+		item.Trust = auditedTrust("Official setup.sh, architecture detection, service path and default Web port were reviewed on 2026-10-03; execution remains preview-only because setup.sh presents an interactive install/update/remove menu.")
+		item.Install = catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/zxc-rv/XKeen-UI/main/setup.sh",
+			PreviewOnly:  true,
+			Notes: []string{
+				"Upstream setup.sh is an interactive menu rather than a noninteractive install action.",
+				"RouterForge keeps the reviewed source visible but does not guess menu input.",
+			},
+		}
+		item.Update = catalogInstallPlan{}
+		item.Remove = catalogInstallPlan{}
+		refreshReviewedLifecycle(item)
+	}
+
+	if item := findCatalogItem(snapshot, "keen-pbr", "integration"); item != nil {
+		item.Source = "project-official"
+		item.Publisher = auditedPublisher("maksimkurb", "https://github.com/maksimkurb/keen-pbr")
+		item.Trust = auditedTrust("Dedicated Keenetic/Entware feed, full/headless package split and Web UI behavior were reviewed on 2026-10-03; install remains preview-only because choosing keen-pbr versus keen-pbr-headless is an explicit user decision.")
+		item.Install = catalogInstallPlan{
+			Method:      "manual",
+			Packages:    []string{"keen-pbr", "keen-pbr-headless"},
+			PreviewOnly: true,
+			Notes: []string{
+				"Upstream provides a dedicated Keenetic Entware repository.",
+				"Choose exactly one package variant: keen-pbr with Web UI or keen-pbr-headless without it.",
+			},
+		}
+		item.Update = catalogInstallPlan{}
+		item.Remove = catalogInstallPlan{}
+		refreshReviewedLifecycle(item)
+	}
 }
 
 func lifecycleCapabilities(values []string) []string {

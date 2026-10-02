@@ -44,6 +44,7 @@ network_tools_module.go
 auth.go
 auth_crypt.go
 catalog.go
+module_lifecycle.go
 marketplace_install.go
 marketplace_install_http.go
 app_center_entware.go

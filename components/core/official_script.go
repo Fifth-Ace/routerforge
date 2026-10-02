@@ -18,9 +18,9 @@ import (
 const officialScriptMaxBytes = 2 << 20
 
 var officialScriptAllowedHosts = map[string]bool{
-	"github.com":               true,
+	"github.com":                true,
 	"raw.githubusercontent.com": true,
-	"git.zerrolabs.org":        true,
+	"git.zerrolabs.org":         true,
 }
 
 func validateOfficialScriptPlan(plan catalogInstallPlan) error {

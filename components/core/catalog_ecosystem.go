@@ -77,6 +77,11 @@ func auditedEcosystemIntegrations() []catalogItem {
 		dropwebXKeenCatalogItem(),
 		wdttServerEntwareCatalogItem(),
 		netcrazeAWG3CatalogItem(),
+		b4CatalogItem(),
+		hydraBridgeCatalogItem(),
+		ssClashGoCatalogItem(),
+		broRayCatalogItem(),
+		keeneticAutoSetupCatalogItem(),
 	}
 }
 
@@ -1253,6 +1258,202 @@ func netcrazeAWG3CatalogItem() catalogItem {
 			Method:      "manual",
 			PreviewOnly: true,
 			Notes:       []string{"Upstream quick start copies router/ plus prebuilt KN-1012 kernel/module payloads and runs the local install.sh; RouterForge must not apply it to generic ARM64 devices."},
+		},
+	}
+}
+
+func b4CatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "b4",
+		Kind:         "integration",
+		Name:         "b4",
+		Category:     "DPI / Bypass",
+		Description:  "Keenetic/Entware traffic routing and DPI-bypass platform with rule sets, transparent modes and Telegram transport features.",
+		ProjectURL:   "https://github.com/DanielLavrushin/b4",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("DanielLavrushin", "https://github.com/DanielLavrushin/b4"),
+		Trust:        auditedTrust("Official Keenetic installer, Entware paths, architecture detection and NDMS netfilter hook were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "package-lifecycle", "routing", "dpi-bypass", "telegram"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99b4"},
+			Paths:    []string{"/opt/sbin/b4", "/opt/etc/b4/b4.json"},
+		},
+		ProcessNames: []string{"b4"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "Netfilter", "Xtables-addons/xt_connbytes", "iptables"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh",
+			Notes:        []string{"Uses the exact one-command Keenetic installer documented upstream; architecture is detected by upstream."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh",
+		},
+	}
+}
+
+func hydraBridgeCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "hydra-bridge",
+		Kind:         "integration",
+		Name:         "HydraBridge",
+		Category:     "Automation",
+		Description:  "Authenticated HTTP control-plane API for HydraRoute Neo configuration, diagnostics, backup and lifecycle operations.",
+		ProjectURL:   "https://github.com/astronaut808/hrbridge",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("astronaut808", "https://github.com/astronaut808/hrbridge"),
+		Trust:        auditedTrust("Official Keenetic/Entware installer, package feed, service path, API port and bounded HR Neo scope were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "package-lifecycle", "api", "hydraroute"},
+		Detection: catalogDetection{
+			Packages: []string{"hrbridge"},
+			Services: []string{"/opt/etc/init.d/S99hrbridge"},
+			Paths:    []string{"/opt/etc/hrbridge/hrbridge", "/opt/etc/hrbridge/hrbridge.conf"},
+		},
+		ProcessNames: []string{"hrbridge"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   2080,
+			Path:   "/api/v1/health",
+			Mode:   "probe-required",
+			Embed:  false,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mipsel-3.4", "mips-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "HydraRoute Neo 3.11.0-1", "bearer token generated on first launch"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://astronaut808.github.io/hrbridge/keenetic/install.sh",
+			Packages:     []string{"hrbridge"},
+			Notes:        []string{"Upstream installer detects Entware architecture, adds the official feed, installs hrbridge and starts S99hrbridge."},
+		},
+		Update: catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{"hrbridge"},
+			Notes:    []string{"Uses the installed upstream feed; restart is handled separately by the package/service lifecycle."},
+		},
+		Remove: catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{"hrbridge"},
+			Notes:    []string{"Removes the package only; HR Neo configuration under /opt/etc/HydraRoute is not owned by HydraBridge."},
+		},
+	}
+}
+
+func ssClashGoCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "ssclash-go",
+		Kind:         "integration",
+		Name:         "SSClash-Go",
+		Category:     "VPN / Routing",
+		Description:  "Self-contained Mihomo control plane for Keenetic/Entware with embedded Web UI, selective routing and netfilter integration.",
+		ProjectURL:   "https://github.com/zerolabnet/SSClash-Go",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("zerolabnet", "https://github.com/zerolabnet/SSClash-Go"),
+		Trust:        auditedTrust("Official Keenetic installer, Entware service, Web UI defaults and netfilter requirements were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "routing", "mihomo", "tproxy", "tun"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99ssclash"},
+			Paths:    []string{"/opt/clash/bin/ssclash", "/opt/clash/config.yaml"},
+		},
+		ProcessNames: []string{"ssclash"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   9091,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "wget-ssl", "ca-certificates", "Netfilter kernel modules", "xtables iptables", "ip-full"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://github.com/zerolabnet/SSClash-Go/raw/refs/heads/main/install-ssclash-go.sh",
+			Notes:        []string{"Uses the upstream Keenetic-aware installer; defaults to Web UI port 9091 and HYBRID mode."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://github.com/zerolabnet/SSClash-Go/raw/refs/heads/main/install-ssclash-go.sh",
+		},
+	}
+}
+
+func broRayCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "broray",
+		Kind:         "integration",
+		Name:         "BROray",
+		Category:     "VPN / Routing",
+		Description:  "Keenetic Xray client and network-policy manager with subscriptions, routing, DNS-over-TLS and authenticated Web UI.",
+		ProjectURL:   "https://github.com/BROadmin/BROray",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("BROadmin", "https://github.com/BROadmin/BROray"),
+		Trust:        auditedTrust("Stable installer contract, signed release index, Web UI and aarch64-only compatibility were reviewed on 2026-10-03; RouterForge keeps execution preview-only until expected installer digest pinning is represented in the lifecycle model."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "xray", "routing", "subscriptions", "dns"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S24broray", "/opt/etc/init.d/S25broray-web"},
+			Paths:    []string{"/opt/broray"},
+		},
+		ProcessNames: []string{"broray"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   8080,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10"},
+			Hints:   []string{"Keenetic", "Entware aarch64-3.10", "proxy/opkg/ndns components", "curl", "jq", "sufficient /opt and /tmp free space"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://api.brovibe.cloud/releases/stable/broray/3.1.1-r12/INSTALL-ON-ROUTER.sh",
+			PreviewOnly:  true,
+			Notes: []string{
+				"Upstream documents an exact SHA256 for the stable installer and validates signed release metadata.",
+				"RouterForge will enable execution after the lifecycle model can pin and verify the expected installer digest before launch.",
+			},
+		},
+	}
+}
+
+func keeneticAutoSetupCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "keenetic-auto-setup",
+		Kind:         "integration",
+		Name:         "Keenetic Auto-Setup Suite",
+		Category:     "VPN / Routing",
+		Description:  "Opinionated Keenetic/Entware Mihomo + MagiTrickle deployment with storage/RAM gates, routing integration, watchdog and diagnostics.",
+		ProjectURL:   "https://github.com/saymer-alt/keenetic-auto-setup",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("saymer-alt", "https://github.com/saymer-alt/keenetic-auto-setup"),
+		Trust:        auditedTrust("Stable setup/install flow, resource gates, Mihomo service layout and post-install interactive config import were reviewed on 2026-10-03; install remains preview-only because setup enters an interactive YAML import stage."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "routing", "mihomo", "magitrickle", "watchdog"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99mihomo"},
+			Paths:    []string{"/opt/etc/mihomo/config.yaml", "/opt/etc/cron.5mins/mihomo_watchdog"},
+		},
+		ProcessNames: []string{"mihomo"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "required KeeneticOS proxy/dns-filter/netfilter components", "supported storage/RAM/swap profile", "interactive Mihomo YAML import after bootstrap"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/saymer-alt/keenetic-auto-setup/stable/setup.sh",
+			PreviewOnly:  true,
+			Notes:        []string{"The bootstrap is safety-gated but intentionally interactive after installation; RouterForge does not synthesize or paste a Mihomo config on the user's behalf."},
 		},
 	}
 }

@@ -85,6 +85,11 @@ func auditedEcosystemIntegrations() []catalogItem {
 		qeliKeeneticCatalogItem(),
 		xkeenUIUmarchehCatalogItem(),
 		keenPBRHeadlessCatalogItem(),
+		wayHopCatalogItem(),
+		qWDTTKeeneticCatalogItem(),
+		detourKeeneticCatalogItem(),
+		keeneticXrayAutoCatalogItem(),
+		xkeenSmartRouteCatalogItem(),
 	}
 }
 
@@ -161,6 +166,25 @@ func keeneticPolicyUICatalogItem() catalogItem {
 }
 
 func entwareManagerCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:   "verified-ipk-target",
+		Packages: []string{"entware-manager"},
+		VerifiedIPKTargets: map[string]catalogVerifiedIPKAsset{
+			"aarch64-3.10": {
+				InstallerURL:   "https://github.com/Di1r1/entware-manager/releases/download/v1.16.27/entware-manager_arm64.ipk",
+				ExpectedSHA256: "8707a53c9194b047214d40b85fb3993dd7989abf381cf14360f2feed84836f9e",
+			},
+			"mips-3.4": {
+				InstallerURL:   "https://github.com/Di1r1/entware-manager/releases/download/v1.16.27/entware-manager_mips.ipk",
+				ExpectedSHA256: "b87db48f5e7493171b8807836f1027ea744266f14fdaea075f7469ac83b520e3",
+			},
+			"mipsel-3.4": {
+				InstallerURL:   "https://github.com/Di1r1/entware-manager/releases/download/v1.16.27/entware-manager_mipsel.ipk",
+				ExpectedSHA256: "14df49ff31cb4a23e90d1b8623358e6bbaf9fff58ec39c1bc456a3188aa78f3e",
+			},
+		},
+		Notes: []string{"Pins the exact v1.16.27 GitHub Release IPK and GitHub-published digest for the detected Entware target."},
+	}
 	return catalogItem{
 		ID:           "entware-manager",
 		Kind:         "integration",
@@ -170,8 +194,8 @@ func entwareManagerCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/Di1r1/entware-manager",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("Di1r1", "https://github.com/Di1r1/entware-manager"),
-		Trust:        auditedTrust("Upstream release/IPK lifecycle and default Web UI were reviewed on 2026-10-02; automatic install stays disabled until RouterForge can verify release assets by checksum."),
-		Capabilities: []string{"detect", "version", "service-status", "open-ui", "install-preview", "entware-management"},
+		Trust:        auditedTrust("Architecture-specific v1.16.27 IPKs, GitHub-published digests and Web UI contract were re-audited on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "package-lifecycle", "entware-management"},
 		Detection: catalogDetection{
 			Packages: []string{"entware-manager"},
 			Paths:    []string{"/opt/web_entware", "/opt/etc/entware-manager.conf"},
@@ -189,20 +213,11 @@ func entwareManagerCatalogItem() catalogItem {
 			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
 			Hints:   []string{"Keenetic / Netcraze", "Entware", "lighttpd/jq/curl/ttyd dependencies managed by upstream IPK"},
 		},
-		Install: catalogInstallPlan{
-			Method:      "release-deploy",
-			Repository:  "https://github.com/Di1r1/entware-manager/releases",
-			Packages:    []string{"entware-manager"},
-			PreviewOnly: true,
-			Notes: []string{
-				"Upstream publishes architecture-specific IPK assets and tar.gz bundles.",
-				"RouterForge does not execute upstream install.sh or download an unpinned latest asset automatically.",
-			},
-		},
+		Install: install,
+		Update:  install,
 		Remove: catalogInstallPlan{
 			Method:   "opkg",
 			Packages: []string{"entware-manager"},
-			Notes:    []string{"Safe only for installations tracked by opkg."},
 		},
 	}
 }
@@ -1609,6 +1624,224 @@ func keenPBRHeadlessCatalogItem() catalogItem {
 		Remove: catalogInstallPlan{
 			Method:   "opkg",
 			Packages: []string{"keen-pbr-headless"},
+		},
+	}
+}
+
+
+func wayHopCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:   "verified-ipk-target",
+		Packages: []string{"wayhop"},
+		VerifiedIPKTargets: map[string]catalogVerifiedIPKAsset{
+			"aarch64-3.10": {
+				InstallerURL:   "https://github.com/awadak3davra/wayhop/releases/download/v0.5.7/wayhop_0.5.7-1_aarch64-3.10.ipk",
+				ExpectedSHA256: "2580adc6868607960e32484cdd9089654ef0468e7bc1100fa68293e15c2152e5",
+			},
+			"armv7-3.2": {
+				InstallerURL:   "https://github.com/awadak3davra/wayhop/releases/download/v0.5.7/wayhop_0.5.7-1_armv7sf-k3.2.ipk",
+				ExpectedSHA256: "16a92d01690f62e0254827393a85d26092674197be0e590044c2152c999fac27",
+			},
+			"mips-3.4": {
+				InstallerURL:   "https://github.com/awadak3davra/wayhop/releases/download/v0.5.7/wayhop_0.5.7-1_mips-3.4.ipk",
+				ExpectedSHA256: "a1b289e09297438e9c15fee2e8b8279b399c70a0efc2eda2fff568428e0c696f",
+			},
+			"mipsel-3.4": {
+				InstallerURL:   "https://github.com/awadak3davra/wayhop/releases/download/v0.5.7/wayhop_0.5.7-1_mipselsf-k3.4.ipk",
+				ExpectedSHA256: "79af1f7dda8fc5ac16ce8e5747802aa285af5f160b414cdf213dade477e24149",
+			},
+		},
+		Notes: []string{"Pins WayHop v0.5.7 Entware IPKs to GitHub-published digests for each supported target."},
+	}
+	return catalogItem{
+		ID:           "wayhop",
+		Kind:         "integration",
+		Name:         "WayHop",
+		Category:     "VPN / Routing",
+		Description:  "Router Web panel for VPN/proxy protocols, failover and selective routing with reversible apply/rollback.",
+		ProjectURL:   "https://github.com/awadak3davra/wayhop",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("awadak3davra", "https://github.com/awadak3davra/wayhop"),
+		Trust:        auditedTrust("Keenetic/Entware package targets, v0.5.7 IPKs, GitHub digests, service path and Web UI were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "routing", "sing-box", "failover"},
+		Detection: catalogDetection{
+			Packages: []string{"wayhop"},
+			Services: []string{"/opt/etc/init.d/S99wayhop"},
+			Paths:    []string{"/opt/etc/wayhop"},
+		},
+		ProcessNames: []string{"wayhop"},
+		Web: &catalogWebMetadata{Scheme: "http", Port: 8088, Path: "/", Mode: "probe-required", Embed: true},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic / Entware", "~20 MB free", "ipset/iptables for kernel selective routing"},
+		},
+		Install: install,
+		Update:  install,
+		Remove:  catalogInstallPlan{Method: "opkg", Packages: []string{"wayhop"}},
+	}
+}
+
+func qWDTTKeeneticCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:   "verified-ipk-target",
+		Packages: []string{"qwdtt"},
+		VerifiedIPKTargets: map[string]catalogVerifiedIPKAsset{
+			"aarch64-3.10": {
+				InstallerURL:   "https://github.com/SemerDevLab/qWDTT_Server_Keenetic/releases/download/qwdtt_0.1.0-42/qwdtt_0.1.0-42_aarch64-3.10-kn.ipk",
+				ExpectedSHA256: "e1d7cec69468713d4364426a7197b25f4ef9b5c92b320ec63e5bdf09fb4de6b4",
+			},
+			"armv7-3.2": {
+				InstallerURL:   "https://github.com/SemerDevLab/qWDTT_Server_Keenetic/releases/download/qwdtt_0.1.0-42/qwdtt_0.1.0-42_armv7-3.2-kn.ipk",
+				ExpectedSHA256: "07ff4a03b27128a2d2d14cda1aaa9cb197f540b90872e7250d49dacedbf15ad9",
+			},
+			"mipsel-3.4": {
+				InstallerURL:   "https://github.com/SemerDevLab/qWDTT_Server_Keenetic/releases/download/qwdtt_0.1.0-42/qwdtt_0.1.0-42_mipsel-3.4-kn.ipk",
+				ExpectedSHA256: "b8ad077bd158e71f18ae7ecd16e557075efabd9b60b522363af7b81768a95010",
+			},
+		},
+		Notes: []string{"Pins qWDTT 0.1.0-42 Keenetic IPKs to GitHub-published digests by target."},
+	}
+	return catalogItem{
+		ID:           "qwdtt-keenetic",
+		Kind:         "integration",
+		Name:         "qWDTT Server Keenetic",
+		Category:     "VPN / Routing",
+		Description:  "Protected tunnel server for Keenetic with WireGuard/Raw-IP transports, profiles, firewall and Web control.",
+		ProjectURL:   "https://github.com/SemerDevLab/qWDTT_Server_Keenetic",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("SemerDevLab", "https://github.com/SemerDevLab/qWDTT_Server_Keenetic"),
+		Trust:        auditedTrust("0.1.0-42 Keenetic IPKs, GitHub digests, service lifecycle, conffile and Web UI were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "wireguard", "tunnel"},
+		Detection: catalogDetection{
+			Packages: []string{"qwdtt"},
+			Services: []string{"/opt/etc/init.d/S99qwdtt"},
+			Paths:    []string{"/opt/etc/qwdtt/config.json"},
+		},
+		ProcessNames: []string{"qwdtt"},
+		Web: &catalogWebMetadata{Scheme: "http", Port: 3333, Path: "/", Mode: "probe-required", Embed: true},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "wireguard-tools", "iptables", "TUN/WireGuard support"},
+		},
+		Install: install,
+		Update:  install,
+		Remove:  catalogInstallPlan{Method: "opkg", Packages: []string{"qwdtt"}},
+	}
+}
+
+func detourKeeneticCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:         "verified-ipk",
+		Packages:       []string{"detour-keenetic"},
+		InstallerURL:   "https://github.com/varyen/detour/releases/download/v2.3.0/detour-keenetic_2.3.0_all.ipk",
+		ExpectedSHA256: "b175ed208ccd4379f7d1a6a76f0574eafdf4004cd60f9f0dec44da316df2ee8f",
+		Notes:          []string{"Pins the exact v2.3.0 Keenetic/Entware all-architecture IPK to its GitHub-published digest."},
+	}
+	return catalogItem{
+		ID:           "detour-keenetic",
+		Kind:         "integration",
+		Name:         "Detour for Keenetic",
+		Category:     "VPN / Routing",
+		Description:  "Self-hosted routing/DPI-bypass panel with sing-box, tpws, WARP chains and route maps for Keenetic/Entware.",
+		ProjectURL:   "https://github.com/varyen/detour",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("varyen", "https://github.com/varyen/detour"),
+		Trust:        auditedTrust("v2.3.0 Keenetic IPK, GitHub digest, Entware install path and Web panel contract were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "routing", "dpi-bypass", "sing-box"},
+		Detection: catalogDetection{
+			Packages: []string{"detour-keenetic"},
+			Paths:    []string{"/opt/etc/detour", "/opt/var/log/detour-install.log"},
+		},
+		Web: &catalogWebMetadata{Scheme: "http", Port: 8080, Path: "/detour/", Mode: "probe-required", Embed: true},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "package bootstraps its own feed and routing helpers"},
+		},
+		Install: install,
+		Update:  install,
+		Remove:  catalogInstallPlan{Method: "opkg", Packages: []string{"detour-keenetic"}},
+	}
+}
+
+func keeneticXrayAutoCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:       "official-script",
+		InstallerURL: "https://raw.githubusercontent.com/Kuzz007/keenetic_xray_installer/main/xray_vless_failover_auto_latest.sh",
+		Args:         []string{"--yes"},
+		Notes: []string{
+			"Upstream auto-selects Full Go or Minimal Go from /opt free space and existing installation state.",
+			"RouterForge forces the documented noninteractive --yes mode; VLESS/subscription configuration remains a user action.",
+		},
+	}
+	return catalogItem{
+		ID:           "keenetic-xray-auto",
+		Kind:         "integration",
+		Name:         "Keenetic Xray VLESS Auto Installer",
+		Category:     "VPN / Routing",
+		Description:  "Keenetic Xray/VLESS failover stack with automatic Full Go or Minimal Go selection, recovery and diagnostics.",
+		ProjectURL:   "https://github.com/kuzzrus/keenetic_xray_installer",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("kuzzrus", "https://github.com/kuzzrus/keenetic_xray_installer"),
+		Trust:        auditedTrust("Current auto-latest selector, --yes mode, Entware requirement and Full/Minimal Go behavior were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "package-lifecycle", "xray", "vless", "failover"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/bin/xray-go", "/opt/bin/minimal-go-status", "/opt/etc/xray"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "Proxy client component", "curl/ca-certificates"},
+		},
+		Install: install,
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/Kuzz007/keenetic_xray_installer/main/xray_vless_failover_auto_latest.sh",
+			Args:         []string{"--update-only"},
+			Notes:        []string{"Uses upstream repair-lite update-only mode and automatically assumes yes."},
+		},
+	}
+}
+
+func xkeenSmartRouteCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:       "official-script",
+		InstallerURL: "https://raw.githubusercontent.com/LackyCraft/xkeen-smartroute/master/install.sh",
+		Notes: []string{
+			"Upstream explicitly documents the same idempotent install.sh for Keenetic installation and update.",
+			"The installer contains non-TTY fallbacks for its Keenetic dependency prompts.",
+		},
+	}
+	return catalogItem{
+		ID:           "xkeen-smartroute",
+		Kind:         "integration",
+		Name:         "XKeen SmartRoute",
+		Category:     "VPN / Routing",
+		Description:  "Domain/device/IP selective routing for XKeen/Xray with subscriptions, health-aware server groups and a standalone Web panel.",
+		ProjectURL:   "https://github.com/LackyCraft/xkeen-smartroute",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("LackyCraft", "https://github.com/LackyCraft/xkeen-smartroute"),
+		Trust:        auditedTrust("Keenetic install/update contract, non-TTY handling, service paths and v2.3.1 gateway release were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "xray", "subscriptions", "routing"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S98smartroute-gateway"},
+			Paths:    []string{"/opt/share/xkeen-smartroute", "/opt/etc/xray/configs/05_routing.smartroute.json"},
+		},
+		ProcessNames: []string{"smartroute-gateway"},
+		Web: &catalogWebMetadata{Scheme: "http", Port: 1001, Path: "/", Mode: "probe-required", Embed: true},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4", "x64-3.2"},
+			Hints:   []string{"KeeneticOS + Entware or OpenWrt", "XKeen/Xray stack", "~25 MB free minimum", "128 MB RAM minimum"},
+		},
+		Install: install,
+		Update:  install,
+		Remove: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/LackyCraft/xkeen-smartroute/master/uninstall.sh",
+			Notes:        []string{"Uses upstream non-purge uninstall; XKeen, XKeen-UI and Entware remain untouched."},
 		},
 	}
 }

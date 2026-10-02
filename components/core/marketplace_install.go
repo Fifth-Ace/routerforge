@@ -179,7 +179,7 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 		err = runStructuredCatalogPlan(ctx, item, action, plan, &result, log)
 	case "official-script":
 		err = runOfficialScriptPlan(ctx, item, action, plan, &result, log)
-	case "verified-ipk":
+	case "verified-ipk", "verified-ipk-target":
 		err = runVerifiedIPKPlan(ctx, action, plan, &result, log)
 	case "github-release-binary":
 		err = runUnmanagedGitHubReleasePlan(ctx, item, action, plan, &result, log)
@@ -642,6 +642,22 @@ func verifyExpectedSHA256(expected string, data []byte) (string, error) {
 	return actual, nil
 }
 
+func resolveVerifiedIPKPlan(plan catalogInstallPlan, target string) (catalogInstallPlan, error) {
+	if plan.Method != "verified-ipk-target" {
+		return plan, nil
+	}
+	target = strings.TrimSpace(target)
+	asset, ok := plan.VerifiedIPKTargets[target]
+	if !ok {
+		return catalogInstallPlan{}, fmt.Errorf("no verified IPK asset for target %q", target)
+	}
+	resolved := plan
+	resolved.Method = "verified-ipk"
+	resolved.InstallerURL = asset.InstallerURL
+	resolved.ExpectedSHA256 = asset.ExpectedSHA256
+	return resolved, nil
+}
+
 func runVerifiedIPKPlan(
 	ctx context.Context,
 	action string,
@@ -652,6 +668,11 @@ func runVerifiedIPKPlan(
 	if action != "install" && action != "update" {
 		return fmt.Errorf("verified-ipk does not implement %q", action)
 	}
+	resolved, err := resolveVerifiedIPKPlan(plan, normalizedReleaseTarget())
+	if err != nil {
+		return err
+	}
+	plan = resolved
 	if len(plan.Packages) != 1 {
 		return fmt.Errorf("verified-ipk requires exactly one package")
 	}

@@ -409,7 +409,7 @@ func validateCatalogPlan(plan catalogInstallPlan) error {
 		return nil
 	}
 	switch plan.Method {
-	case "routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy", "verified-ipk":
+	case "routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy", "verified-ipk", "verified-ipk-target":
 	default:
 		return fmt.Errorf("unsupported lifecycle method %q", plan.Method)
 	}
@@ -418,18 +418,40 @@ func validateCatalogPlan(plan catalogInstallPlan) error {
 			return err
 		}
 	}
-	if plan.Method == "verified-ipk" {
+	if plan.Method == "verified-ipk" || plan.Method == "verified-ipk-target" {
 		if len(plan.Packages) != 1 {
 			return fmt.Errorf("verified-ipk requires exactly one package")
 		}
-		if !validVerifiedIPKURL(plan.InstallerURL) {
-			return fmt.Errorf("verified-ipk URL must be an immutable GitHub Release .ipk asset")
+		validateAsset := func(asset catalogVerifiedIPKAsset) error {
+			if !validVerifiedIPKURL(asset.InstallerURL) {
+				return fmt.Errorf("verified-ipk URL must be an immutable GitHub Release .ipk asset")
+			}
+			if len(asset.ExpectedSHA256) != 64 {
+				return fmt.Errorf("verified-ipk expected_sha256 must be 64 hex characters")
+			}
+			if _, err := hex.DecodeString(asset.ExpectedSHA256); err != nil {
+				return fmt.Errorf("verified-ipk expected_sha256 must be 64 hex characters")
+			}
+			return nil
 		}
-		if len(plan.ExpectedSHA256) != 64 {
-			return fmt.Errorf("verified-ipk expected_sha256 must be 64 hex characters")
-		}
-		if _, err := hex.DecodeString(plan.ExpectedSHA256); err != nil {
-			return fmt.Errorf("verified-ipk expected_sha256 must be 64 hex characters")
+		if plan.Method == "verified-ipk" {
+			if err := validateAsset(catalogVerifiedIPKAsset{
+				InstallerURL: plan.InstallerURL, ExpectedSHA256: plan.ExpectedSHA256,
+			}); err != nil {
+				return err
+			}
+		} else {
+			if len(plan.VerifiedIPKTargets) == 0 {
+				return fmt.Errorf("verified-ipk-target requires target assets")
+			}
+			for target, asset := range plan.VerifiedIPKTargets {
+				if !safeCatalogPackageName(target) {
+					return fmt.Errorf("unsafe verified-ipk target %q", target)
+				}
+				if err := validateAsset(asset); err != nil {
+					return fmt.Errorf("%s: %w", target, err)
+				}
+			}
 		}
 	}
 	for _, pkg := range plan.Packages {
@@ -835,7 +857,7 @@ func executableCatalogPlan(plan catalogInstallPlan) bool {
 		return false
 	}
 	switch plan.Method {
-	case "routerforge-release", "opkg", "structured", "official-script", "verified-ipk", "github-release-binary":
+	case "routerforge-release", "opkg", "structured", "official-script", "verified-ipk", "verified-ipk-target", "github-release-binary":
 		return true
 	default:
 		return false

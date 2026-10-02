@@ -1,39 +1,27 @@
 {
   "schema_version": 1,
   "channel": "stable",
-  "release_version": "0.11.0",
+  "release_version": "0.11.1",
   "release_notes": {
     "ru": {
-      "new": [
-        "В RouterForge появился **Antiscan Manager** — отдельный модуль для тех, кто уже использует `dimon27254/antiscan` и не хочет каждый раз ходить в SSH как в подвал за автоматом.",
-        "Теперь состояние Antiscan, настройки, списки, блокировки, запуск, обслуживание и расписание собраны в одном месте. Сам Antiscan остаётся самостоятельным проектом: RouterForge его не переименовывает, не присваивает и не ставит молча.",
-        "Опасные действия не превращены в бодрую красную кнопку «СДЕЛАТЬ ХОРОШО». RouterForge проверяет состояние до изменения и результат после него. Root-доступ всё-таки не игровой автомат."
-      ],
+      "new": [],
       "fixes": [
-        "**Geo Split работал. RouterForge говорил, что он не работает.** Отличный был мониторинг: примерно как лампочка «двигатель отсутствует» в машине, которая едет по трассе.",
-        "В `0.11.0` это исправлено. RouterForge теперь смотрит на реальные признаки работы Keenetic Entware Extras / Geo Split и не показывает `OFF` только потому, что Geo Split не притворяется обычным вечно живущим daemon-процессом."
+        "Исправлена кнопка открытия Keenetic Entware Extras: теперь RouterForge ведёт на `/custom/`, где находится собственный dashboard проекта, а не на корень `:8080/` с patched stock Keenetic WebUI."
       ],
       "compatibility": [
-        "Сам RouterForge — **0.11.0**, потому что появился новый полноценный модуль.",
-        "Core — **0.10.1**, потому что в нём исправлен баг со статусом Keenetic Entware Extras / Geo Split.",
-        "Antiscan Manager — **0.11.0**. Остальные компоненты не менялись и остаются на **0.10.0**. Удивительная концепция: если программу не меняли, можно не делать вид, что её меняли."
+        "RouterForge 0.11.1 — совместимый PATCH-hotfix поверх 0.11.0.",
+        "Core повышен с 0.10.1 до 0.10.2, потому что исправленная embedded Registry metadata поставляется вместе с Core. Версии остальных пакетов не меняются."
       ],
       "technical": []
     },
     "en": {
-      "new": [
-        "RouterForge now includes **Antiscan Manager** — a separate module for people already using `dimon27254/antiscan` who would rather not visit SSH every time they want to check what the thing is doing.",
-        "Antiscan status, settings, lists, blocks, lifecycle, maintenance and scheduling now live in one place. Antiscan itself remains an independent project: RouterForge does not rename it, claim it, or silently install it.",
-        "Risky operations are not turned into a cheerful red MAKE IT GOOD button. RouterForge checks state before a change and verifies the result afterwards. Root access is still not a slot machine."
-      ],
+      "new": [],
       "fixes": [
-        "**Geo Split was working. RouterForge said it was not.** Excellent monitoring: roughly the equivalent of a 'no engine detected' warning in a car currently doing highway speed.",
-        "That is fixed in `0.11.0`. RouterForge now looks at the real Keenetic Entware Extras / Geo Split runtime signals instead of assuming every useful thing must behave like a permanently running daemon."
+        "Fixed the Keenetic Entware Extras open button: RouterForge now opens `/custom/`, the project's own dashboard, instead of the `:8080/` root that serves the patched stock Keenetic WebUI."
       ],
       "compatibility": [
-        "RouterForge itself is **0.11.0** because this release adds a new first-class module.",
-        "Core is **0.10.1** because it contains the Keenetic Entware Extras / Geo Split status fix.",
-        "Antiscan Manager is **0.11.0**. Unchanged components stay at **0.10.0**. Revolutionary concept: if software did not change, its version does not need to pretend it did."
+        "RouterForge 0.11.1 is a compatible PATCH hotfix on top of 0.11.0.",
+        "Core moves from 0.10.1 to 0.10.2 because the fixed embedded Registry metadata ships with Core. All other package versions remain unchanged."
       ],
       "technical": []
     }
@@ -42,7 +30,7 @@
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.10.1"
+      "version": "0.10.2"
     },
     {
       "id": "dns",

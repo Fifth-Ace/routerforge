@@ -31,7 +31,6 @@
     ...dynamicModuleItems,
     ...(showIntegrationHub ? [{ href: '/integrations', label: locale === 'ru' ? 'Интеграции' : 'Integrations', order: 60 }] : []),
     { href: '/apps', labelKey: 'nav.marketplace', order: 80 },
-    { href: '/release-notes', label: locale === 'ru' ? 'Что нового' : 'What’s new', order: 85 },
     { href: '/settings', labelKey: 'nav.settings', order: 90 }
   ].sort((a, b) => a.order - b.order);
 

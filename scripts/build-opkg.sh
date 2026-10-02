@@ -46,6 +46,7 @@ auth_crypt.go
 catalog.go
 module_lifecycle.go
 official_script.go
+catalog_ecosystem.go
 catalog_official_script_overrides.go
 marketplace_install.go
 marketplace_install_http.go

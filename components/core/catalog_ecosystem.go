@@ -56,6 +56,13 @@ func auditedEcosystemIntegrations() []catalogItem {
 		sms2gramCatalogItem(),
 		web4staticCatalogItem(),
 		magiTrickleCatalogItem(),
+		susaninCatalogItem(),
+		trustTunnelKeeneticCatalogItem(),
+		tgWSProxyGoCatalogItem(),
+		tgWSProxyRSCatalogItem(),
+		aiwayManagerCatalogItem(),
+		bird4StaticCatalogItem(),
+		ipset4StaticCatalogItem(),
 	}
 }
 
@@ -547,6 +554,250 @@ func magiTrickleCatalogItem() catalogItem {
 		Remove: catalogInstallPlan{
 			Method:   "opkg",
 			Packages: []string{"magitrickle"},
+		},
+	}
+}
+
+func susaninCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "susanin-keenetic",
+		Kind:         "integration",
+		Name:         "Susanin.Keenetic",
+		Category:     "VPN / Routing",
+		Description:  "Adaptive selective VPN routing for Keenetic/Entware that learns blocked destinations from connection behaviour.",
+		ProjectURL:   "https://github.com/R17a/Susanin.Keenetic",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("R17a", "https://github.com/R17a/Susanin.Keenetic"),
+		Trust:        auditedTrust("Official installer, architecture detection and --yes noninteractive mode were reviewed against upstream documentation on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "package-lifecycle", "routing", "wireguard", "amneziawg"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/susanin", "/opt/susanin/tools/susanin.sh"},
+		},
+		ProcessNames: []string{"susanin-agent"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"KeeneticOS 5.x", "Entware", "ipset", "iptables", "conntrack", "working WireGuard/AmneziaWG tunnel"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/R17a/Susanin.Keenetic/main/install.sh",
+			Args:         []string{"--yes"},
+			Notes:        []string{"Uses upstream noninteractive --yes mode and preserves existing Susanin configuration on update."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/R17a/Susanin.Keenetic/main/install.sh",
+			Args:         []string{"--yes"},
+		},
+	}
+}
+
+func trustTunnelKeeneticCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "trusttunnel-keenetic",
+		Kind:         "integration",
+		Name:         "TrustTunnel Keenetic",
+		Category:     "VPN / Routing",
+		Description:  "Keenetic/Entware integration for TrustTunnel client with SOCKS5 or TUN modes and Keenetic interface hooks.",
+		ProjectURL:   "https://github.com/artemevsevev/TrustTunnel-Keenetic",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("artemevsevev", "https://github.com/artemevsevev/TrustTunnel-Keenetic"),
+		Trust:        auditedTrust("Bootstrap and interactive configure flow were reviewed on 2026-10-03; execution remains preview-only because configuration requires interactive mode/interface choices."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "routing", "trusttunnel"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99trusttunnel"},
+			Paths:    []string{"/opt/etc/trusttunnel", "/opt/etc/trusttunnel/mode.conf"},
+		},
+		ProcessNames: []string{"trusttunnel"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "curl", "configured TrustTunnel server", "interactive SOCKS5/TUN setup"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/artemevsevev/TrustTunnel-Keenetic/main/install.sh",
+			PreviewOnly:  true,
+			Notes:        []string{"Upstream configure.sh is interactive; RouterForge does not guess SOCKS5/TUN mode or interface indices."},
+		},
+	}
+}
+
+func tgWSProxyGoCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "tg-ws-proxy-go",
+		Kind:         "integration",
+		Name:         "TG WS Proxy Go",
+		Category:     "Proxy",
+		Description:  "Telegram MTProto WebSocket proxy package for Keenetic/Entware.",
+		ProjectURL:   "https://github.com/spatiumstas/tg-ws-proxy-go",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("spatiumstas", "https://github.com/spatiumstas/tg-ws-proxy-go"),
+		Trust:        auditedTrust("Keenetic feed/package lifecycle, service path and configuration locations were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "install-preview", "proxy", "telegram"},
+		Detection: catalogDetection{
+			Packages: []string{"tg-ws-proxy"},
+			Services: []string{"/opt/etc/init.d/S99tg-ws-proxy"},
+			Paths:    []string{"/opt/etc/tg-ws-proxy/config.conf", "/opt/etc/tg-ws-proxy/secret.conf"},
+		},
+		ProcessNames: []string{"tg-ws-proxy"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "spatiumstas feedly repository"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			Packages:    []string{"tg-ws-proxy"},
+			PreviewOnly: true,
+			Notes: []string{
+				"Upstream Keenetic flow runs feedly add-repo.sh and then opkg install tg-ws-proxy.",
+				"Automatic install waits for a RouterForge architecture-aware feed bootstrap primitive.",
+			},
+		},
+		Remove: catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{"tg-ws-proxy"},
+		},
+	}
+}
+
+func tgWSProxyRSCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "tg-ws-proxy-rs",
+		Kind:         "integration",
+		Name:         "TG WS Proxy Rust",
+		Category:     "Proxy",
+		Description:  "Static Rust Telegram MTProto WebSocket bridge for Entware/OpenWrt with architecture-aware installer and release checksum verification.",
+		ProjectURL:   "https://github.com/valnesfjord/tg-ws-proxy-rs",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("valnesfjord", "https://github.com/valnesfjord/tg-ws-proxy-rs"),
+		Trust:        auditedTrust("Official Entware installer, architecture detection and immutable release checksum verification were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "package-lifecycle", "proxy", "telegram"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99tg-ws-proxy-rs"},
+			Paths:    []string{"/opt/bin/tg-ws-proxy-rs"},
+		},
+		ProcessNames: []string{"tg-ws-proxy-rs"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4", "x64-3.2"},
+			Hints:   []string{"Keenetic / Entware", "supported musl target", "installer verifies release assets against SHA256 metadata"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/valnesfjord/tg-ws-proxy-rs/main/install.sh",
+			Notes:        []string{"Uses upstream stable-channel installer; release payload checksum verification is performed by upstream installer."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/valnesfjord/tg-ws-proxy-rs/main/install.sh",
+		},
+	}
+}
+
+func aiwayManagerCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "aiway-manager",
+		Kind:         "integration",
+		Name:         "AIWAY Manager",
+		Category:     "DNS / Routing",
+		Description:  "Keenetic panel for AIWAY DNS/SNI routing, VPS profiles and local runtime control.",
+		ProjectURL:   "https://github.com/kirniy/aiway",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("kirniy", "https://github.com/kirniy/aiway"),
+		Trust:        auditedTrust("Official Keenetic installer, architecture-aware IPK selection, service path and Web UI were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "open-ui", "package-lifecycle", "dns", "routing"},
+		Detection: catalogDetection{
+			Packages: []string{"aiway-manager"},
+			Services: []string{"/opt/etc/init.d/S99aiway-manager"},
+			Paths:    []string{"/opt/bin/aiway-manager", "/opt/etc/aiway-manager"},
+		},
+		ProcessNames: []string{"aiway-manager"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   2233,
+			Path:   "/routing",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "x64-3.2", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "curl or wget", "managed-VPS features additionally require SSH credentials"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/kirniy/aiway/main/router/scripts/install.sh",
+			Packages:     []string{"aiway-manager"},
+			Notes:        []string{"Upstream installer detects Entware architecture, selects the matching GitHub release IPK and installs it with opkg."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/kirniy/aiway/main/router/scripts/install.sh",
+			Packages:     []string{"aiway-manager"},
+		},
+		Remove: catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{"aiway-manager"},
+			Notes:    []string{"Removes the router package only; remote VPS state is not touched."},
+		},
+	}
+}
+
+func bird4StaticCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "bird4static",
+		Kind:         "integration",
+		Name:         "Bird4Static",
+		Category:     "Routing",
+		Description:  "Keenetic/Entware BIRD routing helper for antifilter.download, antifilter.network, re:filter and custom route sources.",
+		ProjectURL:   "https://github.com/DennoN-RUS/Bird4Static",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("DennoN-RUS", "https://github.com/DennoN-RUS/Bird4Static"),
+		Trust:        auditedTrust("Git-clone and interactive install flow were reviewed on 2026-10-03; lifecycle remains manual because upstream installer requires interactive choices."),
+		Capabilities: []string{"detect", "install-preview", "routing", "bird"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/etc/bird4static", "/opt/root/Bird4Static"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "git", "git-http", "interactive installer"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream installation clones the repository and runs an interactive install.sh; RouterForge does not guess routing choices."},
+		},
+	}
+}
+
+func ipset4StaticCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "ipset4static",
+		Kind:         "integration",
+		Name:         "IPset4Static",
+		Category:     "Routing",
+		Description:  "Keenetic/Entware ipset+iptables domain routing helper that can run standalone or alongside Bird4Static.",
+		ProjectURL:   "https://github.com/DennoN-RUS/IPset4Static",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("DennoN-RUS", "https://github.com/DennoN-RUS/IPset4Static"),
+		Trust:        auditedTrust("Git-clone installation and AdGuardHome/dnsmasq prerequisite were reviewed on 2026-10-03; lifecycle remains manual because upstream installer is interactive."),
+		Capabilities: []string{"detect", "install-preview", "routing", "ipset"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/etc/ipset4static", "/opt/root/IPset4Static"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "AdGuardHome or dnsmasq", "git", "git-http", "interactive installer"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream installation clones the repository and runs an interactive install.sh after DNS prerequisite setup."},
 		},
 	}
 }

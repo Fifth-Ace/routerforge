@@ -174,20 +174,6 @@
         <div><span>{locale === 'ru' ? 'Обновления' : 'Updates'}</span><strong class={[...modules,...integrations].some((x)=>x.update_available) ? 'warn' : 'good'}>{[...modules,...integrations].filter((x)=>x.update_available).length}</strong></div>
       </section>
 
-      <button
-        class="rail-release-notes"
-        type="button"
-        aria-haspopup="dialog"
-        onclick={() => releaseNotesOpen = true}
-      >
-        <span class="rail-release-notes-icon" aria-hidden="true">✦</span>
-        <span class="rail-repository-copy">
-          <small>{locale === 'ru' ? 'RouterForge' : 'RouterForge'}</small>
-          <strong>{locale === 'ru' ? 'Что нового' : 'What’s new'}</strong>
-        </span>
-        <span class="rail-repository-arrow" aria-hidden="true">→</span>
-      </button>
-
       <div class="rail-community-links">
         <a class="rail-repository-link" href="https://github.com/Fifth-Ace/routerforge" target="_blank" rel="noreferrer" aria-label={t(locale,'shell.repositoryAria')}>
           <img src="/routerforge-mark.png" alt="" />
@@ -200,6 +186,17 @@
           <span class="rail-repository-copy"><small>{locale === 'ru' ? 'Сообщество' : 'Community'}</small><strong>Telegram</strong></span>
           <span class="rail-repository-arrow" aria-hidden="true">↗</span>
         </a>
+
+        <button
+          class="rail-repository-link rail-release-notes-link"
+          type="button"
+          aria-haspopup="dialog"
+          onclick={() => releaseNotesOpen = true}
+        >
+          <span class="rail-link-icon rail-release-notes-icon" aria-hidden="true">✦</span>
+          <span class="rail-repository-copy"><small>RouterForge</small><strong>{locale === 'ru' ? 'Что нового' : 'What’s new'}</strong></span>
+          <span class="rail-repository-arrow" aria-hidden="true">→</span>
+        </button>
       </div>
       <a class="rail-legal-badge" href="/legal">{locale === 'ru' ? 'Пользовательское соглашение · MIT · AS IS' : 'User Agreement · MIT · AS IS'}</a>
     </div>
@@ -213,40 +210,16 @@
 {/if}
 
 <style>
-  .rail-release-notes {
+  .rail-release-notes-link {
     appearance: none;
     width: 100%;
-    min-height: 54px;
-    padding: 8px 10px;
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    border: 1px solid var(--rf-accent-border, var(--rf-border));
-    border-radius: var(--rf-radius-panel);
-    background: linear-gradient(135deg, var(--rf-accent-soft, rgba(56,189,248,.10)), var(--rf-bg));
-    color: inherit;
     text-align: left;
+    color: inherit;
     cursor: pointer;
-    transition: background .14s ease, border-color .14s ease, transform .14s ease;
-  }
-
-  .rail-release-notes:hover {
-    border-color: var(--rf-accent, var(--accent));
-    background: var(--rf-accent-soft, rgba(56,189,248,.14));
-    transform: translateY(-1px);
+    font: inherit;
   }
 
   .rail-release-notes-icon {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    border: 1px solid var(--rf-accent-border, var(--rf-border));
-    border-radius: 10px;
-    background: var(--rf-accent-soft, rgba(56,189,248,.10));
     color: var(--rf-accent, var(--accent));
-    font-size: 17px;
-    line-height: 1;
   }
 </style>

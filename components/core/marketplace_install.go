@@ -179,6 +179,8 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 		err = runStructuredCatalogPlan(ctx, item, action, plan, &result, log)
 	case "official-script":
 		err = runOfficialScriptPlan(ctx, item, action, plan, &result, log)
+	case "verified-ipk":
+		err = runVerifiedIPKPlan(ctx, action, plan, &result, log)
 	case "github-release-binary":
 		err = runUnmanagedGitHubReleasePlan(ctx, item, action, plan, &result, log)
 	default:
@@ -618,6 +620,81 @@ func downloadVerifiedAsset(ctx context.Context, url, asset, expected string) (st
 		return "", actual, err
 	}
 	return path, actual, nil
+}
+
+func validVerifiedIPKURL(value string) bool {
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(value, "https://github.com/") ||
+		!strings.Contains(value, "/releases/download/") ||
+		!strings.HasSuffix(strings.ToLower(value), ".ipk") ||
+		strings.ContainsAny(value, "?#") {
+		return false
+	}
+	return true
+}
+
+func verifyExpectedSHA256(expected string, data []byte) (string, error) {
+	digest := sha256.Sum256(data)
+	actual := hex.EncodeToString(digest[:])
+	if !strings.EqualFold(strings.TrimSpace(expected), actual) {
+		return actual, fmt.Errorf("SHA256 mismatch: expected %s, got %s", expected, actual)
+	}
+	return actual, nil
+}
+
+func runVerifiedIPKPlan(
+	ctx context.Context,
+	action string,
+	plan catalogInstallPlan,
+	result *catalogActionResult,
+	log *catalogActionLog,
+) error {
+	if action != "install" && action != "update" {
+		return fmt.Errorf("verified-ipk does not implement %q", action)
+	}
+	if len(plan.Packages) != 1 {
+		return fmt.Errorf("verified-ipk requires exactly one package")
+	}
+	if !validVerifiedIPKURL(plan.InstallerURL) {
+		return fmt.Errorf("verified-ipk URL must be an immutable GitHub Release .ipk asset")
+	}
+
+	data, err := fetchSmallHTTPS(ctx, plan.InstallerURL, marketplaceDownloadMaxBytes)
+	if err != nil {
+		return err
+	}
+	actual, err := verifyExpectedSHA256(plan.ExpectedSHA256, data)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(marketplaceDownloadDir, 0755); err != nil {
+		return err
+	}
+	name := filepath.Base(plan.InstallerURL)
+	if name == "." || name == "/" || !strings.HasSuffix(strings.ToLower(name), ".ipk") {
+		return fmt.Errorf("invalid verified-ipk asset name")
+	}
+	local := filepath.Join(marketplaceDownloadDir, name)
+	if err := safety.WriteFileAtomic(local, data, 0600); err != nil {
+		return err
+	}
+	defer os.Remove(local)
+
+	opkg, err := opkgExecutable()
+	if err != nil {
+		return err
+	}
+	args := []string{"install", local}
+	if action == "update" {
+		args = []string{"--force-reinstall", "install", local}
+	}
+	output, runErr := runCommandStreaming(ctx, opkg, args, log.EmitLine)
+	result.Sources = append(result.Sources, plan.InstallerURL+"#sha256="+actual)
+	if runErr != nil {
+		return fmt.Errorf("opkg %s verified IPK: %s", action, strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 func truncateCatalogInstallOutput(value string, max int) string {

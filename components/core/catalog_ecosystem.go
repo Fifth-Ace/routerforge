@@ -93,6 +93,10 @@ func auditedEcosystemIntegrations() []catalogItem {
 		detourKeeneticCatalogItem(),
 		keeneticXrayAutoCatalogItem(),
 		xkeenSmartRouteCatalogItem(),
+		keeneticXrayVPNCatalogItem(),
+		keenManagerCatalogItem(),
+		keeneticDOQCatalogItem(),
+		keeneticVPNXORCatalogItem(),
 	}
 }
 
@@ -1901,6 +1905,197 @@ func detourKeeneticCatalogItem() catalogItem {
 		Install: install,
 		Update:  install,
 		Remove:  catalogInstallPlan{Method: "opkg", Packages: []string{"detour-keenetic"}},
+	}
+}
+
+func keeneticXrayVPNCatalogItem() catalogItem {
+	const scriptURL = "https://github.com/Aynur-coder/keenetic-xray-vpn/releases/download/v0.16.1/install.sh"
+	const scriptSHA = "8d6376f0b63f9c5f3365c7b12a8bad5f2eb2a5a2b9ea64333fad6237d2eac351"
+	return catalogItem{
+		ID:           "keenetic-xray-vpn",
+		Kind:         "integration",
+		Name:         "Keenetic Xray VPN",
+		Category:     "VPN / Routing",
+		Description:  "Keenetic/Entware Xray VPN stack with Web setup wizard, upgrade/reinstall modes and reversible uninstall.",
+		ProjectURL:   "https://github.com/Aynur-coder/keenetic-xray-vpn",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("Aynur-coder", "https://github.com/Aynur-coder/keenetic-xray-vpn"),
+		Trust:        auditedTrust("v0.16.1 release installer, published SHA256, noninteractive install/upgrade/uninstall flags and preserved user state were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "xray", "vless", "routing"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/etc/xray", "/opt/etc/xray/.version"},
+		},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   91,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "curl", "sha256sum", "20 MB free in /opt"},
+		},
+		Install: catalogInstallPlan{
+			Method:         "official-script",
+			InstallerURL:   scriptURL,
+			ExpectedSHA256: scriptSHA,
+			Notes:          []string{"Uses the immutable v0.16.1 release installer; RouterForge downloads and verifies it before execution."},
+		},
+		Update: catalogInstallPlan{
+			Method:         "official-script",
+			InstallerURL:   scriptURL,
+			ExpectedSHA256: scriptSHA,
+			Args:           []string{"--upgrade"},
+			Notes:          []string{"Upstream --upgrade keeps user configuration and package state."},
+		},
+		Remove: catalogInstallPlan{
+			Method:         "official-script",
+			InstallerURL:   scriptURL,
+			ExpectedSHA256: scriptSHA,
+			Args:           []string{"--uninstall"},
+			Notes:          []string{"Upstream uninstall removes deployed files while retaining logs/backups."},
+		},
+	}
+}
+
+func keenManagerCatalogItem() catalogItem {
+	const installURL = "https://raw.githubusercontent.com/miroslavrov/keen-manager/84d34ac2af6f43d6481bc193c8aae64bf9d48b4e/scripts/install.sh"
+	const removeURL = "https://raw.githubusercontent.com/miroslavrov/keen-manager/84d34ac2af6f43d6481bc193c8aae64bf9d48b4e/scripts/uninstall.sh"
+	return catalogItem{
+		ID:           "keen-manager",
+		Kind:         "integration",
+		Name:         "keen-manager",
+		Category:     "VPN / Routing",
+		Description:  "Unified Keenetic panel for AmneziaWG, Xray and nfqws2 with health checks, fallback chains and reversible configuration.",
+		ProjectURL:   "https://github.com/miroslavrov/keen-manager",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("miroslavrov", "https://github.com/miroslavrov/keen-manager"),
+		Trust:        auditedTrust("Commit-pinned installer/uninstaller, architecture auto-detection, idempotent upgrades and non-purge uninstall were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "awg", "xray", "nfqws2", "failover"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99keen-manager"},
+			Paths:    []string{"/opt/bin/keen-manager", "/opt/etc/keen-manager"},
+		},
+		ProcessNames: []string{"keen-manager"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   47115,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "curl or wget", "architecture is detected from opkg/uname"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: installURL,
+			Notes:        []string{"Exact upstream commit pinned; installer is idempotent and leaves an existing install untouched on failed binary download."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: installURL,
+			Notes:        []string{"Rerunning the pinned installer is the documented in-place update path."},
+		},
+		Remove: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: removeURL,
+			Notes:        []string{"Pinned upstream uninstaller is noninteractive and keeps config/state unless --purge is explicitly supplied."},
+		},
+	}
+}
+
+func keeneticDOQCatalogItem() catalogItem {
+	const installURL = "https://raw.githubusercontent.com/necronicle/keenetic-doq/dc90f8c27b309e79e1a2b056c060f1602975e5f8/install.sh"
+	const removeURL = "https://raw.githubusercontent.com/necronicle/keenetic-doq/dc90f8c27b309e79e1a2b056c060f1602975e5f8/uninstall.sh"
+	return catalogItem{
+		ID:           "keenetic-doq",
+		Kind:         "integration",
+		Name:         "keenetic-doq",
+		Category:     "DNS",
+		Description:  "DNS-over-QUIC forwarder integrated as an additional Keenetic system name-server without replacing port 53.",
+		ProjectURL:   "https://github.com/necronicle/keenetic-doq",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("necronicle", "https://github.com/necronicle/keenetic-doq"),
+		Trust:        auditedTrust("Commit-pinned installer/uninstaller, architecture detection, upstream binary SHA256 verification and config-preserving update/remove behavior were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "package-lifecycle", "dns", "doq"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S56doqd"},
+			Paths:    []string{"/opt/sbin/doqd", "/opt/etc/doqd.conf"},
+		},
+		ProcessNames: []string{"doqd"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "curl", "ndmc or ndmq"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: installURL,
+			Notes:        []string{"Exact upstream commit pinned; installer verifies downloaded doqd release binaries with upstream SHA256SUMS."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: installURL,
+			Notes:        []string{"Rerunning install.sh refreshes the binary while preserving an existing /opt/etc/doqd.conf."},
+		},
+		Remove: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: removeURL,
+			Notes:        []string{"Pinned upstream uninstaller unregisters the name-server and keeps /opt/etc/doqd.conf."},
+		},
+	}
+}
+
+func keeneticVPNXORCatalogItem() catalogItem {
+	const bootURL = "https://raw.githubusercontent.com/invisible25/keenetic-vpn-xor/07a254453a3c8300821752846b6c6a4f39b28d15/boot.sh"
+	return catalogItem{
+		ID:           "keenetic-vpn-xor",
+		Kind:         "integration",
+		Name:         "Keenetic VPN + XOR",
+		Category:     "VPN / Routing",
+		Description:  "OpenVPN + XOR/scramble routing panel for Keenetic/Entware with multi-profile routing and Web management.",
+		ProjectURL:   "https://github.com/invisible25/keenetic-vpn-xor",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("invisible25", "https://github.com/invisible25/keenetic-vpn-xor"),
+		Trust:        auditedTrust("Commit-pinned idempotent bootstrap, HTTPS opkg feed lifecycle, architecture handling and package-managed removal were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "package-lifecycle", "openvpn", "xor", "routing"},
+		Detection: catalogDetection{
+			Packages: []string{"invnet"},
+			Services: []string{"/opt/etc/init.d/S30invnet", "/opt/etc/init.d/S31invnet-web"},
+			Paths:    []string{"/opt/sbin/invnetctl"},
+		},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   8888,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "curl", "ca-bundle", "boot.sh installs/configures the HTTPS opkg feed"},
+		},
+		Install: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: bootURL,
+			Notes:        []string{"Exact upstream commit pinned; bootstrap is idempotent and migrates legacy tarball installs into package management."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: bootURL,
+			Notes:        []string{"Rerunning boot.sh is an idempotent install/update path and preserves profiles/routes/settings."},
+		},
+		Remove: catalogInstallPlan{
+			Method:   "opkg",
+			Packages: []string{"invnet"},
+			Notes:    []string{"Package-managed removal is bounded to invnet; user profile data is not part of the package payload."},
+		},
 	}
 }
 

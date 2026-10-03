@@ -98,8 +98,8 @@ func TestApplyAntiscanCustomListMutationInactiveCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "# seed") {
-		t.Fatalf("comment was not preserved: %q", string(data))
+	if len(data) != 0 {
+		t.Fatalf("inactive clear must truncate the upstream source file to zero bytes: %q", string(data))
 	}
 }
 

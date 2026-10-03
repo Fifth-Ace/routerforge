@@ -97,6 +97,332 @@ func auditedEcosystemIntegrations() []catalogItem {
 		keenManagerCatalogItem(),
 		keeneticDOQCatalogItem(),
 		keeneticVPNXORCatalogItem(),
+		usqueKeeneticCatalogItem(),
+		keeneticSingboxCatalogItem(),
+		adGuardHomeKeeneticCatalogItem(),
+		keeneticCloudflaredCatalogItem(),
+		netbirdKeeneticCatalogItem(),
+		keen2YggCatalogItem(),
+		keeneticZapret2ManagerCatalogItem(),
+		keeneticAria2ManagerCatalogItem(),
+		keeneticFirewallCatalogItem(),
+		keeneticTrafficViaVPNCatalogItem(),
+	}
+}
+
+func usqueKeeneticCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "usque-keenetic",
+		Kind:         "integration",
+		Name:         "Usque for Keenetic",
+		Category:     "Proxy / Routing",
+		Description:  "Usque SOCKS5 deployment for Keenetic/Entware with architecture auto-detection, service setup and optional redsocks routing.",
+		ProjectURL:   "https://github.com/Alukard-X/usque-keenetic",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("Alukard-X", "https://github.com/Alukard-X/usque-keenetic"),
+		Trust:        auditedTrust("Architecture matrix, installer flow, SOCKS5 service and documented removal were reviewed on 2026-10-03; execution stays preview-only because registration, optional routing and cleanup choices remain user-controlled."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "proxy", "socks5", "routing"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99usque"},
+			Paths:    []string{"/opt/usr/bin/usque", "/opt/etc/usque/config.json"},
+		},
+		ProcessNames: []string{"usque"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mips-3.4", "mipsel-3.4", "x64-3.2"},
+			Hints:   []string{"Keenetic", "Entware", "wget-ssl", "ca-certificates", "unzip", "optional redsocks routing"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes: []string{
+				"Upstream installer performs architecture selection and Usque registration, with optional routing configuration.",
+				"RouterForge does not auto-accept service registration/licensing choices or create redsocks routing rules.",
+			},
+		},
+	}
+}
+
+func keeneticSingboxCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "keenetic-singbox",
+		Kind:         "integration",
+		Name:         "Keenetic sing-box",
+		Category:     "VPN / Routing",
+		Description:  "Selective sing-box routing stack for KeeneticOS 5+ with service catalogue, failover, kill-switch and status page.",
+		ProjectURL:   "https://github.com/inlarin/keenetic-singbox-installer",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("inlarin", "https://github.com/inlarin/keenetic-singbox-installer"),
+		Trust:        auditedTrust("Installer lifecycle, checksum-verified binaries, update/uninstall commands and routing model were reviewed on 2026-10-03; first install remains manual because it asks for subscriptions, secrets, interfaces and routing policy."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "sing-box", "routing", "failover", "kill-switch"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/share/sing-box/install.sh"},
+		},
+		ProcessNames: []string{"sing-box"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   9090,
+			Path:   "/ui/status.html",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"KeeneticOS 5.0+", "Entware", "curl", "256 MB RAM recommended", "user subscription and interface choices required"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Initial setup asks for LAN/uplink interfaces, subscriptions, secrets, service categories and direct devices; RouterForge does not invent those choices."},
+		},
+	}
+}
+
+func adGuardHomeKeeneticCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "adguardhome-keenetic",
+		Kind:         "integration",
+		Name:         "AdGuard Home for Keenetic",
+		Category:     "DNS",
+		Description:  "AdGuard Home integration for KeeneticOS 5.x using a dedicated policy mark and netfilter DNS hook.",
+		ProjectURL:   "https://github.com/arl-spb/AdGuardHome-Keenetic",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("arl-spb", "https://github.com/arl-spb/AdGuardHome-Keenetic"),
+		Trust:        auditedTrust("Keenetic policy integration, installer/update/uninstall commands and Web UI were reviewed on 2026-10-03; lifecycle remains preview-only because the upstream script asks conflict and replacement confirmations."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "dns", "adguardhome"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99adguardhome"},
+			Paths:    []string{"/opt/etc/AdGuardHome/AdGuardHome", "/opt/etc/ndm/netfilter.d/99-adguard-dns.sh"},
+		},
+		ProcessNames: []string{"AdGuardHome"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   3000,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "armv7-3.2", "mipsel-3.4"},
+			Hints:   []string{"KeeneticOS 5.x", "Entware", "curl or wget", "interactive conflict/replacement decisions"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream installer prompts when an Entware AdGuard package conflicts and before replacing config/init/hook files."},
+		},
+	}
+}
+
+func keeneticCloudflaredCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "keenetic-cloudflared",
+		Kind:         "integration",
+		Name:         "Keenetic Cloudflared",
+		Category:     "Remote Access",
+		Description:  "Cloudflare Tunnel deployment for Keenetic/Netcraze with service management and arm64/mipsle binaries.",
+		ProjectURL:   "https://github.com/karayelxyz/keenetic-cloudflared",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("karayelxyz", "https://github.com/karayelxyz/keenetic-cloudflared"),
+		Trust:        auditedTrust("Architecture support, service lifecycle and tunnel-token setup were reviewed on 2026-10-03; install remains preview-only because a Cloudflare Tunnel token is required."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "cloudflare-tunnel", "remote-access"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99cloudflared"},
+			Paths:    []string{"/opt/bin/cloudflared"},
+		},
+		ProcessNames: []string{"cloudflared"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mipsel-3.4"},
+			Hints:   []string{"Keenetic / Netcraze", "Entware-ready /opt", "Cloudflare Tunnel token required"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream install explicitly prompts for a Cloudflare Tunnel token; RouterForge does not handle or store that secret."},
+		},
+	}
+}
+
+func netbirdKeeneticCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "netbird-keenetic",
+		Kind:         "integration",
+		Name:         "NetBird for Keenetic",
+		Category:     "VPN / Routing",
+		Description:  "NetBird deployment recipe for Keenetic/Entware with custom firewall handling, rp_filter tuning and NDM integration.",
+		ProjectURL:   "https://github.com/Leaflet1337/netbird-install-script-opkg",
+		Source:       "community",
+		Publisher:    auditedPublisher("Leaflet1337", "https://github.com/Leaflet1337/netbird-install-script-opkg"),
+		Trust:        auditedTrust("Entware architecture notes, firewall workaround, install/remove scripts and NetBird setup flow were reviewed on 2026-10-03; execution remains manual because it rewrites iptables behavior and requires a setup key plus user firewall choices."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "netbird", "wireguard", "routing", "firewall"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S99netbird"},
+			Paths:    []string{"/opt/etc/netbird/config.json", "/opt/etc/ndm/netfilter.d/netbird.sh"},
+		},
+		ProcessNames: []string{"netbird"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic", "Entware", "WireGuard VPN component", "NetBird setup key", "custom iptables/rp_filter handling"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"The audited recipe replaces/wraps iptables behavior and requires a NetBird setup key plus local firewall decisions; those changes are intentionally not automated by RouterForge."},
+		},
+	}
+}
+
+func keen2YggCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "keen2ygg",
+		Kind:         "integration",
+		Name:         "Keen2Ygg",
+		Category:     "VPN / Routing",
+		Description:  "Yggdrasil IPv6 deployment for Keenetic with radvd and ip6tables integration.",
+		ProjectURL:   "https://github.com/GenkaOk/keen2ygg",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("GenkaOk", "https://github.com/GenkaOk/keen2ygg"),
+		Trust:        auditedTrust("Preparation requirements, installer/uninstaller and IPv6/Yggdrasil behavior were reviewed on 2026-10-03; install remains preview-only because it requires removing the default IPv6 subnet and interactive choices."),
+		Capabilities: []string{"detect", "service-status", "install-preview", "yggdrasil", "ipv6", "routing"},
+		Detection: catalogDetection{
+			Services: []string{"/opt/etc/init.d/S83yggdrasil", "/opt/etc/init.d/S82radvd"},
+			Paths:    []string{"/opt/etc/yggdrasil.conf", "/opt/etc/radvd.conf"},
+		},
+		ProcessNames: []string{"yggdrasil"},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "manual Keenetic IPv6 subnet preparation", "interactive peer/config choices"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream requires manual Keenetic CLI changes before installation and the script asks configuration questions; RouterForge keeps this as assisted/manual."},
+		},
+	}
+}
+
+func keeneticZapret2ManagerCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "keenetic-zapret2-manager",
+		Kind:         "integration",
+		Name:         "Keenetic Zapret2 Manager",
+		Category:     "DPI / Bypass",
+		Description:  "Zapret2 manager for Keenetic/Entware with Web UI, DPI profiles, blockcheck, IPSET targeting and backup/restore.",
+		ProjectURL:   "https://github.com/RevolutionTR/keenetic-zapret2-manager",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("RevolutionTR", "https://github.com/RevolutionTR/keenetic-zapret2-manager"),
+		Trust:        auditedTrust("KeeneticOS requirements, Zapret2 lifecycle, Web UI, blockcheck and first-install choices were reviewed on 2026-10-03; execution remains preview-only due to interactive interface/profile decisions and existing-KZM migration requirements."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "zapret2", "dpi-bypass", "ipset", "blockcheck"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/zapret2", "/opt/lib/opkg"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"KeeneticOS 4.3.6.4/5.1.6 tested upstream", "Entware", "interactive output-interface/profile choices", "old KZM must be removed first"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream first install asks for network/DPI choices and warns that legacy KZM must be removed before KZM2; RouterForge does not make those routing decisions automatically."},
+		},
+	}
+}
+
+func keeneticAria2ManagerCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "keenetic-aria2-manager",
+		Kind:         "integration",
+		Name:         "Keenetic aria2 Manager",
+		Category:     "Downloads",
+		Description:  "aria2 manager for Keenetic with AriaNg Web UI, Telegram notifications, backups and interactive configuration.",
+		ProjectURL:   "https://github.com/iqubik/keenetic-aria2-manager",
+		Source:       "community",
+		Publisher:    auditedPublisher("iqubik", "https://github.com/iqubik/keenetic-aria2-manager"),
+		Trust:        auditedTrust("USB Entware requirement, manager flow, AriaNg port and configuration/Telegram options were reviewed on 2026-10-03; execution remains preview-only because first-run storage/RPC/notification choices are interactive."),
+		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "aria2", "downloads", "backup", "telegram"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/lib/opkg/keenetic-aria2-manager.sh"},
+		},
+		ProcessNames: []string{"aria2c"},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   6880,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"KeeneticOS", "Entware on USB storage", "opkg", "curl", "interactive download/RPC/Telegram settings"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"First run generates RPC credentials and exposes interactive storage, Web UI, backup and optional Telegram configuration; RouterForge leaves those choices to the user."},
+		},
+	}
+}
+
+func keeneticFirewallCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "keenetic-firewall",
+		Kind:         "integration",
+		Name:         "Keenetic Firewall",
+		Category:     "Security",
+		Description:  "Entware firewall and monitoring suite for Keenetic using IPSET blocklists, VPN brute-force protection and HTML dashboards.",
+		ProjectURL:   "https://github.com/mattheweli/keenetic-firewall",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("mattheweli", "https://github.com/mattheweli/keenetic-firewall"),
+		Trust:        auditedTrust("Dependencies, Keentool-based setup, cron automation, firewall/IPSET behavior and dashboard requirements were reviewed on 2026-10-03; execution remains manual because installation/configuration is menu-driven and changes firewall policy."),
+		Capabilities: []string{"detect", "install-preview", "firewall", "ipset", "monitoring", "vpn-protection"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/bin/firewall_manager.sh"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "ipset", "iptables", "bash", "sqlite3-cli", "optional lighttpd/nginx dashboard", "interactive Keentool configuration"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"Upstream recommends an interactive Keentool menu and the suite changes firewall/IPSET/cron policy; RouterForge only exposes the project until bounded automation exists."},
+		},
+	}
+}
+
+func keeneticTrafficViaVPNCatalogItem() catalogItem {
+	return catalogItem{
+		ID:           "keenetic-traffic-via-vpn",
+		Kind:         "integration",
+		Name:         "Keenetic Traffic via VPN",
+		Category:     "VPN / Routing",
+		Description:  "Domain/IP selective routing into an existing Keenetic VPN tunnel using Entware scripts and generated route lists.",
+		ProjectURL:   "https://github.com/rustrict/keenetic-traffic-via-vpn",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("rustrict", "https://github.com/rustrict/keenetic-traffic-via-vpn"),
+		Trust:        auditedTrust("Install/uninstall layout, VPN interface configuration, domain/IP list workflow and daily route refresh were reviewed on 2026-10-03; execution remains preview-only because the target VPN interface and routed resources are user-specific."),
+		Capabilities: []string{"detect", "install-preview", "vpn", "routing", "domain-routing"},
+		Detection: catalogDetection{
+			Paths: []string{"/opt/etc/unblock/config", "/opt/etc/unblock/unblock-list.txt", "/opt/etc/unblock/uninstall.sh"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic", "Entware", "curl", "bind-dig", "cron", "grep", "existing VPN tunnel/interface required"},
+		},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes:       []string{"After bootstrap the user must choose IFACE and maintain the routed domain/IP list; RouterForge does not guess the VPN interface or traffic policy."},
+		},
 	}
 }
 

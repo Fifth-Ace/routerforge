@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "51e40aa91484e4708842a4956fa298d5639f34a5efa8833341644360a6bcaad5",
+  "revision": "694069c40d7db2fd7febfa52677e7ef51bcd44ec51e5a6fd76d031070938c9e2",
   "entries": [
     {
       "id": "adguardhome-keenetic",
@@ -67,7 +67,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -253,7 +253,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -318,7 +318,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -371,7 +371,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -435,7 +435,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -598,7 +598,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -661,7 +661,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -748,7 +748,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -807,7 +807,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -869,7 +869,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -1086,7 +1086,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -1524,7 +1524,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -1576,7 +1576,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -1636,7 +1636,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {
@@ -1695,7 +1695,7 @@
       "registry_source": "routerforge-community",
       "trust": {
         "status": "unverified",
-        "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     }
   ]

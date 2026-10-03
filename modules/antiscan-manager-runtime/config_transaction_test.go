@@ -53,10 +53,41 @@ func TestNormalizeAntiscanConfigUpdateRejectsUnsafeValues(t *testing.T) {
 	}
 }
 
-func TestValidateAntiscanIPSetsDirectoryRejectsOptEtc(t *testing.T) {
-	values := map[string]string{"SAVE_IPSETS": "1", "GEOBLOCK_MODE": "0", "GEO_EXCLUDE_COUNTRIES": ""}
-	if err := validateAntiscanIPSetsDirectory("/opt/etc/antiscan", values); err == nil {
-		t.Fatal("/opt/etc path accepted")
+func TestValidateAntiscanIPSetsDirectoryMatchesUpstreamPathContract(t *testing.T) {
+	optional := map[string]string{"SAVE_IPSETS": "0", "GEOBLOCK_MODE": "0", "GEO_EXCLUDE_COUNTRIES": ""}
+	for _, path := range []string{
+		"",
+		"/opt",
+		"/tmp",
+		"/opt/antiscan",
+		"/tmp/antiscan",
+		"/opt/etc/antiscan",
+		"/opt/etc/antiscan/ipsets",
+		"/opt/routerforge-parity-path-does-not-need-to-exist",
+	} {
+		if err := validateAntiscanIPSetsDirectory(path, optional); err != nil {
+			t.Fatalf("upstream-valid path %q rejected: %v", path, err)
+		}
+	}
+
+	required := map[string]string{"SAVE_IPSETS": "1", "GEOBLOCK_MODE": "0", "GEO_EXCLUDE_COUNTRIES": ""}
+	if err := validateAntiscanIPSetsDirectory("", required); err == nil {
+		t.Fatal("empty required IPSETS_DIRECTORY accepted")
+	}
+
+	for _, path := range []string{
+		"/opt/etc",
+		"/opt/etc/",
+		"/etc/antiscan",
+		"/var/lib/antiscan",
+		"relative/path",
+		"/opt/../tmp/antiscan",
+		"/opt/./antiscan",
+		"/opt//antiscan",
+	} {
+		if err := validateAntiscanIPSetsDirectory(path, optional); err == nil {
+			t.Fatalf("upstream-invalid path %q accepted", path)
+		}
 	}
 }
 

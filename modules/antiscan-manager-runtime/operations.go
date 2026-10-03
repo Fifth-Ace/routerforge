@@ -189,22 +189,6 @@ func applyAntiscanOperation(parent context.Context, cfg runtimeConfig, actionRaw
 
 func antiscanOperationPreflight(parent context.Context, cfg runtimeConfig, config antiscanConfig, spec antiscanOperationSpec) (bool, string, error) {
 	switch spec.Action {
-	case "update_rules":
-		binary := findAntiscanExecutable(
-			"/opt/sbin/iptables",
-			"/opt/bin/iptables",
-			"/usr/sbin/iptables",
-			"/sbin/iptables",
-			"iptables",
-		)
-		if binary == "" {
-			return false, "", errors.New("iptables binary not found")
-		}
-		ctx, cancel := context.WithTimeout(parent, 2*time.Second)
-		defer cancel()
-		if _, err := safety.RunCommand(ctx, 8<<10, binary, "-w", "-t", "filter", "-L", "ANTISCAN", "-n"); err == nil {
-			return true, "Antiscan rule chain is already present; update_rules was not repeated to avoid duplicate jump rules.", nil
-		}
 	case "read_candidates":
 		if !config.EnableIPSBan {
 			return true, "ENABLE_IPS_BAN is disabled; there are no candidate sets to process.", nil

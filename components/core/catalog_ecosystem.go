@@ -765,7 +765,7 @@ func razvilkaCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/ArtixSx/RAZVILKA/main/scripts/bootstrap.sh",
+			InstallerURL: "https://raw.githubusercontent.com/ArtixSx/RAZVILKA/817783493f0c2784ccc70aa73868cd64e9437634/scripts/bootstrap.sh",
 			PreviewOnly:  true,
 			Notes: []string{
 				"Upstream bootstrap verifies release SHA-256 and performs backup/health checks.",
@@ -836,7 +836,7 @@ func antiGoblinCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/MaksimSamarin/AntiGoblin/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/MaksimSamarin/AntiGoblin/2dba45b8bee6edbb59323fce64469e08f3c17a9d/install.sh",
 			Notes: []string{
 				"Uses the upstream one-command on-router installer.",
 				"RouterForge downloads the script first, records SHA256 and streams output instead of piping curl to sh.",
@@ -844,7 +844,7 @@ func antiGoblinCatalogItem() catalogItem {
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/MaksimSamarin/AntiGoblin/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/MaksimSamarin/AntiGoblin/2dba45b8bee6edbb59323fce64469e08f3c17a9d/install.sh",
 			Notes:        []string{"Repeats the upstream installer contract for in-place refresh/update."},
 		},
 	}
@@ -881,7 +881,7 @@ func xkeenPanelCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/Dearonski/xkeen-panel/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/Dearonski/xkeen-panel/cfa7df287afa664d3962784abff0755e978be160/install.sh",
 			Notes: []string{
 				"Current upstream installer auto-detects the router architecture from uname and maps aarch64/arm64, mips and mipsel/mipsle to matching release assets.",
 				"Existing config.yaml is preserved during reinstall/update.",
@@ -889,7 +889,7 @@ func xkeenPanelCatalogItem() catalogItem {
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/Dearonski/xkeen-panel/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/Dearonski/xkeen-panel/cfa7df287afa664d3962784abff0755e978be160/install.sh",
 			Notes:        []string{"Upstream documents rerunning install.sh as the update path; existing configuration is not overwritten."},
 		},
 	}
@@ -918,12 +918,12 @@ func keenSnapCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/keensnap/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/keensnap/12a45ec9da9d2982c4ab0d7d0ec24be70efdc0e4/install.sh",
 			Packages:     []string{"keensnap"},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/keensnap/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/keensnap/12a45ec9da9d2982c4ab0d7d0ec24be70efdc0e4/install.sh",
 			Packages:     []string{"keensnap"},
 		},
 		Remove: catalogInstallPlan{
@@ -957,12 +957,12 @@ func sms2gramCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/sms2gram/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/sms2gram/3af66ca00b3d177b0b6b811c4efc4e37e696117f/install.sh",
 			Packages:     []string{"sms2gram"},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/sms2gram/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/sms2gram/3af66ca00b3d177b0b6b811c4efc4e37e696117f/install.sh",
 			Packages:     []string{"sms2gram"},
 		},
 		Remove: catalogInstallPlan{
@@ -1080,13 +1080,13 @@ func susaninCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/R17a/Susanin.Keenetic/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/R17a/Susanin.Keenetic/b1a2fa91b741a6861a64586b9b169c406a6fe8ae/install.sh",
 			Args:         []string{"--yes"},
 			Notes:        []string{"Uses upstream noninteractive --yes mode and preserves existing Susanin configuration on update."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/R17a/Susanin.Keenetic/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/R17a/Susanin.Keenetic/b1a2fa91b741a6861a64586b9b169c406a6fe8ae/install.sh",
 			Args:         []string{"--yes"},
 		},
 	}
@@ -1116,7 +1116,7 @@ func trustTunnelKeeneticCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/artemevsevev/TrustTunnel-Keenetic/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/artemevsevev/TrustTunnel-Keenetic/8bf8642dd4f18a6ef78311f28de75cb25cc97588/install.sh",
 			PreviewOnly:  true,
 			Notes:        []string{"Upstream configure.sh is interactive; RouterForge does not guess SOCKS5/TUN mode or interface indices."},
 		},
@@ -1205,12 +1205,12 @@ func tgWSProxyRSCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/valnesfjord/tg-ws-proxy-rs/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/valnesfjord/tg-ws-proxy-rs/95ce633080e404fe085e7d6faff4870cb584044e/install.sh",
 			Notes:        []string{"Uses upstream stable-channel installer; release payload checksum verification is performed by upstream installer."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/valnesfjord/tg-ws-proxy-rs/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/valnesfjord/tg-ws-proxy-rs/95ce633080e404fe085e7d6faff4870cb584044e/install.sh",
 		},
 	}
 }
@@ -1247,13 +1247,13 @@ func aiwayManagerCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/kirniy/aiway/main/router/scripts/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/kirniy/aiway/5bf649f8fc7e67b62823b7922aa863309aaa244b/router/scripts/install.sh",
 			Packages:     []string{"aiway-manager"},
 			Notes:        []string{"Upstream installer detects Entware architecture, selects the matching GitHub release IPK and installs it with opkg."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/kirniy/aiway/main/router/scripts/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/kirniy/aiway/5bf649f8fc7e67b62823b7922aa863309aaa244b/router/scripts/install.sh",
 			Packages:     []string{"aiway-manager"},
 		},
 		Remove: catalogInstallPlan{
@@ -1323,7 +1323,7 @@ func ipset4StaticCatalogItem() catalogItem {
 func keePackageCatalogItem(id, name, category, description, pkg string, capabilities []string) catalogItem {
 	install := catalogInstallPlan{
 		Method:       "official-script",
-		InstallerURL: "https://raw.githubusercontent.com/0xkee/keenetic-entware-extras/master/scripts/install.sh",
+		InstallerURL: "https://raw.githubusercontent.com/0xkee/keenetic-entware-extras/90b686be49a738c8f9e3b269e9db357eeed54a66/scripts/install.sh",
 		Args:         []string{pkg},
 		Packages:     []string{pkg},
 		Notes: []string{
@@ -1447,7 +1447,7 @@ func trustTunnelNativeCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/alex-combine/TrustTunnel-Keenetic-Native/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/alex-combine/TrustTunnel-Keenetic-Native/d108db2f6e6898fbc620672c8c900243ae6edc2d/install.sh",
 			PreviewOnly:  true,
 			Notes:        []string{"Upstream installer prompts for mode and Keenetic interface operations; RouterForge does not guess those choices."},
 		},
@@ -1485,18 +1485,18 @@ func tgWSKeeneticCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/main/scripts/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/f8b635474e41ab32b492168745ddacd03343a74d/scripts/install.sh",
 			Args:         []string{"--system", "entware"},
 			Notes:        []string{"Uses upstream installer with explicit Entware mode; installer selects the stable release and verifies release metadata/checksums."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/main/scripts/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/f8b635474e41ab32b492168745ddacd03343a74d/scripts/install.sh",
 			Args:         []string{"--system", "entware"},
 		},
 		Remove: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/main/scripts/uninstall.sh",
+			InstallerURL: "https://raw.githubusercontent.com/Omn1z/tg-ws-keenetic/f8b635474e41ab32b492168745ddacd03343a74d/scripts/uninstall.sh",
 			Args:         []string{"--system", "entware"},
 			Notes:        []string{"Uses upstream uninstall while preserving configuration; destructive --purge is intentionally not exposed."},
 		},
@@ -1525,12 +1525,12 @@ func wireguardDPIBypassCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://github.com/Ground-Zerro/Wireguard-DPI-blocking-bypass/raw/refs/heads/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/Ground-Zerro/Wireguard-DPI-blocking-bypass/c8d23a1c95fbd33fb2b057e58a59531515f5ad56/install.sh",
 			Notes:        []string{"Uses the upstream automatic-mode installer exactly as documented."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://github.com/Ground-Zerro/Wireguard-DPI-blocking-bypass/raw/refs/heads/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/Ground-Zerro/Wireguard-DPI-blocking-bypass/c8d23a1c95fbd33fb2b057e58a59531515f5ad56/install.sh",
 		},
 	}
 }
@@ -1608,13 +1608,13 @@ func magiTrickleLarinCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh",
+			InstallerURL: "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/31eaf1285ff5f3046b40dc41dc09aee39d7f9418/add_repo.sh",
 			Packages:     []string{"magitrickle_mod"},
 			Notes:        []string{"Upstream bootstrap auto-detects Entware/OpenWrt, adds its repository and installs/starts magitrickle_mod."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh",
+			InstallerURL: "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/31eaf1285ff5f3046b40dc41dc09aee39d7f9418/add_repo.sh",
 			Packages:     []string{"magitrickle_mod"},
 		},
 		Remove: catalogInstallPlan{
@@ -1654,12 +1654,12 @@ func xkeenUIFan92CatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/fan92rus/xkeen-ui/master/xkeen-go/scripts/setup.sh",
+			InstallerURL: "https://raw.githubusercontent.com/fan92rus/xkeen-ui/41d7a5fc4f15b412f8bb562176f6822de03371fc/xkeen-go/scripts/setup.sh",
 			Notes:        []string{"Uses the upstream quick-install setup.sh exactly as documented."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/fan92rus/xkeen-ui/master/xkeen-go/scripts/setup.sh",
+			InstallerURL: "https://raw.githubusercontent.com/fan92rus/xkeen-ui/41d7a5fc4f15b412f8bb562176f6822de03371fc/xkeen-go/scripts/setup.sh",
 		},
 	}
 }
@@ -1695,7 +1695,7 @@ func dropwebXKeenCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/enkinvsh/dropweb-xkeen/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/enkinvsh/dropweb-xkeen/372edabbd10d5e512ff675078a9fa49be88f24a1/install.sh",
 			PreviewOnly:  true,
 			Notes:        []string{"Installer prompts for subscription URL, HWID, device metadata and Web port; RouterForge does not collect or guess these secrets yet."},
 		},
@@ -1792,12 +1792,12 @@ func b4CatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/DanielLavrushin/b4/d968a36983dbc197ebbbb3b65d5d13d7841e2e06/install.sh",
 			Notes:        []string{"Uses the exact one-command Keenetic installer documented upstream; architecture is detected by upstream."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/DanielLavrushin/b4/d968a36983dbc197ebbbb3b65d5d13d7841e2e06/install.sh",
 		},
 	}
 }
@@ -1882,12 +1882,12 @@ func ssClashGoCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://github.com/zerolabnet/SSClash-Go/raw/refs/heads/main/install-ssclash-go.sh",
+			InstallerURL: "https://raw.githubusercontent.com/zerolabnet/SSClash-Go/592edc15af88615d87f8a3edc398c01e9397b093/install-ssclash-go.sh",
 			Notes:        []string{"Uses the upstream Keenetic-aware installer; defaults to Web UI port 9091 and HYBRID mode."},
 		},
 		Update: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://github.com/zerolabnet/SSClash-Go/raw/refs/heads/main/install-ssclash-go.sh",
+			InstallerURL: "https://raw.githubusercontent.com/zerolabnet/SSClash-Go/592edc15af88615d87f8a3edc398c01e9397b093/install-ssclash-go.sh",
 		},
 	}
 }
@@ -1963,7 +1963,7 @@ func keeneticAutoSetupCatalogItem() catalogItem {
 		},
 		Install: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/saymer-alt/keenetic-auto-setup/stable/setup.sh",
+			InstallerURL: "https://raw.githubusercontent.com/saymer-alt/keenetic-auto-setup/496d64073e782bde92f277d5df4e118ea2eae08a/setup.sh",
 			PreviewOnly:  true,
 			Notes:        []string{"The bootstrap is safety-gated but intentionally interactive after installation; RouterForge does not synthesize or paste a Mihomo config on the user's behalf."},
 		},
@@ -2494,7 +2494,7 @@ func keeneticXrayAutoCatalogItem() catalogItem {
 func xkeenSmartRouteCatalogItem() catalogItem {
 	install := catalogInstallPlan{
 		Method:       "official-script",
-		InstallerURL: "https://raw.githubusercontent.com/LackyCraft/xkeen-smartroute/master/install.sh",
+		InstallerURL: "https://raw.githubusercontent.com/LackyCraft/xkeen-smartroute/5e13b23c79bc61299f928b8aaf7385d48f22ad47/install.sh",
 		Notes: []string{
 			"Upstream explicitly documents the same idempotent install.sh for Keenetic installation and update.",
 			"The installer contains non-TTY fallbacks for its Keenetic dependency prompts.",
@@ -2526,7 +2526,7 @@ func xkeenSmartRouteCatalogItem() catalogItem {
 		Update:  install,
 		Remove: catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/LackyCraft/xkeen-smartroute/master/uninstall.sh",
+			InstallerURL: "https://raw.githubusercontent.com/LackyCraft/xkeen-smartroute/5e13b23c79bc61299f928b8aaf7385d48f22ad47/uninstall.sh",
 			Notes:        []string{"Uses upstream non-purge uninstall; XKeen, XKeen-UI and Entware remain untouched."},
 		},
 	}

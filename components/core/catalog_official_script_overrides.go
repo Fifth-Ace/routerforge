@@ -20,7 +20,7 @@ func applyReviewedOfficialScriptLifecycle(snapshot *catalogSnapshot) {
 		item.Capabilities = lifecycleCapabilities(item.Capabilities)
 		item.Install = catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/dimon27254/antiscan/refs/heads/main/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/dimon27254/antiscan/f8a052b39d47c86fc3c00983a5502903a1cc2cd9/install.sh",
 			Packages:     []string{"antiscan"},
 			Notes: []string{
 				"Upstream official installer adds the Antiscan feed and installs/reinstalls the antiscan package.",
@@ -39,7 +39,7 @@ func applyReviewedOfficialScriptLifecycle(snapshot *catalogSnapshot) {
 		item.Capabilities = lifecycleCapabilities(item.Capabilities)
 		item.Install = catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/hoaxisr/awg-manager/develop/scripts/install.sh",
+			InstallerURL: "https://raw.githubusercontent.com/hoaxisr/awg-manager/9700bd5106a28e9f7fb2a857807291fc58d9f4ad/scripts/install.sh",
 			Packages:     []string{"awg-manager"},
 			Notes: []string{
 				"Uses the upstream HTTPS GitHub installer documented for Keenetic.",
@@ -77,7 +77,7 @@ func applyReviewedOfficialScriptLifecycle(snapshot *catalogSnapshot) {
 		item.Capabilities = lifecycleCapabilities(item.Capabilities)
 		item.Install = catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/ArtixSx/RAZVILKA/main/scripts/bootstrap.sh",
+			InstallerURL: "https://raw.githubusercontent.com/ArtixSx/RAZVILKA/817783493f0c2784ccc70aa73868cd64e9437634/scripts/bootstrap.sh",
 			Notes: []string{
 				"Upstream bootstrap verifies the release archive SHA256 before delegating writes to the release installer.",
 				"Default invocation installs or updates the panel without the optional starter component pack.",
@@ -86,7 +86,7 @@ func applyReviewedOfficialScriptLifecycle(snapshot *catalogSnapshot) {
 		item.Update = item.Install
 		item.Remove = catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/ArtixSx/RAZVILKA/main/scripts/bootstrap.sh",
+			InstallerURL: "https://raw.githubusercontent.com/ArtixSx/RAZVILKA/817783493f0c2784ccc70aa73868cd64e9437634/scripts/bootstrap.sh",
 			Args:         []string{"--uninstall"},
 			Notes: []string{
 				"Uses the upstream --uninstall contract, which removes the panel and owned routes while preserving settings, connections and backups.",
@@ -101,7 +101,7 @@ func applyReviewedOfficialScriptLifecycle(snapshot *catalogSnapshot) {
 		item.Trust = auditedTrust("Official setup.sh, architecture detection, service path and default Web port were reviewed on 2026-10-03; execution remains preview-only because setup.sh presents an interactive install/update/remove menu.")
 		item.Install = catalogInstallPlan{
 			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/zxc-rv/XKeen-UI/main/setup.sh",
+			InstallerURL: "https://raw.githubusercontent.com/zxc-rv/XKeen-UI/97c66290f095f8a38be077f53d231a48a997206f/setup.sh",
 			PreviewOnly:  true,
 			Notes: []string{
 				"Upstream setup.sh is an interactive menu rather than a noninteractive install action.",

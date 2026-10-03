@@ -93,6 +93,21 @@ func TestApplyAntiscanOperationSkipsDisabledFeaturesSafely(t *testing.T) {
 	}
 }
 
+func TestAntiscanOperationPreflightDoesNotSkipUpdateRules(t *testing.T) {
+	cfg := fakeAntiscanOperationConfig(t)
+	spec, err := normalizeAntiscanOperation("update_rules", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	skip, warning, err := antiscanOperationPreflight(context.Background(), cfg, antiscanConfig{}, spec)
+	if err != nil {
+		t.Fatalf("update_rules preflight failed: %v", err)
+	}
+	if skip || warning != "" {
+		t.Fatalf("update_rules must be delegated to upstream: skip=%v warning=%q", skip, warning)
+	}
+}
+
 func TestApplyAntiscanOperationRequiresRunning(t *testing.T) {
 	cfg := fakeAntiscanOperationConfig(t)
 	result, status, err := applyAntiscanOperation(context.Background(), cfg, "read_candidates", "")

@@ -586,25 +586,19 @@ func validateAntiscanIPSetsDirectory(raw string, values map[string]string) error
 	if !filepath.IsAbs(path) || safety.HasParentTraversal(path) {
 		return errors.New("IPSETS_DIRECTORY must be an absolute path without parent traversal")
 	}
-	clean := filepath.Clean(path)
-	if clean == "/opt/etc" || strings.HasPrefix(clean, "/opt/etc/") {
-		return errors.New("IPSETS_DIRECTORY must not be inside /opt/etc")
-	}
-	resolver := safety.Resolver{Roots: []string{"/opt", "/tmp"}}
-	resolved, err := resolver.ResolveExisting(clean, nil)
-	if err != nil {
-		return fmt.Errorf("IPSETS_DIRECTORY must already exist under /opt or /tmp: %w", err)
-	}
-	info, err := os.Stat(resolved.Canonical)
-	if err != nil || !info.IsDir() {
-		return errors.New("IPSETS_DIRECTORY must resolve to an existing directory")
-	}
-	if required {
-		probe, err := safety.NewAtomicFile(resolved.Canonical, ".routerforge-antiscan-dir-probe-*")
-		if err != nil {
-			return fmt.Errorf("IPSETS_DIRECTORY is not writable: %w", err)
+	for _, segment := range strings.Split(strings.Trim(path, "/"), "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return errors.New("IPSETS_DIRECTORY contains an invalid path segment")
 		}
-		_ = probe.Cleanup()
+	}
+
+	clean := filepath.Clean(path)
+	if clean == "/opt/etc" {
+		return errors.New("IPSETS_DIRECTORY must not be /opt/etc")
+	}
+	if clean != "/opt" && clean != "/tmp" &&
+		!strings.HasPrefix(clean, "/opt/") && !strings.HasPrefix(clean, "/tmp/") {
+		return errors.New("IPSETS_DIRECTORY must be under /opt or /tmp")
 	}
 	return nil
 }

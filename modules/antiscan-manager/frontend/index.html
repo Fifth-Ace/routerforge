@@ -479,7 +479,7 @@
           <section class="panel config-card">
             <div class="panel-head"><div><span class="section-kicker">ХРАНЕНИЕ / KEENETIC</span><h2>Хранение и lockout</h2></div></div>
             <div class="field-grid">
-              <label class="field wide"><span>IPSETS_DIRECTORY</span><input id="cfgIPSetsDirectory" spellcheck="false" placeholder="/tmp/mnt/DISK/antiscan"><small>Существующий каталог под /opt или /tmp; /opt/etc запрещён.</small></label>
+              <label class="field wide"><span>IPSETS_DIRECTORY</span><input id="cfgIPSetsDirectory" spellcheck="false" placeholder="/tmp/mnt/DISK/antiscan"><small>Путь внутри /opt или /tmp. Upstream запрещает только сам /opt/etc; вложенные каталоги, например /opt/etc/antiscan/ipsets, допустимы.</small></label>
               <label class="switch-field"><input id="cfgSaveIPSets" type="checkbox"><span><strong>Сохранять наборы</strong><small><span class="mono">SAVE_IPSETS</span> · сохранять накопленные ipset.</small></span></label>
               <label class="switch-field"><input id="cfgSaveOnExit" type="checkbox"><span><strong>Сохранять при остановке</strong><small><span class="mono">SAVE_ON_EXIT</span> · экспортировать состояние при остановке.</small></span></label>
               <label class="switch-field"><input id="cfgReadNDM" type="checkbox"><span><strong>Блокировки Keenetic</strong><small><span class="mono">READ_NDM_LOCKOUT_IPSETS</span> · импортировать ip lockout-policy.</small></span></label>

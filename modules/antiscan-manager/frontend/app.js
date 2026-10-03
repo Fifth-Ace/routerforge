@@ -354,8 +354,9 @@ const exactMessageTranslations = {
   'IPSETS_DIRECTORY is required for persistence or Geo lists': 'Для сохранения наборов или Geo-списков необходимо указать IPSETS_DIRECTORY.',
   'IPSETS_DIRECTORY is required by the selected persistence/Geo settings': 'Выбранные настройки хранения или Geo требуют IPSETS_DIRECTORY.',
   'IPSETS_DIRECTORY must be an absolute path without parent traversal': 'IPSETS_DIRECTORY должен быть абсолютным путём без переходов через ..',
-  'IPSETS_DIRECTORY must not be inside /opt/etc': 'IPSETS_DIRECTORY нельзя размещать внутри /opt/etc.',
-  'IPSETS_DIRECTORY must resolve to an existing directory': 'IPSETS_DIRECTORY должен указывать на существующий каталог.',
+  'IPSETS_DIRECTORY contains an invalid path segment': 'IPSETS_DIRECTORY содержит недопустимый сегмент пути.',
+  'IPSETS_DIRECTORY must not be /opt/etc': 'Сам каталог /opt/etc использовать нельзя; вложенные каталоги внутри /opt/etc допустимы upstream Antiscan.',
+  'IPSETS_DIRECTORY must be under /opt or /tmp': 'IPSETS_DIRECTORY должен находиться внутри /opt или /tmp.',
   'SAVE_IPSETS is enabled but IPSETS_DIRECTORY is empty': 'SAVE_IPSETS включён, но IPSETS_DIRECTORY не задан.',
   'IPSETS_DIRECTORY is unavailable': 'Каталог IPSETS_DIRECTORY недоступен.',
   'invalid custom-list request': 'Некорректный запрос изменения пользовательского списка.',
@@ -719,6 +720,8 @@ function updateConfigEditorState() {
   risk.textContent = mobileRisk
     ? `⚠ /24: порог ${current.different_ip_threshold}, кандидаты хранятся ${fmtDuration(current.different_ip_candidates_storage_seconds)} — для мобильных пулов настройка может быть слишком агрессивной.`
     : '✓ Сочетание порога /24 и времени хранения кандидатов не попадает под встроенный профиль повышенного риска.';
+
+  renderLifecycleControls();
 }
 
 async function applyConfigEditor() {
@@ -743,7 +746,11 @@ async function applyConfigEditor() {
     if (browserState.geo) await loadSet('geo');
   } catch (error) {
     showMutationResult(error.payload || { error: error.message }, true, 'config');
+    configDirty = false;
+    configBaseline = '';
+    configBaseSHA = '';
     await loadStatus();
+    populateConfigEditor(true);
   } finally {
     configBusy = false;
     updateConfigEditorState();
@@ -1331,7 +1338,7 @@ function renderLifecycleControls() {
   const detected = Boolean(snapshot?.detected);
   const running = Boolean(snapshot?.running);
   const upstreamBusy = Boolean(snapshot?.config_reload_in_progress || snapshot?.geo_reload_in_progress);
-  const busy = lifecycleBusy || operationBusy || configBusy;
+  const busy = lifecycleBusy || operationBusy || configBusy || configDirty;
 
   start.disabled = busy || !detected || running || upstreamBusy;
   stop.disabled = busy || !detected || !running || upstreamBusy;
@@ -1355,6 +1362,10 @@ function renderLifecycleControls() {
     state.classList.add('warn');
     state.textContent = 'ANTISCAN ЗАНЯТ';
     hint.textContent = 'Antiscan уже перечитывает конфигурацию или Geo-данные. Новое действие временно заблокировано.';
+  } else if (configDirty) {
+    state.classList.add('warn');
+    state.textContent = 'НЕ СОХРАНЕНО';
+    hint.textContent = 'Сначала примените или сбросьте изменения ascn.conf. Штатные lifecycle-команды всегда работают с сохранённым конфигом.';
   } else if (running) {
     state.classList.add('good');
     state.textContent = 'РАБОТАЕТ';
@@ -1376,7 +1387,7 @@ function renderOperationControls() {
   const detected = Boolean(snapshot?.detected);
   const running = Boolean(snapshot?.running);
   const upstreamBusy = Boolean(snapshot?.config_reload_in_progress || snapshot?.geo_reload_in_progress);
-  const busy = lifecycleBusy || operationBusy || configBusy;
+  const busy = lifecycleBusy || operationBusy || configBusy || configDirty;
 
   buttons.forEach((button) => {
     const requiresRunning = button.dataset.operation !== 'update_crontab';
@@ -1393,6 +1404,9 @@ function renderOperationControls() {
   } else if (upstreamBusy) {
     state.classList.add('warn');
     state.textContent = 'ANTISCAN ЗАНЯТ';
+  } else if (configDirty) {
+    state.classList.add('warn');
+    state.textContent = 'НЕ СОХРАНЕНО';
   } else if (!running) {
     state.classList.add('warn');
     state.textContent = 'ТОЛЬКО CRON';
@@ -1895,6 +1909,14 @@ async function performCustomListMutation(action, entry = '') {
 }
 
 async function performLifecycle(action) {
+  if (configDirty) {
+    const notice = $('notice');
+    notice.hidden = false;
+    notice.className = 'notice warn';
+    notice.textContent = 'Есть несохранённые изменения ascn.conf. Сначала примените их или сбросьте форму.';
+    return;
+  }
+
   const prompts = {
     start: 'Запустить Antiscan?\n\nБудут созданы штатные наборы ipset и правила фильтрации Antiscan.',
     stop: 'Остановить Antiscan?\n\nЗащита Antiscan будет отключена до следующего запуска. Сохранение состояния при остановке выполняет сам Antiscan согласно SAVE_ON_EXIT.',
@@ -1922,9 +1944,17 @@ async function performLifecycle(action) {
 }
 
 async function performOperation(action, scope = '') {
+  if (configDirty) {
+    const notice = $('notice');
+    notice.hidden = false;
+    notice.className = 'notice warn';
+    notice.textContent = 'Есть несохранённые изменения ascn.conf. Сначала примените их или сбросьте форму.';
+    return;
+  }
+
   const key = scope ? `${action}:${scope}` : action;
   const prompts = {
-    update_rules: 'Восстановить правила Antiscan?\n\nКоманда update_rules будет вызвана только если цепочка ANTISCAN сейчас отсутствует. Это защищает от повторного добавления jump-правил.',
+    update_rules: 'Восстановить правила Antiscan?\n\nБудет вызвана штатная команда S99ascn update_rules. Upstream сам идемпотентно проверит и восстановит недостающие правила и jump-привязки.',
     read_candidates: 'Обработать текущих кандидатов?\n\nAntiscan проверит накопленные адреса и при достижении порога перенесёт соответствующие /24 в блокировку подсетей.',
     read_ndm_ipsets: 'Импортировать текущие блокировки Keenetic?\n\nAntiscan перечитает системные lockout ipset и добавит найденные IPv4 в свой runtime-набор.',
     save_ipsets: 'Сохранить runtime ipset?\n\nAntiscan выполнит штатный save_ipsets согласно SAVE_IPSETS и IPSETS_DIRECTORY.',

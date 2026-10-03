@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGitHubManifestlessRepositoryFallsBackAfterManifest404s(t *testing.T) {
@@ -16,8 +17,8 @@ func TestGitHubManifestlessRepositoryFallsBackAfterManifest404s(t *testing.T) {
 		switch {
 		case rawURL == "https://api.github.com/repos/Runnin4ik/dpi-detector":
 			return []byte(`{"default_branch":"main"}`), nil
-		case strings.Contains(rawURL, "/contents/"):
-			return nil, fmt.Errorf("source HTTP 404")
+		case strings.Contains(rawURL, "raw.githubusercontent.com/Runnin4ik/dpi-detector/main/"):
+			return nil, &appSourceHTTPError{URL: rawURL, Status: 404}
 		case rawURL == "https://api.github.com/repos/Runnin4ik/dpi-detector/branches/main":
 			return []byte(`{"commit":{"sha":"` + headSHA + `"}}`), nil
 		case strings.Contains(rawURL, "/releases?per_page=20"):
@@ -88,11 +89,10 @@ func TestGitHubInvalidManifestDoesNotDowngradeToManifestless(t *testing.T) {
 		switch {
 		case rawURL == "https://api.github.com/repos/example/broken":
 			return []byte(`{"default_branch":"main"}`), nil
-		case strings.Contains(rawURL, "/contents/.routerforge/index.json"):
-			// A file exists, but its decoded document is not a valid RouterForge registry.
-			return []byte(`{"content":"e30=","encoding":"base64","download_url":"https://raw.githubusercontent.com/example/broken/main/.routerforge/index.json","type":"file"}`), nil
-		case strings.Contains(rawURL, "/contents/"):
-			return nil, fmt.Errorf("source HTTP 404")
+		case rawURL == "https://raw.githubusercontent.com/example/broken/main/.routerforge/index.json":
+			return []byte(`{}`), nil
+		case strings.Contains(rawURL, "raw.githubusercontent.com/example/broken/main/"):
+			return nil, &appSourceHTTPError{URL: rawURL, Status: 404}
 		case strings.Contains(rawURL, "/branches/"):
 			branchFetches++
 			return []byte(`{"commit":{"sha":"0123456789abcdef0123456789abcdef01234567"}}`), nil
@@ -111,5 +111,58 @@ func TestGitHubInvalidManifestDoesNotDowngradeToManifestless(t *testing.T) {
 	}
 	if branchFetches != 0 {
 		t.Fatalf("manifestless fallback was attempted after invalid manifest: branch fetches=%d", branchFetches)
+	}
+}
+
+func TestGitHubRepositoryFileUsesRawHost(t *testing.T) {
+	oldFetch := appSourceFetchBytes
+	t.Cleanup(func() { appSourceFetchBytes = oldFetch })
+
+	var requested string
+	appSourceFetchBytes = func(ctx context.Context, rawURL string) ([]byte, error) {
+		requested = rawURL
+		return []byte(`{"schema_version":1}`), nil
+	}
+
+	data, resolved, err := fetchGitHubRepositoryFile(
+		context.Background(),
+		"example",
+		"repo",
+		".routerforge/manifest.json",
+		"main",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "https://raw.githubusercontent.com/example/repo/main/.routerforge/manifest.json"
+	if requested != want || resolved != want {
+		t.Fatalf("raw URL mismatch: requested=%q resolved=%q want=%q", requested, resolved, want)
+	}
+	if string(data) != `{"schema_version":1}` {
+		t.Fatalf("unexpected raw payload: %q", string(data))
+	}
+}
+
+func TestGitHubRateLimitClassificationAndBackoff(t *testing.T) {
+	err := fmt.Errorf("repository metadata: %w", &appSourceHTTPError{
+		URL:                "https://api.github.com/repos/example/repo",
+		Status:             403,
+		RateLimitRemaining: "0",
+	})
+	if !appSourceGitHubRateLimited(err) {
+		t.Fatal("GitHub rate-limit error was not classified")
+	}
+
+	now := time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
+	source := appSourceRecord{
+		Error:       "GitHub API rate limit reached; cached source remains available. Retry later.",
+		LastErrorAt: now.Add(-15 * time.Minute).Format(time.RFC3339),
+	}
+	if !appSourceAutomaticRefreshDeferred(source, now) {
+		t.Fatal("automatic refresh should be deferred during rate-limit backoff")
+	}
+	source.LastErrorAt = now.Add(-61 * time.Minute).Format(time.RFC3339)
+	if appSourceAutomaticRefreshDeferred(source, now) {
+		t.Fatal("automatic refresh remained deferred after backoff")
 	}
 }

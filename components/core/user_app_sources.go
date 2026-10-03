@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	_ "embed"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -73,6 +73,7 @@ type appSourceRecord struct {
 	EntryCount     int    `json:"entry_count"`
 	AddedAt        string `json:"added_at,omitempty"`
 	LastSync       string `json:"last_sync,omitempty"`
+	LastErrorAt    string `json:"last_error_at,omitempty"`
 	Error          string `json:"error,omitempty"`
 }
 
@@ -452,6 +453,51 @@ func newAppSourceHTTPClient(allowLocal bool) *http.Client {
 	}
 }
 
+type appSourceHTTPError struct {
+	URL                string
+	Status             int
+	RateLimitRemaining string
+	RateLimitReset     string
+	RetryAfter         string
+}
+
+func (e *appSourceHTTPError) Error() string {
+	if e == nil {
+		return "source HTTP error"
+	}
+	if appSourceHTTPErrorIsGitHubRateLimit(e) {
+		return fmt.Sprintf("GitHub API rate limit reached (HTTP %d); retry later", e.Status)
+	}
+	return fmt.Sprintf("source HTTP %d", e.Status)
+}
+
+func appSourceHTTPErrorIsGitHubRateLimit(e *appSourceHTTPError) bool {
+	if e == nil || (e.Status != http.StatusForbidden && e.Status != http.StatusTooManyRequests) {
+		return false
+	}
+	u, err := url.Parse(strings.TrimSpace(e.URL))
+	if err != nil || !strings.EqualFold(u.Hostname(), "api.github.com") {
+		return false
+	}
+	return e.Status == http.StatusTooManyRequests || strings.TrimSpace(e.RateLimitRemaining) == "0"
+}
+
+func appSourceGitHubRateLimited(err error) bool {
+	var httpErr *appSourceHTTPError
+	return errors.As(err, &httpErr) && appSourceHTTPErrorIsGitHubRateLimit(httpErr)
+}
+
+func appSourceAutomaticRefreshDeferred(source appSourceRecord, now time.Time) bool {
+	if !strings.Contains(source.Error, "GitHub API rate limit reached") || strings.TrimSpace(source.LastErrorAt) == "" {
+		return false
+	}
+	failedAt, err := time.Parse(time.RFC3339, source.LastErrorAt)
+	if err != nil {
+		return false
+	}
+	return now.Sub(failedAt) >= 0 && now.Sub(failedAt) < time.Hour
+}
+
 func fetchAppSourceBytes(ctx context.Context, rawURL string) ([]byte, error) {
 	allowLocal := appSourceLocalSourcesAllowed()
 	u, err := validateAppSourceURLWithPolicy(rawURL, allowLocal)
@@ -470,7 +516,13 @@ func fetchAppSourceBytes(ctx context.Context, rawURL string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("source HTTP %d", resp.StatusCode)
+		return nil, &appSourceHTTPError{
+			URL:                u.String(),
+			Status:             resp.StatusCode,
+			RateLimitRemaining: resp.Header.Get("X-RateLimit-Remaining"),
+			RateLimitReset:     resp.Header.Get("X-RateLimit-Reset"),
+			RetryAfter:         resp.Header.Get("Retry-After"),
+		}
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, appSourceMaxBytes+1))
 	if err != nil {
@@ -508,36 +560,13 @@ func githubPathEscape(path string) string {
 }
 
 func fetchGitHubRepositoryFile(ctx context.Context, owner, repo, path, branch string) ([]byte, string, error) {
-	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
-		url.PathEscape(owner), url.PathEscape(repo), githubPathEscape(path), url.QueryEscape(branch))
-	data, err := appSourceFetchBytes(ctx, apiURL)
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+		url.PathEscape(owner), url.PathEscape(repo), url.PathEscape(branch), githubPathEscape(path))
+	data, err := appSourceFetchBytes(ctx, rawURL)
 	if err != nil {
 		return nil, "", err
 	}
-	var response struct {
-		Content     string `json:"content"`
-		Encoding    string `json:"encoding"`
-		DownloadURL string `json:"download_url"`
-		Type        string `json:"type"`
-	}
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, "", err
-	}
-	if response.Type != "file" || response.Encoding != "base64" {
-		return nil, "", fmt.Errorf("GitHub manifest is not a base64 file")
-	}
-	decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(response.Content, "\n", ""))
-	if err != nil {
-		return nil, "", err
-	}
-	if len(decoded) > appSourceMaxBytes {
-		return nil, "", fmt.Errorf("GitHub manifest exceeds size limit")
-	}
-	resolved := response.DownloadURL
-	if resolved == "" {
-		resolved = apiURL
-	}
-	return decoded, resolved, nil
+	return data, rawURL, nil
 }
 
 func resolveGitHubManifestlessSource(ctx context.Context, rawURL, owner, repo, branch string) (appSourceCache, error) {
@@ -1280,11 +1309,16 @@ func refreshOneAppSource(ctx context.Context, id string) (appSourceRecord, error
 	}
 
 	if resolveErr != nil {
-		cfg.Sources[index].Error = resolveErr.Error()
+		message := resolveErr.Error()
+		if appSourceGitHubRateLimited(resolveErr) {
+			message = "GitHub API rate limit reached; cached source remains available. Retry later."
+		}
+		cfg.Sources[index].Error = message
+		cfg.Sources[index].LastErrorAt = time.Now().UTC().Format(time.RFC3339)
 		cfg.Sources[index].Online = false
 		cfg.Sources[index].Cached = true
 		_ = saveAppSourcesConfigUnlocked(cfg)
-		return cfg.Sources[index], resolveErr
+		return cfg.Sources[index], fmt.Errorf("%s", message)
 	}
 	cache.SourceID = id
 	if err := saveAppSourceCache(cache); err != nil {
@@ -1300,6 +1334,7 @@ func refreshOneAppSource(ctx context.Context, id string) (appSourceRecord, error
 	cfg.Sources[index].Manifestless = cache.Manifestless
 	cfg.Sources[index].EntryCount = len(cache.Entries)
 	cfg.Sources[index].LastSync = now
+	cfg.Sources[index].LastErrorAt = ""
 	cfg.Sources[index].Error = ""
 	cfg.Sources[index].Online = true
 	cfg.Sources[index].Cached = true
@@ -1318,6 +1353,9 @@ func forceRefreshUserAppSources() {
 	sem := make(chan struct{}, 4)
 	for _, source := range cfg.Sources {
 		if !source.Enabled || (source.Local && !cfg.AllowLocalSources) {
+			continue
+		}
+		if appSourceAutomaticRefreshDeferred(source, time.Now().UTC()) {
 			continue
 		}
 		sourceID := source.ID

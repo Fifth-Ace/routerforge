@@ -36,7 +36,7 @@
   let search = '';
   let categoryFilter = 'all';
   let sortMode = 'name';
-  let groupMode = 'category';
+  let groupMode = 'none';
   let plannerItem = null;
   let removeItem = null;
   let webWorkspace = null;
@@ -68,7 +68,7 @@
   onMount(() => {
     try {
       const savedSort = localStorage.getItem('routerforge:app-center-sort');
-      const savedGroup = localStorage.getItem('routerforge:app-center-group');
+      const savedGroup = localStorage.getItem('routerforge:app-center-group-v2');
       if (['name','category','publisher','installed','updates'].includes(savedSort)) sortMode = savedSort;
       if (['category','state','publisher','none'].includes(savedGroup)) groupMode = savedGroup;
     } catch {}
@@ -110,7 +110,8 @@
   $: catalogSearchItems = filterCatalog(catalogBaseItems, search);
   $: categoryOptions = buildCategoryOptions(catalogSearchItems, locale);
   $: catalogItems = filterCatalogCategory(catalogSearchItems, categoryFilter);
-  $: catalogDisplayRows = buildCatalogDisplayRows(catalogItems, groupMode, sortMode, locale);
+  $: effectiveGroupMode = tab === 'routerforge' ? 'none' : groupMode;
+  $: catalogDisplayRows = buildCatalogDisplayRows(catalogItems, effectiveGroupMode, sortMode, locale);
 
   $: sectionTitle = tab === 'routerforge' ? a(locale,'tabs.routerforge')
     : tab === 'integrations' ? a(locale,'tabs.integrations')
@@ -1114,7 +1115,7 @@
 
   function setGroupMode(value) {
     groupMode = value;
-    try { localStorage.setItem('routerforge:app-center-group', value); } catch {}
+    try { localStorage.setItem('routerforge:app-center-group-v2', value); } catch {}
   }
 
   function setTab(next) {
@@ -1169,7 +1170,7 @@
     </div>
 
     <div class="catalog-control-group">
-      {#if tab !== 'entware'}
+      {#if ['integrations','installed','updates'].includes(tab)}
         <select
           class="channel-select catalog-order-select"
           aria-label={locale === 'ru' ? 'Сортировка каталога' : 'Catalog sorting'}
@@ -1188,10 +1189,10 @@
           value={groupMode}
           onchange={(event) => setGroupMode(event.currentTarget.value)}
         >
+          <option value="none">{locale === 'ru' ? 'Без группировки' : 'No grouping'}</option>
           <option value="category">{locale === 'ru' ? 'Группы: категории' : 'Group: category'}</option>
           <option value="state">{locale === 'ru' ? 'Группы: состояние' : 'Group: state'}</option>
           <option value="publisher">{locale === 'ru' ? 'Группы: издатель' : 'Group: publisher'}</option>
-          <option value="none">{locale === 'ru' ? 'Без группировки' : 'No grouping'}</option>
         </select>
       {/if}
 
@@ -1363,7 +1364,7 @@
       {:else}<span class="state-chip neutral">{tab === 'entware' ? entwareData.total || 0 : catalogItems.length + (['installed','updates'].includes(tab) ? Number(entwareData.total || 0) : 0)}</span>{/if}
     </div>
 
-    {#if tab !== 'entware' && categoryOptions.length > 1}
+    {#if ['integrations','installed','updates'].includes(tab) && categoryOptions.length > 1}
       <div class="catalog-facets" aria-label={a(locale,'categories')}>
         <button
           type="button"

@@ -161,10 +161,6 @@ func applyAntiscanOperation(parent context.Context, cfg runtimeConfig, actionRaw
 	if spec.RequiresRunning && !result.AfterRunning {
 		return result, http.StatusConflict, errors.New("Antiscan stopped during the operation")
 	}
-	if pathExists(cfg.ConfigLockFile) || pathExists(cfg.GeoLockFile) {
-		return result, http.StatusConflict, errors.New("upstream operation returned while an Antiscan reload lock is still present")
-	}
-
 	if err := verifyAntiscanOperation(parent, cfg, config, spec); err != nil {
 		return result, http.StatusConflict, err
 	}

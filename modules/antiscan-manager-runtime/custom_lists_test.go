@@ -54,14 +54,19 @@ func TestRemoveAntiscanManagedCustomListEntryPreservesOtherLines(t *testing.T) {
 	}
 }
 
-func TestClearAntiscanManagedCustomListEntriesPreservesComments(t *testing.T) {
-	original := []byte("# keep me\n192.0.2.1\n198.51.100.0/24 note\n\n")
+func TestClearAntiscanManagedCustomListEntriesMatchesUpstreamTruncate(t *testing.T) {
+	original := []byte("# comment that would make upstream treat the file as non-empty\n192.0.2.1\n198.51.100.0/24 note\n\n")
 	updated, changed, err := clearAntiscanManagedCustomListEntries(original)
 	if err != nil || !changed {
 		t.Fatalf("changed=%v err=%v", changed, err)
 	}
-	if strings.Contains(string(updated), "192.0.2.1") || strings.Contains(string(updated), "198.51.100.0/24") || !strings.Contains(string(updated), "# keep me") {
-		t.Fatalf("updated=%q", string(updated))
+	if len(updated) != 0 {
+		t.Fatalf("upstream clear must truncate the source file to zero bytes: %q", string(updated))
+	}
+
+	updated, changed, err = clearAntiscanManagedCustomListEntries(nil)
+	if err != nil || changed || len(updated) != 0 {
+		t.Fatalf("empty clear changed=%v err=%v data=%q", changed, err, updated)
 	}
 }
 
@@ -98,26 +103,61 @@ func TestApplyAntiscanCustomListMutationInactiveCRUD(t *testing.T) {
 	}
 }
 
-func TestApplyAntiscanCustomListMutationProtectsConfiguredEmptyList(t *testing.T) {
+func TestApplyAntiscanCustomListMutationConfiguredStoppedCanBecomeEmpty(t *testing.T) {
 	fixture := strings.Replace(antiscanDefaultConfigFixture, `CUSTOM_LISTS_BLOCK_MODE="0"`, `CUSTOM_LISTS_BLOCK_MODE="whitelist"`, 1)
 	cfg := fakeAntiscanCustomListConfig(t, fixture)
 	listPath := filepath.Join(cfg.AntiscanDir, "ascn_custom_whitelist.txt")
-	if err := os.WriteFile(listPath, []byte("192.0.2.1\n"), 0644); err != nil {
+	if err := os.WriteFile(listPath, []byte("# comment\n192.0.2.1\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	result, status, err := applyAntiscanCustomListMutation(context.Background(), cfg, "delete", "whitelist", "192.0.2.1")
-	if err == nil || status != 409 || result.Changed {
+	if err != nil || status != 200 || !result.Changed || !result.Verified || result.Active || result.CountAfter != 0 {
 		t.Fatalf("delete status=%d err=%v result=%+v", status, err, result)
 	}
 	data, readErr := os.ReadFile(listPath)
-	if readErr != nil || string(data) != "192.0.2.1\n" {
-		t.Fatalf("configured list changed: data=%q err=%v", string(data), readErr)
+	if readErr != nil || len(data) != 0 {
+		t.Fatalf("configured stopped list was not truly truncated: data=%q err=%v", string(data), readErr)
 	}
 
+	if err := os.WriteFile(listPath, []byte("# comment\n198.51.100.1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	result, status, err = applyAntiscanCustomListMutation(context.Background(), cfg, "clear", "whitelist", "")
-	if err == nil || status != 409 || result.Changed {
+	if err != nil || status != 200 || !result.Changed || !result.Verified || result.CountAfter != 0 {
 		t.Fatalf("clear status=%d err=%v result=%+v", status, err, result)
+	}
+	data, readErr = os.ReadFile(listPath)
+	if readErr != nil || len(data) != 0 {
+		t.Fatalf("clear did not mirror upstream truncate: data=%q err=%v", string(data), readErr)
+	}
+}
+
+func TestAntiscanManagedCustomListFlushRouting(t *testing.T) {
+	for _, tt := range []struct {
+		list   string
+		target string
+	}{
+		{list: "blacklist", target: "custom_blacklist"},
+		{list: "whitelist", target: "custom_whitelist"},
+		{list: "exclude", target: "custom_exclude"},
+	} {
+		target, err := antiscanManagedCustomListFlushTarget(tt.list)
+		if err != nil || target != tt.target {
+			t.Fatalf("%s target=%q err=%v", tt.list, target, err)
+		}
+	}
+	if _, err := antiscanManagedCustomListFlushTarget("geo"); err == nil {
+		t.Fatal("unsupported custom list accepted for flush routing")
+	}
+	if !antiscanManagedCustomListNeedsFlush(true, nil) {
+		t.Fatal("active empty list must route through upstream flush")
+	}
+	if antiscanManagedCustomListNeedsFlush(false, nil) {
+		t.Fatal("stopped/inactive empty list must be a source-file edit only")
+	}
+	if antiscanManagedCustomListNeedsFlush(true, []string{"192.0.2.1"}) {
+		t.Fatal("non-empty active list must reload through update_ipsets custom")
 	}
 }
 
@@ -129,6 +169,17 @@ func TestApplyAntiscanCustomListReloadInactiveIsNoop(t *testing.T) {
 	}
 	if len(result.Warnings) == 0 {
 		t.Fatal("expected no-op warning")
+	}
+}
+
+func TestApplyAntiscanCustomListMutationDoesNotBlockOnGeoLoad(t *testing.T) {
+	cfg := fakeAntiscanCustomListConfig(t, antiscanDefaultConfigFixture)
+	if err := os.WriteFile(cfg.GeoLockFile, []byte("1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	result, status, err := applyAntiscanCustomListMutation(context.Background(), cfg, "add", "blacklist", "192.0.2.1")
+	if err != nil || status != 200 || !result.Changed || !result.Verified {
+		t.Fatalf("status=%d err=%v result=%+v", status, err, result)
 	}
 }
 

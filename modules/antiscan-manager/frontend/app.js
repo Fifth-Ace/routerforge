@@ -364,9 +364,7 @@ const exactMessageTranslations = {
   'list must be blacklist, whitelist or exclude': 'Можно выбрать только чёрный список, белый список или исключения.',
   'reload does not accept an entry': 'Для перечитывания списка адрес указывать не нужно.',
   'clear does not accept an entry': 'Для очистки списка адрес указывать не нужно.',
-  'configured custom list cannot be emptied; disable it in ascn.conf before deleting the final entry': 'Нельзя удалить последнюю запись включённого списка. Сначала отключите этот список в ascn.conf.',
-  'configured custom list cannot be cleared; disable it in ascn.conf before clearing': 'Нельзя очистить включённый список. Сначала отключите его в ascn.conf.',
-  'custom list reload requires at least one valid entry': 'Активный список нельзя перечитать без единой корректной записи.',
+  'empty active custom whitelist reload is blocked to prevent an empty-whitelist lockout': 'Перечитывание пустого активного whitelist заблокировано: пустой whitelist способен перекрыть доступ. Сначала добавьте хотя бы один адрес или отключите whitelist.',
   'Custom list is not configured; there is nothing to reload.': 'Этот пользовательский список сейчас выключен — перечитывать runtime нечего.',
   'Antiscan is stopped; reload was not executed.': 'Antiscan остановлен — перечитывание runtime не выполнялось.',
   'Entry already exists in the custom list.': 'Такая запись уже есть в исходном пользовательском списке.',
@@ -1834,11 +1832,13 @@ function renderCustomList(page) {
   meta.textContent = `${customListLabel(page?.list)} · записей ${Number(page?.count || 0)} · ${state} · ${runtime}${skipped ? ` · пропущено строк ${skipped}` : ''}`;
 
   if (clearButton) {
-    clearButton.disabled = customListBusy || Boolean(page?.configured) || Number(page?.count || 0) === 0;
-    clearButton.title = page?.configured ? 'Сначала отключите список в ascn.conf.' : '';
+    clearButton.disabled = customListBusy || (Number(page?.count || 0) === 0 && !page?.runtime_exists);
+    clearButton.title = page?.active
+      ? 'Активный список будет очищен штатной командой Antiscan flush.'
+      : 'Исходный файл будет очищен до нулевой длины.';
   }
   if (reloadRuntimeButton) {
-    reloadRuntimeButton.disabled = customListBusy || !page?.configured || !page?.running || Number(page?.count || 0) === 0;
+    reloadRuntimeButton.disabled = customListBusy || !page?.configured || !page?.running;
   }
 
   const entries = page?.entries || [];
@@ -1850,11 +1850,10 @@ function renderCustomList(page) {
 
   target.className = 'entry-table';
   target.innerHTML = entries.map((entry) => {
-    const finalConfiguredEntry = Boolean(page?.configured) && entries.length === 1;
     return `<div class="entry-row has-actions">
       <span class="mono entry-value">${escapeHTML(entry)}</span>
-      <span class="entry-meta-wrap"><span class="entry-meta">исходный файл ${escapeHTML(page?.set || '')}</span><small>${page?.active ? 'Изменение будет применено через штатный update_ipsets custom.' : 'Изменение затронет только исходный файл.'}</small></span>
-      <span class="entry-actions"><button class="button small danger" type="button" data-custom-delete="${escapeHTML(entry)}" ${finalConfiguredEntry ? 'disabled title="Сначала отключите список в ascn.conf."' : ''}>Удалить</button></span>
+      <span class="entry-meta-wrap"><span class="entry-meta">исходный файл ${escapeHTML(page?.set || '')}</span><small>${page?.active ? 'Изменение будет применено штатной командой Antiscan; удаление последней записи перейдёт в upstream flush.' : 'Изменение затронет только исходный файл.'}</small></span>
+      <span class="entry-actions"><button class="button small danger" type="button" data-custom-delete="${escapeHTML(entry)}">Удалить</button></span>
     </div>`;
   }).join('');
 }
@@ -1879,7 +1878,7 @@ async function performCustomListMutation(action, entry = '') {
   const prompts = {
     add: `Добавить запись в ${customListLabel(list)}?\n\n${entry}\n\nФайл будет изменён атомарно. Если список активен, Antiscan штатно перечитает custom ipset и RouterForge проверит результат.`,
     delete: `Удалить запись из ${customListLabel(list)}?\n\n${entry}\n\nЕсли список активен, Antiscan перечитает custom ipset и RouterForge проверит удаление.`,
-    clear: `Очистить все адреса из ${customListLabel(list)}?\n\nКомментарии сохранятся. Очистка разрешена только для списка, отключённого в ascn.conf.`,
+    clear: `Очистить все адреса из ${customListLabel(list)}?\n\nНеактивный исходный файл будет обнулён. Для активного списка RouterForge вызовет штатный Antiscan flush; опасный пустой whitelist будет заблокирован safety-gate.`,
     reload: `Перечитать ${customListLabel(list)} из исходного файла?\n\nБудет вызван штатный update_ipsets custom и проверен runtime ipset.`
   };
   if (!prompts[action]) return;

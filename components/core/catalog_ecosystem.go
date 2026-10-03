@@ -153,7 +153,7 @@ func keeneticSingboxCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/inlarin/keenetic-singbox-installer",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("inlarin", "https://github.com/inlarin/keenetic-singbox-installer"),
-		Trust:        auditedTrust("Installer lifecycle, checksum-verified binaries, update/uninstall commands and routing model were reviewed on 2026-10-03; first install remains manual because it asks for subscriptions, secrets, interfaces and routing policy."),
+		Trust:        auditedTrust("Installer lifecycle, checksum-verified binaries and the explicit noninteractive --update mode were re-audited on 2026-10-03; first install remains manual because it asks for subscriptions, secrets, interfaces and routing policy."),
 		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "sing-box", "routing", "failover", "kill-switch"},
 		Detection: catalogDetection{
 			Paths: []string{"/opt/share/sing-box/install.sh"},
@@ -175,6 +175,15 @@ func keeneticSingboxCatalogItem() catalogItem {
 			Method:      "manual",
 			PreviewOnly: true,
 			Notes:       []string{"Initial setup asks for LAN/uplink interfaces, subscriptions, secrets, service categories and direct devices; RouterForge does not invent those choices."},
+		},
+		Update: catalogInstallPlan{
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/inlarin/keenetic-singbox-installer/24e181fc76202a85edf3f100aa9bcae2579bdeef/install.sh",
+			Args:         []string{"--update"},
+			Notes: []string{
+				"Pins the audited upstream commit.",
+				"Upstream --update explicitly asks no questions, keeps stored answers/secrets and only restarts components whose generated state changed.",
+			},
 		},
 	}
 }
@@ -408,8 +417,8 @@ func keeneticTrafficViaVPNCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/rustrict/keenetic-traffic-via-vpn",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("rustrict", "https://github.com/rustrict/keenetic-traffic-via-vpn"),
-		Trust:        auditedTrust("Install/uninstall layout, VPN interface configuration, domain/IP list workflow and daily route refresh were reviewed on 2026-10-03; execution remains preview-only because the target VPN interface and routed resources are user-specific."),
-		Capabilities: []string{"detect", "install-preview", "vpn", "routing", "domain-routing"},
+		Trust:        auditedTrust("The noninteractive bootstrap, dependency installation, generated file set and post-install user configuration boundary were re-audited on 2026-10-03."),
+		Capabilities: []string{"detect", "vpn", "routing", "domain-routing"},
 		Detection: catalogDetection{
 			Paths: []string{"/opt/etc/unblock/config", "/opt/etc/unblock/unblock-list.txt", "/opt/etc/unblock/uninstall.sh"},
 		},
@@ -419,9 +428,12 @@ func keeneticTrafficViaVPNCatalogItem() catalogItem {
 			Hints:   []string{"Keenetic", "Entware", "curl", "bind-dig", "cron", "grep", "existing VPN tunnel/interface required"},
 		},
 		Install: catalogInstallPlan{
-			Method:      "manual",
-			PreviewOnly: true,
-			Notes:       []string{"After bootstrap the user must choose IFACE and maintain the routed domain/IP list; RouterForge does not guess the VPN interface or traffic policy."},
+			Method:       "official-script",
+			InstallerURL: "https://raw.githubusercontent.com/rustrict/keenetic-traffic-via-vpn/5c0521ab3b1e632a44d39691fe98d818062f9894/install.sh",
+			Notes: []string{
+				"Pins the audited upstream commit.",
+				"Bootstrap is noninteractive and only creates the helper/dependency scaffolding; IFACE and routed domain/IP policy remain explicit post-install user configuration.",
+			},
 		},
 	}
 }

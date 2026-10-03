@@ -31,7 +31,6 @@ func TestP29VerifiedIPKBatch(t *testing.T) {
 		wayHopCatalogItem(),
 		qWDTTKeeneticCatalogItem(),
 		detourKeeneticCatalogItem(),
-		keeneticXrayAutoCatalogItem(),
 		xkeenSmartRouteCatalogItem(),
 	}
 	for _, item := range items {
@@ -44,6 +43,19 @@ func TestP29VerifiedIPKBatch(t *testing.T) {
 		if err := validateCatalogPlan(item.Install); err != nil {
 			t.Fatalf("%s install invalid: %v", item.ID, err)
 		}
+	}
+}
+
+func TestP29LegacyXrayAutoIsPreviewOnly(t *testing.T) {
+	item := keeneticXrayAutoCatalogItem()
+	if item.Trust.Status != "verified" {
+		t.Fatalf("%s trust=%q", item.ID, item.Trust.Status)
+	}
+	if item.Install.Method != "manual" || !item.Install.PreviewOnly {
+		t.Fatalf("%s legacy install authority mismatch: %#v", item.ID, item.Install)
+	}
+	if executableCatalogPlan(item.Install) {
+		t.Fatalf("%s legacy install unexpectedly executable: %#v", item.ID, item.Install)
 	}
 }
 

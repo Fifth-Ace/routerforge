@@ -130,10 +130,17 @@
   async function closeExternalWeb() {
     webWorkspace = null;
     webNotice = '';
-    handledDeepLink = '';
+
     if (open && !activeProvider) {
+      // Keep the current deep-link marked as handled until goto removes ?open=.
+      // Clearing it first lets the reactive deep-link block reopen the workspace
+      // while navigation is still in flight.
+      handledDeepLink = open;
       await goto('/integrations', { replaceState:true, keepFocus:true, noScroll:true });
+      return;
     }
+
+    handledDeepLink = '';
   }
 </script>
 

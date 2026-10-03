@@ -8,7 +8,7 @@
   import { probeCatalogWeb } from '$lib/api.js';
   import { bytes, fmtDuration, catalogWebURL, catalogWebSecurityDecision, catalogWebResolvedURL, catalogWebProbeStatusAllowed } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
-  import { catalogItemServiceNeedsAttention } from '$lib/integrations.js';
+  import { catalogItemServiceNeedsAttention, railInstalledIntegrations } from '$lib/integrations.js';
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
 
 
@@ -20,7 +20,7 @@
   $: modules = $catalog.modules || [];
   $: integrations = $catalog.integrations || [];
   $: installedModules = modules.filter((item) => item.installed && item.id !== 'profiling');
-  $: installedIntegrations = integrations.filter((item) => item.installed);
+  $: installedIntegrations = railInstalledIntegrations(integrations);
   $: telem = $overview || {};
   $: memory = telem.memory || telem.summary?.memory;
   $: ramPct = Number(memory?.used_pct || (memory?.total_kb ? Number(memory.used_kb || 0) / Number(memory.total_kb) * 100 : 0));
@@ -28,7 +28,7 @@
   $: cpuTemp = cpuTemperature(telem.thermal);
   $: cpuTempWarning = Number($settings.cpuTempWarning || 75);
   $: opt = telem.platform?.opt || {};
-  $: updates = [...modules, ...integrations].filter((item) => item.installed && item.update_available);
+  $: updates = [...modules, ...installedIntegrations].filter((item) => item.installed && item.update_available);
   $: issueInputs = {
     backendReady: $backendReady,
     backendOnline: $backendOnline,
@@ -115,7 +115,7 @@
       push('warning', text('\u041e\u0448\u0438\u0431\u043a\u0430 release channel','Release channel error'), release.error, '/apps');
     }
 
-    for (const item of [...modules, ...integrations]) {
+    for (const item of [...modules, ...installedIntegrations]) {
       if (!item.installed || item.builtin) continue;
       if (catalogItemServiceNeedsAttention(item)) {
         push('warning', `${item.name}: ${text('\u0441\u043b\u0443\u0436\u0431\u0430 \u043d\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442','service is not running')}`, '', '/apps?tab=installed');

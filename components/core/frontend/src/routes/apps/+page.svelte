@@ -111,7 +111,8 @@
   $: categoryOptions = buildCategoryOptions(catalogSearchItems, locale);
   $: catalogItems = filterCatalogCategory(catalogSearchItems, categoryFilter);
   $: effectiveGroupMode = tab === 'routerforge' ? 'none' : groupMode;
-  $: catalogDisplayRows = buildCatalogDisplayRows(catalogItems, effectiveGroupMode, sortMode, locale);
+  $: effectiveSortMode = tab === 'routerforge' ? 'source' : sortMode;
+  $: catalogDisplayRows = buildCatalogDisplayRows(catalogItems, effectiveGroupMode, effectiveSortMode, locale);
 
   $: sectionTitle = tab === 'routerforge' ? a(locale,'tabs.routerforge')
     : tab === 'integrations' ? a(locale,'tabs.integrations')

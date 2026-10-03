@@ -125,6 +125,7 @@ function comparePublisher(left, right, locale) {
 
 export function sortCatalogItems(items = [], mode = 'name', locale = 'ru') {
   const result = [...items];
+  if (mode === 'source') return result;
   result.sort((left, right) => {
     if (mode === 'updates') {
       return Number(Boolean(right?.update_available)) - Number(Boolean(left?.update_available))

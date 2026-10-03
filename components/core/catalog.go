@@ -252,7 +252,8 @@ func moduleOrder(id string) int {
 		"network-tools":    5,
 		"nfqws-manager":    6,
 		"antiscan-manager": 7,
-		"profiling":        90,
+		// Profiling is intentionally pinned last in the official module list.
+		"profiling": 1000,
 		// Legacy logical IDs remain sortable while cached pre-consolidation
 		// registries are being replaced by the rolling Dev registry.
 		"system": 40, "thermal": 41, "storage": 42, "network": 43,
@@ -260,7 +261,9 @@ func moduleOrder(id string) int {
 	if n, ok := order[id]; ok {
 		return n
 	}
-	return 99
+	// New official modules stay before Profiling until they receive their
+	// explicit chronological order.
+	return 999
 }
 
 func builtinModuleCatalog() []catalogItem {

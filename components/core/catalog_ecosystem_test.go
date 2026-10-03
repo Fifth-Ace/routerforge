@@ -24,7 +24,7 @@ func TestAuditedEcosystemCatalogIDsUnique(t *testing.T) {
 
 func TestKeeneticPolicyUILifecycleIsExecutableAndBounded(t *testing.T) {
 	item := keeneticPolicyUICatalogItem()
-	if item.Install.Method != "structured" || item.Install.PreviewOnly {
+	if item.Install.Method != "verified-ipk" || item.Install.PreviewOnly {
 		t.Fatalf("unexpected install plan: %#v", item.Install)
 	}
 	if !executableCatalogPlan(item.Install) {
@@ -32,6 +32,9 @@ func TestKeeneticPolicyUILifecycleIsExecutableAndBounded(t *testing.T) {
 	}
 	if err := validateCatalogPlan(item.Install); err != nil {
 		t.Fatalf("install plan rejected: %v", err)
+	}
+	if item.Install.ExpectedSHA256 == "" || item.Install.InstallerURL == "" {
+		t.Fatalf("Keenetic Policy UI install plan must pin an immutable release asset: %#v", item.Install)
 	}
 	if item.Web == nil || item.Web.Port != 3000 || item.Web.Mode != "probe-required" {
 		t.Fatalf("unexpected web metadata: %#v", item.Web)

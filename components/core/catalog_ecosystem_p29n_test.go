@@ -24,6 +24,17 @@ func TestP29NPreviewManualMegaBatch(t *testing.T) {
 		if item.Trust.Status != "verified" {
 			t.Fatalf("%s trust=%q", item.ID, item.Trust.Status)
 		}
+
+		if item.ID == "keenetic-traffic-via-vpn" {
+			if item.Install.Method != "official-script" || item.Install.PreviewOnly {
+				t.Fatalf("%s expected bounded install unlock: %#v", item.ID, item.Install)
+			}
+			if !deriveCatalogActions(item).Install {
+				t.Fatalf("%s install action must be enabled after P29-18", item.ID)
+			}
+			continue
+		}
+
 		if item.Install.Method != "manual" || !item.Install.PreviewOnly {
 			t.Fatalf("%s unexpectedly gained install authority: %#v", item.ID, item.Install)
 		}

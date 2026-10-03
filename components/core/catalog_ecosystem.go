@@ -1712,7 +1712,7 @@ func wdttServerEntwareCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/kkvoru/wdtt-server-entware",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("kkvoru", "https://github.com/kkvoru/wdtt-server-entware"),
-		Trust:        auditedTrust("Architecture-specific release bundle, installer, service layout and uninstall command were reviewed on 2026-10-03; automatic install remains disabled because upstream setup is interactive and bundle-local."),
+		Trust:        auditedTrust("v0.1.2 installer digest and its noninteractive --uninstall path were re-audited on 2026-10-03; automatic install remains disabled because initial setup requests secrets/network choices."),
 		Capabilities: []string{"detect", "service-status", "install-preview", "vpn", "wireguard"},
 		Detection: catalogDetection{
 			Services: []string{"/opt/etc/init.d/S99wdtt"},
@@ -1727,7 +1727,14 @@ func wdttServerEntwareCatalogItem() catalogItem {
 		Install: catalogInstallPlan{
 			Method:      "manual",
 			PreviewOnly: true,
-			Notes:       []string{"Upstream installer prompts for confirmation/network choices and is designed to run beside architecture-specific payload files."},
+			Notes:       []string{"Upstream installer prompts for secrets/network choices and is not granted automatic install authority."},
+		},
+		Remove: catalogInstallPlan{
+			Method:         "official-script",
+			InstallerURL:   "https://github.com/kkvoru/wdtt-server-entware/releases/download/v0.1.2/install_wdtt_entware.sh",
+			ExpectedSHA256: "17a2df63face66e241dd475bec4ed6f383339bd2a78ec4e6ce688d2b5d9d36f4",
+			Args:           []string{"--uninstall"},
+			Notes:          []string{"Runs the immutable v0.1.2 installer asset in its explicit noninteractive uninstall mode."},
 		},
 	}
 }
@@ -2006,7 +2013,7 @@ func xkeenUIUmarchehCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/umarcheh001/Xkeen-UI",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("umarcheh001", "https://github.com/umarcheh001/Xkeen-UI"),
-		Trust:        auditedTrust("Release archive install flow, init-script ownership guard, optional components and dynamic Web port selection were reviewed on 2026-10-03; installation remains preview-only because upstream install.sh is bundle-local and depends on release archive contents."),
+		Trust:        auditedTrust("Release archive install flow and the installed ownership-aware /opt/etc/xkeen-ui/uninstall.sh were re-audited on 2026-10-03; installation remains preview-only because upstream install.sh is bundle-local."),
 		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "xkeen", "xray", "mihomo", "subscriptions", "diagnostics"},
 		Detection: catalogDetection{
 			Services: []string{"/opt/etc/init.d/S99xkeen-ui-umarcheh001", "/opt/etc/init.d/S99xkeen-ui"},
@@ -2024,6 +2031,14 @@ func xkeenUIUmarchehCatalogItem() catalogItem {
 			Notes: []string{
 				"Upstream online install downloads xkeen-ui-routing.tar.gz, extracts it under /opt and runs the bundled xkeen-ui/install.sh.",
 				"RouterForge does not execute the raw repository install.sh by itself because it relies on sibling files from the release archive.",
+			},
+		},
+		Remove: catalogInstallPlan{
+			Method:     "local-script",
+			ScriptPath: "/opt/etc/xkeen-ui/uninstall.sh",
+			Notes: []string{
+				"Runs only the uninstall script already installed with this Xkeen UI bundle.",
+				"Upstream ownership guards remove only its UI/init files and intentionally leave shared dependencies and logs for explicit user cleanup.",
 			},
 		},
 	}

@@ -179,6 +179,8 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 		err = runStructuredCatalogPlan(ctx, item, action, plan, &result, log)
 	case "official-script":
 		err = runOfficialScriptPlan(ctx, item, action, plan, &result, log)
+	case "local-script":
+		err = runLocalScriptPlan(ctx, item, action, plan, &result, log)
 	case "verified-ipk", "verified-ipk-target":
 		err = runVerifiedIPKPlan(ctx, action, plan, &result, log)
 	case "github-release-binary":

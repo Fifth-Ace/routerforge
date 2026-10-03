@@ -57,6 +57,7 @@ type catalogInstallPlan struct {
 	Packages           []string                           `json:"packages,omitempty"`
 	Args               []string                           `json:"args,omitempty"`
 	InstallerURL       string                             `json:"installer_url,omitempty"`
+	ScriptPath         string                             `json:"script_path,omitempty"`
 	ExpectedSHA256     string                             `json:"expected_sha256,omitempty"`
 	VerifiedIPKTargets map[string]catalogVerifiedIPKAsset `json:"verified_ipk_targets,omitempty"`
 	ChecksumURL        string                             `json:"checksum_url,omitempty"`

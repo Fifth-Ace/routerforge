@@ -409,12 +409,17 @@ func validateCatalogPlan(plan catalogInstallPlan) error {
 		return nil
 	}
 	switch plan.Method {
-	case "routerforge-release", "opkg", "structured", "manual", "official-script", "release-deploy", "verified-ipk", "verified-ipk-target":
+	case "routerforge-release", "opkg", "structured", "manual", "official-script", "local-script", "release-deploy", "verified-ipk", "verified-ipk-target":
 	default:
 		return fmt.Errorf("unsupported lifecycle method %q", plan.Method)
 	}
 	if plan.Method == "official-script" {
 		if err := validateOfficialScriptPlan(plan); err != nil {
+			return err
+		}
+	}
+	if plan.Method == "local-script" {
+		if err := validateLocalScriptPlan(plan); err != nil {
 			return err
 		}
 	}
@@ -857,7 +862,7 @@ func executableCatalogPlan(plan catalogInstallPlan) bool {
 		return false
 	}
 	switch plan.Method {
-	case "routerforge-release", "opkg", "structured", "official-script", "verified-ipk", "verified-ipk-target", "github-release-binary":
+	case "routerforge-release", "opkg", "structured", "official-script", "local-script", "verified-ipk", "verified-ipk-target", "github-release-binary":
 		return true
 	default:
 		return false

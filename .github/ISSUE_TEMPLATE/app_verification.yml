@@ -1,0 +1,54 @@
+name: Verify app in RouterForge App Center
+description: One-time verification of a GitHub project for RouterForge App Center
+title: "[App Verification] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        RouterForge verifies the project identity once, not every release.
+        Normal updates and App Center card edits do not require re-verification.
+
+  - type: input
+    id: repository
+    attributes:
+      label: GitHub repository
+      description: Public repository to verify.
+      placeholder: https://github.com/OWNER/REPOSITORY
+    validations:
+      required: true
+
+  - type: input
+    id: publisher
+    attributes:
+      label: Publisher ID
+      description: Usually the GitHub owner or organization used by the App Center card.
+      placeholder: OWNER
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: proof
+    attributes:
+      label: Verification marker
+      options:
+        - label: I added `.routerforge/verify.json` to the repository default branch.
+          required: true
+
+  - type: dropdown
+    id: card
+    attributes:
+      label: App Center card
+      description: A custom card is optional.
+      options:
+        - Use the RouterForge-discovered/curated card
+        - I added `.routerforge/manifest.json`
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: lifecycle
+    attributes:
+      label: Lifecycle
+      options:
+        - label: I understand that VERIFIED confirms project identity and does not permanently authorize arbitrary install/update/remove code.
+          required: true

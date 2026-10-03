@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -281,36 +282,124 @@ def validate_manifest(obj, path):
         validate_plan(obj.get(key), f"{obj['id']}.{key}")
 
 
+def valid_sha256(value):
+    return isinstance(value, str) and bool(re.fullmatch(r"[0-9a-fA-F]{64}", value))
+
+
+def normalize_github_repository(value):
+    if not isinstance(value, str):
+        return ""
+    match = re.fullmatch(
+        r"https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?",
+        value.strip(),
+    )
+    if not match:
+        return ""
+    return f"{match.group(1)}/{match.group(2)}".lower()
+
+
+def validate_approval(approval, path):
+    if not isinstance(approval, dict):
+        raise ValueError(f"{path.name}: approval must be an object")
+    aid = approval.get("id")
+    validate_id(aid, f"{path.name}.id")
+    if path.stem != aid:
+        raise ValueError(f"{path.name}: filename must match id")
+
+    status = approval.get("status")
+    if status not in ALLOWED_APPROVALS:
+        raise ValueError(f"{path.name}: invalid approval status")
+
+    digest = approval.get("manifest_sha256")
+    if digest is not None and not valid_sha256(digest):
+        raise ValueError(f"{path.name}: manifest_sha256 must be 64 hex characters")
+
+    repository = approval.get("repository")
+    publisher_id = approval.get("publisher_id")
+    if repository is not None:
+        if not isinstance(repository, str) or not re.fullmatch(
+            r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository.strip()
+        ):
+            raise ValueError(f"{path.name}: repository must be OWNER/REPOSITORY")
+        if not isinstance(publisher_id, str) or not publisher_id.strip():
+            raise ValueError(f"{path.name}: publisher_id required for project verification")
+
+    if status == "official" and not valid_sha256(digest):
+        raise ValueError(f"{path.name}: official approval requires manifest_sha256")
+    if status == "verified" and repository is None and not valid_sha256(digest):
+        raise ValueError(
+            f"{path.name}: verified approval requires project identity or legacy manifest_sha256"
+        )
+
+
+def approval_trust(approval, manifest, digest):
+    if not approval:
+        return {
+            "status": "unverified",
+            "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge.",
+        }
+
+    status = approval["status"]
+    repository = approval.get("repository")
+    if status == "verified" and repository:
+        actual_repository = normalize_github_repository(manifest.get("project_url"))
+        expected_repository = repository.strip().lower()
+        actual_publisher = str(manifest.get("publisher", {}).get("id", "")).strip().lower()
+        expected_publisher = str(approval.get("publisher_id", "")).strip().lower()
+
+        if actual_repository != expected_repository or actual_publisher != expected_publisher:
+            return {
+                "status": "changed",
+                "reviewed_by": approval.get("reviewed_by", ""),
+                "note": "Verified project identity no longer matches publisher/repository.",
+            }
+
+        return {
+            "status": "verified",
+            "reviewed_by": approval.get("reviewed_by", ""),
+            "note": approval.get(
+                "note",
+                "Project identity verified by RouterForge. Manifest changes do not reset verification.",
+            ),
+        }
+
+    if approval.get("manifest_sha256") != digest:
+        return {
+            "status": "changed",
+            "reviewed_by": approval.get("reviewed_by", ""),
+            "note": "Manifest изменён после последнего approval.",
+        }
+
+    return {
+        "status": status,
+        "reviewed_by": approval.get("reviewed_by", ""),
+        "note": approval.get("note", ""),
+    }
+
 def build():
     validate_contract_alignment()
     entries = []
     seen = set()
     approvals = {}
+
     for path in sorted(APPROVALS.glob("*.json")):
         approval = load_json(path)
-        if approval.get("status") not in ALLOWED_APPROVALS:
-            raise ValueError(f"{path.name}: invalid approval status")
-        approvals[approval.get("id")] = approval
+        validate_approval(approval, path)
+        approvals[approval["id"]] = approval
 
     for path in sorted(SUBMISSIONS.glob("*.json")):
         manifest = load_json(path)
         validate_manifest(manifest, path)
         mid = manifest["id"]
+
         if mid in seen:
             raise ValueError(f"duplicate id {mid}")
         seen.add(mid)
+
         digest = digest_manifest(manifest)
         approval = approvals.get(mid)
-        if not approval:
-            trust = {"status": "unverified", "note": "Manifest прошёл schema validation, но ещё не прошёл review RouterForge."}
-        elif approval.get("manifest_sha256") != digest:
-            trust = {"status": "changed", "reviewed_by": approval.get("reviewed_by", ""), "note": "Manifest изменён после последнего approval."}
-        else:
-            trust = {
-                "status": approval["status"],
-                "reviewed_by": approval.get("reviewed_by", ""),
-                "note": approval.get("note", ""),
-            }
+        trust = approval_trust(approval, manifest, digest)
+
         entry = dict(manifest)
         entry.pop("schema_version", None)
         entry["manifest_id"] = mid
@@ -329,7 +418,6 @@ def build():
         "revision": revision,
         "entries": entries,
     }
-
 
 def render(doc):
     return json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=False) + "\n"

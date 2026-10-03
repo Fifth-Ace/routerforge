@@ -17,6 +17,12 @@
   import ExternalWebWorkspace from '$lib/components/ExternalWebWorkspace.svelte';
   import SourceManager from '$lib/components/SourceManager.svelte';
   import ModuleLifecycleControls from '$lib/components/ModuleLifecycleControls.svelte';
+  import {
+    catalogCategoryKey,
+    catalogCategoryLabel,
+    buildCatalogCategoryOptions,
+    buildCatalogDisplayRows
+  } from '$lib/catalogPresentation.js';
 
   const acronyms = {
     'awg-manager':'AWG', nfqws2:'NQ2', nfqws:'NQ1', 'nfqws-web':'NQW', 'hydraroute-neo':'HRN',
@@ -29,6 +35,8 @@
   let tab = 'routerforge';
   let search = '';
   let categoryFilter = 'all';
+  let sortMode = 'name';
+  let groupMode = 'category';
   let plannerItem = null;
   let removeItem = null;
   let webWorkspace = null;
@@ -58,6 +66,13 @@
   let sourceManagerOpen = false;
 
   onMount(() => {
+    try {
+      const savedSort = localStorage.getItem('routerforge:app-center-sort');
+      const savedGroup = localStorage.getItem('routerforge:app-center-group');
+      if (['name','category','publisher','installed','updates'].includes(savedSort)) sortMode = savedSort;
+      if (['category','state','publisher','none'].includes(savedGroup)) groupMode = savedGroup;
+    } catch {}
+
     void refreshActionHistory();
     void openRequestedCatalogWeb();
     void refreshAppCenterOnEntry();
@@ -95,6 +110,7 @@
   $: catalogSearchItems = filterCatalog(catalogBaseItems, search);
   $: categoryOptions = buildCategoryOptions(catalogSearchItems, locale);
   $: catalogItems = filterCatalogCategory(catalogSearchItems, categoryFilter);
+  $: catalogDisplayRows = buildCatalogDisplayRows(catalogItems, groupMode, sortMode, locale);
 
   $: sectionTitle = tab === 'routerforge' ? a(locale,'tabs.routerforge')
     : tab === 'integrations' ? a(locale,'tabs.integrations')
@@ -172,29 +188,22 @@
     const q = String(query || '').trim().toLowerCase();
     if (!q) return items;
     return items.filter((item) =>
-      `${item.name} ${item.category || ''} ${item.description || ''} ${item.version || ''} ${item.available_version || ''} ${(item.detection?.packages || []).join(' ')} ${(item.capabilities || []).join(' ')} ${item.publisher?.name || ''}`
+      `${item.name} ${item.category || ''} ${catalogCategoryLabel(item, locale)} ${item.description || ''} ${item.version || ''} ${item.available_version || ''} ${(item.detection?.packages || []).join(' ')} ${(item.capabilities || []).join(' ')} ${item.publisher?.name || ''}`
         .toLowerCase().includes(q)
     );
   }
 
   function catalogCategory(item) {
-    return String(item?.category || (item?.kind === 'module' ? 'RouterForge' : 'Other')).trim() || 'Other';
+    return catalogCategoryLabel(item, locale);
   }
 
   function buildCategoryOptions(items, currentLocale) {
-    const counts = new Map();
-    for (const item of items || []) {
-      const category = catalogCategory(item);
-      counts.set(category, Number(counts.get(category) || 0) + 1);
-    }
-    return [...counts.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0], currentLocale === 'en' ? 'en' : 'ru', { numeric:true, sensitivity:'base' }))
-      .map(([name, count]) => ({ name, count }));
+    return buildCatalogCategoryOptions(items, currentLocale);
   }
 
   function filterCatalogCategory(items, category) {
     if (!category || category === 'all') return items;
-    return (items || []).filter((item) => catalogCategory(item) === category);
+    return (items || []).filter((item) => catalogCategoryKey(item) === category);
   }
 
   function catalogVersionText(item, currentLocale) {
@@ -1098,6 +1107,16 @@
     }
   }
 
+  function setSortMode(value) {
+    sortMode = value;
+    try { localStorage.setItem('routerforge:app-center-sort', value); } catch {}
+  }
+
+  function setGroupMode(value) {
+    groupMode = value;
+    try { localStorage.setItem('routerforge:app-center-group', value); } catch {}
+  }
+
   function setTab(next) {
     tab = next;
     search = '';
@@ -1150,6 +1169,32 @@
     </div>
 
     <div class="catalog-control-group">
+      {#if tab !== 'entware'}
+        <select
+          class="channel-select catalog-order-select"
+          aria-label={locale === 'ru' ? 'Сортировка каталога' : 'Catalog sorting'}
+          value={sortMode}
+          onchange={(event) => setSortMode(event.currentTarget.value)}
+        >
+          <option value="name">{locale === 'ru' ? 'По имени' : 'Name'}</option>
+          <option value="category">{locale === 'ru' ? 'По категории' : 'Category'}</option>
+          <option value="publisher">{locale === 'ru' ? 'По издателю' : 'Publisher'}</option>
+          <option value="installed">{locale === 'ru' ? 'Установленные сначала' : 'Installed first'}</option>
+          <option value="updates">{locale === 'ru' ? 'Обновления сначала' : 'Updates first'}</option>
+        </select>
+        <select
+          class="channel-select catalog-group-select"
+          aria-label={locale === 'ru' ? 'Группировка каталога' : 'Catalog grouping'}
+          value={groupMode}
+          onchange={(event) => setGroupMode(event.currentTarget.value)}
+        >
+          <option value="category">{locale === 'ru' ? 'Группы: категории' : 'Group: category'}</option>
+          <option value="state">{locale === 'ru' ? 'Группы: состояние' : 'Group: state'}</option>
+          <option value="publisher">{locale === 'ru' ? 'Группы: издатель' : 'Group: publisher'}</option>
+          <option value="none">{locale === 'ru' ? 'Без группировки' : 'No grouping'}</option>
+        </select>
+      {/if}
+
       {#if tab === 'entware'}
         <select class="entware-state-select" bind:value={entwareState} onchange={() => loadEntware(0)}>
           <option value="all">{a(locale,'all')}</option>
@@ -1329,12 +1374,12 @@
           <span>{a(locale,'allCategories')}</span>
           <strong>{catalogSearchItems.length}</strong>
         </button>
-        {#each categoryOptions as category (category.name)}
+        {#each categoryOptions as category (category.key)}
           <button
             type="button"
             class="catalog-facet"
-            class:active={categoryFilter === category.name}
-            onclick={() => categoryFilter = category.name}
+            class:active={categoryFilter === category.key}
+            onclick={() => categoryFilter = category.key}
           >
             <span>{category.name}</span>
             <strong>{category.count}</strong>
@@ -1346,7 +1391,16 @@
     {#if tab !== 'entware'}
       <div class="catalog-grid catalog-grid-v2">
         {#if !catalogItems.length && !['installed','updates'].includes(tab)}<div class="catalog-empty">{a(locale,'noItems')}</div>{/if}
-        {#each catalogItems as item (item.id)}
+        {#each catalogDisplayRows as row (row.key)}
+          {#if row.type === 'group'}
+            <div class="catalog-group-row">
+              <div>
+                <strong>{row.label}</strong>
+                <span>{row.count}</span>
+              </div>
+            </div>
+          {:else}
+          {@const item = row.item}
           {@const st = stateInfo(item,locale)}
           {@const ownURL = item.kind === 'module' && item.installed ? moduleURL(item) : ''}
           {@const warning = catalogWarning(item)}
@@ -1447,6 +1501,7 @@
                 {/if}
               </div>
             </div>          </article>
+          {/if}
         {/each}
       </div>
     {/if}
@@ -2294,4 +2349,40 @@
 }
 .page-head-sources-row .button {
   min-width: 0;
-}</style>
+}
+
+.app-center-page .catalog-group-row {
+  grid-column: 1 / -1;
+  margin-top: .45rem;
+  border-bottom: 1px solid var(--rf-border,var(--border));
+}
+.app-center-page .catalog-group-row:first-child {
+  margin-top: 0;
+}
+.app-center-page .catalog-group-row > div {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: 0 .15rem .4rem;
+}
+.app-center-page .catalog-group-row strong {
+  color: var(--rf-text,var(--text));
+  font-size: .84rem;
+  letter-spacing: .01em;
+}
+.app-center-page .catalog-group-row span {
+  min-width: 1.7rem;
+  padding: .12rem .4rem;
+  border: 1px solid var(--rf-border,var(--border));
+  border-radius: 999px;
+  color: var(--rf-muted,var(--muted));
+  font: 600 .64rem/1 "Roboto Mono","Cascadia Mono",Consolas,monospace;
+  text-align: center;
+}
+.app-center-page .catalog-order-select,
+.app-center-page .catalog-group-select {
+  min-width: 150px;
+}
+</style>

@@ -62,7 +62,7 @@ func TestNormalizeAntiscanOperationRejectsUnsupportedSurface(t *testing.T) {
 	}
 }
 
-func TestApplyAntiscanOperationSkipsDisabledFeaturesSafely(t *testing.T) {
+func TestApplyAntiscanOperationDelegatesDisabledFeatureCommandsToUpstream(t *testing.T) {
 	cfg := fakeAntiscanOperationConfig(t)
 	if err := os.WriteFile(cfg.StatusFile, []byte("1\n"), 0644); err != nil {
 		t.Fatal(err)
@@ -71,48 +71,94 @@ func TestApplyAntiscanOperationSkipsDisabledFeaturesSafely(t *testing.T) {
 	tests := []struct {
 		action string
 		scope  string
+		want   string
 	}{
-		{action: "read_candidates"},
-		{action: "read_ndm_ipsets"},
-		{action: "save_ipsets"},
-		{action: "update_ipsets", scope: "custom"},
-		{action: "update_ipsets", scope: "geo"},
+		{action: "read_candidates", want: "read_candidates"},
+		{action: "read_ndm_ipsets", want: "read_ndm_ipsets"},
+		{action: "save_ipsets", want: "save_ipsets"},
+		{action: "update_ipsets", scope: "custom", want: "update_ipsets custom"},
+		{action: "retry_load_geo", want: "retry_load_geo"},
 	}
 
 	for _, tt := range tests {
+		if err := os.WriteFile(filepath.Join(filepath.Dir(cfg.InitScript), "operation.log"), nil, 0644); err != nil {
+			t.Fatal(err)
+		}
 		result, status, err := applyAntiscanOperation(context.Background(), cfg, tt.action, tt.scope)
 		if err != nil {
 			t.Fatalf("%s/%s error=%v", tt.action, tt.scope, err)
 		}
-		if status != 200 || result.Changed || !result.Verified || !result.AfterRunning {
+		if status != 200 || !result.Changed || !result.Verified || !result.AfterRunning {
 			t.Fatalf("%s/%s status=%d result=%+v", tt.action, tt.scope, status, result)
 		}
-		if len(result.Warnings) == 0 {
-			t.Fatalf("%s/%s expected no-op warning", tt.action, tt.scope)
+		logged, readErr := os.ReadFile(filepath.Join(filepath.Dir(cfg.InitScript), "operation.log"))
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if strings.TrimSpace(string(logged)) != tt.want {
+			t.Fatalf("%s/%s upstream invocation=%q want=%q", tt.action, tt.scope, logged, tt.want)
 		}
 	}
 }
 
-func TestAntiscanOperationPreflightDoesNotSkipUpdateRules(t *testing.T) {
+func TestApplyAntiscanOperationPropagatesDisabledGeoUpdateFromUpstream(t *testing.T) {
 	cfg := fakeAntiscanOperationConfig(t)
-	spec, err := normalizeAntiscanOperation("update_rules", "")
-	if err != nil {
+	if err := os.WriteFile(cfg.StatusFile, []byte("1\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	skip, warning, err := antiscanOperationPreflight(context.Background(), cfg, antiscanConfig{}, spec)
-	if err != nil {
-		t.Fatalf("update_rules preflight failed: %v", err)
+	result, status, err := applyAntiscanOperation(context.Background(), cfg, "update_ipsets", "geo")
+	if err == nil || status != 409 || result.Verified {
+		t.Fatalf("status=%d err=%v result=%+v", status, err, result)
 	}
-	if skip || warning != "" {
-		t.Fatalf("update_rules must be delegated to upstream: skip=%v warning=%q", skip, warning)
+	if !strings.Contains(err.Error(), "upstream update_ipsets geo failed") {
+		t.Fatalf("unexpected upstream error: %v", err)
+	}
+	logged, readErr := os.ReadFile(filepath.Join(filepath.Dir(cfg.InitScript), "operation.log"))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if strings.TrimSpace(string(logged)) != "update_ipsets geo" {
+		t.Fatalf("upstream invocation=%q", logged)
 	}
 }
 
-func TestApplyAntiscanOperationRequiresRunning(t *testing.T) {
+func TestApplyAntiscanOperationDoesNotGloballyBlockGeoLock(t *testing.T) {
+	cfg := fakeAntiscanOperationConfig(t)
+	if err := os.WriteFile(cfg.StatusFile, []byte("1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfg.GeoLockFile, []byte("1\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, status, err := applyAntiscanOperation(context.Background(), cfg, "read_candidates", "")
+	if err != nil || status != 200 || !result.Verified {
+		t.Fatalf("status=%d err=%v result=%+v", status, err, result)
+	}
+	logged, readErr := os.ReadFile(filepath.Join(filepath.Dir(cfg.InitScript), "operation.log"))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if strings.TrimSpace(string(logged)) != "read_candidates" {
+		t.Fatalf("read_candidates was not delegated during Geo load: %q", logged)
+	}
+}
+
+func TestApplyAntiscanOperationStoppedStateIsDecidedByUpstream(t *testing.T) {
 	cfg := fakeAntiscanOperationConfig(t)
 	result, status, err := applyAntiscanOperation(context.Background(), cfg, "read_candidates", "")
 	if err == nil || status != 409 || result.Verified {
 		t.Fatalf("status=%d err=%v result=%+v", status, err, result)
+	}
+	if !strings.Contains(err.Error(), "upstream read_candidates failed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	logged, readErr := os.ReadFile(filepath.Join(filepath.Dir(cfg.InitScript), "operation.log"))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if strings.TrimSpace(string(logged)) != "read_candidates" {
+		t.Fatalf("stopped-state command was not delegated: %q", logged)
 	}
 }
 
@@ -133,7 +179,13 @@ func fakeAntiscanOperationConfig(t *testing.T) runtimeConfig {
 	}
 
 	scriptPath := filepath.Join(dir, "S99ascn")
-	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+	logPath := filepath.Join(dir, "operation.log")
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> " + logPath + "\n" +
+		"if [ \"$1 $2\" = \"update_ipsets geo\" ]; then exit 7; fi\n" +
+		"if [ \"$1\" != \"update_crontab\" ] && [ ! -f " + filepath.Join(dir, "ascn.run") + " ]; then exit 1; fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
 		t.Fatal(err)
 	}
 	return runtimeConfig{

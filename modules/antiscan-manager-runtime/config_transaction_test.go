@@ -30,26 +30,40 @@ func TestNormalizeAntiscanConfigUpdate(t *testing.T) {
 	}
 }
 
-func TestNormalizeAntiscanConfigUpdateRejectsUnsafeValues(t *testing.T) {
+func TestNormalizeAntiscanConfigUpdateRejectsValuesRejectedByUpstream(t *testing.T) {
 	tests := []struct {
 		name string
 		edit func(*antiscanConfigUpdateRequest)
 	}{
 		{"interface", func(r *antiscanConfigUpdateRequest) { r.ISPInterfaces = "eth3;reboot" }},
-		{"port", func(r *antiscanConfigUpdateRequest) { r.Ports = "70000" }},
-		{"range", func(r *antiscanConfigUpdateRequest) { r.Ports = "9000:8000" }},
+		{"port-six-digits", func(r *antiscanConfigUpdateRequest) { r.Ports = "123456" }},
+		{"port-bad-range-shape", func(r *antiscanConfigUpdateRequest) { r.Ports = "80::90" }},
+		{"port-too-many-values", func(r *antiscanConfigUpdateRequest) { r.Ports = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16" }},
 		{"threshold", func(r *antiscanConfigUpdateRequest) { r.DifferentIPThreshold = 1 }},
 		{"geo-mode", func(r *antiscanConfigUpdateRequest) { r.GeoBlockMode = "drop-everything" }},
-		{"mask", func(r *antiscanConfigUpdateRequest) { r.RulesMask = "999.1.1.1" }},
+		{"mask-shape", func(r *antiscanConfigUpdateRequest) { r.RulesMask = "255.255.255" }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			req := validAntiscanConfigUpdate()
 			tc.edit(&req)
 			if _, err := normalizeAntiscanConfigUpdate(req); err == nil {
-				t.Fatal("unsafe config accepted")
+				t.Fatal("upstream-invalid config accepted")
 			}
 		})
+	}
+}
+
+func TestNormalizeAntiscanConfigUpdateAcceptsUpstreamPortAndMaskSyntax(t *testing.T) {
+	req := validAntiscanConfigUpdate()
+	req.Ports = "70000,9000:8000"
+	req.RulesMask = "999.1.1.1"
+	values, err := normalizeAntiscanConfigUpdate(req)
+	if err != nil {
+		t.Fatalf("upstream-valid syntax rejected: %v", err)
+	}
+	if values["PORTS"] != req.Ports || values["RULES_MASK"] != req.RulesMask {
+		t.Fatalf("values=%q mask=%q", values["PORTS"], values["RULES_MASK"])
 	}
 }
 
@@ -108,6 +122,25 @@ func TestMergeAntiscanConfigTextPreservesComments(t *testing.T) {
 	}
 	if !strings.Contains(text, "# Added by RouterForge Antiscan Manager") {
 		t.Fatalf("missing appended-key marker: %s", text)
+	}
+	if err := verifyAntiscanConfigValues(merged, values); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMergeAntiscanConfigTextAcceptsUpstreamDuplicateKeys(t *testing.T) {
+	req := validAntiscanConfigUpdate()
+	values, err := normalizeAntiscanConfigUpdate(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := "ISP_INTERFACES=\"eth9\"\nPORTS=\"80\"\nPORTS=\"81\"\n"
+	merged, err := mergeAntiscanConfigText(original, values)
+	if err != nil {
+		t.Fatalf("upstream-valid duplicate key rejected: %v", err)
+	}
+	if got := strings.Count(string(merged), `PORTS="22,80,443"`); got != 2 {
+		t.Fatalf("duplicate PORTS occurrences were not updated consistently: count=%d\n%s", got, merged)
 	}
 	if err := verifyAntiscanConfigValues(merged, values); err != nil {
 		t.Fatal(err)

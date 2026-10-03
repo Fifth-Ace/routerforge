@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,6 +28,8 @@ const (
 var (
 	antiscanInterfacePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.:-]{1,14}$`)
 	antiscanCountryPattern   = regexp.MustCompile(`^[A-Z]{2}$`)
+	antiscanPortListPattern  = regexp.MustCompile(`^[0-9]{1,5}(:[0-9]{1,5})?(,[0-9]{1,5}(:[0-9]{1,5})?)*$`)
+	antiscanRulesMaskPattern = regexp.MustCompile(`^([0-9]{1,3}\.){3}[0-9]{1,3}$`)
 )
 
 var antiscanConfigKeys = []string{
@@ -385,9 +386,8 @@ func normalizeAntiscanConfigUpdate(request antiscanConfigUpdateRequest) (map[str
 	if rulesMask == "" {
 		rulesMask = "255.255.255.255"
 	}
-	addr, err := netip.ParseAddr(rulesMask)
-	if err != nil || !addr.Is4() {
-		return nil, errors.New("RULES_MASK must be a dotted IPv4 mask")
+	if !antiscanRulesMaskPattern.MatchString(rulesMask) {
+		return nil, errors.New("RULES_MASK must match the upstream dotted numeric format")
 	}
 
 	if request.EnableIPSBan {
@@ -492,40 +492,16 @@ func normalizeAntiscanPorts(raw, name string, allowEmpty bool) (string, error) {
 		}
 		return "", fmt.Errorf("%s cannot be empty", name)
 	}
-	items := strings.Split(raw, ",")
-	endpointCount := 0
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		item = strings.TrimSpace(item)
-		if item == "" {
-			return "", fmt.Errorf("%s contains an empty port item", name)
-		}
-		bounds := strings.Split(item, ":")
-		if len(bounds) > 2 {
-			return "", fmt.Errorf("%s contains an invalid port range", name)
-		}
-		numbers := make([]int, 0, len(bounds))
-		for _, bound := range bounds {
-			value, err := strconv.Atoi(bound)
-			if err != nil || value < 1 || value > 65535 {
-				return "", fmt.Errorf("%s ports must be between 1 and 65535", name)
-			}
-			numbers = append(numbers, value)
-			endpointCount++
-		}
-		if len(numbers) == 2 && numbers[0] > numbers[1] {
-			return "", fmt.Errorf("%s port range start must not exceed end", name)
-		}
-		if len(numbers) == 1 {
-			out = append(out, strconv.Itoa(numbers[0]))
-		} else {
-			out = append(out, strconv.Itoa(numbers[0])+":"+strconv.Itoa(numbers[1]))
-		}
+	if !antiscanPortListPattern.MatchString(raw) {
+		return "", fmt.Errorf("%s does not match the upstream port-list format", name)
 	}
+	endpointCount := len(strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ':'
+	}))
 	if endpointCount > 15 {
 		return "", fmt.Errorf("%s exceeds the upstream 15-value limit", name)
 	}
-	return strings.Join(out, ","), nil
+	return raw, nil
 }
 
 func normalizeAntiscanMode(raw, name string) (string, error) {
@@ -628,9 +604,6 @@ func mergeAntiscanConfigText(original string, values map[string]string) ([]byte,
 		key := strings.TrimSpace(trimmed[:idx])
 		if _, ok := antiscanConfigKeySet[key]; !ok {
 			return nil, fmt.Errorf("line %d: unsupported Antiscan config key %s", i+1, key)
-		}
-		if seen[key] {
-			return nil, fmt.Errorf("line %d: duplicate Antiscan config key %s", i+1, key)
 		}
 		seen[key] = true
 		lines[i] = key + "=\"" + values[key] + "\""

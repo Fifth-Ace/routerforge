@@ -975,7 +975,58 @@ func appSourceTargetBlockReason(item catalogItem) string {
 		return ""
 	}
 }
-func previewFromAppSourceCache(cache appSourceCache) appSourcePreview {
+func matchVerifiedProject(doc routerForgeRegistryDocument, sourceURL string, item catalogItem) (catalogTrust, bool) {
+	owner, repo, ok := githubRepositoryParts(sourceURL)
+	if !ok {
+		return catalogTrust{}, false
+	}
+	publisherID := strings.TrimSpace(item.Publisher.ID)
+	if publisherID == "" {
+		return catalogTrust{}, false
+	}
+	for _, candidate := range doc.Entries {
+		if strings.ToLower(strings.TrimSpace(candidate.Trust.Status)) != "verified" {
+			continue
+		}
+		candidateOwner, candidateRepo, ok := githubRepositoryParts(candidate.ProjectURL)
+		if !ok {
+			continue
+		}
+		if !strings.EqualFold(owner, candidateOwner) || !strings.EqualFold(repo, candidateRepo) {
+			continue
+		}
+		if !strings.EqualFold(publisherID, strings.TrimSpace(candidate.Publisher.ID)) {
+			continue
+		}
+		note := "Project identity verified by RouterForge; developer-controlled lifecycle remains restricted."
+		if strings.TrimSpace(candidate.Trust.Note) != "" {
+			note = candidate.Trust.Note + " Project identity verification does not grant developer-controlled lifecycle authority."
+		}
+		return catalogTrust{
+			Status:     "verified",
+			ReviewedBy: candidate.Trust.ReviewedBy,
+			Note:       note,
+		}, true
+	}
+	return catalogTrust{}, false
+}
+
+func appSourceVerifiedProjectTrust(sourceURL string, item catalogItem) (catalogTrust, bool) {
+	doc, _ := routerForgeRegistrySnapshot()
+	return matchVerifiedProject(doc, sourceURL, item)
+}
+
+func appSourceCacheTrustStatus(sourceURL string, cache appSourceCache) string {
+	if cache.Local || cache.Kind != "app" || len(cache.Entries) != 1 {
+		return "unsigned"
+	}
+	if _, ok := appSourceVerifiedProjectTrust(sourceURL, cache.Entries[0]); ok {
+		return "verified"
+	}
+	return "unsigned"
+}
+
+func previewFromAppSourceCache(cache appSourceCache, sourceURL string) appSourcePreview {
 	entries := make([]appSourcePreviewEntry, 0, len(cache.Entries))
 	resolution := resolvePlatformTarget()
 	for _, original := range cache.Entries {
@@ -1006,7 +1057,7 @@ func previewFromAppSourceCache(cache appSourceCache) appSourcePreview {
 		ResolvedURL:    cache.ResolvedURL,
 		Local:          cache.Local,
 		Manifestless:   cache.Manifestless,
-		Trust:          "unsigned",
+		Trust:          appSourceCacheTrustStatus(sourceURL, cache),
 		Fingerprint:    cache.ManifestSHA256,
 		EntryCount:     len(cache.Entries),
 		Entries:        entries,
@@ -1025,15 +1076,23 @@ func normalizeUserSourceItem(source appSourceRecord, cache appSourceCache, origi
 	item.Source = "user-source"
 	item.Builtin = false
 	item.Managed = false
-	trustNote := "User-added source. Installation requires explicit unsafe-source permission."
+	applyDPIDetectorSourceProfile(&item)
+
 	if source.Local {
-		trustNote = "Local/private user-added source. Publisher identity is not verified; installation requires explicit local-source and unsafe-source permission."
+		item.Trust = catalogTrust{
+			Status: "unverified",
+			Note:   "Local/private user-added source. Publisher identity is not verified; installation requires explicit local-source and unsafe-source permission.",
+		}
+		return item
+	}
+	if trust, ok := appSourceVerifiedProjectTrust(source.URL, item); ok {
+		item.Trust = trust
+		return item
 	}
 	item.Trust = catalogTrust{
 		Status: "unverified",
-		Note:   trustNote,
+		Note:   "User-added source. Installation requires explicit unsafe-source permission.",
 	}
-	applyDPIDetectorSourceProfile(&item)
 	return item
 }
 
@@ -1083,9 +1142,26 @@ func appSourceApplyActionPolicy(item *catalogItem) {
 		item.Actions.Reason = reason
 		return
 	}
-	if strings.ToLower(item.Trust.Status) != "unverified" {
+
+	status := strings.ToLower(strings.TrimSpace(item.Trust.Status))
+	if status == "verified" {
+		hadExecutableAction := item.Actions.Install || item.Actions.Update
+		item.Actions.Install = false
+		item.Actions.Update = false
+		if hadExecutableAction || item.Actions.Reason == "" {
+			item.Actions.Reason = "Project identity is verified, but developer-controlled lifecycle remains restricted. Use the RouterForge reviewed catalog lifecycle."
+		}
 		return
 	}
+	if status != "unverified" {
+		item.Actions.Install = false
+		item.Actions.Update = false
+		if item.Actions.Reason == "" {
+			item.Actions.Reason = "Unsupported third-party trust state."
+		}
+		return
+	}
+
 	cfg, err := loadAppSourcesConfig()
 	if err != nil || !cfg.AllowUnverified {
 		hadExecutableAction := item.Actions.Install || item.Actions.Update
@@ -1107,17 +1183,22 @@ func appSourceActionBlockReason(item catalogItem, action, confirm string) string
 	if reason := appSourceTargetBlockReason(item); reason != "" {
 		return reason
 	}
-	if strings.ToLower(item.Trust.Status) != "unverified" {
+
+	switch strings.ToLower(strings.TrimSpace(item.Trust.Status)) {
+	case "verified":
+		return "verified project identity does not authorize developer-controlled lifecycle"
+	case "unverified":
+		cfg, err := loadAppSourcesConfig()
+		if err != nil || !cfg.AllowUnverified {
+			return "installation from unverified sources is disabled"
+		}
+		if confirm != appSourceRiskConfirm {
+			return "explicit unverified-source confirmation is required"
+		}
+		return ""
+	default:
 		return "unsupported third-party trust state"
 	}
-	cfg, err := loadAppSourcesConfig()
-	if err != nil || !cfg.AllowUnverified {
-		return "installation from unverified sources is disabled"
-	}
-	if confirm != appSourceRiskConfirm {
-		return "explicit unverified-source confirmation is required"
-	}
-	return ""
 }
 
 func userAppSourcePackageNames() map[string]struct{} {
@@ -1179,8 +1260,9 @@ func listAppSources() (map[string]any, error) {
 	sources := make([]appSourceRecord, 0, len(cfg.Sources)+1)
 	sources = append(sources, official)
 	for _, source := range cfg.Sources {
-		if _, cacheErr := loadAppSourceCache(source.ID); cacheErr == nil {
+		if cache, cacheErr := loadAppSourceCache(source.ID); cacheErr == nil {
 			source.Cached = true
+			source.Trust = appSourceCacheTrustStatus(source.URL, cache)
 		}
 		source.Online = source.Error == "" && source.LastSync != ""
 		sources = append(sources, source)
@@ -1246,7 +1328,7 @@ func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSou
 		ResolvedURL:    cache.ResolvedURL,
 		RegistryID:     cache.RegistryID,
 		Revision:       cache.Revision,
-		Trust:          "unsigned",
+		Trust:          appSourceCacheTrustStatus(rawURL, cache),
 		Enabled:        true,
 		Local:          cache.Local,
 		Manifestless:   cache.Manifestless,
@@ -1265,7 +1347,7 @@ func addAppSource(ctx context.Context, request appSourceMutationRequest) (appSou
 		_ = os.Remove(appSourceCachePath(id))
 		return appSourceRecord{}, appSourcePreview{}, err
 	}
-	return source, previewFromAppSourceCache(cache), nil
+	return source, previewFromAppSourceCache(cache, rawURL), nil
 }
 
 func refreshOneAppSource(ctx context.Context, id string) (appSourceRecord, error) {
@@ -1333,6 +1415,7 @@ func refreshOneAppSource(ctx context.Context, id string) (appSourceRecord, error
 	cfg.Sources[index].Local = cache.Local
 	cfg.Sources[index].Manifestless = cache.Manifestless
 	cfg.Sources[index].EntryCount = len(cache.Entries)
+	cfg.Sources[index].Trust = appSourceCacheTrustStatus(source.URL, cache)
 	cfg.Sources[index].LastSync = now
 	cfg.Sources[index].LastErrorAt = ""
 	cfg.Sources[index].Error = ""
@@ -1538,7 +1621,7 @@ func handleAppSourcePreview(w http.ResponseWriter, r *http.Request) {
 		writeCatalogJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	writeCatalogJSON(w, http.StatusOK, previewFromAppSourceCache(cache))
+	writeCatalogJSON(w, http.StatusOK, previewFromAppSourceCache(cache, strings.TrimSpace(request.URL)))
 }
 
 func handleAppSourceSecurity(w http.ResponseWriter, r *http.Request) {

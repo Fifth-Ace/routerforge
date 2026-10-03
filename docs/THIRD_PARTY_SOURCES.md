@@ -3,6 +3,9 @@
 **Черновик архитектуры:** R2
 **Дата:** 12 сентября 2026 г.
 
+> Актуальный developer verification flow описан в `docs/APP_CENTER_DEVELOPER_GUIDE.md`.
+> Текущая модель верифицирует GitHub project identity один раз и не сбрасывает `VERIFIED` при обычных обновлениях приложения или карточки. Разделы ниже про подписи/Ed25519 являются архитектурным направлением, а не обязательной процедурой текущего App Center.
+
 ## Цель
 
 RouterForge App Center поддерживает два пользовательских сценария:
@@ -41,9 +44,9 @@ RouterForge ищет только заранее определённые manife
 - `.routerforge/manifest.json`
 - `routerforge.json`
 
-Если manifest отсутствует, приложение не считается совместимым с App Center. README не анализируется для автоматического получения install commands.
+Если manifest отсутствует, RouterForge может использовать безопасный manifestless GitHub fallback: публичные metadata/releases и уже существующую curated-карточку. README не анализируется для автоматического получения install commands.
 
-Разрешается также прямой HTTPS URL на manifest.
+Manifest нужен только если разработчик хочет сам управлять поддерживаемыми полями карточки/совместимости. Разрешается также прямой HTTPS URL на manifest.
 
 ## Trust model
 

@@ -179,6 +179,43 @@ def main():
     if missing_tags:
         fail("runtime JSON fields missing: " + ", ".join(missing_tags))
 
+    # Gate 7: VERIFIED project identity remains stable across normal manifest revisions.
+    project_manifest = {
+        "schema_version": 1,
+        "id": "verified-project-fixture",
+        "kind": "integration",
+        "name": "Verified Project Fixture",
+        "publisher": {"id": "example-owner", "name": "Example Owner"},
+        "project_url": "https://github.com/example-owner/example-repo",
+    }
+    project_approval = {
+        "id": "verified-project-fixture",
+        "status": "verified",
+        "repository": "example-owner/example-repo",
+        "publisher_id": "example-owner",
+        "reviewed_by": "routerforge",
+    }
+
+    with tempfile.TemporaryDirectory() as tmp:
+        builder.validate_approval(
+            project_approval,
+            Path(tmp) / "verified-project-fixture.json",
+        )
+
+    first = builder.approval_trust(project_approval, project_manifest, "0" * 64)
+    second = builder.approval_trust(project_approval, project_manifest, "f" * 64)
+    if first.get("status") != "verified" or second.get("status") != "verified":
+        fail("project verification depends on manifest SHA")
+
+    moved = copy.deepcopy(project_manifest)
+    moved["project_url"] = "https://github.com/other-owner/example-repo"
+    if builder.approval_trust(project_approval, moved, "0" * 64).get("status") != "changed":
+        fail("repository identity change did not invalidate project verification")
+
+    republished = copy.deepcopy(project_manifest)
+    republished["publisher"]["id"] = "other-owner"
+    if builder.approval_trust(project_approval, republished, "0" * 64).get("status") != "changed":
+        fail("publisher identity change did not invalidate project verification")
     print("MARKETPLACE_CONTRACT_GATE=PASS")
     print("SCHEMA_BUILDER_PARITY=PASS")
     print("CHECKED_IN_MANIFESTS=PASS")

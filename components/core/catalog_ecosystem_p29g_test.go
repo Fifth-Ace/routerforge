@@ -22,7 +22,7 @@ func TestXKeenPanelReviewedLifecycleIsExecutable(t *testing.T) {
 	if err := validateCatalogPlan(item.Update); err != nil {
 		t.Fatalf("update plan invalid: %v", err)
 	}
-	if item.Install.InstallerURL != "https://raw.githubusercontent.com/Dearonski/xkeen-panel/main/install.sh" {
+	if item.Install.InstallerURL != "https://raw.githubusercontent.com/Dearonski/xkeen-panel/cfa7df287afa664d3962784abff0755e978be160/install.sh" {
 		t.Fatalf("unexpected installer URL: %s", item.Install.InstallerURL)
 	}
 }

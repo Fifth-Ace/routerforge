@@ -20,10 +20,10 @@ func TestReviewedOfficialScriptLifecycleBatch(t *testing.T) {
 		remove bool
 		rmArg  string
 	}{
-		{"antiscan", "https://raw.githubusercontent.com/dimon27254/antiscan/refs/heads/main/install.sh", false, ""},
-		{"awg-manager", "https://raw.githubusercontent.com/hoaxisr/awg-manager/develop/scripts/install.sh", false, ""},
+		{"antiscan", "https://raw.githubusercontent.com/dimon27254/antiscan/f8a052b39d47c86fc3c00983a5502903a1cc2cd9/install.sh", false, ""},
+		{"awg-manager", "https://raw.githubusercontent.com/hoaxisr/awg-manager/9700bd5106a28e9f7fb2a857807291fc58d9f4ad/scripts/install.sh", false, ""},
 		{"hydraroute-neo", "https://git.zerrolabs.org/Ground-Zerro/release/pages/keenetic/install-neo.sh", false, ""},
-		{"razvilka", "https://raw.githubusercontent.com/ArtixSx/RAZVILKA/main/scripts/bootstrap.sh", true, "--uninstall"},
+		{"razvilka", "https://raw.githubusercontent.com/ArtixSx/RAZVILKA/817783493f0c2784ccc70aa73868cd64e9437634/scripts/bootstrap.sh", true, "--uninstall"},
 	}
 
 	for _, tt := range tests {

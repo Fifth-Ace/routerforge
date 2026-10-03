@@ -140,26 +140,13 @@ func applyAntiscanOperation(parent context.Context, cfg runtimeConfig, actionRaw
 	result.BeforeRunning = pathExists(cfg.StatusFile)
 	result.AfterRunning = result.BeforeRunning
 
-	if spec.RequiresRunning && !result.BeforeRunning {
-		return result, http.StatusConflict, errors.New("Antiscan must be running before this operation")
-	}
-	if err := antiscanLifecycleReady(cfg); err != nil {
+	if err := antiscanOperationCommandReady(cfg); err != nil {
 		return result, http.StatusConflict, err
 	}
 
 	config, configErr := readAntiscanConfig(filepath.Join(cfg.AntiscanDir, "ascn.conf"))
 	if configErr != nil {
 		return result, http.StatusConflict, fmt.Errorf("read Antiscan config: %w", configErr)
-	}
-
-	if skip, warning, preflightErr := antiscanOperationPreflight(parent, cfg, config, spec); preflightErr != nil {
-		return result, http.StatusConflict, preflightErr
-	} else if skip {
-		result.Verified = true
-		if warning != "" {
-			result.Warnings = append(result.Warnings, warning)
-		}
-		return result, http.StatusOK, nil
 	}
 
 	ctx, cancel := context.WithTimeout(parent, spec.Timeout)
@@ -187,29 +174,12 @@ func applyAntiscanOperation(parent context.Context, cfg runtimeConfig, actionRaw
 	return result, http.StatusOK, nil
 }
 
-func antiscanOperationPreflight(parent context.Context, cfg runtimeConfig, config antiscanConfig, spec antiscanOperationSpec) (bool, string, error) {
-	switch spec.Action {
-	case "read_candidates":
-		if !config.EnableIPSBan {
-			return true, "ENABLE_IPS_BAN is disabled; there are no candidate sets to process.", nil
-		}
-	case "read_ndm_ipsets":
-		if !config.ReadNDMLockoutIPSets {
-			return true, "READ_NDM_LOCKOUT_IPSETS is disabled; there is no active Keenetic lockout import to refresh.", nil
-		}
-	case "save_ipsets":
-		if !config.SaveIPSets {
-			return true, "SAVE_IPSETS is disabled; no persistent ipset export was requested.", nil
-		}
-	case "update_ipsets":
-		if spec.Scope == "custom" && config.CustomListsBlockMode == "0" && !config.UseCustomExcludeList {
-			return true, "No custom blocking or exclusion list is enabled; there is nothing to reload.", nil
-		}
-		if spec.Scope == "geo" && config.GeoBlockMode == "0" && len(config.GeoExcludeCountries) == 0 {
-			return true, "Geo blocking and Geo exclusions are disabled; there is nothing to download or reload.", nil
-		}
+func antiscanOperationCommandReady(cfg runtimeConfig) error {
+	info, err := os.Stat(cfg.InitScript)
+	if err != nil || info.IsDir() || info.Mode()&0111 == 0 {
+		return errors.New("Antiscan init script is unavailable or not executable")
 	}
-	return false, "", nil
+	return nil
 }
 
 func verifyAntiscanOperation(parent context.Context, cfg runtimeConfig, config antiscanConfig, spec antiscanOperationSpec) error {
@@ -227,6 +197,9 @@ func verifyAntiscanOperation(parent context.Context, cfg runtimeConfig, config a
 			return errors.New("update_rules verification failed: ANTISCAN chain is unavailable")
 		}
 	case "read_candidates":
+		if !config.EnableIPSBan {
+			return nil
+		}
 		binary := findAntiscanIPSetBinary()
 		if binary == "" {
 			return errors.New("ipset binary not found after candidate processing")
@@ -241,6 +214,9 @@ func verifyAntiscanOperation(parent context.Context, cfg runtimeConfig, config a
 			}
 		}
 	case "read_ndm_ipsets":
+		if !config.ReadNDMLockoutIPSets {
+			return nil
+		}
 		binary := findAntiscanIPSetBinary()
 		if binary == "" {
 			return errors.New("ipset binary not found after Keenetic lockout import")
@@ -253,6 +229,12 @@ func verifyAntiscanOperation(parent context.Context, cfg runtimeConfig, config a
 			return errors.New("read_ndm_ipsets verification failed: ascn_ndm_lockout is absent")
 		}
 	case "update_ipsets":
+		if spec.Scope == "custom" && config.CustomListsBlockMode == "0" && !config.UseCustomExcludeList {
+			return nil
+		}
+		if spec.Scope == "geo" && config.GeoBlockMode == "0" && len(config.GeoExcludeCountries) == 0 {
+			return nil
+		}
 		binary := findAntiscanIPSetBinary()
 		if binary == "" {
 			return errors.New("ipset binary not found after update")
@@ -269,6 +251,9 @@ func verifyAntiscanOperation(parent context.Context, cfg runtimeConfig, config a
 	case "retry_load_geo":
 		if pathExists(cfg.GeoLockFile) {
 			return errors.New("retry_load_geo verification failed: Geo lock is still present")
+		}
+		if config.GeoBlockMode == "0" && len(config.GeoExcludeCountries) == 0 {
+			return nil
 		}
 		binary := findAntiscanIPSetBinary()
 		if binary == "" {

@@ -328,7 +328,7 @@ func keeneticZapret2ManagerCatalogItem() catalogItem {
 		Trust:        auditedTrust("KeeneticOS requirements, Zapret2 lifecycle, Web UI, blockcheck and first-install choices were reviewed on 2026-10-03; execution remains preview-only due to interactive interface/profile decisions and existing-KZM migration requirements."),
 		Capabilities: []string{"detect", "service-status", "open-ui", "install-preview", "zapret2", "dpi-bypass", "ipset", "blockcheck"},
 		Detection: catalogDetection{
-			Paths: []string{"/opt/zapret2", "/opt/lib/opkg"},
+			Paths: []string{"/opt/lib/opkg/keenetic_zapret2_manager.sh"},
 		},
 		Compatibility: catalogCompatibility{
 			Status:  "requirements",
@@ -1516,7 +1516,7 @@ func wireguardDPIBypassCatalogItem() catalogItem {
 		Trust:        auditedTrust("Official one-command installer and interface-triggered WireGuard/AmneziaWG recovery model were reviewed on 2026-10-03."),
 		Capabilities: []string{"detect", "package-lifecycle", "dpi-bypass", "wireguard", "amneziawg"},
 		Detection: catalogDetection{
-			Paths: []string{"/opt/etc/ndm/netfilter.d", "/opt/etc/ndm/wan.d"},
+			Paths: []string{"/opt/etc/ndm/netfilter.d/wgpass.sh"},
 		},
 		Compatibility: catalogCompatibility{
 			Status:  "requirements",

@@ -74,7 +74,7 @@ func TestGitHubManifestlessRepositoryFallsBackAfterManifest404s(t *testing.T) {
 		t.Fatalf("resolved URL is not pinned to HEAD: %q", cache.ResolvedURL)
 	}
 
-	preview := previewFromAppSourceCache(cache)
+	preview := previewFromAppSourceCache(cache, "https://github.com/Runnin4ik/dpi-detector/")
 	if !preview.Manifestless || preview.Fingerprint != cache.ManifestSHA256 {
 		t.Fatalf("manifestless preview metadata missing: %#v", preview)
 	}

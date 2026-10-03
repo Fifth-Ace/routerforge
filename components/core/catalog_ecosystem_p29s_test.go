@@ -24,13 +24,6 @@ func TestP29SNoMutableGitHubLifecycleURLs(t *testing.T) {
 				continue
 			}
 
-			// Known upstream repository migration: old owner now returns a GitHub
-			// redirect and is intentionally excluded from automatic repinning
-			// until the new canonical owner is independently resolved.
-			if url == "https://raw.githubusercontent.com/Kuzz007/keenetic_xray_installer/main/xray_vless_failover_auto_latest.sh" {
-				continue
-			}
-
 			for _, forbidden := range []string{
 				"/main/",
 				"/master/",

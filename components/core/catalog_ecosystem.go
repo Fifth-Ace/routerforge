@@ -2453,40 +2453,36 @@ func keeneticVPNXORCatalogItem() catalogItem {
 }
 
 func keeneticXrayAutoCatalogItem() catalogItem {
-	install := catalogInstallPlan{
-		Method:       "official-script",
-		InstallerURL: "https://raw.githubusercontent.com/Kuzz007/keenetic_xray_installer/main/xray_vless_failover_auto_latest.sh",
-		Args:         []string{"--yes"},
-		Notes: []string{
-			"Upstream auto-selects Full Go or Minimal Go from /opt free space and existing installation state.",
-			"RouterForge forces the documented noninteractive --yes mode; VLESS/subscription configuration remains a user action.",
-		},
-	}
 	return catalogItem{
-		ID:           "keenetic-xray-auto",
-		Kind:         "integration",
-		Name:         "Keenetic Xray VLESS Auto Installer",
-		Category:     "VPN / Routing",
-		Description:  "Keenetic Xray/VLESS failover stack with automatic Full Go or Minimal Go selection, recovery and diagnostics.",
-		ProjectURL:   "https://github.com/kuzzrus/keenetic_xray_installer",
-		Source:       "project-official",
-		Publisher:    auditedPublisher("kuzzrus", "https://github.com/kuzzrus/keenetic_xray_installer"),
-		Trust:        auditedTrust("Current auto-latest selector, --yes mode, Entware requirement and Full/Minimal Go behavior were reviewed on 2026-10-03."),
-		Capabilities: []string{"detect", "service-status", "package-lifecycle", "xray", "vless", "failover"},
+		ID:          "keenetic-xray-auto",
+		Kind:        "integration",
+		Name:        "Keenetic Xray VLESS Auto Installer",
+		Category:    "VPN / Routing",
+		Description: "Legacy Keenetic Xray/VLESS failover installer with automatic Full Go or Minimal Go selection, recovery and diagnostics.",
+		ProjectURL:  "https://github.com/kuzzrus/keenetic_xray_installer",
+		Source:      "project-official",
+		Publisher:   auditedPublisher("kuzzrus", "https://github.com/kuzzrus/keenetic_xray_installer"),
+		Trust: auditedTrust(
+			"Repository ownership migration to kuzzrus and the legacy wrapper chain were re-audited on 2026-10-03. " +
+				"Automatic execution is intentionally disabled because the pinned wrapper still resolves child scripts through a mutable main-branch REPO_BASE.",
+		),
+		Capabilities: []string{"detect", "service-status", "install-preview", "xray", "vless", "failover"},
 		Detection: catalogDetection{
 			Paths: []string{"/opt/bin/xray-go", "/opt/bin/minimal-go-status", "/opt/etc/xray"},
 		},
 		Compatibility: catalogCompatibility{
 			Status:  "requirements",
 			Targets: []string{"aarch64-3.10", "mipsel-3.4"},
-			Hints:   []string{"Keenetic", "Entware", "Proxy client component", "curl/ca-certificates"},
+			Hints:   []string{"Keenetic", "Entware", "Proxy client component", "curl/ca-certificates", "legacy wrapper downloads mutable child scripts"},
 		},
-		Install: install,
-		Update: catalogInstallPlan{
-			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/Kuzz007/keenetic_xray_installer/main/xray_vless_failover_auto_latest.sh",
-			Args:         []string{"--update-only"},
-			Notes:        []string{"Uses upstream repair-lite update-only mode and automatically assumes yes."},
+		Install: catalogInstallPlan{
+			Method:      "manual",
+			PreviewOnly: true,
+			Notes: []string{
+				"Canonical upstream repository is now kuzzrus/keenetic_xray_installer.",
+				"The audited wrapper at commit 58f715680b47673e15d9ec3ffdddae9772fb46b0 still defaults REPO_BASE to the legacy mutable main branch.",
+				"RouterForge does not auto-execute this chain until child-script resolution is immutable end-to-end.",
+			},
 		},
 	}
 }

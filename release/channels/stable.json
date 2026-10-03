@@ -1,28 +1,18 @@
 {
   "schema_version": 1,
   "channel": "stable",
-  "release_version": "0.11.1",
+  "release_version": "0.12.0",
   "release_notes": {
     "ru": {
       "new": [],
-      "fixes": [
-        "Исправлена кнопка открытия Keenetic Entware Extras: теперь RouterForge ведёт на `/custom/`, где находится собственный dashboard проекта, а не на корень `:8080/` с patched stock Keenetic WebUI."
-      ],
-      "compatibility": [
-        "RouterForge 0.11.1 — совместимый PATCH-hotfix поверх 0.11.0.",
-        "Core повышен с 0.10.1 до 0.10.2, потому что исправленная embedded Registry metadata поставляется вместе с Core. Версии остальных пакетов не меняются."
-      ],
+      "fixes": [],
+      "compatibility": [],
       "technical": []
     },
     "en": {
       "new": [],
-      "fixes": [
-        "Fixed the Keenetic Entware Extras open button: RouterForge now opens `/custom/`, the project's own dashboard, instead of the `:8080/` root that serves the patched stock Keenetic WebUI."
-      ],
-      "compatibility": [
-        "RouterForge 0.11.1 is a compatible PATCH hotfix on top of 0.11.0.",
-        "Core moves from 0.10.1 to 0.10.2 because the fixed embedded Registry metadata ships with Core. All other package versions remain unchanged."
-      ],
+      "fixes": [],
+      "compatibility": [],
       "technical": []
     }
   },
@@ -30,42 +20,42 @@
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.10.2"
+      "version": "0.11.0"
     },
     {
       "id": "dns",
       "package": "routerforge-dns",
-      "version": "0.10.0",
+      "version": "0.10.1",
       "min_core_version": "0.10.0"
     },
     {
       "id": "admin",
       "package": "routerforge-admin",
-      "version": "0.10.0",
+      "version": "0.10.1",
       "min_core_version": "0.10.0"
     },
     {
       "id": "monitoring",
       "package": "routerforge-monitoring",
-      "version": "0.10.0",
+      "version": "0.10.1",
       "min_core_version": "0.10.0"
     },
     {
       "id": "network-tools",
       "package": "routerforge-network-tools",
-      "version": "0.10.0",
+      "version": "0.10.1",
       "min_core_version": "0.10.0"
     },
     {
       "id": "nfqws-manager",
       "package": "routerforge-nfqws-manager",
-      "version": "0.10.0",
+      "version": "0.10.1",
       "min_core_version": "0.10.0"
     },
     {
       "id": "antiscan-manager",
       "package": "routerforge-antiscan-manager",
-      "version": "0.11.0",
+      "version": "0.11.1",
       "min_core_version": "0.10.1"
     },
     {

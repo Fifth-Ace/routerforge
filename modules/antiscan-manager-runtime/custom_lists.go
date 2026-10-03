@@ -47,6 +47,7 @@ type antiscanCustomListResult struct {
 	Active            bool     `json:"active"`
 	Reloaded          bool     `json:"reloaded"`
 	RollbackPerformed bool     `json:"rollback_performed"`
+	RestartRequired   bool     `json:"restart_required"`
 	CountBefore       int      `json:"count_before"`
 	CountAfter        int      `json:"count_after"`
 	MutationAPI       bool     `json:"mutation_api"`
@@ -178,8 +179,8 @@ func applyAntiscanCustomListMutation(parent context.Context, cfg runtimeConfig, 
 	}
 	result.Set = setName
 
-	if pathExists(cfg.ConfigLockFile) || pathExists(cfg.GeoLockFile) {
-		return result, http.StatusConflict, errors.New("Antiscan reload is in progress")
+	if pathExists(cfg.ConfigLockFile) {
+		return result, http.StatusConflict, errors.New("Antiscan config reload is in progress")
 	}
 	config, err := readAntiscanConfig(cfg.AntiscanDir + "/ascn.conf")
 	if err != nil {
@@ -213,8 +214,8 @@ func applyAntiscanCustomListMutation(parent context.Context, cfg runtimeConfig, 
 			result.Warnings = append(result.Warnings, "Antiscan is stopped; reload was not executed.")
 			return result, http.StatusOK, nil
 		}
-		if len(beforeEntries) == 0 {
-			return result, http.StatusConflict, errors.New("custom list reload requires at least one valid entry")
+		if listName == "whitelist" && len(beforeEntries) == 0 {
+			return result, http.StatusConflict, errors.New("empty active custom whitelist reload is blocked to prevent an empty-whitelist lockout")
 		}
 		if err := reloadAntiscanCustomLists(parent, cfg); err != nil {
 			return result, http.StatusConflict, err
@@ -262,42 +263,49 @@ func applyAntiscanCustomListMutation(parent context.Context, cfg runtimeConfig, 
 			result.Warnings = append(result.Warnings, "Entry was already absent from the custom list.")
 			return result, http.StatusOK, nil
 		}
-		afterEntries, _, parseErr := parseAntiscanManagedCustomListEntries(updated)
-		if parseErr != nil {
-			return result, http.StatusConflict, parseErr
-		}
-		if result.Configured && len(afterEntries) == 0 {
-			return result, http.StatusConflict, errors.New("configured custom list cannot be emptied; disable it in ascn.conf before deleting the final entry")
-		}
 	case "clear":
 		if strings.TrimSpace(entryRaw) != "" {
 			return result, http.StatusBadRequest, errors.New("clear does not accept an entry")
-		}
-		if result.Configured {
-			return result, http.StatusConflict, errors.New("configured custom list cannot be cleared; disable it in ascn.conf before clearing")
 		}
 		updated, changed, err = clearAntiscanManagedCustomListEntries(original)
 		if err != nil {
 			return result, http.StatusBadRequest, err
 		}
-		if !changed {
+		if !changed && !result.Active {
 			result.Verified = true
 			return result, http.StatusOK, nil
 		}
+	}
+
+	afterEntries, _, err := parseAntiscanManagedCustomListEntries(updated)
+	if err != nil {
+		return result, http.StatusConflict, err
+	}
+	if len(afterEntries) == 0 {
+		updated = []byte{}
+	}
+	result.CountAfter = len(afterEntries)
+
+	if antiscanManagedCustomListNeedsFlush(result.Active, afterEntries) {
+		flushTarget, targetErr := antiscanManagedCustomListFlushTarget(listName)
+		if targetErr != nil {
+			return result, http.StatusBadRequest, targetErr
+		}
+		flushResult, status, flushErr := applyAntiscanFlush(parent, cfg, flushTarget)
+		result.Changed = flushResult.Changed
+		result.Verified = flushResult.Verified
+		result.RestartRequired = flushResult.RestartRequired
+		result.Warnings = append(result.Warnings, flushResult.Warnings...)
+		if flushErr != nil {
+			return result, status, flushErr
+		}
+		return result, status, nil
 	}
 
 	if err := safety.WriteFileAtomic(listPath, updated, mode); err != nil {
 		return result, http.StatusConflict, fmt.Errorf("write custom list: %w", err)
 	}
 	result.Changed = true
-
-	afterEntries, _, err := parseAntiscanManagedCustomListEntries(updated)
-	if err != nil {
-		_ = safety.WriteFileAtomic(listPath, original, mode)
-		result.RollbackPerformed = true
-		return result, http.StatusConflict, err
-	}
-	result.CountAfter = len(afterEntries)
 
 	if result.Active {
 		if err := reloadAntiscanCustomLists(parent, cfg); err != nil {
@@ -353,6 +361,23 @@ func antiscanManagedCustomListTarget(listName string) (string, string, error) {
 	default:
 		return "", "", errors.New("list must be blacklist, whitelist or exclude")
 	}
+}
+
+func antiscanManagedCustomListFlushTarget(listName string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(listName)) {
+	case "blacklist":
+		return "custom_blacklist", nil
+	case "whitelist":
+		return "custom_whitelist", nil
+	case "exclude":
+		return "custom_exclude", nil
+	default:
+		return "", errors.New("list must be blacklist, whitelist or exclude")
+	}
+}
+
+func antiscanManagedCustomListNeedsFlush(active bool, entries []string) bool {
+	return active && len(entries) == 0
 }
 
 func antiscanManagedCustomListConfigured(cfg antiscanConfig, listName string) bool {
@@ -432,21 +457,10 @@ func clearAntiscanManagedCustomListEntries(original []byte) ([]byte, bool, error
 	if len(original) > antiscanCustomListMaxBytes {
 		return nil, false, errors.New("custom list exceeds RouterForge safety limit")
 	}
-	lines := splitAntiscanManagedListLines(original)
-	out := make([]string, 0, len(lines))
-	changed := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		fields := strings.Fields(trimmed)
-		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(fields) > 0 {
-			if _, err := normalizeAntiscanListEntry(fields[0]); err == nil {
-				changed = true
-				continue
-			}
-		}
-		out = append(out, line)
+	if len(original) == 0 {
+		return []byte{}, false, nil
 	}
-	return joinAntiscanManagedListLines(out), changed, nil
+	return []byte{}, true, nil
 }
 
 func splitAntiscanManagedListLines(data []byte) []string {

@@ -1,3 +1,41 @@
+export function railInstalledIntegrations(integrations = []) {
+  const groups = new Map();
+
+  for (const item of integrations) {
+    if (!item?.installed) continue;
+
+    const projectURL = String(item?.project_url || '').trim().replace(/\/+$/, '').toLowerCase();
+    const name = String(item?.name || item?.id || '').trim().toLowerCase();
+    const key = projectURL ? `project:${projectURL}` : `name:${name}`;
+
+    const current = groups.get(key);
+    if (!current) {
+      groups.set(key, { ...item });
+      continue;
+    }
+
+    const preferred = Number(Boolean(item?.web)) + Number(Boolean(item?.managed))
+      > Number(Boolean(current?.web)) + Number(Boolean(current?.managed))
+      ? item
+      : current;
+
+    groups.set(key, {
+      ...preferred,
+      installed: true,
+      update_available: Boolean(current?.update_available || item?.update_available),
+      service_running: Boolean(current?.service_running || item?.service_running),
+      version: preferred?.version || current?.version || item?.version || '',
+      available_version:
+        preferred?.available_version ||
+        current?.available_version ||
+        item?.available_version ||
+        ''
+    });
+  }
+
+  return [...groups.values()];
+}
+
 export function integrationProviders(modules = [], integrations = []) {
   const installedTargets = new Set(
     integrations.filter((item) => item?.installed).map((item) => item.id)

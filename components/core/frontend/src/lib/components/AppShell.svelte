@@ -6,6 +6,7 @@
   import { settings } from '$lib/stores/settings.js';
   import { overview, refreshOverview, startOverviewPolling, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
   import { t } from '$lib/i18n/index.js';
+  import { railInstalledIntegrations } from '$lib/integrations.js';
 
   let stopCatalog = null;
   let stopCatalogSync = null;
@@ -71,7 +72,7 @@
   $: coreModule = modules.find((item) => item.id === 'routerforge-core');
   $: integrations = $catalog.integrations || [];
   $: installedModules = modules.filter((item) => item.installed && !item.builtin && item.id !== 'profiling');
-  $: installedIntegrations = integrations.filter((item) => item.installed);
+  $: installedIntegrations = railInstalledIntegrations(integrations);
   $: telem = $overview || {};
   $: memory = telem.memory || telem.summary?.memory;
   $: ramPct = Number(memory?.used_pct || (memory?.total_kb ? Number(memory.used_kb || 0) / Number(memory.total_kb) * 100 : 0));
@@ -100,6 +101,11 @@
   function stateClass(item) {
     if (item?.update_available) return 'warn';
     return moduleIsOff(item) ? 'bad' : 'good';
+  }
+
+  function integrationStateLabel(item) {
+    if (item?.update_available) return 'UPD';
+    return moduleIsOff(item) ? 'OFF' : 'ON';
   }
 </script>
 
@@ -142,14 +148,16 @@
 
       {#if installedIntegrations.length}
         <section class="rail-block">
-          <div class="rail-section-label">{locale === 'ru' ? 'Интеграции' : 'Integrations'}</div>
-          <div class="global-module-tree mono">
-            {#each installedIntegrations as item, index (item.id)}
-              <div class="global-tree-row">
-                <span class="tree-branch">{index === installedIntegrations.length - 1 ? '└─' : '├─'}</span>
+          <div class="rail-section-label rail-integration-label">
+            <span>{locale === 'ru' ? 'Интеграции' : 'Integrations'}</span>
+            <strong>{installedIntegrations.length}</strong>
+          </div>
+          <div class="rail-integration-list mono">
+            {#each installedIntegrations as item (item.id)}
+              <div class="rail-integration-row">
                 <span class="status-dot {stateClass(item)}"></span>
-                <span class="global-tree-name" title={item.name}>{compactModuleName(item)}</span>
-                <span class="global-tree-state {stateClass(item)}">[{stateLabel(item)}]</span>
+                <span class="rail-integration-name" title={item.name}>{compactModuleName(item)}</span>
+                <span class="rail-integration-state {stateClass(item)}">{integrationStateLabel(item)}</span>
               </div>
             {/each}
           </div>
@@ -222,4 +230,64 @@
   .rail-release-notes-icon {
     color: var(--rf-accent, var(--accent));
   }
+
+  .rail-integration-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .rail-integration-label strong {
+    color: var(--rf-muted);
+    font-size: var(--ui-micro, 9px);
+    font-weight: 600;
+  }
+
+  .rail-integration-list {
+    overflow: hidden;
+    border: 1px solid var(--rf-border);
+    border-radius: var(--rf-radius-panel);
+    background: var(--rf-bg);
+  }
+
+  .rail-integration-row {
+    min-height: 38px;
+    display: grid;
+    grid-template-columns: 7px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 9px;
+    border-bottom: 1px solid var(--rf-border);
+  }
+
+  .rail-integration-row:last-child {
+    border-bottom: 0;
+  }
+
+  .rail-integration-name {
+    min-width: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    color: var(--rf-text);
+    font-size: var(--ui-xs, 10px);
+    font-weight: 600;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .rail-integration-state {
+    min-width: 24px;
+    color: var(--rf-muted);
+    font-size: var(--ui-micro, 8px);
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-align: right;
+  }
+
+  .rail-integration-state.good { color: var(--rf-good, var(--good)); }
+  .rail-integration-state.warn { color: var(--rf-warn, var(--warn)); }
+  .rail-integration-state.bad { color: var(--rf-bad, var(--bad)); }
 </style>

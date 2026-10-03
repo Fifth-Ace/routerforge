@@ -46,6 +46,9 @@ func applyAuditedEcosystemCatalog(snapshot *catalogSnapshot, installed map[strin
 func auditedEcosystemIntegrations() []catalogItem {
 	return []catalogItem{
 		keeneticPolicyUICatalogItem(),
+		nfqwsKeeneticCatalogItem(),
+		nfqws2KeeneticCatalogItem(),
+		nfqwsKeeneticWebCatalogItem(),
 		entwareManagerCatalogItem(),
 		zapretGUICatalogItem(),
 		razvilkaCatalogItem(),
@@ -105,7 +108,147 @@ func auditedTrust(note string) catalogTrust {
 	}
 }
 
+func nfqwsKeeneticCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:   "verified-ipk-target",
+		Packages: []string{"nfqws-keenetic"},
+		VerifiedIPKTargets: map[string]catalogVerifiedIPKAsset{
+			"aarch64-3.10": {
+				InstallerURL:   "https://github.com/nfqws/nfqws-keenetic/releases/download/v2.11.4/nfqws-keenetic_2.11.4_aarch64-3.10.ipk",
+				ExpectedSHA256: "d11b682eb79ee572c0432b42862f10aa05e6b0b76079ab45b6b88e4ff07e90b3",
+			},
+			"mips-3.4": {
+				InstallerURL:   "https://github.com/nfqws/nfqws-keenetic/releases/download/v2.11.4/nfqws-keenetic_2.11.4_mips-3.4.ipk",
+				ExpectedSHA256: "a216c168e7e6b8426a1705b6b1c1e9c72ece212cc7002142b718c3b9d1a4b449",
+			},
+			"mipsel-3.4": {
+				InstallerURL:   "https://github.com/nfqws/nfqws-keenetic/releases/download/v2.11.4/nfqws-keenetic_2.11.4_mipsel-3.4.ipk",
+				ExpectedSHA256: "f569b980d9b75e0cead3d8fa13e895e9995d9749070d0812e3c5be97323e764f",
+			},
+		},
+		Notes: []string{"Pins the final nfqws-keenetic v2.11.4 architecture-specific IPKs to GitHub-published digests."},
+	}
+	return catalogItem{
+		ID:           "nfqws-keenetic",
+		Kind:         "integration",
+		Name:         "nfqws for Keenetic",
+		Category:     "DPI / Bypass",
+		Description:  "Legacy nfqws package for Keenetic/NetCraze and Entware; upstream now recommends nfqws2 for new features.",
+		ProjectURL:   "https://github.com/nfqws/nfqws-keenetic",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("nfqws", "https://github.com/nfqws/nfqws-keenetic"),
+		Trust:        auditedTrust("Final v2.11.4 Keenetic IPKs, target mapping, config path and opkg lifecycle were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "package-lifecycle", "nfqws", "dpi-bypass"},
+		Detection: catalogDetection{
+			Packages: []string{"nfqws-keenetic"},
+			Paths:    []string{"/opt/etc/nfqws/nfqws.conf"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic / NetCraze", "Entware", "Netfilter kernel modules"},
+		},
+		Install: install,
+		Update:  install,
+		Remove:  catalogInstallPlan{Method: "opkg", Packages: []string{"nfqws-keenetic"}},
+	}
+}
+
+func nfqws2KeeneticCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:   "verified-ipk-target",
+		Packages: []string{"nfqws2-keenetic"},
+		VerifiedIPKTargets: map[string]catalogVerifiedIPKAsset{
+			"aarch64-3.10": {
+				InstallerURL:   "https://github.com/nfqws/nfqws2-keenetic/releases/download/v1.3.1/nfqws2-keenetic_1.3.1_aarch64-3.10.ipk",
+				ExpectedSHA256: "9167d72053a83a78f48f6439af38432fb2d1d411fb22c0980240a949ace614df",
+			},
+			"mips-3.4": {
+				InstallerURL:   "https://github.com/nfqws/nfqws2-keenetic/releases/download/v1.3.1/nfqws2-keenetic_1.3.1_mips-3.4.ipk",
+				ExpectedSHA256: "6896bf8c8e6b59be945ee8eb1e6cff7247e300bd2f049f68caab4c53d39d7f58",
+			},
+			"mipsel-3.4": {
+				InstallerURL:   "https://github.com/nfqws/nfqws2-keenetic/releases/download/v1.3.1/nfqws2-keenetic_1.3.1_mipsel-3.4.ipk",
+				ExpectedSHA256: "c31d324fd444f658b598a7f9e817733c175153cdc804759d35fe1551e7e2c34f",
+			},
+		},
+		Notes: []string{"Pins nfqws2-keenetic v1.3.1 architecture-specific IPKs to GitHub-published digests."},
+	}
+	return catalogItem{
+		ID:           "nfqws2-keenetic",
+		Kind:         "integration",
+		Name:         "nfqws2 for Keenetic",
+		Category:     "DPI / Bypass",
+		Description:  "Current nfqws2 package for Keenetic/NetCraze and Entware with Lua-capable strategies and NFQUEUE/raw-socket traffic processing.",
+		ProjectURL:   "https://github.com/nfqws/nfqws2-keenetic",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("nfqws", "https://github.com/nfqws/nfqws2-keenetic"),
+		Trust:        auditedTrust("v1.3.1 Keenetic IPKs, target mapping, config path and opkg lifecycle were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "service-status", "package-lifecycle", "nfqws2", "dpi-bypass"},
+		Detection: catalogDetection{
+			Packages: []string{"nfqws2-keenetic"},
+			Paths:    []string{"/opt/etc/nfqws2/nfqws2.conf"},
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"aarch64-3.10", "mips-3.4", "mipsel-3.4"},
+			Hints:   []string{"Keenetic / NetCraze", "Entware", "Netfilter kernel modules"},
+		},
+		Install: install,
+		Update:  install,
+		Remove:  catalogInstallPlan{Method: "opkg", Packages: []string{"nfqws2-keenetic"}},
+	}
+}
+
+func nfqwsKeeneticWebCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:         "verified-ipk",
+		Packages:       []string{"nfqws-keenetic-web"},
+		InstallerURL:   "https://github.com/nfqws/nfqws-keenetic-web/releases/download/v3.0.24/nfqws-keenetic-web_3.0.24_all_entware.ipk",
+		ExpectedSHA256: "767b7003db0057d1d46513dcdd6c8c87dc666732a2f7b8c6d756b15cd7900565",
+		Notes:          []string{"Pins the v3.0.24 all-Entware Web UI IPK to the GitHub-published SHA256 digest."},
+	}
+	return catalogItem{
+		ID:           "nfqws-keenetic-web",
+		Kind:         "integration",
+		Name:         "nfqws Web UI",
+		Category:     "DPI / Bypass",
+		Description:  "Web interface for nfqws-keenetic and nfqws2-keenetic on Keenetic/NetCraze with Entware.",
+		ProjectURL:   "https://github.com/nfqws/nfqws-keenetic-web",
+		Source:       "project-official",
+		Publisher:    auditedPublisher("nfqws", "https://github.com/nfqws/nfqws-keenetic-web"),
+		Trust:        auditedTrust("v3.0.24 all-Entware IPK, GitHub digest, port 90 Web UI and opkg lifecycle were reviewed on 2026-10-03."),
+		Capabilities: []string{"detect", "version", "open-ui", "package-lifecycle", "nfqws", "nfqws2"},
+		Detection: catalogDetection{
+			Packages: []string{"nfqws-keenetic-web"},
+			Paths:    []string{"/opt/etc/nfqws_web.conf"},
+		},
+		Web: &catalogWebMetadata{
+			Scheme: "http",
+			Port:   90,
+			Path:   "/",
+			Mode:   "probe-required",
+			Embed:  true,
+		},
+		Compatibility: catalogCompatibility{
+			Status:  "requirements",
+			Targets: []string{"all"},
+			Hints:   []string{"Keenetic / NetCraze", "Entware", "nfqws-keenetic or nfqws2-keenetic"},
+		},
+		Install: install,
+		Update:  install,
+		Remove:  catalogInstallPlan{Method: "opkg", Packages: []string{"nfqws-keenetic-web"}},
+	}
+}
+
 func keeneticPolicyUICatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:         "verified-ipk",
+		Packages:       []string{"keenetic-policy-ui"},
+		InstallerURL:   "https://github.com/JohnDoe150489/keenetic-policy-ui/releases/download/v1.0.1/keenetic-policy-ui_1.0.1_all_entware.ipk",
+		ExpectedSHA256: "88a8c446e60543514b9c389802d052c8ddada14e0b24e3c74aa3197635d7c050",
+		Notes:          []string{"Pins the exact v1.0.1 all-Entware IPK to the GitHub-published SHA256 digest."},
+	}
 	return catalogItem{
 		ID:           "keenetic-policy-ui",
 		Kind:         "integration",
@@ -115,7 +258,7 @@ func keeneticPolicyUICatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/JohnDoe150489/keenetic-policy-ui",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("JohnDoe150489", "https://github.com/JohnDoe150489/keenetic-policy-ui"),
-		Trust:        auditedTrust("Lifecycle manually matched against the upstream README on 2026-10-02."),
+		Trust:        auditedTrust("v1.0.1 all-Entware IPK, GitHub digest, package lifecycle and Web UI were re-audited on 2026-10-03."),
 		Capabilities: []string{"detect", "version", "open-ui", "package-lifecycle", "policy-routing"},
 		Detection: catalogDetection{
 			Packages: []string{"keenetic-policy-ui"},
@@ -133,30 +276,8 @@ func keeneticPolicyUICatalogItem() catalogItem {
 			Targets: []string{"all"},
 			Hints:   []string{"Keenetic / Netcraze", "Entware", "ca-certificates", "wget-ssl"},
 		},
-		Install: catalogInstallPlan{
-			Method:   "structured",
-			Packages: []string{"keenetic-policy-ui"},
-			Notes:    []string{"Uses the upstream HTTPS opkg feed documented by the project."},
-			Steps: []catalogLifecycleStep{
-				{Type: "opkg-update"},
-				{Type: "opkg-install", Packages: []string{"ca-certificates", "wget-ssl"}},
-				{
-					Type:    "write-opkg-feed",
-					Path:    "/opt/etc/opkg/keenetic-policy-ui.conf",
-					Content: "src/gz keenetic_policy_ui https://johndoe150489.github.io/keenetic-policy-ui",
-				},
-				{Type: "opkg-update"},
-				{Type: "opkg-install", Packages: []string{"keenetic-policy-ui"}},
-			},
-		},
-		Update: catalogInstallPlan{
-			Method:   "structured",
-			Packages: []string{"keenetic-policy-ui"},
-			Steps: []catalogLifecycleStep{
-				{Type: "opkg-update"},
-				{Type: "opkg-upgrade", Packages: []string{"keenetic-policy-ui"}},
-			},
-		},
+		Install: install,
+		Update:  install,
 		Remove: catalogInstallPlan{
 			Method:   "opkg",
 			Packages: []string{"keenetic-policy-ui"},
@@ -511,6 +632,13 @@ func sms2gramCatalogItem() catalogItem {
 }
 
 func web4staticCatalogItem() catalogItem {
+	install := catalogInstallPlan{
+		Method:         "verified-ipk",
+		Packages:       []string{"web4static"},
+		InstallerURL:   "https://github.com/spatiumstas/web4static/releases/download/1.13-2/web4static_1.13-3.ipk",
+		ExpectedSHA256: "e60df46bce673f786f6036b095a544237b49ddd8aeac14f688484ae1c01385ca",
+		Notes:          []string{"Pins the immutable 1.13-2 release IPK asset to the GitHub-published SHA256 digest."},
+	}
 	return catalogItem{
 		ID:           "web4static",
 		Kind:         "integration",
@@ -520,7 +648,7 @@ func web4staticCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/spatiumstas/web4static",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("spatiumstas", "https://github.com/spatiumstas/web4static"),
-		Trust:        auditedTrust("Official install script, port 99 Web UI, package name and documented opkg removal were reviewed on 2026-10-03."),
+		Trust:        auditedTrust("Immutable release IPK, GitHub digest, port 99 Web UI and opkg lifecycle were re-audited on 2026-10-03."),
 		Capabilities: []string{"detect", "version", "open-ui", "package-lifecycle", "configuration"},
 		Detection: catalogDetection{
 			Packages: []string{"web4static"},
@@ -538,16 +666,8 @@ func web4staticCatalogItem() catalogItem {
 			Targets: []string{"all"},
 			Hints:   []string{"Keenetic", "Entware", "lighttpd/PHP dependencies are managed by upstream package", "curl", "ca-certificates", "wget-ssl"},
 		},
-		Install: catalogInstallPlan{
-			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/web4static/main/install.sh",
-			Packages:     []string{"web4static"},
-		},
-		Update: catalogInstallPlan{
-			Method:       "official-script",
-			InstallerURL: "https://raw.githubusercontent.com/spatiumstas/web4static/main/install.sh",
-			Packages:     []string{"web4static"},
-		},
+		Install: install,
+		Update:  install,
 		Remove: catalogInstallPlan{
 			Method:   "opkg",
 			Packages: []string{"web4static"},
@@ -1589,7 +1709,33 @@ func keenPBRStructuredPlan(pkg string) catalogInstallPlan {
 }
 
 func keenPBRHeadlessCatalogItem() catalogItem {
-	install := keenPBRStructuredPlan("keen-pbr-headless")
+	install := catalogInstallPlan{
+		Method:   "verified-ipk-target",
+		Packages: []string{"keen-pbr-headless"},
+		VerifiedIPKTargets: map[string]catalogVerifiedIPKAsset{
+			"aarch64-3.10": {
+				InstallerURL:   "https://github.com/maksimkurb/keen-pbr/releases/download/v3.3.1/keen-pbr-headless_3.3.1-20260825161148_keenetic_3.10_aarch64.ipk",
+				ExpectedSHA256: "2c8d5a58ffb0c17ac307db0f2735d6c8c799ff97b2850d8fa717015050824fb5",
+			},
+			"armv7-3.2": {
+				InstallerURL:   "https://github.com/maksimkurb/keen-pbr/releases/download/v3.3.1/keen-pbr-headless_3.3.1-20260825161148_keenetic_3.2_armv7.ipk",
+				ExpectedSHA256: "bb0468291e6448b0fb30a093d64afaedf19f4256d61a0a7d1e133449bc4c0c51",
+			},
+			"mips-3.4": {
+				InstallerURL:   "https://github.com/maksimkurb/keen-pbr/releases/download/v3.3.1/keen-pbr-headless_3.3.1-20260825161148_keenetic_3.4_mips.ipk",
+				ExpectedSHA256: "9c72e145b0ac6c26a191ee02b20085aecf81715728c86ddb7ea484ed985f8b02",
+			},
+			"mipsel-3.4": {
+				InstallerURL:   "https://github.com/maksimkurb/keen-pbr/releases/download/v3.3.1/keen-pbr-headless_3.3.1-20260825161148_keenetic_3.4_mipsel.ipk",
+				ExpectedSHA256: "3e8051e3161e8923f2d7ed0bdefaefc68ca84601646817c314c75de1dfb05fef",
+			},
+			"x64-3.2": {
+				InstallerURL:   "https://github.com/maksimkurb/keen-pbr/releases/download/v3.3.1/keen-pbr-headless_3.3.1-20260825161148_keenetic_3.2_x64.ipk",
+				ExpectedSHA256: "6cc450b5eb1194edffed09d1527addbcd71debf8ae27190914f7c967f4538d21",
+			},
+		},
+		Notes: []string{"Pins keen-pbr Headless v3.3.1 Keenetic IPKs to GitHub-published digests for every supported RouterForge target."},
+	}
 	return catalogItem{
 		ID:           "keen-pbr-headless",
 		Kind:         "integration",
@@ -1599,7 +1745,7 @@ func keenPBRHeadlessCatalogItem() catalogItem {
 		ProjectURL:   "https://github.com/maksimkurb/keen-pbr",
 		Source:       "project-official",
 		Publisher:    auditedPublisher("maksimkurb", "https://github.com/maksimkurb/keen-pbr"),
-		Trust:        auditedTrust("Keenetic/NetCraze stable repository layout, supported Entware architectures, headless package and non-TTY postinst behavior were reviewed on 2026-10-03."),
+		Trust:        auditedTrust("v3.3.1 Keenetic release IPKs, GitHub digests and five RouterForge targets were re-audited on 2026-10-03."),
 		Capabilities: []string{"detect", "version", "service-status", "package-lifecycle", "policy-routing"},
 		Detection: catalogDetection{
 			Packages: []string{"keen-pbr-headless"},
@@ -1613,14 +1759,7 @@ func keenPBRHeadlessCatalogItem() catalogItem {
 			Hints:   []string{"Keenetic / NetCraze", "Entware", "Netfilter subsystem", "Xtables-addons", "dnsmasq integration may require explicit user configuration"},
 		},
 		Install: install,
-		Update: catalogInstallPlan{
-			Method:   "structured",
-			Packages: []string{"keen-pbr-headless"},
-			Steps: []catalogLifecycleStep{
-				{Type: "opkg-update"},
-				{Type: "opkg-upgrade", Packages: []string{"keen-pbr-headless"}},
-			},
-		},
+		Update:  install,
 		Remove: catalogInstallPlan{
 			Method:   "opkg",
 			Packages: []string{"keen-pbr-headless"},

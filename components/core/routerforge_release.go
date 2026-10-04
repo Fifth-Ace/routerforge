@@ -529,6 +529,24 @@ func parseRouterForgeReleaseIndex(data []byte) (routerForgeReleaseIndex, error) 
 	return doc, nil
 }
 
+func applyRouterForgeReleasePlanMetadata(plan *catalogInstallPlan, release catalogRelease, target string) {
+	if plan == nil || plan.Method != "routerforge-release" {
+		return
+	}
+	tag := "routerforge-" + release.Channel
+	base := fmt.Sprintf(
+		"https://github.com/%s/releases/download/%s",
+		routerForgeCanonicalRepository,
+		tag,
+	)
+	plan.Repository = tag
+	plan.RepositoryURL = base
+	plan.ChecksumURL = base + "/" + tag + "-SHA256SUMS"
+	if target != "" {
+		plan.AssetTemplate = "{package}_{version}_" + target + ".ipk"
+	}
+}
+
 func applyRouterForgeReleaseIndex(snapshot *catalogSnapshot) {
 	doc, status := routerForgeReleaseSnapshot()
 	snapshot.Release = status
@@ -564,6 +582,8 @@ func applyRouterForgeReleaseIndex(snapshot *catalogSnapshot) {
 		}
 		item.Conflicts = append([]string(nil), release.Conflicts...)
 		item.UpdateAvailable = item.Installed && item.Version != "" && item.Version != release.Version
+		applyRouterForgeReleasePlanMetadata(&item.Install, release, status.Target)
+		applyRouterForgeReleasePlanMetadata(&item.Update, release, status.Target)
 		if status.Target != "" {
 			item.Install.AssetTemplate = "{package}_{version}_" + status.Target + ".ipk"
 			item.Update.AssetTemplate = "{package}_{version}_" + status.Target + ".ipk"
@@ -578,15 +598,14 @@ func applyRouterForgeReleaseIndex(snapshot *catalogSnapshot) {
 
 		if item.ID == "routerforge-core" {
 			item.Update = catalogInstallPlan{
-				Method:        "routerforge-release",
-				Repository:    "routerforge-" + release.Channel,
-				Packages:      []string{release.Package},
-				AssetTemplate: "{package}_{version}_" + status.Target + ".ipk",
+				Method:   "routerforge-release",
+				Packages: []string{release.Package},
 				Notes: []string{
 					"Core обновляется отдельно от модулей.",
 					"Asset и SHA256 берутся из release index выбранного канала.",
 				},
 			}
+			applyRouterForgeReleasePlanMetadata(&item.Update, release, status.Target)
 			continue
 		}
 

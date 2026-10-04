@@ -340,7 +340,7 @@ func buildAppActionPreflight(ctx context.Context, request appActionStartRequest)
 				out.Warnings = append(out.Warnings, "lifecycle removes one or more packages")
 			}
 		}
-		out.Allowed = packageManagementAllowsAction(request.Action)
+		out.Allowed = packageManagementAllowsCatalogAction(item, request.Action)
 		if !out.Allowed {
 			out.Reason = "RouterForge package management is disabled; accept the current risk agreement to install or update packages"
 		}
@@ -374,13 +374,6 @@ func handleAppActions(w http.ResponseWriter, r *http.Request) {
 	request.Kind = strings.ToLower(strings.TrimSpace(request.Kind))
 	request.Target = strings.TrimSpace(request.Target)
 	request.Action = strings.ToLower(strings.TrimSpace(request.Action))
-	if !packageManagementAllowsAction(request.Action) {
-		writeCatalogJSON(w, http.StatusForbidden, map[string]any{
-			"error":  "RouterForge package management is disabled",
-			"detail": "accept the current App Center risk agreement to install or update packages",
-		})
-		return
-	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	preflight, err := buildAppActionPreflight(ctx, request)

@@ -7,7 +7,8 @@
   export let onclose=()=>{};
 
   $: locale = $settings.locale || 'ru';
-  $: install=item?.install||{};
+  $: planAction=item?.installed && item?.update_available && item?.update?.method ? 'update' : 'install';
+  $: install=planAction === 'update' ? (item?.update||{}) : (item?.install||{});
   $: hints=item?.compatibility?.hints||[];
   $: packages=install.packages||item?.detection?.packages||[];
   $: notes=install.notes||[];
@@ -62,7 +63,7 @@
               {#if item.manifest_sha256}<div class="check-row"><span>Manifest</span><code>{item.manifest_sha256}</code></div>{/if}
             </div>
             <div class="check-card">
-              <div class="check-head"><strong>{t(locale, 'marketplace.planner.installPlan')}</strong><span class="state-chip info">{t(locale, 'marketplace.planner.staged')}</span></div>
+              <div class="check-head"><strong>{planAction === 'update' ? (locale === 'ru' ? 'План обновления' : 'Update plan') : t(locale, 'marketplace.planner.installPlan')}</strong><span class="state-chip info">{t(locale, 'marketplace.planner.staged')}</span></div>
               {#if install.method}<div class="check-row"><span>{t(locale, 'marketplace.planner.method')}</span><code>{install.method}</code></div>{/if}
               {#if packages.length}<div class="check-row"><span>{t(locale, 'marketplace.planner.packages')}</span><code>{packages.join(', ')}</code></div>{/if}
               {#if install.repository_url}<div class="check-row"><span>{t(locale, 'marketplace.planner.feed')}</span><code>{install.repository_url}</code></div>{/if}

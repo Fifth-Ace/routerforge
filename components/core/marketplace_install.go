@@ -69,6 +69,37 @@ func packageManagementAllowsAction(action string) bool {
 	return packageManagementEnabled()
 }
 
+func officialRouterForgePackageAction(item catalogItem, action string) bool {
+	action = strings.ToLower(strings.TrimSpace(action))
+	if action != "install" && action != "update" {
+		return false
+	}
+
+	plan := catalogPlanForAction(item, action)
+	if plan.Method != "routerforge-release" {
+		return false
+	}
+
+	if item.ID != "routerforge-core" {
+		if strings.ToLower(strings.TrimSpace(item.Trust.Status)) != "official" ||
+			strings.ToLower(strings.TrimSpace(item.Publisher.ID)) != "routerforge" {
+			return false
+		}
+	}
+
+	pkg := routerForgePackageForItem(item)
+	release := item.Release
+	if pkg == "" || release.Package != pkg || release.Version == "" ||
+		release.Asset == "" || release.SHA256 == "" || !validRouterForgeReleaseURL(release.URL) {
+		return false
+	}
+	return true
+}
+
+func packageManagementAllowsCatalogAction(item catalogItem, action string) bool {
+	return packageManagementAllowsAction(action) || officialRouterForgePackageAction(item, action)
+}
+
 func catalogItemByID(id string) (catalogItem, bool) {
 	id = strings.TrimSpace(id)
 	if id == "" {
@@ -136,17 +167,17 @@ func runCatalogModuleActionWithLogger(ctx context.Context, id, action, confirmat
 	if action != "install" && action != "update" && action != "remove" {
 		return catalogActionResult{}, &catalogInstallFailure{Status: 400, Message: "unsupported catalog action"}
 	}
-	if !packageManagementAllowsAction(action) {
+
+	item, ok := catalogItemByID(id)
+	if !ok {
+		return catalogActionResult{}, &catalogInstallFailure{Status: 404, Message: "catalog item not found"}
+	}
+	if !packageManagementAllowsCatalogAction(item, action) {
 		return catalogActionResult{}, &catalogInstallFailure{
 			Status:  403,
 			Message: "RouterForge package management is disabled",
 			Detail:  "accept the current App Center risk agreement to install or update packages",
 		}
-	}
-
-	item, ok := catalogItemByID(id)
-	if !ok {
-		return catalogActionResult{}, &catalogInstallFailure{Status: 404, Message: "catalog item not found"}
 	}
 	if !catalogActionAllowed(item, action) {
 		reason := item.Actions.Reason

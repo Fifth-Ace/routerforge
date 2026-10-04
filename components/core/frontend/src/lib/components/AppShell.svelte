@@ -4,7 +4,7 @@
   import ReleaseNotesWorkspace from '$lib/components/ReleaseNotesWorkspace.svelte';
   import { catalog, catalogOnline, catalogReady, startCatalogPolling } from '$lib/stores/catalog.js';
   import { settings } from '$lib/stores/settings.js';
-  import { overview, refreshOverview, startOverviewPolling, averageCPU, cpuTemperature } from '$lib/stores/overview.js';
+  import { overview, refreshOverview, startOverviewPolling } from '$lib/stores/overview.js';
   import { t } from '$lib/i18n/index.js';
   import { railInstalledIntegrations } from '$lib/integrations.js';
 
@@ -74,13 +74,13 @@
   $: installedModules = modules.filter((item) => item.installed && !item.builtin && item.id !== 'profiling');
   $: installedIntegrations = railInstalledIntegrations(integrations);
   $: telem = $overview || {};
-  $: memory = telem.memory || telem.summary?.memory;
-  $: ramPct = Number(memory?.used_pct || (memory?.total_kb ? Number(memory.used_kb || 0) / Number(memory.total_kb) * 100 : 0));
-  $: cpuPct = averageCPU(telem.cpu);
-  $: cpuTemp = cpuTemperature(telem.thermal);
+  $: coreTelemetry = telem.platform?.telemetry || {};
+  $: ramPct = Number(coreTelemetry.ram_usage_pct || 0);
+  $: cpuPct = Number(coreTelemetry.cpu_usage_pct || 0);
+  $: cpuTemp = Number(coreTelemetry.cpu_temp_c || 0);
   $: cpuTempWarning = Number($settings.cpuTempWarning || 75);
   $: model = telem.platform?.model || 'Keenetic';
-  $: processes = Number(telem.summary?.process_count || 0);
+  $: processes = Number(coreTelemetry.process_count || 0);
 
   function compactModuleName(item) {
     const original = String(item?.name || item?.id || 'Module').trim();
@@ -162,10 +162,10 @@
       <section class="rail-status-card mono">
         <div class="rail-section-label">{locale === 'ru' ? 'Телеметрия устройства' : 'Device telemetry'}</div>
         <div><span>{locale === 'ru' ? 'Модель' : 'Model'}</span><strong>{model}</strong></div>
-        <div><span>CPU Temp</span><strong class:warn={cpuTemp >= cpuTempWarning && cpuTemp < 90} class:bad={cpuTemp >= 90}>{cpuTemp ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></div>
-        <div><span>CPU Usage</span><strong>{telem.cpu ? `${cpuPct.toFixed(0)}%` : '—'}</strong></div>
-        <div><span>RAM Usage</span><strong>{memory ? `${ramPct.toFixed(0)}%` : '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Процессы' : 'Processes'}</span><strong>{processes || '—'}</strong></div>
+        <div><span>CPU Temp</span><strong class:warn={cpuTemp >= cpuTempWarning && cpuTemp < 90} class:bad={cpuTemp >= 90}>{coreTelemetry.cpu_temp_available ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></div>
+        <div><span>CPU Usage</span><strong>{coreTelemetry.cpu_usage_available ? `${cpuPct.toFixed(0)}%` : '—'}</strong></div>
+        <div><span>RAM Usage</span><strong>{coreTelemetry.ram_usage_available ? `${ramPct.toFixed(0)}%` : '—'}</strong></div>
+        <div><span>{locale === 'ru' ? 'Процессы' : 'Processes'}</span><strong>{coreTelemetry.process_count_available ? processes : '—'}</strong></div>
       </section>
 
       <section class="rail-status-card mono">

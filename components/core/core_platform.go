@@ -42,6 +42,7 @@ type platformInfo struct {
 	TargetSource     string          `json:"target_source,omitempty"`
 	TargetCandidates []string        `json:"target_candidates,omitempty"`
 	UptimeSeconds    int64           `json:"uptime_seconds"`
+	Telemetry        coreTel         `json:"telemetry"`
 	Opt              platformStorage `json:"opt"`
 }
 
@@ -150,6 +151,7 @@ func readPlatformInfo() platformInfo {
 		TargetSource:     target.Source,
 		TargetCandidates: append([]string(nil), target.Candidates...),
 		UptimeSeconds:    readPlatformUptimeSeconds(),
+		Telemetry:        readCoreTelemetry(),
 		Opt:              readPlatformStorage("/opt"),
 	}
 }

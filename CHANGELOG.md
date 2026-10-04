@@ -4,6 +4,16 @@ RouterForge components are versioned independently. Entries below describe platf
 
 ## [Unreleased]
 
+## 2026-10-04 — RouterForge 0.12.1
+
+### Stable hotfix
+- Core advances from `0.12.0` to `0.12.1`; unchanged module package versions are preserved.
+- Official RouterForge updates no longer depend on the unverified-app risk agreement.
+- App Center update actions and update-plan metadata are corrected for official RouterForge components.
+- Core now owns the small device telemetry shown in the sidebar instead of depending on optional Monitoring/Admin modules.
+- Several issues were reported by users immediately after 0.12.0 and are fixed in this release.
+- Full details: `docs/RELEASE_NOTES_0.12.1.md`.
+
 ## 2026-09-25 — RouterForge 0.10.0
 
 ### Stable release

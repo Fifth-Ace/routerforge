@@ -18,7 +18,7 @@ ACTIVE = [
     "docs/APP_CENTER_RELEASE_FEED_ADR.md", "docs/RELEASE_NOTES_0.7.1.md",
     "docs/RELEASE_NOTES_0.7.2.md", "docs/RELEASE_NOTES_0.8.0.md",
     "docs/RELEASE_NOTES_0.9.0.md", "docs/RELEASE_NOTES_0.9.1.md",
-    "docs/RELEASE_NOTES_0.10.0.md", "docs/RELEASE_NOTES_0.11.0.md", "docs/RELEASE_NOTES_0.11.1.md", "docs/RELEASE_NOTES_0.12.0.md", "docs/VERSIONING.md",
+    "docs/RELEASE_NOTES_0.10.0.md", "docs/RELEASE_NOTES_0.11.0.md", "docs/RELEASE_NOTES_0.11.1.md", "docs/RELEASE_NOTES_0.12.0.md", "docs/RELEASE_NOTES_0.12.1.md", "docs/VERSIONING.md",
     "docs/VNEXT_MODULES_DEV_FOUNDATION.md", "docs/FORGEJO_FAILOVER.md",
     "docs/UI_CONTRACT.md",
 ]
@@ -46,6 +46,7 @@ required = {
     "docs/RELEASE_NOTES_0.11.0.md": ["RouterForge 0.11.0", "Antiscan Manager", "Keenetic Entware Extras", "Geo Split", "RouterForge Core", "0.10.1"],
     "docs/RELEASE_NOTES_0.11.1.md": ["RouterForge 0.11.1", "Keenetic Entware Extras", "/custom/", "RouterForge Core", "0.10.2"],
     "docs/RELEASE_NOTES_0.12.0.md": ["RouterForge 0.12.0", "57 проектов", "Antiscan Manager", "RouterForge Core", "0.11.0", "0.11.1"],
+    "docs/RELEASE_NOTES_0.12.1.md": ["RouterForge 0.12.1", "непроверенные источники", "Пользователи тоже решили поучаствовать", "Телеметрия устройства", "core_telemetry.go"],
     "docs/VERSIONING.md": ["MAJOR.MINOR.PATCH", "PATCH", "MINOR", "1.0.0", "Stable 0.11.0 example"],
     "docs/RELEASE_NOTES_0.7.1.md": ["RouterForge 0.7.1", "Keenetic NDM Console"],
     "docs/RELEASE_NOTES_0.7.2.md": ["RouterForge 0.7.2", "routerforge-dns", "DNS hotfix"],
@@ -68,7 +69,7 @@ for marker in (
         raise SystemExit(f"stable canonical release-notes renderer missing marker: {marker}")
 
 stable = json.loads((ROOT / "release/channels/stable.json").read_text(encoding="utf-8"))
-if stable.get("release_version") != "0.12.0":
+if stable.get("release_version") != "0.12.1":
     raise SystemExit("stable.json release_version mismatch")
 
 expected = [
@@ -82,7 +83,7 @@ if [x.get("package") for x in components] != expected:
     raise SystemExit("stable.json topology mismatch")
 
 versions = {
-    "routerforge-core": ("0.11.0", ""),
+    "routerforge-core": ("0.12.1", ""),
     "routerforge-dns": ("0.10.1", "0.10.0"),
     "routerforge-admin": ("0.10.1", "0.10.0"),
     "routerforge-monitoring": ("0.10.1", "0.10.0"),
@@ -150,8 +151,8 @@ for rel in ACTIVE:
             raise SystemExit(f"{rel}: broken local link: {raw}")
 
 print("DOCS_CURRENT=PASS")
-print("STABLE_RELEASE_VERSION=0.12.0")
-print("STABLE_COMPONENT_VERSIONS=core:0.11.0,dns:0.10.1,admin:0.10.1,monitoring:0.10.1,network-tools:0.10.1,nfqws-manager:0.10.1,antiscan-manager:0.11.1,profiling:0.10.0")
+print("STABLE_RELEASE_VERSION=0.12.1")
+print("STABLE_COMPONENT_VERSIONS=core:0.12.1,dns:0.10.1,admin:0.10.1,monitoring:0.10.1,network-tools:0.10.1,nfqws-manager:0.10.1,antiscan-manager:0.11.1,profiling:0.10.0")
 print("LEGACY_SPLIT_SOURCE_DIRS=ABSENT")
 print("ORPHAN_SPLIT_APPROVALS=ABSENT")
 print("ACTIVE_BUILD_TOPOLOGY=dns,monitoring,network-tools,nfqws-manager,antiscan-manager,profiling")

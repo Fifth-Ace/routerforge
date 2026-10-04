@@ -56,6 +56,7 @@ app_center_jobs.go
 user_app_sources.go
 unmanaged_github_release.go
 core_platform.go
+core_telemetry.go
 platform_events.go
 platform_event_producers.go
 device_events.go

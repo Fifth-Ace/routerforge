@@ -82,7 +82,7 @@ if [x.get("package") for x in components] != expected:
     raise SystemExit("stable.json topology mismatch")
 
 versions = {
-    "routerforge-core": ("0.11.0", ""),
+    "routerforge-core": ("0.12.0", ""),
     "routerforge-dns": ("0.10.1", "0.10.0"),
     "routerforge-admin": ("0.10.1", "0.10.0"),
     "routerforge-monitoring": ("0.10.1", "0.10.0"),
@@ -151,7 +151,7 @@ for rel in ACTIVE:
 
 print("DOCS_CURRENT=PASS")
 print("STABLE_RELEASE_VERSION=0.12.0")
-print("STABLE_COMPONENT_VERSIONS=core:0.11.0,dns:0.10.1,admin:0.10.1,monitoring:0.10.1,network-tools:0.10.1,nfqws-manager:0.10.1,antiscan-manager:0.11.1,profiling:0.10.0")
+print("STABLE_COMPONENT_VERSIONS=core:0.12.0,dns:0.10.1,admin:0.10.1,monitoring:0.10.1,network-tools:0.10.1,nfqws-manager:0.10.1,antiscan-manager:0.11.1,profiling:0.10.0")
 print("LEGACY_SPLIT_SOURCE_DIRS=ABSENT")
 print("ORPHAN_SPLIT_APPROVALS=ABSENT")
 print("ACTIVE_BUILD_TOPOLOGY=dns,monitoring,network-tools,nfqws-manager,antiscan-manager,profiling")

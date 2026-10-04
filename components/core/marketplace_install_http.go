@@ -55,13 +55,6 @@ func handleCatalogAction(w http.ResponseWriter, r *http.Request) {
 }
 
 func runCatalogHTTPAction(w http.ResponseWriter, r *http.Request, id, action, confirmation string) {
-	if !packageManagementAllowsAction(action) {
-		writeCatalogJSON(w, http.StatusForbidden, map[string]any{
-			"error":  "RouterForge package management is disabled",
-			"detail": "accept the current App Center risk agreement to install or update packages",
-		})
-		return
-	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 180*time.Second)
 	defer cancel()

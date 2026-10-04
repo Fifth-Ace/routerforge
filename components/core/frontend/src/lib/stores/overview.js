@@ -21,6 +21,7 @@ export async function refreshOverview(nextCatalog = lastCatalog, detailed = fals
   const generation = ++refreshGeneration;
   const modules = lastCatalog?.modules || [];
   const installed = (id) => modules.some((item) => item.id === id && item.installed);
+  const monitoringInstalled = installed('monitoring');
   const safe = async (fn) => { try { return await fn(); } catch { return null; } };
   const result = {
     platform:null, summary:null, cpu:null, memory:null, thermal:null, storage:null,
@@ -30,7 +31,7 @@ export async function refreshOverview(nextCatalog = lastCatalog, detailed = fals
   const platformPromise = safe(() => getPlatform());
 
   let systemPromise = Promise.resolve([null, null, null]);
-  if (installed('system')) {
+  if (monitoringInstalled || installed('system')) {
     systemPromise = Promise.all([
       safe(() => getModule('system','summary')),
       safe(() => getModule('system','cpu')),
@@ -44,13 +45,13 @@ export async function refreshOverview(nextCatalog = lastCatalog, detailed = fals
     ]);
   }
 
-  const thermalPromise = installed('thermal')
+  const thermalPromise = monitoringInstalled || installed('thermal')
     ? safe(() => getModule('thermal','sensors'))
     : installed('admin')
       ? safe(() => getAdminThermal())
       : Promise.resolve(null);
 
-  const storagePromise = detailed && installed('storage')
+  const storagePromise = detailed && (monitoringInstalled || installed('storage'))
     ? safe(() => getModule('storage','storage'))
     : detailed && installed('admin')
       ? safe(() => getAdminStorage())
@@ -60,7 +61,7 @@ export async function refreshOverview(nextCatalog = lastCatalog, detailed = fals
     ? safe(() => getPlainDNS(500))
     : Promise.resolve(null);
 
-  const networkPromise = detailed && installed('network')
+  const networkPromise = detailed && (monitoringInstalled || installed('network'))
     ? safe(() => getModule('network','routes'))
     : Promise.resolve(null);
 
@@ -78,7 +79,7 @@ export async function refreshOverview(nextCatalog = lastCatalog, detailed = fals
   result.platform = platform;
   result.summary = systemRows[0];
   result.cpu = systemRows[1];
-  result.memory = installed('system') ? systemRows[2] : result.summary?.memory || null;
+  result.memory = (monitoringInstalled || installed('system')) ? systemRows[2] : result.summary?.memory || null;
   result.thermal = thermal;
   result.storage = storage;
   result.cpuSustainedHigh = updateSustainedCPU(result.cpu);

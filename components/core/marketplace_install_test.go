@@ -63,3 +63,58 @@ func TestValidateCatalogActionCompletionAcceptsTargetVersion(t *testing.T) {
 		t.Fatalf("matching release version was rejected: %v", failure)
 	}
 }
+
+func TestOfficialRouterForgePackageActionBypassesUnverifiedAgreement(t *testing.T) {
+	item := catalogItem{
+		ID:        "dns",
+		Installed: true,
+		Publisher: catalogPublisher{ID: "routerforge"},
+		Trust:     catalogTrust{Status: "official"},
+		Detection: catalogDetection{Packages: []string{"routerforge-dns"}},
+		Update: catalogInstallPlan{
+			Method:   "routerforge-release",
+			Packages: []string{"routerforge-dns"},
+		},
+		Release: catalogRelease{
+			Channel: "stable",
+			Package: "routerforge-dns",
+			Version: "0.10.1",
+			Asset:   "routerforge-dns_0.10.1_aarch64-3.10.ipk",
+			SHA256:  strings.Repeat("a", 64),
+			URL:     "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-dns_0.10.1_aarch64-3.10.ipk",
+		},
+	}
+
+	if !officialRouterForgePackageAction(item, "update") {
+		t.Fatal("official RouterForge release update was not recognized")
+	}
+	if !packageManagementAllowsCatalogAction(item, "update") {
+		t.Fatal("official RouterForge update was blocked by the unverified-app agreement gate")
+	}
+}
+
+func TestUnverifiedRouterForgeLikeItemDoesNotBypassAgreement(t *testing.T) {
+	item := catalogItem{
+		ID:        "fake",
+		Installed: true,
+		Publisher: catalogPublisher{ID: "routerforge"},
+		Trust:     catalogTrust{Status: "unverified"},
+		Detection: catalogDetection{Packages: []string{"routerforge-fake"}},
+		Update: catalogInstallPlan{
+			Method:   "routerforge-release",
+			Packages: []string{"routerforge-fake"},
+		},
+		Release: catalogRelease{
+			Channel: "stable",
+			Package: "routerforge-fake",
+			Version: "1.0.0",
+			Asset:   "routerforge-fake_1.0.0_aarch64-3.10.ipk",
+			SHA256:  strings.Repeat("b", 64),
+			URL:     "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-fake_1.0.0_aarch64-3.10.ipk",
+		},
+	}
+
+	if officialRouterForgePackageAction(item, "update") {
+		t.Fatal("unverified RouterForge-like item bypassed the agreement gate")
+	}
+}

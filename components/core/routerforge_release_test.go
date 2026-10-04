@@ -284,3 +284,32 @@ func TestDefaultReleaseChannelRecognizesDevBuild(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyRouterForgeReleasePlanMetadataUsesActiveChannel(t *testing.T) {
+	plan := catalogInstallPlan{
+		Method:        "routerforge-release",
+		Repository:    "routerforge-beta",
+		RepositoryURL: "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+		ChecksumURL:   "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+	}
+	release := catalogRelease{
+		Channel: "stable",
+		Package: "routerforge-dns",
+	}
+
+	applyRouterForgeReleasePlanMetadata(&plan, release, "aarch64-3.10")
+
+	if plan.Repository != "routerforge-stable" {
+		t.Fatalf("repository=%q, want routerforge-stable", plan.Repository)
+	}
+	wantBase := "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable"
+	if plan.RepositoryURL != wantBase {
+		t.Fatalf("repository_url=%q, want %q", plan.RepositoryURL, wantBase)
+	}
+	if plan.ChecksumURL != wantBase+"/routerforge-stable-SHA256SUMS" {
+		t.Fatalf("checksum_url=%q", plan.ChecksumURL)
+	}
+	if plan.AssetTemplate != "{package}_{version}_aarch64-3.10.ipk" {
+		t.Fatalf("asset_template=%q", plan.AssetTemplate)
+	}
+}

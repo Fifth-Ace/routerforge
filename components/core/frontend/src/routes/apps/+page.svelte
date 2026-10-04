@@ -427,8 +427,17 @@
     return '';
   }
 
+  function officialRouterForgeLifecycleAction(item, action) {
+    const plan = action === 'install' ? item?.install : action === 'update' ? item?.update : null;
+    const official = item?.id === 'routerforge-core'
+      || (String(item?.publisher?.id || '').toLowerCase() === 'routerforge'
+        && String(item?.trust?.status || '').toLowerCase() === 'official');
+    return Boolean(official && plan?.method === 'routerforge-release' && item?.release?.version);
+  }
+
   function canAction(item, action) {
-    return Boolean(item.actions?.[action]) && (action === 'remove' || packageMode);
+    return Boolean(item.actions?.[action])
+      && (action === 'remove' || packageMode || officialRouterForgeLifecycleAction(item, action));
   }
 
   function webSecurityDecision(item) {

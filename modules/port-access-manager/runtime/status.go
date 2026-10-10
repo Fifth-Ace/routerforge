@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 type EngineStatus struct {
@@ -40,8 +41,7 @@ func packageSet() map[string]bool {
 	out := map[string]bool{}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "/opt/bin/opkg", "list-installed")
-	b, err := cmd.Output()
+	b, err := safety.RunCommandOutput(ctx, "/opt/bin/opkg", "list-installed")
 	if err != nil {
 		return out
 	}

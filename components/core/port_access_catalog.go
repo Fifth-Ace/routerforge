@@ -13,9 +13,9 @@ func portAccessSeedModules() []catalogItem {
 		Detection:     catalogDetection{Packages: []string{"routerforge-port-access-manager"}, Services: []string{"/opt/etc/init.d/S95routerforge-port-access-manager"}},
 		ProcessNames:  []string{"routerforge-port-access-manager"},
 		Compatibility: catalogCompatibility{Status: "requirements", Hints: []string{"RouterForge Core", "Entware", "Keenetic / Netcraze", "Read-only detection only"}, Targets: []string{"aarch64-3.10"}},
-        Install: catalogInstallPlan{Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-port-access-manager"}, Notes: []string{"Installs only the read-only RouterForge manager; does not install knockd or fwknopd."}},
-        Update: catalogInstallPlan{Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-port-access-manager"}},
-        Remove: catalogInstallPlan{Method: "opkg", Packages: []string{"routerforge-port-access-manager"}},
+		Install:       catalogInstallPlan{Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-port-access-manager"}, Notes: []string{"Installs only the read-only RouterForge manager; does not install knockd or fwknopd."}},
+		Update:        catalogInstallPlan{Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-port-access-manager"}},
+		Remove:        catalogInstallPlan{Method: "opkg", Packages: []string{"routerforge-port-access-manager"}},
 		Presentation:  map[string]any{"dashboard": map[string]any{"enabled": false, "priority": 65}},
 	}}
 }

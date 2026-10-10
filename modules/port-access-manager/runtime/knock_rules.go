@@ -12,10 +12,11 @@ import (
 // Previous stage entries can survive an unrelated packet until expiry.
 // Deployment remains prohibited pending packet-level validation.
 type KnockRules struct {
-	Chain    string     `json:"chain"`
-	Hooked   bool       `json:"hooked"`
-	Applied  bool       `json:"applied"`
-	Commands [][]string `json:"commands"`
+	Chain                  string     `json:"chain"`
+	Hooked                 bool       `json:"hooked"`
+	Applied                bool       `json:"applied"`
+	Commands               [][]string `json:"commands"`
+	StrictSequenceVerified bool       `json:"strict_sequence_verified"`
 }
 
 type KnockOptions struct {

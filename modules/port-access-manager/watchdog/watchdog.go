@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 	"path/filepath"
 	"strings"
 	"time"
@@ -62,8 +62,7 @@ func rollbackScript(ctx context.Context, dir string) error {
 	if !info.Mode().IsRegular() || info.Mode().Perm() != 0700 {
 		return errors.New("rollback script must be a regular file with mode 0700")
 	}
-	cmd := exec.CommandContext(ctx, "/bin/sh", script)
-	output, err := cmd.CombinedOutput()
+	output, err := safety.RunCommand(ctx, 4096, "/bin/sh", script)
 	if err != nil {
 		return fmt.Errorf("rollback failed: %w (%s)", err, strings.TrimSpace(string(output)))
 	}

@@ -16,6 +16,6 @@ func portAccessSeedModules() []catalogItem {
 		Install:       catalogInstallPlan{Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-port-access-manager"}, Notes: []string{"Installs only the read-only RouterForge manager; does not install knockd or fwknopd."}},
 		Update:        catalogInstallPlan{Method: "routerforge-release", Repository: "routerforge-dev", Packages: []string{"routerforge-port-access-manager"}},
 		Remove:        catalogInstallPlan{Method: "opkg", Packages: []string{"routerforge-port-access-manager"}},
-		Presentation:  map[string]any{"dashboard": map[string]any{"enabled": false, "priority": 65}},
+		Presentation:  map[string]any{"dashboard": map[string]any{"enabled": false, "priority": 65}, "integration": map[string]any{"enabled": true, "label": "Контроль доступа", "order": 65, "href": "/integrations?open=port-access-manager"}},
 	}}
 }

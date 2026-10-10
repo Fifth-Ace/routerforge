@@ -35,6 +35,7 @@ func routes(ui string) http.Handler {
 		jsonReply(w, 200, map[string]any{"ok": true, "module": "port-access-manager", "version": version, "mode": "read-only-discovery", "mutation_api": false})
 	}))
 	mux.HandleFunc("/v1/status", readOnly(func(w http.ResponseWriter, r *http.Request) { jsonReply(w, 200, snapshot()) }))
+	mux.HandleFunc("/v1/preflight", readOnly(func(w http.ResponseWriter, r *http.Request) { jsonReply(w, 200, preflightSnapshot()) }))
 	mux.HandleFunc("/v1/ui", readOnly(func(w http.ResponseWriter, r *http.Request) { uiFile(w, r, ui) }))
 	mux.HandleFunc("/v1/ui/", readOnly(func(w http.ResponseWriter, r *http.Request) { uiFile(w, r, ui) }))
 	return mux

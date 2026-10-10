@@ -72,4 +72,13 @@
 <div class="refresh-bar"><button type="button" id="existing-engine-refresh">Обновить службы</button><span id="existing-engine-status" role="status"></span></div>
 </section>
 
-</main><script src="app.js"></script></body></html>
+<section class="panel" id="engine-config-panel">
+<h2>Настройка установленных движков</h2>
+<p class="help">Редактирование существующих конфигураций knockd и fwknopd. Файл сохраняется с резервной копией, служба не перезапускается автоматически. В fwknopd могут храниться секретные ключи.</p>
+<div class="form-grid"><label>Движок<select id="engine-config-engine"><option value="knockd">knockd</option><option value="fwknopd">fwknopd / SPA</option></select></label></div>
+<div class="refresh-bar"><button type="button" id="engine-config-refresh">Обновить сведения</button><button type="button" id="engine-config-load">Показать и редактировать файл</button></div>
+<textarea id="engine-config-editor" rows="14" disabled spellcheck="false" autocomplete="off" style="width:100%;box-sizing:border-box;font-family:monospace;resize:vertical"></textarea>
+<div class="refresh-bar"><button type="button" id="engine-config-save">Сохранить конфигурацию</button><button type="button" id="engine-config-restore">Вернуть предыдущую версию</button></div>
+<p id="engine-config-status" role="status" class="muted"></p>
+</section>
+</main><script src="app.js"></script><script src="config-editor.js"></script></body></html>

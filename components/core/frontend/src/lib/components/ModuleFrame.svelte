@@ -12,6 +12,54 @@
   let frame = null;
   let frameHeight = 760;
   let moduleUIRevision = Date.now().toString(36);
+  let portAccessObserver = null;
+  let portAccessMutation = null;
+  let portAccessDocument = null;
+
+  function clearPortAccessObservers() {
+    if (portAccessObserver) portAccessObserver.disconnect();
+    if (portAccessMutation) portAccessMutation.disconnect();
+    portAccessObserver = null;
+    portAccessMutation = null;
+    portAccessDocument = null;
+  }
+
+  function syncPortAccessHeight() {
+    if (moduleId !== 'port-access-manager' || !frame) return;
+    try {
+      const doc = frame.contentDocument;
+      if (!doc || !doc.body || !doc.documentElement) return;
+      const measured = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+      if (Number.isFinite(measured) && measured >= 360 && measured <= 12000) {
+        const next = Math.ceil(measured + 8);
+        if (frameHeight !== next) frameHeight = next;
+      }
+    } catch (_) {
+      // The Port Access page is same-origin; leave the current height if not accessible.
+    }
+  }
+
+  function handleModuleLoad() {
+    clearPortAccessObservers();
+    refreshVisibleWorkspaceHeight();
+    if (moduleId !== 'port-access-manager' || !frame) return;
+    try {
+      const doc = frame.contentDocument;
+      if (!doc || !doc.body) return;
+      portAccessDocument = doc;
+      syncPortAccessHeight();
+      if (typeof ResizeObserver !== 'undefined') {
+        portAccessObserver = new ResizeObserver(syncPortAccessHeight);
+        portAccessObserver.observe(doc.body);
+      }
+      if (typeof MutationObserver !== 'undefined') {
+        portAccessMutation = new MutationObserver(syncPortAccessHeight);
+        portAccessMutation.observe(doc.body, { subtree: true, childList: true, attributes: true, characterData: true });
+      }
+    } catch (_) {
+      // Core proxy is same-origin, but keep the iframe functional if access is denied.
+    }
+  }
 
   function visibleWorkspaceHeight() {
     if (!frame || typeof window === 'undefined') return 720;
@@ -53,6 +101,7 @@
 
   function restartProbe(id) {
     clearRetry();
+    clearPortAccessObservers();
     const generation = ++probeGeneration;
     if (!id) {
       state = 'not-installed';
@@ -113,6 +162,7 @@
   onDestroy(() => {
     ++probeGeneration;
     clearRetry();
+    clearPortAccessObservers();
     window.removeEventListener('message', moduleMessage);
     window.removeEventListener('resize', refreshVisibleWorkspaceHeight);
   });
@@ -125,7 +175,7 @@
       title={`RouterForge ${moduleId}`}
       src={src}
       loading="eager"
-      onload={refreshVisibleWorkspaceHeight}
+      onload={handleModuleLoad}
       referrerpolicy="same-origin"
       allow="fullscreen"
       style={`height:${frameHeight}px`}

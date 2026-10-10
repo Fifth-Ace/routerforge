@@ -1,7 +1,7 @@
 :root{color-scheme:dark;--pa-bg:#0b0d11;--pa-surface:#12161d;--pa-surface-2:#171c24;--pa-surface-3:#0f1319;--pa-input:#0d1117;--pa-border:#2d3748;--pa-border-strong:#3d4c63;--pa-text:#eef2f8;--pa-muted:#a5afbd;--pa-accent:#22c7ff;--pa-accent-soft:rgba(34,199,255,.14);--pa-good:#5fd48f;--pa-bad:#ff8f8f;--pa-shadow:0 10px 30px rgba(0,0,0,.18)}
 *{box-sizing:border-box}
 html{background:transparent;color:var(--pa-text);min-height:100%}
-body{margin:0;min-height:100vh;background:transparent;color:var(--pa-text);font:14px/1.6 Inter,"Segoe UI",Arial,sans-serif}
+body{margin:0;min-height:0;background:transparent;color:var(--pa-text);font:14px/1.6 Inter,"Segoe UI",Arial,sans-serif}
 .pa{width:100%;max-width:none;margin:0;padding:0 0 24px}
 .eyebrow{font-size:12px;letter-spacing:.12em;color:var(--pa-accent);font-weight:700;margin-bottom:8px}
 h1{font-size:24px;line-height:1.25;margin:0 0 10px;color:var(--pa-text);font-weight:800}

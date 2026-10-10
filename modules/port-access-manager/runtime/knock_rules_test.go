@@ -8,7 +8,7 @@ import (
 func TestKnockPlanDryRun(t *testing.T) {
 	o := KnockOptions{Sequence: [3]int{41001, 41002, 41003}, Target: 2222, WindowSeconds: 30, AccessSeconds: 120}
 	plan, err := buildKnockRules(o)
-	if err != nil || plan.Hooked || plan.Applied || len(plan.Commands) != 6 {
+	if err != nil || plan.Hooked || plan.Applied || len(plan.Commands) != 10 {
 		t.Fatalf("unsafe plan: %+v: %v", plan, err)
 	}
 	if !reflect.DeepEqual(plan.Commands[0], []string{"iptables", "-t", "filter", "-N", "RF_PORT_KNOCK"}) {
@@ -22,7 +22,7 @@ func TestKnockPlanDryRun(t *testing.T) {
 }
 func TestKnockPlanRejectsBadInput(t *testing.T) {
 	good := KnockOptions{Sequence: [3]int{41001, 41002, 41003}, Target: 2222, WindowSeconds: 30, AccessSeconds: 120}
-	candidates := []KnockOptions{}
+	var candidates []KnockOptions
 	a := good
 	a.Target = 22
 	a.Sequence[1] = 22
@@ -40,5 +40,25 @@ func TestKnockPlanRejectsBadInput(t *testing.T) {
 		if _, err := buildKnockRules(o); err == nil {
 			t.Fatalf("accepted invalid: %+v", o)
 		}
+	}
+}
+func TestKnockPlanOnlyOneRecentMatcherPerRule(t *testing.T) {
+	plan, err := buildKnockRules(KnockOptions{Sequence: [3]int{41001, 41002, 41003}, Target: 2222, WindowSeconds: 30, AccessSeconds: 120})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range plan.Commands {
+		recent := 0
+		for i := 0; i+1 < len(args); i++ {
+			if args[i] == "-m" && args[i+1] == "recent" {
+				recent++
+			}
+		}
+		if recent > 1 {
+			t.Fatalf("multiple recent matchers: %v", args)
+		}
+	}
+	if plan.Commands[4][len(plan.Commands[4])-1] != "RF_KNOCK_STEP2" || plan.Commands[5][len(plan.Commands[5])-1] != "RF_KNOCK_STEP3" {
+		t.Fatal("stage transitions not gated")
 	}
 }

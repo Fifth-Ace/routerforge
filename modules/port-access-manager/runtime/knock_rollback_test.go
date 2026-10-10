@@ -9,6 +9,10 @@ func TestKnockRollbackOwnChainOnly(t *testing.T) {
 	got := buildKnockRollback()
 	want := [][]string{
 		{"iptables", "-t", "filter", "-F", "RF_PORT_KNOCK"},
+		{"iptables", "-t", "filter", "-F", "RF_KNOCK_STEP2"},
+		{"iptables", "-t", "filter", "-F", "RF_KNOCK_STEP3"},
+		{"iptables", "-t", "filter", "-X", "RF_KNOCK_STEP2"},
+		{"iptables", "-t", "filter", "-X", "RF_KNOCK_STEP3"},
 		{"iptables", "-t", "filter", "-X", "RF_PORT_KNOCK"},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -18,14 +22,14 @@ func TestKnockRollbackOwnChainOnly(t *testing.T) {
 
 func TestKnockPlanOrderAndNoHooks(t *testing.T) {
 	plan, err := buildKnockRules(KnockOptions{Sequence: [3]int{41001, 41002, 41003}, Target: 12345, WindowSeconds: 30, AccessSeconds: 120})
-	if err != nil || plan.Applied || plan.Hooked || len(plan.Commands) != 6 {
+	if err != nil || plan.Applied || plan.Hooked || len(plan.Commands) != 10 {
 		t.Fatalf("unsafe plan: %+v: %v", plan, err)
 	}
 	if !reflect.DeepEqual(plan.Commands[0], []string{"iptables", "-t", "filter", "-N", "RF_PORT_KNOCK"}) {
-		t.Fatal("unexpected chain create", plan.Commands[0])
+		t.Fatal("unexpected chain create")
 	}
 	for i, port := range []string{"41001", "41002", "41003", "12345", "12345"} {
-		args := plan.Commands[i+1]
+		args := plan.Commands[i+3]
 		found := false
 		for j := 0; j+1 < len(args); j++ {
 			if args[j] == "--dport" && args[j+1] == port {
@@ -39,7 +43,7 @@ func TestKnockPlanOrderAndNoHooks(t *testing.T) {
 			t.Fatalf("rule %d wrong target: %v", i, args)
 		}
 	}
-	last := plan.Commands[5]
+	last := plan.Commands[7]
 	if last[len(last)-1] != "DROP" {
 		t.Fatalf("no terminal DROP: %v", last)
 	}

@@ -191,6 +191,34 @@
     }).catch(function (error) { result.textContent = 'Проверка не пройдена: ' + error.message; });
   });
 
+  document.getElementById('knock-nat-check').addEventListener('click', function () {
+    var wan = document.getElementById('knock-wan').value.trim();
+    var publicPort = document.getElementById('knock-public-port').value.trim();
+    var target = document.querySelector('#panel-iptables-recent [data-field="target"]').value.trim();
+    var result = document.getElementById('knock-nat-result');
+    if (!/^[a-zA-Z][a-zA-Z0-9_.:-]{0,14}$/.test(wan) ||
+        !/^\d+$/.test(publicPort) || +publicPort < 1 || +publicPort > 65535 ||
+        !/^\d+$/.test(target) || +target < 1 || +target > 65535) {
+      result.textContent = 'Проверь WAN и оба TCP-порта.';
+      return;
+    }
+    result.textContent = 'Читаем NAT…';
+    var url = statusURL().replace(/\/status$/, '/nat-evidence');
+    url += '?wan=' + encodeURIComponent(wan) + '&public=' + encodeURIComponent(publicPort) + '&target=' + encodeURIComponent(target);
+    fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok) throw new Error(data.error || 'HTTP ' + response.status);
+          return data;
+        });
+      }).then(function (data) {
+        if (data.module !== 'port-access-manager' || data.ready_for_apply !== false ||
+            data.mutation_api !== false || data.observed_only !== true) throw new Error('Нарушен read-only контракт');
+        result.textContent = 'DNAT найден: ' + data.destination_ip + ':' + data.target_port +
+          ' · ' + data.path + '. Правила не применены.';
+      }).catch(function (error) { result.textContent = 'DNAT не подтверждён: ' + error.message; });
+  });
+
   function port(value) { return /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535; }
   function range(value, low, high) { return /^\d+$/.test(value) && Number(value) >= low && Number(value) <= high; }
   var previewSerial = 0;

@@ -390,5 +390,44 @@
   document.getElementById('recent-live-refresh').addEventListener('click',refreshRecentAccess);
   refreshRecentAccess();
 
+  // Controls existing Entware init services; RouterForge does not replace their engines.
+  var controlStatus = document.getElementById('existing-engine-status');
+  function engineServiceURL(engine) {
+    return statusURL().replace(/\/status$/, '/engine-service') + '?engine=' + encodeURIComponent(engine);
+  }
+  function renderEngineService(engine) {
+    return fetch(engineServiceURL(engine), {credentials:'same-origin',cache:'no-store'})
+      .then(function(resp){return resp.json().then(function(data){if(!resp.ok)throw new Error(data.error||'HTTP '+resp.status);return data;});})
+      .then(function(data){
+        document.getElementById(engine+'-service-state').textContent = data.installed ?
+          ((data.running?'Запущен':'Не запущен')+' · '+data.script) : 'Init-скрипт не найден';
+        Array.prototype.forEach.call(document.querySelectorAll('[data-engine-action="'+engine+'"]'),function(button){
+          button.disabled=!data.installed;
+        });
+      });
+  }
+  function refreshServiceControls(){
+    Promise.all(['knockd','fwknopd'].map(renderEngineService))
+      .then(function(){controlStatus.textContent='Состояние служб обновлено';})
+      .catch(function(err){controlStatus.textContent='Не удалось проверить службы: '+err.message;});
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-engine-action]'),function(button){
+    button.addEventListener('click',function(){
+      var engine=button.getAttribute('data-engine-action');
+      var action=button.getAttribute('data-action');
+      if(!window.confirm('Выполнить '+action+' для '+engine+'? Служба может изменить существующие правила доступа.'))return;
+      controlStatus.textContent='Выполняется '+action+' '+engine+'…';
+      fetch(engineServiceURL(engine),{
+        method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json',Accept:'application/json'},
+        body:JSON.stringify({action:action,confirm:'APPLY'})
+      }).then(function(resp){return resp.json().then(function(data){if(!resp.ok)throw new Error(data.error||'HTTP '+resp.status);return data;});})
+        .then(refreshServiceControls)
+        .catch(function(err){controlStatus.textContent='Операция отклонена: '+err.message;});
+    });
+  });
+  document.getElementById('existing-engine-refresh').addEventListener('click',refreshServiceControls);
+  refreshServiceControls();
+
   loadStaged();
 }());

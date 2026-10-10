@@ -91,6 +91,21 @@ func runningProcesses() map[string]bool {
 	return out
 }
 
+// recent is a kernel match, not an Entware daemon. Check capability without
+// loading modules or touching the firewall. No supported engine is activated.
+func kernelMatchPresent(path, match string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	for _, field := range strings.Fields(string(b)) {
+		if field == match {
+			return true
+		}
+	}
+	return false
+}
+
 func snapshot() Status {
 	pkgs := packageSet()
 	procs := runningProcesses()
@@ -104,5 +119,10 @@ func snapshot() Status {
 			ConfigurationPresent: confErr == nil, ServicePresent: serviceExists(spec.id),
 		})
 	}
+	// Expose the daemon-free community approach as a separate, read-only adapter.
+	// "Installed" means kernel match capability, not active protection.
+	result.Engines = append(result.Engines, EngineStatus{
+		ID: "iptables-recent", Installed: kernelMatchPresent("/proc/net/ip_tables_matches", "recent"),
+	})
 	return result
 }

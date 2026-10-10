@@ -15,30 +15,7 @@ import (
 // watchdog only acts on an explicitly armed, private transaction directory.
 // It is not currently shipped or launched by Port Access Manager.
 func run(ctx context.Context, dir string, deadline time.Time, now func() time.Time, wait func(context.Context, time.Duration) error, rollback func(context.Context, string) error) error {
-	if dir == "" || !filepath.IsAbs(dir) {
-		return errors.New("absolute transaction directory required")
-	}
-	if deadline.IsZero() {
-		return errors.New("deadline required")
-	}
-	marker := filepath.Join(dir, "confirmed")
-	for {
-		if _, err := os.Stat(marker); err == nil {
-			return nil
-		} else if !os.IsNotExist(err) {
-			return err
-		}
-		remaining := deadline.Sub(now())
-		if remaining <= 0 {
-			return rollback(ctx, dir)
-		}
-		if remaining > time.Second {
-			remaining = time.Second
-		}
-		if err := wait(ctx, remaining); err != nil {
-			return err
-		}
-	}
+    return watchTransaction(ctx, dir, deadline, now, wait, rollback)
 }
 
 func sleep(ctx context.Context, d time.Duration) error {

@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+mkdir -p /opt/etc/routerforge /opt/var/run
+if [ -x /opt/etc/init.d/S95routerforge-port-access-manager ]; then
+    /opt/etc/init.d/S95routerforge-port-access-manager stop >/dev/null 2>&1 || true
+    /opt/etc/init.d/S95routerforge-port-access-manager start >/dev/null 2>&1 || true
+fi
+exit 0

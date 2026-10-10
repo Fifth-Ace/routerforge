@@ -1,4 +1,4 @@
-:root{color-scheme:dark;--pa-bg:#0b0d11;--pa-surface:#12161d;--pa-surface-2:#171c24;--pa-surface-3:#0f1319;--pa-input:#0d1117;--pa-border:#2d3748;--pa-border-strong:#3d4c63;--pa-text:#eef2f8;--pa-muted:#a5afbd;--pa-accent:#22c7ff;--pa-accent-soft:rgba(34,199,255,.14);--pa-good:#5fd48f;--pa-bad:#ff8f8f;--pa-shadow:0 10px 30px rgba(0,0,0,.18)}
+:root{color-scheme:dark;--pa-bg:#0b0d11;--pa-text:#eef2f8;--pa-accent:#38bdf8;--pa-surface:color-mix(in srgb,var(--pa-bg),var(--pa-text) 7%);--pa-surface-2:color-mix(in srgb,var(--pa-bg),var(--pa-text) 11%);--pa-surface-3:color-mix(in srgb,var(--pa-bg),#000 35%);--pa-input:color-mix(in srgb,var(--pa-bg),#000 16%);--pa-border:color-mix(in srgb,var(--pa-bg),var(--pa-text) 20%);--pa-border-strong:color-mix(in srgb,var(--pa-bg),var(--pa-text) 27%);--pa-muted:color-mix(in srgb,var(--pa-text),var(--pa-bg) 34%);--pa-accent-soft:color-mix(in srgb,var(--pa-bg),var(--pa-accent) 15%);--pa-good:#5fd48f;--pa-bad:#ff8f8f;--pa-shadow:0 10px 30px rgba(0,0,0,.18)}
 *{box-sizing:border-box}
 html{background:transparent;color:var(--pa-text);min-height:100%}
 body{margin:0;min-height:0;background:transparent;color:var(--pa-text);font:14px/1.6 Inter,"Segoe UI",Arial,sans-serif}
@@ -22,11 +22,11 @@ header p{margin:0}
 .refresh-bar{display:flex;align-items:center;gap:12px;margin:14px 0 0;flex-wrap:wrap}
 .refresh-bar span{font-size:13px;color:var(--pa-muted)}
 button{color:var(--pa-text);font:600 14px/1.2 Inter,"Segoe UI",Arial,sans-serif;cursor:pointer;border:1px solid var(--pa-border-strong);border-radius:10px;background:var(--pa-surface-2);padding:10px 14px;transition:background .15s ease,border-color .15s ease,color .15s ease,transform .15s ease}
-button:hover{background:#1d2430;border-color:#4b607d}
+button:hover{background:var(--pa-surface-2);border-color:var(--pa-accent)}
 button:active{transform:translateY(1px)}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 .tabs button{background:var(--pa-surface-2);padding:11px 16px}
-.tabs button[aria-selected="true"]{border-color:var(--pa-accent);background:var(--pa-accent-soft);color:#d9f8ff;font-weight:800}
+.tabs button[aria-selected="true"]{border-color:var(--pa-accent);background:var(--pa-accent-soft);color:var(--pa-text);font-weight:800}
 .tabs button:focus-visible,input:focus-visible{outline:2px solid var(--pa-accent);outline-offset:2px}
 .panel{margin-bottom:14px}
 .panel[hidden]{display:none!important}
@@ -45,3 +45,8 @@ a{color:#7ed8ff}
 a:hover{text-decoration:underline}
 @media(max-width:980px){.cards{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
 @media(max-width:680px){body{font-size:13px}.pa{padding:0 0 16px}.engine-card,.panel,.preview,.notice{padding:14px}.tabs button{padding:10px 12px;width:100%}}
+
+/* Theme parameters are supplied by the Core ModuleFrame and remain scoped to this iframe. */
+:root[data-pa-density="compact"] .engine-card,:root[data-pa-density="compact"] .panel,:root[data-pa-density="compact"] .preview{padding:12px}
+:root[data-pa-radius="compact"] .engine-card,:root[data-pa-radius="compact"] .panel,:root[data-pa-radius="compact"] .preview,:root[data-pa-radius="compact"] button,:root[data-pa-radius="compact"] input{border-radius:5px}
+:root[data-pa-radius="rounded"] .engine-card,:root[data-pa-radius="rounded"] .panel,:root[data-pa-radius="rounded"] .preview{border-radius:16px}

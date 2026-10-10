@@ -39,6 +39,7 @@ func routes(ui string) http.Handler {
 	mux.HandleFunc("/v1/knock-preview", readOnly(knockPreviewHandler))
 	mux.HandleFunc("/v1/forward-order", readOnly(forwardOrderHandler))
 	mux.HandleFunc("/v1/nat-evidence", readOnly(natEvidenceHandler))
+	mux.HandleFunc("/v1/staged-rules", stagedRulesHandler(rulesStorePath))
 	mux.HandleFunc("/v1/ui", readOnly(func(w http.ResponseWriter, r *http.Request) { uiFile(w, r, ui) }))
 	mux.HandleFunc("/v1/ui/", readOnly(func(w http.ResponseWriter, r *http.Request) { uiFile(w, r, ui) }))
 	return mux

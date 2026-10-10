@@ -41,4 +41,12 @@
 </section>
 <div class="preview"><div class="preview-top"><strong>Локальный предпросмотр</strong><span>Не применяется на роутере</span></div><p id="validation" role="status"></p><pre id="preview" aria-label="Предпросмотр параметров"></pre></div>
 <footer>Безопасный доступ и rollback — обязательные условия будущего этапа применения. K2D не создаёт правил и не меняет конфигурацию устройства.</footer>
+<section class="panel" id="staging-panel" aria-labelledby="staging-title">
+<h2 id="staging-title">Сохранённые правила (без применения)</h2>
+<p class="help">Настройки сохраняются на Entware. Это не включает firewall, не запускает knockd/fwknopd и не меняет NDM. Для боевого включения необходима аппаратная приёмка.</p>
+<div class="form-grid"><label>ID правила<input id="staged-id" value="test-access" maxlength="40" pattern="[a-z][a-z0-9_-]*" autocomplete="off"></label></div>
+<div class="refresh-bar"><button type="button" id="staged-save">Сохранить черновик iptables recent</button><button type="button" id="staged-refresh">Обновить список</button></div>
+<p id="staged-message" role="status" class="muted">Firewall не изменяется.</p>
+<div id="staged-list" aria-live="polite"></div>
+</section>
 </main><script src="app.js"></script></body></html>

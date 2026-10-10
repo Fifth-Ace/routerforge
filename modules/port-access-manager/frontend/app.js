@@ -295,4 +295,54 @@
   document.getElementById('refresh').addEventListener('click', refresh);
   activate(selected);
   refresh();
+  // Staging changes configuration only: never sends a firewall apply action.
+  var stageMessage = document.getElementById('staged-message');
+  var stageList = document.getElementById('staged-list');
+  function stagedEndpoint() { return statusURL().replace(/\/status$/, '/staged-rules'); }
+  function stagedRequest(method, body) {
+    return fetch(stagedEndpoint(), {
+      method:method,credentials:'same-origin',cache:'no-store',
+      headers:{'Content-Type':'application/json','X-RouterForge-Action':'stage-rule',Accept:'application/json'},
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function(response) {
+      return response.json().then(function(data) {
+        if (!response.ok) throw new Error(data.error || ('HTTP '+response.status));
+        return data;
+      });
+    });
+  }
+  function loadStaged() {
+    stageMessage.textContent = 'Читаем сохранённые правила…';
+    stagedRequest('GET').then(function(data) {
+      if (data.firewall_mutation !== false || data.ready_for_apply !== false || !Array.isArray(data.rules)) throw new Error('Небезопасный ответ API');
+      stageList.textContent = '';
+      data.rules.forEach(function(rule) {
+        var row = el('div',undefined,'engine-card');
+        row.appendChild(el('strong',rule.id));
+        row.appendChild(el('p',rule.engine + ' · WAN '+rule.wan+' · '+rule.sequence.join(',')+' → '+rule.target+' · выключено','muted'));
+        var remove = el('button','Удалить черновик');
+        remove.type='button';
+        remove.addEventListener('click',function() {
+          if (!window.confirm('Удалить черновик '+rule.id+'?')) return;
+          stagedRequest('DELETE',{id:rule.id}).then(loadStaged).catch(function(err){stageMessage.textContent=err.message;});
+        });
+        row.appendChild(remove);stageList.appendChild(row);
+      });
+      stageMessage.textContent = 'Черновиков: '+data.rules.length+' · firewall не изменён';
+    }).catch(function(err){stageMessage.textContent='Сохранение пока недоступно: '+err.message;});
+  }
+  document.getElementById('staged-refresh').addEventListener('click',loadStaged);
+  document.getElementById('staged-save').addEventListener('click',function() {
+    var panel=document.getElementById('panel-iptables-recent');
+    var sequence=panel.querySelector('[data-field="sequence"]').value.split(',').map(function(x){return Number(x.trim());});
+    var target=Number(panel.querySelector('[data-field="target"]').value);
+    var windowSeconds=Number(panel.querySelector('[data-field="window"]').value);
+    var accessSeconds=Number(panel.querySelector('[data-field="ttl"]').value);
+    var id=document.getElementById('staged-id').value.trim();
+    var wan=document.getElementById('knock-wan').value.trim();
+    if (sequence.length!==3 || sequence.some(function(x){return !Number.isInteger(x);})) {stageMessage.textContent='Нужно ровно три порта';return;}
+    stagedRequest('POST',{rule:{id:id,engine:'iptables-recent',sequence:sequence,target:target,window_seconds:windowSeconds,access_seconds:accessSeconds,wan:wan,enabled:false}})
+      .then(loadStaged).catch(function(err){stageMessage.textContent='Не сохранено: '+err.message;});
+  });
+  loadStaged();
 }());

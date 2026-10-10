@@ -57,3 +57,18 @@ a{color:var(--pa-accent)}
 :root[data-radius="sharp"]{--pa-radius:2px;--pa-control-radius:2px}
 :root[data-radius="soft"]{--pa-radius:12px;--pa-control-radius:9px}
 @media(max-width:720px){.cards,.form-grid{grid-template-columns:1fr}.tabs button{flex:1 1 auto}}
+
+
+/* K3B safety panel: read-only, uses native RouterForge tokens. */
+.safety-panel{margin:0 0 14px}
+.safety-panel>.help{margin:8px 0 12px}
+.safety-verdict{font-size:10px;color:var(--pa-muted)}
+.safety-blocked{color:var(--pa-bad);font-weight:700}
+.safety-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.safety-check{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;align-items:start;padding:10px;border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);background:var(--pa-surface-2)}
+.safety-check strong{font-size:11px;color:var(--pa-text)}
+.safety-check span{font-size:10px;text-align:right}
+.safety-check small{grid-column:1/-1;font-size:10px;line-height:1.4;color:var(--pa-muted)}
+.safety-present{color:var(--pa-good)}
+.safety-warning{color:var(--pa-muted)}
+@media(max-width:720px){.safety-checks{grid-template-columns:1fr}}

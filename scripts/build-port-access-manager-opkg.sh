@@ -22,6 +22,15 @@ mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
     -o "$WORK/data/opt/bin/$PACKAGE" ./modules/port-access-manager/runtime
 )
 chmod 0755 "$WORK/data/opt/bin/$PACKAGE"
+# K3H: ship the watchdog binary, but do not start or arm it.
+(
+  cd "$ROOT"
+  routerforge_go build -trimpath -ldflags="-s -w" \
+    -o "$WORK/data/opt/bin/routerforge-port-access-watchdog" ./modules/port-access-manager/watchdog
+)
+chmod 0755 "$WORK/data/opt/bin/routerforge-port-access-watchdog"
+sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-port-access-watchdog"
+test -x "$WORK/data/opt/bin/routerforge-port-access-watchdog"
 sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$PACKAGE"
 cp "$ROOT/modules/port-access-manager/packaging/S95routerforge-port-access-manager" "$WORK/data/opt/etc/init.d/S95routerforge-port-access-manager"
 chmod 0755 "$WORK/data/opt/etc/init.d/S95routerforge-port-access-manager"

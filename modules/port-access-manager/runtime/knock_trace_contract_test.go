@@ -8,7 +8,7 @@ func TestK4QTraceMatrix(t *testing.T) {
 	const ip = "198.51.100.10"
 	const target = 2222
 	cases := []struct {
-		name string
+		name  string
 		ports []int
 		allow bool
 	}{
@@ -67,9 +67,9 @@ func TestK4QSourceIsolationAndRevocation(t *testing.T) {
 func TestK4QWindowBoundary(t *testing.T) {
 	const ip = "198.51.100.10"
 	for _, tc := range []struct {
-		name string
-		second int
-		third int
+		name    string
+		second  int
+		third   int
 		allowed bool
 	}{
 		{"inside", 15, 29, true},

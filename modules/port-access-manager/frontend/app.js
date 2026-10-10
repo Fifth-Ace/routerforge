@@ -108,6 +108,30 @@
     wan_route_evidence: 'IPv4-маршрут (наблюдение)',
     wan_scope: 'WAN / NAT / защищаемый порт'
   };
+  // K3E: localize known preflight evidence without hiding dynamic facts.
+  function localizeSafetyDetail(check) {
+    var detail = String(check.detail || 'Нет данных');
+    var messages = {
+      'Kernel recent match is loaded; this does not prove firewall protection': 'Модуль recent загружен; это не подтверждает действующую защиту firewall.',
+      'recent match is not visible; capability has not been proven': 'Модуль recent не обнаружен; поддержка не подтверждена.',
+      'Cannot read kernel table registry': 'Не удалось прочитать список таблиц ядра.',
+      'Kernel filter table is visible; no rule order has been verified': 'Таблица filter обнаружена, но порядок правил не проверен.',
+      'Filter table is not visible in kernel table registry': 'Таблица filter не обнаружена.',
+      'Keenetic NDM forwarding chain order and persistence have not been verified': 'Порядок цепочек NDM и сохранение правил после перезапуска не проверены.',
+      'SSH 22/2222, active management path and an out-of-band rescue have not been verified': 'Порты SSH, действующий канал управления и резервный доступ не проверены.',
+      'No timed rollback transaction has been staged or tested': 'Транзакционный откат по таймеру ещё не подготовлен и не проверен на роутере.',
+      'WAN interface, protected target and NAT forwarding have not been verified': 'WAN-интерфейс, защищаемый адрес и проброс NAT не проверены.'
+    };
+    if (messages[detail]) return messages[detail];
+    return detail
+      .replace(/^Visible filter chains: /, 'Обнаружены цепочки filter: ')
+      .replace(/^TCP LISTEN on port\(s\) /, 'TCP-порты в состоянии LISTEN: ')
+      .replace(/^Default IPv4 route interface: /, 'Интерфейс маршрута IPv4 по умолчанию: ')
+      .replace(/; insertion order and NDM persistence NOT verified/g, '; порядок правил и сохранение NDM НЕ проверены')
+      .replace(/; reachability, authenticated session and rescue NOT verified/g, '; доступность, авторизация и резервный доступ НЕ проверены')
+      .replace(/; physical WAN identity, NAT target and forwarding NOT verified/g, '; физический WAN, адрес NAT и проброс НЕ проверены');
+  }
+
   function refreshPreflight() {
     safetyVerdict.textContent = 'Проверяем…';
     safetyVerdict.className = 'safety-verdict';
@@ -131,7 +155,7 @@
           var row = el('div', undefined, 'safety-check');
           var heading = el('strong', safetyLabels[check.id] || check.id);
           var state = el('span', check.state === 'present' ? 'Обнаружено' : (check.state === 'observed' ? 'Наблюдается' : 'Требует проверки'), check.state === 'present' ? 'safety-present' : (check.state === 'observed' ? 'safety-present' : 'safety-warning'));
-          var detail = el('small', check.detail || 'Нет данных', 'muted');
+          var detail = el('small', localizeSafetyDetail(check), 'muted');
           row.appendChild(heading);
           row.appendChild(state);
           row.appendChild(detail);

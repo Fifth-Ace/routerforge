@@ -1,0 +1,7 @@
+(function(){'use strict';
+var names={knockd:['Классический Port Knocking','Последовательность стуков по портам'],fwknopd:['Защищённый доступ','Один зашифрованный пакет']};
+var base=location.pathname.replace(/\/v1\/ui(?:\/.*)?$/,'').replace(/\/$/,'');
+var list=document.getElementById('engines');var checked=document.getElementById('checked');
+function line(v){var x=document.createElement('p');x.textContent=v;return x;}
+function refresh(){list.textContent='';list.appendChild(line('Читаем состояние…'));fetch(base+'/v1/status',{credentials:'same-origin',cache:'no-store'}).then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json();}).then(function(data){list.textContent='';(data.engines||[]).forEach(function(e){var c=document.createElement('article');var n=names[e.id]||[e.id,''];var h=document.createElement('h2');h.textContent=n[0];c.appendChild(h);c.appendChild(line(n[1]));c.appendChild(line(e.installed?'Установлен':'Не установлен'));c.appendChild(line(e.running?'Запущен':'Не запущен'));c.appendChild(line(e.configuration_present?'Настройки найдены':'Настройки не найдены'));list.appendChild(c);});checked.textContent='Данные обновлены';}).catch(function(err){list.textContent='';list.appendChild(line('Нет связи со службой: '+err.message));checked.textContent='';});}
+document.getElementById('refresh').addEventListener('click',refresh);refresh();})();

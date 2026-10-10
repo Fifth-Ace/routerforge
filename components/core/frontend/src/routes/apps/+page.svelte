@@ -1236,8 +1236,8 @@
         </button>
       {/if}
 
-      {#if tab === 'routerforge' && packageMode && officialRouterForgeUpdates.length}
-        <button class="button primary" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId)} onclick={updateAllRouterForge}>
+      {#if tab === 'routerforge'}
+        <button class="button primary" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId) || officialRouterForgeUpdates.length === 0} onclick={updateAllRouterForge}>
           {bulkUpdating ? (locale === 'ru' ? 'Обновляем RouterForge…' : 'Updating RouterForge…') : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
         </button>
       {/if}

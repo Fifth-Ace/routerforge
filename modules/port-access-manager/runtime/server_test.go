@@ -46,7 +46,20 @@ func TestUITraversalAndHead(t *testing.T) {
 }
 func TestEngineSchema(t *testing.T) {
 	s := snapshot()
-	if len(s.Engines) != 2 || s.Engines[0].ID != "knockd" || s.Engines[1].ID != "fwknopd" || s.MutationAPI {
+	if len(s.Engines) != 3 || s.Engines[0].ID != "knockd" || s.Engines[1].ID != "fwknopd" || s.Engines[2].ID != "iptables-recent" || s.MutationAPI {
 		t.Fatalf("unexpected state: %+v", s)
+	}
+}
+
+func TestKernelMatchPresent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "matches")
+	if kernelMatchPresent(path, "recent") {
+		t.Fatal("missing file must be unsupported")
+	}
+	if err := os.WriteFile(path, []byte("set\nconntrack\nrecent\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if !kernelMatchPresent(path, "recent") || kernelMatchPresent(path, "rec") {
+		t.Fatal("exact kernel match detection failed")
 	}
 }

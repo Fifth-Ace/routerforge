@@ -5,10 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 // This controls an existing Entware daemon; it never generates firewall rules.
@@ -95,7 +96,10 @@ func runExistingEngineService(ctx context.Context, engine, action, dir string, i
 }
 
 func invokeEntwareService(ctx context.Context, path, action string) error {
-	cmd := exec.CommandContext(ctx, path, action)
+	cmd, err := safety.CommandContext(ctx, path, action)
+	if err != nil {
+		return errors.New("Entware service operation failed")
+	}
 	cmd.Env = []string{"PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
 	out, err := cmd.CombinedOutput()
 	if err != nil {

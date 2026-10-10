@@ -20,7 +20,7 @@ func TestKnockPreviewContract(t *testing.T) {
 		}
 		if tc.want == 200 && tc.method == "GET" {
 			var p KnockRules
-			if err := json.Unmarshal(w.Body.Bytes(), &p); err != nil || p.Applied || p.Hooked || len(p.Commands) != 6 {
+			if err := json.Unmarshal(w.Body.Bytes(), &p); err != nil || p.Applied || p.Hooked || len(p.Commands) != 10 {
 				t.Fatalf("unsafe payload %+v err %v", p, err)
 			}
 		}

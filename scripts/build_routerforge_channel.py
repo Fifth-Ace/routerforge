@@ -197,6 +197,7 @@ def main():
             "network-tools",
             "nfqws-manager",
             "antiscan-manager",
+            "port-access-manager",
             "profiling",
         ]
     elif channel == "beta":
@@ -249,7 +250,8 @@ def main():
             run(["./scripts/build-opkg.sh", version], env=env)
         elif cid == "admin":
             run(["./scripts/build-admin-opkg.sh", version], env=env)
-        elif cid == "network-tools":
++
++            run(["./scripts/build-network-tools-opkg.sh", version], env=env)
             run(["./scripts/build-network-tools-opkg.sh", version], env=env)
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)

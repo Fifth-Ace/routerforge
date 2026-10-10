@@ -174,6 +174,7 @@
 
   function port(value) { return /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535; }
   function range(value, low, high) { return /^\d+$/.test(value) && Number(value) >= low && Number(value) <= high; }
+  var previewSerial = 0;
   function renderPreview() {
     var panel = document.getElementById('panel-' + selected);
     var inputs = panel.querySelectorAll('[data-field]');
@@ -202,8 +203,20 @@
     validation.textContent = errors.length ? errors.join(' ') : 'Параметры корректны для локального предпросмотра. Проверка сети и правил firewall не выполнялась.';
     validation.className = errors.length ? 'invalid' : 'good';
     document.getElementById('preview').textContent = errors.length ? 'Предпросмотр недоступен: исправь параметры.' : JSON.stringify(data, null, 2);
+    if (!errors.length && selected === 'iptables-recent') {
+      var url = statusURL().replace(/\/status$/, '/knock-preview');
+      var query = new URLSearchParams({first:data.sequence[0],second:data.sequence[1],third:data.sequence[2],target:data.target_port,window:data.window_seconds,ttl:data.ttl_seconds});
+      var request = ++previewSerial;
+      fetch(url+'?'+query.toString(), {credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}})
+        .then(function(response){if(!response.ok)throw new Error('HTTP '+response.status);return response.json();})
+        .then(function(plan){if(request!==previewSerial||selected!=='iptables-recent')return;
+          if(plan.applied!==false||plan.hooked!==false||!Array.isArray(plan.commands))throw new Error('Неверный dry-run контракт');
+          document.getElementById('preview').textContent = 'Порядок команд (НЕ ПРИМЕНЕНО):\n'+plan.commands.map(function(args,i){return (i+1)+'. '+args.join(' ');}).join('\n')+'\n\nЦепочка не подключена к NDM/FORWARD.';
+        }).catch(function(err){if(request===previewSerial&&selected==='iptables-recent')document.getElementById('preview').textContent='Ошибка предпросмотра: '+err.message;});
+    }
   }
   function activate(id) {
+    previewSerial++;
     selected = id;
     tabs.forEach(function (tab) {
       var active = tab.getAttribute('data-tab') === id;

@@ -219,6 +219,11 @@
       }).catch(function (error) { result.textContent = 'DNAT не подтверждён: ' + error.message; });
   });
 
+  document.getElementById('knock-check-all').addEventListener('click', function () {
+    document.getElementById('knock-forward-check').click();
+    document.getElementById('knock-nat-check').click();
+  });
+
   function port(value) { return /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535; }
   function range(value, low, high) { return /^\d+$/.test(value) && Number(value) >= low && Number(value) <= high; }
   var previewSerial = 0;

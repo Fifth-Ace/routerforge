@@ -34,6 +34,7 @@
 <div class="form-grid"><label>WAN-интерфейс для проверки<input id="knock-wan" value="" placeholder="например, eth3" autocomplete="off" spellcheck="false"></label></div>
 <div class="form-grid"><label>Внешний TCP-порт DNAT<input id="knock-public-port" type="number" min="1" max="65535" value="50000"></label></div>
 <div class="refresh-bar"><button type="button" id="knock-nat-check">↻ Проверить DNAT</button><span id="knock-nat-result" role="status" class="muted">Только чтение.</span></div>
+<div class="refresh-bar"><button type="button" id="knock-check-all">↻ Проверить FORWARD и DNAT</button><span class="muted">Обе проверки только читают правила.</span></div>
 <div class="refresh-bar"><button type="button" id="knock-forward-check">↻ Проверить порядок FORWARD</button><span id="knock-forward-result" role="status" class="muted">Только чтение, без изменений firewall.</span></div>
 
 <p class="help">Предварительная модель: входящий FORWARD, защита неправильной последовательности, срок действия разрешения. Реальное состояние цепочек NDM и сохранность SSH будут проверяться в отдельном этапе.</p>

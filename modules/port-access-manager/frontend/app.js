@@ -1,5 +1,22 @@
 (function () {
   'use strict';
+  // Consume the same validated theme contract used by RouterForge managers.
+  function themeColor(value) { return /^#[0-9a-fA-F]{6}$/.test(value || '') ? value : ''; }
+  var params = new URLSearchParams(window.location.search);
+  var rootStyle = document.documentElement.style;
+  var tokens = { accent: '--pa-accent', background: '--pa-bg', text: '--pa-text' };
+  Object.keys(tokens).forEach(function (key) {
+    var color = themeColor(params.get(key));
+    if (color) rootStyle.setProperty(tokens[key], color);
+  });
+  var density = params.get('density');
+  if (density === 'compact' || density === 'comfortable' || density === 'normal') {
+    document.documentElement.setAttribute('data-pa-density', density);
+  }
+  var radius = params.get('radius');
+  if (radius === 'compact' || radius === 'default' || radius === 'rounded') {
+    document.documentElement.setAttribute('data-pa-radius', radius);
+  }
   var labels = {
     'knockd': 'knockd',
     'fwknopd': 'fwknopd / SPA',

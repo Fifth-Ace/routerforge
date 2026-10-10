@@ -172,6 +172,25 @@
   document.getElementById('preflight-refresh').addEventListener('click', refreshPreflight);
   refreshPreflight();
 
+  document.getElementById('knock-forward-check').addEventListener('click', function () {
+    var wan = document.getElementById('knock-wan').value.trim();
+    var target = document.querySelector('#panel-iptables-recent [data-field="target"]').value.trim();
+    var result = document.getElementById('knock-forward-result');
+    if (!/^[a-zA-Z][a-zA-Z0-9_.:-]{0,14}$/.test(wan) || !/^\d+$/.test(target) || +target < 1 || +target > 65535) {
+      result.textContent = 'Укажи WAN-интерфейс и корректный защищаемый порт.';
+      return;
+    }
+    result.textContent = 'Читаем filter/FORWARD…';
+    fetch(statusURL().replace(/\/status$/, '/forward-order') + '?wan=' + encodeURIComponent(wan) + '&port=' + encodeURIComponent(target), {
+      credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }
+    }).then(function (response) {
+      return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || 'HTTP ' + response.status); return data; });
+    }).then(function (data) {
+      if (data.module !== 'port-access-manager' || data.ready_for_apply !== false || data.mutation_api !== false || data.observed_only !== true) throw new Error('Не подтверждён read-only контракт');
+      result.textContent = 'FORWARD: планируемая позиция ' + data.planned_position + '. Никаких правил не применено.';
+    }).catch(function (error) { result.textContent = 'Проверка не пройдена: ' + error.message; });
+  });
+
   function port(value) { return /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535; }
   function range(value, low, high) { return /^\d+$/.test(value) && Number(value) >= low && Number(value) <= high; }
   var previewSerial = 0;

@@ -6,7 +6,7 @@
 </head>
 <body><main class="pa">
 <header><div class="eyebrow">ROUTERFORGE / БЕЗОПАСНОСТЬ</div><h1>Контроль доступа</h1><p>Три механизма защиты доступа. Пока доступна диагностика и локальный предпросмотр настроек.</p></header>
-<section class="notice" role="status"><strong>Режим K2D · без применения</strong><span>Все параметры ниже остаются только в браузере. Никаких запросов записи, изменений firewall, установок или рестартов.</span></section>
+<section class="notice" role="status"><strong>Режим диагностики и управления авторизацией</strong><span>Черновики сохраняются; авторизованные IP можно просмотреть и отозвать. Применение новых firewall-правил пока не включено.</span></section>
 <section class="overview"><div><span class="section-label">Состояние движков</span><div id="engines" class="cards" aria-live="polite">Читаем состояние…</div></div><div class="refresh-bar"><button type="button" id="refresh">↻ Обновить диагностику</button><span id="checked" role="status"></span></div></section>
 <section class="panel safety-panel" id="safety-preflight" aria-labelledby="preflight-title">
   <div class="preview-top"><strong id="preflight-title">Проверка безопасности перед применением</strong><span id="preflight-verdict" class="safety-verdict" role="status">Ожидаем данные</span></div>
@@ -49,5 +49,11 @@
 <p id="staged-message" role="status" class="muted">Firewall не изменяется.</p>
 <div id="staged-list" aria-live="polite"></div>
 <pre id="staged-assessment" role="status" aria-live="polite" style="white-space:pre-wrap;overflow-wrap:anywhere">Выбери сохранённое правило и нажми «Проверить правило».</pre>
+</section>
+<section class="panel" id="recent-live-panel" aria-labelledby="recent-live-title">
+<h2 id="recent-live-title">Авторизованные IP · iptables recent</h2>
+<p class="help">Реальные записи ядра /proc/net/xt_recent/RF_KNOCK_AUTH. Время действия не выводится, если ядро не предоставляет точную временную метку.</p>
+<div class="refresh-bar"><button type="button" id="recent-live-refresh">↻ Обновить авторизованные IP</button><span id="recent-live-status" role="status" class="muted"></span></div>
+<div id="recent-live-list" aria-live="polite"></div>
 </section>
 </main><script src="app.js"></script></body></html>

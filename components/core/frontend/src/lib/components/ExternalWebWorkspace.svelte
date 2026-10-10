@@ -258,4 +258,36 @@
     }
     .web-workspace-actions { width: 100%; justify-content: flex-start; }
   }
+
+
+/* K2G: make external workspace use RouterForge page height without cramped inner scrolling. */
+.web-workspace-overlay {
+  padding: 12px !important;
+}
+.web-workspace {
+  width: min(1680px, calc(100vw - 24px)) !important;
+  height: calc(100vh - 24px) !important;
+  max-height: calc(100vh - 24px) !important;
+}
+.web-workspace-head {
+  flex: 0 0 auto;
+}
+.web-workspace :global(iframe),
+.web-workspace iframe,
+.web-workspace-frame {
+  display: block;
+  width: 100%;
+  height: 100% !important;
+  min-height: calc(100vh - 150px);
+  border: 0;
+  background: transparent;
+}
+.web-workspace-body,
+.web-workspace-content,
+.web-workspace-frame-wrap,
+.web-workspace-frame-shell {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
 </style>

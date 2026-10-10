@@ -56,4 +56,20 @@
 <div class="refresh-bar"><button type="button" id="recent-live-refresh">↻ Обновить авторизованные IP</button><span id="recent-live-status" role="status" class="muted"></span></div>
 <div id="recent-live-list" aria-live="polite"></div>
 </section>
+<section class="panel" id="existing-engine-control" aria-labelledby="existing-engine-title">
+<h2 id="existing-engine-title">Установленные движки · Entware</h2>
+<p class="help">Управление уже установленными службами knockd и fwknopd через их init-скрипты. Настройки и правила firewall здесь не создаются; запуск применит имеющуюся конфигурацию службы.</p>
+<div class="cards">
+<div class="engine-card"><strong>knockd</strong><p id="knockd-service-state">Проверяем…</p>
+<button type="button" data-engine-action="knockd" data-action="start">Запустить</button>
+<button type="button" data-engine-action="knockd" data-action="stop">Остановить</button>
+<button type="button" data-engine-action="knockd" data-action="restart">Перезапустить</button></div>
+<div class="engine-card"><strong>fwknopd / SPA</strong><p id="fwknopd-service-state">Проверяем…</p>
+<button type="button" data-engine-action="fwknopd" data-action="start">Запустить</button>
+<button type="button" data-engine-action="fwknopd" data-action="stop">Остановить</button>
+<button type="button" data-engine-action="fwknopd" data-action="restart">Перезапустить</button></div>
+</div>
+<div class="refresh-bar"><button type="button" id="existing-engine-refresh">Обновить службы</button><span id="existing-engine-status" role="status"></span></div>
+</section>
+
 </main><script src="app.js"></script></body></html>

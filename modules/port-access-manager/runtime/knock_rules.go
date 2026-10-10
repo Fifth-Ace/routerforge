@@ -17,6 +17,8 @@ type KnockRules struct {
 	Applied                bool       `json:"applied"`
 	Commands               [][]string `json:"commands"`
 	StrictSequenceVerified bool       `json:"strict_sequence_verified"`
+	DeploymentBlocked      bool       `json:"deployment_blocked"`
+	DeploymentBlockers     []string   `json:"deployment_blockers"`
 }
 
 type KnockOptions struct {
@@ -54,5 +56,5 @@ func buildKnockRules(o KnockOptions) (KnockRules, error) {
 		{"iptables", "-t", "filter", "-A", "RF_KNOCK_STEP2", "-m", "recent", "--name", "RF_KNOCK_2", "--set", "-j", "RETURN"},
 		{"iptables", "-t", "filter", "-A", "RF_KNOCK_STEP3", "-m", "recent", "--name", "RF_KNOCK_AUTH", "--set", "-j", "RETURN"},
 	}
-	return KnockRules{Chain: chain, Hooked: false, Applied: false, Commands: c}, nil
+	return KnockRules{Chain: chain, Hooked: false, Applied: false, StrictSequenceVerified: false, DeploymentBlocked: true, DeploymentBlockers: []string{"strict sequence not proven", "kernel packet-level verification missing", "hardware acceptance missing"}, Commands: c}, nil
 }

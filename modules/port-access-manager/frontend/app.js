@@ -326,6 +326,20 @@
           if (!window.confirm('Удалить черновик '+rule.id+'?')) return;
           stagedRequest('DELETE',{id:rule.id}).then(loadStaged).catch(function(err){stageMessage.textContent=err.message;});
         });
+        var assess = el('button','Проверить правило');
+        assess.type='button';
+        assess.addEventListener('click',function() {
+          var output=document.getElementById('staged-assessment');
+          output.textContent='Проверяем '+rule.id+'…';
+          var url=statusURL().replace(/\/status$/, '/staged-assessment')+'?id='+encodeURIComponent(rule.id);
+          fetch(url,{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}})
+            .then(function(response){return response.json().then(function(data){if(!response.ok)throw new Error(data.error||'HTTP '+response.status);return data;});})
+            .then(function(data){
+              if(data.rule_id!==rule.id||data.ready_for_apply!==false||data.firewall_mutation!==false||data.deployment_blocked!==true||!Array.isArray(data.deployment_blockers)||!Array.isArray(data.rollback_preview))throw new Error('Небезопасный ответ API');
+              output.textContent='Правило: '+rule.id+'\nПРИМЕНЕНИЕ ЗАБЛОКИРОВАНО\nПричины: '+data.deployment_blockers.join('; ')+'\n\nRollback preview:\n'+data.rollback_preview.map(function(parts){return parts.join(' ');}).join('\n');
+            }).catch(function(err){output.textContent='Проверка не выполнена: '+err.message;});
+        });
+        row.appendChild(assess);
         row.appendChild(remove);stageList.appendChild(row);
       });
       stageMessage.textContent = 'Черновиков: '+data.rules.length+' · firewall не изменён';

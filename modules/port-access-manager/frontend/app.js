@@ -358,5 +358,37 @@
     stagedRequest('POST',{rule:{id:id,engine:'iptables-recent',sequence:sequence,target:target,window_seconds:windowSeconds,access_seconds:accessSeconds,wan:wan,enabled:false}})
       .then(loadStaged).catch(function(err){stageMessage.textContent='Не сохранено: '+err.message;});
   });
+  // Live kernel xt_recent list, independent of staged configuration.
+  var liveList = document.getElementById('recent-live-list');
+  var liveStatus = document.getElementById('recent-live-status');
+  function refreshRecentAccess() {
+    liveStatus.textContent = 'Читаем текущий список ядра…';
+    fetch(statusURL().replace(/\/status$/, '/recent-access'), {credentials:'same-origin',cache:'no-store'})
+      .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d;});})
+      .then(function(data){
+        liveList.textContent='';
+        if (!data.available){liveStatus.textContent=data.reason||'Активный список не найден';return;}
+        if(!Array.isArray(data.entries))throw new Error('Некорректный ответ');
+        data.entries.forEach(function(entry){
+          var row=el('div',undefined,'engine-card');
+          row.appendChild(el('strong',entry.ip));
+          var button=el('button','Отозвать доступ');button.type='button';
+          button.addEventListener('click',function(){
+            if(!window.confirm('Отозвать авторизацию для '+entry.ip+'?'))return;
+            fetch(statusURL().replace(/\/status$/, '/recent-revoke'),{
+              method:'POST',credentials:'same-origin',
+              headers:{'Content-Type':'application/json',Accept:'application/json'},
+              body:JSON.stringify({ip:entry.ip,confirm:'REVOKE'})
+            }).then(function(resp){return resp.json().then(function(data){if(!resp.ok)throw new Error(data.error||'HTTP '+resp.status);return data;});})
+              .then(refreshRecentAccess).catch(function(err){liveStatus.textContent='Отзыв доступа: '+err.message;});
+          });
+          row.appendChild(button);liveList.appendChild(row);
+        });
+        liveStatus.textContent='Авторизованных IP: '+data.entries.length+' · источник: xt_recent';
+      }).catch(function(err){liveStatus.textContent='Не удалось получить список: '+err.message;});
+  }
+  document.getElementById('recent-live-refresh').addEventListener('click',refreshRecentAccess);
+  refreshRecentAccess();
+
   loadStaged();
 }());

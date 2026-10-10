@@ -55,7 +55,7 @@ const (
 )
 
 func moduleMutationAPI(moduleID string) bool {
-	return moduleID == "dns" || moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager"
+	return moduleID == "dns" || moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager" || moduleID == "port-access-manager"
 }
 
 const (
@@ -75,6 +75,8 @@ func moduleMutationBodyLimit(moduleID string) int64 {
 	case "nfqws-manager":
 		return nfqwsManagerMutationBodyLimit
 	case "antiscan-manager":
+		return antiscanManagerMutationBodyLimit
+	case "port-access-manager":
 		return antiscanManagerMutationBodyLimit
 	default:
 		return 0
@@ -182,6 +184,13 @@ func antiscanManagerMutationRequest(r *http.Request) bool {
 	return len(parts) > 0 && strings.EqualFold(strings.TrimSpace(parts[0]), "antiscan-manager")
 }
 
+func portAccessMutationRequest(r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return false
+	}
+	return strings.HasPrefix(r.URL.Path, "/api/modules/port-access-manager/")
+}
+
 func adminModuleFileRequest(r *http.Request) bool {
 	const prefix = "/api/modules/"
 	if !strings.HasPrefix(r.URL.Path, prefix) {
@@ -223,7 +232,7 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 		adminMutation := adminModuleMutationRequest(r)
 		nfqwsMutation := nfqwsManagerMutationRequest(r)
 		antiscanMutation := antiscanManagerMutationRequest(r)
-		moduleMutation := nfqwsMutation || antiscanMutation
+		moduleMutation := nfqwsMutation || antiscanMutation || portAccessMutationRequest(r)
 		adminFiles := adminModuleFileRequest(r)
 		adminTerminal := adminModuleTerminalRequest(r)
 		guarded := adminMutation || moduleMutation || adminFiles || adminTerminal
@@ -389,6 +398,9 @@ func moduleMethodAllowed(moduleID, method string) bool {
 			return false
 		}
 	}
+	if moduleID == "port-access-manager" {
+		return method == http.MethodGet || method == http.MethodPost || method == http.MethodDelete
+	}
 	return method == http.MethodGet
 }
 
@@ -468,7 +480,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		if moduleID == "dns" {
 			allow = "GET, HEAD, POST, PATCH, DELETE"
 		} else if moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager" {
-			allow = "GET, HEAD, POST"
+			allow = "GET, HEAD, POST, DELETE"
 		}
 		w.Header().Set("Allow", allow)
 		writeModuleJSON(w, http.StatusMethodNotAllowed, map[string]any{
@@ -519,7 +531,7 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 				req.Header.Set(adminMutationAuthorizationHeader, adminMutationAuthorizationValue)
 			}
 		}
-		if moduleID == "nfqws-manager" || moduleID == "antiscan-manager" {
+		if moduleID == "nfqws-manager" || moduleID == "antiscan-manager" || moduleID == "port-access-manager" {
 			req.Header.Del(moduleMutationAuthorizationHeader)
 			if adminMutationAuthorized(r) {
 				req.Header.Set(moduleMutationAuthorizationHeader, moduleMutationAuthorizationValue)

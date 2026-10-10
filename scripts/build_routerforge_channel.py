@@ -250,9 +250,10 @@ def main():
             run(["./scripts/build-opkg.sh", version], env=env)
         elif cid == "admin":
             run(["./scripts/build-admin-opkg.sh", version], env=env)
-+
-+            run(["./scripts/build-network-tools-opkg.sh", version], env=env)
+        elif cid == "network-tools":
             run(["./scripts/build-network-tools-opkg.sh", version], env=env)
+        elif cid == "port-access-manager":
+            run(["./scripts/build-port-access-manager-opkg.sh", version], env=env)
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
 

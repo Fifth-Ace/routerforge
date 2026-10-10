@@ -15,7 +15,7 @@ import (
 // watchdog only acts on an explicitly armed, private transaction directory.
 // It is not currently shipped or launched by Port Access Manager.
 func run(ctx context.Context, dir string, deadline time.Time, now func() time.Time, wait func(context.Context, time.Duration) error, rollback func(context.Context, string) error) error {
-    return watchTransaction(ctx, dir, deadline, now, wait, rollback)
+	return watchTransaction(ctx, dir, deadline, now, wait, rollback)
 }
 
 func sleep(ctx context.Context, d time.Duration) error {

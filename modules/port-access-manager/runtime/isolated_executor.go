@@ -80,7 +80,7 @@ func (e isolatedExecutor) exercise(ctx context.Context, plan KnockRules, verify 
 	if plan.Hooked || plan.Applied || plan.StrictSequenceVerified || !plan.DeploymentBlocked {
 		return errors.New("unsafe plan state")
 	}
-	if err := validateIsolatedPlan(plan.Commands); err != nil {
+	if err := validateCanonicalIsolatedPlan(plan.Commands); err != nil {
 		return err
 	}
 	activeCtx, cancel := context.WithTimeout(ctx, e.timeout)

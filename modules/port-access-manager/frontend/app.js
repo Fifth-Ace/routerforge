@@ -17,6 +17,32 @@
   if (radius === 'compact' || radius === 'default' || radius === 'rounded') {
     document.documentElement.setAttribute('data-pa-radius', radius);
   }
+  // Native RouterForge host tokens: accent never replaces text or muted text.
+  var hostThemeTokens = ['--rf-bg','--rf-surface','--rf-surface-2','--rf-hover','--rf-text','--rf-muted','--rf-border','--rf-border-strong','--rf-accent','--rf-accent-soft','--rf-radius-panel','--rf-radius-control','--rf-radius-card'];
+  function syncHostTheme() {
+    if (window.parent === window) return;
+    try {
+      var host = window.parent.document.documentElement;
+      var style = window.parent.getComputedStyle(host);
+      var own = document.documentElement;
+      hostThemeTokens.forEach(function(token) {
+        var value = style.getPropertyValue(token).trim();
+        if (value) own.style.setProperty(token, value);
+      });
+      ['theme','density','radius','uiScale'].forEach(function(key) {
+        if (host.dataset[key]) own.dataset[key] = host.dataset[key];
+      });
+    } catch (_) { /* Standalone module fallback. */ }
+  }
+  syncHostTheme();
+  if (window.parent !== window && typeof MutationObserver !== 'undefined') {
+    try {
+      var hostRoot = window.parent.document.documentElement;
+      new MutationObserver(syncHostTheme).observe(hostRoot, {
+        attributes:true, attributeFilter:['style','class','data-theme','data-density','data-radius','data-ui-scale']
+      });
+    } catch (_) { /* Standalone module fallback. */ }
+  }
   var labels = {
     'knockd': 'knockd',
     'fwknopd': 'fwknopd / SPA',

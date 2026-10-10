@@ -8,6 +8,13 @@
 <header><div class="eyebrow">ROUTERFORGE / БЕЗОПАСНОСТЬ</div><h1>Контроль доступа</h1><p>Три механизма защиты доступа. Пока доступна диагностика и локальный предпросмотр настроек.</p></header>
 <section class="notice" role="status"><strong>Режим K2D · без применения</strong><span>Все параметры ниже остаются только в браузере. Никаких запросов записи, изменений firewall, установок или рестартов.</span></section>
 <section class="overview"><div><span class="section-label">Состояние движков</span><div id="engines" class="cards" aria-live="polite">Читаем состояние…</div></div><div class="refresh-bar"><button type="button" id="refresh">↻ Обновить диагностику</button><span id="checked" role="status"></span></div></section>
+<section class="panel safety-panel" id="safety-preflight" aria-labelledby="preflight-title">
+  <div class="preview-top"><strong id="preflight-title">Проверка безопасности перед применением</strong><span id="preflight-verdict" class="safety-verdict" role="status">Ожидаем данные</span></div>
+  <p class="help">Только чтение. Даже при обнаруженной поддержке ядра изменение firewall заблокировано до проверки NDM, SSH, WAN и отката.</p>
+  <div id="preflight-checks" class="safety-checks" aria-live="polite"><p class="muted">Проверка ещё не выполнена.</p></div>
+  <button type="button" id="preflight-refresh">↻ Проверить безопасность</button>
+</section>
+
 <nav class="tabs" aria-label="Способы защиты" role="tablist">
 <button type="button" role="tab" id="tab-knockd" aria-controls="panel-knockd" aria-selected="true" data-tab="knockd">knockd</button>
 <button type="button" role="tab" id="tab-fwknopd" aria-controls="panel-fwknopd" aria-selected="false" tabindex="-1" data-tab="fwknopd">fwknopd / SPA</button>

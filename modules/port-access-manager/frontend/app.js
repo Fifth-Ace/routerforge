@@ -95,6 +95,56 @@
         root.appendChild(el('p', 'Нет данных от службы. Настройки по-прежнему не применяются.'));
       });
   }
+  var safetyChecks = document.getElementById('preflight-checks');
+  var safetyVerdict = document.getElementById('preflight-verdict');
+  var safetyLabels = {
+    recent_match: 'iptables recent',
+    filter_table: 'Таблица filter',
+    ndm_forward_chain: 'Цепочки NDM / FORWARD',
+    management_rescue: 'Резервный SSH-доступ',
+    rollback: 'Автоматический откат',
+    wan_scope: 'WAN / NAT / защищаемый порт'
+  };
+  function refreshPreflight() {
+    safetyVerdict.textContent = 'Проверяем…';
+    safetyVerdict.className = 'safety-verdict';
+    safetyChecks.textContent = '';
+    safetyChecks.appendChild(el('p', 'Запрашиваем read-only preflight…', 'muted'));
+    var url = statusURL().replace(/\/status$/, '/preflight');
+    fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
+      .then(function (response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        if ((response.headers.get('content-type') || '').indexOf('application/json') < 0) throw new Error('Некорректный тип ответа');
+        return response.json();
+      })
+      .then(function (data) {
+        if (data.module !== 'port-access-manager' || data.mutation_api !== false || data.ready_for_apply !== false || !Array.isArray(data.checks)) {
+          throw new Error('Неподтверждённый read-only контракт');
+        }
+        safetyVerdict.textContent = 'ПРИМЕНЕНИЕ ЗАБЛОКИРОВАНО';
+        safetyVerdict.className = 'safety-verdict safety-blocked';
+        safetyChecks.textContent = '';
+        data.checks.forEach(function (check) {
+          var row = el('div', undefined, 'safety-check');
+          var heading = el('strong', safetyLabels[check.id] || check.id);
+          var state = el('span', check.state === 'present' ? 'Обнаружено' : 'Требует проверки', check.state === 'present' ? 'safety-present' : 'safety-warning');
+          var detail = el('small', check.detail || 'Нет данных', 'muted');
+          row.appendChild(heading);
+          row.appendChild(state);
+          row.appendChild(detail);
+          safetyChecks.appendChild(row);
+        });
+      })
+      .catch(function (error) {
+        safetyVerdict.textContent = 'ПРИМЕНЕНИЕ ЗАБЛОКИРОВАНО';
+        safetyVerdict.className = 'safety-verdict safety-blocked';
+        safetyChecks.textContent = '';
+        safetyChecks.appendChild(el('p', 'Preflight недоступен: ' + error.message + '. Применение недоступно.', 'invalid'));
+      });
+  }
+  document.getElementById('preflight-refresh').addEventListener('click', refreshPreflight);
+  refreshPreflight();
+
   function port(value) { return /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 65535; }
   function range(value, low, high) { return /^\d+$/.test(value) && Number(value) >= low && Number(value) <= high; }
   function renderPreview() {

@@ -103,6 +103,9 @@
     ndm_forward_chain: 'Цепочки NDM / FORWARD',
     management_rescue: 'Резервный SSH-доступ',
     rollback: 'Автоматический откат',
+    ndm_chain_evidence: 'Цепочки NDM (наблюдение)',
+    ssh_listener_evidence: 'SSH (слушающие порты)',
+    wan_route_evidence: 'IPv4-маршрут (наблюдение)',
     wan_scope: 'WAN / NAT / защищаемый порт'
   };
   function refreshPreflight() {
@@ -127,7 +130,7 @@
         data.checks.forEach(function (check) {
           var row = el('div', undefined, 'safety-check');
           var heading = el('strong', safetyLabels[check.id] || check.id);
-          var state = el('span', check.state === 'present' ? 'Обнаружено' : 'Требует проверки', check.state === 'present' ? 'safety-present' : 'safety-warning');
+          var state = el('span', check.state === 'present' ? 'Обнаружено' : (check.state === 'observed' ? 'Наблюдается' : 'Требует проверки'), check.state === 'present' ? 'safety-present' : (check.state === 'observed' ? 'safety-present' : 'safety-warning'));
           var detail = el('small', check.detail || 'Нет данных', 'muted');
           row.appendChild(heading);
           row.appendChild(state);

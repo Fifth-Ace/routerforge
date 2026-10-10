@@ -47,5 +47,7 @@ func preflightFrom(kernelRecent bool, tableNames string, tableErr error) Preflig
 
 func preflightSnapshot() Preflight {
 	data, err := os.ReadFile("/proc/net/ip_tables_names")
-	return preflightFrom(kernelMatchPresent("/proc/net/ip_tables_matches", "recent"), strings.TrimSpace(string(data)), err)
+	result := preflightFrom(kernelMatchPresent("/proc/net/ip_tables_matches", "recent"), strings.TrimSpace(string(data)), err)
+	appendPreflightEvidence(&result)
+	return result
 }

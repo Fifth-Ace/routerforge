@@ -141,7 +141,7 @@ func decodeRecentRevoke(r *http.Request, target any) error {
 	return nil
 }
 
-// odinAccessHandler exposes the actual odin authorization list (RFOD_D),
+// odinAccessHandler exposes the actual odin authorization list (KKD),
 // never the legacy RF_KNOCK_AUTH pool. This endpoint is read-only.
 // xt_recent exports jiffies, so no synthetic wall-clock expiration is returned.
 func odinAccessHandler(w http.ResponseWriter, r *http.Request) {
@@ -149,14 +149,14 @@ func odinAccessHandler(w http.ResponseWriter, r *http.Request) {
 		jsonReply(w, 200, map[string]any{"available": false, "enabled": false, "entries": []recentClient{}, "reason": "Защита odin выключена"})
 		return
 	}
-	entries, err := readRecentClients(filepath.Join(recentRoot, "RFOD_D"), 0, time.Now())
+	entries, err := readRecentClients(filepath.Join(recentRoot, "KKD"), 0, time.Now())
 	if err != nil {
 		if os.IsNotExist(err) {
-			jsonReply(w, 200, map[string]any{"available": false, "enabled": true, "entries": []recentClient{}, "reason": "Список RFOD_D отсутствует в ядре"})
+			jsonReply(w, 200, map[string]any{"available": false, "enabled": true, "entries": []recentClient{}, "reason": "Список KKD отсутствует в ядре"})
 			return
 		}
 		jsonReply(w, 503, map[string]string{"error": "unable to read odin authorization list"})
 		return
 	}
-	jsonReply(w, 200, map[string]any{"available": true, "enabled": true, "engine": "odin", "list": "RFOD_D", "entries": entries, "note": "Точное время истечения доступа недоступно через xt_recent"})
+	jsonReply(w, 200, map[string]any{"available": true, "enabled": true, "engine": "odin", "list": "KKD", "entries": entries, "note": "Точное время истечения доступа недоступно через xt_recent"})
 }

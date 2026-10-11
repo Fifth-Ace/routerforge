@@ -12,6 +12,8 @@
   var lastData = null;
   var localDeadline = 0;
   var lastEnabled = false;
+  var lastConfirmed = false;
+  var deadlineRefreshRequested = false;
   var countdown = document.createElement('span');
   countdown.id = 'odin-watchdog-countdown';
   countdown.className = 'odin-countdown';
@@ -59,16 +61,23 @@
   }
   function updateCountdown() {
     if (!lastData || !lastData.enabled || lastData.confirmed) { countdown.textContent = ''; return; }
-    if (!localDeadline) { countdown.textContent = 'Подтверди доступ до автоматического отката (не более 90 секунд после включения).'; return; }
+    if (!localDeadline) { countdown.textContent = 'Срок watchdog неизвестен: обнови состояние. Не подтверждай защиту без проверки.'; return; }
     var seconds = Math.max(0, Math.ceil((localDeadline - Date.now()) / 1000));
     countdown.textContent = seconds ? ('До автоматического отката: приблизительно ' + seconds + ' сек.') : 'Срок подтверждения истёк. Проверяем состояние…';
-    if (seconds === 0 && !busy) refresh();
+    if (seconds === 0 && !busy && !deadlineRefreshRequested) { deadlineRefreshRequested = true; refresh(); }
   }
   function render(data, fill) {
     var enabled = !!data.enabled;
-    if (!enabled || data.confirmed) localDeadline = 0;
-    if (enabled && !lastEnabled && !localDeadline) localDeadline = 0; // Unknown after reload: never invent timer.
+    var confirmed = !!data.confirmed;
+    var changed = !lastData || enabled !== lastEnabled || confirmed !== lastConfirmed;
+    var serverDeadline = Number(data.watchdog_deadline_unix) || 0;
+    var serverNow = Number(data.server_unix) || 0;
+    if (!enabled || confirmed) localDeadline = 0;
+    else if (serverDeadline > 0 && serverNow > 0) localDeadline = Date.now() + Math.max(0, serverDeadline - serverNow) * 1000;
+    else localDeadline = 0;
+    if (localDeadline > Date.now()) deadlineRefreshRequested = false;
     lastEnabled = enabled;
+    lastConfirmed = confirmed;
     lastData = data;
     status.textContent = enabled ? (data.confirmed ? 'Защита включена · подтверждена' : 'Защита включена · ожидает подтверждения') : 'Защита выключена';
     status.className = enabled ? (data.confirmed ? 'odin-state odin-state-on' : 'odin-state odin-state-pending') : 'odin-state';
@@ -83,7 +92,7 @@
     buttons.confirm.disabled = busy || !enabled || !!data.confirmed;
     buttons.refresh.disabled = busy;
     updateCountdown();
-    document.dispatchEvent(new Event('routerforge-odin-state-changed'));
+    if (changed) document.dispatchEvent(new Event('routerforge-odin-state-changed'));
   }
   var firstLoad = true;
   function refresh() {
@@ -124,7 +133,7 @@
       setBusy(true);
       status.textContent = 'Выполняется: ' + labels[action] + '…';
       request('POST', { action: action, confirm: 'APPLY', settings: s }).then(function () {
-        if (action === 'enable') localDeadline = Date.now() + 90000;
+        if (action === 'enable') localDeadline = 0; // Deadline comes from server, not the browser.
         if (action === 'disable' || action === 'confirm') localDeadline = 0;
         return request('GET');
       }).then(function (data) { setBusy(false); render(data, true); }).catch(function (e) {

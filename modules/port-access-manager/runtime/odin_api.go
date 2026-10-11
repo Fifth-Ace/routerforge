@@ -109,6 +109,24 @@ func odinConfirmed() bool {
 	return err == nil && info.Mode().IsRegular()
 }
 func odinEnabled() bool { _, err := os.Stat(odinState); return err == nil }
+func odinWatchdogDeadline() int64 {
+	if !odinEnabled() || odinConfirmed() {
+		return 0
+	}
+	tx, err := odinTransactionPath()
+	if err != nil {
+		return 0
+	}
+	raw, err := os.ReadFile(filepath.Join(tx, "deadline-unix"))
+	if err != nil {
+		return 0
+	}
+	value, err := strconv.ParseInt(strings.TrimSpace(string(raw)), 10, 64)
+	if err != nil || value <= 0 {
+		return 0
+	}
+	return value
+}
 func odinExec(ctx context.Context, action string) error {
 	out, err := safety.RunCommand(ctx, 4096, "/bin/sh", odinEngine, action)
 	if err != nil {
@@ -167,7 +185,11 @@ func odinActivate(ctx context.Context) error {
 		return err
 	}
 	// An independently running watchdog must be armed before any firewall mutation.
-	cmd, err := safety.CommandContext(context.Background(), odinWatchdog, "-transaction-dir", txDir, "-deadline-unix", strconv.FormatInt(time.Now().Add(90*time.Second).Unix(), 10))
+	deadline := time.Now().Add(90 * time.Second).Unix()
+	if err := safety.WriteFileAtomic(filepath.Join(txDir, "deadline-unix"), []byte(strconv.FormatInt(deadline, 10)+"\n"), 0600); err != nil {
+		return err
+	}
+	cmd, err := safety.CommandContext(context.Background(), odinWatchdog, "-transaction-dir", txDir, "-deadline-unix", strconv.FormatInt(deadline, 10))
 	if err != nil {
 		return err
 	}
@@ -227,7 +249,7 @@ func odinHandler(w http.ResponseWriter, r *http.Request) {
 			jsonReply(w, 500, map[string]string{"error": err.Error()})
 			return
 		}
-		jsonReply(w, 200, map[string]any{"configured": err == nil, "enabled": odinEnabled(), "confirmed": odinConfirmed(), "settings": settings, "attribution": "odin · Keenetic Community", "source": "https://forum.keenetic.ru/topic/22137-port-knoking-для-пробрасываемого-порта/"})
+		jsonReply(w, 200, map[string]any{"configured": err == nil, "enabled": odinEnabled(), "confirmed": odinConfirmed(), "watchdog_deadline_unix": odinWatchdogDeadline(), "server_unix": time.Now().Unix(), "settings": settings, "attribution": "odin · Keenetic Community", "source": "https://forum.keenetic.ru/topic/22137-port-knoking-для-пробрасываемого-порта/"})
 	case http.MethodPost:
 		if r.Header.Get("X-RouterForge-Module-Authorized") != "core-authorized-v1" {
 			jsonReply(w, 403, map[string]string{"error": "Core authorization required"})

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestReadOnlyAPI(t *testing.T) {
+func TestReadOnlyDiscoveryEndpoints(t *testing.T) {
 	h := routes(t.TempDir())
 	for _, path := range []string{"/v1/health", "/v1/status"} {
 		w := httptest.NewRecorder()
@@ -17,7 +17,7 @@ func TestReadOnlyAPI(t *testing.T) {
 		if w.Code != 200 {
 			t.Fatalf("GET %s: %d", path, w.Code)
 		}
-		if !strings.Contains(w.Body.String(), "read-only-discovery") {
+		if !strings.Contains(w.Body.String(), "managed-engine-control") {
 			t.Fatal("missing discovery mode")
 		}
 		w = httptest.NewRecorder()
@@ -46,7 +46,7 @@ func TestUITraversalAndHead(t *testing.T) {
 }
 func TestEngineSchema(t *testing.T) {
 	s := snapshot()
-	if len(s.Engines) != 3 || s.Engines[0].ID != "knockd" || s.Engines[1].ID != "fwknopd" || s.Engines[2].ID != "iptables-recent" || s.MutationAPI {
+	if len(s.Engines) != 3 || s.Engines[0].ID != "knockd" || s.Engines[1].ID != "fwknopd" || s.Engines[2].ID != "iptables-recent" || !s.MutationAPI {
 		t.Fatalf("unexpected state: %+v", s)
 	}
 }

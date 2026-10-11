@@ -32,7 +32,7 @@ func routes(ui string) http.Handler {
 		}
 	}
 	mux.HandleFunc("/v1/health", readOnly(func(w http.ResponseWriter, r *http.Request) {
-		jsonReply(w, 200, map[string]any{"ok": true, "module": "port-access-manager", "version": version, "mode": "read-only-discovery", "mutation_api": false})
+		jsonReply(w, 200, map[string]any{"ok": true, "module": "port-access-manager", "version": version, "mode": "managed-engine-control", "mutation_api": true})
 	}))
 	mux.HandleFunc("/v1/status", readOnly(func(w http.ResponseWriter, r *http.Request) { jsonReply(w, 200, snapshot()) }))
 	mux.HandleFunc("/v1/preflight", readOnly(func(w http.ResponseWriter, r *http.Request) { jsonReply(w, 200, preflightSnapshot()) }))
@@ -45,6 +45,9 @@ func routes(ui string) http.Handler {
 	mux.HandleFunc("/v1/odin-access", readOnly(odinAccessHandler))
 	mux.HandleFunc("/v1/recent-revoke", recentRevokeHandler)
 	mux.HandleFunc("/v1/engine-service", engineServiceHandler)
+	mux.HandleFunc("/v1/engine-wizard-preview", engineWizardPreviewHandler)
+	mux.HandleFunc("/v1/engine-wizard-draft", engineWizardDraftHandler)
+	mux.HandleFunc("/v1/engine-deploy", engineRequestHandler)
 	mux.HandleFunc("/v1/odin", odinHandler)
 	mux.HandleFunc("/v1/engine-config", engineConfigHandler)
 	mux.HandleFunc("/v1/ui", readOnly(func(w http.ResponseWriter, r *http.Request) { uiFile(w, r, ui) }))

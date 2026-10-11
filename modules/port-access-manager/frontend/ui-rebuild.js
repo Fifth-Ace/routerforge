@@ -37,28 +37,35 @@
     if(node===header||node===shell||node.tagName==='SCRIPT')return;
     advancedBody.appendChild(node);
   });
-  // P35C: odin owns RFOD_D; legacy recent UI belongs to the engineering section.
+  // odin owns KKD; legacy recent UI belongs to the engineering section.
   var odinAccess=el('section','panel rf-pa-odin-access');
   odinAccess.id='odin-live-access';
   var odinAccessTitle=el('h2','','Авторизованные IP · odin');odinAccess.appendChild(odinAccessTitle);
-  odinAccess.appendChild(el('p','help','Текущие разрешения из RFOD_D. Истечение доступа проверяется ядром; точное оставшееся время недоступно.'));
+  odinAccess.appendChild(el('p','help','Текущие разрешения из KKD. Истечение доступа проверяется ядром; точное оставшееся время недоступно.'));
   var accessTools=el('div','refresh-bar');odinAccess.appendChild(accessTools);
   var accessRefresh=el('button','','Обновить IP');accessRefresh.type='button';accessTools.appendChild(accessRefresh);
   var accessState=el('span','muted','Ожидаем ответ…');accessState.setAttribute('role','status');accessTools.appendChild(accessState);
   var accessRows=el('div','rf-pa-access-list');odinAccess.appendChild(accessRows);
   shell.insertBefore(odinAccess,advanced);
   if(access)advancedBody.appendChild(access);
+  var lastAccessSignature=null;
   function refreshOdinAccess(){
-    accessState.textContent='Читаем RFOD_D…';
+    accessState.textContent='Читаем KKD…';
     fetch('/api/modules/port-access-manager/odin-access',{credentials:'same-origin',cache:'no-store'})
     .then(function(r){return r.json().then(function(d){if(!r.ok)throw Error(d.error||('HTTP '+r.status));return d;});})
     .then(function(d){
-      accessRows.textContent='';
-      if(!d.available){accessState.textContent=d.reason||'Авторизации недоступны';return;}
-      if(d.list!=='RFOD_D'||!Array.isArray(d.entries))throw Error('Неверный ответ API');
-      accessState.textContent='Активных записей: '+d.entries.length;
-      if(!d.entries.length){accessRows.appendChild(el('p','muted','Авторизованных IP пока нет.'));return;}
-      d.entries.forEach(function(entry){if(typeof entry.ip==='string')accessRows.appendChild(el('div','rf-pa-access-ip',entry.ip));});
+      if(d.available&&(d.list!=='KKD'||!Array.isArray(d.entries)))throw Error('Неверный ответ API');
+      var ips=d.available?d.entries.filter(function(e){return typeof e.ip==='string';}).map(function(e){return e.ip;}):[];
+      var signature=JSON.stringify([!!d.available,ips,d.reason||'']);
+      if(signature!==lastAccessSignature){
+        lastAccessSignature=signature;
+        accessRows.textContent='';
+        if(d.available){
+          if(!ips.length)accessRows.appendChild(el('p','muted','Авторизованных IP пока нет.'));
+          ips.forEach(function(ip){accessRows.appendChild(el('div','rf-pa-access-ip',ip));});
+        }
+      }
+      accessState.textContent=d.available?('Активных записей: '+ips.length):(d.reason||'Авторизации недоступны');
     }).catch(function(err){accessRows.textContent='';accessState.textContent='Ошибка чтения: '+err.message;});
   }
   accessRefresh.addEventListener('click',refreshOdinAccess);
@@ -161,7 +168,7 @@
       .then(function(data){
         stateMetric.textContent=data.enabled?(data.confirmed?'Включена':'Ожидает подтверждения'):'Выключена';
         configMetric.textContent=data.configured?'Сохранена':'Не настроена';
-        ndmMetric.textContent=data.enabled?(data.confirmed?'Подтверждено':'Watchdog · 90 секунд'):'Не активен';
+        ndmMetric.textContent=data.enabled?(data.confirmed?'Подтверждено':(data.watchdog_deadline_unix&&data.server_unix?'Watchdog · '+Math.max(0,data.watchdog_deadline_unix-data.server_unix)+' сек.':'Watchdog · срок неизвестен')):'Не активен';
       }).catch(function(){stateMetric.textContent='Нет связи с API';configMetric.textContent='—';ndmMetric.textContent='—';});
     }else{
       fetch('/api/modules/port-access-manager/engine-service?engine='+encodeURIComponent(current),{credentials:'same-origin',cache:'no-store'})
@@ -175,5 +182,6 @@
   select('odin');
   refreshOdinAlert();
   refreshOdinAccess();
+  window.setInterval(function(){if(current==='odin'&&!document.hidden)refreshOdinAccess();},15000);
   document.addEventListener('visibilitychange',function(){if(!document.hidden)update();});
 })();

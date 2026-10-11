@@ -14,28 +14,16 @@
   var lastEnabled = false;
   var lastConfirmed = false;
   var deadlineRefreshRequested = false;
-  // Paint seconds without mutating the DOM every second. The containing
-  // RouterForge web view observes DOM changes to size its embedded page.
-  var countdown = document.createElement('canvas');
+  // The host sizes from main.pa content, not from the iframe scrollHeight.
+  var countdown = document.createElement('span');
   countdown.id = 'odin-watchdog-countdown';
   countdown.className = 'odin-countdown';
-  countdown.width = 560;
-  countdown.height = 24;
-  countdown.style.width = 'min(100%, 560px)';
-  countdown.style.height = '24px';
-  countdown.style.display = 'block';
-  countdown.setAttribute('role', 'img');
-  countdown.setAttribute('aria-label', 'Watchdog countdown');
+  countdown.setAttribute('role', 'status');
+  countdown.setAttribute('aria-live', 'off');
   status.insertAdjacentElement('afterend', countdown);
   function paintCountdown(message) {
-    var ctx = countdown.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, countdown.width, countdown.height);
-    ctx.font = '12px "Segoe UI", Arial, sans-serif';
-    ctx.fillStyle = getComputedStyle(countdown).color;
-    ctx.fillText(message, 0, 17, countdown.width);
+    if (countdown.textContent !== message) countdown.textContent = message;
   }
-
   function request(method, body) {
     return fetch(endpoint, {
       method: method,

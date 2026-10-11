@@ -17,6 +17,14 @@
   function metric(label){var wrap=el('div','rf-pa-metric'),title=el('span','',label),val=el('b','', 'Проверяем…');wrap.appendChild(title);wrap.appendChild(val);metrics.appendChild(wrap);return val;}
   var engineMetric=metric('Выбранный движок'),stateMetric=metric('Защита'),configMetric=metric('Конфигурация'),ndmMetric=metric('NDM / подтверждение');
   var chooser=el('section','rf-pa-selector');shell.appendChild(chooser);
+  var activeView='protection';
+  var viewTabs=el('nav','rf-pa-view-tabs');
+  viewTabs.setAttribute('aria-label','Port Access Manager');
+  var protectTab=el('button','rf-pa-view-tab','\u0417\u0430\u0449\u0438\u0442\u0430');
+  var toolsTab=el('button','rf-pa-view-tab','\u0414\u043e\u043f. \u0438\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442\u044b');
+  protectTab.type='button';toolsTab.type='button';
+  viewTabs.appendChild(protectTab);viewTabs.appendChild(toolsTab);
+  shell.insertBefore(viewTabs,chooser);
   chooser.appendChild(el('h2','','Способ защиты'));
   var choices=el('div','rf-pa-choices');chooser.appendChild(choices);
   var options=[{id:'odin',name:'odin · Keenetic',desc:'Без дополнительного демона'},{id:'knockd',name:'knockd',desc:'Классический Port Knocking'},{id:'fwknopd',name:'fwknopd / SPA',desc:'Один зашифрованный пакет'}];
@@ -29,8 +37,8 @@
   var config=move('engine-config-panel',daemons);
   var wizard=move('engine-wizard-panel',daemons);
   var access=move('recent-live-panel',shell);
-  var advanced=el('details','rf-pa-advanced');shell.appendChild(advanced);advanced.open=false;
-  var summaryNode=el('summary','','Инженерное · диагностика, предпросмотр и черновики');advanced.appendChild(summaryNode);
+  var advanced=el('section','rf-pa-advanced');shell.appendChild(advanced);advanced.hidden=true;
+  var summaryNode=el('h2','','Инженерное · диагностика, предпросмотр и черновики');advanced.appendChild(summaryNode);
   var advancedBody=el('div','rf-pa-advanced-body');advanced.appendChild(advancedBody);
   // Move original content instead of rebuilding it: all existing handlers retain their nodes.
   Array.prototype.slice.call(main.children).forEach(function(node){
@@ -144,7 +152,7 @@
     if(daemons)daemons.hidden=id==='odin';
     // The original RF_KNOCK_AUTH list is a legacy experiment, never odin access.
     if(access)access.hidden=true;
-    if(advanced)advanced.open=false;
+    if(advanced)advanced.hidden=activeView!=='tools';
     if(legacyDev)legacyDev.open=false;
     if(id!=='odin'){
       refreshDaemonIdentity(id);
@@ -179,7 +187,22 @@
   }
   refresh.addEventListener('click',function(){update();var existing=document.querySelector('[data-odin="refresh"]');if(current==='odin'&&existing)existing.click();else{var control=document.getElementById('existing-engine-refresh');if(control)control.click();}});
   document.addEventListener('routerforge-odin-state-changed',function(){if(current==='odin'){update();refreshOdinAlert();}});
+  function switchView(view){
+    activeView=view;
+    var showTools=view==='tools';
+    chooser.hidden=showTools;
+    working.hidden=showTools;
+    odinAccess.hidden=showTools||current!=='odin';
+    advanced.hidden=!showTools;
+    protectTab.classList.toggle('active',!showTools);
+    toolsTab.classList.toggle('active',showTools);
+    protectTab.setAttribute('aria-current',showTools?'false':'page');
+    toolsTab.setAttribute('aria-current',showTools?'page':'false');
+  }
+  protectTab.addEventListener('click',function(){switchView('protection');});
+  toolsTab.addEventListener('click',function(){switchView('tools');});
   select('odin');
+  switchView('protection');
   refreshOdinAlert();
   refreshOdinAccess();
   window.setInterval(function(){if(current==='odin'&&!document.hidden)refreshOdinAccess();},15000);

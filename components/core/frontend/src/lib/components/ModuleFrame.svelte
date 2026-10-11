@@ -29,7 +29,9 @@
     try {
       const doc = frame.contentDocument;
       if (!doc || !doc.body || !doc.documentElement) return;
-      const measured = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+      const content = doc.querySelector('main.pa');
+      if (!content) return;
+      const measured = Math.max(content.scrollHeight, content.getBoundingClientRect().height);
       if (Number.isFinite(measured) && measured >= 360 && measured <= 12000) {
         const next = Math.ceil(measured + 8);
         if (frameHeight !== next) frameHeight = next;

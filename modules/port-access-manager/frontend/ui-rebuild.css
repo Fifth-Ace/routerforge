@@ -56,3 +56,11 @@
 .rf-pa-legacy-body{display:grid;gap:14px;padding-top:14px}
 .rf-pa-legacy-body>.panel,.rf-pa-legacy-body>.tabs{margin:0}
 .rf-pa-workspace .rf-pa-legacy-dev[hidden]{display:none!important}
+/* Dedicated engineering view: no expandable outer details/height feedback. */
+.rf-pa-view-tabs{display:flex;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--pa-border);padding:0 0 12px}
+.rf-pa-view-tab{min-width:140px;background:var(--pa-surface-2);font-weight:600}
+.rf-pa-view-tab.active{border-color:var(--pa-accent);background:var(--pa-accent-soft);color:var(--pa-text)}
+.rf-pa-workspace>.rf-pa-advanced[hidden],.rf-pa-workspace>.rf-pa-working[hidden],.rf-pa-workspace>.rf-pa-selector[hidden]{display:none!important}
+.rf-pa-advanced>h2{font-size:15px;margin:0 0 12px}
+.rf-pa-advanced-body{padding-top:0}
+#odin-watchdog-countdown{font:12px/1.5 Inter,"Segoe UI",Arial,sans-serif;color:var(--pa-muted);white-space:normal}

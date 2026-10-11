@@ -86,8 +86,14 @@
   var existingCards=service?service.querySelectorAll('.engine-card'):[];
   var selector=document.getElementById('engine-config-engine');
   var current='odin';
+  // P35D.1: engine-specific presentation; existing service handlers stay attached.
+  var engineScope=el('div','rf-pa-engine-scope');
+  daemons.insertBefore(engineScope,daemons.firstChild);
+  var daemonTitle=el('strong','','');engineScope.appendChild(daemonTitle);
+  var daemonStatus=el('span','rf-pa-engine-status','Проверяем службу…');engineScope.appendChild(daemonStatus);
+  var daemonDetails=el('p','muted','');engineScope.appendChild(daemonDetails);
   var daemonMessage=el('p','rf-pa-daemon-hint','Для этих движков требуется установленный и настроенный upstream-сервис Entware. RouterForge не устанавливает их автоматически.');
-  daemons.insertBefore(daemonMessage,daemons.firstChild);
+  daemons.insertBefore(daemonMessage,service);
   var odinAlert=el('div','rf-pa-odin-alert');
   odinAlert.setAttribute('role','status');
   odinAlert.hidden=true;
@@ -101,14 +107,45 @@
       odinAlert.hidden=false;
     }).catch(function(){odinAlert.hidden=true;});
   }
+  // Legacy scratch tools do not belong to any production engine.
+  var legacyDev=el('details','rf-pa-legacy-dev');
+  legacyDev.appendChild(el('summary','','Архивные эксперименты: iptables recent и черновики (не применяется)'));
+  var legacyBody=el('div','rf-pa-legacy-body');legacyDev.appendChild(legacyBody);
+  var legacyIds=['staging-panel','recent-live-panel','safety-preflight'];
+  var legacyTabRoot=advancedBody.querySelector('.tabs');
+  if(legacyTabRoot)legacyBody.appendChild(legacyTabRoot);
+  ['panel-knockd','panel-fwknopd','panel-iptables-recent'].forEach(function(id){var node=document.getElementById(id);if(node)legacyBody.appendChild(node);});
+  legacyIds.forEach(function(id){var node=document.getElementById(id);if(node&&node.parentNode===advancedBody)legacyBody.appendChild(node);});
+  // Keep other engineering controls accessible, but out of ordinary engine settings.
+  advancedBody.appendChild(legacyDev);
+  summaryNode.textContent='Дополнительные инструменты · только для разработчиков';
+  function refreshDaemonIdentity(id){
+    var name=id==='knockd'?'knockd':'fwknopd / SPA';
+    daemonTitle.textContent=name;
+    daemonDetails.textContent=id==='knockd'?'TCP-стуки обслуживает внешняя служба knockd. Настройки odin здесь не используются.':'Зашифрованную SPA-авторизацию обслуживает внешняя служба fwknopd. TCP-стуки odin здесь не используются.';
+    daemonStatus.textContent='Проверяем установленную службу…';
+    fetch('/api/modules/port-access-manager/engine-service?engine='+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'})
+    .then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json();})
+    .then(function(d){if(current!==id)return;daemonStatus.textContent=!d.installed?'Не установлен':(d.running?'Запущен':'Установлен · остановлен');})
+    .catch(function(){if(current===id)daemonStatus.textContent='Состояние службы неизвестно';});
+  }
   function select(id){
     current=id;
     options.forEach(function(o){var active=o.id===id;buttons[o.id].setAttribute('aria-pressed',String(active));buttons[o.id].classList.toggle('active',active);});
     if(odin)odin.hidden=id!=='odin';
     if(daemons)daemons.hidden=id==='odin';
-    if(access)access.hidden=false; // Legacy recent UI stays in collapsed engineering details.
+    // The original RF_KNOCK_AUTH list is a legacy experiment, never odin access.
+    if(access)access.hidden=true;
+    if(advanced)advanced.open=false;
+    if(legacyDev)legacyDev.open=false;
+    if(id!=='odin'){
+      refreshDaemonIdentity(id);
+      var oldTab=document.querySelector('[data-tab="'+id+'"]');
+      if(oldTab)oldTab.click();
+    }
     odinAccess.hidden=id!=='odin';
     Array.prototype.forEach.call(existingCards,function(card,i){card.hidden=(id==='odin'||(i===0)!==(id==='knockd'));});
+    if(config)config.hidden=id==='odin';
     if(selector&&id!=='odin'){
       selector.value=id;
       selector.dispatchEvent(new Event('change',{bubbles:true}));

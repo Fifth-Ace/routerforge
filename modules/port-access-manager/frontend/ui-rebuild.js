@@ -28,7 +28,7 @@
   var service=move('existing-engine-control',daemons);
   var config=move('engine-config-panel',daemons);
   var access=move('recent-live-panel',shell);
-  var advanced=el('details','rf-pa-advanced');shell.appendChild(advanced);
+  var advanced=el('details','rf-pa-advanced');shell.appendChild(advanced);advanced.open=false;
   var summaryNode=el('summary','','Инженерное · диагностика, предпросмотр и черновики');advanced.appendChild(summaryNode);
   var advancedBody=el('div','rf-pa-advanced-body');advanced.appendChild(advancedBody);
   // Move original content instead of rebuilding it: all existing handlers retain their nodes.
@@ -68,9 +68,39 @@
   if(legacySafety)legacySafety.textContent='Read-only диагностика экспериментального iptables recent. Статус этого preflight не блокирует работающий odin.';
   var oldFooter=advancedBody.querySelector('footer');
   if(oldFooter)oldFooter.textContent='Экспериментальные черновики и preflight не применяют firewall. Управление odin находится в основном разделе.';
+  // P35D: keep legacy tools intact, but place dense read-only diagnostics in an optional nested panel.
+  var diagPanel=document.getElementById('safety-preflight');
+  if(diagPanel&&diagPanel.parentNode===advancedBody){
+    var diagFold=el('details','rf-pa-diag-fold');
+    diagFold.appendChild(el('summary','','Дополнительные проверки NDM и экспериментальных правил'));
+    advancedBody.insertBefore(diagFold,diagPanel);
+    diagFold.appendChild(diagPanel);
+  }
+  var preview=document.querySelector('.rf-pa-advanced-body .preview');
+  if(preview&&preview.parentNode===advancedBody){
+    var previewFold=el('details','rf-pa-diag-fold');
+    previewFold.appendChild(el('summary','','Технический предпросмотр конфигурации'));
+    advancedBody.insertBefore(previewFold,preview);
+    previewFold.appendChild(preview);
+  }
   var existingCards=service?service.querySelectorAll('.engine-card'):[];
   var selector=document.getElementById('engine-config-engine');
   var current='odin';
+  var daemonMessage=el('p','rf-pa-daemon-hint','Для этих движков требуется установленный и настроенный upstream-сервис Entware. RouterForge не устанавливает их автоматически.');
+  daemons.insertBefore(daemonMessage,daemons.firstChild);
+  var odinAlert=el('div','rf-pa-odin-alert');
+  odinAlert.setAttribute('role','status');
+  odinAlert.hidden=true;
+  if(odin)odin.insertBefore(odinAlert,odin.firstChild);
+  function refreshOdinAlert(){
+    fetch('/api/modules/port-access-manager/odin',{credentials:'same-origin',cache:'no-store'})
+    .then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json();})
+    .then(function(d){
+      if(!d.enabled||d.confirmed){odinAlert.hidden=true;odinAlert.textContent='';return;}
+      odinAlert.textContent='Внимание: защита ожидает подтверждения. Сначала проверь доступ после стуков, затем нажми «Подтвердить защиту». Без подтверждения независимый watchdog откатит правила.';
+      odinAlert.hidden=false;
+    }).catch(function(){odinAlert.hidden=true;});
+  }
   function select(id){
     current=id;
     options.forEach(function(o){var active=o.id===id;buttons[o.id].setAttribute('aria-pressed',String(active));buttons[o.id].classList.toggle('active',active);});
@@ -98,13 +128,14 @@
     }else{
       fetch('/api/modules/port-access-manager/engine-service?engine='+encodeURIComponent(current),{credentials:'same-origin',cache:'no-store'})
       .then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json();})
-      .then(function(data){stateMetric.textContent=data.running?'Запущен':'Остановлен';configMetric.textContent=data.installed?'Сервис установлен':'Сервис не установлен';ndmMetric.textContent='Управляет upstream';})
+      .then(function(data){stateMetric.textContent=!data.installed?'Не установлен':(data.running?'Запущен':'Остановлен');configMetric.textContent=data.installed?'Сервис установлен':'Сервис не установлен';ndmMetric.textContent=data.installed?'Внешняя служба Entware':'Нет установленной службы';})
       .catch(function(){stateMetric.textContent='Нет связи с API';configMetric.textContent='—';ndmMetric.textContent='—';});
     }
   }
   refresh.addEventListener('click',function(){update();var existing=document.querySelector('[data-odin="refresh"]');if(current==='odin'&&existing)existing.click();else{var control=document.getElementById('existing-engine-refresh');if(control)control.click();}});
-  document.addEventListener('routerforge-odin-state-changed',function(){if(current==='odin')update();});
+  document.addEventListener('routerforge-odin-state-changed',function(){if(current==='odin'){update();refreshOdinAlert();}});
   select('odin');
+  refreshOdinAlert();
   refreshOdinAccess();
   document.addEventListener('visibilitychange',function(){if(!document.hidden)update();});
 })();

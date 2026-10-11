@@ -36,3 +36,13 @@
 #odin-manager button:disabled{opacity:.55;cursor:not-allowed}
 
 .rf-pa-access-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.rf-pa-access-ip{padding:8px 12px;border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);background:var(--pa-surface-2);font-family:monospace}.rf-pa-odin-access .help{margin:6px 0 12px}
+
+/* P35D release polish */
+.rf-pa-diag-fold{border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);padding:12px;background:var(--pa-surface-2)}
+.rf-pa-diag-fold>summary{cursor:pointer;font-weight:600;color:var(--pa-text);padding:4px 0}
+.rf-pa-diag-fold[open]>summary{margin-bottom:14px}
+.rf-pa-diag-fold>.panel,.rf-pa-diag-fold>.preview{margin:0}
+.rf-pa-daemon-hint{border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);padding:12px;color:var(--pa-muted);margin:0}
+.rf-pa-odin-alert{padding:12px 14px;margin-bottom:14px;border:1px solid var(--pa-accent);background:var(--pa-accent-soft);border-radius:var(--pa-control-radius);font-weight:600;line-height:1.45}
+.rf-pa-workspace .rf-pa-odin-alert[hidden]{display:none!important}
+.rf-pa-advanced-body{min-width:0}

@@ -27,14 +27,11 @@ load() {
     done
 }
 exists() { "$IPT" -t filter -n -L "$1" >/dev/null 2>&1; }
+# Follow odin's original NDM hook placement: inspect every NEW WAN TCP
+# connection in _NDM_INPUT so unrelated ports reset the knock sequence.
 check_hook() { "$IPT" -t filter -C "$1" -i "$WAN" -p tcp -m conntrack --ctstate NEW -j "$2" >/dev/null 2>&1; }
-# A narrowly scoped gate on FORWARD catches DNAT SYN packets before Keenetic fast-path/ACCEPT rules.
-# Knock SYNs must be intercepted before Keenetic's INPUT ACL drops closed ports.
-# Limit this early hook to the three configured WAN knock ports only.
-check_knock_hook() { "$IPT" -t filter -C INPUT -i "$WAN" -p tcp -m multiport --dports "$K1,$K2,$K3" -m conntrack --ctstate NEW -j RF_ODIN_FIRST >/dev/null 2>&1; }
-add_knock_hook() { check_knock_hook || "$IPT" -t filter -I INPUT 1 -i "$WAN" -p tcp -m multiport --dports "$K1,$K2,$K3" -m conntrack --ctstate NEW -j RF_ODIN_FIRST; }
-check_service_hook() { "$IPT" -t filter -C FORWARD -i "$WAN" -d "$TIP" -p tcp --dport "$TPORT" -m conntrack --ctstate NEW -j RF_ODIN_LAST >/dev/null 2>&1; }
-add_service_hook() { check_service_hook || "$IPT" -t filter -I FORWARD 1 -i "$WAN" -d "$TIP" -p tcp --dport "$TPORT" -m conntrack --ctstate NEW -j RF_ODIN_LAST; }
+add_knock_hook() { check_hook _NDM_INPUT RF_ODIN_FIRST || "$IPT" -t filter -I _NDM_INPUT -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_FIRST; }
+add_service_hook() { check_hook _NDM_FORWARD RF_ODIN_LAST || "$IPT" -t filter -I _NDM_FORWARD -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_LAST; }
 drop_hooks() {
   "$IPT" -t filter -D INPUT -i "$WAN" -p tcp -m multiport --dports "$K1,$K2,$K3" -m conntrack --ctstate NEW -j RF_ODIN_FIRST 2>/dev/null || :
   "$IPT" -t filter -D _NDM_INPUT -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_FIRST 2>/dev/null || :
@@ -60,10 +57,11 @@ apply() {
       exists RF_ODIN_LAST || { echo 'PARTIAL_CHAIN_STATE'; return 1; }
       "$IPT" -t filter -C RF_ODIN_FIRST -m comment --comment RF_ODIN_MANAGED -j RETURN >/dev/null 2>&1 || { echo 'FOREIGN_CHAIN_COLLISION'; return 1; }
       "$IPT" -t filter -C RF_ODIN_LAST -m comment --comment RF_ODIN_MANAGED -j RETURN >/dev/null 2>&1 || { echo 'FOREIGN_CHAIN_COLLISION'; return 1; }
-      "$IPT" -t filter -D _NDM_INPUT -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_FIRST 2>/dev/null || :
+      # Add original NDM hooks first, then remove legacy early hooks.
       add_knock_hook
-      check_hook _NDM_FORWARD RF_ODIN_LAST || "$IPT" -t filter -I _NDM_FORWARD -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_LAST
       add_service_hook
+      "$IPT" -t filter -D INPUT -i "$WAN" -p tcp -m multiport --dports "$K1,$K2,$K3" -m conntrack --ctstate NEW -j RF_ODIN_FIRST 2>/dev/null || :
+      "$IPT" -t filter -D FORWARD -i "$WAN" -d "$TIP" -p tcp --dport "$TPORT" -m conntrack --ctstate NEW -j RF_ODIN_LAST 2>/dev/null || :
       return 0
     fi
     # Refuse any partial/foreign chain state before owning anything.
@@ -111,7 +109,6 @@ apply() {
     a RF_ODIN_SUB3 -m recent --set --name RFOD_D --rsource
     a RF_ODIN_SUB3 -m recent --rcheck --seconds "$WINDOW" --name RFOD_D --rsource -j ACCEPT
     add_knock_hook
-    "$IPT" -t filter -I _NDM_FORWARD -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_LAST
     add_service_hook
     trap - 0
 }

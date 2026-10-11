@@ -1,19 +1,140 @@
-(function(){'use strict';
-  var root=document.getElementById('odin-manager');if(!root)return;
-  var status=document.getElementById('odin-status');
-  var endpoint='/api/modules/port-access-manager/odin';
-  var fields=['wan','ip','port','k1','k2','k3','window','ttl'];
-  var input=function(n){return document.getElementById('odin-'+n);};
-  function request(method,body){return fetch(endpoint,{method:method,credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:body?JSON.stringify(body):undefined}).then(function(resp){return resp.json().then(function(data){if(!resp.ok)throw Error(data.error||('HTTP '+resp.status));return data;});});}
-  function refresh(){status.textContent='Читаем состояние…';return request('GET').then(function(data){
-    status.textContent=(data.enabled?(data.confirmed?'Включён · подтверждён':'ВКЛЮЧЁН · подтвердить в течение 90 секунд!'):'Выключен')+(data.configured?' · конфигурация сохранена':' · конфигурация отсутствует');
-    if(data.configured){var s=data.settings;['wan','ip','port','window','ttl'].forEach(function(n){input(n).value=s[n]});['k1','k2','k3'].forEach(function(n,i){input(n).value=s.knock[i]});}
-    root.querySelector('[data-odin="save"]').disabled=!!data.enabled;
-    root.querySelector('[data-odin="enable"]').disabled=!!data.enabled||!data.configured;
-    root.querySelector('[data-odin="disable"]').disabled=!data.enabled;
-    root.querySelector('[data-odin="confirm"]').disabled=!data.enabled||!!data.confirmed;
-  }).catch(function(e){status.textContent='Ошибка: '+e.message;});}
-  function settings(){return {wan:input('wan').value.trim(),ip:input('ip').value.trim(),port:Number(input('port').value),knock:[Number(input('k1').value),Number(input('k2').value),Number(input('k3').value)],window:Number(input('window').value),ttl:Number(input('ttl').value)};}
-  root.querySelectorAll('[data-odin]').forEach(function(button){button.addEventListener('click',function(){var action=button.getAttribute('data-odin');if(action!=='refresh'&&!confirm('Port Knocking odin: '+action+'? Изменения firewall выполняются только при включении или выключении.'))return;if(action==='refresh'){refresh();return;}status.textContent='Выполняется '+action+'…';request('POST',{action:action,confirm:'APPLY',settings:settings()}).then(refresh).catch(function(e){status.textContent='Ошибка: '+e.message;});});});
+(function () {
+  'use strict';
+  var root = document.getElementById('odin-manager');
+  if (!root) return;
+  var status = document.getElementById('odin-status');
+  var endpoint = '/api/modules/port-access-manager/odin';
+  var input = function (name) { return document.getElementById('odin-' + name); };
+  var actions = ['save', 'enable', 'confirm', 'disable', 'refresh'];
+  var buttons = {};
+  actions.forEach(function (action) { buttons[action] = root.querySelector('[data-odin="' + action + '"]'); });
+  var busy = false;
+  var lastData = null;
+  var localDeadline = 0;
+  var lastEnabled = false;
+  var countdown = document.createElement('span');
+  countdown.id = 'odin-watchdog-countdown';
+  countdown.className = 'odin-countdown';
+  countdown.setAttribute('role', 'status');
+  countdown.setAttribute('aria-live', 'off');
+  status.insertAdjacentElement('afterend', countdown);
+
+  function request(method, body) {
+    return fetch(endpoint, {
+      method: method,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (resp) {
+      return resp.text().then(function (raw) {
+        var data;
+        try { data = raw ? JSON.parse(raw) : {}; }
+        catch (e) { throw Error('Некорректный ответ сервера (HTTP ' + resp.status + ')'); }
+        if (!resp.ok) throw Error(data.error || data.message || ('HTTP ' + resp.status));
+        return data;
+      });
+    });
+  }
+  function settings() {
+    return {
+      wan: input('wan').value.trim(),
+      ip: input('ip').value.trim(),
+      port: Number(input('port').value),
+      knock: [Number(input('k1').value), Number(input('k2').value), Number(input('k3').value)],
+      window: Number(input('window').value),
+      ttl: Number(input('ttl').value)
+    };
+  }
+  function validate(s) {
+    var ipParts = s.ip.split('.');
+    if (!/^[a-zA-Z0-9_.:-]+$/.test(s.wan)) return 'Укажи корректный WAN-интерфейс';
+    if (ipParts.length !== 4 || ipParts.some(function (part) { return !/^\d{1,3}$/.test(part) || Number(part) > 255; })) return 'Некорректный IPv4 сервиса';
+    var ports = s.knock.concat([s.port]);
+    if (ports.some(function (p) { return !Number.isInteger(p) || p < 1 || p > 65535; })) return 'Порты должны быть от 1 до 65535';
+    if (new Set(ports).size !== ports.length) return 'Порты стуков и сервиса должны различаться';
+    if (!Number.isInteger(s.window) || s.window < 5 || s.window > 300) return 'Окно стуков: 5–300 секунд';
+    if (!Number.isInteger(s.ttl) || s.ttl < 30 || s.ttl > 86400) return 'Доступ: 30–86400 секунд';
+    return '';
+  }
+  function updateCountdown() {
+    if (!lastData || !lastData.enabled || lastData.confirmed) { countdown.textContent = ''; return; }
+    if (!localDeadline) { countdown.textContent = 'Подтверди доступ до автоматического отката (не более 90 секунд после включения).'; return; }
+    var seconds = Math.max(0, Math.ceil((localDeadline - Date.now()) / 1000));
+    countdown.textContent = seconds ? ('До автоматического отката: приблизительно ' + seconds + ' сек.') : 'Срок подтверждения истёк. Проверяем состояние…';
+    if (seconds === 0 && !busy) refresh();
+  }
+  function render(data, fill) {
+    var enabled = !!data.enabled;
+    if (!enabled || data.confirmed) localDeadline = 0;
+    if (enabled && !lastEnabled && !localDeadline) localDeadline = 0; // Unknown after reload: never invent timer.
+    lastEnabled = enabled;
+    lastData = data;
+    status.textContent = enabled ? (data.confirmed ? 'Защита включена · подтверждена' : 'Защита включена · ожидает подтверждения') : 'Защита выключена';
+    status.className = enabled ? (data.confirmed ? 'odin-state odin-state-on' : 'odin-state odin-state-pending') : 'odin-state';
+    if (fill && data.configured && data.settings) {
+      var s = data.settings;
+      ['wan', 'ip', 'port', 'window', 'ttl'].forEach(function (name) { input(name).value = s[name]; });
+      ['k1', 'k2', 'k3'].forEach(function (name, i) { input(name).value = s.knock[i]; });
+    }
+    buttons.save.disabled = busy || enabled;
+    buttons.enable.disabled = busy || enabled || !data.configured;
+    buttons.disable.disabled = busy || !enabled;
+    buttons.confirm.disabled = busy || !enabled || !!data.confirmed;
+    buttons.refresh.disabled = busy;
+    updateCountdown();
+    document.dispatchEvent(new Event('routerforge-odin-state-changed'));
+  }
+  var firstLoad = true;
+  function refresh() {
+    return request('GET').then(function (data) { render(data, firstLoad); firstLoad = false; return data; }).catch(function (e) {
+      status.textContent = 'Ошибка получения состояния: ' + e.message;
+      buttons.enable.disabled = true;
+      buttons.confirm.disabled = true;
+      document.dispatchEvent(new Event('routerforge-odin-state-changed'));
+      return null;
+    });
+  }
+  function setBusy(on) {
+    busy = on;
+    actions.forEach(function (a) { buttons[a].disabled = on; });
+    if (!on && lastData) render(lastData, false);
+  }
+  var labels = {
+    save: 'Сохранить настройки',
+    enable: 'Включить защиту',
+    confirm: 'Подтвердить доступ',
+    disable: 'Выключить защиту'
+  };
+  actions.forEach(function (action) {
+    buttons[action].addEventListener('click', function () {
+      if (busy) return;
+      if (action === 'refresh') { refresh(); return; }
+      if (action === 'enable' && !lastData.configured) return;
+      var s = settings();
+      if (action === 'save') { var reason = validate(s); if (reason) { status.textContent = reason; return; } }
+      var message = action === 'enable'
+        ? 'Включить защиту odin? Неправильная конфигурация может закрыть доступ. Без подтверждения watchdog откатит изменения через 90 секунд.'
+        : action === 'confirm'
+          ? 'Подтвердить защиту? Автооткат через 90 секунд будет отменён. Убедись, что доступ по стукам проверен.'
+          : action === 'disable'
+            ? 'Выключить защиту odin и убрать её правила из firewall?'
+            : 'Сохранить настройки odin?';
+      if (!window.confirm(message)) return;
+      setBusy(true);
+      status.textContent = 'Выполняется: ' + labels[action] + '…';
+      request('POST', { action: action, confirm: 'APPLY', settings: s }).then(function () {
+        if (action === 'enable') localDeadline = Date.now() + 90000;
+        if (action === 'disable' || action === 'confirm') localDeadline = 0;
+        return request('GET');
+      }).then(function (data) { setBusy(false); render(data, true); }).catch(function (e) {
+        setBusy(false);
+        status.textContent = 'Ошибка: ' + e.message + '. Обнови состояние перед повторной операцией.';
+        refresh();
+      });
+    });
+  });
   refresh();
+  window.setInterval(function () { updateCountdown(); }, 1000);
+  window.setInterval(function () { if (!busy && !document.hidden) refresh(); }, 10000);
 })();

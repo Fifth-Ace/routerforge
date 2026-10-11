@@ -5,8 +5,8 @@
 <title>Контроль доступа · RouterForge</title><link rel="stylesheet" href="module.css"><link rel="stylesheet" href="ui-rebuild.css">
 </head>
 <body><main class="pa">
-<header><div class="eyebrow">ROUTERFORGE / БЕЗОПАСНОСТЬ</div><h1>Контроль доступа</h1><p>Три механизма защиты доступа. Пока доступна диагностика и локальный предпросмотр настроек.</p></header>
-<section class="notice" role="status"><strong>Режим диагностики и управления авторизацией</strong><span>Черновики сохраняются; авторизованные IP можно просмотреть и отозвать. Применение новых firewall-правил пока не включено.</span></section>
+<header><div class="eyebrow">ROUTERFORGE / БЕЗОПАСНОСТЬ</div><h1>Контроль доступа</h1><p>Управление доступом: odin для проброшенных портов, knockd и fwknopd для установленных служб.</p></header>
+<section class="notice" role="status"><strong>Инженерные инструменты и управление движками</strong><span>odin управляет отдельными правилами защиты с автоматическим откатом. Режимы knockd и fwknopd управляют существующими службами; инженерные черновики не применяются автоматически.</span></section>
 <section class="overview"><div><span class="section-label">Состояние движков</span><div id="engines" class="cards" aria-live="polite">Читаем состояние…</div></div><div class="refresh-bar"><button type="button" id="refresh">↻ Обновить диагностику</button><span id="checked" role="status"></span></div></section>
 <section class="panel safety-panel" id="safety-preflight" aria-labelledby="preflight-title">
   <div class="preview-top"><strong id="preflight-title">Проверка безопасности перед применением</strong><span id="preflight-verdict" class="safety-verdict" role="status">Ожидаем данные</span></div>
@@ -40,7 +40,7 @@
 <p class="help">Предварительная модель: входящий FORWARD, защита неправильной последовательности, срок действия разрешения. Реальное состояние цепочек NDM и сохранность SSH будут проверяться в отдельном этапе.</p>
 </section>
 <div class="preview"><div class="preview-top"><strong>Локальный предпросмотр</strong><span>Не применяется на роутере</span></div><p id="validation" role="status"></p><pre id="preview" aria-label="Предпросмотр параметров"></pre></div>
-<footer>Безопасный доступ и rollback — обязательные условия будущего этапа применения. K2D не создаёт правил и не меняет конфигурацию устройства.</footer>
+<footer>Черновики и диагностические проверки не применяют правила. Работающий движок odin включает и удаляет только собственные цепочки защиты; для него предусмотрен независимый watchdog.</footer>
 <section class="panel" id="staging-panel" aria-labelledby="staging-title">
 <h2 id="staging-title">Сохранённые правила (без применения)</h2>
 <p class="help">Настройки сохраняются на Entware. Это не включает firewall, не запускает knockd/fwknopd и не меняет NDM. Для боевого включения необходима аппаратная приёмка.</p>
@@ -102,7 +102,7 @@
 <button type="button" data-odin="refresh">Обновить</button>
 <span id="odin-status" role="status" aria-live="polite">Проверяем…</span>
 </div>
-<p class="help">После включения подтверди доступ в течение 90 секунд. Без подтверждения независимый watchdog автоматически удалит правила Port Access Manager. Реальную корректность DNAT и пакетов необходимо проверить на Keenetic.</p>
+<p class="help">Сначала проверь доступ после трёх стуков, затем подтверди защиту в течение 90 секунд. Подтверждение отключает автоматический откат; после него ответственность за выключение защиты остаётся у оператора. Проброс защищаемого порта настраивается в KeeneticOS, порты стуков пробрасывать не требуется.</p>
 </section>
 
 </main><script src="app.js"></script><script src="config-editor.js"></script><script src="odin-ui.js"></script><script src="ui-rebuild.js"></script></body></html>

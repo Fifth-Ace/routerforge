@@ -23,3 +23,14 @@
 .rf-pa-advanced-body pre{max-width:100%;overflow:auto}
 @media(max-width:850px){.rf-pa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.rf-pa-choices{grid-template-columns:1fr}}
 @media(max-width:520px){.rf-pa-metrics{grid-template-columns:1fr}.rf-pa-summary-heading{align-items:flex-start;flex-direction:column}}
+
+/* P35A+B — Port Access Manager release-facing odin controls */
+#odin-manager .refresh-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+#odin-manager [data-odin]{white-space:normal;min-height:36px}
+#odin-manager [data-odin="enable"]{border-color:var(--pa-accent)}
+#odin-manager [data-odin="disable"]{border-color:var(--pa-border-strong)}
+#odin-manager .odin-state{display:inline-flex;align-items:center;font-weight:600;overflow-wrap:anywhere}
+#odin-manager .odin-state-on{color:var(--pa-text)}
+#odin-manager .odin-state-pending{color:var(--pa-accent)}
+#odin-watchdog-countdown{display:block;flex-basis:100%;font-size:12px;color:var(--pa-muted);min-height:1em}
+#odin-manager button:disabled{opacity:.55;cursor:not-allowed}

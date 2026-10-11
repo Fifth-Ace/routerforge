@@ -29,10 +29,12 @@ load() {
 exists() { "$IPT" -t filter -n -L "$1" >/dev/null 2>&1; }
 # Follow odin's original NDM hook placement: inspect every NEW WAN TCP
 # connection in _NDM_INPUT so unrelated ports reset the knock sequence.
-check_hook() { "$IPT" -t filter -C "$1" -i "$WAN" -p tcp -m conntrack --ctstate NEW -j "$2" >/dev/null 2>&1; }
-add_knock_hook() { check_hook _NDM_INPUT RF_ODIN_FIRST || "$IPT" -t filter -I _NDM_INPUT -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_FIRST; }
-add_service_hook() { check_hook _NDM_FORWARD RF_ODIN_LAST || "$IPT" -t filter -I _NDM_FORWARD -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_LAST; }
+check_hook() { "$IPT" -t filter -C "$1" -i "$WAN" -p tcp -m state --state NEW -j "$2" >/dev/null 2>&1; }
+add_knock_hook() { check_hook _NDM_INPUT RF_ODIN_FIRST || "$IPT" -t filter -I _NDM_INPUT -i "$WAN" -p tcp -m state --state NEW -j RF_ODIN_FIRST; }
+add_service_hook() { check_hook _NDM_FORWARD RF_ODIN_LAST || "$IPT" -t filter -I _NDM_FORWARD -i "$WAN" -p tcp -m state --state NEW -j RF_ODIN_LAST; }
 drop_hooks() {
+  "$IPT" -t filter -D _NDM_INPUT -i "$WAN" -p tcp -m state --state NEW -j RF_ODIN_FIRST 2>/dev/null || :
+  "$IPT" -t filter -D _NDM_FORWARD -i "$WAN" -p tcp -m state --state NEW -j RF_ODIN_LAST 2>/dev/null || :
   "$IPT" -t filter -D INPUT -i "$WAN" -p tcp -m multiport --dports "$K1,$K2,$K3" -m conntrack --ctstate NEW -j RF_ODIN_FIRST 2>/dev/null || :
   "$IPT" -t filter -D _NDM_INPUT -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_FIRST 2>/dev/null || :
   "$IPT" -t filter -D _NDM_FORWARD -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_LAST 2>/dev/null || :

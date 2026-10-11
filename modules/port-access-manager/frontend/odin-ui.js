@@ -103,7 +103,7 @@
   var labels = {
     save: 'Сохранить настройки',
     enable: 'Включить защиту',
-    confirm: 'Подтвердить доступ',
+    confirm: 'Подтвердить защиту',
     disable: 'Выключить защиту'
   };
   actions.forEach(function (action) {

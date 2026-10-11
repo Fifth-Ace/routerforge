@@ -209,6 +209,7 @@ def main():
             "network-tools",
             "nfqws-manager",
             "antiscan-manager",
+            "port-access-manager",
             "profiling",
         ]
     elif channel == "stable":

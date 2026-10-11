@@ -1,82 +1,96 @@
 {
-  "schema_version": 1,
-  "channel": "beta",
-  "release_version": "0.11.0-beta.1",
-  "release_notes": {
-    "ru": {
-      "new": [
-        "Beta `0.11.0-beta.1` добавляет **Antiscan Manager** — отдельный интерфейс для уже установленного `dimon27254/antiscan`, без тихой установки или подмены upstream.",
-        "В одном месте собраны состояние, настройки, списки, блокировки, управление и расписание Antiscan."
-      ],
-      "fixes": [
-        "Исправлен ложный `OFF` у **Keenetic Entware Extras / Geo Split**: если Geo Split реально работает, RouterForge больше не изображает свидетеля его смерти."
-      ],
-      "compatibility": [
-        "Core: `0.10.1~beta.1`; Antiscan Manager: `0.11.0~beta.1`; остальные компоненты сохраняют свои ранее опубликованные Beta-версии."
-      ],
-      "technical": []
-    },
-    "en": {
-      "new": [
-        "Beta `0.11.0-beta.1` adds **Antiscan Manager** — a separate UI for an existing `dimon27254/antiscan` installation, without silently installing or replacing upstream.",
-        "Antiscan status, settings, lists, blocks, lifecycle and scheduling are now available in one place."
-      ],
-      "fixes": [
-        "Fixed the false **Keenetic Entware Extras / Geo Split** `OFF` state: if Geo Split is actually running, RouterForge no longer performs a small public funeral for it."
-      ],
-      "compatibility": [
-        "Core: `0.10.1~beta.1`; Antiscan Manager: `0.11.0~beta.1`; unchanged components keep their previously published Beta versions."
-      ],
-      "technical": []
-    }
-  },
-  "components": [
-    {
-      "id": "routerforge-core",
-      "package": "routerforge-core",
-      "version": "0.10.1~beta.1"
-    },
-    {
-      "id": "dns",
-      "package": "routerforge-dns",
-      "version": "0.10.0~beta.5",
-      "min_core_version": "0.10.0~beta.5"
-    },
-    {
-      "id": "admin",
-      "package": "routerforge-admin",
-      "version": "0.10.0~beta.5",
-      "min_core_version": "0.10.0~beta.5"
-    },
-    {
-      "id": "monitoring",
-      "package": "routerforge-monitoring",
-      "version": "0.10.0~beta.5",
-      "min_core_version": "0.10.0~beta.5"
-    },
-    {
-      "id": "network-tools",
-      "package": "routerforge-network-tools",
-      "version": "0.10.0~beta.5",
-      "min_core_version": "0.10.0~beta.5"
-    },
-    {
-      "id": "nfqws-manager",
-      "package": "routerforge-nfqws-manager",
-      "version": "0.10.0~beta.5",
-      "min_core_version": "0.10.0~beta.5"
-    },
-    {
-      "id": "antiscan-manager",
-      "package": "routerforge-antiscan-manager",
-      "version": "0.11.0~beta.1",
-      "min_core_version": "0.10.1~beta.1"
-    },
-    {
-      "id": "profiling",
-      "package": "routerforge-profiling",
-      "version": "0.10.0~beta.5",
-      "min_core_version": "0.10.0~beta.5"
-    }
-  ]
+    "schema_version":  1,
+    "channel":  "beta",
+    "release_version":  "0.13.0-beta.1",
+    "release_notes":  {
+                          "ru":  {
+                                     "new":  [
+                                                 "Beta 0.13.0-beta.1: Port Access Manager с odin, knockd и fwknopd/SPA; отдельная вкладка инструментов и исправленная высота встроенной страницы.",
+                                                 "Установка knockd и fwknopd с зависимостями из веб-интерфейса проверена на Keenetic/Entware."
+                                             ],
+                                     "fixes":  [
+                                                   "Установка движков использует временную конфигурацию HTTPS Entware без изменения пользовательских репозиториев.",
+                                                   "Исправлены обновление watchdog и отображение списка авторизованных IP odin."
+                                               ],
+                                     "compatibility":  [
+                                                           "Тестовая бета: девять компонентов, версии 0.13.0~beta.1; Core обновляется вместе с Port Access Manager.",
+                                                           "Авторизация knockd и fwknopd/SPA на реальном устройстве ЕЩЁ НЕ ПРОШЛА приёмку. Не применять к удалённому доступу без резервного канала; odin проверен только по базовому сценарию."
+                                                       ],
+                                     "technical":  [
+                                                       "knockd hardware test: до стуков закрыто, после стуков не открылось; причина не установлена. fwknopd hardware authorization: not tested."
+                                                   ]
+                                 },
+                          "en":  {
+                                     "new":  [
+                                                 "Beta 0.13.0-beta.1: Port Access Manager with odin, knockd and fwknopd/SPA; separate tools tab and corrected embedded page sizing.",
+                                                 "One-click knockd and fwknopd dependency installation was verified on Keenetic/Entware."
+                                             ],
+                                     "fixes":  [
+                                                   "Temporary HTTPS Entware configuration for installation, without changing user feeds.",
+                                                   "Odin watchdog display and authorized IP list presentation fixes."
+                                               ],
+                                     "compatibility":  [
+                                                           "Testing beta: nine components at 0.13.0~beta.1; Core and Port Access Manager should be updated together.",
+                                                           "Hardware authorization for knockd and fwknopd/SPA is NOT yet validated. Do not secure remote management without backup access; odin has only a basic hardware pass."
+                                                       ],
+                                     "technical":  [
+                                                       "knockd hardware: access remained closed after knocks; root cause pending. fwknopd hardware authorization: not tested."
+                                                   ]
+                                 }
+                      },
+    "components":  [
+                       {
+                           "id":  "routerforge-core",
+                           "package":  "routerforge-core",
+                           "version":  "0.13.0~beta.1"
+                       },
+                       {
+                           "id":  "dns",
+                           "package":  "routerforge-dns",
+                           "version":  "0.13.0~beta.1",
+                           "min_core_version":  "0.13.0~beta.1"
+                       },
+                       {
+                           "id":  "admin",
+                           "package":  "routerforge-admin",
+                           "version":  "0.13.0~beta.1",
+                           "min_core_version":  "0.13.0~beta.1"
+                       },
+                       {
+                           "id":  "monitoring",
+                           "package":  "routerforge-monitoring",
+                           "version":  "0.13.0~beta.1",
+                           "min_core_version":  "0.13.0~beta.1"
+                       },
+                       {
+                           "id":  "network-tools",
+                           "package":  "routerforge-network-tools",
+                           "version":  "0.13.0~beta.1",
+                           "min_core_version":  "0.13.0~beta.1"
+                       },
+                       {
+                           "id":  "nfqws-manager",
+                           "package":  "routerforge-nfqws-manager",
+                           "version":  "0.13.0~beta.1",
+                           "min_core_version":  "0.13.0~beta.1"
+                       },
+                       {
+                           "id":  "antiscan-manager",
+                           "package":  "routerforge-antiscan-manager",
+                           "version":  "0.13.0~beta.1",
+                           "min_core_version":  "0.13.0~beta.1"
+                       },
+                       {
+                           "id":  "port-access-manager",
+                           "package":  "routerforge-port-access-manager",
+                           "version":  "0.13.0~beta.1",
+                           "min_core_version":  "0.13.0~beta.1"
+                       },
+                       {
+                           "id":  "profiling",
+                           "package":  "routerforge-profiling",
+                           "version":  "0.13.0~beta.1",
+                           "min_core_version":  "0.13.0~beta.1"
+                       }
+                   ]
 }

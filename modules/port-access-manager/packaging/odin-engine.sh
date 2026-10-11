@@ -27,17 +27,6 @@ load() {
     done
 }
 exists() { "$IPT" -t filter -n -L "$1" >/dev/null 2>&1; }
-# An explicit, two-rule ownership signature uses only core tcp/udp matches;
-# this works on Keenetic kernels with no xt_comment module.
-# Port zero is never configured as a knock or protected service port.
-owned() {
-  "$IPT" -t filter -C "$1" -p tcp --dport 0 -j RETURN >/dev/null 2>&1 &&
-  "$IPT" -t filter -C "$1" -p udp --dport 0 -j RETURN >/dev/null 2>&1
-}
-mark_owned() {
-  a "$1" -p tcp --dport 0 -j RETURN
-  a "$1" -p udp --dport 0 -j RETURN
-}
 # Follow odin's original NDM hook placement: inspect every NEW WAN TCP
 # connection in _NDM_INPUT so unrelated ports reset the knock sequence.
 check_hook() { "$IPT" -t filter -C "$1" -i "$WAN" -p tcp -m state --state NEW -j "$2" >/dev/null 2>&1; }
@@ -60,11 +49,7 @@ remove_chains() {
      exists "$n" && "$IPT" -t filter -X "$n" || :
   done
 }
-a() {
-  if "$IPT" -t filter -A "$@"; then return 0; fi
-  echo "ODIN_RULE_APPEND_FAILED: chain=$1 args=$*" >&2
-  return 1
-}
+a() { "$IPT" -t filter -A "$@"; }
 apply() {
     load || { echo 'CONFIG_INVALID'; return 1; }
     "$IPT" -t filter -n -L _NDM_FORWARD >/dev/null 2>&1 || return 1
@@ -72,7 +57,8 @@ apply() {
     # This operation is explicitly idempotent for NDM netfilter rebuilds.
     if exists KNOCKING-FIRST; then
       exists KNOCKING-LAST || { echo 'PARTIAL_CHAIN_STATE'; return 1; }
-      owned KNOCKING-FIRST && owned KNOCKING-LAST || { echo 'FOREIGN_CHAIN_COLLISION_OR_LEGACY_SIGNATURE'; return 1; }
+      "$IPT" -t filter -C KNOCKING-FIRST -m comment --comment ROUTERFORGE_ODIN_MANAGED -j RETURN >/dev/null 2>&1 || { echo 'FOREIGN_CHAIN_COLLISION'; return 1; }
+      "$IPT" -t filter -C KNOCKING-LAST -m comment --comment ROUTERFORGE_ODIN_MANAGED -j RETURN >/dev/null 2>&1 || { echo 'FOREIGN_CHAIN_COLLISION'; return 1; }
       # Add original NDM hooks first, then remove legacy early hooks.
       add_knock_hook
       add_service_hook
@@ -100,14 +86,14 @@ apply() {
     a KNOCKING-LAST -m recent --remove --name KK2 --rsource
     a KNOCKING-LAST -m recent --remove --name KK3 --rsource
     a KNOCKING-LAST -m recent --remove --name KKD --rsource
-    mark_owned KNOCKING-LAST
+    a KNOCKING-LAST -m comment --comment ROUTERFORGE_ODIN_MANAGED -j RETURN
     a KNOCKING-FIRST -p tcp --dport "$K3" -j STATE2
     a KNOCKING-FIRST -p tcp --dport "$K2" -j STATE1
     a KNOCKING-FIRST -p tcp --dport "$K1" -j STATE0
     a KNOCKING-FIRST -m recent --remove --name KK1 --rsource
     a KNOCKING-FIRST -m recent --remove --name KK2 --rsource
     a KNOCKING-FIRST -m recent --remove --name KK3 --rsource
-    mark_owned KNOCKING-FIRST
+    a KNOCKING-FIRST -m comment --comment ROUTERFORGE_ODIN_MANAGED -j RETURN
     a STATE0 -m recent --update --seconds "$WINDOW" --name KK1 --rsource -j DROP
     a STATE0 -m recent --set --name KK1 --rsource
     a STATE0 -m recent --rcheck --seconds "$WINDOW" --name KK1 --rsource -j DROP

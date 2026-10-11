@@ -156,11 +156,28 @@ func odinRemoveHook() error {
 	}
 	return os.Remove(odinHook)
 }
+// odin requires xt_comment for the original NDM chain ownership markers.
+// Check the kernel registry before arming the watchdog or touching firewall.
+func odinRequireComment(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("cannot check kernel iptables matches: %w", err)
+	}
+	for _, name := range strings.Fields(string(data)) {
+		if name == "comment" {
+			return nil
+		}
+	}
+	return errors.New("РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚ Р·Р°РіСЂСѓР¶РµРЅРЅС‹Р№ РјРѕРґСѓР»СЊ СЏРґСЂР° xt_comment (iptables comment). РЈСЃС‚Р°РЅРѕРІРёС‚Рµ СЃРѕРІРјРµСЃС‚РёРјС‹Р№ СЃ РІР°С€РёРј Keenetic РјРѕРґСѓР»СЊ xt_comment Рё Р·Р°РіСЂСѓР·РёС‚Рµ РµРіРѕ, Р·Р°С‚РµРј РїРѕРІС‚РѕСЂРёС‚Рµ РІРєР»СЋС‡РµРЅРёРµ Р·Р°С‰РёС‚С‹. RouterForge РЅРµ РёР·РјРµРЅСЏР» firewall")
+}
 func odinActivate(ctx context.Context) error {
 	if odinEnabled() {
 		return errors.New("already enabled")
 	}
 	if _, err := odinRead(); err != nil {
+		return err
+	}
+	if err := odinRequireComment("/proc/net/ip_tables_matches"); err != nil {
 		return err
 	}
 	if _, err := os.Lstat(odinHook); err == nil {

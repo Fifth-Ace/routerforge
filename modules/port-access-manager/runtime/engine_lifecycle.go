@@ -124,15 +124,79 @@ func installExistingEngine(ctx context.Context, engine string, invoke func(conte
 	return invoke(ctx, name)
 }
 
+// Rebuild a temporary opkg source list with HTTPS for trusted Entware feeds.
+// The system configuration and additional third-party feed addresses stay unchanged.
+func entwareHTTPSConfigLine(line string) string {
+	fields := strings.Fields(line)
+	if len(fields) != 3 || (fields[0] != "src/gz" && fields[0] != "src") {
+		return line
+	}
+	if !strings.HasPrefix(fields[2], "http://bin.entware.net/") {
+		return line
+	}
+	return strings.Replace(line, fields[2], "https://"+strings.TrimPrefix(fields[2], "http://"), 1)
+}
+
+func createEntwareHTTPSConfig(root, tmp string) (string, error) {
+	paths := []string{filepath.Join(root, "opkg.conf")}
+	fragments, err := filepath.Glob(filepath.Join(root, "opkg", "*.conf"))
+	if err != nil {
+		return "", err
+	}
+	paths = append(paths, fragments...)
+	var result strings.Builder
+	found := false
+	for i, path := range paths {
+		data, err := os.ReadFile(path)
+		if os.IsNotExist(err) && i != 0 {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.Contains(line, "http://bin.entware.net/") && entwareHTTPSConfigLine(line) != line {
+				found = true
+			}
+			result.WriteString(entwareHTTPSConfigLine(line))
+			result.WriteByte('\n')
+		}
+	}
+	if !found {
+		return "", errors.New("Entware HTTP source not found: HTTPS installation unavailable")
+	}
+	file, err := os.CreateTemp(tmp, "routerforge-opkg-https-*.conf")
+	if err != nil {
+		return "", err
+	}
+	path := file.Name()
+	if err = file.Chmod(0600); err == nil {
+		_, err = file.WriteString(result.String())
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		os.Remove(path)
+		return "", err
+	}
+	return path, nil
+}
+
 func invokeEntwareInstall(ctx context.Context, name string) error {
-	cmd, err := safety.CommandContext(ctx, "/opt/bin/opkg", "install", name)
+	config, err := createEntwareHTTPSConfig("/opt/etc", "/opt/tmp")
+	if err != nil {
+		return fmt.Errorf("Entware HTTPS configuration: %w", err)
+	}
+	defer os.Remove(config)
+	cmd, err := safety.CommandContext(ctx, "/opt/bin/opkg", "-f", config, "install", name)
 	if err != nil {
 		return errors.New("unable to launch Entware package manager")
 	}
 	cmd.Env = []string{"PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("Entware installation failed: %s", limitedInstallError(out))
+		return fmt.Errorf("Entware HTTPS installation failed: %s", limitedInstallError(out))
 	}
 	return nil
 }

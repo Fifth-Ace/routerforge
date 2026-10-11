@@ -70,6 +70,7 @@
     }
   }
   refresh.addEventListener('click',function(){update();var existing=document.querySelector('[data-odin="refresh"]');if(current==='odin'&&existing)existing.click();else{var control=document.getElementById('existing-engine-refresh');if(control)control.click();}});
+  document.addEventListener('routerforge-odin-state-changed',function(){if(current==='odin')update();});
   select('odin');
   document.addEventListener('visibilitychange',function(){if(!document.hidden)update();});
 })();

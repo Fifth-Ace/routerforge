@@ -28,9 +28,13 @@ load() {
 }
 exists() { "$IPT" -t filter -n -L "$1" >/dev/null 2>&1; }
 check_hook() { "$IPT" -t filter -C "$1" -i "$WAN" -p tcp -m conntrack --ctstate NEW -j "$2" >/dev/null 2>&1; }
+# A narrowly scoped gate on FORWARD catches DNAT SYN packets before Keenetic fast-path/ACCEPT rules.
+check_service_hook() { "$IPT" -t filter -C FORWARD -i "$WAN" -d "$TIP" -p tcp --dport "$TPORT" -m conntrack --ctstate NEW -j RF_ODIN_LAST >/dev/null 2>&1; }
+add_service_hook() { check_service_hook || "$IPT" -t filter -I FORWARD 1 -i "$WAN" -d "$TIP" -p tcp --dport "$TPORT" -m conntrack --ctstate NEW -j RF_ODIN_LAST; }
 drop_hooks() {
   "$IPT" -t filter -D _NDM_INPUT -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_FIRST 2>/dev/null || :
   "$IPT" -t filter -D _NDM_FORWARD -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_LAST 2>/dev/null || :
+  "$IPT" -t filter -D FORWARD -i "$WAN" -d "$TIP" -p tcp --dport "$TPORT" -m conntrack --ctstate NEW -j RF_ODIN_LAST 2>/dev/null || :
 }
 remove_chains() {
   # Only module-owned chains; never flush or delete NDM or unrelated chains.
@@ -53,6 +57,7 @@ apply() {
       "$IPT" -t filter -C RF_ODIN_LAST -m comment --comment RF_ODIN_MANAGED -j RETURN >/dev/null 2>&1 || { echo 'FOREIGN_CHAIN_COLLISION'; return 1; }
       check_hook _NDM_INPUT RF_ODIN_FIRST || "$IPT" -t filter -I _NDM_INPUT -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_FIRST
       check_hook _NDM_FORWARD RF_ODIN_LAST || "$IPT" -t filter -I _NDM_FORWARD -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_LAST
+      add_service_hook
       return 0
     fi
     # Refuse any partial/foreign chain state before owning anything.
@@ -65,7 +70,7 @@ apply() {
       "$IPT" -t filter -N "$n"
     done
     # odin's original stage transitions and invalid-port reset policy.
-    a RF_ODIN_LAST -d "$TIP" -p tcp --dport "$TPORT" -m recent --rcheck --seconds "$TTL" --name RFOD_D --rsource -j RETURN
+    a RF_ODIN_LAST -d "$TIP" -p tcp --dport "$TPORT" -m recent --rcheck --seconds "$TTL" --name RFOD_D --rsource -j ACCEPT
     a RF_ODIN_LAST -d "$TIP" -p tcp --dport "$TPORT" -j RF_ODIN_S3
     a RF_ODIN_LAST -m recent --remove --name RFOD_1 --rsource
     a RF_ODIN_LAST -m recent --remove --name RFOD_2 --rsource
@@ -95,12 +100,13 @@ apply() {
     a RF_ODIN_SUB2 -m recent --set --name RFOD_3 --rsource
     a RF_ODIN_SUB2 -m recent --rcheck --seconds "$WINDOW" --name RFOD_3 --rsource -j DROP
     a RF_ODIN_S3 -m recent --rcheck --seconds "$WINDOW" --name RFOD_3 --rsource -j RF_ODIN_SUB3
-    a RF_ODIN_S3 -m recent --rcheck --seconds "$TTL" --name RFOD_D --rsource -j RETURN
+    a RF_ODIN_S3 -j DROP
     a RF_ODIN_SUB3 -m recent --remove --name RFOD_3 --rsource
     a RF_ODIN_SUB3 -m recent --set --name RFOD_D --rsource
-    a RF_ODIN_SUB3 -m recent --rcheck --seconds "$WINDOW" --name RFOD_D --rsource -j RETURN
+    a RF_ODIN_SUB3 -m recent --rcheck --seconds "$WINDOW" --name RFOD_D --rsource -j ACCEPT
     "$IPT" -t filter -I _NDM_INPUT -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_FIRST
     "$IPT" -t filter -I _NDM_FORWARD -i "$WAN" -p tcp -m conntrack --ctstate NEW -j RF_ODIN_LAST
+    add_service_hook
     trap - 0
 }
 case "$CMD" in

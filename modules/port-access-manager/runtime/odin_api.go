@@ -156,6 +156,7 @@ func odinRemoveHook() error {
 	}
 	return os.Remove(odinHook)
 }
+
 // odin requires xt_comment for the original NDM chain ownership markers.
 // Check the kernel registry before arming the watchdog or touching firewall.
 func odinRequireComment(path string) error {
@@ -168,7 +169,7 @@ func odinRequireComment(path string) error {
 			return nil
 		}
 	}
-	return errors.New("РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚ Р·Р°РіСЂСѓР¶РµРЅРЅС‹Р№ РјРѕРґСѓР»СЊ СЏРґСЂР° xt_comment (iptables comment). РЈСЃС‚Р°РЅРѕРІРёС‚Рµ СЃРѕРІРјРµСЃС‚РёРјС‹Р№ СЃ РІР°С€РёРј Keenetic РјРѕРґСѓР»СЊ xt_comment Рё Р·Р°РіСЂСѓР·РёС‚Рµ РµРіРѕ, Р·Р°С‚РµРј РїРѕРІС‚РѕСЂРёС‚Рµ РІРєР»СЋС‡РµРЅРёРµ Р·Р°С‰РёС‚С‹. RouterForge РЅРµ РёР·РјРµРЅСЏР» firewall")
+	return errors.New("\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u043d\u044b\u0439 \u043c\u043e\u0434\u0443\u043b\u044c \u044f\u0434\u0440\u0430 xt_comment (iptables comment). \u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u0441\u043e\u0432\u043c\u0435\u0441\u0442\u0438\u043c\u044b\u0439 \u0441 Keenetic \u043c\u043e\u0434\u0443\u043b\u044c xt_comment \u0438 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u0435\u0433\u043e. \u0417\u0430\u0442\u0435\u043c \u043f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u0435 \u0432\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u0437\u0430\u0449\u0438\u0442\u044b. RouterForge \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u043b firewall.")
 }
 func odinActivate(ctx context.Context) error {
 	if odinEnabled() {

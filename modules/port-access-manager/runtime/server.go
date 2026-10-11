@@ -42,6 +42,7 @@ func routes(ui string) http.Handler {
 	mux.HandleFunc("/v1/staged-rules", stagedRulesHandler(rulesStorePath))
 	mux.HandleFunc("/v1/staged-assessment", stagedAssessmentHandler(rulesStorePath))
 	mux.HandleFunc("/v1/recent-access", recentAccessHandler)
+	mux.HandleFunc("/v1/odin-access", readOnly(odinAccessHandler))
 	mux.HandleFunc("/v1/recent-revoke", recentRevokeHandler)
 	mux.HandleFunc("/v1/engine-service", engineServiceHandler)
 	mux.HandleFunc("/v1/odin", odinHandler)

@@ -140,3 +140,23 @@ func decodeRecentRevoke(r *http.Request, target any) error {
 	}
 	return nil
 }
+
+// odinAccessHandler exposes the actual odin authorization list (RFOD_D),
+// never the legacy RF_KNOCK_AUTH pool. This endpoint is read-only.
+// xt_recent exports jiffies, so no synthetic wall-clock expiration is returned.
+func odinAccessHandler(w http.ResponseWriter, r *http.Request) {
+	if !odinEnabled() {
+	    jsonReply(w, 200, map[string]any{"available": false, "enabled": false, "entries": []recentClient{}, "reason": "Защита odin выключена"})
+	    return
+	}
+	entries, err := readRecentClients(filepath.Join(recentRoot, "RFOD_D"), 0, time.Now())
+	if err != nil {
+	    if os.IsNotExist(err) {
+	        jsonReply(w, 200, map[string]any{"available": false, "enabled": true, "entries": []recentClient{}, "reason": "Список RFOD_D отсутствует в ядре"})
+	        return
+	    }
+	    jsonReply(w, 503, map[string]string{"error": "unable to read odin authorization list"})
+	    return
+	}
+	jsonReply(w, 200, map[string]any{"available": true, "enabled": true, "engine": "odin", "list": "RFOD_D", "entries": entries, "note": "Точное время истечения доступа недоступно через xt_recent"})
+}

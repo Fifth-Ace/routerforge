@@ -35,6 +35,7 @@ deadline="$(($(date +%s) + 2))"
 test "$(cat "$TMP/rolled-back")" = rollback-ok || { echo 'ROLLBACK_MARKER_FAIL' >&2; exit 1; }
 echo 'TIMEOUT_ROLLBACK: PASS'
 printf 'ok\n' > "$TMP/confirmed/confirmed"
+chmod 600 "$TMP/confirmed/confirmed"
 printf '#!/bin/sh\nexit 97\n' > "$TMP/confirmed/rollback.sh"
 chmod 700 "$TMP/confirmed/rollback.sh"
 "$TMP/watchdog-native" -transaction-dir "$TMP/confirmed" -deadline-unix "$(($(date +%s) + 2))"

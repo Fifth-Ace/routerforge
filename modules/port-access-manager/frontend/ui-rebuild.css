@@ -1,0 +1,25 @@
+/* BIG-5: compositional layer, using existing RouterForge tokens */
+.rf-pa-workspace{display:grid;gap:14px;margin-top:16px}
+.rf-pa-summary,.rf-pa-selector,.rf-pa-advanced{border:1px solid var(--pa-border);background:var(--pa-surface);border-radius:var(--pa-radius);padding:16px}
+.rf-pa-summary-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.rf-pa-summary-heading strong{font-size:15px}
+.rf-pa-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.rf-pa-metric{display:flex;flex-direction:column;gap:5px;min-width:0;padding:12px;border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);background:var(--pa-surface-2)}
+.rf-pa-metric span{font-size:11px;color:var(--pa-muted)}
+.rf-pa-metric b{font-size:13px;overflow-wrap:anywhere}
+.rf-pa-selector h2{margin:0 0 12px;font-size:15px}
+.rf-pa-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rf-pa-choice{display:flex;align-items:flex-start;flex-direction:column;gap:6px;text-align:left;padding:13px;border:1px solid var(--pa-border-strong);background:var(--pa-surface-2);border-radius:var(--pa-control-radius);color:var(--pa-text);cursor:pointer}
+.rf-pa-choice small{font-size:11px;color:var(--pa-muted)}
+.rf-pa-choice.active,.rf-pa-choice[aria-pressed="true"]{border-color:var(--pa-accent);background:var(--pa-accent-soft)}
+.rf-pa-working{min-width:0}.rf-pa-working .panel,.rf-pa-workspace>.panel{margin:0}
+.rf-pa-daemons{display:grid;gap:14px}
+.rf-pa-daemons .cards{display:block}.rf-pa-daemons .engine-card{width:100%}
+.rf-pa-advanced>summary{cursor:pointer;font-weight:600;padding:3px 0}
+.rf-pa-advanced-body{display:grid;gap:14px;padding-top:16px}
+.rf-pa-advanced-body .overview,.rf-pa-advanced-body .panel,.rf-pa-advanced-body .preview{margin:0}
+.rf-pa-advanced-body footer{color:var(--pa-muted)}
+.rf-pa-workspace [hidden],.rf-pa-workspace .engine-card[hidden]{display:none!important}
+.rf-pa-advanced-body pre{max-width:100%;overflow:auto}
+@media(max-width:850px){.rf-pa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.rf-pa-choices{grid-template-columns:1fr}}
+@media(max-width:520px){.rf-pa-metrics{grid-template-columns:1fr}.rf-pa-summary-heading{align-items:flex-start;flex-direction:column}}

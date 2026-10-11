@@ -36,6 +36,38 @@
     if(node===header||node===shell||node.tagName==='SCRIPT')return;
     advancedBody.appendChild(node);
   });
+  // P35C: odin owns RFOD_D; legacy recent UI belongs to the engineering section.
+  var odinAccess=el('section','panel rf-pa-odin-access');
+  odinAccess.id='odin-live-access';
+  var odinAccessTitle=el('h2','','Авторизованные IP · odin');odinAccess.appendChild(odinAccessTitle);
+  odinAccess.appendChild(el('p','help','Текущие разрешения из RFOD_D. Истечение доступа проверяется ядром; точное оставшееся время недоступно.'));
+  var accessTools=el('div','refresh-bar');odinAccess.appendChild(accessTools);
+  var accessRefresh=el('button','','Обновить IP');accessRefresh.type='button';accessTools.appendChild(accessRefresh);
+  var accessState=el('span','muted','Ожидаем ответ…');accessState.setAttribute('role','status');accessTools.appendChild(accessState);
+  var accessRows=el('div','rf-pa-access-list');odinAccess.appendChild(accessRows);
+  shell.insertBefore(odinAccess,advanced);
+  if(access)advancedBody.appendChild(access);
+  function refreshOdinAccess(){
+    accessState.textContent='Читаем RFOD_D…';
+    fetch('/api/modules/port-access-manager/odin-access',{credentials:'same-origin',cache:'no-store'})
+    .then(function(r){return r.json().then(function(d){if(!r.ok)throw Error(d.error||('HTTP '+r.status));return d;});})
+    .then(function(d){
+      accessRows.textContent='';
+      if(!d.available){accessState.textContent=d.reason||'Авторизации недоступны';return;}
+      if(d.list!=='RFOD_D'||!Array.isArray(d.entries))throw Error('Неверный ответ API');
+      accessState.textContent='Активных записей: '+d.entries.length;
+      if(!d.entries.length){accessRows.appendChild(el('p','muted','Авторизованных IP пока нет.'));return;}
+      d.entries.forEach(function(entry){if(typeof entry.ip==='string')accessRows.appendChild(el('div','rf-pa-access-ip',entry.ip));});
+    }).catch(function(err){accessRows.textContent='';accessState.textContent='Ошибка чтения: '+err.message;});
+  }
+  accessRefresh.addEventListener('click',refreshOdinAccess);
+  document.addEventListener('routerforge-odin-state-changed',function(){if(current==='odin')refreshOdinAccess();});
+  var legacyNotice=document.getElementById('preflight-title');
+  if(legacyNotice)legacyNotice.textContent='Проверка экспериментальных сценариев (не относится к проверенному odin)';
+  var legacySafety=document.querySelector('#safety-preflight .help');
+  if(legacySafety)legacySafety.textContent='Read-only диагностика экспериментального iptables recent. Статус этого preflight не блокирует работающий odin.';
+  var oldFooter=advancedBody.querySelector('footer');
+  if(oldFooter)oldFooter.textContent='Экспериментальные черновики и preflight не применяют firewall. Управление odin находится в основном разделе.';
   var existingCards=service?service.querySelectorAll('.engine-card'):[];
   var selector=document.getElementById('engine-config-engine');
   var current='odin';
@@ -44,7 +76,8 @@
     options.forEach(function(o){var active=o.id===id;buttons[o.id].setAttribute('aria-pressed',String(active));buttons[o.id].classList.toggle('active',active);});
     if(odin)odin.hidden=id!=='odin';
     if(daemons)daemons.hidden=id==='odin';
-    if(access)access.hidden=id!=='odin';
+    if(access)access.hidden=false; // Legacy recent UI stays in collapsed engineering details.
+    odinAccess.hidden=id!=='odin';
     Array.prototype.forEach.call(existingCards,function(card,i){card.hidden=(id==='odin'||(i===0)!==(id==='knockd'));});
     if(selector&&id!=='odin'){
       selector.value=id;
@@ -72,5 +105,6 @@
   refresh.addEventListener('click',function(){update();var existing=document.querySelector('[data-odin="refresh"]');if(current==='odin'&&existing)existing.click();else{var control=document.getElementById('existing-engine-refresh');if(control)control.click();}});
   document.addEventListener('routerforge-odin-state-changed',function(){if(current==='odin')update();});
   select('odin');
+  refreshOdinAccess();
   document.addEventListener('visibilitychange',function(){if(!document.hidden)update();});
 })();

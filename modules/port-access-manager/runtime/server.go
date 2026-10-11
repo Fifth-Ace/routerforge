@@ -44,6 +44,7 @@ func routes(ui string) http.Handler {
 	mux.HandleFunc("/v1/recent-access", recentAccessHandler)
 	mux.HandleFunc("/v1/recent-revoke", recentRevokeHandler)
 	mux.HandleFunc("/v1/engine-service", engineServiceHandler)
+	mux.HandleFunc("/v1/odin", odinHandler)
 	mux.HandleFunc("/v1/engine-config", engineConfigHandler)
 	mux.HandleFunc("/v1/ui", readOnly(func(w http.ResponseWriter, r *http.Request) { uiFile(w, r, ui) }))
 	mux.HandleFunc("/v1/ui/", readOnly(func(w http.ResponseWriter, r *http.Request) { uiFile(w, r, ui) }))

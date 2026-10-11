@@ -46,3 +46,13 @@
 .rf-pa-odin-alert{padding:12px 14px;margin-bottom:14px;border:1px solid var(--pa-accent);background:var(--pa-accent-soft);border-radius:var(--pa-control-radius);font-weight:600;line-height:1.45}
 .rf-pa-workspace .rf-pa-odin-alert[hidden]{display:none!important}
 .rf-pa-advanced-body{min-width:0}
+/* P35D.1: separate engine workspaces, developer-only legacy diagnostics */
+.rf-pa-engine-scope{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px;border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);background:var(--pa-surface-2)}
+.rf-pa-engine-scope>strong{font-size:15px}
+.rf-pa-engine-status{padding:4px 8px;border:1px solid var(--pa-border-strong);border-radius:var(--pa-control-radius);font-size:12px}
+.rf-pa-engine-scope>.muted{flex-basis:100%;margin:0;font-size:12px;color:var(--pa-muted)}
+.rf-pa-legacy-dev{margin-top:10px;padding:12px;border:1px solid var(--pa-border);border-radius:var(--pa-control-radius)}
+.rf-pa-legacy-dev>summary{cursor:pointer;font-weight:600}
+.rf-pa-legacy-body{display:grid;gap:14px;padding-top:14px}
+.rf-pa-legacy-body>.panel,.rf-pa-legacy-body>.tabs{margin:0}
+.rf-pa-workspace .rf-pa-legacy-dev[hidden]{display:none!important}

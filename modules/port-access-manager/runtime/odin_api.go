@@ -180,6 +180,13 @@ func odinActivate(ctx context.Context) error {
 		return err
 	}
 	if err := odinExec(ctx, "enable"); err != nil {
+		// Always try to remove partially installed chains after failed apply.
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		cleanupErr := odinExec(cleanupCtx, "disable")
+		cleanupCancel()
+		if cleanupErr != nil {
+			return fmt.Errorf("%w; firewall cleanup failed: %v", err, cleanupErr)
+		}
 		return err
 	}
 	rollback := func() {

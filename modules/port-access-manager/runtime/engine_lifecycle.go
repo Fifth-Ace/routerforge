@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,10 +20,11 @@ var engineServiceNames = map[string]string{
 }
 
 type engineService struct {
-	Engine    string `json:"engine"`
-	Installed bool   `json:"installed"`
-	Script    string `json:"script,omitempty"`
-	Running   bool   `json:"running"`
+	Engine         string `json:"engine"`
+	Installed      bool   `json:"installed"`
+	Script         string `json:"script,omitempty"`
+	Running        bool   `json:"running"`
+	FirewallPolicy string `json:"firewall_policy"`
 }
 
 func findEngineInitScript(engine, dir string) (string, error) {
@@ -67,7 +69,7 @@ func findEngineInitScript(engine, dir string) (string, error) {
 
 func serviceSnapshot(engine, dir string) engineService {
 	script, err := findEngineInitScript(engine, dir)
-	result := engineService{Engine: engine, Installed: err == nil, Running: runningProcesses()[engine]}
+	result := engineService{Engine: engine, Installed: err == nil, Running: runningProcesses()[engine], FirewallPolicy: "preserve"}
 	if err == nil {
 		result.Script = filepath.Base(script)
 	}
@@ -109,6 +111,40 @@ func invokeEntwareService(ctx context.Context, path, action string) error {
 	return nil
 }
 
+// Install only a fixed upstream package. Never implicitly start a daemon or modify
+// RouterForge firewall chains. opkg package scripts remain upstream-controlled.
+func installExistingEngine(ctx context.Context, engine string, invoke func(context.Context, string) error) error {
+	name, ok := engineServiceNames[engine]
+	if !ok {
+		return errors.New("unknown engine")
+	}
+	if invoke == nil {
+		return errors.New("missing package runner")
+	}
+	return invoke(ctx, name)
+}
+
+func invokeEntwareInstall(ctx context.Context, name string) error {
+	cmd, err := safety.CommandContext(ctx, "/opt/bin/opkg", "install", name)
+	if err != nil {
+		return errors.New("unable to launch Entware package manager")
+	}
+	cmd.Env = []string{"PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Entware installation failed: %s", limitedInstallError(out))
+	}
+	return nil
+}
+
+func limitedInstallError(out []byte) string {
+	// Do not send arbitrary package output or private configuration into the UI.
+	if len(out) == 0 {
+		return "check Entware package feeds and logs"
+	}
+	return "check Entware package feeds, available storage and logs"
+}
+
 func engineServiceHandler(w http.ResponseWriter, r *http.Request) {
 	engine := r.URL.Query().Get("engine")
 	if _, ok := engineServiceNames[engine]; !ok {
@@ -116,7 +152,9 @@ func engineServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
-		jsonReply(w, 200, serviceSnapshot(engine, "/opt/etc/init.d"))
+		result := serviceSnapshot(engine, "/opt/etc/init.d")
+		install := engineInstalls.status(engine)
+		jsonReply(w, 200, map[string]any{"engine": result.Engine, "installed": result.Installed, "script": result.Script, "running": result.Running, "firewall_policy": result.FirewallPolicy, "installation": install})
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -130,8 +168,9 @@ func engineServiceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
 	var request struct {
-		Action  string `json:"action"`
-		Confirm string `json:"confirm"`
+		Action         string `json:"action"`
+		Confirm        string `json:"confirm"`
+		FirewallPolicy string `json:"firewall_policy"`
 	}
 	if err := decodeEngineAction(r.Body, &request); err != nil {
 		jsonReply(w, 400, map[string]string{"error": "invalid request"})
@@ -141,11 +180,33 @@ func engineServiceHandler(w http.ResponseWriter, r *http.Request) {
 		jsonReply(w, 400, map[string]string{"error": "confirmation required"})
 		return
 	}
+	// Existing upstream init scripts may mutate firewall internally. RouterForge never
+	// performs extra revocation on stop; cleanup requires separate ownership proofs.
+	if request.FirewallPolicy != "" && request.FirewallPolicy != "preserve" {
+		jsonReply(w, 409, map[string]string{"error": "firewall cleanup is unavailable: ownership of daemon rules is not verified"})
+		return
+	}
+	if request.Action == "install" {
+		if request.FirewallPolicy != "" && request.FirewallPolicy != "preserve" {
+			jsonReply(w, 409, map[string]string{"error": "firewall cleanup is unavailable"})
+			return
+		}
+		if serviceSnapshot(engine, "/opt/etc/init.d").Installed {
+			jsonReply(w, 409, map[string]string{"error": "service already installed"})
+			return
+		}
+		if err := engineInstalls.start(engine, invokeEntwareInstall); err != nil {
+			jsonReply(w, 409, map[string]string{"error": err.Error()})
+			return
+		}
+		jsonReply(w, 202, map[string]any{"ok": true, "engine": engine, "action": "install", "installation": engineInstalls.status(engine), "postinst_may_start_service": true})
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	if err := runExistingEngineService(ctx, engine, request.Action, "/opt/etc/init.d", invokeEntwareService); err != nil {
 		jsonReply(w, 409, map[string]string{"error": err.Error()})
 		return
 	}
-	jsonReply(w, 200, map[string]any{"ok": true, "engine": engine, "action": request.Action, "service": serviceSnapshot(engine, "/opt/etc/init.d")})
+	jsonReply(w, 200, map[string]any{"ok": true, "engine": engine, "action": request.Action, "firewall_policy": "preserve", "service": serviceSnapshot(engine, "/opt/etc/init.d")})
 }

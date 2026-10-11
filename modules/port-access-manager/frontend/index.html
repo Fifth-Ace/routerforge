@@ -59,12 +59,15 @@
 <section class="panel" id="existing-engine-control" aria-labelledby="existing-engine-title">
 <h2 id="existing-engine-title">Установленные движки · Entware</h2>
 <p class="help">Управление уже установленными службами knockd и fwknopd через их init-скрипты. Настройки и правила firewall здесь не создаются; запуск применит имеющуюся конфигурацию службы.</p>
+<p class="help">Политика остановки: <strong>не выполнять дополнительную очистку firewall (по умолчанию)</strong>. Штатный init-скрипт службы может самостоятельно менять правила. Опциональная очистка станет доступна только при подтверждённой принадлежности правил RouterForge.</p>
 <div class="cards">
 <div class="engine-card"><strong>knockd</strong><p id="knockd-service-state">Проверяем…</p>
+<button type="button" data-engine-action="knockd" data-action="install">Установить из Entware</button>
 <button type="button" data-engine-action="knockd" data-action="start">Запустить</button>
 <button type="button" data-engine-action="knockd" data-action="stop">Остановить</button>
 <button type="button" data-engine-action="knockd" data-action="restart">Перезапустить</button></div>
 <div class="engine-card"><strong>fwknopd / SPA</strong><p id="fwknopd-service-state">Проверяем…</p>
+<button type="button" data-engine-action="fwknopd" data-action="install">Установить из Entware</button>
 <button type="button" data-engine-action="fwknopd" data-action="start">Запустить</button>
 <button type="button" data-engine-action="fwknopd" data-action="stop">Остановить</button>
 <button type="button" data-engine-action="fwknopd" data-action="restart">Перезапустить</button></div>
@@ -80,6 +83,33 @@
 <textarea id="engine-config-editor" rows="14" disabled spellcheck="false" autocomplete="off" style="width:100%;box-sizing:border-box;font-family:monospace;resize:vertical"></textarea>
 <div class="refresh-bar"><button type="button" id="engine-config-save">Сохранить конфигурацию</button><button type="button" id="engine-config-restore">Вернуть предыдущую версию</button></div>
 <p id="engine-config-status" role="status" class="muted"></p>
+</section>
+<section class="panel" id="engine-wizard-panel">
+<h2>Мастер сервисов · knockd / fwknopd</h2>
+<p class="help">Проверка и сохранение черновика без изменения работающих конфигураций и firewall. Сохранённый черновик НЕ применён.</p>
+<div class="form-grid">
+<label>WAN для knockd / fwknopd<input id="engine-wizard-interface" value="eth3" autocomplete="off"></label>
+<label>Стуки knockd (через запятую)<input id="engine-wizard-knock" value="7777,8888,6666" autocomplete="off"></label>
+<label>Окно стуков, сек.<input id="engine-wizard-window" type="number" min="5" max="300" value="15"></label>
+<label>Время доступа, сек.<input id="engine-wizard-ttl" type="number" min="30" max="86400" value="120"></label>
+</div>
+<label>Сервисы (по одному в строке: имя, IPv4, TCP-порт)<textarea id="engine-wizard-services" rows="4" spellcheck="false">web,192.168.10.103,18080</textarea></label>
+<div class="refresh-bar"><button id="engine-wizard-preview" type="button">Проверить план</button><button id="engine-wizard-draft-save" type="button">Сохранить черновик</button><button id="engine-wizard-draft-load" type="button">Загрузить черновик</button><span id="engine-wizard-result" role="status"></span></div>
+<div class="panel" id="rfpa-deploy-panel">
+<h3>Применение на Entware</h3>
+<p class="help">Сначала установи и настрой выбранный движок. Применение включает управляемый шлюз до разрешения DNAT. Через 90 секунд без подтверждения независимый watchdog откатит шлюз. Остановка службы через обычные кнопки не очищает firewall.</p>
+<label><input type="checkbox" id="rfpa-replace-existing"> Я подтверждаю замену существующей конфигурации этого движка (оригинал сохранится отдельно)</label>
+<div class="refresh-bar">
+<button type="button" id="rfpa-prepare">Создать рабочую конфигурацию</button>
+<button type="button" id="rfpa-enable">Включить защиту · 90 секунд</button>
+<button type="button" id="rfpa-confirm">Подтвердить защиту</button>
+<button type="button" id="rfpa-disable">Убрать управляемую защиту</button>
+<button type="button" id="rfpa-refresh">Обновить состояние</button>
+</div>
+<p id="rfpa-deploy-status" role="status" aria-live="polite" class="muted">Защита не проверена.</p>
+<details id="rfpa-credentials"><summary>Однократно выданные SPA-ключи</summary><p class="help">Скопируй сразу: после обновления страницы эти ключи не восстанавливаются через API. Не отправляй их в логи.</p><pre id="rfpa-credential-value" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
+</div>
+<pre id="engine-wizard-plan" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-label="План без применения"></pre>
 </section>
 <section class="panel" id="odin-manager">
 <h2>Port Knocking · odin (Keenetic)</h2>
@@ -105,4 +135,4 @@
 <p class="help">Сначала проверь доступ после трёх стуков, затем подтверди защиту в течение 90 секунд. Подтверждение отключает автоматический откат; после него ответственность за выключение защиты остаётся у оператора. Проброс защищаемого порта настраивается в KeeneticOS, порты стуков пробрасывать не требуется.</p>
 </section>
 
-</main><script src="app.js"></script><script src="config-editor.js"></script><script src="odin-ui.js"></script><script src="ui-rebuild.js"></script></body></html>
+</main><script src="app.js"></script><script src="config-editor.js"></script><script src="odin-ui.js"></script><script src="ui-rebuild.js"></script><script src="engine-wizard.js"></script></body></html>

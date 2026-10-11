@@ -27,6 +27,7 @@
   var daemons=el('div','rf-pa-daemons');working.appendChild(daemons);
   var service=move('existing-engine-control',daemons);
   var config=move('engine-config-panel',daemons);
+  var wizard=move('engine-wizard-panel',daemons);
   var access=move('recent-live-panel',shell);
   var advanced=el('details','rf-pa-advanced');shell.appendChild(advanced);advanced.open=false;
   var summaryNode=el('summary','','Инженерное · диагностика, предпросмотр и черновики');advanced.appendChild(summaryNode);

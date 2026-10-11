@@ -34,11 +34,13 @@ test -x "$WORK/data/opt/bin/routerforge-port-access-watchdog"
 sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$PACKAGE"
 cp "$ROOT/modules/port-access-manager/packaging/S95routerforge-port-access-manager" "$WORK/data/opt/etc/init.d/S95routerforge-port-access-manager"
 chmod 0755 "$WORK/data/opt/etc/init.d/S95routerforge-port-access-manager"
-for file in index.html app.js module.css config-editor.js odin-ui.js ui-rebuild.js ui-rebuild.css; do
+for file in index.html app.js module.css config-editor.js odin-ui.js ui-rebuild.js ui-rebuild.css engine-wizard.js; do
   cp "$ROOT/modules/port-access-manager/frontend/$file" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/$file"
 done
 cp "$ROOT/modules/port-access-manager/packaging/odin-engine.sh" "$WORK/data/opt/share/routerforge/modules/port-access-manager/odin-engine.sh"
 chmod 0755 "$WORK/data/opt/share/routerforge/modules/port-access-manager/odin-engine.sh"
+cp "$ROOT/modules/port-access-manager/packaging/engine-gate.sh" "$WORK/data/opt/share/routerforge/modules/port-access-manager/engine-gate.sh"
+chmod 0755 "$WORK/data/opt/share/routerforge/modules/port-access-manager/engine-gate.sh"
 cat > "$WORK/data/opt/share/routerforge/modules/port-access-manager/manifest.json" <<MANIFEST
 {
   "schema_version": 1,
@@ -48,7 +50,7 @@ cat > "$WORK/data/opt/share/routerforge/modules/port-access-manager/manifest.jso
   "socket": "/opt/var/run/routerforge-port-access-manager.sock",
   "api_base": "/api/modules/port-access-manager",
   "ui_entry": "/api/modules/port-access-manager/ui/index.html",
-  "mode": "read-only-discovery"
+  "mode": "managed-engine-control"
 }
 MANIFEST
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
@@ -64,7 +66,7 @@ Maintainer: Fifth-Ace
 Source: https://github.com/Fifth-Ace/routerforge
 Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
-Description: Read-only RouterForge Port Access Manager for knockd, fwknopd and iptables recent detection.
+Description: RouterForge Port Access Manager with opt-in knockd/fwknopd deployment, odin and read-only diagnostics.
 CONTROL
 cp "$ROOT/modules/port-access-manager/packaging/postinst" "$WORK/control/postinst"
 cp "$ROOT/modules/port-access-manager/packaging/prerm" "$WORK/control/prerm"

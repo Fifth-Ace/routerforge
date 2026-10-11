@@ -109,7 +109,7 @@ func kernelMatchPresent(path, match string) bool {
 func snapshot() Status {
 	pkgs := packageSet()
 	procs := runningProcesses()
-	result := Status{Module: "port-access-manager", Version: version, Mode: "read-only-discovery", MutationAPI: false}
+	result := Status{Module: "port-access-manager", Version: version, Mode: "managed-engine-control", MutationAPI: true}
 	for _, spec := range specs {
 		binary, err := exec.LookPath(spec.binary)
 		_, confErr := os.Stat(spec.configuration)

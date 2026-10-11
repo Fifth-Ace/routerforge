@@ -41,3 +41,33 @@ func TestServiceActionsRejectedBeforeCommand(t *testing.T) {
 		t.Fatal("command ran")
 	}
 }
+
+func TestEngineServicePolicyDefaultsPreserve(t *testing.T) {
+	got := serviceSnapshot("knockd", t.TempDir())
+	if got.FirewallPolicy != "preserve" {
+		t.Fatalf("policy = %q, want preserve", got.FirewallPolicy)
+	}
+}
+
+func TestInstallAllowlistAndRunner(t *testing.T) {
+	calls := 0
+	invoke := func(_ context.Context, pkg string) error {
+		calls++
+		if pkg != "knockd" {
+			t.Fatalf("package %q", pkg)
+		}
+		return nil
+	}
+	if err := installExistingEngine(context.Background(), "../fwknopd", invoke); err == nil {
+		t.Fatal("accepted untrusted package")
+	}
+	if calls != 0 {
+		t.Fatal("runner called for unknown engine")
+	}
+	if err := installExistingEngine(context.Background(), "knockd", invoke); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("calls %d", calls)
+	}
+}

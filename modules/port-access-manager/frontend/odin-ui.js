@@ -14,12 +14,27 @@
   var lastEnabled = false;
   var lastConfirmed = false;
   var deadlineRefreshRequested = false;
-  var countdown = document.createElement('span');
+  // Paint seconds without mutating the DOM every second. The containing
+  // RouterForge web view observes DOM changes to size its embedded page.
+  var countdown = document.createElement('canvas');
   countdown.id = 'odin-watchdog-countdown';
   countdown.className = 'odin-countdown';
-  countdown.setAttribute('role', 'status');
-  countdown.setAttribute('aria-live', 'off');
+  countdown.width = 560;
+  countdown.height = 24;
+  countdown.style.width = 'min(100%, 560px)';
+  countdown.style.height = '24px';
+  countdown.style.display = 'block';
+  countdown.setAttribute('role', 'img');
+  countdown.setAttribute('aria-label', 'Watchdog countdown');
   status.insertAdjacentElement('afterend', countdown);
+  function paintCountdown(message) {
+    var ctx = countdown.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, countdown.width, countdown.height);
+    ctx.font = '12px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = getComputedStyle(countdown).color;
+    ctx.fillText(message, 0, 17, countdown.width);
+  }
 
   function request(method, body) {
     return fetch(endpoint, {
@@ -60,10 +75,10 @@
     return '';
   }
   function updateCountdown() {
-    if (!lastData || !lastData.enabled || lastData.confirmed) { countdown.textContent = ''; return; }
-    if (!localDeadline) { countdown.textContent = 'Срок watchdog неизвестен: обнови состояние. Не подтверждай защиту без проверки.'; return; }
+    if (!lastData || !lastData.enabled || lastData.confirmed) { paintCountdown(''); return; }
+    if (!localDeadline) { paintCountdown('Срок watchdog неизвестен: обнови состояние. Не подтверждай защиту без проверки.'); return; }
     var seconds = Math.max(0, Math.ceil((localDeadline - Date.now()) / 1000));
-    countdown.textContent = seconds ? ('До автоматического отката: приблизительно ' + seconds + ' сек.') : 'Срок подтверждения истёк. Проверяем состояние…';
+    paintCountdown(seconds ? ('До автоматического отката: приблизительно ' + seconds + ' сек.') : 'Срок подтверждения истёк. Проверяем состояние…');
     if (seconds === 0 && !busy && !deadlineRefreshRequested) { deadlineRefreshRequested = true; refresh(); }
   }
   function render(data, fill) {

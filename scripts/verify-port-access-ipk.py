@@ -9,7 +9,7 @@ import tarfile
 
 EXPECTED_UI = {'index.html','app.js','module.css','config-editor.js','odin-ui.js',
     'ui-rebuild.js','ui-rebuild.css','engine-wizard.js','operation-log.js',
-    'p39-compact.js','p39-compact.css'}
+    'p39-compact.js','p39-compact.css','p53-ux.js','p53-ux.css'}
 ROOT = 'opt/share/routerforge/modules/port-access-manager/'
 EXECUTABLES = {'opt/bin/routerforge-port-access-manager',
     'opt/bin/routerforge-port-access-watchdog',

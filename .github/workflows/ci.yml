@@ -180,6 +180,12 @@ jobs:
       - name: Verify RF Delivery v3 self-tests
         run: python3 -m unittest discover -s tests -p test_delivery.py -v
 
+      - name: P40D Port Access release source gates
+        run: python3 scripts/verify-port-access-release-gates.py
+
+      - name: P40D Port Access watchdog and IPK smoke
+        run: sh scripts/verify-port-access-watchdog-package.sh
+
       - name: Set up Go for Port Access log race tests
         uses: actions/setup-go@v5
         with:

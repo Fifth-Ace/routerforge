@@ -20,6 +20,7 @@
   function render(d) {
     var s = d.snapshot || {}, fw = s.firewall || {}, sets = s.sets || {}, hook = s.ndm_hook || {}, cfg = d.lapi || {};
     var good = d.state === 'healthy' && !!s.protected;
+    $('bouncer-install').hidden = !!s.installed;
     txt('verdict', good ? 'Фильтрация сейчас подтверждена: процесс, ipset и FORWARD/DROP. NDM hook установлен; восстановление после rebuild ещё не проверено' : 'Состояние: ' + (d.state || 'unknown') + '. Защита полностью не подтверждена.');
     $('verdict').className = 'banner ' + (good ? 'good' : 'bad');
     colored('protection', good, 'ACTIVE', 'NOT VERIFIED');

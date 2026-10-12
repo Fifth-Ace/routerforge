@@ -20,3 +20,22 @@ func crowdsecSeedModules() []catalogItem {
 		Presentation:  map[string]any{"dashboard": map[string]any{"enabled": false, "priority": 85}, "integration": map[string]any{"enabled": true, "label": "CrowdSec Manager", "href": "/integrations?open=crowdsec-manager", "order": 35, "target_ids": []string{"crowdsec"}}},
 	}}
 }
+
+// Expose the external bouncer as its own integration so the Integrations
+// navigation has a concrete target even when the bouncer is not installed.
+// This is a discovery/onboarding record; it NEVER invokes upstream scripts.
+func crowdsecBouncerIntegration() []catalogItem {
+	return []catalogItem{{
+		ID: "crowdsec", Kind: "integration", Name: "CrowdSec Firewall Bouncer", Category: "Security",
+		Description: "Защита Keenetic с внешним CrowdSec LAPI. Установите bouncer на Entware и управляйте им через CrowdSec Manager.",
+		Source:      "project-official", ProjectURL: "https://github.com/siamskoi/keenetic-crowdsec-bouncer",
+		Publisher:     catalogPublisher{ID: "siamskoi", Name: "siamskoi", URL: "https://github.com/siamskoi/keenetic-crowdsec-bouncer"},
+		Trust:         catalogTrust{Status: "unverified", Note: "Ручная установка внешнего bouncer; RouterForge не запускает сторонние скрипты автоматически."},
+		Capabilities:  []string{"detect", "service-status", "security", "install-preview"},
+		Detection:     catalogDetection{Services: []string{"/opt/etc/init.d/S99csfirewall"}, Paths: []string{"/opt/bin/cs-firewall-bouncer", "/opt/etc/crowdsec/crowdsec-firewall-bouncer.yaml"}},
+		ProcessNames:  []string{"cs-firewall-bouncer"},
+		Compatibility: catalogCompatibility{Status: "requirements", Hints: []string{"Keenetic Entware", "iptables + ipset", "Windows CrowdSec LAPI"}, Targets: []string{"aarch64-3.10"}},
+		Install:       catalogInstallPlan{Method: "manual", PreviewOnly: true, Notes: []string{"Установите бинарник из проверенной сборки под ARM64, iptables/ipset и S99csfirewall по upstream-инструкции. LAPI работает отдельно на Windows."}},
+		Presentation:  map[string]any{"integration": map[string]any{"enabled": true, "label": "CrowdSec", "href": "/integrations?open=crowdsec-manager", "order": 34}},
+	}}
+}

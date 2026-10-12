@@ -245,15 +245,15 @@ func buildCatalog(installed map[string]string, processes map[string]bool, exists
 
 func moduleOrder(id string) int {
 	order := map[string]int{
-		"routerforge-core": 1,
-		"monitoring":       2,
-		"dns":              3,
-		"admin":            4,
-		"network-tools":    5,
-		"nfqws-manager":    6,
-		"antiscan-manager": 7,
+		"routerforge-core":    1,
+		"monitoring":          2,
+		"dns":                 3,
+		"admin":               4,
+		"network-tools":       5,
+		"nfqws-manager":       6,
+		"antiscan-manager":    7,
 		"port-access-manager": 8,
-		"crowdsec-manager": 9,
+		"crowdsec-manager":    9,
 		// Profiling is intentionally pinned last in the official module list.
 		"profiling": 1000,
 		// Legacy logical IDs remain sortable while cached pre-consolidation

@@ -177,6 +177,9 @@ jobs:
       - name: Verify Port Access UI contract (P40A)
         run: python3 scripts/verify-port-access-ui.py
 
+      - name: Verify RF Delivery v3 self-tests
+        run: python3 -m unittest discover -s tests -p test_delivery.py -v
+
       - name: Verify public repository hygiene
         run: python3 scripts/verify-public-tree.py
 

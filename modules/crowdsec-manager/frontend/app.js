@@ -1,16 +1,43 @@
 (function () {
   'use strict';
-  // RouterForge theme handshake; no dependency on parent DOM or module runtime.
+  // P50 theme contract: read the actual RouterForge Shell tokens, not URL
+  // preferences. settings.text may be an accent-like user setting while the
+  // rendered Shell --text remains neutral. This iframe is same-origin.
   (function () {
-    var params = new URLSearchParams(window.location.search);
-    function color(key, fallback) {
-      var value = params.get(key) || '';
-      return /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
-    }
     var root = document.documentElement;
-    root.style.setProperty('--cs-bg', color('background', '#0c0d10'));
-    root.style.setProperty('--cs-text', color('text', '#f5f7fa'));
-    root.style.setProperty('--cs-accent', color('accent', '#38bdf8'));
+    var pairs = [
+      ['--bg', '--cs-bg'],
+      ['--surface', '--cs-panel'],
+      ['--surface-2', '--cs-panel-soft'],
+      ['--border', '--cs-border'],
+      ['--text', '--cs-text'],
+      ['--muted', '--cs-muted'],
+      ['--accent', '--cs-accent'],
+      ['--good', '--cs-good'],
+      ['--bad', '--cs-bad'],
+      ['--warn', '--cs-warning']
+    ];
+    function synchronizeTheme() {
+      try {
+        if (!window.parent || window.parent === window) return;
+        var parentRoot = window.parent.document.documentElement;
+        var computed = window.parent.getComputedStyle(parentRoot);
+        pairs.forEach(function (pair) {
+          var value = computed.getPropertyValue(pair[0]).trim();
+          if (value) root.style.setProperty(pair[1], value);
+        });
+        // Text always reflects what the user actually sees in the Shell.
+        var realText = window.parent.getComputedStyle(window.parent.document.body).color;
+        if (!computed.getPropertyValue('--text').trim() && realText) {
+          root.style.setProperty('--cs-text', realText);
+        }
+      } catch (_) {
+        // Standalone/direct opening preserves neutral CSS fallback tokens.
+      }
+    }
+    synchronizeTheme();
+    // Style changes in the Shell are communicated by the iframe lifecycle.
+    window.addEventListener('pageshow', synchronizeTheme);
   })();
 
   var $ = function (id) { return document.getElementById(id); };

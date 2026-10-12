@@ -214,7 +214,7 @@ func refreshCatalog() catalogSnapshot {
 }
 
 func buildCatalog(installed map[string]string, processes map[string]bool, exists func(string) bool) catalogSnapshot {
-	modules := append(append(append(builtinModuleCatalog(), networkToolsSeedModules()...), integrationManagerSeedModules()...), portAccessSeedModules()...)
+	modules := append(append(append(append(builtinModuleCatalog(), networkToolsSeedModules()...), integrationManagerSeedModules()...), portAccessSeedModules()...), crowdsecSeedModules()...)
 	integrations := bundledRegistryIntegrations()
 
 	for i := range modules {
@@ -252,6 +252,8 @@ func moduleOrder(id string) int {
 		"network-tools":    5,
 		"nfqws-manager":    6,
 		"antiscan-manager": 7,
+		"port-access-manager": 8,
+		"crowdsec-manager": 9,
 		// Profiling is intentionally pinned last in the official module list.
 		"profiling": 1000,
 		// Legacy logical IDs remain sortable while cached pre-consolidation

@@ -198,6 +198,7 @@ def main():
             "nfqws-manager",
             "antiscan-manager",
             "port-access-manager",
+            "crowdsec-manager",
             "profiling",
         ]
     elif channel == "beta":
@@ -255,6 +256,8 @@ def main():
             run(["./scripts/build-network-tools-opkg.sh", version], env=env)
         elif cid == "port-access-manager":
             run(["./scripts/build-port-access-manager-opkg.sh", version], env=env)
+        elif cid == "crowdsec-manager":
+            run(["./scripts/build-crowdsec-manager-opkg.sh", version], env=env)
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
 

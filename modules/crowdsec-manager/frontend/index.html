@@ -1,7 +1,25 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CrowdSec Manager · RouterForge</title><link rel="stylesheet" href="module.css"></head>
-<body><main class="cs"><header><div class="eyebrow">ROUTERFORGE · SECURITY</div><div class="head"><div><h1>CrowdSec Manager</h1><p>Контроль брандмауэра Keenetic и bouncer, подключённого к внешнему CrowdSec LAPI.</p></div><button id="refresh">↻ Обновить</button></div></header>
-<section class="banner" id="verdict" role="status">Получаем реальные данные с роутера…</section>
-<section class="stats"><article><span>Процесс bouncer</span><strong id="running">—</strong><small id="installed">—</small></article><article><span>Правила iptables</span><strong id="firewall">—</strong><small id="firewall-hint">—</small></article><article><span>CrowdSec ipset</span><strong id="sets">—</strong><small id="sets-hint">—</small></article><article><span>Переживает NDM rebuild</span><strong id="hook">—</strong><small id="hook-hint">—</small></article></section>
-<section class="panel"><h2>Действующая цепочка защиты</h2><div class="chain"><div>WAN / FORWARD</div><b>→</b><div>CROWDSEC_CHAIN</div><b>→</b><div>ipset / DROP</div></div><p id="chain-hint" class="muted">Ожидание проверки…</p></section>
-<section class="panel"><div class="panel-head"><h2>Группы блокировок</h2><span id="updated">—</span></div><div id="set-list" class="tags">Проверяем…</div><div id="notices" class="notices"></div></section>
-<footer>Данные только с Keenetic. Наличие процесса само по себе не доказывает фильтрацию. Ключ CrowdSec LAPI никогда не запрашивается этим экраном. Основа интеграции: keenetic-crowdsec-bouncer (siamskoi).</footer></main><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CrowdSec Manager · RouterForge</title><link rel="stylesheet" href="module.css"></head>
+<body><main class="cs">
+<header class="head"><div><div class="eyebrow">ROUTERFORGE · SECURITY</div><h1>CrowdSec Manager</h1><p class="muted">Windows CrowdSec LAPI → Keenetic Firewall Bouncer → ipset / iptables</p></div><button id="refresh">↻ Обновить</button></header>
+<div class="banner" id="verdict" role="status">Получаем фактическое состояние firewall…</div>
+<section class="stats">
+<article><span>Защита трафика</span><strong id="protection">—</strong><small id="protection-hint">Проверяем…</small></article>
+<article><span>Bouncer</span><strong id="running">—</strong><small id="installed">—</small></article>
+<article><span>Firewall / FORWARD</span><strong id="firewall">—</strong><small id="firewall-hint">—</small></article>
+<article><span>NDM hook</span><strong id="hook">—</strong><small id="hook-hint">—</small></article>
+</section>
+<section class="gridtwo">
+<div class="panel"><h2>Служба Firewall Bouncer</h2><p class="muted">Работающий процесс не равен работающей защите. Состояние сверяется с ipset и действующими цепочками DROP.</p><div class="actions"><button data-service="start">Запустить</button><button data-service="restart">Перезапустить</button><button data-service="stop" class="danger">Остановить</button></div><p class="small" id="init-status">—</p></div>
+<div class="panel"><h2>Windows LAPI</h2><p class="muted">Только адрес и ключ существующего bouncer-конфига. Ключ не читается через API и не отображается после сохранения.</p><form id="lapi-form"><label>Адрес LAPI <input id="lapi-url" required placeholder="https://192.168.1.10:8080" autocomplete="off"></label><label>API key <input id="lapi-key" type="password" placeholder="Не менять сохранённый ключ" autocomplete="new-password"></label><div class="actions"><button type="submit">Сохранить настройки</button><span id="key-present" class="small">—</span></div><p class="small" id="tls-state">TLS: —</p><p class="small" id="lapi-probe">Соединение LAPI: —</p></form></div>
+</section>
+<section class="gridtwo">
+<div class="panel"><h2>Устойчивость к NDM rebuild</h2><p id="hook-hint-long" class="muted">—</p><p class="small">Восстанавливающий hook не запускается вручную: он вызывается Keenetic после перестройки netfilter. Существующий чужой hook никогда не перезаписывается.</p><div class="actions"><button id="hook-install">Установить управляемый hook</button><button id="hook-remove" class="danger">Удалить свой hook</button></div></div>
+<div class="panel"><h2>Реальная цепочка</h2><div class="chain"><span>FORWARD</span><b>→</b><span>CROWDSEC_CHAIN</span><b>→</b><span>ipset DROP</span></div><p id="chain-hint" class="small">—</p><pre id="counters" class="terminal">—</pre></div>
+</section>
+<section class="panel"><div class="panel-head"><h2>IP-блокировки в ipset</h2><span id="updated" class="small">—</span></div><div id="sets" class="set-grid">Проверяем…</div><p class="small">Число адресов берётся из реального списка Members, если Keenetic не выдаёт Number of entries. Пустой bouncer gauge сам по себе не считается нулём блокировок.</p></section>
+<section class="panel"><h2>Prometheus / диагностика</h2><p id="metrics-state" class="small">—</p><div id="metrics" class="metrics"></div><div id="notices" class="notices"></div></section>
+<p id="toast" aria-live="polite"></p>
+<footer>RouterForge реализует интерфейс управления; Firewall Bouncer — отдельный проект. Благодарность <a href="https://github.com/siamskoi/keenetic-crowdsec-bouncer" target="_blank" rel="noopener noreferrer">siamskoi / keenetic-crowdsec-bouncer</a> и CrowdSec. Действия с брандмауэром требуют проверки на тестовом Keenetic.</footer>
+</main><script src="app.js"></script></body></html>

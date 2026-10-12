@@ -28,7 +28,7 @@ cat > "$WORK/data/opt/share/routerforge/modules/crowdsec-manager/manifest.json" 
   "socket": "/opt/var/run/routerforge-crowdsec-manager.sock",
   "api_base": "/api/modules/crowdsec-manager",
   "ui_entry": "/api/modules/crowdsec-manager/ui/index.html",
-  "mode": "read-only-bouncer-diagnostics"
+  "mode": "bouncer-management"
 }
 MANIFEST
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
@@ -43,7 +43,7 @@ Maintainer: Fifth-Ace
 Source: https://github.com/Fifth-Ace/routerforge
 Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
-Description: RouterForge CrowdSec bouncer diagnostics for Keenetic Entware with firewall integrity inspection.
+Description: RouterForge CrowdSec bouncer manager with secure configuration, NDM recovery and firewall integrity status.
 CONTROL
 cp "$ROOT/modules/crowdsec-manager/packaging/postinst" "$WORK/control/postinst"
 cp "$ROOT/modules/crowdsec-manager/packaging/prerm" "$WORK/control/prerm"

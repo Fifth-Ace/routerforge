@@ -142,6 +142,7 @@ verify_plain "dist/routerforge-monitoring_${ASSET_VERSION}_${TARGET}.ipk" router
 verify_plain "dist/routerforge-network-tools_${ASSET_VERSION}_${TARGET}.ipk" routerforge-network-tools
 verify_plain "dist/routerforge-nfqws-manager_${ASSET_VERSION}_${TARGET}.ipk" routerforge-nfqws-manager
 verify_plain "dist/routerforge-antiscan-manager_${ASSET_VERSION}_${TARGET}.ipk" routerforge-antiscan-manager
+verify_plain "dist/routerforge-crowdsec-manager_${ASSET_VERSION}_${TARGET}.ipk" routerforge-crowdsec-manager
 
 echo "DEV_PLAIN_BINARY_GATE=PASS"
 

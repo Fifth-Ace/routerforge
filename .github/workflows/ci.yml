@@ -21,7 +21,59 @@ permissions:
   contents: write
 
 jobs:
+  preflight:
+    name: Fast release contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify legacy registry integration
+        run: python3 scripts/verify-legacy-fallback-removal.py
+      - name: Verify Beta component version matrix
+        run: |
+          python3 - <<'PY_CHECK'
+          import copy
+          import json
+          import re
+          import runpy
+          from pathlib import Path
+          doc = json.loads(Path('release/channels/beta.json').read_text(encoding='utf-8'))
+          version = doc.get('release_version', '')
+          match = re.fullmatch(r'(\d+\.\d+\.\d+)-beta\.(\d+)', version)
+          if not match or doc.get('channel') != 'beta':
+              raise SystemExit('invalid Beta release train')
+          pkg_version = match.group(1) + '~beta.' + match.group(2)
+          required = {'routerforge-core', 'dns', 'admin', 'monitoring',
+                      'network-tools', 'nfqws-manager', 'antiscan-manager',
+                      'port-access-manager', 'profiling'}
+          components = doc.get('components', [])
+          actual = {item['id'] for item in components}
+          if len(components) != len(required) or actual != required:
+              raise SystemExit('Beta component set mismatch')
+          for item in components:
+              if item['version'] != pkg_version:
+                  raise SystemExit('Beta version mismatch: ' + item['id'])
+              if item.get('min_core_version', pkg_version) != pkg_version:
+                  raise SystemExit('Beta minimum core mismatch: ' + item['id'])
+          validate = runpy.run_path('scripts/build_routerforge_channel.py')['validate_release_train']
+          validate(doc, doc['channel'], components)
+          for mutation in ('release', 'package'):
+              bad = copy.deepcopy(doc)
+              if mutation == 'release':
+                  bad['release_version'] = '0.11.0-rc.1'
+              else:
+                  bad['components'][0]['version'] = '0.10.1~beta.bad'
+              try:
+                  validate(bad, bad['channel'], bad['components'])
+              except SystemExit:
+                  pass
+              else:
+                  raise SystemExit('invalid release train accepted: ' + mutation)
+          print('BETA_MATRIX_DYNAMIC=PASS', pkg_version)
+          PY_CHECK
+
   test:
+    needs: preflight
     if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
 
@@ -216,10 +268,6 @@ jobs:
       - name: Verify marketplace contract
         if: steps.scope.outputs.registry == 'true' || steps.scope.outputs.go == 'true' || steps.scope.outputs.full_release == 'true'
         run: python3 scripts/verify-marketplace-contract.py
-
-      - name: Verify legacy fallback removal readiness
-        if: steps.scope.outputs.full_release == 'true'
-        run: python3 scripts/verify-legacy-fallback-removal.py
 
       - name: Verify private registry completion
         if: steps.scope.outputs.registry == 'true' || steps.scope.outputs.full_release == 'true'
@@ -996,57 +1044,6 @@ jobs:
 
           echo "Synthetic bootstrap preflight profiles: OK"
 
-      - name: Verify independent Beta component versioning
-        if: steps.scope.outputs.release == 'true'
-        run: |
-          python3 - <<'PY'
-          import copy
-          import json
-          import runpy
-
-          module = runpy.run_path("scripts/build_routerforge_channel.py")
-          validate = module["validate_release_train"]
-
-          with open("release/channels/beta.json", "r", encoding="utf-8") as fh:
-              config = json.load(fh)
-
-          validate(config, config["channel"], config["components"])
-
-          versions = {item["id"]: item["version"] for item in config["components"]}
-          expected = {
-              "routerforge-core": "0.13.0~beta.2",
-              "dns": "0.13.0~beta.2",
-              "admin": "0.13.0~beta.2",
-              "monitoring": "0.13.0~beta.2",
-              "network-tools": "0.13.0~beta.2",
-              "nfqws-manager": "0.13.0~beta.2",
-              "antiscan-manager": "0.13.0~beta.2",
-              "port-access-manager": "0.13.0~beta.2",
-              "profiling": "0.13.0~beta.2",
-          }
-          if versions != expected:
-              raise SystemExit(f"unexpected Beta component matrix: {versions!r}")
-
-          bad = copy.deepcopy(config)
-          bad["release_version"] = "0.11.0-rc.1"
-          try:
-              validate(bad, bad["channel"], bad["components"])
-          except SystemExit:
-              pass
-          else:
-              raise SystemExit("invalid beta release_version was not rejected")
-
-          bad = copy.deepcopy(config)
-          bad["components"][0]["version"] = "0.10.1~beta.bad"
-          try:
-              validate(bad, bad["channel"], bad["components"])
-          except SystemExit:
-              pass
-          else:
-              raise SystemExit("malformed component prerelease was not rejected")
-
-          print("BETA_INDEPENDENT_VERSIONING_GUARD=PASS")
-          PY
       - name: Build RouterForge beta channel
         if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
         run: |

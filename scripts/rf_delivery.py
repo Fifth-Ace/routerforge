@@ -142,8 +142,20 @@ def resume(repo):
     sha=info.get('sha','')
     if not re.fullmatch('[a-f0-9]{40}',sha) or git(repo,'rev-parse','HEAD')!=sha:
         raise DeliveryError('STATE_SHA_MISMATCH')
-    if remote_sha()!=sha: raise DeliveryError('PUSH_NOT_CONFIRMED_OR_REMOTE_MOVED')
-    if info.get('phase')=='verified':
+    remote = remote_sha()
+    phase = info.get('phase')
+    if phase == 'committed' and remote != sha:
+        parent = git(repo, 'rev-parse', 'HEAD^')
+        if remote != parent:
+            raise DeliveryError('REMOTE_DEV_MOVED_BEFORE_RESUME_PUSH: '+remote)
+        if changed_paths(repo):
+            raise DeliveryError('DIRTY_WORKTREE_BEFORE_RESUME_PUSH')
+        print('=== ACTION: RESUME EXACT PUSH ===', flush=True)
+        run(['git', '-C', str(repo), 'push', 'origin', 'HEAD:refs/heads/dev'], capture=False)
+        remote = remote_sha()
+    if remote != sha:
+        raise DeliveryError('PUSH_NOT_CONFIRMED_OR_REMOTE_MOVED')
+    if phase=='verified':
         print('=== RESULT ===\nSTATE: PASS (ALREADY VERIFIED)\nCOMMIT: '+sha+'\nCI_RUN_ID: '+str(info['run_id']))
         return
     info['phase']='pushed'

@@ -215,7 +215,7 @@ func refreshCatalog() catalogSnapshot {
 
 func buildCatalog(installed map[string]string, processes map[string]bool, exists func(string) bool) catalogSnapshot {
 	modules := append(append(append(append(builtinModuleCatalog(), networkToolsSeedModules()...), integrationManagerSeedModules()...), portAccessSeedModules()...), crowdsecSeedModules()...)
-	integrations := bundledRegistryIntegrations()
+	integrations := append(bundledRegistryIntegrations(), crowdsecBouncerIntegration()...)
 
 	for i := range modules {
 		finalizeCatalogItem(&modules[i], installed, processes, exists)

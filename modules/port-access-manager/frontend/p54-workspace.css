@@ -1,0 +1,27 @@
+/* P54 full workspace: one primary navigation, original engine functionality. */
+.p54-root{display:grid;gap:18px;margin:14px 0 28px;min-width:0}
+.p54-navigation{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.p54-tab{display:flex;flex-direction:column;text-align:left;gap:4px;min-height:64px;padding:12px 15px;border:1px solid var(--pa-border);background:var(--pa-surface);color:var(--pa-text);border-radius:12px;cursor:pointer;transition:border-color .15s,background .15s}
+.p54-tab strong{font-size:13px;font-weight:700}.p54-tab small{font-size:11px;color:var(--pa-muted)}
+.p54-tab:hover{background:var(--pa-surface-2)}
+.p54-tab.active{border-color:var(--pa-accent);background:var(--pa-accent-soft)}
+.p54-page{display:grid;gap:14px;min-width:0}
+.p54-root [hidden],.p54-page[hidden],.rf-pa-workspace[hidden],.p54-internal-switch{display:none!important}
+.p54-heading{padding:1px 2px 4px}.p54-heading h2{font-size:19px;margin:0 0 4px}.p54-heading p{color:var(--pa-muted);margin:0;font-size:12px}
+.p54-page>.rf-pa-summary,.p54-page>.rf-pa-selector,.p54-page>.rf-pa-advanced{margin:0}
+.p54-page>.rf-pa-working{display:grid;gap:12px}
+.p54-page .rf-pa-summary,.p54-page .rf-pa-selector{border-radius:12px}
+.p54-page>.panel,.p54-page>details{margin:0;min-width:0}
+.p54-page .rf-pa-choices{grid-template-columns:repeat(3,minmax(0,1fr))}
+.p54-page .rf-pa-advanced-body{padding-top:0}
+.p54-page .rf-pa-compact-advanced{margin:0}
+.p54-page .rf-pa-operation-log{margin:0}
+.p54-page .rf-pa-operation-log pre{max-width:100%;overflow:auto}
+.p54-page .rf-pa-daemons{display:grid;gap:12px}
+.p54-page #engine-wizard-panel{margin:0}
+.p54-page .rf-pa-legacy-dev{margin-top:0}
+.p54-page #staging-panel,.p54-page #recent-live-panel{display:block}
+.p54-page .rf-pa-advanced:not([hidden]){display:block}
+.p54-page button:focus-visible{outline:2px solid var(--pa-accent);outline-offset:2px}
+@media(max-width:830px){.p54-navigation{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:530px){.p54-navigation{gap:7px}.p54-tab{padding:10px;min-height:58px}.p54-tab small{font-size:10px}.p54-page .rf-pa-choices{grid-template-columns:1fr}}

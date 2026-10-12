@@ -1,0 +1,41 @@
+/* P55: Antiscan design language, applied to existing Port Access actions. */
+.p55-access{--p55-b:var(--rf-border,#29313a);--p55-bg:var(--rf-surface,#12151a);--p55-muted:var(--rf-muted,#8d98a4);--p55-accent:var(--rf-accent,#38bdf8);font-size:13px;line-height:1.46}
+.p55-access .p55-hero{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:7px 2px 12px;flex-wrap:wrap}
+.p55-access .p55-hero h1{font-size:24px;margin:3px 0 7px}.p55-access .p55-hero p{font-size:13px;margin:0;max-width:800px}
+.p55-head-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-left:auto}
+.p55-state{border:1px solid var(--p55-b);border-radius:20px;padding:5px 10px;font-size:11px;font-weight:700;letter-spacing:.035em;white-space:nowrap}.p55-state.good{color:#34d399;border-color:#247c60}.p55-state.warn{color:#efbd6b;border-color:#8b6830}
+.p55-access .p54-root{gap:13px;margin:0 0 15px}
+.p55-access .rf-pa-summary{border:0;background:transparent;padding:0;margin:0!important}
+.p55-access .rf-pa-summary-heading{display:none}
+.p55-access .rf-pa-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0}
+.p55-access .rf-pa-metric{min-height:91px;background:var(--p55-bg);padding:14px 17px;border:1px solid var(--p55-b);border-radius:8px;gap:7px}
+.p55-access .rf-pa-metric span{font-size:11px;letter-spacing:.04em;color:var(--p55-muted)}.p55-access .rf-pa-metric b{font-size:20px;line-height:1.2}
+.p55-access .p54-navigation{display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid var(--p55-b);padding:0 0 7px;overflow:visible}
+.p55-access .p54-tab{display:inline-flex;min-height:35px;border:1px solid transparent;border-radius:6px;padding:8px 14px;background:transparent;font-size:13px;font-weight:600;color:var(--p55-muted);white-space:nowrap;box-shadow:none}
+.p55-access .p54-tab:hover{background:var(--rf-hover,#1d2229);color:var(--rf-text,#fff)}
+.p55-access .p54-tab.active{background:transparent;border:1px solid var(--p55-accent);color:var(--p55-accent);box-shadow:inset 0 -2px var(--p55-accent)}
+.p55-access .p54-page{gap:12px}.p55-access .p55-section-heading{padding:0 2px 2px}
+.p55-access .p55-section-heading h2{font-size:16px}.p55-access .p55-section-heading p{font-size:12px}
+.p55-access .p55-panel,.p55-access .p54-page>.panel,.p55-access .p54-page>details{border:1px solid var(--p55-b);border-radius:8px;background:var(--p55-bg);padding:14px!important;box-shadow:none;min-width:0}
+.p55-access .p55-panel h2,.p55-access .p54-page .panel h2{font-size:15px;margin:0 0 7px}
+.p55-access .help,.p55-access .muted{font-size:12px;line-height:1.45}
+.p55-access .rf-pa-choices{gap:8px!important}.p55-access .rf-pa-choice{min-height:57px;padding:10px 12px;border-radius:7px;gap:3px}.p55-access .rf-pa-choice strong{font-size:13px}.p55-access .rf-pa-choice small{font-size:11px}
+.p55-access .p55-grid,.p55-access .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.p55-access label{font-size:12px;min-width:0}.p55-access input:not([type=checkbox]),.p55-access select,.p55-access textarea{max-width:100%;min-width:0;border-radius:6px;font-size:13px}
+.p55-access input:not([type=checkbox]),.p55-access select{min-height:36px;height:36px;padding:6px 10px}
+.p55-access input[type=checkbox]{appearance:auto!important;-webkit-appearance:checkbox!important;display:inline-block!important;position:static!important;float:none!important;width:17px!important;height:17px!important;min-width:17px!important;min-height:17px!important;max-width:17px!important;max-height:17px!important;flex:0 0 17px!important;margin:0!important;vertical-align:middle;transform:none!important;scale:1!important;accent-color:var(--p55-accent);box-shadow:none!important}
+.p55-access .p55-confirm-row{display:flex!important;align-items:center!important;gap:9px!important;min-height:22px;margin:9px 0!important;padding:0!important;line-height:1.4;flex-wrap:nowrap}
+.p55-access button{min-height:34px;padding:6px 12px;border-radius:6px;font-size:12px;line-height:1.3}
+.p55-access .refresh-bar,.p55-access .actions,.p55-access .p55-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.p55-access .p55-deploy{padding:13px 15px!important;margin:10px 0!important;border-radius:8px!important}
+.p55-access .p55-deploy h3{font-size:15px;margin:0 0 4px!important}.p55-access .p55-deploy .help{margin:0 0 8px!important;line-height:1.4}
+.p55-access .p55-deploy .p55-actions{margin:7px 0}.p55-access .p55-deploy .p55-actions button{min-height:34px!important;padding:7px 11px!important;border-radius:6px!important;flex:none!important;width:auto!important}
+.p55-access .p55-compact-status{display:block;border-left:2px solid var(--p55-accent);background:var(--rf-surface-2,#171b21);padding:8px 10px;margin:8px 0;font-size:12px;min-height:0}
+.p55-access .rf-pa-journey{gap:7px;margin:8px 0}.p55-access .rf-pa-journey-step{padding:8px 10px;border-radius:7px}.p55-access .rf-pa-journey-num{height:28px;flex-basis:28px;border-radius:6px}
+.p55-access .rf-pa-mode-intro{padding:11px 13px;border-radius:8px;margin:8px 0}.p55-access .rf-pa-mode-symbol{height:38px;width:38px;border-radius:7px;font-size:21px}
+.p55-access .rf-pa-live-insight{padding:11px 12px;margin:9px 0;border-radius:8px}.p55-access .rf-pa-port-token{min-width:54px;padding:6px 9px;border-radius:6px}
+.p55-access .rf-pa-next-step{padding:10px 12px;margin:8px 0;border-radius:8px}
+.p55-access .rf-pa-operation-log pre{max-height:260px!important}.p55-access .rf-pa-compact-advanced>summary,.p55-access details>summary{cursor:pointer}
+.p55-access .engine-card{border-radius:7px;padding:11px}.p55-access .rf-pa-engine-scope{padding:10px;border-radius:7px}
+@media(max-width:850px){.p55-access .rf-pa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.p55-access .p55-grid,.p55-access .form-grid{grid-template-columns:1fr}.p55-access .p54-navigation{gap:0}.p55-access .p54-tab{padding:8px 10px}.p55-access .p55-head-actions{margin-left:0}.p55-access .rf-pa-choices{grid-template-columns:1fr!important}}

@@ -63,7 +63,7 @@ def main():
             'safe action button ' + id_
         )
     scripts = ['app.js','config-editor.js','odin-ui.js','ui-rebuild.js',
-               'engine-wizard.js','operation-log.js','p39-compact.js','p53-ux.js','p54-workspace.js']
+               'engine-wizard.js','operation-log.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
     check(dom.scripts == scripts, 'ordered frontend script imports')
     check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
     check('p54-workspace.css' in HTML.read_text(encoding='utf-8'), 'P54 stylesheet linked')

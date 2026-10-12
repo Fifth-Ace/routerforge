@@ -45,6 +45,7 @@ auth.go
 auth_crypt.go
 catalog.go
 port_access_catalog.go
+crowdsec_catalog.go
 module_lifecycle.go
 official_script.go
 local_script.go

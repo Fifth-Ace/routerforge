@@ -14,7 +14,15 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from verify_port_access_ipk import unpack, verify  # P43 validator
+# The P43 validator has a hyphenated filename; import by exact path.
+import importlib.util
+P43 = ROOT / 'scripts' / 'verify-port-access-ipk.py'
+spec = importlib.util.spec_from_file_location('rf_p43_ipk_validator', P43)
+if spec is None or spec.loader is None:
+    raise RuntimeError('P43_VALIDATOR_IMPORT_FAILED')
+p43 = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(p43)
+unpack, verify = p43.unpack, p43.verify
 
 PACKAGE = 'routerforge-port-access-manager'
 PREFIX = 'opt/'

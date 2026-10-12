@@ -33,6 +33,10 @@
   var chooser = shell.parentElement && shell.parentElement.parentElement;
   if (chooser) chooser.addEventListener('click', function () { window.setTimeout(setEngineView, 0); });
   setEngineView();
+  // The original app.js owns every service button and refreshes its status.
+  // Only improve hierarchy, without a competing request or timer.
+  var serviceRefresh = document.getElementById('existing-engine-refresh');
+  if (serviceRefresh) serviceRefresh.textContent = 'Обновить состояние службы';
   var deploy = document.getElementById('rfpa-deploy-panel');
   if (deploy) {
     var h = deploy.querySelector('h3');
@@ -48,10 +52,18 @@
   advanced.className = 'rf-pa-compact-advanced';
   advanced.innerHTML = '<summary>Расширенное управление службой и файлами конфигурации</summary>';
   wizard.insertAdjacentElement('afterend', advanced);
-  advanced.appendChild(service);
+  // P47: service installation and lifecycle belong to the main workspace.
+  // Move the ORIGINAL handler-bearing service panel, never clone buttons.
+  shell.insertBefore(service, wizard);
+  service.classList.add('rf-pa-service-workspace');
+  var serviceTitle = service.querySelector('h2');
+  if (serviceTitle) serviceTitle.textContent = 'Служба выбранного движка';
+  var serviceHint = service.querySelector('.help');
+  if (serviceHint) serviceHint.textContent = 'Установи движок через Entware, затем настрой защиту. Управление службой и включение firewall — разные операции.';
   advanced.appendChild(config);
   // Keep sections visible when moved into details; engine-switching handler
   // controls config.hidden and individual service cards independently.
+  // Keep install and start/stop near configuration, advanced config editor remains folded.
   var info = document.createElement('p');
   info.className = 'help rf-pa-compact-warning';
   info.textContent = 'Запуск службы Entware и включение защиты — разные действия. Используй расширенное управление службой только при необходимости.';

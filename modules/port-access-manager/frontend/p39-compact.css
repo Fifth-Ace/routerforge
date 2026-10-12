@@ -58,3 +58,19 @@
 .rf-pa-action-surface .rf-pa-action-danger { border-color:#b65f65; }
 .rf-pa-live-status { display:block;padding:12px 14px;border-left:3px solid var(--rf-pa-accent);border-radius:8px;background:rgba(120,145,185,.065);margin:12px 0;line-height:1.5; }
 @media(max-width:780px) { .rf-pa-journey { grid-template-columns:1fr;gap:7px; } .rf-pa-journey-step { padding:10px 12px; } .rf-pa-mode-intro { padding:12px; } .rf-pa-mode-symbol { width:43px;height:43px;font-size:26px; } }
+
+/* P47: primary service lifecycle workspace, shared native RouterForge tokens. */
+.rf-pa-daemons .rf-pa-service-workspace { padding:16px!important; margin:14px 0!important; border:1px solid var(--pa-border); border-radius:15px; }
+.rf-pa-service-workspace h2 { font-size:16px; margin:0 0 6px; }
+.rf-pa-service-workspace>.help { margin:5px 0 13px; line-height:1.5; }
+.rf-pa-service-workspace .cards { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+.rf-pa-service-workspace .engine-card { display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:12px; border:1px solid var(--pa-border); border-radius:12px; }
+.rf-pa-service-workspace .engine-card strong { min-width:100px; }
+.rf-pa-service-workspace .engine-card p { flex:1 1 100%; margin:1px 0 9px; line-height:1.5; font-size:12px; }
+.rf-pa-service-workspace .engine-card button { min-height:35px; }
+.rf-pa-service-workspace .engine-card button[data-action="install"] { border-color:var(--pa-accent,#639bed); font-weight:700; }
+.rf-pa-service-workspace .engine-card button:disabled { opacity:.48; cursor:not-allowed; }
+.rf-pa-service-workspace #existing-engine-status { display:inline-block; font-size:12px; overflow-wrap:anywhere; }
+.rf-pa-service-workspace .refresh-bar { gap:9px; margin-top:12px; }
+.rf-pa-daemons .rf-pa-compact-advanced { margin-top:14px; }
+@media (max-width:700px) { .rf-pa-service-workspace .engine-card button { flex:1 1 120px; } }

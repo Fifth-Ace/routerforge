@@ -1,0 +1,25 @@
+/* P39: presentation only; no engine/firewall behavior changes. */
+.rf-pa-daemons{gap:12px!important}
+.rf-pa-daemons .rf-pa-compact-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px 2px}
+.rf-pa-compact-heading strong{font-size:15px}.rf-pa-compact-heading small{color:var(--pa-muted)}
+.rf-pa-daemons #engine-wizard-panel{margin:0;padding:14px!important}
+.rf-pa-daemons #engine-wizard-panel>.help{margin:4px 0 12px}
+.rf-pa-daemons #engine-wizard-panel>.form-grid{gap:10px}
+.rf-pa-daemons #engine-wizard-panel input,.rf-pa-daemons #engine-wizard-panel textarea{max-width:100%}
+.rf-pa-daemons #engine-wizard-panel #engine-wizard-services{min-height:56px;resize:vertical}
+.rf-pa-daemons #rfpa-deploy-panel{padding:13px!important;margin-top:12px}
+.rf-pa-daemons #rfpa-deploy-panel h3{margin:0 0 6px;font-size:15px}
+.rf-pa-daemons #rfpa-deploy-panel .help{margin:5px 0 10px}
+.rf-pa-daemons .rf-pa-deploy-actions{display:flex;flex-wrap:wrap;gap:8px}
+.rf-pa-daemons #rfpa-credentials{margin-top:12px}
+.rf-pa-compact-advanced,.rf-pa-plan-details,.rf-pa-log-details{border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);padding:10px 12px;min-width:0}
+.rf-pa-compact-advanced>summary,.rf-pa-plan-details>summary,.rf-pa-log-details>summary{cursor:pointer;font-weight:600;padding:4px 0}
+.rf-pa-compact-advanced[open]>summary,.rf-pa-plan-details[open]>summary{margin-bottom:12px}
+.rf-pa-compact-advanced>.panel{margin:10px 0!important}
+.rf-pa-compact-advanced #engine-config-editor{height:160px;min-height:100px}
+.rf-pa-compact-warning{margin:8px 0;color:var(--pa-muted)}
+.rf-pa-compact-advanced [hidden],.rf-pa-daemons label[hidden]{display:none!important}
+.rf-pa-daemons #engine-wizard-plan{max-height:240px;overflow:auto}
+.rf-pa-log-details{margin-top:14px}.rf-pa-log-details .rf-pa-operation-log{border:0;margin:0;padding:8px 0}
+.rf-pa-log-details #pa-log-lines{height:180px!important;max-height:36vh!important}
+@media(max-width:700px){.rf-pa-daemons .rf-pa-compact-heading{display:block}.rf-pa-daemons .rf-pa-deploy-actions button{flex:1 1 160px}}

@@ -47,6 +47,11 @@ var moduleLifecycleSpecs = map[string]moduleLifecycleSpec{
 		Services:     []string{"/opt/etc/init.d/S97routerforge-network-tools"},
 		ProcessNames: []string{"routerforge-network-tools"},
 	},
+	"crowdsec-manager": {
+		ID:           "crowdsec-manager",
+		Services:     []string{"/opt/etc/init.d/S99routerforge-crowdsec-manager"},
+		ProcessNames: []string{"routerforge-crowdsec-manager"},
+	},
 	"nfqws-manager": {
 		ID:           "nfqws-manager",
 		Services:     []string{"/opt/etc/init.d/S96routerforge-nfqws-manager"},

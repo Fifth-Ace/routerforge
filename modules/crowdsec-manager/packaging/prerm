@@ -1,0 +1,3 @@
+#!/bin/sh
+[ -x /opt/etc/init.d/S99routerforge-crowdsec-manager ] && /opt/etc/init.d/S99routerforge-crowdsec-manager stop >/dev/null 2>&1 || true
+exit 0

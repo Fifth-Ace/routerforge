@@ -1,0 +1,8 @@
+#!/bin/sh
+ENABLED=yes
+PROCS=routerforge-crowdsec-manager
+ARGS="-socket /opt/var/run/routerforge-crowdsec-manager.sock -ui /opt/share/routerforge/modules/crowdsec-manager/ui"
+PREARGS=""
+DESC="RouterForge CrowdSec Manager"
+PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin
+. /opt/etc/init.d/rc.func

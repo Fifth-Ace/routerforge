@@ -25,11 +25,11 @@
   }
 
   function syncPortAccessHeight() {
-    if (moduleId !== 'port-access-manager' || !frame) return;
+    if ((moduleId !== 'port-access-manager' && moduleId !== 'crowdsec-manager') || !frame) return;
     try {
       const doc = frame.contentDocument;
       if (!doc || !doc.body || !doc.documentElement) return;
-      const content = doc.querySelector('main.pa');
+      const content = doc.querySelector(moduleId === 'crowdsec-manager' ? 'main.cs' : 'main.pa');
       if (!content) return;
       const measured = Math.max(content.scrollHeight, content.getBoundingClientRect().height);
       if (Number.isFinite(measured) && measured >= 360 && measured <= 12000) {
@@ -70,7 +70,7 @@
   }
 
   function usesVisibleWorkspaceFloor() {
-    return moduleId === 'admin' || moduleId === 'monitoring' || moduleId === 'nfqws-manager' || moduleId === 'antiscan-manager';
+    return moduleId === 'admin' || moduleId === 'monitoring' || moduleId === 'nfqws-manager' || moduleId === 'antiscan-manager' || moduleId === 'crowdsec-manager';
   }
 
   function applyFrameHeight(reportedHeight = frameHeight) {

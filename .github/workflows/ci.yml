@@ -189,6 +189,9 @@ jobs:
       - name: P43 Verify real Port Access IPK contents
         run: python3 scripts/verify-port-access-ipk.py dist/routerforge-port-access-manager_0.0.0-k3i_aarch64-3.10.ipk
 
+      - name: P44 Offline Port Access IPK lifecycle acceptance
+        run: python3 scripts/verify-port-access-lifecycle.py dist/routerforge-port-access-manager_0.0.0-k3i_aarch64-3.10.ipk
+
       - name: Set up Go for Port Access log race tests
         uses: actions/setup-go@v5
         with:

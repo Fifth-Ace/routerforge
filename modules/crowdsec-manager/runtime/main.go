@@ -154,7 +154,7 @@ func main() {
 			w.WriteHeader(405)
 			return
 		}
-		respond(w, map[string]any{"ok": true, "module": "crowdsec-manager", "version": version, "mode": "diagnostics"})
+		respond(w, map[string]any{"ok": true, "module": "crowdsec-manager", "version": version, "mode": "bouncer-management"})
 	})
 	mux.HandleFunc("/v1/status", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
@@ -163,6 +163,7 @@ func main() {
 		}
 		respond(w, snapshotNow(r.Context()))
 	})
+	registerManagementEndpoints(mux)
 	fs := http.FileServer(http.Dir(*ui))
 	mux.HandleFunc("/v1/ui/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {

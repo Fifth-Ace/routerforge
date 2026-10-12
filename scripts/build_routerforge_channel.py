@@ -211,6 +211,7 @@ def main():
             "nfqws-manager",
             "antiscan-manager",
             "port-access-manager",
+            "crowdsec-manager",
             "profiling",
         ]
     elif channel == "stable":

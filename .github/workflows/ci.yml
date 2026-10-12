@@ -45,7 +45,7 @@ jobs:
           pkg_version = match.group(1) + '~beta.' + match.group(2)
           required = {'routerforge-core', 'dns', 'admin', 'monitoring',
                       'network-tools', 'nfqws-manager', 'antiscan-manager',
-                      'port-access-manager', 'profiling'}
+                      'port-access-manager', 'crowdsec-manager', 'profiling'}
           components = doc.get('components', [])
           actual = {item['id'] for item in components}
           if len(components) != len(required) or actual != required:
@@ -316,39 +316,33 @@ jobs:
           test -f components/core/frontend/build/favicon.ico
           test -f components/core/frontend/build/routerforge-mark.png
 
-      - name: Install DNS frontend dependencies
+      - name: Build DNS, Admin and Monitoring frontends in parallel
         if: steps.scope.outputs.dns_frontend == 'true'
-        working-directory: modules/dns/frontend
-        run: npm install --no-audit --no-fund
-
-      - name: Build DNS frontend
-        if: steps.scope.outputs.dns_frontend == 'true'
-        working-directory: modules/dns/frontend
-        run: npm run build
-
-      - name: Verify DNS frontend build
-        if: steps.scope.outputs.dns_frontend == 'true'
-        run: test -f modules/dns/frontend/build/index.html
-      - name: Install Admin frontend dependencies
-        if: steps.scope.outputs.dns_frontend == 'true'
-        working-directory: modules/admin/frontend
-        run: npm install --no-audit --no-fund
-
-      - name: Build Admin frontend
-        if: steps.scope.outputs.dns_frontend == 'true'
-        working-directory: modules/admin/frontend
-        run: npm run build
-
-      - name: Install Monitoring frontend dependencies
-        if: steps.scope.outputs.dns_frontend == 'true'
-        working-directory: modules/monitoring/frontend
-        run: npm install --no-audit --no-fund
-
-      - name: Build Monitoring frontend
-        if: steps.scope.outputs.dns_frontend == 'true'
-        working-directory: modules/monitoring/frontend
-        run: npm run build
-
+        shell: bash
+        run: |
+          set -euo pipefail
+          dirs=(modules/dns/frontend modules/admin/frontend modules/monitoring/frontend)
+          labels=(dns admin monitoring)
+          pids=()
+          for i in "${!dirs[@]}"; do
+            (
+              cd "${dirs[$i]}"
+              npm install --no-audit --no-fund
+              npm run build
+            ) >"/tmp/rf-frontend-${labels[$i]}.log" 2>&1 &
+            pids+=("$!")
+          done
+          failed=0
+          for i in "${!pids[@]}"; do
+            if wait "${pids[$i]}"; then
+              echo "FRONTEND_${labels[$i]}: PASS"
+            else
+              echo "FRONTEND_${labels[$i]}: FAIL"
+              failed=1
+            fi
+            cat "/tmp/rf-frontend-${labels[$i]}.log"
+          done
+          test "$failed" -eq 0
       - name: Verify standalone module frontend builds
         if: steps.scope.outputs.dns_frontend == 'true'
         run: |

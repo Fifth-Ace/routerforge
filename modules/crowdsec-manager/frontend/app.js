@@ -60,7 +60,7 @@
   function render(d) {
     var s = d.snapshot || {}, fw = s.firewall || {}, sets = s.sets || {}, hook = s.ndm_hook || {}, cfg = d.lapi || {};
     var good = d.state === 'healthy' && !!s.protected;
-    $('bouncer-install').hidden = !!s.installed;
+    $('bouncer-install').hidden = false;
     txt('verdict', good ? 'Фильтрация сейчас подтверждена: процесс, ipset и FORWARD/DROP. NDM hook установлен; восстановление после rebuild ещё не проверено' : 'Состояние: ' + (d.state || 'unknown') + '. Защита полностью не подтверждена.');
     $('verdict').className = 'banner ' + (good ? 'good' : 'bad');
     colored('protection', good, 'ACTIVE', 'NOT VERIFIED');
@@ -131,6 +131,10 @@
       txt('install-release', 'Bouncer ' + release);
       var button = $('install-start');
       button.disabled = state.busy || state.installed || !state.supported;
+      $('install-form').hidden = state.installed;
+      $('install-remove').hidden = !state.managed;
+      $('install-remove').disabled = state.busy;
+      $('install-preserve-wrap').hidden = !state.managed;
       $('install-url').disabled = state.busy;
       $('install-key').disabled = state.busy;
       if (state.error) {
@@ -154,6 +158,14 @@
     api('install/start', 'POST', { api_url:url, api_key:key, confirm:'crowdsec-install' })
       .then(function () { pollInstaller(); })
       .catch(function (e) { txt('install-progress', 'FAIL · ' + e.message); $('install-start').disabled = false; });
+  });
+  $('install-remove').addEventListener('click', function () {
+    if (!window.confirm('Удалить установленный RouterForge Firewall Bouncer? Служба будет остановлена.')) return;
+    $('install-remove').disabled = true;
+    txt('install-progress', 'Останавливаем и удаляем bouncer…');
+    api('install/remove', 'POST', { confirm: 'crowdsec-remove', keep_config: $('install-keep-config').checked ? 'true' : 'false' })
+      .then(function () { txt('install-progress', 'Bouncer удалён'); pollInstaller(); refresh(); })
+      .catch(function (e) { txt('install-progress', 'FAIL · ' + e.message); pollInstaller(); });
   });
   pollInstaller();
   window.setInterval(function () { if (!document.hidden) pollInstaller(); }, 2500);

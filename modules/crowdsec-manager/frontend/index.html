@@ -12,7 +12,7 @@
 <label>Windows LAPI (HTTPS)<input id="install-url" type="url" required placeholder="https://192.168.1.10:8080" autocomplete="off"></label>
 <label>LAPI Bouncer API key<input id="install-key" type="password" required minlength="8" autocomplete="new-password"></label>
 <div class="actions"><button id="install-start" type="submit">Установить Firewall Bouncer</button><span class="small" id="install-release"></span></div>
-</form>
+</form><div class="actions"><button id="install-remove" type="button" class="danger" hidden>Удалить Bouncer RouterForge</button><label class="small" id="install-preserve-wrap" hidden><input id="install-keep-config" type="checkbox" checked> Сохранить настройки LAPI</label></div>
 <p id="install-progress" class="small" role="status" aria-live="polite">Ожидаем проверки платформы.</p>
 <p class="small">Используется фиксированный официальный релиз с SHA256. Существующие файлы конфигурации не перезаписываются. Пока подтверждена сборка ARM64; MIPS/MIPSEL получают отдельный статус доступности.</p>
 <p><a href="https://github.com/siamskoi/keenetic-crowdsec-bouncer" target="_blank" rel="noopener noreferrer">Документация Keenetic / NDM ↗</a></p>

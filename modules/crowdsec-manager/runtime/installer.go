@@ -34,6 +34,7 @@ type installerState struct {
 	Error     string `json:"error,omitempty"`
 	Completed bool   `json:"completed"`
 	Installed bool   `json:"installed"`
+	Managed   bool   `json:"managed"`
 	Platform  string `json:"platform"`
 	Supported bool   `json:"supported"`
 	Release   string `json:"release"`
@@ -65,6 +66,7 @@ func installerSnapshot() installerState {
 	s.Platform, s.Supported = installerPlatform()
 	s.Release = bouncerRelease
 	s.Installed = installed()
+	s.Managed = installerManaged()
 	return s
 }
 func installerProgress(stage, detail string, err error, completed bool) {
@@ -149,47 +151,12 @@ func installerExecute(ctx context.Context, url, key string) error {
 	if len(archive) == 0 || len(archive) >= 24<<20 {
 		return errors.New("release archive exceeds size limit")
 	}
-	digest := sha256.Sum256(archive)
-	if hex.EncodeToString(digest[:]) != bouncerAssetSHA {
-		return errors.New("official release SHA256 mismatch")
-	}
-	installerProgress("extract", "Extracting verified bouncer binary", nil, false)
-	gz, err := gzip.NewReader(bytes.NewReader(archive))
+	binary, err := extractVerifiedBouncer(archive, bouncerAssetSHA)
 	if err != nil {
 		return err
 	}
-	defer gz.Close()
-	tr := tar.NewReader(gz)
-	var binary []byte
-	for {
-		entry, e := tr.Next()
-		if e == io.EOF {
-			break
-		}
-		if e != nil {
-			return e
-		}
-		name := filepath.Base(entry.Name)
-		if entry.Typeflag != tar.TypeReg || (name != "crowdsec-firewall-bouncer" && name != "cs-firewall-bouncer") {
-			continue
-		}
-		if entry.Size <= 0 || entry.Size > 32<<20 {
-			return errors.New("invalid bouncer binary size")
-		}
-		binary, err = io.ReadAll(io.LimitReader(tr, 32<<20))
-		if err != nil {
-			return err
-		}
-		break
-	}
-	if len(binary) < 1000 {
-		return errors.New("bouncer executable not found in verified archive")
-	}
-	if len(binary) < 20 || string(binary[:4]) != "\x7fELF" || binary[4] != 2 || binary[5] != 1 || binary[18] != 183 {
-		return errors.New("binary ELF architecture mismatch (ARM64 expected)")
-	}
 	// Plan all owned paths before modifying any of them; never overwrite existing external files.
-	paths := []string{bouncerBinaryPath, bouncerConfigPath, bouncerInitPath}
+	paths := []string{bouncerBinaryPath, bouncerConfigPath, bouncerInitPath, bouncerOwnershipPath}
 	for _, p := range paths {
 		_, e := os.Lstat(p)
 		if e == nil {
@@ -224,10 +191,17 @@ func installerExecute(ctx context.Context, url, key string) error {
 		}
 		created = append(created, file.path)
 	}
+	if err := writeExclusive(bouncerOwnershipPath, []byte(bouncerOwnershipStamp), 0600); err != nil {
+		return err
+	}
+	created = append(created, bouncerOwnershipPath)
 	installerProgress("start", "Starting bouncer using Entware init", nil, false)
 	startCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	if _, err := safety.RunCommand(startCtx, 8<<10, bouncerInitPath, "start"); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, _ = safety.RunCommand(stopCtx, 8<<10, bouncerInitPath, "stop")
+		stopCancel()
 		return errors.New("bouncer start failed; created files rolled back")
 	}
 	// Service may start asynchronously; don't announce ACTIVE until actual firewall checks pass.
@@ -246,4 +220,105 @@ func writeExclusive(path string, data []byte, mode os.FileMode) error {
 		return errors.New("failed to write managed file")
 	}
 	return nil
+}
+
+// Managed installations are explicitly labelled so the UI cannot remove
+// pre-existing bouncer installations owned by someone else.
+const bouncerOwnershipPath = "/opt/etc/crowdsec/.routerforge-bouncer-owned"
+const bouncerOwnershipStamp = "routerforge-crowdsec-manager:v1\n"
+
+func installerManaged() bool {
+	b, err := os.ReadFile(bouncerOwnershipPath)
+	return err == nil && string(b) == bouncerOwnershipStamp
+}
+
+func installerRemove(w http.ResponseWriter, r *http.Request) {
+	mutation(w, r, func(req map[string]string) error {
+		if req["confirm"] != "crowdsec-remove" {
+			return errors.New("removal confirmation required")
+		}
+		installer.Lock()
+		busy := installer.state.Busy
+		installer.Unlock()
+		if busy {
+			return errors.New("installation still running")
+		}
+		if !installerManaged() {
+			return errors.New("this bouncer is not owned by RouterForge; nothing removed")
+		}
+		preserveConfig := req["keep_config"] != "false"
+		if _, err := os.Lstat(bouncerInitPath); err == nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+			defer cancel()
+			if _, err := safety.RunCommand(ctx, 8<<10, bouncerInitPath, "stop"); err != nil {
+				return errors.New("could not stop bouncer; files preserved")
+			}
+		}
+		for _, path := range []string{bouncerBinaryPath, bouncerInitPath} {
+			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("could not remove managed %s: %w", path, err)
+			}
+		}
+		// Only remove NDM hooks whose bytes match the RouterForge-managed template.
+		if hook, err := os.ReadFile(ndmHookPath); err == nil && sha256.Sum256(hook) == sha256.Sum256([]byte(managedNDMHook)) {
+			if err := os.Remove(ndmHookPath); err != nil {
+				return errors.New("could not remove managed NDM hook")
+			}
+		}
+		if !preserveConfig {
+			if err := os.Remove(bouncerConfigPath); err != nil && !os.IsNotExist(err) {
+				return errors.New("could not remove bouncer config")
+			}
+		}
+		if err := os.Remove(bouncerOwnershipPath); err != nil && !os.IsNotExist(err) {
+			return errors.New("could not remove ownership marker")
+		}
+		installer.Lock()
+		installer.state = installerState{Stage: "removed", Completed: true, Detail: "RouterForge-managed bouncer removed"}
+		installer.Unlock()
+		return nil
+	})
+}
+
+// Synthetic tests exercise this function with in-memory .tgz archives.
+// It does not access the network, opkg or the live firewall.
+func extractVerifiedBouncer(archive []byte, expectedSHA string) ([]byte, error) {
+	if len(archive) == 0 || len(archive) >= 24<<20 {
+		return nil, errors.New("release archive exceeds size limit")
+	}
+	digest := sha256.Sum256(archive)
+	if hex.EncodeToString(digest[:]) != expectedSHA {
+		return nil, errors.New("release SHA256 mismatch")
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(archive))
+	if err != nil {
+		return nil, err
+	}
+	defer gz.Close()
+	tr := tar.NewReader(gz)
+	for {
+		entry, e := tr.Next()
+		if e == io.EOF {
+			break
+		}
+		if e != nil {
+			return nil, e
+		}
+		name := filepath.Base(entry.Name)
+		if entry.Typeflag != tar.TypeReg || (name != "crowdsec-firewall-bouncer" && name != "cs-firewall-bouncer") {
+			continue
+		}
+		if entry.Size <= 0 || entry.Size > 32<<20 {
+			return nil, errors.New("invalid bouncer binary size")
+		}
+		binary, e := io.ReadAll(io.LimitReader(tr, 32<<20))
+		if e != nil {
+			return nil, e
+		}
+		if len(binary) < 1000 || len(binary) < 20 || string(binary[:4]) != "\x7fELF" || binary[4] != 2 || binary[5] != 1 || binary[18] != 183 {
+			return nil, errors.New("binary ELF architecture mismatch (ARM64 expected)")
+		}
+		return binary, nil
+	}
+	return nil, errors.New("bouncer executable not found in verified archive")
 }

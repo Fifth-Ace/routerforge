@@ -1,12 +1,12 @@
 :root {
   color-scheme: dark;
   --cs-bg: #0c0d10;
-  --cs-panel: color-mix(in srgb, var(--cs-bg) 87%, var(--cs-text) 13%);
-  --cs-panel-soft: color-mix(in srgb, var(--cs-bg) 92%, var(--cs-text) 8%);
-  --cs-border: color-mix(in srgb, var(--cs-bg) 77%, var(--cs-text) 23%);
+  --cs-panel: #14161a;
+  --cs-panel-soft: #191b21;
+  --cs-border: #242831;
   --cs-border-soft: color-mix(in srgb, var(--cs-border) 45%, transparent);
   --cs-text: #f5f7fa;
-  --cs-muted: color-mix(in srgb, var(--cs-text) 62%, var(--cs-bg) 38%);
+  --cs-muted: #8b949e;
   --cs-accent: #38bdf8;
   --cs-accent-soft: color-mix(in srgb, var(--cs-accent) 16%, transparent);
   --cs-good: #2ea043;

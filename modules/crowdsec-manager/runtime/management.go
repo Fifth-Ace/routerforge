@@ -477,6 +477,7 @@ func registerManagementEndpoints(mux *http.ServeMux) {
 		writeManager(w, http.StatusOK, installerSnapshot())
 	})
 	mux.HandleFunc("/v1/install/start", installerStart)
+	mux.HandleFunc("/v1/install/remove", installerRemove)
 
 	mux.HandleFunc("/v1/overview", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

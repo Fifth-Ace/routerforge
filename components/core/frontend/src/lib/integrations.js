@@ -48,7 +48,7 @@ export function integrationProviders(modules = [], integrations = []) {
       const targets = Array.isArray(meta.target_ids) ? meta.target_ids : [];
       // Port Access Manager is a standalone security workspace. Detection-only
       // engines are optional, so opening its UI requires no external target.
-      if (item.id === 'port-access-manager') return true;
+      if (item.id === 'port-access-manager' || item.id === 'crowdsec-manager') return true;
       return targets.some((id) => installedTargets.has(id));
     })
     .sort((a, b) =>

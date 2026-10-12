@@ -44,6 +44,7 @@
     }).then(function (data) {
       if (data.applied !== false || data.preview_only !== true || data.engine !== request.engine) throw Error('Неверный контракт предпросмотра');
       lastValidatedRequest = request;
+      document.dispatchEvent(new CustomEvent('rfpa:preview-ok', {detail:{engine:request.engine}}));
       state.textContent = 'Проверено · НЕ применено';
       plan.textContent = data.plan;
     }).catch(function (error) {
@@ -97,6 +98,7 @@
     fetch(deployURL(selected),{credentials:'same-origin',cache:'no-store'})
       .then(function(r){return r.json().then(function(d){if(!r.ok)throw Error(d.error||('HTTP '+r.status));return d;});})
       .then(function(d){if(engine.value!==selected)return;
+        document.dispatchEvent(new CustomEvent('rfpa:deploy-state', {detail:{engine:selected, prepared:!!d.prepared, enabled:!!d.enabled, confirmed:!!d.confirmed, running:!!d.running}}));
         deployState.textContent = d.enabled ? (!d.running?'Защитный шлюз включён, но служба остановлена':(d.confirmed?'Защита включена и подтверждена':'ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ · watchdog 90 секунд')) : (d.prepared?'Конфигурация готова · защита выключена':'Конфигурация не подготовлена');
         document.getElementById('rfpa-prepare').disabled=deployBusy||d.prepared||d.enabled;
         document.getElementById('rfpa-enable').disabled=deployBusy||!d.prepared||d.enabled;

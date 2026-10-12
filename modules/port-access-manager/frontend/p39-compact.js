@@ -202,4 +202,103 @@
     updateInsight();
   })();
 
+  // P48: one next action, reusing original guarded buttons. No extra mutation APIs.
+  (function liveProgression() {
+    var panel = document.getElementById('engine-wizard-panel');
+    var select = document.getElementById('engine-config-engine');
+    var before = document.querySelector('.rf-pa-journey');
+    if (!panel || !select || !before || panel.querySelector('.rf-pa-next-step')) return;
+    var bar = document.createElement('div');
+    bar.className = 'rf-pa-next-step';
+    var copy = document.createElement('div');
+    var title = document.createElement('strong');
+    var detail = document.createElement('p');
+    var action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'rf-pa-next-button';
+    copy.appendChild(title); copy.appendChild(detail);
+    bar.appendChild(copy); bar.appendChild(action);
+    before.insertAdjacentElement('afterend', bar);
+    var service = {};
+    var deployment = {};
+    var previewed = {};
+    function active() { return select.value; }
+    function btn(id) { return document.getElementById(id); }
+    function refresh() {
+      var id = active();
+      var svc = service[id];
+      var dep = deployment[id];
+      var next = null;
+      var label, hint;
+      if (!svc) {
+        label = 'Проверяем службу'; hint = 'Ожидаем ответ Entware';
+      } else if (svc.installation && svc.installation.state === 'running') {
+        label = 'Устанавливаем движок'; hint = 'Ожидаем завершения установки Entware';
+      } else if (!svc.installed) {
+        label = 'Установить ' + (id === 'knockd' ? 'Knockd' : 'fwknopd');
+        hint = svc.installation && svc.installation.state === 'failed' ?
+          ('Не удалось установить: ' + (svc.installation.error || 'ошибка Entware')) :
+          'Сначала установи службу, затем подготовь конфигурацию';
+        next = document.querySelector('[data-engine-action="'+id+'"][data-action="install"]');
+      } else if (!dep) {
+        label = 'Проверяем защиту'; hint = 'Служба найдена, ожидаем состояние шлюза';
+      } else if (dep.enabled && !dep.running) {
+        label = 'Служба остановлена'; hint = 'Шлюз включён, но служба не работает. Не подтверждай защиту до проверки доступа';
+      } else if (dep.enabled && dep.confirmed) {
+        label = 'Защита активна'; hint = 'Подтверждена. Управление отключением доступно ниже';
+      } else if (dep.enabled) {
+        label = 'Подтверди после внешней проверки';
+        hint = 'Проверь доступ снаружи. Без подтверждения watchdog автоматически откатит правила';
+        next = btn('rfpa-confirm');
+      } else if (dep.prepared) {
+        label = 'Включить защиту'; hint = 'Конфигурация готова. Включение запускает защитный шлюз и окно автоотката';
+        next = btn('rfpa-enable');
+      } else if (previewed[id]) {
+        label = 'Подготовить конфигурацию'; hint = 'План проверен. Подготовка не включает firewall';
+        next = btn('rfpa-prepare');
+      } else {
+        label = 'Проверить план'; hint = 'Проверь WAN, порты и сервисы перед подготовкой';
+        next = btn('engine-wizard-preview');
+      }
+      title.textContent = label;
+      detail.textContent = hint;
+      action.hidden = !next;
+      action.disabled = !next || next.disabled;
+      action.textContent = label;
+      action.onclick = next ? function() { if (!next.disabled) next.click(); } : null;
+      bar.classList.toggle('rf-pa-next-ready', !!(dep && dep.enabled && dep.confirmed));
+      var steps = before.querySelectorAll('.rf-pa-journey-step');
+      var stage = dep && dep.enabled ? 2 : dep && dep.prepared ? 2 : previewed[id] ? 1 : 0;
+      Array.prototype.forEach.call(steps, function(item, i) {
+        item.classList.toggle('rf-pa-journey-current', i === stage);
+        item.classList.toggle('rf-pa-journey-done', i < stage || !!(dep && dep.enabled && dep.confirmed));
+      });
+    }
+    document.addEventListener('rfpa:service-state', function(ev) {
+      service[ev.detail.engine] = ev.detail; refresh();
+    });
+    document.addEventListener('rfpa:deploy-state', function(ev) {
+      deployment[ev.detail.engine] = ev.detail; refresh();
+    });
+    document.addEventListener('rfpa:preview-ok', function(ev) {
+      previewed[ev.detail.engine] = true; refresh();
+    });
+    ['engine-wizard-interface','engine-wizard-knock','engine-wizard-window',
+     'engine-wizard-ttl','engine-wizard-services'].forEach(function(id) {
+      var input = btn(id);
+      if (input) input.addEventListener('input', function() {
+        previewed[active()] = false; refresh();
+      });
+    });
+    var load = btn('engine-wizard-draft-load');
+    if (load) load.addEventListener('click', function() { previewed[active()] = false; refresh(); });
+    select.addEventListener('change', refresh);
+    ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable'].forEach(function(id) {
+      var button = btn(id);
+      if (!button) return;
+      new MutationObserver(refresh).observe(button, {attributes:true,attributeFilter:['disabled']});
+    });
+    refresh();
+  })();
+
 })();

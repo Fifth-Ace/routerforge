@@ -74,3 +74,11 @@
 .rf-pa-service-workspace .refresh-bar { gap:9px; margin-top:12px; }
 .rf-pa-daemons .rf-pa-compact-advanced { margin-top:14px; }
 @media (max-width:700px) { .rf-pa-service-workspace .engine-card button { flex:1 1 120px; } }
+
+/* P48: live progression */
+.rf-pa-next-step{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin:8px 0 16px;padding:16px;border:1px solid var(--pa-border);border-radius:13px;background:var(--pa-surface,rgba(120,145,185,.07))}
+.rf-pa-next-step strong{display:block;font-size:15px}.rf-pa-next-step p{margin:5px 0 0;color:var(--pa-muted);font-size:12px;line-height:1.5}
+.rf-pa-next-button{min-height:38px;font-weight:700;border:1px solid var(--pa-accent,#639bed);border-radius:9px;padding:8px 14px;max-width:100%}
+.rf-pa-next-ready{border-color:#5fbf9b}.rf-pa-journey-current{border-color:var(--rf-pa-accent)!important;box-shadow:inset 0 0 0 1px var(--rf-pa-accent)}
+.rf-pa-journey-done .rf-pa-journey-num{color:#5fbf9b}
+@media(max-width:700px){.rf-pa-next-button{width:100%}}

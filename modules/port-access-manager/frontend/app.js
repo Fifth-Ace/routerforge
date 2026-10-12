@@ -400,6 +400,7 @@
     return fetch(engineServiceURL(engine), {credentials:'same-origin',cache:'no-store'})
       .then(function(resp){return resp.json().then(function(data){if(!resp.ok)throw new Error(data.error||'HTTP '+resp.status);return data;});})
       .then(function(data){
+        document.dispatchEvent(new CustomEvent('rfpa:service-state', {detail:{engine:engine, installed:!!data.installed, running:!!data.running, installation:data.installation||{state:'idle'}}}));
         var job = data.installation || {state:'idle'};
         var running = job.state === 'running';
         installRunning = installRunning || running;

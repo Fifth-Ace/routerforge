@@ -8,7 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 	"path/filepath"
 	"strings"
 	"time"
@@ -39,7 +39,7 @@ type snapshot struct {
 func bounded(ctx context.Context, bin string, args ...string) (string, error) {
 	c, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(c, bin, args...).CombinedOutput()
+	out, err := safety.RunCommand(c, 64<<10, bin, args...)
 	if len(out) > 64<<10 {
 		out = out[:64<<10]
 	}

@@ -469,11 +469,14 @@ func manageHook(req map[string]string) error {
 }
 
 func registerManagementEndpoints(mux *http.ServeMux) {
- mux.HandleFunc("/v1/install/status",func(w http.ResponseWriter,r *http.Request){
-  if r.Method!=http.MethodGet {w.WriteHeader(http.StatusMethodNotAllowed);return}
-  writeManager(w,http.StatusOK,installerSnapshot())
- })
- mux.HandleFunc("/v1/install/start",installerStart)
+	mux.HandleFunc("/v1/install/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		writeManager(w, http.StatusOK, installerSnapshot())
+	})
+	mux.HandleFunc("/v1/install/start", installerStart)
 
 	mux.HandleFunc("/v1/overview", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

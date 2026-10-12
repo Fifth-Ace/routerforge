@@ -171,14 +171,13 @@ func main() {
 			return
 		}
 		h := strings.TrimPrefix(r.URL.Path, "/v1/ui/")
-		if h == "" {
-			h = "index.html"
-		}
 		if filepath.IsAbs(h) || strings.Contains(h, "..") {
 			http.NotFound(w, r)
 			return
 		}
 		rr := r.Clone(r.Context())
+		// FileServer redirects /index.html to ./; serve the UI root as /.
+		// Otherwise /ui/ loops through the canonical index redirect.
 		rr.URL.Path = "/" + h
 		fs.ServeHTTP(w, rr)
 	})

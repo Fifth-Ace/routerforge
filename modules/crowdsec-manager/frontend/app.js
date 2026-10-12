@@ -124,5 +124,38 @@
     var url = $('lapi-url').value.trim(), key = $('lapi-key').value;
     action('lapi', { api_url: url, api_key: key, confirm: 'crowdsec-lapi' }, 'Сохранить URL/API key в существующий config с резервной копией? После сохранения перезапусти bouncer.');
   });
+  function pollInstaller() {
+    api('install/status').then(function (state) {
+      var release = state.release || 'unknown';
+      txt('install-platform', 'Entware target: ' + (state.platform || 'unknown') + (state.supported ? ' · verified build available' : ' · нет проверенной сборки'));
+      txt('install-release', 'Bouncer ' + release);
+      var button = $('install-start');
+      button.disabled = state.busy || state.installed || !state.supported;
+      $('install-url').disabled = state.busy;
+      $('install-key').disabled = state.busy;
+      if (state.error) {
+        txt('install-progress', 'FAIL · ' + state.error);
+        $('install-progress').className = 'fail';
+      } else {
+        txt('install-progress', (state.busy ? 'LIVE · ' : state.completed ? 'PASS · ' : '') + (state.detail || (state.supported ? 'Готов к установке' : 'Нет проверенной сборки для этого ABI')));
+        $('install-progress').className = state.completed ? 'ok' : 'small';
+      }
+      if (state.completed && !state.error) refresh();
+    }).catch(function (e) { txt('install-progress', 'Статус установки: ' + e.message); });
+  }
+  $('install-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var url = $('install-url').value.trim();
+    var key = $('install-key').value;
+    if (busy || !window.confirm('Установить официальный проверенный Firewall Bouncer, зависимости ipset/iptables и создать службу Entware на этом роутере?')) return;
+    $('install-key').value = '';
+    $('install-start').disabled = true;
+    txt('install-progress', 'Отправляем задание установки…');
+    api('install/start', 'POST', { api_url:url, api_key:key, confirm:'crowdsec-install' })
+      .then(function () { pollInstaller(); })
+      .catch(function (e) { txt('install-progress', 'FAIL · ' + e.message); $('install-start').disabled = false; });
+  });
+  pollInstaller();
+  window.setInterval(function () { if (!document.hidden) pollInstaller(); }, 2500);
   refresh(); window.setInterval(function () { if (!document.hidden) refresh(); }, 15000);
 })();

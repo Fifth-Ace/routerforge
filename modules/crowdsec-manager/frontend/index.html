@@ -5,16 +5,18 @@
 <header class="head"><div><div class="eyebrow">ROUTERFORGE · SECURITY</div><h1>CrowdSec Manager</h1><p class="muted">Windows CrowdSec LAPI → Keenetic Firewall Bouncer → ipset / iptables</p></div><button id="refresh">↻ Обновить</button></header>
 <div class="banner" id="verdict" role="status">Получаем фактическое состояние firewall…</div>
 <section class="panel" id="bouncer-install" hidden>
-<h2>CrowdSec Firewall Bouncer не установлен</h2>
-<p>Менеджер установлен, но сам компонент защиты на Keenetic отсутствует. CrowdSec LAPI остаётся на Windows — роутеру нужен только Firewall Bouncer.</p>
-<details><summary role="button" style="cursor:pointer;color:var(--blue);font-weight:700">Как установить Firewall Bouncer</summary>
-<p>1. Установите Entware-зависимости <code>ipset</code> и <code>iptables</code> через opkg.</p>
-<p>2. Возьмите <code>cs-firewall-bouncer</code> из самостоятельно проверенной сборки для ARM64 и разместите в <code>/opt/bin/</code>.</p>
-<p>3. Создайте <code>/opt/etc/crowdsec/crowdsec-firewall-bouncer.yaml</code> с URL и ключом Windows LAPI, а затем <code>/opt/etc/init.d/S99csfirewall</code> по инструкции проекта.</p>
-<p>4. Запустите bouncer; затем вернитесь в менеджер, обновите состояние и настройте NDM hook.</p>
-<p><a href="https://github.com/siamskoi/keenetic-crowdsec-bouncer#readme" target="_blank" rel="noopener noreferrer">Открыть инструкцию siamskoi ↗</a></p>
-<p class="small">Автоматический запуск стороннего установщика отключён: сначала необходимо подтвердить источник, архитектуру и контрольную сумму бинарника.</p>
-</details></section>
+<h2>CrowdSec Firewall Bouncer · Установка</h2>
+<p class="muted">Установка в Entware на этом роутере. CrowdSec LAPI остаётся на Windows.</p>
+<p class="small" id="install-platform">Определяем архитектуру…</p>
+<form id="install-form">
+<label>Windows LAPI (HTTPS)<input id="install-url" type="url" required placeholder="https://192.168.1.10:8080" autocomplete="off"></label>
+<label>LAPI Bouncer API key<input id="install-key" type="password" required minlength="8" autocomplete="new-password"></label>
+<div class="actions"><button id="install-start" type="submit">Установить Firewall Bouncer</button><span class="small" id="install-release"></span></div>
+</form>
+<p id="install-progress" class="small" role="status" aria-live="polite">Ожидаем проверки платформы.</p>
+<p class="small">Используется фиксированный официальный релиз с SHA256. Существующие файлы конфигурации не перезаписываются. Пока подтверждена сборка ARM64; MIPS/MIPSEL получают отдельный статус доступности.</p>
+<p><a href="https://github.com/siamskoi/keenetic-crowdsec-bouncer" target="_blank" rel="noopener noreferrer">Документация Keenetic / NDM ↗</a></p>
+</section>
 <section class="stats">
 <article><span>Защита трафика</span><strong id="protection">—</strong><small id="protection-hint">Проверяем…</small></article>
 <article><span>Bouncer</span><strong id="running">—</strong><small id="installed">—</small></article>

@@ -23,3 +23,38 @@
 .rf-pa-log-details{margin-top:14px}.rf-pa-log-details .rf-pa-operation-log{border:0;margin:0;padding:8px 0}
 .rf-pa-log-details #pa-log-lines{height:180px!important;max-height:36vh!important}
 @media(max-width:700px){.rf-pa-daemons .rf-pa-compact-heading{display:block}.rf-pa-daemons .rf-pa-deploy-actions button{flex:1 1 160px}}
+
+/* P46 — polished native Knockd / SPA workspace; existing actions remain intact. */
+.rf-pa-ux { --rf-pa-accent: #639bed; }
+.rf-pa-ux[data-engine-mode="spa"] { --rf-pa-accent: #ab8cf5; }
+.rf-pa-journey { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 18px; }
+.rf-pa-journey-step { display:flex;gap:11px;align-items:center;padding:14px;border:1px solid var(--border,#364255);border-radius:13px;background:rgba(120,145,185,.055);min-width:0; }
+.rf-pa-journey-num { display:grid;place-items:center;border-radius:9px;flex:0 0 37px;height:37px;background:color-mix(in srgb,var(--rf-pa-accent) 16%,transparent);color:var(--rf-pa-accent);font-weight:800;font-size:13px; }
+.rf-pa-journey-step strong,.rf-pa-journey-step small { display:block; }
+.rf-pa-journey-step small { margin-top:3px;font-size:11px;opacity:.67;line-height:1.35; }
+.rf-pa-mode-intro { display:flex;align-items:center;gap:15px;padding:18px;margin:0 0 16px;border:1px solid color-mix(in srgb,var(--rf-pa-accent) 34%,transparent);border-radius:16px;background:linear-gradient(115deg,color-mix(in srgb,var(--rf-pa-accent) 13%,transparent),transparent 70%); }
+.rf-pa-mode-symbol { font-size:32px;font-weight:700;display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:16px;background:color-mix(in srgb,var(--rf-pa-accent) 18%,transparent);color:var(--rf-pa-accent); }
+.rf-pa-mode-copy strong { display:block;font-size:17px;letter-spacing:-.02em; }
+.rf-pa-mode-copy p { margin:5px 0 0;opacity:.72;line-height:1.5;font-size:13px; }
+.rf-pa-live-insight { margin:15px 0;padding:16px;border:1px solid var(--border,#364255);border-radius:15px;background:rgba(120,145,185,.045); }
+.rf-pa-port-sequence { display:flex;align-items:center;flex-wrap:wrap;gap:9px;min-height:39px; }
+.rf-pa-port-token { display:inline-flex;align-items:center;justify-content:center;min-width:68px;padding:9px 13px;font-size:14px;font-variant-numeric:tabular-nums;font-weight:750;border-radius:10px;background:color-mix(in srgb,var(--rf-pa-accent) 16%,transparent);color:var(--rf-pa-accent);border:1px solid color-mix(in srgb,var(--rf-pa-accent) 35%,transparent); }
+.rf-pa-port-arrow { opacity:.55;font-size:18px; }
+.rf-pa-port-invalid,.rf-pa-service-invalid { color:#f7a19c!important;border-color:#e46f71!important; }
+.rf-pa-spa-capsule { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+.rf-pa-spa-icon { font-size:21px;color:var(--rf-pa-accent); }
+.rf-pa-spa-capsule small { opacity:.65;font-size:12px; }
+.rf-pa-insight-summary { margin:13px 0 10px;font-size:12px;opacity:.8;line-height:1.6; }
+.rf-pa-service-pills { display:flex;flex-wrap:wrap;gap:7px; }
+.rf-pa-service-pill { font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border,#364255);background:rgba(120,145,185,.07);overflow-wrap:anywhere; }
+.rf-pa-mode-security { font-size:12px;line-height:1.6;opacity:.74;margin:11px 0 20px; }
+.rf-pa-action-surface { padding:17px!important;border-radius:16px!important;border:1px solid color-mix(in srgb,var(--rf-pa-accent) 28%,var(--border,#364255))!important; }
+.rf-pa-action-heading { display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;margin:0 0 12px; }
+.rf-pa-action-dot { height:9px;width:9px;border-radius:50%;background:var(--rf-pa-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--rf-pa-accent) 15%,transparent); }
+.rf-pa-action-surface .rf-pa-deploy-actions { display:flex;flex-wrap:wrap;gap:8px; }
+.rf-pa-action-surface .rf-pa-action-button { border-radius:10px;min-height:37px; }
+.rf-pa-action-surface .rf-pa-action-primary { border-color:var(--rf-pa-accent); }
+.rf-pa-action-surface .rf-pa-action-confirm { border-color:#5fbf9b; }
+.rf-pa-action-surface .rf-pa-action-danger { border-color:#b65f65; }
+.rf-pa-live-status { display:block;padding:12px 14px;border-left:3px solid var(--rf-pa-accent);border-radius:8px;background:rgba(120,145,185,.065);margin:12px 0;line-height:1.5; }
+@media(max-width:780px) { .rf-pa-journey { grid-template-columns:1fr;gap:7px; } .rf-pa-journey-step { padding:10px 12px; } .rf-pa-mode-intro { padding:12px; } .rf-pa-mode-symbol { width:43px;height:43px;font-size:26px; } }

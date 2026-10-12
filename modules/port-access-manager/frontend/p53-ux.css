@@ -1,0 +1,39 @@
+/* P53 user journey. Presentation only; native RouterForge palette. */
+.rf-pa-workspace{gap:17px}
+.rf-pa-p53-hero{padding:20px 21px;border:1px solid var(--pa-border);border-radius:var(--pa-radius);background:var(--pa-surface)}
+.rf-pa-p53-kicker{font-size:10px;letter-spacing:.1em;font-weight:700;color:var(--pa-accent);margin-bottom:7px}
+.rf-pa-p53-hero h2{font-size:21px;margin:0 0 6px;letter-spacing:-.025em}
+.rf-pa-p53-subtitle{margin:0 0 17px;font-size:12px;color:var(--pa-muted);line-height:1.6}
+.rf-pa-p53-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.rf-pa-p53-shortcut{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;padding:15px;border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);background:var(--pa-surface-2);color:var(--pa-text);cursor:pointer;text-align:left;min-height:76px;transition:border-color .15s,background .15s}
+.rf-pa-p53-shortcut:hover,.rf-pa-p53-shortcut:focus-visible{border-color:var(--pa-accent);background:var(--pa-hover)}
+.rf-pa-p53-shortcut.primary{border-color:var(--pa-accent);background:var(--pa-accent-soft)}
+.rf-pa-p53-shortcut strong{font-size:13px;font-weight:650}
+.rf-pa-p53-shortcut span{font-size:11px;color:var(--pa-muted);line-height:1.45}
+.rf-pa-p53-secondary-shortcut{grid-column:2 / span 2}
+.rf-pa-summary{padding:14px 16px}
+.rf-pa-metrics{gap:8px}
+.rf-pa-metric{border-color:transparent;background:var(--pa-surface-2);padding:13px 12px}
+.rf-pa-metric b{font-size:14px}
+.rf-pa-view-tabs{padding:0;gap:0;border-bottom:1px solid var(--pa-border)}
+.rf-pa-view-tab{border:0!important;border-radius:0!important;background:transparent!important;min-width:0;padding:12px 17px!important;min-height:42px}
+.rf-pa-view-tab.active{border-bottom:2px solid var(--pa-accent)!important;color:var(--pa-accent)!important}
+.rf-pa-selector{padding:18px 20px}
+.rf-pa-choices{gap:9px}
+.rf-pa-choice{min-height:78px;border-color:var(--pa-border);padding:14px 15px;gap:7px}
+.rf-pa-choice strong{font-size:13px}
+.rf-pa-choice small{line-height:1.45}
+.rf-pa-p53-workflow{padding:13px 16px;border:1px solid var(--pa-border);border-radius:var(--pa-control-radius);background:var(--pa-surface-2)}
+.rf-pa-p53-workflow strong{font-size:12px}
+.rf-pa-p53-workflow p{font-size:11px;color:var(--pa-muted);margin:5px 0 0;line-height:1.6}
+.rf-pa-p53-context{border-top:1px solid var(--pa-border);padding-top:13px;margin-top:15px}
+.rf-pa-p53-context strong{font-size:13px}
+.rf-pa-p53-context p{font-size:12px;color:var(--pa-muted);margin:5px 0 0;line-height:1.55}
+.rf-pa-p53-main-panel{border:1px solid var(--pa-border)!important;border-radius:var(--pa-radius)!important;padding:20px!important;background:var(--pa-surface)}
+.rf-pa-p53-action-bar{padding-top:11px;border-top:1px solid var(--pa-border)}
+.rf-pa-p53-primary-action{border-color:var(--pa-accent)!important;background:var(--pa-accent-soft)!important;font-weight:700}
+.rf-pa-p53-confirm-action{border-color:var(--pa-good)!important}
+.rf-pa-p53-danger-action{border-color:var(--pa-bad)!important}
+.rf-pa-workspace button:focus-visible{outline:2px solid var(--pa-accent);outline-offset:2px}
+@media(max-width:950px){.rf-pa-p53-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))}.rf-pa-p53-secondary-shortcut{grid-column:auto}}
+@media(max-width:600px){.rf-pa-p53-shortcuts{grid-template-columns:1fr}.rf-pa-p53-hero{padding:15px}.rf-pa-selector{padding:13px}.rf-pa-view-tab{flex:1;font-size:11px;padding:11px 8px!important}.rf-pa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}

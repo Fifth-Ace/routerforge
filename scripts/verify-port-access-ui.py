@@ -63,8 +63,11 @@ def main():
             'safe action button ' + id_
         )
     scripts = ['app.js','config-editor.js','odin-ui.js','ui-rebuild.js',
-               'engine-wizard.js','operation-log.js','p39-compact.js']
+               'engine-wizard.js','operation-log.js','p39-compact.js','p53-ux.js']
     check(dom.scripts == scripts, 'ordered frontend script imports')
+    check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
+    check((FRONT / 'p53-ux.css').is_file(), 'P53 stylesheet exists')
+    check('p53-ux.css' in BUILD.read_text(encoding='utf-8'), 'IPK build ships P53 stylesheet')
     for name in scripts:
         check((FRONT / name).is_file(), 'script exists ' + name)
     build = BUILD.read_text(encoding='utf-8')

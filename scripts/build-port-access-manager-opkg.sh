@@ -34,9 +34,10 @@ test -x "$WORK/data/opt/bin/routerforge-port-access-watchdog"
 sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$PACKAGE"
 cp "$ROOT/modules/port-access-manager/packaging/S95routerforge-port-access-manager" "$WORK/data/opt/etc/init.d/S95routerforge-port-access-manager"
 chmod 0755 "$WORK/data/opt/etc/init.d/S95routerforge-port-access-manager"
-for file in index.html app.js module.css config-editor.js odin-ui.js ui-rebuild.js ui-rebuild.css engine-wizard.js; do
+for file in index.html app.js module.css config-editor.js odin-ui.js ui-rebuild.js ui-rebuild.css engine-wizard.js operation-log.js; do
   cp "$ROOT/modules/port-access-manager/frontend/$file" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/$file"
 done
+test -s "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/operation-log.js"
 cp "$ROOT/modules/port-access-manager/packaging/odin-engine.sh" "$WORK/data/opt/share/routerforge/modules/port-access-manager/odin-engine.sh"
 chmod 0755 "$WORK/data/opt/share/routerforge/modules/port-access-manager/odin-engine.sh"
 cp "$ROOT/modules/port-access-manager/packaging/engine-gate.sh" "$WORK/data/opt/share/routerforge/modules/port-access-manager/engine-gate.sh"

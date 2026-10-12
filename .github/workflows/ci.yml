@@ -1014,15 +1014,15 @@ jobs:
 
           versions = {item["id"]: item["version"] for item in config["components"]}
           expected = {
-              "routerforge-core": "0.13.0~beta.1",
-              "dns": "0.13.0~beta.1",
-              "admin": "0.13.0~beta.1",
-              "monitoring": "0.13.0~beta.1",
-              "network-tools": "0.13.0~beta.1",
-              "nfqws-manager": "0.13.0~beta.1",
-              "antiscan-manager": "0.13.0~beta.1",
-              "port-access-manager": "0.13.0~beta.1",
-              "profiling": "0.13.0~beta.1",
+              "routerforge-core": "0.13.0~beta.2",
+              "dns": "0.13.0~beta.2",
+              "admin": "0.13.0~beta.2",
+              "monitoring": "0.13.0~beta.2",
+              "network-tools": "0.13.0~beta.2",
+              "nfqws-manager": "0.13.0~beta.2",
+              "antiscan-manager": "0.13.0~beta.2",
+              "port-access-manager": "0.13.0~beta.2",
+              "profiling": "0.13.0~beta.2",
           }
           if versions != expected:
               raise SystemExit(f"unexpected Beta component matrix: {versions!r}")

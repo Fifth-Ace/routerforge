@@ -1,5 +1,18 @@
 (function () {
   'use strict';
+  // RouterForge theme handshake; no dependency on parent DOM or module runtime.
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    function color(key, fallback) {
+      var value = params.get(key) || '';
+      return /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
+    }
+    var root = document.documentElement;
+    root.style.setProperty('--cs-bg', color('background', '#0c0d10'));
+    root.style.setProperty('--cs-text', color('text', '#f5f7fa'));
+    root.style.setProperty('--cs-accent', color('accent', '#38bdf8'));
+  })();
+
   var $ = function (id) { return document.getElementById(id); };
   var endpoint = '/api/modules/crowdsec-manager/';
   var busy = false;

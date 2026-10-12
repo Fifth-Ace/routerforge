@@ -1,18 +1,18 @@
 :root {
   color-scheme: dark;
-  --cs-bg: var(--rf-surface-page, transparent);
-  --cs-panel: var(--rf-surface-card, #132235);
-  --cs-panel-soft: var(--rf-surface-soft, #0e1a2a);
-  --cs-border: var(--rf-border, #29415d);
-  --cs-border-soft: var(--rf-border-soft, rgba(136, 176, 220, 0.16));
-  --cs-text: var(--rf-text, #edf4ff);
-  --cs-muted: var(--rf-muted, #9fb4ca);
-  --cs-accent: var(--rf-accent, #79b8ff);
+  --cs-bg: #0c0d10;
+  --cs-panel: color-mix(in srgb, var(--cs-bg) 87%, var(--cs-text) 13%);
+  --cs-panel-soft: color-mix(in srgb, var(--cs-bg) 92%, var(--cs-text) 8%);
+  --cs-border: color-mix(in srgb, var(--cs-bg) 77%, var(--cs-text) 23%);
+  --cs-border-soft: color-mix(in srgb, var(--cs-border) 45%, transparent);
+  --cs-text: #f5f7fa;
+  --cs-muted: color-mix(in srgb, var(--cs-text) 62%, var(--cs-bg) 38%);
+  --cs-accent: #38bdf8;
   --cs-accent-soft: color-mix(in srgb, var(--cs-accent) 16%, transparent);
-  --cs-good: var(--rf-success, #69d8a5);
-  --cs-bad: var(--rf-danger, #ff9d98);
-  --cs-warning: var(--rf-warning, #f3c86c);
-  --cs-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+  --cs-good: #2ea043;
+  --cs-bad: #f85149;
+  --cs-warning: #d29922;
+  --cs-shadow: none;
 }
 
 * { box-sizing: border-box; }
@@ -21,7 +21,7 @@ html, body {
   padding: 0;
   background: transparent;
   color: var(--cs-text);
-  font: 14px/1.55 Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 13px/1.5 Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 body {
   overflow-x: hidden;
@@ -30,7 +30,7 @@ body {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 12px 16px 22px;
+  padding: 8px 4px 22px;
   display: grid;
   gap: 16px;
 }
@@ -64,11 +64,11 @@ p { margin: 0; }
 button {
   appearance: none;
   border: 1px solid var(--cs-border);
-  background: linear-gradient(180deg, rgba(123, 174, 255, 0.12), rgba(123, 174, 255, 0.05));
+  background: var(--cs-panel-soft);
   color: var(--cs-text);
-  border-radius: 10px;
-  padding: 10px 14px;
-  min-height: 40px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-height: 32px;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -89,19 +89,19 @@ button:disabled {
 }
 .banner {
   padding: 15px 18px;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid var(--cs-border);
-  background: linear-gradient(180deg, rgba(18, 32, 51, 0.96), rgba(11, 22, 37, 0.96));
+  background: var(--cs-panel);
   box-shadow: var(--cs-shadow);
   font-weight: 650;
 }
 .banner.good {
   border-color: rgba(105, 216, 165, 0.4);
-  background: linear-gradient(180deg, rgba(26, 63, 53, 0.72), rgba(13, 31, 26, 0.96));
+  background: color-mix(in srgb, var(--cs-good) 10%, var(--cs-panel));
 }
 .banner.bad {
   border-color: rgba(255, 157, 152, 0.38);
-  background: linear-gradient(180deg, rgba(69, 34, 33, 0.74), rgba(21, 13, 16, 0.96));
+  background: color-mix(in srgb, var(--cs-bad) 10%, var(--cs-panel));
 }
 .stats {
   display: grid;
@@ -111,10 +111,10 @@ button:disabled {
 .stats article,
 .panel {
   border: 1px solid var(--cs-border);
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(20, 35, 55, 0.98), rgba(12, 24, 39, 0.98));
+  border-radius: 8px;
+  background: var(--cs-panel);
   box-shadow: var(--cs-shadow);
-  padding: 18px;
+  padding: 14px;
   min-width: 0;
 }
 .stats span, .stats strong, .stats small { display: block; }
@@ -149,7 +149,7 @@ button:disabled {
 .chain span {
   padding: 9px 12px;
   border-radius: 10px;
-  background: rgba(123, 174, 255, 0.10);
+  background: var(--cs-accent-soft);
   border: 1px solid var(--cs-border-soft);
 }
 .chain b { color: var(--cs-accent); }
@@ -164,7 +164,7 @@ input {
   width: 100%;
   margin-top: 6px;
   padding: 10px 12px;
-  background: rgba(8, 15, 27, 0.82);
+  background: var(--cs-panel-soft);
   color: var(--cs-text);
   border: 1px solid var(--cs-border);
   border-radius: 10px;
@@ -180,7 +180,7 @@ input:focus {
   gap: 10px;
 }
 .set, .metric {
-  background: rgba(8, 15, 27, 0.82);
+  background: var(--cs-panel-soft);
   border: 1px solid var(--cs-border-soft);
   border-radius: 10px;
   padding: 11px;
@@ -196,7 +196,7 @@ input:focus {
   max-height: 220px;
   padding: 12px;
   border: 1px solid var(--cs-border);
-  background: rgba(6, 12, 22, 0.92);
+  background: var(--cs-panel-soft);
   border-radius: 10px;
   font-size: 11px;
   white-space: pre-wrap;
@@ -238,7 +238,7 @@ a { color: var(--cs-accent); }
 
 @media (max-width: 640px) {
   .cs {
-    padding: 12px;
+    padding: 8px 2px;
   }
   .stats {
     grid-template-columns: 1fr;

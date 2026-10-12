@@ -123,7 +123,7 @@ def main():
         if f"func {name}(" in catalog:
             fail("retired Go fallback function remains: " + name)
 
-    if "integrations := bundledRegistryIntegrations()" not in catalog:
+    if "integrations := append(bundledRegistryIntegrations(), crowdsecBouncerIntegration()...)" not in catalog:
         fail("buildCatalog is not seeded from the bundled manifest registry")
     if "for _, item := range bundledRegistryIntegrations() {" not in app_center_entware:
         fail("App Center package inventory is not seeded from the bundled manifest registry")

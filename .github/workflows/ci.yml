@@ -186,6 +186,9 @@ jobs:
       - name: P40D Port Access watchdog and IPK smoke
         run: sh scripts/verify-port-access-watchdog-package.sh
 
+      - name: P43 Verify real Port Access IPK contents
+        run: python3 scripts/verify-port-access-ipk.py dist/routerforge-port-access-manager_0.0.0-k3i_aarch64-3.10.ipk
+
       - name: Set up Go for Port Access log race tests
         uses: actions/setup-go@v5
         with:

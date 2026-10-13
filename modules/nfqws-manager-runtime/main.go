@@ -440,7 +440,7 @@ func normalizeCheckURL(raw string) (string, error) {
 	return parsed.String(), nil
 }
 
-func validateConfig(content string) error {
+func validateConfigSyntax(content string) error {
 	if content == "" {
 		return errors.New("nfqws2 config must not be empty")
 	}
@@ -462,8 +462,23 @@ func validateConfig(content string) error {
 	return checkNFQWSShellSyntax(content)
 }
 
-// handleConfigValidate checks shell syntax without saving or executing the config.
-// NF1A deliberately does not claim native nfqws2 --dry-run validation.
+// validateConfig is shared by the standard editor and Smart Apply. It rejects
+// only definite static semantic errors; unknown/dynamic shell content remains
+// explicitly unverified rather than being interpreted or executed.
+func validateConfig(content string) error {
+	if err := validateConfigSyntax(content); err != nil {
+		return err
+	}
+	for _, issue := range nf1bConfigSemantics(content).Issues {
+		if issue.Severity == "error" {
+			return fmt.Errorf("%s: %s", issue.Variable, issue.Message)
+		}
+	}
+	return nil
+}
+
+// handleConfigValidate performs read-only shell and static semantic checks.
+// The native nfqws2 --dry-run is not executed by this endpoint yet.
 func handleConfigValidate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Content string `json:"content"`
@@ -472,17 +487,30 @@ func handleConfigValidate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid config validation request"})
 		return
 	}
-	if err := validateConfig(req.Content); err != nil {
+	if err := validateConfigSyntax(req.Content); err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"ok": false, "syntax_ok": false, "scope": "shell_syntax_only",
-			"native_dry_run": "not_performed", "error": err.Error(),
+			"ok": false, "syntax_ok": false, "semantic_ok": false,
+			"scope": "shell_and_static_semantics", "native_dry_run": "not_performed",
+			"issues": []nf1bConfigIssue{}, "error": err.Error(),
 		})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true, "syntax_ok": true, "scope": "shell_syntax_only",
-		"native_dry_run": "not_performed",
-	})
+	report := nf1bConfigSemantics(req.Content)
+	payload := map[string]any{
+		"ok": report.OK, "syntax_ok": true, "semantic_ok": report.OK,
+		"scope": "shell_and_static_semantics", "native_dry_run": "not_performed",
+		"issues": report.Issues, "inspected_variables": report.Inspected,
+		"unverified_variables": report.Unverified,
+	}
+	if !report.OK {
+		for _, issue := range report.Issues {
+			if issue.Severity == "error" {
+				payload["error"] = issue.Message
+				break
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, payload)
 }
 
 func handleAction(w http.ResponseWriter, r *http.Request) {

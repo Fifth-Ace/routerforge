@@ -490,7 +490,7 @@ func handleConfigValidate(w http.ResponseWriter, r *http.Request) {
 	if err := validateConfigSyntax(req.Content); err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"ok": false, "syntax_ok": false, "semantic_ok": false,
-			"scope": "shell_and_static_semantics", "native_dry_run": "not_performed",
+			"scope": "shell_static_and_native_preview", "native_dry_run": "not_performed",
 			"issues": []nf1bConfigIssue{}, "error": err.Error(),
 		})
 		return
@@ -501,6 +501,16 @@ func handleConfigValidate(w http.ResponseWriter, r *http.Request) {
 		"scope": "shell_and_static_semantics", "native_dry_run": "not_performed",
 		"issues": report.Issues, "inspected_variables": report.Inspected,
 		"unverified_variables": report.Unverified,
+	}
+	// Native validation is read-only and optional. Unsupported shell constructs
+	// must never be sourced or evaluated by this endpoint.
+	if report.OK {
+		native := nf1bNativeDryRun(req.Content)
+		payload["native_dry_run"] = native.State
+		payload["native_detail"] = native.Detail
+		payload["native_profiles"] = native.CheckedProfiles
+		// A failed native check is presented as evidence, but does not alter the
+		// static-only mutation contract until all dependency staging is supported.
 	}
 	if !report.OK {
 		for _, issue := range report.Issues {

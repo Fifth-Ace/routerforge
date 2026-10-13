@@ -1070,54 +1070,18 @@ jobs:
 
           echo "Synthetic bootstrap preflight profiles: OK"
 
-      - name: Build RouterForge beta channel
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
-        run: |
-          set -eu
-
-          for target in aarch64-3.10 mips-3.4 mipsel-3.4; do
-            python3 scripts/build_routerforge_channel.py \
-              --config release/channels/beta.json \
-              --dist dist \
-              --target "$target"
-          done
-
-          test -s dist/routerforge-beta-candidate-index.json
-          test -s dist/routerforge-beta-candidate-index-mips-3.4.json
-          test -s dist/routerforge-beta-candidate-index-mipsel-3.4.json
-
-      - name: Verify consolidated Monitoring migration contract
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
-        run: |
-          set -eu
-          set -- \
-            dist/routerforge-monitoring_*_aarch64-3.10.ipk \
-            dist/routerforge-monitoring_*_mips-3.4.ipk \
-            dist/routerforge-monitoring_*_mipsel-3.4.ipk
-          test "$#" -eq 3
-          sh scripts/verify-monitoring-migration.sh package "$@"
-
-      - name: Upload RouterForge beta candidate
+      - name: Share tested frontend assets for Beta matrix
         if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
         uses: actions/upload-artifact@v4
         with:
-          name: routerforge-beta-multiarch
+          name: routerforge-v2-frontends
           path: |
-            dist/routerforge-*.ipk
-            dist/routerforge-beta-candidate-index*.json
-          retention-days: 7
-
-      - name: Publish RouterForge beta channel
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: sh scripts/publish-beta-multiarch.sh
-
-      - name: Verify published RouterForge beta channel
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: sh scripts/verify-published-beta.sh
+            components/core/frontend/build/**
+            modules/dns/frontend/build/**
+            modules/admin/frontend/build/**
+            modules/monitoring/frontend/build/**
+          if-no-files-found: error
+          retention-days: 2
 
       - name: Build stable multiarch promotion candidate
         if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
@@ -1132,6 +1096,139 @@ jobs:
             dist/routerforge-*.ipk
             dist/routerforge-stable-candidate-index*.json
           retention-days: 14
+
+  beta_build:
+    name: Beta package build (${{ matrix.target }})
+    needs: [preflight, test]
+    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.publish_beta == true
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        target: [aarch64-3.10, mips-3.4, mipsel-3.4]
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+      - name: Restore tested frontend assets
+        uses: actions/download-artifact@v4
+        with:
+          name: routerforge-v2-frontends
+          path: .
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.x'
+          cache: true
+      - name: Install pinned UPX
+        run: |
+          set -eu
+          UPX_VERSION=5.2.1
+          UPX_ARCHIVE="upx-${UPX_VERSION}-amd64_linux.tar.xz"
+          UPX_SHA256="402162aad30af47e60dbd767fb2e64ca394ace9727ba1f40283641f1d1b91657"
+          UPX_URL="https://github.com/upx/upx/releases/download/v${UPX_VERSION}/${UPX_ARCHIVE}"
+
+          curl --fail --silent --show-error --location \
+            "$UPX_URL" \
+            --output "/tmp/$UPX_ARCHIVE"
+
+          printf '%s  %s\n' \
+            "$UPX_SHA256" \
+            "/tmp/$UPX_ARCHIVE" |
+            sha256sum -c -
+
+          rm -rf "/tmp/upx-${UPX_VERSION}-amd64_linux"
+          tar -xJf "/tmp/$UPX_ARCHIVE" -C /tmp
+
+          sudo install -m 0755 \
+            "/tmp/upx-${UPX_VERSION}-amd64_linux/upx" \
+            /usr/local/bin/upx
+
+          test "$(upx --version | head -n 1)" = "upx 5.2.1"
+
+      - name: Build channel for exact target
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build_routerforge_channel.py --config release/channels/beta.json --dist dist --target "${{ matrix.target }}"
+          case "${{ matrix.target }}" in
+            aarch64-3.10) index=dist/routerforge-beta-candidate-index.json ;;
+            *) index="dist/routerforge-beta-candidate-index-${{ matrix.target }}.json" ;;
+          esac
+          test -s "$index"
+      - name: Upload exact target packages and index
+        uses: actions/upload-artifact@v4
+        with:
+          name: routerforge-v2-beta-${{ matrix.target }}
+          path: |
+            dist/routerforge-*.ipk
+            dist/routerforge-beta-candidate-index*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  beta_publish:
+    name: Publish verified multiarch Beta
+    needs: [test, beta_build]
+    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.publish_beta == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: routerforge-beta-publish
+      cancel-in-progress: false
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+      - name: Download all three target artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: routerforge-v2-beta-*
+          path: dist
+          merge-multiple: true
+      - name: Verify complete 10-component candidate before publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_CHECK'
+          import json
+          from pathlib import Path
+          cfg=json.loads(Path('release/channels/beta.json').read_text())
+          expected={c['package'] for c in cfg['components']}
+          assert len(expected)==len(cfg['components'])==10, 'beta component matrix must contain 10 unique packages'
+          for target in ['aarch64-3.10','mips-3.4','mipsel-3.4']:
+              suffix='' if target=='aarch64-3.10' else '-'+target
+              path=Path('dist/routerforge-beta-candidate-index'+suffix+'.json')
+              obj=json.loads(path.read_text())
+              assert obj['target']==target and obj['channel']=='beta', target
+              items=obj['components']
+              assert {i['package'] for i in items}==expected, target
+              for item in items:
+                  asset=Path('dist')/item['asset']
+                  assert asset.is_file() and asset.stat().st_size>0, str(asset)
+          print('MULTIARCH_BETA_CANDIDATE=PASS')
+          PY_CHECK
+      - name: Verify Monitoring migration package contract
+        shell: bash
+        run: |
+          set -eu
+          set -- dist/routerforge-monitoring_*_aarch64-3.10.ipk dist/routerforge-monitoring_*_mips-3.4.ipk dist/routerforge-monitoring_*_mipsel-3.4.ipk
+          test "$#" -eq 3
+          sh scripts/verify-monitoring-migration.sh package "$@"
+      - name: Upload single multiarch release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: routerforge-beta-multiarch
+          path: |
+            dist/routerforge-*.ipk
+            dist/routerforge-beta-candidate-index*.json
+          retention-days: 7
+      - name: Publish rolling and immutable Beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: sh scripts/publish-beta-multiarch.sh
+      - name: Verify public multiarch Beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: sh scripts/verify-published-beta.sh
 
   publish_dev:
     name: Publish rolling ARM64 Dev channel

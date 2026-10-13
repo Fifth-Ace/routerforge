@@ -2116,10 +2116,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   <article id="editorPanel" class="panel">
     <div class="panel-head">
       <div><h2>Полный nfqws2.conf</h2><div id="configMeta" class="section-kicker mono">—</div></div>
-      <div class="toolbar"><button id="undoConfig">Отменить</button><button id="diffConfig">Diff</button><button id="checkConfigSyntax" type="button">Проверить синтаксис</button><button id="save" class="primary">Сохранить и применить</button></div>
+      <div class="toolbar"><button id="undoConfig">Отменить</button><button id="diffConfig">Diff</button><button id="checkConfigSyntax" type="button">Проверить конфиг</button><button id="save" class="primary">Сохранить и применить</button></div>
     </div>
     <div class="setup-note warn" style="margin-bottom:10px">Это полный конфиг nfqws2.conf. Для обычной настройки используйте вкладку «Настройка».</div>
-    <div id="configSyntaxStatus" class="setup-note" role="status" aria-live="polite" style="margin-bottom:10px">Проверка синтаксиса ещё не запускалась. Она не заменяет nfqws2 --dry-run.</div>
+    <div id="configSyntaxStatus" class="setup-note" role="status" aria-live="polite" style="margin-bottom:10px">Проверка конфига ещё не запускалась. Это статический анализ, не nfqws2 --dry-run.</div>
+    <pre id="configSemanticIssues" role="status" aria-live="polite" style="display:none;white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 10px"></pre>
     <div class="editor-shell">
       <div class="editor-toolbar"><span id="editorState" class="mono">CLEAN</span><span>Ctrl+S → Diff · Tab = 2 spaces</span></div>
       <div class="editor-main"><pre id="gutter" class="gutter">1</pre><textarea id="config" class="editor" spellcheck="false"></textarea></div>
@@ -3323,24 +3324,32 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function showDiff(){$('diffApply').dataset.mode='config';$('diffBody').innerHTML=makeDiff(original,$('config').value).map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">No changes</span>';$('diffModal').classList.add('open')}
   function closeDiff(){$('diffModal').classList.remove('open')}
   async function checkConfigSyntaxPreview(){
-    const before=$('config').value, result=$('configSyntaxStatus'), button=$('checkConfigSyntax');
+    const before=$('config').value, result=$('configSyntaxStatus'), details=$('configSemanticIssues'), button=$('checkConfigSyntax');
     button.disabled=true;
-    result.textContent='Проверяем синтаксис shell без записи и запуска конфигурации…';
+    details.style.display='none';details.textContent='';
+    result.textContent='Проверяем синтаксис shell и параметры nfqws2 без исполнения конфига…';
     result.style.color='';
     try{
       const response=await api('/config/validate',{method:'POST',body:JSON.stringify({content:before})});
-      if($('config').value!==before){result.textContent='Конфиг изменился во время проверки. Проверьте ещё раз.';return}
-      if(response.syntax_ok){
-        result.textContent='Синтаксис shell: OK. Native nfqws2 --dry-run ещё не выполнялся.';
-        result.style.color='var(--good)';
+      if($('config').value!==before){result.textContent='Конфиг изменился во время проверки. Запустите её ещё раз.';return}
+      if(!response.syntax_ok){result.textContent='Синтаксис shell: '+(response.error||'ошибка');result.style.color='var(--bad)';return}
+      const issues=Array.isArray(response.issues)?response.issues:[];
+      if(issues.length){
+        details.textContent=issues.map(x=>{
+          const level=x.severity==='error'?'ОШИБКА':x.severity==='warning'?'ВНИМАНИЕ':'ИНФО';
+          return level+(x.variable?' · '+x.variable:'')+': '+(x.message||x.code||'замечание');
+        }).join('\n');
+        details.style.display='block';
+      }
+      if(response.semantic_ok){
+        result.textContent='Синтаксис shell: OK · статические параметры: '+(issues.length?'есть замечания':'OK')+'. Native nfqws2 --dry-run ещё не выполнялся.';
+        result.style.color=issues.some(x=>x.severity==='warning')?'var(--warn)':'var(--good)';
       }else{
-        result.textContent='Проверка синтаксиса: '+(response.error||'не пройдена');
+        result.textContent='Синтаксис shell: OK, но найдены ошибки параметров. Сохранение не пройдёт.';
         result.style.color='var(--bad)';
       }
-    }catch(error){
-      result.textContent='Ошибка проверки: '+error.message;
-      result.style.color='var(--bad)';
-    }finally{button.disabled=false}
+    }catch(error){result.textContent='Ошибка проверки: '+error.message;result.style.color='var(--bad)'}
+    finally{button.disabled=false}
   }
   async function saveConfig(){if(busy||!current?.mutation_ready||$('config').value===original)return;if(!confirm('Сохранить nfqws2.conf, создать backup и выполнить reload?'))return;closeDiff();setBusy(true);try{const r=await api('/config',{method:'POST',body:JSON.stringify({content:$('config').value,confirm:'NFQWS_CONFIG'})});clearLegacyCustomLabels();render(r.status);notice(`Конфигурация применена. Backup: ${r.backup}`,'good')}catch(e){notice(e.message,'error');setBusy(false)}}
 
@@ -6277,7 +6286,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('refreshListSources').onclick=()=>{listSourceLoaded=false;loadListSources(true)};$('refreshBackups').onclick=()=>{backupCenterLoaded=false;loadBackupCenter(true)};$('backupCenterSearch').oninput=renderBackupCenter;$('refreshAutoPick').onclick=renderAutoPick;$('recoveryGuardEnabled').onchange=renderAutoPick;$('recoveryGuardThreshold').onchange=renderAutoPick;
   $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
   $('closeSmartApply').onclick=closeSmartApply;$('refreshSmartApply').onclick=async()=>{if(smartApplyBusy)return;$('smartApplyPlan').innerHTML='<div class="empty">Пересчитываю exact plan…</div>';$('applySmartApply').disabled=true;try{smartApplyPlan=await buildSmartApplyPlan();renderSmartApplyPlan()}catch(e){smartApplyPlan=null;$('smartApplyPlan').innerHTML=`<div class="smart-apply-error">${esc(e.message)}</div>`}};$('applySmartApply').onclick=applySmartApply;$('smartApplyModal').onclick=e=>{if(e.target===$('smartApplyModal'))closeSmartApply()};
-  $('config').oninput=()=>{updateConfigEditor();$('configSyntaxStatus').textContent='Конфиг изменён: синтаксис ещё не проверен.';$('configSyntaxStatus').style.color=''};$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
+  $('config').oninput=()=>{updateConfigEditor();$('configSyntaxStatus').textContent='Конфиг изменён: проверка не актуальна.';$('configSemanticIssues').style.display='none';$('configSemanticIssues').textContent='';$('configSyntaxStatus').style.color=''};$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
   $('checkConfigSyntax').onclick=checkConfigSyntaxPreview;$('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():$('diffApply').dataset.mode==='stored-config'?saveStoredConfig():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('configLibrarySearch').oninput=renderConfigLibraryList;$('newStoredConfig').onclick=()=>openConfigName('create-empty');$('saveCurrentConfig').onclick=()=>openConfigName('create-current');$('refreshNeighborConfigs').onclick=()=>{configLibraryLoaded=false;loadConfigLibrary(true)};$('storedConfigEditor').oninput=updateStoredConfigButtons;$('saveStoredConfig').onclick=showStoredConfigDiff;$('diffStoredConfig').onclick=showStoredConfigDiff;$('undoStoredConfig').onclick=()=>{$('storedConfigEditor').value=storedConfigOriginal;updateStoredConfigButtons()};$('fullscreenStoredConfig').onclick=()=>{const shell=$('storedConfigEditorShell'),on=!shell.classList.contains('full-editor');shell.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenStoredConfig').textContent=on?'Закрыть fullscreen':'На весь экран';resizeStoredConfigEditor();reportHeight()};$('activateStoredConfig').onclick=activateStoredConfig;$('deleteStoredConfig').onclick=deleteStoredConfig;$('renameStoredConfig').onclick=()=>openConfigName('rename',selectedStoredConfig);$('duplicateStoredConfig').onclick=()=>openConfigName('duplicate',selectedStoredConfig);$('closeConfigName').onclick=closeConfigName;$('configNameCancel').onclick=closeConfigName;$('configNameConfirm').onclick=confirmConfigName;$('configNameInput').onkeydown=e=>{if(e.key==='Enter')confirmConfigName()};$('configNameModal').onclick=e=>{if(e.target===$('configNameModal'))closeConfigName()};
   $('listSearch').oninput=renderListFiles;$('inspectListEntry').onclick=runEntryInspector;$('staticPathEntry').onclick=runStaticPath;$('analyzeLists').onclick=runListAnalysis;$('listEditor').oninput=updateListButtons;$('listEditor').onclick=updateListButtons;$('listEditor').onkeyup=updateListButtons;$('listEditor').onscroll=()=>{$('listGutter').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollLeft=$('listEditor').scrollLeft};$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};

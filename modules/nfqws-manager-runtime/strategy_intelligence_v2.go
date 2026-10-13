@@ -59,6 +59,7 @@ type v2DetectResponse struct {
 	DurationMS         int64                    `json:"duration_ms,omitempty"`
 	ThroughputBPS      int64                    `json:"throughput_bps,omitempty"`
 	Diagnostic         v2DiagnosticVerdict      `json:"diagnostic"`
+	Guidance           v2DomainGuidance         `json:"guidance"`
 }
 
 type v2HTTPMetrics struct {
@@ -727,7 +728,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		stages["dns"] = v2StageResult{State: "fail", LatencyMS: d.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
 		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic})
+		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)})
 		return
 	}
 	stages["dns"] = v2StageResult{State: "pass", LatencyMS: d.Milliseconds(), Detail: ip}
@@ -736,7 +737,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		stages["tcp"] = v2StageResult{State: "fail", LatencyMS: td.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
 		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic})
+		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)})
 		return
 	}
 	stages["tcp"] = v2StageResult{State: "pass", LatencyMS: td.Milliseconds(), Detail: ip + ":443"}
@@ -745,7 +746,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		stages["tls"] = v2StageResult{State: "fail", LatencyMS: tld.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
 		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic})
+		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)})
 		return
 	}
 	stages["tls"] = v2StageResult{State: "pass", LatencyMS: tld.Milliseconds(), Detail: "TLS handshake complete"}
@@ -769,7 +770,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		ResponseComplete: metrics.ResponseComplete, ProgressProven: metrics.ProgressProven,
 		Cutoff16KSuspected: metrics.Cutoff16KSuspected, TTFBMS: metrics.TTFBMS,
 		DurationMS: metrics.DurationMS, ThroughputBPS: metrics.ThroughputBPS,
-		Diagnostic: diagnostic,
+		Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic),
 	})
 }
 

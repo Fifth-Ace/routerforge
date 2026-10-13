@@ -1071,7 +1071,7 @@ jobs:
           echo "Synthetic bootstrap preflight profiles: OK"
 
       - name: Share tested frontend assets for Beta matrix
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta == true
+        if: steps.scope.outputs.full_release == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-v2-frontends
@@ -1100,7 +1100,7 @@ jobs:
   beta_build:
     name: Beta package build (${{ matrix.target }})
     needs: [preflight, test]
-    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.publish_beta == true
+    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true

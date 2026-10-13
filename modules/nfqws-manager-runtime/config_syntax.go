@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 // checkNFQWSShellSyntax parses the user-supplied nfqws2-keenetic shell config
@@ -15,7 +16,10 @@ func checkNFQWSShellSyntax(content string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-n")
+	cmd, err := safety.CommandContext(ctx, "/bin/sh", "-n")
+	if err != nil {
+		return fmt.Errorf("не удалось подготовить проверку синтаксиса shell: %w", err)
+	}
 	cmd.Stdin = strings.NewReader(content)
 	output, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {

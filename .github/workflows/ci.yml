@@ -21,6 +21,38 @@ permissions:
   contents: write
 
 jobs:
+  changes:
+    name: CI change scope
+    runs-on: ubuntu-latest
+    outputs:
+      workflow_only: ${{ steps.diff.outputs.workflow_only }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect workflow-only push
+        id: diff
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -eu
+          echo 'workflow_only=false' >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" != push ] || [ "$REF" != refs/heads/dev ]; then exit 0; fi
+          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then exit 0; fi
+          git diff --name-only "$BEFORE" "$GITHUB_SHA" > /tmp/rf-ci-changed.txt
+          if [ "$(wc -l < /tmp/rf-ci-changed.txt | tr -d ' ')" = 1 ] &&
+             grep -Fxq '.github/workflows/ci.yml' /tmp/rf-ci-changed.txt; then
+            echo 'workflow_only=true' >> "$GITHUB_OUTPUT"
+            echo 'WORKFLOW_ONLY_FAST_PATH=PASS'
+          fi
+      - name: Validate workflow syntax (fast path)
+        if: steps.diff.outputs.workflow_only == 'true'
+        run: ruby -e "require 'yaml'; YAML.parse_file('.github/workflows/ci.yml'); puts 'WORKFLOW_SYNTAX=PASS'"
+
   preflight:
     name: Fast release contracts
     runs-on: ubuntu-latest
@@ -73,8 +105,8 @@ jobs:
           PY_CHECK
 
   test:
-    needs: preflight
-    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+    needs: [preflight, changes]
+    if: (github.event_name != 'push' || github.ref != 'refs/heads/main') && !(github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.changes.outputs.workflow_only == 'true')
     runs-on: ubuntu-latest
 
     steps:
@@ -1103,7 +1135,7 @@ jobs:
 
   publish_dev:
     name: Publish rolling ARM64 Dev channel
-    needs: test
+    needs: [test, changes]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success' && !startsWith(github.event.head_commit.message, 'docs:')
     runs-on: ubuntu-latest
 

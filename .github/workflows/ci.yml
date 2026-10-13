@@ -1088,11 +1088,11 @@ jobs:
         run: sh scripts/verify-published-beta.sh
 
       - name: Build stable multiarch promotion candidate
-        if: steps.scope.outputs.full_release == 'true'
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
         run: sh scripts/build-stable-multiarch.sh "$GITHUB_SHA"
 
       - name: Upload stable promotion candidate
-        if: steps.scope.outputs.full_release == 'true'
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-stable-promotion

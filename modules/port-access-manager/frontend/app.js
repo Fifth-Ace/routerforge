@@ -384,7 +384,7 @@
           });
           row.appendChild(button);liveList.appendChild(row);
         });
-        liveStatus.textContent='Авторизованных IP: '+data.entries.length+' · источник: xt_recent';
+        liveStatus.textContent='Авторизованных IP: '+data.entries.length+' · источник: knockd / xt_recent';
       }).catch(function(err){liveStatus.textContent='Не удалось получить список: '+err.message;});
   }
   document.getElementById('recent-live-refresh').addEventListener('click',refreshRecentAccess);

@@ -124,6 +124,7 @@ func main() {
 	mux.HandleFunc("/v1/action", mutationOnly(handleAction))
 	mux.HandleFunc("/v1/config", mutationOnly(handleConfig))
 	mux.HandleFunc("/v1/config/validate", mutationOnly(handleConfigValidate))
+	mux.HandleFunc("/v1/config/lua-catalog", getOnly(handleNF1BLuaCatalog))
 	registerConfigLibraryRoutes(mux)
 	registerBlobRoutes(mux)
 	registerListSourceRoutes(mux)

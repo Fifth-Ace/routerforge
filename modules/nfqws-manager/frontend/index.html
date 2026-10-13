@@ -2121,6 +2121,20 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     <div class="setup-note warn" style="margin-bottom:10px">Это полный конфиг nfqws2.conf. Для обычной настройки используйте вкладку «Настройка».</div>
     <div id="configSyntaxStatus" class="setup-note" role="status" aria-live="polite" style="margin-bottom:10px">Проверка конфига ещё не запускалась. Это статический анализ, не nfqws2 --dry-run.</div>
     <pre id="configSemanticIssues" role="status" aria-live="polite" style="display:none;white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 10px"></pre>
+    <div id="nf1bLuaFixNote" class="setup-note" style="display:none;margin:0 0 10px">
+      Для предупреждения о неизвестном payload: выдели целиком один аргумент <code>--lua-desync=fake:...</code> (или multisplit/hostfakesplit/multidisorder) в редакторе.
+      <button id="nf1bLuaPayloadFix" type="button">Добавить payload=all к выделенному Lua</button>
+      Изменение останется только в редакторе и откроет diff.
+    </div>
+    <details id="nf1bLuaPanel" class="panel" style="margin:0 0 12px;padding:12px">
+      <summary style="cursor:pointer">Lua-функции, доступные на этом роутере · справочник</summary>
+      <div class="toolbar" style="margin:10px 0">
+        <input id="nf1bLuaQuery" type="search" placeholder="Поиск функции или аргумента…" style="flex:1;min-width:180px">
+        <button id="nf1bLuaRefresh" type="button">Обновить</button>
+      </div>
+      <div id="nf1bLuaInfo" class="section-kicker" role="status">Открой справочник, чтобы прочитать локальные Lua-файлы без их выполнения.</div>
+      <div id="nf1bLuaResults" class="v2-list" style="margin-top:10px"></div>
+    </details>
     <div class="editor-shell">
       <div class="editor-toolbar"><span id="editorState" class="mono">CLEAN</span><span>Ctrl+S → Diff · Tab = 2 spaces</span></div>
       <div class="editor-main"><pre id="gutter" class="gutter">1</pre><textarea id="config" class="editor" spellcheck="false"></textarea></div>
@@ -3323,9 +3337,59 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function makeDiff(a,b){const A=lines(a),B=lines(b),out=[];for(let i=0;i<Math.max(A.length,B.length);i++){if(A[i]===B[i]){if(A[i]!==undefined)out.push({c:'same',t:`  ${A[i]}`});continue}if(A[i]!==undefined)out.push({c:'del',t:`- ${A[i]}`});if(B[i]!==undefined)out.push({c:'add',t:`+ ${B[i]}`})}return out}
   function showDiff(){$('diffApply').dataset.mode='config';$('diffBody').innerHTML=makeDiff(original,$('config').value).map(x=>`<span class="${x.c}">${esc(x.t)}</span>`).join('\n')||'<span class="same">No changes</span>';$('diffModal').classList.add('open')}
   function closeDiff(){$('diffModal').classList.remove('open')}
+  // NF1B3: installed Lua documentation is read-only; output is always textContent.
+  let nf1bLuaCatalogData=null, nf1bLuaPreviewSource=null;
+  function nf1bLuaRender(){
+    const host=$('nf1bLuaResults'), info=$('nf1bLuaInfo'), data=nf1bLuaCatalogData;
+    host.textContent='';
+    if(!data){info.textContent='Нет данных о локальных Lua-функциях.';return}
+    const q=$('nf1bLuaQuery').value.trim().toLowerCase();
+    const rows=(Array.isArray(data.functions)?data.functions:[]).filter(f=>
+      !q || [f.name,f.file,f.standard,f.legacy,...(f.description||[]),...(f.arguments||[]).map(a=>a.help)].join(' ').toLowerCase().includes(q));
+    info.textContent='Lua-функций: '+(data.functions||[]).length+' · найдено: '+rows.length+
+      ' · прочитано файлов: '+Number(data.files_scanned||0)+' · пропущено: '+Number(data.files_skipped||0)+
+      '. Источник — файлы устройства; проверка только справочная.';
+    for(const f of rows.slice(0,80)){
+      const card=document.createElement('div');card.className='v2-row';
+      const title=document.createElement('strong');title.textContent=String(f.name||'')+' · '+String(f.file||'');card.appendChild(title);
+      const parts=[];
+      if(f.standard)parts.push('Стандартные параметры: '+f.standard);
+      if(f.legacy)parts.push('Аналог nfqws1: '+f.legacy);
+      for(const d of (f.description||[]))parts.push(d);
+      for(const a of (f.arguments||[]))parts.push('• '+(a.help||a.name));
+      if(parts.length){const pre=document.createElement('div');pre.className='section-kicker';pre.style.whiteSpace='pre-wrap';pre.textContent=parts.join('\n');card.appendChild(pre)}
+      host.appendChild(card);
+    }
+    if(rows.length>80){const more=document.createElement('div');more.className='setup-note';more.textContent='Показаны первые 80 функций — уточни поиск.';host.appendChild(more)}
+    reportHeight();
+  }
+  async function nf1bLuaLoad(force=false){
+    if(nf1bLuaCatalogData&&!force){nf1bLuaRender();return}
+    $('nf1bLuaInfo').textContent='Читаем документацию установленных Lua-файлов…';
+    try{
+      nf1bLuaCatalogData=await api('/config/lua-catalog');nf1bLuaRender();
+    }catch(e){$('nf1bLuaInfo').textContent='Lua-справочник недоступен: '+e.message}
+  }
+  function nf1bLuaPayloadFixSelected(){
+    const editor=$('config');
+    if(nf1bLuaPreviewSource!==editor.value){notice('Конфиг менялся после проверки. Сначала проверь его повторно.','error');return}
+    const a=editor.selectionStart,b=editor.selectionEnd;
+    const selected=editor.value.slice(a,b);
+    const re=/^--lua-desync=(?:fake|multisplit|hostfakesplit|multidisorder)(?::[A-Za-z0-9_.,=+\-@]+)*$/;
+    if(!re.test(selected)||selected.includes('payload=')){
+      notice('Выдели один полный Lua-аргумент --lua-desync=... без payload= в редакторе.','error');return
+    }
+    const replacement=selected+':payload=all';
+    if(!confirm('Добавить payload=all к выделенному аргументу? Изменится только текст в редакторе, без записи на роутер.'))return;
+    editor.value=editor.value.slice(0,a)+replacement+editor.value.slice(b);
+    editor.selectionStart=a;editor.selectionEnd=a+replacement.length;
+    updateConfigEditor();refreshSyntaxEditor(editor);
+    nf1bLuaPreviewSource=null;$('nf1bLuaFixNote').style.display='none';
+    showDiff();notice('Изменение подготовлено в редакторе. Проверь diff и повторно запусти проверку конфигурации.','good');
+  }
   async function checkConfigSyntaxPreview(){
     const before=$('config').value, result=$('configSyntaxStatus'), details=$('configSemanticIssues'), button=$('checkConfigSyntax');
-    button.disabled=true;
+    button.disabled=true;nf1bLuaPreviewSource=null;$('nf1bLuaFixNote').style.display='none';
     details.style.display='none';details.textContent='';
     result.textContent='Проверяем синтаксис, параметры и доступный native nfqws2 --dry-run…';
     result.style.color='';
@@ -3334,6 +3398,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       if($('config').value!==before){result.textContent='Конфиг изменился во время проверки. Запустите её ещё раз.';return}
       if(!response.syntax_ok){result.textContent='Синтаксис shell: '+(response.error||'ошибка');result.style.color='var(--bad)';return}
       const issues=Array.isArray(response.issues)?response.issues:[];
+      nf1bLuaPreviewSource=before;
+      if(issues.some(x=>x.code==='UNKNOWN_PAYLOAD_LUA'))$('nf1bLuaFixNote').style.display='block';
       const reportLines=issues.map(x=>{
         const level=x.severity==='error'?'ОШИБКА':x.severity==='warning'?'ВНИМАНИЕ':'ИНФО';
         return level+(x.variable?' · '+x.variable:'')+': '+(x.message||x.code||'замечание');
@@ -6295,6 +6361,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   $('refreshCatalog').onclick=()=>{catalogLoaded=false;catalogSelected='';catalogSelectedData=null;loadCatalog(true)};$('refreshBlobs').onclick=()=>{blobLoaded=false;loadBlobs(true)};$('openBlobCatalog').onclick=()=>{const tab=document.querySelector('.tab[data-tab="catalog"]');if(tab)tab.click()};$('catalogSearch').oninput=renderCatalogList;$('catalogAll').onclick=()=>setCatalogFilter('all');$('catalogLocal').onclick=()=>setCatalogFilter('local');$('catalogUpstream').onclick=()=>setCatalogFilter('upstream');
   $('closeSmartApply').onclick=closeSmartApply;$('refreshSmartApply').onclick=async()=>{if(smartApplyBusy)return;$('smartApplyPlan').innerHTML='<div class="empty">Пересчитываю exact plan…</div>';$('applySmartApply').disabled=true;try{smartApplyPlan=await buildSmartApplyPlan();renderSmartApplyPlan()}catch(e){smartApplyPlan=null;$('smartApplyPlan').innerHTML=`<div class="smart-apply-error">${esc(e.message)}</div>`}};$('applySmartApply').onclick=applySmartApply;$('smartApplyModal').onclick=e=>{if(e.target===$('smartApplyModal'))closeSmartApply()};
   $('config').oninput=()=>{updateConfigEditor();$('configSyntaxStatus').textContent='Конфиг изменён: проверка не актуальна.';$('configSemanticIssues').style.display='none';$('configSemanticIssues').textContent='';$('configSyntaxStatus').style.color=''};$('config').onscroll=()=>{$('gutter').scrollTop=$('config').scrollTop};$('config').onkeydown=e=>{if(e.key==='Tab'){e.preventDefault();const t=e.target,a=t.selectionStart,b=t.selectionEnd;t.value=t.value.slice(0,a)+'  '+t.value.slice(b);t.selectionStart=t.selectionEnd=a+2;updateConfigEditor()}};
+  $('nf1bLuaPanel').ontoggle=()=>{if($('nf1bLuaPanel').open)void nf1bLuaLoad()};
+  $('nf1bLuaRefresh').onclick=()=>{void nf1bLuaLoad(true)};
+  $('nf1bLuaQuery').oninput=nf1bLuaRender;
+  $('nf1bLuaPayloadFix').onclick=nf1bLuaPayloadFixSelected;
   $('checkConfigSyntax').onclick=checkConfigSyntaxPreview;$('save').onclick=showDiff;$('diffConfig').onclick=showDiff;$('undoConfig').onclick=()=>{$('config').value=original;updateConfigEditor();refreshSyntaxEditor($('config'))};  $('closeDiff').onclick=closeDiff;$('diffCancel').onclick=closeDiff;$('diffApply').onclick=()=>{$('diffApply').dataset.mode==='flow'?applyFlow():$('diffApply').dataset.mode==='stored-config'?saveStoredConfig():saveConfig()};$('resetSetup').onclick=resetFlow;$('diffSetup').onclick=previewFlow;$('applySetup').onclick=previewFlow;$('addCustomBlock').onclick=()=>{customBlocks.push('--filter-tcp=443 --dpi-desync=fake');customLabels.push('');renderFlow()};document.querySelectorAll('input[name="flowMode"]').forEach(r=>r.onchange=()=>{flowValues.NFQWS_EXTRA_ARGS=`$${r.value}`;updateModeCards();updateFlowState()});document.querySelectorAll('input[name="policyMode"]').forEach(r=>r.onchange=()=>setPolicyMode(r.value));document.querySelectorAll('[data-open-list]').forEach(b=>b.onclick=()=>openListFromSetup(b.dataset.openList));for(const id of ['flowInterface','flowBaseArgs','flowArgs','flowQuic','flowUdp','flowIpset','flowTcpPorts','flowUdpPorts','flowPolicyName','flowLogPath'])$(id).oninput=updateFlowState;for(const id of ['flowIPv6','flowLogLevel'])$(id).onchange=updateFlowState;$('diffModal').onclick=e=>{if(e.target===$('diffModal'))closeDiff()};
   $('configLibrarySearch').oninput=renderConfigLibraryList;$('newStoredConfig').onclick=()=>openConfigName('create-empty');$('saveCurrentConfig').onclick=()=>openConfigName('create-current');$('refreshNeighborConfigs').onclick=()=>{configLibraryLoaded=false;loadConfigLibrary(true)};$('storedConfigEditor').oninput=updateStoredConfigButtons;$('saveStoredConfig').onclick=showStoredConfigDiff;$('diffStoredConfig').onclick=showStoredConfigDiff;$('undoStoredConfig').onclick=()=>{$('storedConfigEditor').value=storedConfigOriginal;updateStoredConfigButtons()};$('fullscreenStoredConfig').onclick=()=>{const shell=$('storedConfigEditorShell'),on=!shell.classList.contains('full-editor');shell.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenStoredConfig').textContent=on?'Закрыть fullscreen':'На весь экран';resizeStoredConfigEditor();reportHeight()};$('activateStoredConfig').onclick=activateStoredConfig;$('deleteStoredConfig').onclick=deleteStoredConfig;$('renameStoredConfig').onclick=()=>openConfigName('rename',selectedStoredConfig);$('duplicateStoredConfig').onclick=()=>openConfigName('duplicate',selectedStoredConfig);$('closeConfigName').onclick=closeConfigName;$('configNameCancel').onclick=closeConfigName;$('configNameConfirm').onclick=confirmConfigName;$('configNameInput').onkeydown=e=>{if(e.key==='Enter')confirmConfigName()};$('configNameModal').onclick=e=>{if(e.target===$('configNameModal'))closeConfigName()};
   $('listSearch').oninput=renderListFiles;$('inspectListEntry').onclick=runEntryInspector;$('staticPathEntry').onclick=runStaticPath;$('analyzeLists').onclick=runListAnalysis;$('listEditor').oninput=updateListButtons;$('listEditor').onclick=updateListButtons;$('listEditor').onkeyup=updateListButtons;$('listEditor').onscroll=()=>{$('listGutter').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollTop=$('listEditor').scrollTop;$('listHighlight').scrollLeft=$('listEditor').scrollLeft};$('fullscreenList').onclick=()=>{const panel=$('listEditorPanel'),on=!panel.classList.contains('full-editor');panel.classList.toggle('full-editor',on);document.body.classList.toggle('syntax-fullscreen-open',on);document.documentElement.classList.toggle('syntax-fullscreen-open',on);$('fullscreenList').textContent=on?'Закрыть fullscreen':'На весь экран';reportHeight()};$('normalizeList').onclick=normalizeList;$('undoList').onclick=()=>{$('listEditor').value=listOriginal;updateListButtons()};$('saveList').onclick=saveList;$('deleteList').onclick=deleteList;$('newList').onclick=openCreate;$('closeCreate').onclick=closeCreate;$('createCancel').onclick=closeCreate;$('createConfirm').onclick=createList;$('newListName').onkeydown=e=>{if(e.key==='Enter')createList()};

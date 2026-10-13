@@ -1344,7 +1344,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 <section id="view-domain-v2" class="view">
   <div class="v2-shell">
     <div class="v2-hero">
-      <div><h2>Проверка домена</h2><div class="section-kicker">где ломается доступ: DNS → TCP → TLS → HTTP</div></div>
+      <div><h2>Проверить сайт</h2><div class="section-kicker">проверка доступа → понятная причина → следующее действие</div></div>
       <span id="v2DomainState" class="config-badge">IDLE</span>
     </div>
     <div class="v2-input-row">
@@ -1352,6 +1352,9 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       <button id="v2DomainRun" class="primary">Проверить</button>
       <button id="v2DomainToSelector" style="display:none">Подобрать рабочую стратегию</button>
     </div>
+    <article class="panel" id="v2DomainGuidance" role="status" aria-live="polite" style="margin-top:12px">
+      <div class="analysis-empty">Введите сайт и нажмите «Проверить». RouterForge подскажет, что делать дальше.</div>
+    </article>
     <div id="v2DomainSummary" class="v2-card-grid">
       <div class="panel"><div class="analysis-empty">Введите домен. Рабочие настройки не изменяются.</div></div>
     </div>
@@ -5577,6 +5580,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   async function runV2Domain(){
     const target=String($('v2DomainTarget').value||'').trim();if(!target){notice('Проверка домена: укажите hostname.','error');return}
     $('v2DomainState').textContent='RUNNING';$('v2DomainRun').disabled=true;$('v2DomainToSelector').style.display='none';
+    $('v2DomainGuidance').textContent='Проверяем DNS, TCP, TLS и HTTPS с роутера…';
     try{
       const [inspect,detect]=await Promise.all([
         api('/v2/inspect-target',{method:'POST',body:JSON.stringify({target})}),
@@ -5585,6 +5589,16 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       v2DomainLast={inspect,detect};$('v2DomainTarget').value=inspect.target||detect.target||target;
       $('v2DomainState').textContent=String(detect.classification||'DONE').toUpperCase();
       const diag=detect.diagnostic||{};
+      const guide=detect.guidance||{};
+      const guideTitle=String(guide.title||'Диагностика завершена');
+      const guideSummary=String(guide.summary||diag.suggested_action||'');
+      const guideScope=String(guide.scope||'Проверка выполняется с роутера, не с клиентского устройства.');
+      const runtimeNotice=!inspect.runtime_running&&guide.next_action==='selector'
+        ?'NFQWS2 сейчас не запущен. Прежде чем подбирать стратегию, проверь работу сервиса.':'';
+      $('v2DomainGuidance').innerHTML=`<div class="v2-result-title">${esc(guideTitle)}</div>`+
+        `<div style="margin-top:8px">${esc(guideSummary)}</div>`+
+        (runtimeNotice?`<div class="setup-note warn" style="margin-top:10px">${esc(runtimeNotice)}</div>`:'')+
+        `<div class="section-kicker" style="margin-top:10px">${esc(guideScope)}</div>`;
       $('v2DomainSummary').innerHTML=[
         ['Classification',detect.classification||'—'],['Diagnostic',diag.code||'—'],
         ['Fault domain',diag.fault_domain||'—'],['Confidence',diag.confidence||'—'],
@@ -5595,10 +5609,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
       const lists=inspect.list_matches||[];$('v2DomainLists').innerHTML=lists.length?lists.map(x=>`<div class="v2-row"><div class="v2-result-title">${esc(x.name)}</div><div class="meta">${esc(x.path||'')} · ${esc(x.relation||'present')}</div>${v2Pill('MATCH')}</div>`).join(''):'<div class="analysis-empty">Совпадений в локальных list-файлах не найдено.</div>';
       const profiles=inspect.production_profile_matches||[];$('v2DomainProfiles').innerHTML=profiles.length?profiles.map(p=>`<div class="v2-row"><div class="v2-result-title">Profile ${Number(p.index)}</div><div><div class="value">${esc(p.match_reason||'')}</div><div class="v2-args">${esc(v2ArgsText(p.args))}</div></div>${v2Pill(p.candidate_ready?'READY':'CHECK')}</div>`).join(''):'<div class="analysis-empty">Прямую production profile binding доказать не удалось.</div>';
       const action=String(detect.diagnostic?.suggested_action||'').trim();
-      const needsStrategy=!!diag.strategy_relevant&&String(detect.classification||'').toLowerCase()!=='clear';
+      const needsStrategy=guide.next_action==='selector'&&!!inspect.runtime_running;
+      $('v2DomainToSelector').textContent=String(guide.next_label||'Подобрать стратегию');
       $('v2DomainToSelector').style.display=needsStrategy?'':'none';
       notice(`Проверка ${inspect.target||target}: ${detect.classification_text||detect.classification||'готово'}${action?` · ${action}`:''}`,detect.classification==='clear'?'good':'');
-    }catch(e){$('v2DomainState').textContent='ОШИБКА';notice(`Проверка домена: ${e.message}`,'error')}
+    }catch(e){$('v2DomainState').textContent='ОШИБКА';$('v2DomainGuidance').textContent='Не удалось выполнить проверку: '+e.message;notice(`Проверка домена: ${e.message}`,'error')}
     finally{$('v2DomainRun').disabled=false;reportHeight()}
   }
   function v2DomainSend(tab){

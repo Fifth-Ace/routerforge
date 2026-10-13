@@ -3327,26 +3327,34 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     const before=$('config').value, result=$('configSyntaxStatus'), details=$('configSemanticIssues'), button=$('checkConfigSyntax');
     button.disabled=true;
     details.style.display='none';details.textContent='';
-    result.textContent='Проверяем синтаксис shell и параметры nfqws2 без исполнения конфига…';
+    result.textContent='Проверяем синтаксис, параметры и доступный native nfqws2 --dry-run…';
     result.style.color='';
     try{
       const response=await api('/config/validate',{method:'POST',body:JSON.stringify({content:before})});
       if($('config').value!==before){result.textContent='Конфиг изменился во время проверки. Запустите её ещё раз.';return}
       if(!response.syntax_ok){result.textContent='Синтаксис shell: '+(response.error||'ошибка');result.style.color='var(--bad)';return}
       const issues=Array.isArray(response.issues)?response.issues:[];
-      if(issues.length){
-        details.textContent=issues.map(x=>{
-          const level=x.severity==='error'?'ОШИБКА':x.severity==='warning'?'ВНИМАНИЕ':'ИНФО';
-          return level+(x.variable?' · '+x.variable:'')+': '+(x.message||x.code||'замечание');
-        }).join('\n');
-        details.style.display='block';
-      }
-      if(response.semantic_ok){
-        result.textContent='Синтаксис shell: OK · статические параметры: '+(issues.length?'есть замечания':'OK')+'. Native nfqws2 --dry-run ещё не выполнялся.';
+      const reportLines=issues.map(x=>{
+        const level=x.severity==='error'?'ОШИБКА':x.severity==='warning'?'ВНИМАНИЕ':'ИНФО';
+        return level+(x.variable?' · '+x.variable:'')+': '+(x.message||x.code||'замечание');
+      });
+      const state=String(response.native_dry_run||'not_performed');
+      const detail=String(response.native_detail||'').trim();
+      if(state==='failed')reportLines.push('NFQWS2 --dry-run: ОШИБКА'+(detail?'\n'+detail:''));
+      if(state==='not_performed'&&detail)reportLines.push('NFQWS2 --dry-run: НЕ ПРОВЕДЁН · '+detail);
+      details.textContent=reportLines.join('\n');details.style.display=reportLines.length?'block':'none';
+      if(!response.semantic_ok){
+        result.textContent='Синтаксис shell: OK, но найдены ошибки параметров. Сохранение будет отклонено.';
+        result.style.color='var(--bad)';
+      }else if(state==='failed'){
+        result.textContent='Статический анализ: OK, но нативный nfqws2 --dry-run отклонил собранные параметры. Сначала проверьте ошибку ниже.';
+        result.style.color='var(--bad)';
+      }else if(state==='passed'){
+        result.textContent='Синтаксис и статические параметры: OK · nfqws2 --dry-run: PASS (профилей: '+Number(response.native_profiles||0)+').';
         result.style.color=issues.some(x=>x.severity==='warning')?'var(--warn)':'var(--good)';
       }else{
-        result.textContent='Синтаксис shell: OK, но найдены ошибки параметров. Сохранение не пройдёт.';
-        result.style.color='var(--bad)';
+        result.textContent='Статическая проверка: OK. Нативная проверка не проведена для этого конфига или на этом устройстве.';
+        result.style.color='var(--warn)';
       }
     }catch(error){result.textContent='Ошибка проверки: '+error.message;result.style.color='var(--bad)'}
     finally{button.disabled=false}

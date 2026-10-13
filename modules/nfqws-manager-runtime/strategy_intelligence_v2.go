@@ -274,6 +274,7 @@ func registerStrategyIntelligenceV2Routes(mux *http.ServeMux) {
 	registerBenchTransportV2Routes(mux)
 	mux.HandleFunc("/v1/v2/inspect-target", mutationOnly(handleV2InspectTarget))
 	mux.HandleFunc("/v1/v2/detect", mutationOnly(handleV2Detect))
+	mux.HandleFunc("/v1/v2/site-diagnose", mutationOnly(handleV2SiteDiagnose))
 	mux.HandleFunc("/v1/v2/target-sources", getOnly(handleV2TargetSources))
 	mux.HandleFunc("/v1/v2/targets/resolve", mutationOnly(handleV2TargetsResolve))
 	mux.HandleFunc("/v1/v2/bench", mutationOnly(handleV2Bench))
@@ -525,6 +526,10 @@ func handleV2InspectTarget(w http.ResponseWriter, r *http.Request) {
 	}
 	cancelResolve()
 
+	writeJSON(w, http.StatusOK, v2InspectTargetFromIPv4(target, destinationIPv4))
+}
+
+func v2InspectTargetFromIPv4(target, destinationIPv4 string) v2InspectResponse {
 	status := readStatus()
 	inventory := readBenchStrategyInventory()
 	listMatches := []v2ListMatch{}
@@ -575,12 +580,12 @@ func handleV2InspectTarget(w http.ResponseWriter, r *http.Request) {
 			verdict = "LIST_MATCH_WITHOUT_PROFILE_BINDING"
 		}
 	}
-	writeJSON(w, http.StatusOK, v2InspectResponse{
+	return v2InspectResponse{
 		OK: true, Target: target, RuntimeRunning: status.Running, ConfigSHA256: status.ConfigSHA256,
 		ProductionSource: inventory.Source, ProductionPID: inventory.ProductionPID,
 		ProfileCount: inventory.ProfileCount, EligibleProfileCount: inventory.EligibleProfileCount,
 		ListMatches: listMatches, ProductionProfileMatches: profiles, BindingVerdict: verdict,
-	})
+	}
 }
 
 func v2ResolvePublicIPv4(ctx context.Context, host string) (string, time.Duration, error) {
@@ -717,7 +722,11 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), v2DetectTimeout)
+	writeJSON(w, http.StatusOK, v2RunDetect(r.Context(), target))
+}
+
+func v2RunDetect(parent context.Context, target string) v2DetectResponse {
+	ctx, cancel := context.WithTimeout(parent, v2DetectTimeout)
 	defer cancel()
 	stages := map[string]v2StageResult{
 		"dns": {State: "skipped"}, "tcp": {State: "skipped"},
@@ -728,8 +737,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		stages["dns"] = v2StageResult{State: "fail", LatencyMS: d.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
 		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)})
-		return
+		return v2DetectResponse{OK: false, Target: target, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)}
 	}
 	stages["dns"] = v2StageResult{State: "pass", LatencyMS: d.Milliseconds(), Detail: ip}
 	td, err := v2DirectTCP(ctx, ip)
@@ -737,8 +745,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		stages["tcp"] = v2StageResult{State: "fail", LatencyMS: td.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
 		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)})
-		return
+		return v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)}
 	}
 	stages["tcp"] = v2StageResult{State: "pass", LatencyMS: td.Milliseconds(), Detail: ip + ":443"}
 	tld, err := v2DirectTLS(ctx, target, ip)
@@ -746,8 +753,7 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 		stages["tls"] = v2StageResult{State: "fail", LatencyMS: tld.Milliseconds(), Detail: err.Error()}
 		class, text := v2ClassifyDetect(stages, v2HTTPMetrics{})
 		diagnostic := v2ClassifyDiagnostic(stages, v2HTTPMetrics{})
-		writeJSON(w, http.StatusOK, v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)})
-		return
+		return v2DetectResponse{OK: false, Target: target, DestinationIPv4: ip, Stages: stages, Classification: class, ClassificationText: text, Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic)}
 	}
 	stages["tls"] = v2StageResult{State: "pass", LatencyMS: tld.Milliseconds(), Detail: "TLS handshake complete"}
 	metrics, httpErr := v2ReadHTTPS(ctx, target, ip, 0)
@@ -764,14 +770,14 @@ func handleV2Detect(w http.ResponseWriter, r *http.Request) {
 	class, text := v2ClassifyDetect(stages, metrics)
 	diagnostic := v2ClassifyDiagnostic(stages, metrics)
 	_ = v2RecordTCP16Observation(target, ip, metrics)
-	writeJSON(w, http.StatusOK, v2DetectResponse{
+	return v2DetectResponse{
 		OK: state != "fail", Target: target, DestinationIPv4: ip, Stages: stages,
 		Classification: class, ClassificationText: text,
 		ResponseComplete: metrics.ResponseComplete, ProgressProven: metrics.ProgressProven,
 		Cutoff16KSuspected: metrics.Cutoff16KSuspected, TTFBMS: metrics.TTFBMS,
 		DurationMS: metrics.DurationMS, ThroughputBPS: metrics.ThroughputBPS,
 		Diagnostic: diagnostic, Guidance: v2GuideDiagnostic(diagnostic),
-	})
+	}
 }
 
 type v2BenchOps struct {

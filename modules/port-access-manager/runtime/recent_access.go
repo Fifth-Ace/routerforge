@@ -16,7 +16,17 @@ import (
 )
 
 const recentRoot = "/proc/net/xt_recent"
-const recentAuthName = "RF_KNOCK_AUTH"
+const recentAuthName = "RFPA_K_AUTH"
+
+// The managed knockd gate (engine-gate.sh) uses RFPA_K_AUTH. The separate
+// RF_KNOCK_AUTH list belongs to the non-deployable iptables-recent preview.
+// Never inspect or revoke a different engine's authorization pool.
+func managedKnockdRecentPool(enabled bool) (string, bool) {
+	if !enabled {
+		return "", false
+	}
+	return recentAuthName, true
+}
 
 type recentClient struct {
 	IP           string `json:"ip"`
@@ -69,7 +79,12 @@ func recentAccessHandler(w http.ResponseWriter, r *http.Request) {
 		jsonReply(w, 405, map[string]string{"error": "GET required"})
 		return
 	}
-	path := filepath.Join(recentRoot, recentAuthName)
+	pool, enabled := managedKnockdRecentPool(engineActive("knockd"))
+	if !enabled {
+		jsonReply(w, 200, map[string]any{"available": false, "engine": "knockd", "entries": []recentClient{}, "reason": "managed knockd protection is not enabled"})
+		return
+	}
+	path := filepath.Join(recentRoot, pool)
 	entries, err := readRecentClients(path, 0, time.Now())
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -79,7 +94,7 @@ func recentAccessHandler(w http.ResponseWriter, r *http.Request) {
 		jsonReply(w, 503, map[string]string{"error": "unable to read recent authorization list"})
 		return
 	}
-	jsonReply(w, 200, map[string]any{"available": true, "engine": "iptables-recent", "list": recentAuthName, "entries": entries, "note": "kernel current state; timeout cannot be inferred from jiffies alone"})
+	jsonReply(w, 200, map[string]any{"available": true, "engine": "knockd", "list": pool, "entries": entries, "note": "kernel current state; timeout cannot be inferred from jiffies alone"})
 }
 
 func recentRevokeHandler(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +125,12 @@ func recentRevokeHandler(w http.ResponseWriter, r *http.Request) {
 		jsonReply(w, 400, map[string]string{"error": "IP and confirmation required"})
 		return
 	}
-	path := filepath.Join(recentRoot, recentAuthName)
+	pool, enabled := managedKnockdRecentPool(engineActive("knockd"))
+	if !enabled {
+		jsonReply(w, http.StatusConflict, map[string]string{"error": "managed knockd protection is not enabled"})
+		return
+	}
+	path := filepath.Join(recentRoot, pool)
 	if info, err := os.Lstat(path); err != nil || !info.Mode().IsRegular() {
 		jsonReply(w, 409, map[string]string{"error": "authorization list unavailable"})
 		return
@@ -142,7 +162,7 @@ func decodeRecentRevoke(r *http.Request, target any) error {
 }
 
 // odinAccessHandler exposes the actual odin authorization list (KKD),
-// never the legacy RF_KNOCK_AUTH pool. This endpoint is read-only.
+// never the managed knockd RFPA_K_AUTH pool. This endpoint is read-only.
 // xt_recent exports jiffies, so no synthetic wall-clock expiration is returned.
 func odinAccessHandler(w http.ResponseWriter, r *http.Request) {
 	if !odinEnabled() {

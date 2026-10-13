@@ -31,3 +31,23 @@ func TestRevokeNeedsCore(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 }
+
+// The live UI must show the pool populated by managed knockd, not the
+// independently staged (never activated) iptables-recent preview.
+func TestManagedKnockdRecentPoolMatchesGate(t *testing.T) {
+	if name, ok := managedKnockdRecentPool(false); ok || name != "" {
+		t.Fatalf("disabled gate exposed recent pool: %q %v", name, ok)
+	}
+	name, ok := managedKnockdRecentPool(true)
+	if !ok || name != "RFPA_K_AUTH" {
+		t.Fatalf("incorrect live pool: %q %v", name, ok)
+	}
+	gate, err := os.ReadFile("../packaging/engine-gate.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(gate), "/proc/net/xt_recent/"+name) ||
+		!strings.Contains(string(gate), "--name "+name) {
+		t.Fatalf("gate does not use live list %q", name)
+	}
+}

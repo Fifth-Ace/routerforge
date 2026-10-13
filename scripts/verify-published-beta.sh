@@ -88,6 +88,7 @@ for target, path in targets.items():
         "routerforge-nfqws-manager",
         "routerforge-antiscan-manager",
         "routerforge-port-access-manager",
+        "routerforge-crowdsec-manager",
         "routerforge-profiling",
     ]
     if not isinstance(components, list):
@@ -132,8 +133,8 @@ for target, path in targets.items():
 
         all_ipks.add(asset)
 
-if len(all_ipks) != 27:
-    raise SystemExit(f"expected 27 target-specific IPKs, got {len(all_ipks)}")
+if len(all_ipks) != 30:
+    raise SystemExit(f"expected 30 target-specific IPKs, got {len(all_ipks)}")
 
 sums_path = root / "routerforge-beta-SHA256SUMS"
 sum_assets = set()
@@ -157,7 +158,7 @@ if sum_assets != all_ipks:
     )
 
 print("Published beta indexes/assets: OK")
-print("Published target IPKs: 27")
+print("Published target IPKs: 30")
 PY
 
 for bootstrap in \

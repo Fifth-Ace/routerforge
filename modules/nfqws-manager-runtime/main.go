@@ -123,6 +123,7 @@ func main() {
 	}))
 	mux.HandleFunc("/v1/action", mutationOnly(handleAction))
 	mux.HandleFunc("/v1/config", mutationOnly(handleConfig))
+	mux.HandleFunc("/v1/config/validate", mutationOnly(handleConfigValidate))
 	registerConfigLibraryRoutes(mux)
 	registerBlobRoutes(mux)
 	registerListSourceRoutes(mux)
@@ -455,7 +456,33 @@ func validateConfig(content string) error {
 			return fmt.Errorf("nfqws2 config line %d exceeds 8192 bytes", line)
 		}
 	}
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return checkNFQWSShellSyntax(content)
+}
+
+// handleConfigValidate checks shell syntax without saving or executing the config.
+// NF1A deliberately does not claim native nfqws2 --dry-run validation.
+func handleConfigValidate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid config validation request"})
+		return
+	}
+	if err := validateConfig(req.Content); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok": false, "syntax_ok": false, "scope": "shell_syntax_only",
+			"native_dry_run": "not_performed", "error": err.Error(),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok": true, "syntax_ok": true, "scope": "shell_syntax_only",
+		"native_dry_run": "not_performed",
+	})
 }
 
 func handleAction(w http.ResponseWriter, r *http.Request) {

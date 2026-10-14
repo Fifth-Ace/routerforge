@@ -1638,6 +1638,50 @@ executionLoop:
 			candidates = append(candidates, candidateSlots[i])
 		}
 	}
+	// NF3B2: after the initial workers have exited and removed their rules,
+	// confirm at most two promising candidates in a fresh, sequential sandbox.
+	// An initial cleanup failure must never trigger another NFQUEUE setup.
+	initialCleanupProven := true
+	for _, candidate := range candidates {
+		if !candidate.CleanupProven {
+			initialCleanupProven = false
+			break
+		}
+	}
+	confirmIndices := []int{}
+	confirmedCount := 0
+	if initialCleanupProven && baseline.ResultClass != "WORKING" {
+		confirmIndices = v2ConfirmationShortlist(candidates, v2ConfirmMaxCandidates)
+		for position, index := range confirmIndices {
+			setV2SelectorProgress(sessionID, "CONFIRM", completed, len(templates),
+				fmt.Sprintf("confirming live candidate %d of %d", position+1, len(confirmIndices)), false, false)
+			confirmCtx, cancelConfirm := context.WithTimeout(r.Context(), 35*time.Second)
+			sandbox := newV2DirectSandbox(capabilities, inventory, 0, queues[0], target, ip)
+			setupErr := sandbox.RulesUp(true)
+			retry := v2BenchAttempt{
+				Transport: benchTransportHTTPS, Network: "tcp", RemotePort: 443,
+				DestinationIPv4: ip, Queue: queues[0], ResultClass: "INCONCLUSIVE",
+			}
+			if setupErr != nil {
+				retry.Error = "confirmation sandbox rules: " + setupErr.Error()
+			} else {
+				retry = sandbox.RunCandidate(confirmCtx, templates[index].profile)
+			}
+			sandbox.RulesDown()
+			cancelConfirm()
+			candidates[index].Attempts = append(candidates[index].Attempts, retry)
+			v2FinalizeCandidate(&candidates[index])
+			if !retry.CleanupProven {
+				// The existing cleanup gate immediately below fails closed.
+				break
+			}
+			if candidates[index].ResultClass == "WORKING" {
+				confirmedCount++
+			}
+		}
+	}
+	autoPoolMeta.Warnings = append(autoPoolMeta.Warnings,
+		fmt.Sprintf("NF3B2_CONFIRM: %d/%d confirmed by two live attempts", confirmedCount, len(confirmIndices)))
 	for _, c := range candidates {
 		if !c.CleanupProven {
 			reason := "candidate cleanup proof failed; selector stopped"
@@ -1657,7 +1701,7 @@ executionLoop:
 	}
 
 	setV2SelectorProgress(sessionID, "RANK", completed, len(candidates), "ranking direct worker live results", false, false)
-	recommend, best, needed, reason := v2ChooseRecommendation(baseline, candidates)
+	recommend, best, needed, reason := v2ChooseConfirmedRecommendation(baseline, candidates)
 	after := readBenchCapabilities()
 	ok := after.CleanupBaselineProven && strings.EqualFold(readStatus().ConfigSHA256, status.ConfigSHA256)
 
@@ -1685,7 +1729,7 @@ executionLoop:
 	}
 	memoryUpdated := false
 	memoryWarning := ""
-	if updated, memoryErr := v2RecordSelectorEvidence(target, status.ConfigSHA256, candidates); memoryErr != nil {
+	if updated, memoryErr := v2RecordSelectorEvidence(target, status.ConfigSHA256, v2ConfirmedMemoryEvidence(candidates)); memoryErr != nil {
 		memoryWarning = memoryErr.Error()
 	} else {
 		memoryUpdated = updated

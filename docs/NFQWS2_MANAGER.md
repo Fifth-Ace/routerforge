@@ -35,6 +35,22 @@ monitoring or a guarantee against later pressure. The effective worker count
 and admission reason are displayed in the selector. Live test and explicit
 Apply safety gates remain unchanged. There is no automatic production change.
 
+## Bounded live confirmation (NF3B2)
+
+The direct selector first tests the ordered candidate queue in its ordinary
+isolated NFQUEUE worker pool. When the baseline is not already working, it
+re-checks at most **two** successful candidates, one after another, in a fresh
+sandbox **after** the original worker rules have been removed. A confirmed
+candidate must succeed in **both independent live HTTPS probes**; a single
+success or a failed second attempt cannot become a selector recommendation.
+A cleanup failure stops the confirmation sequence and fails the selector closed.
+This is not candidate generation, mutation, or a trusted-memory shortcut.
+
+One-off `WORKING` results are shown as initial measurements but are excluded
+from reusable target-memory evidence. Failed tests can still contribute to
+failure history. Any Apply remains a separate, explicit action with its own
+verification and rollback. Confirmation does not touch the production config.
+
 ## Credits / design references
 
 RouterForge's implementation is independent, but the AutoSelect and DPI-analysis work was informed by ideas from:

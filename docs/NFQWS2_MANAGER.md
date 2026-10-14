@@ -103,6 +103,26 @@ Power loss and unrelated writers can leave a partially applied transaction;
 backup files and the existing backup center remain the recovery mechanism.
 No automatic rename, no router deploy and no beta/stable changes are included.
 
+## NF5G3 — recoverable typed rename backups
+
+NF5G2 rename operations now save backups with **explicit, unambiguous target
+labels**: `list-rename-source-<old>.list`, `list-rename-library-<name>.conf`
+and `list-rename-active`. Backup Center classifies these as list, saved config,
+or active config, respectively, rather than `UNKNOWN`. The existing restore
+authorization, target validation and pre-restore backup logic remain in force.
+Only backups created after this change receive the correct metadata.
+Existing persisted manifests are never rewritten: old rename snapshots may
+have an `UNKNOWN` target or an incorrectly inferred path, so inspect their
+manifest and payload manually rather than restoring them blindly.
+
+**Crash recovery is manual, never automatic or transactionally grouped.**
+Restore the original list **first**, saved configs second, and the active
+config **last** so its references point to an existing list before a possible
+nfqws2 restart. Independently restoring a single config out of sequence can
+leave inconsistent list references; Backup Center cannot infer a complete
+rename group from individual backup entries. No mutation is made to any
+router by this delivery patch itself.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

@@ -13,6 +13,15 @@ clobbering; no new automatic list mutations or reloads are introduced.
 A genuinely simultaneous external writer between the final check and atomic
 rename remains outside this optimistic pre-image guard.
 
+## NF5B — referenced-list deletion protection
+
+List deletion now requires the exact SHA256 returned by `/v1/list`, rejects
+protected/unsafe paths and refuses removal when either the active nfqws2
+configuration or any saved configuration mentions the list. Unreadable or
+non-regular configuration files fail closed. A second preimage/reference check
+runs after the backup, immediately before deletion. No forced deletion or
+automatic edits to dependent profiles are performed.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

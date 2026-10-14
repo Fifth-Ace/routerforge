@@ -87,6 +87,22 @@ func safeBackupID(id string) bool {
 func backupKindTarget(label string) (string, string) {
 	label = strings.TrimSpace(label)
 	switch {
+	case label == "list-rename-active":
+		return "config", configPath
+	case strings.HasPrefix(label, "list-rename-library-"):
+		name := strings.TrimPrefix(label, "list-rename-library-")
+		if safeConfigLibraryName(name) {
+			return "library", filepath.Join(configLibraryRoot, name)
+		}
+	case strings.HasPrefix(label, "list-rename-source-"):
+		name := strings.TrimPrefix(label, "list-rename-source-")
+		if safeListSourceName(name) {
+			return "list", filepath.Join(listsRoot, name)
+		}
+	case strings.HasPrefix(label, "list-rename-"):
+		// Unknown/legacy rename labels must not fall through the generic
+		// list- prefix and accidentally bind to a different filename.
+		return "unknown", ""
 	case label == "config", label == "smart-apply-config", strings.HasPrefix(label, "config-switch-"):
 		return "config", configPath
 	case strings.HasPrefix(label, "smart-apply-list-"):

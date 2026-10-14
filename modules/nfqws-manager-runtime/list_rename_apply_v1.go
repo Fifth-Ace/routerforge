@@ -228,8 +228,13 @@ func nf5g2Execute(listRoot, activePath, libRoot string, req nf5g2Request, ops nf
 		return out, errors.New("restart required but unavailable")
 	}
 	for _, s := range snaps {
-		// Take all backups BEFORE a single mutation. Never prune before success.
-		b, err := ops.Backup("list-rename-config-"+filepath.Base(s.path), s.original, s.info.Mode().Perm())
+		// Type-bound labels let Backup Center identify the exact restore target.
+		// Source must be restored first in any manual recovery from a crash.
+		label := "list-rename-active"
+		if !s.isActive {
+			label = "list-rename-library-" + filepath.Base(s.path)
+		}
+		b, err := ops.Backup(label, s.original, s.info.Mode().Perm())
 		if err != nil {
 			return out, fmt.Errorf("backup config: %w", err)
 		}

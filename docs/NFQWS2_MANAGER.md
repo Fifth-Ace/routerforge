@@ -66,6 +66,19 @@ independent conservative deletion safety checks are not relaxed. Dynamic
 shell-expanded references cannot be proven by static inventory; these require
 operator inspection before a future rename transaction.
 
+## NF5G1 — read-only list rename impact preview
+
+The list editor now offers a **Preview only** of a proposed `.list` rename.
+The GET-only `/v1/list/rename-preview` endpoint requires a currently opened
+list's exact SHA256; refuses protected/unsafe names, occupied destinations,
+symlinks and unreadable/ambiguous configuration references; and reads both
+the live config and saved config library. Only literal selectors pointing to
+the canonical list path are eligible. For each affected config, the preview
+reports exact before/after SHA256 identities and selector counts. It does not
+create a destination, write or rename files, restart nfqws2, or claim to
+provide a production-ready Apply operation. The actual transaction, backups,
+reference update and rollback belong to a separate NF5G patch.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

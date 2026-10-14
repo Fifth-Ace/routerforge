@@ -596,16 +596,13 @@ func handleListCreate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "new list filename must end with .list and contain only safe characters"})
 		return
 	}
-	path := filepath.Join(listsRoot, request.Name)
-	if _, err := os.Stat(path); err == nil {
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "list file already exists"})
-		return
-	} else if !errors.Is(err, os.ErrNotExist) {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "stat list: " + err.Error()})
-		return
-	}
-	if err := safety.WriteFileAtomic(path, []byte{}, 0644); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create list: " + err.Error()})
+	// NF5C: O_EXCL is the mutation gate; a concurrent creator never loses data.
+	if err := nf5cCreateListExclusive(request.Name); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "list file already exists"})
+			return
+		}
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "safe exclusive list creation rejected: " + err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "name": request.Name, "status": readStatus()})

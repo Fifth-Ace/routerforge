@@ -320,7 +320,7 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 	sourceArgs := []string{}
 	candidateConfig := ""
 	if plan.AppendProfile {
-		candidateConfig, err = buildAutoTuneAppendProfileConfig(string(configData), candidateArgs)
+		candidateConfig, err = nf4BuildPlacementConfig(string(configData), true, nil, candidateArgs)
 	} else {
 		inventory := readBenchStrategyInventory()
 		var source *benchStrategyProfile
@@ -342,7 +342,7 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusConflict, map[string]any{"error": "source production profile drifted since AutoTune recommendation"})
 			return
 		}
-		candidateConfig, err = buildAutoTuneCandidateConfig(string(configData), source.Args, candidateArgs)
+		candidateConfig, err = nf4BuildPlacementConfig(string(configData), false, source.Args, candidateArgs)
 	}
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "build deterministic AutoTune candidate: " + err.Error()})

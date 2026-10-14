@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -29,6 +30,9 @@ type benchAutoTuneApplyReceipt struct {
 	ServerName           string
 	SourceProfileIndex   int
 	AppendProfile        bool
+	ListAppendName       string
+	ListAppendSHA        string
+	ListAppendBytes      []byte
 	Transport            string
 	SessionID            string
 	CandidateID          string
@@ -84,6 +88,8 @@ func storeBenchAutoTuneApplyReceiptWithResources(
 		ServerName:           plan.ServerName,
 		SourceProfileIndex:   plan.SourceProfileIndex,
 		AppendProfile:        plan.AppendProfile,
+		ListAppendName:       plan.ListAppendName,
+		ListAppendSHA:        plan.ListAppendSHA,
 		Transport:            plan.Transport,
 		SessionID:            plan.SessionID,
 		CandidateID:          plan.CandidateID,
@@ -113,6 +119,7 @@ func currentBenchAutoTuneApplyReceipt(token string) (*benchAutoTuneApplyReceipt,
 	copyReceipt := *receipt
 	copyReceipt.ExpectedLists = v2CopyStringMap(receipt.ExpectedLists)
 	copyReceipt.ExpectedBlobs = v2CopyStringMap(receipt.ExpectedBlobs)
+	copyReceipt.ListAppendBytes = append([]byte(nil), receipt.ListAppendBytes...)
 	benchAutoTuneApplyReceiptState.Unlock()
 
 	if time.Now().UTC().After(copyReceipt.ExpiresAt) {
@@ -133,6 +140,8 @@ func currentBenchAutoTuneApplyReceipt(token string) (*benchAutoTuneApplyReceipt,
 		plan.ServerName != copyReceipt.ServerName ||
 		plan.SourceProfileIndex != copyReceipt.SourceProfileIndex ||
 		plan.AppendProfile != copyReceipt.AppendProfile ||
+		plan.ListAppendName != copyReceipt.ListAppendName ||
+		plan.ListAppendSHA != copyReceipt.ListAppendSHA ||
 		plan.SessionID != copyReceipt.SessionID ||
 		plan.Transport != copyReceipt.Transport ||
 		plan.CandidateSource != copyReceipt.CandidateSource ||
@@ -313,7 +322,12 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	candidate, err := nf4BuildPlacementConfig(string(configData), plan.AppendProfile, sourceArgs, candidateArgs)
+	var candidate string
+	if plan.ListAppendName != "" {
+		candidate = string(configData) // the verified technique and active config remain unchanged
+	} else {
+		candidate, err = nf4BuildPlacementConfig(string(configData), plan.AppendProfile, sourceArgs, candidateArgs)
+	}
 	if err != nil {
 		clearBenchAutoTuneApplyReceipt()
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "rebuild deterministic AutoTune candidate: " + err.Error()})
@@ -335,6 +349,25 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		ExpectedBlobs:        v2CopyStringMap(receipt.ExpectedBlobs),
 		Confirm:              "NFQWS_SMART_APPLY",
 	}
+	if plan.ListAppendName != "" {
+		_, name, before, updated, placementErr := nf4bFindReusableList(
+			plan.ServerName, plan.DestinationIPv4, plan.CandidateFingerprint, readBenchStrategyInventory(),
+		)
+		if placementErr != nil || name != plan.ListAppendName || before != plan.ListAppendSHA ||
+			receipt.ListAppendName != name || receipt.ListAppendSHA != before ||
+			!bytes.Equal(updated, receipt.ListAppendBytes) {
+			clearBenchAutoTuneApplyReceipt()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "NF4B list changed or exclusive placement proof expired"})
+			return
+		}
+		smartRequest.Lists = []smartApplyDependency{{Name: name,
+			ContentBase64: base64.StdEncoding.EncodeToString(updated), ExpectedSHA256: listSourceSHA256(updated)}}
+		smartRequest.ExpectedExistingLists = map[string]string{name: before}
+		if smartRequest.ExpectedLists == nil {
+			smartRequest.ExpectedLists = make(map[string]string)
+		}
+		smartRequest.ExpectedLists[name] = listSourceSHA256(updated)
+	}
 
 	// One-shot: invalidate the receipt and recommendation before mutation.
 	// Any failure requires a fresh AutoTune + preview, preventing replay.
@@ -347,6 +380,8 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 	}
 	result["autotune_apply"] = true
 	result["append_profile"] = receipt.AppendProfile
+	result["updated_existing_list"] = receipt.ListAppendName != ""
+	result["updated_list_name"] = receipt.ListAppendName
 	result["receipt_consumed"] = true
 	result["server_name"] = receipt.ServerName
 	result["source_profile_index"] = receipt.SourceProfileIndex

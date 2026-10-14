@@ -34,14 +34,15 @@ type smartApplyDependency struct {
 }
 
 type smartApplyRequest struct {
-	Config               string                 `json:"config"`
-	ExpectedActiveSHA256 string                 `json:"expected_active_sha256"`
-	ExpectedConfigSHA256 string                 `json:"expected_config_sha256"`
-	Lists                []smartApplyDependency `json:"lists,omitempty"`
-	Blobs                []smartApplyDependency `json:"blobs,omitempty"`
-	ExpectedLists        map[string]string      `json:"expected_lists,omitempty"`
-	ExpectedBlobs        map[string]string      `json:"expected_blobs,omitempty"`
-	Confirm              string                 `json:"confirm"`
+	Config                string                 `json:"config"`
+	ExpectedActiveSHA256  string                 `json:"expected_active_sha256"`
+	ExpectedConfigSHA256  string                 `json:"expected_config_sha256"`
+	Lists                 []smartApplyDependency `json:"lists,omitempty"`
+	Blobs                 []smartApplyDependency `json:"blobs,omitempty"`
+	ExpectedLists         map[string]string      `json:"expected_lists,omitempty"`
+	ExpectedExistingLists map[string]string      `json:"expected_existing_lists,omitempty"` // exact pre-write SHA, NF4B
+	ExpectedBlobs         map[string]string      `json:"expected_blobs,omitempty"`
+	Confirm               string                 `json:"confirm"`
 }
 
 type smartApplySnapshot struct {
@@ -333,6 +334,28 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "candidate dependencies are incomplete", "missing_lists": missingLists, "missing_blobs": missingBlobs})
 		return
 	}
+	// Replacing an existing list must prove its exact pre-image immediately
+	// before any snapshot/write. Old callers without this optional map are unchanged.
+	if len(request.ExpectedExistingLists) > smartApplyMaxDeps {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "too many expected existing lists"})
+		return
+	}
+	for name, expected := range request.ExpectedExistingLists {
+		if !providedLists[name] || !listSourceHashPattern.MatchString(expected) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid expected existing list identity"})
+			return
+		}
+		path, pathErr := listSourcePath(name)
+		if pathErr != nil {
+			writeJSON(w, http.StatusConflict, map[string]any{"error": pathErr.Error()})
+			return
+		}
+		h, present, hashErr := smartApplyExistingHash(path, listFileMaxBytes)
+		if hashErr != nil || !present || !strings.EqualFold(h, expected) {
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "existing list changed since preview: " + name})
+			return
+		}
+	}
 	for name, expected := range request.ExpectedLists {
 		if providedLists[name] {
 			continue
@@ -398,6 +421,12 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 		}())
 		if err != nil {
 			return err
+		}
+		if label == "list" {
+			if expectedOld, guarded := request.ExpectedExistingLists[dep.name]; guarded &&
+				(!exists || !strings.EqualFold(existingHash, expectedOld)) {
+				return errors.New("existing list was modified before write: " + dep.name)
+			}
 		}
 		if exists && strings.EqualFold(existingHash, dep.hash) {
 			return nil

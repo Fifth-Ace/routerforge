@@ -84,6 +84,24 @@ It does **not** yet alter an existing hostlist; that separate placement
 path requires exact list reference/selector analysis before implementation.
 No automatic production mutation is performed by strategy selection.
 
+## NF4B: reuse an exclusive existing hostlist profile
+
+When the selected winner has passed two independent live attempts, RouterForge
+first checks whether precisely one existing HTTPS production profile uses the
+same exact technique and only one file-backed hostlist. The list must have no
+other production profile references, the target must not already be routed by
+another profile, and the list must be a regular validated local file. Only
+then the selector prepares an explicit *add this domain to that list* plan;
+otherwise the NF4A create-new-profile path is preserved unchanged.
+
+Preview exposes the exact list name, old/new list SHA256 and the added domain.
+The original nfqws2 config SHA is unchanged in this placement. The one-shot
+Apply receipt rechecks the profile, list ownership, exact pre-image SHA,
+updated bytes and unchanged config, then delegates the list update to the
+existing Smart Apply backup/restart/verify/rollback implementation. No silent
+write, background Apply, or new deployment code is introduced. Runtime
+behavior still requires physical Keenetic verification.
+
 ## Credits / design references
 
 RouterForge's implementation is independent, but the AutoSelect and DPI-analysis work was informed by ideas from:

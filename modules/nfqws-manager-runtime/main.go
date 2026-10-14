@@ -138,6 +138,7 @@ func main() {
 	registerNFQueueHealthV1Routes(mux)
 	registerStrategyIntelligenceV2Routes(mux)
 	registerNF5GRenamePreviewRoute(mux)
+	registerNF5G2RenameApplyRoute(mux)
 	mux.HandleFunc("/v1/list", getOnly(handleListRead))
 	mux.HandleFunc("/v1/list/create", mutationOnly(handleListCreate))
 	mux.HandleFunc("/v1/list/save", mutationOnly(handleListSave))

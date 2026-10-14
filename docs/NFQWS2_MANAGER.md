@@ -54,6 +54,18 @@ and atomic replacement; the two paths are intentionally separate. Neither
 path restarts nfqws2. Newly created files may briefly be visible while their
 initial bytes are written; creation only reports success after complete sync.
 
+## NF5F — exact static reference inventory
+
+The read-only List Sources inventory now reports a list as referenced only
+when a supported NFQWS hostlist/IPSet selector contains **that exact list
+basename**. The earlier arbitrary substring search could label `video.list`
+as referenced simply because `my-video.list` was in the configuration.
+Both the active config and saved library configs use the existing Smart Apply
+static dependency parser. Runtime mutations, overwrite guards, and NF5B's
+independent conservative deletion safety checks are not relaxed. Dynamic
+shell-expanded references cannot be proven by static inventory; these require
+operator inspection before a future rename transaction.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

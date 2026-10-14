@@ -127,7 +127,7 @@ func listSourceReferences(name string) []string {
 		if err != nil {
 			return
 		}
-		if strings.Contains(string(data), name) {
+		if nf5fExactListReference(data, name) {
 			refs = append(refs, label)
 		}
 	}

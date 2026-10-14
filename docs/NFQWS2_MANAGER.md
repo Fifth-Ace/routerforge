@@ -79,6 +79,30 @@ create a destination, write or rename files, restart nfqws2, or claim to
 provide a production-ready Apply operation. The actual transaction, backups,
 reference update and rollback belong to a separate NF5G patch.
 
+## NF5G2 — explicit transactional list rename
+
+The NF5G1 read-only impact preview is now the mandatory input for a separate
+mutation-authorized rename Apply. The backend recomputes the exact list SHA,
+config before/after hashes, selector count, and destination vacancy. It refuses
+an outdated or altered preview, unsafe list names, and more than six affected
+configs (to keep each transaction within the backup budget).
+
+All source/config safety backups are created before mutation. The new list is
+created exclusively (`O_EXCL`), saved configs are rewritten before the active
+config, and nfqws2 is restarted if a running service's active config changed.
+The old list is unlinked **last**, after verifying both file identities and
+contents. Any intervening write or failed restart initiates an in-process
+rollback that restores only transaction-owned config changes, restarts the
+previous runtime when required, and removes the newly created list only if it
+still matches the inode and bytes created by this transaction. Rollback
+conflicts are reported rather than overwriting other writers' data.
+
+This is a bounded **in-process rollback transaction**, not a crash-atomic
+multi-file filesystem commit or a guarantee of restored website reachability.
+Power loss and unrelated writers can leave a partially applied transaction;
+backup files and the existing backup center remain the recovery mechanism.
+No automatic rename, no router deploy and no beta/stable changes are included.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

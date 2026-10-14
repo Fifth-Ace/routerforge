@@ -22,6 +22,15 @@ non-regular configuration files fail closed. A second preimage/reference check
 runs after the backup, immediately before deletion. No forced deletion or
 automatic edits to dependent profiles are performed.
 
+## NF5C — exclusive list creation (no TOCTOU overwrite)
+
+Creating a new `.list` file now uses `O_CREATE|O_EXCL` against a verified
+real list-root directory. An existing filename or symlink causes a conflict,
+and simultaneous create attempts have at most one successful writer. This
+replaces the former check-then-atomic-rename path which could overwrite a file
+created between the check and the rename. No existing files or profiles are
+modified, and list save/delete SHA and reference protections remain intact.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"sort"
 	"strings"
 )
@@ -22,13 +23,14 @@ type v2CandidatePoolItem struct {
 }
 
 type v2SelectorAutoPoolMeta struct {
-	Enabled           bool
-	Added             int
-	MemoryCandidates  int
-	LibraryCandidates int
-	BuiltinCandidates int
-	Sources           []string
-	Warnings          []string
+	Enabled             bool
+	Added               int
+	MemoryCandidates    int
+	LibraryCandidates   int
+	BuiltinCandidates   int
+	CommunityCandidates int
+	Sources             []string
+	Warnings            []string
 }
 
 type v2BuiltinCandidate struct {
@@ -168,6 +170,10 @@ func v2CandidateSourceList(items []v2CandidatePoolItem) []string {
 }
 
 func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMeta, error) {
+	return populateV2SelectorCandidatesContext(context.Background(), req)
+}
+
+func populateV2SelectorCandidatesContext(ctx context.Context, req *v2SelectorRequest) (v2SelectorAutoPoolMeta, error) {
 	meta := v2SelectorAutoPoolMeta{Sources: []string{}, Warnings: []string{}}
 	enabled := true
 	if req.AutoPool != nil {
@@ -210,6 +216,24 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 		warnings = append(warnings, "saved strategies unavailable: "+readErr.Error())
 	} else {
 		saved = library.Strategies
+	}
+	// Optional community feed is *only* another source of candidates. Check
+	// every remote technique with the installed nfqws2 analyzer before it can
+	// enter the ordinary deduplicated direct NFQUEUE pool.
+	if req.CommunityEnabled {
+		shared, note := v2CommunityCandidates(ctx, req.CommunityASN, req.ServerName)
+		warnings = append(warnings, note)
+		rejected := 0
+		for _, item := range shared {
+			if _, err := v2CustomProfile(item.Args, req.ServerName); err != nil {
+				rejected++
+				continue
+			}
+			saved = append(saved, item)
+		}
+		if rejected != 0 {
+			warnings = append(warnings, "NF3C_COMMUNITY: unsupported strategies skipped before live testing")
+		}
 	}
 	pool, updated := v2BuildPriorityCandidatePool(manual, memory, saved, corpus, autoLimit)
 	req.Candidates = pool

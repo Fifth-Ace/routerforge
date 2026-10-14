@@ -186,6 +186,9 @@ type v2CandidateResult struct {
 	MedianDurationMS   int64            `json:"median_duration_ms,omitempty"`
 	MedianThroughput   int64            `json:"median_throughput_bps,omitempty"`
 	ResultClass        string           `json:"result_class"`
+	DerivedFrom        string           `json:"derived_from,omitempty"`
+	ChangedParameter   string           `json:"changed_parameter,omitempty"`
+	LiveResult         string           `json:"live_result,omitempty"`
 	CleanupProven      bool             `json:"cleanup_proven"`
 	InfrastructureOK   bool             `json:"infrastructure_ok"`
 }
@@ -1682,6 +1685,52 @@ executionLoop:
 	}
 	autoPoolMeta.Warnings = append(autoPoolMeta.Warnings,
 		fmt.Sprintf("NF3B2_CONFIRM: %d/%d confirmed by two live attempts", confirmedCount, len(confirmIndices)))
+	// NF3B3: one optional, time- and memory-bounded refinement stage using
+	// only measured fake candidates with TLS/HTTP progress. Never skip the existing
+	// cleanup gate or turn a single refined success into a recommendation.
+	readyForRefinement := initialCleanupProven && baseline.ResultClass != "WORKING"
+	for _, c := range candidates {
+		if !c.CleanupProven || !c.InfrastructureOK {
+			readyForRefinement = false
+			break
+		}
+	}
+	if readyForRefinement {
+		refinePlans := v2RefinePlans(candidates, target)
+		if len(refinePlans) > 0 {
+			setV2SelectorProgress(sessionID, "REFINE", completed, len(templates)+len(refinePlans),
+				"testing live-evidence fake parameter variants in isolated NFQUEUE", false, false)
+			refineCtx, cancelRefine := context.WithTimeout(r.Context(), v2RefineTimeBudget)
+			refined, refineErr := v2RunRefinePlans(refineCtx, refinePlans,
+				v2DirectRefineRunner(target, ip, status.ConfigSHA256, inventory))
+			cancelRefine()
+			candidates = append(candidates, refined...)
+			refinedConfirmed := 0
+			for _, c := range refined {
+				if c.ResultClass == "WORKING" && c.Successes == 2 && c.CleanupProven && c.InfrastructureOK {
+					refinedConfirmed++
+				}
+			}
+			autoPoolMeta.Warnings = append(autoPoolMeta.Warnings,
+				fmt.Sprintf("NF3B3_REFINE: %d/%d tested; %d double-confirmed", len(refined), len(refinePlans), refinedConfirmed))
+			if refineErr != nil {
+				reason := "bounded refinement stopped fail-closed: " + refineErr.Error()
+				setV2SelectorProgress(sessionID, "FAILED", completed+len(refined), len(templates)+len(refinePlans), reason, true, true)
+				afterFailure := readBenchCapabilities()
+				writeJSON(w, http.StatusBadGateway, v2SelectorResponse{
+					OK: false, SessionID: sessionID, Mode: mode, ServerName: target, DestinationIPv4: ip,
+					MetricScope: "https-full-response", Baseline: baseline, Candidates: candidates,
+					RecommendationReason: reason, CleanupBaselineAfter: afterFailure.CleanupBaselineProven,
+					BenchEnabled: afterFailure.BenchEnabled, SafeToBench: afterFailure.SafeToBench,
+					Concurrency: concurrency, CandidateSource: "mixed",
+					AutoPoolEnabled: autoPoolMeta.Enabled, AutoPoolAdded: autoPoolMeta.Added,
+					PoolSources:  append([]string{}, autoPoolMeta.Sources...),
+					PoolWarnings: append([]string{}, autoPoolMeta.Warnings...),
+				})
+				return
+			}
+		}
+	}
 	for _, c := range candidates {
 		if !c.CleanupProven {
 			reason := "candidate cleanup proof failed; selector stopped"

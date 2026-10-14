@@ -98,3 +98,33 @@ func TestNF1B2NativeDryRunReturnsBinaryFailure(t *testing.T) {
 		t.Fatalf("unexpected binary failure: %+v", result)
 	}
 }
+
+// Native dry-run must not inject flags absent from the candidate configuration:
+// the installed nfqws2 may not support that flag.
+func TestNF1NativeDoesNotInjectUnsupportedFastpath(t *testing.T) {
+	args, profiles, err := nf1bNativeArgv("NFQWS_ARGS='--filter-tcp=443'\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profiles != 1 {
+		t.Fatalf("profiles=%d, want 1", profiles)
+	}
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--fastpath-workaround=") {
+			t.Fatalf("unsupported flag was injected: %q", arg)
+		}
+	}
+	withExplicit, _, err := nf1bNativeArgv("NFQWS_BASE_ARGS='--fastpath-workaround=auto'\nNFQWS_ARGS='--filter-tcp=443'\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, arg := range withExplicit {
+		if arg == "--fastpath-workaround=auto" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("explicit user flag was lost")
+	}
+}

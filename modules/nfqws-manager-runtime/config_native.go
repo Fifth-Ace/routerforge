@@ -197,9 +197,6 @@ func nf1bNativeArgv(content string) ([]string, int, error) {
 		}
 	}
 	base := resolved["NFQWS_BASE_ARGS"]
-	if !strings.Contains(base, "--fastpath-workaround=") {
-		args = append(args, "--fastpath-workaround=auto")
-	}
 	args = append(args, nf1bNativeTokens(base)...)
 	profiles := 0
 	appendProfile := func(parts ...string) {

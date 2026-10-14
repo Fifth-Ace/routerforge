@@ -102,6 +102,22 @@ existing Smart Apply backup/restart/verify/rollback implementation. No silent
 write, background Apply, or new deployment code is introduced. Runtime
 behavior still requires physical Keenetic verification.
 
+## Post-Apply target verification and rollback (NF4C)
+
+For the explicitly confirmed AutoTune Apply, the same Smart Apply transaction
+now checks the selected domain using a real production-routed HTTPS probe after
+restart and exact config/list/blob SHA checks. The destination is pinned to the
+public IPv4 proven during the live selector session; no new DNS lookup is used.
+A transient connection failure may be retried once. If both probes fail or
+HTTP progress cannot be proven, the transaction invokes its existing config
+and list rollback. Other Smart Apply clients retain their former behavior.
+A successful probe validates reachability **from the router**, not every
+client/device/QUIC route. Hardware behavior remains HARDWARE_PENDING until a
+physical Keenetic acceptance test.
+
+Upstream inspiration: zemidala/nfqws2-ui `autoApply()` (live site check and
+rollback). The implementation stays in RouterForge's Go Smart Apply handler.
+
 ## Credits / design references
 
 RouterForge's implementation is independent, but the AutoSelect and DPI-analysis work was informed by ideas from:

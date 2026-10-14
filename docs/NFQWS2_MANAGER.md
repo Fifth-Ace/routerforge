@@ -13,7 +13,7 @@ RouterForge provides an installed-only management, diagnostics and strategy-sele
 
 AutoSelect uses the direct selector model.
 
-The selector builds its executable candidate set from the portable RouterForge strategy corpus plus explicitly supplied or saved candidates. Candidates are deduplicated by technique fingerprint and then executed directly through isolated NFQUEUE worker sandboxes. The selector does not use a planner, synthesizer, adaptive mutation layer or generated candidate plan between the corpus and live execution.
+The selector constructs its direct live queue in this order: explicitly supplied candidates; fresh WORKING evidence for the same target and unchanged configuration/environment; saved strategies; then the portable RouterForge corpus. Candidates are deduplicated by technique fingerprint and executed in isolated NFQUEUE worker sandboxes. History changes execution priority only, never replaces a current live test. No planner, synthesizer or adaptive mutation layer is used.
 
 Selector modes control breadth and stopping behavior, not a separate planning stage. The live result remains authoritative.
 
@@ -28,6 +28,7 @@ RouterForge's implementation is independent, but the AutoSelect and DPI-analysis
 - `necronicle/z2k` — https://github.com/necronicle/z2k — especially property/probe-driven DPI analysis and measuring transport behavior before choosing techniques; reviewed at `4192519cad13c7253b70fa56cbca05bc83e6dcfb`.
 - `Omn1z/nfqws2-keenetic-strategy-selector` — https://github.com/Omn1z/nfqws2-keenetic-strategy-selector — especially isolated NFQUEUE strategy scanning and live result ranking; reviewed at `0514a18209b0f33e68df6f6657339e912d756049`.
 - `rndnaame/nfqws-menu` — https://github.com/rndnaame/nfqws-menu — source/reference for strategy, list and blob integration already credited in the NFQWS UI.
+- `zemidala/nfqws2-ui` — https://github.com/zemidala/nfqws2-ui — practical inspiration for ordering already proven strategies and bringing user workflows together; NF3A code is independently implemented.
 
 No source code from the two AutoSelect reference projects is vendored into this implementation.
 
@@ -35,11 +36,11 @@ No source code from the two AutoSelect reference projects is vendored into this 
 
 The current NFQWS strategy-selection path is:
 
-1. direct portable strategy corpus;
-2. optional explicitly supplied / saved candidates;
+1. explicit candidates → same-environment fresh WORKING memory → saved library → portable corpus;
+2. deduplication by technique fingerprint;
 3. isolated live candidate execution;
 4. live ranking and recommendation;
 5. explicit deterministic Apply gate;
-6. historical memory / scores / insights retained as separate evidence.
+6. historical scores / insights retained as separate evidence, never bypassing a live test.
 
 The retired planner, candidate synthesizer and adaptive candidate-plan layers are no longer part of the selector execution path.

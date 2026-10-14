@@ -34,17 +34,18 @@ type smartApplyDependency struct {
 }
 
 type smartApplyRequest struct {
-	Config                string                 `json:"config"`
-	ExpectedActiveSHA256  string                 `json:"expected_active_sha256"`
-	ExpectedConfigSHA256  string                 `json:"expected_config_sha256"`
-	PostVerifyTarget      string                 `json:"post_verify_target,omitempty"`
-	PostVerifyIPv4        string                 `json:"post_verify_ipv4,omitempty"`
-	Lists                 []smartApplyDependency `json:"lists,omitempty"`
-	Blobs                 []smartApplyDependency `json:"blobs,omitempty"`
-	ExpectedLists         map[string]string      `json:"expected_lists,omitempty"`
-	ExpectedExistingLists map[string]string      `json:"expected_existing_lists,omitempty"` // exact pre-write SHA, NF4B
-	ExpectedBlobs         map[string]string      `json:"expected_blobs,omitempty"`
-	Confirm               string                 `json:"confirm"`
+	Config                 string                 `json:"config"`
+	ExpectedActiveSHA256   string                 `json:"expected_active_sha256"`
+	ExpectedConfigSHA256   string                 `json:"expected_config_sha256"`
+	PostVerifyTarget       string                 `json:"post_verify_target,omitempty"`
+	PostVerifyIPv4         string                 `json:"post_verify_ipv4,omitempty"`
+	PostVerifyGuardTargets []string               `json:"post_verify_guard_targets,omitempty"`
+	Lists                  []smartApplyDependency `json:"lists,omitempty"`
+	Blobs                  []smartApplyDependency `json:"blobs,omitempty"`
+	ExpectedLists          map[string]string      `json:"expected_lists,omitempty"`
+	ExpectedExistingLists  map[string]string      `json:"expected_existing_lists,omitempty"` // exact pre-write SHA, NF4B
+	ExpectedBlobs          map[string]string      `json:"expected_blobs,omitempty"`
+	Confirm                string                 `json:"confirm"`
 }
 
 type smartApplySnapshot struct {
@@ -391,6 +392,16 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// NF4D: prove any optional control sites live before the first write.
+	regressionGuards, regressionErr := nf4dPrepareRegressionGuards(
+		r.Context(), request.PostVerifyTarget, request.PostVerifyGuardTargets,
+		nf4dResolveProductionGuard, v2ReadHTTPS,
+	)
+	if regressionErr != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "regression guard precheck: " + regressionErr.Error()})
+		return
+	}
+
 	if err := ensureListSourceRoot(); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "prepare lists root: " + err.Error()})
 		return
@@ -541,6 +552,13 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// NF4D: only sites that were live-proven immediately before Apply are
+	// checked after it. A regression uses the original atomic rollback.
+	if err := nf4dVerifyRegressionGuards(r.Context(), regressionGuards, v2ReadHTTPS); err != nil {
+		rollbackAndReply(http.StatusBadGateway, "NF4D regression guard failed: "+err.Error(), output)
+		return
+	}
+
 	_ = pruneBackups()
 	sort.Strings(appliedLists)
 	sort.Strings(appliedBlobs)
@@ -548,6 +566,8 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 		"ok": true, "config_sha256": candidateHash, "applied_lists": appliedLists,
 		"applied_blobs": appliedBlobs, "backups": backups, "service_restarted": status.Running,
 		"restart_output": output, "rolled_back": false, "status": after,
-		"post_apply_verified": request.PostVerifyTarget != "",
+		"post_apply_verified":        request.PostVerifyTarget != "",
+		"regression_guards_offered":  len(request.PostVerifyGuardTargets),
+		"regression_guards_verified": len(regressionGuards),
 	})
 }

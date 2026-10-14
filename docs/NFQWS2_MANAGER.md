@@ -9,6 +9,22 @@ RouterForge provides an installed-only management, diagnostics and strategy-sele
 - Apply is explicit and uses exact config/dependency hashes, backup, post-apply verification and rollback;
 - historical evidence may inform what the UI shows, but never bypasses live verification.
 
+## Post-Apply regression checks (NF4D)
+
+A verified AutoTune Apply may select at most two other HTTPS targets from fresh
+(under 24 hours), independently measured WORKING target memory. Historical
+memory is **never** accepted as evidence of current production reachability:
+each control site is resolved to a public IPv4 and must pass a live production
+HTTPS precheck immediately before any write. Unreachable controls are skipped.
+
+The successful precheck's exact hostname and IPv4 are pinned for a second
+production-routed probe after Smart Apply's existing target verification. If any
+prechecked control stops opening, the **same Smart Apply transaction** rolls
+back config and list mutations. Legacy Smart Apply callers are unaffected.
+No new background job, auto-apply behavior, or production change is introduced
+by the delivery patch itself. A result reports how many controls were offered
+and verified; zero means no control sites were live-proven.
+
 ## Strategy selection
 
 AutoSelect uses the direct selector model.

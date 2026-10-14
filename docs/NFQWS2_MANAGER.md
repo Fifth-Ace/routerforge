@@ -31,6 +31,17 @@ replaces the former check-then-atomic-rename path which could overwrite a file
 created between the check and the rename. No existing files or profiles are
 modified, and list save/delete SHA and reference protections remain intact.
 
+## NF5D — CAS guard for upstream list source replacement
+
+The upstream list installer now requires **two distinct SHA256 identities** for
+an explicit replacement: the incoming payload SHA256 from the pinned upstream
+manifest and the exact *previous local file* SHA256 from the inventory. The
+manager rechecks the old hash before backup and immediately before final write.
+A missing, stale, symlinked or oversized local file is not replaceable, even
+when the downloaded payload matches the remote checksum. Only the old file
+is backed up; restart remains disabled. The non-replacement install path is
+unchanged and will receive its separate exclusive-create audit next.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

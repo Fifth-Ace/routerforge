@@ -31,11 +31,12 @@ type listSourceFile struct {
 }
 
 type listSourceInstallRequest struct {
-	Name           string `json:"name"`
-	ContentBase64  string `json:"content_base64"`
-	ExpectedSHA256 string `json:"expected_sha256"`
-	Replace        bool   `json:"replace,omitempty"`
-	Confirm        string `json:"confirm"`
+	Name                   string `json:"name"`
+	ContentBase64          string `json:"content_base64"`
+	ExpectedSHA256         string `json:"expected_sha256"`
+	ExpectedExistingSHA256 string `json:"expected_existing_sha256,omitempty"`
+	Replace                bool   `json:"replace,omitempty"`
+	Confirm                string `json:"confirm"`
 }
 
 func registerListSourceRoutes(mux *http.ServeMux) {
@@ -217,6 +218,10 @@ func handleListSourceInstall(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
+	if request.Replace && !listSourceHashPattern.MatchString(request.ExpectedExistingSHA256) {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "replacement requires the exact current list SHA256 from inventory"})
+		return
+	}
 	if err := ensureListSourceRoot(); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "prepare lists root: " + err.Error()})
 		return
@@ -239,9 +244,9 @@ func handleListSourceInstall(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusConflict, map[string]any{"error": "list source already exists; explicit replace is required"})
 			return
 		}
-		before, err := os.ReadFile(path)
+		before, err := nf5dReplacementPreimage(path, request.ExpectedExistingSHA256)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "read existing list source: " + err.Error()})
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "list source changed before replacement: " + err.Error()})
 			return
 		}
 		if listSourceSHA256(before) == listSourceSHA256(data) {
@@ -263,8 +268,18 @@ func handleListSourceInstall(w http.ResponseWriter, r *http.Request) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "stat list source: " + err.Error()})
 		return
+	} else if request.Replace {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "list source disappeared before replacement"})
+		return
 	}
 
+	// NF5D: a backup does not authorize overwriting later manual changes.
+	if replaced {
+		if _, err := nf5dReplacementPreimage(path, request.ExpectedExistingSHA256); err != nil {
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "list source changed after backup: " + err.Error(), "backup": backup})
+			return
+		}
+	}
 	if err := safety.WriteFileAtomic(path, data, mode); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "install list source: " + err.Error(), "backup": backup})
 		return

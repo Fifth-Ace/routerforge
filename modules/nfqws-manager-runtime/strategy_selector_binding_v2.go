@@ -199,19 +199,36 @@ func handleV2SelectorBind(w http.ResponseWriter, r *http.Request) {
 		item.ConfigSHA256, item.ServerName, item.DestinationIPv4,
 		benchTransportHTTPS, item.SessionID, candidate,
 	)
+	if err == nil {
+		// NF4B: only reuse a uniquely owned exact-technique hostlist profile.
+		// Any ambiguity retains the previously safe append-new-profile plan.
+		if source, listName, listSHA, _, findErr := nf4bFindReusableList(
+			item.ServerName, item.DestinationIPv4, v2CandidateTechniqueFingerprint(candidate.Args), readBenchStrategyInventory(),
+		); findErr == nil {
+			err = nf4bSetListPlan(plan, source, listName, listSHA)
+		}
+	}
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "prepare new selector profile: " + err.Error()})
 		return
 	}
 
 	clearV2SelectorPendingBinding()
+	placementKind := "new_profile"
+	placementReason := "selected strategy was re-verified; a new NFQWS_ARGS_CUSTOM profile will be appended"
+	if plan.ListAppendName != "" {
+		placementKind = "existing_list"
+		placementReason = "same verified strategy already exists; add only the target to its exclusive hostlist " + plan.ListAppendName
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"placement_kind":         placementKind,
+		"placement_list":         plan.ListAppendName,
 		"ok":                     true,
 		"apply_gate_eligible":    true,
 		"apply_gate_token":       plan.Token,
 		"apply_gate_expires_at":  plan.ExpiresAt.Format(time.RFC3339),
-		"apply_gate_reason":      "selected strategy was re-verified and will be appended as a new NFQWS_ARGS_CUSTOM profile",
-		"created_custom_profile": true,
+		"apply_gate_reason":      placementReason,
+		"created_custom_profile": plan.AppendProfile,
 		"candidate_id":           candidate.CandidateID,
 		"verification_attempts":  len(candidate.Attempts),
 		"verification_successes": candidate.Successes,

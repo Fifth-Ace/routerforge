@@ -30,6 +30,11 @@ type benchAutoTunePreviewResponse struct {
 	CandidateConfigSHA256 string   `json:"candidate_config_sha256"`
 	CandidateConfig       string   `json:"candidate_config"`
 	Changed               bool     `json:"changed"`
+	PlacementKind         string   `json:"placement_kind,omitempty"`
+	PlacementList         string   `json:"placement_list,omitempty"`
+	PlacementListSHA      string   `json:"placement_list_sha_before,omitempty"`
+	PlacementListNewSHA   string   `json:"placement_list_sha_after,omitempty"`
+	PlacementDiff         string   `json:"placement_diff,omitempty"`
 	SourceStrategyArgs    []string `json:"source_strategy_args"`
 	CandidateStrategyArgs []string `json:"candidate_strategy_args"`
 	GateExpiresAt         string   `json:"gate_expires_at"`
@@ -319,7 +324,20 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 
 	sourceArgs := []string{}
 	candidateConfig := ""
-	if plan.AppendProfile {
+	var updatedList []byte
+	if plan.ListAppendName != "" {
+		profile, name, before, updated, findErr := nf4bFindReusableList(
+			plan.ServerName, plan.DestinationIPv4, plan.CandidateFingerprint, readBenchStrategyInventory(),
+		)
+		if findErr != nil || name != plan.ListAppendName || before != plan.ListAppendSHA || profile.Index != plan.SourceProfileIndex ||
+			!stringSlicesEqual(profile.Args, plan.SourceStrategyArgs) {
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "NF4B list placement changed since live verification"})
+			return
+		}
+		sourceArgs = append([]string(nil), profile.Args...)
+		candidateConfig = string(configData)
+		updatedList = updated
+	} else if plan.AppendProfile {
 		candidateConfig, err = nf4BuildPlacementConfig(string(configData), true, nil, candidateArgs)
 	} else {
 		inventory := readBenchStrategyInventory()
@@ -358,6 +376,17 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create AutoTune preview receipt: " + err.Error()})
 		return
 	}
+	placementKind := "new_profile"
+	if !plan.AppendProfile {
+		placementKind = "replace_profile"
+	}
+	if plan.ListAppendName != "" {
+		placementKind = "existing_list"
+		if err := nf4bStoreReceiptList(plan, updatedList); err != nil {
+			writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, benchAutoTunePreviewResponse{
 		OK:                    true,
 		PreviewOnly:           true,
@@ -368,7 +397,22 @@ func handleBenchAutoTuneApplyPreview(w http.ResponseWriter, r *http.Request) {
 		ActiveConfigSHA256:    activeHash,
 		CandidateConfigSHA256: candidateHash,
 		CandidateConfig:       candidateConfig,
-		Changed:               candidateHash != activeHash,
+		Changed:               candidateHash != activeHash || len(updatedList) != 0,
+		PlacementKind:         placementKind,
+		PlacementList:         plan.ListAppendName,
+		PlacementListSHA:      plan.ListAppendSHA,
+		PlacementListNewSHA: func() string {
+			if len(updatedList) == 0 {
+				return ""
+			}
+			return listSourceSHA256(updatedList)
+		}(),
+		PlacementDiff: func() string {
+			if len(updatedList) == 0 {
+				return ""
+			}
+			return "+" + plan.ServerName
+		}(),
 		SourceStrategyArgs:    append([]string{}, sourceArgs...),
 		CandidateStrategyArgs: append([]string{}, candidateArgs...),
 		GateExpiresAt:         plan.ExpiresAt.Format(time.RFC3339),

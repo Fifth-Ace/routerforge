@@ -19,6 +19,8 @@ type benchAutoTuneApplyPlan struct {
 	DestinationIPv4       string
 	SourceProfileIndex    int
 	AppendProfile         bool
+	ListAppendName        string // NF4B: only one exact existing hostlist
+	ListAppendSHA         string // source list SHA at bind
 	SourceStrategyArgs    []string
 	CandidateStrategyArgs []string
 	CandidateSource       string

@@ -28,6 +28,7 @@ type benchAutoTuneApplyReceipt struct {
 	CandidateConfig      string
 	ServerName           string
 	SourceProfileIndex   int
+	AppendProfile        bool
 	Transport            string
 	SessionID            string
 	CandidateID          string
@@ -82,6 +83,7 @@ func storeBenchAutoTuneApplyReceiptWithResources(
 		CandidateConfig:      candidateConfig,
 		ServerName:           plan.ServerName,
 		SourceProfileIndex:   plan.SourceProfileIndex,
+		AppendProfile:        plan.AppendProfile,
 		Transport:            plan.Transport,
 		SessionID:            plan.SessionID,
 		CandidateID:          plan.CandidateID,
@@ -130,6 +132,7 @@ func currentBenchAutoTuneApplyReceipt(token string) (*benchAutoTuneApplyReceipt,
 		!strings.EqualFold(plan.ConfigSHA256, copyReceipt.ActiveConfigSHA256) ||
 		plan.ServerName != copyReceipt.ServerName ||
 		plan.SourceProfileIndex != copyReceipt.SourceProfileIndex ||
+		plan.AppendProfile != copyReceipt.AppendProfile ||
 		plan.SessionID != copyReceipt.SessionID ||
 		plan.Transport != copyReceipt.Transport ||
 		plan.CandidateSource != copyReceipt.CandidateSource ||
@@ -238,27 +241,32 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
 		return
 	}
-	inventory := readBenchStrategyInventory()
-	var source *benchStrategyProfile
-	for i := range inventory.Profiles {
-		if inventory.Profiles[i].Index == plan.SourceProfileIndex {
-			source = &inventory.Profiles[i]
-			break
+	// An append plan intentionally has no production source profile. Replacement
+	// plans still require the exact eligible source and matching strategy args.
+	var sourceArgs []string
+	if !plan.AppendProfile {
+		inventory := readBenchStrategyInventory()
+		var source *benchStrategyProfile
+		for i := range inventory.Profiles {
+			if inventory.Profiles[i].Index == plan.SourceProfileIndex {
+				source = &inventory.Profiles[i]
+				break
+			}
 		}
-	}
-	if source == nil || !v2ProductionSourceProfileEligible(*source) {
-		clearBenchAutoTuneApplyReceipt()
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "tested source profile identity is no longer eligible"})
-		return
-	}
-	sourceArgs := plan.SourceStrategyArgs
-	if len(sourceArgs) == 0 {
-		sourceArgs = source.Args
-	}
-	if !stringSlicesEqual(source.Args, sourceArgs) {
-		clearBenchAutoTuneApplyReceipt()
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "source production profile drifted since AutoTune preview"})
-		return
+		if source == nil || !v2ProductionSourceProfileEligible(*source) {
+			clearBenchAutoTuneApplyReceipt()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "tested source profile identity is no longer eligible"})
+			return
+		}
+		sourceArgs = plan.SourceStrategyArgs
+		if len(sourceArgs) == 0 {
+			sourceArgs = source.Args
+		}
+		if !stringSlicesEqual(source.Args, sourceArgs) {
+			clearBenchAutoTuneApplyReceipt()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "source production profile drifted since AutoTune preview"})
+			return
+		}
 	}
 	candidateArgs := plan.CandidateStrategyArgs
 	if len(candidateArgs) == 0 {
@@ -305,7 +313,7 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	candidate, err := buildAutoTuneCandidateConfig(string(configData), source.Args, candidateArgs)
+	candidate, err := nf4BuildPlacementConfig(string(configData), plan.AppendProfile, sourceArgs, candidateArgs)
 	if err != nil {
 		clearBenchAutoTuneApplyReceipt()
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "rebuild deterministic AutoTune candidate: " + err.Error()})
@@ -338,6 +346,7 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result["autotune_apply"] = true
+	result["append_profile"] = receipt.AppendProfile
 	result["receipt_consumed"] = true
 	result["server_name"] = receipt.ServerName
 	result["source_profile_index"] = receipt.SourceProfileIndex

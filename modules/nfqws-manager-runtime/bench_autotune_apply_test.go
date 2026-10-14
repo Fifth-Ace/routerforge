@@ -37,7 +37,8 @@ func TestStoreBenchAutoTuneApplyReceiptPreservesPreviewIdentity(t *testing.T) {
 		ExpiresAt:          time.Now().UTC().Add(time.Minute),
 		ConfigSHA256:       strings.Repeat("a", 64),
 		ServerName:         "www.example.com",
-		SourceProfileIndex: 2,
+		SourceProfileIndex: -1,
+		AppendProfile:      true,
 	}
 	candidate := "NFQWS_ARGS_CUSTOM=\"--hostlist-domains=www.example.com\"\n"
 	candidateSHA := smartApplySHA256([]byte(candidate))
@@ -54,7 +55,8 @@ func TestStoreBenchAutoTuneApplyReceiptPreservesPreviewIdentity(t *testing.T) {
 		got.CandidateSHA256 != candidateSHA ||
 		got.CandidateConfig != candidate ||
 		got.ServerName != plan.ServerName ||
-		got.SourceProfileIndex != plan.SourceProfileIndex {
+		got.SourceProfileIndex != plan.SourceProfileIndex ||
+		got.AppendProfile != plan.AppendProfile {
 		t.Fatalf("receipt identity mismatch: %+v", got)
 	}
 }

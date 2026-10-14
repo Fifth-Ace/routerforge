@@ -69,6 +69,21 @@ remain mandatory. Nothing is auto-applied. Cache: 24 h on valid results/404,
 pool. This reproduces the *selection pattern*, not the PHP server or strategy
 database: see upstream `src/www/api.php` (`communityLoad`, `communityCandidates`).
 
+## Safe Append Preview/Apply parity (NF4A)
+
+When a confirmed selector winner needs a new narrowly targeted
+`NFQWS_ARGS_CUSTOM` profile, the existing Preview and one-shot Apply now
+rebuild the **same deterministic append-mode candidate**. Replacement-mode
+Apply continues to verify that the original production profile matches the
+previewed one exactly. The receipt binds append/replacement mode as well as
+configuration and dependency SHA256, and Smart Apply still owns backup,
+restart, post-write checks and rollback. This fixes the previous situation
+where Preview supported append but Apply incorrectly demanded a source profile.
+
+It does **not** yet alter an existing hostlist; that separate placement
+path requires exact list reference/selector analysis before implementation.
+No automatic production mutation is performed by strategy selection.
+
 ## Credits / design references
 
 RouterForge's implementation is independent, but the AutoSelect and DPI-analysis work was informed by ideas from:

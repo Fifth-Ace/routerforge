@@ -3031,7 +3031,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   }
   async function deleteList(){
     if(!listMeta||listMeta.protected)return;if(!confirm(`Удалить ${selectedList}? Перед удалением будет создан backup.`))return;setBusy(true);
-    try{const r=await api('/list/delete',{method:'POST',body:JSON.stringify({name:selectedList,confirm:'NFQWS_LIST_DELETE'})});selectedList='';listMeta=null;listOriginal='';$('listEditor').value='';render(r.status);if(editableStatusLists().length)await selectList(sortLists(editableStatusLists())[0].name);notice(`Список удалён. Backup: ${r.backup}`,'good')}
+    try{const r=await api('/list/delete',{method:'POST',body:JSON.stringify({name:selectedList,expected_sha256:listMeta.sha256,confirm:'NFQWS_LIST_DELETE'})});selectedList='';listMeta=null;listOriginal='';$('listEditor').value='';render(r.status);if(editableStatusLists().length)await selectList(sortLists(editableStatusLists())[0].name);notice(`Список удалён. Backup: ${r.backup}`,'good')}
     catch(e){notice(e.message,'error');setBusy(false)}
   }
   async function createList(){

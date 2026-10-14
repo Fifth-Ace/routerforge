@@ -683,19 +683,38 @@ func handleListDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := filepath.Join(listsRoot, request.Name)
-	before, err := os.ReadFile(path)
+	before, info, err := nf5aReadRegularList(path)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "read list before delete: " + err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "read list before delete: " + err.Error()})
 		return
 	}
-	info, err := os.Stat(path)
+	refs, err := nf5bListDeleteReferences(request.Name)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "stat list before delete: " + err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "check list references: " + err.Error()})
+		return
+	}
+	if err := nf5bAllowDelete(request.Name, before, request.ExpectedSHA256, refs); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error(), "references": refs})
 		return
 	}
 	backup, err := createNamedBackup("deleted-"+request.Name, before, info.Mode().Perm())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create delete backup: " + err.Error()})
+		return
+	}
+	// Repeat identity and reference checks after backup, immediately before deletion.
+	current, currentInfo, err := nf5aReadRegularList(path)
+	if err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "recheck list before delete: " + err.Error(), "backup": backup})
+		return
+	}
+	refs, err = nf5bListDeleteReferences(request.Name)
+	if err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "recheck references before delete: " + err.Error(), "backup": backup})
+		return
+	}
+	if !os.SameFile(info, currentInfo) || nf5bAllowDelete(request.Name, current, request.ExpectedSHA256, refs) != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "list identity or references changed before deletion", "backup": backup, "references": refs})
 		return
 	}
 	if err := os.Remove(path); err != nil {

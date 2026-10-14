@@ -42,6 +42,18 @@ when the downloaded payload matches the remote checksum. Only the old file
 is backed up; restart remains disabled. The non-replacement install path is
 unchanged and will receive its separate exclusive-create audit next.
 
+## NF5E — exclusive installation of a new upstream list
+
+A new upstream `list-sources/install` call now writes the full, already-hash-
+validated payload using `O_CREATE|O_EXCL` on a checked list-root directory.
+If the filename appeared after the initial Lstat check, installation returns
+HTTP 409 rather than overwriting that file. The requested payload is bounded,
+validated, written with an explicit sync and cleaned up if its write fails.
+Replacing an existing list still uses NF5D's exact-old-SHA guard, safety backup
+and atomic replacement; the two paths are intentionally separate. Neither
+path restarts nfqws2. Newly created files may briefly be visible while their
+initial bytes are written; creation only reports success after complete sync.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

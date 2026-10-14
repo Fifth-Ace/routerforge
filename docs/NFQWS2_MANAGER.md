@@ -2,6 +2,17 @@
 
 RouterForge provides an installed-only management, diagnostics and strategy-selection layer for an existing `nfqws2-keenetic` installation. It does not silently install or replace nfqws2.
 
+## List editor exact-preimage safety (NF5A)
+
+The `/list` read returns the exact SHA256 of its bounded regular-file content.
+Every editor save and every cross-list conflict cleanup now supplies that SHA
+with `expected_sha256`; the server refuses missing or stale identities before
+backup or write, then rechecks after making its safety backup. Symlink and
+non-regular list files are rejected. This prevents normal stale-tab/peer-edit
+clobbering; no new automatic list mutations or reloads are introduced.
+A genuinely simultaneous external writer between the final check and atomic
+rename remains outside this optimistic pre-image guard.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

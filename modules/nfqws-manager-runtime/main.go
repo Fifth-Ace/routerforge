@@ -82,9 +82,10 @@ type configRequest struct {
 }
 
 type listRequest struct {
-	Name    string `json:"name"`
-	Content string `json:"content,omitempty"`
-	Confirm string `json:"confirm"`
+	Name           string `json:"name"`
+	Content        string `json:"content,omitempty"`
+	ExpectedSHA256 string `json:"expected_sha256,omitempty"`
+	Confirm        string `json:"confirm"`
 }
 
 type checkRequest struct {
@@ -558,23 +559,19 @@ func handleListRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := filepath.Join(listsRoot, name)
-	data, cut, err := readBoundedFile(path, listFileMaxBytes)
+	data, info, err := nf5aReadRegularList(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "list file not found"})
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "read list: " + err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "read safe list: " + err.Error()})
 		return
 	}
-	if cut {
-		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]any{"error": "list file exceeds editor limit"})
-		return
-	}
-	info, _ := os.Stat(path)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"name": name, "path": path, "content": string(data),
 		"size": len(data), "protected": protectedListName(name),
+		"sha256": listSourceSHA256(data),
 		"modified_at": func() string {
 			if info == nil {
 				return ""
@@ -634,19 +631,28 @@ func handleListSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := filepath.Join(listsRoot, request.Name)
-	before, err := os.ReadFile(path)
+	before, info, err := nf5aReadRegularList(path)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]any{"error": "read current list: " + err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "read regular list for save: " + err.Error()})
 		return
 	}
-	info, err := os.Stat(path)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "stat current list: " + err.Error()})
+	if err := nf5aRequireListPreimage(before, request.ExpectedSHA256); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error()})
 		return
 	}
 	backup, err := createNamedBackup("list-"+request.Name, before, info.Mode().Perm())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "create list backup: " + err.Error()})
+		return
+	}
+	// Recheck after backup creation, directly before the atomic replacement.
+	latest, _, err := nf5aReadRegularList(path)
+	if err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "list changed after backup: " + err.Error(), "backup": backup})
+		return
+	}
+	if err := nf5aRequireListPreimage(latest, request.ExpectedSHA256); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": err.Error(), "backup": backup})
 		return
 	}
 	if err := safety.WriteFileAtomic(path, []byte(request.Content), info.Mode().Perm()); err != nil {

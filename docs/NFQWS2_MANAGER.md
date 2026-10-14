@@ -21,6 +21,20 @@ Before or alongside AutoSelect, the Property Probe can execute a bounded set of 
 
 Historical target memory, strategy scores, insights and recommendations remain separate read-only evidence systems. They describe prior observations and can help an operator understand previously successful strategies, but the direct selector does not treat them as an execution plan and does not skip current live testing because of historical success.
 
+## Memory-aware worker admission (NF3B1)
+
+Before spawning isolated NFQUEUE workers, the direct selector checks `/proc/meminfo` and
+caps the requested concurrency using both `MemTotal` and `MemAvailable`.
+For routers with up to 192 MiB it permits at most one worker; up to 320 MiB,
+two; up to 448 MiB, three; larger routers may use up to the existing maximum
+of four, subject to free-RAM thresholds and available NFQUEUE slots.
+Less than 24 MiB available stops **a new selector run before creating workers**.
+On older kernels without `MemAvailable`, it conservatively uses one worker.
+Admission is assessed at the start; it is not a claim of continuous memory
+monitoring or a guarantee against later pressure. The effective worker count
+and admission reason are displayed in the selector. Live test and explicit
+Apply safety gates remain unchanged. There is no automatic production change.
+
 ## Credits / design references
 
 RouterForge's implementation is independent, but the AutoSelect and DPI-analysis work was informed by ideas from:

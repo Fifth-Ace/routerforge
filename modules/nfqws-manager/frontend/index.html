@@ -5792,6 +5792,11 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     v2SelectorLast=d;
     $('v2SelectorCleanup').textContent=d.cleanup_baseline_after?'Готово':'Ошибка';
     $('v2SelectorWorkers').textContent=String(d.concurrency||'—');
+    const memoryBudget=(d.pool_warnings||[]).find(x=>String(x).startsWith('NF3B1_MEMORY_BUDGET:'));
+    if(memoryBudget){
+      const wanted=Number($('v2SelectorConcurrency').value||2);
+      $('v2SelectorPoolMeta').textContent=`Воркеры: запрошено ${wanted}, запущено ${Number(d.concurrency||0)}. ${String(memoryBudget).replace('NF3B1_MEMORY_BUDGET: ','')}`;
+    }
     const best=d.recommendation_available?`${d.recommended_candidate_name||d.recommended_candidate_id||('Профиль '+d.recommended_profile_index)} · ${v2SourceText(d.recommended_candidate_source||'production')}`:'Нет рекомендации';
     const poolText=d.auto_pool_enabled?`Проверено стратегий: ${(d.candidates||[]).length}.`:'Встроенный пул отключён.';
     $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(v2ReasonText(d.recommendation_reason||''))}</div><div class="meta">${esc(v2ReasonText(d.apply_gate_reason||''))}</div><div class="meta">${esc(poolText)}</div></div>${v2ResultPill(d.recommendation_available?'WORKING':'—')}</div>`;

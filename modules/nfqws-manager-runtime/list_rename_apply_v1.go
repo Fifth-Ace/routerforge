@@ -205,6 +205,61 @@ func nf5g2RestoreConfigs(snaps []nf5g2ConfigSnap, write func(string, []byte, os.
 	return nil
 }
 
+// NF5G4: even after a successful byte-for-byte rollback, a newly created
+// list may have gained external references. Do not remove it unless every
+// tracked config was restored and all currently readable configs are free
+// of the new basename. This is intentionally conservative, including matches
+// in comments; a false positive retains a harmless extra file.
+func nf5g4CanRemoveAfterRollback(activePath, libRoot, newName string, snaps []nf5g2ConfigSnap) error {
+	for _, snap := range snaps {
+		current, err := nf5bReadReferenceConfig(snap.path)
+		if err != nil {
+			return fmt.Errorf("verify restored config %s: %w", snap.path, err)
+		}
+		if listSourceSHA256(current) != listSourceSHA256(snap.original) {
+			return fmt.Errorf("config not restored to original bytes: %s", snap.path)
+		}
+	}
+	active, err := nf5bReadReferenceConfig(activePath)
+	if err != nil {
+		return fmt.Errorf("verify active config before list cleanup: %w", err)
+	}
+	if nf5bReferencesInContent(active, newName) {
+		return errors.New("active config still references new list")
+	}
+	info, err := os.Lstat(libRoot)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("inspect saved config library: %w", err)
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("saved config library is not a real directory")
+	}
+	entries, err := os.ReadDir(libRoot)
+	if err != nil {
+		return fmt.Errorf("scan saved config library: %w", err)
+	}
+	if len(entries) > 512 {
+		return errors.New("saved config library exceeds rollback scan limit")
+	}
+	for _, entry := range entries {
+		if !safeConfigLibraryName(entry.Name()) {
+			continue
+		}
+		path := filepath.Join(libRoot, entry.Name())
+		content, err := nf5bReadReferenceConfig(path)
+		if err != nil {
+			return fmt.Errorf("inspect saved config %s: %w", entry.Name(), err)
+		}
+		if nf5bReferencesInContent(content, newName) {
+			return fmt.Errorf("saved config %s still references new list", entry.Name())
+		}
+	}
+	return nil
+}
+
 func nf5g2Execute(listRoot, activePath, libRoot string, req nf5g2Request, ops nf5g2Ops) (nf5g2Result, error) {
 	out := nf5g2Result{OldName: req.OldName, NewName: req.NewName, Backups: []string{}}
 	if req.Confirm != "ROUTERFORGE_LIST_RENAME_APPLY" {
@@ -256,8 +311,9 @@ func nf5g2Execute(listRoot, activePath, libRoot string, req nf5g2Request, ops nf
 	// Fail closed when any write, restart or source-removal precheck fails.
 	rollback := func(cause error) (nf5g2Result, error) {
 		issues := []string{}
-		if e := nf5g2RestoreConfigs(snaps, ops.WriteConfig); e != nil {
-			issues = append(issues, e.Error())
+		restoreErr := nf5g2RestoreConfigs(snaps, ops.WriteConfig)
+		if restoreErr != nil {
+			issues = append(issues, restoreErr.Error())
 		}
 		restartNeeded := false
 		for _, snap := range snaps {
@@ -265,21 +321,35 @@ func nf5g2Execute(listRoot, activePath, libRoot string, req nf5g2Request, ops nf
 				restartNeeded = true
 			}
 		}
+		// Never restart blindly with an active config that was not proved
+		// restored. The newly created list must stay available if rollback
+		// is incomplete, even when the transaction is already failing.
 		if restartNeeded && ops.Running && ops.Restart != nil {
-			if e := ops.Restart(); e != nil {
+			if restoreErr != nil {
+				issues = append(issues, "runtime restart withheld: config rollback incomplete")
+			} else if e := ops.Restart(); e != nil {
 				issues = append(issues, "restore previous runtime: "+e.Error())
 			}
 		}
-		current, statErr := os.Lstat(newPath)
-		if statErr == nil && os.SameFile(current, newInfo) {
-			fresh, e := os.ReadFile(newPath)
-			if e != nil || listSourceSHA256(fresh) != listSourceSHA256(oldBytes) {
-				issues = append(issues, "new list changed externally; not removing")
-			} else if e := os.Remove(newPath); e != nil {
-				issues = append(issues, "remove created list: "+e.Error())
+		if len(issues) == 0 {
+			if e := nf5g4CanRemoveAfterRollback(activePath, libRoot, req.NewName, snaps); e != nil {
+				issues = append(issues, "created list retained: "+e.Error())
 			}
-		} else if !errors.Is(statErr, os.ErrNotExist) {
-			issues = append(issues, "created list identity changed; not removing")
+		}
+		if len(issues) == 0 {
+			current, statErr := os.Lstat(newPath)
+			if statErr == nil && os.SameFile(current, newInfo) {
+				fresh, e := os.ReadFile(newPath)
+				if e != nil || listSourceSHA256(fresh) != listSourceSHA256(oldBytes) {
+					issues = append(issues, "new list changed externally; not removing")
+				} else if e := os.Remove(newPath); e != nil {
+					issues = append(issues, "remove created list: "+e.Error())
+				}
+			} else if !errors.Is(statErr, os.ErrNotExist) {
+				issues = append(issues, "created list identity changed; not removing")
+			}
+		} else {
+			issues = append(issues, "created list preserved to avoid dangling references")
 		}
 		out.RolledBack = len(issues) == 0
 		if len(issues) > 0 {

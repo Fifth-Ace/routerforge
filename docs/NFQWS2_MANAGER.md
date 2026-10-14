@@ -123,6 +123,21 @@ leave inconsistent list references; Backup Center cannot infer a complete
 rename group from individual backup entries. No mutation is made to any
 router by this delivery patch itself.
 
+## NF5G4 — fail-closed rename rollback cleanup
+
+A partially restored rename must never remove its newly created list while an
+active or saved configuration might still reference that list. On rollback,
+RouterForge verifies every tracked config against its original bytes and
+scans the active and saved configurations for references to the new basename
+before allowing cleanup. Unknown or unreadable state fails closed.
+
+If a config cannot be restored, the transaction **retains the newly created
+list**, reports `rolled_back=false` and explicit recovery details, and does
+not blindly restart the runtime. If the revert restart itself fails, the new
+list is also retained. A clean rollback still removes the unreferenced new
+list. This is a bounded best-effort recovery guard, **not** an atomic
+multi-file transaction or a change to unattended router deployment.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

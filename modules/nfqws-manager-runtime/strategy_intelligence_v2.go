@@ -1458,6 +1458,17 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 	if concurrency > v2MaxConcurrency {
 		concurrency = v2MaxConcurrency
 	}
+	requestedConcurrency := concurrency
+	workerBudget := v2ReadSelectorWorkerBudget()
+	if workerBudget.Limit < 1 {
+		reason := "Недостаточно доступной ОЗУ для тестового NFQUEUE: " + v2WorkerBudgetSummary(workerBudget)
+		setV2SelectorProgress(sessionID, "FAILED", 0, len(templates), reason, true, true)
+		writeJSON(w, http.StatusConflict, map[string]any{"error": reason, "session_id": sessionID})
+		return
+	}
+	if concurrency > workerBudget.Limit {
+		concurrency = workerBudget.Limit
+	}
 	if concurrency > len(templates) {
 		concurrency = len(templates)
 	}
@@ -1470,6 +1481,9 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "no free reserved NFQUEUE for selector", "session_id": sessionID})
 		return
 	}
+	autoPoolMeta.Warnings = append(autoPoolMeta.Warnings,
+		fmt.Sprintf("NF3B1_MEMORY_BUDGET: %s; requested %d, active %d",
+			v2WorkerBudgetSummary(workerBudget), requestedConcurrency, concurrency))
 
 	baselineCtx, cancelBaseline := context.WithTimeout(r.Context(), time.Duration(mode.TimeoutSec)*time.Second)
 

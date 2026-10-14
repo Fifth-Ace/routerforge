@@ -342,14 +342,15 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 	}
 
 	smartRequest := smartApplyRequest{
-		Config:               candidate,
-		ExpectedActiveSHA256: receipt.ActiveConfigSHA256,
-		PostVerifyTarget:     receipt.ServerName,
-		PostVerifyIPv4:       plan.DestinationIPv4,
-		ExpectedConfigSHA256: receipt.CandidateSHA256,
-		ExpectedLists:        v2CopyStringMap(receipt.ExpectedLists),
-		ExpectedBlobs:        v2CopyStringMap(receipt.ExpectedBlobs),
-		Confirm:              "NFQWS_SMART_APPLY",
+		Config:                 candidate,
+		ExpectedActiveSHA256:   receipt.ActiveConfigSHA256,
+		PostVerifyTarget:       receipt.ServerName,
+		PostVerifyIPv4:         plan.DestinationIPv4,
+		PostVerifyGuardTargets: nf4dRegressionCandidates(receipt.ServerName),
+		ExpectedConfigSHA256:   receipt.CandidateSHA256,
+		ExpectedLists:          v2CopyStringMap(receipt.ExpectedLists),
+		ExpectedBlobs:          v2CopyStringMap(receipt.ExpectedBlobs),
+		Confirm:                "NFQWS_SMART_APPLY",
 	}
 	if plan.ListAppendName != "" {
 		_, name, before, updated, placementErr := nf4bFindReusableList(

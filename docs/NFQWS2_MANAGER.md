@@ -138,6 +138,20 @@ list is also retained. A clean rollback still removes the unreferenced new
 list. This is a bounded best-effort recovery guard, **not** an atomic
 multi-file transaction or a change to unattended router deployment.
 
+## NF5G5 — final old-list reference verification
+
+Immediately before unlinking the original list after a rename, the transaction
+verifies that every rewritten config still has the exact expected post-rename
+bytes. It then rescans the active nfqws2 config and all safely named saved
+configs for any surviving or newly introduced reference to the **old** list
+name. Any conflicting, unreadable or ambiguous state blocks final removal and
+routes through the existing NF5G4 fail-closed rollback. This covers configs
+created or modified during restart, which were outside the original Preview.
+
+External writers can still race between the last check and the unlink; the
+manager is not a cross-process multi-file atomic transaction. No background
+monitoring, auto-rename, or router deployment is introduced by NF5G5.
+
 ## Safety model
 
 - production mutations pass through the Core-guarded Admin boundary;

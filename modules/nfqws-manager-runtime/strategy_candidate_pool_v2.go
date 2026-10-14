@@ -190,54 +190,29 @@ func populateV2SelectorCandidates(req *v2SelectorRequest) (v2SelectorAutoPoolMet
 		return meta, err
 	}
 
-	// P26A direct execution model:
-	// Auto Pool is the portable corpus itself. No planner, synthesis, historical
-	// promotion or adaptive mutation is allowed to replace real candidate execution.
-	external := append([]v2SelectorCandidateInput{}, req.Candidates...)
-	req.Candidates = []v2SelectorCandidateInput{}
-	seen := map[string]bool{}
-	sourceSet := map[string]bool{}
-
+	// NF3A keeps the direct selector and isolated NFQUEUE execution intact.
+	// Existing fresh results change priority only; every candidate is tested live.
+	manual := append([]v2SelectorCandidateInput{}, req.Candidates...)
 	corpus := v2CorpusCandidatesForTransport(transport)
 	autoLimit := v2DirectAutoPoolLimit(mode.Name, len(corpus))
-	for _, item := range corpus {
-		if len(req.Candidates) >= autoLimit {
-			break
-		}
-		fp := v2CandidateTechniqueFingerprint(item.Args)
-		if fp == "" || seen[fp] {
-			continue
-		}
-		seen[fp] = true
-		req.Candidates = append(req.Candidates, v2SelectorCandidateInput{
-			ID: item.ID, Name: item.Name, Source: item.Source, Args: append([]string{}, item.Args...),
-		})
-		meta.Added++
-		meta.LibraryCandidates++
-		if item.Source != "" {
-			sourceSet[item.Source] = true
+	warnings := []string{}
+	memory := []v2CandidatePoolItem{}
+	if smartApplyHashPattern.MatchString(strings.TrimSpace(req.ExpectedConfigSHA256)) {
+		items, readErr := v2TargetMemoryCandidates(req.ServerName, req.ExpectedConfigSHA256, 8)
+		if readErr != nil {
+			warnings = append(warnings, "target memory unavailable: "+readErr.Error())
+		} else {
+			memory = items
 		}
 	}
-
-	for _, existing := range external {
-		if len(req.Candidates) >= v2DirectSelectorMaxCandidates {
-			break
-		}
-		fp := v2CandidateTechniqueFingerprint(existing.Args)
-		if fp == "" || seen[fp] {
-			continue
-		}
-		seen[fp] = true
-		req.Candidates = append(req.Candidates, existing)
-		if existing.Source != "" {
-			sourceSet[v2StrategySource(existing.Source)] = true
-		}
+	saved := []v2StoredStrategy{}
+	if library, readErr := readV2StrategyLibrary(); readErr != nil {
+		warnings = append(warnings, "saved strategies unavailable: "+readErr.Error())
+	} else {
+		saved = library.Strategies
 	}
-
-	for source := range sourceSet {
-		meta.Sources = append(meta.Sources, source)
-	}
-	sort.Strings(meta.Sources)
-	meta.Warnings = append(meta.Warnings, "P26 direct catalog execution: portable corpus candidates are executed directly")
-	return meta, nil
+	pool, updated := v2BuildPriorityCandidatePool(manual, memory, saved, corpus, autoLimit)
+	req.Candidates = pool
+	updated.Warnings = append(updated.Warnings, warnings...)
+	return updated, nil
 }

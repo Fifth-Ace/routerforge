@@ -6151,7 +6151,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         const f=await api('/list?name=user.list'),lines=String(f.content||'').split(/\r?\n/),normalized=target.toLowerCase();
         if(lines.some(line=>line.trim().toLowerCase()===normalized)){notice(`${target} уже есть в user.list.`,'good');return}
         const content=String(f.content||'').replace(/\s*$/,'\n')+target+'\n';
-        await api('/list/save',{method:'POST',body:JSON.stringify({name:'user.list',content,confirm:'NFQWS_LIST_SAVE'})});
+        await api('/list/save',{method:'POST',body:JSON.stringify({name:'user.list',content,expected_sha256:f.sha256,confirm:'NFQWS_LIST_SAVE'})});
         notice(`${target} добавлен в user.list через backup + atomic save.`,'good');
       }catch(e){notice(`user.list: ${e.message}`,'error')}
     }

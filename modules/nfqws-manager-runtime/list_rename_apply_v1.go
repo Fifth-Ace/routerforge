@@ -386,6 +386,11 @@ func nf5g2Execute(listRoot, activePath, libRoot string, req nf5g2Request, ops nf
 	if e != nil || !os.SameFile(info, newInfo) || listSourceSHA256(dest) != listSourceSHA256(oldBytes) {
 		return rollback(errors.New("new list changed before final removal"))
 	}
+	// NF5G5: configs can change or appear during restart. Never unlink the
+	// original list while any active or saved reference still needs it.
+	if err := nf5g5AllowOldSourceRemoval(activePath, libRoot, req.OldName, snaps); err != nil {
+		return rollback(fmt.Errorf("old list removal blocked: %w", err))
+	}
 	if err := os.Remove(oldPath); err != nil {
 		return rollback(fmt.Errorf("remove old list: %w", err))
 	}

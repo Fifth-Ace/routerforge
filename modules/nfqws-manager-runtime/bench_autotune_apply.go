@@ -344,6 +344,8 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 	smartRequest := smartApplyRequest{
 		Config:               candidate,
 		ExpectedActiveSHA256: receipt.ActiveConfigSHA256,
+		PostVerifyTarget:     receipt.ServerName,
+		PostVerifyIPv4:       plan.DestinationIPv4,
 		ExpectedConfigSHA256: receipt.CandidateSHA256,
 		ExpectedLists:        v2CopyStringMap(receipt.ExpectedLists),
 		ExpectedBlobs:        v2CopyStringMap(receipt.ExpectedBlobs),
@@ -379,6 +381,7 @@ func handleBenchAutoTuneApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result["autotune_apply"] = true
+	result["post_apply_target"] = receipt.ServerName
 	result["append_profile"] = receipt.AppendProfile
 	result["updated_existing_list"] = receipt.ListAppendName != ""
 	result["updated_list_name"] = receipt.ListAppendName

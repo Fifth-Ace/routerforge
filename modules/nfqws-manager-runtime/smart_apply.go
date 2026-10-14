@@ -37,6 +37,8 @@ type smartApplyRequest struct {
 	Config                string                 `json:"config"`
 	ExpectedActiveSHA256  string                 `json:"expected_active_sha256"`
 	ExpectedConfigSHA256  string                 `json:"expected_config_sha256"`
+	PostVerifyTarget      string                 `json:"post_verify_target,omitempty"`
+	PostVerifyIPv4        string                 `json:"post_verify_ipv4,omitempty"`
 	Lists                 []smartApplyDependency `json:"lists,omitempty"`
 	Blobs                 []smartApplyDependency `json:"blobs,omitempty"`
 	ExpectedLists         map[string]string      `json:"expected_lists,omitempty"`
@@ -266,6 +268,12 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid smart apply request"})
 		return
 	}
+	// Optional target verification is used only by the verified AutoTune path.
+	// Bad or incomplete identities must fail before any production mutation.
+	if err := nf4cValidatePostApplyTarget(request.PostVerifyTarget, request.PostVerifyIPv4); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
 	if request.Confirm != "NFQWS_SMART_APPLY" {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "confirm must equal NFQWS_SMART_APPLY"})
 		return
@@ -287,6 +295,10 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 	status := readStatus()
 	if !status.MutationReady || !status.ConfigExists || status.ConfigCut {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "nfqws2 runtime is not ready for Smart Apply"})
+		return
+	}
+	if request.PostVerifyTarget != "" && !status.Running {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "post-apply target verification requires running nfqws2"})
 		return
 	}
 	if !strings.EqualFold(status.ConfigSHA256, request.ExpectedActiveSHA256) {
@@ -519,6 +531,16 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// NF4C: verify that the real target opens through production routing.
+	// A failed live check is part of the original Smart Apply transaction,
+	// so config and list changes use its existing rollback snapshots.
+	if request.PostVerifyTarget != "" {
+		if err := nf4cVerifyPostApply(r.Context(), request.PostVerifyTarget, request.PostVerifyIPv4); err != nil {
+			rollbackAndReply(http.StatusBadGateway, "NF4C live target verification failed: "+err.Error(), output)
+			return
+		}
+	}
+
 	_ = pruneBackups()
 	sort.Strings(appliedLists)
 	sort.Strings(appliedBlobs)
@@ -526,5 +548,6 @@ func handleSmartApply(w http.ResponseWriter, r *http.Request) {
 		"ok": true, "config_sha256": candidateHash, "applied_lists": appliedLists,
 		"applied_blobs": appliedBlobs, "backups": backups, "service_restarted": status.Running,
 		"restart_output": output, "rolled_back": false, "status": after,
+		"post_apply_verified": request.PostVerifyTarget != "",
 	})
 }

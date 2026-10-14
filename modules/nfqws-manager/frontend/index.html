@@ -5973,7 +5973,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     try{
       const latest=await api('/status');if(String(latest.config_sha256).toLowerCase()!==String(p.active_config_sha256).toLowerCase())throw new Error('active config changed after preview');
       const result=await api('/bench-autotune/apply',{method:'POST',body:JSON.stringify({receipt_token:d.apply_gate_token,expected_active_sha256:p.active_config_sha256,expected_candidate_sha256:p.candidate_config_sha256,confirm:'ROUTERFORGE_AUTOTUNE_APPLY'})});
-      current=result.status||await api('/status');original=current?.config||original;render(current);v2SelectorLast=null;v2SelectorPreviewData=null;$('v2SelectorApply').disabled=true;notice('Стратегия применена и проверена.','good');return result;
+      if(!result.post_apply_verified)throw new Error('После применения не подтверждён ответ сайта через production.');current=result.status||await api('/status');original=current?.config||original;render(current);v2SelectorLast=null;v2SelectorPreviewData=null;$('v2SelectorApply').disabled=true;notice('Применено: сайт повторно открылся через nfqws2.','good');return result;
     }catch(e){v2SelectorApplyError=e.message||'apply failed';v2SelectorLast=null;v2SelectorPreviewData=null;notice(`Safe Apply: ${e.message}`,'error');return null}
   }
 

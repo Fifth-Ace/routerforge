@@ -280,8 +280,19 @@ func handleListSourceInstall(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if err := safety.WriteFileAtomic(path, data, mode); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "install list source: " + err.Error(), "backup": backup})
+	// NF5E: install is exclusive. Never overwrite a new file created while
+	// this request was validating the incoming payload.
+	if !replaced {
+		if err := nf5eInstallNewSource(listsRoot, request.Name, data); err != nil {
+			if errors.Is(err, os.ErrExist) {
+				writeJSON(w, http.StatusConflict, map[string]any{"error": "list source appeared during install; reload inventory"})
+			} else {
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "exclusive install list source: " + err.Error()})
+			}
+			return
+		}
+	} else if err := safety.WriteFileAtomic(path, data, mode); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "replace list source: " + err.Error(), "backup": backup})
 		return
 	}
 	_ = pruneBackups()

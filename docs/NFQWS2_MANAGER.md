@@ -51,6 +51,24 @@ from reusable target-memory evidence. Failed tests can still contribute to
 failure history. Any Apply remains a separate, explicit action with its own
 verification and rollback. Confirmation does not touch the production config.
 
+## Opt-in ASN community candidates (NF3C1)
+
+The selector may optionally load **up to eight** TLS-only strategy candidates
+from the provider-specific `data/AS<number>.json` file published by
+`zemidala/nfqws2-strategies`. This feature is **off by default** and does not
+vendor or republish community entries. The user may supply an ASN explicitly,
+or opt in to RIPEstat detection (which contacts RIPEstat to determine the router's
+public IPv4 and its ASN). Only then does the manager fetch the provider file.
+
+Remote data is size/entry/argument bounded, restricted to `--lua-desync`
+steps, filtered by provider/protocol/failure reports, and ordered by freshness,
+matching site, and confirmations. Unknown Lua dependencies are excluded by
+existing local candidate validation; HTTPS tests and independent confirmation
+remain mandatory. Nothing is auto-applied. Cache: 24 h on valid results/404,
+10 min for errors. Network failure cannot stop the ordinary local candidate
+pool. This reproduces the *selection pattern*, not the PHP server or strategy
+database: see upstream `src/www/api.php` (`communityLoad`, `communityCandidates`).
+
 ## Credits / design references
 
 RouterForge's implementation is independent, but the AutoSelect and DPI-analysis work was informed by ideas from:

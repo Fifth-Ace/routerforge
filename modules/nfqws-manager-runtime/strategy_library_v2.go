@@ -102,6 +102,8 @@ func v2StrategySource(value string) string {
 		return "builtin"
 	case "memory":
 		return "memory"
+	case "community":
+		return "community"
 	case "synthesized":
 		return "synthesized"
 	case "mutated":

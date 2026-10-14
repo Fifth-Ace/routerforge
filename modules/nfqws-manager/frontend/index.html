@@ -1552,6 +1552,10 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         <label class="v2-check"><input id="v2SelectorProduction" type="checkbox" checked> Профили текущей конфигурации nfqws2</label>
         <label class="v2-check"><input id="v2SelectorAutoPool" type="checkbox" checked> Стратегии из встроенного пула RouterForge</label>
         <label class="v2-check"><input id="v2SelectorLibrary" type="checkbox" checked> Сохранённые пользовательские стратегии</label>
+        <label class="v2-check"><input id="v2SelectorCommunity" type="checkbox"> Сообщество по AS провайдера (внешние запросы, по желанию)</label>
+        <label class="v2-label">AS провайдера (необязательно — определится через RIPEstat)
+          <input id="v2SelectorCommunityASN" type="number" class="search" min="1" max="4294967295" step="1" placeholder="Например, 12389">
+        </label>
         <div id="v2SelectorPoolMeta" class="v2-boundary">RouterForge проверяет стратегии из встроенного пула реальными HTTPS-запросами.</div>
         <label class="v2-label">Дополнительная стратегия
           <input id="v2SelectorExtraName" class="search" placeholder="Название (необязательно)">
@@ -5748,7 +5752,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
   function v2ResultPill(value){const raw=String(value||'—');return`<span class="v2-pill ${v2Tone(raw)}">${esc(v2ResultText(raw))}</span>`}
   function v2SourceText(value){
     const v=String(value||'').toLowerCase();
-    const map={production:'Текущая конфигурация',curated:'RouterForge',other:'Встроенный пул',custom:'Пользовательская',library:'Библиотека',baseline:'Без обхода'};
+    const map={production:'Текущая конфигурация',curated:'RouterForge',other:'Встроенный пул',custom:'Пользовательская',library:'Библиотека',community:'Сообщество',baseline:'Без обхода'};
     return map[v]||String(value||'');
   }
   function v2ReasonText(value){
@@ -5799,6 +5803,8 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     }
     const confirmNote=(d.pool_warnings||[]).find(x=>String(x).startsWith('NF3B2_CONFIRM:'));
     if(confirmNote)$('v2SelectorPoolMeta').textContent+=' · '+String(confirmNote).replace('NF3B2_CONFIRM: ','Подтверждение: ');
+    const communityNote=(d.pool_warnings||[]).find(x=>String(x).startsWith('NF3C_COMMUNITY:'));
+    if(communityNote)$('v2SelectorPoolMeta').textContent+=' · '+String(communityNote).replace('NF3C_COMMUNITY: ','Сообщество: ');
     const best=d.recommendation_available?`${d.recommended_candidate_name||d.recommended_candidate_id||('Профиль '+d.recommended_profile_index)} · ${v2SourceText(d.recommended_candidate_source||'production')}`:'Нет рекомендации';
     const poolText=d.auto_pool_enabled?`Проверено стратегий: ${(d.candidates||[]).length}.`:'Встроенный пул отключён.';
     $('v2SelectorRecommendation').innerHTML=`<div class="v2-row ${d.recommendation_available?'good':'warn'}"><div class="v2-result-title">${esc(best)}</div><div><div class="value">${esc(v2ReasonText(d.recommendation_reason||''))}</div><div class="meta">${esc(v2ReasonText(d.apply_gate_reason||''))}</div><div class="meta">${esc(poolText)}</div></div>${v2ResultPill(d.recommendation_available?'WORKING':'—')}</div>`;
@@ -5916,6 +5922,12 @@ body.dpi-console-overlay-open{overflow:hidden!important}
     if($('v2SelectorLibrary').checked)for(const x of v2Library)candidates.push({id:x.id,name:x.name,source:x.source,args:x.args});
     const extra=v2ArgTokens($('v2SelectorExtraArgs').value);if(extra.length)candidates.push({name:$('v2SelectorExtraName').value.trim()||'Manual candidate',source:'custom',args:extra});
     if(!$('v2SelectorProduction').checked&&!$('v2SelectorAutoPool').checked&&!candidates.length){notice('Автоподбор: не выбран ни один источник candidates.','error');return}
+    if($('v2SelectorCommunity').checked&&!$('v2SelectorAutoPool').checked){notice('Для стратегий сообщества включите встроенный пул.','error');return}
+    const asText=$('v2SelectorCommunityASN').value.trim();
+    const communityASN=asText?Number(asText):0;
+    if(asText&&(!/^\d{1,10}$/.test(asText)||!Number.isInteger(communityASN)||communityASN<1||communityASN>4294967295)){
+      notice('Номер AS должен быть целым числом от 1 до 4294967295.','error');return;
+    }
     if($('v2SelectorAutoPool').checked){
       const m=String($('v2SelectorMode').value||'normal');
       const breadth=m==='fast'?'Быстрый: 30% пула':m==='normal'?'Обычный: по 20 до двух рабочих':'Полный: весь пул';
@@ -5928,6 +5940,7 @@ body.dpi-console-overlay-open{overflow:hidden!important}
         mode:$('v2SelectorMode').value,server_name:target,expected_config_sha256:current.config_sha256,
         concurrency:Number($('v2SelectorConcurrency').value||2),session_id:session,
         include_production:$('v2SelectorProduction').checked,auto_pool:$('v2SelectorAutoPool').checked,candidates,
+        community_enabled:$('v2SelectorCommunity').checked,community_asn:communityASN,
         property_vector:propertyVector,
         confirm:'ROUTERFORGE_V2_SELECTOR'
       })});

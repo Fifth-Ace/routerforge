@@ -222,6 +222,8 @@ type v2SelectorRequest struct {
 	SessionID            string                     `json:"session_id,omitempty"`
 	IncludeProduction    *bool                      `json:"include_production,omitempty"`
 	AutoPool             *bool                      `json:"auto_pool,omitempty"`
+	CommunityEnabled     bool                       `json:"community_enabled,omitempty"`
+	CommunityASN         uint32                     `json:"community_asn,omitempty"`
 	Candidates           []v2SelectorCandidateInput `json:"candidates,omitempty"`
 	PropertyVector       *v2DPIPropertyVector       `json:"property_vector,omitempty"`
 	Confirm              string                     `json:"confirm"`
@@ -1322,7 +1324,7 @@ func handleV2Selector(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid v2 selector request"})
 		return
 	}
-	autoPoolMeta, poolErr := populateV2SelectorCandidates(&req)
+	autoPoolMeta, poolErr := populateV2SelectorCandidatesContext(r.Context(), &req)
 	if poolErr != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "candidate pool: " + poolErr.Error()})
 		return

@@ -38,6 +38,9 @@ func v2BuildPriorityCandidatePool(
 		case "saved":
 			meta.LibraryCandidates++
 			meta.Added++
+		case "community":
+			meta.CommunityCandidates++
+			meta.Added++
 		case "corpus":
 			meta.BuiltinCandidates++
 			meta.Added++
@@ -59,7 +62,11 @@ func v2BuildPriorityCandidatePool(
 		add(v2SelectorCandidateInput{ID: item.ID, Name: item.Name, Source: "memory", Args: item.Args}, "memory")
 	}
 	for _, item := range saved {
-		add(v2SelectorCandidateInput{ID: item.ID, Name: item.Name, Source: item.Source, Args: item.Args}, "saved")
+		origin := "saved"
+		if item.Source == "community" {
+			origin = "community"
+		}
+		add(v2SelectorCandidateInput{ID: item.ID, Name: item.Name, Source: item.Source, Args: item.Args}, origin)
 	}
 	corpusAdded := 0
 	for _, item := range corpus {

@@ -21,7 +21,11 @@ func coreLogEvent(originalPath, kind, message string) {
 	if err != nil {
 		return // RAM was requested but is not actually backed by tmpfs.
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if s.Mode == "custom" {
+		if err := checkCoreCustomLogLocation(path, false); err != nil {
+			return
+		}
+	} else if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return
 	}
 	limit := int64(s.MaxMB) * 1024 * 1024

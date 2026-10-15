@@ -14,6 +14,8 @@
   let authBusy = false;
   let authError = '';
   let loggingMode = 'entware';
+  let loggingCustomPath = '';
+  let loggingActivePath = '';
   let loggingMaxMB = 1;
   let loggingBackups = 2;
   let loggingRAMAvailable = false;
@@ -26,6 +28,8 @@
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
       loggingMode = data.settings?.mode || 'entware';
+      loggingCustomPath = data.settings?.custom_path || '';
+      loggingActivePath = data.active_path || '';
       loggingMaxMB = data.settings?.max_mb || 1;
       loggingBackups = data.settings?.backups || 2;
       loggingRAMAvailable = !!data.ram_available;
@@ -42,9 +46,11 @@
       const response = await fetch('/api/settings/logging', {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ mode: loggingMode, max_mb: Number(loggingMaxMB), backups: Number(loggingBackups) })
+        body: JSON.stringify({ mode: loggingMode, custom_path: loggingCustomPath.trim(), max_mb: Number(loggingMaxMB), backups: Number(loggingBackups) })
       });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const reply = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(reply.error || ('HTTP ' + response.status));
+      loggingActivePath = reply.active_path || '';
       loggingSaved = 'Сохранено';
     } catch (err) {
       loggingError = String(err.message || err);
@@ -185,10 +191,17 @@
           <div class="setting-control-slot">
             <select bind:value={loggingMode}>
               <option value="entware">Entware — /opt/var/log</option>
-              <option value="ram" disabled={!loggingRAMAvailable}>ОЗУ — /tmp (tmpfs)</option>
+              <option value="ram" disabled={!loggingRAMAvailable}>ОЗУ — /tmp (tmpfs)</option><option value="custom">Свой путь</option>
             </select>
           </div>
         </div>
+        {#if loggingMode === 'custom'}
+          <div class="setting-row">
+            <div><strong>Полный путь к файлу журнала</strong><span>Например /opt/var/log/custom/routerforge.log. Каталог должен уже существовать и быть доступным для записи. Для внешнего диска проверь монтаж: /storage может быть внутренней флеш-памятью. Допустимы /opt/var/log, /opt/mnt, /tmp, /mnt, /media, /storage, /var/log.</span></div>
+            <div class="setting-control-slot"><input type="text" bind:value={loggingCustomPath} placeholder="/opt/var/log/routerforge-custom.log" autocomplete="off" spellcheck="false" /></div>
+          </div>
+        {/if}
+        <div class="setting-row static"><div><strong>Активный путь Core</strong><span>Переключение влияет на новые записи, существующие файлы не удаляются.</span></div><code>{loggingActivePath || '—'}</code></div>
         <div class="setting-row">
           <div><strong>Максимальный размер журнала</strong><span>От 1 до 16 МБ на файл</span></div>
           <div class="setting-control-slot"><select bind:value={loggingMaxMB}><option value={1}>1 МБ</option><option value={2}>2 МБ</option><option value={4}>4 МБ</option><option value={8}>8 МБ</option><option value={16}>16 МБ</option></select></div>

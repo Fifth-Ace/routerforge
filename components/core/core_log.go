@@ -7,13 +7,33 @@ import (
 	"time"
 )
 
-func coreLogEvent(path, kind, message string) {
-	if path == "" {
+func coreLogEvent(originalPath, kind, message string) {
+	if originalPath == "" {
 		return
 	}
-	_ = os.MkdirAll(filepath.Dir(path), 0755)
-	if st, err := os.Stat(path); err == nil && st.Size() >= 1024*1024 {
-		_ = os.Remove(path + ".1")
+	coreLoggingMu.Lock()
+	defer coreLoggingMu.Unlock()
+	s, err := readCoreLoggingSettings()
+	if err != nil {
+		return // Never silently redirect a damaged configuration to flash.
+	}
+	path, err := resolveCoreLogPath(s, originalPath, coreRAMLoggingAvailable())
+	if err != nil {
+		return // RAM was requested but is not actually backed by tmpfs.
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return
+	}
+	limit := int64(s.MaxMB) * 1024 * 1024
+	if st, err := os.Stat(path); err == nil && st.Size() >= limit {
+		for i := s.Backups; i >= 1; i-- {
+			old := fmt.Sprintf("%s.%d", path, i)
+			if i == s.Backups {
+				_ = os.Remove(old)
+			} else {
+				_ = os.Rename(old, fmt.Sprintf("%s.%d", path, i+1))
+			}
+		}
 		_ = os.Rename(path, path+".1")
 	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)

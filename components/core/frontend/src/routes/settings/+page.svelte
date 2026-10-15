@@ -13,6 +13,43 @@
   let showEnableAuth = false;
   let authBusy = false;
   let authError = '';
+  let loggingMode = 'entware';
+  let loggingMaxMB = 1;
+  let loggingBackups = 2;
+  let loggingRAMAvailable = false;
+  let loggingBusy = false;
+  let loggingError = '';
+  let loggingSaved = '';
+  async function loadLogging() {
+    try {
+      const response = await fetch('/api/settings/logging', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      loggingMode = data.settings?.mode || 'entware';
+      loggingMaxMB = data.settings?.max_mb || 1;
+      loggingBackups = data.settings?.backups || 2;
+      loggingRAMAvailable = !!data.ram_available;
+    } catch (err) {
+      loggingError = String(err.message || err);
+    }
+  }
+  async function saveLogging() {
+    if (loggingBusy) return;
+    loggingBusy = true;
+    loggingError = '';
+    loggingSaved = '';
+    try {
+      const response = await fetch('/api/settings/logging', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ mode: loggingMode, max_mb: Number(loggingMaxMB), backups: Number(loggingBackups) })
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      loggingSaved = 'Сохранено';
+    } catch (err) {
+      loggingError = String(err.message || err);
+    } finally { loggingBusy = false; }
+  }
 
   $: locale = $settings.locale || 'ru';
   $: themeCards = [
@@ -57,7 +94,8 @@
   onMount(async () => {
     await Promise.all([
       getSystem().then((value) => { system = value; }).catch(() => {}),
-      refreshCatalog().catch(() => {})
+      refreshCatalog().catch(() => {}),
+      loadLogging()
     ]);
   });
 
@@ -140,6 +178,29 @@
         </div>
       </section>
 
+      <section class="settings-section panel">
+        <div class="settings-title">Журнал RouterForge Core</div>
+        <div class="setting-row">
+          <div><strong>Расположение журнала Core</strong><span>Журналы отдельных модулей пока сохраняют собственные настройки. RAM-журнал исчезнет после перезагрузки.</span></div>
+          <div class="setting-control-slot">
+            <select bind:value={loggingMode}>
+              <option value="entware">Entware — /opt/var/log</option>
+              <option value="ram" disabled={!loggingRAMAvailable}>ОЗУ — /tmp (tmpfs)</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Максимальный размер журнала</strong><span>От 1 до 16 МБ на файл</span></div>
+          <div class="setting-control-slot"><select bind:value={loggingMaxMB}><option value={1}>1 МБ</option><option value={2}>2 МБ</option><option value={4}>4 МБ</option><option value={8}>8 МБ</option><option value={16}>16 МБ</option></select></div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Количество архивов</strong><span>От 1 до 5 резервных журналов</span></div>
+          <div class="setting-control-slot"><select bind:value={loggingBackups}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option><option value={5}>5</option></select></div>
+        </div>
+        <div class="setting-row"><div><strong>Сохранить настройки журнала</strong><span>Без перезапуска DNS, NFQWS или firewall</span></div><div class="setting-control-slot"><button type="button" onclick={saveLogging} disabled={loggingBusy}>Сохранить</button></div></div>
+        {#if loggingError}<div class="settings-security-error">{loggingError}</div>{/if}
+        {#if loggingSaved}<div class="settings-security-success">{loggingSaved}</div>{/if}
+      </section>
       <section class="settings-section panel">
         <div class="settings-title">{t(locale, 'settings.security')}</div>
         <div class="setting-row security-setting-row">

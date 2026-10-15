@@ -117,7 +117,7 @@
 <div class="form-grid">
 <label>WAN-интерфейс<input id="odin-wan" value="eth3" autocomplete="off"></label>
 <label>Внутренний IPv4 сервиса<input id="odin-ip" value="192.168.1.2" autocomplete="off"></label>
-<label>Внутренний TCP-порт<input id="odin-port" type="number" value="3389" min="1" max="65535"></label>
+<label>TCP-порты (через запятую)<input id="odin-port" type="text" value="3389" autocomplete="off" placeholder="3389, 22, 8443"></label><label>Постоянный доступ IPv4/CIDR<input id="odin-trusted" type="text" value="" autocomplete="off" placeholder="192.0.2.10/32, 198.51.100.0/24"></label>
 <label>Стук 1<input id="odin-k1" type="number" value="7777" min="1" max="65535"></label>
 <label>Стук 2<input id="odin-k2" type="number" value="8888" min="1" max="65535"></label>
 <label>Стук 3<input id="odin-k3" type="number" value="6666" min="1" max="65535"></label>

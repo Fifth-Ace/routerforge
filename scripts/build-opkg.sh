@@ -33,6 +33,8 @@ mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \
 CORE_SOURCES="
 main.go
 core_log.go
+core_logging_settings.go
+core_logging_linux.go
 web.go
 web_probe.go
 web_discovery.go

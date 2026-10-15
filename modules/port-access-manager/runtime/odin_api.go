@@ -33,12 +33,75 @@ var odinMu sync.Mutex
 var odinWAN = regexp.MustCompile(`^[a-zA-Z0-9_.:-]{1,24}$`)
 
 type odinSettings struct {
-	WAN    string `json:"wan"`
-	IP     string `json:"ip"`
-	Port   int    `json:"port"`
-	Knock  [3]int `json:"knock"`
-	Window int    `json:"window"`
-	TTL    int    `json:"ttl"`
+	WAN     string   `json:"wan"`
+	IP      string   `json:"ip"`
+	Port    int      `json:"port"`
+	Ports   []int    `json:"ports,omitempty"`
+	Trusted []string `json:"trusted,omitempty"`
+	Knock   [3]int   `json:"knock"`
+	Window  int      `json:"window"`
+	TTL     int      `json:"ttl"`
+}
+
+func (s odinSettings) protectedPorts() ([]int, error) {
+	ports := s.Ports
+	if len(ports) == 0 {
+		ports = []int{s.Port}
+	}
+	if len(ports) > 15 || len(ports) == 0 {
+		return nil, errors.New("protected port count must be 1..15")
+	}
+	if s.Port != 0 && s.Port != ports[0] {
+		return nil, errors.New("legacy port must equal first protected port")
+	}
+	seen := map[int]bool{}
+	for _, p := range ports {
+		if p < 1 || p > 65535 || seen[p] {
+			return nil, errors.New("protected ports must be unique 1..65535")
+		}
+		seen[p] = true
+	}
+	return ports, nil
+}
+func (s odinSettings) trustedAddresses() ([]string, error) {
+	if len(s.Trusted) > 32 {
+		return nil, errors.New("too many trusted addresses")
+	}
+	out := make([]string, 0, len(s.Trusted))
+	seen := map[string]bool{}
+	for _, raw := range s.Trusted {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return nil, errors.New("empty trusted address")
+		}
+		var ip net.IP
+		var network *net.IPNet
+		var err error
+		if strings.Contains(raw, "/") {
+			ip, network, err = net.ParseCIDR(raw)
+			if err != nil {
+				return nil, errors.New("invalid trusted CIDR")
+			}
+			if ip.To4() == nil || !ip.Equal(network.IP) {
+				return nil, errors.New("trusted CIDR must be canonical IPv4 network")
+			}
+		} else {
+			ip = net.ParseIP(raw)
+			if ip == nil || ip.To4() == nil {
+				return nil, errors.New("invalid trusted IPv4")
+			}
+			raw = ip.To4().String() + "/32"
+		}
+		if network != nil {
+			raw = network.String()
+		}
+		if ip.IsUnspecified() || ip.IsMulticast() || ip.IsLoopback() || raw == "0.0.0.0/0" || seen[raw] {
+			return nil, errors.New("unsafe or duplicate trusted address")
+		}
+		seen[raw] = true
+		out = append(out, raw)
+	}
+	return out, nil
 }
 
 func (s odinSettings) valid() error {
@@ -52,18 +115,38 @@ func (s odinSettings) valid() error {
 	if s.Window < 5 || s.Window > 300 || s.TTL < 30 || s.TTL > 86400 {
 		return errors.New("invalid timers")
 	}
+	ports, err := s.protectedPorts()
+	if err != nil {
+		return err
+	}
+	if _, err = s.trustedAddresses(); err != nil {
+		return err
+	}
 	seen := map[int]bool{}
-	for _, p := range []int{s.Port, s.Knock[0], s.Knock[1], s.Knock[2]} {
+	for _, p := range s.Knock {
 		if p < 1 || p > 65535 || seen[p] {
-			return errors.New("ports must be unique and within 1..65535")
+			return errors.New("invalid knock ports")
 		}
 		seen[p] = true
 	}
+	for _, p := range ports {
+		if seen[p] {
+			return errors.New("protected and knock ports overlap")
+		}
+	}
 	return nil
 }
+
 func (s odinSettings) data() []byte {
-	return []byte(fmt.Sprintf("WAN=%s\nTIP=%s\nTPORT=%d\nK1=%d\nK2=%d\nK3=%d\nWINDOW=%d\nTTL=%d\n", s.WAN, s.IP, s.Port, s.Knock[0], s.Knock[1], s.Knock[2], s.Window, s.TTL))
+	ports, _ := s.protectedPorts()
+	trusted, _ := s.trustedAddresses()
+	pp := make([]string, len(ports))
+	for i, p := range ports {
+		pp[i] = strconv.Itoa(p)
+	}
+	return []byte(fmt.Sprintf("WAN=%s\nTIP=%s\nTPORT=%d\nTPORTS=%s\nTRUSTED=%s\nK1=%d\nK2=%d\nK3=%d\nWINDOW=%d\nTTL=%d\n", s.WAN, s.IP, ports[0], strings.Join(pp, ","), strings.Join(trusted, ","), s.Knock[0], s.Knock[1], s.Knock[2], s.Window, s.TTL))
 }
+
 func odinRead() (odinSettings, error) {
 	b, e := os.ReadFile(odinConfig)
 	if e != nil {
@@ -82,6 +165,18 @@ func odinRead() (odinSettings, error) {
 	}
 	num := func(k string) int { n, _ := strconv.Atoi(v[k]); return n }
 	s := odinSettings{WAN: v["WAN"], IP: v["TIP"], Port: num("TPORT"), Knock: [3]int{num("K1"), num("K2"), num("K3")}, Window: num("WINDOW"), TTL: num("TTL")}
+	if raw := v["TPORTS"]; raw != "" {
+		for _, part := range strings.Split(raw, ",") {
+			p, err := strconv.Atoi(part)
+			if err != nil {
+				return odinSettings{}, errors.New("invalid protected port list")
+			}
+			s.Ports = append(s.Ports, p)
+		}
+	}
+	if raw := v["TRUSTED"]; raw != "" {
+		s.Trusted = strings.Split(raw, ",")
+	}
 	return s, s.valid()
 }
 func odinTransactionPath() (string, error) {

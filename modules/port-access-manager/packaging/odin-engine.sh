@@ -13,15 +13,24 @@ IPT=/opt/sbin/iptables
 # Not trusting the config as shell source; read normalized keys line by line.
 load() {
     [ -f "$CFG" ] || return 1
-    WAN=; TIP=; TPORT=; K1=; K2=; K3=; WINDOW=; TTL=
+    WAN=; TIP=; TPORT=; TPORTS=; TRUSTED=; K1=; K2=; K3=; WINDOW=; TTL=
     while IFS='=' read -r k v; do
        case "$k" in
-        WAN) WAN=$v;; TIP) TIP=$v;; TPORT) TPORT=$v;;
+        WAN) WAN=$v;; TIP) TIP=$v;; TPORT) TPORT=$v;; TPORTS) TPORTS=$v;; TRUSTED) TRUSTED=$v;;
         K1) K1=$v;; K2) K2=$v;; K3) K3=$v;; WINDOW) WINDOW=$v;; TTL) TTL=$v;;
        esac
     done < "$CFG"
     case "$WAN" in *[!a-zA-Z0-9_.:-]*|'') return 1;; esac
     case "$TIP" in *[!0-9.]*|'') return 1;; esac
+    [ -n "$TPORTS" ] || TPORTS=$TPORT
+    case "$TPORTS" in *[!0-9,]*|''|,*|*,|*,,*) return 1;; esac
+    case "$TRUSTED" in *[!0-9.,/]*|,*|*,|*,,*) return 1;; esac
+    [ "$TPORT" = "${TPORTS%%,*}" ] || return 1
+    OLDIFS=$IFS; IFS=,
+    set -- $TPORTS
+    IFS=$OLDIFS
+    [ "$#" -ge 1 ] && [ "$#" -le 15 ] || return 1
+    for p in "$@"; do case "$p" in ''|*[!0-9]*) return 1;; esac; [ "$p" -ge 1 ] && [ "$p" -le 65535 ] || return 1; done
     for p in "$K1" "$K2" "$K3" "$TPORT" "$WINDOW" "$TTL"; do
       case "$p" in ''|*[!0-9]*) return 1;; esac
     done
@@ -80,8 +89,17 @@ apply() {
       "$IPT" -t filter -N "$n"
     done
     # Original odin rule order and invalid-port reset policy (unchanged).
-    a KNOCKING-LAST -d "$TIP" -p tcp --dport "$TPORT" -m recent --rcheck --seconds "$TTL" --name KKD --rsource -j ACCEPT
-    a KNOCKING-LAST -d "$TIP" -p tcp --dport "$TPORT" -j STATE3
+    # Permanent allowlist is scoped to service target/ports only.
+    if [ -n "$TRUSTED" ]; then
+       OLDIFS=$IFS; IFS=,
+       set -- $TRUSTED
+       IFS=$OLDIFS
+       for cidr in "$@"; do
+           a KNOCKING-LAST -s "$cidr" -d "$TIP" -p tcp -m multiport --dports "$TPORTS" -j ACCEPT
+       done
+    fi
+    a KNOCKING-LAST -d "$TIP" -p tcp -m multiport --dports "$TPORTS" -m recent --rcheck --seconds "$TTL" --name KKD --rsource -j ACCEPT
+    a KNOCKING-LAST -d "$TIP" -p tcp -m multiport --dports "$TPORTS" -j STATE3
     a KNOCKING-LAST -m recent --remove --name KK1 --rsource
     a KNOCKING-LAST -m recent --remove --name KK2 --rsource
     a KNOCKING-LAST -m recent --remove --name KK3 --rsource

@@ -45,7 +45,9 @@
     return {
       wan: input('wan').value.trim(),
       ip: input('ip').value.trim(),
-      port: Number(input('port').value),
+      port: Number(input('port').value.trim().split(',')[0]),
+      ports: input('port').value.trim().split(',').map(function (v) { return Number(v.trim()); }),
+      trusted: input('trusted').value.trim() ? input('trusted').value.split(/[,\s]+/).filter(Boolean) : [],
       knock: [Number(input('k1').value), Number(input('k2').value), Number(input('k3').value)],
       window: Number(input('window').value),
       ttl: Number(input('ttl').value)
@@ -55,8 +57,11 @@
     var ipParts = s.ip.split('.');
     if (!/^[a-zA-Z0-9_.:-]+$/.test(s.wan)) return 'Укажи корректный WAN-интерфейс';
     if (ipParts.length !== 4 || ipParts.some(function (part) { return !/^\d{1,3}$/.test(part) || Number(part) > 255; })) return 'Некорректный IPv4 сервиса';
-    var ports = s.knock.concat([s.port]);
+    var ports = s.knock.concat(s.ports);
     if (ports.some(function (p) { return !Number.isInteger(p) || p < 1 || p > 65535; })) return 'Порты должны быть от 1 до 65535';
+    if (s.ports.length < 1 || s.ports.length > 15) return 'От 1 до 15 защищаемых портов';
+    if (s.trusted.length > 32) return 'Не более 32 доверенных IP/CIDR';
+    if (s.trusted.some(function (x) { return !/^[0-9./]+$/.test(x); })) return 'Доверенные адреса: только IPv4/CIDR';
     if (new Set(ports).size !== ports.length) return 'Порты стуков и сервиса должны различаться';
     if (!Number.isInteger(s.window) || s.window < 5 || s.window > 300) return 'Окно стуков: 5–300 секунд';
     if (!Number.isInteger(s.ttl) || s.ttl < 30 || s.ttl > 86400) return 'Доступ: 30–86400 секунд';
@@ -86,7 +91,9 @@
     status.className = enabled ? (data.confirmed ? 'odin-state odin-state-on' : 'odin-state odin-state-pending') : 'odin-state';
     if (fill && data.configured && data.settings) {
       var s = data.settings;
-      ['wan', 'ip', 'port', 'window', 'ttl'].forEach(function (name) { input(name).value = s[name]; });
+      ['wan', 'ip', 'window', 'ttl'].forEach(function (name) { input(name).value = s[name]; });
+      input('port').value = (s.ports && s.ports.length ? s.ports : [s.port]).join(', ');
+      input('trusted').value = (s.trusted || []).join(', ');
       ['k1', 'k2', 'k3'].forEach(function (name, i) { input(name).value = s.knock[i]; });
     }
     buttons.save.disabled = busy || enabled;

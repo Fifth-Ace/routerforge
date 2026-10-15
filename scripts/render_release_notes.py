@@ -209,6 +209,15 @@ def main():
         Path(args.output).write_bytes(canonical.read_bytes())
         return
 
+    # Published Beta can opt into one approved, verbatim public patchnote.
+    # The Stable canonical release-notes path above stays unchanged.
+    if args.channel == "beta" and (config.get("release_notes") or {}).get("use_canonical"):
+        canonical = Path("docs") / f"RELEASE_NOTES_{release_version}.md"
+        if not canonical.is_file() or canonical.stat().st_size == 0:
+            raise SystemExit(f"missing approved Beta release notes: {canonical}")
+        Path(args.output).write_bytes(canonical.read_bytes())
+        return
+
     lines = [
         f"# RouterForge {release_version}",
         "",

@@ -1,108 +1,69 @@
 {
   "schema_version": 1,
   "channel": "beta",
-  "release_version": "0.13.0-beta.3",
+  "release_version": "0.13.0-beta.4",
   "release_notes": {
-    "ru": {
-      "new": [
-        "Beta 3: в официальный Beta-комплект добавлен CrowdSec Manager (10 компонентов).",
-        "Beta 0.13.0-beta.3: обновлённый компактный интерфейс Port Access Manager в стиле Antiscan; сохранены odin, knockd и fwknopd/SPA.",
-        "Улучшены компоновка форм, размер чекбоксов, группировка кнопок, статусы и адаптивная навигация."
-      ],
-      "fixes": [
-        "Устранены раздутая высота блоков управления, дублирующиеся элементы оформления и неудобные вертикальные группы кнопок.",
-        "Сохранены прежние API, runtime, операции применения и отката защиты, журнал, редактор конфигурации и диагностика."
-      ],
-      "compatibility": [
-        "Бета из девяти компонентов, версии 0.13.0~beta.3; Core обновляется вместе с Port Access Manager.",
-        "Авторизация knockd и fwknopd/SPA на реальном устройстве ЕЩЁ НЕ ПРОШЛА полную приёмку. Не защищать удалённый доступ без резервного канала; odin проверен по базовому сценарию."
-      ],
-      "technical": [
-        "P55: frontend-only Antiscan-style redesign; прежние API/firewall/watchdog сохранены.",
-        "knockd hardware: после стуков доступ не открылся; причина не установлена. fwknopd hardware authorization: not tested.",
-        "Пакет CrowdSec Manager включён в ARM64/MIPS/MIPSEL, без изменений самой службы CrowdSec."
-      ]
-    },
-    "en": {
-      "new": [
-        "Beta 3: CrowdSec Manager joins the official Beta package set (10 components).",
-        "Beta 0.13.0-beta.3: compact Antiscan-inspired Port Access Manager UI; odin, knockd and fwknopd/SPA retained.",
-        "Improved form density, checkbox sizing, action grouping, status layout, and responsive navigation."
-      ],
-      "fixes": [
-        "Reduced oversized control panels, repeated visual elements, and unnecessary vertical action layouts.",
-        "Existing APIs, runtime, protection enable/rollback operations, logs, configuration editing, and diagnostics retained."
-      ],
-      "compatibility": [
-        "Nine-component beta release at 0.13.0~beta.3; update Core together with Port Access Manager.",
-        "Hardware authorization for knockd and fwknopd/SPA has NOT passed full acceptance. Do not protect remote management without backup access; only basic odin hardware acceptance is available."
-      ],
-      "technical": [
-        "P55: frontend-only Antiscan-style redesign; original API/firewall/watchdog behavior preserved.",
-        "knockd hardware: remained closed after knocking; cause unresolved. fwknopd hardware authorization: not tested.",
-        "CrowdSec Manager package is part of ARM64/MIPS/MIPSEL release train; no change to CrowdSec upstream service."
-      ]
-    }
+    "use_canonical": true
   },
   "components": [
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4"
     },
     {
       "id": "dns",
       "package": "routerforge-dns",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     },
     {
       "id": "admin",
       "package": "routerforge-admin",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     },
     {
       "id": "monitoring",
       "package": "routerforge-monitoring",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     },
     {
       "id": "network-tools",
       "package": "routerforge-network-tools",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     },
     {
       "id": "nfqws-manager",
       "package": "routerforge-nfqws-manager",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     },
     {
       "id": "antiscan-manager",
       "package": "routerforge-antiscan-manager",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     },
     {
       "id": "port-access-manager",
       "package": "routerforge-port-access-manager",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     },
     {
       "id": "crowdsec-manager",
       "package": "routerforge-crowdsec-manager",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     },
     {
       "id": "profiling",
       "package": "routerforge-profiling",
-      "version": "0.13.0~beta.3",
-      "min_core_version": "0.13.0~beta.3"
+      "version": "0.13.0~beta.4",
+      "min_core_version": "0.13.0~beta.4"
     }
   ]
 }

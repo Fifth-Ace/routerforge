@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -247,6 +248,11 @@ func recordAntiscanAudit(cfg runtimeConfig, event antiscanAuditEvent) error {
 	if path == "" {
 		return nil
 	}
+	resolved, resolveErr := logpolicy.GuardedPath("antiscan-audit", path)
+	if resolveErr != nil {
+		return resolveErr
+	}
+	path = resolved
 	if !filepath.IsAbs(path) {
 		return errors.New("Antiscan audit log path must be absolute")
 	}
@@ -271,7 +277,7 @@ func recordAntiscanAudit(cfg runtimeConfig, event antiscanAuditEvent) error {
 	if err := compactAntiscanAuditLocked(path); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	file, err := logpolicy.OpenAppendNoFollow(path)
 	if err != nil {
 		return fmt.Errorf("open audit log: %w", err)
 	}
@@ -341,6 +347,16 @@ func readAntiscanAudit(cfg runtimeConfig, limit int) (antiscanAuditPage, error) 
 	path := strings.TrimSpace(cfg.AuditLog)
 	if path == "" {
 		return page, nil
+	}
+	resolved, resolveErr := logpolicy.Resolve("antiscan-audit", path)
+	if resolveErr != nil {
+		return page, resolveErr
+	}
+	path = resolved
+	if info, statErr := os.Lstat(path); statErr == nil && !info.Mode().IsRegular() {
+		return page, errors.New("audit target is not a regular file")
+	} else if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+		return page, statErr
 	}
 
 	antiscanAuditMu.Lock()

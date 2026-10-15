@@ -185,9 +185,9 @@
       </section>
 
       <section class="settings-section panel">
-        <div class="settings-title">Журнал RouterForge Core</div>
+        <div class="settings-title">Журналы RouterForge</div>
         <div class="setting-row">
-          <div><strong>Расположение журнала Core</strong><span>Журналы отдельных модулей пока сохраняют собственные настройки. RAM-журнал исчезнет после перезагрузки.</span></div>
+          <div><strong>Хранилище журналов RouterForge</strong><span>Одна политика для событий Core, DNS, аудита Antiscan Manager и диагностики менеджеров. RAM-журналы исчезают после перезагрузки. Не меняет журналы внешних служб nfqws2, CrowdSec или Antiscan.</span></div>
           <div class="setting-control-slot">
             <select bind:value={loggingMode}>
               <option value="entware">Entware — /opt/var/log</option>
@@ -197,13 +197,13 @@
         </div>
         {#if loggingMode === 'custom'}
           <div class="setting-row">
-            <div><strong>Полный путь к файлу журнала</strong><span>Например /opt/var/log/custom/routerforge.log. Каталог должен уже существовать и быть доступным для записи. Для внешнего диска проверь монтаж: /storage может быть внутренней флеш-памятью. Допустимы /opt/var/log, /opt/mnt, /tmp, /mnt, /media, /storage, /var/log.</span></div>
+            <div><strong>Путь для Core и каталог остальных журналов</strong><span>Например /opt/var/log/custom/routerforge.log. Остальные журналы RouterForge будут в том же каталоге с разными именами. Каталог должен уже существовать и быть доступным для записи. Для внешнего диска проверь монтаж: /storage может быть внутренней флеш-памятью. Допустимы /opt/var/log, /opt/mnt, /tmp, /mnt, /media, /storage, /var/log.</span></div>
             <div class="setting-control-slot"><input type="text" bind:value={loggingCustomPath} placeholder="/opt/var/log/routerforge-custom.log" autocomplete="off" spellcheck="false" /></div>
           </div>
         {/if}
-        <div class="setting-row static"><div><strong>Активный путь Core</strong><span>Переключение влияет на новые записи, существующие файлы не удаляются.</span></div><code>{loggingActivePath || '—'}</code></div>
+        <div class="setting-row static"><div><strong>Активный путь Core</strong><span>DNS и менеджеры записывают свои журналы в выбранное хранилище по отдельным именам. Новая политика действует для новых записей; существующие файлы не удаляются. Встроенная оперативная история Port Access остаётся в памяти.</span></div><code>{loggingActivePath || '—'}</code></div>
         <div class="setting-row">
-          <div><strong>Максимальный размер журнала</strong><span>От 1 до 16 МБ на файл</span></div>
+          <div><strong>Максимальный размер журнала</strong><span>От 1 до 16 МБ на файл, для JSONL-аудита Antiscan действует более строгий встроенный предел</span></div>
           <div class="setting-control-slot"><select bind:value={loggingMaxMB}><option value={1}>1 МБ</option><option value={2}>2 МБ</option><option value={4}>4 МБ</option><option value={8}>8 МБ</option><option value={16}>16 МБ</option></select></div>
         </div>
         <div class="setting-row">

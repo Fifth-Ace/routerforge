@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 )
 
 var version = "dev"
@@ -43,6 +45,8 @@ func main() {
 	socket := flag.String("socket", "", "Unix socket path")
 	socketDir := flag.String("socket-dir", "/opt/var/run", "Unix socket directory for -module all")
 	flag.Parse()
+
+	logpolicy.Install("monitoring")
 
 	id := strings.ToLower(strings.TrimSpace(*moduleID))
 	if !validModuleMode(id) {

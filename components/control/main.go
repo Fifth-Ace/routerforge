@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 	"github.com/Fifth-Ace/routerforge/internal/platform/transaction"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
@@ -142,6 +143,8 @@ func main() {
 	socket := flag.String("socket", defaultSocket, "Unix socket path")
 	uiPath := flag.String("ui", "/opt/share/routerforge/modules/admin/ui", "module UI path")
 	flag.Parse()
+
+	logpolicy.Install("admin")
 
 	if err := os.MkdirAll(filepath.Dir(*socket), 0755); err != nil {
 		panic(err)

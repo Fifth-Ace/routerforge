@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 	"net"
 	"net/http"
@@ -137,6 +138,7 @@ func main() {
 	sock := flag.String("socket", socketDefault, "Unix socket")
 	ui := flag.String("ui", "/opt/share/routerforge/modules/crowdsec-manager/ui", "UI directory")
 	flag.Parse()
+	logpolicy.Install("crowdsec-manager")
 	_ = os.MkdirAll(filepath.Dir(*sock), 0755)
 	_ = os.Remove(*sock)
 	lis, e := net.Listen("unix", *sock)

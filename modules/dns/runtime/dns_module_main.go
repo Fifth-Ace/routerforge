@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 )
 
 var version = "dev"
@@ -180,6 +182,7 @@ func main() {
 		return
 	}
 
+	logpolicy.Install("dns")
 	totalMemoryKB := readMemTotalKB("/proc/meminfo")
 	memoryProfile := dnsMemoryProfileFor(totalMemoryKB)
 	store := newStoreWithLimits(memoryProfile.FlowRetentionCap, 500, memoryProfile.DomainCountCap, memoryProfile.ClientDomainCap)

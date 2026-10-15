@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
@@ -102,6 +103,8 @@ type checkResponse struct {
 func main() {
 	socket := flagValue("-socket", defaultSocket)
 	uiPath := flagValue("-ui", "/opt/share/routerforge/modules/nfqws-manager/ui")
+
+	logpolicy.Install("nfqws-manager")
 
 	if err := os.MkdirAll(filepath.Dir(socket), 0755); err != nil {
 		panic(err)

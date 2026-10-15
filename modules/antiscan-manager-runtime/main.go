@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 )
 
 var version = "dev"
@@ -30,6 +32,8 @@ func main() {
 	geoLock := flag.String("antiscan-geo-lock", "/tmp/ascn_geo.lock", "Antiscan geo reload marker")
 	auditLog := flag.String("audit-log", "/opt/var/log/routerforge/antiscan-manager.jsonl", "Bounded Antiscan Manager audit log")
 	flag.Parse()
+
+	logpolicy.Install("antiscan-manager")
 
 	cfg := runtimeConfig{
 		Socket:         strings.TrimSpace(*socket),

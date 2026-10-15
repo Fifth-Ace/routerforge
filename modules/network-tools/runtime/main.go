@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 )
 
 var version = "dev"
@@ -18,6 +20,8 @@ func main() {
 	socket := flag.String("socket", "/opt/var/run/routerforge-network-tools.sock", "Unix socket path")
 	uiPath := flag.String("ui", "/opt/share/routerforge/modules/network-tools/ui", "UI directory")
 	flag.Parse()
+
+	logpolicy.Install("network-tools")
 
 	cfg := runtimeConfig{
 		Socket: strings.TrimSpace(*socket),

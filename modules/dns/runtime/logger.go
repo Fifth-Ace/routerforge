@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/logpolicy"
 )
 
 type dnsErrorBurst struct {
@@ -31,17 +31,8 @@ func NewEventLogger(path string) *EventLogger {
 }
 
 func (l *EventLogger) writeLocked(kind, msg string) {
-	_ = os.MkdirAll(filepath.Dir(l.path), 0755)
-	if st, err := os.Stat(l.path); err == nil && st.Size() >= l.maxSize {
-		_ = os.Remove(l.path + ".1")
-		_ = os.Rename(l.path, l.path+".1")
-	}
-	f, err := os.OpenFile(l.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	fmt.Fprintf(f, "%s %-16s %s\n", time.Now().Format("2006-01-02 15:04:05"), kind, msg)
+	line := fmt.Sprintf("%s %-16s %s\n", time.Now().Format("2006-01-02 15:04:05"), kind, msg)
+	_ = logpolicy.Append("dns", l.path, []byte(line))
 }
 
 func (l *EventLogger) Event(kind, msg string) {

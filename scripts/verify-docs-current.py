@@ -52,8 +52,8 @@ for channel in ("stable", "beta"):
         raise SystemExit(f"duplicate {channel} component package")
     if not set(required_base).issubset(packages) or not set(packages).issubset(required_base + required_security):
         raise SystemExit(f"unexpected {channel} component topology")
-    if channel == "beta" and not set(required_security).issubset(packages):
-        raise SystemExit("Beta security managers missing")
+    if not set(required_security).issubset(packages):
+        raise SystemExit(f"{channel} security managers missing")
     for component in obj["components"]:
         version = str(component.get("version", ""))
         if not re.fullmatch(r"\d+\.\d+\.\d+(?:~(?:beta|dev)\.[A-Za-z0-9.]+)?", version):

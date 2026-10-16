@@ -223,6 +223,8 @@ def main():
             "network-tools",
             "nfqws-manager",
             "antiscan-manager",
+            "port-access-manager",
+            "crowdsec-manager",
             "profiling",
         ]
     else:

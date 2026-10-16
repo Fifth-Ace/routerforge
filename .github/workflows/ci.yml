@@ -167,7 +167,7 @@ jobs:
             while IFS= read -r path; do
               case "$path" in
 
-                README.md|README_EN.md|modules/README.md|release/channels/README.md|docs/*|scripts/verify-docs-current.py)
+                README.md|README_EN.md|CHANGELOG.md|CONTRIBUTING.md|docs/*|scripts/verify-docs-current.py)
                   DOCS=true
                   ;;
 
@@ -212,7 +212,7 @@ jobs:
               esac
 
               case "$path" in
-                components/*|modules/*|release/channels/*|docs/REPOSITORY_LAYOUT.md)
+                components/*|modules/*|release/channels/*|docs/ARCHITECTURE.md)
                   LAYOUT=true
                   ;;
               esac
@@ -416,7 +416,7 @@ jobs:
           test -f release/channels/dev.json
           test -f release/channels/beta.json
           test -f release/channels/stable.json
-          test -f docs/REPOSITORY_LAYOUT.md
+          test -f docs/ARCHITECTURE.md
 
 
       - name: Set up Go

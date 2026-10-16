@@ -1,101 +1,51 @@
+<p align="center">
+  <img src="docs/assets/routerforge-banner.jpg" alt="RouterForge — monitoring, diagnostics and management for Keenetic / Netcraze with Entware" width="100%">
+</p>
+
 # RouterForge
 
 [Русский](README.md) | **English**
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.11.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/beta-0.11.0--beta.1-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/github/v/release/Fifth-Ace/routerforge?filter=routerforge-v%2A&sort=date&label=stable&color=2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/github/v/release/Fifth-Ace/routerforge?include_prereleases=true&filter=routerforge-v%2A-beta.%2A&sort=date&label=beta&color=d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RouterForge 0.11.0** is a modular web platform purpose-built for **Keenetic / Netcraze routers with Entware**: monitoring, DNS, management, network diagnostics and maintenance in one interface.
+**RouterForge** is a modular web platform for **Keenetic / Netcraze routers running Entware**. Monitoring, administration, DNS, network diagnostics and security tools are available in one interface.
 
-RouterForge works directly with KeeneticOS/NDMS and Entware capabilities including `ndmc`, RCI, interfaces, routes, DNS, policy routing, processes and services. Users work through one Web UI on **`:2233`** while internal modules connect to Core through Unix sockets.
+RouterForge integrates with KeeneticOS/NDMS and Entware through `ndmc`, RCI and system interfaces. The Web UI runs on **`:2233`**; modules connect to Core using local Unix sockets.
 
 > [!NOTE]
-> **RouterForge is an independent, non-commercial community project.** It is not an official product, division or partner project of **Keenetic, Netcraze, Entware** or any other company or project mentioned here. All trademarks belong to their respective owners. RouterForge is licensed under MIT.
+> **RouterForge is an independent, non-commercial community project.** It is not an official product, division or partner project of Keenetic, Netcraze or Entware. Trademarks belong to their respective owners. License: MIT.
 
 > [!TIP]
-> Core and module versions are independent — see [Versioning Policy](docs/VERSIONING.md).
+> Core and modules are versioned independently — see [Versioning Policy](docs/VERSIONING.md).
 
-## Why RouterForge
+## Installation
 
-- **Purpose-built for Keenetic / Netcraze routers.** RouterForge is not a generic Linux panel adapted to a router; its architecture, runtime and UI are designed around KeeneticOS/NDMS and Entware from the start.
-- **Deep router integration.** RouterForge works with `ndmc`, RCI, policy routing, routes, interfaces, DNS and router services instead of exposing only generic Linux metrics.
-- **One interface instead of multiple disconnected panels.** Core brings modules, settings, App Center, diagnostics and maintenance together on one user-facing Web port: `2233`.
-- **Modular installation.** Start with Core and add only the capabilities you actually need.
-- **Lean runtime.** Go backend, bounded caches/history, no Node.js on the router and no unnecessary external HTTP services.
-- **Guarded operations.** Sensitive actions use constrained server-side contracts, path validation, confirmations and rollback where it actually matters.
-- **Verifiable release chain.** Stable is published from a validated exact SHA with multi-arch indexes, SHA256 checks and an immutable release snapshot.
+You need a Keenetic / Netcraze router running Entware, shell access and an internet connection.
 
-## RouterForge modules — Stable 0.11.0
+### Stable
 
-### Core — one control point
-`routerforge-core` · **0.10.1**
+For everyday use:
 
-RouterForge itself: the shared Web UI, authentication, settings, App Center, Registry and the host for every other module.
+```sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
+```
 
-**Everyone needs it:** Core is the platform foundation. Installation starts here and the rest of RouterForge is managed through it.
+### Beta
 
-### DNS — more control than stock DNS settings
-`routerforge-dns` · **0.10.0**
+Prerelease channel with new modules and features:
 
-More than a list of DNS servers. The module gives DNS its own workspace: classic DNS, DoT and DoH, resolver management, current health, latency, errors, fallback and a clear explanation of **what is unhealthy right now and why**.
+```sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+```
 
-Unlike stock DNS management, RouterForge lets you **temporarily disable a resolver without deleting it**, then enable it again later. That makes testing, provider comparison and temporary isolation of an unstable resolver much easier without losing its configuration. Dynamic system resolvers are protected from accidental editing.
-
-It also:
-- shows health **per resolver**, not only as one global status;
-- uses a rolling health window so old errors do not keep a resolver degraded forever;
-- treats normal `NXDOMAIN` responses as informational instead of a health failure;
-- shows latency/p95, errors, fallback and outage state;
-- helps reveal which resolver client traffic is actually using;
-- applies changes through a guarded `snapshot → validation → mutation → save → readback → rollback` flow.
-
-**Useful if:** you want to do more than simply “set DNS” — you want to **control it, compare resolvers and quickly understand failures**, especially with multiple DNS providers, DoT/DoH or more complex network policy.
-
-### Management — administration without living in SSH
-`routerforge-admin` · **0.10.0**
-
-Processes and Entware services, File Manager, Maintenance, full Entware Terminal and Keenetic NDM Console in one UI.
-
-**Useful if:** you want most day-to-day administration in the browser — inspect a process, restart a service, edit a file, open a shell or enter `ndmc` without jumping between separate tools.
-
-### Monitoring — the router's health at a glance
-`routerforge-monitoring` · **0.10.0**
-
-System, Thermal, Storage and Network in one place: CPU load, memory, temperatures, storage and interface state.
-
-**Useful if:** you want one page that answers “is the router healthy?” without opening `top`, `df`, `ip` or hunting through thermal sensors manually.
-
-### Network Tools — see where traffic is really going
-`routerforge-network-tools` · **0.10.0**
-
-Network Doctor, Route Inspector, Flow Explorer and Active Probes: routing, active flows, reachability and path diagnostics in one module.
-
-**Useful if:** you have multiple WAN/VPN links, policy routing, complex routes, or regularly ask “why is this destination going that way?”.
-
-### NFQWS Manager — bypass management without the manual marathon
-`routerforge-nfqws-manager` · **0.10.0**
-
-Management for an existing `nfqws2-keenetic` runtime: profiles and lists, strategy library/import, diagnostics, Auto Setup/AutoSelect, ClientHello, sandboxing, history, backups, plus DPI Detector and NFQWS Menu integrations.
-
-**Useful if:** you use nfqws2 and want more than manual config editing — diagnose a target, test strategies safely and apply a verified result through preview/verification/rollback.
-
-### Antiscan Manager — Antiscan management without shell marathons
-`routerforge-antiscan-manager` · **0.11.0**
-
-A separate module for an existing `dimon27254/antiscan` installation: status, diagnostics, configuration, ipsets, Custom Lists, lifecycle/operations, flush/recovery, RCI token, Scheduler and action history.
-
-**Useful if:** you run Antiscan and want to manage it from RouterForge. The manager does not install or update upstream Antiscan itself.
-
-### Profiling — RouterForge internals
-`routerforge-profiling` · **0.10.0**
-
-Local Core profiling for development and deep performance diagnostics.
-
-**Most users do not need it:** install only when you specifically need profiling.
+Open `http://<router-ip>:2233` after installation. **Stable and Beta are separate release channels.** Choose deliberately. See [Installation and updates](docs/INSTALLATION.md).
 
 ## Architecture
+
+RouterForge consists of Core and independently installed modules.
 
 ```text
 Browser
@@ -105,7 +55,7 @@ Browser
 RouterForge Core
 ├── Web UI / REST / SSE
 ├── Authentication / Settings
-├── App Center / Registry / Release lifecycle
+├── App Center / Registry / Releases
 ├── Module ABI host
 └── Unix-socket proxy
      ├── DNS
@@ -115,81 +65,121 @@ RouterForge Core
      │    ├── Entware Terminal
      │    └── Keenetic NDM Console
      ├── Monitoring
-     │    ├── System
-     │    ├── Thermal
-     │    ├── Storage
-     │    └── Network
+     │    ├── System / Thermal / Storage / Network
      ├── Network Tools
-     │    ├── Network Doctor
-     │    ├── Route Inspector
-     │    ├── Flow Explorer
-     │    └── Active Probes
+     │    ├── Network Doctor / Route Inspector
+     │    └── Flow Explorer / Active Probes
      ├── NFQWS Manager
      │    ├── Diagnostics / AutoSelect
-     │    ├── Strategy Library / Import
-     │    ├── ClientHello
+     │    ├── Strategies / Config / Lists
+     │    ├── Smart Apply / Backups
      │    ├── DPI Detector
      │    └── NFQWS Menu
-     └── Antiscan Manager
-          ├── Status / Diagnostics / Why blocked
-          ├── Config / Custom Lists / ipset
-          └── Guarded operations / Scheduler / Recovery
+     ├── Antiscan Manager
+     │    ├── Status / Diagnostics
+     │    └── Config / Lists / Recovery
+     ├── Port Access Manager
+     │    ├── knockd / fwknopd / SPA
+     │    └── iptables recent / odin
+     └── CrowdSec Manager
+          ├── Firewall Bouncer / LAPI
+          └── ipset / iptables / Diagnostics
 ```
 
-`routerforge-profiling` is separate and loopback-only by default at `127.0.0.1:6061`.
+`routerforge-profiling` runs separately and is bound to `127.0.0.1:6061` by default. The backend is written in Go; modules do not need public standalone HTTP servers. See [Architecture](docs/ARCHITECTURE.md).
 
-## Installation
+## Why RouterForge
 
-### Stable
+- **Purpose-built for Keenetic / Netcraze.** Designed for KeeneticOS/NDMS and Entware.
+- **System integration.** `ndmc`, RCI, interfaces, routes, DNS, policy routing and services.
+- **One interface.** Administration, App Center, diagnostics and maintenance through one Web UI.
+- **Modular installation.** Core first, optional components as needed.
+- **Lightweight runtime.** Go backend, no Node.js runtime on the router.
+- **Guarded changes.** Validation, confirmations, backups and rollback where supported.
+- **Verifiable releases.** Multi-architecture packages, SHA256 checks and immutable release snapshots.
 
-```sh
-/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
-```
+## RouterForge modules
 
-Open:
+Available capabilities depend on the installed release channel and package selection.
 
-```text
-http://<router-ip>:2233
-```
+### Core — the management hub
+`routerforge-core`
 
-### Beta
+Web UI, authentication, settings, App Center, updates, module lifecycle and basic device telemetry. **Required** for all other modules.
 
-```sh
-/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
-```
+### DNS — resolver management
+`routerforge-dns`
 
-Stable and Beta are separate rolling channels. Switch deliberately.
+DNS, DoT and DoH configuration, resolver health, latency, errors and fallback; temporarily disable resolvers without removing them. **Use it for** advanced DNS management.
 
-## Supported platform
+### Management — router administration
+`routerforge-admin`
 
-RouterForge is developed for **Keenetic / Netcraze routers with Entware**.
+Processes, services, file manager, maintenance, Entware terminal and Keenetic NDM console. **Use it for** routine administration in the browser.
+
+### Monitoring — device overview
+`routerforge-monitoring`
+
+CPU, memory, thermals, storage and network interface status. **Use it for** device resource visibility.
+
+### Network Tools — network diagnostics
+`routerforge-network-tools`
+
+Network Doctor, Route Inspector, Flow Explorer and Active Probes. **Use it for** WAN, VPN and routing investigations.
+
+### NFQWS Manager — nfqws2 management
+`routerforge-nfqws-manager`
+
+Manage an existing `nfqws2-keenetic` installation: configuration, profiles, lists, site diagnostics, strategy selection, test sandbox, guarded apply and backups. **Use it if** you run nfqws2.
+
+### Antiscan Manager — Antiscan management
+`routerforge-antiscan-manager`
+
+Manage an installed Antiscan service: configuration, diagnostics, lists, ipset, scheduling and recovery. **Use it if** you run Antiscan.
+
+### Port Access Manager — protected access
+`routerforge-port-access-manager` · **Beta**
+
+Access management for network services and forwarded ports through knockd, fwknopd / SPA and iptables recent / odin. **Use it for** port knocking and access control.
+
+### CrowdSec Manager — Firewall Bouncer management
+`routerforge-crowdsec-manager` · **Beta**
+
+CrowdSec LAPI connectivity, Firewall Bouncer lifecycle, ipset/iptables diagnostics and block statistics. **Use it if** you deploy CrowdSec protection.
+
+### Profiling — RouterForge diagnostics
+`routerforge-profiling`
+
+Local Core profiling for development and performance analysis. **Optional** for advanced diagnostics.
+
+## Supported platforms
+
+RouterForge targets Keenetic / Netcraze with Entware.
 
 | Architecture | Status |
 | --- | --- |
-| `aarch64-3.10` | primary, physically validated |
-| `mipsel-3.4` | experimental, partially validated |
-| `mips-3.4` | experimental |
+| `aarch64-3.10` | Primary, hardware-validated |
+| `mipsel-3.4` | Experimental, partly validated |
+| `mips-3.4` | Experimental |
 
-Entware in `/opt`, `opkg`, root access and `curl` or `wget` are required.
-
-See [docs/ARCHITECTURES.md](docs/ARCHITECTURES.md) for the hardware matrix.
+Entware in `/opt`, `opkg`, root access and `curl` or `wget` are required. See [Architecture compatibility](docs/ARCHITECTURES.md).
 
 ## Community
 
-Questions, feedback, ideas and RouterForge discussion: **[Telegram @RouterForge](https://t.me/RouterForge)**.
-
-Bugs and technical tasks can be filed in [GitHub Issues](https://github.com/Fifth-Ace/routerforge/issues).
+Ideas, feedback and questions: **[Telegram @RouterForge](https://t.me/RouterForge)**. Bugs and technical requests: [GitHub Issues](https://github.com/Fifth-Ace/routerforge/issues).
 
 ## Documentation
 
-- [Documentation index](docs/README.md)
-- [Release Notes 0.11.0](docs/RELEASE_NOTES_0.11.0.md)
+- [Documentation](docs/README.md)
+- [Latest Stable](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+- [Latest Beta](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+- [All releases](https://github.com/Fifth-Ace/routerforge/releases)
 - [Installation](docs/INSTALLATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Modules](docs/MODULES.md)
 - [App Center](docs/MARKETPLACE.md)
-- [Management v2](docs/MANAGEMENT_V2_API.md)
-- [Versioning Policy](docs/VERSIONING.md)
+- [Management API](docs/MANAGEMENT_V2_API.md)
+- [Versioning](docs/VERSIONING.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Changelog](CHANGELOG.md)
 

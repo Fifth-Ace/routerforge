@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Validate active public documentation without pinning yesterday's release."""
 import json
 import re
 from pathlib import Path
@@ -6,134 +7,78 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 ACTIVE = [
-    "README.md", "README_EN.md", "CONTRIBUTING.md", "SECURITY.md",
-    "components/README.md", "modules/README.md", "marketplace/README.md",
-    "release/channels/README.md", "docs/README.md", "docs/INSTALLATION.md",
-    "docs/ARCHITECTURE.md", "docs/ARCHITECTURES.md", "docs/MODULES.md",
-    "docs/MARKETPLACE.md", "docs/MANAGEMENT_V2_API.md",
-    "docs/MANAGEMENT_V2_FILES_API.md", "docs/MONITORING_MIGRATION.md",
-    "docs/NETWORK_TOOLS_CONSOLIDATION.md", "docs/RELEASE_PROCESS.md",
-    "docs/REPOSITORY_LAYOUT.md", "docs/TROUBLESHOOTING.md",
-    "docs/FRONTEND_ARCHITECTURE.md", "docs/EXECUTABLE_COMPRESSION.md",
-    "docs/APP_CENTER_RELEASE_FEED_ADR.md", "docs/RELEASE_NOTES_0.7.1.md",
-    "docs/RELEASE_NOTES_0.7.2.md", "docs/RELEASE_NOTES_0.8.0.md",
-    "docs/RELEASE_NOTES_0.9.0.md", "docs/RELEASE_NOTES_0.9.1.md",
-    "docs/RELEASE_NOTES_0.10.0.md", "docs/RELEASE_NOTES_0.11.0.md", "docs/RELEASE_NOTES_0.11.1.md", "docs/RELEASE_NOTES_0.12.0.md", "docs/RELEASE_NOTES_0.12.1.md", "docs/VERSIONING.md",
-    "docs/VNEXT_MODULES_DEV_FOUNDATION.md", "docs/FORGEJO_FAILOVER.md",
-    "docs/UI_CONTRACT.md",
+    "README.md", "README_EN.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md", "docs/README.md", "docs/ARCHITECTURE.md",
+    "docs/ARCHITECTURES.md", "docs/INSTALLATION.md", "docs/MODULES.md",
+    "docs/MARKETPLACE.md", "docs/APP_CENTER_DEVELOPER_GUIDE.md",
+    "docs/MANAGEMENT_V2_API.md", "docs/MANAGEMENT_V2_FILES_API.md",
+    "docs/TROUBLESHOOTING.md", "docs/VERSIONING.md",
+    "marketplace/README.md", "marketplace/developer-kit/README.md",
 ]
 
 for rel in ACTIVE:
     if not (ROOT / rel).is_file():
-        raise SystemExit(f"missing active documentation: {rel}")
+        raise SystemExit(f"missing public documentation: {rel}")
 
-required = {
-    "README.md": ["Stable 0.11.0", "routerforge-network-tools", "routerforge-nfqws-manager", "routerforge-antiscan-manager", "Release Notes 0.11.0"],
-    "README_EN.md": ["Stable 0.11.0", "routerforge-network-tools", "routerforge-nfqws-manager", "routerforge-antiscan-manager", "Release Notes 0.11.0"],
-    "modules/README.md": ["Current Stable 0.11.0 topology", "network-tools/", "nfqws-manager-runtime/", "antiscan-manager-runtime/", "Stable package 0.11.0", "Legacy split source directories"],
-    "docs/REPOSITORY_LAYOUT.md": ["Stable 0.11.0 release topology", "modules/network-tools/", "modules/nfqws-manager-runtime/", "modules/antiscan-manager-runtime/", "not build targets", "internal/safety/"],
-    "docs/MODULES.md": ["Stable 0.11.0 topology", "routerforge-nfqws-manager", "routerforge-antiscan-manager", "min_core_version=0.7.1"],
-    "docs/INSTALLATION.md": ["Stable 0.11.0", "routerforge-nfqws-manager", "routerforge-antiscan-manager", "Upgrade с Stable 0.10.0", "runtime compatibility probe"],
-    "release/channels/README.md": ["Current Stable: **0.11.0**", "routerforge-nfqws-manager", "routerforge-antiscan-manager", "routerforge-stable-promotion"],
-    "docs/README.md": ["Stable 0.11.0", "RELEASE_NOTES_0.11.0.md"],
-    "docs/VNEXT_MODULES_DEV_FOUNDATION.md": ["Historical / superseded", "Maintenance remains under Management", "Network Tools is the only new top-level module"],
-    "docs/NETWORK_TOOLS_CONSOLIDATION.md": ["routerforge-network-tools", "sole first-class", "Stable 0.9.0"],
-    "docs/MANAGEMENT_V2_API.md": ["mode=<entware|keenetic>", "ndmc", "authentication is disabled"],
-    "docs/RELEASE_PROCESS.md": ["publish_beta=false", "routerforge-stable-promotion", "VERSIONING.md"],
-    "docs/RELEASE_NOTES_0.9.0.md": ["RouterForge 0.9.0", "70 коммитов", "DNS 0.8.1", "Admin 0.8.1", "Monitoring 0.8.0", "Network Tools 0.9.0", "Profiling 0.7.1", "Shared Safety Engines", "Private Forgejo"],
-    "docs/RELEASE_NOTES_0.9.1.md": ["RouterForge 0.9.1", "thermal", "unsupported", "/api/health", "P16", "P17", "P18"],
-    "docs/RELEASE_NOTES_0.10.0.md": ["RouterForge 0.10.0", "NFQWS Manager", "Runnin4ik/dpi-detector", "rndnaame/nfqws-menu", "DNS Policy Router", "0.10.0-beta.5"],
-    "docs/RELEASE_NOTES_0.11.0.md": ["RouterForge 0.11.0", "Antiscan Manager", "Keenetic Entware Extras", "Geo Split", "RouterForge Core", "0.10.1"],
-    "docs/RELEASE_NOTES_0.11.1.md": ["RouterForge 0.11.1", "Keenetic Entware Extras", "/custom/", "RouterForge Core", "0.10.2"],
-    "docs/RELEASE_NOTES_0.12.0.md": ["RouterForge 0.12.0", "57 проектов", "Antiscan Manager", "RouterForge Core", "0.11.0", "0.11.1"],
-    "docs/RELEASE_NOTES_0.12.1.md": ["RouterForge 0.12.1", "непроверенные источники", "Пользователи тоже решили поучаствовать", "Телеметрия устройства", "core_telemetry.go"],
-    "docs/VERSIONING.md": ["MAJOR.MINOR.PATCH", "PATCH", "MINOR", "1.0.0", "Stable 0.11.0 example"],
-    "docs/RELEASE_NOTES_0.7.1.md": ["RouterForge 0.7.1", "Keenetic NDM Console"],
-    "docs/RELEASE_NOTES_0.7.2.md": ["RouterForge 0.7.2", "routerforge-dns", "DNS hotfix"],
-    "docs/RELEASE_NOTES_0.8.0.md": ["RouterForge 0.8.0", "routerforge-network-tools", "routerforge-monitoring", "publish_beta=false"],
-}
-
-for rel, needles in required.items():
+for rel in ("README.md", "README_EN.md"):
     text = (ROOT / rel).read_text(encoding="utf-8")
-    for needle in needles:
-        if needle not in text:
-            raise SystemExit(f"{rel}: missing current marker {needle}")
+    for expected in ("routerforge-stable", "routerforge-beta", "routerforge-nfqws-manager",
+                     "routerforge-port-access-manager", "routerforge-crowdsec-manager"):
+        if expected not in text:
+            raise SystemExit(f"{rel}: missing product marker {expected}")
+    if "Stable 0.11.0" in text or "stable-0.11.0" in text:
+        raise SystemExit(f"{rel}: obsolete hardcoded release version")
 
-renderer = (ROOT / "scripts/render_release_notes.py").read_text(encoding="utf-8")
-for marker in (
-    'if args.channel == "stable":',
-    'RELEASE_NOTES_{release_version}.md',
-    'write_bytes(canonical.read_bytes())',
-):
-    if marker not in renderer:
-        raise SystemExit(f"stable canonical release-notes renderer missing marker: {marker}")
+for channel in ("stable", "beta"):
+    obj = json.loads((ROOT / "release" / "channels" / f"{channel}.json").read_text(encoding="utf-8"))
+    version = str(obj.get("release_version", ""))
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:-beta\.\d+)?", version):
+        raise SystemExit(f"invalid {channel} release version: {version}")
+    if obj.get("channel") != channel:
+        raise SystemExit(f"wrong release channel: {channel}")
 
-stable = json.loads((ROOT / "release/channels/stable.json").read_text(encoding="utf-8"))
-if stable.get("release_version") != "0.12.1":
-    raise SystemExit("stable.json release_version mismatch")
-
-expected = [
+# Validate release topology without embedding stale package versions in docs.
+required_base = [
     "routerforge-core", "routerforge-dns", "routerforge-admin",
     "routerforge-monitoring", "routerforge-network-tools",
     "routerforge-nfqws-manager", "routerforge-antiscan-manager",
     "routerforge-profiling",
 ]
-components = stable.get("components", [])
-if [x.get("package") for x in components] != expected:
-    raise SystemExit("stable.json topology mismatch")
+required_security = ["routerforge-port-access-manager", "routerforge-crowdsec-manager"]
+for channel in ("stable", "beta"):
+    obj = json.loads((ROOT / "release" / "channels" / f"{channel}.json").read_text(encoding="utf-8"))
+    packages = [str(c.get("package", "")) for c in obj.get("components", [])]
+    if len(packages) != len(set(packages)):
+        raise SystemExit(f"duplicate {channel} component package")
+    if not set(required_base).issubset(packages) or not set(packages).issubset(required_base + required_security):
+        raise SystemExit(f"unexpected {channel} component topology")
+    if channel == "beta" and not set(required_security).issubset(packages):
+        raise SystemExit("Beta security managers missing")
+    for component in obj["components"]:
+        version = str(component.get("version", ""))
+        if not re.fullmatch(r"\d+\.\d+\.\d+(?:~(?:beta|dev)\.[A-Za-z0-9.]+)?", version):
+            raise SystemExit(f"invalid {channel} component version: {component.get('package')}")
 
-versions = {
-    "routerforge-core": ("0.12.1", ""),
-    "routerforge-dns": ("0.10.1", "0.10.0"),
-    "routerforge-admin": ("0.10.1", "0.10.0"),
-    "routerforge-monitoring": ("0.10.1", "0.10.0"),
-    "routerforge-network-tools": ("0.10.1", "0.10.0"),
-    "routerforge-nfqws-manager": ("0.10.1", "0.10.0"),
-    "routerforge-antiscan-manager": ("0.11.1", "0.10.1"),
-    "routerforge-profiling": ("0.10.0", "0.7.1"),
-}
-for item in components:
-    version, min_core = versions[item["package"]]
-    if item.get("version") != version:
-        raise SystemExit(f"stable version mismatch: {item['package']}")
-    if min_core and item.get("min_core_version") != min_core:
-        raise SystemExit(f"stable min_core mismatch: {item['package']}")
-
+# Keep the existing safety checks for retired split modules and aggregate builds.
 for rel in ("modules/system", "modules/thermal", "modules/storage", "modules/network"):
     if (ROOT / rel).exists():
-        raise SystemExit(f"legacy split source directory must be absent: {rel}")
-
-for rel in (
-    "marketplace/approvals/system.json",
-    "marketplace/approvals/thermal.json",
-    "marketplace/approvals/storage.json",
-    "marketplace/approvals/network.json",
-):
+        raise SystemExit(f"retired split source directory remains: {rel}")
+for rel in ("marketplace/approvals/system.json", "marketplace/approvals/thermal.json",
+            "marketplace/approvals/storage.json", "marketplace/approvals/network.json"):
     if (ROOT / rel).exists():
-        raise SystemExit(f"orphan marketplace approval must be absent: {rel}")
-
-builder = (ROOT / "scripts/build-module-opkg.sh").read_text(encoding="utf-8")
-for forbidden in (
-    "build_runtime_module()",
-    "system) build_runtime_module",
-    "thermal) build_runtime_module",
-    "storage) build_runtime_module",
-    "network) build_runtime_module",
-):
+        raise SystemExit(f"orphan split-module approval remains: {rel}")
+builder = (ROOT / "scripts" / "build-module-opkg.sh").read_text(encoding="utf-8")
+for forbidden in ("build_runtime_module()", "system) build_runtime_module",
+                  "thermal) build_runtime_module", "storage) build_runtime_module",
+                  "network) build_runtime_module"):
     if forbidden in builder:
-        raise SystemExit(f"legacy split build path remains: {forbidden}")
-
-aggregate = (ROOT / "scripts/build-modules-opkg.sh").read_text(encoding="utf-8")
-for required_call in (
-    'build-module-opkg.sh" dns',
-    'build-module-opkg.sh" monitoring',
-    'build-network-tools-opkg.sh"',
-    'build-module-opkg.sh" nfqws-manager',
-    'build-module-opkg.sh" antiscan-manager',
-    'build-module-opkg.sh" profiling',
-):
-    if required_call not in aggregate:
-        raise SystemExit(f"aggregate module build missing: {required_call}")
+        raise SystemExit(f"retired split build path remains: {forbidden}")
+aggregate = (ROOT / "scripts" / "build-modules-opkg.sh").read_text(encoding="utf-8")
+for required in ('build-module-opkg.sh" dns', 'build-module-opkg.sh" monitoring',
+                 'build-network-tools-opkg.sh"', 'build-module-opkg.sh" nfqws-manager',
+                 'build-module-opkg.sh" antiscan-manager', 'build-module-opkg.sh" profiling'):
+    if required not in aggregate:
+        raise SystemExit(f"aggregate module build missing: {required}")
 
 link_re = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 for rel in ACTIVE:
@@ -150,9 +95,24 @@ for rel in ACTIVE:
         if not resolved.exists():
             raise SystemExit(f"{rel}: broken local link: {raw}")
 
+for folder in ("archive",):
+    if (ROOT / folder).exists():
+        raise SystemExit(f"retired directory still present: {folder}")
+
+for rel in (
+    "docs/DEV_DELIVERY.md", "docs/P17_NETWORK_DOCTOR_ROUTE_INSPECTOR.md",
+    "docs/P18_DNS_POLICY_ROUTER.md", "docs/P29_ECOSYSTEM_POOL_2026-10-02.md",
+    "docs/RELEASE_PROCESS.md", "docs/VNEXT_MODULES_DEV_FOUNDATION.md",
+):
+    if (ROOT / rel).exists():
+        raise SystemExit(f"internal development note still tracked: {rel}")
+
+renderer = (ROOT / "scripts" / "render_release_notes.py").read_text(encoding="utf-8")
+for marker in ('if args.channel == "stable":', 'RELEASE_NOTES_{release_version}.md', 'write_bytes(canonical.read_bytes())'):
+    if marker not in renderer:
+        raise SystemExit("canonical stable release notes renderer changed")
+
 print("DOCS_CURRENT=PASS")
-print("STABLE_RELEASE_VERSION=0.12.1")
-print("STABLE_COMPONENT_VERSIONS=core:0.12.1,dns:0.10.1,admin:0.10.1,monitoring:0.10.1,network-tools:0.10.1,nfqws-manager:0.10.1,antiscan-manager:0.11.1,profiling:0.10.0")
-print("LEGACY_SPLIT_SOURCE_DIRS=ABSENT")
-print("ORPHAN_SPLIT_APPROVALS=ABSENT")
-print("ACTIVE_BUILD_TOPOLOGY=dns,monitoring,network-tools,nfqws-manager,antiscan-manager,profiling")
+print("PUBLIC_DOCS=PASS")
+print("LOCAL_LINKS=PASS")
+print("CHANNEL_RELEASE_MANIFESTS=PASS")

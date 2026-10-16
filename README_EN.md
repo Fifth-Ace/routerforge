@@ -7,8 +7,8 @@
 [Русский](README.md) | **English**
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/github/v/release/Fifth-Ace/routerforge?filter=routerforge-v%2A&sort=date&label=stable&color=2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/github/v/release/Fifth-Ace/routerforge?include_prereleases=true&filter=routerforge-v%2A-beta.%2A&sort=date&label=beta&color=d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/badge/stable-0.13.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/badge/channel-beta-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **RouterForge** is a modular web platform for **Keenetic / Netcraze routers running Entware**. Monitoring, administration, DNS, network diagnostics and security tools are available in one interface.

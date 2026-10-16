@@ -7,99 +7,47 @@
 **Русский** | [English](README_EN.md)
 
 [![CI](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Fifth-Ace/routerforge/actions/workflows/ci.yml)
-[![Stable](https://img.shields.io/badge/stable-0.11.0-2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
-[![Beta](https://img.shields.io/badge/beta-0.11.0--beta.1-d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+[![Stable](https://img.shields.io/github/v/release/Fifth-Ace/routerforge?filter=routerforge-v%2A&sort=date&label=stable&color=2ea043)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+[![Beta](https://img.shields.io/github/v/release/Fifth-Ace/routerforge?include_prereleases=true&filter=routerforge-v%2A-beta.%2A&sort=date&label=beta&color=d29922)](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**RouterForge 0.11.0** — модульная веб-платформа, созданная специально для роутеров **Keenetic / Netcraze с Entware**: мониторинг, DNS, управление, диагностика сети и обслуживание в одном интерфейсе.
+**RouterForge** — модульная веб-платформа для роутеров **Keenetic / Netcraze с Entware**. Объединяет мониторинг, управление системой, DNS, диагностику сети, сетевые инструменты и безопасность в одном интерфейсе.
 
-RouterForge работает напрямую с KeeneticOS/NDMS и Entware: `ndmc`, RCI, интерфейсы, маршруты, DNS, policy routing, процессы и службы. Пользователь работает через единый Web UI на **`:2233`**, а внутренние модули подключаются к Core через Unix sockets.
+RouterForge работает с KeeneticOS/NDMS и Entware через `ndmc`, RCI и системные интерфейсы. Web UI доступен на **`:2233`**, а модули подключаются к Core через Unix sockets.
 
 > [!NOTE]
-> **RouterForge — независимый некоммерческий проект сообщества.** Он не является официальным продуктом, подразделением или партнёрским проектом **Keenetic, Netcraze, Entware** и других упомянутых компаний или проектов. Все товарные знаки принадлежат их владельцам. Лицензия проекта — MIT.
+> **RouterForge — независимый некоммерческий проект сообщества.** Он не является официальным продуктом, подразделением или партнёрским проектом Keenetic, Netcraze, Entware. Все товарные знаки принадлежат их владельцам. Лицензия проекта — MIT.
 
 > [!TIP]
 > Core и модули версионируются независимо — [Versioning Policy](docs/VERSIONING.md).
 
-## Почему RouterForge
+## Установка
 
-- **Сделан именно для роутеров Keenetic / Netcraze.** Это не универсальная Linux-панель, перенесённая на роутер: архитектура, runtime и интерфейс изначально строятся вокруг KeeneticOS/NDMS и Entware.
-- **Глубокая интеграция с системой роутера.** RouterForge работает с `ndmc`, RCI, policy routing, маршрутами, интерфейсами, DNS и системными службами, а не ограничивается обычными Linux-метриками.
-- **Один интерфейс вместо набора разрозненных панелей.** Core объединяет модули, настройки, Центр приложений, диагностику и обслуживание на одном Web-порту `2233`.
-- **Модульная установка.** Core ставится первым, а остальные возможности добавляются только если они нужны.
-- **Экономный runtime.** Backend на Go, компактные кэши и история, без Node.js на самом роутере и без лишних внешних HTTP-сервисов.
-- **Контролируемые изменения.** Чувствительные действия выполняются через ограниченные server-side контракты, проверки путей, подтверждения и rollback там, где он действительно нужен.
-- **Проверяемая цепочка релиза.** Stable публикуется из заранее проверенного exact SHA; multi-arch индексы, SHA256 и immutable release snapshot позволяют проверить, что именно установлено.
+Для установки необходимы Keenetic / Netcraze с Entware, доступ к терминалу и подключение к интернету.
 
-## Модули RouterForge — Stable 0.11.0
+### Stable
 
-### Core — единая точка управления
-`routerforge-core` · **0.10.1**
+Стабильный канал для повседневного использования.
 
-Сам RouterForge: единый Web UI, авторизация, настройки, Центр приложений, Registry и подключение остальных модулей.
+```sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
+```
 
-**Нужен всем:** Core — база платформы. С него начинается установка и через него вы управляете остальными возможностями.
+### Beta
 
-### DNS — больше контроля, чем штатные настройки DNS
-`routerforge-dns` · **0.10.0**
+Канал предварительных выпусков с новыми модулями и возможностями.
 
-Не просто список DNS-серверов. Модуль даёт отдельное рабочее место для DNS: обычный DNS, DoT и DoH, управление резолверами, текущий health, задержки, ошибки, fallback и понятное объяснение, **что именно сейчас работает плохо и почему**.
+```sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+```
 
-В отличие от штатного управления DNS в прошивке, RouterForge позволяет **временно отключить резолвер без его удаления**, а потом включить обратно. Это удобно для тестов, сравнения провайдеров, поиска проблем и временного исключения нестабильного сервера без потери настроек. Динамические системные резолверы при этом защищены от случайного редактирования.
+После установки откройте `http://<ip-роутера>:2233`.
 
-Дополнительно модуль:
-- показывает состояние **каждого резолвера отдельно**, а не только общий итог;
-- не держит сервер «жёлтым навсегда» из-за старых ошибок — health считается по текущему rolling window;
-- отличает реальные сбои от нормальных `NXDOMAIN`;
-- показывает latency/p95, ошибки, fallback и недоступность;
-- помогает понять, через какой резолвер реально идут запросы клиентов;
-- умеет безопасно применять изменения через `snapshot → validation → mutation → save → readback → rollback`.
-
-**Нужен, если:** хотите не просто «задать DNS», а реально **управлять им, сравнивать резолверы и быстро понимать причину проблем** — особенно при нескольких DNS, DoT/DoH и сложной сетевой политике.
-
-### Management — администрирование без постоянного SSH
-`routerforge-admin` · **0.10.0**
-
-Процессы и службы Entware, File Manager, Maintenance, полноценный Entware Terminal и Keenetic NDM Console в одном интерфейсе.
-
-**Нужен, если:** хотите большую часть обычного обслуживания делать из браузера — посмотреть процесс, перезапустить службу, поправить файл, открыть терминал или зайти в `ndmc`, не прыгая между отдельными инструментами.
-
-### Monitoring — всё важное о состоянии роутера
-`routerforge-monitoring` · **0.10.0**
-
-System, Thermal, Storage и Network в одном месте: загрузка CPU, память, температура, хранилища и состояние сетевых интерфейсов.
-
-**Нужен, если:** хотите открыть одну страницу и сразу понять, всё ли нормально с роутером — без `top`, `df`, `ip` и ручного поиска датчиков температуры.
-
-### Network Tools — когда нужно понять, куда на самом деле идёт трафик
-`routerforge-network-tools` · **0.10.0**
-
-Network Doctor, Route Inspector, Flow Explorer и Active Probes: маршруты, активные потоки, проверки доступности и разбор сетевого пути в одном модуле.
-
-**Нужен, если:** у вас несколько WAN/VPN, policy routing, сложная маршрутизация или периодически возникает вопрос «почему этот адрес идёт не туда?».
-
-### NFQWS Manager — управление обходом без ручного марафона
-`routerforge-nfqws-manager` · **0.10.0**
-
-Управление существующим `nfqws2-keenetic`: профили и списки, библиотека/импорт стратегий, диагностика, Auto Setup/AutoSelect, ClientHello, песочница, история, backups, а также интеграции DPI Detector и NFQWS Menu.
-
-**Нужен, если:** используете nfqws2 и хотите не только редактировать конфиг, но и безопасно диагностировать проблему, проверить несколько стратегий и применить результат через preview/verification/rollback.
-
-### Antiscan Manager — управление Antiscan без ручного марафона
-`routerforge-antiscan-manager` · **0.11.0**
-
-Отдельный модуль для уже установленного `dimon27254/antiscan`: статус, диагностика, конфигурация, ipset, Custom Lists, lifecycle/operations, flush/recovery, RCI token, Scheduler и журнал действий.
-
-**Нужен, если:** используете Antiscan и хотите управлять им из RouterForge. Сам upstream Antiscan модуль не устанавливает и не обновляет.
-
-### Profiling — диагностика самого RouterForge
-`routerforge-profiling` · **0.10.0**
-
-Локальное профилирование Core для разработки и глубокой диагностики производительности.
-
-**Большинству пользователей не нужен:** ставьте только если целенаправленно нужен profiling.
+**Stable и Beta — отдельные каналы обновлений.** Переключайте их осознанно. Подробнее: [Установка и обновление](docs/INSTALLATION.md).
 
 ## Архитектура
+
+RouterForge состоит из Core и независимых модулей, которые устанавливаются по необходимости.
 
 ```text
 Browser
@@ -109,7 +57,7 @@ Browser
 RouterForge Core
 ├── Web UI / REST / SSE
 ├── Authentication / Settings
-├── App Center / Registry / Release lifecycle
+├── App Center / Registry / Releases
 ├── Module ABI host
 └── Unix-socket proxy
      ├── DNS
@@ -119,8 +67,7 @@ RouterForge Core
      │    ├── Entware Terminal
      │    └── Keenetic NDM Console
      ├── Monitoring
-     │    ├── System
-     │    ├── Thermal
+     │    ├── System / Thermal
      │    ├── Storage
      │    └── Network
      ├── Network Tools
@@ -130,64 +77,114 @@ RouterForge Core
      │    └── Active Probes
      ├── NFQWS Manager
      │    ├── Diagnostics / AutoSelect
-     │    ├── Strategy Library / Import
-     │    ├── ClientHello
+     │    ├── Strategies / Config / Lists
+     │    ├── Smart Apply / Backups
      │    ├── DPI Detector
      │    └── NFQWS Menu
-     └── Antiscan Manager
-          ├── Status / Diagnostics / Why blocked
-          ├── Config / Custom Lists / ipset
-          └── Guarded operations / Scheduler / Recovery
+     ├── Antiscan Manager
+     │    ├── Status / Diagnostics
+     │    ├── Config / Custom Lists / ipset
+     │    └── Operations / Recovery
+     ├── Port Access Manager
+     │    ├── knockd
+     │    ├── fwknopd / SPA
+     │    └── iptables recent / odin
+     └── CrowdSec Manager
+          ├── Firewall Bouncer
+          ├── LAPI / ipset / iptables
+          └── Protection / Diagnostics
 ```
 
 `routerforge-profiling` работает отдельно и по умолчанию доступен только на `127.0.0.1:6061`.
 
-## Установка
+Backend написан на Go. Для модулей не требуются отдельные общедоступные HTTP-серверы. Подробнее: [Архитектура RouterForge](docs/ARCHITECTURE.md).
 
-### Stable
+## Почему RouterForge
 
-```sh
-/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
-```
+- **Создан специально для Keenetic / Netcraze.** Архитектура, runtime и интерфейс ориентированы на KeeneticOS/NDMS и Entware.
+- **Глубокая интеграция.** Работа с `ndmc`, RCI, маршрутами, интерфейсами, DNS, policy routing и службами.
+- **Один интерфейс.** Управление системой, Центр приложений, диагностика и обслуживание через Web UI.
+- **Модульная установка.** Core — основа, остальные компоненты подключаются по необходимости.
+- **Экономный runtime.** Go backend, без Node.js на роутере и без лишних внешних HTTP-сервисов.
+- **Контролируемые изменения.** Проверки, подтверждения, резервные копии и откат там, где он предусмотрен.
+- **Проверяемые релизы.** Сборки под разные архитектуры, SHA256, индексы пакетов и неизменяемые снимки выпусков.
 
-После установки:
+## Модули RouterForge
 
-```text
-http://<ip-роутера>:2233
-```
+Возможности доступны в зависимости от установленного канала и состава выпуска. Устанавливайте только нужные модули.
 
-### Beta
+### Core — единая точка управления
+`routerforge-core`
 
-```sh
-/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
-```
+Web UI, авторизация, настройки, Центр приложений, управление модулями, обновлениями и базовая телеметрия. **Нужен всем:** Core — основа платформы.
 
-Stable и Beta — разные rolling channels. Переключайте канал осознанно.
+### DNS — управление DNS и резолверами
+`routerforge-dns`
+
+DNS, DoT и DoH, состояние резолверов, задержки, ошибки и fallback, временное отключение серверов без удаления настроек. **Нужен, если:** хотите контролировать качество работы DNS.
+
+### Management — администрирование из браузера
+`routerforge-admin`
+
+Процессы и службы Entware, файловый менеджер, обслуживание, Entware Terminal и Keenetic NDM Console. **Нужен, если:** хотите выполнять повседневные задачи без постоянного SSH.
+
+### Monitoring — мониторинг роутера
+`routerforge-monitoring`
+
+CPU, память, температура, накопители, сетевые интерфейсы и состояние устройства. **Нужен, если:** хотите быстро видеть состояние ресурсов роутера.
+
+### Network Tools — сетевая диагностика
+`routerforge-network-tools`
+
+Network Doctor, Route Inspector, Flow Explorer и Active Probes: маршруты, соединения, доступность и сетевой путь. **Нужен, если:** используете несколько WAN, VPN или сложную маршрутизацию.
+
+### NFQWS Manager — управление nfqws2
+`routerforge-nfqws-manager`
+
+Конфигурация и профили существующего `nfqws2-keenetic`, списки, диагностика сайтов, автоподбор стратегий, тестирование, контролируемое применение настроек и резервные копии. **Нужен, если:** хотите управлять nfqws2 и диагностировать проблемы из одного интерфейса.
+
+### Antiscan Manager — управление Antiscan
+`routerforge-antiscan-manager`
+
+Настройка установленного Antiscan, диагностика, списки, ipset, служба, планировщик и восстановление. **Нужен, если:** используете Antiscan и хотите управлять им через RouterForge.
+
+### Port Access Manager — контроль доступа к портам
+`routerforge-port-access-manager` · **Beta**
+
+Управление доступом к сервисам и проброшенным портам через knockd, fwknopd / SPA и iptables recent / odin. Настройки, состояние служб и защитные проверки. **Нужен, если:** хотите использовать Port Knocking или SPA для сетевых сервисов.
+
+### CrowdSec Manager — управление Firewall Bouncer
+`routerforge-crowdsec-manager` · **Beta**
+
+Подключение к CrowdSec LAPI, управление Firewall Bouncer, диагностика ipset/iptables и статистика блокировок. **Нужен, если:** используете CrowdSec для защиты сети.
+
+### Profiling — диагностика RouterForge
+`routerforge-profiling`
+
+Локальное профилирование Core для анализа производительности. **Большинству пользователей не нужен.**
 
 ## Поддерживаемая платформа
 
-RouterForge разрабатывается для **Keenetic / Netcraze с Entware**.
+RouterForge разрабатывается для Keenetic / Netcraze с Entware.
 
 | Архитектура | Статус |
 | --- | --- |
-| `aarch64-3.10` | основная, физически проверенная |
-| `mipsel-3.4` | experimental, частично проверенная |
-| `mips-3.4` | experimental |
+| `aarch64-3.10` | Основная, физически проверенная |
+| `mipsel-3.4` | Experimental, частично проверенная |
+| `mips-3.4` | Experimental |
 
-Для работы нужны Entware в `/opt`, `opkg`, root-доступ и `curl` или `wget`.
-
-Подробная матрица устройств и архитектур: [docs/ARCHITECTURES.md](docs/ARCHITECTURES.md).
+Нужны Entware в `/opt`, `opkg`, root-доступ и `curl` или `wget`. Подробная матрица: [docs/ARCHITECTURES.md](docs/ARCHITECTURES.md).
 
 ## Сообщество
 
-Вопросы, обратная связь, идеи и обсуждение RouterForge — в нашей группе **[Telegram @RouterForge](https://t.me/RouterForge)**.
-
-Ошибки и технические задачи можно оформлять через [GitHub Issues](https://github.com/Fifth-Ace/routerforge/issues).
+Вопросы, предложения и обсуждение RouterForge — в **[Telegram @RouterForge](https://t.me/RouterForge)**. Ошибки и технические задачи можно оформлять через [GitHub Issues](https://github.com/Fifth-Ace/routerforge/issues).
 
 ## Документация
 
 - [Документация RouterForge](docs/README.md)
-- [Release Notes 0.11.0](docs/RELEASE_NOTES_0.11.0.md)
+- [Последний Stable](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable)
+- [Последняя Beta](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-beta)
+- [Все выпуски и история изменений](https://github.com/Fifth-Ace/routerforge/releases)
 - [Установка и обновление](docs/INSTALLATION.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Модули](docs/MODULES.md)

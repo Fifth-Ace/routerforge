@@ -1,34 +1,12 @@
 # Установка и обновление RouterForge
 
-## Stable 0.11.0
+## Требования
 
-Текущий Stable train:
+- Keenetic / Netcraze с Entware, установленным в `/opt`.
+- Доступ к терминалу с правами root и соединение с интернетом.
+- `opkg`, `sha256sum` и `curl` или `wget`.
 
-```text
-routerforge-core              0.10.1
-routerforge-dns               0.10.0   (min Core 0.10.0)
-routerforge-admin             0.10.0   (min Core 0.10.0)
-routerforge-monitoring        0.10.0   (min Core 0.10.0)
-routerforge-network-tools     0.10.0   (min Core 0.10.0)
-routerforge-nfqws-manager     0.10.0   (min Core 0.10.0)
-routerforge-antiscan-manager  0.11.0   (min Core 0.10.1)
-routerforge-profiling         0.10.0   (min Core 0.7.1)
-```
-
-Компоненты версионируются независимо; см. [VERSIONING.md](VERSIONING.md). В Stable 0.11.0 изменены только Core (`0.10.1`) и новый Antiscan Manager (`0.11.0`); остальные package versions сохранены.
-
-Fresh bootstrap устанавливает Core. DNS, Management, Monitoring, Network Tools, NFQWS Manager, Antiscan Manager и Profiling выбираются через **Центр приложений**.
-
-## Targets
-
-| Target | Статус |
-| --- | --- |
-| `aarch64-3.10` | primary fully hardware-validated Stable target |
-| `mipsel-3.4` | published; runtime compatibility probe before installation |
-| `mips-3.4` | published; runtime compatibility probe before installation |
-
-Требуются Keenetic/Netcraze с KeeneticOS/NDMS, Entware в `/opt`, `opkg`, `sha256sum`
-и `curl`/`wget`.
+Актуальные версии Stable и Beta отображаются в [главном README](../README.md) и на [странице выпусков](https://github.com/Fifth-Ace/routerforge/releases). Компоненты могут иметь независимые версии.
 
 ## Установка Stable
 
@@ -36,9 +14,15 @@ Fresh bootstrap устанавливает Core. DNS, Management, Monitoring, Ne
 /opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-stable/routerforge-stable-bootstrap.sh | sh
 ```
 
-После установки: `http://<ip-роутера>:2233`
+## Установка Beta
 
-Проверка:
+```sh
+/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
+```
+
+Bootstrap устанавливает Core. Необязательные модули выбираются в Центре приложений RouterForge. Адрес интерфейса: `http://<ip-роутера>:2233`.
+
+## Проверка установки
 
 ```sh
 wget -qO- http://127.0.0.1:2233/api/health
@@ -46,75 +30,30 @@ echo
 /opt/bin/opkg list-installed | grep '^routerforge-' | sort
 ```
 
-## Upgrade с Stable 0.10.0
+## Обновление
 
-1. Запустите Stable bootstrap.
-2. Откройте **Центр приложений**.
-3. Нажмите **Проверить обновления**.
-4. Обновите установленные RouterForge capabilities.
-5. App Center применит обычные модули до Core, а Core — последним, затем восстановит shell.
+1. Убедитесь, что выбран нужный канал — Stable или Beta.
+2. Запустите bootstrap целевого канала.
+3. В Центре приложений проверьте обновления установленных модулей.
+4. Примените доступные обновления; не удаляйте файлы пакетов вручную.
 
-Не удаляйте package-owned files вручную.
+Stable и Beta используют разные индексы выпусков. При переходе к каналу с более старой версией пакета обычное обновление не выполняет автоматический downgrade. Перед изменением канала сохраните конфигурацию и проверьте совместимость.
 
-Пользователи `0.11.0-beta.1` переходят на Stable 0.11.0 component-wise: Core `0.10.1~beta.1 → 0.10.1`, Antiscan Manager `0.11.0~beta.1 → 0.11.0`; unchanged packages не требуют косметической переустановки.
+## Поддерживаемые архитектуры
 
-## Monitoring migration
+| Архитектура | Статус |
+| --- | --- |
+| `aarch64-3.10` | Основная, проверенная на оборудовании |
+| `mipsel-3.4` | Experimental |
+| `mips-3.4` | Experimental |
 
-Исторический переход split System/Thermal/Storage/Network → `routerforge-monitoring`
-остаётся поддерживаемым migration contract.
+Bootstrap выполняет проверки совместимости; несовместимые условия блокируют установку. Подробности — в [матрице архитектур](ARCHITECTURES.md).
 
-В Stable 0.11.0 версия consolidated Monitoring package остаётся:
+## Безопасность
 
-```sh
-ROUTERFORGE_MONITORING_EXPECTED_VERSION='0.10.0'   sh scripts/verify-monitoring-migration.sh runtime
-```
+Для функций, изменяющих правила firewall или удалённый доступ, обеспечьте независимый резервный доступ к роутеру. Состояние установленной службы само по себе не доказывает работоспособность защиты. Подробные проверки и ограничения описаны в интерфейсах соответствующих модулей.
 
-Подробнее: [MONITORING_MIGRATION.md](MONITORING_MIGRATION.md).
-
-## MIPS / MIPSel
-
-Отдельное ручное подтверждение preview/experimental mode больше не требуется.
-
-Bootstrap выполняет read-only runtime compatibility probe и блокирует установку только при реальной несовместимости platform prerequisites. Предупреждения о малом объёме RAM, одном CPU core и отсутствии swap остаются.
-
-`blocked` compatibility state не обходится пользовательским флагом. См. [ARCHITECTURES.md](ARCHITECTURES.md).
-
-## Beta
-
-```sh
-/opt/bin/opkg update && /opt/bin/opkg install curl && /opt/bin/curl -fsSL https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-beta/routerforge-beta-bootstrap.sh | sh
-```
-
-Pre-release package versions используют `~`, чтобы сортироваться ниже соответствующего Stable.
-
-## Stable ↔ Beta
-
-При смене channel:
-1. запустите bootstrap целевого channel;
-2. форсируйте проверку в App Center;
-3. приведите installed RouterForge packages к versions целевого release-index.
-
-Если целевой channel содержит более старую package version, обычный upgrade-path не выполняет downgrade автоматически.
-
-Stable → `routerforge-stable` + Registry `main`.
-Beta → `routerforge-beta` + Registry `dev`.
-
-## NFQWS Manager
-
-`routerforge-nfqws-manager` управляет уже установленным `nfqws2-keenetic`: профили, списки, стратегии, диагностика, AutoSelect, ClientHello, DPI Detector и NFQWS Menu.
-
-Сам NFQWS Manager не устанавливает nfqws2 молча. Явные install/update операции `nfqws2-keenetic` и `nfqws-keenetic-web` доступны как отдельные проверенные App Center integrations.
-
-## Antiscan Manager
-
-`routerforge-antiscan-manager` управляет уже установленным `dimon27254/antiscan` и не устанавливает, не обновляет и не заменяет upstream Antiscan. Stable 0.11.0 package version — `0.11.0`, min Core — `0.10.1`.
-
-## Management
-
-`routerforge-admin` добавляет Processes/Services, File Manager, Maintenance,
-Entware Terminal и Keenetic NDM Console. Keenetic mode запускает фиксированный backend `ndmc`.
-
-## Core service
+## Управление Core
 
 ```sh
 /opt/etc/init.d/S90routerforge restart

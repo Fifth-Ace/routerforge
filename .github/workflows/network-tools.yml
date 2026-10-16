@@ -85,6 +85,7 @@ jobs:
               "nfqws-manager",
               "antiscan-manager",
               "port-access-manager",
+              "crowdsec-manager",
               "profiling",
           ]
           actual = [item.get("id") for item in doc.get("components", [])]

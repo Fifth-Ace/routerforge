@@ -39,7 +39,7 @@ assert doc["target"] == target
 assert doc["commit"] == sha
 
 components = doc.get("components") or []
-assert len(components) == 8, (target, len(components))
+assert len(components) == 10, (target, len(components))
 
 expected_ids = {
     "routerforge-core",
@@ -49,6 +49,8 @@ expected_ids = {
     "network-tools",
     "nfqws-manager",
     "antiscan-manager",
+    "port-access-manager",
+    "crowdsec-manager",
     "profiling",
 }
 actual_ids = {item.get("id") for item in components}

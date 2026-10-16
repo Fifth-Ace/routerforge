@@ -4,6 +4,7 @@
 
 | Выпуск | Основное направление |
 | --- | --- |
+| [Stable 0.13.0](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-v0.13.0) | Port Access Manager, CrowdSec Manager, NFQWS Manager, управление журналами |
 | [Stable 0.12.1](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-v0.12.1) | Исправления обновлений, независимая телеметрия Core |
 | [Stable 0.12.0](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-v0.12.0) | Развитие Центра приложений |
 | [Stable 0.11.1](https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-v0.11.1) | Совместимость и исправления модулей |

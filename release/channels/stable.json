@@ -1,68 +1,69 @@
 {
   "schema_version": 1,
   "channel": "stable",
-  "release_version": "0.12.1",
+  "release_version": "0.13.0",
   "release_notes": {
-    "ru": {
-      "new": [],
-      "fixes": [],
-      "compatibility": [],
-      "technical": []
-    },
-    "en": {
-      "new": [],
-      "fixes": [],
-      "compatibility": [],
-      "technical": []
-    }
+    "use_canonical": true
   },
   "components": [
     {
       "id": "routerforge-core",
       "package": "routerforge-core",
-      "version": "0.12.1"
+      "version": "0.13.0"
     },
     {
       "id": "dns",
       "package": "routerforge-dns",
-      "version": "0.10.1",
-      "min_core_version": "0.10.0"
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
     },
     {
       "id": "admin",
       "package": "routerforge-admin",
-      "version": "0.10.1",
-      "min_core_version": "0.10.0"
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
     },
     {
       "id": "monitoring",
       "package": "routerforge-monitoring",
-      "version": "0.10.1",
-      "min_core_version": "0.10.0"
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
     },
     {
       "id": "network-tools",
       "package": "routerforge-network-tools",
-      "version": "0.10.1",
-      "min_core_version": "0.10.0"
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
     },
     {
       "id": "nfqws-manager",
       "package": "routerforge-nfqws-manager",
-      "version": "0.10.1",
-      "min_core_version": "0.10.0"
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
     },
     {
       "id": "antiscan-manager",
       "package": "routerforge-antiscan-manager",
-      "version": "0.11.1",
-      "min_core_version": "0.10.1"
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
+    },
+    {
+      "id": "port-access-manager",
+      "package": "routerforge-port-access-manager",
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
+    },
+    {
+      "id": "crowdsec-manager",
+      "package": "routerforge-crowdsec-manager",
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
     },
     {
       "id": "profiling",
       "package": "routerforge-profiling",
-      "version": "0.10.0",
-      "min_core_version": "0.7.1"
+      "version": "0.13.0",
+      "min_core_version": "0.13.0"
     }
   ]
 }

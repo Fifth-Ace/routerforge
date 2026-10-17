@@ -27,6 +27,7 @@ build_dns() {
 
     DNS_SOURCES="
     dns_module_main.go
+    dns_boot_readiness.go
     dns_module_server.go
     dns_control.go
     dns_mutation_safety.go

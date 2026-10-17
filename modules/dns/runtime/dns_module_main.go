@@ -189,8 +189,7 @@ func main() {
 	eventLog := NewEventLogger(*logPath)
 	eventLog.Event("START", fmt.Sprintf("routerforge-dns v%s socket=%s memory_profile=%s mem_kb=%d flow_cap=%d domain_cap=%d client_domain_cap=%d", version, *socket, memoryProfile.Name, totalMemoryKB, memoryProfile.FlowRetentionCap, memoryProfile.DomainCountCap, memoryProfile.ClientDomainCap))
 
-	go discoveryLoop(store, *discoveryEvery, eventLog)
-	go clientRegistryLoop(store, eventLog)
+	go startDNSCollectorsAfterReadiness(store, *discoveryEvery, eventLog, ndmcBootProbe)
 	go healthLoop(store, *healthEvery, eventLog)
 	go diagnosticLoop(store, eventLog)
 

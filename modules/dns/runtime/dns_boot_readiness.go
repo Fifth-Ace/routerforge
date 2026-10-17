@@ -52,7 +52,7 @@ func dnsBootGate(log *EventLogger, probe dnsBootProbe) {
 }
 
 func startDNSCollectorsAfterReadiness(store *Store, interval time.Duration, log *EventLogger, probe dnsBootProbe) {
-    dnsBootGate(log, probe)
-    go discoveryLoop(store, interval, log)
-    clientRegistryLoop(store, log)
+	dnsBootGate(log, probe)
+	go discoveryLoop(store, interval, log)
+	clientRegistryLoop(store, log)
 }

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 )
 
 type RouterDNSInfoSnapshot struct {

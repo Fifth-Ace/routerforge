@@ -11,8 +11,8 @@ func TestManagedNDMHookOrderContract(t *testing.T) {
 	required := []string{
 		`-S FORWARD`,
 		`"_NDM_FORWARD"`,
-		`"RELATED"`,
-		`"ESTABLISHED"`,
+		`RELATED(,|$)`,
+		`ESTABLISHED(,|$)`,
 		`-I FORWARD "$POSITION" -j CROWDSEC_CHAIN`,
 		`-C FORWARD -j CROWDSEC_CHAIN`,
 	}

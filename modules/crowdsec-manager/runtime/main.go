@@ -84,8 +84,8 @@ func snapshotNow(ctx context.Context) snapshot {
 	s := snapshot{Installed: installed(), Running: running(), Updated: time.Now().UTC().Format(time.RFC3339), Chains: []string{}, SetsNames: []string{}, Notes: []string{}}
 	_, e := os.Stat("/opt/etc/crowdsec/crowdsec-firewall-bouncer.yaml")
 	s.Config = check{OK: e == nil, Detail: map[bool]string{true: "Файл конфигурации обнаружен; ключи не читаются", false: "Конфигурация не найдена"}[e == nil]}
-	_, e = os.Stat("/opt/etc/ndm/netfilter.d/crowdsec.sh")
-	s.Hook = check{OK: e == nil, Detail: map[bool]string{true: "NDM hook найден (работоспособность не подтверждена)", false: "NDM hook не найден — правила могут исчезнуть после перестройки firewall"}[e == nil]}
+	_, hookExec, _ := crowdSecHook()
+	s.Hook = check{OK: hookExec, Detail: map[bool]string{true: "Исполняемый NDM hook найден (восстановление после rebuild не проверялось)", false: "Исполняемый NDM hook не найден — правила могут исчезнуть после перестройки firewall"}[hookExec]}
 	names, err := bounded(ctx, "/opt/sbin/ipset", "list", "-n")
 	if err != nil {
 		names, err = bounded(ctx, "/opt/bin/ipset", "list", "-n")
@@ -99,24 +99,10 @@ func snapshotNow(ctx context.Context) snapshot {
 		}
 	}
 	s.Sets = check{OK: len(s.SetsNames) > 0, Detail: map[bool]string{true: "CrowdSec ipset найдены", false: "CrowdSec ipset не найдены"}[len(s.SetsNames) > 0]}
-	// Do not infer banned IP counts from an ipset kernel format missing 'Number of entries'.
-	output, err := bounded(ctx, "/usr/sbin/iptables", "-S", "FORWARD")
-	if err != nil {
-		output, err = bounded(ctx, "/opt/sbin/iptables", "-S", "FORWARD")
-	}
-	forward := err == nil && strings.Contains(output, "-j CROWDSEC_CHAIN")
-	chain, chainErr := bounded(ctx, "/usr/sbin/iptables", "-S", "CROWDSEC_CHAIN")
-	if chainErr != nil {
-		chain, chainErr = bounded(ctx, "/opt/sbin/iptables", "-S", "CROWDSEC_CHAIN")
-	}
-	drop := chainErr == nil && strings.Contains(chain, "-j DROP") && strings.Contains(chain, "--match-set crowdsec-blacklists-")
-	if forward {
-		s.Chains = append(s.Chains, "FORWARD → CROWDSEC_CHAIN")
-	}
-	if drop {
-		s.Chains = append(s.Chains, "CROWDSEC_CHAIN → ipset DROP")
-	}
-	s.Firewall = check{OK: forward && drop, Detail: map[bool]string{true: "FORWARD подключён к цепочке DROP ipset", false: "Не подтверждена связка FORWARD → CROWDSEC_CHAIN → ipset DROP"}[forward && drop]}
+	// Inspect existing kernel rules only; never mutate a custom NDM chain.
+	fw := inspectCrowdSecFirewall(ctx, s.SetsNames)
+	s.Firewall = check{OK: fw.OK, Detail: fw.Detail}
+	s.Chains = fw.Chains
 	s.Protected = s.Running && s.Sets.OK && s.Firewall.OK
 	if !s.Running {
 		s.Notes = append(s.Notes, "Bouncer не обнаружен среди запущенных процессов")

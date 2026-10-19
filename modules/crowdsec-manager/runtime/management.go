@@ -268,10 +268,12 @@ func probeLAPI(ctx context.Context, c configSummary) string {
 func getOverview(ctx context.Context) managerOverview {
 	s := snapshotNow(ctx)
 	conf, _ := readConfig()
-	h, err := os.Lstat(ndmHookPath)
-	hookExec := err == nil && h.Mode().IsRegular() && h.Mode()&0111 != 0
-	hookData, _ := os.ReadFile(ndmHookPath)
-	managed := hookExec && sha256.Sum256(hookData) == sha256.Sum256([]byte(managedNDMHook))
+	hookPath, hookExec, knownPath := crowdSecHook()
+	managed := false
+	if hookExec && knownPath && hookPath == ndmHookPath {
+		hookData, readErr := os.ReadFile(hookPath)
+		managed = readErr == nil && sha256.Sum256(hookData) == sha256.Sum256([]byte(managedNDMHook))
+	}
 	init, err := os.Stat(bouncerInitPath)
 	initOK := err == nil && init.Mode().IsRegular() && init.Mode()&0111 != 0
 	sets := safeSetDetails(ctx, s.SetsNames)
@@ -286,9 +288,12 @@ func getOverview(ctx context.Context) managerOverview {
 	if conf.Error != "" {
 		state = "error"
 	}
-	counters, _ := bounded(ctx, "/usr/sbin/iptables", "-L", "CROWDSEC_CHAIN", "-n", "-v", "-x")
-	if counters == "" {
-		counters, _ = bounded(ctx, "/opt/sbin/iptables", "-L", "CROWDSEC_CHAIN", "-n", "-v", "-x")
+	var counters string
+	if fw := inspectCrowdSecFirewall(ctx, s.SetsNames); fw.Chain != "" {
+		counters, _ = bounded(ctx, "/usr/sbin/iptables", "-L", fw.Chain, "-n", "-v", "-x")
+		if counters == "" {
+			counters, _ = bounded(ctx, "/opt/sbin/iptables", "-L", fw.Chain, "-n", "-v", "-x")
+		}
 	}
 	if len(counters) > 2500 {
 		counters = counters[:2500]
@@ -430,6 +435,9 @@ func updateLAPI(req map[string]string) error {
 func manageHook(req map[string]string) error {
 	if req["confirm"] != "crowdsec-hook" {
 		return errors.New("explicit NDM hook confirmation required")
+	}
+	if externalCrowdSecHookExists() {
+		return errors.New("external CrowdSec NDM hook exists; refusing to create a second hook or alter it")
 	}
 	action := req["action"]
 	current, err := os.Lstat(ndmHookPath)

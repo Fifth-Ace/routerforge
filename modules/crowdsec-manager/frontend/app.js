@@ -61,7 +61,7 @@
     var s = d.snapshot || {}, fw = s.firewall || {}, sets = s.sets || {}, hook = s.ndm_hook || {}, cfg = d.lapi || {};
     var good = d.state === 'healthy' && !!s.protected;
     $('bouncer-install').hidden = false;
-    txt('verdict', good ? 'Фильтрация сейчас подтверждена: процесс, ipset и FORWARD/DROP. NDM hook установлен; восстановление после rebuild ещё не проверено' : 'Состояние: ' + (d.state || 'unknown') + '. Защита полностью не подтверждена.');
+    txt('verdict', good ? 'Фильтрация подтверждена по активным цепочкам и ipset DROP; восстановление после rebuild NDM отдельно не проверялось' : 'Состояние: ' + (d.state || 'unknown') + '. Защита полностью не подтверждена.');
     $('verdict').className = 'banner ' + (good ? 'good' : 'bad');
     colored('protection', good, 'ACTIVE', 'NOT VERIFIED');
     txt('protection-hint', 'Installed: ' + !!s.installed + ' · running: ' + !!s.running + ' · ipset: ' + !!sets.ok);

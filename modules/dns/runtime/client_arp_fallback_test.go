@@ -12,7 +12,7 @@ Name                IP                MAC                 Interface
 Hanzo               192.168.1.10     aa:bb:cc:00:00:01   Home
                     192.168.1.11     aa:bb:cc:00:00:02   Home
 HONOR-Magic7-Pro    192.168.1.12     aa:bb:cc:00:00:03   Home
-Р’РµРЅС‚РёР»СЏС‚РѕСЂ С…РѕР»      192.168.1.13     aa:bb:cc:00:00:04   Home
+Вентилятор хол      192.168.1.13     aa:bb:cc:00:00:04   Home
 bad-ip              garbage          aa:bb:cc:00:00:05   Home
 BadMAC              192.168.1.15     invalid             Home
 Public              8.8.8.8          aa:bb:cc:00:00:06   Home
@@ -26,7 +26,7 @@ func TestP68KeeneticARPParser(t *testing.T) {
 	var named, unnamed bool
 	for _, c := range got {
 		if c.IP == "192.168.1.13" {
-			named = c.Name == "Р’РµРЅС‚РёР»СЏС‚РѕСЂ С…РѕР»" && c.Network == "Home" && c.Access == "Network В· Home" && c.Policy == "System" && c.SSID == "" && !c.Mesh
+			named = c.Name == "Вентилятор хол" && c.Network == "Home" && c.Access == "Network · Home" && c.Policy == "System" && c.SSID == "" && !c.Mesh
 		}
 		if c.IP == "192.168.1.11" {
 			unnamed = c.Name == "" && c.MAC == "aa:bb:cc:00:00:02"

@@ -51,9 +51,9 @@
       headers: data ? { 'Content-Type': 'application/json' } : {}, body: data ? JSON.stringify(data) : undefined
     }).then(function (r) { return r.json().then(function (d) { if (!r.ok || d.error) throw Error(d.error || 'HTTP ' + r.status); return d; }); });
   }
-  function fill(id, items, create) {
+  function fill(id, items, create, emptyText) {
     var host = $(id); host.textContent = '';
-    if (!items.length) { host.textContent = 'Нет данных'; return; }
+    if (!items.length) { host.textContent = emptyText || 'Нет данных'; return; }
     items.forEach(function (item) { host.appendChild(create(item)); });
   }
   function dom(tag, value, cls) { var node = document.createElement(tag); node.textContent = value; if (cls) node.className = cls; return node; }
@@ -110,7 +110,7 @@
     var keys = Object.keys(d.metrics || {}).sort();
     fill('metrics', keys, function (key) { var el = dom('div', '', 'metric'); el.appendChild(dom('code', key)); el.appendChild(dom('strong', d.metrics[key])); return el; });
     txt('metrics-state', d.metrics_error ? 'Metrics: ' + d.metrics_error : 'Локальный Prometheus endpoint опрошен');
-    fill('notices', s.notes || [], function (note) { return dom('p', note); });
+    fill('notices', s.notes || [], function (note) { return dom('p', note); }, 'Дополнительных замечаний нет.');
     $('hook-install').disabled = !!d.hook_executable && !d.hook_managed;
     $('hook-remove').disabled = !d.hook_managed;
   }
@@ -123,7 +123,7 @@
   function action(path, data, question) {
     if (busy || !window.confirm(question)) return;
     busy = true; msg('Выполняем…');
-    api(path, 'POST', data).then(function () { if (path === 'lapi') $('lapi-key').value = ''; msg('Выполнено. Для подтверждения защиты проверь состояние ниже.'); })
+    api(path, 'POST', data).then(function () { if (path === 'lapi') $('lapi-key').value = ''; msg('Действие выполнено. Состояние обновлено.'); })
       .catch(function (e) { msg(e.message, true); })
       .then(function () { busy = false; refresh(); });
   }

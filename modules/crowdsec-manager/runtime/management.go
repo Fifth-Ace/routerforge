@@ -128,6 +128,8 @@ type managerOverview struct {
 	MetricsError   string             `json:"metrics_error,omitempty"`
 	LAPIProbe      string             `json:"lapi_probe"`
 	DropCounters   string             `json:"drop_counters,omitempty"`
+	TLSWaived      bool               `json:"tls_waived"`
+	TLSUnsecured   bool               `json:"tls_unsecured"`
 }
 
 // Reads only first-level YAML scalars and prometheus child settings; never returns api_key.
@@ -310,6 +312,60 @@ func probeLAPI(ctx context.Context, c configSummary) string {
 	return fmt.Sprintf("LAPI health HTTP %d (API key not validated)", resp.StatusCode)
 }
 
+// A consent acknowledges an insecure LAPI transport; it never changes the
+// bouncer configuration, TLS verification or firewall state.
+const tlsWaiverPath = "/opt/etc/routerforge/crowdsec-tls-waiver"
+
+func insecureLAPI(c configSummary) bool {
+	return strings.HasPrefix(c.URL, "http://") || !c.TLSVerify
+}
+
+func waiverFingerprint(c configSummary) string {
+	sum := sha256.Sum256([]byte("routerforge-crowdsec-tls-consent-v1\x00" + c.URL + "\x00" + strconv.FormatBool(c.TLSVerify)))
+	return fmt.Sprintf("%x", sum[:])
+}
+
+func tlsWaiverActive(c configSummary) bool {
+	if !insecureLAPI(c) || !c.Exists || c.Error != "" {
+		return false
+	}
+	st, err := os.Lstat(tlsWaiverPath)
+	if err != nil || !st.Mode().IsRegular() || st.Size() > 128 || st.Mode().Perm()&0077 != 0 {
+		return false
+	}
+	body, err := os.ReadFile(tlsWaiverPath)
+	return err == nil && strings.TrimSpace(string(body)) == waiverFingerprint(c)
+}
+
+func updateTLSWaiver(req map[string]string) error {
+	if req["confirm"] != "crowdsec-tls-risk-accepted" {
+		return errors.New("explicit TLS risk confirmation required")
+	}
+	switch req["action"] {
+	case "disable":
+		if err := os.Remove(tlsWaiverPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return errors.New("unable to revoke TLS exception")
+		}
+		return nil
+	case "enable":
+		c, _ := readConfig()
+		if !c.Exists || c.Error != "" || c.URL == "" || !insecureLAPI(c) {
+			return errors.New("TLS exception requires an existing insecure LAPI config")
+		}
+		if err := safeURL(c.URL); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(tlsWaiverPath), 0700); err != nil {
+			return errors.New("unable to create TLS exception directory")
+		}
+		if err := safety.WriteFileAtomic(tlsWaiverPath, []byte(waiverFingerprint(c)+"\n"), 0600); err != nil {
+			return errors.New("unable to save TLS exception")
+		}
+		return nil
+	default:
+		return errors.New("unsupported TLS exception action")
+	}
+}
 func getOverview(ctx context.Context) managerOverview {
 	s := snapshotNow(ctx)
 	conf, _ := readConfig()
@@ -324,10 +380,12 @@ func getOverview(ctx context.Context) managerOverview {
 	sets := safeSetDetails(ctx, s.SetsNames)
 	metrics, metricErr := readMetrics(conf)
 	probe := probeLAPI(ctx, conf)
+	tlsUnsecured := insecureLAPI(conf)
+	tlsWaived := tlsWaiverActive(conf)
 	state := "healthy"
 	if !s.Installed || !initOK {
 		state = "not_installed"
-	} else if !s.Running || !s.Firewall.OK || !s.Sets.OK || !hookExec || !conf.Exists || !conf.KeySet || conf.URL == "" || !conf.TLSVerify || strings.HasPrefix(conf.URL, "http://") || !strings.HasPrefix(probe, "LAPI health endpoint reachable") {
+	} else if !s.Running || !s.Firewall.OK || !s.Sets.OK || !hookExec || !conf.Exists || !conf.KeySet || conf.URL == "" || (tlsUnsecured && !tlsWaived) || !strings.HasPrefix(probe, "LAPI health endpoint reachable") {
 		state = "degraded"
 	}
 	if conf.Error != "" {
@@ -343,7 +401,7 @@ func getOverview(ctx context.Context) managerOverview {
 	if len(counters) > 2500 {
 		counters = counters[:2500]
 	}
-	return managerOverview{Snapshot: s, State: state, Config: conf, InitInstalled: initOK, HookExecutable: hookExec, HookManaged: managed, SetDetails: sets, Metrics: metrics, MetricsError: metricErr, LAPIProbe: probe, DropCounters: counters}
+	return managerOverview{Snapshot: s, State: state, Config: conf, InitInstalled: initOK, HookExecutable: hookExec, HookManaged: managed, SetDetails: sets, Metrics: metrics, MetricsError: metricErr, LAPIProbe: probe, DropCounters: counters, TLSWaived: tlsWaived, TLSUnsecured: tlsUnsecured}
 }
 
 func writeManager(w http.ResponseWriter, status int, data any) {
@@ -544,4 +602,5 @@ func registerManagementEndpoints(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("/v1/lapi", func(w http.ResponseWriter, r *http.Request) { mutation(w, r, updateLAPI) })
 	mux.HandleFunc("/v1/hook", func(w http.ResponseWriter, r *http.Request) { mutation(w, r, manageHook) })
+	mux.HandleFunc("/v1/tls-waiver", func(w http.ResponseWriter, r *http.Request) { mutation(w, r, updateTLSWaiver) })
 }

@@ -25,7 +25,14 @@
 </section>
 <section class="gridtwo">
 <div class="panel"><h2>Служба Firewall Bouncer</h2><p class="muted">Работающий процесс не равен работающей защите. Состояние сверяется с ipset и действующими цепочками DROP.</p><div class="actions"><button data-service="start">Запустить</button><button data-service="restart">Перезапустить</button><button data-service="stop" class="danger">Остановить</button></div><p class="small" id="init-status">—</p></div>
-<div class="panel"><h2>Windows LAPI</h2><p class="muted">Только адрес и ключ существующего bouncer-конфига. Ключ не читается через API и не отображается после сохранения.</p><form id="lapi-form"><label>Адрес LAPI <input id="lapi-url" required placeholder="https://192.168.1.10:8080" autocomplete="off"></label><label>API key <input id="lapi-key" type="password" placeholder="Не менять сохранённый ключ" autocomplete="new-password"></label><div class="actions"><button type="submit">Сохранить настройки</button><span id="key-present" class="small">—</span></div><p class="small" id="tls-state">TLS: —</p><p class="small" id="lapi-probe">Соединение LAPI: —</p></form></div>
+<div class="panel"><h2>Windows LAPI</h2><p class="muted">Только адрес и ключ существующего bouncer-конфига. Ключ не читается через API и не отображается после сохранения.</p><form id="lapi-form"><label>Адрес LAPI <input id="lapi-url" required placeholder="https://192.168.1.10:8080" autocomplete="off"></label><label>API key <input id="lapi-key" type="password" placeholder="Не менять сохранённый ключ" autocomplete="new-password"></label><div class="actions"><button type="submit">Сохранить настройки</button><span id="key-present" class="small">—</span></div><p class="small" id="tls-state">TLS: —</p><p class="small" id="lapi-probe">Соединение LAPI: —</p></form>
+<div id="tls-waiver-panel" class="panel" hidden>
+<strong>⚠ TLS не защищён</strong>
+<p class="small" id="tls-waiver-status">Соединение с LAPI не защищено.</p>
+<label id="tls-waiver-confirm-wrap" class="small"><input id="tls-waiver-confirm" type="checkbox"> Я понимаю риск и сам соглашаюсь игнорировать TLS при оценке статуса.</label>
+<div class="actions"><button id="tls-waiver-accept" type="button">Игнорировать TLS</button><button id="tls-waiver-revoke" type="button" hidden>Отменить игнорирование TLS</button></div>
+<p class="small">Это исключение не включает шифрование и не отключает проверку сертификата в Firewall Bouncer. Остальные проверки защиты остаются обязательными.</p>
+</div></div>
 </section>
 <section class="gridtwo">
 <div class="panel"><h2>Устойчивость к NDM rebuild</h2><p id="hook-hint-long" class="muted">—</p><p class="small">Восстанавливающий hook не запускается вручную: он вызывается Keenetic после перестройки netfilter. Существующий чужой hook никогда не перезаписывается.</p><div class="actions"><button id="hook-install">Установить управляемый hook</button><button id="hook-remove" class="danger">Удалить свой hook</button></div></div>

@@ -71,14 +71,19 @@
     if (!cfg.exists) missing.push('нет конфигурации LAPI');
     if (!cfg.api_key_set) missing.push('нет ключа LAPI');
     if (!cfg.api_url) missing.push('не задан адрес LAPI');
-    if (cfg.tls_verify === false) missing.push('отключена проверка TLS');
-    if (cfg.api_url && cfg.api_url.indexOf('http://') === 0) missing.push('LAPI работает без TLS');
+    if (cfg.tls_verify === false && !d.tls_waived) missing.push('отключена проверка TLS');
+    if (cfg.api_url && cfg.api_url.indexOf('http://') === 0 && !d.tls_waived) missing.push('LAPI работает без TLS');
     if (!d.lapi_probe || d.lapi_probe.indexOf('LAPI health endpoint reachable') !== 0) missing.push('LAPI health не подтверждён');
     if (cfg.error) missing.push('ошибка конфигурации LAPI');
     if (!good && !missing.length) missing.push('не подтверждён общий статус; смотри детали');
-    txt('verdict', good ? 'Фильтрация подтверждена по активным цепочкам и ipset DROP; NDM rebuild отдельно не проверялся' : 'NOT VERIFIED — ' + missing.join('; ') + '.');
+    txt('verdict', good ? (d.tls_waived ? 'Фильтрация подтверждена. ВНИМАНИЕ: TLS игнорируется по вашему согласию, соединение с LAPI не защищено или сертификат не проверяется.' : 'Фильтрация подтверждена по активным цепочкам и ipset DROP; NDM rebuild отдельно не проверялся') : 'NOT VERIFIED — ' + missing.join('; ') + '.');
     $('verdict').className = 'banner ' + (good ? 'good' : 'bad');
-    colored('protection', good, 'ACTIVE', 'NOT VERIFIED');
+    colored('protection', good, d.tls_waived ? 'ACTIVE · TLS RISK' : 'ACTIVE', 'NOT VERIFIED');
+    $('tls-waiver-panel').hidden = !d.tls_unsecured;
+    $('tls-waiver-accept').hidden = !!d.tls_waived;
+    $('tls-waiver-revoke').hidden = !d.tls_waived;
+    $('tls-waiver-confirm-wrap').hidden = !!d.tls_waived;
+    txt('tls-waiver-status', d.tls_waived ? 'Вы согласились игнорировать предупреждение TLS для этого адреса LAPI. Соединение остаётся небезопасным.' : 'Без TLS данные могут передаваться без шифрования или без проверки подлинности сервера.');
     txt('protection-hint', 'Installed: ' + !!s.installed + ' · running: ' + !!s.running + ' · ipset: ' + !!sets.ok);
     colored('running', s.running, 'Работает', 'Остановлен');
     txt('installed', s.installed ? 'Бинарник обнаружен' : 'Бинарник не установлен');
@@ -123,6 +128,13 @@
       .then(function () { busy = false; refresh(); });
   }
   $('refresh').addEventListener('click', refresh);
+  $('tls-waiver-accept').addEventListener('click', function () {
+    if (!$('tls-waiver-confirm').checked) { msg('Сначала подтвердите, что принимаете риск соединения без проверки TLS.', true); return; }
+    action('tls-waiver', { action: 'enable', confirm: 'crowdsec-tls-risk-accepted' }, 'Подтверждаю: понимаю риск незашифрованного или непроверенного соединения с LAPI и хочу не учитывать только TLS при оценке состояния. Продолжить?');
+  });
+  $('tls-waiver-revoke').addEventListener('click', function () {
+    action('tls-waiver', { action: 'disable', confirm: 'crowdsec-tls-risk-accepted' }, 'Отменить согласие и снова учитывать TLS при оценке состояния?');
+  });
   Array.prototype.forEach.call(document.querySelectorAll('[data-service]'), function (button) {
     button.addEventListener('click', function () { var a = button.getAttribute('data-service');
       action('service', { action: a, confirm: 'crowdsec-service' }, 'Выполнить ' + a + ' для /opt/etc/init.d/S99csfirewall? Это может изменить активную фильтрацию.');

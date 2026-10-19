@@ -3,7 +3,10 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
+	"fmt"
 	"net"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -19,10 +22,55 @@ type policyRoute struct {
 	HasDefault  bool
 }
 
+// All DNS collectors share this gate. Keenetic NDM can reject competing
+// CLI requests even when the daemon itself is responsive.
+var dnsNDMCGate = make(chan struct{}, 1)
+
+// Injectable for deterministic unit tests; production always executes ndmc.
+var dnsNDMCRunner = safety.RunCommandOutput
+
+func dnsNDMCCommand(ctx context.Context, command string) ([]byte, error) {
+	select {
+	case dnsNDMCGate <- struct{}{}:
+		defer func() { <-dnsNDMCGate }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	for attempt := 1; attempt <= 2; attempt++ {
+		output, err := dnsNDMCRunner(ctx, "ndmc", "-c", command)
+		if err == nil {
+			return output, nil
+		}
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("ndmc %q: %w", command, ctx.Err())
+		}
+		var exitErr *exec.ExitError
+		stderr := ""
+		if errors.As(err, &exitErr) {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+			if len(stderr) > 512 {
+				stderr = stderr[:512]
+			}
+		}
+		// Only status 1 merits a single bounded retry. Never retry a missing
+		// executable, an unsupported CLI command (127), or a timeout.
+		if attempt == 2 || !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+			return nil, fmt.Errorf("ndmc %q: attempt=%d stderr=%q: %w", command, attempt, stderr, err)
+		}
+		select {
+		case <-time.After(250 * time.Millisecond):
+		case <-ctx.Done():
+			return nil, fmt.Errorf("ndmc %q: %w", command, ctx.Err())
+		}
+	}
+	return nil, fmt.Errorf("ndmc %q: unexpected retry state", command)
+}
+
 func ndmcOutput(command string, timeout time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	out, err := safety.RunCommandOutput(ctx, "ndmc", "-c", command)
+	out, err := dnsNDMCCommand(ctx, command)
 	return string(out), err
 }
 

@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"net"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -217,13 +219,58 @@ func readARP() map[string]string {
 	return out
 }
 
-func discoverClients() ([]ClientInfo, error) {
-	text, err := ndmcOutput("show ip hotspot", 10*time.Second)
-	if err != nil {
-		return nil, err
+// parseKeeneticARP reads the tabular output of "show ip arp". Host names may
+// contain spaces, so columns must be located by their IP and MAC tokens.
+// This is a limited fallback: ARP cannot supply policy, SSID or Mesh metadata.
+func parseKeeneticARP(text string) []ClientInfo {
+	var clients []ClientInfo
+	seen := make(map[string]bool)
+	s := bufio.NewScanner(strings.NewReader(text))
+	for s.Scan() {
+		fields := strings.Fields(s.Text())
+		for i := 0; i+1 < len(fields); i++ {
+			ip := net.ParseIP(fields[i])
+			if ip == nil || ip.To4() == nil || !isPrivateOrLocalIP(ip) {
+				continue
+			}
+			mac, err := net.ParseMAC(fields[i+1])
+			if err != nil || len(mac) != 6 || seen[ip.String()] {
+				continue
+			}
+			seen[ip.String()] = true
+			name := strings.Join(fields[:i], " ")
+			network := strings.Join(fields[i+2:], " ")
+			clients = append(clients, ClientInfo{
+				IP: ip.String(), MAC: strings.ToLower(mac.String()),
+				Name: name, Policy: "System", Network: network,
+				Access: clientAccess(network, "", "", "", false), Active: true,
+			})
+			break
+		}
 	}
-	clients := parseHotspot(text)
-	arp := readARP()
+	sort.Slice(clients, func(i, j int) bool { return clients[i].IP < clients[j].IP })
+	return clients
+}
+
+func discoverClientsFromSources(hotspot func() (string, error), ndmARP func() (string, error), linuxARP func() map[string]string) ([]ClientInfo, error) {
+	text, err := hotspot()
+	var clients []ClientInfo
+	if err == nil {
+		clients = parseHotspot(text)
+	} else {
+		// Only unsupported command (127) is a capability mismatch.
+		// Timeouts, status 1 and I/O failures remain visible as errors.
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != 127 {
+			return nil, err
+		}
+		arpText, arpErr := ndmARP()
+		if arpErr != nil {
+			return nil, arpErr
+		}
+		clients = parseKeeneticARP(arpText)
+	}
+	arp := linuxARP()
 	seen := make(map[string]bool, len(clients))
 	for i := range clients {
 		seen[clients[i].IP] = true
@@ -237,9 +284,17 @@ func discoverClients() ([]ClientInfo, error) {
 		}
 		clients = append(clients, ClientInfo{IP: ip, MAC: mac, Policy: "System", Access: "Unknown", Active: true})
 	}
+	sort.Slice(clients, func(i, j int) bool { return clients[i].IP < clients[j].IP })
 	return clients, nil
 }
 
+func discoverClients() ([]ClientInfo, error) {
+	return discoverClientsFromSources(
+		func() (string, error) { return ndmcOutput("show ip hotspot", 10*time.Second) },
+		func() (string, error) { return ndmcOutput("show ip arp", 10*time.Second) },
+		readARP,
+	)
+}
 func clientRegistryLoop(store *Store, log *EventLogger) {
 	refresh := func() bool {
 		clients, err := discoverClients()

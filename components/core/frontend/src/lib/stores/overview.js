@@ -158,7 +158,8 @@ function updateSustainedCPU(cpu) {
 export function cpuTemperature(thermal) {
   const rows = thermal?.sensors || thermal?.thermal?.sensors || [];
   const candidates = rows.filter((sensor) => ['soc','cpu'].includes(String(sensor.role || '').toLowerCase()));
-  const source = candidates.length ? candidates : rows;
-  if (!source.length) return 0;
-  return Math.max(...source.map((sensor) => Number(sensor.temp_c || 0)).filter(Number.isFinite));
+  // Never present radio or board temperature as a CPU reading.
+  if (!candidates.length) return 0;
+  const values = candidates.map((sensor) => Number(sensor.temp_c)).filter(Number.isFinite);
+  return values.length ? Math.max(...values) : 0;
 }

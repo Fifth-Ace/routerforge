@@ -24,7 +24,7 @@ var (
 )
 
 const (
-	routerForgeReleaseSyncInterval = time.Hour
+	routerForgeReleaseSyncInterval = 30 * time.Minute
 	routerForgeReleaseMaxBytes     = 512 << 10
 	routerForgeCanonicalRepository = "Fifth-Ace/routerforge"
 	routerForgeLegacyRepository    = "Fifth-Ace/dns-monitor"
@@ -155,7 +155,7 @@ func releaseChannelSupported(channel, target string) bool {
 	if channel == "dev" {
 		return target == "aarch64-3.10"
 	}
-	return channel != "stable" || target == "aarch64-3.10"
+	return channel == "beta" || channel == "stable"
 }
 
 func resetRouterForgeReleaseState() {
@@ -403,6 +403,20 @@ func fetchRouterForgeReleaseIndexURL(client *http.Client, url string) ([]byte, e
 		return nil, fmt.Errorf("release index exceeds %d bytes", routerForgeReleaseMaxBytes)
 	}
 	return data, nil
+}
+
+// startRouterForgeReleasePolling keeps the release catalog current even when
+// the browser and App Center are closed. It does not install any packages.
+func startRouterForgeReleasePolling() {
+	go func() {
+		// Allow Core to finish starting before its first network request.
+		time.Sleep(15 * time.Second)
+		for {
+			forceRefreshRouterForgeReleaseIndex()
+			refreshCatalog()
+			time.Sleep(routerForgeReleaseSyncInterval)
+		}
+	}()
 }
 
 func refreshRouterForgeReleaseIndex() {

@@ -261,8 +261,8 @@ func TestReleaseChannelSupportMatrix(t *testing.T) {
 		{"beta", "mips-3.4", true},
 		{"beta", "mipsel-3.4", true},
 		{"stable", "aarch64-3.10", true},
-		{"stable", "mips-3.4", false},
-		{"stable", "mipsel-3.4", false},
+		{"stable", "mips-3.4", true},
+		{"stable", "mipsel-3.4", true},
 		{"dev", "", false},
 		{"beta", "", false},
 	}

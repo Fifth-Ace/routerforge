@@ -25,6 +25,7 @@ func main() {
 
 	coreLogEvent(*logPath, "START", fmt.Sprintf("routerforge v%s listen=%s module-abi=v1", version, *listen))
 	startOptionalProfiling()
+	startRouterForgeReleasePolling()
 
 	fmt.Printf("RouterForge v%s\n", version)
 	fmt.Printf("web listen: %s\n", *listen)

@@ -34,10 +34,11 @@ var managementMu sync.Mutex
 var metricNameRe = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*(\{[^\n]{0,300}\})?$`)
 
 // No automatic firewall writes: NDM executes this hook only after its own rebuild.
-// Adapted from siamskoi/keenetic-crowdsec-bouncer (see upstream README section 9).
+// A newly installed managed hook places the jump immediately before _NDM_FORWARD,
+// after a verified RELATED,ESTABLISHED ACCEPT. Existing jumps are not repositioned.
 const managedNDMHook = `#!/bin/sh
-# RouterForge managed hook; adapted from siamskoi/keenetic-crowdsec-bouncer.
-# Installed only after explicit user confirmation. No direct invocation from the UI.
+# RouterForge managed hook. Installed only after explicit user confirmation.
+# Never execute this file from the UI; NDM invokes it on a firewall rebuild.
 PATH=/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin
 [ "${type:-}" = "iptables" ] || exit 0
 [ "${table:-}" = "filter" ] || exit 0
@@ -45,13 +46,57 @@ IPSET="$(command -v ipset)" || exit 0
 IPTABLES="$(command -v iptables)" || exit 0
 SETS="$($IPSET list -n 2>/dev/null | grep '^crowdsec-blacklists-' || true)"
 [ -n "$SETS" ] || exit 0
+
+# Perform all position gates before flushing or creating firewall chains.
+POSITION=""
+if ! $IPTABLES -C FORWARD -j CROWDSEC_CHAIN >/dev/null 2>&1; then
+    RULES="$($IPTABLES -S FORWARD)" || exit 1
+    POSITION="$(printf '%s\n' "$RULES" | awk '
+        $1 == "-A" && $2 == "FORWARD" {
+            n++
+            for (i = 3; i < NF; i++) {
+                if (($i == "-j" || $i == "-g") && $(i+1) == "_NDM_FORWARD") {
+                    found++
+                    pos = n
+                }
+            }
+        }
+        END { if (found == 1) print pos; else exit 1 }
+    ')" || exit 1
+    case "$POSITION" in ''|*[!0-9]*) exit 1 ;; esac
+    [ "$POSITION" -gt 1 ] || exit 1
+    printf '%s\n' "$RULES" | awk -v limit="$POSITION" '
+        $1 == "-A" && $2 == "FORWARD" {
+            n++
+            if (n >= limit) exit
+            state = 0
+            established = 0
+            related = 0
+            accept = 0
+            for (i = 3; i <= NF; i++) {
+                if ($i == "--ctstate" || $i == "--state") {
+                    state = 1
+                    nextval = $(i+1)
+                    if (nextval ~ /(^|,)RELATED(,|$)/) related = 1
+                    if (nextval ~ /(^|,)ESTABLISHED(,|$)/) established = 1
+                }
+                if ($i == "-j" && $(i+1) == "ACCEPT") accept = 1
+            }
+            if (state && related && established && accept) passed = 1
+        }
+        END { if (!passed) exit 1 }
+    ' || exit 1
+fi
+
 $IPTABLES -n -L CROWDSEC_CHAIN >/dev/null 2>&1 || $IPTABLES -N CROWDSEC_CHAIN || exit 1
 $IPTABLES -F CROWDSEC_CHAIN || exit 1
 for setname in $SETS; do
     $IPTABLES -A CROWDSEC_CHAIN -m set --match-set "$setname" src -j DROP || exit 1
 done
-$IPTABLES -C FORWARD -j CROWDSEC_CHAIN >/dev/null 2>&1 || $IPTABLES -I FORWARD 1 -j CROWDSEC_CHAIN
-exit $?
+if [ -n "$POSITION" ]; then
+    $IPTABLES -I FORWARD "$POSITION" -j CROWDSEC_CHAIN || exit 1
+fi
+exit 0
 `
 
 type configSummary struct {

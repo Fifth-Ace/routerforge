@@ -60,15 +60,15 @@ func (s *dnsModuleServer) Serve() error {
 			phase = infoPhase
 		}
 		s.writeJSON(w, http.StatusOK, map[string]any{
-			"ok":             true,
-			"module":         "dns",
-			"version":        s.version,
-			"api_version":    1,
-			"mode":           "control",
-			"mutation_api":   true,
-			"uptime_seconds": time.Since(s.started).Seconds(),
-			"data_ready": dataReady,
-			"phase": phase,
+			"ok":                true,
+			"module":            "dns",
+			"version":           s.version,
+			"api_version":       1,
+			"mode":              "control",
+			"mutation_api":      true,
+			"uptime_seconds":    time.Since(s.started).Seconds(),
+			"data_ready":        dataReady,
+			"phase":             phase,
 			"remaining_seconds": remaining,
 		})
 	}))

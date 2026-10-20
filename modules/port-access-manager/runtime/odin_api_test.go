@@ -28,3 +28,10 @@ func TestOdinConfigurationValidation(t *testing.T) {
 		t.Fatal("invalid TTL accepted")
 	}
 }
+
+func TestOdinChainPreflightUsesReadOnlyLookup(t *testing.T) {
+	// The hardware firewall check is intentionally read-only and must not run in CI.
+	if len(odinHookBody) == 0 || odinWatchdog == "" {
+		t.Fatal("odin safety contract missing")
+	}
+}

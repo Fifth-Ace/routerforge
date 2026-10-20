@@ -9,6 +9,8 @@
   var buttons = {};
   actions.forEach(function (action) { buttons[action] = root.querySelector('[data-odin="' + action + '"]'); });
   var busy = false;
+  // Preserve the real server error across automatic state refreshes.
+  var lastOperationError = '';
   var lastData = null;
   var localDeadline = 0;
   var lastEnabled = false;
@@ -87,7 +89,7 @@
     lastEnabled = enabled;
     lastConfirmed = confirmed;
     lastData = data;
-    status.textContent = enabled ? (data.confirmed ? 'Защита включена · подтверждена' : 'Защита включена · ожидает подтверждения') : 'Защита выключена';
+    status.textContent = lastOperationError || (enabled ? (data.confirmed ? 'Защита включена · подтверждена' : 'Защита включена · ожидает подтверждения') : 'Защита выключена');
     status.className = enabled ? (data.confirmed ? 'odin-state odin-state-on' : 'odin-state odin-state-pending') : 'odin-state';
     if (fill && data.configured && data.settings) {
       var s = data.settings;
@@ -140,6 +142,7 @@
             ? 'Выключить защиту odin и убрать её правила из firewall?'
             : 'Сохранить настройки odin?';
       if (!window.confirm(message)) return;
+      lastOperationError = '';
       setBusy(true);
       status.textContent = 'Выполняется: ' + labels[action] + '…';
       request('POST', { action: action, confirm: 'APPLY', settings: s }).then(function () {
@@ -148,7 +151,7 @@
         return request('GET');
       }).then(function (data) { setBusy(false); render(data, true); }).catch(function (e) {
         setBusy(false);
-        status.textContent = 'Ошибка: ' + e.message + '. Обнови состояние перед повторной операцией.';
+        lastOperationError = 'Ошибка: ' + e.message + '. Обнови состояние перед повторной операцией.';
         refresh();
       });
     });

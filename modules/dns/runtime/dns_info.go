@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -15,6 +16,9 @@ import (
 
 type RouterDNSInfoSnapshot struct {
 	GeneratedAt   time.Time                   `json:"generated_at"`
+	Stale         bool                        `json:"stale,omitempty"`
+	AgeSeconds    float64                     `json:"age_seconds,omitempty"`
+	LastError     string                      `json:"last_error_category,omitempty"`
 	Proxies       []RouterDNSProxyInfo        `json:"proxies"`
 	StaticRecords []RouterDNSStaticRecordInfo `json:"static_records"`
 	Rebind        RouterDNSRebindInfo         `json:"rebind"`
@@ -92,14 +96,19 @@ type dnsInfoHTTPSMeta struct {
 }
 
 type dnsInfoCache struct {
-	mu         sync.Mutex
-	interval   time.Duration
-	snapshot   RouterDNSInfoSnapshot
-	scanned    time.Time
-	refreshing bool
-	ready      chan struct{}
-	lastErr    error
-	read       func() (RouterDNSInfoSnapshot, error)
+	mu          sync.Mutex
+	interval    time.Duration
+	snapshot    RouterDNSInfoSnapshot
+	scanned     time.Time
+	refreshing  bool
+	ready       chan struct{}
+	lastErr     error
+	lastGood    time.Time
+	nextRetry   time.Time
+	failCount   int
+	retryTimer  *time.Timer
+	retryDelays []time.Duration
+	read        func() (RouterDNSInfoSnapshot, error)
 }
 
 func newDNSInfoCache(interval time.Duration, read func() (RouterDNSInfoSnapshot, error)) *dnsInfoCache {
@@ -109,7 +118,7 @@ func newDNSInfoCache(interval time.Duration, read func() (RouterDNSInfoSnapshot,
 	if read == nil {
 		panic("dns info reader is required")
 	}
-	return &dnsInfoCache{interval: interval, read: read}
+	return &dnsInfoCache{interval: interval, read: read, retryDelays: []time.Duration{3 * time.Second, 5 * time.Second, 10 * time.Second, 20 * time.Second, 30 * time.Second}}
 }
 
 // snapshotForRequest bounds expensive ndmc reads while keeping HTTP reads fast.
@@ -119,51 +128,84 @@ func (c *dnsInfoCache) snapshotForRequest() (RouterDNSInfoSnapshot, error) {
 	c.mu.Lock()
 	if !c.scanned.IsZero() {
 		snapshot := c.snapshot
-		stale := time.Since(c.scanned) >= c.interval
-		if stale && !c.refreshing {
-			c.refreshing = true
-			c.ready = make(chan struct{})
-			go c.refresh()
+		stale := time.Since(c.scanned) >= c.interval || c.lastErr != nil
+		if stale {
+			snapshot.Stale = true
+			snapshot.AgeSeconds = time.Since(c.lastGood).Seconds()
+			if c.lastErr != nil {
+				snapshot.LastError = "ndmc_unavailable"
+			}
+		}
+		if stale && !c.refreshing && !time.Now().Before(c.nextRetry) {
+			c.beginRefreshLocked()
 		}
 		c.mu.Unlock()
 		return snapshot, nil
 	}
-
 	if c.refreshing {
 		ready := c.ready
 		c.mu.Unlock()
 		<-ready
-
 		c.mu.Lock()
 		snapshot, err := c.snapshot, c.lastErr
 		c.mu.Unlock()
 		return snapshot, err
 	}
-
-	c.refreshing = true
-	c.ready = make(chan struct{})
+	if time.Now().Before(c.nextRetry) {
+		err := c.lastErr
+		c.mu.Unlock()
+		return RouterDNSInfoSnapshot{}, err
+	}
+	c.beginRefreshLocked()
 	c.mu.Unlock()
 
 	c.refresh()
-
 	c.mu.Lock()
 	snapshot, err := c.snapshot, c.lastErr
 	c.mu.Unlock()
 	return snapshot, err
 }
 
+func (c *dnsInfoCache) beginRefreshLocked() {
+	c.refreshing = true
+	c.ready = make(chan struct{})
+	if c.retryTimer != nil {
+		c.retryTimer.Stop()
+		c.retryTimer = nil
+	}
+}
+
 func (c *dnsInfoCache) refresh() {
 	snapshot, err := c.read()
+	if err == nil && len(snapshot.Proxies) == 0 {
+		err = errors.New("empty DNS info is not a valid NDM snapshot")
+	}
 	now := time.Now()
-
 	c.mu.Lock()
 	if err == nil {
 		c.snapshot = snapshot
 		c.scanned = now
-	} else if !c.scanned.IsZero() {
-		// Keep serving the last good snapshot, but back off retries to the same
-		// bounded interval instead of spawning ndmc on every UI poll.
-		c.scanned = now
+		c.lastGood = now
+		c.failCount = 0
+		c.nextRetry = time.Time{}
+	} else {
+		c.failCount++
+		index := c.failCount - 1
+		if index >= len(c.retryDelays) {
+			index = len(c.retryDelays) - 1
+		}
+		delay := c.retryDelays[index]
+		c.nextRetry = now.Add(delay)
+		c.retryTimer = time.AfterFunc(delay, func() {
+			c.mu.Lock()
+			if c.refreshing {
+				c.mu.Unlock()
+				return
+			}
+			c.beginRefreshLocked()
+			c.mu.Unlock()
+			c.refresh()
+		})
 	}
 	c.lastErr = err
 	c.refreshing = false
@@ -172,6 +214,21 @@ func (c *dnsInfoCache) refresh() {
 		c.ready = nil
 	}
 	c.mu.Unlock()
+}
+
+func (c *dnsInfoCache) health() (bool, string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.scanned.IsZero() {
+		if c.lastErr != nil {
+			return false, "recovering"
+		}
+		return false, "probing"
+	}
+	if c.lastErr != nil {
+		return true, "degraded"
+	}
+	return true, "ready"
 }
 
 var dnsInfoRequestCache = newDNSInfoCache(15*time.Second, readDNSInfo)
@@ -185,6 +242,9 @@ func readDNSInfo() (RouterDNSInfoSnapshot, error) {
 		return RouterDNSInfoSnapshot{}, fmt.Errorf("ndmc show dns-proxy: %w", err)
 	}
 	info := parseDNSInfo(string(out))
+	if len(info.Proxies) == 0 {
+		return RouterDNSInfoSnapshot{}, errors.New("ndmc returned no DNS proxy entries")
+	}
 	policyNames := readDNSPolicyNames()
 	for i := range info.Proxies {
 		if display := strings.TrimSpace(policyNames[info.Proxies[i].Name]); display != "" {

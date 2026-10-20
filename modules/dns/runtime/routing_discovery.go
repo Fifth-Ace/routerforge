@@ -27,9 +27,12 @@ type policyRoute struct {
 var dnsNDMCGate = make(chan struct{}, 1)
 
 // Injectable for deterministic unit tests; production always executes ndmc.
-var dnsNDMCRunner = safety.RunCommandOutput
+var dnsNDMCRunner = runSystemDNSNDMC
 
 func dnsNDMCCommand(ctx context.Context, command string) ([]byte, error) {
+	if err := dnsWaitColdBoot(ctx); err != nil {
+		return nil, err
+	}
 	select {
 	case dnsNDMCGate <- struct{}{}:
 		defer func() { <-dnsNDMCGate }()
@@ -38,7 +41,7 @@ func dnsNDMCCommand(ctx context.Context, command string) ([]byte, error) {
 	}
 
 	for attempt := 1; attempt <= 2; attempt++ {
-		output, err := dnsNDMCRunner(ctx, "ndmc", "-c", command)
+		output, err := dnsNDMCRunner(ctx, "/bin/ndmc", "-c", command)
 		if err == nil {
 			return output, nil
 		}

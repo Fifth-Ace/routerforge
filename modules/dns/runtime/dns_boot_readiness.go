@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -43,7 +44,12 @@ func waitDNSBootReadiness(probe dnsBootProbe, window, interval time.Duration, sl
 }
 
 func dnsBootGate(log *EventLogger, probe dnsBootProbe) {
+	if err := dnsWaitColdBoot(context.Background()); err != nil {
+		log.Event("DNS_BOOT_DELAY_CANCELLED", err.Error())
+		return
+	}
 	attempts, err := waitDNSBootReadiness(probe, dnsBootReadinessWindow, dnsBootReadinessInterval, time.Sleep)
+	dnsEndBootProbe()
 	if err != nil {
 		log.Event("DNS_BOOT_READINESS_TIMEOUT", err.Error())
 	} else {

@@ -44,6 +44,7 @@ func main() {
 	policyActivationAcceptanceListen := flag.String("policy-activation-acceptance-listen", "192.168.10.1:55356", "explicit LAN IPv4:high-port listener for final activation acceptance")
 	policyActivationAcceptanceUpstream := flag.String("policy-activation-acceptance-upstream", "1.1.1.1:53", "explicit upstream for final activation acceptance")
 	policyActivationAcceptanceTimeout := flag.Duration("policy-activation-acceptance-timeout", 4*time.Second, "timeout for final activation acceptance")
+	coldBootDelay := flag.Duration("cold-boot-delay", 0, "one-time DNS cold boot delay; no service startup blocking")
 	flag.Parse()
 
 	if os.Geteuid() != 0 {
@@ -182,6 +183,7 @@ func main() {
 		return
 	}
 
+	dnsConfigureColdBoot(*coldBootDelay)
 	logpolicy.Install("dns")
 	totalMemoryKB := readMemTotalKB("/proc/meminfo")
 	memoryProfile := dnsMemoryProfileFor(totalMemoryKB)

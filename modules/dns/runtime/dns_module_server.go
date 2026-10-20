@@ -54,6 +54,11 @@ func (s *dnsModuleServer) Serve() error {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/health", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		phase, remaining := dnsBootStatus()
+		dataReady, infoPhase := dnsInfoRequestCache.health()
+		if phase == "ready" {
+			phase = infoPhase
+		}
 		s.writeJSON(w, http.StatusOK, map[string]any{
 			"ok":             true,
 			"module":         "dns",
@@ -62,6 +67,9 @@ func (s *dnsModuleServer) Serve() error {
 			"mode":           "control",
 			"mutation_api":   true,
 			"uptime_seconds": time.Since(s.started).Seconds(),
+			"data_ready": dataReady,
+			"phase": phase,
+			"remaining_seconds": remaining,
 		})
 	}))
 	mux.HandleFunc("/v1/snapshot", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
@@ -406,9 +414,20 @@ func (s *dnsModuleServer) Serve() error {
 		s.writeJSON(w, http.StatusOK, plainDNS.Snapshot(limit))
 	}))
 	mux.HandleFunc("/v1/info", s.getOnly(func(w http.ResponseWriter, _ *http.Request) {
+		phase, remaining := dnsBootStatus()
+		if phase != "ready" {
+			w.Header().Set("Retry-After", "3")
+			s.writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+				"phase": phase, "retry_after": 3, "remaining_seconds": remaining,
+			})
+			return
+		}
 		info, err := dnsInfoRequestCache.snapshotForRequest()
 		if err != nil {
-			s.writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
+			w.Header().Set("Retry-After", "3")
+			s.writeJSON(w, http.StatusBadGateway, map[string]any{
+				"error": "NDM DNS information temporarily unavailable", "category": "ndmc_unavailable", "retry_after": 3,
+			})
 			return
 		}
 		s.writeJSON(w, http.StatusOK, info)

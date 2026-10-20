@@ -13,4 +13,12 @@ if [ ! -f /opt/etc/routerforge/module-abi-v1 ]; then
 fi
 [ -f /opt/etc/routerforge/modules-disabled/dns ] && ENABLED=no
 
+# Only the first DNS start in a boot gets the delay. /tmp is tmpfs on Keenetic.
+# Do not sleep here: rc.unslung starts other S* services sequentially.
+if [ "$ENABLED" = yes ] && [ "${1:-}" = start ]; then
+    if mkdir /tmp/routerforge-dns-boot-once 2>/dev/null; then
+        ARGS="$ARGS -cold-boot-delay 20s"
+    fi
+fi
+
 . /opt/etc/init.d/rc.func

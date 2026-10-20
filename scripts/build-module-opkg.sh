@@ -28,6 +28,7 @@ build_dns() {
     DNS_SOURCES="
     dns_module_main.go
     dns_boot_readiness.go
+    dns_boot_state.go
     dns_module_server.go
     dns_control.go
     dns_mutation_safety.go
@@ -63,6 +64,7 @@ build_dns() {
     discovery.go
     dns.go
     dns_info.go
+    dns_ndmc_exec.go
     health.go
     logger.go
     model.go

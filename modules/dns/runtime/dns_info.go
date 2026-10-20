@@ -138,6 +138,7 @@ func (c *dnsInfoCache) snapshotForRequest() (RouterDNSInfoSnapshot, error) {
 		}
 		if stale && !c.refreshing && !time.Now().Before(c.nextRetry) {
 			c.beginRefreshLocked()
+			go c.refresh()
 		}
 		c.mu.Unlock()
 		return snapshot, nil

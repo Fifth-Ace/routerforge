@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"os"
-	"os/exec"
 	"strings"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 // System ndmc must never load Entware's OpenSSL or preloaded libraries.
@@ -27,7 +28,10 @@ func systemNDMCEnv(parent []string) []string {
 
 func runSystemDNSNDMC(ctx context.Context, program string, args ...string) ([]byte, error) {
 	// Preserve the injectable runner signature, but forbid path substitution.
-	cmd := exec.CommandContext(ctx, "/bin/ndmc", args...)
+	cmd, err := safety.CommandContext(ctx, "/bin/ndmc", args...)
+	if err != nil {
+		return nil, err
+	}
 	cmd.Env = systemNDMCEnv(os.Environ())
 	return cmd.Output()
 }

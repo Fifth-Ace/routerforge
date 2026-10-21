@@ -1,20 +1,30 @@
-# RouterForge Telemetry Collector (T2)
+# RouterForge Collector — schema v2
 
-Minimal Python 3.13 stdlib HTTP collector, SQLite WAL, admin Basic-auth dashboard. No external Python packages. Designed to run **behind a TLS-terminating reverse proxy**, bound on host loopback only. Do not publish container port or HTTP directly. This is a staging-ready backend, **not deployed**.
+Python 3.13 stdlib and SQLite WAL. Loopback Docker port `127.0.0.1:18081:8000`.
+Keep HTTPS termination in the existing reverse proxy, public `/v1/events` only.
+Keep `/admin` and `/healthz` private; /admin requires Basic Auth *and* a network
+access boundary. See `docs/TELEMETRY.md` for exactly collected fields.
 
-- Public (through HTTPS proxy): `POST /v1/events` with allowlisted schema v1, max 2048 bytes.
-- Private: `GET /admin` with HTTP Basic auth over HTTPS **plus** an administrator-only access boundary (VPN or IP allowlist). Reverse proxy must not publicly expose `/admin` or `/healthz`.
-- Local probe: `GET /healthz`.
-- Storage: `/data/telemetry.sqlite`, WAL enabled.
-- Distinct registrations keyed by random 128-bit installation ID; retries deduped by `event_id`. No uninstall tracking.
-- This service does not log IPs, payloads, or installation IDs. Ensure reverse-proxy, infrastructure and WAF logs follow the same privacy policy. Remote IPs are still processed by the network stack.
-- Unauthenticated `/v1/events` means untrusted clients **can forge registrations**. Add proxy rate limits and anomaly alerting; never claim cryptographically verified physical installs.
-- No installed device should point here until an HTTPS FQDN and privacy notice are configured and verified.
+**Important: Deploy independently of Core CI.** Code being merged into dev does
+NOT update the running VPS. Do not overwrite/replace the named Docker volume.
 
-Testing: `python -m unittest discover -s tests -v` from the collector folder.
+Safe deployment checklist on the VPS (do not skip):
 
-Staging with Compose, from `deploy/`: create a `.env` containing a unique >=20-character `RF_ADMIN_PASSWORD`, then `docker compose up --build -d`. The bind remains `127.0.0.1:18081`; do not change existing proxy services or firewall. `curl http://127.0.0.1:18081/healthz` should return `{"ok":true}`. The host reverse proxy can route only `/v1/events` to this address after explicit deployment approval.
+1. Confirm current container, mount/volume name and Compose working directory.
+2. Quiesce writers or use `sqlite3.Connection.backup` for a consistent database
+   copy, retain backup off-container and verify it opens.
+3. Run Python collector tests and migration against a COPY of the real database,
+   confirm registered_total unchanged and legacy v1 accepted.
+4. Build/recreate only the collector service with the existing Compose project,
+   unchanged reverse proxy and TLS. Verify local `/healthz` on loopback.
+5. Using nonproduction IDs on a separate test database, verify v1 and v2
+   registration, no duplicate counts, module snapshot replacement and private
+   dashboard authorization; do not inject fake installs into production.
+6. Back up and retain the old image and migration-compatible DB copy for rollback.
+   If rollback to v1 is required, restore the old DB backup as v1 cannot read new
+   schema-v2 events; old server rejects v2 until Collector is updated again.
 
-Suggested HTTPS setup: a **new dedicated hostname**, upstream `http://127.0.0.1:18081`, public path `/v1/events` only, private `/admin` via VPN, no access logging, rate limits, body size 2 KiB, standard TLS verification. TLS termination is *not* in this repository. The actual domain must be selected before Core sends any events.
-
-Maintenance: backup the volume with consistent SQLite backup tools, avoid copying live WAL database files separately. Short-lived event-id dedupe retention can be enabled once a 45-day retry maximum is enforced. Stale raw dedupe records currently remain; their disk usage must be monitored or a timed prune job deployed with retention guarantees.
+`python3 -m unittest discover -s tests -v` tests protocol, migration and dashboard.
+The service suppresses application request logs; the reverse proxy must also
+avoid storing installation IDs and source IP data unnecessarily. `/admin` must
+never be anonymously publicly reachable. No separate analytics stack required.

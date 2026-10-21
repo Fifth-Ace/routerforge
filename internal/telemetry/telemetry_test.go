@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -30,7 +31,9 @@ func TestRegisterOncePresenceAndDisable(t *testing.T) {
 	}))
 	defer srv.Close()
 	dir := t.TempDir()
-	m := NewManager(filepath.Join(dir, "conf.json"), filepath.Join(dir, "state.json"), srv.URL+"/v1/events", "0.13.0~beta.9", func() (float64, float64, float64, bool, bool, bool) { return 25, 65, 55, true, true, true }, srv.Client())
+	m := NewManager(filepath.Join(dir, "conf.json"), filepath.Join(dir, "state.json"), srv.URL+"/v1/events", "0.13.0~beta.9", func() []Module {
+		return []Module{{ID: "dns", Version: "0.13.0~beta.9"}, {ID: "monitoring", Version: "0.12.0"}}
+	}, srv.Client())
 	clock := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
 	m.now = func() time.Time { return clock }
 	m.Tick(context.Background())
@@ -117,5 +120,66 @@ func TestBadCertificateRejected(t *testing.T) {
 	m.Tick(context.Background())
 	if m.Status().RegistrationConfirmed {
 		t.Fatal("bad certificate accepted")
+	}
+}
+
+func TestTelemetrySchemaV2PrivacyAndModules(t *testing.T) {
+	dir := t.TempDir()
+	m := NewManager(filepath.Join(dir, "config"), filepath.Join(dir, "state"), "https://example.invalid/v1/events", "0.13.0~beta.9", func() []Module {
+		return []Module{{ID: "dns", Version: "0.12.0"}, {ID: "evil-command", Version: "secret"}, {ID: "dns", Version: "0.13.0"}, {ID: "admin", Version: "0.11.0"}}
+	}, nil)
+	m.mu.Lock()
+	register, err := m.nextLocked()
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.state.Registered = true
+	m.state.LastPresence = m.now()
+	diag, err := m.nextLocked()
+	m.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if register.SchemaVersion != 2 || register.ReleaseChannel != "beta" {
+		t.Fatalf("bad register: %#v", register)
+	}
+	if diag.Kind != "diagnostic" || diag.Modules == nil || len(*diag.Modules) != 2 || (*diag.Modules)[0].ID != "admin" {
+		t.Fatalf("bad module allowlist %#v", diag)
+	}
+	body, _ := json.Marshal(diag)
+	for _, forbidden := range []string{"cpu_load_band", "ram_load_band", "temperature_band_c", "health_code", "evil-command"} {
+		if strings.Contains(string(body), forbidden) {
+			t.Fatalf("forbidden field %q in %s", forbidden, body)
+		}
+	}
+}
+func TestVersionChannelIndependentOfUpdateFeed(t *testing.T) {
+	for _, x := range []struct{ version, channel string }{{"0.13.0~beta.9", "beta"}, {"0.8.0-dev.r11", "dev"}, {"0.12.0", "stable"}, {"dev", "dev"}} {
+		if got := VersionChannel(x.version); got != x.channel {
+			t.Fatalf("%s: %s != %s", x.version, got, x.channel)
+		}
+	}
+}
+
+func TestUpgradedLegacyStateReportsModulesBeforeDailyInterval(t *testing.T) {
+	dir := t.TempDir()
+	m := NewManager(filepath.Join(dir, "config"), filepath.Join(dir, "state"), "https://example.invalid/v1/events", "0.13.0~beta.9", func() []Module { return []Module{{ID: "dns", Version: "0.13.0~beta.9"}} }, nil)
+	m.mu.Lock()
+	if err := m.initLocked(); err != nil {
+		t.Fatal(err)
+	}
+	m.state.Registered = true
+	m.state.LastPresence = m.now()
+	m.state.LastDiagnostic = m.now()
+	if err := persist(m.statePath, m.state); err != nil {
+		t.Fatal(err)
+	}
+	e, err := m.nextLocked()
+	m.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e == nil || e.Kind != "diagnostic" || e.Modules == nil || len(*e.Modules) != 1 {
+		t.Fatalf("upgrade missed module snapshot: %#v", e)
 	}
 }

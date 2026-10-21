@@ -21,9 +21,8 @@ func startRouterForgeTelemetry(coreVersion string) {
 		"/opt/etc/routerforge/telemetry-state.json",
 		telemetryCollectorEndpoint,
 		coreVersion,
-		func() (float64, float64, float64, bool, bool, bool) {
-			tel := readCoreTelemetry()
-			return tel.CPUUsagePct, tel.RAMUsagePct, tel.CPUTempC, tel.CPUUsageAvailable, tel.RAMUsageAvailable, tel.CPUTempAvailable
+		func() []telemetry.Module {
+			return installedRouterForgeModules(readInstalledPackages())
 		}, nil)
 	routerForgeTelemetryManager = manager
 	go manager.Run(context.Background())
@@ -87,4 +86,25 @@ func registerRouterForgeTelemetryHandlers(mux *http.ServeMux) {
 		}
 		_ = json.NewEncoder(w).Encode(routerForgeTelemetryManager.Preview())
 	})
+}
+
+// Official package names only. We intentionally exclude external integrations,
+// unknown Entware packages and any free-form user-controlled names.
+func installedRouterForgeModules(packages map[string]string) []telemetry.Module {
+	known := map[string]string{
+		"routerforge-admin": "admin", "routerforge-monitoring": "monitoring",
+		"routerforge-dns": "dns", "routerforge-network-tools": "network-tools",
+		"routerforge-nfqws-manager":       "nfqws-manager",
+		"routerforge-antiscan-manager":    "antiscan-manager",
+		"routerforge-port-access-manager": "port-access-manager",
+		"routerforge-crowdsec-manager":    "crowdsec-manager",
+		"routerforge-profiling":           "profiling",
+	}
+	raw := make([]telemetry.Module, 0, len(known))
+	for pkg, id := range known {
+		if v, exists := packages[pkg]; exists {
+			raw = append(raw, telemetry.Module{ID: id, Version: v})
+		}
+	}
+	return telemetry.CanonicalModules(raw)
 }

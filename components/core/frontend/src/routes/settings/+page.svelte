@@ -256,11 +256,11 @@
       <section class="settings-section panel">
         <div class="settings-title">Статистика RouterForge</div>
         <div class="setting-row">
-          <div><strong>Учёт установок</strong><span>RouterForge передаёт случайный ID установки и подтверждение активности на собственный сервер проекта. Это позволяет считать зарегистрированные установки, а не скачивания. Учёт работает независимо от диагностики. Не передаются DNS-запросы, IP/MAC, ключи, подписки и конфигурация.</span></div>
+          <div><strong>Учёт установок</strong><span>Статистика ведётся обезличенно: используется случайный ID установки, чтобы считать установки и их активность. Личные данные и настройки не передаются.</span></div>
           <div class="setting-control-slot"><span class="state-chip neutral">Базовый учёт</span></div>
         </div>
         <div class="setting-row">
-          <div><strong>Техническая телеметрия</strong><span>По умолчанию включена. Передаёт версию Core, архитектуру, диапазоны загрузки CPU/RAM, температуры и общий код состояния. Можно отключить в любой момент, без отключения локального мониторинга.</span></div>
+          <div><strong>Техническая телеметрия</strong><span>Передаёт версию Core, архитектуру и установленные модули с их версиями. Включена по умолчанию, но её можно отключить в любой момент.</span></div>
           <div class="setting-control-slot"><label><input type="checkbox" checked={telemetryEnabled} disabled={telemetrySaving} onchange={(e) => changeTelemetry(e.currentTarget.checked)} /> {telemetryEnabled ? 'Включена' : 'Выключена'}</label></div>
         </div>
         <div class="setting-row static"><div><strong>Сервер статистики</strong><span>Отправка начинается после настройки адреса HTTPS на стороне Core. Если сервер недоступен, установка и работа RouterForge не блокируются.</span></div><code>{telemetryStatus.collector_configured ? 'Настроен' : 'Пока не настроен'}</code></div>

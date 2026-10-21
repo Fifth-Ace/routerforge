@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -34,13 +36,14 @@ type Settings struct {
 }
 
 type State struct {
-	InstallationID    string    `json:"installation_id"`
-	RegisterEventID   string    `json:"register_event_id"`
-	Registered        bool      `json:"registered"`
-	LastPresence      time.Time `json:"last_presence,omitempty"`
-	PresenceEventID   string    `json:"presence_event_id,omitempty"`
-	LastDiagnostic    time.Time `json:"last_diagnostic,omitempty"`
-	DiagnosticEventID string    `json:"diagnostic_event_id,omitempty"`
+	InstallationID       string    `json:"installation_id"`
+	RegisterEventID      string    `json:"register_event_id"`
+	Registered           bool      `json:"registered"`
+	LastPresence         time.Time `json:"last_presence,omitempty"`
+	PresenceEventID      string    `json:"presence_event_id,omitempty"`
+	LastDiagnostic       time.Time `json:"last_diagnostic,omitempty"`
+	LastDiagnosticSchema int       `json:"last_diagnostic_schema,omitempty"`
+	DiagnosticEventID    string    `json:"diagnostic_event_id,omitempty"`
 }
 
 type Status struct {
@@ -52,26 +55,65 @@ type Status struct {
 	LastError             string    `json:"last_error,omitempty"`
 }
 
-type Event struct {
-	SchemaVersion   int    `json:"schema_version"`
-	Kind            string `json:"kind"`
-	InstallationID  string `json:"installation_id"`
-	EventID         string `json:"event_id"`
-	CoreVersion     string `json:"core_version,omitempty"`
-	Architecture    string `json:"architecture,omitempty"`
-	CPULoadBand     string `json:"cpu_load_band,omitempty"`
-	RAMLoadBand     string `json:"ram_load_band,omitempty"`
-	TemperatureBand string `json:"temperature_band_c,omitempty"`
-	HealthCode      string `json:"health_code,omitempty"`
+// Module describes only installed official RouterForge modules, never external packages.
+type Module struct {
+	ID      string `json:"id"`
+	Version string `json:"version"`
 }
 
-type Metrics func() (cpu, ram, temp float64, cpuOK, ramOK, tempOK bool)
+// ModuleSnapshot returns a bounded, canonical list of installed module versions.
+type ModuleSnapshot func() []Module
+
+// VersionChannel reflects the binary's installed build, not the selected update feed.
+func VersionChannel(v string) string {
+	x := strings.ToLower(v)
+	if x == "dev" || strings.Contains(x, "-dev") || strings.Contains(x, "~dev") {
+		return "dev"
+	}
+	if strings.Contains(x, "-beta") || strings.Contains(x, "~beta") {
+		return "beta"
+	}
+	return "stable"
+}
+
+var officialModules = map[string]bool{
+	"admin": true, "monitoring": true, "dns": true, "network-tools": true,
+	"nfqws-manager": true, "antiscan-manager": true, "port-access-manager": true,
+	"crowdsec-manager": true, "profiling": true,
+}
+
+// CanonicalModules discards unrecognized identifiers or invalid versions, limits size,
+// and sorts entries to prevent exposing arbitrary configuration through telemetry.
+func CanonicalModules(source []Module) []Module {
+	out := make([]Module, 0, len(officialModules))
+	seen := map[string]bool{}
+	for _, mod := range source {
+		if !officialModules[mod.ID] || seen[mod.ID] || !versionRE.MatchString(mod.Version) {
+			continue
+		}
+		seen[mod.ID] = true
+		out = append(out, mod)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+type Event struct {
+	SchemaVersion  int       `json:"schema_version"`
+	Kind           string    `json:"kind"`
+	InstallationID string    `json:"installation_id"`
+	EventID        string    `json:"event_id"`
+	CoreVersion    string    `json:"core_version,omitempty"`
+	ReleaseChannel string    `json:"release_channel,omitempty"`
+	Architecture   string    `json:"architecture,omitempty"`
+	Modules        *[]Module `json:"modules,omitempty"`
+}
 
 type Manager struct {
 	mu                                       sync.Mutex
 	configPath, statePath, endpoint, version string
 	httpClient                               *http.Client
-	metrics                                  Metrics
+	modules                                  ModuleSnapshot
 	now                                      func() time.Time
 	config                                   Settings
 	state                                    State
@@ -81,11 +123,11 @@ type Manager struct {
 	sendingKind                              string
 }
 
-func NewManager(configPath, statePath, endpoint, version string, metrics Metrics, client *http.Client) *Manager {
+func NewManager(configPath, statePath, endpoint, version string, modules ModuleSnapshot, client *http.Client) *Manager {
 	if client == nil {
 		client = &http.Client{Timeout: 6 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	}
-	return &Manager{configPath: configPath, statePath: statePath, endpoint: endpoint, version: version, metrics: metrics, httpClient: client, now: func() time.Time { return time.Now().UTC() }, config: Settings{DiagnosticsEnabled: true}}
+	return &Manager{configPath: configPath, statePath: statePath, endpoint: endpoint, version: version, modules: modules, httpClient: client, now: func() time.Time { return time.Now().UTC() }, config: Settings{DiagnosticsEnabled: true}}
 }
 
 func randID() (string, error) {
@@ -251,42 +293,6 @@ func validEndpoint(raw string) bool {
 	u, err := url.Parse(raw)
 	return err == nil && u.Scheme == "https" && u.Host != "" && u.User == nil && u.RawQuery == "" && u.Fragment == "" && u.Path == "/v1/events"
 }
-func percentBand(v float64, ok bool) string {
-	if !ok || v < 0 || v > 100 {
-		return "unavailable"
-	}
-	switch {
-	case v < 20:
-		return "0-19"
-	case v < 40:
-		return "20-39"
-	case v < 60:
-		return "40-59"
-	case v < 80:
-		return "60-79"
-	default:
-		return "80-100"
-	}
-}
-func tempBand(v float64, ok bool) string {
-	if !ok || v < -40 || v > 150 {
-		return "unavailable"
-	}
-	switch {
-	case v < 40:
-		return "below-40"
-	case v < 50:
-		return "40-49"
-	case v < 60:
-		return "50-59"
-	case v < 70:
-		return "60-69"
-	case v < 80:
-		return "70-79"
-	default:
-		return "80-plus"
-	}
-}
 func arch() string {
 	switch runtime.GOARCH {
 	case "mips":
@@ -308,11 +314,10 @@ func (m *Manager) nextLocked() (*Event, error) {
 	if !versionRE.MatchString(m.version) {
 		return nil, errors.New("bad core version")
 	}
-	e := &Event{SchemaVersion: 1, InstallationID: s.InstallationID}
+	e := &Event{SchemaVersion: 2, InstallationID: s.InstallationID, CoreVersion: m.version, ReleaseChannel: VersionChannel(m.version)}
 	if !s.Registered {
 		e.Kind = "register"
 		e.EventID = s.RegisterEventID
-		e.CoreVersion = m.version
 		return e, nil
 	}
 	if s.LastPresence.IsZero() || now.Sub(s.LastPresence) >= DailyPeriod {
@@ -331,7 +336,7 @@ func (m *Manager) nextLocked() (*Event, error) {
 		return e, nil
 	}
 	cfg := m.settingsLocked()
-	if cfg.DiagnosticsEnabled && (s.LastDiagnostic.IsZero() || now.Sub(s.LastDiagnostic) >= DailyPeriod) {
+	if cfg.DiagnosticsEnabled && (s.LastDiagnosticSchema < 2 || s.LastDiagnostic.IsZero() || now.Sub(s.LastDiagnostic) >= DailyPeriod) {
 		if s.DiagnosticEventID == "" {
 			v, err := randID()
 			if err != nil {
@@ -344,29 +349,12 @@ func (m *Manager) nextLocked() (*Event, error) {
 		}
 		e.Kind = "diagnostic"
 		e.EventID = s.DiagnosticEventID
-		e.CoreVersion = m.version
 		e.Architecture = arch()
-		e.HealthCode = "unavailable"
-		if m.metrics != nil {
-			cpu, ram, temp, cpuOK, ramOK, tempOK := m.metrics()
-			e.CPULoadBand = percentBand(cpu, cpuOK)
-			e.RAMLoadBand = percentBand(ram, ramOK)
-			e.TemperatureBand = tempBand(temp, tempOK)
-			if cpuOK && ramOK {
-				e.HealthCode = "ok"
-			} else {
-				e.HealthCode = "degraded"
-			}
+		mods := []Module{}
+		if m.modules != nil {
+			mods = CanonicalModules(m.modules())
 		}
-		if e.CPULoadBand == "" {
-			e.CPULoadBand = "unavailable"
-		}
-		if e.RAMLoadBand == "" {
-			e.RAMLoadBand = "unavailable"
-		}
-		if e.TemperatureBand == "" {
-			e.TemperatureBand = "unavailable"
-		}
+		e.Modules = &mods
 		return e, nil
 	}
 	return nil, nil
@@ -419,6 +407,7 @@ func (m *Manager) Tick(ctx context.Context) {
 			m.state.PresenceEventID = ""
 		case "diagnostic":
 			m.state.LastDiagnostic = now
+			m.state.LastDiagnosticSchema = 2
 			m.state.DiagnosticEventID = ""
 		}
 		if err = persist(m.statePath, m.state); err != nil {
@@ -491,6 +480,6 @@ func (m *Manager) Run(ctx context.Context) {
 }
 func (m *Manager) Preview() map[string]any {
 	status := m.Status()
-	result := map[string]any{"schema_version": 1, "collector_configured": status.CollectorConfigured, "registration_fields": []string{"schema_version", "kind", "installation_id", "event_id", "core_version"}, "diagnostic_fields": []string{"schema_version", "kind", "installation_id", "event_id", "core_version", "architecture", "cpu_load_band", "ram_load_band", "temperature_band_c", "health_code"}, "diagnostics_enabled": status.DiagnosticsEnabled, "disclosure": "Installation accounting and presence remain active when diagnostics are off. IDs are random and may be present at the HTTPS endpoint."}
+	result := map[string]any{"schema_version": 2, "collector_configured": status.CollectorConfigured, "registration_fields": []string{"schema_version", "kind", "installation_id", "event_id", "core_version", "release_channel"}, "diagnostic_fields": []string{"schema_version", "kind", "installation_id", "event_id", "core_version", "release_channel", "architecture", "modules"}, "diagnostics_enabled": status.DiagnosticsEnabled, "disclosure": "Installation accounting and presence remain active when diagnostics are off. IDs are random and may be present at the HTTPS endpoint."}
 	return result
 }

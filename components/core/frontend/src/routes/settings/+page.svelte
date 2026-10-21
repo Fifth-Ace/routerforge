@@ -22,6 +22,44 @@
   let loggingBusy = false;
   let loggingError = '';
   let loggingSaved = '';
+  let telemetryEnabled = true;
+  let telemetrySaving = false;
+  let telemetryStatus = {};
+  let telemetryError = '';
+  let telemetryNotice = '';
+  async function loadTelemetry() {
+    try {
+      const response = await fetch('/api/settings/telemetry', { credentials:'same-origin', cache:'no-store' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      telemetryStatus = await response.json();
+      telemetryEnabled = !!telemetryStatus.diagnostics_enabled;
+    } catch (err) {
+      telemetryError = String(err?.message || err);
+    }
+  }
+  async function changeTelemetry(enabled) {
+    if (telemetrySaving) return;
+    telemetrySaving = true;
+    telemetryError = '';
+    telemetryNotice = '';
+    try {
+      const response = await fetch('/api/settings/telemetry', {
+        method:'POST', credentials:'same-origin',
+        headers:{ 'Content-Type':'application/json', Accept:'application/json' },
+        body:JSON.stringify({ diagnostics_enabled: !!enabled })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || ('HTTP ' + response.status));
+      telemetryStatus = data;
+      telemetryEnabled = !!data.diagnostics_enabled;
+      telemetryNotice = telemetryEnabled ? 'Диагностика включена' : 'Диагностика выключена';
+    } catch (err) {
+      telemetryError = String(err?.message || err);
+      await loadTelemetry();
+    } finally {
+      telemetrySaving = false;
+    }
+  }
   async function loadLogging() {
     try {
       const response = await fetch('/api/settings/logging', { credentials: 'same-origin', cache: 'no-store' });
@@ -101,7 +139,8 @@
     await Promise.all([
       getSystem().then((value) => { system = value; }).catch(() => {}),
       refreshCatalog().catch(() => {}),
-      loadLogging()
+      loadLogging(),
+      loadTelemetry()
     ]);
   });
 
@@ -213,6 +252,21 @@
         <div class="setting-row"><div><strong>Сохранить настройки журнала</strong><span>Без перезапуска DNS, NFQWS или firewall</span></div><div class="setting-control-slot"><button type="button" onclick={saveLogging} disabled={loggingBusy}>Сохранить</button></div></div>
         {#if loggingError}<div class="settings-security-error">{loggingError}</div>{/if}
         {#if loggingSaved}<div class="settings-security-success">{loggingSaved}</div>{/if}
+      </section>
+      <section class="settings-section panel">
+        <div class="settings-title">Статистика RouterForge</div>
+        <div class="setting-row">
+          <div><strong>Учёт установок</strong><span>RouterForge передаёт случайный ID установки и подтверждение активности на собственный сервер проекта. Это позволяет считать зарегистрированные установки, а не скачивания. Учёт работает независимо от диагностики. Не передаются DNS-запросы, IP/MAC, ключи, подписки и конфигурация.</span></div>
+          <div class="setting-control-slot"><span class="state-chip neutral">Базовый учёт</span></div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Техническая телеметрия</strong><span>По умолчанию включена. Передаёт версию Core, архитектуру, диапазоны загрузки CPU/RAM, температуры и общий код состояния. Можно отключить в любой момент, без отключения локального мониторинга.</span></div>
+          <div class="setting-control-slot"><label><input type="checkbox" checked={telemetryEnabled} disabled={telemetrySaving} onchange={(e) => changeTelemetry(e.currentTarget.checked)} /> {telemetryEnabled ? 'Включена' : 'Выключена'}</label></div>
+        </div>
+        <div class="setting-row static"><div><strong>Сервер статистики</strong><span>Отправка начинается после настройки адреса HTTPS на стороне Core. Если сервер недоступен, установка и работа RouterForge не блокируются.</span></div><code>{telemetryStatus.collector_configured ? 'Настроен' : 'Пока не настроен'}</code></div>
+        <div class="setting-row static"><div><strong>Регистрация</strong><span>Подтверждённой считается только успешная регистрация на сервере.</span></div><code>{telemetryStatus.registration_confirmed ? 'Подтверждена' : 'Ожидает отправки'}</code></div>
+        {#if telemetryError}<div class="settings-security-error">{telemetryError}</div>{/if}
+        {#if telemetryNotice}<div class="settings-security-success">{telemetryNotice}</div>{/if}
       </section>
       <section class="settings-section panel">
         <div class="settings-title">{t(locale, 'settings.security')}</div>

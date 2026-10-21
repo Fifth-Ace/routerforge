@@ -9,6 +9,7 @@
   import '../app.css';
   import '../admin-shell.css';
   import '../routerforge-shell.css';
+  import '../routerforge-ui-primitives.css';
 
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';

@@ -1,0 +1,109 @@
+/* RouterForge UI v1 — opt-in visual primitives.
+ * NFQWS Manager palette + RouterForge Home typography.
+ * Loaded after routerforge-shell.css; no existing page classes are altered.
+ * P0 intentionally does not style any global HTML elements.
+ */
+:root {
+  --rfu-space-1: 4px;
+  --rfu-space-2: 8px;
+  --rfu-space-3: 12px;
+  --rfu-space-4: 16px;
+  --rfu-space-5: 20px;
+  --rfu-space-6: 24px;
+  --rfu-radius-card: var(--rf-radius-card, 8px);
+  --rfu-radius-control: var(--rf-radius-control, 5px);
+  --rfu-body-size: var(--ui-body, 14px);
+  --rfu-page-size: var(--ui-title, 23px);
+  --rfu-section-size: 17px;
+  --rfu-card-title-size: 14px;
+  --rfu-control-height: 36px;
+}
+
+.rfu-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--rfu-space-4);
+  margin-bottom: var(--rfu-space-5);
+  min-width: 0;
+}
+.rfu-page-heading { min-width: 0; }
+.rfu-page-heading h1 {
+  margin: 0;
+  color: var(--rf-text, #f5f7fa);
+  font: 700 var(--rfu-page-size) / 1.2 Inter, 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+}
+.rfu-page-heading p {
+  margin: var(--rfu-space-2) 0 0;
+  color: var(--rf-muted, #8d98a4);
+  font-size: var(--rfu-body-size);
+  line-height: 1.45;
+}
+
+.rfu-section, .rfu-metric-card, .rfu-action-card {
+  min-width: 0;
+  border: 1px solid var(--rf-border, #29313a);
+  border-radius: var(--rfu-radius-card);
+  background: var(--rf-surface, #12151a);
+  color: var(--rf-text, #f5f7fa);
+}
+.rfu-section { padding: var(--rfu-space-4); }
+.rfu-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--rfu-space-2);
+  margin-bottom: var(--rfu-space-3);
+}
+.rfu-section-head h2 {
+  margin: 0;
+  font-size: var(--rfu-section-size);
+  line-height: 1.3;
+  font-weight: 650;
+}
+.rfu-section-head p { margin: 4px 0 0; color: var(--rf-muted, #8d98a4); font-size: 12px; line-height: 1.4; }
+.rfu-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--rfu-space-3); }
+.rfu-metric-card { padding: var(--rfu-space-3); display: grid; align-content: start; gap: var(--rfu-space-2); }
+.rfu-metric-card .rfu-label { color: var(--rf-muted, #8d98a4); font-size: 11px; line-height: 1.4; }
+.rfu-metric-card .rfu-value { color: var(--rf-text, #f5f7fa); font-size: 22px; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.rfu-metric-card .rfu-note { color: var(--rf-muted, #8d98a4); font-size: 11px; line-height: 1.35; }
+.rfu-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rfu-space-3); }
+.rfu-action-card { padding: var(--rfu-space-3); display: grid; gap: var(--rfu-space-2); }
+.rfu-action-card h3 { margin: 0; font-size: var(--rfu-card-title-size); font-weight: 650; }
+.rfu-action-card p { margin: 0; color: var(--rf-muted, #8d98a4); line-height: 1.45; }
+.rfu-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: var(--rfu-control-height); padding: 7px 12px;
+  border: 1px solid var(--rf-border-strong, #36414d);
+  border-radius: var(--rfu-radius-control);
+  background: var(--rf-surface-2, #171b21); color: var(--rf-text, #f5f7fa);
+  font: 600 12px/1.25 Inter, 'Segoe UI', sans-serif;
+  text-decoration: none; cursor: pointer;
+}
+.rfu-button:hover:not(:disabled) { background: var(--rf-hover, #1d2229); }
+.rfu-button--primary { color: var(--rf-accent, #38bdf8); background: var(--rf-accent-soft, rgba(56,189,248,.10)); border-color: var(--rf-accent-border, rgba(56,189,248,.30)); }
+.rfu-button--danger { color: var(--bad, #f85149); border-color: var(--bad, #f85149); }
+.rfu-button:disabled { cursor: not-allowed; opacity: .55; }
+.rfu-button:focus-visible, .rfu-tab:focus-visible { outline: 2px solid var(--rf-accent, #38bdf8); outline-offset: 2px; }
+
+.rfu-tabs { display: flex; gap: 5px; flex-wrap: wrap; padding: 5px; border: 1px solid var(--rf-border, #29313a); border-radius: var(--rfu-radius-card); background: var(--rf-surface, #12151a); }
+.rfu-tab { min-height: var(--rfu-control-height); padding: 7px 12px; background: transparent; border: 1px solid transparent; border-radius: var(--rfu-radius-control); color: var(--rf-muted, #8d98a4); cursor: pointer; }
+.rfu-tab:hover { color: var(--rf-text, #f5f7fa); background: var(--rf-hover, #1d2229); }
+.rfu-tab[aria-selected='true'] { color: var(--rf-text, #f5f7fa); background: var(--rf-accent-soft, rgba(56,189,248,.10)); border-color: var(--rf-accent-border, rgba(56,189,248,.30)); }
+.rfu-status { display: inline-flex; align-items: center; gap: 6px; min-height: 21px; padding: 0 8px; border: 1px solid var(--rf-border-strong, #36414d); border-radius: 999px; color: var(--rf-muted, #8d98a4); background: var(--rf-surface-2, #171b21); font-size: 10px; font-weight: 650; white-space: nowrap; }
+.rfu-status[data-state='running'], .rfu-status[data-state='ok'], .rfu-status[data-state='pass'], .rfu-status[data-state='online'] { color: var(--good, #2ea043); }
+.rfu-status[data-state='update'], .rfu-status[data-state='warn'], .rfu-status[data-state='pending'] { color: var(--warn, #d29922); }
+.rfu-status[data-state='stopped'], .rfu-status[data-state='error'], .rfu-status[data-state='fail'] { color: var(--bad, #f85149); }
+.rfu-setting-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(145px, auto); align-items: center; gap: var(--rfu-space-4); padding: var(--rfu-space-3) 0; border-bottom: 1px solid var(--rf-border, #29313a); }
+.rfu-setting-row:last-child { border-bottom: 0; }
+.rfu-setting-row .rfu-setting-label { font-size: 13px; font-weight: 650; }
+.rfu-setting-row .rfu-setting-help { margin-top: 3px; font-size: 12px; color: var(--rf-muted, #8d98a4); line-height: 1.4; }
+.rfu-setting-row .rfu-setting-control { justify-self: end; max-width: 100%; }
+.rfu-empty, .rfu-notice { padding: var(--rfu-space-3); border: 1px solid var(--rf-border, #29313a); border-radius: var(--rfu-radius-card); color: var(--rf-muted, #8d98a4); background: var(--rf-surface, #12151a); line-height: 1.4; }
+.rfu-empty { border-style: dashed; text-align: center; }
+@media (max-width: 850px) { .rfu-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .rfu-action-grid { grid-template-columns: 1fr; } .rfu-setting-row { grid-template-columns: 1fr; gap: 7px; } .rfu-setting-row .rfu-setting-control { justify-self: start; } }
+@media (max-width: 390px) { .rfu-metric-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .rfu-button, .rfu-tab { transition: none; } }

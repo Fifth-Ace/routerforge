@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import '../../routerforge-settings-p1.css';
+  let activeSettingsTab = 'system';
   import { snapshot } from '$lib/stores/snapshot.js';
   import { settings, themes } from '$lib/stores/settings.js';
   import { catalog, refreshCatalog } from '$lib/stores/catalog.js';
@@ -194,8 +196,17 @@
     <span class="page-kicker mono">{t(locale, 'settings.kicker')}</span>
   </div>
 
-  <div class="settings-layout">
-    <aside class="system-card panel">
+  <div class="rf-p1-settings">
+    <nav class="rf-p1-tabs" role="tablist" aria-label={locale === 'ru' ? 'Разделы настроек' : 'Settings sections'}>
+      <button type="button" id="rf-p1-tab-system" role="tab" aria-controls="rf-p1-pane-system" aria-selected={activeSettingsTab === 'system'} class:active={activeSettingsTab === 'system'} onclick={() => activeSettingsTab = 'system'}>{locale === 'ru' ? 'Система' : 'System'}</button>
+      <button type="button" id="rf-p1-tab-interface" role="tab" aria-controls="rf-p1-pane-interface" aria-selected={activeSettingsTab === 'interface'} class:active={activeSettingsTab === 'interface'} onclick={() => activeSettingsTab = 'interface'}>{locale === 'ru' ? 'Интерфейс' : 'Interface'}</button>
+      <button type="button" id="rf-p1-tab-logs" role="tab" aria-controls="rf-p1-pane-logs" aria-selected={activeSettingsTab === 'logs'} class:active={activeSettingsTab === 'logs'} onclick={() => activeSettingsTab = 'logs'}>{locale === 'ru' ? 'Журналы' : 'Logs'}</button>
+      <button type="button" id="rf-p1-tab-security" role="tab" aria-controls="rf-p1-pane-security" aria-selected={activeSettingsTab === 'security'} class:active={activeSettingsTab === 'security'} onclick={() => activeSettingsTab = 'security'}>{locale === 'ru' ? 'Безопасность' : 'Security'}</button>
+    </nav>
+
+    <section id="rf-p1-pane-system" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'system'} role="tabpanel" aria-labelledby="rf-p1-tab-system">
+      <div class="rf-p1-pane-intro"><h2>{locale === 'ru' ? 'Система' : 'System'}</h2><p>{locale === 'ru' ? 'Состояние RouterForge, статистика проекта и системные параметры.' : 'RouterForge status, project statistics and system parameters.'}</p></div>
+<section class="system-card panel rf-p1-system-card">
       <div class="panel-head"><div><strong>{t(locale, 'settings.system')}</strong><span>RouterForge</span></div><span class="state-chip {$snapshot.capture_error ? 'error' : 'good'}">{$snapshot.capture_error ? 'ERROR' : 'OK'}</span></div>
       <div class="system-row"><span>RouterForge</span><strong>v{$snapshot.version || '—'}</strong></div>
       <div class="system-row"><span>{t(locale, 'settings.status')}</span><strong>{primaryDown ? 'ERROR' : primaryDegraded ? 'DEGRADED' : 'OK'}</strong></div>
@@ -204,56 +215,9 @@
       <div class="system-row"><span>{t(locale, 'settings.requests')}</span><strong>{fmtInt($snapshot.total_requests, locale)}</strong></div>
       <div class="system-row"><span>{t(locale, 'settings.discovery')}</span><strong>{fmtAgo($snapshot.last_discovery, locale)}</strong></div>
       <div class="system-row"><span>RAM</span><strong>{system?.rss_kb ? `${(system.rss_kb / 1024).toFixed(1)} MB` : '—'}</strong></div>
-    </aside>
 
-    <div class="settings-stack">
-      <section class="settings-section panel">
-        <div class="settings-title">{t(locale, 'settings.general')}</div>
-        <div class="setting-row">
-          <div><strong>{t(locale, 'settings.uiLevel')}</strong><span>{t(locale, 'settings.uiLevelHint')}</span></div>
-          <div class="setting-control-slot"><select value={$settings.uiLevel} onchange={(e) => update('uiLevel', e.currentTarget.value)}><option value="normal">{t(locale, 'common.normal')}</option><option value="advanced">{t(locale, 'common.advanced')}</option></select></div>
-        </div>
-        <div class="setting-row">
-          <div><strong>{t(locale, 'settings.uiScale')}</strong><span>{t(locale, 'settings.uiScaleHint')}</span></div>
-          <div class="setting-control-slot"><select value={$settings.uiScale} onchange={(e) => update('uiScale', e.currentTarget.value)}><option value="auto">{t(locale, 'settings.autoRecommended')}</option><option value="100">100%</option><option value="115">115%</option><option value="125">125%</option><option value="140">140%</option></select></div>
-        </div>
-        <div class="setting-row">
-          <div><strong>{t(locale, 'settings.liveUpdate')}</strong><span>{t(locale, 'settings.liveUpdateHint')}</span></div>
-          <div class="setting-control-slot"><select value={$settings.refreshMs} onchange={(e) => update('refreshMs', Number(e.currentTarget.value))}><option value="1000">{t(locale, 'common.seconds', { count: 1 })}</option><option value="2000">{t(locale, 'common.seconds', { count: 2 })}</option><option value="5000">{t(locale, 'common.seconds', { count: 5 })}</option><option value="10000">{t(locale, 'common.seconds', { count: 10 })}</option></select></div>
-        </div>
-      </section>
-
-      <section class="settings-section panel">
-        <div class="settings-title">Журналы RouterForge</div>
-        <div class="setting-row">
-          <div><strong>Хранилище журналов RouterForge</strong><span>Одна политика для событий Core, DNS, аудита Antiscan Manager и диагностики менеджеров. RAM-журналы исчезают после перезагрузки. Не меняет журналы внешних служб nfqws2, CrowdSec или Antiscan.</span></div>
-          <div class="setting-control-slot">
-            <select bind:value={loggingMode}>
-              <option value="entware">Entware — /opt/var/log</option>
-              <option value="ram" disabled={!loggingRAMAvailable}>ОЗУ — /tmp (tmpfs)</option><option value="custom">Свой путь</option>
-            </select>
-          </div>
-        </div>
-        {#if loggingMode === 'custom'}
-          <div class="setting-row">
-            <div><strong>Путь для Core и каталог остальных журналов</strong><span>Например /opt/var/log/custom/routerforge.log. Остальные журналы RouterForge будут в том же каталоге с разными именами. Каталог должен уже существовать и быть доступным для записи. Для внешнего диска проверь монтаж: /storage может быть внутренней флеш-памятью. Допустимы /opt/var/log, /opt/mnt, /tmp, /mnt, /media, /storage, /var/log.</span></div>
-            <div class="setting-control-slot"><input type="text" bind:value={loggingCustomPath} placeholder="/opt/var/log/routerforge-custom.log" autocomplete="off" spellcheck="false" /></div>
-          </div>
-        {/if}
-        <div class="setting-row static"><div><strong>Активный путь Core</strong><span>DNS и менеджеры записывают свои журналы в выбранное хранилище по отдельным именам. Новая политика действует для новых записей; существующие файлы не удаляются. Встроенная оперативная история Port Access остаётся в памяти.</span></div><code>{loggingActivePath || '—'}</code></div>
-        <div class="setting-row">
-          <div><strong>Максимальный размер журнала</strong><span>От 1 до 16 МБ на файл, для JSONL-аудита Antiscan действует более строгий встроенный предел</span></div>
-          <div class="setting-control-slot"><select bind:value={loggingMaxMB}><option value={1}>1 МБ</option><option value={2}>2 МБ</option><option value={4}>4 МБ</option><option value={8}>8 МБ</option><option value={16}>16 МБ</option></select></div>
-        </div>
-        <div class="setting-row">
-          <div><strong>Количество архивов</strong><span>От 1 до 5 резервных журналов</span></div>
-          <div class="setting-control-slot"><select bind:value={loggingBackups}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option><option value={5}>5</option></select></div>
-        </div>
-        <div class="setting-row"><div><strong>Сохранить настройки журнала</strong><span>Без перезапуска DNS, NFQWS или firewall</span></div><div class="setting-control-slot"><button type="button" onclick={saveLogging} disabled={loggingBusy}>Сохранить</button></div></div>
-        {#if loggingError}<div class="settings-security-error">{loggingError}</div>{/if}
-        {#if loggingSaved}<div class="settings-security-success">{loggingSaved}</div>{/if}
-      </section>
-      <section class="settings-section panel">
+<div class="rf-p1-statistics">
+<section class="settings-section panel">
         <div class="settings-title">Статистика RouterForge</div>
         <div class="setting-row">
           <div><strong>Учёт установок</strong><span>Статистика ведётся обезличенно: используется случайный ID установки, чтобы считать установки и их активность. Личные данные и настройки не передаются.</span></div>
@@ -268,64 +232,10 @@
         {#if telemetryError}<div class="settings-security-error">{telemetryError}</div>{/if}
         {#if telemetryNotice}<div class="settings-security-success">{telemetryNotice}</div>{/if}
       </section>
-      <section class="settings-section panel">
-        <div class="settings-title">{t(locale, 'settings.security')}</div>
-        <div class="setting-row security-setting-row">
-          <div><strong>{t(locale, 'settings.requireAuth')}</strong><span>{t(locale, 'settings.requireAuthHint')}</span></div>
-          <div class="security-control setting-control-slot">
-            <span class="state-chip {$authState.required ? 'good' : 'neutral'}">{$authState.required ? 'ON' : 'OFF'}</span>
-            <button class="security-switch" class:on={$authState.required} type="button" aria-label={$authState.required ? t(locale, 'settings.disableAuthAria') : t(locale, 'settings.enableAuthAria')} aria-pressed={$authState.required} disabled={authBusy} onclick={requestAuthToggle}><span></span></button>
-          </div>
-        </div>
-        <div class="setting-row static"><div><strong>{t(locale, 'settings.session')}</strong><span>{t(locale, 'settings.sessionHint')}</span></div><code>{t(locale, 'common.hours', { count: $authState.session_hours || 12 })}</code></div>
-        <div class="setting-row static"><div><strong>{t(locale, 'settings.backend')}</strong><span>{t(locale, 'settings.backendHint')}</span></div><code>entware-root</code></div>
-        {#if authError}<div class="settings-security-error">{authError}</div>{/if}
-      </section>
-
-      <section class="settings-section panel">
-        <div class="settings-title">{t(locale, 'settings.appearance')}</div>
-        <div class="appearance-intro">{t(locale, 'settings.appearanceIntro')}</div>
-        <div class="appearance-subtitle">{t(locale, 'settings.theme')}</div>
-        <div class="theme-grid">
-          {#each themeCards as [id, title, description]}
-            {@const palette = previewPalette(id)}
-            <button class="theme-card" class:active={$settings.theme === id} onclick={() => update('theme', id)}>
-              <h3>{title}</h3><p>{description}</p>
-              <div class="theme-preview" style={`background:${palette.background};color:${palette.text}`}>
-                <i style={`width:25%;background:${$settings.accent}`}></i>
-                <i style={`width:80%;background:${palette.text};opacity:.14`}></i>
-                <i style={`background:${palette.surface || palette.background};border:1px solid ${palette.border || palette.text}`}></i>
-              </div>
-            </button>
-          {/each}
-        </div>
-
-        <div class="appearance-subtitle">{t(locale, 'settings.accent')}</div>
-        <div class="accent-picker-row">
-          <div class="accent-presets" aria-label={t(locale, 'settings.presetAccents')}>
-            {#each accentOptions as [color, label]}
-              <button type="button" class="accent-swatch" class:active={$settings.accent === color} style={`--swatch:${color}`} title={label} aria-label={label} onclick={() => update('accent', color)}><span></span></button>
-            {/each}
-          </div>
-          <label class="custom-accent"><span>{t(locale, 'settings.customColor')}</span><input type="color" value={$settings.accent} oninput={(e) => update('accent', e.currentTarget.value)}/><code>{$settings.accent}</code></label>
-        </div>
-
-        <div class="appearance-options-grid">
-          <label><span>{t(locale, 'settings.density')}</span><select value={$settings.density} onchange={(e) => update('density', e.currentTarget.value)}><option value="compact">{t(locale, 'settings.densityCompact')}</option><option value="normal">{t(locale, 'settings.densityNormal')}</option><option value="comfortable">{t(locale, 'settings.densityComfortable')}</option></select></label>
-          <label><span>{t(locale, 'settings.radius')}</span><select value={$settings.radius} onchange={(e) => update('radius', e.currentTarget.value)}><option value="sharp">{t(locale, 'settings.radiusSharp')}</option><option value="default">{t(locale, 'settings.radiusDefault')}</option><option value="soft">{t(locale, 'settings.radiusSoft')}</option></select></label>
-          <label><span>{t(locale, 'settings.brandCopper')}</span><select value={$settings.brandMode} onchange={(e) => update('brandMode', e.currentTarget.value)}><option value="brand-only">{t(locale, 'settings.brandOnly')}</option><option value="extended">{t(locale, 'settings.brandExtended')}</option></select></label>
-        </div>
-
-        {#if $settings.theme === 'custom'}
-          <div class="color-grid custom-theme-colors">
-            <label><span>{t(locale, 'settings.background')}</span><input type="color" value={$settings.background} oninput={(e) => update('background', e.currentTarget.value)}/><code>{$settings.background}</code></label>
-            <label><span>{t(locale, 'settings.text')}</span><input type="color" value={$settings.text} oninput={(e) => update('text', e.currentTarget.value)}/><code>{$settings.text}</code></label>
-          </div>
-        {/if}
-      </section>
-
+</div>
+</section>
       {#if dnsInstalled}
-        <section class="settings-section panel">
+<section class="settings-section panel">
           <div class="settings-title">DNS</div>
           <div class="appearance-intro">
             {locale === 'ru'
@@ -389,7 +299,7 @@
           {/if}
         </section>
       {/if}
-      <section class="settings-section panel">
+<section class="settings-section panel">
         <div class="settings-title">{t(locale, 'settings.monitoring')}</div>
         <div class="setting-row">
           <div><strong>{locale === 'ru' ? '\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u044f CPU' : 'CPU temperature warning'}</strong><span>{locale === 'ru' ? '\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u0435 \u043d\u0430 \u0413\u043b\u0430\u0432\u043d\u043e\u0439 \u0438 \u0432 \u0442\u0435\u043b\u0435\u043c\u0435\u0442\u0440\u0438\u0438 \u043f\u0440\u0438 \u0434\u043e\u0441\u0442\u0438\u0436\u0435\u043d\u0438\u0438 \u044d\u0442\u043e\u0439 \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u044b. \u041a\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u043f\u043e\u0440\u043e\u0433 90\u00b0C \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u043c.' : 'Show a warning on Home and in device telemetry when this temperature is reached. The 90\u00b0C critical threshold remains fixed.'}</span></div>
@@ -399,7 +309,118 @@
         <div class="setting-row static"><div><strong>{t(locale, 'settings.history')}</strong><span>{t(locale, 'settings.historyHint')}</span></div><code>{t(locale, 'common.hours', { count: 24 })}</code></div>
         <div class="setting-row static"><div><strong>{t(locale, 'settings.webPort')}</strong><span>{t(locale, 'settings.webPortHint')}</span></div><code>2233</code></div>
       </section>
-    </div>
+    </section>
+
+    <section id="rf-p1-pane-interface" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'interface'} role="tabpanel" aria-labelledby="rf-p1-tab-interface">
+      <div class="rf-p1-pane-intro"><h2>{locale === 'ru' ? 'Интерфейс' : 'Interface'}</h2><p>{locale === 'ru' ? 'Отображение, оформление и обновление данных.' : 'Display, appearance and refresh preferences.'}</p></div>
+<section class="settings-section panel">
+        <div class="settings-title">{t(locale, 'settings.general')}</div>
+        <div class="setting-row">
+          <div><strong>{t(locale, 'settings.uiLevel')}</strong><span>{t(locale, 'settings.uiLevelHint')}</span></div>
+          <div class="setting-control-slot"><select value={$settings.uiLevel} onchange={(e) => update('uiLevel', e.currentTarget.value)}><option value="normal">{t(locale, 'common.normal')}</option><option value="advanced">{t(locale, 'common.advanced')}</option></select></div>
+        </div>
+        <div class="setting-row">
+          <div><strong>{t(locale, 'settings.uiScale')}</strong><span>{t(locale, 'settings.uiScaleHint')}</span></div>
+          <div class="setting-control-slot"><select value={$settings.uiScale} onchange={(e) => update('uiScale', e.currentTarget.value)}><option value="auto">{t(locale, 'settings.autoRecommended')}</option><option value="100">100%</option><option value="115">115%</option><option value="125">125%</option><option value="140">140%</option></select></div>
+        </div>
+        <div class="setting-row">
+          <div><strong>{t(locale, 'settings.liveUpdate')}</strong><span>{t(locale, 'settings.liveUpdateHint')}</span></div>
+          <div class="setting-control-slot"><select value={$settings.refreshMs} onchange={(e) => update('refreshMs', Number(e.currentTarget.value))}><option value="1000">{t(locale, 'common.seconds', { count: 1 })}</option><option value="2000">{t(locale, 'common.seconds', { count: 2 })}</option><option value="5000">{t(locale, 'common.seconds', { count: 5 })}</option><option value="10000">{t(locale, 'common.seconds', { count: 10 })}</option></select></div>
+        </div>
+      </section>
+<section class="settings-section panel">
+        <div class="settings-title">{t(locale, 'settings.appearance')}</div>
+        <div class="appearance-intro">{t(locale, 'settings.appearanceIntro')}</div>
+        <div class="appearance-subtitle">{t(locale, 'settings.theme')}</div>
+        <div class="theme-grid">
+          {#each themeCards as [id, title, description]}
+            {@const palette = previewPalette(id)}
+            <button class="theme-card" class:active={$settings.theme === id} onclick={() => update('theme', id)}>
+              <h3>{title}</h3><p>{description}</p>
+              <div class="theme-preview" style={`background:${palette.background};color:${palette.text}`}>
+                <i style={`width:25%;background:${$settings.accent}`}></i>
+                <i style={`width:80%;background:${palette.text};opacity:.14`}></i>
+                <i style={`background:${palette.surface || palette.background};border:1px solid ${palette.border || palette.text}`}></i>
+              </div>
+            </button>
+          {/each}
+        </div>
+
+        <div class="appearance-subtitle">{t(locale, 'settings.accent')}</div>
+        <div class="accent-picker-row">
+          <div class="accent-presets" aria-label={t(locale, 'settings.presetAccents')}>
+            {#each accentOptions as [color, label]}
+              <button type="button" class="accent-swatch" class:active={$settings.accent === color} style={`--swatch:${color}`} title={label} aria-label={label} onclick={() => update('accent', color)}><span></span></button>
+            {/each}
+          </div>
+          <label class="custom-accent"><span>{t(locale, 'settings.customColor')}</span><input type="color" value={$settings.accent} oninput={(e) => update('accent', e.currentTarget.value)}/><code>{$settings.accent}</code></label>
+        </div>
+
+        <div class="appearance-options-grid">
+          <label><span>{t(locale, 'settings.density')}</span><select value={$settings.density} onchange={(e) => update('density', e.currentTarget.value)}><option value="compact">{t(locale, 'settings.densityCompact')}</option><option value="normal">{t(locale, 'settings.densityNormal')}</option><option value="comfortable">{t(locale, 'settings.densityComfortable')}</option></select></label>
+          <label><span>{t(locale, 'settings.radius')}</span><select value={$settings.radius} onchange={(e) => update('radius', e.currentTarget.value)}><option value="sharp">{t(locale, 'settings.radiusSharp')}</option><option value="default">{t(locale, 'settings.radiusDefault')}</option><option value="soft">{t(locale, 'settings.radiusSoft')}</option></select></label>
+          <label><span>{t(locale, 'settings.brandCopper')}</span><select value={$settings.brandMode} onchange={(e) => update('brandMode', e.currentTarget.value)}><option value="brand-only">{t(locale, 'settings.brandOnly')}</option><option value="extended">{t(locale, 'settings.brandExtended')}</option></select></label>
+        </div>
+
+        {#if $settings.theme === 'custom'}
+          <div class="color-grid custom-theme-colors">
+            <label><span>{t(locale, 'settings.background')}</span><input type="color" value={$settings.background} oninput={(e) => update('background', e.currentTarget.value)}/><code>{$settings.background}</code></label>
+            <label><span>{t(locale, 'settings.text')}</span><input type="color" value={$settings.text} oninput={(e) => update('text', e.currentTarget.value)}/><code>{$settings.text}</code></label>
+          </div>
+        {/if}
+      </section>
+    </section>
+
+    <section id="rf-p1-pane-logs" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'logs'} role="tabpanel" aria-labelledby="rf-p1-tab-logs">
+      <div class="rf-p1-pane-intro"><h2>{locale === 'ru' ? 'Журналы' : 'Logs'}</h2><p>{locale === 'ru' ? 'Хранилище и ротация журналов без изменения внешних служб.' : 'Log storage and rotation without changes to external services.'}</p></div>
+<section class="settings-section panel">
+        <div class="settings-title">Журналы RouterForge</div>
+        <div class="setting-row">
+          <div><strong>Хранилище журналов RouterForge</strong><span>Одна политика для событий Core, DNS, аудита Antiscan Manager и диагностики менеджеров. RAM-журналы исчезают после перезагрузки. Не меняет журналы внешних служб nfqws2, CrowdSec или Antiscan.</span></div>
+          <div class="setting-control-slot">
+            <select bind:value={loggingMode}>
+              <option value="entware">Entware — /opt/var/log</option>
+              <option value="ram" disabled={!loggingRAMAvailable}>ОЗУ — /tmp (tmpfs)</option><option value="custom">Свой путь</option>
+            </select>
+          </div>
+        </div>
+        {#if loggingMode === 'custom'}
+          <div class="setting-row">
+            <div><strong>Путь для Core и каталог остальных журналов</strong><span>Например /opt/var/log/custom/routerforge.log. Остальные журналы RouterForge будут в том же каталоге с разными именами. Каталог должен уже существовать и быть доступным для записи. Для внешнего диска проверь монтаж: /storage может быть внутренней флеш-памятью. Допустимы /opt/var/log, /opt/mnt, /tmp, /mnt, /media, /storage, /var/log.</span></div>
+            <div class="setting-control-slot"><input type="text" bind:value={loggingCustomPath} placeholder="/opt/var/log/routerforge-custom.log" autocomplete="off" spellcheck="false" /></div>
+          </div>
+        {/if}
+        <div class="setting-row static"><div><strong>Активный путь Core</strong><span>DNS и менеджеры записывают свои журналы в выбранное хранилище по отдельным именам. Новая политика действует для новых записей; существующие файлы не удаляются. Встроенная оперативная история Port Access остаётся в памяти.</span></div><code>{loggingActivePath || '—'}</code></div>
+        <div class="setting-row">
+          <div><strong>Максимальный размер журнала</strong><span>От 1 до 16 МБ на файл, для JSONL-аудита Antiscan действует более строгий встроенный предел</span></div>
+          <div class="setting-control-slot"><select bind:value={loggingMaxMB}><option value={1}>1 МБ</option><option value={2}>2 МБ</option><option value={4}>4 МБ</option><option value={8}>8 МБ</option><option value={16}>16 МБ</option></select></div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Количество архивов</strong><span>От 1 до 5 резервных журналов</span></div>
+          <div class="setting-control-slot"><select bind:value={loggingBackups}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option><option value={5}>5</option></select></div>
+        </div>
+        <div class="setting-row"><div><strong>Сохранить настройки журнала</strong><span>Без перезапуска DNS, NFQWS или firewall</span></div><div class="setting-control-slot"><button type="button" onclick={saveLogging} disabled={loggingBusy}>Сохранить</button></div></div>
+        {#if loggingError}<div class="settings-security-error">{loggingError}</div>{/if}
+        {#if loggingSaved}<div class="settings-security-success">{loggingSaved}</div>{/if}
+      </section>
+    </section>
+
+    <section id="rf-p1-pane-security" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'security'} role="tabpanel" aria-labelledby="rf-p1-tab-security">
+      <div class="rf-p1-pane-intro"><h2>{locale === 'ru' ? 'Безопасность' : 'Security'}</h2><p>{locale === 'ru' ? 'Доступ к панели и параметры сессии.' : 'Panel access and session settings.'}</p></div>
+<section class="settings-section panel">
+        <div class="settings-title">{t(locale, 'settings.security')}</div>
+        <div class="setting-row security-setting-row">
+          <div><strong>{t(locale, 'settings.requireAuth')}</strong><span>{t(locale, 'settings.requireAuthHint')}</span></div>
+          <div class="security-control setting-control-slot">
+            <span class="state-chip {$authState.required ? 'good' : 'neutral'}">{$authState.required ? 'ON' : 'OFF'}</span>
+            <button class="security-switch" class:on={$authState.required} type="button" aria-label={$authState.required ? t(locale, 'settings.disableAuthAria') : t(locale, 'settings.enableAuthAria')} aria-pressed={$authState.required} disabled={authBusy} onclick={requestAuthToggle}><span></span></button>
+          </div>
+        </div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.session')}</strong><span>{t(locale, 'settings.sessionHint')}</span></div><code>{t(locale, 'common.hours', { count: $authState.session_hours || 12 })}</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.backend')}</strong><span>{t(locale, 'settings.backendHint')}</span></div><code>entware-root</code></div>
+        {#if authError}<div class="settings-security-error">{authError}</div>{/if}
+      </section>
+    </section>
   </div>
 </div>
 

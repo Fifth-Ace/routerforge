@@ -10,9 +10,9 @@ import (
 	"github.com/Fifth-Ace/routerforge/internal/telemetry"
 )
 
-// Inject an audited HTTPS endpoint at packaging time, once deployment is ready.
-// Empty until then: no network transmission occurs without a real collector.
-var telemetryCollectorEndpoint = ""
+// Audited RouterForge Collector endpoint (P10E). The installation identity is
+// independent of optional diagnostics; never transmit over plain HTTP.
+var telemetryCollectorEndpoint = "https://telemetry.fifthace.ru/v1/events"
 var routerForgeTelemetryManager *telemetry.Manager
 
 func startRouterForgeTelemetry(coreVersion string) {

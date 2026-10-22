@@ -1143,19 +1143,18 @@
 <div class="page catalog-page app-center-page">
   <div class="page-head">
     <div>
-      <span class="routerforge-eyebrow mono">ROUTERFORGE / APP CENTER</span>
       <h1>{a(locale,'pageTitle')}</h1>
       <p>{a(locale,'subtitle')}</p>
     </div>
     <div class="page-head-actions">
       <div class="page-head-sources-row">
-        <button class="button compact" onclick={() => sourceManagerOpen = true}>{locale === 'ru' ? 'Источники' : 'Sources'}</button>
+        <button class="button compact" onclick={() => sourceManagerOpen = true}>{a(locale,'uiSources')}</button>
       </div>
       <span class="state-chip {data.registry?.online && String(data.registry?.source || '').toLowerCase() === 'remote' ? 'good' : data.registry?.source === 'cache' ? 'warn' : 'neutral'}">
         {a(locale,'registry')} {(data.registry?.source || 'BUNDLED').toUpperCase()}
       </span>
       <button class="button check-all-button" disabled={checkingAll || checkingUpdates || channelBusy || entwareRefreshing || bulkUpdating || Boolean(busyId)} onclick={checkAllUpdates}>
-        {checkingAll ? (locale === 'ru' ? 'Проверяем всё…' : 'Checking all…') : (locale === 'ru' ? 'Проверить всё' : 'Check all')}
+        {checkingAll ? a(locale,'uiCheckingAll') : a(locale,'uiCheckAll')}
       </button>
     </div>
   </div>
@@ -1183,26 +1182,26 @@
       {#if ['integrations','installed','updates'].includes(tab)}
         <select
           class="channel-select catalog-order-select"
-          aria-label={locale === 'ru' ? 'Сортировка каталога' : 'Catalog sorting'}
+          aria-label={a(locale,'uiSortAria')}
           value={sortMode}
           onchange={(event) => setSortMode(event.currentTarget.value)}
         >
-          <option value="name">{locale === 'ru' ? 'По имени' : 'Name'}</option>
-          <option value="category">{locale === 'ru' ? 'По категории' : 'Category'}</option>
-          <option value="publisher">{locale === 'ru' ? 'По издателю' : 'Publisher'}</option>
-          <option value="installed">{locale === 'ru' ? 'Установленные сначала' : 'Installed first'}</option>
-          <option value="updates">{locale === 'ru' ? 'Обновления сначала' : 'Updates first'}</option>
+          <option value="name">{a(locale,'uiSortName')}</option>
+          <option value="category">{a(locale,'uiSortCategory')}</option>
+          <option value="publisher">{a(locale,'uiSortPublisher')}</option>
+          <option value="installed">{a(locale,'uiSortInstalled')}</option>
+          <option value="updates">{a(locale,'uiSortUpdates')}</option>
         </select>
         <select
           class="channel-select catalog-group-select"
-          aria-label={locale === 'ru' ? 'Группировка каталога' : 'Catalog grouping'}
+          aria-label={a(locale,'uiGroupAria')}
           value={groupMode}
           onchange={(event) => setGroupMode(event.currentTarget.value)}
         >
-          <option value="none">{locale === 'ru' ? 'Без группировки' : 'No grouping'}</option>
-          <option value="category">{locale === 'ru' ? 'Группы: категории' : 'Group: category'}</option>
-          <option value="state">{locale === 'ru' ? 'Группы: состояние' : 'Group: state'}</option>
-          <option value="publisher">{locale === 'ru' ? 'Группы: издатель' : 'Group: publisher'}</option>
+          <option value="none">{a(locale,'uiNoGrouping')}</option>
+          <option value="category">{a(locale,'uiGroupCategory')}</option>
+          <option value="state">{a(locale,'uiGroupState')}</option>
+          <option value="publisher">{a(locale,'uiGroupPublisher')}</option>
         </select>
       {/if}
 
@@ -1216,17 +1215,17 @@
       {/if}
 
       {#if tab === 'routerforge'}
-        <select class="channel-select" aria-label="RouterForge channel" value={releaseChannel} disabled={channelBusy || checkingUpdates || checkingAll || Boolean(busyId)} onchange={changeReleaseChannel}>
+        <select class="channel-select" aria-label={a(locale,'channel')} value={releaseChannel} disabled={channelBusy || checkingUpdates || checkingAll || Boolean(busyId)} onchange={changeReleaseChannel}>
           <option value="stable">RouterForge Stable</option>
           <option value="beta">RouterForge Beta</option>
           <option value="dev">RouterForge Dev</option>
         </select>
         <button class="button check-updates-button" disabled={checkingUpdates || checkingAll || channelBusy || Boolean(busyId)} onclick={checkCurrentUpdates}>
-          {checkingUpdates ? a(locale,'checking') : (locale === 'ru' ? 'Проверить обновления' : 'Check updates')}
+          {checkingUpdates ? a(locale,'checking') : a(locale,'checkUpdates')}
         </button>
       {:else if tab === 'integrations'}
         <button class="button check-updates-button" disabled={checkingUpdates || checkingAll || Boolean(busyId)} onclick={checkCurrentUpdates}>
-          {checkingUpdates ? a(locale,'checking') : (locale === 'ru' ? 'Проверить интеграции' : 'Check integrations')}
+          {checkingUpdates ? a(locale,'checking') : (a(locale,'uiCheckIntegrations'))}
         </button>
       {/if}
 
@@ -1268,18 +1267,18 @@
     <section class="app-action-console">
       <div class="app-action-console-head">
         <div>
-          <strong>{!['succeeded','failed','cancelled'].includes(activeJob.state) ? (locale === 'ru' ? 'Сейчас выполняется' : 'Running now') : (locale === 'ru' ? 'Последнее действие' : 'Latest action')}</strong>
+          <strong>{!['succeeded','failed','cancelled'].includes(activeJob.state) ? (a(locale,'uiRunningNow')) : (a(locale,'uiLatestAction'))}</strong>
           <span class="mono">{activeJob.kind} / {activeJob.target} / {activeJob.action}</span>
         </div>
         <div class="catalog-actions">
           <span class="state-chip {jobStateClass(activeJob.state)}">{jobStateLabel(activeJob.state)}</span>
           {#if !['succeeded','failed','cancelled'].includes(activeJob.state)}
-            <button class="button danger-subtle" onclick={cancelCurrentAction}>{locale === 'ru' ? '\u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c' : 'Cancel'}</button>
+            <button class="button danger-subtle" onclick={cancelCurrentAction}>{a(locale,'uiCancel')}</button>
           {/if}
         </div>
       </div>
       {#if activeJob.error}<div class="catalog-install-notice error">{activeJob.error}</div>{/if}
-      <pre class="app-action-log mono">{actionLog.length ? actionLog.join('\n') : (locale === 'ru' ? '\u041e\u0436\u0438\u0434\u0430\u043d\u0438\u0435 \u0432\u044b\u0432\u043e\u0434\u0430...' : 'Waiting for output...')}</pre>
+      <pre class="app-action-log mono">{actionLog.length ? actionLog.join('\n') : (a(locale,'uiWaitingOutput'))}</pre>
     </section>
   {/if}
 
@@ -1293,25 +1292,25 @@
         onclick={() => actionHistoryExpanded = !actionHistoryExpanded}
       >
         <span class="app-action-history-title">
-          <strong>{locale === 'ru' ? 'История действий' : 'Action history'}</strong>
-          <small>{locale === 'ru' ? 'Операции App Center · нажми запись, чтобы увидеть версии, длительность и полный лог.' : 'App Center operations · open a row for versions, duration and the full log.'}</small>
+          <strong>{a(locale,'uiHistoryTitle')}</strong>
+          <small>{a(locale,'uiHistorySubtitle')}</small>
         </span>
         <span class="app-action-history-meta">
-          <span class="state-chip neutral">{actionHistory.length} {locale === 'ru' ? 'зап.' : 'items'}</span>
+          <span class="state-chip neutral">{actionHistory.length} {a(locale,'uiHistoryCountUnit')}</span>
           <span class:expanded={actionHistoryExpanded} class="app-action-history-chevron" aria-hidden="true">v</span>
         </span>
       </button>
       {#if actionHistoryExpanded}
         <div class="app-action-history-controls">
-          <select bind:value={historyStateFilter} onchange={() => historyVisibleLimit = 20} aria-label={locale === 'ru' ? 'Фильтр по результату' : 'Filter by result'}>
-            <option value="all">{locale === 'ru' ? 'Все результаты' : 'All results'}</option>
-            <option value="succeeded">{locale === 'ru' ? 'Успешно' : 'Succeeded'}</option>
-            <option value="failed">{locale === 'ru' ? 'Ошибка' : 'Failed'}</option>
-            <option value="cancelled">{locale === 'ru' ? 'Отменено' : 'Cancelled'}</option>
-            <option value="running">{locale === 'ru' ? 'Выполняется' : 'Running'}</option>
+          <select bind:value={historyStateFilter} onchange={() => historyVisibleLimit = 20} aria-label={a(locale,'uiResultFilterAria')}>
+            <option value="all">{a(locale,'uiAllResults')}</option>
+            <option value="succeeded">{a(locale,'uiSucceeded')}</option>
+            <option value="failed">{a(locale,'uiFailed')}</option>
+            <option value="cancelled">{a(locale,'uiCancelled')}</option>
+            <option value="running">{a(locale,'uiRunning')}</option>
           </select>
-          <select bind:value={historyTargetFilter} onchange={() => historyVisibleLimit = 20} aria-label={locale === 'ru' ? 'Фильтр по компоненту' : 'Filter by target'}>
-            <option value="all">{locale === 'ru' ? 'Все компоненты' : 'All targets'}</option>
+          <select bind:value={historyTargetFilter} onchange={() => historyVisibleLimit = 20} aria-label={a(locale,'uiTargetFilterAria')}>
+            <option value="all">{a(locale,'uiAllTargets')}</option>
             {#each historyTargets as target (target)}
               <option value={target}>{target}</option>
             {/each}
@@ -1324,8 +1323,8 @@
               <div class="app-action-history-batch">
                 <div class="app-action-history-batch-head">
                   <span>
-                    <strong>{locale === 'ru' ? 'Пакетное обновление RouterForge' : 'RouterForge bulk update'}</strong>
-                    <small class="mono">{formatActionHistoryTime(group.jobs[0]?.started_at)}{#if historyGroupChannel(group)} · {historyGroupChannel(group).toUpperCase()}{/if} · {group.jobs.length} {locale === 'ru' ? 'операции' : 'operations'}</small>
+                    <strong>{a(locale,'uiBulkUpdate')}</strong>
+                    <small class="mono">{formatActionHistoryTime(group.jobs[0]?.started_at)}{#if historyGroupChannel(group)} · {historyGroupChannel(group).toUpperCase()}{/if} · {group.jobs.length} {a(locale,'uiOperations')}</small>
                   </span>
                   <span class="state-chip {jobStateClass(historyGroupState(group))}">{jobStateLabel(historyGroupState(group))}</span>
                 </div>
@@ -1353,13 +1352,13 @@
             {/if}
           {/each}
           {#if !filteredActionHistory.length}
-            <div class="catalog-empty">{locale === 'ru' ? 'По этому фильтру записей нет.' : 'No history matches this filter.'}</div>
+            <div class="catalog-empty">{a(locale,'uiHistoryEmpty')}</div>
           {/if}
         </div>
         {#if visibleActionHistoryGroups.length < actionHistoryGroups.length}
           <div class="app-action-history-more">
             <button class="button compact" type="button" onclick={() => historyVisibleLimit += 20}>
-              {locale === 'ru' ? 'Показать ещё' : 'Show more'} ({actionHistoryGroups.length - visibleActionHistoryGroups.length})
+              {a(locale,'uiShowMore')} ({actionHistoryGroups.length - visibleActionHistoryGroups.length})
             </button>
           </div>
         {/if}
@@ -1574,12 +1573,11 @@
 
 {#if selectedHistoryJob}
   <div class="app-history-sheet-backdrop" role="presentation" onclick={() => selectedHistoryJob = null}></div>
-  <section class="app-history-sheet" role="dialog" aria-modal="true" aria-label={locale === 'ru' ? 'Подробности действия App Center' : 'App Center action details'}>
+  <section class="app-history-sheet" role="dialog" aria-modal="true" aria-label={a(locale,'uiHistoryDialogAria')}>
     <header class="app-history-sheet-topbar">
       <div class="app-history-sheet-title">
         <div class="app-history-sheet-kicker">
           <span class="app-history-sheet-dot {jobStateClass(selectedHistoryJob.state)}"></span>
-          <span>APP CENTER / HISTORY</span>
           <em>{historyChannel(selectedHistoryJob).toUpperCase() || 'LOCAL'}</em>
         </div>
         <strong>{selectedHistoryJob.target}</strong>
@@ -1588,14 +1586,14 @@
       <div class="app-history-sheet-actions">
         <span class="app-history-sheet-state {jobStateClass(selectedHistoryJob.state)}">{jobStateLabel(selectedHistoryJob.state)}</span>
         <button type="button" onclick={copyHistoryLog}>
-          {historyCopyDone ? (locale === 'ru' ? 'Скопировано' : 'Copied') : (locale === 'ru' ? 'Копировать лог' : 'Copy log')}
+          {historyCopyDone ? (a(locale,'uiCopied')) : (a(locale,'uiCopyLog'))}
         </button>
         <button class="close" type="button" aria-label={t(locale,'common.close')} onclick={() => selectedHistoryJob = null}>×</button>
       </div>
     </header>
 
     <div class="app-history-sheet-meta mono">
-      <span>Job {selectedHistoryJob.id}</span>
+      <span>{a(locale,'uiJobId')} {selectedHistoryJob.id}</span>
       <span>{actionVerb(selectedHistoryJob)}</span>
       <span>{historyDuration(selectedHistoryJob)}</span>
       <span class="spacer"></span>
@@ -1604,29 +1602,29 @@
 
     <div class="app-history-sheet-surface">
       <aside class="app-history-sheet-summary mono">
-        <div><span>{locale === 'ru' ? 'Канал' : 'Channel'}</span><strong>{historyChannel(selectedHistoryJob).toUpperCase() || '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Версия' : 'Version'}</span><strong>{historyVersion(selectedHistoryJob) || '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Метод' : 'Method'}</span><strong>{selectedHistoryJob.method || '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Пакеты' : 'Packages'}</span><strong>{selectedHistoryJob.packages?.length ? selectedHistoryJob.packages.join(', ') : '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Начато' : 'Started'}</span><strong>{formatActionHistoryTime(selectedHistoryJob.started_at)}</strong></div>
-        <div><span>{locale === 'ru' ? 'Завершено' : 'Completed'}</span><strong>{selectedHistoryJob.completed_at ? formatActionHistoryTime(selectedHistoryJob.completed_at) : '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Длительность' : 'Duration'}</span><strong>{historyDuration(selectedHistoryJob)}</strong></div>
+        <div><span>{a(locale,'uiLogChannel')}</span><strong>{historyChannel(selectedHistoryJob).toUpperCase() || '—'}</strong></div>
+        <div><span>{a(locale,'uiLogVersion')}</span><strong>{historyVersion(selectedHistoryJob) || '—'}</strong></div>
+        <div><span>{a(locale,'uiLogMethod')}</span><strong>{selectedHistoryJob.method || '—'}</strong></div>
+        <div><span>{a(locale,'uiLogPackages')}</span><strong>{selectedHistoryJob.packages?.length ? selectedHistoryJob.packages.join(', ') : '—'}</strong></div>
+        <div><span>{a(locale,'uiLogStarted')}</span><strong>{formatActionHistoryTime(selectedHistoryJob.started_at)}</strong></div>
+        <div><span>{a(locale,'uiLogCompleted')}</span><strong>{selectedHistoryJob.completed_at ? formatActionHistoryTime(selectedHistoryJob.completed_at) : '—'}</strong></div>
+        <div><span>{a(locale,'uiLogDuration')}</span><strong>{historyDuration(selectedHistoryJob)}</strong></div>
         {#if selectedHistoryJob.batch_id}<div><span>Batch ID</span><strong>{selectedHistoryJob.batch_id}</strong></div>{/if}
       </aside>
 
       <div class="app-history-sheet-log">
         <div class="app-history-sheet-log-head">
-          <strong>{locale === 'ru' ? 'Технический лог' : 'Technical log'}</strong>
-          <span>{locale === 'ru' ? 'Полный вывод пакетного менеджера' : 'Full package-manager output'}</span>
+          <strong>{a(locale,'uiTechnicalLog')}</strong>
+          <span>{a(locale,'uiTechnicalOutput')}</span>
         </div>
-        <pre class="app-history-sheet-log-body mono" class:error-log={Boolean(selectedHistoryJob.error)}>{historyLogText(selectedHistoryJob) || (locale === 'ru' ? 'Лог отсутствует.' : 'No log available.')}</pre>
+        <pre class="app-history-sheet-log-body mono" class:error-log={Boolean(selectedHistoryJob.error)}>{historyLogText(selectedHistoryJob) || (a(locale,'uiNoLog'))}</pre>
       </div>
     </div>
 
     <footer class="app-history-sheet-footer mono">
-      <span>Esc — {locale === 'ru' ? 'закрыть' : 'close'}</span>
+      <span>Esc — {a(locale,'uiCloseEsc')}</span>
       <span class="spacer"></span>
-      <button type="button" onclick={() => selectedHistoryJob = null}>{locale === 'ru' ? 'Закрыть' : 'Close'}</button>
+      <button type="button" onclick={() => selectedHistoryJob = null}>{a(locale,'uiCloseButton')}</button>
     </footer>
   </section>
 {/if}

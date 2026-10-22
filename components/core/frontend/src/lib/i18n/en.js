@@ -767,6 +767,14 @@ export default {
     "insufficient": "Not enough data for the selected period",
     "coverage": "{coverage}% of history collected. The chart appears after 50% of the selected period is covered."
   },
+  "moduleFrame": {
+    "frameTitle": "RouterForge module: {id}",
+    "installHint": "Install the module from RouterForge App Center to open this workspace.",
+    "networkToolsTitle": "Network Tools",
+    "notInstalled": "Module is not installed",
+    "reconnecting": "Reconnecting to module…",
+    "reconnectingHint": "Waiting for the module service to become ready."
+  },
   "monitoring": {
     "title": "Monitoring",
     "subtitle": "RouterForge system telemetry. Only installed monitoring modules are shown.",

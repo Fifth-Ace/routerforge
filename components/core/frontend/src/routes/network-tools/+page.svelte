@@ -1,9 +1,10 @@
 <script>
   import ModuleFrame from '$lib/components/ModuleFrame.svelte';
   import { settings } from '$lib/stores/settings.js';
+  import { t } from '$lib/i18n/index.js';
   $: locale = $settings.locale === 'en' ? 'en' : 'ru';
 </script>
 
-<svelte:head><title>{locale === 'ru' ? '\u0421\u0435\u0442\u0435\u0432\u044b\u0435 \u0438\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442\u044b' : 'Network Tools'}</title></svelte:head>
+<svelte:head><title>{t(locale, 'moduleFrame.networkToolsTitle')}</title></svelte:head>
 
 <ModuleFrame moduleId="network-tools" />

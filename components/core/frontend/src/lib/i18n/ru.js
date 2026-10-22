@@ -767,6 +767,14 @@ export default {
     "insufficient": "Недостаточно данных за выбранный период",
     "coverage": "Накоплено {coverage}% истории. График появится после 50% покрытия периода."
   },
+  "moduleFrame": {
+    "frameTitle": "Модуль RouterForge: {id}",
+    "installHint": "Установите модуль через Центр приложений RouterForge, чтобы открыть этот раздел.",
+    "networkToolsTitle": "Сетевые инструменты",
+    "notInstalled": "Модуль не установлен",
+    "reconnecting": "Подключение к модулю…",
+    "reconnectingHint": "Ожидаем готовности службы модуля."
+  },
   "monitoring": {
     "title": "Мониторинг",
     "subtitle": "Системная телеметрия RouterForge. Показываются только установленные модули мониторинга.",

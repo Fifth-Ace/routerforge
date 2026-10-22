@@ -1,6 +1,7 @@
 <script>
   import { onDestroy } from 'svelte';
   import { settings } from '$lib/stores/settings.js';
+  import { t } from '$lib/i18n/index.js';
   import { withRequestTimeout } from '$lib/http.js';
 
   export let moduleId = '';
@@ -174,7 +175,7 @@
   {#if state === 'ready'}
     <iframe
       bind:this={frame}
-      title={`RouterForge ${moduleId}`}
+      title={t(locale, 'moduleFrame.frameTitle', {id:moduleId})}
       src={src}
       loading="eager"
       onload={handleModuleLoad}
@@ -185,12 +186,12 @@
   {:else}
     <div class="module-state" role="status" aria-live="polite">
       {#if state === 'not-installed'}
-        <strong>{locale === 'en' ? 'Module is not installed' : 'Модуль не установлен'}</strong>
-        <span>{locale === 'en' ? 'Install it from RouterForge App Center to open this workspace.' : 'Установите его через Центр приложений RouterForge, чтобы открыть рабочую область.'}</span>
+        <strong>{t(locale, 'moduleFrame.notInstalled')}</strong>
+        <span>{t(locale, 'moduleFrame.installHint')}</span>
       {:else}
         <span class="spinner" aria-hidden="true"></span>
-        <strong>{locale === 'en' ? 'Reconnecting to module…' : 'Переподключение к модулю…'}</strong>
-        <span>{locale === 'en' ? 'RouterForge is waiting for the module runtime to become ready.' : 'RouterForge ждёт готовности runtime модуля.'}</span>
+        <strong>{t(locale, 'moduleFrame.reconnecting')}</strong>
+        <span>{t(locale, 'moduleFrame.reconnectingHint')}</span>
       {/if}
     </div>
   {/if}

@@ -65,7 +65,7 @@
   };
   const cpuText = (n) => Number(n || 0) > 0 && Number(n) < 1 ? '<1%' : `${Number(n || 0).toFixed(1)}%`;
   const tempClass = (sensor) => sensor.status === 'critical' ? 'error' : sensor.status === 'warn' ? 'warn' : 'good';
-  const moduleName = (item) => item?.id === 'events' ? (locale === 'ru' ? 'События' : 'Events') : t(locale, item?.nameKey || 'monitoring.title');
+  const moduleName = (item) => item?.id === 'events' ? t(locale, 'monitoring.events.title') : t(locale, item?.nameKey || 'monitoring.title');
 
   async function loadSystem() {
     const [summary, cpu, memory] = await Promise.all([

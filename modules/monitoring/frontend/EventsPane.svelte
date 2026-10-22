@@ -5,6 +5,7 @@
   import { getPlatformAlerts, getPlatformEvents } from '$lib/api.js';
 
   import { settings } from '$lib/stores/settings.js';
+  import { t } from '$lib/i18n/index.js';
 
 
 
@@ -34,99 +35,8 @@
 
   $: locale = $settings.locale || 'ru';
 
-  $: copy = locale === 'ru' ? {
-
-    title: 'События',
-
-    subtitle: 'Что происходило с системой: проблемы, восстановления и действия.',
-
-    refresh: 'Обновить',
-
-    auto: 'Обновляется автоматически',
-
-    current: 'Сейчас',
-
-    healthy: 'Проблем нет. Все наблюдаемые модули отвечают.',
-
-    activeProblems: 'Активные проблемы',
-
-    history: 'История',
-
-    all: 'Все',
-
-    problems: 'Проблемы',
-
-    recoveries: 'Восстановления',
-
-    actions: 'Действия',
-
-    component: 'Компонент',
-
-    anyComponent: 'Все компоненты',
-
-    empty: 'Подходящих событий нет.',
-
-    details: 'Технические детали',
-
-    since: 'с',
-
-    loadError: 'Не удалось загрузить события',
-
-    problem: 'Проблема',
-
-    recovery: 'Восстановлено',
-
-    action: 'Действие',
-
-    normal: 'Событие'
-
-  } : {
-
-    title: 'Events',
-
-    subtitle: 'What happened in the system: problems, recoveries and actions.',
-
-    refresh: 'Refresh',
-
-    auto: 'Updates automatically',
-
-    current: 'Now',
-
-    healthy: 'No problems. All observed modules are responding.',
-
-    activeProblems: 'Active problems',
-
-    history: 'History',
-
-    all: 'All',
-
-    problems: 'Problems',
-
-    recoveries: 'Recoveries',
-
-    actions: 'Actions',
-
-    component: 'Component',
-
-    anyComponent: 'All components',
-
-    empty: 'No matching events.',
-
-    details: 'Technical details',
-
-    since: 'since',
-
-    loadError: 'Failed to load events',
-
-    problem: 'Problem',
-
-    recovery: 'Recovered',
-
-    action: 'Action',
-
-    normal: 'Event'
-
-  };
+  const eventCopyKeys = ['title', 'subtitle', 'refresh', 'auto', 'current', 'healthy', 'activeProblems', 'history', 'all', 'problems', 'recoveries', 'actions', 'component', 'anyComponent', 'empty', 'details', 'since', 'loadError', 'problem', 'recovery', 'action', 'normal'];
+  $: copy = Object.fromEntries(eventCopyKeys.map((key) => [key, t(locale, `monitoring.events.${key}`)]));
 
 
 
@@ -157,59 +67,10 @@
 
 
   function componentName(value) {
-
     const id = String(value || 'core').toLowerCase();
-
-    const ru = {
-
-      core: 'RouterForge',
-
-      monitoring: 'Мониторинг',
-
-      dns: 'DNS',
-
-      admin: 'Управление',
-
-      'admin-service': 'Управление',
-
-      'network-tools': 'Сетевые инструменты',
-
-      network: 'Сеть',
-
-      storage: 'Накопители',
-
-      thermal: 'Температура',
-
-      watchdog: 'Автовосстановление'
-
-    };
-
-    const en = {
-
-      core: 'RouterForge',
-
-      monitoring: 'Monitoring',
-
-      dns: 'DNS',
-
-      admin: 'Management',
-
-      'admin-service': 'Management',
-
-      'network-tools': 'Network Tools',
-
-      network: 'Network',
-
-      storage: 'Storage',
-
-      thermal: 'Temperature',
-
-      watchdog: 'Auto recovery'
-
-    };
-
-    return (locale === 'ru' ? ru : en)[id] || value || 'RouterForge';
-
+    const key = `monitoring.events.components.${id}`;
+    const label = t(locale, key);
+    return label === key ? value || 'RouterForge' : label;
   }
 
 

@@ -235,6 +235,12 @@ export default {
     "loading": "Загрузка Web UI…",
   },
   "sourceManager": {
+    "confirmDelete": "Удалить источник «{name}»? Уже установленные пакеты удалены не будут.",
+    "previewArchitectureWarning": "Источник не проверен RouterForge. Разрешены только безопасные lifecycle-механизмы; архитектура {architecture} проверяется отдельно.{local}",
+    "previewLocalHint": " Источник находится в локальной сети.",
+    "previewUnknownArchitecture": "не определена",
+    "stateError": "ОШИБКА",
+    "stateOnline": "В СЕТИ",
     "previewChanged": "URL или тип источника изменён после проверки. Выполни проверку ещё раз.",
     "confirmBeta": "Переключить этот источник на Beta? Будут использоваться prerelease-сборки GitHub, если под архитектуру устройства найден совместимый бинарник.",
     "trustOfficial": "ОФИЦИАЛЬНЫЙ",

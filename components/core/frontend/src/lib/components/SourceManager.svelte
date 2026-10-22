@@ -26,7 +26,6 @@
   let legalText = '';
   let legalLoading = false;
 
-  const ru = () => locale === 'ru';
 
   onMount(() => { void load(); });
 
@@ -118,9 +117,7 @@
 
   async function deleteSource(source) {
     if (busy || source.read_only) return;
-    const question = ru()
-      ? `Удалить источник «${source.name}»? Уже установленные пакеты удалены не будут.`
-      : `Remove source “${source.name}”? Already installed packages will not be removed.`;
+    const question = t(locale, 'sourceManager.confirmDelete', {name:source.name});
     if (!window.confirm(question)) return;
     busy = `delete:${source.id}`; error = '';
     try { await removeAppSource(source.id); await load(); await onchanged(); }
@@ -198,9 +195,9 @@
 
   function sourceState(source) {
     if (!source.enabled) return { cls:'neutral', text:t(locale, 'sourceManager.stateDisabled') };
-    if (source.online) return { cls:'good', text:'ONLINE' };
+    if (source.online) return { cls:'good', text:t(locale, 'sourceManager.stateOnline') };
     if (source.cached) return { cls:'warn', text:t(locale, 'sourceManager.stateCache') };
-    return { cls:'error', text:'ERROR' };
+    return { cls:'error', text:t(locale, 'sourceManager.stateError') };
   }
 </script>
 
@@ -208,7 +205,6 @@
   <section class="source-modal" role="dialog" aria-modal="true" aria-label={t(locale, 'sourceManager.sourcesTitle')} onclick={(event) => event.stopPropagation()}>
     <div class="source-head">
       <div>
-        <span class="mono eyebrow">ROUTERFORGE / SOURCES</span>
         <h2>{t(locale, 'sourceManager.sourcesTitle')}</h2>
         <p>{t(locale, 'sourceManager.sourcesSubtitle')}</p>
       </div>
@@ -337,9 +333,7 @@
           {#if preview.manifestless}
             <div class="source-preview-warning">{t(locale, 'sourceManager.unmanagedWarning')}</div>
           {:else}
-            <div class="source-preview-warning">{ru()
-              ? `Источник не проверен RouterForge. Разрешены только безопасные lifecycle-механизмы; архитектура ${preview.entries?.[0]?.detected_target || 'не определена'} проверяется отдельно.${preview.local ? ' Источник находится в локальной сети.' : ''}`
-              : `This source is not verified by RouterForge. Only bounded lifecycle mechanisms are allowed; architecture ${preview.entries?.[0]?.detected_target || 'is unknown'} is checked separately.${preview.local ? ' The source is on a local network.' : ''}`}</div>
+            <div class="source-preview-warning">{t(locale, 'sourceManager.previewArchitectureWarning', {architecture:preview.entries?.[0]?.detected_target || t(locale, 'sourceManager.previewUnknownArchitecture'), local:preview.local ? t(locale, 'sourceManager.previewLocalHint') : ''})}</div>
           {/if}
           <div class="source-preview-warning">{t(locale, 'sourceManager.previewShaWarning')}</div>
           <button class="button primary" disabled={Boolean(busy) || !preview?.fingerprint || !previewRequest} onclick={addSource}>{busy === 'add' ? (t(locale, 'sourceManager.adding')) : (t(locale, 'sourceManager.addPreviewed'))}</button>
@@ -396,7 +390,7 @@
   <div class="risk-backdrop" role="presentation" onclick={() => legalOpen = false}>
     <section class="legal-modal" role="dialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
       <div class="source-head">
-        <div><span class="mono eyebrow">ROUTERFORGE / LEGAL</span><h3>{t(locale, 'sourceManager.legalTitle')}</h3></div>
+        <div><h3>{t(locale, 'sourceManager.legalTitle')}</h3></div>
         <button class="icon-button" onclick={() => legalOpen = false}>×</button>
       </div>
       <pre>{legalLoading ? (t(locale, 'sourceManager.loading')) : legalText}</pre>

@@ -235,6 +235,12 @@ export default {
     "loading": "Loading Web UI…",
   },
   "sourceManager": {
+    "confirmDelete": "Remove source “{name}”? Already installed packages will not be removed.",
+    "previewArchitectureWarning": "This source is not verified by RouterForge. Only bounded lifecycle mechanisms are allowed; architecture {architecture} is checked separately.{local}",
+    "previewLocalHint": " The source is on a local network.",
+    "previewUnknownArchitecture": "is unknown",
+    "stateError": "ERROR",
+    "stateOnline": "ONLINE",
     "previewChanged": "The source URL or type changed after preview. Preview it again.",
     "confirmBeta": "Switch this source to Beta? GitHub prerelease builds will be used when a compatible binary exists for this device architecture.",
     "trustOfficial": "OFFICIAL",

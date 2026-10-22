@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { t } from '$lib/i18n/index.js';
   import {
     getAppSources, previewAppSource, addAppSource, refreshAppSource,
     setAppSourceEnabled, setAppSourceReleaseChannel, removeAppSource, setAppSourceSecurity, getAppLegal
@@ -57,9 +58,7 @@
   async function addSource() {
     if (!preview || !previewRequest || busy) return;
     if (sourceURL.trim() !== previewRequest.url || sourceKind !== previewRequest.kind) {
-      error = ru()
-        ? 'URL или тип источника изменён после проверки. Выполни проверку ещё раз.'
-        : 'The source URL or type changed after preview. Preview it again.';
+      error = t(locale, 'sourceManager.previewChanged');
       invalidateSourcePreview();
       return;
     }
@@ -100,9 +99,7 @@
     const next = String(select.value || 'auto').toLowerCase();
     if (next === current) return;
     if (next === 'beta') {
-      const question = ru()
-        ? 'Переключить этот источник на Beta? Будут использоваться prerelease-сборки GitHub, если под архитектуру устройства найден совместимый бинарник.'
-        : 'Switch this source to Beta? GitHub prerelease builds will be used when a compatible binary exists for this device architecture.';
+      const question = t(locale, 'sourceManager.confirmBeta');
       if (!window.confirm(question)) {
         select.value = current;
         return;
@@ -194,63 +191,63 @@
 
   function trustLabel(source) {
     const trust = String(source?.trust || 'unsigned').toUpperCase();
-    if (trust === 'OFFICIAL') return ru() ? 'ОФИЦИАЛЬНЫЙ' : 'OFFICIAL';
-    if (trust === 'VERIFIED') return ru() ? 'ПРОВЕРЕН' : 'VERIFIED';
-    return ru() ? 'НЕПОДПИСАН' : 'UNSIGNED';
+    if (trust === 'OFFICIAL') return t(locale, 'sourceManager.trustOfficial');
+    if (trust === 'VERIFIED') return t(locale, 'sourceManager.trustVerified');
+    return t(locale, 'sourceManager.trustUnsigned');
   }
 
   function sourceState(source) {
-    if (!source.enabled) return { cls:'neutral', text:ru() ? 'ОТКЛЮЧЁН' : 'DISABLED' };
+    if (!source.enabled) return { cls:'neutral', text:t(locale, 'sourceManager.stateDisabled') };
     if (source.online) return { cls:'good', text:'ONLINE' };
-    if (source.cached) return { cls:'warn', text:ru() ? 'КЭШ' : 'CACHE' };
+    if (source.cached) return { cls:'warn', text:t(locale, 'sourceManager.stateCache') };
     return { cls:'error', text:'ERROR' };
   }
 </script>
 
 <div class="source-backdrop" role="presentation" onclick={onclose}>
-  <section class="source-modal" role="dialog" aria-modal="true" aria-label={ru() ? 'Источники приложений' : 'Application sources'} onclick={(event) => event.stopPropagation()}>
+  <section class="source-modal" role="dialog" aria-modal="true" aria-label={t(locale, 'sourceManager.sourcesTitle')} onclick={(event) => event.stopPropagation()}>
     <div class="source-head">
       <div>
         <span class="mono eyebrow">ROUTERFORGE / SOURCES</span>
-        <h2>{ru() ? 'Источники приложений' : 'Application sources'}</h2>
-        <p>{ru() ? 'Официальный каталог, сторонние репозитории и отдельные приложения.' : 'Official catalog, third-party repositories and individual apps.'}</p>
+        <h2>{t(locale, 'sourceManager.sourcesTitle')}</h2>
+        <p>{t(locale, 'sourceManager.sourcesSubtitle')}</p>
       </div>
-      <button class="icon-button" aria-label={ru() ? 'Закрыть' : 'Close'} onclick={onclose}>×</button>
+      <button class="icon-button" aria-label={t(locale, 'sourceManager.close')} onclick={onclose}>×</button>
     </div>
 
     {#if error}<div class="source-error">{error}</div>{/if}
 
     <section class="risk-panel" class:enabled={state.allow_unverified}>
       <div>
-        <strong>{ru() ? 'Установка из непроверенных источников' : 'Install from unverified sources'}</strong>
+        <strong>{t(locale, 'sourceManager.unverifiedTitle')}</strong>
         <p>{state.allow_unverified
-          ? (ru() ? 'Разрешена. Каждая установка всё равно требует отдельного подтверждения.' : 'Enabled. Every install still requires separate confirmation.')
-          : (ru() ? 'По умолчанию заблокирована.' : 'Blocked by default.')}</p>
+          ? (t(locale, 'sourceManager.unverifiedEnabled'))
+          : (t(locale, 'sourceManager.unverifiedBlocked'))}</p>
       </div>
       {#if state.allow_unverified}
-        <button class="button danger-subtle" disabled={Boolean(busy)} onclick={disableUnsafe}>{ru() ? 'Запретить' : 'Disable'}</button>
+        <button class="button danger-subtle" disabled={Boolean(busy)} onclick={disableUnsafe}>{t(locale, 'sourceManager.forbid')}</button>
       {:else}
-        <button class="button danger" disabled={Boolean(busy)} onclick={() => riskOpen = true}>{ru() ? 'Разрешить установку' : 'Allow installation'}</button>
+        <button class="button danger" disabled={Boolean(busy)} onclick={() => riskOpen = true}>{t(locale, 'sourceManager.allowInstallation')}</button>
       {/if}
     </section>
 
     <section class="risk-panel local" class:enabled={state.allow_local_sources}>
       <div>
-        <strong>{ru() ? 'Локальные источники (LAN)' : 'Local sources (LAN)'}</strong>
+        <strong>{t(locale, 'sourceManager.localTitle')}</strong>
         <p>{state.allow_local_sources
-          ? (ru() ? 'Разрешены HTTPS-источники в частных сетях. Loopback и link-local по-прежнему заблокированы.' : 'HTTPS sources on private networks are allowed. Loopback and link-local remain blocked.')
-          : (ru() ? 'Заблокированы по умолчанию.' : 'Blocked by default.')}</p>
+          ? (t(locale, 'sourceManager.localEnabled'))
+          : (t(locale, 'sourceManager.localBlocked'))}</p>
       </div>
       {#if state.allow_local_sources}
-        <button class="button danger-subtle" disabled={Boolean(busy)} onclick={disableLocalSources}>{ru() ? 'Запретить' : 'Disable'}</button>
+        <button class="button danger-subtle" disabled={Boolean(busy)} onclick={disableLocalSources}>{t(locale, 'sourceManager.forbid')}</button>
       {:else}
-        <button class="button" disabled={Boolean(busy)} onclick={() => localRiskOpen = true}>{ru() ? 'Разрешить локальные' : 'Allow local'}</button>
+        <button class="button" disabled={Boolean(busy)} onclick={() => localRiskOpen = true}>{t(locale, 'sourceManager.allowLocal')}</button>
       {/if}
     </section>
 
     <div class="source-list">
       {#if loading}
-        <div class="source-empty">{ru() ? 'Загрузка…' : 'Loading…'}</div>
+        <div class="source-empty">{t(locale, 'sourceManager.loading')}</div>
       {:else}
         {#each state.sources || [] as source (source.id)}
           {@const st = sourceState(source)}
@@ -259,16 +256,16 @@
               <div class="source-title-row">
                 <strong>{source.name}</strong>
                 <span class="state-chip {source.trust === 'official' ? 'official' : 'neutral'}">{trustLabel(source)}</span>
-                {#if source.manifestless}<span class="state-chip warn">{ru() ? 'БЕЗ МАНИФЕСТА' : 'UNMANAGED'}</span>{/if}
+                {#if source.manifestless}<span class="state-chip warn">{t(locale, 'sourceManager.unmanagedBadge')}</span>{/if}
                 <span class="state-chip {st.cls}">{st.text}</span>
               </div>
               <span class="mono source-url">{source.url}</span>
               <div class="source-meta">
-                <span>{source.kind === 'app' ? (ru() ? 'Одно приложение' : 'Single app') : (ru() ? 'Репозиторий' : 'Repository')}</span>
-                {#if source.local}<span>{ru() ? 'Локальная сеть' : 'Local network'}</span>{/if}
-                <span>{ru() ? 'Приложений' : 'Apps'}: {source.entry_count || 0}</span>
+                <span>{source.kind === 'app' ? (t(locale, 'sourceManager.singleApp')) : (t(locale, 'sourceManager.repository'))}</span>
+                {#if source.local}<span>{t(locale, 'sourceManager.localNetwork')}</span>{/if}
+                <span>{t(locale, 'sourceManager.appCount')}: {source.entry_count || 0}</span>
                 {#if source.revision}<span>rev {source.revision}</span>{/if}
-                {#if source.last_sync}<span>{ru() ? 'Синхр.' : 'Sync'}: {source.last_sync}</span>{/if}
+                {#if source.last_sync}<span>{t(locale, 'sourceManager.lastSync')}: {source.last_sync}</span>{/if}
               </div>
               {#if source.error}<div class="source-inline-error">{source.error}</div>{/if}
             </div>
@@ -279,7 +276,7 @@
                     class="source-channel-select"
                     value={source.release_channel || 'auto'}
                     disabled={Boolean(busy)}
-                    aria-label={ru() ? 'Канал GitHub Releases' : 'GitHub Releases channel'}
+                    aria-label={t(locale, 'sourceManager.githubChannel')}
                     onchange={(event) => changeSourceReleaseChannel(source, event)}
                   >
                     <option value="auto">AUTO</option>
@@ -288,9 +285,9 @@
                   </select>
                 {/if}
 
-                <button class="button compact" disabled={Boolean(busy)} onclick={() => refreshSource(source)}>{ru() ? 'Проверить' : 'Refresh'}</button>
-                <button class="button compact" disabled={Boolean(busy)} onclick={() => toggleSource(source)}>{source.enabled ? (ru() ? 'Отключить' : 'Disable') : (ru() ? 'Включить' : 'Enable')}</button>
-                <button class="button danger-subtle compact" disabled={Boolean(busy)} onclick={() => deleteSource(source)}>{ru() ? 'Удалить' : 'Remove'}</button>
+                <button class="button compact" disabled={Boolean(busy)} onclick={() => refreshSource(source)}>{t(locale, 'sourceManager.refresh')}</button>
+                <button class="button compact" disabled={Boolean(busy)} onclick={() => toggleSource(source)}>{source.enabled ? (t(locale, 'sourceManager.disable')) : (t(locale, 'sourceManager.enable'))}</button>
+                <button class="button danger-subtle compact" disabled={Boolean(busy)} onclick={() => deleteSource(source)}>{t(locale, 'sourceManager.remove')}</button>
               {/if}
             </div>
           </article>
@@ -300,29 +297,29 @@
 
     <section class="source-add">
       <div class="source-add-head">
-        <strong>{ru() ? 'Добавить источник' : 'Add source'}</strong>
-        <p>{ru() ? 'Репозиторий приложений, GitHub-репозиторий одного приложения или прямой HTTPS manifest.' : 'Application repository, a single GitHub app repository, or a direct HTTPS manifest.'}</p>
+        <strong>{t(locale, 'sourceManager.addTitle')}</strong>
+        <p>{t(locale, 'sourceManager.addSubtitle')}</p>
       </div>
       <div class="source-form">
         <select bind:value={sourceKind} onchange={invalidateSourcePreview}>
-          <option value="auto">{ru() ? 'Определить автоматически' : 'Auto-detect'}</option>
-          <option value="repository">{ru() ? 'Репозиторий приложений' : 'Application repository'}</option>
-          <option value="app">{ru() ? 'Отдельное приложение' : 'Single application'}</option>
+          <option value="auto">{t(locale, 'sourceManager.autoDetect')}</option>
+          <option value="repository">{t(locale, 'sourceManager.repositoryType')}</option>
+          <option value="app">{t(locale, 'sourceManager.singleAppType')}</option>
         </select>
         <input bind:value={sourceURL} oninput={invalidateSourcePreview} placeholder="https://github.com/owner/repo" />
-        <button class="button" disabled={!sourceURL.trim() || Boolean(busy)} onclick={previewSource}>{busy === 'preview' ? (ru() ? 'Проверяем…' : 'Checking…') : (ru() ? 'Проверить' : 'Preview')}</button>
+        <button class="button" disabled={!sourceURL.trim() || Boolean(busy)} onclick={previewSource}>{busy === 'preview' ? (t(locale, 'sourceManager.checking')) : (t(locale, 'sourceManager.preview'))}</button>
       </div>
 
       {#if preview}
         <div class="source-preview">
           <div class="source-title-row">
             <strong>{preview.name}</strong>
-            <span class="state-chip warn">{ru() ? 'НЕПОДПИСАН' : 'UNSIGNED'}</span>
-            {#if preview.manifestless}<span class="state-chip warn">{ru() ? 'БЕЗ МАНИФЕСТА' : 'UNMANAGED'}</span>{/if}
-            <span class="state-chip neutral">{preview.kind === 'app' ? (ru() ? 'ПРИЛОЖЕНИЕ' : 'APP') : (ru() ? 'РЕПОЗИТОРИЙ' : 'REPOSITORY')}</span>
+            <span class="state-chip warn">{t(locale, 'sourceManager.trustUnsigned')}</span>
+            {#if preview.manifestless}<span class="state-chip warn">{t(locale, 'sourceManager.unmanagedBadge')}</span>{/if}
+            <span class="state-chip neutral">{preview.kind === 'app' ? (t(locale, 'sourceManager.previewApp')) : (t(locale, 'sourceManager.previewRepository'))}</span>
           </div>
           <div class="source-meta">
-            <span>{ru() ? 'Приложений' : 'Apps'}: {preview.entry_count}</span>
+            <span>{t(locale, 'sourceManager.appCount')}: {preview.entry_count}</span>
             {#if preview.registry_id}<span>ID: {preview.registry_id}</span>{/if}
             {#if preview.revision}<span>rev {preview.revision}</span>{/if}
           </div>
@@ -332,31 +329,27 @@
               <span>
                 {entry.name}{#if entry.category} · {entry.category}{/if}{#if entry.package} · <code>{entry.package}</code>{/if}
                 {#if (entry.targets || []).length} · <code>{entry.targets.join(', ')}</code>{/if}
-                {#if entry.target_status === 'incompatible'} · <strong>{ru() ? 'НЕСОВМЕСТИМО' : 'INCOMPATIBLE'}</strong>{/if}
+                {#if entry.target_status === 'incompatible'} · <strong>{t(locale, 'sourceManager.incompatible')}</strong>{/if}
               </span>
             {/each}
             {#if Number(preview.entry_count || 0) > 8}<span>+{Number(preview.entry_count) - 8}</span>{/if}
           </div>
           {#if preview.manifestless}
-            <div class="source-preview-warning">{ru()
-              ? 'В репозитории нет RouterForge manifest. RouterForge проверит GitHub Releases, сопоставит готовые raw Linux binaries с архитектурой устройства и разрешит автоматическую установку только при совместимом asset. Stable и Beta выбираются отдельно; Beta никогда не включается автоматически. Если подходящего бинарника нет — только ручная установка. Upstream install scripts автоматически не запускаются.'
-              : 'This repository has no RouterForge manifest. RouterForge will inspect GitHub Releases, match raw Linux binaries to the device architecture, and expose automatic installation only for a compatible asset. Stable and Beta are separate; Beta is never selected automatically. If no compatible binary exists, installation remains manual. Upstream install scripts are never executed automatically.'}</div>
+            <div class="source-preview-warning">{t(locale, 'sourceManager.unmanagedWarning')}</div>
           {:else}
             <div class="source-preview-warning">{ru()
               ? `Источник не проверен RouterForge. Разрешены только безопасные lifecycle-механизмы; архитектура ${preview.entries?.[0]?.detected_target || 'не определена'} проверяется отдельно.${preview.local ? ' Источник находится в локальной сети.' : ''}`
               : `This source is not verified by RouterForge. Only bounded lifecycle mechanisms are allowed; architecture ${preview.entries?.[0]?.detected_target || 'is unknown'} is checked separately.${preview.local ? ' The source is on a local network.' : ''}`}</div>
           {/if}
-          <div class="source-preview-warning">{ru()
-            ? 'Добавление — отдельное действие: RouterForge повторно загрузит источник и сверит SHA-256 с этим preview.'
-            : 'Adding is a separate action: RouterForge will fetch the source again and require the SHA-256 to match this preview.'}</div>
-          <button class="button primary" disabled={Boolean(busy) || !preview?.fingerprint || !previewRequest} onclick={addSource}>{busy === 'add' ? (ru() ? 'Добавляем…' : 'Adding…') : (ru() ? 'Добавить проверенный источник' : 'Add previewed source')}</button>
+          <div class="source-preview-warning">{t(locale, 'sourceManager.previewShaWarning')}</div>
+          <button class="button primary" disabled={Boolean(busy) || !preview?.fingerprint || !previewRequest} onclick={addSource}>{busy === 'add' ? (t(locale, 'sourceManager.adding')) : (t(locale, 'sourceManager.addPreviewed'))}</button>
         </div>
       {/if}
     </section>
 
     <footer class="source-footer">
-      <a class="button compact" href="https://github.com/Fifth-Ace/routerforge" target="_blank" rel="noopener noreferrer">{ru() ? 'Исходный код' : 'Source code'}</a>
-      <button class="legal-badge" onclick={showLegal}>{ru() ? 'Пользовательское соглашение · MIT · AS IS' : 'User Agreement · MIT · AS IS'}</button>
+      <a class="button compact" href="https://github.com/Fifth-Ace/routerforge" target="_blank" rel="noopener noreferrer">{t(locale, 'sourceManager.sourceCode')}</a>
+      <button class="legal-badge" onclick={showLegal}>{t(locale, 'sourceManager.legalLink')}</button>
     </footer>
   </section>
 </div>
@@ -364,21 +357,17 @@
 {#if riskOpen}
   <div class="risk-backdrop" role="presentation" onclick={() => riskOpen = false}>
     <section class="risk-modal" role="alertdialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
-      <span class="risk-kicker">{ru() ? 'ВНИМАНИЕ' : 'WARNING'}</span>
-      <h3>{ru() ? 'Выполнение стороннего кода' : 'Executing third-party code'}</h3>
-      <p>{ru()
-        ? 'Непроверенное приложение может изменять конфигурацию роутера, файлы, службы и сетевые настройки. RouterForge не проверяет исходный код каждого неподписанного приложения и не гарантирует его безопасность или совместимость.'
-        : 'An unverified application may modify router configuration, files, services and network settings. RouterForge does not review every unsigned application and cannot guarantee its security or compatibility.'}</p>
-      <p>{ru()
-        ? 'Это разрешение не отключает обязательные проверки RouterForge: подмена официального namespace, запрещённый lifecycle и некорректные manifests останутся заблокированы.'
-        : 'This permission does not disable RouterForge hard safety checks: official namespace spoofing, forbidden lifecycle methods and invalid manifests remain blocked.'}</p>
+      <span class="risk-kicker">{t(locale, 'sourceManager.warning')}</span>
+      <h3>{t(locale, 'sourceManager.unsafeCodeTitle')}</h3>
+      <p>{t(locale, 'sourceManager.unsafeCodeBody')}</p>
+      <p>{t(locale, 'sourceManager.unsafeCodeSafety')}</p>
       <label class="risk-check">
         <input type="checkbox" bind:checked={riskAccepted} />
-        <span>{ru() ? 'Я прочитал предупреждение и принимаю риски установки стороннего кода.' : 'I have read the warning and accept the risks of installing third-party code.'}</span>
+        <span>{t(locale, 'sourceManager.acceptUnsafeCode')}</span>
       </label>
       <div class="risk-actions">
-        <button class="button" onclick={() => riskOpen = false}>{ru() ? 'Отмена' : 'Cancel'}</button>
-        <button class="button danger" disabled={!riskAccepted || Boolean(busy)} onclick={enableUnsafe}>{ru() ? 'РАЗРЕШИТЬ УСТАНОВКУ' : 'ALLOW INSTALLATION'}</button>
+        <button class="button" onclick={() => riskOpen = false}>{t(locale, 'sourceManager.cancel')}</button>
+        <button class="button danger" disabled={!riskAccepted || Boolean(busy)} onclick={enableUnsafe}>{t(locale, 'sourceManager.confirmAllowUnsafe')}</button>
       </div>
     </section>
   </div>
@@ -387,21 +376,17 @@
 {#if localRiskOpen}
   <div class="risk-backdrop" role="presentation" onclick={() => localRiskOpen = false}>
     <section class="risk-modal local-risk" role="alertdialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
-      <span class="risk-kicker">{ru() ? 'ЛОКАЛЬНАЯ СЕТЬ' : 'LOCAL NETWORK'}</span>
-      <h3>{ru() ? 'Разрешить локальные источники?' : 'Allow local sources?'}</h3>
-      <p>{ru()
-        ? 'RouterForge сможет обращаться к HTTPS-источникам в частных адресных диапазонах и к .local-именам. Такой источник может контролироваться другим устройством в вашей сети и не считается доверенным автоматически.'
-        : 'RouterForge will be allowed to access HTTPS sources on private address ranges and .local names. Such a source can be controlled by another device on your network and is not trusted automatically.'}</p>
-      <p>{ru()
-        ? 'Даже после включения localhost, loopback, link-local, multicast и cloud-metadata адреса остаются заблокированы. HTTPS и стандартная проверка TLS-сертификата сохраняются.'
-        : 'Even when enabled, localhost, loopback, link-local, multicast and cloud-metadata addresses remain blocked. HTTPS and normal TLS certificate validation remain required.'}</p>
+      <span class="risk-kicker">{t(locale, 'sourceManager.localNetworkWarning')}</span>
+      <h3>{t(locale, 'sourceManager.allowLocalTitle')}</h3>
+      <p>{t(locale, 'sourceManager.allowLocalDescription')}</p>
+      <p>{t(locale, 'sourceManager.localSafety')}</p>
       <label class="risk-check">
         <input type="checkbox" bind:checked={localRiskAccepted} />
-        <span>{ru() ? 'Я понимаю риск и хочу разрешить локальные источники.' : 'I understand the risk and want to allow local sources.'}</span>
+        <span>{t(locale, 'sourceManager.acceptLocal')}</span>
       </label>
       <div class="risk-actions">
-        <button class="button" onclick={() => localRiskOpen = false}>{ru() ? 'Отмена' : 'Cancel'}</button>
-        <button class="button danger" disabled={!localRiskAccepted || Boolean(busy)} onclick={enableLocalSources}>{ru() ? 'РАЗРЕШИТЬ ЛОКАЛЬНЫЕ' : 'ALLOW LOCAL'}</button>
+        <button class="button" onclick={() => localRiskOpen = false}>{t(locale, 'sourceManager.cancel')}</button>
+        <button class="button danger" disabled={!localRiskAccepted || Boolean(busy)} onclick={enableLocalSources}>{t(locale, 'sourceManager.confirmAllowLocal')}</button>
       </div>
     </section>
   </div>
@@ -411,10 +396,10 @@
   <div class="risk-backdrop" role="presentation" onclick={() => legalOpen = false}>
     <section class="legal-modal" role="dialog" aria-modal="true" onclick={(event) => event.stopPropagation()}>
       <div class="source-head">
-        <div><span class="mono eyebrow">ROUTERFORGE / LEGAL</span><h3>{ru() ? 'Пользовательское соглашение' : 'User Agreement'}</h3></div>
+        <div><span class="mono eyebrow">ROUTERFORGE / LEGAL</span><h3>{t(locale, 'sourceManager.legalTitle')}</h3></div>
         <button class="icon-button" onclick={() => legalOpen = false}>×</button>
       </div>
-      <pre>{legalLoading ? (ru() ? 'Загрузка…' : 'Loading…') : legalText}</pre>
+      <pre>{legalLoading ? (t(locale, 'sourceManager.loading')) : legalText}</pre>
     </section>
   </div>
 {/if}

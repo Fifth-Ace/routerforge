@@ -1,5 +1,6 @@
 <script>
   import { moduleLifecycleAction } from '$lib/api.js';
+  import { t } from '$lib/i18n/index.js';
   import { refreshCatalog } from '$lib/stores/catalog.js';
 
   export let item;
@@ -17,36 +18,25 @@
     && item?.id !== 'routerforge-core'
   );
 
-  const text = (ru, en) => locale === 'ru' ? ru : en;
 
   function question(action) {
     const name = item?.name || item?.id || 'module';
-    if (action === 'restart') return text(`Перезапустить ${name}?`, `Restart ${name}?`);
-    if (action === 'stop') return text(
-      `Остановить ${name}? После перезагрузки роутера модуль снова запустится.`,
-      `Stop ${name}? The module will start again after the router reboots.`
-    );
-    if (action === 'disable') return text(
-      `Отключить ${name}? Модуль будет остановлен и не запустится после перезагрузки, пока вы не включите его снова.`,
-      `Disable ${name}? It will stop and stay disabled after reboot until you enable it again.`
-    );
-    if (action === 'enable') return text(`Включить и запустить ${name}?`, `Enable and start ${name}?`);
-    return text(`Запустить ${name}?`, `Start ${name}?`);
+    if (action === 'restart') return t(locale, 'moduleLifecycle.confirmRestart', {name});
+    if (action === 'stop') return t(locale, 'moduleLifecycle.confirmStop', {name});
+    if (action === 'disable') return t(locale, 'moduleLifecycle.confirmDisable', {name});
+    if (action === 'enable') return t(locale, 'moduleLifecycle.confirmEnable', {name});
+    return t(locale, 'moduleLifecycle.confirmStart', {name});
   }
 
   function successText(action) {
-    const labels = locale === 'ru'
-      ? { start:'запущен', restart:'перезапущен', stop:'остановлен', disable:'отключён', enable:'включён' }
-      : { start:'started', restart:'restarted', stop:'stopped', disable:'disabled', enable:'enabled' };
-    return `${item?.name || item?.id}: ${labels[action] || action}`;
+    const labels = { start:'successStart', restart:'successRestart', stop:'successStop', disable:'successDisable', enable:'successEnable' };
+    return `${item?.name || item?.id}: ${labels[action] ? t(locale, 'moduleLifecycle.' + labels[action]) : action}`;
   }
 
   function busyText(action) {
     if (!action) return '';
-    const labels = locale === 'ru'
-      ? { start:'Запуск…', restart:'Перезапуск…', stop:'Остановка…', disable:'Отключаем…', enable:'Включаем…' }
-      : { start:'Starting…', restart:'Restarting…', stop:'Stopping…', disable:'Disabling…', enable:'Enabling…' };
-    return labels[action] || text('Выполняется…','Working…');
+    const labels = { start:'busyStart', restart:'busyRestart', stop:'busyStop', disable:'busyDisable', enable:'busyEnable' };
+    return labels[action] ? t(locale, 'moduleLifecycle.' + labels[action]) : t(locale, 'moduleLifecycle.working');
   }
 
   async function run(action) {
@@ -62,7 +52,7 @@
     } catch (error) {
       onnotice({
         cls:'error',
-        text:error?.payload?.detail || error?.payload?.error || error?.message || text('Ошибка управления модулем','Module lifecycle action failed')
+        text:error?.payload?.detail || error?.payload?.error || error?.message || t(locale, 'moduleLifecycle.error')
       });
     } finally {
       busyAction = '';
@@ -75,9 +65,9 @@
     <summary
       class="button module-lifecycle-trigger"
       class:primary={item.disabled || !item.service_running}
-      aria-label={text('Управление модулем','Module controls')}
+      aria-label={t(locale, 'moduleLifecycle.controls')}
     >
-      <span>{busyAction ? busyText(busyAction) : text('Управление','Manage')}</span>
+      <span>{busyAction ? busyText(busyAction) : t(locale, 'moduleLifecycle.manage')}</span>
       <span class="module-lifecycle-chevron" aria-hidden="true">▾</span>
     </summary>
 
@@ -89,8 +79,8 @@
           disabled={disabled || Boolean(busyAction)}
           onclick={() => run('enable')}
         >
-          <span>{text('Включить','Enable')}</span>
-          <small>{text('Запустить и включить автозапуск','Start and restore autostart')}</small>
+          <span>{t(locale, 'moduleLifecycle.enable')}</span>
+          <small>{t(locale, 'moduleLifecycle.enableHint')}</small>
         </button>
       {:else if item.service_running}
         <button
@@ -99,8 +89,8 @@
           disabled={disabled || Boolean(busyAction)}
           onclick={() => run('restart')}
         >
-          <span>{text('Перезапустить','Restart')}</span>
-          <small>{text('Перезапустить модуль сейчас','Restart the module now')}</small>
+          <span>{t(locale, 'moduleLifecycle.restart')}</span>
+          <small>{t(locale, 'moduleLifecycle.restartHint')}</small>
         </button>
 
         <button
@@ -109,8 +99,8 @@
           disabled={disabled || Boolean(busyAction)}
           onclick={() => run('stop')}
         >
-          <span>{text('Остановить','Stop')}</span>
-          <small>{text('Запустится снова после перезагрузки','Starts again after reboot')}</small>
+          <span>{t(locale, 'moduleLifecycle.stop')}</span>
+          <small>{t(locale, 'moduleLifecycle.stopHint')}</small>
         </button>
 
         <button
@@ -119,8 +109,8 @@
           disabled={disabled || Boolean(busyAction)}
           onclick={() => run('disable')}
         >
-          <span>{text('Отключить','Disable')}</span>
-          <small>{text('Не запускать после перезагрузки','Keep disabled after reboot')}</small>
+          <span>{t(locale, 'moduleLifecycle.disable')}</span>
+          <small>{t(locale, 'moduleLifecycle.disableHint')}</small>
         </button>
       {:else}
         <button
@@ -129,8 +119,8 @@
           disabled={disabled || Boolean(busyAction)}
           onclick={() => run('start')}
         >
-          <span>{text('Запустить','Start')}</span>
-          <small>{text('Запустить модуль сейчас','Start the module now')}</small>
+          <span>{t(locale, 'moduleLifecycle.start')}</span>
+          <small>{t(locale, 'moduleLifecycle.startHint')}</small>
         </button>
 
         <button
@@ -139,8 +129,8 @@
           disabled={disabled || Boolean(busyAction)}
           onclick={() => run('disable')}
         >
-          <span>{text('Отключить','Disable')}</span>
-          <small>{text('Не запускать после перезагрузки','Keep disabled after reboot')}</small>
+          <span>{t(locale, 'moduleLifecycle.disable')}</span>
+          <small>{t(locale, 'moduleLifecycle.disableHint')}</small>
         </button>
       {/if}
     </div>

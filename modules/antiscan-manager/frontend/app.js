@@ -1103,7 +1103,8 @@ function renderScheduler(payload, force = false) {
     return `
       <article class="scheduler-row" data-scheduler-task="${escapeHTML(item.task)}" data-automatic="${automatic}">
         <label class="scheduler-toggle">
-          <input data-scheduler-enabled type="checkbox" ${item.enabled ? 'checked' : ''} ${automatic ? 'disabled' : ''}>
+          <input data-scheduler-enabled type="checkbox" role="switch" ${item.enabled ? 'checked' : ''} ${automatic ? 'disabled' : ''}>
+          <span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span>
           <span><strong>${escapeHTML(copy[0])}</strong><small class="mono">${escapeHTML(item.task)}</small></span>
         </label>
         <div class="scheduler-expression-wrap">

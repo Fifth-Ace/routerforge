@@ -444,7 +444,7 @@
           <section class="panel config-card">
             <div class="panel-head"><div><span class="section-kicker">IP И ПОДСЕТИ</span><h2>IP и /24 защита</h2></div></div>
             <div class="field-grid">
-              <label class="switch-field wide"><input id="cfgEnableIpsBan" type="checkbox"><span><strong>ENABLE_IPS_BAN</strong><small>Прямые IP и распределённая /24 защита.</small></span></label>
+              <label class="switch-field wide"><input id="cfgEnableIpsBan" type="checkbox" role="switch"><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>ENABLE_IPS_BAN</strong><small>Прямые IP и распределённая /24 защита.</small></span></label>
               <label class="field"><span>RULES_MASK</span><input id="cfgRulesMask" spellcheck="false" placeholder="255.255.255.255"></label>
               <label class="field"><span>Окно новых подключений, сек.</span><input id="cfgRecentTime" type="number" min="2" max="3600"><small class="mono">RECENT_CONNECTIONS_TIME</small></label>
               <label class="field"><span>Порог новых подключений</span><input id="cfgRecentHitcount" type="number" min="2" max="100"><small class="mono">RECENT_CONNECTIONS_HITCOUNT</small></label>
@@ -459,7 +459,7 @@
           <section class="panel config-card">
             <div class="panel-head"><div><span class="section-kicker">ЛОВУШКА</span><h2>Ловушка</h2></div></div>
             <div class="field-grid">
-              <label class="switch-field wide"><input id="cfgEnableHoneypot" type="checkbox"><span><strong>ENABLE_HONEYPOT</strong><small>При включении список портов обязателен.</small></span></label>
+              <label class="switch-field wide"><input id="cfgEnableHoneypot" type="checkbox" role="switch"><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>ENABLE_HONEYPOT</strong><small>При включении список портов обязателен.</small></span></label>
               <label class="field"><span>Порты ловушки</span><input id="cfgHoneypotPorts" spellcheck="false" placeholder="23,2323,3389"><small class="mono">HONEYPOT_PORTS</small></label>
               <label class="field"><span>Время блокировки, сек.</span><input id="cfgHoneypotBanTime" type="number" min="0" max="2147483"><small class="mono">HONEYPOT_BANTIME</small></label>
             </div>
@@ -468,7 +468,7 @@
           <section class="panel config-card">
             <div class="panel-head"><div><span class="section-kicker">СПИСКИ И GEO</span><h2>Списки и страны</h2></div></div>
             <div class="field-grid">
-              <label class="switch-field wide"><input id="cfgUseCustomExclude" type="checkbox"><span><strong>Пользовательские исключения</strong><small><span class="mono">USE_CUSTOM_EXCLUDE_LIST</span> · использовать ascn_custom_exclude.</small></span></label>
+              <label class="switch-field wide"><input id="cfgUseCustomExclude" type="checkbox" role="switch"><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>Пользовательские исключения</strong><small><span class="mono">USE_CUSTOM_EXCLUDE_LIST</span> · использовать ascn_custom_exclude.</small></span></label>
               <label class="field"><span>Режим пользовательского списка</span><select id="cfgCustomMode"><option value="0">Выключено</option><option value="blacklist">Чёрный список</option><option value="whitelist">Белый список</option></select><small class="mono">CUSTOM_LISTS_BLOCK_MODE</small></label>
               <label class="field"><span>Режим Geo</span><select id="cfgGeoMode"><option value="0">Выключено</option><option value="blacklist">Чёрный список</option><option value="whitelist">Белый список</option></select><small class="mono">GEOBLOCK_MODE</small></label>
               <label class="field wide"><span>Страны Geo</span><input id="cfgGeoCountries" spellcheck="false" placeholder="RU US DE"><small><span class="mono">GEOBLOCK_COUNTRIES</span> · до 8 ISO-кодов, регистр исправляется автоматически.</small></label>
@@ -480,9 +480,9 @@
             <div class="panel-head"><div><span class="section-kicker">ХРАНЕНИЕ / KEENETIC</span><h2>Хранение и lockout</h2></div></div>
             <div class="field-grid">
               <label class="field wide"><span>IPSETS_DIRECTORY</span><input id="cfgIPSetsDirectory" spellcheck="false" placeholder="/tmp/mnt/DISK/antiscan"><small>Путь внутри /opt или /tmp. Upstream запрещает только сам /opt/etc; вложенные каталоги, например /opt/etc/antiscan/ipsets, допустимы.</small></label>
-              <label class="switch-field"><input id="cfgSaveIPSets" type="checkbox"><span><strong>Сохранять наборы</strong><small><span class="mono">SAVE_IPSETS</span> · сохранять накопленные ipset.</small></span></label>
-              <label class="switch-field"><input id="cfgSaveOnExit" type="checkbox"><span><strong>Сохранять при остановке</strong><small><span class="mono">SAVE_ON_EXIT</span> · экспортировать состояние при остановке.</small></span></label>
-              <label class="switch-field"><input id="cfgReadNDM" type="checkbox"><span><strong>Блокировки Keenetic</strong><small><span class="mono">READ_NDM_LOCKOUT_IPSETS</span> · импортировать ip lockout-policy.</small></span></label>
+              <label class="switch-field"><input id="cfgSaveIPSets" type="checkbox" role="switch"><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>Сохранять наборы</strong><small><span class="mono">SAVE_IPSETS</span> · сохранять накопленные ipset.</small></span></label>
+              <label class="switch-field"><input id="cfgSaveOnExit" type="checkbox" role="switch"><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>Сохранять при остановке</strong><small><span class="mono">SAVE_ON_EXIT</span> · экспортировать состояние при остановке.</small></span></label>
+              <label class="switch-field"><input id="cfgReadNDM" type="checkbox" role="switch"><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>Блокировки Keenetic</strong><small><span class="mono">READ_NDM_LOCKOUT_IPSETS</span> · импортировать ip lockout-policy.</small></span></label>
               <label class="field"><span>Время блокировки Keenetic, сек.</span><input id="cfgLockoutBanTime" type="number" min="0" max="2147483"><small class="mono">LOCKOUT_IPSET_BANTIME</small></label>
             </div>
           </section>

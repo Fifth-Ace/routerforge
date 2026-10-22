@@ -671,3 +671,103 @@ html[data-section="blocked"] .tab-page[data-page="inspect"]{
   .geo-service-panel .panel-head{align-items:flex-start}
   .geo-service-panel .lifecycle-actions{width:100%;justify-content:flex-start}
 }
+
+/* UI_P2_ANTISCAN_BINARY_CONTROLS_START */
+/* UI P2 verified discrepancy: Antiscan binary setting controls only.
+   Keep native input state and existing handlers; no API or saved config changes. */
+:is(.switch-field, .scheduler-toggle) {
+  position:relative;
+  align-items:center;
+  gap:9px;
+}
+:is(.switch-field, .scheduler-toggle) > input[type="checkbox"] {
+  position:absolute;
+  width:1px !important;
+  height:1px !important;
+  min-height:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  opacity:0;
+  pointer-events:none;
+}
+:is(.switch-field, .scheduler-toggle) > span:last-child:not(.rf-switch-track) {
+  order:0;
+  flex:1 1 auto;
+  min-width:0;
+}
+:is(.switch-field, .scheduler-toggle) > .rf-switch-status {
+  order:1;
+  box-sizing:border-box;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 47px;
+  height:23px;
+  padding:0 8px;
+  border:1px solid var(--rf-border-strong, var(--border-strong));
+  border-radius:999px;
+  background:var(--rf-surface-2, var(--surface2));
+  color:var(--rf-muted, var(--muted));
+  font:600 11px/1 var(--font-mono, 'Roboto Mono', Consolas, monospace);
+  letter-spacing:.02em;
+}
+:is(.switch-field, .scheduler-toggle) > .rf-switch-status::before {content:'OFF';}
+:is(.switch-field, .scheduler-toggle) > .rf-switch-track {
+  order:2;
+  box-sizing:border-box;
+  position:relative;
+  display:block;
+  flex:0 0 46px;
+  width:46px;
+  height:24px;
+  border:1px solid var(--rf-border-strong, var(--border-strong));
+  border-radius:999px;
+  background:var(--rf-surface-2, var(--surface2));
+  transition:background .16s ease, border-color .16s ease;
+}
+:is(.switch-field, .scheduler-toggle) > .rf-switch-track > span {
+  display:block;
+  position:absolute;
+  top:3px;
+  left:3px;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:var(--rf-muted, #8d98a4);
+  box-shadow:0 1px 2px rgba(0,0,0,.35);
+  transition:transform .16s ease, background .16s ease;
+}
+:is(.switch-field, .scheduler-toggle) > input[type="checkbox"]:checked ~ .rf-switch-status {
+  border-color:color-mix(in srgb, var(--good, #2ea043) 45%, var(--border-strong));
+  background:color-mix(in srgb, var(--good, #2ea043) 9%, var(--surface2));
+  color:var(--good, #2ea043);
+}
+:is(.switch-field, .scheduler-toggle) > input[type="checkbox"]:checked ~ .rf-switch-status::before {content:'ON';}
+:is(.switch-field, .scheduler-toggle) > input[type="checkbox"]:checked ~ .rf-switch-track {
+  border-color:var(--good, #2ea043);
+  background:color-mix(in srgb, var(--good, #2ea043) 26%, var(--surface2));
+}
+:is(.switch-field, .scheduler-toggle) > input[type="checkbox"]:checked ~ .rf-switch-track > span {
+  transform:translateX(22px);
+  background:var(--good, #2ea043);
+}
+:is(.switch-field, .scheduler-toggle):hover > input[type="checkbox"]:not(:disabled) ~ .rf-switch-track {
+  border-color:var(--rf-accent, var(--accent));
+}
+:is(.switch-field, .scheduler-toggle) > input[type="checkbox"]:focus-visible ~ .rf-switch-track {
+  outline:2px solid var(--rf-accent, var(--accent));
+  outline-offset:3px;
+}
+:is(.switch-field, .scheduler-toggle) > input[type="checkbox"]:disabled ~ .rf-switch-status,
+:is(.switch-field, .scheduler-toggle) > input[type="checkbox"]:disabled ~ .rf-switch-track {
+  opacity:.5;
+}
+:is(.switch-field, .scheduler-toggle):has(input[type="checkbox"]:disabled) {cursor:not-allowed;}
+@media(max-width:650px) {
+  :is(.switch-field, .scheduler-toggle) {flex-wrap:wrap;}
+}
+@media(prefers-reduced-motion:reduce) {
+  :is(.switch-field, .scheduler-toggle) > .rf-switch-track,
+  :is(.switch-field, .scheduler-toggle) > .rf-switch-track > span {transition:none;}
+}
+/* UI_P2_ANTISCAN_BINARY_CONTROLS_END */

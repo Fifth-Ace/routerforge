@@ -224,7 +224,7 @@
           <div><strong>Учёт установок</strong><span>Статистика ведётся обезличенно: используется случайный ID установки, чтобы считать установки и их активность. Личные данные и настройки не передаются.</span></div>
           <div class="setting-control-slot"><span class="state-chip neutral">Базовый учёт</span></div>
         </div>
-        <div class="setting-row">
+        <div class="setting-row rf-p1b-telemetry-row">
           <div><strong>Техническая телеметрия</strong><span>Передаёт версию Core, архитектуру и установленные модули с их версиями. Включена по умолчанию, но её можно отключить в любой момент.</span></div>
           <div class="setting-control-slot"><RfToggle checked={telemetryEnabled} busy={telemetrySaving} ariaLabel={locale === 'ru' ? 'Техническая телеметрия' : 'Technical telemetry'} onToggle={(enabled) => changeTelemetry(enabled)} /></div>
         </div>

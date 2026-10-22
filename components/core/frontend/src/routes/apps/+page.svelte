@@ -166,9 +166,7 @@
     if (!item || !item.installed || !catalogWebURL(item)) {
       actionNotice = {
         cls:'warn',
-        text: locale === 'ru'
-          ? '\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f \u043d\u0435 \u0433\u043e\u0442\u043e\u0432\u0430 \u043a \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u044e \u0432 Web workspace.'
-          : 'The integration is not ready to open in the Web workspace.'
+        text: a(locale,'msgIntegrationNotReady')
       };
       return;
     }
@@ -230,7 +228,7 @@
 
   function compatibilityText(item) {
     const hints = item.compatibility?.hints || [];
-    if (item.compatibility?.status === 'built-in') return locale === 'ru' ? 'встроено' : 'built-in';
+    if (item.compatibility?.status === 'built-in') return a(locale,'msgBuiltIn');
     return hints.length ? hints.join(' · ') : (item.compatibility?.status || '—');
   }
 
@@ -250,7 +248,7 @@
 
   function serviceStatusText(item) {
     if (item?.id === 'routerforge-core') return a(locale,'coreService');
-    if (item?.disabled) return locale === 'ru' ? 'ОТКЛЮЧЕН' : 'DISABLED';
+    if (item?.disabled) return a(locale,'msgServiceDisabled');
     return item?.service_running ? a(locale,'running') : a(locale,'stopped');
   }
 
@@ -298,8 +296,7 @@
 
   function actionVerb(job) {
     const value = String(job?.action || '').toLowerCase();
-    if (locale === 'ru') return value === 'install' ? 'Установка' : value === 'remove' ? 'Удаление' : value === 'update' ? 'Обновление' : (value || 'Действие');
-    return value === 'install' ? 'Install' : value === 'remove' ? 'Remove' : value === 'update' ? 'Update' : (value || 'Action');
+    return value === 'install' ? a(locale,'msgVerbInstall') : value === 'remove' ? a(locale,'msgVerbRemove') : value === 'update' ? a(locale,'msgVerbUpdate') : (value || a(locale,'msgVerbAction'));
   }
 
   function historyDuration(job) {
@@ -413,9 +410,7 @@
     watchActionJob(job, job.target || 'app-center');
     actionNotice = {
       cls:'warn',
-      text: locale === 'ru'
-        ? `Уже выполняется: ${job.target || job.kind} · ${actionVerb(job)}. Открыт текущий ход выполнения.`
-        : `Already running: ${job.target || job.kind} · ${actionVerb(job)}. The active job is now open.`
+      text: a(locale,'msgAlreadyRunning',{target:job.target || job.kind,action:actionVerb(job)})
     };
     return true;
   }
@@ -447,14 +442,10 @@
   function showWebSecurityNotice(item) {
     const decision = webSecurityDecision(item);
     const text = decision.reason === 'session-cookie-cross-port'
-      ? (locale === 'ru'
-        ? '\u0412\u043D\u0435\u0448\u043D\u0438\u0439 Web UI \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D: cookie \u0441\u0435\u0441\u0441\u0438\u0438 RouterForge \u043D\u0435 \u0438\u0437\u043E\u043B\u0438\u0440\u0443\u044E\u0442\u0441\u044F \u043F\u043E TCP-\u043F\u043E\u0440\u0442\u0443.'
-        : 'External Web UI is blocked because RouterForge session cookies are not isolated by TCP port.')
+      ? (a(locale,'msgWebCookieBlocked'))
       : decision.reason === 'mixed-content'
-        ? (locale === 'ru'
-          ? '\u0412\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0439 \u0440\u0435\u0436\u0438\u043C \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D: HTTPS RouterForge \u043D\u0435 \u043C\u043E\u0436\u0435\u0442 \u0432\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u0442\u044C HTTP Web UI.'
-          : 'Embedded mode is blocked because HTTPS RouterForge cannot embed an HTTP Web UI.')
-        : (locale === 'ru' ? '\u0412\u043D\u0435\u0448\u043D\u0438\u0439 Web UI \u0441\u0435\u0439\u0447\u0430\u0441 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D.' : 'External Web UI is not available right now.');
+        ? (a(locale,'msgWebMixedContent'))
+        : (a(locale,'msgWebUnavailable'));
 
     actionNotice = { cls:'warn', text };
   }
@@ -482,9 +473,7 @@
       if (frameBlocked) {
         actionNotice = {
           cls:'warn',
-          text: locale === 'ru'
-            ? 'Web UI \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d, \u043d\u043e \u0441\u0430\u043c\u043e \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0437\u0430\u043f\u0440\u0435\u0449\u0430\u0435\u0442 \u0432\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u043d\u0438\u0435 \u0447\u0435\u0440\u0435\u0437 X-Frame-Options/CSP.'
-            : 'Web UI was detected, but the application itself blocks embedding through X-Frame-Options/CSP.'
+          text: a(locale,'msgWebFrameBlocked')
         };
         return;
       }
@@ -492,9 +481,7 @@
       if (!safe) {
         actionNotice = {
           cls:'warn',
-          text: locale === 'ru'
-            ? '\u0412\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u043D\u0438\u0435 \u043E\u0442\u043C\u0435\u043D\u0435\u043D\u043E: runtime web-probe \u043D\u0435 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043B \u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439 iframe.'
-            : 'Embed cancelled because the runtime web probe did not confirm a safe iframe.'
+          text: a(locale,'msgWebProbeUnsafe')
         };
         return;
       }
@@ -503,9 +490,7 @@
       if (!resolvedURL) {
         actionNotice = {
           cls:'warn',
-          text: locale === 'ru'
-            ? '\u0412\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u043d\u0438\u0435 \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u043e: \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 Web UI listener, \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0439 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0443.'
-            : 'Embed cancelled because no safe browser-reachable Web UI listener was resolved.'
+          text: a(locale,'msgWebListenerMissing')
         };
         return;
       }
@@ -523,12 +508,10 @@
 
   function trustLabel(item) {
     if (item?.kind === 'integration' && !item?.manifest_id) {
-      return locale === 'ru' ? '\u0411\u0415\u0417 \u041c\u0410\u041d\u0418\u0424\u0415\u0421\u0422\u0410' : 'NO MANIFEST';
+      return a(locale,'msgNoManifest');
     }
     const value = String(item.trust?.status || 'unverified').toLowerCase();
-    const labels = locale === 'ru'
-      ? { official:'ОФИЦИАЛЬНЫЙ', verified:'ПРОВЕРЕН', changed:'ИЗМЕНЁН', blocked:'ЗАБЛОКИРОВАН', deprecated:'УСТАРЕЛ', unverified:'НЕ ПРОВЕРЕН' }
-      : { official:'OFFICIAL', verified:'VERIFIED', changed:'CHANGED', blocked:'BLOCKED', deprecated:'DEPRECATED', unverified:'UNVERIFIED' };
+    const labels = { official:a(locale,'msgTrustOfficial'), verified:a(locale,'msgTrustVerified'), changed:a(locale,'msgTrustChanged'), blocked:a(locale,'msgTrustBlocked'), deprecated:a(locale,'msgTrustDeprecated'), unverified:a(locale,'msgTrustUnverified') };
     return labels[value] || labels.unverified;
   }
 
@@ -544,9 +527,7 @@
   function catalogWarning(item) {
     const status = String(item?.trust?.status || 'unverified').toLowerCase();
     if (item?.kind === 'integration' && (!item?.manifest_id || status === 'unverified')) {
-      return locale === 'ru'
-        ? '\u041c\u0430\u043d\u0438\u0444\u0435\u0441\u0442 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0438\u043b\u0438 \u043d\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d. \u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0443\u0436\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d\u043d\u044b\u0439 opkg feed; upstream-\u0441\u043a\u0440\u0438\u043f\u0442\u044b \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438 \u043d\u0435 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u044e\u0442\u0441\u044f.'
-        : 'Manifest is missing or unverified. Available actions use only an already configured opkg feed; upstream scripts are never executed automatically.';
+      return a(locale,'msgManifestWarning');
     }
     if (item?.builtin) return '';
     const hasAction = Boolean(item?.actions?.install || item?.actions?.update || item?.actions?.remove);
@@ -611,9 +592,7 @@
   }
 
   function registryFallbackText() {
-    return locale === 'ru'
-      ? 'Пакет обновлён, но registry пока читается из кеша. Повторная синхронизация будет выполнена при следующей проверке.'
-      : 'Package updated, but the registry is still served from cache. Remote sync will be retried on the next check.';
+    return a(locale,'msgRegistryCache');
   }
 
   async function finishWatchedAction(state, error = '') {
@@ -631,9 +610,9 @@
     await refreshActionHistory();
     actionNotice = state === 'succeeded'
       ? refreshResult.remote
-        ? { cls:'good', text: locale === 'ru' ? `\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e: ${finished.target}` : `Action completed: ${finished.target}` }
+        ? { cls:'good', text: a(locale,'msgActionCompleted',{target:finished.target}) }
         : { cls:'warn', text:registryFallbackText() }
-      : { cls: state === 'cancelled' ? 'warn' : 'error', text: error || (locale === 'ru' ? `\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435 ${state}: ${finished.target}` : `Action ${state}: ${finished.target}`) };
+      : { cls: state === 'cancelled' ? 'warn' : 'error', text: error || (a(locale,'msgActionState',{state:jobStateLabel(state),target:finished.target})) };
   }
 
   async function pollAction(id) {
@@ -707,16 +686,14 @@
         && String(item?.trust?.status || '').toLowerCase() === 'unverified'
         && action !== 'remove'
       ) {
-        const risk = locale === 'ru'
-          ? `Непроверенное приложение «${item.name}» будет выполнять сторонний код с правами, достаточными для изменения пакетов и конфигурации устройства.\n\nИсточник: ${item.registry_source}\nИздатель: ${item.publisher?.name || '—'}\n\nПродолжить?`
-          : `Unverified app “${item.name}” will execute third-party code with privileges sufficient to modify packages and device configuration.\n\nSource: ${item.registry_source}\nPublisher: ${item.publisher?.name || '—'}\n\nContinue?`;
+        const risk = a(locale,'msgUnverifiedRisk',{name:item.name,source:item.registry_source,publisher:item.publisher?.name || '—'});
         if (!window.confirm(risk)) return;
         confirm = 'UNVERIFIED';
       }
       const request = { kind:'catalog', target:item.id, action, confirm };
       const preflight = await preflightAppAction(request);
       if (!preflight.allowed) {
-        actionNotice = { cls:'error', text:preflight.reason || 'preflight rejected action' };
+        actionNotice = { cls:'error', text:preflight.reason || a(locale,'msgPreflightRejected') };
         return;
       }
       const title = `${action === 'install' ? a(locale,'install') : action === 'remove' ? a(locale,'remove') : a(locale,'update')} ${item.name}?`;
@@ -843,8 +820,8 @@
       actionNotice = {
         cls:'good',
         text: scope === 'routerforge'
-          ? (locale === 'ru' ? `RouterForge: проверка завершена · обновлений: ${count}` : `RouterForge check complete · updates: ${count}`)
-          : (locale === 'ru' ? `Интеграции: проверка завершена · обновлений: ${count}` : `Integrations check complete · updates: ${count}`)
+          ? (a(locale,'msgRouterforgeChecked',{count}))
+          : (a(locale,'msgIntegrationsChecked',{count}))
       };
     } catch (error) {
       actionNotice = { cls:'error', text:error?.payload?.error || error?.message || 'error' };
@@ -879,13 +856,11 @@
       actionNotice = failures.length
         ? {
             cls:'warn',
-            text: locale === 'ru'
-              ? `Проверка завершена с предупреждениями: ${failures.join(' · ')}`
-              : `Check completed with warnings: ${failures.join(' · ')}`
+            text: a(locale,'msgCheckWarnings',{failures:failures.join(' · ')})
           }
         : {
             cls:'good',
-            text: locale === 'ru' ? 'Проверены все источники обновлений.' : 'All update sources checked.'
+            text: a(locale,'msgAllSourcesChecked')
           };
     } finally {
       checkingAll = false;
@@ -997,9 +972,7 @@
     if (!initial.length) return;
 
     const names = initial.map((item) => item.name || item.id).join('\n• ');
-    const question = locale === 'ru'
-      ? `Обновить все официальные компоненты RouterForge (${initial.length})?\n\n• ${names}\n\nСторонние интеграции и Entware-пакеты затронуты не будут.`
-      : `Update all official RouterForge components (${initial.length})?\n\n• ${names}\n\nThird-party integrations and Entware packages will not be touched.`;
+    const question = a(locale,'msgBulkConfirm',{count:initial.length,names});
     if (!window.confirm(question)) return;
 
     const priority = (item) => item.id === 'profiling' ? 20 : item.id === 'routerforge-core' ? 30 : 10;
@@ -1015,9 +988,7 @@
 
         actionNotice = {
           cls:'warn',
-          text: locale === 'ru'
-            ? `RouterForge: обновление ${index + 1}/${queue.length} — ${current.name || current.id}`
-            : `RouterForge: updating ${index + 1}/${queue.length} — ${current.name || current.id}`
+          text: a(locale,'msgBulkProgress',{index:index + 1,total:queue.length,name:current.name || current.id})
         };
 
         if (current.id === 'routerforge-core' || current.id === 'profiling') {
@@ -1029,9 +1000,7 @@
         if (current.id === 'routerforge-core') {
           actionNotice = {
             cls:'good',
-            text: locale === 'ru'
-              ? 'Core обновлён последним. Загружаю интерфейс новой версии…'
-              : 'Core was updated last. Loading the new interface…'
+            text: a(locale,'msgCoreUpdated')
           };
           setTimeout(() => window.location.reload(), 250);
           return;
@@ -1043,7 +1012,7 @@
       actionNotice = registryRefresh.remote
         ? {
             cls:'good',
-            text: locale === 'ru' ? 'Все доступные обновления RouterForge установлены.' : 'All available RouterForge updates are installed.'
+            text: a(locale,'msgAllUpdatesInstalled')
           }
         : { cls:'warn', text:registryFallbackText() };
       setTimeout(() => window.location.reload(), 450);
@@ -1100,7 +1069,7 @@
     try {
       const preflight = await preflightAppAction(request);
       if (!preflight.allowed) {
-        actionNotice = { cls:'error', text:preflight.reason || 'preflight rejected action' };
+        actionNotice = { cls:'error', text:preflight.reason || a(locale,'msgPreflightRejected') };
         return;
       }
       const question = action === 'install' ? a(locale,'confirmInstall',{name:pkg.name})
@@ -1237,13 +1206,13 @@
 
       {#if tab === 'routerforge'}
         <button class="button primary" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId) || officialRouterForgeUpdates.length === 0} onclick={updateAllRouterForge}>
-          {bulkUpdating ? (locale === 'ru' ? 'Обновляем RouterForge…' : 'Updating RouterForge…') : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
+          {bulkUpdating ? (a(locale,'msgBulkRunning')) : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
         </button>
       {/if}
 
       {#if tab === 'routerforge' && packageMode && routerForgeUpdates.length}
         <button class="button" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId)} onclick={reviewRouterForgeUpdates}>
-          {locale === 'ru' ? 'Просмотреть обновления' : 'Review updates'} ({routerForgeUpdates.length})
+          {a(locale,'msgReviewUpdates')} ({routerForgeUpdates.length})
         </button>
       {/if}
     </div>
@@ -1492,7 +1461,7 @@
                   {/if}
                   {#if webSecurityDecision(item).embedAllowed}
                     <button class="button compact" type="button" disabled={webProbeBusyId === item.id} onclick={() => openEmbeddedWeb(item)}>
-                      {webProbeBusyId === item.id ? (locale === 'ru' ? 'Проверка…' : 'Checking…') : (locale === 'ru' ? 'Внутри' : 'Embedded')}
+                      {webProbeBusyId === item.id ? (a(locale,'msgEmbedChecking')) : (a(locale,'msgEmbedMode'))}
                     </button>
                   {/if}
                 {/if}

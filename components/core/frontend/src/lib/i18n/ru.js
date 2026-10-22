@@ -229,6 +229,11 @@ export default {
     "issueRuntimeStopped": "{name}: runtime не запущен",
     "issueControlRuntimeStopped": "RouterForge Control установлен, но runtime не запущен"
   },
+  "webWorkspace": {
+    "title": "Внешний Web UI",
+    "openExternally": "Открыть отдельно",
+    "loading": "Загрузка Web UI…",
+  },
   "marketplace": {
     "pageTitle": "Центр приложений",
     "subtitle": "Единый каталог RouterForge: официальные модули платформы и сторонние проекты с явным уровнем доверия.",
@@ -329,6 +334,20 @@ export default {
       "checkFailed": "Проверка обновлений не выполнена · {detail}"
     },
     "planner": {
+      "techDetails": "Технические данные",
+      "availableVersion": "Доступная версия",
+      "downloadSize": "Размер загрузки",
+      "installedSize": "После установки",
+      "minCore": "Мин. версия Core",
+      "depends": "Зависимости",
+      "conflicts": "Конфликты",
+      "githubChannel": "Канал GitHub",
+      "githubRelease": "Релиз GitHub",
+      "asset": "Артефакт",
+      "autoInstall": "Автоматическая установка",
+      "updatePlan": "План обновления",
+      "manifest": "Манифест",
+      "planPreview": "Предпросмотр плана",
       "aria": "План установки",
       "title": "План установки",
       "mode": "РЕЖИМ:",

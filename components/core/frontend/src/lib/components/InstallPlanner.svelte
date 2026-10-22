@@ -21,7 +21,7 @@
   <div class="modal-overlay" role="presentation" onclick={(event)=>event.currentTarget===event.target&&onclose()}>
     <section class="planner-modal" role="dialog" aria-modal="true" aria-label={t(locale, 'marketplace.planner.aria')}>
       <header class="planner-head">
-        <div class="planner-title"><span class="status-dot info"></span><span class="muted mono">{locale === 'ru' ? 'СВЕДЕНИЯ' : 'DETAILS'} ::</span><strong>{item.name}</strong>{#if item.version}<span class="version-badge">v{item.version}</span>{/if}</div>
+        <div class="planner-title"><span class="status-dot info"></span><span class="muted mono">{t(locale, 'marketplace.planner.details')} ::</span><strong>{item.name}</strong>{#if item.version}<span class="version-badge">v{item.version}</span>{/if}</div>
         <div class="planner-mode mono"><span>{t(locale, 'marketplace.planner.mode')}</span><strong>{t(locale, 'marketplace.planner.modeValue')}</strong><button class="icon-button" type="button" aria-label={t(locale, 'common.close')} onclick={onclose}>×</button></div>
       </header>
 
@@ -42,28 +42,28 @@
             </div>
             <div class="check-card">
               <div class="check-head">
-                <strong>{locale === 'ru' ? 'Технические данные' : 'Technical details'}</strong>
+                <strong>{t(locale, 'marketplace.planner.techDetails')}</strong>
                 <span class="state-chip neutral">{item.kind || 'app'}</span>
               </div>
-              {#if item.release?.version || item.available_version}<div class="check-row"><span>{locale === 'ru' ? 'Доступная версия' : 'Available version'}</span><code>v{item.release?.version || item.available_version}</code></div>{/if}
-              {#if packageMeta.architecture}<div class="check-row"><span>{locale === 'ru' ? 'Архитектура' : 'Architecture'}</span><code>{packageMeta.architecture}</code></div>{/if}
-              {#if Number(packageMeta.download_size_bytes || 0) > 0}<div class="check-row"><span>{locale === 'ru' ? 'Загрузка' : 'Download'}</span><code>{bytes(packageMeta.download_size_bytes)}</code></div>{/if}
-              {#if Number(packageMeta.installed_size_bytes || 0) > 0}<div class="check-row"><span>{locale === 'ru' ? 'После установки' : 'Installed size'}</span><code>{bytes(packageMeta.installed_size_bytes)}</code></div>{/if}
-              {#if item.release?.min_core_version}<div class="check-row"><span>{locale === 'ru' ? 'Мин. Core' : 'Min Core'}</span><code>v{item.release.min_core_version}</code></div>{/if}
-              {#if packageMeta.depends?.length}<div class="check-row"><span>{locale === 'ru' ? 'Зависимости' : 'Depends'}</span><code>{packageMeta.depends.join(', ')}</code></div>{/if}
-              {#if packageMeta.conflicts?.length}<div class="check-row"><span>{locale === 'ru' ? 'Конфликты' : 'Conflicts'}</span><code>{packageMeta.conflicts.join(', ')}</code></div>{/if}
-              <div class="check-row"><span>{locale === 'ru' ? 'Издатель' : 'Publisher'}</span><code>{item.publisher?.name || item.source || '—'}</code></div>
+              {#if item.release?.version || item.available_version}<div class="check-row"><span>{t(locale, 'marketplace.planner.availableVersion')}</span><code>v{item.release?.version || item.available_version}</code></div>{/if}
+              {#if packageMeta.architecture}<div class="check-row"><span>{t(locale, 'common.architecture')}</span><code>{packageMeta.architecture}</code></div>{/if}
+              {#if Number(packageMeta.download_size_bytes || 0) > 0}<div class="check-row"><span>{t(locale, 'marketplace.planner.downloadSize')}</span><code>{bytes(packageMeta.download_size_bytes)}</code></div>{/if}
+              {#if Number(packageMeta.installed_size_bytes || 0) > 0}<div class="check-row"><span>{t(locale, 'marketplace.planner.installedSize')}</span><code>{bytes(packageMeta.installed_size_bytes)}</code></div>{/if}
+              {#if item.release?.min_core_version}<div class="check-row"><span>{t(locale, 'marketplace.planner.minCore')}</span><code>v{item.release.min_core_version}</code></div>{/if}
+              {#if packageMeta.depends?.length}<div class="check-row"><span>{t(locale, 'marketplace.planner.depends')}</span><code>{packageMeta.depends.join(', ')}</code></div>{/if}
+              {#if packageMeta.conflicts?.length}<div class="check-row"><span>{t(locale, 'marketplace.planner.conflicts')}</span><code>{packageMeta.conflicts.join(', ')}</code></div>{/if}
+              <div class="check-row"><span>{t(locale, 'common.publisher')}</span><code>{item.publisher?.name || item.source || '—'}</code></div>
               {#if unmanaged}
-                <div class="check-row"><span>{locale === 'ru' ? 'GitHub канал' : 'GitHub channel'}</span><code>{unmanaged.selected_channel || unmanaged.requested_channel || 'auto'}</code></div>
-                {#if unmanaged.selected?.tag}<div class="check-row"><span>{locale === 'ru' ? 'GitHub Release' : 'GitHub Release'}</span><code>{unmanaged.selected.tag}</code></div>{/if}
-                {#if unmanaged.selected?.asset}<div class="check-row"><span>{locale === 'ru' ? 'Asset' : 'Asset'}</span><code>{unmanaged.selected.asset}</code></div>{/if}
-                {#if unmanaged.manual_reason && !unmanaged.selected}<div class="check-row"><span>{locale === 'ru' ? 'Автоустановка' : 'Auto install'}</span><code>{unmanaged.manual_reason}</code></div>{/if}
+                <div class="check-row"><span>{t(locale, 'marketplace.planner.githubChannel')}</span><code>{unmanaged.selected_channel || unmanaged.requested_channel || 'auto'}</code></div>
+                {#if unmanaged.selected?.tag}<div class="check-row"><span>{t(locale, 'marketplace.planner.githubRelease')}</span><code>{unmanaged.selected.tag}</code></div>{/if}
+                {#if unmanaged.selected?.asset}<div class="check-row"><span>{t(locale, 'marketplace.planner.asset')}</span><code>{unmanaged.selected.asset}</code></div>{/if}
+                {#if unmanaged.manual_reason && !unmanaged.selected}<div class="check-row"><span>{t(locale, 'marketplace.planner.autoInstall')}</span><code>{unmanaged.manual_reason}</code></div>{/if}
               {/if}
 
-              {#if item.manifest_sha256}<div class="check-row"><span>Manifest</span><code>{item.manifest_sha256}</code></div>{/if}
+              {#if item.manifest_sha256}<div class="check-row"><span>{t(locale, 'marketplace.planner.manifest')}</span><code>{item.manifest_sha256}</code></div>{/if}
             </div>
             <div class="check-card">
-              <div class="check-head"><strong>{planAction === 'update' ? (locale === 'ru' ? 'План обновления' : 'Update plan') : t(locale, 'marketplace.planner.installPlan')}</strong><span class="state-chip info">{t(locale, 'marketplace.planner.staged')}</span></div>
+              <div class="check-head"><strong>{planAction === 'update' ? t(locale, 'marketplace.planner.updatePlan') : t(locale, 'marketplace.planner.installPlan')}</strong><span class="state-chip info">{t(locale, 'marketplace.planner.staged')}</span></div>
               {#if install.method}<div class="check-row"><span>{t(locale, 'marketplace.planner.method')}</span><code>{install.method}</code></div>{/if}
               {#if packages.length}<div class="check-row"><span>{t(locale, 'marketplace.planner.packages')}</span><code>{packages.join(', ')}</code></div>{/if}
               {#if install.repository_url}<div class="check-row"><span>{t(locale, 'marketplace.planner.feed')}</span><code>{install.repository_url}</code></div>{/if}
@@ -76,7 +76,7 @@
         </div>
 
         <div class="planner-console">
-          <div class="console-head mono"><span><i></i>catalog-plan-stream</span><span>{t(locale, 'marketplace.planner.details')}</span></div>
+          <div class="console-head mono"><span><i></i>{t(locale, 'marketplace.planner.planPreview')}</span><span>{t(locale, 'marketplace.planner.details')}</span></div>
           <div class="console-body mono">
             <div><span class="log-dim">[CATALOG]</span> source={item.source||'routerforge'} state={item.state||'available'}</div>
             {#if item.version}<div class="log-ok">[DETECT] version {item.version}</div>{/if}

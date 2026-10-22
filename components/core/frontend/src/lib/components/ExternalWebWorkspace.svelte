@@ -1,5 +1,6 @@
 <script>
   import { onDestroy } from 'svelte';
+  import { t } from '$lib/i18n/index.js';
 
   export let workspace;
   export let locale = 'ru';
@@ -12,10 +13,10 @@
   $: item = workspace?.item || {};
   $: url = workspace?.url || '';
   $: probe = workspace?.probe || {};
-  $: title = locale === 'ru' ? '\u0412\u043D\u0435\u0448\u043D\u0438\u0439 Web UI' : 'External Web UI';
-  $: externalLabel = locale === 'ru' ? '\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u043E' : 'Open externally';
-  $: closeLabel = locale === 'ru' ? '\u0417\u0430\u043A\u0440\u044B\u0442\u044C' : 'Close';
-  $: loadingLabel = locale === 'ru' ? '\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 Web UI\u2026' : 'Loading Web UI\u2026';
+  $: title = t(locale, 'webWorkspace.title');
+  $: externalLabel = t(locale, 'webWorkspace.openExternally');
+  $: closeLabel = t(locale, 'common.close');
+  $: loadingLabel = t(locale, 'webWorkspace.loading');
 
   $: if (url !== frameURL) {
     frameURL = url;

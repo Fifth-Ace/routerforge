@@ -21,7 +21,7 @@
         <button class="icon-button" type="button" aria-label={t(locale, 'common.close')} disabled={busy} onclick={oncancel}>×</button>
       </div>
       <p>{t(locale, 'marketplace.remove.description')}</p>
-      {#if packages.length}<div class="remove-package mono">PACKAGE · {packages.join(', ')}</div>{/if}
+      {#if packages.length}<div class="remove-package mono">{t(locale, 'marketplace.planner.packages')} · {packages.join(', ')}</div>{/if}
       <label class="remove-confirm-input">
         <span>{t(locale, 'marketplace.remove.confirmPrompt')}</span>
         <strong>{item.name}</strong>

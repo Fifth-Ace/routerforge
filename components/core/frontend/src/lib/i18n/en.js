@@ -229,6 +229,11 @@ export default {
     "issueRuntimeStopped": "{name}: runtime is not running",
     "issueControlRuntimeStopped": "RouterForge Control is installed, but its runtime is not running"
   },
+  "webWorkspace": {
+    "title": "External Web UI",
+    "openExternally": "Open externally",
+    "loading": "Loading Web UI…",
+  },
   "marketplace": {
     "pageTitle": "App Center",
     "subtitle": "RouterForge catalog: official platform modules and third-party projects with an explicit trust level.",
@@ -329,6 +334,20 @@ export default {
       "checkFailed": "Update check failed · {detail}"
     },
     "planner": {
+      "techDetails": "Technical details",
+      "availableVersion": "Available version",
+      "downloadSize": "Download size",
+      "installedSize": "Installed size",
+      "minCore": "Min. Core version",
+      "depends": "Dependencies",
+      "conflicts": "Conflicts",
+      "githubChannel": "GitHub channel",
+      "githubRelease": "GitHub Release",
+      "asset": "Asset",
+      "autoInstall": "Automatic installation",
+      "updatePlan": "Update plan",
+      "manifest": "Manifest",
+      "planPreview": "Plan preview",
       "aria": "Install plan",
       "title": "Install Plan",
       "mode": "MODE:",

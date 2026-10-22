@@ -2,6 +2,20 @@
   import { onMount } from 'svelte';
   import '../../routerforge-settings-p1.css';
   let activeSettingsTab = 'system';
+  function onSettingsTabKeydown(event) {
+    const tabs = Array.from(event.currentTarget.parentElement.querySelectorAll('[role="tab"]'));
+    const index = tabs.indexOf(event.currentTarget);
+    if (index < 0) return;
+    let next = index;
+    if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    activeSettingsTab = ['system', 'interface', 'logs', 'security'][next];
+    tabs[next].focus();
+  }
   import { snapshot } from '$lib/stores/snapshot.js';
   import { settings, themes } from '$lib/stores/settings.js';
   import { catalog, refreshCatalog } from '$lib/stores/catalog.js';
@@ -199,10 +213,10 @@
 
   <div class="rf-p1-settings">
     <nav class="rf-p1-tabs" role="tablist" aria-label={locale === 'ru' ? 'Разделы настроек' : 'Settings sections'}>
-      <button type="button" id="rf-p1-tab-system" role="tab" aria-controls="rf-p1-pane-system" aria-selected={activeSettingsTab === 'system'} class:active={activeSettingsTab === 'system'} onclick={() => activeSettingsTab = 'system'}>{locale === 'ru' ? 'Система' : 'System'}</button>
-      <button type="button" id="rf-p1-tab-interface" role="tab" aria-controls="rf-p1-pane-interface" aria-selected={activeSettingsTab === 'interface'} class:active={activeSettingsTab === 'interface'} onclick={() => activeSettingsTab = 'interface'}>{locale === 'ru' ? 'Интерфейс' : 'Interface'}</button>
-      <button type="button" id="rf-p1-tab-logs" role="tab" aria-controls="rf-p1-pane-logs" aria-selected={activeSettingsTab === 'logs'} class:active={activeSettingsTab === 'logs'} onclick={() => activeSettingsTab = 'logs'}>{locale === 'ru' ? 'Журналы' : 'Logs'}</button>
-      <button type="button" id="rf-p1-tab-security" role="tab" aria-controls="rf-p1-pane-security" aria-selected={activeSettingsTab === 'security'} class:active={activeSettingsTab === 'security'} onclick={() => activeSettingsTab = 'security'}>{locale === 'ru' ? 'Безопасность' : 'Security'}</button>
+      <button type="button" id="rf-p1-tab-system" role="tab" aria-controls="rf-p1-pane-system" aria-selected={activeSettingsTab === 'system'} tabindex={activeSettingsTab === 'system' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'system'} onclick={() => activeSettingsTab = 'system'}>{locale === 'ru' ? 'Система' : 'System'}</button>
+      <button type="button" id="rf-p1-tab-interface" role="tab" aria-controls="rf-p1-pane-interface" aria-selected={activeSettingsTab === 'interface'} tabindex={activeSettingsTab === 'interface' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'interface'} onclick={() => activeSettingsTab = 'interface'}>{locale === 'ru' ? 'Интерфейс' : 'Interface'}</button>
+      <button type="button" id="rf-p1-tab-logs" role="tab" aria-controls="rf-p1-pane-logs" aria-selected={activeSettingsTab === 'logs'} tabindex={activeSettingsTab === 'logs' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'logs'} onclick={() => activeSettingsTab = 'logs'}>{locale === 'ru' ? 'Журналы' : 'Logs'}</button>
+      <button type="button" id="rf-p1-tab-security" role="tab" aria-controls="rf-p1-pane-security" aria-selected={activeSettingsTab === 'security'} tabindex={activeSettingsTab === 'security' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'security'} onclick={() => activeSettingsTab = 'security'}>{locale === 'ru' ? 'Безопасность' : 'Security'}</button>
     </nav>
 
     <section id="rf-p1-pane-system" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'system'} role="tabpanel" aria-labelledby="rf-p1-tab-system">

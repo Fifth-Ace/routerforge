@@ -7,6 +7,7 @@
   import { authState } from '$lib/stores/auth.js';
   import { catalog } from '$lib/stores/catalog.js';
   import { settings } from '$lib/stores/settings.js';
+  import { t } from '$lib/i18n/index.js';
   import {
     catalogWebProbeStatusAllowed,
     catalogWebResolvedURL,
@@ -36,7 +37,6 @@
     void openEmbeddedWeb(requestedExternal, false);
   }
 
-  const text = (ru, en) => locale === 'ru' ? ru : en;
 
   function managerHref(item) {
     return item?.presentation?.integration?.href || `/integrations?open=${encodeURIComponent(item.id)}`;
@@ -49,21 +49,12 @@
 
   function webBlockedText(reason) {
     if (reason === 'session-cookie-cross-port') {
-      return text(
-        'Встроенный Web UI заблокирован: cookie сессии RouterForge не изолируются по TCP-порту.',
-        'Embedded Web UI is blocked because RouterForge session cookies are not isolated by TCP port.'
-      );
+      return t(locale, 'integrationsUi.embedCookie');
     }
     if (reason === 'mixed-content') {
-      return text(
-        'Встроенный режим заблокирован: HTTPS RouterForge не может встраивать HTTP Web UI.',
-        'Embedded mode is blocked because HTTPS RouterForge cannot embed an HTTP Web UI.'
-      );
+      return t(locale, 'integrationsUi.embedMixedContent');
     }
-    return text(
-      'Внешний Web UI сейчас нельзя безопасно открыть внутри RouterForge.',
-      'The external Web UI cannot be safely embedded in RouterForge right now.'
-    );
+    return t(locale, 'integrationsUi.embedUnavailable');
   }
 
   async function openEmbeddedWeb(item, syncURL = true) {
@@ -87,27 +78,18 @@
         && probe?.frame_header_policy === 'no-blocking-header-detected';
 
       if (probe?.reachable === true && probe?.frame_header_policy === 'blocked') {
-        webNotice = text(
-          'Web UI найден, но приложение запрещает встраивание через X-Frame-Options/CSP.',
-          'Web UI was detected, but the application blocks embedding through X-Frame-Options/CSP.'
-        );
+        webNotice = t(locale, 'integrationsUi.embedPolicyBlocked');
         return;
       }
 
       if (!safe) {
-        webNotice = text(
-          'Runtime web-probe не подтвердил безопасный iframe.',
-          'The runtime web probe did not confirm a safe iframe.'
-        );
+        webNotice = t(locale, 'integrationsUi.embedProbeUnsafe');
         return;
       }
 
       const resolvedURL = catalogWebResolvedURL(item, probe, $authState);
       if (!resolvedURL) {
-        webNotice = text(
-          'Не найден безопасный Web UI listener, доступный браузеру.',
-          'No safe browser-reachable Web UI listener was resolved.'
-        );
+        webNotice = t(locale, 'integrationsUi.embedNoListener');
         return;
       }
 
@@ -121,7 +103,7 @@
         handledDeepLink = item.id;
       }
     } catch (error) {
-      webNotice = error?.payload?.error || error?.message || 'web probe failed';
+      webNotice = error?.payload?.error || error?.message || t(locale, 'integrationsUi.probeFailed');
     } finally {
       webProbeBusyId = '';
     }
@@ -144,15 +126,15 @@
   }
 </script>
 
-<svelte:head><title>RouterForge — {text('Интеграции','Integrations')}</title></svelte:head>
+<svelte:head><title>RouterForge — {t(locale, 'integrationsUi.title')}</title></svelte:head>
 
 {#if activeProvider}
   <div class="page integration-workspace">
     <div class="integration-workspace-head">
-      <a class="button" href="/integrations">← {text('Все интеграции','All integrations')}</a>
+      <a class="button" href="/integrations">← {t(locale, 'integrationsUi.allIntegrations')}</a>
       <div>
         <strong>{activeProvider.presentation?.integration?.label || activeProvider.name}</strong>
-        <span>{text('RouterForge extension для внешней интеграции','RouterForge extension for an external integration')}</span>
+        <span>{t(locale, 'integrationsUi.managerDescription')}</span>
       </div>
     </div>
     <ModuleFrame moduleId={activeProvider.id} />
@@ -161,12 +143,8 @@
   <div class="page integrations-hub">
     <div class="page-head">
       <div>
-        <span class="routerforge-eyebrow mono">ROUTERFORGE / INTEGRATIONS</span>
-        <h1>{text('Интеграции','Integrations')}</h1>
-        <p>{text(
-          'Внешние приложения и устанавливаемые надстройки RouterForge для управления ими.',
-          'External applications and installable RouterForge extensions that manage them.'
-        )}</p>
+        <h1>{t(locale, 'integrationsUi.title')}</h1>
+        <p>{t(locale, 'integrationsUi.intro')}</p>
       </div>
     </div>
 
@@ -178,20 +156,20 @@
       <section>
         <div class="catalog-section-head">
           <div>
-            <h2>{text('Расширения RouterForge','RouterForge extensions')}</h2>
-            <p>{text('Отдельные устанавливаемые модули. Они не являются частью Управления или Core.','Separate installable modules. They are not part of Control or Core.')}</p>
+            <h2>{t(locale, 'integrationsUi.managerHeading')}</h2>
+            <p>{t(locale, 'integrationsUi.managerHint')}</p>
           </div>
         </div>
         <div class="integration-card-grid">
           {#each providers as item (item.id)}
             <article class="panel integration-card">
               <div>
-                <span class="state-chip good">{text('ГОТОВО','READY')}</span>
+                <span class="state-chip good">{t(locale, 'integrationsUi.ready')}</span>
                 <h3>{item.presentation?.integration?.label || item.name}</h3>
                 <p>{item.description}</p>
-                <small class="mono">{text('Цель','Target')}: {targetNames(item)}</small>
+                <small class="mono">{t(locale, 'integrationsUi.target')}: {targetNames(item)}</small>
               </div>
-              <a class="button primary" href={managerHref(item)}>{text('Открыть менеджер','Open manager')}</a>
+              <a class="button primary" href={managerHref(item)}>{t(locale, 'integrationsUi.openManager')}</a>
             </article>
           {/each}
         </div>
@@ -202,18 +180,18 @@
       <section>
         <div class="catalog-section-head">
           <div>
-            <h2>{text('Внешние интеграции','External integrations')}</h2>
-            <p>{text('Установленные сторонние приложения, которыми здесь действительно можно управлять или открывать их интерфейс.','Installed third-party applications that can actually be managed or opened here.')}</p>
+            <h2>{t(locale, 'integrationsUi.externalHeading')}</h2>
+            <p>{t(locale, 'integrationsUi.externalHint')}</p>
           </div>
         </div>
         <div class="integration-card-grid">
           {#each externals as item (item.id)}
             <article class="panel integration-card">
               <div>
-                <span class="state-chip {item.service_running ? 'good' : 'neutral'}">{item.service_running ? text('РАБОТАЕТ','RUNNING') : text('ОБНАРУЖЕНО','DETECTED')}</span>
+                <span class="state-chip {item.service_running ? 'good' : 'neutral'}">{item.service_running ? t(locale, 'integrationsUi.running') : t(locale, 'integrationsUi.detected')}</span>
                 <h3>{item.name}</h3>
                 <p>{item.description}</p>
-                <small class="mono">{item.category || 'Integration'}{item.version ? ` · v${item.version}` : ''}</small>
+                <small class="mono">{item.category || t(locale, 'integrationsUi.categoryFallback')}{item.version ? ` · v${item.version}` : ''}</small>
               </div>
               {#if item.web}
                 <button
@@ -222,10 +200,10 @@
                   disabled={Boolean(webProbeBusyId)}
                   onclick={() => openEmbeddedWeb(item)}
                 >
-                  {webProbeBusyId === item.id ? text('Проверка…','Checking…') : text('Открыть интерфейс','Open interface')}
+                  {webProbeBusyId === item.id ? t(locale, 'integrationsUi.checking') : t(locale, 'integrationsUi.openInterface')}
                 </button>
               {:else}
-                <span class="integration-managed-note">{text('Управляется через расширение RouterForge выше','Managed through the RouterForge extension above')}</span>
+                <span class="integration-managed-note">{t(locale, 'integrationsUi.managedThroughManager')}</span>
               {/if}
             </article>
           {/each}

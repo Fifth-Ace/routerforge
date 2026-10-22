@@ -317,10 +317,10 @@
         <div class="setting-row">
           <div><strong>{t(locale, 'settings.l1a.cpuWarningTitle')}</strong><span>{t(locale, 'settings.l1a.cpuWarningHint')}</span></div>
           <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="50" max="89" step="1" value={$settings.cpuTempWarning} onchange={(e) => update('cpuTempWarning', Number(e.currentTarget.value))}/><span>&#176;C</span></label></div>
-        </div>        <div class="setting-row static"><div><strong>Discovery</strong><span>{t(locale, 'settings.discoveryHint')}</span></div><code>{t(locale, 'common.seconds', { count: 60 })}</code></div>
-        <div class="setting-row static"><div><strong>{t(locale, 'settings.healthCheck')}</strong><span>{t(locale, 'settings.healthCheckHint')}</span></div><code>{t(locale, 'common.seconds', { count: 30 })}</code></div>
-        <div class="setting-row static"><div><strong>{t(locale, 'settings.history')}</strong><span>{t(locale, 'settings.historyHint')}</span></div><code>{t(locale, 'common.hours', { count: 24 })}</code></div>
-        <div class="setting-row static"><div><strong>{t(locale, 'settings.webPort')}</strong><span>{t(locale, 'settings.webPortHint')}</span></div><code>2233</code></div>
+        </div>
+
+
+
       </section>
     </section>
 

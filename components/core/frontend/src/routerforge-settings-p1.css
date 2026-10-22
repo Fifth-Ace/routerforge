@@ -198,3 +198,20 @@
 .rf-p1-settings .rf-p1b-telemetry-row .rf-toggle.checked .rf-toggle-status {
   color: var(--rf-good, #2ea043) !important;
 }
+/* Settings authorization toggle: neutralize old descendant span margins.
+ * Same correction already applied to the telemetry toggle in P1B.
+ * The shared RfToggle behavior and auth requests are untouched.
+ */
+.rf-p1-settings .security-setting-row .rf-toggle .rf-toggle-status,
+.rf-p1-settings .security-setting-row .rf-toggle .rf-toggle-track,
+.rf-p1-settings .security-setting-row .rf-toggle .rf-toggle-thumb {
+  margin-top: 0 !important;
+}
+.rf-p1-settings .security-setting-row .rf-toggle .rf-toggle-status {
+  font-size: 11px !important;
+  line-height: 1 !important;
+  color: var(--rf-muted, #8d98a4) !important;
+}
+.rf-p1-settings .security-setting-row .rf-toggle.checked .rf-toggle-status {
+  color: var(--rf-good, #2ea043) !important;
+}

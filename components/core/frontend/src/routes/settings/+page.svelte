@@ -69,7 +69,7 @@
       if (!response.ok) throw new Error(data.error || ('HTTP ' + response.status));
       telemetryStatus = data;
       telemetryEnabled = !!data.diagnostics_enabled;
-      telemetryNotice = telemetryEnabled ? 'Диагностика включена' : 'Диагностика выключена';
+      telemetryNotice = telemetryEnabled ? t(locale, 'settings.l1a.telemetryOn') : t(locale, 'settings.l1a.telemetryOff');
     } catch (err) {
       telemetryError = String(err?.message || err);
       await loadTelemetry();
@@ -106,7 +106,7 @@
       const reply = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(reply.error || ('HTTP ' + response.status));
       loggingActivePath = reply.active_path || '';
-      loggingSaved = 'Сохранено';
+      loggingSaved = t(locale, 'settings.l1a.loggingSaved');
     } catch (err) {
       loggingError = String(err.message || err);
     } finally { loggingBusy = false; }
@@ -212,15 +212,15 @@
   </div>
 
   <div class="rf-p1-settings">
-    <nav class="rf-p1-tabs" role="tablist" aria-label={locale === 'ru' ? 'Разделы настроек' : 'Settings sections'}>
-      <button type="button" id="rf-p1-tab-system" role="tab" aria-controls="rf-p1-pane-system" aria-selected={activeSettingsTab === 'system'} tabindex={activeSettingsTab === 'system' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'system'} onclick={() => activeSettingsTab = 'system'}>{locale === 'ru' ? 'Система' : 'System'}</button>
-      <button type="button" id="rf-p1-tab-interface" role="tab" aria-controls="rf-p1-pane-interface" aria-selected={activeSettingsTab === 'interface'} tabindex={activeSettingsTab === 'interface' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'interface'} onclick={() => activeSettingsTab = 'interface'}>{locale === 'ru' ? 'Интерфейс' : 'Interface'}</button>
-      <button type="button" id="rf-p1-tab-logs" role="tab" aria-controls="rf-p1-pane-logs" aria-selected={activeSettingsTab === 'logs'} tabindex={activeSettingsTab === 'logs' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'logs'} onclick={() => activeSettingsTab = 'logs'}>{locale === 'ru' ? 'Журналы' : 'Logs'}</button>
-      <button type="button" id="rf-p1-tab-security" role="tab" aria-controls="rf-p1-pane-security" aria-selected={activeSettingsTab === 'security'} tabindex={activeSettingsTab === 'security' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'security'} onclick={() => activeSettingsTab = 'security'}>{locale === 'ru' ? 'Безопасность' : 'Security'}</button>
+    <nav class="rf-p1-tabs" role="tablist" aria-label={t(locale, 'settings.l1a.tabsAria')}>
+      <button type="button" id="rf-p1-tab-system" role="tab" aria-controls="rf-p1-pane-system" aria-selected={activeSettingsTab === 'system'} tabindex={activeSettingsTab === 'system' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'system'} onclick={() => activeSettingsTab = 'system'}>{t(locale, 'settings.l1a.tabSystem')}</button>
+      <button type="button" id="rf-p1-tab-interface" role="tab" aria-controls="rf-p1-pane-interface" aria-selected={activeSettingsTab === 'interface'} tabindex={activeSettingsTab === 'interface' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'interface'} onclick={() => activeSettingsTab = 'interface'}>{t(locale, 'settings.l1a.tabInterface')}</button>
+      <button type="button" id="rf-p1-tab-logs" role="tab" aria-controls="rf-p1-pane-logs" aria-selected={activeSettingsTab === 'logs'} tabindex={activeSettingsTab === 'logs' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'logs'} onclick={() => activeSettingsTab = 'logs'}>{t(locale, 'settings.l1a.tabLogs')}</button>
+      <button type="button" id="rf-p1-tab-security" role="tab" aria-controls="rf-p1-pane-security" aria-selected={activeSettingsTab === 'security'} tabindex={activeSettingsTab === 'security' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'security'} onclick={() => activeSettingsTab = 'security'}>{t(locale, 'settings.l1a.tabSecurity')}</button>
     </nav>
 
     <section id="rf-p1-pane-system" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'system'} role="tabpanel" aria-labelledby="rf-p1-tab-system">
-      <div class="rf-p1-pane-intro"><h2>{locale === 'ru' ? 'Система' : 'System'}</h2><p>{locale === 'ru' ? 'Состояние RouterForge, статистика проекта и системные параметры.' : 'RouterForge status, project statistics and system parameters.'}</p></div>
+      <div class="rf-p1-pane-intro"><h2>{t(locale, 'settings.l1a.systemIntroTitle')}</h2><p>{t(locale, 'settings.l1a.systemIntroDescription')}</p></div>
 <section class="system-card panel rf-p1-system-card">
       <div class="panel-head"><div><strong>{t(locale, 'settings.system')}</strong><span>RouterForge</span></div><span class="state-chip {$snapshot.capture_error ? 'error' : 'good'}">{$snapshot.capture_error ? 'ERROR' : 'OK'}</span></div>
       <div class="system-row"><span>RouterForge</span><strong>v{$snapshot.version || '—'}</strong></div>
@@ -233,17 +233,17 @@
 
 <div class="rf-p1-statistics">
 <section class="settings-section panel">
-        <div class="settings-title">Статистика RouterForge</div>
+        <div class="settings-title">{t(locale, 'settings.l1a.statisticsTitle')}</div>
         <div class="setting-row">
-          <div><strong>Учёт установок</strong><span>Статистика ведётся обезличенно: используется случайный ID установки, чтобы считать установки и их активность. Личные данные и настройки не передаются.</span></div>
-          <div class="setting-control-slot"><span class="state-chip neutral">Базовый учёт</span></div>
+          <div><strong>{t(locale, 'settings.l1a.installsTitle')}</strong><span>{t(locale, 'settings.l1a.installsHint')}</span></div>
+          <div class="setting-control-slot"><span class="state-chip neutral">{t(locale, 'settings.l1a.installsBadge')}</span></div>
         </div>
         <div class="setting-row rf-p1b-telemetry-row">
-          <div><strong>Техническая телеметрия</strong><span>Передаёт версию Core, архитектуру и установленные модули с их версиями. Включена по умолчанию, но её можно отключить в любой момент.</span></div>
-          <div class="setting-control-slot"><RfToggle checked={telemetryEnabled} busy={telemetrySaving} ariaLabel={locale === 'ru' ? 'Техническая телеметрия' : 'Technical telemetry'} onToggle={(enabled) => changeTelemetry(enabled)} /></div>
+          <div><strong>{t(locale, 'settings.l1a.telemetryTitle')}</strong><span>{t(locale, 'settings.l1a.telemetryHint')}</span></div>
+          <div class="setting-control-slot"><RfToggle checked={telemetryEnabled} busy={telemetrySaving} ariaLabel={t(locale, 'settings.l1a.telemetryAria')} onToggle={(enabled) => changeTelemetry(enabled)} /></div>
         </div>
-        <div class="setting-row static"><div><strong>Сервер статистики</strong><span>Отправка начинается после настройки адреса HTTPS на стороне Core. Если сервер недоступен, установка и работа RouterForge не блокируются.</span></div><code>{telemetryStatus.collector_configured ? 'Настроен' : 'Пока не настроен'}</code></div>
-        <div class="setting-row static"><div><strong>Регистрация</strong><span>Подтверждённой считается только успешная регистрация на сервере.</span></div><code>{telemetryStatus.registration_confirmed ? 'Подтверждена' : 'Ожидает отправки'}</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.l1a.collectorTitle')}</strong><span>{t(locale, 'settings.l1a.collectorHint')}</span></div><code>{t(locale, telemetryStatus.collector_configured ? 'settings.l1a.collectorConfigured' : 'settings.l1a.collectorNotConfigured')}</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.l1a.registrationTitle')}</strong><span>{t(locale, 'settings.l1a.registrationHint')}</span></div><code>{t(locale, telemetryStatus.registration_confirmed ? 'settings.l1a.registrationConfirmed' : 'settings.l1a.registrationPending')}</code></div>
         {#if telemetryError}<div class="settings-security-error">{telemetryError}</div>{/if}
         {#if telemetryNotice}<div class="settings-security-success">{telemetryNotice}</div>{/if}
       </section>
@@ -253,62 +253,60 @@
 <section class="settings-section panel">
           <div class="settings-title">DNS</div>
           <div class="appearance-intro">
-            {locale === 'ru'
-              ? 'Пороги состояния DNS. NXDOMAIN считается нормальным DNS-ответом и никогда не ухудшает состояние.'
-              : 'DNS health thresholds. NXDOMAIN is a normal DNS answer and never degrades health.'}
+            {t(locale, 'settings.l1a.dnsThresholdIntro')}
           </div>
 
           <div class="setting-row">
             <div>
-              <strong>{locale === 'ru' ? 'Профиль чувствительности' : 'Sensitivity preset'}</strong>
-              <span>{locale === 'ru' ? 'По умолчанию выбран мягкий профиль для нестабильного интернета.' : 'The relaxed preset for unstable internet is the default.'}</span>
+              <strong>{t(locale, 'settings.l1a.dnsSensitivityTitle')}</strong>
+              <span>{t(locale, 'settings.l1a.dnsSensitivityHint')}</span>
             </div>
             <div class="setting-control-slot">
               <select value={$settings.dnsHealthPreset} onchange={(e) => setDNSPreset(e.currentTarget.value)}>
-                <option value="strict">{locale === 'ru' ? 'Строгий' : 'Strict'}</option>
-                <option value="normal">{locale === 'ru' ? 'Обычный' : 'Normal'}</option>
-                <option value="unstable">{locale === 'ru' ? 'Нестабильный интернет' : 'Unstable internet'}</option>
-                <option value="custom">{locale === 'ru' ? 'Пользовательский' : 'Custom'}</option>
+                <option value="strict">{t(locale, 'settings.l1a.dnsPresetStrict')}</option>
+                <option value="normal">{t(locale, 'settings.l1a.dnsPresetNormal')}</option>
+                <option value="unstable">{t(locale, 'settings.l1a.dnsPresetUnstable')}</option>
+                <option value="custom">{t(locale, 'settings.l1a.dnsPresetCustom')}</option>
               </select>
             </div>
           </div>
 
           <div class="setting-row static">
-            <div><strong>{locale === 'ru' ? 'Текущая логика' : 'Current policy'}</strong><span>{locale === 'ru' ? 'Сбой считается проблемой только при одновременном превышении количества и процента.' : 'Failures trigger a problem only when both count and percentage thresholds are exceeded.'}</span></div>
+            <div><strong>{t(locale, 'settings.l1a.dnsPolicyTitle')}</strong><span>{t(locale, 'settings.l1a.dnsPolicyHint')}</span></div>
             <code>{$settings.dnsHealthFailCount}+ / {$settings.dnsHealthFailRate}% · p95 {$settings.dnsHealthLatencyP95Ms} ms</code>
           </div>
 
           {#if $settings.dnsHealthPreset === 'custom'}
             <div class="setting-row">
-              <div><strong>{locale === 'ru' ? 'Окно текущего состояния' : 'Current health window'}</strong><span>{locale === 'ru' ? 'Интервал, по которому определяется текущее состояние.' : 'Window used for current health.'}</span></div>
+              <div><strong>{t(locale, 'settings.l1a.dnsWindowTitle')}</strong><span>{t(locale, 'settings.l1a.dnsWindowHint')}</span></div>
               <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="1" max="15" step="1" value={$settings.dnsHealthWindowMin} onchange={(e) => updateDNS('dnsHealthWindowMin', Number(e.currentTarget.value))}/><span>min</span></label></div>
             </div>
             <div class="setting-row">
-              <div><strong>{locale === 'ru' ? 'Минимум сбоев' : 'Minimum failures'}</strong><span>{locale === 'ru' ? 'Меньшее число ошибок не включает предупреждение независимо от процента.' : 'Fewer failures never trigger degradation regardless of percentage.'}</span></div>
+              <div><strong>{t(locale, 'settings.l1a.dnsMinimumFailuresTitle')}</strong><span>{t(locale, 'settings.l1a.dnsMinimumFailuresHint')}</span></div>
               <div class="setting-control-slot"><input type="number" min="1" max="1000" step="1" value={$settings.dnsHealthFailCount} onchange={(e) => updateDNS('dnsHealthFailCount', Number(e.currentTarget.value))}/></div>
             </div>
             <div class="setting-row">
-              <div><strong>{locale === 'ru' ? 'Доля сбоев' : 'Failure rate'}</strong><span>{locale === 'ru' ? 'Порог доли timeout и ошибок; NXDOMAIN не учитывается.' : 'Timeout/error rate threshold; NXDOMAIN is excluded.'}</span></div>
+              <div><strong>{t(locale, 'settings.l1a.dnsFailureRateTitle')}</strong><span>{t(locale, 'settings.l1a.dnsFailureRateHint')}</span></div>
               <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="0.1" max="50" step="0.1" value={$settings.dnsHealthFailRate} onchange={(e) => updateDNS('dnsHealthFailRate', Number(e.currentTarget.value))}/><span>%</span></label></div>
             </div>
             <div class="setting-row">
-              <div><strong>{locale === 'ru' ? 'Медленный DNS, p95' : 'Slow DNS p95'}</strong><span>{locale === 'ru' ? 'Задержка влияет на статус только после накопления достаточного числа ответов.' : 'Latency affects health only after enough replies are observed.'}</span></div>
+              <div><strong>{t(locale, 'settings.l1a.dnsLatencyTitle')}</strong><span>{t(locale, 'settings.l1a.dnsLatencyHint')}</span></div>
               <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="100" max="10000" step="50" value={$settings.dnsHealthLatencyP95Ms} onchange={(e) => updateDNS('dnsHealthLatencyP95Ms', Number(e.currentTarget.value))}/><span>ms</span></label></div>
             </div>
             <div class="setting-row">
-              <div><strong>{locale === 'ru' ? 'Минимум ответов для p95' : 'Minimum replies for p95'}</strong><span>{locale === 'ru' ? 'Не даёт единичному медленному ответу испортить статус.' : 'Prevents one slow reply from degrading health.'}</span></div>
+              <div><strong>{t(locale, 'settings.l1a.dnsMinimumSamplesTitle')}</strong><span>{t(locale, 'settings.l1a.dnsMinimumSamplesHint')}</span></div>
               <div class="setting-control-slot"><input type="number" min="1" max="1000" step="1" value={$settings.dnsHealthLatencySamples} onchange={(e) => updateDNS('dnsHealthLatencySamples', Number(e.currentTarget.value))}/></div>
             </div>
             <div class="setting-row">
-              <div><strong>{locale === 'ru' ? 'Недоступен: минимум запросов' : 'Down: minimum attempts'}</strong><span>{locale === 'ru' ? 'Сколько попыток без успешного ответа нужно для состояния «Недоступен».' : 'Attempts without a successful answer before marking the resolver down.'}</span></div>
+              <div><strong>{t(locale, 'settings.l1a.dnsDownAttemptsTitle')}</strong><span>{t(locale, 'settings.l1a.dnsDownAttemptsHint')}</span></div>
               <div class="setting-control-slot"><input type="number" min="1" max="100" step="1" value={$settings.dnsHealthDownRequests} onchange={(e) => updateDNS('dnsHealthDownRequests', Number(e.currentTarget.value))}/></div>
             </div>
             <div class="setting-row">
-              <div><strong>{locale === 'ru' ? 'Окно недоступности' : 'Down window'}</strong><span>{locale === 'ru' ? 'Короткое окно для определения полной недоступности.' : 'Short window used to detect complete outage.'}</span></div>
+              <div><strong>{t(locale, 'settings.l1a.dnsDownWindowTitle')}</strong><span>{t(locale, 'settings.l1a.dnsDownWindowHint')}</span></div>
               <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="30" max="300" step="30" value={$settings.dnsHealthDownWindowSec} onchange={(e) => updateDNS('dnsHealthDownWindowSec', Number(e.currentTarget.value))}/><span>s</span></label></div>
             </div>
             <div class="setting-row">
-              <div><strong>{locale === 'ru' ? 'Показывать «Были сбои»' : 'Remember past issues'}</strong><span>{locale === 'ru' ? 'Сколько минут после восстановления сохранять историческое предупреждение.' : 'How long to keep the recovered-issue indicator.'}</span></div>
+              <div><strong>{t(locale, 'settings.l1a.dnsIssueMemoryTitle')}</strong><span>{t(locale, 'settings.l1a.dnsIssueMemoryHint')}</span></div>
               <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="15" max="60" step="5" value={$settings.dnsHealthHistoryMin} onchange={(e) => updateDNS('dnsHealthHistoryMin', Number(e.currentTarget.value))}/><span>min</span></label></div>
             </div>
           {/if}
@@ -317,7 +315,7 @@
 <section class="settings-section panel">
         <div class="settings-title">{t(locale, 'settings.monitoring')}</div>
         <div class="setting-row">
-          <div><strong>{locale === 'ru' ? '\u0422\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u044f CPU' : 'CPU temperature warning'}</strong><span>{locale === 'ru' ? '\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u0435 \u043d\u0430 \u0413\u043b\u0430\u0432\u043d\u043e\u0439 \u0438 \u0432 \u0442\u0435\u043b\u0435\u043c\u0435\u0442\u0440\u0438\u0438 \u043f\u0440\u0438 \u0434\u043e\u0441\u0442\u0438\u0436\u0435\u043d\u0438\u0438 \u044d\u0442\u043e\u0439 \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u044b. \u041a\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u043f\u043e\u0440\u043e\u0433 90\u00b0C \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u043c.' : 'Show a warning on Home and in device telemetry when this temperature is reached. The 90\u00b0C critical threshold remains fixed.'}</span></div>
+          <div><strong>{t(locale, 'settings.l1a.cpuWarningTitle')}</strong><span>{t(locale, 'settings.l1a.cpuWarningHint')}</span></div>
           <div class="setting-control-slot"><label class="temperature-threshold"><input type="number" min="50" max="89" step="1" value={$settings.cpuTempWarning} onchange={(e) => update('cpuTempWarning', Number(e.currentTarget.value))}/><span>&#176;C</span></label></div>
         </div>        <div class="setting-row static"><div><strong>Discovery</strong><span>{t(locale, 'settings.discoveryHint')}</span></div><code>{t(locale, 'common.seconds', { count: 60 })}</code></div>
         <div class="setting-row static"><div><strong>{t(locale, 'settings.healthCheck')}</strong><span>{t(locale, 'settings.healthCheckHint')}</span></div><code>{t(locale, 'common.seconds', { count: 30 })}</code></div>
@@ -327,7 +325,7 @@
     </section>
 
     <section id="rf-p1-pane-interface" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'interface'} role="tabpanel" aria-labelledby="rf-p1-tab-interface">
-      <div class="rf-p1-pane-intro"><h2>{locale === 'ru' ? 'Интерфейс' : 'Interface'}</h2><p>{locale === 'ru' ? 'Отображение, оформление и обновление данных.' : 'Display, appearance and refresh preferences.'}</p></div>
+      <div class="rf-p1-pane-intro"><h2>{t(locale, 'settings.l1a.interfaceIntroTitle')}</h2><p>{t(locale, 'settings.l1a.interfaceIntroDescription')}</p></div>
 <section class="settings-section panel">
         <div class="settings-title">{t(locale, 'settings.general')}</div>
         <div class="setting-row">
@@ -387,41 +385,41 @@
     </section>
 
     <section id="rf-p1-pane-logs" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'logs'} role="tabpanel" aria-labelledby="rf-p1-tab-logs">
-      <div class="rf-p1-pane-intro"><h2>{locale === 'ru' ? 'Журналы' : 'Logs'}</h2><p>{locale === 'ru' ? 'Хранилище и ротация журналов без изменения внешних служб.' : 'Log storage and rotation without changes to external services.'}</p></div>
+      <div class="rf-p1-pane-intro"><h2>{t(locale, 'settings.l1a.logsIntroTitle')}</h2><p>{t(locale, 'settings.l1a.logsIntroDescription')}</p></div>
 <section class="settings-section panel">
-        <div class="settings-title">Журналы RouterForge</div>
+        <div class="settings-title">{t(locale, 'settings.l1a.logsTitle')}</div>
         <div class="setting-row">
-          <div><strong>Хранилище журналов RouterForge</strong><span>Одна политика для событий Core, DNS, аудита Antiscan Manager и диагностики менеджеров. RAM-журналы исчезают после перезагрузки. Не меняет журналы внешних служб nfqws2, CrowdSec или Antiscan.</span></div>
+          <div><strong>{t(locale, 'settings.l1a.storageTitle')}</strong><span>{t(locale, 'settings.l1a.storageHint')}</span></div>
           <div class="setting-control-slot">
             <select bind:value={loggingMode}>
               <option value="entware">Entware — /opt/var/log</option>
-              <option value="ram" disabled={!loggingRAMAvailable}>ОЗУ — /tmp (tmpfs)</option><option value="custom">Свой путь</option>
+              <option value="ram" disabled={!loggingRAMAvailable}>{t(locale, 'settings.l1a.storageRam')}</option><option value="custom">{t(locale, 'settings.l1a.storageCustom')}</option>
             </select>
           </div>
         </div>
         {#if loggingMode === 'custom'}
           <div class="setting-row">
-            <div><strong>Путь для Core и каталог остальных журналов</strong><span>Например /opt/var/log/custom/routerforge.log. Остальные журналы RouterForge будут в том же каталоге с разными именами. Каталог должен уже существовать и быть доступным для записи. Для внешнего диска проверь монтаж: /storage может быть внутренней флеш-памятью. Допустимы /opt/var/log, /opt/mnt, /tmp, /mnt, /media, /storage, /var/log.</span></div>
+            <div><strong>{t(locale, 'settings.l1a.customPathTitle')}</strong><span>{t(locale, 'settings.l1a.customPathHint')}</span></div>
             <div class="setting-control-slot"><input type="text" bind:value={loggingCustomPath} placeholder="/opt/var/log/routerforge-custom.log" autocomplete="off" spellcheck="false" /></div>
           </div>
         {/if}
-        <div class="setting-row static"><div><strong>Активный путь Core</strong><span>DNS и менеджеры записывают свои журналы в выбранное хранилище по отдельным именам. Новая политика действует для новых записей; существующие файлы не удаляются. Встроенная оперативная история Port Access остаётся в памяти.</span></div><code>{loggingActivePath || '—'}</code></div>
+        <div class="setting-row static"><div><strong>{t(locale, 'settings.l1a.activeLogTitle')}</strong><span>{t(locale, 'settings.l1a.activeLogHint')}</span></div><code>{loggingActivePath || '—'}</code></div>
         <div class="setting-row">
-          <div><strong>Максимальный размер журнала</strong><span>От 1 до 16 МБ на файл, для JSONL-аудита Antiscan действует более строгий встроенный предел</span></div>
-          <div class="setting-control-slot"><select bind:value={loggingMaxMB}><option value={1}>1 МБ</option><option value={2}>2 МБ</option><option value={4}>4 МБ</option><option value={8}>8 МБ</option><option value={16}>16 МБ</option></select></div>
+          <div><strong>{t(locale, 'settings.l1a.maxSizeTitle')}</strong><span>{t(locale, 'settings.l1a.maxSizeHint')}</span></div>
+          <div class="setting-control-slot"><select bind:value={loggingMaxMB}><option value={1}>1 {t(locale, 'settings.l1a.mbUnit')}</option><option value={2}>2 {t(locale, 'settings.l1a.mbUnit')}</option><option value={4}>4 {t(locale, 'settings.l1a.mbUnit')}</option><option value={8}>8 {t(locale, 'settings.l1a.mbUnit')}</option><option value={16}>16 {t(locale, 'settings.l1a.mbUnit')}</option></select></div>
         </div>
         <div class="setting-row">
-          <div><strong>Количество архивов</strong><span>От 1 до 5 резервных журналов</span></div>
+          <div><strong>{t(locale, 'settings.l1a.backupsTitle')}</strong><span>{t(locale, 'settings.l1a.backupsHint')}</span></div>
           <div class="setting-control-slot"><select bind:value={loggingBackups}><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option><option value={5}>5</option></select></div>
         </div>
-        <div class="setting-row"><div><strong>Сохранить настройки журнала</strong><span>Без перезапуска DNS, NFQWS или firewall</span></div><div class="setting-control-slot"><button type="button" onclick={saveLogging} disabled={loggingBusy}>Сохранить</button></div></div>
+        <div class="setting-row"><div><strong>{t(locale, 'settings.l1a.saveLoggingTitle')}</strong><span>{t(locale, 'settings.l1a.saveLoggingHint')}</span></div><div class="setting-control-slot"><button type="button" onclick={saveLogging} disabled={loggingBusy}>{t(locale, 'settings.l1a.save')}</button></div></div>
         {#if loggingError}<div class="settings-security-error">{loggingError}</div>{/if}
         {#if loggingSaved}<div class="settings-security-success">{loggingSaved}</div>{/if}
       </section>
     </section>
 
     <section id="rf-p1-pane-security" class="rf-p1-pane" class:inactive={activeSettingsTab !== 'security'} role="tabpanel" aria-labelledby="rf-p1-tab-security">
-      <div class="rf-p1-pane-intro"><h2>{locale === 'ru' ? 'Безопасность' : 'Security'}</h2><p>{locale === 'ru' ? 'Доступ к панели и параметры сессии.' : 'Panel access and session settings.'}</p></div>
+      <div class="rf-p1-pane-intro"><h2>{t(locale, 'settings.l1a.securityIntroTitle')}</h2><p>{t(locale, 'settings.l1a.securityIntroDescription')}</p></div>
 <section class="settings-section panel">
         <div class="settings-title">{t(locale, 'settings.security')}</div>
         <div class="setting-row security-setting-row">

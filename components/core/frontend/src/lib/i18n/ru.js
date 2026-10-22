@@ -121,6 +121,22 @@ export default {
     "redirecting": "Перенаправляю…"
   },
   "shell": {
+    "community": "Сообщество",
+    "cpuTemp": "Температура CPU",
+    "cpuUsage": "Загрузка CPU",
+    "host": "Устройство",
+    "legalSummary": "Пользовательское соглашение · MIT · AS IS",
+    "model": "Модель",
+    "panel": "Панель RouterForge",
+    "ramUsage": "Использование ОЗУ",
+    "registryLabel": "Реестр",
+    "routerConsole": "Консоль управления",
+    "statusOff": "СТОП",
+    "statusOn": "РАБ",
+    "statusUpdate": "ОБН",
+    "telegramAria": "Канал RouterForge в Telegram",
+    "updates": "Обновления",
+    "whatsNew": "Что нового",
     "platformSummary": "Сводка платформы",
     "capabilities": "Возможности",
     "externalInstalled": "Сторонних установлено",
@@ -359,7 +375,8 @@ export default {
     }
   },
   "auth": {
-    "securityStatus": "SECURITY STATUS…",
+    "sessionHours": "Длительность сеанса: {hours} ч",
+    "securityStatus": "Проверка авторизации…",
     "coreUnavailable": "Core недоступен",
     "cannotCheck": "Не удалось проверить режим авторизации.",
     "signIn": "Вход в RouterForge",

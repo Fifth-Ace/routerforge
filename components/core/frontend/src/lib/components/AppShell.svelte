@@ -95,8 +95,8 @@
   }
 
   function stateLabel(item) {
-    if (item?.update_available) return 'UPDATE';
-    return moduleIsOff(item) ? 'OFF' : 'ON';
+    if (item?.update_available) return t(locale, 'shell.statusUpdate');
+    return moduleIsOff(item) ? t(locale, 'shell.statusOff') : t(locale, 'shell.statusOn');
   }
   function stateClass(item) {
     if (item?.update_available) return 'warn';
@@ -113,7 +113,7 @@
     aria-controls="routerforge-global-rail"
     onclick={toggleNarrowRail}
   >
-    <span>{locale === 'ru' ? 'Панель RouterForge' : 'RouterForge panel'}</span>
+    <span>{t(locale, 'shell.panel')}</span>
     <span class="rail-toggle-chevron" aria-hidden="true">{narrowRailOpen ? '▲' : '▼'}</span>
   </button>
 
@@ -143,7 +143,7 @@
 
       {#if installedIntegrations.length}
         <section class="rail-block">
-          <div class="rail-section-label">{locale === 'ru' ? 'Интеграции' : 'Integrations'}</div>
+          <div class="rail-section-label">{t(locale, 'integrationsUi.title')}</div>
           <div class="global-module-tree mono">
             {#each installedIntegrations as item, index (item.id)}
               <div class="global-tree-row">
@@ -160,19 +160,19 @@
 
     <div class="rail-bottom-stack">
       <section class="rail-status-card mono">
-        <div class="rail-section-label">{locale === 'ru' ? 'Телеметрия устройства' : 'Device telemetry'}</div>
-        <div><span>{locale === 'ru' ? 'Модель' : 'Model'}</span><strong>{model}</strong></div>
-        <div><span>CPU Temp</span><strong class:warn={cpuTemp >= cpuTempWarning && cpuTemp < 90} class:bad={cpuTemp >= 90}>{coreTelemetry.cpu_temp_available ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></div>
-        <div><span>CPU Usage</span><strong>{coreTelemetry.cpu_usage_available ? `${cpuPct.toFixed(0)}%` : '—'}</strong></div>
-        <div><span>RAM Usage</span><strong>{coreTelemetry.ram_usage_available ? `${ramPct.toFixed(0)}%` : '—'}</strong></div>
-        <div><span>{locale === 'ru' ? 'Процессы' : 'Processes'}</span><strong>{coreTelemetry.process_count_available ? processes : '—'}</strong></div>
+        <div class="rail-section-label">{t(locale, 'shell.hostTelemetry')}</div>
+        <div><span>{t(locale, 'shell.model')}</span><strong>{model}</strong></div>
+        <div><span>{t(locale, 'shell.cpuTemp')}</span><strong class:warn={cpuTemp >= cpuTempWarning && cpuTemp < 90} class:bad={cpuTemp >= 90}>{coreTelemetry.cpu_temp_available ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></div>
+        <div><span>{t(locale, 'shell.cpuUsage')}</span><strong>{coreTelemetry.cpu_usage_available ? `${cpuPct.toFixed(0)}%` : '—'}</strong></div>
+        <div><span>{t(locale, 'shell.ramUsage')}</span><strong>{coreTelemetry.ram_usage_available ? `${ramPct.toFixed(0)}%` : '—'}</strong></div>
+        <div><span>{t(locale, 'monitoring.modules.processes')}</span><strong>{coreTelemetry.process_count_available ? processes : '—'}</strong></div>
       </section>
 
       <section class="rail-status-card mono">
         <div class="rail-section-label">{t(locale,'marketplace.pageTitle')}</div>
         <div><span>API</span><strong class={!$catalogReady ? '' : $catalogOnline ? 'good' : 'bad'}>{!$catalogReady ? '...' : $catalogOnline ? t(locale,'common.online').toUpperCase() : t(locale,'common.offline').toUpperCase()}</strong></div>
-        <div><span>Registry</span><strong class={!$catalogReady ? '' : $catalog.registry?.online ? 'good' : 'warn'}>{!$catalogReady ? '...' : ($catalog.registry?.source || 'BUNDLED').toUpperCase()}</strong></div>
-        <div><span>{locale === 'ru' ? 'Обновления' : 'Updates'}</span><strong class={[...modules,...integrations].some((x)=>x.update_available) ? 'warn' : 'good'}>{[...modules,...integrations].filter((x)=>x.update_available).length}</strong></div>
+        <div><span>{t(locale, 'shell.registryLabel')}</span><strong class={!$catalogReady ? '' : $catalog.registry?.online ? 'good' : 'warn'}>{!$catalogReady ? '...' : ($catalog.registry?.source || 'BUNDLED').toUpperCase()}</strong></div>
+        <div><span>{t(locale, 'shell.updates')}</span><strong class={[...modules,...integrations].some((x)=>x.update_available) ? 'warn' : 'good'}>{[...modules,...integrations].filter((x)=>x.update_available).length}</strong></div>
       </section>
 
       <div class="rail-community-links">
@@ -182,9 +182,9 @@
           <span class="rail-repository-arrow" aria-hidden="true">↗</span>
         </a>
 
-        <a class="rail-repository-link rail-telegram-link" href="https://t.me/RouterForge" target="_blank" rel="noreferrer" aria-label={locale === 'ru' ? 'Telegram-канал RouterForge' : 'RouterForge Telegram channel'}>
+        <a class="rail-repository-link rail-telegram-link" href="https://t.me/RouterForge" target="_blank" rel="noreferrer" aria-label={t(locale, 'shell.telegramAria')}>
           <span class="rail-link-icon" aria-hidden="true">TG</span>
-          <span class="rail-repository-copy"><small>{locale === 'ru' ? 'Сообщество' : 'Community'}</small><strong>Telegram</strong></span>
+          <span class="rail-repository-copy"><small>{t(locale, 'shell.community')}</small><strong>Telegram</strong></span>
           <span class="rail-repository-arrow" aria-hidden="true">↗</span>
         </a>
 
@@ -195,11 +195,11 @@
           onclick={() => releaseNotesOpen = true}
         >
           <span class="rail-link-icon rail-release-notes-icon" aria-hidden="true">✦</span>
-          <span class="rail-repository-copy"><small>RouterForge</small><strong>{locale === 'ru' ? 'Что нового' : 'What’s new'}</strong></span>
+          <span class="rail-repository-copy"><small>RouterForge</small><strong>{t(locale, 'shell.whatsNew')}</strong></span>
           <span class="rail-repository-arrow" aria-hidden="true">→</span>
         </button>
       </div>
-      <a class="rail-legal-badge" href="/legal">{locale === 'ru' ? 'Пользовательское соглашение · MIT · AS IS' : 'User Agreement · MIT · AS IS'}</a>
+      <a class="rail-legal-badge" href="/legal">{t(locale, 'shell.legalSummary')}</a>
     </div>
   </aside>
 

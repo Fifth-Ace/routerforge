@@ -29,7 +29,7 @@
     { href: '/', labelKey: 'nav.home', order: 10 },
     ...(telemetryInstalled ? [{ href: '/monitoring', labelKey: 'nav.monitoring', order: 20 }] : []),
     ...dynamicModuleItems,
-    ...(showIntegrationHub ? [{ href: '/integrations', label: locale === 'ru' ? 'Интеграции' : 'Integrations', order: 60 }] : []),
+    ...(showIntegrationHub ? [{ href: '/integrations', labelKey: 'integrationsUi.title', order: 60 }] : []),
     { href: '/apps', labelKey: 'nav.marketplace', order: 80 },
     { href: '/settings', labelKey: 'nav.settings', order: 90 }
   ].sort((a, b) => a.order - b.order);
@@ -59,7 +59,7 @@
 
   function navLabel(item) {
     if (item.labelKey) return t(locale, item.labelKey);
-    if (item.href === '/network-tools') return locale === 'ru' ? '\u0421\u0435\u0442\u0435\u0432\u044b\u0435 \u0438\u043d\u0441\u0442\u0440\u0443\u043c\u0435\u043d\u0442\u044b' : 'Network Tools';
+    if (item.href === '/network-tools') return t(locale, 'moduleFrame.networkToolsTitle');
     const known = {
       '/manage': 'nav.manage',
       '/dns': null
@@ -83,7 +83,7 @@
       <img class="routerforge-header-mark" src="/routerforge-mark.png" alt="" aria-hidden="true"/>
       <span class="brand-copy">
         <strong>RouterForge</strong>
-        <span>Router Console</span>
+        <span>{t(locale, 'shell.routerConsole')}</span>
       </span>
       <span class="version-badge">v{coreVersion || '…'}</span>
     </a>
@@ -102,11 +102,11 @@
       </div>
       <span class="header-separator"></span>
       {#if hostTelemetry}
-        <span class="header-meta"><i>HOST:</i><b>{hostTelemetry.hostname || '—'}</b></span>
+        <span class="header-meta"><i>{t(locale, 'shell.host')}:</i><b>{hostTelemetry.hostname || '—'}</b></span>
         <span class="header-separator"></span>
       {/if}
       {#if $authState.required}
-        <span class="header-auth"><i>AUTH:</i><b>{$authState.user || 'root'}</b><button type="button" onclick={logout}>{t(locale, 'nav.logout')}</button></span>
+        <span class="header-auth"><i>{t(locale, 'auth.user')}:</i><b>{$authState.user || 'root'}</b><button type="button" onclick={logout}>{t(locale, 'nav.logout')}</button></span>
         <span class="header-separator"></span>
       {/if}
       <span class="stream-label">{$streamMode.toUpperCase()}</span>

@@ -121,6 +121,22 @@ export default {
     "redirecting": "Redirecting…"
   },
   "shell": {
+    "community": "Community",
+    "cpuTemp": "CPU temperature",
+    "cpuUsage": "CPU usage",
+    "host": "Host",
+    "legalSummary": "User Agreement · MIT · AS IS",
+    "model": "Model",
+    "panel": "RouterForge panel",
+    "ramUsage": "RAM usage",
+    "registryLabel": "Registry",
+    "routerConsole": "Router Console",
+    "statusOff": "OFF",
+    "statusOn": "ON",
+    "statusUpdate": "UPDATE",
+    "telegramAria": "RouterForge Telegram channel",
+    "updates": "Updates",
+    "whatsNew": "What’s new",
     "platformSummary": "Platform Summary",
     "capabilities": "Capabilities",
     "externalInstalled": "External installed",
@@ -359,7 +375,8 @@ export default {
     }
   },
   "auth": {
-    "securityStatus": "SECURITY STATUS…",
+    "sessionHours": "Session duration: {hours}h",
+    "securityStatus": "Checking authentication…",
     "coreUnavailable": "Core is unavailable",
     "cannotCheck": "Could not check the authentication mode.",
     "signIn": "Sign in to RouterForge",

@@ -35,7 +35,7 @@
   <div class="auth-card routerforge-auth-card">
     <div class="auth-brand routerforge-auth-brand">
       <img class="routerforge-auth-mark" src="/routerforge-mark.png" alt=""/>
-      <div><strong>RouterForge</strong><span>Router Console · Beta</span></div>
+      <div><strong>RouterForge</strong><span>{t(locale, 'shell.routerConsole')}</span></div>
     </div>
 
     {#if !$authState.ready}
@@ -46,7 +46,6 @@
       <div class="auth-error">{$authState.error}</div>
       <button class="button primary" type="button" onclick={retry}>{t(locale, 'common.retry')}</button>
     {:else}
-      <div class="auth-kicker mono">ENTWARE ROOT AUTH</div>
       <h1>{t(locale, 'auth.signIn')}</h1>
       <p>{t(locale, 'auth.usesRoot')}</p>
 
@@ -56,7 +55,7 @@
         {#if error}<div class="auth-error">{error}</div>{/if}
         <button class="button primary auth-submit" type="submit" disabled={busy || !username.trim()}>{busy ? t(locale, 'auth.checking') : t(locale, 'auth.login')}</button>
       </form>
-      <div class="auth-foot mono">SESSION {$authState.session_hours || 12}H · HTTPONLY · SAMESITE STRICT</div>
+      <div class="auth-foot mono">{t(locale, 'auth.sessionHours', {hours: $authState.session_hours || 12})}</div>
     {/if}
   </div>
 </div>

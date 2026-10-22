@@ -1162,7 +1162,7 @@
 
   <div class="subtabs app-center-tabs">
     {#each tabs as entry (entry[0])}
-      <button class:active={tab === entry[0]} onclick={() => setTab(entry[0])}>
+      <button class:active={tab === entry[0]} aria-pressed={tab === entry[0]} onclick={() => setTab(entry[0])}>
         {entry[1]} {#if entry[2] !== ''}<span class="pill">{entry[2]}</span>{/if}
       </button>
     {/each}
@@ -1380,6 +1380,7 @@
           type="button"
           class="catalog-facet"
           class:active={categoryFilter === 'all'}
+          aria-pressed={categoryFilter === 'all'}
           onclick={() => categoryFilter = 'all'}
         >
           <span>{a(locale,'allCategories')}</span>
@@ -1390,6 +1391,7 @@
             type="button"
             class="catalog-facet"
             class:active={categoryFilter === category.key}
+            aria-pressed={categoryFilter === category.key}
             onclick={() => categoryFilter = category.key}
           >
             <span>{category.name}</span>

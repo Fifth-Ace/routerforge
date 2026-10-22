@@ -10,6 +10,7 @@
   import { fmtInt, fmtDuration, fmtAgo } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
   import AuthEnableModal from '$lib/components/AuthEnableModal.svelte';
+  import RfToggle from '$lib/components/RfToggle.svelte';
 
   let system = {};
   let showEnableAuth = false;
@@ -225,7 +226,7 @@
         </div>
         <div class="setting-row">
           <div><strong>Техническая телеметрия</strong><span>Передаёт версию Core, архитектуру и установленные модули с их версиями. Включена по умолчанию, но её можно отключить в любой момент.</span></div>
-          <div class="setting-control-slot"><label><input type="checkbox" checked={telemetryEnabled} disabled={telemetrySaving} onchange={(e) => changeTelemetry(e.currentTarget.checked)} /> {telemetryEnabled ? 'Включена' : 'Выключена'}</label></div>
+          <div class="setting-control-slot"><RfToggle checked={telemetryEnabled} busy={telemetrySaving} ariaLabel={locale === 'ru' ? 'Техническая телеметрия' : 'Technical telemetry'} onToggle={(enabled) => changeTelemetry(enabled)} /></div>
         </div>
         <div class="setting-row static"><div><strong>Сервер статистики</strong><span>Отправка начинается после настройки адреса HTTPS на стороне Core. Если сервер недоступен, установка и работа RouterForge не блокируются.</span></div><code>{telemetryStatus.collector_configured ? 'Настроен' : 'Пока не настроен'}</code></div>
         <div class="setting-row static"><div><strong>Регистрация</strong><span>Подтверждённой считается только успешная регистрация на сервере.</span></div><code>{telemetryStatus.registration_confirmed ? 'Подтверждена' : 'Ожидает отправки'}</code></div>
@@ -412,8 +413,7 @@
         <div class="setting-row security-setting-row">
           <div><strong>{t(locale, 'settings.requireAuth')}</strong><span>{t(locale, 'settings.requireAuthHint')}</span></div>
           <div class="security-control setting-control-slot">
-            <span class="state-chip {$authState.required ? 'good' : 'neutral'}">{$authState.required ? 'ON' : 'OFF'}</span>
-            <button class="security-switch" class:on={$authState.required} type="button" aria-label={$authState.required ? t(locale, 'settings.disableAuthAria') : t(locale, 'settings.enableAuthAria')} aria-pressed={$authState.required} disabled={authBusy} onclick={requestAuthToggle}><span></span></button>
+            <RfToggle checked={$authState.required} busy={authBusy} ariaLabel={t(locale, 'settings.requireAuth')} onToggle={() => requestAuthToggle()} />
           </div>
         </div>
         <div class="setting-row static"><div><strong>{t(locale, 'settings.session')}</strong><span>{t(locale, 'settings.sessionHint')}</span></div><code>{t(locale, 'common.hours', { count: $authState.session_hours || 12 })}</code></div>

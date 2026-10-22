@@ -1731,8 +1731,8 @@
 
   .app-center-page .catalog-facet.active {
     color:var(--rf-text,var(--text));
-    border-color:rgba(44,255,75,.42);
-    background:rgba(44,255,75,.08);
+    border-color:var(--rf-accent-border, rgba(56,189,248,.30));
+    background:var(--rf-accent-soft, rgba(56,189,248,.10));
   }
 
   .app-center-page .catalog-facet strong {

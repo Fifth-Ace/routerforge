@@ -30,6 +30,7 @@
   $: opt = telem.platform?.opt || {};
   $: updates = [...modules, ...installedIntegrations].filter((item) => item.installed && item.update_available);
   $: issueInputs = {
+    locale,
     backendReady: $backendReady,
     backendOnline: $backendOnline,
     catalogReady: $catalogReady,
@@ -48,7 +49,6 @@
   $: issues = buildIssues(issueInputs);
   $: actionableIssues = issues.filter((issue) => issue.severity !== 'info');
 
-  const text = (ru, en) => locale === 'ru' ? ru : en;
 
   function recent(iso, minutes = 5) {
     const ts = new Date(iso || '').getTime();
@@ -100,45 +100,45 @@
     const out = [];
     const push = (severity, title, detail = '', href = '') => out.push({ severity, title, detail, href });
 
-    if ($backendReady && !$backendOnline) push('critical', text('\u042f\u0434\u0440\u043e RouterForge \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e','RouterForge Core is unavailable'));
-    if ($catalogReady && !$catalogOnline) push('warning', text('\u0426\u0435\u043d\u0442\u0440 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0439 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d','App Center is unavailable'));
+    if ($backendReady && !$backendOnline) push('critical', t(locale, 'home.issueCoreUnavailable'));
+    if ($catalogReady && !$catalogOnline) push('warning', t(locale, 'home.issueAppCenterUnavailable'));
 
     if ($catalog.registry && !$catalog.registry.online) push('warning',
-      text('Registry \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0438\u0437 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0430','Registry is using a local source'),
+      t(locale, 'home.issueRegistryLocal'),
       String($catalog.registry.source || 'bundled').toUpperCase(), '/apps');
 
     const release = $catalog.release || {};
     if (release.supported === false) {
-      push('critical', text('\u041a\u0430\u043d\u0430\u043b RouterForge \u043d\u0435 \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u044d\u0442\u043e\u0442 target','RouterForge channel does not support this target'),
+      push('critical', t(locale, 'home.issueUnsupportedTarget'),
         release.error || [release.channel, release.target].filter(Boolean).join(' / '), '/apps');
     } else if (release.error) {
-      push('warning', text('\u041e\u0448\u0438\u0431\u043a\u0430 release channel','Release channel error'), release.error, '/apps');
+      push('warning', t(locale, 'home.issueReleaseChannelError'), release.error, '/apps');
     }
 
     for (const item of [...modules, ...installedIntegrations]) {
       if (!item.installed || item.builtin) continue;
       if (catalogItemServiceNeedsAttention(item)) {
-        push('warning', `${item.name}: ${text('\u0441\u043b\u0443\u0436\u0431\u0430 \u043d\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442','service is not running')}`, '', '/apps?tab=installed');
+        push('warning', `${item.name}: ${t(locale, 'home.issueServiceStopped')}`, '', '/apps?tab=installed');
       }
       const trust = String(item.trust?.status || '').toLowerCase();
       if (['changed','blocked','deprecated'].includes(trust)) push(trust === 'blocked' ? 'critical' : 'warning',
-        `${item.name}: ${text('manifest \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u0432\u043d\u0438\u043c\u0430\u043d\u0438\u044f','manifest requires attention')}`, trust.toUpperCase(), '/apps?tab=installed');
+        `${item.name}: ${t(locale, 'home.issueManifestAttention')}`, trust.toUpperCase(), '/apps?tab=installed');
     }
 
     if (cpuTemp >= cpuTempWarning) push(cpuTemp >= 90 ? 'critical' : 'warning',
-      text('\u041f\u043e\u0432\u044b\u0448\u0435\u043d\u043d\u0430\u044f \u0442\u0435\u043c\u043f\u0435\u0440\u0430\u0442\u0443\u0440\u0430 CPU','High CPU temperature'), `${cpuTemp.toFixed(0)}\u00b0C`, '/monitoring?tab=thermal');
+      t(locale, 'home.issueCpuTemperature'), `${cpuTemp.toFixed(0)}\u00b0C`, '/monitoring?tab=thermal');
     if (ramPct >= 90) push(ramPct >= 96 ? 'critical' : 'warning',
-      text('\u0412\u044b\u0441\u043e\u043a\u043e\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0435 RAM','High RAM usage'), `${ramPct.toFixed(0)}%`, '/monitoring?tab=system');
+      t(locale, 'home.issueRamUsage'), `${ramPct.toFixed(0)}%`, '/monitoring?tab=system');
     if (Number(opt.used_pct || 0) >= 85) push(Number(opt.used_pct) >= 95 ? 'critical' : 'warning',
-      text('\u0417\u0430\u043a\u0430\u043d\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u043c\u0435\u0441\u0442\u043e \u0432 /opt','/opt is running low on space'),
+      t(locale, 'home.issueOptSpace'),
       `${Number(opt.used_pct).toFixed(0)}% \u00b7 ${bytes(opt.used_bytes)} / ${bytes(opt.total_bytes)}`, '/monitoring?tab=storage');
     if (telem.cpuSustainedHigh?.active) push('warning',
-      text('CPU \u0434\u0435\u0440\u0436\u0438\u0442\u0441\u044f \u0432\u044b\u0448\u0435 90%','CPU has stayed above 90%'),
+      t(locale, 'home.issueCpuSustained'),
       `${Number(telem.cpuSustainedHigh.usage_pct || cpuPct).toFixed(0)}% \u00b7 >=30s`, '/monitoring?tab=system');
 
-    if ($snapshot.capture_error) push('warning', text('\u041e\u0448\u0438\u0431\u043a\u0430 \u043d\u0430\u0431\u043b\u044e\u0434\u0435\u043d\u0438\u044f DNS-\u0442\u0440\u0430\u0444\u0438\u043a\u0430','DNS traffic observation error'), $snapshot.capture_error, '/dns?view=diagnostics');
-    if ($snapshot.discovery_error) push('warning', text('\u041e\u0448\u0438\u0431\u043a\u0430 \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d\u0438\u044f DNS','DNS discovery error'), $snapshot.discovery_error, '/dns?view=diagnostics');
-    if ($snapshot.client_capture_error) push('warning', text('\u041e\u0448\u0438\u0431\u043a\u0430 DNS capture \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432','DNS client capture error'), $snapshot.client_capture_error, '/dns?view=diagnostics');
+    if ($snapshot.capture_error) push('warning', t(locale, 'home.issueDnsTrafficError'), $snapshot.capture_error, '/dns?view=diagnostics');
+    if ($snapshot.discovery_error) push('warning', t(locale, 'home.issueDnsDiscoveryError'), $snapshot.discovery_error, '/dns?view=diagnostics');
+    if ($snapshot.client_capture_error) push('warning', t(locale, 'home.issueDnsClientCaptureError'), $snapshot.client_capture_error, '/dns?view=diagnostics');
 
     for (const upstream of $snapshot.upstreams || []) {
       const active = Boolean(upstream.active) || recent(upstream.last_request, 5);
@@ -147,21 +147,21 @@
       const health = String(upstream.health_status || '').toUpperCase();
       const window5 = upstream.stats_5m || {};
       const quality = String(window5.quality_status || '').toUpperCase();
-      const name = upstream.name || upstream.sni || upstream.target || text('DNS upstream','DNS upstream');
+      const name = upstream.name || upstream.sni || upstream.target || t(locale, 'home.dnsUpstream');
       const path = [
         upstream.protocol,
         upstream.profile,
         upstream.policy_description,
         upstream.health_cause,
-        Number(window5.timeout_pct || 0) > 0 ? `timeout ${Number(window5.timeout_pct).toFixed(1)}%` : '',
-        Number(window5.fallback_pct || 0) > 0 ? `fallback ${Number(window5.fallback_pct).toFixed(1)}%` : '',
-        Number(window5.p95_latency_ms || 0) > 0 ? `p95 ${Number(window5.p95_latency_ms).toFixed(0)} ms` : ''
+        Number(window5.timeout_pct || 0) > 0 ? t(locale, 'home.dnsTimeoutPct', { value: Number(window5.timeout_pct).toFixed(1) }) : '',
+        Number(window5.fallback_pct || 0) > 0 ? t(locale, 'home.dnsFallbackPct', { value: Number(window5.fallback_pct).toFixed(1) }) : '',
+        Number(window5.p95_latency_ms || 0) > 0 ? t(locale, 'home.dnsP95Ms', { value: Number(window5.p95_latency_ms).toFixed(0) }) : ''
       ].filter(Boolean).join(' \u00b7 ');
 
       if (health === 'DOWN' || health === 'DEGRADED') {
-        push(health === 'DOWN' ? 'critical' : 'warning', `${name}: ${health}`, path, '/dns?view=overview');
+        push(health === 'DOWN' ? 'critical' : 'warning', `${name}: ${health === 'DOWN' ? t(locale, 'home.issueDnsDown') : t(locale, 'home.issueDnsDegraded')}`, path, '/dns?view=overview');
       } else if (quality === 'BAD' || quality === 'WARN') {
-        push('warning', `${name}: DNS ${quality}`, path, '/dns?view=quality');
+        push('warning', `${name}: ${quality === 'BAD' ? t(locale, 'home.issueDnsQualityBad') : t(locale, 'home.issueDnsQualityWarn')}`, path, '/dns?view=quality');
       }
     }
 
@@ -174,20 +174,20 @@
       const failurePct = requests > 0 ? failures / requests * 100 : 0;
       const responsePct = requests > 0 ? responses / requests * 100 : 100;
       const meta = resolver.meta || {};
-      const name = meta.name || meta.address || resolver.key || text('DNS resolver','DNS resolver');
+      const name = meta.name || meta.address || resolver.key || t(locale, 'home.dnsResolver');
       const context = [
         meta.source,
         ...(meta.profiles || []),
         meta.interface,
-        failures ? `${failures}/${requests} failures (${failurePct.toFixed(0)}%)` : '',
-        `${responsePct.toFixed(0)}% responses`
+        failures ? t(locale, 'home.dnsFailures', { failures, requests, percent: failurePct.toFixed(0) }) : '',
+        t(locale, 'home.dnsResponses', { percent: responsePct.toFixed(0) })
       ].filter(Boolean).join(' \u00b7 ');
 
       if (requests > 0 && responses === 0 && timeouts > 0) {
-        push('critical', `${name}: ${text('DNS \u043d\u0435 \u043e\u0442\u0432\u0435\u0447\u0430\u0435\u0442','DNS is not responding')}`,
+        push('critical', `${name}: ${t(locale, 'home.issueDnsNoResponse')}`,
           context, '/dns?view=overview');
       } else if ((failures >= 3 && failurePct >= 5) || (requests >= 5 && responsePct < 80)) {
-        push('warning', `${name}: ${text('\u043f\u0440\u043e\u0431\u043b\u0435\u043c\u044b DNS','DNS problems')}`, context, '/dns?view=overview');
+        push('warning', `${name}: ${t(locale, 'home.issueDnsProblems')}`, context, '/dns?view=overview');
       }
     }
 
@@ -197,8 +197,8 @@
         route.destination === '0.0.0.0' && (!route.mask || route.mask === '0.0.0.0')
       );
       if (!hasDefault) push('critical',
-        text('\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 default route','Default route is missing'),
-        text('Network provider \u043d\u0435 \u0432\u0438\u0434\u0438\u0442 IPv4 \u043c\u0430\u0440\u0448\u0440\u0443\u0442 0.0.0.0/0','Network provider does not see an IPv4 0.0.0.0/0 route'),
+        t(locale, 'home.issueDefaultRouteMissing'),
+        t(locale, 'home.issueDefaultRouteDetail'),
         '/monitoring?tab=network');
     }
 
@@ -206,11 +206,11 @@
       job.state === 'failed' && recent(job.completed_at || job.started_at, 15)
     );
     if (recentFailedAction) push('warning',
-      text('\u041d\u0435\u0434\u0430\u0432\u043d\u0435\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0426\u0435\u043d\u0442\u0440\u0430 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0439 \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043b\u043e\u0441\u044c \u043e\u0448\u0438\u0431\u043a\u043e\u0439','A recent App Center action failed'),
-      `${recentFailedAction.target || ''} \u00b7 ${recentFailedAction.action || ''} \u00b7 ${recentFailedAction.error || 'failed'}`, '/apps');
+      t(locale, 'home.issueAppActionFailed'),
+      `${recentFailedAction.target || ''} \u00b7 ${recentFailedAction.action || ''} \u00b7 ${recentFailedAction.error || t(locale, 'home.actionFailed')}`, '/apps');
 
     if (updates.length) push('info',
-      text(`\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u043e \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0439: ${updates.length}`, `Updates available: ${updates.length}`),
+      t(locale, 'home.updatesAvailable', {count: updates.length}),
       updates.slice(0,4).map((item) => `${item.name} ${item.version || ''} \u2192 ${item.release?.version || item.available_version || ''}`.trim()).join(' \u00b7 '),
       '/apps?tab=updates');
 
@@ -244,19 +244,10 @@
     const decision = catalogWebSecurityDecision(item, $authState);
     if (!decision.embedAllowed) {
       webNotice = decision.reason === 'session-cookie-cross-port'
-        ? text(
-            '\u0412\u0441\u0442\u0440\u043e\u0435\u043d\u043d\u044b\u0439 Web UI \u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u043d: cookie \u0441\u0435\u0441\u0441\u0438\u0438 RouterForge \u043d\u0435 \u0438\u0437\u043e\u043b\u0438\u0440\u0443\u044e\u0442\u0441\u044f \u043f\u043e TCP-\u043f\u043e\u0440\u0442\u0443.',
-            'Embedded Web UI is blocked because RouterForge session cookies are not isolated by TCP port.'
-          )
+        ? t(locale, 'integrationsUi.embedCookie')
         : decision.reason === 'mixed-content'
-          ? text(
-              'HTTPS RouterForge \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0432\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u0442\u044c HTTP Web UI.',
-              'HTTPS RouterForge cannot embed an HTTP Web UI.'
-            )
-          : text(
-              '\u0412\u0441\u0442\u0440\u043e\u0435\u043d\u043d\u044b\u0439 Web UI \u0441\u0435\u0439\u0447\u0430\u0441 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d.',
-              'Embedded Web UI is not available right now.'
-            );
+          ? t(locale, 'integrationsUi.embedMixedContent')
+          : t(locale, 'integrationsUi.embedUnavailable');
       return;
     }
 
@@ -276,33 +267,24 @@
         && probe?.frame_header_policy === 'blocked';
 
       if (frameBlocked) {
-        webNotice = text(
-          'Web UI \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d, \u043d\u043e \u0441\u0430\u043c\u043e \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0437\u0430\u043f\u0440\u0435\u0449\u0430\u0435\u0442 \u0432\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u043d\u0438\u0435 \u0447\u0435\u0440\u0435\u0437 X-Frame-Options/CSP.',
-          'Web UI was detected, but the application itself blocks embedding through X-Frame-Options/CSP.'
-        );
+        webNotice = t(locale, 'integrationsUi.embedPolicyBlocked');
         return;
       }
 
       if (!safe) {
-        webNotice = text(
-          '\u0412\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u043d\u0438\u0435 \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u043e: runtime web-probe \u043d\u0435 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043b \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 iframe.',
-          'Embed cancelled because the runtime web probe did not confirm a safe iframe.'
-        );
+        webNotice = t(locale, 'integrationsUi.embedProbeUnsafe');
         return;
       }
 
       const resolvedURL = catalogWebResolvedURL(item, probe, $authState);
       if (!resolvedURL) {
-        webNotice = text(
-          '\u041d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 Web UI listener, \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0439 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0443.',
-          'No safe browser-reachable Web UI listener was resolved.'
-        );
+        webNotice = t(locale, 'integrationsUi.embedNoListener');
         return;
       }
 
       webWorkspace = { item, url:resolvedURL, probe };
     } catch (error) {
-      webNotice = error?.payload?.error || error?.message || 'web probe failed';
+      webNotice = error?.payload?.error || error?.message || t(locale, 'integrationsUi.probeFailed');
     } finally {
       webProbeBusyId = '';
     }
@@ -310,10 +292,10 @@
 
   function stateText(item) {
     if (item.update_available) return `↑ ${item.release?.version || item.available_version || ''}`;
-    if (item.id === 'routerforge-core') return 'ONLINE';
-    if (item.id === 'dns') return text('ВКЛЮЧЕН','ENABLED');
-    if (item.service_running) return text('В СЕТИ','ONLINE');
-    return text('УСТАНОВЛЕН','INSTALLED');
+    if (item.id === 'routerforge-core') return t(locale, 'home.badgeCoreOnline');
+    if (item.id === 'dns') return t(locale, 'home.installedEnabled');
+    if (item.service_running) return t(locale, 'home.installedOnline');
+    return t(locale, 'home.installedInstalled');
   }
   function stateClass(item) {
     if (item.update_available) return 'warn';
@@ -327,25 +309,24 @@
 <div class="page routerforge-home routerforge-home-v2">
   <div class="page-head routerforge-home-head">
     <div>
-      <span class="routerforge-eyebrow mono">ROUTERFORGE / {String($catalog.release?.channel || 'beta').toUpperCase()}</span>
       <h1>{telem.platform?.hostname || 'RouterForge'}</h1>
-      <p>{telem.platform?.model || 'Keenetic'} &middot; Core v{$snapshot.version || '\u2014'} &middot; {text('\u0410\u043f\u0442\u0430\u0439\u043c','Uptime')} {telem.platform?.uptime_seconds ? fmtDuration(telem.platform.uptime_seconds, locale) : '\u2014'}</p>
+      <p>{telem.platform?.model || 'Keenetic'} &middot; Core v{$snapshot.version || '\u2014'} &middot; {t(locale, 'home.uptime')} {telem.platform?.uptime_seconds ? fmtDuration(telem.platform.uptime_seconds, locale) : '\u2014'}</p>
     </div>
-    <span class="state-chip {!$backendReady ? 'neutral' : $backendOnline ? 'good' : 'error'}">CORE {!$backendReady ? 'LOADING' : $backendOnline ? 'ONLINE' : 'OFFLINE'}</span>
+    <span class="state-chip {!$backendReady ? 'neutral' : $backendOnline ? 'good' : 'error'}">CORE {!$backendReady ? t(locale, 'home.coreLoading') : $backendOnline ? t(locale, 'home.badgeCoreOnline') : t(locale, 'home.coreOffline')}</span>
   </div>
 
   <div class="routerforge-quick-telemetry mono">
     <span>CPU <strong>{telem.cpu ? `${cpuPct.toFixed(0)}%` : '—'}</strong></span>
     <span>RAM <strong>{memory ? `${ramPct.toFixed(0)}%` : '—'}</strong></span>
     <span>/opt <strong>{opt.total_bytes ? `${bytes(opt.used_bytes)} / ${bytes(opt.total_bytes)}` : '—'}</strong></span>
-    <span>CPU Temp <strong class:warn={cpuTemp > 75} class:bad={cpuTemp >= 90}>{cpuTemp ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></span>
+    <span>{t(locale, 'home.cpuTempLabel')} <strong class:warn={cpuTemp > 75} class:bad={cpuTemp >= 90}>{cpuTemp ? `${cpuTemp.toFixed(0)}°C` : '—'}</strong></span>
   </div>
 
   <section class="panel routerforge-attention routerforge-attention-v2">
     <div class="panel-head">
-      <div><strong>{text('Состояние','Status')}</strong><span>{text('Всё, что требует внимания прямо сейчас','Everything that needs attention right now')}</span></div>
+      <div><strong>{t(locale, 'home.state')}</strong><span>{t(locale, 'home.stateSubtitle')}</span></div>
       <span class="state-chip {actionableIssues.some((x)=>x.severity==='critical') ? 'error' : actionableIssues.length ? 'warn' : 'good'}">
-        {actionableIssues.length ? text(`${actionableIssues.length} ТРЕБУЕТ ВНИМАНИЯ`, `${actionableIssues.length} ATTENTION`) : text('ВСЁ ХОРОШО','ALL GOOD')}
+        {actionableIssues.length ? t(locale, 'home.attention', {count: actionableIssues.length}) : t(locale, 'home.allGood')}
       </span>
     </div>
     {#if issues.length}
@@ -359,14 +340,14 @@
         {/each}
       </div>
     {:else}
-      <div class="routerforge-all-good"><span class="status-dot good"></span><strong>{text('Требующих внимания событий нет','Nothing needs attention')}</strong><span>{text('Устройство и доступные providers работают штатно.','Device and available providers are operating normally.')}</span></div>
+      <div class="routerforge-all-good"><span class="status-dot good"></span><strong>{t(locale, 'home.nothingToDo')}</strong><span>{t(locale, 'home.allGoodDeviceHint')}</span></div>
     {/if}
   </section>
 
   <section class="routerforge-installed-v2">
     <div class="catalog-section-head">
-      <div><h2>{text('Установлено на роутере','Installed on router')}</h2><p>{text('RouterForge и обнаруженные интеграции. Entware-библиотеки остаются в Центре приложений.','RouterForge and detected integrations. Entware libraries stay in App Center.')}</p></div>
-      <a class="button" href="/apps">{text('Центр приложений','App Center')}</a>
+      <div><h2>{t(locale, 'home.installedOnRouter')}</h2><p>{t(locale, 'home.installedOnRouterHint')}</p></div>
+      <a class="button" href="/apps">{t(locale, 'home.appCenter')}</a>
     </div>
 
     <div class="routerforge-installed-groups">
@@ -383,10 +364,10 @@
       </section>
 
       <section class="panel">
-        <div class="panel-head"><div><strong>{text('Интеграции','Integrations')}</strong><span>{installedIntegrations.length}</span></div></div>
+        <div class="panel-head"><div><strong>{t(locale, 'home.integrations')}</strong><span>{installedIntegrations.length}</span></div></div>
         {#if webNotice}<div class="catalog-action-reason">{webNotice}</div>{/if}
         <div class="routerforge-installed-list">
-          {#if !installedIntegrations.length}<div class="catalog-empty">{text('Установленные интеграции не обнаружены.','No installed integrations detected.')}</div>{/if}
+          {#if !installedIntegrations.length}<div class="catalog-empty">{t(locale, 'home.noIntegrations')}</div>{/if}
           {#each installedIntegrations as item (item.id)}
             <a
               href={hrefFor(item)}

@@ -1244,7 +1244,7 @@
         <div class="maintenance-section-head">
           <div>
             <strong>NFQWS Intelligence Jobs</strong>
-            <span>{locale === 'ru' ? 'U11 scheduler · bounded retry · single-flight kind+target · last-known-good · без скрытого production mutation' : 'U11 scheduler · bounded retry · single-flight kind+target · last-known-good · no hidden production mutation'}</span>
+            <span>{t(locale, 'manage.nfqwsLabels.schedulerHint')}</span>
           </div>
           <span class="state-chip info">{nfqwsJobs.filter((item) => item.enabled).length}/{nfqwsJobs.length}</span>
         </div>
@@ -1269,7 +1269,7 @@
             <option value={1440}>24 h</option>
           </select>
           <button class="button primary" onclick={saveNFQWSJob} disabled={!!nfqwsJobBusy || !nfqwsJobID.trim() || (nfqwsJobNeedsTarget(nfqwsJobKind) && !nfqwsJobTarget.trim())}>
-            {locale === 'ru' ? 'Сохранить + включить' : 'Save + enable'}
+            {t(locale, 'manage.nfqwsLabels.saveEnable')}
           </button>
         </div>
         <div class="cell-sub mono">
@@ -1278,7 +1278,7 @@
           {/each}
         </div>
         {#if nfqwsJobs.length === 0}
-          <div class="maintenance-empty">{locale === 'ru' ? 'NFQWS jobs ещё не настроены.' : 'No NFQWS jobs configured.'}</div>
+          <div class="maintenance-empty">{t(locale, 'manage.nfqwsLabels.jobsEmpty')}</div>
         {:else}
           <div class="maintenance-list">
             {#each nfqwsJobs as job}
@@ -1298,7 +1298,7 @@
                 </div>
                 <div class="maintenance-row-actions">
                   <span class="state-chip {job.running ? 'info' : job.last_ok ? 'good' : 'neutral'}">{job.running ? 'RUN' : (job.enabled ? 'ON' : 'OFF')}</span>
-                  <button class="button" onclick={() => runNFQWSJobNow(job)} disabled={!!nfqwsJobBusy || job.running}>{locale === 'ru' ? 'Сейчас' : 'Run now'}</button>
+                  <button class="button" onclick={() => runNFQWSJobNow(job)} disabled={!!nfqwsJobBusy || job.running}>{t(locale, 'manage.nfqwsLabels.runNow')}</button>
                   <button class="button" onclick={() => toggleNFQWSJob(job)} disabled={!!nfqwsJobBusy}>{job.enabled ? copy.disable : copy.enable}</button>
                 </div>
               </div>
@@ -1404,7 +1404,7 @@
           <div class="nfqws2-head">
             <div>
               <strong>NFQWS2 Manager</strong>
-              <span>{locale === 'ru' ? 'Управление уже установленным nfqws2-keenetic. RouterForge ничего не устанавливает и не обновляет.' : 'Manage an existing nfqws2-keenetic installation. RouterForge does not install or update it.'}</span>
+              <span>{t(locale, 'manage.nfqwsLabels.managerHint')}</span>
             </div>
             <div class="nfqws2-actions">
               <span class:state-running={nfqws2.running} class:state-stopped={!nfqws2.running}>{nfqws2.detected ? (nfqws2.running ? copy.running : copy.stopped) : copy.notDetected}</span>
@@ -1422,7 +1422,7 @@
                     <span class="cell-sub mono">{nfqws2.config_path} · {nfqws2.config_size || 0} B · SHA256 {nfqws2.config_sha256 || '—'}</span>
                   </div>
                   <button class="button primary" onclick={saveNFQWS2} disabled={nfqws2Busy || !nfqws2.mutation_ready || nfqws2Config === nfqws2Original}>
-                    {locale === 'ru' ? 'Сохранить + reload' : 'Save + reload'}
+                    {t(locale, 'manage.nfqwsLabels.saveReload')}
                   </button>
                 </div>
                 <textarea class="nfqws2-editor mono" bind:value={nfqws2Config} disabled={nfqws2Busy || !nfqws2.mutation_ready}></textarea>
@@ -1431,7 +1431,7 @@
 
               <div class="nfqws2-side">
                 <div>
-                  <strong>{locale === 'ru' ? 'Списки' : 'Lists'}</strong>
+                  <strong>{t(locale, 'manage.nfqwsLabels.lists')}</strong>
                   <span class="cell-sub mono">{nfqws2.lists_root}</span>
                 </div>
                 <div class="nfqws2-list-stack">
@@ -1445,7 +1445,7 @@
                 </div>
 
                 <details class="nfqws2-log">
-                  <summary>{locale === 'ru' ? 'Последние строки лога' : 'Recent log tail'} · <span class="mono">{nfqws2.log_path}</span></summary>
+                  <summary>{t(locale, 'manage.nfqwsLabels.logTail')} · <span class="mono">{nfqws2.log_path}</span></summary>
                   <pre class="mono">{nfqws2.log_tail || '—'}</pre>
                 </details>
               </div>

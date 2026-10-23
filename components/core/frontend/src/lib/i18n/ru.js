@@ -512,6 +512,16 @@ export default {
     "close": "Закрыть"
   },
   "manage": {
+    "nfqwsLabels": {
+      "schedulerHint": "U11 scheduler · bounded retry · single-flight kind+target · last-known-good · без скрытого production mutation",
+      "saveEnable": "Сохранить + включить",
+      "jobsEmpty": "NFQWS jobs ещё не настроены.",
+      "runNow": "Сейчас",
+      "managerHint": "Управление уже установленным nfqws2-keenetic. RouterForge ничего не устанавливает и не обновляет.",
+      "saveReload": "Сохранить + reload",
+      "lists": "Списки",
+      "logTail": "Последние строки лога"
+    },
     "supportPanel": {
       "supportTitle": "Поддержка и восстановление",
       "supportDescription": "Состояние хранилищ, резервные копии и безопасный диагностический пакет без конфигов и секретов.",

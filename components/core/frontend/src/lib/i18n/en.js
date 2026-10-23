@@ -512,6 +512,16 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "nfqwsLabels": {
+      "schedulerHint": "U11 scheduler · bounded retry · single-flight kind+target · last-known-good · no hidden production mutation",
+      "saveEnable": "Save + enable",
+      "jobsEmpty": "No NFQWS jobs configured.",
+      "runNow": "Run now",
+      "managerHint": "Manage an existing nfqws2-keenetic installation. RouterForge does not install or update it.",
+      "saveReload": "Save + reload",
+      "lists": "Lists",
+      "logTail": "Recent log tail"
+    },
     "supportPanel": {
       "supportTitle": "Support \u0026 recovery",
       "supportDescription": "Storage health, recovery assets and a safe diagnostic bundle without configs or secrets.",

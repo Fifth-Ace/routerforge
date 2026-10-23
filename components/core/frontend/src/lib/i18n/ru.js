@@ -913,6 +913,17 @@ export default {
   },
   "monitoring": {
     "events": {
+      "alerts": {
+        "storage": "Заканчивается свободное место: {target}.",
+        "thermal": "Высокая температура: {target}{temperature}.",
+        "network": "Сетевой интерфейс недоступен: {target}.",
+        "watchdog": "Автовосстановление не смогло поднять {target}.",
+        "default": "Модуль не отвечает на проверку состояния.",
+        "storageFallback": "накопитель",
+        "thermalFallback": "датчик",
+        "networkFallback": "интерфейс",
+        "watchdogFallback": "службу"
+      },
       "title": "События",
       "subtitle": "Что происходило с системой: проблемы, восстановления и действия.",
       "refresh": "Обновить",

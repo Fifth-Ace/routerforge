@@ -913,6 +913,17 @@ export default {
   },
   "monitoring": {
     "events": {
+      "alerts": {
+        "storage": "Low free space: {target}.",
+        "thermal": "High temperature: {target}{temperature}.",
+        "network": "Network interface unavailable: {target}.",
+        "watchdog": "Auto recovery could not start {target}.",
+        "default": "The module is not responding to health checks.",
+        "storageFallback": "storage",
+        "thermalFallback": "sensor",
+        "networkFallback": "interface",
+        "watchdogFallback": "service"
+      },
       "title": "Events",
       "subtitle": "What happened in the system: problems, recoveries and actions.",
       "refresh": "Refresh",

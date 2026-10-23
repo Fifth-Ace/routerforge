@@ -76,33 +76,21 @@
 
 
   function humanAlert(alert) {
-
     const component = String(alert?.component || '');
-
-    if (locale === 'ru') {
-
-      if (component === 'storage') return `Заканчивается свободное место: ${alert?.context?.mount || alert?.id || 'накопитель'}.`;
-
-      if (component === 'thermal') return `Высокая температура: ${alert?.context?.sensor || alert?.id || 'датчик'}${alert?.context?.temp_c != null ? ` · ${Number(alert.context.temp_c).toFixed(1)} °C` : ''}.`;
-
-      if (component === 'network') return `Сетевой интерфейс недоступен: ${alert?.context?.interface || alert?.id || 'интерфейс'}.`;
-
-      if (component === 'watchdog') return `Автовосстановление не смогло поднять ${alert?.context?.name || alert?.id || 'службу'}.`;
-
-      return 'Модуль не отвечает на проверку состояния.';
-
-    }
-
-    if (component === 'storage') return `Low free space: ${alert?.context?.mount || alert?.id || 'storage'}.`;
-
-    if (component === 'thermal') return `High temperature: ${alert?.context?.sensor || alert?.id || 'sensor'}${alert?.context?.temp_c != null ? ` · ${Number(alert.context.temp_c).toFixed(1)} °C` : ''}.`;
-
-    if (component === 'network') return `Network interface unavailable: ${alert?.context?.interface || alert?.id || 'interface'}.`;
-
-    if (component === 'watchdog') return `Auto recovery could not start ${alert?.context?.name || alert?.id || 'service'}.`;
-
-    return 'The module is not responding to health checks.';
-
+    if (component === 'storage') return t(locale, 'monitoring.events.alerts.storage', {
+      target: alert?.context?.mount || alert?.id || t(locale, 'monitoring.events.alerts.storageFallback')
+    });
+    if (component === 'thermal') return t(locale, 'monitoring.events.alerts.thermal', {
+      target: alert?.context?.sensor || alert?.id || t(locale, 'monitoring.events.alerts.thermalFallback'),
+      temperature: alert?.context?.temp_c != null ? ` · ${Number(alert.context.temp_c).toFixed(1)} °C` : ''
+    });
+    if (component === 'network') return t(locale, 'monitoring.events.alerts.network', {
+      target: alert?.context?.interface || alert?.id || t(locale, 'monitoring.events.alerts.networkFallback')
+    });
+    if (component === 'watchdog') return t(locale, 'monitoring.events.alerts.watchdog', {
+      target: alert?.context?.name || alert?.id || t(locale, 'monitoring.events.alerts.watchdogFallback')
+    });
+    return t(locale, 'monitoring.events.alerts.default');
   }
 
 

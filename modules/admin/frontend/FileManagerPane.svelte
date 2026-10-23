@@ -92,22 +92,23 @@
   }
 
   function volumeDisplayName(volume) {
-    if (!volume) return locale === 'ru' ? 'Накопитель' : 'Storage';
+    const storageName = t(locale, 'manage.fileManager.volumeNames.storage');
+    if (!volume) return storageName;
     const kind = String(volume.kind || '').toLowerCase();
     const device = volumeDeviceName(volume);
     const deviceLower = device.toLowerCase();
 
     if (kind === 'entware') return 'Entware';
-    if (kind === 'temporary') return locale === 'ru' ? 'Временные файлы' : 'Temporary';
-    if (kind === 'system') return locale === 'ru' ? 'Система' : 'System';
+    if (kind === 'temporary') return t(locale, 'manage.fileManager.volumeNames.temporary');
+    if (kind === 'system') return t(locale, 'manage.fileManager.volumeNames.system');
     if (kind === 'storage') {
-      if (deviceLower.startsWith('ubi')) return locale === 'ru' ? 'Внутренняя память' : 'Internal storage';
+      if (deviceLower.startsWith('ubi')) return t(locale, 'manage.fileManager.volumeNames.internal');
       if (/^sd[a-z][0-9]*$/.test(deviceLower)) return `USB · ${device}`;
       if (deviceLower.startsWith('mmcblk')) return `SD · ${device}`;
-      return device ? `${locale === 'ru' ? 'Накопитель' : 'Storage'} · ${device}` : (locale === 'ru' ? 'Накопитель' : 'Storage');
+      return device ? `${storageName} · ${device}` : storageName;
     }
 
-    return String(volume.label || device || volume.mount || (locale === 'ru' ? 'Накопитель' : 'Storage'));
+    return String(volume.label || device || volume.mount || storageName);
   }
 
   function volumeOptionLabel(volume) {

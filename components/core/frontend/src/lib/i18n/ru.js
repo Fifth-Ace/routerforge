@@ -513,6 +513,12 @@ export default {
   },
   "manage": {
     "fileManager": {
+      "volumeNames": {
+        "storage": "Накопитель",
+        "temporary": "Временные файлы",
+        "system": "Система",
+        "internal": "Внутренняя память"
+      },
       "commander": "Commander",
       "explorer": "Explorer",
       "refresh": "Обновить",

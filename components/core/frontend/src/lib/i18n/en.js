@@ -513,6 +513,12 @@ export default {
   },
   "manage": {
     "fileManager": {
+      "volumeNames": {
+        "storage": "Storage",
+        "temporary": "Temporary",
+        "system": "System",
+        "internal": "Internal storage"
+      },
       "commander": "Commander",
       "explorer": "Explorer",
       "refresh": "Refresh",

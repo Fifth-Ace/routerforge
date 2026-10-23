@@ -512,6 +512,16 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "fileEditor": {
+      "editor": "Editor",
+      "save": "Save",
+      "close": "Close",
+      "dirty": "MODIFIED",
+      "saved": "SYNCED",
+      "readOnly": "READ ONLY",
+      "discard": "Close editor and discard unsaved changes?",
+      "hint": "Ctrl+S — save · Tab — 2 spaces · Esc — close"
+    },
     "fileProperties": {
       "title": "Object properties",
       "type": "Type",

@@ -1,4 +1,5 @@
 <script>
+  import { t } from '$lib/i18n/index.js';
   export let file = null;
   export let content = '';
   export let dirty = false;
@@ -19,16 +20,8 @@
   $: filename = file?.path?.split('/').pop() || 'untitled';
   $: mode = editorMode(filename);
   $: highlighted = highlightSource(String(content ?? ''), mode) + (String(content ?? '').endsWith('\n') ? ' ' : '');
-  $: copy = locale === 'ru' ? {
-    editor: 'Редактор', save: 'Сохранить', close: 'Закрыть', dirty: 'ИЗМЕНЕНО',
-    saved: 'СИНХРОНИЗИРОВАНО', readOnly: 'ТОЛЬКО ЧТЕНИЕ',
-    discard: 'Закрыть редактор и потерять несохранённые изменения?',
-    hint: 'Ctrl+S — сохранить · Tab — 2 пробела · Esc — закрыть'
-  } : {
-    editor: 'Editor', save: 'Save', close: 'Close', dirty: 'MODIFIED', saved: 'SYNCED',
-    readOnly: 'READ ONLY', discard: 'Close editor and discard unsaved changes?',
-    hint: 'Ctrl+S — save · Tab — 2 spaces · Esc — close'
-  };
+  const fileEditorCopyKeys = ['editor', 'save', 'close', 'dirty', 'saved', 'readOnly', 'discard', 'hint'];
+  $: copy = Object.fromEntries(fileEditorCopyKeys.map((key) => [key, t(locale, `manage.fileEditor.${key}`)]));
 
   function editorMode(name) {
     const lower = name.toLowerCase();

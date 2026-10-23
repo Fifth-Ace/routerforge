@@ -1,7 +1,7 @@
 {
     "schema_version":  1,
     "channel":  "beta",
-    "release_version":  "0.13.0-beta.9",
+    "release_version":  "0.13.0-beta.10",
     "release_notes":  {
                           "use_canonical":  true
                       },
@@ -9,61 +9,61 @@
                        {
                            "id":  "routerforge-core",
                            "package":  "routerforge-core",
-                           "version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "dns",
                            "package":  "routerforge-dns",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "admin",
                            "package":  "routerforge-admin",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "monitoring",
                            "package":  "routerforge-monitoring",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "network-tools",
                            "package":  "routerforge-network-tools",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "nfqws-manager",
                            "package":  "routerforge-nfqws-manager",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "antiscan-manager",
                            "package":  "routerforge-antiscan-manager",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "port-access-manager",
                            "package":  "routerforge-port-access-manager",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "crowdsec-manager",
                            "package":  "routerforge-crowdsec-manager",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        },
                        {
                            "id":  "profiling",
                            "package":  "routerforge-profiling",
-                           "version":  "0.13.0~beta.9",
-                           "min_core_version":  "0.13.0~beta.9"
+                           "version":  "0.13.0~beta.10",
+                           "min_core_version":  "0.13.0~beta.10"
                        }
                    ]
 }

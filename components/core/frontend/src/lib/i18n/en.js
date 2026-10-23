@@ -512,6 +512,20 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "terminal": {
+      "title": "Entware Terminal",
+      "keeneticTitle": "Keenetic NDM Console",
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "reconnect": "Reconnect",
+      "clear": "Clear",
+      "entware": "Entware",
+      "keenetic": "Keenetic",
+      "keeneticHint": "Keenetic NDM Console will use a separate guarded backend.",
+      "connecting": "CONNECTING",
+      "connected": "CONNECTED",
+      "disconnected": "DISCONNECTED"
+    },
     "pageTitle": "Control",
     "subtitle": "Processes, listening sockets, Entware services, and installed packages. System telemetry is available under Monitoring.",
     "safety": "Diagnostics and inventory only. Dangerous actions remain locked until a dedicated permission layer is added.",

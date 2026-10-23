@@ -3,6 +3,7 @@
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import '@xterm/xterm/css/xterm.css';
+  import { t } from '$lib/i18n/index.js';
 
   export let locale = 'ru';
   export let autoCommand = '';
@@ -22,33 +23,8 @@
   let terminalMode = 'entware';
   let autoCommandSent = false;
 
-  $: copy = locale === 'ru' ? {
-    title: 'Entware Terminal',
-    keeneticTitle: 'Keenetic NDM Console',
-    connect: 'Подключить',
-    disconnect: 'Отключить',
-    reconnect: 'Переподключить',
-    clear: 'Очистить',
-    entware: 'Entware',
-    keenetic: 'Keenetic',
-    keeneticHint: 'Keenetic NDM Console подключим отдельным guarded backend.',
-    connecting: 'CONNECTING',
-    connected: 'CONNECTED',
-    disconnected: 'DISCONNECTED'
-  } : {
-    title: 'Entware Terminal',
-    keeneticTitle: 'Keenetic NDM Console',
-    connect: 'Connect',
-    disconnect: 'Disconnect',
-    reconnect: 'Reconnect',
-    clear: 'Clear',
-    entware: 'Entware',
-    keenetic: 'Keenetic',
-    keeneticHint: 'Keenetic NDM Console will use a separate guarded backend.',
-    connecting: 'CONNECTING',
-    connected: 'CONNECTED',
-    disconnected: 'DISCONNECTED'
-  };
+  const terminalCopyKeys = ['title', 'keeneticTitle', 'connect', 'disconnect', 'reconnect', 'clear', 'entware', 'keenetic', 'keeneticHint', 'connecting', 'connected', 'disconnected'];
+  $: copy = Object.fromEntries(terminalCopyKeys.map((key) => [key, t(locale, `manage.terminal.${key}`)]));
 
   function cssToken(name, fallback) {
     if (typeof document === 'undefined') return fallback;

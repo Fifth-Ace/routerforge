@@ -512,6 +512,20 @@ export default {
     "close": "Закрыть"
   },
   "manage": {
+    "terminal": {
+      "title": "Entware Terminal",
+      "keeneticTitle": "Keenetic NDM Console",
+      "connect": "Подключить",
+      "disconnect": "Отключить",
+      "reconnect": "Переподключить",
+      "clear": "Очистить",
+      "entware": "Entware",
+      "keenetic": "Keenetic",
+      "keeneticHint": "Keenetic NDM Console подключим отдельным guarded backend.",
+      "connecting": "CONNECTING",
+      "connected": "CONNECTED",
+      "disconnected": "DISCONNECTED"
+    },
     "pageTitle": "Управление",
     "subtitle": "Процессы, listening sockets, Entware services и установленные пакеты. Системная телеметрия вынесена в «Мониторинг».",
     "safety": "Диагностика и инвентаризация. Опасные действия пока заблокированы до отдельного permission layer.",

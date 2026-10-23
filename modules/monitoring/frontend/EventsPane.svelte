@@ -126,99 +126,75 @@
 
 
   function humanEvent(event) {
-
     const type = String(event?.type || '');
-
     const name = componentName(event?.component);
-
     const object = event?.object_id || name;
-
     const action = event?.context?.action || '';
+    const sensor = event?.context?.sensor || object;
+    const service = event?.context?.name || object;
+    const textOf = (key, vars = {}) => t(locale, `monitoring.events.historyMessages.${key}`, vars);
+    const result = (key, vars = {}) => ({
+      title: textOf(`${key}Title`, vars),
+      text: textOf(`${key}Text`, vars)
+    });
 
+    if (type === 'module.health.down') return result('healthDown', { name });
+    if (type === 'module.health.recovered') return result('healthRecovered', { name });
+    if (type === 'module.health.up') return result('healthUp', { name });
+    if (type === 'core.ready') return result('coreReady');
+    if (type === 'device.network.down' || type === 'device.network.missing') return result('networkDown', { object });
+    if (type === 'device.network.recovered') return result('networkRecovered', { object });
 
+    if (type === 'device.storage.warning' || type === 'device.storage.critical') return {
+      title: textOf('storageLowTitle', { object }),
+      text: event?.context?.used_pct != null
+        ? textOf('storageUsed', { percent: Number(event.context.used_pct).toFixed(1) })
+        : textOf('storageLowText')
+    };
+    if (type === 'device.storage.recovered') return {
+      title: textOf('storageRecoveredTitle', { object }),
+      text: event?.context?.used_pct != null
+        ? textOf('storageUsed', { percent: Number(event.context.used_pct).toFixed(1) })
+        : textOf('storageRecoveredText')
+    };
+    if (type === 'device.thermal.warning' || type === 'device.thermal.critical') return {
+      title: textOf('thermalHighTitle', { sensor }),
+      text: event?.context?.temp_c != null
+        ? textOf('thermalValue', { temperature: Number(event.context.temp_c).toFixed(1) })
+        : textOf('thermalHighText')
+    };
+    if (type === 'device.thermal.recovered') return {
+      title: textOf('thermalRecoveredTitle', { sensor }),
+      text: event?.context?.temp_c != null
+        ? textOf('thermalValue', { temperature: Number(event.context.temp_c).toFixed(1) })
+        : textOf('thermalRecoveredText')
+    };
 
-    if (locale === 'ru') {
+    if (type === 'device.watchdog.failed') return result('watchdogFailed', { service });
+    if (type === 'device.watchdog.recovered') return result('watchdogRecovered', { service });
+    if (type === 'service.action.committed') return {
+      title: textOf('serviceCommittedTitle', { object }),
+      text: action ? textOf('serviceCommittedAction', { action }) : textOf('serviceCommittedText')
+    };
+    if (type === 'service.action.failed') return {
+      title: textOf('serviceFailedTitle', { object }),
+      text: action ? textOf('serviceFailedAction', { action }) : textOf('serviceFailedText')
+    };
+    if (type === 'service.action.rejected') return result('serviceRejected', { object });
 
-      if (type === 'module.health.down') return { title: `${name} перестал отвечать`, text: 'RouterForge обнаружил проблему при проверке состояния модуля.' };
-
-      if (type === 'module.health.recovered') return { title: `${name} снова работает`, text: 'Модуль восстановил работу после недоступности.' };
-
-      if (type === 'module.health.up') return { title: `${name} доступен`, text: 'Проверка состояния прошла успешно.' };
-
-      if (type === 'core.ready') return { title: 'RouterForge запущен и готов', text: 'Основные службы готовы к работе.' };
-
-      if (type === 'device.network.down' || type === 'device.network.missing') return { title: `Сетевой интерфейс ${object} недоступен`, text: 'RouterForge зафиксировал изменение состояния интерфейса после того, как он уже работал.' };
-
-      if (type === 'device.network.recovered') return { title: `Сетевой интерфейс ${object} снова работает`, text: 'Связь на интерфейсе восстановлена.' };
-
-      if (type === 'device.storage.warning' || type === 'device.storage.critical') return { title: `Заканчивается место на ${object}`, text: event?.context?.used_pct != null ? `Использовано ${Number(event.context.used_pct).toFixed(1)}%.` : 'Свободного места осталось мало.' };
-
-      if (type === 'device.storage.recovered') return { title: `Свободное место на ${object} снова в норме`, text: event?.context?.used_pct != null ? `Использовано ${Number(event.context.used_pct).toFixed(1)}%.` : 'Состояние накопителя нормализовалось.' };
-
-      if (type === 'device.thermal.warning' || type === 'device.thermal.critical') return { title: `Высокая температура: ${event?.context?.sensor || object}`, text: event?.context?.temp_c != null ? `${Number(event.context.temp_c).toFixed(1)} °C.` : 'Температура превысила порог.' };
-
-      if (type === 'device.thermal.recovered') return { title: `Температура нормализовалась: ${event?.context?.sensor || object}`, text: event?.context?.temp_c != null ? `${Number(event.context.temp_c).toFixed(1)} °C.` : 'Температура вернулась в нормальный диапазон.' };
-
-      if (type === 'device.watchdog.failed') return { title: `Автовосстановление не смогло поднять ${event?.context?.name || object}`, text: 'Watchdog выполнил попытку восстановления, но служба не запустилась.' };
-
-      if (type === 'device.watchdog.recovered') return { title: `${event?.context?.name || object} восстановлен автоматически`, text: 'Watchdog успешно вернул службу в рабочее состояние.' };
-
-      if (type === 'service.action.committed') return { title: `Действие с сервисом ${object} выполнено`, text: action ? `Операция «${action}» завершена успешно.` : 'Операция завершена успешно.' };
-
-      if (type === 'service.action.failed') return { title: `Не удалось выполнить действие с сервисом ${object}`, text: action ? `Операция «${action}» завершилась ошибкой.` : 'Операция завершилась ошибкой.' };
-
-      if (type === 'service.action.rejected') return { title: `Действие с сервисом ${object} отклонено`, text: 'Защитная проверка не разрешила выполнить операцию.' };
-
-      if (type.startsWith('transaction.')) {
-
-        const state = type.slice('transaction.'.length);
-
-        const labels = { committed: 'завершена', failed: 'завершилась ошибкой', rolled_back: 'отменена', ambiguous: 'требует проверки' };
-
-        return { title: `Системная операция ${labels[state] || state}`, text: object ? `Объект: ${object}.` : 'Состояние системной операции изменилось.' };
-
-      }
-
-      return { title: event?.message || 'Системное событие', text: `${name} сообщил об изменении состояния.` };
-
+    if (type.startsWith('transaction.')) {
+      const state = type.slice('transaction.'.length);
+      const states = { committed:'txCommitted', failed:'txFailed', rolled_back:'txRolledBack', ambiguous:'txAmbiguous' };
+      const translatedState = states[state] ? textOf(states[state]) : state;
+      return {
+        title: textOf('transactionTitle', { state: translatedState }),
+        text: object ? textOf('transactionObject', { object }) : textOf('transactionText')
+      };
     }
-
-
-
-    if (type === 'module.health.down') return { title: `${name} stopped responding`, text: 'RouterForge detected a module health problem.' };
-
-    if (type === 'module.health.recovered') return { title: `${name} is working again`, text: 'The module recovered after being unavailable.' };
-
-    if (type === 'module.health.up') return { title: `${name} is available`, text: 'The health check completed successfully.' };
-
-    if (type === 'core.ready') return { title: 'RouterForge is ready', text: 'Core services are ready.' };
-
-    if (type === 'device.network.down' || type === 'device.network.missing') return { title: `Network interface ${object} is unavailable`, text: 'RouterForge observed a link-state change after the interface had been working.' };
-
-    if (type === 'device.network.recovered') return { title: `Network interface ${object} recovered`, text: 'The interface link is available again.' };
-
-    if (type === 'device.storage.warning' || type === 'device.storage.critical') return { title: `Low free space on ${object}`, text: event?.context?.used_pct != null ? `${Number(event.context.used_pct).toFixed(1)}% used.` : 'Storage free space is low.' };
-
-    if (type === 'device.storage.recovered') return { title: `Storage ${object} returned to normal`, text: event?.context?.used_pct != null ? `${Number(event.context.used_pct).toFixed(1)}% used.` : 'Storage pressure cleared.' };
-
-    if (type === 'device.thermal.warning' || type === 'device.thermal.critical') return { title: `High temperature: ${event?.context?.sensor || object}`, text: event?.context?.temp_c != null ? `${Number(event.context.temp_c).toFixed(1)} °C.` : 'Temperature exceeded the threshold.' };
-
-    if (type === 'device.thermal.recovered') return { title: `Temperature recovered: ${event?.context?.sensor || object}`, text: event?.context?.temp_c != null ? `${Number(event.context.temp_c).toFixed(1)} °C.` : 'Temperature returned to normal.' };
-
-    if (type === 'device.watchdog.failed') return { title: `Auto recovery failed for ${event?.context?.name || object}`, text: 'The watchdog attempted recovery but the service did not start.' };
-
-    if (type === 'device.watchdog.recovered') return { title: `${event?.context?.name || object} recovered automatically`, text: 'The watchdog restored the service.' };
-
-    if (type === 'service.action.committed') return { title: `Service action completed: ${object}`, text: action ? `Action “${action}” completed successfully.` : 'The action completed successfully.' };
-
-    if (type === 'service.action.failed') return { title: `Service action failed: ${object}`, text: action ? `Action “${action}” failed.` : 'The action failed.' };
-
-    if (type === 'service.action.rejected') return { title: `Service action rejected: ${object}`, text: 'A safety check prevented the action.' };
-
-    if (type.startsWith('transaction.')) return { title: `System operation: ${type.slice('transaction.'.length)}`, text: object ? `Object: ${object}.` : 'System operation state changed.' };
-
-    return { title: event?.message || 'System event', text: `${name} reported a state change.` };
-
+    return {
+      title: event?.message || textOf('defaultTitle'),
+      text: textOf('defaultText', { name })
+    };
   }
 
 

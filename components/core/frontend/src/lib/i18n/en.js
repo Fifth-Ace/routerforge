@@ -512,6 +512,15 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "maintenanceLabels": {
+      "systemCare": "SYSTEM CARE",
+      "working": "WORKING…",
+      "logNotDetected": "not detected",
+      "cronEntries": "cron entries",
+      "watchdogsConfigured": "detected/configured",
+      "configuredCron": "Configured cron entries",
+      "nfqwsJobsTitle": "NFQWS Intelligence Jobs"
+    },
     "nfqwsDetails": {
       "safetyBackups": "Safety backups: {count}; max 8. A failed reload automatically restores the previous config.",
       "previewTruncated": "preview truncated"

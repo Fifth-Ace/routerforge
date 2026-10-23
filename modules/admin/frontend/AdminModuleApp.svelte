@@ -1112,22 +1112,22 @@
     <section class="maintenance-shell">
       <div class="maintenance-commandbar">
         <div class="maintenance-command-copy">
-          <span class="maintenance-kicker mono">ROUTERFORGE / SYSTEM CARE</span>
+          <span class="maintenance-kicker mono">ROUTERFORGE / {t(locale, 'manage.maintenanceLabels.systemCare')}</span>
           <strong>{copy.maintenance}</strong>
           <span>{copy.restoreMode}</span>
         </div>
         <div class="maintenance-actions">
-          {#if maintenanceBusy}<span class="maintenance-busy mono">WORKING…</span>{/if}
+          {#if maintenanceBusy}<span class="maintenance-busy mono">{t(locale, 'manage.maintenanceLabels.working')}</span>{/if}
           <button class="button" onclick={loadMaintenance} disabled={maintenanceBusy}>↻ {t(locale, 'common.refresh')}</button>
           <button class="button primary" onclick={createBackup} disabled={maintenanceBusy}>{copy.backup}</button>
         </div>
       </div>
 
       <div class="maintenance-summary">
-        <div class="maintenance-stat"><span>{copy.logs}</span><strong>{maintenanceLogSource ? 'READY' : '—'}</strong><small class="mono" title={maintenanceLogSource}>{maintenanceLogSource || 'not detected'}</small></div>
-        <div class="maintenance-stat"><span>{copy.tasks}</span><strong>{maintenanceTasks.length}</strong><small>cron entries</small></div>
+        <div class="maintenance-stat"><span>{copy.logs}</span><strong>{maintenanceLogSource ? 'READY' : '—'}</strong><small class="mono" title={maintenanceLogSource}>{maintenanceLogSource || t(locale, 'manage.maintenanceLabels.logNotDetected')}</small></div>
+        <div class="maintenance-stat"><span>{copy.tasks}</span><strong>{maintenanceTasks.length}</strong><small>{t(locale, 'manage.maintenanceLabels.cronEntries')}</small></div>
         <div class="maintenance-stat"><span>{copy.backups}</span><strong>{maintenanceBackups.length}</strong><small>/tmp/routerforge-backups</small></div>
-        <div class="maintenance-stat"><span>{copy.watchdogs}</span><strong>{watchdogs.filter((item) => item.enabled).length}</strong><small>{watchdogs.length} detected/configured</small></div>
+        <div class="maintenance-stat"><span>{copy.watchdogs}</span><strong>{watchdogs.filter((item) => item.enabled).length}</strong><small>{watchdogs.length} {t(locale, 'manage.maintenanceLabels.watchdogsConfigured')}</small></div>
         <div class="maintenance-stat"><span>{copy.snapshots}</span><strong>{snapshots.length}</strong><small>/tmp · max 32</small></div>
       </div>
 
@@ -1228,7 +1228,7 @@
 
         <section class="maintenance-section maintenance-task-section">
           <div class="maintenance-section-head">
-            <div><strong>{copy.tasks}</strong><span>Configured cron entries</span></div>
+            <div><strong>{copy.tasks}</strong><span>{t(locale, 'manage.maintenanceLabels.configuredCron')}</span></div>
             <span class="state-chip info">{maintenanceTasks.length}</span>
           </div>
           <div class="maintenance-task-list mono">
@@ -1243,7 +1243,7 @@
       <section class="maintenance-section maintenance-wide-section">
         <div class="maintenance-section-head">
           <div>
-            <strong>NFQWS Intelligence Jobs</strong>
+            <strong>{t(locale, 'manage.maintenanceLabels.nfqwsJobsTitle')}</strong>
             <span>{t(locale, 'manage.nfqwsLabels.schedulerHint')}</span>
           </div>
           <span class="state-chip info">{nfqwsJobs.filter((item) => item.enabled).length}/{nfqwsJobs.length}</span>

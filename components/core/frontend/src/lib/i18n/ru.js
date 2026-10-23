@@ -512,6 +512,15 @@ export default {
     "close": "Закрыть"
   },
   "manage": {
+    "maintenanceLabels": {
+      "systemCare": "ОБСЛУЖИВАНИЕ СИСТЕМЫ",
+      "working": "ВЫПОЛНЯЕТСЯ…",
+      "logNotDetected": "не обнаружен",
+      "cronEntries": "записей cron",
+      "watchdogsConfigured": "обнаружено / настроено",
+      "configuredCron": "Настроенные задания cron",
+      "nfqwsJobsTitle": "Задания NFQWS Intelligence"
+    },
     "nfqwsDetails": {
       "safetyBackups": "Safety backups: {count}; максимум 8. При неудачном reload предыдущий конфиг восстанавливается автоматически.",
       "previewTruncated": "предпросмотр усечён"

@@ -512,6 +512,13 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "adminMessages": {
+      "supportCreated": "Support bundle created",
+      "saveNFQWSJob": "Save NFQWS job",
+      "runNFQWSJobNow": "Run now",
+      "saveNFQWS2Confirm": "Save nfqws2.conf, create a safety backup and reload?",
+      "nfqws2Applied": "nfqws2 config applied; backup"
+    },
     "adminStatic": {
       "files": "Files",
       "terminal": "Terminal",

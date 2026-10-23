@@ -513,7 +513,7 @@
       ]);
       supportStatus = status;
       supportBundles = bundles.bundles || [];
-      setAction(`${locale === 'ru' ? 'Диагностический пакет создан' : 'Support bundle created'}: ${result.bundle?.name || 'OK'}`);
+      setAction(`${t(locale, 'manage.adminMessages.supportCreated')}: ${result.bundle?.name || 'OK'}`);
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
@@ -561,7 +561,7 @@
     const target = nfqwsJobTarget.trim();
     const interval = Number(nfqwsJobInterval || 30);
     if (!id || (nfqwsJobNeedsTarget(kind) && !target) || nfqwsJobBusy) return;
-    if (!confirm(`${locale === 'ru' ? 'Сохранить NFQWS job' : 'Save NFQWS job'} ${id}: ${kind}${target ? ` / ${target}` : ''}, ${interval} min?`)) return;
+    if (!confirm(`${t(locale, 'manage.adminMessages.saveNFQWSJob')} ${id}: ${kind}${target ? ` / ${target}` : ''}, ${interval} min?`)) return;
     nfqwsJobBusy = id;
     errorText = '';
     try {
@@ -604,7 +604,7 @@
 
   async function runNFQWSJobNow(job) {
     if (nfqwsJobBusy) return;
-    if (!confirm(`${locale === 'ru' ? 'Запустить сейчас' : 'Run now'}: ${job.id} / ${job.target}?`)) return;
+    if (!confirm(`${t(locale, 'manage.adminMessages.runNFQWSJobNow')}: ${job.id} / ${job.target}?`)) return;
     nfqwsJobBusy = job.id;
     errorText = '';
     try {
@@ -738,14 +738,12 @@
 
   async function saveNFQWS2() {
     if (nfqws2Busy || nfqws2Config === nfqws2Original) return;
-    if (!confirm(locale === 'ru'
-      ? 'Сохранить nfqws2.conf, создать safety backup и выполнить reload?'
-      : 'Save nfqws2.conf, create a safety backup and reload?')) return;
+    if (!confirm(t(locale, 'manage.adminMessages.saveNFQWS2Confirm'))) return;
     nfqws2Busy = true;
     errorText = '';
     try {
       const result = await saveNFQWS2Config(nfqws2Config);
-      setAction(locale === 'ru' ? `nfqws2: конфигурация применена; backup ${result.backup}` : `nfqws2 config applied; backup ${result.backup}`);
+      setAction(`${t(locale, 'manage.adminMessages.nfqws2Applied')} ${result.backup}`);
       nfqws2 = result.status || nfqws2;
       nfqws2Config = nfqws2?.config || nfqws2Config;
       nfqws2Original = nfqws2Config;

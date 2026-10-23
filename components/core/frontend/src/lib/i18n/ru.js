@@ -512,6 +512,13 @@ export default {
     "close": "Закрыть"
   },
   "manage": {
+    "adminMessages": {
+      "supportCreated": "Диагностический пакет создан",
+      "saveNFQWSJob": "Сохранить NFQWS job",
+      "runNFQWSJobNow": "Запустить сейчас",
+      "saveNFQWS2Confirm": "Сохранить nfqws2.conf, создать safety backup и выполнить reload?",
+      "nfqws2Applied": "nfqws2: конфигурация применена; backup"
+    },
     "adminStatic": {
       "files": "Файлы",
       "terminal": "Терминал",

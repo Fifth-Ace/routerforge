@@ -512,6 +512,10 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "nfqwsDetails": {
+      "safetyBackups": "Safety backups: {count}; max 8. A failed reload automatically restores the previous config.",
+      "previewTruncated": "preview truncated"
+    },
     "nfqwsLabels": {
       "schedulerHint": "U11 scheduler · bounded retry · single-flight kind+target · last-known-good · no hidden production mutation",
       "saveEnable": "Save + enable",

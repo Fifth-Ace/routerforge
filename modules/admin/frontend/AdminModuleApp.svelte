@@ -1426,7 +1426,7 @@
                   </button>
                 </div>
                 <textarea class="nfqws2-editor mono" bind:value={nfqws2Config} disabled={nfqws2Busy || !nfqws2.mutation_ready}></textarea>
-                <span class="cell-sub">{locale === 'ru' ? `Safety backups: ${nfqws2.backup_count || 0}; максимум 8. При неудачном reload предыдущий конфиг восстанавливается автоматически.` : `Safety backups: ${nfqws2.backup_count || 0}; max 8. A failed reload automatically restores the previous config.`}</span>
+                <span class="cell-sub">{t(locale, 'manage.nfqwsDetails.safetyBackups', { count: nfqws2.backup_count || 0 })}</span>
               </div>
 
               <div class="nfqws2-side">
@@ -1437,7 +1437,7 @@
                 <div class="nfqws2-list-stack">
                   {#each nfqws2.lists || [] as item}
                     <details>
-                      <summary><span class="mono">{item.name}</span><span>{item.size} B{item.truncated ? ' · preview truncated' : ''}</span></summary>
+                      <summary><span class="mono">{item.name}</span><span>{item.size} B{item.truncated ? ` · ${t(locale, 'manage.nfqwsDetails.previewTruncated')}` : ''}</span></summary>
                       <pre class="mono">{item.preview || ''}</pre>
                     </details>
                   {/each}

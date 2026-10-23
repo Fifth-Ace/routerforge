@@ -512,6 +512,10 @@ export default {
     "close": "Закрыть"
   },
   "manage": {
+    "nfqwsDetails": {
+      "safetyBackups": "Safety backups: {count}; максимум 8. При неудачном reload предыдущий конфиг восстанавливается автоматически.",
+      "previewTruncated": "предпросмотр усечён"
+    },
     "nfqwsLabels": {
       "schedulerHint": "U11 scheduler · bounded retry · single-flight kind+target · last-known-good · без скрытого production mutation",
       "saveEnable": "Сохранить + включить",

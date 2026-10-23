@@ -5,6 +5,7 @@
     adminFileMkdir, adminFileMove, adminFileWrite, getAdminFiles, getAdminFileVolumes, readAdminFile
   } from '$lib/api.js';
   import { bytes } from '$lib/utils.js';
+  import { t } from '$lib/i18n/index.js';
   import FileEditorDrawer from './FileEditorDrawer.svelte';
   import FilePropertiesModal from './FilePropertiesModal.svelte';
 
@@ -68,27 +69,8 @@
     locale
   );
 
-  $: copy = locale === 'ru' ? {
-    commander: 'Commander', explorer: 'Explorer', refresh: 'Обновить',
-    folder: 'Папка', file: 'Файл', copy: 'Копировать', move: 'Переместить', rename: 'Переименовать',
-    remove: 'Удалить', chmod: 'Права', download: 'Скачать', actions: 'Действия', name: 'Имя',
-    size: 'Размер', modified: 'Изменён', mode: 'Права', search: 'Фильтр…', path: 'Путь',
-    noSelection: 'Сначала выбери объект в активной панели.', regularOnly: 'Копирование каталогов backend пока не поддерживает.',
-    destination: 'Путь назначения', viewFile: 'Просмотр', edit: 'Правка', save: 'Сохранить', close: 'Закрыть',
-    previous: 'Назад', next: 'Вперёд', up: 'Вверх', swap: 'Поменять панели', quick: 'Дерево папок',
-    selected: 'выбрано', items: 'объектов', empty: 'Папка пуста', open: 'Открыть',
-    volume: 'Диск / том', properties: 'Свойства', parentUp: 'На уровень выше'
-  } : {
-    commander: 'Commander', explorer: 'Explorer', refresh: 'Refresh',
-    folder: 'Folder', file: 'File', copy: 'Copy', move: 'Move', rename: 'Rename',
-    remove: 'Delete', chmod: 'Mode', download: 'Download', actions: 'Actions', name: 'Name',
-    size: 'Size', modified: 'Modified', mode: 'Mode', search: 'Filter…', path: 'Path',
-    noSelection: 'Select an item in the active panel first.', regularOnly: 'Directory copy is not supported by the backend yet.',
-    destination: 'Destination path', viewFile: 'View', edit: 'Edit', save: 'Save', close: 'Close',
-    previous: 'Back', next: 'Forward', up: 'Up', swap: 'Swap panels', quick: 'Folder tree',
-    selected: 'selected', items: 'items', empty: 'Folder is empty', open: 'Open',
-    volume: 'Disk / volume', properties: 'Properties', parentUp: 'Up one level'
-  };
+  const fileManagerCopyKeys = ['commander', 'explorer', 'refresh', 'folder', 'file', 'copy', 'move', 'rename', 'remove', 'chmod', 'download', 'actions', 'name', 'size', 'modified', 'mode', 'search', 'path', 'noSelection', 'regularOnly', 'destination', 'viewFile', 'edit', 'save', 'close', 'previous', 'next', 'up', 'swap', 'quick', 'selected', 'items', 'empty', 'open', 'volume', 'properties', 'parentUp'];
+  $: copy = Object.fromEntries(fileManagerCopyKeys.map((key) => [key, t(locale, `manage.fileManager.${key}`)]));
 
   function makePanel(path) {
     return { path, volumeRoot: rootForPath(path), pathInput: path, entries: [], selected: null, filter: '', sort: 'name', sortDir: 1, history: [path], historyIndex: 0 };

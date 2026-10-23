@@ -512,6 +512,33 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "fileProperties": {
+      "title": "Object properties",
+      "type": "Type",
+      "file": "File",
+      "directory": "Folder",
+      "other": "Object",
+      "size": "Size",
+      "modified": "Modified",
+      "path": "Path",
+      "permissions": "Permissions",
+      "owner": "Owner",
+      "group": "Group",
+      "others": "Others",
+      "read": "Read (r)",
+      "write": "Write (w)",
+      "execute": "Execute (x)",
+      "apply": "Apply permissions",
+      "presets": "Presets",
+      "hashes": "Checksums",
+      "calculate": "Calculate",
+      "download": "Download",
+      "edit": "Edit",
+      "close": "Close",
+      "readonly": "This volume is read-only",
+      "warningZero": "Warning: mode 0000 removes all access.",
+      "warningDir": "Without execute (x), entering this directory may become impossible."
+    },
     "terminal": {
       "title": "Entware Terminal",
       "keeneticTitle": "Keenetic NDM Console",

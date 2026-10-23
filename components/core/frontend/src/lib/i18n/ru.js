@@ -512,6 +512,33 @@ export default {
     "close": "Закрыть"
   },
   "manage": {
+    "fileProperties": {
+      "title": "Свойства объекта",
+      "type": "Тип",
+      "file": "Файл",
+      "directory": "Папка",
+      "other": "Объект",
+      "size": "Размер",
+      "modified": "Изменён",
+      "path": "Путь",
+      "permissions": "Права доступа",
+      "owner": "Владелец",
+      "group": "Группа",
+      "others": "Остальные",
+      "read": "Чтение (r)",
+      "write": "Запись (w)",
+      "execute": "Запуск (x)",
+      "apply": "Применить права",
+      "presets": "Готовые пресеты",
+      "hashes": "Контрольные суммы",
+      "calculate": "Рассчитать",
+      "download": "Скачать",
+      "edit": "Редактировать",
+      "close": "Закрыть",
+      "readonly": "Этот том доступен только для чтения",
+      "warningZero": "Внимание: режим 0000 полностью закрывает доступ к объекту.",
+      "warningDir": "Без execute (x) каталог может стать недоступен для входа."
+    },
     "terminal": {
       "title": "Entware Terminal",
       "keeneticTitle": "Keenetic NDM Console",

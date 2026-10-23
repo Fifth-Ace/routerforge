@@ -1,6 +1,7 @@
 <script>
   import { getAdminFileHash, adminFileDownloadURL } from '$lib/api.js';
   import { bytes } from '$lib/utils.js';
+  import { t } from '$lib/i18n/index.js';
 
   export let entry = null;
   export let writable = true;
@@ -20,25 +21,8 @@
   $: octal = permToOctal(perm);
   $: symbolic = permToSymbolic(perm, entry?.kind === 'directory');
 
-  $: copy = locale === 'ru' ? {
-    title: 'Свойства объекта', type: 'Тип', file: 'Файл', directory: 'Папка', other: 'Объект',
-    size: 'Размер', modified: 'Изменён', path: 'Путь', permissions: 'Права доступа',
-    owner: 'Владелец', group: 'Группа', others: 'Остальные', read: 'Чтение (r)',
-    write: 'Запись (w)', execute: 'Запуск (x)', apply: 'Применить права',
-    presets: 'Готовые пресеты', hashes: 'Контрольные суммы', calculate: 'Рассчитать',
-    download: 'Скачать', edit: 'Редактировать', close: 'Закрыть',
-    readonly: 'Этот том доступен только для чтения', warningZero: 'Внимание: режим 0000 полностью закрывает доступ к объекту.',
-    warningDir: 'Без execute (x) каталог может стать недоступен для входа.'
-  } : {
-    title: 'Object properties', type: 'Type', file: 'File', directory: 'Folder', other: 'Object',
-    size: 'Size', modified: 'Modified', path: 'Path', permissions: 'Permissions',
-    owner: 'Owner', group: 'Group', others: 'Others', read: 'Read (r)',
-    write: 'Write (w)', execute: 'Execute (x)', apply: 'Apply permissions',
-    presets: 'Presets', hashes: 'Checksums', calculate: 'Calculate',
-    download: 'Download', edit: 'Edit', close: 'Close',
-    readonly: 'This volume is read-only', warningZero: 'Warning: mode 0000 removes all access.',
-    warningDir: 'Without execute (x), entering this directory may become impossible.'
-  };
+  const filePropertiesCopyKeys = ['title', 'type', 'file', 'directory', 'other', 'size', 'modified', 'path', 'permissions', 'owner', 'group', 'others', 'read', 'write', 'execute', 'apply', 'presets', 'hashes', 'calculate', 'download', 'edit', 'close', 'readonly', 'warningZero', 'warningDir'];
+  $: copy = Object.fromEntries(filePropertiesCopyKeys.map((key) => [key, t(locale, `manage.fileProperties.${key}`)]));
 
   const filePresets = [
     ['0600', 'Private'], ['0644', 'Default'], ['0664', 'Group write'],

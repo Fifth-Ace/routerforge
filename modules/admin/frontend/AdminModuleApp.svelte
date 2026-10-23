@@ -833,7 +833,7 @@
         </span>
       </div>
       <div class="cell-sub mono">
-        {locale === 'ru' ? 'rollback' : 'rollback'}: {serviceActionResult.rollback || 'n/a'}
+        rollback: {serviceActionResult.rollback || 'n/a'}
       </div>
       <div class="cell-sub">
         {#each serviceActionResult.transaction.evidence || [] as evidence}
@@ -948,7 +948,7 @@
 
               <div class="service-overview-grid">
                 <div class="service-fact">
-                  <span>{locale === 'ru' ? 'Пакет' : 'Package'}</span>
+                  <span>{t(locale, 'manage.serviceInspector.packageJump')}</span>
                   <strong>{selectedService.package?.name || '—'}</strong>
                   <small class="mono">
                     {selectedService.package ? `${selectedService.package.version || '—'} · ${selectedService.package.architecture || '—'}` : (t(locale, 'manage.serviceInspector.ownerNotFound'))}
@@ -960,7 +960,7 @@
                   <small>{selectedService.executable ? (t(locale, 'manage.serviceInspector.lifecycleAvailable')) : (t(locale, 'manage.serviceInspector.lifecycleUnavailable'))}</small>
                 </div>
                 <div class="service-fact">
-                  <span>{locale === 'ru' ? 'Процессы' : 'Processes'}</span>
+                  <span>{t(locale, 'manage.serviceInspector.processJump')}</span>
                   <strong>{selectedService.resource?.process_count || 0}</strong>
                   <small>{selectedService.resource?.threads || 0} threads · RSS {bytes(Number(selectedService.resource?.rss_kb || 0) * 1024)}</small>
                 </div>

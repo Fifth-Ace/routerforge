@@ -1134,10 +1134,8 @@
       <section class="maintenance-section p22-support">
         <div class="maintenance-section-head">
           <div>
-            <strong>{locale === 'ru' ? 'Поддержка и восстановление' : 'Support & recovery'}</strong>
-            <span>{locale === 'ru'
-              ? 'Состояние хранилищ, резервные копии и безопасный диагностический пакет без конфигов и секретов.'
-              : 'Storage health, recovery assets and a safe diagnostic bundle without configs or secrets.'}</span>
+            <strong>{t(locale, 'manage.supportPanel.supportTitle')}</strong>
+            <span>{t(locale, 'manage.supportPanel.supportDescription')}</span>
           </div>
           <span class="state-chip {supportStatus?.overall === 'critical' ? 'error' : supportStatus?.overall === 'warning' ? 'warn' : 'good'}">
             {(supportStatus?.overall || 'ok').toUpperCase()}
@@ -1146,12 +1144,12 @@
 
         <div class="p22-support-grid">
           <div class="p22-support-card">
-            <span>{locale === 'ru' ? 'Хранилища' : 'Storage'}</span>
+            <span>{t(locale, 'manage.supportPanel.storage')}</span>
             <strong>{(supportStatus?.storage || []).length}</strong>
-            <small>{locale === 'ru' ? 'контролируемых точек монтирования' : 'monitored mount points'}</small>
+            <small>{t(locale, 'manage.supportPanel.mountPoints')}</small>
           </div>
           <div class="p22-support-card">
-            <span>{locale === 'ru' ? 'Backup' : 'Backups'}</span>
+            <span>{t(locale, 'manage.supportPanel.backups')}</span>
             <strong>{supportStatus?.backup_count || 0}</strong>
             <small>{supportStatus?.latest_backup ? new Date(supportStatus.latest_backup).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US') : '—'}</small>
           </div>
@@ -1159,13 +1157,13 @@
             <span>Watchdogs</span>
             <strong>{supportStatus?.watchdogs_enabled || 0}</strong>
             <small class:warn-text={(supportStatus?.watchdogs_attention || 0) > 0}>
-              {supportStatus?.watchdogs_attention || 0} {locale === 'ru' ? 'требуют внимания' : 'need attention'}
+              {supportStatus?.watchdogs_attention || 0} {t(locale, 'manage.supportPanel.attention')}
             </small>
           </div>
           <div class="p22-support-card">
-            <span>{locale === 'ru' ? 'Диагностические пакеты' : 'Support bundles'}</span>
+            <span>{t(locale, 'manage.supportPanel.bundles')}</span>
             <strong>{supportStatus?.support_bundle_count || supportBundles.length}</strong>
-            <small>{locale === 'ru' ? 'хранятся во временной директории' : 'stored in temporary storage'}</small>
+            <small>{t(locale, 'manage.supportPanel.temporary')}</small>
           </div>
         </div>
 
@@ -1181,7 +1179,7 @@
                   <strong class:error-text={item.status === 'critical'} class:warn-text={item.status === 'warning'}>
                     {Number(item.used_pct || 0).toFixed(1)}%
                   </strong>
-                  <span>{bytes(item.free_bytes || 0)} {locale === 'ru' ? 'свободно' : 'free'}</span>
+                  <span>{bytes(item.free_bytes || 0)} {t(locale, 'manage.supportPanel.free')}</span>
                 </div>
               </div>
             {/each}
@@ -1190,13 +1188,11 @@
 
         <div class="p22-support-actions">
           <div>
-            <strong>{locale === 'ru' ? 'Диагностический пакет' : 'Support bundle'}</strong>
-            <span>{locale === 'ru'
-              ? 'Содержит состояние системы, накопителей, температур, служб, интеграций, watchdog и очищенный хвост логов. Конфиги, аргументы процессов и cron-команды не включаются.'
-              : 'Contains system, storage, thermal, service, integration and watchdog state plus a redacted log tail. Configs, process arguments and cron command bodies are excluded.'}</span>
+            <strong>{t(locale, 'manage.supportPanel.bundle')}</strong>
+            <span>{t(locale, 'manage.supportPanel.bundleDescription')}</span>
           </div>
           <button class="button primary" onclick={createSupportBundle} disabled={supportBusy}>
-            {supportBusy ? '…' : (locale === 'ru' ? 'Собрать диагностику' : 'Create support bundle')}
+            {supportBusy ? '…' : (t(locale, 'manage.supportPanel.createBundle'))}
           </button>
         </div>
 
@@ -1209,14 +1205,14 @@
                   <span class="cell-sub mono">{bytes(bundle.size || 0)} · {new Date(bundle.modified_at).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')}</span>
                 </div>
                 <a class="button" href={adminSupportBundleDownloadURL(bundle.path)}>
-                  {locale === 'ru' ? 'Скачать' : 'Download'}
+                  {t(locale, 'manage.supportPanel.download')}
                 </a>
               </div>
             {/each}
           </div>
         {:else}
           <div class="maintenance-empty">
-            {locale === 'ru' ? 'Диагностические пакеты ещё не создавались.' : 'No support bundles have been created yet.'}
+            {t(locale, 'manage.supportPanel.emptyBundles')}
           </div>
         {/if}
       </section>

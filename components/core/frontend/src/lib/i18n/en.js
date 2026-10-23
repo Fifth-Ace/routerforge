@@ -512,6 +512,22 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "supportPanel": {
+      "supportTitle": "Support \u0026 recovery",
+      "supportDescription": "Storage health, recovery assets and a safe diagnostic bundle without configs or secrets.",
+      "storage": "Storage",
+      "mountPoints": "monitored mount points",
+      "backups": "Backups",
+      "attention": "need attention",
+      "bundles": "Support bundles",
+      "temporary": "stored in temporary storage",
+      "free": "free",
+      "bundle": "Support bundle",
+      "bundleDescription": "Contains system, storage, thermal, service, integration and watchdog state plus a redacted log tail. Configs, process arguments and cron command bodies are excluded.",
+      "createBundle": "Create support bundle",
+      "download": "Download",
+      "emptyBundles": "No support bundles have been created yet."
+    },
     "serviceInspector": {
       "actionResult": "Action result",
       "inspectorTitle": "Service Inspector",

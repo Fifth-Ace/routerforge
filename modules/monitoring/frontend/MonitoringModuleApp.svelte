@@ -543,15 +543,15 @@
   {:else if tab === 'profiling' && data.profiling}
     <div class="two-col">
       <section class="panel">
-        <div class="panel-head"><div><strong>Core profiling</strong><span>pprof listener</span></div><span class="state-chip {data.profiling.running ? 'good' : data.profiling.enabled ? 'warn' : 'neutral'}">{data.profiling.running ? 'RUNNING' : data.profiling.enabled ? 'ERROR' : 'DISABLED'}</span></div>
-        <div class="info-row"><div><strong>Listen</strong><span>loopback only</span></div><div class="info-value mono">{data.profiling.listen}</div></div>
-        <div class="info-row"><div><strong>Slow request</strong><span>logging threshold</span></div><div class="info-value mono">{data.profiling.slow_ms} ms</div></div>
-        <div class="info-row"><div><strong>Mode</strong><span>security boundary</span></div><div class="info-value good">{data.profiling.mode}</div></div>
-        <div class="info-row"><div><strong>Error</strong><span>listener startup</span></div><div class="info-value">{data.profiling.error || t(locale, 'common.none')}</div></div>
+        <div class="panel-head"><div><strong>{t(locale, 'monitoring.profiling.title')}</strong><span>{t(locale, 'monitoring.profiling.listener')}</span></div><span class="state-chip {data.profiling.running ? 'good' : data.profiling.enabled ? 'warn' : 'neutral'}">{data.profiling.running ? t(locale, 'monitoring.profiling.running') : data.profiling.enabled ? t(locale, 'monitoring.profiling.errorState') : t(locale, 'monitoring.profiling.disabled')}</span></div>
+        <div class="info-row"><div><strong>{t(locale, 'monitoring.profiling.listen')}</strong><span>{t(locale, 'monitoring.profiling.loopbackOnly')}</span></div><div class="info-value mono">{data.profiling.listen}</div></div>
+        <div class="info-row"><div><strong>{t(locale, 'monitoring.profiling.slowRequest')}</strong><span>{t(locale, 'monitoring.profiling.loggingThreshold')}</span></div><div class="info-value mono">{data.profiling.slow_ms} ms</div></div>
+        <div class="info-row"><div><strong>{t(locale, 'monitoring.profiling.mode')}</strong><span>{t(locale, 'monitoring.profiling.securityBoundary')}</span></div><div class="info-value good">{data.profiling.mode}</div></div>
+        <div class="info-row"><div><strong>{t(locale, 'monitoring.profiling.errorLabel')}</strong><span>{t(locale, 'monitoring.profiling.listenerStartup')}</span></div><div class="info-value">{data.profiling.error || t(locale, 'common.none')}</div></div>
       </section>
 
       <section class="panel">
-        <div class="panel-head"><div><strong>SSH access</strong><span>pprof is not exposed to LAN</span></div></div>
+        <div class="panel-head"><div><strong>{t(locale, 'monitoring.profiling.sshAccess')}</strong><span>{t(locale, 'monitoring.profiling.lanRestricted')}</span></div></div>
         <div class="module-code-block mono">ssh -L 6061:127.0.0.1:6061 root@ROUTER</div>
         <div class="module-code-block mono">go tool pprof http://127.0.0.1:6061/debug/pprof/heap</div>
       </section>

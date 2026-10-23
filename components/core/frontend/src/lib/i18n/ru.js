@@ -912,7 +912,29 @@ export default {
     "reconnectingHint": "Ожидаем готовности службы модуля."
   },
   "monitoring": {
+    "profiling": {
+      "title": "Профилирование Core",
+      "listener": "Слушатель pprof",
+      "running": "РАБОТАЕТ",
+      "errorState": "ОШИБКА",
+      "disabled": "ОТКЛЮЧЕНО",
+      "listen": "Адрес прослушивания",
+      "loopbackOnly": "Только loopback",
+      "slowRequest": "Медленные запросы",
+      "loggingThreshold": "Порог записи в журнал",
+      "mode": "Режим",
+      "securityBoundary": "Ограничение доступа",
+      "errorLabel": "Ошибка",
+      "listenerStartup": "Запуск слушателя",
+      "sshAccess": "Доступ по SSH",
+      "lanRestricted": "pprof недоступен из локальной сети"
+    },
     "events": {
+      "detailLabels": {
+        "type": "Тип",
+        "object": "Объект",
+        "transaction": "Транзакция"
+      },
       "historyMessages": {
         "healthDownTitle": "{name} перестал отвечать",
         "healthDownText": "RouterForge обнаружил проблему при проверке состояния модуля.",

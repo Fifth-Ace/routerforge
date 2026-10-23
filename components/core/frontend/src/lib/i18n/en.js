@@ -912,7 +912,29 @@ export default {
     "reconnectingHint": "Waiting for the module service to become ready."
   },
   "monitoring": {
+    "profiling": {
+      "title": "Core profiling",
+      "listener": "pprof listener",
+      "running": "RUNNING",
+      "errorState": "ERROR",
+      "disabled": "DISABLED",
+      "listen": "Listen",
+      "loopbackOnly": "loopback only",
+      "slowRequest": "Slow request",
+      "loggingThreshold": "logging threshold",
+      "mode": "Mode",
+      "securityBoundary": "security boundary",
+      "errorLabel": "Error",
+      "listenerStartup": "listener startup",
+      "sshAccess": "SSH access",
+      "lanRestricted": "pprof is not exposed to LAN"
+    },
     "events": {
+      "detailLabels": {
+        "type": "Type",
+        "object": "Object",
+        "transaction": "Transaction"
+      },
       "historyMessages": {
         "healthDownTitle": "{name} stopped responding",
         "healthDownText": "RouterForge detected a module health problem.",

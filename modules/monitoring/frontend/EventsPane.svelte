@@ -491,11 +491,11 @@
 
                   <dl>
 
-                    <div><dt>type</dt><dd>{event.type || '—'}</dd></div>
+                    <div><dt>{t(locale, 'monitoring.events.detailLabels.type')}</dt><dd>{event.type || '—'}</dd></div>
 
-                    {#if event.object_id}<div><dt>object</dt><dd>{event.object_id}</dd></div>{/if}
+                    {#if event.object_id}<div><dt>{t(locale, 'monitoring.events.detailLabels.object')}</dt><dd>{event.object_id}</dd></div>{/if}
 
-                    {#if event.transaction_id}<div><dt>transaction</dt><dd>{event.transaction_id}</dd></div>{/if}
+                    {#if event.transaction_id}<div><dt>{t(locale, 'monitoring.events.detailLabels.transaction')}</dt><dd>{event.transaction_id}</dd></div>{/if}
 
                     {#each contextEntries(event.context) as [key, value]}
 

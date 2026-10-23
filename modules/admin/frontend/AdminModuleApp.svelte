@@ -825,7 +825,7 @@
     <section class="panel">
       <div class="panel-head">
         <div>
-          <strong>{locale === 'ru' ? 'Результат действия' : 'Action result'} · {serviceActionResult.id}</strong>
+          <strong>{t(locale, 'manage.serviceInspector.actionResult')} · {serviceActionResult.id}</strong>
           <span>{serviceActionResult.action} · tx {serviceActionResult.transaction.id}</span>
         </div>
         <span class="state-chip {serviceActionResult.ok ? 'good' : 'bad'}">
@@ -882,16 +882,14 @@
     <section class="panel service-workspace">
       <div class="panel-head service-workspace-head">
         <div>
-          <strong>Service Inspector</strong>
-          <span>{locale === 'ru'
-            ? 'Служба → пакет → процесс → sockets · детали и guarded actions по требованию'
-            : 'service → package → process → sockets · details and guarded actions on demand'}</span>
+          <strong>{t(locale, 'manage.serviceInspector.inspectorTitle')}</strong>
+          <span>{t(locale, 'manage.serviceInspector.inspectorHint')}</span>
         </div>
         <span class="state-chip info">{filteredServices.length}</span>
       </div>
 
       {#if filteredServices.length === 0}
-        <div class="empty">{locale === 'ru' ? 'Службы по текущему фильтру не найдены.' : 'No services match the current filter.'}</div>
+        <div class="empty">{t(locale, 'manage.serviceInspector.servicesEmpty')}</div>
       {:else}
         <div class="service-master-detail">
           <div class="service-master-list">
@@ -913,7 +911,7 @@
                 </div>
 
                 <div class="service-master-package">
-                  <span>{s.package?.name || (locale === 'ru' ? 'без владельца opkg' : 'no opkg owner')}</span>
+                  <span>{s.package?.name || (t(locale, 'manage.serviceInspector.noOpkgOwner'))}</span>
                   {#if s.package?.version}<span class="mono">{s.package.version}</span>{/if}
                 </div>
 
@@ -953,13 +951,13 @@
                   <span>{locale === 'ru' ? 'Пакет' : 'Package'}</span>
                   <strong>{selectedService.package?.name || '—'}</strong>
                   <small class="mono">
-                    {selectedService.package ? `${selectedService.package.version || '—'} · ${selectedService.package.architecture || '—'}` : (locale === 'ru' ? 'владелец opkg не найден' : 'no opkg owner')}
+                    {selectedService.package ? `${selectedService.package.version || '—'} · ${selectedService.package.architecture || '—'}` : (t(locale, 'manage.serviceInspector.ownerNotFound'))}
                   </small>
                 </div>
                 <div class="service-fact">
-                  <span>{locale === 'ru' ? 'Источник состояния' : 'State source'}</span>
+                  <span>{t(locale, 'manage.serviceInspector.stateSource')}</span>
                   <strong>{selectedService.running_source || '—'}</strong>
-                  <small>{selectedService.executable ? (locale === 'ru' ? 'lifecycle доступен' : 'lifecycle available') : (locale === 'ru' ? 'lifecycle недоступен' : 'lifecycle unavailable')}</small>
+                  <small>{selectedService.executable ? (t(locale, 'manage.serviceInspector.lifecycleAvailable')) : (t(locale, 'manage.serviceInspector.lifecycleUnavailable'))}</small>
                 </div>
                 <div class="service-fact">
                   <span>{locale === 'ru' ? 'Процессы' : 'Processes'}</span>
@@ -967,9 +965,9 @@
                   <small>{selectedService.resource?.threads || 0} threads · RSS {bytes(Number(selectedService.resource?.rss_kb || 0) * 1024)}</small>
                 </div>
                 <div class="service-fact">
-                  <span>{locale === 'ru' ? 'Слушатели' : 'Listeners'}</span>
+                  <span>{t(locale, 'manage.serviceInspector.listeners')}</span>
                   <strong>{selectedService.resource?.listeners || 0}</strong>
-                  <small>{(selectedService.listening_ports || []).length ? (locale === 'ru' ? 'есть socket evidence' : 'socket evidence available') : '—'}</small>
+                  <small>{(selectedService.listening_ports || []).length ? (t(locale, 'manage.serviceInspector.socketEvidence')) : '—'}</small>
                 </div>
               </div>
 
@@ -977,18 +975,18 @@
                 <section class="service-detail-section">
                   <div class="service-section-head">
                     <div>
-                      <strong>{locale === 'ru' ? 'Runtime evidence' : 'Runtime evidence'}</strong>
-                      <span>{locale === 'ru' ? 'Сопоставленные процессы и listening sockets' : 'Matched processes and listening sockets'}</span>
+                      <strong>{t(locale, 'manage.serviceInspector.runtimeTitle')}</strong>
+                      <span>{t(locale, 'manage.serviceInspector.matchedEvidence')}</span>
                     </div>
                     <div class="service-section-links">
                       {#if (selectedService.processes || []).length}
                         <button class="mini" onclick={() => inspectRelated('processes', selectedService.processes[0].pid)}>
-                          {locale === 'ru' ? 'Процессы' : 'Processes'} ↗
+                          {t(locale, 'manage.serviceInspector.processJump')} ↗
                         </button>
                       {/if}
                       {#if (selectedService.listening_ports || []).length}
                         <button class="mini" onclick={() => inspectRelated('ports', selectedService.listening_ports[0].local_port)}>
-                          {locale === 'ru' ? 'Порты' : 'Ports'} ↗
+                          {t(locale, 'manage.serviceInspector.portsJump')} ↗
                         </button>
                       {/if}
                     </div>
@@ -1004,7 +1002,7 @@
                       </div>
                     {/each}
                     {#if !(selectedService.processes || []).length}
-                      <div class="service-detail-empty">{locale === 'ru' ? 'Сопоставленных процессов нет.' : 'No matched processes.'}</div>
+                      <div class="service-detail-empty">{t(locale, 'manage.serviceInspector.noMatchedProcesses')}</div>
                     {/if}
                     {#each selectedService.listening_ports || [] as p (`${p.protocol}-${p.local_address}-${p.local_port}-${p.inode}`)}
                       <div class="service-socket-row mono">
@@ -1019,8 +1017,8 @@
                 <section class="service-detail-section">
                   <div class="service-section-head">
                     <div>
-                      <strong>{locale === 'ru' ? 'Конфиги и логи' : 'Config and logs'}</strong>
-                      <span>{locale === 'ru' ? 'Клик открывает сам файл сразу в File Manager' : 'Click opens the file directly in File Manager'}</span>
+                      <strong>{t(locale, 'manage.serviceInspector.configLogs')}</strong>
+                      <span>{t(locale, 'manage.serviceInspector.openFileHint')}</span>
                     </div>
                   </div>
                   <div class="service-file-groups">
@@ -1033,7 +1031,7 @@
                             <strong>{servicePathName(path)}</strong>
                             <small class="mono">{path}</small>
                           </span>
-                          <span class="service-file-open">{locale === 'ru' ? 'Открыть' : 'Open'} ↗</span>
+                          <span class="service-file-open">{t(locale, 'manage.serviceInspector.openJump')} ↗</span>
                         </button>
                       {/each}
                       {#if !(selectedService.config_paths || []).length}
@@ -1050,7 +1048,7 @@
                             <strong>{servicePathName(path)}</strong>
                             <small class="mono">{path}</small>
                           </span>
-                          <span class="service-file-open">{locale === 'ru' ? 'Открыть' : 'Open'} ↗</span>
+                          <span class="service-file-open">{t(locale, 'manage.serviceInspector.openJump')} ↗</span>
                         </button>
                       {/each}
                       {#if !(selectedService.log_paths || []).length}
@@ -1063,17 +1061,17 @@
 
               <footer class="service-actionbar">
                 <div class="service-action-copy">
-                  <strong>{locale === 'ru' ? 'Lifecycle' : 'Lifecycle'}</strong>
+                  <strong>{t(locale, 'manage.serviceInspector.lifecycleTitle')}</strong>
                   <span>
                     {guarded
-                      ? (locale === 'ru' ? 'Действия защищены для системной службы.' : 'Actions are protected for this system service.')
-                      : (locale === 'ru' ? 'Guarded action с transaction evidence.' : 'Guarded action with transaction evidence.')}
+                      ? (t(locale, 'manage.serviceInspector.systemProtected'))
+                      : (t(locale, 'manage.serviceInspector.guardedAction'))}
                   </span>
                 </div>
                 <div class="service-action-buttons">
                   {#if selectedService.package?.name}
                     <button class="mini" onclick={() => inspectRelated('packages', selectedService.package.name)}>
-                      {locale === 'ru' ? 'Пакет' : 'Package'} ↗
+                      {t(locale, 'manage.serviceInspector.packageJump')} ↗
                     </button>
                   {/if}
                   <button class="mini" disabled={!selectedService.executable || guarded} onclick={() => mutateService(selectedService, 'start')}>START</button>

@@ -512,6 +512,31 @@ export default {
     "close": "Закрыть"
   },
   "manage": {
+    "serviceInspector": {
+      "actionResult": "Результат действия",
+      "inspectorTitle": "Service Inspector",
+      "inspectorHint": "Служба → пакет → процесс → sockets · детали и guarded actions по требованию",
+      "servicesEmpty": "Службы по текущему фильтру не найдены.",
+      "noOpkgOwner": "без владельца opkg",
+      "ownerNotFound": "владелец opkg не найден",
+      "stateSource": "Источник состояния",
+      "lifecycleAvailable": "lifecycle доступен",
+      "lifecycleUnavailable": "lifecycle недоступен",
+      "listeners": "Слушатели",
+      "socketEvidence": "есть socket evidence",
+      "runtimeTitle": "Runtime evidence",
+      "matchedEvidence": "Сопоставленные процессы и listening sockets",
+      "noMatchedProcesses": "Сопоставленных процессов нет.",
+      "configLogs": "Конфиги и логи",
+      "openFileHint": "Клик открывает сам файл сразу в File Manager",
+      "lifecycleTitle": "Lifecycle",
+      "systemProtected": "Действия защищены для системной службы.",
+      "guardedAction": "Guarded action с transaction evidence.",
+      "processJump": "Процессы",
+      "portsJump": "Порты",
+      "packageJump": "Пакет",
+      "openJump": "Открыть"
+    },
     "adminMessages": {
       "supportCreated": "Диагностический пакет создан",
       "saveNFQWSJob": "Сохранить NFQWS job",

@@ -512,6 +512,31 @@ export default {
     "close": "Close"
   },
   "manage": {
+    "serviceInspector": {
+      "actionResult": "Action result",
+      "inspectorTitle": "Service Inspector",
+      "inspectorHint": "service → package → process → sockets · details and guarded actions on demand",
+      "servicesEmpty": "No services match the current filter.",
+      "noOpkgOwner": "no opkg owner",
+      "ownerNotFound": "no opkg owner",
+      "stateSource": "State source",
+      "lifecycleAvailable": "lifecycle available",
+      "lifecycleUnavailable": "lifecycle unavailable",
+      "listeners": "Listeners",
+      "socketEvidence": "socket evidence available",
+      "runtimeTitle": "Runtime evidence",
+      "matchedEvidence": "Matched processes and listening sockets",
+      "noMatchedProcesses": "No matched processes.",
+      "configLogs": "Config and logs",
+      "openFileHint": "Click opens the file directly in File Manager",
+      "lifecycleTitle": "Lifecycle",
+      "systemProtected": "Actions are protected for this system service.",
+      "guardedAction": "Guarded action with transaction evidence.",
+      "processJump": "Processes",
+      "portsJump": "Ports",
+      "packageJump": "Package",
+      "openJump": "Open"
+    },
     "adminMessages": {
       "supportCreated": "Support bundle created",
       "saveNFQWSJob": "Save NFQWS job",

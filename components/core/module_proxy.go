@@ -198,7 +198,9 @@ func portAccessMutationRequest(r *http.Request) bool {
 }
 
 func dnsRouterMutationRequest(r *http.Request) bool {
-	if r.Method == http.MethodGet || r.Method == http.MethodHead { return false }
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return false
+	}
 	return strings.HasPrefix(r.URL.Path, "/api/modules/dns-router/")
 }
 
@@ -417,7 +419,7 @@ func moduleMethodAllowed(moduleID, method string) bool {
 		}
 	}
 	if moduleID == "dns-router" {
-	return method == http.MethodGet || method == http.MethodPost || method == http.MethodPut
+		return method == http.MethodGet || method == http.MethodPost || method == http.MethodPut
 	}
 	if moduleID == "port-access-manager" {
 		return method == http.MethodGet || method == http.MethodPost || method == http.MethodDelete

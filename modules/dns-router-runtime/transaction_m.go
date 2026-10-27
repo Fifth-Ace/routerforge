@@ -19,6 +19,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -37,7 +39,7 @@ type realNDMCM struct{}
 func (realNDMCM) Command(parent context.Context, command string) (string, error) {
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ndmc", "-c", command).CombinedOutput()
+	out, err := safety.RunCommand(ctx, 65537, "ndmc", "-c", command)
 	if len(out) > 65536 {
 		return "", errors.New("ndmc output too large")
 	}

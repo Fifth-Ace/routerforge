@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -24,6 +25,7 @@ func main() {
 	domain := flag.String("evaluate", "", "offline domain evaluation")
 	showVersion := flag.Bool("version", false, "print version")
 	hardwareReport := flag.Bool("hardware-report", false, "read-only local hardware evidence and integration design JSON; no configuration load")
+	assessHardware := flag.String("assess-hardware-log", "", "offline assessment of a DPR2-G read-only evidence text file; no device access")
 	serve := flag.Bool("serve", false, "manual management-only Unix socket API")
 	socket := flag.String("socket", "/opt/var/run/routerforge-dns-router.sock", "management socket")
 	ui := flag.String("ui", "/opt/share/routerforge/modules/dns-router/ui", "UI directory")
@@ -36,6 +38,29 @@ func main() {
 	}
 	if *shadow && !*serve {
 		log.Fatal("--shadow-forward requires --serve")
+	}
+	if *assessHardware != "" {
+		if *serve || *shadow || *domain != "" || *hardwareReport {
+			log.Fatal("--assess-hardware-log cannot be combined with serving, evaluation or other hardware operations")
+		}
+		file, err := os.Open(*assessHardware)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+		limited := io.LimitReader(file, 16<<10+1)
+		raw, err := io.ReadAll(limited)
+		if err != nil {
+			log.Fatal(err)
+		}
+		result, err := dnsrouter.ParseHardwareReadOnlyEvidence(string(raw))
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 	if *hardwareReport {
 		if *serve || *shadow || *domain != "" {

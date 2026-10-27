@@ -114,6 +114,22 @@
   el('keeneticButton').addEventListener('click',async()=>{try{const d=await request('keenetic/discovery');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
   el('integrationButton').addEventListener('click',async()=>{try{const d=await request('keenetic/integration-plan');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
   el('hardwareButton').addEventListener('click',async()=>{try{const d=await request('hardware/evidence');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
+  el('evidenceForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      const evidence = String(new FormData(e.currentTarget).get('evidence') || '');
+      const report = await request('keenetic/assess-hardware', jsonOptions('assess-hardware-readonly',{evidence}));
+      el('assessmentStatus').textContent = JSON.stringify(report,null,2);
+      feedback('DPR2-G: отчёт обработан только в памяти; активация DNS Proxy запрещена');
+    } catch(err) { feedback('DPR2-G: '+err.message); }
+  });
+  el('rehearsalButton').addEventListener('click', async () => {
+    try {
+      const report = await request('keenetic/rehearsal?failure=verify');
+      el('assessmentStatus').textContent = JSON.stringify(report,null,2);
+      feedback('DPR2-G: исключительно симуляция in-memory, конфигурация Keenetic не менялась');
+    } catch(err) { feedback('DPR2-G: '+err.message); }
+  });
   el('upstreamStatusButton').addEventListener('click',async()=>{
     try {const data=await request('upstreams/status');el('upstreamStatus').textContent=JSON.stringify(data,null,2);}
     catch(err){feedback('Диагностика: '+err.message);}

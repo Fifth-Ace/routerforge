@@ -2,18 +2,24 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2f
+VERSION=0.14.0~dev.dpr2g
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
+sh -n scripts/dpr2-g-hardware-readonly.sh
 # Independent hardware report CLI requires no DNS config or listeners.
 go build -o dist/dpr2f-local-report ./modules/dns-router-runtime/cmd/routerforge-dns-router
 ./dist/dpr2f-local-report --hardware-report | python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["mode"]=="read-only" and x["changes_applied"] is False and x["integration_plan"]["activation_allowed"] is False'
+# DPR2-G raw collector and offline CLI assessment, deliberately on local CI host
+# (it does not provide hardware acceptance for Keenetic).
+sh scripts/dpr2-g-hardware-readonly.sh > dist/dpr2g-ci-evidence.txt
+./dist/dpr2f-local-report --assess-hardware-log dist/dpr2g-ci-evidence.txt | python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["mode"]=="offline-read-only-assessment" and x["changes_applied"] is False and x["activation_allowed"] is False and x["hardware_accepted"] is False'
+./dist/dpr2f-local-report --assess-hardware-log dist/dpr2g-ci-evidence.txt | grep -q 'INSUFFICIENT_EVIDENCE'
 GOPROXY=off go test ./modules/dns-router-runtime/...
 GOPROXY=off go vet ./modules/dns-router-runtime/...
 # Same API acceptance tests run under race detection on the CI Linux runner.
 GOPROXY=off go test -race ./modules/dns-router-runtime/...
-GOPROXY=off go test -count=1 -v -run 'TestDPR2(D|E|F)' ./modules/dns-router-runtime/...
+GOPROXY=off go test -count=1 -v -run 'TestDPR2(D|E|F|G)' ./modules/dns-router-runtime/...
 GOPROXY=off go test -run '^$' -bench '^BenchmarkDPR2EEvaluate10K$' -benchtime=100ms -benchmem ./modules/dns-router-runtime/...
 for TARGET in aarch64-3.10 mips-3.4 mipsel-3.4; do
   sh scripts/build-dns-router-experimental.sh "$VERSION" "$TARGET"

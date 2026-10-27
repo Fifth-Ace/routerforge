@@ -194,6 +194,48 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, 200, map[string]any{"resources": CurrentResourceSnapshot(), "passive_only": true})
 	})
+	// DPR2-G offline-only evidence assessment: never writes the report, never
+	// changes DNS Proxy, and never elevates an observation to approval.
+	mux.HandleFunc("/v1/keenetic/assess-hardware", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireMutation(w, r, "assess-hardware-readonly") {
+			return
+		}
+		var request struct {
+			Evidence string `json:"evidence"`
+		}
+		if err := decodeBody(r, &request, maxHardwareEvidenceBytes); err != nil {
+			fail(w, http.StatusBadRequest, err)
+			return
+		}
+		assessment, err := ParseHardwareReadOnlyEvidence(request.Evidence)
+		if err != nil {
+			fail(w, http.StatusBadRequest, err)
+			return
+		}
+		respondJSON(w, http.StatusOK, assessment)
+	})
+	mux.HandleFunc("/v1/keenetic/rehearsal", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		scenario := r.URL.Query().Get("failure")
+		if scenario == "" {
+			scenario = "verify"
+		}
+		result := RehearseKeeneticTransaction(scenario)
+		if result.State == "INVALID_SCENARIO" {
+			fail(w, http.StatusBadRequest, errors.New("invalid simulated failure scenario"))
+			return
+		}
+		respondJSON(w, http.StatusOK, result)
+	})
 	mux.HandleFunc("/v1/keenetic/integration-plan", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

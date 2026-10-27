@@ -15,9 +15,10 @@ import (
 const maxAPIBytes int64 = MaxConfigBytes
 
 type API struct {
-	Store  *ConfigStore
-	UI     string
-	Shadow *ShadowForwarder
+	Store     *ConfigStore
+	UI        string
+	Shadow    *ShadowForwarder
+	Lifecycle *LifecycleManager
 }
 
 func NewAPI(store *ConfigStore, ui string) *API { return &API{Store: store, UI: ui} }
@@ -75,6 +76,9 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		active := a.Shadow != nil && a.Shadow.Active()
+		if a.Lifecycle != nil {
+			active = a.Lifecycle.Status().Active
+		}
 		state := "inactive"
 		if active {
 			state = "shadow-loopback"
@@ -85,6 +89,15 @@ func (a *API) Handler() http.Handler {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")
 			w.WriteHeader(405)
+			return
+		}
+		if a.Lifecycle != nil {
+			status := a.Lifecycle.Status()
+			var stats any = nil
+			if f := a.Lifecycle.Forwarder(); f != nil {
+				stats = f.Stats()
+			}
+			respondJSON(w, 200, map[string]any{"lifecycle": status, "stats": stats, "interception": false})
 			return
 		}
 		if a.Shadow == nil {
@@ -112,7 +125,82 @@ func (a *API) Handler() http.Handler {
 		if a.Shadow != nil {
 			usage = a.Shadow.Stats().Upstreams
 		}
+		if a.Lifecycle != nil {
+			if f := a.Lifecycle.Forwarder(); f != nil {
+				usage = f.Stats().Upstreams
+			}
+		}
 		respondJSON(w, 200, map[string]any{"upstream_ids": ids, "stats": usage, "revision": rev, "passive_only": true, "probe_network": false, "dns_interception": false})
+	})
+	// Runtime mutations are opt-in, revision-pinned, and affect loopback only.
+	mux.HandleFunc("/v1/shadow/control", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(405)
+			return
+		}
+		if a.Lifecycle == nil {
+			fail(w, 503, errors.New("manual lifecycle is unavailable"))
+			return
+		}
+		var req struct {
+			Operation string `json:"operation"`
+		}
+		if !requireMutation(w, r, "shadow-control") {
+			return
+		}
+		if err := decodeBody(r, &req, 1024); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		expected := strings.Trim(r.Header.Get("If-Match"), "\"")
+		if req.Operation != "stop" && expected == "" {
+			fail(w, 428, errors.New("If-Match required"))
+			return
+		}
+		var err error
+		outcome := ""
+		switch req.Operation {
+		case "start":
+			err = a.Lifecycle.Start(expected)
+			outcome = "started"
+		case "stop":
+			err = a.Lifecycle.Stop()
+			outcome = "stopped"
+		case "apply":
+			outcome, err = a.Lifecycle.Apply(expected)
+		default:
+			fail(w, 400, errors.New("invalid lifecycle operation"))
+			return
+		}
+		if err != nil {
+			code := 400
+			if errors.Is(err, ErrStale) {
+				code = 409
+			}
+			if errors.Is(err, ErrAlreadyActive) || errors.Is(err, ErrInactive) {
+				code = 409
+			}
+			respondJSON(w, code, map[string]any{"error": err.Error(), "outcome": outcome, "lifecycle": a.Lifecycle.Status(), "interception": false})
+			return
+		}
+		respondJSON(w, 200, map[string]any{"outcome": outcome, "lifecycle": a.Lifecycle.Status(), "interception": false})
+	})
+	mux.HandleFunc("/v1/runtime/resources", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(405)
+			return
+		}
+		respondJSON(w, 200, map[string]any{"resources": CurrentResourceSnapshot(), "passive_only": true})
+	})
+	mux.HandleFunc("/v1/keenetic/discovery", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(405)
+			return
+		}
+		respondJSON(w, 200, ReadOnlyKeeneticDiscovery())
 	})
 	mux.HandleFunc("/v1/config", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -123,7 +211,7 @@ func (a *API) Handler() http.Handler {
 				return
 			}
 			w.Header().Set("ETag", fmt.Sprintf("%q", rev))
-			respondJSON(w, 200, map[string]any{"config": cfg, "revision": rev, "active": false})
+			respondJSON(w, 200, map[string]any{"config": cfg, "revision": rev, "active": a.Lifecycle != nil && a.Lifecycle.Status().Active})
 		case http.MethodPut:
 			if !requireMutation(w, r, "save") {
 				return

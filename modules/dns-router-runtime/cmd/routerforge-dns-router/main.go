@@ -68,13 +68,18 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow
 	if err != nil {
 		return fmt.Errorf("configuration precheck: %w", err)
 	}
-	var forward *dnsrouter.ShadowForwarder
+	_ = cfg
+	lifecycle := dnsrouter.NewLifecycleManager(store, dnsrouter.ShadowOptions{Listen: shadowListen})
 	if enableShadow {
-		forward, err = dnsrouter.NewShadowForwarder(cfg, dnsrouter.ShadowOptions{Listen: shadowListen})
+		_, rev, err := store.Load()
 		if err != nil {
-			return fmt.Errorf("shadow precheck: %w", err)
+			return err
+		}
+		if err := lifecycle.Start(rev); err != nil {
+			return fmt.Errorf("manual shadow startup: %w", err)
 		}
 	}
+	defer lifecycle.Close()
 	if _, err := os.Lstat(socket); err == nil {
 		return fmt.Errorf("socket path exists; refusing overwrite: %s", socket)
 	} else if !os.IsNotExist(err) {
@@ -97,15 +102,12 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	handler := dnsrouter.NewAPI(store, ui)
-	handler.Shadow = forward
+	handler.Lifecycle = lifecycle
 	server := &http.Server{Handler: handler.Handler(), ReadHeaderTimeout: 5 * time.Second}
-	runError := make(chan error, 1)
-	if forward != nil {
-		go func() { runError <- forward.Serve(ctx) }()
-	}
+
 	httpDone := make(chan error, 1)
 	go func() { httpDone <- server.Serve(listener) }()
-	log.Printf("DNS Router manual management socket %s; shadow=%t; NO :53/interception/Keenetic changes", socket, enableShadow)
+	log.Printf("DNS Router manual management socket %s; shadow_initial=%t; NO :53/interception/Keenetic changes", socket, enableShadow)
 	var cause error
 	select {
 	case <-ctx.Done():
@@ -113,11 +115,7 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow
 		if cause == http.ErrServerClosed {
 			cause = nil
 		}
-	case cause = <-runError:
-		// A shadow listener error must stop the management API too.
-		if cause == nil && ctx.Err() == nil {
-			cause = fmt.Errorf("shadow stopped unexpectedly")
-		}
+
 	}
 	stop()
 	shutdown, cancel := context.WithTimeout(context.Background(), 3*time.Second)

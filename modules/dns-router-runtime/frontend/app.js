@@ -49,7 +49,7 @@
   async function load() {
     if (dirty && !confirm('Отменить несохранённые изменения?')) return;
     const data = await request('config');
-    config = data.config;revision = data.revision; dirty = false;render();feedback('Конфигурация загружена · DNS Router не активирован');
+    config = data.config;revision = data.revision; dirty = false;render();feedback('Конфигурация загружена · runtime меняется только при ручном старте/применении');
   }
   el('upstreamForm').addEventListener('submit',e=>{
     e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget));
@@ -69,7 +69,7 @@
   el('saveButton').addEventListener('click',async()=>{
     try {
       const response = await request('config', {method:'PUT', headers:{'Content-Type':'application/json','X-RouterForge-Action':'save','If-Match':'"'+revision+'"'},body:JSON.stringify(config)});
-      revision = response.revision;dirty = false;render();feedback('Сохранено атомарно; DNS Router остаётся неактивным');
+      revision = response.revision;dirty = false;render();feedback('Сохранено атомарно; работающий shadow не изменён до явного применения');
     } catch(err){feedback('Ошибка сохранения: '+err.message);}
   });
   el('reloadButton').addEventListener('click',()=>load().catch(err=>feedback(err.message)));
@@ -92,6 +92,26 @@
       if(confirm('Применить импорт к НЕСОХРАНЁННОМУ проекту? DNS-трафик не изменится.')) {config=p.config;markDirty();}
     }catch(err){feedback(err.message);}
   });
+  async function shadowRefresh() {
+    const data = await request('shadow/status');
+    el('shadowStatus').textContent = JSON.stringify(data,null,2);
+  }
+  async function lifecycleControl(operation) {
+    if (dirty) { feedback('Сначала сохрани настройки: есть несохранённые изменения'); return; }
+    if (operation==='start' && !confirm('Запустить только loopback shadow DNS? Keenetic DNS не изменится.')) return;
+    if (operation==='apply' && !confirm('Применить сохранённую ревизию к loopback shadow DNS?')) return;
+    try {
+      const data=await request('shadow/control',jsonOptions('shadow-control',{operation},{'If-Match':'"'+revision+'"'}));
+      feedback('Shadow: '+data.outcome+' · DNS Keenetic не затронут');
+      await shadowRefresh();
+    } catch(err) { feedback('Shadow: '+err.message); await shadowRefresh().catch(()=>{}); }
+  }
+  el('shadowStatusButton').addEventListener('click',()=>shadowRefresh().catch(e=>feedback(e.message)));
+  el('shadowStartButton').addEventListener('click',()=>lifecycleControl('start'));
+  el('shadowApplyButton').addEventListener('click',()=>lifecycleControl('apply'));
+  el('shadowStopButton').addEventListener('click',()=>lifecycleControl('stop'));
+  el('resourcesButton').addEventListener('click',async()=>{try{const d=await request('runtime/resources');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
+  el('keeneticButton').addEventListener('click',async()=>{try{const d=await request('keenetic/discovery');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
   el('upstreamStatusButton').addEventListener('click',async()=>{
     try {const data=await request('upstreams/status');el('upstreamStatus').textContent=JSON.stringify(data,null,2);}
     catch(err){feedback('Диагностика: '+err.message);}
@@ -105,4 +125,5 @@
     }catch(err){feedback(err.message);}
   });
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));
+  shadowRefresh().catch(()=>{});
 })();

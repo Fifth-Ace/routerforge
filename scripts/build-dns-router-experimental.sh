@@ -51,7 +51,7 @@ Maintainer: Fifth-Ace
 Source: https://github.com/Fifth-Ace/routerforge
 Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
-Description: Experimental optional DNS Router with manual loopback-only shadow UDP/TCP/DoT/DoH forwarding with explicit fallback. No autostart, :53 listener, DNS takeover or router changes.
+Description: Experimental optional DNS Router with revision-pinned manual loopback-only shadow UDP/TCP/DoT/DoH lifecycle, explicit fallback and passive diagnostics. No autostart, :53 listener, DNS takeover or router changes.
 CONTROL
 printf '2.0\n' > "$WORK/debian-binary"
 (cd "$WORK/data" && tar --owner=0 --group=0 --numeric-owner -czf "$WORK/data.tar.gz" .)

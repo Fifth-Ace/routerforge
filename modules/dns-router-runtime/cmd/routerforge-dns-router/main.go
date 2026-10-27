@@ -33,9 +33,23 @@ func main() {
 	ui := flag.String("ui", "/opt/share/routerforge/modules/dns-router/ui", "UI directory")
 	shadow := flag.Bool("shadow-forward", false, "EXPLICIT shadow UDP/TCP forwarder on loopback/high port; no router DNS takeover")
 	listen := flag.String("shadow-listen", "127.0.0.1:55353", "shadow listener, never :53")
+	ndmcTrial := flag.Bool("ndmc-transaction-experimental", false, "DSTest-only bounded ndmc trial with automatic exact rollback")
+	rollbackWorker := flag.String("ndmc-rollback-worker", "", "internal independent rollback watchdog")
 	allowLAN := flag.Bool("shadow-lan-experimental", false, "EXPLICIT private IPv4 LAN test listener; requires source ACL")
 	clients := flag.String("shadow-allow-clients", "", "comma-separated exact IPv4 source allowlist for LAN shadow")
 	flag.Parse()
+	if *rollbackWorker != "" {
+		if flag.NArg() != 0 {
+			log.Fatal("watchdog arguments are forbidden")
+		}
+		if err := dnsrouter.NDMCWatchdogWorkerM(*rollbackWorker); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	if *ndmcTrial && (!*serve || !*allowLAN) {
+		log.Fatal("ndmc trial requires --serve --shadow-lan-experimental")
+	}
 	if *showVersion {
 		fmt.Println(version)
 		return
@@ -107,7 +121,7 @@ func main() {
 	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {
-		if err := runManagement(store, *socket, *ui, *shadow, *listen, *allowLAN, *clients); err != nil {
+		if err := runManagement(store, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -129,7 +143,7 @@ func main() {
 	_ = json.NewEncoder(os.Stdout).Encode(d)
 }
 
-func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string) error {
+func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("Unix socket path must be absolute")
 	}
@@ -176,6 +190,12 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow
 	defer stop()
 	handler := dnsrouter.NewAPI(store, ui)
 	handler.Lifecycle = lifecycle
+	if ndmcTrial {
+		if err := dnsrouter.NDMCTestHostGateM(); err != nil {
+			return err
+		}
+		handler.TrialM = &dnsrouter.NDMCTrialM{Store: store, Lifecycle: lifecycle, Executor: dnsrouter.NewRealNDMCM(), Probe: dnsrouter.NewRealProbeM(), Arm: dnsrouter.ArmOSGuardM}
+	}
 	server := &http.Server{Handler: handler.Handler(), ReadHeaderTimeout: 5 * time.Second}
 
 	httpDone := make(chan error, 1)

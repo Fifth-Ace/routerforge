@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2l
+VERSION=0.14.0~dev.dpr2m
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
@@ -47,7 +47,7 @@ GOPROXY=off go test ./modules/dns-router-runtime/...
 GOPROXY=off go vet ./modules/dns-router-runtime/...
 # Same API acceptance tests run under race detection on the CI Linux runner.
 GOPROXY=off go test -race ./modules/dns-router-runtime/...
-GOPROXY=off go test -count=1 -v -run 'TestDPR2(D|E|F|G|K|L)' ./modules/dns-router-runtime/...
+GOPROXY=off go test -count=1 -v -run 'TestDPR2(D|E|F|G|K|L|M)' ./modules/dns-router-runtime/...
 GOPROXY=off go test -run '^$' -bench '^BenchmarkDPR2EEvaluate10K$' -benchtime=100ms -benchmem ./modules/dns-router-runtime/...
 for TARGET in aarch64-3.10 mips-3.4 mipsel-3.4; do
   sh scripts/build-dns-router-experimental.sh "$VERSION" "$TARGET"
@@ -100,3 +100,20 @@ assert 'no ip name-server' in Path('modules/dns-router-runtime/listener_l.go').r
 print('DPR2_L_FRONTEND_CONTRACT: PASS')
 PY_VERIFY_L
 if command -v node >/dev/null 2>&1; then node --check modules/dns-router-runtime/frontend/app.js; fi
+
+# DPR2-M test-only ndmc transaction. All CI side effects use injected
+# drivers or an ephemeral mock ndmc, never router configuration.
+GOPROXY=off go test -count=1 -v -run '^TestDPR2M' ./modules/dns-router-runtime/...
+python3 - <<'PY_VERIFY_M'
+from pathlib import Path
+p=Path('modules/dns-router-runtime/transaction_m.go').read_text()
+c=Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text()
+a=Path('modules/dns-router-runtime/api.go').read_text()
+for s in ('dpr2m.test','192.168.10.1:55358','192.168.10.1:55354','WATCHDOG_ROLLBACK_PASS','no ip name-server','exact saved revision'):
+    assert s in p, s
+for s in ('ndmc-rollback-worker','ndmc-transaction-experimental','NDMCTestHostGateM'):
+    assert s in c, s
+assert 'keenetic/domain-trial' in a and 'If-Match' in a
+assert 'system configuration save' not in p.split('func ')[-1]
+print('DPR2_M_TRANSACTION_GATES: PASS')
+PY_VERIFY_M

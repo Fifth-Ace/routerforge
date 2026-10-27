@@ -19,6 +19,7 @@ type API struct {
 	UI        string
 	Shadow    *ShadowForwarder
 	Lifecycle *LifecycleManager
+	TrialM    *NDMCTrialM
 }
 
 func NewAPI(store *ConfigStore, ui string) *API { return &API{Store: store, UI: ui} }
@@ -185,6 +186,48 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		respondJSON(w, 200, map[string]any{"outcome": outcome, "lifecycle": a.Lifecycle.Status(), "interception": false})
+	})
+	// DPR2-M: explicit one-shot DSTest-only ndmc transaction. It always
+	// removes its test zone before returning, with an independent watchdog.
+	mux.HandleFunc("/v1/keenetic/domain-trial", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(405)
+			return
+		}
+		if !requireMutation(w, r, "ndmc-trial") {
+			return
+		}
+		if a.TrialM == nil {
+			fail(w, http.StatusServiceUnavailable, errors.New("experimental ndmc transaction capability disabled"))
+			return
+		}
+		var req struct {
+			Operation string `json:"operation"`
+		}
+		if err := decodeBody(r, &req, 1024); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		if req.Operation != "trial" {
+			fail(w, 400, errors.New("only bounded trial supported"))
+			return
+		}
+		expected := strings.Trim(r.Header.Get("If-Match"), "\"")
+		if expected == "" {
+			fail(w, 428, errors.New("If-Match required"))
+			return
+		}
+		result, err := a.TrialM.Run(r.Context(), expected)
+		if err != nil {
+			code := 422
+			if errors.Is(err, ErrStale) {
+				code = 409
+			}
+			respondJSON(w, code, map[string]any{"error": err.Error(), "trial": result})
+			return
+		}
+		respondJSON(w, 200, result)
 	})
 	// DPR2-L: no side effects; uses only the CAS-persisted policy snapshot.
 	mux.HandleFunc("/v1/keenetic/domain-plan", func(w http.ResponseWriter, r *http.Request) {

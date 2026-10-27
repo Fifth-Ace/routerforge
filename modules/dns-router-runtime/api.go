@@ -93,6 +93,27 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, 200, map[string]any{"active": a.Shadow.Active(), "interception": false, "stats": a.Shadow.Stats()})
 	})
+	mux.HandleFunc("/v1/upstreams/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(405)
+			return
+		}
+		cfg, rev, err := a.Store.Load()
+		if err != nil {
+			fail(w, 500, err)
+			return
+		}
+		ids := make([]string, 0, len(cfg.Upstreams))
+		for _, u := range cfg.Upstreams {
+			ids = append(ids, u.ID)
+		}
+		var usage any = map[string]UpstreamStats{}
+		if a.Shadow != nil {
+			usage = a.Shadow.Stats().Upstreams
+		}
+		respondJSON(w, 200, map[string]any{"upstream_ids": ids, "stats": usage, "revision": rev, "passive_only": true, "probe_network": false, "dns_interception": false})
+	})
 	mux.HandleFunc("/v1/config", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:

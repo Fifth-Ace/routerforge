@@ -38,9 +38,9 @@
   }
   function render() {
     optionSelect('ruleUpstream'); optionSelect('importUpstream');
-    table('upstreamList',['ID','Протокол','Адрес'],config.upstreams.map(u=>[u.id,u.transport,u.address]),i=>{
+    table('upstreamList',['ID','Протокол','Адрес','SNI','DoH path','Резерв'],config.upstreams.map(u=>[u.id,u.transport,u.address,u.server_name||'—',u.path||'—',(u.fallbacks||[]).join(', ')||'—']),i=>{
       const id = config.upstreams[i].id;
-      if (config.rules.some(r=>r.upstream===id)) {feedback('Нельзя удалить используемый пул. Сначала удали правила.');return;}
+      if (config.rules.some(r=>r.upstream===id) || config.upstreams.some(u=>(u.fallbacks||[]).includes(id))) {feedback('Нельзя удалить используемый пул. Сначала убери правила и резервные ссылки.');return;}
       config.upstreams.splice(i,1);markDirty();
     });
     table('ruleList',['ID','Домен','Совпадение','Пул','Приоритет'],config.rules.map(r=>[r.id,r.domain,r.match,r.upstream,r.priority]),i=>{config.rules.splice(i,1);markDirty();});
@@ -54,7 +54,12 @@
   el('upstreamForm').addEventListener('submit',e=>{
     e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget));
     if(config.upstreams.some(u=>u.id===v.id)){feedback('ID пула уже существует');return;}
-    config.upstreams.push({id:v.id,transport:v.transport,address:v.address});e.currentTarget.reset();markDirty();
+    const upstream = {id:v.id,transport:v.transport,address:v.address};
+    if (v.transport==='dot'||v.transport==='doh') upstream.server_name=v.server_name.trim();
+    if (v.transport==='doh' && v.path.trim()) upstream.path=v.path.trim();
+    const reserve=v.fallbacks.split(',').map(s=>s.trim()).filter(Boolean);
+    if (reserve.length) upstream.fallbacks=reserve;
+    config.upstreams.push(upstream);e.currentTarget.reset();markDirty();
   });
   el('ruleForm').addEventListener('submit',e=>{
     e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget));
@@ -86,6 +91,10 @@
       el('importResult').textContent=`Добавлено: ${p.added}, дубликатов: ${p.duplicates}, пропущено: ${p.ignored}, всего правил: ${p.result_rules}`;
       if(confirm('Применить импорт к НЕСОХРАНЁННОМУ проекту? DNS-трафик не изменится.')) {config=p.config;markDirty();}
     }catch(err){feedback(err.message);}
+  });
+  el('upstreamStatusButton').addEventListener('click',async()=>{
+    try {const data=await request('upstreams/status');el('upstreamStatus').textContent=JSON.stringify(data,null,2);}
+    catch(err){feedback('Диагностика: '+err.message);}
   });
   el('exportButton').addEventListener('click',async()=>{
     try{

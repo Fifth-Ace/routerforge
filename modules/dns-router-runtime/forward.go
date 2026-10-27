@@ -5,12 +5,17 @@ package dnsrouter
 // A query without an explicit matching rule fails closed (REFUSED).
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,28 +35,41 @@ type ShadowOptions struct {
 	Timeout time.Duration
 	Workers int
 	Dial    DialContextFunc // injectable for tests; production uses net.Dialer
+	RootCAs *x509.CertPool  // test-only override via constructor; CLI always uses system roots
 }
 
 type ShadowStats struct {
-	Requests  uint64 `json:"requests"`
-	Forwarded uint64 `json:"forwarded"`
-	Refused   uint64 `json:"refused"`
-	Failures  uint64 `json:"failures"`
-	UDP       uint64 `json:"udp"`
-	TCP       uint64 `json:"tcp"`
+	Requests  uint64                   `json:"requests"`
+	Forwarded uint64                   `json:"forwarded"`
+	Refused   uint64                   `json:"refused"`
+	Failures  uint64                   `json:"failures"`
+	UDP       uint64                   `json:"udp"`
+	TCP       uint64                   `json:"tcp"`
+	Failovers uint64                   `json:"failovers"`
+	Upstreams map[string]UpstreamStats `json:"upstreams"`
+}
+
+type UpstreamStats struct {
+	Attempts      uint64 `json:"attempts"`
+	Successes     uint64 `json:"successes"`
+	Failures      uint64 `json:"failures"`
+	LastLatencyMS int64  `json:"last_latency_ms"`
 }
 
 type ShadowForwarder struct {
-	engine   *Engine
-	opts     ShadowOptions
-	sem      chan struct{}
-	active   atomic.Bool
-	req      atomic.Uint64
-	ok       atomic.Uint64
-	refused  atomic.Uint64
-	failures atomic.Uint64
-	udp      atomic.Uint64
-	tcp      atomic.Uint64
+	engine        *Engine
+	opts          ShadowOptions
+	sem           chan struct{}
+	active        atomic.Bool
+	req           atomic.Uint64
+	ok            atomic.Uint64
+	refused       atomic.Uint64
+	failures      atomic.Uint64
+	udp           atomic.Uint64
+	tcp           atomic.Uint64
+	failovers     atomic.Uint64
+	statsMu       sync.Mutex
+	upstreamStats map[string]UpstreamStats
 }
 
 func NewShadowForwarder(cfg Config, opts ShadowOptions) (*ShadowForwarder, error) {
@@ -87,11 +105,17 @@ func NewShadowForwarder(cfg Config, opts ShadowOptions) (*ShadowForwarder, error
 		dialer := &net.Dialer{Timeout: opts.Timeout}
 		opts.Dial = dialer.DialContext
 	}
-	return &ShadowForwarder{engine: engine, opts: opts, sem: make(chan struct{}, opts.Workers)}, nil
+	return &ShadowForwarder{engine: engine, opts: opts, sem: make(chan struct{}, opts.Workers), upstreamStats: make(map[string]UpstreamStats)}, nil
 }
 
 func (f *ShadowForwarder) Stats() ShadowStats {
-	return ShadowStats{Requests: f.req.Load(), Forwarded: f.ok.Load(), Refused: f.refused.Load(), Failures: f.failures.Load(), UDP: f.udp.Load(), TCP: f.tcp.Load()}
+	f.statsMu.Lock()
+	defer f.statsMu.Unlock()
+	upstreams := make(map[string]UpstreamStats, len(f.upstreamStats))
+	for id, stat := range f.upstreamStats {
+		upstreams[id] = stat
+	}
+	return ShadowStats{Requests: f.req.Load(), Forwarded: f.ok.Load(), Refused: f.refused.Load(), Failures: f.failures.Load(), UDP: f.udp.Load(), TCP: f.tcp.Load(), Failovers: f.failovers.Load(), Upstreams: upstreams}
 }
 func (f *ShadowForwarder) Active() bool { return f.active.Load() }
 
@@ -324,54 +348,155 @@ func (f *ShadowForwarder) resolve(parent context.Context, query []byte, network 
 		f.refused.Add(1)
 		return makeDNSError(query, 5)
 	}
-	ctx, cancel := context.WithTimeout(parent, f.opts.Timeout)
-	defer cancel()
-	targetNetwork := decision.Transport
-	// A selected upstream transport applies to both UDP and TCP clients.
-	if targetNetwork != "udp" && targetNetwork != "tcp" {
-		f.failures.Add(1)
-		return makeDNSError(query, 2)
-	}
-	conn, err := f.opts.Dial(ctx, targetNetwork, decision.Address)
+	chain, err := f.engine.UpstreamChain(decision.Upstream)
 	if err != nil {
 		f.failures.Add(1)
 		return makeDNSError(query, 2)
 	}
-	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(f.opts.Timeout))
-	var response []byte
-	if targetNetwork == "udp" {
-		if _, err = conn.Write(query); err == nil {
-			buf := make([]byte, maxDNSFrame)
-			var n int
-			n, err = conn.Read(buf)
-			if err == nil {
-				response = append([]byte(nil), buf[:n]...)
-			}
+	for index, upstream := range chain {
+		if parent.Err() != nil {
+			break
 		}
+		if index > 0 {
+			f.failovers.Add(1)
+		}
+		ctx, cancel := context.WithTimeout(parent, f.opts.Timeout)
+		started := time.Now()
+		response, exchangeErr := f.exchange(ctx, upstream, query)
+		cancel()
+		success := exchangeErr == nil && sameDNSQuestion(query, response)
+		if !success && exchangeErr == nil {
+			exchangeErr = errors.New("DNS response validation failed")
+		}
+		f.recordUpstream(upstream.ID, success, time.Since(started))
+		if success {
+			f.ok.Add(1)
+			return response
+		}
+		// Failover is only attempted on transport, HTTP, TLS or malformed DNS
+		// failures. A valid NXDOMAIN/SERVFAIL answer must not leak to fallback.
+		_ = exchangeErr
+	}
+	f.failures.Add(1)
+	return makeDNSError(query, 2)
+}
+
+func (f *ShadowForwarder) recordUpstream(id string, success bool, elapsed time.Duration) {
+	f.statsMu.Lock()
+	defer f.statsMu.Unlock()
+	s := f.upstreamStats[id]
+	s.Attempts++
+	if success {
+		s.Successes++
 	} else {
-		frame := make([]byte, len(query)+2)
-		binary.BigEndian.PutUint16(frame[:2], uint16(len(query)))
-		copy(frame[2:], query)
-		if _, err = conn.Write(frame); err == nil {
-			var h [2]byte
-			if _, err = io.ReadFull(conn, h[:]); err == nil {
-				n := int(binary.BigEndian.Uint16(h[:]))
-				if n < 12 {
-					err = errors.New("short TCP DNS response")
-				} else {
-					response = make([]byte, n)
-					_, err = io.ReadFull(conn, response)
-				}
-			}
+		s.Failures++
+	}
+	s.LastLatencyMS = elapsed.Milliseconds()
+	f.upstreamStats[id] = s
+}
+
+func (f *ShadowForwarder) exchange(ctx context.Context, upstream Upstream, query []byte) ([]byte, error) {
+	switch upstream.Transport {
+	case "udp", "tcp":
+		conn, err := f.opts.Dial(ctx, upstream.Transport, upstream.Address)
+		if err != nil {
+			return nil, err
 		}
+		defer conn.Close()
+		if err = conn.SetDeadline(time.Now().Add(f.opts.Timeout)); err != nil {
+			return nil, err
+		}
+		return exchangeDNSConn(conn, upstream.Transport, query)
+	case "dot":
+		conn, err := f.opts.Dial(ctx, "tcp", upstream.Address)
+		if err != nil {
+			return nil, err
+		}
+		tlsConn := tls.Client(conn, &tls.Config{ServerName: upstream.ServerName, RootCAs: f.opts.RootCAs, MinVersion: tls.VersionTLS12})
+		defer tlsConn.Close()
+		if err = tlsConn.HandshakeContext(ctx); err != nil {
+			return nil, fmt.Errorf("DoT TLS handshake: %w", err)
+		}
+		if err = tlsConn.SetDeadline(time.Now().Add(f.opts.Timeout)); err != nil {
+			return nil, err
+		}
+		return exchangeDNSConn(tlsConn, "tcp", query)
+	case "doh":
+		return f.exchangeDoH(ctx, upstream, query)
+	default:
+		return nil, errors.New("unsupported upstream transport")
 	}
-	if err != nil || !sameDNSQuestion(query, response) {
-		f.failures.Add(1)
-		return makeDNSError(query, 2)
+}
+
+func exchangeDNSConn(conn net.Conn, transport string, query []byte) ([]byte, error) {
+	if transport == "udp" {
+		if _, err := conn.Write(query); err != nil {
+			return nil, err
+		}
+		buf := make([]byte, maxDNSFrame)
+		n, err := conn.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		return append([]byte(nil), buf[:n]...), nil
 	}
-	f.ok.Add(1)
-	// UDP clients receive whatever the upstream returned; TCP retry on TC is
-	// a subsequent gate. Never silently change upstream for a selected rule.
-	return response
+	frame := make([]byte, 2+len(query))
+	binary.BigEndian.PutUint16(frame[:2], uint16(len(query)))
+	copy(frame[2:], query)
+	if _, err := conn.Write(frame); err != nil {
+		return nil, err
+	}
+	var hdr [2]byte
+	if _, err := io.ReadFull(conn, hdr[:]); err != nil {
+		return nil, err
+	}
+	length := int(binary.BigEndian.Uint16(hdr[:]))
+	if length < 12 {
+		return nil, errors.New("short DNS TCP response")
+	}
+	resp := make([]byte, length)
+	_, err := io.ReadFull(conn, resp)
+	return resp, err
+}
+
+func (f *ShadowForwarder) exchangeDoH(ctx context.Context, upstream Upstream, query []byte) ([]byte, error) {
+	endpoint := &url.URL{Scheme: "https", Host: upstream.ServerName, Path: upstream.Path}
+	transport := &http.Transport{
+		Proxy: nil, ForceAttemptHTTP2: false, DisableKeepAlives: true,
+		TLSClientConfig: &tls.Config{ServerName: upstream.ServerName, RootCAs: f.opts.RootCAs, MinVersion: tls.VersionTLS12},
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			// Ignore URI hostname for dialing: it is only used for SNI and
+			// certificate validation; the explicit configured IP prevents
+			// DNS bootstrap recursion and unexpected egress.
+			return f.opts.Dial(ctx, "tcp", upstream.Address)
+		},
+	}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{Transport: transport, Timeout: f.opts.Timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("DoH redirect prohibited") }}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(query))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/dns-message")
+	req.Header.Set("Content-Type", "application/dns-message")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("DoH unexpected HTTP status %d", resp.StatusCode)
+	}
+	if strings.ToLower(strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0])) != "application/dns-message" {
+		return nil, errors.New("DoH unexpected Content-Type")
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxDNSFrame+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) < 12 || len(raw) > maxDNSFrame {
+		return nil, errors.New("DoH DNS response size invalid")
+	}
+	return raw, nil
 }

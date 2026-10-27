@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "upstreams": [
-    {"id": "primary", "transport": "udp", "address": "9.9.9.9:53"},
-    {"id": "secondary", "transport": "tcp", "address": "1.1.1.1:53"}
+    {"id": "primary", "transport": "udp", "address": "9.9.9.9:53", "fallbacks": ["secondary"]},
+    {"id": "secondary", "transport": "doh", "address": "1.1.1.1:443", "server_name": "cloudflare-dns.com", "path": "/dns-query"}
   ],
   "rules": [
     {"id": "example-zone", "domain": "example.com", "match": "suffix", "upstream": "primary", "priority": 10},

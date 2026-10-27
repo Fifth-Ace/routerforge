@@ -2,13 +2,14 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2c
+VERSION=0.14.0~dev.dpr2d
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 GOPROXY=off go test ./modules/dns-router-runtime/...
 GOPROXY=off go vet ./modules/dns-router-runtime/...
 # Same API acceptance tests run under race detection on the CI Linux runner.
 GOPROXY=off go test -race ./modules/dns-router-runtime/...
+GOPROXY=off go test -count=1 -v -run 'TestDPR2D' ./modules/dns-router-runtime/...
 for TARGET in aarch64-3.10 mips-3.4 mipsel-3.4; do
   sh scripts/build-dns-router-experimental.sh "$VERSION" "$TARGET"
 done

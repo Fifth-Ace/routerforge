@@ -16,6 +16,7 @@ import (
 
 const SchemaVersion = 1
 const MaxRules = 10000
+const MaxUpstreams = 128
 
 type Config struct {
 	SchemaVersion int        `json:"schema_version"`
@@ -24,9 +25,12 @@ type Config struct {
 }
 
 type Upstream struct {
-	ID        string `json:"id"`
-	Transport string `json:"transport"` // udp or tcp; encrypted protocols are a later gate
-	Address   string `json:"address"`   // explicit unicast IP:port to prevent bootstrap loops
+	ID         string   `json:"id"`
+	Transport  string   `json:"transport"`             // udp, tcp, dot, doh
+	Address    string   `json:"address"`               // explicit unicast IP:port to prevent bootstrap loops
+	ServerName string   `json:"server_name,omitempty"` // required TLS SNI and certificate name for dot/doh
+	Path       string   `json:"path,omitempty"`        // DoH endpoint, defaults to /dns-query
+	Fallbacks  []string `json:"fallbacks,omitempty"`   // explicit same-rule failover, never default DNS
 }
 
 type Rule struct {
@@ -108,6 +112,9 @@ func Compile(cfg Config) (*Engine, error) {
 	if cfg.SchemaVersion != SchemaVersion {
 		return nil, fmt.Errorf("unsupported schema_version %d", cfg.SchemaVersion)
 	}
+	if len(cfg.Upstreams) > MaxUpstreams {
+		return nil, fmt.Errorf("too many upstreams: %d > %d", len(cfg.Upstreams), MaxUpstreams)
+	}
 	if len(cfg.Rules) > MaxRules {
 		return nil, fmt.Errorf("too many rules: %d > %d", len(cfg.Rules), MaxRules)
 	}
@@ -119,7 +126,7 @@ func Compile(cfg Config) (*Engine, error) {
 		if _, dup := e.upstreams[u.ID]; dup {
 			return nil, fmt.Errorf("duplicate upstream %q", u.ID)
 		}
-		if u.Transport != "udp" && u.Transport != "tcp" {
+		if u.Transport != "udp" && u.Transport != "tcp" && u.Transport != "dot" && u.Transport != "doh" {
 			return nil, fmt.Errorf("invalid transport for %q", u.ID)
 		}
 		host, port, err := net.SplitHostPort(u.Address)
@@ -134,7 +141,46 @@ func Compile(cfg Config) (*Engine, error) {
 		if err != nil || p < 1 || p > 65535 {
 			return nil, fmt.Errorf("upstream %q has invalid port", u.ID)
 		}
+		if u.Transport == "dot" || u.Transport == "doh" {
+			normalized, err := normalizedDomain(u.ServerName)
+			if err != nil || normalized != u.ServerName {
+				return nil, fmt.Errorf("upstream %q requires a lowercase TLS server_name DNS name", u.ID)
+			}
+			if u.Transport == "doh" {
+				if u.Path == "" {
+					u.Path = "/dns-query"
+				}
+				if len(u.Path) > 256 || !strings.HasPrefix(u.Path, "/") || strings.HasPrefix(u.Path, "//") || strings.ContainsAny(u.Path, "?#\\ \t\r\n") || strings.Contains(u.Path, "..") {
+					return nil, fmt.Errorf("invalid DoH path for %q", u.ID)
+				}
+			} else if u.Path != "" {
+				return nil, fmt.Errorf("DoT upstream %q must not have HTTP path", u.ID)
+			}
+		} else if u.ServerName != "" || u.Path != "" {
+			return nil, fmt.Errorf("plaintext upstream %q must not set TLS/HTTP options", u.ID)
+		}
+		if len(u.Fallbacks) > 3 {
+			return nil, fmt.Errorf("upstream %q has more than 3 fallbacks", u.ID)
+		}
+		seenFallback := map[string]bool{}
+		for _, fallback := range u.Fallbacks {
+			if !validID(fallback) || fallback == u.ID || seenFallback[fallback] {
+				return nil, fmt.Errorf("upstream %q has invalid/duplicate fallback", u.ID)
+			}
+			seenFallback[fallback] = true
+		}
 		e.upstreams[u.ID] = u
+	}
+	for _, u := range e.upstreams {
+		for _, id := range u.Fallbacks {
+			fallback, ok := e.upstreams[id]
+			if !ok {
+				return nil, fmt.Errorf("upstream %q references unknown fallback %q", u.ID, id)
+			}
+			if len(fallback.Fallbacks) != 0 {
+				return nil, fmt.Errorf("upstream %q fallback %q must be terminal", u.ID, id)
+			}
+		}
 	}
 	ruleIDs := make(map[string]bool)
 	for _, raw := range cfg.Rules {
@@ -221,6 +267,20 @@ func (e *Engine) Evaluate(query string) (Decision, error) {
 	}
 	u := e.upstreams[best.Upstream]
 	return Decision{Domain: d, Matched: true, Source: "policy", RuleID: best.ID, Upstream: u.ID, Transport: u.Transport, Address: u.Address, Reason: "most-specific matching domain rule"}, nil
+}
+
+// UpstreamChain yields only the explicitly selected upstream and its named
+// fallbacks. No default resolvers or Keenetic DNS path are ever consulted.
+func (e *Engine) UpstreamChain(id string) ([]Upstream, error) {
+	primary, ok := e.upstreams[id]
+	if !ok {
+		return nil, fmt.Errorf("unknown upstream %q", id)
+	}
+	chain := []Upstream{primary}
+	for _, fallback := range primary.Fallbacks {
+		chain = append(chain, e.upstreams[fallback])
+	}
+	return chain, nil
 }
 
 func Load(path string) (*Engine, error) {

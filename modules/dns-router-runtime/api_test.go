@@ -145,7 +145,7 @@ func TestUIStaticAllowlist(t *testing.T) {
 		t.Fatal(err)
 	}
 	handler := NewAPI(NewConfigStore(filepath.Join(t.TempDir(), "cfg.json")), dir).Handler()
-	for path, want := range map[string]int{"/ui/index.html": 200, "/ui/../../secret": 301, "/ui/not-allowed.txt": 404} {
+	for path, want := range map[string]int{"/ui/index.html": 200, "/v1/ui/index.html": 200, "/ui/../../secret": 301, "/ui/not-allowed.txt": 404} {
 		r := httptest.NewRequest("GET", path, nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
@@ -158,5 +158,14 @@ func TestUIStaticAllowlist(t *testing.T) {
 				t.Fatal("wrong UI payload")
 			}
 		}
+	}
+}
+
+func TestShadowStatusAPI(t *testing.T) {
+	a := NewAPI(NewConfigStore(filepath.Join(t.TempDir(), "config.json")), "")
+	w := httptest.NewRecorder()
+	a.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/v1/shadow/status", nil))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"active":false`) {
+		t.Fatal(w.Code, w.Body)
 	}
 }

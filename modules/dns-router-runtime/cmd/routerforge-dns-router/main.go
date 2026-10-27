@@ -20,20 +20,25 @@ import (
 var version = "dev"
 
 func main() {
-	config := flag.String("config", "/opt/etc/routerforge/dns-router/config.json", "path to v1 DNS Router config")
-	domain := flag.String("evaluate", "", "offline evaluation of one DNS name")
-	showVersion := flag.Bool("version", false, "print build version")
-	serve := flag.Bool("serve", false, "enable manual management-only Unix socket API (NO DNS listener)")
-	socket := flag.String("socket", "/opt/var/run/routerforge-dns-router.sock", "Unix socket path")
+	config := flag.String("config", "/opt/etc/routerforge/dns-router/config.json", "DNS Router config path")
+	domain := flag.String("evaluate", "", "offline domain evaluation")
+	showVersion := flag.Bool("version", false, "print version")
+	serve := flag.Bool("serve", false, "manual management-only Unix socket API")
+	socket := flag.String("socket", "/opt/var/run/routerforge-dns-router.sock", "management socket")
 	ui := flag.String("ui", "/opt/share/routerforge/modules/dns-router/ui", "UI directory")
+	shadow := flag.Bool("shadow-forward", false, "EXPLICIT shadow UDP/TCP forwarder on loopback/high port; no router DNS takeover")
+	listen := flag.String("shadow-listen", "127.0.0.1:55353", "shadow loopback listener, never :53")
 	flag.Parse()
 	if *showVersion {
 		fmt.Println(version)
 		return
 	}
+	if *shadow && !*serve {
+		log.Fatal("--shadow-forward requires --serve")
+	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {
-		if err := runManagement(store, *socket, *ui); err != nil {
+		if err := runManagement(store, *socket, *ui, *shadow, *listen); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -54,12 +59,21 @@ func main() {
 	}
 	_ = json.NewEncoder(os.Stdout).Encode(d)
 }
-func runManagement(store *dnsrouter.ConfigStore, socket, ui string) error {
+
+func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow bool, shadowListen string) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("Unix socket path must be absolute")
 	}
-	if _, _, err := store.Load(); err != nil {
+	cfg, _, err := store.Load()
+	if err != nil {
 		return fmt.Errorf("configuration precheck: %w", err)
+	}
+	var forward *dnsrouter.ShadowForwarder
+	if enableShadow {
+		forward, err = dnsrouter.NewShadowForwarder(cfg, dnsrouter.ShadowOptions{Listen: shadowListen})
+		if err != nil {
+			return fmt.Errorf("shadow precheck: %w", err)
+		}
 	}
 	if _, err := os.Lstat(socket); err == nil {
 		return fmt.Errorf("socket path exists; refusing overwrite: %s", socket)
@@ -69,9 +83,9 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string) error {
 	if err := os.MkdirAll(filepath.Dir(socket), 0700); err != nil {
 		return err
 	}
-	old := syscall.Umask(0077)
+	mask := syscall.Umask(0077)
 	listener, err := net.Listen("unix", socket)
-	syscall.Umask(old)
+	syscall.Umask(mask)
 	if err != nil {
 		return err
 	}
@@ -80,26 +94,35 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string) error {
 	if err := os.Chmod(socket, 0600); err != nil {
 		return err
 	}
-	server := &http.Server{Handler: dnsrouter.NewAPI(store, ui).Handler(), ReadHeaderTimeout: 5 * time.Second}
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(stop)
-	done := make(chan struct{})
-	go func() {
-		select {
-		case <-stop:
-		case <-done:
-			return
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = server.Shutdown(ctx)
-	}()
-	log.Printf("DNS Router management API on %s (NO DNS forwarding or interception)", socket)
-	err = server.Serve(listener)
-	close(done)
-	if err == http.ErrServerClosed {
-		return nil
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	handler := dnsrouter.NewAPI(store, ui)
+	handler.Shadow = forward
+	server := &http.Server{Handler: handler.Handler(), ReadHeaderTimeout: 5 * time.Second}
+	runError := make(chan error, 1)
+	if forward != nil {
+		go func() { runError <- forward.Serve(ctx) }()
 	}
-	return err
+	httpDone := make(chan error, 1)
+	go func() { httpDone <- server.Serve(listener) }()
+	log.Printf("DNS Router manual management socket %s; shadow=%t; NO :53/interception/Keenetic changes", socket, enableShadow)
+	var cause error
+	select {
+	case <-ctx.Done():
+	case cause = <-httpDone:
+		if cause == http.ErrServerClosed {
+			cause = nil
+		}
+	case cause = <-runError:
+		// A shadow listener error must stop the management API too.
+		if cause == nil && ctx.Err() == nil {
+			cause = fmt.Errorf("shadow stopped unexpectedly")
+		}
+	}
+	stop()
+	shutdown, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = server.Shutdown(shutdown)
+	// Cancel terminates both UDP and TCP listeners and workers.
+	return cause
 }

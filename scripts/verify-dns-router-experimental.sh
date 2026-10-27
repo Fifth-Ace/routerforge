@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2b
+VERSION=0.14.0~dev.dpr2c
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 GOPROXY=off go test ./modules/dns-router-runtime/...
@@ -28,6 +28,7 @@ for arch in ('aarch64-3.10','mips-3.4','mipsel-3.4'):
     assert f'Version: {v}\n' in control
     assert 'Depends: routerforge-core\n' in control
     assert 'routerforge-dns,' not in control
+    assert 'No autostart' in control
     with tarfile.open(p,'r:gz') as outer:
         payload=outer.extractfile(next(m for m in outer if m.name.lstrip('./')=='data.tar.gz')).read()
     with tarfile.open(fileobj=io.BytesIO(payload),mode='r:gz') as data:
@@ -37,6 +38,12 @@ for arch in ('aarch64-3.10','mips-3.4','mipsel-3.4'):
         assert required in names, required
     assert not any(n.endswith('/postinst') or n.endswith('/S99routerforge-dns-router') for n in names), 'unexpected autostart'
     assert 'opt/bin/routerforge-dns-router' in names
+    import json
+    with tarfile.open(fileobj=io.BytesIO(payload),mode='r:gz') as data:
+        m=data.extractfile(next(x for x in data if x.name.lstrip('./')==prefix+'manifest.json'))
+        manifest=json.load(m)
+    assert manifest['id']=='dns-router'
+    assert manifest['mode']=='manual-shadow-dns-opt-in'
     print(f'DNS_ROUTER_IPK_{arch}: PASS ({p.stat().st_size} bytes)')
-print('DNS_ROUTER_EXPERIMENTAL_MATRIX: PASS (3/3; manual API only; no publish)')
+print('DNS_ROUTER_EXPERIMENTAL_MATRIX: PASS (3/3; manual loopback shadow DNS; no publish)')
 PY

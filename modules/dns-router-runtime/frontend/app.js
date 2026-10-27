@@ -7,7 +7,7 @@
   const el = id => document.getElementById(id);
   const feedback = msg => { el('feedback').textContent = msg; };
   async function request(path, opts = {}) {
-    const response = await fetch('../v1/' + path, {cache: 'no-store', ...opts});
+    const response = await fetch('../' + path, {cache: 'no-store', ...opts});
     const body = await response.json();
     if (!response.ok) throw new Error('HTTP ' + response.status + ': ' + (body.error || 'unknown error'));
     return body;

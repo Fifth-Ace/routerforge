@@ -15,8 +15,9 @@ import (
 const maxAPIBytes int64 = MaxConfigBytes
 
 type API struct {
-	Store *ConfigStore
-	UI    string
+	Store  *ConfigStore
+	UI     string
+	Shadow *ShadowForwarder
 }
 
 func NewAPI(store *ConfigStore, ui string) *API { return &API{Store: store, UI: ui} }
@@ -73,7 +74,24 @@ func (a *API) Handler() http.Handler {
 			fail(w, 500, err)
 			return
 		}
-		respondJSON(w, 200, map[string]any{"component": "dns-router", "status": "inactive", "dns_listener": false, "dns_interception": false, "installed_dns_manager_required": false, "config_revision": rev, "rules": len(cfg.Rules), "upstreams": len(cfg.Upstreams), "time": time.Now().UTC().Format(time.RFC3339)})
+		active := a.Shadow != nil && a.Shadow.Active()
+		state := "inactive"
+		if active {
+			state = "shadow-loopback"
+		}
+		respondJSON(w, 200, map[string]any{"component": "dns-router", "status": state, "dns_listener": active, "dns_interception": false, "installed_dns_manager_required": false, "config_revision": rev, "rules": len(cfg.Rules), "upstreams": len(cfg.Upstreams), "time": time.Now().UTC().Format(time.RFC3339)})
+	})
+	mux.HandleFunc("/v1/shadow/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(405)
+			return
+		}
+		if a.Shadow == nil {
+			respondJSON(w, 200, map[string]any{"active": false, "interception": false})
+			return
+		}
+		respondJSON(w, 200, map[string]any{"active": a.Shadow.Active(), "interception": false, "stats": a.Shadow.Stats()})
 	})
 	mux.HandleFunc("/v1/config", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -191,12 +209,12 @@ func (a *API) Handler() http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		_, _ = w.Write(ExportContent(cfg))
 	})
-	mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
+	serveUI := func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(405)
 			return
 		}
-		name := strings.TrimPrefix(r.URL.Path, "/ui/")
+		name := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, "/v1"), "/ui/")
 		if name == "" {
 			name = "index.html"
 		}
@@ -225,6 +243,8 @@ func (a *API) Handler() http.Handler {
 			w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		}
 		_, _ = io.Copy(w, f)
-	})
+	}
+	mux.HandleFunc("/ui/", serveUI)
+	mux.HandleFunc("/v1/ui/", serveUI)
 	return mux
 }

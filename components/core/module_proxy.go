@@ -18,6 +18,7 @@ import (
 
 var moduleSockets = map[string][]string{
 	"dns":                 {"/opt/var/run/routerforge-dns.sock"},
+	"dns-router":          {"/opt/var/run/routerforge-dns-router.sock"},
 	"admin":               {"/opt/var/run/routerforge-admin.sock", "/opt/var/run/dns-monitor-admin.sock"},
 	"monitoring":          {"/opt/var/run/routerforge-monitoring.sock"},
 	"nfqws-manager":       {"/opt/var/run/routerforge-nfqws-manager.sock"},
@@ -32,6 +33,7 @@ var moduleSockets = map[string][]string{
 
 var modulePackageNames = map[string]string{
 	"dns":                 "routerforge-dns",
+	"dns-router":          "routerforge-dns-router",
 	"admin":               "routerforge-admin",
 	"monitoring":          "routerforge-monitoring",
 	"nfqws-manager":       "routerforge-nfqws-manager",
@@ -57,7 +59,7 @@ const (
 )
 
 func moduleMutationAPI(moduleID string) bool {
-	return moduleID == "dns" || moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager" || moduleID == "port-access-manager" || moduleID == "crowdsec-manager"
+	return moduleID == "dns" || moduleID == "dns-router" || moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager" || moduleID == "port-access-manager" || moduleID == "crowdsec-manager"
 }
 
 const (
@@ -72,6 +74,8 @@ func moduleMutationBodyLimit(moduleID string) int64 {
 	switch moduleID {
 	case "dns":
 		return dnsModuleMutationBodyLimit
+	case "dns-router":
+		return 4 << 20
 	case "admin":
 		return adminModuleMutationBodyLimit
 	case "nfqws-manager":
@@ -193,6 +197,11 @@ func portAccessMutationRequest(r *http.Request) bool {
 	return strings.HasPrefix(r.URL.Path, "/api/modules/port-access-manager/")
 }
 
+func dnsRouterMutationRequest(r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead { return false }
+	return strings.HasPrefix(r.URL.Path, "/api/modules/dns-router/")
+}
+
 func crowdsecMutationRequest(r *http.Request) bool {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		return false
@@ -241,7 +250,7 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 		adminMutation := adminModuleMutationRequest(r)
 		nfqwsMutation := nfqwsManagerMutationRequest(r)
 		antiscanMutation := antiscanManagerMutationRequest(r)
-		moduleMutation := nfqwsMutation || antiscanMutation || portAccessMutationRequest(r) || crowdsecMutationRequest(r)
+		moduleMutation := nfqwsMutation || antiscanMutation || portAccessMutationRequest(r) || crowdsecMutationRequest(r) || dnsRouterMutationRequest(r)
 		adminFiles := adminModuleFileRequest(r)
 		adminTerminal := adminModuleTerminalRequest(r)
 		guarded := adminMutation || moduleMutation || adminFiles || adminTerminal
@@ -407,6 +416,9 @@ func moduleMethodAllowed(moduleID, method string) bool {
 			return false
 		}
 	}
+	if moduleID == "dns-router" {
+	return method == http.MethodGet || method == http.MethodPost || method == http.MethodPut
+	}
 	if moduleID == "port-access-manager" {
 		return method == http.MethodGet || method == http.MethodPost || method == http.MethodDelete
 	}
@@ -488,6 +500,8 @@ func proxyModuleAPI(w http.ResponseWriter, r *http.Request) {
 		allow := "GET, HEAD"
 		if moduleID == "dns" {
 			allow = "GET, HEAD, POST, PATCH, DELETE"
+		} else if moduleID == "dns-router" {
+			allow = "GET, HEAD, POST, PUT"
 		} else if moduleID == "admin" || moduleID == "nfqws-manager" || moduleID == "antiscan-manager" {
 			allow = "GET, HEAD, POST, DELETE"
 		}

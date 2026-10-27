@@ -36,7 +36,7 @@ cat > "$WORK/data/opt/share/routerforge/modules/dns-router/manifest.json" <<MANI
   "socket": "/opt/var/run/routerforge-dns-router.sock",
   "api_base": "/api/modules/dns-router",
   "ui_entry": "/api/modules/dns-router/ui/index.html",
-  "mode": "offline-management-only"
+  "mode": "manual-shadow-dns-opt-in"
 }
 MANIFEST
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
@@ -51,7 +51,7 @@ Maintainer: Fifth-Ace
 Source: https://github.com/Fifth-Ace/routerforge
 Homepage: https://github.com/Fifth-Ace/routerforge
 License: MIT
-Description: Experimental offline-only DNS Router policy editor and opt-in management Unix API. No DNS listener, automatic service start or router changes.
+Description: Experimental optional DNS Router with manual loopback-only shadow UDP/TCP forwarding. No autostart, :53 listener, DNS takeover or router changes.
 CONTROL
 printf '2.0\n' > "$WORK/debian-binary"
 (cd "$WORK/data" && tar --owner=0 --group=0 --numeric-owner -czf "$WORK/data.tar.gz" .)

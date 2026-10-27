@@ -23,6 +23,7 @@ func main() {
 	config := flag.String("config", "/opt/etc/routerforge/dns-router/config.json", "DNS Router config path")
 	domain := flag.String("evaluate", "", "offline domain evaluation")
 	showVersion := flag.Bool("version", false, "print version")
+	hardwareReport := flag.Bool("hardware-report", false, "read-only local hardware evidence and integration design JSON; no configuration load")
 	serve := flag.Bool("serve", false, "manual management-only Unix socket API")
 	socket := flag.String("socket", "/opt/var/run/routerforge-dns-router.sock", "management socket")
 	ui := flag.String("ui", "/opt/share/routerforge/modules/dns-router/ui", "UI directory")
@@ -35,6 +36,22 @@ func main() {
 	}
 	if *shadow && !*serve {
 		log.Fatal("--shadow-forward requires --serve")
+	}
+	if *hardwareReport {
+		if *serve || *shadow || *domain != "" {
+			log.Fatal("--hardware-report cannot be combined with serving or evaluation")
+		}
+		d := dnsrouter.ReadOnlyKeeneticDiscovery()
+		report := map[string]any{
+			"mode": "read-only", "discovery": d,
+			"resources":        dnsrouter.CurrentResourceSnapshot(),
+			"integration_plan": dnsrouter.BuildKeeneticIntegrationPlan(d),
+			"changes_applied":  false, "hardware_accepted": false,
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {

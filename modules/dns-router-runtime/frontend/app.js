@@ -112,6 +112,8 @@
   el('shadowStopButton').addEventListener('click',()=>lifecycleControl('stop'));
   el('resourcesButton').addEventListener('click',async()=>{try{const d=await request('runtime/resources');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
   el('keeneticButton').addEventListener('click',async()=>{try{const d=await request('keenetic/discovery');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
+  el('integrationButton').addEventListener('click',async()=>{try{const d=await request('keenetic/integration-plan');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
+  el('hardwareButton').addEventListener('click',async()=>{try{const d=await request('hardware/evidence');el('discoveryStatus').textContent=JSON.stringify(d,null,2);}catch(e){feedback(e.message);}});
   el('upstreamStatusButton').addEventListener('click',async()=>{
     try {const data=await request('upstreams/status');el('upstreamStatus').textContent=JSON.stringify(data,null,2);}
     catch(err){feedback('Диагностика: '+err.message);}

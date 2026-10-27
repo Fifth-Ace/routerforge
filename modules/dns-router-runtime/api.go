@@ -194,6 +194,27 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, 200, map[string]any{"resources": CurrentResourceSnapshot(), "passive_only": true})
 	})
+	mux.HandleFunc("/v1/keenetic/integration-plan", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		respondJSON(w, http.StatusOK, BuildKeeneticIntegrationPlan(ReadOnlyKeeneticDiscovery()))
+	})
+	mux.HandleFunc("/v1/hardware/evidence", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		discovery := ReadOnlyKeeneticDiscovery()
+		respondJSON(w, http.StatusOK, map[string]any{
+			"mode": "read-only", "resources": CurrentResourceSnapshot(),
+			"keenetic": discovery, "integration": BuildKeeneticIntegrationPlan(discovery),
+			"changes_applied": false, "hardware_accepted": false,
+		})
+	})
 	mux.HandleFunc("/v1/keenetic/discovery", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

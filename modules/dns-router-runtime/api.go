@@ -186,6 +186,21 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, 200, map[string]any{"outcome": outcome, "lifecycle": a.Lifecycle.Status(), "interception": false})
 	})
+	// DPR2-L: no side effects; uses only the CAS-persisted policy snapshot.
+	mux.HandleFunc("/v1/keenetic/domain-plan", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(405)
+			return
+		}
+		cfg, rev, err := a.Store.Load()
+		if err != nil {
+			fail(w, 500, err)
+			return
+		}
+		w.Header().Set("ETag", fmt.Sprintf("%q", rev))
+		respondJSON(w, 200, map[string]any{"revision": rev, "plan": BuildDomainSplitPlanL(cfg), "runtime_changed": false, "ndmc_invoked": false})
+	})
 	mux.HandleFunc("/v1/runtime/resources", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

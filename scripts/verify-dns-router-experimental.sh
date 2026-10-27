@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2k
+VERSION=0.14.0~dev.dpr2l
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
@@ -47,7 +47,7 @@ GOPROXY=off go test ./modules/dns-router-runtime/...
 GOPROXY=off go vet ./modules/dns-router-runtime/...
 # Same API acceptance tests run under race detection on the CI Linux runner.
 GOPROXY=off go test -race ./modules/dns-router-runtime/...
-GOPROXY=off go test -count=1 -v -run 'TestDPR2(D|E|F|G|K)' ./modules/dns-router-runtime/...
+GOPROXY=off go test -count=1 -v -run 'TestDPR2(D|E|F|G|K|L)' ./modules/dns-router-runtime/...
 GOPROXY=off go test -run '^$' -bench '^BenchmarkDPR2EEvaluate10K$' -benchtime=100ms -benchmem ./modules/dns-router-runtime/...
 for TARGET in aarch64-3.10 mips-3.4 mipsel-3.4; do
   sh scripts/build-dns-router-experimental.sh "$VERSION" "$TARGET"
@@ -87,3 +87,16 @@ for arch in ('aarch64-3.10','mips-3.4','mipsel-3.4'):
     print(f'DNS_ROUTER_IPK_{arch}: PASS ({p.stat().st_size} bytes)')
 print('DNS_ROUTER_EXPERIMENTAL_MATRIX: PASS (3/3; manual loopback shadow DNS; no publish)')
 PY
+
+# DPR2-L frontend API wiring and syntactic contract, no browser or router dependency.
+python3 - <<'PY_VERIFY_L'
+from pathlib import Path
+html = Path('modules/dns-router-runtime/frontend/index.html').read_text()
+js = Path('modules/dns-router-runtime/frontend/app.js').read_text()
+for element in ('listenerForm','listenerMode','listenerListen','listenerACL','listenerPlanButton','listenerPlanStatus'):
+    assert f'id="{element}"' in html and "el('"+element+"')" in js, element
+assert 'keenetic/domain-plan' in js and 'shadow-lan-experimental' in html
+assert 'no ip name-server' in Path('modules/dns-router-runtime/listener_l.go').read_text()
+print('DPR2_L_FRONTEND_CONTRACT: PASS')
+PY_VERIFY_L
+if command -v node >/dev/null 2>&1; then node --check modules/dns-router-runtime/frontend/app.js; fi

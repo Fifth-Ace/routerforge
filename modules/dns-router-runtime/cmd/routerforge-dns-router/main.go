@@ -40,8 +40,11 @@ func main() {
 		fmt.Println(version)
 		return
 	}
-	if (*allowLAN || *clients != "") && (!*shadow || !*serve) {
-		log.Fatal("LAN options require --serve --shadow-forward")
+	if (*allowLAN || *clients != "") && !*serve {
+		log.Fatal("LAN capability requires --serve")
+	}
+	if *clients != "" && !*allowLAN {
+		log.Fatal("LAN client ACL requires --shadow-lan-experimental")
 	}
 	if *shadow && !*serve {
 		log.Fatal("--shadow-forward requires --serve")

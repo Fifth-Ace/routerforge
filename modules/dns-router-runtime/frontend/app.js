@@ -44,6 +44,10 @@
       config.upstreams.splice(i,1);markDirty();
     });
     table('ruleList',['ID','Домен','Совпадение','Пул','Приоритет'],config.rules.map(r=>[r.id,r.domain,r.match,r.upstream,r.priority]),i=>{config.rules.splice(i,1);markDirty();});
+    const listener = config.listener || {mode:'loopback',listen:'127.0.0.1:55353',allowed_clients:[]};
+    el('listenerMode').value=listener.mode;
+    el('listenerListen').value=listener.listen;
+    el('listenerACL').value=(listener.allowed_clients||[]).join(',');
     el('revision').textContent = (dirty ? '● Не сохранено · ' : '') + revision.substring(0,23);
   }
   async function load() {
@@ -51,6 +55,21 @@
     const data = await request('config');
     config = data.config;revision = data.revision; dirty = false;render();feedback('Конфигурация загружена · runtime меняется только при ручном старте/применении');
   }
+  el('listenerForm').addEventListener('submit',e=>{
+    e.preventDefault(); const form=Object.fromEntries(new FormData(e.currentTarget));
+    const allowed=form.allowed_clients.split(',').map(s=>s.trim()).filter(Boolean);
+    config.listener={mode:form.mode,listen:form.listen.trim()};
+    if(form.mode==='lan') config.listener.allowed_clients=allowed;
+    markDirty();feedback('Listener добавлен в черновик · ничего не запущено');
+  });
+  el('listenerPlanButton').addEventListener('click',async()=>{
+    if(dirty){feedback('Для точного плана сначала сохрани черновик');return;}
+    try{const data=await request('keenetic/domain-plan');
+      if(data.revision!==revision) throw new Error('Конфигурация обновлена другим клиентом');
+      el('listenerPlanStatus').textContent=JSON.stringify(data.plan,null,2);
+      feedback('План read-only готов · DNS Keenetic не изменён');
+    }catch(err){feedback('План DNS: '+err.message);}
+  });
   el('upstreamForm').addEventListener('submit',e=>{
     e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget));
     if(config.upstreams.some(u=>u.id===v.id)){feedback('ID пула уже существует');return;}
@@ -98,8 +117,8 @@
   }
   async function lifecycleControl(operation) {
     if (dirty) { feedback('Сначала сохрани настройки: есть несохранённые изменения'); return; }
-    if (operation==='start' && !confirm('Запустить только loopback shadow DNS? Keenetic DNS не изменится.')) return;
-    if (operation==='apply' && !confirm('Применить сохранённую ревизию к loopback shadow DNS?')) return;
+    if (operation==='start' && !confirm('Запустить сохранённый shadow listener? Keenetic DNS не изменится.')) return;
+    if (operation==='apply' && !confirm('Применить сохранённую ревизию к shadow DNS?')) return;
     try {
       const data=await request('shadow/control',jsonOptions('shadow-control',{operation},{'If-Match':'"'+revision+'"'}));
       feedback('Shadow: '+data.outcome+' · DNS Keenetic не затронут');

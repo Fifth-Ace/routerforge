@@ -62,7 +62,11 @@ func (l *LifecycleManager) Status() LifecycleStatus {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.pollLocked()
-	return LifecycleStatus{Active: l.forward != nil && l.forward.Active(), Interception: false, Listen: l.opts.Listen, AppliedRevision: l.appliedRevision, LastError: l.lastError, RuntimeRequiresExplicitStart: true}
+	listen := l.opts.Listen
+	if l.forward != nil {
+		listen = l.forward.opts.Listen
+	}
+	return LifecycleStatus{Active: l.forward != nil && l.forward.Active(), Interception: false, Listen: listen, AppliedRevision: l.appliedRevision, LastError: l.lastError, RuntimeRequiresExplicitStart: true}
 }
 
 func (l *LifecycleManager) Forwarder() *ShadowForwarder {
@@ -73,7 +77,11 @@ func (l *LifecycleManager) Forwarder() *ShadowForwarder {
 }
 
 func (l *LifecycleManager) startLocked(cfg Config, rev string) error {
-	f, err := NewShadowForwarder(cfg, l.opts)
+	options, err := ResolveListenerOptionsL(cfg, l.opts)
+	if err != nil {
+		return err
+	}
+	f, err := NewShadowForwarder(cfg, options)
 	if err != nil {
 		return err
 	}
@@ -176,7 +184,11 @@ func (l *LifecycleManager) Apply(expected string) (string, error) {
 	if expected == "" || rev != expected {
 		return "stale", ErrStale
 	}
-	if _, err := NewShadowForwarder(cfg, l.opts); err != nil {
+	options, err := ResolveListenerOptionsL(cfg, l.opts)
+	if err != nil {
+		return "precheck", err
+	}
+	if _, err := NewShadowForwarder(cfg, options); err != nil {
 		return "precheck", err
 	}
 	oldCfg, oldRev := l.appliedConfig, l.appliedRevision

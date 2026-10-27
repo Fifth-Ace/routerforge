@@ -19,9 +19,10 @@ const MaxRules = 10000
 const MaxUpstreams = 128
 
 type Config struct {
-	SchemaVersion int        `json:"schema_version"`
-	Upstreams     []Upstream `json:"upstreams"`
-	Rules         []Rule     `json:"rules"`
+	SchemaVersion int             `json:"schema_version"`
+	Upstreams     []Upstream      `json:"upstreams"`
+	Rules         []Rule          `json:"rules"`
+	Listener      *ListenerConfig `json:"listener,omitempty"`
 }
 
 type Upstream struct {
@@ -109,6 +110,9 @@ func validID(s string) bool {
 // Compile validates the entire config before it can be evaluated. Complexity:
 // O(number of labels) per query, independent of the number of stored rules.
 func Compile(cfg Config) (*Engine, error) {
+	if err := ValidateListenerConfigL(cfg.Listener); err != nil {
+		return nil, err
+	}
 	if cfg.SchemaVersion != SchemaVersion {
 		return nil, fmt.Errorf("unsupported schema_version %d", cfg.SchemaVersion)
 	}

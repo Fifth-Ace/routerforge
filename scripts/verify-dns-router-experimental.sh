@@ -2,11 +2,12 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2g
+VERSION=0.14.0~dev.dpr2h
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
 sh -n scripts/dpr2-g-hardware-readonly.sh
+sh -n scripts/dpr2-h-dstest-readonly.sh
 # Independent hardware report CLI requires no DNS config or listeners.
 go build -o dist/dpr2f-local-report ./modules/dns-router-runtime/cmd/routerforge-dns-router
 ./dist/dpr2f-local-report --hardware-report | python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["mode"]=="read-only" and x["changes_applied"] is False and x["integration_plan"]["activation_allowed"] is False'
@@ -15,6 +16,33 @@ go build -o dist/dpr2f-local-report ./modules/dns-router-runtime/cmd/routerforge
 sh scripts/dpr2-g-hardware-readonly.sh > dist/dpr2g-ci-evidence.txt
 ./dist/dpr2f-local-report --assess-hardware-log dist/dpr2g-ci-evidence.txt | python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["mode"]=="offline-read-only-assessment" and x["changes_applied"] is False and x["activation_allowed"] is False and x["hardware_accepted"] is False'
 ./dist/dpr2f-local-report --assess-hardware-log dist/dpr2g-ci-evidence.txt | grep -q 'INSUFFICIENT_EVIDENCE'
+# H: the CI runner is not a Keenetic device, so this fixture must NEVER
+# be presented as physical hardware acceptance.
+cat > dist/dpr2h-fixture.txt <<'FIXTURE'
+RF_DPR2H_EVIDENCE_BEGIN
+SCHEMA=1
+MODE=READ_ONLY
+ARCH=aarch64
+DSTEST_IP_MATCH=YES
+OPT_DIR=YES
+ENTWARE_OPKG=YES
+MEM_AVAILABLE_KIB=128000
+OPT_FREE_KIB=152000
+PORT53_UDP_ENTRIES=2
+PORT53_TCP_ENTRIES=1
+SHADOW_55353_ENTRIES=0
+NDMC_VERSION=OK
+NDMC_DNS=OK
+DNS_OVERRIDE=UNKNOWN
+LOCAL_NAMES=NOT_TESTED
+SHADOW_UDP_TCP=NOT_TESTED
+LOOP_DETECTION=NOT_TESTED
+ROLLBACK=NOT_TESTED
+DNS_INTERCEPTION=NONE
+NFQUEUE_300=NOT_TOUCHED
+RF_DPR2H_EVIDENCE_END
+FIXTURE
+./dist/dpr2f-local-report --assess-h-report dist/dpr2h-fixture.txt | python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["mode"]=="read-only-hardware-inventory" and x["activation_allowed"] is False and x["shadow_hardware_pass"] is False and x["hardware_accepted"] is False'
 GOPROXY=off go test ./modules/dns-router-runtime/...
 GOPROXY=off go vet ./modules/dns-router-runtime/...
 # Same API acceptance tests run under race detection on the CI Linux runner.

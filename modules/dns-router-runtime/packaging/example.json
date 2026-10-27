@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "upstreams": [
+    {"id": "primary", "transport": "udp", "address": "9.9.9.9:53"},
+    {"id": "secondary", "transport": "tcp", "address": "1.1.1.1:53"}
+  ],
+  "rules": [
+    {"id": "example-zone", "domain": "example.com", "match": "suffix", "upstream": "primary", "priority": 10},
+    {"id": "example-api", "domain": "api.example.com", "match": "exact", "upstream": "secondary", "priority": 20}
+  ]
+}

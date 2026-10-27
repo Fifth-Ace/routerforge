@@ -491,6 +491,9 @@ jobs:
       - name: Test
         if: steps.scope.outputs.go == 'true'
         run: go test ./...
+      - name: R7 DNS Router experimental IPK matrix (no publish)
+        if: steps.scope.outputs.go == 'true'
+        run: sh scripts/verify-dns-router-experimental.sh
 
       - name: Vet
         if: steps.scope.outputs.go == 'true'

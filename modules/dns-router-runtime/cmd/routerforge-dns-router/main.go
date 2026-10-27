@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,11 +32,16 @@ func main() {
 	socket := flag.String("socket", "/opt/var/run/routerforge-dns-router.sock", "management socket")
 	ui := flag.String("ui", "/opt/share/routerforge/modules/dns-router/ui", "UI directory")
 	shadow := flag.Bool("shadow-forward", false, "EXPLICIT shadow UDP/TCP forwarder on loopback/high port; no router DNS takeover")
-	listen := flag.String("shadow-listen", "127.0.0.1:55353", "shadow loopback listener, never :53")
+	listen := flag.String("shadow-listen", "127.0.0.1:55353", "shadow listener, never :53")
+	allowLAN := flag.Bool("shadow-lan-experimental", false, "EXPLICIT private IPv4 LAN test listener; requires source ACL")
+	clients := flag.String("shadow-allow-clients", "", "comma-separated exact IPv4 source allowlist for LAN shadow")
 	flag.Parse()
 	if *showVersion {
 		fmt.Println(version)
 		return
+	}
+	if (*allowLAN || *clients != "") && (!*shadow || !*serve) {
+		log.Fatal("LAN options require --serve --shadow-forward")
 	}
 	if *shadow && !*serve {
 		log.Fatal("--shadow-forward requires --serve")
@@ -98,7 +104,7 @@ func main() {
 	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {
-		if err := runManagement(store, *socket, *ui, *shadow, *listen); err != nil {
+		if err := runManagement(store, *socket, *ui, *shadow, *listen, *allowLAN, *clients); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -120,7 +126,7 @@ func main() {
 	_ = json.NewEncoder(os.Stdout).Encode(d)
 }
 
-func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow bool, shadowListen string) error {
+func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("Unix socket path must be absolute")
 	}
@@ -129,7 +135,11 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow
 		return fmt.Errorf("configuration precheck: %w", err)
 	}
 	_ = cfg
-	lifecycle := dnsrouter.NewLifecycleManager(store, dnsrouter.ShadowOptions{Listen: shadowListen})
+	var allowed []string
+	if clients != "" {
+		allowed = strings.Split(clients, ",")
+	}
+	lifecycle := dnsrouter.NewLifecycleManager(store, dnsrouter.ShadowOptions{Listen: shadowListen, AllowLAN: allowLAN, AllowedClients: allowed})
 	if enableShadow {
 		_, rev, err := store.Load()
 		if err != nil {

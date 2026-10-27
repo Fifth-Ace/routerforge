@@ -1,6 +1,6 @@
 package dnsrouter
 
-// DPR2-C: opt-in loopback-only shadow DNS forwarder. This file deliberately has
+// DPR2-C/K: opt-in loopback shadow DNS; explicit private-LAN trial requires source ACL. This file has
 // no Keenetic, iptables, resolver configuration, listener :53 or daemon hooks.
 // A query without an explicit matching rule fails closed (REFUSED).
 
@@ -31,11 +31,13 @@ const (
 type DialContextFunc func(context.Context, string, string) (net.Conn, error)
 
 type ShadowOptions struct {
-	Listen  string
-	Timeout time.Duration
-	Workers int
-	Dial    DialContextFunc // injectable for tests; production uses net.Dialer
-	RootCAs *x509.CertPool  // test-only override via constructor; CLI always uses system roots
+	Listen         string
+	AllowLAN       bool     // experimental explicit private IPv4 bind only
+	AllowedClients []string // exact source IPv4 allowlist, required for LAN
+	Timeout        time.Duration
+	Workers        int
+	Dial           DialContextFunc // injectable for tests; production uses net.Dialer
+	RootCAs        *x509.CertPool  // test-only override via constructor; CLI always uses system roots
 }
 
 type ShadowStats struct {
@@ -57,19 +59,20 @@ type UpstreamStats struct {
 }
 
 type ShadowForwarder struct {
-	engine        *Engine
-	opts          ShadowOptions
-	sem           chan struct{}
-	active        atomic.Bool
-	req           atomic.Uint64
-	ok            atomic.Uint64
-	refused       atomic.Uint64
-	failures      atomic.Uint64
-	udp           atomic.Uint64
-	tcp           atomic.Uint64
-	failovers     atomic.Uint64
-	statsMu       sync.Mutex
-	upstreamStats map[string]UpstreamStats
+	allowedClients map[string]bool
+	engine         *Engine
+	opts           ShadowOptions
+	sem            chan struct{}
+	active         atomic.Bool
+	req            atomic.Uint64
+	ok             atomic.Uint64
+	refused        atomic.Uint64
+	failures       atomic.Uint64
+	udp            atomic.Uint64
+	tcp            atomic.Uint64
+	failovers      atomic.Uint64
+	statsMu        sync.Mutex
+	upstreamStats  map[string]UpstreamStats
 }
 
 func NewShadowForwarder(cfg Config, opts ShadowOptions) (*ShadowForwarder, error) {
@@ -82,8 +85,29 @@ func NewShadowForwarder(cfg Config, opts ShadowOptions) (*ShadowForwarder, error
 		return nil, fmt.Errorf("shadow listen: %w", err)
 	}
 	ip := net.ParseIP(host)
-	if ip == nil || !ip.IsLoopback() {
-		return nil, errors.New("shadow listener must bind an explicit loopback IP")
+	if ip == nil || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() {
+		return nil, errors.New("shadow listener must bind an explicit unicast IP")
+	}
+	isLAN := !ip.IsLoopback()
+	if isLAN && (!opts.AllowLAN || ip.To4() == nil || !ip.IsPrivate()) {
+		return nil, errors.New("private IPv4 shadow LAN listener requires explicit experimental opt-in")
+	}
+	if !isLAN && (opts.AllowLAN || len(opts.AllowedClients) != 0) {
+		return nil, errors.New("loopback shadow must not use LAN options")
+	}
+	allowlist := make(map[string]bool)
+	if isLAN {
+		if len(opts.AllowedClients) == 0 || len(opts.AllowedClients) > 8 {
+			return nil, errors.New("LAN shadow requires 1..8 exact source IPs")
+		}
+		for _, item := range opts.AllowedClients {
+			client := net.ParseIP(item)
+			if client == nil || client.To4() == nil || client.IsUnspecified() ||
+				(!client.IsPrivate() && !client.IsLoopback()) || client.String() != item || allowlist[item] {
+				return nil, errors.New("invalid or duplicate LAN shadow source IP")
+			}
+			allowlist[item] = true
+		}
 	}
 	n, err := strconv.Atoi(port)
 	if err != nil || n < 1025 || n > 65535 || n == 53 {
@@ -105,7 +129,16 @@ func NewShadowForwarder(cfg Config, opts ShadowOptions) (*ShadowForwarder, error
 		dialer := &net.Dialer{Timeout: opts.Timeout}
 		opts.Dial = dialer.DialContext
 	}
-	return &ShadowForwarder{engine: engine, opts: opts, sem: make(chan struct{}, opts.Workers), upstreamStats: make(map[string]UpstreamStats)}, nil
+	return &ShadowForwarder{engine: engine, opts: opts, allowedClients: allowlist, sem: make(chan struct{}, opts.Workers), upstreamStats: make(map[string]UpstreamStats)}, nil
+}
+
+// allowSource drops unauthorized DNS packets before they reach policy/upstream logic.
+// A LAN bind is never a general-purpose recursive resolver.
+func (f *ShadowForwarder) allowSource(ip net.IP) bool {
+	if !f.opts.AllowLAN {
+		return ip.IsLoopback()
+	}
+	return f.allowedClients[ip.String()]
 }
 
 func (f *ShadowForwarder) Stats() ShadowStats {
@@ -186,6 +219,9 @@ func (f *ShadowForwarder) serveUDP(ctx context.Context, c *net.UDPConn, wg *sync
 			}
 			return err
 		}
+		if !f.allowSource(addr.IP) {
+			continue
+		}
 		data := append([]byte(nil), buf[:n]...)
 		if !f.acquire(ctx) {
 			return nil
@@ -210,6 +246,11 @@ func (f *ShadowForwarder) serveTCP(ctx context.Context, l net.Listener, wg *sync
 				return nil
 			}
 			return err
+		}
+		peer, ok := c.RemoteAddr().(*net.TCPAddr)
+		if !ok || !f.allowSource(peer.IP) {
+			_ = c.Close()
+			continue
 		}
 		if !f.acquire(ctx) {
 			_ = c.Close()

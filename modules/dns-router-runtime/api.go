@@ -23,6 +23,7 @@ type API struct {
 	ManagedN  *ManagedTrialN
 	LedgerO   *LedgerStoreO
 	DurableO2 *DurableManagerO2
+	StartupO3 *StartupManagerO3
 }
 
 func NewAPI(store *ConfigStore, ui string) *API { return &API{Store: store, UI: ui} }
@@ -442,6 +443,25 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		respondJSON(w, 200, result)
+	})
+	// DPR2-O3: read-only startup reconciliation status. Startup recovery is
+	// available ONLY when the CLI explicitly enables the O3 capability.
+	mux.HandleFunc("/v1/keenetic/startup/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(405)
+			return
+		}
+		if a.StartupO3 == nil {
+			fail(w, http.StatusServiceUnavailable, errors.New("startup recovery capability disabled"))
+			return
+		}
+		status, err := a.StartupO3.Inspect(r.Context())
+		if err != nil {
+			respondJSON(w, http.StatusConflict, status)
+			return
+		}
+		respondJSON(w, http.StatusOK, status)
 	})
 	// DPR2-L: no side effects; uses only the CAS-persisted policy snapshot.
 	mux.HandleFunc("/v1/keenetic/domain-plan", func(w http.ResponseWriter, r *http.Request) {

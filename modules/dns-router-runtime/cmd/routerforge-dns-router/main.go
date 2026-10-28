@@ -38,6 +38,7 @@ func main() {
 	managedWorker := flag.String("ndmc-managed-rollback-worker", "", "internal multi-zone watchdog process")
 	durableWorker := flag.String("ndmc-durable-disable-worker", "", "internal reverse rollback watchdog")
 	durableOptIn := flag.Bool("ndmc-durable-experimental", false, "DSTest-only explicit persistent zone API; NEVER automatic startup")
+	startupOptIn := flag.Bool("ndmc-startup-recovery-experimental", false, "DSTest-only explicit startup reconciliation of existing owned zones; no bootstrap setup")
 	rollbackWorker := flag.String("ndmc-rollback-worker", "", "internal independent rollback watchdog")
 	allowLAN := flag.Bool("shadow-lan-experimental", false, "EXPLICIT private IPv4 LAN test listener; requires source ACL")
 	clients := flag.String("shadow-allow-clients", "", "comma-separated exact IPv4 source allowlist for LAN shadow")
@@ -68,6 +69,9 @@ func main() {
 			log.Fatal(err)
 		}
 		return
+	}
+	if *startupOptIn && !*durableOptIn {
+		log.Fatal("startup recovery requires --ndmc-durable-experimental")
 	}
 	if *durableOptIn && (!*serve || !*allowLAN || !*shadow) {
 		log.Fatal("durable experiment requires --serve --shadow-lan-experimental --shadow-forward")
@@ -149,7 +153,7 @@ func main() {
 	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {
-		if err := runManagement(store, *config, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial, *durableOptIn); err != nil {
+		if err := runManagement(store, *config, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial, *durableOptIn, *startupOptIn); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -171,7 +175,7 @@ func main() {
 	_ = json.NewEncoder(os.Stdout).Encode(d)
 }
 
-func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool, durableOptIn bool) error {
+func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool, durableOptIn bool, startupOptIn bool) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("Unix socket path must be absolute")
 	}
@@ -236,6 +240,18 @@ func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, 
 			return err
 		}
 		handler.DurableO2 = dnsrouter.NewRealDurableO2(store, handler.LedgerO, lifecycle)
+		if startupOptIn {
+			handler.StartupO3 = &dnsrouter.StartupManagerO3{Durable: handler.DurableO2}
+			bootCtx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+			result, bootErr := handler.StartupO3.Recover(bootCtx)
+			cancel()
+			if bootErr != nil {
+				log.Printf("DPR2-O3 startup recovery BLOCKED: state=%s reason=%v; no automatic DNS changes after blocker", result.State, bootErr)
+			} else {
+				log.Printf("DPR2-O3 startup reconciliation: state=%s restored=%v", result.State, result.Restored)
+			}
+		}
+
 	}
 	server := &http.Server{Handler: handler.Handler(), ReadHeaderTimeout: 5 * time.Second}
 

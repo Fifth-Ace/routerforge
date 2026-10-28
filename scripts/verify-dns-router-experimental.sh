@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2o2
+VERSION=0.14.0~dev.dpr2o3
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
@@ -176,3 +176,27 @@ assert '--shadow-forward' in c and 'NDMCTestHostGateM' in c
 assert 'system configuration save' not in p.lower()
 print('DPR2_O2_DURABLE_TRANSACTION_AND_REVERSE_WATCHDOG: PASS')
 PY_VERIFY_O2
+
+# DPR2-O3: startup reconciliation remains strictly explicit on DSTest.
+# CI uses injected ndmc and watchdog fixtures, never real router mutations.
+GOPROXY=off go test -count=1 -v -run '^TestDPR2O3' ./modules/dns-router-runtime/...
+python3 - <<'PY_VERIFY_O3'
+from pathlib import Path
+p=Path('modules/dns-router-runtime/managed_o3.go').read_text()
+t=Path('modules/dns-router-runtime/managed_o3_test.go').read_text()
+a=Path('modules/dns-router-runtime/api.go').read_text()
+c=Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text()
+assert 'lockNDMCForO2' in p and 'checkGuardsO3' in p
+assert 'classifyStartupO3' in p and 'ReconcileLedgerO' not in p
+assert 'rollbackManagedN' in p and 'guard.Finish()' in p
+assert 'pending_recovery_required' not in p # state is composed from ledger, not guessed
+assert 'if ledger.State != "active"' in p
+assert 'm.Probe' in p and 'safety.CommandContext' not in p
+assert 'TestDPR2O3RebootRestoresOwnedZones' in t
+assert 'TestDPR2O3RegistrationFailureRollsBackAndPreservesLedger' in t
+assert 'TestDPR2O3PendingLedgerBlocked' in t
+assert '/v1/keenetic/startup/status' in a and 'http.MethodGet' in a
+assert 'ndmc-startup-recovery-experimental' in c
+assert 'startupOptIn && !*durableOptIn' in c
+print('DPR2_O3_EXPLICIT_STARTUP_RECONCILIATION: PASS')
+PY_VERIFY_O3

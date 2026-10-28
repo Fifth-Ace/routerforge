@@ -159,16 +159,27 @@ func TestDPR2O2RejectForeignOwnershipAndStaleCAS(t *testing.T) {
 }
 func TestDPR2O2RollbackFailureKeepsPendingLedger(t *testing.T) {
 	m, f := newDurableO2(t)
-	f.failAdd = "beta.dpr2n.test"
-	f.failRemove = "alpha.dpr2n.test"
-	p, _ := m.Prepare(context.Background(), revisionO2(t, m))
-	o, e := m.Apply(context.Background(), revisionO2(t, m), p.Token)
-	if e == nil || o.State != "ambiguous" {
-		t.Fatalf("ambiguous %+v %v", o, e)
+	// The plan sorts shorter suffixes first: beta is registered before alpha.
+	// Fail the second add (alpha) after its side effect, then refuse removal
+	// of the already-registered beta to exercise an actual ambiguous rollback.
+	f.failAdd = "alpha.dpr2n.test"
+	f.failRemove = "beta.dpr2n.test"
+	ctx := context.Background()
+	rev := revisionO2(t, m)
+	p, err := m.Prepare(ctx, rev)
+	if err != nil || !p.Ready || len(p.Zones) != 2 || p.Zones[0].Domain != "beta.dpr2n.test" || p.Zones[1].Domain != "alpha.dpr2n.test" {
+		t.Fatalf("unexpected ordered plan: %+v err=%v", p, err)
 	}
-	ledger, _, e := m.Ledger.Load()
-	if e != nil || ledger.State != "pending" {
-		t.Fatalf("pending %+v %v", ledger, e)
+	o, err := m.Apply(ctx, rev, p.Token)
+	if err == nil || o.State != "ambiguous" || o.BaselineRestored {
+		t.Fatalf("expected ambiguous rollback: %+v err=%v", o, err)
+	}
+	ledger, _, err := m.Ledger.Load()
+	if err != nil || ledger == nil || ledger.State != "pending" {
+		t.Fatalf("pending ledger required: %+v err=%v", ledger, err)
+	}
+	if !f.zones["beta.dpr2n.test"] {
+		t.Fatal("injected failed removal did not leave beta registered")
 	}
 }
 func TestDPR2O2DisablePartialFailureRestoresActive(t *testing.T) {

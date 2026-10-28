@@ -135,7 +135,7 @@ func main() {
 	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {
-		if err := runManagement(store, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial); err != nil {
+		if err := runManagement(store, *config, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -157,7 +157,7 @@ func main() {
 	_ = json.NewEncoder(os.Stdout).Encode(d)
 }
 
-func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool) error {
+func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("Unix socket path must be absolute")
 	}
@@ -204,6 +204,7 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow
 	defer stop()
 	handler := dnsrouter.NewAPI(store, ui)
 	handler.Lifecycle = lifecycle
+	handler.LedgerO = dnsrouter.NewLedgerStoreO(configPath + ".managed-state.json")
 	if ndmcTrial {
 		if err := dnsrouter.NDMCTestHostGateM(); err != nil {
 			return err

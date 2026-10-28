@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2n
+VERSION=0.14.0~dev.dpr2o1
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
@@ -136,3 +136,22 @@ for v in ('managedPrepareN','managedTrialN','managedStatusN'):
 assert 'system configuration save' not in p
 print('DPR2_N_MULTIZONE_TRANSACTION_AND_UI: PASS')
 PY_VERIFY_N
+
+# DPR2-O1 durable ownership ledger and read-only reconciliation. No ndmc
+# mutations, no daemon autostart and no persistent apply in this stage.
+GOPROXY=off go test -count=1 -v -run '^TestDPR2O1' ./modules/dns-router-runtime/...
+python3 - <<'PY_VERIFY_O1'
+from pathlib import Path
+p=Path('modules/dns-router-runtime/managed_o.go').read_text()
+a=Path('modules/dns-router-runtime/api.go').read_text()
+c=Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text()
+h=Path('modules/dns-router-runtime/frontend/index.html').read_text()
+j=Path('modules/dns-router-runtime/frontend/app.js').read_text()
+for needle in ('SaveCAS', 'safety.WriteFileAtomic', 'pending_recovery', 'stale_policy', 'ReconcileLedgerO'):
+    assert needle in p, needle
+assert 'managed-ownership/status' in a and 'managed-state.json' in c
+for x in ('managedOwnershipStatusO', 'managedOwnershipResultO'):
+    assert f'id="{x}"' in h and f"el('{x}')" in j
+assert 'ndmc-managed-trial-experimental' in c
+print('DPR2_O1_PERSISTENCE_AND_READONLY_UI: PASS')
+PY_VERIFY_O1

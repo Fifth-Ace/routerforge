@@ -21,6 +21,7 @@ type API struct {
 	Lifecycle *LifecycleManager
 	TrialM    *NDMCTrialM
 	ManagedN  *ManagedTrialN
+	LedgerO   *LedgerStoreO
 }
 
 func NewAPI(store *ConfigStore, ui string) *API { return &API{Store: store, UI: ui} }
@@ -291,6 +292,34 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		respondJSON(w, 200, result)
+	})
+	// DPR2-O1: read-only ledger reconciliation. Never adopts, starts or
+	// deletes DNS zones. No persistent apply endpoint exists at this stage.
+	mux.HandleFunc("/v1/keenetic/managed-ownership/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if a.LedgerO == nil {
+			fail(w, http.StatusServiceUnavailable, errors.New("ownership ledger unavailable"))
+			return
+		}
+		var executor NDMCExecutorM
+		if a.ManagedN != nil {
+			executor = a.ManagedN.Executor
+		}
+		_, currentRevision, err := a.Store.Load()
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
+		}
+		status, err := InspectManagedOwnershipO(r.Context(), a.LedgerO, executor, currentRevision)
+		if err != nil {
+			fail(w, http.StatusConflict, err)
+			return
+		}
+		respondJSON(w, http.StatusOK, status)
 	})
 	// DPR2-L: no side effects; uses only the CAS-persisted policy snapshot.
 	mux.HandleFunc("/v1/keenetic/domain-plan", func(w http.ResponseWriter, r *http.Request) {

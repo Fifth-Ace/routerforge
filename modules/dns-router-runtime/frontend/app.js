@@ -108,6 +108,14 @@
         'DPR2-N: результат неоднозначный, проверь журнал/откат');
     }catch(err){el('managedStatusN').textContent=String(err);feedback('DPR2-N: '+err.message+'; проверь DNS-снимок перед повтором');}
   });
+  // DPR2-O1: status only; no permanent activation action exposed.
+  el('managedOwnershipStatusO').addEventListener('click', async () => {
+    try {
+      const status=await request('keenetic/managed-ownership/status');
+      el('managedOwnershipResultO').textContent=JSON.stringify(status,null,2);
+      feedback('Реестр проверен без изменения DNS Keenetic');
+    } catch(err) { feedback('DPR2-O1: '+err.message); }
+  });
   el('upstreamForm').addEventListener('submit',e=>{
     e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget));
     if(config.upstreams.some(u=>u.id===v.id)){feedback('ID пула уже существует');return;}

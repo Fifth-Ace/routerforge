@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2o1
+VERSION=0.14.0~dev.dpr2o2
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
@@ -155,3 +155,24 @@ for x in ('managedOwnershipStatusO', 'managedOwnershipResultO'):
 assert 'ndmc-managed-trial-experimental' in c
 print('DPR2_O1_PERSISTENCE_AND_READONLY_UI: PASS')
 PY_VERIFY_O1
+
+# DPR2-O2: persistent DNS changes are opt-in and only possible on DSTest.
+# CI never issues real ndmc mutations: tests use injected executors/guards.
+GOPROXY=off go test -count=1 -v -run '^TestDPR2O2' ./modules/dns-router-runtime/...
+python3 - <<'PY_VERIFY_O2'
+from pathlib import Path
+p=Path('modules/dns-router-runtime/managed_o2.go').read_text()
+l=Path('modules/dns-router-runtime/managed_o.go').read_text()
+a=Path('modules/dns-router-runtime/api.go').read_text()
+c=Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text()
+for needle in ('lockNDMCForO2', 'pending', 'deactivating', 'ensureExactOwnedO2', 'ArmDisableO2', 'DurableDisableWorkerO2', 'HostGate'):
+    assert needle in p, needle
+assert 'safety.CommandContext' in p and 'WATCHDOG_O2_RESTORE_PASS' in p
+assert 'DeleteCAS' in l and 'safety.WriteFileAtomic' in l
+for endpoint in ('durable/prepare','durable/apply','durable/disable'):
+    assert endpoint in a
+assert 'ndmc-durable-experimental' in c and 'ndmc-durable-disable-worker' in c
+assert '--shadow-forward' in c and 'NDMCTestHostGateM' in c
+assert 'system configuration save' not in p.lower()
+print('DPR2_O2_DURABLE_TRANSACTION_AND_REVERSE_WATCHDOG: PASS')
+PY_VERIFY_O2

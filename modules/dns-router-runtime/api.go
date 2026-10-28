@@ -22,6 +22,7 @@ type API struct {
 	TrialM    *NDMCTrialM
 	ManagedN  *ManagedTrialN
 	LedgerO   *LedgerStoreO
+	DurableO2 *DurableManagerO2
 }
 
 func NewAPI(store *ConfigStore, ui string) *API { return &API{Store: store, UI: ui} }
@@ -308,6 +309,8 @@ func (a *API) Handler() http.Handler {
 		var executor NDMCExecutorM
 		if a.ManagedN != nil {
 			executor = a.ManagedN.Executor
+		} else if a.DurableO2 != nil {
+			executor = a.DurableO2.Executor
 		}
 		_, currentRevision, err := a.Store.Load()
 		if err != nil {
@@ -320,6 +323,125 @@ func (a *API) Handler() http.Handler {
 			return
 		}
 		respondJSON(w, http.StatusOK, status)
+	})
+	// DPR2-O2: persistent DNS writes are unavailable unless the DSTest-only
+	// command-line opt-in capability explicitly instantiated DurableO2.
+	mux.HandleFunc("/v1/keenetic/durable/prepare", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(405)
+			return
+		}
+		if !requireMutation(w, r, "durable-prepare") {
+			return
+		}
+		if a.DurableO2 == nil {
+			fail(w, 503, errors.New("persistent capability disabled"))
+			return
+		}
+		var req struct {
+			Operation string `json:"operation"`
+		}
+		if err := decodeBody(r, &req, 1024); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		if req.Operation != "prepare" {
+			fail(w, 400, errors.New("invalid durable prepare operation"))
+			return
+		}
+		rev := strings.Trim(r.Header.Get("If-Match"), "\"")
+		if rev == "" {
+			fail(w, 428, errors.New("If-Match required"))
+			return
+		}
+		plan, err := a.DurableO2.Prepare(r.Context(), rev)
+		if err != nil {
+			code := 422
+			if errors.Is(err, ErrStale) {
+				code = 409
+			}
+			fail(w, code, err)
+			return
+		}
+		respondJSON(w, 200, plan)
+	})
+	mux.HandleFunc("/v1/keenetic/durable/apply", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(405)
+			return
+		}
+		if !requireMutation(w, r, "durable-apply") {
+			return
+		}
+		if a.DurableO2 == nil {
+			fail(w, 503, errors.New("persistent capability disabled"))
+			return
+		}
+		var req struct {
+			Token string `json:"token"`
+		}
+		if err := decodeBody(r, &req, 1024); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		rev := strings.Trim(r.Header.Get("If-Match"), "\"")
+		if rev == "" {
+			fail(w, 428, errors.New("If-Match required"))
+			return
+		}
+		result, err := a.DurableO2.Apply(r.Context(), rev, req.Token)
+		if err != nil {
+			code := 422
+			if errors.Is(err, ErrStale) || errors.Is(err, ErrManagedTokenN) {
+				code = 409
+			}
+			respondJSON(w, code, map[string]any{"error": err.Error(), "result": result})
+			return
+		}
+		respondJSON(w, 200, result)
+	})
+	mux.HandleFunc("/v1/keenetic/durable/disable", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(405)
+			return
+		}
+		if !requireMutation(w, r, "durable-disable") {
+			return
+		}
+		if a.DurableO2 == nil {
+			fail(w, 503, errors.New("persistent capability disabled"))
+			return
+		}
+		var req struct {
+			Operation string `json:"operation"`
+		}
+		if err := decodeBody(r, &req, 1024); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		if req.Operation != "disable" {
+			fail(w, 400, errors.New("invalid disable operation"))
+			return
+		}
+		rev := strings.Trim(r.Header.Get("If-Match"), "\"")
+		ledgerSHA := strings.TrimSpace(r.Header.Get("X-RouterForge-Ledger-Match"))
+		if rev == "" || ledgerSHA == "" {
+			fail(w, 428, errors.New("If-Match and ledger revision required"))
+			return
+		}
+		result, err := a.DurableO2.Disable(r.Context(), rev, ledgerSHA)
+		if err != nil {
+			code := 422
+			if errors.Is(err, ErrStale) {
+				code = 409
+			}
+			respondJSON(w, code, map[string]any{"error": err.Error(), "result": result})
+			return
+		}
+		respondJSON(w, 200, result)
 	})
 	// DPR2-L: no side effects; uses only the CAS-persisted policy snapshot.
 	mux.HandleFunc("/v1/keenetic/domain-plan", func(w http.ResponseWriter, r *http.Request) {

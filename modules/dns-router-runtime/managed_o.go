@@ -29,11 +29,12 @@ const managedLedgerMaxBytesO = 32768
 // the current ndmc output. A pending record MUST be recovered before new work.
 type LedgerO struct {
 	SchemaVersion int      `json:"schema_version"`
-	State         string   `json:"state"` // pending or active; never guessed
+	State         string   `json:"state"` // pending, active or deactivating; never guessed
 	Revision      string   `json:"revision"`
 	Listen        string   `json:"listen"`
 	Zones         []string `json:"zones"`
 	BaselineHash  string   `json:"baseline_hash"`
+	Baseline      string   `json:"baseline,omitempty"` // exact canonical ndmc baseline; required for O2 mutations
 }
 
 type LedgerStoreO struct {
@@ -61,11 +62,17 @@ func validateLedgerO(v LedgerO) error {
 	if v.SchemaVersion != 1 {
 		return errors.New("unsupported ownership ledger schema")
 	}
-	if v.State != "pending" && v.State != "active" {
+	if v.State != "pending" && v.State != "active" && v.State != "deactivating" {
 		return errors.New("ownership ledger has invalid state")
 	}
 	if !hashSyntaxO(v.Revision) || !hashSyntaxO(v.BaselineHash) {
 		return errors.New("ownership ledger requires exact SHA256 revisions")
+	}
+	if v.Baseline != "" {
+		canonical, e := canonicalNDMCSnapshotM(v.Baseline)
+		if e != nil || canonical != v.Baseline || hashSnapshotO2(canonical) != v.BaselineHash {
+			return errors.New("ownership ledger baseline is invalid or mismatched")
+		}
 	}
 	host, port, e := net.SplitHostPort(v.Listen)
 	if e != nil || host != "192.168.10.1" || port != "55358" {
@@ -241,6 +248,9 @@ func ReconcileLedgerO(v *LedgerO, rev, snapshot string) (ManagedOwnershipStatusO
 	if v.State == "pending" {
 		r.State = "pending_recovery"
 		r.RecoveryRequired = true
+	} else if v.State == "deactivating" {
+		r.State = "deactivating_recovery"
+		r.RecoveryRequired = true
 	} else if len(r.MissingZones) > 0 || len(r.ConflictZones) > 0 {
 		r.State = "drift"
 		r.RecoveryRequired = true
@@ -275,4 +285,29 @@ func InspectManagedOwnershipO(ctx context.Context, store *LedgerStoreO, executor
 		r.RecoveryRequired = true
 	}
 	return r, e
+}
+
+// DeleteCAS removes only the ledger at the exact expected revision. It never
+// deletes DNS entries, and cannot be invoked when concurrent state has changed.
+func (s *LedgerStoreO) DeleteCAS(expected string) error {
+	if s == nil {
+		return errors.New("ownership ledger unavailable")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	current, sha, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+	if current == nil || expected == "" || sha != expected {
+		return ErrStale
+	}
+	if err := os.Remove(s.path); err != nil {
+		return err
+	}
+	if dir, err := os.Open(filepath.Dir(s.path)); err == nil {
+		_ = dir.Sync()
+		_ = dir.Close()
+	}
+	return nil
 }

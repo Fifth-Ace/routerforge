@@ -1,7 +1,7 @@
 package dnsrouter
 
 // DPR2-O2: opt-in, DSTest-only persistent activation of owned DNS zones.
-// No startup reconciliation, no system configuration save, and no port 53
+// No automatic startup recovery, no Keenetic configuration persistence, and no port 53
 // listener. DPR2-O3 will implement explicit reboot/startup recovery.
 
 import (

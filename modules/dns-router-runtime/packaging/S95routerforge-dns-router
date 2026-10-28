@@ -1,0 +1,198 @@
+#!/bin/sh
+# RouterForge DPR2-O3C: OPTIONAL Entware rc.unslung service template.
+# This template is delivered under /opt/share, NOT /opt/etc/init.d.
+# Copy to /opt/etc/init.d/ only after explicit DSTest-only acceptance.
+# No ndmc configuration save, no router firewall or DNS port 53 changes.
+
+PATH=/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+BIN=/opt/bin/routerforge-dns-router
+CFG=/opt/etc/routerforge/dns-router/config.json
+SOCK=/opt/var/run/routerforge-dns-router.sock
+PIDFILE=/opt/var/run/routerforge-dns-router.o3c.pid
+LISTEN=192.168.10.1:55358
+EXPECTED_VERSION=0.14.0~dev.dpr2o3c
+
+log() { echo "RF_O3C: $*"; }
+fail() { log "FAIL: $*" >&2; return 1; }
+
+host_gate() {
+    [ "$(uname -n)" = DSTest ] || { fail WRONG_HOST; return 1; }
+    [ "$(uname -m)" = aarch64 ] || { fail WRONG_ARCH; return 1; }
+    ip -4 addr show 2>/dev/null | grep -Eq 'inet[[:space:]]+192\.168\.10\.1(/|[[:space:]])' || { fail DSTEST_ADDRESS_MISSING; return 1; }
+    return 0
+}
+
+precheck() {
+    host_gate || return 1
+    [ -x "$BIN" ] || { fail MISSING_BINARY; return 1; }
+    [ -f "$CFG" ] && [ ! -L "$CFG" ] || { fail UNSAFE_OR_MISSING_CONFIG; return 1; }
+    version=$("$BIN" --version 2>/dev/null) || { fail UNVERIFIED_BINARY; return 1; }
+    [ "$version" = "$EXPECTED_VERSION" ] || { fail "VERSION_MISMATCH:$version"; return 1; }
+    command -v ndmc >/dev/null 2>&1 || { fail NDMC_MISSING; return 1; }
+    ndmc -c 'show ip name-server' >/dev/null 2>&1 || { fail NDMC_NOT_READY; return 1; }
+    [ ! -L "$PIDFILE" ] || { fail UNSAFE_PIDFILE_LINK; return 1; }
+    [ ! -L "$SOCK" ] || { fail UNSAFE_SOCKET_LINK; return 1; }
+    log PRECHECK_PASS
+    return 0
+}
+
+# PID is bound to its /proc starttime, not a bare reusable process number.
+proc_start() {
+    [ -r "/proc/$1/stat" ] || return 1
+    sed 's/^.*) //' "/proc/$1/stat" | awk '{print $20}'
+}
+
+# Must be the exact packaged binary. Never signal an unrelated process.
+owned_pid() {
+    pid="$1"
+    start="$2"
+    case "$pid" in ''|*[!0-9]*) return 1;; esac
+    case "$start" in ''|*[!0-9]*) return 1;; esac
+    [ -d "/proc/$pid" ] || return 1
+    actual=$(proc_start "$pid") || return 1
+    [ "$actual" = "$start" ] || return 1
+    exe=$(readlink "/proc/$pid/exe" 2>/dev/null) || return 1
+    [ "$exe" = "$BIN" ] || return 1
+    return 0
+}
+
+read_pidfile() {
+    [ -f "$PIDFILE" ] && [ ! -L "$PIDFILE" ] || return 1
+    read -r daemon_pid daemon_start ignored < "$PIDFILE" || return 1
+    [ -z "$ignored" ] || return 1
+    return 0
+}
+
+running() {
+    read_pidfile || return 1
+    owned_pid "$daemon_pid" "$daemon_start"
+}
+
+# The guard is allowed to remove ONLY explicitly ledger-owned zones; do not
+# bypass the guard or issue ndmc write commands from this init script.
+wait_guards() {
+    i=0
+    while [ "$i" -lt 30 ]; do
+        pending=0
+        for guard in /tmp/rf-dpr2o3-lifetime-*; do
+            [ -e "$guard" ] || [ -L "$guard" ] || continue
+            pending=1
+        done
+        [ "$pending" -eq 0 ] && return 0
+        sleep 1
+        i=$((i+1))
+    done
+    fail LIFETIME_GUARD_STILL_PENDING
+}
+
+start_service() {
+    [ "$(uname -n)" = DSTest ] || { fail WRONG_HOST; return 1; }
+    [ "$(uname -m)" = aarch64 ] || { fail WRONG_ARCH; return 1; }
+    # Entware may invoke rc.unslung before the Keenetic LAN/ndmc is ready.
+    # This bounded gate never changes the router configuration.
+    boot_try=0
+    while [ "$boot_try" -lt 30 ]; do
+        if [ "$(uname -n)" = DSTest ] &&
+           ip -4 addr show 2>/dev/null | grep -Eq 'inet[[:space:]]+192\.168\.10\.1(/|[[:space:]])' &&
+           ndmc -c 'show ip name-server' >/dev/null 2>&1; then
+            break
+        fi
+        sleep 2
+        boot_try=$((boot_try+1))
+    done
+    precheck || return 1
+    if running; then log "ALREADY_RUNNING:$daemon_pid"; return 0; fi
+    if [ -e "$PIDFILE" ]; then
+        # A stale pidfile is removable only when its exact owner is not live.
+        read_pidfile || { fail INVALID_EXISTING_PIDFILE; return 1; }
+        [ -z "$daemon_pid" ] || case "$daemon_pid" in *[!0-9]*) fail INVALID_PID; return 1;; esac
+        if kill -0 "$daemon_pid" 2>/dev/null; then
+            fail "PIDFILE_CONFLICT:$daemon_pid"
+            return 1
+        fi
+        rm -f "$PIDFILE" || return 1
+    fi
+    # A live management socket from another instance must never be replaced.
+    [ ! -e "$SOCK" ] || { fail EXISTING_MANAGEMENT_SOCKET; return 1; }
+    # Only own Entware runtime directories, no router-wide configuration.
+    mkdir -p /opt/var/log /opt/var/run || { fail RUNTIME_DIR_MISSING; return 1; }
+    # No automatic router config save. Forwarder starts before owned zones.
+    "$BIN" --config "$CFG" --serve --socket "$SOCK" \
+        --shadow-forward --shadow-lan-experimental \
+        --shadow-listen "$LISTEN" --shadow-allow-clients 192.168.10.1 \
+        --ndmc-durable-experimental --ndmc-startup-recovery-experimental \
+        --ndmc-lifetime-guard-experimental \
+        >/opt/var/log/routerforge-dns-router-o3c.log 2>&1 &
+    daemon_pid=$!
+    daemon_start=$(proc_start "$daemon_pid") || {
+        fail STARTUP_DAEMON_EXITED
+        return 1
+    }
+    umask 077
+    tmpfile="$PIDFILE.tmp.$$"
+    printf '%s %s\n' "$daemon_pid" "$daemon_start" > "$tmpfile" || return 1
+    if ! mv "$tmpfile" "$PIDFILE"; then
+        # Stop only the exact process started by this invocation.
+        owned_pid "$daemon_pid" "$daemon_start" && kill -TERM "$daemon_pid"
+        fail PIDFILE_PUBLISH_FAILED
+        return 1
+    fi
+    i=0
+    while [ "$i" -lt 100 ]; do
+        if ! owned_pid "$daemon_pid" "$daemon_start"; then
+            rm -f "$PIDFILE"
+            fail DAEMON_DIED_DURING_STARTUP
+            return 1
+        fi
+        if [ -S "$SOCK" ]; then
+            log "STARTUP_PASS:PID=$daemon_pid"
+            return 0
+        fi
+        sleep 1
+        i=$((i+1))
+    done
+    # No blind kill on timeout: lifetime guard must clean up if process dies.
+    fail STARTUP_SOCKET_TIMEOUT_NO_FORCED_KILL
+}
+
+stop_service() {
+    host_gate || return 1
+    if ! read_pidfile; then
+        [ ! -S "$SOCK" ] || { fail UNTRACKED_SOCKET_REFUSE_STOP; return 1; }
+        log NO_MANAGED_PIDFILE
+        return 0
+    fi
+    if ! owned_pid "$daemon_pid" "$daemon_start"; then
+        if kill -0 "$daemon_pid" 2>/dev/null; then
+            fail PID_IDENTITY_MISMATCH_REFUSE_SIGNAL
+            return 1
+        fi
+        rm -f "$PIDFILE"
+        log STALE_PIDFILE_REMOVED
+        return 0
+    fi
+    kill -TERM "$daemon_pid" || return 1
+    i=0
+    while [ "$i" -lt 30 ]; do
+        if ! owned_pid "$daemon_pid" "$daemon_start"; then
+            rm -f "$PIDFILE"
+            wait_guards || return 1
+            log STOP_PASS
+            return 0
+        fi
+        sleep 1
+        i=$((i+1))
+    done
+    fail STOP_TIMEOUT_NO_SIGKILL
+}
+
+case "${1:-}" in
+    check) precheck ;;
+    start) start_service ;;
+    stop) stop_service ;;
+    status)
+        if running; then log "RUNNING:PID=$daemon_pid"; else log NOT_RUNNING; exit 1; fi
+        ;;
+    *) echo 'Usage: S95routerforge-dns-router {check|start|stop|status}' >&2; exit 2 ;;
+esac

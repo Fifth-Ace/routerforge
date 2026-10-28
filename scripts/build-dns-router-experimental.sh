@@ -12,6 +12,7 @@ OUT="$ROOT/dist/${PACKAGE}_${VERSION}_${RF_OPKG_ARCH}.ipk"
 mkdir -p "$ROOT/dist"
 rm -rf "$WORK"
 mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/share/routerforge/dns-router" \
+  "$WORK/data/opt/share/routerforge/dns-router/service" \
   "$WORK/data/opt/share/routerforge/modules/dns-router/ui" \
   "$WORK/data/opt/share/licenses/$PACKAGE" "$WORK/control"
 (
@@ -23,6 +24,10 @@ mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/share/routerforge/dns-router" \
 chmod 0755 "$WORK/data/opt/bin/$PACKAGE"
 cp "$ROOT/modules/dns-router-runtime/packaging/example.json" \
   "$WORK/data/opt/share/routerforge/dns-router/example.json"
+# O3C: service template is inert on install. NEVER install into init.d.
+cp "$ROOT/modules/dns-router-runtime/packaging/S95routerforge-dns-router" \
+  "$WORK/data/opt/share/routerforge/dns-router/service/S95routerforge-dns-router"
+chmod 0755 "$WORK/data/opt/share/routerforge/dns-router/service/S95routerforge-dns-router"
 for file in index.html app.js module.css; do
   cp "$ROOT/modules/dns-router-runtime/frontend/$file" \
      "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"

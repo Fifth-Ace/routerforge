@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2o3b
+VERSION=0.14.0~dev.dpr2o3c
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
@@ -78,6 +78,9 @@ for arch in ('aarch64-3.10','mips-3.4','mipsel-3.4'):
         assert required in names, required
     assert not any(n.endswith('/postinst') or n.endswith('/S99routerforge-dns-router') for n in names), 'unexpected autostart'
     assert 'opt/bin/routerforge-dns-router' in names
+    service='opt/share/routerforge/dns-router/service/S95routerforge-dns-router'
+    assert service in names, 'O3C opt-in service template missing'
+    assert not any(x.startswith('opt/etc/init.d/') for x in names), 'O3C init.d autostart MUST NOT be installed'
     import json
     with tarfile.open(fileobj=io.BytesIO(payload),mode='r:gz') as data:
         m=data.extractfile(next(x for x in data if x.name.lstrip('./')==prefix+'manifest.json'))
@@ -220,3 +223,21 @@ for required in ('TestDPR2O3BLifetimeCleanupActiveAndRetainLedger', 'TestDPR2O3B
     assert required in t, required
 print('DPR2_O3B_INDEPENDENT_LIFETIME_GUARD: PASS')
 PY_VERIFY_O3B
+
+# DPR2-O3C: optional Entware start template: present in package, inert by
+# default. No init.d or opkg config mutation is allowed in this CI stage.
+sh -n modules/dns-router-runtime/packaging/S95routerforge-dns-router
+python3 - <<'PY_VERIFY_O3C'
+from pathlib import Path
+p=Path('modules/dns-router-runtime/packaging/S95routerforge-dns-router').read_text()
+b=Path('scripts/build-dns-router-experimental.sh').read_text()
+for k in ('PRECHECK_PASS', 'EXPECTED_VERSION=0.14.0~dev.dpr2o3c',
+          'ndmc-lifetime-guard-experimental', 'ndmc-startup-recovery-experimental',
+          'ndmc-durable-experimental', 'PID_IDENTITY_MISMATCH_REFUSE_SIGNAL',
+          'DSTEST_ADDRESS_MISSING', 'STOP_TIMEOUT_NO_SIGKILL'):
+    assert k in p, k
+assert 'no ip name-server' not in p and 'system configuration save' not in p
+assert 'opt/etc/init.d/' not in b.replace('NEVER install into init.d.', '')
+assert 'opt/share/routerforge/dns-router/service/' in b
+print('DPR2_O3C_ENTWARE_OPT_IN_AUTOSTART: PASS')
+PY_VERIFY_O3C

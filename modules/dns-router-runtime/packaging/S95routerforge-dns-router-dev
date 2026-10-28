@@ -1,0 +1,74 @@
+#!/bin/sh
+# DEV preview: management-only Unix socket; no shadow-forward, ndmc, :53 or router changes.
+PATH=/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+BIN=/opt/bin/routerforge-dns-router
+CFG=/opt/etc/routerforge/dns-router/config.json
+SOCK=/opt/var/run/routerforge-dns-router.sock
+PIDFILE=/opt/var/run/routerforge-dns-router.dev.pid
+LOG=/opt/var/log/routerforge-dns-router-dev.log
+fail() { echo "RF_DNS_ROUTER_DEV: FAIL: $*" >&2; return 1; }
+proc_start() { [ -r "/proc/$1/stat" ] || return 1; sed 's/^.*) //' "/proc/$1/stat" 2>/dev/null | awk '{print $20}'; }
+read_pid() {
+  [ -f "$PIDFILE" ] && [ ! -L "$PIDFILE" ] || return 1
+  read -r p started extra < "$PIDFILE" || return 1
+  case "$p:$started" in *[!0-9:]*|:*|*:) return 1;; esac
+  [ -z "$extra" ]
+}
+owned() {
+  read_pid || return 1
+  [ -d "/proc/$p" ] || return 1
+  [ "$(proc_start "$p")" = "$started" ] || return 1
+  [ "$(readlink "/proc/$p/exe" 2>/dev/null)" = "$BIN" ]
+}
+start_service() {
+  [ -x "$BIN" ] || { fail MISSING_BINARY; return 1; }
+  [ -f "$CFG" ] && [ ! -L "$CFG" ] || { fail CONFIG_MISSING; return 1; }
+  "$BIN" --config "$CFG" >/dev/null || { fail CONFIG_INVALID; return 1; }
+  if owned; then echo "RF_DNS_ROUTER_DEV: RUNNING:$p"; return 0; fi
+  if [ -e "$PIDFILE" ] || [ -L "$PIDFILE" ]; then
+    read_pid || { fail FOREIGN_PIDFILE; return 1; }
+    if kill -0 "$p" 2>/dev/null; then fail PID_CONFLICT; return 1; fi
+    rm -f "$PIDFILE" || return 1
+  fi
+  if [ -e "$SOCK" ] || [ -L "$SOCK" ]; then fail SOCKET_CONFLICT; return 1; fi
+  mkdir -p /opt/var/run /opt/var/log || return 1
+  umask 077
+  "$BIN" --config "$CFG" --serve --socket "$SOCK" >"$LOG" 2>&1 &
+  p=$!
+  started=$(proc_start "$p") || { fail DAEMON_EXITED; return 1; }
+  printf '%s %s\n' "$p" "$started" >"$PIDFILE.tmp.$$" || return 1
+  mv "$PIDFILE.tmp.$$" "$PIDFILE" || return 1
+  i=0
+  while [ "$i" -lt 20 ]; do
+    if owned && [ -S "$SOCK" ]; then echo "RF_DNS_ROUTER_DEV: READY:$p"; return 0; fi
+    if ! kill -0 "$p" 2>/dev/null; then rm -f "$PIDFILE"; fail EARLY_EXIT; return 1; fi
+    sleep 1; i=$((i+1))
+  done
+  fail SOCKET_NOT_READY
+}
+stop_service() {
+  if owned; then
+    kill -TERM "$p" || return 1
+    i=0
+    while [ "$i" -lt 30 ]; do
+      if ! owned; then rm -f "$PIDFILE"; echo 'RF_DNS_ROUTER_DEV: STOP_PASS'; return 0; fi
+      sleep 1; i=$((i+1))
+    done
+    fail STOP_TIMEOUT_NO_SIGKILL; return 1
+  fi
+  if [ -e "$PIDFILE" ] || [ -L "$PIDFILE" ]; then
+    read_pid || { fail UNKNOWN_PIDFILE; return 1; }
+    if kill -0 "$p" 2>/dev/null; then fail UNKNOWN_RUNNING_PROCESS; return 1; fi
+    rm -f "$PIDFILE"
+  fi
+  [ ! -S "$SOCK" ] || { fail UNTRACKED_SOCKET; return 1; }
+  echo 'RF_DNS_ROUTER_DEV: STOPPED'
+}
+case "${1:-}" in
+start) start_service ;;
+stop) stop_service ;;
+restart) stop_service && start_service ;;
+status) if owned; then echo "RF_DNS_ROUTER_DEV: RUNNING:$p"; else echo 'RF_DNS_ROUTER_DEV: STOPPED'; exit 1; fi ;;
+*) echo 'Usage: S95routerforge-dns-router {start|stop|restart|status}' >&2; exit 2 ;;
+esac

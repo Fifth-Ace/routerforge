@@ -10,6 +10,8 @@ PACKAGE=routerforge-dns-router
 WORK="$ROOT/dist/${PACKAGE}-experimental-${TARGET}-work"
 OUT="$ROOT/dist/${PACKAGE}_${VERSION}_${RF_OPKG_ARCH}.ipk"
 mkdir -p "$ROOT/dist"
+: "${ROUTERFORGE_CHANNEL:=experimental}"
+case "$ROUTERFORGE_CHANNEL" in experimental|dev) ;; *) echo 'Invalid DNS Router channel' >&2; exit 1 ;; esac
 rm -rf "$WORK"
 mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/share/routerforge/dns-router" \
   "$WORK/data/opt/share/routerforge/dns-router/service" \
@@ -44,6 +46,13 @@ cat > "$WORK/data/opt/share/routerforge/modules/dns-router/manifest.json" <<MANI
   "mode": "manual-shadow-dns-opt-in"
 }
 MANIFEST
+if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
+  mkdir -p "$WORK/data/opt/etc/init.d"
+  cp "$ROOT/modules/dns-router-runtime/packaging/S95routerforge-dns-router-dev" "$WORK/data/opt/etc/init.d/S95routerforge-dns-router"
+  cp "$ROOT/modules/dns-router-runtime/packaging/postinst-dev" "$WORK/control/postinst"
+  cp "$ROOT/modules/dns-router-runtime/packaging/prerm-dev" "$WORK/control/prerm"
+  chmod 0755 "$WORK/data/opt/etc/init.d/S95routerforge-dns-router" "$WORK/control/postinst" "$WORK/control/prerm"
+fi
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
 cat > "$WORK/control/control" <<CONTROL
 Package: $PACKAGE

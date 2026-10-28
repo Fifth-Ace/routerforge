@@ -495,6 +495,23 @@ jobs:
         if: steps.scope.outputs.go == 'true'
         run: sh scripts/verify-dns-router-experimental.sh
 
+      - name: R7 DNS Router DEV Preview packaging contract (no publish)
+        if: steps.scope.outputs.go == 'true'
+        run: |
+          set -eu
+          ROUTERFORGE_CHANNEL=dev sh scripts/build-dns-router-experimental.sh '1~dev.r1.smoke' 'aarch64-3.10'
+          ipk=dist/routerforge-dns-router_1~dev.r1.smoke_aarch64-3.10.ipk
+          test -s "$ipk"
+          tar -xzOf "$ipk" ./data.tar.gz | tar -tzf - | grep -Fxq './opt/etc/init.d/S95routerforge-dns-router'
+          tar -xzOf "$ipk" ./control.tar.gz | tar -tzf - | grep -Fxq './postinst'
+          tar -xzOf "$ipk" ./control.tar.gz | tar -tzf - | grep -Fxq './prerm'
+          tar -xzOf "$ipk" ./data.tar.gz | tar -xzOf - ./opt/etc/init.d/S95routerforge-dns-router > /tmp/rf-dns-router-dev-service
+          sh -n /tmp/rf-dns-router-dev-service
+          ! grep -Eq '^\s*"\$BIN".*--(ndmc-|shadow-forward)' /tmp/rf-dns-router-dev-service
+          grep -Fq '"$BIN" --config "$CFG" --serve --socket "$SOCK"' /tmp/rf-dns-router-dev-service
+          dpkg --compare-versions '0.8.0~dev.r100.aaa' lt '1~dev.r101.bbb'
+          dpkg --compare-versions '1~dev.r101.aaa' lt '1~dev.r102.bbb'
+
       - name: Vet
         if: steps.scope.outputs.go == 'true'
         run: go vet ./...

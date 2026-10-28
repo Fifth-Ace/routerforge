@@ -1,1702 +1,1794 @@
 {
-  "schema_version": 1,
-  "registry_id": "routerforge-community",
-  "brand": "RouterForge",
-  "revision": "694069c40d7db2fd7febfa52677e7ef51bcd44ec51e5a6fd76d031070938c9e2",
-  "entries": [
-    {
-      "id": "adguardhome-keenetic",
-      "kind": "integration",
-      "name": "AdGuard Home",
-      "category": "DNS / Filtering",
-      "description": "Network-wide DNS filtering. Keenetic setup can use Entware adguardhome-go.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/Corvus-Malus/AdGuardHome-Keenetic"
-      },
-      "project_url": "https://github.com/Corvus-Malus/AdGuardHome-Keenetic",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "open-ui",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "adguardhome-go"
-        ],
-        "services": [
-          "/opt/etc/init.d/S99adguardhome"
-        ],
-        "paths": [
-          "/opt/etc/AdGuardHome"
-        ]
-      },
-      "process_names": [
-        "AdGuardHome",
-        "adguardhome-go"
-      ],
-      "web_port": 3000,
-      "web_port_source": "initial-setup-default",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Entware",
-          "Port 53 ownership",
-          "Keenetic dns-override only for explicit DNS replacement"
-        ]
-      },
-      "install": {
-        "method": "opkg",
-        "repository": "entware",
-        "packages": [
-          "adguardhome-go"
-        ],
-        "notes": [
-          "Installing the package alone does not replace Keenetic DNS.",
-          "dns-override changes DNS ownership and remains an explicit manual step."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "adguardhome-keenetic",
-      "manifest_sha256": "cf7a73ca8da94f3f0a8cdc4450542181e4e92c55b581a84a81073eb637168fa6",
-      "manifest_source": "marketplace/submissions/adguardhome-keenetic.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "admin",
-      "kind": "module",
-      "name": "RouterForge Control",
-      "category": "Administration",
-      "description": "Управление и инспекция процессов, listening sockets, Entware services и пакетов без дублирования системной телеметрии.",
-      "publisher": {
-        "id": "routerforge",
-        "name": "RouterForge",
-        "url": "https://github.com/Fifth-Ace/dns-monitor"
-      },
-      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
-      "source": "routerforge-official",
-      "managed": true,
-      "package_authoritative": true,
-      "detection": {
-        "packages": [
-          "routerforge-admin",
-          "dns-monitor-admin"
-        ],
-        "services": [
-          "/opt/etc/init.d/S91routerforge-admin",
-          "/opt/etc/init.d/S91dns-monitor-admin"
-        ]
-      },
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "RouterForge Core",
-          "Entware",
-          "Keenetic / Netcraze ARM64"
-        ]
-      },
-      "install": {
-        "method": "routerforge-release",
-        "repository": "routerforge-beta",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
-        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": [
-          "routerforge-admin"
-        ],
-        "notes": [
-          "Скачивается только выбранный IPK из GitHub release RouterForge.",
-          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
-        ],
-        "preview_only": false
-      },
-      "update": {
-        "method": "routerforge-release",
-        "repository": "routerforge-beta",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
-        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": [
-          "routerforge-admin"
-        ],
-        "notes": [
-          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
-        ],
-        "preview_only": false
-      },
-      "remove": {
-        "method": "structured",
-        "packages": [
-          "routerforge-admin",
-          "dns-monitor-admin"
-        ],
-        "notes": [
-          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "routerforge-admin"
-            ],
-            "ignore_failure": true
-          },
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "dns-monitor-admin"
-            ],
-            "ignore_failure": true
-          }
-        ]
-      },
-      "presentation": {
-        "dashboard": {
-          "enabled": true,
-          "priority": 40
-        },
-        "navigation": {
-          "label": "Управление",
-          "href": "/manage",
-          "order": 40
-        }
-      },
-      "process_names": [
-        "routerforge-admin",
-        "dnsmon-admin"
-      ],
-      "capabilities": [
-        "processes",
-        "ports",
-        "services",
-        "packages"
-      ],
-      "manifest_id": "admin",
-      "manifest_sha256": "66a7a2c179eb5186312af104b933d25cec13dc3e68ff9bb4c3cf3ae58b2b7ea3",
-      "manifest_source": "marketplace/submissions/admin.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "official",
-        "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge beta."
-      }
-    },
-    {
-      "id": "antiscan",
-      "kind": "integration",
-      "name": "Antiscan",
-      "category": "Security",
-      "description": "Защита Keenetic/Netcraze от подозрительной TCP-активности, распределённого сканирования, honeypot-событий и пользовательских/Geo списков.",
-      "publisher": {
-        "id": "dimon27254",
-        "name": "dimon27254",
-        "url": "https://github.com/dimon27254"
-      },
-      "project_url": "https://github.com/dimon27254/antiscan",
-      "source": "project-official",
-      "package_authoritative": true,
-      "version_source": "opkg",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "security",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "antiscan"
-        ],
-        "services": [
-          "/opt/etc/init.d/S99ascn"
-        ],
-        "paths": [
-          "/opt/etc/antiscan/ascn.conf"
-        ]
-      },
-      "running_paths": [
-        "/tmp/ascn.run"
-      ],
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic / Netcraze",
-          "Entware",
-          "Netfilter kernel modules",
-          "IPv4 TCP only"
-        ]
-      },
-      "install": {
-        "method": "official-script",
-        "installer_url": "https://raw.githubusercontent.com/dimon27254/antiscan/refs/heads/main/install.sh",
-        "packages": [
-          "antiscan"
-        ],
-        "notes": [
-          "Antiscan — отдельный upstream-проект. RouterForge не устанавливает его автоматически.",
-          "RouterForge Antiscan Manager устанавливается отдельно и управляет только уже существующим Antiscan."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "antiscan",
-      "manifest_sha256": "475970d13669350838608b8c27fd9ef06fd46f5020a55f708916843593812ad3",
-      "manifest_source": "marketplace/submissions/antiscan.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "awg-manager",
-      "kind": "integration",
-      "name": "AWG Manager",
-      "category": "VPN / Routing",
-      "description": "Управление AmneziaWG и sing-box туннелями непосредственно на Keenetic.",
-      "publisher": {
-        "id": "project-official",
-        "name": "Upstream project",
-        "url": "https://github.com/hoaxisr/awg-manager"
-      },
-      "project_url": "https://github.com/hoaxisr/awg-manager",
-      "source": "project-official",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "open-ui",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "awg-manager"
-        ],
-        "services": [
-          "/opt/etc/init.d/S99awg-manager"
-        ],
-        "paths": [
-          "/opt/etc/awg-manager"
-        ]
-      },
-      "process_names": [
-        "awg-manager"
-      ],
-      "web_port": 2222,
-      "web_port_source": "project-default",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic / Netcraze",
-          "Entware",
-          "WireGuard component"
-        ]
-      },
-      "install": {
-        "method": "official-script",
-        "installer_url": "https://raw.githubusercontent.com/hoaxisr/awg-manager/master/scripts/install.sh",
-        "packages": [
-          "awg-manager"
-        ],
-        "notes": [
-          "HTTPS GitHub installer опубликован самим проектом.",
-          "Автовыполнение из Marketplace отключено."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "awg-manager",
-      "manifest_sha256": "788b1bb9b8128df35950ab08630d6513799611699520264c109ffd7fd2738f7e",
-      "manifest_source": "marketplace/submissions/awg-manager.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "bypass-keenetic",
-      "kind": "integration",
-      "name": "bypass_keenetic",
-      "category": "VPN / Routing",
-      "description": "Selective bypass via VPN/Shadowsocks/Tor with Telegram bot management.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/keenetic-dev/bypass_keenetic"
-      },
-      "project_url": "https://github.com/keenetic-dev/bypass_keenetic",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "service-status",
-        "install-preview"
-      ],
-      "detection": {
-        "services": [
-          "/opt/etc/init.d/S99unblock"
-        ],
-        "paths": [
-          "/opt/etc/bot.py",
-          "/opt/etc/unblock"
-        ]
-      },
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic",
-          "Entware",
-          "Python 3",
-          "VPN/Shadowsocks/Tor depending on setup"
-        ]
-      },
-      "install": {
-        "method": "manual",
-        "notes": [
-          "Telegram credentials and interactive setup require explicit manual configuration.",
-          "RouterForge only detects/documents this integration."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "bypass-keenetic",
-      "manifest_sha256": "89925078642bf82aafa78f2ad9543065ab15f1da8184236704bdf357ee098499",
-      "manifest_source": "marketplace/submissions/bypass-keenetic.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "chur-keenetic",
-      "kind": "integration",
-      "name": "Chur Keenetic",
-      "category": "VPN / Routing",
-      "description": "Web-менеджер VPN-интерфейсов Keenetic/Entware с optional AmneziaWG runtime.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/ward-sentry/chur-keenetic"
-      },
-      "project_url": "https://github.com/ward-sentry/chur-keenetic",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "open-ui",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "chur-keenetic"
-        ],
-        "services": [
-          "/opt/etc/init.d/S99chur-keenetic"
-        ]
-      },
-      "process_names": [
-        "chur-keenetic"
-      ],
-      "web_port": 8088,
-      "web_port_source": "project-default",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic",
-          "Entware",
-          "HTTPS-capable opkg feed",
-          "aarch64-3.10 supported"
-        ]
-      },
-      "install": {
-        "method": "manual",
-        "repository": "chur",
-        "repository_url": "https://ward-sentry.github.io/chur-keenetic/latest/aarch64-3.10",
-        "packages": [
-          "chur-keenetic"
-        ],
-        "notes": [
-          "Marketplace target build is ARM64, therefore the preview shows the aarch64-3.10 feed.",
-          "AmneziaWG runtime is installed separately by Chur only when requested."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "chur-keenetic",
-      "manifest_sha256": "48fbd0c0694bf6c788222e6a7aaa21e7753053057686ba23edecec563f0f3adf",
-      "manifest_source": "marketplace/submissions/chur-keenetic.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "dns",
-      "kind": "module",
-      "name": "RouterForge DNS",
-      "category": "DNS",
-      "description": "DNS observability: plain DNS, DoT/DoH, клиенты, flow, health и routing diagnostics.",
-      "publisher": {
-        "id": "routerforge",
-        "name": "RouterForge",
-        "url": "https://github.com/Fifth-Ace/dns-monitor"
-      },
-      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
-      "source": "routerforge-official",
-      "managed": true,
-      "package_authoritative": true,
-      "detection": {
-        "packages": [
-          "routerforge-dns"
-        ],
-        "paths": [
-          "/opt/etc/routerforge/dns.enabled",
-          "/opt/etc/dns-monitor/dns.enabled"
-        ]
-      },
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "RouterForge Core",
-          "Entware",
-          "Keenetic / Netcraze ARM64"
-        ]
-      },
-      "install": {
-        "method": "routerforge-release",
-        "repository": "routerforge-beta",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
-        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": [
-          "routerforge-dns"
-        ],
-        "notes": [
-          "Скачивается только выбранный IPK из GitHub release RouterForge.",
-          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
-        ],
-        "preview_only": false
-      },
-      "update": {
-        "method": "routerforge-release",
-        "repository": "routerforge-beta",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
-        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": [
-          "routerforge-dns"
-        ],
-        "notes": [
-          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
-        ],
-        "preview_only": false
-      },
-      "remove": {
-        "method": "opkg",
-        "packages": [
-          "routerforge-dns"
-        ],
-        "notes": [
-          "Отключает DNS runtime и убирает DNS-раздел из интерфейса; RouterForge Core остаётся."
-        ],
-        "preview_only": false
-      },
-      "presentation": {
-        "dashboard": {
-          "enabled": true,
-          "priority": 40
-        },
-        "navigation": {
-          "label": "DNS",
-          "href": "/dns",
-          "order": 30
-        }
-      },
-      "capabilities": [
-        "dns-observability",
-        "plain-dns",
-        "client-attribution",
-        "routing-diagnostics"
-      ],
-      "manifest_id": "dns",
-      "manifest_sha256": "031619eaf2bfaa886976e9a12776e106ca91c4de8e32b89a4b0ebf411ee7e05d",
-      "manifest_source": "marketplace/submissions/dns.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "official",
-        "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge beta."
-      }
-    },
-    {
-      "id": "hydraroute-neo",
-      "kind": "integration",
-      "name": "HydraRoute Neo",
-      "category": "Routing",
-      "description": "Маршрутизация по доменам/CIDR и L7 SNI/HTTP/QUIC через Keenetic policies/interfaces.",
-      "publisher": {
-        "id": "project-official",
-        "name": "Upstream project",
-        "url": "https://github.com/Ground-Zerro/HydraRoute"
-      },
-      "project_url": "https://github.com/Ground-Zerro/HydraRoute",
-      "source": "project-official",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "open-ui",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "hrneo"
-        ],
-        "services": [
-          "/opt/etc/init.d/S99hrneo"
-        ],
-        "paths": [
-          "/opt/etc/HydraRoute"
-        ]
-      },
-      "process_names": [
-        "hrneo"
-      ],
-      "web_port": 2000,
-      "web_port_source": "project-default",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "KeeneticOS > 4.3.6",
-          "Entware",
-          "Xtables-addons for Netfilter"
-        ]
-      },
-      "install": {
-        "method": "official-script",
-        "installer_url": "https://git.zerrolabs.org/Ground-Zerro/release/pages/keenetic/install-neo.sh",
-        "packages": [
-          "hrneo"
-        ],
-        "notes": [
-          "Project installer also deploys HRweb.",
-          "Execution remains disabled."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "hydraroute-neo",
-      "manifest_sha256": "d2ab18e6eac7dcf2e25def8713ce7e6221a5c6576ca25ec1d890d1c904ecee72",
-      "manifest_source": "marketplace/submissions/hydraroute-neo.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "keen-pbr",
-      "kind": "integration",
-      "name": "keen-pbr",
-      "category": "Routing",
-      "description": "Policy-based routing daemon for Keenetic/OpenWrt; full variant includes REST API and WebUI.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/maksimkurb/keen-pbr"
-      },
-      "project_url": "https://github.com/maksimkurb/keen-pbr",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "keen-pbr",
-          "keen-pbr-headless"
-        ],
-        "services": [
-          "/opt/etc/init.d/S80keen-pbr"
-        ],
-        "paths": [
-          "/opt/etc/keen-pbr"
-        ]
-      },
-      "process_names": [
-        "keen-pbr"
-      ],
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Entware",
-          "conntrack/dnsmasq/ipset/iptables",
-          "Keenetic Netfilter"
-        ]
-      },
-      "install": {
-        "method": "manual",
-        "packages": [
-          "keen-pbr",
-          "keen-pbr-headless"
-        ],
-        "notes": [
-          "Project builds dedicated Keenetic packages.",
-          "Choose full OR headless variant; port is intentionally not guessed."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "keen-pbr",
-      "manifest_sha256": "5d4aca8ec8d1d63d61b93e53ee443239f51439525d0dccc9bc56f1ff8a4f8ab9",
-      "manifest_source": "marketplace/submissions/keen-pbr.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "keenetic-entware-extras",
-      "kind": "integration",
-      "name": "Keenetic Entware Extras",
-      "category": "Toolkit",
-      "description": "Geo routing, SmartDNS integration, DNS redirect, network diagnostics and optional web dashboard.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/0xkee/keenetic-entware-extras"
-      },
-      "project_url": "https://github.com/0xkee/keenetic-entware-extras",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "open-ui",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "keenetic-entware-extras",
-          "geo-split",
-          "smartdns-geo-conf",
-          "smartdns-redirect",
-          "net-check",
-          "webui"
-        ],
-        "services": [
-          "/opt/etc/init.d/S99geo-split",
-          "/opt/etc/init.d/S39smartdns-redirect",
-          "/opt/etc/init.d/S80nginx-webui"
-        ],
-        "paths": [
-          "/opt/keenetic-entware-extras"
-        ]
-      },
-      "running_paths": [
-        "/opt/tmp/geo-split.pid",
-        "/opt/tmp/smartdns-redirect.pid",
-        "/opt/tmp/nginx-webui.pid"
-      ],
-      "web_port": 8080,
-      "web_port_source": "webui-default",
-      "web_requires_package": "webui",
-      "web": {
-        "scheme": "http",
-        "port": 8080,
-        "path": "/custom/",
-        "mode": "probe-required",
-        "embed": true
-      },
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "KeeneticOS 5.0+",
-          "Entware"
-        ]
-      },
-      "install": {
-        "method": "manual",
-        "repository": "kee",
-        "repository_url": "https://0xkee.github.io/keenetic-entware-extras/stable",
-        "packages": [
-          "geo-split",
-          "smartdns-geo-conf",
-          "smartdns-redirect",
-          "net-check",
-          "webui"
-        ],
-        "installer_url": "https://raw.githubusercontent.com/0xkee/keenetic-entware-extras/master/scripts/install.sh",
-        "notes": [
-          "Packages are selectable; do not install the whole suite unless desired.",
-          "WebUI is optional and listens on :8080."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "keenetic-entware-extras",
-      "manifest_sha256": "e8f6775e7fb52938d0b4ff856561184f1a49acbf8f94d681e41091862afded7c",
-      "manifest_source": "marketplace/submissions/keenetic-entware-extras.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "keenetic-sing-box-ui",
-      "kind": "integration",
-      "name": "Keenetic sing-box UI",
-      "category": "VPN / Routing",
-      "description": "Aarch64 web UI for sing-box with selective TProxy/REDIRECT routing, diagnostics and authentication.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/CoOre/keenetic-sing-box-ui"
-      },
-      "project_url": "https://github.com/CoOre/keenetic-sing-box-ui",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "service-status",
-        "open-ui",
-        "install-preview"
-      ],
-      "detection": {
-        "services": [
-          "/opt/etc/init.d/S99keenetic-sing-box-ui"
-        ],
-        "paths": [
-          "/opt/bin/keenetic-sing-box-ui",
-          "/opt/sbin/keenetic-sing-box-ui"
-        ]
-      },
-      "process_names": [
-        "keenetic-sing-box-ui"
-      ],
-      "web_port": 9091,
-      "web_port_source": "project-default",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic / Netcraze",
-          "Entware",
-          "aarch64",
-          "Netfilter modules for TProxy mode"
-        ]
-      },
-      "install": {
-        "method": "release-deploy",
-        "notes": [
-          "Upstream deploys from a host script or a verified GitHub release rather than an Entware feed.",
-          "Transparent proxy modes can modify iptables/ipset; execution stays preview-only."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "keenetic-sing-box-ui",
-      "manifest_sha256": "848619b877b3d4778790bed005b345ceb0a0141574f54ac6a0e48f0813597478",
-      "manifest_source": "marketplace/submissions/keenetic-sing-box-ui.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "kvas",
-      "kind": "integration",
-      "name": "КВАС",
-      "category": "VPN / Routing",
-      "description": "Domain-selective routing/VPN toolkit using ipset with dnsmasq/dnscrypt or AdGuard Home.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/qzeleza/kvas"
-      },
-      "project_url": "https://github.com/qzeleza/kvas",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "kvas"
-        ],
-        "paths": [
-          "/opt/apps/kvas",
-          "/opt/etc/kvas.conf",
-          "/opt/etc/kvas.list"
-        ]
-      },
-      "process_names": [
-        "kvas",
-        "kvas-failover"
-      ],
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic",
-          "Entware",
-          "curl for installer"
-        ]
-      },
-      "install": {
-        "method": "official-script",
-        "installer_url": "http://kvas.zeleza.ru/install",
-        "packages": [
-          "kvas"
-        ],
-        "notes": [
-          "Upstream installer uses HTTP: Marketplace marks this plan high-risk and never executes it automatically.",
-          "Interactive setup remains manual."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "kvas",
-      "manifest_sha256": "09a56d0cb2453f5f0125e086b55569295229a88410309891fed1869ed8f01da2",
-      "manifest_source": "marketplace/submissions/kvas.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "monitoring",
-      "kind": "module",
-      "name": "RouterForge Monitoring",
-      "category": "Monitoring",
-      "description": "Единый read-only runtime системной телеметрии: CPU/RAM, thermal, storage и network с сохранением совместимых API.",
-      "publisher": {
-        "id": "routerforge",
-        "name": "RouterForge",
-        "url": "https://github.com/Fifth-Ace/routerforge"
-      },
-      "project_url": "https://github.com/Fifth-Ace/routerforge",
-      "source": "routerforge-official",
-      "managed": true,
-      "package_authoritative": true,
-      "detection": {
-        "packages": [
-          "routerforge-monitoring",
-          "routerforge-system",
-          "routerforge-thermal",
-          "routerforge-storage",
-          "routerforge-network",
-          "dns-monitor-system",
-          "dns-monitor-thermal",
-          "dns-monitor-storage",
-          "dns-monitor-network"
-        ],
-        "services": [
-          "/opt/etc/init.d/S92routerforge-monitoring",
-          "/opt/etc/init.d/S92routerforge-system",
-          "/opt/etc/init.d/S93routerforge-thermal",
-          "/opt/etc/init.d/S94routerforge-storage",
-          "/opt/etc/init.d/S95routerforge-network"
-        ]
-      },
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "RouterForge Core",
-          "Entware",
-          "Keenetic / Netcraze ARM64"
-        ]
-      },
-      "install": {
-        "method": "routerforge-release",
-        "repository": "routerforge-beta",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
-        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": [
-          "routerforge-monitoring"
-        ],
-        "notes": [
-          "Один runtime заменяет routerforge-system/thermal/storage/network и сохраняет их API-контракты."
-        ],
-        "preview_only": false
-      },
-      "update": {
-        "method": "routerforge-release",
-        "repository": "routerforge-beta",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
-        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": [
-          "routerforge-monitoring"
-        ],
-        "notes": [
-          "Мигрирует четыре старых RouterForge monitoring package в один consolidated package."
-        ],
-        "preview_only": false
-      },
-      "remove": {
-        "method": "structured",
-        "packages": [
-          "routerforge-monitoring",
-          "routerforge-system",
-          "routerforge-thermal",
-          "routerforge-storage",
-          "routerforge-network"
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "routerforge-monitoring"
-            ],
-            "ignore_failure": true
-          },
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "routerforge-system"
-            ],
-            "ignore_failure": true
-          },
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "routerforge-thermal"
-            ],
-            "ignore_failure": true
-          },
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "routerforge-storage"
-            ],
-            "ignore_failure": true
-          },
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "routerforge-network"
-            ],
-            "ignore_failure": true
-          }
-        ]
-      },
-      "presentation": {
-        "dashboard": {
-          "enabled": true,
-          "priority": 30
-        },
-        "navigation": {
-          "label": "Мониторинг",
-          "href": "/monitoring",
-          "order": 20
-        }
-      },
-      "process_names": [
-        "routerforge-monitoring",
-        "routerforge-system",
-        "routerforge-thermal",
-        "routerforge-storage",
-        "routerforge-network"
-      ],
-      "capabilities": [
-        "system-summary",
-        "cpu",
-        "memory",
-        "thermal",
-        "hwmon",
-        "mounts",
-        "block-devices",
-        "diskstats",
-        "io-rates",
-        "interfaces",
-        "traffic-rates",
-        "routes",
-        "conntrack"
-      ],
-      "manifest_id": "monitoring",
-      "manifest_sha256": "c034ec716a9b0490b72a8b84ebc58aa542af30a7932652acd7d0a83258f3f290",
-      "manifest_source": "marketplace/submissions/monitoring.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "official",
-        "reviewed_by": "routerforge",
-        "note": "Официальный consolidated RouterForge monitoring module for Dev hardware validation."
-      }
-    },
-    {
-      "id": "nfqws",
-      "kind": "integration",
-      "name": "nfqws",
-      "category": "DPI / Bypass",
-      "description": "Классическая ветка nfqws для Keenetic. Для новых установок предпочтительнее nfqws2.",
-      "publisher": {
-        "id": "nfqws",
-        "name": "nfqws",
-        "url": "https://github.com/nfqws"
-      },
-      "project_url": "https://github.com/nfqws/nfqws-keenetic",
-      "source": "project-official",
-      "detection": {
-        "packages": [
-          "nfqws-keenetic"
-        ],
-        "services": [
-          "/opt/etc/init.d/S51nfqws",
-          "/opt/etc/init.d/S99zapret"
-        ],
-        "paths": [
-          "/opt/etc/nfqws"
-        ]
-      },
-      "process_names": [
-        "nfqws"
-      ],
-      "web_port": 90,
-      "web_port_source": "nfqws-keenetic-web",
-      "web_requires_package": "nfqws-keenetic-web",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Entware",
-          "Netfilter kernel modules",
-          "Legacy branch"
-        ]
-      },
-      "install": {
-        "method": "manual",
-        "notes": [
-          "Legacy integration: Marketplace only detects it."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "nfqws",
-      "manifest_sha256": "9fcab37c7624c273eb41b083de9c21a549e114e3b34af30a3090a4596c6cf884",
-      "manifest_source": "marketplace/submissions/nfqws.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "nfqws-web",
-      "kind": "integration",
-      "name": "nfqws Web UI",
-      "category": "DPI / Bypass",
-      "description": "Официальный веб-интерфейс nfqws/nfqws2. Lifecycle повторяет upstream README для Entware.",
-      "publisher": {
-        "id": "nfqws",
-        "name": "nfqws",
-        "url": "https://github.com/nfqws"
-      },
-      "project_url": "https://github.com/nfqws/nfqws-keenetic-web",
-      "source": "project-official",
-      "package_authoritative": true,
-      "detection": {
-        "packages": [
-          "nfqws-keenetic-web"
-        ],
-        "paths": [
-          "/opt/etc/nfqws_web.conf"
-        ]
-      },
-      "web": {
-        "scheme": "http",
-        "port": 90,
-        "path": "/",
-        "mode": "embedded-supported",
-        "embed": true
-      },
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Entware",
-          "nfqws or nfqws2",
-          "php8-cgi",
-          "lighttpd"
-        ]
-      },
-      "install": {
-        "method": "structured",
-        "packages": [
-          "nfqws-keenetic-web"
-        ],
-        "notes": [
-          "Шаги повторяют README nfqws-keenetic-web для Keenetic/Netcraze."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-install",
-            "packages": [
-              "ca-certificates",
-              "wget-ssl"
-            ]
-          },
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "wget-nossl"
-            ],
-            "ignore_failure": true
-          },
-          {
-            "type": "write-opkg-feed",
-            "path": "/opt/etc/opkg/nfqws-keenetic-web.conf",
-            "content": "src/gz nfqws-keenetic-web https://nfqws.github.io/nfqws-keenetic-web/all"
-          },
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-install",
-            "packages": [
-              "nfqws-keenetic-web"
-            ]
-          }
-        ]
-      },
-      "update": {
-        "method": "structured",
-        "packages": [
-          "nfqws-keenetic-web"
-        ],
-        "notes": [
-          "Официальный README: opkg update; opkg upgrade nfqws-keenetic-web."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-upgrade",
-            "packages": [
-              "nfqws-keenetic-web"
-            ]
-          }
-        ]
-      },
-      "remove": {
-        "method": "structured",
-        "packages": [
-          "nfqws-keenetic-web"
-        ],
-        "notes": [
-          "Официальный README: opkg remove --autoremove nfqws-keenetic-web."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-remove",
-            "args": [
-              "--autoremove"
-            ],
-            "packages": [
-              "nfqws-keenetic-web"
-            ]
-          }
-        ]
-      },
-      "manifest_id": "nfqws-web",
-      "manifest_sha256": "9cde131b5556b6098d4153eae85f968a3eba782802dc5aeacf18a07eb4d1e87c",
-      "manifest_source": "marketplace/submissions/nfqws-web.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "verified",
-        "reviewed_by": "routerforge",
-        "note": "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
-      }
-    },
-    {
-      "id": "nfqws2",
-      "kind": "integration",
-      "name": "nfqws2",
-      "category": "DPI / Bypass",
-      "description": "Актуальная nfqws ветка для Keenetic/Netcraze. Lifecycle сверяется с официальной инструкцией разработчика.",
-      "publisher": {
-        "id": "nfqws",
-        "name": "nfqws",
-        "url": "https://github.com/nfqws"
-      },
-      "project_url": "https://github.com/nfqws/nfqws2-keenetic",
-      "source": "project-official",
-      "package_authoritative": true,
-      "detection": {
-        "packages": [
-          "nfqws2-keenetic"
-        ],
-        "services": [
-          "/opt/etc/init.d/S51nfqws2"
-        ],
-        "paths": [
-          "/opt/etc/nfqws2"
-        ]
-      },
-      "process_names": [
-        "nfqws2"
-      ],
-      "web_port": 90,
-      "web_port_source": "nfqws-keenetic-web",
-      "web_requires_package": "nfqws-keenetic-web",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Entware",
-          "Netfilter kernel modules",
-          "Legacy nfqws must be removed before migration"
-        ]
-      },
-      "install": {
-        "method": "structured",
-        "packages": [
-          "nfqws2-keenetic"
-        ],
-        "notes": [
-          "Шаги повторяют README nfqws2-keenetic для Keenetic/Netcraze.",
-          "Если legacy nfqws-keenetic установлен, RouterForge остановит автоматическую установку вместо его скрытого удаления."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-install",
-            "packages": [
-              "ca-certificates",
-              "wget-ssl"
-            ]
-          },
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "wget-nossl"
-            ],
-            "ignore_failure": true
-          },
-          {
-            "type": "write-opkg-feed",
-            "path": "/opt/etc/opkg/nfqws2-keenetic.conf",
-            "content": "src/gz nfqws2-keenetic https://nfqws.github.io/nfqws2-keenetic/all"
-          },
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-install",
-            "packages": [
-              "nfqws2-keenetic"
-            ]
-          }
-        ]
-      },
-      "update": {
-        "method": "structured",
-        "packages": [
-          "nfqws2-keenetic"
-        ],
-        "notes": [
-          "Официальный README: opkg update; opkg upgrade nfqws2-keenetic."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-update"
-          },
-          {
-            "type": "opkg-upgrade",
-            "packages": [
-              "nfqws2-keenetic"
-            ]
-          }
-        ]
-      },
-      "remove": {
-        "method": "structured",
-        "packages": [
-          "nfqws2-keenetic"
-        ],
-        "notes": [
-          "Официальный README: opkg remove --autoremove nfqws2-keenetic."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-remove",
-            "args": [
-              "--autoremove"
-            ],
-            "packages": [
-              "nfqws2-keenetic"
-            ]
-          }
-        ]
-      },
-      "manifest_id": "nfqws2",
-      "manifest_sha256": "08d68eb786495411162df2e13de8c1137586a758d08fcb5ac4b3bd8c2c42e933",
-      "manifest_source": "marketplace/submissions/nfqws2.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "verified",
-        "reviewed_by": "routerforge",
-        "note": "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
-      }
-    },
-    {
-      "id": "profiling",
-      "kind": "module",
-      "name": "Profiling",
-      "category": "Development",
-      "description": "Опциональный loopback-only pprof и slow-request logging для RouterForge Core.",
-      "publisher": {
-        "id": "routerforge",
-        "name": "RouterForge",
-        "url": "https://github.com/Fifth-Ace/dns-monitor"
-      },
-      "project_url": "https://github.com/Fifth-Ace/dns-monitor",
-      "source": "routerforge-official",
-      "managed": true,
-      "package_authoritative": true,
-      "detection": {
-        "packages": [
-          "routerforge-profiling",
-          "dns-monitor-profiling"
-        ],
-        "paths": [
-          "/opt/etc/routerforge/profiling.enabled",
-          "/opt/etc/dns-monitor/profiling.enabled"
-        ]
-      },
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "RouterForge Core",
-          "Entware",
-          "Keenetic / Netcraze ARM64"
-        ]
-      },
-      "install": {
-        "method": "routerforge-release",
-        "repository": "routerforge-beta",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
-        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": [
-          "routerforge-profiling"
-        ],
-        "notes": [
-          "Скачивается только выбранный IPK из GitHub release RouterForge.",
-          "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
-        ],
-        "preview_only": false
-      },
-      "update": {
-        "method": "routerforge-release",
-        "repository": "routerforge-beta",
-        "repository_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
-        "checksum_url": "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
-        "asset_template": "{package}_{version}_aarch64-3.10.ipk",
-        "packages": [
-          "routerforge-profiling"
-        ],
-        "notes": [
-          "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
-        ],
-        "preview_only": false
-      },
-      "remove": {
-        "method": "structured",
-        "packages": [
-          "routerforge-profiling",
-          "dns-monitor-profiling"
-        ],
-        "notes": [
-          "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
-        ],
-        "preview_only": false,
-        "steps": [
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "routerforge-profiling"
-            ],
-            "ignore_failure": true
-          },
-          {
-            "type": "opkg-remove",
-            "packages": [
-              "dns-monitor-profiling"
-            ],
-            "ignore_failure": true
-          }
-        ]
-      },
-      "presentation": {
-        "dashboard": {
-          "enabled": false,
-          "priority": 99
-        }
-      },
-      "capabilities": [
-        "pprof",
-        "slow-request-log"
-      ],
-      "manifest_id": "profiling",
-      "manifest_sha256": "23aa953ca3f3b291a13e995b497c9c54c5160eb9546d2e6b7d1f55d7a46aa1e3",
-      "manifest_source": "marketplace/submissions/profiling.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "official",
-        "reviewed_by": "routerforge",
-        "note": "Официальный модуль RouterForge beta."
-      }
-    },
-    {
-      "id": "skeen",
-      "kind": "integration",
-      "name": "SKeen",
-      "category": "VPN / Routing",
-      "description": "Keenetic/Netcraze TProxy & Redirect toolkit around sing-box with built-in web dashboard.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/jinndi/SKeen"
-      },
-      "project_url": "https://github.com/jinndi/SKeen",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "service-status",
-        "open-ui",
-        "install-preview"
-      ],
-      "detection": {
-        "services": [
-          "/opt/etc/init.d/S99SKeen"
-        ],
-        "paths": [
-          "/opt/etc/skeen",
-          "/opt/bin/skeen"
-        ]
-      },
-      "process_names": [
-        "skeen",
-        "skeen-box"
-      ],
-      "web_port": 9999,
-      "web_port_source": "project-default",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Entware",
-          "Netfilter kernel modules",
-          "curl",
-          "256 MB RAM recommended by project"
-        ]
-      },
-      "install": {
-        "method": "official-script",
-        "installer_url": "https://github.com/jinndi/SKeen/releases/latest/download/skeen",
-        "notes": [
-          "Installer is interactive and can install/select sing-box.",
-          "Project dashboard defaults to :9999."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "skeen",
-      "manifest_sha256": "b82408aecf8886a08a38ea838555b96fdf3fd3cfdc2f7acb577bd4300b13a844",
-      "manifest_source": "marketplace/submissions/skeen.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "traffic-via-vpn",
-      "kind": "integration",
-      "name": "keenetic-traffic-via-vpn",
-      "category": "VPN / Routing",
-      "description": "Small Entware script set that redirects selected domains/IP/CIDR into a chosen VPN interface.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/rustrict/keenetic-traffic-via-vpn"
-      },
-      "project_url": "https://github.com/rustrict/keenetic-traffic-via-vpn",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "install-preview"
-      ],
-      "detection": {
-        "paths": [
-          "/opt/etc/unblock/config",
-          "/opt/etc/unblock/unblock-list.txt"
-        ]
-      },
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic",
-          "Entware",
-          "curl",
-          "bind-dig",
-          "cron",
-          "grep",
-          "existing VPN interface"
-        ]
-      },
-      "install": {
-        "method": "official-script",
-        "installer_url": "https://raw.githubusercontent.com/rustrict/keenetic-traffic-via-vpn/main/install.sh",
-        "notes": [
-          "Installer creates /opt/etc/unblock and IFACE must be configured afterwards."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "traffic-via-vpn",
-      "manifest_sha256": "4fd9d4c17540907a7a856fbd81158d8db635fb844264241b4f7b4f42bc447519",
-      "manifest_source": "marketplace/submissions/traffic-via-vpn.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "xkeen",
-      "kind": "integration",
-      "name": "XKeen",
-      "category": "VPN / Routing",
-      "description": "Xray runtime/update toolkit for Keenetic with GeoIP/GeoSite management.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/Skrill0/XKeen"
-      },
-      "project_url": "https://github.com/Skrill0/XKeen",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "version",
-        "service-status",
-        "install-preview"
-      ],
-      "detection": {
-        "packages": [
-          "xkeen"
-        ],
-        "paths": [
-          "/opt/sbin/xkeen",
-          "/opt/etc/xray/configs"
-        ]
-      },
-      "process_names": [
-        "xray",
-        "xray-linux-arm64"
-      ],
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic",
-          "Entware",
-          "curl",
-          "tar",
-          "Xray configuration"
-        ]
-      },
-      "install": {
-        "method": "official-script",
-        "installer_url": "https://raw.githubusercontent.com/Skrill0/XKeen/main/install.sh",
-        "notes": [
-          "Official installer downloads the latest xkeen.tar release and runs xkeen -i.",
-          "Inspect existing Xray/sing-box routing stacks before installation."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "xkeen",
-      "manifest_sha256": "46608070f492e35278a8d7752c9b69fb5f0c7e8d6584be36c8a41a06fd58bb82",
-      "manifest_source": "marketplace/submissions/xkeen.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    },
-    {
-      "id": "xkeen-ui",
-      "kind": "integration",
-      "name": "XKeen UI",
-      "category": "VPN / Routing",
-      "description": "Легковесная веб-панель управления XKeen, Xray/Mihomo конфигами, логами и ядрами.",
-      "publisher": {
-        "id": "community",
-        "name": "Upstream project",
-        "url": "https://github.com/zxc-rv/XKeen-UI"
-      },
-      "project_url": "https://github.com/zxc-rv/XKeen-UI",
-      "source": "community",
-      "capabilities": [
-        "detect",
-        "service-status",
-        "open-ui",
-        "install-preview"
-      ],
-      "detection": {
-        "services": [
-          "/opt/etc/init.d/S99xkeen-ui"
-        ],
-        "paths": [
-          "/opt/sbin/xkeen-ui",
-          "/opt/share/www/XKeen-UI"
-        ]
-      },
-      "process_names": [
-        "xkeen-ui"
-      ],
-      "web_port": 1000,
-      "web_port_source": "project-default",
-      "compatibility": {
-        "status": "requirements",
-        "hints": [
-          "Keenetic / Netcraze",
-          "Entware",
-          "XKeen installed"
-        ]
-      },
-      "install": {
-        "method": "official-script",
-        "installer_url": "https://raw.githubusercontent.com/zxc-rv/XKeen-UI/main/setup.sh",
-        "notes": [
-          "Upstream documents XKeen as its only application dependency.",
-          "Default port is :1000 and can be changed in S99xkeen-ui."
-        ],
-        "preview_only": true
-      },
-      "manifest_id": "xkeen-ui",
-      "manifest_sha256": "32ffe0cfdfa79d791d138d9f739dc3c5c774ae9d18ad11d1c35de5efb7a6a8fa",
-      "manifest_source": "marketplace/submissions/xkeen-ui.json",
-      "registry_source": "routerforge-community",
-      "trust": {
-        "status": "unverified",
-        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
-      }
-    }
-  ]
+    "schema_version":  1,
+    "registry_id":  "routerforge-community",
+    "brand":  "RouterForge",
+    "revision":  "694069c40d7db2fd7febfa52677e7ef51bcd44ec51e5a6fd76d031070938c9e2",
+    "entries":  [
+                    {
+                        "id":  "adguardhome-keenetic",
+                        "kind":  "integration",
+                        "name":  "AdGuard Home",
+                        "category":  "DNS / Filtering",
+                        "description":  "Network-wide DNS filtering. Keenetic setup can use Entware adguardhome-go.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/Corvus-Malus/AdGuardHome-Keenetic"
+                                      },
+                        "project_url":  "https://github.com/Corvus-Malus/AdGuardHome-Keenetic",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "open-ui",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "adguardhome-go"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99adguardhome"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/AdGuardHome"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "AdGuardHome",
+                                              "adguardhome-go"
+                                          ],
+                        "web_port":  3000,
+                        "web_port_source":  "initial-setup-default",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Entware",
+                                                            "Port 53 ownership",
+                                                            "Keenetic dns-override only for explicit DNS replacement"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "opkg",
+                                        "repository":  "entware",
+                                        "packages":  [
+                                                         "adguardhome-go"
+                                                     ],
+                                        "notes":  [
+                                                      "Installing the package alone does not replace Keenetic DNS.",
+                                                      "dns-override changes DNS ownership and remains an explicit manual step."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "adguardhome-keenetic",
+                        "manifest_sha256":  "cf7a73ca8da94f3f0a8cdc4450542181e4e92c55b581a84a81073eb637168fa6",
+                        "manifest_source":  "marketplace/submissions/adguardhome-keenetic.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "admin",
+                        "kind":  "module",
+                        "name":  "RouterForge Control",
+                        "category":  "Administration",
+                        "description":  "Управление и инспекция процессов, listening sockets, Entware services и пакетов без дублирования системной телеметрии.",
+                        "publisher":  {
+                                          "id":  "routerforge",
+                                          "name":  "RouterForge",
+                                          "url":  "https://github.com/Fifth-Ace/dns-monitor"
+                                      },
+                        "project_url":  "https://github.com/Fifth-Ace/dns-monitor",
+                        "source":  "routerforge-official",
+                        "managed":  true,
+                        "package_authoritative":  true,
+                        "detection":  {
+                                          "packages":  [
+                                                           "routerforge-admin",
+                                                           "dns-monitor-admin"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S91routerforge-admin",
+                                                           "/opt/etc/init.d/S91dns-monitor-admin"
+                                                       ]
+                                      },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "RouterForge Core",
+                                                            "Entware",
+                                                            "Keenetic / Netcraze ARM64"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "routerforge-release",
+                                        "repository":  "routerforge-beta",
+                                        "repository_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+                                        "checksum_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+                                        "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                        "packages":  [
+                                                         "routerforge-admin"
+                                                     ],
+                                        "notes":  [
+                                                      "Скачивается только выбранный IPK из GitHub release RouterForge.",
+                                                      "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+                                                  ],
+                                        "preview_only":  false
+                                    },
+                        "update":  {
+                                       "method":  "routerforge-release",
+                                       "repository":  "routerforge-beta",
+                                       "repository_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+                                       "checksum_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+                                       "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                       "packages":  [
+                                                        "routerforge-admin"
+                                                    ],
+                                       "notes":  [
+                                                     "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
+                                                 ],
+                                       "preview_only":  false
+                                   },
+                        "remove":  {
+                                       "method":  "structured",
+                                       "packages":  [
+                                                        "routerforge-admin",
+                                                        "dns-monitor-admin"
+                                                    ],
+                                       "notes":  [
+                                                     "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
+                                                 ],
+                                       "preview_only":  false,
+                                       "steps":  [
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "routerforge-admin"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     },
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "dns-monitor-admin"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     }
+                                                 ]
+                                   },
+                        "presentation":  {
+                                             "dashboard":  {
+                                                               "enabled":  true,
+                                                               "priority":  40
+                                                           },
+                                             "navigation":  {
+                                                                "label":  "Управление",
+                                                                "href":  "/manage",
+                                                                "order":  40
+                                                            }
+                                         },
+                        "process_names":  [
+                                              "routerforge-admin",
+                                              "dnsmon-admin"
+                                          ],
+                        "capabilities":  [
+                                             "processes",
+                                             "ports",
+                                             "services",
+                                             "packages"
+                                         ],
+                        "manifest_id":  "admin",
+                        "manifest_sha256":  "66a7a2c179eb5186312af104b933d25cec13dc3e68ff9bb4c3cf3ae58b2b7ea3",
+                        "manifest_source":  "marketplace/submissions/admin.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "official",
+                                      "reviewed_by":  "routerforge",
+                                      "note":  "Официальный модуль RouterForge beta."
+                                  }
+                    },
+                    {
+                        "id":  "antiscan",
+                        "kind":  "integration",
+                        "name":  "Antiscan",
+                        "category":  "Security",
+                        "description":  "Защита Keenetic/Netcraze от подозрительной TCP-активности, распределённого сканирования, honeypot-событий и пользовательских/Geo списков.",
+                        "publisher":  {
+                                          "id":  "dimon27254",
+                                          "name":  "dimon27254",
+                                          "url":  "https://github.com/dimon27254"
+                                      },
+                        "project_url":  "https://github.com/dimon27254/antiscan",
+                        "source":  "project-official",
+                        "package_authoritative":  true,
+                        "version_source":  "opkg",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "security",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "antiscan"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99ascn"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/antiscan/ascn.conf"
+                                                    ]
+                                      },
+                        "running_paths":  [
+                                              "/tmp/ascn.run"
+                                          ],
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic / Netcraze",
+                                                            "Entware",
+                                                            "Netfilter kernel modules",
+                                                            "IPv4 TCP only"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "official-script",
+                                        "installer_url":  "https://raw.githubusercontent.com/dimon27254/antiscan/refs/heads/main/install.sh",
+                                        "packages":  [
+                                                         "antiscan"
+                                                     ],
+                                        "notes":  [
+                                                      "Antiscan — отдельный upstream-проект. RouterForge не устанавливает его автоматически.",
+                                                      "RouterForge Antiscan Manager устанавливается отдельно и управляет только уже существующим Antiscan."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "antiscan",
+                        "manifest_sha256":  "475970d13669350838608b8c27fd9ef06fd46f5020a55f708916843593812ad3",
+                        "manifest_source":  "marketplace/submissions/antiscan.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "awg-manager",
+                        "kind":  "integration",
+                        "name":  "AWG Manager",
+                        "category":  "VPN / Routing",
+                        "description":  "Управление AmneziaWG и sing-box туннелями непосредственно на Keenetic.",
+                        "publisher":  {
+                                          "id":  "project-official",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/hoaxisr/awg-manager"
+                                      },
+                        "project_url":  "https://github.com/hoaxisr/awg-manager",
+                        "source":  "project-official",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "open-ui",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "awg-manager"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99awg-manager"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/awg-manager"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "awg-manager"
+                                          ],
+                        "web_port":  2222,
+                        "web_port_source":  "project-default",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic / Netcraze",
+                                                            "Entware",
+                                                            "WireGuard component"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "official-script",
+                                        "installer_url":  "https://raw.githubusercontent.com/hoaxisr/awg-manager/master/scripts/install.sh",
+                                        "packages":  [
+                                                         "awg-manager"
+                                                     ],
+                                        "notes":  [
+                                                      "HTTPS GitHub installer опубликован самим проектом.",
+                                                      "Автовыполнение из Marketplace отключено."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "awg-manager",
+                        "manifest_sha256":  "788b1bb9b8128df35950ab08630d6513799611699520264c109ffd7fd2738f7e",
+                        "manifest_source":  "marketplace/submissions/awg-manager.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "bypass-keenetic",
+                        "kind":  "integration",
+                        "name":  "bypass_keenetic",
+                        "category":  "VPN / Routing",
+                        "description":  "Selective bypass via VPN/Shadowsocks/Tor with Telegram bot management.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/keenetic-dev/bypass_keenetic"
+                                      },
+                        "project_url":  "https://github.com/keenetic-dev/bypass_keenetic",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "service-status",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99unblock"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/bot.py",
+                                                        "/opt/etc/unblock"
+                                                    ]
+                                      },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic",
+                                                            "Entware",
+                                                            "Python 3",
+                                                            "VPN/Shadowsocks/Tor depending on setup"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "manual",
+                                        "notes":  [
+                                                      "Telegram credentials and interactive setup require explicit manual configuration.",
+                                                      "RouterForge only detects/documents this integration."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "bypass-keenetic",
+                        "manifest_sha256":  "89925078642bf82aafa78f2ad9543065ab15f1da8184236704bdf357ee098499",
+                        "manifest_source":  "marketplace/submissions/bypass-keenetic.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "chur-keenetic",
+                        "kind":  "integration",
+                        "name":  "Chur Keenetic",
+                        "category":  "VPN / Routing",
+                        "description":  "Web-менеджер VPN-интерфейсов Keenetic/Entware с optional AmneziaWG runtime.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/ward-sentry/chur-keenetic"
+                                      },
+                        "project_url":  "https://github.com/ward-sentry/chur-keenetic",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "open-ui",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "chur-keenetic"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99chur-keenetic"
+                                                       ]
+                                      },
+                        "process_names":  [
+                                              "chur-keenetic"
+                                          ],
+                        "web_port":  8088,
+                        "web_port_source":  "project-default",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic",
+                                                            "Entware",
+                                                            "HTTPS-capable opkg feed",
+                                                            "aarch64-3.10 supported"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "manual",
+                                        "repository":  "chur",
+                                        "repository_url":  "https://ward-sentry.github.io/chur-keenetic/latest/aarch64-3.10",
+                                        "packages":  [
+                                                         "chur-keenetic"
+                                                     ],
+                                        "notes":  [
+                                                      "Marketplace target build is ARM64, therefore the preview shows the aarch64-3.10 feed.",
+                                                      "AmneziaWG runtime is installed separately by Chur only when requested."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "chur-keenetic",
+                        "manifest_sha256":  "48fbd0c0694bf6c788222e6a7aaa21e7753053057686ba23edecec563f0f3adf",
+                        "manifest_source":  "marketplace/submissions/chur-keenetic.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "dns",
+                        "kind":  "module",
+                        "name":  "RouterForge DNS",
+                        "category":  "DNS",
+                        "description":  "DNS observability: plain DNS, DoT/DoH, клиенты, flow, health и routing diagnostics.",
+                        "publisher":  {
+                                          "id":  "routerforge",
+                                          "name":  "RouterForge",
+                                          "url":  "https://github.com/Fifth-Ace/dns-monitor"
+                                      },
+                        "project_url":  "https://github.com/Fifth-Ace/dns-monitor",
+                        "source":  "routerforge-official",
+                        "managed":  true,
+                        "package_authoritative":  true,
+                        "detection":  {
+                                          "packages":  [
+                                                           "routerforge-dns"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/routerforge/dns.enabled",
+                                                        "/opt/etc/dns-monitor/dns.enabled"
+                                                    ]
+                                      },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "RouterForge Core",
+                                                            "Entware",
+                                                            "Keenetic / Netcraze ARM64"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "routerforge-release",
+                                        "repository":  "routerforge-beta",
+                                        "repository_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+                                        "checksum_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+                                        "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                        "packages":  [
+                                                         "routerforge-dns"
+                                                     ],
+                                        "notes":  [
+                                                      "Скачивается только выбранный IPK из GitHub release RouterForge.",
+                                                      "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+                                                  ],
+                                        "preview_only":  false
+                                    },
+                        "update":  {
+                                       "method":  "routerforge-release",
+                                       "repository":  "routerforge-beta",
+                                       "repository_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+                                       "checksum_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+                                       "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                       "packages":  [
+                                                        "routerforge-dns"
+                                                    ],
+                                       "notes":  [
+                                                     "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
+                                                 ],
+                                       "preview_only":  false
+                                   },
+                        "remove":  {
+                                       "method":  "opkg",
+                                       "packages":  [
+                                                        "routerforge-dns"
+                                                    ],
+                                       "notes":  [
+                                                     "Отключает DNS runtime и убирает DNS-раздел из интерфейса; RouterForge Core остаётся."
+                                                 ],
+                                       "preview_only":  false
+                                   },
+                        "presentation":  {
+                                             "dashboard":  {
+                                                               "enabled":  true,
+                                                               "priority":  40
+                                                           },
+                                             "navigation":  {
+                                                                "label":  "DNS",
+                                                                "href":  "/dns",
+                                                                "order":  30
+                                                            }
+                                         },
+                        "capabilities":  [
+                                             "dns-observability",
+                                             "plain-dns",
+                                             "client-attribution",
+                                             "routing-diagnostics"
+                                         ],
+                        "manifest_id":  "dns",
+                        "manifest_sha256":  "031619eaf2bfaa886976e9a12776e106ca91c4de8e32b89a4b0ebf411ee7e05d",
+                        "manifest_source":  "marketplace/submissions/dns.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "official",
+                                      "reviewed_by":  "routerforge",
+                                      "note":  "Официальный модуль RouterForge beta."
+                                  }
+                    },
+                    {
+                        "id":  "hydraroute-neo",
+                        "kind":  "integration",
+                        "name":  "HydraRoute Neo",
+                        "category":  "Routing",
+                        "description":  "Маршрутизация по доменам/CIDR и L7 SNI/HTTP/QUIC через Keenetic policies/interfaces.",
+                        "publisher":  {
+                                          "id":  "project-official",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/Ground-Zerro/HydraRoute"
+                                      },
+                        "project_url":  "https://github.com/Ground-Zerro/HydraRoute",
+                        "source":  "project-official",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "open-ui",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "hrneo"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99hrneo"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/HydraRoute"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "hrneo"
+                                          ],
+                        "web_port":  2000,
+                        "web_port_source":  "project-default",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "KeeneticOS \u003e 4.3.6",
+                                                            "Entware",
+                                                            "Xtables-addons for Netfilter"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "official-script",
+                                        "installer_url":  "https://git.zerrolabs.org/Ground-Zerro/release/pages/keenetic/install-neo.sh",
+                                        "packages":  [
+                                                         "hrneo"
+                                                     ],
+                                        "notes":  [
+                                                      "Project installer also deploys HRweb.",
+                                                      "Execution remains disabled."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "hydraroute-neo",
+                        "manifest_sha256":  "d2ab18e6eac7dcf2e25def8713ce7e6221a5c6576ca25ec1d890d1c904ecee72",
+                        "manifest_source":  "marketplace/submissions/hydraroute-neo.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "keen-pbr",
+                        "kind":  "integration",
+                        "name":  "keen-pbr",
+                        "category":  "Routing",
+                        "description":  "Policy-based routing daemon for Keenetic/OpenWrt; full variant includes REST API and WebUI.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/maksimkurb/keen-pbr"
+                                      },
+                        "project_url":  "https://github.com/maksimkurb/keen-pbr",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "keen-pbr",
+                                                           "keen-pbr-headless"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S80keen-pbr"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/keen-pbr"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "keen-pbr"
+                                          ],
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Entware",
+                                                            "conntrack/dnsmasq/ipset/iptables",
+                                                            "Keenetic Netfilter"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "manual",
+                                        "packages":  [
+                                                         "keen-pbr",
+                                                         "keen-pbr-headless"
+                                                     ],
+                                        "notes":  [
+                                                      "Project builds dedicated Keenetic packages.",
+                                                      "Choose full OR headless variant; port is intentionally not guessed."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "keen-pbr",
+                        "manifest_sha256":  "5d4aca8ec8d1d63d61b93e53ee443239f51439525d0dccc9bc56f1ff8a4f8ab9",
+                        "manifest_source":  "marketplace/submissions/keen-pbr.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "keenetic-entware-extras",
+                        "kind":  "integration",
+                        "name":  "Keenetic Entware Extras",
+                        "category":  "Toolkit",
+                        "description":  "Geo routing, SmartDNS integration, DNS redirect, network diagnostics and optional web dashboard.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/0xkee/keenetic-entware-extras"
+                                      },
+                        "project_url":  "https://github.com/0xkee/keenetic-entware-extras",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "open-ui",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "keenetic-entware-extras",
+                                                           "geo-split",
+                                                           "smartdns-geo-conf",
+                                                           "smartdns-redirect",
+                                                           "net-check",
+                                                           "webui"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99geo-split",
+                                                           "/opt/etc/init.d/S39smartdns-redirect",
+                                                           "/opt/etc/init.d/S80nginx-webui"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/keenetic-entware-extras"
+                                                    ]
+                                      },
+                        "running_paths":  [
+                                              "/opt/tmp/geo-split.pid",
+                                              "/opt/tmp/smartdns-redirect.pid",
+                                              "/opt/tmp/nginx-webui.pid"
+                                          ],
+                        "web_port":  8080,
+                        "web_port_source":  "webui-default",
+                        "web_requires_package":  "webui",
+                        "web":  {
+                                    "scheme":  "http",
+                                    "port":  8080,
+                                    "path":  "/custom/",
+                                    "mode":  "probe-required",
+                                    "embed":  true
+                                },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "KeeneticOS 5.0+",
+                                                            "Entware"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "manual",
+                                        "repository":  "kee",
+                                        "repository_url":  "https://0xkee.github.io/keenetic-entware-extras/stable",
+                                        "packages":  [
+                                                         "geo-split",
+                                                         "smartdns-geo-conf",
+                                                         "smartdns-redirect",
+                                                         "net-check",
+                                                         "webui"
+                                                     ],
+                                        "installer_url":  "https://raw.githubusercontent.com/0xkee/keenetic-entware-extras/master/scripts/install.sh",
+                                        "notes":  [
+                                                      "Packages are selectable; do not install the whole suite unless desired.",
+                                                      "WebUI is optional and listens on :8080."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "keenetic-entware-extras",
+                        "manifest_sha256":  "e8f6775e7fb52938d0b4ff856561184f1a49acbf8f94d681e41091862afded7c",
+                        "manifest_source":  "marketplace/submissions/keenetic-entware-extras.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "keenetic-sing-box-ui",
+                        "kind":  "integration",
+                        "name":  "Keenetic sing-box UI",
+                        "category":  "VPN / Routing",
+                        "description":  "Aarch64 web UI for sing-box with selective TProxy/REDIRECT routing, diagnostics and authentication.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/CoOre/keenetic-sing-box-ui"
+                                      },
+                        "project_url":  "https://github.com/CoOre/keenetic-sing-box-ui",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "service-status",
+                                             "open-ui",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99keenetic-sing-box-ui"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/bin/keenetic-sing-box-ui",
+                                                        "/opt/sbin/keenetic-sing-box-ui"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "keenetic-sing-box-ui"
+                                          ],
+                        "web_port":  9091,
+                        "web_port_source":  "project-default",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic / Netcraze",
+                                                            "Entware",
+                                                            "aarch64",
+                                                            "Netfilter modules for TProxy mode"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "release-deploy",
+                                        "notes":  [
+                                                      "Upstream deploys from a host script or a verified GitHub release rather than an Entware feed.",
+                                                      "Transparent proxy modes can modify iptables/ipset; execution stays preview-only."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "keenetic-sing-box-ui",
+                        "manifest_sha256":  "848619b877b3d4778790bed005b345ceb0a0141574f54ac6a0e48f0813597478",
+                        "manifest_source":  "marketplace/submissions/keenetic-sing-box-ui.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "kvas",
+                        "kind":  "integration",
+                        "name":  "КВАС",
+                        "category":  "VPN / Routing",
+                        "description":  "Domain-selective routing/VPN toolkit using ipset with dnsmasq/dnscrypt or AdGuard Home.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/qzeleza/kvas"
+                                      },
+                        "project_url":  "https://github.com/qzeleza/kvas",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "kvas"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/apps/kvas",
+                                                        "/opt/etc/kvas.conf",
+                                                        "/opt/etc/kvas.list"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "kvas",
+                                              "kvas-failover"
+                                          ],
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic",
+                                                            "Entware",
+                                                            "curl for installer"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "official-script",
+                                        "installer_url":  "http://kvas.zeleza.ru/install",
+                                        "packages":  [
+                                                         "kvas"
+                                                     ],
+                                        "notes":  [
+                                                      "Upstream installer uses HTTP: Marketplace marks this plan high-risk and never executes it automatically.",
+                                                      "Interactive setup remains manual."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "kvas",
+                        "manifest_sha256":  "09a56d0cb2453f5f0125e086b55569295229a88410309891fed1869ed8f01da2",
+                        "manifest_source":  "marketplace/submissions/kvas.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "monitoring",
+                        "kind":  "module",
+                        "name":  "RouterForge Monitoring",
+                        "category":  "Monitoring",
+                        "description":  "Единый read-only runtime системной телеметрии: CPU/RAM, thermal, storage и network с сохранением совместимых API.",
+                        "publisher":  {
+                                          "id":  "routerforge",
+                                          "name":  "RouterForge",
+                                          "url":  "https://github.com/Fifth-Ace/routerforge"
+                                      },
+                        "project_url":  "https://github.com/Fifth-Ace/routerforge",
+                        "source":  "routerforge-official",
+                        "managed":  true,
+                        "package_authoritative":  true,
+                        "detection":  {
+                                          "packages":  [
+                                                           "routerforge-monitoring",
+                                                           "routerforge-system",
+                                                           "routerforge-thermal",
+                                                           "routerforge-storage",
+                                                           "routerforge-network",
+                                                           "dns-monitor-system",
+                                                           "dns-monitor-thermal",
+                                                           "dns-monitor-storage",
+                                                           "dns-monitor-network"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S92routerforge-monitoring",
+                                                           "/opt/etc/init.d/S92routerforge-system",
+                                                           "/opt/etc/init.d/S93routerforge-thermal",
+                                                           "/opt/etc/init.d/S94routerforge-storage",
+                                                           "/opt/etc/init.d/S95routerforge-network"
+                                                       ]
+                                      },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "RouterForge Core",
+                                                            "Entware",
+                                                            "Keenetic / Netcraze ARM64"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "routerforge-release",
+                                        "repository":  "routerforge-beta",
+                                        "repository_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+                                        "checksum_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+                                        "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                        "packages":  [
+                                                         "routerforge-monitoring"
+                                                     ],
+                                        "notes":  [
+                                                      "Один runtime заменяет routerforge-system/thermal/storage/network и сохраняет их API-контракты."
+                                                  ],
+                                        "preview_only":  false
+                                    },
+                        "update":  {
+                                       "method":  "routerforge-release",
+                                       "repository":  "routerforge-beta",
+                                       "repository_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+                                       "checksum_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+                                       "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                       "packages":  [
+                                                        "routerforge-monitoring"
+                                                    ],
+                                       "notes":  [
+                                                     "Мигрирует четыре старых RouterForge monitoring package в один consolidated package."
+                                                 ],
+                                       "preview_only":  false
+                                   },
+                        "remove":  {
+                                       "method":  "structured",
+                                       "packages":  [
+                                                        "routerforge-monitoring",
+                                                        "routerforge-system",
+                                                        "routerforge-thermal",
+                                                        "routerforge-storage",
+                                                        "routerforge-network"
+                                                    ],
+                                       "preview_only":  false,
+                                       "steps":  [
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "routerforge-monitoring"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     },
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "routerforge-system"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     },
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "routerforge-thermal"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     },
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "routerforge-storage"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     },
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "routerforge-network"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     }
+                                                 ]
+                                   },
+                        "presentation":  {
+                                             "dashboard":  {
+                                                               "enabled":  true,
+                                                               "priority":  30
+                                                           },
+                                             "navigation":  {
+                                                                "label":  "Мониторинг",
+                                                                "href":  "/monitoring",
+                                                                "order":  20
+                                                            }
+                                         },
+                        "process_names":  [
+                                              "routerforge-monitoring",
+                                              "routerforge-system",
+                                              "routerforge-thermal",
+                                              "routerforge-storage",
+                                              "routerforge-network"
+                                          ],
+                        "capabilities":  [
+                                             "system-summary",
+                                             "cpu",
+                                             "memory",
+                                             "thermal",
+                                             "hwmon",
+                                             "mounts",
+                                             "block-devices",
+                                             "diskstats",
+                                             "io-rates",
+                                             "interfaces",
+                                             "traffic-rates",
+                                             "routes",
+                                             "conntrack"
+                                         ],
+                        "manifest_id":  "monitoring",
+                        "manifest_sha256":  "c034ec716a9b0490b72a8b84ebc58aa542af30a7932652acd7d0a83258f3f290",
+                        "manifest_source":  "marketplace/submissions/monitoring.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "official",
+                                      "reviewed_by":  "routerforge",
+                                      "note":  "Официальный consolidated RouterForge monitoring module for Dev hardware validation."
+                                  }
+                    },
+                    {
+                        "id":  "nfqws",
+                        "kind":  "integration",
+                        "name":  "nfqws",
+                        "category":  "DPI / Bypass",
+                        "description":  "Классическая ветка nfqws для Keenetic. Для новых установок предпочтительнее nfqws2.",
+                        "publisher":  {
+                                          "id":  "nfqws",
+                                          "name":  "nfqws",
+                                          "url":  "https://github.com/nfqws"
+                                      },
+                        "project_url":  "https://github.com/nfqws/nfqws-keenetic",
+                        "source":  "project-official",
+                        "detection":  {
+                                          "packages":  [
+                                                           "nfqws-keenetic"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S51nfqws",
+                                                           "/opt/etc/init.d/S99zapret"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/nfqws"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "nfqws"
+                                          ],
+                        "web_port":  90,
+                        "web_port_source":  "nfqws-keenetic-web",
+                        "web_requires_package":  "nfqws-keenetic-web",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Entware",
+                                                            "Netfilter kernel modules",
+                                                            "Legacy branch"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "manual",
+                                        "notes":  [
+                                                      "Legacy integration: Marketplace only detects it."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "nfqws",
+                        "manifest_sha256":  "9fcab37c7624c273eb41b083de9c21a549e114e3b34af30a3090a4596c6cf884",
+                        "manifest_source":  "marketplace/submissions/nfqws.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "nfqws-web",
+                        "kind":  "integration",
+                        "name":  "nfqws Web UI",
+                        "category":  "DPI / Bypass",
+                        "description":  "Официальный веб-интерфейс nfqws/nfqws2. Lifecycle повторяет upstream README для Entware.",
+                        "publisher":  {
+                                          "id":  "nfqws",
+                                          "name":  "nfqws",
+                                          "url":  "https://github.com/nfqws"
+                                      },
+                        "project_url":  "https://github.com/nfqws/nfqws-keenetic-web",
+                        "source":  "project-official",
+                        "package_authoritative":  true,
+                        "detection":  {
+                                          "packages":  [
+                                                           "nfqws-keenetic-web"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/nfqws_web.conf"
+                                                    ]
+                                      },
+                        "web":  {
+                                    "scheme":  "http",
+                                    "port":  90,
+                                    "path":  "/",
+                                    "mode":  "embedded-supported",
+                                    "embed":  true
+                                },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Entware",
+                                                            "nfqws or nfqws2",
+                                                            "php8-cgi",
+                                                            "lighttpd"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "structured",
+                                        "packages":  [
+                                                         "nfqws-keenetic-web"
+                                                     ],
+                                        "notes":  [
+                                                      "Шаги повторяют README nfqws-keenetic-web для Keenetic/Netcraze."
+                                                  ],
+                                        "preview_only":  false,
+                                        "steps":  [
+                                                      {
+                                                          "type":  "opkg-update"
+                                                      },
+                                                      {
+                                                          "type":  "opkg-install",
+                                                          "packages":  [
+                                                                           "ca-certificates",
+                                                                           "wget-ssl"
+                                                                       ]
+                                                      },
+                                                      {
+                                                          "type":  "opkg-remove",
+                                                          "packages":  [
+                                                                           "wget-nossl"
+                                                                       ],
+                                                          "ignore_failure":  true
+                                                      },
+                                                      {
+                                                          "type":  "write-opkg-feed",
+                                                          "path":  "/opt/etc/opkg/nfqws-keenetic-web.conf",
+                                                          "content":  "src/gz nfqws-keenetic-web https://nfqws.github.io/nfqws-keenetic-web/all"
+                                                      },
+                                                      {
+                                                          "type":  "opkg-update"
+                                                      },
+                                                      {
+                                                          "type":  "opkg-install",
+                                                          "packages":  [
+                                                                           "nfqws-keenetic-web"
+                                                                       ]
+                                                      }
+                                                  ]
+                                    },
+                        "update":  {
+                                       "method":  "structured",
+                                       "packages":  [
+                                                        "nfqws-keenetic-web"
+                                                    ],
+                                       "notes":  [
+                                                     "Официальный README: opkg update; opkg upgrade nfqws-keenetic-web."
+                                                 ],
+                                       "preview_only":  false,
+                                       "steps":  [
+                                                     {
+                                                         "type":  "opkg-update"
+                                                     },
+                                                     {
+                                                         "type":  "opkg-upgrade",
+                                                         "packages":  [
+                                                                          "nfqws-keenetic-web"
+                                                                      ]
+                                                     }
+                                                 ]
+                                   },
+                        "remove":  {
+                                       "method":  "structured",
+                                       "packages":  [
+                                                        "nfqws-keenetic-web"
+                                                    ],
+                                       "notes":  [
+                                                     "Официальный README: opkg remove --autoremove nfqws-keenetic-web."
+                                                 ],
+                                       "preview_only":  false,
+                                       "steps":  [
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "args":  [
+                                                                      "--autoremove"
+                                                                  ],
+                                                         "packages":  [
+                                                                          "nfqws-keenetic-web"
+                                                                      ]
+                                                     }
+                                                 ]
+                                   },
+                        "manifest_id":  "nfqws-web",
+                        "manifest_sha256":  "9cde131b5556b6098d4153eae85f968a3eba782802dc5aeacf18a07eb4d1e87c",
+                        "manifest_source":  "marketplace/submissions/nfqws-web.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "verified",
+                                      "reviewed_by":  "routerforge",
+                                      "note":  "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
+                                  }
+                    },
+                    {
+                        "id":  "nfqws2",
+                        "kind":  "integration",
+                        "name":  "nfqws2",
+                        "category":  "DPI / Bypass",
+                        "description":  "Актуальная nfqws ветка для Keenetic/Netcraze. Lifecycle сверяется с официальной инструкцией разработчика.",
+                        "publisher":  {
+                                          "id":  "nfqws",
+                                          "name":  "nfqws",
+                                          "url":  "https://github.com/nfqws"
+                                      },
+                        "project_url":  "https://github.com/nfqws/nfqws2-keenetic",
+                        "source":  "project-official",
+                        "package_authoritative":  true,
+                        "detection":  {
+                                          "packages":  [
+                                                           "nfqws2-keenetic"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S51nfqws2"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/nfqws2"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "nfqws2"
+                                          ],
+                        "web_port":  90,
+                        "web_port_source":  "nfqws-keenetic-web",
+                        "web_requires_package":  "nfqws-keenetic-web",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Entware",
+                                                            "Netfilter kernel modules",
+                                                            "Legacy nfqws must be removed before migration"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "structured",
+                                        "packages":  [
+                                                         "nfqws2-keenetic"
+                                                     ],
+                                        "notes":  [
+                                                      "Шаги повторяют README nfqws2-keenetic для Keenetic/Netcraze.",
+                                                      "Если legacy nfqws-keenetic установлен, RouterForge остановит автоматическую установку вместо его скрытого удаления."
+                                                  ],
+                                        "preview_only":  false,
+                                        "steps":  [
+                                                      {
+                                                          "type":  "opkg-update"
+                                                      },
+                                                      {
+                                                          "type":  "opkg-install",
+                                                          "packages":  [
+                                                                           "ca-certificates",
+                                                                           "wget-ssl"
+                                                                       ]
+                                                      },
+                                                      {
+                                                          "type":  "opkg-remove",
+                                                          "packages":  [
+                                                                           "wget-nossl"
+                                                                       ],
+                                                          "ignore_failure":  true
+                                                      },
+                                                      {
+                                                          "type":  "write-opkg-feed",
+                                                          "path":  "/opt/etc/opkg/nfqws2-keenetic.conf",
+                                                          "content":  "src/gz nfqws2-keenetic https://nfqws.github.io/nfqws2-keenetic/all"
+                                                      },
+                                                      {
+                                                          "type":  "opkg-update"
+                                                      },
+                                                      {
+                                                          "type":  "opkg-install",
+                                                          "packages":  [
+                                                                           "nfqws2-keenetic"
+                                                                       ]
+                                                      }
+                                                  ]
+                                    },
+                        "update":  {
+                                       "method":  "structured",
+                                       "packages":  [
+                                                        "nfqws2-keenetic"
+                                                    ],
+                                       "notes":  [
+                                                     "Официальный README: opkg update; opkg upgrade nfqws2-keenetic."
+                                                 ],
+                                       "preview_only":  false,
+                                       "steps":  [
+                                                     {
+                                                         "type":  "opkg-update"
+                                                     },
+                                                     {
+                                                         "type":  "opkg-upgrade",
+                                                         "packages":  [
+                                                                          "nfqws2-keenetic"
+                                                                      ]
+                                                     }
+                                                 ]
+                                   },
+                        "remove":  {
+                                       "method":  "structured",
+                                       "packages":  [
+                                                        "nfqws2-keenetic"
+                                                    ],
+                                       "notes":  [
+                                                     "Официальный README: opkg remove --autoremove nfqws2-keenetic."
+                                                 ],
+                                       "preview_only":  false,
+                                       "steps":  [
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "args":  [
+                                                                      "--autoremove"
+                                                                  ],
+                                                         "packages":  [
+                                                                          "nfqws2-keenetic"
+                                                                      ]
+                                                     }
+                                                 ]
+                                   },
+                        "manifest_id":  "nfqws2",
+                        "manifest_sha256":  "08d68eb786495411162df2e13de8c1137586a758d08fcb5ac4b3bd8c2c42e933",
+                        "manifest_source":  "marketplace/submissions/nfqws2.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "verified",
+                                      "reviewed_by":  "routerforge",
+                                      "note":  "Lifecycle вручную сверён с официальной README проекта 2026-09-03."
+                                  }
+                    },
+                    {
+                        "id":  "profiling",
+                        "kind":  "module",
+                        "name":  "Profiling",
+                        "category":  "Development",
+                        "description":  "Опциональный loopback-only pprof и slow-request logging для RouterForge Core.",
+                        "publisher":  {
+                                          "id":  "routerforge",
+                                          "name":  "RouterForge",
+                                          "url":  "https://github.com/Fifth-Ace/dns-monitor"
+                                      },
+                        "project_url":  "https://github.com/Fifth-Ace/dns-monitor",
+                        "source":  "routerforge-official",
+                        "managed":  true,
+                        "package_authoritative":  true,
+                        "detection":  {
+                                          "packages":  [
+                                                           "routerforge-profiling",
+                                                           "dns-monitor-profiling"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/routerforge/profiling.enabled",
+                                                        "/opt/etc/dns-monitor/profiling.enabled"
+                                                    ]
+                                      },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "RouterForge Core",
+                                                            "Entware",
+                                                            "Keenetic / Netcraze ARM64"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "routerforge-release",
+                                        "repository":  "routerforge-beta",
+                                        "repository_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+                                        "checksum_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+                                        "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                        "packages":  [
+                                                         "routerforge-profiling"
+                                                     ],
+                                        "notes":  [
+                                                      "Скачивается только выбранный IPK из GitHub release RouterForge.",
+                                                      "SHA256 проверяется до opkg install; временный IPK удаляется после операции."
+                                                  ],
+                                        "preview_only":  false
+                                    },
+                        "update":  {
+                                       "method":  "routerforge-release",
+                                       "repository":  "routerforge-beta",
+                                       "repository_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta",
+                                       "checksum_url":  "https://github.com/Fifth-Ace/dns-monitor/releases/download/routerforge-beta/routerforge-beta-SHA256SUMS",
+                                       "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                       "packages":  [
+                                                        "routerforge-profiling"
+                                                    ],
+                                       "notes":  [
+                                                     "Обновление beta-канала мигрирует legacy dns-monitor-* package на RouterForge namespace при необходимости."
+                                                 ],
+                                       "preview_only":  false
+                                   },
+                        "remove":  {
+                                       "method":  "structured",
+                                       "packages":  [
+                                                        "routerforge-profiling",
+                                                        "dns-monitor-profiling"
+                                                    ],
+                                       "notes":  [
+                                                     "Удаляются RouterForge package и legacy-предшественник, если он ещё установлен."
+                                                 ],
+                                       "preview_only":  false,
+                                       "steps":  [
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "routerforge-profiling"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     },
+                                                     {
+                                                         "type":  "opkg-remove",
+                                                         "packages":  [
+                                                                          "dns-monitor-profiling"
+                                                                      ],
+                                                         "ignore_failure":  true
+                                                     }
+                                                 ]
+                                   },
+                        "presentation":  {
+                                             "dashboard":  {
+                                                               "enabled":  false,
+                                                               "priority":  99
+                                                           }
+                                         },
+                        "capabilities":  [
+                                             "pprof",
+                                             "slow-request-log"
+                                         ],
+                        "manifest_id":  "profiling",
+                        "manifest_sha256":  "23aa953ca3f3b291a13e995b497c9c54c5160eb9546d2e6b7d1f55d7a46aa1e3",
+                        "manifest_source":  "marketplace/submissions/profiling.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "official",
+                                      "reviewed_by":  "routerforge",
+                                      "note":  "Официальный модуль RouterForge beta."
+                                  }
+                    },
+                    {
+                        "id":  "skeen",
+                        "kind":  "integration",
+                        "name":  "SKeen",
+                        "category":  "VPN / Routing",
+                        "description":  "Keenetic/Netcraze TProxy \u0026 Redirect toolkit around sing-box with built-in web dashboard.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/jinndi/SKeen"
+                                      },
+                        "project_url":  "https://github.com/jinndi/SKeen",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "service-status",
+                                             "open-ui",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99SKeen"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/etc/skeen",
+                                                        "/opt/bin/skeen"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "skeen",
+                                              "skeen-box"
+                                          ],
+                        "web_port":  9999,
+                        "web_port_source":  "project-default",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Entware",
+                                                            "Netfilter kernel modules",
+                                                            "curl",
+                                                            "256 MB RAM recommended by project"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "official-script",
+                                        "installer_url":  "https://github.com/jinndi/SKeen/releases/latest/download/skeen",
+                                        "notes":  [
+                                                      "Installer is interactive and can install/select sing-box.",
+                                                      "Project dashboard defaults to :9999."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "skeen",
+                        "manifest_sha256":  "b82408aecf8886a08a38ea838555b96fdf3fd3cfdc2f7acb577bd4300b13a844",
+                        "manifest_source":  "marketplace/submissions/skeen.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "traffic-via-vpn",
+                        "kind":  "integration",
+                        "name":  "keenetic-traffic-via-vpn",
+                        "category":  "VPN / Routing",
+                        "description":  "Small Entware script set that redirects selected domains/IP/CIDR into a chosen VPN interface.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/rustrict/keenetic-traffic-via-vpn"
+                                      },
+                        "project_url":  "https://github.com/rustrict/keenetic-traffic-via-vpn",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "paths":  [
+                                                        "/opt/etc/unblock/config",
+                                                        "/opt/etc/unblock/unblock-list.txt"
+                                                    ]
+                                      },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic",
+                                                            "Entware",
+                                                            "curl",
+                                                            "bind-dig",
+                                                            "cron",
+                                                            "grep",
+                                                            "existing VPN interface"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "official-script",
+                                        "installer_url":  "https://raw.githubusercontent.com/rustrict/keenetic-traffic-via-vpn/main/install.sh",
+                                        "notes":  [
+                                                      "Installer creates /opt/etc/unblock and IFACE must be configured afterwards."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "traffic-via-vpn",
+                        "manifest_sha256":  "4fd9d4c17540907a7a856fbd81158d8db635fb844264241b4f7b4f42bc447519",
+                        "manifest_source":  "marketplace/submissions/traffic-via-vpn.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "xkeen",
+                        "kind":  "integration",
+                        "name":  "XKeen",
+                        "category":  "VPN / Routing",
+                        "description":  "Xray runtime/update toolkit for Keenetic with GeoIP/GeoSite management.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/Skrill0/XKeen"
+                                      },
+                        "project_url":  "https://github.com/Skrill0/XKeen",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "version",
+                                             "service-status",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "packages":  [
+                                                           "xkeen"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/sbin/xkeen",
+                                                        "/opt/etc/xray/configs"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "xray",
+                                              "xray-linux-arm64"
+                                          ],
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic",
+                                                            "Entware",
+                                                            "curl",
+                                                            "tar",
+                                                            "Xray configuration"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "official-script",
+                                        "installer_url":  "https://raw.githubusercontent.com/Skrill0/XKeen/main/install.sh",
+                                        "notes":  [
+                                                      "Official installer downloads the latest xkeen.tar release and runs xkeen -i.",
+                                                      "Inspect existing Xray/sing-box routing stacks before installation."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "xkeen",
+                        "manifest_sha256":  "46608070f492e35278a8d7752c9b69fb5f0c7e8d6584be36c8a41a06fd58bb82",
+                        "manifest_source":  "marketplace/submissions/xkeen.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "xkeen-ui",
+                        "kind":  "integration",
+                        "name":  "XKeen UI",
+                        "category":  "VPN / Routing",
+                        "description":  "Легковесная веб-панель управления XKeen, Xray/Mihomo конфигами, логами и ядрами.",
+                        "publisher":  {
+                                          "id":  "community",
+                                          "name":  "Upstream project",
+                                          "url":  "https://github.com/zxc-rv/XKeen-UI"
+                                      },
+                        "project_url":  "https://github.com/zxc-rv/XKeen-UI",
+                        "source":  "community",
+                        "capabilities":  [
+                                             "detect",
+                                             "service-status",
+                                             "open-ui",
+                                             "install-preview"
+                                         ],
+                        "detection":  {
+                                          "services":  [
+                                                           "/opt/etc/init.d/S99xkeen-ui"
+                                                       ],
+                                          "paths":  [
+                                                        "/opt/sbin/xkeen-ui",
+                                                        "/opt/share/www/XKeen-UI"
+                                                    ]
+                                      },
+                        "process_names":  [
+                                              "xkeen-ui"
+                                          ],
+                        "web_port":  1000,
+                        "web_port_source":  "project-default",
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "Keenetic / Netcraze",
+                                                            "Entware",
+                                                            "XKeen installed"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "official-script",
+                                        "installer_url":  "https://raw.githubusercontent.com/zxc-rv/XKeen-UI/main/setup.sh",
+                                        "notes":  [
+                                                      "Upstream documents XKeen as its only application dependency.",
+                                                      "Default port is :1000 and can be changed in S99xkeen-ui."
+                                                  ],
+                                        "preview_only":  true
+                                    },
+                        "manifest_id":  "xkeen-ui",
+                        "manifest_sha256":  "32ffe0cfdfa79d791d138d9f739dc3c5c774ae9d18ad11d1c35de5efb7a6a8fa",
+                        "manifest_source":  "marketplace/submissions/xkeen-ui.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "unverified",
+                                      "note":  "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+                                  }
+                    },
+                    {
+                        "id":  "dns-router",
+                        "kind":  "module",
+                        "name":  "DNS Policy Router 2.0",
+                        "category":  "DNS",
+                        "description":  "DEV Preview: DNS rules, diagnostics and manual shadow mode; no router DNS takeover.",
+                        "publisher":  {
+                                          "id":  "routerforge",
+                                          "name":  "RouterForge",
+                                          "url":  "https://github.com/Fifth-Ace/routerforge"
+                                      },
+                        "project_url":  "https://github.com/Fifth-Ace/routerforge",
+                        "source":  "routerforge-official",
+                        "managed":  true,
+                        "package_authoritative":  true,
+                        "detection":  {
+                                          "packages":  [
+                                                           "routerforge-dns-router"
+                                                       ],
+                                          "services":  [
+                                                           "/opt/etc/init.d/S95routerforge-dns-router"
+                                                       ]
+                                      },
+                        "compatibility":  {
+                                              "status":  "requirements",
+                                              "hints":  [
+                                                            "RouterForge Core",
+                                                            "Entware",
+                                                            "Keenetic / Netcraze ARM64"
+                                                        ]
+                                          },
+                        "install":  {
+                                        "method":  "routerforge-release",
+                                        "repository":  "routerforge-dev",
+                                        "repository_url":  "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev",
+                                        "checksum_url":  "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+                                        "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                        "packages":  [
+                                                         "routerforge-dns-router"
+                                                     ],
+                                        "notes":  [
+                                                      "DEV preview management-only service; DNS unchanged."
+                                                  ],
+                                        "preview_only":  false
+                                    },
+                        "update":  {
+                                       "method":  "routerforge-release",
+                                       "repository":  "routerforge-dev",
+                                       "repository_url":  "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev",
+                                       "checksum_url":  "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+                                       "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                                       "packages":  [
+                                                        "routerforge-dns-router"
+                                                    ],
+                                       "notes":  [
+                                                     "DEV preview management-only service; DNS unchanged."
+                                                 ],
+                                       "preview_only":  false
+                                   },
+                        "remove":  {
+                                       "method":  "opkg",
+                                       "packages":  [
+                                                        "routerforge-dns-router"
+                                                    ],
+                                       "preview_only":  false
+                                   },
+                        "presentation":  {
+                                             "dashboard":  {
+                                                               "enabled":  true,
+                                                               "priority":  65
+                                                           },
+                                             "navigation":  {
+                                                                "label":  "DNS Router",
+                                                                "href":  "/modules?module=dns-router",
+                                                                "order":  35
+                                                            }
+                                         },
+                        "capabilities":  [
+                                             "dns-policy-routing",
+                                             "manual-shadow",
+                                             "dns-diagnostics"
+                                         ],
+                        "manifest_id":  "dns-router",
+                        "manifest_source":  "marketplace/submissions/dns-router.json",
+                        "registry_source":  "routerforge-community",
+                        "trust":  {
+                                      "status":  "official",
+                                      "reviewed_by":  "routerforge",
+                                      "note":  "DEV preview only."
+                                  },
+                        "manifest_sha256":  "7957f13404df75c9c945a6196742dc0bfe05dd17dfdd092f863a7cb55db050dc"
+                    }
+                ]
 }

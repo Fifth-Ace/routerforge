@@ -199,6 +199,7 @@ def main():
             "antiscan-manager",
             "port-access-manager",
             "crowdsec-manager",
+            "dns-router",
             "profiling",
         ]
     elif channel == "beta":
@@ -261,6 +262,10 @@ def main():
             run(["./scripts/build-port-access-manager-opkg.sh", version], env=env)
         elif cid == "crowdsec-manager":
             run(["./scripts/build-crowdsec-manager-opkg.sh", version], env=env)
+        elif cid == "dns-router":
+            if channel != "dev":
+                raise SystemExit("DNS Router preview is DEV-only")
+            run(["./scripts/build-dns-router-experimental.sh", version, target], env=env)
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
 

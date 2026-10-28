@@ -32,11 +32,9 @@ esac
 }
 
 SHORT_SHA="$(printf '%.12s' "$GITHUB_SHA")"
-# 0.7.0-dev.<sha> was not monotonic under opkg version ordering because the
-# hexadecimal SHA participated directly in comparison. Burn that prerelease
-# train and move to the next patch line. "~dev" sorts below the matching stable
-# release while GITHUB_RUN_NUMBER provides a monotonic rolling Dev sequence.
-VERSION="0.8.0~dev.r${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+# Independent DEV build train. The leading 1 is a fixed opkg ordering anchor,
+# NOT a RouterForge release number. CI build number is monotonic; SHA is identity.
+VERSION="1~dev.r${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
 ASSET_VERSION="$(printf '%s' "$VERSION" | tr '~' '-')"
 
 mkdir -p dist
@@ -138,6 +136,7 @@ verify_plain() {
 verify_plain "dist/routerforge-core_${ASSET_VERSION}_${TARGET}.ipk" routerforge
 verify_plain "dist/routerforge-admin_${ASSET_VERSION}_${TARGET}.ipk" routerforge-admin
 verify_plain "dist/routerforge-dns_${ASSET_VERSION}_${TARGET}.ipk" routerforge-dns
+verify_plain "dist/routerforge-dns-router_${ASSET_VERSION}_${TARGET}.ipk" routerforge-dns-router
 verify_plain "dist/routerforge-monitoring_${ASSET_VERSION}_${TARGET}.ipk" routerforge-monitoring
 verify_plain "dist/routerforge-network-tools_${ASSET_VERSION}_${TARGET}.ipk" routerforge-network-tools
 verify_plain "dist/routerforge-nfqws-manager_${ASSET_VERSION}_${TARGET}.ipk" routerforge-nfqws-manager

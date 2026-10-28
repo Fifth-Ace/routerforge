@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+CFG=/opt/etc/routerforge/dns-router/config.json
+[ ! -L "$CFG" ] || { echo 'DEV: config symlink rejected' >&2; exit 1; }
+if [ ! -e "$CFG" ]; then
+  mkdir -p /opt/etc/routerforge/dns-router
+  umask 077
+  cp /opt/share/routerforge/dns-router/example.json "$CFG"
+fi
+/opt/etc/init.d/S95routerforge-dns-router start

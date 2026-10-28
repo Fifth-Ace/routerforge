@@ -1,0 +1,84 @@
+{
+    "id":  "dns-router",
+    "kind":  "module",
+    "name":  "DNS Policy Router 2.0",
+    "category":  "DNS",
+    "description":  "DEV Preview: DNS rules, diagnostics and manual shadow mode; no router DNS takeover.",
+    "publisher":  {
+                      "id":  "routerforge",
+                      "name":  "RouterForge",
+                      "url":  "https://github.com/Fifth-Ace/routerforge"
+                  },
+    "project_url":  "https://github.com/Fifth-Ace/routerforge",
+    "source":  "routerforge-official",
+    "managed":  true,
+    "package_authoritative":  true,
+    "detection":  {
+                      "packages":  [
+                                       "routerforge-dns-router"
+                                   ],
+                      "services":  [
+                                       "/opt/etc/init.d/S95routerforge-dns-router"
+                                   ]
+                  },
+    "compatibility":  {
+                          "status":  "requirements",
+                          "hints":  [
+                                        "RouterForge Core",
+                                        "Entware",
+                                        "Keenetic / Netcraze ARM64"
+                                    ]
+                      },
+    "install":  {
+                    "method":  "routerforge-release",
+                    "repository":  "routerforge-dev",
+                    "repository_url":  "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev",
+                    "checksum_url":  "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+                    "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                    "packages":  [
+                                     "routerforge-dns-router"
+                                 ],
+                    "notes":  [
+                                  "DEV preview management-only service; DNS unchanged."
+                              ],
+                    "preview_only":  false
+                },
+    "update":  {
+                   "method":  "routerforge-release",
+                   "repository":  "routerforge-dev",
+                   "repository_url":  "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev",
+                   "checksum_url":  "https://github.com/Fifth-Ace/routerforge/releases/download/routerforge-dev/routerforge-dev-SHA256SUMS",
+                   "asset_template":  "{package}_{version}_aarch64-3.10.ipk",
+                   "packages":  [
+                                    "routerforge-dns-router"
+                                ],
+                   "notes":  [
+                                 "DEV preview management-only service; DNS unchanged."
+                             ],
+                   "preview_only":  false
+               },
+    "remove":  {
+                   "method":  "opkg",
+                   "packages":  [
+                                    "routerforge-dns-router"
+                                ],
+                   "preview_only":  false
+               },
+    "presentation":  {
+                         "dashboard":  {
+                                           "enabled":  true,
+                                           "priority":  65
+                                       },
+                         "navigation":  {
+                                            "label":  "DNS Router",
+                                            "href":  "/modules?module=dns-router",
+                                            "order":  35
+                                        }
+                     },
+    "capabilities":  [
+                         "dns-policy-routing",
+                         "manual-shadow",
+                         "dns-diagnostics"
+                     ],
+    "schema_version":  1
+}

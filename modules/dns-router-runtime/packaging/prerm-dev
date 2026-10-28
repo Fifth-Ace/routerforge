@@ -1,0 +1,3 @@
+#!/bin/sh
+set -eu
+/opt/etc/init.d/S95routerforge-dns-router stop

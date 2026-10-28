@@ -34,10 +34,21 @@ func main() {
 	shadow := flag.Bool("shadow-forward", false, "EXPLICIT shadow UDP/TCP forwarder on loopback/high port; no router DNS takeover")
 	listen := flag.String("shadow-listen", "127.0.0.1:55353", "shadow listener, never :53")
 	ndmcTrial := flag.Bool("ndmc-transaction-experimental", false, "DSTest-only bounded ndmc trial with automatic exact rollback")
+	managedTrial := flag.Bool("ndmc-managed-trial-experimental", false, "DSTest-only bounded 1..8 zone transactional trial with exact rollback")
+	managedWorker := flag.String("ndmc-managed-rollback-worker", "", "internal multi-zone watchdog process")
 	rollbackWorker := flag.String("ndmc-rollback-worker", "", "internal independent rollback watchdog")
 	allowLAN := flag.Bool("shadow-lan-experimental", false, "EXPLICIT private IPv4 LAN test listener; requires source ACL")
 	clients := flag.String("shadow-allow-clients", "", "comma-separated exact IPv4 source allowlist for LAN shadow")
 	flag.Parse()
+	if *managedWorker != "" {
+		if flag.NArg() != 0 {
+			log.Fatal("managed watchdog arguments are forbidden")
+		}
+		if err := dnsrouter.ManagedWorkerN(*managedWorker); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if *rollbackWorker != "" {
 		if flag.NArg() != 0 {
 			log.Fatal("watchdog arguments are forbidden")
@@ -46,6 +57,9 @@ func main() {
 			log.Fatal(err)
 		}
 		return
+	}
+	if *managedTrial && (!*serve || !*allowLAN) {
+		log.Fatal("managed zone trial requires --serve --shadow-lan-experimental")
 	}
 	if *ndmcTrial && (!*serve || !*allowLAN) {
 		log.Fatal("ndmc trial requires --serve --shadow-lan-experimental")
@@ -121,7 +135,7 @@ func main() {
 	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {
-		if err := runManagement(store, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial); err != nil {
+		if err := runManagement(store, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -143,7 +157,7 @@ func main() {
 	_ = json.NewEncoder(os.Stdout).Encode(d)
 }
 
-func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool) error {
+func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("Unix socket path must be absolute")
 	}
@@ -195,6 +209,12 @@ func runManagement(store *dnsrouter.ConfigStore, socket, ui string, enableShadow
 			return err
 		}
 		handler.TrialM = &dnsrouter.NDMCTrialM{Store: store, Lifecycle: lifecycle, Executor: dnsrouter.NewRealNDMCM(), Probe: dnsrouter.NewRealProbeM(), Arm: dnsrouter.ArmOSGuardM}
+	}
+	if managedTrial {
+		if err := dnsrouter.NDMCTestHostGateM(); err != nil {
+			return err
+		}
+		handler.ManagedN = &dnsrouter.ManagedTrialN{Store: store, Lifecycle: lifecycle, Executor: dnsrouter.NewRealNDMCM(), Arm: dnsrouter.ArmOSGuardN, Probe: dnsrouter.ProbeManagedN(lifecycle)}
 	}
 	server := &http.Server{Handler: handler.Handler(), ReadHeaderTimeout: 5 * time.Second}
 

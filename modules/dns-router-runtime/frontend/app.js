@@ -4,6 +4,7 @@
   let config = {schema_version: 1, upstreams: [], rules: []};
   let revision = '';
   let dirty = false;
+  let preparedN = null;
   const el = id => document.getElementById(id);
   const feedback = msg => { el('feedback').textContent = msg; };
   async function request(path, opts = {}) {
@@ -15,7 +16,7 @@
   function jsonOptions(action, obj, extra = {}) {
     return { method: 'POST', headers: {'Content-Type':'application/json', 'X-RouterForge-Action':action, ...extra}, body:JSON.stringify(obj) };
   }
-  function markDirty() { dirty = true; feedback('Изменения не сохранены. DNS-трафик не затронут.'); render(); }
+  function markDirty() { preparedN=null;dirty = true; feedback('Изменения не сохранены. DNS-трафик не затронут.'); render(); }
   function optionSelect(id) {
     const node = el(id); const selected = node.value;
     node.replaceChildren();
@@ -53,7 +54,7 @@
   async function load() {
     if (dirty && !confirm('Отменить несохранённые изменения?')) return;
     const data = await request('config');
-    config = data.config;revision = data.revision; dirty = false;render();feedback('Конфигурация загружена · runtime меняется только при ручном старте/применении');
+    config = data.config;revision = data.revision; dirty = false;preparedN=null;render();feedback('Конфигурация загружена · runtime меняется только при ручном старте/применении');
   }
   el('listenerForm').addEventListener('submit',e=>{
     e.preventDefault(); const form=Object.fromEntries(new FormData(e.currentTarget));
@@ -69,6 +70,43 @@
       el('listenerPlanStatus').textContent=JSON.stringify(data.plan,null,2);
       feedback('План read-only готов · DNS Keenetic не изменён');
     }catch(err){feedback('План DNS: '+err.message);}
+  });
+  // DPR2-N: the server recalculates its exact ndmc snapshot and a CAS-bound
+  // token. Preparing never changes DNS; a confirmed trial always rolls back.
+  el('managedPrepareN').addEventListener('click', async () => {
+    if (dirty) { feedback('Сначала сохрани конфигурацию для сверки зон'); return; }
+    preparedN = null;
+    try {
+      const data = await request('keenetic/domain-managed/prepare',
+        jsonOptions('managed-prepare',{operation:'prepare'},{'If-Match':'"'+revision+'"'}));
+      if (data.revision !== revision) throw new Error('Ревизия изменилась');
+      el('managedStatusN').textContent=JSON.stringify(data,null,2);
+      if (!data.ready) { feedback('Найдены конфликты с действующей конфигурацией. Изменений нет.'); return; }
+      preparedN = data;
+      feedback('План проверен. Применение ещё не выполнялось. Для временной проверки нажми «Испытать».');
+    } catch(err) { preparedN=null;feedback('DPR2-N prepare: '+err.message); }
+  });
+  el('managedTrialN').addEventListener('click', async () => {
+    if (dirty || !preparedN || !preparedN.ready || preparedN.revision!==revision) {
+      feedback('Нужен актуальный подтверждённый план без несохранённых изменений');return;
+    }
+    const domains=preparedN.zones.map(x=>x.domain).join(', ');
+    if (!confirm('ВНИМАНИЕ: DSTest на короткое время зарегистрирует DNS-зоны '+domains+
+      ' через ndmc. После проверки они будут удалены. Продолжить?'))return;
+    if (prompt('Для запуска временной DNS-транзакции введи TRIAL:')!=='TRIAL') {
+      feedback('Испытание отменено; изменений нет');return;
+    }
+    try {
+      // Consume token exactly once even if the network fails mid-request.
+      const token=preparedN.token;preparedN=null;
+      el('managedStatusN').textContent='Транзакция выполняется. Ожидается подтверждение DNS и отката…';
+      const data=await request('keenetic/domain-managed/trial',
+        jsonOptions('managed-trial',{operation:'trial',token},{'If-Match':'"'+revision+'"'}));
+      el('managedStatusN').textContent=JSON.stringify(data,null,2);
+      feedback(data.baseline_restored && data.state==='pass' ?
+        'DPR2-N: временное применение и точный откат подтверждены' :
+        'DPR2-N: результат неоднозначный, проверь журнал/откат');
+    }catch(err){el('managedStatusN').textContent=String(err);feedback('DPR2-N: '+err.message+'; проверь DNS-снимок перед повтором');}
   });
   el('upstreamForm').addEventListener('submit',e=>{
     e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget));
@@ -88,7 +126,7 @@
   el('saveButton').addEventListener('click',async()=>{
     try {
       const response = await request('config', {method:'PUT', headers:{'Content-Type':'application/json','X-RouterForge-Action':'save','If-Match':'"'+revision+'"'},body:JSON.stringify(config)});
-      revision = response.revision;dirty = false;render();feedback('Сохранено атомарно; работающий shadow не изменён до явного применения');
+      revision = response.revision;dirty = false;preparedN=null;render();feedback('Сохранено атомарно; работающий shadow не изменён до явного применения');
     } catch(err){feedback('Ошибка сохранения: '+err.message);}
   });
   el('reloadButton').addEventListener('click',()=>load().catch(err=>feedback(err.message)));

@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2m
+VERSION=0.14.0~dev.dpr2n
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
@@ -47,7 +47,7 @@ GOPROXY=off go test ./modules/dns-router-runtime/...
 GOPROXY=off go vet ./modules/dns-router-runtime/...
 # Same API acceptance tests run under race detection on the CI Linux runner.
 GOPROXY=off go test -race ./modules/dns-router-runtime/...
-GOPROXY=off go test -count=1 -v -run 'TestDPR2(D|E|F|G|K|L|M)' ./modules/dns-router-runtime/...
+GOPROXY=off go test -count=1 -v -run 'TestDPR2(D|E|F|G|K|L|M|N)' ./modules/dns-router-runtime/...
 GOPROXY=off go test -run '^$' -bench '^BenchmarkDPR2EEvaluate10K$' -benchtime=100ms -benchmem ./modules/dns-router-runtime/...
 for TARGET in aarch64-3.10 mips-3.4 mipsel-3.4; do
   sh scripts/build-dns-router-experimental.sh "$VERSION" "$TARGET"
@@ -117,3 +117,22 @@ assert 'keenetic/domain-trial' in a and 'If-Match' in a
 assert 'system configuration save' not in p.split('func ')[-1]
 print('DPR2_M_TRANSACTION_GATES: PASS')
 PY_VERIFY_M
+
+# DPR2-N bounded multi-zone transactional trial, no real ndmc on CI.
+GOPROXY=off go test -count=1 -v -run '^TestDPR2N' ./modules/dns-router-runtime/...
+python3 - <<'PY_VERIFY_N'
+from pathlib import Path
+p = Path('modules/dns-router-runtime/transaction_n.go').read_text()
+a = Path('modules/dns-router-runtime/api.go').read_text()
+c = Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text()
+h = Path('modules/dns-router-runtime/frontend/index.html').read_text()
+j = Path('modules/dns-router-runtime/frontend/app.js').read_text()
+for needle in ('managedMaxZonesN = 8', 'ManagedWorkerN', 'trialSnapshotM', 'BaselineRestored', 'syscall.Flock'):
+    assert needle in p, needle
+assert 'ndmc-managed-trial-experimental' in c
+assert 'domain-managed/prepare' in a and 'domain-managed/trial' in a
+for v in ('managedPrepareN','managedTrialN','managedStatusN'):
+    assert f'id="{v}"' in h and f"el('{v}')" in j
+assert 'system configuration save' not in p
+print('DPR2_N_MULTIZONE_TRANSACTION_AND_UI: PASS')
+PY_VERIFY_N

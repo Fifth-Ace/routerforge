@@ -20,6 +20,7 @@ type API struct {
 	Shadow    *ShadowForwarder
 	Lifecycle *LifecycleManager
 	TrialM    *NDMCTrialM
+	ManagedN  *ManagedTrialN
 }
 
 func NewAPI(store *ConfigStore, ui string) *API { return &API{Store: store, UI: ui} }
@@ -187,6 +188,68 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, 200, map[string]any{"outcome": outcome, "lifecycle": a.Lifecycle.Status(), "interception": false})
 	})
+	// DPR2-N: explicit one-shot multi-zone trial; read-only prepare, followed
+	// by a separately confirmed CAS+token trial. A trial ALWAYS rolls back.
+	for _, spec := range []struct{ path, action, operation string }{
+		{"/v1/keenetic/domain-managed/prepare", "managed-prepare", "prepare"},
+		{"/v1/keenetic/domain-managed/trial", "managed-trial", "trial"},
+	} {
+		spec := spec
+		mux.HandleFunc(spec.path, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				w.Header().Set("Allow", "POST")
+				w.WriteHeader(405)
+				return
+			}
+			if !requireMutation(w, r, spec.action) {
+				return
+			}
+			if a.ManagedN == nil {
+				fail(w, 503, errors.New("DPR2-N managed trial is disabled"))
+				return
+			}
+			var req struct {
+				Operation string `json:"operation"`
+				Token     string `json:"token,omitempty"`
+			}
+			if err := decodeBody(r, &req, 1024); err != nil {
+				fail(w, 400, err)
+				return
+			}
+			if req.Operation != spec.operation {
+				fail(w, 400, errors.New("invalid managed operation"))
+				return
+			}
+			rev := strings.Trim(r.Header.Get("If-Match"), "\"")
+			if rev == "" {
+				fail(w, 428, errors.New("If-Match required"))
+				return
+			}
+			if spec.operation == "prepare" {
+				result, err := a.ManagedN.Prepare(r.Context(), rev)
+				if err != nil {
+					code := 422
+					if errors.Is(err, ErrStale) {
+						code = 409
+					}
+					fail(w, code, err)
+					return
+				}
+				respondJSON(w, 200, result)
+				return
+			}
+			result, err := a.ManagedN.Run(r.Context(), rev, req.Token)
+			if err != nil {
+				code := 422
+				if errors.Is(err, ErrStale) || errors.Is(err, ErrManagedTokenN) {
+					code = 409
+				}
+				respondJSON(w, code, map[string]any{"error": err.Error(), "trial": result})
+				return
+			}
+			respondJSON(w, 200, result)
+		})
+	}
 	// DPR2-M: explicit one-shot DSTest-only ndmc transaction. It always
 	// removes its test zone before returning, with an independent watchdog.
 	mux.HandleFunc("/v1/keenetic/domain-trial", func(w http.ResponseWriter, r *http.Request) {

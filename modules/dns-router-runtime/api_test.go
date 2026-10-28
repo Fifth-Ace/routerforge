@@ -12,6 +12,32 @@ import (
 	"testing"
 )
 
+func TestDNSRouterModuleFrameHealthContract(t *testing.T) {
+	store := NewConfigStore(filepath.Join(t.TempDir(), "config.json"))
+	api := NewAPI(store, "").Handler()
+	for _, method := range []string{"GET", "HEAD"} {
+		w := httptest.NewRecorder()
+		api.ServeHTTP(w, httptest.NewRequest(method, "/v1/health", nil))
+		if w.Code != 200 {
+			t.Fatalf("%s /v1/health: status=%d body=%s", method, w.Code, w.Body.String())
+		}
+		if method == "GET" {
+			var body map[string]any
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode health response: %v", err)
+			}
+			if body["component"] != "dns-router" || body["status"] != "ok" {
+				t.Fatalf("unexpected health response: %v", body)
+			}
+		}
+	}
+	w := httptest.NewRecorder()
+	api.ServeHTTP(w, httptest.NewRequest("POST", "/v1/health", nil))
+	if w.Code != 405 {
+		t.Fatalf("mutation allowed at health endpoint: %d", w.Code)
+	}
+}
+
 func TestAPIConfigCRUDAndCAS(t *testing.T) {
 	st := NewConfigStore(filepath.Join(t.TempDir(), "cfg.json"))
 	api := NewAPI(st, "").Handler()

@@ -38,11 +38,22 @@ func main() {
 	managedWorker := flag.String("ndmc-managed-rollback-worker", "", "internal multi-zone watchdog process")
 	durableWorker := flag.String("ndmc-durable-disable-worker", "", "internal reverse rollback watchdog")
 	durableOptIn := flag.Bool("ndmc-durable-experimental", false, "DSTest-only explicit persistent zone API; NEVER automatic startup")
+	lifetimeOptIn := flag.Bool("ndmc-lifetime-guard-experimental", false, "DSTest-only independent cleanup after DNS forwarder exit; no autostart")
+	lifetimeWorker := flag.String("ndmc-lifetime-worker", "", "internal lifetime guardian process")
 	startupOptIn := flag.Bool("ndmc-startup-recovery-experimental", false, "DSTest-only explicit startup reconciliation of existing owned zones; no bootstrap setup")
 	rollbackWorker := flag.String("ndmc-rollback-worker", "", "internal independent rollback watchdog")
 	allowLAN := flag.Bool("shadow-lan-experimental", false, "EXPLICIT private IPv4 LAN test listener; requires source ACL")
 	clients := flag.String("shadow-allow-clients", "", "comma-separated exact IPv4 source allowlist for LAN shadow")
 	flag.Parse()
+	if *lifetimeWorker != "" {
+		if flag.NArg() != 0 {
+			log.Fatal("lifetime watchdog arguments forbidden")
+		}
+		if err := dnsrouter.LifetimeWorkerO3B(*lifetimeWorker); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if *durableWorker != "" {
 		if flag.NArg() != 0 {
 			log.Fatal("durable watchdog arguments forbidden")
@@ -69,6 +80,9 @@ func main() {
 			log.Fatal(err)
 		}
 		return
+	}
+	if *lifetimeOptIn && (!*startupOptIn || !*durableOptIn) {
+		log.Fatal("lifetime guard requires explicit durable and startup recovery capabilities")
 	}
 	if *startupOptIn && !*durableOptIn {
 		log.Fatal("startup recovery requires --ndmc-durable-experimental")
@@ -153,7 +167,7 @@ func main() {
 	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {
-		if err := runManagement(store, *config, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial, *durableOptIn, *startupOptIn); err != nil {
+		if err := runManagement(store, *config, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial, *durableOptIn, *startupOptIn, *lifetimeOptIn); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -175,9 +189,17 @@ func main() {
 	_ = json.NewEncoder(os.Stdout).Encode(d)
 }
 
-func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool, durableOptIn bool, startupOptIn bool) error {
+func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool, durableOptIn bool, startupOptIn bool, lifetimeOptIn bool) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("Unix socket path must be absolute")
+	}
+	if lifetimeOptIn {
+		waitCtx, cancel := context.WithTimeout(context.Background(), 165*time.Second)
+		err := dnsrouter.AwaitPreviousLifetimeO3B(waitCtx)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("previous lifetime cleanup incomplete: %w", err)
+		}
 	}
 	cfg, _, err := store.Load()
 	if err != nil {
@@ -240,6 +262,16 @@ func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, 
 			return err
 		}
 		handler.DurableO2 = dnsrouter.NewRealDurableO2(store, handler.LedgerO, lifecycle)
+		if lifetimeOptIn {
+			guardCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			dir, err := dnsrouter.ArmLifetimeO3B(guardCtx, handler.LedgerO, lifecycle)
+			cancel()
+			if err != nil {
+				return fmt.Errorf("independent lifetime guard not armed: %w", err)
+			}
+			log.Printf("DPR2-O3 lifetime guard ARMED: %s", dir)
+		}
+
 		if startupOptIn {
 			handler.StartupO3 = &dnsrouter.StartupManagerO3{Durable: handler.DurableO2}
 			bootCtx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -253,6 +285,7 @@ func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, 
 		}
 
 	}
+
 	server := &http.Server{Handler: handler.Handler(), ReadHeaderTimeout: 5 * time.Second}
 
 	httpDone := make(chan error, 1)

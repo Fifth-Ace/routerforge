@@ -163,6 +163,19 @@ func (a *API) Handler() http.Handler {
 			fail(w, 428, errors.New("If-Match required"))
 			return
 		}
+		// A durable owner must never lose its forwarder through API stop/apply.
+		// Disable owned zones transactionally first, then stop the listener.
+		if (req.Operation == "stop" || req.Operation == "apply") && a.DurableO2 != nil && a.LedgerO != nil {
+			owned, _, ledgerErr := a.LedgerO.Load()
+			if ledgerErr != nil {
+				fail(w, 409, ledgerErr)
+				return
+			}
+			if owned != nil {
+				fail(w, 409, errors.New("disable managed DNS ownership before changing the forwarder"))
+				return
+			}
+		}
 		var err error
 		outcome := ""
 		switch req.Operation {
@@ -568,6 +581,17 @@ func (a *API) Handler() http.Handler {
 			w.Header().Set("ETag", fmt.Sprintf("%q", rev))
 			respondJSON(w, 200, map[string]any{"config": cfg, "revision": rev, "active": a.Lifecycle != nil && a.Lifecycle.Status().Active})
 		case http.MethodPut:
+			if a.DurableO2 != nil && a.LedgerO != nil {
+				owned, _, ledgerErr := a.LedgerO.Load()
+				if ledgerErr != nil {
+					fail(w, 409, ledgerErr)
+					return
+				}
+				if owned != nil {
+					fail(w, 409, errors.New("disable managed DNS ownership before replacing policy"))
+					return
+				}
+			}
 			if !requireMutation(w, r, "save") {
 				return
 			}

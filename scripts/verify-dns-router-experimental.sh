@@ -2,7 +2,7 @@
 # Offline CI acceptance for DNS Router standalone lab packages.
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION=0.14.0~dev.dpr2o3
+VERSION=0.14.0~dev.dpr2o3b
 cd "$ROOT"
 sh -n scripts/build-dns-router-experimental.sh
 sh -n scripts/dpr2-f-hardware-readonly.sh
@@ -200,3 +200,23 @@ assert 'ndmc-startup-recovery-experimental' in c
 assert 'startupOptIn && !*durableOptIn' in c
 print('DPR2_O3_EXPLICIT_STARTUP_RECONCILIATION: PASS')
 PY_VERIFY_O3
+
+# DPR2-O3B independent lifetime guard: no real host mutations on Linux CI.
+GOPROXY=off go test -count=1 -v -run '^TestDPR2O3B' ./modules/dns-router-runtime/...
+python3 - <<'PY_VERIFY_O3B'
+from pathlib import Path
+p=Path('modules/dns-router-runtime/lifetime_o3b.go').read_text()
+m=Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text()
+a=Path('modules/dns-router-runtime/api.go').read_text()
+t=Path('modules/dns-router-runtime/lifetime_o3b_test.go').read_text()
+for needle in ('procStartO3B', 'CleanupOnDaemonExitO3B', 'lockNDMCForO2', 'awaitShortGuardsO3B', 'classifyStartupO3', 'rollbackManagedN', 'LIFETIME_O3_CLEANUP_PASS'):
+    assert needle in p, needle
+assert 'safety.CommandContext' in p and 'os.MkdirTemp' in p
+assert 'ndmc-lifetime-worker' in m and 'ndmc-lifetime-guard-experimental' in m
+assert m.index('ArmLifetimeO3B') < m.index('StartupO3.Recover')
+assert 'disable managed DNS ownership before changing the forwarder' in a
+assert 'disable managed DNS ownership before replacing policy' in a
+for required in ('TestDPR2O3BLifetimeCleanupActiveAndRetainLedger', 'TestDPR2O3BLifetimeCleanupPendingAndDeactivating', 'TestDPR2O3BAPIPreventsStoppingOwnedForwarderOrSavingPolicy'):
+    assert required in t, required
+print('DPR2_O3B_INDEPENDENT_LIFETIME_GUARD: PASS')
+PY_VERIFY_O3B

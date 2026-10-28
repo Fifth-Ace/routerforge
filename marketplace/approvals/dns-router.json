@@ -1,0 +1,7 @@
+{
+  "id": "dns-router",
+  "status": "official",
+  "manifest_sha256": "87d64ed842950a2d0eb4f13bbd8e62e3c7e9c02c3a38d1c370fa766a2df7bb83",
+  "reviewed_by": "routerforge",
+  "note": "Official RouterForge DNS Router DEV preview; no automatic DNS takeover."
+}

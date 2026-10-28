@@ -1,29 +1,187 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RouterForge · DNS Router</title><link rel="stylesheet" href="module.css"></head><body>
-<main><header><div><h1>DNS Router</h1><p>Независимый модуль · управление правилами DNS-upstream</p></div><strong class="tag">MANUAL SHADOW · DNS Keenetic не переключается</strong></header>
-<p id="feedback" role="status" aria-live="polite">Чтение конфигурации…</p>
-<section><h2>Ручной runtime · loopback или явно разрешённый LAN</h2>
-<p>Запуск и остановка доступны только в работающем management API. <strong>Никакого перехвата DNS Keenetic</strong>. Конфигурацию сохраняй перед запуском или применением.</p>
-<div class="controls"><button id="shadowStatusButton" type="button">Статус</button><button id="shadowStartButton" type="button">Запустить shadow</button><button id="shadowApplyButton" type="button">Применить сохранённые правила</button><button id="shadowStopButton" type="button">Остановить</button></div><pre id="shadowStatus">Не запущено</pre>
-<button id="resourcesButton" type="button">Память / PSS / RSS</button><button id="keeneticButton" type="button">Keenetic: read-only discovery</button><button id="integrationButton" type="button">План DNS Proxy (без изменений)</button><button id="hardwareButton" type="button">Hardware evidence (read-only)</button><pre id="discoveryStatus">Нет измерений</pre></section>
-<section><h2>DPR2-G: аппаратная совместимость · только анализ</h2>
-<p>Вставь вывод <code>dpr2-g-hardware-readonly.sh</code>, собранный отдельно по SSH на тестовом Keenetic. Содержимое не сохраняется на маршрутизаторе. Даже положительные наблюдения не разрешают переключение системного DNS.</p>
-<form id="evidenceForm"><textarea name="evidence" rows="9" maxlength="15000" placeholder="RF_DPR2G_EVIDENCE_BEGIN&#10;SCHEMA=1&#10;MODE=READ_ONLY&#10;...&#10;RF_DPR2G_EVIDENCE_END" required></textarea><button type="submit">Разобрать read-only отчёт</button></form>
-<button id="rehearsalButton" type="button">Репетиция отказа / отката (только в памяти)</button><pre id="assessmentStatus">Аппаратная совместимость не подтверждена</pre></section>
-<section><h2>DPR2-L: нативный DNS Router и план доменных зон</h2>
-<p>Конфигурация LAN-listener сохраняется через CAS, но <strong>не запускает DNS и не регистрирует зоны в Keenetic</strong>. Для запуска LAN необходим явный флаг процесса <code>--serve --shadow-lan-experimental</code>. Порт 53 остаётся за ndnproxy.</p>
-<form id="listenerForm"><select name="mode" id="listenerMode"><option value="loopback">Только loopback</option><option value="lan">Приватный IPv4 LAN + ACL</option></select><input name="listen" id="listenerListen" placeholder="192.168.10.1:55358" required><input name="allowed_clients" id="listenerACL" placeholder="192.168.10.1,127.0.0.1"><button>Добавить listener в черновик</button></form>
-<div class="controls"><button type="button" id="listenerPlanButton">План доменных зон (read-only)</button></div><pre id="listenerPlanStatus">Нет плана. Сначала сохрани конфигурацию.</pre></section>
-<section><h2>DPR2-N: пользовательские DNS-зоны · временная транзакция</h2>
-<p>Только экспериментальный DSTest (отдельный флаг <code>--ndmc-managed-trial-experimental</code>). Сначала сохрани конфигурацию и запусти LAN-listener. Проверка разрешает до восьми непересекающихся зон, сверяет текущий DNS-инвентарь, запускает кратковременную транзакцию и <strong>всегда откатывает изменения</strong>. Постоянное применение здесь не предусмотрено.</p>
-<div class="controls"><button id="managedPrepareN" type="button">Проверить план и конфликты</button><button id="managedTrialN" type="button">Испытать и автоматически откатить</button></div>
-<pre id="managedStatusN">Применение запрещено до проверки текущего плана</pre></section>
-<section><h2>DPR2-O1: реестр собственных DNS-зон · только сверка</h2>
-<p>Пока только read-only статус. Нет постоянного применения, автозапуска или автоматического удаления записей. Реестр владения проверяется отдельно от живого списка DNS Keenetic; неизвестные записи никогда не считаются собственными.</p>
-<button type="button" id="managedOwnershipStatusO">Проверить реестр владения</button>
-<pre id="managedOwnershipResultO">Постоянные зоны не включены</pre></section>
-<section><h2>Upstream-пулы</h2><form id="upstreamForm"><input name="id" placeholder="ID (cloudflare)" required maxlength="64"><select name="transport"><option value="udp">UDP</option><option value="tcp">TCP</option><option value="dot">DoT (TLS)</option><option value="doh">DoH (HTTPS)</option></select><input name="address" placeholder="1.1.1.1:53" required><input name="server_name" placeholder="TLS SNI, пример dns.example.com (для DoT/DoH)"><input name="path" placeholder="DoH path (по умолчанию /dns-query)"><input name="fallbacks" placeholder="Резервные ID через запятую"><button>Добавить</button></form><div id="upstreamList"></div><button type="button" id="upstreamStatusButton">Статистика upstream (без активных проб)</button><pre id="upstreamStatus">Нет измерений</pre></section>
-<section><h2>Доменные правила</h2><form id="ruleForm"><input name="id" placeholder="ID правила" required maxlength="64"><input name="domain" placeholder="example.com" required><select name="match"><option value="suffix">Домен и поддомены</option><option value="exact">Только точный домен</option><option value="subdomains">Только поддомены</option></select><select name="upstream" id="ruleUpstream" required></select><input name="priority" type="number" value="100" min="0" max="1000000"><button>Добавить</button></form><div id="ruleList"></div></section>
-<section><h2>Проверка правила</h2><form id="evaluateForm"><input name="domain" placeholder="api.example.com" required><button>Проверить сохранённое правило</button></form><pre id="decision">Ожидание запроса</pre></section>
-<section><h2>Импорт доменов</h2><p>Один домен на строку. Комментарии #. Импорт сначала показывает результат и ничего не сохраняет.</p><form id="importForm"><textarea name="text" rows="5" placeholder="example.com&#10;another.net" required></textarea><select name="upstream" id="importUpstream" required></select><select name="match"><option value="suffix">Домен и поддомены</option><option value="exact">Точно</option><option value="subdomains">Только поддомены</option></select><select name="mode"><option value="append">Дополнить</option><option value="replace">Заменить правила</option></select><button>Предпросмотр импорта</button></form><pre id="importResult">Нет импорта</pre></section>
-<footer><button id="saveButton" class="primary">Сохранить изменения</button><button id="reloadButton">Перечитать</button><button id="exportButton">Экспорт JSON</button><span id="revision"></span></footer>
-<p class="warning">Ручной shadow-forwarder слушает loopback/high-port или приватный LAN с точной ACL и явным флагом после запуска в интерфейсе/API или с --serve --shadow-forward. DoT/DoH используют TLS с обязательной проверкой сертификата и IP endpoint. Резерв — только явный. Нет автозапуска, постоянного применения плана к Keenetic DNS Proxy или захвата порта 53. Временная DPR2-N транзакция требует отдельного capability-флага и отката.</p></main><script defer src="app.js"></script></body></html>
+<!doctype html>
+<html lang="ru" data-section="overview">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RouterForge · DNS Policy Router 2.0</title>
+  <link rel="stylesheet" href="module.css">
+</head>
+<body>
+<main class="dr-page" id="dnsRouterWorkspace">
+  <header class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">ROUTERFORGE / DNS</span>
+      <h1>DNS Policy Router <span class="title-version">2.0</span></h1>
+      <p>Управление DNS-пулами, доменными маршрутами и безопасным тестовым DNS-сервисом.</p>
+    </div>
+    <div class="hero-actions">
+      <span class="state neutral" id="shadowBadge">SHADOW · ПРОВЕРКА</span>
+      <span class="state safe">ШТАТНЫЙ DNS НЕ ЗАТРОНУТ</span>
+      <button type="button" id="reloadButton" class="button">↻ Обновить</button>
+    </div>
+  </header>
+
+  <div class="feedback neutral" id="feedback" role="status" aria-live="polite">Чтение конфигурации…</div>
+
+  <section class="metrics" aria-label="Сводка DNS Router">
+    <article class="metric"><span>UPSTREAM-ПУЛЫ</span><strong id="metricUpstreams">—</strong><small>DNS-серверы и резервные цепочки</small></article>
+    <article class="metric"><span>ДОМЕННЫЕ ПРАВИЛА</span><strong id="metricRules">—</strong><small>Точные, суффиксы, поддомены</small></article>
+    <article class="metric"><span>ТЕСТОВЫЙ DNS</span><strong id="metricRuntime">—</strong><small>Ручной shadow-forwarder</small></article>
+    <article class="metric"><span>КОНФИГУРАЦИЯ</span><strong id="metricConfig">—</strong><small>Черновик и ревизия CAS</small></article>
+  </section>
+
+  <nav class="tabs" aria-label="Разделы DNS Router">
+    <button type="button" class="tab active" data-tab="overview" aria-selected="true">Обзор</button>
+    <button type="button" class="tab" data-tab="policies" aria-selected="false">Политики DNS</button>
+    <button type="button" class="tab" data-tab="testing" aria-selected="false">Проверка</button>
+    <button type="button" class="tab" data-tab="keenetic" aria-selected="false">Keenetic</button>
+    <button type="button" class="tab" data-tab="diagnostics" aria-selected="false">Диагностика</button>
+  </nav>
+
+  <div class="tab-page active" data-page="overview">
+    <section class="panel">
+      <div class="panel-head">
+        <div><span class="section-kicker">УПРАВЛЕНИЕ / ТЕСТОВЫЙ РЕЖИМ</span><h2>Shadow DNS</h2><p>Ручной listener на loopback или явно разрешённом LAN. Никакой подмены системного DNS.</p></div>
+        <span class="state safe">OPT-IN</span>
+      </div>
+      <div class="panel-content">
+        <div class="action-bar">
+          <button type="button" class="button" id="shadowStatusButton">↻ Статус</button>
+          <button type="button" class="button primary" id="shadowStartButton">▶ Запустить</button>
+          <button type="button" class="button" id="shadowApplyButton">Применить правила</button>
+          <button type="button" class="button danger" id="shadowStopButton">■ Остановить</button>
+        </div>
+        <pre class="console" id="shadowStatus">Загрузка состояния…</pre>
+      </div>
+    </section>
+    <div class="two-column">
+      <section class="panel">
+        <div class="panel-head"><div><span class="section-kicker">КОНФИГУРАЦИЯ</span><h2>Как работают правила</h2></div></div>
+        <div class="steps">
+          <div class="step"><span>01</span><div><strong>Создай upstream-пулы</strong><p>DNS через UDP, TCP, DoT или DoH с резервными серверами.</p></div></div>
+          <div class="step"><span>02</span><div><strong>Задай доменные маршруты</strong><p>Правила для домена, суффикса или поддоменов с приоритетами.</p></div></div>
+          <div class="step"><span>03</span><div><strong>Проверь и сохрани</strong><p>Сначала тест решения, затем явное применение к shadow.</p></div></div>
+        </div>
+        <div class="panel-actions"><button type="button" class="button" data-go="policies">Перейти к политикам</button><button type="button" class="button" data-go="testing">Проверить домен</button></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><div><span class="section-kicker">ГРАНИЦЫ ВОЗДЕЙСТВИЯ</span><h2>Что остаётся неизменным</h2></div></div>
+        <div class="guard-list">
+          <div><span class="guard-check">✓</span><span>Порт <code>53</code> остаётся у системного DNS Keenetic.</span></div>
+          <div><span class="guard-check">✓</span><span>Настройки <code>ndnproxy</code> и DNS Proxy не перехватываются автоматически.</span></div>
+          <div><span class="guard-check">✓</span><span>Импорт, планы и диагностика не меняют DNS-трафик сами по себе.</span></div>
+          <div><span class="guard-warn">!</span><span>Временная DNS-транзакция требует отдельного разрешения и подтверждения.</span></div>
+        </div>
+        <div class="panel-actions"><button type="button" class="button" data-go="diagnostics">Диагностика оборудования</button></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="tab-page" data-page="policies">
+    <section class="panel">
+      <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 01</span><h2>Upstream-пулы</h2><p>DNS-серверы, транспорт и явно заданные резервные цепочки.</p></div></div>
+      <form id="upstreamForm" class="form-grid fields-upstream">
+        <label><span>ID пула</span><input name="id" required maxlength="64" placeholder="cloudflare"></label>
+        <label><span>Протокол</span><select name="transport"><option value="udp">UDP</option><option value="tcp">TCP</option><option value="dot">DoT (TLS)</option><option value="doh">DoH (HTTPS)</option></select></label>
+        <label><span>Адрес</span><input name="address" required placeholder="1.1.1.1:53"></label>
+        <label><span>TLS SNI (DoT/DoH)</span><input name="server_name" placeholder="dns.example.com"></label>
+        <label><span>DoH path</span><input name="path" placeholder="/dns-query"></label>
+        <label><span>Резервные ID через запятую</span><input name="fallbacks" placeholder="secondary, backup"></label>
+        <div class="form-actions"><button class="button primary" type="submit">+ Добавить пул</button></div>
+      </form>
+      <div class="table-wrap" id="upstreamList"></div>
+      <div class="panel-actions"><button type="button" id="upstreamStatusButton" class="button">Статистика upstream (без проб)</button></div>
+      <pre class="console" id="upstreamStatus">Нет измерений</pre>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 02</span><h2>Доменные правила</h2><p>Правила применяются по приоритету к выбранным upstream-пулам.</p></div></div>
+      <form id="ruleForm" class="form-grid fields-rule">
+        <label><span>ID правила</span><input name="id" required maxlength="64" placeholder="main-site"></label>
+        <label><span>Домен</span><input name="domain" required placeholder="example.com"></label>
+        <label><span>Совпадение</span><select name="match"><option value="suffix">Домен и поддомены</option><option value="exact">Только домен</option><option value="subdomains">Только поддомены</option></select></label>
+        <label><span>DNS-пул</span><select name="upstream" id="ruleUpstream" required></select></label>
+        <label><span>Приоритет</span><input name="priority" type="number" value="100" min="0" max="1000000"></label>
+        <div class="form-actions"><button class="button primary" type="submit">+ Добавить правило</button></div>
+      </form>
+      <div class="table-wrap" id="ruleList"></div>
+    </section>
+  </div>
+
+  <div class="tab-page" data-page="testing">
+    <section class="panel">
+      <div class="panel-head"><div><span class="section-kicker">СИМУЛЯТОР</span><h2>Проверить маршрутизацию домена</h2><p>Проверка использует сохранённую конфигурацию и не выполняет сетевой DNS-запрос.</p></div></div>
+      <form id="evaluateForm" class="form-grid form-search">
+        <label><span>Домен для проверки</span><input name="domain" required placeholder="api.example.com"></label>
+        <div class="form-actions"><button class="button primary" type="submit">Проверить правило</button></div>
+      </form>
+      <pre class="console" id="decision">Ожидание запроса</pre>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><span class="section-kicker">ИМПОРТ</span><h2>Пакетный импорт доменов</h2><p>Сначала предпросмотр, затем явное добавление в несохранённый черновик.</p></div></div>
+      <form id="importForm" class="form-grid">
+        <label class="span-all"><span>Домены — по одному на строку, комментарии через #</span><textarea name="text" rows="6" required placeholder="example.com&#10;another.net"></textarea></label>
+        <label><span>Upstream</span><select name="upstream" id="importUpstream" required></select></label>
+        <label><span>Совпадение</span><select name="match"><option value="suffix">Домен и поддомены</option><option value="exact">Точное</option><option value="subdomains">Только поддомены</option></select></label>
+        <label><span>Режим</span><select name="mode"><option value="append">Дополнить</option><option value="replace">Заменить правила</option></select></label>
+        <div class="form-actions"><button class="button" type="submit">Предпросмотр импорта</button></div>
+      </form>
+      <pre class="console" id="importResult">Нет импорта</pre>
+    </section>
+  </div>
+
+  <div class="tab-page" data-page="keenetic">
+    <section class="panel">
+      <div class="panel-head"><div><span class="section-kicker">ИНТЕГРАЦИЯ / ЧЕРНОВИК</span><h2>Настройки listener</h2><p>Сохранение адреса и ACL не запускает DNS и не меняет настройки Keenetic.</p></div><span class="state safe">БЕЗ АКТИВАЦИИ</span></div>
+      <form id="listenerForm" class="form-grid">
+        <label><span>Режим</span><select name="mode" id="listenerMode"><option value="loopback">Только loopback</option><option value="lan">Приватный IPv4 LAN + ACL</option></select></label>
+        <label><span>Адрес и порт (не 53)</span><input name="listen" id="listenerListen" placeholder="127.0.0.1:55353" required></label>
+        <label class="span-all"><span>Разрешённые клиенты для LAN, через запятую</span><input name="allowed_clients" id="listenerACL" placeholder="192.168.10.1,127.0.0.1"></label>
+        <div class="form-actions"><button class="button primary" type="submit">Добавить в черновик</button></div>
+      </form>
+      <div class="panel-actions"><button type="button" class="button" id="listenerPlanButton">План доменных зон (read-only)</button></div>
+      <pre class="console" id="listenerPlanStatus">Сначала сохрани конфигурацию.</pre>
+    </section>
+    <section class="panel risk-panel">
+      <div class="panel-head"><div><span class="section-kicker">DPR2-N / ЭКСПЕРИМЕНТ ТОЛЬКО DSTEST</span><h2>Временная транзакция DNS-зон</h2><p>Требует отдельного серверного флага; изменяет тестовые зоны на ограниченное время и выполняет откат.</p></div><span class="state caution">ПОВЫШЕННЫЙ РИСК</span></div>
+      <div class="boundary-copy">Перед испытанием необходимы сохранённая конфигурация, LAN-listener, отсутствие конфликтов и явное подтверждение. Не использовать на production.</div>
+      <div class="panel-actions"><button type="button" class="button" id="managedPrepareN">Проверить план и конфликты</button><button type="button" class="button danger" id="managedTrialN">Испытать с автоматическим откатом</button></div>
+      <pre class="console" id="managedStatusN">Применение запрещено до проверки текущего плана</pre>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><span class="section-kicker">DPR2-O1 / ТОЛЬКО ЧТЕНИЕ</span><h2>Реестр владения DNS-зонами</h2><p>Сверка собственных и чужих записей. Не удаляет и не принимает чужие настройки.</p></div></div>
+      <div class="panel-actions"><button type="button" class="button" id="managedOwnershipStatusO">Проверить реестр владения</button></div>
+      <pre class="console" id="managedOwnershipResultO">Постоянные зоны не включены</pre>
+    </section>
+  </div>
+
+  <div class="tab-page" data-page="diagnostics">
+    <section class="panel">
+      <div class="panel-head"><div><span class="section-kicker">ДИАГНОСТИКА / READ-ONLY</span><h2>Среда и ресурсы</h2><p>Пассивные показатели и планы интеграции без изменения настроек Keenetic.</p></div></div>
+      <div class="panel-actions">
+        <button type="button" id="resourcesButton" class="button">Память / PSS / RSS</button>
+        <button type="button" id="keeneticButton" class="button">Обнаружение Keenetic</button>
+        <button type="button" id="integrationButton" class="button">План DNS Proxy</button>
+        <button type="button" id="hardwareButton" class="button">Hardware evidence</button>
+      </div>
+      <pre class="console" id="discoveryStatus">Нет измерений</pre>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><span class="section-kicker">DPR2-G / АППАРАТНАЯ СОВМЕСТИМОСТЬ</span><h2>Анализ hardware evidence</h2><p>Вставь отчёт read-only диагностики DSTest. Данные не сохраняются на маршрутизаторе.</p></div></div>
+      <form id="evidenceForm" class="form-grid">
+        <label class="span-all"><span>Текст диагностического отчёта</span><textarea name="evidence" rows="9" maxlength="15000" required placeholder="RF_DPR2G_EVIDENCE_BEGIN&#10;SCHEMA=1&#10;MODE=READ_ONLY&#10;...&#10;RF_DPR2G_EVIDENCE_END"></textarea></label>
+        <div class="form-actions"><button type="submit" class="button primary">Разобрать отчёт</button></div>
+      </form>
+      <div class="panel-actions"><button type="button" class="button" id="rehearsalButton">Репетиция отказа / отката (in-memory)</button></div>
+      <pre class="console" id="assessmentStatus">Аппаратная совместимость не подтверждена</pre>
+    </section>
+    <div class="boundary-note">Доступные экспериментальные операции запускаются только через отдельные capability-флаги, включая <code>--shadow-lan-experimental</code> для LAN-listener. DNS Router не занимает порт 53 и не подменяет ndnproxy. DoT/DoH проверяют TLS-сертификаты и не используют неявный fallback.</div>
+  </div>
+
+  <footer class="save-bar">
+    <div class="save-meta"><strong id="metricFooter">DNS Router</strong><span id="revision">—</span></div>
+    <div class="save-actions"><button id="exportButton" type="button" class="button">Экспорт JSON</button><button id="saveButton" type="button" class="button primary">Сохранить изменения</button></div>
+  </footer>
+</main>
+<script defer src="app.js"></script>
+</body>
+</html>

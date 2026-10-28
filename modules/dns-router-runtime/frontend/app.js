@@ -210,3 +210,133 @@
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));
   shadowRefresh().catch(()=>{});
 })();
+
+/* RouterForge DNS Router 2.0 unified UI bridge; presentation only.
+   No API mutations, DNS changes or request interception. */
+(() => {
+  'use strict';
+  const root = document.documentElement;
+  const workspace = document.getElementById('dnsRouterWorkspace');
+  const params = new URLSearchParams(window.location.search);
+  const themeTokens = [
+    '--rf-bg','--rf-surface','--rf-surface-2','--rf-hover','--rf-text','--rf-muted',
+    '--rf-border','--rf-border-strong','--rf-accent','--rf-accent-soft',
+    '--rf-accent-border','--rf-radius-panel','--rf-radius-card','--rf-radius-control',
+    '--ui-body','--ui-small','--ui-xs','--ui-micro','--ui-panel-title'
+  ];
+  const palette = {
+    forge: ['#0b0d10','#12151a','#171b21','#1d2229','#f5f7fa','#8d98a4','#29313a','#36414d'],
+    midnight: ['#08111b','#0f1824','#152131','#1b2a3c','#edf5ff','#8ca0b5','#25384a','#34516a'],
+    graphite: ['#101113','#17191c','#1d2024','#25292e','#f1f2f4','#9299a2','#30353c','#414850']
+  };
+  function validColor(value, fallback) {
+    return /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? value : fallback;
+  }
+  function fallbackTheme() {
+    const id = params.get('theme') || 'forge';
+    const colors = palette[id] || palette.forge;
+    const names = ['--rf-bg','--rf-surface','--rf-surface-2','--rf-hover','--rf-text','--rf-muted','--rf-border','--rf-border-strong'];
+    names.forEach((key, i) => root.style.setProperty(key, colors[i]));
+    root.style.setProperty('--rf-bg', validColor(params.get('background'), colors[0]));
+    root.style.setProperty('--rf-text', validColor(params.get('text'), colors[4]));
+    root.style.setProperty('--rf-accent', validColor(params.get('accent'), '#38bdf8'));
+    root.dataset.theme = id;
+    if (['compact','normal','comfortable'].includes(params.get('density'))) root.dataset.density = params.get('density');
+    root.style.colorScheme = ['#f6f7f9','#ffffff','#f0f0f0'].includes((params.get('background') || '').toLowerCase()) ? 'light' : 'dark';
+  }
+  function syncHostTheme() {
+    if (window.parent === window) return false;
+    try {
+      const hostRoot = window.parent.document.documentElement;
+      const hostStyle = window.parent.getComputedStyle(hostRoot);
+      themeTokens.forEach(token => {
+        const v = hostStyle.getPropertyValue(token).trim();
+        if (v) root.style.setProperty(token, v);
+      });
+      ['theme','density','radius','uiScale'].forEach(key => {
+        if (hostRoot.dataset[key]) root.dataset[key] = hostRoot.dataset[key];
+      });
+      root.style.colorScheme = hostStyle.colorScheme === 'light' ? 'light' : 'dark';
+      return true;
+    } catch (_) { return false; }
+  }
+  fallbackTheme();
+  syncHostTheme();
+  let heightFrame = 0;
+  function reportHeight() {
+    if (window.parent === window || !workspace || heightFrame) return;
+    heightFrame = requestAnimationFrame(() => {
+      heightFrame = 0;
+      const height = Math.ceil(Math.max(360, workspace.scrollHeight, workspace.getBoundingClientRect().height) + 6);
+      window.parent.postMessage({type:'routerforge-module-height',moduleId:'dns-router',height}, window.location.origin);
+    });
+  }
+  const tabs = [...document.querySelectorAll('.tab[data-tab]')];
+  const pages = [...document.querySelectorAll('.tab-page[data-page]')];
+  function activate(tabId) {
+    if (!pages.some(p => p.dataset.page === tabId)) return;
+    tabs.forEach(btn => {
+      const selected = btn.dataset.tab === tabId;
+      btn.classList.toggle('active', selected);
+      btn.setAttribute('aria-selected', String(selected));
+    });
+    pages.forEach(page => page.classList.toggle('active', page.dataset.page === tabId));
+    root.dataset.section = tabId;
+    reportHeight();
+  }
+  tabs.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.tab)));
+  document.querySelectorAll('[data-go]').forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.go)));
+  activate(params.get('view') || 'overview');
+  function updateMetrics() {
+    const rows = id => Math.max(0, (document.getElementById(id)?.querySelectorAll('tr').length || 0) - 1);
+    const sets = [
+      ['metricUpstreams', rows('upstreamList')],
+      ['metricRules', rows('ruleList')]
+    ];
+    sets.forEach(([id, value]) => {const node = document.getElementById(id); if (node) node.textContent = String(value);});
+    const revision = document.getElementById('revision')?.textContent || '';
+    const config = document.getElementById('metricConfig');
+    if (config) config.textContent = revision.includes('Не сохранено') ? 'ЧЕРНОВИК' : (revision ? 'СОХРАНЕНО' : '—');
+    const footer = document.getElementById('metricFooter');
+    if (footer) footer.textContent = revision.includes('Не сохранено') ? 'Есть несохранённые изменения' : 'Настройки DNS Router';
+    const status = document.getElementById('shadowStatus')?.textContent || '';
+    let active = false;
+    try {
+      const parsed = JSON.parse(status);
+      active = Boolean(parsed?.lifecycle?.active || parsed?.active || parsed?.lifecycle?.state === 'running');
+    } catch (_) {}
+    const badge = document.getElementById('shadowBadge');
+    const metric = document.getElementById('metricRuntime');
+    const ready = status.trim() && status.trim() !== 'Загрузка состояния…';
+    if (badge) {
+      badge.textContent = active ? 'SHADOW · АКТИВЕН' : (ready ? 'SHADOW · ОСТАНОВЛЕН' : 'SHADOW · ПРОВЕРКА');
+      badge.classList.toggle('good', active);
+    }
+    if (metric) metric.textContent = active ? 'АКТИВЕН' : (ready ? 'ВЫКЛ.' : '—');
+    const feedback = document.getElementById('feedback');
+    if (feedback) {
+      const msg = feedback.textContent || '';
+      feedback.classList.toggle('bad', /Ошибка|HTTP 5|HTTP 4|FAIL|конфликт|запрещено/i.test(msg));
+      feedback.classList.toggle('warn', !feedback.classList.contains('bad') && /не сохран|сначала|отмен|внимание/i.test(msg));
+      feedback.classList.toggle('good', !feedback.classList.contains('bad') && !feedback.classList.contains('warn') && /загружена|Сохранено|подтвержден|готов/i.test(msg));
+    }
+  }
+  for (const id of ['upstreamList','ruleList','revision','shadowStatus','feedback']) {
+    const target = document.getElementById(id);
+    if (target) new MutationObserver(updateMetrics).observe(target, {childList:true,subtree:true,characterData:true});
+  }
+  if (workspace && 'ResizeObserver' in window) {
+    new ResizeObserver(reportHeight).observe(workspace);
+  }
+  try {
+    if (window.parent !== window && 'MutationObserver' in window) {
+      const hostRoot = window.parent.document.documentElement;
+      new MutationObserver(() => {syncHostTheme();reportHeight();}).observe(hostRoot, {
+        attributes:true, attributeFilter:['style','class','data-theme','data-density','data-radius','data-ui-scale']
+      });
+    }
+  } catch (_) {}
+  window.addEventListener('resize', reportHeight);
+  updateMetrics();
+  reportHeight();
+})();

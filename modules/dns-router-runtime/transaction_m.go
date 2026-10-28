@@ -15,6 +15,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -56,43 +58,92 @@ func (realNDMCM) Command(parent context.Context, command string) (string, error)
 type NDMCProbeM interface{ Check(context.Context) error }
 type realProbeM struct{}
 
+// realProbeM verifies real answers via the native ndnproxy UDP/TCP paths.
+// ndmc can publish a new DNS zone in its inventory before ndnproxy begins
+// forwarding the zone. Each bounded retry uses a fresh query name so a
+// temporary negative cache entry cannot make subsequent attempts falsely fail.
 func (realProbeM) Check(ctx context.Context) error {
-	for _, dest := range []string{"127.0.0.1:53", "192.168.10.1:53"} {
-		for _, network := range []string{"udp", "tcp"} {
-			if err := probeDNSM(ctx, network, dest); err != nil {
+	readyCtx, cancel := context.WithTimeout(ctx, 16*time.Second)
+	defer cancel()
+	for i, dest := range []string{"127.0.0.1:53", "192.168.10.1:53"} {
+		for j, network := range []string{"udp", "tcp"} {
+			if err := probeNDNReadyM(readyCtx, network, dest, i*2+j); err != nil {
 				return fmt.Errorf("%s %s: %w", network, dest, err)
 			}
 		}
 	}
 	return nil
 }
-func probeDNSM(ctx context.Context, network, dest string) error {
-	q := []byte{0x6d, 0x31, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0}
-	for _, label := range strings.Split(mProbe, ".") {
+
+func probeNDNReadyM(ctx context.Context, network, dest string, ordinal int) error {
+	return probeNDNReadyWithQueryM(ctx, network, dest, ordinal, probeDNSM)
+}
+
+func probeNDNReadyWithQueryM(ctx context.Context, network, dest string, ordinal int, check func(context.Context, string, string, string, uint16) error) error {
+	const maxAttempts = 12
+	var last error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("readiness deadline after %d tries: %w; last=%v", attempt, err, last)
+		}
+		// Domain is fixed to a DNS subtree of the exact one-zone allowlist.
+		// Different names avoid a stale negative result in ndnproxy's cache.
+		name := fmt.Sprintf("p%d-%d.probe.%s", ordinal, attempt, mZone)
+		id := uint16(0x6d30 + ordinal*16 + attempt)
+		last = check(ctx, network, dest, name, id)
+		if last == nil {
+			return nil
+		}
+		if attempt+1 < maxAttempts {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("readiness interrupted after %d tries: %w; last=%v", attempt+1, ctx.Err(), last)
+			case <-time.After(350 * time.Millisecond):
+			}
+		}
+	}
+	return fmt.Errorf("DNS not ready after %d verified queries: %w", maxAttempts, last)
+}
+
+func probeDNSM(ctx context.Context, network, dest, name string, id uint16) error {
+	if dest != "127.0.0.1:53" && dest != "192.168.10.1:53" {
+		return errors.New("DNS probe destination is outside lab allowlist")
+	}
+	if network != "udp" && network != "tcp" {
+		return errors.New("invalid DNS probe transport")
+	}
+	if !strings.HasSuffix(name, "."+mZone) || len(name) > 110 {
+		return errors.New("DNS probe name is outside lab zone")
+	}
+	q := []byte{byte(id >> 8), byte(id), 1, 0, 0, 1, 0, 0, 0, 0, 0, 0}
+	for _, label := range strings.Split(name, ".") {
+		if len(label) < 1 || len(label) > 63 {
+			return errors.New("DNS label invalid")
+		}
 		q = append(q, byte(len(label)))
 		q = append(q, []byte(label)...)
 	}
 	q = append(q, 0, 0, 1, 0, 1)
-	dial := net.Dialer{Timeout: 2 * time.Second}
+	dial := net.Dialer{Timeout: 900 * time.Millisecond}
 	c, err := dial.DialContext(ctx, network, dest)
 	if err != nil {
-		return err
+		return fmt.Errorf("DNS dial: %w", err)
 	}
 	defer c.Close()
-	_ = c.SetDeadline(time.Now().Add(3 * time.Second))
+	_ = c.SetDeadline(time.Now().Add(1200 * time.Millisecond))
 	if network == "tcp" {
 		h := make([]byte, 2)
 		binary.BigEndian.PutUint16(h, uint16(len(q)))
 		q = append(h, q...)
 	}
 	if _, err = c.Write(q); err != nil {
-		return err
+		return fmt.Errorf("DNS write: %w", err)
 	}
 	var r []byte
 	if network == "tcp" {
 		h := make([]byte, 2)
 		if _, err = io.ReadFull(c, h); err != nil {
-			return err
+			return fmt.Errorf("DNS TCP header: %w", err)
 		}
 		n := int(binary.BigEndian.Uint16(h))
 		if n < 12 || n > 4096 {
@@ -107,16 +158,84 @@ func probeDNSM(ctx context.Context, network, dest string) error {
 		r = r[:n]
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("DNS read: %w", err)
 	}
-	if len(r) < 16 || r[0] != 0x6d || r[1] != 0x31 || r[2]&0x80 == 0 || r[3]&0x0f != 0 {
-		return errors.New("DNS reply identity/status mismatch")
+	if len(r) < 12 {
+		return fmt.Errorf("DNS short response: bytes=%d", len(r))
 	}
+	gotID := binary.BigEndian.Uint16(r[:2])
+	flags := binary.BigEndian.Uint16(r[2:4])
+	rcode := flags & 15
+	answers := binary.BigEndian.Uint16(r[6:8])
+	if gotID != id || flags&0x8000 == 0 || rcode != 0 || answers == 0 {
+		return fmt.Errorf("DNS response mismatch: id=%04x expected=%04x flags=%04x rcode=%d answers=%d bytes=%d", gotID, id, flags, rcode, answers, len(r))
+	}
+	// Validate the expected synthetic IPv4 in a real DNS answer rather than
+	// relying on trailing bytes; a resolver may append EDNS OPT records.
+	at := 12
+	for {
+		if at >= len(r) {
+			return errors.New("DNS question is truncated")
+		}
+		l := int(r[at])
+		at++
+		if l == 0 {
+			break
+		}
+		if l > 63 || at+l > len(r) {
+			return errors.New("DNS question has invalid label")
+		}
+		at += l
+	}
+	if at+4 > len(r) {
+		return errors.New("DNS question type/class truncated")
+	}
+	if binary.BigEndian.Uint16(r[at:at+2]) != 1 || binary.BigEndian.Uint16(r[at+2:at+4]) != 1 {
+		return errors.New("DNS question type/class changed")
+	}
+	at += 4
 	want := net.ParseIP(mExpectedIPv4).To4()
-	if string(r[len(r)-4:]) != string(want) {
-		return errors.New("synthetic A record missing")
+	for i := 0; i < int(answers); i++ {
+		if at >= len(r) {
+			return errors.New("DNS answer truncated")
+		}
+		if r[at]&0xc0 == 0xc0 {
+			if at+2 > len(r) {
+				return errors.New("DNS compressed name truncated")
+			}
+			at += 2
+		} else {
+			for {
+				if at >= len(r) {
+					return errors.New("DNS answer name truncated")
+				}
+				l := int(r[at])
+				at++
+				if l == 0 {
+					break
+				}
+				if l > 63 || at+l > len(r) {
+					return errors.New("DNS invalid answer name")
+				}
+				at += l
+			}
+		}
+		if at+10 > len(r) {
+			return errors.New("DNS answer metadata truncated")
+		}
+		typ := binary.BigEndian.Uint16(r[at : at+2])
+		class := binary.BigEndian.Uint16(r[at+2 : at+4])
+		length := int(binary.BigEndian.Uint16(r[at+8 : at+10]))
+		at += 10
+		if at+length > len(r) {
+			return errors.New("DNS answer RDATA truncated")
+		}
+		if typ == 1 && class == 1 && length == 4 && string(r[at:at+4]) == string(want) {
+			return nil
+		}
+		at += length
 	}
-	return nil
+	return fmt.Errorf("DNS expected fixture A record absent: rcode=%d answers=%d bytes=%d", rcode, answers, len(r))
 }
 
 type trialJournalM struct {
@@ -164,8 +283,133 @@ func exactTrialPlanM(cfg Config) error {
 func trialCommandsM() (add, remove string) {
 	return "ip name-server " + mListener + " " + mZone, "no ip name-server " + mListener + " " + mZone
 }
+
+// ndmc may decorate JSON with terminal CSI sequences even when stdout is
+// redirected. Strip ONLY well-formed ANSI CSI controls, then validate the full
+// JSON document and canonically serialize it before snapshot comparisons.
+// Unexpected prefix/suffix text or unknown ESC controls remain a hard failure.
+var ndmcCSISequenceM = regexp.MustCompile("\x1b\\[[0-?]*[ -/]*[@-~]")
+
+// parseNDMCTextInventoryM accepts the Keenetic CLI `show ip name-server`
+// hierarchical text format. Preserve every field including service/interface,
+// and the original server order, because priority/order drift matters.
+// No unrecognized sections or duplicate fields are silently ignored.
+func parseNDMCTextInventoryM(raw string) (map[string]any, error) {
+	rows := []any{}
+	var current map[string]any
+	for n, row := range strings.Split(raw, "\n") {
+		line := strings.TrimSpace(row)
+		if line == "" {
+			continue
+		}
+		if strings.ContainsRune(line, '\x00') {
+			return nil, fmt.Errorf("ndmc inventory line %d contains NUL", n+1)
+		}
+		if line == "server:" {
+			current = make(map[string]any)
+			rows = append(rows, current)
+			continue
+		}
+		key, value, ok := strings.Cut(line, ":")
+		if !ok || len(key) == 0 || len(key) > 64 || strings.ContainsAny(key, " \t=:,{[]}") {
+			return nil, fmt.Errorf("invalid ndmc inventory field at line %d", n+1)
+		}
+		value = strings.TrimSpace(value)
+		if current == nil {
+			// Command control metadata, not resolver configuration.
+			// Unknown top-level sections fail closed.
+			if key == "prompt" && value != "" {
+				continue
+			}
+			if key == "status" && (value == "0" || strings.EqualFold(value, "ok") || strings.EqualFold(value, "success")) {
+				continue
+			}
+			return nil, fmt.Errorf("unexpected top-level ndmc field %q at line %d", key, n+1)
+		}
+		if !strings.HasPrefix(row, " ") && !strings.HasPrefix(row, "\t") {
+			return nil, fmt.Errorf("unindented ndmc inventory field at line %d", n+1)
+		}
+		if _, exists := current[key]; exists {
+			return nil, fmt.Errorf("duplicate ndmc inventory field %q", key)
+		}
+		if key == "port" {
+			if value == "" {
+				current[key] = 0
+				continue
+			}
+			num, err := strconv.Atoi(value)
+			if err != nil || num < 0 || num > 65535 {
+				return nil, fmt.Errorf("invalid ndmc port at line %d", n+1)
+			}
+			current[key] = num
+		} else {
+			// Preserve even fields not interpreted by this transaction; comparing
+			// the entire normalized snapshot cannot hide changes to those fields.
+			if len(value) > 1024 {
+				return nil, fmt.Errorf("oversized ndmc field at line %d", n+1)
+			}
+			current[key] = value
+		}
+	}
+	if len(rows) == 0 {
+		return nil, errors.New("ndmc inventory has no server records")
+	}
+	for i, entry := range rows {
+		row := entry.(map[string]any)
+		address, ok := row["address"].(string)
+		if !ok || address == "" {
+			return nil, fmt.Errorf("ndmc server %d missing address", i)
+		}
+		if _, ok := row["domain"]; !ok {
+			return nil, fmt.Errorf("ndmc server %d missing domain", i)
+		}
+		if _, ok := row["port"]; !ok {
+			row["port"] = 0
+		}
+	}
+	return map[string]any{"server": rows}, nil
+}
+
+func canonicalNDMCSnapshotM(raw string) (string, error) {
+	if len(raw) > 65536 {
+		return "", errors.New("ndmc inventory exceeds 64 KiB")
+	}
+	clean := strings.TrimSpace(ndmcCSISequenceM.ReplaceAllString(raw, ""))
+	if strings.ContainsRune(clean, 0x1b) {
+		return "", errors.New("ndmc inventory contains unknown terminal escape")
+	}
+	var doc map[string]any
+	if strings.HasPrefix(clean, "{") {
+		if err := json.Unmarshal([]byte(clean), &doc); err != nil {
+			return "", fmt.Errorf("invalid ndmc inventory JSON: %w", err)
+		}
+	} else {
+		var err error
+		doc, err = parseNDMCTextInventoryM(clean)
+		if err != nil {
+			return "", err
+		}
+	}
+	servers, present := doc["server"]
+	if !present || servers == nil {
+		return "", errors.New("ndmc inventory missing server array")
+	}
+	if _, ok := servers.([]any); !ok {
+		return "", errors.New("ndmc inventory server is not an array")
+	}
+	stable, err := json.Marshal(doc)
+	if err != nil {
+		return "", err
+	}
+	return string(stable), nil
+}
+
 func trialSnapshotM(ctx context.Context, d NDMCExecutorM) (string, error) {
-	return d.Command(ctx, "show ip name-server")
+	raw, err := d.Command(ctx, "show ip name-server")
+	if err != nil {
+		return "", err
+	}
+	return canonicalNDMCSnapshotM(raw)
 }
 func absentFromSnapshotM(raw string) (bool, error) {
 	var doc struct {
@@ -407,7 +651,11 @@ func NDMCWatchdogWorkerM(dir string) error {
 	if j.Parent < 1 || j.Deadline <= time.Now().Unix() || j.Deadline > time.Now().Add(120*time.Second).Unix() {
 		return errors.New("bad rollback lease")
 	}
-	if absent, err := absentFromSnapshotM(j.Baseline); err != nil {
+	baseline, err := canonicalNDMCSnapshotM(j.Baseline)
+	if err != nil {
+		return err
+	}
+	if absent, err := absentFromSnapshotM(baseline); err != nil {
 		return err
 	} else if !absent {
 		return errors.New("watchdog journal baseline contains test zone")
@@ -431,7 +679,7 @@ func NDMCWatchdogWorkerM(dir string) error {
 	if err == nil {
 		var state string
 		state, err = trialSnapshotM(ctx, realNDMCM{})
-		if err == nil && state != j.Baseline {
+		if err == nil && state != baseline {
 			err = errors.New("watchdog restore snapshot drift")
 		}
 	}

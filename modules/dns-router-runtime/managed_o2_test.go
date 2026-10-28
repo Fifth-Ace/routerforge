@@ -9,6 +9,10 @@ import (
 	"testing"
 )
 
+type fakeGuardO2 struct{}
+
+func (*fakeGuardO2) Finish() error { return nil }
+
 type fixtureO2 struct {
 	mu         sync.Mutex
 	zones      map[string]bool

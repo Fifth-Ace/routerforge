@@ -293,3 +293,35 @@ html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
 @media(prefers-reduced-motion:reduce){
   .debug-details summary::before{transition:none}
 }
+
+/* DPR2-P5: named source lists, same RouterForge tokens as the other modules. */
+.dr-p5-panel{min-width:0}
+.dr-p5-content{padding:var(--rf-control-gap,12px);display:grid;gap:12px}
+.dr-p5-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dr-p5-steps>div{display:flex;align-items:center;gap:8px;min-width:0;color:var(--rf-muted,#8d98a4);font-size:var(--ui-small,12px);padding:10px 12px;border-radius:var(--rf-radius-card,8px);border:1px solid var(--rf-border,#29313a);background:var(--rf-surface-2,#171b21)}
+.dr-p5-steps b{display:grid;place-items:center;flex:none;width:21px;height:21px;border-radius:5px;background:var(--rf-accent-soft,rgba(56,189,248,.1));color:var(--rf-accent,#38bdf8);font:700 11px/1 ui-monospace,monospace}
+.dr-p5-list-rows{display:grid;gap:7px}
+.dr-p5-list-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-card,8px);background:var(--rf-surface-2,#171b21)}
+.dr-p5-list-copy{display:grid;gap:4px;min-width:0;flex:1 1 250px}
+.dr-p5-list-copy strong{font-size:var(--ui-body,13px);color:var(--rf-text,#f5f7fa)}
+.dr-p5-list-copy span{font-size:var(--ui-xs,11px);color:var(--rf-muted,#8d98a4);overflow-wrap:anywhere}
+.dr-p5-list-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.dr-p5-empty{margin:0;padding:15px;color:var(--rf-muted,#8d98a4);background:var(--rf-surface-2,#171b21);border:1px dashed var(--rf-border,#29313a);border-radius:8px;font-size:var(--ui-small,12px)}
+.dr-p5-form-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px var(--rf-control-gap,12px);border-top:1px solid var(--rf-border,#29313a);border-bottom:1px solid var(--rf-border,#29313a);background:var(--rf-surface-2,#171b21)}
+.dr-p5-form-head strong{font-size:var(--ui-body,13px)}
+.dr-p5-form{padding:var(--rf-control-gap,12px)}
+.dr-p5-form [hidden],#drListFileWrap[hidden],#drListPasteWrap[hidden],#drListUrlWrap[hidden],#drListIntervalWrap[hidden]{display:none!important}
+.dr-p5-form input[type=file]{min-height:42px;padding:8px 11px;line-height:1.5}
+.dr-p5-form textarea{min-height:115px}
+.dr-p5-form label small{display:block;margin-top:5px;color:var(--rf-muted,#8d98a4);font-size:var(--ui-xs,11px);line-height:1.45}
+.dr-p5-preview{border-top:1px solid var(--rf-border,#29313a);padding:var(--rf-control-gap,12px);display:grid;gap:9px;min-width:0}
+.dr-p5-preview>strong{font-size:var(--ui-body,13px)}
+.dr-p5-preview pre{margin:0;max-height:200px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.dr-p5-bottom-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.dr-p5-bottom-actions>span{font-size:var(--ui-small,12px);color:var(--rf-muted,#8d98a4)}
+#drRuleSearch{min-width:220px;max-width:380px;width:100%}
+.dr-p5-edit{margin-right:6px}
+.dr-page table tr[hidden]{display:none!important}
+@media(max-width:760px){.dr-p5-steps{grid-template-columns:1fr}.dr-p5-list-actions{width:100%}.dr-p5-list-actions .button{flex:1}.dr-p5-bottom-actions{align-items:stretch}.dr-p5-bottom-actions .button{width:100%}}
+#drRuleSearch{display:block;min-height:38px;max-width:400px;width:100%;padding:8px 11px;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-control,5px);background:var(--rf-surface-2,#171b21);color:var(--rf-text,#f5f7fa);font:inherit}
+#drRuleSearch:focus{outline:2px solid var(--rf-accent,#38bdf8);outline-offset:1px}

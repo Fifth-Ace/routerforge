@@ -47,8 +47,12 @@ func PreviewImport(existing Config, req ImportRequest) (ImportPreview, error) {
 	}
 	result := EmptyConfig()
 	result.Upstreams = append(result.Upstreams, existing.Upstreams...)
+	result.Listener = existing.Listener
+	result.Lists = append(result.Lists, existing.Lists...)
 	if req.Mode == "append" {
 		result.Rules = append(result.Rules, existing.Rules...)
+	} else {
+		result.Lists = nil // legacy replace discards list metadata with the rules
 	}
 	usedIDs := make(map[string]bool, len(result.Rules))
 	usedRules := make(map[string]bool, len(result.Rules))

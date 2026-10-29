@@ -242,6 +242,8 @@ func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, 
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	// Opt-in HTTPS list refresh only; do not apply active DNS or ndmc settings.
+	go dnsrouter.RunManagedListUpdater(ctx, store, func() bool { return lifecycle.Status().Active }, log.Printf)
 	handler := dnsrouter.NewAPI(store, ui)
 	handler.Lifecycle = lifecycle
 	handler.LedgerO = dnsrouter.NewLedgerStoreO(configPath + ".managed-state.json")

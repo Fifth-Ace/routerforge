@@ -22,6 +22,7 @@ type Config struct {
 	SchemaVersion int             `json:"schema_version"`
 	Upstreams     []Upstream      `json:"upstreams"`
 	Rules         []Rule          `json:"rules"`
+	Lists         []DomainList    `json:"lists,omitempty"`
 	Listener      *ListenerConfig `json:"listener,omitempty"`
 }
 
@@ -40,6 +41,7 @@ type Rule struct {
 	Match    string `json:"match"` // exact, suffix, subdomains
 	Upstream string `json:"upstream"`
 	Priority int    `json:"priority"`
+	ListID   string `json:"list_id,omitempty"`
 }
 
 type Decision struct {
@@ -115,6 +117,9 @@ func Compile(cfg Config) (*Engine, error) {
 	}
 	if cfg.SchemaVersion != SchemaVersion {
 		return nil, fmt.Errorf("unsupported schema_version %d", cfg.SchemaVersion)
+	}
+	if err := validateManagedLists(cfg); err != nil {
+		return nil, err
 	}
 	if len(cfg.Upstreams) > MaxUpstreams {
 		return nil, fmt.Errorf("too many upstreams: %d > %d", len(cfg.Upstreams), MaxUpstreams)

@@ -31,7 +31,7 @@
 
   <nav class="tabs" role="tablist" aria-label="Разделы DNS Router">
     <button type="button" class="tab active" data-tab="overview" id="dr-tab-overview" role="tab" tabindex="0" aria-controls="dr-panel-overview" aria-selected="true">Обзор</button>
-    <button type="button" class="tab" data-tab="policies" id="dr-tab-policies" role="tab" tabindex="-1" aria-controls="dr-panel-policies" aria-selected="false">Политики DNS</button>
+    <button type="button" class="tab" data-tab="policies" id="dr-tab-policies" role="tab" tabindex="-1" aria-controls="dr-panel-policies" aria-selected="false">Списки и правила</button>
     <button type="button" class="tab" data-tab="testing" id="dr-tab-testing" role="tab" tabindex="-1" aria-controls="dr-panel-testing" aria-selected="false">Проверка</button>
     <button type="button" class="tab" data-tab="keenetic" id="dr-tab-keenetic" role="tab" tabindex="-1" aria-controls="dr-panel-keenetic" aria-selected="false">Keenetic</button>
     <button type="button" class="tab" data-tab="diagnostics" id="dr-tab-diagnostics" role="tab" tabindex="-1" aria-controls="dr-panel-diagnostics" aria-selected="false">Диагностика</button>
@@ -84,6 +84,46 @@
   </div>
 
   <div class="tab-page" data-page="policies" id="dr-panel-policies" role="tabpanel" aria-labelledby="dr-tab-policies" tabindex="0">
+    <section class="panel dr-p5-panel" id="drListPanel">
+      <div class="panel-head">
+        <div>
+          <span class="section-kicker">ПОЛИТИКИ / СПИСКИ ДОМЕНОВ</span>
+          <h2>Мои списки доменов</h2>
+          <p>Загрузи TXT, вставь домены или укажи HTTPS-ссылку. Назначь DNS-пул, посмотри предпросмотр и сохрани.</p>
+        </div>
+        <span class="state safe">БЕЗ ИЗМЕНЕНИЯ DNS</span>
+      </div>
+      <div class="dr-p5-content">
+        <div class="dr-p5-steps" aria-label="Порядок добавления">
+          <div><b>1</b><span>Выбери список</span></div>
+          <div><b>2</b><span>Назначь DNS-пул</span></div>
+          <div><b>3</b><span>Проверь и сохрани</span></div>
+        </div>
+        <div id="drListCards" class="dr-p5-list-rows"><p>Загрузка списков…</p></div>
+      </div>
+      <div class="dr-p5-form-head">
+        <strong id="drListMode">Новый список</strong>
+        <button type="button" class="button" id="drListReset">+ Новый список</button>
+      </div>
+      <form class="form-grid dr-p5-form" id="drListForm">
+        <label><span>Название списка</span><input id="drListName" name="name" required maxlength="80" placeholder="YouTube, Discord, Работа…"></label>
+        <label><span>Источник</span><select id="drListKind" name="kind"><option value="file">TXT-файл</option><option value="paste">Вставить текст</option><option value="url">HTTPS-ссылка</option></select></label>
+        <label id="drListFileWrap" class="span-all"><span>Файл с доменами (.txt, до 1 МиБ)</span><input id="drListFile" name="file" type="file" accept=".txt,.hosts,.list,text/plain"></label>
+        <label id="drListPasteWrap" class="span-all" hidden><span>Домены по одному на строку</span><textarea name="text" id="drListPaste" rows="6" placeholder="youtube.com&#10;googlevideo.com&#10;||discord.com^&#10;0.0.0.0 ads.example.com"></textarea></label>
+        <label id="drListUrlWrap" class="span-all" hidden><span>Публичная HTTPS-ссылка на текстовый список</span><input name="url" id="drListURL" type="url" maxlength="2048" placeholder="https://example.org/domains.txt"><small>Только HTTPS, публичные IP, без перенаправлений. Загрузка выполняется на роутере при проверке.</small></label>
+        <label><span>Отправлять запросы через DNS-пул</span><select id="drListUpstream" name="upstream" required></select></label>
+        <label><span>Для каких доменов</span><select id="drListMatch" name="match"><option value="suffix">Домен и поддомены</option><option value="exact">Только этот домен</option><option value="subdomains">Только поддомены</option></select></label>
+        <label><span>Приоритет</span><input id="drListPriority" type="number" name="priority" value="100" min="0" max="1000000"></label>
+        <label id="drListIntervalWrap" hidden><span>Автообновление URL</span><select id="drListInterval" name="auto_update_minutes"><option value="0">Выключено</option><option value="60">Каждый час</option><option value="360">Каждые 6 часов</option><option value="1440">Каждые сутки</option></select><small>Изменения сохраняются как правила, но не применяются к активному DNS.</small></label>
+        <div class="form-actions"><button class="button primary" type="submit">Проверить список</button></div>
+      </form>
+      <div class="dr-p5-preview" aria-live="polite">
+        <strong>Предпросмотр импорта</strong>
+        <pre class="console" id="drListPreview">Выбери источник и нажми «Проверить список».</pre>
+        <div class="dr-p5-bottom-actions"><button type="button" id="drListAccept" class="button primary" disabled>Добавить в черновик</button><span>После добавления нажми «Сохранить изменения» внизу страницы.</span></div>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 01</span><h2>Upstream-пулы</h2><p>DNS-серверы, транспорт и явно заданные резервные цепочки.</p></div></div>
       <form id="upstreamForm" class="form-grid fields-upstream">
@@ -109,6 +149,7 @@
         <label><span>Приоритет</span><input name="priority" type="number" value="100" min="0" max="1000000"></label>
         <div class="form-actions"><button class="button primary" type="submit">+ Добавить правило</button></div>
       </form>
+      <div class="dr-p5-content"><label><span>Поиск по доменам и правилам</span><input id="drRuleSearch" type="search" placeholder="Найти домен, ID или DNS-пул"></label></div>
       <div class="table-wrap" id="ruleList"></div>
     </section>
   </div>
@@ -123,7 +164,7 @@
       <pre class="console" id="decision">Ожидание запроса</pre>
     </section>
     <section class="panel">
-      <div class="panel-head"><div><span class="section-kicker">ИМПОРТ</span><h2>Пакетный импорт доменов</h2><p>Сначала предпросмотр, затем явное добавление в несохранённый черновик.</p></div></div>
+      <div class="panel-head"><div><span class="section-kicker">ИМПОРТ</span><h2>Простой импорт (совместимость)</h2><p>Для файлов, URL и именованных списков используй вкладку «Списки и правила».</p></div></div>
       <form id="importForm" class="form-grid">
         <label class="span-all"><span>Домены — по одному на строку, комментарии через #</span><textarea name="text" rows="6" required placeholder="example.com&#10;another.net"></textarea></label>
         <label><span>Upstream</span><select name="upstream" id="importUpstream" required></select></label>

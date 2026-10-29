@@ -665,6 +665,54 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, 200, map[string]any{"decision": result, "dry_run": true})
 	})
+	// DPR2-P5: read-only source preview with explicit, guarded HTTPS fetching.
+	mux.HandleFunc("/v1/lists/preview", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireMutation(w, r, "lists-preview") {
+			return
+		}
+		var req ManagedListRequest
+		if err := decodeBody(r, &req, 2<<20); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		cfg, rev, err := a.Store.Load()
+		if err != nil {
+			fail(w, 500, err)
+			return
+		}
+		if req.List.Kind == "url" {
+			req.Text, err = FetchManagedListText(r.Context(), req.List.URL)
+			if err != nil {
+				fail(w, 422, err)
+				return
+			}
+		}
+		req.List.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		preview, err := PreviewManagedList(cfg, req)
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
+		respondJSON(w, 200, map[string]any{"preview": preview, "base_revision": rev, "saved": false, "runtime_applied": false})
+	})
+	mux.HandleFunc("/v1/lists/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		cfg, _, err := a.Store.Load()
+		if err != nil {
+			fail(w, 500, err)
+			return
+		}
+		respondJSON(w, 200, ManagedListUpdateStatus(cfg))
+	})
 	mux.HandleFunc("/v1/import-preview", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "POST")

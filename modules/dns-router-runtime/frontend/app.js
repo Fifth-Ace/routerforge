@@ -50,6 +50,7 @@
     el('listenerListen').value=listener.listen;
     el('listenerACL').value=(listener.allowed_clients||[]).join(',');
     el('revision').textContent = (dirty ? '● Не сохранено · ' : '') + revision.substring(0,23);
+    p5RefreshLists();
   }
   async function load() {
     if (dirty && !confirm('Отменить несохранённые изменения?')) return;
@@ -207,6 +208,190 @@
       feedback('Экспортирована сохранённая конфигурация');
     }catch(err){feedback(err.message);}
   });
+  // DPR2-P5: named domain lists. Uses the existing CAS draft and API; never
+  // touches a running shadow listener or the native Keenetic resolver.
+  let p5EditingList = '';
+  let p5Pending = null;
+  let p5EditRule = '';
+  let p5EditUpstream = '';
+
+  function p5Text(id,value) { const n=el(id);if(n)n.textContent=value; }
+  function p5Value(id,value) {const n=el(id);if(n)n.value=value;}
+  function p5Options(id,items,chosen) {
+    const s=el(id);if(!s)return;
+    s.replaceChildren();
+    for(const entry of items) {
+      const opt=document.createElement('option');opt.value=entry[0];opt.textContent=entry[1];s.appendChild(opt);
+    }
+    if(items.some(a=>a[0]===chosen))s.value=chosen;
+  }
+  function p5SourceVisibility() {
+    const kind=el('drListKind').value;
+    el('drListUrlWrap').hidden=kind!=='url';
+    el('drListFileWrap').hidden=kind!=='file';
+    el('drListPasteWrap').hidden=kind!=='paste';
+    el('drListIntervalWrap').hidden=kind!=='url';
+  }
+  function p5RefreshLists() {
+    if(!Array.isArray(config.lists)) config.lists=[];
+    const pool=el('drListUpstream');const previous=pool.value;
+    p5Options('drListUpstream',config.upstreams.map(u=>[u.id,u.id]),previous);
+    const target=el('drListCards');target.replaceChildren();
+    if(config.lists.length===0) {
+      const p=document.createElement('p');p.className='dr-p5-empty';p.textContent='Списков пока нет. Выбери файл, URL или вставь домены ниже.';target.appendChild(p);
+    }
+    for(const list of config.lists) {
+      const row=document.createElement('div');row.className='dr-p5-list-row';
+      const copy=document.createElement('div');copy.className='dr-p5-list-copy';
+      const h=document.createElement('strong');h.textContent=list.name;copy.appendChild(h);
+      const count=config.rules.filter(r=>r.list_id===list.id).length;
+      const detail=document.createElement('span');
+      detail.textContent=count+' доменов · '+list.upstream+' · '+(list.kind==='url'?'URL':list.kind==='file'?'файл':'текст')+
+        (list.auto_update_minutes?' · авто '+list.auto_update_minutes+' мин':' · обновление вручную');
+      copy.appendChild(detail);row.appendChild(copy);
+      const actions=document.createElement('div');actions.className='dr-p5-list-actions';
+      const edit=document.createElement('button');edit.type='button';edit.className='button';edit.textContent='Изменить / обновить';
+      edit.addEventListener('click',()=>{
+        if(dirty) {feedback('Сначала сохрани черновик перед обновлением источника');return;}
+        p5EditingList=list.id;p5Pending=null;
+        p5Value('drListName',list.name);p5Value('drListKind',list.kind);
+        p5Value('drListURL',list.url||'');p5Value('drListUpstream',list.upstream);
+        p5Value('drListMatch',list.match);p5Value('drListPriority',String(list.priority));
+        p5Value('drListInterval',String(list.auto_update_minutes||0));
+        p5SourceVisibility();p5Text('drListMode','Редактирование: '+list.name);
+        el('drListPanel').scrollIntoView({behavior:'smooth',block:'start'});
+      });actions.appendChild(edit);
+      const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Удалить';
+      remove.addEventListener('click',()=>{
+        if(!confirm('Удалить список «'+list.name+'» и все его правила из черновика?'))return;
+        config.lists=config.lists.filter(x=>x.id!==list.id);
+        config.rules=config.rules.filter(x=>x.list_id!==list.id);
+        p5EditingList='';p5Pending=null;markDirty();
+      });actions.appendChild(remove);row.appendChild(actions);target.appendChild(row);
+    }
+    p5ApplySearch();
+    p5InstallEditButtons();
+  }
+  function p5ApplySearch() {
+    const q=(el('drRuleSearch')?.value||'').trim().toLowerCase();
+    const root=el('ruleList');if(!root)return;
+    for(const tr of root.querySelectorAll('tr')) {
+      if(tr.querySelector('th'))continue;
+      tr.hidden=Boolean(q)&&!tr.textContent.toLowerCase().includes(q);
+    }
+  }
+  function p5InstallEditButtons() {
+    for(const [targetName,listName,formName,onEdit] of [
+      ['ruleList','rules','ruleForm','rule'],['upstreamList','upstreams','upstreamForm','upstream']
+    ]) {
+      const root=el(targetName);if(!root)return;
+      const trs=Array.from(root.querySelectorAll('tr')).filter(x=>!x.querySelector('th'));
+      trs.forEach((tr,i)=>{
+        const item=config[listName][i];if(!item || tr.querySelector('.dr-p5-edit'))return;
+        const td=tr.lastElementChild;if(!td)return;
+        const b=document.createElement('button');b.type='button';b.className='button dr-p5-edit';b.textContent='Изменить';
+        b.addEventListener('click',()=>{
+          const form=el(formName);
+          for(const field of form.elements){if(field.name)field.value=item[field.name]??'';}
+          if(onEdit==='rule') {
+            p5EditRule=item.id;
+            p5Value('ruleUpstream',item.upstream);
+          } else {
+            p5EditUpstream=item.id;
+            p5Value('drListUpstream',item.id);
+            form.elements.namedItem('fallbacks').value=(item.fallbacks||[]).join(', ');
+          }
+          form.elements.namedItem('id').readOnly=true;
+          const submit=form.querySelector('[type=submit]');if(submit)submit.textContent='Сохранить изменения';
+          form.scrollIntoView({behavior:'smooth',block:'start'});
+        });td.prepend(b);
+      });
+    }
+  }
+  el('drListKind').addEventListener('change',p5SourceVisibility);
+  el('drRuleSearch').addEventListener('input',p5ApplySearch);
+  el('drListReset').addEventListener('click',()=>{
+    p5EditingList='';p5Pending=null;el('drListForm').reset();p5SourceVisibility();
+    p5Text('drListMode','Новый список');p5Text('drListPreview','Выбери источник и нажми «Проверить список».');
+  });
+  el('drListForm').addEventListener('submit',async e=>{
+    e.preventDefault();p5Pending=null;
+    if(dirty){feedback('Сначала сохрани текущие изменения, затем импортируй список');return;}
+    const form=e.currentTarget;
+    const f=Object.fromEntries(new FormData(form));
+    const kind=f.kind;
+    const list={
+      id:p5EditingList || ('list-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)),
+      name:String(f.name||'').trim(),kind,
+      upstream:f.upstream,match:f.match,priority:Number(f.priority),
+      auto_update_minutes:kind==='url'?Number(f.auto_update_minutes||0):0
+    };
+    if(kind==='url')list.url=String(f.url||'').trim();
+    let text='';
+    try {
+      if(kind==='file') {
+        const file=el('drListFile').files[0];
+        if(!file)throw new Error('Выбери TXT-файл');
+        if(file.size>1048576)throw new Error('Максимальный размер файла 1 МиБ');
+        text=await file.text();
+      } else if(kind==='paste') text=f.text||'';
+      if(kind!=='url' && !text.trim())throw new Error('Список пуст');
+      p5Text('drListPreview','Проверка строк и доменов…');
+      const data=await request('lists/preview',jsonOptions('lists-preview',{list,text}));
+      if(revision!==data.base_revision)throw new Error('Ревизия изменилась. Перечитай конфигурацию.');
+      p5Pending=data.preview;
+      const p=data.preview;
+      const errors=(p.errors||[]).map(x=>'строка '+x.line+': '+x.reason).join('\n');
+      p5Text('drListPreview',
+        'Добавлено: '+p.added+' · дубликатов: '+p.duplicates+' · пропущено: '+p.ignored+
+        ' · ошибок: '+p.invalid+' · итог правил: '+p.total_rules + (errors?'\n'+errors:''));
+      el('drListAccept').disabled=false;
+      feedback('Предпросмотр готов. Проверь результат и нажми «Добавить в черновик».');
+    } catch(err) {
+      el('drListAccept').disabled=true;p5Text('drListPreview','Ошибка: '+err.message);feedback('Импорт: '+err.message);
+    }
+  });
+  el('drListAccept').addEventListener('click',()=>{
+    if(!p5Pending)return;
+    if(dirty){feedback('Черновик изменился. Сначала сохрани и повтори предпросмотр.');return;}
+    if(p5Pending.invalid>0 && !confirm('Есть ошибки строк: '+p5Pending.invalid+'. Добавить только корректные домены?'))return;
+    config=p5Pending.config;
+    p5EditingList='';p5Pending=null;el('drListAccept').disabled=true;
+    el('drListForm').reset();p5SourceVisibility();p5Text('drListMode','Новый список');
+    markDirty();p5Text('drListPreview','Список добавлен в черновик. Нажми «Сохранить изменения» внизу страницы.');
+  });
+  // Existing forms keep their API handlers; intercept only explicit edits.
+  el('ruleForm').addEventListener('submit',e=>{
+    if(!p5EditRule)return;
+    e.preventDefault();e.stopImmediatePropagation();
+    const f=Object.fromEntries(new FormData(e.currentTarget));
+    const item=config.rules.find(r=>r.id===p5EditRule);
+    if(!item)return;
+    if(item.list_id && (f.match!==item.match || f.upstream!==item.upstream || Number(f.priority)!==item.priority)){
+      feedback('Для правил списка DNS-пул, тип совпадения и приоритет меняются через настройки самого списка.');return;
+    }
+    if(item.list_id)feedback('Изменение домена списка сохранится в черновике, но следующий импорт источника может его перезаписать.');
+    item.domain=String(f.domain).trim().toLowerCase();item.match=f.match;
+    item.upstream=f.upstream;item.priority=Number(f.priority);
+    p5EditRule='';const form=e.currentTarget;form.reset();form.elements.namedItem('id').readOnly=false;
+    form.querySelector('[type=submit]').textContent='+ Добавить правило';markDirty();
+  },true);
+  el('upstreamForm').addEventListener('submit',e=>{
+    if(!p5EditUpstream)return;
+    e.preventDefault();e.stopImmediatePropagation();
+    const f=Object.fromEntries(new FormData(e.currentTarget));
+    const item=config.upstreams.find(u=>u.id===p5EditUpstream);if(!item)return;
+    item.transport=f.transport;item.address=String(f.address).trim();
+    item.server_name=(f.transport==='dot'||f.transport==='doh')?String(f.server_name).trim():undefined;
+    item.path=f.transport==='doh'?String(f.path).trim():undefined;
+    const fallback=String(f.fallbacks).split(',').map(v=>v.trim()).filter(Boolean);
+    item.fallbacks=fallback.length?fallback:undefined;
+    p5EditUpstream='';const form=e.currentTarget;form.reset();form.elements.namedItem('id').readOnly=false;
+    form.querySelector('[type=submit]').textContent='+ Добавить пул';markDirty();
+  },true);
+  // A read-only explanation rather than a misleading active-service badge.
+  p5SourceVisibility();
+
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));
   shadowRefresh().catch(()=>{});
 })();

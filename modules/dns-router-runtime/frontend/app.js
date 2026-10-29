@@ -221,8 +221,10 @@
   const themeTokens = [
     '--rf-bg','--rf-surface','--rf-surface-2','--rf-hover','--rf-text','--rf-muted',
     '--rf-border','--rf-border-strong','--rf-accent','--rf-accent-soft',
-    '--rf-accent-border','--rf-radius-panel','--rf-radius-card','--rf-radius-control',
-    '--ui-body','--ui-small','--ui-xs','--ui-micro','--ui-panel-title'
+    '--rf-accent-border','--rf-accent-hover','--rf-radius-panel','--rf-radius-card',
+    '--rf-radius-control','--rf-panel-head-h','--rf-control-gap',
+    '--ui-body','--ui-small','--ui-xs','--ui-micro','--ui-title',
+    '--ui-panel-title','--rf-type-metric'
   ];
   const palette = {
     forge: ['#0b0d10','#12151a','#171b21','#1d2229','#f5f7fa','#8d98a4','#29313a','#36414d'],
@@ -232,17 +234,38 @@
   function validColor(value, fallback) {
     return /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? value : fallback;
   }
+  // Match Antiscan's frame-side custom palette when the host theme is not accessible.
+  function mix(a, b, weight) {
+    return '#' + [1,3,5].map(i => Math.round(
+      parseInt(a.slice(i,i+2),16)*(1-weight) + parseInt(b.slice(i,i+2),16)*weight
+    ).toString(16).padStart(2,'0')).join('');
+  }
+  function customPalette(background, text) {
+    const rgb = [1,3,5].map(i => parseInt(background.slice(i,i+2),16));
+    const light = (rgb[0]*.2126 + rgb[1]*.7152 + rgb[2]*.0722) / 255 > .55;
+    return [background,
+      mix(background,text,light?.045:.055),
+      mix(background,text,light?.09:.105),
+      mix(background,text,light?.13:.15),
+      text,mix(text,background,.48),
+      mix(background,text,light?.18:.19),
+      mix(background,text,light?.27:.29)];
+  }
   function fallbackTheme() {
     const id = params.get('theme') || 'forge';
-    const colors = palette[id] || palette.forge;
+    const background = validColor(params.get('background'), '#0b0d10');
+    const text = validColor(params.get('text'), '#f5f7fa');
+    const colors = id === 'custom' ? customPalette(background,text) : (palette[id] || palette.forge);
     const names = ['--rf-bg','--rf-surface','--rf-surface-2','--rf-hover','--rf-text','--rf-muted','--rf-border','--rf-border-strong'];
-    names.forEach((key, i) => root.style.setProperty(key, colors[i]));
-    root.style.setProperty('--rf-bg', validColor(params.get('background'), colors[0]));
-    root.style.setProperty('--rf-text', validColor(params.get('text'), colors[4]));
-    root.style.setProperty('--rf-accent', validColor(params.get('accent'), '#38bdf8'));
+    names.forEach((key,i) => root.style.setProperty(key,colors[i]));
+    root.style.setProperty('--rf-accent',validColor(params.get('accent'),'#38bdf8'));
     root.dataset.theme = id;
     if (['compact','normal','comfortable'].includes(params.get('density'))) root.dataset.density = params.get('density');
-    root.style.colorScheme = ['#f6f7f9','#ffffff','#f0f0f0'].includes((params.get('background') || '').toLowerCase()) ? 'light' : 'dark';
+    if (['sharp','default','soft'].includes(params.get('radius'))) root.dataset.radius = params.get('radius');
+    root.style.colorScheme = (id === 'custom' ? background : colors[0]).match(/^#[0-9a-f]{6}$/i)
+      && (parseInt((id==='custom'?background:colors[0]).slice(1,3),16)*.2126
+       + parseInt((id==='custom'?background:colors[0]).slice(3,5),16)*.7152
+       + parseInt((id==='custom'?background:colors[0]).slice(5,7),16)*.0722) > 140 ? 'light' : 'dark';
   }
   function syncHostTheme() {
     if (window.parent === window) return false;
@@ -279,15 +302,47 @@
       const selected = btn.dataset.tab === tabId;
       btn.classList.toggle('active', selected);
       btn.setAttribute('aria-selected', String(selected));
+      btn.tabIndex = selected ? 0 : -1;
     });
-    pages.forEach(page => page.classList.toggle('active', page.dataset.page === tabId));
+    pages.forEach(page => {
+      const selected = page.dataset.page === tabId;
+      page.classList.toggle('active',selected);
+      page.setAttribute('aria-hidden',String(!selected));
+    });
     root.dataset.section = tabId;
     reportHeight();
   }
-  tabs.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.tab)));
+  tabs.forEach((btn,index) => {
+    btn.addEventListener('click', () => activate(btn.dataset.tab));
+    btn.addEventListener('keydown', event => {
+      if (!['ArrowRight','ArrowLeft','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      let next = index;
+      if (event.key==='ArrowRight') next=(index+1)%tabs.length;
+      if (event.key==='ArrowLeft') next=(index+tabs.length-1)%tabs.length;
+      if (event.key==='Home') next=0;
+      if (event.key==='End') next=tabs.length-1;
+      activate(tabs[next].dataset.tab);
+      tabs[next].focus();
+    });
+  });
   document.querySelectorAll('[data-go]').forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.go)));
   activate(params.get('view') || 'overview');
   function updateMetrics() {
+    // The API renderer creates a header-only table for an empty collection.
+    // Add a readable empty state without changing the renderer or its data.
+    for (const [id,message] of [['upstreamList','Пулов пока нет. Добавь первый DNS upstream выше.'],
+                                ['ruleList','Правил пока нет. Добавь домен или импортируй список.']]) {
+      const area=document.getElementById(id);
+      const table=area?.querySelector('table');
+      if (!table) continue;
+      const empty=area.querySelector('.dr-empty-note');
+      const count=Math.max(0,table.querySelectorAll('tr').length-1);
+      if (count===0 && !empty) {
+        const node=document.createElement('div');node.className='dr-empty-note';node.textContent=message;
+        area.appendChild(node);
+      } else if (count>0 && empty) empty.remove();
+    }
     const rows = id => Math.max(0, (document.getElementById(id)?.querySelectorAll('tr').length || 0) - 1);
     const sets = [
       ['metricUpstreams', rows('upstreamList')],

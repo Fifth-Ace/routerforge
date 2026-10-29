@@ -30,15 +30,15 @@
     <article class="metric"><span>КОНФИГУРАЦИЯ</span><strong id="metricConfig">—</strong><small>Черновик и ревизия CAS</small></article>
   </section>
 
-  <nav class="tabs" aria-label="Разделы DNS Router">
-    <button type="button" class="tab active" data-tab="overview" aria-selected="true">Обзор</button>
-    <button type="button" class="tab" data-tab="policies" aria-selected="false">Политики DNS</button>
-    <button type="button" class="tab" data-tab="testing" aria-selected="false">Проверка</button>
-    <button type="button" class="tab" data-tab="keenetic" aria-selected="false">Keenetic</button>
-    <button type="button" class="tab" data-tab="diagnostics" aria-selected="false">Диагностика</button>
+  <nav class="tabs" role="tablist" aria-label="Разделы DNS Router">
+    <button type="button" class="tab active" data-tab="overview" id="dr-tab-overview" role="tab" tabindex="0" aria-controls="dr-panel-overview" aria-selected="true">Обзор</button>
+    <button type="button" class="tab" data-tab="policies" id="dr-tab-policies" role="tab" tabindex="-1" aria-controls="dr-panel-policies" aria-selected="false">Политики DNS</button>
+    <button type="button" class="tab" data-tab="testing" id="dr-tab-testing" role="tab" tabindex="-1" aria-controls="dr-panel-testing" aria-selected="false">Проверка</button>
+    <button type="button" class="tab" data-tab="keenetic" id="dr-tab-keenetic" role="tab" tabindex="-1" aria-controls="dr-panel-keenetic" aria-selected="false">Keenetic</button>
+    <button type="button" class="tab" data-tab="diagnostics" id="dr-tab-diagnostics" role="tab" tabindex="-1" aria-controls="dr-panel-diagnostics" aria-selected="false">Диагностика</button>
   </nav>
 
-  <div class="tab-page active" data-page="overview">
+  <div class="tab-page active" data-page="overview" id="dr-panel-overview" role="tabpanel" aria-labelledby="dr-tab-overview" tabindex="0">
     <section class="panel">
       <div class="panel-head">
         <div><span class="section-kicker">УПРАВЛЕНИЕ / ТЕСТОВЫЙ РЕЖИМ</span><h2>Shadow DNS</h2><p>Ручной listener на loopback или явно разрешённом LAN. Никакой подмены системного DNS.</p></div>
@@ -77,7 +77,7 @@
     </div>
   </div>
 
-  <div class="tab-page" data-page="policies">
+  <div class="tab-page" data-page="policies" id="dr-panel-policies" role="tabpanel" aria-labelledby="dr-tab-policies" tabindex="0">
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 01</span><h2>Upstream-пулы</h2><p>DNS-серверы, транспорт и явно заданные резервные цепочки.</p></div></div>
       <form id="upstreamForm" class="form-grid fields-upstream">
@@ -107,7 +107,7 @@
     </section>
   </div>
 
-  <div class="tab-page" data-page="testing">
+  <div class="tab-page" data-page="testing" id="dr-panel-testing" role="tabpanel" aria-labelledby="dr-tab-testing" tabindex="0">
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">СИМУЛЯТОР</span><h2>Проверить маршрутизацию домена</h2><p>Проверка использует сохранённую конфигурацию и не выполняет сетевой DNS-запрос.</p></div></div>
       <form id="evaluateForm" class="form-grid form-search">
@@ -129,7 +129,7 @@
     </section>
   </div>
 
-  <div class="tab-page" data-page="keenetic">
+  <div class="tab-page" data-page="keenetic" id="dr-panel-keenetic" role="tabpanel" aria-labelledby="dr-tab-keenetic" tabindex="0">
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">ИНТЕГРАЦИЯ / ЧЕРНОВИК</span><h2>Настройки listener</h2><p>Сохранение адреса и ACL не запускает DNS и не меняет настройки Keenetic.</p></div><span class="state safe">БЕЗ АКТИВАЦИИ</span></div>
       <form id="listenerForm" class="form-grid">
@@ -154,7 +154,7 @@
     </section>
   </div>
 
-  <div class="tab-page" data-page="diagnostics">
+  <div class="tab-page" data-page="diagnostics" id="dr-panel-diagnostics" role="tabpanel" aria-labelledby="dr-tab-diagnostics" tabindex="0">
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">ДИАГНОСТИКА / READ-ONLY</span><h2>Среда и ресурсы</h2><p>Пассивные показатели и планы интеграции без изменения настроек Keenetic.</p></div></div>
       <div class="panel-actions">

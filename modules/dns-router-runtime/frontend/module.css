@@ -101,3 +101,75 @@ code{font-family:var(--mono);background:var(--surface2);padding:1px 4px;border-r
 [data-density="compact"] .metrics{gap:6px}
 @media (max-width:900px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.two-column{grid-template-columns:minmax(0,1fr)}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:580px){.hero h1{font-size:20px}.hero-actions{justify-content:flex-start}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric{padding:10px}.metric strong{font-size:18px}.tabs{display:flex;overflow:auto}.tab{min-width:125px;white-space:nowrap}.form-grid,.form-search{grid-template-columns:1fr}.panel-head{align-items:flex-start;flex-wrap:wrap}.save-bar{align-items:stretch}.save-actions{width:100%;justify-content:stretch}.save-actions button{flex:1}.state{font-size:9px}}
+
+
+/* DPR2-P3: RouterForge spacing/scale parity */
+:root{
+  --dr-space-1:4px;--dr-space-2:8px;--dr-space-3:12px;--dr-space-4:16px;
+  --dr-radius:var(--rf-radius-card,var(--rf-radius,8px));
+  --dr-control-radius:var(--rf-radius-control,5px);
+  --dr-ui-scale:1;
+}
+html,body{max-width:100%;overflow-x:clip}
+body{font-size:var(--ui-body,13px);line-height:1.5}
+.dr-page{padding:3px 2px 24px;gap:12px}
+.action-bar,.panel-actions,.save-actions{gap:var(--rf-control-gap,8px)}
+.hero{align-items:flex-start;padding:2px 2px 7px;gap:12px}
+.hero-copy{flex:1 1 310px}.hero h1{font-size:clamp(22px,var(--ui-title,25px),28px);line-height:1.15;margin:5px 0 5px}
+.hero p{font-size:var(--ui-small,12px);line-height:1.5;max-width:65ch}
+.hero-actions{align-content:flex-start;gap:7px}.state{min-height:22px;padding:0 8px;font-size:var(--ui-micro,10px)}
+.metrics{gap:8px}.metric{padding:12px;min-height:95px;display:flex;flex-direction:column;align-items:flex-start}
+.metric>span{font-size:var(--ui-xs,10px);line-height:1.4}
+.metric strong{font-size:clamp(19px,var(--rf-type-metric,21px),24px);margin:6px 0 4px}
+.metric small{font-size:var(--ui-micro,11px);line-height:1.4;margin-top:auto}
+.tabs{gap:4px;padding:4px;min-width:0}.tab{min-height:38px;padding:7px 11px;font-size:var(--ui-small,12px);font-weight:650;line-height:1.25}
+.tab-page,.two-column{gap:12px}
+.panel{border-radius:var(--dr-radius)}.panel-head{min-height:56px;align-items:center;padding:11px 13px;gap:10px}
+.panel-head>div:first-child{min-width:0}.panel-head h2{font-size:var(--ui-panel-title,15px);margin:3px 0 2px}
+.panel-head p{font-size:var(--ui-small,12px);line-height:1.45}
+.panel-content{padding:12px 13px}.panel-actions{padding:10px 13px;gap:7px}
+.button,button{min-height:36px;padding:7px 12px;border-radius:var(--dr-control-radius);font-size:var(--ui-small,12px);line-height:1.2}
+.button:disabled,button:disabled{opacity:.46;background:var(--surface2);color:var(--muted);border-color:var(--border);cursor:not-allowed}
+.feedback{padding:9px 12px;min-height:37px;font-size:var(--ui-small,12px);line-height:1.45}
+.steps,.guard-list{padding:12px 13px;gap:10px}.step{gap:9px}.step strong{font-size:var(--ui-small,12px)}
+.step p,.guard-list{font-size:var(--ui-micro,11px)}
+.form-grid{padding:12px 13px;gap:10px 12px;align-items:end}
+.form-grid label{gap:5px;font-size:var(--ui-micro,11px);line-height:1.35}
+.form-grid input,.form-grid select,.form-grid textarea{min-height:38px;padding:8px 10px;border-radius:var(--dr-control-radius);font-size:var(--ui-small,12px);font-family:var(--sans)}
+.form-grid input[name="id"],.form-grid input[name="domain"],.form-grid input[name="listen"],.form-grid input[name="address"],.form-grid input[name="server_name"]{font-family:var(--mono)}
+.form-grid textarea{min-height:116px;line-height:1.5}.form-actions>button{min-height:38px}
+.table-wrap{max-width:100%}.table-wrap table{font-size:var(--ui-micro,11px)}
+.table-wrap th,.table-wrap td{padding:9px 11px;line-height:1.45}
+.table-wrap th{font-size:var(--ui-xs,10px)}.table-wrap td button{min-height:29px;font-size:var(--ui-micro,11px)}
+.dr-empty-note{padding:14px 13px;color:var(--muted);font-size:var(--ui-small,12px);line-height:1.45;text-align:center;border-top:1px solid var(--border)}
+.console{margin:9px 13px 12px;padding:10px 12px;max-height:350px;font-size:var(--ui-micro,11px);line-height:1.6}
+.panel-content .console{margin:0}.boundary-copy,.boundary-note{padding:11px 13px;font-size:var(--ui-small,12px)}
+.save-bar{padding:10px 13px;gap:10px;border-radius:var(--dr-radius)}
+.save-meta strong{font-size:var(--ui-small,12px)}.save-meta span{font-size:var(--ui-micro,11px)}
+/* Maintain control spacing in the three RouterForge UI densities. */
+html[data-density="compact"] .dr-page{gap:9px;padding-bottom:17px}
+html[data-density="compact"] .panel-head{min-height:48px;padding:8px 11px}
+html[data-density="compact"] .panel-content,html[data-density="compact"] .form-grid{padding:9px 11px}
+html[data-density="compact"] .form-grid{gap:7px 9px}
+html[data-density="compact"] .metric{min-height:80px;padding:9px}
+html[data-density="compact"] .tab{min-height:33px;padding:6px 8px}
+html[data-density="compact"] .button,html[data-density="compact"] button{min-height:32px;padding:6px 10px}
+html[data-density="compact"] .form-grid input,html[data-density="compact"] .form-grid select{min-height:33px}
+html[data-density="comfortable"] .dr-page{gap:16px;padding-bottom:28px}
+html[data-density="comfortable"] .panel-head{min-height:66px;padding:15px 16px}
+html[data-density="comfortable"] .panel-content,html[data-density="comfortable"] .form-grid{padding:16px}
+html[data-density="comfortable"] .form-grid{gap:14px}
+html[data-density="comfortable"] .metric{min-height:106px;padding:16px}
+html[data-density="comfortable"] .tab{min-height:44px;padding:10px 12px}
+html[data-density="comfortable"] .button,html[data-density="comfortable"] button{min-height:42px}
+html[data-radius="sharp"]{--dr-radius:2px;--dr-control-radius:2px}
+html[data-radius="soft"]{--dr-radius:12px;--dr-control-radius:9px}
+html[data-radius="default"]{--dr-radius:8px;--dr-control-radius:5px}
+@media(max-width:1100px){.hero-actions{justify-content:flex-start}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.form-grid,.form-search{grid-template-columns:minmax(0,1fr)}.dr-page{padding:3px 0 18px}.panel-head{padding:11px 12px}.hero h1{font-size:22px}}
+@media(max-width:580px){.metric{min-height:88px;padding:10px}.metric small{font-size:10px}.tabs{gap:3px;padding:3px}.tab{min-width:116px}.save-actions{gap:6px}.save-bar{padding:10px}.table-wrap th,.table-wrap td{padding:8px}}
+@media(prefers-reduced-motion:reduce){.tab,.button,button{scroll-behavior:auto;transition:none!important}}
+/* Radius setting applies consistently to every surface, not only panels. */
+html[data-radius="sharp"]{--radius:2px;--control-radius:2px}
+html[data-radius="soft"]{--radius:12px;--control-radius:9px}
+html[data-radius="default"]{--radius:8px;--control-radius:5px}

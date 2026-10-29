@@ -173,3 +173,123 @@ html[data-radius="default"]{--dr-radius:8px;--dr-control-radius:5px}
 html[data-radius="sharp"]{--radius:2px;--control-radius:2px}
 html[data-radius="soft"]{--radius:12px;--control-radius:9px}
 html[data-radius="default"]{--radius:8px;--control-radius:5px}
+
+
+/* DPR2-P4: RouterForge Core workspace alignment; UI-only. */
+/* ModuleFrame's iframe has intentionally no outer padding. The embedded
+ * module must provide the same 16-18px content gutter as Core workspaces. */
+.dr-page{
+  padding:16px 18px 28px;
+  gap:12px;
+}
+.dr-page > *{min-width:0}
+.hero{
+  align-items:center;
+  flex-wrap:wrap;
+  gap:12px 18px;
+  padding:0 0 6px;
+}
+.hero-copy{flex:1 1 400px}
+.hero h1{
+  font-size:clamp(21px,var(--ui-title,23px),24px);
+  margin:0 0 4px;
+  line-height:1.22;
+  letter-spacing:-.012em;
+}
+.title-version{font-size:.6em;font-weight:650}
+.hero p{font-size:var(--ui-small,12px);max-width:80ch}
+.hero-actions{gap:6px;align-items:center;justify-content:flex-end}
+.hero-actions .state{font-size:var(--ui-micro,10px);min-height:22px}
+.hero-actions .button{min-height:32px;padding:5px 10px}
+.feedback{padding:8px 11px;min-height:34px;line-height:1.35}
+.metrics{gap:10px}
+.metric{min-height:94px;padding:11px 13px}
+.metric strong{font-size:clamp(18px,var(--rf-type-metric,22px),23px);margin:6px 0 3px}
+.metric small{margin-top:auto}
+.tabs{padding:4px;gap:4px}
+.tab{min-height:36px;padding:7px 10px}
+.section-kicker{
+  color:var(--muted);
+  font:700 var(--ui-micro,10px)/1.2 var(--mono);
+  letter-spacing:.055em;
+}
+.panel-head{min-height:52px;padding:10px 13px;align-items:center}
+.panel-head h2{font-size:var(--ui-panel-title,14px);margin:3px 0 2px}
+.panel-head p{font-size:var(--ui-small,12px);line-height:1.35}
+.panel-content{padding:11px 13px}
+.action-bar{margin:0;gap:7px}
+.action-bar .button{min-height:34px;padding:6px 11px}
+.two-column{gap:12px}
+.panel-actions{padding:10px 13px}
+.form-grid{padding:12px 13px;gap:9px 12px}
+.form-grid label{gap:5px}
+.table-wrap th,.table-wrap td{padding:9px 11px}
+.console{margin:10px 13px 12px;padding:9px 11px}
+.shadow-summary{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 0 10px;
+  color:var(--text);
+}
+.shadow-summary-icon{
+  flex:0 0 26px;height:26px;
+  display:grid;place-items:center;
+  color:var(--accent);font-size:17px;
+  background:var(--accent-soft);
+  border:1px solid var(--accent-border);
+  border-radius:var(--dr-control-radius);
+}
+.shadow-summary strong{display:block;font-size:var(--ui-small,12px);font-weight:650}
+.shadow-summary p{margin:3px 0 0;font-size:var(--ui-micro,11px);line-height:1.4;color:var(--muted)}
+.debug-details{
+  margin:0;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+}
+.debug-details summary{
+  display:flex;align-items:center;gap:8px;
+  min-height:38px;
+  padding:8px 0;
+  cursor:pointer;
+  color:var(--muted);
+  font:600 var(--ui-small,12px)/1.4 var(--sans);
+  list-style:none;
+}
+.debug-details summary::-webkit-details-marker{display:none}
+.debug-details summary::before{content:'▸';color:var(--accent);font-size:12px;transition:transform .12s}
+.debug-details[open] summary::before{transform:rotate(90deg)}
+.debug-details summary:hover{color:var(--text)}
+.debug-details summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.debug-details .console{
+  margin:0 0 10px;
+  max-height:240px;
+  background:var(--bg);
+  color:var(--muted);
+}
+.save-bar{padding:10px 13px}
+html[data-density="compact"] .dr-page{padding:11px 13px 19px;gap:9px}
+html[data-density="compact"] .metric{min-height:76px;padding:9px 11px}
+html[data-density="compact"] .panel-head{padding:8px 11px;min-height:47px}
+html[data-density="compact"] .shadow-summary{padding:8px 0}
+html[data-density="comfortable"] .dr-page{padding:20px 22px 32px;gap:16px}
+html[data-density="comfortable"] .metric{min-height:105px;padding:15px}
+html[data-density="comfortable"] .panel-head{min-height:64px;padding:14px 16px}
+html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
+@media(max-width:900px){
+  .dr-page{padding:14px 15px 24px}
+  .hero{align-items:flex-start}
+  .hero-actions{justify-content:flex-start}
+}
+@media(max-width:580px){
+  .dr-page{padding:12px 12px 20px}
+  .hero h1{font-size:21px}
+  .metrics{gap:7px}
+  .metric{padding:10px;min-height:82px}
+  .metric strong{font-size:18px}
+  .hero-actions .state{white-space:normal;text-align:center}
+  .debug-details summary{min-height:42px}
+  html[data-density="compact"] .dr-page{padding:8px 9px 16px}
+  html[data-density="comfortable"] .dr-page{padding:14px 14px 24px}
+}
+@media(prefers-reduced-motion:reduce){
+  .debug-details summary::before{transition:none}
+}

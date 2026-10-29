@@ -10,7 +10,6 @@
 <main class="dr-page" id="dnsRouterWorkspace">
   <header class="hero">
     <div class="hero-copy">
-      <span class="eyebrow">ROUTERFORGE / DNS</span>
       <h1>DNS Policy Router <span class="title-version">2.0</span></h1>
       <p>Управление DNS-пулами, доменными маршрутами и безопасным тестовым DNS-сервисом.</p>
     </div>
@@ -51,7 +50,14 @@
           <button type="button" class="button" id="shadowApplyButton">Применить правила</button>
           <button type="button" class="button danger" id="shadowStopButton">■ Остановить</button>
         </div>
-        <pre class="console" id="shadowStatus">Загрузка состояния…</pre>
+        <div class="shadow-summary" role="note">
+          <span class="shadow-summary-icon" aria-hidden="true">◎</span>
+          <div><strong>Изолированный тестовый DNS</strong><p>Не изменяет системный DNS Keenetic. Действия выполняются только по явной команде.</p></div>
+        </div>
+        <details class="debug-details">
+          <summary>Техническое состояние и данные API</summary>
+          <pre class="console" id="shadowStatus">Загрузка состояния…</pre>
+        </details>
       </div>
     </section>
     <div class="two-column">

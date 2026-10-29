@@ -41,7 +41,7 @@
     optionSelect('ruleUpstream'); optionSelect('importUpstream');
     table('upstreamList',['ID','Протокол','Адрес','SNI','DoH path','Резерв'],config.upstreams.map(u=>[u.id,u.transport,u.address,u.server_name||'—',u.path||'—',(u.fallbacks||[]).join(', ')||'—']),i=>{
       const id = config.upstreams[i].id;
-      if (config.rules.some(r=>r.upstream===id) || config.upstreams.some(u=>(u.fallbacks||[]).includes(id))) {feedback('Нельзя удалить используемый пул. Сначала убери правила и резервные ссылки.');return;}
+      if (config.rules.some(r=>r.upstream===id) || config.upstreams.some(u=>(u.fallbacks||[]).includes(id)) || (config.dns_groups||[]).some(g=>g.servers.includes(id))) {feedback('Нельзя удалить используемый пул. Сначала убери правила и резервные ссылки.');return;}
       config.upstreams.splice(i,1);markDirty();
     });
     table('ruleList',['ID','Домен','Совпадение','Пул','Приоритет'],config.rules.map(r=>[r.id,r.domain,r.match,r.upstream,r.priority]),i=>{config.rules.splice(i,1);markDirty();});
@@ -236,6 +236,7 @@
     if(!Array.isArray(config.lists)) config.lists=[];
     const pool=el('drListUpstream');const previous=pool.value;
     p5Options('drListUpstream',config.upstreams.map(u=>[u.id,u.id]),previous);
+    p6RenderGroups();
     const target=el('drListCards');target.replaceChildren();
     if(config.lists.length===0) {
       const p=document.createElement('p');p.className='dr-p5-empty';p.textContent='Списков пока нет. Выбери файл, URL или вставь домены ниже.';target.appendChild(p);
@@ -246,7 +247,7 @@
       const h=document.createElement('strong');h.textContent=list.name;copy.appendChild(h);
       const count=config.rules.filter(r=>r.list_id===list.id).length;
       const detail=document.createElement('span');
-      detail.textContent=count+' доменов · '+list.upstream+' · '+(list.kind==='url'?'URL':list.kind==='file'?'файл':'текст')+
+      detail.textContent=count+' доменов · '+(list.group_id?'Группа '+list.group_id:list.upstream)+' · '+(list.kind==='url'?'URL':list.kind==='file'?'файл':'текст')+
         (list.auto_update_minutes?' · авто '+list.auto_update_minutes+' мин':' · обновление вручную');
       copy.appendChild(detail);row.appendChild(copy);
       const actions=document.createElement('div');actions.className='dr-p5-list-actions';
@@ -255,7 +256,7 @@
         if(dirty) {feedback('Сначала сохрани черновик перед обновлением источника');return;}
         p5EditingList=list.id;p5Pending=null;
         p5Value('drListName',list.name);p5Value('drListKind',list.kind);
-        p5Value('drListURL',list.url||'');p5Value('drListUpstream',list.upstream);
+        p5Value('drListURL',list.url||'');p5Value('drListUpstream',list.upstream);p5Value('drListGroup',list.group_id||'');
         p5Value('drListMatch',list.match);p5Value('drListPriority',String(list.priority));
         p5Value('drListInterval',String(list.auto_update_minutes||0));
         p5SourceVisibility();p5Text('drListMode','Редактирование: '+list.name);
@@ -323,7 +324,8 @@
     const list={
       id:p5EditingList || ('list-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7)),
       name:String(f.name||'').trim(),kind,
-      upstream:f.upstream,match:f.match,priority:Number(f.priority),
+      upstream:f.group_id ? (config.dns_groups.find(g=>g.id===f.group_id)||{servers:[]}).servers[0] : f.upstream,
+      group_id:f.group_id||undefined,match:f.match,priority:Number(f.priority),
       auto_update_minutes:kind==='url'?Number(f.auto_update_minutes||0):0
     };
     if(kind==='url')list.url=String(f.url||'').trim();
@@ -390,6 +392,45 @@
     form.querySelector('[type=submit]').textContent='+ Добавить пул';markDirty();
   },true);
   // A read-only explanation rather than a misleading active-service badge.
+  // P6: strict DNS groups built from existing configured upstream servers.
+  function p6RenderGroups(){
+    if(!Array.isArray(config.dns_groups)) config.dns_groups=[];
+    const select=el('drListGroup'), prior=select.value;
+    p5Options('drListGroup',[['','Без группы (старое правило)'],...config.dns_groups.map(g=>[g.id,g.name+' ['+g.id+']'])],prior);
+    const root=el('drGroupCards');root.replaceChildren();
+    if(!config.dns_groups.length){const p=document.createElement('p');p.className='dr-p5-empty';p.textContent='Групп пока нет. Добавь DNS-пулы выше, затем создай строгую группу.';root.appendChild(p)}
+    for(const group of config.dns_groups){
+      const row=document.createElement('div');row.className='dr-p5-list-row';
+      const copy=document.createElement('div');copy.className='dr-p5-list-copy';
+      const h=document.createElement('strong');h.textContent=group.name;copy.appendChild(h);
+      const desc=document.createElement('span');desc.textContent=group.servers.join(' → ')+' · только свои DNS · fail-closed';copy.appendChild(desc);row.appendChild(copy);
+      const actions=document.createElement('div');actions.className='dr-p5-list-actions';
+      const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Удалить';
+      remove.addEventListener('click',()=>{
+        if(config.rules.some(r=>r.group_id===group.id)||config.lists.some(l=>l.group_id===group.id)){
+          feedback('Группа используется. Сначала переназначь списки и правила.');return;
+        }
+        if(!confirm('Удалить неиспользуемую DNS-группу «'+group.name+'»?'))return;
+        config.dns_groups=config.dns_groups.filter(g=>g.id!==group.id);markDirty();
+      });actions.appendChild(remove);row.appendChild(actions);root.appendChild(row);
+    }
+  }
+  el('drListGroup').addEventListener('change',()=>{
+    const g=(config.dns_groups||[]).find(x=>x.id===el('drListGroup').value);
+    if(g)el('drListUpstream').value=g.servers[0];
+  });
+  el('drGroupForm').addEventListener('submit',e=>{
+    e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));
+    const ids=String(f.servers||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if(!Array.isArray(config.dns_groups))config.dns_groups=[];
+    if(config.dns_groups.some(g=>g.id===f.id)){feedback('ID DNS-группы уже существует');return;}
+    if(!ids.length||ids.length>8||new Set(ids).size!==ids.length||ids.some(id=>!config.upstreams.some(u=>u.id===id))){
+      feedback('Нужны 1–8 разных существующих DNS-пулов в порядке приоритета');return;
+    }
+    config.dns_groups.push({id:f.id,name:f.name,servers:ids});e.currentTarget.reset();markDirty();
+    feedback('Строгая DNS-группа создана в черновике. Сохрани изменения перед импортом списка.');
+  });
+
   p5SourceVisibility();
 
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));

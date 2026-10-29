@@ -25,6 +25,7 @@ type DomainList struct {
 	Kind              string `json:"kind"` // paste, file, url
 	URL               string `json:"url,omitempty"`
 	Upstream          string `json:"upstream"`
+	GroupID           string `json:"group_id,omitempty"`
 	Match             string `json:"match"`
 	Priority          int    `json:"priority"`
 	AutoUpdateMinutes int    `json:"auto_update_minutes,omitempty"` // explicit opt-in: 0, 60, 360, 1440
@@ -60,6 +61,10 @@ func validateManagedLists(cfg Config) error {
 	for _, u := range cfg.Upstreams {
 		upstreams[u.ID] = true
 	}
+	groups := make(map[string]DNSGroup, len(cfg.Groups))
+	for _, g := range cfg.Groups {
+		groups[g.ID] = g
+	}
 	lists := make(map[string]DomainList, len(cfg.Lists))
 	for _, list := range cfg.Lists {
 		if !validID(list.ID) || len(list.ID) > 40 {
@@ -73,6 +78,15 @@ func validateManagedLists(cfg Config) error {
 		}
 		if list.Kind != "paste" && list.Kind != "file" && list.Kind != "url" {
 			return fmt.Errorf("invalid source kind for list %q", list.ID)
+		}
+		if list.GroupID != "" {
+			g, ok := groups[list.GroupID]
+			if !ok {
+				return fmt.Errorf("list %q: missing DNS group %q", list.ID, list.GroupID)
+			}
+			if len(g.Servers) == 0 || g.Servers[0] != list.Upstream {
+				return fmt.Errorf("list %q: group primary must match upstream", list.ID)
+			}
 		}
 		if !upstreams[list.Upstream] {
 			return fmt.Errorf("unknown upstream for list %q", list.ID)
@@ -110,7 +124,7 @@ func validateManagedLists(cfg Config) error {
 		if !ok {
 			return fmt.Errorf("rule %q references missing list %q", r.ID, r.ListID)
 		}
-		if r.Upstream != list.Upstream || r.Match != list.Match || r.Priority != list.Priority {
+		if r.Upstream != list.Upstream || r.Match != list.Match || r.Priority != list.Priority || r.GroupID != list.GroupID {
 			return fmt.Errorf("rule %q conflicts with list %q policy", r.ID, r.ListID)
 		}
 	}
@@ -176,6 +190,7 @@ func PreviewManagedList(existing Config, req ManagedListRequest) (ManagedListPre
 	// Match the validation contract before any existing list is replaced.
 	seed := EmptyConfig()
 	seed.Upstreams = append(seed.Upstreams, existing.Upstreams...)
+	seed.Groups = append(seed.Groups, existing.Groups...)
 	seed.Lists = []DomainList{list}
 	if err := validateManagedLists(seed); err != nil {
 		return out, err
@@ -194,6 +209,7 @@ func PreviewManagedList(existing Config, req ManagedListRequest) (ManagedListPre
 	_ = found
 	cfg.Lists = append(cfg.Lists, list)
 	used := map[string]bool{}
+	owners := map[string]string{}
 	usedID := map[string]bool{}
 	for _, r := range existing.Rules {
 		if r.ListID == list.ID {
@@ -201,6 +217,7 @@ func PreviewManagedList(existing Config, req ManagedListRequest) (ManagedListPre
 		}
 		cfg.Rules = append(cfg.Rules, r)
 		used[r.Domain+"|"+r.Match+"|"+r.Upstream] = true
+		owners[r.Domain+"|"+r.Match+"|"+r.Upstream] = r.GroupID
 		usedID[r.ID] = true
 	}
 	scanner := bufio.NewScanner(strings.NewReader(req.Text))
@@ -223,6 +240,9 @@ func PreviewManagedList(existing Config, req ManagedListRequest) (ManagedListPre
 		for _, domain := range domains {
 			key := domain + "|" + list.Match + "|" + list.Upstream
 			if used[key] {
+				if owners[key] != list.GroupID {
+					return out, fmt.Errorf("domain %q is already assigned to another strict DNS group", domain)
+				}
 				out.Duplicates++
 				continue
 			}
@@ -234,8 +254,9 @@ func PreviewManagedList(existing Config, req ManagedListRequest) (ManagedListPre
 				return out, errors.New("internal rule id collision")
 			}
 			used[key] = true
+			owners[key] = list.GroupID
 			usedID[id] = true
-			cfg.Rules = append(cfg.Rules, Rule{ID: id, Domain: domain, Match: list.Match, Upstream: list.Upstream, Priority: list.Priority, ListID: list.ID})
+			cfg.Rules = append(cfg.Rules, Rule{ID: id, Domain: domain, Match: list.Match, Upstream: list.Upstream, Priority: list.Priority, ListID: list.ID, GroupID: list.GroupID})
 			out.Added++
 		}
 	}

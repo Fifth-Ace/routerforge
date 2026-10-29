@@ -389,7 +389,7 @@ func (f *ShadowForwarder) resolve(parent context.Context, query []byte, network 
 		f.refused.Add(1)
 		return makeDNSError(query, 5)
 	}
-	chain, err := f.engine.UpstreamChain(decision.Upstream)
+	chain, err := f.engine.UpstreamChainForDecision(decision)
 	if err != nil {
 		f.failures.Add(1)
 		return makeDNSError(query, 2)

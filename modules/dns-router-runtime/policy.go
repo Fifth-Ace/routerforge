@@ -23,6 +23,7 @@ type Config struct {
 	Upstreams     []Upstream      `json:"upstreams"`
 	Rules         []Rule          `json:"rules"`
 	Lists         []DomainList    `json:"lists,omitempty"`
+	Groups        []DNSGroup      `json:"dns_groups,omitempty"`
 	Listener      *ListenerConfig `json:"listener,omitempty"`
 }
 
@@ -42,6 +43,7 @@ type Rule struct {
 	Upstream string `json:"upstream"`
 	Priority int    `json:"priority"`
 	ListID   string `json:"list_id,omitempty"`
+	GroupID  string `json:"group_id,omitempty"`
 }
 
 type Decision struct {
@@ -49,6 +51,7 @@ type Decision struct {
 	Matched   bool   `json:"matched"`
 	Source    string `json:"source"` // policy or system; no transparent fallback
 	RuleID    string `json:"rule_id,omitempty"`
+	GroupID   string `json:"group_id,omitempty"`
 	Upstream  string `json:"upstream,omitempty"`
 	Transport string `json:"transport,omitempty"`
 	Address   string `json:"address,omitempty"`
@@ -63,6 +66,7 @@ type node struct {
 type Engine struct {
 	root      *node
 	upstreams map[string]Upstream
+	groups    map[string]DNSGroup
 	ruleCount int
 }
 
@@ -191,7 +195,13 @@ func Compile(cfg Config) (*Engine, error) {
 			}
 		}
 	}
+	groups, err := compileDNSGroups(cfg, e.upstreams)
+	if err != nil {
+		return nil, err
+	}
+	e.groups = groups
 	ruleIDs := make(map[string]bool)
+	strictCollisions := make(map[string]Rule)
 	for _, raw := range cfg.Rules {
 		if !validID(raw.ID) || ruleIDs[raw.ID] {
 			return nil, fmt.Errorf("invalid/duplicate rule id %q", raw.ID)
@@ -210,9 +220,24 @@ func Compile(cfg Config) (*Engine, error) {
 		if raw.Priority < 0 || raw.Priority > 1000000 {
 			return nil, fmt.Errorf("priority out of range for %q", raw.ID)
 		}
+		if raw.GroupID != "" {
+			g, ok := e.groups[raw.GroupID]
+			if !ok {
+				return nil, fmt.Errorf("rule %q: unknown DNS group %q", raw.ID, raw.GroupID)
+			}
+			if raw.Upstream != g.Servers[0] {
+				return nil, fmt.Errorf("rule %q: group primary must be upstream %q", raw.ID, g.Servers[0])
+			}
+		}
 		if _, ok := e.upstreams[raw.Upstream]; !ok {
 			return nil, fmt.Errorf("rule %q: unknown upstream %q", raw.ID, raw.Upstream)
 		}
+		// Equal-precedence conflicts involving strict groups must never choose an arbitrary DNS.
+		key := domain + "|" + raw.Match + "|" + fmt.Sprint(raw.Priority)
+		if prev, found := strictCollisions[key]; found && (prev.GroupID != "" || raw.GroupID != "") && (prev.Upstream != raw.Upstream || prev.GroupID != raw.GroupID) {
+			return nil, fmt.Errorf("conflicting strict DNS rules %q and %q for %s", prev.ID, raw.ID, domain)
+		}
+		strictCollisions[key] = raw
 		raw.Domain = domain
 		current := e.root
 		labels := strings.Split(domain, ".")
@@ -275,7 +300,7 @@ func (e *Engine) Evaluate(query string) (Decision, error) {
 		return result, nil
 	}
 	u := e.upstreams[best.Upstream]
-	return Decision{Domain: d, Matched: true, Source: "policy", RuleID: best.ID, Upstream: u.ID, Transport: u.Transport, Address: u.Address, Reason: "most-specific matching domain rule"}, nil
+	return Decision{Domain: d, Matched: true, Source: "policy", RuleID: best.ID, GroupID: best.GroupID, Upstream: u.ID, Transport: u.Transport, Address: u.Address, Reason: "most-specific matching domain rule"}, nil
 }
 
 // UpstreamChain yields only the explicitly selected upstream and its named

@@ -84,6 +84,20 @@
   </div>
 
   <div class="tab-page" data-page="policies" id="dr-panel-policies" role="tabpanel" aria-labelledby="dr-tab-policies" tabindex="0">
+    <section class="panel dr-p6-panel" id="drGroupPanel">
+      <div class="panel-head"><div><span class="section-kicker">DNS POLICY / STRICT</span><h2>Строгие группы DNS</h2><p>Домен из группы использует только перечисленные здесь DNS-серверы. При сбое всех серверов — ошибка, без перехода на DNS по умолчанию.</p></div><span class="state safe">FAIL-CLOSED</span></div>
+      <div class="dr-p5-content">
+        <div id="drGroupCards" class="dr-p5-list-rows"><p>Загрузка групп…</p></div>
+        <form id="drGroupForm" class="form-grid">
+          <label><span>ID группы</span><input name="id" maxlength="40" pattern="[a-zA-Z0-9_-]+" placeholder="cloudflare-only" required></label>
+          <label><span>Название</span><input name="name" maxlength="80" placeholder="Cloudflare · только свои DNS" required></label>
+          <label class="span-all"><span>DNS-серверы в порядке приоритета — ID через запятую</span><input id="drGroupServers" name="servers" placeholder="cloudflare-doh, cloudflare-dot" required><small>Используются только указанные серверы. Унаследованные резервы этих серверов игнорируются.</small></label>
+          <div class="form-actions"><button class="button primary" type="submit">+ Создать DNS-группу</button></div>
+        </form>
+        <p class="dr-p6-note">Группы задают строгую цепочку DNS. Пока Keenetic не зарегистрировал доменную зону, это правило не управляет реальными запросами клиентов.</p>
+      </div>
+    </section>
+
     <section class="panel dr-p5-panel" id="drListPanel">
       <div class="panel-head">
         <div>
@@ -111,6 +125,7 @@
         <label id="drListFileWrap" class="span-all"><span>Файл с доменами (.txt, до 1 МиБ)</span><input id="drListFile" name="file" type="file" accept=".txt,.hosts,.list,text/plain"></label>
         <label id="drListPasteWrap" class="span-all" hidden><span>Домены по одному на строку</span><textarea name="text" id="drListPaste" rows="6" placeholder="youtube.com&#10;googlevideo.com&#10;||discord.com^&#10;0.0.0.0 ads.example.com"></textarea></label>
         <label id="drListUrlWrap" class="span-all" hidden><span>Публичная HTTPS-ссылка на текстовый список</span><input name="url" id="drListURL" type="url" maxlength="2048" placeholder="https://example.org/domains.txt"><small>Только HTTPS, публичные IP, без перенаправлений. Загрузка выполняется на роутере при проверке.</small></label>
+        <label><span>Строгая DNS-группа (необязательно)</span><select id="drListGroup" name="group_id"></select></label>
         <label><span>Отправлять запросы через DNS-пул</span><select id="drListUpstream" name="upstream" required></select></label>
         <label><span>Для каких доменов</span><select id="drListMatch" name="match"><option value="suffix">Домен и поддомены</option><option value="exact">Только этот домен</option><option value="subdomains">Только поддомены</option></select></label>
         <label><span>Приоритет</span><input id="drListPriority" type="number" name="priority" value="100" min="0" max="1000000"></label>

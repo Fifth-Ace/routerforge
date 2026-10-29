@@ -325,3 +325,8 @@ html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
 @media(max-width:760px){.dr-p5-steps{grid-template-columns:1fr}.dr-p5-list-actions{width:100%}.dr-p5-list-actions .button{flex:1}.dr-p5-bottom-actions{align-items:stretch}.dr-p5-bottom-actions .button{width:100%}}
 #drRuleSearch{display:block;min-height:38px;max-width:400px;width:100%;padding:8px 11px;border:1px solid var(--rf-border,#29313a);border-radius:var(--rf-radius-control,5px);background:var(--rf-surface-2,#171b21);color:var(--rf-text,#f5f7fa);font:inherit}
 #drRuleSearch:focus{outline:2px solid var(--rf-accent,#38bdf8);outline-offset:1px}
+
+/* DPR2-P6: native RouterForge tokens, no independent theme. */
+.dr-p6-panel .form-grid{margin-top:var(--rf-control-gap,12px)}
+.dr-p6-panel .dr-p6-note{color:var(--rf-muted,#8d98a4);font-size:var(--ui-small,13px);margin:10px 0 0}
+.dr-p6-panel #drGroupCards{margin-bottom:var(--rf-control-gap,12px)}

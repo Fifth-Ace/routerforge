@@ -202,6 +202,9 @@
       </form>
       <div class="panel-actions"><button type="button" class="button" id="listenerPlanButton">План доменных зон (read-only)</button></div>
       <pre class="console" id="listenerPlanStatus">Сначала сохрани конфигурацию.</pre>
+      <div class="panel-actions"><button type="button" class="button" id="ingressOfflineP7">Проверить покрытие DNS-зон</button><button type="button" class="button" id="ingressLiveP7">Сверить с Keenetic (только чтение)</button></div>
+      <p class="boundary-copy">P7 показывает, какие правила реально доступны через штатные зоны. Чтение конфигурации не применяет DNS, не запускает listener и не включает перехват.</p>
+      <pre class="console" id="ingressAuditStatusP7">Сначала сохрани конфигурацию, затем запусти аудит.</pre>
     </section>
     <section class="panel risk-panel">
       <div class="panel-head"><div><span class="section-kicker">DPR2-N / ЭКСПЕРИМЕНТ ТОЛЬКО DSTEST</span><h2>Временная транзакция DNS-зон</h2><p>Требует отдельного серверного флага; изменяет тестовые зоны на ограниченное время и выполняет откат.</p></div><span class="state caution">ПОВЫШЕННЫЙ РИСК</span></div>

@@ -72,6 +72,21 @@
       feedback('План read-only готов · DNS Keenetic не изменён');
     }catch(err){feedback('План DNS: '+err.message);}
   });
+  // DPR2-P7: never contact ndmc without explicit click; even live=1 reads only.
+  for (const live of [false,true]) {
+    el(live ? 'ingressLiveP7' : 'ingressOfflineP7').addEventListener('click', async () => {
+      if (dirty) {feedback('Для проверки фактического покрытия сначала сохрани конфигурацию');return;}
+      const output=el('ingressAuditStatusP7');
+      output.textContent=live ? 'Чтение текущих записей Keenetic…' : 'Анализ сохранённых правил…';
+      try {
+        const data=await request('keenetic/ingress-audit'+(live?'?live=1':''));
+        if(data.revision!==revision)throw new Error('Ревизия изменилась: повтори проверку');
+        output.textContent=JSON.stringify(data.audit,null,2);
+        const a=data.audit;
+        feedback('P7: покрыто '+a.covered+'/'+a.rule_count+'; вне маршрутов '+a.unmapped+'; конфликты '+a.conflicts.length+'; DNS не изменён');
+      }catch(err){output.textContent='Ошибка P7: '+err.message;feedback('Аудит DNS: '+err.message);}
+    });
+  }
   // DPR2-N: the server recalculates its exact ndmc snapshot and a CAS-bound
   // token. Preparing never changes DNS; a confirmed trial always rolls back.
   el('managedPrepareN').addEventListener('click', async () => {

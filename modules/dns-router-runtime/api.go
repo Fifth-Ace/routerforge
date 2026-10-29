@@ -1,6 +1,7 @@
 package dnsrouter
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -501,6 +502,39 @@ func (a *API) Handler() http.Handler {
 		}
 		w.Header().Set("ETag", fmt.Sprintf("%q", rev))
 		respondJSON(w, 200, map[string]any{"revision": rev, "plan": BuildDomainSplitPlanL(cfg), "runtime_changed": false, "ndmc_invoked": false})
+	})
+	// DPR2-P7: offline coverage by default; opt-in native inventory is an
+	// explicit read-only 'show ip name-server'. No command accepts user input.
+	mux.HandleFunc("/v1/keenetic/ingress-audit", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		live := r.URL.Query().Get("live")
+		if live != "" && live != "0" && live != "1" {
+			fail(w, http.StatusBadRequest, errors.New("live must be 0 or 1"))
+			return
+		}
+		cfg, rev, err := a.Store.Load()
+		if err != nil {
+			fail(w, 500, err)
+			return
+		}
+		var snapshot string
+		if live == "1" {
+			ctx, cancel := context.WithTimeout(r.Context(), 7*time.Second)
+			defer cancel()
+			snapshot, err = trialSnapshotM(ctx, NewRealNDMCM())
+			if err != nil {
+				fail(w, http.StatusBadGateway, fmt.Errorf("read-only native inventory: %w", err))
+				return
+			}
+		}
+		report := BuildNativeIngressAuditP7(cfg, snapshot)
+		report.NDMCInvoked = live == "1" // read-only show, never a mutation
+		w.Header().Set("ETag", fmt.Sprintf("%q", rev))
+		respondJSON(w, http.StatusOK, map[string]any{"revision": rev, "audit": report, "runtime_changed": false, "dns_writes": false})
 	})
 	mux.HandleFunc("/v1/runtime/resources", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

@@ -123,6 +123,14 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, 200, map[string]any{"active": a.Shadow.Active(), "interception": false, "stats": a.Shadow.Stats()})
 	})
+	mux.HandleFunc("/v1/keenetic/native-dns", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		respondJSON(w, http.StatusOK, ReadOnlyNativeDNSInventoryP82("/var"))
+	})
 	mux.HandleFunc("/v1/upstreams/status", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

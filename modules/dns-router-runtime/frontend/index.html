@@ -144,7 +144,7 @@
       <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 01</span><h2>Upstream-пулы</h2><p>DNS-серверы, транспорт и явно заданные резервные цепочки.</p></div></div>
       <form id="upstreamForm" class="form-grid fields-upstream">
         <label><span>ID пула</span><input name="id" required maxlength="64" placeholder="cloudflare"></label>
-        <label><span>Протокол</span><select name="transport"><option value="dot">DoT (TLS)</option><option value="doh">DoH (HTTPS)</option><option value="doq">DoQ (QUIC)</option><option value="udp" hidden>UDP (открытый)</option><option value="tcp" hidden>TCP (открытый)</option></select></label>
+        <label><span>Протокол</span><select name="transport"><option value="dot">DoT (TLS)</option><option value="doh">DoH (HTTPS)</option><option value="doq">DoQ (QUIC)</option><option value="native">Keenetic Native (локальный stubby, experimental)</option><option value="udp" hidden>UDP (открытый)</option><option value="tcp" hidden>TCP (открытый)</option></select></label>
         <label><span>Адрес</span><input name="address" required placeholder="1.1.1.1:853"></label>
         <label><span>TLS SNI (DoT/DoH/DoQ)</span><input name="server_name" placeholder="dns.example.com"></label>
         <label><span>DoH path</span><input name="path" placeholder="/dns-query"></label>
@@ -152,9 +152,10 @@
         <div class="form-actions"><button class="button primary" type="submit">+ Добавить пул</button></div>
       </form>
       <label class="span-all"><input type="checkbox" id="p8PlainProtocols"> Расширенные: показывать открытые DNS (UDP/TCP)</label>
+      <p class="boundary-copy">Keenetic Native: транспорт native, адрес вида <code>native://System/./9.9.9.9</code> или <code>native://Policy0/ru/common.dot.dns.yandex.net</code>. Выбирается текущий loopback-порт из ndnproxy, но только с явным флагом <code>--native-bridge-experimental</code> при старте DNS Router. Шифрование за пределами локального stubby этим режимом не доказывается, поэтому encrypted-only группы его не принимают.</p>
       <p class="boundary-copy">Новые зашифрованные группы не допускают fallback к UDP/TCP. Для уже сохранённых групп совместимость сохраняется.</p>
       <div class="table-wrap" id="upstreamList"></div>
-      <div class="panel-actions"><button type="button" id="upstreamStatusButton" class="button">Статистика upstream (без проб)</button></div>
+      <div class="panel-actions"><button type="button" id="upstreamStatusButton" class="button">Статистика upstream (без проб)</button><button type="button" id="nativeBridgePreviewButton" class="button">Keenetic Native: проверить привязки (RO)</button></div>
       <pre class="console" id="upstreamStatus">Нет измерений</pre>
     </section>
     <section class="panel">

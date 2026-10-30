@@ -211,6 +211,10 @@
       feedback('DPR2-G: исключительно симуляция in-memory, конфигурация Keenetic не менялась');
     } catch(err) { feedback('DPR2-G: '+err.message); }
   });
+  el('nativeBridgePreviewButton').addEventListener('click',async()=>{
+    try {const data=await request('keenetic/native-bridge/preview');el('upstreamStatus').textContent=JSON.stringify(data,null,2);feedback('Keenetic Native: предварительная проверка без изменения DNS');}
+    catch(err){feedback('Native Bridge: '+err.message);}
+  });
   el('upstreamStatusButton').addEventListener('click',async()=>{
     try {const data=await request('upstreams/status');el('upstreamStatus').textContent=JSON.stringify(data,null,2);}
     catch(err){feedback('Диагностика: '+err.message);}

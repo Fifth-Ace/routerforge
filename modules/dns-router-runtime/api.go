@@ -131,6 +131,20 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, http.StatusOK, ReadOnlyNativeDNSInventoryP82("/var"))
 	})
+	mux.HandleFunc("/v1/keenetic/native-bridge/preview", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		cfg, _, err := a.Store.Load()
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
+		}
+		inventory := ReadOnlyNativeDNSInventoryP82("/var")
+		respondJSON(w, http.StatusOK, BuildNativeBridgePreviewP83(cfg, inventory))
+	})
 	mux.HandleFunc("/v1/upstreams/status", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

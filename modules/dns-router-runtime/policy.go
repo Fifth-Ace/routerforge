@@ -139,8 +139,15 @@ func Compile(cfg Config) (*Engine, error) {
 		if _, dup := e.upstreams[u.ID]; dup {
 			return nil, fmt.Errorf("duplicate upstream %q", u.ID)
 		}
-		if u.Transport != "udp" && u.Transport != "tcp" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" {
+		if u.Transport != "udp" && u.Transport != "tcp" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" && u.Transport != "native" {
 			return nil, fmt.Errorf("invalid transport for %q", u.ID)
+		}
+		if u.Transport == "native" {
+			if _, err := parseNativeSelectorP83(u); err != nil {
+				return nil, fmt.Errorf("upstream %q: %w", u.ID, err)
+			}
+			e.upstreams[u.ID] = u
+			continue
 		}
 		host, port, err := net.SplitHostPort(u.Address)
 		if err != nil {

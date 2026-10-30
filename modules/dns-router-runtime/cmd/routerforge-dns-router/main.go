@@ -32,6 +32,7 @@ func main() {
 	socket := flag.String("socket", "/opt/var/run/routerforge-dns-router.sock", "management socket")
 	ui := flag.String("ui", "/opt/share/routerforge/modules/dns-router/ui", "UI directory")
 	shadow := flag.Bool("shadow-forward", false, "EXPLICIT shadow UDP/TCP forwarder on loopback/high port; no router DNS takeover")
+	nativeBridge := flag.Bool("native-bridge-experimental", false, "EXPLICIT native Keenetic local stubby bridge for opt-in shadow only; no ndmc changes")
 	listen := flag.String("shadow-listen", "127.0.0.1:55353", "shadow listener, never :53")
 	ndmcTrial := flag.Bool("ndmc-transaction-experimental", false, "DSTest-only bounded ndmc trial with automatic exact rollback")
 	managedTrial := flag.Bool("ndmc-managed-trial-experimental", false, "DSTest-only bounded 1..8 zone transactional trial with exact rollback")
@@ -109,6 +110,9 @@ func main() {
 	if *shadow && !*serve {
 		log.Fatal("--shadow-forward requires --serve")
 	}
+	if *nativeBridge && !*serve {
+		log.Fatal("--native-bridge-experimental requires --serve")
+	}
 	if *assessHardwareH != "" {
 		if *assessHardware != "" || *serve || *shadow || *domain != "" || *hardwareReport {
 			log.Fatal("--assess-h-report is offline-only and cannot be combined with runtime operations")
@@ -168,7 +172,7 @@ func main() {
 	}
 	store := dnsrouter.NewConfigStore(*config)
 	if *serve {
-		if err := runManagement(store, *config, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial, *durableOptIn, *startupOptIn, *lifetimeOptIn); err != nil {
+		if err := runManagement(store, *config, *socket, *ui, *shadow, *listen, *allowLAN, *clients, *ndmcTrial, *managedTrial, *durableOptIn, *startupOptIn, *lifetimeOptIn, *nativeBridge); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -190,7 +194,7 @@ func main() {
 	_ = json.NewEncoder(os.Stdout).Encode(d)
 }
 
-func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool, durableOptIn bool, startupOptIn bool, lifetimeOptIn bool) error {
+func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, enableShadow bool, shadowListen string, allowLAN bool, clients string, ndmcTrial bool, managedTrial bool, durableOptIn bool, startupOptIn bool, lifetimeOptIn bool, nativeBridge bool) error {
 	if !filepath.IsAbs(socket) {
 		return fmt.Errorf("Unix socket path must be absolute")
 	}
@@ -211,7 +215,7 @@ func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, 
 	if clients != "" {
 		allowed = strings.Split(clients, ",")
 	}
-	lifecycle := dnsrouter.NewLifecycleManager(store, dnsrouter.ShadowOptions{Listen: shadowListen, AllowLAN: allowLAN, AllowedClients: allowed})
+	lifecycle := dnsrouter.NewLifecycleManager(store, dnsrouter.ShadowOptions{Listen: shadowListen, AllowLAN: allowLAN, AllowedClients: allowed, NativeBridge: nativeBridge})
 	if enableShadow {
 		_, rev, err := store.Load()
 		if err != nil {

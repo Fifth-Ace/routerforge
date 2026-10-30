@@ -38,6 +38,8 @@ type ShadowOptions struct {
 	Workers        int
 	Dial           DialContextFunc // injectable for tests; production uses net.Dialer
 	RootCAs        *x509.CertPool  // test-only override via constructor; CLI always uses system roots
+	NativeBridge   bool
+	NativeDNSDir   string
 }
 
 type ShadowStats struct {
@@ -80,6 +82,11 @@ func NewShadowForwarder(cfg Config, opts ShadowOptions) (*ShadowForwarder, error
 	engine, err := Compile(cfg)
 	if err != nil {
 		return nil, err
+	}
+	for _, upstream := range cfg.Upstreams {
+		if upstream.Transport == "native" && !opts.NativeBridge {
+			return nil, errors.New("native bridge requires --native-bridge-experimental")
+		}
 	}
 	host, port, err := net.SplitHostPort(strings.TrimSpace(opts.Listen))
 	if err != nil {
@@ -440,6 +447,8 @@ func (f *ShadowForwarder) recordUpstream(id string, success bool, elapsed time.D
 
 func (f *ShadowForwarder) exchange(ctx context.Context, upstream Upstream, query []byte) ([]byte, error) {
 	switch upstream.Transport {
+	case "native":
+		return f.exchangeNativeP83(ctx, upstream, query)
 	case "udp", "tcp":
 		conn, err := f.opts.Dial(ctx, upstream.Transport, upstream.Address)
 		if err != nil {

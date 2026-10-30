@@ -51,6 +51,7 @@
     el('listenerACL').value=(listener.allowed_clients||[]).join(',');
     el('revision').textContent = (dirty ? '● Не сохранено · ' : '') + revision.substring(0,23);
     p5RefreshLists();
+    p88RenderRules();p88RefreshStatus();
   }
   async function load() {
     if (dirty && !confirm('Отменить несохранённые изменения?')) return;
@@ -547,11 +548,196 @@
   p85NativeVisibility();
   p5SourceVisibility();
 
+  // P8.8: simple policy -> native DNS -> domain list. Does not modify Keenetic.
+  const p88 = {inventory:null, catalog:null, policy:'System', loading:false};
+  const p88Id = id => el(id);
+  function p88ParseDomains(raw){
+    const found=[];
+    const seen=new Set();
+    const lines=String(raw||'').split(/\r?\n/);
+    if(lines.length>500)return {error:'Слишком много строк. Для больших файлов используй расширенный импорт.'};
+    for(const line of lines){
+      const stripped=line.split('#')[0].trim();
+      if(!stripped)continue;
+      for(const item of stripped.split(/[\s,;]+/)){
+        if(!item)continue;
+        const domain=item.toLowerCase().replace(/\.$/,'');
+        if(/^\d+(?:\.\d+){3}$/.test(domain) || domain.length>253 || !/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(domain)){
+          return {error:'Некорректный домен: '+item+'. Указывай обычные имена, без URL, IP, масок и ||-фильтров.'};
+        }
+        if(!seen.has(domain)){found.push(domain);seen.add(domain);}
+        if(found.length>200)return {error:'Не больше 200 доменов за один раз. Большие списки добавляй в расширенном режиме.'};
+      }
+    }
+    return {domains:found};
+  }
+  function p88PolicyName(name){
+    if(name==='System')return 'Системная';
+    const p=(p88.catalog && p88.catalog.available ? (p88.catalog.policies||[]) : []).find(x=>x.name===name);
+    return p && p.description ? p.description : name;
+  }
+  function p88RouteHint(name){
+    if(name==='System')return 'Системный DNS';
+    const p=(p88.catalog && p88.catalog.available ? (p88.catalog.policies||[]) : []).find(x=>x.name===name);
+    if(!p)return 'Маршрут не проверен';
+    if(p.ipv4_route_status==='default_absent')return 'Нет маршрута по умолчанию';
+    if(p.ipv4_route_status==='default_present')return 'Маршрут найден · DNS не проверен';
+    return 'Маршрут не проверен';
+  }
+  function p88NativeChoices(){
+    if(!p88.inventory || !p88.inventory.available || p88.inventory.parsed_instances!==(p88.inventory.instances||[]).length)return [];
+    const selected=(p88.inventory.instances||[]).find(x=>x.valid && x.name===p88.policy);
+    if(!selected)return [];
+    const result=[];
+    for(const ep of selected.endpoints||[]){
+      if(ep.domain!=='.' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(ep.upstream_hint||''))continue;
+      const value='native://'+p88.policy+'/./'+ep.upstream_hint;
+      if(!result.some(x=>x.value===value))result.push({value,label:ep.upstream_hint+' · DNS Keenetic',hint:ep.upstream_hint});
+    }
+    return result;
+  }
+  function p88CreateButton(text,click,cls){
+    const btn=document.createElement('button');btn.type='button';btn.className=cls||'button';btn.textContent=text;btn.addEventListener('click',click);return btn;
+  }
+  function p88RenderPolicies(){
+    const root=p88Id('drSimplePolicies');root.replaceChildren();
+    if(!p88.inventory || !p88.inventory.available){
+      const p=document.createElement('p');p.textContent='Список политик пока недоступен. Нажми «Обновить».';root.appendChild(p);return;
+    }
+    const instances=(p88.inventory.instances||[]).filter(x=>x.valid && /^(System|Policy(?:0|[1-9][0-9]{0,2}))$/.test(x.name));
+    if(!instances.some(x=>x.name===p88.policy))p88.policy=instances.some(x=>x.name==='System')?'System':(instances[0]&&instances[0].name)||'';
+    for(const instance of instances){
+      const button=p88CreateButton('',()=>{p88.policy=instance.name;p88RenderPolicies();p88RenderDNS();p88RenderRules();},'dr-simple-policy');
+      button.setAttribute('aria-pressed',String(instance.name===p88.policy));
+      if(instance.name===p88.policy)button.classList.add('selected');
+      const name=document.createElement('strong');name.textContent=p88PolicyName(instance.name);button.appendChild(name);
+      const sub=document.createElement('span');sub.textContent=instance.name==='System'?'Основная · System':instance.name;button.appendChild(sub);
+      const hint=document.createElement('small');hint.textContent=p88RouteHint(instance.name);button.appendChild(hint);
+      root.appendChild(button);
+    }
+  }
+  function p88RenderDNS(){
+    const field=p88Id('drSimpleDNS');const chosen=field.value;
+    field.replaceChildren();
+    const choices=p88NativeChoices();
+    for(const choice of choices){
+      const opt=document.createElement('option');opt.value=choice.value;opt.textContent=choice.label;field.appendChild(opt);
+    }
+    if(choices.some(x=>x.value===chosen))field.value=chosen;
+    field.disabled=!choices.length;
+    p88Id('drSimpleAdd').disabled=!choices.length;
+    p88Id('drSimpleProbe').disabled=!choices.length;
+    p88Id('drSimpleDNSNote').textContent=choices.length ?
+      'DNS-сервер используется через штатную инфраструктуру Keenetic. Проверка ответа — только по кнопке.' :
+      'Для этой политики нет подходящего DNS зоны «.» или инвентаризация недоступна. В расширенном режиме доступны другие настройки.';
+    p88Id('drSimpleRoute').textContent=p88.policy ? p88PolicyName(p88.policy)+' · '+p88RouteHint(p88.policy) : 'Политика не выбрана';
+    p88Id('drSimpleProbeResult').textContent='DNS-запрос ещё не выполнялся.';
+  }
+  function p88RenderRules(){
+    const root=p88Id('drSimpleRuleList');root.replaceChildren();
+    const current=(config.rules||[]).filter(r=>{
+      const u=(config.upstreams||[]).find(x=>x.id===r.upstream);
+      return u && u.transport==='native' && u.address.startsWith('native://'+p88.policy+'/');
+    });
+    p88Id('drSimpleRuleCount').textContent=String(current.length)+' доменов';
+    if(!current.length){const empty=document.createElement('p');empty.textContent='Здесь пока нет доменных правил. Добавь домены выше.';root.appendChild(empty);return;}
+    for(const rule of current){
+      const row=document.createElement('div');row.className='dr-simple-rule';
+      const info=document.createElement('span');info.textContent=rule.domain+' · '+((config.upstreams||[]).find(u=>u.id===rule.upstream)||{}).address.split('/').pop();row.appendChild(info);
+      row.appendChild(p88CreateButton('Удалить',()=>{
+        const idx=(config.rules||[]).findIndex(x=>x.id===rule.id);
+        if(idx<0)return;
+        config.rules.splice(idx,1);markDirty();
+      },'button danger'));
+      root.appendChild(row);
+    }
+  }
+  function p88RefreshStatus(){
+    p88Id('drSimpleSave').disabled=!dirty;
+    p88Id('drSimpleState').textContent=dirty ?
+      'Есть несохранённые изменения. На DNS Keenetic они не влияют.' :
+      'Конфигурация сохранена. Маршрутизация клиентского DNS автоматически НЕ включалась.';
+  }
+  async function p88Scan(){
+    if(p88.loading)return;
+    p88.loading=true;
+    p88Id('drSimpleScan').disabled=true;
+    p88Id('drSimpleState').textContent='Читаю DNS и политики Keenetic (только чтение)…';
+    try{
+      const [inventory,catalog]=await Promise.all([request('keenetic/native-dns'),request('keenetic/native-policies')]);
+      p88.inventory=inventory;p88.catalog=catalog;
+      p88RenderPolicies();p88RenderDNS();p88RenderRules();
+      p88RefreshStatus();
+      if(!inventory.available)p88Id('drSimpleState').textContent='DNS-инвентаризация недоступна. Создание правил заблокировано.';
+      else if(!catalog.available)p88Id('drSimpleState').textContent='DNS найдены, но имена пользовательских политик недоступны; проверь выбранную политику.';
+    }catch(err){
+      p88.inventory=null;p88.catalog=null;
+      p88RenderPolicies();p88RenderDNS();
+      p88Id('drSimpleState').textContent='Не удалось прочитать Keenetic: '+err.message;
+    }finally{p88.loading=false;p88Id('drSimpleScan').disabled=false;}
+  }
+  p88Id('drModeSimple').addEventListener('click',()=>{
+    p88Id('drAdvancedWorkspace').hidden=true;p88Id('drSimpleWorkspace').hidden=false;
+    p88Id('dnsRouterWorkspace').classList.remove('dr-mode-advanced');
+    p88Id('drModeSimple').setAttribute('aria-pressed','true');p88Id('drModeAdvanced').setAttribute('aria-pressed','false');
+    p88RenderRules();p88RefreshStatus();
+  });
+  p88Id('drModeAdvanced').addEventListener('click',()=>{
+    p88Id('drSimpleWorkspace').hidden=true;p88Id('drAdvancedWorkspace').hidden=false;
+    p88Id('dnsRouterWorkspace').classList.add('dr-mode-advanced');
+    p88Id('drModeSimple').setAttribute('aria-pressed','false');p88Id('drModeAdvanced').setAttribute('aria-pressed','true');
+  });
+  p88Id('drSimpleScan').addEventListener('click',p88Scan);
+  p88Id('drSimpleAdd').addEventListener('click',()=>{
+    const selected=p88Id('drSimpleDNS').value;
+    if(!p88NativeChoices().some(x=>x.value===selected)){
+      p88Id('drSimpleState').textContent='Выбери DNS-сервер из текущего списка Keenetic.';return;
+    }
+    const parsed=p88ParseDomains(p88Id('drSimpleDomains').value);
+    if(parsed.error){p88Id('drSimpleState').textContent=parsed.error;return;}
+    if(!parsed.domains.length){p88Id('drSimpleState').textContent='Добавь хотя бы один домен.';return;}
+    const existing=new Set((config.rules||[]).map(r=>String(r.domain).toLowerCase()));
+    const duplicate=parsed.domains.find(domain=>existing.has(domain));
+    if(duplicate){p88Id('drSimpleState').textContent='Домен '+duplicate+' уже есть в правилах. Открой расширенные настройки, чтобы изменить его DNS.';return;}
+    if(!Array.isArray(config.upstreams))config.upstreams=[];
+    if(!Array.isArray(config.rules))config.rules=[];
+    let upstream=config.upstreams.find(u=>u.transport==='native' && u.address===selected);
+    if(!upstream){
+      let n=1;while(config.upstreams.some(u=>u.id==='native-'+n))n++;
+      upstream={id:'native-'+n,transport:'native',address:selected};
+      config.upstreams.push(upstream);
+    }
+    for(const domain of parsed.domains){
+      let n=1;while(config.rules.some(r=>r.id==='domain-'+n))n++;
+      config.rules.push({id:'domain-'+n,domain,match:'suffix',upstream:upstream.id,priority:100});
+    }
+    p88Id('drSimpleDomains').value='';
+    markDirty();
+    p88Id('drSimpleState').textContent='Добавлено '+parsed.domains.length+' доменов в черновик. Нажми «Сохранить настройки». DNS Keenetic не изменён.';
+  });
+  p88Id('drSimpleSave').addEventListener('click',()=>p88Id('saveButton').click());
+  p88Id('drSimpleProbe').addEventListener('click',async()=>{
+    const selected=p88Id('drSimpleDNS').value;
+    const parts=selected.startsWith('native://')?selected.slice(9).split('/'):[];
+    if(parts.length!==3 || parts[1]!=='.')return;
+    p88Id('drSimpleProbeResult').textContent='Проверяю DNS-запросом example.com…';
+    try{
+      const q=new URLSearchParams({instance:parts[0],hint:parts[2]});
+      const res=await request('keenetic/native-dns/probe?'+q.toString());
+      p88Id('drSimpleProbeResult').textContent=res.dns_success ?
+        'DNS отвечает · '+res.latency_ms+' мс · проверка шифрования не выполнялась' :
+        'DNS не отвечает корректно · '+(res.error||('RCODE '+res.rcode));
+    }catch(err){p88Id('drSimpleProbeResult').textContent='Ошибка проверки: '+err.message;}
+  });
+  p88Id('drSimpleAdvanced').addEventListener('click',()=>p88Id('drModeAdvanced').click());
+  p88RefreshStatus();
+  p88Scan().catch(err=>{p88Id('drSimpleState').textContent='Ошибка загрузки: '+err.message;});
+
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));
   shadowRefresh().catch(()=>{});
 })();
 
-/* RouterForge DNS Router 2.0 unified UI bridge; presentation only.
+/* RouterForge DNS Router unified UI bridge; presentation only.
    No API mutations, DNS changes or request interception. */
 (() => {
   'use strict';

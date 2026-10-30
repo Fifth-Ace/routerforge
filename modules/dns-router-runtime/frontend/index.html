@@ -3,17 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>RouterForge · DNS Policy Router 2.0</title>
+  <title>RouterForge · DNS Router</title>
   <link rel="stylesheet" href="module.css">
 </head>
 <body>
 <main class="dr-page" id="dnsRouterWorkspace">
   <header class="hero">
     <div class="hero-copy">
-      <h1>DNS Policy Router <span class="title-version">2.0</span></h1>
+      <h1>DNS Router</h1>
       <p>Управление DNS-пулами, доменными маршрутами и безопасным тестовым DNS-сервисом.</p>
     </div>
     <div class="hero-actions">
+      <div class="dr-mode-toggle" aria-label="Режим интерфейса"><button type="button" id="drModeSimple" aria-pressed="true">Простой</button><button type="button" id="drModeAdvanced" aria-pressed="false">Расширенный</button></div>
       <span class="state neutral" id="shadowBadge">SHADOW · ПРОВЕРКА</span>
       <span class="state safe">ШТАТНЫЙ DNS НЕ ЗАТРОНУТ</span>
       <button type="button" id="reloadButton" class="button">↻ Обновить</button>
@@ -22,6 +23,41 @@
 
   <div class="feedback neutral" id="feedback" role="status" aria-live="polite">Чтение конфигурации…</div>
 
+  <section class="dr-simple-workspace" id="drSimpleWorkspace" aria-label="Простое управление DNS">
+    <div class="dr-simple-intro">
+      <div><span class="section-kicker">ПРОСТОЕ УПРАВЛЕНИЕ</span><h2>Какой DNS использовать для доменов?</h2><p>Выбери политику Keenetic, DNS-сервер и вставь домены. Остальные настройки оставим специалистам.</p></div>
+      <button type="button" class="button" id="drSimpleScan">↻ Обновить политики и DNS</button>
+    </div>
+    <div class="dr-simple-layout">
+      <aside class="dr-simple-side" aria-label="Политики Keenetic">
+        <h3>1. Политика Keenetic</h3><p class="dr-simple-help">Выбираем DNS-профиль; назначение устройств к политике не меняем</p>
+        <div id="drSimplePolicies" class="dr-simple-policies"><p>Поиск политик…</p></div>
+      </aside>
+      <div class="dr-simple-main">
+        <section class="dr-simple-panel">
+          <h3>2. DNS-сервер</h3>
+          <p id="drSimpleRoute" class="dr-simple-context">Загрузка…</p>
+          <label class="dr-simple-field"><span>DNS из выбранной политики</span><select id="drSimpleDNS" aria-label="DNS-сервер выбранной политики" disabled></select></label>
+          <p class="dr-simple-help" id="drSimpleDNSNote">Проверяем доступные DNS…</p>
+          <div class="dr-simple-probe"><button type="button" class="button" id="drSimpleProbe" disabled>Проверить DNS</button><span id="drSimpleProbeResult">DNS-запрос ещё не выполнялся.</span></div>
+        </section>
+        <section class="dr-simple-panel">
+          <h3>3. Домены</h3><p class="dr-simple-help">По одному на строку или через запятую. Поддомены включаются автоматически.</p>
+          <label class="dr-simple-field"><span>Какие домены направлять на этот DNS?</span><textarea id="drSimpleDomains" rows="7" placeholder="youtube.com&#10;googlevideo.com&#10;ytimg.com"></textarea></label>
+          <div class="dr-simple-actions"><button type="button" class="button primary" id="drSimpleAdd" disabled>+ Добавить домены</button><button type="button" class="button primary" id="drSimpleSave" disabled>Сохранить настройки</button></div>
+          <p class="dr-simple-state" id="drSimpleState" role="status" aria-live="polite">Подключаемся к Keenetic…</p>
+        </section>
+        <section class="dr-simple-panel">
+          <div class="dr-simple-list-head"><h3>Домены этой политики</h3><span id="drSimpleRuleCount">0 доменов</span></div>
+          <div id="drSimpleRuleList" class="dr-simple-rules"><p>Правил пока нет.</p></div>
+          <p class="dr-simple-help">Правила сохранены в DNS Router, но это ещё не означает, что клиенты Keenetic используют их. Активное подключение DNS — отдельный этап.</p>
+        </section>
+      </div>
+    </div>
+    <p class="dr-simple-bottom">Нужны DoT/DoH вручную, списки по ссылке, приоритеты или тестовая активация? <button id="drSimpleAdvanced" type="button" class="button">Открыть расширенные настройки</button></p>
+  </section>
+
+  <div id="drAdvancedWorkspace" hidden>
   <section class="metrics" aria-label="Сводка DNS Router">
     <article class="metric"><span>UPSTREAM-ПУЛЫ</span><strong id="metricUpstreams">—</strong><small>DNS-серверы и резервные цепочки</small></article>
     <article class="metric"><span>ДОМЕННЫЕ ПРАВИЛА</span><strong id="metricRules">—</strong><small>Точные, суффиксы, поддомены</small></article>
@@ -259,6 +295,7 @@
     <div class="save-meta"><strong id="metricFooter">DNS Router</strong><span id="revision">—</span></div>
     <div class="save-actions"><button id="exportButton" type="button" class="button">Экспорт JSON</button><button id="saveButton" type="button" class="button primary">Сохранить изменения</button></div>
   </footer>
+  </div><!-- drAdvancedWorkspace: original controls preserved -->
 </main>
 <script defer src="app.js"></script>
 </body>

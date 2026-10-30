@@ -15,7 +15,8 @@ test('P8.7 policy discovery is explicitly requested and read only',()=>{
   assert.match(api,/\/v1\/keenetic\/native-policies/);
   assert.match(api,/ReadOnlyNativePoliciesP87\(r\.Context\(\)\)/);
   assert.match(policies,/"show ip policy"/);
-  assert.match(policies,/exec\.CommandContext/);
+  assert.match(policies,/safety\.CommandContext/);
+  assert.doesNotMatch(policies,/exec\.CommandContext/);
   assert.doesNotMatch(policies,/system configuration save|no ip policy|ip name-server/);
   assert.match(policies,/DNSProbePerformed\s+bool/);
 });

@@ -73,6 +73,7 @@ type ShadowForwarder struct {
 	failovers      atomic.Uint64
 	statsMu        sync.Mutex
 	upstreamStats  map[string]UpstreamStats
+	doqP8          *doqClientP8
 }
 
 func NewShadowForwarder(cfg Config, opts ShadowOptions) (*ShadowForwarder, error) {
@@ -129,7 +130,7 @@ func NewShadowForwarder(cfg Config, opts ShadowOptions) (*ShadowForwarder, error
 		dialer := &net.Dialer{Timeout: opts.Timeout}
 		opts.Dial = dialer.DialContext
 	}
-	return &ShadowForwarder{engine: engine, opts: opts, allowedClients: allowlist, sem: make(chan struct{}, opts.Workers), upstreamStats: make(map[string]UpstreamStats)}, nil
+	return &ShadowForwarder{engine: engine, opts: opts, allowedClients: allowlist, sem: make(chan struct{}, opts.Workers), upstreamStats: make(map[string]UpstreamStats), doqP8: newDoQClientP8()}, nil
 }
 
 // allowSource drops unauthorized DNS packets before they reach policy/upstream logic.
@@ -153,6 +154,7 @@ func (f *ShadowForwarder) Stats() ShadowStats {
 func (f *ShadowForwarder) Active() bool { return f.active.Load() }
 
 func (f *ShadowForwarder) Serve(ctx context.Context) error {
+	defer f.doqP8.close()
 	// Listening is always an explicitly invoked operation, never automatic.
 	addr, err := net.ResolveUDPAddr("udp", f.opts.Listen)
 	if err != nil {
@@ -464,6 +466,8 @@ func (f *ShadowForwarder) exchange(ctx context.Context, upstream Upstream, query
 		return exchangeDNSConn(tlsConn, "tcp", query)
 	case "doh":
 		return f.exchangeDoH(ctx, upstream, query)
+	case "doq":
+		return f.doqP8.exchange(ctx, upstream, f.opts, query)
 	default:
 		return nil, errors.New("unsupported upstream transport")
 	}
@@ -503,7 +507,7 @@ func exchangeDNSConn(conn net.Conn, transport string, query []byte) ([]byte, err
 func (f *ShadowForwarder) exchangeDoH(ctx context.Context, upstream Upstream, query []byte) ([]byte, error) {
 	endpoint := &url.URL{Scheme: "https", Host: upstream.ServerName, Path: upstream.Path}
 	transport := &http.Transport{
-		Proxy: nil, ForceAttemptHTTP2: false, DisableKeepAlives: true,
+		Proxy: nil, ForceAttemptHTTP2: true, DisableKeepAlives: true,
 		TLSClientConfig: &tls.Config{ServerName: upstream.ServerName, RootCAs: f.opts.RootCAs, MinVersion: tls.VersionTLS12},
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			// Ignore URI hostname for dialing: it is only used for SNI and

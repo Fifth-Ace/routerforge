@@ -64,7 +64,7 @@
       <section class="panel">
         <div class="panel-head"><div><span class="section-kicker">КОНФИГУРАЦИЯ</span><h2>Как работают правила</h2></div></div>
         <div class="steps">
-          <div class="step"><span>01</span><div><strong>Создай upstream-пулы</strong><p>DNS через UDP, TCP, DoT или DoH с резервными серверами.</p></div></div>
+          <div class="step"><span>01</span><div><strong>Создай upstream-пулы</strong><p>Основные транспорты — DoT, DoH и DoQ. Открытые DNS доступны в расширенных настройках.</p></div></div>
           <div class="step"><span>02</span><div><strong>Задай доменные маршруты</strong><p>Правила для домена, суффикса или поддоменов с приоритетами.</p></div></div>
           <div class="step"><span>03</span><div><strong>Проверь и сохрани</strong><p>Сначала тест решения, затем явное применение к shadow.</p></div></div>
         </div>
@@ -91,6 +91,7 @@
         <form id="drGroupForm" class="form-grid">
           <label><span>ID группы</span><input name="id" maxlength="40" pattern="[a-zA-Z0-9_-]+" placeholder="cloudflare-only" required></label>
           <label><span>Название</span><input name="name" maxlength="80" placeholder="Cloudflare · только свои DNS" required></label>
+          <label class="span-all"><input type="checkbox" name="encrypted_only" checked> Только зашифрованные DNS (DoT/DoH/DoQ); запрет UDP/TCP и неявных резервов</label>
           <label class="span-all"><span>DNS-серверы в порядке приоритета — ID через запятую</span><input id="drGroupServers" name="servers" placeholder="cloudflare-doh, cloudflare-dot" required><small>Используются только указанные серверы. Унаследованные резервы этих серверов игнорируются.</small></label>
           <div class="form-actions"><button class="button primary" type="submit">+ Создать DNS-группу</button></div>
         </form>
@@ -143,13 +144,15 @@
       <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 01</span><h2>Upstream-пулы</h2><p>DNS-серверы, транспорт и явно заданные резервные цепочки.</p></div></div>
       <form id="upstreamForm" class="form-grid fields-upstream">
         <label><span>ID пула</span><input name="id" required maxlength="64" placeholder="cloudflare"></label>
-        <label><span>Протокол</span><select name="transport"><option value="udp">UDP</option><option value="tcp">TCP</option><option value="dot">DoT (TLS)</option><option value="doh">DoH (HTTPS)</option></select></label>
-        <label><span>Адрес</span><input name="address" required placeholder="1.1.1.1:53"></label>
-        <label><span>TLS SNI (DoT/DoH)</span><input name="server_name" placeholder="dns.example.com"></label>
+        <label><span>Протокол</span><select name="transport"><option value="dot">DoT (TLS)</option><option value="doh">DoH (HTTPS)</option><option value="doq">DoQ (QUIC)</option><option value="udp" hidden>UDP (открытый)</option><option value="tcp" hidden>TCP (открытый)</option></select></label>
+        <label><span>Адрес</span><input name="address" required placeholder="1.1.1.1:853"></label>
+        <label><span>TLS SNI (DoT/DoH/DoQ)</span><input name="server_name" placeholder="dns.example.com"></label>
         <label><span>DoH path</span><input name="path" placeholder="/dns-query"></label>
         <label><span>Резервные ID через запятую</span><input name="fallbacks" placeholder="secondary, backup"></label>
         <div class="form-actions"><button class="button primary" type="submit">+ Добавить пул</button></div>
       </form>
+      <label class="span-all"><input type="checkbox" id="p8PlainProtocols"> Расширенные: показывать открытые DNS (UDP/TCP)</label>
+      <p class="boundary-copy">Новые зашифрованные группы не допускают fallback к UDP/TCP. Для уже сохранённых групп совместимость сохраняется.</p>
       <div class="table-wrap" id="upstreamList"></div>
       <div class="panel-actions"><button type="button" id="upstreamStatusButton" class="button">Статистика upstream (без проб)</button></div>
       <pre class="console" id="upstreamStatus">Нет измерений</pre>

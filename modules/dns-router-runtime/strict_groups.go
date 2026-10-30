@@ -14,9 +14,10 @@ const maxDNSGroups = 64
 const maxDNSGroupServers = 8
 
 type DNSGroup struct {
-	ID      string   `json:"id"`
-	Name    string   `json:"name"`
-	Servers []string `json:"servers"` // ordered, first is primary; remaining are explicit backups
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Servers       []string `json:"servers"`                  // ordered, first is primary; remaining are explicit backups
+	EncryptedOnly bool     `json:"encrypted_only,omitempty"` // P8: new groups default true in UI, legacy false preserved
 }
 
 func compileDNSGroups(cfg Config, upstreams map[string]Upstream) (map[string]DNSGroup, error) {
@@ -39,8 +40,12 @@ func compileDNSGroups(cfg Config, upstreams map[string]Upstream) (map[string]DNS
 		}
 		seen := make(map[string]bool, len(g.Servers))
 		for _, id := range g.Servers {
-			if _, ok := upstreams[id]; !ok {
+			u, ok := upstreams[id]
+			if !ok {
 				return nil, fmt.Errorf("DNS group %q references unknown upstream %q", g.ID, id)
+			}
+			if g.EncryptedOnly && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" {
+				return nil, fmt.Errorf("encrypted-only DNS group %q cannot contain plaintext upstream %q", g.ID, id)
 			}
 			if seen[id] {
 				return nil, fmt.Errorf("DNS group %q repeats upstream %q", g.ID, id)

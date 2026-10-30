@@ -136,7 +136,7 @@
     e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget));
     if(config.upstreams.some(u=>u.id===v.id)){feedback('ID пула уже существует');return;}
     const upstream = {id:v.id,transport:v.transport,address:v.address};
-    if (v.transport==='dot'||v.transport==='doh') upstream.server_name=v.server_name.trim();
+    if (['dot','doh','doq'].includes(v.transport)) upstream.server_name=v.server_name.trim();
     if (v.transport==='doh' && v.path.trim()) upstream.path=v.path.trim();
     const reserve=v.fallbacks.split(',').map(s=>s.trim()).filter(Boolean);
     if (reserve.length) upstream.fallbacks=reserve;
@@ -314,6 +314,7 @@
             p5Value('ruleUpstream',item.upstream);
           } else {
             p5EditUpstream=item.id;
+            if(['udp','tcp'].includes(item.transport)){el('p8PlainProtocols').checked=true;for(const o of form.elements.namedItem('transport').options){o.hidden=false;}}
             p5Value('drListUpstream',item.id);
             form.elements.namedItem('fallbacks').value=(item.fallbacks||[]).join(', ');
           }
@@ -399,7 +400,7 @@
     const f=Object.fromEntries(new FormData(e.currentTarget));
     const item=config.upstreams.find(u=>u.id===p5EditUpstream);if(!item)return;
     item.transport=f.transport;item.address=String(f.address).trim();
-    item.server_name=(f.transport==='dot'||f.transport==='doh')?String(f.server_name).trim():undefined;
+    item.server_name=(['dot','doh','doq'].includes(f.transport))?String(f.server_name).trim():undefined;
     item.path=f.transport==='doh'?String(f.path).trim():undefined;
     const fallback=String(f.fallbacks).split(',').map(v=>v.trim()).filter(Boolean);
     item.fallbacks=fallback.length?fallback:undefined;
@@ -418,7 +419,7 @@
       const row=document.createElement('div');row.className='dr-p5-list-row';
       const copy=document.createElement('div');copy.className='dr-p5-list-copy';
       const h=document.createElement('strong');h.textContent=group.name;copy.appendChild(h);
-      const desc=document.createElement('span');desc.textContent=group.servers.join(' → ')+' · только свои DNS · fail-closed';copy.appendChild(desc);row.appendChild(copy);
+      const desc=document.createElement('span');desc.textContent=group.servers.join(' → ')+(group.encrypted_only?' · только шифрование':' · legacy/совместимость')+' · fail-closed';copy.appendChild(desc);row.appendChild(copy);
       const actions=document.createElement('div');actions.className='dr-p5-list-actions';
       const remove=document.createElement('button');remove.type='button';remove.className='button danger';remove.textContent='Удалить';
       remove.addEventListener('click',()=>{
@@ -442,10 +443,21 @@
     if(!ids.length||ids.length>8||new Set(ids).size!==ids.length||ids.some(id=>!config.upstreams.some(u=>u.id===id))){
       feedback('Нужны 1–8 разных существующих DNS-пулов в порядке приоритета');return;
     }
-    config.dns_groups.push({id:f.id,name:f.name,servers:ids});e.currentTarget.reset();markDirty();
+    const encryptedOnly=!!f.encrypted_only;
+    if(encryptedOnly && ids.some(id=>{const u=config.upstreams.find(u=>u.id===id);return !u||!['dot','doh','doq'].includes(u.transport)})){feedback('Группа только с шифрованием не принимает UDP/TCP-пулы');return;}
+    config.dns_groups.push({id:f.id,name:f.name,servers:ids,encrypted_only:encryptedOnly});e.currentTarget.reset();markDirty();
     feedback('Строгая DNS-группа создана в черновике. Сохрани изменения перед импортом списка.');
   });
 
+  const p8Plain=el('p8PlainProtocols');
+  const p8Select=el('upstreamForm').elements.namedItem('transport');
+  function p8PlainVisibility(){
+    if(['udp','tcp'].includes(p8Select.value))p8Plain.checked=true;
+    for(const opt of p8Select.options){if(['udp','tcp'].includes(opt.value))opt.hidden=!p8Plain.checked;}
+  }
+  p8Plain.addEventListener('change',()=>{if(!p8Plain.checked&&['udp','tcp'].includes(p8Select.value))p8Select.value='dot';p8PlainVisibility();});
+  p8Select.addEventListener('change',p8PlainVisibility);
+  p8PlainVisibility();
   p5SourceVisibility();
 
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));

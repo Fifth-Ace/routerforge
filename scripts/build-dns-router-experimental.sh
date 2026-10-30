@@ -54,6 +54,7 @@ if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
   chmod 0755 "$WORK/data/opt/etc/init.d/S95routerforge-dns-router" "$WORK/control/postinst" "$WORK/control/prerm"
 fi
 cp "$ROOT/LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/LICENSE"
+cp "$ROOT/modules/dns-router-runtime/packaging/QUIC-GO-LICENSE" "$WORK/data/opt/share/licenses/$PACKAGE/QUIC-GO-LICENSE"
 cat > "$WORK/control/control" <<CONTROL
 Package: $PACKAGE
 Version: $VERSION

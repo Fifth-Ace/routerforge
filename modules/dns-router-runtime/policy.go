@@ -29,9 +29,9 @@ type Config struct {
 
 type Upstream struct {
 	ID         string   `json:"id"`
-	Transport  string   `json:"transport"`             // udp, tcp, dot, doh
+	Transport  string   `json:"transport"`             // udp, tcp, dot, doh, doq
 	Address    string   `json:"address"`               // explicit unicast IP:port to prevent bootstrap loops
-	ServerName string   `json:"server_name,omitempty"` // required TLS SNI and certificate name for dot/doh
+	ServerName string   `json:"server_name,omitempty"` // required TLS identity for dot/doh/doq
 	Path       string   `json:"path,omitempty"`        // DoH endpoint, defaults to /dns-query
 	Fallbacks  []string `json:"fallbacks,omitempty"`   // explicit same-rule failover, never default DNS
 }
@@ -139,7 +139,7 @@ func Compile(cfg Config) (*Engine, error) {
 		if _, dup := e.upstreams[u.ID]; dup {
 			return nil, fmt.Errorf("duplicate upstream %q", u.ID)
 		}
-		if u.Transport != "udp" && u.Transport != "tcp" && u.Transport != "dot" && u.Transport != "doh" {
+		if u.Transport != "udp" && u.Transport != "tcp" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" {
 			return nil, fmt.Errorf("invalid transport for %q", u.ID)
 		}
 		host, port, err := net.SplitHostPort(u.Address)
@@ -154,7 +154,7 @@ func Compile(cfg Config) (*Engine, error) {
 		if err != nil || p < 1 || p > 65535 {
 			return nil, fmt.Errorf("upstream %q has invalid port", u.ID)
 		}
-		if u.Transport == "dot" || u.Transport == "doh" {
+		if u.Transport == "dot" || u.Transport == "doh" || u.Transport == "doq" {
 			normalized, err := normalizedDomain(u.ServerName)
 			if err != nil || normalized != u.ServerName {
 				return nil, fmt.Errorf("upstream %q requires a lowercase TLS server_name DNS name", u.ID)
@@ -167,7 +167,7 @@ func Compile(cfg Config) (*Engine, error) {
 					return nil, fmt.Errorf("invalid DoH path for %q", u.ID)
 				}
 			} else if u.Path != "" {
-				return nil, fmt.Errorf("DoT upstream %q must not have HTTP path", u.ID)
+				return nil, fmt.Errorf("DoT/DoQ upstream %q must not have HTTP path", u.ID)
 			}
 		} else if u.ServerName != "" || u.Path != "" {
 			return nil, fmt.Errorf("plaintext upstream %q must not set TLS/HTTP options", u.ID)

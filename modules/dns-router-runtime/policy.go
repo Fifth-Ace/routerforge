@@ -28,13 +28,13 @@ type Config struct {
 }
 
 type Upstream struct {
-	ID         string   `json:"id"`
-	Transport  string   `json:"transport"`             // udp, tcp, dot, doh, doq
-	Address    string   `json:"address"`               // explicit unicast IP:port to prevent bootstrap loops
-	ServerName string   `json:"server_name,omitempty"` // required TLS identity for dot/doh/doq
-	Path       string   `json:"path,omitempty"`        // DoH endpoint, defaults to /dns-query
-	Fallbacks  []string `json:"fallbacks,omitempty"`   // explicit same-rule failover, never default DNS
-	CertificatePEM string `json:"certificate_pem,omitempty"` // public snapshot only; NOT a CA/trust override
+	ID             string   `json:"id"`
+	Transport      string   `json:"transport"`                 // udp, tcp, dot, doh, doq
+	Address        string   `json:"address"`                   // explicit unicast IP:port to prevent bootstrap loops
+	ServerName     string   `json:"server_name,omitempty"`     // required TLS identity for dot/doh/doq
+	Path           string   `json:"path,omitempty"`            // DoH endpoint, defaults to /dns-query
+	Fallbacks      []string `json:"fallbacks,omitempty"`       // explicit same-rule failover, never default DNS
+	CertificatePEM string   `json:"certificate_pem,omitempty"` // public snapshot only; NOT a CA/trust override
 }
 
 type Rule struct {

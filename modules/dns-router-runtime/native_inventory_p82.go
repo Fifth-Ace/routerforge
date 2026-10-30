@@ -23,10 +23,10 @@ const maxNativePoliciesP82 = 32
 var nativePolicyFileP82 = regexp.MustCompile(`^ndnproxy_Policy([0-9]{1,3})\.conf$`)
 
 type NativeEndpointP82 struct {
-	Address      string `json:"address"`
-	Domain       string `json:"domain"`
-	UpstreamHint string `json:"upstream_hint,omitempty"`
-	SelectorHint string `json:"selector_hint,omitempty"`
+	Address       string `json:"address"`
+	Domain        string `json:"domain"`
+	UpstreamHint  string `json:"upstream_hint,omitempty"`
+	SelectorHint  string `json:"selector_hint,omitempty"`
 	TransportHint string `json:"transport_hint,omitempty"`
 }
 
@@ -99,7 +99,9 @@ func parseNativeConfigP82(name, source string, raw []byte) NativeInstanceP82 {
 			}) < 0 {
 				ep.UpstreamHint = hint
 				ep.SelectorHint = nativeSelectorHintP90(hint)
-				if strings.HasPrefix(hint, "https://") && strings.HasSuffix(hint, "@dnsm") { ep.TransportHint = "doh" }
+				if strings.HasPrefix(hint, "https://") && strings.HasSuffix(hint, "@dnsm") {
+					ep.TransportHint = "doh"
+				}
 			}
 		}
 		out.Endpoints = append(out.Endpoints, ep)

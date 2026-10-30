@@ -24,8 +24,8 @@ t('P9.0 preserves legacy plaintext hints, fail-closed zone and incomplete invent
 });
 t('P9.0 explicit verified certificate inspection, public PEM snapshot, no auto trust',()=>{
  for(const id of ['drP90Transport','drP90Endpoint','drP90IP','drP90Inspect','drP90Store','drP90Status'])a.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
- a.match(js,/request\('certificates\/inspect',jsonOptions\('certificate-inspect'/);
- a.match(js,/certificate_pem:p90Inspected\.pem/);
+ a.match(js,/request\('certificates\/lookup',jsonOptions\('certificate-lookup'/);
+ a.match(js,/server\.certificate_pem=p90Inspected\.pem/);
  a.match(js,/p90InspectedKey/);
  a.match(js,/p90AllChoices/);
  a.match(api,/\/v1\/certificates\/inspect/);

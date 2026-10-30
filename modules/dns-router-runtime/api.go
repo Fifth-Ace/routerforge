@@ -157,6 +157,27 @@ func (a *API) Handler() http.Handler {
 	})
 	// P9.0: explicit TLS handshake using a literal public IP and normal CA validation.
 	// Returns only public peer certificate metadata; never modifies trust or DNS.
+	mux.HandleFunc("/v1/certificates/lookup", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireMutation(w, r, "certificate-lookup") {
+			return
+		}
+		var req DNSLookupRequestP91
+		if err := decodeBody(r, &req, 2048); err != nil {
+			fail(w, http.StatusBadRequest, err)
+			return
+		}
+		out, err := LookupDNSServerP91(r.Context(), req)
+		if err != nil {
+			fail(w, http.StatusUnprocessableEntity, err)
+			return
+		}
+		respondJSON(w, http.StatusOK, out)
+	})
 	mux.HandleFunc("/v1/certificates/inspect", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "POST")

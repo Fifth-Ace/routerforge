@@ -385,3 +385,14 @@ html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
 .dr-p90-manual input{width:100%;max-width:100%;min-width:0}
 .dr-p90-manual .dr-simple-actions{justify-content:flex-start}
 .dr-p90-manual .dr-simple-state{overflow-wrap:anywhere}
+
+/* P9.1 – one-address, AWG-inspired DNS lookup; details remain optional. */
+.dr-p91-form-row{display:grid;grid-template-columns:minmax(145px,0.8fr) minmax(210px,2fr);gap:12px;min-width:0}
+.dr-p91-form-row .dr-simple-field{min-width:0}
+.dr-p91-found{display:grid;gap:8px;padding:11px;border:1px solid var(--border);border-radius:var(--control-radius);background:var(--surface)}
+.dr-p91-found>div{display:grid;grid-template-columns:minmax(110px,0.4fr) minmax(0,1fr);gap:10px;font-size:12px;overflow-wrap:anywhere}
+.dr-p91-found span{color:var(--muted)}
+.dr-p91-advanced{border-top:1px solid var(--border);padding-top:10px}
+.dr-p91-advanced>summary{font-size:12px;cursor:pointer;color:var(--muted)}
+.dr-p91-advanced pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:190px;overflow:auto;font-size:10px}
+@media(max-width:650px){.dr-p91-form-row{grid-template-columns:minmax(0,1fr)}.dr-p91-found>div{grid-template-columns:minmax(0,1fr);gap:3px}}

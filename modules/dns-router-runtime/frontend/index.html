@@ -42,17 +42,28 @@
           <div class="dr-p89-inventory" aria-label="Все обнаруженные DNS-серверы">
             <h4>Все DNS-серверы выбранной политики</h4>
             <div id="drSimpleDNSInventory" class="dr-p89-dns-catalog"><p>Читаем DNS…</p></div>
-            <p class="dr-simple-help">Список получен из ndnproxy. Зона ограничивает применение правил; тип DoT/DoH и шифрование из этих данных достоверно не определить.</p>
+            <p class="dr-simple-help">Серверы из Keenetic. Можно выбрать существующий или добавить свой.</p>
           </div>
           <details class="dr-p90-manual">
-            <summary>+ Добавить свой DoT / DoH и получить сертификат</summary>
+            <summary>＋ Добавить DNS-сервер</summary>
             <div class="dr-p90-manual-body">
-              <label class="dr-simple-field"><span>Протокол</span><select id="drP90Transport"><option value="doh">DoH (HTTPS)</option><option value="dot">DoT (TLS)</option></select></label>
-              <label class="dr-simple-field"><span>DoH URL или DoT имя сервера</span><input id="drP90Endpoint" type="text" maxlength="300" placeholder="https://dns.example.com/dns-query" autocomplete="off"></label>
-              <label class="dr-simple-field"><span>Публичный IPv4 для подключения</span><input id="drP90IP" type="text" maxlength="15" placeholder="1.1.1.1" autocomplete="off"></label>
-              <p class="dr-simple-help">IP обязателен для безопасного подключения без рекурсивного DNS bootstrap. Для DoH используется порт 443, для DoT — 853. DNS Router не изменяет Keenetic.</p>
-              <div class="dr-simple-actions"><button id="drP90Inspect" type="button" class="button">Получить и проверить TLS-сертификат</button><button id="drP90Store" type="button" class="button primary" disabled>Сохранить сервер и публичный PEM в черновик</button></div>
-              <p class="dr-simple-state" id="drP90Status" role="status" aria-live="polite">Сертификат ещё не запрашивался. Сохранение PEM не означает доверие ему.</p>
+              <div class="dr-p91-form-row">
+                <label class="dr-simple-field"><span>Тип DNS</span><select id="drP90Transport"><option value="doh">DoH (HTTPS)</option><option value="dot">DoT (TLS)</option><option value="udp">UDP (обычный)</option><option value="doq">DoQ (QUIC)</option></select></label>
+                <label class="dr-simple-field"><span>Адрес DNS</span><input id="drP90Endpoint" type="text" maxlength="300" placeholder="https://dns.example.com/dns-query" autocomplete="off" spellcheck="false"></label>
+              </div>
+              <p class="dr-simple-help">Вставь адрес сервера — IP и сертификат найдём сами.</p>
+              <div class="dr-simple-actions"><button id="drP90Inspect" type="button" class="button">Получить IP и сертификаты</button><button id="drP90Store" type="button" class="button primary" disabled>Добавить DNS</button></div>
+              <p class="dr-simple-state" id="drP90Status" role="status" aria-live="polite">Адрес ещё не проверялся.</p>
+              <div class="dr-p91-found" id="drP91Found" hidden>
+                <div><strong>Найденные IP</strong><span id="drP91IPs"></span></div>
+                <div id="drP91CertRow"><strong>Сертификат</strong><span id="drP91Cert"></span></div>
+              </div>
+              <details class="dr-p91-advanced" id="drP91Advanced">
+                <summary>Дополнительно: IP, SNI и сертификат</summary>
+                <label class="dr-simple-field"><span>IP подключения (необязательно)</span><input id="drP90IP" type="text" maxlength="45" placeholder="Определится автоматически" autocomplete="off" spellcheck="false"></label>
+                <label class="dr-simple-field"><span>Имя сертификата (SNI, необязательно)</span><input id="drP91SNI" type="text" maxlength="253" placeholder="Совпадает с адресом сервера" autocomplete="off" spellcheck="false"></label>
+                <details class="dr-p91-advanced" id="drP91PEMWrap" hidden><summary>Публичный сертификат PEM</summary><pre id="drP91PEM"></pre></details>
+              </details>
             </div>
           </details>
           <div class="dr-simple-probe"><button type="button" class="button" id="drSimpleProbe" disabled>Проверить DNS</button><span id="drSimpleProbeResult">DNS-запрос ещё не выполнялся.</span></div>

@@ -156,10 +156,10 @@ func main() {
 		d := dnsrouter.ReadOnlyKeeneticDiscovery()
 		report := map[string]any{
 			"mode": "read-only", "discovery": d,
-			"resources":        dnsrouter.CurrentResourceSnapshot(),
+			"resources":            dnsrouter.CurrentResourceSnapshot(),
 			"native_dns_inventory": dnsrouter.ReadOnlyNativeDNSInventoryP82("/var"),
-			"integration_plan": dnsrouter.BuildKeeneticIntegrationPlan(d),
-			"changes_applied":  false, "hardware_accepted": false,
+			"integration_plan":     dnsrouter.BuildKeeneticIntegrationPlan(d),
+			"changes_applied":      false, "hardware_accepted": false,
 		}
 		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
 			log.Fatal(err)

@@ -131,6 +131,30 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, http.StatusOK, ReadOnlyNativeDNSInventoryP82("/var"))
 	})
+	// P8.7: deliberate, read-only policy metadata query. No DNS requests.
+	mux.HandleFunc("/v1/keenetic/native-policies", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		respondJSON(w, http.StatusOK, ReadOnlyNativePoliciesP87(r.Context()))
+	})
+	// P8.7: ONE explicit DNS probe, restricted to a freshly inventoried loopback
+	// endpoint. No ndmc setters, no bulk scan, no background DNS traffic.
+	mux.HandleFunc("/v1/keenetic/native-dns/probe", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		instance, hint := r.URL.Query().Get("instance"), r.URL.Query().Get("hint")
+		if (instance != "System" && !nativeInstanceP83.MatchString(instance)) || !nativeHintP83.MatchString(hint) {
+			fail(w, http.StatusBadRequest, errors.New("invalid native DNS probe selector"))
+			return
+		}
+		respondJSON(w, http.StatusOK, ProbeNativeDNSP87(r.Context(), ReadOnlyNativeDNSInventoryP82("/var"), instance, hint))
+	})
 	mux.HandleFunc("/v1/keenetic/native-bridge/preview", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

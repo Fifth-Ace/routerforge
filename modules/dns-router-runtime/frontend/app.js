@@ -479,8 +479,24 @@
     status.textContent='Считываю ndnproxy без изменений...';
     p85NativeSelect.replaceChildren();
     try{
-      const [inventory,ready]=await Promise.all([request('keenetic/native-dns'),request('keenetic/native-bridge/status')]);
+      const [inventory,ready,catalog]=await Promise.all([request('keenetic/native-dns'),request('keenetic/native-bridge/status'),request('keenetic/native-policies')]);
       el('p85NativeStatus').textContent=JSON.stringify(ready,null,2);
+      const policyByID=new Map((catalog.available?catalog.policies:[]).map(p=>[p.name,p]));
+      const labelFor=name=>{
+        if(name==='System')return 'Системная (System)';
+        const p=policyByID.get(name);
+        return p && p.description ? p.description+' ('+name+')' : name+' (имя неизвестно)';
+      };
+      const routeFor=name=>{
+        if(name==='System')return 'системный DNS; маршрут не проверен';
+        const p=policyByID.get(name);
+        if(!p)return 'маршрут неизвестен';
+        if(p.ipv4_route_status==='default_present')return 'default route есть (не DNS-проверка)';
+        if(p.ipv4_route_status==='default_absent')return 'нет default route';
+        return 'маршрут неизвестен';
+      };
+      const names=(inventory.instances||[]).filter(p=>p.valid).map(p=>labelFor(p.name)+' — '+routeFor(p.name));
+      el('p87PolicySummary').textContent=names.join(' | ')+(catalog.available?' · NDMC RO':' · имена/маршруты NDMC недоступны');
       if(!inventory.available){status.textContent='Инвентаризация неполная или недоступна. Выбор заблокирован.';return;}
       const choices=[];
       for(const item of inventory.instances||[]){
@@ -488,15 +504,31 @@
         for(const ep of item.endpoints||[]){
           if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(ep.upstream_hint||''))continue;
           const value='native://'+item.name+'/'+ep.domain+'/'+ep.upstream_hint;
-          if(!choices.some(x=>x[0]===value))choices.push([value,item.name+' / '+ep.domain+' / '+ep.upstream_hint+' (текущий '+ep.address+')']);
+          if(!choices.some(x=>x[0]===value))choices.push([value,labelFor(item.name)+' / '+ep.domain+' / '+ep.upstream_hint+' — '+routeFor(item.name)+' (текущий '+ep.address+')']);
         }
       }
       p5Options('p85NativeEndpoint',choices,p85Form.elements.namedItem('address').value);
-      status.textContent='Найдено '+choices.length+' привязок. Порт определяется в runtime. Policy0 может быть без маршрута; egress и шифрование НЕ проверены.';
+      status.textContent='Найдено '+choices.length+' привязок. Только чтение: порт выбирается при запросе; реальную доступность проверь отдельной кнопкой.';
       if(!choices.length)feedback('Подходящие привязки Native отсутствуют');
     }catch(err){status.textContent='Native: '+err.message;feedback('Инвентаризация Native: '+err.message);}
   }
   el('p85NativeScan').addEventListener('click',p85ScanNative);
+  // P8.7: explicit ONE-query health check. Never on page load or inventory scan.
+  el('p87NativeProbe').addEventListener('click',async()=>{
+    const output=el('p87ProbeResult');
+    const selected=p85NativeSelect.value;
+    const parts=selected.startsWith('native://')?selected.slice(9).split('/'):[];
+    if(parts.length!==3 || parts[1]!=='.'){
+      output.textContent='Для активной DNS-проверки выбери upstream зоны «.» (System/PolicyN).';return;
+    }
+    output.textContent='Один DNS-запрос example.com к выбранному локальному endpoint…';
+    const qs=new URLSearchParams({instance:parts[0],hint:parts[2]});
+    try{
+      const result=await request('keenetic/native-dns/probe?'+qs.toString());
+      output.textContent=JSON.stringify(result,null,2);
+      feedback(result.dns_success?'DNS upstream ответил успешно. Доступность проверена; шифрование не доказано.':'DNS upstream не прошёл проверку: '+(result.error||'нет ответа'));
+    }catch(err){output.textContent='Ошибка проверки: '+err.message;feedback('DNS probe: '+err.message);}
+  });
   p85NativeSelect.addEventListener('change',()=>{
     if(p85NativeSelect.value){p85Form.elements.namedItem('address').value=p85NativeSelect.value;feedback('Селектор выбран в форме. Сохрани черновик; runtime не изменён.');}
   });

@@ -148,8 +148,10 @@
         <label><span>Адрес</span><input name="address" required placeholder="1.1.1.1:853"></label>
         <div id="p85NativePicker" class="span-all" hidden>
           <label><span>Штатный DNS Keenetic (System / PolicyN)</span><select id="p85NativeEndpoint" aria-label="Выбор локального DNS-сервера Keenetic"><option value="">Нажми «Найти DNS-инстансы»</option></select></label>
-          <div class="panel-actions"><button id="p85NativeScan" type="button" class="button">Найти DNS-инстансы (RO)</button></div>
+          <div class="panel-actions"><button id="p85NativeScan" type="button" class="button">Найти DNS-инстансы (RO)</button><button id="p87NativeProbe" type="button" class="button">Проверить выбранный DNS (запрос)</button></div>
           <p id="p85NativeMessage" class="boundary-copy">Выбор берёт селектор из ndnproxy; локальный порт не сохраняется. Это не проверка интернет-маршрута или шифрования. Для работы нужен отдельный --native-bridge-experimental.</p>
+          <p id="p87PolicySummary" class="boundary-copy">System — системный DNS. Имена пользовательских PolicyN появятся после ручного чтения show ip policy.</p>
+          <pre id="p87ProbeResult" class="console">DNS-запрос не выполнялся. Нажми кнопку для проверки выбранного upstream.</pre>
         </div>
         <label><span>TLS SNI (DoT/DoH/DoQ)</span><input name="server_name" placeholder="dns.example.com"></label>
         <label><span>DoH path</span><input name="path" placeholder="/dns-query"></label>

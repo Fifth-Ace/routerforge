@@ -151,5 +151,4 @@ func TestP87NewAPIMethodGates(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("invalid selector accepted: %d", w.Code)
 	}
-	_ = time.Now() // explicit time import keeps test variants API-stable
 }

@@ -145,6 +145,25 @@ func (a *API) Handler() http.Handler {
 		inventory := ReadOnlyNativeDNSInventoryP82("/var")
 		respondJSON(w, http.StatusOK, BuildNativeBridgePreviewP83(cfg, inventory))
 	})
+	// P8.5: passive capability/selection status; no DNS probes, ndmc calls or mutations.
+	mux.HandleFunc("/v1/keenetic/native-bridge/status", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		cfg, _, err := a.Store.Load()
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
+		}
+		capability, active, listener := false, false, ""
+		if a.Lifecycle != nil {
+			status := a.Lifecycle.Status()
+			capability, active, listener = a.Lifecycle.opts.NativeBridge, status.Active, status.Listen
+		}
+		respondJSON(w, http.StatusOK, BuildNativeBridgeReadinessP85(cfg, ReadOnlyNativeDNSInventoryP82("/var"), capability, active, listener))
+	})
 	mux.HandleFunc("/v1/upstreams/status", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

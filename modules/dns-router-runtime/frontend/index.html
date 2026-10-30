@@ -146,6 +146,11 @@
         <label><span>ID пула</span><input name="id" required maxlength="64" placeholder="cloudflare"></label>
         <label><span>Протокол</span><select name="transport"><option value="dot">DoT (TLS)</option><option value="doh">DoH (HTTPS)</option><option value="doq">DoQ (QUIC)</option><option value="native">Keenetic Native (локальный stubby, experimental)</option><option value="udp" hidden>UDP (открытый)</option><option value="tcp" hidden>TCP (открытый)</option></select></label>
         <label><span>Адрес</span><input name="address" required placeholder="1.1.1.1:853"></label>
+        <div id="p85NativePicker" class="span-all" hidden>
+          <label><span>Штатный DNS Keenetic (System / PolicyN)</span><select id="p85NativeEndpoint" aria-label="Выбор локального DNS-сервера Keenetic"><option value="">Нажми «Найти DNS-инстансы»</option></select></label>
+          <div class="panel-actions"><button id="p85NativeScan" type="button" class="button">Найти DNS-инстансы (RO)</button></div>
+          <p id="p85NativeMessage" class="boundary-copy">Выбор берёт селектор из ndnproxy; локальный порт не сохраняется. Это не проверка интернет-маршрута или шифрования. Для работы нужен отдельный --native-bridge-experimental.</p>
+        </div>
         <label><span>TLS SNI (DoT/DoH/DoQ)</span><input name="server_name" placeholder="dns.example.com"></label>
         <label><span>DoH path</span><input name="path" placeholder="/dns-query"></label>
         <label><span>Резервные ID через запятую</span><input name="fallbacks" placeholder="secondary, backup"></label>
@@ -153,10 +158,12 @@
       </form>
       <label class="span-all"><input type="checkbox" id="p8PlainProtocols"> Расширенные: показывать открытые DNS (UDP/TCP)</label>
       <p class="boundary-copy">Keenetic Native: транспорт native, адрес вида <code>native://System/./9.9.9.9</code> или <code>native://Policy0/ru/common.dot.dns.yandex.net</code>. Выбирается текущий loopback-порт из ndnproxy, но только с явным флагом <code>--native-bridge-experimental</code> при старте DNS Router. Шифрование за пределами локального stubby этим режимом не доказывается, поэтому encrypted-only группы его не принимают.</p>
+      <p class="boundary-copy">Проверка Native Bridge подтверждает только совпадение селектора и runtime-флаг. Для PolicyN может отсутствовать default route — тогда DNS-запрос завершится отказом. Пример: Policy0 без интернета корректно остаётся заблокированной; RouterForge не меняет её маршруты.</p>
       <p class="boundary-copy">Новые зашифрованные группы не допускают fallback к UDP/TCP. Для уже сохранённых групп совместимость сохраняется.</p>
       <div class="table-wrap" id="upstreamList"></div>
       <div class="panel-actions"><button type="button" id="upstreamStatusButton" class="button">Статистика upstream (без проб)</button><button type="button" id="nativeBridgePreviewButton" class="button">Keenetic Native: проверить привязки (RO)</button></div>
       <pre class="console" id="upstreamStatus">Нет измерений</pre>
+      <pre class="console" id="p85NativeStatus">Native Bridge: статус ещё не запрошен. Режим read-only; готовность привязки не означает доступный интернет.</pre>
     </section>
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 02</span><h2>Доменные правила</h2><p>Правила применяются по приоритету к выбранным upstream-пулам.</p></div></div>

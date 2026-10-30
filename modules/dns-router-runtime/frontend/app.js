@@ -139,6 +139,9 @@
     if (['dot','doh','doq'].includes(v.transport)) upstream.server_name=v.server_name.trim();
     if (v.transport==='doh' && v.path.trim()) upstream.path=v.path.trim();
     const reserve=v.fallbacks.split(',').map(s=>s.trim()).filter(Boolean);
+    if(v.transport==='native' && (v.server_name.trim() || v.path.trim() || reserve.length || !/^native:\/\/(System|Policy(?:0|[1-9][0-9]{0,2}))\/[^/]+\/[^/]+$/.test(v.address.trim()))){
+      feedback('Native: нужен селектор System/PolicyN; TLS SNI, DoH path и резервы запрещены.');return;
+    }
     if (reserve.length) upstream.fallbacks=reserve;
     config.upstreams.push(upstream);e.currentTarget.reset();markDirty();
   });
@@ -212,7 +215,7 @@
     } catch(err) { feedback('DPR2-G: '+err.message); }
   });
   el('nativeBridgePreviewButton').addEventListener('click',async()=>{
-    try {const data=await request('keenetic/native-bridge/preview');el('upstreamStatus').textContent=JSON.stringify(data,null,2);feedback('Keenetic Native: предварительная проверка без изменения DNS');}
+    try {const data=await request('keenetic/native-bridge/status');el('p85NativeStatus').textContent=JSON.stringify(data,null,2);feedback('Keenetic Native: capability и привязки (RO); egress не подтверждён');}
     catch(err){feedback('Native Bridge: '+err.message);}
   });
   el('upstreamStatusButton').addEventListener('click',async()=>{
@@ -318,6 +321,7 @@
             p5Value('ruleUpstream',item.upstream);
           } else {
             p5EditUpstream=item.id;
+            p85NativeVisibility();
             if(['udp','tcp'].includes(item.transport)){el('p8PlainProtocols').checked=true;for(const o of form.elements.namedItem('transport').options){o.hidden=false;}}
             p5Value('drListUpstream',item.id);
             form.elements.namedItem('fallbacks').value=(item.fallbacks||[]).join(', ');
@@ -403,6 +407,9 @@
     e.preventDefault();e.stopImmediatePropagation();
     const f=Object.fromEntries(new FormData(e.currentTarget));
     const item=config.upstreams.find(u=>u.id===p5EditUpstream);if(!item)return;
+    if(f.transport==='native' && (String(f.server_name).trim() || String(f.path).trim() || String(f.fallbacks).trim() || !/^native:\/\/(System|Policy(?:0|[1-9][0-9]{0,2}))\/[^/]+\/[^/]+$/.test(String(f.address).trim()))){
+      feedback('Native: используй селектор из инвентаризации без TLS-полей и резервов.');return;
+    }
     item.transport=f.transport;item.address=String(f.address).trim();
     item.server_name=(['dot','doh','doq'].includes(f.transport))?String(f.server_name).trim():undefined;
     item.path=f.transport==='doh'?String(f.path).trim():undefined;
@@ -453,6 +460,49 @@
     feedback('Строгая DNS-группа создана в черновике. Сохрани изменения перед импортом списка.');
   });
 
+  // P8.5: inventory-backed selector; labels are textContent, never HTML.
+  const p85Form=el('upstreamForm');
+  const p85NativeSelect=el('p85NativeEndpoint');
+  function p85NativeVisibility(){
+    const native=p85Form.elements.namedItem('transport').value==='native';
+    el('p85NativePicker').hidden=!native;
+    const fields=['server_name','path','fallbacks'];
+    for(const field of fields){
+      const node=p85Form.elements.namedItem(field);
+      node.readOnly=native;
+      if(native)node.value='';
+    }
+    if(native && !p85Form.elements.namedItem('address').value.startsWith('native://'))p85Form.elements.namedItem('address').value='';
+  }
+  async function p85ScanNative(){
+    const status=el('p85NativeMessage');
+    status.textContent='Считываю ndnproxy без изменений...';
+    p85NativeSelect.replaceChildren();
+    try{
+      const [inventory,ready]=await Promise.all([request('keenetic/native-dns'),request('keenetic/native-bridge/status')]);
+      el('p85NativeStatus').textContent=JSON.stringify(ready,null,2);
+      if(!inventory.available){status.textContent='Инвентаризация неполная или недоступна. Выбор заблокирован.';return;}
+      const choices=[];
+      for(const item of inventory.instances||[]){
+        if(!item.valid || !/^(System|Policy(?:0|[1-9][0-9]{0,2}))$/.test(item.name))continue;
+        for(const ep of item.endpoints||[]){
+          if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(ep.upstream_hint||''))continue;
+          const value='native://'+item.name+'/'+ep.domain+'/'+ep.upstream_hint;
+          if(!choices.some(x=>x[0]===value))choices.push([value,item.name+' / '+ep.domain+' / '+ep.upstream_hint+' (текущий '+ep.address+')']);
+        }
+      }
+      p5Options('p85NativeEndpoint',choices,p85Form.elements.namedItem('address').value);
+      status.textContent='Найдено '+choices.length+' привязок. Порт определяется в runtime. Policy0 может быть без маршрута; egress и шифрование НЕ проверены.';
+      if(!choices.length)feedback('Подходящие привязки Native отсутствуют');
+    }catch(err){status.textContent='Native: '+err.message;feedback('Инвентаризация Native: '+err.message);}
+  }
+  el('p85NativeScan').addEventListener('click',p85ScanNative);
+  p85NativeSelect.addEventListener('change',()=>{
+    if(p85NativeSelect.value){p85Form.elements.namedItem('address').value=p85NativeSelect.value;feedback('Селектор выбран в форме. Сохрани черновик; runtime не изменён.');}
+  });
+  p85Form.elements.namedItem('transport').addEventListener('change',p85NativeVisibility);
+  // An edit can set transport programmatically without dispatching change.
+  p85Form.addEventListener('click',()=>{if(!el('p85NativePicker').hidden && p85Form.elements.namedItem('transport').value!=='native')p85NativeVisibility();});
   const p8Plain=el('p8PlainProtocols');
   const p8Select=el('upstreamForm').elements.namedItem('transport');
   function p8PlainVisibility(){
@@ -462,6 +512,7 @@
   p8Plain.addEventListener('change',()=>{if(!p8Plain.checked&&['udp','tcp'].includes(p8Select.value))p8Select.value='dot';p8PlainVisibility();});
   p8Select.addEventListener('change',p8PlainVisibility);
   p8PlainVisibility();
+  p85NativeVisibility();
   p5SourceVisibility();
 
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));

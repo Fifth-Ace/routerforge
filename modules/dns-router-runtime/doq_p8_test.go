@@ -47,6 +47,8 @@ func TestP8DoQLocalRFC9250(t *testing.T) {
 	}
 	defer listener.Close()
 	done := make(chan error, 1)
+	serverRelease := make(chan struct{})
+	defer close(serverRelease)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 		defer cancel()
@@ -84,6 +86,9 @@ func TestP8DoQLocalRFC9250(t *testing.T) {
 			err = stream.Close()
 		}
 		done <- err
+		if err == nil {
+			<-serverRelease
+		}
 	}()
 	addr := listener.Addr().(*net.UDPAddr)
 	p := newDoQClientP8()

@@ -59,6 +59,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify commit attribution (author + committer)
+        run: |
+          python3 scripts/verify-commit-identity.py head "$GITHUB_SHA"
+          python3 -m unittest discover -s tests -p test_commit_identity.py -v
+      - name: Verify every incoming push commit (not just HEAD)
+        if: github.event_name == 'push'
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+        run: python3 scripts/verify-commit-identity.py range "$PREVIOUS_SHA" "$GITHUB_SHA"
       - name: Verify legacy registry integration
         run: python3 scripts/verify-legacy-fallback-removal.py
       - name: Verify Beta component version matrix
@@ -258,6 +269,12 @@ jobs:
             echo "Changed files:"
             cat /tmp/routerforge-changed-files.txt
           fi
+      - name: Gate Stable candidate ancestry before promotion build
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
+        run: |
+          set -eu
+          BASE="$(git merge-base origin/main "$GITHUB_SHA")"
+          python3 scripts/verify-commit-identity.py range "$BASE" "$GITHUB_SHA"
       - name: Verify Port Access UI contract (P40A)
         run: python3 scripts/verify-port-access-ui.py
 
@@ -1300,6 +1317,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Gate all incoming Stable commits before publication
+        env:
+          PREVIOUS_MAIN_SHA: ${{ github.event.before }}
+        run: python3 scripts/verify-commit-identity.py range "$PREVIOUS_MAIN_SHA" "$GITHUB_SHA"
 
       - name: Find successful dev validation for exact SHA
         env:

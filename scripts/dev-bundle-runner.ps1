@@ -110,6 +110,8 @@ try {
         Fail "MANIFEST_INVALID"
     }
 
+    if ($repo -cne "Fifth-Ace/routerforge" -or $branch -cne "dev") { Fail "DEV_ONLY_REPO_BRANCH" }
+
     $payloadFiles = @(
         Get-ChildItem -LiteralPath $payloadRoot -Recurse -File |
         ForEach-Object {
@@ -165,7 +167,7 @@ try {
     & git config core.autocrlf false
     & git config gc.auto 0
     & git config maintenance.auto false
-    & git config user.name "FifthAce"
+    & git config user.name "Fifth-Ace"
     & git config user.email "248300012+Fifth-Ace@users.noreply.github.com"
 
     if ((& git rev-parse HEAD).Trim() -ne $base) { Fail "LOCAL_BASE_MISMATCH" }
@@ -219,6 +221,10 @@ try {
 
     & git commit -m $message
     if ($LASTEXITCODE -ne 0) { Fail "COMMIT_FAIL" }
+    $identity = [string](& git log -1 --format="%an|%ae|%cn|%ce")
+    if ($LASTEXITCODE -ne 0) { Fail "COMMIT_IDENTITY_READ_FAIL" }
+    if ($identity.Trim() -cne "Fifth-Ace|248300012+Fifth-Ace@users.noreply.github.com|Fifth-Ace|248300012+Fifth-Ace@users.noreply.github.com") { Fail "COMMIT_IDENTITY_DENIED" }
+    Write-Host "COMMIT_IDENTITY_FIFTH_ACE: PASS"
 
     $sha = (& git rev-parse HEAD).Trim()
     Write-Host "COMMIT: $sha"

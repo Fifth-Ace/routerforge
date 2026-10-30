@@ -11,12 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const maxNDMCPolicyBytesP87 = 128 << 10
@@ -61,7 +62,10 @@ func (w *cappedWriterP87) Write(p []byte) (int, error) {
 func readNDMCPoliciesP87(ctx context.Context) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ndmc", "-c", "show ip policy") // no shell; read-only Keenetic CLI
+	cmd, err := safety.CommandContext(ctx, "ndmc", "-c", "show ip policy") // validated, no shell, read-only
+	if err != nil {
+		return nil, fmt.Errorf("policy inventory unavailable: %w", err)
+	}
 	var output cappedWriterP87
 	cmd.Stdout = &output
 	cmd.Stderr = io.Discard // never expose host diagnostics/secrets through API

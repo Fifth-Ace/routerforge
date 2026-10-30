@@ -578,6 +578,8 @@
     return instance.endpoints.map((ep, index) => {
       const zone = ep && ep.domain;
       const hint = ep && ep.upstream_hint || '';
+      const selectorHint = ep && ep.selector_hint || (hintRE.test(hint) ? hint : '');
+      const isDoH = ep && ep.transport_hint==='doh' && /^https:\/\/[^\s]+@dnsm$/.test(hint);
       const loopback = ep && typeof ep.address === 'string' && loopbackRE.exec(ep.address);
       const numericPort = loopback ? Number(loopback[1]) : 0;
       let reason = '';
@@ -585,17 +587,17 @@
       else if (!instance.valid) reason = 'DNS-инстанс содержит ошибки';
       else if (!zoneValid(zone)) reason = 'Неизвестная DNS-зона';
       else if (!loopback || numericPort < 1025 || numericPort > 65535) reason = 'Некорректный локальный endpoint';
-      else if (!hintRE.test(hint)) reason = 'Нет устойчивого идентификатора DNS-сервера';
+      else if (!hintRE.test(selectorHint)) reason = 'Нет устойчивого идентификатора DNS-сервера';
       else if (counts.get(String(zone)+'\u0000'+hint) !== 1) reason = 'Неоднозначный DNS-сервер';
       const usable = reason === '';
       return {
         index, zone: String(zone || ''), hint: String(hint),
         address: String(ep && ep.address || ''),
-        selector: usable ? 'native://' + policy + '/' + zone + '/' + hint : '',
+        selector: usable ? 'native://' + policy + '/' + zone + '/' + selectorHint : '',
         usable, reason,
         // Do NOT infer transport from a stubby port or a comment hint.
-        transport: 'unknown', encryptionProven: false, source: 'ndnproxy',
-        label: (hint || ('DNS #' + (index+1))) + ' · ' + (zone === '.' ? 'все домены' : 'зона ' + zone)
+        transport: isDoH ? 'doh' : 'unknown', encryptionProven: false, source: 'ndnproxy',
+        label: (isDoH ? hint.slice(0,-5) : (hint || ('DNS #' + (index+1)))) + ' · ' + (zone === '.' ? 'все домены' : 'зона ' + zone)
       };
     });
   }
@@ -657,8 +659,13 @@
   }
   function p88NativeChoices(){
     return p89NativeEntries().filter(x=>x.usable).map(x=>({
-      value:x.selector,label:x.label,zone:x.zone,hint:x.hint
+      value:x.selector,label:x.label,zone:x.zone,hint:x.hint,type:'native'
     }));
+  }
+  function p90AllChoices(){
+    const native=p88NativeChoices();
+    const manual=(config.upstreams||[]).filter(x=>x.transport==='doh'||x.transport==='dot').map(x=>({value:'manual:'+x.id,label:(x.transport==='doh'?'DoH':'DoT')+' · '+x.server_name+' · DNS Router (не Keenetic)',zone:'.',type:'manual',upstreamId:x.id}));
+    return native.concat(manual);
   }
   function p88CreateButton(text,click,cls){
     const btn=document.createElement('button');btn.type='button';btn.className=cls||'button';btn.textContent=text;btn.addEventListener('click',click);return btn;
@@ -684,7 +691,7 @@
     const field=p88Id('drSimpleDNS'),chosen=field.value;
     field.replaceChildren();
     const entries=p89NativeEntries();
-    const choices=p88NativeChoices();
+    const choices=p90AllChoices();
     for(const choice of choices){
       const opt=document.createElement('option');opt.value=choice.value;opt.textContent=choice.label;field.appendChild(opt);
     }
@@ -698,7 +705,7 @@
       const meta=document.createElement('span');
       meta.textContent=(entry.usable?'Можно выбрать':'Только просмотр')+' · '+
         (entry.zone==='.'?'Любые домены':'Только '+entry.zone+' и поддомены')+
-        ' · транспорт DoT/DoH не подтверждён';
+        ' · '+(entry.transport==='doh'?'DoH по записи ndnproxy (TLS не проверен)':'транспорт DoT/DoH не подтверждён');
       card.appendChild(meta);
       const more=document.createElement('small');
       more.textContent=entry.reason || 'Локальный DNS Keenetic · '+entry.address;
@@ -715,8 +722,9 @@
     p89UpdateProbeChoice();
   }
   function p89UpdateProbeChoice(){
-    const selected=p88NativeChoices().find(x=>x.value===p88Id('drSimpleDNS').value);
-    p88Id('drSimpleProbe').disabled=!selected || selected.zone!=='.';
+    const selected=p90AllChoices().find(x=>x.value===p88Id('drSimpleDNS').value);
+    p88Id('drSimpleProbe').disabled=!selected || selected.zone!=='.' || selected.type!=='native';
+    if(selected && selected.type==='manual')p88Id('drSimpleProbeResult').textContent='Ручной DNS находится в конфигурации DNS Router; он НЕ привязан к выбранной политике Keenetic. Для проверки используй расширенную диагностику.';
     if(selected && selected.zone!=='.')
       p88Id('drSimpleProbeResult').textContent='DNS ограничен зоной '+selected.zone+'. Проверка example.com для этой зоны недопустима.';
   }
@@ -724,7 +732,7 @@
     const root=p88Id('drSimpleRuleList');root.replaceChildren();
     const current=(config.rules||[]).filter(r=>{
       const u=(config.upstreams||[]).find(x=>x.id===r.upstream);
-      return u && u.transport==='native' && u.address.startsWith('native://'+p88.policy+'/');
+      return u && ((u.transport==='native' && u.address.startsWith('native://'+p88.policy+'/')) || u.transport==='dot' || u.transport==='doh');
     });
     p88Id('drSimpleRuleCount').textContent=String(current.length)+' доменов';
     if(!current.length){const empty=document.createElement('p');empty.textContent='Здесь пока нет доменных правил. Добавь домены выше.';root.appendChild(empty);return;}
@@ -774,11 +782,68 @@
     p88Id('dnsRouterWorkspace').classList.add('dr-mode-advanced');
     p88Id('drModeSimple').setAttribute('aria-pressed','false');p88Id('drModeAdvanced').setAttribute('aria-pressed','true');
   });
+
+  // P9.0 manual DoT/DoH: user-triggered TLS inspection; PEM is public metadata,
+  // never a new trust anchor. Existing Keenetic policy/routing is untouched.
+  let p90Inspected=null;
+  let p90InspectedKey='';
+  function p90ManualFields(){
+    const transport=p88Id('drP90Transport').value;
+    const raw=p88Id('drP90Endpoint').value.trim();
+    const ip=p88Id('drP90IP').value.trim();
+    let server_name='',path='',port=transport==='dot'?'853':'443';
+    if(transport==='doh'){
+      const u=new URL(raw);
+      if(u.protocol!=='https:' || u.username || u.password || u.search || u.hash || !u.hostname || !u.pathname || u.pathname==='/' || u.pathname.startsWith('//') || u.pathname.includes('..'))throw Error('DoH: нужен HTTPS URL без логина, параметров или перенаправлений');
+      if(u.port && u.port!=='443')throw Error('DoH: поддерживается порт 443');
+      server_name=u.hostname.toLowerCase();path=u.pathname;
+    }else if(transport==='dot'){
+      const u=new URL(raw.startsWith('tls://')?raw:'tls://'+raw);
+      if(u.protocol!=='tls:' || !u.hostname || (u.port && u.port!=='853') || (u.pathname && u.pathname!=='/') || u.search || u.hash || u.username || u.password)throw Error('DoT: укажи TLS-имя, например dns.example.com');
+      server_name=u.hostname.toLowerCase();
+    }else throw Error('Выбери DoT или DoH');
+    if(!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(server_name) || !server_name.includes('.') || server_name.length>253)throw Error('Некорректное TLS-имя');
+    if(!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(ip))throw Error('Введи публичный IPv4 подключения (без порта)');
+    const octets=ip.split('.').map(Number);
+    if(octets.some(x=>x<0 || x>255))throw Error('Некорректный IPv4');
+    return {transport,server_name,path,address:ip+':'+port};
+  }
+  function p90ManualKey(f){return JSON.stringify(f);}
+  for(const id of ['drP90Transport','drP90Endpoint','drP90IP']){
+    p88Id(id).addEventListener('input',()=>{p90Inspected=null;p90InspectedKey='';p88Id('drP90Store').disabled=true;p88Id('drP90Status').textContent='Параметры изменены. Проверь сертификат ещё раз.';});
+    p88Id(id).addEventListener('change',()=>{p90Inspected=null;p90InspectedKey='';p88Id('drP90Store').disabled=true;});
+  }
+  p88Id('drP90Inspect').addEventListener('click',async()=>{
+    p90Inspected=null;p90InspectedKey='';p88Id('drP90Store').disabled=true;
+    try{
+      const f=p90ManualFields();
+      p88Id('drP90Status').textContent='Проверяю TLS-сертификат сервера…';
+      const res=await request('certificates/inspect',jsonOptions('certificate-inspect',{transport:f.transport,address:f.address,server_name:f.server_name}));
+      if(!res.verified || !res.pem || !/^[a-f0-9]{64}$/.test(res.fingerprint_sha256))throw Error('Проверка сертификата не подтверждена');
+      p90Inspected=res;p90InspectedKey=p90ManualKey(f);
+      p88Id('drP90Status').textContent='TLS подтверждён · '+res.subject+' · издатель: '+res.issuer+' · SAN: '+(res.dns_names||[]).join(', ')+' · действует до '+res.not_after+' · SHA256 '+res.fingerprint_sha256+' · PEM готов к сохранению';
+      p88Id('drP90Store').disabled=false;
+    }catch(e){p88Id('drP90Status').textContent='Сертификат не подтверждён: '+e.message;}
+  });
+  p88Id('drP90Store').addEventListener('click',()=>{
+    try{
+      const f=p90ManualFields();
+      if(!p90Inspected || p90ManualKey(f)!==p90InspectedKey)throw Error('Сначала выполни проверку сертификата для этих параметров');
+      if(!Array.isArray(config.upstreams))config.upstreams=[];
+      const existing=config.upstreams.find(x=>x.transport===f.transport && x.address===f.address && x.server_name===f.server_name && (x.path||'')===f.path);
+      if(existing)throw Error('Такой DNS уже добавлен в DNS Router');
+      let n=1;while(config.upstreams.some(x=>x.id==='manual-'+n))n++;
+      config.upstreams.push({id:'manual-'+n,transport:f.transport,address:f.address,server_name:f.server_name,...(f.path?{path:f.path}:{}),certificate_pem:p90Inspected.pem});
+      markDirty();p88RenderDNS();p90Inspected=null;p90InspectedKey='';p88Id('drP90Store').disabled=true;
+      p88Id('drP90Status').textContent='Сервер и публичный PEM добавлены в черновик. Нажми «Сохранить настройки». Системный CA и Keenetic не изменены.';
+    }catch(e){p88Id('drP90Status').textContent=e.message;}
+  });
+
   p88Id('drSimpleScan').addEventListener('click',p88Scan);
   p88Id('drSimpleDNS').addEventListener('change',p89UpdateProbeChoice);
   p88Id('drSimpleAdd').addEventListener('click',()=>{
     const selected=p88Id('drSimpleDNS').value;
-    const chosenDNS=p88NativeChoices().find(x=>x.value===selected);
+    const chosenDNS=p90AllChoices().find(x=>x.value===selected);
     if(!chosenDNS){
       p88Id('drSimpleState').textContent='Выбери DNS-сервер из текущего списка Keenetic.';return;
     }
@@ -792,12 +857,13 @@
     if(duplicate){p88Id('drSimpleState').textContent='Домен '+duplicate+' уже есть в правилах. Открой расширенные настройки, чтобы изменить его DNS.';return;}
     if(!Array.isArray(config.upstreams))config.upstreams=[];
     if(!Array.isArray(config.rules))config.rules=[];
-    let upstream=config.upstreams.find(u=>u.transport==='native' && u.address===selected);
-    if(!upstream){
+    let upstream=chosenDNS.type==='manual' ? config.upstreams.find(u=>u.id===chosenDNS.upstreamId) : config.upstreams.find(u=>u.transport==='native' && u.address===selected);
+    if(!upstream && chosenDNS.type==='native'){
       let n=1;while(config.upstreams.some(u=>u.id==='native-'+n))n++;
       upstream={id:'native-'+n,transport:'native',address:selected};
       config.upstreams.push(upstream);
     }
+    if(!upstream){p88Id('drSimpleState').textContent='Ручной DNS больше не найден. Обнови настройки.';return;}
     for(const domain of parsed.domains){
       let n=1;while(config.rules.some(r=>r.id==='domain-'+n))n++;
       config.rules.push({id:'domain-'+n,domain,match:'suffix',upstream:upstream.id,priority:100});
@@ -810,7 +876,7 @@
   p88Id('drSimpleProbe').addEventListener('click',async()=>{
     const selected=p88Id('drSimpleDNS').value;
     const parts=selected.startsWith('native://')?selected.slice(9).split('/'):[];
-    if(parts.length!==3 || parts[1]!=='.'){
+    if(!p88NativeChoices().some(x=>x.value===selected) || parts.length!==3 || parts[1]!=='.'){
       p88Id('drSimpleProbeResult').textContent='Проверка example.com доступна только для DNS зоны «.». DNS других зон не проверяется чужим доменом.';
       return;
     }

@@ -155,6 +155,17 @@ func (a *API) Handler() http.Handler {
 		}
 		respondJSON(w, http.StatusOK, ProbeNativeDNSP87(r.Context(), ReadOnlyNativeDNSInventoryP82("/var"), instance, hint))
 	})
+	// P9.0: explicit TLS handshake using a literal public IP and normal CA validation.
+	// Returns only public peer certificate metadata; never modifies trust or DNS.
+	mux.HandleFunc("/v1/certificates/inspect", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost { w.Header().Set("Allow", "POST"); w.WriteHeader(http.StatusMethodNotAllowed); return }
+		if !requireMutation(w, r, "certificate-inspect") { return }
+		var req CertificateInspectRequestP90
+		if err := decodeBody(r, &req, 2048); err != nil { fail(w, http.StatusBadRequest, err); return }
+		cert, err := InspectCertificateP90(r.Context(), req)
+		if err != nil { fail(w, http.StatusUnprocessableEntity, err); return }
+		respondJSON(w, http.StatusOK, cert)
+	})
 	mux.HandleFunc("/v1/keenetic/native-bridge/preview", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.Header().Set("Allow", "GET")

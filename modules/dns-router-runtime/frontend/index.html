@@ -25,7 +25,7 @@
 
   <section class="dr-simple-workspace" id="drSimpleWorkspace" aria-label="Простое управление DNS">
     <div class="dr-simple-intro">
-      <div><span class="section-kicker">ПРОСТОЕ УПРАВЛЕНИЕ</span><h2>Какой DNS использовать для доменов?</h2><p>Выбери политику Keenetic, DNS-сервер и вставь домены. Остальные настройки оставим специалистам.</p></div>
+      <div><span class="section-kicker">ПРОСТОЕ УПРАВЛЕНИЕ</span><h2>Какой DNS использовать для доменов?</h2><p>Выбери политику Keenetic, DNS-сервер и вставь домены. Ручные DoT/DoH хранятся отдельно в DNS Router и не назначаются политике Keenetic автоматически.</p></div>
       <button type="button" class="button" id="drSimpleScan">↻ Обновить политики и DNS</button>
     </div>
     <div class="dr-simple-layout">
@@ -44,6 +44,17 @@
             <div id="drSimpleDNSInventory" class="dr-p89-dns-catalog"><p>Читаем DNS…</p></div>
             <p class="dr-simple-help">Список получен из ndnproxy. Зона ограничивает применение правил; тип DoT/DoH и шифрование из этих данных достоверно не определить.</p>
           </div>
+          <details class="dr-p90-manual">
+            <summary>+ Добавить свой DoT / DoH и получить сертификат</summary>
+            <div class="dr-p90-manual-body">
+              <label class="dr-simple-field"><span>Протокол</span><select id="drP90Transport"><option value="doh">DoH (HTTPS)</option><option value="dot">DoT (TLS)</option></select></label>
+              <label class="dr-simple-field"><span>DoH URL или DoT имя сервера</span><input id="drP90Endpoint" type="text" maxlength="300" placeholder="https://dns.example.com/dns-query" autocomplete="off"></label>
+              <label class="dr-simple-field"><span>Публичный IPv4 для подключения</span><input id="drP90IP" type="text" maxlength="15" placeholder="1.1.1.1" autocomplete="off"></label>
+              <p class="dr-simple-help">IP обязателен для безопасного подключения без рекурсивного DNS bootstrap. Для DoH используется порт 443, для DoT — 853. DNS Router не изменяет Keenetic.</p>
+              <div class="dr-simple-actions"><button id="drP90Inspect" type="button" class="button">Получить и проверить TLS-сертификат</button><button id="drP90Store" type="button" class="button primary" disabled>Сохранить сервер и публичный PEM в черновик</button></div>
+              <p class="dr-simple-state" id="drP90Status" role="status" aria-live="polite">Сертификат ещё не запрашивался. Сохранение PEM не означает доверие ему.</p>
+            </div>
+          </details>
           <div class="dr-simple-probe"><button type="button" class="button" id="drSimpleProbe" disabled>Проверить DNS</button><span id="drSimpleProbeResult">DNS-запрос ещё не выполнялся.</span></div>
         </section>
         <section class="dr-simple-panel">

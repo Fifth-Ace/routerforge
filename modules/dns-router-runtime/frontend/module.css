@@ -377,3 +377,11 @@ html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
 .dr-p89-dns-item{display:grid;gap:3px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--control-radius);overflow-wrap:anywhere}
 .dr-p89-dns-item strong{font-size:12px;font-weight:650}
 .dr-p89-dns-item span,.dr-p89-dns-item small{font-size:10px;color:var(--muted)}
+
+/* P9.0 optional guided manual DNS + verified public certificate snapshot. */
+.dr-p90-manual{margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2)}
+.dr-p90-manual>summary{cursor:pointer;color:var(--text);font-weight:650;font-size:12px;min-height:26px}
+.dr-p90-manual-body{display:grid;gap:10px;padding-top:12px}
+.dr-p90-manual input{width:100%;max-width:100%;min-width:0}
+.dr-p90-manual .dr-simple-actions{justify-content:flex-start}
+.dr-p90-manual .dr-simple-state{overflow-wrap:anywhere}

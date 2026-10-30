@@ -34,6 +34,7 @@ type Upstream struct {
 	ServerName string   `json:"server_name,omitempty"` // required TLS identity for dot/doh/doq
 	Path       string   `json:"path,omitempty"`        // DoH endpoint, defaults to /dns-query
 	Fallbacks  []string `json:"fallbacks,omitempty"`   // explicit same-rule failover, never default DNS
+	CertificatePEM string `json:"certificate_pem,omitempty"` // public snapshot only; NOT a CA/trust override
 }
 
 type Rule struct {
@@ -141,6 +142,9 @@ func Compile(cfg Config) (*Engine, error) {
 		}
 		if u.Transport != "udp" && u.Transport != "tcp" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" && u.Transport != "native" {
 			return nil, fmt.Errorf("invalid transport for %q", u.ID)
+		}
+		if err := validateSavedCertificateP90(u.Transport, u.ServerName, u.CertificatePEM); err != nil {
+			return nil, fmt.Errorf("upstream %q: %w", u.ID, err)
 		}
 		if u.Transport == "native" {
 			if _, err := parseNativeSelectorP83(u); err != nil {

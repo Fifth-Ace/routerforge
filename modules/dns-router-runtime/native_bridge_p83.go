@@ -84,7 +84,7 @@ func ResolveNativeDestinationP83(u Upstream, qname string, inventory NativeDNSIn
 			return "", errors.New("selected native policy inventory invalid")
 		}
 		for _, ep := range instance.Endpoints {
-			if ep.Domain != selector.Domain || ep.UpstreamHint != selector.Hint {
+			if ep.Domain != selector.Domain || !nativeHintMatchesP90(selector.Hint, ep.UpstreamHint) {
 				continue
 			}
 			host, port, e := net.SplitHostPort(ep.Address)

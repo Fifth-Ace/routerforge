@@ -26,6 +26,8 @@ type NativeEndpointP82 struct {
 	Address      string `json:"address"`
 	Domain       string `json:"domain"`
 	UpstreamHint string `json:"upstream_hint,omitempty"`
+	SelectorHint string `json:"selector_hint,omitempty"`
+	TransportHint string `json:"transport_hint,omitempty"`
 }
 
 type NativeInstanceP82 struct {
@@ -96,6 +98,8 @@ func parseNativeConfigP82(name, source string, raw []byte) NativeInstanceP82 {
 				return r < 33 || r > 126
 			}) < 0 {
 				ep.UpstreamHint = hint
+				ep.SelectorHint = nativeSelectorHintP90(hint)
+				if strings.HasPrefix(hint, "https://") && strings.HasSuffix(hint, "@dnsm") { ep.TransportHint = "doh" }
 			}
 		}
 		out.Endpoints = append(out.Endpoints, ep)

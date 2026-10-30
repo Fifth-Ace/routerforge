@@ -39,6 +39,11 @@
           <p id="drSimpleRoute" class="dr-simple-context">Загрузка…</p>
           <label class="dr-simple-field"><span>DNS из выбранной политики</span><select id="drSimpleDNS" aria-label="DNS-сервер выбранной политики" disabled></select></label>
           <p class="dr-simple-help" id="drSimpleDNSNote">Проверяем доступные DNS…</p>
+          <div class="dr-p89-inventory" aria-label="Все обнаруженные DNS-серверы">
+            <h4>Все DNS-серверы выбранной политики</h4>
+            <div id="drSimpleDNSInventory" class="dr-p89-dns-catalog"><p>Читаем DNS…</p></div>
+            <p class="dr-simple-help">Список получен из ndnproxy. Зона ограничивает применение правил; тип DoT/DoH и шифрование из этих данных достоверно не определить.</p>
+          </div>
           <div class="dr-simple-probe"><button type="button" class="button" id="drSimpleProbe" disabled>Проверить DNS</button><span id="drSimpleProbeResult">DNS-запрос ещё не выполнялся.</span></div>
         </section>
         <section class="dr-simple-panel">

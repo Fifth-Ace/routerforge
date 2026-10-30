@@ -29,7 +29,7 @@ test('P8.8 is policy-first and never implies DNS activation on save',()=>{
  assert.match(js,/request\('keenetic\/native-policies'\)/);
  assert.match(js,/p88PolicyName\(instance\.name\)/);
  assert.match(js,/p88RouteHint\(instance\.name\)/);
- assert.match(js,/ep\.domain!=='.'/);
+ assert.match(js,/RFNativeCatalogP89\.entries/);
  assert.match(js,/native:\/\//);
  assert.match(js,/config\.upstreams\.push\(upstream\)/);
  assert.match(js,/config\.rules\.push\(\{id:'domain-'/);

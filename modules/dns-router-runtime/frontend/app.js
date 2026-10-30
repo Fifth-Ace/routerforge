@@ -548,6 +548,73 @@
   p85NativeVisibility();
   p5SourceVisibility();
 
+  // P8.9 NATIVE CATALOG BEGIN
+'use strict';
+// DPR2 P8.9: a truthful, read-only view of every ndnproxy endpoint.
+// The native wire contract is still zone-scoped and does not prove DoT/DoH.
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.RFNativeCatalogP89 = api;
+})(typeof window !== 'undefined' ? window : null, function () {
+  const hintRE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;
+  const policyRE = /^(System|Policy(?:0|[1-9][0-9]{0,2}))$/;
+  const zoneRE = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
+  const loopbackRE = /^127\.0\.0\.1:([0-9]{4,5})$/;
+  function zoneValid(zone) {
+    return zone === '.' || (typeof zone === 'string' && zone.length <= 253 && zoneRE.test(zone));
+  }
+  function entries(inventory, policy) {
+    if (!policyRE.test(String(policy || '')) || !inventory || !Array.isArray(inventory.instances)) return [];
+    const complete = inventory.available === true && inventory.parsed_instances === inventory.instances.length;
+    const instance = inventory.instances.find(x => x && x.name === policy);
+    if (!instance || !Array.isArray(instance.endpoints)) return [];
+    const counts = new Map();
+    for (const ep of instance.endpoints) {
+      if (!ep) continue;
+      const key = String(ep.domain) + '\u0000' + String(ep.upstream_hint || '');
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return instance.endpoints.map((ep, index) => {
+      const zone = ep && ep.domain;
+      const hint = ep && ep.upstream_hint || '';
+      const loopback = ep && typeof ep.address === 'string' && loopbackRE.exec(ep.address);
+      const numericPort = loopback ? Number(loopback[1]) : 0;
+      let reason = '';
+      if (!complete) reason = 'Инвентаризация Keenetic неполная';
+      else if (!instance.valid) reason = 'DNS-инстанс содержит ошибки';
+      else if (!zoneValid(zone)) reason = 'Неизвестная DNS-зона';
+      else if (!loopback || numericPort < 1025 || numericPort > 65535) reason = 'Некорректный локальный endpoint';
+      else if (!hintRE.test(hint)) reason = 'Нет устойчивого идентификатора DNS-сервера';
+      else if (counts.get(String(zone)+'\u0000'+hint) !== 1) reason = 'Неоднозначный DNS-сервер';
+      const usable = reason === '';
+      return {
+        index, zone: String(zone || ''), hint: String(hint),
+        address: String(ep && ep.address || ''),
+        selector: usable ? 'native://' + policy + '/' + zone + '/' + hint : '',
+        usable, reason,
+        // Do NOT infer transport from a stubby port or a comment hint.
+        transport: 'unknown', encryptionProven: false, source: 'ndnproxy',
+        label: (hint || ('DNS #' + (index+1))) + ' · ' + (zone === '.' ? 'все домены' : 'зона ' + zone)
+      };
+    });
+  }
+  function acceptsDomains(entry, domains) {
+    if (!entry || !entry.usable) return {ok:false, reason:entry && entry.reason || 'DNS недоступен для выбора'};
+    if (!Array.isArray(domains) || !domains.length) return {ok:false, reason:'Нет доменов'};
+    const zone = entry.zone;
+    if (zone === '.') return {ok:true, reason:''};
+    for (const d of domains) {
+      if (typeof d !== 'string' || (d !== zone && !d.endsWith('.' + zone))) {
+        return {ok:false, reason:'DNS привязан в Keenetic к зоне ' + zone + '. Домен ' + d + ' вне этой зоны. Для других доменов нужен DNS зоны «.» либо отдельно настроенный DoT/DoH.'};
+      }
+    }
+    return {ok:true, reason:''};
+  }
+  return Object.freeze({entries, acceptsDomains});
+});
+
+  // P8.9 NATIVE CATALOG END
   // P8.8: simple policy -> native DNS -> domain list. Does not modify Keenetic.
   const p88 = {inventory:null, catalog:null, policy:'System', loading:false};
   const p88Id = id => el(id);
@@ -584,17 +651,14 @@
     if(p.ipv4_route_status==='default_present')return 'Маршрут найден · DNS не проверен';
     return 'Маршрут не проверен';
   }
+  // P8.9: the read-only catalog shows ALL zones, not only the default '.'.
+  function p89NativeEntries(){
+    return window.RFNativeCatalogP89.entries(p88.inventory,p88.policy);
+  }
   function p88NativeChoices(){
-    if(!p88.inventory || !p88.inventory.available || p88.inventory.parsed_instances!==(p88.inventory.instances||[]).length)return [];
-    const selected=(p88.inventory.instances||[]).find(x=>x.valid && x.name===p88.policy);
-    if(!selected)return [];
-    const result=[];
-    for(const ep of selected.endpoints||[]){
-      if(ep.domain!=='.' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(ep.upstream_hint||''))continue;
-      const value='native://'+p88.policy+'/./'+ep.upstream_hint;
-      if(!result.some(x=>x.value===value))result.push({value,label:ep.upstream_hint+' · DNS Keenetic',hint:ep.upstream_hint});
-    }
-    return result;
+    return p89NativeEntries().filter(x=>x.usable).map(x=>({
+      value:x.selector,label:x.label,zone:x.zone,hint:x.hint
+    }));
   }
   function p88CreateButton(text,click,cls){
     const btn=document.createElement('button');btn.type='button';btn.className=cls||'button';btn.textContent=text;btn.addEventListener('click',click);return btn;
@@ -617,8 +681,9 @@
     }
   }
   function p88RenderDNS(){
-    const field=p88Id('drSimpleDNS');const chosen=field.value;
+    const field=p88Id('drSimpleDNS'),chosen=field.value;
     field.replaceChildren();
+    const entries=p89NativeEntries();
     const choices=p88NativeChoices();
     for(const choice of choices){
       const opt=document.createElement('option');opt.value=choice.value;opt.textContent=choice.label;field.appendChild(opt);
@@ -626,12 +691,34 @@
     if(choices.some(x=>x.value===chosen))field.value=chosen;
     field.disabled=!choices.length;
     p88Id('drSimpleAdd').disabled=!choices.length;
-    p88Id('drSimpleProbe').disabled=!choices.length;
-    p88Id('drSimpleDNSNote').textContent=choices.length ?
-      'DNS-сервер используется через штатную инфраструктуру Keenetic. Проверка ответа — только по кнопке.' :
-      'Для этой политики нет подходящего DNS зоны «.» или инвентаризация недоступна. В расширенном режиме доступны другие настройки.';
+    const catalog=p88Id('drSimpleDNSInventory');catalog.replaceChildren();
+    for(const entry of entries){
+      const card=document.createElement('div');card.className='dr-p89-dns-item';
+      const label=document.createElement('strong');label.textContent=entry.label;card.appendChild(label);
+      const meta=document.createElement('span');
+      meta.textContent=(entry.usable?'Можно выбрать':'Только просмотр')+' · '+
+        (entry.zone==='.'?'Любые домены':'Только '+entry.zone+' и поддомены')+
+        ' · транспорт DoT/DoH не подтверждён';
+      card.appendChild(meta);
+      const more=document.createElement('small');
+      more.textContent=entry.reason || 'Локальный DNS Keenetic · '+entry.address;
+      card.appendChild(more);catalog.appendChild(card);
+    }
+    if(!entries.length){
+      const info=document.createElement('p');info.textContent='В этой политике DNS endpoints не обнаружены.';catalog.appendChild(info);
+    }
+    p88Id('drSimpleDNSNote').textContent=entries.length ?
+      'Найдено '+entries.length+' DNS-записей; доступно для выбора: '+choices.length+'. DNS для отдельных зон видны ниже. Неизвестный DoT/DoH не помечается как обычный DNS.' :
+      'В текущей политике DNS endpoints не обнаружены. Проверь настройки Keenetic.';
     p88Id('drSimpleRoute').textContent=p88.policy ? p88PolicyName(p88.policy)+' · '+p88RouteHint(p88.policy) : 'Политика не выбрана';
     p88Id('drSimpleProbeResult').textContent='DNS-запрос ещё не выполнялся.';
+    p89UpdateProbeChoice();
+  }
+  function p89UpdateProbeChoice(){
+    const selected=p88NativeChoices().find(x=>x.value===p88Id('drSimpleDNS').value);
+    p88Id('drSimpleProbe').disabled=!selected || selected.zone!=='.';
+    if(selected && selected.zone!=='.')
+      p88Id('drSimpleProbeResult').textContent='DNS ограничен зоной '+selected.zone+'. Проверка example.com для этой зоны недопустима.';
   }
   function p88RenderRules(){
     const root=p88Id('drSimpleRuleList');root.replaceChildren();
@@ -688,14 +775,18 @@
     p88Id('drModeSimple').setAttribute('aria-pressed','false');p88Id('drModeAdvanced').setAttribute('aria-pressed','true');
   });
   p88Id('drSimpleScan').addEventListener('click',p88Scan);
+  p88Id('drSimpleDNS').addEventListener('change',p89UpdateProbeChoice);
   p88Id('drSimpleAdd').addEventListener('click',()=>{
     const selected=p88Id('drSimpleDNS').value;
-    if(!p88NativeChoices().some(x=>x.value===selected)){
+    const chosenDNS=p88NativeChoices().find(x=>x.value===selected);
+    if(!chosenDNS){
       p88Id('drSimpleState').textContent='Выбери DNS-сервер из текущего списка Keenetic.';return;
     }
     const parsed=p88ParseDomains(p88Id('drSimpleDomains').value);
     if(parsed.error){p88Id('drSimpleState').textContent=parsed.error;return;}
     if(!parsed.domains.length){p88Id('drSimpleState').textContent='Добавь хотя бы один домен.';return;}
+    const scope=window.RFNativeCatalogP89.acceptsDomains({usable:true,zone:chosenDNS.zone},parsed.domains);
+    if(!scope.ok){p88Id('drSimpleState').textContent=scope.reason;return;}
     const existing=new Set((config.rules||[]).map(r=>String(r.domain).toLowerCase()));
     const duplicate=parsed.domains.find(domain=>existing.has(domain));
     if(duplicate){p88Id('drSimpleState').textContent='Домен '+duplicate+' уже есть в правилах. Открой расширенные настройки, чтобы изменить его DNS.';return;}
@@ -719,7 +810,10 @@
   p88Id('drSimpleProbe').addEventListener('click',async()=>{
     const selected=p88Id('drSimpleDNS').value;
     const parts=selected.startsWith('native://')?selected.slice(9).split('/'):[];
-    if(parts.length!==3 || parts[1]!=='.')return;
+    if(parts.length!==3 || parts[1]!=='.'){
+      p88Id('drSimpleProbeResult').textContent='Проверка example.com доступна только для DNS зоны «.». DNS других зон не проверяется чужим доменом.';
+      return;
+    }
     p88Id('drSimpleProbeResult').textContent='Проверяю DNS-запросом example.com…';
     try{
       const q=new URLSearchParams({instance:parts[0],hint:parts[2]});

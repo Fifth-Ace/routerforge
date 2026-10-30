@@ -369,3 +369,11 @@ html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
 .dr-p6-panel .form-grid{margin-top:var(--rf-control-gap,12px)}
 .dr-p6-panel .dr-p6-note{color:var(--rf-muted,#8d98a4);font-size:var(--ui-small,13px);margin:10px 0 0}
 .dr-p6-panel #drGroupCards{margin-bottom:var(--rf-control-gap,12px)}
+
+/* P8.9: all native DNS endpoints, including zone-scoped entries. */
+.dr-p89-inventory{margin-top:12px;padding:11px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2)}
+.dr-p89-inventory h4{font-size:12px;margin:0 0 9px;font-weight:650}
+.dr-p89-dns-catalog{display:grid;gap:6px;max-height:260px;overflow:auto}
+.dr-p89-dns-item{display:grid;gap:3px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--control-radius);overflow-wrap:anywhere}
+.dr-p89-dns-item strong{font-size:12px;font-weight:650}
+.dr-p89-dns-item span,.dr-p89-dns-item small{font-size:10px;color:var(--muted)}

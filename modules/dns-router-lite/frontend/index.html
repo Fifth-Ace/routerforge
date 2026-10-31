@@ -59,6 +59,7 @@
       <div class="section-title"><div><span class="eyebrow">ШАГ 3 · ПРИМЕНЕНИЕ</span><h2>Запуск и подключение</h2><p>Сначала запускаем DNS-сервис, потом при необходимости подключаем устройство.</p></div></div>
       <div class="actions"><button type="button" class="button primary" id="applyButton">✓ Сохранить и применить</button><button type="button" class="button" id="saveButton">Только сохранить</button><button type="button" class="button" id="verifyButton">Проверить DNS</button><button type="button" class="button danger" id="stopButton">Остановить DNS</button></div>
       <div id="runStatus" class="result">Состояние сервиса загружается…</div>
+      <p id="routeAdvice" class="route-advice" role="status">Проверяем, доходят ли запросы до DNS Router…</p>
       <details class="inner-details" id="clientConnection">
         <summary>Подключить тестовое устройство <span class="hint">Необязательно</span></summary>
         <div class="fields two"><label class="field"><span>MAC-адрес устройства</span><input id="clientMAC" placeholder="02:11:22:33:44:55" spellcheck="false"></label><div class="field"><span>DNS-профиль Keenetic</span><strong id="clientState">Не подключён</strong><small>Подключаем только выбранное устройство, не всю сеть</small></div></div>
@@ -86,6 +87,7 @@
   <section id="pageLogs" hidden aria-label="Журнал DNS">
     <section class="panel">
       <div class="section-title"><div><h1>Журнал запросов</h1><p>DNS-маршруты в реальном времени: назначение, фактический сервер, ответ и задержка.</p></div><div class="live-meta"><span id="liveBadge" class="status">LIVE · ожидание</span><small id="logUpdated">Ждём запросов</small></div></div>
+      <p id="logGuide" class="route-advice" role="status">Проверяем путь DNS-запросов…</p>
       <div class="metrics"><div><small>Запросов после запуска</small><strong id="metricRequests">0</strong></div><div><small>Из кэша</small><strong id="metricCache">0</strong></div><div><small>Ошибок</small><strong id="metricErrors">0</strong></div><div><small>Сервис</small><strong id="metricRunning">—</strong></div></div>
       <div class="log-toolbar"><label class="field search"><span>Фильтр по домену или DNS</span><input id="logFilter" placeholder="Например, youtube или Cloudflare" autocomplete="off"></label><label class="check"><input type="checkbox" id="onlyErrors"> Только ошибки</label><button type="button" class="button" id="refreshLogs">↻ Обновить</button><button type="button" class="button" id="copyLogs">Копировать</button></div>
       <div class="log-head"><span>Время</span><span>Домен</span><span>Назначен → использован</span><span>Ответ</span><span>Время</span></div>

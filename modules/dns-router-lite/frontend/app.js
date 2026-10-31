@@ -162,6 +162,20 @@
     if(!confirm('Преобразовать используемые native DNS Keenetic в прямые DoH-соединения? При ошибке конвертации ничего не изменится.'))return;
     await serviceCommand('migrate-native',{operation:'migrate'});await load();show('DNS преобразованы. Проверь адреса и сертификаты перед применением.','good');
   }
+  function routingHint(s){
+    const c=s.connection||{state:'disconnected'};
+    const endpoint=s.listen||state.config.service?.listen||$('serviceListen').value;
+    const upstream=Number(s.requests||0);
+    if(!s.active)return {tone:'bad',text:'DNS Router остановлен. На штатном DNS Keenetic (порт 53) интернет может продолжать работать, но журнал RouterForge пуст.'};
+    if(c.state==='recovery_required')return {tone:'bad',text:'DNS-профиль устройства требует восстановления: '+(c.error||'состояние не совпадает с Keenetic')+'. Не устанавливай и не обновляй пакет до исправления профиля.'};
+    if(c.state==='pending')return {tone:'bad',text:'Подключение устройства не завершено (pending). DNS Router слушает '+endpoint+', но профиль клиента Keenetic ещё не подтверждён. Сначала верни прежний DNS устройства или заверши подключение; не пытайся обновлять пакет с pending.'};
+    const denied=Number(s.denied_requests||0);
+    if(denied>0 && denied===upstream)return {tone:'bad',text:'До DNS Router дошли '+denied+' запросов, но ВСЕ отклонены (REFUSED) списком разрешённых клиентских сетей. Проверь «Дополнительные настройки → Разрешённые сети» и IP клиента; менять настройки Keenetic не требуется.'};
+    if(upstream===0)return {tone:'warn',text:'DNS Router слушает '+endpoint+', но получил 0 запросов. Планшет может использовать штатный DNS Keenetic (:53), свой Private DNS/DoH или другой DNS-профиль. '+(c.state==='connected'?'Профиль назначен, но прохождение трафика не подтверждено.':'Тестовый клиент не подключён через RouterForge.')+' Прямая кнопка «Проверить DNS» тестирует только сервис, не планшет.'};
+    if(c.state!=='connected')return {tone:'warn',text:'DNS Router получил '+upstream+' запросов, но клиентский профиль не подключён. Это может быть ручная проверка сервиса; маршрут планшета через Keenetic не доказан.'};
+    return {tone:'',text:'DNS Router получил '+upstream+' запросов на '+endpoint+'. Клиентский профиль Keenetic подключён, но чтобы подтвердить именно планшет, сопоставь время его DNS-запросов с журналом.'};
+  }
+  function showRoutingHint(s){const hint=routingHint(s);for(const id of ['routeAdvice','logGuide']){const node=$(id);node.textContent=hint.text;node.dataset.tone=hint.tone;}}
   async function refreshStatus(){const s=await api('service/status');if(s.mode!=='independent-dns')throw Error('Загружен не DNS Lite. Установи актуальный DEV-пакет.');state.status=s;
     const connection=s.connection||{state:'disconnected'},active=Boolean(s.active),same=active&&s.applied_revision===state.revision;
     $('serviceBadge').textContent=active?'DNS работает':'DNS остановлен';$('serviceBadge').dataset.tone=active?'good':'bad';
@@ -169,21 +183,22 @@
     $('connectionSummary').textContent=connection.state==='connected'?'Устройство подключено: '+connection.mac:connection.state==='recovery_required'?'Подключение требует восстановления':'Устройства не подключены';
     $('clientState').textContent=connection.state==='connected'?connection.mac:connection.state==='disconnected'?'Не подключён':connection.state;
     $('connectButton').disabled=!active||!same||connection.state!=='disconnected';$('disconnectButton').disabled=connection.state==='disconnected';$('stopButton').disabled=!active;
+    showRoutingHint(s);
     $('metricRequests').textContent=s.requests??0;$('metricCache').textContent=s.cache_hits??0;$('metricErrors').textContent=s.failures??0;$('metricRunning').textContent=active?'Работает':'Выкл.';
-    $('liveBadge').textContent=active?'LIVE · каждые 2 сек':'LIVE · DNS остановлен';$('liveBadge').dataset.tone=active?'good':'bad';
+    $('liveBadge').textContent=active?(Number(s.requests||0)>0?'LIVE · запросы поступают':'LIVE · нет запросов'):'LIVE · DNS остановлен';$('liveBadge').dataset.tone=active?'good':'bad';
     return s;
   }
   function formatTime(s){try{return new Date(s).toLocaleTimeString('ru-RU',{hour12:false})}catch(_){return s}}
   function renderLogs(){
     let traces=state.logs.slice().reverse(),filter=$('logFilter').value.trim().toLowerCase();
-    if(filter)traces=traces.filter(t=>[t.name,t.assigned,t.used,t.transport].some(s=>String(s||'').toLowerCase().includes(filter)));
+    if(filter)traces=traces.filter(t=>[t.name,t.client,t.assigned,t.used,t.transport].some(s=>String(s||'').toLowerCase().includes(filter)));
     if($('onlyErrors').checked)traces=traces.filter(t=>!t.success);
     $('logCounter').textContent=state.logs.length;
     const root=$('logRows');root.replaceChildren();
     if(!traces.length){const p=document.createElement('p');p.className='muted';p.textContent='Пока нет подходящих запросов. Открой сайт с подключённого устройства или проверь DNS.';root.appendChild(p);return;}
     for(const t of traces){
       const row=document.createElement('div');row.className='log-row'+(!t.success?' error':'');
-      const vals=[formatTime(t.time),t.name||'—',t.cache?'Кэш':(t.assigned||'—')+(t.used&&t.assigned!==t.used?' → '+t.used:''),t.success?(t.rcode===3?'NXDOMAIN':t.rcode===0?'OK':'RCODE '+t.rcode):'Ошибка',t.latency_ms+' мс'];
+      const vals=[formatTime(t.time),(t.name||'—')+(t.client?' · '+t.client:''),t.cache?'Кэш':(t.assigned||'—')+(t.used&&t.assigned!==t.used?' → '+t.used:''),t.rcode===5?'REFUSED · ACL':t.success?(t.rcode===3?'NXDOMAIN':t.rcode===0?'OK':'RCODE '+t.rcode):'Ошибка',t.latency_ms+' мс'];
       for(let i=0;i<vals.length;i++){const n=document.createElement('span');n.className=i===1?'col-domain':'';n.textContent=String(vals[i]);row.appendChild(n);}root.appendChild(row);
     }
   }

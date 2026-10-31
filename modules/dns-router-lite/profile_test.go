@@ -10,10 +10,11 @@ import (
 )
 
 type fakeNDMC struct {
-	lines     map[string]bool
-	commands  []string
-	failAt    int
-	mutations int
+	lines        map[string]bool
+	commands     []string
+	failAt       int
+	mutations    int
+	autoDefaults bool // real KeeneticOS emits description/intercept defaults
 }
 
 func (f *fakeNDMC) Command(_ context.Context, c string) (string, error) {
@@ -75,6 +76,12 @@ func (f *fakeNDMC) Command(_ context.Context, c string) (string, error) {
 					delete(f.lines, old)
 				}
 			}
+		}
+		if f.autoDefaults && l == "filter profile "+profileName {
+			// Firmware renders no bare profile row, but supplies implicit defaults.
+			f.lines[l+" description "+profileName] = true
+			f.lines[l+" intercept no enable"] = true
+			return "ok", nil
 		}
 		f.lines[l] = true
 		return "ok", nil
@@ -176,5 +183,50 @@ func TestProfilePresetAndNonPersistentReboot(t *testing.T) {
 	}
 	if p2.Connected() || f.mutations != mutations {
 		t.Fatal("reboot reconciliation changed native configuration or retained stale ownership")
+	}
+}
+
+// P14 regression: stock KeeneticOS may add description/intercept defaults.
+func TestProfileKeeneticFirmwareDefaultsP14(t *testing.T) {
+	p, f := newProfileFixture(t)
+	f.autoDefaults = true
+	baseline, _ := f.Command(context.Background(), "show running-config")
+	if err := p.Connect(context.Background(), "02:11:22:33:44:55", "192.168.10.1:55358", false); err != nil {
+		t.Fatal("Keenetic default profile fields rejected during connect:", err)
+	}
+	if st := p.Status(); st["state"] != "connected" {
+		t.Fatalf("profile not connected: %+v", st)
+	}
+	if err := p.Disconnect(context.Background()); err != nil {
+		t.Fatal("Keenetic defaults rejected during disconnect:", err)
+	}
+	after, _ := f.Command(context.Background(), "show running-config")
+	if after != baseline || p.Connected() {
+		t.Fatal("Keenetic profile did not restore exact baseline")
+	}
+}
+func TestProfileKeeneticPendingRollbackP14(t *testing.T) {
+	p, f := newProfileFixture(t)
+	f.autoDefaults = true
+	f.failAt = 3 // profile created, upstream added, old assignment removal fails
+	baseline, _ := f.Command(context.Background(), "show running-config")
+	if err := p.Connect(context.Background(), "02:11:22:33:44:55", "192.168.10.1:55358", false); err == nil {
+		t.Fatal("injected failure was ignored")
+	}
+	after, _ := f.Command(context.Background(), "show running-config")
+	if after != baseline || p.Connected() {
+		t.Fatal("partial profile with firmware defaults was not rolled back")
+	}
+}
+func TestProfileKeeneticForeignOwnedChangeBlockedP14(t *testing.T) {
+	p, f := newProfileFixture(t)
+	f.autoDefaults = true
+	if err := p.Connect(context.Background(), "02:11:22:33:44:55", "192.168.10.1:55358", false); err != nil {
+		t.Fatal(err)
+	}
+	f.lines["filter profile "+profileName+" intercept enable"] = true
+	before := f.mutations
+	if err := p.Disconnect(context.Background()); err == nil || f.mutations != before {
+		t.Fatal("foreign change was overwritten or silently accepted")
 	}
 }

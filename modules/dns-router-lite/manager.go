@@ -73,6 +73,7 @@ func (m *Manager) statusLocked() map[string]any {
 		s["default_upstream"] = m.applied.Service.DefaultUpstream
 		s["cache_bytes"] = m.applied.Service.CacheBytes
 		s["requests"] = m.engine.requests.Load()
+		s["denied_requests"] = m.engine.denied.Load()
 		s["cache_hits"] = m.engine.cacheHits.Load()
 		s["failures"] = m.engine.failures.Load()
 		s["rules"] = len(m.applied.Rules)

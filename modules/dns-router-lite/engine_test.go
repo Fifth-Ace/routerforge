@@ -172,10 +172,17 @@ func TestIndependentDNSACLAndTraceBound(t *testing.T) {
 	f := func(dr.Upstream) (upstream.Upstream, error) {
 		return upstream.AddressToUpstream(dest, &upstream.Options{Timeout: time.Second})
 	}
-	startFixture(t, c, f)
+	engine := startFixture(t, c, f)
 	a := ask(t, c.Service.Listen, "udp", "outside.example")
 	if a.Rcode != dns.RcodeRefused || n.Load() != 0 {
 		t.Fatal("ACL was bypassed")
+	}
+	if engine.denied.Load() != 1 || engine.requests.Load() != 1 {
+		t.Fatal("ACL denial did not update incoming request counters")
+	}
+	traces := engine.Traces("outside.example")
+	if len(traces) != 1 || traces[0].Used != "refused" || traces[0].Client != "127.0.0.1" || traces[0].RCode != dns.RcodeRefused {
+		t.Fatalf("ACL denial not visible in live diagnostics: %+v", traces)
 	}
 	e := &Engine{}
 	for i := 0; i < 200; i++ {

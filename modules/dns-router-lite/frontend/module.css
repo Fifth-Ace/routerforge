@@ -117,3 +117,8 @@
 /* Embed-safe frame: use RouterForge theme tokens in standalone as well. */
 .page { background: var(--bg); }
 .topbar { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:9px 12px; }
+
+/* P14: distinguish an active listener from proven client traffic. */
+.route-advice{border:1px solid var(--border);background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin:9px 0 12px;color:var(--muted);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.route-advice[data-tone="warn"]{border-color:var(--accent);color:var(--text)}
+.route-advice[data-tone="bad"]{border-color:var(--bad);color:var(--bad)}

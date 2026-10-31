@@ -24,6 +24,7 @@ import (
 )
 
 type Trace struct {
+	Client    string    `json:"client,omitempty"`
 	Time      time.Time `json:"time"`
 	Name      string    `json:"name"`
 	Type      uint16    `json:"type"`
@@ -37,6 +38,8 @@ type Trace struct {
 	LatencyMS int64     `json:"latency_ms"`
 }
 
+type requestClientKey struct{}
+
 type Factory func(dr.Upstream) (upstream.Upstream, error)
 
 type Engine struct {
@@ -49,6 +52,7 @@ type Engine struct {
 	mu        sync.Mutex
 	traces    []Trace
 	requests  atomic.Uint64
+	denied    atomic.Uint64
 	cacheHits atomic.Uint64
 	failures  atomic.Uint64
 }
@@ -226,17 +230,24 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		}
 	}
 	if !allowed || len(d.Req.Question) != 1 {
+		e.requests.Add(1)
+		e.denied.Add(1)
+		e.failures.Add(1)
+		if len(d.Req.Question) == 1 {
+			e.addTrace(Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), "."), Type: d.Req.Question[0].Qtype, Assigned: "client-acl", Used: "refused", Success: false, RCode: dns.RcodeRefused})
+		}
 		d.Res = new(dns.Msg)
 		d.Res.SetRcode(d.Req, dns.RcodeRefused)
 		return nil
 	}
 	e.requests.Add(1)
+	ctx = context.WithValue(ctx, requestClientKey{}, d.Addr.Addr().String())
 	name := strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), ".")
 	if localName(name) {
 		start := time.Now()
 		var err error
 		d.Res, err = e.local.Exchange(ctx, d.Req)
-		t := Trace{Time: time.Now().UTC(), Name: name, Type: d.Req.Question[0].Qtype, Assigned: "system-local", Used: "system-local", Success: err == nil, LatencyMS: time.Since(start).Milliseconds()}
+		t := Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name, Type: d.Req.Question[0].Qtype, Assigned: "system-local", Used: "system-local", Success: err == nil, LatencyMS: time.Since(start).Milliseconds()}
 		if err != nil {
 			d.Res = new(dns.Msg)
 			d.Res.SetRcode(d.Req, dns.RcodeServerFailure)
@@ -255,7 +266,7 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 	}
 	if cached && d.Res != nil {
 		e.cacheHits.Add(1)
-		e.addTrace(Trace{Time: time.Now().UTC(), Name: name, Type: d.Req.Question[0].Qtype, Cache: true, Assigned: "cache", Success: err == nil, RCode: d.Res.Rcode})
+		e.addTrace(Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name, Type: d.Req.Question[0].Qtype, Cache: true, Assigned: "cache", Success: err == nil, RCode: d.Res.Rcode})
 	}
 	return err
 }
@@ -289,7 +300,8 @@ func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, e
 		if er == nil && (answer == nil || !answer.Response || answer.Id != q.Id || len(answer.Question) != 1 || !strings.EqualFold(answer.Question[0].Name, q.Question[0].Name) || answer.Question[0].Qtype != q.Question[0].Qtype || answer.Question[0].Qclass != q.Question[0].Qclass) {
 			er = errors.New("DNS response does not match the question")
 		}
-		t := Trace{Time: time.Now().UTC(), Name: name, Type: q.Question[0].Qtype, Rule: d.RuleID, Assigned: d.Upstream, Used: u.ID, Transport: u.Transport, Success: er == nil, LatencyMS: time.Since(start).Milliseconds(), RCode: -1}
+		client, _ := ctx.Value(requestClientKey{}).(string)
+		t := Trace{Time: time.Now().UTC(), Client: client, Name: name, Type: q.Question[0].Qtype, Rule: d.RuleID, Assigned: d.Upstream, Used: u.ID, Transport: u.Transport, Success: er == nil, LatencyMS: time.Since(start).Milliseconds(), RCode: -1}
 		if answer != nil {
 			t.RCode = answer.Rcode
 		}

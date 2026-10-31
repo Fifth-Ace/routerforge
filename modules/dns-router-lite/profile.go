@@ -202,6 +202,8 @@ func (p *ProfileManager) Reconcile(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			p.lastError = err.Error()
+		} else {
+			p.lastError = ""
 		}
 	}()
 	s, e := p.load()
@@ -219,7 +221,16 @@ func (p *ProfileManager) Reconcile(ctx context.Context) (err error) {
 	if f == s.ForeignHash && a == s.Previous && engine == s.Engine && len(owned) == 0 {
 		return os.Remove(p.Path)
 	}
-	if f != s.ForeignHash || engine != s.Engine || a != "filter assign host profile "+s.MAC+" "+profileName || !exactOwned(owned, s.Listen) {
+	assigned := "filter assign host profile " + s.MAC + " " + profileName
+	if f != s.ForeignHash || engine != s.Engine {
+		return errors.New("client DNS ownership changed; inspect connection before restoring it")
+	}
+	if s.State == "pending" && (a == s.Previous || a == assigned) && knownOwned(owned, s.Listen) {
+		// Pending may contain only part of the profile. Never auto-mutate
+		// Keenetic at startup; the explicit Disconnect can safely roll back.
+		return nil
+	}
+	if a != assigned || !exactOwned(owned, s.Listen) {
 		return errors.New("client DNS ownership changed; inspect connection before restoring it")
 	}
 	return nil
@@ -307,13 +318,36 @@ func (p *ProfileManager) Connect(ctx context.Context, mac, listen string, persis
 	p.lastError = ""
 	return nil
 }
+
+// knownOwned allows only the exact KeeneticOS-generated defaults for our
+// reserved profile. Extra upstreams, an enabled intercept or another description
+// remain a conflict. Partial subsets are needed to roll back a failed Connect.
+func knownOwned(lines []string, listen string) bool {
+	allowed := map[string]bool{
+		"filter profile " + profileName:                                 true,
+		"filter profile " + profileName + " description " + profileName: true,
+		"filter profile " + profileName + " intercept no enable":        true,
+		"filter profile " + profileName + " dns53 upstream " + listen:   true,
+	}
+	seen := make(map[string]bool, len(lines))
+	for _, line := range lines {
+		if !allowed[line] || seen[line] {
+			return false
+		}
+		seen[line] = true
+	}
+	return true
+}
 func exactOwned(lines []string, listen string) bool {
-	if len(lines) != 2 {
+	if !knownOwned(lines, listen) {
 		return false
 	}
-	a := append([]string(nil), lines...)
-	sort.Strings(a)
-	return a[0] == "filter profile "+profileName && a[1] == "filter profile "+profileName+" dns53 upstream "+listen
+	for _, line := range lines {
+		if line == "filter profile "+profileName+" dns53 upstream "+listen {
+			return true
+		}
+	}
+	return false
 }
 func (p *ProfileManager) Disconnect(ctx context.Context) error {
 	p.mu.Lock()
@@ -342,10 +376,8 @@ func (p *ProfileManager) disconnectLocked(ctx context.Context) error {
 	if engine != s.Engine {
 		return errors.New("DNS engine changed outside RouterForge")
 	}
-	for _, l := range owned {
-		if l != "filter profile "+profileName && l != "filter profile "+profileName+" dns53 upstream "+s.Listen {
-			return errors.New("owned DNS profile was modified outside RouterForge")
-		}
+	if !knownOwned(owned, s.Listen) {
+		return errors.New("owned DNS profile contains unrecognized changes; no DNS settings overwritten")
 	}
 	if a == "filter assign host profile "+s.MAC+" "+profileName {
 		if _, e = p.command(ctx, "no dns-proxy filter assign host profile "+s.MAC); e != nil {

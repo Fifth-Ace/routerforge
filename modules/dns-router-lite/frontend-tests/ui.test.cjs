@@ -9,7 +9,7 @@ const tick=()=>new Promise(r=>setTimeout(r,25));
 const until=async(p)=>{for(let i=0;i<45;i++){if(p())return;await tick();}throw Error('UI wait exceeded');};
 function fixture(){
   let config={schema_version:1,upstreams:[{id:'old',transport:'udp',address:'9.9.9.9:53'},{id:'cf',transport:'doh',address:'1.1.1.1:443',server_name:'cloudflare-dns.com',path:'/dns-query'}],rules:[{id:'r1',domain:'example.com',match:'suffix',upstream:'old',priority:100},{id:'r2',domain:'other.net',match:'suffix',upstream:'cf',priority:100}]};
-  let revision='sha256:initial',active=false,connection={state:'disconnected'},requests=0;const calls=[],errors=[];
+  let revision='sha256:initial',active=false,connection={state:'disconnected'},requests=0,denied=0;const calls=[],errors=[];
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
   const w=dom.window;w.confirm=()=>true;w.scrollTo=()=>{};
@@ -19,7 +19,7 @@ function fixture(){
     if(p==='config'){
       if(opts.method==='PUT'){a.equal(opts.headers['If-Match'],'"'+revision+'"');config=JSON.parse(opts.body);revision='sha256:next';}
       body={config:structuredClone(config),revision};
-    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,cache_hits:0,failures:0,connection};
+    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,cache_hits:0,failures:0,connection};
     else if(p==='service/traces')body={traces:active?[{name:'example.com',time:'2026-10-31T12:00:00Z',assigned:'old',used:'old',transport:'udp',rcode:0,success:true,latency_ms:5,type:1,cache:false}]:[]};
     else if(p==='certificates/lookup'){a.equal(opts.headers['X-RouterForge-Action'],'certificate-lookup');const q=JSON.parse(opts.body);body={address:'8.8.8.8:443',selected_ip:'8.8.8.8',ips:['8.8.8.8'],certificate:{verified:true,pem:'-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n',subject:'CN=dns.google',issuer:'Trusted CA',not_after:'2027-10-31',fingerprint_sha256:'ab',server_name:q.server_name}};}
     else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';body={ok:true};}
@@ -30,7 +30,7 @@ function fixture(){
     else status=404;
     return {ok:status===200,status,headers:{get:()=> 'application/json'},json:async()=>structuredClone(body)};
   };
-  w.eval(js);return {w,dom,calls,errors,getConfig:()=>config,getActive:()=>active};
+  w.eval(js);return {w,dom,calls,errors,getConfig:()=>config,getActive:()=>active,setConnection:v=>{connection=v;},setRequests:v=>{requests=v;},setDenied:v=>{denied=v;}};
 }
 
 test('P13 visual parity: two pages and split DNS/domain workspace, no P10 controls',()=>{
@@ -114,6 +114,32 @@ test('P13 prevents accidental loss of unsaved domain text on apply or switching 
     d.getElementById('applyButton').click();
     await until(()=>d.getElementById('feedback').textContent.includes('Сначала нажми'));
     a.equal(f.getActive(),false,'no DNS activation while unsaved domains exist');
+    a.deepEqual(f.errors,[]);
+  }finally{f.dom.window.close();}
+});
+
+
+test('P14: status distinguishes an active listener from a verified client path',async()=>{
+  const f=fixture(),d=f.w.document;
+  try{
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    a.match(d.getElementById('routeAdvice').textContent,/DNS Router остановлен/);
+    d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+    d.getElementById('applyButton').click();await until(()=>f.getActive() && d.getElementById('routeAdvice').textContent.includes('0 запросов'));
+    await tick();
+    a.match(d.getElementById('routeAdvice').textContent,/0 запросов/);
+    a.match(d.getElementById('routeAdvice').textContent,/53/);
+    f.setConnection({state:'pending',mac:'be:56:a6:9a:70:ee'});
+    d.getElementById('refreshLogs').click();
+    await until(()=>d.getElementById('routeAdvice').textContent.includes('pending'));
+    a.match(d.getElementById('logGuide').textContent,/не завершено/);
+    f.setConnection({state:'connected',mac:'be:56:a6:9a:70:ee'});f.setRequests(4);
+    d.getElementById('refreshLogs').click();
+    await until(()=>d.getElementById('routeAdvice').textContent.includes('4 запросов'));
+    a.doesNotMatch(d.getElementById('routeAdvice').textContent,/0 запросов/);
+    f.setRequests(4);f.setDenied(4);d.getElementById('refreshLogs').click();
+    await until(()=>d.getElementById('routeAdvice').textContent.includes('ВСЕ отклонены'));
+    a.match(d.getElementById('routeAdvice').textContent,/REFUSED/);
     a.deepEqual(f.errors,[]);
   }finally{f.dom.window.close();}
 });

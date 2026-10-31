@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "b5375d76b0405180ebe8f0a64b11fb29bd251d5c6553fc4dd80ec9ae7870d62a",
+  "revision": "6507b4bf06330c17a2b15cfc14d848a3f4569ec57a09d61fff76cbc7662c1e52",
   "entries": [
     {
       "id": "adguardhome-keenetic",
@@ -539,9 +539,9 @@
     {
       "id": "dns-router",
       "kind": "module",
-      "name": "DNS Policy Router 2.0",
+      "name": "DNS Router",
       "category": "DNS",
-      "description": "DEV Preview: DNS rules, diagnostics and manual shadow mode; no router DNS takeover.",
+      "description": "Lightweight DNS router with domain lists, live diagnostics and optional opt-in system DNS Gate for LAN.",
       "publisher": {
         "id": "routerforge",
         "name": "RouterForge",
@@ -577,7 +577,7 @@
           "routerforge-dns-router"
         ],
         "notes": [
-          "DEV preview management-only service; DNS unchanged."
+          "DEV: system DNS Gate is OFF until user explicitly enables it; Keenetic DNS remains untouched by installation."
         ],
         "preview_only": false
       },
@@ -591,7 +591,7 @@
           "routerforge-dns-router"
         ],
         "notes": [
-          "DEV preview management-only service; DNS unchanged."
+          "DEV: Gate disabled during upgrade; client DNS uses Keenetic until explicitly re-enabled."
         ],
         "preview_only": false
       },
@@ -616,16 +616,17 @@
       "capabilities": [
         "dns-policy-routing",
         "manual-shadow",
-        "dns-diagnostics"
+        "dns-diagnostics",
+        "opt-in-system-dns-gate"
       ],
       "manifest_id": "dns-router",
-      "manifest_sha256": "87d64ed842950a2d0eb4f13bbd8e62e3c7e9c02c3a38d1c370fa766a2df7bb83",
+      "manifest_sha256": "5b21e8cc433d6478b19e78de0dc6fd690c78082362588f9096bab02027d31d23",
       "manifest_source": "marketplace/submissions/dns-router.json",
       "registry_source": "routerforge-community",
       "trust": {
         "status": "official",
         "reviewed_by": "routerforge",
-        "note": "Official RouterForge DNS Router DEV preview; no automatic DNS takeover."
+        "note": "Official RouterForge DNS Lite DEV; global DNS remains opt-in."
       }
     },
     {

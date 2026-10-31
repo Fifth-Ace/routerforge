@@ -55,6 +55,12 @@
         </div>
       </section>
     </div>
+    <section class="panel gate-panel" id="systemGatePanel" aria-label="Системный DNS">
+      <div class="section-title"><div><span class="eyebrow">СИСТЕМНЫЙ DNS · P15 DEV</span><h2>RouterForge — основной DNS для LAN</h2><p>Отдельный opt-in: обычные DNS-запросы IPv4/IPv6 клиентов LAN направляются через RouterForge, штатные настройки Keenetic сохраняются.</p></div><span class="status" id="gateBadge">STOCK</span></div>
+      <p class="route-advice" id="gateAdvice">Системное перенаправление выключено. Keenetic обслуживает DNS как раньше.</p>
+      <div class="actions"><button type="button" class="button" id="gatePreflight">Проверить готовность</button><button type="button" class="button primary" id="gateEnable">Включить для LAN</button><button type="button" class="button danger" id="gateDisable">Вернуть штатный DNS</button></div>
+      <small class="muted">Только br0, UDP/TCP 53. DoH/DoT приложений не перехватывается. При остановке DNS Lite или потере lease новые DNS-запросы возвращаются в Keenetic. После перезагрузки автоматическое включение отключено.</small>
+    </section>
     <section class="panel apply-panel">
       <div class="section-title"><div><span class="eyebrow">ШАГ 3 · ПРИМЕНЕНИЕ</span><h2>Запуск и подключение</h2><p>Сначала запускаем DNS-сервис, потом при необходимости подключаем устройство.</p></div></div>
       <div class="actions"><button type="button" class="button primary" id="applyButton">✓ Сохранить и применить</button><button type="button" class="button" id="saveButton">Только сохранить</button><button type="button" class="button" id="verifyButton">Проверить DNS</button><button type="button" class="button danger" id="stopButton">Остановить DNS</button></div>

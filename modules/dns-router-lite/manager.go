@@ -30,6 +30,7 @@ type Manager struct {
 	revision  string
 	lastError string
 	Profile   *ProfileManager
+	Gate      *GateManager
 }
 
 func atomicFile(path string, data []byte) error {
@@ -80,6 +81,10 @@ func (m *Manager) statusLocked() map[string]any {
 	}
 	if m.Profile != nil {
 		s["connection"] = m.Profile.Status()
+	}
+	if m.Gate != nil {
+		s["system_gate"] = m.Gate.Status()
+		s["interception"] = m.Gate.Status()["active"]
 	}
 	return s
 }
@@ -160,6 +165,11 @@ func (m *Manager) control(op, expected string) error {
 	case "start":
 		return m.startLocked(c, rev, true)
 	case "stop":
+		if m.Gate != nil {
+			if e = m.Gate.Disable(context.Background()); e != nil {
+				return e
+			}
+		}
 		if m.Profile != nil {
 			if e = m.Profile.Disconnect(context.Background()); e != nil {
 				return e
@@ -179,6 +189,11 @@ func (m *Manager) control(op, expected string) error {
 		}
 		return nil
 	case "apply":
+		if m.Gate != nil && m.Gate.Status()["active"] == true {
+			if e = m.Gate.Disable(context.Background()); e != nil {
+				return e
+			}
+		}
 		if m.engine == nil {
 			return m.startLocked(c, rev, true)
 		}
@@ -247,6 +262,33 @@ func mutation(r *http.Request, dst any) error {
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch r.URL.Path {
+	case "/v1/service/gate/control":
+		var body struct {
+			Operation string `json:"operation"`
+		}
+		err = mutation(r, &body)
+		if err == nil {
+			m.mu.Lock()
+			defer m.mu.Unlock()
+			if m.Gate == nil || m.engine == nil || m.applied.Service == nil {
+				err = errors.New("start DNS Lite before controlling global DNS gate")
+			} else if strings.Trim(r.Header.Get("If-Match"), "\"") != m.revision {
+				err = dr.ErrStale
+			} else if m.Profile != nil && m.Profile.Connected() {
+				err = errors.New("disconnect individual Keenetic DNS client profile first")
+			} else {
+				switch body.Operation {
+				case "preflight":
+					err = m.Gate.Preflight(r.Context(), m.applied.Service.Listen)
+				case "enable":
+					err = m.Gate.Enable(r.Context(), m.applied.Service.Listen)
+				case "disable":
+					err = m.Gate.Disable(r.Context())
+				default:
+					err = errors.New("invalid Gate operation")
+				}
+			}
+		}
 	case "/v1/service/status":
 		if r.Method != "GET" {
 			w.WriteHeader(405)

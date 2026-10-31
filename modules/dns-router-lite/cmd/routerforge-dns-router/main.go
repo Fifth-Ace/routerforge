@@ -170,7 +170,7 @@ func run() error {
 	if os.Getenv("GOMEMLIMIT") == "" {
 		debug.SetMemoryLimit(48 << 20)
 	}
-	manager := &lite.Manager{Store: store, Path: *config, Profile: &lite.ProfileManager{Path: *config + ".profile-state.json", Executor: dr.NewRealNDMCM()}}
+	manager := &lite.Manager{Store: store, Path: *config, Profile: &lite.ProfileManager{Path: *config + ".profile-state.json", Executor: dr.NewRealNDMCM()}, Gate: lite.NewGateManager()}
 	if e = manager.Resume(); e != nil {
 		log.Printf("DNS resume failed; management remains available: %v", e)
 	}
@@ -178,6 +178,7 @@ func run() error {
 		log.Printf("DNS client connection needs inspection: %v", e)
 	}
 	defer manager.Close()
+	defer manager.Gate.Close()
 	if !filepath.IsAbs(*socket) {
 		return errors.New("absolute Unix socket required")
 	}

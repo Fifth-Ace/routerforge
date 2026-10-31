@@ -122,3 +122,6 @@
 .route-advice{border:1px solid var(--border);background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin:9px 0 12px;color:var(--muted);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
 .route-advice[data-tone="warn"]{border-color:var(--accent);color:var(--text)}
 .route-advice[data-tone="bad"]{border-color:var(--bad);color:var(--bad)}
+
+/* P15 global DNS Gate is a separate intentional opt-in. */
+.gate-panel{border-color:var(--accent)}.gate-panel .section-title{align-items:center}.gate-panel .actions{margin:12px 0}.gate-panel .route-advice{margin:8px 0}.gate-panel #gateBadge{font-weight:800}.gate-panel #gateBadge[data-tone=good]{color:var(--good)}.gate-panel #gateBadge[data-tone=bad]{color:var(--bad)}

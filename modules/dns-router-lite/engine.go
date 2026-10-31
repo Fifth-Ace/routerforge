@@ -124,6 +124,19 @@ func NewEngine(c dr.Config, factory Factory) (*Engine, error) {
 		_, n, _ := net.ParseCIDR(raw)
 		e.allowed = append(e.allowed, n)
 	}
+	// IPv6 addresses on the physical test LAN. The Gate restricts input to
+	// br0; ACL never trusts an arbitrary global IPv6 source prefix.
+	_, gateIPv6, dualReady := GateCandidates()
+	if dualReady == nil {
+		for _, prefix := range gateIPv6 {
+			_, n, er := net.ParseCIDR(prefix)
+			if er == nil {
+				e.allowed = append(e.allowed, n)
+			}
+		}
+		_, loopback, _ := net.ParseCIDR("::1/128")
+		e.allowed = append(e.allowed, loopback)
+	}
 	// The stock proxy retains local DHCP names. This path is used exclusively
 	// for local namespaces and never as a public/default fallback.
 	e.local, err = upstream.AddressToUpstream("127.0.0.1:53", &upstream.Options{Timeout: 2 * time.Second})
@@ -141,8 +154,29 @@ func NewEngine(c dr.Config, factory Factory) (*Engine, error) {
 		e.closeServers()
 		return nil, err
 	}
+	udpSockets := []*net.UDPAddr{udp}
+	tcpSockets := []*net.TCPAddr{tcp}
+	if dualReady == nil {
+		_, servicePort, er := net.SplitHostPort(c.Service.Listen)
+		if er != nil {
+			e.closeServers()
+			return nil, er
+		}
+		udp6, er := net.ResolveUDPAddr("udp6", "[::]:"+servicePort)
+		if er != nil {
+			e.closeServers()
+			return nil, er
+		}
+		tcp6, er := net.ResolveTCPAddr("tcp6", "[::]:"+servicePort)
+		if er != nil {
+			e.closeServers()
+			return nil, er
+		}
+		udpSockets = append(udpSockets, udp6)
+		tcpSockets = append(tcpSockets, tcp6)
+	}
 	e.proxy, err = proxy.New(&proxy.Config{
-		UDPListenAddr: []*net.UDPAddr{udp}, TCPListenAddr: []*net.TCPAddr{tcp},
+		UDPListenAddr: udpSockets, TCPListenAddr: tcpSockets,
 		UpstreamConfig: &proxy.UpstreamConfig{Upstreams: []upstream.Upstream{&routingUpstream{e}}},
 		CacheEnabled:   c.Service.CacheBytes > 0, CacheSizeBytes: c.Service.CacheBytes,
 		MaxGoroutines: 32, RequestHandler: proxy.HandlerFunc(e.handle),

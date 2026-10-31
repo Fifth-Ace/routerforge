@@ -12,7 +12,7 @@
   const hostName = u => protocolNames[u.transport]+' · '+displayName(u);
   const editorPending=()=>state.editing!==null && $('editorDomains').value!==state.editorBase;
   const show = (message,tone='') => {const el=$('feedback');el.textContent=message;el.dataset.tone=tone;};
-  const busy = on => {state.busy=on;for(const id of ['saveButton','applyButton','addDnsToggle','inspectDNS','commitDNS','migrateNative','connectButton','disconnectButton','verifyButton','stopButton']){const el=$(id);if(el)el.disabled=on;}};
+  const busy = on => {state.busy=on;for(const id of ['saveButton','applyButton','addDnsToggle','inspectDNS','commitDNS','migrateNative','connectButton','disconnectButton','verifyButton','stopButton','gatePreflight','gateEnable','gateDisable']){const el=$(id);if(el)el.disabled=on;}};
   async function api(path,options={}) {
     const resp=await fetch('../'+path,{cache:'no-store',credentials:'same-origin',...options});
     const ct=resp.headers && resp.headers.get ? (resp.headers.get('content-type')||'') : 'application/json';
@@ -176,7 +176,18 @@
     return {tone:'',text:'DNS Router получил '+upstream+' запросов на '+endpoint+'. Клиентский профиль Keenetic подключён, но чтобы подтвердить именно планшет, сопоставь время его DNS-запросов с журналом.'};
   }
   function showRoutingHint(s){const hint=routingHint(s);for(const id of ['routeAdvice','logGuide']){const node=$(id);node.textContent=hint.text;node.dataset.tone=hint.tone;}}
-  async function refreshStatus(){const s=await api('service/status');if(s.mode!=='independent-dns')throw Error('Загружен не DNS Lite. Установи актуальный DEV-пакет.');state.status=s;
+  function renderGate(s){
+    const gate=s.system_gate||{state:'STOCK',active:false};
+    $('gateBadge').textContent=gate.state;
+    $('gateBadge').dataset.tone=gate.active?'good':gate.state==='RECOVERY_REQUIRED'?'bad':'';
+    $('gateEnable').disabled=state.busy||!s.active||gate.active||gate.state==='RECOVERY_REQUIRED';
+    $('gateDisable').disabled=state.busy||(!gate.active&&gate.state!=='RECOVERY_REQUIRED');
+    const hits=Number(s.requests||0),denied=Number(s.denied_requests||0);
+    $('gateAdvice').textContent=gate.state==='RECOVERY_REQUIRED'?('Восстановление: '+(gate.last_error||'Нужна проверка правил firewall')):
+      gate.active?('DNS Gate активен на br0 (UDP/TCP 53). Обработано запросов: '+hits+', ACL-отказов: '+denied+'. Проверяй журнал и устройство.'):
+      'Системный DNS Keenetic работает штатно. Для включения сначала проверь готовность, затем подтверди перехват LAN.';
+  }
+  async function refreshStatus(){const s=await api('service/status');if(s.mode!=='independent-dns')throw Error('Загружен не DNS Lite. Установи актуальный DEV-пакет.');state.status=s;renderGate(s);
     const connection=s.connection||{state:'disconnected'},active=Boolean(s.active),same=active&&s.applied_revision===state.revision;
     $('serviceBadge').textContent=active?'DNS работает':'DNS остановлен';$('serviceBadge').dataset.tone=active?'good':'bad';
     $('runStatus').textContent=(active?'DNS работает: '+s.listen+' · Основной '+displayName(state.config.upstreams.find(u=>u.id===s.default_upstream)||{transport:'udp',address:s.default_upstream||'—'}):'Сервис остановлен.')+(active&&!same?' · Есть неприменённая версия настроек.':'')+(s.last_error?' · Ошибка: '+s.last_error:'');
@@ -217,6 +228,22 @@
   $('exportDomains').addEventListener('click',()=>{if(!state.editing)return;const data=$('editorDomains').value;const url=URL.createObjectURL(new Blob([data.endsWith('\n')?data:data+'\n'],{type:'text/plain;charset=utf-8'}));try{const a=document.createElement('a');a.href=url;a.download='routerforge-domains.txt';a.click();}finally{URL.revokeObjectURL(url);}});
   $('defaultDNS').addEventListener('change',()=>{mark();});for(const id of ['serviceListen','cacheSize','allowedNetworks'])$(id).addEventListener('change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
   on('saveButton',save);on('applyButton',apply);on('migrateNative',migrate);
+  on('gatePreflight',async()=>{
+    await api('service/gate/control',opts('service-control',{operation:'preflight'},true));
+    show('PRECHECK: готовность br0 и DNS listener подтверждена. IPv4/IPv6 kernel gate проверится при активации. Настройки не изменены.','good');
+  });
+  on('gateEnable',async()=>{
+    if(state.dirty || editorPending())throw Error('Сначала сохрани и примени все изменения DNS.');
+    if(!confirm('Включить RouterForge для ВСЕХ обычных DNS-запросов UDP/TCP 53 сети br0? Приватные DoH/DoT приложений не перехватываются. Штатные настройки Keenetic останутся без изменений.'))return;
+    await api('service/gate/control',opts('service-control',{operation:'enable'},true));
+    await refreshStatus();show('DNS Gate включён для LAN. Проверь реальные запросы планшета в журнале.','good');
+  });
+  on('gateDisable',async()=>{
+    if(!confirm('Отключить системный DNS Gate и вернуть обычную обработку Keenetic?'))return;
+    await api('service/gate/control',opts('service-control',{operation:'disable'},true));
+    await refreshStatus();show('Системный DNS Gate отключён. Клиенты снова используют Keenetic.','good');
+  });
+
   on('verifyButton',async()=>{const r=await serviceCommand('verify',{operation:'verify'});if(r.state!=='PASS')throw Error('Проверка DNS: '+r.state);show('Проверено '+r.results.length+' прямых UDP/TCP запросов. Подключение устройства проверяется отдельно.','good');});
   on('stopButton',async()=>{if(!confirm('Остановить DNS и вернуть прежний DNS подключённого устройства?'))return;await serviceCommand('control',{operation:'stop'});show('DNS остановлен, прежний DNS устройства возвращён.','good');});
   on('connectButton',async()=>{const mac=$('clientMAC').value.trim(),persist=$('persistClient').checked;if(!/^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(mac))throw Error('Укажи MAC в формате 02:11:22:33:44:55');if(!confirm('Назначить DNS Router устройству '+mac+'?'+(persist?' Keenetic сохранит общую конфигурацию.':'')))return;await serviceCommand('connect',{mac,persist});show('Устройство подключено. Открой журнал, затем попробуй открыть сайт на устройстве.','good');});

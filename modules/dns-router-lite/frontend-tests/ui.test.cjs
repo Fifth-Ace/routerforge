@@ -9,7 +9,7 @@ const tick=()=>new Promise(r=>setTimeout(r,25));
 const until=async(p)=>{for(let i=0;i<45;i++){if(p())return;await tick();}throw Error('UI wait exceeded');};
 function fixture(){
   let config={schema_version:1,upstreams:[{id:'old',transport:'udp',address:'9.9.9.9:53'},{id:'cf',transport:'doh',address:'1.1.1.1:443',server_name:'cloudflare-dns.com',path:'/dns-query'}],rules:[{id:'r1',domain:'example.com',match:'suffix',upstream:'old',priority:100},{id:'r2',domain:'other.net',match:'suffix',upstream:'cf',priority:100}]};
-  let revision='sha256:initial',active=false,connection={state:'disconnected'},requests=0,denied=0;const calls=[],errors=[];
+  let revision='sha256:initial',active=false,gateEnabled=false,connection={state:'disconnected'},requests=0,denied=0;const calls=[],errors=[];
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
   const w=dom.window;w.confirm=()=>true;w.scrollTo=()=>{};
@@ -19,10 +19,11 @@ function fixture(){
     if(p==='config'){
       if(opts.method==='PUT'){a.equal(opts.headers['If-Match'],'"'+revision+'"');config=JSON.parse(opts.body);revision='sha256:next';}
       body={config:structuredClone(config),revision};
-    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,cache_hits:0,failures:0,connection};
+    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,cache_hits:0,failures:0,connection,system_gate:{state:gateEnabled?'ACTIVE':'STOCK',active:gateEnabled,lease_seconds:15}};
     else if(p==='service/traces')body={traces:active?[{name:'example.com',time:'2026-10-31T12:00:00Z',assigned:'old',used:'old',transport:'udp',rcode:0,success:true,latency_ms:5,type:1,cache:false}]:[]};
     else if(p==='certificates/lookup'){a.equal(opts.headers['X-RouterForge-Action'],'certificate-lookup');const q=JSON.parse(opts.body);body={address:'8.8.8.8:443',selected_ip:'8.8.8.8',ips:['8.8.8.8'],certificate:{verified:true,pem:'-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n',subject:'CN=dns.google',issuer:'Trusted CA',not_after:'2027-10-31',fingerprint_sha256:'ab',server_name:q.server_name}};}
     else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';body={ok:true};}
+    else if(p==='service/gate/control'){const q=JSON.parse(opts.body);if(q.operation==='enable')gateEnabled=true;else if(q.operation==='disable')gateEnabled=false;body={ok:true};}
     else if(p==='service/verify')body={state:'PASS',results:[{state:'PASS'}]};
     else if(p==='service/connect'){connection={state:'connected',mac:JSON.parse(opts.body).mac};body={ok:true};}
     else if(p==='service/disconnect'){connection={state:'disconnected'};body={ok:true};}
@@ -141,5 +142,22 @@ test('P14: status distinguishes an active listener from a verified client path',
     await until(()=>d.getElementById('routeAdvice').textContent.includes('ВСЕ отклонены'));
     a.match(d.getElementById('routeAdvice').textContent,/REFUSED/);
     a.deepEqual(f.errors,[]);
+  }finally{f.dom.window.close();}
+});
+
+test('P15 Gate is OFF by default and requires explicit activation; UI changes do not touch Keenetic',async()=>{
+  const f=fixture(),d=f.w.document;
+  try{
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    a.equal(d.getElementById('gateBadge').textContent,'STOCK');
+    a.equal(f.calls.filter(c=>c.path==='service/gate/control').length,0,'no implicit Gate requests');
+    d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+    d.getElementById('applyButton').click();await until(()=>f.getActive());
+    d.getElementById('gateEnable').click();
+    await until(()=>d.getElementById('gateBadge').textContent==='ACTIVE');
+    d.getElementById('gateDisable').click();
+    await until(()=>d.getElementById('gateBadge').textContent==='STOCK');
+    const gateCalls=f.calls.filter(c=>c.path==='service/gate/control').map(c=>JSON.parse(c.opts.body).operation);
+    a.deepEqual(gateCalls,['enable','disable']);a.deepEqual(f.errors,[]);
   }finally{f.dom.window.close();}
 });

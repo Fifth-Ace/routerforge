@@ -396,3 +396,52 @@ html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
 .dr-p91-advanced>summary{font-size:12px;cursor:pointer;color:var(--muted)}
 .dr-p91-advanced pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:190px;overflow:auto;font-size:10px}
 @media(max-width:650px){.dr-p91-form-row{grid-template-columns:minmax(0,1fr)}.dr-p91-found>div{grid-template-columns:minmax(0,1fr);gap:3px}}
+
+/* DPR2 P9.2 — approved policy strip and 40/60 workspace. Presentation only. */
+#drSimpleWorkspace .dr-simple-intro{padding:10px 14px;gap:10px}
+#drSimpleWorkspace .dr-simple-intro h2{font-size:15px;margin:2px 0 0}
+#drSimpleWorkspace .dr-simple-intro p{margin:2px 0 0;line-height:1.45}
+#drSimpleWorkspace .dr-simple-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);grid-template-areas:"policies policies" "dns domains" "dns rules";gap:12px;align-items:start;min-width:0}
+#drSimpleWorkspace .dr-simple-side{grid-area:policies;padding:10px 12px;min-width:0}
+#drSimpleWorkspace .dr-simple-side h3{display:inline;font-size:12px;margin:0 12px 0 0}
+#drSimpleWorkspace .dr-simple-side>.dr-simple-help{display:inline;font-size:10px;margin:0}
+#drSimpleWorkspace .dr-simple-policies{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;overscroll-behavior-inline:contain;padding:3px 1px 6px;margin:7px 0 0;scrollbar-width:thin;scroll-snap-type:x proximity}
+#drSimpleWorkspace .dr-simple-policy{display:flex;flex-direction:column;justify-content:center;gap:2px;flex:0 0 173px;min-width:0;max-width:215px;min-height:60px;padding:8px 11px;text-align:left;scroll-snap-align:start}
+#drSimpleWorkspace .dr-simple-policy strong{font-size:12px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#drSimpleWorkspace .dr-simple-policy span{font-size:10px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#drSimpleWorkspace .dr-simple-policy small{font-size:10px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#drSimpleWorkspace .dr-simple-main{display:contents}
+#drSimpleWorkspace .dr-simple-main>.dr-simple-panel:nth-child(1){grid-area:dns;min-width:0}
+#drSimpleWorkspace .dr-simple-main>.dr-simple-panel:nth-child(2){grid-area:domains;min-width:0}
+#drSimpleWorkspace .dr-simple-main>.dr-simple-panel:nth-child(3){grid-area:rules;min-width:0}
+#drSimpleWorkspace .dr-simple-panel{padding:14px}
+#drSimpleWorkspace .dr-simple-field{min-width:0}
+#drSimpleWorkspace .dr-simple-field select,#drSimpleWorkspace .dr-simple-field textarea{min-width:0;max-width:100%}
+#drSimpleWorkspace #drSimpleDomains{min-height:245px;resize:vertical;font-size:12px}
+#drSimpleWorkspace .dr-p89-dns-catalog{max-height:260px;overflow:auto;scrollbar-width:thin}
+#drSimpleWorkspace .dr-p89-dns-item{padding:7px 9px}
+#drSimpleWorkspace .dr-simple-probe{margin-top:10px}
+#drSimpleWorkspace .dr-p90-manual{margin-top:10px}
+#drSimpleWorkspace .dr-p92-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px;align-items:center}
+#drSimpleWorkspace .dr-p92-tools .button{min-height:30px;padding:5px 9px;font-size:11px}
+#drSimpleWorkspace .dr-p92-preview{margin:10px 0 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--control-radius);padding:9px 11px}
+#drSimpleWorkspace .dr-p92-preview-head{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--muted);font-size:11px;margin-bottom:5px}
+#drSimpleWorkspace #drP92Preview{white-space:pre-wrap;word-break:break-word;font:11px/1.55 var(--mono);color:var(--text);max-height:175px;overflow:auto;margin:0}
+#drSimpleWorkspace .dr-p92-footer{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap}
+#drSimpleWorkspace .dr-p92-footer .dr-simple-actions{margin:0}
+#drSimpleWorkspace .dr-p92-import{display:none!important}
+#drSimpleWorkspace .dr-p92-message{font-size:10px;color:var(--muted);margin:0;line-height:1.45}
+#drSimpleWorkspace .dr-p92-message[data-state="error"]{color:var(--bad)}
+#drSimpleWorkspace .dr-p92-message[data-state="success"]{color:var(--good)}
+@media(max-width:920px){
+ #drSimpleWorkspace .dr-simple-layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"policies" "dns" "domains" "rules"}
+ #drSimpleWorkspace .dr-simple-policy{flex-basis:155px}
+ #drSimpleWorkspace #drSimpleDomains{min-height:205px}
+}
+@media(max-width:520px){
+ #drSimpleWorkspace .dr-simple-intro{align-items:stretch}
+ #drSimpleWorkspace .dr-simple-side>.dr-simple-help{display:none}
+ #drSimpleWorkspace .dr-simple-policy{flex-basis:142px;min-height:55px}
+ #drSimpleWorkspace .dr-simple-panel{padding:11px}
+ #drSimpleWorkspace .dr-p92-tools .button{flex:1 1 auto}
+}

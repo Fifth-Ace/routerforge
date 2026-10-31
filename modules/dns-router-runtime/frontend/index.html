@@ -30,7 +30,7 @@
     </div>
     <div class="dr-simple-layout">
       <aside class="dr-simple-side" aria-label="Политики Keenetic">
-        <h3>1. Политика Keenetic</h3><p class="dr-simple-help">Выбираем DNS-профиль; назначение устройств к политике не меняем</p>
+        <h3>Политики Keenetic</h3><p class="dr-simple-help">Выбери профиль для DNS-правил · горизонтальная прокрутка</p>
         <div id="drSimplePolicies" class="dr-simple-policies"><p>Поиск политик…</p></div>
       </aside>
       <div class="dr-simple-main">
@@ -70,8 +70,24 @@
         </section>
         <section class="dr-simple-panel">
           <h3>3. Домены</h3><p class="dr-simple-help">По одному на строку или через запятую. Поддомены включаются автоматически.</p>
-          <label class="dr-simple-field"><span>Какие домены направлять на этот DNS?</span><textarea id="drSimpleDomains" rows="7" placeholder="youtube.com&#10;googlevideo.com&#10;ytimg.com"></textarea></label>
-          <div class="dr-simple-actions"><button type="button" class="button primary" id="drSimpleAdd" disabled>+ Добавить домены</button><button type="button" class="button primary" id="drSimpleSave" disabled>Сохранить настройки</button></div>
+          <label class="dr-simple-field"><span>Какие домены направлять на этот DNS?</span><textarea id="drSimpleDomains" rows="12" placeholder="youtube.com&#10;googlevideo.com&#10;ytimg.com"></textarea></label>
+          <div class="dr-p92-tools" aria-label="Действия со списком доменов">
+            <button type="button" class="button" id="drP92Check">✓ Проверить</button>
+            <button type="button" class="button" id="drP92Clear">Очистить</button>
+            <button type="button" class="button" id="drP92Deduplicate">Удалить дубликаты</button>
+            <button type="button" class="button" id="drP92Normalize">Нормализовать</button>
+            <button type="button" class="button" id="drP92Import">Импорт</button>
+            <button type="button" class="button" id="drP92Export">Экспорт</button>
+            <input id="drP92File" class="dr-p92-import" type="file" accept=".txt,text/plain" aria-label="Импорт доменов">
+          </div>
+          <p class="dr-p92-message" id="drP92Message" role="status" aria-live="polite">Предпросмотр не меняет текущие правила DNS.</p>
+          <div class="dr-p92-preview" aria-label="Предпросмотр списка">
+            <div class="dr-p92-preview-head"><strong>Предпросмотр</strong><span id="drP92Count">0 доменов</span></div>
+            <pre id="drP92Preview">Вставь домены выше — здесь появится предпросмотр.</pre>
+          </div>
+          <div class="dr-p92-footer">
+            <div class="dr-simple-actions"><button type="button" class="button primary" id="drSimpleAdd" disabled>+ Добавить домены</button><button type="button" class="button primary" id="drSimpleSave" disabled>Сохранить черновик</button><button type="button" class="button" id="drP92Apply">К применению…</button></div>
+          </div>
           <p class="dr-simple-state" id="drSimpleState" role="status" aria-live="polite">Подключаемся к Keenetic…</p>
         </section>
         <section class="dr-simple-panel">

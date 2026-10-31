@@ -878,6 +878,78 @@
     }catch(e){p88Id('drP90Status').textContent=e.message;}
   });
 
+  // P9.2 UX-only editor utilities. No runtime activation or API mutations.
+  const p92Field=p88Id('drSimpleDomains');
+  const p92PreviewNode=p88Id('drP92Preview');
+  const p92Count=p88Id('drP92Count');
+  const p92Message=p88Id('drP92Message');
+  function p92Notify(message,state='info'){
+    p92Message.textContent=message;
+    p92Message.dataset.state=state;
+  }
+  function p92Preview(){
+    const parsed=p88ParseDomains(p92Field.value);
+    if(parsed.error){
+      p92Count.textContent='Проверь ввод';
+      p92PreviewNode.textContent=parsed.error;
+      return false;
+    }
+    p92Count.textContent=parsed.domains.length+' доменов';
+    p92PreviewNode.textContent=parsed.domains.length ? parsed.domains.slice(0,30).map((s,i)=>String(i+1)+'. '+s).join('\n') : 'Вставь домены выше — здесь появится предпросмотр.';
+    if(parsed.domains.length>30)p92PreviewNode.textContent+='\n… ещё '+(parsed.domains.length-30);
+    return true;
+  }
+  p92Field.addEventListener('input',()=>{p92Preview();p92Notify('Изменения в поле ещё не добавлены в черновик.');});
+  p88Id('drP92Check').addEventListener('click',()=>{
+    const ok=p92Preview();
+    p92Notify(ok?'Проверка списка завершена. Добавь домены в черновик перед сохранением.':'Исправь ошибки в списке.',ok?'success':'error');
+  });
+  p88Id('drP92Clear').addEventListener('click',()=>{
+    if(!p92Field.value.trim())return;
+    if(!confirm('Очистить только текстовое поле? Уже добавленные правила останутся.'))return;
+    p92Field.value='';p92Preview();p92Notify('Поле очищено. Правила DNS Router не изменены.');
+  });
+  p88Id('drP92Normalize').addEventListener('click',()=>{
+    const parsed=p88ParseDomains(p92Field.value);
+    if(parsed.error){p92Preview();p92Notify(parsed.error,'error');return;}
+    p92Field.value=parsed.domains.join('\n');p92Preview();p92Notify('Регистр, пробелы и дубликаты нормализованы.');
+  });
+  p88Id('drP92Deduplicate').addEventListener('click',()=>{
+    const parsed=p88ParseDomains(p92Field.value);
+    if(parsed.error){p92Preview();p92Notify(parsed.error,'error');return;}
+    p92Field.value=parsed.domains.join('\n');p92Preview();p92Notify('Повторяющиеся домены удалены.');
+  });
+  p88Id('drP92Import').addEventListener('click',()=>p88Id('drP92File').click());
+  p88Id('drP92File').addEventListener('change',async()=>{
+    const input=p88Id('drP92File'),file=input.files&&input.files[0];
+    if(!file)return;
+    try{
+      if(file.size>256*1024)throw Error('Файл слишком большой (максимум 256 КБ).');
+      const raw=await file.text();
+      const parsed=p88ParseDomains(p92Field.value+'\n'+raw);
+      if(parsed.error)throw Error(parsed.error);
+      p92Field.value=parsed.domains.join('\n');p92Preview();p92Notify('Импортировано. Проверь список перед добавлением.','success');
+    }catch(e){p92Notify('Импорт: '+e.message,'error');}
+    finally{input.value='';}
+  });
+  p88Id('drP92Export').addEventListener('click',()=>{
+    const parsed=p88ParseDomains(p92Field.value);
+    if(parsed.error){p92Preview();p92Notify(parsed.error,'error');return;}
+    const blob=new Blob([parsed.domains.join('\n')+'\n'],{type:'text/plain;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    try{
+      const a=document.createElement('a');a.href=url;a.download='routerforge-dns-domains.txt';
+      a.hidden=true;document.body.appendChild(a);a.click();a.remove();
+      p92Notify('Список экспортирован.');
+    }finally{URL.revokeObjectURL(url);}
+  });
+  p88Id('drP92Apply').addEventListener('click',()=>{
+    p88Id('drModeAdvanced').click();
+    p92Notify('Реальное применение DNS выполняется отдельно в расширенном режиме.');
+    const tab=p88Id('dr-tab-overview');if(tab)tab.click();
+  });
+  p92Preview();
+
   p88Id('drSimpleScan').addEventListener('click',p88Scan);
   p88Id('drSimpleDNS').addEventListener('change',p89UpdateProbeChoice);
   p88Id('drSimpleAdd').addEventListener('click',()=>{

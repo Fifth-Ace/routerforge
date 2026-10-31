@@ -33,25 +33,30 @@ function fixture(){
   w.eval(js);return {w,dom,calls,errors,getConfig:()=>config,getActive:()=>active};
 }
 
-test('P12 shipped DEV UI contains only two pages, minimal help and no P10 controls',()=>{
-  for(const id of ['pageDns','pageLogs','navDns','navLogs','quickHelp','inspectDNS','certificateInfo','editorDomains','logRows','clientConnection','defaultDNS'])a.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+test('P13 visual parity: two pages and split DNS/domain workspace, no P10 controls',()=>{
+  for(const id of ['pageDns','pageLogs','navDns','navLogs','quickHelp','inspectDNS','certificateInfo','editorDomains','logRows','clientConnection','defaultDNS','dnsCards','editorEmpty','selectedDNSBadge','logUpdated'])a.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
   for(const id of ['drAdvancedWorkspace','drModeAdvanced','managedTrialN','shadowStartButton','drSimplePolicies','drP92Apply'])a.doesNotMatch(html,new RegExp('id="'+id+'"'));
-  a.match(css,/--rf-accent/);a.match(js,/service\/traces/);a.doesNotMatch(js,/keenetic\/durable\/apply|shadow\/control/);
+  a.match(css,/--rf-accent/);a.match(css,/routing-workspace/);a.match(css,/dns-card\.is-selected/);a.match(js,/service\/traces/);a.doesNotMatch(js,/keenetic\/durable\/apply|shadow\/control/);
 });
 
-test('P12 DNS -> domains, verified TLS snapshot, explicit default and separate activation',async()=>{
+test('P13 split editor: DNS -> assigned domains, verified TLS, no unrequested activation',async()=>{
   const f=fixture(),d=f.w.document;
   try{
     await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
     a.equal(d.querySelectorAll('.dns-card').length,2);
     a.equal(d.getElementById('defaultDNS').value,'');
-    d.querySelector('[data-upstream-id="cf"] .dns-bottom button').click();
+    d.querySelector('[data-upstream-id="cf"] .dns-edit').click();
+    a.equal(d.getElementById('editorEmpty').hidden,true);
+    a.equal(d.getElementById('listEditor').hidden,false);
+    a.ok(d.querySelector('[data-upstream-id="cf"]').classList.contains('is-selected'));
     a.equal(d.getElementById('editorDomains').value,'other.net');
     d.getElementById('editorDomains').value='other.net\nyoutube.com';
     d.getElementById('saveDomains').click();
     await until(()=>d.getElementById('feedback').textContent.includes('Список обновлён'));
-    a.equal(d.querySelectorAll('[data-upstream-id="cf"] .dns-domain-preview')[0].textContent.includes('youtube.com'),true);
-    a.equal(d.querySelectorAll('[data-upstream-id="old"] .dns-domain-preview')[0].textContent.includes('youtube.com'),false);
+    a.equal(d.querySelector('[data-upstream-id="cf"] .dns-preview').textContent.includes('youtube.com'),true);
+    a.equal(d.getElementById('listEditor').hidden,false,'editor stays visible after saving draft');
+    a.equal(d.getElementById('editorCount').textContent,'2 доменов');
+    a.equal(d.querySelector('[data-upstream-id="old"] .dns-preview').textContent.includes('youtube.com'),false);
     d.getElementById('addDnsToggle').click();d.getElementById('newAddress').value='https://dns.google/dns-query';
     d.getElementById('inspectDNS').click();await until(()=>!d.getElementById('commitDNS').disabled);
     a.match(d.getElementById('certificateInfo').textContent,/TLS проверен/);
@@ -67,7 +72,7 @@ test('P12 DNS -> domains, verified TLS snapshot, explicit default and separate a
   }finally{f.dom.window.close();}
 });
 
-test('P12 live log shows actual assigned and used upstream, cache and status, with filter',async()=>{
+test('P13 live log shows actual assigned and used upstream, cache and status, with filter',async()=>{
   const f=fixture(),d=f.w.document;
   try{
     await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
@@ -84,11 +89,31 @@ test('P12 live log shows actual assigned and used upstream, cache and status, wi
   }finally{f.dom.window.close();}
 });
 
-test('P12 legacy native entries are not silently activated or dropped',async()=>{
+test('P13 legacy native entries are not silently activated or dropped',async()=>{
   const f=fixture(),d=f.w.document;
   try{
     await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
     a.equal(f.calls.filter(c=>/migrate-native/.test(c.path)).length,0);
     a.equal(f.calls.some(c=>c.opts.method==='POST'),false);
+  }finally{f.dom.window.close();}
+});
+
+
+test('P13 prevents accidental loss of unsaved domain text on apply or switching DNS',async()=>{
+  const f=fixture(),d=f.w.document;
+  try{
+    await until(()=>d.querySelectorAll('.dns-card').length===2);
+    d.querySelector('[data-upstream-id="cf"] .dns-edit').click();
+    d.getElementById('editorDomains').value='other.net\nunsaved.example';
+    d.getElementById('editorDomains').dispatchEvent(new f.w.Event('input'));
+    a.match(d.getElementById('editorCount').textContent,/2 строк/);
+    d.querySelector('[data-upstream-id="old"] .dns-edit').click();
+    a.equal(d.getElementById('editorDomains').value,'example.com','confirm permits explicit discard when switching DNS');
+    d.getElementById('editorDomains').value='example.com\nimportant.net';
+    d.getElementById('defaultDNS').value='old';
+    d.getElementById('applyButton').click();
+    await until(()=>d.getElementById('feedback').textContent.includes('Сначала нажми'));
+    a.equal(f.getActive(),false,'no DNS activation while unsaved domains exist');
+    a.deepEqual(f.errors,[]);
   }finally{f.dom.window.close();}
 });

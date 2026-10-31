@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -44,7 +46,7 @@ func gateRun(ctx context.Context, binary string, args ...string) error {
 	// never use shell, raw query parameters, or path-derived script commands.
 	child, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(child, binary, args...).CombinedOutput()
+	output, err := safety.RunCommand(child, 4096, binary, args...)
 	if err != nil {
 		return fmt.Errorf("%s failed: %w (%s)", binary, err, strings.TrimSpace(string(output)))
 	}

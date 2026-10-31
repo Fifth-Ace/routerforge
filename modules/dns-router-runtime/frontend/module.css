@@ -450,3 +450,23 @@ html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
 #drP10Runtime{padding:9px 11px;border:1px solid var(--border-strong);border-radius:var(--control-radius);background:var(--surface2);font-size:12px}
 #drP10Runtime[data-state="error"]{color:var(--bad);border-color:var(--bad)}
 #drP10Disable{border-color:rgba(248,81,73,.45);color:var(--bad)}
+
+/* P10 UX F3 - one DNS upstream, one visible domain list, no backend mutations. */
+#drSimpleWorkspace .dr-simple-layout{grid-template-areas:"policies policies" "dns rules" "dns domains"}
+#drSimpleWorkspace .dr-simple-rules{gap:9px}
+#drSimpleWorkspace .dr-ux-dns-card{min-width:0;border:1px solid var(--border);background:var(--surface2);border-radius:var(--control-radius);padding:11px 12px;display:grid;gap:8px}
+#drSimpleWorkspace .dr-ux-dns-editing{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}
+#drSimpleWorkspace .dr-ux-dns-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;min-width:0}
+#drSimpleWorkspace .dr-ux-dns-title{display:grid;gap:3px;min-width:0}
+#drSimpleWorkspace .dr-ux-dns-title strong{font-size:13px;line-height:1.4;color:var(--text);overflow-wrap:anywhere}
+#drSimpleWorkspace .dr-ux-dns-title small{font-size:10px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+#drSimpleWorkspace .dr-ux-dns-title .dr-ux-dns-scope{font-weight:600}
+#drSimpleWorkspace .dr-ux-dns-count{flex-shrink:0;color:var(--text);font-size:10px;white-space:nowrap;padding:4px 7px;border:1px solid var(--border-strong);border-radius:var(--control-radius)}
+#drSimpleWorkspace .dr-ux-dns-actions{display:flex;flex-wrap:wrap;gap:7px}
+#drSimpleWorkspace .dr-ux-dns-actions button{min-height:29px;font-size:11px}
+#drSimpleWorkspace .dr-ux-domains{border-top:1px solid var(--border);padding-top:8px;min-width:0}
+#drSimpleWorkspace .dr-ux-domains summary{font-size:11px;font-weight:650;color:var(--text);cursor:pointer}
+#drSimpleWorkspace .dr-ux-domains pre{font:11px/1.65 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;padding:9px;background:var(--surface);border-radius:var(--control-radius);margin:8px 0 0}
+#drSimpleWorkspace .dr-ux-domains p{font-size:11px;color:var(--muted)}
+#drSimpleWorkspace .dr-ux-editing-hint{font-size:11px;line-height:1.45;margin:7px 0;padding:8px;border-left:3px solid var(--accent);background:var(--surface2);color:var(--text)}
+@media(max-width:920px){#drSimpleWorkspace .dr-simple-layout{grid-template-areas:"policies" "dns" "rules" "domains"}}

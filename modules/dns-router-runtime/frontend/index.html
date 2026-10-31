@@ -16,7 +16,7 @@
     <div class="hero-actions">
       <div class="dr-mode-toggle" aria-label="Режим интерфейса"><button type="button" id="drModeSimple" aria-pressed="true">Простой</button><button type="button" id="drModeAdvanced" aria-pressed="false">Расширенный</button></div>
       <span class="state neutral" id="shadowBadge">SHADOW · ПРОВЕРКА</span>
-      <span class="state safe">ШТАТНЫЙ DNS НЕ ЗАТРОНУТ</span>
+      <span class="state safe" id="drP10NativeBadge">ШТАТНЫЙ DNS НЕ ЗАТРОНУТ</span>
       <button type="button" id="reloadButton" class="button">↻ Обновить</button>
     </div>
   </header>
@@ -69,7 +69,7 @@
           <div class="dr-simple-probe"><button type="button" class="button" id="drSimpleProbe" disabled>Проверить DNS</button><span id="drSimpleProbeResult">DNS-запрос ещё не выполнялся.</span></div>
         </section>
         <section class="dr-simple-panel">
-          <h3>3. Домены</h3><p class="dr-simple-help">По одному на строку или через запятую. Поддомены включаются автоматически.</p>
+          <h3>Редактор доменов выбранного DNS</h3><p class="dr-simple-help">По одному на строку или через запятую. Поддомены включаются автоматически.</p><p id="drP10EditingLabel" class="dr-ux-editing-hint">Добавление доменов к выбранному DNS. Другие DNS не изменяются.</p>
           <label class="dr-simple-field"><span>Какие домены направлять на этот DNS?</span><textarea id="drSimpleDomains" rows="12" placeholder="youtube.com&#10;googlevideo.com&#10;ytimg.com"></textarea></label>
           <div class="dr-p92-tools" aria-label="Действия со списком доменов">
             <button type="button" class="button" id="drP92Check">✓ Проверить</button>
@@ -86,14 +86,14 @@
             <pre id="drP92Preview">Вставь домены выше — здесь появится предпросмотр.</pre>
           </div>
           <div class="dr-p92-footer">
-            <div class="dr-simple-actions"><button type="button" class="button primary" id="drSimpleAdd" disabled>+ Добавить домены</button><button type="button" class="button primary" id="drSimpleSave" disabled>Сохранить черновик</button><button type="button" class="button primary" id="drP92Apply">▶ Применить DNS</button><button type="button" class="button" id="drP10Disable" disabled>■ Отключить DNS</button></div>
+            <div class="dr-simple-actions"><button type="button" class="button primary" id="drSimpleAdd" disabled>+ Добавить домены</button><button type="button" class="button" id="drP10CancelListEdit" hidden>Отменить редактирование</button><button type="button" class="button primary" id="drSimpleSave" disabled>Сохранить черновик</button><button type="button" class="button primary" id="drP92Apply">▶ Применить DNS</button><button type="button" class="button" id="drP10Disable" disabled>■ Отключить DNS</button></div>
           </div>
           <p id="drP10Runtime" role="status" aria-live="polite">Проверяем фактическую активацию DNS…</p>
           <p class="dr-simple-state" id="drSimpleState" role="status" aria-live="polite">Подключаемся к Keenetic…</p>
         </section>
         <section class="dr-simple-panel">
-          <div class="dr-simple-list-head"><h3>Домены этой политики</h3><span id="drSimpleRuleCount">0 доменов</span></div>
-          <div id="drSimpleRuleList" class="dr-simple-rules"><p>Правил пока нет.</p></div>
+          <div class="dr-simple-list-head"><h3>DNS-сервер → привязанный список доменов</h3><span id="drSimpleRuleCount">0 доменов</span></div>
+          <div id="drSimpleRuleList" class="dr-simple-rules"><p>Читаем DNS и списки…</p></div>
           <p class="dr-simple-help">Правила сохранены в DNS Router, но это ещё не означает, что клиенты Keenetic используют их. Активное подключение DNS — отдельный этап.</p>
         </section>
       </div>

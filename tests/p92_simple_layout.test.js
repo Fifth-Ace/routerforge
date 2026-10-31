@@ -12,10 +12,10 @@ test('P92 horizontal scrolling policy strip retains native policy action',()=>{
 });
 test('P92 exact 40/60 desktop split and single-column responsive layout',()=>{
  assert.match(css,/grid-template-columns:minmax\(0,2fr\) minmax\(0,3fr\)/);
- assert.match(css,/grid-template-areas:"policies policies" "dns domains" "dns rules"/);
+ assert.match(css,/grid-template-areas:"policies policies" "dns rules" "dns domains"/);
  assert.match(css,/#drSimpleWorkspace \.dr-simple-main\{display:contents\}/);
  assert.match(css,/@media\(max-width:920px\)/);
- assert.match(css,/grid-template-areas:"policies" "dns" "domains" "rules"/);
+ assert.match(css,/grid-template-areas:"policies" "dns" "rules" "domains"/);
 });
 test('P92 domain editor controls are unique and retain the existing IDs',()=>{
  for(const id of ['drSimplePolicies','drSimpleDNS','drSimpleDNSInventory','drSimpleDomains','drSimpleAdd','drSimpleSave','drSimpleRuleList','drP90Inspect','drP90Store','drP92Check','drP92Clear','drP92Deduplicate','drP92Normalize','drP92Import','drP92Export','drP92File','drP92Preview','drP92Count','drP92Message','drP92Apply']){

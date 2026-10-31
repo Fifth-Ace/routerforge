@@ -728,23 +728,138 @@
     if(selected && selected.zone!=='.')
       p88Id('drSimpleProbeResult').textContent='DNS ограничен зоной '+selected.zone+'. Проверка example.com для этой зоны недопустима.';
   }
+  // P10 UX F3: GROUP BY DNS UPSTREAM; presentation only until an explicit draft action.
+  let p10UXEditing = null;
+  function p10UXName(u){
+    if(!u)return {title:'НЕИЗВЕСТНЫЙ DNS',detail:'Ссылка на DNS-сервер отсутствует',scope:'broken'};
+    if(u.transport==='native'){
+      const current=p89NativeEntries().find(x=>x.selector===u.address);
+      const instance=String(u.address||'').split('/')[2]||'?';
+      return {title:current?current.label:'DNS Keenetic · '+instance+' (не подтверждён)',
+        detail:current ? 'Keenetic · зона '+current.zone+' · '+(current.address||'') : 'Сохранённый селектор: '+String(u.address||''),scope:'native'};
+    }
+    const transport=String(u.transport||'unknown').toUpperCase();
+    const name=String(u.server_name||u.address||u.id);
+    const target=u.transport==='doh' && u.server_name ? 'https://'+u.server_name+(u.path||'/dns-query') : String(u.address||'');
+    return {title:transport+' · '+name,detail:'Endpoint: '+target+(u.address&&u.address!==name?' · IP: '+u.address:''),scope:'manual'};
+  }
+  function p10UXGroups(){
+    const upstreams=config.upstreams||[],rules=config.rules||[];
+    const groups=[];
+    for(const u of upstreams){
+      if(u.transport==='native' && !String(u.address).startsWith('native://'+p88.policy+'/'))continue;
+      const info=p10UXName(u);
+      groups.push({id:u.id,u,info,rules:rules.filter(r=>r.upstream===u.id)});
+    }
+    const known=new Set(upstreams.map(u=>u.id));
+    for(const id of new Set(rules.filter(r=>!known.has(r.upstream)).map(r=>r.upstream))){
+      groups.push({id,u:null,info:p10UXName(null),rules:rules.filter(r=>r.upstream===id)});
+    }
+    groups.sort((a,b)=> (b.rules.length>0)-(a.rules.length>0) ||
+      (a.info.scope==='native'?0:a.info.scope==='manual'?1:2)-(b.info.scope==='native'?0:b.info.scope==='manual'?1:2) ||
+      a.info.title.localeCompare(b.info.title,'ru'));
+    return groups;
+  }
+  function p10UXChoice(g){
+    if(!g.u)return '';
+    return g.u.transport==='native'?g.u.address:'manual:'+g.id;
+  }
+  function p10UXIsSimpleRule(r){
+    return r.match==='suffix' && r.priority===100 && typeof r.domain==='string' &&
+      Object.keys(r).every(k=>['id','domain','match','upstream','priority'].includes(k));
+  }
+  function p10UXNotify(s){p88Id('drSimpleState').textContent=s;}
+  function p10UXStopEditing(){
+    p10UXEditing=null;
+    p88Id('drSimpleAdd').textContent='+ Добавить домены';
+    p88Id('drP10CancelListEdit').hidden=true;
+    p88Id('drP10EditingLabel').textContent='Добавление доменов к выбранному DNS. Другие DNS не изменяются.';
+  }
+  function p10UXStartEditing(g){
+    const selector=p10UXChoice(g);
+    if(!g.u || !p90AllChoices().some(x=>x.value===selector))return p10UXNotify('Этот DNS не подтверждён в текущем каталоге. Редактирование заблокировано.');
+    if(g.rules.length>200 || g.rules.some(r=>!p10UXIsSimpleRule(r)))return p10UXNotify('Список содержит более 200 доменов или расширенные правила. Для редактирования используй расширенный режим.');
+    if(p88Id('drSimpleDomains').value.trim() && !confirm('Заменить текст в поле текущим списком DNS? Несохранённый текст в поле исчезнет.'))return;
+    p88Id('drSimpleDNS').value=selector;
+    p89UpdateProbeChoice();
+    p10UXEditing=g.id;
+    p88Id('drSimpleDomains').value=g.rules.map(r=>r.domain).join('\n');
+    p88Id('drSimpleAdd').textContent='✓ Заменить список в черновике';
+    p88Id('drP10CancelListEdit').hidden=false;
+    p88Id('drP10EditingLabel').textContent='Редактируется только список DNS: '+g.info.title+'. Удаление строк изменит ЧЕРНОВИК; активный DNS отдельно не меняется.';
+    p92Preview();p88RenderRules();
+    p88Id('drSimpleDomains').focus();
+  }
+  function p10UXReplaceDraft(chosenDNS,parsed){
+    const selected=p10UXChoice({u:config.upstreams.find(u=>u.id===p10UXEditing),id:p10UXEditing});
+    if(!selected || selected!==p88Id('drSimpleDNS').value || !chosenDNS || p10UXEditing!==
+      (chosenDNS.type==='manual'?chosenDNS.upstreamId:(config.upstreams||[]).find(u=>u.transport==='native'&&u.address===selected)?.id)){
+      p10UXNotify('Выбранный DNS изменился. Замена списка остановлена.');return;
+    }
+    const before=(config.rules||[]).filter(r=>r.upstream===p10UXEditing);
+    if(before.length>200 || before.some(r=>!p10UXIsSimpleRule(r))){p10UXNotify('Расширенные правила нельзя заменять через простой редактор.');return;}
+    const scope=window.RFNativeCatalogP89.acceptsDomains({usable:true,zone:chosenDNS.zone},parsed.domains);
+    if(!scope.ok){p10UXNotify(scope.reason);return;}
+    const outside=new Set((config.rules||[]).filter(r=>r.upstream!==p10UXEditing).map(r=>String(r.domain).toLowerCase()));
+    const collision=parsed.domains.find(d=>outside.has(d));
+    if(collision){p10UXNotify('Домен '+collision+' уже принадлежит другому DNS. Ничего не заменено.');return;}
+    const desired=new Set(parsed.domains),original=new Set(before.map(r=>r.domain));
+    const removed=before.filter(r=>!desired.has(r.domain));
+    const added=parsed.domains.filter(d=>!original.has(d));
+    if(!removed.length&&!added.length){p10UXNotify('Список уже совпадает с черновиком.');p10UXStopEditing();p88RenderRules();return;}
+    if(!confirm('Обновить список только этого DNS?\nУдалить доменов: '+removed.length+'\nДобавить доменов: '+added.length+'\nИзменения останутся в черновике.'))return;
+    const existingIDs=new Set((config.rules||[]).map(r=>r.id));
+    const newRules=[];
+    for(const domain of added){let i=1;while(existingIDs.has('domain-'+i))i++;const id='domain-'+i;existingIDs.add(id);
+      newRules.push({id,domain,match:'suffix',upstream:p10UXEditing,priority:100});}
+    config.rules=(config.rules||[]).filter(r=>r.upstream!==p10UXEditing||desired.has(r.domain)).concat(newRules);
+    const changedID=p10UXEditing;p10UXStopEditing();p88Id('drSimpleDomains').value='';markDirty();
+    p10UXNotify('Список DNS '+changedID+' обновлён в черновике: '+parsed.domains.length+' доменов. Нажми «Сохранить черновик».');
+  }
+  function p10UXApplySummary(){
+    const uById=new Map((config.upstreams||[]).map(u=>[u.id,u]));
+    const counts=new Map();for(const r of config.rules||[])counts.set(r.upstream,(counts.get(r.upstream)||0)+1);
+    return [...counts].map(([id,count])=>{
+      const u=uById.get(id);const v=p10UXName(u);
+      const domainNames=(config.rules||[]).filter(r=>r.upstream===id).slice(0,3).map(r=>r.domain).join(', ');
+      return '• '+v.title+' ['+id+']: '+count+' доменов ('+domainNames+(count>3?', …':'')+')';
+    }).join('\n');
+  }
   function p88RenderRules(){
     const root=p88Id('drSimpleRuleList');root.replaceChildren();
-    const current=(config.rules||[]).filter(r=>{
-      const u=(config.upstreams||[]).find(x=>x.id===r.upstream);
-      return u && ((u.transport==='native' && u.address.startsWith('native://'+p88.policy+'/')) || ['dot','doh','udp','doq'].includes(u.transport));
-    });
-    p88Id('drSimpleRuleCount').textContent=String(current.length)+' доменов';
-    if(!current.length){const empty=document.createElement('p');empty.textContent='Здесь пока нет доменных правил. Добавь домены выше.';root.appendChild(empty);return;}
-    for(const rule of current){
-      const row=document.createElement('div');row.className='dr-simple-rule';
-      const info=document.createElement('span');info.textContent=rule.domain+' · '+((config.upstreams||[]).find(u=>u.id===rule.upstream)||{}).address.split('/').pop();row.appendChild(info);
-      row.appendChild(p88CreateButton('Удалить',()=>{
-        const idx=(config.rules||[]).findIndex(x=>x.id===rule.id);
-        if(idx<0)return;
-        config.rules.splice(idx,1);markDirty();
-      },'button danger'));
-      root.appendChild(row);
+    const groups=p10UXGroups(),total=groups.reduce((n,g)=>n+g.rules.length,0);
+    const hidden=(config.rules||[]).length-total;
+    p88Id('drSimpleRuleCount').textContent=total+' доменов · '+groups.length+' DNS'+(hidden?' · '+hidden+' других политик':'');
+    if(!groups.length){const p=document.createElement('p');p.textContent='DNS ещё не добавлены. Выбери DNS в левой колонке и добавь список доменов.';root.appendChild(p);return;}
+    for(const g of groups){
+      const card=document.createElement('section');card.className='dr-ux-dns-card';
+      if(p10UXEditing===g.id)card.classList.add('dr-ux-dns-editing');
+      const header=document.createElement('div');header.className='dr-ux-dns-heading';
+      const title=document.createElement('div');title.className='dr-ux-dns-title';
+      const name=document.createElement('strong');name.textContent=g.info.title;title.appendChild(name);
+      const hint=document.createElement('small');hint.textContent=g.info.detail;title.appendChild(hint);
+      const scope=document.createElement('small');scope.className='dr-ux-dns-scope';
+      scope.textContent=g.info.scope==='manual'?'Ручной DNS Router · не привязан к политике Keenetic':
+        g.info.scope==='native'?'Штатный DNS выбранной политики: '+p88.policy:'ОШИБКА · отсутствует upstream';
+      title.appendChild(scope);header.appendChild(title);
+      const count=document.createElement('span');count.className='dr-ux-dns-count';count.textContent=g.rules.length+' доменов';header.appendChild(count);
+      card.appendChild(header);
+      const line=document.createElement('div');line.className='dr-ux-dns-actions';
+      const selector=p10UXChoice(g),available=selector&&p90AllChoices().some(x=>x.value===selector);
+      const choose=p88CreateButton('＋ Добавить домены',()=>{
+        if(!available)return;
+        if(p88Id('drSimpleDomains').value.trim()&&!confirm('Очистить введённые, но не добавленные домены?'))return;
+        p10UXStopEditing();p88Id('drSimpleDNS').value=selector;p89UpdateProbeChoice();
+        p88Id('drSimpleDomains').value='';p92Preview();p88RenderRules();p88Id('drSimpleDomains').focus();
+      },'button');choose.disabled=!available;line.appendChild(choose);
+      const edit=p88CreateButton('Редактировать список',()=>p10UXStartEditing(g),'button');
+      edit.disabled=!available||g.rules.length>200||g.rules.some(r=>!p10UXIsSimpleRule(r));line.appendChild(edit);
+      card.appendChild(line);
+      const details=document.createElement('details');details.className='dr-ux-domains';
+      const summary=document.createElement('summary');summary.textContent=g.rules.length?'Показать список ('+g.rules.length+')':'Список пуст';details.appendChild(summary);
+      const block=document.createElement('pre');block.textContent=g.rules.length?g.rules.map(r=>r.domain).join('\n'):'Доменов пока нет.';details.appendChild(block);
+      if(g.rules.length && g.rules.some(r=>!p10UXIsSimpleRule(r))){const caution=document.createElement('p');caution.textContent='Есть расширенные правила: изменения доступны в расширенном режиме.';details.appendChild(caution);}
+      card.appendChild(details);root.appendChild(card);
     }
   }
   function p88RefreshStatus(){
@@ -960,6 +1075,8 @@
       p10Message(active?'DNS ACTIVE · '+ownership.owned_zones.length+' зон · '+shadow.lifecycle.listen:
         ownership.state==='disabled'?'DNS Router не подключён к DNS Keenetic':
         'Состояние '+ownership.state+' · требуются диагностика и восстановление',!active&&ownership.state!=='disabled');
+      const badge=p88Id('drP10NativeBadge');badge.textContent=active?'DNS KEENETIC ИЗМЕНЁН · ROUTERFORGE ACTIVE':ownership.state==='disabled'?'ШТАТНЫЙ DNS НЕ ЗАТРОНУТ':'СОСТОЯНИЕ DNS НЕ ПОДТВЕРЖДЕНО';
+      badge.className=active?'state warn':ownership.state==='disabled'?'state safe':'state neutral';
       p10Stop.disabled=!active;
       if(!p10Busy)p10Run.disabled=active;
       return {ownership,shadow};
@@ -1011,7 +1128,7 @@
       const plan=await request('keenetic/durable/prepare',jsonOptions('durable-prepare',{operation:'prepare'},{'If-Match':'"'+revision+'"'}));
       if(!plan.ready || !plan.token || !plan.zones || !plan.zones.length)
         throw Error('Невозможно подключить DNS: '+(plan.conflicts||[]).join('; '));
-      if(!confirm('Подключить '+plan.zones.length+' доменных зон System к RouterForge на DSTest? Это изменит текущую таблицу DNS Keenetic до отключения.'))throw Error('Применение отменено пользователем');
+      if(!confirm('Подключить '+plan.zones.length+' доменных зон System к RouterForge на DSTest? Это изменит текущую таблицу DNS Keenetic до отключения.\n\nDNS → домены (все сохранённые правила):\n'+p10UXApplySummary()))throw Error('Применение отменено пользователем');
       p10Message('Применяю '+plan.zones.length+' DNS-зон и проверяю ответы…');
       const applied=await request('keenetic/durable/apply',jsonOptions('durable-apply',{token:plan.token},{'If-Match':'"'+revision+'"'}));
       if(applied.state!=='active' || !applied.durable_change)throw Error('Подтверждение O2 отсутствует');
@@ -1052,7 +1169,10 @@
   p92Preview();
 
   p88Id('drSimpleScan').addEventListener('click',p88Scan);
-  p88Id('drSimpleDNS').addEventListener('change',p89UpdateProbeChoice);
+  p88Id('drSimpleDNS').addEventListener('change',()=>{
+    if(p10UXEditing){p10UXStopEditing();p88Id('drSimpleDomains').value='';p92Preview();}
+    p89UpdateProbeChoice();p88RenderRules();
+  });
   p88Id('drSimpleAdd').addEventListener('click',()=>{
     const selected=p88Id('drSimpleDNS').value;
     const chosenDNS=p90AllChoices().find(x=>x.value===selected);
@@ -1061,6 +1181,7 @@
     }
     const parsed=p88ParseDomains(p88Id('drSimpleDomains').value);
     if(parsed.error){p88Id('drSimpleState').textContent=parsed.error;return;}
+    if(p10UXEditing){p10UXReplaceDraft(chosenDNS,parsed);return;}
     if(!parsed.domains.length){p88Id('drSimpleState').textContent='Добавь хотя бы один домен.';return;}
     const scope=window.RFNativeCatalogP89.acceptsDomains({usable:true,zone:chosenDNS.zone},parsed.domains);
     if(!scope.ok){p88Id('drSimpleState').textContent=scope.reason;return;}
@@ -1083,6 +1204,10 @@
     p88Id('drSimpleDomains').value='';
     markDirty();
     p88Id('drSimpleState').textContent='Добавлено '+parsed.domains.length+' доменов в черновик. Нажми «Сохранить настройки». DNS Keenetic не изменён.';
+  });
+  p88Id('drP10CancelListEdit').addEventListener('click',()=>{
+    if(p88Id('drSimpleDomains').value.trim()&&!confirm('Выйти из редактирования списка без сохранения текста?'))return;
+    p10UXStopEditing();p88Id('drSimpleDomains').value='';p92Preview();p88RenderRules();
   });
   p88Id('drSimpleSave').addEventListener('click',()=>p88Id('saveButton').click());
   p88Id('drSimpleProbe').addEventListener('click',async()=>{

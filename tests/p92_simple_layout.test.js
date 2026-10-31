@@ -22,16 +22,19 @@ test('P92 domain editor controls are unique and retain the existing IDs',()=>{
   assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
  }
  assert.match(html,/id="drSimpleDomains" rows="12"/);
- assert.match(html,/id="drP92Apply">К применению…/);
+ assert.match(html,/id="drP92Apply">▶ Применить DNS/);
+ assert.match(html,/id="drP10Disable"/);
 });
 test('P92 controls are wired, no implicit DNS runtime mutations',()=>{
  for(const id of ['drP92Check','drP92Clear','drP92Deduplicate','drP92Normalize','drP92Import','drP92File','drP92Export','drP92Apply'])assert.match(js,new RegExp("p88Id\\('"+id+"'\\)\\.addEventListener"));
  assert.match(js,/function p92Preview\(\)/);
  assert.match(js,/const parsed=p88ParseDomains\(p92Field\.value\)/);
  assert.match(js,/p88Id\('drModeAdvanced'\)\.click\(\)/);
- const section=js.slice(js.indexOf('// P9.2 UX-only'),js.indexOf("p88Id('drSimpleScan').addEventListener('click',p88Scan);"));
+ const section=js.slice(js.indexOf('// P9.2 UX-only'),js.indexOf('  // DPR2 P10: a real, explicit System DNS activation'));
  assert.doesNotMatch(section,/\.innerHTML\s*=|ndmc|shadowApply|shadowStart|saveButton.*click|fetch\(|request\(/);
  assert.match(section,/p92Field\.value=parsed\.domains\.join\('\\n'\)/);
+ assert.match(js,/p88Id\('drP92Apply'\)\.addEventListener\('click',p10Activate\)/);
+ assert.doesNotMatch(js,/p92Notify\('Реальное применение DNS выполняется отдельно/);
 });
 test('P92 existing advanced and P91 DNS form retained',()=>{
  assert.match(html,/id="drAdvancedWorkspace" hidden/);

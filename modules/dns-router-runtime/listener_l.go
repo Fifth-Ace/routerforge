@@ -110,6 +110,14 @@ type DomainSplitPlanL struct {
 // executing them. Kept separate from the resolver policy: exact and
 // subdomains-only rules cannot be advertised as domain-wide DNS routes.
 func BuildDomainSplitPlanL(cfg Config) DomainSplitPlanL {
+	return BuildDomainSplitPlanLWithLimit(cfg, 32)
+}
+
+// P10: O2 may use the H3-confirmed 63-zone capacity. Legacy plans retain 32.
+func BuildDomainSplitPlanLWithLimit(cfg Config, limit int) DomainSplitPlanL {
+	if limit < 1 || limit > 63 {
+		limit = 32
+	}
 	result := DomainSplitPlanL{Mode: "preview-only", Zones: []DomainSplitZoneL{}, Warnings: []string{}, RequiresExplicitTransaction: true}
 	if _, err := Compile(cfg); err != nil {
 		result.Warnings = append(result.Warnings, "invalid saved configuration: "+err.Error())
@@ -182,10 +190,10 @@ func BuildDomainSplitPlanL(cfg Config) DomainSplitPlanL {
 	if len(result.Zones) == 0 {
 		result.Warnings = append(result.Warnings, "no suffix rules to map")
 	}
-	if len(result.Zones) > 32 {
-		result.Warnings = append(result.Warnings, "more than 32 mapped zones are not allowed for managed activation")
+	if len(result.Zones) > limit {
+		result.Warnings = append(result.Warnings, fmt.Sprintf("more than %d mapped zones are not allowed for managed activation", limit))
 	}
-	result.Ready = len(result.Zones) > 0 && len(result.Zones) <= 32
+	result.Ready = len(result.Zones) > 0 && len(result.Zones) <= limit
 	// Even Ready=true permits preview ONLY; no router changes at this stage.
 	return result
 }

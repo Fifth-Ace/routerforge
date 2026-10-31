@@ -76,7 +76,7 @@ func (m *DurableManagerO2) guard() error {
 }
 
 func (m *DurableManagerO2) trial() *ManagedTrialN {
-	return &ManagedTrialN{Store: m.Store, Lifecycle: m.Lifecycle, Executor: m.Executor, Arm: m.Arm, Probe: m.Probe, Ready: m.Ready}
+	return &ManagedTrialN{Store: m.Store, Lifecycle: m.Lifecycle, Executor: m.Executor, Arm: m.Arm, Probe: m.Probe, Ready: m.Ready, MaxZones: 63}
 }
 
 func (m *DurableManagerO2) Prepare(ctx context.Context, rev string) (ManagedPrepareN, error) {
@@ -206,7 +206,7 @@ func (m *DurableManagerO2) Apply(ctx context.Context, rev, token string) (out Du
 	}
 	// Journal is durable before any ndmc mutation.
 	armed := false
-	guard, err := m.Arm(ctx, managedJournalN{Parent: os.Getpid(), Deadline: time.Now().Add(115 * time.Second).Unix(), Baseline: base, Listen: plan.Listen, Domains: out.Zones})
+	guard, err := m.Arm(ctx, managedJournalN{Extended63: true, Parent: os.Getpid(), Deadline: time.Now().Add(115 * time.Second).Unix(), Baseline: base, Listen: plan.Listen, Domains: out.Zones})
 	if err != nil {
 		// No mutation has been attempted. Do not discard a questionable ledger
 		// if the inventory is no longer identical.

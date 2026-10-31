@@ -445,3 +445,8 @@ html[data-density="comfortable"] .shadow-summary{padding:16px 0 12px}
  #drSimpleWorkspace .dr-simple-panel{padding:11px}
  #drSimpleWorkspace .dr-p92-tools .button{flex:1 1 auto}
 }
+
+/* DPR2 P10: state-of-routing, not status-of-JSON. */
+#drP10Runtime{padding:9px 11px;border:1px solid var(--border-strong);border-radius:var(--control-radius);background:var(--surface2);font-size:12px}
+#drP10Runtime[data-state="error"]{color:var(--bad);border-color:var(--bad)}
+#drP10Disable{border-color:rgba(248,81,73,.45);color:var(--bad)}

@@ -1,5 +1,5 @@
 #!/bin/sh
-# DEV preview: management-only Unix socket; no shadow-forward, ndmc, :53 or router changes.
+# P10 DEV: DSTest-only O2/O3 opt-in capabilities, no automatic DNS activation on fresh install.
 PATH=/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 BIN=/opt/bin/routerforge-dns-router
@@ -34,7 +34,19 @@ start_service() {
   if [ -e "$SOCK" ] || [ -L "$SOCK" ]; then fail SOCKET_CONFLICT; return 1; fi
   mkdir -p /opt/var/run /opt/var/log || return 1
   umask 077
-  "$BIN" --config "$CFG" --serve --socket "$SOCK" >"$LOG" 2>&1 &
+  # Only exact DSTest gets the experimental activation API. Other devices
+  # remain management-only, as in r1256. Merely starting the service does
+  # not write DNS; user must click Apply after saving domain rules.
+  if [ "$(uname -n)" = DSTest ] && [ "$(uname -m)" = aarch64 ] &&
+       ip -4 addr show 2>/dev/null | grep -Eq 'inet[[:space:]]+192\.168\.10\.1(/|[[:space:]])'; then
+    "$BIN" --config "$CFG" --serve --socket "$SOCK" \
+      --shadow-lan-experimental --shadow-listen '192.168.10.1:55358' \
+      --shadow-allow-clients '192.168.10.1,127.0.0.1' \
+      --native-bridge-experimental --ndmc-durable-experimental \
+      --ndmc-startup-recovery-experimental --ndmc-lifetime-guard-experimental >"$LOG" 2>&1 &
+  else
+    "$BIN" --config "$CFG" --serve --socket "$SOCK" >"$LOG" 2>&1 &
+  fi
   p=$!
   started=$(proc_start "$p") || { fail DAEMON_EXITED; return 1; }
   printf '%s %s\n' "$p" "$started" >"$PIDFILE.tmp.$$" || return 1

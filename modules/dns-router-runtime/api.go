@@ -16,15 +16,17 @@ import (
 const maxAPIBytes int64 = MaxConfigBytes
 
 type API struct {
-	Store     *ConfigStore
-	UI        string
-	Shadow    *ShadowForwarder
-	Lifecycle *LifecycleManager
-	TrialM    *NDMCTrialM
-	ManagedN  *ManagedTrialN
-	LedgerO   *LedgerStoreO
-	DurableO2 *DurableManagerO2
-	StartupO3 *StartupManagerO3
+	LifetimeEnabled bool
+	LifetimeArmed   bool
+	Store           *ConfigStore
+	UI              string
+	Shadow          *ShadowForwarder
+	Lifecycle       *LifecycleManager
+	TrialM          *NDMCTrialM
+	ManagedN        *ManagedTrialN
+	LedgerO         *LedgerStoreO
+	DurableO2       *DurableManagerO2
+	StartupO3       *StartupManagerO3
 }
 
 func NewAPI(store *ConfigStore, ui string) *API { return &API{Store: store, UI: ui} }
@@ -302,9 +304,29 @@ func (a *API) Handler() http.Handler {
 		switch req.Operation {
 		case "start":
 			err = a.Lifecycle.Start(expected)
+			if err == nil && a.LifetimeEnabled && a.LedgerO != nil {
+				if a.LifetimeArmed {
+					// A stopped listener must never borrow the previous guard.
+					_ = a.Lifecycle.Stop()
+					err = errors.New("previous lifetime guard still armed")
+				} else {
+					guardCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+					_, armErr := ArmLifetimeO3B(guardCtx, a.LedgerO, a.Lifecycle)
+					cancel()
+					if armErr != nil {
+						_ = a.Lifecycle.Stop()
+						err = fmt.Errorf("lifetime guard not armed: %w", armErr)
+					} else {
+						a.LifetimeArmed = true
+					}
+				}
+			}
 			outcome = "started"
 		case "stop":
 			err = a.Lifecycle.Stop()
+			if err == nil {
+				a.LifetimeArmed = false
+			}
 			outcome = "stopped"
 		case "apply":
 			outcome, err = a.Lifecycle.Apply(expected)

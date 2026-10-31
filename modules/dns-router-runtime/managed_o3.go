@@ -180,7 +180,7 @@ func (s *StartupManagerO3) status(ctx context.Context) (StartupResultO3, *Ledger
 		r.RecoveryRequired = true
 		return r, ledger, nil
 	}
-	listener, zones, err := managedZonesN(cfg)
+	listener, zones, err := managedZonesLimitedN(cfg, 63)
 	if err != nil {
 		return r, ledger, err
 	}
@@ -283,7 +283,7 @@ func (s *StartupManagerO3) Recover(ctx context.Context) (out StartupResultO3, re
 		out.State = "already_active_verified"
 		return out, nil
 	}
-	journal := managedJournalN{Parent: os.Getpid(), Deadline: time.Now().Add(115 * time.Second).Unix(), Baseline: ledger.Baseline, Listen: ledger.Listen, Domains: append([]string(nil), ledger.Zones...)}
+	journal := managedJournalN{Extended63: true, Parent: os.Getpid(), Deadline: time.Now().Add(115 * time.Second).Unix(), Baseline: ledger.Baseline, Listen: ledger.Listen, Domains: append([]string(nil), ledger.Zones...)}
 	guard, err := m.Arm(ctx, journal)
 	if err != nil {
 		return out, fmt.Errorf("startup rollback watchdog unavailable: %w", err)

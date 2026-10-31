@@ -88,7 +88,7 @@ func main() {
 	if *startupOptIn && !*durableOptIn {
 		log.Fatal("startup recovery requires --ndmc-durable-experimental")
 	}
-	if *durableOptIn && (!*serve || !*allowLAN || !*shadow) {
+	if *durableOptIn && (!*serve || !*allowLAN) {
 		log.Fatal("durable experiment requires --serve --shadow-lan-experimental --shadow-forward")
 	}
 	if *managedTrial && (!*serve || !*allowLAN) {
@@ -216,6 +216,24 @@ func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, 
 		allowed = strings.Split(clients, ",")
 	}
 	lifecycle := dnsrouter.NewLifecycleManager(store, dnsrouter.ShadowOptions{Listen: shadowListen, AllowLAN: allowLAN, AllowedClients: allowed, NativeBridge: nativeBridge})
+	// P10: restart only an already-owned exact-revision forwarder; a fresh
+	// installation never changes DNS or starts a listener automatically.
+	if startupOptIn && !enableShadow {
+		owned, _, e := dnsrouter.NewLedgerStoreO(configPath + ".managed-state.json").Load()
+		if e != nil {
+			return fmt.Errorf("owned DNS ledger unreadable: %w", e)
+		}
+		if owned != nil && owned.State == "active" {
+			_, revision, e := store.Load()
+			if e != nil {
+				return e
+			}
+			if owned.Revision != revision {
+				return fmt.Errorf("owned DNS revision mismatch: manual recovery required")
+			}
+			enableShadow = true
+		}
+	}
 	if enableShadow {
 		_, rev, err := store.Load()
 		if err != nil {
@@ -252,6 +270,8 @@ func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, 
 	handler := dnsrouter.NewAPI(store, ui)
 	handler.Lifecycle = lifecycle
 	handler.LedgerO = dnsrouter.NewLedgerStoreO(configPath + ".managed-state.json")
+	handler.LifetimeEnabled = lifetimeOptIn
+	handler.LifetimeArmed = lifetimeOptIn && lifecycle.Status().Active
 	if ndmcTrial {
 		if err := dnsrouter.NDMCTestHostGateM(); err != nil {
 			return err
@@ -269,7 +289,7 @@ func runManagement(store *dnsrouter.ConfigStore, configPath, socket, ui string, 
 			return err
 		}
 		handler.DurableO2 = dnsrouter.NewRealDurableO2(store, handler.LedgerO, lifecycle)
-		if lifetimeOptIn {
+		if lifetimeOptIn && lifecycle.Status().Active {
 			guardCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 			dir, err := dnsrouter.ArmLifetimeO3B(guardCtx, handler.LedgerO, lifecycle)
 			cancel()

@@ -943,11 +943,112 @@
       p92Notify('Список экспортирован.');
     }finally{URL.revokeObjectURL(url);}
   });
-  p88Id('drP92Apply').addEventListener('click',()=>{
-    p88Id('drModeAdvanced').click();
-    p92Notify('Реальное применение DNS выполняется отдельно в расширенном режиме.');
-    const tab=p88Id('dr-tab-overview');if(tab)tab.click();
-  });
+  // DPR2 P10: a real, explicit System DNS activation, not a config-only action.
+  // This code uses the existing O2 exact-ledger CAS API and never silently changes a policy.
+  const p10Run=p88Id('drP92Apply');
+  const p10Stop=p88Id('drP10Disable');
+  const p10State=p88Id('drP10Runtime');
+  let p10Busy=false;
+  function p10Message(message,bad=false){
+    p10State.textContent=message;
+    p10State.dataset.state=bad?'error':'info';
+  }
+  async function p10Refresh(){
+    try {
+      const [ownership,shadow]=await Promise.all([request('keenetic/managed-ownership/status'),request('shadow/status')]);
+      const active=ownership.state==='verified_active' && shadow.lifecycle && shadow.lifecycle.active;
+      p10Message(active?'DNS ACTIVE · '+ownership.owned_zones.length+' зон · '+shadow.lifecycle.listen:
+        ownership.state==='disabled'?'DNS Router не подключён к DNS Keenetic':
+        'Состояние '+ownership.state+' · требуются диагностика и восстановление',!active&&ownership.state!=='disabled');
+      p10Stop.disabled=!active;
+      if(!p10Busy)p10Run.disabled=active;
+      return {ownership,shadow};
+    } catch(e){p10Message('Статус DNS недоступен: '+e.message,true);p10Stop.disabled=true;return null;}
+  }
+  async function p10SaveConfig(){
+    if(!dirty)return;
+    const res=await request('config',{method:'PUT',headers:{'Content-Type':'application/json','X-RouterForge-Action':'save','If-Match':'"'+revision+'"'},body:JSON.stringify(config)});
+    revision=res.revision;dirty=false;preparedN=null;render();
+  }
+  async function p10Control(op){
+    return request('shadow/control',jsonOptions('shadow-control',{operation:op},{'If-Match':'"'+revision+'"'}));
+  }
+  async function p10Activate(){
+    if(p10Busy)return;
+    p10Busy=true;p10Run.disabled=true;p10Stop.disabled=true;
+    let startedHere=false,ownedHere=false;let failure='';
+    try {
+      if(p88.policy!=='System')throw Error('В P10 подтверждён только System. Привязка PolicyN ещё не доказана на DSTest.');
+      if(p92Field.value.trim()){
+        p88Id('drSimpleAdd').click();
+        if(p92Field.value.trim())throw Error('Не удалось добавить загруженный список: '+p88Id('drSimpleState').textContent);
+      }
+      if(!config.rules || !config.rules.length)throw Error('Сначала загрузи хотя бы один домен.');
+      const owners=new Set((config.rules||[]).map(r=>{
+        const u=(config.upstreams||[]).find(x=>x.id===r.upstream);
+        if(!u)throw Error('DNS для правила '+r.domain+' отсутствует');
+        if(u.transport==='native'){
+          if(!u.address.startsWith('native://System/'))throw Error('В конфигурации есть правило другой политики: '+r.domain);
+          if(!u.address.startsWith('native://System/./'))throw Error('Выбранный Keenetic DNS ограничен зоной: '+r.domain);
+        }
+        return u.id;
+      }));
+      if(owners.size>128)throw Error('Слишком много отдельных DNS-серверов');
+      if(config.listener && config.listener.mode==='lan' && config.listener.listen!=='192.168.10.1:55358')
+        throw Error('Настроен другой LAN listener. Не перезаписываем его автоматически.');
+      const existing=await p10Refresh();
+      if(!existing)throw Error('Нет доступа к состоянию O2/forwarder');
+      if(existing.ownership.state!=='disabled')throw Error('Уже существует регистрация DNS ('+existing.ownership.state+'). Сначала отключи её.');
+      config.listener={mode:'lan',listen:'192.168.10.1:55358',allowed_clients:['192.168.10.1','127.0.0.1']};
+      markDirty();
+      p10Message('Сохраняю выбранный DNS и список доменов…');
+      await p10SaveConfig();
+      let live=await request('shadow/status');
+      if(live.lifecycle && live.lifecycle.active){
+        if(live.lifecycle.applied_revision!==revision)await p10Control('apply');
+      }else{await p10Control('start');startedHere=true;}
+      p10Message('DNS Router запущен. Проверяю доменные зоны Keenetic…');
+      const plan=await request('keenetic/durable/prepare',jsonOptions('durable-prepare',{operation:'prepare'},{'If-Match':'"'+revision+'"'}));
+      if(!plan.ready || !plan.token || !plan.zones || !plan.zones.length)
+        throw Error('Невозможно подключить DNS: '+(plan.conflicts||[]).join('; '));
+      if(!confirm('Подключить '+plan.zones.length+' доменных зон System к RouterForge на DSTest? Это изменит текущую таблицу DNS Keenetic до отключения.'))throw Error('Применение отменено пользователем');
+      p10Message('Применяю '+plan.zones.length+' DNS-зон и проверяю ответы…');
+      const applied=await request('keenetic/durable/apply',jsonOptions('durable-apply',{token:plan.token},{'If-Match':'"'+revision+'"'}));
+      if(applied.state!=='active' || !applied.durable_change)throw Error('Подтверждение O2 отсутствует');
+      ownedHere=true;
+      const status=await p10Refresh();
+      if(!status || status.ownership.state!=='verified_active' || !status.shadow.lifecycle.active)
+        throw Error('DNS не подтвердил активное состояние. Нужна проверка ownership.');
+      p10Message('DNS ACTIVE · '+status.ownership.owned_zones.length+' зон · запросы направляются через RouterForge');
+      p88Id('drSimpleState').textContent='DNS активирован. Правила применены через O2; откат доступен кнопкой «Отключить DNS». Проверку реального клиента делаем на DSTest.';
+    }catch(e){
+      p10Message('DNS НЕ ПРИМЕНЁН: '+e.message,true);
+      if(startedHere && !ownedHere){
+        try{const owner=await request('keenetic/managed-ownership/status');if(owner.state==='disabled')await p10Control('stop');}catch(_){p10Message('Ошибка применения; проверь состояние listener/ownership перед повтором: '+e.message,true);}
+      }
+      await p10Refresh();
+      // Keep the explicit failure visible even if read-only refresh succeeds.
+      failure='ОШИБКА: '+e.message+' · состояние DNS проверь перед повтором';
+    }finally{p10Busy=false;await p10Refresh();if(failure)p10Message(failure,true);}
+  }
+  async function p10Disable(){
+    if(p10Busy)return;
+    if(!confirm('Отключить доменные маршруты RouterForge и восстановить исходный DNS Keenetic?'))return;
+    p10Busy=true;p10Run.disabled=true;p10Stop.disabled=true;let failure='';
+    try{
+      const owner=await request('keenetic/managed-ownership/status');
+      if(owner.state!=='verified_active' || !owner.ledger_hash)throw Error('Нет точного подтверждённого владения DNS. Автоматический откат заблокирован.');
+      const r=await request('keenetic/durable/disable',jsonOptions('durable-disable',{operation:'disable'},{'If-Match':'"'+revision+'"','X-RouterForge-Ledger-Match':owner.ledger_hash}));
+      if(r.state!=='disabled' || !r.baseline_restored)throw Error('O2 не подтвердил полное восстановление');
+      await p10Control('stop');
+      p10Message('DNS отключён. Исходная конфигурация Keenetic восстановлена.');
+    }catch(e){failure='Отключение не подтверждено: '+e.message+' · не повторяй вслепую';}
+    finally{p10Busy=false;await p10Refresh();if(failure)p10Message(failure,true);}
+  }
+  p10Stop.addEventListener('click',p10Disable);
+  p10Refresh().catch(()=>{});
+
+  p88Id('drP92Apply').addEventListener('click',p10Activate);
   p92Preview();
 
   p88Id('drSimpleScan').addEventListener('click',p88Scan);

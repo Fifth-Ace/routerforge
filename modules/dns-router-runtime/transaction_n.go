@@ -39,11 +39,12 @@ type ManagedPrepareN struct {
 }
 
 type managedJournalN struct {
-	Parent   int      `json:"parent"`
-	Deadline int64    `json:"deadline"`
-	Baseline string   `json:"baseline"`
-	Listen   string   `json:"listen"`
-	Domains  []string `json:"domains"`
+	Extended63 bool     `json:"extended_63,omitempty"`
+	Parent     int      `json:"parent"`
+	Deadline   int64    `json:"deadline"`
+	Baseline   string   `json:"baseline"`
+	Listen     string   `json:"listen"`
+	Domains    []string `json:"domains"`
 }
 
 type ManagedResultN struct {
@@ -62,6 +63,7 @@ type managedArmN func(context.Context, managedJournalN) (managedGuardN, error)
 type managedProbeN func(context.Context, []string) error
 
 type ManagedTrialN struct {
+	MaxZones  int // zero keeps legacy 8-zone bound; O2 opts in to 63
 	Store     *ConfigStore
 	Lifecycle *LifecycleManager
 	Executor  NDMCExecutorM
@@ -72,9 +74,21 @@ type ManagedTrialN struct {
 }
 
 func managedZonesN(cfg Config) (string, []DomainSplitZoneL, error) {
-	p := BuildDomainSplitPlanL(cfg)
-	if !p.Ready || len(p.Zones) == 0 || len(p.Zones) > managedMaxZonesN {
-		return "", nil, errors.New("managed trial requires 1..8 valid non-overlapping suffix zones and safe LAN listener")
+	return managedZonesLimitedN(cfg, managedMaxZonesN)
+}
+
+func managedZonesLimitedN(cfg Config, max int) (string, []DomainSplitZoneL, error) {
+	if max < 1 || max > 63 {
+		return "", nil, errors.New("invalid managed zone limit")
+	}
+	// Keep the existing 8-zone limit for trials; O2 exclusively opts in to 63.
+	planLimit := 32
+	if max > 32 {
+		planLimit = max
+	}
+	p := BuildDomainSplitPlanLWithLimit(cfg, planLimit)
+	if !p.Ready || len(p.Zones) == 0 || len(p.Zones) > max {
+		return "", nil, fmt.Errorf("managed operation requires 1..%d valid non-overlapping suffix zones and safe LAN listener", max)
 	}
 	if err := ValidateListenerConfigL(cfg.Listener); err != nil {
 		return "", nil, err
@@ -241,7 +255,11 @@ func (m *ManagedTrialN) preflight(ctx context.Context, expected string) (Managed
 	if expected == "" || expected != rev {
 		return result, "", ErrStale
 	}
-	listener, zones, e := managedZonesN(cfg)
+	max := managedMaxZonesN
+	if m.MaxZones > 0 {
+		max = m.MaxZones
+	}
+	listener, zones, e := managedZonesLimitedN(cfg, max)
 	if e != nil {
 		return result, "", e
 	}
@@ -268,6 +286,15 @@ func (m *ManagedTrialN) preflight(ctx context.Context, expected string) (Managed
 	result.Conflicts = conflicts
 	if len(conflicts) > 0 {
 		return result, base, nil
+	}
+	if max > managedMaxZonesN {
+		servers, err := snapshotDomainsN(base)
+		if err != nil {
+			return result, base, err
+		}
+		if len(servers)+len(zones) > 64 {
+			return result, base, fmt.Errorf("Keenetic DNS table capacity: existing=%d requested=%d maximum=64", len(servers), len(zones))
+		}
 	}
 	// Token binds the exact revision, list/order of zone commands and native
 	// inventory. Any changed baseline invalidates the user's confirmation.
@@ -561,7 +588,11 @@ func ManagedWorkerN(dir string) error {
 	if j.Parent < 1 || j.Deadline <= time.Now().Unix() || j.Deadline > time.Now().Add(120*time.Second).Unix() {
 		return errors.New("invalid managed lease")
 	}
-	if len(j.Domains) < 1 || len(j.Domains) > managedMaxZonesN {
+	max := managedMaxZonesN
+	if j.Extended63 {
+		max = 63
+	}
+	if len(j.Domains) < 1 || len(j.Domains) > max {
 		return errors.New("invalid managed zone count")
 	}
 	host, port, e := net.SplitHostPort(j.Listen)

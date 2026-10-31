@@ -237,12 +237,11 @@ for k in ('PRECHECK_PASS', 'EXPECTED_VERSION=0.14.0~dev.dpr2o3c',
           'DSTEST_ADDRESS_MISSING', 'STOP_TIMEOUT_NO_SIGKILL'):
     assert k in p, k
 assert 'no ip name-server' not in p and 'system configuration save' not in p
-dev_marker = 'if [ "$ROUTERFORGE_CHANNEL" = dev ]; then'
-assert b.count(dev_marker) == 1
-before_dev, after_dev = b.split(dev_marker, 1)
+before_dev, after_dev = b.split('# DEV_PACKAGE_FILES_BEGIN', 1)
+dev_section, after_dev = after_dev.split('# DEV_PACKAGE_FILES_END', 1)
 assert 'opt/etc/init.d/' not in before_dev
-assert '\nfi\n' in after_dev
-dev_section, after_dev = after_dev.split('\nfi\n', 1)
+assert 'if [ "$ROUTERFORGE_CHANNEL" = dev ]; then' in dev_section
+assert '\nfi\n' in dev_section
 assert 'opt/etc/init.d/' in dev_section
 assert 'S95routerforge-dns-router-dev' in dev_section
 assert 'postinst-dev' in dev_section and 'prerm-dev' in dev_section

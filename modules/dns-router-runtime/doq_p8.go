@@ -1,3 +1,5 @@
+//go:build !dns_router_lite
+
 package dnsrouter
 
 // DPR2-P8.1: DNS over QUIC (RFC 9250). Upstream address is a literal IP:port,

@@ -16,6 +16,7 @@ import (
 const maxAPIBytes int64 = MaxConfigBytes
 
 type API struct {
+	Service         http.Handler
 	LifetimeEnabled bool
 	LifetimeArmed   bool
 	Store           *ConfigStore
@@ -72,6 +73,9 @@ func decodeBody(r *http.Request, dest any, limit int64) error {
 }
 func (a *API) Handler() http.Handler {
 	mux := http.NewServeMux()
+	if a.Service != nil {
+		mux.Handle("/v1/service/", a.Service)
+	}
 	mux.HandleFunc("/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
@@ -98,9 +102,15 @@ func (a *API) Handler() http.Handler {
 		if a.Lifecycle != nil {
 			active = a.Lifecycle.Status().Active
 		}
+		if service, ok := a.Service.(interface{ ActiveState() bool }); ok {
+			active = service.ActiveState()
+		}
 		state := "inactive"
 		if active {
 			state = "shadow-loopback"
+			if a.Service != nil {
+				state = "independent-dns"
+			}
 		}
 		respondJSON(w, 200, map[string]any{"component": "dns-router", "status": state, "dns_listener": active, "dns_interception": false, "installed_dns_manager_required": false, "config_revision": rev, "rules": len(cfg.Rules), "upstreams": len(cfg.Upstreams), "time": time.Now().UTC().Format(time.RFC3339)})
 	})

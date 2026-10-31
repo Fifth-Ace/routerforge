@@ -1,3 +1,5 @@
+//go:build !dns_router_lite
+
 package dnsrouter
 
 import (

@@ -5,6 +5,7 @@
   let revision = '';
   let dirty = false;
   let preparedN = null;
+  let drLiteAvailable = null;
   const el = id => document.getElementById(id);
   const feedback = msg => { el('feedback').textContent = msg; };
   async function request(path, opts = {}) {
@@ -41,7 +42,7 @@
     optionSelect('ruleUpstream'); optionSelect('importUpstream');
     table('upstreamList',['ID','Протокол','Адрес','SNI','DoH path','Резерв'],config.upstreams.map(u=>[u.id,u.transport,u.address,u.server_name||'—',u.path||'—',(u.fallbacks||[]).join(', ')||'—']),i=>{
       const id = config.upstreams[i].id;
-      if (config.rules.some(r=>r.upstream===id) || config.upstreams.some(u=>(u.fallbacks||[]).includes(id)) || (config.dns_groups||[]).some(g=>g.servers.includes(id))) {feedback('Нельзя удалить используемый пул. Сначала убери правила и резервные ссылки.');return;}
+      if ((config.service && config.service.default_upstream===id) || config.rules.some(r=>r.upstream===id) || config.upstreams.some(u=>(u.fallbacks||[]).includes(id)) || (config.dns_groups||[]).some(g=>g.servers.includes(id))) {feedback('Нельзя удалить используемый пул. Сначала убери правила и резервные ссылки.');return;}
       config.upstreams.splice(i,1);markDirty();
     });
     table('ruleList',['ID','Домен','Совпадение','Пул','Приоритет'],config.rules.map(r=>[r.id,r.domain,r.match,r.upstream,r.priority]),i=>{config.rules.splice(i,1);markDirty();});
@@ -52,6 +53,7 @@
     el('revision').textContent = (dirty ? '● Не сохранено · ' : '') + revision.substring(0,23);
     p5RefreshLists();
     p88RenderRules();p88RefreshStatus();
+    liteRender();
   }
   async function load() {
     if (dirty && !confirm('Отменить несохранённые изменения?')) return;
@@ -1069,6 +1071,7 @@
     p10State.dataset.state=bad?'error':'info';
   }
   async function p10Refresh(){
+    if(await liteDetect())return liteRefresh();
     try {
       const [ownership,shadow]=await Promise.all([request('keenetic/managed-ownership/status'),request('shadow/status')]);
       const active=ownership.state==='verified_active' && shadow.lifecycle && shadow.lifecycle.active;
@@ -1091,6 +1094,7 @@
     return request('shadow/control',jsonOptions('shadow-control',{operation:op},{'If-Match':'"'+revision+'"'}));
   }
   async function p10Activate(){
+    if(await liteDetect())return liteApply();
     if(p10Busy)return;
     p10Busy=true;p10Run.disabled=true;p10Stop.disabled=true;
     let startedHere=false,ownedHere=false;let failure='';
@@ -1149,6 +1153,7 @@
     }finally{p10Busy=false;await p10Refresh();if(failure)p10Message(failure,true);}
   }
   async function p10Disable(){
+    if(await liteDetect())return liteStop();
     if(p10Busy)return;
     if(!confirm('Отключить доменные маршруты RouterForge и восстановить исходный DNS Keenetic?'))return;
     p10Busy=true;p10Run.disabled=true;p10Stop.disabled=true;let failure='';
@@ -1229,6 +1234,90 @@
   p88Id('drSimpleAdvanced').addEventListener('click',()=>p88Id('drModeAdvanced').click());
   p88RefreshStatus();
   p88Scan().catch(err=>{p88Id('drSimpleState').textContent='Ошибка загрузки: '+err.message;});
+
+  function liteRender(){
+    const select=el('drLiteDefault');if(!select)return;
+    const chosen=config.service?config.service.default_upstream:select.value;
+    select.replaceChildren();
+    for(const u of config.upstreams){const o=document.createElement('option');o.value=u.id;o.textContent=u.id+' · '+u.transport+' · '+u.address;select.appendChild(o);}
+    if(config.upstreams.some(u=>u.id===chosen))select.value=chosen;
+    if(config.service){
+      el('drLiteListen').value=config.service.listen;
+      el('drLiteCache').value=config.service.cache_bytes/(1024*1024);
+      el('drLiteNetworks').value=config.service.allowed_networks.join(',');
+    }
+  }
+  async function liteDetect(){
+    if(drLiteAvailable!==null)return drLiteAvailable;
+    const response=await fetch('../service/status',{cache:'no-store'});
+    if(response.status===404)drLiteAvailable=false;
+    else {if(!response.ok)throw Error('HTTP '+response.status+' при чтении DNS-сервиса');const s=await response.json();drLiteAvailable=s.mode==='independent-dns';}
+    if(el('drLitePanel'))el('drLitePanel').hidden=!drLiteAvailable;
+    if(drLiteAvailable){document.documentElement.dataset.dnsEngine='lite';for(const id of ['shadowStartButton','shadowApplyButton','shadowStopButton'])el(id).disabled=true;}
+    return drLiteAvailable;
+  }
+  function litePreferences(){
+    const cache=Number(el('drLiteCache').value);
+    if(!Number.isInteger(cache)||cache<0||cache>8)throw Error('Кэш: целое число от 0 до 8 МиБ');
+    const settings={listen:el('drLiteListen').value.trim(),default_upstream:el('drLiteDefault').value,cache_bytes:cache*1024*1024,allowed_networks:el('drLiteNetworks').value.split(',').map(x=>x.trim()).filter(Boolean)};
+    if(!settings.default_upstream)throw Error('Добавь DNS-сервер и выбери DNS по умолчанию');
+    if(config.service&&config.service.default_group&&config.service.default_upstream===settings.default_upstream)settings.default_group=config.service.default_group;
+    config.service=settings;
+  }
+  async function liteCommand(path,body){return request('service/'+path,jsonOptions('service-control',body,{'If-Match':'"'+revision+'"'}));}
+  async function liteRefresh(){
+    const s=await request('service/status');
+    const c=s.connection||{state:'disconnected'};
+    document.documentElement.dataset.dnsActive=String(Boolean(s.active));
+    const active=s.active?'DNS РАБОТАЕТ · '+s.listen+' · default: '+s.default_upstream+' · запросов '+s.requests+' · кэш '+s.cache_hits:'DNS остановлен';
+    el('drLiteStatus').textContent=active+' · Keenetic: '+c.state+(c.mac?' / '+c.mac:'')+(s.last_error?' · '+s.last_error:'');
+    p10Message(active+(s.active&&s.applied_revision!==revision?' · сохранённые изменения ещё не применены':''));
+    p10Run.disabled=p10Busy;p10Stop.disabled=!s.active;
+    el('drLiteStop').disabled=!s.active;
+    el('drLiteDisconnect').disabled=c.state==='disconnected';
+    el('drLiteConnect').disabled=!s.active||c.state!=='disconnected';
+    el('drP10NativeBadge').textContent=c.state==='connected'?'ПРОФИЛЬ KEENETIC · '+c.mac:'ПОДКЛЮЧЕНИЕ КЛИЕНТА ОТДЕЛЬНО';
+    el('shadowBadge').textContent='DEV · САМОСТОЯТЕЛЬНЫЙ DNS';
+    const t=await request('service/traces');
+    el('drLiteTraces').textContent=(t.traces||[]).slice().reverse().map(x=>x.time+' '+x.name+' / '+x.type+' → '+(x.cache?'КЭШ':x.used||x.assigned)+' / RCODE '+x.rcode+(x.success?'':' / ОШИБКА')).join('\n')||'Запросов пока нет.';
+    return s;
+  }
+  async function liteApply(){
+    if(p10Busy)return;p10Busy=true;
+    try{
+      litePreferences();
+      if(p92Field.value.trim()){p88Id('drSimpleAdd').click();if(p92Field.value.trim())throw Error('Сначала исправь список доменов');}
+      dirty=true;await p10SaveConfig();
+      if(config.upstreams.some(u=>u.transport==='native')){
+        await liteCommand('migrate-native',{operation:'migrate'});
+        const data=await request('config');config=data.config;revision=data.revision;dirty=false;render();
+      }
+      const s=await request('service/status');
+      await liteCommand('control',{operation:s.active?'apply':'start'});
+      feedback('DNS-сервис запущен, правила и default применены. Подключи тестовое устройство в блоке DNS-сервиса.');
+    }catch(e){feedback('DNS: '+e.message);p10Message(e.message,true);}
+    finally{p10Busy=false;try{await liteRefresh();}catch(e){feedback(e.message);}}
+  }
+  async function liteStop(){
+    if(p10Busy)return;
+    if(!confirm('Остановить DNS? Созданный RouterForge профиль устройства будет снят, прежний DNS восстановлен.'))return;
+    p10Busy=true;try{await liteCommand('control',{operation:'stop'});feedback('DNS остановлен, автозапуск DNS выключен.');}catch(e){feedback('Остановка: '+e.message);}finally{p10Busy=false;await liteRefresh();}
+  }
+  for(const id of ['drLiteDefault','drLiteListen','drLiteCache','drLiteNetworks'])el(id).addEventListener('change',()=>{try{litePreferences();markDirty();}catch(e){feedback(e.message);}});
+  el('drLiteApply').addEventListener('click',liteApply);
+  el('drLiteStop').addEventListener('click',liteStop);
+  el('drLiteRefresh').addEventListener('click',()=>liteRefresh().catch(e=>feedback(e.message)));
+  el('drLiteVerify').addEventListener('click',async()=>{
+    el('drLiteVerify').disabled=true;feedback('Проверяю реальные UDP/TCP-запросы и выбранные DNS…');
+    try{const result=await liteCommand('verify',{operation:'verify'});feedback('DNS E2E: '+result.state+' · прямой вход сервиса · '+result.results.length+' запросов. Путь тестового клиента через Keenetic проверяется отдельно.');}
+    catch(e){feedback('DNS E2E: '+e.message);}finally{el('drLiteVerify').disabled=false;await liteRefresh();}
+  });
+  el('drLiteConnect').addEventListener('click',async()=>{
+    const mac=el('drLiteMAC').value.trim(),persist=el('drLitePersist').checked;
+    if(!confirm('Назначить устройству '+mac+' профиль RF_DNS_LITE?'+(persist?' Будет сохранена текущая конфигурация Keenetic.':' Изменение действует до перезагрузки Keenetic.')))return;
+    try{await liteCommand('connect',{mac,persist});feedback('Профиль назначен. Проверь DNS с указанного устройства и посмотри журнал запросов.');}catch(e){feedback('Подключение: '+e.message);}finally{await liteRefresh();}
+  });
+  el('drLiteDisconnect').addEventListener('click',async()=>{try{await liteCommand('disconnect',{operation:'disconnect'});feedback('Прежнее назначение DNS устройства восстановлено.');}catch(e){feedback('Отключение: '+e.message);}finally{await liteRefresh();}});
 
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));
   shadowRefresh().catch(()=>{});
@@ -1387,10 +1476,10 @@
     const metric = document.getElementById('metricRuntime');
     const ready = status.trim() && status.trim() !== 'Загрузка состояния…';
     if (badge) {
-      badge.textContent = active ? 'SHADOW · АКТИВЕН' : (ready ? 'SHADOW · ОСТАНОВЛЕН' : 'SHADOW · ПРОВЕРКА');
+      badge.textContent = root.dataset.dnsEngine==='lite' ? 'DEV · САМОСТОЯТЕЛЬНЫЙ DNS' : active ? 'SHADOW · АКТИВЕН' : (ready ? 'SHADOW · ОСТАНОВЛЕН' : 'SHADOW · ПРОВЕРКА');
       badge.classList.toggle('good', active);
     }
-    if (metric) metric.textContent = active ? 'АКТИВЕН' : (ready ? 'ВЫКЛ.' : '—');
+    if (metric) metric.textContent = root.dataset.dnsEngine==='lite' ? (root.dataset.dnsActive==='true'?'АКТИВЕН':'ВЫКЛ.') : active ? 'АКТИВЕН' : (ready ? 'ВЫКЛ.' : '—');
     const feedback = document.getElementById('feedback');
     if (feedback) {
       const msg = feedback.textContent || '';

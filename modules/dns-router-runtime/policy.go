@@ -25,6 +25,7 @@ type Config struct {
 	Lists         []DomainList    `json:"lists,omitempty"`
 	Groups        []DNSGroup      `json:"dns_groups,omitempty"`
 	Listener      *ListenerConfig `json:"listener,omitempty"`
+	Service       *ServiceConfig  `json:"service,omitempty"`
 }
 
 type Upstream struct {
@@ -211,6 +212,9 @@ func Compile(cfg Config) (*Engine, error) {
 		return nil, err
 	}
 	e.groups = groups
+	if err := validateServiceConfig(cfg, e.upstreams, groups); err != nil {
+		return nil, err
+	}
 	ruleIDs := make(map[string]bool)
 	strictCollisions := make(map[string]Rule)
 	for _, raw := range cfg.Rules {
@@ -273,10 +277,27 @@ func (e *Engine) Evaluate(query string) (Decision, error) {
 	if err != nil {
 		return Decision{}, err
 	}
+	return e.evaluateNormalized(d), nil
+}
+
+// EvaluateDNSQuestion permits service labels such as _sip._tcp while the
+// configuration/list validator remains restricted to host-style domain names.
+func (e *Engine) EvaluateDNSQuestion(query string) (Decision, error) {
+	d := strings.TrimSuffix(strings.ToLower(query), ".")
+	if _, err := normalizedDomain(strings.ReplaceAll(d, "_", "a")); err != nil {
+		return Decision{}, err
+	}
+	if e == nil || e.root == nil {
+		return Decision{}, errors.New("policy engine is not initialized")
+	}
+	return e.evaluateNormalized(d), nil
+}
+
+func (e *Engine) evaluateNormalized(d string) Decision {
 	result := Decision{Domain: d, Source: "system", Reason: "no rule: keep Keenetic DNS"}
 	if isProtected(d) {
 		result.Reason = "protected local namespace: keep Keenetic DNS"
-		return result, nil
+		return result
 	}
 	current := e.root
 	labels := strings.Split(d, ".")
@@ -308,10 +329,10 @@ func (e *Engine) Evaluate(query string) (Decision, error) {
 		}
 	}
 	if best == nil {
-		return result, nil
+		return result
 	}
 	u := e.upstreams[best.Upstream]
-	return Decision{Domain: d, Matched: true, Source: "policy", RuleID: best.ID, GroupID: best.GroupID, Upstream: u.ID, Transport: u.Transport, Address: u.Address, Reason: "most-specific matching domain rule"}, nil
+	return Decision{Domain: d, Matched: true, Source: "policy", RuleID: best.ID, GroupID: best.GroupID, Upstream: u.ID, Transport: u.Transport, Address: u.Address, Reason: "most-specific matching domain rule"}
 }
 
 // UpstreamChain yields only the explicitly selected upstream and its named

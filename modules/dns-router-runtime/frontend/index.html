@@ -23,6 +23,27 @@
 
   <div class="feedback neutral" id="feedback" role="status" aria-live="polite">Чтение конфигурации…</div>
 
+  <section class="dr-simple-panel" id="drLitePanel" hidden aria-label="Самостоятельный DNS-сервис">
+    <h2>DNS-сервис · DEV</h2>
+    <p>Один локальный DNS-вход, доменные списки и DNS по умолчанию. Штатные доменные зоны не расходуются. Сервис использует собственные DNS-соединения.</p>
+    <div class="dr-p91-form-row">
+      <label class="dr-simple-field"><span>DNS по умолчанию</span><select id="drLiteDefault"></select></label>
+      <label class="dr-simple-field"><span>Адрес сервиса</span><input id="drLiteListen" value="192.168.10.1:55358" spellcheck="false"></label>
+      <label class="dr-simple-field"><span>Кэш, МиБ (0 — выключен)</span><input id="drLiteCache" type="number" min="0" max="8" value="1"></label>
+    </div>
+    <label class="dr-simple-field"><span>Разрешённые клиентские сети, через запятую</span><input id="drLiteNetworks" value="127.0.0.0/8,192.168.10.0/24" spellcheck="false"></label>
+    <p class="dr-simple-help">«Применить DNS» запускает сервис и сохраняет автозапуск. Подключение устройства к нему выполняется отдельно ниже. Импортированный native DoH будет преобразован в собственное прямое соединение.</p>
+    <div class="action-bar"><button type="button" class="button primary" id="drLiteApply">▶ Применить DNS</button><button type="button" class="button" id="drLiteVerify">✓ Проверить сервис UDP/TCP</button><button type="button" class="button" id="drLiteStop">■ Остановить DNS</button><button type="button" class="button" id="drLiteRefresh">↻ Состояние и запросы</button></div>
+    <p id="drLiteStatus" role="status">Чтение состояния…</p>
+    <details><summary>Подключить одно тестовое устройство к DNS через Keenetic</summary>
+      <p>Будет создан отдельный профиль RF_DNS_LITE и назначен указанному MAC. Предыдущее назначение сохраняется для отключения. Списки доменов остаются внутри сервиса.</p>
+      <label class="dr-simple-field"><span>MAC тестового устройства</span><input id="drLiteMAC" placeholder="aa:bb:cc:dd:ee:ff" spellcheck="false"></label>
+      <label><input type="checkbox" id="drLitePersist"> Сохранить текущую конфигурацию Keenetic, чтобы подключение пережило перезагрузку</label>
+      <div class="action-bar"><button type="button" class="button primary" id="drLiteConnect">Подключить устройство</button><button type="button" class="button" id="drLiteDisconnect">Вернуть прежний DNS устройства</button></div>
+      <p>Проверка применяется к выбранному MAC. Собственный DoH/Private DNS на устройстве должен быть выключен. Перехват внешнего DNS не включается.</p>
+    </details>
+    <details><summary>Последние DNS-запросы · только в памяти, до 128 записей</summary><pre id="drLiteTraces"></pre></details>
+  </section>
   <section class="dr-simple-workspace" id="drSimpleWorkspace" aria-label="Простое управление DNS">
     <div class="dr-simple-intro">
       <div><span class="section-kicker">ПРОСТОЕ УПРАВЛЕНИЕ</span><h2>Какой DNS использовать для доменов?</h2><p>Выбери политику Keenetic, DNS-сервер и вставь домены. Ручные DoT/DoH хранятся отдельно в DNS Router и не назначаются политике Keenetic автоматически.</p></div>

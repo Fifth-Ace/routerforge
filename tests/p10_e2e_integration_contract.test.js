@@ -37,9 +37,9 @@ test('P10 63-capacity exists ONLY for durable O2; N trial stays 8, old plan stay
  assert.match(o3,/managedZonesLimitedN\(cfg, 63\)/);
  assert.match(listener,/BuildDomainSplitPlanLWithLimit\(cfg, 32\)/);
 });
-test('P10 DSTest-only capability is not shadow auto-activation on fresh install',()=>{
- assert.match(init,/uname -n.*DSTest/);
- assert.match(init,/ndmc-durable-experimental/);
+test('DEV independent service replaces P10 startup without implicit zone activation',()=>{
+ assert.match(init,/--service-control stop/);
+ assert.doesNotMatch(init,/--ndmc-durable-experimental/);
  assert.doesNotMatch(init,/--shadow-forward/);
  assert.match(main,/owned\.State == "active"/);
  assert.match(main,/enableShadow = true/);

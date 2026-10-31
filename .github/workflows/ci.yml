@@ -198,7 +198,7 @@ jobs:
               esac
 
               case "$path" in
-                *.go|go.mod|go.sum)
+                *.go|go.mod|go.sum|modules/dns-router-lite/go.mod|modules/dns-router-lite/go.sum|scripts/collect-dns-lite-licenses.py)
                   GO=true
                   CROSS=true
                   ;;
@@ -528,6 +528,19 @@ jobs:
           grep -Fq '"$BIN" --config "$CFG" --serve --socket "$SOCK"' /tmp/rf-dns-router-dev-service
           dpkg --compare-versions '0.8.0~dev.r100.aaa' lt '1~dev.r101.bbb'
           dpkg --compare-versions '1~dev.r101.aaa' lt '1~dev.r102.bbb'
+
+      - name: DNS Router Lite independent DNS and profile rollback tests
+        if: steps.scope.outputs.go == 'true'
+        working-directory: modules/dns-router-lite
+        run: |
+          go test -tags dns_router_lite -race -count=1 ./...
+          go vet -tags dns_router_lite ./...
+
+      - name: DNS Router Lite shipped UI behavior
+        if: steps.scope.outputs.go == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.layout == 'true'
+        run: |
+          npm ci --prefix modules/dns-router-lite/frontend-tests --ignore-scripts --no-audit --no-fund
+          npm test --prefix modules/dns-router-lite/frontend-tests
 
       - name: Vet
         if: steps.scope.outputs.go == 'true'

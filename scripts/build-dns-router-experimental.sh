@@ -45,8 +45,12 @@ cp "$ROOT/modules/dns-router-runtime/packaging/example.json" \
 cp "$ROOT/modules/dns-router-runtime/packaging/S95routerforge-dns-router" \
   "$WORK/data/opt/share/routerforge/dns-router/service/S95routerforge-dns-router"
 chmod 0755 "$WORK/data/opt/share/routerforge/dns-router/service/S95routerforge-dns-router"
+UI_SOURCE="$ROOT/modules/dns-router-runtime/frontend"
+if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
+  UI_SOURCE="$ROOT/modules/dns-router-lite/frontend"
+fi
 for file in index.html app.js module.css; do
-  cp "$ROOT/modules/dns-router-runtime/frontend/$file" \
+  cp "$UI_SOURCE/$file" \
      "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"
 done
 cat > "$WORK/data/opt/share/routerforge/modules/dns-router/manifest.json" <<MANIFEST

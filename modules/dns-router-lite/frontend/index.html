@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>RouterForge · DNS</title>
+  <link rel="stylesheet" href="module.css">
+</head>
+<body>
+<main class="page" id="dnsLiteApp">
+  <header class="topbar">
+    <div class="identity"><span class="brandmark" aria-hidden="true">R</span><div><strong>RouterForge DNS</strong><small>Лёгкий DNS-сервис</small></div></div>
+    <div class="top-actions"><span class="status" id="serviceBadge" role="status">Проверяем…</span><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
+  </header>
+  <nav class="tabs" aria-label="Разделы DNS">
+    <button id="navDns" type="button" class="tab selected" aria-current="page">DNS и домены</button>
+    <button id="navLogs" type="button" class="tab">Журнал запросов <span id="logCounter" class="counter">0</span></button>
+  </nav>
+  <div class="notice" id="feedback" role="status" aria-live="polite">Загружаем настройки…</div>
+
+  <section id="pageDns" aria-label="DNS и домены">
+    <details class="help panel" id="quickHelp">
+      <summary>Как настроить за минуту? <span class="hint">Короткая инструкция</span></summary>
+      <ol>
+        <li>Нажми <strong>«Добавить DNS»</strong>, введи адрес и <strong>«Проверить»</strong> — защищённый сертификат проверим сами.</li>
+        <li>Открой DNS, добавь в его <strong>список домены</strong> (по одному на строку).</li>
+        <li>Выбери <strong>DNS по умолчанию</strong> и нажми <strong>«Сохранить и применить»</strong>.</li>
+        <li>Для проверки подключи <strong>одно устройство</strong> ниже и открой страницу «Журнал запросов».</li>
+      </ol>
+      <p class="muted">Сохранение списков само по себе не меняет DNS устройств. Подключение выполняется отдельно, с возможностью вернуть прежнее назначение.</p>
+    </details>
+    <section class="panel overview">
+      <div class="section-title"><div><h1>DNS и домены</h1><p>Каждому DNS — свой список. Без таблиц из сотен технических правил.</p></div><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div>
+      <div class="fields two">
+        <label class="field"><span>DNS по умолчанию <b class="required">*</b></span><select id="defaultDNS"><option value="">Выбери основной DNS…</option></select><small>Для доменов, которых нет в списках</small></label>
+        <div class="summary-box"><span>Сервис</span><strong id="listenerSummary">—</strong><small id="connectionSummary">Устройства не подключены</small></div>
+      </div>
+    </section>
+    <section id="dnsAddPanel" class="panel" hidden>
+      <div class="section-title"><div><h2>Добавить DNS</h2><p>Укажи адрес провайдера, а IP и сертификат мы найдём сами.</p></div><button type="button" id="cancelDNS" class="button subtle">Закрыть</button></div>
+      <div class="fields two">
+        <label class="field"><span>Протокол</span><select id="newProtocol"><option value="doh">DoH · защищённый HTTPS</option><option value="dot">DoT · защищённый TLS</option><option value="udp">UDP · обычный</option><option value="doq">DoQ · QUIC (без предварительного просмотра сертификата)</option></select></label>
+        <label class="field"><span>Адрес DNS</span><input id="newAddress" type="text" maxlength="300" spellcheck="false" placeholder="https://dns.example.com/dns-query" autocomplete="off"></label>
+      </div>
+      <div class="actions"><button type="button" class="button" id="inspectDNS">Проверить адрес и сертификат</button><button type="button" class="button primary" id="commitDNS" disabled>Добавить DNS</button></div>
+      <p id="certificateInfo" class="result muted">Проверка ещё не выполнялась.</p>
+      <details id="certificateDetails" hidden><summary>Сведения о сертификате</summary><pre id="certificateDetailsText" class="cert-details"></pre></details>
+    </section>
+    <section class="panel">
+      <div class="section-title"><div><h2>Мои DNS-серверы</h2><p>Нажми «Список доменов», чтобы добавить или заменить список конкретного DNS.</p></div><span class="counter" id="serverCount">0</span></div>
+      <div id="nativeWarning" class="warning" hidden>Обнаружены старые DNS-селекторы Keenetic. Перед применением их необходимо преобразовать в прямой DoH. <button class="button" id="migrateNative" type="button">Преобразовать DNS</button><small>Списки сохраняются. Неоднозначные адреса не преобразуются автоматически.</small></div>
+      <div id="dnsCards" class="dns-cards"><p class="muted">Серверов пока нет.</p></div>
+      <div id="listEditor" class="editor" hidden>
+        <div class="section-title"><div><h3 id="editorTitle">Список доменов</h3><p>Один домен на строку. Поддомены тоже направляются на выбранный DNS.</p></div><button type="button" class="button subtle" id="closeEditor">Закрыть</button></div>
+        <textarea id="editorDomains" rows="11" spellcheck="false" placeholder="youtube.com&#10;googlevideo.com&#10;ytimg.com"></textarea>
+        <div class="actions"><button type="button" class="button" id="importDomains">Импорт TXT</button><button type="button" class="button" id="exportDomains">Экспорт TXT</button><button type="button" class="button primary" id="saveDomains">Сохранить список</button><input type="file" id="domainFile" accept=".txt,text/plain" hidden></div>
+        <small id="editorHint" class="muted">Изменения попадут в черновик и начнут действовать после применения.</small>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="section-title"><div><h2>Запуск и подключение</h2><p>Сначала запускаем DNS-сервис, потом при необходимости подключаем устройство.</p></div></div>
+      <div class="actions"><button type="button" class="button primary" id="applyButton">✓ Сохранить и применить</button><button type="button" class="button" id="saveButton">Только сохранить</button><button type="button" class="button" id="verifyButton">Проверить DNS</button><button type="button" class="button danger" id="stopButton">Остановить DNS</button></div>
+      <div id="runStatus" class="result">Состояние сервиса загружается…</div>
+      <details class="inner-details" id="clientConnection">
+        <summary>Подключить тестовое устройство <span class="hint">Необязательно</span></summary>
+        <div class="fields two"><label class="field"><span>MAC-адрес устройства</span><input id="clientMAC" placeholder="02:11:22:33:44:55" spellcheck="false"></label><div class="field"><span>DNS-профиль Keenetic</span><strong id="clientState">Не подключён</strong><small>Подключаем только выбранное устройство, не всю сеть</small></div></div>
+        <label class="check"><input type="checkbox" id="persistClient"> Сохранить назначение после перезагрузки Keenetic (изменяет его общую running-config)</label>
+        <div class="actions"><button class="button primary" type="button" id="connectButton">Подключить</button><button class="button" type="button" id="disconnectButton">Вернуть прежний DNS</button></div>
+        <p class="muted">Для теста выключи Private DNS / DoH на устройстве. При недоступном Entware подключённое устройство может остаться без DNS — возврат делается по IP-адресу роутера.</p>
+      </details>
+      <details class="inner-details"><summary>Дополнительные настройки <span class="hint">Обычно не нужны</span></summary>
+        <div class="fields two"><label class="field"><span>Адрес DNS-сервиса</span><input id="serviceListen" value="192.168.10.1:55358"></label><label class="field"><span>Кэш, МиБ</span><input id="cacheSize" type="number" value="1" min="0" max="8" step="1"></label></div>
+        <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" value="127.0.0.0/8,192.168.10.0/24" spellcheck="false"></label>
+      </details>
+    </section>
+  </section>
+
+  <section id="pageLogs" hidden aria-label="Журнал DNS">
+    <section class="panel">
+      <div class="section-title"><div><h1>Журнал запросов</h1><p>Куда отправился каждый DNS-запрос и что ответил сервер.</p></div><span id="liveBadge" class="status">LIVE · ожидание</span></div>
+      <div class="metrics"><div><small>Запросов после запуска</small><strong id="metricRequests">0</strong></div><div><small>Из кэша</small><strong id="metricCache">0</strong></div><div><small>Ошибок</small><strong id="metricErrors">0</strong></div><div><small>Сервис</small><strong id="metricRunning">—</strong></div></div>
+      <div class="log-toolbar"><label class="field search"><span>Фильтр по домену или DNS</span><input id="logFilter" placeholder="Например, youtube или Cloudflare" autocomplete="off"></label><label class="check"><input type="checkbox" id="onlyErrors"> Только ошибки</label><button type="button" class="button" id="refreshLogs">↻ Обновить</button><button type="button" class="button" id="copyLogs">Копировать</button></div>
+      <div class="log-head"><span>Время</span><span>Домен</span><span>Назначен → использован</span><span>Ответ</span><span>Время</span></div>
+      <div id="logRows" class="log-rows" aria-live="polite"><p class="muted">Здесь появятся запросы после запуска DNS.</p></div>
+      <p class="muted">Обновляется автоматически каждые 2 секунды. Только последние 128 запросов в памяти; на диск журнал не пишется. Кэшированные ответы не отправляются upstream повторно.</p>
+    </section>
+  </section>
+</main>
+<script defer src="app.js"></script>
+</body>
+</html>

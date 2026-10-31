@@ -1,45 +1,94 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const test=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM,VirtualConsole}=require('jsdom');
-const root=path.resolve(__dirname,'../../dns-router-runtime/frontend');
-const wait=()=>new Promise(r=>setTimeout(r,20));
-test('shipped UI applies independent DNS settings and connects a client without P10 zone requests',async()=>{
-  let config={schema_version:1,upstreams:[{id:'one',transport:'udp',address:'9.9.9.9:53'},{id:'two',transport:'doh',address:'1.1.1.1:443',server_name:'cloudflare-dns.com',path:'/dns-query'}],rules:[{id:'r',domain:'example.com',match:'suffix',upstream:'one',priority:1}]};
-  let revision='sha256:old',active=false,connection={state:'disconnected'};const calls=[],errors=[];
+const root=path.resolve(__dirname,'../frontend');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const js=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const css=fs.readFileSync(path.join(root,'module.css'),'utf8');
+const tick=()=>new Promise(r=>setTimeout(r,25));
+const until=async(p)=>{for(let i=0;i<45;i++){if(p())return;await tick();}throw Error('UI wait exceeded');};
+function fixture(){
+  let config={schema_version:1,upstreams:[{id:'old',transport:'udp',address:'9.9.9.9:53'},{id:'cf',transport:'doh',address:'1.1.1.1:443',server_name:'cloudflare-dns.com',path:'/dns-query'}],rules:[{id:'r1',domain:'example.com',match:'suffix',upstream:'old',priority:100},{id:'r2',domain:'other.net',match:'suffix',upstream:'cf',priority:100}]};
+  let revision='sha256:initial',active=false,connection={state:'disconnected'},requests=0;const calls=[],errors=[];
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
-  const dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'http://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
-  const w=dom.window;w.confirm=()=>true;w.prompt=()=>null;
+  const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
+  const w=dom.window;w.confirm=()=>true;w.scrollTo=()=>{};
   w.fetch=async(url,opts={})=>{
-    const p=new URL(url,w.location.href).pathname.replace(/^\//,'');calls.push([p,opts]);let body={};let status=200;
+    const p=new URL(url,w.location.href).pathname.replace(/^\/?ui\/\.\.\//,'').replace(/^\//,'');calls.push({path:p,opts});
+    let status=200,body={};
     if(p==='config'){
-      if(opts.method==='PUT'){assert.equal(opts.headers['If-Match'],'"'+revision+'"');config=JSON.parse(opts.body);revision='sha256:new';}
+      if(opts.method==='PUT'){a.equal(opts.headers['If-Match'],'"'+revision+'"');config=JSON.parse(opts.body);revision='sha256:next';}
       body={config:structuredClone(config),revision};
-    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests:0,cache_hits:0,connection};
-    else if(p==='service/traces')body={traces:[]};
-    else if(p==='service/control'){const action=JSON.parse(opts.body);assert.equal(opts.headers['X-RouterForge-Action'],'service-control');active=action.operation!=='stop';body={ok:true};}
-    else if(p==='service/connect'){const action=JSON.parse(opts.body);assert.equal(action.mac,'02:11:22:33:44:55');connection={state:'connected',mac:action.mac};body={ok:true};}
+    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,cache_hits:0,failures:0,connection};
+    else if(p==='service/traces')body={traces:active?[{name:'example.com',time:'2026-10-31T12:00:00Z',assigned:'old',used:'old',transport:'udp',rcode:0,success:true,latency_ms:5,type:1,cache:false}]:[]};
+    else if(p==='certificates/lookup'){a.equal(opts.headers['X-RouterForge-Action'],'certificate-lookup');const q=JSON.parse(opts.body);body={address:'8.8.8.8:443',selected_ip:'8.8.8.8',ips:['8.8.8.8'],certificate:{verified:true,pem:'-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n',subject:'CN=dns.google',issuer:'Trusted CA',not_after:'2027-10-31',fingerprint_sha256:'ab',server_name:q.server_name}};}
+    else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';body={ok:true};}
+    else if(p==='service/verify')body={state:'PASS',results:[{state:'PASS'}]};
+    else if(p==='service/connect'){connection={state:'connected',mac:JSON.parse(opts.body).mac};body={ok:true};}
     else if(p==='service/disconnect'){connection={state:'disconnected'};body={ok:true};}
-    else if(p==='keenetic/native-dns')body={available:true,instances:[{name:'System',valid:true,endpoints:[]}]};
-    else if(p==='keenetic/native-policies')body={available:true,policies:[]};
-    else if(p==='shadow/status')body={lifecycle:{active:false}};
-    else if(p==='keenetic/native-bridge/status')body={bindings:[]};
-    else if(p==='keenetic/managed-ownership/status')body={state:'disabled',owned_zones:[]};
-    return {ok:status===200,status,json:async()=>structuredClone(body)};
+    else if(p==='service/migrate-native')body={ok:true};
+    else status=404;
+    return {ok:status===200,status,headers:{get:()=> 'application/json'},json:async()=>structuredClone(body)};
   };
+  w.eval(js);return {w,dom,calls,errors,getConfig:()=>config,getActive:()=>active};
+}
+
+test('P12 shipped DEV UI contains only two pages, minimal help and no P10 controls',()=>{
+  for(const id of ['pageDns','pageLogs','navDns','navLogs','quickHelp','inspectDNS','certificateInfo','editorDomains','logRows','clientConnection','defaultDNS'])a.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+  for(const id of ['drAdvancedWorkspace','drModeAdvanced','managedTrialN','shadowStartButton','drSimplePolicies','drP92Apply'])a.doesNotMatch(html,new RegExp('id="'+id+'"'));
+  a.match(css,/--rf-accent/);a.match(js,/service\/traces/);a.doesNotMatch(js,/keenetic\/durable\/apply|shadow\/control/);
+});
+
+test('P12 DNS -> domains, verified TLS snapshot, explicit default and separate activation',async()=>{
+  const f=fixture(),d=f.w.document;
   try{
-    w.eval(fs.readFileSync(path.join(root,'app.js'),'utf8'));
-    for(let i=0;i<30&&w.document.getElementById('drLiteDefault').options.length<2;i++)await wait();
-    assert.equal(w.document.getElementById('drLitePanel').hidden,false);
-    const select=w.document.getElementById('drLiteDefault');select.value='two';select.dispatchEvent(new w.Event('change'));
-    const cache=w.document.getElementById('drLiteCache');cache.value='2';cache.dispatchEvent(new w.Event('change'));
-    w.document.getElementById('drLiteApply').click();
-    for(let i=0;i<30&&!active;i++)await wait();assert.equal(active,true,w.document.getElementById('feedback').textContent);
-    assert.equal(config.service.default_upstream,'two');assert.equal(config.service.cache_bytes,2*1024*1024);
-    await wait();w.document.getElementById('drLiteMAC').value='02:11:22:33:44:55';w.document.getElementById('drLiteConnect').click();
-    for(let i=0;i<30&&(connection.state!=='connected'||w.document.getElementById('drLiteDisconnect').disabled);i++)await wait();assert.equal(connection.state,'connected');
-    w.document.getElementById('drLiteDisconnect').click();for(let i=0;i<30&&connection.state!=='disconnected';i++)await wait();assert.equal(connection.state,'disconnected');
-    assert.equal(calls.some(([p])=>p.startsWith('keenetic/durable/')),false);
-    await wait(); // Allow the disconnect handler's final status refresh to finish.
-    assert.deepEqual(errors,[]);
-  }finally{w.close();}
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    a.equal(d.querySelectorAll('.dns-card').length,2);
+    a.equal(d.getElementById('defaultDNS').value,'');
+    d.querySelector('[data-upstream-id="cf"] .dns-bottom button').click();
+    a.equal(d.getElementById('editorDomains').value,'other.net');
+    d.getElementById('editorDomains').value='other.net\nyoutube.com';
+    d.getElementById('saveDomains').click();
+    await until(()=>d.getElementById('feedback').textContent.includes('Список обновлён'));
+    a.equal(d.querySelectorAll('[data-upstream-id="cf"] .dns-domain-preview')[0].textContent.includes('youtube.com'),true);
+    a.equal(d.querySelectorAll('[data-upstream-id="old"] .dns-domain-preview')[0].textContent.includes('youtube.com'),false);
+    d.getElementById('addDnsToggle').click();d.getElementById('newAddress').value='https://dns.google/dns-query';
+    d.getElementById('inspectDNS').click();await until(()=>!d.getElementById('commitDNS').disabled);
+    a.match(d.getElementById('certificateInfo').textContent,/TLS проверен/);
+    d.getElementById('commitDNS').click();await until(()=>d.querySelectorAll('.dns-card').length===3);
+    d.getElementById('defaultDNS').value='cf';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+    a.equal(f.getActive(),false,'adding and editing does NOT activate DNS');
+    d.getElementById('applyButton').click();await until(()=>f.getActive());
+    a.equal(f.getConfig().service.default_upstream,'cf');
+    a.equal(f.getConfig().rules.length,3);
+    a.ok(f.getConfig().upstreams.find(u=>u.server_name==='dns.google').certificate_pem);
+    a.equal(f.calls.some(c=>/keenetic\/durable|shadow\/control/.test(c.path)),false);
+    a.deepEqual(f.errors,[]);
+  }finally{f.dom.window.close();}
+});
+
+test('P12 live log shows actual assigned and used upstream, cache and status, with filter',async()=>{
+  const f=fixture(),d=f.w.document;
+  try{
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+    d.getElementById('applyButton').click();await until(()=>f.getActive());
+    d.getElementById('navLogs').click();
+    await until(()=>d.querySelectorAll('.log-row').length>0);
+    a.match(d.getElementById('logRows').textContent,/example\.com/);
+    a.match(d.getElementById('logRows').textContent,/old/);
+    d.getElementById('logFilter').value='not-existing';d.getElementById('logFilter').dispatchEvent(new f.w.Event('input'));
+    a.equal(d.querySelectorAll('.log-row').length,0);
+    a.equal(d.getElementById('pageDns').hidden,true);
+    a.deepEqual(f.errors,[]);
+  }finally{f.dom.window.close();}
+});
+
+test('P12 legacy native entries are not silently activated or dropped',async()=>{
+  const f=fixture(),d=f.w.document;
+  try{
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    a.equal(f.calls.filter(c=>/migrate-native/.test(c.path)).length,0);
+    a.equal(f.calls.some(c=>c.opts.method==='POST'),false);
+  }finally{f.dom.window.close();}
 });

@@ -57,34 +57,34 @@
     if(!list.length){const p=document.createElement('p');p.className='muted';p.textContent='Добавь первый DNS-сервер. Здесь появятся его список доменов и состояние сертификата.';root.appendChild(p);}
     for(const u of list){
       const rules=used(u.id),card=document.createElement('article');card.className='dns-card';card.dataset.upstreamId=u.id;card.classList.toggle('is-selected',state.editing===u.id);
+      const namedLists=(state.config.lists||[]).filter(l=>l.upstream===u.id).length;
+      const listCount=namedLists+(rules.some(r=>!r.list_id)||!namedLists?1:0);
       const header=document.createElement('div');header.className='dns-top';const left=document.createElement('div');left.className='dns-title';
       const name=document.createElement('strong');name.textContent=hostName(u);left.appendChild(name);
-      const dest=document.createElement('small');dest.textContent=u.transport==='native'?u.address:'IP: '+u.address+(u.path?' · '+u.path:'');left.appendChild(dest);
-      const cert=document.createElement('small');cert.textContent=(u.transport==='dot'||u.transport==='doh')?(u.certificate_pem?'✓ Сертификат проверен и сохранён (TLS через доверенные CA)':'TLS через доверенные CA · сертификат не сохранён'):u.transport==='doq'?'TLS через доверенные CA · проверка при подключении':'Без шифрования';left.appendChild(cert);
-      const count=document.createElement('span');count.className='dns-count';count.textContent=rules.length+' доменов';header.append(left,count);card.appendChild(header);
+      const dest=document.createElement('small');dest.textContent=u.address+(u.path?' · '+u.path:'');left.appendChild(dest);
+      const count=document.createElement('span');count.className='dns-count';count.textContent=listCount+' сп. · '+rules.length+' дом.';
+      count.title=listCount+' списков, '+rules.length+' доменов';header.append(left,count);card.appendChild(header);
       const healthRow=document.createElement('div');healthRow.className='dns-health';
       const stateLabel=document.createElement('span');stateLabel.className='dns-health-status';stateLabel.textContent='Не проверялся';
       const rtt=document.createElement('span');rtt.className='dns-rtt';rtt.textContent='RTT: —';
       const p95=document.createElement('span');p95.className='dns-p95';p95.textContent='p95: —';
-      const check=document.createElement('button');check.type='button';check.className='button';check.textContent='Проверить';check.disabled=u.transport==='native';
-      check.addEventListener('click',()=>task(async()=>{await checkHealth(u.id);}));
-      healthRow.append(stateLabel,rtt,p95,check);card.appendChild(healthRow);
-      const preview=document.createElement('p');preview.className='dns-preview';preview.textContent=rules.length?rules.slice(0,3).map(r=>r.domain).join(' · ')+(rules.length>3?' · ещё '+(rules.length-3):''):'Список доменов пуст';card.appendChild(preview);
-      const bottom=document.createElement('div');bottom.className='dns-bottom';
-      const edit=document.createElement('button');edit.type='button';edit.className='button dns-edit'+(state.editing===u.id?' primary':'');edit.textContent=state.editing===u.id?'✓ Списки открыты':'✎ Открыть списки →';edit.disabled=u.transport==='native';edit.addEventListener('click',()=>editList(u.id));
-      const reserve=document.createElement('label');reserve.className='field';const l=document.createElement('span');l.textContent='Резервный DNS';reserve.appendChild(l);const select=document.createElement('select');select.className='dns-select';select.appendChild(option('','Без резерва'));
-      for(const t of list.filter(t=>t.id!==u.id && t.transport!=='native' && !(t.fallbacks||[]).length))select.appendChild(option(t.id,displayName(t)));
-      select.value=(u.fallbacks||[])[0]||'';
-      if(![...select.options].some(o=>o.value===select.value))select.value='';
-      select.disabled=u.transport==='native';select.addEventListener('change',()=>{if(select.value && state.config.upstreams.some(x=>(x.fallbacks||[]).includes(u.id))){show('Этот DNS уже является резервным. Сначала убери его из чужой резервной цепочки.','bad');render();return;}u.fallbacks=select.value?[select.value]:[];mark();});reserve.appendChild(select);bottom.appendChild(reserve);
-      const del=document.createElement('button');del.type='button';del.className='button danger';del.textContent='Удалить DNS';del.addEventListener('click',()=>removeDNS(u.id));bottom.appendChild(del);
-      const advanced=document.createElement('details');advanced.className='dns-advanced';const advLabel=document.createElement('summary');advLabel.textContent='Резервный DNS и удаление';advanced.appendChild(advLabel);advanced.appendChild(bottom);card.appendChild(edit);
+      healthRow.append(stateLabel,rtt,p95);card.appendChild(healthRow);
+      const preview=document.createElement('p');preview.className='dns-preview';preview.textContent=rules.length?rules.slice(0,2).map(r=>r.domain).join(' · ')+(rules.length>2?' · +'+(rules.length-2):''):'Без доменов';card.appendChild(preview);
+      const actions=document.createElement('div');actions.className='dns-card-actions';
+      const edit=document.createElement('button');edit.type='button';edit.className='button dns-edit'+(state.editing===u.id?' primary':'');edit.textContent='Списки';edit.disabled=u.transport==='native';edit.addEventListener('click',()=>editList(u.id));actions.appendChild(edit);
       if(u.transport!=='native'){
-        const change=document.createElement('button');change.type='button';change.className='button dns-change';
-        change.textContent='⚙ Изменить DNS / обновить TLS';change.addEventListener('click',()=>openDNSForm(u.id));
-        card.appendChild(change);
+        const change=document.createElement('button');change.type='button';change.className='button dns-change';change.textContent='Изменить';change.title='Изменить DNS / обновить TLS';change.addEventListener('click',()=>openDNSForm(u.id));actions.appendChild(change);
       }
-      card.appendChild(advanced);root.appendChild(card);
+      const check=document.createElement('button');check.type='button';check.className='button dns-check';check.textContent='Проверить';check.disabled=u.transport==='native';check.addEventListener('click',()=>task(async()=>{await checkHealth(u.id);}));actions.appendChild(check);
+      const advanced=document.createElement('details');advanced.className='dns-advanced';const advLabel=document.createElement('summary');advLabel.textContent='Ещё';advanced.appendChild(advLabel);
+      const bottom=document.createElement('div');bottom.className='dns-bottom';
+      const reserve=document.createElement('label');reserve.className='field';const l=document.createElement('span');l.textContent='Резервный DNS';reserve.appendChild(l);
+      const select=document.createElement('select');select.className='dns-select';select.appendChild(option('','Без резерва'));
+      for(const t of list.filter(t=>t.id!==u.id&&t.transport!=='native'&&!(t.fallbacks||[]).length))select.appendChild(option(t.id,displayName(t)));
+      select.value=(u.fallbacks||[])[0]||'';if(![...select.options].some(o=>o.value===select.value))select.value='';
+      select.disabled=u.transport==='native';select.addEventListener('change',()=>{if(select.value&&state.config.upstreams.some(x=>(x.fallbacks||[]).includes(u.id))){show('Этот DNS уже является резервным. Сначала убери его из чужой резервной цепочки.','bad');render();return;}u.fallbacks=select.value?[select.value]:[];mark();});reserve.appendChild(select);bottom.appendChild(reserve);
+      const del=document.createElement('button');del.type='button';del.className='button danger';del.textContent='Удалить DNS';del.addEventListener('click',()=>removeDNS(u.id));bottom.appendChild(del);
+      advanced.appendChild(bottom);actions.appendChild(advanced);card.appendChild(actions);root.appendChild(card);
     }
     if(state.editing)renderListToolbar();
     if(state.config.service){$('serviceListen').value=state.config.service.listen;$('cacheSize').value=state.config.service.cache_bytes/(1024*1024);$('allowedNetworks').value=state.config.service.allowed_networks.join(',');}
@@ -120,7 +120,7 @@
   async function checkHealth(id=''){
     const result=await api('service/upstreams/check',opts('service-control',{operation:'check',upstream:id},true));
     state.health=Array.isArray(result.upstreams)?result.upstreams:[];renderHealth();
-    show(id?'DNS проверен. Результат и RTT обновлены.':'Проверка всех DNS завершена. Результаты обновлены.','good');
+    const failed=id?state.health.find(h=>h.id===id&&h.status==='DOWN'):null;show(failed?'DNS недоступен: '+(failed.last_error||'нет ответа'):id?'DNS проверен. Результат и RTT обновлены.':'Проверка всех DNS завершена. Результаты обновлены.',failed?'bad':'good');
   }
   async function refreshNativeDNS(){
     const target=$('nativeDNSHealth');
@@ -261,7 +261,8 @@
     $('newProtocol').value=u?u.transport:'doh';
     $('newAddress').value=!u?'':u.transport==='doh'?'https://'+u.server_name+(u.path||'/dns-query'):
       isEncrypted(u.transport)?u.server_name:u.address.replace(/:53$/,'');
-    $('certificateInfo').textContent=u?'Проверь адрес и TLS заново. Старый DNS и списки не изменятся до сохранения.':'Проверка ещё не выполнялась.';
+    resetDraftInspection();
+    $('certificateInfo').textContent=u?'Черновик: проверка не выполнялась. Активный DNS не изменён.':'Проверка не выполнялась.';
     $('certificateDetails').hidden=true;$('commitDNS').disabled=true;
     $('dnsAddPanel').hidden=false;reportHeight();
   }
@@ -274,20 +275,61 @@
       if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.port||url.pathname.includes('..')||url.pathname.startsWith('//'))throw Error('DoH: нужен HTTPS-адрес без нестандартного порта и параметров');
       host=url.hostname.toLowerCase();path=url.pathname==='/'?'/dns-query':url.pathname;
     }else{if(/[\/:?@\s]/.test(raw)&&transport!=='udp')throw Error('Нужен домен DNS-сервера без протокола и порта');host=raw.toLowerCase();}
-    if(transport==='udp'){if(!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(raw)||raw.split('.').some(n=>Number(n)>255))throw Error('Для UDP укажи IPv4-адрес, например 9.9.9.9');host=raw;}
+    if(transport==='udp'||transport==='tcp'){if(!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(raw)||raw.split('.').some(n=>Number(n)>255))throw Error('Для UDP укажи IPv4-адрес, например 9.9.9.9');host=raw;}
     if(isEncrypted(transport)&&(!/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(host)))throw Error('Для защищённого DNS требуется имя сервера');
     return {transport,host,path};
   }
+  function draftStatus(id,text,state='') {const el=$(id);el.textContent=text;el.dataset.state=state;}
+  function resetDraftInspection(){
+    for(const id of ['draftAddressState','draftIPState','draftTLSState','draftCertificateState','draftDNSState','draftRTTState'])draftStatus(id,'Не проверено');
+    $('draftProbeError').textContent='';$('draftProbeError').hidden=true;
+  }
   async function inspect(){
-    state.checked=null;$('commitDNS').disabled=true;
-    const f=newFormData(),key=$('newProtocol').value+'|'+$('newAddress').value.trim();
-    const r=await api('certificates/lookup',opts('certificate-lookup',{transport:f.transport,server_name:f.host}));
-    if(key!==$('newProtocol').value+'|'+$('newAddress').value.trim())throw Error('Адрес изменился во время проверки');
-    if(!r.address||!r.selected_ip)throw Error('Не найден IP DNS-сервера');
-    if((f.transport==='doh'||f.transport==='dot')&&(!r.certificate?.verified||!r.certificate.pem))throw Error('TLS-сертификат не удалось проверить');
-    state.checked={key,form:f,lookup:r,editId:state.editingDNSId};
-    let cert=f.transport==='doh'||f.transport==='dot'?'✓ TLS проверен по доверенным CA. Сертификат сохранится для просмотра.':f.transport==='doq'?'DoQ: сертификат будет проверен при подключении, предварительный просмотр недоступен.':'UDP не использует TLS-сертификаты.';
-    $('certificateInfo').textContent='IP '+r.selected_ip+' · '+cert;
+    state.checked=null;$('commitDNS').disabled=true;resetDraftInspection();
+    let f;
+    try {f=newFormData();}
+    catch(e){draftStatus('draftAddressState','Ошибка','bad');$('draftProbeError').hidden=false;$('draftProbeError').textContent=e.message;return;}
+    const key=$('newProtocol').value+'|'+$('newAddress').value.trim(),editId=state.editingDNSId;
+    draftStatus('draftAddressState',f.host,'ok');draftStatus('draftIPState','Получение…','pending');
+    draftStatus('draftTLSState',isEncrypted(f.transport)?'Ожидание…':'Не используется',isEncrypted(f.transport)?'pending':'neutral');
+    draftStatus('draftCertificateState',(f.transport==='udp'||f.transport==='tcp')?'Не требуется':'Ожидание…',(f.transport==='udp'||f.transport==='tcp')?'neutral':'pending');
+    let r;
+    try {r=f.transport==='tcp'?{selected_ip:f.host,address:f.host+':53'}:await api('certificates/lookup',opts('certificate-lookup',{transport:f.transport,server_name:f.host}));}
+    catch(e){
+      if(key!==$('newProtocol').value+'|'+$('newAddress').value.trim()||editId!==state.editingDNSId)return;
+      draftStatus('draftIPState','Не получен','bad');
+      if(isEncrypted(f.transport))draftStatus('draftTLSState','Не подтверждён','bad');
+      draftStatus('draftCertificateState',isEncrypted(f.transport)?'Не получен':'Не требуется',isEncrypted(f.transport)?'bad':'neutral');
+      draftStatus('draftDNSState','Недоступен','bad');
+      $('draftProbeError').hidden=false;$('draftProbeError').textContent=e.message;
+      $('certificateInfo').textContent='Адрес / TLS: '+e.message;reportHeight();return;
+    }
+    if(key!==$('newProtocol').value+'|'+$('newAddress').value.trim()||editId!==state.editingDNSId)return;
+    if(!r.address||!r.selected_ip){draftStatus('draftIPState','Не получен','bad');$('draftProbeError').hidden=false;$('draftProbeError').textContent='Не найден IP DNS-сервера';return;}
+    draftStatus('draftIPState',r.address,'ok');
+    const preverified=!!r.certificate?.verified;
+    if((f.transport==='doh'||f.transport==='dot')&&!preverified){draftStatus('draftTLSState','Ошибка','bad');draftStatus('draftCertificateState','Не получен','bad');$('draftProbeError').hidden=false;$('draftProbeError').textContent='TLS-сертификат не удалось проверить';return;}
+    draftStatus('draftTLSState',preverified?'Проверен':f.transport==='doq'?'QUIC: проверяется запросом':'Не используется',preverified?'ok':f.transport==='doq'?'pending':'neutral');
+    draftStatus('draftCertificateState',preverified?'Получен · до '+(r.certificate.not_after||'—'):f.transport==='doq'?'Проверяется при QUIC':'Не требуется',preverified?'ok':'neutral');
+    const candidate={id:'p194-draft',transport:f.transport,address:r.address};
+    if(isEncrypted(f.transport))candidate.server_name=f.host;
+    if(f.transport==='doh')candidate.path=f.path;
+    draftStatus('draftDNSState','Проверка…','pending');
+    let probe;
+    try {probe=await api('service/upstreams/inspect',opts('service-control',{operation:'inspect',upstream:candidate}));}
+    catch(e){probe={dns_available:false,status:'DOWN',last_error:e.message,tls_status:'UNCONFIRMED'};}
+    if(key!==$('newProtocol').value+'|'+$('newAddress').value.trim()||editId!==state.editingDNSId)return;
+    const available=probe.dns_available===true;
+    draftStatus('draftDNSState',available?'Доступен':'Недоступен',available?'ok':'bad');
+    draftStatus('draftRTTState',available?String(probe.probe_latency_ms)+' мс':'—',available?'ok':'neutral');
+    if(f.transport==='doq'){
+      draftStatus('draftTLSState',available?'Проверен при QUIC':'Не подтверждён',available?'ok':'bad');
+      draftStatus('draftCertificateState',available?'Проверен транспортом':'Не получен',available?'ok':'bad');
+    }
+    $('draftProbeError').hidden=available;
+    $('draftProbeError').textContent=available?'':'DNS недоступен: '+(probe.last_error||'нет корректного ответа');
+    state.checked={key,form:f,lookup:r,editId,available};
+    $('certificateInfo').textContent=(available?'✓ DNS доступен':'⚠ DNS недоступен')+' · IP '+r.selected_ip+' · '+(preverified?'TLS проверен':f.transport==='doq'?'DoQ TLS при запросе':'Без TLS');
     $('certificateDetails').hidden=!r.certificate;
     $('certificateDetailsText').textContent=r.certificate?['Имя: '+r.certificate.server_name,'Кому: '+r.certificate.subject,'Выдан: '+r.certificate.issuer,'Действителен до: '+r.certificate.not_after,'SHA256: '+r.certificate.fingerprint_sha256].join('\n'):'';
     $('commitDNS').disabled=false;reportHeight();
@@ -296,6 +338,7 @@
     if(editorPending())throw Error('Сначала сохрани изменённый список доменов справа.');
     const c=state.checked,key=$('newProtocol').value+'|'+$('newAddress').value.trim();
     if(!c||c.key!==key||c.editId!==state.editingDNSId)throw Error('Сначала проверь именно этот адрес DNS и TLS');
+    if(c.available!==true&&!confirm('DNS недоступен. Сохранить его в черновик всё равно? Работающий DNS не изменится до применения.'))return;
     const f=c.form,r=c.lookup;
     const prev=state.editingDNSId?state.config.upstreams.find(u=>u.id===state.editingDNSId):null;
     if(state.editingDNSId&&!prev)throw Error('Редактируемый DNS не найден');
@@ -308,7 +351,7 @@
     if(r.certificate?.verified)u.certificate_pem=r.certificate.pem;
     if(!prev)state.config.upstreams.push(u);
     state.editingDNSId=null;state.checked=null;$('dnsAddPanel').hidden=true;
-    $('certificateInfo').textContent='Проверка ещё не выполнялась.';$('newAddress').value='';
+    resetDraftInspection();$('certificateInfo').textContent='Проверка ещё не выполнялась.';$('newAddress').value='';
     mark();
     if(!prev)editList(u.id);
     else if(state.editing===u.id){$('selectedDNSBadge').textContent=displayName(u);renderListToolbar();}
@@ -425,7 +468,7 @@
   $('navDns').addEventListener('click',()=>setPage('dns'));$('navLogs').addEventListener('click',()=>setPage('logs'));
   on('reloadButton',async()=>{if((state.dirty||editorPending())&&!confirm('Отменить все несохранённые изменения, включая текст доменов?'))return;await load();});
   $('addDnsToggle').addEventListener('click',()=>openDNSForm(null));$('cancelDNS').addEventListener('click',()=>{$('dnsAddPanel').hidden=true;state.editingDNSId=null;state.checked=null;});
-  for(const id of ['newAddress','newProtocol'])$(id).addEventListener('input',()=>{state.checked=null;$('commitDNS').disabled=true;$('certificateInfo').textContent='Адрес изменён. Нажми «Проверить». ';$('certificateDetails').hidden=true;});
+  for(const id of ['newAddress','newProtocol'])$(id).addEventListener('input',()=>{state.checked=null;$('commitDNS').disabled=true;$('certificateInfo').textContent='Адрес изменён. Нажми «Проверить». ';resetDraftInspection();$('certificateDetails').hidden=true;});
   $('newProtocol').addEventListener('change',()=>{$('newAddress').placeholder=$('newProtocol').value==='doh'?'https://dns.example.com/dns-query':$('newProtocol').value==='udp'?'9.9.9.9':'dns.example.com';});
   on('inspectDNS',inspect,false);on('commitDNS',addDNS,false);
   $('listChoice').addEventListener('change',()=>switchList($('listChoice').value));on('newListButton',newList,false);on('renameListButton',renameList,false);on('deleteListButton',deleteList,false);$('closeEditor').addEventListener('click',closeEditor);$('editorDomains').addEventListener('input',()=>{$('editorCount').textContent=$('editorDomains').value.split(/\r?\n/).filter(x=>x.trim()).length+' строк (черновик)';if(state.status)renderGate(state.status);});on('saveDomains',saveList,false);

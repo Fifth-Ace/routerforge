@@ -86,21 +86,30 @@
     <section id="dnsAddPanel" class="panel" hidden>
       <div class="section-title"><div><h2 id="dnsAddPanelTitle">Добавить DNS</h2><p>Укажи адрес провайдера, а IP и сертификат мы найдём сами.</p></div><button type="button" id="cancelDNS" class="button subtle">Закрыть</button></div>
       <div class="fields two">
-        <label class="field"><span>Протокол</span><select id="newProtocol"><option value="doh">DoH · защищённый HTTPS</option><option value="dot">DoT · защищённый TLS</option><option value="udp">UDP · обычный</option><option value="doq">DoQ · QUIC (без предварительного просмотра сертификата)</option></select></label>
+        <label class="field"><span>Протокол</span><select id="newProtocol"><option value="doh">DoH · защищённый HTTPS</option><option value="dot">DoT · защищённый TLS</option><option value="udp">UDP · обычный</option><option value="tcp">TCP · обычный</option><option value="doq">DoQ · QUIC (без предварительного просмотра сертификата)</option></select></label>
         <label class="field"><span>Адрес DNS</span><input id="newAddress" type="text" maxlength="300" spellcheck="false" placeholder="https://dns.example.com/dns-query" autocomplete="off"></label>
       </div>
-      <div class="actions"><button type="button" class="button" id="inspectDNS">Проверить адрес и сертификат</button><button type="button" class="button primary" id="commitDNS" disabled>Добавить DNS</button></div>
+      <div class="actions"><button type="button" class="button" id="inspectDNS">Проверить DNS</button><button type="button" class="button primary" id="commitDNS" disabled>Добавить DNS</button></div>
+      <div class="draft-check-grid" aria-label="Результаты проверки чернового DNS">
+        <div><span>Адрес</span><strong id="draftAddressState">Не проверено</strong></div>
+        <div><span>IP / порт</span><strong id="draftIPState">Не проверено</strong></div>
+        <div><span>TLS</span><strong id="draftTLSState">Не проверено</strong></div>
+        <div><span>Сертификат</span><strong id="draftCertificateState">Не проверено</strong></div>
+        <div><span>DNS</span><strong id="draftDNSState">Не проверено</strong></div>
+        <div><span>RTT</span><strong id="draftRTTState">Не проверено</strong></div>
+      </div>
+      <p class="draft-probe-error" id="draftProbeError" role="status" hidden></p>
       <p id="certificateInfo" class="result muted">Проверка ещё не выполнялась.</p>
       <details id="certificateDetails" hidden><summary>Сведения о сертификате</summary><pre id="certificateDetailsText" class="cert-details"></pre></details>
     </section>
     <div class="routing-workspace" aria-label="DNS-серверы и домены">
       <aside class="panel upstream-pane" aria-label="DNS-серверы">
-        <div class="section-title upstream-heading"><div><span class="eyebrow">ШАГ 1 · DNS-СЕРВЕР</span><h2>Мои DNS</h2><p>Выбери сервер, которому назначишь список доменов.</p></div><div class="server-head-actions"><button id="checkAllDNS" type="button" class="button">↻ Проверить все</button><span class="counter" id="serverCount">0</span><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div></div>
+        <div class="section-title upstream-heading"><div><span class="eyebrow">ШАГ 1 · DNS-СЕРВЕР</span><h2>Мои DNS</h2><p>Серверы и назначенные списки.</p></div><div class="server-head-actions"><button id="checkAllDNS" type="button" class="button">↻ Проверить все</button><span class="counter" id="serverCount">0</span><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div></div>
         <div id="nativeWarning" class="warning" hidden>Есть прежние DNS Keenetic. Перед применением переведи их в прямой DoH. <button class="button" id="migrateNative" type="button">Преобразовать DNS</button><small>Списки сохраняются. Непонятные адреса не угадываются.</small></div>
         <div id="dnsCards" class="dns-cards"><p class="muted">Серверов пока нет.</p></div>
       </aside>
       <section class="panel domain-pane" aria-label="Редактор доменов">
-        <div class="section-title"><div><span class="eyebrow">ШАГ 2 · СПИСОК ДОМЕНОВ</span><h2>Домены выбранного DNS</h2><p>Меняй список только одного сервера, остальные не затрагиваются.</p></div><span id="selectedDNSBadge" class="counter">DNS не выбран</span></div>
+        <div class="section-title"><div><span class="eyebrow">ШАГ 2 · СПИСОК ДОМЕНОВ</span><h2>Списки доменов</h2><p>Все списки выбранного DNS в одном месте.</p></div><span id="selectedDNSBadge" class="counter">DNS не выбран</span></div>
         <div id="editorEmpty" class="domain-empty"><div class="domain-empty-symbol" aria-hidden="true">↖</div><strong>Выбери DNS слева</strong><p>Откроется его список доменов. Можно вставить текст или импортировать TXT.</p></div>
         <div id="listEditor" class="editor" hidden>
           <div class="section-title"><div><h3 id="editorTitle">Список доменов</h3><p>У каждого DNS может быть несколько независимых списков. Один домен на строку.</p></div><button type="button" class="button subtle" id="closeEditor">Закрыть</button></div>

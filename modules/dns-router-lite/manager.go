@@ -151,6 +151,26 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			err = m.gateControl(r.Context(), body.Operation, strings.Trim(r.Header.Get("If-Match"), "\""))
 		}
+	case "/v1/service/upstreams/inspect":
+		var body struct {
+			Operation string      `json:"operation"`
+			Upstream  dr.Upstream `json:"upstream"`
+		}
+		err = mutation(r, &body)
+		if err == nil && body.Operation != "inspect" {
+			err = errors.New("invalid draft inspect operation")
+		}
+		if err == nil {
+			m.mu.Lock()
+			factory := m.Factory
+			m.mu.Unlock()
+			var result DraftInspectP194
+			result, err = InspectDraftP194(r.Context(), body.Upstream, factory)
+			if err == nil {
+				jsonResponse(w, http.StatusOK, result)
+				return
+			}
+		}
 	case "/v1/service/upstreams/health":
 		if r.Method != "GET" {
 			w.Header().Set("Allow", "GET")

@@ -24,6 +24,7 @@ function fixture(){
     else if(p==='certificates/lookup'){a.equal(opts.headers['X-RouterForge-Action'],'certificate-lookup');const q=JSON.parse(opts.body);body={address:'8.8.8.8:443',selected_ip:'8.8.8.8',ips:['8.8.8.8'],certificate:{verified:true,pem:'-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n',subject:'CN=dns.google',issuer:'Trusted CA',not_after:'2027-10-31',fingerprint_sha256:'ab',server_name:q.server_name}};}
     else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';body={ok:true};}
     else if(p==='service/gate/control'){const q=JSON.parse(opts.body);if(q.operation==='enable')gateEnabled=true;else if(q.operation==='disable'){gateEnabled=false;gateOverride=null;}else if(q.operation==='retry'){gateEnabled=true;gateOverride=null;}body={ok:true};}
+    else if(p==='service/upstreams/inspect'){const q=JSON.parse(opts.body);a.equal(q.operation,'inspect');body={status:'UP',dns_available:true,address:q.upstream.address,transport:q.upstream.transport,probe_latency_ms:24,tls_status:'VERIFIED_BY_TRANSPORT',saved:false,applied:false};}
     else if(p==='service/upstreams/health')body={source:'routerforge-direct',upstreams:[{id:'old',status:'UP',probe_latency_ms:14,last_checked:'2026-11-01T12:00:00Z',requests_5m:9,failures_5m:0,p95_latency_5m_ms:22},{id:'cf',status:'DOWN',probe_latency_ms:3000,last_checked:'2026-11-01T12:00:00Z',requests_5m:2,failures_5m:2,last_error:'timeout'}]};
     else if(p==='service/upstreams/check')body={source:'routerforge-direct',upstreams:[{id:'old',status:'UP',probe_latency_ms:14,last_checked:'2026-11-01T12:00:00Z',requests_5m:9,failures_5m:0,p95_latency_5m_ms:22},{id:'cf',status:'DOWN',probe_latency_ms:3000,last_checked:'2026-11-01T12:00:00Z',requests_5m:2,failures_5m:2,last_error:'timeout'}]};
     else if(p==='service/verify')body={state:'PASS',results:[{state:'PASS'}]};
@@ -207,7 +208,7 @@ test('P18: DNS cards show direct RTT separately from observed p95, read-only ove
    a.equal(d.getElementById('healthServers').textContent,'1/2');
    a.match(d.getElementById('nativeDNSHealth').textContent,/недоступен/);
    a.equal(f.calls.filter(x=>x.path==='service/upstreams/check').length,0,'health GET must not trigger a probe');
-   d.querySelector('[data-upstream-id="old"] .dns-health button').click();
+   d.querySelector('[data-upstream-id="old"] .dns-check').click();
    await until(()=>f.calls.some(x=>x.path==='service/upstreams/check')&&!d.getElementById('applyButton').disabled);
    a.deepEqual(JSON.parse(f.calls.find(x=>x.path==='service/upstreams/check').opts.body),{operation:'check',upstream:'old'});
    d.getElementById('checkAllDNS').click();
@@ -311,6 +312,38 @@ test('P19.3: log shows real DNS endpoint, client, type, pause and filter',async(
   d.getElementById('logPause').click();a.match(d.getElementById('logPause').textContent,/Продолжить/);
   d.getElementById('logType').value='AAAA';d.getElementById('logType').dispatchEvent(new f.w.Event('change'));
   a.equal(d.querySelectorAll('.log-row').length,0);
+  a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+
+test('P19.4: independent draft probe visibly verifies address, TLS, DNS and RTT',async()=>{
+ const f=fixture(),d=f.w.document;
+ try {
+  await until(()=>d.querySelectorAll('.dns-card').length===2);
+  d.querySelector('[data-upstream-id="cf"] .dns-change').click();
+  d.getElementById('inspectDNS').click();
+  await until(()=>d.getElementById('draftDNSState').textContent==='Доступен'&&!d.getElementById('inspectDNS').disabled);
+  a.match(d.getElementById('draftIPState').textContent,/8\.8\.8\.8:443/);
+  a.match(d.getElementById('draftTLSState').textContent,/Проверен/);
+  a.match(d.getElementById('draftRTTState').textContent,/24 мс/);
+  a.ok(f.calls.some(x=>x.path==='service/upstreams/inspect'));
+  a.equal(f.getActive(),false,'draft probe must not start DNS');
+  await tick();a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+test('P19.4: compact DNS cards preserve actions and list/domain counters',async()=>{
+ const f=fixture(),d=f.w.document;
+ try{
+  await until(()=>d.querySelectorAll('.dns-card').length===2);
+  const c=d.querySelector('[data-upstream-id="cf"]');
+  a.match(c.querySelector('.dns-count').textContent,/сп\. · 1 дом\./);
+  a.ok(c.querySelector('.dns-card-actions .dns-edit'));
+  a.ok(c.querySelector('.dns-card-actions .dns-change'));
+  a.ok(c.querySelector('.dns-card-actions .dns-check'));
+  a.ok(c.querySelector('.dns-card-actions details summary'));
+  a.match(css,/--rf-p194-pad/);
   a.deepEqual(f.errors,[]);
  }finally{f.dom.window.close();}
 });

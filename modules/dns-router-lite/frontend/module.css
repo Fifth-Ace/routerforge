@@ -276,3 +276,54 @@ input:not([type=checkbox]),select{min-height:var(--control-height)}
 .log-type-field{flex:0 0 130px}
 @media(max-width:1050px){.log-head,.log-row{min-width:940px}}
 @media(max-width:600px){.list-toolbar .field{flex-basis:100%}.list-toolbar .button{flex:1}}
+
+
+/* P19.4: Core/DNS typography and compact workspace. Existing shared tokens win. */
+:root{--rf-p194-pad:var(--rf-page-pad,18px);--rf-p194-control:var(--rf-ui-control-h,32px);--rf-p194-font:var(--font-sans,var(--rf-font-sans,'Inter','Segoe UI Variable Text','Segoe UI',sans-serif))}
+html,body{font:var(--ui-body,var(--rf-ui-body,14px))/1.4 var(--rf-p194-font);}
+.page{padding:var(--rf-p194-pad);gap:12px;max-width:none;}
+.panel{padding:14px 15px;}
+.section-title{gap:8px;margin-bottom:9px;}
+.section-title h2{font-size:var(--rf-ui-panel-title,13px);font-weight:650;}
+.section-title p{font-size:var(--rf-ui-small,12px);}
+.button{min-height:var(--rf-p194-control);padding:5px 10px;font-size:var(--rf-ui-xs,11px);font-weight:550;border-radius:var(--rf-ui-control-radius,5px);}
+input,select,textarea{min-height:var(--rf-p194-control);padding:6px 9px;border-radius:var(--rf-ui-control-radius,5px);}
+.routing-workspace{grid-template-columns:minmax(300px,440px) minmax(0,1fr);gap:12px;align-items:start;}
+.upstream-pane,.domain-pane{min-width:0;min-height:0;}
+.upstream-pane .dns-cards{min-height:0;max-height:620px;gap:7px;padding:0 3px 2px 0;}
+.dns-card{display:grid;gap:5px;padding:9px 11px;border-radius:var(--rf-ui-control-radius,5px);}
+.dns-title strong{font-size:var(--rf-ui-small,12px);line-height:1.3;}
+.dns-title small{font-size:var(--rf-ui-xs,11px);line-height:1.3;}
+.dns-count{font-size:var(--rf-ui-xs,11px);white-space:nowrap;padding:3px 6px;}
+.dns-preview{margin:0;font-size:var(--rf-ui-xs,11px);}
+.dns-health{font-size:var(--rf-ui-xs,11px);gap:9px;min-height:20px;}
+.dns-card-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:2px;}
+.dns-card-actions>.button{padding:5px 8px;min-height:29px;white-space:nowrap;}
+.dns-card-actions .dns-edit,.dns-card-actions .dns-change{margin:0;justify-self:auto;font-size:var(--rf-ui-xs,11px);}
+.dns-card-actions>.dns-advanced{border:0;padding:0;margin-left:auto;position:relative;}
+.dns-card-actions>.dns-advanced>summary{font-size:var(--rf-ui-xs,11px);line-height:29px;border:1px solid var(--border);padding:0 9px;border-radius:var(--rf-ui-control-radius,5px);list-style:none;}
+.dns-card-actions>.dns-advanced[open]{flex-basis:100%;margin:4px 0 0;}
+.dns-card-actions>.dns-advanced[open]>.dns-bottom{padding:9px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:end;flex-wrap:wrap;}
+.dns-card-actions>.dns-advanced .field{flex:1 1 165px;}
+.domain-empty{min-height:125px;padding:15px;gap:5px;}
+.domain-empty-symbol{width:28px;height:28px;font-size:15px;}
+.domain-empty strong{font-size:var(--rf-ui-small,12px);}
+.domain-empty p{font-size:var(--rf-ui-xs,11px);}
+.domain-pane .editor textarea{min-height:210px;}
+.list-toolbar{gap:6px;margin:7px 0;}
+.list-rename{padding-bottom:7px;}
+.editor-actions{margin-top:8px;}
+.draft-check-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px;}
+.draft-check-grid>div{display:flex;flex-direction:column;gap:4px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rf-ui-control-radius,5px);min-width:0;}
+.draft-check-grid span{font-size:var(--rf-ui-xs,11px);color:var(--muted);}
+.draft-check-grid strong{font-size:var(--rf-ui-small,12px);font-weight:600;overflow-wrap:anywhere;}
+.draft-check-grid strong[data-state=ok]{color:var(--good);}
+.draft-check-grid strong[data-state=bad],.draft-probe-error{color:var(--bad);}
+.draft-check-grid strong[data-state=pending]{color:var(--muted);}
+.draft-probe-error{margin-top:8px;font-size:var(--rf-ui-small,12px);overflow-wrap:anywhere;}
+#pageLogs .panel{padding:14px;}
+.log-head,.log-row{gap:8px!important;}
+.log-row{padding:7px 9px;font-size:var(--rf-ui-xs,11px);line-height:1.4;}
+.log-head{padding:8px 9px;font-size:var(--rf-ui-xs,11px);}
+@media(max-width:1040px){.routing-workspace{grid-template-columns:minmax(0,1fr);}}
+@media(max-width:650px){.page{padding:12px;}.draft-check-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.dns-card-actions>.button{flex:1 1 auto;}.dns-card-actions>.dns-advanced{margin-left:0;}.panel{padding:11px;}}

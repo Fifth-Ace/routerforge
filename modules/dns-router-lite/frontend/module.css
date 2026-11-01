@@ -245,3 +245,19 @@ input:not([type=checkbox]),select{min-height:var(--control-height)}
   .editor-actions{flex-direction:column}
   .editor-actions .button{width:100%}
 }
+
+/* P18: health overview and per-upstream DNS RTT are distinct from traffic p95. */
+.health-overview{display:grid;gap:10px}
+.health-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.health-metrics>div{min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:var(--control-radius);padding:11px;display:grid;gap:4px}
+.health-metrics small{color:var(--muted);font-size:11px}
+.health-metrics strong{font-size:20px;line-height:1.2;font-variant-numeric:tabular-nums}
+.health-metrics span{font-size:10px;color:var(--muted)}
+.health-native{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border);padding-top:9px}
+.health-native>span{display:grid;gap:3px}.health-native small{font-size:10px}
+.health-native .button{text-decoration:none}
+.dns-health{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;font-size:11px;color:var(--muted)}
+.dns-health-status{font-weight:700}.dns-health-status[data-state=up]{color:var(--good)}.dns-health-status[data-state=down]{color:var(--bad)}
+.dns-health button{padding:4px 8px;min-height:27px;font-size:10px;margin-left:auto}
+@media(max-width:1000px){.health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.health-metrics{grid-template-columns:minmax(0,1fr)}.health-native{flex-direction:column;align-items:flex-start}.server-head-actions{flex-wrap:wrap}}

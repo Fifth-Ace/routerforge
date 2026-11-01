@@ -51,6 +51,7 @@ type Engine struct {
 	allowed   []*net.IPNet
 	mu        sync.Mutex
 	traces    []Trace
+	health    *UpstreamHealthTracker
 	requests  atomic.Uint64
 	denied    atomic.Uint64
 	cacheHits atomic.Uint64
@@ -232,6 +233,9 @@ func (e *Engine) addTrace(t Trace) {
 		e.traces = e.traces[:127]
 	}
 	e.traces = append(e.traces, t)
+	if e.health != nil {
+		e.health.Observe(t)
+	}
 }
 func (e *Engine) Traces(name string) []Trace {
 	e.mu.Lock()

@@ -24,6 +24,8 @@ function fixture(){
     else if(p==='certificates/lookup'){a.equal(opts.headers['X-RouterForge-Action'],'certificate-lookup');const q=JSON.parse(opts.body);body={address:'8.8.8.8:443',selected_ip:'8.8.8.8',ips:['8.8.8.8'],certificate:{verified:true,pem:'-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n',subject:'CN=dns.google',issuer:'Trusted CA',not_after:'2027-10-31',fingerprint_sha256:'ab',server_name:q.server_name}};}
     else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';body={ok:true};}
     else if(p==='service/gate/control'){const q=JSON.parse(opts.body);if(q.operation==='enable')gateEnabled=true;else if(q.operation==='disable')gateEnabled=false;body={ok:true};}
+    else if(p==='service/upstreams/health')body={source:'routerforge-direct',upstreams:[{id:'old',status:'UP',probe_latency_ms:14,last_checked:'2026-11-01T12:00:00Z',requests_5m:9,failures_5m:0,p95_latency_5m_ms:22},{id:'cf',status:'DOWN',probe_latency_ms:3000,last_checked:'2026-11-01T12:00:00Z',requests_5m:2,failures_5m:2,last_error:'timeout'}]};
+    else if(p==='service/upstreams/check')body={source:'routerforge-direct',upstreams:[{id:'old',status:'UP',probe_latency_ms:14,last_checked:'2026-11-01T12:00:00Z',requests_5m:9,failures_5m:0,p95_latency_5m_ms:22},{id:'cf',status:'DOWN',probe_latency_ms:3000,last_checked:'2026-11-01T12:00:00Z',requests_5m:2,failures_5m:2,last_error:'timeout'}]};
     else if(p==='service/verify')body={state:'PASS',results:[{state:'PASS'}]};
     else if(p==='service/connect'){connection={state:'connected',mac:JSON.parse(opts.body).mac};body={ok:true};}
     else if(p==='service/disconnect'){connection={state:'disconnected'};body={ok:true};}
@@ -192,4 +194,30 @@ test('P16 LAN-first layout uses the shared Gate panel and keeps legacy device se
     a.deepEqual(f.calls.filter(c=>/service\/connect|service\/disconnect/.test(c.path)),[],'LAN workflow does not require a test-device profile');
     a.deepEqual(f.errors,[]);
   }finally{f.dom.window.close();}
+});
+
+test('P18: DNS cards show direct RTT separately from observed p95, read-only overview and manual checks',async()=>{
+ const f=fixture(),d=f.w.document;
+ try{
+   await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+   await until(()=>d.getElementById('healthRequests').textContent==='11');
+   a.equal(d.querySelector('[data-upstream-id="old"] .dns-rtt').textContent,'DNS RTT: 14 мс');
+   a.equal(d.querySelector('[data-upstream-id="old"] .dns-p95').textContent,'p95: 22 мс');
+   a.match(d.querySelector('[data-upstream-id="cf"] .dns-health-status').textContent,/Недоступен/);
+   a.equal(d.getElementById('healthServers').textContent,'1/2');
+   a.match(d.getElementById('nativeDNSHealth').textContent,/недоступен/);
+   a.equal(f.calls.filter(x=>x.path==='service/upstreams/check').length,0,'health GET must not trigger a probe');
+   d.querySelector('[data-upstream-id="old"] .dns-health button').click();
+   await until(()=>f.calls.some(x=>x.path==='service/upstreams/check')&&!d.getElementById('applyButton').disabled);
+   a.deepEqual(JSON.parse(f.calls.find(x=>x.path==='service/upstreams/check').opts.body),{operation:'check',upstream:'old'});
+   d.getElementById('checkAllDNS').click();
+   // A request is recorded before the async handler has finished. Closing
+   // jsdom here leaves renderHealth() running against a destroyed document.
+   // Wait for the second check to finish and the UI busy guard to clear.
+   await until(()=>f.calls.filter(x=>x.path==='service/upstreams/check').length===2 &&
+     d.getElementById('feedback').textContent.includes('Проверка всех DNS завершена') &&
+     !d.getElementById('checkAllDNS').disabled);
+   await tick(); // allow task()'s final refreshStatus() promise to settle
+   a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
 });

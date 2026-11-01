@@ -170,7 +170,7 @@ func run() error {
 	if os.Getenv("GOMEMLIMIT") == "" {
 		debug.SetMemoryLimit(48 << 20)
 	}
-	manager := &lite.Manager{Store: store, Path: *config, Profile: &lite.ProfileManager{Path: *config + ".profile-state.json", Executor: dr.NewRealNDMCM()}, Gate: lite.NewGateManager()}
+	manager := &lite.Manager{Store: store, Path: *config, Profile: &lite.ProfileManager{Path: *config + ".profile-state.json", Executor: dr.NewRealNDMCM()}, Gate: lite.NewGateManager(), Health: lite.NewUpstreamHealthTracker()}
 	if e = manager.Resume(); e != nil {
 		log.Printf("DNS resume failed; management remains available: %v", e)
 	}
@@ -207,6 +207,7 @@ func run() error {
 	server := &http.Server{Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 30 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	go manager.RunHealthChecks(ctx)
 	go dr.RunManagedListUpdater(ctx, store, nil, log.Printf) // opt-in URL refresh updates the draft; runtime Apply stays explicit
 	go func() {
 		<-ctx.Done()

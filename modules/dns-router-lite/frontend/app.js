@@ -2,7 +2,7 @@
 // DEV-only RouterForge DNS Lite. No old P10 handlers, no HTML injection.
 (() => {
   const $ = id => document.getElementById(id);
-  const state = {config:{schema_version:1,upstreams:[],rules:[]},revision:'',dirty:false,busy:false,editing:null,editorBase:null,checked:null,status:null,logs:[],page:'dns',lastLogError:''};
+  const state = {config:{schema_version:1,upstreams:[],rules:[]},revision:'',dirty:false,busy:false,editing:null,editorBase:null,checked:null,status:null,logs:[],health:[],page:'dns',lastLogError:''};
   const used = id => state.config.rules.filter(r=>r.upstream===id);
   const protocolNames={doh:'DoH · HTTPS',dot:'DoT · TLS',doq:'DoQ · QUIC',udp:'UDP',tcp:'TCP',native:'Старый DNS Keenetic'};
   const isEncrypted = t => t==='doh'||t==='dot'||t==='doq';
@@ -12,7 +12,7 @@
   const hostName = u => protocolNames[u.transport]+' · '+displayName(u);
   const editorPending=()=>state.editing!==null && $('editorDomains').value!==state.editorBase;
   const show = (message,tone='') => {const el=$('feedback');el.textContent=message;el.dataset.tone=tone;};
-  const busy = on => {state.busy=on;for(const id of ['saveButton','applyButton','addDnsToggle','inspectDNS','commitDNS','migrateNative','connectButton','disconnectButton','verifyButton','stopButton','gatePreflight','gateEnable','gateDisable']){const el=$(id);if(el)el.disabled=on;}if(!on&&state.status)renderGate(state.status);};
+  const busy = on => {state.busy=on;for(const id of ['saveButton','applyButton','checkAllDNS','addDnsToggle','inspectDNS','commitDNS','migrateNative','connectButton','disconnectButton','verifyButton','stopButton','gatePreflight','gateEnable','gateDisable']){const el=$(id);if(el)el.disabled=on;}if(!on&&state.status)renderGate(state.status);};
   async function api(path,options={}) {
     const resp=await fetch('../'+path,{cache:'no-store',credentials:'same-origin',...options});
     const ct=resp.headers && resp.headers.get ? (resp.headers.get('content-type')||'') : 'application/json';
@@ -43,6 +43,13 @@
       const dest=document.createElement('small');dest.textContent=u.transport==='native'?u.address:'IP: '+u.address+(u.path?' · '+u.path:'');left.appendChild(dest);
       const cert=document.createElement('small');cert.textContent=(u.transport==='dot'||u.transport==='doh')?(u.certificate_pem?'✓ Сертификат проверен и сохранён (TLS через доверенные CA)':'TLS через доверенные CA · сертификат не сохранён'):u.transport==='doq'?'TLS через доверенные CA · проверка при подключении':'Без шифрования';left.appendChild(cert);
       const count=document.createElement('span');count.className='dns-count';count.textContent=rules.length+' доменов';header.append(left,count);card.appendChild(header);
+      const healthRow=document.createElement('div');healthRow.className='dns-health';
+      const stateLabel=document.createElement('span');stateLabel.className='dns-health-status';stateLabel.textContent='Не проверялся';
+      const rtt=document.createElement('span');rtt.className='dns-rtt';rtt.textContent='RTT: —';
+      const p95=document.createElement('span');p95.className='dns-p95';p95.textContent='p95: —';
+      const check=document.createElement('button');check.type='button';check.className='button';check.textContent='Проверить';check.disabled=u.transport==='native';
+      check.addEventListener('click',()=>task(async()=>{await checkHealth(u.id);}));
+      healthRow.append(stateLabel,rtt,p95,check);card.appendChild(healthRow);
       const preview=document.createElement('p');preview.className='dns-preview';preview.textContent=rules.length?rules.slice(0,3).map(r=>r.domain).join(' · ')+(rules.length>3?' · ещё '+(rules.length-3):''):'Список доменов пуст';card.appendChild(preview);
       const bottom=document.createElement('div');bottom.className='dns-bottom';
       const edit=document.createElement('button');edit.type='button';edit.className='button dns-edit'+(state.editing===u.id?' primary':'');edit.textContent=state.editing===u.id?'✓ Список открыт':'✎ Открыть список →';edit.disabled=u.transport==='native'||rules.some(r=>!isSimple(r));edit.addEventListener('click',()=>editList(u.id));
@@ -58,7 +65,45 @@
     $('listenerSummary').textContent=state.config.service?.listen||$('serviceListen').value;
     $('applyButton').textContent=state.dirty?'✓ Сохранить и запустить DNS':'▶ Запустить DNS';
     if(state.status)renderGate(state.status);
+    renderHealth();
     reportHeight();
+  }
+  function healthByID(id){return state.health.find(x=>x.id===id)||null;}
+  function healthStateText(h){if(!h)return 'Не проверялся';return {UP:'Доступен',DOWN:'Недоступен',STALE:'Данные устарели',UNKNOWN:'Не проверялся',UNSUPPORTED:'Keenetic'}[h.status]||'Не проверялся';}
+  function renderHealth(){
+    let up=0,checks=0,requests=0,latencies=[];
+    for(const u of state.config.upstreams){
+      const h=healthByID(u.id);if(h?.status==='UP')up++;if(h&&h.status!=='UNKNOWN'&&h.status!=='UNSUPPORTED')checks++;
+      requests+=Number(h?.requests_5m||0);
+      if(h?.requests_5m>h?.failures_5m)latencies.push(Number(h?.p95_latency_5m_ms||0));
+      const card=[...$('dnsCards').children].find(c=>c.dataset.upstreamId===u.id);if(!card)continue;
+      const status=card.querySelector('.dns-health-status');const rtt=card.querySelector('.dns-rtt');const p95=card.querySelector('.dns-p95');
+      status.textContent=healthStateText(h);status.dataset.state=(h?.status||'').toLowerCase();
+      status.title=h?.last_error||'';
+      rtt.textContent=h?.status==='UP'?'DNS RTT: '+h.probe_latency_ms+' мс':'DNS RTT: —';
+      p95.textContent=h?.requests_5m>h?.failures_5m?'p95: '+h.p95_latency_5m_ms+' мс':'p95: —';
+    }
+    $('healthServers').textContent=checks?up+'/'+state.config.upstreams.length:'— / '+state.config.upstreams.length;
+    $('healthRequests').textContent=requests;
+    $('healthP95').textContent=latencies.length?Math.max(...latencies)+' мс':'—';
+    $('healthUpdated').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour12:false});
+  }
+  async function refreshHealth(){
+    const data=await api('service/upstreams/health');state.health=Array.isArray(data.upstreams)?data.upstreams:[];renderHealth();return data;
+  }
+  async function checkHealth(id=''){
+    const result=await api('service/upstreams/check',opts('service-control',{operation:'check',upstream:id},true));
+    state.health=Array.isArray(result.upstreams)?result.upstreams:[];renderHealth();
+    show(id?'DNS проверен. Результат и RTT обновлены.':'Проверка всех DNS завершена. Результаты обновлены.','good');
+  }
+  async function refreshNativeDNS(){
+    const target=$('nativeDNSHealth');
+    try{
+      const response=await fetch('/api/modules/dns/quality?minutes=5',{credentials:'same-origin',cache:'no-store'});
+      if(!response.ok)throw Error('HTTP '+response.status);
+      const data=await response.json();if(!Array.isArray(data.upstreams))throw Error('неверный формат');
+      target.textContent='Модуль DNS доступен · '+data.upstreams.length+' резолверов Keenetic · отдельная статистика';
+    }catch(_){target.textContent='Модуль DNS недоступен — RouterForge DNS Router работает независимо';}
   }
   function parseDomains(text){
     if(text.length>256*1024)throw Error('Список слишком большой (максимум 256 КБ)');
@@ -180,6 +225,7 @@
   function showRoutingHint(s){const hint=routingHint(s);for(const id of ['routeAdvice','logGuide']){const node=$(id);node.textContent=hint.text;node.dataset.tone=hint.tone;}}
   function renderGate(s){
     const gate=s.system_gate||{state:'STOCK',active:false};
+    $('healthGate').textContent=gate.active?'RouterForge':gate.state==='RECOVERY_REQUIRED'?'Проверка':'Keenetic';
     const active=Boolean(gate.active),recovery=gate.state==='RECOVERY_REQUIRED';
     const panel=$('systemGatePanel');
     panel.dataset.state=recovery?'recovery':active?'active':'stock';
@@ -221,7 +267,7 @@
     }
   }
   async function refreshLogs(){const t=await api('service/traces');state.logs=Array.isArray(t.traces)?t.traces:[];renderLogs();$('logUpdated').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour12:false});}
-  async function load(){const d=await api('config');if(!d.config||!d.revision||!Array.isArray(d.config.rules)||!Array.isArray(d.config.upstreams))throw Error('Неверный формат конфигурации DNS');state.config=d.config;state.revision=d.revision;state.dirty=false;state.editing=null;state.editorBase=null;$('selectedDNSBadge').textContent='DNS не выбран';$('listEditor').hidden=true;render();await refreshStatus();show('Настройки загружены. Можно менять DNS и списки.','good');}
+  async function load(){const d=await api('config');if(!d.config||!d.revision||!Array.isArray(d.config.rules)||!Array.isArray(d.config.upstreams))throw Error('Неверный формат конфигурации DNS');state.config=d.config;state.revision=d.revision;state.dirty=false;state.editing=null;state.editorBase=null;$('selectedDNSBadge').textContent='DNS не выбран';$('listEditor').hidden=true;render();await refreshStatus();await refreshHealth().catch(()=>{});await refreshNativeDNS();show('Настройки загружены. Можно менять DNS и списки.','good');}
   async function task(fn){if(state.busy)return;busy(true);try{await fn();}catch(e){show(e.message,'bad');}finally{busy(false);if(state.status){try{await refreshStatus();}catch(_){}}}}
   function on(id,fn){$(id).addEventListener('click',()=>task(fn));}
   $('navDns').addEventListener('click',()=>setPage('dns'));$('navLogs').addEventListener('click',()=>setPage('logs'));
@@ -234,6 +280,7 @@
   $('importDomains').addEventListener('click',()=>$('domainFile').click());$('domainFile').addEventListener('change',async()=>{const f=$('domainFile').files[0];if(!f)return;try{if(f.size>256*1024)throw Error('Максимум 256 КБ');const names=parseDomains(await f.text());$('editorDomains').value=names.join('\n');show('Импортировано '+names.length+' доменов. Нажми «Сохранить список».');}catch(e){show(e.message,'bad');}finally{$('domainFile').value='';}});
   $('exportDomains').addEventListener('click',()=>{if(!state.editing)return;const data=$('editorDomains').value;const url=URL.createObjectURL(new Blob([data.endsWith('\n')?data:data+'\n'],{type:'text/plain;charset=utf-8'}));try{const a=document.createElement('a');a.href=url;a.download='routerforge-domains.txt';a.click();}finally{URL.revokeObjectURL(url);}});
   $('defaultDNS').addEventListener('change',()=>{mark();});for(const id of ['serviceListen','cacheSize','allowedNetworks'])$(id).addEventListener('change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
+  on('checkAllDNS',async()=>{await checkHealth();});
   on('saveButton',save);on('applyButton',apply);on('migrateNative',migrate);
   on('gatePreflight',async()=>{
     await api('service/gate/control',opts('service-control',{operation:'preflight'},true));
@@ -263,6 +310,7 @@
   syncTheme();try{if(window.parent!==window&&window.MutationObserver)new MutationObserver(()=>{syncTheme();reportHeight();}).observe(window.parent.document.documentElement,{attributes:true,attributeFilter:['style','class','data-theme']});}catch(_){}
   if(window.ResizeObserver)new ResizeObserver(reportHeight).observe($('dnsLiteApp'));
   window.addEventListener('resize',reportHeight);
+  setInterval(()=>{if(document.hidden||state.busy)return;refreshHealth().catch(()=>{});refreshNativeDNS().catch(()=>{});},60000);
   setInterval(()=>{if(state.page!=='logs'||document.hidden||state.busy)return;Promise.all([refreshStatus(),refreshLogs()]).then(()=>{state.lastLogError='';}).catch(e=>{if(state.lastLogError!==e.message){state.lastLogError=e.message;show('LIVE: '+e.message,'bad');}});},2000);
   setPage(params.get('view')==='logs'?'logs':'dns');
   load().catch(e=>{show('Не удалось открыть DNS Router: '+e.message,'bad');$('serviceBadge').textContent='Недоступен';$('serviceBadge').dataset.tone='bad';});

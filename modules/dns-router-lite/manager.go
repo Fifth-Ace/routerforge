@@ -31,6 +31,7 @@ type Manager struct {
 	lastError string
 	Profile   *ProfileManager
 	Gate      *GateManager
+	Health    *UpstreamHealthTracker
 }
 
 func atomicFile(path string, data []byte) error {
@@ -63,6 +64,12 @@ func atomicFile(path string, data []byte) error {
 	return os.Rename(f.Name(), path)
 }
 
+func (m *Manager) healthLocked() *UpstreamHealthTracker {
+	if m.Health == nil {
+		m.Health = NewUpstreamHealthTracker()
+	}
+	return m.Health
+}
 func (m *Manager) snapshotPath() string { return m.Path + ".service-active.json" }
 func (m *Manager) ActiveState() bool    { m.mu.Lock(); defer m.mu.Unlock(); return m.engine != nil }
 func (m *Manager) statusLocked() map[string]any {
@@ -121,6 +128,8 @@ func (m *Manager) startLocked(c dr.Config, rev string, persist bool) error {
 	if e != nil {
 		return e
 	}
+	m.Health = NewUpstreamHealthTracker()
+	eng.health = m.healthLocked()
 	if e = eng.Start(context.Background()); e != nil {
 		eng.closeServers()
 		return e
@@ -286,6 +295,51 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					err = m.Gate.Disable(r.Context())
 				default:
 					err = errors.New("invalid Gate operation")
+				}
+			}
+		}
+	case "/v1/service/upstreams/health":
+		if r.Method != "GET" {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(405)
+			return
+		}
+		m.mu.Lock()
+		c, _, loadErr := m.Store.Load()
+		h := m.healthLocked()
+		m.mu.Unlock()
+		if loadErr != nil {
+			jsonResponse(w, 503, map[string]any{"error": loadErr.Error()})
+			return
+		}
+		jsonResponse(w, 200, map[string]any{"source": "routerforge-direct", "window_seconds": 300, "upstreams": h.Snapshot(c.Upstreams)})
+		return
+	case "/v1/service/upstreams/check":
+		var body struct {
+			Operation string `json:"operation"`
+			Upstream  string `json:"upstream"`
+		}
+		err = mutation(r, &body)
+		if err == nil && body.Operation != "check" {
+			err = errors.New("invalid health check operation")
+		}
+		if err == nil {
+			m.mu.Lock()
+			c, rev, loadErr := m.Store.Load()
+			h := m.healthLocked()
+			factory := m.Factory
+			m.mu.Unlock()
+			err = loadErr
+			if err == nil && strings.Trim(r.Header.Get("If-Match"), "\"") != rev {
+				err = dr.ErrStale
+			}
+			if err == nil {
+				ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+				err = h.Probe(ctx, c.Upstreams, body.Upstream, factory)
+				cancel()
+				if err == nil {
+					jsonResponse(w, 200, map[string]any{"source": "routerforge-direct", "upstreams": h.Snapshot(c.Upstreams)})
+					return
 				}
 			}
 		}

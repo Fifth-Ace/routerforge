@@ -24,6 +24,16 @@
   <div class="notice" id="feedback" role="status" aria-live="polite">Загружаем настройки…</div>
 
   <section id="pageDns" aria-label="DNS и домены">
+    <section class="panel health-overview" id="healthOverview" aria-label="Состояние DNS Router">
+      <div class="section-title"><div><span class="eyebrow">ОБЗОР · DNS HEALTH</span><h2>Состояние DNS</h2><p>Проверки DNS-серверов и реальные запросы RouterForge — отдельные показатели.</p></div><small id="healthUpdated" class="muted">Нет измерений</small></div>
+      <div class="health-metrics">
+        <div><small>Основной DNS LAN</small><strong id="healthGate">—</strong><span>Маршрутизация UDP/TCP 53</span></div>
+        <div><small>DNS-серверы</small><strong id="healthServers">—</strong><span>Доступность по прямым проверкам</span></div>
+        <div><small>Запросы за 5 минут</small><strong id="healthRequests">—</strong><span>Только RouterForge · без тестов</span></div>
+        <div><small>Худший p95 upstream</small><strong id="healthP95">—</strong><span>Реальные ответы · до 1024 на DNS за 5 минут</span></div>
+      </div>
+      <div class="health-native"><span><b>Штатный DNS Keenetic</b> <small id="nativeDNSHealth">Проверяем модуль DNS…</small></span><a href="/dns" class="button subtle" id="nativeDNSLink">Открыть DNS →</a></div>
+    </section>
     <section class="panel gate-panel" id="systemGatePanel" aria-label="Основной DNS для LAN" data-state="stock">
       <div class="section-title gate-heading">
         <div class="gate-heading-copy">
@@ -85,7 +95,7 @@
     </section>
     <div class="routing-workspace" aria-label="DNS-серверы и домены">
       <aside class="panel upstream-pane" aria-label="DNS-серверы">
-        <div class="section-title upstream-heading"><div><span class="eyebrow">ШАГ 1 · DNS-СЕРВЕР</span><h2>Мои DNS</h2><p>Выбери сервер, которому назначишь список доменов.</p></div><div class="server-head-actions"><span class="counter" id="serverCount">0</span><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div></div>
+        <div class="section-title upstream-heading"><div><span class="eyebrow">ШАГ 1 · DNS-СЕРВЕР</span><h2>Мои DNS</h2><p>Выбери сервер, которому назначишь список доменов.</p></div><div class="server-head-actions"><button id="checkAllDNS" type="button" class="button">↻ Проверить все</button><span class="counter" id="serverCount">0</span><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div></div>
         <div id="nativeWarning" class="warning" hidden>Есть прежние DNS Keenetic. Перед применением переведи их в прямой DoH. <button class="button" id="migrateNative" type="button">Преобразовать DNS</button><small>Списки сохраняются. Непонятные адреса не угадываются.</small></div>
         <div id="dnsCards" class="dns-cards"><p class="muted">Серверов пока нет.</p></div>
       </aside>

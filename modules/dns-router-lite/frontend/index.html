@@ -84,7 +84,7 @@
       </details>
     </section>
     <section id="dnsAddPanel" class="panel" hidden>
-      <div class="section-title"><div><h2>Добавить DNS</h2><p>Укажи адрес провайдера, а IP и сертификат мы найдём сами.</p></div><button type="button" id="cancelDNS" class="button subtle">Закрыть</button></div>
+      <div class="section-title"><div><h2 id="dnsAddPanelTitle">Добавить DNS</h2><p>Укажи адрес провайдера, а IP и сертификат мы найдём сами.</p></div><button type="button" id="cancelDNS" class="button subtle">Закрыть</button></div>
       <div class="fields two">
         <label class="field"><span>Протокол</span><select id="newProtocol"><option value="doh">DoH · защищённый HTTPS</option><option value="dot">DoT · защищённый TLS</option><option value="udp">UDP · обычный</option><option value="doq">DoQ · QUIC (без предварительного просмотра сертификата)</option></select></label>
         <label class="field"><span>Адрес DNS</span><input id="newAddress" type="text" maxlength="300" spellcheck="false" placeholder="https://dns.example.com/dns-query" autocomplete="off"></label>
@@ -103,7 +103,9 @@
         <div class="section-title"><div><span class="eyebrow">ШАГ 2 · СПИСОК ДОМЕНОВ</span><h2>Домены выбранного DNS</h2><p>Меняй список только одного сервера, остальные не затрагиваются.</p></div><span id="selectedDNSBadge" class="counter">DNS не выбран</span></div>
         <div id="editorEmpty" class="domain-empty"><div class="domain-empty-symbol" aria-hidden="true">↖</div><strong>Выбери DNS слева</strong><p>Откроется его список доменов. Можно вставить текст или импортировать TXT.</p></div>
         <div id="listEditor" class="editor" hidden>
-          <div class="section-title"><div><h3 id="editorTitle">Список доменов</h3><p>Один домен на строку. Поддомены направляются на этот же DNS.</p></div><button type="button" class="button subtle" id="closeEditor">Закрыть</button></div>
+          <div class="section-title"><div><h3 id="editorTitle">Список доменов</h3><p>У каждого DNS может быть несколько независимых списков. Один домен на строку.</p></div><button type="button" class="button subtle" id="closeEditor">Закрыть</button></div>
+          <div class="list-toolbar"><label class="field"><span>Список выбранного DNS</span><select id="listChoice"></select></label><label class="field"><span>Новый список</span><input id="newListName" maxlength="80" placeholder="Например, Стриминг"></label><button type="button" class="button" id="newListButton">＋ Создать</button></div>
+          <div class="list-toolbar list-rename"><label class="field"><span>Название списка</span><input id="listRenameName" maxlength="80" placeholder="Название" disabled></label><button type="button" class="button" id="renameListButton" disabled>Переименовать</button><button type="button" class="button danger" id="deleteListButton" disabled>Удалить список</button></div>
           <textarea id="editorDomains" rows="16" spellcheck="false" placeholder="youtube.com&#10;googlevideo.com&#10;ytimg.com"></textarea>
           <div class="editor-meta"><span id="editorCount">0 доменов</span><span>Дубликаты удаляются при сохранении списка</span></div>
           <div class="actions editor-actions"><button type="button" class="button" id="importDomains">Импорт TXT</button><button type="button" class="button" id="exportDomains">Экспорт TXT</button><button type="button" class="button primary" id="saveDomains">✓ Сохранить список</button><input type="file" id="domainFile" accept=".txt,text/plain" hidden></div>
@@ -128,10 +130,10 @@
       <div class="section-title"><div><h1>Журнал запросов</h1><p>DNS-маршруты в реальном времени: назначение, фактический сервер, ответ и задержка.</p></div><div class="live-meta"><span id="liveBadge" class="status">LIVE · ожидание</span><small id="logUpdated">Ждём запросов</small></div></div>
       <p id="logGuide" class="route-advice" role="status">Проверяем путь DNS-запросов…</p>
       <div class="metrics"><div><small>Запросов после запуска</small><strong id="metricRequests">0</strong></div><div><small>Из кэша</small><strong id="metricCache">0</strong></div><div><small>Ошибок</small><strong id="metricErrors">0</strong></div><div><small>Сервис</small><strong id="metricRunning">—</strong></div></div>
-      <div class="log-toolbar"><label class="field search"><span>Фильтр по домену или DNS</span><input id="logFilter" placeholder="Например, youtube или Cloudflare" autocomplete="off"></label><label class="check"><input type="checkbox" id="onlyErrors"> Только ошибки</label><button type="button" class="button" id="refreshLogs">↻ Обновить</button><button type="button" class="button" id="copyLogs">Копировать</button></div>
-      <div class="log-head"><span>Время</span><span>Домен</span><span>Назначен → использован</span><span>Ответ</span><span>Время</span></div>
+      <div class="log-toolbar"><label class="field search"><span>Фильтр по домену или DNS</span><input id="logFilter" placeholder="Например, youtube или Cloudflare" autocomplete="off"></label><label class="check"><input type="checkbox" id="onlyErrors"> Только ошибки</label><label class="field log-type-field"><span>Тип</span><select id="logType"><option value="">Все типы</option><option>A</option><option>AAAA</option><option>HTTPS</option><option>TXT</option><option>PTR</option><option>MX</option></select></label><span id="logVisible" class="counter">0 / 0</span><button type="button" class="button" id="logPause">⏸ Пауза</button><button type="button" class="button" id="refreshLogs">↻ Обновить</button><button type="button" class="button" id="copyLogs">Копировать</button></div>
+      <div class="log-head"><span>Время</span><span>Клиент</span><span>Домен</span><span>Тип</span><span>Назначен → использован</span><span>Ответ</span><span>мс</span></div>
       <div id="logRows" class="log-rows" aria-live="polite"><p class="muted">Здесь появятся запросы после запуска DNS.</p></div>
-      <p class="muted">Обновляется автоматически каждые 2 секунды. Только последние 128 запросов в памяти; на диск журнал не пишется. Кэшированные ответы не отправляются upstream повторно.</p>
+      <p class="muted">Обновляется автоматически каждые 2 секунды (кнопка паузы фиксирует снимок). Только последние 128 запросов в памяти; на диск журнал не пишется. Кэшированные ответы не отправляются upstream повторно.</p>
     </section>
   </section>
 </main>

@@ -24,19 +24,21 @@ import (
 )
 
 type Trace struct {
-	Internal  bool      `json:"internal,omitempty"`
-	Client    string    `json:"client,omitempty"`
-	Time      time.Time `json:"time"`
-	Name      string    `json:"name"`
-	Type      uint16    `json:"type"`
-	Rule      string    `json:"rule,omitempty"`
-	Assigned  string    `json:"assigned"`
-	Used      string    `json:"used,omitempty"`
-	Transport string    `json:"transport,omitempty"`
-	Cache     bool      `json:"cache"`
-	Success   bool      `json:"success"`
-	RCode     int       `json:"rcode"`
-	LatencyMS int64     `json:"latency_ms"`
+	Internal         bool      `json:"internal,omitempty"`
+	Client           string    `json:"client,omitempty"`
+	Time             time.Time `json:"time"`
+	Name             string    `json:"name"`
+	Type             uint16    `json:"type"`
+	Rule             string    `json:"rule,omitempty"`
+	Assigned         string    `json:"assigned"`
+	Used             string    `json:"used,omitempty"`
+	AssignedEndpoint string    `json:"assigned_endpoint,omitempty"`
+	UsedEndpoint     string    `json:"used_endpoint,omitempty"`
+	Transport        string    `json:"transport,omitempty"`
+	Cache            bool      `json:"cache"`
+	Success          bool      `json:"success"`
+	RCode            int       `json:"rcode"`
+	LatencyMS        int64     `json:"latency_ms"`
 }
 
 type requestClientKey struct{}
@@ -341,6 +343,13 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 	return err
 }
 
+func traceDNSLabel(u dr.Upstream) string {
+	if u.ServerName != "" {
+		return u.ServerName + " (" + u.Address + ")"
+	}
+	return u.Address
+}
+
 type routingUpstream struct{ e *Engine }
 
 func (r *routingUpstream) Address() string { return "routerforge-policy" }
@@ -372,7 +381,7 @@ func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, e
 		}
 		client, _ := ctx.Value(requestClientKey{}).(string)
 		internal, _ := ctx.Value(internalProbeKey{}).(bool)
-		t := Trace{Internal: internal, Time: time.Now().UTC(), Client: client, Name: name, Type: q.Question[0].Qtype, Rule: d.RuleID, Assigned: d.Upstream, Used: u.ID, Transport: u.Transport, Success: er == nil, LatencyMS: time.Since(start).Milliseconds(), RCode: -1}
+		t := Trace{Internal: internal, Time: time.Now().UTC(), Client: client, Name: name, Type: q.Question[0].Qtype, Rule: d.RuleID, Assigned: d.Upstream, Used: u.ID, AssignedEndpoint: traceDNSLabel(chain[0]), UsedEndpoint: traceDNSLabel(u), Transport: u.Transport, Success: er == nil, LatencyMS: time.Since(start).Milliseconds(), RCode: -1}
 		if answer != nil {
 			t.RCode = answer.Rcode
 		}

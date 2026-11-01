@@ -2,17 +2,36 @@
 // DEV-only RouterForge DNS Lite. No old P10 handlers, no HTML injection.
 (() => {
   const $ = id => document.getElementById(id);
-  const state = {config:{schema_version:1,upstreams:[],rules:[]},revision:'',dirty:false,busy:false,editing:null,editorBase:null,checked:null,status:null,logs:[],health:[],page:'dns',lastLogError:''};
+  const state = {config:{schema_version:1,upstreams:[],rules:[]},revision:'',dirty:false,busy:false,editing:null,editingList:'__legacy__',editingDNSId:null,editorBase:null,checked:null,status:null,logs:[],frozenLogs:[],logPaused:false,health:[],page:'dns',lastLogError:''};
   const used = id => state.config.rules.filter(r=>r.upstream===id);
+  const listKey = r => r.list_id || '__legacy__';
+  const listRules = (id,key) => used(id).filter(r=>listKey(r)===key);
+  const listEntries = id => {
+    const entries=(state.config.lists||[]).filter(l=>l.upstream===id);
+    return (used(id).some(r=>!r.list_id)||!entries.length?[{id:'__legacy__',name:'Основной список (старый формат)',kind:'paste'}]:[]).concat(entries);
+  };
+  const listIsEditable = (id,key) => {
+    const meta=(state.config.lists||[]).find(l=>l.id===key);
+    return (!meta||(meta.kind!=='url'&&meta.match==='suffix'&&!meta.group_id)) && !listRules(id,key).some(r=>!isSimple(r));
+  };
+  const traceEndpoint=(t,field) => {
+    if(t.cache)return 'Кэш · локально';
+    const direct=t[field+'_endpoint'];if(direct)return direct;
+    const id=t[field];
+    if(id==='system-local')return 'Локальный DNS Keenetic';
+    if(id==='client-acl'||id==='refused')return 'Отказ ACL';
+    const u=state.config.upstreams.find(x=>x.id===id);
+    return u ? (u.server_name?u.server_name+' ('+u.address+')':u.address)+' · '+u.transport+' ['+u.id+']' : (id||'—');
+  };
   const protocolNames={doh:'DoH · HTTPS',dot:'DoT · TLS',doq:'DoQ · QUIC',udp:'UDP',tcp:'TCP',native:'Старый DNS Keenetic'};
   const isEncrypted = t => t==='doh'||t==='dot'||t==='doq';
-  const isSimple = r => r.match==='suffix' && !r.group_id && Object.keys(r).every(k=>['id','domain','match','upstream','priority'].includes(k));
+  const isSimple = r => r.match==='suffix' && !r.group_id && Object.keys(r).every(k=>['id','domain','match','upstream','priority','list_id'].includes(k));
   const newId = (prefix,items) => {let i=1;const ids=new Set(items.map(x=>x.id));while(ids.has(prefix+'-'+i))i++;return prefix+'-'+i;};
   const displayName = u => u.server_name || (u.transport==='native'?'Наследованный DNS Keenetic':u.address);
   const hostName = u => protocolNames[u.transport]+' · '+displayName(u);
   const editorPending=()=>state.editing!==null && $('editorDomains').value!==state.editorBase;
   const show = (message,tone='') => {const el=$('feedback');el.textContent=message;el.dataset.tone=tone;};
-  const busy = on => {state.busy=on;for(const id of ['saveButton','applyButton','checkAllDNS','addDnsToggle','inspectDNS','commitDNS','migrateNative','connectButton','disconnectButton','verifyButton','stopButton','gatePreflight','gateEnable','gateDisable']){const el=$(id);if(el)el.disabled=on;}if(!on&&state.status)renderGate(state.status);};
+  const busy = on => {state.busy=on;for(const id of ['saveButton','applyButton','checkAllDNS','addDnsToggle','inspectDNS','commitDNS','migrateNative','connectButton','disconnectButton','verifyButton','stopButton','gatePreflight','gateEnable','gateDisable','newListButton','deleteListButton','renameListButton']){const el=$(id);if(el)el.disabled=on;}if(!on){const key=$('newProtocol').value+'|'+$('newAddress').value.trim();const c=state.checked;$('commitDNS').disabled=!c||c.key!==key||c.editId!==state.editingDNSId;if(state.status)renderGate(state.status);}};
   async function api(path,options={}) {
     const resp=await fetch('../'+path,{cache:'no-store',credentials:'same-origin',...options});
     const ct=resp.headers && resp.headers.get ? (resp.headers.get('content-type')||'') : 'application/json';
@@ -52,15 +71,22 @@
       healthRow.append(stateLabel,rtt,p95,check);card.appendChild(healthRow);
       const preview=document.createElement('p');preview.className='dns-preview';preview.textContent=rules.length?rules.slice(0,3).map(r=>r.domain).join(' · ')+(rules.length>3?' · ещё '+(rules.length-3):''):'Список доменов пуст';card.appendChild(preview);
       const bottom=document.createElement('div');bottom.className='dns-bottom';
-      const edit=document.createElement('button');edit.type='button';edit.className='button dns-edit'+(state.editing===u.id?' primary':'');edit.textContent=state.editing===u.id?'✓ Список открыт':'✎ Открыть список →';edit.disabled=u.transport==='native'||rules.some(r=>!isSimple(r));edit.addEventListener('click',()=>editList(u.id));
+      const edit=document.createElement('button');edit.type='button';edit.className='button dns-edit'+(state.editing===u.id?' primary':'');edit.textContent=state.editing===u.id?'✓ Списки открыты':'✎ Открыть списки →';edit.disabled=u.transport==='native';edit.addEventListener('click',()=>editList(u.id));
       const reserve=document.createElement('label');reserve.className='field';const l=document.createElement('span');l.textContent='Резервный DNS';reserve.appendChild(l);const select=document.createElement('select');select.className='dns-select';select.appendChild(option('','Без резерва'));
       for(const t of list.filter(t=>t.id!==u.id && t.transport!=='native' && !(t.fallbacks||[]).length))select.appendChild(option(t.id,displayName(t)));
       select.value=(u.fallbacks||[])[0]||'';
       if(![...select.options].some(o=>o.value===select.value))select.value='';
       select.disabled=u.transport==='native';select.addEventListener('change',()=>{if(select.value && state.config.upstreams.some(x=>(x.fallbacks||[]).includes(u.id))){show('Этот DNS уже является резервным. Сначала убери его из чужой резервной цепочки.','bad');render();return;}u.fallbacks=select.value?[select.value]:[];mark();});reserve.appendChild(select);bottom.appendChild(reserve);
       const del=document.createElement('button');del.type='button';del.className='button danger';del.textContent='Удалить DNS';del.addEventListener('click',()=>removeDNS(u.id));bottom.appendChild(del);
-      const advanced=document.createElement('details');advanced.className='dns-advanced';const advLabel=document.createElement('summary');advLabel.textContent='Резервный DNS и удаление';advanced.appendChild(advLabel);advanced.appendChild(bottom);card.appendChild(edit);card.appendChild(advanced);root.appendChild(card);
+      const advanced=document.createElement('details');advanced.className='dns-advanced';const advLabel=document.createElement('summary');advLabel.textContent='Резервный DNS и удаление';advanced.appendChild(advLabel);advanced.appendChild(bottom);card.appendChild(edit);
+      if(u.transport!=='native'){
+        const change=document.createElement('button');change.type='button';change.className='button dns-change';
+        change.textContent='⚙ Изменить DNS / обновить TLS';change.addEventListener('click',()=>openDNSForm(u.id));
+        card.appendChild(change);
+      }
+      card.appendChild(advanced);root.appendChild(card);
     }
+    if(state.editing)renderListToolbar();
     if(state.config.service){$('serviceListen').value=state.config.service.listen;$('cacheSize').value=state.config.service.cache_bytes/(1024*1024);$('allowedNetworks').value=state.config.service.allowed_networks.join(',');}
     $('listenerSummary').textContent=state.config.service?.listen||$('serviceListen').value;
     $('applyButton').textContent=state.dirty?'✓ Сохранить и запустить DNS':'▶ Запустить DNS';
@@ -119,30 +145,125 @@
     }
     return names;
   }
-  function editList(id){if(editorPending() && !confirm('У выбранного DNS есть несохранённые изменения списка. Перейти к другому DNS и потерять введённый текст?'))return;const u=state.config.upstreams.find(x=>x.id===id);const rules=used(id);if(!u||u.transport==='native'||rules.some(r=>!isSimple(r)))throw Error('Для этого DNS сначала преобразуй native или сложные правила');state.editing=id;$('editorTitle').textContent='Список доменов · '+displayName(u);$('selectedDNSBadge').textContent=displayName(u);$('editorDomains').value=rules.map(x=>x.domain).join('\n');state.editorBase=$('editorDomains').value;$('editorCount').textContent=rules.length+' доменов';$('editorEmpty').hidden=true;$('listEditor').hidden=false;$('editorHint').textContent=rules.length+' доменов сейчас. Изменения не затронут другие DNS.';render();reportHeight();}
-  function closeEditor(){if(editorPending() && !confirm('Закрыть редактор? Несохранённый текст списка будет потерян.'))return;state.editing=null;state.editorBase=null;$('listEditor').hidden=true;$('editorEmpty').hidden=false;$('selectedDNSBadge').textContent='DNS не выбран';render();}
+  function renderListToolbar(){
+    if(!state.editing)return;
+    const entries=listEntries(state.editing),choice=$('listChoice');
+    if(!entries.some(e=>e.id===state.editingList))state.editingList=entries[0].id;
+    choice.replaceChildren(...entries.map(e=>option(e.id,e.name+' · '+listRules(state.editing,e.id).length+' доменов')));
+    choice.value=state.editingList;
+    const meta=(state.config.lists||[]).find(l=>l.id===state.editingList);
+    $('listRenameName').value=meta?meta.name:'';
+    $('listRenameName').disabled=!meta;
+    $('renameListButton').disabled=!meta;
+    $('deleteListButton').disabled=!meta;
+    const editable=listIsEditable(state.editing,state.editingList);
+    $('editorDomains').readOnly=!editable;
+    $('saveDomains').disabled=!editable;
+    $('importDomains').disabled=!editable;
+    $('editorTitle').textContent=(meta?.name||'Основной список')+' · '+displayName(state.config.upstreams.find(u=>u.id===state.editing));
+    if(!editable)$('editorHint').textContent='Этот URL/сложный список управляется отдельным механизмом. Ручное редактирование заблокировано.';
+  }
+  function switchList(key){
+    if(editorPending()&&!confirm('Несохранённый текст текущего списка будет потерян. Переключить?')){$('listChoice').value=state.editingList;return;}
+    if(!listEntries(state.editing).some(l=>l.id===key))throw Error('Неизвестный список');
+    state.editingList=key;
+    const rules=listRules(state.editing,key);
+    $('editorDomains').value=rules.map(r=>r.domain).join('\n');state.editorBase=$('editorDomains').value;
+    $('editorCount').textContent=rules.length+' доменов';
+    $('editorHint').textContent='Редактируется только выбранный список. Остальные списки и DNS не меняются.';
+    renderListToolbar();reportHeight();
+  }
+  function editList(id){
+    if(editorPending()&&!confirm('У выбранного DNS есть несохранённый текст списка. Перейти к другому DNS?'))return;
+    const u=state.config.upstreams.find(x=>x.id===id);
+    if(!u||u.transport==='native')throw Error('Legacy DNS нужно сначала преобразовать');
+    const changed=state.editing!==id;state.editing=id;
+    if(changed)state.editingList=listEntries(id)[0].id;
+    $('selectedDNSBadge').textContent=displayName(u);
+    $('editorEmpty').hidden=true;$('listEditor').hidden=false;
+    switchList(state.editingList);render();reportHeight();
+  }
+  function closeEditor(){
+    if(editorPending()&&!confirm('Закрыть редактор? Несохранённый текст будет потерян.'))return;
+    state.editing=null;state.editingList='__legacy__';state.editorBase=null;
+    $('listEditor').hidden=true;$('editorEmpty').hidden=false;
+    $('selectedDNSBadge').textContent='DNS не выбран';render();
+  }
   function saveList(){
     if(!state.editing)return;
-    const id=state.editing,old=used(id);if(old.some(r=>!isSimple(r)))throw Error('Найдено сложное правило. Список не изменён');
-    const names=parseDomains($('editorDomains').value),want=new Set(names);
-    const other=new Set(state.config.rules.filter(r=>r.upstream!==id).map(r=>r.domain));
-    const collision=names.find(x=>other.has(x));if(collision)throw Error('Домен '+collision+' уже привязан к другому DNS. Сначала убери его там.');
-    const oldMap=new Map(old.map(r=>[r.domain,r]));const ids=new Set(state.config.rules.map(r=>r.id));
+    const id=state.editing,key=state.editingList,old=listRules(id,key);
+    if(!listIsEditable(id,key))throw Error('URL или сложный список нельзя менять через простой редактор');
+    const names=parseDomains($('editorDomains').value);
+    const meta=(state.config.lists||[]).find(l=>l.id===key);
+    const other=new Set(state.config.rules.filter(r=>!(r.upstream===id&&listKey(r)===key)).map(r=>r.domain));
+    const collision=names.find(domain=>other.has(domain));
+    if(collision)throw Error('Домен '+collision+' уже есть в другом списке или DNS. Сначала убери дубликат там.');
+    const oldMap=new Map(old.map(r=>[r.domain,r])),ids=new Set(state.config.rules.map(r=>r.id));
     const fresh=names.map(domain=>{
       if(oldMap.has(domain))return oldMap.get(domain);
-      let n=1;while(ids.has('domain-'+n))n++;const uid='domain-'+n;ids.add(uid);return {id:uid,domain,match:'suffix',upstream:id,priority:100};
+      let n=1;while(ids.has('domain-'+n))n++;const uid='domain-'+n;ids.add(uid);
+      return {id:uid,domain,match:'suffix',upstream:id,priority:meta?meta.priority:100,...(key==='__legacy__'?{}:{list_id:key})};
     });
-    state.config.rules=state.config.rules.filter(r=>r.upstream!==id).concat(fresh);
-    $('editorDomains').value=names.join('\n');state.editorBase=$('editorDomains').value;$('editorCount').textContent=names.length+' доменов';$('editorHint').textContent='Список сохранён в черновик. Нажми «Сохранить и запустить DNS» выше.';mark();show('Список обновлён: '+names.length+' доменов. Остальные DNS не менялись.');
+    const unchanged=state.config.rules.filter(r=>!(r.upstream===id&&listKey(r)===key));
+    if(unchanged.length+fresh.length>10000)throw Error('Общий лимит: 10 000 правил');
+    state.config.rules=unchanged.concat(fresh);
+    $('editorDomains').value=names.join('\n');state.editorBase=$('editorDomains').value;
+    $('editorCount').textContent=names.length+' доменов';
+    $('editorHint').textContent='Список сохранён в черновик. Применение DNS выполняется отдельно.';
+    mark();show('Список обновлён: '+names.length+' доменов. Остальные списки и DNS не менялись.');
+  }
+  function newList(){
+    if(!state.editing||editorPending())throw Error('Сначала сохрани текст открытого списка');
+    const name=$('newListName').value.trim(),all=state.config.lists||[];
+    if(!name||Array.from(name).length>80)throw Error('Название списка: от 1 до 80 символов');
+    if(all.length>=64)throw Error('Лимит: 64 списка');
+    if(all.some(l=>l.upstream===state.editing&&l.name.toLowerCase()===name.toLowerCase()))throw Error('Список с таким названием уже существует');
+    const id=newId('list',all);
+    state.config.lists=all.concat({id,name,kind:'paste',upstream:state.editing,match:'suffix',priority:100});
+    state.editingList=id;$('newListName').value='';switchList(id);mark();
+    show('Новый список создан в черновике. Добавь домены и сохрани список.','good');
+  }
+  function renameList(){
+    if(!state.editing||editorPending())throw Error('Сначала сохрани текст открытого списка');
+    const list=(state.config.lists||[]).find(l=>l.id===state.editingList);
+    if(!list)throw Error('Основной список старого формата нельзя переименовать');
+    const name=$('listRenameName').value.trim();
+    if(!name||Array.from(name).length>80)throw Error('Название списка: от 1 до 80 символов');
+    if(state.config.lists.some(l=>l.id!==list.id&&l.upstream===list.upstream&&l.name.toLowerCase()===name.toLowerCase()))throw Error('Такое название уже используется');
+    list.name=name;mark();show('Имя списка изменено в черновике.','good');
+  }
+  function deleteList(){
+    if(!state.editing||editorPending())throw Error('Сначала сохрани текст открытого списка');
+    const list=(state.config.lists||[]).find(l=>l.id===state.editingList);
+    if(!list)throw Error('Основной список старого формата нельзя удалить через это действие');
+    const size=listRules(state.editing,list.id).length;
+    if(!confirm('Удалить список «'+list.name+'» и '+size+' правил только ИЗ ЧЕРНОВИКА?'))return;
+    state.config.lists=state.config.lists.filter(l=>l.id!==list.id);
+    state.config.rules=state.config.rules.filter(r=>r.list_id!==list.id);
+    state.editingList=listEntries(state.editing)[0].id;switchList(state.editingList);mark();
   }
   function removeDNS(id){
     const u=state.config.upstreams.find(x=>x.id===id);if(!u)return;
     if((state.config.dns_groups||[]).some(g=>g.servers?.includes(id))||state.config.upstreams.some(x=>(x.fallbacks||[]).includes(id)))throw Error('Этот DNS используется группой или резервной цепочкой. Сначала убери зависимость.');
     const rules=used(id);if(rules.some(r=>!isSimple(r)))throw Error('Есть сложные правила, удаление через простой экран заблокировано.');
     if(!confirm('Удалить '+displayName(u)+' и '+rules.length+' его доменов ИЗ ЧЕРНОВИКА?'))return;
-    state.config.upstreams=state.config.upstreams.filter(x=>x.id!==id);state.config.rules=state.config.rules.filter(r=>r.upstream!==id);
+    state.config.upstreams=state.config.upstreams.filter(x=>x.id!==id);state.config.rules=state.config.rules.filter(r=>r.upstream!==id);state.config.lists=(state.config.lists||[]).filter(l=>l.upstream!==id);
     if(state.config.service?.default_upstream===id){state.config.service=null;$('defaultDNS').value='';}
     if(state.editing===id)closeEditor();mark();
+  }
+  function openDNSForm(id){
+    if(editorPending())throw Error('Сначала сохрани несохранённый текст списка');
+    const u=id?state.config.upstreams.find(x=>x.id===id):null;
+    if(id&&(!u||u.transport==='native'))throw Error('Этот DNS нельзя изменить через простой редактор');
+    state.editingDNSId=id||null;state.checked=null;
+    $('dnsAddPanelTitle').textContent=u?'Изменить DNS / обновить TLS':'Добавить DNS';
+    $('commitDNS').textContent=u?'Сохранить DNS (черновик)':'Добавить DNS';
+    $('newProtocol').value=u?u.transport:'doh';
+    $('newAddress').value=!u?'':u.transport==='doh'?'https://'+u.server_name+(u.path||'/dns-query'):
+      isEncrypted(u.transport)?u.server_name:u.address.replace(/:53$/,'');
+    $('certificateInfo').textContent=u?'Проверь адрес и TLS заново. Старый DNS и списки не изменятся до сохранения.':'Проверка ещё не выполнялась.';
+    $('certificateDetails').hidden=true;$('commitDNS').disabled=true;
+    $('dnsAddPanel').hidden=false;reportHeight();
   }
   function newFormData(){
     let transport=$('newProtocol').value;let raw=$('newAddress').value.trim();
@@ -164,7 +285,7 @@
     if(key!==$('newProtocol').value+'|'+$('newAddress').value.trim())throw Error('Адрес изменился во время проверки');
     if(!r.address||!r.selected_ip)throw Error('Не найден IP DNS-сервера');
     if((f.transport==='doh'||f.transport==='dot')&&(!r.certificate?.verified||!r.certificate.pem))throw Error('TLS-сертификат не удалось проверить');
-    state.checked={key,form:f,lookup:r};
+    state.checked={key,form:f,lookup:r,editId:state.editingDNSId};
     let cert=f.transport==='doh'||f.transport==='dot'?'✓ TLS проверен по доверенным CA. Сертификат сохранится для просмотра.':f.transport==='doq'?'DoQ: сертификат будет проверен при подключении, предварительный просмотр недоступен.':'UDP не использует TLS-сертификаты.';
     $('certificateInfo').textContent='IP '+r.selected_ip+' · '+cert;
     $('certificateDetails').hidden=!r.certificate;
@@ -173,15 +294,25 @@
   }
   function addDNS(){
     if(editorPending())throw Error('Сначала сохрани изменённый список доменов справа.');
-    const c=state.checked;if(!c||c.key!==$('newProtocol').value+'|'+$('newAddress').value.trim())throw Error('Сначала проверь этот DNS');
+    const c=state.checked,key=$('newProtocol').value+'|'+$('newAddress').value.trim();
+    if(!c||c.key!==key||c.editId!==state.editingDNSId)throw Error('Сначала проверь именно этот адрес DNS и TLS');
     const f=c.form,r=c.lookup;
-    if(state.config.upstreams.some(u=>u.transport===f.transport&&u.address===r.address&&u.server_name===(isEncrypted(f.transport)?f.host:'')&&(u.path||'')===f.path))throw Error('Такой DNS уже добавлен');
-    const u={id:newId('dns',state.config.upstreams),transport:f.transport,address:r.address};
+    const prev=state.editingDNSId?state.config.upstreams.find(u=>u.id===state.editingDNSId):null;
+    if(state.editingDNSId&&!prev)throw Error('Редактируемый DNS не найден');
+    if(state.config.upstreams.some(u=>u.id!==prev?.id&&u.transport===f.transport&&u.address===r.address&&u.server_name===(isEncrypted(f.transport)?f.host:'')&&(u.path||'')===f.path))throw Error('Такой DNS уже добавлен');
+    const u=prev||{id:newId('dns',state.config.upstreams)};
+    u.transport=f.transport;u.address=r.address;
+    delete u.server_name;delete u.path;delete u.certificate_pem;
     if(isEncrypted(f.transport))u.server_name=f.host;
     if(f.transport==='doh')u.path=f.path;
     if(r.certificate?.verified)u.certificate_pem=r.certificate.pem;
-    state.config.upstreams.push(u);state.checked=null;$('dnsAddPanel').hidden=true;$('certificateInfo').textContent='Проверка ещё не выполнялась.';$('newAddress').value='';mark();editList(u.id);
-    show('DNS добавлен. Его список открыт справа. Выбери DNS по умолчанию перед применением.');
+    if(!prev)state.config.upstreams.push(u);
+    state.editingDNSId=null;state.checked=null;$('dnsAddPanel').hidden=true;
+    $('certificateInfo').textContent='Проверка ещё не выполнялась.';$('newAddress').value='';
+    mark();
+    if(!prev)editList(u.id);
+    else if(state.editing===u.id){$('selectedDNSBadge').textContent=displayName(u);renderListToolbar();}
+    show(prev?'DNS/TLS обновлены в черновике. ID, списки, резерв и настройки по умолчанию сохранены.':'DNS добавлен. Его список открыт справа. Выбери DNS по умолчанию перед применением.','good');
   }
   function servicePrefs(){
     const primary=$('defaultDNS').value;
@@ -255,30 +386,49 @@
     return s;
   }
   function formatTime(s){try{return new Date(s).toLocaleTimeString('ru-RU',{hour12:false})}catch(_){return s}}
+  const qtypeName=n=>({1:'A',28:'AAAA',15:'MX',16:'TXT',5:'CNAME',12:'PTR',33:'SRV',65:'HTTPS',64:'SVCB'}[n]||'TYPE '+(n??'—'));
   function renderLogs(){
-    let traces=state.logs.slice().reverse(),filter=$('logFilter').value.trim().toLowerCase();
-    if(filter)traces=traces.filter(t=>[t.name,t.client,t.assigned,t.used,t.transport].some(s=>String(s||'').toLowerCase().includes(filter)));
+    let traces=(state.logPaused?state.frozenLogs:state.logs).slice().reverse();
+    const filter=$('logFilter').value.trim().toLowerCase(),kind=$('logType').value;
+    if(filter)traces=traces.filter(t=>[t.name,t.client,t.assigned,t.used,t.assigned_endpoint,t.used_endpoint,traceEndpoint(t,'assigned'),traceEndpoint(t,'used')].some(s=>String(s||'').toLowerCase().includes(filter)));
+    if(kind)traces=traces.filter(t=>String(qtypeName(t.type))===kind);
     if($('onlyErrors').checked)traces=traces.filter(t=>!t.success);
     $('logCounter').textContent=state.logs.length;
+    $('logVisible').textContent=traces.length+' / '+(state.logPaused?state.frozenLogs.length:state.logs.length);
+    $('logPause').textContent=state.logPaused?'▶ Продолжить':'⏸ Пауза';
+    $('liveBadge').textContent=state.logPaused?'ПАУЗА · снимок журнала':'LIVE · запросы';
     const root=$('logRows');root.replaceChildren();
-    if(!traces.length){const p=document.createElement('p');p.className='muted';p.textContent='Пока нет подходящих запросов. Открой сайт с подключённого устройства или проверь DNS.';root.appendChild(p);return;}
+    if(!traces.length){const p=document.createElement('p');p.className='muted';p.textContent='Нет подходящих запросов. Попробуй изменить фильтр.';root.appendChild(p);return;}
     for(const t of traces){
       const row=document.createElement('div');row.className='log-row'+(!t.success?' error':'');
-      const vals=[formatTime(t.time),(t.name||'—')+(t.client?' · '+t.client:''),t.cache?'Кэш':(t.assigned||'—')+(t.used&&t.assigned!==t.used?' → '+t.used:''),t.rcode===5?'REFUSED · ACL':t.success?(t.rcode===3?'NXDOMAIN':t.rcode===0?'OK':'RCODE '+t.rcode):'Ошибка',t.latency_ms+' мс'];
-      for(let i=0;i<vals.length;i++){const n=document.createElement('span');n.className=i===1?'col-domain':'';n.textContent=String(vals[i]);row.appendChild(n);}root.appendChild(row);
+      const assigned=traceEndpoint(t,'assigned'),used=traceEndpoint(t,'used');
+      const route=t.cache?'Кэш · локально':assigned+(t.used&&t.used!==t.assigned?' → '+used:'');
+      const result=t.rcode===5?'REFUSED':t.success?(t.rcode===3?'NXDOMAIN':t.rcode===0?'OK':'RCODE '+t.rcode):t.rcode===-1?'TIMEOUT / FAIL':'Ошибка';
+      const vals=[formatTime(t.time),t.client||'—',t.name||'—',qtypeName(t.type),route,result,String(t.latency_ms??0)+' мс'];
+      for(let i=0;i<vals.length;i++){
+        const n=document.createElement('span');n.className=i===2?'col-domain':i===4?'col-route':i===5?'col-result':'';
+        n.textContent=String(vals[i]);
+        if(i===4&&!t.cache&&t.used&&t.used===t.assigned)n.title='Фактический DNS: '+used;
+        row.appendChild(n);
+      }
+      root.appendChild(row);
     }
   }
-  async function refreshLogs(){const t=await api('service/traces');state.logs=Array.isArray(t.traces)?t.traces:[];renderLogs();$('logUpdated').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour12:false});}
-  async function load(){const d=await api('config');if(!d.config||!d.revision||!Array.isArray(d.config.rules)||!Array.isArray(d.config.upstreams))throw Error('Неверный формат конфигурации DNS');state.config=d.config;state.revision=d.revision;state.dirty=false;state.editing=null;state.editorBase=null;$('selectedDNSBadge').textContent='DNS не выбран';$('listEditor').hidden=true;render();await refreshStatus();await refreshHealth().catch(()=>{});await refreshNativeDNS();show('Настройки загружены. Можно менять DNS и списки.','good');}
-  async function task(fn){if(state.busy)return;busy(true);try{await fn();}catch(e){show(e.message,'bad');}finally{busy(false);if(state.status){try{await refreshStatus();}catch(_){}}}}
-  function on(id,fn){$(id).addEventListener('click',()=>task(fn));}
+  async function refreshLogs(){
+    if(state.logPaused)return;
+    const t=await api('service/traces');state.logs=Array.isArray(t.traces)?t.traces:[];
+    renderLogs();$('logUpdated').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour12:false});
+  }
+  async function load(){const d=await api('config');if(!d.config||!d.revision||!Array.isArray(d.config.rules)||!Array.isArray(d.config.upstreams))throw Error('Неверный формат конфигурации DNS');state.config=d.config;state.revision=d.revision;state.dirty=false;state.editing=null;state.editingList='__legacy__';state.editorBase=null;$('selectedDNSBadge').textContent='DNS не выбран';$('listEditor').hidden=true;render();await refreshStatus();await refreshHealth().catch(()=>{});await refreshNativeDNS();show('Настройки загружены. Можно менять DNS и списки.','good');}
+  async function task(fn,refresh=true){if(state.busy)return;busy(true);try{await fn();}catch(e){show(e.message,'bad');}finally{try{if(refresh&&state.status){try{await refreshStatus();}catch(_){}}}finally{busy(false);}}}
+  function on(id,fn,refresh=true){$(id).addEventListener('click',()=>task(fn,refresh));}
   $('navDns').addEventListener('click',()=>setPage('dns'));$('navLogs').addEventListener('click',()=>setPage('logs'));
   on('reloadButton',async()=>{if((state.dirty||editorPending())&&!confirm('Отменить все несохранённые изменения, включая текст доменов?'))return;await load();});
-  $('addDnsToggle').addEventListener('click',()=>{$('dnsAddPanel').hidden=false;reportHeight();});$('cancelDNS').addEventListener('click',()=>{$('dnsAddPanel').hidden=true;});
+  $('addDnsToggle').addEventListener('click',()=>openDNSForm(null));$('cancelDNS').addEventListener('click',()=>{$('dnsAddPanel').hidden=true;state.editingDNSId=null;state.checked=null;});
   for(const id of ['newAddress','newProtocol'])$(id).addEventListener('input',()=>{state.checked=null;$('commitDNS').disabled=true;$('certificateInfo').textContent='Адрес изменён. Нажми «Проверить». ';$('certificateDetails').hidden=true;});
   $('newProtocol').addEventListener('change',()=>{$('newAddress').placeholder=$('newProtocol').value==='doh'?'https://dns.example.com/dns-query':$('newProtocol').value==='udp'?'9.9.9.9':'dns.example.com';});
-  on('inspectDNS',inspect);on('commitDNS',addDNS);
-  $('closeEditor').addEventListener('click',closeEditor);$('editorDomains').addEventListener('input',()=>{$('editorCount').textContent=$('editorDomains').value.split(/\r?\n/).filter(x=>x.trim()).length+' строк (черновик)';if(state.status)renderGate(state.status);});on('saveDomains',saveList);
+  on('inspectDNS',inspect,false);on('commitDNS',addDNS,false);
+  $('listChoice').addEventListener('change',()=>switchList($('listChoice').value));on('newListButton',newList,false);on('renameListButton',renameList,false);on('deleteListButton',deleteList,false);$('closeEditor').addEventListener('click',closeEditor);$('editorDomains').addEventListener('input',()=>{$('editorCount').textContent=$('editorDomains').value.split(/\r?\n/).filter(x=>x.trim()).length+' строк (черновик)';if(state.status)renderGate(state.status);});on('saveDomains',saveList,false);
   $('importDomains').addEventListener('click',()=>$('domainFile').click());$('domainFile').addEventListener('change',async()=>{const f=$('domainFile').files[0];if(!f)return;try{if(f.size>256*1024)throw Error('Максимум 256 КБ');const names=parseDomains(await f.text());$('editorDomains').value=names.join('\n');show('Импортировано '+names.length+' доменов. Нажми «Сохранить список».');}catch(e){show(e.message,'bad');}finally{$('domainFile').value='';}});
   $('exportDomains').addEventListener('click',()=>{if(!state.editing)return;const data=$('editorDomains').value;const url=URL.createObjectURL(new Blob([data.endsWith('\n')?data:data+'\n'],{type:'text/plain;charset=utf-8'}));try{const a=document.createElement('a');a.href=url;a.download='routerforge-domains.txt';a.click();}finally{URL.revokeObjectURL(url);}});
   $('defaultDNS').addEventListener('change',()=>{mark();});for(const id of ['serviceListen','cacheSize','allowedNetworks'])$(id).addEventListener('change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
@@ -305,8 +455,8 @@
   on('stopButton',async()=>{if(!confirm('Остановить DNS и вернуть прежний DNS подключённого устройства?'))return;await serviceCommand('control',{operation:'stop'});show('DNS остановлен, прежний DNS устройства возвращён.','good');});
   on('connectButton',async()=>{const mac=$('clientMAC').value.trim(),persist=$('persistClient').checked;if(!/^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(mac))throw Error('Укажи MAC в формате 02:11:22:33:44:55');if(!confirm('Назначить DNS Router устройству '+mac+'?'+(persist?' Keenetic сохранит общую конфигурацию.':'')))return;await serviceCommand('connect',{mac,persist});show('Устройство подключено. Открой журнал, затем попробуй открыть сайт на устройстве.','good');});
   on('disconnectButton',async()=>{if(!confirm('Вернуть прежний DNS выбранного устройства?'))return;await serviceCommand('disconnect',{operation:'disconnect'});show('Прежний DNS восстановлен.','good');});
-  on('refreshLogs',async()=>{await refreshStatus();await refreshLogs();});$('logFilter').addEventListener('input',renderLogs);$('onlyErrors').addEventListener('change',renderLogs);
-  $('copyLogs').addEventListener('click',()=>{const lines=state.logs.map(t=>[t.time,t.name,t.assigned,t.used,t.transport,t.rcode,t.success?'PASS':'FAIL',t.latency_ms].join('\t')).join('\n');if(navigator.clipboard?.writeText)navigator.clipboard.writeText(lines).then(()=>show('Журнал скопирован.','good')).catch(()=>show('Не удалось скопировать журнал.','bad'));else show('Копирование недоступно в этом браузере.','bad');});
+  on('refreshLogs',async()=>{await refreshStatus();await refreshLogs();});$('logFilter').addEventListener('input',renderLogs);$('logType').addEventListener('change',renderLogs);$('onlyErrors').addEventListener('change',renderLogs);$('logPause').addEventListener('click',()=>{if(!state.logPaused){state.frozenLogs=state.logs.slice();state.logPaused=true;renderLogs();}else{state.logPaused=false;state.frozenLogs=[];refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));}});
+  $('copyLogs').addEventListener('click',()=>{const lines=(state.logPaused?state.frozenLogs:state.logs).map(t=>[t.time,t.client,t.name,qtypeName(t.type),traceEndpoint(t,'assigned'),traceEndpoint(t,'used'),t.transport,t.rcode,t.success?'PASS':'FAIL',t.latency_ms].join('\t')).join('\n');if(navigator.clipboard?.writeText)navigator.clipboard.writeText(lines).then(()=>show('Журнал скопирован.','good')).catch(()=>show('Не удалось скопировать журнал.','bad'));else show('Копирование недоступно в этом браузере.','bad');});
   const root=document.documentElement,params=new URLSearchParams(window.location.search);
   function syncTheme(){try{if(window.parent===window)return;const host=window.parent.document.documentElement,computed=window.parent.getComputedStyle(host);for(const token of ['--rf-bg','--rf-surface','--rf-surface-2','--rf-text','--rf-muted','--rf-border','--rf-border-strong','--rf-hover','--rf-accent','--rf-accent-soft','--rf-success','--rf-danger','--rf-radius-panel','--rf-radius-control','--rf-ui-panel-radius','--rf-ui-control-radius','--rf-ui-control-h']){const val=computed.getPropertyValue(token).trim();if(val)root.style.setProperty(token,val);}root.style.colorScheme=computed.colorScheme==='light'?'light':'dark';}catch(_){}}
   function reportHeight(){if(window.parent===window)return;try{window.parent.postMessage({type:'routerforge-module-height',moduleId:'dns-router',height:Math.ceil(Math.max(350,$('dnsLiteApp').scrollHeight,$('dnsLiteApp').getBoundingClientRect().height)+6)},window.location.origin);}catch(_){}}

@@ -61,7 +61,7 @@ test('P13 split editor: DNS -> assigned domains, verified TLS, no unrequested ac
     a.equal(d.getElementById('editorCount').textContent,'2 доменов');
     a.equal(d.querySelector('[data-upstream-id="old"] .dns-preview').textContent.includes('youtube.com'),false);
     d.getElementById('addDnsToggle').click();d.getElementById('newAddress').value='https://dns.google/dns-query';
-    d.getElementById('inspectDNS').click();await until(()=>!d.getElementById('commitDNS').disabled);
+    d.getElementById('inspectDNS').click();await until(()=>/TLS проверен/.test(d.getElementById('certificateInfo').textContent)&&!d.getElementById('commitDNS').disabled&&!d.getElementById('inspectDNS').disabled);
     a.match(d.getElementById('certificateInfo').textContent,/TLS проверен/);
     d.getElementById('commitDNS').click();await until(()=>d.querySelectorAll('.dns-card').length===3);
     d.getElementById('defaultDNS').value='cf';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
@@ -250,6 +250,67 @@ test('P19.1: IPv4-only coverage never claims full or link-local IPv6 interceptio
   f.setGate({state:'ACTIVE',active:true,desired:true,coverage:{ipv4:'active_last_verified',ipv6_routed:'active_last_verified',ipv6_link_local:'excluded_unproven_interface_scope'}});
   d.getElementById('refreshLogs').click();await until(()=>d.getElementById('gateAdvice').textContent.includes('IPv4 и IPv6 global/ULA'));
   a.match(d.getElementById('gateAdvice').textContent,/link-local source исключены/);
+  a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+
+test('P19.3: existing DNS can refresh TLS without ID or domain loss',async()=>{
+ const f=fixture(),d=f.w.document;
+ try{
+  await until(()=>d.querySelectorAll('.dns-card').length===2);
+  d.querySelector('[data-upstream-id="cf"] .dns-change').click();
+  a.equal(d.getElementById('dnsAddPanelTitle').textContent,'Изменить DNS / обновить TLS');
+  d.getElementById('inspectDNS').click();await until(()=>/TLS проверен/.test(d.getElementById('certificateInfo').textContent)&&!d.getElementById('commitDNS').disabled&&!d.getElementById('inspectDNS').disabled);
+  d.getElementById('commitDNS').click();await until(()=>d.getElementById('feedback').textContent.includes('DNS/TLS обновлены')&&!d.getElementById('saveButton').disabled);
+  d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+  d.getElementById('saveButton').click();await until(()=>f.getConfig().upstreams[1].address==='8.8.8.8:443');
+  a.equal(f.getConfig().upstreams[1].id,'cf');
+  a.ok(f.getConfig().upstreams[1].certificate_pem);
+  a.equal(d.querySelectorAll('.dns-card').length,2);
+  a.equal(d.querySelector('[data-upstream-id="cf"] .dns-preview').textContent.includes('other.net'),true);
+  a.equal(f.getActive(),false);
+  await until(()=>!d.getElementById('saveButton').disabled);
+  a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+test('P19.3: two independent named lists bind to one DNS and keep legacy rules',async()=>{
+ const f=fixture(),d=f.w.document;
+ try{
+  await until(()=>d.querySelectorAll('.dns-card').length===2);
+  d.querySelector('[data-upstream-id="cf"] .dns-edit').click();
+  d.getElementById('newListName').value='Видео';d.getElementById('newListButton').click();
+  await until(()=>!d.getElementById('newListButton').disabled);
+  d.getElementById('editorDomains').value='youtube.com';d.getElementById('saveDomains').click();
+  await until(()=>d.getElementById('feedback').textContent.includes('Список обновлён')&&!d.getElementById('newListButton').disabled);
+  d.getElementById('newListName').value='Игры';d.getElementById('newListButton').click();
+  await until(()=>!d.getElementById('newListButton').disabled);
+  d.getElementById('editorDomains').value='steamcommunity.com';d.getElementById('saveDomains').click();
+  await until(()=>d.getElementById('feedback').textContent.includes('Список обновлён')&&!d.getElementById('newListButton').disabled);
+  d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+  d.getElementById('saveButton').click();await until(()=>f.getConfig().lists?.length===2);
+  const c=f.getConfig();a.equal(c.rules.length,4);a.equal(c.lists.length,2);
+  a.ok(c.rules.find(r=>r.domain==='other.net'&&!r.list_id),'old ungrouped rules stay unchanged');
+  a.ok(c.rules.find(r=>r.domain==='youtube.com'&&r.list_id===c.lists[0].id));
+  a.ok(c.rules.find(r=>r.domain==='steamcommunity.com'&&r.list_id===c.lists[1].id));
+  await until(()=>!d.getElementById('saveButton').disabled);
+  a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+test('P19.3: log shows real DNS endpoint, client, type, pause and filter',async()=>{
+ const f=fixture(),d=f.w.document;
+ try{
+  await until(()=>d.querySelectorAll('.dns-card').length===2);
+  d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+  d.getElementById('applyButton').click();await until(()=>f.getActive());
+  d.getElementById('navLogs').click();await until(()=>d.querySelectorAll('.log-row').length>0);
+  a.match(d.getElementById('logRows').textContent,/9\.9\.9\.9:53/);
+  a.match(d.getElementById('logRows').textContent,/example\.com/);
+  d.getElementById('logPause').click();a.match(d.getElementById('logPause').textContent,/Продолжить/);
+  d.getElementById('logType').value='AAAA';d.getElementById('logType').dispatchEvent(new f.w.Event('change'));
+  a.equal(d.querySelectorAll('.log-row').length,0);
   a.deepEqual(f.errors,[]);
  }finally{f.dom.window.close();}
 });

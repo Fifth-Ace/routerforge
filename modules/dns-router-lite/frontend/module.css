@@ -261,3 +261,18 @@ input:not([type=checkbox]),select{min-height:var(--control-height)}
 .dns-health button{padding:4px 8px;min-height:27px;font-size:10px;margin-left:auto}
 @media(max-width:1000px){.health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:540px){.health-metrics{grid-template-columns:minmax(0,1fr)}.health-native{flex-direction:column;align-items:flex-start}.server-head-actions{flex-wrap:wrap}}
+
+/* P19.3: stable multiple-list editor, real endpoint journal parity */
+.dns-change{margin-top:5px;justify-self:start;font-size:11px}
+.list-toolbar{display:flex;align-items:end;flex-wrap:wrap;gap:8px;margin:10px 0}
+.list-toolbar .field{flex:1 1 170px;min-width:140px}
+.list-toolbar .button{min-height:var(--control-height)}
+.list-rename{padding-bottom:12px;border-bottom:1px solid var(--border)}
+.log-head,.log-row{display:grid!important;grid-template-columns:74px minmax(88px,1fr) minmax(160px,1.8fr) 60px minmax(200px,2.1fr) 110px 68px!important;align-items:center;gap:12px}
+.log-row>span{min-width:0;overflow-wrap:anywhere}
+.log-row .col-route{font-family:ui-monospace,'Cascadia Mono',Consolas,monospace;font-size:11px}
+.log-row .col-result{font-weight:700}
+.log-rows{overflow-x:auto}
+.log-type-field{flex:0 0 130px}
+@media(max-width:1050px){.log-head,.log-row{min-width:940px}}
+@media(max-width:600px){.list-toolbar .field{flex-basis:100%}.list-toolbar .button{flex:1}}

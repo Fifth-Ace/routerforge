@@ -128,23 +128,8 @@ func RunSupervised(ctx context.Context, config, socket, ui string) error {
 		return e
 	}
 	cleanup := func(ctx context.Context) error {
-		if e := RecoverOwnedSocket(socket); e != nil {
-			return e
-		}
 		k := &LinuxGate{Tables: &XTables{Exec: systemFirewallIO}, OwnershipPath: config + ".gate-owned.json", Conntrack: newSystemConntrack()}
-		plan, e := k.receipt()
-		if os.IsNotExist(e) {
-			return nil
-		}
-		if e != nil {
-			return e
-		}
-		// No xtables lock is needed to stop lease matching and delete exact stale
-		// DNS NAT tuples. Structural repair belongs to the ready child controller.
-		if err := k.Deactivate(ctx, plan); err != nil {
-			fmt.Fprintln(os.Stderr, "DNS_SUPERVISOR: Gate cleanup pending; starting management for recovery:", err)
-		}
-		return nil
+		return cleanupController(ctx, socket, k)
 	}
 	supervisor := Supervisor{Log: os.Stderr, Cleanup: cleanup, Start: func() (SupervisedChild, error) {
 		cmd, e := safety.CommandContext(context.Background(), executable, "--config", config, "--socket", socket, "--ui", ui, "--serve")
@@ -159,6 +144,21 @@ func RunSupervised(ctx context.Context, config, socket, ui string) error {
 		return &execChild{wait: cmd.Wait, terminate: func() error { return cmd.Process.Signal(syscall.SIGTERM) }}, nil
 	}}
 	return supervisor.Run(ctx)
+}
+
+func cleanupController(ctx context.Context, socket string, k *LinuxGate) error {
+	plan, e := k.receipt()
+	if e != nil && !os.IsNotExist(e) {
+		return e
+	}
+	if e == nil {
+		// Deactivate our dead DNS path even if a foreign socket blocks restart.
+		// No xtables lock or foreign socket mutation is needed for this step.
+		if err := k.Deactivate(ctx, plan); err != nil {
+			fmt.Fprintln(os.Stderr, "DNS_SUPERVISOR: Gate cleanup pending; starting management for recovery:", err)
+		}
+	}
+	return RecoverOwnedSocket(socket)
 }
 
 // Avoid exposing raw shell/process arguments through the lifecycle API.

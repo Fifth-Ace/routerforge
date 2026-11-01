@@ -3,6 +3,7 @@
 package lite
 
 import (
+	"context"
 	"net"
 	"os"
 	"os/exec"
@@ -84,5 +85,31 @@ func TestP19SocketReceiptLifecycle(t *testing.T) {
 	b, _ := os.ReadFile(path)
 	if string(b) != "foreign" {
 		t.Fatal("foreign file changed")
+	}
+}
+
+func TestP19ForeignSocketBlocksRestartButDeactivatesOwnedDNS(t *testing.T) {
+	g, m, k := gateFixture(t)
+	if err := g.Enable(context.Background(), "192.168.10.1:55358"); err != nil {
+		t.Fatal(err)
+	}
+	ct := k.Conntrack.Table.(*modelCT)
+	ct.flows = []CTFlow{testFlow(t, "192.168.10.55", "9.9.9.9", 17, 55358, 1)}
+	path := filepath.Join(t.TempDir(), "foreign.sock")
+	if err := os.WriteFile(path, []byte("foreign"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := cleanupController(context.Background(), path, k); err == nil {
+		t.Fatal("foreign socket accepted")
+	}
+	b, err := os.ReadFile(path)
+	if err != nil || string(b) != "foreign" {
+		t.Fatal("foreign endpoint changed", err)
+	}
+	if len(ct.flows) != 0 {
+		t.Fatal("dead listener conntrack path retained")
+	}
+	if got := m.packet("inet", "br0", "192.168.10.55", "9.9.9.9", "udp", 53); got != "STOCK" {
+		t.Fatal(got)
 	}
 }

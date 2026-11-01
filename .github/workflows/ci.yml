@@ -88,7 +88,7 @@ jobs:
           pkg_version = match.group(1) + '~beta.' + match.group(2)
           required = {'routerforge-core', 'dns', 'admin', 'monitoring',
                       'network-tools', 'nfqws-manager', 'antiscan-manager',
-                      'port-access-manager', 'crowdsec-manager', 'profiling'}
+                      'port-access-manager', 'crowdsec-manager', 'dns-router', 'profiling'}
           components = doc.get('components', [])
           actual = {item['id'] for item in components}
           if len(components) != len(required) or actual != required:
@@ -1236,7 +1236,7 @@ jobs:
           pattern: routerforge-v2-beta-*
           path: dist
           merge-multiple: true
-      - name: Verify complete 10-component candidate before publication
+      - name: Verify architecture-scoped Beta candidates before publication
         shell: bash
         run: |
           set -euo pipefail
@@ -1245,14 +1245,15 @@ jobs:
           from pathlib import Path
           cfg=json.loads(Path('release/channels/beta.json').read_text())
           expected={c['package'] for c in cfg['components']}
-          assert len(expected)==len(cfg['components'])==10, 'beta component matrix must contain 10 unique packages'
+          assert len(expected)==len(cfg['components'])==11, 'beta component matrix must contain 11 unique configured packages'
           for target in ['aarch64-3.10','mips-3.4','mipsel-3.4']:
               suffix='' if target=='aarch64-3.10' else '-'+target
               path=Path('dist/routerforge-beta-candidate-index'+suffix+'.json')
               obj=json.loads(path.read_text())
               assert obj['target']==target and obj['channel']=='beta', target
               items=obj['components']
-              assert {i['package'] for i in items}==expected, target
+              expected_target=expected if target=='aarch64-3.10' else expected-{'routerforge-dns-router'}
+              assert {i['package'] for i in items}==expected_target, target
               for item in items:
                   asset=Path('dist')/item['asset']
                   assert asset.is_file() and asset.stat().st_size>0, str(asset)

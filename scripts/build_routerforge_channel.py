@@ -213,6 +213,7 @@ def main():
             "antiscan-manager",
             "port-access-manager",
             "crowdsec-manager",
+            "dns-router",
             "profiling",
         ]
     elif channel == "stable":
@@ -235,6 +236,14 @@ def main():
 
     validate_release_train(config, channel, components)
 
+    # DNS Router Beta hardware acceptance is ARM64-only. Preserve 10 legacy
+    # Beta packages for MIPS/MIPSEL; the full configured train has 11.
+    target_components = (
+        [c for c in components if c["id"] != "dns-router"]
+        if channel == "beta" and target != "aarch64-3.10"
+        else components
+    )
+
     dist = Path(args.dist)
     dist.mkdir(parents=True, exist_ok=True)
     for old in dist.glob(f"routerforge-*_{target}.ipk"):
@@ -245,7 +254,7 @@ def main():
     env["ROUTERFORGE_TARGET"] = target
 
 
-    for component in components:
+    for component in target_components:
         cid = component["id"]
         pkg = component["package"]
         version = component["version"]
@@ -263,9 +272,11 @@ def main():
         elif cid == "crowdsec-manager":
             run(["./scripts/build-crowdsec-manager-opkg.sh", version], env=env)
         elif cid == "dns-router":
-            if channel != "dev":
-                raise SystemExit("DNS Router preview is DEV-only")
-            run(["./scripts/build-dns-router-experimental.sh", version, target], env=env)
+            if channel not in {"dev", "beta"} or target != "aarch64-3.10":
+                raise SystemExit("DNS Router is available only in DEV or ARM64 Beta")
+            # Reuse the tested independent-DNS service packaging path.
+            run(["./scripts/build-dns-router-experimental.sh", version, target],
+                env={**env, "ROUTERFORGE_CHANNEL": "dev"})
         else:
             run(["./scripts/build-module-opkg.sh", cid, version], env=env)
 
@@ -286,7 +297,7 @@ def main():
     canonical_base = f"https://github.com/{repository}/releases/download/{tag}"
 
     entries = []
-    for component in components:
+    for component in target_components:
         pkg = component["package"]
         version = component["version"]
         asset_version = release_asset_version(version)

@@ -67,8 +67,10 @@ cat > "$WORK/data/opt/share/routerforge/modules/dns-router/manifest.json" <<MANI
 MANIFEST
 # DEV_PACKAGE_FILES_BEGIN
 if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
-  mkdir -p "$WORK/data/opt/etc/init.d"
+  mkdir -p "$WORK/data/opt/etc/init.d" "$WORK/data/opt/etc/ndm/netfilter.d"
   cp "$ROOT/modules/dns-router-runtime/packaging/S95routerforge-dns-router-dev" "$WORK/data/opt/etc/init.d/S95routerforge-dns-router"
+  cp "$ROOT/modules/dns-router-runtime/packaging/40-routerforge-dns-controller.sh" "$WORK/data/opt/etc/ndm/netfilter.d/40-routerforge-dns-controller.sh"
+  chmod 0755 "$WORK/data/opt/etc/ndm/netfilter.d/40-routerforge-dns-controller.sh"
   cp "$ROOT/modules/dns-router-runtime/packaging/postinst-dev" "$WORK/control/postinst"
   cp "$ROOT/modules/dns-router-runtime/packaging/prerm-dev" "$WORK/control/prerm"
   chmod 0755 "$WORK/data/opt/etc/init.d/S95routerforge-dns-router" "$WORK/control/postinst" "$WORK/control/prerm"

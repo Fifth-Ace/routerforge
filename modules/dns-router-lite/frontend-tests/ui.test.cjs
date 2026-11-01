@@ -9,7 +9,7 @@ const tick=()=>new Promise(r=>setTimeout(r,25));
 const until=async(p)=>{for(let i=0;i<45;i++){if(p())return;await tick();}throw Error('UI wait exceeded');};
 function fixture(){
   let config={schema_version:1,upstreams:[{id:'old',transport:'udp',address:'9.9.9.9:53'},{id:'cf',transport:'doh',address:'1.1.1.1:443',server_name:'cloudflare-dns.com',path:'/dns-query'}],rules:[{id:'r1',domain:'example.com',match:'suffix',upstream:'old',priority:100},{id:'r2',domain:'other.net',match:'suffix',upstream:'cf',priority:100}]};
-  let revision='sha256:initial',active=false,gateEnabled=false,connection={state:'disconnected'},requests=0,denied=0;const calls=[],errors=[];
+  let revision='sha256:initial',active=false,gateEnabled=false,gateOverride=null,connection={state:'disconnected'},requests=0,denied=0;const calls=[],errors=[];
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
   const w=dom.window;w.confirm=()=>true;w.scrollTo=()=>{};
@@ -19,11 +19,11 @@ function fixture(){
     if(p==='config'){
       if(opts.method==='PUT'){a.equal(opts.headers['If-Match'],'"'+revision+'"');config=JSON.parse(opts.body);revision='sha256:next';}
       body={config:structuredClone(config),revision};
-    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,cache_hits:0,failures:0,connection,system_gate:{state:gateEnabled?'ACTIVE':'STOCK',active:gateEnabled,lease_seconds:15}};
+    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,cache_hits:0,failures:0,connection,system_gate:gateOverride||{state:gateEnabled?'ACTIVE':'STOCK',active:gateEnabled,desired:gateEnabled,lease_seconds:60}};
     else if(p==='service/traces')body={traces:active?[{name:'example.com',time:'2026-10-31T12:00:00Z',assigned:'old',used:'old',transport:'udp',rcode:0,success:true,latency_ms:5,type:1,cache:false}]:[]};
     else if(p==='certificates/lookup'){a.equal(opts.headers['X-RouterForge-Action'],'certificate-lookup');const q=JSON.parse(opts.body);body={address:'8.8.8.8:443',selected_ip:'8.8.8.8',ips:['8.8.8.8'],certificate:{verified:true,pem:'-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n',subject:'CN=dns.google',issuer:'Trusted CA',not_after:'2027-10-31',fingerprint_sha256:'ab',server_name:q.server_name}};}
     else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';body={ok:true};}
-    else if(p==='service/gate/control'){const q=JSON.parse(opts.body);if(q.operation==='enable')gateEnabled=true;else if(q.operation==='disable')gateEnabled=false;body={ok:true};}
+    else if(p==='service/gate/control'){const q=JSON.parse(opts.body);if(q.operation==='enable')gateEnabled=true;else if(q.operation==='disable'){gateEnabled=false;gateOverride=null;}else if(q.operation==='retry'){gateEnabled=true;gateOverride=null;}body={ok:true};}
     else if(p==='service/upstreams/health')body={source:'routerforge-direct',upstreams:[{id:'old',status:'UP',probe_latency_ms:14,last_checked:'2026-11-01T12:00:00Z',requests_5m:9,failures_5m:0,p95_latency_5m_ms:22},{id:'cf',status:'DOWN',probe_latency_ms:3000,last_checked:'2026-11-01T12:00:00Z',requests_5m:2,failures_5m:2,last_error:'timeout'}]};
     else if(p==='service/upstreams/check')body={source:'routerforge-direct',upstreams:[{id:'old',status:'UP',probe_latency_ms:14,last_checked:'2026-11-01T12:00:00Z',requests_5m:9,failures_5m:0,p95_latency_5m_ms:22},{id:'cf',status:'DOWN',probe_latency_ms:3000,last_checked:'2026-11-01T12:00:00Z',requests_5m:2,failures_5m:2,last_error:'timeout'}]};
     else if(p==='service/verify')body={state:'PASS',results:[{state:'PASS'}]};
@@ -33,7 +33,7 @@ function fixture(){
     else status=404;
     return {ok:status===200,status,headers:{get:()=> 'application/json'},json:async()=>structuredClone(body)};
   };
-  w.eval(js);return {w,dom,calls,errors,getConfig:()=>config,getActive:()=>active,setConnection:v=>{connection=v;},setRequests:v=>{requests=v;},setDenied:v=>{denied=v;}};
+  w.eval(js);return {w,dom,calls,errors,getConfig:()=>config,getActive:()=>active,setConnection:v=>{connection=v;},setRequests:v=>{requests=v;},setDenied:v=>{denied=v;},setGate:v=>{gateOverride=v;}};
 }
 
 test('P13 visual parity: two pages and split DNS/domain workspace, no P10 controls',()=>{
@@ -219,5 +219,20 @@ test('P18: DNS cards show direct RTT separately from observed p95, read-only ove
      !d.getElementById('checkAllDNS').disabled);
    await tick(); // allow task()'s final refreshStatus() promise to settle
    a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+test('P19 recovery shows desired vs observed and explicit retry without inventing a hardware PASS',async()=>{
+ const f=fixture(),d=f.w.document;
+ try{
+  await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+  d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));d.getElementById('applyButton').click();await until(()=>f.getActive());
+  for(const state of ['DEGRADED','RECOVERY_REQUIRED','CONFLICT']){
+   f.setGate({state,active:false,desired:true,last_error:'xtables lock budget exhausted',lease_seconds:60});d.getElementById('refreshLogs').click();await until(()=>d.getElementById('gateAdvice').textContent.includes('xtables lock')&&!d.getElementById('gatePreflight').disabled&&d.getElementById('gateBadge').textContent===(state==='DEGRADED'?'Восстановление':state==='CONFLICT'?'Конфликт':'Требуется проверка'));
+   a.match(d.getElementById('gateAdvice').textContent,/Желаемое состояние: ВКЛ/);a.equal(d.getElementById('gatePreflight').textContent,'Повторить восстановление');a.equal(d.getElementById('gateEnable').disabled,true);a.equal(d.getElementById('gateDisable').disabled,false);
+  }
+  d.getElementById('gatePreflight').click();await until(()=>d.getElementById('gateBadge').textContent==='Активен');
+  a.ok(f.calls.some(c=>c.path==='service/gate/control'&&JSON.parse(c.opts.body).operation==='retry'));
+  a.match(d.getElementById('gateAdvice').textContent,/не этим счётчиком/);a.deepEqual(f.errors,[]);
  }finally{f.dom.window.close();}
 });

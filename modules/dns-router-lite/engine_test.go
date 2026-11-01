@@ -289,3 +289,44 @@ func TestIndependentDNSExplicitFailover(t *testing.T) {
 		t.Fatal(tr)
 	}
 }
+
+func TestP19ReadinessUsesRealDualStackDNSAndOwnAttribution(t *testing.T) {
+	listener, err := net.Listen("tcp6", "[::1]:0")
+	if err != nil {
+		t.Skipf("BLOCKED: IPv6 loopback unavailable: %v", err)
+	}
+	listener.Close()
+	var count atomic.Int32
+	dest := dnsFixture(t, "READY", &count)
+	c := fixtureConfig(t)
+	e, err := newEngineWithTopology(c, func(dr.Upstream) (upstream.Upstream, error) {
+		return upstream.AddressToUpstream(dest, &upstream.Options{})
+	}, func() (string, []string, error) { return "192.168.10.1/24", []string{"fd12:3456::1/64"}, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = e.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close(context.Background())
+	_, port, _ := net.SplitHostPort(c.Service.Listen)
+	p := GatePlan{Port: port, Families: []GateFamily{{Family: "inet"}, {Family: "inet6"}}}
+	if err = e.GateReady(context.Background(), c.Service.Listen, p); err != nil {
+		t.Fatal(err)
+	}
+	if count.Load() != 0 || e.requests.Load() != 0 {
+		t.Fatalf("readiness must exercise four real transports without inflating client requests: %d / %d", count.Load(), e.requests.Load())
+	}
+	traces := e.readiness
+	if len(e.Traces("")) != 0 {
+		t.Fatal("internal readiness polluted client traces")
+	}
+	if len(traces) != 4 {
+		t.Fatal("missing readiness attribution")
+	}
+	for _, tr := range traces {
+		if !tr.Internal || tr.Cache || !tr.Success || tr.Used != "service-readiness" {
+			t.Fatalf("bad readiness trace: %+v", tr)
+		}
+	}
+}

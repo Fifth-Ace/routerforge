@@ -105,6 +105,10 @@ func (a *API) Handler() http.Handler {
 		if service, ok := a.Service.(interface{ ActiveState() bool }); ok {
 			active = service.ActiveState()
 		}
+		interception := false
+		if service, ok := a.Service.(interface{ InterceptionState() bool }); ok {
+			interception = service.InterceptionState()
+		}
 		state := "inactive"
 		if active {
 			state = "shadow-loopback"
@@ -112,7 +116,7 @@ func (a *API) Handler() http.Handler {
 				state = "independent-dns"
 			}
 		}
-		respondJSON(w, 200, map[string]any{"component": "dns-router", "status": state, "dns_listener": active, "dns_interception": false, "installed_dns_manager_required": false, "config_revision": rev, "rules": len(cfg.Rules), "upstreams": len(cfg.Upstreams), "time": time.Now().UTC().Format(time.RFC3339)})
+		respondJSON(w, 200, map[string]any{"component": "dns-router", "status": state, "dns_listener": active, "dns_interception": interception, "installed_dns_manager_required": false, "config_revision": rev, "rules": len(cfg.Rules), "upstreams": len(cfg.Upstreams), "time": time.Now().UTC().Format(time.RFC3339)})
 	})
 	mux.HandleFunc("/v1/shadow/status", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

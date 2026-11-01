@@ -24,6 +24,7 @@ import (
 )
 
 type Trace struct {
+	Internal  bool      `json:"internal,omitempty"`
 	Client    string    `json:"client,omitempty"`
 	Time      time.Time `json:"time"`
 	Name      string    `json:"name"`
@@ -39,6 +40,7 @@ type Trace struct {
 }
 
 type requestClientKey struct{}
+type internalProbeKey struct{}
 
 type Factory func(dr.Upstream) (upstream.Upstream, error)
 
@@ -51,6 +53,8 @@ type Engine struct {
 	allowed   []*net.IPNet
 	mu        sync.Mutex
 	traces    []Trace
+	readiness []Trace
+	listenV6  bool
 	health    *UpstreamHealthTracker
 	requests  atomic.Uint64
 	denied    atomic.Uint64
@@ -93,6 +97,9 @@ func transportFactory(roots *x509.CertPool) Factory {
 }
 
 func NewEngine(c dr.Config, factory Factory) (*Engine, error) {
+	return newEngineWithTopology(c, factory, GateCandidates)
+}
+func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string, []string, error)) (*Engine, error) {
 	policy, err := dr.Compile(c)
 	if err != nil {
 		return nil, err
@@ -127,8 +134,8 @@ func NewEngine(c dr.Config, factory Factory) (*Engine, error) {
 	}
 	// IPv6 addresses on the physical test LAN. The Gate restricts input to
 	// br0; ACL never trusts an arbitrary global IPv6 source prefix.
-	_, gateIPv6, dualReady := GateCandidates()
-	if dualReady == nil {
+	_, gateIPv6, dualReady := discover()
+	if dualReady == nil && len(gateIPv6) > 0 {
 		for _, prefix := range gateIPv6 {
 			_, n, er := net.ParseCIDR(prefix)
 			if er == nil {
@@ -157,7 +164,7 @@ func NewEngine(c dr.Config, factory Factory) (*Engine, error) {
 	}
 	udpSockets := []*net.UDPAddr{udp}
 	tcpSockets := []*net.TCPAddr{tcp}
-	if dualReady == nil {
+	if dualReady == nil && len(gateIPv6) > 0 {
 		_, servicePort, er := net.SplitHostPort(c.Service.Listen)
 		if er != nil {
 			e.closeServers()
@@ -176,6 +183,7 @@ func NewEngine(c dr.Config, factory Factory) (*Engine, error) {
 		udpSockets = append(udpSockets, udp6)
 		tcpSockets = append(tcpSockets, tcp6)
 	}
+	e.listenV6 = len(udpSockets) > 1
 	e.proxy, err = proxy.New(&proxy.Config{
 		UDPListenAddr: udpSockets, TCPListenAddr: tcpSockets,
 		UpstreamConfig: &proxy.UpstreamConfig{Upstreams: []upstream.Upstream{&routingUpstream{e}}},
@@ -228,6 +236,13 @@ func (e *Engine) closeServers() {
 func (e *Engine) addTrace(t Trace) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if t.Internal {
+		if len(e.readiness) >= 8 {
+			e.readiness = e.readiness[1:]
+		}
+		e.readiness = append(e.readiness, t)
+		return
+	}
 	if len(e.traces) == 128 {
 		copy(e.traces, e.traces[1:])
 		e.traces = e.traces[:127]
@@ -260,7 +275,14 @@ func localName(name string) bool {
 	return false
 }
 func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext) error {
-	allowed := false
+	internal := false
+	if len(d.Req.Question) == 1 {
+		host, _, _ := net.SplitHostPort(e.cfg.Service.Listen)
+		localPeer := d.Addr.Addr().IsLoopback() || d.Addr.Addr().String() == host
+		name := strings.ToLower(d.Req.Question[0].Name)
+		internal = localPeer && d.Req.Question[0].Qtype == dns.TypeTXT && strings.HasPrefix(name, "rf-ready-") && strings.HasSuffix(name, ".invalid.")
+	}
+	allowed := internal
 	for _, n := range e.allowed {
 		if n.Contains(net.IP(d.Addr.Addr().AsSlice())) {
 			allowed = true
@@ -278,8 +300,18 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		d.Res.SetRcode(d.Req, dns.RcodeRefused)
 		return nil
 	}
-	e.requests.Add(1)
+	if !internal {
+		e.requests.Add(1)
+	}
+	ctx = context.WithValue(ctx, internalProbeKey{}, internal)
 	ctx = context.WithValue(ctx, requestClientKey{}, d.Addr.Addr().String())
+	if internal {
+		d.Res = new(dns.Msg)
+		d.Res.SetReply(d.Req)
+		d.Res.Answer = []dns.RR{&dns.TXT{Hdr: dns.RR_Header{Name: d.Req.Question[0].Name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}, Txt: []string{"routerforge-ready"}}}
+		e.addTrace(Trace{Internal: true, Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: strings.TrimSuffix(d.Req.Question[0].Name, "."), Type: d.Req.Question[0].Qtype, Assigned: "service-readiness", Used: "service-readiness", Success: true, RCode: dns.RcodeSuccess})
+		return nil
+	}
 	name := strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), ".")
 	if localName(name) {
 		start := time.Now()
@@ -339,7 +371,8 @@ func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, e
 			er = errors.New("DNS response does not match the question")
 		}
 		client, _ := ctx.Value(requestClientKey{}).(string)
-		t := Trace{Time: time.Now().UTC(), Client: client, Name: name, Type: q.Question[0].Qtype, Rule: d.RuleID, Assigned: d.Upstream, Used: u.ID, Transport: u.Transport, Success: er == nil, LatencyMS: time.Since(start).Milliseconds(), RCode: -1}
+		internal, _ := ctx.Value(internalProbeKey{}).(bool)
+		t := Trace{Internal: internal, Time: time.Now().UTC(), Client: client, Name: name, Type: q.Question[0].Qtype, Rule: d.RuleID, Assigned: d.Upstream, Used: u.ID, Transport: u.Transport, Success: er == nil, LatencyMS: time.Since(start).Milliseconds(), RCode: -1}
 		if answer != nil {
 			t.RCode = answer.Rcode
 		}
@@ -349,6 +382,48 @@ func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, e
 		} // Valid negative answers never leak to a fallback.
 		last = er
 	}
-	e.failures.Add(1)
+	internal, _ := ctx.Value(internalProbeKey{}).(bool)
+	if !internal {
+		e.failures.Add(1)
+	}
 	return nil, fmt.Errorf("explicit DNS chain failed: %w", last)
+}
+
+func (e *Engine) GateReady(ctx context.Context, listen string, p GatePlan) error {
+	for _, family := range p.Families {
+		for _, raw := range family.Prefixes {
+			_, target, err := net.ParseCIDR(raw)
+			if err != nil {
+				return err
+			}
+			wanted, bits := target.Mask.Size()
+			covered := false
+			for _, allowed := range e.allowed {
+				mask, size := allowed.Mask.Size()
+				covered = covered || (size == bits && mask <= wanted && allowed.Contains(target.IP))
+			}
+			if !covered {
+				return fmt.Errorf("managed LAN prefix %s is not allowed by the applied engine; listener revalidation required", raw)
+			}
+		}
+	}
+	return probeGateDNSWithTrace(ctx, listen, p, func(name string) bool {
+		name = strings.TrimSuffix(strings.ToLower(name), ".")
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		for _, t := range e.readiness {
+			if t.Name == name && t.Success {
+				return true
+			}
+		}
+		return false
+	})
+}
+func (e *Engine) readinessPlan() GatePlan {
+	_, port, _ := net.SplitHostPort(e.cfg.Service.Listen)
+	p := GatePlan{Port: port, Families: []GateFamily{{Family: "inet"}}}
+	if e.listenV6 {
+		p.Families = append(p.Families, GateFamily{Family: "inet6"})
+	}
+	return p
 }

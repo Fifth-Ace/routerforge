@@ -38,7 +38,9 @@ test('P10 63-capacity exists ONLY for durable O2; N trial stays 8, old plan stay
  assert.match(listener,/BuildDomainSplitPlanLWithLimit\(cfg, 32\)/);
 });
 test('DEV independent service replaces P10 startup without implicit zone activation',()=>{
- assert.match(init,/--service-control stop/);
+ assert.match(init,/operation="\$\{1:-stop\}"/);
+ assert.match(init,/--service-control "\$operation"/);
+ assert.match(init,/restart\) stop_service maintenance && start_service/);
  assert.doesNotMatch(init,/--ndmc-durable-experimental/);
  assert.doesNotMatch(init,/--shadow-forward/);
  assert.match(main,/owned\.State == "active"/);

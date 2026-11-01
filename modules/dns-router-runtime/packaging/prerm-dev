@@ -1,11 +1,10 @@
 #!/bin/sh
-# Do not force removal while an owned Keenetic client profile cannot be restored.
-# Fixed P14 parser accepts only the exact stock description/intercept defaults.
+# Explicit removal clears intent; upgrade/restart preserves the last ON/OFF.
 set -eu
-if /opt/etc/init.d/S95routerforge-dns-router stop; then
-  echo 'RF_DNS_LITE_PRERM: PASS / client DNS restored and service stopped'
-else
-  echo 'RF_DNS_LITE_PRERM: FAIL / DNS client ownership or service shutdown blocked' >&2
-  echo 'Do not force-remove. Inspect DNS connection in RouterForge and restore its previous DNS first.' >&2
-  exit 1
-fi
+case "${1:-remove}" in
+upgrade|deconfigure) action=maintenance ;;
+remove) action=stop ;;
+*) echo 'RF_DNS_LITE_PRERM: unsupported lifecycle reason' >&2; exit 1 ;;
+esac
+/opt/etc/init.d/S95routerforge-dns-router "$action"
+echo "RF_DNS_LITE_PRERM: PASS / $action"

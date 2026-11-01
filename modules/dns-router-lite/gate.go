@@ -1,89 +1,454 @@
 package lite
 
-// P15: opt-in system DNS gate. RouterForge never edits _NDM_* or Keenetic DNS
-// settings. Lease-backed NAT redirects are scoped to br0 and UDP/TCP port 53.
-// Kernel objects do not persist through reboot; no automatic re-activation.
-
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/Fifth-Ace/routerforge/internal/safety"
+	"github.com/miekg/dns"
 )
 
 const (
-	gateChain        = "RF_DNS_LITE_GATE"
-	gateSet4         = "RF_DNS_LITE4"
-	gateSet6         = "RF_DNS_LITE6"
-	gateInterface    = "br0"
-	gateLeaseSeconds = "15"
+	gateChain     = "RF_DNS_LITE_GATE"
+	gateSet4      = "RF_DNS_LITE4"
+	gateSet6      = "RF_DNS_LITE6"
+	gateInterface = "br0"
 )
 
-type GateExec func(context.Context, string, ...string) error
-type GateRead func(context.Context, string, ...string) (string, error)
-
 type GateManager struct {
-	mu         sync.Mutex
-	run        GateExec
-	read       GateRead
-	candidates func() (string, []string, error)
-	locate     func(string) (string, error)
-	active     bool
-	port       string
-	v4prefix   string
-	v6prefix   []string
-	cancel     context.CancelFunc
-	lastError  string
-}
-
-func gateRun(ctx context.Context, binary string, args ...string) error {
-	// Only fixed executable names/arguments produced by GateManager are allowed;
-	// never use shell, raw query parameters, or path-derived script commands.
-	child, cancel := context.WithTimeout(ctx, 4*time.Second)
-	defer cancel()
-	output, err := safety.RunCommand(child, 4096, binary, args...)
-	if err != nil {
-		return fmt.Errorf("%s failed: %w (%s)", binary, err, strings.TrimSpace(string(output)))
-	}
-	return nil
-}
-func gateRead(ctx context.Context, binary string, args ...string) (string, error) {
-	child, cancel := context.WithTimeout(ctx, 4*time.Second)
-	defer cancel()
-	constMax := 1024 * 1024
-	output, err := safety.RunCommand(child, constMax, binary, args...)
-	if len(output) >= constMax {
-		return "", fmt.Errorf("%s inspection output exceeds safety limit", binary)
-	}
-	if err != nil {
-		return string(output), fmt.Errorf("%s inspection failed: %w (%s)", binary, err, strings.TrimSpace(string(output)))
-	}
-	return string(output), nil
+	mu          sync.Mutex
+	op          sync.Mutex
+	kernel      GateKernel
+	candidates  func() (string, []string, error)
+	planFactory func(string) (GatePlan, error)
+	locate      func(string) (string, error)
+	probe       func(context.Context, string, GatePlan) error
+	plan        GatePlan
+	listen      string
+	desired     bool
+	active      bool
+	paused      bool
+	state       string
+	leaseUntil  time.Time
+	verifiedAt  time.Time
+	lastError   string
+	failures    int
+	cancel      context.CancelFunc
+	notify      chan struct{}
+	now         func() time.Time
 }
 
 func NewGateManager() *GateManager {
-	return &GateManager{run: gateRun, read: gateRead, candidates: GateCandidates, locate: exec.LookPath}
+	x := &XTables{Exec: systemFirewallIO}
+	return &GateManager{kernel: &LinuxGate{Tables: x, Conntrack: newSystemConntrack()}, candidates: GateCandidates, locate: exec.LookPath, probe: probeGateDNS, state: "STOCK", notify: make(chan struct{}, 1), now: time.Now}
 }
-func (g *GateManager) command(ctx context.Context, name string, args ...string) error {
-	if g.run == nil {
-		return errors.New("DNS gate executor unavailable")
+func (g *GateManager) SetOwnershipPath(path string) {
+	if k, ok := g.kernel.(*LinuxGate); ok {
+		k.OwnershipPath = path
 	}
-	return g.run(ctx, name, args...)
+}
+func (g *GateManager) Status() map[string]any {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	state := g.state
+	if state == "" {
+		state = "STOCK"
+	}
+	active := g.active && g.now().Before(g.leaseUntil)
+	if g.active && !active {
+		state = "DEGRADED"
+	}
+	return map[string]any{"state": state, "active": active, "desired": g.desired, "port": g.plan.Port, "interface": gateInterface, "last_error": g.lastError, "lease_seconds": controllerLease, "lease_until": g.leaseUntil.UTC().Format(time.RFC3339Nano), "verified_at": g.verifiedAt.UTC().Format(time.RFC3339Nano), "persisted": true, "recovery_attempts": g.failures, "families": g.plan.Families, "hardware_e2e": "PENDING"}
+}
+func (g *GateManager) acquire(ctx context.Context) error {
+	for !g.op.TryLock() {
+		if e := waitContext(ctx, 10*time.Millisecond); e != nil {
+			return e
+		}
+	}
+	return nil
+}
+func (g *GateManager) makePlan(listen string) (GatePlan, error) {
+	if g.planFactory != nil {
+		p, e := g.planFactory(listen)
+		if e != nil {
+			return p, e
+		}
+		return p, validateGatePlan(p)
+	}
+	port, err := gatePort(listen)
+	if err != nil {
+		return GatePlan{}, err
+	}
+	v4, v6, err := g.candidates()
+	if err != nil {
+		return GatePlan{}, err
+	}
+	host, _, _ := net.SplitHostPort(listen)
+	original, _, err := net.ParseCIDR(v4)
+	if err != nil {
+		return GatePlan{}, err
+	}
+	if net.ParseIP(host) == nil || !original.Equal(net.ParseIP(host)) {
+		return GatePlan{}, errors.New("DNS listener must bind the managed bridge IPv4 address")
+	}
+	p := GatePlan{Version: 1, Interface: gateInterface, Port: port}
+	for _, item := range []struct {
+		binary, set, family string
+		prefixes            []string
+	}{{"iptables", gateSet4, "inet", []string{v4}}, {"ip6tables", gateSet6, "inet6", v6}} {
+		if len(item.prefixes) == 0 {
+			continue
+		}
+		f := GateFamily{Binary: item.binary, Set: item.set, Family: item.family}
+		for _, raw := range item.prefixes {
+			ip, n, e := net.ParseCIDR(raw)
+			if e != nil || ip.IsMulticast() || ip.IsUnspecified() || ip.IsLoopback() {
+				return p, errors.New("invalid managed bridge prefix")
+			}
+			if item.family == "inet" && !ip.IsPrivate() {
+				return p, errors.New("managed IPv4 bridge must use a private prefix")
+			}
+			ones, bits := n.Mask.Size()
+			if ones == 0 || (bits == 32 && ones < 8) || (bits == 128 && ones < 32) {
+				return p, errors.New("managed prefix is too broad")
+			}
+			f.Prefixes = append(f.Prefixes, n.String())
+			p.RouterAddresses = append(p.RouterAddresses, ip.String())
+		}
+		p.Families = append(p.Families, f)
+	}
+	return p, nil
+}
+func (g *GateManager) Preflight(ctx context.Context, listen string) error {
+	p, e := g.makePlan(listen)
+	if e != nil {
+		return e
+	}
+	for _, name := range []string{"ipset", "iptables"} {
+		if _, e = g.locate(name); e != nil {
+			return e
+		}
+	}
+	if len(p.Families) > 1 {
+		if _, e = g.locate("ip6tables"); e != nil {
+			return fmt.Errorf("IPv6 LAN requires ip6tables: %w", e)
+		}
+	}
+	if g.probe == nil {
+		return errors.New("DNS readiness probe unavailable")
+	}
+	if audit, ok := g.kernel.(interface {
+		Audit(context.Context, GatePlan) error
+	}); ok {
+		if e := audit.Audit(ctx, p); e != nil {
+			return e
+		}
+	}
+	g.mu.Lock()
+	probe := g.probe
+	g.mu.Unlock()
+	return probe(ctx, listen, p)
+}
+func (g *GateManager) Enable(ctx context.Context, listen string) error {
+	if e := g.acquire(ctx); e != nil {
+		return e
+	}
+	defer g.op.Unlock()
+	p, e := g.makePlan(listen)
+	if e != nil {
+		g.failed(e)
+		return e
+	}
+	if e = g.Preflight(ctx, listen); e != nil {
+		g.failed(e)
+		return e
+	}
+	until, e := g.kernel.Ensure(ctx, p)
+	if e != nil {
+		g.failed(e)
+		return e
+	}
+	g.mu.Lock()
+	g.plan = p
+	g.listen = listen
+	g.desired = true
+	g.paused = false
+	g.active = true
+	g.state = "ACTIVE"
+	g.lastError = ""
+	g.failures = 0
+	g.leaseUntil = until
+	g.verifiedAt = g.now()
+	g.mu.Unlock()
+	g.startWorker()
+	return nil
+}
+func (g *GateManager) failed(e error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.active = false
+	g.failures++
+	g.lastError = e.Error()
+	g.state = "DEGRADED"
+	var conflictErr *GateConflict
+	if errors.As(e, &conflictErr) {
+		g.state = "CONFLICT"
+		g.failures = 3
+	} else if g.failures >= 3 {
+		g.state = "RECOVERY_REQUIRED"
+	}
+}
+func (g *GateManager) startWorker() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.cancel != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	g.cancel = cancel
+	go func() {
+		t := time.NewTicker(4 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			case <-g.notify:
+			}
+			child, c := context.WithTimeout(ctx, 8*time.Second)
+			_ = g.Reconcile(child, false)
+			c()
+		}
+	}()
+}
+func (g *GateManager) Notify() {
+	g.mu.Lock()
+	desired := g.desired && !g.paused
+	g.mu.Unlock()
+	if desired {
+		select {
+		case g.notify <- struct{}{}:
+		default:
+		}
+	}
+}
+func (g *GateManager) Reconcile(ctx context.Context, explicit bool) error {
+	if e := g.acquire(ctx); e != nil {
+		return e
+	}
+	defer g.op.Unlock()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	g.mu.Lock()
+	desired := g.desired && !g.paused
+	p := g.plan
+	attempts := g.failures
+	if explicit {
+		g.failures = 0
+		attempts = 0
+	}
+	g.mu.Unlock()
+	if !desired {
+		return nil
+	}
+	if attempts >= 3 {
+		return errors.New("DNS controller recovery budget exhausted; explicit retry required")
+	}
+	// Re-discover addresses on every round, but only on the fixed managed bridge.
+	listen := ""
+	// The readiness probe uses the actual configured bind address, not the CIDR.
+	g.mu.Lock()
+	probeListen := g.listen
+	g.mu.Unlock()
+	if probeListen != "" {
+		listen = probeListen
+	}
+	next, e := g.makePlan(listen)
+	if e == nil {
+		g.mu.Lock()
+		probe := g.probe
+		g.mu.Unlock()
+		e = probe(ctx, listen, next)
+	}
+	if e != nil && len(p.Families) > 0 {
+		if d, ok := g.kernel.(interface {
+			Deactivate(context.Context, GatePlan) error
+		}); ok {
+			cleanup, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			deactivate := d.Deactivate(cleanup, p)
+			cancel()
+			if deactivate != nil {
+				e = fmt.Errorf("readiness failed: %v; deactivation failed: %w", e, deactivate)
+			}
+		}
+	}
+	var until time.Time
+	if e == nil {
+		until, e = g.kernel.Ensure(ctx, next)
+	}
+	if e != nil {
+		g.failed(e)
+		g.mu.Lock()
+		stop := g.failures >= 3
+		g.mu.Unlock()
+		if stop {
+			cleanup, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			_ = g.kernel.Remove(cleanup, p, false)
+			cancel()
+		}
+		return e
+	}
+	g.mu.Lock()
+	g.plan = next
+	g.active = true
+	g.state = "ACTIVE"
+	g.lastError = ""
+	g.failures = 0
+	g.leaseUntil = until
+	g.verifiedAt = g.now()
+	g.mu.Unlock()
+	return nil
+}
+func (g *GateManager) Suspend(ctx context.Context) error {
+	if e := g.acquire(ctx); e != nil {
+		return e
+	}
+	defer g.op.Unlock()
+	g.mu.Lock()
+	g.paused = true
+	if g.cancel != nil {
+		g.cancel()
+		g.cancel = nil
+	}
+	p := g.plan
+	g.active = false
+	g.mu.Unlock()
+	if len(p.Families) == 0 {
+		if k, ok := g.kernel.(*LinuxGate); ok {
+			old, e := k.receipt()
+			if os.IsNotExist(e) {
+				return nil
+			}
+			if e != nil {
+				return e
+			}
+			p = old
+		} else {
+			return nil
+		}
+	}
+	e := g.kernel.Remove(ctx, p, false)
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if e != nil {
+		g.state = "RECOVERY_REQUIRED"
+		g.lastError = e.Error()
+		return e
+	}
+	g.state = "STOCK"
+	g.lastError = ""
+	g.leaseUntil = time.Time{}
+	return nil
+}
+func (g *GateManager) Disable(ctx context.Context) error {
+	g.mu.Lock()
+	g.desired = false
+	p := g.plan
+	g.mu.Unlock()
+	err := g.Suspend(ctx)
+	var c *GateConflict
+	if errors.As(err, &c) {
+		if k, ok := g.kernel.(*LinuxGate); ok {
+			err = k.Remove(ctx, p, true)
+			if err == nil {
+				g.mu.Lock()
+				g.lastError = ""
+				g.state = "STOCK"
+				g.mu.Unlock()
+			}
+		}
+	}
+	return err
+}
+func (g *GateManager) Configure(listen string) error {
+	p, err := g.makePlan(listen)
+	if err != nil {
+		return err
+	}
+	g.mu.Lock()
+	g.plan = p
+	g.listen = listen
+	g.mu.Unlock()
+	return nil
+}
+func (g *GateManager) Restore(ctx context.Context, listen string) error {
+	g.mu.Lock()
+	g.desired = true
+	g.paused = false
+	g.listen = listen
+	g.mu.Unlock()
+	err := g.Enable(ctx, listen)
+	if err != nil {
+		g.startWorker()
+	}
+	return err
+}
+func (g *GateManager) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	return g.Suspend(ctx)
 }
 
-// GateCandidates obtains the actual br0 prefixes. No user-supplied interface,
-// prefix, or firewall expression can reach the command runner.
+func probeGateDNS(ctx context.Context, listen string, p GatePlan) error {
+	return probeGateDNSWithTrace(ctx, listen, p, nil)
+}
+func probeGateDNSWithTrace(ctx context.Context, listen string, p GatePlan, observed func(string) bool) error {
+	var nonce [12]byte
+	if _, e := rand.Read(nonce[:]); e != nil {
+		return e
+	}
+	for _, f := range p.Families {
+		destination := listen
+		if f.Family == "inet6" {
+			destination = net.JoinHostPort("::1", p.Port)
+		}
+		for _, network := range []string{"udp", "tcp"} {
+			q := new(dns.Msg)
+			q.SetQuestion("rf-ready-"+hex.EncodeToString(nonce[:])+"-"+network+".invalid.", dns.TypeTXT)
+			reply, _, e := (&dns.Client{Net: network, Timeout: 1500 * time.Millisecond}).ExchangeContext(ctx, q, destination)
+			if e != nil {
+				return fmt.Errorf("%s %s readiness: %w", f.Family, network, e)
+			}
+			if reply == nil || !reply.Response || reply.Id != q.Id || len(reply.Question) != 1 || reply.Question[0] != q.Question[0] || reply.Truncated || (reply.Rcode != dns.RcodeSuccess && reply.Rcode != dns.RcodeNameError) {
+				return fmt.Errorf("%s %s DNS readiness response invalid", f.Family, network)
+			}
+			if observed != nil && !observed(q.Question[0].Name) {
+				return errors.New("DNS answer has no attribution to this RouterForge engine")
+			}
+		}
+	}
+	return nil
+}
+
 func GateCandidates() (string, []string, error) {
 	ifc, err := net.InterfaceByName(gateInterface)
 	if err != nil || ifc.Flags&net.FlagUp == 0 {
 		return "", nil, errors.New("br0 LAN interface unavailable")
+	}
+	if fi, e := os.Stat("/sys/class/net/" + gateInterface + "/bridge"); e != nil || !fi.IsDir() {
+		return "", nil, errors.New("managed br0 is not a kernel LAN bridge")
 	}
 	addrs, err := ifc.Addrs()
 	if err != nil {
@@ -105,12 +470,44 @@ func GateCandidates() (string, []string, error) {
 			v6 = append(v6, ipnet.String())
 		}
 	}
-	if v4 == "" || len(v6) == 0 {
-		return "", nil, errors.New("dual-stack br0 LAN prefixes required")
+	if v4 == "" {
+		return "", nil, errors.New("br0 IPv4 LAN prefix required")
 	}
 	// Reject intentionally ambiguous interfaces until hardware-tested.
 	if len(v6) > 4 {
 		return "", nil, errors.New("too many br0 IPv6 prefixes")
+	}
+	interfaces, e := net.Interfaces()
+	if e != nil {
+		return "", nil, e
+	}
+	managed := append([]string{v4}, v6...)
+	for _, other := range interfaces {
+		if other.Name == gateInterface || other.Flags&net.FlagUp == 0 {
+			continue
+		}
+		addresses, e := other.Addrs()
+		if e != nil {
+			return "", nil, e
+		}
+		for _, address := range addresses {
+			otherIP, otherNet, e := net.ParseCIDR(address.String())
+			if e != nil {
+				continue
+			}
+			for _, prefix := range managed {
+				ownIP, ownNet, _ := net.ParseCIDR(prefix)
+				if ownIP.IsLinkLocalUnicast() && otherIP.IsLinkLocalUnicast() {
+					if ownIP.Equal(otherIP) {
+						return "", nil, errors.New("ambiguous scoped router IPv6 address")
+					}
+					continue
+				}
+				if ownNet.Contains(otherIP) || otherNet.Contains(ownIP) {
+					return "", nil, fmt.Errorf("managed LAN prefix overlaps %s; conntrack scope is ambiguous", other.Name)
+				}
+			}
+		}
 	}
 	return v4, v6, nil
 }
@@ -125,172 +522,7 @@ func gatePort(listen string) (string, error) {
 	}
 	return port, nil
 }
-func (g *GateManager) Status() map[string]any {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	state := "STOCK"
-	if g.active {
-		state = "ACTIVE"
-	}
-	if g.lastError != "" {
-		state = "RECOVERY_REQUIRED"
-	}
-	return map[string]any{"state": state, "active": g.active, "port": g.port, "interface": gateInterface, "last_error": g.lastError, "lease_seconds": 15, "persisted": false}
-}
 
-// Preflight deliberately leaves kernel objects unchanged. Actual ipset timeout
-// support is verified by the full enable transaction (which rolls back on error).
-func (g *GateManager) Preflight(ctx context.Context, listen string) error {
-	if _, err := gatePort(listen); err != nil {
-		return err
-	}
-	if _, _, err := g.candidates(); err != nil {
-		return err
-	}
-	for _, binary := range []string{"ipset", "iptables", "ip6tables"} {
-		if _, err := g.locate(binary); err != nil {
-			return fmt.Errorf("%s missing: %w", binary, err)
-		}
-	}
-	// Existing named kernel objects might be from a crashed process or another
-	// application. Never claim them without a separate ownership audit.
-	for _, p := range []struct {
-		cmd  string
-		args []string
-	}{
-		{"iptables", []string{"-t", "nat", "-S", gateChain}},
-		{"ip6tables", []string{"-t", "nat", "-S", gateChain}},
-		{"ipset", []string{"list", gateSet4}},
-		{"ipset", []string{"list", gateSet6}},
-	} {
-		if g.command(ctx, p.cmd, p.args...) == nil {
-			return errors.New("existing DNS Gate kernel object: manual ownership audit required")
-		}
-	}
-	return nil
-}
-
-// Explicit Enable runs under a lock. Lease entries are populated LAST, after
-// both NAT families are present, preventing partial traffic capture.
-func (g *GateManager) Enable(ctx context.Context, listen string) (err error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if g.active {
-		return errors.New("DNS Gate is already active")
-	}
-	if g.lastError != "" {
-		return errors.New("DNS Gate requires ownership recovery")
-	}
-	if err = g.Preflight(ctx, listen); err != nil {
-		return err
-	}
-	port, _ := gatePort(listen)
-	v4, v6, _ := g.candidates()
-	// Verify that the already-running DNS listener accepts IPv6 connections
-	// before creating any firewall objects. UDP is separately verified by E2E.
-	probe, probeErr := net.DialTimeout("tcp6", "[::1]:"+port, 2*time.Second)
-	if probeErr != nil {
-		return fmt.Errorf("IPv6 DNS listener not available: %w", probeErr)
-	}
-	_ = probe.Close()
-	commands := [][]string{
-		{"ipset", "create", gateSet4, "hash:net", "family", "inet", "timeout", gateLeaseSeconds},
-		{"ipset", "create", gateSet6, "hash:net", "family", "inet6", "timeout", gateLeaseSeconds},
-		{"iptables", "-t", "nat", "-N", gateChain},
-		{"ip6tables", "-t", "nat", "-N", gateChain},
-		{"iptables", "-t", "nat", "-A", gateChain, "-p", "udp", "--dport", "53", "-m", "set", "--match-set", gateSet4, "src", "-j", "REDIRECT", "--to-ports", port},
-		{"iptables", "-t", "nat", "-A", gateChain, "-p", "tcp", "--dport", "53", "-m", "set", "--match-set", gateSet4, "src", "-j", "REDIRECT", "--to-ports", port},
-		{"ip6tables", "-t", "nat", "-A", gateChain, "-p", "udp", "--dport", "53", "-m", "set", "--match-set", gateSet6, "src", "-j", "REDIRECT", "--to-ports", port},
-		{"ip6tables", "-t", "nat", "-A", gateChain, "-p", "tcp", "--dport", "53", "-m", "set", "--match-set", gateSet6, "src", "-j", "REDIRECT", "--to-ports", port},
-		{"iptables", "-t", "nat", "-I", "PREROUTING", "1", "-i", gateInterface, "-j", gateChain},
-		{"ip6tables", "-t", "nat", "-I", "PREROUTING", "1", "-i", gateInterface, "-j", gateChain},
-	}
-	for step, argv := range commands {
-		if err = g.command(ctx, argv[0], argv[1:]...); err != nil {
-			// No lease installed yet. On an incomplete transaction, leave inert
-			// objects for explicit inspection rather than flushing an object
-			// another program could have created after our preflight.
-			if step > 0 {
-				g.lastError = "partial Gate setup (inert, no lease): " + err.Error()
-			}
-			return err
-		}
-	}
-	g.port = port
-	if err = g.refreshLease(ctx, v4, v6, false); err != nil {
-		// Lease may have been partially written. Flush it first; then remove
-		// only our exact named objects. An error leaves the lease to expire.
-		cleanup := g.removeLocked(context.Background(), false)
-		if cleanup != nil {
-			g.lastError = "activation lease failure; lease expires automatically; cleanup: " + cleanup.Error()
-		}
-		return err
-	}
-	g.active = true
-	g.v4prefix = v4
-	g.v6prefix = v6
-	g.lastError = ""
-	leaseCtx, cancel := context.WithCancel(context.Background())
-	g.cancel = cancel
-	go g.renew(leaseCtx)
-	return nil
-}
-func (g *GateManager) refreshLease(ctx context.Context, v4 string, v6 []string, exist bool) error {
-	add := func(set, prefix string) error {
-		args := []string{"add", set, prefix, "timeout", gateLeaseSeconds}
-		if exist {
-			args = append([]string{"-exist"}, args...)
-		}
-		return g.command(ctx, "ipset", args...)
-	}
-	if err := add(gateSet4, v4); err != nil {
-		return err
-	}
-	for _, prefix := range v6 {
-		if err := add(gateSet6, prefix); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-func (g *GateManager) renew(ctx context.Context) {
-	ticker := time.NewTicker(4 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			g.mu.Lock()
-			if !g.active {
-				g.mu.Unlock()
-				return
-			}
-			// Firmware may rebuild NAT chains. If either jump disappears,
-			// stop renewing instead of reporting an active global route.
-			var e error
-			for _, bin := range []string{"iptables", "ip6tables"} {
-				if e = g.command(ctx, bin, "-t", "nat", "-C", "PREROUTING", "-i", gateInterface, "-j", gateChain); e != nil {
-					break
-				}
-			}
-			if e == nil {
-				e = g.refreshLease(ctx, g.v4prefix, g.v6prefix, true)
-			}
-			if e != nil {
-				g.lastError = "heartbeat failed; lease will expire: " + e.Error()
-				g.active = false
-				g.mu.Unlock()
-				return
-			}
-			g.mu.Unlock()
-		}
-	}
-}
-
-// gateMissingObject reports only known 'object absent' diagnostics. Generic
-// command failures (including missing binaries and access denied) must never
-// be mistaken for a clean firewall.
 func gateMissingObject(err error, output string) bool {
 	if err == nil {
 		return false
@@ -301,125 +533,36 @@ func gateMissingObject(err error, output string) bool {
 		strings.Contains(msg, "doesn't exist")
 }
 
-// gateObjectsAbsent is a read-only inspection. We declare STOCK only when
-// both owned sets, both owned chains, and all PREROUTING references are absent.
-// Any ambiguous command error or orphaned jump is a hard recovery error.
-func (g *GateManager) gateObjectsAbsent(ctx context.Context) (bool, error) {
-	if g.read == nil {
-		return false, errors.New("DNS Gate inspection unavailable")
-	}
-	for _, spec := range []struct {
-		bin  string
-		args []string
-	}{
-		{"ipset", []string{"list", gateSet4}},
-		{"ipset", []string{"list", gateSet6}},
-		{"iptables", []string{"-t", "nat", "-S", gateChain}},
-		{"ip6tables", []string{"-t", "nat", "-S", gateChain}},
-	} {
-		output, err := g.read(ctx, spec.bin, spec.args...)
-		if err == nil {
-			return false, nil // An owned-name object remains; normal cleanup is required.
-		}
-		if !gateMissingObject(err, output) {
-			return false, fmt.Errorf("unable to verify %s kernel object: %w", spec.bin, err)
-		}
-	}
-	for _, bin := range []string{"iptables", "ip6tables"} {
-		output, err := g.read(ctx, bin, "-t", "nat", "-S", "PREROUTING")
-		if err != nil {
-			return false, fmt.Errorf("unable to inspect %s PREROUTING: %w", bin, err)
-		}
-		for _, line := range strings.Split(output, "\n") {
-			fields := strings.Fields(line)
-			for i := 0; i+1 < len(fields); i++ {
-				if (fields[i] == "-j" || fields[i] == "--jump") && fields[i+1] == gateChain {
-					return false, fmt.Errorf("orphaned %s PREROUTING jump to %s requires manual inspection", bin, gateChain)
-				}
-			}
-		}
-	}
-	return true, nil
+func (g *GateManager) SetProbe(probe func(context.Context, string, GatePlan) error) {
+	g.mu.Lock()
+	g.probe = probe
+	g.mu.Unlock()
 }
 
-func (g *GateManager) removeLocked(ctx context.Context, partial bool) error {
-	// Firmware may have already removed every object. Missing objects are a
-	// successful, idempotent STOCK state, never a cascade of removal errors.
-	absent, inspectionErr := g.gateObjectsAbsent(ctx)
-	if inspectionErr != nil {
-		return inspectionErr
-	}
-	if absent {
-		return nil
-	}
-	if g.port == "" {
-		return errors.New("Gate objects remain but owned listener port is unknown; manual inspection required")
-	}
-	// Deactivate matching first, even if ownership verification fails later.
-	// Avoid touching non-owned chains/sets if the exact object is absent.
-	var problems []string
-	for _, set := range []string{gateSet4, gateSet6} {
-		if e := g.command(ctx, "ipset", "flush", set); e != nil && !partial {
-			problems = append(problems, e.Error())
-		}
-	}
-	for _, bin := range []string{"iptables", "ip6tables"} {
-		// -C prevents deleting a different rule; -D only our exact jump.
-		args := []string{"-t", "nat", "-C", "PREROUTING", "-i", gateInterface, "-j", gateChain}
-		if e := g.command(ctx, bin, args...); e == nil {
-			args[2] = "-D"
-			if e = g.command(ctx, bin, args...); e != nil {
-				problems = append(problems, e.Error())
-			}
-		}
-		set := gateSet4
-		if bin == "ip6tables" {
-			set = gateSet6
-		}
-		for _, proto := range []string{"udp", "tcp"} {
-			args := []string{"-t", "nat", "-D", gateChain, "-p", proto, "--dport", "53", "-m", "set", "--match-set", set, "src", "-j", "REDIRECT", "--to-ports", g.port}
-			if e := g.command(ctx, bin, args...); e != nil && !partial {
-				problems = append(problems, e.Error())
-			}
-		}
-		// -X succeeds only for an empty chain. Never flush an unexpected
-		// third-party rule, even if placed inside our named chain.
-		if e := g.command(ctx, bin, "-t", "nat", "-X", gateChain); e != nil && !partial {
-			problems = append(problems, e.Error())
-		}
-	}
-	for _, set := range []string{gateSet4, gateSet6} {
-		if e := g.command(ctx, "ipset", "destroy", set); e != nil && !partial {
-			problems = append(problems, e.Error())
-		}
-	}
-	if len(problems) != 0 {
-		return errors.New(strings.Join(problems, "; "))
-	}
-	return nil
-}
-func (g *GateManager) Disable(ctx context.Context) error {
+func (g *GateManager) Quiesce(ctx context.Context) error {
 	g.mu.Lock()
-	defer g.mu.Unlock()
-	if g.cancel != nil {
-		g.cancel()
-		g.cancel = nil
-	}
-	if !g.active && g.lastError == "" {
-		return nil
-	}
-	err := g.removeLocked(ctx, false)
+	p := g.plan
 	g.active = false
-	g.port = ""
-	if err != nil {
-		g.lastError = err.Error()
-		return err
+	g.paused = true
+	g.mu.Unlock()
+	if len(p.Families) == 0 {
+		if k, ok := g.kernel.(*LinuxGate); ok {
+			var e error
+			p, e = k.receipt()
+			if os.IsNotExist(e) {
+				return nil
+			}
+			if e != nil {
+				return e
+			}
+		} else {
+			return nil
+		}
 	}
-	g.lastError = ""
-	return nil
-}
-func (g *GateManager) Close() error {
-	// With a crashed daemon the lease expires; on graceful shutdown we flush
-	// and remove our own firewall objects before the DNS listener is closed.
-	return g.Disable(context.Background())
+	if d, ok := g.kernel.(interface {
+		Deactivate(context.Context, GatePlan) error
+	}); ok {
+		return d.Deactivate(ctx, p)
+	}
+	return g.kernel.Remove(ctx, p, false)
 }

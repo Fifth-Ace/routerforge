@@ -29,7 +29,7 @@ import (
 var version = "dev"
 
 func apiClient(socket string) *http.Client {
-	return &http.Client{Timeout: 12 * time.Second, Transport: &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+	return &http.Client{Timeout: 35 * time.Second, Transport: &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect forbidden") }}
 }
@@ -69,12 +69,28 @@ func run() error {
 	verify := flag.String("verify-dns", "", "verify direct or system DNS destination IP:port using per-query attribution")
 	status := flag.Bool("service-status", false, "read service status through Unix socket")
 	upgrade := flag.Bool("upgrade-precheck", false, "read-only check that no legacy/owned client DNS is connected before package upgrade")
+	supervise := flag.Bool("supervise", false, "supervise the management process and preserve ON/OFF across crashes")
+	gateNotify := flag.Bool("gate-notify", false, "notify the running controller of a netfilter reload")
+	prepareUpgrade := flag.Bool("prepare-upgrade", false, "preserve verified legacy intent before old prerm executes")
+	offlineStop := flag.Bool("offline-stop", false, "persist OFF only after acquiring exclusive controller process locks")
+	restoreMirror := flag.Bool("restore-upgrade-snapshot", false, "restore the legacy applied snapshot for explicit rollback")
 	flag.Parse()
 	if *ver {
 		fmt.Println(version)
 		return nil
 	}
-	if *control != "" || *verify != "" || *status || *upgrade {
+	if *supervise {
+		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+		return lite.RunSupervised(ctx, *config, *socket, *ui)
+	}
+	if *restoreMirror {
+		return lite.RestoreUpgradeMirror(*config)
+	}
+	if *offlineStop {
+		return lite.StopOffline(*config, *socket)
+	}
+	if *control != "" || *verify != "" || *status || *upgrade || *gateNotify || *prepareUpgrade {
 		client := apiClient(*socket)
 		var health struct {
 			Component string `json:"component"`
@@ -84,6 +100,47 @@ func run() error {
 		}
 		if health.Component != "dns-router" {
 			return errors.New("wrong API identity")
+		}
+		if *prepareUpgrade {
+			var evidence lite.UpgradeEvidence
+			if e := getJSON(client, "service/status", &evidence); e != nil {
+				return e
+			}
+			if _, e := (lite.IntentStore{ConfigPath: *config}).Load(); os.IsNotExist(e) && evidence.Active {
+				c, _, e := dr.NewConfigStore(*config + ".service-active.json").Load()
+				if e != nil {
+					return e
+				}
+				if c.Service == nil {
+					return errors.New("legacy service snapshot missing")
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+				e = lite.NewGateManager().StageLegacyCleanup(ctx, *config, c.Service.Listen)
+				cancel()
+				if e != nil {
+					return e
+				}
+			}
+			state, e := lite.PrepareUpgrade(*config, evidence)
+			if e != nil {
+				return e
+			}
+			return json.NewEncoder(os.Stdout).Encode(state)
+		}
+		if *gateNotify {
+			body := bytes.NewBufferString(`{"operation":"notify"}`)
+			req, _ := http.NewRequest("POST", "http://rf-dns/v1/service/gate/control", body)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-RouterForge-Action", "service-control")
+			r, e := client.Do(req)
+			if e != nil {
+				return e
+			}
+			defer r.Body.Close()
+			if r.StatusCode != 200 {
+				return fmt.Errorf("controller notification: HTTP %d", r.StatusCode)
+			}
+			return nil
 		}
 		if *upgrade {
 			var owner struct {
@@ -117,6 +174,24 @@ func run() error {
 			}
 			return json.NewEncoder(os.Stdout).Encode(s)
 		}
+
+		if *control == "stop" || *control == "maintenance" {
+			body, _ := json.Marshal(map[string]string{"operation": *control})
+			req, _ := http.NewRequest("POST", "http://rf-dns/v1/service/control", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-RouterForge-Action", "service-control")
+			r, e := client.Do(req)
+			if e != nil {
+				return e
+			}
+			defer r.Body.Close()
+			b, _ := io.ReadAll(io.LimitReader(r.Body, 4096))
+			if r.StatusCode != 200 {
+				return fmt.Errorf("service control: %s", b)
+			}
+			fmt.Println(string(b))
+			return nil
+		}
 		var stored struct {
 			Config   dr.Config `json:"config"`
 			Revision string    `json:"revision"`
@@ -127,7 +202,7 @@ func run() error {
 		if *verify != "" {
 			return verifyDNS(client, stored.Config, stored.Revision, *verify)
 		}
-		if *control != "start" && *control != "apply" && *control != "stop" {
+		if *control != "start" && *control != "apply" && *control != "stop" && *control != "maintenance" {
 			return errors.New("invalid service operation")
 		}
 		body, _ := json.Marshal(map[string]string{"operation": *control})
@@ -149,8 +224,11 @@ func run() error {
 	}
 	store := dr.NewConfigStore(*config)
 	c, _, e := store.Load()
-	if e != nil {
+	if e != nil && !*serve {
 		return e
+	}
+	if e != nil {
+		log.Printf("saved draft invalid; management and verified applied snapshot remain independent: %v", e)
 	}
 	if *evaluate != "" {
 		engine, e := dr.Compile(c)
@@ -169,6 +247,14 @@ func run() error {
 	}
 	if os.Getenv("GOMEMLIMIT") == "" {
 		debug.SetMemoryLimit(48 << 20)
+	}
+	release, e := lite.AcquireProcessLock(*config + ".daemon.lock")
+	if e != nil {
+		return e
+	}
+	defer release()
+	if e = lite.RecoverOwnedSocket(*socket); e != nil {
+		return e
 	}
 	manager := &lite.Manager{Store: store, Path: *config, Profile: &lite.ProfileManager{Path: *config + ".profile-state.json", Executor: dr.NewRealNDMCM()}, Gate: lite.NewGateManager(), Health: lite.NewUpstreamHealthTracker()}
 	if e = manager.Resume(); e != nil {
@@ -201,6 +287,10 @@ func run() error {
 	if e = os.Chmod(*socket, 0600); e != nil {
 		return e
 	}
+	if e = lite.RecordSocketOwner(*socket); e != nil {
+		return e
+	}
+	defer os.Remove(*socket + ".owner.json")
 	api := dr.NewAPI(store, *ui)
 	api.Service = manager
 	api.LedgerO = dr.NewLedgerStoreO(*config + ".managed-state.json")
@@ -208,6 +298,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go manager.RunHealthChecks(ctx)
+	go manager.RunController(ctx)
 	go dr.RunManagedListUpdater(ctx, store, nil, log.Printf) // opt-in URL refresh updates the draft; runtime Apply stays explicit
 	go func() {
 		<-ctx.Done()

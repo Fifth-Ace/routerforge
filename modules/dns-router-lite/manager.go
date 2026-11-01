@@ -21,17 +21,22 @@ import (
 )
 
 type Manager struct {
-	mu        sync.Mutex
-	Store     *dr.ConfigStore
-	Path      string
-	Factory   Factory
-	engine    *Engine
-	applied   dr.Config
-	revision  string
-	lastError string
-	Profile   *ProfileManager
-	Gate      *GateManager
-	Health    *UpstreamHealthTracker
+	mu               sync.Mutex
+	operations       sync.Mutex
+	intent           Intent
+	intentLoaded     bool
+	maintenance      bool
+	recoveryAttempts int
+	Store            *dr.ConfigStore
+	Path             string
+	Factory          Factory
+	engine           *Engine
+	applied          dr.Config
+	revision         string
+	lastError        string
+	Profile          *ProfileManager
+	Gate             *GateManager
+	Health           *UpstreamHealthTracker
 }
 
 func atomicFile(path string, data []byte) error {
@@ -61,7 +66,15 @@ func atomicFile(path string, data []byte) error {
 	if e != nil {
 		return e
 	}
-	return os.Rename(f.Name(), path)
+	if e = os.Rename(f.Name(), path); e != nil {
+		return e
+	}
+	dir, e := os.Open(filepath.Dir(path))
+	if e != nil {
+		return e
+	}
+	defer dir.Close()
+	return dir.Sync()
 }
 
 func (m *Manager) healthLocked() *UpstreamHealthTracker {
@@ -75,7 +88,7 @@ func (m *Manager) ActiveState() bool    { m.mu.Lock(); defer m.mu.Unlock(); retu
 func (m *Manager) statusLocked() map[string]any {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
-	s := map[string]any{"mode": "independent-dns", "active": m.engine != nil, "applied_revision": m.revision, "last_error": m.lastError, "interception": false, "native_zone_registrations": 0, "heap_bytes": mem.HeapAlloc, "trace_limit": 128, "backend": "AdGuard DNSProxy v0.86.0"}
+	s := map[string]any{"desired": m.intent, "maintenance": m.maintenance, "mode": "independent-dns", "active": m.engine != nil, "applied_revision": m.revision, "last_error": m.lastError, "interception": false, "native_zone_registrations": 0, "heap_bytes": mem.HeapAlloc, "trace_limit": 128, "backend": "AdGuard DNSProxy v0.86.0"}
 	if m.engine != nil {
 		s["listen"] = m.applied.Service.Listen
 		s["default_upstream"] = m.applied.Service.DefaultUpstream
@@ -94,147 +107,6 @@ func (m *Manager) statusLocked() map[string]any {
 		s["interception"] = m.Gate.Status()["active"]
 	}
 	return s
-}
-func (m *Manager) Resume() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if _, e := os.Lstat(m.snapshotPath()); os.IsNotExist(e) {
-		return nil
-	} else if e != nil {
-		return e
-	}
-	c, rev, e := dr.NewConfigStore(m.snapshotPath()).Load()
-	if e != nil {
-		return e
-	}
-	e = m.startLocked(c, rev, false)
-	if e != nil {
-		m.lastError = e.Error()
-	}
-	return e
-}
-func (m *Manager) startLocked(c dr.Config, rev string, persist bool) error {
-	if m.engine != nil {
-		return errors.New("DNS service is already running; use apply")
-	}
-	ledger, _, e := dr.NewLedgerStoreO(m.Path + ".managed-state.json").Load()
-	if e != nil {
-		return e
-	}
-	if ledger != nil && ledger.State != "disabled" {
-		return errors.New("disable legacy P10 zone ownership before starting independent DNS")
-	}
-	eng, e := NewEngine(c, m.Factory)
-	if e != nil {
-		return e
-	}
-	m.Health = NewUpstreamHealthTracker()
-	eng.health = m.healthLocked()
-	if e = eng.Start(context.Background()); e != nil {
-		eng.closeServers()
-		return e
-	}
-	if persist {
-		if e = atomicFile(m.snapshotPath(), dr.ExportContent(c)); e != nil {
-			_ = eng.Close(context.Background())
-			return e
-		}
-	}
-	m.engine = eng
-	m.applied = c
-	m.revision = rev
-	m.lastError = ""
-	return nil
-}
-func (m *Manager) Close() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.engine == nil {
-		return nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel()
-	e := m.engine.Close(ctx)
-	if e == nil {
-		m.engine = nil
-	}
-	return e
-}
-func (m *Manager) control(op, expected string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	c, rev, e := m.Store.Load()
-	if e != nil {
-		return e
-	}
-	if expected != rev {
-		return dr.ErrStale
-	}
-	switch op {
-	case "start":
-		return m.startLocked(c, rev, true)
-	case "stop":
-		if m.Gate != nil {
-			if e = m.Gate.Disable(context.Background()); e != nil {
-				return e
-			}
-		}
-		if m.Profile != nil {
-			if e = m.Profile.Disconnect(context.Background()); e != nil {
-				return e
-			}
-		}
-		if m.engine != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-			defer cancel()
-			if e = m.engine.Close(ctx); e != nil {
-				return e
-			}
-			m.engine = nil
-			m.revision = ""
-		}
-		if e = os.Remove(m.snapshotPath()); e != nil && !os.IsNotExist(e) {
-			return e
-		}
-		return nil
-	case "apply":
-		if m.Gate != nil && m.Gate.Status()["active"] == true {
-			if e = m.Gate.Disable(context.Background()); e != nil {
-				return e
-			}
-		}
-		if m.engine == nil {
-			return m.startLocked(c, rev, true)
-		}
-		if m.Profile != nil && m.Profile.Connected() && (c.Service == nil || c.Service.Listen != m.applied.Service.Listen) {
-			return errors.New("disconnect Keenetic before changing the service address")
-		}
-		staged, e := NewEngine(c, m.Factory)
-		if e != nil {
-			return e
-		}
-		staged.closeServers()
-		old, oldRev := m.applied, m.revision
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		e = m.engine.Close(ctx)
-		cancel()
-		if e != nil {
-			return e
-		}
-		m.engine = nil
-		if e = m.startLocked(c, rev, true); e != nil {
-			original := e
-			if restore := m.startLocked(old, oldRev, false); restore != nil {
-				m.lastError = fmt.Sprintf("apply failed: %v; restore failed: %v", original, restore)
-				return errors.New(m.lastError)
-			}
-			m.lastError = "new configuration rejected; previous DNS restored: " + original.Error()
-			return errors.New(m.lastError)
-		}
-		return nil
-	default:
-		return errors.New("unknown service operation")
-	}
 }
 func jsonResponse(w http.ResponseWriter, code int, value any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -277,26 +149,7 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		err = mutation(r, &body)
 		if err == nil {
-			m.mu.Lock()
-			defer m.mu.Unlock()
-			if m.Gate == nil || m.engine == nil || m.applied.Service == nil {
-				err = errors.New("start DNS Lite before controlling global DNS gate")
-			} else if strings.Trim(r.Header.Get("If-Match"), "\"") != m.revision {
-				err = dr.ErrStale
-			} else if m.Profile != nil && m.Profile.Connected() {
-				err = errors.New("disconnect individual Keenetic DNS client profile first")
-			} else {
-				switch body.Operation {
-				case "preflight":
-					err = m.Gate.Preflight(r.Context(), m.applied.Service.Listen)
-				case "enable":
-					err = m.Gate.Enable(r.Context(), m.applied.Service.Listen)
-				case "disable":
-					err = m.Gate.Disable(r.Context())
-				default:
-					err = errors.New("invalid Gate operation")
-				}
-			}
+			err = m.gateControl(r.Context(), body.Operation, strings.Trim(r.Header.Get("If-Match"), "\""))
 		}
 	case "/v1/service/upstreams/health":
 		if r.Method != "GET" {
@@ -514,3 +367,5 @@ func (m *Manager) migrateNative(expected string) error {
 	_, e = m.Store.Save(c, rev)
 	return e
 }
+
+func (m *Manager) InterceptionState() bool { return m.Gate != nil && m.Gate.Status()["active"] == true }

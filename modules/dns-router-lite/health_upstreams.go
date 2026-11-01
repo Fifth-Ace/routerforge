@@ -65,7 +65,7 @@ func (h *UpstreamHealthTracker) entryLocked(id string) *upstreamHealthEntry {
 }
 
 func (h *UpstreamHealthTracker) Observe(t Trace) {
-	if h == nil || t.Cache || t.Used == "" || t.Used == "cache" || t.Used == "client-acl" || t.Used == "system-local" {
+	if h == nil || t.Internal || t.Cache || t.Used == "" || t.Used == "cache" || t.Used == "client-acl" || t.Used == "system-local" {
 		return
 	}
 	at := t.Time

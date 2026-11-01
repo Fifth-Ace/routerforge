@@ -212,7 +212,7 @@
     const c=s.connection||{state:'disconnected'};
     const endpoint=s.listen||state.config.service?.listen||$('serviceListen').value;
     const upstream=Number(s.requests||0);
-    if(s.system_gate?.active)return {tone:'good',text:'Основной DNS для LAN активен. RouterForge обработал '+upstream+' обычных DNS-запросов. Отдельный профиль устройства не требуется; подробности смотри в журнале.'};
+    if(s.system_gate?.active)return {tone:'good',text:'Основной DNS для LAN активен. Сервис обработал '+upstream+' запросов. Это не аппаратное доказательство перехвата: проверь запрос устройства к внешнему DNS и соответствующую запись журнала.'};
     if(!s.active)return {tone:'bad',text:'DNS Router остановлен. На штатном DNS Keenetic (порт 53) интернет может продолжать работать, но журнал RouterForge пуст.'};
     if(c.state==='recovery_required')return {tone:'bad',text:'DNS-профиль устройства требует восстановления: '+(c.error||'состояние не совпадает с Keenetic')+'. Не устанавливай и не обновляй пакет до исправления профиля.'};
     if(c.state==='pending')return {tone:'bad',text:'Подключение устройства не завершено (pending). DNS Router слушает '+endpoint+', но профиль клиента Keenetic ещё не подтверждён. Сначала верни прежний DNS устройства или заверши подключение; не пытайся обновлять пакет с pending.'};
@@ -225,26 +225,26 @@
   function showRoutingHint(s){const hint=routingHint(s);for(const id of ['routeAdvice','logGuide']){const node=$(id);node.textContent=hint.text;node.dataset.tone=hint.tone;}}
   function renderGate(s){
     const gate=s.system_gate||{state:'STOCK',active:false};
-    $('healthGate').textContent=gate.active?'RouterForge':gate.state==='RECOVERY_REQUIRED'?'Проверка':'Keenetic';
-    const active=Boolean(gate.active),recovery=gate.state==='RECOVERY_REQUIRED';
-    const panel=$('systemGatePanel');
-    panel.dataset.state=recovery?'recovery':active?'active':'stock';
-    $('gateBadge').textContent=recovery?'Требуется проверка':active?'Активен':'Выключен';
+    const active=Boolean(gate.active),recovery=['DEGRADED','RECOVERY_REQUIRED','CONFLICT'].includes(gate.state),wanted=Boolean(gate.desired||s.desired?.interception_enabled);
+    $('healthGate').textContent=active?'RouterForge':recovery?'Проверка':'Keenetic';
+    $('systemGatePanel').dataset.state=recovery?'recovery':active?'active':'stock';
+    $('gateBadge').textContent=gate.state==='CONFLICT'?'Конфликт':gate.state==='DEGRADED'?'Восстановление':recovery?'Требуется проверка':active?'Активен':'Выключен';
     $('gateBadge').dataset.tone=active?'good':recovery?'bad':'';
     $('gateEnable').disabled=state.busy||!s.active||active||recovery||state.dirty||editorPending();
-    $('gateDisable').disabled=state.busy||(!active&&!recovery);
+    $('gateDisable').disabled=state.busy||(!active&&!recovery&&!wanted);
     $('gatePreflight').disabled=state.busy||!s.active;
-    $('stopButton').disabled=state.busy||!s.active||active||recovery;
+    $('gatePreflight').textContent=wanted&&recovery?'Повторить восстановление':'Проверить готовность';
+    $('stopButton').disabled=state.busy||!s.active;
     const hits=Number(s.requests||0),denied=Number(s.denied_requests||0);
-    $('gateAdvice').textContent=recovery?('Требуется проверка: '+(gate.last_error||'состояние системного DNS не подтверждено')+'. Не включай Gate повторно до проверки.'):
-      active?('Активен: обычные DNS-запросы LAN (UDP/TCP 53) идут через RouterForge. Запросов: '+hits+', ACL-отказов: '+denied+'. Отключение вернёт штатный DNS Keenetic.'):
-      'Выключен: сейчас DNS обрабатывает Keenetic. Для замены во всей LAN выбери DNS по умолчанию, запусти сервис и включи режим LAN. Тестовое устройство не требуется.';
+    $('gateAdvice').textContent=recovery?('Перехват не подтверждён. Желаемое состояние: '+(wanted?'ВКЛ':'ВЫКЛ')+'. '+(gate.last_error||'Проверяем listener, порядок правил и lease')+'. Действие восстановления ограничено; сторонние правила не перезаписываются.'):
+      active?('Gate проверен: listener, обе настроенные IP-семьи, порядок правил и действующие lease. Запросов сервиса: '+hits+', ACL-отказов: '+denied+'. Реальный путь устройства подтверждается отдельной проверкой, не этим счётчиком.'):
+      'Перехват выключен. Последний выбор ON/OFF сохраняется отдельно от черновика конфигурации; при обновлении и перезагрузке он восстанавливается после проверки готовности. Тестовое устройство не требуется.';
   }
   async function refreshStatus(){const s=await api('service/status');if(s.mode!=='independent-dns')throw Error('Загружен не DNS Lite. Установи актуальный DEV-пакет.');state.status=s;renderGate(s);
     const connection=s.connection||{state:'disconnected'},active=Boolean(s.active),same=active&&s.applied_revision===state.revision;
     $('serviceBadge').textContent=active?'DNS работает':'DNS остановлен';$('serviceBadge').dataset.tone=active?'good':'bad';
     $('runStatus').textContent=(active?'DNS работает: '+s.listen+' · Основной '+displayName(state.config.upstreams.find(u=>u.id===s.default_upstream)||{transport:'udp',address:s.default_upstream||'—'}):'Сервис остановлен.')+(active&&!same?' · Есть неприменённая версия настроек.':'')+(s.last_error?' · Ошибка: '+s.last_error:'');
-    $('connectionSummary').textContent=s.system_gate?.active?'Вся LAN использует RouterForge — отдельное устройство не нужно':connection.state==='connected'?'Точечное устройство: '+connection.mac:connection.state==='recovery_required'?'Точечное подключение требует восстановления':'Для LAN-режима отдельное устройство не требуется';
+    $('connectionSummary').textContent=s.system_gate?.active?'Перехват LAN включён — проверь запросы реального устройства':connection.state==='connected'?'Точечное устройство: '+connection.mac:connection.state==='recovery_required'?'Точечное подключение требует восстановления':'Для LAN-режима отдельное устройство не требуется';
     $('clientState').textContent=connection.state==='connected'?connection.mac:connection.state==='disconnected'?'Не подключён':connection.state;
     $('connectButton').disabled=!active||!same||connection.state!=='disconnected';$('disconnectButton').disabled=connection.state==='disconnected';$('stopButton').disabled=!active;
     showRoutingHint(s);
@@ -283,8 +283,9 @@
   on('checkAllDNS',async()=>{await checkHealth();});
   on('saveButton',save);on('applyButton',apply);on('migrateNative',migrate);
   on('gatePreflight',async()=>{
-    await api('service/gate/control',opts('service-control',{operation:'preflight'},true));
-    show('Готовность подтверждена. Следующий шаг — «Включить для LAN». Настройки не изменены.','good');
+    const retry=Boolean(state.status?.system_gate?.desired)&&['DEGRADED','RECOVERY_REQUIRED','CONFLICT'].includes(state.status?.system_gate?.state);
+    await api('service/gate/control',opts('service-control',{operation:retry?'retry':'preflight'},true));
+    await refreshStatus();show(retry?'Контроллер повторно проверен. Реальный LAN-путь проверь отдельно.':'Готовность подтверждена. Следующий шаг — «Включить для LAN». Настройки не изменены.','good');
   });
   on('gateEnable',async()=>{
     if(state.dirty || editorPending())throw Error('Сначала сохрани и примени все изменения DNS.');
@@ -295,7 +296,7 @@
   on('gateDisable',async()=>{
     if(!confirm('Отключить системный DNS Gate и вернуть обычную обработку Keenetic?'))return;
     await api('service/gate/control',opts('service-control',{operation:'disable'},true));
-    await refreshStatus();show('Системный DNS Gate отключён. Клиенты снова используют Keenetic.','good');
+    await refreshStatus();show('Перехват RouterForge отключён. Действуют обычные DNS-правила роутера.','good');
   });
 
   on('verifyButton',async()=>{const r=await serviceCommand('verify',{operation:'verify'});if(r.state!=='PASS')throw Error('Проверка DNS: '+r.state);show('DNS-сервис ответил на '+r.results.length+' прямых UDP/TCP проверок. Для LAN-перехвата отдельно используй «Проверить готовность».','good');});

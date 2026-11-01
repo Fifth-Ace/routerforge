@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -193,5 +194,26 @@ func TestShadowStatusAPI(t *testing.T) {
 	a.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/v1/shadow/status", nil))
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"active":false`) {
 		t.Fatal(w.Code, w.Body)
+	}
+}
+
+type p19ServiceState struct{ active, intercepted bool }
+
+func (s p19ServiceState) ActiveState() bool                            { return s.active }
+func (s p19ServiceState) InterceptionState() bool                      { return s.intercepted }
+func (s p19ServiceState) ServeHTTP(http.ResponseWriter, *http.Request) {}
+func TestP19ModuleStatusReflectsObservedInterception(t *testing.T) {
+	for _, intercepted := range []bool{false, true} {
+		a := NewAPI(NewConfigStore(filepath.Join(t.TempDir(), "config.json")), "")
+		a.Service = p19ServiceState{active: true, intercepted: intercepted}
+		w := httptest.NewRecorder()
+		a.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/v1/status", nil))
+		var body map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if w.Code != 200 || body["dns_interception"] != intercepted {
+			t.Fatal(w.Code, body)
+		}
 	}
 }

@@ -582,6 +582,12 @@ jobs:
             ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh antiscan-manager 0.0.0-ci
             ROUTERFORGE_TARGET="$target" ./scripts/build-module-opkg.sh profiling 0.0.0-ci
 
+            # Validate the actual Lite service, not the legacy shadow executable.
+            ROUTERFORGE_CHANNEL=dev sh scripts/build-dns-router-experimental.sh 0.0.0-ci "$target"
+            python3 scripts/verify-beta-dns-router-package.py \
+              "dist/routerforge-dns-router_0.0.0-ci_${target}.ipk" \
+              "$target" 0.0.0-ci --qemu
+
             for package in \
               "dist/routerforge-core_0.0.0-ci_${target}.ipk" \
               "dist/routerforge-admin_0.0.0-ci_${target}.ipk" \
@@ -1207,6 +1213,9 @@ jobs:
             *) index="dist/routerforge-beta-candidate-index-${{ matrix.target }}.json" ;;
           esac
           test -s "$index"
+          python3 scripts/verify-beta-dns-router-package.py \
+            "dist/routerforge-dns-router_0.15.0-beta.2_${{ matrix.target }}.ipk" \
+            "${{ matrix.target }}" "0.15.0~beta.2"
       - name: Upload exact target packages and index
         uses: actions/upload-artifact@v4
         with:
@@ -1242,6 +1251,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY_CHECK'
           import json
+          import subprocess
           from pathlib import Path
           cfg=json.loads(Path('release/channels/beta.json').read_text())
           expected={c['package'] for c in cfg['components']}
@@ -1252,12 +1262,13 @@ jobs:
               obj=json.loads(path.read_text())
               assert obj['target']==target and obj['channel']=='beta', target
               items=obj['components']
-              expected_target=expected if target=='aarch64-3.10' else expected-{'routerforge-dns-router'}
-              assert {i['package'] for i in items}==expected_target, target
+              assert {i['package'] for i in items}==expected, target
               for item in items:
                   asset=Path('dist')/item['asset']
                   assert asset.is_file() and asset.stat().st_size>0, str(asset)
-          print('MULTIARCH_BETA_CANDIDATE=PASS')
+                  if item['package']=='routerforge-dns-router':
+                      subprocess.run(['python3', 'scripts/verify-beta-dns-router-package.py', str(asset), target, '0.15.0~beta.2'], check=True)
+          print('MULTIARCH_BETA_CANDIDATE=PASS / 33 IPK / 11 per target')
           PY_CHECK
       - name: Verify Monitoring migration package contract
         shell: bash

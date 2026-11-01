@@ -236,13 +236,9 @@ def main():
 
     validate_release_train(config, channel, components)
 
-    # DNS Router Beta hardware acceptance is ARM64-only. Preserve 10 legacy
-    # Beta packages for MIPS/MIPSEL; the full configured train has 11.
-    target_components = (
-        [c for c in components if c["id"] != "dns-router"]
-        if channel == "beta" and target != "aarch64-3.10"
-        else components
-    )
+    # Full 11-package Beta matrix on all three targets. Hardware validation
+    # remains a separate, explicit gate; no release claims it has passed.
+    target_components = components
 
     dist = Path(args.dist)
     dist.mkdir(parents=True, exist_ok=True)
@@ -272,8 +268,8 @@ def main():
         elif cid == "crowdsec-manager":
             run(["./scripts/build-crowdsec-manager-opkg.sh", version], env=env)
         elif cid == "dns-router":
-            if channel not in {"dev", "beta"} or target != "aarch64-3.10":
-                raise SystemExit("DNS Router is available only in DEV or ARM64 Beta")
+            if channel not in {"dev", "beta"}:
+                raise SystemExit("DNS Router service is not a Stable package")
             # Reuse the tested independent-DNS service packaging path.
             run(["./scripts/build-dns-router-experimental.sh", version, target],
                 env={**env, "ROUTERFORGE_CHANNEL": "dev"})

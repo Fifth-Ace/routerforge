@@ -1,5 +1,5 @@
 #!/bin/sh
-# Experimental stand-alone DNS Router IPK. NOT part of Stable/Beta/App Center.
+# Standalone DNS Router package builder: legacy experimental or independent DEV/Beta service. Stable unchanged.
 set -eu
 VERSION="${1:?version required}"
 TARGET="${2:-aarch64-3.10}"
@@ -18,7 +18,7 @@ DNS_DESCRIPTION='Experimental optional DNS Router with revision-pinned manual lo
 if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
   DNS_MODE=independent-dns
   DNS_DEPENDS='routerforge-core, ca-bundle'
-  DNS_DESCRIPTION='Optional DNS Router DEV service with domain lists, explicit default and fallback DNS, bounded cache and diagnostics. Client DNS connection is explicit; fresh installation never changes Keenetic DNS.'
+  DNS_DESCRIPTION='Optional DNS Router independent service with domain lists, explicit default and fallback DNS, bounded cache and diagnostics. Client DNS connection is explicit; fresh installation never changes Keenetic DNS.'
 fi
 rm -rf "$WORK"
 mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/share/routerforge/dns-router" \

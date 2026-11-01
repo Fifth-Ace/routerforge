@@ -91,8 +91,7 @@ for target, path in targets.items():
         "routerforge-crowdsec-manager",
         "routerforge-profiling",
     ]
-    if target == "aarch64-3.10":
-        expected_packages.insert(-1, "routerforge-dns-router")
+    expected_packages.insert(-1, "routerforge-dns-router")
     if not isinstance(components, list):
         raise SystemExit(f"{path.name}: components is not a list")
     actual_packages = [item.get("package") for item in components]
@@ -135,8 +134,8 @@ for target, path in targets.items():
 
         all_ipks.add(asset)
 
-if len(all_ipks) != 31:
-    raise SystemExit(f"expected 31 target-specific IPKs, got {len(all_ipks)}")
+if len(all_ipks) != 33:
+    raise SystemExit(f"expected 33 target-specific IPKs, got {len(all_ipks)}")
 
 sums_path = root / "routerforge-beta-SHA256SUMS"
 sum_assets = set()
@@ -160,7 +159,7 @@ if sum_assets != all_ipks:
     )
 
 print("Published beta indexes/assets: OK")
-print("Published target IPKs: 31 (11 ARM64 / 10 MIPS / 10 MIPSEL)")
+print("Published target IPKs: 33 (11 ARM64 / 11 MIPS / 11 MIPSEL)")
 PY
 
 for bootstrap in \

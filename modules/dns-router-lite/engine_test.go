@@ -330,3 +330,50 @@ func TestP19ReadinessUsesRealDualStackDNSAndOwnAttribution(t *testing.T) {
 		}
 	}
 }
+
+func TestP19LocalNamespacesForwardOnlyToStockDNS(t *testing.T) {
+	var localCount, publicCount atomic.Int32
+	local := dnsFixture(t, "LOCAL", &localCount)
+	public := dnsFixture(t, "PUBLIC", &publicCount)
+	c := fixtureConfig(t)
+	c.Service.CacheBytes = 0
+	e, err := NewEngine(c, func(dr.Upstream) (upstream.Upstream, error) {
+		return upstream.AddressToUpstream(public, &upstream.Options{Timeout: time.Second})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Replace only the endpoint for stock DNS; the production local-name routing
+	// and real UDP/TCP exchange remain intact. No host port 53 or ndmc is touched.
+	_ = e.local.Close()
+	e.local, err = upstream.AddressToUpstream(local, &upstream.Options{Timeout: time.Second})
+	if err != nil {
+		e.closeServers()
+		t.Fatal(err)
+	}
+	if err = e.Start(context.Background()); err != nil {
+		e.closeServers()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = e.Close(context.Background()) })
+	names := []string{"router.lan", "printer.local", "router.HOME.ARPA", "localhost", "1.10.168.192.in-addr.arpa", "1.0.ip6.arpa", "my.keenetic.net"}
+	for _, network := range []string{"udp", "tcp"} {
+		for _, name := range names {
+			answer := ask(t, c.Service.Listen, network, name)
+			if len(answer.Answer) != 1 || !strings.Contains(answer.Answer[0].String(), "LOCAL") {
+				t.Fatal("local question leaked", name, answer)
+			}
+			traces := e.Traces(strings.ToLower(name))
+			if len(traces) == 0 || traces[0].Assigned != "system-local" || traces[0].Used != "system-local" {
+				t.Fatal("local attribution lost", traces)
+			}
+		}
+	}
+	if publicCount.Load() != 0 || localCount.Load() != int32(2*len(names)) {
+		t.Fatal("local namespace sent to public upstream")
+	}
+	answer := ask(t, c.Service.Listen, "udp", "public.example")
+	if len(answer.Answer) != 1 || !strings.Contains(answer.Answer[0].String(), "PUBLIC") || publicCount.Load() != 1 {
+		t.Fatal("public default forwarded back into stock DNS", answer)
+	}
+}

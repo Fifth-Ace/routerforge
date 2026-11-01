@@ -145,19 +145,51 @@ test('P14: status distinguishes an active listener from a verified client path',
   }finally{f.dom.window.close();}
 });
 
-test('P15 Gate is OFF by default and requires explicit activation; UI changes do not touch Keenetic',async()=>{
+test('P15 Gate remains OFF by default, requires explicit activation and returns to STOCK',async()=>{
   const f=fixture(),d=f.w.document;
   try{
     await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
-    a.equal(d.getElementById('gateBadge').textContent,'STOCK');
+    a.equal(d.getElementById('gateBadge').textContent,'Выключен');
+    a.equal(d.getElementById('gateEnable').disabled,true,'Gate cannot enable before service start');
     a.equal(f.calls.filter(c=>c.path==='service/gate/control').length,0,'no implicit Gate requests');
     d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
     d.getElementById('applyButton').click();await until(()=>f.getActive());
+    a.equal(d.getElementById('gateEnable').disabled,false,'Gate becomes available after apply');
+    d.getElementById('gatePreflight').click();
+    await until(()=>f.calls.some(c=>c.path==='service/gate/control'&&JSON.parse(c.opts.body).operation==='preflight'));
+    await until(()=>!d.getElementById('gateEnable').disabled);
     d.getElementById('gateEnable').click();
-    await until(()=>d.getElementById('gateBadge').textContent==='ACTIVE');
+    await until(()=>d.getElementById('gateBadge').textContent==='Активен');
+    a.match(d.getElementById('routeAdvice').textContent,/Основной DNS для LAN активен/);
+    a.doesNotMatch(d.getElementById('routeAdvice').textContent,/клиентский профиль не подключён/);
     d.getElementById('gateDisable').click();
-    await until(()=>d.getElementById('gateBadge').textContent==='STOCK');
+    await until(()=>d.getElementById('gateBadge').textContent==='Выключен');
     const gateCalls=f.calls.filter(c=>c.path==='service/gate/control').map(c=>JSON.parse(c.opts.body).operation);
-    a.deepEqual(gateCalls,['enable','disable']);a.deepEqual(f.errors,[]);
+    a.deepEqual(gateCalls,['preflight','enable','disable']);a.deepEqual(f.errors,[]);
+  }finally{f.dom.window.close();}
+});
+
+test('P16 LAN-first layout uses the shared Gate panel and keeps legacy device setup optional',async()=>{
+  const f=fixture(),d=f.w.document;
+  try{
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    const gate=d.getElementById('systemGatePanel');
+    a.ok(gate.contains(d.getElementById('defaultDNS')),'default upstream belongs to the LAN-first panel');
+    for(const id of ['applyButton','gatePreflight','gateEnable','gateDisable','runStatus','routeAdvice'])a.ok(gate.contains(d.getElementById(id)),id+' belongs to the primary workflow');
+    a.equal(d.querySelector('.apply-panel'),null,'obsolete Step 3 panel removed');
+    a.doesNotMatch(html,/ШАГ 3|Запуск и подключение/);
+    a.equal(d.getElementById('clientConnection').open,false,'legacy test-device section is collapsed');
+    a.equal(d.getElementById('additionalSettings').open,false,'advanced settings are collapsed');
+    a.equal(d.getElementById('serviceTools').open,false,'service maintenance actions are secondary');
+    a.match(d.getElementById('gateAdvice').textContent,/Тестовое устройство не требуется/);
+    a.match(d.getElementById('quickHelp').textContent,/отдельное устройство подключать не нужно/);
+    a.ok(d.querySelector('.routing-workspace'),'two-column DNS/domain workspace retained');
+    a.ok(d.querySelector('.dns-card'),'DNS cards render in the left pane');
+    a.match(css,/--rf-ui-control-radius/);
+    a.match(css,/grid-template-columns:minmax\(300px,420px\) minmax\(0,1fr\)/);
+    a.match(css,/@media\(max-width:980px\)/);
+    a.doesNotMatch(css,/\.gate-panel\{border-color:var\(--accent\)\}/,'no decorative accent frame around the Gate');
+    a.deepEqual(f.calls.filter(c=>/service\/connect|service\/disconnect/.test(c.path)),[],'LAN workflow does not require a test-device profile');
+    a.deepEqual(f.errors,[]);
   }finally{f.dom.window.close();}
 });

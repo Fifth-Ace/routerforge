@@ -12,7 +12,7 @@
   const hostName = u => protocolNames[u.transport]+' · '+displayName(u);
   const editorPending=()=>state.editing!==null && $('editorDomains').value!==state.editorBase;
   const show = (message,tone='') => {const el=$('feedback');el.textContent=message;el.dataset.tone=tone;};
-  const busy = on => {state.busy=on;for(const id of ['saveButton','applyButton','addDnsToggle','inspectDNS','commitDNS','migrateNative','connectButton','disconnectButton','verifyButton','stopButton','gatePreflight','gateEnable','gateDisable']){const el=$(id);if(el)el.disabled=on;}};
+  const busy = on => {state.busy=on;for(const id of ['saveButton','applyButton','addDnsToggle','inspectDNS','commitDNS','migrateNative','connectButton','disconnectButton','verifyButton','stopButton','gatePreflight','gateEnable','gateDisable']){const el=$(id);if(el)el.disabled=on;}if(!on&&state.status)renderGate(state.status);};
   async function api(path,options={}) {
     const resp=await fetch('../'+path,{cache:'no-store',credentials:'same-origin',...options});
     const ct=resp.headers && resp.headers.get ? (resp.headers.get('content-type')||'') : 'application/json';
@@ -56,7 +56,8 @@
     }
     if(state.config.service){$('serviceListen').value=state.config.service.listen;$('cacheSize').value=state.config.service.cache_bytes/(1024*1024);$('allowedNetworks').value=state.config.service.allowed_networks.join(',');}
     $('listenerSummary').textContent=state.config.service?.listen||$('serviceListen').value;
-    $('applyButton').textContent=state.dirty?'✓ Сохранить и применить':'▶ Применить DNS';
+    $('applyButton').textContent=state.dirty?'✓ Сохранить и запустить DNS':'▶ Запустить DNS';
+    if(state.status)renderGate(state.status);
     reportHeight();
   }
   function parseDomains(text){
@@ -87,7 +88,7 @@
       let n=1;while(ids.has('domain-'+n))n++;const uid='domain-'+n;ids.add(uid);return {id:uid,domain,match:'suffix',upstream:id,priority:100};
     });
     state.config.rules=state.config.rules.filter(r=>r.upstream!==id).concat(fresh);
-    $('editorDomains').value=names.join('\n');state.editorBase=$('editorDomains').value;$('editorCount').textContent=names.length+' доменов';$('editorHint').textContent='Список сохранён в черновик. Нажми «Сохранить и применить» ниже.';mark();show('Список обновлён: '+names.length+' доменов. Остальные DNS не менялись.');
+    $('editorDomains').value=names.join('\n');state.editorBase=$('editorDomains').value;$('editorCount').textContent=names.length+' доменов';$('editorHint').textContent='Список сохранён в черновик. Нажми «Сохранить и запустить DNS» выше.';mark();show('Список обновлён: '+names.length+' доменов. Остальные DNS не менялись.');
   }
   function removeDNS(id){
     const u=state.config.upstreams.find(x=>x.id===id);if(!u)return;
@@ -145,16 +146,16 @@
     return {listen,default_upstream:primary,cache_bytes:cache*1024*1024,allowed_networks:networks};
   }
   function syncPrefs(){const next=servicePrefs();const prev=state.config.service;if(JSON.stringify(prev)!==JSON.stringify(next)){state.config.service={...prev,...next};if(prev?.default_upstream!==next.default_upstream)delete state.config.service.default_group;state.dirty=true;}}
-  async function save(){if(editorPending())throw Error('Сначала нажми «Сохранить список» в редакторе доменов.');syncPrefs();if(!state.dirty)return;const data=await api('config',{method:'PUT',headers:{'Content-Type':'application/json','X-RouterForge-Action':'save','If-Match':'"'+state.revision+'"'},body:JSON.stringify(state.config)});state.revision=data.revision;state.dirty=false;show('Настройки сохранены. Действующий DNS изменится только после применения.','good');render();}
+  async function save(){if(editorPending())throw Error('Сначала нажми «Сохранить список» в редакторе доменов.');syncPrefs();if(!state.dirty)return;const data=await api('config',{method:'PUT',headers:{'Content-Type':'application/json','X-RouterForge-Action':'save','If-Match':'"'+state.revision+'"'},body:JSON.stringify(state.config)});state.revision=data.revision;state.dirty=false;show('Настройки сохранены. Действующий DNS не изменился. Для запуска нажми «Сохранить и запустить DNS».','good');render();}
   async function serviceCommand(path,body){return api('service/'+path,opts('service-control',body,true));}
   function hasUsedNative(){return state.config.upstreams.some(u=>u.transport==='native'&&(used(u.id).length||state.config.service?.default_upstream===u.id));}
   async function apply(){
     if(hasUsedNative())throw Error('Есть старые native DNS. Сначала нажми «Преобразовать DNS» и проверь адреса.');
     const prefs=servicePrefs();
-    if(!confirm('Сохранить настройки и запустить DNS Router на '+prefs.listen+'? DNS устройств Keenetic не меняется.'))return;
+    if(!confirm('Сохранить настройки и запустить DNS Router на '+prefs.listen+'? Это ещё не переключит всю LAN. Для этого отдельно включи «Основной DNS для LAN».'))return;
     await save();const s=await api('service/status');
     await serviceCommand('control',{operation:s.active?'apply':'start'});
-    show('DNS запущен. Проверь его, затем подключи одно устройство для реального теста.','good');await refreshStatus();
+    show('DNS Router запущен. Проверь готовность, затем включи «Основной DNS для LAN». Отдельное тестовое устройство не требуется.','good');await refreshStatus();
   }
   async function migrate(){
     if(state.dirty)throw Error('Сначала сохрани изменения. Миграция выполняется только из сохранённого состояния.');
@@ -166,6 +167,7 @@
     const c=s.connection||{state:'disconnected'};
     const endpoint=s.listen||state.config.service?.listen||$('serviceListen').value;
     const upstream=Number(s.requests||0);
+    if(s.system_gate?.active)return {tone:'good',text:'Основной DNS для LAN активен. RouterForge обработал '+upstream+' обычных DNS-запросов. Отдельный профиль устройства не требуется; подробности смотри в журнале.'};
     if(!s.active)return {tone:'bad',text:'DNS Router остановлен. На штатном DNS Keenetic (порт 53) интернет может продолжать работать, но журнал RouterForge пуст.'};
     if(c.state==='recovery_required')return {tone:'bad',text:'DNS-профиль устройства требует восстановления: '+(c.error||'состояние не совпадает с Keenetic')+'. Не устанавливай и не обновляй пакет до исправления профиля.'};
     if(c.state==='pending')return {tone:'bad',text:'Подключение устройства не завершено (pending). DNS Router слушает '+endpoint+', но профиль клиента Keenetic ещё не подтверждён. Сначала верни прежний DNS устройства или заверши подключение; не пытайся обновлять пакет с pending.'};
@@ -178,20 +180,25 @@
   function showRoutingHint(s){const hint=routingHint(s);for(const id of ['routeAdvice','logGuide']){const node=$(id);node.textContent=hint.text;node.dataset.tone=hint.tone;}}
   function renderGate(s){
     const gate=s.system_gate||{state:'STOCK',active:false};
-    $('gateBadge').textContent=gate.state;
-    $('gateBadge').dataset.tone=gate.active?'good':gate.state==='RECOVERY_REQUIRED'?'bad':'';
-    $('gateEnable').disabled=state.busy||!s.active||gate.active||gate.state==='RECOVERY_REQUIRED';
-    $('gateDisable').disabled=state.busy||(!gate.active&&gate.state!=='RECOVERY_REQUIRED');
+    const active=Boolean(gate.active),recovery=gate.state==='RECOVERY_REQUIRED';
+    const panel=$('systemGatePanel');
+    panel.dataset.state=recovery?'recovery':active?'active':'stock';
+    $('gateBadge').textContent=recovery?'Требуется проверка':active?'Активен':'Выключен';
+    $('gateBadge').dataset.tone=active?'good':recovery?'bad':'';
+    $('gateEnable').disabled=state.busy||!s.active||active||recovery||state.dirty||editorPending();
+    $('gateDisable').disabled=state.busy||(!active&&!recovery);
+    $('gatePreflight').disabled=state.busy||!s.active;
+    $('stopButton').disabled=state.busy||!s.active||active||recovery;
     const hits=Number(s.requests||0),denied=Number(s.denied_requests||0);
-    $('gateAdvice').textContent=gate.state==='RECOVERY_REQUIRED'?('Восстановление: '+(gate.last_error||'Нужна проверка правил firewall')):
-      gate.active?('DNS Gate активен на br0 (UDP/TCP 53). Обработано запросов: '+hits+', ACL-отказов: '+denied+'. Проверяй журнал и устройство.'):
-      'Системный DNS Keenetic работает штатно. Для включения сначала проверь готовность, затем подтверди перехват LAN.';
+    $('gateAdvice').textContent=recovery?('Требуется проверка: '+(gate.last_error||'состояние системного DNS не подтверждено')+'. Не включай Gate повторно до проверки.'):
+      active?('Активен: обычные DNS-запросы LAN (UDP/TCP 53) идут через RouterForge. Запросов: '+hits+', ACL-отказов: '+denied+'. Отключение вернёт штатный DNS Keenetic.'):
+      'Выключен: сейчас DNS обрабатывает Keenetic. Для замены во всей LAN выбери DNS по умолчанию, запусти сервис и включи режим LAN. Тестовое устройство не требуется.';
   }
   async function refreshStatus(){const s=await api('service/status');if(s.mode!=='independent-dns')throw Error('Загружен не DNS Lite. Установи актуальный DEV-пакет.');state.status=s;renderGate(s);
     const connection=s.connection||{state:'disconnected'},active=Boolean(s.active),same=active&&s.applied_revision===state.revision;
     $('serviceBadge').textContent=active?'DNS работает':'DNS остановлен';$('serviceBadge').dataset.tone=active?'good':'bad';
     $('runStatus').textContent=(active?'DNS работает: '+s.listen+' · Основной '+displayName(state.config.upstreams.find(u=>u.id===s.default_upstream)||{transport:'udp',address:s.default_upstream||'—'}):'Сервис остановлен.')+(active&&!same?' · Есть неприменённая версия настроек.':'')+(s.last_error?' · Ошибка: '+s.last_error:'');
-    $('connectionSummary').textContent=connection.state==='connected'?'Устройство подключено: '+connection.mac:connection.state==='recovery_required'?'Подключение требует восстановления':'Устройства не подключены';
+    $('connectionSummary').textContent=s.system_gate?.active?'Вся LAN использует RouterForge — отдельное устройство не нужно':connection.state==='connected'?'Точечное устройство: '+connection.mac:connection.state==='recovery_required'?'Точечное подключение требует восстановления':'Для LAN-режима отдельное устройство не требуется';
     $('clientState').textContent=connection.state==='connected'?connection.mac:connection.state==='disconnected'?'Не подключён':connection.state;
     $('connectButton').disabled=!active||!same||connection.state!=='disconnected';$('disconnectButton').disabled=connection.state==='disconnected';$('stopButton').disabled=!active;
     showRoutingHint(s);
@@ -223,20 +230,20 @@
   for(const id of ['newAddress','newProtocol'])$(id).addEventListener('input',()=>{state.checked=null;$('commitDNS').disabled=true;$('certificateInfo').textContent='Адрес изменён. Нажми «Проверить». ';$('certificateDetails').hidden=true;});
   $('newProtocol').addEventListener('change',()=>{$('newAddress').placeholder=$('newProtocol').value==='doh'?'https://dns.example.com/dns-query':$('newProtocol').value==='udp'?'9.9.9.9':'dns.example.com';});
   on('inspectDNS',inspect);on('commitDNS',addDNS);
-  $('closeEditor').addEventListener('click',closeEditor);$('editorDomains').addEventListener('input',()=>{$('editorCount').textContent=$('editorDomains').value.split(/\r?\n/).filter(x=>x.trim()).length+' строк (черновик)';});on('saveDomains',saveList);
+  $('closeEditor').addEventListener('click',closeEditor);$('editorDomains').addEventListener('input',()=>{$('editorCount').textContent=$('editorDomains').value.split(/\r?\n/).filter(x=>x.trim()).length+' строк (черновик)';if(state.status)renderGate(state.status);});on('saveDomains',saveList);
   $('importDomains').addEventListener('click',()=>$('domainFile').click());$('domainFile').addEventListener('change',async()=>{const f=$('domainFile').files[0];if(!f)return;try{if(f.size>256*1024)throw Error('Максимум 256 КБ');const names=parseDomains(await f.text());$('editorDomains').value=names.join('\n');show('Импортировано '+names.length+' доменов. Нажми «Сохранить список».');}catch(e){show(e.message,'bad');}finally{$('domainFile').value='';}});
   $('exportDomains').addEventListener('click',()=>{if(!state.editing)return;const data=$('editorDomains').value;const url=URL.createObjectURL(new Blob([data.endsWith('\n')?data:data+'\n'],{type:'text/plain;charset=utf-8'}));try{const a=document.createElement('a');a.href=url;a.download='routerforge-domains.txt';a.click();}finally{URL.revokeObjectURL(url);}});
   $('defaultDNS').addEventListener('change',()=>{mark();});for(const id of ['serviceListen','cacheSize','allowedNetworks'])$(id).addEventListener('change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
   on('saveButton',save);on('applyButton',apply);on('migrateNative',migrate);
   on('gatePreflight',async()=>{
     await api('service/gate/control',opts('service-control',{operation:'preflight'},true));
-    show('PRECHECK: готовность br0 и DNS listener подтверждена. IPv4/IPv6 kernel gate проверится при активации. Настройки не изменены.','good');
+    show('Готовность подтверждена. Следующий шаг — «Включить для LAN». Настройки не изменены.','good');
   });
   on('gateEnable',async()=>{
     if(state.dirty || editorPending())throw Error('Сначала сохрани и примени все изменения DNS.');
-    if(!confirm('Включить RouterForge для ВСЕХ обычных DNS-запросов UDP/TCP 53 сети br0? Приватные DoH/DoT приложений не перехватываются. Штатные настройки Keenetic останутся без изменений.'))return;
+    if(!confirm('Включить RouterForge для обычных DNS-запросов ВСЕХ устройств LAN (UDP/TCP 53)? Приватные DoH/DoT приложений не перехватываются. Штатные настройки Keenetic останутся без изменений. Подключать отдельное тестовое устройство не нужно.'))return;
     await api('service/gate/control',opts('service-control',{operation:'enable'},true));
-    await refreshStatus();show('DNS Gate включён для LAN. Проверь реальные запросы планшета в журнале.','good');
+    await refreshStatus();show('Основной DNS для LAN включён. Проверь запросы устройств в журнале.','good');
   });
   on('gateDisable',async()=>{
     if(!confirm('Отключить системный DNS Gate и вернуть обычную обработку Keenetic?'))return;
@@ -244,14 +251,14 @@
     await refreshStatus();show('Системный DNS Gate отключён. Клиенты снова используют Keenetic.','good');
   });
 
-  on('verifyButton',async()=>{const r=await serviceCommand('verify',{operation:'verify'});if(r.state!=='PASS')throw Error('Проверка DNS: '+r.state);show('Проверено '+r.results.length+' прямых UDP/TCP запросов. Подключение устройства проверяется отдельно.','good');});
+  on('verifyButton',async()=>{const r=await serviceCommand('verify',{operation:'verify'});if(r.state!=='PASS')throw Error('Проверка DNS: '+r.state);show('DNS-сервис ответил на '+r.results.length+' прямых UDP/TCP проверок. Для LAN-перехвата отдельно используй «Проверить готовность».','good');});
   on('stopButton',async()=>{if(!confirm('Остановить DNS и вернуть прежний DNS подключённого устройства?'))return;await serviceCommand('control',{operation:'stop'});show('DNS остановлен, прежний DNS устройства возвращён.','good');});
   on('connectButton',async()=>{const mac=$('clientMAC').value.trim(),persist=$('persistClient').checked;if(!/^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(mac))throw Error('Укажи MAC в формате 02:11:22:33:44:55');if(!confirm('Назначить DNS Router устройству '+mac+'?'+(persist?' Keenetic сохранит общую конфигурацию.':'')))return;await serviceCommand('connect',{mac,persist});show('Устройство подключено. Открой журнал, затем попробуй открыть сайт на устройстве.','good');});
   on('disconnectButton',async()=>{if(!confirm('Вернуть прежний DNS выбранного устройства?'))return;await serviceCommand('disconnect',{operation:'disconnect'});show('Прежний DNS восстановлен.','good');});
   on('refreshLogs',async()=>{await refreshStatus();await refreshLogs();});$('logFilter').addEventListener('input',renderLogs);$('onlyErrors').addEventListener('change',renderLogs);
   $('copyLogs').addEventListener('click',()=>{const lines=state.logs.map(t=>[t.time,t.name,t.assigned,t.used,t.transport,t.rcode,t.success?'PASS':'FAIL',t.latency_ms].join('\t')).join('\n');if(navigator.clipboard?.writeText)navigator.clipboard.writeText(lines).then(()=>show('Журнал скопирован.','good')).catch(()=>show('Не удалось скопировать журнал.','bad'));else show('Копирование недоступно в этом браузере.','bad');});
   const root=document.documentElement,params=new URLSearchParams(window.location.search);
-  function syncTheme(){try{if(window.parent===window)return;const host=window.parent.document.documentElement,computed=window.parent.getComputedStyle(host);for(const token of ['--rf-bg','--rf-surface','--rf-surface-2','--rf-text','--rf-muted','--rf-border','--rf-accent','--rf-accent-soft']){const val=computed.getPropertyValue(token).trim();if(val)root.style.setProperty(token,val);}root.style.colorScheme=computed.colorScheme==='light'?'light':'dark';}catch(_){}}
+  function syncTheme(){try{if(window.parent===window)return;const host=window.parent.document.documentElement,computed=window.parent.getComputedStyle(host);for(const token of ['--rf-bg','--rf-surface','--rf-surface-2','--rf-text','--rf-muted','--rf-border','--rf-border-strong','--rf-hover','--rf-accent','--rf-accent-soft','--rf-success','--rf-danger','--rf-radius-panel','--rf-radius-control','--rf-ui-panel-radius','--rf-ui-control-radius','--rf-ui-control-h']){const val=computed.getPropertyValue(token).trim();if(val)root.style.setProperty(token,val);}root.style.colorScheme=computed.colorScheme==='light'?'light':'dark';}catch(_){}}
   function reportHeight(){if(window.parent===window)return;try{window.parent.postMessage({type:'routerforge-module-height',moduleId:'dns-router',height:Math.ceil(Math.max(350,$('dnsLiteApp').scrollHeight,$('dnsLiteApp').getBoundingClientRect().height)+6)},window.location.origin);}catch(_){}}
   syncTheme();try{if(window.parent!==window&&window.MutationObserver)new MutationObserver(()=>{syncTheme();reportHeight();}).observe(window.parent.document.documentElement,{attributes:true,attributeFilter:['style','class','data-theme']});}catch(_){}
   if(window.ResizeObserver)new ResizeObserver(reportHeight).observe($('dnsLiteApp'));

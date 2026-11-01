@@ -124,4 +124,124 @@
 .route-advice[data-tone="bad"]{border-color:var(--bad);color:var(--bad)}
 
 /* P15 global DNS Gate is a separate intentional opt-in. */
-.gate-panel{border-color:var(--accent)}.gate-panel .section-title{align-items:center}.gate-panel .actions{margin:12px 0}.gate-panel .route-advice{margin:8px 0}.gate-panel #gateBadge{font-weight:800}.gate-panel #gateBadge[data-tone=good]{color:var(--good)}.gate-panel #gateBadge[data-tone=bad]{color:var(--bad)}
+.gate-panel{border-color:var(--border)}.gate-panel .section-title{align-items:flex-start}.gate-panel .actions{margin:12px 0}.gate-panel .route-advice{margin:8px 0}.gate-panel #gateBadge{font-weight:800}
+
+
+/* P16 — LAN-first workspace, shared RouterForge design tokens. */
+:root{
+  --bg:var(--rf-bg,#0b0d10);
+  --surface:var(--rf-surface,#12151a);
+  --surface2:var(--rf-surface-2,#171b21);
+  --text:var(--rf-text,#f5f7fa);
+  --muted:var(--rf-muted,#8d98a4);
+  --border:var(--rf-border,#29313a);
+  --border-strong:var(--rf-border-strong,#36414d);
+  --accent:var(--rf-accent,#38bdf8);
+  --accent-soft:var(--rf-accent-soft,rgba(56,189,248,.10));
+  --hover:var(--rf-hover,#1d2229);
+  --good:var(--rf-success,#34d399);
+  --bad:var(--rf-danger,#fb7185);
+  --radius:var(--rf-ui-panel-radius,var(--rf-radius-panel,8px));
+  --control-radius:var(--rf-ui-control-radius,var(--rf-radius-control,6px));
+  --control-height:var(--rf-ui-control-h,38px);
+  font-family:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+}
+html,body{font-family:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-size:13px}
+.page{gap:12px;padding:0 0 18px}
+.module-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;min-width:0;padding:2px 2px 8px}
+.module-heading-copy{min-width:0}
+.module-heading h1{margin:5px 0 4px;font-size:clamp(20px,2vw,25px);line-height:1.2;font-weight:700;letter-spacing:-.025em}
+.module-heading p{max-width:72ch;color:var(--muted);font-size:12px;line-height:1.5}
+.top-actions{gap:8px;flex:0 0 auto}
+.panel{padding:14px;border-radius:var(--rf-ui-panel-radius,var(--radius));box-shadow:none}
+.section-title{gap:12px;margin-bottom:12px}
+.section-title h2{font-size:15px;line-height:1.3;font-weight:650}
+.section-title p{max-width:68ch;font-size:11px;line-height:1.5}
+.button{min-height:var(--control-height);padding:7px 12px;border-radius:var(--control-radius);font-size:12px;line-height:1.25}
+.button:hover:not(:disabled){background:var(--hover);border-color:var(--border-strong)}
+.button.primary{background:var(--accent-soft);border-color:var(--accent);color:var(--text)}
+.button.danger{color:var(--bad)}
+input,select,textarea{border-radius:var(--control-radius)}
+input:not([type=checkbox]),select{min-height:var(--control-height)}
+.status{min-height:25px;padding:4px 9px;border-radius:999px;background:var(--surface2);font-size:10px}
+.status[data-tone=good]{color:var(--good);border-color:var(--border-strong)}
+.status[data-tone=bad]{color:var(--bad);border-color:var(--border-strong)}
+.tabs{gap:4px;padding:4px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.tab{min-height:34px;padding:7px 12px;border:1px solid transparent;border-radius:var(--control-radius);font-size:11px}
+.tab.selected{border:1px solid var(--accent);background:var(--accent-soft);color:var(--text)}
+#pageDns{gap:12px}
+.gate-panel{border-color:var(--border);background:var(--surface)}
+.gate-heading{align-items:flex-start;margin-bottom:13px}
+.gate-heading-copy{min-width:0}
+.gate-heading-copy h2{font-size:17px;line-height:1.3}
+.gate-heading-copy p{max-width:78ch;font-size:12px}
+.gate-panel #gateBadge{flex:0 0 auto;font-weight:700}
+.gate-panel[data-state=active] #gateBadge{color:var(--good)}
+.gate-panel[data-state=recovery] #gateBadge{color:var(--bad)}
+.gate-panel[data-state=recovery] #gateAdvice{border-color:var(--bad);color:var(--bad)}
+.gate-config{display:grid;grid-template-columns:minmax(260px,1.15fr) minmax(220px,.85fr);gap:12px;align-items:stretch}
+.gate-default{padding:11px 12px;border:1px solid var(--border);border-radius:var(--control-radius);background:var(--surface2)}
+.gate-default>span{font-size:11px;color:var(--muted)}
+.gate-default select{font-weight:650}
+.gate-default small{line-height:1.45}
+.gate-service-summary{display:grid;align-content:center;gap:5px;min-width:0;padding:11px 12px;border:1px solid var(--border);border-radius:var(--control-radius);background:var(--surface2)}
+.gate-service-summary>span{font-size:11px;color:var(--muted)}
+.gate-service-summary strong{font-size:13px;overflow-wrap:anywhere}
+.gate-service-summary small{line-height:1.45}
+.gate-instruction{display:grid;gap:4px;margin-top:11px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--control-radius);background:var(--surface2)}
+.gate-instruction strong{font-size:12px;font-weight:700}
+.gate-instruction p{font-size:12px;line-height:1.5}
+.gate-instruction small{font-size:10px}
+.gate-panel .route-advice{margin:10px 0;padding:9px 11px;border-color:var(--border);background:var(--surface2);color:var(--muted)}
+.gate-panel .route-advice[data-tone=warn]{color:var(--text);border-color:var(--border-strong)}
+.gate-panel .route-advice[data-tone=bad]{color:var(--bad);border-color:var(--bad)}
+.gate-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:11px}
+.gate-actions .button.primary{font-weight:700}
+.gate-panel .result{margin-top:10px}
+.gate-panel .inner-details{margin-top:11px;padding-top:10px;border-top:1px solid var(--border)}
+.gate-panel .inner-details>summary{display:flex;align-items:center;flex-wrap:wrap;gap:7px;min-height:30px;color:var(--text);font-size:11px}
+.gate-panel .inner-details[open]>summary{margin-bottom:11px}
+.gate-panel .inner-details .actions{margin-top:10px}
+.gate-panel .legacy-test-device>p{margin:0 0 10px}
+.gate-panel .legacy-test-device .fields{margin:10px 0}
+.gate-panel .legacy-test-device .check{line-height:1.45}
+.server-head-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.server-head-actions .button{white-space:nowrap}
+.routing-workspace{grid-template-columns:minmax(300px,420px) minmax(0,1fr);gap:14px}
+.upstream-pane,.domain-pane{min-height:440px}
+.upstream-pane .dns-cards{max-height:720px}
+.dns-card{border-radius:var(--control-radius);border-color:var(--border)}
+.dns-card.is-selected{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.dns-card .dns-edit{border-radius:var(--control-radius)}
+.domain-pane .editor textarea{min-height:330px;border-radius:var(--control-radius);background:var(--surface2);font:12px/1.65 ui-monospace,"Cascadia Mono",Consolas,monospace}
+.domain-empty{border-color:var(--border);background:var(--surface2)}
+.editor-actions .button{min-height:var(--control-height)}
+#dnsAddPanel{border-color:var(--border)}
+#quickHelp{padding:12px 14px;background:var(--surface)}
+#quickHelp summary{font-size:12px}
+#quickHelp ol{padding-left:20px}
+#quickHelp li{margin:7px 0;line-height:1.5}
+#quickHelp p{margin-top:10px}
+.gate-panel [hidden],.service-tools [hidden]{display:none!important}
+@media(max-width:980px){
+  .routing-workspace{grid-template-columns:minmax(0,1fr)}
+  .upstream-pane,.domain-pane{min-height:0}
+  .upstream-pane .dns-cards{max-height:520px}
+}
+@media(max-width:760px){
+  .module-heading{align-items:flex-start;flex-direction:column}
+  .top-actions{width:100%;justify-content:space-between}
+  .gate-config{grid-template-columns:minmax(0,1fr)}
+  .gate-heading{align-items:flex-start}
+  .gate-actions .button{flex:1 1 180px}
+  .routing-workspace{gap:10px}
+  .domain-pane .editor textarea{min-height:260px}
+}
+@media(max-width:460px){
+  .panel{padding:11px}
+  .server-head-actions{width:100%;justify-content:space-between}
+  .gate-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+  .gate-actions .button{width:100%}
+  .editor-actions{flex-direction:column}
+  .editor-actions .button{width:100%}
+}

@@ -9,8 +9,12 @@
 </head>
 <body>
 <main class="page" id="dnsLiteApp">
-  <header class="topbar">
-    <div class="identity"><span class="brandmark" aria-hidden="true">R</span><div><strong>RouterForge DNS</strong><small>Лёгкий DNS-сервис</small></div></div>
+  <header class="module-heading">
+    <div class="module-heading-copy">
+      <span class="eyebrow">ROUTERFORGE · DNS</span>
+      <h1>DNS Router</h1>
+      <p>Выбирай DNS-серверы, назначай домены и при необходимости включай RouterForge для всей локальной сети.</p>
+    </div>
     <div class="top-actions"><span class="status" id="serviceBadge" role="status">Проверяем…</span><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
   </header>
   <nav class="tabs" aria-label="Разделы DNS">
@@ -20,12 +24,54 @@
   <div class="notice" id="feedback" role="status" aria-live="polite">Загружаем настройки…</div>
 
   <section id="pageDns" aria-label="DNS и домены">
-    <section class="panel overview">
-      <div class="section-title"><div><span class="eyebrow">МАРШРУТИЗАЦИЯ DNS</span><h1>Какой DNS использовать для доменов?</h1><p>Выбери DNS слева и назначь ему список справа. Всё на одном экране.</p></div><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div>
-      <div class="fields two">
-        <label class="field"><span>DNS по умолчанию <b class="required">*</b></span><select id="defaultDNS"><option value="">Выбери основной DNS…</option></select><small>Для доменов, которых нет в списках</small></label>
-        <div class="summary-box"><span>Сервис</span><strong id="listenerSummary">—</strong><small id="connectionSummary">Устройства не подключены</small></div>
+    <section class="panel gate-panel" id="systemGatePanel" aria-label="Основной DNS для LAN" data-state="stock">
+      <div class="section-title gate-heading">
+        <div class="gate-heading-copy">
+          <span class="eyebrow">ОСНОВНОЙ DNS ДЛЯ LAN</span>
+          <h2>Один переключатель для всей локальной сети</h2>
+          <p>Обычные DNS-запросы устройств LAN (UDP/TCP 53) будут направляться через RouterForge. Штатные настройки Keenetic не переписываются.</p>
+        </div>
+        <span class="status" id="gateBadge" role="status">Выключен</span>
       </div>
+      <div class="gate-config">
+        <label class="field gate-default"><span>DNS по умолчанию в RouterForge <b class="required">*</b></span><select id="defaultDNS"><option value="">Выбери основной DNS…</option></select><small>Используется для доменов, которых нет в списках. Домены из списков идут на назначенный им DNS.</small></label>
+        <div class="gate-service-summary"><span>DNS-сервис</span><strong id="listenerSummary">—</strong><small id="connectionSummary">Для LAN-режима отдельное тестовое устройство не требуется.</small></div>
+      </div>
+      <div class="gate-instruction">
+        <strong>Как заменить DNS для всей LAN</strong>
+        <p>Выбери DNS по умолчанию → нажми «Сохранить и запустить DNS» → проверь готовность → нажми «Включить для LAN».</p>
+        <small>Подключать MAC-адрес отдельного устройства не нужно.</small>
+      </div>
+      <p class="route-advice" id="gateAdvice">Системный DNS выключен. Сейчас запросы обрабатывает Keenetic.</p>
+      <div class="gate-actions">
+        <button type="button" class="button primary" id="applyButton">✓ Сохранить и запустить DNS</button>
+        <button type="button" class="button" id="gatePreflight">Проверить готовность</button>
+        <button type="button" class="button primary" id="gateEnable" disabled>Включить для LAN</button>
+        <button type="button" class="button danger" id="gateDisable" disabled>Вернуть штатный DNS</button>
+      </div>
+      <div id="runStatus" class="result">Состояние DNS-сервиса загружается…</div>
+      <p id="routeAdvice" class="route-advice" role="status">Проверяем, доходят ли запросы до DNS Router…</p>
+      <details class="inner-details service-tools" id="serviceTools">
+        <summary>Другие действия с DNS-сервисом <span class="hint">Проверка и обслуживание</span></summary>
+        <div class="actions">
+          <button type="button" class="button" id="verifyButton">Проверить DNS</button>
+          <button type="button" class="button" id="saveButton">Сохранить без запуска</button>
+          <button type="button" class="button danger" id="stopButton" disabled>Остановить DNS</button>
+        </div>
+      </details>
+      <details class="inner-details legacy-test-device" id="clientConnection">
+        <summary>Тестовое подключение одного устройства <span class="hint">Необязательно · для диагностики</span></summary>
+        <p class="muted">Это отдельный точечный режим для диагностики через профиль Keenetic. Для замены DNS всей LAN он не нужен.</p>
+        <div class="fields two"><label class="field"><span>MAC-адрес устройства</span><input id="clientMAC" placeholder="02:11:22:33:44:55" spellcheck="false"></label><div class="field"><span>DNS-профиль Keenetic</span><strong id="clientState">Не подключён</strong><small>Подключаем только выбранное устройство, не всю сеть</small></div></div>
+        <label class="check"><input type="checkbox" id="persistClient"> Сохранить назначение после перезагрузки Keenetic (изменяет его общую running-config)</label>
+        <div class="actions"><button class="button primary" type="button" id="connectButton">Подключить</button><button class="button" type="button" id="disconnectButton">Вернуть прежний DNS</button></div>
+        <p class="muted">Для теста выключи Private DNS / DoH на устройстве. При недоступном Entware подключённое устройство может остаться без DNS — возврат делается по IP-адресу роутера.</p>
+      </details>
+      <details class="inner-details" id="additionalSettings">
+        <summary>Дополнительные настройки <span class="hint">Обычно не нужны</span></summary>
+        <div class="fields two"><label class="field"><span>Адрес DNS-сервиса</span><input id="serviceListen" value="192.168.10.1:55358"></label><label class="field"><span>Кэш, МиБ</span><input id="cacheSize" type="number" value="1" min="0" max="8" step="1"></label></div>
+        <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" value="127.0.0.0/8,192.168.10.0/24" spellcheck="false"></label>
+      </details>
     </section>
     <section id="dnsAddPanel" class="panel" hidden>
       <div class="section-title"><div><h2>Добавить DNS</h2><p>Укажи адрес провайдера, а IP и сертификат мы найдём сами.</p></div><button type="button" id="cancelDNS" class="button subtle">Закрыть</button></div>
@@ -39,7 +85,7 @@
     </section>
     <div class="routing-workspace" aria-label="DNS-серверы и домены">
       <aside class="panel upstream-pane" aria-label="DNS-серверы">
-        <div class="section-title"><div><span class="eyebrow">ШАГ 1 · DNS-СЕРВЕР</span><h2>Мои DNS</h2><p>Выбери сервер для настройки списка.</p></div><span class="counter" id="serverCount">0</span></div>
+        <div class="section-title upstream-heading"><div><span class="eyebrow">ШАГ 1 · DNS-СЕРВЕР</span><h2>Мои DNS</h2><p>Выбери сервер, которому назначишь список доменов.</p></div><div class="server-head-actions"><span class="counter" id="serverCount">0</span><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div></div>
         <div id="nativeWarning" class="warning" hidden>Есть прежние DNS Keenetic. Перед применением переведи их в прямой DoH. <button class="button" id="migrateNative" type="button">Преобразовать DNS</button><small>Списки сохраняются. Непонятные адреса не угадываются.</small></div>
         <div id="dnsCards" class="dns-cards"><p class="muted">Серверов пока нет.</p></div>
       </aside>
@@ -55,38 +101,15 @@
         </div>
       </section>
     </div>
-    <section class="panel gate-panel" id="systemGatePanel" aria-label="Системный DNS">
-      <div class="section-title"><div><span class="eyebrow">СИСТЕМНЫЙ DNS · P15 DEV</span><h2>RouterForge — основной DNS для LAN</h2><p>Отдельный opt-in: обычные DNS-запросы IPv4/IPv6 клиентов LAN направляются через RouterForge, штатные настройки Keenetic сохраняются.</p></div><span class="status" id="gateBadge">STOCK</span></div>
-      <p class="route-advice" id="gateAdvice">Системное перенаправление выключено. Keenetic обслуживает DNS как раньше.</p>
-      <div class="actions"><button type="button" class="button" id="gatePreflight">Проверить готовность</button><button type="button" class="button primary" id="gateEnable">Включить для LAN</button><button type="button" class="button danger" id="gateDisable">Вернуть штатный DNS</button></div>
-      <small class="muted">Только br0, UDP/TCP 53. DoH/DoT приложений не перехватывается. При остановке DNS Lite или потере lease новые DNS-запросы возвращаются в Keenetic. После перезагрузки автоматическое включение отключено.</small>
-    </section>
-    <section class="panel apply-panel">
-      <div class="section-title"><div><span class="eyebrow">ШАГ 3 · ПРИМЕНЕНИЕ</span><h2>Запуск и подключение</h2><p>Сначала запускаем DNS-сервис, потом при необходимости подключаем устройство.</p></div></div>
-      <div class="actions"><button type="button" class="button primary" id="applyButton">✓ Сохранить и применить</button><button type="button" class="button" id="saveButton">Только сохранить</button><button type="button" class="button" id="verifyButton">Проверить DNS</button><button type="button" class="button danger" id="stopButton">Остановить DNS</button></div>
-      <div id="runStatus" class="result">Состояние сервиса загружается…</div>
-      <p id="routeAdvice" class="route-advice" role="status">Проверяем, доходят ли запросы до DNS Router…</p>
-      <details class="inner-details" id="clientConnection">
-        <summary>Подключить тестовое устройство <span class="hint">Необязательно</span></summary>
-        <div class="fields two"><label class="field"><span>MAC-адрес устройства</span><input id="clientMAC" placeholder="02:11:22:33:44:55" spellcheck="false"></label><div class="field"><span>DNS-профиль Keenetic</span><strong id="clientState">Не подключён</strong><small>Подключаем только выбранное устройство, не всю сеть</small></div></div>
-        <label class="check"><input type="checkbox" id="persistClient"> Сохранить назначение после перезагрузки Keenetic (изменяет его общую running-config)</label>
-        <div class="actions"><button class="button primary" type="button" id="connectButton">Подключить</button><button class="button" type="button" id="disconnectButton">Вернуть прежний DNS</button></div>
-        <p class="muted">Для теста выключи Private DNS / DoH на устройстве. При недоступном Entware подключённое устройство может остаться без DNS — возврат делается по IP-адресу роутера.</p>
-      </details>
-      <details class="inner-details"><summary>Дополнительные настройки <span class="hint">Обычно не нужны</span></summary>
-        <div class="fields two"><label class="field"><span>Адрес DNS-сервиса</span><input id="serviceListen" value="192.168.10.1:55358"></label><label class="field"><span>Кэш, МиБ</span><input id="cacheSize" type="number" value="1" min="0" max="8" step="1"></label></div>
-        <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" value="127.0.0.0/8,192.168.10.0/24" spellcheck="false"></label>
-      </details>
-    </section>
     <details class="help panel" id="quickHelp">
       <summary>Как настроить за минуту? <span class="hint">Короткая инструкция</span></summary>
       <ol>
-        <li>Нажми <strong>«Добавить DNS»</strong>, введи адрес и <strong>«Проверить»</strong> — защищённый сертификат проверим сами.</li>
-        <li>Открой DNS, добавь в его <strong>список домены</strong> (по одному на строку).</li>
-        <li>Выбери <strong>DNS по умолчанию</strong> и нажми <strong>«Сохранить и применить»</strong>.</li>
-        <li>Для проверки подключи <strong>одно устройство</strong> в блоке «Запуск и подключение» и открой страницу «Журнал запросов».</li>
+        <li>Добавь DNS и нажми <strong>«Проверить адрес и сертификат»</strong>.</li>
+        <li>Открой его список справа и добавь домены — по одному на строку.</li>
+        <li>Выбери DNS по умолчанию и нажми <strong>«Сохранить и запустить DNS»</strong>.</li>
+        <li>Нажми <strong>«Проверить готовность»</strong>, затем <strong>«Включить для LAN»</strong>. Готово — отдельное устройство подключать не нужно.</li>
       </ol>
-      <p class="muted">Сохранение списков само по себе не меняет DNS устройств. Подключение выполняется отдельно, с возможностью вернуть прежнее назначение.</p>
+      <p class="muted">Чтобы вернуть обычный DNS Keenetic, нажми «Вернуть штатный DNS» в верхнем блоке.</p>
     </details>
   </section>
 

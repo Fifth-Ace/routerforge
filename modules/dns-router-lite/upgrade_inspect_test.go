@@ -210,3 +210,29 @@ func TestP191ForeignDNSWithoutLegacyResourcesDoesNotBlockStockMigration(t *testi
 		t.Fatal("foreign firewall changed")
 	}
 }
+
+func TestP191LateLinkLocalTupleCannotBypassHandoffOwnership(t *testing.T) {
+	g, m, k, path, e, _ := p191LegacyFixture(t)
+	p, err := g.legacyPlan("192.168.10.1:55358")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := p.Families[1]
+	m.chains[f.Binary][gateChain] = chainRules(p, f, true)
+	m.sets[f.Set] = &modelSet{family: f.Family, members: map[string]time.Time{}}
+	if _, err = g.PrepareLegacyUpgrade(context.Background(), path, e); err != nil {
+		t.Fatal(err)
+	}
+	// A new tuple after preparation must be checked again at the deletion point.
+	flow := testFlow(t, "fe80::55", "fe80::52ff:20ff:fed3:831", 17, 55358, 1)
+	flow.Reply.Src = net.ParseIP("fe80::52ff:20ff:fed3:831")
+	ct := k.Conntrack.Table.(*modelCT)
+	ct.flows = []CTFlow{flow}
+	manager := &Manager{Path: path, Gate: g}
+	if err = manager.finishLegacyCleanup(); err == nil {
+		t.Fatal("late unscoped tuple deleted")
+	}
+	if len(ct.deleted) != 0 || len(ct.flows) != 1 {
+		t.Fatal("unproven scoped tuple mutated")
+	}
+}

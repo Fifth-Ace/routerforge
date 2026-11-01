@@ -106,6 +106,12 @@ func managedFlow(p GatePlan, f CTFlow) bool {
 	return false
 }
 func (c *ConntrackCleaner) Evict(ctx context.Context, p GatePlan, ownedOnly bool) error {
+	return c.evict(ctx, p, ownedOnly, false)
+}
+func (c *ConntrackCleaner) evictLegacy(ctx context.Context, p GatePlan) error {
+	return c.evict(ctx, p, true, true)
+}
+func (c *ConntrackCleaner) evict(ctx context.Context, p GatePlan, ownedOnly, rejectScoped bool) error {
 	if c == nil || c.Table == nil {
 		return errors.New("conntrack backend unavailable")
 	}
@@ -125,6 +131,9 @@ func (c *ConntrackCleaner) Evict(ctx context.Context, p GatePlan, ownedOnly bool
 				continue
 			}
 			pending++
+			if rejectScoped && (f.Original.Src.IsLinkLocalUnicast() || f.Original.Dst.IsLinkLocalUnicast() || f.Reply.Src.IsLinkLocalUnicast()) {
+				return conflict("legacy link-local conntrack appeared during handoff; interface ownership unproven")
+			}
 			if err := validateManagedFlow(p, f); err != nil {
 				return err
 			}

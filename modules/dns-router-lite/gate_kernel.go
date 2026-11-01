@@ -548,8 +548,14 @@ func (k *LinuxGate) Remove(ctx context.Context, p GatePlan, legacy bool) error {
 	if k.Conntrack == nil {
 		return errors.New("safe conntrack cleanup unavailable")
 	}
-	if err := k.Conntrack.Evict(ctx, p, true); err != nil {
-		return err
+	var ctErr error
+	if legacy {
+		ctErr = k.Conntrack.evictLegacy(ctx, p)
+	} else {
+		ctErr = k.Conntrack.Evict(ctx, p, true)
+	}
+	if ctErr != nil {
+		return ctErr
 	}
 	if k.OwnershipPath != "" {
 		if e := os.Remove(k.OwnershipPath); e != nil && !os.IsNotExist(e) {

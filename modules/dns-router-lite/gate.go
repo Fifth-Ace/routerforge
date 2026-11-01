@@ -27,10 +27,12 @@ const (
 )
 
 type GateExec func(context.Context, string, ...string) error
+type GateRead func(context.Context, string, ...string) (string, error)
 
 type GateManager struct {
 	mu         sync.Mutex
 	run        GateExec
+	read       GateRead
 	candidates func() (string, []string, error)
 	locate     func(string) (string, error)
 	active     bool
@@ -52,8 +54,22 @@ func gateRun(ctx context.Context, binary string, args ...string) error {
 	}
 	return nil
 }
+func gateRead(ctx context.Context, binary string, args ...string) (string, error) {
+	child, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+	constMax := 1024 * 1024
+	output, err := safety.RunCommand(child, constMax, binary, args...)
+	if len(output) >= constMax {
+		return "", fmt.Errorf("%s inspection output exceeds safety limit", binary)
+	}
+	if err != nil {
+		return string(output), fmt.Errorf("%s inspection failed: %w (%s)", binary, err, strings.TrimSpace(string(output)))
+	}
+	return string(output), nil
+}
+
 func NewGateManager() *GateManager {
-	return &GateManager{run: gateRun, candidates: GateCandidates, locate: exec.LookPath}
+	return &GateManager{run: gateRun, read: gateRead, candidates: GateCandidates, locate: exec.LookPath}
 }
 func (g *GateManager) command(ctx context.Context, name string, args ...string) error {
 	if g.run == nil {
@@ -272,7 +288,73 @@ func (g *GateManager) renew(ctx context.Context) {
 	}
 }
 
+// gateMissingObject reports only known 'object absent' diagnostics. Generic
+// command failures (including missing binaries and access denied) must never
+// be mistaken for a clean firewall.
+func gateMissingObject(err error, output string) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error() + " " + output)
+	return strings.Contains(msg, "the set with the given name does not exist") ||
+		strings.Contains(msg, "no chain/target/match by that name") ||
+		strings.Contains(msg, "doesn't exist")
+}
+
+// gateObjectsAbsent is a read-only inspection. We declare STOCK only when
+// both owned sets, both owned chains, and all PREROUTING references are absent.
+// Any ambiguous command error or orphaned jump is a hard recovery error.
+func (g *GateManager) gateObjectsAbsent(ctx context.Context) (bool, error) {
+	if g.read == nil {
+		return false, errors.New("DNS Gate inspection unavailable")
+	}
+	for _, spec := range []struct {
+		bin  string
+		args []string
+	}{
+		{"ipset", []string{"list", gateSet4}},
+		{"ipset", []string{"list", gateSet6}},
+		{"iptables", []string{"-t", "nat", "-S", gateChain}},
+		{"ip6tables", []string{"-t", "nat", "-S", gateChain}},
+	} {
+		output, err := g.read(ctx, spec.bin, spec.args...)
+		if err == nil {
+			return false, nil // An owned-name object remains; normal cleanup is required.
+		}
+		if !gateMissingObject(err, output) {
+			return false, fmt.Errorf("unable to verify %s kernel object: %w", spec.bin, err)
+		}
+	}
+	for _, bin := range []string{"iptables", "ip6tables"} {
+		output, err := g.read(ctx, bin, "-t", "nat", "-S", "PREROUTING")
+		if err != nil {
+			return false, fmt.Errorf("unable to inspect %s PREROUTING: %w", bin, err)
+		}
+		for _, line := range strings.Split(output, "\n") {
+			fields := strings.Fields(line)
+			for i := 0; i+1 < len(fields); i++ {
+				if (fields[i] == "-j" || fields[i] == "--jump") && fields[i+1] == gateChain {
+					return false, fmt.Errorf("orphaned %s PREROUTING jump to %s requires manual inspection", bin, gateChain)
+				}
+			}
+		}
+	}
+	return true, nil
+}
+
 func (g *GateManager) removeLocked(ctx context.Context, partial bool) error {
+	// Firmware may have already removed every object. Missing objects are a
+	// successful, idempotent STOCK state, never a cascade of removal errors.
+	absent, inspectionErr := g.gateObjectsAbsent(ctx)
+	if inspectionErr != nil {
+		return inspectionErr
+	}
+	if absent {
+		return nil
+	}
+	if g.port == "" {
+		return errors.New("Gate objects remain but owned listener port is unknown; manual inspection required")
+	}
 	// Deactivate matching first, even if ownership verification fails later.
 	// Avoid touching non-owned chains/sets if the exact object is absent.
 	var problems []string

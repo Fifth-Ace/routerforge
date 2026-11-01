@@ -236,8 +236,10 @@
     $('gatePreflight').textContent=wanted&&recovery?'Повторить восстановление':'Проверить готовность';
     $('stopButton').disabled=state.busy||!s.active;
     const hits=Number(s.requests||0),denied=Number(s.denied_requests||0);
+    const coverage=gate.coverage||{},ipv6=coverage.ipv6_routed==='active_last_verified';
+    const coverageText=active?('Перехват: '+(ipv6?'IPv4 и IPv6 global/ULA':'только IPv4')+'. Клиенты с IPv6 link-local source исключены. '):'';
     $('gateAdvice').textContent=recovery?('Перехват не подтверждён. Желаемое состояние: '+(wanted?'ВКЛ':'ВЫКЛ')+'. '+(gate.last_error||'Проверяем listener, порядок правил и lease')+'. Действие восстановления ограничено; сторонние правила не перезаписываются.'):
-      active?('Gate проверен: listener, обе настроенные IP-семьи, порядок правил и действующие lease. Запросов сервиса: '+hits+', ACL-отказов: '+denied+'. Реальный путь устройства подтверждается отдельной проверкой, не этим счётчиком.'):
+      active?(coverageText+'Gate проверен: listener, порядок правил и действующие lease. Запросов сервиса: '+hits+', ACL-отказов: '+denied+'. Реальный путь устройства подтверждается отдельной проверкой, не этим счётчиком.'):
       'Перехват выключен. Последний выбор ON/OFF сохраняется отдельно от черновика конфигурации; при обновлении и перезагрузке он восстанавливается после проверки готовности. Тестовое устройство не требуется.';
   }
   async function refreshStatus(){const s=await api('service/status');if(s.mode!=='independent-dns')throw Error('Загружен не DNS Lite. Установи актуальный DEV-пакет.');state.status=s;renderGate(s);

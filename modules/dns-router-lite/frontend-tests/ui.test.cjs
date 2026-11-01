@@ -236,3 +236,20 @@ test('P19 recovery shows desired vs observed and explicit retry without inventin
   a.match(d.getElementById('gateAdvice').textContent,/не этим счётчиком/);a.deepEqual(f.errors,[]);
  }finally{f.dom.window.close();}
 });
+
+test('P19.1: IPv4-only coverage never claims full or link-local IPv6 interception',async()=>{
+ const f=fixture(),d=f.w.document;
+ try{
+  await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+  d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+  d.getElementById('applyButton').click();await until(()=>f.getActive()&&!d.getElementById('applyButton').disabled);
+  f.setGate({state:'ACTIVE',active:true,desired:true,coverage:{ipv4:'active_last_verified',ipv6_routed:'excluded_no_managed_routed_prefix',ipv6_link_local:'excluded_unproven_interface_scope'}});
+  d.getElementById('refreshLogs').click();await until(()=>d.getElementById('gateAdvice').textContent.includes('только IPv4'));
+  a.match(d.getElementById('gateAdvice').textContent,/link-local source исключены/);
+  a.doesNotMatch(d.getElementById('gateAdvice').textContent,/обе настроенные|FULL|IPv6 E2E PASS/);
+  f.setGate({state:'ACTIVE',active:true,desired:true,coverage:{ipv4:'active_last_verified',ipv6_routed:'active_last_verified',ipv6_link_local:'excluded_unproven_interface_scope'}});
+  d.getElementById('refreshLogs').click();await until(()=>d.getElementById('gateAdvice').textContent.includes('IPv4 и IPv6 global/ULA'));
+  a.match(d.getElementById('gateAdvice').textContent,/link-local source исключены/);
+  a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});

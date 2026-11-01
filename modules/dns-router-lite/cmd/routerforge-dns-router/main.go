@@ -106,26 +106,16 @@ func run() error {
 			if e := getJSON(client, "service/status", &evidence); e != nil {
 				return e
 			}
-			if _, e := (lite.IntentStore{ConfigPath: *config}).Load(); os.IsNotExist(e) && evidence.Active {
-				c, _, e := dr.NewConfigStore(*config + ".service-active.json").Load()
-				if e != nil {
-					return e
-				}
-				if c.Service == nil {
-					return errors.New("legacy service snapshot missing")
-				}
-				ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-				e = lite.NewGateManager().StageLegacyCleanup(ctx, *config, c.Service.Listen)
-				cancel()
-				if e != nil {
-					return e
-				}
-			}
-			state, e := lite.PrepareUpgrade(*config, evidence)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			state, e := lite.NewGateManager().PrepareLegacyUpgrade(ctx, *config, evidence)
+			cancel()
 			if e != nil {
 				return e
 			}
-			return json.NewEncoder(os.Stdout).Encode(state)
+			return json.NewEncoder(os.Stdout).Encode(struct {
+				lite.Intent
+				Coverage string `json:"coverage"`
+			}{state, "preparation only; IPv6 link-local sources excluded; no IPv4/IPv6 E2E verified"})
 		}
 		if *gateNotify {
 			body := bytes.NewBufferString(`{"operation":"notify"}`)

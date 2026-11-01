@@ -213,7 +213,11 @@ func (k *LinuxGate) view(ctx context.Context, p GatePlan, f GateFamily, legacy b
 			v.Ordered = append(v.Ordered, ruleString(a))
 			v.Counts[ruleString(a)]++
 		}
-		if argValue(a, "-j") == gateChain && ruleString(a) != ruleString(jumpRule(p, legacy)) {
+		target := argValue(a, "-j")
+		if target == "" {
+			target = argValue(a, "-g")
+		}
+		if target == gateChain && ruleString(a) != ruleString(jumpRule(p, legacy)) {
 			return v, conflict("unowned reference to %s: %s", gateChain, line)
 		}
 	}

@@ -29,6 +29,7 @@ type GateManager struct {
 	op          sync.Mutex
 	kernel      GateKernel
 	candidates  func() (string, []string, error)
+	topology    func() (GateTopology, error)
 	planFactory func(string) (GatePlan, error)
 	locate      func(string) (string, error)
 	probe       func(context.Context, string, GatePlan) error
@@ -49,7 +50,7 @@ type GateManager struct {
 
 func NewGateManager() *GateManager {
 	x := &XTables{Exec: systemFirewallIO}
-	return &GateManager{kernel: &LinuxGate{Tables: x, Conntrack: newSystemConntrack()}, candidates: GateCandidates, locate: exec.LookPath, probe: probeGateDNS, state: "STOCK", notify: make(chan struct{}, 1), now: time.Now}
+	return &GateManager{kernel: &LinuxGate{Tables: x, Conntrack: newSystemConntrack()}, candidates: GateCandidates, topology: DiscoverGateTopology, locate: exec.LookPath, probe: probeGateDNS, state: "STOCK", notify: make(chan struct{}, 1), now: time.Now}
 }
 func (g *GateManager) SetOwnershipPath(path string) {
 	if k, ok := g.kernel.(*LinuxGate); ok {
@@ -67,7 +68,7 @@ func (g *GateManager) Status() map[string]any {
 	if g.active && !active {
 		state = "DEGRADED"
 	}
-	return map[string]any{"state": state, "active": active, "desired": g.desired, "port": g.plan.Port, "interface": gateInterface, "last_error": g.lastError, "lease_seconds": controllerLease, "lease_until": g.leaseUntil.UTC().Format(time.RFC3339Nano), "verified_at": g.verifiedAt.UTC().Format(time.RFC3339Nano), "persisted": true, "recovery_attempts": g.failures, "families": g.plan.Families, "hardware_e2e": "PENDING"}
+	return map[string]any{"state": state, "active": active, "desired": g.desired, "port": g.plan.Port, "interface": gateInterface, "last_error": g.lastError, "lease_seconds": controllerLease, "lease_until": g.leaseUntil.UTC().Format(time.RFC3339Nano), "verified_at": g.verifiedAt.UTC().Format(time.RFC3339Nano), "persisted": true, "recovery_attempts": g.failures, "families": g.plan.Families, "hardware_e2e": "PENDING", "coverage": gateCoverage(g.plan, active)}
 }
 func (g *GateManager) acquire(ctx context.Context) error {
 	for !g.op.TryLock() {
@@ -85,11 +86,14 @@ func (g *GateManager) makePlan(listen string) (GatePlan, error) {
 		}
 		return p, validateGatePlan(p)
 	}
-	port, err := gatePort(listen)
+	v4, v6, err := g.candidates()
 	if err != nil {
 		return GatePlan{}, err
 	}
-	v4, v6, err := g.candidates()
+	return planFromCandidates(listen, v4, v6, false)
+}
+func planFromCandidates(listen, v4 string, v6 []string, includeLinkLocal bool) (GatePlan, error) {
+	port, err := gatePort(listen)
 	if err != nil {
 		return GatePlan{}, err
 	}
@@ -122,12 +126,29 @@ func (g *GateManager) makePlan(listen string) (GatePlan, error) {
 			if ones == 0 || (bits == 32 && ones < 8) || (bits == 128 && ones < 32) {
 				return p, errors.New("managed prefix is too broad")
 			}
-			f.Prefixes = append(f.Prefixes, n.String())
-			p.RouterAddresses = append(p.RouterAddresses, ip.String())
+			if item.family == "inet6" && ip.IsLinkLocalUnicast() && !includeLinkLocal {
+				continue
+			}
+			duplicate := false
+			for _, prefix := range f.Prefixes {
+				duplicate = duplicate || prefix == n.String()
+			}
+			if !duplicate {
+				f.Prefixes = append(f.Prefixes, n.String())
+			}
+			duplicate = false
+			for _, address := range p.RouterAddresses {
+				duplicate = duplicate || address == ip.String()
+			}
+			if !duplicate {
+				p.RouterAddresses = append(p.RouterAddresses, ip.String())
+			}
 		}
-		p.Families = append(p.Families, f)
+		if len(f.Prefixes) > 0 {
+			p.Families = append(p.Families, f)
+		}
 	}
-	return p, nil
+	return p, validateGatePlan(p)
 }
 func (g *GateManager) Preflight(ctx context.Context, listen string) error {
 	p, e := g.makePlan(listen)
@@ -442,75 +463,6 @@ func probeGateDNSWithTrace(ctx context.Context, listen string, p GatePlan, obser
 	return nil
 }
 
-func GateCandidates() (string, []string, error) {
-	ifc, err := net.InterfaceByName(gateInterface)
-	if err != nil || ifc.Flags&net.FlagUp == 0 {
-		return "", nil, errors.New("br0 LAN interface unavailable")
-	}
-	if fi, e := os.Stat("/sys/class/net/" + gateInterface + "/bridge"); e != nil || !fi.IsDir() {
-		return "", nil, errors.New("managed br0 is not a kernel LAN bridge")
-	}
-	addrs, err := ifc.Addrs()
-	if err != nil {
-		return "", nil, err
-	}
-	v4 := ""
-	v6 := []string{}
-	for _, item := range addrs {
-		ipnet, ok := item.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		if ipnet.IP.To4() != nil {
-			if v4 != "" {
-				return "", nil, errors.New("multiple br0 IPv4 prefixes require explicit audit")
-			}
-			v4 = ipnet.String()
-		} else if ipnet.IP.To16() != nil && !ipnet.IP.IsLoopback() {
-			v6 = append(v6, ipnet.String())
-		}
-	}
-	if v4 == "" {
-		return "", nil, errors.New("br0 IPv4 LAN prefix required")
-	}
-	// Reject intentionally ambiguous interfaces until hardware-tested.
-	if len(v6) > 4 {
-		return "", nil, errors.New("too many br0 IPv6 prefixes")
-	}
-	interfaces, e := net.Interfaces()
-	if e != nil {
-		return "", nil, e
-	}
-	managed := append([]string{v4}, v6...)
-	for _, other := range interfaces {
-		if other.Name == gateInterface || other.Flags&net.FlagUp == 0 {
-			continue
-		}
-		addresses, e := other.Addrs()
-		if e != nil {
-			return "", nil, e
-		}
-		for _, address := range addresses {
-			otherIP, otherNet, e := net.ParseCIDR(address.String())
-			if e != nil {
-				continue
-			}
-			for _, prefix := range managed {
-				ownIP, ownNet, _ := net.ParseCIDR(prefix)
-				if ownIP.IsLinkLocalUnicast() && otherIP.IsLinkLocalUnicast() {
-					if ownIP.Equal(otherIP) {
-						return "", nil, errors.New("ambiguous scoped router IPv6 address")
-					}
-					continue
-				}
-				if ownNet.Contains(otherIP) || otherNet.Contains(ownIP) {
-					return "", nil, fmt.Errorf("managed LAN prefix overlaps %s; conntrack scope is ambiguous", other.Name)
-				}
-			}
-		}
-	}
-	return v4, v6, nil
-}
 func gatePort(listen string) (string, error) {
 	host, port, err := net.SplitHostPort(listen)
 	if err != nil || net.ParseIP(host) == nil {
@@ -565,4 +517,20 @@ func (g *GateManager) Quiesce(ctx context.Context) error {
 		return d.Deactivate(ctx, p)
 	}
 	return g.kernel.Remove(ctx, p, false)
+}
+
+// Coverage is observed per routed family, never a claim of full IPv6 or E2E.
+func gateCoverage(p GatePlan, active bool) map[string]string {
+	c := map[string]string{"ipv4": "not_configured", "ipv6_routed": "excluded_no_managed_routed_prefix", "ipv6_link_local": "excluded_unproven_interface_scope", "hardware_e2e": "PENDING"}
+	for _, f := range p.Families {
+		key := "ipv4"
+		if f.Family == "inet6" {
+			key = "ipv6_routed"
+		}
+		c[key] = "configured_not_active"
+		if active {
+			c[key] = "active_last_verified"
+		}
+	}
+	return c
 }

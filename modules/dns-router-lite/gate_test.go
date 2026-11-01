@@ -317,6 +317,7 @@ func gateFixture(t *testing.T) (*GateManager, *modelKernel, *LinuxGate) {
 	k := &LinuxGate{Tables: &XTables{Exec: m.exec, Delay: func(context.Context, time.Duration) error { return nil }}, OwnershipPath: filepath.Join(t.TempDir(), "owned.json"), Conntrack: &ConntrackCleaner{Table: &modelCT{}}}
 	g := NewGateManager()
 	g.kernel = k
+	g.topology = nil
 	g.candidates = func() (string, []string, error) {
 		return "192.168.10.1/24", []string{"fe80::1/64", "fd12:3456::1/64"}, nil
 	}

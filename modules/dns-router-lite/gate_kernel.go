@@ -646,40 +646,7 @@ func (k *LinuxGate) auditMangle(ctx context.Context, p GatePlan, f GateFamily) e
 	if err != nil {
 		return fmt.Errorf("mangle topology unavailable: %w", err)
 	}
-	chains := map[string][][]string{}
-	for _, line := range strings.Split(dump, "\n") {
-		r := words(line)
-		if argValue(r, "--match-set") == f.Set {
-			return conflict("foreign mangle reference to owned lease set: %s", line)
-		}
-		if len(r) > 2 && r[0] == "-A" {
-			chains[r[1]] = append(chains[r[1]], r)
-		}
-	}
-	for _, r := range chains["PREROUTING"] {
-		if iface := argValue(r, "-i"); iface != "" && iface != p.Interface {
-			continue
-		}
-		proto := argValue(r, "-p")
-		if proto != "" && proto != "udp" && proto != "tcp" {
-			continue
-		}
-		port := argValue(r, "--dport")
-		if port == "" {
-			port = argValue(r, "--dports")
-		}
-		if !includesDNS(port) {
-			continue
-		}
-		target := argValue(r, "-j")
-		if strings.HasPrefix(target, "_NDM_") {
-			continue
-		}
-		if target == "TPROXY" || target == "REDIRECT" || target == "DNAT" || mayCaptureDNS(target, chains, map[string]bool{}) {
-			return conflict("competing mangle DNS interception: %s", ruleString(r))
-		}
-	}
-	return nil
+	return inspectMangleDNS(dump, p, f)
 }
 
 // Deactivate does not require the xtables lock. A dead listener must not keep

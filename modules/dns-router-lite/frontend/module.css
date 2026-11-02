@@ -377,3 +377,359 @@ input,select,textarea{min-height:var(--rf-p194-control);padding:6px 9px;border-r
 @media(max-width:1100px){.routing-workspace{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:700px){.module-heading{align-items:flex-start;flex-direction:column}.top-actions{justify-content:flex-start}.page{padding:12px}.health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.routing-workspace{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:450px){.health-metrics{grid-template-columns:minmax(0,1fr)}.gate-shell>summary{padding:8px}}
+
+/* P19.5b — reference-render parity. Pure presentation: no DNS/Gate mutations. */
+:root {
+  --rf-p195b-radius: var(--rf-ui-panel-radius,var(--rf-radius-panel,8px));
+  --rf-p195b-control-radius: var(--rf-ui-control-radius,6px);
+  --rf-p195b-rule: var(--border);
+}
+#dnsLiteApp.page {
+  gap: 11px;
+  padding: 20px 20px 25px;
+  line-height: 1.43;
+}
+#dnsLiteApp .module-heading {
+  align-items: center;
+  padding: 0 0 5px;
+  min-height: 70px;
+}
+#dnsLiteApp .module-heading-copy .eyebrow {
+  letter-spacing: .065em;
+  margin-bottom: 6px;
+}
+#dnsLiteApp .module-heading-copy h1 {
+  font-size: 27px;
+  font-weight: 740;
+  line-height: 1.18;
+  letter-spacing: -.027em;
+  margin: 0 0 5px;
+}
+#dnsLiteApp .module-heading-copy p {
+  max-width: 92ch;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+#dnsLiteApp .top-actions { flex-wrap: nowrap; gap: 8px; }
+#dnsLiteApp .top-actions .button { min-height: 34px; font-size: 11px; }
+#dnsLiteApp .tabs {
+  min-height: 46px;
+  padding: 4px;
+  gap: 6px;
+  border-radius: var(--rf-p195b-radius);
+  border-color: var(--rf-p195b-rule);
+  background: var(--surface);
+}
+#dnsLiteApp .tabs .tab {
+  min-height: 35px;
+  padding: 7px 17px;
+  font-size: 12px;
+  font-weight: 670;
+}
+#dnsLiteApp .tabs .counter { color: var(--text); background: var(--surface2); margin-left: 5px; }
+#dnsLiteApp .notice {
+  padding: 7px 11px;
+  font-size: 11px;
+  border-radius: var(--rf-p195b-control-radius);
+}
+#dnsLiteApp #pageDns { gap: 12px; }
+#dnsLiteApp .health-overview { gap: 8px; }
+#dnsLiteApp .health-caption { min-height: 16px; }
+#dnsLiteApp .health-caption > span { letter-spacing: .035em; font-size: 10px; }
+#dnsLiteApp .health-metrics {
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 11px;
+}
+#dnsLiteApp .health-metrics > div {
+  min-height: 91px;
+  padding: 12px 15px;
+  gap: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--rf-p195b-radius);
+  box-shadow: none;
+}
+#dnsLiteApp .health-metrics small { font-size: 11px; }
+#dnsLiteApp .health-metrics strong {
+  font-size: 23px;
+  line-height: 1.21;
+  letter-spacing: -.025em;
+  font-weight: 750;
+}
+#dnsLiteApp .health-metrics span { font-size: 10px; line-height: 1.5; }
+#dnsLiteApp .health-native { min-height: 16px; padding-left: 2px; }
+#dnsLiteApp .gate-shell {
+  border-radius: var(--rf-p195b-radius);
+  background: var(--surface);
+}
+#dnsLiteApp .gate-shell > summary {
+  min-height: 45px;
+  padding: 9px 13px;
+}
+#dnsLiteApp .gate-shell > summary b { font-size: 12px; }
+#dnsLiteApp .gate-shell > summary small { font-size: 10px; }
+#dnsLiteApp .routing-workspace {
+  grid-template-columns: minmax(425px,1.16fr) minmax(400px,1fr);
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+}
+#dnsLiteApp .upstream-pane,
+#dnsLiteApp .domain-pane {
+  min-height: 0;
+  padding: 0;
+  overflow: clip;
+  border: 1px solid var(--border);
+  border-radius: var(--rf-p195b-radius);
+  background: var(--surface);
+}
+#dnsLiteApp .upstream-pane > .section-title,
+#dnsLiteApp .domain-pane > .section-title {
+  min-height: 64px;
+  padding: 13px 15px 12px;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+}
+#dnsLiteApp .upstream-pane > .section-title .eyebrow,
+#dnsLiteApp .domain-pane > .section-title .eyebrow {
+  display: none;
+}
+#dnsLiteApp .upstream-pane > .section-title h2,
+#dnsLiteApp .domain-pane > .section-title h2 {
+  font-size: 16px;
+  line-height: 1.28;
+  letter-spacing: -.014em;
+  font-weight: 730;
+}
+#dnsLiteApp .upstream-pane > .section-title p,
+#dnsLiteApp .domain-pane > .section-title p {
+  font-size: 11px;
+  margin-top: 3px;
+}
+#dnsLiteApp .server-head-actions { gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+#dnsLiteApp .server-head-actions .button { min-height: 33px; padding: 6px 10px; }
+#dnsLiteApp .server-head-actions #addDnsToggle { font-weight: 720; }
+#dnsLiteApp .server-head-actions #serverCount { white-space: nowrap; }
+#dnsLiteApp .upstream-pane .dns-cards {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px 12px 14px;
+  min-height: 0;
+  max-height: none;
+  overflow-y: visible;
+}
+#dnsLiteApp .upstream-pane > .warning { margin: 12px 12px 0; }
+#dnsLiteApp .dns-card {
+  border-radius: var(--rf-p195b-radius);
+  background: var(--surface2);
+  padding: 12px 13px 11px;
+  gap: 8px;
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+#dnsLiteApp .dns-card:hover { border-color: var(--border-strong); }
+#dnsLiteApp .dns-card.is-selected {
+  background: var(--surface2);
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+#dnsLiteApp .dns-title { gap: 3px; }
+#dnsLiteApp .dns-title strong {
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+#dnsLiteApp .dns-title small { font-size: 11px; color: var(--muted); }
+#dnsLiteApp .dns-count {
+  font-size: 10px;
+  padding: 3px 7px;
+  color: var(--muted);
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+#dnsLiteApp .dns-health {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  font-size: 11px;
+}
+#dnsLiteApp .dns-health-status {
+  font-size: 10px;
+  font-weight: 750;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--muted);
+  background: var(--surface);
+}
+#dnsLiteApp .dns-health-status[data-state=up] { color: var(--good); }
+#dnsLiteApp .dns-health-status[data-state=down] { color: var(--bad); }
+#dnsLiteApp .dns-rtt,
+#dnsLiteApp .dns-p95 { font-variant-numeric: tabular-nums; }
+#dnsLiteApp .dns-card-metrics {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 9px;
+  font-size: 11px;
+  font-weight: 720;
+}
+#dnsLiteApp .dns-card-metrics > span + span {
+  border-left: 1px solid var(--border);
+  padding-left: 18px;
+}
+#dnsLiteApp .dns-preview {
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--muted);
+  line-height: 1.42;
+  min-height: 15px;
+}
+#dnsLiteApp .dns-card-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 9px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+}
+#dnsLiteApp .dns-card-actions > .button {
+  padding: 5px 11px;
+  min-height: 32px;
+  font-size: 11px;
+  font-weight: 580;
+}
+#dnsLiteApp .dns-card-actions > .dns-advanced { margin-left: 0; }
+#dnsLiteApp .dns-card-actions > .dns-advanced > summary {
+  min-height: 32px;
+  line-height: 30px;
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 590;
+  background: var(--surface);
+}
+#dnsLiteApp .dns-card-actions > .dns-advanced[open] { flex-basis: 100%; }
+#dnsLiteApp .domain-pane .editor {
+  padding: 0 15px 15px;
+  margin: 0;
+  border: 0;
+}
+#dnsLiteApp .editor-dns-switch { padding: 13px 15px 9px; }
+#dnsLiteApp .editor-dns-switch .field { gap: 6px; }
+#dnsLiteApp .editor-dns-switch .field > span {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+}
+#dnsLiteApp #editorDNSChoice { min-height: 37px; font-weight: 630; }
+#dnsLiteApp #selectedDNSBadge {
+  max-width: 38%;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#dnsLiteApp .domain-pane .editor > .section-title {
+  padding: 8px 0 9px;
+  margin-bottom: 6px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+#dnsLiteApp .domain-pane .editor > .section-title h3 {
+  font-size: 12px;
+  font-weight: 710;
+}
+#dnsLiteApp .domain-pane .editor > .section-title p { font-size: 10px; }
+#dnsLiteApp .domain-pane .list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  margin: 10px 0;
+  gap: 8px;
+}
+#dnsLiteApp .domain-pane .list-toolbar .field > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 620;
+}
+#dnsLiteApp .domain-pane .list-toolbar .field {
+  flex: 1 1 175px;
+  min-width: 0;
+}
+#dnsLiteApp .domain-pane .list-toolbar .button { min-height: 34px; padding: 5px 9px; font-size: 10px; }
+#dnsLiteApp .domain-pane .list-rename {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+#dnsLiteApp .domain-pane select,
+#dnsLiteApp .domain-pane input { min-height: 35px; }
+#dnsLiteApp .domain-pane .editor textarea {
+  width: 100%;
+  min-height: 315px;
+  max-height: 540px;
+  padding: 14px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--rf-p195b-radius);
+  font: 12px/1.8 ui-monospace,'Cascadia Mono',Consolas,monospace;
+  resize: vertical;
+}
+#dnsLiteApp .domain-pane .editor textarea:focus {
+  border-color: var(--accent);
+}
+#dnsLiteApp .domain-pane .editor-meta {
+  margin-top: 9px;
+  font-size: 10px;
+}
+#dnsLiteApp .domain-pane .editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 10px;
+}
+#dnsLiteApp .domain-pane .editor-actions .button { min-height: 35px; padding: 6px 12px; }
+#dnsLiteApp .domain-pane .editor-actions .button.primary { margin-left: auto; }
+#dnsLiteApp .domain-empty {
+  margin: 0 15px 15px;
+  min-height: 118px;
+  padding: 17px;
+  gap: 5px;
+  border-radius: var(--rf-p195b-radius);
+  background: var(--surface2);
+}
+#dnsLiteApp .domain-empty-symbol { width: 28px; height: 28px; font-size: 13px; }
+#dnsLiteApp .domain-empty strong { font-size: 12px; }
+#dnsLiteApp .domain-empty p { font-size: 10px; }
+@media (max-width: 1120px) {
+  #dnsLiteApp .routing-workspace { grid-template-columns: minmax(0,1fr); }
+  #dnsLiteApp .upstream-pane .dns-cards { max-height: 450px; overflow-y: auto; }
+}
+@media (max-width: 960px) {
+  #dnsLiteApp .health-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #dnsLiteApp .module-heading { align-items: flex-start; flex-wrap: wrap; }
+  #dnsLiteApp .top-actions { flex-wrap: wrap; justify-content: flex-start; }
+}
+@media (max-width: 670px) {
+  #dnsLiteApp.page { padding: 12px; }
+  #dnsLiteApp .health-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #dnsLiteApp .tabs .tab { padding: 7px 10px; }
+  #dnsLiteApp .dns-card-metrics { gap: 11px; }
+  #dnsLiteApp .dns-card-metrics > span + span { padding-left: 10px; }
+  #dnsLiteApp .upstream-pane > .section-title,
+  #dnsLiteApp .domain-pane > .section-title { align-items: flex-start; flex-wrap: wrap; }
+}
+@media (max-width: 430px) {
+  #dnsLiteApp .health-metrics { grid-template-columns: minmax(0,1fr); }
+  #dnsLiteApp .domain-pane .editor-actions .button.primary { margin-left: 0; }
+  #dnsLiteApp .editor-dns-switch,
+  #dnsLiteApp .domain-pane .editor { padding-left: 11px; padding-right: 11px; }
+}

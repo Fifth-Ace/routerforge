@@ -22,4 +22,11 @@ for source in ('dns_router_catalog_runtime.go', 'dns_router_upgrade_args.go'):
     assert core_sources.count(source) == 1, f'Core IPK build missing P19.5 helper: {source}'
     assert (Path('components/core') / source).is_file(), f'missing Core helper source: {source}'
 print('P195_CORE_EXPLICIT_SOURCE_LIST: PASS')
+# P19.5b: the right pane must show real DNS/list data on initial render; never call a mutation API.
+assert h.count('id="editorDNSChoice"') == 1
+assert 'const initial=state.config.upstreams.find' in j
+assert "if(!editList(chosen))$('editorDNSChoice').value=previous" in j
+assert '/* P19.5b — reference-render parity.' in c
+assert 'grid-template-columns: minmax(425px,1.16fr) minmax(400px,1fr)' in c
+print('P195B_RENDER_PARITY_AND_READ_ONLY_SELECTION: PASS')
 print('P195_DNS_UI_LIFECYCLE_SOURCE_CONTRACT: PASS')

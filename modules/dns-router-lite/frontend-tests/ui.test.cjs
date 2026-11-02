@@ -347,3 +347,27 @@ test('P19.4: compact DNS cards preserve actions and list/domain counters',async(
   a.deepEqual(f.errors,[]);
  }finally{f.dom.window.close();}
 });
+
+test('P19.5b: initial DNS selection and safe cross-DNS list editing',async()=>{
+  const f=fixture(),d=f.w.document;
+  try {
+    await until(()=>d.getElementById('editorDNSChoice').value==='old' && d.getElementById('editorDomains').value==='example.com');
+    a.equal(d.getElementById('editorEmpty').hidden,true,'first eligible DNS is selected');
+    a.equal(d.querySelector('[data-upstream-id="old"]').classList.contains('is-selected'),true);
+    a.equal(d.getElementById('defaultDNS').value,'','display selection must not change default upstream');
+    a.equal(f.getActive(),false,'auto-selection must not start the DNS service');
+    a.equal(f.calls.filter(c=>['POST','PUT','PATCH','DELETE'].includes(c.opts.method)).length,0,'auto-selection must be read only');
+    d.getElementById('editorDNSChoice').value='cf';
+    d.getElementById('editorDNSChoice').dispatchEvent(new f.w.Event('change'));
+    a.equal(d.getElementById('editorDomains').value,'other.net');
+    a.equal(d.querySelector('[data-upstream-id="cf"]').classList.contains('is-selected'),true);
+    d.getElementById('editorDomains').value='other.net\nunsaved.example';
+    f.w.confirm=()=>false;
+    d.getElementById('editorDNSChoice').value='old';
+    d.getElementById('editorDNSChoice').dispatchEvent(new f.w.Event('change'));
+    a.equal(d.getElementById('editorDNSChoice').value,'cf','cancel restores selector');
+    a.equal(d.getElementById('editorDomains').value,'other.net\nunsaved.example','unsaved domain draft survives cancelled switch');
+    a.equal(f.getActive(),false);
+    a.deepEqual(f.errors,[]);
+  } finally {f.dom.window.close();}
+});

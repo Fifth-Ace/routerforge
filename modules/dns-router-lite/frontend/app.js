@@ -90,6 +90,11 @@
       const del=document.createElement('button');del.type='button';del.className='button danger';del.textContent='Удалить DNS';del.addEventListener('click',()=>removeDNS(u.id));bottom.appendChild(del);
       advanced.appendChild(bottom);actions.appendChild(advanced);card.appendChild(actions);root.appendChild(card);
     }
+    const chooser=$('editorDNSChoice');
+    const managed=list.filter(u=>u.transport!=='native');
+    chooser.replaceChildren(option('','Выбери DNS…'),...managed.map(u=>option(u.id,hostName(u))));
+    chooser.value=managed.some(u=>u.id===state.editing)?state.editing:'';
+    chooser.disabled=!managed.length;
     if(state.editing)renderListToolbar();
     if(state.config.service){$('serviceListen').value=state.config.service.listen;$('cacheSize').value=state.config.service.cache_bytes/(1024*1024);$('allowedNetworks').value=state.config.service.allowed_networks.join(',');}
     $('listenerSummary').textContent=state.config.service?.listen||$('serviceListen').value;
@@ -178,14 +183,15 @@
     renderListToolbar();reportHeight();
   }
   function editList(id){
-    if(editorPending()&&!confirm('У выбранного DNS есть несохранённый текст списка. Перейти к другому DNS?'))return;
+    if(editorPending()){if(!confirm('У выбранного DNS есть несохранённый текст списка. Перейти к другому DNS?'))return false;state.editorBase=$('editorDomains').value;}
     const u=state.config.upstreams.find(x=>x.id===id);
     if(!u||u.transport==='native')throw Error('Legacy DNS нужно сначала преобразовать');
+    if(state.editing===null)state.editorBase=$('editorDomains').value;
     const changed=state.editing!==id;state.editing=id;
     if(changed)state.editingList=listEntries(id)[0].id;
     $('selectedDNSBadge').textContent=displayName(u);
     $('editorEmpty').hidden=true;$('listEditor').hidden=false;
-    switchList(state.editingList);render();reportHeight();
+    switchList(state.editingList);render();reportHeight();return true;
   }
   function closeEditor(){
     if(editorPending()&&!confirm('Закрыть редактор? Несохранённый текст будет потерян.'))return;
@@ -468,10 +474,11 @@
     const t=await api('service/traces');state.logs=Array.isArray(t.traces)?t.traces:[];
     renderLogs();$('logUpdated').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour12:false});
   }
-  async function load(){const d=await api('config');if(!d.config||!d.revision||!Array.isArray(d.config.rules)||!Array.isArray(d.config.upstreams))throw Error('Неверный формат конфигурации DNS');state.config=d.config;state.revision=d.revision;state.dirty=false;state.editing=null;state.editingList='__legacy__';state.editorBase=null;$('selectedDNSBadge').textContent='DNS не выбран';$('listEditor').hidden=true;render();await refreshStatus();await refreshHealth().catch(()=>{});await Promise.all([refreshNativeDNS(),refreshLogs().catch(()=>{})]);show('Настройки загружены. Можно менять DNS и списки.','good');}
+  async function load(){const d=await api('config');if(!d.config||!d.revision||!Array.isArray(d.config.rules)||!Array.isArray(d.config.upstreams))throw Error('Неверный формат конфигурации DNS');state.config=d.config;state.revision=d.revision;state.dirty=false;state.editing=null;state.editingList='__legacy__';state.editorBase=null;$('selectedDNSBadge').textContent='DNS не выбран';$('listEditor').hidden=true;render();const initial=state.config.upstreams.find(u=>u.transport!=='native');if(initial)editList(initial.id);await refreshStatus();await refreshHealth().catch(()=>{});await Promise.all([refreshNativeDNS(),refreshLogs().catch(()=>{})]);show('Настройки загружены. Можно менять DNS и списки.','good');}
   async function task(fn,refresh=true){if(state.busy)return;busy(true);try{await fn();}catch(e){show(e.message,'bad');}finally{try{if(refresh&&state.status){try{await refreshStatus();}catch(_){}}}finally{busy(false);}}}
   function on(id,fn,refresh=true){$(id).addEventListener('click',()=>task(fn,refresh));}
   $('navDns').addEventListener('click',()=>setPage('dns'));$('navLogs').addEventListener('click',()=>setPage('logs'));
+  $('editorDNSChoice').addEventListener('change',()=>{const chosen=$('editorDNSChoice').value,previous=state.editing||'';if(!chosen){if(previous)closeEditor();$('editorDNSChoice').value=state.editing||'';return;}if(!editList(chosen))$('editorDNSChoice').value=previous;});
   on('reloadButton',async()=>{if((state.dirty||editorPending())&&!confirm('Отменить все несохранённые изменения, включая текст доменов?'))return;await load();});
   $('addDnsToggle').addEventListener('click',()=>openDNSForm(null));$('cancelDNS').addEventListener('click',()=>{$('dnsAddPanel').hidden=true;state.editingDNSId=null;state.checked=null;});
   for(const id of ['newAddress','newProtocol'])$(id).addEventListener('input',()=>{state.checked=null;$('commitDNS').disabled=true;$('certificateInfo').textContent='Адрес изменён. Нажми «Проверить». ';resetDraftInspection();$('certificateDetails').hidden=true;});

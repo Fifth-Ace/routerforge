@@ -112,7 +112,8 @@
       </aside>
       <section class="panel domain-pane" aria-label="Редактор доменов">
         <div class="section-title"><div><span class="eyebrow">DNS ROUTER</span><h2>Списки доменов</h2><p>Все списки выбранного DNS в одном месте.</p></div><span id="selectedDNSBadge" class="counter">DNS не выбран</span></div>
-        <div id="editorEmpty" class="domain-empty"><div class="domain-empty-symbol" aria-hidden="true">↖</div><strong>Выбери DNS слева</strong><p>Откроется его список доменов. Можно вставить текст или импортировать TXT.</p></div>
+        <div class="editor-dns-switch"><label class="field" for="editorDNSChoice"><span>DNS-сервер</span><select id="editorDNSChoice" aria-label="DNS-сервер для списков"><option value="">Выбери DNS…</option></select></label></div>
+        <div id="editorEmpty" class="domain-empty"><div class="domain-empty-symbol" aria-hidden="true">↖</div><strong>Выбери DNS-сервер</strong><p>После выбора здесь появятся его списки и редактор доменов.</p></div>
         <div id="listEditor" class="editor" hidden>
           <div class="section-title"><div><h3 id="editorTitle">Список доменов</h3><p>У каждого DNS может быть несколько независимых списков. Один домен на строку.</p></div><button type="button" class="button subtle" id="closeEditor">Закрыть</button></div>
           <div class="list-toolbar"><label class="field"><span>Список выбранного DNS</span><select id="listChoice"></select></label><label class="field"><span>Новый список</span><input id="newListName" maxlength="80" placeholder="Например, Стриминг"></label><button type="button" class="button" id="newListButton">＋ Создать</button></div>

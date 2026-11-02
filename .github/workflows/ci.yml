@@ -198,7 +198,7 @@ jobs:
               esac
 
               case "$path" in
-                *.go|go.mod|go.sum|modules/dns-router-lite/go.mod|modules/dns-router-lite/go.sum|scripts/collect-dns-lite-licenses.py)
+                *.go|go.mod|go.sum|modules/dns-router-lite/go.mod|modules/dns-router-lite/go.sum|scripts/collect-dns-lite-licenses.py|scripts/build-dns-router-experimental.sh|scripts/verify-beta-dns-router-package.py)
                   GO=true
                   CROSS=true
                   ;;

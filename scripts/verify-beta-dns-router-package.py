@@ -79,6 +79,12 @@ def verify(ipk, target, version, qemu=False):
         ):
             if not tar_payload(data, required):
                 raise ValueError('empty required payload: ' + required)
+        # P22: packaging is incomplete if HTML references assets missing from IPK.
+        # Conditional on the HTML so older/experimental UIs remain compatible.
+        ui_html = tar_payload(data, prefix + 'ui/index.html').decode('utf-8')
+        for ui_asset in ('p22-visual.css', 'p22-visual.js'):
+            if ui_asset in ui_html and not tar_payload(data, prefix + 'ui/' + ui_asset):
+                raise ValueError('empty referenced UI asset: ' + ui_asset)
     if qemu:
         if emulator is None:
             raise ValueError('QEMU MIPS smoke applies to MIPS or MIPSEL only')

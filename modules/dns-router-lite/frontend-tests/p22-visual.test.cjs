@@ -52,3 +52,49 @@ test('P22 no change to old P21 backend data model or revision workflow',()=>{
   assert.match(js,/p21ProbeMAC/);
   assert.match(css,/data-dns-mode="advanced"/);
 });
+
+test('P22 FIX2: one visible mode control and advanced landing, not old DNS tab',()=>{
+  assert.match(css, /p22-ready \.p21-mode-label \{ display:none!important/);
+  assert.match(js, /if \(nativeSelect\.value === 'advanced'\) tabs\.devices\.click\(\)/);
+  assert.match(js, /if \(app\.dataset\.dnsMode === 'advanced'\) tabs\.devices\.click\(\)/);
+  assert.match(js, /app\.classList\.add\('p22-ready'\)/);
+});
+
+test('P22 FIX2 runtime: enhanced script activates Advanced screen and populates device selection',async()=>{
+  const {JSDOM}=require('jsdom');
+  const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true});
+  try{
+    const w=dom.window,d=w.document,app=d.getElementById('dnsLiteApp');
+    app.dataset.dnsMode='basic';
+    const mode=d.getElementById('p21Mode');
+    mode.addEventListener('change',()=>{
+      app.dataset.dnsMode=mode.value;
+      if(mode.value==='basic')d.getElementById('p21Page').hidden=true;
+    });
+    d.getElementById('p21Nav').addEventListener('click',()=>{
+      d.getElementById('p21Page').hidden=false;
+      d.getElementById('pageDns').hidden=true;
+    });
+    const apiCalls=[];
+    w.fetch=async (url,opts={})=>{
+      apiCalls.push({url:String(url),method:opts.method});
+      return {ok:true,json:async()=>({devices:[{mac:'02:11:22:33:44:55',name:'Laptop',ip:'192.168.10.18',trusted:true}],issues:[]})};
+    };
+    w.eval(js);
+    assert.equal(app.classList.contains('p22-ready'),true,'visual JS must actually boot');
+    assert.equal(d.getElementById('p21Nav').textContent,'Устройства');
+    d.getElementById('p22ModeAdvanced').click();
+    assert.equal(app.dataset.dnsMode,'advanced');
+    assert.equal(d.getElementById('p21Page').hidden,false,'advanced selection opens the workspace');
+    assert.equal(d.getElementById('p22ModeAdvanced').getAttribute('aria-pressed'),'true');
+    await new Promise(resolve=>setTimeout(resolve,30));
+    const pick=d.getElementById('p22DevicePick');
+    assert.equal(pick.options.length,2,'real discovered devices appear in the picker');
+    pick.value='02:11:22:33:44:55';
+    pick.dispatchEvent(new w.Event('change'));
+    assert.equal(d.getElementById('p21MAC').value,'02:11:22:33:44:55');
+    assert.equal(d.getElementById('p21Name').value,'Laptop');
+    assert.ok(apiCalls.length>0);
+    assert.ok(apiCalls.every(x=>x.url==='../service/devices'&&x.method==='GET'),'enhancer is read-only');
+  }finally{dom.window.close();}
+});

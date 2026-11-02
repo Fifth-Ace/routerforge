@@ -12,7 +12,14 @@
   --accent-soft: rgba(75,233,39,.105);
   --good: var(--p22-green);
 }
-#dnsLiteApp.p22-ready .p22-legacy-mode { display:none!important; }
+/* One real visible switch: hide P21's legacy <label> entirely after JS binds. */
+#dnsLiteApp.p22-ready .p21-mode-label { display:none!important; }
+#dnsLiteApp:not(.p22-ready) .p22-mode-switch { display:none!important; }
+#dnsLiteApp .p22-mode-switch::before {
+  content:attr(data-label);color:var(--muted);font-size:11px;font-weight:600;
+  padding:0 7px 0 2px;
+}
+
 #dnsLiteApp .p21-mode-label { font-size: 11px; font-weight:600; }
 #dnsLiteApp .p22-mode-switch {
   display:inline-flex; align-items:center; gap:2px;

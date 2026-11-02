@@ -52,7 +52,11 @@
   }
   basicButton.addEventListener('click',()=>chooseMode('basic'));
   advancedButton.addEventListener('click',()=>chooseMode('advanced'));
-  nativeSelect.addEventListener('change',()=>setMode(nativeSelect.value));
+  nativeSelect.addEventListener('change',()=>{
+    setMode(nativeSelect.value);
+    // Advanced means the Advanced workspace, not the legacy DNS overview.
+    if (nativeSelect.value === 'advanced') tabs.devices.click();
+  });
   const modeObserver = new MutationObserver(()=>setMode(app.dataset.dnsMode));
   modeObserver.observe(app,{attributes:true,attributeFilter:['data-dns-mode']});
   setMode(app.dataset.dnsMode);
@@ -349,6 +353,9 @@
 
   // P21 controls remain authoritative. Section links navigate only; neither
   // discovery nor visual mode selection modifies DNS policy or router state.
+  const modeSwitch = document.querySelector('.p22-mode-switch');
+  if (modeSwitch) modeSwitch.dataset.label = t('Режим','Mode');
   app.classList.add('p22-ready');
+  if (app.dataset.dnsMode === 'advanced') tabs.devices.click();
   refreshDevices();
 })();

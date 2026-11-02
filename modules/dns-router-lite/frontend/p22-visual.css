@@ -219,3 +219,28 @@
 #dnsLiteApp[data-dns-mode="advanced"] #p21Devices,
 #dnsLiteApp[data-dns-mode="advanced"] #p21Groups,
 #dnsLiteApp[data-dns-mode="advanced"] #p21Rules { max-height:240px; overflow:auto; }
+
+/* P23 — clear advanced-mode navigation inside the current RouterForge UI.
+   Core design tokens stay authoritative; no new global design overrides. */
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel[hidden] {
+  display:none!important;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar {
+  min-width:0;display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:10px;padding:9px 13px;
+  border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--surface);
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar-label {
+  color:var(--muted);font-size:11px;font-weight:600;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar .actions {
+  margin:0;display:flex;align-items:center;justify-content:flex-end;gap:8px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > #p21Cache {
+  margin:0;font-size:11px;
+}
+@media(max-width:720px) {
+  #dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar {align-items:flex-start;}
+  #dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar .actions {width:100%;justify-content:flex-start;flex-wrap:wrap;}
+}

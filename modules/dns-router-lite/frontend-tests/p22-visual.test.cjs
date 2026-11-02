@@ -98,3 +98,109 @@ test('P22 FIX2 runtime: enhanced script activates Advanced screen and populates 
     assert.ok(apiCalls.every(x=>x.url==='../service/devices'&&x.method==='GET'),'enhancer is read-only');
   }finally{dom.window.close();}
 });
+
+
+test('P23: Advanced tabs isolate their own editor while save/apply stay globally available',async()=>{
+  const {JSDOM}=require('jsdom');
+  const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true});
+  try {
+    const w=dom.window,d=w.document,$=id=>d.getElementById(id);
+    const app=$('dnsLiteApp');app.dataset.dnsMode='basic';
+    let changes=0;
+    $('p21Mode').addEventListener('change',()=>{
+      changes++;
+      app.dataset.dnsMode=$('p21Mode').value;
+      if(app.dataset.dnsMode==='basic'){$('p21Page').hidden=true;$('pageDns').hidden=false;$('pageLogs').hidden=true;}
+    });
+    $('p21Nav').addEventListener('click',()=>{
+      $('p21Page').hidden=false;$('pageDns').hidden=true;$('pageLogs').hidden=true;
+    });
+    $('navDns').addEventListener('click',()=>{
+      $('p21Page').hidden=true;$('pageDns').hidden=false;$('pageLogs').hidden=true;
+    });
+    $('navLogs').addEventListener('click',()=>{
+      $('p21Page').hidden=true;$('pageDns').hidden=true;$('pageLogs').hidden=false;
+    });
+    const calls=[];
+    w.fetch=async (url,options={})=>{
+      calls.push({url:String(url),method:options.method});
+      return {ok:true,json:async()=>({devices:[],issues:[]})};
+    };
+    w.eval(js);
+    $('p22ModeAdvanced').click();
+    await new Promise(resolve=>setTimeout(resolve,25));
+    assert.equal(changes,1,'mode changed only through the existing P21 control');
+    assert.equal($('p21Page').hidden,false);
+    const devices=$('p22DevicesCard'),groups=$('p22GroupsCard'),rules=$('p22RulesCard'),route=$('p22RouteCard');
+    assert.equal(devices.hidden,false);
+    assert.equal(groups.hidden,true);
+    assert.equal(rules.hidden,true);
+    assert.equal(route.parentElement,rules,'route check belongs only to Domain rules');
+    const toolbar=$('p23DraftToolbar');
+    assert.equal(toolbar.parentElement,$('p21Page'),'actions must live outside tab panels');
+    for(const action of ['p21Refresh','p21Save','p21Apply']) {
+      assert.equal(toolbar.contains($(action)),true,action+' must stay available on every tab');
+    }
+    assert.equal(toolbar.contains($('p21Cache')),false);
+    assert.equal($('p21Cache').parentElement,$('p21Page'));
+    $('p21MAC').value='02:11:22:33:44:55';
+    $('p22NavGroups').click();
+    assert.equal(devices.hidden,true);
+    assert.equal(groups.hidden,false);
+    assert.equal(rules.hidden,true);
+    assert.equal($('p22NavGroups').getAttribute('aria-current'),'page');
+    assert.equal($('p21Nav').hasAttribute('aria-current'),false);
+    $('p21GroupName').value='TV';
+    $('p22NavRules').click();
+    assert.equal(devices.hidden,true);
+    assert.equal(groups.hidden,true);
+    assert.equal(rules.hidden,false);
+    assert.equal(route.hidden,false);
+    assert.equal($('p22NavRules').getAttribute('aria-current'),'page');
+    $('p21Domain').value='youtube.com';
+    $('p21Nav').click();
+    assert.equal(devices.hidden,false);
+    assert.equal(groups.hidden,true);
+    assert.equal(rules.hidden,true);
+    assert.equal($('p21MAC').value,'02:11:22:33:44:55','device draft is preserved');
+    assert.equal($('p21GroupName').value,'TV','group draft is preserved');
+    assert.equal($('p21Domain').value,'youtube.com','rule draft is preserved');
+    $('navLogs').click();
+    assert.equal($('p21Page').hidden,true);
+    assert.equal($('pageLogs').hidden,false);
+    $('p22NavGroups').click();
+    assert.equal($('p21Page').hidden,false);
+    assert.equal(groups.hidden,false);
+    assert.equal(devices.hidden,true);
+    $('p22ModeBasic').click();
+    assert.equal($('p21Page').hidden,true);
+    assert.equal($('pageDns').hidden,false);
+    assert.equal($('p22ModeBasic').getAttribute('aria-pressed'),'true');
+    $('p22ModeAdvanced').click();
+    assert.equal(devices.hidden,false,'Advanced always opens Devices by default');
+    assert.equal(groups.hidden,true);
+    assert.equal(rules.hidden,true);
+    // The view fires mocked async GET discovery on mode changes. Let the
+    // fetch/json Promise chain and MutationObserver microtasks settle before
+    // disposing jsdom, otherwise a callback accesses a destroyed document.
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.match($('p22DeviceDiscovery').textContent,
+      /Нет доступных устройств|No devices discovered/,
+      'mocked discovery must finish before the fixture is disposed');
+    assert.ok(calls.every(c=>c.method==='GET' && c.url==='../service/devices'),
+      'tab changes and mode switch may only perform read-only discovery');
+  } finally {
+    // Also drain pending UI microtasks when an assertion fails mid-scenario.
+    await new Promise(resolve=>setImmediate(resolve));
+    dom.window.close();
+  }
+});
+
+test('P23: every advanced tab remains independent of backend policies and Core assets',()=>{
+  assert.match(js,/cards\[key\]\.hidden\s*=\s*!selected/);
+  assert.match(js,/className = 'p22-draft-toolbar'/);
+  assert.doesNotMatch(js,/scrollIntoView\(/);
+  assert.match(css,/#p21Page > \.panel\[hidden\]/);
+  assert.match(css,/Core design tokens stay authoritative/);
+  assert.match(original,/service\/devices\/evaluate/);
+});

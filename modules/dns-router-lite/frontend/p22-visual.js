@@ -61,19 +61,22 @@
   modeObserver.observe(app,{attributes:true,attributeFilter:['data-dns-mode']});
   setMode(app.dataset.dnsMode);
 
+  // P23: each advanced tab is a separate view, never one long page.
+  // P21 still owns page transitions, form state and all mutations.
   function chooseSection(which) {
+    if (!Object.hasOwn(cards,which)) return;
     if (app.dataset.dnsMode !== 'advanced') chooseMode('advanced');
     if ($('p21Page').hidden) tabs.devices.click();
     for (const [key,tab] of Object.entries(tabs)) {
       if (!tab) continue;
-      tab.classList.toggle('selected',key === which);
-      if (key === which) tab.setAttribute('aria-current','page');
+      const selected = key === which;
+      tab.classList.toggle('selected',selected);
+      if (selected) tab.setAttribute('aria-current','page');
       else tab.removeAttribute('aria-current');
+      cards[key].hidden = !selected;
     }
-    const section = cards[which];
-    if (section && typeof section.scrollIntoView === 'function') {
-      section.scrollIntoView({behavior:'smooth',block:'start'});
-    }
+    // Route explanation is a child of the domain-rules view.
+    // Never clear or re-create form inputs when changing tabs.
   }
   tabs.devices.addEventListener('click',()=>chooseSection('devices'));
   tabs.groups.addEventListener('click',()=>chooseSection('groups'));
@@ -86,7 +89,7 @@
       }
     });
   }
-  // Keep the approved screenshot's three sections visible in one workspace.
+  // Keep the route diagnostic inside the domain-rules view only.
   const routeCard = $('p22RouteCard');
   if (routeCard && cardRules) {
     cardRules.appendChild(routeCard);
@@ -153,8 +156,21 @@
     }
   }
   if (deviceFooter && cardDevices) {
+    // Save/apply/refresh belong to the whole P21 workspace, not to Devices.
+    // They must stay accessible on Groups and Domain rules as well.
+    const workspace = $('p21Page');
+    const toolbar = document.createElement('div');
+    toolbar.className = 'p22-draft-toolbar';
+    toolbar.id = 'p23DraftToolbar';
+    const title = document.createElement('span');
+    title.className = 'p22-draft-toolbar-label';
+    title.textContent = t('Настройки устройств · черновик', 'Device policies · draft');
+    toolbar.appendChild(title);
     const actionButtons = cardDevices.querySelector('.section-title .actions');
-    if (actionButtons) deviceFooter.appendChild(actionButtons);
+    if (actionButtons) toolbar.appendChild(actionButtons);
+    workspace.insertBefore(toolbar,cardDevices);
+    const cacheState = $('p21Cache');
+    if (cacheState) workspace.insertBefore(cacheState,cardDevices);
     const addButton = $('p21SetDevice');
     if (addButton) deviceFooter.insertBefore(addButton,deviceFooter.firstChild);
     if (deviceList) cardDevices.appendChild(deviceList);

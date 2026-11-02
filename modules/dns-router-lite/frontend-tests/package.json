@@ -1,6 +1,6 @@
 {
   "name": "routerforge-dns-lite-ui-tests",
   "private": true,
-  "scripts": {"test": "node --test ui.test.cjs"},
+  "scripts": {"test": "node --test ui.test.cjs p22-visual.test.cjs"},
   "devDependencies": {"jsdom": "26.1.0"}
 }

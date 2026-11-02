@@ -46,6 +46,8 @@ network_tools_module.go
 auth.go
 auth_crypt.go
 catalog.go
+dns_router_catalog_runtime.go
+dns_router_upgrade_args.go
 port_access_catalog.go
 crowdsec_catalog.go
 module_lifecycle.go

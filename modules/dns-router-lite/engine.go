@@ -24,6 +24,13 @@ import (
 )
 
 type Trace struct {
+	DeviceMAC        string    `json:"device_mac,omitempty"`
+	DeviceName       string    `json:"device_name,omitempty"`
+	IdentitySource   string    `json:"identity_source,omitempty"`
+	IdentityReason   string    `json:"identity_reason,omitempty"`
+	PolicyLayer      string    `json:"policy_layer,omitempty"`
+	DeviceGroup      string    `json:"device_group,omitempty"`
+	RouteReason      string    `json:"route_reason,omitempty"`
 	Internal         bool      `json:"internal,omitempty"`
 	Client           string    `json:"client,omitempty"`
 	Time             time.Time `json:"time"`
@@ -43,6 +50,11 @@ type Trace struct {
 
 type requestClientKey struct{}
 type internalProbeKey struct{}
+type clientRouteKey struct{}
+type clientRoute struct {
+	Identity DeviceIdentity
+	Route    dr.ClientDecision
+}
 
 type Factory func(dr.Upstream) (upstream.Upstream, error)
 
@@ -57,6 +69,9 @@ type Engine struct {
 	traces    []Trace
 	readiness []Trace
 	listenV6  bool
+	directory atomic.Pointer[DeviceDirectory]
+	// Optional injected identity provider, fixed before Start; production uses directory.
+	identify  func(string) DeviceIdentity
 	health    *UpstreamHealthTracker
 	requests  atomic.Uint64
 	denied    atomic.Uint64
@@ -189,7 +204,7 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 	e.proxy, err = proxy.New(&proxy.Config{
 		UDPListenAddr: udpSockets, TCPListenAddr: tcpSockets,
 		UpstreamConfig: &proxy.UpstreamConfig{Upstreams: []upstream.Upstream{&routingUpstream{e}}},
-		CacheEnabled:   c.Service.CacheBytes > 0, CacheSizeBytes: c.Service.CacheBytes,
+		CacheEnabled:   c.Service.CacheBytes > 0 && !policy.DevicePoliciesActive(), CacheSizeBytes: c.Service.CacheBytes,
 		MaxGoroutines: 32, RequestHandler: proxy.HandlerFunc(e.handle),
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
@@ -213,6 +228,7 @@ func usedUpstreams(c dr.Config) (map[string]bool, error) {
 	for _, r := range c.Rules {
 		decisions = append(decisions, dr.Decision{Matched: true, Source: "policy", Upstream: r.Upstream, GroupID: r.GroupID})
 	}
+	decisions = append(decisions, engine.DeviceTargets()...)
 	for _, d := range decisions {
 		chain, e := engine.UpstreamChainForDecision(d)
 		if e != nil {
@@ -315,6 +331,30 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		return nil
 	}
 	name := strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), ".")
+	identity := e.directory.Load().Resolve(d.Addr.Addr().String())
+	if e.identify != nil {
+		identity = e.identify(d.Addr.Addr().String())
+	}
+	if !identity.Trusted {
+		identity.MAC = ""
+		identity.Name = ""
+	}
+	if identity.Trusted && e.cfg.Advanced != nil {
+		for _, device := range e.cfg.Advanced.Devices {
+			if device.MAC == identity.MAC && device.Name != "" {
+				identity.Name = device.Name
+				break
+			}
+		}
+	}
+	route, routeErr := e.policy.EvaluateClientDNSQuestion(name, identity.MAC)
+	if routeErr != nil {
+		d.Res = new(dns.Msg)
+		d.Res.SetRcode(d.Req, dns.RcodeServerFailure)
+		e.failures.Add(1)
+		return nil
+	}
+	ctx = context.WithValue(ctx, clientRouteKey{}, clientRoute{identity, route})
 	if localName(name) {
 		start := time.Now()
 		var err error
@@ -326,6 +366,7 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 			e.failures.Add(1)
 		}
 		t.RCode = d.Res.Rcode
+		attachClientRoute(&t, ctx)
 		e.addTrace(t)
 		return nil
 	}
@@ -338,7 +379,9 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 	}
 	if cached && d.Res != nil {
 		e.cacheHits.Add(1)
-		e.addTrace(Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name, Type: d.Req.Question[0].Qtype, Cache: true, Assigned: "cache", Success: err == nil, RCode: d.Res.Rcode})
+		trace := Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name, Type: d.Req.Question[0].Qtype, Cache: true, Assigned: "cache", Used: "cache-local", Success: err == nil, RCode: d.Res.Rcode}
+		attachClientRoute(&trace, ctx)
+		e.addTrace(trace)
 	}
 	return err
 }
@@ -357,13 +400,15 @@ func (r *routingUpstream) Close() error    { r.e.closeServers(); return nil }
 func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, error) {
 	e := r.e
 	name := strings.TrimSuffix(strings.ToLower(q.Question[0].Name), ".")
-	d, err := e.policy.EvaluateDNSQuestion(name)
-	if err != nil {
-		d = dr.Decision{}
-	} // DNS wire names need not be hostnames.
-	if !d.Matched {
-		d = dr.Decision{Matched: true, Source: "policy", Upstream: e.cfg.Service.DefaultUpstream, GroupID: e.cfg.Service.DefaultGroup}
+	decision, err := e.policy.EvaluateClientDNSQuestion(name, "")
+	if applied, ok := ctx.Value(clientRouteKey{}).(clientRoute); ok {
+		decision = applied.Route
+		err = nil
 	}
+	if err != nil {
+		return nil, err
+	}
+	d := decision.Decision
 	chain, err := e.policy.UpstreamChainForDecision(d)
 	if err != nil {
 		return nil, err
@@ -385,6 +430,7 @@ func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, e
 		if answer != nil {
 			t.RCode = answer.Rcode
 		}
+		attachClientRoute(&t, ctx)
 		e.addTrace(t)
 		if er == nil {
 			return answer, nil
@@ -435,4 +481,31 @@ func (e *Engine) readinessPlan() GatePlan {
 		p.Families = append(p.Families, GateFamily{Family: "inet6"})
 	}
 	return p
+}
+
+func attachClientRoute(t *Trace, ctx context.Context) {
+	if r, ok := ctx.Value(clientRouteKey{}).(clientRoute); ok {
+		t.DeviceMAC = r.Identity.MAC
+		t.DeviceName = r.Identity.Name
+		t.IdentitySource = r.Identity.Source
+		t.IdentityReason = r.Identity.Reason
+		t.PolicyLayer = r.Route.Layer
+		t.DeviceGroup = r.Route.DeviceGroup
+		t.RouteReason = r.Route.Reason
+	}
+}
+func (e *Engine) effectiveCacheBytes() int {
+	if e.policy.DevicePoliciesActive() {
+		return 0
+	}
+	return e.cfg.Service.CacheBytes
+}
+func (e *Engine) cacheMode() string {
+	if e.policy.DevicePoliciesActive() {
+		return "disabled_for_device_policy_isolation"
+	}
+	if e.cfg.Service.CacheBytes == 0 {
+		return "disabled_by_configuration"
+	}
+	return "shared_global_policy"
 }

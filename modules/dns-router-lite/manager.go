@@ -30,6 +30,7 @@ type Manager struct {
 	Store            *dr.ConfigStore
 	Path             string
 	Factory          Factory
+	Devices          *DeviceDirectory
 	engine           *Engine
 	applied          dr.Config
 	revision         string
@@ -92,7 +93,10 @@ func (m *Manager) statusLocked() map[string]any {
 	if m.engine != nil {
 		s["listen"] = m.applied.Service.Listen
 		s["default_upstream"] = m.applied.Service.DefaultUpstream
-		s["cache_bytes"] = m.applied.Service.CacheBytes
+		s["cache_bytes"] = m.engine.effectiveCacheBytes()
+		s["requested_cache_bytes"] = m.applied.Service.CacheBytes
+		s["cache_mode"] = m.engine.cacheMode()
+		s["device_policies_active"] = m.engine.policy.DevicePoliciesActive()
 		s["requests"] = m.engine.requests.Load()
 		s["denied_requests"] = m.engine.denied.Load()
 		s["cache_hits"] = m.engine.cacheHits.Load()
@@ -141,6 +145,10 @@ func mutation(r *http.Request, dst any) error {
 	return nil
 }
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/v1/service/devices") {
+		m.serveDevices(w, r)
+		return
+	}
 	var err error
 	switch r.URL.Path {
 	case "/v1/service/gate/control":

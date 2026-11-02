@@ -26,6 +26,7 @@ type Config struct {
 	Groups        []DNSGroup      `json:"dns_groups,omitempty"`
 	Listener      *ListenerConfig `json:"listener,omitempty"`
 	Service       *ServiceConfig  `json:"service,omitempty"`
+	Advanced      *AdvancedDNS    `json:"advanced,omitempty"`
 }
 
 type Upstream struct {
@@ -70,6 +71,8 @@ type Engine struct {
 	upstreams map[string]Upstream
 	groups    map[string]DNSGroup
 	ruleCount int
+	devices   devicePolicies
+	service   *ServiceConfig
 }
 
 var protected = []string{"localhost", "local", "lan", "home.arpa", "in-addr.arpa", "ip6.arpa"}
@@ -133,7 +136,7 @@ func Compile(cfg Config) (*Engine, error) {
 	if len(cfg.Rules) > MaxRules {
 		return nil, fmt.Errorf("too many rules: %d > %d", len(cfg.Rules), MaxRules)
 	}
-	e := &Engine{root: &node{child: map[string]*node{}}, upstreams: make(map[string]Upstream), ruleCount: len(cfg.Rules)}
+	e := &Engine{root: &node{child: map[string]*node{}}, upstreams: make(map[string]Upstream), ruleCount: len(cfg.Rules), service: cfg.Service}
 	for _, u := range cfg.Upstreams {
 		if !validID(u.ID) {
 			return nil, fmt.Errorf("invalid upstream id %q", u.ID)
@@ -263,6 +266,9 @@ func Compile(cfg Config) (*Engine, error) {
 			current = current.child[labels[i]]
 		}
 		current.rules = append(current.rules, raw)
+	}
+	if err := e.compileDevicePolicies(cfg); err != nil {
+		return nil, err
 	}
 	return e, nil
 }

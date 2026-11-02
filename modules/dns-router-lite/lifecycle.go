@@ -107,6 +107,14 @@ func (m *Manager) start(c dr.Config, rev string, persist bool) error {
 	if err != nil {
 		return err
 	}
+	m.mu.Lock()
+	directory := m.Devices
+	m.mu.Unlock()
+	if eng.policy.DevicePoliciesActive() {
+		directory = m.deviceDirectory()
+		directory.Refresh(context.Background())
+	}
+	eng.directory.Store(directory)
 	tracker := NewUpstreamHealthTracker()
 	eng.health = tracker
 	if err = eng.Start(context.Background()); err != nil {

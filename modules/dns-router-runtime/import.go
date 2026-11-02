@@ -48,6 +48,9 @@ func PreviewImport(existing Config, req ImportRequest) (ImportPreview, error) {
 	result := EmptyConfig()
 	result.Upstreams = append(result.Upstreams, existing.Upstreams...)
 	result.Listener = existing.Listener
+	result.Service = existing.Service
+	result.Groups = append([]DNSGroup{}, existing.Groups...)
+	result.Advanced = existing.Advanced
 	result.Lists = append(result.Lists, existing.Lists...)
 	if req.Mode == "append" {
 		result.Rules = append(result.Rules, existing.Rules...)

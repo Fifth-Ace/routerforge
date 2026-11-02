@@ -733,3 +733,15 @@ input,select,textarea{min-height:var(--rf-p194-control);padding:6px 9px;border-r
   #dnsLiteApp .editor-dns-switch,
   #dnsLiteApp .domain-pane .editor { padding-left: 11px; padding-right: 11px; }
 }
+
+/* P21 additive advanced controls; the P19.5b DNS workspace stays intact. */
+.p21-mode-label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.p21-mode-label select{width:auto;min-height:30px;padding:4px 8px}
+#p21Page{display:grid;gap:11px} .p21-form{margin:12px 0}
+.p21-device-list{display:grid;gap:7px;margin-top:12px}
+.p21-device-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px;border:1px solid var(--border);border-radius:7px}
+.p21-device-row .p21-device-copy{display:grid;gap:3px;min-width:0;flex:1 1 240px;overflow-wrap:anywhere}
+.p21-device-row small{white-space:pre-wrap}.p21-device-row .actions{margin:0}
+.p21-explanation{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 ui-monospace,Consolas,monospace;margin-top:12px}
+[data-dns-mode="basic"] .p21-advanced-only,[data-dns-mode="basic"] #clientConnection,[data-dns-mode="basic"] #additionalSettings{display:none!important}
+@media(max-width:750px){.p21-device-row{align-items:stretch}.p21-mode-label{flex-wrap:wrap}#p21Page .actions{flex-wrap:wrap}}

@@ -7,26 +7,31 @@ const js=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const css=fs.readFileSync(path.join(root,'module.css'),'utf8');
 const tick=()=>new Promise(r=>setTimeout(r,25));
 const until=async(p)=>{for(let i=0;i<45;i++){if(p())return;await tick();}throw Error('UI wait exceeded');};
-function fixture(){
+function fixture(options={}){
   let config={schema_version:1,upstreams:[{id:'old',transport:'udp',address:'9.9.9.9:53'},{id:'cf',transport:'doh',address:'1.1.1.1:443',server_name:'cloudflare-dns.com',path:'/dns-query'}],rules:[{id:'r1',domain:'example.com',match:'suffix',upstream:'old',priority:100},{id:'r2',domain:'other.net',match:'suffix',upstream:'cf',priority:100}]};
-  let revision='sha256:initial',active=false,gateEnabled=false,gateOverride=null,connection={state:'disconnected'},requests=0,denied=0;const calls=[],errors=[];
+  if(options.advanced)config.advanced=structuredClone(options.advanced);
+  if(options.dnsGroups)config.dns_groups=structuredClone(options.dnsGroups);
+  let applied=options.active?structuredClone(config):null;
+  let revision='sha256:initial',active=Boolean(options.active),gateEnabled=false,gateOverride=null,connection={state:'disconnected'},requests=0,denied=0;const calls=[],errors=[];
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
-  const w=dom.window;w.confirm=()=>true;w.scrollTo=()=>{};
+  const w=dom.window;if(options.mode)w.localStorage.setItem('routerforge.dnsRouter.mode.v1',options.mode);w.confirm=()=>true;w.scrollTo=()=>{};
   w.fetch=async(url,opts={})=>{
     const p=new URL(url,w.location.href).pathname.replace(/^\/?ui\/\.\.\//,'').replace(/^\//,'');calls.push({path:p,opts});
     let status=200,body={};
     if(p==='config'){
       if(opts.method==='PUT'){a.equal(opts.headers['If-Match'],'"'+revision+'"');config=JSON.parse(opts.body);revision='sha256:next';}
       body={config:structuredClone(config),revision};
-    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,cache_hits:0,failures:0,connection,system_gate:gateOverride||{state:gateEnabled?'ACTIVE':'STOCK',active:gateEnabled,desired:gateEnabled,lease_seconds:60}};
+    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,cache_hits:0,failures:0,device_policies_active:Boolean(active&&applied?.advanced?.devices?.some(d=>d.target)),cache_mode:active&&applied?.advanced?.devices?.some(d=>d.target)?'disabled_for_device_policy_isolation':'shared_global_policy',connection,system_gate:gateOverride||{state:gateEnabled?'ACTIVE':'STOCK',active:gateEnabled,desired:gateEnabled,lease_seconds:60}};
     else if(p==='service/traces')body={traces:active?[{name:'example.com',time:'2026-10-31T12:00:00Z',assigned:'old',used:'old',transport:'udp',rcode:0,success:true,latency_ms:5,type:1,cache:false}]:[]};
     else if(p==='certificates/lookup'){a.equal(opts.headers['X-RouterForge-Action'],'certificate-lookup');const q=JSON.parse(opts.body);body={address:'8.8.8.8:443',selected_ip:'8.8.8.8',ips:['8.8.8.8'],certificate:{verified:true,pem:'-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n',subject:'CN=dns.google',issuer:'Trusted CA',not_after:'2027-10-31',fingerprint_sha256:'ab',server_name:q.server_name}};}
-    else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';body={ok:true};}
+    else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';applied=active?structuredClone(config):null;body={ok:true};}
     else if(p==='service/gate/control'){const q=JSON.parse(opts.body);if(q.operation==='enable')gateEnabled=true;else if(q.operation==='disable'){gateEnabled=false;gateOverride=null;}else if(q.operation==='retry'){gateEnabled=true;gateOverride=null;}body={ok:true};}
     else if(p==='service/upstreams/inspect'){const q=JSON.parse(opts.body);a.equal(q.operation,'inspect');body={status:'UP',dns_available:true,address:q.upstream.address,transport:q.upstream.transport,probe_latency_ms:24,tls_status:'VERIFIED_BY_TRANSPORT',saved:false,applied:false};}
     else if(p==='service/upstreams/health')body={source:'routerforge-direct',upstreams:[{id:'old',status:'UP',probe_latency_ms:14,last_checked:'2026-11-01T12:00:00Z',requests_5m:9,failures_5m:0,p95_latency_5m_ms:22},{id:'cf',status:'DOWN',probe_latency_ms:3000,last_checked:'2026-11-01T12:00:00Z',requests_5m:2,failures_5m:2,last_error:'timeout'}]};
     else if(p==='service/upstreams/check')body={source:'routerforge-direct',upstreams:[{id:'old',status:'UP',probe_latency_ms:14,last_checked:'2026-11-01T12:00:00Z',requests_5m:9,failures_5m:0,p95_latency_5m_ms:22},{id:'cf',status:'DOWN',probe_latency_ms:3000,last_checked:'2026-11-01T12:00:00Z',requests_5m:2,failures_5m:2,last_error:'timeout'}]};
+    else if(p==='service/devices')body={devices:[{ip:'192.168.10.22',mac:'02:11:22:33:44:55',name:'Laptop',trusted:true,state:'REACHABLE'}],issues:[],applied:applied?.advanced||null,applied_revision:active?'sha256:applied':''};
+    else if(p==='service/devices/evaluate'){const q=JSON.parse(opts.body);body={scope:'CONFIGURATION_ONLY',network_verified:false,identity_verified:false,source:q.use_applied?'applied':'saved_draft',decision:{layer:'device'},allowed_chain:[]};}
     else if(p==='service/verify')body={state:'PASS',results:[{state:'PASS'}]};
     else if(p==='service/connect'){connection={state:'connected',mac:JSON.parse(opts.body).mac};body={ok:true};}
     else if(p==='service/disconnect'){connection={state:'disconnected'};body={ok:true};}
@@ -370,4 +375,58 @@ test('P19.5b: initial DNS selection and safe cross-DNS list editing',async()=>{
     a.equal(f.getActive(),false);
     a.deepEqual(f.errors,[]);
   } finally {f.dom.window.close();}
+});
+
+
+test('P21 display mode persists without mutating config or applied policy',async()=>{
+ const advanced={devices:[{mac:'02:11:22:33:44:55',name:'Laptop',target:{upstream:'cf'}}]};
+ const f=fixture({advanced,active:true}),d=f.w.document;
+ try{await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+ a.equal(d.getElementById('dnsLiteApp').dataset.dnsMode,'basic');a.equal(d.getElementById('p21ActiveBadge').hidden,false);
+ const before=JSON.stringify(f.getConfig());d.getElementById('p21Mode').value='advanced';d.getElementById('p21Mode').dispatchEvent(new f.w.Event('change'));
+ await until(()=>d.getElementById('p21Devices').textContent.includes('Laptop'));
+ a.match(d.getElementById('p21Cache').textContent,/кэш отключён/);
+ d.getElementById('p21Nav').click();a.equal(d.getElementById('p21Page').hidden,false);
+ d.getElementById('p21Mode').value='basic';d.getElementById('p21Mode').dispatchEvent(new f.w.Event('change'));
+ a.equal(d.getElementById('p21Page').hidden,true);a.equal(f.w.localStorage.getItem('routerforge.dnsRouter.mode.v1'),'basic');
+ await tick();a.equal(JSON.stringify(f.getConfig()),before);a.equal(f.getActive(),true);
+ a.equal(f.calls.some(c=>c.opts.method==='PUT'||c.path==='service/control'||c.path==='service/connect'),false);a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+test('P21 manual devices groups domain rules remain drafts until explicit save/apply',async()=>{
+ const f=fixture({mode:'advanced'}),d=f.w.document;
+ try{await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+ d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+ d.getElementById('p21MAC').value='02:11:22:33:44:55';d.getElementById('p21Name').value='Laptop';d.getElementById('p21Target').value='dns:cf';d.getElementById('p21Inherit').checked=true;d.getElementById('p21SetDevice').click();
+ await until(()=>d.getElementById('p21Devices').textContent.includes('Черновик: cloudflare-dns.com'));a.equal(f.getConfig().advanced,undefined);a.equal(f.getActive(),false);
+ d.getElementById('p21GroupName').value='Office';d.getElementById('p21Members').value='02:11:22:33:44:66';d.getElementById('p21GroupTarget').value='dns:old';d.getElementById('p21SetGroup').click();await until(()=>d.getElementById('p21Groups').textContent.includes('Office'));
+ d.getElementById('p21RuleMAC').value='02:11:22:33:44:55';d.getElementById('p21Domain').value='private.example';d.getElementById('p21RuleTarget').value='dns:old';d.getElementById('p21SetRule').click();await until(()=>d.getElementById('p21Rules').textContent.includes('private.example'));
+ d.getElementById('p21Save').click();await until(()=>f.getConfig().advanced?.rules?.length===1&&!d.getElementById('p21Save').disabled);
+ a.equal(f.getConfig().advanced.devices[0].inherit_domains,true);a.equal(f.getConfig().advanced.groups[0].name,'Office');a.equal(f.getActive(),false);
+ a.equal(f.calls.some(c=>c.path==='service/connect'||c.path==='service/disconnect'||c.path==='service/control'),false);
+ d.getElementById('p21ProbeDomain').value='private.example';d.getElementById('p21ProbeMAC').value='02:11:22:33:44:55';d.getElementById('p21ProbeApplied').checked=false;d.getElementById('p21Probe').click();await until(()=>d.getElementById('p21Explanation').textContent.includes('CONFIGURATION_ONLY'));a.match(d.getElementById('p21Explanation').textContent,/saved_draft/);a.match(d.getElementById('p21Explanation').textContent,/"network_verified": false/);
+ a.equal(f.calls.some(c=>c.path.includes('/v1/v1')),false);a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+test('P21 applied route explanation and legacy cache state are distinct',async()=>{
+ const f=fixture({mode:'advanced',active:true}),d=f.w.document;
+ try{await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+ a.equal(d.getElementById('p21ActiveBadge').hidden,true);a.match(d.getElementById('p21Cache').textContent,/Кэш работает/);
+ d.getElementById('p21ProbeDomain').value='example.com';d.getElementById('p21ProbeApplied').checked=true;d.getElementById('p21Probe').click();await until(()=>d.getElementById('p21Explanation').textContent.includes('CONFIGURATION_ONLY'));
+ a.match(d.getElementById('p21Explanation').textContent,/"source": "applied"/);a.equal(JSON.parse(f.calls.find(c=>c.path==='service/devices/evaluate').opts.body).use_applied,true);a.deepEqual(f.errors,[]);
+ }finally{f.dom.window.close();}
+});
+
+test('P21 existing DNS group assignment and used-DNS deletion fail visibly without losing draft',async()=>{
+ const f=fixture({mode:'advanced',dnsGroups:[{id:'private',name:'Private DNS',servers:['old','cf']}]}),d=f.w.document;
+ try{await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+ d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change'));
+ d.getElementById('p21MAC').value='02:11:22:33:44:55';d.getElementById('p21Target').value='group:private';d.getElementById('p21SetDevice').click();await tick();
+ d.querySelector('[data-upstream-id="cf"] .danger').click();await until(()=>d.getElementById('feedback').textContent.includes('используется группой'));
+ a.equal(d.querySelectorAll('.dns-card').length,2);a.deepEqual(f.errors,[]);
+ d.getElementById('p21Save').click();await until(()=>f.getConfig().advanced?.devices?.length===1&&!d.getElementById('p21Save').disabled);
+ a.equal(f.getConfig().advanced.devices[0].target.upstream,'old');a.equal(f.getConfig().advanced.devices[0].target.group_id,'private');a.equal(f.getActive(),false);
+ }finally{f.dom.window.close();}
 });

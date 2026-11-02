@@ -15,10 +15,11 @@
       <h1>DNS Router</h1>
       <p>Выбирай DNS-серверы, назначай домены и при необходимости включай RouterForge для всей локальной сети.</p>
     </div>
-    <div class="top-actions"><span class="status" id="serviceBadge" role="status">Проверяем…</span><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">Открыть DNS-аналитику →</a><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
+    <div class="top-actions"><label class="p21-mode-label"><span data-p21-i18n="mode">Режим</span><select id="p21Mode" aria-label="Режим DNS"><option value="basic" data-p21-i18n="basic">Обычный</option><option value="advanced" data-p21-i18n="advanced">Расширенный</option></select></label><span class="status" id="p21ActiveBadge" hidden>Активны правила устройств</span><span class="status" id="serviceBadge" role="status">Проверяем…</span><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">Открыть DNS-аналитику →</a><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
   </header>
   <nav class="tabs" aria-label="Разделы DNS">
     <button id="navDns" type="button" class="tab selected" aria-current="page">DNS и домены</button>
+    <button id="p21Nav" type="button" class="tab p21-advanced-only" data-p21-i18n="devices">Устройства и правила</button>
     <button id="navLogs" type="button" class="tab">Журнал запросов <span id="logCounter" class="counter">0</span></button>
   </nav>
   <div class="notice" id="feedback" role="status" aria-live="polite">Загружаем настройки…</div>
@@ -137,6 +138,52 @@
     </details>
   </section>
 
+  <section id="p21Page" class="p21-advanced-only" hidden aria-label="Advanced DNS Router">
+    <section class="panel">
+      <div class="section-title"><div><h2 data-p21-i18n="devices">Устройства и правила</h2><p data-p21-i18n="draftHelp">Изменения здесь — черновик. Сначала сохранить, затем явно применить DNS.</p></div><div class="actions"><button class="button" id="p21Refresh" data-p21-i18n="refresh">Обновить обнаружение</button><button class="button" id="p21Save" data-p21-i18n="save">Сохранить черновик</button><button class="button primary" id="p21Apply" data-p21-i18n="apply">Сохранить и применить</button></div></div>
+      <p class="notice" id="p21Cache" role="status"></p>
+      <p class="muted" data-p21-i18n="identityHelp">MAC — не аутентификация. Нужен свежий прямой L2-сосед. DHCP даёт имя и проверку противоречий. Клиенты за NAT, VPN или другим роутером не различаются; неизвестный клиент использует общие правила.</p>
+      <p id="p21DiscoveryStatus" class="muted"></p>
+      <div id="p21Devices" class="p21-device-list"></div>
+      <div class="fields two p21-form">
+        <label class="field"><span data-p21-i18n="mac">MAC устройства</span><input id="p21MAC" maxlength="17" placeholder="02:11:22:33:44:55" spellcheck="false"></label>
+        <label class="field"><span data-p21-i18n="name">Название</span><input id="p21Name" maxlength="80"></label>
+        <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21Target"></select></label>
+        <label class="check"><input type="checkbox" id="p21Inherit"><span data-p21-i18n="inherit">Наследовать общие доменные правила перед DNS устройства</span></label>
+      </div>
+      <button class="button" id="p21SetDevice" data-p21-i18n="setDevice">Добавить / обновить устройство в черновике</button>
+    </section>
+    <section class="panel">
+      <h2 data-p21-i18n="groups">Группы устройств</h2>
+      <div id="p21Groups" class="p21-device-list"></div>
+      <div class="fields two p21-form">
+        <label class="field"><span data-p21-i18n="editGroup">Редактируемая группа</span><select id="p21GroupID"></select></label>
+        <label class="field"><span data-p21-i18n="name">Название</span><input id="p21GroupName" maxlength="80"></label>
+        <label class="field"><span data-p21-i18n="members">MAC участников — по одному в строке</span><textarea id="p21Members" rows="3" spellcheck="false"></textarea></label>
+        <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21GroupTarget"></select></label>
+      </div>
+      <label class="check"><input type="checkbox" id="p21GroupInherit"><span data-p21-i18n="groupInherit">Наследовать общие доменные правила перед DNS группы</span></label>
+      <button class="button" id="p21SetGroup" data-p21-i18n="setGroup">Сохранить группу в черновике</button>
+    </section>
+    <section class="panel">
+      <h2 data-p21-i18n="rules">Правила домена для устройства</h2><div id="p21Rules" class="p21-device-list"></div>
+      <div class="fields two p21-form">
+        <label class="field"><span data-p21-i18n="mac">MAC устройства</span><input id="p21RuleMAC" maxlength="17" spellcheck="false"></label>
+        <label class="field"><span data-p21-i18n="domain">Домен</span><input id="p21Domain" maxlength="253" placeholder="example.com" spellcheck="false"></label>
+        <label class="field"><span data-p21-i18n="match">Совпадение</span><select id="p21Match"><option value="suffix">Домен + поддомены / suffix</option><option value="exact">Только домен / exact</option><option value="subdomains">Только поддомены / subdomains</option></select></label>
+        <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21RuleTarget"></select></label>
+        <label class="field"><span data-p21-i18n="priority">Приоритет при равной точности: меньше — раньше</span><input id="p21Priority" type="number" min="0" max="1000000" value="100"></label>
+      </div><button class="button" id="p21SetRule" data-p21-i18n="setRule">Добавить / обновить правило в черновике</button>
+    </section>
+    <section class="panel">
+      <h2 data-p21-i18n="explain">Приоритеты и проверка маршрута</h2>
+      <p data-p21-i18n="precedence">1. Домен устройства → 2. DNS устройства → 3. Группа устройств → 4. Общие домены → 5. DNS по умолчанию. При включённом наследовании общие домены проверяются перед соответствующим DNS устройства/группы. Локальные зоны всегда обслуживает штатный локальный DNS.</p>
+      <div class="fields two p21-form"><label class="field"><span data-p21-i18n="mac">MAC устройства</span><input id="p21ProbeMAC" maxlength="17" spellcheck="false"></label><label class="field"><span data-p21-i18n="domain">Домен</span><input id="p21ProbeDomain" placeholder="example.com" maxlength="253"></label></div>
+      <label class="check"><input id="p21ProbeApplied" type="checkbox" checked><span data-p21-i18n="applied">Проверять применённые правила (иначе сохранённый черновик)</span></label>
+      <button class="button" id="p21Probe" data-p21-i18n="probe">Объяснить маршрут</button><pre id="p21Explanation" class="p21-explanation"></pre>
+      <p class="muted" data-p21-i18n="notE2E">Это проверка конфигурации по выбранному MAC, не доказательство определения клиента или сетевого E2E.</p>
+    </section>
+  </section>
   <section id="pageLogs" hidden aria-label="Журнал DNS">
     <section class="panel">
       <div class="section-title"><div><h1>Журнал запросов</h1><p>DNS-маршруты в реальном времени: назначение, фактический сервер, ответ и задержка.</p></div><div class="live-meta"><span id="liveBadge" class="status">LIVE · ожидание</span><small id="logUpdated">Ждём запросов</small></div></div>

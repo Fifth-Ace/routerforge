@@ -543,6 +543,10 @@ jobs:
         run: |
           npm ci --prefix modules/dns-router-lite/frontend-tests --ignore-scripts --no-audit --no-fund
           npm test --prefix modules/dns-router-lite/frontend-tests
+      - name: P19.5 DNS UI and upgrade contracts
+        run: |
+          python3 scripts/verify-p195-dns-ui.py
+          go test ./components/core -run 'TestP195DNSRouter|TestP195CatalogDNSRouter' -count=1
 
       - name: Vet
         if: steps.scope.outputs.go == 'true'

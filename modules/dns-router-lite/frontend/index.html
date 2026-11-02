@@ -15,7 +15,7 @@
       <h1>DNS Router</h1>
       <p>Выбирай DNS-серверы, назначай домены и при необходимости включай RouterForge для всей локальной сети.</p>
     </div>
-    <div class="top-actions"><span class="status" id="serviceBadge" role="status">Проверяем…</span><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
+    <div class="top-actions"><span class="status" id="serviceBadge" role="status">Проверяем…</span><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">Открыть DNS-аналитику →</a><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
   </header>
   <nav class="tabs" aria-label="Разделы DNS">
     <button id="navDns" type="button" class="tab selected" aria-current="page">DNS и домены</button>
@@ -24,16 +24,17 @@
   <div class="notice" id="feedback" role="status" aria-live="polite">Загружаем настройки…</div>
 
   <section id="pageDns" aria-label="DNS и домены">
-    <section class="panel health-overview" id="healthOverview" aria-label="Состояние DNS Router">
-      <div class="section-title"><div><span class="eyebrow">ОБЗОР · DNS HEALTH</span><h2>Состояние DNS</h2><p>Проверки DNS-серверов и реальные запросы RouterForge — отдельные показатели.</p></div><small id="healthUpdated" class="muted">Нет измерений</small></div>
+    <section class="health-overview" id="healthOverview" aria-label="Состояние DNS Router">
+      <div class="health-caption"><span>Состояние DNS Router</span><small id="healthUpdated" class="muted">Нет измерений</small></div>
       <div class="health-metrics">
         <div><small>Основной DNS LAN</small><strong id="healthGate">—</strong><span>Маршрутизация UDP/TCP 53</span></div>
         <div><small>DNS-серверы</small><strong id="healthServers">—</strong><span>Доступность по прямым проверкам</span></div>
         <div><small>Запросы за 5 минут</small><strong id="healthRequests">—</strong><span>Только RouterForge · без тестов</span></div>
         <div><small>Худший p95 upstream</small><strong id="healthP95">—</strong><span>Реальные ответы · до 1024 на DNS за 5 минут</span></div>
       </div>
-      <div class="health-native"><span><b>Штатный DNS Keenetic</b> <small id="nativeDNSHealth">Проверяем модуль DNS…</small></span><a href="/dns" class="button subtle" id="nativeDNSLink">Открыть DNS →</a></div>
+      <div class="health-native"><span>Штатный DNS Keenetic: <small id="nativeDNSHealth">Проверяем модуль DNS…</small></span></div>
     </section>
+    <details class="gate-shell" id="gateShell"><summary class="gate-summary"><span><b>Основной DNS для LAN</b><small>Управление перехватом DNS и применённой конфигурацией</small></span><span class="status" id="gateCompactBadge">Проверяем…</span></summary>
     <section class="panel gate-panel" id="systemGatePanel" aria-label="Основной DNS для LAN" data-state="stock">
       <div class="section-title gate-heading">
         <div class="gate-heading-copy">
@@ -83,6 +84,7 @@
         <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" value="127.0.0.0/8,192.168.10.0/24" spellcheck="false"></label>
       </details>
     </section>
+    </details>
     <section id="dnsAddPanel" class="panel" hidden>
       <div class="section-title"><div><h2 id="dnsAddPanelTitle">Добавить DNS</h2><p>Укажи адрес провайдера, а IP и сертификат мы найдём сами.</p></div><button type="button" id="cancelDNS" class="button subtle">Закрыть</button></div>
       <div class="fields two">
@@ -104,12 +106,12 @@
     </section>
     <div class="routing-workspace" aria-label="DNS-серверы и домены">
       <aside class="panel upstream-pane" aria-label="DNS-серверы">
-        <div class="section-title upstream-heading"><div><span class="eyebrow">ШАГ 1 · DNS-СЕРВЕР</span><h2>Мои DNS</h2><p>Серверы и назначенные списки.</p></div><div class="server-head-actions"><button id="checkAllDNS" type="button" class="button">↻ Проверить все</button><span class="counter" id="serverCount">0</span><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div></div>
+        <div class="section-title upstream-heading"><div><span class="eyebrow">DNS ROUTER</span><h2>DNS-серверы</h2><p>Серверы и назначенные списки.</p></div><div class="server-head-actions"><button id="checkAllDNS" type="button" class="button">↻ Проверить все</button><span class="counter" id="serverCount">0</span><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div></div>
         <div id="nativeWarning" class="warning" hidden>Есть прежние DNS Keenetic. Перед применением переведи их в прямой DoH. <button class="button" id="migrateNative" type="button">Преобразовать DNS</button><small>Списки сохраняются. Непонятные адреса не угадываются.</small></div>
         <div id="dnsCards" class="dns-cards"><p class="muted">Серверов пока нет.</p></div>
       </aside>
       <section class="panel domain-pane" aria-label="Редактор доменов">
-        <div class="section-title"><div><span class="eyebrow">ШАГ 2 · СПИСОК ДОМЕНОВ</span><h2>Списки доменов</h2><p>Все списки выбранного DNS в одном месте.</p></div><span id="selectedDNSBadge" class="counter">DNS не выбран</span></div>
+        <div class="section-title"><div><span class="eyebrow">DNS ROUTER</span><h2>Списки доменов</h2><p>Все списки выбранного DNS в одном месте.</p></div><span id="selectedDNSBadge" class="counter">DNS не выбран</span></div>
         <div id="editorEmpty" class="domain-empty"><div class="domain-empty-symbol" aria-hidden="true">↖</div><strong>Выбери DNS слева</strong><p>Откроется его список доменов. Можно вставить текст или импортировать TXT.</p></div>
         <div id="listEditor" class="editor" hidden>
           <div class="section-title"><div><h3 id="editorTitle">Список доменов</h3><p>У каждого DNS может быть несколько независимых списков. Один домен на строку.</p></div><button type="button" class="button subtle" id="closeEditor">Закрыть</button></div>

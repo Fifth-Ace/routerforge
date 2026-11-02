@@ -69,7 +69,11 @@
       const rtt=document.createElement('span');rtt.className='dns-rtt';rtt.textContent='RTT: —';
       const p95=document.createElement('span');p95.className='dns-p95';p95.textContent='p95: —';
       healthRow.append(stateLabel,rtt,p95);card.appendChild(healthRow);
-      const preview=document.createElement('p');preview.className='dns-preview';preview.textContent=rules.length?rules.slice(0,2).map(r=>r.domain).join(' · ')+(rules.length>2?' · +'+(rules.length-2):''):'Без доменов';card.appendChild(preview);
+      const metrics=document.createElement('div');metrics.className='dns-card-metrics';
+      const listsMetric=document.createElement('span');listsMetric.textContent='Списки  '+listCount;
+      const domainsMetric=document.createElement('span');domainsMetric.textContent='Домены  '+rules.length;
+      metrics.append(listsMetric,domainsMetric);card.appendChild(metrics);
+      const preview=document.createElement('p');preview.className='dns-preview';preview.textContent=rules.length?'Привязка: '+rules.slice(0,2).map(r=>r.domain).join(' · ')+(rules.length>2?' · +'+(rules.length-2):''):'Без доменов';card.appendChild(preview);
       const actions=document.createElement('div');actions.className='dns-card-actions';
       const edit=document.createElement('button');edit.type='button';edit.className='button dns-edit'+(state.editing===u.id?' primary':'');edit.textContent='Списки';edit.disabled=u.transport==='native';edit.addEventListener('click',()=>editList(u.id));actions.appendChild(edit);
       if(u.transport!=='native'){
@@ -403,6 +407,8 @@
     $('healthGate').textContent=active?'RouterForge':recovery?'Проверка':'Keenetic';
     $('systemGatePanel').dataset.state=recovery?'recovery':active?'active':'stock';
     $('gateBadge').textContent=gate.state==='CONFLICT'?'Конфликт':gate.state==='DEGRADED'?'Восстановление':recovery?'Требуется проверка':active?'Активен':'Выключен';
+    $('gateCompactBadge').textContent=$('gateBadge').textContent;
+    $('gateCompactBadge').dataset.tone=active?'good':recovery?'bad':'';
     $('gateBadge').dataset.tone=active?'good':recovery?'bad':'';
     $('gateEnable').disabled=state.busy||!s.active||active||recovery||state.dirty||editorPending();
     $('gateDisable').disabled=state.busy||(!active&&!recovery&&!wanted);
@@ -462,7 +468,7 @@
     const t=await api('service/traces');state.logs=Array.isArray(t.traces)?t.traces:[];
     renderLogs();$('logUpdated').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour12:false});
   }
-  async function load(){const d=await api('config');if(!d.config||!d.revision||!Array.isArray(d.config.rules)||!Array.isArray(d.config.upstreams))throw Error('Неверный формат конфигурации DNS');state.config=d.config;state.revision=d.revision;state.dirty=false;state.editing=null;state.editingList='__legacy__';state.editorBase=null;$('selectedDNSBadge').textContent='DNS не выбран';$('listEditor').hidden=true;render();await refreshStatus();await refreshHealth().catch(()=>{});await refreshNativeDNS();show('Настройки загружены. Можно менять DNS и списки.','good');}
+  async function load(){const d=await api('config');if(!d.config||!d.revision||!Array.isArray(d.config.rules)||!Array.isArray(d.config.upstreams))throw Error('Неверный формат конфигурации DNS');state.config=d.config;state.revision=d.revision;state.dirty=false;state.editing=null;state.editingList='__legacy__';state.editorBase=null;$('selectedDNSBadge').textContent='DNS не выбран';$('listEditor').hidden=true;render();await refreshStatus();await refreshHealth().catch(()=>{});await Promise.all([refreshNativeDNS(),refreshLogs().catch(()=>{})]);show('Настройки загружены. Можно менять DNS и списки.','good');}
   async function task(fn,refresh=true){if(state.busy)return;busy(true);try{await fn();}catch(e){show(e.message,'bad');}finally{try{if(refresh&&state.status){try{await refreshStatus();}catch(_){}}}finally{busy(false);}}}
   function on(id,fn,refresh=true){$(id).addEventListener('click',()=>task(fn,refresh));}
   $('navDns').addEventListener('click',()=>setPage('dns'));$('navLogs').addEventListener('click',()=>setPage('logs'));
@@ -508,6 +514,8 @@
   window.addEventListener('resize',reportHeight);
   setInterval(()=>{if(document.hidden||state.busy)return;refreshHealth().catch(()=>{});refreshNativeDNS().catch(()=>{});},60000);
   setInterval(()=>{if(state.page!=='logs'||document.hidden||state.busy)return;Promise.all([refreshStatus(),refreshLogs()]).then(()=>{state.lastLogError='';}).catch(e=>{if(state.lastLogError!==e.message){state.lastLogError=e.message;show('LIVE: '+e.message,'bad');}});},2000);
+  // Keep log badge fresh while the overview is open; no UI-triggered DNS probes.
+  setInterval(()=>{if(state.page!=='dns'||document.hidden||state.busy)return;refreshLogs().catch(()=>{});},15000);
   setPage(params.get('view')==='logs'?'logs':'dns');
   load().catch(e=>{show('Не удалось открыть DNS Router: '+e.message,'bad');$('serviceBadge').textContent='Недоступен';$('serviceBadge').dataset.tone='bad';});
 })();

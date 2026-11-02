@@ -327,3 +327,53 @@ input,select,textarea{min-height:var(--rf-p194-control);padding:6px 9px;border-r
 .log-head{padding:8px 9px;font-size:var(--rf-ui-xs,11px);}
 @media(max-width:1040px){.routing-workspace{grid-template-columns:minmax(0,1fr);}}
 @media(max-width:650px){.page{padding:12px;}.draft-check-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.dns-card-actions>.button{flex:1 1 auto;}.dns-card-actions>.dns-advanced{margin-left:0;}.panel{padding:11px;}}
+
+/* P19.5: DNS-style compact workspace, no functional/control removal. */
+.module-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:3px}
+.module-heading-copy h1{font-size:25px;line-height:1.1;letter-spacing:-.025em}
+.module-heading-copy p{max-width:900px;margin:4px 0 0;font-size:12px}
+.top-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.top-actions a.button{text-decoration:none;white-space:nowrap}
+.page{gap:10px;padding:14px 16px}
+.tabs{margin:0;min-height:40px;padding:3px;background:var(--surface2)}
+.tab{min-height:30px}
+.health-overview{display:grid;gap:6px;padding:0;background:none;border:0;box-shadow:none}
+.health-caption{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:17px;color:var(--muted);font-size:10px}
+.health-caption span{font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.health-metrics{gap:8px}
+.health-metrics>div{display:flex;flex-direction:column;justify-content:center;gap:3px;min-height:80px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--rf-ui-control-radius,5px);background:var(--surface2)}
+.health-metrics strong{font-size:20px}
+.health-metrics span{line-height:1.3}
+.health-native{border-top:0;padding:0 2px;min-height:16px;align-items:center;font-size:10px;color:var(--muted)}
+.health-native>span{display:inline;line-height:1.4}
+.health-native small{display:inline;font-size:10px}
+.gate-shell{border:1px solid var(--border);border-radius:var(--rf-ui-control-radius,5px);background:var(--surface);overflow:hidden}
+.gate-shell>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:8px 13px;cursor:pointer;list-style:none}
+.gate-shell>summary::-webkit-details-marker{display:none}
+.gate-shell>summary:before{content:'▸';color:var(--accent);font-size:14px;margin-right:2px}
+.gate-shell[open]>summary:before{content:'▾'}
+.gate-shell>summary>span:first-of-type{flex:1;display:flex;gap:2px;flex-direction:column}
+.gate-shell>summary b{font-size:12px}
+.gate-shell>summary small{font-size:10px;color:var(--muted)}
+.gate-shell>.gate-panel{border:0;border-top:1px solid var(--border);border-radius:0;margin:0}
+#gateCompactBadge{font-size:11px}
+.routing-workspace{grid-template-columns:minmax(340px,1fr) minmax(390px,1.08fr);gap:11px;align-items:start}
+.upstream-pane,.domain-pane{padding:12px;min-width:0}
+.upstream-heading,.domain-pane>.section-title{margin-bottom:10px}
+.upstream-pane .dns-cards{max-height:740px;gap:8px;overflow-y:auto}
+.dns-card{padding:11px 12px;gap:6px;background:var(--surface2);border:1px solid var(--border)}
+.dns-top{align-items:center}
+.dns-title strong{font-size:13px}
+.dns-health{gap:9px}
+.dns-health-status[data-state=up]{font-weight:750}
+.dns-card-metrics{display:flex;gap:11px;align-items:center;padding-top:6px;border-top:1px solid var(--border);font-size:11px;font-weight:600}
+.dns-card-metrics>span+span{border-left:1px solid var(--border);padding-left:11px}
+.dns-preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
+.dns-card-actions{gap:6px;margin-top:4px;padding-top:7px;border-top:1px solid var(--border)}
+.dns-card-actions>.button{min-height:30px}
+.domain-pane .editor textarea{min-height:265px}
+.domain-empty{min-height:200px}
+.notice{padding:7px 10px;font-size:11px;min-height:0}
+@media(max-width:1100px){.routing-workspace{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.module-heading{align-items:flex-start;flex-direction:column}.top-actions{justify-content:flex-start}.page{padding:12px}.health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.routing-workspace{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:450px){.health-metrics{grid-template-columns:minmax(0,1fr)}.gate-shell>summary{padding:8px}}

@@ -354,10 +354,7 @@ func runRouterForgeReleasePlan(ctx context.Context, item catalogItem, action str
 	result.Packages = []string{release.Package}
 	result.Sources = append(result.Sources, "routerforge-"+release.Channel+":"+sourceURL+"#sha256="+actual)
 
-	args := []string{"install", local}
-	if action == "update" {
-		args = []string{"--force-reinstall", "install", local}
-	}
+	args := routerForgeIPKOpkgArgs(action, release.Package, local)
 	output, runErr := runCommandStreaming(ctx, opkg, args, log.EmitLine)
 	if runErr != nil {
 		return fmt.Errorf("opkg %s: %s", action, strings.TrimSpace(string(output)))
@@ -739,10 +736,7 @@ func runVerifiedIPKPlan(
 	if err != nil {
 		return err
 	}
-	args := []string{"install", local}
-	if action == "update" {
-		args = []string{"--force-reinstall", "install", local}
-	}
+	args := routerForgeIPKOpkgArgs(action, plan.Packages[0], local)
 	output, runErr := runCommandStreaming(ctx, opkg, args, log.EmitLine)
 	result.Sources = append(result.Sources, plan.InstallerURL+"#sha256="+actual)
 	if runErr != nil {

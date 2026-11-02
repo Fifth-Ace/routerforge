@@ -1,9 +1,12 @@
 <script>
   import { onMount } from 'svelte';
   import { withRequestTimeout } from '$lib/http.js';
+  import { deriveDNSRouterAwareness } from './dnsRouterAwareness.js';
 
   const API = '/api/modules/dns';
   const DNS_READ_TIMEOUT_MS = 12000;
+  const DNS_ROUTER_STATUS_API = '/api/modules/dns-router/service/status';
+  const DNS_ROUTER_STATUS_TIMEOUT_MS = 3500;
 
   const query = new URLSearchParams(window.location.search);
   const topTabs = ['overview','resolvers','rules','traffic','diagnostics'];
@@ -15,6 +18,9 @@
   let loading = true;
   let error = '';
   let success = '';
+  let dnsRouterAwareness = null;
+  let dnsRouterAwarenessTimer = null;
+  let dnsRouterAwarenessBusy = false;
   let info = null;
   let resolverState = { resolvers: [], active_count: 0, disabled_count: 0, dynamic_count: 0, physical_entries: 0, dot_physical_entries: 0, dot_physical_limit: 0, doh_physical_entries: 0, doh_physical_limit: 0, secure_physical_entries: 0, secure_physical_limit: 0, plain_dns_domain_limit: 16 };
   let snapshot = {};
@@ -1079,6 +1085,33 @@
     return perform(undefined);
   }
 
+  async function refreshDNSRouterAwareness() {
+    if (dnsRouterAwarenessBusy || document.hidden) return;
+    dnsRouterAwarenessBusy = true;
+    try {
+      const status = await withRequestTimeout(DNS_ROUTER_STATUS_API, DNS_ROUTER_STATUS_TIMEOUT_MS, async (signal) => {
+        const response = await fetch(DNS_ROUTER_STATUS_API, {
+          method:'GET',
+          headers:{ Accept:'application/json' },
+          cache:'no-store',
+          credentials:'same-origin',
+          signal
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+      });
+      dnsRouterAwareness = deriveDNSRouterAwareness(status);
+    } catch {
+      dnsRouterAwareness = null;
+    } finally {
+      dnsRouterAwarenessBusy = false;
+    }
+  }
+
+  function onDNSRouterVisibilityChange() {
+    if (!document.hidden) refreshDNSRouterAwareness();
+  }
+
   async function loadAll(quiet = false) {
     if (!quiet) loading = true;
     if (!quiet) error = '';
@@ -1458,10 +1491,15 @@
       ensureViewData(tab);
       queueFrameHeightSync();
     });
+    refreshDNSRouterAwareness();
+    dnsRouterAwarenessTimer = setInterval(refreshDNSRouterAwareness, 15000);
+    document.addEventListener('visibilitychange', onDNSRouterVisibilityChange);
     refreshTimer = setInterval(refreshCurrent, 5000);
 
     return () => {
       clearInterval(refreshTimer);
+      clearInterval(dnsRouterAwarenessTimer);
+      document.removeEventListener('visibilitychange', onDNSRouterVisibilityChange);
       if (frameSyncTimer !== null) clearTimeout(frameSyncTimer);
       for (const timer of resolverSectionCloseTimers.values()) clearTimeout(timer);
       for (const timer of resolverSectionOpenTimers.values()) clearTimeout(timer);
@@ -1494,6 +1532,56 @@
       <button class:active={tab === item[0]} type="button" onclick={() => setTab(item[0])}>{item[1]}</button>
     {/each}
   </div>
+
+  {#if dnsRouterAwareness?.kind === 'intercepting'}
+    <section class="dns-router-awareness warning" role="status" aria-live="polite">
+      <div class="dns-router-awareness-content">
+        <span class="dns-router-awareness-kicker">DNS ROUTER · ACTIVE GATE</span>
+        <strong>{locale === 'en' ? 'DNS Router is handling plain DNS for covered LAN prefixes' : 'DNS Router обрабатывает DNS-запросы охваченных подсетей LAN'}</strong>
+        {#if dnsRouterAwareness.hasActiveScope}
+          <p>{locale === 'en' ? 'UDP/TCP port 53 from these prefixes is redirected to DNS Router. Keenetic DNS profiles do not process these requests.' : 'Запросы UDP/TCP 53 из этих подсетей перенаправляются в DNS Router. Штатные DNS-профили Keenetic эти запросы не обрабатывают.'}</p>
+          <div class="dns-router-awareness-scope">
+            {#each dnsRouterAwareness.ipv4Prefixes as prefix}<span>IPv4 · {prefix}</span>{/each}
+            {#each dnsRouterAwareness.ipv6RoutedPrefixes as prefix}<span>IPv6 · {prefix}</span>{/each}
+            {#if !dnsRouterAwareness.ipv6RoutedPrefixes.length}<span>{locale === 'en' ? 'Routed IPv6 · not covered' : 'Маршрутизируемый IPv6 · не охвачен'}</span>{/if}
+            {#if dnsRouterAwareness.ipv6LinkLocalExcluded}<span>{locale === 'en' ? 'IPv6 link-local · not covered' : 'IPv6 link-local · не охвачен'}</span>{/if}
+          </div>
+        {:else}
+          <p>{locale === 'en' ? 'Gate reports active, but active LAN prefixes were not provided. Exact client coverage is unknown.' : 'Gate сообщает об активном состоянии, но не вернул охваченные LAN-подсети. Фактический охват клиентов неизвестен.'}</p>
+        {/if}
+        <small>{locale === 'en' ? 'Only plain DNS (UDP/TCP 53) is intercepted. Client-side DoH/DoT is outside this Gate; hardware end-to-end verification is pending.' : 'Перехватывается только обычный DNS (UDP/TCP 53). Клиентский DoH/DoT не охватывается; полная аппаратная E2E-проверка ещё не выполнена.'}</small>
+      </div>
+      <a class="dns-router-awareness-link" href="/modules?module=dns-router" target="_top">{locale === 'en' ? 'Open DNS Router →' : 'Открыть DNS Router →'}</a>
+    </section>
+  {:else if dnsRouterAwareness?.kind === 'engine-only'}
+    <section class="dns-router-awareness info" role="status" aria-live="polite">
+      <div class="dns-router-awareness-content">
+        <span class="dns-router-awareness-kicker">DNS ROUTER · ENGINE ACTIVE</span>
+        <strong>{locale === 'en' ? 'DNS Router is running; LAN Gate is OFF' : 'DNS Router запущен, но DNS Gate выключен'}</strong>
+        <p>{locale === 'en' ? 'DNS Router is not redirecting LAN DNS traffic. The stock Keenetic DNS configuration has not been changed by this module.' : 'DNS Router не перенаправляет DNS-трафик LAN. Штатная конфигурация DNS Keenetic этим модулем не изменялась.'}</p>
+      </div>
+      <a class="dns-router-awareness-link" href="/modules?module=dns-router" target="_top">{locale === 'en' ? 'Open DNS Router →' : 'Открыть DNS Router →'}</a>
+    </section>
+  {:else if dnsRouterAwareness?.kind === 'degraded'}
+    <section class="dns-router-awareness warning" role="status" aria-live="polite">
+      <div class="dns-router-awareness-content">
+        <span class="dns-router-awareness-kicker">DNS ROUTER · GATE STATUS</span>
+        <strong>{locale === 'en' ? 'DNS Router Gate is not confirmed active' : 'Активность DNS Router Gate не подтверждена'}</strong>
+        <p>{dnsRouterAwareness.lastError || (locale === 'en' ? 'The Gate is desired but its active state is not verified. No traffic-routing claim is made.' : 'Gate должен быть активен, но его состояние не подтверждено. Перенаправление трафика не заявляется.')}</p>
+      </div>
+      <a class="dns-router-awareness-link" href="/modules?module=dns-router" target="_top">{locale === 'en' ? 'Inspect DNS Router →' : 'Проверить DNS Router →'}</a>
+    </section>
+  {:else if dnsRouterAwareness?.kind === 'problem'}
+    <section class="dns-router-awareness danger" role="alert" aria-live="assertive">
+      <div class="dns-router-awareness-content">
+        <span class="dns-router-awareness-kicker">DNS ROUTER · ATTENTION</span>
+        <strong>{locale === 'en' ? 'DNS Gate reports active while the DNS engine is not running' : 'DNS Gate активен, но DNS-движок не запущен'}</strong>
+        <p>{locale === 'en' ? 'DNS requests may be redirected to an unavailable resolver. Check DNS Router before changing the stock DNS configuration.' : 'DNS-запросы могут перенаправляться в недоступный обработчик. Проверь DNS Router до изменения штатной DNS-конфигурации.'}</p>
+        {#if dnsRouterAwareness.lastError}<small>{dnsRouterAwareness.lastError}</small>{/if}
+      </div>
+      <a class="dns-router-awareness-link" href="/modules?module=dns-router" target="_top">{locale === 'en' ? 'Open DNS Router →' : 'Открыть DNS Router →'}</a>
+    </section>
+  {/if}
 
   {#if error}<div class="error-box"><strong>{L.moduleError}:</strong> {error}</div>{/if}
   {#if success}<div class="success-box">{success}</div>{/if}

@@ -377,6 +377,7 @@ jobs:
             (
               cd "${dirs[$i]}"
               npm install --no-audit --no-fund
+              if [ "${labels[$i]}" = "dns" ]; then npm test; fi
               npm run build
             ) >"/tmp/rf-frontend-${labels[$i]}.log" 2>&1 &
             pids+=("$!")

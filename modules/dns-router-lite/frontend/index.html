@@ -5,20 +5,21 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark light">
   <title>RouterForge · DNS</title>
+  <link rel="stylesheet" href="/design-system/routerforge-v1.css">
   <link rel="stylesheet" href="module.css">
   <link rel="stylesheet" href="p22-visual.css">
 </head>
 <body>
-<main class="page" id="dnsLiteApp">
+<main class="page rfds-scope" id="dnsLiteApp">
   <header class="module-heading">
     <div class="module-heading-copy">
       <span class="eyebrow">ROUTERFORGE · DNS</span>
       <h1>DNS Router</h1>
       <p>Выбирай DNS-серверы, назначай домены и при необходимости включай RouterForge для всей локальной сети.</p>
     </div>
-    <div class="top-actions"><label class="p21-mode-label"><span data-p21-i18n="mode">Режим</span><select id="p21Mode" class="p22-legacy-mode" aria-label="Режим DNS"><option value="basic" data-p21-i18n="basic">Обычный</option><option value="advanced" data-p21-i18n="advanced">Расширенный</option></select></label><div class="p22-mode-switch" role="group" aria-label="Режим DNS Router"><button id="p22ModeBasic" type="button" aria-pressed="true">Обычный</button><button id="p22ModeAdvanced" type="button" aria-pressed="false">Расширенный</button></div><span class="status" id="p21ActiveBadge" hidden>Активны правила устройств</span><span class="status" id="serviceBadge" role="status">Проверяем…</span><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">Открыть DNS-аналитику →</a><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
+    <div class="top-actions"><label class="p21-mode-label"><span data-p21-i18n="mode">Режим</span><select id="p21Mode" class="p22-legacy-mode" aria-label="Режим DNS"><option value="basic" data-p21-i18n="basic">Обычный</option><option value="advanced" data-p21-i18n="advanced">Расширенный</option></select></label><div class="p22-mode-switch rfds-segmented" role="group" aria-label="Режим DNS Router"><button id="p22ModeBasic" type="button" aria-pressed="true">Обычный</button><button id="p22ModeAdvanced" type="button" aria-pressed="false">Расширенный</button></div><span class="status" id="p21ActiveBadge" hidden>Активны правила устройств</span><span class="status" id="serviceBadge" role="status">Проверяем…</span><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">Открыть DNS-аналитику →</a><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
   </header>
-  <nav class="tabs" aria-label="Разделы DNS">
+  <nav class="tabs rfds-tabs" aria-label="Разделы DNS">
     <button id="navDns" type="button" class="tab selected" aria-current="page">DNS и домены</button>
     <button id="p21Nav" type="button" class="tab p21-advanced-only" data-p21-i18n="devices">Устройства и правила</button>
     <button id="p22NavGroups" type="button" class="tab p22-advanced-tab">Группы</button>
@@ -142,8 +143,8 @@
   </section>
 
   <section id="p21Page" class="p21-advanced-only" hidden aria-label="Advanced DNS Router">
-    <section class="panel" id="p22DevicesCard">
-      <div class="section-title"><div><h2 data-p21-i18n="devices">Устройства и правила</h2><p data-p21-i18n="draftHelp">Изменения здесь — черновик. Сначала сохранить, затем явно применить DNS.</p></div><div class="actions"><button class="button" id="p21Refresh" data-p21-i18n="refresh">Обновить обнаружение</button><button class="button" id="p21Save" data-p21-i18n="save">Сохранить черновик</button><button class="button primary" id="p21Apply" data-p21-i18n="apply">Сохранить и применить</button></div></div>
+    <section class="panel rfds-card" id="p22DevicesCard">
+      <div class="section-title"><div><h2 data-p21-i18n="devices">Устройства и правила</h2><p data-p21-i18n="draftHelp">Изменения здесь — черновик. Сначала сохранить, затем явно применить DNS.</p></div><div class="actions"><button class="button" id="p21Refresh" data-p21-i18n="refresh">Обновить обнаружение</button><button class="button rfds-button" id="p21Save" data-p21-i18n="save">Сохранить черновик</button><button class="button primary rfds-button rfds-button--primary" id="p21Apply" data-p21-i18n="apply">Сохранить и применить</button></div></div>
       <p class="notice" id="p21Cache" role="status"></p>
       <p class="muted" data-p21-i18n="identityHelp">MAC — не аутентификация. Нужен свежий прямой L2-сосед. DHCP даёт имя и проверку противоречий. Клиенты за NAT, VPN или другим роутером не различаются; неизвестный клиент использует общие правила.</p>
       <p id="p21DiscoveryStatus" class="muted"></p>
@@ -156,9 +157,9 @@
         <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21Target"></select></label>
         <label class="check"><input type="checkbox" id="p21Inherit"><span data-p21-i18n="inherit">Наследовать общие доменные правила перед DNS устройства</span></label>
       </div>
-      <div id="p22DeviceFooter" class="p22-device-footer"><button class="button" id="p21SetDevice" data-p21-i18n="setDevice">Добавить / обновить устройство в черновике</button></div>
+      <div id="p22DeviceFooter" class="p22-device-footer"><button class="button rfds-button" id="p21SetDevice" data-p21-i18n="setDevice">Добавить / обновить устройство в черновике</button></div>
     </section>
-    <section class="panel" id="p22GroupsCard">
+    <section class="panel rfds-card" id="p22GroupsCard">
       <h2 data-p21-i18n="groups">Группы устройств</h2>
       <div id="p21Groups" class="p21-device-list"></div>
       <div class="fields two p21-form p22-group-fields">
@@ -168,9 +169,9 @@
         <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21GroupTarget"></select></label>
       </div>
       <label class="check"><input type="checkbox" id="p21GroupInherit"><span data-p21-i18n="groupInherit">Наследовать общие доменные правила перед DNS группы</span></label>
-      <button class="button" id="p21SetGroup" data-p21-i18n="setGroup">Сохранить группу в черновике</button>
+      <button class="button rfds-button" id="p21SetGroup" data-p21-i18n="setGroup">Сохранить группу в черновике</button>
     </section>
-    <section class="panel" id="p22RulesCard">
+    <section class="panel rfds-card" id="p22RulesCard">
       <h2 data-p21-i18n="rules">Правила домена для устройства</h2><p class="p22-section-subtitle">Определи, какой DNS использовать для нужного сайта на конкретном устройстве.</p><div class="p22-domain-help"><strong>Что такое правила домена?</strong><p>Это правила, через какой DNS открывать определённые сайты. Например, youtube.com можно направить через один DNS, а остальные сайты — через общий. Для групп задаётся основной DNS, а доменные исключения настраиваются для устройств.</p></div><div id="p21Rules" class="p21-device-list"></div>
       <div class="fields two p21-form p22-rule-fields">
         <div class="p22-rule-scope"><label class="field"><span>Область применения · устройство</span><select id="p22RulePick"><option value="">MAC вручную</option></select></label><label class="field p22-rule-mac-manual" id="p22RuleManual"><span data-p21-i18n="mac">MAC устройства</span><input id="p21RuleMAC" maxlength="17" spellcheck="false"></label></div>
@@ -178,9 +179,9 @@
         <label class="field"><span data-p21-i18n="match">Совпадение</span><select id="p21Match"><option value="suffix">Домен + поддомены / suffix</option><option value="exact">Только домен / exact</option><option value="subdomains">Только поддомены / subdomains</option></select></label>
         <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21RuleTarget"></select></label>
         <label class="field"><span data-p21-i18n="priority">Приоритет при равной точности: меньше — раньше</span><input id="p21Priority" type="number" min="0" max="1000000" value="100"></label>
-      </div><button class="button" id="p21SetRule" data-p21-i18n="setRule">Добавить / обновить правило в черновике</button>
+      </div><button class="button rfds-button" id="p21SetRule" data-p21-i18n="setRule">Добавить / обновить правило в черновике</button>
     </section>
-    <section class="panel" id="p22RouteCard">
+    <section class="panel rfds-card" id="p22RouteCard">
       <h2 data-p21-i18n="explain">Приоритеты и проверка маршрута</h2>
       <p data-p21-i18n="precedence">1. Домен устройства → 2. DNS устройства → 3. Группа устройств → 4. Общие домены → 5. DNS по умолчанию. При включённом наследовании общие домены проверяются перед соответствующим DNS устройства/группы. Локальные зоны всегда обслуживает штатный локальный DNS.</p>
       <div class="fields two p21-form p22-route-form"><label class="field"><span>Устройство на роутере</span><select id="p22ProbePick"><option value="">MAC вручную</option></select></label><label class="field"><span data-p21-i18n="mac">MAC устройства</span><input id="p21ProbeMAC" maxlength="17" spellcheck="false"></label><label class="field"><span data-p21-i18n="domain">Домен</span><input id="p21ProbeDomain" placeholder="example.com" maxlength="253"></label></div>

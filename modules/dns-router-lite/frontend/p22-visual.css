@@ -2,12 +2,13 @@
  * Scoped to the advanced workspace: basic mode and P19.5b layout are intact.
  */
 #dnsLiteApp[data-dns-mode="advanced"] {
-  --p22-green: #4be927;
+  /* DNS-specific geometry only; Core owns all cross-module tokens. */
+  --p22-green: var(--rfds-accent,#4be927);
   --p22-green-deep: #1d9413;
-  --p22-panel: #171a1e;
-  --p22-input: #1c2026;
-  --p22-outline: #30373e;
-  --p22-muted: #9aa6b6;
+  --p22-panel: var(--rfds-surface,#171a1e);
+  --p22-input: var(--rfds-surface-2,#1c2026);
+  --p22-outline: var(--rfds-border,#30373e);
+  --p22-muted: var(--rfds-muted,#9aa6b6);
   --accent: var(--p22-green);
   --accent-soft: rgba(75,233,39,.105);
   --good: var(--p22-green);

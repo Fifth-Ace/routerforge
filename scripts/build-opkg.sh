@@ -22,6 +22,8 @@ PKGFILE="routerforge-core_${PKG_VERSION}_${ARCH}.ipk"
 if [ ! -f "$ROOT/components/core/frontend/build/index.html" ]; then
     sh "$ROOT/scripts/build-frontend.sh"
 fi
+# Core is the single owner of the versioned UI design system.
+test -s "$ROOT/components/core/frontend/build/design-system/routerforge-v1.css" || { echo "CORE_DESIGN_SYSTEM_V1_MISSING" >&2; exit 1; }
 
 rm -rf "$WORK"
 mkdir -p "$DIST" "$WORK/data/opt/bin" "$WORK/data/opt/etc/init.d" \

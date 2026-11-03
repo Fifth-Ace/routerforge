@@ -74,6 +74,10 @@
       if (selected) tab.setAttribute('aria-current','page');
       else tab.removeAttribute('aria-current');
       cards[key].hidden = !selected;
+      if (selected) {
+        const label = $('p23DraftToolbar')?.querySelector('.p22-draft-toolbar-label');
+        if (label) label.textContent = t(({devices:'Устройства',groups:'Группы устройств',rules:'Правила домена'})[key]+' · черновик',({devices:'Devices',groups:'Device groups',rules:'Domain rules'})[key]+' · draft');
+      }
     }
     // Route explanation is a child of the domain-rules view.
     // Never clear or re-create form inputs when changing tabs.
@@ -331,6 +335,7 @@
   }
   function explainRoute() {
     route.replaceChildren();
+    route.hidden = true;
     let payload;
     try { payload = JSON.parse(rawResult.textContent); } catch { return; }
     if (!payload || payload.scope !== 'CONFIGURATION_ONLY') return;
@@ -361,6 +366,7 @@
     note.textContent=t('Расчёт по конфигурации, не подтверждённый сетевой E2E.',
       'Configuration evaluation, not a verified network E2E test.');
     route.appendChild(note);
+    route.hidden = false;
   }
   if (rawResult && route) {
     new MutationObserver(explainRoute).observe(rawResult,{childList:true,characterData:true,subtree:true});

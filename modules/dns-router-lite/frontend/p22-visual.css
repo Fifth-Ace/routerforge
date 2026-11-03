@@ -244,3 +244,43 @@
   #dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar {align-items:flex-start;}
   #dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar .actions {width:100%;justify-content:flex-start;flex-wrap:wrap;}
 }
+
+/* P24.0: compact native UI — scoped, no redesign of Core. */
+
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page { gap:12px; }
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel { padding:16px 18px; min-width:0; }
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel > h2 { margin:0 0 4px; }
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel > .p22-section-subtitle { margin:0 0 14px; }
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-group-fields,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-rule-fields { margin:12px 0; gap:12px; }
+#dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar { padding:10px 14px; gap:12px; }
+#dnsLiteApp[data-dns-mode="advanced"] #p22RouteCard.p22-inline-route {
+  border:0; border-top:1px solid var(--p22-outline); border-radius:0;
+  box-shadow:none; background:transparent; padding:16px 0 0; margin:18px 0 0;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-domain-help {
+  padding:11px 14px; background:var(--p22-panel);
+  border:1px solid var(--p22-outline); margin:10px 0 16px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-domain-help strong {color:var(--text);}
+#dnsLiteApp[data-dns-mode="advanced"] #p22RouteSummary[hidden] {display:none!important;}
+#dnsLiteApp[data-dns-mode="advanced"] #p22RouteSummary {
+  margin:12px 0 0; min-height:0; padding:10px 12px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-rule-fields .field,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-group-fields .field {min-width:0;}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-group-fields .field > span,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-rule-fields .field > span {
+  display:block; line-height:1.45; margin-bottom:5px;
+}
+@media (max-width:850px) {
+  #dnsLiteApp[data-dns-mode="advanced"] #p22GroupsCard .p22-group-fields,
+  #dnsLiteApp[data-dns-mode="advanced"] #p22RulesCard .p22-rule-fields {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media (max-width:560px) {
+  #dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel {padding:12px;}
+  #dnsLiteApp[data-dns-mode="advanced"] #p22GroupsCard .p22-group-fields,
+  #dnsLiteApp[data-dns-mode="advanced"] #p22RulesCard .p22-rule-fields {grid-template-columns:minmax(0,1fr);}
+}

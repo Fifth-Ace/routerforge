@@ -204,3 +204,15 @@ test('P23: every advanced tab remains independent of backend policies and Core a
   assert.match(css,/Core design tokens stay authoritative/);
   assert.match(original,/service\/devices\/evaluate/);
 });
+
+// P24.0: static UI contract (no asynchronous jsdom teardown).
+test('P24.0: compact UI keeps existing tab wiring and hides empty route details',()=>{
+  assert.ok(js.includes('label.textContent = t('),'active-tab toolbar label');
+  assert.ok(js.includes('route.hidden = true;'),'empty route starts hidden');
+  assert.ok(js.includes('route.hidden = false;'),'valid route becomes visible');
+  assert.ok(css.includes('P24.0: compact native UI'),'native UI patch');
+  assert.ok(css.includes('#p22RouteSummary[hidden]'),'empty result hidden in CSS');
+  assert.ok(css.includes('#p22RouteCard.p22-inline-route'),'route panel without double border');
+  assert.ok(css.includes('@media (max-width:560px)'),'mobile layout');
+  assert.doesNotMatch(js,/service\/gate\/control|method\s*:\s*['"]POST['"]/);
+});

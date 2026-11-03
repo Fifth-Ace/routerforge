@@ -305,3 +305,43 @@ test('P25 settings hub: native page, real fields and original basic-mode placeme
     dom.window.close();
   }
 });
+
+// P24.1: real config controls live only in the advanced settings hub.
+test('P24.1 IP Intelligence: opt-in settings, 9 modes, and no basic UI changes',async()=>{
+  const {JSDOM}=require('jsdom');
+  const hub=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
+  const src=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  assert.ok(html.includes('id="p241IPControls"'));
+  assert.ok(src.includes("if($('p241IPEnabled').checked)prefs.ip_intelligence="));
+  assert.ok(src.includes('delete merged.ip_intelligence'));
+  assert.ok(src.includes("$('p241IPMode').value=state.config.service?.ip_intelligence?.mode||'original'"));
+  assert.ok(hub.includes('P24.0 contains nine IP ordering strategies'));
+  const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true});
+  try{
+    const w=dom.window,d=w.document,$=id=>d.getElementById(id);
+    const app=$('dnsLiteApp');app.dataset.dnsMode='basic';
+    $('p21Mode').addEventListener('change',()=>{app.dataset.dnsMode=$('p21Mode').value;if(app.dataset.dnsMode==='basic'){$('p21Page').hidden=true;$('pageDns').hidden=false;}});
+    $('p21Nav').addEventListener('click',()=>{$('p21Page').hidden=false;$('pageDns').hidden=true;});
+    $('navDns').addEventListener('click',()=>{$('p21Page').hidden=true;$('pageDns').hidden=false;});
+    $('navLogs').addEventListener('click',()=>{$('p21Page').hidden=true;$('pageDns').hidden=false;$('pageLogs').hidden=false;});
+    w.fetch=async()=>({ok:true,json:async()=>({devices:[],issues:[]})});
+    w.eval(js);w.eval(hub);
+    assert.equal($('p241IPControls').hidden,false,'controls are placed inside the hub');
+    assert.equal($('p241IPControls').parentElement.id,'p25Settings_ip');
+    assert.equal($('p241IPMode').options.length,9);
+    assert.equal($('p241IPMode').value,'original');
+    assert.equal($('p241IPEnabled').checked,false);
+    assert.equal($('p241IPControls').closest('#p21Page')!==null,true);
+    $('p22ModeAdvanced').click();
+    await new Promise(resolve=>setImmediate(resolve));
+    $('p25SettingsNav').click();
+    d.querySelector('[data-settings-section="ip"]').click();
+    assert.equal($('p25Settings_ip').hidden,false);
+    $('p241IPEnabled').checked=true;
+    $('p241IPMode').value='round_robin';
+    $('p241IPMode').dispatchEvent(new w.Event('change'));
+    assert.match($('p241IPModeNote').textContent,/кэша|cached/);
+    $('p22ModeBasic').click();
+    assert.equal($('p21Page').hidden,true,'basic mode must not expose advanced controls');
+  }finally{await new Promise(resolve=>setImmediate(resolve));dom.window.close();}
+});

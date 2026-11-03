@@ -19,6 +19,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/AdguardTeam/dnsproxy/upstream"
+	"github.com/Fifth-Ace/routerforge/modules/dns-router-lite/internal/ipintel"
 	dr "github.com/Fifth-Ace/routerforge/modules/dns-router-runtime"
 	"github.com/miekg/dns"
 )
@@ -73,6 +74,7 @@ type Engine struct {
 	// Optional injected identity provider, fixed before Start; production uses directory.
 	identify  func(string) DeviceIdentity
 	health    *UpstreamHealthTracker
+	ipPlanner *ipintel.Planner
 	requests  atomic.Uint64
 	denied    atomic.Uint64
 	cacheHits atomic.Uint64
@@ -127,7 +129,7 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 	if factory == nil {
 		factory = transportFactory(nil)
 	}
-	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}}
+	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano())}
 	// Only servers reachable by a rule/default chain are constructed. Unused
 	// legacy native catalog entries do not prevent an independent service start.
 	needed, err := usedUpstreams(c)
@@ -371,6 +373,15 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		return nil
 	}
 	err := p.Resolve(ctx, d)
+	// Perform response transformation AFTER Resolve and its cache lookup,
+	// on a deep copy.  Original and every pre-P24.1 config are inert.
+	if err == nil && d.Res != nil && e.cfg.Service.IPIntelligence != nil && e.cfg.Service.IPIntelligence.Enabled {
+		mode := ipintel.Mode(e.cfg.Service.IPIntelligence.Mode)
+		if mode != "" && mode != ipintel.Original {
+			scope := fmt.Sprintf("%s|%s|%s|%s|%s", route.Layer, route.Upstream, route.GroupID, route.RuleID, route.DeviceGroup)
+			d.Res = reorderDNSAnswer(e.ipPlanner, d.Req, d.Res, mode, scope, identity.MAC, nil)
+		}
+	}
 	cached := false
 	if stats := d.QueryStatistics(); stats != nil {
 		for _, s := range stats.Main() {

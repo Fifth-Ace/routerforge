@@ -9,17 +9,40 @@ import (
 // ServiceConfig selects the independent DNS service. Unlike the legacy shadow
 // listener it has an explicit default and never creates per-domain ndmc rows.
 type ServiceConfig struct {
-	Listen          string   `json:"listen"`
-	DefaultUpstream string   `json:"default_upstream"`
-	DefaultGroup    string   `json:"default_group,omitempty"`
-	CacheBytes      int      `json:"cache_bytes"`
-	AllowedNetworks []string `json:"allowed_networks"`
+	Listen          string                `json:"listen"`
+	DefaultUpstream string                `json:"default_upstream"`
+	DefaultGroup    string                `json:"default_group,omitempty"`
+	CacheBytes      int                   `json:"cache_bytes"`
+	AllowedNetworks []string              `json:"allowed_networks"`
+	IPIntelligence  *IPIntelligenceConfig `json:"ip_intelligence,omitempty"`
+}
+
+// IPIntelligenceConfig is optional and disabled by default.  It never starts
+// health probes and is only evaluated for explicit enabled policies.
+type IPIntelligenceConfig struct {
+	Enabled bool   `json:"enabled"`
+	Mode    string `json:"mode"`
+}
+
+func validateIPIntelligence(cfg *IPIntelligenceConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	switch cfg.Mode {
+	case "", "original", "round_robin", "random", "fastest", "health_aware", "adaptive", "sticky", "weighted", "healthy_only":
+		return nil
+	default:
+		return fmt.Errorf("unsupported IP Intelligence mode %q", cfg.Mode)
+	}
 }
 
 func validateServiceConfig(c Config, upstreams map[string]Upstream, groups map[string]DNSGroup) error {
 	s := c.Service
 	if s == nil {
 		return nil
+	}
+	if err := validateIPIntelligence(s.IPIntelligence); err != nil {
+		return err
 	}
 	host, port, err := net.SplitHostPort(s.Listen)
 	ip := net.ParseIP(host)

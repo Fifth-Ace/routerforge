@@ -72,3 +72,11 @@
   #dnsLiteApp[data-dns-mode="advanced"] .p25-settings-section {padding:12px;}
   #dnsLiteApp[data-dns-mode="advanced"] .p25-settings-features {grid-template-columns:minmax(0,1fr);}
 }
+
+/* P24.1 IP Intelligence form: advanced settings only */
+#dnsLiteApp[data-dns-mode="advanced"] .p241-ip-controls {display:grid;gap:12px;max-width:760px;margin-top:14px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p241-ip-toggle {margin:0;}
+#dnsLiteApp[data-dns-mode="advanced"] .p241-ip-mode {max-width:490px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p241-ip-mode select {width:100%;}
+#dnsLiteApp[data-dns-mode="advanced"] #p241IPModeNote {margin:0;line-height:1.5;}
+#dnsLiteApp[data-dns-mode="basic"] .p241-ip-controls {display:none!important;}

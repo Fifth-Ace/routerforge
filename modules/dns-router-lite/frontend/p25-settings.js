@@ -50,7 +50,7 @@
   const entries = [
     ['service', t('DNS-сервис', 'DNS service'), t('Доступно', 'Available')],
     ['cache', t('Кэш', 'Cache'), t('Доступно', 'Available')],
-    ['ip', 'IP Intelligence', t('Планируется', 'Planned')],
+    ['ip', 'IP Intelligence', t('Экспериментально', 'Experimental')],
     ['upstream', t('Выбор DNS', 'Upstream selection'), t('Планируется', 'Planned')],
     ['security', t('Защита запросов', 'Query protection'), t('Планируется', 'Planned')],
     ['privacy', 'EDNS / ECS / DNSSEC', t('Планируется', 'Planned')],
@@ -105,10 +105,35 @@
     features.forEach(x => list.append(element('li', '', x)));
     panel.append(list);
   }
-  planned('ip', t(
-    'P24.0 содержит девять алгоритмов выбора IP. Обработка DNS-ответов, мониторинг адресов и сохранение настроек будут добавлены отдельно.',
-    'P24.0 contains nine IP ordering strategies. Response integration, health checks and settings persistence will follow.'),
-    ['Original', 'Round-Robin', 'Random', 'Fastest IP', 'Health-Aware', 'Adaptive', 'Sticky IP', 'Weighted', 'Healthy Only']);
+  // P24.1: real, explicitly opt-in DNS response ordering. No background
+  // health checks yet; unavailable measurements do not invent IP health.
+  const ipPanel=panels.get('ip');
+  ipPanel.append(element('p','p25-settings-info',t(
+    'P24.1 переставляет A/AAAA-адреса только после явного включения и применения. Фоновые проверки IP появятся в P24.2.',
+    'P24.0 contains nine IP ordering strategies. P24.1 reorders A/AAAA addresses only after explicit save/apply. IP health probes are planned for P24.2.')));
+  const ipControls=$('p241IPControls');
+  ipControls.hidden=false;
+  ipPanel.append(ipControls);
+  const modeNotes={
+    original:t('Без изменения IP в DNS-ответе.','No address changes.'),
+    round_robin:t('Циклически меняет первый IP при каждом новом DNS-запросе, включая ответы из кэша.','Rotates the first IP on each DNS request, including cached responses.'),
+    random:t('Случайно переставляет все IP; исходный DNS-ответ сохранён.','Shuffles all addresses; original DNS response is preserved.'),
+    fastest:t('Ожидает замеров задержки: до P24.2 сохраняет исходный порядок.','Waiting for latency measurements: until P24.2, original order is preserved.'),
+    health_aware:t('Ожидает проверок доступности: до P24.2 сохраняет исходный порядок.','Waiting for health checks: until P24.2, original order is preserved.'),
+    adaptive:t('До P24.2 ротирует IP без измерений; реальной оценки доступности пока нет.','Before P24.2, rotates unmeasured addresses; health scoring is unavailable.'),
+    sticky:t('Закрепляет порядок за проверенным MAC; для неизвестных устройств использует ротацию.','Stable ordering for trusted MACs; falls back to rotation for unknown devices.'),
+    weighted:t('До P24.2 веса равны, режим работает как базовая ротация.','Weights are equal until P24.2, behaves as simple rotation.'),
+    healthy_only:t('Без проверок IP ничего не исключается. DNSSEC-защищённые наборы не сокращаются.','Without checks no IPs are removed. DNSSEC-protected RRsets are never filtered.')
+  };
+  function updateModeNote(){
+    const enabled=$('p241IPEnabled').checked;
+    $('p241IPModeNote').textContent=enabled?(modeNotes[$('p241IPMode').value]||modeNotes.original):t(
+      'Функция выключена. DNS-ответы не изменяются.','Feature disabled. DNS responses remain unchanged.');
+  }
+  $('p241IPEnabled').addEventListener('change',updateModeNote);
+  $('p241IPMode').addEventListener('change',updateModeNote);
+  document.addEventListener('routerforge:p241-render',updateModeNote);
+  updateModeNote();
   planned('upstream', t(
     'Режимы DNSProxy будут согласованы с уже работающими правилами RouterForge и резервными цепочками.',
     'DNSProxy upstream modes must coexist with RouterForge routing policies and failover chains.'),

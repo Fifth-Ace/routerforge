@@ -309,6 +309,22 @@ test('P25 settings hub: native page, real fields and original basic-mode placeme
   }
 });
 
+// P24.3: real scope/hysteresis inputs, read-only IP monitor, no simple-mode mutation.
+test('P24.3 IP scope and health HTTP controls are advanced-only',()=>{
+  const panel=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
+  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  for(const id of ['p243Scope','p243Domains','p243ListIDs','p243Recoveries','p243MinDown','p243HTTPPath']){
+    assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+    assert.ok(app.includes("$('"+id+"')"),id+' must be wired');
+  }
+  assert.ok(panel.includes('showScope()'));
+  assert.ok(panel.includes("method:'GET'"));
+  assert.doesNotMatch(panel,/method\s*:\s*['"](?:POST|PUT|PATCH|DELETE)/i);
+  assert.ok(html.includes('option value="http"'));
+  assert.ok(html.includes('option value="https"'));
+  assert.ok(html.includes('p241-ip-controls'));
+});
+
 // P24.1: real config controls live only in the advanced settings hub.
 test('P24.1 IP Intelligence: opt-in settings, 9 modes, and no basic UI changes',async()=>{
   const {JSDOM}=require('jsdom');

@@ -191,7 +191,7 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			monitor = m.engine.ipHealth
 		}
 		m.mu.Unlock()
-		jsonResponse(w, 200, map[string]any{"enabled": monitor != nil, "protocol": "tcp/tls", "entries": monitor.Snapshot()})
+		jsonResponse(w, 200, map[string]any{"enabled": monitor != nil, "protocol": "tcp/tls/http/https", "entries": monitor.Snapshot()})
 		return
 	case "/v1/service/upstreams/health":
 		if r.Method != "GET" {

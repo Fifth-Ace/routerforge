@@ -73,6 +73,13 @@
   #dnsLiteApp[data-dns-mode="advanced"] .p25-settings-features {grid-template-columns:minmax(0,1fr);}
 }
 
+/* P24.3 scope and resiliency controls. Existing Core styling stays authoritative. */
+#dnsLiteApp[data-dns-mode="advanced"] .p243-scope-settings {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0;}
+#dnsLiteApp[data-dns-mode="advanced"] .p243-scope-settings .field:first-child {grid-column:1/-1;}
+#dnsLiteApp[data-dns-mode="advanced"] .p243-scope-settings .field[hidden]{display:none!important;}
+#dnsLiteApp[data-dns-mode="advanced"] .p243-scope-settings select,#dnsLiteApp[data-dns-mode="advanced"] .p243-scope-settings textarea {width:100%;}
+#dnsLiteApp[data-dns-mode="advanced"] .p243-scope-settings select[multiple]{min-height:105px;}
+@media(max-width:560px){#dnsLiteApp[data-dns-mode="advanced"] .p243-scope-settings{grid-template-columns:1fr;}}
 /* P24.1 IP Intelligence form: advanced settings only */
 #dnsLiteApp[data-dns-mode="advanced"] .p241-ip-controls {display:grid;gap:12px;max-width:760px;margin-top:14px;}
 #dnsLiteApp[data-dns-mode="advanced"] .p241-ip-toggle {margin:0;}

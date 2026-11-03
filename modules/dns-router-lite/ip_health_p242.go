@@ -39,6 +39,7 @@ type ipHealthEntry struct {
 	LastSeen    time.Time
 	CheckedAt   time.Time
 	LastSuccess time.Time
+	DownAt      time.Time
 	LastError   string
 	RTT         time.Duration
 	Failures    int
@@ -59,6 +60,9 @@ type IPHealthView struct {
 	LastChecked string `json:"last_checked,omitempty"`
 	LastSuccess string `json:"last_success,omitempty"`
 	LastError   string `json:"last_error,omitempty"`
+	Recoveries  int    `json:"recoveries"`
+	LastDown    string `json:"last_down,omitempty"`
+	LastSeen    string `json:"last_seen,omitempty"`
 }
 
 type IPHealthMonitor struct {
@@ -92,6 +96,12 @@ func newIPHealthMonitor(cfg *dr.IPHealthConfig) *IPHealthMonitor {
 	}
 	if chosen.FailureThreshold == 0 {
 		chosen.FailureThreshold = 2
+	}
+	if chosen.RecoveryThreshold == 0 {
+		chosen.RecoveryThreshold = 2
+	}
+	if chosen.HTTPPath == "" {
+		chosen.HTTPPath = "/"
 	}
 	m := &IPHealthMonitor{cfg: chosen, entries: make(map[ipProbeTarget]*ipHealthEntry), queue: make(chan ipProbeTarget, maxIPHealthQueued)}
 	m.probe = m.dial
@@ -169,6 +179,9 @@ func (m *IPHealthMonitor) dial(ctx context.Context, target ipProbeTarget) (time.
 		return 0, errors.New("invalid probe target")
 	}
 	start := time.Now()
+	if target.Protocol == "http" || target.Protocol == "https" {
+		return m.dialHTTP(ctx, target, start)
+	}
 	address := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
 	if err != nil {
@@ -262,6 +275,9 @@ func (m *IPHealthMonitor) measure(ctx context.Context, target ipProbeTarget) {
 			e.LastError = e.LastError[:160]
 		}
 		if e.Failures >= m.cfg.FailureThreshold {
+			if !e.Checked || e.Healthy {
+				e.DownAt = now
+			}
 			e.Checked = true
 			e.Healthy = false
 		}
@@ -270,9 +286,10 @@ func (m *IPHealthMonitor) measure(ctx context.Context, target ipProbeTarget) {
 		e.LastSuccess = now
 		e.LastError = ""
 		e.Recoveries++
-		if !e.Checked || e.Healthy || e.Recoveries >= 2 {
+		if !e.Checked || e.Healthy || (e.Recoveries >= m.cfg.RecoveryThreshold && (e.DownAt.IsZero() || now.Sub(e.DownAt) >= time.Duration(m.cfg.MinDownSeconds)*time.Second)) {
 			e.Checked = true
 			e.Healthy = true
+			e.DownAt = time.Time{}
 		}
 		if rtt > 0 {
 			if e.RTT == 0 {
@@ -390,7 +407,13 @@ func (m *IPHealthMonitor) Snapshot() []IPHealthView {
 				status = "DOWN"
 			}
 		}
-		view := IPHealthView{Address: item.target.IP.String(), Domain: item.target.Domain, Port: item.target.Port, Protocol: item.target.Protocol, Status: status, RTTMS: e.RTT.Milliseconds(), Failures: e.Failures}
+		view := IPHealthView{Address: item.target.IP.String(), Domain: item.target.Domain, Port: item.target.Port, Protocol: item.target.Protocol, Status: status, RTTMS: e.RTT.Milliseconds(), Failures: e.Failures, Recoveries: e.Recoveries}
+		if !e.DownAt.IsZero() {
+			view.LastDown = e.DownAt.Format(time.RFC3339)
+		}
+		if !e.LastSeen.IsZero() {
+			view.LastSeen = e.LastSeen.Format(time.RFC3339)
+		}
 		if !e.CheckedAt.IsZero() {
 			view.LastChecked = e.CheckedAt.Format(time.RFC3339)
 		}

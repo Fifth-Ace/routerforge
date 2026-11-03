@@ -160,16 +160,24 @@
         </select>
       </label>
       <p class="p25-settings-info" id="p241IPModeNote" role="status">Исходные DNS-ответы не меняются, пока функция выключена.</p>
+      <div class="p243-scope-settings">
+        <label class="field"><span>Область применения</span><select id="p243Scope"><option value="all">Все внешние домены</option><option value="domains">Выбранные домены</option><option value="lists">Выбранные списки</option></select></label>
+        <label class="field p243-domains"><span>Домены, по одному в строке (включая поддомены)</span><textarea id="p243Domains" rows="3" spellcheck="false" placeholder="example.org"></textarea></label>
+        <label class="field p243-lists"><span>Списки доменов (Ctrl/Shift для нескольких)</span><select id="p243ListIDs" multiple size="4"></select></label>
+      </div>
       <div class="p242-health-settings">
         <label class="check"><input type="checkbox" id="p242HealthEnabled"> Фоновая проверка IP-адресов (экспериментально)</label>
         <div class="p242-health-fields">
-          <label class="field"><span>Проверка</span><select id="p242HealthProtocol"><option value="tcp">TCP: соединение с портом</option><option value="tls">TLS: проверка сертификата</option></select></label>
+          <label class="field"><span>Проверка</span><select id="p242HealthProtocol"><option value="tcp">TCP: соединение с портом</option><option value="tls">TLS: проверка сертификата</option><option value="http">HTTP: ответ приложения</option><option value="https">HTTPS: ответ приложения + TLS</option></select></label>
           <label class="field"><span>Порт</span><input id="p242HealthPort" type="number" min="80" max="65535" value="443"></label>
           <label class="field"><span>Интервал, секунд</span><input id="p242HealthInterval" type="number" min="30" max="3600" value="60"></label>
           <label class="field"><span>Тайм-аут, мс</span><input id="p242HealthTimeout" type="number" min="250" max="3000" value="1200"></label>
           <label class="field"><span>Неудач до DOWN</span><input id="p242HealthFailures" type="number" min="1" max="5" value="2"></label>
+          <label class="field"><span>Успехов до UP</span><input id="p243Recoveries" type="number" min="1" max="5" value="2"></label>
+          <label class="field"><span>Выдержка DOWN, сек</span><input id="p243MinDown" type="number" min="0" max="3600" value="30"></label>
+          <label class="field"><span>HTTP-путь</span><input id="p243HTTPPath" maxlength="128" value="/" placeholder="/health"></label>
         </div>
-        <p class="p25-settings-info">Проверяются только публичные IP из реальных ответов A/AAAA, не чаще одного подключения в секунду. Приватные и служебные адреса исключены. TCP/TLS не подтверждают работу приложения.</p>
+        <p class="p25-settings-info">Проверяются только публичные IP из реальных ответов A/AAAA, не чаще одного подключения в секунду. Приватные и служебные адреса исключены. HTTP/HTTPS проверяют ответ сервиса, 5xx считаются ошибкой; редиректы не выполняются. TCP/TLS подтверждают только соединение.</p>
         <div class="p242-monitor"><div class="p242-monitor-heading"><strong>Монитор IP</strong><small id="p242MonitorStatus">Нет измерений</small></div>
           <div id="p242MonitorRows" class="p242-monitor-rows" aria-live="polite"><span class="muted">Записи появятся после запросов и фоновых проверок.</span></div>
         </div>

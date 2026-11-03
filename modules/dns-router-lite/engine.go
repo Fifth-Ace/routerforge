@@ -76,6 +76,7 @@ type Engine struct {
 	health    *UpstreamHealthTracker
 	ipPlanner *ipintel.Planner
 	ipHealth  *IPHealthMonitor
+	ipScope   *ipScopeMatcher
 	requests  atomic.Uint64
 	denied    atomic.Uint64
 	cacheHits atomic.Uint64
@@ -134,7 +135,7 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 	if c.Service.IPIntelligence != nil && c.Service.IPIntelligence.Enabled {
 		ipHealth = newIPHealthMonitor(c.Service.IPIntelligence.Health)
 	}
-	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth}
+	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth, ipScope: newIPScopeMatcher(c)}
 	// Only servers reachable by a rule/default chain are constructed. Unused
 	// legacy native catalog entries do not prevent an independent service start.
 	needed, err := usedUpstreams(c)
@@ -393,7 +394,7 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 	err := p.Resolve(ctx, d)
 	// Perform response transformation AFTER Resolve and its cache lookup,
 	// on a deep copy.  Original and every pre-P24.1 config are inert.
-	if err == nil && d.Res != nil && e.cfg.Service.IPIntelligence != nil && e.cfg.Service.IPIntelligence.Enabled {
+	if err == nil && d.Res != nil && e.cfg.Service.IPIntelligence != nil && e.cfg.Service.IPIntelligence.Enabled && len(d.Req.Question) == 1 && e.ipScope.Matches(d.Req.Question[0].Name) {
 		mode := ipintel.Mode(e.cfg.Service.IPIntelligence.Mode)
 		if mode != "" && mode != ipintel.Original {
 			scope := fmt.Sprintf("%s|%s|%s|%s|%s", route.Layer, route.Upstream, route.GroupID, route.RuleID, route.DeviceGroup)

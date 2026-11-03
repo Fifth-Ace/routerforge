@@ -115,6 +115,10 @@
   const ipControls=$('p241IPControls');
   ipControls.hidden=false;
   ipPanel.append(ipControls);
+  function showScope(){const scope=$('p243Scope').value;const a=ipPanel.querySelector('.p243-domains'),b=ipPanel.querySelector('.p243-lists');a.hidden=scope!=='domains';b.hidden=scope!=='lists';}
+  $('p243Scope').addEventListener('change',showScope);
+  document.addEventListener('routerforge:p243-render',showScope);
+  showScope();
   // P24.2 monitor is read-only. Active only on the visible IP settings page.
   const monitorRows=$('p242MonitorRows'),monitorStatus=$('p242MonitorStatus');
   async function refreshIPHealth(){
@@ -129,11 +133,11 @@
       if(list.length===0){monitorRows.append(element('span','muted',t('Нет измерений. Дождись DNS-запросов.','No measurements yet.')));return;}
       for(const record of list){
         const line=element('div','p242-monitor-row');
-        line.title=[record.last_checked?t('Проверен: ','Checked: ')+record.last_checked:'',record.last_error?t('Ошибка: ','Error: ')+record.last_error:''].filter(Boolean).join(' · ');
+        line.title=[record.last_checked?t('Проверен: ','Checked: ')+record.last_checked:'',record.last_error?t('Ошибка: ','Error: ')+record.last_error:'',record.last_down?t('DOWN с: ','DOWN since: ')+record.last_down:''].filter(Boolean).join(' · ');
         line.append(element('span','p242-monitor-address',String(record.address||'—')),
           element('span','p242-monitor-domain',String(record.domain||'—')),
           element('span','p242-monitor-state',String(record.status||'UNKNOWN')),
-          element('span','p242-monitor-rtt',(record.rtt_ms?String(record.rtt_ms)+' ms':'—')+' · '+String(record.failures||0)+' '+t('ош.','err')),
+          element('span','p242-monitor-rtt',(record.rtt_ms?String(record.rtt_ms)+' ms':'—')+' · '+String(record.failures||0)+' '+t('ош.','err')+' / '+String(record.recoveries||0)+' '+t('усп.','ok')),
           element('span','p242-monitor-last',record.last_success?String(record.last_success).replace('T',' ').replace(/Z$/,' UTC'):'—'));
         monitorRows.append(line);
       }

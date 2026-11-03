@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 )
 
 // ServiceConfig selects the independent DNS service. Unlike the legacy shadow
@@ -23,25 +24,31 @@ type IPIntelligenceConfig struct {
 	Enabled bool            `json:"enabled"`
 	Mode    string          `json:"mode"`
 	Health  *IPHealthConfig `json:"health,omitempty"`
+	Scope   string          `json:"scope,omitempty"` // empty/all, domains, lists
+	Domains []string        `json:"domains,omitempty"`
+	ListIDs []string        `json:"list_ids,omitempty"`
 }
 
 // IPHealthConfig is opt-in. Only direct public IPv4/IPv6 destinations are
 // eligible; no hostnames are resolved by the probe scheduler.
 type IPHealthConfig struct {
-	Enabled          bool   `json:"enabled"`
-	Protocol         string `json:"protocol"` // tcp or tls
-	Port             int    `json:"port"`
-	IntervalSeconds  int    `json:"interval_seconds"`
-	TimeoutMS        int    `json:"timeout_ms"`
-	FailureThreshold int    `json:"failure_threshold"`
+	Enabled           bool   `json:"enabled"`
+	Protocol          string `json:"protocol"` // tcp or tls
+	Port              int    `json:"port"`
+	IntervalSeconds   int    `json:"interval_seconds"`
+	TimeoutMS         int    `json:"timeout_ms"`
+	FailureThreshold  int    `json:"failure_threshold"`
+	RecoveryThreshold int    `json:"recovery_threshold,omitempty"`
+	MinDownSeconds    int    `json:"min_down_seconds,omitempty"`
+	HTTPPath          string `json:"http_path,omitempty"`
 }
 
 func validateIPHealth(h *IPHealthConfig) error {
 	if h == nil {
 		return nil
 	}
-	if h.Protocol != "" && h.Protocol != "tcp" && h.Protocol != "tls" {
-		return fmt.Errorf("IP health supports only tcp or tls")
+	if h.Protocol != "" && h.Protocol != "tcp" && h.Protocol != "tls" && h.Protocol != "http" && h.Protocol != "https" {
+		return fmt.Errorf("IP health supports tcp, tls, http or https")
 	}
 	if h.Port != 0 && (h.Port < 80 || h.Port > 65535) {
 		return fmt.Errorf("IP health port must be 80..65535")
@@ -54,6 +61,22 @@ func validateIPHealth(h *IPHealthConfig) error {
 	}
 	if h.FailureThreshold != 0 && (h.FailureThreshold < 1 || h.FailureThreshold > 5) {
 		return fmt.Errorf("IP health failure threshold must be 1..5")
+	}
+	if h.RecoveryThreshold != 0 && (h.RecoveryThreshold < 1 || h.RecoveryThreshold > 5) {
+		return fmt.Errorf("IP recovery threshold must be 1..5")
+	}
+	if h.MinDownSeconds < 0 || h.MinDownSeconds > 3600 {
+		return fmt.Errorf("IP minimum down hold must be 0..3600 seconds")
+	}
+	if h.HTTPPath != "" {
+		if len(h.HTTPPath) > 128 || h.HTTPPath[0] != '/' || strings.Contains(h.HTTPPath, "..") || strings.ContainsAny(h.HTTPPath, "?#%\\\r\n") {
+			return fmt.Errorf("unsafe HTTP health path")
+		}
+		for _, ch := range h.HTTPPath {
+			if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || strings.ContainsRune("/_-.", ch)) {
+				return fmt.Errorf("unsafe HTTP health path")
+			}
+		}
 	}
 	return nil
 }
@@ -82,6 +105,9 @@ func validateServiceConfig(c Config, upstreams map[string]Upstream, groups map[s
 		return nil
 	}
 	if err := validateIPIntelligence(s.IPIntelligence); err != nil {
+		return err
+	}
+	if err := validateIPIntelligenceScope(c); err != nil {
 		return err
 	}
 	host, port, err := net.SplitHostPort(s.Listen)

@@ -1,6 +1,7 @@
 package lite
 
 import (
+	"bytes"
 	"context"
 	"net/netip"
 	"reflect"
@@ -41,6 +42,19 @@ func p241IPList(a *dns.Msg, kind uint16) []string {
 	}
 	return out
 }
+
+// p241SnapshotWire compares the actual DNS wire message, including record
+// order, contents and TTL. dns.Msg.Copy() allocates non-nil empty Ns/Extra
+// slices, so reflect.DeepEqual(original, original.Copy()) is NOT a valid
+// mutation check when the original has nil sections.
+func p241SnapshotWire(t *testing.T, a *dns.Msg) []byte {
+	t.Helper()
+	wire, err := a.Pack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return wire
+}
 func p241TwoA() (*dns.Msg, *dns.Msg) {
 	q := p241Question("www.example.", dns.TypeA)
 	a := p241Reply(q,
@@ -53,7 +67,7 @@ func p241TwoA() (*dns.Msg, *dns.Msg) {
 func TestP241RoundRobinDeepCopyCacheAndCNAME(t *testing.T) {
 	q, a := p241TwoA()
 	p := ipintel.New(9)
-	old := a.Copy()
+	old := p241SnapshotWire(t, a)
 	want := [][]string{
 		{"203.0.113.10", "203.0.113.20", "203.0.113.30"},
 		{"203.0.113.20", "203.0.113.30", "203.0.113.10"},
@@ -76,9 +90,31 @@ func TestP241RoundRobinDeepCopyCacheAndCNAME(t *testing.T) {
 				t.Fatal("TTL changed")
 			}
 		}
-		if !reflect.DeepEqual(a, old) {
+		if !bytes.Equal(p241SnapshotWire(t, a), old) {
 			t.Fatal("cached upstream answer mutated")
 		}
+	}
+}
+
+// Regression: modifying an outgoing reordered record must never change
+// the original upstream message, even through its nested net.IP byte slice.
+func TestP241ReorderedAnswerOwnsIndependentIPBytes(t *testing.T) {
+	q, original := p241TwoA()
+	before := p241SnapshotWire(t, original)
+	modified := reorderDNSAnswer(ipintel.New(1), q, original, ipintel.RoundRobin, "default", "", nil)
+	if modified == original {
+		t.Fatal("transformed reply shares the original message pointer")
+	}
+	address, ok := modified.Answer[1].(*dns.A)
+	if !ok || len(address.A) == 0 {
+		t.Fatal("expected first A record after CNAME")
+	}
+	address.A[0] ^= 1
+	if bytes.Equal(p241SnapshotWire(t, modified), before) {
+		t.Fatal("mutating output should change the output")
+	}
+	if !bytes.Equal(p241SnapshotWire(t, original), before) {
+		t.Fatal("returned RR aliases the upstream source")
 	}
 }
 func TestP241AAAAAndNonAddressUnchanged(t *testing.T) {
@@ -162,7 +198,7 @@ func TestP241SeparateKeysAndTrustedSticky(t *testing.T) {
 }
 func TestP241ConcurrentResponseIsolation(t *testing.T) {
 	q, a := p241TwoA()
-	snapshot := a.Copy()
+	snapshot := p241SnapshotWire(t, a)
 	p := ipintel.New(1)
 	var wg sync.WaitGroup
 	for i := 0; i < 128; i++ {
@@ -176,7 +212,7 @@ func TestP241ConcurrentResponseIsolation(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	if !reflect.DeepEqual(a, snapshot) {
+	if !bytes.Equal(p241SnapshotWire(t, a), snapshot) {
 		t.Fatal("concurrent caller modified upstream result")
 	}
 }

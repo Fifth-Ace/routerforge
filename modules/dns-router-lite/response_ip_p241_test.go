@@ -117,6 +117,33 @@ func TestP241ReorderedAnswerOwnsIndependentIPBytes(t *testing.T) {
 		t.Fatal("returned RR aliases the upstream source")
 	}
 }
+
+// Regression: the deep-copy boundary must also isolate IPv6 bytes.
+// A downstream mutation of an AAAA RR may never modify the shared
+// upstream response (including a response retained by DNSProxy cache).
+func TestP241AAAAOutputDoesNotAliasUpstream(t *testing.T) {
+	q := p241Question("v6.example.", dns.TypeAAAA)
+	upstreamAnswer := p241Reply(q,
+		"v6.example. 60 IN AAAA 2001:db8::1",
+		"v6.example. 60 IN AAAA 2001:db8::2")
+	before := p241SnapshotWire(t, upstreamAnswer)
+	output := reorderDNSAnswer(ipintel.New(4), q, upstreamAnswer, ipintel.RoundRobin, "default", "", nil)
+	if output == upstreamAnswer {
+		t.Fatal("AAAA response must be deep-copied")
+	}
+	first, ok := output.Answer[0].(*dns.AAAA)
+	if !ok || len(first.AAAA) != 16 {
+		t.Fatal("expected first AAAA record")
+	}
+	first.AAAA[15] ^= 1
+	if !bytes.Equal(p241SnapshotWire(t, upstreamAnswer), before) {
+		t.Fatal("modified output aliases cached AAAA record")
+	}
+	if bytes.Equal(p241SnapshotWire(t, output), before) {
+		t.Fatal("output mutation did not affect output")
+	}
+}
+
 func TestP241AAAAAndNonAddressUnchanged(t *testing.T) {
 	q := p241Question("a.example.", dns.TypeAAAA)
 	a := p241Reply(q, "a.example. 120 IN AAAA 2001:db8::1", "a.example. 120 IN AAAA 2001:db8::2")

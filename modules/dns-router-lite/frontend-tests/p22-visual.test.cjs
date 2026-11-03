@@ -216,3 +216,92 @@ test('P24.0: compact UI keeps existing tab wiring and hides empty route details'
   assert.ok(css.includes('@media (max-width:560px)'),'mobile layout');
   assert.doesNotMatch(js,/service\/gate\/control|method\s*:\s*['"]POST['"]/);
 });
+
+// P25: Advanced-only settings hub preserves basic mode, real service fields,
+// P21 apply and all existing independent tabs.
+test('P25 settings hub: native page, real fields and original basic-mode placement', async () => {
+  const { JSDOM } = require('jsdom');
+  const hub = fs.readFileSync(path.join(root, 'p25-settings.js'), 'utf8');
+  const hubCSS = fs.readFileSync(path.join(root, 'p25-settings.css'), 'utf8');
+  assert.ok(html.includes('p25-settings.css'));
+  assert.ok(html.includes('p25-settings.js'));
+  assert.ok(hub.includes('p25SettingsNav'));
+  assert.ok(hub.includes('P24.0 contains nine IP ordering strategies'));
+  assert.ok(hubCSS.includes('p25-settings-layout'));
+  assert.ok(!hub.includes('method:'));
+  const dom = new JSDOM(html, {url:'https://routerforge.test/ui/index.html', runScripts:'outside-only', pretendToBeVisual:true});
+  try {
+    const w = dom.window, d = w.document, $ = id => d.getElementById(id);
+    const app = $('dnsLiteApp');
+    app.dataset.dnsMode = 'basic';
+    $('p21Mode').addEventListener('change', () => {
+      app.dataset.dnsMode = $('p21Mode').value;
+      if (app.dataset.dnsMode === 'basic') {
+        $('p21Page').hidden = true;
+        $('pageDns').hidden = false;
+        $('pageLogs').hidden = true;
+      }
+    });
+    $('p21Nav').addEventListener('click', () => {
+      $('p21Page').hidden = false;
+      $('pageDns').hidden = true;
+      $('pageLogs').hidden = true;
+    });
+    $('navDns').addEventListener('click', () => {
+      $('p21Page').hidden = true;
+      $('pageDns').hidden = false;
+      $('pageLogs').hidden = true;
+    });
+    $('navLogs').addEventListener('click', () => {
+      $('p21Page').hidden = true;
+      $('pageDns').hidden = true;
+      $('pageLogs').hidden = false;
+    });
+    w.fetch = async () => ({ok:true,json:async()=>({devices:[],issues:[]})});
+    w.eval(js);
+    w.eval(hub);
+    assert.equal($('p25SettingsNav').classList.contains('p22-advanced-tab'), true);
+    assert.equal($('additionalSettings').parentElement.id, 'systemGatePanel');
+    const fieldsBefore = $('cacheSize').closest('.field').parentElement;
+    assert.equal($('p25SettingsCard').hidden, true);
+    $('p22ModeAdvanced').click();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal($('p25SettingsCard').hidden, true);
+    assert.equal($('additionalSettings').parentElement.id, 'p25Settings_service');
+    assert.equal($('cacheSize').closest('.field').parentElement.id, 'p25Settings_cache');
+    $('p25SettingsNav').click();
+    assert.equal($('p25SettingsCard').hidden, false);
+    assert.equal($('p21Page').hidden, false);
+    assert.equal($('p22DevicesCard').hidden, true);
+    assert.equal($('p22GroupsCard').hidden, true);
+    assert.equal($('p22RulesCard').hidden, true);
+    assert.equal($('p25SettingsNav').getAttribute('aria-current'), 'page');
+    const toolbar = $('p23DraftToolbar');
+    for (const action of ['p21Save','p21Apply']) assert.equal(toolbar.contains($(action)), true);
+    const links = d.querySelectorAll('.p25-settings-link');
+    assert.equal(links.length, 8);
+    assert.equal($('p25Settings_service').hidden, false);
+    d.querySelector('[data-settings-section="cache"]').click();
+    assert.equal($('p25Settings_service').hidden, true);
+    assert.equal($('p25Settings_cache').hidden, false);
+    $('cacheSize').value = '2';
+    $('p22NavGroups').click();
+    assert.equal($('p25SettingsCard').hidden, true);
+    assert.equal($('p22GroupsCard').hidden, false);
+    assert.equal($('cacheSize').value, '2');
+    $('p22ModeBasic').click();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(app.dataset.dnsMode, 'basic');
+    assert.equal($('additionalSettings').parentElement.id, 'systemGatePanel');
+    assert.equal($('cacheSize').closest('.field').parentElement, fieldsBefore);
+    assert.equal($('cacheSize').value, '2');
+    assert.equal($('p25SettingsCard').hidden, true);
+    $('p22ModeAdvanced').click();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal($('p22DevicesCard').hidden, false);
+    assert.equal($('p25SettingsCard').hidden, true);
+  } finally {
+    await new Promise(resolve => setImmediate(resolve));
+    dom.window.close();
+  }
+});

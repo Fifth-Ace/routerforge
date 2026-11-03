@@ -1,0 +1,74 @@
+/* P25: Advanced-only native RouterForge settings hub. Core design tokens own colors. */
+#dnsLiteApp:not([data-dns-mode="advanced"]) #p25SettingsNav {display:none!important;}
+#dnsLiteApp #p25SettingsCard[hidden],
+#dnsLiteApp #p25SettingsCard .p25-settings-section[hidden] {display:none!important;}
+#dnsLiteApp[data-dns-mode="advanced"] #p25SettingsCard {min-width:0;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-heading {margin:0 0 16px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-heading h2 {margin:0 0 5px;font-size:19px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-heading p {margin:0;font-size:12px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-layout {
+  display:grid;grid-template-columns:minmax(178px,220px) minmax(0,1fr);
+  gap:18px;min-width:0;align-items:start;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-sidebar {
+  display:grid;gap:5px;padding:6px;border:1px solid var(--p22-outline);
+  border-radius:9px;background:var(--p22-input);min-width:0;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link {
+  text-align:left;border:1px solid transparent;border-radius:7px;
+  background:transparent;color:var(--text);padding:10px 11px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:4px;
+  min-width:0;cursor:pointer;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link:hover {
+  border-color:var(--p22-outline);background:var(--surface);
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link.selected {
+  border-color:var(--p22-green);background:var(--accent-soft);
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link-label {font-size:12px;font-weight:700;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link-state {font-size:10px;color:var(--p22-muted);}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-content {min-width:0;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-section {
+  padding:16px 18px;border:1px solid var(--p22-outline);
+  background:var(--p22-input);border-radius:9px;min-height:210px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-section h3 {font-size:16px;margin:0 0 9px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-info {
+  font-size:12px;color:var(--p22-muted);line-height:1.55;margin:0 0 15px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-planned-note {
+  border:1px solid var(--p22-outline);padding:9px 11px;
+  border-radius:7px;font-size:11px;line-height:1.5;
+  color:var(--p22-muted);margin:0 0 12px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-features {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  list-style:none;margin:0;padding:0;gap:8px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-features li {
+  min-width:0;border:1px solid var(--p22-outline);background:var(--p22-panel);
+  border-radius:7px;padding:10px 12px;font-size:12px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p25SettingsCard #additionalSettings {
+  border:0;background:transparent;padding:0;margin:0;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p25SettingsCard #additionalSettings > summary {display:none;}
+#dnsLiteApp[data-dns-mode="advanced"] #p25SettingsCard #additionalSettings .fields.two {
+  display:grid;grid-template-columns:minmax(0,1fr);gap:12px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p25SettingsCard .field {min-width:0;max-width:560px;}
+#dnsLiteApp[data-dns-mode="advanced"] #p25SettingsCard .field > span {
+  display:block;color:var(--text);font-size:12px;margin:0 0 6px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p25SettingsCard .field input {width:100%;max-width:100%;}
+#dnsLiteApp[data-p25-settings-active="true"] #p21Refresh {display:none!important;}
+@media (max-width:850px) {
+  #dnsLiteApp[data-dns-mode="advanced"] .p25-settings-layout {grid-template-columns:minmax(0,1fr);gap:12px;}
+  #dnsLiteApp[data-dns-mode="advanced"] .p25-settings-sidebar {display:flex;overflow-x:auto;}
+  #dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link {flex:0 0 auto;min-width:135px;}
+}
+@media (max-width:560px) {
+  #dnsLiteApp[data-dns-mode="advanced"] .p25-settings-section {padding:12px;}
+  #dnsLiteApp[data-dns-mode="advanced"] .p25-settings-features {grid-template-columns:minmax(0,1fr);}
+}

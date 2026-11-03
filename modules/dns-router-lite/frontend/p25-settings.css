@@ -80,3 +80,17 @@
 #dnsLiteApp[data-dns-mode="advanced"] .p241-ip-mode select {width:100%;}
 #dnsLiteApp[data-dns-mode="advanced"] #p241IPModeNote {margin:0;line-height:1.5;}
 #dnsLiteApp[data-dns-mode="basic"] .p241-ip-controls {display:none!important;}
+
+/* P24.2: background IP monitor; advanced settings only, no global style mutations. */
+#dnsLiteApp[data-dns-mode="advanced"] .p242-health-settings {display:grid;gap:12px;margin-top:16px;max-width:900px;border-top:1px solid var(--p22-outline);padding-top:16px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-health-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-health-fields input,
+#dnsLiteApp[data-dns-mode="advanced"] .p242-health-fields select {width:100%;}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor {border:1px solid var(--p22-outline);border-radius:8px;min-width:0;overflow:hidden;}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-heading {padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-heading small {color:var(--p22-muted);}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-rows {max-height:300px;overflow:auto;padding:5px 10px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-row {display:grid;grid-template-columns:1.1fr 1.6fr .7fr .9fr 1.5fr;gap:8px;align-items:center;padding:8px 4px;border-top:1px solid var(--p22-outline);font-size:11px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-domain {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--p22-muted);}
+#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-state {font-weight:700;}
+@media (max-width:560px){#dnsLiteApp[data-dns-mode="advanced"] .p242-health-fields{grid-template-columns:1fr;}#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-row{grid-template-columns:1fr 1fr;}}

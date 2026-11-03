@@ -100,6 +100,13 @@
     if(state.config.service){$('serviceListen').value=state.config.service.listen;$('cacheSize').value=state.config.service.cache_bytes/(1024*1024);$('allowedNetworks').value=state.config.service.allowed_networks.join(',');}
     $('p241IPEnabled').checked=Boolean(state.config.service?.ip_intelligence?.enabled);
     $('p241IPMode').value=state.config.service?.ip_intelligence?.mode||'original';
+    const p242health=state.config.service?.ip_intelligence?.health;
+    $('p242HealthEnabled').checked=Boolean(p242health?.enabled);
+    $('p242HealthProtocol').value=p242health?.protocol||'tcp';
+    $('p242HealthPort').value=p242health?.port||443;
+    $('p242HealthInterval').value=p242health?.interval_seconds||60;
+    $('p242HealthTimeout').value=p242health?.timeout_ms||1200;
+    $('p242HealthFailures').value=p242health?.failure_threshold||2;
     document.dispatchEvent(new Event('routerforge:p241-render'));
     $('listenerSummary').textContent=state.config.service?.listen||$('serviceListen').value;
     $('applyButton').textContent=state.dirty?'✓ Сохранить и запустить DNS':'▶ Запустить DNS';
@@ -378,7 +385,18 @@
     const cache=Number($('cacheSize').value);if(!Number.isInteger(cache)||cache<0||cache>8)throw Error('Кэш: от 0 до 8 МиБ');
     const listen=$('serviceListen').value.trim(),networks=$('allowedNetworks').value.split(',').map(s=>s.trim()).filter(Boolean);
     const prefs={listen,default_upstream:primary,cache_bytes:cache*1024*1024,allowed_networks:networks};
-    if($('p241IPEnabled').checked)prefs.ip_intelligence={enabled:true,mode:$('p241IPMode').value};
+    if($('p242HealthEnabled').checked && !$('p241IPEnabled').checked)throw Error('Сначала включи IP Intelligence');
+    const asInt=(id,min,max)=>{const n=Number($(id).value);if(!Number.isInteger(n)||n<min||n>max)throw Error(id+': допустимо '+min+'..'+max);return n;};
+    if($('p241IPEnabled').checked){
+      prefs.ip_intelligence={enabled:true,mode:$('p241IPMode').value};
+      if($('p242HealthEnabled').checked)prefs.ip_intelligence.health={
+        enabled:true,protocol:$('p242HealthProtocol').value,
+        port:asInt('p242HealthPort',80,65535),
+        interval_seconds:asInt('p242HealthInterval',30,3600),
+        timeout_ms:asInt('p242HealthTimeout',250,3000),
+        failure_threshold:asInt('p242HealthFailures',1,5)
+      };
+    }
     return prefs;
   }
   function syncPrefs(){const next=servicePrefs();const prev=state.config.service;const merged={...prev,...next};if(!next.ip_intelligence)delete merged.ip_intelligence;if(JSON.stringify(prev)!==JSON.stringify(merged)){state.config.service=merged;if(prev?.default_upstream!==next.default_upstream)delete state.config.service.default_group;state.dirty=true;}}
@@ -497,7 +515,7 @@
   $('importDomains').addEventListener('click',()=>$('domainFile').click());$('domainFile').addEventListener('change',async()=>{const f=$('domainFile').files[0];if(!f)return;try{if(f.size>256*1024)throw Error('Максимум 256 КБ');const names=parseDomains(await f.text());$('editorDomains').value=names.join('\n');show('Импортировано '+names.length+' доменов. Нажми «Сохранить список».');}catch(e){show(e.message,'bad');}finally{$('domainFile').value='';}});
   $('exportDomains').addEventListener('click',()=>{if(!state.editing)return;const data=$('editorDomains').value;const url=URL.createObjectURL(new Blob([data.endsWith('\n')?data:data+'\n'],{type:'text/plain;charset=utf-8'}));try{const a=document.createElement('a');a.href=url;a.download='routerforge-domains.txt';a.click();}finally{URL.revokeObjectURL(url);}});
   $('defaultDNS').addEventListener('change',()=>{mark();});for(const id of ['serviceListen','cacheSize','allowedNetworks'])$(id).addEventListener('change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
-   for(const id of ['p241IPEnabled','p241IPMode'])$(id).addEventListener('change',()=>{try{if(id==='p241IPMode')$('p241IPEnabled').checked=true;syncPrefs();mark();}catch(err){show(err.message,'bad');}});
+   for(const id of ['p241IPEnabled','p241IPMode','p242HealthEnabled','p242HealthProtocol','p242HealthPort','p242HealthInterval','p242HealthTimeout','p242HealthFailures'])$(id).addEventListener('change',()=>{try{if(id==='p241IPMode')$('p241IPEnabled').checked=true;if(id==='p241IPEnabled'&&!$('p241IPEnabled').checked)$('p242HealthEnabled').checked=false;syncPrefs();mark();}catch(err){show(err.message,'bad');}});
   on('checkAllDNS',async()=>{await checkHealth();});
   on('saveButton',save);on('applyButton',apply);on('migrateNative',migrate);
   on('gatePreflight',async()=>{

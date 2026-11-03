@@ -228,7 +228,10 @@ test('P25 settings hub: native page, real fields and original basic-mode placeme
   assert.ok(hub.includes('p25SettingsNav'));
   assert.ok(hub.includes('P24.0 contains nine IP ordering strategies'));
   assert.ok(hubCSS.includes('p25-settings-layout'));
-  assert.ok(!hub.includes('method:'));
+  assert.doesNotMatch(hub,/\bmethod\s*:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/i,
+    'Settings Hub must never issue mutating HTTP requests');
+  assert.ok(hub.includes("fetch('../service/ip-health',{method:'GET',cache:'no-store'})"),
+    'IP health monitor must fetch only the read-only status endpoint');
   const dom = new JSDOM(html, {url:'https://routerforge.test/ui/index.html', runScripts:'outside-only', pretendToBeVisual:true});
   try {
     const w = dom.window, d = w.document, $ = id => d.getElementById(id);
@@ -312,7 +315,8 @@ test('P24.1 IP Intelligence: opt-in settings, 9 modes, and no basic UI changes',
   const hub=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
   const src=fs.readFileSync(path.join(root,'app.js'),'utf8');
   assert.ok(html.includes('id="p241IPControls"'));
-  assert.ok(src.includes("if($('p241IPEnabled').checked)prefs.ip_intelligence="));
+  assert.ok(src.includes("if($('p241IPEnabled').checked){"));
+  assert.ok(src.includes("prefs.ip_intelligence={enabled:true,mode:$('p241IPMode').value};"));
   assert.ok(src.includes('delete merged.ip_intelligence'));
   assert.ok(src.includes("$('p241IPMode').value=state.config.service?.ip_intelligence?.mode||'original'"));
   assert.ok(hub.includes('P24.0 contains nine IP ordering strategies'));
@@ -344,4 +348,23 @@ test('P24.1 IP Intelligence: opt-in settings, 9 modes, and no basic UI changes',
     $('p22ModeBasic').click();
     assert.equal($('p21Page').hidden,true,'basic mode must not expose advanced controls');
   }finally{await new Promise(resolve=>setImmediate(resolve));dom.window.close();}
+});
+
+
+test('P24.2: health settings and monitor are advanced-only and read-only',()=>{
+  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  const hub=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
+  const sheet=fs.readFileSync(path.join(root,'p25-settings.css'),'utf8');
+  const {JSDOM}=require('jsdom');const doc=new JSDOM(html).window.document;
+  for(const id of ['p242HealthEnabled','p242HealthProtocol','p242HealthPort','p242HealthInterval','p242HealthTimeout','p242HealthFailures','p242MonitorRows','p242MonitorStatus']){
+    assert.equal(doc.querySelectorAll('#'+id).length,1,id);
+    assert.equal(doc.getElementById(id).closest('#p241IPControls')!==null,true,id+' in advanced UI');
+  }
+  assert.ok(app.includes('interval_seconds:asInt'));
+  assert.ok(app.includes('failure_threshold:asInt'));
+  assert.ok(app.includes('p242HealthEnabled'));
+  assert.ok(hub.includes("fetch('../service/ip-health',{method:'GET',cache:'no-store'})"));
+  assert.ok(hub.includes('monitorRows.replaceChildren()'));
+  assert.ok(sheet.includes('.p242-monitor-row'));
+  assert.doesNotMatch(hub,/innerHTML\s*=/);
 });

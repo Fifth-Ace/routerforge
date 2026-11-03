@@ -179,6 +179,20 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	case "/v1/service/ip-health":
+		if r.Method != "GET" {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(405)
+			return
+		}
+		m.mu.Lock()
+		var monitor *IPHealthMonitor
+		if m.engine != nil {
+			monitor = m.engine.ipHealth
+		}
+		m.mu.Unlock()
+		jsonResponse(w, 200, map[string]any{"enabled": monitor != nil, "protocol": "tcp/tls", "entries": monitor.Snapshot()})
+		return
 	case "/v1/service/upstreams/health":
 		if r.Method != "GET" {
 			w.Header().Set("Allow", "GET")

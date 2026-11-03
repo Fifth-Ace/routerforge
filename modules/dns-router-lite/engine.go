@@ -75,6 +75,7 @@ type Engine struct {
 	identify  func(string) DeviceIdentity
 	health    *UpstreamHealthTracker
 	ipPlanner *ipintel.Planner
+	ipHealth  *IPHealthMonitor
 	requests  atomic.Uint64
 	denied    atomic.Uint64
 	cacheHits atomic.Uint64
@@ -129,7 +130,11 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 	if factory == nil {
 		factory = transportFactory(nil)
 	}
-	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano())}
+	var ipHealth *IPHealthMonitor
+	if c.Service.IPIntelligence != nil && c.Service.IPIntelligence.Enabled {
+		ipHealth = newIPHealthMonitor(c.Service.IPIntelligence.Health)
+	}
+	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth}
 	// Only servers reachable by a rule/default chain are constructed. Unused
 	// legacy native catalog entries do not prevent an independent service start.
 	needed, err := usedUpstreams(c)
@@ -243,8 +248,21 @@ func usedUpstreams(c dr.Config) (map[string]bool, error) {
 	return needed, nil
 }
 
-func (e *Engine) Start(ctx context.Context) error { return e.proxy.Start(ctx) }
-func (e *Engine) Close(ctx context.Context) error { return e.proxy.Shutdown(ctx) }
+func (e *Engine) Start(ctx context.Context) error {
+	if err := e.proxy.Start(ctx); err != nil {
+		return err
+	}
+	if e.ipHealth != nil {
+		e.ipHealth.Start()
+	}
+	return nil
+}
+func (e *Engine) Close(ctx context.Context) error {
+	if e.ipHealth != nil {
+		e.ipHealth.Stop()
+	}
+	return e.proxy.Shutdown(ctx)
+}
 func (e *Engine) closeServers() {
 	for _, s := range e.servers {
 		_ = s.Close()
@@ -379,7 +397,11 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		mode := ipintel.Mode(e.cfg.Service.IPIntelligence.Mode)
 		if mode != "" && mode != ipintel.Original {
 			scope := fmt.Sprintf("%s|%s|%s|%s|%s", route.Layer, route.Upstream, route.GroupID, route.RuleID, route.DeviceGroup)
-			d.Res = reorderDNSAnswer(e.ipPlanner, d.Req, d.Res, mode, scope, identity.MAC, nil)
+			var metrics map[netip.Addr]ipintel.Health
+			if e.ipHealth != nil {
+				metrics = e.ipHealth.Observe(d.Req, d.Res)
+			}
+			d.Res = reorderDNSAnswer(e.ipPlanner, d.Req, d.Res, mode, scope, identity.MAC, metrics)
 		}
 	}
 	cached := false

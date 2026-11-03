@@ -20,13 +20,53 @@ type ServiceConfig struct {
 // IPIntelligenceConfig is optional and disabled by default.  It never starts
 // health probes and is only evaluated for explicit enabled policies.
 type IPIntelligenceConfig struct {
-	Enabled bool   `json:"enabled"`
-	Mode    string `json:"mode"`
+	Enabled bool            `json:"enabled"`
+	Mode    string          `json:"mode"`
+	Health  *IPHealthConfig `json:"health,omitempty"`
+}
+
+// IPHealthConfig is opt-in. Only direct public IPv4/IPv6 destinations are
+// eligible; no hostnames are resolved by the probe scheduler.
+type IPHealthConfig struct {
+	Enabled          bool   `json:"enabled"`
+	Protocol         string `json:"protocol"` // tcp or tls
+	Port             int    `json:"port"`
+	IntervalSeconds  int    `json:"interval_seconds"`
+	TimeoutMS        int    `json:"timeout_ms"`
+	FailureThreshold int    `json:"failure_threshold"`
+}
+
+func validateIPHealth(h *IPHealthConfig) error {
+	if h == nil {
+		return nil
+	}
+	if h.Protocol != "" && h.Protocol != "tcp" && h.Protocol != "tls" {
+		return fmt.Errorf("IP health supports only tcp or tls")
+	}
+	if h.Port != 0 && (h.Port < 80 || h.Port > 65535) {
+		return fmt.Errorf("IP health port must be 80..65535")
+	}
+	if h.IntervalSeconds != 0 && (h.IntervalSeconds < 30 || h.IntervalSeconds > 3600) {
+		return fmt.Errorf("IP health interval must be 30..3600 seconds")
+	}
+	if h.TimeoutMS != 0 && (h.TimeoutMS < 250 || h.TimeoutMS > 3000) {
+		return fmt.Errorf("IP health timeout must be 250..3000 milliseconds")
+	}
+	if h.FailureThreshold != 0 && (h.FailureThreshold < 1 || h.FailureThreshold > 5) {
+		return fmt.Errorf("IP health failure threshold must be 1..5")
+	}
+	return nil
 }
 
 func validateIPIntelligence(cfg *IPIntelligenceConfig) error {
 	if cfg == nil {
 		return nil
+	}
+	if cfg.Health != nil && cfg.Health.Enabled && !cfg.Enabled {
+		return fmt.Errorf("IP health requires enabled IP Intelligence")
+	}
+	if err := validateIPHealth(cfg.Health); err != nil {
+		return err
 	}
 	switch cfg.Mode {
 	case "", "original", "round_robin", "random", "fastest", "health_aware", "adaptive", "sticky", "weighted", "healthy_only":

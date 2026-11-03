@@ -160,6 +160,20 @@
         </select>
       </label>
       <p class="p25-settings-info" id="p241IPModeNote" role="status">Исходные DNS-ответы не меняются, пока функция выключена.</p>
+      <div class="p242-health-settings">
+        <label class="check"><input type="checkbox" id="p242HealthEnabled"> Фоновая проверка IP-адресов (экспериментально)</label>
+        <div class="p242-health-fields">
+          <label class="field"><span>Проверка</span><select id="p242HealthProtocol"><option value="tcp">TCP: соединение с портом</option><option value="tls">TLS: проверка сертификата</option></select></label>
+          <label class="field"><span>Порт</span><input id="p242HealthPort" type="number" min="80" max="65535" value="443"></label>
+          <label class="field"><span>Интервал, секунд</span><input id="p242HealthInterval" type="number" min="30" max="3600" value="60"></label>
+          <label class="field"><span>Тайм-аут, мс</span><input id="p242HealthTimeout" type="number" min="250" max="3000" value="1200"></label>
+          <label class="field"><span>Неудач до DOWN</span><input id="p242HealthFailures" type="number" min="1" max="5" value="2"></label>
+        </div>
+        <p class="p25-settings-info">Проверяются только публичные IP из реальных ответов A/AAAA, не чаще одного подключения в секунду. Приватные и служебные адреса исключены. TCP/TLS не подтверждают работу приложения.</p>
+        <div class="p242-monitor"><div class="p242-monitor-heading"><strong>Монитор IP</strong><small id="p242MonitorStatus">Нет измерений</small></div>
+          <div id="p242MonitorRows" class="p242-monitor-rows" aria-live="polite"><span class="muted">Записи появятся после запросов и фоновых проверок.</span></div>
+        </div>
+      </div>
     </div>
     <section class="panel rfds-card" id="p22DevicesCard">
       <div class="section-title"><div><h2 data-p21-i18n="devices">Устройства и правила</h2><p data-p21-i18n="draftHelp">Изменения здесь — черновик. Сначала сохранить, затем явно применить DNS.</p></div><div class="actions"><button class="button" id="p21Refresh" data-p21-i18n="refresh">Обновить обнаружение</button><button class="button rfds-button" id="p21Save" data-p21-i18n="save">Сохранить черновик</button><button class="button primary rfds-button rfds-button--primary" id="p21Apply" data-p21-i18n="apply">Сохранить и применить</button></div></div>

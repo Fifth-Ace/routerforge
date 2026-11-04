@@ -12,7 +12,7 @@ function fixture(options={}){
   if(options.advanced)config.advanced=structuredClone(options.advanced);
   if(options.dnsGroups)config.dns_groups=structuredClone(options.dnsGroups);
   let applied=options.active?structuredClone(config):null;
-  let revision='sha256:initial',active=Boolean(options.active),gateEnabled=false,gateOverride=null,connection={state:'disconnected'},requests=0,denied=0;const calls=[],errors=[];
+  let revision='sha256:initial',active=Boolean(options.active),gateEnabled=false,gateOverride=null,connection={state:'disconnected'},requests=Number(options.requests||0),denied=Number(options.denied||0),aclDenied=Number(options.aclDenied||0),protectionDenied=Number(options.protectionDenied||0);const calls=[],errors=[];
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
   const w=dom.window;if(options.mode)w.localStorage.setItem('routerforge.dnsRouter.mode.v1',options.mode);w.confirm=()=>true;w.scrollTo=()=>{};
@@ -22,8 +22,8 @@ function fixture(options={}){
     if(p==='config'){
       if(opts.method==='PUT'){a.equal(opts.headers['If-Match'],'"'+revision+'"');config=JSON.parse(opts.body);revision='sha256:next';}
       body={config:structuredClone(config),revision};
-    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,cache_hits:0,failures:0,device_policies_active:Boolean(active&&applied?.advanced?.devices?.some(d=>d.target)),cache_mode:active&&applied?.advanced?.devices?.some(d=>d.target)?'disabled_for_device_policy_isolation':'shared_global_policy',connection,system_gate:gateOverride||{state:gateEnabled?'ACTIVE':'STOCK',active:gateEnabled,desired:gateEnabled,lease_seconds:60}};
-    else if(p==='service/traces')body={traces:active?[{name:'example.com',time:'2026-10-31T12:00:00Z',assigned:'old',used:'old',transport:'udp',rcode:0,success:true,latency_ms:5,type:1,cache:false}]:[]};
+    }else if(p==='service/status')body={mode:'independent-dns',active,applied_revision:active?revision:'',listen:config.service?.listen,default_upstream:config.service?.default_upstream,requests,denied_requests:denied,acl_denied_requests:aclDenied,protection_denied_requests:protectionDenied,cache_hits:0,failures:0,device_policies_active:Boolean(active&&applied?.advanced?.devices?.some(d=>d.target)),cache_mode:active&&applied?.advanced?.devices?.some(d=>d.target)?'disabled_for_device_policy_isolation':'shared_global_policy',connection,system_gate:gateOverride||{state:gateEnabled?'ACTIVE':'STOCK',active:gateEnabled,desired:gateEnabled,lease_seconds:60}};
+    else if(p==='service/traces')body={traces:active?(options.traces||[{name:'example.com',time:'2026-10-31T12:00:00Z',assigned:'old',used:'old',transport:'udp',rcode:0,success:true,latency_ms:5,type:1,cache:false}]):[]};
     else if(p==='certificates/lookup'){a.equal(opts.headers['X-RouterForge-Action'],'certificate-lookup');const q=JSON.parse(opts.body);body={address:'8.8.8.8:443',selected_ip:'8.8.8.8',ips:['8.8.8.8'],certificate:{verified:true,pem:'-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n',subject:'CN=dns.google',issuer:'Trusted CA',not_after:'2027-10-31',fingerprint_sha256:'ab',server_name:q.server_name}};}
     else if(p==='service/control'){a.equal(opts.headers['X-RouterForge-Action'],'service-control');const q=JSON.parse(opts.body);active=q.operation!=='stop';applied=active?structuredClone(config):null;body={ok:true};}
     else if(p==='service/gate/control'){const q=JSON.parse(opts.body);if(q.operation==='enable')gateEnabled=true;else if(q.operation==='disable'){gateEnabled=false;gateOverride=null;}else if(q.operation==='retry'){gateEnabled=true;gateOverride=null;}body={ok:true};}
@@ -39,7 +39,7 @@ function fixture(options={}){
     else status=404;
     return {ok:status===200,status,headers:{get:()=> 'application/json'},json:async()=>structuredClone(body)};
   };
-  w.eval(js);return {w,dom,calls,errors,getConfig:()=>config,getActive:()=>active,setConnection:v=>{connection=v;},setRequests:v=>{requests=v;},setDenied:v=>{denied=v;},setGate:v=>{gateOverride=v;}};
+  w.eval(js);return {w,dom,calls,errors,getConfig:()=>config,getActive:()=>active,setConnection:v=>{connection=v;},setRequests:v=>{requests=v;},setDenied:v=>{denied=v;},setAclDenied:v=>{aclDenied=v;},setProtectionDenied:v=>{protectionDenied=v;},setGate:v=>{gateOverride=v;}};
 }
 
 test('P13 visual parity: two pages and split DNS/domain workspace, no P10 controls',()=>{
@@ -146,7 +146,7 @@ test('P14: status distinguishes an active listener from a verified client path',
     d.getElementById('refreshLogs').click();
     await until(()=>d.getElementById('routeAdvice').textContent.includes('4 запросов'));
     a.doesNotMatch(d.getElementById('routeAdvice').textContent,/0 запросов/);
-    f.setRequests(4);f.setDenied(4);d.getElementById('refreshLogs').click();
+    f.setRequests(4);f.setDenied(4);f.setAclDenied(4);d.getElementById('refreshLogs').click();
     await until(()=>d.getElementById('routeAdvice').textContent.includes('ВСЕ отклонены'));
     a.match(d.getElementById('routeAdvice').textContent,/REFUSED/);
     a.deepEqual(f.errors,[]);
@@ -428,5 +428,32 @@ test('P21 existing DNS group assignment and used-DNS deletion fail visibly witho
  a.equal(d.querySelectorAll('.dns-card').length,2);a.deepEqual(f.errors,[]);
  d.getElementById('p21Save').click();await until(()=>f.getConfig().advanced?.devices?.length===1&&!d.getElementById('p21Save').disabled);
  a.equal(f.getConfig().advanced.devices[0].target.upstream,'old');a.equal(f.getConfig().advanced.devices[0].target.group_id,'private');a.equal(f.getActive(),false);
+ }finally{f.dom.window.close();}
+});
+
+
+test('P28: deliberate ANY and rate-limit denials show correct causes, filters and status',async()=>{
+ const traces=[
+  {name:'p28-any.example',time:'2026-11-05T00:00:00Z',client:'127.0.0.1',assigned:'query-protection',used:'refuse-any',rcode:4,success:false,latency_ms:0,type:255,cache:false},
+  {name:'p28-rate.example',time:'2026-11-05T00:00:01Z',client:'127.0.0.1',assigned:'query-protection',used:'rate-limit',rcode:5,success:false,latency_ms:0,type:1,cache:false}
+ ];
+ // Set synthetic counters BEFORE UI load. This test must not fire unawaited
+ // click handlers: closing JSDOM while a refresh task is pending leaks promises
+ // and causes the entire node:test file to fail after all assertions passed.
+ const f=fixture({active:true,traces,requests:2,denied:2,protectionDenied:2}),d=f.w.document;
+ try{
+  // load() writes feedback only AFTER all startup API requests and log rendering.
+  // This acts as a deterministic lifecycle barrier before window.close().
+  await until(()=>d.getElementById('feedback').textContent.startsWith('Настройки загружены.') &&
+    d.getElementById('routeAdvice').textContent.includes('ВСЕ отклонены защитой запросов') &&
+    d.getElementById('logRows').textContent.includes('NOTIMP'));
+  a.doesNotMatch(d.getElementById('routeAdvice').textContent,/списком разрешённых клиентских сетей/);
+  a.match(d.getElementById('logRows').textContent,/ANY/);
+  a.match(d.getElementById('logRows').textContent,/REFUSED/);
+  d.getElementById('logType').value='ANY';
+  d.getElementById('logType').dispatchEvent(new f.w.Event('change'));
+  a.equal(d.querySelectorAll('.log-row').length,1);
+  a.match(d.getElementById('logRows').textContent,/NOTIMP/);
+  a.deepEqual(f.errors,[]);
  }finally{f.dom.window.close();}
 });

@@ -457,8 +457,12 @@
     if(!s.active)return {tone:'bad',text:'DNS Router остановлен. На штатном DNS Keenetic (порт 53) интернет может продолжать работать, но журнал RouterForge пуст.'};
     if(c.state==='recovery_required')return {tone:'bad',text:'DNS-профиль устройства требует восстановления: '+(c.error||'состояние не совпадает с Keenetic')+'. Не устанавливай и не обновляй пакет до исправления профиля.'};
     if(c.state==='pending')return {tone:'bad',text:'Подключение устройства не завершено (pending). DNS Router слушает '+endpoint+', но профиль клиента Keenetic ещё не подтверждён. Сначала верни прежний DNS устройства или заверши подключение; не пытайся обновлять пакет с pending.'};
-    const denied=Number(s.denied_requests||0);
-    if(denied>0 && denied===upstream)return {tone:'bad',text:'До DNS Router дошли '+denied+' запросов, но ВСЕ отклонены (REFUSED) списком разрешённых клиентских сетей. Проверь «Дополнительные настройки → Разрешённые сети» и IP клиента; менять настройки Keenetic не требуется.'};
+    const denied=Number(s.denied_requests||0),acl=Number(s.acl_denied_requests||0),protection=Number(s.protection_denied_requests||0);
+    if(denied>0 && denied===upstream){
+      if(acl===denied)return {tone:'bad',text:'До DNS Router дошли '+denied+' запросов, но ВСЕ отклонены (REFUSED) входным фильтром. Проверь разрешённые клиентские сети и корректность запросов; менять настройки Keenetic не требуется.'};
+      if(protection===denied)return {tone:'warn',text:'До DNS Router дошли '+denied+' запросов, но ВСЕ отклонены защитой запросов (NOTIMP/REFUSED). Проверь настройки защиты и причины отказов в журнале.'};
+      return {tone:'warn',text:'До DNS Router дошли '+denied+' запросов, но ВСЕ отклонены. Причины могут отличаться: открой журнал и проверь конкретные записи.'};
+    }
     if(upstream===0)return {tone:'warn',text:'DNS Router слушает '+endpoint+', но получил 0 запросов. Планшет может использовать штатный DNS Keenetic (:53), свой Private DNS/DoH или другой DNS-профиль. '+(c.state==='connected'?'Профиль назначен, но прохождение трафика не подтверждено.':'Тестовый клиент не подключён через RouterForge.')+' Прямая кнопка «Проверить DNS» тестирует только сервис, не планшет.'};
     if(c.state!=='connected')return {tone:'warn',text:'DNS Router получил '+upstream+' запросов, но клиентский профиль не подключён. Это может быть ручная проверка сервиса; маршрут планшета через Keenetic не доказан.'};
     return {tone:'',text:'DNS Router получил '+upstream+' запросов на '+endpoint+'. Клиентский профиль Keenetic подключён, но чтобы подтвердить именно планшет, сопоставь время его DNS-запросов с журналом.'};
@@ -499,7 +503,7 @@
     return s;
   }
   function formatTime(s){try{return new Date(s).toLocaleTimeString('ru-RU',{hour12:false})}catch(_){return s}}
-  const qtypeName=n=>({1:'A',28:'AAAA',15:'MX',16:'TXT',5:'CNAME',12:'PTR',33:'SRV',65:'HTTPS',64:'SVCB'}[n]||'TYPE '+(n??'—'));
+  const qtypeName=n=>({1:'A',28:'AAAA',15:'MX',16:'TXT',5:'CNAME',12:'PTR',33:'SRV',65:'HTTPS',64:'SVCB',255:'ANY'}[n]||'TYPE '+(n??'—'));
   function renderLogs(){
     let traces=(state.logPaused?state.frozenLogs:state.logs).slice().reverse();
     const filter=$('logFilter').value.trim().toLowerCase(),kind=$('logType').value;
@@ -516,7 +520,7 @@
       const row=document.createElement('div');row.className='log-row'+(!t.success?' error':'');
       const assigned=traceEndpoint(t,'assigned'),used=traceEndpoint(t,'used');
       const route=t.cache?'Кэш · локально':assigned+(t.used&&t.used!==t.assigned?' → '+used:'');
-      const result=t.rcode===5?'REFUSED':t.success?(t.rcode===3?'NXDOMAIN':t.rcode===0?'OK':'RCODE '+t.rcode):t.rcode===-1?'TIMEOUT / FAIL':'Ошибка';
+      const result=t.rcode===5?'REFUSED':t.rcode===4?'NOTIMP':t.rcode===3?'NXDOMAIN':t.success?(t.rcode===0?'OK':'RCODE '+t.rcode):t.rcode===-1?'TIMEOUT / FAIL':'Ошибка (RCODE '+t.rcode+')';
       const device=t.device_mac?((t.device_name||t.device_mac)+' · '+(t.client||'')):(p21Text('unknown')+' · '+(t.client||'—'));
       const vals=[formatTime(t.time),device,t.name||'—',qtypeName(t.type),route,result,String(t.latency_ms??0)+' мс'];
       for(let i=0;i<vals.length;i++){

@@ -99,6 +99,8 @@ func (m *Manager) statusLocked() map[string]any {
 		s["device_policies_active"] = m.engine.policy.DevicePoliciesActive()
 		s["requests"] = m.engine.requests.Load()
 		s["denied_requests"] = m.engine.denied.Load()
+		s["acl_denied_requests"] = m.engine.aclDenied.Load()
+		s["protection_denied_requests"] = m.engine.protectionDenied.Load()
 		s["cache_hits"] = m.engine.cacheHits.Load()
 		s["failures"] = m.engine.failures.Load()
 		s["rules"] = len(m.applied.Rules)

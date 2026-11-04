@@ -72,16 +72,18 @@ type Engine struct {
 	listenV6  bool
 	directory atomic.Pointer[DeviceDirectory]
 	// Optional injected identity provider, fixed before Start; production uses directory.
-	identify   func(string) DeviceIdentity
-	health     *UpstreamHealthTracker
-	ipPlanner  *ipintel.Planner
-	ipHealth   *IPHealthMonitor
-	ipScope    *ipScopeMatcher
-	protection *queryProtectionP27
-	requests   atomic.Uint64
-	denied     atomic.Uint64
-	cacheHits  atomic.Uint64
-	failures   atomic.Uint64
+	identify         func(string) DeviceIdentity
+	health           *UpstreamHealthTracker
+	ipPlanner        *ipintel.Planner
+	ipHealth         *IPHealthMonitor
+	ipScope          *ipScopeMatcher
+	protection       *queryProtectionP27
+	requests         atomic.Uint64
+	denied           atomic.Uint64
+	aclDenied        atomic.Uint64
+	protectionDenied atomic.Uint64
+	cacheHits        atomic.Uint64
+	failures         atomic.Uint64
 }
 
 func transportFactory(roots *x509.CertPool) Factory {
@@ -332,6 +334,7 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 	if !allowed || len(d.Req.Question) != 1 {
 		e.requests.Add(1)
 		e.denied.Add(1)
+		e.aclDenied.Add(1)
 		e.failures.Add(1)
 		if len(d.Req.Question) == 1 {
 			e.addTrace(Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), "."), Type: d.Req.Question[0].Qtype, Assigned: "client-acl", Used: "refused", Success: false, RCode: dns.RcodeRefused})
@@ -348,6 +351,7 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 	if !internal && e.protection != nil {
 		if code := e.protection.evaluate(d.Addr.Addr(), d.Req.Question[0].Qtype, time.Now()); code != 0 {
 			e.denied.Add(1)
+			e.protectionDenied.Add(1)
 			name := strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), ".")
 			decision := "rate-limit"
 			if code == dns.RcodeNotImplemented {

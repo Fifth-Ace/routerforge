@@ -70,6 +70,8 @@ jobs:
         env:
           PREVIOUS_SHA: ${{ github.event.before }}
         run: python3 scripts/verify-commit-identity.py range "$PREVIOUS_SHA" "$GITHUB_SHA"
+      - name: Verify local identity hooks reject invalid commits before push
+        run: python3 -m unittest discover -s tests -p test_identity_hooks.py -v
       - name: Verify legacy registry integration
         run: python3 scripts/verify-legacy-fallback-removal.py
       - name: Verify Beta component version matrix

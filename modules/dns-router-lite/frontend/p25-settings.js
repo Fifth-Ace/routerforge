@@ -52,7 +52,7 @@
     ['cache', t('Кэш', 'Cache'), t('Доступно', 'Available')],
     ['ip', 'IP Intelligence', t('Экспериментально', 'Experimental')],
     ['upstream', t('Выбор DNS', 'Upstream selection'), t('Планируется', 'Planned')],
-    ['security', t('Защита запросов', 'Query protection'), t('Планируется', 'Planned')],
+    ['security', t('Защита запросов', 'Query protection'), t('Доступно', 'Available')],
     ['privacy', 'EDNS / ECS / DNSSEC', t('Планируется', 'Planned')],
     ['dns64', 'DNS64 / rDNS', t('Планируется', 'Planned')],
     ['performance', t('Производительность', 'Performance'), t('Планируется', 'Planned')]
@@ -168,10 +168,13 @@
     'Режимы DNSProxy будут согласованы с уже работающими правилами RouterForge и резервными цепочками.',
     'DNSProxy upstream modes must coexist with RouterForge routing policies and failover chains.'),
     ['Load balance', 'Parallel', 'Fastest address', t('Тайм-ауты и резервные серверы', 'Timeouts and fallbacks')]);
-  planned('security', t(
-    'Защита от избыточных и нежелательных DNS-запросов без вмешательства в сетевой фильтр Keenetic.',
-    'DNS request protection without changing the Keenetic packet filter.'),
-    [t('Ограничение частоты запросов', 'Rate limiting'), 'Refuse ANY', 'Bogus NXDOMAIN']);
+  const securityPanel = panels.get('security');
+  securityPanel.append(element('p','p25-settings-info',t(
+    'Реальная защита DNS: ограничение частоты на IP клиента, отказ на ANY и замена ответов с указанными IP на NXDOMAIN. Сначала сохрани, затем явно примени настройки.',
+    'Live query protection: per-client rate limiting, ANY refusal and sinkhole-address NXDOMAIN replacement. Save, then explicitly apply.')));
+  const protectionControls=$('p27SecurityControls');
+  protectionControls.hidden=false;
+  securityPanel.append(protectionControls);
   planned('privacy', t(
     'Настройки EDNS Client Subnet и DNSSEC. Установка бита DO — не полноценная криптографическая проверка подписей.',
     'EDNS Client Subnet and DNSSEC options. Setting the DO bit does not validate DNSSEC signatures.'),

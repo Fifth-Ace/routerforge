@@ -144,6 +144,15 @@
   </section>
 
   <section id="p21Page" class="p21-advanced-only" hidden aria-label="Advanced DNS Router">
+    <div id="p27SecurityControls" class="p27-security-controls" hidden>
+      <p class="p25-settings-info">Защита применяется к независимому DNS Router, не меняет правила Keenetic. Все параметры по умолчанию выключены.</p>
+      <div class="fields two">
+        <label class="field"><span>Лимит запросов одного клиента в секунду (0 — выкл.)</span><input id="p27RateLimit" type="number" min="0" max="2000" value="0"></label>
+        <label class="check"><input type="checkbox" id="p27RefuseAny"> Отказывать на DNS ANY (NOTIMP)</label>
+      </div>
+      <label class="field"><span>Bogus NXDOMAIN — IP-адреса или CIDR (по одному в строке)</span><textarea id="p27BogusIPs" rows="4" spellcheck="false" placeholder="0.0.0.0"></textarea></label>
+      <p class="p25-settings-info">Если DNS вернул такой IP, RouterForge отправит NXDOMAIN. Не включает блокировку доменов и не проверяет криптографически DNSSEC. CIDR: IPv4 от /24, IPv6 от /64.</p>
+    </div>
     <div id="p241IPControls" class="p241-ip-controls" hidden>
       <label class="check p241-ip-toggle"><input type="checkbox" id="p241IPEnabled"><span>Включить IP Intelligence</span></label>
       <label class="field p241-ip-mode"><span>Алгоритм выбора IP</span>

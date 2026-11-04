@@ -72,15 +72,16 @@ type Engine struct {
 	listenV6  bool
 	directory atomic.Pointer[DeviceDirectory]
 	// Optional injected identity provider, fixed before Start; production uses directory.
-	identify  func(string) DeviceIdentity
-	health    *UpstreamHealthTracker
-	ipPlanner *ipintel.Planner
-	ipHealth  *IPHealthMonitor
-	ipScope   *ipScopeMatcher
-	requests  atomic.Uint64
-	denied    atomic.Uint64
-	cacheHits atomic.Uint64
-	failures  atomic.Uint64
+	identify   func(string) DeviceIdentity
+	health     *UpstreamHealthTracker
+	ipPlanner  *ipintel.Planner
+	ipHealth   *IPHealthMonitor
+	ipScope    *ipScopeMatcher
+	protection *queryProtectionP27
+	requests   atomic.Uint64
+	denied     atomic.Uint64
+	cacheHits  atomic.Uint64
+	failures   atomic.Uint64
 }
 
 func transportFactory(roots *x509.CertPool) Factory {
@@ -135,7 +136,7 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 	if c.Service.IPIntelligence != nil && c.Service.IPIntelligence.Enabled {
 		ipHealth = newIPHealthMonitor(c.Service.IPIntelligence.Health)
 	}
-	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth, ipScope: newIPScopeMatcher(c)}
+	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth, ipScope: newIPScopeMatcher(c), protection: newQueryProtectionP27(c.Service.Protection)}
 	// Only servers reachable by a rule/default chain are constructed. Unused
 	// legacy native catalog entries do not prevent an independent service start.
 	needed, err := usedUpstreams(c)
@@ -344,6 +345,20 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 	}
 	ctx = context.WithValue(ctx, internalProbeKey{}, internal)
 	ctx = context.WithValue(ctx, requestClientKey{}, d.Addr.Addr().String())
+	if !internal && e.protection != nil {
+		if code := e.protection.evaluate(d.Addr.Addr(), d.Req.Question[0].Qtype, time.Now()); code != 0 {
+			e.denied.Add(1)
+			name := strings.TrimSuffix(strings.ToLower(d.Req.Question[0].Name), ".")
+			decision := "rate-limit"
+			if code == dns.RcodeNotImplemented {
+				decision = "refuse-any"
+			}
+			d.Res = new(dns.Msg)
+			d.Res.SetRcode(d.Req, code)
+			e.addTrace(Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name, Type: d.Req.Question[0].Qtype, Assigned: "query-protection", Used: decision, Success: false, RCode: code})
+			return nil
+		}
+	}
 	if internal {
 		d.Res = new(dns.Msg)
 		d.Res.SetReply(d.Req)
@@ -453,6 +468,10 @@ func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, e
 		answer, er := s.Exchange(ctx, q)
 		if er == nil && (answer == nil || !answer.Response || answer.Id != q.Id || len(answer.Question) != 1 || !strings.EqualFold(answer.Question[0].Name, q.Question[0].Name) || answer.Question[0].Qtype != q.Question[0].Qtype || answer.Question[0].Qclass != q.Question[0].Qclass) {
 			er = errors.New("DNS response does not match the question")
+		}
+		if er == nil {
+			// Convert sinkhole IPs to NXDOMAIN BEFORE proxy caching.
+			answer, _ = e.protection.convertBogusNXDomainP27(q, answer)
 		}
 		client, _ := ctx.Value(requestClientKey{}).(string)
 		internal, _ := ctx.Value(internalProbeKey{}).(bool)

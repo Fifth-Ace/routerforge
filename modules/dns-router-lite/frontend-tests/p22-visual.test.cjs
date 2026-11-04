@@ -384,3 +384,18 @@ test('P24.2: health settings and monitor are advanced-only and read-only',()=>{
   assert.ok(sheet.includes('.p242-monitor-row'));
   assert.doesNotMatch(hub,/innerHTML\s*=/);
 });
+
+// P27: query protection must not be a decorative planned entry.
+test('P27 query protection is a real advanced-only config section',()=>{
+  const hub=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
+  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  for(const id of ['p27RateLimit','p27RefuseAny','p27BogusIPs']){
+    assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+    assert.ok(app.includes("$('"+id+"')"),id+' must read/write draft');
+  }
+  assert.ok(hub.includes("securityPanel.append(protectionControls)"));
+  assert.ok(hub.includes("['security', t('Защита запросов', 'Query protection'), t('Доступно', 'Available')]"));
+  assert.ok(app.includes('prefs.protection='));
+  assert.ok(app.includes('delete merged.protection'));
+  assert.ok(html.includes('p27SecurityControls'));
+});

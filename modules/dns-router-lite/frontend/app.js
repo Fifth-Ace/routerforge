@@ -98,6 +98,10 @@
     chooser.disabled=!managed.length;
     if(state.editing)renderListToolbar();
     if(state.config.service){$('serviceListen').value=state.config.service.listen;$('cacheSize').value=state.config.service.cache_bytes/(1024*1024);$('allowedNetworks').value=state.config.service.allowed_networks.join(',');}
+    const p27=state.config.service?.protection;
+    $('p27RateLimit').value=p27?.rate_limit_rps||0;
+    $('p27RefuseAny').checked=Boolean(p27?.refuse_any);
+    $('p27BogusIPs').value=(p27?.bogus_nxdomain||[]).join('\n');
     $('p241IPEnabled').checked=Boolean(state.config.service?.ip_intelligence?.enabled);
     $('p241IPMode').value=state.config.service?.ip_intelligence?.mode||'original';
     const p242health=state.config.service?.ip_intelligence?.health;
@@ -393,6 +397,13 @@
     const cache=Number($('cacheSize').value);if(!Number.isInteger(cache)||cache<0||cache>8)throw Error('Кэш: от 0 до 8 МиБ');
     const listen=$('serviceListen').value.trim(),networks=$('allowedNetworks').value.split(',').map(s=>s.trim()).filter(Boolean);
     const prefs={listen,default_upstream:primary,cache_bytes:cache*1024*1024,allowed_networks:networks};
+    const p27r=Number($('p27RateLimit').value);
+    if(!Number.isInteger(p27r)||p27r<0||p27r>2000)throw Error('Защита DNS: лимит 0..2000 запросов/с');
+    const p27ips=$('p27BogusIPs').value.split(/[\r\n,]+/).map(x=>x.trim()).filter(Boolean);
+    if(p27ips.length>16)throw Error('Защита DNS: максимум 16 IP/CIDR');
+    if(p27r>0||$('p27RefuseAny').checked||p27ips.length) {
+      prefs.protection={rate_limit_rps:p27r,refuse_any:$('p27RefuseAny').checked,bogus_nxdomain:p27ips};
+    }
     if($('p242HealthEnabled').checked && !$('p241IPEnabled').checked)throw Error('Сначала включи IP Intelligence');
     const asInt=(id,min,max)=>{const n=Number($(id).value);if(!Number.isInteger(n)||n<min||n>max)throw Error(id+': допустимо '+min+'..'+max);return n;};
     if($('p241IPEnabled').checked){
@@ -420,7 +431,7 @@
     }
     return prefs;
   }
-  function syncPrefs(){const next=servicePrefs();const prev=state.config.service;const merged={...prev,...next};if(!next.ip_intelligence)delete merged.ip_intelligence;if(JSON.stringify(prev)!==JSON.stringify(merged)){state.config.service=merged;if(prev?.default_upstream!==next.default_upstream)delete state.config.service.default_group;state.dirty=true;}}
+  function syncPrefs(){const next=servicePrefs();const prev=state.config.service;const merged={...prev,...next};if(!next.ip_intelligence)delete merged.ip_intelligence;if(!next.protection)delete merged.protection;if(JSON.stringify(prev)!==JSON.stringify(merged)){state.config.service=merged;if(prev?.default_upstream!==next.default_upstream)delete state.config.service.default_group;state.dirty=true;}}
   async function save(){if(editorPending())throw Error('Сначала нажми «Сохранить список» в редакторе доменов.');syncPrefs();if(!state.dirty)return;const data=await api('config',{method:'PUT',headers:{'Content-Type':'application/json','X-RouterForge-Action':'save','If-Match':'"'+state.revision+'"'},body:JSON.stringify(state.config)});state.revision=data.revision;state.dirty=false;show('Настройки сохранены. Действующий DNS не изменился. Для запуска нажми «Сохранить и запустить DNS».','good');render();}
   async function serviceCommand(path,body){return api('service/'+path,opts('service-control',body,true));}
   function hasUsedNative(){return state.config.upstreams.some(u=>u.transport==='native'&&(used(u.id).length||state.config.service?.default_upstream===u.id));}
@@ -535,7 +546,7 @@
   $('listChoice').addEventListener('change',()=>switchList($('listChoice').value));on('newListButton',newList,false);on('renameListButton',renameList,false);on('deleteListButton',deleteList,false);$('closeEditor').addEventListener('click',closeEditor);$('editorDomains').addEventListener('input',()=>{$('editorCount').textContent=$('editorDomains').value.split(/\r?\n/).filter(x=>x.trim()).length+' строк (черновик)';if(state.status)renderGate(state.status);});on('saveDomains',saveList,false);
   $('importDomains').addEventListener('click',()=>$('domainFile').click());$('domainFile').addEventListener('change',async()=>{const f=$('domainFile').files[0];if(!f)return;try{if(f.size>256*1024)throw Error('Максимум 256 КБ');const names=parseDomains(await f.text());$('editorDomains').value=names.join('\n');show('Импортировано '+names.length+' доменов. Нажми «Сохранить список».');}catch(e){show(e.message,'bad');}finally{$('domainFile').value='';}});
   $('exportDomains').addEventListener('click',()=>{if(!state.editing)return;const data=$('editorDomains').value;const url=URL.createObjectURL(new Blob([data.endsWith('\n')?data:data+'\n'],{type:'text/plain;charset=utf-8'}));try{const a=document.createElement('a');a.href=url;a.download='routerforge-domains.txt';a.click();}finally{URL.revokeObjectURL(url);}});
-  $('defaultDNS').addEventListener('change',()=>{mark();});for(const id of ['serviceListen','cacheSize','allowedNetworks'])$(id).addEventListener('change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
+  $('defaultDNS').addEventListener('change',()=>{mark();});for(const id of ['serviceListen','cacheSize','allowedNetworks','p27RateLimit','p27RefuseAny','p27BogusIPs'])$(id).addEventListener('change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
    for(const id of ['p241IPEnabled','p241IPMode','p242HealthEnabled','p242HealthProtocol','p242HealthPort','p242HealthInterval','p242HealthTimeout','p242HealthFailures','p243Scope','p243Domains','p243ListIDs','p243Recoveries','p243MinDown','p243HTTPPath'])$(id).addEventListener('change',()=>{try{if(id==='p241IPMode')$('p241IPEnabled').checked=true;if(id==='p241IPEnabled'&&!$('p241IPEnabled').checked)$('p242HealthEnabled').checked=false;syncPrefs();mark();}catch(err){show(err.message,'bad');}});
   on('checkAllDNS',async()=>{await checkHealth();});
   on('saveButton',save);on('applyButton',apply);on('migrateNative',migrate);

@@ -10,12 +10,13 @@ import (
 // ServiceConfig selects the independent DNS service. Unlike the legacy shadow
 // listener it has an explicit default and never creates per-domain ndmc rows.
 type ServiceConfig struct {
-	Listen          string                `json:"listen"`
-	DefaultUpstream string                `json:"default_upstream"`
-	DefaultGroup    string                `json:"default_group,omitempty"`
-	CacheBytes      int                   `json:"cache_bytes"`
-	AllowedNetworks []string              `json:"allowed_networks"`
-	IPIntelligence  *IPIntelligenceConfig `json:"ip_intelligence,omitempty"`
+	Listen          string                 `json:"listen"`
+	DefaultUpstream string                 `json:"default_upstream"`
+	DefaultGroup    string                 `json:"default_group,omitempty"`
+	CacheBytes      int                    `json:"cache_bytes"`
+	AllowedNetworks []string               `json:"allowed_networks"`
+	IPIntelligence  *IPIntelligenceConfig  `json:"ip_intelligence,omitempty"`
+	Protection      *QueryProtectionConfig `json:"protection,omitempty"`
 }
 
 // IPIntelligenceConfig is optional and disabled by default.  It never starts
@@ -108,6 +109,9 @@ func validateServiceConfig(c Config, upstreams map[string]Upstream, groups map[s
 		return err
 	}
 	if err := validateIPIntelligenceScope(c); err != nil {
+		return err
+	}
+	if err := validateQueryProtection(s.Protection); err != nil {
 		return err
 	}
 	host, port, err := net.SplitHostPort(s.Listen)

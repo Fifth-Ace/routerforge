@@ -396,14 +396,10 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 	// on a deep copy.  Original and every pre-P24.1 config are inert.
 	if err == nil && d.Res != nil && e.cfg.Service.IPIntelligence != nil && e.cfg.Service.IPIntelligence.Enabled && len(d.Req.Question) == 1 && e.ipScope.Matches(d.Req.Question[0].Name) {
 		mode := ipintel.Mode(e.cfg.Service.IPIntelligence.Mode)
-		if mode != "" && mode != ipintel.Original {
-			scope := fmt.Sprintf("%s|%s|%s|%s|%s", route.Layer, route.Upstream, route.GroupID, route.RuleID, route.DeviceGroup)
-			var metrics map[netip.Addr]ipintel.Health
-			if e.ipHealth != nil {
-				metrics = e.ipHealth.Observe(d.Req, d.Res)
-			}
-			d.Res = reorderDNSAnswer(e.ipPlanner, d.Req, d.Res, mode, scope, identity.MAC, metrics)
-		}
+		// Observe on every permitted opt-in A/AAAA response, including Original.
+		// Original changes nothing on the wire; probes run only asynchronously.
+		scope := fmt.Sprintf("%s|%s|%s|%s|%s", route.Layer, route.Upstream, route.GroupID, route.RuleID, route.DeviceGroup)
+		d.Res = applyIPIntelligenceP26(e.ipPlanner, e.ipHealth, d.Req, d.Res, mode, scope, identity.MAC)
 	}
 	cached := false
 	if stats := d.QueryStatistics(); stats != nil {

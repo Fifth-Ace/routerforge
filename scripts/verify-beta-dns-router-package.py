@@ -5,6 +5,7 @@ No network, router, system configuration or write to installed paths.
 Optional --qemu checks only `--version` in a disposable local directory.
 """
 import argparse
+from html.parser import HTMLParser
 import io
 import json
 from pathlib import Path
@@ -27,6 +28,34 @@ def tar_payload(archive, name):
     if handle is None:
         raise ValueError('IPK member unreadable: ' + name)
     return handle.read()
+
+
+class LocalUIAssets(HTMLParser):
+    """Collect only relative script/style assets; global Core CSS is external."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.names = set()
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag == 'script':
+            raw = a.get('src', '')
+        elif tag == 'link' and 'stylesheet' in a.get('rel', '').lower().split():
+            raw = a.get('href', '')
+        else:
+            return
+        if not raw or raw.startswith('/') or '://' in raw or raw.startswith('data:'):
+            return
+        # Only local filename references are supported by the DNS UI API.
+        # Reject nested or escaped references rather than silently dropping them.
+        if raw.startswith('./'):
+            raw = raw[2:]
+        if not raw or raw.startswith('.') or '/' in raw or '\\' in raw or '?' in raw or '#' in raw:
+            raise ValueError('invalid local UI asset reference: ' + raw)
+        if not raw.endswith(('.js', '.css')):
+            raise ValueError('unexpected local UI asset reference: ' + raw)
+        self.names.add(raw)
 
 
 def verify(ipk, target, version, qemu=False):
@@ -79,12 +108,19 @@ def verify(ipk, target, version, qemu=False):
         ):
             if not tar_payload(data, required):
                 raise ValueError('empty required payload: ' + required)
-        # P22: packaging is incomplete if HTML references assets missing from IPK.
-        # Conditional on the HTML so older/experimental UIs remain compatible.
+        # P24.4: verify EVERY shipped local CSS/JS referenced by the actual HTML.
+        # Source-only DOM tests do not prove that an IPK contains the assets.
         ui_html = tar_payload(data, prefix + 'ui/index.html').decode('utf-8')
-        for ui_asset in ('p22-visual.css', 'p22-visual.js'):
-            if ui_asset in ui_html and not tar_payload(data, prefix + 'ui/' + ui_asset):
+        referenced = LocalUIAssets()
+        referenced.feed(ui_html)
+        for ui_asset in sorted(referenced.names):
+            if not tar_payload(data, prefix + 'ui/' + ui_asset):
                 raise ValueError('empty referenced UI asset: ' + ui_asset)
+        if manifest.get('mode') == 'independent-dns':
+            for required in ('p25-settings.js', 'p25-settings.css'):
+                if required not in referenced.names:
+                    raise ValueError('DEV settings UI not referenced: ' + required)
+        print('DNS_ROUTER_UI_IPK_REFERENCED_ASSETS: PASS / ' + ', '.join(sorted(referenced.names)))
     if qemu:
         if emulator is None:
             raise ValueError('QEMU MIPS smoke applies to MIPS or MIPSEL only')

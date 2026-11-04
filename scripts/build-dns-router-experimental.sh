@@ -56,7 +56,7 @@ done
 # P22 FIX2: the visual enhancer is referenced by the DEV HTML and MUST ship
 # in the same IPK. Experimental/Beta legacy UI remains unchanged.
 if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
-  for file in p22-visual.css p22-visual.js; do
+  for file in p22-visual.css p22-visual.js p25-settings.css p25-settings.js; do
     test -s "$UI_SOURCE/$file" || { echo "DNS_UI_SOURCE_MISSING: $file" >&2; exit 1; }
     cp "$UI_SOURCE/$file" "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"
     test -s "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"
@@ -106,4 +106,9 @@ printf '2.0\n' > "$WORK/debian-binary"
 (cd "$WORK/control" && tar --owner=0 --group=0 --numeric-owner -czf "$WORK/control.tar.gz" .)
 (cd "$WORK" && tar --owner=0 --group=0 --numeric-owner -czf "$OUT" ./debian-binary ./control.tar.gz ./data.tar.gz)
 test -s "$OUT"
+# Verify the ACTUAL DEV IPK, not just source files. Every local script/style
+# referenced in the shipped HTML must exist and be nonempty in data.tar.gz.
+if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
+  python3 "$ROOT/scripts/verify-beta-dns-router-package.py" "$OUT" "$TARGET" "$VERSION"
+fi
 echo "EXPERIMENTAL_DNS_ROUTER_IPK=$OUT"

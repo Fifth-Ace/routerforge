@@ -16,6 +16,11 @@ on:
         required: false
         default: true
         type: boolean
+      beta_validate_only:
+        description: 'Build and verify Beta matrix without publication or Stable candidate'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -76,6 +81,19 @@ jobs:
         run: python3 scripts/verify-legacy-fallback-removal.py
       - name: Verify all-architecture UPX package-policy fixtures
         run: python3 scripts/verify-channel-upx.py --selftest
+      - name: Validate nonpublishing Beta matrix request
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          FULL_RELEASE: ${{ inputs.full_release }}
+          PUBLISH_BETA: ${{ inputs.publish_beta }}
+          BETA_VALIDATE_ONLY: ${{ inputs.beta_validate_only }}
+        run: |
+          set -eu
+          if [ "$BETA_VALIDATE_ONLY" = true ]; then
+            [ "$FULL_RELEASE" = true ] || { echo 'BETA_VALIDATE_REQUIRES_FULL_RELEASE' >&2; exit 1; }
+            [ "$PUBLISH_BETA" = false ] || { echo 'BETA_VALIDATE_FORBIDS_PUBLICATION' >&2; exit 1; }
+          fi
+          echo 'BETA_DISPATCH_CONTRACT=PASS'
       - name: Verify Beta component version matrix
         run: |
           python3 - <<'PY_CHECK'
@@ -274,7 +292,7 @@ jobs:
             cat /tmp/routerforge-changed-files.txt
           fi
       - name: Gate Stable candidate ancestry before promotion build
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true && inputs.beta_validate_only != true
         run: |
           set -eu
           BASE="$(git merge-base origin/main "$GITHUB_SHA")"
@@ -1151,11 +1169,11 @@ jobs:
           retention-days: 2
 
       - name: Build stable multiarch promotion candidate
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true && inputs.beta_validate_only != true
         run: sh scripts/build-stable-multiarch.sh "$GITHUB_SHA"
 
       - name: Upload stable promotion candidate
-        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true
+        if: steps.scope.outputs.full_release == 'true' && inputs.publish_beta != true && inputs.beta_validate_only != true
         uses: actions/upload-artifact@v4
         with:
           name: routerforge-stable-promotion
@@ -1248,7 +1266,7 @@ jobs:
   beta_publish:
     name: Publish verified multiarch Beta
     needs: [test, beta_build]
-    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.publish_beta == true
+    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.publish_beta == true && inputs.beta_validate_only != true
     runs-on: ubuntu-latest
     permissions:
       contents: write

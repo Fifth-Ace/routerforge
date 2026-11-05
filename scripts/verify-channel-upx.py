@@ -136,6 +136,15 @@ def selftest():
                 raise AssertionError('plain MIPS Beta accepted')
             except ValueError:
                 pass
+    # Protect the workflow dispatch contract itself against accidental drift.
+    workflow = (Path(__file__).resolve().parents[1] / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
+    assert workflow.count('      beta_validate_only:') == 1
+    assert workflow.count("inputs.publish_beta != true && inputs.beta_validate_only != true") == 3
+    assert workflow.count("inputs.publish_beta == true && inputs.beta_validate_only != true") == 1
+    assert 'BETA_VALIDATE_FORBIDS_PUBLICATION' in workflow
+    assert 'BETA_VALIDATE_REQUIRES_FULL_RELEASE' in workflow
+    assert "if: github.event_name == 'workflow_dispatch' && inputs.full_release == true" in workflow
+    print('BETA_VALIDATE_ONLY_CI_ROUTE: PASS / NO PUBLISH / STABLE GATE PRESERVED')
     print('CHANNEL_UPX_FIXTURES: PASS / DEV PLAIN / BETA+STABLE PACKED / ALL TARGETS')
 
 

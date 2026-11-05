@@ -305,7 +305,7 @@ func (m *Manager) control(op, expected string) error {
 	}
 }
 func (m *Manager) gateControl(ctx context.Context, op, expected string) error {
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	m.operations.Lock()
 	defer m.operations.Unlock()

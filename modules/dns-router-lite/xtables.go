@@ -51,14 +51,34 @@ func waitContext(ctx context.Context, delay time.Duration) error {
 		return nil
 	}
 }
+
+// A command may briefly wait for Keenetic's netfilter lock.  The hard bound
+// remains finite, and parent reconciliation budgets still apply.
+const firewallCommandBudget = 5 * time.Second
+
 func systemFirewallIO(ctx context.Context, name string, args ...string) (string, error) {
-	child, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
+	return runFirewallIOBounded(ctx, firewallCommandBudget, name, args...)
+}
+
+func runFirewallIOBounded(ctx context.Context, budget time.Duration, name string, args ...string) (string, error) {
+	if budget <= 0 {
+		return "", errors.New("invalid firewall command time budget")
+	}
+	child, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	b, err := safety.RunCommand(child, 1<<20, name, args...)
 	if len(b) >= 1<<20 {
 		return "", errors.New("firewall inspection exceeds output limit")
 	}
 	if err != nil {
+		// exec.CommandContext may report only "signal: killed" even though
+		// OUR deadline killed it. Preserve the actual cause for diagnostics.
+		if errors.Is(child.Err(), context.DeadlineExceeded) {
+			return string(b), fmt.Errorf("%s: RF_FIREWALL_COMMAND_TIMEOUT budget=%s: %w", name, budget, context.DeadlineExceeded)
+		}
+		if errors.Is(child.Err(), context.Canceled) {
+			return string(b), fmt.Errorf("%s: RF_FIREWALL_COMMAND_CANCELLED: %w", name, context.Canceled)
+		}
 		return string(b), fmt.Errorf("%s: %w: %s", name, err, strings.TrimSpace(string(b)))
 	}
 	return string(b), nil

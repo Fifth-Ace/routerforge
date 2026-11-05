@@ -247,7 +247,7 @@ func (g *GateManager) startWorker() {
 			case <-t.C:
 			case <-g.notify:
 			}
-			child, c := context.WithTimeout(ctx, 8*time.Second)
+			child, c := context.WithTimeout(ctx, 20*time.Second)
 			_ = g.Reconcile(child, false)
 			c()
 		}

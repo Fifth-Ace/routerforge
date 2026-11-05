@@ -39,6 +39,11 @@ mkdir -p "$WORK/data/opt/bin" "$WORK/data/opt/share/routerforge/dns-router" \
   fi
 )
 chmod 0755 "$WORK/data/opt/bin/$PACKAGE"
+# Only channel builds set UPX explicitly: DEV=0, Beta=1.
+# Keep standalone experimental and DEV smoke builds fast and plain.
+if [ "${ROUTERFORGE_UPX:-0}" = "1" ]; then
+  sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$PACKAGE"
+fi
 cp "$ROOT/modules/dns-router-runtime/packaging/example.json" \
   "$WORK/data/opt/share/routerforge/dns-router/example.json"
 # O3C: service template is inert on install. NEVER install into init.d.

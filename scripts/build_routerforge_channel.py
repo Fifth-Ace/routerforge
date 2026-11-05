@@ -248,6 +248,11 @@ def main():
     env = dict(os.environ)
     env["ROUTERFORGE_CHANNEL"] = channel
     env["ROUTERFORGE_TARGET"] = target
+    # CI channel contract: DEV is plain ARM64; every Beta/Stable target is packed.
+    # Ignore inherited compression overrides rather than permitting a plain release.
+    env["ROUTERFORGE_UPX"] = "0" if channel == "dev" else "1"
+    print("CHANNEL_UPX_POLICY: %s / %s / UPX=%s" %
+          (channel, target, env["ROUTERFORGE_UPX"]), flush=True)
 
 
     for component in target_components:
@@ -287,6 +292,10 @@ def main():
             if path.exists():
                 raise SystemExit(f"safe release asset already exists {asset}")
             raw_path.rename(path)
+
+        # Verify every Go ELF inside the actual nested-IPK payload, not source flags.
+        run(["python3", "scripts/verify-channel-upx.py", str(path),
+             "--channel", channel, "--target", target], env=env)
 
     tag = f"routerforge-{channel}"
     legacy_base = f"https://github.com/{LEGACY_REPOSITORY}/releases/download/{tag}"

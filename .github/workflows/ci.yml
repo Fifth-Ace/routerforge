@@ -74,6 +74,8 @@ jobs:
         run: python3 -m unittest discover -s tests -p test_identity_hooks.py -v
       - name: Verify legacy registry integration
         run: python3 scripts/verify-legacy-fallback-removal.py
+      - name: Verify all-architecture UPX package-policy fixtures
+        run: python3 scripts/verify-channel-upx.py --selftest
       - name: Verify Beta component version matrix
         run: |
           python3 - <<'PY_CHECK'
@@ -1223,6 +1225,16 @@ jobs:
           python3 scripts/verify-beta-dns-router-package.py \
             "dist/routerforge-dns-router_0.15.0-beta.3_${{ matrix.target }}.ipk" \
             "${{ matrix.target }}" "0.15.0~beta.3"
+      - name: QEMU smoke for packed DNS Router on MIPS/MIPSEL
+        if: matrix.target != 'aarch64-3.10'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qemu-user
+          python3 scripts/verify-beta-dns-router-package.py \
+            "dist/routerforge-dns-router_0.15.0-beta.3_${{ matrix.target }}.ipk" \
+            "${{ matrix.target }}" "0.15.0~beta.3" --qemu
       - name: Upload exact target packages and index
         uses: actions/upload-artifact@v4
         with:

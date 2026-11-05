@@ -4,7 +4,7 @@ set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
 echo '=== K3I: BUILD IPK ==='
-ROUTERFORGE_TARGET=aarch64-3.10 sh scripts/build-port-access-manager-opkg.sh 0.0.0-k3i
+ROUTERFORGE_UPX=0 ROUTERFORGE_TARGET=aarch64-3.10 sh scripts/build-port-access-manager-opkg.sh 0.0.0-k3i
 PKG=dist/routerforge-port-access-manager_0.0.0-k3i_aarch64-3.10.ipk
 test -s "$PKG"
 tar -tzf "$PKG" | grep -qx './data.tar.gz'

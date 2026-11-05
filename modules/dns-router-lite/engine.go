@@ -78,6 +78,7 @@ type Engine struct {
 	ipHealth         *IPHealthMonitor
 	ipScope          *ipScopeMatcher
 	protection       *queryProtectionP27
+	upstreamSelect   *upstreamSelectionP28
 	requests         atomic.Uint64
 	denied           atomic.Uint64
 	aclDenied        atomic.Uint64
@@ -138,7 +139,7 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 	if c.Service.IPIntelligence != nil && c.Service.IPIntelligence.Enabled {
 		ipHealth = newIPHealthMonitor(c.Service.IPIntelligence.Health)
 	}
-	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth, ipScope: newIPScopeMatcher(c), protection: newQueryProtectionP27(c.Service.Protection)}
+	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth, ipScope: newIPScopeMatcher(c), protection: newQueryProtectionP27(c.Service.Protection), upstreamSelect: newUpstreamSelectionP28()}
 	// Only servers reachable by a rule/default chain are constructed. Unused
 	// legacy native catalog entries do not prevent an independent service start.
 	needed, err := usedUpstreams(c)
@@ -212,13 +213,34 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 		tcpSockets = append(tcpSockets, tcp6)
 	}
 	e.listenV6 = len(udpSockets) > 1
-	e.proxy, err = proxy.New(&proxy.Config{
+	proxyConfig := &proxy.Config{
 		UDPListenAddr: udpSockets, TCPListenAddr: tcpSockets,
 		UpstreamConfig: &proxy.UpstreamConfig{Upstreams: []upstream.Upstream{&routingUpstream{e}}},
 		CacheEnabled:   c.Service.CacheBytes > 0 && !policy.DevicePoliciesActive(), CacheSizeBytes: c.Service.CacheBytes,
 		MaxGoroutines: 32, RequestHandler: proxy.HandlerFunc(e.handle),
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-	})
+	}
+	if perf := c.Service.Performance; perf != nil && perf.Enabled {
+		proxyConfig.CacheMinTTL = perf.CacheMinTTL
+		proxyConfig.CacheMaxTTL = perf.CacheMaxTTL
+		proxyConfig.CacheOptimistic = perf.OptimisticCache && proxyConfig.CacheEnabled
+		if perf.MaxConcurrent > 0 {
+			proxyConfig.MaxGoroutines = uint(perf.MaxConcurrent)
+		}
+		if perf.PendingRequests == "off" {
+			proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: false}
+		}
+		if perf.PendingRequests == "on" {
+			proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: true}
+		}
+		if policy.DevicePoliciesActive() {
+			proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: false}
+		}
+	}
+	if policy.DevicePoliciesActive() {
+		proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: false}
+	}
+	e.proxy, err = proxy.New(proxyConfig)
 	if err != nil {
 		e.closeServers()
 		return nil, err
@@ -242,6 +264,15 @@ func usedUpstreams(c dr.Config) (map[string]bool, error) {
 	decisions = append(decisions, engine.DeviceTargets()...)
 	for _, d := range decisions {
 		chain, e := engine.UpstreamChainForDecision(d)
+		if e != nil {
+			return nil, e
+		}
+		for _, u := range chain {
+			needed[u.ID] = true
+		}
+	}
+	if c.Service != nil && c.Service.ReverseDNS != nil && c.Service.ReverseDNS.Enabled {
+		chain, e := engine.UpstreamChain(c.Service.ReverseDNS.Upstream)
 		if e != nil {
 			return nil, e
 		}
@@ -395,7 +426,7 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		return nil
 	}
 	ctx = context.WithValue(ctx, clientRouteKey{}, clientRoute{identity, route})
-	if localName(name) {
+	if localName(name) && !e.customReverseP31(d.Req) {
 		start := time.Now()
 		var err error
 		d.Res, err = e.local.Exchange(ctx, d.Req)
@@ -411,6 +442,9 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		return nil
 	}
 	err := p.Resolve(ctx, d)
+	if err == nil && d.Res != nil {
+		d.Res = e.synthesizeDNS64P31(ctx, d.Req, d.Res)
+	}
 	// Perform response transformation AFTER Resolve and its cache lookup,
 	// on a deep copy.  Original and every pre-P24.1 config are inert.
 	if err == nil && d.Res != nil && e.cfg.Service.IPIntelligence != nil && e.cfg.Service.IPIntelligence.Enabled && len(d.Req.Question) == 1 && e.ipScope.Matches(d.Req.Question[0].Name) {
@@ -458,43 +492,10 @@ func (r *routingUpstream) Exchange(ctx context.Context, q *dns.Msg) (*dns.Msg, e
 		return nil, err
 	}
 	d := decision.Decision
-	chain, err := e.policy.UpstreamChainForDecision(d)
-	if err != nil {
-		return nil, err
+	if e.customReverseP31(q) {
+		d = dr.Decision{Matched: true, Source: "policy", Upstream: e.cfg.Service.ReverseDNS.Upstream, Reason: "explicit private reverse DNS"}
 	}
-	var last error
-	for _, u := range chain {
-		start := time.Now()
-		s := e.servers[u.ID]
-		if s == nil {
-			return nil, errors.New("selected server is unavailable")
-		}
-		answer, er := s.Exchange(ctx, q)
-		if er == nil && (answer == nil || !answer.Response || answer.Id != q.Id || len(answer.Question) != 1 || !strings.EqualFold(answer.Question[0].Name, q.Question[0].Name) || answer.Question[0].Qtype != q.Question[0].Qtype || answer.Question[0].Qclass != q.Question[0].Qclass) {
-			er = errors.New("DNS response does not match the question")
-		}
-		if er == nil {
-			// Convert sinkhole IPs to NXDOMAIN BEFORE proxy caching.
-			answer, _ = e.protection.convertBogusNXDomainP27(q, answer)
-		}
-		client, _ := ctx.Value(requestClientKey{}).(string)
-		internal, _ := ctx.Value(internalProbeKey{}).(bool)
-		t := Trace{Internal: internal, Time: time.Now().UTC(), Client: client, Name: name, Type: q.Question[0].Qtype, Rule: d.RuleID, Assigned: d.Upstream, Used: u.ID, AssignedEndpoint: traceDNSLabel(chain[0]), UsedEndpoint: traceDNSLabel(u), Transport: u.Transport, Success: er == nil, LatencyMS: time.Since(start).Milliseconds(), RCode: -1}
-		if answer != nil {
-			t.RCode = answer.Rcode
-		}
-		attachClientRoute(&t, ctx)
-		e.addTrace(t)
-		if er == nil {
-			return answer, nil
-		} // Valid negative answers never leak to a fallback.
-		last = er
-	}
-	internal, _ := ctx.Value(internalProbeKey{}).(bool)
-	if !internal {
-		e.failures.Add(1)
-	}
-	return nil, fmt.Errorf("explicit DNS chain failed: %w", last)
+	return e.exchangeSelectedP28(ctx, q, d)
 }
 
 func (e *Engine) GateReady(ctx context.Context, listen string, p GatePlan) error {

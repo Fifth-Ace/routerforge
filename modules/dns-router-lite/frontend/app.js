@@ -40,6 +40,7 @@
     if(!resp.ok)throw Error((data&&data.error)||('HTTP '+resp.status+' · '+path));
     return data;
   }
+  document.addEventListener('routerforge:p28-p31-change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
   const opts=(action,body,match)=>({method:'POST',headers:{'Content-Type':'application/json','X-RouterForge-Action':action,...(match?{'If-Match':'"'+state.revision+'"'}:{})},body:JSON.stringify(body)});
   function mark(){state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');render();}
   function setPage(page){state.page=page;$('pageDns').hidden=page!=='dns';$('pageLogs').hidden=page!=='logs';$('p21Page').hidden=page!=='devices';for(const [id,target] of [['navDns','dns'],['navLogs','logs'],['p21Nav','devices']]){$(id).classList.toggle('selected',page===target);if(page===target)$(id).setAttribute('aria-current','page');else $(id).removeAttribute('aria-current');}if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));reportHeight();}
@@ -102,6 +103,22 @@
     $('p27RateLimit').value=p27?.rate_limit_rps||0;
     $('p27RefuseAny').checked=Boolean(p27?.refuse_any);
     $('p27BogusIPs').value=(p27?.bogus_nxdomain||[]).join('\n');
+    if($('p28Enabled')){
+    const p28=state.config.service?.upstream_selection||{};
+    $('p28Enabled').checked=Boolean(p28.enabled);$('p28Mode').value=p28.mode||'sequential';$('p28Timeout').value=p28.timeout_ms||3000;
+    const p29=state.config.service?.performance||{};
+    $('p29Enabled').checked=Boolean(p29.enabled);$('p29MinTTL').value=p29.cache_min_ttl||0;$('p29MaxTTL').value=p29.cache_max_ttl||0;
+    $('p29Optimistic').checked=Boolean(p29.optimistic_cache);$('p29Pending').value=p29.pending_requests||'default';$('p29Concurrent').value=p29.max_concurrent||32;
+    const p30=state.config.service?.privacy||{};
+    $('p30Enabled').checked=Boolean(p30.enabled);$('p30ECSMode').value=p30.ecs_mode||'inherit';$('p30ECSAddress').value=p30.ecs_address||'';
+    $('p30DNSSECMode').value=p30.dnssec_mode||'off';
+    const p31d=state.config.service?.dns64||{};
+    $('p31DNS64Enabled').checked=Boolean(p31d.enabled);$('p31DNS64Prefix').value=p31d.prefix||'64:ff9b::/96';$('p31NAT64Confirmed').checked=Boolean(p31d.nat64_confirmed);
+    const p31r=state.config.service?.reverse_dns||{};
+    $('p31ReverseEnabled').checked=Boolean(p31r.enabled);
+    const reverse=$('p31ReverseUpstream'),selected=p31r.upstream||'';
+    reverse.replaceChildren(option('','Выбери прямой DNS…'),...state.config.upstreams.filter(u=>u.transport!=='native').map(u=>option(u.id,hostName(u))));reverse.value=selected;
+    }
     $('p241IPEnabled').checked=Boolean(state.config.service?.ip_intelligence?.enabled);
     $('p241IPMode').value=state.config.service?.ip_intelligence?.mode||'original';
     const p242health=state.config.service?.ip_intelligence?.health;
@@ -406,6 +423,11 @@
     }
     if($('p242HealthEnabled').checked && !$('p241IPEnabled').checked)throw Error('Сначала включи IP Intelligence');
     const asInt=(id,min,max)=>{const n=Number($(id).value);if(!Number.isInteger(n)||n<min||n>max)throw Error(id+': допустимо '+min+'..'+max);return n;};
+    if($('p28Enabled')?.checked) prefs.upstream_selection={enabled:true,mode:$('p28Mode').value,timeout_ms:asInt('p28Timeout',250,5000)};
+    if($('p29Enabled')?.checked) prefs.performance={enabled:true,cache_min_ttl:asInt('p29MinTTL',0,3600),cache_max_ttl:asInt('p29MaxTTL',0,86400),optimistic_cache:$('p29Optimistic').checked,pending_requests:$('p29Pending').value,max_concurrent:asInt('p29Concurrent',8,64)};
+    if($('p30Enabled')?.checked) prefs.privacy={enabled:true,ecs_mode:$('p30ECSMode').value,ecs_address:$('p30ECSMode').value==='fixed'?$('p30ECSAddress').value.trim():'',dnssec_mode:$('p30DNSSECMode').value};
+    if($('p31DNS64Enabled')?.checked) prefs.dns64={enabled:true,prefix:$('p31DNS64Prefix').value.trim(),nat64_confirmed:$('p31NAT64Confirmed').checked};
+    if($('p31ReverseEnabled')?.checked){if(!$('p31ReverseUpstream').value)throw Error('Выбери DNS для приватного rDNS');prefs.reverse_dns={enabled:true,upstream:$('p31ReverseUpstream').value};}
     if($('p241IPEnabled').checked){
       prefs.ip_intelligence={enabled:true,mode:$('p241IPMode').value};
       const selectedScope=$('p243Scope').value;
@@ -431,7 +453,7 @@
     }
     return prefs;
   }
-  function syncPrefs(){const next=servicePrefs();const prev=state.config.service;const merged={...prev,...next};if(!next.ip_intelligence)delete merged.ip_intelligence;if(!next.protection)delete merged.protection;if(JSON.stringify(prev)!==JSON.stringify(merged)){state.config.service=merged;if(prev?.default_upstream!==next.default_upstream)delete state.config.service.default_group;state.dirty=true;}}
+  function syncPrefs(){const next=servicePrefs();const prev=state.config.service;const merged={...prev,...next};if(!next.ip_intelligence)delete merged.ip_intelligence;if(!next.protection)delete merged.protection;for(const k of ["upstream_selection","performance","privacy","dns64","reverse_dns"])if(!next[k] && $("p28Enabled"))delete merged[k];if(JSON.stringify(prev)!==JSON.stringify(merged)){state.config.service=merged;if(prev?.default_upstream!==next.default_upstream)delete state.config.service.default_group;state.dirty=true;}}
   async function save(){if(editorPending())throw Error('Сначала нажми «Сохранить список» в редакторе доменов.');syncPrefs();if(!state.dirty)return;const data=await api('config',{method:'PUT',headers:{'Content-Type':'application/json','X-RouterForge-Action':'save','If-Match':'"'+state.revision+'"'},body:JSON.stringify(state.config)});state.revision=data.revision;state.dirty=false;show('Настройки сохранены. Действующий DNS не изменился. Для запуска нажми «Сохранить и запустить DNS».','good');render();}
   async function serviceCommand(path,body){return api('service/'+path,opts('service-control',body,true));}
   function hasUsedNative(){return state.config.upstreams.some(u=>u.transport==='native'&&(used(u.id).length||state.config.service?.default_upstream===u.id));}

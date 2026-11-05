@@ -85,6 +85,7 @@
       buttons.get(name).setAttribute('aria-pressed', String(selected));
     }
     if (key === 'ip') refreshIPHealth();
+    if (key === 'performance') refreshP29Metrics();
   }
 
   const service = panels.get('service');
@@ -188,6 +189,52 @@
     'Duplicate request processing and cache behavior will be added without breaking device policy isolation.'),
     ['Optimistic cache', 'Cache min/max TTL', 'Pending requests', t('Метрики и диагностика', 'Metrics and diagnostics')]);
 
+  // P28-P31: genuine settings instead of decorative planned sections.
+  function newInput(section,id,title,kind,values){
+    const panel=panels.get(section),wrap=element('label','field');
+    const caption=element('span','',title),el=element(kind==='select'?'select':'input');
+    el.id=id;
+    if(kind==='select') for(const pair of values){const op=element('option','',pair[1]);op.value=pair[0];el.append(op);}
+    else if(kind==='check'){el.type='checkbox';wrap.className='check';}
+    else {el.type=kind||'text';}
+    wrap.append(caption,el);panel.append(wrap);el.addEventListener('change',()=>document.dispatchEvent(new Event('routerforge:p28-p31-change')));return el;
+  }
+  function available(key,note){
+    const panel=panels.get(key);
+    panel.querySelectorAll('.p25-settings-planned-note,.p25-settings-features,.p25-settings-info').forEach(x=>x.remove());
+    const el=buttons.get(key).querySelector('.p25-settings-link-state');
+    if(el)el.textContent=t('Доступно','Available');
+    panel.append(element('p','p25-settings-info',note));
+  }
+  available('upstream',t('Применяется только к существующей явной DNS-группе или резервной цепочке. Без второго DNS выбранный режим ничего не меняет.','Requires an explicit DNS group or fallback chain; a single server is unchanged.'));
+  newInput('upstream','p28Enabled',t('Включить выбор DNS','Enable upstream selection'),'check');
+  newInput('upstream','p28Mode',t('Алгоритм','Mode'),'select', [['sequential','Failover / Sequential'],['load_balance','Load Balance'],['parallel','Parallel'],['fastest','Fastest DNS']]);
+  const p28timeout=newInput('upstream','p28Timeout',t('Тайм-аут на DNS, мс','Timeout per DNS, ms'),'number');p28timeout.min=250;p28timeout.max=5000;p28timeout.value=3000;
+  available('performance',t('TTL применяется к кэшу DNSProxy; общий кэш выключается при применённых индивидуальных правилах устройств.','DNSProxy cache TTL; device-specific policies retain cache isolation.'));
+  newInput('performance','p29Enabled',t('Включить расширенные настройки','Enable performance settings'),'check');
+  for(const [id,title,max,value] of [['p29MinTTL',t('Минимум TTL, с','Min cache TTL, s'),3600,0],['p29MaxTTL',t('Максимум TTL, с (0 — без ограничения)','Max cache TTL, s (0 = no cap)'),86400,0],['p29Concurrent',t('Параллельные обработчики','Concurrent handlers'),64,32]]){const x=newInput('performance',id,title,'number');x.min=id==='p29Concurrent'?8:0;x.max=max;x.value=value;}
+  newInput('performance','p29Optimistic',t('Optimistic cache','Optimistic cache'),'check');
+  newInput('performance','p29Pending',t('Объединять одинаковые запросы','Deduplicate pending queries'),'select',[['default',t('По умолчанию (вкл.)','Default (on)')],['on',t('Включено','On')],['off',t('Выключено','Off')]]);
+  const p29Metrics=element('p','p25-settings-info',t('Метрики: нет данных','Metrics: no data'));p29Metrics.id='p29Metrics';panels.get('performance').append(p29Metrics);
+  async function refreshP29Metrics(){
+    if(app.dataset.dnsMode!=='advanced'||card.hidden||panels.get('performance').hidden)return;
+    try{const r=await fetch('../service/status',{method:'GET',cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();
+      p29Metrics.textContent=t('Запросы: ','Queries: ')+String(d.requests||0)+t(' · Кэш: ',' · Cache: ')+String(d.cache_hits||0)+t(' · Ошибки: ',' · Errors: ')+String(d.failures||0)+t(' · DNS-измерений: ',' · Measured upstreams: ')+Object.keys(d.upstream_selection_metrics?.upstreams||{}).length;
+    }catch(e){p29Metrics.textContent=t('Метрики недоступны: ','Metrics unavailable: ')+e.message;}
+  }
+  setInterval(refreshP29Metrics,10000);
+  available('privacy',t('DNSSEC: Request DO запрашивает подписи. Require AD доверяет подтверждению ТОЛЬКО шифрованного DNS; это не локальная криптографическая проверка, неподписанные ответы могут отклоняться.','DNSSEC: Request DO requests records; Require AD trusts authenticated encrypted resolvers. It is not local cryptographic validation and can reject unsigned names.'));
+  newInput('privacy','p30Enabled',t('Включить настройки EDNS/ECS/DNSSEC','Enable EDNS/ECS/DNSSEC controls'),'check');
+  newInput('privacy','p30ECSMode',t('EDNS Client Subnet','EDNS Client Subnet'),'select',[['inherit',t('Сохранять запрос клиента','Preserve client option')],['strip',t('Удалять ECS','Strip ECS')],['fixed',t('Фиксированный публичный адрес','Fixed public IP')]]);
+  newInput('privacy','p30ECSAddress',t('Публичный IP ECS','Public ECS address'),'text');
+  newInput('privacy','p30DNSSECMode','DNSSEC','select',[['off','Off'],['request_do','Request DO'],['require_ad','Require AD (encrypted DNS only)']]);
+  available('dns64',t('DNS64 требует существующего NAT64: мы не устанавливаем NAT64 и не меняем маршруты. rDNS применяется только к приватным PTR.','DNS64 requires existing NAT64; RouterForge does not configure routes. Custom rDNS handles private PTR only.'));
+  newInput('dns64','p31DNS64Enabled',t('Включить DNS64','Enable DNS64'),'check');
+  newInput('dns64','p31DNS64Prefix',t('Префикс NAT64 /96','NAT64 /96 prefix'),'text').value='64:ff9b::/96';
+  newInput('dns64','p31NAT64Confirmed',t('Подтверждаю, что NAT64 уже настроен','I confirm NAT64 already works'),'check');
+  newInput('dns64','p31ReverseEnabled',t('Отдельный DNS для приватных PTR','Custom private PTR resolver'),'check');
+  newInput('dns64','p31ReverseUpstream',t('DNS для rDNS','rDNS upstream'),'select',[]);
+  // Visibility and service writes are controlled by app.js save/apply only.
   const originalParent = additional.parentNode;
   const originalNext = additional.nextSibling;
   const originalOpen = additional.open;

@@ -3,6 +3,7 @@ package dnsrouter
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -10,13 +11,123 @@ import (
 // ServiceConfig selects the independent DNS service. Unlike the legacy shadow
 // listener it has an explicit default and never creates per-domain ndmc rows.
 type ServiceConfig struct {
-	Listen          string                 `json:"listen"`
-	DefaultUpstream string                 `json:"default_upstream"`
-	DefaultGroup    string                 `json:"default_group,omitempty"`
-	CacheBytes      int                    `json:"cache_bytes"`
-	AllowedNetworks []string               `json:"allowed_networks"`
-	IPIntelligence  *IPIntelligenceConfig  `json:"ip_intelligence,omitempty"`
-	Protection      *QueryProtectionConfig `json:"protection,omitempty"`
+	Listen            string                   `json:"listen"`
+	DefaultUpstream   string                   `json:"default_upstream"`
+	DefaultGroup      string                   `json:"default_group,omitempty"`
+	CacheBytes        int                      `json:"cache_bytes"`
+	AllowedNetworks   []string                 `json:"allowed_networks"`
+	IPIntelligence    *IPIntelligenceConfig    `json:"ip_intelligence,omitempty"`
+	Protection        *QueryProtectionConfig   `json:"protection,omitempty"`
+	UpstreamSelection *UpstreamSelectionConfig `json:"upstream_selection,omitempty"`
+	Performance       *DNSPerformanceConfig    `json:"performance,omitempty"`
+	Privacy           *DNSPrivacyConfig        `json:"privacy,omitempty"`
+	DNS64             *DNS64Config             `json:"dns64,omitempty"`
+	ReverseDNS        *DNSReverseConfig        `json:"reverse_dns,omitempty"`
+}
+
+// Optional P28-P31 settings. Nil/disabled preserves the shipped Beta 3 path.
+type UpstreamSelectionConfig struct {
+	Enabled   bool   `json:"enabled"`
+	Mode      string `json:"mode"` // sequential, load_balance, parallel, fastest
+	TimeoutMS int    `json:"timeout_ms,omitempty"`
+}
+type DNSPerformanceConfig struct {
+	Enabled         bool   `json:"enabled"`
+	CacheMinTTL     uint32 `json:"cache_min_ttl"`
+	CacheMaxTTL     uint32 `json:"cache_max_ttl"`
+	OptimisticCache bool   `json:"optimistic_cache"`
+	PendingRequests string `json:"pending_requests"` // default, on, off
+	MaxConcurrent   int    `json:"max_concurrent"`
+}
+type DNSPrivacyConfig struct {
+	Enabled    bool   `json:"enabled"`
+	ECSMode    string `json:"ecs_mode"` // inherit, strip, fixed
+	ECSAddress string `json:"ecs_address,omitempty"`
+	DNSSECMode string `json:"dnssec_mode"` // off, request_do, require_ad
+}
+type DNS64Config struct {
+	Enabled        bool   `json:"enabled"`
+	Prefix         string `json:"prefix"`
+	NAT64Confirmed bool   `json:"nat64_confirmed"`
+}
+type DNSReverseConfig struct {
+	Enabled  bool   `json:"enabled"`
+	Upstream string `json:"upstream"`
+}
+
+func validateP28P31(s *ServiceConfig, upstreams map[string]Upstream) error {
+	if s.UpstreamSelection != nil && s.UpstreamSelection.Enabled {
+		p := s.UpstreamSelection
+		switch p.Mode {
+		case "sequential", "load_balance", "parallel", "fastest":
+		default:
+			return fmt.Errorf("invalid P28 upstream mode %q", p.Mode)
+		}
+		if p.TimeoutMS != 0 && (p.TimeoutMS < 250 || p.TimeoutMS > 5000) {
+			return fmt.Errorf("P28 timeout must be 250..5000 ms")
+		}
+	}
+	if s.Performance != nil && s.Performance.Enabled {
+		p := s.Performance
+		if p.CacheMinTTL > 3600 || p.CacheMaxTTL > 86400 || (p.CacheMaxTTL != 0 && p.CacheMinTTL > p.CacheMaxTTL) {
+			return fmt.Errorf("invalid P29 cache TTL limits")
+		}
+		if p.OptimisticCache && s.CacheBytes == 0 {
+			return fmt.Errorf("P29 optimistic cache requires enabled cache")
+		}
+		switch p.PendingRequests {
+		case "", "default", "on", "off":
+		default:
+			return fmt.Errorf("invalid P29 duplicate request mode")
+		}
+		if p.MaxConcurrent != 0 && (p.MaxConcurrent < 8 || p.MaxConcurrent > 64) {
+			return fmt.Errorf("P29 concurrency must be 8..64")
+		}
+	}
+	if s.Privacy != nil && s.Privacy.Enabled {
+		p := s.Privacy
+		switch p.ECSMode {
+		case "", "inherit", "strip", "fixed":
+		default:
+			return fmt.Errorf("invalid P30 ECS mode")
+		}
+		if p.ECSMode == "fixed" {
+			addr, err := netip.ParseAddr(p.ECSAddress)
+			if err != nil || !addr.IsGlobalUnicast() || addr.IsPrivate() || addr.IsLoopback() || addr.IsLinkLocalUnicast() {
+				return fmt.Errorf("P30 fixed ECS address must be public unicast")
+			}
+		} else if p.ECSAddress != "" {
+			return fmt.Errorf("P30 ECS address set without fixed mode")
+		}
+		switch p.DNSSECMode {
+		case "", "off", "request_do", "require_ad":
+		default:
+			return fmt.Errorf("invalid P30 DNSSEC mode")
+		}
+		if p.DNSSECMode == "require_ad" {
+			// AD can only be trusted across an authenticated encrypted connection.
+			// Apply a strict rule to the catalog so no policy or fallback can downgrade.
+			for _, u := range upstreams {
+				if u.Transport != "native" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" {
+					return fmt.Errorf("P30 DNSSEC AD requires encrypted upstreams: %s", u.ID)
+				}
+			}
+		}
+	}
+	if s.DNS64 != nil && s.DNS64.Enabled {
+		p := s.DNS64
+		prefix, err := netip.ParsePrefix(p.Prefix)
+		if err != nil || !prefix.Addr().Is6() || prefix.Bits() != 96 || !prefix.IsValid() || !p.NAT64Confirmed {
+			return fmt.Errorf("P31 DNS64 requires an explicit IPv6 /96 prefix and confirmed NAT64 infrastructure")
+		}
+	}
+	if s.ReverseDNS != nil && s.ReverseDNS.Enabled {
+		u, ok := upstreams[s.ReverseDNS.Upstream]
+		if !ok || u.Transport == "native" {
+			return fmt.Errorf("P31 reverse DNS requires an explicit direct upstream")
+		}
+	}
+	return nil
 }
 
 // IPIntelligenceConfig is optional and disabled by default.  It never starts
@@ -112,6 +223,9 @@ func validateServiceConfig(c Config, upstreams map[string]Upstream, groups map[s
 		return err
 	}
 	if err := validateQueryProtection(s.Protection); err != nil {
+		return err
+	}
+	if err := validateP28P31(s, upstreams); err != nil {
 		return err
 	}
 	host, port, err := net.SplitHostPort(s.Listen)

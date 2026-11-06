@@ -20,11 +20,9 @@ mount(PortAccessOdin, { target: odinTarget });
 const engineeringTarget = document.getElementById('pa-svelte-engineering');
 if (!engineeringTarget) throw new Error('PORT_ACCESS_ENGINEERING_MOUNT_MISSING');
 mount(PortAccessEngineering, { target: engineeringTarget });
-// The retained layout controller follows this bundle in document order.
-// Ensure all Svelte-owned sections exist before it rearranges them.
+// Flush native Svelte roots before mounting their shared workspace.
 flushSync();
-// P6: ui-rebuild/P39/P53 run in the same script turn; render the native
-// Svelte pages after they have created the original live workspace.
+// P7: mount the fully native workspace after independent UI roots settle.
 function mountPortAccessLayout() {
   const pageTarget = document.getElementById('pa-svelte-layout');
   if (!pageTarget) throw new Error('PORT_ACCESS_LAYOUT_TARGET_MISSING');

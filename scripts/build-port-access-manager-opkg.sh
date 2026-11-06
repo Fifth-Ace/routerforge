@@ -42,8 +42,12 @@ if [ ! -d "$FRONTEND/node_modules" ]; then
 fi
 (cd "$FRONTEND" && npm run build)
 test -s "$FRONTEND/build/svelte-status.js"
-for file in index.html module.css ui-rebuild.js ui-rebuild.css p39-compact.js p39-compact.css p53-ux.js p53-ux.css p54-workspace.css p55-antiscan.css; do
+for file in index.html module.css ui-rebuild.css p39-compact.css p53-ux.css p54-workspace.css p55-antiscan.css; do
   cp "$ROOT/modules/port-access-manager/frontend/$file" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/$file"
+done
+# P7: complete native Port Access UI; no legacy DOM controllers may ship.
+for legacy in app.js odin-ui.js operation-log.js engine-wizard.js config-editor.js ui-rebuild.js p39-compact.js p53-ux.js p54-workspace.js p55-antiscan.js; do
+  test ! -e "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/$legacy"
 done
 cp "$FRONTEND/build/svelte-status.js" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/svelte-status.js"
 test -s "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/svelte-status.js"

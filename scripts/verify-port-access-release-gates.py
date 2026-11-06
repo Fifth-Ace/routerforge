@@ -54,7 +54,7 @@ def main():
          and not (FRONT/'engine-wizard.js').exists()
          and not (FRONT/'config-editor.js').exists()
          and 'PortAccessEngineWorkspace.svelte' in (FRONT/'status-main.js').read_text(encoding='utf-8')
-         and all(x not in build for x in (' config-editor.js ', ' engine-wizard.js ')))
+         and all(x not in shipped_names for x in ('config-editor.js', 'engine-wizard.js')))
     gate('frontend CSS shipped', all(s in shipped_names for s in ('module.css','ui-rebuild.css','p39-compact.css')))
     # Old controller was removed; the live operations log now mounts as native Svelte.
     log_component = FRONT / 'PortAccessOperationLog.svelte'

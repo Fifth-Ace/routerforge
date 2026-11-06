@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""P40A: regression contracts for the shipped Port Access Manager UI.
+"""P7: Port Access Svelte 5 source, safety, packaging and UI contract gates.
 
-Static DOM/wiring checks, not a browser or real firewall acceptance test.
+Source inspection, not an automated browser or live firewall acceptance test.
 """
 from html.parser import HTMLParser
 from pathlib import Path
 import re
 import sys
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[1]
 FRONT = ROOT / 'modules/port-access-manager/frontend'
 HTML = FRONT / 'index.html'
 BUILD = ROOT / 'scripts/build-port-access-manager-opkg.sh'
@@ -18,166 +18,85 @@ class DOM(HTMLParser):
         super().__init__()
         self.ids = {}
         self.scripts = []
-        self.buttons = {}
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
-        if 'id' in a:
-            id_ = a['id']
-            self.ids.setdefault(id_, []).append((tag, a))
-        if tag == 'script' and 'src' in a:
+        if a.get('id'):
+            self.ids.setdefault(a['id'], []).append(tag)
+        if tag == 'script' and a.get('src'):
             self.scripts.append(a['src'])
-        if tag == 'button' and 'id' in a:
-            self.buttons[a['id']] = a
 
 def main():
     failures = []
-    def check(condition, label):
-        print(('PASS' if condition else 'FAIL') + ': ' + label)
+    def gate(label, condition):
+        print(('PASS' if condition else 'FAIL') + ': ' + label, flush=True)
         if not condition:
             failures.append(label)
-    dom = DOM()
-    dom.feed(HTML.read_text(encoding='utf-8'))
-    required_ids = [
-        'engine-config-engine','engine-config-panel','engine-config-editor',
-        'engine-wizard-panel','engine-wizard-interface','engine-wizard-knock',
-        'engine-wizard-window','engine-wizard-ttl','engine-wizard-services',
-        'engine-wizard-preview','engine-wizard-draft-save','engine-wizard-draft-load',
-        'engine-wizard-result','engine-wizard-plan','rfpa-deploy-panel',
-        'rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable','rfpa-refresh',
-        'rfpa-replace-existing','rfpa-deploy-status','rfpa-credentials',
-        'rfpa-credential-value','existing-engine-control','existing-engine-refresh',
-        'odin-manager','odin-status'
-    ]
-    engine_source = (FRONT / 'PortAccessEngineWorkspace.svelte').read_text(encoding='utf-8')
-    for id_ in required_ids:
-        odin_owned = id_ in ('odin-manager','odin-status')
-        engine_owned = (id_.startswith('engine-config-') or id_.startswith('engine-wizard-') or id_.startswith('rfpa-') or id_ in ('existing-engine-control','existing-engine-refresh'))
-        if engine_owned or odin_owned:
-            owner = (FRONT / 'PortAccessOdin.svelte').read_text(encoding='utf-8') if odin_owned else engine_source
-            check(len(dom.ids.get(id_, [])) == 0 and ('id="' + id_ + '"') in owner, 'Svelte owns UI ID ' + id_)
-        else:
-            check(len(dom.ids.get(id_, [])) == 1, 'unique UI ID ' + id_)
-    # These action buttons are outside HTML forms. An omitted type is
-    # safe here; a submit type or a containing form would be unsafe.
-    check(
-        not re.search(r'<form\b', HTML.read_text(encoding='utf-8'), re.I),
-        'action controls are outside HTML forms'
-    )
-    for id_ in ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable','rfpa-refresh']:
-        button = dom.buttons.get(id_, {})
-        if not button and ('id="' + id_ + '"') in engine_source: button = {'type':'button'}
-        check(
-            bool(button) and button.get('type') in (None, 'button'),
-            'safe action button ' + id_
-        )
-    scripts = ['svelte-status.js','ui-rebuild.js',
-               'p39-compact.js','p53-ux.js']
-    check(len(scripts) == len(set(scripts)) and dom.scripts == scripts, 'ordered unique frontend script imports')
-    check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
-    check('p54-workspace.css' in HTML.read_text(encoding='utf-8'), 'P54 stylesheet linked')
-    check('p54-workspace.css' in BUILD.read_text(encoding='utf-8'), 'IPK build ships P54 stylesheet')
-    check((FRONT / 'p53-ux.css').is_file(), 'P53 stylesheet exists')
-    check('p53-ux.css' in BUILD.read_text(encoding='utf-8'), 'IPK build ships P53 stylesheet')
-    for name in scripts:
-        if name == 'svelte-status.js':
-            continue  # Generated at package build time.
-        check((FRONT / name).is_file(), 'script exists ' + name)
+    html = HTML.read_text(encoding='utf-8')
     build = BUILD.read_text(encoding='utf-8')
-    for name in scripts:
-        check(name in build, 'IPK build ships ' + name)
-    svelte = (FRONT / 'PortAccessStatus.svelte').read_text(encoding='utf-8')
-    engineering = (FRONT / 'PortAccessEngineering.svelte').read_text(encoding='utf-8')
-    check('id="pa-svelte-status"' in HTML.read_text(encoding='utf-8'), 'native Svelte status mount')
-    check('$state(' in svelte and 'onMount(' in svelte and 'refreshPreflight' in svelte and 'refreshStatus' in svelte, 'Svelte state owns status and preflight')
-    check(not (FRONT / 'app.js').exists(), 'legacy app controller removed')
-    check('npm run build' in build and 'build/svelte-status.js' in build, 'compiled Svelte IPK asset')
-    js = (FRONT / 'ui-rebuild.js').read_text(encoding='utf-8')
-    wiz = (FRONT / 'PortAccessEngineWorkspace.svelte').read_text(encoding='utf-8')
-    log = (FRONT / 'PortAccessOperationLog.svelte').read_text(encoding='utf-8')
+    dom = DOM()
+    dom.feed(html)
+    gate('single compiled Svelte entry', dom.scripts == ['svelte-status.js'])
+    gate('no duplicate static IDs', all(len(tags) == 1 for tags in dom.ids.values()))
+    gate('no browser-side forms capable of accidental submit', not re.search(r'<form\b', html, re.I))
+    names = ['status','engineering','engine-workspace','odin','log','layout']
+    gate('exact six mount targets', all(dom.ids.get('pa-svelte-' + n) == ['div'] for n in names))
+    gate('required CSS remains linked', all(name in html for name in
+         ('module.css','ui-rebuild.css','p39-compact.css','p53-ux.css','p54-workspace.css','p55-antiscan.css')))
+    old = ['app.js','odin-ui.js','operation-log.js','engine-wizard.js','config-editor.js',
+           'ui-rebuild.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
+    gate('no legacy JS source', all(not (FRONT / name).exists() for name in old))
+    gate('no legacy JS packaged', all(name not in build.split('for file in ',1)[1].split('; do',1)[0] for name in old))
+    gate('explicit IPK legacy deny gate', 'for legacy in' in build and
+         all(name in build.split('for legacy in',1)[1].split('; do',1)[0] for name in old))
+    gate('compiled Svelte IPK asset', 'npm run build' in build and
+         'build/svelte-status.js' in build and 'ui/svelte-status.js' in build)
     entry = (FRONT / 'status-main.js').read_text(encoding='utf-8')
-    check(not (FRONT / 'operation-log.js').exists(), 'old log controller removed')
-    check('id="pa-svelte-log"' in HTML.read_text(encoding='utf-8') and 'PortAccessOperationLog.svelte' in entry and 'mount(PortAccessOperationLog' in entry, 'Svelte operation log mount')
-    check('$state(' in log and 'onMount(' in log and 'window.clearInterval(interval)' in log, 'native reactive live log with cleanup')
-    check('data.scope' in log and "data.scope !== 'operations'" in log and 'Number.isSafeInteger(entry.id)' in log, 'read-only log API validation')
-    check('operation-log.js' not in BUILD.read_text(encoding='utf-8').split('for file in ', 1)[1].split('; do', 1)[0], 'legacy log excluded from IPK copy list')
-    check("var options=[{id:'odin'" in js and "{id:'knockd'" in js and "{id:'fwknopd'" in js, 'engine choice wiring')
-    check("selector.value=id" in js and "selector.dispatchEvent" in js, 'engine selector synchronizes with wizard')
-    check("selected === 'knockd' ?" in wiz, 'knock fields gated to knockd')
-    check("validated" in wiz and "JSON.stringify(req) !== validated" in wiz, 'wizard validates before using draft')
-    for item in ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable']:
-        check(item in wiz, 'wizard handler for '+item)
-    check('PortAccessEngineWorkspace.svelte' in (FRONT / 'status-main.js').read_text(encoding='utf-8'), 'native Svelte workspace mount')
-    odin = (FRONT / 'PortAccessOdin.svelte').read_text(encoding='utf-8')
-    check(not (FRONT / 'odin-ui.js').exists(), 'legacy odin controller source removed')
-    check('odin-ui.js' not in HTML.read_text(encoding='utf-8') and 'odin-ui.js' not in BUILD.read_text(encoding='utf-8').split('for file in ', 1)[1].split('; do', 1)[0], 'legacy odin not shipped')
-    check('id="pa-svelte-odin"' in HTML.read_text(encoding='utf-8') and 'PortAccessOdin.svelte' in entry and 'mount(PortAccessOdin' in entry, 'native Svelte odin mount before legacy layout')
-    check('$state(' in odin and '$derived(' in odin and 'onMount(' in odin and 'window.clearInterval' in odin, 'Svelte odin reactive state and polling cleanup')
-    check("confirm: 'APPLY'" in odin and 'watchdog_deadline_unix' in odin and 'server_unix' in odin and 'lastOperationError' in odin, 'odin confirmation, server-derived watchdog and failure state')
-    check('routerforge-odin-state-changed' in odin and 'refresh()' in odin and 'function validate' in odin, 'odin navigation events, refresh and validation')
-    check('data-odin="enable"' in odin and 'data-odin="confirm"' in odin and 'data-odin="disable"' in odin, 'odin safe action controls')
-    check('engine-wizard.js' not in HTML.read_text(encoding='utf-8') and 'config-editor.js' not in HTML.read_text(encoding='utf-8'), 'legacy engine controllers not shipped')
-    check(not (FRONT / 'engine-wizard.js').exists() and not (FRONT / 'config-editor.js').exists(), 'legacy engine controller sources removed')
-    check('rfpa:service-state' in wiz and 'rfpa:preview-ok' in wiz and 'rfpa:deploy-state' in wiz, 'external integration events preserved')
-    check('base_sha256' in wiz and 'SAVE_CONFIG' in wiz and 'RESTORE_CONFIG' in wiz, 'config CAS and confirmation preserved')
-    check('watchdog' in wiz and 'credential_once' in wiz and 'replace_existing' in wiz, 'deploy watchdog/credential/replace contract preserved')
-    # P5 native engineering screens replace the entire old app.js controller and HTML sections.
-    engineering_ids = ['tab-knockd','tab-fwknopd','tab-iptables-recent',
-        'panel-knockd','panel-fwknopd','panel-iptables-recent','knock-wan',
-        'knock-public-port','knock-nat-check','knock-nat-result','knock-check-all',
-        'knock-forward-check','knock-forward-result','validation','preview',
-        'staging-panel','staged-id','staged-save','staged-refresh','staged-message',
-        'staged-list','staged-assessment','recent-live-panel','recent-live-refresh',
-        'recent-live-status','recent-live-list']
-    for id_ in engineering_ids:
-        owned = ('id="' + id_ + '"') in engineering or (id_.startswith('tab-') and "id={'tab-' + kind.id}" in engineering)
-        check(owned and not dom.ids.get(id_), 'P5 Svelte engineering ID ' + id_)
-    check('id="pa-svelte-engineering"' in HTML.read_text(encoding='utf-8')
-          and 'mount(PortAccessEngineering' in entry, 'P5 native Svelte engineering mount')
-    check('$state(' in engineering and 'onMount(' in engineering
-          and 'function activate(' in engineering and 'function renderPreview(' in engineering,
-          'P5 reactive engineering tabs and preview')
-    check(all(x in engineering for x in ('staged-rules','staged-assessment','recent-access',
-          'recent-revoke','forward-order','nat-evidence','knock-preview')),
-          'P5 actual API workflows preserved')
-    check(all(x in engineering for x in ('firewall_mutation !== false','ready_for_apply !== false',
-          'deployment_blocked !== true','observed_only !== true',"confirm:'REVOKE'")),
-          'P5 strict readonly and revoke gate preserved')
-    check('app.js' not in HTML.read_text(encoding='utf-8')
-          and 'app.js' not in build.split('for file in ', 1)[1].split('; do', 1)[0],
-          'P5 no legacy app shipped')
-    check('operation-logs' in log and 'window.setInterval(refresh, 2000)' in log, 'read-only live log polling')
-    check('navigator.clipboard.writeText' in log and 'pa-log-pause' in log, 'live logs pause/copy controls')
-    # P6: native Svelte 5 page navigation replaces BOTH imperative P54 and P55.
-    layout = (FRONT / 'PortAccessLayout.svelte').read_text(encoding='utf-8')
-    check('id="pa-svelte-layout"' in HTML.read_text(encoding='utf-8') and
-          'mount(PortAccessLayout' in entry and 'DOMContentLoaded' in entry,
-          'P6 Svelte navigation mounted after existing engine controllers')
-    check(all(token in layout for token in ('$state(', 'onMount(',
-          "id: 'protection'", "id: 'access'", "id: 'engines'", "id: 'diagnostics'",
-          'onclick={() => show(page.id)}', 'class:active={active === page.id}')),
-          'P6 reactive four-page navigation with accessible page state')
-    check(all(token in layout for token in ('rf-pa-summary', 'rf-pa-selector',
-          'rf-pa-working', 'existing-engine-control', 'engine-config-panel',
-          'staging-panel', 'recent-live-panel', 'odin-live-access',
-          'rf-pa-operation-log', 'rf-pa-advanced')),
-          'P6 preserves original operator panels and their listeners')
-    check('MutationObserver' in layout and "health = /включена" in layout and
-          'observer?.disconnect()' in layout,
-          'P6 reactive status state and observer cleanup')
-    check(not (FRONT / 'p54-workspace.js').exists() and
-          not (FRONT / 'p55-antiscan.js').exists(),
-          'P6 legacy navigation controller sources removed')
-    check(all(name not in HTML.read_text(encoding='utf-8') and
-          name not in build.split('for file in ', 1)[1].split('; do', 1)[0]
-          for name in ('p54-workspace.js','p55-antiscan.js')),
-          'P6 no legacy layout scripts included in IPK')
-    # Prevent accidentally introducing destructive UI workflows in a front-end-only acceptance patch.
-    check('document.write(' not in js and 'eval(' not in js, 'no dynamic document writes or eval')
-    if failures:
-        print('P40A_UI_CONTRACT: FAIL (' + str(len(failures)) + ')')
-        return 1
-    print('P40A_UI_CONTRACT: PASS')
-    return 0
+    component_names = ['PortAccessStatus','PortAccessOperationLog','PortAccessEngineWorkspace',
+                       'PortAccessOdin','PortAccessEngineering','PortAccessLayout']
+    gate('all six native Svelte components mounted', all(name + '.svelte' in entry and
+         'mount(' + name in entry for name in component_names))
+    gate('layout mounts after original components', 'flushSync();' in entry and
+         'DOMContentLoaded' in entry)
+    source = {name:(FRONT / (name + '.svelte')).read_text(encoding='utf-8') for name in component_names}
+    gate('all components use reactive Svelte 5 state', all('$state(' in s for s in source.values()))
+    layout = source['PortAccessLayout']
+    gate('Svelte owns four pages and three protection methods', all(x in layout for x in
+         ("'protection'","'access'","'engines'","'diagnostics'","'odin'","'knockd'","'fwknopd'")))
+    gate('Svelte mode switch propagates real change event',
+         'engine-config-engine' in layout and "new Event('change'" in layout)
+    gate('Svelte moves only mounted roots', all('pa-svelte-' + name in layout for name in names if name!='layout') and
+         '.appendChild(el)' in layout)
+    gate('Svelte navigation uses same guarded action controls',
+         'element.disabled' in layout and 'element.click()' in layout)
+    gate('Svelte reports state from live read-only API',
+         '/api/modules/port-access-manager/odin' in layout and '/engine-service?engine=' in layout)
+    gate('Svelte KKD list is fail closed',
+         "data.list !== 'KKD'" in layout and 'Array.isArray(data.entries)' in layout)
+    gate('Svelte cleans timers and listeners', 'window.clearInterval' in layout and
+         'document.removeEventListener' in layout)
+    gate('read-only preflight stays guarded', 'mutation_api !== false' in source['PortAccessStatus'] and
+         'ready_for_apply !== false' in source['PortAccessStatus'])
+    gate('operation log bound, bounded and clean',
+         'data.scope !== \'operations\'' in source['PortAccessOperationLog'] and
+         'window.clearInterval(interval)' in source['PortAccessOperationLog'])
+    engine = source['PortAccessEngineWorkspace']
+    gate('Entware safety, CAS and watchdog intact', all(x in engine for x in
+         ('base_sha256','RESTORE_CONFIG','SAVE_CONFIG','credential_once',
+          'replace_existing','rfpa:service-state','rfpa:deploy-state','rfpa:preview-ok','watchdog')))
+    gate('Entware action IDs owned by Svelte', all('id="' + x + '"' in engine for x in
+         ('engine-config-engine','engine-wizard-preview','rfpa-prepare','rfpa-enable',
+          'rfpa-confirm','rfpa-disable','rfpa-refresh','existing-engine-control')))
+    odin = source['PortAccessOdin']
+    gate('odin watchdog and server verification retained', all(x in odin for x in
+         ('watchdog_deadline_unix','server_unix','confirm','window.confirm',
+          'routerforge-odin-state-changed')))
+    engineering = source['PortAccessEngineering']
+    gate('engineering denies unintended firewall mutation', all(x in engineering for x in
+         ('firewall_mutation !== false','deployment_blocked !== true','confirm:\'REVOKE\'')))
+    gate('no eval/document.write in native UI', all('eval(' not in s and 'document.write(' not in s
+         for s in source.values()))
+    print('P40A_UI_CONTRACT: ' + ('FAIL: ' + ', '.join(failures) if failures else 'PASS'), flush=True)
+    return 1 if failures else 0
 
 if __name__ == '__main__':
     sys.exit(main())

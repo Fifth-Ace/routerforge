@@ -40,7 +40,8 @@ def inspect(name: str, root: Path) -> list[str]:
     if not package.is_file() or '"svelte"' not in package.read_text(encoding='utf-8'):
         errors.append('SVELTE_PACKAGE_MISSING')
     if name != 'core':
-        entry = d / 'main.js'
+        # Port Access uses an IIFE library build from status-main.js, not main.js.
+        entry = d / ('status-main.js' if name == 'port-access-manager' else 'main.js')
         if not entry.is_file():
             errors.append('SVELTE_ENTRY_MISSING')
         else:

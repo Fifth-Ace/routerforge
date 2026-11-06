@@ -63,7 +63,7 @@ def main():
             'safe action button ' + id_
         )
     scripts = ['app.js','config-editor.js','odin-ui.js','ui-rebuild.js',
-               'engine-wizard.js','operation-log.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
+               'engine-wizard.js','operation-log.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js','svelte-status.js']
     check(dom.scripts == scripts, 'ordered frontend script imports')
     check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
     check('p54-workspace.css' in HTML.read_text(encoding='utf-8'), 'P54 stylesheet linked')
@@ -71,10 +71,18 @@ def main():
     check((FRONT / 'p53-ux.css').is_file(), 'P53 stylesheet exists')
     check('p53-ux.css' in BUILD.read_text(encoding='utf-8'), 'IPK build ships P53 stylesheet')
     for name in scripts:
+        if name == 'svelte-status.js':
+            continue  # Generated at package build time.
         check((FRONT / name).is_file(), 'script exists ' + name)
     build = BUILD.read_text(encoding='utf-8')
     for name in scripts:
         check(name in build, 'IPK build ships ' + name)
+    svelte = (FRONT / 'PortAccessStatus.svelte').read_text(encoding='utf-8')
+    legacy = (FRONT / 'app.js').read_text(encoding='utf-8')
+    check('id="pa-svelte-status"' in HTML.read_text(encoding='utf-8'), 'native Svelte status mount')
+    check('$state(' in svelte and 'onMount(' in svelte and 'refreshPreflight' in svelte and 'refreshStatus' in svelte, 'Svelte state owns status and preflight')
+    check('renderStatus(' not in legacy and 'refreshPreflight(' not in legacy, 'legacy status controllers removed')
+    check('npm run build' in build and 'build/svelte-status.js' in build, 'compiled Svelte IPK asset')
     js = (FRONT / 'ui-rebuild.js').read_text(encoding='utf-8')
     wiz = (FRONT / 'engine-wizard.js').read_text(encoding='utf-8')
     log = (FRONT / 'operation-log.js').read_text(encoding='utf-8')

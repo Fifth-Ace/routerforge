@@ -28,18 +28,8 @@
       });
     } catch (_) { /* Standalone module fallback. */ }
   }
-  var labels = {
-    'knockd': 'knockd',
-    'fwknopd': 'fwknopd / SPA',
-    'iptables-recent': 'iptables recent'
-  };
-  var root = document.getElementById('engines');
-  var checked = document.getElementById('checked');
   var tabs = Array.prototype.slice.call(document.querySelectorAll('[data-tab]'));
   var selected = 'knockd';
-  var current = {};
-  // Core proxy strips /api/modules/<id> and adds /v1 itself.
-  // The standalone module, in contrast, exposes /v1/status directly.
   function statusURL() {
     var path = window.location.pathname;
     var match = path.match(/^(.*\/api\/modules\/port-access-manager)\/(?:v1\/)?ui(?:\/.*)?$/);
@@ -54,124 +44,6 @@
     if (className) node.className = className;
     return node;
   }
-  function renderStatus() {
-    root.textContent = '';
-    Object.keys(labels).forEach(function (id) {
-      var data = current[id];
-      var card = el('article', undefined, 'engine-card');
-      card.appendChild(el('strong', labels[id]));
-      if (!data) {
-        card.appendChild(el('p', 'Статус неизвестен', 'muted'));
-      } else if (id === 'iptables-recent') {
-        card.appendChild(el('p', data.installed ? 'Поддержка ядра обнаружена' : 'Поддержка ядра не обнаружена', data.installed ? 'good' : 'muted'));
-        card.appendChild(el('p', 'Наличие recent ≠ активная защита', 'muted'));
-      } else {
-        card.appendChild(el('p', data.installed ? 'Установлен' : 'Не установлен', data.installed ? 'good' : 'muted'));
-        card.appendChild(el('p', data.running ? 'Служба работает' : 'Служба не запущена', 'muted'));
-        card.appendChild(el('p', data.configuration_present ? 'Файл конфигурации найден' : 'Файл конфигурации не найден', 'muted'));
-      }
-      root.appendChild(card);
-    });
-  }
-  function refresh() {
-    checked.textContent = 'Получаем состояние…';
-    fetch(statusURL(), { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
-      .then(function (response) {
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        var contentType = response.headers.get('content-type') || '';
-        if (contentType.indexOf('application/json') < 0) throw new Error('Ожидался JSON, получен ' + contentType);
-        return response.json();
-      })
-      .then(function (data) {
-        if (data.module !== 'port-access-manager' || !Array.isArray(data.engines)) throw new Error('Неверный ответ API');
-        current = {};
-        data.engines.forEach(function (engine) { current[engine.id] = engine; });
-        renderStatus();
-        checked.textContent = 'Связь с Core: OK · режим ' + (data.mode || 'неизвестен');
-      })
-      .catch(function (error) {
-        checked.textContent = 'Ошибка диагностики: ' + error.message;
-        root.textContent = '';
-        root.appendChild(el('p', 'Нет данных от службы. Настройки по-прежнему не применяются.'));
-      });
-  }
-  var safetyChecks = document.getElementById('preflight-checks');
-  var safetyVerdict = document.getElementById('preflight-verdict');
-  var safetyLabels = {
-    recent_match: 'iptables recent',
-    filter_table: 'Таблица filter',
-    ndm_forward_chain: 'Цепочки NDM / FORWARD',
-    management_rescue: 'Резервный SSH-доступ',
-    rollback: 'Автоматический откат',
-    ndm_chain_evidence: 'Цепочки NDM (наблюдение)',
-    ssh_listener_evidence: 'SSH (слушающие порты)',
-    wan_route_evidence: 'IPv4-маршрут (наблюдение)',
-    wan_scope: 'WAN / NAT / защищаемый порт'
-  };
-  // K3E: localize known preflight evidence without hiding dynamic facts.
-  function localizeSafetyDetail(check) {
-    var detail = String(check.detail || 'Нет данных');
-    var messages = {
-      'Kernel recent match is loaded; this does not prove firewall protection': 'Модуль recent загружен; это не подтверждает действующую защиту firewall.',
-      'recent match is not visible; capability has not been proven': 'Модуль recent не обнаружен; поддержка не подтверждена.',
-      'Cannot read kernel table registry': 'Не удалось прочитать список таблиц ядра.',
-      'Kernel filter table is visible; no rule order has been verified': 'Таблица filter обнаружена, но порядок правил не проверен.',
-      'Filter table is not visible in kernel table registry': 'Таблица filter не обнаружена.',
-      'Keenetic NDM forwarding chain order and persistence have not been verified': 'Порядок цепочек NDM и сохранение правил после перезапуска не проверены.',
-      'SSH 22/2222, active management path and an out-of-band rescue have not been verified': 'Порты SSH, действующий канал управления и резервный доступ не проверены.',
-      'No timed rollback transaction has been staged or tested': 'Транзакционный откат по таймеру ещё не подготовлен и не проверен на роутере.',
-      'WAN interface, protected target and NAT forwarding have not been verified': 'WAN-интерфейс, защищаемый адрес и проброс NAT не проверены.'
-    };
-    if (messages[detail]) return messages[detail];
-    return detail
-      .replace(/^Visible filter chains: /, 'Обнаружены цепочки filter: ')
-      .replace(/^TCP LISTEN on port\(s\) /, 'TCP-порты в состоянии LISTEN: ')
-      .replace(/^Default IPv4 route interface: /, 'Интерфейс маршрута IPv4 по умолчанию: ')
-      .replace(/; insertion order and NDM persistence NOT verified/g, '; порядок правил и сохранение NDM НЕ проверены')
-      .replace(/; reachability, authenticated session and rescue NOT verified/g, '; доступность, авторизация и резервный доступ НЕ проверены')
-      .replace(/; physical WAN identity, NAT target and forwarding NOT verified/g, '; физический WAN, адрес NAT и проброс НЕ проверены');
-  }
-
-  function refreshPreflight() {
-    safetyVerdict.textContent = 'Проверяем…';
-    safetyVerdict.className = 'safety-verdict';
-    safetyChecks.textContent = '';
-    safetyChecks.appendChild(el('p', 'Запрашиваем read-only preflight…', 'muted'));
-    var url = statusURL().replace(/\/status$/, '/preflight');
-    fetch(url, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
-      .then(function (response) {
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        if ((response.headers.get('content-type') || '').indexOf('application/json') < 0) throw new Error('Некорректный тип ответа');
-        return response.json();
-      })
-      .then(function (data) {
-        if (data.module !== 'port-access-manager' || data.mutation_api !== false || data.ready_for_apply !== false || !Array.isArray(data.checks)) {
-          throw new Error('Неподтверждённый read-only контракт');
-        }
-        safetyVerdict.textContent = 'ПРИМЕНЕНИЕ ЗАБЛОКИРОВАНО';
-        safetyVerdict.className = 'safety-verdict safety-blocked';
-        safetyChecks.textContent = '';
-        data.checks.forEach(function (check) {
-          var row = el('div', undefined, 'safety-check');
-          var heading = el('strong', safetyLabels[check.id] || check.id);
-          var state = el('span', check.state === 'present' ? 'Обнаружено' : (check.state === 'observed' ? 'Наблюдается' : 'Требует проверки'), check.state === 'present' ? 'safety-present' : (check.state === 'observed' ? 'safety-present' : 'safety-warning'));
-          var detail = el('small', localizeSafetyDetail(check), 'muted');
-          row.appendChild(heading);
-          row.appendChild(state);
-          row.appendChild(detail);
-          safetyChecks.appendChild(row);
-        });
-      })
-      .catch(function (error) {
-        safetyVerdict.textContent = 'ПРИМЕНЕНИЕ ЗАБЛОКИРОВАНО';
-        safetyVerdict.className = 'safety-verdict safety-blocked';
-        safetyChecks.textContent = '';
-        safetyChecks.appendChild(el('p', 'Preflight недоступен: ' + error.message + '. Применение недоступно.', 'invalid'));
-      });
-  }
-  document.getElementById('preflight-refresh').addEventListener('click', refreshPreflight);
-  refreshPreflight();
-
   document.getElementById('knock-forward-check').addEventListener('click', function () {
     var wan = document.getElementById('knock-wan').value.trim();
     var target = document.querySelector('#panel-iptables-recent [data-field="target"]').value.trim();
@@ -292,9 +164,7 @@
   Array.prototype.forEach.call(document.querySelectorAll('[data-field]'), function (input) {
     input.addEventListener('input', renderPreview);
   });
-  document.getElementById('refresh').addEventListener('click', refresh);
   activate(selected);
-  refresh();
   // Staging changes configuration only: never sends a firewall apply action.
   var stageMessage = document.getElementById('staged-message');
   var stageList = document.getElementById('staged-list');

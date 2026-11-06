@@ -34,9 +34,19 @@ test -x "$WORK/data/opt/bin/routerforge-port-access-watchdog"
 sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$PACKAGE"
 cp "$ROOT/modules/port-access-manager/packaging/S95routerforge-port-access-manager" "$WORK/data/opt/etc/init.d/S95routerforge-port-access-manager"
 chmod 0755 "$WORK/data/opt/etc/init.d/S95routerforge-port-access-manager"
+# Svelte 5 compilation is CI/build-time only, never installed on the operator workstation.
+FRONTEND="$ROOT/modules/port-access-manager/frontend"
+command -v npm >/dev/null 2>&1 || { echo 'PORT_ACCESS_SVELTE_NPM_REQUIRED' >&2; exit 1; }
+if [ ! -d "$FRONTEND/node_modules" ]; then
+  (cd "$FRONTEND" && npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund)
+fi
+(cd "$FRONTEND" && npm run build)
+test -s "$FRONTEND/build/svelte-status.js"
 for file in index.html app.js module.css config-editor.js odin-ui.js ui-rebuild.js ui-rebuild.css engine-wizard.js operation-log.js p39-compact.js p39-compact.css p53-ux.js p53-ux.css p54-workspace.js p54-workspace.css p55-antiscan.js p55-antiscan.css; do
   cp "$ROOT/modules/port-access-manager/frontend/$file" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/$file"
 done
+cp "$FRONTEND/build/svelte-status.js" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/svelte-status.js"
+test -s "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/svelte-status.js"
 test -s "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/operation-log.js"
 cp "$ROOT/modules/port-access-manager/packaging/odin-engine.sh" "$WORK/data/opt/share/routerforge/modules/port-access-manager/odin-engine.sh"
 chmod 0755 "$WORK/data/opt/share/routerforge/modules/port-access-manager/odin-engine.sh"

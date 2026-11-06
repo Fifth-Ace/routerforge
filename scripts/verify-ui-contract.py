@@ -78,22 +78,41 @@ require(
 )
 
 # Network Tools remains the text-tab reference and uses the same header/component rhythm.
-require(
-    "modules/network-tools/frontend/index.html",
-    [
+# After the Svelte 5 migration, the accessible tab contract lives in the component,
+# while index.html only provides the Vite mount root.  Check the navigation block
+# itself so result icons elsewhere in the component remain valid.
+network_tools_rel = "modules/network-tools/frontend/NetworkToolsApp.svelte"
+network_tools = read(network_tools_rel)
+network_tools_nav_start = network_tools.find('<nav class="nt-tabs"')
+network_tools_nav_end = network_tools.find("</nav>", network_tools_nav_start)
+if network_tools_nav_start < 0 or network_tools_nav_end < 0:
+    errors.append(f"{network_tools_rel}: missing Network Tools tab navigation")
+else:
+    network_tools_nav = network_tools[network_tools_nav_start : network_tools_nav_end + len("</nav>")]
+    for marker in [
         'role="tablist"',
         'role="tab"',
-        'role="tabpanel"',
         'data-i18n="tabDoctor"',
         'data-i18n="tabRoutes"',
         'data-i18n="tabFlows"',
         'data-i18n="tabProbes"',
-    ],
-)
-forbid(
-    "modules/network-tools/frontend/index.html",
-    ["◉", "♧", "☷", "◌"],
-)
+    ]:
+        checks += 1
+        if marker not in network_tools_nav:
+            errors.append(f"{network_tools_rel}: missing navigation marker: {marker}")
+    for marker in [
+        'id="panel-doctor" role="tabpanel"',
+        'id="panel-routes" role="tabpanel"',
+        'id="panel-flows" role="tabpanel"',
+        'id="panel-probes" role="tabpanel"',
+    ]:
+        checks += 1
+        if marker not in network_tools:
+            errors.append(f"{network_tools_rel}: missing panel marker: {marker}")
+    for marker in ["◉", "♧", "☷", "◌"]:
+        checks += 1
+        if marker in network_tools_nav:
+            errors.append(f"{network_tools_rel}: forbidden navigation marker present: {marker}")
 
 require(
     "modules/network-tools/frontend/module.css",

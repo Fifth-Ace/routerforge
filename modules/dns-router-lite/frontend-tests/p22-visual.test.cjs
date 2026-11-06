@@ -5,17 +5,27 @@ const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../frontend');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const js=fs.readFileSync(path.join(root,'p22-visual.js'),'utf8');
+const js=actualController('DnsP22Visual.svelte');
 const css=fs.readFileSync(path.join(root,'p22-visual.css'),'utf8');
-const original=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const original=actualController('DnsLiteController.svelte');
 
+
+function actualController(name){
+  const source=fs.readFileSync(path.join(root,name),'utf8');
+  const start='/* RF_ACTUAL_CONTROLLER_START */';
+  const end='/* RF_ACTUAL_CONTROLLER_END */';
+  if(source.split(start).length!==2||source.split(end).length!==2) throw Error('SOURCE_COMPONENT_CONTROLLER_MARKERS_INVALID: '+name);
+  const body=source.split(start)[1].split(end)[0];
+  const m=source.match(/const state = \$state\((\{[^\n]+\})\);/);
+  return m ? body.replace('(() => {', '(() => {\n  const state = '+m[1]+';') : body;
+}
 test('P22 screenshot layout: segmented mode, independent visible tabs, and route cards',()=>{
   for(const id of ['p22ModeBasic','p22ModeAdvanced','p22NavGroups','p22NavRules',
     'p22DevicesCard','p22GroupsCard','p22RulesCard','p22RouteCard','p22RouteSummary',
     'p22DevicePick','p22MemberSelect','p22RulePick','p22ProbePick','p22MemberChips']){
     assert.equal((html.match(new RegExp(`id="${id}"`,'g'))||[]).length,1,id);
   }
-  assert.match(html,/p22-visual\.css/);assert.match(html,/p22-visual\.js/);
+  assert.match(html,/p22-visual\.css/);assert.match(html,/svelte-mode\.js/);
   assert.match(html,/Что такое правила домена\?/);
   assert.match(css,/p22-mode-switch/);
   assert.match(css,/p22-rule-fields/);
@@ -221,10 +231,10 @@ test('P24.0: compact UI keeps existing tab wiring and hides empty route details'
 // P21 apply and all existing independent tabs.
 test('P25 settings hub: native page, real fields and original basic-mode placement', async () => {
   const { JSDOM } = require('jsdom');
-  const hub = fs.readFileSync(path.join(root, 'p25-settings.js'), 'utf8');
+  const hub = actualController('DnsP25Settings.svelte');
   const hubCSS = fs.readFileSync(path.join(root, 'p25-settings.css'), 'utf8');
   assert.ok(html.includes('p25-settings.css'));
-  assert.ok(html.includes('p25-settings.js'));
+  assert.ok(!html.includes('p25-settings.js'));
   assert.ok(hub.includes('p25SettingsNav'));
   assert.ok(hub.includes('P24.0 contains nine IP ordering strategies'));
   assert.ok(hubCSS.includes('p25-settings-layout'));
@@ -311,11 +321,11 @@ test('P25 settings hub: native page, real fields and original basic-mode placeme
 
 // P24.3: real scope/hysteresis inputs, read-only IP monitor, no simple-mode mutation.
 test('P24.3 IP scope and health HTTP controls are advanced-only',()=>{
-  const panel=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
-  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  const panel=actualController('DnsP25Settings.svelte');
+  const app=actualController('DnsLiteController.svelte');
   for(const id of ['p243Scope','p243Domains','p243ListIDs','p243Recoveries','p243MinDown','p243HTTPPath']){
     assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
-    assert.ok(app.includes("$('"+id+"')"),id+' must be wired');
+    assert.ok(app.includes("byId('"+id+"')"),id+' must be wired');
   }
   assert.ok(panel.includes('showScope()'));
   assert.ok(panel.includes("method:'GET'"));
@@ -328,13 +338,13 @@ test('P24.3 IP scope and health HTTP controls are advanced-only',()=>{
 // P24.1: real config controls live only in the advanced settings hub.
 test('P24.1 IP Intelligence: opt-in settings, 9 modes, and no basic UI changes',async()=>{
   const {JSDOM}=require('jsdom');
-  const hub=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
-  const src=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  const hub=actualController('DnsP25Settings.svelte');
+  const src=actualController('DnsLiteController.svelte');
   assert.ok(html.includes('id="p241IPControls"'));
-  assert.ok(src.includes("if($('p241IPEnabled').checked){"));
-  assert.ok(src.includes("prefs.ip_intelligence={enabled:true,mode:$('p241IPMode').value};"));
+  assert.ok(src.includes("if(byId('p241IPEnabled').checked){"));
+  assert.ok(src.includes("prefs.ip_intelligence={enabled:true,mode:byId('p241IPMode').value};"));
   assert.ok(src.includes('delete merged.ip_intelligence'));
-  assert.ok(src.includes("$('p241IPMode').value=state.config.service?.ip_intelligence?.mode||'original'"));
+  assert.ok(src.includes("byId('p241IPMode').value=state.config.service?.ip_intelligence?.mode||'original'"));
   assert.ok(hub.includes('P24.0 contains nine IP ordering strategies'));
   const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true});
   try{
@@ -368,8 +378,8 @@ test('P24.1 IP Intelligence: opt-in settings, 9 modes, and no basic UI changes',
 
 
 test('P24.2: health settings and monitor are advanced-only and read-only',()=>{
-  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
-  const hub=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
+  const app=actualController('DnsLiteController.svelte');
+  const hub=actualController('DnsP25Settings.svelte');
   const sheet=fs.readFileSync(path.join(root,'p25-settings.css'),'utf8');
   const {JSDOM}=require('jsdom');const doc=new JSDOM(html).window.document;
   for(const id of ['p242HealthEnabled','p242HealthProtocol','p242HealthPort','p242HealthInterval','p242HealthTimeout','p242HealthFailures','p242MonitorRows','p242MonitorStatus']){
@@ -387,11 +397,11 @@ test('P24.2: health settings and monitor are advanced-only and read-only',()=>{
 
 // P27: query protection must not be a decorative planned entry.
 test('P27 query protection is a real advanced-only config section',()=>{
-  const hub=fs.readFileSync(path.join(root,'p25-settings.js'),'utf8');
-  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  const hub=actualController('DnsP25Settings.svelte');
+  const app=actualController('DnsLiteController.svelte');
   for(const id of ['p27RateLimit','p27RefuseAny','p27BogusIPs']){
     assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
-    assert.ok(app.includes("$('"+id+"')"),id+' must read/write draft');
+    assert.ok(app.includes("byId('"+id+"')"),id+' must read/write draft');
   }
   assert.ok(hub.includes("securityPanel.append(protectionControls)"));
   assert.ok(hub.includes("['security', t('Защита запросов', 'Query protection'), t('Доступно', 'Available')]"));

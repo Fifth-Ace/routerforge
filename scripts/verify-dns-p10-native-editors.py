@@ -15,7 +15,7 @@ def gate(name,yes):
     yes=bool(yes);checks.append((name,yes))
     print(('PASS' if yes else 'FAIL')+': '+name,flush=True)
 def main():
-    lc=text(L/'DnsLiteCards.svelte');la=text(L/'app.js');lm=text(L/'main.js')
+    lc=text(L/'DnsLiteCards.svelte');la=text(L/'DnsLiteController.svelte');lm=text(L/'main.js')
     ec=text(E/'DnsRuntimeTables.svelte');ea=text(E/'app.js');em=text(E/'main.js')
     b=text(BUILD)
     gate('P10 Lite upstream cards owned by compiled Svelte', all(x in lm for x in (
@@ -53,7 +53,7 @@ def main():
         "el('managedTrialN').addEventListener", "el('shadowStartButton').addEventListener",
         "el('saveButton').addEventListener", 'preparedN = null;')))
     gate('P10 original packaged CSS and compiled Svelte kept', all(x in b for x in (
-        'svelte-mode.js', 'npm run build','for file in index.html app.js module.css')))
+        'svelte-mode.js', 'npm run build','for file in index.html module.css')))
     failed=[name for name,ok in checks if not ok]
     print('DNS_P10_NATIVE_EDITOR_GATES: '+('FAIL / '+', '.join(failed) if failed else 'PASS'),flush=True)
     return 1 if failed else 0

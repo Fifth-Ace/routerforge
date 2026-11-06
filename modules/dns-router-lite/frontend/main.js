@@ -3,6 +3,9 @@ import DnsModeStatus from './DnsModeStatus.svelte';
 import DnsLiteLog from './DnsLiteLog.svelte';
 import DnsLiteCards from './DnsLiteCards.svelte';
 import DnsLiteDomainEditor from './DnsLiteDomainEditor.svelte';
+import DnsLiteController from './DnsLiteController.svelte';
+import DnsP22Visual from './DnsP22Visual.svelte';
+import DnsP25Settings from './DnsP25Settings.svelte';
 const target = document.getElementById('rf-dns-lite-svelte-mode');
 if (!target) throw Error('DNS_LITE_SVELTE_MODE_MOUNT_MISSING');
 target.replaceChildren();
@@ -25,3 +28,10 @@ const editorTarget=document.getElementById('rf-dns-lite-svelte-editor');
 if(!editorTarget)throw Error('DNS_LITE_SVELTE_DOMAIN_EDITOR_MOUNT_MISSING');
 mount(DnsLiteDomainEditor,{target:editorTarget});
 flushSync();
+
+// Preserve original startup ordering after native visual components mount.
+// The legacy standalone JavaScript files are no longer loaded or shipped.
+for (const Controller of [DnsLiteController,DnsP22Visual,DnsP25Settings]) {
+  mount(Controller,{target:document.body});
+  flushSync();
+}

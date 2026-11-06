@@ -13,7 +13,7 @@ def gate(name,passed):
     checks.append((name,passed))
     print(('PASS' if passed else 'FAIL')+': '+name,flush=True)
 
-lm=src(lite/'main.js');la=src(lite/'app.js');lh=src(lite/'index.html');ls=src(lite/'DnsLiteDomainEditor.svelte')
+lm=src(lite/'main.js');la=src(lite/'DnsLiteController.svelte');lh=src(lite/'index.html');ls=src(lite/'DnsLiteDomainEditor.svelte')
 rm=src(runtime/'main.js');ra=src(runtime/'app.js');rh=src(runtime/'index.html');rs=src(runtime/'DnsRuntimePolicyForms.svelte')
 gate('Lite native list editor mounted',all(x in lm for x in ('DnsLiteDomainEditor.svelte','mount(DnsLiteDomainEditor','flushSync()')) and 'rf-dns-lite-svelte-editor' in lh)
 gate('Lite Svelte complete list actions',all(x in ls for x in ('createList','renameList','saveList','selectList','domainInput','deleteListButton','importDomains','exportDomains','closeEditor')))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 h=Path('modules/dns-router-lite/frontend/index.html').read_text()
-j=Path('modules/dns-router-lite/frontend/app.js').read_text()
+j=Path('modules/dns-router-lite/frontend/DnsLiteController.svelte').read_text()
 c=Path('modules/dns-router-lite/frontend/module.css').read_text()
 g=Path('components/core/catalog.go').read_text()
 m=Path('components/core/marketplace_install.go').read_text()
@@ -25,7 +25,7 @@ print('P195_CORE_EXPLICIT_SOURCE_LIST: PASS')
 # P19.5b: the right pane must show real DNS/list data on initial render; never call a mutation API.
 assert h.count('id="editorDNSChoice"') == 1
 assert 'const initial=state.config.upstreams.find' in j
-assert "if(!editList(chosen))$('editorDNSChoice').value=previous" in j
+assert "if(!editList(chosen))byId('editorDNSChoice').value=previous" in j
 assert '/* P19.5b — reference-render parity.' in c
 assert 'grid-template-columns: minmax(425px,1.16fr) minmax(400px,1fr)' in c
 print('P195B_RENDER_PARITY_AND_READ_ONLY_SELECTION: PASS')

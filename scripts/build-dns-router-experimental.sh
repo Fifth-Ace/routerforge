@@ -62,16 +62,23 @@ if [ ! -d "$UI_SOURCE/node_modules" ]; then
 fi
 (cd "$UI_SOURCE" && npm run build)
 test -s "$UI_SOURCE/build/svelte-mode.js"
-for file in index.html app.js module.css; do
+for file in index.html module.css; do
+  if [ "$ROUTERFORGE_CHANNEL" = experimental ]; then
+    : # experimental app.js remains a separately tested runtime entry
+  fi
   cp "$UI_SOURCE/$file" \
      "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"
 done
+if [ "$ROUTERFORGE_CHANNEL" = experimental ]; then
+  cp "$UI_SOURCE/app.js" "$WORK/data/opt/share/routerforge/modules/dns-router/ui/app.js"
+fi
 cp "$UI_SOURCE/build/svelte-mode.js" "$WORK/data/opt/share/routerforge/modules/dns-router/ui/svelte-mode.js"
 test -s "$WORK/data/opt/share/routerforge/modules/dns-router/ui/svelte-mode.js"
-# P22 FIX2: the visual enhancer is referenced by the DEV HTML and MUST ship
+# P22 FIX2: native Svelte bundles the visual enhancer; CSS remains separate.
+# The visual enhancer is referenced by the DEV HTML and MUST ship
 # in the same IPK. Experimental/Beta legacy UI remains unchanged.
 if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
-  for file in p22-visual.css p22-visual.js p25-settings.css p25-settings.js; do
+  for file in p22-visual.css p25-settings.css; do
     test -s "$UI_SOURCE/$file" || { echo "DNS_UI_SOURCE_MISSING: $file" >&2; exit 1; }
     cp "$UI_SOURCE/$file" "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"
     test -s "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"

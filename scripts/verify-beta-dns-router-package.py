@@ -101,7 +101,7 @@ def verify(ipk, target, version, qemu=False):
         if manifest.get('version') != version:
             raise ValueError('manifest version mismatch')
         for required in (
-            prefix + 'ui/index.html', prefix + 'ui/app.js', prefix + 'ui/module.css',
+            prefix + 'ui/index.html', prefix + 'ui/svelte-mode.js', prefix + 'ui/module.css',
             'opt/etc/init.d/S95routerforge-dns-router',
             'opt/etc/ndm/netfilter.d/40-routerforge-dns-controller.sh',
             'opt/share/licenses/routerforge-dns-router/LICENSE',
@@ -117,7 +117,7 @@ def verify(ipk, target, version, qemu=False):
             if not tar_payload(data, prefix + 'ui/' + ui_asset):
                 raise ValueError('empty referenced UI asset: ' + ui_asset)
         if manifest.get('mode') == 'independent-dns':
-            for required in ('p25-settings.js', 'p25-settings.css'):
+            for required in ('svelte-mode.js', 'p25-settings.css'):
                 if required not in referenced.names:
                     raise ValueError('DEV settings UI not referenced: ' + required)
         print('DNS_ROUTER_UI_IPK_REFERENCED_ASSETS: PASS / ' + ', '.join(sorted(referenced.names)))

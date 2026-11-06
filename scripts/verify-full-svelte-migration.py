@@ -50,6 +50,10 @@ def inspect(name: str, root: Path) -> list[str]:
                 errors.append('SVELTE_IMPORT_MISSING')
             if not any(p.name in source for p in components):
                 errors.append('SVELTE_COMPONENT_NOT_MOUNTED')
+    if name == 'dns-router-lite' and (d / 'DnsLiteController.svelte').is_file():
+        controller = (d / 'DnsLiteController.svelte').read_text(encoding='utf-8')
+        if 'RF_ACTUAL_CONTROLLER_START' in controller:
+            errors.append('IMPERATIVE_CONTROLLER_STILL_EMBEDDED')
     for file in LEGACY_CONTROLLERS.get(name, ()):
         if (d / file).is_file():
             errors.append('LEGACY_CONTROLLER:' + file)

@@ -3,8 +3,18 @@ const test=require('node:test'),a=require('node:assert/strict'),fs=require('node
 const {JSDOM,VirtualConsole}=require('jsdom');
 const root=path.resolve(__dirname,'../frontend');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const js=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const js=actualController('DnsLiteController.svelte');
 const css=fs.readFileSync(path.join(root,'module.css'),'utf8');
+
+function actualController(name){
+  const source=fs.readFileSync(path.join(root,name),'utf8');
+  const start='/* RF_ACTUAL_CONTROLLER_START */';
+  const end='/* RF_ACTUAL_CONTROLLER_END */';
+  if(source.split(start).length!==2||source.split(end).length!==2) throw Error('SOURCE_COMPONENT_CONTROLLER_MARKERS_INVALID: '+name);
+  const body=source.split(start)[1].split(end)[0];
+  const m=source.match(/const state = \$state\((\{[^\n]+\})\);/);
+  return m ? body.replace('(() => {', '(() => {\n  const state = '+m[1]+';') : body;
+}
 const tick=()=>new Promise(r=>setTimeout(r,25));
 const until=async(p)=>{for(let i=0;i<45;i++){if(p())return;await tick();}throw Error('UI wait exceeded');};
 function fixture(options={}){

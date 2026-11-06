@@ -233,6 +233,7 @@
     $('importDomains').disabled=!editable;
     $('editorTitle').textContent=(meta?.name||'Основной список')+' · '+displayName(state.config.upstreams.find(u=>u.id===state.editing));
     if(!editable)$('editorHint').textContent='Этот URL/сложный список управляется отдельным механизмом. Ручное редактирование заблокировано.';
+    if(window.__rfDnsLiteNativeEditorLoaded)window.dispatchEvent(new Event('routerforge:dns-lite-editor-state'));
   }
   function switchList(key){
     if(editorPending()&&!confirm('Несохранённый текст текущего списка будет потерян. Переключить?')){$('listChoice').value=state.editingList;return;}
@@ -260,6 +261,7 @@
     state.editing=null;state.editingList='__legacy__';state.editorBase=null;
     $('listEditor').hidden=true;$('editorEmpty').hidden=false;
     $('selectedDNSBadge').textContent='DNS не выбран';render();
+    if(window.__rfDnsLiteNativeEditorLoaded)window.dispatchEvent(new Event('routerforge:dns-lite-editor-state'));
   }
   function saveList(){
     if(!state.editing)return;
@@ -594,7 +596,8 @@
   $('newProtocol').addEventListener('change',()=>{$('newAddress').placeholder=$('newProtocol').value==='doh'?'https://dns.example.com/dns-query':$('newProtocol').value==='udp'?'9.9.9.9':'dns.example.com';});
   on('inspectDNS',inspect,false);on('commitDNS',addDNS,false);
   $('listChoice').addEventListener('change',()=>switchList($('listChoice').value));on('newListButton',newList,false);on('renameListButton',renameList,false);on('deleteListButton',deleteList,false);$('closeEditor').addEventListener('click',closeEditor);$('editorDomains').addEventListener('input',()=>{$('editorCount').textContent=$('editorDomains').value.split(/\r?\n/).filter(x=>x.trim()).length+' строк (черновик)';if(state.status)renderGate(state.status);});on('saveDomains',saveList,false);
-  $('importDomains').addEventListener('click',()=>$('domainFile').click());$('domainFile').addEventListener('change',async()=>{const f=$('domainFile').files[0];if(!f)return;try{if(f.size>256*1024)throw Error('Максимум 256 КБ');const names=parseDomains(await f.text());$('editorDomains').value=names.join('\n');show('Импортировано '+names.length+' доменов. Нажми «Сохранить список».');}catch(e){show(e.message,'bad');}finally{$('domainFile').value='';}});
+  $('importDomains').addEventListener('click',()=>$('domainFile').click());$('domainFile').addEventListener('change',async()=>{const f=$('domainFile').files[0];if(!f)return;try{if(f.size>256*1024)throw Error('Максимум 256 КБ');const names=parseDomains(await f.text());$('editorDomains').value=names.join('\n');show('Импортировано '+names.length+' доменов. Нажми «Сохранить список».');
+        if(window.__rfDnsLiteNativeEditorLoaded)window.dispatchEvent(new Event('routerforge:dns-lite-editor-state'));}catch(e){show(e.message,'bad');}finally{$('domainFile').value='';}});
   $('exportDomains').addEventListener('click',()=>{if(!state.editing)return;const data=$('editorDomains').value;const url=URL.createObjectURL(new Blob([data.endsWith('\n')?data:data+'\n'],{type:'text/plain;charset=utf-8'}));try{const a=document.createElement('a');a.href=url;a.download='routerforge-domains.txt';a.click();}finally{URL.revokeObjectURL(url);}});
   $('defaultDNS').addEventListener('change',()=>{mark();});for(const id of ['serviceListen','cacheSize','allowedNetworks','p27RateLimit','p27RefuseAny','p27BogusIPs'])$(id).addEventListener('change',()=>{state.dirty=true;show('Есть несохранённые изменения. Действующий DNS не менялся.');$('applyButton').textContent='✓ Сохранить и применить';});
    for(const id of ['p241IPEnabled','p241IPMode','p242HealthEnabled','p242HealthProtocol','p242HealthPort','p242HealthInterval','p242HealthTimeout','p242HealthFailures','p243Scope','p243Domains','p243ListIDs','p243Recoveries','p243MinDown','p243HTTPPath'])$(id).addEventListener('change',()=>{try{if(id==='p241IPMode')$('p241IPEnabled').checked=true;if(id==='p241IPEnabled'&&!$('p241IPEnabled').checked)$('p242HealthEnabled').checked=false;syncPrefs();mark();}catch(err){show(err.message,'bad');}});
@@ -682,6 +685,19 @@
     let mode='basic';try{mode=localStorage.getItem('routerforge.dnsRouter.mode.v1')||mode;}catch(_){}p21SetMode(mode);
   }
 
+  // Read-only Svelte editor view of the existing protected draft controller.
+  window.__rfDnsLiteEditorSnapshot=()=>({
+    opened:Boolean(state.editing),
+    title:$('editorTitle').textContent,
+    dnsName:$('selectedDNSBadge').textContent,
+    choices:[...$('listChoice').options].map(o=>({id:o.value,label:o.textContent})),
+    selected:$('listChoice').value,
+    domains:$('editorDomains').value,
+    renameName:$('listRenameName').value,
+    editable:!$('editorDomains').readOnly,
+    named:!$('listRenameName').disabled,
+    hint:$('editorHint').textContent
+  });
   p21Setup();
   const root=document.documentElement,params=new URLSearchParams(window.location.search);
   function syncTheme(){try{if(window.parent===window)return;const host=window.parent.document.documentElement,computed=window.parent.getComputedStyle(host);for(const token of ['--rf-bg','--rf-surface','--rf-surface-2','--rf-text','--rf-muted','--rf-border','--rf-border-strong','--rf-hover','--rf-accent','--rf-accent-soft','--rf-success','--rf-danger','--rf-radius-panel','--rf-radius-control','--rf-ui-panel-radius','--rf-ui-control-radius','--rf-ui-control-h']){const val=computed.getPropertyValue(token).trim();if(val)root.style.setProperty(token,val);}root.style.colorScheme=computed.colorScheme==='light'?'light':'dark';}catch(_){}}

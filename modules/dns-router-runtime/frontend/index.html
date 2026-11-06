@@ -243,6 +243,7 @@
 
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 01</span><h2>Upstream-пулы</h2><p>DNS-серверы, транспорт и явно заданные резервные цепочки.</p></div></div>
+      <div id="rf-dns-runtime-svelte-upstream-form"></div>
       <form id="upstreamForm" class="form-grid fields-upstream">
         <label><span>ID пула</span><input name="id" required maxlength="64" placeholder="cloudflare"></label>
         <label><span>Протокол</span><select name="transport"><option value="dot">DoT (TLS)</option><option value="doh">DoH (HTTPS)</option><option value="doq">DoQ (QUIC)</option><option value="native">Keenetic Native (локальный stubby, experimental)</option><option value="udp" hidden>UDP (открытый)</option><option value="tcp" hidden>TCP (открытый)</option></select></label>
@@ -270,6 +271,7 @@
     </section>
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">ПОЛИТИКИ / 02</span><h2>Доменные правила</h2><p>Правила применяются по приоритету к выбранным upstream-пулам.</p></div></div>
+      <div id="rf-dns-runtime-svelte-rule-form"></div>
       <form id="ruleForm" class="form-grid fields-rule">
         <label><span>ID правила</span><input name="id" required maxlength="64" placeholder="main-site"></label>
         <label><span>Домен</span><input name="domain" required placeholder="example.com"></label>
@@ -308,6 +310,7 @@
   <div class="tab-page" data-page="keenetic" id="dr-panel-keenetic" role="tabpanel" aria-labelledby="dr-tab-keenetic" tabindex="0">
     <section class="panel">
       <div class="panel-head"><div><span class="section-kicker">ИНТЕГРАЦИЯ / ЧЕРНОВИК</span><h2>Настройки listener</h2><p>Сохранение адреса и ACL не запускает DNS и не меняет настройки Keenetic.</p></div><span class="state safe">БЕЗ АКТИВАЦИИ</span></div>
+      <div id="rf-dns-runtime-svelte-listener-form"></div>
       <form id="listenerForm" class="form-grid">
         <label><span>Режим</span><select name="mode" id="listenerMode"><option value="loopback">Только loopback</option><option value="lan">Приватный IPv4 LAN + ACL</option></select></label>
         <label><span>Адрес и порт (не 53)</span><input name="listen" id="listenerListen" placeholder="127.0.0.1:55353" required></label>

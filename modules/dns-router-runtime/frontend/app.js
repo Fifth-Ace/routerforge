@@ -46,6 +46,11 @@
   }
   function render() {
     optionSelect('ruleUpstream'); optionSelect('importUpstream');
+    if(window.__rfDNSRuntimeSvelteFormsLoaded){
+      window.dispatchEvent(new CustomEvent('routerforge:dns-runtime-form-state',{
+        detail:window.__rfDNSRuntimeFormsSnapshot?.()
+      }));
+    }
     table('upstreamList',['ID','Протокол','Адрес','SNI','DoH path','Резерв'],config.upstreams.map(u=>[u.id,u.transport,u.address,u.server_name||'—',u.path||'—',(u.fallbacks||[]).join(', ')||'—']),i=>{
       const id = config.upstreams[i].id;
       if ((config.service && config.service.default_upstream===id) || config.rules.some(r=>r.upstream===id) || config.upstreams.some(u=>(u.fallbacks||[]).includes(id)) || (config.dns_groups||[]).some(g=>g.servers.includes(id))) {feedback('Нельзя удалить используемый пул. Сначала убери правила и резервные ссылки.');return;}
@@ -1333,6 +1338,11 @@
   });
   el('drLiteDisconnect').addEventListener('click',async()=>{try{await liteCommand('disconnect',{operation:'disconnect'});feedback('Прежнее назначение DNS устройства восстановлено.');}catch(e){feedback('Отключение: '+e.message);}finally{await liteRefresh();}});
 
+  // Read-only state bridge: Svelte submits to legacy draft forms, not HTTP.
+  window.__rfDNSRuntimeFormsSnapshot=()=>({
+    upstreams:config.upstreams.map(u=>({id:u.id})),
+    listener:config.listener||{mode:'loopback',listen:'127.0.0.1:55353',allowed_clients:[]}
+  });
   load().catch(err=>feedback('Ошибка загрузки: '+err.message));
   shadowRefresh().catch(()=>{});
 })();

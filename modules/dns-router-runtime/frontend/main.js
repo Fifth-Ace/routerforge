@@ -2,6 +2,7 @@ import { mount, flushSync } from 'svelte';
 import DnsRuntimeMode from './DnsRuntimeMode.svelte';
 import DnsRuntimeDiagnostics from './DnsRuntimeDiagnostics.svelte';
 import DnsRuntimeTables from './DnsRuntimeTables.svelte';
+import DnsRuntimePolicyForms from './DnsRuntimePolicyForms.svelte';
 const target = document.getElementById('rf-dns-runtime-svelte-mode');
 if (!target) throw Error('DNS_RUNTIME_SVELTE_MODE_MOUNT_MISSING');
 target.replaceChildren();
@@ -21,3 +22,9 @@ for(const tableTarget of ['upstreamList','ruleList']){
 }
 flushSync();
 window.__rfDNSRuntimeSvelteTablesLoaded=true;
+for(const scope of ['upstream','rule','listener']){
+  const target=document.getElementById('rf-dns-runtime-svelte-'+scope+'-form');
+  if(!target)throw Error('DNS_RUNTIME_SVELTE_FORM_MOUNT_MISSING: '+scope);
+  mount(DnsRuntimePolicyForms,{target,props:{scope}});
+}
+flushSync();

@@ -527,6 +527,7 @@
   function formatTime(s){try{return new Date(s).toLocaleTimeString('ru-RU',{hour12:false})}catch(_){return s}}
   const qtypeName=n=>({1:'A',28:'AAAA',15:'MX',16:'TXT',5:'CNAME',12:'PTR',33:'SRV',65:'HTTPS',64:'SVCB',255:'ANY'}[n]||'TYPE '+(n??'—'));
   function renderLogs(){
+    if(window.__rfDnsLiteSvelteLogLoaded)return; // P9: native reactive log renderer owns rows and captions
     let traces=(state.logPaused?state.frozenLogs:state.logs).slice().reverse();
     const filter=$('logFilter').value.trim().toLowerCase(),kind=$('logType').value;
     if(filter)traces=traces.filter(t=>[t.name,t.client,t.device_name,t.device_mac,t.assigned,t.used,t.assigned_endpoint,t.used_endpoint,traceEndpoint(t,'assigned'),traceEndpoint(t,'used')].some(s=>String(s||'').toLowerCase().includes(filter)));
@@ -555,6 +556,7 @@
     }
   }
   async function refreshLogs(){
+    if(window.__rfDnsLiteSvelteLogLoaded)return; // P9: native bounded GET polling owns traces
     if(state.logPaused)return;
     const t=await api('service/traces');state.logs=Array.isArray(t.traces)?t.traces:[];
     renderLogs();$('logUpdated').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour12:false});

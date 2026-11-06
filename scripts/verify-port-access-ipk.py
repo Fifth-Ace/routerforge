@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import tarfile
 
-EXPECTED_UI = {'index.html','app.js','module.css',
+EXPECTED_UI = {'index.html','module.css',
     'ui-rebuild.js','ui-rebuild.css',
     'p39-compact.js','p39-compact.css','p53-ux.js','p53-ux.css','p54-workspace.js','p54-workspace.css','p55-antiscan.js','p55-antiscan.css','svelte-status.js'}
 ROOT = 'opt/share/routerforge/modules/port-access-manager/'
@@ -90,6 +90,8 @@ def verify(path):
         raise ValueError('legacy engine controller shipped')
     if ROOT+'ui/odin-ui.js' in files:
         raise ValueError('legacy odin controller still packaged')
+    if ROOT+'ui/app.js' in files:
+        raise ValueError('legacy Port Access app.js still packaged')
     bundle = data[ROOT+'ui/svelte-status.js'][1]
     if len(bundle) < 3000 or b'PORT_ACCESS_SVELTE_MOUNT_MISSING' not in bundle or b'PORT_ACCESS_SVELTE_LOG_MOUNT_MISSING' not in bundle:
         raise ValueError('missing real compiled Svelte entrypoint')

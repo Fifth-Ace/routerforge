@@ -1,5 +1,6 @@
 import { mount, flushSync } from 'svelte';
 import PortAccessEngineWorkspace from './PortAccessEngineWorkspace.svelte';
+import PortAccessEngineering from './PortAccessEngineering.svelte';
 import PortAccessStatus from './PortAccessStatus.svelte';
 import PortAccessOdin from './PortAccessOdin.svelte';
 import PortAccessOperationLog from './PortAccessOperationLog.svelte';
@@ -15,6 +16,9 @@ mount(PortAccessEngineWorkspace, { target: engineTarget });
 const odinTarget = document.getElementById('pa-svelte-odin');
 if (!odinTarget) throw new Error('PORT_ACCESS_ODIN_MOUNT_MISSING');
 mount(PortAccessOdin, { target: odinTarget });
+const engineeringTarget = document.getElementById('pa-svelte-engineering');
+if (!engineeringTarget) throw new Error('PORT_ACCESS_ENGINEERING_MOUNT_MISSING');
+mount(PortAccessEngineering, { target: engineeringTarget });
 // The retained layout controller follows this bundle in document order.
 // Ensure all Svelte-owned sections exist before it rearranges them.
 flushSync();

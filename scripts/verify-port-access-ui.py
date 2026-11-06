@@ -70,7 +70,7 @@ def main():
             bool(button) and button.get('type') in (None, 'button'),
             'safe action button ' + id_
         )
-    scripts = ['svelte-status.js','app.js','ui-rebuild.js',
+    scripts = ['svelte-status.js','ui-rebuild.js',
                'p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
     check(len(scripts) == len(set(scripts)) and dom.scripts == scripts, 'ordered unique frontend script imports')
     check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
@@ -86,10 +86,10 @@ def main():
     for name in scripts:
         check(name in build, 'IPK build ships ' + name)
     svelte = (FRONT / 'PortAccessStatus.svelte').read_text(encoding='utf-8')
-    legacy = (FRONT / 'app.js').read_text(encoding='utf-8')
+    engineering = (FRONT / 'PortAccessEngineering.svelte').read_text(encoding='utf-8')
     check('id="pa-svelte-status"' in HTML.read_text(encoding='utf-8'), 'native Svelte status mount')
     check('$state(' in svelte and 'onMount(' in svelte and 'refreshPreflight' in svelte and 'refreshStatus' in svelte, 'Svelte state owns status and preflight')
-    check('renderStatus(' not in legacy and 'refreshPreflight(' not in legacy, 'legacy status controllers removed')
+    check(not (FRONT / 'app.js').exists(), 'legacy app controller removed')
     check('npm run build' in build and 'build/svelte-status.js' in build, 'compiled Svelte IPK asset')
     js = (FRONT / 'ui-rebuild.js').read_text(encoding='utf-8')
     wiz = (FRONT / 'PortAccessEngineWorkspace.svelte').read_text(encoding='utf-8')
@@ -120,6 +120,31 @@ def main():
     check('rfpa:service-state' in wiz and 'rfpa:preview-ok' in wiz and 'rfpa:deploy-state' in wiz, 'external integration events preserved')
     check('base_sha256' in wiz and 'SAVE_CONFIG' in wiz and 'RESTORE_CONFIG' in wiz, 'config CAS and confirmation preserved')
     check('watchdog' in wiz and 'credential_once' in wiz and 'replace_existing' in wiz, 'deploy watchdog/credential/replace contract preserved')
+    # P5 native engineering screens replace the entire old app.js controller and HTML sections.
+    engineering_ids = ['tab-knockd','tab-fwknopd','tab-iptables-recent',
+        'panel-knockd','panel-fwknopd','panel-iptables-recent','knock-wan',
+        'knock-public-port','knock-nat-check','knock-nat-result','knock-check-all',
+        'knock-forward-check','knock-forward-result','validation','preview',
+        'staging-panel','staged-id','staged-save','staged-refresh','staged-message',
+        'staged-list','staged-assessment','recent-live-panel','recent-live-refresh',
+        'recent-live-status','recent-live-list']
+    for id_ in engineering_ids:
+        owned = ('id="' + id_ + '"') in engineering or (id_.startswith('tab-') and "id={'tab-' + kind.id}" in engineering)
+        check(owned and not dom.ids.get(id_), 'P5 Svelte engineering ID ' + id_)
+    check('id="pa-svelte-engineering"' in HTML.read_text(encoding='utf-8')
+          and 'mount(PortAccessEngineering' in entry, 'P5 native Svelte engineering mount')
+    check('$state(' in engineering and 'onMount(' in engineering
+          and 'function activate(' in engineering and 'function renderPreview(' in engineering,
+          'P5 reactive engineering tabs and preview')
+    check(all(x in engineering for x in ('staged-rules','staged-assessment','recent-access',
+          'recent-revoke','forward-order','nat-evidence','knock-preview')),
+          'P5 actual API workflows preserved')
+    check(all(x in engineering for x in ('firewall_mutation !== false','ready_for_apply !== false',
+          'deployment_blocked !== true','observed_only !== true',"confirm:'REVOKE'")),
+          'P5 strict readonly and revoke gate preserved')
+    check('app.js' not in HTML.read_text(encoding='utf-8')
+          and 'app.js' not in build.split('for file in ', 1)[1].split('; do', 1)[0],
+          'P5 no legacy app shipped')
     check('operation-logs' in log and 'window.setInterval(refresh, 2000)' in log, 'read-only live log polling')
     check('navigator.clipboard.writeText' in log and 'pa-log-pause' in log, 'live logs pause/copy controls')
     # Prevent accidentally introducing destructive UI workflows in a front-end-only acceptance patch.

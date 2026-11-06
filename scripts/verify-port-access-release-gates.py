@@ -50,7 +50,17 @@ def main():
          and all(s in shipped_names or (s == compiled and compiled_shipped) for s in script_src))
     gate('compiled Svelte 5 bundle has exact build and IPK copy contract', compiled_shipped)
     gate('frontend CSS shipped', all(s in shipped_names for s in ('module.css','ui-rebuild.css','p39-compact.css')))
-    gate('operation-log.js shipped', 'operation-log.js' in shipped_names and (FRONT/'operation-log.js').is_file())
+    # Old controller was removed; the live operations log now mounts as native Svelte.
+    log_component = FRONT / 'PortAccessOperationLog.svelte'
+    log_source = log_component.read_text(encoding='utf-8') if log_component.is_file() else ''
+    entry_source = bundle_entry.read_text(encoding='utf-8') if bundle_entry.is_file() else ''
+    gate('native operation log included in compiled Svelte bundle',
+         'operation-log.js' not in shipped_names and 'operation-log.js' not in script_src
+         and not (FRONT / 'operation-log.js').exists()
+         and 'PortAccessOperationLog.svelte' in entry_source
+         and 'mount(PortAccessOperationLog' in entry_source
+         and 'window.setInterval(refresh, 2000)' in log_source
+         and 'window.clearInterval(interval)' in log_source)
     gate('no missing packaged frontend asset', all((FRONT / name).is_file() for name in shipped_names))
     gate('runtime and watchdog are built into IPK', all(x in build for x in ('./modules/port-access-manager/runtime','./modules/port-access-manager/watchdog','routerforge-port-access-watchdog')))
     gate('manifest and dependency declared', 'manifest.json' in build and 'Depends: routerforge-core' in build and 'routerforge-port-access-manager.sock' in build)

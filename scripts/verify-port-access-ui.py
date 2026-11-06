@@ -63,7 +63,7 @@ def main():
             'safe action button ' + id_
         )
     scripts = ['app.js','config-editor.js','odin-ui.js','ui-rebuild.js',
-               'engine-wizard.js','operation-log.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js','svelte-status.js']
+               'engine-wizard.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js','svelte-status.js']
     check(dom.scripts == scripts, 'ordered frontend script imports')
     check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
     check('p54-workspace.css' in HTML.read_text(encoding='utf-8'), 'P54 stylesheet linked')
@@ -85,14 +85,20 @@ def main():
     check('npm run build' in build and 'build/svelte-status.js' in build, 'compiled Svelte IPK asset')
     js = (FRONT / 'ui-rebuild.js').read_text(encoding='utf-8')
     wiz = (FRONT / 'engine-wizard.js').read_text(encoding='utf-8')
-    log = (FRONT / 'operation-log.js').read_text(encoding='utf-8')
+    log = (FRONT / 'PortAccessOperationLog.svelte').read_text(encoding='utf-8')
+    entry = (FRONT / 'status-main.js').read_text(encoding='utf-8')
+    check(not (FRONT / 'operation-log.js').exists(), 'old log controller removed')
+    check('id="pa-svelte-log"' in HTML.read_text(encoding='utf-8') and 'PortAccessOperationLog.svelte' in entry and 'mount(PortAccessOperationLog' in entry, 'Svelte operation log mount')
+    check('$state(' in log and 'onMount(' in log and 'window.clearInterval(interval)' in log, 'native reactive live log with cleanup')
+    check('data.scope' in log and "data.scope !== 'operations'" in log and 'Number.isSafeInteger(entry.id)' in log, 'read-only log API validation')
+    check('operation-log.js' not in BUILD.read_text(encoding='utf-8').split('for file in ', 1)[1].split('; do', 1)[0], 'legacy log excluded from IPK copy list')
     check("var options=[{id:'odin'" in js and "{id:'knockd'" in js and "{id:'fwknopd'" in js, 'engine choice wiring')
     check("selector.value=id" in js and "selector.dispatchEvent" in js, 'engine selector synchronizes with wizard')
     check("engine.value === 'knockd' ?" in wiz, 'knock fields gated to knockd')
     check("lastValidatedRequest" in wiz, 'wizard validates before using draft')
     for item in ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable']:
         check(item in wiz, 'wizard handler for '+item)
-    check('operation-logs' in log and 'setInterval(refresh, 2000)' in log, 'read-only live log polling')
+    check('operation-logs' in log and 'window.setInterval(refresh, 2000)' in log, 'read-only live log polling')
     check('navigator.clipboard.writeText' in log and 'pa-log-pause' in log, 'live logs pause/copy controls')
     # Prevent accidentally introducing destructive UI workflows in a front-end-only acceptance patch.
     check('document.write(' not in js and 'eval(' not in js, 'no dynamic document writes or eval')

@@ -888,17 +888,25 @@
       p88Id('drSimpleState').textContent='Не удалось прочитать Keenetic: '+err.message;
     }finally{p88.loading=false;p88Id('drSimpleScan').disabled=false;}
   }
-  p88Id('drModeSimple').addEventListener('click',()=>{
-    p88Id('drAdvancedWorkspace').hidden=true;p88Id('drSimpleWorkspace').hidden=false;
-    p88Id('dnsRouterWorkspace').classList.remove('dr-mode-advanced');
-    p88Id('drModeSimple').setAttribute('aria-pressed','true');p88Id('drModeAdvanced').setAttribute('aria-pressed','false');
-    p88RenderRules();p88RefreshStatus();
-  });
-  p88Id('drModeAdvanced').addEventListener('click',()=>{
-    p88Id('drSimpleWorkspace').hidden=true;p88Id('drAdvancedWorkspace').hidden=false;
-    p88Id('dnsRouterWorkspace').classList.add('dr-mode-advanced');
-    p88Id('drModeSimple').setAttribute('aria-pressed','false');p88Id('drModeAdvanced').setAttribute('aria-pressed','true');
-  });
+  // The actual mode buttons and visibility state now belong to Svelte 5.
+  // Keep only backend-specific read-only refresh on simple-mode entry.
+  if (!window.__rfDNSRuntimeSvelteLoaded) {
+    p88Id('drModeSimple').addEventListener('click',()=>{
+      p88Id('drAdvancedWorkspace').hidden=true;p88Id('drSimpleWorkspace').hidden=false;
+      p88Id('dnsRouterWorkspace').classList.remove('dr-mode-advanced');
+      p88Id('drModeSimple').setAttribute('aria-pressed','true');p88Id('drModeAdvanced').setAttribute('aria-pressed','false');
+      p88RenderRules();p88RefreshStatus();
+    });
+    p88Id('drModeAdvanced').addEventListener('click',()=>{
+      p88Id('drSimpleWorkspace').hidden=true;p88Id('drAdvancedWorkspace').hidden=false;
+      p88Id('dnsRouterWorkspace').classList.add('dr-mode-advanced');
+      p88Id('drModeSimple').setAttribute('aria-pressed','false');p88Id('drModeAdvanced').setAttribute('aria-pressed','true');
+    });
+  } else {
+    document.addEventListener('routerforge:dns-runtime-mode', event => {
+      if (event.detail?.mode === 'simple') { p88RenderRules(); p88RefreshStatus(); }
+    });
+  }
 
   // P9.1: AWG-style guided entry. Server URL/name is the only required input.
   // Explicit lookup resolves IP, checks DoT/DoH TLS, then saves a config draft.

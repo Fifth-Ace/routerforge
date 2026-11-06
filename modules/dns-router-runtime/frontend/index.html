@@ -14,7 +14,7 @@
       <p>Управление DNS-пулами, доменными маршрутами и безопасным тестовым DNS-сервисом.</p>
     </div>
     <div class="hero-actions">
-      <div class="dr-mode-toggle" aria-label="Режим интерфейса"><button type="button" id="drModeSimple" aria-pressed="true">Простой</button><button type="button" id="drModeAdvanced" aria-pressed="false">Расширенный</button></div>
+      <div id="rf-dns-runtime-svelte-mode" class="dr-mode-toggle" aria-label="Режим интерфейса"><button type="button" id="drModeSimple" aria-pressed="true">Простой</button><button type="button" id="drModeAdvanced" aria-pressed="false">Расширенный</button></div>
       <span class="state neutral" id="shadowBadge">SHADOW · ПРОВЕРКА</span>
       <span class="state safe" id="drP10NativeBadge">ШТАТНЫЙ DNS НЕ ЗАТРОНУТ</span>
       <button type="button" id="reloadButton" class="button">↻ Обновить</button>
@@ -362,6 +362,7 @@
   </footer>
   </div><!-- drAdvancedWorkspace: original controls preserved -->
 </main>
+<script defer src="svelte-mode.js"></script>
 <script defer src="app.js"></script>
 </body>
 </html>

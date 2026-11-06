@@ -54,10 +54,20 @@ UI_SOURCE="$ROOT/modules/dns-router-runtime/frontend"
 if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
   UI_SOURCE="$ROOT/modules/dns-router-lite/frontend"
 fi
+# Both DEV Lite and legacy experimental Runtime compile native Svelte 5 mode/status.
+# Dependencies are local to the disposable checkout or CI workspace only.
+command -v npm >/dev/null 2>&1 || { echo 'DNS_SVELTE_NPM_REQUIRED' >&2; exit 1; }
+if [ ! -d "$UI_SOURCE/node_modules" ]; then
+  (cd "$UI_SOURCE" && npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund)
+fi
+(cd "$UI_SOURCE" && npm run build)
+test -s "$UI_SOURCE/build/svelte-mode.js"
 for file in index.html app.js module.css; do
   cp "$UI_SOURCE/$file" \
      "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"
 done
+cp "$UI_SOURCE/build/svelte-mode.js" "$WORK/data/opt/share/routerforge/modules/dns-router/ui/svelte-mode.js"
+test -s "$WORK/data/opt/share/routerforge/modules/dns-router/ui/svelte-mode.js"
 # P22 FIX2: the visual enhancer is referenced by the DEV HTML and MUST ship
 # in the same IPK. Experimental/Beta legacy UI remains unchanged.
 if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
@@ -111,6 +121,23 @@ printf '2.0\n' > "$WORK/debian-binary"
 (cd "$WORK/control" && tar --owner=0 --group=0 --numeric-owner -czf "$WORK/control.tar.gz" .)
 (cd "$WORK" && tar --owner=0 --group=0 --numeric-owner -czf "$OUT" ./debian-binary ./control.tar.gz ./data.tar.gz)
 test -s "$OUT"
+# Fail closed on actual packaged Svelte bundle (DEV Lite and experimental Runtime).
+python3 - "$OUT" <<'PY_DNS_SVELTE_IPK'
+import io, pathlib, sys, tarfile
+path=pathlib.Path(sys.argv[1]); prefix='opt/share/routerforge/modules/dns-router/ui/'
+with tarfile.open(path,'r:gz') as archive:
+    data=next(m for m in archive if m.name.lstrip('./')=='data.tar.gz')
+    raw=archive.extractfile(data).read()
+with tarfile.open(fileobj=io.BytesIO(raw), mode='r:gz') as content:
+    scripts={m.name.lstrip('./'):content.extractfile(m).read() for m in content if m.isfile() and m.name.lstrip('./').startswith(prefix)}
+html=scripts.get(prefix+'index.html',b'')
+asset=scripts.get(prefix+'svelte-mode.js',b'')
+if b'src="svelte-mode.js"' not in html or len(asset)<3000:
+    raise SystemExit('DNS_NATIVE_SVELTE_IPK: FAIL: compiled entry missing')
+if b'DNS_LITE_SVELTE_MODE_MOUNT_MISSING' not in asset and b'DNS_RUNTIME_SVELTE_MODE_MOUNT_MISSING' not in asset:
+    raise SystemExit('DNS_NATIVE_SVELTE_IPK: FAIL: bundle mount marker missing')
+print('DNS_NATIVE_SVELTE_IPK: PASS')
+PY_DNS_SVELTE_IPK
 # Verify the ACTUAL DEV IPK, not just source files. Every local script/style
 # referenced in the shipped HTML must exist and be nonempty in data.tar.gz.
 if [ "$ROUTERFORGE_CHANNEL" = dev ]; then

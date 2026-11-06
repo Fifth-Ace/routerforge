@@ -37,29 +37,33 @@
     return typeof raw === 'string' && /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(raw)
       ? raw.toLowerCase() : '';
   }
-  function setMode(mode) {
-    const advanced = mode === 'advanced';
-    basicButton.setAttribute('aria-pressed',String(!advanced));
-    advancedButton.setAttribute('aria-pressed',String(advanced));
-    basicButton.classList.toggle('selected',!advanced);
-    advancedButton.classList.toggle('selected',advanced);
-  }
   function chooseMode(mode) {
     nativeSelect.value = mode;
     nativeSelect.dispatchEvent(new Event('change',{bubbles:true}));
-    setMode(mode);
     if (mode === 'advanced') refreshDevices();
   }
-  basicButton.addEventListener('click',()=>chooseMode('basic'));
-  advancedButton.addEventListener('click',()=>chooseMode('advanced'));
-  nativeSelect.addEventListener('change',()=>{
-    setMode(nativeSelect.value);
-    // Advanced means the Advanced workspace, not the legacy DNS overview.
-    if (nativeSelect.value === 'advanced') tabs.devices.click();
-  });
-  const modeObserver = new MutationObserver(()=>setMode(app.dataset.dnsMode));
-  modeObserver.observe(app,{attributes:true,attributeFilter:['data-dns-mode']});
-  setMode(app.dataset.dnsMode);
+  if (!window.__rfDnsLiteSvelteLoaded) {
+    function setMode(mode) {
+      const advanced = mode === 'advanced';
+      basicButton.setAttribute('aria-pressed',String(!advanced));
+      advancedButton.setAttribute('aria-pressed',String(advanced));
+      basicButton.classList.toggle('selected',!advanced);
+      advancedButton.classList.toggle('selected',advanced);
+    }
+    basicButton.addEventListener('click',()=>chooseMode('basic'));
+    advancedButton.addEventListener('click',()=>chooseMode('advanced'));
+    nativeSelect.addEventListener('change',()=>{
+      setMode(nativeSelect.value);
+      if (nativeSelect.value === 'advanced') tabs.devices.click();
+    });
+    const modeObserver = new MutationObserver(()=>setMode(app.dataset.dnsMode));
+    modeObserver.observe(app,{attributes:true,attributeFilter:['data-dns-mode']});
+    setMode(app.dataset.dnsMode);
+  } else {
+    nativeSelect.addEventListener('change',()=>{
+      if (nativeSelect.value === 'advanced') tabs.devices.click();
+    });
+  }
 
   // P23: each advanced tab is a separate view, never one long page.
   // P21 still owns page transitions, form state and all mutations.

@@ -16,8 +16,7 @@ func readLocalizationFixture(t *testing.T, path string) string {
 }
 
 func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
-	html := readLocalizationFixture(t, "../antiscan-manager/frontend/index.html")
-	js := readLocalizationFixture(t, "../antiscan-manager/frontend/app.js")
+	js := readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanManagerApp.svelte")
 
 	requiredHTML := []string{
 		"Управление Antiscan",
@@ -30,7 +29,8 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"ШТАТНАЯ ОЧИСТКА / ВОССТАНОВЛЕНИЕ",
 		"Совместимость и обновления",
 		"RouterForge не устанавливает обновления Antiscan",
-		"data-tab=\"geo\">Geo</button>",
+		"data-tab=\"geo\"",
+		"chooseTab(\"geo\")",
 		"Добавить адрес",
 		"Применение настроек",
 		"Учтённый функционал upstream",
@@ -39,7 +39,7 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"ИСТОРИЯ ОПЕРАЦИЙ",
 	}
 	for _, needle := range requiredHTML {
-		if !strings.Contains(html, needle) {
+		if !strings.Contains(js, needle) {
 			t.Fatalf("localized HTML contract missing %q", needle)
 		}
 	}
@@ -79,7 +79,7 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 
 func TestAntiscanFrontendRejectsRemovedOrDeveloperCopy(t *testing.T) {
 	combined := readLocalizationFixture(t, "../antiscan-manager/frontend/index.html") + "\n" +
-		readLocalizationFixture(t, "../antiscan-manager/frontend/app.js")
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanManagerApp.svelte")
 
 	forbidden := []string{
 		"ЗАЩИЩЁННОЕ УПРАВЛЕНИЕ",

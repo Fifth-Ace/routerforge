@@ -49,6 +49,12 @@ def main():
          bool(script_src) and len(script_src) == len(set(script_src))
          and all(s in shipped_names or (s == compiled and compiled_shipped) for s in script_src))
     gate('compiled Svelte 5 bundle has exact build and IPK copy contract', compiled_shipped)
+    gate('native Svelte engine workspace source present',
+         (FRONT/'PortAccessEngineWorkspace.svelte').is_file()
+         and not (FRONT/'engine-wizard.js').exists()
+         and not (FRONT/'config-editor.js').exists()
+         and 'PortAccessEngineWorkspace.svelte' in (FRONT/'status-main.js').read_text(encoding='utf-8')
+         and all(x not in build for x in (' config-editor.js ', ' engine-wizard.js ')))
     gate('frontend CSS shipped', all(s in shipped_names for s in ('module.css','ui-rebuild.css','p39-compact.css')))
     # Old controller was removed; the live operations log now mounts as native Svelte.
     log_component = FRONT / 'PortAccessOperationLog.svelte'

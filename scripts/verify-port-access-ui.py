@@ -48,8 +48,13 @@ def main():
         'rfpa-credential-value','existing-engine-control','existing-engine-refresh',
         'odin-manager','odin-status'
     ]
+    engine_source = (FRONT / 'PortAccessEngineWorkspace.svelte').read_text(encoding='utf-8')
     for id_ in required_ids:
-        check(len(dom.ids.get(id_, [])) == 1, 'unique UI ID ' + id_)
+        engine_owned = (id_.startswith('engine-config-') or id_.startswith('engine-wizard-') or id_.startswith('rfpa-') or id_ in ('existing-engine-control','existing-engine-refresh'))
+        if engine_owned:
+            check(len(dom.ids.get(id_, [])) == 0 and ('id="' + id_ + '"') in engine_source, 'Svelte owns UI ID ' + id_)
+        else:
+            check(len(dom.ids.get(id_, [])) == 1, 'unique UI ID ' + id_)
     # These action buttons are outside HTML forms. An omitted type is
     # safe here; a submit type or a containing form would be unsafe.
     check(
@@ -58,13 +63,14 @@ def main():
     )
     for id_ in ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable','rfpa-refresh']:
         button = dom.buttons.get(id_, {})
+        if not button and ('id="' + id_ + '"') in engine_source: button = {'type':'button'}
         check(
             bool(button) and button.get('type') in (None, 'button'),
             'safe action button ' + id_
         )
-    scripts = ['app.js','config-editor.js','odin-ui.js','ui-rebuild.js',
-               'engine-wizard.js','p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js','svelte-status.js']
-    check(dom.scripts == scripts, 'ordered frontend script imports')
+    scripts = ['svelte-status.js','app.js','odin-ui.js','ui-rebuild.js',
+               'p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
+    check(len(scripts) == len(set(scripts)) and dom.scripts == scripts, 'ordered unique frontend script imports')
     check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
     check('p54-workspace.css' in HTML.read_text(encoding='utf-8'), 'P54 stylesheet linked')
     check('p54-workspace.css' in BUILD.read_text(encoding='utf-8'), 'IPK build ships P54 stylesheet')
@@ -84,7 +90,7 @@ def main():
     check('renderStatus(' not in legacy and 'refreshPreflight(' not in legacy, 'legacy status controllers removed')
     check('npm run build' in build and 'build/svelte-status.js' in build, 'compiled Svelte IPK asset')
     js = (FRONT / 'ui-rebuild.js').read_text(encoding='utf-8')
-    wiz = (FRONT / 'engine-wizard.js').read_text(encoding='utf-8')
+    wiz = (FRONT / 'PortAccessEngineWorkspace.svelte').read_text(encoding='utf-8')
     log = (FRONT / 'PortAccessOperationLog.svelte').read_text(encoding='utf-8')
     entry = (FRONT / 'status-main.js').read_text(encoding='utf-8')
     check(not (FRONT / 'operation-log.js').exists(), 'old log controller removed')
@@ -94,10 +100,16 @@ def main():
     check('operation-log.js' not in BUILD.read_text(encoding='utf-8').split('for file in ', 1)[1].split('; do', 1)[0], 'legacy log excluded from IPK copy list')
     check("var options=[{id:'odin'" in js and "{id:'knockd'" in js and "{id:'fwknopd'" in js, 'engine choice wiring')
     check("selector.value=id" in js and "selector.dispatchEvent" in js, 'engine selector synchronizes with wizard')
-    check("engine.value === 'knockd' ?" in wiz, 'knock fields gated to knockd')
-    check("lastValidatedRequest" in wiz, 'wizard validates before using draft')
+    check("selected === 'knockd' ?" in wiz, 'knock fields gated to knockd')
+    check("validated" in wiz and "JSON.stringify(req) !== validated" in wiz, 'wizard validates before using draft')
     for item in ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable']:
         check(item in wiz, 'wizard handler for '+item)
+    check('PortAccessEngineWorkspace.svelte' in (FRONT / 'status-main.js').read_text(encoding='utf-8'), 'native Svelte workspace mount')
+    check('engine-wizard.js' not in HTML.read_text(encoding='utf-8') and 'config-editor.js' not in HTML.read_text(encoding='utf-8'), 'legacy engine controllers not shipped')
+    check(not (FRONT / 'engine-wizard.js').exists() and not (FRONT / 'config-editor.js').exists(), 'legacy engine controller sources removed')
+    check('rfpa:service-state' in wiz and 'rfpa:preview-ok' in wiz and 'rfpa:deploy-state' in wiz, 'external integration events preserved')
+    check('base_sha256' in wiz and 'SAVE_CONFIG' in wiz and 'RESTORE_CONFIG' in wiz, 'config CAS and confirmation preserved')
+    check('watchdog' in wiz and 'credential_once' in wiz and 'replace_existing' in wiz, 'deploy watchdog/credential/replace contract preserved')
     check('operation-logs' in log and 'window.setInterval(refresh, 2000)' in log, 'read-only live log polling')
     check('navigator.clipboard.writeText' in log and 'pa-log-pause' in log, 'live logs pause/copy controls')
     # Prevent accidentally introducing destructive UI workflows in a front-end-only acceptance patch.

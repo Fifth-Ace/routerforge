@@ -49,61 +49,7 @@
 <div class="refresh-bar"><button type="button" id="recent-live-refresh">↻ Обновить авторизованные IP</button><span id="recent-live-status" role="status" class="muted"></span></div>
 <div id="recent-live-list" aria-live="polite"></div>
 </section>
-<section class="panel" id="existing-engine-control" aria-labelledby="existing-engine-title">
-<h2 id="existing-engine-title">Установленные движки · Entware</h2>
-<p class="help">Управление уже установленными службами knockd и fwknopd через их init-скрипты. Настройки и правила firewall здесь не создаются; запуск применит имеющуюся конфигурацию службы.</p>
-<p class="help">Политика остановки: <strong>не выполнять дополнительную очистку firewall (по умолчанию)</strong>. Штатный init-скрипт службы может самостоятельно менять правила. Опциональная очистка станет доступна только при подтверждённой принадлежности правил RouterForge.</p>
-<div class="cards">
-<div class="engine-card"><strong>knockd</strong><p id="knockd-service-state">Проверяем…</p>
-<button type="button" data-engine-action="knockd" data-action="install">Установить из Entware</button>
-<button type="button" data-engine-action="knockd" data-action="start">Запустить</button>
-<button type="button" data-engine-action="knockd" data-action="stop">Остановить</button>
-<button type="button" data-engine-action="knockd" data-action="restart">Перезапустить</button></div>
-<div class="engine-card"><strong>fwknopd / SPA</strong><p id="fwknopd-service-state">Проверяем…</p>
-<button type="button" data-engine-action="fwknopd" data-action="install">Установить из Entware</button>
-<button type="button" data-engine-action="fwknopd" data-action="start">Запустить</button>
-<button type="button" data-engine-action="fwknopd" data-action="stop">Остановить</button>
-<button type="button" data-engine-action="fwknopd" data-action="restart">Перезапустить</button></div>
-</div>
-<div class="refresh-bar"><button type="button" id="existing-engine-refresh">Обновить службы</button><span id="existing-engine-status" role="status"></span></div>
-</section>
-
-<section class="panel" id="engine-config-panel">
-<h2>Настройка установленных движков</h2>
-<p class="help">Редактирование существующих конфигураций knockd и fwknopd. Файл сохраняется с резервной копией, служба не перезапускается автоматически. В fwknopd могут храниться секретные ключи.</p>
-<div class="form-grid"><label>Движок<select id="engine-config-engine"><option value="knockd">knockd</option><option value="fwknopd">fwknopd / SPA</option></select></label></div>
-<div class="refresh-bar"><button type="button" id="engine-config-refresh">Обновить сведения</button><button type="button" id="engine-config-load">Показать и редактировать файл</button></div>
-<textarea id="engine-config-editor" rows="14" disabled spellcheck="false" autocomplete="off" style="width:100%;box-sizing:border-box;font-family:monospace;resize:vertical"></textarea>
-<div class="refresh-bar"><button type="button" id="engine-config-save">Сохранить конфигурацию</button><button type="button" id="engine-config-restore">Вернуть предыдущую версию</button></div>
-<p id="engine-config-status" role="status" class="muted"></p>
-</section>
-<section class="panel" id="engine-wizard-panel">
-<h2>Мастер сервисов · knockd / fwknopd</h2>
-<p class="help">Проверка и сохранение черновика без изменения работающих конфигураций и firewall. Сохранённый черновик НЕ применён.</p>
-<div class="form-grid">
-<label>WAN для knockd / fwknopd<input id="engine-wizard-interface" value="eth3" autocomplete="off"></label>
-<label>Стуки knockd (через запятую)<input id="engine-wizard-knock" value="7777,8888,6666" autocomplete="off"></label>
-<label>Окно стуков, сек.<input id="engine-wizard-window" type="number" min="5" max="300" value="15"></label>
-<label>Время доступа, сек.<input id="engine-wizard-ttl" type="number" min="30" max="86400" value="120"></label>
-</div>
-<label>Сервисы (по одному в строке: имя, IPv4, TCP-порт)<textarea id="engine-wizard-services" rows="4" spellcheck="false">web,192.168.10.103,18080</textarea></label>
-<div class="refresh-bar"><button id="engine-wizard-preview" type="button">Проверить план</button><button id="engine-wizard-draft-save" type="button">Сохранить черновик</button><button id="engine-wizard-draft-load" type="button">Загрузить черновик</button><span id="engine-wizard-result" role="status"></span></div>
-<div class="panel" id="rfpa-deploy-panel">
-<h3>Применение на Entware</h3>
-<p class="help">Сначала установи и настрой выбранный движок. Применение включает управляемый шлюз до разрешения DNAT. Через 90 секунд без подтверждения независимый watchdog откатит шлюз. Остановка службы через обычные кнопки не очищает firewall.</p>
-<label><input type="checkbox" id="rfpa-replace-existing"> Я подтверждаю замену существующей конфигурации этого движка (оригинал сохранится отдельно)</label>
-<div class="refresh-bar">
-<button type="button" id="rfpa-prepare">Создать рабочую конфигурацию</button>
-<button type="button" id="rfpa-enable">Включить защиту · 90 секунд</button>
-<button type="button" id="rfpa-confirm">Подтвердить защиту</button>
-<button type="button" id="rfpa-disable">Убрать управляемую защиту</button>
-<button type="button" id="rfpa-refresh">Обновить состояние</button>
-</div>
-<p id="rfpa-deploy-status" role="status" aria-live="polite" class="muted">Защита не проверена.</p>
-<details id="rfpa-credentials"><summary>Однократно выданные SPA-ключи</summary><p class="help">Скопируй сразу: после обновления страницы эти ключи не восстанавливаются через API. Не отправляй их в логи.</p><pre id="rfpa-credential-value" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
-</div>
-<pre id="engine-wizard-plan" style="white-space:pre-wrap;overflow-wrap:anywhere" aria-label="План без применения"></pre>
-</section>
+<div id="pa-svelte-engine-workspace"></div>
 <section class="panel" id="odin-manager">
 <h2>Port Knocking · odin (Keenetic)</h2>
 <p class="help">Алгоритм odin для сервиса, уже проброшенного через KeeneticOS. Автор: <a href="https://forum.keenetic.ru/topic/22137-port-knoking-%D0%B4%D0%BB%D1%8F-%D0%BF%D1%80%D0%BE%D0%B1%D1%80%D0%B0%D1%81%D1%8B%D0%B2%D0%B0%D0%B5%D0%BC%D0%BE%D0%B3%D0%BE-%D0%BF%D0%BE%D1%80%D1%82%D0%B0/" target="_blank" rel="noopener noreferrer">odin · Keenetic Community</a>. Авторские цепочки KNOCKING-FIRST/LAST и списки KK1/KK2/KK3/KKD. Установка пакета не включает защиту.</p>
@@ -129,5 +75,5 @@
 </section>
 
 <div id="pa-svelte-log" aria-label="Журнал операций"></div>
-</main><script src="app.js"></script><script src="config-editor.js"></script><script src="odin-ui.js"></script><script src="ui-rebuild.js"></script><script src="engine-wizard.js"></script><script src="p39-compact.js"></script><script src="p53-ux.js"></script><script src="p54-workspace.js"></script><script src="p55-antiscan.js"></script>
-<script src="svelte-status.js"></script></body></html>
+</main><script src="svelte-status.js"></script><script src="app.js"></script><script src="odin-ui.js"></script><script src="ui-rebuild.js"></script><script src="p39-compact.js"></script><script src="p53-ux.js"></script><script src="p54-workspace.js"></script><script src="p55-antiscan.js"></script>
+</body></html>

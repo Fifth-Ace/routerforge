@@ -42,7 +42,7 @@ if [ ! -d "$FRONTEND/node_modules" ]; then
 fi
 (cd "$FRONTEND" && npm run build)
 test -s "$FRONTEND/build/svelte-status.js"
-for file in index.html app.js module.css config-editor.js odin-ui.js ui-rebuild.js ui-rebuild.css engine-wizard.js p39-compact.js p39-compact.css p53-ux.js p53-ux.css p54-workspace.js p54-workspace.css p55-antiscan.js p55-antiscan.css; do
+for file in index.html app.js module.css odin-ui.js ui-rebuild.js ui-rebuild.css p39-compact.js p39-compact.css p53-ux.js p53-ux.css p54-workspace.js p54-workspace.css p55-antiscan.js p55-antiscan.css; do
   cp "$ROOT/modules/port-access-manager/frontend/$file" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/$file"
 done
 cp "$FRONTEND/build/svelte-status.js" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/svelte-status.js"

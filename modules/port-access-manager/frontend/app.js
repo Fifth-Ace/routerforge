@@ -260,55 +260,6 @@
   document.getElementById('recent-live-refresh').addEventListener('click',refreshRecentAccess);
   refreshRecentAccess();
 
-  // Controls existing Entware init services; RouterForge does not replace their engines.
-  var controlStatus = document.getElementById('existing-engine-status');
-  function engineServiceURL(engine) {
-    return statusURL().replace(/\/status$/, '/engine-service') + '?engine=' + encodeURIComponent(engine);
-  }
-  var installRunning = false;
-  function renderEngineService(engine) {
-    return fetch(engineServiceURL(engine), {credentials:'same-origin',cache:'no-store'})
-      .then(function(resp){return resp.json().then(function(data){if(!resp.ok)throw new Error(data.error||'HTTP '+resp.status);return data;});})
-      .then(function(data){
-        document.dispatchEvent(new CustomEvent('rfpa:service-state', {detail:{engine:engine, installed:!!data.installed, running:!!data.running, installation:data.installation||{state:'idle'}}}));
-        var job = data.installation || {state:'idle'};
-        var running = job.state === 'running';
-        installRunning = installRunning || running;
-        var serviceText = data.installed ? ((data.running?'Запущен':'Не запущен')+' · '+data.script) : 'Init-скрипт не найден';
-        if (running) serviceText += ' · Установка Entware выполняется…';
-        if (job.state === 'failed') serviceText += ' · Ошибка установки: '+(job.error||'Смотри журнал Entware');
-        if (job.state === 'completed') serviceText += ' · Установка завершена';
-        document.getElementById(engine+'-service-state').textContent = serviceText;
-        Array.prototype.forEach.call(document.querySelectorAll('[data-engine-action="'+engine+'"]'),function(button){
-          button.disabled=running || (button.getAttribute('data-action')==='install'?data.installed:!data.installed);
-        });
-      });
-  }
-  function refreshServiceControls(){
-    installRunning = false;
-    Promise.all(['knockd','fwknopd'].map(renderEngineService))
-      .then(function(){controlStatus.textContent=installRunning?'Установка Entware выполняется · статус обновляется автоматически':'Состояние служб обновлено';})
-      .catch(function(err){controlStatus.textContent='Не удалось проверить службы: '+err.message;});
-  }
-  Array.prototype.forEach.call(document.querySelectorAll('[data-engine-action]'),function(button){
-    button.addEventListener('click',function(){
-      var engine=button.getAttribute('data-engine-action');
-      var action=button.getAttribute('data-action');
-      var warning=action==='install'?('Установить '+engine+' через opkg? Скрипты установки стороннего пакета могут менять систему. Установочный скрипт пакета может самостоятельно запустить службу. Сама установка не гарантирует защиту портов.') : ('Выполнить '+action+' для '+engine+'? RouterForge не удаляет правила firewall дополнительно. Сам init-скрипт Entware может изменять правила — проверь его настройки.');
-      if(!window.confirm(warning))return;
-      controlStatus.textContent='Выполняется '+action+' '+engine+'…';
-      fetch(engineServiceURL(engine),{
-        method:'POST',credentials:'same-origin',
-        headers:{'Content-Type':'application/json',Accept:'application/json'},
-        body:JSON.stringify({action:action,confirm:'APPLY',firewall_policy:'preserve'})
-      }).then(function(resp){return resp.json().then(function(data){if(!resp.ok)throw new Error(data.error||'HTTP '+resp.status);return data;});})
-        .then(refreshServiceControls)
-        .catch(function(err){controlStatus.textContent='Операция отклонена: '+err.message;});
-    });
-  });
-  document.getElementById('existing-engine-refresh').addEventListener('click',refreshServiceControls);
-  refreshServiceControls();
-  window.setInterval(function(){if(!document.hidden)refreshServiceControls();},3000);
 
   loadStaged();
 }());

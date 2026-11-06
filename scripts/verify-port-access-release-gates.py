@@ -26,7 +26,29 @@ def main():
     script_src = re.findall(r'<script\s+src="([^"]+)"', html)
     shipped = re.search(r'for file in ([^\n]+); do\s*\n\s*cp ', build)
     shipped_names = set(shipped.group(1).split()) if shipped else set()
-    gate('all frontend scripts shipped', bool(script_src) and all(s in shipped_names for s in script_src))
+    # Native Svelte 5 bundle is compiled by Vite and copied into the IPK
+    # after the static legacy assets loop. Never require generated JS in Git.
+    compiled = 'svelte-status.js'
+    bundle_source = FRONT / 'PortAccessStatus.svelte'
+    bundle_entry = FRONT / 'status-main.js'
+    bundle_config = FRONT / 'vite.config.js'
+    bundle_copy = (
+        'cp "$FRONTEND/build/svelte-status.js" '
+        '"$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/svelte-status.js"'
+    )
+    compiled_shipped = (
+        bundle_copy in build
+        and 'test -s "$FRONTEND/build/svelte-status.js"' in build
+        and 'npm run build' in build
+        and all(p.is_file() for p in (bundle_source, bundle_entry, bundle_config, FRONT / 'package.json'))
+        and '$state(' in bundle_source.read_text(encoding='utf-8')
+        and 'PortAccessStatus.svelte' in bundle_entry.read_text(encoding='utf-8')
+        and "fileName: () => 'svelte-status.js'" in bundle_config.read_text(encoding='utf-8')
+    )
+    gate('all frontend scripts shipped',
+         bool(script_src) and len(script_src) == len(set(script_src))
+         and all(s in shipped_names or (s == compiled and compiled_shipped) for s in script_src))
+    gate('compiled Svelte 5 bundle has exact build and IPK copy contract', compiled_shipped)
     gate('frontend CSS shipped', all(s in shipped_names for s in ('module.css','ui-rebuild.css','p39-compact.css')))
     gate('operation-log.js shipped', 'operation-log.js' in shipped_names and (FRONT/'operation-log.js').is_file())
     gate('no missing packaged frontend asset', all((FRONT / name).is_file() for name in shipped_names))

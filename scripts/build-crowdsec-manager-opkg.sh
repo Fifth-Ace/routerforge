@@ -18,7 +18,10 @@ chmod 0755 "$WORK/data/opt/bin/$PACKAGE"
 sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$PACKAGE"
 cp "$ROOT/modules/crowdsec-manager/packaging/S99routerforge-crowdsec-manager" "$WORK/data/opt/etc/init.d/S99routerforge-crowdsec-manager"
 chmod 0755 "$WORK/data/opt/etc/init.d/S99routerforge-crowdsec-manager"
-for file in index.html app.js module.css; do cp "$ROOT/modules/crowdsec-manager/frontend/$file" "$WORK/data/opt/share/routerforge/modules/crowdsec-manager/ui/$file"; done
+sh "$ROOT/scripts/build-standalone-svelte-frontend.sh" crowdsec-manager
+UI_BUILD="$ROOT/modules/crowdsec-manager/frontend/build"
+cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/crowdsec-manager/ui/"
+python3 "$ROOT/scripts/verify-standalone-svelte-ui.py" --module crowdsec-manager --dir "$WORK/data/opt/share/routerforge/modules/crowdsec-manager/ui"
 cat > "$WORK/data/opt/share/routerforge/modules/crowdsec-manager/manifest.json" <<MANIFEST
 {
   "schema_version": 1,

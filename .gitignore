@@ -24,6 +24,12 @@ components/core/frontend/build/
 modules/dns/frontend/node_modules/
 modules/dns/frontend/build/
 modules/dns-router-lite/frontend-tests/node_modules/
+modules/crowdsec-manager/frontend/node_modules/
+modules/crowdsec-manager/frontend/build/
+modules/network-tools/frontend/node_modules/
+modules/network-tools/frontend/build/
+modules/antiscan-manager/frontend/node_modules/
+modules/antiscan-manager/frontend/build/
 
 # Python cache
 __pycache__/

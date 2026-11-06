@@ -1,4 +1,39 @@
-const $ = (id) => document.getElementById(id);
+<script>
+  import {onMount} from 'svelte';
+  // State-driven migration: every displayed value/disabled flag/class is Svelte state.
+  // The original Antiscan app.js is not loaded or shipped.
+  const INITIAL = {"targetState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"refresh":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"notice":{"className":"notice","hidden":true,"disabled":false,"dataset":{},"style":{}},"actionNotice":{"className":"notice action-notice","hidden":true,"disabled":false,"dataset":{},"style":{}},"version":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"blockedIps":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"blockedSubnets":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"candidateCount":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"rf-generated-1":{"className":"tab active","hidden":false,"disabled":false,"dataset":{"tab":"overview"},"style":{}},"rf-generated-2":{"className":"tab","hidden":false,"disabled":false,"dataset":{"tab":"diagnostics"},"style":{}},"rf-generated-3":{"className":"tab","hidden":false,"disabled":false,"dataset":{"tab":"blocked"},"style":{}},"rf-generated-4":{"className":"tab","hidden":false,"disabled":false,"dataset":{"tab":"lists"},"style":{}},"rf-generated-5":{"className":"tab","hidden":false,"disabled":false,"dataset":{"tab":"geo"},"style":{}},"rf-generated-6":{"className":"tab","hidden":false,"disabled":false,"dataset":{"tab":"schedule"},"style":{}},"rf-generated-7":{"className":"tab","hidden":false,"disabled":false,"dataset":{"tab":"config"},"style":{}},"rf-generated-8":{"className":"tab","hidden":false,"disabled":false,"dataset":{"tab":"history"},"style":{}},"rf-generated-9":{"className":"tab-page active","hidden":false,"disabled":false,"dataset":{"page":"overview"},"style":{}},"ipsetBinary":{"className":"mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"runtimeSummary":{"className":"kv-grid","hidden":false,"disabled":false,"dataset":{},"style":{}},"riskSummary":{"className":"risk-summary","hidden":false,"disabled":false,"dataset":{},"style":{}},"lifecycleState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"lifecycleHint":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"startAntiscan":{"className":"button success","hidden":false,"disabled":true,"dataset":{},"style":{}},"reloadAntiscan":{"className":"button primary","hidden":false,"disabled":true,"dataset":{},"style":{}},"restartAntiscan":{"className":"button","hidden":false,"disabled":true,"dataset":{},"style":{}},"stopAntiscan":{"className":"button danger","hidden":false,"disabled":true,"dataset":{},"style":{}},"operationState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"rf-generated-10":{"className":"button","hidden":false,"disabled":false,"dataset":{"operation":"update_rules"},"style":{}},"rf-generated-11":{"className":"button","hidden":false,"disabled":false,"dataset":{"operation":"read_candidates"},"style":{}},"rf-generated-12":{"className":"button","hidden":false,"disabled":false,"dataset":{"operation":"read_ndm_ipsets"},"style":{}},"rf-generated-13":{"className":"button","hidden":false,"disabled":false,"dataset":{"operation":"save_ipsets"},"style":{}},"operationOutput":{"className":"boundary-copy mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"sets":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"rf-generated-14":{"className":"tab-page","hidden":false,"disabled":false,"dataset":{"page":"diagnostics"},"style":{}},"diagnosticsState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"reloadDiagnostics":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"diagnosticsMeta":{"className":"diagnostics-meta mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"diagnosticsChecks":{"className":"diagnostics-list empty-state","hidden":false,"disabled":false,"dataset":{},"style":{}},"rciTokenState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"reloadRCIToken":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"rciTokenSummary":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"rciTokenMeta":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"rciTokenInput":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"setRCIToken":{"className":"button primary","hidden":false,"disabled":true,"dataset":{},"style":{}},"checkRCIToken":{"className":"button","hidden":false,"disabled":true,"dataset":{},"style":{}},"deleteRCIToken":{"className":"button danger","hidden":false,"disabled":true,"dataset":{},"style":{}},"compatibilityState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"reloadCompatibility":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"compatibilityMeta":{"className":"diagnostics-meta mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"compatibilityGrid":{"className":"kv-grid","hidden":false,"disabled":false,"dataset":{},"style":{}},"compatibilityWarnings":{"className":"warning-list","hidden":false,"disabled":false,"dataset":{},"style":{}},"diagnosticsContract":{"className":"kv-grid","hidden":false,"disabled":false,"dataset":{},"style":{}},"rf-generated-15":{"className":"tab-page","hidden":false,"disabled":false,"dataset":{"page":"inspect"},"style":{}},"inspectIp":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"inspectButton":{"className":"button primary","hidden":false,"disabled":false,"dataset":{},"style":{}},"inspectResult":{"className":"inspect-result empty","hidden":false,"disabled":false,"dataset":{},"style":{}},"rf-generated-16":{"className":"tab-page","hidden":false,"disabled":false,"dataset":{"page":"blocked"},"style":{}},"blockedSet":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"value":"ascn_ips"},"reloadBlocked":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"blockedFilter":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"blockedMeta":{"className":"mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"blockedEntries":{"className":"entry-table empty-state","hidden":false,"disabled":false,"dataset":{},"style":{}},"flushTarget":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"value":"ips"},"reloadFlushPreview":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"flushState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"flushMeta":{"className":"diagnostics-meta mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"flushWarnings":{"className":"warning-list","hidden":false,"disabled":false,"dataset":{},"style":{}},"flushSelected":{"className":"button danger","hidden":false,"disabled":true,"dataset":{},"style":{}},"rf-generated-17":{"className":"tab-page","hidden":false,"disabled":false,"dataset":{"page":"lists"},"style":{}},"customListName":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"value":"blacklist"},"reloadCustomList":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"customListEntry":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"addCustomListEntry":{"className":"button primary","hidden":false,"disabled":false,"dataset":{},"style":{}},"reloadCustomListRuntime":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"clearCustomList":{"className":"button danger","hidden":false,"disabled":false,"dataset":{},"style":{}},"customListMeta":{"className":"diagnostics-meta mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"customListEntries":{"className":"entry-table empty-state","hidden":false,"disabled":false,"dataset":{},"style":{}},"runtimeListsTitle":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"runtimeListsDescription":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"listSet":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"value":"ascn_custom_exclude"},"reloadList":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"listFilter":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"listMeta":{"className":"mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"listEntries":{"className":"entry-table empty-state","hidden":false,"disabled":false,"dataset":{},"style":{}},"rf-generated-18":{"className":"button primary","hidden":false,"disabled":false,"dataset":{"operation":"update_ipsets","scope":"geo"},"style":{}},"rf-generated-19":{"className":"button","hidden":false,"disabled":false,"dataset":{"operation":"retry_load_geo"},"style":{}},"rf-generated-20":{"className":"tab-page","hidden":false,"disabled":false,"dataset":{"page":"protection"},"style":{}},"protection":{"className":"kv-grid","hidden":false,"disabled":false,"dataset":{},"style":{}},"warnings":{"className":"warning-list","hidden":false,"disabled":false,"dataset":{},"style":{}},"rf-generated-21":{"className":"tab-page","hidden":false,"disabled":false,"dataset":{"page":"schedule"},"style":{}},"schedulerState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"reloadScheduler":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"schedulerMeta":{"className":"diagnostics-meta mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"schedulerTaskRows":{"className":"scheduler-list empty-state","hidden":false,"disabled":false,"dataset":{},"style":{}},"resetScheduler":{"className":"button","hidden":false,"disabled":true,"dataset":{},"style":{}},"applyScheduler":{"className":"button primary","hidden":false,"disabled":true,"dataset":{},"style":{}},"rf-generated-22":{"className":"tab-page","hidden":false,"disabled":false,"dataset":{"page":"config"},"style":{}},"configForm":{"className":"config-workspace","hidden":false,"disabled":false,"dataset":{},"style":{}},"configState":{"className":"state neutral","hidden":false,"disabled":false,"dataset":{},"style":{}},"configHash":{"className":"mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"configMobileRisk":{"className":"config-risk good","hidden":false,"disabled":false,"dataset":{},"style":{}},"cfgIspInterfaces":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgPorts":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgForwardedPorts":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgEnableIpsBan":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgRulesMask":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgRecentTime":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgRecentHitcount":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgRecentLimit":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgRecentBanTime":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgCandidateStorage":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgDifferentThreshold":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgSubnetBanTime":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgEnableHoneypot":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgHoneypotPorts":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgHoneypotBanTime":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgUseCustomExclude":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgCustomMode":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"value":"0"},"cfgGeoMode":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"value":"0"},"cfgGeoCountries":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgGeoExcludeCountries":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgIPSetsDirectory":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgSaveIPSets":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgSaveOnExit":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgReadNDM":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"cfgLockoutBanTime":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{},"checked":false,"value":""},"configHint":{"className":"","hidden":false,"disabled":false,"dataset":{},"style":{}},"resetConfig":{"className":"button","hidden":false,"disabled":true,"dataset":{},"style":{}},"applyConfig":{"className":"button primary","hidden":false,"disabled":true,"dataset":{},"style":{}},"rf-generated-23":{"className":"tab-page","hidden":false,"disabled":false,"dataset":{"page":"history"},"style":{}},"reloadHistory":{"className":"button","hidden":false,"disabled":false,"dataset":{},"style":{}},"historyMeta":{"className":"mono muted","hidden":false,"disabled":false,"dataset":{},"style":{}},"historyEntries":{"className":"history-list empty-state","hidden":false,"disabled":false,"dataset":{},"style":{}}};
+  let cells = $state(INITIAL);
+  let activeTab = $state('overview');
+  let schedulerRows = $state([]);
+  // This compatibility state accessor bridges original *business functions* to
+  // Svelte reactive values; it never writes directly to DOM nodes.
+  const modelCache = new Map();
+  function node(id){
+    if(!cells[id])return null;
+    if(modelCache.has(id))return modelCache.get(id);
+    const state=cells[id];
+    const classes=()=>new Set(String(state.className||'').split(/\s+/).filter(Boolean));
+    const classList={
+      add(...names){const c=classes();for(const name of names)c.add(name);state.className=[...c].join(' ');},
+      remove(...names){const c=classes();for(const name of names)c.delete(name);state.className=[...c].join(' ');},
+      toggle(name,force){const c=classes();const next=force===undefined?!c.has(name):!!force;if(next)c.add(name);else c.delete(name);state.className=[...c].join(' ');return next;},
+      contains(name){return classes().has(name);}
+    };
+    const virtual=new Proxy(state,{
+      get(target,k){return k==='classList'?classList:k==='value'?String(target.value ?? ''):target[k];},
+      set(target,k,value){
+        if(k==='innerHTML')target.textContent=undefined;
+        if(k==='textContent')target.innerHTML=undefined;
+        target[k]=value;
+        return true;
+      }
+    });
+    modelCache.set(id,virtual);return virtual;
+  }
+  const operationControlIds = ["rf-generated-10", "rf-generated-11", "rf-generated-12", "rf-generated-13", "rf-generated-18", "rf-generated-19"];
+  const tabControlIds = ["rf-generated-1", "rf-generated-2", "rf-generated-3", "rf-generated-4", "rf-generated-5", "rf-generated-6", "rf-generated-7", "rf-generated-8"];
+  const pageControlIds = ["rf-generated-9", "rf-generated-14", "rf-generated-15", "rf-generated-16", "rf-generated-17", "rf-generated-20", "rf-generated-21", "rf-generated-22", "rf-generated-23"];
 
 const routerForgeParams = new URLSearchParams(window.location.search);
 let routerForgeResizeObserver = null;
@@ -199,7 +234,7 @@ const browserState = {
   customSource: null
 };
 
-let snapshot = null;
+let snapshot = $state(null);
 let lifecycleBusy = false;
 let operationBusy = false;
 let customListBusy = false;
@@ -212,7 +247,7 @@ let diagnosticsLoaded = false;
 let compatibilityLoaded = false;
 let rciTokenLoaded = false;
 let rciTokenBusy = false;
-let schedulerLoaded = false;
+let schedulerLoaded = $state(false);
 let schedulerBusy = false;
 let schedulerSnapshot = null;
 let schedulerBaseline = '';
@@ -559,20 +594,20 @@ function reasonExplanation(result) {
 }
 
 function configNumber(id) {
-  const raw = $(id).value.trim();
+  const raw = node(id).value.trim();
   return raw === '' ? 0 : Number(raw);
 }
 
 function currentConfigFormPayload() {
   return {
-    isp_interfaces: $('cfgIspInterfaces').value.trim(),
-    ports: $('cfgPorts').value.trim(),
-    forwarded_ports: $('cfgForwardedPorts').value.trim(),
-    enable_honeypot: $('cfgEnableHoneypot').checked,
-    honeypot_ports: $('cfgHoneypotPorts').value.trim(),
+    isp_interfaces: node('cfgIspInterfaces').value.trim(),
+    ports: node('cfgPorts').value.trim(),
+    forwarded_ports: node('cfgForwardedPorts').value.trim(),
+    enable_honeypot: node('cfgEnableHoneypot').checked,
+    honeypot_ports: node('cfgHoneypotPorts').value.trim(),
     honeypot_bantime_seconds: configNumber('cfgHoneypotBanTime'),
-    enable_ips_ban: $('cfgEnableIpsBan').checked,
-    rules_mask: $('cfgRulesMask').value.trim(),
+    enable_ips_ban: node('cfgEnableIpsBan').checked,
+    rules_mask: node('cfgRulesMask').value.trim(),
     recent_connections_time_seconds: configNumber('cfgRecentTime'),
     recent_connections_hitcount: configNumber('cfgRecentHitcount'),
     recent_connections_limit: configNumber('cfgRecentLimit'),
@@ -580,15 +615,15 @@ function currentConfigFormPayload() {
     different_ip_candidates_storage_seconds: configNumber('cfgCandidateStorage'),
     different_ip_threshold: configNumber('cfgDifferentThreshold'),
     subnets_bantime_seconds: configNumber('cfgSubnetBanTime'),
-    ipsets_directory: $('cfgIPSetsDirectory').value.trim(),
-    save_ipsets: $('cfgSaveIPSets').checked,
-    save_on_exit: $('cfgSaveOnExit').checked,
-    use_custom_exclude_list: $('cfgUseCustomExclude').checked,
-    custom_lists_block_mode: $('cfgCustomMode').value,
-    geoblock_mode: $('cfgGeoMode').value,
-    geoblock_countries: $('cfgGeoCountries').value.trim(),
-    geo_exclude_countries: $('cfgGeoExcludeCountries').value.trim(),
-    read_ndm_lockout_ipsets: $('cfgReadNDM').checked,
+    ipsets_directory: node('cfgIPSetsDirectory').value.trim(),
+    save_ipsets: node('cfgSaveIPSets').checked,
+    save_on_exit: node('cfgSaveOnExit').checked,
+    use_custom_exclude_list: node('cfgUseCustomExclude').checked,
+    custom_lists_block_mode: node('cfgCustomMode').value,
+    geoblock_mode: node('cfgGeoMode').value,
+    geoblock_countries: node('cfgGeoCountries').value.trim(),
+    geo_exclude_countries: node('cfgGeoExcludeCountries').value.trim(),
+    read_ndm_lockout_ipsets: node('cfgReadNDM').checked,
     lockout_ipset_bantime_seconds: configNumber('cfgLockoutBanTime')
   };
 }
@@ -624,42 +659,42 @@ function configPayloadFromSnapshot(cfg) {
 }
 
 function setConfigFormPayload(cfg) {
-  $('cfgIspInterfaces').value = cfg.isp_interfaces;
-  $('cfgPorts').value = cfg.ports;
-  $('cfgForwardedPorts').value = cfg.forwarded_ports;
-  $('cfgEnableHoneypot').checked = cfg.enable_honeypot;
-  $('cfgHoneypotPorts').value = cfg.honeypot_ports;
-  $('cfgHoneypotBanTime').value = cfg.honeypot_bantime_seconds;
-  $('cfgEnableIpsBan').checked = cfg.enable_ips_ban;
-  $('cfgRulesMask').value = cfg.rules_mask;
-  $('cfgRecentTime').value = cfg.recent_connections_time_seconds;
-  $('cfgRecentHitcount').value = cfg.recent_connections_hitcount;
-  $('cfgRecentLimit').value = cfg.recent_connections_limit;
-  $('cfgRecentBanTime').value = cfg.recent_connections_bantime_seconds;
-  $('cfgCandidateStorage').value = cfg.different_ip_candidates_storage_seconds;
-  $('cfgDifferentThreshold').value = cfg.different_ip_threshold;
-  $('cfgSubnetBanTime').value = cfg.subnets_bantime_seconds;
-  $('cfgIPSetsDirectory').value = cfg.ipsets_directory;
-  $('cfgSaveIPSets').checked = cfg.save_ipsets;
-  $('cfgSaveOnExit').checked = cfg.save_on_exit;
-  $('cfgUseCustomExclude').checked = cfg.use_custom_exclude_list;
-  $('cfgCustomMode').value = cfg.custom_lists_block_mode;
-  $('cfgGeoMode').value = cfg.geoblock_mode;
-  $('cfgGeoCountries').value = cfg.geoblock_countries;
-  $('cfgGeoExcludeCountries').value = cfg.geo_exclude_countries;
-  $('cfgReadNDM').checked = cfg.read_ndm_lockout_ipsets;
-  $('cfgLockoutBanTime').value = cfg.lockout_ipset_bantime_seconds;
+  node('cfgIspInterfaces').value = cfg.isp_interfaces;
+  node('cfgPorts').value = cfg.ports;
+  node('cfgForwardedPorts').value = cfg.forwarded_ports;
+  node('cfgEnableHoneypot').checked = cfg.enable_honeypot;
+  node('cfgHoneypotPorts').value = cfg.honeypot_ports;
+  node('cfgHoneypotBanTime').value = cfg.honeypot_bantime_seconds;
+  node('cfgEnableIpsBan').checked = cfg.enable_ips_ban;
+  node('cfgRulesMask').value = cfg.rules_mask;
+  node('cfgRecentTime').value = cfg.recent_connections_time_seconds;
+  node('cfgRecentHitcount').value = cfg.recent_connections_hitcount;
+  node('cfgRecentLimit').value = cfg.recent_connections_limit;
+  node('cfgRecentBanTime').value = cfg.recent_connections_bantime_seconds;
+  node('cfgCandidateStorage').value = cfg.different_ip_candidates_storage_seconds;
+  node('cfgDifferentThreshold').value = cfg.different_ip_threshold;
+  node('cfgSubnetBanTime').value = cfg.subnets_bantime_seconds;
+  node('cfgIPSetsDirectory').value = cfg.ipsets_directory;
+  node('cfgSaveIPSets').checked = cfg.save_ipsets;
+  node('cfgSaveOnExit').checked = cfg.save_on_exit;
+  node('cfgUseCustomExclude').checked = cfg.use_custom_exclude_list;
+  node('cfgCustomMode').value = cfg.custom_lists_block_mode;
+  node('cfgGeoMode').value = cfg.geoblock_mode;
+  node('cfgGeoCountries').value = cfg.geoblock_countries;
+  node('cfgGeoExcludeCountries').value = cfg.geo_exclude_countries;
+  node('cfgReadNDM').checked = cfg.read_ndm_lockout_ipsets;
+  node('cfgLockoutBanTime').value = cfg.lockout_ipset_bantime_seconds;
 }
 
 function populateConfigEditor(force = false) {
-  const form = $('configForm');
+  const form = node('configForm');
   if (!form) return;
   if (!snapshot?.detected || !snapshot?.config) {
-    $('configState').className = 'state neutral';
-    $('configState').textContent = 'НЕДОСТУПНО';
-    $('configHint').textContent = 'Antiscan или ascn.conf не обнаружен.';
-    $('applyConfig').disabled = true;
-    $('resetConfig').disabled = true;
+    node('configState').className = 'state neutral';
+    node('configState').textContent = 'НЕДОСТУПНО';
+    node('configHint').textContent = 'Antiscan или ascn.conf не обнаружен.';
+    node('applyConfig').disabled = true;
+    node('resetConfig').disabled = true;
     return;
   }
 
@@ -674,14 +709,14 @@ function populateConfigEditor(force = false) {
 }
 
 function updateConfigEditorState() {
-  if (!$('configForm')) return;
+  if (!node('configForm')) return;
   const current = currentConfigFormPayload();
   configDirty = Boolean(configBaseline) && JSON.stringify(current) !== configBaseline;
   const upstreamBusy = Boolean(snapshot?.config_reload_in_progress || snapshot?.geo_reload_in_progress);
   const stale = Boolean(configDirty && configBaseSHA && snapshot?.config_sha256 && snapshot.config_sha256 !== configBaseSHA);
 
-  const state = $('configState');
-  const hint = $('configHint');
+  const state = node('configState');
+  const hint = node('configHint');
   state.className = 'state';
   if (configBusy) {
     state.classList.add('info');
@@ -707,13 +742,13 @@ function updateConfigEditorState() {
     hint.textContent = snapshot?.running ? 'Форма соответствует активному ascn.conf.' : 'Форма соответствует сохранённому ascn.conf.';
   }
 
-  $('configHash').textContent = configBaseSHA ? `SHA256 ${configBaseSHA.slice(0, 16)}…` : 'SHA256 —';
-  $('applyConfig').disabled = configBusy || !configDirty || !configBaseSHA || upstreamBusy || stale;
-  $('resetConfig').disabled = configBusy || !configDirty;
+  node('configHash').textContent = configBaseSHA ? `SHA256 ${configBaseSHA.slice(0, 16)}…` : 'SHA256 —';
+  node('applyConfig').disabled = configBusy || !configDirty || !configBaseSHA || upstreamBusy || stale;
+  node('resetConfig').disabled = configBusy || !configDirty;
 
   const mobileRisk = current.enable_ips_ban && current.different_ip_threshold > 0 &&
     current.different_ip_threshold <= 5 && current.different_ip_candidates_storage_seconds >= 86400;
-  const risk = $('configMobileRisk');
+  const risk = node('configMobileRisk');
   risk.className = `config-risk ${mobileRisk ? 'warn' : 'good'}`;
   risk.textContent = mobileRisk
     ? `⚠ /24: порог ${current.different_ip_threshold}, кандидаты хранятся ${fmtDuration(current.different_ip_candidates_storage_seconds)} — для мобильных пулов настройка может быть слишком агрессивной.`
@@ -766,12 +801,12 @@ function diagnosticStateView(state) {
 
 function renderDiagnostics(payload) {
   const overall = diagnosticStateView(payload?.overall || 'info');
-  const state = $('diagnosticsState');
+  const state = node('diagnosticsState');
   state.className = `state ${overall[0]}`;
   state.textContent = overall[1];
 
   const generated = payload?.generated_at ? fmtAuditTime(payload.generated_at) : '—';
-  $('diagnosticsMeta').textContent = `Проверено: ${generated} · Antiscan ${payload?.installed_version || 'не определён'} · ${payload?.running ? 'работает' : 'остановлен'}`;
+  node('diagnosticsMeta').textContent = `Проверено: ${generated} · Antiscan ${payload?.installed_version || 'не определён'} · ${payload?.running ? 'работает' : 'остановлен'}`;
 
   const contract = payload?.contract || {};
   const rows = [
@@ -783,12 +818,12 @@ function renderDiagnostics(payload) {
     ['CLI-команды', String((contract.commands || []).length)],
     ['Разрешённые cron-задачи', (contract.valid_tasks || []).join(' · ') || '—']
   ];
-  $('diagnosticsContract').innerHTML = rows.map(([key, value]) => `
+  node('diagnosticsContract').innerHTML = rows.map(([key, value]) => `
     <div class="kv"><span>${escapeHTML(key)}</span><strong>${escapeHTML(String(value))}</strong></div>
   `).join('');
 
   const checks = payload?.checks || [];
-  const root = $('diagnosticsChecks');
+  const root = node('diagnosticsChecks');
   if (!checks.length) {
     root.className = 'diagnostics-list empty-state';
     root.textContent = 'Проверки не вернули данных.';
@@ -811,21 +846,21 @@ function renderDiagnostics(payload) {
 }
 
 async function loadDiagnostics() {
-  const button = $('reloadDiagnostics');
+  const button = node('reloadDiagnostics');
   if (button) button.disabled = true;
-  $('diagnosticsState').className = 'state info';
-  $('diagnosticsState').textContent = 'ПРОВЕРКА…';
+  node('diagnosticsState').className = 'state info';
+  node('diagnosticsState').textContent = 'ПРОВЕРКА…';
   try {
     const payload = await api('diagnostics');
     diagnosticsLoaded = true;
     renderDiagnostics(payload);
   } catch (error) {
     diagnosticsLoaded = true;
-    $('diagnosticsState').className = 'state bad';
-    $('diagnosticsState').textContent = 'ОШИБКА';
-    $('diagnosticsMeta').textContent = localizeMessage(error.message || 'Не удалось выполнить диагностику Antiscan.');
-    $('diagnosticsChecks').className = 'diagnostics-list empty-state bad-text';
-    $('diagnosticsChecks').textContent = 'Диагностика недоступна.';
+    node('diagnosticsState').className = 'state bad';
+    node('diagnosticsState').textContent = 'ОШИБКА';
+    node('diagnosticsMeta').textContent = localizeMessage(error.message || 'Не удалось выполнить диагностику Antiscan.');
+    node('diagnosticsChecks').className = 'diagnostics-list empty-state bad-text';
+    node('diagnosticsChecks').textContent = 'Диагностика недоступна.';
   } finally {
     if (button) button.disabled = false;
   }
@@ -833,10 +868,10 @@ async function loadDiagnostics() {
 
 function renderCompatibility(payload) {
   compatibilityLoaded = true;
-  const state = $('compatibilityState');
-  const meta = $('compatibilityMeta');
-  const grid = $('compatibilityGrid');
-  const warnings = $('compatibilityWarnings');
+  const state = node('compatibilityState');
+  const meta = node('compatibilityMeta');
+  const grid = node('compatibilityGrid');
+  const warnings = node('compatibilityWarnings');
   if (!state || !meta || !grid || !warnings) return;
 
   const view = diagnosticStateView(payload?.state || 'info');
@@ -888,20 +923,20 @@ function renderCompatibility(payload) {
 }
 
 async function loadCompatibility() {
-  const button = $('reloadCompatibility');
+  const button = node('reloadCompatibility');
   if (button) button.disabled = true;
-  $('compatibilityState').className = 'state info';
-  $('compatibilityState').textContent = 'ПРОВЕРКА…';
+  node('compatibilityState').className = 'state info';
+  node('compatibilityState').textContent = 'ПРОВЕРКА…';
   try {
     const payload = await api('compatibility');
     renderCompatibility(payload);
   } catch (error) {
     compatibilityLoaded = true;
-    $('compatibilityState').className = 'state bad';
-    $('compatibilityState').textContent = 'ОШИБКА';
-    $('compatibilityMeta').textContent = localizeMessage(error.message || 'Не удалось проверить совместимость Antiscan.');
-    $('compatibilityGrid').innerHTML = '';
-    $('compatibilityWarnings').innerHTML = '';
+    node('compatibilityState').className = 'state bad';
+    node('compatibilityState').textContent = 'ОШИБКА';
+    node('compatibilityMeta').textContent = localizeMessage(error.message || 'Не удалось проверить совместимость Antiscan.');
+    node('compatibilityGrid').innerHTML = '';
+    node('compatibilityWarnings').innerHTML = '';
   } finally {
     if (button) button.disabled = false;
   }
@@ -917,12 +952,12 @@ function rciAuthLabel(state) {
 
 function renderRCITokenStatus(payload) {
   rciTokenLoaded = true;
-  const state = $('rciTokenState');
-  const summary = $('rciTokenSummary');
-  const meta = $('rciTokenMeta');
-  const setButton = $('setRCIToken');
-  const checkButton = $('checkRCIToken');
-  const deleteButton = $('deleteRCIToken');
+  const state = node('rciTokenState');
+  const summary = node('rciTokenSummary');
+  const meta = node('rciTokenMeta');
+  const setButton = node('setRCIToken');
+  const checkButton = node('checkRCIToken');
+  const deleteButton = node('deleteRCIToken');
   if (!state || !summary || !meta) return;
 
   const complete = Boolean(payload?.complete);
@@ -961,23 +996,23 @@ function renderRCITokenStatus(payload) {
 }
 
 async function loadRCITokenStatus() {
-  const button = $('reloadRCIToken');
+  const button = node('reloadRCIToken');
   if (button) button.disabled = true;
   try {
     const payload = await api('rci-token');
     renderRCITokenStatus(payload);
   } catch (error) {
     rciTokenLoaded = true;
-    $('rciTokenState').className = 'state bad';
-    $('rciTokenState').textContent = 'ОШИБКА';
-    $('rciTokenSummary').textContent = localizeMessage(error.message || 'Не удалось прочитать состояние RCI-токена.');
+    node('rciTokenState').className = 'state bad';
+    node('rciTokenState').textContent = 'ОШИБКА';
+    node('rciTokenSummary').textContent = localizeMessage(error.message || 'Не удалось прочитать состояние RCI-токена.');
   } finally {
     if (button) button.disabled = false;
   }
 }
 
 async function performRCITokenAction(action) {
-  const input = $('rciTokenInput');
+  const input = node('rciTokenInput');
   let token = '';
   let confirmValue = '';
   let prompt = '';
@@ -1040,19 +1075,15 @@ const schedulerTaskLabels = {
 };
 
 function schedulerManagedPayload() {
-  return Array.from(document.querySelectorAll('[data-scheduler-task]'))
-    .filter((row) => row.dataset.automatic !== 'true')
-    .map((row) => ({
-      task: row.dataset.schedulerTask || '',
-      enabled: Boolean(row.querySelector('[data-scheduler-enabled]')?.checked),
-      schedule: (row.querySelector('[data-scheduler-expression]')?.value || '').trim().replace(/\s+/g, ' ')
-    }));
+  return schedulerRows.filter(item => !item.automatic).map(item=>({
+    task:item.task,enabled:Boolean(item.enabled),schedule:String(item.schedule||'').trim().replace(/\s+/g,' ')
+  }));
 }
 
 function updateSchedulerState() {
-  const apply = $('applyScheduler');
-  const reset = $('resetScheduler');
-  const state = $('schedulerState');
+  const apply = node('applyScheduler');
+  const reset = node('resetScheduler');
+  const state = node('schedulerState');
   if (!schedulerSnapshot || !apply || !reset || !state) return;
 
   const current = JSON.stringify(schedulerManagedPayload());
@@ -1081,14 +1112,15 @@ function updateSchedulerState() {
 function renderScheduler(payload, force = false) {
   schedulerLoaded = true;
   schedulerSnapshot = payload;
-  const root = $('schedulerTaskRows');
-  const meta = $('schedulerMeta');
+  const root = node('schedulerTaskRows');
+  const meta = node('schedulerMeta');
   if (!root || !meta) return;
 
   const errors = payload?.errors || [];
   meta.textContent = `ascn_crontab.conf: ${payload?.task_count ?? 0} задач · active crontab: ${payload?.active_count ?? 0} · ${payload?.synced ? 'синхронизировано' : 'есть расхождение'} · SHA256 ${(payload?.source_sha256 || '—').slice(0, 16)}…`;
   if (errors.length) {
     root.className = 'scheduler-list';
+    schedulerRows = [];
     root.innerHTML = `<div class="notice bad">${errors.map((item) => escapeHTML(localizeMessage(item))).join(' · ')}</div>`;
     schedulerBaseline = '';
     schedulerDirty = false;
@@ -1097,23 +1129,9 @@ function renderScheduler(payload, force = false) {
   }
 
   root.className = 'scheduler-list';
-  root.innerHTML = (payload?.tasks || []).map((item) => {
-    const copy = schedulerTaskLabels[item.task] || [item.task, 'Штатная задача Antiscan.'];
-    const automatic = Boolean(item.automatic);
-    return `
-      <article class="scheduler-row" data-scheduler-task="${escapeHTML(item.task)}" data-automatic="${automatic}">
-        <label class="scheduler-toggle">
-          <input data-scheduler-enabled type="checkbox" role="switch" ${item.enabled ? 'checked' : ''} ${automatic ? 'disabled' : ''}>
-          <span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span>
-          <span><strong>${escapeHTML(copy[0])}</strong><small class="mono">${escapeHTML(item.task)}</small></span>
-        </label>
-        <div class="scheduler-expression-wrap">
-          <input data-scheduler-expression class="mono" value="${escapeHTML(item.schedule || '')}" spellcheck="false" ${automatic ? 'disabled' : ''} aria-label="Cron ${escapeHTML(item.task)}">
-          <small>${escapeHTML(copy[1])}</small>
-        </div>
-        ${automatic ? '<span class="state info">АВТОМАТИЧЕСКИ</span>' : '<span class="state neutral">5 полей cron</span>'}
-      </article>`;
-  }).join('');
+  root.innerHTML = undefined;
+  schedulerRows = (payload?.tasks || []).map(item=>({...item,enabled:Boolean(item.enabled),automatic:Boolean(item.automatic)}));
+
 
   if (force || !schedulerBaseline) {
     schedulerBaseline = JSON.stringify(schedulerManagedPayload());
@@ -1123,7 +1141,7 @@ function renderScheduler(payload, force = false) {
 }
 
 async function loadScheduler() {
-  const button = $('reloadScheduler');
+  const button = node('reloadScheduler');
   if (button) button.disabled = true;
   try {
     const payload = await api('schedule');
@@ -1132,13 +1150,13 @@ async function loadScheduler() {
   } catch (error) {
     schedulerLoaded = true;
     schedulerSnapshot = null;
-    $('schedulerState').className = 'state bad';
-    $('schedulerState').textContent = 'ОШИБКА';
-    $('schedulerMeta').textContent = localizeMessage(error.message || 'Не удалось прочитать расписание Antiscan.');
-    $('schedulerTaskRows').className = 'scheduler-list empty-state bad-text';
-    $('schedulerTaskRows').textContent = 'Расписание недоступно.';
-    $('applyScheduler').disabled = true;
-    $('resetScheduler').disabled = true;
+    node('schedulerState').className = 'state bad';
+    node('schedulerState').textContent = 'ОШИБКА';
+    node('schedulerMeta').textContent = localizeMessage(error.message || 'Не удалось прочитать расписание Antiscan.');
+    node('schedulerTaskRows').className = 'scheduler-list empty-state bad-text';
+    node('schedulerTaskRows').textContent = 'Расписание недоступно.';
+    node('applyScheduler').disabled = true;
+    node('resetScheduler').disabled = true;
   } finally {
     if (button) button.disabled = false;
   }
@@ -1189,10 +1207,10 @@ function flushTargetLabel(target) {
 function renderFlushPreview(payload) {
   flushPreviewLoaded = true;
   flushPreview = payload;
-  const state = $('flushState');
-  const meta = $('flushMeta');
-  const warnings = $('flushWarnings');
-  const button = $('flushSelected');
+  const state = node('flushState');
+  const meta = node('flushMeta');
+  const warnings = node('flushWarnings');
+  const button = node('flushSelected');
   if (!state || !meta || !warnings || !button) return;
 
   state.className = `state ${payload?.allowed ? 'warn' : 'bad'}`;
@@ -1214,8 +1232,8 @@ function renderFlushPreview(payload) {
 }
 
 async function loadFlushPreview() {
-  const select = $('flushTarget');
-  const reload = $('reloadFlushPreview');
+  const select = node('flushTarget');
+  const reload = node('reloadFlushPreview');
   if (!select || !reload) return;
   reload.disabled = true;
   try {
@@ -1224,18 +1242,18 @@ async function loadFlushPreview() {
   } catch (error) {
     flushPreviewLoaded = true;
     flushPreview = null;
-    $('flushState').className = 'state bad';
-    $('flushState').textContent = 'ОШИБКА';
-    $('flushMeta').textContent = localizeMessage(error.message || 'Не удалось построить preview очистки.');
-    $('flushWarnings').innerHTML = '';
-    $('flushSelected').disabled = true;
+    node('flushState').className = 'state bad';
+    node('flushState').textContent = 'ОШИБКА';
+    node('flushMeta').textContent = localizeMessage(error.message || 'Не удалось построить preview очистки.');
+    node('flushWarnings').innerHTML = '';
+    node('flushSelected').disabled = true;
   } finally {
     reload.disabled = false;
   }
 }
 
 async function performFlush() {
-  const target = $('flushTarget')?.value || '';
+  const target = node('flushTarget')?.value || '';
   if (!flushPreview || flushPreview.target !== target || !flushPreview.allowed) return;
   const warnings = localizeMessages(flushPreview.warnings || []);
   const detail = [
@@ -1247,7 +1265,7 @@ async function performFlush() {
   if (!window.confirm(`Выполнить штатный Antiscan flush?\n\n${detail}\n\nОперация необратимо очищает выбранные данные.`)) return;
 
   flushBusy = true;
-  $('flushSelected').disabled = true;
+  node('flushSelected').disabled = true;
   try {
     const result = await mutate('flush', {
       target,
@@ -1266,27 +1284,28 @@ async function performFlush() {
     await loadFlushPreview();
   } finally {
     flushBusy = false;
-    if (flushPreview) $('flushSelected').disabled = !flushPreview.allowed;
+    if (flushPreview) node('flushSelected').disabled = !flushPreview.allowed;
   }
 }
 
 function activateTab(name) {
-  document.documentElement.dataset.section = name;
-  document.querySelectorAll('.tab').forEach((button) => {
-    button.classList.toggle('active', button.dataset.tab === name);
-  });
-  document.querySelectorAll('.tab-page').forEach((page) => {
-    const pageName = page.dataset.page;
-    const grouped =
-      (name === 'overview' && pageName === 'protection') ||
-      (name === 'blocked' && pageName === 'inspect') ||
-      (name === 'geo' && pageName === 'lists');
-    page.classList.toggle('active', pageName === name || grouped);
-  });
+  activeTab=name;
+  document.documentElement.dataset.section=name;
+  for(const id of tabControlIds){
+    const item=node(id);
+    item.classList.toggle('active',item.dataset.tab===name);
+  }
+  for(const id of pageControlIds){
+    const item=node(id),pageName=item.dataset.page;
+    const grouped=(name==='overview'&&pageName==='protection')||
+                  (name==='blocked'&&pageName==='inspect')||
+                  (name==='geo'&&pageName==='lists');
+    item.classList.toggle('active',pageName===name||grouped);
+  }
 }
 
 function renderState() {
-  const state = $('targetState');
+  const state = node('targetState');
   state.className = 'state';
   if (!snapshot?.detected) {
     state.classList.add('neutral');
@@ -1299,13 +1318,13 @@ function renderState() {
     state.textContent = 'ОСТАНОВЛЕН';
   }
 
-  $('version').textContent = snapshot?.version || '—';
-  $('blockedIps').textContent = countFor('ascn_ips');
-  $('blockedSubnets').textContent = countFor('ascn_subnets');
-  $('candidateCount').textContent = countFor('ascn_candidates');
-  $('ipsetBinary').textContent = `ipset: ${snapshot?.ipset_binary || 'не найден'}`;
+  node('version').textContent = snapshot?.version || '—';
+  node('blockedIps').textContent = countFor('ascn_ips');
+  node('blockedSubnets').textContent = countFor('ascn_subnets');
+  node('candidateCount').textContent = countFor('ascn_candidates');
+  node('ipsetBinary').textContent = `ipset: ${snapshot?.ipset_binary || 'не найден'}`;
 
-  const notice = $('notice');
+  const notice = node('notice');
   if (!snapshot?.detected) {
     notice.hidden = false;
     notice.className = 'notice warn';
@@ -1326,12 +1345,12 @@ function renderState() {
 }
 
 function renderLifecycleControls() {
-  const start = $('startAntiscan');
-  const stop = $('stopAntiscan');
-  const reload = $('reloadAntiscan');
-  const restart = $('restartAntiscan');
-  const state = $('lifecycleState');
-  const hint = $('lifecycleHint');
+  const start = node('startAntiscan');
+  const stop = node('stopAntiscan');
+  const reload = node('reloadAntiscan');
+  const restart = node('restartAntiscan');
+  const state = node('lifecycleState');
+  const hint = node('lifecycleHint');
   if (!start || !stop || !reload || !restart || !state || !hint) return;
 
   const detected = Boolean(snapshot?.detected);
@@ -1379,8 +1398,8 @@ function renderLifecycleControls() {
 }
 
 function renderOperationControls() {
-  const state = $('operationState');
-  const buttons = Array.from(document.querySelectorAll('[data-operation]'));
+  const state = node('operationState');
+  const buttons = operationControlIds.map(id => node(id));
   if (!state || !buttons.length) return;
 
   const detected = Boolean(snapshot?.detected);
@@ -1425,7 +1444,7 @@ function renderRuntimeSummary() {
     ['Интерфейсы', (cfg.isp_interfaces || []).join(', ') || '—'],
     ['Защищаемые порты', (cfg.ports || []).join(', ') || '—']
   ];
-  $('runtimeSummary').innerHTML = rows.map(([key, value]) => `
+  node('runtimeSummary').innerHTML = rows.map(([key, value]) => `
     <div class="kv"><span>${escapeHTML(key)}</span><strong>${escapeHTML(String(value))}</strong></div>
   `).join('');
 }
@@ -1434,7 +1453,7 @@ function renderRiskSummary() {
   const p = snapshot?.protection || {};
   const risk = p.ips_ban_enabled && Number(p.different_ip_threshold || 0) > 0 &&
     Number(p.different_ip_threshold || 0) <= 5 && Number(p.candidate_storage_seconds || 0) >= 86400;
-  const root = $('riskSummary');
+  const root = node('riskSummary');
   if (!snapshot?.detected) {
     root.innerHTML = '<div class="risk-empty">Antiscan не обнаружен — анализировать нечего.</div>';
     return;
@@ -1483,7 +1502,7 @@ function renderProtection() {
     ['Импорт блокировок Keenetic', boolText(Boolean(cfg.read_ndm_lockout_ipsets))],
     ['Сохранение наборов ipset', boolText(Boolean(cfg.save_ipsets))]
   ];
-  $('protection').innerHTML = rows.map(([key, value]) => `
+  node('protection').innerHTML = rows.map(([key, value]) => `
     <div class="kv"><span>${escapeHTML(key)}</span><strong>${escapeHTML(String(value))}</strong></div>
   `).join('');
 }
@@ -1491,10 +1510,10 @@ function renderProtection() {
 function renderWarnings() {
   const warnings = localizeMessages([...(snapshot?.warnings || []), ...(snapshot?.errors || [])]);
   if (!warnings.length) {
-    $('warnings').innerHTML = '<div class="ok-note">Явных признаков повышенного риска в текущем состоянии не найдено.</div>';
+    node('warnings').innerHTML = '<div class="ok-note">Явных признаков повышенного риска в текущем состоянии не найдено.</div>';
     return;
   }
-  $('warnings').innerHTML = warnings.map((warning) => `
+  node('warnings').innerHTML = warnings.map((warning) => `
     <div class="warning-item"><span>!</span><p>${escapeHTML(warning)}</p></div>
   `).join('');
 }
@@ -1509,7 +1528,7 @@ function isBenignUnknownSetCount(item) {
 
 function renderSets() {
   const sets = snapshot?.ipsets || [];
-  $('sets').innerHTML = sets.map((item) => {
+  node('sets').innerHTML = sets.map((item) => {
     const countUnavailable = isBenignUnknownSetCount(item);
     const hasOperationalError = Boolean(item.error) && !countUnavailable;
     const state = item.exists ? (hasOperationalError ? 'ЧАСТИЧНО' : 'АКТИВЕН') : 'НЕТ';
@@ -1538,7 +1557,7 @@ function verdictTitle(result) {
 }
 
 function renderInspect(result) {
-  const root = $('inspectResult');
+  const root = node('inspectResult');
   const cls = result.blocked ? 'bad' : result.conclusive ? 'good' : 'warn';
   const evidence = (result.evidence || []).map((item) => `
     <div class="evidence-row">
@@ -1615,16 +1634,17 @@ function runtimeListOptions(mode) {
 }
 
 function configureListSetMode(mode) {
-  const select = $('listSet');
-  const title = $('runtimeListsTitle');
-  const description = $('runtimeListsDescription');
-  const filter = $('listFilter');
+  const select = node('listSet');
+  const title = node('runtimeListsTitle');
+  const description = node('runtimeListsDescription');
+  const filter = node('listFilter');
   if (!select || !title || !description || !filter) return;
 
   const options = runtimeListOptions(mode);
   const previousName = browserState[mode]?.name || '';
   const changedMode = select.dataset.mode !== mode;
   select.dataset.mode = mode;
+  select.value = options[0][0];
   select.innerHTML = options.map(([value, label]) =>
     `<option value="${value}">${label}</option>`
   ).join('');
@@ -1644,9 +1664,9 @@ function configureListSetMode(mode) {
   if (browserState[mode]) {
     renderSetPage(mode);
   } else {
-    $('listMeta').textContent = '—';
-    $('listEntries').className = 'entry-table empty-state';
-    $('listEntries').textContent = 'Выберите набор и загрузите текущее состояние.';
+    node('listMeta').textContent = '—';
+    node('listEntries').className = 'entry-table empty-state';
+    node('listEntries').textContent = 'Выберите набор и загрузите текущее состояние.';
   }
 }
 
@@ -1654,9 +1674,9 @@ function renderSetPage(kind) {
   const page = browserState[kind];
   const blocked = kind === 'blocked';
   if (!blocked && kind !== currentRuntimeListMode()) return;
-  const target = blocked ? $('blockedEntries') : $('listEntries');
-  const meta = blocked ? $('blockedMeta') : $('listMeta');
-  const filter = (blocked ? $('blockedFilter').value : $('listFilter').value).trim().toLowerCase();
+  const target = blocked ? node('blockedEntries') : node('listEntries');
+  const meta = blocked ? node('blockedMeta') : node('listMeta');
+  const filter = (blocked ? node('blockedFilter').value : node('listFilter').value).trim().toLowerCase();
 
   if (!page) {
     target.className = 'entry-table empty-state';
@@ -1705,9 +1725,9 @@ function renderSetPage(kind) {
 
 async function loadSet(kind) {
   const blocked = kind === 'blocked';
-  const select = blocked ? $('blockedSet') : $('listSet');
-  const button = blocked ? $('reloadBlocked') : $('reloadList');
-  const target = blocked ? $('blockedEntries') : $('listEntries');
+  const select = blocked ? node('blockedSet') : node('listSet');
+  const button = blocked ? node('reloadBlocked') : node('reloadList');
+  const target = blocked ? node('blockedEntries') : node('listEntries');
   button.disabled = true;
   if (blocked || kind === currentRuntimeListMode()) {
     target.className = 'entry-table empty-state';
@@ -1756,7 +1776,7 @@ function mutationSuccessMessage(context, payload) {
 }
 
 function showMutationResult(payload, failed = false, context = '') {
-  const notice = $('actionNotice');
+  const notice = node('actionNotice');
   notice.hidden = false;
   notice.className = `notice action-notice ${failed ? 'bad' : 'good'}`;
   const warnings = localizeMessages(payload?.warnings);
@@ -1814,10 +1834,10 @@ function customListLabel(name) {
 
 function renderCustomList(page) {
   browserState.customSource = page;
-  const target = $('customListEntries');
-  const meta = $('customListMeta');
-  const clearButton = $('clearCustomList');
-  const reloadRuntimeButton = $('reloadCustomListRuntime');
+  const target = node('customListEntries');
+  const meta = node('customListMeta');
+  const clearButton = node('clearCustomList');
+  const reloadRuntimeButton = node('reloadCustomListRuntime');
   if (!target || !meta) return;
 
   if (page?.error) {
@@ -1860,8 +1880,8 @@ function renderCustomList(page) {
 }
 
 async function loadCustomList() {
-  const select = $('customListName');
-  const button = $('reloadCustomList');
+  const select = node('customListName');
+  const button = node('reloadCustomList');
   if (!select || !button) return;
   button.disabled = true;
   try {
@@ -1875,7 +1895,7 @@ async function loadCustomList() {
 }
 
 async function performCustomListMutation(action, entry = '') {
-  const list = $('customListName')?.value || '';
+  const list = node('customListName')?.value || '';
   const prompts = {
     add: `Добавить запись в ${customListLabel(list)}?\n\n${entry}\n\nФайл будет изменён атомарно. Если список активен, Antiscan штатно перечитает custom ipset и RouterForge проверит результат.`,
     delete: `Удалить запись из ${customListLabel(list)}?\n\n${entry}\n\nЕсли список активен, Antiscan перечитает custom ipset и RouterForge проверит удаление.`,
@@ -1895,7 +1915,7 @@ async function performCustomListMutation(action, entry = '') {
       confirm: action.toUpperCase()
     });
     showMutationResult(result, false, `custom-list:${action}`);
-    if (action === 'add') $('customListEntry').value = '';
+    if (action === 'add') node('customListEntry').value = '';
     await loadCustomList();
     await loadStatus();
     if (browserState.lists) await loadSet('lists');
@@ -1910,7 +1930,7 @@ async function performCustomListMutation(action, entry = '') {
 
 async function performLifecycle(action) {
   if (configDirty) {
-    const notice = $('notice');
+    const notice = node('notice');
     notice.hidden = false;
     notice.className = 'notice warn';
     notice.textContent = 'Есть несохранённые изменения ascn.conf. Сначала примените их или сбросьте форму.';
@@ -1945,7 +1965,7 @@ async function performLifecycle(action) {
 
 async function performOperation(action, scope = '') {
   if (configDirty) {
-    const notice = $('notice');
+    const notice = node('notice');
     notice.hidden = false;
     notice.className = 'notice warn';
     notice.textContent = 'Есть несохранённые изменения ascn.conf. Сначала примените их или сбросьте форму.';
@@ -1967,7 +1987,7 @@ async function performOperation(action, scope = '') {
 
   operationBusy = true;
   renderLifecycleControls();
-  const output = $('operationOutput');
+  const output = node('operationOutput');
   if (output) output.textContent = 'Выполняется штатная команда Antiscan…';
   try {
     const result = await mutate('operation', { action, scope, confirm: 'RUN' });
@@ -2021,8 +2041,8 @@ function auditActionTitle(action) {
 
 function renderHistory(page) {
   const events = page?.events || [];
-  const target = $('historyEntries');
-  const meta = $('historyMeta');
+  const target = node('historyEntries');
+  const meta = node('historyMeta');
   historyLoaded = true;
   meta.textContent = `${events.length} событий · новые сверху${page?.skipped_invalid_lines ? ` · пропущено повреждённых строк: ${page.skipped_invalid_lines}` : ''}`;
 
@@ -2063,23 +2083,23 @@ function renderHistory(page) {
 }
 
 async function loadHistory() {
-  const button = $('reloadHistory');
+  const button = node('reloadHistory');
   if (button) button.disabled = true;
   try {
     const page = await api('history?limit=50');
     renderHistory(page);
   } catch (error) {
     historyLoaded = true;
-    $('historyMeta').textContent = 'Не удалось прочитать историю';
-    $('historyEntries').className = 'history-list empty-state bad-text';
-    $('historyEntries').textContent = localizeMessage(error.message || 'Не удалось прочитать журнал действий.');
+    node('historyMeta').textContent = 'Не удалось прочитать историю';
+    node('historyEntries').className = 'history-list empty-state bad-text';
+    node('historyEntries').textContent = localizeMessage(error.message || 'Не удалось прочитать журнал действий.');
   } finally {
     if (button) button.disabled = false;
   }
 }
 
 async function loadStatus() {
-  $('refresh').disabled = true;
+  node('refresh').disabled = true;
   try {
     snapshot = await api('status');
     renderState();
@@ -2090,21 +2110,21 @@ async function loadStatus() {
     renderSets();
     populateConfigEditor(false);
   } catch (error) {
-    const notice = $('notice');
+    const notice = node('notice');
     notice.hidden = false;
     notice.className = 'notice bad';
     notice.textContent = localizeMessage(error.message || 'Не удалось получить статус Antiscan Manager.');
   } finally {
-    $('refresh').disabled = false;
+    node('refresh').disabled = false;
   }
 }
 
 async function inspectIP() {
-  const ip = $('inspectIp').value.trim();
+  const ip = node('inspectIp').value.trim();
   if (!ip) return;
-  $('inspectButton').disabled = true;
-  $('inspectResult').className = 'inspect-result empty';
-  $('inspectResult').textContent = 'Проверяем текущее состояние Antiscan…';
+  node('inspectButton').disabled = true;
+  node('inspectResult').className = 'inspect-result empty';
+  node('inspectResult').textContent = 'Проверяем текущее состояние Antiscan…';
   try {
     const result = await api(`inspect?ip=${encodeURIComponent(ip)}`);
     renderInspect(result);
@@ -2118,111 +2138,606 @@ async function inspectIP() {
       warnings: localizeMessages(payload.warnings || [error.message || 'Ошибка проверки'])
     });
   } finally {
-    $('inspectButton').disabled = false;
+    node('inspectButton').disabled = false;
   }
 }
 
-document.querySelectorAll('.tab').forEach((button) => {
-  button.addEventListener('click', () => {
-    const section = button.dataset.tab;
+
+  function chooseTab(section){
     activateTab(section);
-    if (section === 'blocked' && !browserState.blocked) loadSet('blocked');
-    if (section === 'blocked' && !flushPreviewLoaded) loadFlushPreview();
-    if (section === 'lists') {
+    if(section==='blocked'&&!browserState.blocked)loadSet('blocked');
+    if(section==='blocked'&&!flushPreviewLoaded)loadFlushPreview();
+    if(section==='lists'){
       configureListSetMode('lists');
-      if (!browserState.lists) loadSet('lists');
-      if (!browserState.customSource) loadCustomList();
+      if(!browserState.lists)loadSet('lists');
+      if(!browserState.customSource)loadCustomList();
     }
-    if (section === 'geo') {
+    if(section==='geo'){
       configureListSetMode('geo');
-      if (!browserState.geo) loadSet('geo');
+      if(!browserState.geo)loadSet('geo');
     }
-    if (section === 'history' && !historyLoaded) loadHistory();
-    if (section === 'diagnostics' && !diagnosticsLoaded) loadDiagnostics();
-    if (section === 'diagnostics' && !compatibilityLoaded) loadCompatibility();
-    if (section === 'diagnostics' && !rciTokenLoaded) loadRCITokenStatus();
-    if (section === 'schedule' && !schedulerLoaded) loadScheduler();
-  });
-});
-
-$('refresh').addEventListener('click', async () => {
-  await loadStatus();
-  if (browserState.blocked) await loadSet('blocked');
-  if (flushPreviewLoaded) await loadFlushPreview();
-  if (browserState.lists) await loadSet('lists');
-  if (browserState.customSource) await loadCustomList();
-  if (historyLoaded) await loadHistory();
-  if (diagnosticsLoaded) await loadDiagnostics();
-  if (compatibilityLoaded) await loadCompatibility();
-  if (rciTokenLoaded) await loadRCITokenStatus();
-  if (schedulerLoaded) await loadScheduler();
-});
-$('inspectButton').addEventListener('click', inspectIP);
-$('inspectIp').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') inspectIP();
-});
-$('reloadBlocked').addEventListener('click', () => loadSet('blocked'));
-$('reloadList').addEventListener('click', () => loadSet(currentRuntimeListMode()));
-$('blockedSet').addEventListener('change', () => loadSet('blocked'));
-$('listSet').addEventListener('change', () => loadSet(currentRuntimeListMode()));
-$('blockedFilter').addEventListener('input', () => renderSetPage('blocked'));
-$('listFilter').addEventListener('input', () => renderSetPage(currentRuntimeListMode()));
-$('flushTarget').addEventListener('change', loadFlushPreview);
-$('reloadFlushPreview').addEventListener('click', loadFlushPreview);
-$('flushSelected').addEventListener('click', performFlush);
-$('customListName').addEventListener('change', loadCustomList);
-$('reloadCustomList').addEventListener('click', loadCustomList);
-$('addCustomListEntry').addEventListener('click', () => performCustomListMutation('add', $('customListEntry').value.trim()));
-$('customListEntry').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') performCustomListMutation('add', $('customListEntry').value.trim());
-});
-$('reloadCustomListRuntime').addEventListener('click', () => performCustomListMutation('reload'));
-$('clearCustomList').addEventListener('click', () => performCustomListMutation('clear'));
-$('startAntiscan').addEventListener('click', () => performLifecycle('start'));
-$('reloadAntiscan').addEventListener('click', () => performLifecycle('reload'));
-$('restartAntiscan').addEventListener('click', () => performLifecycle('restart'));
-$('stopAntiscan').addEventListener('click', () => performLifecycle('stop'));
-document.querySelectorAll('[data-operation]').forEach((button) => {
-  button.addEventListener('click', () => performOperation(button.dataset.operation || '', button.dataset.scope || ''));
-});
-$('reloadHistory').addEventListener('click', loadHistory);
-$('reloadDiagnostics').addEventListener('click', loadDiagnostics);
-$('reloadCompatibility').addEventListener('click', loadCompatibility);
-$('reloadRCIToken').addEventListener('click', loadRCITokenStatus);
-$('setRCIToken').addEventListener('click', () => performRCITokenAction('set'));
-$('checkRCIToken').addEventListener('click', () => performRCITokenAction('check'));
-$('deleteRCIToken').addEventListener('click', () => performRCITokenAction('delete'));
-$('rciTokenInput').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') performRCITokenAction('set');
-});
-$('reloadScheduler').addEventListener('click', loadScheduler);
-$('resetScheduler').addEventListener('click', () => {
-  if (schedulerSnapshot) renderScheduler(schedulerSnapshot, true);
-});
-$('applyScheduler').addEventListener('click', applyScheduler);
-$('schedulerTaskRows').addEventListener('input', updateSchedulerState);
-$('schedulerTaskRows').addEventListener('change', updateSchedulerState);
-$('configForm').addEventListener('submit', (event) => event.preventDefault());
-$('configForm').addEventListener('input', updateConfigEditorState);
-$('configForm').addEventListener('change', updateConfigEditorState);
-$('resetConfig').addEventListener('click', () => {
-  configDirty = false;
-  populateConfigEditor(true);
-});
-$('applyConfig').addEventListener('click', applyConfigEditor);
-document.addEventListener('click', (event) => {
-  const customDelete = event.target.closest('[data-custom-delete]');
-  if (customDelete) {
-    performCustomListMutation('delete', customDelete.dataset.customDelete || '');
-    return;
+    if(section==='history'&&!historyLoaded)loadHistory();
+    if(section==='diagnostics'&&!diagnosticsLoaded)loadDiagnostics();
+    if(section==='diagnostics'&&!compatibilityLoaded)loadCompatibility();
+    if(section==='diagnostics'&&!rciTokenLoaded)loadRCITokenStatus();
+    if(section==='schedule'&&!schedulerLoaded)loadScheduler();
   }
-  const button = event.target.closest('[data-action]');
-  if (!button) return;
-  const action = button.dataset.action;
-  const entry = button.dataset.entry || '';
-  if (action === 'unban') performUnban(button.dataset.set || '', entry);
-  if (action === 'exclude') performListEntry('exclude', entry);
-});
+  async function refreshAll(){
+    await loadStatus();
+    if(browserState.blocked)await loadSet('blocked');
+    if(flushPreviewLoaded)await loadFlushPreview();
+    if(browserState.lists)await loadSet('lists');
+    if(browserState.customSource)await loadCustomList();
+    if(historyLoaded)await loadHistory();
+    if(diagnosticsLoaded)await loadDiagnostics();
+    if(compatibilityLoaded)await loadCompatibility();
+    if(rciTokenLoaded)await loadRCITokenStatus();
+    if(schedulerLoaded)await loadScheduler();
+  }
+  function handleDelegation(event){
+    if (!event.target?.closest?.('.as-page')) return;
+    const customDelete=event.target.closest('[data-custom-delete]');
+    if(customDelete){performCustomListMutation('delete',customDelete.dataset.customDelete||'');return;}
+    const button=event.target.closest('[data-action]');
+    if(!button)return;
+    const action=button.dataset.action,entry=button.dataset.entry||'';
+    if(action==='unban')performUnban(button.dataset.set||'',entry);
+    if(action==='exclude')performListEntry('exclude',entry);
+  }
+  onMount(()=>{
+    startRouterForgeBridge();
+    document.addEventListener('click', handleDelegation);
+    loadStatus();
+    return()=>{
+      document.removeEventListener('click', handleDelegation);
+      routerForgeResizeObserver?.disconnect();
+      routerForgeHostObserver?.disconnect();
+      window.removeEventListener('resize',reportRouterForgeModuleHeight);
+    };
+  });
+</script>
 
-startRouterForgeBridge();
-loadStatus();
+  <main class="as-page">
+    <header class="hero">
+      <div class="hero-copy">
+
+        <div class="hero-title-row">
+          <h1>Antiscan Manager</h1>
+
+        </div>
+        <p>Диагностика и безопасное управление Antiscan: понятные причины блокировок, настройка с откатом и журнал последних действий.</p>
+      </div>
+      <div class="hero-actions">
+        <span id="targetState" class={cells["targetState"].className} hidden={cells["targetState"].hidden}>{#if cells["targetState"].innerHTML !== undefined}{@html cells["targetState"].innerHTML}{:else if cells["targetState"].textContent !== undefined}{cells["targetState"].textContent}{:else}ПРОВЕРКА…{/if}</span>
+        <button id="refresh" class={cells["refresh"].className} type="button" hidden={cells["refresh"].hidden} disabled={cells["refresh"].disabled} onclick={refreshAll}>{#if cells["refresh"].innerHTML !== undefined}{@html cells["refresh"].innerHTML}{:else if cells["refresh"].textContent !== undefined}{cells["refresh"].textContent}{:else}↻ Обновить{/if}</button>
+      </div>
+    </header>
+
+    <section id="notice" class={cells["notice"].className} hidden={cells["notice"].hidden}>{#if cells["notice"].innerHTML !== undefined}{@html cells["notice"].innerHTML}{:else if cells["notice"].textContent !== undefined}{cells["notice"].textContent}{:else}{/if}</section>
+    <section id="actionNotice" class={cells["actionNotice"].className} hidden={cells["actionNotice"].hidden}>{#if cells["actionNotice"].innerHTML !== undefined}{@html cells["actionNotice"].innerHTML}{:else if cells["actionNotice"].textContent !== undefined}{cells["actionNotice"].textContent}{:else}{/if}</section>
+
+    <section class="metrics" aria-label="Antiscan summary">
+      <article class="metric"><span>Версия</span><strong id="version" class={cells["version"].className} hidden={cells["version"].hidden}>{#if cells["version"].innerHTML !== undefined}{@html cells["version"].innerHTML}{:else if cells["version"].textContent !== undefined}{cells["version"].textContent}{:else}—{/if}</strong><small>оригинальный Antiscan</small></article>
+      <article class="metric"><span>Прямые блокировки</span><strong id="blockedIps" class={cells["blockedIps"].className} hidden={cells["blockedIps"].hidden}>{#if cells["blockedIps"].innerHTML !== undefined}{@html cells["blockedIps"].innerHTML}{:else if cells["blockedIps"].textContent !== undefined}{cells["blockedIps"].textContent}{:else}—{/if}</strong><small>ascn_ips</small></article>
+      <article class="metric"><span>Заблокировано /24</span><strong id="blockedSubnets" class={cells["blockedSubnets"].className} hidden={cells["blockedSubnets"].hidden}>{#if cells["blockedSubnets"].innerHTML !== undefined}{@html cells["blockedSubnets"].innerHTML}{:else if cells["blockedSubnets"].textContent !== undefined}{cells["blockedSubnets"].textContent}{:else}—{/if}</strong><small>ascn_subnets</small></article>
+      <article class="metric"><span>Кандидаты</span><strong id="candidateCount" class={cells["candidateCount"].className} hidden={cells["candidateCount"].hidden}>{#if cells["candidateCount"].innerHTML !== undefined}{@html cells["candidateCount"].innerHTML}{:else if cells["candidateCount"].textContent !== undefined}{cells["candidateCount"].textContent}{:else}—{/if}</strong><small>ascn_candidates</small></article>
+    </section>
+
+    <nav class="tabs" aria-label="Antiscan Manager sections">
+      <button class={cells["rf-generated-1"].className} type="button" data-tab="overview" id="rf-generated-1" hidden={cells["rf-generated-1"].hidden} disabled={cells["rf-generated-1"].disabled} onclick={() => chooseTab("overview")}>{#if cells["rf-generated-1"].innerHTML !== undefined}{@html cells["rf-generated-1"].innerHTML}{:else if cells["rf-generated-1"].textContent !== undefined}{cells["rf-generated-1"].textContent}{:else}Обзор{/if}</button>
+      <button class={cells["rf-generated-2"].className} type="button" data-tab="diagnostics" id="rf-generated-2" hidden={cells["rf-generated-2"].hidden} disabled={cells["rf-generated-2"].disabled} onclick={() => chooseTab("diagnostics")}>{#if cells["rf-generated-2"].innerHTML !== undefined}{@html cells["rf-generated-2"].innerHTML}{:else if cells["rf-generated-2"].textContent !== undefined}{cells["rf-generated-2"].textContent}{:else}Диагностика{/if}</button>
+      <button class={cells["rf-generated-3"].className} type="button" data-tab="blocked" id="rf-generated-3" hidden={cells["rf-generated-3"].hidden} disabled={cells["rf-generated-3"].disabled} onclick={() => chooseTab("blocked")}>{#if cells["rf-generated-3"].innerHTML !== undefined}{@html cells["rf-generated-3"].innerHTML}{:else if cells["rf-generated-3"].textContent !== undefined}{cells["rf-generated-3"].textContent}{:else}Блокировки{/if}</button>
+      <button class={cells["rf-generated-4"].className} type="button" data-tab="lists" id="rf-generated-4" hidden={cells["rf-generated-4"].hidden} disabled={cells["rf-generated-4"].disabled} onclick={() => chooseTab("lists")}>{#if cells["rf-generated-4"].innerHTML !== undefined}{@html cells["rf-generated-4"].innerHTML}{:else if cells["rf-generated-4"].textContent !== undefined}{cells["rf-generated-4"].textContent}{:else}Списки{/if}</button>
+      <button class={cells["rf-generated-5"].className} type="button" data-tab="geo" id="rf-generated-5" hidden={cells["rf-generated-5"].hidden} disabled={cells["rf-generated-5"].disabled} onclick={() => chooseTab("geo")}>{#if cells["rf-generated-5"].innerHTML !== undefined}{@html cells["rf-generated-5"].innerHTML}{:else if cells["rf-generated-5"].textContent !== undefined}{cells["rf-generated-5"].textContent}{:else}Geo{/if}</button>
+      <button class={cells["rf-generated-6"].className} type="button" data-tab="schedule" id="rf-generated-6" hidden={cells["rf-generated-6"].hidden} disabled={cells["rf-generated-6"].disabled} onclick={() => chooseTab("schedule")}>{#if cells["rf-generated-6"].innerHTML !== undefined}{@html cells["rf-generated-6"].innerHTML}{:else if cells["rf-generated-6"].textContent !== undefined}{cells["rf-generated-6"].textContent}{:else}Расписание{/if}</button>
+      <button class={cells["rf-generated-7"].className} type="button" data-tab="config" id="rf-generated-7" hidden={cells["rf-generated-7"].hidden} disabled={cells["rf-generated-7"].disabled} onclick={() => chooseTab("config")}>{#if cells["rf-generated-7"].innerHTML !== undefined}{@html cells["rf-generated-7"].innerHTML}{:else if cells["rf-generated-7"].textContent !== undefined}{cells["rf-generated-7"].textContent}{:else}Настройки{/if}</button>
+      <button class={cells["rf-generated-8"].className} type="button" data-tab="history" id="rf-generated-8" hidden={cells["rf-generated-8"].hidden} disabled={cells["rf-generated-8"].disabled} onclick={() => chooseTab("history")}>{#if cells["rf-generated-8"].innerHTML !== undefined}{@html cells["rf-generated-8"].innerHTML}{:else if cells["rf-generated-8"].textContent !== undefined}{cells["rf-generated-8"].textContent}{:else}История{/if}</button>
+    </nav>
+
+    <section class={cells["rf-generated-9"].className} data-page="overview" id="rf-generated-9" hidden={cells["rf-generated-9"].hidden}>{#if cells["rf-generated-9"].innerHTML !== undefined}{@html cells["rf-generated-9"].innerHTML}{:else if cells["rf-generated-9"].textContent !== undefined}{cells["rf-generated-9"].textContent}{:else}
+      <div class="two-column overview-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">ТЕКУЩЕЕ СОСТОЯНИЕ</span>
+              <h2>Что сейчас работает</h2>
+              <p>Текущее состояние Antiscan без каких-либо изменений системы.</p>
+            </div>
+            <span id="ipsetBinary" class={cells["ipsetBinary"].className} hidden={cells["ipsetBinary"].hidden}>{#if cells["ipsetBinary"].innerHTML !== undefined}{@html cells["ipsetBinary"].innerHTML}{:else if cells["ipsetBinary"].textContent !== undefined}{cells["ipsetBinary"].textContent}{:else}ipset: —{/if}</span>
+          </div>
+          <div id="runtimeSummary" class={cells["runtimeSummary"].className} hidden={cells["runtimeSummary"].hidden}>{#if cells["runtimeSummary"].innerHTML !== undefined}{@html cells["runtimeSummary"].innerHTML}{:else if cells["runtimeSummary"].textContent !== undefined}{cells["runtimeSummary"].textContent}{:else}{/if}</div>
+        </section>
+
+        <section class="panel risk-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">РИСК ЛОЖНЫХ БЛОКИРОВОК</span>
+              <h2>Мобильные сети и /24</h2>
+              <p>Проверяем сочетания настроек, которые могут случайно зацепить динамические адреса оператора.</p>
+            </div>
+          </div>
+          <div id="riskSummary" class={cells["riskSummary"].className} hidden={cells["riskSummary"].hidden}>{#if cells["riskSummary"].innerHTML !== undefined}{@html cells["riskSummary"].innerHTML}{:else if cells["riskSummary"].textContent !== undefined}{cells["riskSummary"].textContent}{:else}{/if}</div>
+        </section>
+      </div>
+
+      <section class="panel lifecycle-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">УПРАВЛЕНИЕ</span>
+            <h2>Управление Antiscan</h2>
+            <p>Запуск, остановка и перечитывание настроек выполняются только штатным скриптом <span class="mono">S99ascn</span>. Правила Antiscan RouterForge не подменяет.</p>
+          </div>
+          <span id="lifecycleState" class={cells["lifecycleState"].className} hidden={cells["lifecycleState"].hidden}>{#if cells["lifecycleState"].innerHTML !== undefined}{@html cells["lifecycleState"].innerHTML}{:else if cells["lifecycleState"].textContent !== undefined}{cells["lifecycleState"].textContent}{:else}ПРОВЕРКА…{/if}</span>
+        </div>
+        <div class="lifecycle-body">
+          <div class="lifecycle-copy">
+            <strong>Безопасное управление</strong>
+            <span id="lifecycleHint" class={cells["lifecycleHint"].className} hidden={cells["lifecycleHint"].hidden}>{#if cells["lifecycleHint"].innerHTML !== undefined}{@html cells["lifecycleHint"].innerHTML}{:else if cells["lifecycleHint"].textContent !== undefined}{cells["lifecycleHint"].textContent}{:else}Состояние загружается…{/if}</span>
+          </div>
+          <div class="lifecycle-actions">
+            <button id="startAntiscan" class={cells["startAntiscan"].className} type="button" disabled={cells["startAntiscan"].disabled} hidden={cells["startAntiscan"].hidden} onclick={() => performLifecycle('start')}>{#if cells["startAntiscan"].innerHTML !== undefined}{@html cells["startAntiscan"].innerHTML}{:else if cells["startAntiscan"].textContent !== undefined}{cells["startAntiscan"].textContent}{:else}▶ Запустить{/if}</button>
+            <button id="reloadAntiscan" class={cells["reloadAntiscan"].className} type="button" disabled={cells["reloadAntiscan"].disabled} hidden={cells["reloadAntiscan"].hidden} onclick={() => performLifecycle('reload')}>{#if cells["reloadAntiscan"].innerHTML !== undefined}{@html cells["reloadAntiscan"].innerHTML}{:else if cells["reloadAntiscan"].textContent !== undefined}{cells["reloadAntiscan"].textContent}{:else}↻ Перечитать{/if}</button>
+            <button id="restartAntiscan" class={cells["restartAntiscan"].className} type="button" disabled={cells["restartAntiscan"].disabled} hidden={cells["restartAntiscan"].hidden} onclick={() => performLifecycle('restart')}>{#if cells["restartAntiscan"].innerHTML !== undefined}{@html cells["restartAntiscan"].innerHTML}{:else if cells["restartAntiscan"].textContent !== undefined}{cells["restartAntiscan"].textContent}{:else}↻ Перезапустить{/if}</button>
+            <button id="stopAntiscan" class={cells["stopAntiscan"].className} type="button" disabled={cells["stopAntiscan"].disabled} hidden={cells["stopAntiscan"].hidden} onclick={() => performLifecycle('stop')}>{#if cells["stopAntiscan"].innerHTML !== undefined}{@html cells["stopAntiscan"].innerHTML}{:else if cells["stopAntiscan"].textContent !== undefined}{cells["stopAntiscan"].textContent}{:else}■ Остановить{/if}</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">СЕРВИСНЫЕ ОПЕРАЦИИ</span>
+            <h2>Обслуживание</h2>
+            <p>Восстановление правил, обработка кандидатов, импорт блокировок Keenetic и сохранение текущего состояния.</p>
+          </div>
+          <span id="operationState" class={cells["operationState"].className} hidden={cells["operationState"].hidden}>{#if cells["operationState"].innerHTML !== undefined}{@html cells["operationState"].innerHTML}{:else if cells["operationState"].textContent !== undefined}{cells["operationState"].textContent}{:else}ГОТОВО{/if}</span>
+        </div>
+        <div class="lifecycle-body">
+          <div class="lifecycle-copy">
+            <strong>Сервисные действия</strong>
+            <span>Редкие операции, которые обычно нужны только при диагностике или восстановлении Antiscan.</span>
+          </div>
+          <div class="lifecycle-actions">
+            <button class={cells["rf-generated-10"].className} type="button" data-operation="update_rules" id="rf-generated-10" hidden={cells["rf-generated-10"].hidden} disabled={cells["rf-generated-10"].disabled} onclick={() => performOperation("read_candidates","")}>{#if cells["rf-generated-10"].innerHTML !== undefined}{@html cells["rf-generated-10"].innerHTML}{:else if cells["rf-generated-10"].textContent !== undefined}{cells["rf-generated-10"].textContent}{:else}Восстановить правила{/if}</button>
+            <button class={cells["rf-generated-11"].className} type="button" data-operation="read_candidates" id="rf-generated-11" hidden={cells["rf-generated-11"].hidden} disabled={cells["rf-generated-11"].disabled} onclick={() => performOperation("read_ndm_ipsets","")}>{#if cells["rf-generated-11"].innerHTML !== undefined}{@html cells["rf-generated-11"].innerHTML}{:else if cells["rf-generated-11"].textContent !== undefined}{cells["rf-generated-11"].textContent}{:else}Обработать кандидатов{/if}</button>
+            <button class={cells["rf-generated-12"].className} type="button" data-operation="read_ndm_ipsets" id="rf-generated-12" hidden={cells["rf-generated-12"].hidden} disabled={cells["rf-generated-12"].disabled} onclick={() => performOperation("save_ipsets","")}>{#if cells["rf-generated-12"].innerHTML !== undefined}{@html cells["rf-generated-12"].innerHTML}{:else if cells["rf-generated-12"].textContent !== undefined}{cells["rf-generated-12"].textContent}{:else}Импорт Keenetic{/if}</button>
+            <button class={cells["rf-generated-13"].className} type="button" data-operation="save_ipsets" id="rf-generated-13" hidden={cells["rf-generated-13"].hidden} disabled={cells["rf-generated-13"].disabled} onclick={() => performOperation("update_ipsets","geo")}>{#if cells["rf-generated-13"].innerHTML !== undefined}{@html cells["rf-generated-13"].innerHTML}{:else if cells["rf-generated-13"].textContent !== undefined}{cells["rf-generated-13"].textContent}{:else}Сохранить ipset{/if}</button>
+          </div>
+        </div>
+        <div id="operationOutput" class={cells["operationOutput"].className} hidden={cells["operationOutput"].hidden}>{#if cells["operationOutput"].innerHTML !== undefined}{@html cells["operationOutput"].innerHTML}{:else if cells["operationOutput"].textContent !== undefined}{cells["operationOutput"].textContent}{:else}Последняя сервисная операция ещё не запускалась.{/if}</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">НАБОРЫ IPSET</span>
+            <h2>Состояние наборов</h2>
+            <p>Количество записей во всех известных наборах ipset Antiscan.</p>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Набор</th><th>Назначение</th><th>Состояние</th><th>Записей</th></tr></thead>
+            <tbody id="sets" class={cells["sets"].className} hidden={cells["sets"].hidden}>{#if cells["sets"].innerHTML !== undefined}{@html cells["sets"].innerHTML}{:else}{/if}</tbody>
+          </table>
+        </div>
+      </section>
+    {/if}</section>
+
+    <section class={cells["rf-generated-14"].className} data-page="diagnostics" id="rf-generated-14" hidden={cells["rf-generated-14"].hidden}>{#if cells["rf-generated-14"].innerHTML !== undefined}{@html cells["rf-generated-14"].innerHTML}{:else if cells["rf-generated-14"].textContent !== undefined}{cells["rf-generated-14"].textContent}{:else}
+      <section class="panel diagnostics-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">ГОТОВНОСТЬ ANTISCAN</span>
+            <h2>Диагностика окружения</h2>
+            <p>Проверяем штатные файлы, зависимости, Netfilter, hook, cron, RCI и lock-состояние без изменения настроек.</p>
+          </div>
+          <div class="diagnostics-head-actions">
+            <span id="diagnosticsState" class={cells["diagnosticsState"].className} hidden={cells["diagnosticsState"].hidden}>{#if cells["diagnosticsState"].innerHTML !== undefined}{@html cells["diagnosticsState"].innerHTML}{:else if cells["diagnosticsState"].textContent !== undefined}{cells["diagnosticsState"].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
+            <button id="reloadDiagnostics" class={cells["reloadDiagnostics"].className} type="button" hidden={cells["reloadDiagnostics"].hidden} disabled={cells["reloadDiagnostics"].disabled} onclick={loadDiagnostics}>{#if cells["reloadDiagnostics"].innerHTML !== undefined}{@html cells["reloadDiagnostics"].innerHTML}{:else if cells["reloadDiagnostics"].textContent !== undefined}{cells["reloadDiagnostics"].textContent}{:else}↻ Проверить{/if}</button>
+          </div>
+        </div>
+        <div id="diagnosticsMeta" class={cells["diagnosticsMeta"].className} hidden={cells["diagnosticsMeta"].hidden}>{#if cells["diagnosticsMeta"].innerHTML !== undefined}{@html cells["diagnosticsMeta"].innerHTML}{:else if cells["diagnosticsMeta"].textContent !== undefined}{cells["diagnosticsMeta"].textContent}{:else}Откройте вкладку, чтобы выполнить read-only проверку.{/if}</div>
+        <div id="diagnosticsChecks" class={cells["diagnosticsChecks"].className} hidden={cells["diagnosticsChecks"].hidden}>{#if cells["diagnosticsChecks"].innerHTML !== undefined}{@html cells["diagnosticsChecks"].innerHTML}{:else if cells["diagnosticsChecks"].textContent !== undefined}{cells["diagnosticsChecks"].textContent}{:else}Диагностика ещё не запускалась.{/if}</div>
+      </section>
+
+      <section class="panel rci-token-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">RCI / KEENETIC</span>
+            <h2>RCI-токен</h2>
+            <p>Статус token-flow Antiscan и безопасное управление штатными командами <span class="mono">token set/check/delete</span>.</p>
+          </div>
+          <div class="diagnostics-head-actions">
+            <span id="rciTokenState" class={cells["rciTokenState"].className} hidden={cells["rciTokenState"].hidden}>{#if cells["rciTokenState"].innerHTML !== undefined}{@html cells["rciTokenState"].innerHTML}{:else if cells["rciTokenState"].textContent !== undefined}{cells["rciTokenState"].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
+            <button id="reloadRCIToken" class={cells["reloadRCIToken"].className} type="button" hidden={cells["reloadRCIToken"].hidden} disabled={cells["reloadRCIToken"].disabled} onclick={loadRCITokenStatus}>{#if cells["reloadRCIToken"].innerHTML !== undefined}{@html cells["reloadRCIToken"].innerHTML}{:else if cells["reloadRCIToken"].textContent !== undefined}{cells["reloadRCIToken"].textContent}{:else}↻ Обновить{/if}</button>
+          </div>
+        </div>
+        <div class="rci-token-body">
+          <div class="rci-token-copy">
+            <strong id="rciTokenSummary" class={cells["rciTokenSummary"].className} hidden={cells["rciTokenSummary"].hidden}>{#if cells["rciTokenSummary"].innerHTML !== undefined}{@html cells["rciTokenSummary"].innerHTML}{:else if cells["rciTokenSummary"].textContent !== undefined}{cells["rciTokenSummary"].textContent}{:else}Состояние RCI-токена ещё не загружено.{/if}</strong>
+            <span id="rciTokenMeta" class={cells["rciTokenMeta"].className} hidden={cells["rciTokenMeta"].hidden}>{#if cells["rciTokenMeta"].innerHTML !== undefined}{@html cells["rciTokenMeta"].innerHTML}{:else if cells["rciTokenMeta"].textContent !== undefined}{cells["rciTokenMeta"].textContent}{:else}Значение токена RouterForge не читает и не показывает.{/if}</span>
+            <span class="rci-token-security">Токен передаётся upstream только через stdin. Он не попадает в argv, URL, ответ API или журнал операций.</span>
+          </div>
+          <div class="rci-token-controls">
+            <input id="rciTokenInput" type="password" autocomplete="new-password" spellcheck="false" placeholder="Новый RCI-токен" aria-label="Новый RCI-токен" class={cells["rciTokenInput"].className} hidden={cells["rciTokenInput"].hidden} disabled={cells["rciTokenInput"].disabled} bind:value={cells["rciTokenInput"].value} onkeydown={(event) => {if(event.key === 'Enter') performRCITokenAction('set');}}>
+            <button id="setRCIToken" class={cells["setRCIToken"].className} type="button" disabled={cells["setRCIToken"].disabled} hidden={cells["setRCIToken"].hidden} onclick={() => performRCITokenAction('set')}>{#if cells["setRCIToken"].innerHTML !== undefined}{@html cells["setRCIToken"].innerHTML}{:else if cells["setRCIToken"].textContent !== undefined}{cells["setRCIToken"].textContent}{:else}Сохранить токен{/if}</button>
+            <button id="checkRCIToken" class={cells["checkRCIToken"].className} type="button" disabled={cells["checkRCIToken"].disabled} hidden={cells["checkRCIToken"].hidden} onclick={() => performRCITokenAction('check')}>{#if cells["checkRCIToken"].innerHTML !== undefined}{@html cells["checkRCIToken"].innerHTML}{:else if cells["checkRCIToken"].textContent !== undefined}{cells["checkRCIToken"].textContent}{:else}Проверить{/if}</button>
+            <button id="deleteRCIToken" class={cells["deleteRCIToken"].className} type="button" disabled={cells["deleteRCIToken"].disabled} hidden={cells["deleteRCIToken"].hidden} onclick={() => performRCITokenAction('delete')}>{#if cells["deleteRCIToken"].innerHTML !== undefined}{@html cells["deleteRCIToken"].innerHTML}{:else if cells["deleteRCIToken"].textContent !== undefined}{cells["deleteRCIToken"].textContent}{:else}Удалить{/if}</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">СОВМЕСТИМОСТЬ</span>
+            <h2>Совместимость и обновления</h2>
+            <p>Учтённый функционал upstream привязан к проверенной версии. RouterForge не устанавливает обновления Antiscan: здесь только read-only состояние пакета, update cache, прошивки, Netfilter и hook.</p>
+          </div>
+          <div class="diagnostics-head-actions">
+            <span id="compatibilityState" class={cells["compatibilityState"].className} hidden={cells["compatibilityState"].hidden}>{#if cells["compatibilityState"].innerHTML !== undefined}{@html cells["compatibilityState"].innerHTML}{:else if cells["compatibilityState"].textContent !== undefined}{cells["compatibilityState"].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
+            <button id="reloadCompatibility" class={cells["reloadCompatibility"].className} type="button" hidden={cells["reloadCompatibility"].hidden} disabled={cells["reloadCompatibility"].disabled} onclick={loadCompatibility}>{#if cells["reloadCompatibility"].innerHTML !== undefined}{@html cells["reloadCompatibility"].innerHTML}{:else if cells["reloadCompatibility"].textContent !== undefined}{cells["reloadCompatibility"].textContent}{:else}↻ Перечитать{/if}</button>
+          </div>
+        </div>
+        <div id="compatibilityMeta" class={cells["compatibilityMeta"].className} hidden={cells["compatibilityMeta"].hidden}>{#if cells["compatibilityMeta"].innerHTML !== undefined}{@html cells["compatibilityMeta"].innerHTML}{:else if cells["compatibilityMeta"].textContent !== undefined}{cells["compatibilityMeta"].textContent}{:else}Откройте вкладку, чтобы проверить совместимость без сетевых запросов и изменений системы.{/if}</div>
+        <div id="compatibilityGrid" class={cells["compatibilityGrid"].className} hidden={cells["compatibilityGrid"].hidden}>{#if cells["compatibilityGrid"].innerHTML !== undefined}{@html cells["compatibilityGrid"].innerHTML}{:else if cells["compatibilityGrid"].textContent !== undefined}{cells["compatibilityGrid"].textContent}{:else}{/if}</div>
+        <div id="compatibilityWarnings" class={cells["compatibilityWarnings"].className} hidden={cells["compatibilityWarnings"].hidden}>{#if cells["compatibilityWarnings"].innerHTML !== undefined}{@html cells["compatibilityWarnings"].innerHTML}{:else if cells["compatibilityWarnings"].textContent !== undefined}{cells["compatibilityWarnings"].textContent}{:else}{/if}</div>
+        <div id="diagnosticsContract" class={cells["diagnosticsContract"].className} hidden={cells["diagnosticsContract"].hidden}>{#if cells["diagnosticsContract"].innerHTML !== undefined}{@html cells["diagnosticsContract"].innerHTML}{:else if cells["diagnosticsContract"].textContent !== undefined}{cells["diagnosticsContract"].textContent}{:else}{/if}</div>
+      </section>
+    {/if}</section>
+    <section class={cells["rf-generated-15"].className} data-page="inspect" id="rf-generated-15" hidden={cells["rf-generated-15"].hidden}>{#if cells["rf-generated-15"].innerHTML !== undefined}{@html cells["rf-generated-15"].innerHTML}{:else if cells["rf-generated-15"].textContent !== undefined}{cells["rf-generated-15"].textContent}{:else}
+      <section class="panel inspector-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">ДИАГНОСТИКА БЛОКИРОВКИ</span>
+            <h2>Почему заблокирован этот IP?</h2>
+            <p>Проверяем известные наборы <span class="mono">ascn_*</span> в том же порядке, в котором их учитывает Antiscan.</p>
+          </div>
+        </div>
+        <div class="inspect-form">
+          <input id="inspectIp" autocomplete="off" inputmode="decimal" spellcheck="false" placeholder="Например, 100.64.10.77" class={cells["inspectIp"].className} hidden={cells["inspectIp"].hidden} disabled={cells["inspectIp"].disabled} bind:value={cells["inspectIp"].value} onkeydown={(event) => {if(event.key === "Enter") inspectIP();}}>
+          <button id="inspectButton" class={cells["inspectButton"].className} type="button" hidden={cells["inspectButton"].hidden} disabled={cells["inspectButton"].disabled} onclick={inspectIP}>{#if cells["inspectButton"].innerHTML !== undefined}{@html cells["inspectButton"].innerHTML}{:else if cells["inspectButton"].textContent !== undefined}{cells["inspectButton"].textContent}{:else}Проверить IP{/if}</button>
+        </div>
+        <div id="inspectResult" class={cells["inspectResult"].className} hidden={cells["inspectResult"].hidden}>{#if cells["inspectResult"].innerHTML !== undefined}{@html cells["inspectResult"].innerHTML}{:else if cells["inspectResult"].textContent !== undefined}{cells["inspectResult"].textContent}{:else}Введите IPv4-адрес. Эта проверка ничего не меняет в Antiscan.{/if}</div>
+      </section>
+
+      <section class="panel mobile-help">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">МОБИЛЬНЫЕ СЕТИ</span>
+            <h2>Почему мобильный адрес может попасть под раздачу</h2>
+          </div>
+        </div>
+        <div class="explain-grid">
+          <article><strong>1</strong><span>Antiscan запоминает адреса-кандидаты.</span></article>
+          <article><strong>2</strong><span>Несколько адресов одной /24 могут накопиться за период хранения.</span></article>
+          <article><strong>3</strong><span>После порога вся /24 попадает в <span class="mono">ascn_subnets</span>.</span></article>
+          <article><strong>4</strong><span>Новый легитимный мобильный IP из этой /24 тоже оказывается заблокирован.</span></article>
+        </div>
+      </section>
+    {/if}</section>
+
+    <section class={cells["rf-generated-16"].className} data-page="blocked" id="rf-generated-16" hidden={cells["rf-generated-16"].hidden}>{#if cells["rf-generated-16"].innerHTML !== undefined}{@html cells["rf-generated-16"].innerHTML}{:else if cells["rf-generated-16"].textContent !== undefined}{cells["rf-generated-16"].textContent}{:else}
+      <section class="panel set-browser-panel">
+        <div class="panel-head set-browser-head">
+          <div>
+            <span class="section-kicker">ТЕКУЩИЕ БЛОКИРОВКИ</span>
+            <h2>Блокировки и кандидаты</h2>
+            <p>Реальные записи выбранного набора. Для блокировок Antiscan можно снять только одну конкретную запись; остальные записи не изменяются.</p>
+          </div>
+          <div class="browser-controls">
+            <select id="blockedSet" aria-label="Выберите Antiscan set" class={cells["blockedSet"].className} hidden={cells["blockedSet"].hidden} disabled={cells["blockedSet"].disabled} bind:value={cells["blockedSet"].value} onchange={() => loadSet('blocked')}>{#if cells["blockedSet"].innerHTML !== undefined}{@html cells["blockedSet"].innerHTML}{:else}
+              <option value="ascn_ips">Прямые IP · ascn_ips</option>
+              <option value="ascn_subnets">Подсети /24 · ascn_subnets</option>
+              <option value="ascn_honeypot">Ловушка · ascn_honeypot</option>
+              <option value="ascn_ndm_lockout">Блокировка Keenetic · ascn_ndm_lockout</option>
+              <option value="ascn_candidates">Кандидаты · ascn_candidates</option>
+            {/if}</select>
+            <button id="reloadBlocked" class={cells["reloadBlocked"].className} type="button" hidden={cells["reloadBlocked"].hidden} disabled={cells["reloadBlocked"].disabled} onclick={() => loadSet('blocked')}>{#if cells["reloadBlocked"].innerHTML !== undefined}{@html cells["reloadBlocked"].innerHTML}{:else if cells["reloadBlocked"].textContent !== undefined}{cells["reloadBlocked"].textContent}{:else}Загрузить{/if}</button>
+          </div>
+        </div>
+        <div class="browser-toolbar">
+          <input id="blockedFilter" autocomplete="off" spellcheck="false" placeholder="Фильтр по IP или подсети" class={cells["blockedFilter"].className} hidden={cells["blockedFilter"].hidden} disabled={cells["blockedFilter"].disabled} bind:value={cells["blockedFilter"].value} oninput={() => renderSetPage('blocked')}>
+          <span id="blockedMeta" class={cells["blockedMeta"].className} hidden={cells["blockedMeta"].hidden}>{#if cells["blockedMeta"].innerHTML !== undefined}{@html cells["blockedMeta"].innerHTML}{:else if cells["blockedMeta"].textContent !== undefined}{cells["blockedMeta"].textContent}{:else}—{/if}</span>
+        </div>
+        <div id="blockedEntries" class={cells["blockedEntries"].className} hidden={cells["blockedEntries"].hidden}>{#if cells["blockedEntries"].innerHTML !== undefined}{@html cells["blockedEntries"].innerHTML}{:else if cells["blockedEntries"].textContent !== undefined}{cells["blockedEntries"].textContent}{:else}Выберите набор и загрузите текущее состояние.{/if}</div>
+      </section>
+
+      <section class="panel flush-panel">
+        <div class="panel-head set-browser-head">
+          <div>
+            <span class="section-kicker">ШТАТНАЯ ОЧИСТКА / ВОССТАНОВЛЕНИЕ</span>
+            <h2>Очистить набор Antiscan</h2>
+            <p>RouterForge вызывает только штатный <span class="mono">S99ascn flush</span>, заранее показывает затрагиваемые наборы и после операции проверяет фактическое состояние.</p>
+          </div>
+          <div class="browser-controls">
+            <select id="flushTarget" aria-label="Выберите набор для очистки" class={cells["flushTarget"].className} hidden={cells["flushTarget"].hidden} disabled={cells["flushTarget"].disabled} bind:value={cells["flushTarget"].value} onchange={loadFlushPreview}>{#if cells["flushTarget"].innerHTML !== undefined}{@html cells["flushTarget"].innerHTML}{:else}
+              <option value="ips">Прямые IP</option>
+              <option value="subnets">Подсети /24</option>
+              <option value="candidates">Кандидаты</option>
+              <option value="honeypot">Ловушка</option>
+              <option value="ndm_lockout">Блокировки Keenetic</option>
+              <option value="custom_blacklist">Пользовательский чёрный список</option>
+              <option value="custom_whitelist">Пользовательский белый список</option>
+              <option value="custom_exclude">Пользовательские исключения</option>
+              <option value="geo">Все Geo-наборы</option>
+              <option value="all">Upstream «все»</option>
+            {/if}</select>
+            <button id="reloadFlushPreview" class={cells["reloadFlushPreview"].className} type="button" hidden={cells["reloadFlushPreview"].hidden} disabled={cells["reloadFlushPreview"].disabled} onclick={loadFlushPreview}>{#if cells["reloadFlushPreview"].innerHTML !== undefined}{@html cells["reloadFlushPreview"].innerHTML}{:else if cells["reloadFlushPreview"].textContent !== undefined}{cells["reloadFlushPreview"].textContent}{:else}↻ Проверить{/if}</button>
+          </div>
+        </div>
+        <div class="flush-summary">
+          <span id="flushState" class={cells["flushState"].className} hidden={cells["flushState"].hidden}>{#if cells["flushState"].innerHTML !== undefined}{@html cells["flushState"].innerHTML}{:else if cells["flushState"].textContent !== undefined}{cells["flushState"].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
+          <div id="flushMeta" class={cells["flushMeta"].className} hidden={cells["flushMeta"].hidden}>{#if cells["flushMeta"].innerHTML !== undefined}{@html cells["flushMeta"].innerHTML}{:else if cells["flushMeta"].textContent !== undefined}{cells["flushMeta"].textContent}{:else}Выберите цель, чтобы увидеть точные последствия штатной команды flush.{/if}</div>
+        </div>
+        <div id="flushWarnings" class={cells["flushWarnings"].className} hidden={cells["flushWarnings"].hidden}>{#if cells["flushWarnings"].innerHTML !== undefined}{@html cells["flushWarnings"].innerHTML}{:else if cells["flushWarnings"].textContent !== undefined}{cells["flushWarnings"].textContent}{:else}{/if}</div>
+        <div class="flush-actions">
+          <button id="flushSelected" class={cells["flushSelected"].className} type="button" disabled={cells["flushSelected"].disabled} hidden={cells["flushSelected"].hidden} onclick={performFlush}>{#if cells["flushSelected"].innerHTML !== undefined}{@html cells["flushSelected"].innerHTML}{:else if cells["flushSelected"].textContent !== undefined}{cells["flushSelected"].textContent}{:else}Очистить выбранное{/if}</button>
+          <span class="muted">Для активных whitelist с опасной комбинацией настроек операция блокируется до изменения конфигурации.</span>
+        </div>
+      </section>
+    {/if}</section>
+
+    <section class={cells["rf-generated-17"].className} data-page="lists" id="rf-generated-17" hidden={cells["rf-generated-17"].hidden}>{#if cells["rf-generated-17"].innerHTML !== undefined}{@html cells["rf-generated-17"].innerHTML}{:else if cells["rf-generated-17"].textContent !== undefined}{cells["rf-generated-17"].textContent}{:else}
+      <section class="panel set-browser-panel custom-source-panel">
+        <div class="panel-head set-browser-head">
+          <div>
+            <span class="section-kicker">ПОЛЬЗОВАТЕЛЬСКИЕ СПИСКИ</span>
+            <h2>Исходные списки Antiscan</h2>
+            <p>Полное управление файлами blacklist, whitelist и exclude. Изменения атомарные; активный список перечитывается штатной командой Antiscan и проверяется по runtime ipset.</p>
+          </div>
+          <div class="browser-controls">
+            <select id="customListName" aria-label="Выберите пользовательский список" class={cells["customListName"].className} hidden={cells["customListName"].hidden} disabled={cells["customListName"].disabled} bind:value={cells["customListName"].value} onchange={loadCustomList}>{#if cells["customListName"].innerHTML !== undefined}{@html cells["customListName"].innerHTML}{:else}
+              <option value="blacklist">Чёрный список</option>
+              <option value="whitelist">Белый список</option>
+              <option value="exclude">Исключения</option>
+            {/if}</select>
+            <button id="reloadCustomList" class={cells["reloadCustomList"].className} type="button" hidden={cells["reloadCustomList"].hidden} disabled={cells["reloadCustomList"].disabled} onclick={loadCustomList}>{#if cells["reloadCustomList"].innerHTML !== undefined}{@html cells["reloadCustomList"].innerHTML}{:else if cells["reloadCustomList"].textContent !== undefined}{cells["reloadCustomList"].textContent}{:else}Загрузить{/if}</button>
+          </div>
+        </div>
+        <div class="browser-toolbar">
+          <input id="customListEntry" autocomplete="off" spellcheck="false" placeholder="IPv4 или CIDR, например 100.64.10.0/24" class={cells["customListEntry"].className} hidden={cells["customListEntry"].hidden} disabled={cells["customListEntry"].disabled} bind:value={cells["customListEntry"].value} onkeydown={(event) => {if(event.key === 'Enter') performCustomListMutation('add', node('customListEntry').value.trim());}}>
+          <span class="entry-actions">
+            <button id="addCustomListEntry" class={cells["addCustomListEntry"].className} type="button" hidden={cells["addCustomListEntry"].hidden} disabled={cells["addCustomListEntry"].disabled} onclick={() => performCustomListMutation('add', node('customListEntry').value.trim())}>{#if cells["addCustomListEntry"].innerHTML !== undefined}{@html cells["addCustomListEntry"].innerHTML}{:else if cells["addCustomListEntry"].textContent !== undefined}{cells["addCustomListEntry"].textContent}{:else}Добавить адрес{/if}</button>
+            <button id="reloadCustomListRuntime" class={cells["reloadCustomListRuntime"].className} type="button" hidden={cells["reloadCustomListRuntime"].hidden} disabled={cells["reloadCustomListRuntime"].disabled} onclick={() => performCustomListMutation('reload')}>{#if cells["reloadCustomListRuntime"].innerHTML !== undefined}{@html cells["reloadCustomListRuntime"].innerHTML}{:else if cells["reloadCustomListRuntime"].textContent !== undefined}{cells["reloadCustomListRuntime"].textContent}{:else}Перечитать runtime{/if}</button>
+            <button id="clearCustomList" class={cells["clearCustomList"].className} type="button" hidden={cells["clearCustomList"].hidden} disabled={cells["clearCustomList"].disabled} onclick={() => performCustomListMutation('clear')}>{#if cells["clearCustomList"].innerHTML !== undefined}{@html cells["clearCustomList"].innerHTML}{:else if cells["clearCustomList"].textContent !== undefined}{cells["clearCustomList"].textContent}{:else}Очистить{/if}</button>
+          </span>
+        </div>
+        <div id="customListMeta" class={cells["customListMeta"].className} hidden={cells["customListMeta"].hidden}>{#if cells["customListMeta"].innerHTML !== undefined}{@html cells["customListMeta"].innerHTML}{:else if cells["customListMeta"].textContent !== undefined}{cells["customListMeta"].textContent}{:else}Выберите список и загрузите его исходный файл.{/if}</div>
+        <div id="customListEntries" class={cells["customListEntries"].className} hidden={cells["customListEntries"].hidden}>{#if cells["customListEntries"].innerHTML !== undefined}{@html cells["customListEntries"].innerHTML}{:else if cells["customListEntries"].textContent !== undefined}{cells["customListEntries"].textContent}{:else}Исходный список ещё не загружен.{/if}</div>
+      </section>
+
+      <section class="panel set-browser-panel runtime-lists-panel">
+        <div class="panel-head set-browser-head">
+          <div>
+            <span class="section-kicker">RUNTIME IPSET</span>
+            <h2 id="runtimeListsTitle" class={cells["runtimeListsTitle"].className} hidden={cells["runtimeListsTitle"].hidden}>{#if cells["runtimeListsTitle"].innerHTML !== undefined}{@html cells["runtimeListsTitle"].innerHTML}{:else if cells["runtimeListsTitle"].textContent !== undefined}{cells["runtimeListsTitle"].textContent}{:else}Активные пользовательские списки{/if}</h2>
+            <p id="runtimeListsDescription" class={cells["runtimeListsDescription"].className} hidden={cells["runtimeListsDescription"].hidden}>{#if cells["runtimeListsDescription"].innerHTML !== undefined}{@html cells["runtimeListsDescription"].innerHTML}{:else if cells["runtimeListsDescription"].textContent !== undefined}{cells["runtimeListsDescription"].textContent}{:else}Текущее содержимое runtime ipset для blacklist, whitelist и exclude.{/if}</p>
+          </div>
+          <div class="browser-controls">
+            <select id="listSet" aria-label="Выберите list set" class={cells["listSet"].className} hidden={cells["listSet"].hidden} disabled={cells["listSet"].disabled} bind:value={cells["listSet"].value} onchange={() => loadSet(currentRuntimeListMode())}>{#if cells["listSet"].innerHTML !== undefined}{@html cells["listSet"].innerHTML}{:else}
+              <option value="ascn_custom_exclude">Пользовательские исключения</option>
+              <option value="ascn_custom_blacklist">Пользовательский чёрный список</option>
+              <option value="ascn_custom_whitelist">Пользовательский белый список</option>
+              <option value="ascn_geo_exclude">Geo-исключения</option>
+              <option value="ascn_geo_blacklist">Geo-чёрный список</option>
+              <option value="ascn_geo_whitelist">Geo-белый список</option>
+            {/if}</select>
+            <button id="reloadList" class={cells["reloadList"].className} type="button" hidden={cells["reloadList"].hidden} disabled={cells["reloadList"].disabled} onclick={() => loadSet(currentRuntimeListMode())}>{#if cells["reloadList"].innerHTML !== undefined}{@html cells["reloadList"].innerHTML}{:else if cells["reloadList"].textContent !== undefined}{cells["reloadList"].textContent}{:else}Загрузить{/if}</button>
+          </div>
+        </div>
+        <div class="browser-toolbar">
+          <input id="listFilter" autocomplete="off" spellcheck="false" placeholder="Фильтр по IP или подсети" class={cells["listFilter"].className} hidden={cells["listFilter"].hidden} disabled={cells["listFilter"].disabled} bind:value={cells["listFilter"].value} oninput={() => renderSetPage(currentRuntimeListMode())}>
+          <span id="listMeta" class={cells["listMeta"].className} hidden={cells["listMeta"].hidden}>{#if cells["listMeta"].innerHTML !== undefined}{@html cells["listMeta"].innerHTML}{:else if cells["listMeta"].textContent !== undefined}{cells["listMeta"].textContent}{:else}—{/if}</span>
+        </div>
+        <div id="listEntries" class={cells["listEntries"].className} hidden={cells["listEntries"].hidden}>{#if cells["listEntries"].innerHTML !== undefined}{@html cells["listEntries"].innerHTML}{:else if cells["listEntries"].textContent !== undefined}{cells["listEntries"].textContent}{:else}Выберите набор и загрузите текущее состояние.{/if}</div>
+      </section>
+
+      <section class="panel geo-service-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">GEO</span>
+            <h2>Обновление Geo-данных</h2>
+            <p>Штатные операции Antiscan для загрузки Geo-наборов и повторной попытки после ошибки. RouterForge не подменяет upstream-логику.</p>
+          </div>
+          <div class="lifecycle-actions">
+            <button class={cells["rf-generated-18"].className} type="button" data-operation="update_ipsets" data-scope="geo" id="rf-generated-18" hidden={cells["rf-generated-18"].hidden} disabled={cells["rf-generated-18"].disabled} onclick={() => performOperation("update_ipsets","geo")}>{#if cells["rf-generated-18"].innerHTML !== undefined}{@html cells["rf-generated-18"].innerHTML}{:else if cells["rf-generated-18"].textContent !== undefined}{cells["rf-generated-18"].textContent}{:else}Обновить Geo{/if}</button>
+            <button class={cells["rf-generated-19"].className} type="button" data-operation="retry_load_geo" id="rf-generated-19" hidden={cells["rf-generated-19"].hidden} disabled={cells["rf-generated-19"].disabled} onclick={() => performOperation("retry_load_geo","")}>{#if cells["rf-generated-19"].innerHTML !== undefined}{@html cells["rf-generated-19"].innerHTML}{:else if cells["rf-generated-19"].textContent !== undefined}{cells["rf-generated-19"].textContent}{:else}Повторить после ошибки{/if}</button>
+          </div>
+        </div>
+      </section>
+    {/if}</section>
+
+    <section class={cells["rf-generated-20"].className} data-page="protection" id="rf-generated-20" hidden={cells["rf-generated-20"].hidden}>{#if cells["rf-generated-20"].innerHTML !== undefined}{@html cells["rf-generated-20"].innerHTML}{:else if cells["rf-generated-20"].textContent !== undefined}{cells["rf-generated-20"].textContent}{:else}
+      <div class="two-column">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">ЗАЩИТА</span>
+              <h2>Активная политика</h2>
+              <p>Значения прочитаны из <span class="mono">ascn.conf</span>.</p>
+            </div>
+          </div>
+          <div id="protection" class={cells["protection"].className} hidden={cells["protection"].hidden}>{#if cells["protection"].innerHTML !== undefined}{@html cells["protection"].innerHTML}{:else if cells["protection"].textContent !== undefined}{cells["protection"].textContent}{:else}{/if}</div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">РИСКИ</span>
+              <h2>Что стоит проверить</h2>
+              <p>Не приговор, а подсказки по потенциально агрессивным сочетаниям параметров.</p>
+            </div>
+          </div>
+          <div id="warnings" class={cells["warnings"].className} hidden={cells["warnings"].hidden}>{#if cells["warnings"].innerHTML !== undefined}{@html cells["warnings"].innerHTML}{:else if cells["warnings"].textContent !== undefined}{cells["warnings"].textContent}{:else}{/if}</div>
+        </section>
+      </div>
+    {/if}</section>
+
+    <section class={cells["rf-generated-21"].className} data-page="schedule" id="rf-generated-21" hidden={cells["rf-generated-21"].hidden}>{#if cells["rf-generated-21"].innerHTML !== undefined}{@html cells["rf-generated-21"].innerHTML}{:else if cells["rf-generated-21"].textContent !== undefined}{cells["rf-generated-21"].textContent}{:else}
+      <section class="panel scheduler-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">ПЛАНИРОВЩИК</span>
+            <h2>Расписание Antiscan</h2>
+            <p>Редактор управляет только штатными задачами из <span class="mono">VALID_TASKS</span>. Произвольные команды и shell-текст не принимаются.</p>
+          </div>
+          <div class="diagnostics-head-actions">
+            <span id="schedulerState" class={cells["schedulerState"].className} hidden={cells["schedulerState"].hidden}>{#if cells["schedulerState"].innerHTML !== undefined}{@html cells["schedulerState"].innerHTML}{:else if cells["schedulerState"].textContent !== undefined}{cells["schedulerState"].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
+            <button id="reloadScheduler" class={cells["reloadScheduler"].className} type="button" hidden={cells["reloadScheduler"].hidden} disabled={cells["reloadScheduler"].disabled} onclick={loadScheduler}>{#if cells["reloadScheduler"].innerHTML !== undefined}{@html cells["reloadScheduler"].innerHTML}{:else if cells["reloadScheduler"].textContent !== undefined}{cells["reloadScheduler"].textContent}{:else}↻ Обновить{/if}</button>
+          </div>
+        </div>
+        <div id="schedulerMeta" class={cells["schedulerMeta"].className} hidden={cells["schedulerMeta"].hidden}>{#if cells["schedulerMeta"].innerHTML !== undefined}{@html cells["schedulerMeta"].innerHTML}{:else if cells["schedulerMeta"].textContent !== undefined}{cells["schedulerMeta"].textContent}{:else}Откройте вкладку, чтобы загрузить ascn_crontab.conf и активный crontab.{/if}</div>
+        <div id="schedulerTaskRows" class={cells["schedulerTaskRows"].className} hidden={cells["schedulerTaskRows"].hidden}>
+{#if cells["schedulerTaskRows"].innerHTML !== undefined}
+  {@html cells["schedulerTaskRows"].innerHTML}
+{:else if cells["schedulerTaskRows"].textContent !== undefined}
+  {cells["schedulerTaskRows"].textContent}
+{:else if schedulerRows.length}
+  {#each schedulerRows as item (item.task)}
+  <article class="scheduler-row" data-scheduler-task={item.task} data-automatic={String(item.automatic)}>
+    <label class="scheduler-toggle">
+      <input data-scheduler-enabled type="checkbox" role="switch" bind:checked={item.enabled} disabled={item.automatic} onchange={updateSchedulerState}>
+      <span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span>
+      <span><strong>{(schedulerTaskLabels[item.task]||[item.task])[0]}</strong><small class="mono">{item.task}</small></span>
+    </label>
+    <div class="scheduler-expression-wrap">
+      <input data-scheduler-expression class="mono" bind:value={item.schedule} spellcheck="false" disabled={item.automatic} aria-label={'Cron '+item.task} oninput={updateSchedulerState}>
+      <small>{(schedulerTaskLabels[item.task]||[item.task,'Штатная задача Antiscan.'])[1]}</small>
+    </div>
+    {#if item.automatic}<span class="state info">АВТОМАТИЧЕСКИ</span>{:else}<span class="state neutral">5 полей cron</span>{/if}
+  </article>
+  {/each}
+{:else if !schedulerLoaded}Расписание ещё не загружено.{/if}
+</div>
+        <div class="scheduler-note">
+          <strong>Автоматическая задача retry_load_geo</strong>
+          <span>Этой строкой управляет сам upstream Antiscan при ошибках Geo. RouterForge показывает и сохраняет её, но не позволяет вручную подменять расписание.</span>
+        </div>
+        <div class="scheduler-actions">
+          <button id="resetScheduler" class={cells["resetScheduler"].className} type="button" disabled={cells["resetScheduler"].disabled} hidden={cells["resetScheduler"].hidden} onclick={() => {if(schedulerSnapshot)renderScheduler(schedulerSnapshot,true);}}>{#if cells["resetScheduler"].innerHTML !== undefined}{@html cells["resetScheduler"].innerHTML}{:else if cells["resetScheduler"].textContent !== undefined}{cells["resetScheduler"].textContent}{:else}Сбросить изменения{/if}</button>
+          <button id="applyScheduler" class={cells["applyScheduler"].className} type="button" disabled={cells["applyScheduler"].disabled} hidden={cells["applyScheduler"].hidden} onclick={applyScheduler}>{#if cells["applyScheduler"].innerHTML !== undefined}{@html cells["applyScheduler"].innerHTML}{:else if cells["applyScheduler"].textContent !== undefined}{cells["applyScheduler"].textContent}{:else}Применить расписание{/if}</button>
+        </div>
+      </section>
+    {/if}</section>
+
+    <section class={cells["rf-generated-22"].className} data-page="config" id="rf-generated-22" hidden={cells["rf-generated-22"].hidden}>{#if cells["rf-generated-22"].innerHTML !== undefined}{@html cells["rf-generated-22"].innerHTML}{:else if cells["rf-generated-22"].textContent !== undefined}{cells["rf-generated-22"].textContent}{:else}
+      <form id="configForm" class={cells["configForm"].className} autocomplete="off" hidden={cells["configForm"].hidden} onsubmit={(event) => event.preventDefault()} oninput={updateConfigEditorState} onchange={updateConfigEditorState}>{#if cells["configForm"].innerHTML !== undefined}{@html cells["configForm"].innerHTML}{:else if cells["configForm"].textContent !== undefined}{cells["configForm"].textContent}{:else}
+        <section class="panel config-header-panel">
+          <div class="panel-head">
+            <div>
+              <span class="section-kicker">БЕЗОПАСНАЯ НАСТРОЙКА</span>
+              <h2>Настройки ascn.conf</h2>
+              <p>Только известные параметры Antiscan, без произвольного shell-текста. Комментарии существующего файла сохраняются.</p>
+            </div>
+            <div class="config-state-wrap">
+              <span id="configState" class={cells["configState"].className} hidden={cells["configState"].hidden}>{#if cells["configState"].innerHTML !== undefined}{@html cells["configState"].innerHTML}{:else if cells["configState"].textContent !== undefined}{cells["configState"].textContent}{:else}ПРОВЕРКА…{/if}</span>
+              <span id="configHash" class={cells["configHash"].className} hidden={cells["configHash"].hidden}>{#if cells["configHash"].innerHTML !== undefined}{@html cells["configHash"].innerHTML}{:else if cells["configHash"].textContent !== undefined}{cells["configHash"].textContent}{:else}SHA256 —{/if}</span>
+            </div>
+          </div>
+          <div class="config-transaction-strip">
+            <span>проверка</span><b>→</b><span>резервная копия</span><b>→</b><span>атомарная запись</span><b>→</b><span>перечитывание Antiscan</span><b>→</b><span>проверка результата</span><b>→</b><span>откат при ошибке</span>
+          </div>
+          <div id="configMobileRisk" class={cells["configMobileRisk"].className} hidden={cells["configMobileRisk"].hidden}>{#if cells["configMobileRisk"].innerHTML !== undefined}{@html cells["configMobileRisk"].innerHTML}{:else if cells["configMobileRisk"].textContent !== undefined}{cells["configMobileRisk"].textContent}{:else}Проверяем риск ложной блокировки /24…{/if}</div>
+        </section>
+
+        <div class="config-grid">
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">ТРАФИК</span><h2>Интерфейсы и порты</h2></div></div>
+            <div class="field-grid">
+              <label class="field wide"><span>Интернет-интерфейсы</span><input id="cfgIspInterfaces" spellcheck="false" placeholder="eth3 ppp0" class={cells["cfgIspInterfaces"].className} hidden={cells["cfgIspInterfaces"].hidden} disabled={cells["cfgIspInterfaces"].disabled} bind:value={cells["cfgIspInterfaces"].value}><small><span class="mono">ISP_INTERFACES</span> · 1–10 имён интерфейсов через пробел.</small></label>
+              <label class="field"><span>Порты роутера</span><input id="cfgPorts" spellcheck="false" placeholder="22,80,443" class={cells["cfgPorts"].className} hidden={cells["cfgPorts"].hidden} disabled={cells["cfgPorts"].disabled} bind:value={cells["cfgPorts"].value}><small>Порты/диапазоны через запятую.</small></label>
+              <label class="field"><span>Проброшенные порты</span><input id="cfgForwardedPorts" spellcheck="false" placeholder="22,80,443" class={cells["cfgForwardedPorts"].className} hidden={cells["cfgForwardedPorts"].hidden} disabled={cells["cfgForwardedPorts"].disabled} bind:value={cells["cfgForwardedPorts"].value}><small><span class="mono">PORTS_FORWARDED</span> · порты перенаправляемых подключений.</small></label>
+            </div>
+          </section>
+
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">IP И ПОДСЕТИ</span><h2>IP и /24 защита</h2></div></div>
+            <div class="field-grid">
+              <label class="switch-field wide"><input id="cfgEnableIpsBan" type="checkbox" role="switch" class={cells["cfgEnableIpsBan"].className} hidden={cells["cfgEnableIpsBan"].hidden} disabled={cells["cfgEnableIpsBan"].disabled} bind:checked={cells["cfgEnableIpsBan"].checked}><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>ENABLE_IPS_BAN</strong><small>Прямые IP и распределённая /24 защита.</small></span></label>
+              <label class="field"><span>RULES_MASK</span><input id="cfgRulesMask" spellcheck="false" placeholder="255.255.255.255" class={cells["cfgRulesMask"].className} hidden={cells["cfgRulesMask"].hidden} disabled={cells["cfgRulesMask"].disabled} bind:value={cells["cfgRulesMask"].value}></label>
+              <label class="field"><span>Окно новых подключений, сек.</span><input id="cfgRecentTime" type="number" min="2" max="3600" class={cells["cfgRecentTime"].className} hidden={cells["cfgRecentTime"].hidden} disabled={cells["cfgRecentTime"].disabled} bind:value={cells["cfgRecentTime"].value}><small class="mono">RECENT_CONNECTIONS_TIME</small></label>
+              <label class="field"><span>Порог новых подключений</span><input id="cfgRecentHitcount" type="number" min="2" max="100" class={cells["cfgRecentHitcount"].className} hidden={cells["cfgRecentHitcount"].hidden} disabled={cells["cfgRecentHitcount"].disabled} bind:value={cells["cfgRecentHitcount"].value}><small class="mono">RECENT_CONNECTIONS_HITCOUNT</small></label>
+              <label class="field"><span>Лимит одновременных соединений</span><input id="cfgRecentLimit" type="number" min="3" max="1000" class={cells["cfgRecentLimit"].className} hidden={cells["cfgRecentLimit"].hidden} disabled={cells["cfgRecentLimit"].disabled} bind:value={cells["cfgRecentLimit"].value}><small class="mono">RECENT_CONNECTIONS_LIMIT</small></label>
+              <label class="field"><span>Блокировка IP, сек.</span><input id="cfgRecentBanTime" type="number" min="0" max="2147483" class={cells["cfgRecentBanTime"].className} hidden={cells["cfgRecentBanTime"].hidden} disabled={cells["cfgRecentBanTime"].disabled} bind:value={cells["cfgRecentBanTime"].value}><small class="mono">RECENT_CONNECTIONS_BANTIME</small></label>
+              <label class="field"><span>Кандидаты /24 живут, сек.</span><input id="cfgCandidateStorage" type="number" min="0" max="2147483" class={cells["cfgCandidateStorage"].className} hidden={cells["cfgCandidateStorage"].hidden} disabled={cells["cfgCandidateStorage"].disabled} bind:value={cells["cfgCandidateStorage"].value}></label>
+              <label class="field"><span>Порог разных IP в /24</span><input id="cfgDifferentThreshold" type="number" min="2" max="254" class={cells["cfgDifferentThreshold"].className} hidden={cells["cfgDifferentThreshold"].hidden} disabled={cells["cfgDifferentThreshold"].disabled} bind:value={cells["cfgDifferentThreshold"].value}></label>
+              <label class="field"><span>Блокировка /24, сек.</span><input id="cfgSubnetBanTime" type="number" min="0" max="2147483" class={cells["cfgSubnetBanTime"].className} hidden={cells["cfgSubnetBanTime"].hidden} disabled={cells["cfgSubnetBanTime"].disabled} bind:value={cells["cfgSubnetBanTime"].value}><small class="mono">SUBNETS_BANTIME</small></label>
+            </div>
+          </section>
+
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">ЛОВУШКА</span><h2>Ловушка</h2></div></div>
+            <div class="field-grid">
+              <label class="switch-field wide"><input id="cfgEnableHoneypot" type="checkbox" role="switch" class={cells["cfgEnableHoneypot"].className} hidden={cells["cfgEnableHoneypot"].hidden} disabled={cells["cfgEnableHoneypot"].disabled} bind:checked={cells["cfgEnableHoneypot"].checked}><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>ENABLE_HONEYPOT</strong><small>При включении список портов обязателен.</small></span></label>
+              <label class="field"><span>Порты ловушки</span><input id="cfgHoneypotPorts" spellcheck="false" placeholder="23,2323,3389" class={cells["cfgHoneypotPorts"].className} hidden={cells["cfgHoneypotPorts"].hidden} disabled={cells["cfgHoneypotPorts"].disabled} bind:value={cells["cfgHoneypotPorts"].value}><small class="mono">HONEYPOT_PORTS</small></label>
+              <label class="field"><span>Время блокировки, сек.</span><input id="cfgHoneypotBanTime" type="number" min="0" max="2147483" class={cells["cfgHoneypotBanTime"].className} hidden={cells["cfgHoneypotBanTime"].hidden} disabled={cells["cfgHoneypotBanTime"].disabled} bind:value={cells["cfgHoneypotBanTime"].value}><small class="mono">HONEYPOT_BANTIME</small></label>
+            </div>
+          </section>
+
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">СПИСКИ И GEO</span><h2>Списки и страны</h2></div></div>
+            <div class="field-grid">
+              <label class="switch-field wide"><input id="cfgUseCustomExclude" type="checkbox" role="switch" class={cells["cfgUseCustomExclude"].className} hidden={cells["cfgUseCustomExclude"].hidden} disabled={cells["cfgUseCustomExclude"].disabled} bind:checked={cells["cfgUseCustomExclude"].checked}><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>Пользовательские исключения</strong><small><span class="mono">USE_CUSTOM_EXCLUDE_LIST</span> · использовать ascn_custom_exclude.</small></span></label>
+              <label class="field"><span>Режим пользовательского списка</span><select id="cfgCustomMode" class={cells["cfgCustomMode"].className} hidden={cells["cfgCustomMode"].hidden} disabled={cells["cfgCustomMode"].disabled} bind:value={cells["cfgCustomMode"].value}>{#if cells["cfgCustomMode"].innerHTML !== undefined}{@html cells["cfgCustomMode"].innerHTML}{:else}<option value="0">Выключено</option><option value="blacklist">Чёрный список</option><option value="whitelist">Белый список</option>{/if}</select><small class="mono">CUSTOM_LISTS_BLOCK_MODE</small></label>
+              <label class="field"><span>Режим Geo</span><select id="cfgGeoMode" class={cells["cfgGeoMode"].className} hidden={cells["cfgGeoMode"].hidden} disabled={cells["cfgGeoMode"].disabled} bind:value={cells["cfgGeoMode"].value}>{#if cells["cfgGeoMode"].innerHTML !== undefined}{@html cells["cfgGeoMode"].innerHTML}{:else}<option value="0">Выключено</option><option value="blacklist">Чёрный список</option><option value="whitelist">Белый список</option>{/if}</select><small class="mono">GEOBLOCK_MODE</small></label>
+              <label class="field wide"><span>Страны Geo</span><input id="cfgGeoCountries" spellcheck="false" placeholder="RU US DE" class={cells["cfgGeoCountries"].className} hidden={cells["cfgGeoCountries"].hidden} disabled={cells["cfgGeoCountries"].disabled} bind:value={cells["cfgGeoCountries"].value}><small><span class="mono">GEOBLOCK_COUNTRIES</span> · до 8 ISO-кодов, регистр исправляется автоматически.</small></label>
+              <label class="field wide"><span>Страны-исключения Geo</span><input id="cfgGeoExcludeCountries" spellcheck="false" placeholder="FI DE" class={cells["cfgGeoExcludeCountries"].className} hidden={cells["cfgGeoExcludeCountries"].hidden} disabled={cells["cfgGeoExcludeCountries"].disabled} bind:value={cells["cfgGeoExcludeCountries"].value}><small class="mono">GEO_EXCLUDE_COUNTRIES</small></label>
+            </div>
+          </section>
+
+          <section class="panel config-card">
+            <div class="panel-head"><div><span class="section-kicker">ХРАНЕНИЕ / KEENETIC</span><h2>Хранение и lockout</h2></div></div>
+            <div class="field-grid">
+              <label class="field wide"><span>IPSETS_DIRECTORY</span><input id="cfgIPSetsDirectory" spellcheck="false" placeholder="/tmp/mnt/DISK/antiscan" class={cells["cfgIPSetsDirectory"].className} hidden={cells["cfgIPSetsDirectory"].hidden} disabled={cells["cfgIPSetsDirectory"].disabled} bind:value={cells["cfgIPSetsDirectory"].value}><small>Путь внутри /opt или /tmp. Upstream запрещает только сам /opt/etc; вложенные каталоги, например /opt/etc/antiscan/ipsets, допустимы.</small></label>
+              <label class="switch-field"><input id="cfgSaveIPSets" type="checkbox" role="switch" class={cells["cfgSaveIPSets"].className} hidden={cells["cfgSaveIPSets"].hidden} disabled={cells["cfgSaveIPSets"].disabled} bind:checked={cells["cfgSaveIPSets"].checked}><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>Сохранять наборы</strong><small><span class="mono">SAVE_IPSETS</span> · сохранять накопленные ipset.</small></span></label>
+              <label class="switch-field"><input id="cfgSaveOnExit" type="checkbox" role="switch" class={cells["cfgSaveOnExit"].className} hidden={cells["cfgSaveOnExit"].hidden} disabled={cells["cfgSaveOnExit"].disabled} bind:checked={cells["cfgSaveOnExit"].checked}><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>Сохранять при остановке</strong><small><span class="mono">SAVE_ON_EXIT</span> · экспортировать состояние при остановке.</small></span></label>
+              <label class="switch-field"><input id="cfgReadNDM" type="checkbox" role="switch" class={cells["cfgReadNDM"].className} hidden={cells["cfgReadNDM"].hidden} disabled={cells["cfgReadNDM"].disabled} bind:checked={cells["cfgReadNDM"].checked}><span class="rf-switch-status" aria-hidden="true"></span><span class="rf-switch-track" aria-hidden="true"><span></span></span><span><strong>Блокировки Keenetic</strong><small><span class="mono">READ_NDM_LOCKOUT_IPSETS</span> · импортировать ip lockout-policy.</small></span></label>
+              <label class="field"><span>Время блокировки Keenetic, сек.</span><input id="cfgLockoutBanTime" type="number" min="0" max="2147483" class={cells["cfgLockoutBanTime"].className} hidden={cells["cfgLockoutBanTime"].hidden} disabled={cells["cfgLockoutBanTime"].disabled} bind:value={cells["cfgLockoutBanTime"].value}><small class="mono">LOCKOUT_IPSET_BANTIME</small></label>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel config-apply-panel">
+          <div class="config-apply-copy">
+            <strong>Применение настроек</strong>
+            <span id="configHint" class={cells["configHint"].className} hidden={cells["configHint"].hidden}>{#if cells["configHint"].innerHTML !== undefined}{@html cells["configHint"].innerHTML}{:else if cells["configHint"].textContent !== undefined}{cells["configHint"].textContent}{:else}Состояние конфигурации загружается…{/if}</span>
+          </div>
+          <div class="config-actions">
+            <button id="resetConfig" class={cells["resetConfig"].className} type="button" disabled={cells["resetConfig"].disabled} hidden={cells["resetConfig"].hidden} onclick={() => {configDirty=false;populateConfigEditor(true);}}>{#if cells["resetConfig"].innerHTML !== undefined}{@html cells["resetConfig"].innerHTML}{:else if cells["resetConfig"].textContent !== undefined}{cells["resetConfig"].textContent}{:else}Сбросить форму{/if}</button>
+            <button id="applyConfig" class={cells["applyConfig"].className} type="button" disabled={cells["applyConfig"].disabled} hidden={cells["applyConfig"].hidden} onclick={applyConfigEditor}>{#if cells["applyConfig"].innerHTML !== undefined}{@html cells["applyConfig"].innerHTML}{:else if cells["applyConfig"].textContent !== undefined}{cells["applyConfig"].textContent}{:else}Применить конфигурацию{/if}</button>
+          </div>
+        </section>
+      {/if}</form>
+    {/if}</section>
+
+    <section class={cells["rf-generated-23"].className} data-page="history" id="rf-generated-23" hidden={cells["rf-generated-23"].hidden}>{#if cells["rf-generated-23"].innerHTML !== undefined}{@html cells["rf-generated-23"].innerHTML}{:else if cells["rf-generated-23"].textContent !== undefined}{cells["rf-generated-23"].textContent}{:else}
+      <section class="panel history-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">ИСТОРИЯ ОПЕРАЦИЙ</span>
+            <h2>Последние действия</h2>
+            <p>Ограниченный журнал последних действий: что было сделано, результат, длительность, откат и необходимость перезапуска. Значения формы ascn.conf в журнал не записываются.</p>
+          </div>
+          <button id="reloadHistory" class={cells["reloadHistory"].className} type="button" hidden={cells["reloadHistory"].hidden} disabled={cells["reloadHistory"].disabled} onclick={loadHistory}>{#if cells["reloadHistory"].innerHTML !== undefined}{@html cells["reloadHistory"].innerHTML}{:else if cells["reloadHistory"].textContent !== undefined}{cells["reloadHistory"].textContent}{:else}↻ Обновить историю{/if}</button>
+        </div>
+        <div class="history-toolbar">
+          <span id="historyMeta" class={cells["historyMeta"].className} hidden={cells["historyMeta"].hidden}>{#if cells["historyMeta"].innerHTML !== undefined}{@html cells["historyMeta"].innerHTML}{:else if cells["historyMeta"].textContent !== undefined}{cells["historyMeta"].textContent}{:else}История ещё не загружена.{/if}</span>
+          <span class="state good">JSONL · 0600 · ограниченный размер</span>
+        </div>
+        <div id="historyEntries" class={cells["historyEntries"].className} hidden={cells["historyEntries"].hidden}>{#if cells["historyEntries"].innerHTML !== undefined}{@html cells["historyEntries"].innerHTML}{:else if cells["historyEntries"].textContent !== undefined}{cells["historyEntries"].textContent}{:else}Откройте вкладку, чтобы загрузить последние события.{/if}</div>
+      </section>
+
+      <section class="panel compact-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-kicker">СОСТАВ ЖУРНАЛА</span>
+            <h2>Что попадает в историю</h2>
+          </div>
+        </div>
+        <p class="boundary-copy">Журнал хранит только тип операции, безопасную цель, HTTP-код, длительность, факт изменения и проверки, откат, необходимость перезапуска и короткие предупреждения. Тело запроса, значения конфигурации и токены подтверждения не сохраняются.</p>
+      </section>
+    {/if}</section>
+
+  </main>

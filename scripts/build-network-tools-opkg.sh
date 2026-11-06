@@ -38,10 +38,10 @@ sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/$BINARY"
 cp "$ROOT/modules/network-tools/packaging/$SERVICE" "$WORK/data/opt/etc/init.d/$SERVICE"
 chmod 0755 "$WORK/data/opt/etc/init.d/$SERVICE"
 
-for file in index.html app.js runtime.js module.css; do
-    cp "$ROOT/modules/network-tools/frontend/$file" \
-        "$WORK/data/opt/share/routerforge/modules/network-tools/ui/$file"
-done
+sh "$ROOT/scripts/build-standalone-svelte-frontend.sh" network-tools
+UI_BUILD="$ROOT/modules/network-tools/frontend/build"
+cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/network-tools/ui/"
+python3 "$ROOT/scripts/verify-standalone-svelte-ui.py" --module network-tools --dir "$WORK/data/opt/share/routerforge/modules/network-tools/ui"
 
 cat > "$WORK/data/opt/share/routerforge/modules/network-tools/manifest.json" <<MANIFEST
 {

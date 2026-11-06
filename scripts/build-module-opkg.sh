@@ -269,9 +269,10 @@ build_antiscan_manager() {
     cp "$ROOT/modules/antiscan-manager-runtime/packaging/S98routerforge-antiscan-manager" "$WORK/data/opt/etc/init.d/S98routerforge-antiscan-manager"
     chmod 0755 "$WORK/data/opt/etc/init.d/S98routerforge-antiscan-manager"
 
-    for file in index.html app.js module.css; do
-        cp "$UI/$file" "$WORK/data/opt/share/routerforge/modules/antiscan-manager/ui/$file"
-    done
+    sh "$ROOT/scripts/build-standalone-svelte-frontend.sh" antiscan-manager
+    UI_BUILD="$UI/build"
+    cp -R "$UI_BUILD"/. "$WORK/data/opt/share/routerforge/modules/antiscan-manager/ui/"
+    python3 "$ROOT/scripts/verify-standalone-svelte-ui.py" --module antiscan-manager --dir "$WORK/data/opt/share/routerforge/modules/antiscan-manager/ui"
 
     cat > "$WORK/data/opt/share/routerforge/modules/antiscan-manager/manifest.json" <<MANIFEST
 {

@@ -213,7 +213,7 @@ jobs:
                   CORE_FRONTEND=true
                   ;;
 
-                modules/dns/frontend/*|modules/admin/frontend/*|modules/monitoring/frontend/*)
+                modules/dns/frontend/*|modules/admin/frontend/*|modules/monitoring/frontend/*|modules/crowdsec-manager/frontend/*|modules/network-tools/frontend/*|modules/antiscan-manager/frontend/*)
                   DNS_FRONTEND=true
                   ;;
 
@@ -415,6 +415,54 @@ jobs:
             cat "/tmp/rf-frontend-${labels[$i]}.log"
           done
           test "$failed" -eq 0
+      - name: Verify native Svelte 5 standalone module sources and production assets
+        if: steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-standalone-svelte-ui.py --selftest
+          for module in crowdsec-manager network-tools antiscan-manager; do
+            python3 scripts/verify-standalone-svelte-ui.py --module "$module" --source
+            sh scripts/build-standalone-svelte-frontend.sh "$module"
+            python3 scripts/verify-standalone-svelte-ui.py --module "$module" --dir "modules/$module/frontend/build"
+          done
+          node --test modules/crowdsec-manager/frontend/tests/contract.test.mjs modules/network-tools/frontend/tests/contract.test.mjs modules/antiscan-manager/frontend/tests/contract.test.mjs
+
+      - name: Verify compiled standalone Svelte 5 UI against original in Chromium
+        if: steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --break-system-packages --disable-pip-version-check --no-input 'playwright==1.56.0' 'Pillow==12.0.0'
+          CHROME="$(command -v google-chrome || command -v chromium || true)"
+          if [ -z "$CHROME" ]; then python3 -m playwright install --with-deps chromium; fi
+          crowd=(--repo-root . --build-dir modules/crowdsec-manager/frontend/build --fixtures modules/crowdsec-manager/frontend/tests/fixtures)
+          if [ -n "$CHROME" ]; then crowd+=(--chromium "$CHROME"); fi
+          python3 modules/crowdsec-manager/frontend/tests/verify_crowdsec_live_parity.py "${crowd[@]}" --output "$RUNNER_TEMP/svelte-parity-crowdsec"
+          python3 modules/crowdsec-manager/frontend/tests/verify_crowdsec_actions.py "${crowd[@]}"
+          for module in network-tools antiscan-manager; do
+            args=(--repo . --module "$module" --out "$RUNNER_TEMP/svelte-parity-$module")
+            if [ -n "$CHROME" ]; then args+=(--chromium "$CHROME"); fi
+            python3 scripts/verify-standalone-svelte-parity.py "${args[@]}"
+          done
+
+      - name: Verify real Svelte 5 packaged IPK UI and prevent legacy JS shipping
+        if: steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ROUTERFORGE_TARGET=aarch64-3.10
+          export ROUTERFORGE_UPX=0
+          VERSION=0.0.0-svelte5-ci
+          sh scripts/build-crowdsec-manager-opkg.sh "$VERSION"
+          sh scripts/build-network-tools-opkg.sh "$VERSION"
+          sh scripts/build-module-opkg.sh antiscan-manager "$VERSION"
+          for module in crowdsec-manager network-tools antiscan-manager; do
+            pkg="dist/routerforge-${module}_${VERSION}_aarch64-3.10.ipk"
+            test -s "$pkg"
+            python3 scripts/verify-standalone-svelte-ui.py --module "$module" --ipk "$pkg"
+          done
+
       - name: Verify standalone module frontend builds
         if: steps.scope.outputs.dns_frontend == 'true'
         run: |

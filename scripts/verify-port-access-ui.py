@@ -71,7 +71,7 @@ def main():
             'safe action button ' + id_
         )
     scripts = ['svelte-status.js','ui-rebuild.js',
-               'p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
+               'p39-compact.js','p53-ux.js']
     check(len(scripts) == len(set(scripts)) and dom.scripts == scripts, 'ordered unique frontend script imports')
     check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
     check('p54-workspace.css' in HTML.read_text(encoding='utf-8'), 'P54 stylesheet linked')
@@ -147,6 +147,30 @@ def main():
           'P5 no legacy app shipped')
     check('operation-logs' in log and 'window.setInterval(refresh, 2000)' in log, 'read-only live log polling')
     check('navigator.clipboard.writeText' in log and 'pa-log-pause' in log, 'live logs pause/copy controls')
+    # P6: native Svelte 5 page navigation replaces BOTH imperative P54 and P55.
+    layout = (FRONT / 'PortAccessLayout.svelte').read_text(encoding='utf-8')
+    check('id="pa-svelte-layout"' in HTML.read_text(encoding='utf-8') and
+          'mount(PortAccessLayout' in entry and 'DOMContentLoaded' in entry,
+          'P6 Svelte navigation mounted after existing engine controllers')
+    check(all(token in layout for token in ('$state(', 'onMount(',
+          "id: 'protection'", "id: 'access'", "id: 'engines'", "id: 'diagnostics'",
+          'onclick={() => show(page.id)}', 'class:active={active === page.id}')),
+          'P6 reactive four-page navigation with accessible page state')
+    check(all(token in layout for token in ('rf-pa-summary', 'rf-pa-selector',
+          'rf-pa-working', 'existing-engine-control', 'engine-config-panel',
+          'staging-panel', 'recent-live-panel', 'odin-live-access',
+          'rf-pa-operation-log', 'rf-pa-advanced')),
+          'P6 preserves original operator panels and their listeners')
+    check('MutationObserver' in layout and "health = /включена" in layout and
+          'observer?.disconnect()' in layout,
+          'P6 reactive status state and observer cleanup')
+    check(not (FRONT / 'p54-workspace.js').exists() and
+          not (FRONT / 'p55-antiscan.js').exists(),
+          'P6 legacy navigation controller sources removed')
+    check(all(name not in HTML.read_text(encoding='utf-8') and
+          name not in build.split('for file in ', 1)[1].split('; do', 1)[0]
+          for name in ('p54-workspace.js','p55-antiscan.js')),
+          'P6 no legacy layout scripts included in IPK')
     # Prevent accidentally introducing destructive UI workflows in a front-end-only acceptance patch.
     check('document.write(' not in js and 'eval(' not in js, 'no dynamic document writes or eval')
     if failures:

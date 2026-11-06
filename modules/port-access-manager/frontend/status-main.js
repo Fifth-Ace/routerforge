@@ -1,5 +1,6 @@
 import { mount, flushSync } from 'svelte';
 import PortAccessEngineWorkspace from './PortAccessEngineWorkspace.svelte';
+import PortAccessLayout from './PortAccessLayout.svelte';
 import PortAccessEngineering from './PortAccessEngineering.svelte';
 import PortAccessStatus from './PortAccessStatus.svelte';
 import PortAccessOdin from './PortAccessOdin.svelte';
@@ -22,3 +23,14 @@ mount(PortAccessEngineering, { target: engineeringTarget });
 // The retained layout controller follows this bundle in document order.
 // Ensure all Svelte-owned sections exist before it rearranges them.
 flushSync();
+// P6: ui-rebuild/P39/P53 run in the same script turn; render the native
+// Svelte pages after they have created the original live workspace.
+function mountPortAccessLayout() {
+  const pageTarget = document.getElementById('pa-svelte-layout');
+  if (!pageTarget) throw new Error('PORT_ACCESS_LAYOUT_TARGET_MISSING');
+  mount(PortAccessLayout, { target: pageTarget });
+  flushSync();
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mountPortAccessLayout, { once: true });
+} else { mountPortAccessLayout(); }

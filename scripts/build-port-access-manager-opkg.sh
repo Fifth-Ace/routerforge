@@ -42,7 +42,7 @@ if [ ! -d "$FRONTEND/node_modules" ]; then
 fi
 (cd "$FRONTEND" && npm run build)
 test -s "$FRONTEND/build/svelte-status.js"
-for file in index.html module.css ui-rebuild.js ui-rebuild.css p39-compact.js p39-compact.css p53-ux.js p53-ux.css p54-workspace.js p54-workspace.css p55-antiscan.js p55-antiscan.css; do
+for file in index.html module.css ui-rebuild.js ui-rebuild.css p39-compact.js p39-compact.css p53-ux.js p53-ux.css p54-workspace.css p55-antiscan.css; do
   cp "$ROOT/modules/port-access-manager/frontend/$file" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/$file"
 done
 cp "$FRONTEND/build/svelte-status.js" "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/svelte-status.js"
@@ -53,6 +53,10 @@ test ! -e "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/opera
 test ! -e "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/odin-ui.js"
 # P5: engineering tabs, diagnostics, draft staging and access list are Svelte-owned.
 test ! -e "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/app.js"
+# P6: navigation and hero/status are compiled Svelte 5, never legacy controllers.
+for legacy in p54-workspace.js p55-antiscan.js; do
+  test ! -e "$WORK/data/opt/share/routerforge/modules/port-access-manager/ui/$legacy"
+done
 cp "$ROOT/modules/port-access-manager/packaging/odin-engine.sh" "$WORK/data/opt/share/routerforge/modules/port-access-manager/odin-engine.sh"
 chmod 0755 "$WORK/data/opt/share/routerforge/modules/port-access-manager/odin-engine.sh"
 cp "$ROOT/modules/port-access-manager/packaging/engine-gate.sh" "$WORK/data/opt/share/routerforge/modules/port-access-manager/engine-gate.sh"

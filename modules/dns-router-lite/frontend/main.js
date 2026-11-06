@@ -1,6 +1,7 @@
 import { mount, flushSync } from 'svelte';
 import DnsModeStatus from './DnsModeStatus.svelte';
 import DnsLiteLog from './DnsLiteLog.svelte';
+import DnsLiteCards from './DnsLiteCards.svelte';
 const target = document.getElementById('rf-dns-lite-svelte-mode');
 if (!target) throw Error('DNS_LITE_SVELTE_MODE_MOUNT_MISSING');
 target.replaceChildren();
@@ -12,4 +13,10 @@ if(!logTarget)throw Error('DNS_LITE_SVELTE_LOG_MOUNT_MISSING');
 logTarget.replaceChildren();
 window.__rfDnsLiteSvelteLogLoaded=true;
 mount(DnsLiteLog,{target:logTarget});
+flushSync();
+const cardsTarget=document.getElementById('dnsCards');
+if(!cardsTarget)throw Error('DNS_LITE_SVELTE_CARDS_MOUNT_MISSING');
+cardsTarget.replaceChildren();
+window.__rfDnsLiteCardsLoaded=true;
+mount(DnsLiteCards,{target:cardsTarget});
 flushSync();

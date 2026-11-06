@@ -25,6 +25,12 @@
     if (config.upstreams.some(u => u.id === selected)) node.value = selected;
   }
   function table(target, columns, rows, onRemove) {
+    if(window.__rfDNSRuntimeSvelteTablesLoaded && (target==='upstreamList'||target==='ruleList')){
+      window.dispatchEvent(new CustomEvent('routerforge:dns-runtime-table',{
+        detail:{target,columns,rows,onRemove}
+      }));
+      return;
+    }
     const root = el(target); root.replaceChildren();
     const t = document.createElement('table');
     const head = document.createElement('tr');

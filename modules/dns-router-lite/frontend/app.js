@@ -54,8 +54,23 @@
     primary.value=list.some(u=>u.id===saved)?saved:'';
     $('serverCount').textContent=list.length+' DNS';
     $('nativeWarning').hidden=!list.some(u=>u.transport==='native'&&used(u.id).length);
-    const root=$('dnsCards');root.replaceChildren();
+    const root=$('dnsCards');if(!window.__rfDnsLiteCardsLoaded)root.replaceChildren();
     $('editorEmpty').hidden=Boolean(state.editing);$('listEditor').hidden=!state.editing;
+    if(window.__rfDnsLiteCardsLoaded){
+      const cards=list.map(u=>{
+        const rules=used(u.id);
+        const namedLists=(state.config.lists||[]).filter(l=>l.upstream===u.id).length;
+        const listCount=namedLists+(rules.some(r=>!r.list_id)||!namedLists?1:0);
+        const fallbackOptions=list.filter(t=>t.id!==u.id&&t.transport!=='native'&&!(t.fallbacks||[]).length)
+          .map(t=>({id:t.id,label:displayName(t)}));
+        return {id:u.id,title:hostName(u),transport:u.transport,native:u.transport==='native',
+          address:u.address,path:u.path||'',listCount,domainCount:rules.length,
+          domains:rules.map(r=>r.domain),fallback:(u.fallbacks||[])[0]||'',fallbackOptions};
+      });
+      window.dispatchEvent(new CustomEvent('routerforge:dns-lite-cards',{
+        detail:{cards,selected:state.editing||''}
+      }));
+    }else{
     if(!list.length){const p=document.createElement('p');p.className='muted';p.textContent='Добавь первый DNS-сервер. Здесь появятся его список доменов и состояние сертификата.';root.appendChild(p);}
     for(const u of list){
       const rules=used(u.id),card=document.createElement('article');card.className='dns-card';card.dataset.upstreamId=u.id;card.classList.toggle('is-selected',state.editing===u.id);
@@ -91,6 +106,7 @@
       select.disabled=u.transport==='native';select.addEventListener('change',()=>{if(select.value&&state.config.upstreams.some(x=>(x.fallbacks||[]).includes(u.id))){show('Этот DNS уже является резервным. Сначала убери его из чужой резервной цепочки.','bad');render();return;}u.fallbacks=select.value?[select.value]:[];mark();});reserve.appendChild(select);bottom.appendChild(reserve);
       const del=document.createElement('button');del.type='button';del.className='button danger';del.textContent='Удалить DNS';del.addEventListener('click',()=>task(()=>removeDNS(u.id),false));bottom.appendChild(del);
       advanced.appendChild(bottom);actions.appendChild(advanced);card.appendChild(actions);root.appendChild(card);
+    }
     }
     const chooser=$('editorDNSChoice');
     const managed=list.filter(u=>u.transport!=='native');
@@ -146,11 +162,17 @@
   function healthByID(id){return state.health.find(x=>x.id===id)||null;}
   function healthStateText(h){if(!h)return 'Не проверялся';return {UP:'Доступен',DOWN:'Недоступен',STALE:'Данные устарели',UNKNOWN:'Не проверялся',UNSUPPORTED:'Keenetic'}[h.status]||'Не проверялся';}
   function renderHealth(){
+    if(window.__rfDnsLiteCardsLoaded){
+      window.dispatchEvent(new CustomEvent('routerforge:dns-lite-card-health',{
+        detail:{upstreams:state.health.map(h=>({...h}))}
+      }));
+    }
     let up=0,checks=0,requests=0,latencies=[];
     for(const u of state.config.upstreams){
       const h=healthByID(u.id);if(h?.status==='UP')up++;if(h&&h.status!=='UNKNOWN'&&h.status!=='UNSUPPORTED')checks++;
       requests+=Number(h?.requests_5m||0);
       if(h?.requests_5m>h?.failures_5m)latencies.push(Number(h?.p95_latency_5m_ms||0));
+      if(window.__rfDnsLiteCardsLoaded)continue; // Svelte owns the reactive health cells
       const card=[...$('dnsCards').children].find(c=>c.dataset.upstreamId===u.id);if(!card)continue;
       const status=card.querySelector('.dns-health-status');const rtt=card.querySelector('.dns-rtt');const p95=card.querySelector('.dns-p95');
       status.textContent=healthStateText(h);status.dataset.state=(h?.status||'').toLowerCase();
@@ -671,6 +693,29 @@
   setInterval(()=>{if(state.page!=='logs'||document.hidden||state.busy)return;Promise.all([refreshStatus(),refreshLogs()]).then(()=>{state.lastLogError='';}).catch(e=>{if(state.lastLogError!==e.message){state.lastLogError=e.message;show('LIVE: '+e.message,'bad');}});},2000);
   // Keep log badge fresh while the overview is open; no UI-triggered DNS probes.
   setInterval(()=>{if(state.page!=='dns'||document.hidden||state.busy)return;refreshLogs().catch(()=>{});},15000);
+  // P10 guarded bridge: Svelte handles UI, controller owns drafts, CAS and confirmation.
+  if(window.__rfDnsLiteCardsLoaded){
+    window.__rfDnsLiteCardsAPI={
+      edit:id=>editList(id),
+      change:id=>openDNSForm(id),
+      check:id=>task(async()=>{await checkHealth(id);}),
+      remove:id=>task(()=>removeDNS(id),false),
+      fallback:(id,value)=>{
+        const upstream=state.config.upstreams.find(x=>x.id===id);
+        if(!upstream||upstream.transport==='native'){
+          show('DNS не найден или не поддерживает резервирование.','bad');return;
+        }
+        const allowed=state.config.upstreams.filter(x=>x.id!==id&&x.transport!=='native'&&!(x.fallbacks||[]).length);
+        if(value&&!allowed.some(x=>x.id===value)){
+          show('Недопустимый резервный DNS.','bad');render();return;
+        }
+        if(value&&state.config.upstreams.some(x=>(x.fallbacks||[]).includes(id))){
+          show('Этот DNS уже является резервным. Сначала убери его из чужой резервной цепочки.','bad');render();return;
+        }
+        upstream.fallbacks=value?[value]:[];mark();
+      }
+    };
+  }
   setPage(params.get('view')==='logs'?'logs':'dns');
   load().catch(e=>{show('Не удалось открыть DNS Router: '+e.message,'bad');$('serviceBadge').textContent='Недоступен';$('serviceBadge').dataset.tone='bad';});
 })();

@@ -50,9 +50,11 @@ def main():
     ]
     engine_source = (FRONT / 'PortAccessEngineWorkspace.svelte').read_text(encoding='utf-8')
     for id_ in required_ids:
+        odin_owned = id_ in ('odin-manager','odin-status')
         engine_owned = (id_.startswith('engine-config-') or id_.startswith('engine-wizard-') or id_.startswith('rfpa-') or id_ in ('existing-engine-control','existing-engine-refresh'))
-        if engine_owned:
-            check(len(dom.ids.get(id_, [])) == 0 and ('id="' + id_ + '"') in engine_source, 'Svelte owns UI ID ' + id_)
+        if engine_owned or odin_owned:
+            owner = (FRONT / 'PortAccessOdin.svelte').read_text(encoding='utf-8') if odin_owned else engine_source
+            check(len(dom.ids.get(id_, [])) == 0 and ('id="' + id_ + '"') in owner, 'Svelte owns UI ID ' + id_)
         else:
             check(len(dom.ids.get(id_, [])) == 1, 'unique UI ID ' + id_)
     # These action buttons are outside HTML forms. An omitted type is
@@ -68,7 +70,7 @@ def main():
             bool(button) and button.get('type') in (None, 'button'),
             'safe action button ' + id_
         )
-    scripts = ['svelte-status.js','app.js','odin-ui.js','ui-rebuild.js',
+    scripts = ['svelte-status.js','app.js','ui-rebuild.js',
                'p39-compact.js','p53-ux.js','p54-workspace.js','p55-antiscan.js']
     check(len(scripts) == len(set(scripts)) and dom.scripts == scripts, 'ordered unique frontend script imports')
     check('p53-ux.css' in HTML.read_text(encoding='utf-8'), 'P53 stylesheet linked')
@@ -105,6 +107,14 @@ def main():
     for item in ['rfpa-prepare','rfpa-enable','rfpa-confirm','rfpa-disable']:
         check(item in wiz, 'wizard handler for '+item)
     check('PortAccessEngineWorkspace.svelte' in (FRONT / 'status-main.js').read_text(encoding='utf-8'), 'native Svelte workspace mount')
+    odin = (FRONT / 'PortAccessOdin.svelte').read_text(encoding='utf-8')
+    check(not (FRONT / 'odin-ui.js').exists(), 'legacy odin controller source removed')
+    check('odin-ui.js' not in HTML.read_text(encoding='utf-8') and 'odin-ui.js' not in BUILD.read_text(encoding='utf-8').split('for file in ', 1)[1].split('; do', 1)[0], 'legacy odin not shipped')
+    check('id="pa-svelte-odin"' in HTML.read_text(encoding='utf-8') and 'PortAccessOdin.svelte' in entry and 'mount(PortAccessOdin' in entry, 'native Svelte odin mount before legacy layout')
+    check('$state(' in odin and '$derived(' in odin and 'onMount(' in odin and 'window.clearInterval' in odin, 'Svelte odin reactive state and polling cleanup')
+    check("confirm: 'APPLY'" in odin and 'watchdog_deadline_unix' in odin and 'server_unix' in odin and 'lastOperationError' in odin, 'odin confirmation, server-derived watchdog and failure state')
+    check('routerforge-odin-state-changed' in odin and 'refresh()' in odin and 'function validate' in odin, 'odin navigation events, refresh and validation')
+    check('data-odin="enable"' in odin and 'data-odin="confirm"' in odin and 'data-odin="disable"' in odin, 'odin safe action controls')
     check('engine-wizard.js' not in HTML.read_text(encoding='utf-8') and 'config-editor.js' not in HTML.read_text(encoding='utf-8'), 'legacy engine controllers not shipped')
     check(not (FRONT / 'engine-wizard.js').exists() and not (FRONT / 'config-editor.js').exists(), 'legacy engine controller sources removed')
     check('rfpa:service-state' in wiz and 'rfpa:preview-ok' in wiz and 'rfpa:deploy-state' in wiz, 'external integration events preserved')

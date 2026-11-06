@@ -50,30 +50,7 @@
 <div id="recent-live-list" aria-live="polite"></div>
 </section>
 <div id="pa-svelte-engine-workspace"></div>
-<section class="panel" id="odin-manager">
-<h2>Port Knocking · odin (Keenetic)</h2>
-<p class="help">Алгоритм odin для сервиса, уже проброшенного через KeeneticOS. Автор: <a href="https://forum.keenetic.ru/topic/22137-port-knoking-%D0%B4%D0%BB%D1%8F-%D0%BF%D1%80%D0%BE%D0%B1%D1%80%D0%B0%D1%81%D1%8B%D0%B2%D0%B0%D0%B5%D0%BC%D0%BE%D0%B3%D0%BE-%D0%BF%D0%BE%D1%80%D1%82%D0%B0/" target="_blank" rel="noopener noreferrer">odin · Keenetic Community</a>. Авторские цепочки KNOCKING-FIRST/LAST и списки KK1/KK2/KK3/KKD. Установка пакета не включает защиту.</p>
-<div class="form-grid">
-<label>WAN-интерфейс<input id="odin-wan" value="eth3" autocomplete="off"></label>
-<label>Внутренний IPv4 сервиса<input id="odin-ip" value="192.168.1.2" autocomplete="off"></label>
-<label>TCP-порты (через запятую)<input id="odin-port" type="text" value="3389" autocomplete="off" placeholder="3389, 22, 8443"></label><label>Постоянный доступ IPv4/CIDR<input id="odin-trusted" type="text" value="" autocomplete="off" placeholder="192.0.2.10/32, 198.51.100.0/24"></label>
-<label>Стук 1<input id="odin-k1" type="number" value="7777" min="1" max="65535"></label>
-<label>Стук 2<input id="odin-k2" type="number" value="8888" min="1" max="65535"></label>
-<label>Стук 3<input id="odin-k3" type="number" value="6666" min="1" max="65535"></label>
-<label>Окно между стуками, сек<input id="odin-window" type="number" value="15" min="5" max="300"></label>
-<label>Доступ, сек<input id="odin-ttl" type="number" value="28800" min="30" max="86400"></label>
-</div>
-<div class="refresh-bar">
-<button type="button" data-odin="save">Сохранить настройки</button>
-<button type="button" data-odin="enable">Включить защиту</button>
-<button type="button" data-odin="confirm">Подтвердить защиту</button>
-<button type="button" data-odin="disable">Выключить</button>
-<button type="button" data-odin="refresh">Обновить</button>
-<span id="odin-status" role="status" aria-live="polite">Проверяем…</span>
-</div>
-<p class="help">Сначала проверь доступ после трёх стуков, затем подтверди защиту в течение 90 секунд. Подтверждение отключает автоматический откат; после него ответственность за выключение защиты остаётся у оператора. Проброс защищаемого порта настраивается в KeeneticOS, порты стуков пробрасывать не требуется.</p>
-</section>
-
+<div id="pa-svelte-odin" aria-label="Управление защитой odin"></div>
 <div id="pa-svelte-log" aria-label="Журнал операций"></div>
-</main><script src="svelte-status.js"></script><script src="app.js"></script><script src="odin-ui.js"></script><script src="ui-rebuild.js"></script><script src="p39-compact.js"></script><script src="p53-ux.js"></script><script src="p54-workspace.js"></script><script src="p55-antiscan.js"></script>
+</main><script src="svelte-status.js"></script><script src="app.js"></script><script src="ui-rebuild.js"></script><script src="p39-compact.js"></script><script src="p53-ux.js"></script><script src="p54-workspace.js"></script><script src="p55-antiscan.js"></script>
 </body></html>

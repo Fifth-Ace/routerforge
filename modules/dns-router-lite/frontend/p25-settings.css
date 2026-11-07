@@ -101,3 +101,7 @@
 #dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-domain {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--p22-muted);}
 #dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-state {font-weight:700;}
 @media (max-width:560px){#dnsLiteApp[data-dns-mode="advanced"] .p242-health-fields{grid-template-columns:1fr;}#dnsLiteApp[data-dns-mode="advanced"] .p242-monitor-row{grid-template-columns:1fr 1fr;}}
+
+/* P12: Svelte renders telemetry; keep original read-only field IDs for compatibility without duplicate monitor. */
+#dnsLiteApp #p25Settings_ip #p241IPControls .p242-monitor {display:none!important;}
+#dnsLiteApp .p25-native-monitor {display:grid;gap:6px;margin-top:10px;}

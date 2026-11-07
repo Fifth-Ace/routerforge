@@ -8,7 +8,7 @@ entry=(f/'main.js').read_text(encoding='utf-8')
 for old in ('app.js','p22-visual.js','p25-settings.js'):
     assert not (f/old).exists(), 'LEGACY_SOURCE_STILL_PRESENT: '+old
     assert 'src="'+old+'"' not in html, 'LEGACY_SCRIPT_STILL_REFERENCED: '+old
-for name in ('DnsLiteController','DnsP22Visual','DnsP25Settings'):
+for name in ('DnsLiteController','DnsP22Visual'):
     s=(f/(name+'.svelte')).read_text(encoding='utf-8')
     assert s.count('RF_ACTUAL_CONTROLLER_START')==1
     assert s.count('RF_ACTUAL_CONTROLLER_END')==1
@@ -18,7 +18,10 @@ for name in ('DnsLiteController','DnsP22Visual','DnsP25Settings'):
     assert 'const $ =' not in s and '$(' not in s, 'SVELTE_RESERVED_DOLLAR_IDENTIFIER: '+name
     assert 'const byId = id => document.getElementById(id)' in s, 'DOM_ACCESSOR_MISSING: '+name
     assert 'mount(' in entry and name in entry
+s=(f/'DnsP25Settings.svelte').read_text(encoding='utf-8')
+assert 'RF_ACTUAL_CONTROLLER_START' not in s and 'document.createElement' not in s
+assert 'let section = $state(' in s and 'p25SettingsCard' in s
 assert 'src="svelte-mode.js"' in html
 assert 'gateEnable' in (f/'DnsLiteController.svelte').read_text(encoding='utf-8')
 print('DNS_LITE_UNIFIED_SVELTE_LIFECYCLE_GATE: PASS')
-print('NOTE: IMPERATIVE_CONTROLLER_STILL_EMBEDDED / FULL_MIGRATION_INCOMPLETE')
+print('NOTE: MAIN_AND_P22_IMPERATIVE_CONTROLLERS_REMAIN / FULL_MIGRATION_INCOMPLETE')

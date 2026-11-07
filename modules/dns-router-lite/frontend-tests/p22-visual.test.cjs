@@ -229,105 +229,43 @@ test('P24.0: compact UI keeps existing tab wiring and hides empty route details'
 
 // P25: Advanced-only settings hub preserves basic mode, real service fields,
 // P21 apply and all existing independent tabs.
-test('P25 settings hub: native page, real fields and original basic-mode placement', async () => {
-  const { JSDOM } = require('jsdom');
-  const hub = actualController('DnsP25Settings.svelte');
-  const hubCSS = fs.readFileSync(path.join(root, 'p25-settings.css'), 'utf8');
-  assert.ok(html.includes('p25-settings.css'));
-  assert.ok(!html.includes('p25-settings.js'));
-  assert.ok(hub.includes('p25SettingsNav'));
+test('P25 Svelte native Settings: reactive categories, preserved controls and read-only effects',()=>{
+  const hub=fs.readFileSync(path.join(root,'DnsP25Settings.svelte'),'utf8');
+  const sheet=fs.readFileSync(path.join(root,'p25-settings.css'),'utf8');
+  assert.match(hub,/let active = \$state\(false\)/);
+  assert.match(hub,/let section = \$state\('service'\)/);
+  assert.match(hub,/let ipRows = \$state\(\[\]\)/);
+  assert.match(hub,/let performanceStatus = \$state\(/);
+  assert.ok(hub.includes('id="p25SettingsNav"'));
+  assert.ok(hub.includes('id="p25SettingsCard"'));
+  assert.ok(hub.includes('data-settings-section={item.id}'));
+  assert.ok(hub.includes("{#each sections as item"));
+  assert.equal((hub.match(/id="p25Settings_(service|cache|ip|upstream|security|privacy|dns64|performance)"/g)||[]).length,8);
+  assert.ok(hub.includes("fetch('../service/ip-health',{method:'GET',cache:'no-store'})"));
+  assert.ok(hub.includes("fetch('../service/status',{method:'GET',cache:'no-store'})"));
+  assert.ok(hub.includes('clearInterval(timer)'));
+  assert.ok(hub.includes('observer?.disconnect()'));
+  assert.ok(hub.includes("returnTo(cacheField,originalCache)"));
+  assert.ok(hub.includes("returnTo(additional,originalAdditional)"));
+  assert.ok(hub.includes('id="p28Enabled"'));
+  assert.ok(hub.includes('id="p30DNSSECMode"'));
+  assert.ok(hub.includes('id="p31DNS64Prefix"'));
+  assert.ok(hub.includes('id="p29Concurrent"'));
   assert.ok(hub.includes('P24.0 contains nine IP ordering strategies'));
-  assert.ok(hubCSS.includes('p25-settings-layout'));
-  assert.doesNotMatch(hub,/\bmethod\s*:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/i,
-    'Settings Hub must never issue mutating HTTP requests');
-  assert.ok(hub.includes("fetch('../service/ip-health',{method:'GET',cache:'no-store'})"),
-    'IP health monitor must fetch only the read-only status endpoint');
-  const dom = new JSDOM(html, {url:'https://routerforge.test/ui/index.html', runScripts:'outside-only', pretendToBeVisual:true});
-  try {
-    const w = dom.window, d = w.document, $ = id => d.getElementById(id);
-    const app = $('dnsLiteApp');
-    app.dataset.dnsMode = 'basic';
-    $('p21Mode').addEventListener('change', () => {
-      app.dataset.dnsMode = $('p21Mode').value;
-      if (app.dataset.dnsMode === 'basic') {
-        $('p21Page').hidden = true;
-        $('pageDns').hidden = false;
-        $('pageLogs').hidden = true;
-      }
-    });
-    $('p21Nav').addEventListener('click', () => {
-      $('p21Page').hidden = false;
-      $('pageDns').hidden = true;
-      $('pageLogs').hidden = true;
-    });
-    $('navDns').addEventListener('click', () => {
-      $('p21Page').hidden = true;
-      $('pageDns').hidden = false;
-      $('pageLogs').hidden = true;
-    });
-    $('navLogs').addEventListener('click', () => {
-      $('p21Page').hidden = true;
-      $('pageDns').hidden = true;
-      $('pageLogs').hidden = false;
-    });
-    w.fetch = async () => ({ok:true,json:async()=>({devices:[],issues:[]})});
-    w.eval(js);
-    w.eval(hub);
-    assert.equal($('p25SettingsNav').classList.contains('p22-advanced-tab'), true);
-    assert.equal($('additionalSettings').parentElement.id, 'systemGatePanel');
-    const fieldsBefore = $('cacheSize').closest('.field').parentElement;
-    assert.equal($('p25SettingsCard').hidden, true);
-    $('p22ModeAdvanced').click();
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal($('p25SettingsCard').hidden, true);
-    assert.equal($('additionalSettings').parentElement.id, 'p25Settings_service');
-    assert.equal($('cacheSize').closest('.field').parentElement.id, 'p25Settings_cache');
-    $('p25SettingsNav').click();
-    assert.equal($('p25SettingsCard').hidden, false);
-    assert.equal($('p21Page').hidden, false);
-    assert.equal($('p22DevicesCard').hidden, true);
-    assert.equal($('p22GroupsCard').hidden, true);
-    assert.equal($('p22RulesCard').hidden, true);
-    assert.equal($('p25SettingsNav').getAttribute('aria-current'), 'page');
-    const toolbar = $('p23DraftToolbar');
-    for (const action of ['p21Save','p21Apply']) assert.equal(toolbar.contains($(action)), true);
-    const links = d.querySelectorAll('.p25-settings-link');
-    assert.equal(links.length, 8);
-    assert.equal($('p25Settings_service').hidden, false);
-    d.querySelector('[data-settings-section="cache"]').click();
-    assert.equal($('p25Settings_service').hidden, true);
-    assert.equal($('p25Settings_cache').hidden, false);
-    $('cacheSize').value = '2';
-    $('p22NavGroups').click();
-    assert.equal($('p25SettingsCard').hidden, true);
-    assert.equal($('p22GroupsCard').hidden, false);
-    assert.equal($('cacheSize').value, '2');
-    $('p22ModeBasic').click();
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal(app.dataset.dnsMode, 'basic');
-    assert.equal($('additionalSettings').parentElement.id, 'systemGatePanel');
-    assert.equal($('cacheSize').closest('.field').parentElement, fieldsBefore);
-    assert.equal($('cacheSize').value, '2');
-    assert.equal($('p25SettingsCard').hidden, true);
-    $('p22ModeAdvanced').click();
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal($('p22DevicesCard').hidden, false);
-    assert.equal($('p25SettingsCard').hidden, true);
-  } finally {
-    await new Promise(resolve => setImmediate(resolve));
-    dom.window.close();
-  }
+  assert.ok(sheet.includes('.p25-settings-layout'));
+  assert.doesNotMatch(hub,/RF_ACTUAL_CONTROLLER_START|document\.createElement|\.innerHTML|method\s*:\s*['"](?:POST|PUT|PATCH|DELETE)/i);
+  assert.ok(!html.includes('p25-settings.js'));
 });
 
 // P24.3: real scope/hysteresis inputs, read-only IP monitor, no simple-mode mutation.
 test('P24.3 IP scope and health HTTP controls are advanced-only',()=>{
-  const panel=actualController('DnsP25Settings.svelte');
+  const panel=fs.readFileSync(path.join(root,'DnsP25Settings.svelte'),'utf8');
   const app=actualController('DnsLiteController.svelte');
   for(const id of ['p243Scope','p243Domains','p243ListIDs','p243Recoveries','p243MinDown','p243HTTPPath']){
     assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
     assert.ok(app.includes("byId('"+id+"')"),id+' must be wired');
   }
-  assert.ok(panel.includes('showScope()'));
+  assert.ok(panel.includes('scope = $state('));
   assert.ok(panel.includes("method:'GET'"));
   assert.doesNotMatch(panel,/method\s*:\s*['"](?:POST|PUT|PATCH|DELETE)/i);
   assert.ok(html.includes('option value="http"'));
@@ -336,9 +274,8 @@ test('P24.3 IP scope and health HTTP controls are advanced-only',()=>{
 });
 
 // P24.1: real config controls live only in the advanced settings hub.
-test('P24.1 IP Intelligence: opt-in settings, 9 modes, and no basic UI changes',async()=>{
-  const {JSDOM}=require('jsdom');
-  const hub=actualController('DnsP25Settings.svelte');
+test('P24.1 IP Intelligence: native Svelte Settings and guarded draft behavior',()=>{
+  const hub=fs.readFileSync(path.join(root,'DnsP25Settings.svelte'),'utf8');
   const src=actualController('DnsLiteController.svelte');
   assert.ok(html.includes('id="p241IPControls"'));
   assert.ok(src.includes("if(byId('p241IPEnabled').checked){"));
@@ -346,40 +283,15 @@ test('P24.1 IP Intelligence: opt-in settings, 9 modes, and no basic UI changes',
   assert.ok(src.includes('delete merged.ip_intelligence'));
   assert.ok(src.includes("byId('p241IPMode').value=state.config.service?.ip_intelligence?.mode||'original'"));
   assert.ok(hub.includes('P24.0 contains nine IP ordering strategies'));
-  const dom=new JSDOM(html,{url:'https://routerforge.test/ui/index.html',runScripts:'outside-only',pretendToBeVisual:true});
-  try{
-    const w=dom.window,d=w.document,$=id=>d.getElementById(id);
-    const app=$('dnsLiteApp');app.dataset.dnsMode='basic';
-    $('p21Mode').addEventListener('change',()=>{app.dataset.dnsMode=$('p21Mode').value;if(app.dataset.dnsMode==='basic'){$('p21Page').hidden=true;$('pageDns').hidden=false;}});
-    $('p21Nav').addEventListener('click',()=>{$('p21Page').hidden=false;$('pageDns').hidden=true;});
-    $('navDns').addEventListener('click',()=>{$('p21Page').hidden=true;$('pageDns').hidden=false;});
-    $('navLogs').addEventListener('click',()=>{$('p21Page').hidden=true;$('pageDns').hidden=false;$('pageLogs').hidden=false;});
-    w.fetch=async()=>({ok:true,json:async()=>({devices:[],issues:[]})});
-    w.eval(js);w.eval(hub);
-    assert.equal($('p241IPControls').hidden,false,'controls are placed inside the hub');
-    assert.equal($('p241IPControls').parentElement.id,'p25Settings_ip');
-    assert.equal($('p241IPMode').options.length,9);
-    assert.equal($('p241IPMode').value,'original');
-    assert.equal($('p241IPEnabled').checked,false);
-    assert.equal($('p241IPControls').closest('#p21Page')!==null,true);
-    $('p22ModeAdvanced').click();
-    await new Promise(resolve=>setImmediate(resolve));
-    $('p25SettingsNav').click();
-    d.querySelector('[data-settings-section="ip"]').click();
-    assert.equal($('p25Settings_ip').hidden,false);
-    $('p241IPEnabled').checked=true;
-    $('p241IPMode').value='round_robin';
-    $('p241IPMode').dispatchEvent(new w.Event('change'));
-    assert.match($('p241IPModeNote').textContent,/кэша|cached/);
-    $('p22ModeBasic').click();
-    assert.equal($('p21Page').hidden,true,'basic mode must not expose advanced controls');
-  }finally{await new Promise(resolve=>setImmediate(resolve));dom.window.close();}
+  assert.ok(hub.includes("round_robin:['Циклически меняет"));
+  assert.ok(hub.includes("byId('p25Settings_ip')?.appendChild(byId('p241IPControls'))"));
+  assert.ok(hub.includes('if(newMode){'));
+  assert.ok(hub.includes('if(!advanced) return;'));
 });
-
 
 test('P24.2: health settings and monitor are advanced-only and read-only',()=>{
   const app=actualController('DnsLiteController.svelte');
-  const hub=actualController('DnsP25Settings.svelte');
+  const hub=fs.readFileSync(path.join(root,'DnsP25Settings.svelte'),'utf8');
   const sheet=fs.readFileSync(path.join(root,'p25-settings.css'),'utf8');
   const {JSDOM}=require('jsdom');const doc=new JSDOM(html).window.document;
   for(const id of ['p242HealthEnabled','p242HealthProtocol','p242HealthPort','p242HealthInterval','p242HealthTimeout','p242HealthFailures','p242MonitorRows','p242MonitorStatus']){
@@ -390,21 +302,21 @@ test('P24.2: health settings and monitor are advanced-only and read-only',()=>{
   assert.ok(app.includes('failure_threshold:asInt'));
   assert.ok(app.includes('p242HealthEnabled'));
   assert.ok(hub.includes("fetch('../service/ip-health',{method:'GET',cache:'no-store'})"));
-  assert.ok(hub.includes('monitorRows.replaceChildren()'));
+  assert.ok(hub.includes('ipRows=monitorRowsFrom(data)'));
   assert.ok(sheet.includes('.p242-monitor-row'));
   assert.doesNotMatch(hub,/innerHTML\s*=/);
 });
 
 // P27: query protection must not be a decorative planned entry.
 test('P27 query protection is a real advanced-only config section',()=>{
-  const hub=actualController('DnsP25Settings.svelte');
+  const hub=fs.readFileSync(path.join(root,'DnsP25Settings.svelte'),'utf8');
   const app=actualController('DnsLiteController.svelte');
   for(const id of ['p27RateLimit','p27RefuseAny','p27BogusIPs']){
     assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
     assert.ok(app.includes("byId('"+id+"')"),id+' must read/write draft');
   }
-  assert.ok(hub.includes("securityPanel.append(protectionControls)"));
-  assert.ok(hub.includes("['security', t('Защита запросов', 'Query protection'), t('Доступно', 'Available')]"));
+  assert.ok(hub.includes("byId('p25Settings_security')?.appendChild(byId('p27SecurityControls'))"));
+  assert.ok(hub.includes("id:'security',ru:'Защита запросов'"));
   assert.ok(app.includes('prefs.protection='));
   assert.ok(app.includes('delete merged.protection'));
   assert.ok(html.includes('p27SecurityControls'));

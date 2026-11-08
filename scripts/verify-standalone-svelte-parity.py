@@ -133,7 +133,8 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         if module=='antiscan-manager':
             contents[which]=page.locator('#configState').inner_text()
         shots[which]=out/f'{module}-{scenario}-{viewport}-{which}.png'
-        page.screenshot(path=str(shots[which]),full_page=True)
+        page.evaluate("() => document.fonts.ready")
+        page.screenshot(path=str(shots[which]),full_page=True,animations='disabled',caret='hide')
         layouts[which]=page.evaluate("""() => {
           const box=(e)=>{let r=e.getBoundingClientRect(),c=getComputedStyle(e);return {
             tag:e.tagName.toLowerCase(),id:e.id||'',classes:String(e.className||''),
@@ -163,7 +164,33 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         raise AssertionError(f'API_CALL_DIFF: {module} {scenario} {calls}')
     if contents.get('legacy')!=contents.get('svelte'):
         raise AssertionError(f'RENDER_STATE_DIFF: {module} {scenario} {contents}')
-    if diff>50:raise AssertionError(f'PIXEL_DRIFT: {module} {scenario} {viewport}: {diff} pixels')
+    if diff>50:
+        a=Image.open(shots['legacy']).convert('RGB')
+        b=Image.open(shots['svelte']).convert('RGB')
+        delta=ImageChops.difference(a,b)
+        region=delta.getbbox()
+        path=out/f'{module}-{scenario}-{viewport}-diff.png'
+        delta.save(path)
+        # Record exact evidence; never relax pixel threshold or mask mismatching elements.
+        bucket={}
+        width=a.width
+        for i,(p,q) in enumerate(zip(a.getdata(),b.getdata())):
+            if p!=q:
+                x,y=i%width,i//width
+                tile=(x//80*80,y//40*40)
+                bucket[tile]=bucket.get(tile,0)+1
+        top=sorted(bucket.items(),key=lambda kv:-kv[1])[:12]
+        report={'module':module,'scenario':scenario,'viewport':viewport,
+                'changed_pixels':diff,'threshold':50,'bbox':region,
+                'hotspots':[{'x':x,'y':y,'changed_pixels':n} for (x,y),n in top],
+                'shots':{key:str(value) for key,value in shots.items()},
+                'diff':str(path),'layouts':layouts}
+        report_path=out/f'{module}-{scenario}-{viewport}-pixel-diff.json'
+        report_path.write_text(json.dumps(report,indent=2,ensure_ascii=False),encoding='utf-8')
+        print('PIXEL_DRIFT_EVIDENCE: '+str(report_path),flush=True)
+        print('PIXEL_DRIFT_BBOX: '+str(region),flush=True)
+        print('PIXEL_DRIFT_HOTSPOTS: '+json.dumps(report['hotspots']),flush=True)
+        raise AssertionError(f'PIXEL_DRIFT: {module} {scenario} {viewport}: {diff} pixels')
     print(f'BROWSER_{module}_{scenario}_{viewport}: PASS / pixels={diff} / API_EQUAL')
 
 def main():

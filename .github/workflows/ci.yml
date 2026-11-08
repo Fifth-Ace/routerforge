@@ -222,6 +222,9 @@ jobs:
                 modules/dns/frontend/*|modules/admin/frontend/*|modules/monitoring/frontend/*|modules/crowdsec-manager/frontend/*|modules/network-tools/frontend/*|modules/antiscan-manager/frontend/*)
                   DNS_FRONTEND=true
                   ;;
+                scripts/verify-standalone-svelte-parity.py)
+                  DNS_FRONTEND=true
+                  ;;
 
               esac
 
@@ -456,6 +459,17 @@ jobs:
             if [ -n "$CHROME" ]; then args+=(--chromium "$CHROME"); fi
             python3 scripts/verify-standalone-svelte-parity.py "${args[@]}"
           done
+
+      - name: Preserve standalone Svelte 5 parity evidence on failure
+        if: failure() && (steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true')
+        uses: actions/upload-artifact@v4
+        with:
+          name: svelte-parity-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/svelte-parity-network-tools/
+            ${{ runner.temp }}/svelte-parity-antiscan-manager/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Verify real Svelte 5 packaged IPK UI and prevent legacy JS shipping
         if: steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'

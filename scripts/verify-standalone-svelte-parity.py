@@ -15,6 +15,7 @@ import re
 import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 from PIL import Image, ImageChops
 from playwright.sync_api import sync_playwright
 
@@ -34,7 +35,7 @@ ANTISCAN_API={'status':ANTISCAN_STATUS, 'schedule':{'task_count':2,'active_count
 
 FIXED_DATE = """() => { const NativeDate=Date; Date=class extends NativeDate { constructor(...a){super(...(a.length?a:['2026-11-06T09:19:01.000Z']));} static now(){return new NativeDate('2026-11-06T09:19:01.000Z').getTime();} }; }"""
 NETWORK_MOCK = """(d)=>{window.__api=d;window.__calls=[];window.fetch=async(url,opt={})=>{let u=new URL(String(url),location.href);let key=u.pathname.split('/').pop();const data=window.__api['/'+key]??{};window.__calls.push({path:'/'+key,query:Object.fromEntries([...u.searchParams.entries()].sort())});return new Response(JSON.stringify(structuredClone(data)),{status:200,headers:{'content-type':'application/json'}});};}"""
-ANTISCAN_MOCK = """(d)=>{window.__api=d;window.__calls=[];window.fetch=async(url,opt={})=>{const u=new URL(String(url),location.href);const key=u.pathname.split('/').pop()+u.search;window.__calls.push({key,method:opt.method||'GET',body:opt.body||''});return new Response(JSON.stringify(structuredClone(window.__api[key]??{})),{status:200,headers:{'content-type':'application/json'}});};window.confirm=()=>false;}"""
+ANTISCAN_MOCK = """(d)=>{window.__api=d;window.__calls=[];window.fetch=async(url,opt={})=>{const base=location.protocol==='about:'?'http://routerforge.mock.invalid/api/modules/antiscan-manager/ui/index.html':location.href;const u=new URL(String(url),base);const key=u.pathname.split('/').pop()+u.search;window.__calls.push({key,method:opt.method||'GET',body:opt.body||''});return new Response(JSON.stringify(structuredClone(window.__api[key]??{})),{status:200,headers:{'content-type':'application/json'}});};window.confirm=()=>false;}"""
 
 class StaticHandler(BaseHTTPRequestHandler):
     front: Path
@@ -61,6 +62,26 @@ def server(front:Path,module:str):
     try: yield f'http://127.0.0.1:{http.server_port}/api/modules/{module}/ui/index.html'
     finally:http.shutdown();http.server_close();thread.join(timeout=5)
 
+def fulfill_compiled_route(route, frontend:Path, module:str):
+    """Feed real production assets to Chromium without a system HTTP proxy.
+
+    Reject every URL outside this module's build; do not touch live API, router,
+    arbitrary local files, or external domains.
+    """
+    url=urlsplit(route.request.url)
+    prefix=f'/api/modules/{module}/ui/'
+    if url.scheme not in ('http','https') or url.hostname not in ('127.0.0.1','localhost') or not url.path.startswith(prefix):
+        route.abort('blockedbyclient')
+        return
+    relative=url.path[len(prefix):] or 'index.html'
+    base=frontend.resolve()
+    file=(base/relative).resolve()
+    if not file.is_relative_to(base) or not file.is_file():
+        route.abort('blockedbyclient')
+        return
+    mime={'html':'text/html','js':'text/javascript','css':'text/css','svg':'image/svg+xml','json':'application/json','woff2':'font/woff2'}.get(file.suffix.lstrip('.'),'application/octet-stream')
+    route.fulfill(status=200,body=file.read_bytes(),content_type=mime)
+
 def git_read(repo:Path,filename:str):
     p=subprocess.run(['git','show',BASE+':'+filename],cwd=repo,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     if p.returncode:raise RuntimeError('ORIGINAL_SOURCE_GIT_MISSING: '+filename+' '+p.stderr.decode()[:250])
@@ -82,7 +103,7 @@ def app_body(html:str,module:str)->str:
 def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:str,old:dict):
     files={k:git_read(repo,f'modules/{module}/frontend/{k}') for k in ['index.html','app.js','module.css']}
     if module=='network-tools':files['runtime.js']=git_read(repo,'modules/network-tools/frontend/runtime.js')
-    shots={};calls={};contents={}
+    shots={};calls={};contents={};layouts={}
     for which in ['legacy','svelte']:
         page=browser.new_page(viewport={'width':viewport,'height':900},device_scale_factor=1)
         errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
@@ -100,6 +121,7 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         else:
             page.add_init_script(script='('+FIXED_DATE+')()')
             page.add_init_script(script='('+mock+')('+json.dumps(old, ensure_ascii=False)+')')
+            page.route('**/*',lambda route:fulfill_compiled_route(route,repo/'modules'/module/'frontend/build',module))
             page.goto(url,wait_until='load')
         page.wait_for_timeout(450)
         if module=='network-tools' and scenario!='doctor':
@@ -112,8 +134,30 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
             contents[which]=page.locator('#configState').inner_text()
         shots[which]=out/f'{module}-{scenario}-{viewport}-{which}.png'
         page.screenshot(path=str(shots[which]),full_page=True)
+        layouts[which]=page.evaluate("""() => {
+          const box=(e)=>{let r=e.getBoundingClientRect(),c=getComputedStyle(e);return {
+            tag:e.tagName.toLowerCase(),id:e.id||'',classes:String(e.className||''),
+            section:e.getAttribute('data-page')||'',hidden:e.hidden,
+            display:c.display,visibility:c.visibility,
+            y:Math.round(r.y),height:Math.round(r.height),bottom:Math.round(r.bottom),
+            scrollHeight:e.scrollHeight};};
+          return {rootSection:document.documentElement.dataset.section||'',
+            documentHeight:document.documentElement.scrollHeight,bodyHeight:document.body.scrollHeight,
+            allMainChildren:[...document.querySelectorAll('.as-page > *')].map(box),
+            allTabPages:[...document.querySelectorAll('.tab-page')].map(box),
+            overviewItems:[...document.querySelectorAll('.tab-page[data-page="overview"] > *')].map(box),
+            visibleNotices:[...document.querySelectorAll('.notice')].map(box)};
+        }""")
         calls[which]=page.evaluate('window.__calls')
         page.close()
+    if Image.open(shots['legacy']).size != Image.open(shots['svelte']).size:
+        data={'module':module,'scenario':scenario,'viewport':viewport,'layouts':layouts,
+              'shots':{key:str(value) for key,value in shots.items()}}
+        path=out/f'{module}-{scenario}-{viewport}-layout-diff.json'
+        path.write_text(json.dumps(data,indent=2,ensure_ascii=False),encoding='utf-8')
+        print('PARITY_DIMENSIONS_DIAGNOSTIC: '+str(path),flush=True)
+        for name,entry in layouts.items():
+            print('PARITY_LAYOUT_'+name.upper()+': '+json.dumps(entry,ensure_ascii=False),flush=True)
     diff=pixels(shots['legacy'],shots['svelte'])
     if calls['legacy']!=calls['svelte']:
         raise AssertionError(f'API_CALL_DIFF: {module} {scenario} {calls}')
@@ -136,7 +180,7 @@ def main():
     scenarios=['doctor','routes','flows','probes'] if args.module=='network-tools' else ['overview','diagnostics','blocked','lists','geo','schedule','history','config']
     with server(frontend,args.module) as url:
         with sync_playwright() as p:
-            browser=p.chromium.launch(headless=True,executable_path=args.chromium or None,args=['--no-sandbox'])
+            browser=p.chromium.launch(headless=True,executable_path=args.chromium or None,args=['--no-sandbox','--disable-extensions','--no-proxy-server'])
             try:
                 for scenario in scenarios:
                     for viewport in [1280,375]:check(args.module,args.repo,browser,args.out,viewport,scenario,url,api)

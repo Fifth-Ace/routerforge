@@ -77,6 +77,12 @@ jobs:
         run: python3 scripts/verify-commit-identity.py range "$PREVIOUS_SHA" "$GITHUB_SHA"
       - name: Verify local identity hooks reject invalid commits before push
         run: python3 -m unittest discover -s tests -p test_identity_hooks.py -v
+      - name: P0.1 CI frontend scope regression fixtures
+        run: python3 -m unittest discover -s tests -p test_ci_frontend_scope.py -v
+      - name: P0.4 DNS staging isolation regression (Linux)
+        run: python3 -m unittest discover -s tests -p test_dns_router_staging.py -v
+      - name: P0.4 CI-only release guard regression
+        run: python3 -m unittest discover -s tests -p test_ci_publish_safety.py -v
       - name: Verify legacy registry integration
         run: python3 scripts/verify-legacy-fallback-removal.py
       - name: Verify all-architecture UPX package-policy fixtures
@@ -272,6 +278,11 @@ jobs:
           echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
           echo "docs=$DOCS" >> "$GITHUB_OUTPUT"
           echo "full_release=$FULL_RELEASE" >> "$GITHUB_OUTPUT"
+          # P0.1 CI frontend scope: fail closed when the diff list is missing.
+          python3 scripts/ci-frontend-scope.py \
+            --changed-files /tmp/routerforge-changed-files.txt \
+            --github-output "$GITHUB_OUTPUT" \
+            --full-release "$FULL_RELEASE"
 
 
           echo "CORE_FRONTEND=$CORE_FRONTEND"
@@ -359,7 +370,7 @@ jobs:
         run: python3 scripts/verify-antiscan-upstream-contract.py --remote
 
       - name: Set up Node
-        if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true'
+        if: steps.scope.outputs.core_frontend == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.dns_lite_frontend == 'true' || steps.scope.outputs.dns_runtime_frontend == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
@@ -468,6 +479,43 @@ jobs:
         run: |
           test -f modules/admin/frontend/build/index.html
           test -f modules/monitoring/frontend/build/index.html
+
+      # P0.1 CI frontend scope: independent pre-publication module gates.
+      # No Svelte migration is declared complete by these checks.
+      - name: P0.1 Verify DNS Lite shipped frontend and DEV IPK (nonpublishing)
+        if: steps.scope.outputs.dns_lite_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ROUTERFORGE_UPX=0
+          ROUTERFORGE_CHANNEL=dev sh scripts/build-dns-router-experimental.sh 0.0.0-p01-lite aarch64-3.10
+          test -s dist/routerforge-dns-router_0.0.0-p01-lite_aarch64-3.10.ipk
+          test -s modules/dns-router-lite/frontend/build/svelte-mode.js
+
+      - name: P0.1 Verify DNS Runtime experimental frontend and IPK (nonpublishing)
+        if: steps.scope.outputs.dns_runtime_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ROUTERFORGE_UPX=0
+          ROUTERFORGE_CHANNEL=experimental sh scripts/build-dns-router-experimental.sh 0.0.0-p01-runtime aarch64-3.10
+          test -s dist/routerforge-dns-router_0.0.0-p01-runtime_aarch64-3.10.ipk
+          test -s modules/dns-router-runtime/frontend/build/svelte-mode.js
+
+      - name: P0.1 Verify NFQWS frontend package and backend contract (nonpublishing)
+        if: steps.scope.outputs.nfqws_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -count=1 ./modules/nfqws-manager-runtime/...
+          export ROUTERFORGE_TARGET=aarch64-3.10 ROUTERFORGE_UPX=0
+          sh scripts/build-module-opkg.sh nfqws-manager 0.0.0-p01-nfqws
+          ipk=dist/routerforge-nfqws-manager_0.0.0-p01-nfqws_aarch64-3.10.ipk
+          test -s "$ipk"
+          actual="$(tar -xzOf "$ipk" ./data.tar.gz | tar -xzOf - ./opt/share/routerforge/modules/nfqws-manager/ui/index.html | sha256sum | awk '{print $1}')"
+          expected="$(sha256sum modules/nfqws-manager/frontend/index.html | awk '{print $1}')"
+          test "$actual" = "$expected" || { echo 'NFQWS_PACKAGED_UI_SHA_MISMATCH' >&2; exit 1; }
+          echo 'NFQWS_PACKAGED_UI_SHA: PASS'
 
       - name: Validate RouterForge registry
         if: steps.scope.outputs.registry == 'true'
@@ -610,7 +658,7 @@ jobs:
           go vet -tags dns_router_lite ./...
 
       - name: DNS Router Lite shipped UI behavior
-        if: steps.scope.outputs.go == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.layout == 'true'
+        if: steps.scope.outputs.go == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.layout == 'true' || steps.scope.outputs.dns_lite_frontend == 'true'
         run: |
           npm ci --prefix modules/dns-router-lite/frontend-tests --ignore-scripts --no-audit --no-fund
           npm test --prefix modules/dns-router-lite/frontend-tests
@@ -1382,7 +1430,7 @@ jobs:
   publish_dev:
     name: Publish rolling ARM64 Dev channel
     needs: [test, changes]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success' && !startsWith(github.event.head_commit.message, 'docs:')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test.result == 'success' && !startsWith(github.event.head_commit.message, 'docs:') && !contains(github.event.head_commit.message, '[rf-ci-only]')
     runs-on: ubuntu-latest
 
     concurrency:

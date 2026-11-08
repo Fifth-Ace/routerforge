@@ -92,7 +92,12 @@ def pixels(path1:Path,path2:Path)->int:
     if a.size!=b.size: raise AssertionError(f'DIMENSIONS_DIFFER: {a.size} != {b.size}')
     box=ImageChops.difference(a,b)
     if not box.getbbox():return 0
-    return sum(a_px!=b_px for a_px,b_px in zip(a.getdata(),b.getdata()))
+    # Chromium on different hosts may vary by 1-2 RGB values at antialiased edges.
+    # Preserve strict geometry and the existing limit of 50 SIGNIFICANT pixels.
+    return sum(
+        max(abs(before[channel] - after[channel]) for channel in range(3)) > 2
+        for before, after in zip(a.getdata(), b.getdata())
+    )
 
 def app_body(html:str,module:str)->str:
     klass='nt-page' if module=='network-tools' else 'as-page'
@@ -175,13 +180,13 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         bucket={}
         width=a.width
         for i,(p,q) in enumerate(zip(a.getdata(),b.getdata())):
-            if p!=q:
+            if max(abs(before-after) for before,after in zip(p,q))>2:
                 x,y=i%width,i//width
                 tile=(x//80*80,y//40*40)
                 bucket[tile]=bucket.get(tile,0)+1
         top=sorted(bucket.items(),key=lambda kv:-kv[1])[:12]
         report={'module':module,'scenario':scenario,'viewport':viewport,
-                'changed_pixels':diff,'threshold':50,'bbox':region,
+                'changed_pixels':diff,'threshold':50,'rgb_noise_tolerance':2,'bbox':region,
                 'hotspots':[{'x':x,'y':y,'changed_pixels':n} for (x,y),n in top],
                 'shots':{key:str(value) for key,value in shots.items()},
                 'diff':str(path),'layouts':layouts}
@@ -191,7 +196,7 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         print('PIXEL_DRIFT_BBOX: '+str(region),flush=True)
         print('PIXEL_DRIFT_HOTSPOTS: '+json.dumps(report['hotspots']),flush=True)
         raise AssertionError(f'PIXEL_DRIFT: {module} {scenario} {viewport}: {diff} pixels')
-    print(f'BROWSER_{module}_{scenario}_{viewport}: PASS / pixels={diff} / API_EQUAL')
+    print(f'BROWSER_{module}_{scenario}_{viewport}: PASS / significant_pixels={diff} / rgb_tolerance=2/255 / API_EQUAL')
 
 def main():
     p=argparse.ArgumentParser()

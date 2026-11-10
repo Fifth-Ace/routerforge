@@ -95,7 +95,7 @@ mkdir -p build
 sleep "${RF_TEST_NPM_SLEEP:-0.3}"
 python3 - <<'PY_MOCK_JS'
 from pathlib import Path
-kind = 'DNS_LITE_SVELTE_MODE_MOUNT_MISSING' if 'dns-router-lite' in str(Path.cwd()) else 'DNS_RUNTIME_SVELTE_MODE_MOUNT_MISSING'
+kind = 'DNS_LITE_SVELTE_MODE_MOUNT_MISSING' if 'dns-router-lite' in str(Path.cwd()) else 'DNS_RUNTIME_APP_MOUNT_MISSING'
 Path('build/svelte-mode.js').write_text('// ' + kind + '\\n' + 'x' * 3500)
 PY_MOCK_JS
 ''', True)
@@ -123,6 +123,18 @@ def package_content(path: Path) -> tuple[str, dict[str, bytes]]:
 
 
 class DNSPackageStagingSourceTests(unittest.TestCase):
+    def test_real_svelte_entry_mount_contract(self):
+        # The IPK gate checks emitted JS. Keep runtime guards in both entrypoints;
+        # changing only the offline npm fixture would hide a real packaging failure.
+        repo = BUILDER.resolve().parents[1]
+        lite_main = (repo / 'modules/dns-router-lite/frontend/main.js').read_text(encoding='utf-8')
+        runtime_main = (repo / 'modules/dns-router-runtime/frontend/main.js').read_text(encoding='utf-8')
+        lite_html = (repo / 'modules/dns-router-lite/frontend/index.html').read_text(encoding='utf-8')
+        self.assertIn("getElementById('dnsLiteApp')", lite_main)
+        self.assertIn('DNS_LITE_SVELTE_MODE_MOUNT_MISSING', lite_main)
+        self.assertIn('id="dnsLiteApp"', lite_html)
+        self.assertIn('DNS_RUNTIME_APP_MOUNT_MISSING', runtime_main)
+
     def test_atomic_output_and_private_staging(self):
         s = BUILDER.read_text(encoding='utf-8')
         self.assertIn('mktemp -d ', s)

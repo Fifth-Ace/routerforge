@@ -1,45 +1,53 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const root=path.resolve(__dirname,'..');
-const html=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/index.html'),'utf8');
-const css=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/module.css'),'utf8');
-const js=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/app.js'),'utf8');
-test('P92 horizontal scrolling policy strip retains native policy action',()=>{
- assert.match(css,/#drSimpleWorkspace \.dr-simple-policies\{display:flex;flex-wrap:nowrap/);
- assert.match(css,/overflow-x:auto/);
- assert.match(js,/function p88RenderPolicies\(\)/);
- assert.match(js,/p88\.policy=instance\.name;p88RenderPolicies\(\);p88RenderDNS\(\);p88RenderRules\(\)/);
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const {pathToFileURL} = require('node:url');
+const root = path.resolve(__dirname, '..');
+const front = path.join(root, 'modules/dns-router-runtime/frontend');
+const read = name => fs.readFileSync(path.join(front,name),'utf8');
+const load = name => import(pathToFileURL(path.join(front,name)).href);
+
+test('P92 desktop 40/60 policy strip and responsive DNS layout are preserved',()=>{
+  const css=read('module.css');
+  assert.match(css,/#drSimpleWorkspace \.dr-simple-policies\{display:flex;flex-wrap:nowrap/);
+  assert.match(css,/overflow-x:auto/);
+  assert.match(css,/grid-template-columns:minmax\(0,2fr\) minmax\(0,3fr\)/);
+  assert.match(css,/grid-template-areas:"policies policies" "dns rules" "dns domains"/);
+  assert.match(css,/@media\(max-width:920px\)/);
+  assert.match(css,/grid-template-areas:"policies" "dns" "rules" "domains"/);
 });
-test('P92 exact 40/60 desktop split and single-column responsive layout',()=>{
- assert.match(css,/grid-template-columns:minmax\(0,2fr\) minmax\(0,3fr\)/);
- assert.match(css,/grid-template-areas:"policies policies" "dns rules" "dns domains"/);
- assert.match(css,/#drSimpleWorkspace \.dr-simple-main\{display:contents\}/);
- assert.match(css,/@media\(max-width:920px\)/);
- assert.match(css,/grid-template-areas:"policies" "dns" "rules" "domains"/);
+
+test('P92 the real Svelte tree owns exactly one domain editor and action',()=>{
+  const app=read('DnsRuntimeApp.svelte'),p92=read('DnsRuntimeP92.svelte');
+  const p10=read('DnsRuntimeP10.svelte'),p91=read('DnsRuntimeP91.svelte');
+  assert.match(app,/id="drSimpleWorkspace"/);
+  assert.match(app,/<DnsRuntimeP92\s*\/>/);
+  assert.match(app,/<DnsRuntimeP10\s*\/>/);
+  for(const id of ['drP92Check','drP92Clear','drP92Deduplicate','drP92Normalize','drP92Import','drP92Export','drP92File','drP92Preview','drP92Count','drP92Message'])
+    assert.equal((p92.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+  assert.equal((p10.match(/id="drP92Apply"/g)||[]).length,1);
+  assert.match(p91,/id="drP90Endpoint"/);
 });
-test('P92 domain editor controls are unique and retain the existing IDs',()=>{
- for(const id of ['drSimplePolicies','drSimpleDNS','drSimpleDNSInventory','drSimpleDomains','drSimpleAdd','drSimpleSave','drSimpleRuleList','drP90Inspect','drP90Store','drP92Check','drP92Clear','drP92Deduplicate','drP92Normalize','drP92Import','drP92Export','drP92File','drP92Preview','drP92Count','drP92Message','drP92Apply']){
-  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
- }
- assert.match(html,/id="drSimpleDomains" rows="12"/);
- assert.match(html,/id="drP92Apply">▶ Применить DNS/);
- assert.match(html,/id="drP10Disable"/);
+
+test('P92 pure parser normalizes and deduplicates; never stages a DNS mutation',async()=>{
+  const {parseDomainBatch,previewDomainBatch,mergeDomainFile,exportDomainText}=await load('DnsRuntimeP92Logic.js');
+  assert.deepEqual(parseDomainBatch('Example.COM.\nexample.com\nsecond.net # comment').domains,['example.com','second.net']);
+  const preview=previewDomainBatch('Example.COM.\nsecond.net');
+  assert.equal(preview.ok,true);assert.equal(preview.domains.length,2);
+  assert.equal(mergeDomainFile('example.com','SECOND.net',20),'example.com\nsecond.net');
+  assert.equal(exportDomainText('EXAMPLE.com'),'example.com\n');
+  assert.match(parseDomainBatch('https://example.com').error,/Некорректный домен/);
+  assert.throws(()=>mergeDomainFile('','example.com',256*1024+1),/Файл слишком большой/);
 });
-test('P92 controls are wired, no implicit DNS runtime mutations',()=>{
- for(const id of ['drP92Check','drP92Clear','drP92Deduplicate','drP92Normalize','drP92Import','drP92File','drP92Export','drP92Apply'])assert.match(js,new RegExp("p88Id\\('"+id+"'\\)\\.addEventListener"));
- assert.match(js,/function p92Preview\(\)/);
- assert.match(js,/const parsed=p88ParseDomains\(p92Field\.value\)/);
- assert.match(js,/p88Id\('drModeAdvanced'\)\.click\(\)/);
- const section=js.slice(js.indexOf('// P9.2 UX-only'),js.indexOf('  // DPR2 P10: a real, explicit System DNS activation'));
- assert.doesNotMatch(section,/\.innerHTML\s*=|ndmc|shadowApply|shadowStart|saveButton.*click|fetch\(|request\(/);
- assert.match(section,/p92Field\.value=parsed\.domains\.join\('\\n'\)/);
- assert.match(js,/p88Id\('drP92Apply'\)\.addEventListener\('click',p10Activate\)/);
- assert.doesNotMatch(js,/p92Notify\('Реальное применение DNS выполняется отдельно/);
-});
-test('P92 existing advanced and P91 DNS form retained',()=>{
- assert.match(html,/id="drAdvancedWorkspace" hidden/);
- assert.match(html,/id="drP91Found"/);
- assert.match(js,/function p91Fields\(requireIP\)/);
- assert.match(js,/async function p88Scan\(\)/);
- assert.match(js,/p88Id\('drSimpleSave'\)\.addEventListener\('click',\(\)=>p88Id\('saveButton'\)\.click\(\)\)/);
+
+test('P92 controls have explicit handlers, cannot implicitly apply or fetch',()=>{
+  const p92=read('DnsRuntimeP92.svelte');
+  for(const fn of ['check','clear','canonicalize','importFile','exportFile'])
+    assert.match(p92,new RegExp('function '+fn+'\\('));
+  assert.match(p92,/onclick=\{check\}/);
+  assert.match(p92,/onclick=\{exportFile\}/);
+  assert.doesNotMatch(p92,/fetch\s*\(|ndmc|shadowApply|shadowStart|innerHTML\s*=/);
+  assert.match(p92,/if\(file\.size>256\*1024\)throw Error/);
 });

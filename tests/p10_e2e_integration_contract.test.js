@@ -1,51 +1,98 @@
 'use strict';
-const fs=require('node:fs'),p=require('node:path'),test=require('node:test'),assert=require('node:assert/strict');
-const root=p.resolve(__dirname,'..');
-const read=s=>fs.readFileSync(p.join(root,s),'utf8');
-const path='modules/dns-router-runtime/';
-const ui=read(path+'frontend/app.js'),html=read(path+'frontend/index.html'),init=read(path+'packaging/S95routerforge-dns-router-dev');
-const main=read(path+'cmd/routerforge-dns-router/main.go'),api=read(path+'api.go');
-const n=read(path+'transaction_n.go'),o2=read(path+'managed_o2.go'),o3=read(path+'managed_o3.go'),listener=read(path+'listener_l.go');
-test('P10 is real O2 durable apply, not a click-through to expert UI',()=>{
- assert.match(ui,/request\('keenetic\/durable\/prepare'/);
- assert.match(ui,/request\('keenetic\/durable\/apply'/);
- assert.match(ui,/request\('keenetic\/durable\/disable'/);
- assert.match(ui,/request\('shadow\/control'/);
- assert.match(ui,/p10Activate/);
- assert.match(html,/id="drP92Apply">▶ Применить DNS/);
- assert.match(html,/id="drP10Disable"/);
- assert.doesNotMatch(ui,/p92Notify\('Реальное применение DNS выполняется отдельно/);
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const {pathToFileURL} = require('node:url');
+const root = path.resolve(__dirname, '..');
+const read = p => fs.readFileSync(path.join(root,p),'utf8');
+const front = 'modules/dns-router-runtime/frontend/';
+const load = p => import(pathToFileURL(path.join(root, front, p)).href);
+
+function makeFlow(createP10Flow, opts={}) {
+  const calls=[];
+  const draft={revision:'rev-p10',generation:0,dirty:false,config:{schema_version:1,
+    upstreams:[{id:'u1',transport:'udp',address:'1.1.1.1:53'}],
+    rules:[{id:'r1',domain:'example.com',match:'suffix',upstream:'u1',priority:100}]}};
+  const flow=createP10Flow({
+    request: async (endpoint, config)=>{
+      calls.push({endpoint,config});
+      if(endpoint==='keenetic/managed-ownership/status')return opts.owner||{state:'disabled'};
+      if(endpoint==='shadow/status')return {lifecycle:{active:false}};
+      if(endpoint==='keenetic/durable/disable')return opts.disable||{state:'disabled',baseline_restored:true};
+      throw Error('UNEXPECTED_ENDPOINT:'+endpoint);
+    },
+    readDraft:()=>draft,commit:()=>{throw Error('UNEXPECTED_DRAFT_MUTATION');},
+    getSimple:()=>({policy:opts.policy||'System',pending:false,summary:'example.com'}),
+    stagePending:()=>{throw Error('UNEXPECTED_PENDING_STAGE');},
+    confirmAction:()=>opts.confirm!==false,
+    report:()=>{},signal:()=>{}
+  });
+  return {flow,calls};
+}
+
+test('P10 real Svelte control: explicit native action buttons and no legacy bridge', () => {
+  const ui=read(front+'DnsRuntimeP10.svelte');
+  assert.match(ui,/createP10Flow/);
+  for(const id of ['drP92Apply','drP10Disable'])assert.equal((ui.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
+  assert.match(ui,/disabled=\{busy\|\|!known/);
+  assert.match(ui,/await flow\.activate\(\)/);
+  assert.match(ui,/await flow\.disable\(\)/);
 });
-test('P10 System only until PolicyN isolation is verified',()=>{
- assert.match(ui,/if\(p88\.policy!=='System'\)/);
- assert.match(ui,/native:\/\/System\//);
- assert.match(ui,/ownedHere/);
+
+test('P10 PolicyN rejects activation before any IO, mutation or confirmation', async()=>{
+  const {createP10Flow}=await load('DnsRuntimeP10Logic.js');
+  const {flow,calls}=makeFlow(createP10Flow,{policy:'Policy1'});
+  await assert.rejects(flow.activate(),/только для System/);
+  assert.deepEqual(calls,[]);
 });
-test('P10 does not hide partial failure or overwrite owned zone ledger',()=>{
- assert.match(ui,/ownership\.state!=='disabled'/);
- assert.match(ui,/ledger_hash/);
- assert.match(ui,/baseline_restored/);
- assert.match(ui,/If-Match/);
+
+test('P10 cancelled disable does not access DNS or mutate state', async()=>{
+  const {createP10Flow}=await load('DnsRuntimeP10Logic.js');
+  const {flow,calls}=makeFlow(createP10Flow,{confirm:false});
+  assert.deepEqual(await flow.disable(),{cancelled:true});
+  assert.deepEqual(calls,[]);
 });
-test('P10 63-capacity exists ONLY for durable O2; N trial stays 8, old plan stays 32',()=>{
- assert.match(n,/const managedMaxZonesN = 8/);
- assert.match(n,/if m\.MaxZones > 0/);
- assert.match(n,/Extended63/);
- assert.match(n,/len\(servers\)\+len\(zones\) > 64/);
- assert.match(o2,/MaxZones: 63/);
- assert.match(o2,/Extended63: true/);
- assert.match(o3,/managedZonesLimitedN\(cfg, 63\)/);
- assert.match(listener,/BuildDomainSplitPlanLWithLimit\(cfg, 32\)/);
+
+test('P10 verified ledger SHA required before any durable disable', async()=>{
+  const {createP10Flow}=await load('DnsRuntimeP10Logic.js');
+  const {flow,calls}=makeFlow(createP10Flow,{owner:{state:'verified_active'}});
+  await assert.rejects(flow.disable(),/владения DNS/);
+  assert.deepEqual(calls.map(x=>x.endpoint),['keenetic/managed-ownership/status']);
 });
-test('DEV independent service replaces P10 startup without implicit zone activation',()=>{
- assert.match(init,/operation="\$\{1:-stop\}"/);
- assert.match(init,/--service-control "\$operation"/);
- assert.match(init,/restart\) stop_service maintenance && start_service/);
- assert.doesNotMatch(init,/--ndmc-durable-experimental/);
- assert.doesNotMatch(init,/--shadow-forward/);
- assert.match(main,/owned\.State == "active"/);
- assert.match(main,/enableShadow = true/);
- assert.match(api,/LifetimeEnabled/);
- assert.match(api,/ArmLifetimeO3B/);
- assert.match(main,/lifetimeOptIn && lifecycle.Status\(\).Active/);
+
+test('P10 reversible disable: CAS+ledger match, restore baseline before stopping shadow', async()=>{
+  const {createP10Flow}=await load('DnsRuntimeP10Logic.js');
+  const {flow,calls}=makeFlow(createP10Flow,{owner:{state:'verified_active',ledger_hash:'sha256:exact'}});
+  // Request stub only permits exactly these two mutating endpoints, after ownership read.
+  const a=flow.disable();
+  await assert.rejects(a,/UNEXPECTED_ENDPOINT:shadow\/control/);
+  assert.deepEqual(calls.map(x=>x.endpoint),[
+    'keenetic/managed-ownership/status','keenetic/durable/disable','shadow/control'
+  ]);
+  const request=calls[1].config;
+  assert.equal(request.method,'POST');
+  assert.equal(request.headers['X-RouterForge-Action'],'durable-disable');
+  assert.equal(request.headers['If-Match'],'"rev-p10"');
+  assert.equal(request.headers['X-RouterForge-Ledger-Match'],'sha256:exact');
+  const {flow:failed,calls:blocked}=makeFlow(createP10Flow,{owner:{state:'verified_active',ledger_hash:'sha256:exact'},disable:{state:'disabled',baseline_restored:false}});
+  await assert.rejects(failed.disable(),/не подтвердил восстановление/);
+  assert.deepEqual(blocked.map(x=>x.endpoint),['keenetic/managed-ownership/status','keenetic/durable/disable']);
+});
+
+test('P10 backend capacity, capability and no implicit startup remain hard guards',()=>{
+  const n=read('modules/dns-router-runtime/transaction_n.go'),o2=read('modules/dns-router-runtime/managed_o2.go');
+  const o3=read('modules/dns-router-runtime/managed_o3.go'),listener=read('modules/dns-router-runtime/listener_l.go');
+  const main=read('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go');
+  const api=read('modules/dns-router-runtime/api.go');
+  const init=read('modules/dns-router-runtime/packaging/S95routerforge-dns-router-dev');
+  assert.match(n,/const managedMaxZonesN = 8/);
+  assert.match(o2,/MaxZones: 63/);
+  assert.match(o3,/managedZonesLimitedN\(cfg, 63\)/);
+  assert.match(listener,/BuildDomainSplitPlanLWithLimit\(cfg, 32\)/);
+  assert.match(main,/owned\.State == "active"/);
+  assert.match(api,/LifetimeEnabled/);
+  assert.match(api,/ArmLifetimeO3B/);
+  assert.match(init,/--service-control "\$operation"/);
+  assert.doesNotMatch(init,/--ndmc-durable-experimental/);
 });

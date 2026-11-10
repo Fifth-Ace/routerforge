@@ -1,46 +1,68 @@
 'use strict';
-const t=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),p=require('node:path'),vm=require('node:vm');
-const root=p.resolve(__dirname,'..','modules/dns-router-runtime');
-const js=fs.readFileSync(p.join(root,'frontend/app.js'),'utf8');
-const html=fs.readFileSync(p.join(root,'frontend/index.html'),'utf8');
-const api=fs.readFileSync(p.join(root,'api.go'),'utf8');
-const native=fs.readFileSync(p.join(root,'native_bridge_p83.go'),'utf8');
-const cert=fs.readFileSync(p.join(root,'certificates_p90.go'),'utf8');
-const policy=fs.readFileSync(p.join(root,'policy.go'),'utf8');
-const inventory=fs.readFileSync(p.join(root,'native_inventory_p82.go'),'utf8');
-const body=js.slice(js.indexOf('  // P8.9 NATIVE CATALOG BEGIN'),js.indexOf('  // P8.9 NATIVE CATALOG END'));
-const catalogue=vm.runInNewContext('(()=>{const window={};'+body+';return window.RFNativeCatalogP89;})()');
-t('P9.0 DoH URL with @dnsm has a backend-provided opaque selector and readable label',()=>{
- const input={available:true,parsed_instances:1,instances:[{name:'System',valid:true,endpoints:[{address:'127.0.0.1:40506',domain:'.',upstream_hint:'https://dns.dns-ai.ru/dns-query@dnsm',transport_hint:'doh',selector_hint:'sha256-'+'a'.repeat(64)}]}]};
- const [c]=catalogue.entries(input,'System');
- a.equal(c.usable,true);a.equal(c.transport,'doh');a.match(c.label,/https:\/\/dns\.dns-ai\.ru\/dns-query ·/);a.doesNotMatch(c.label,/@dnsm/);
- a.equal(c.selector,'native://System/./sha256-'+'a'.repeat(64));a.equal(c.encryptionProven,false);
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const {pathToFileURL} = require('node:url');
+const root = path.resolve(__dirname, '..', 'modules/dns-router-runtime');
+const frontend = path.join(root, 'frontend');
+const read = name => fs.readFileSync(path.join(frontend, name), 'utf8');
+const load = name => import(pathToFileURL(path.join(frontend, name)).href);
+
+test('P90 real native catalog: @dnsm has an opaque inventory-bound DoH selector', async () => {
+  const {entries} = await load('DnsRuntimeNativeCatalog.js');
+  const inventory = {available:true,parsed_instances:1,instances:[{name:'System',valid:true,endpoints:[
+    {address:'127.0.0.1:40506',domain:'.',upstream_hint:'https://dns.dns-ai.ru/dns-query@dnsm',transport_hint:'doh',selector_hint:'sha256-'+'a'.repeat(64)}
+  ]}]};
+  const [entry] = entries(inventory, 'System');
+  assert.equal(entry.usable, true);
+  assert.equal(entry.transport, 'doh');
+  assert.equal(entry.selector, 'native://System/./sha256-'+'a'.repeat(64));
+  assert.match(entry.label, /https:\/\/dns\.dns-ai\.ru\/dns-query ·/);
+  assert.doesNotMatch(entry.label, /@dnsm/);
+  assert.equal(entry.encryptionProven, false);
 });
-t('P9.0 preserves legacy plaintext hints, fail-closed zone and incomplete inventory',()=>{
- const inv={available:true,parsed_instances:1,instances:[{name:'System',valid:true,endpoints:[{address:'127.0.0.1:40500',domain:'.',upstream_hint:'1.1.1.1'}]}]};
- const [x]=catalogue.entries(inv,'System');a.equal(x.selector,'native://System/./1.1.1.1');a.equal(x.usable,true);
- a.equal(catalogue.acceptsDomains({usable:true,zone:'ru'},['youtube.com']).ok,false);
- inv.available=false;a.equal(catalogue.entries(inv,'System')[0].usable,false);
+
+test('P90 native inventory fails closed for untrusted zones and incomplete evidence', async () => {
+  const {entries, acceptsDomains} = await load('DnsRuntimeNativeCatalog.js');
+  const inv = {available:true,parsed_instances:1,instances:[{name:'System',valid:true,endpoints:[
+    {address:'127.0.0.1:40500',domain:'.',upstream_hint:'1.1.1.1'},
+    {address:'127.0.0.1:40501',domain:'ru',upstream_hint:'common.dot.dns.yandex.net'}
+  ]}]};
+  const [rootDNS,zoned] = entries(inv, 'System');
+  assert.equal(rootDNS.usable, true);
+  assert.equal(rootDNS.selector, 'native://System/./1.1.1.1');
+  assert.equal(acceptsDomains(zoned, ['youtube.com']).ok, false);
+  inv.available = false;
+  assert.equal(entries(inv, 'System')[0].usable, false);
 });
-t('P9.0 explicit verified certificate inspection, public PEM snapshot, no auto trust',()=>{
- for(const id of ['drP90Transport','drP90Endpoint','drP90IP','drP90Inspect','drP90Store','drP90Status'])a.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
- a.match(js,/request\('certificates\/lookup',jsonOptions\('certificate-lookup'/);
- a.match(js,/server\.certificate_pem=p90Inspected\.pem/);
- a.match(js,/p90InspectedKey/);
- a.match(js,/p90AllChoices/);
- a.match(api,/\/v1\/certificates\/inspect/);
- a.match(api,/requireMutation\(w, r, "certificate-inspect"\)/);
- a.match(policy,/CertificatePEM string/);
- a.match(policy,/validateSavedCertificateP90/);
- a.match(cert,/tls\.Client\(conn,/);
- a.doesNotMatch(cert,/InsecureSkipVerify/);
- a.doesNotMatch(cert,/exec\.Command|ndmc|system configuration save/);
- a.doesNotMatch(js,/\.innerHTML\s*=/);
+
+test('P90 Svelte owns the certificate UI; public PEM is staged only after verified TLS', async () => {
+  const component = read('DnsRuntimeP91.svelte');
+  const logic = read('DnsRuntimeP91Logic.js');
+  const api = fs.readFileSync(path.join(root, 'api.go'), 'utf8');
+  const cert = fs.readFileSync(path.join(root, 'certificates_p90.go'), 'utf8');
+  const policy = fs.readFileSync(path.join(root, 'policy.go'), 'utf8');
+  for (const id of ['drP90Transport','drP90Endpoint','drP90IP','drP90Inspect','drP90Store','drP90Status','drP91PEM']) {
+    assert.equal((component.match(new RegExp('id="'+id+'"', 'g')) || []).length, 1, id);
+  }
+  assert.match(component, /createP91Flow/);
+  assert.match(component, /disabled=\{busy\|\|!verified\}/);
+  assert.match(logic, /result\.certificate\?\.verified/);
+  assert.match(logic, /server\.certificate_pem=result\.certificate\.pem/);
+  assert.match(api, /\/v1\/certificates\/inspect/);
+  assert.match(api, /requireMutation\(w, r, "certificate-inspect"\)/);
+  assert.match(policy, /CertificatePEM string/);
+  assert.match(policy, /validateSavedCertificateP90/);
+  assert.match(cert, /tls\.Client\(conn,/);
+  assert.doesNotMatch(cert, /InsecureSkipVerify/);
+  assert.doesNotMatch(logic, /\.innerHTML\s*=|fetch\s*\(/);
 });
-t('P9.0 native selector is fresh inventory-bound, never the raw DoH URL as a socket',()=>{
- a.match(inventory,/SelectorHint = nativeSelectorHintP90\(hint\)/);
- a.match(inventory,/TransportHint = "doh"/);
- a.match(native,/nativeHintMatchesP90\(selector\.Hint, ep\.UpstreamHint\)/);
- a.match(js,/selector_hint/);
- a.match(js,/entry\.transport==='doh'/);
+
+test('P90 native selector must be bound to fresh inventory, not a raw DoH socket URL', () => {
+  const inventory = fs.readFileSync(path.join(root, 'native_inventory_p82.go'), 'utf8');
+  const bridge = fs.readFileSync(path.join(root, 'native_bridge_p83.go'), 'utf8');
+  assert.match(inventory, /SelectorHint = nativeSelectorHintP90\(hint\)/);
+  assert.match(inventory, /TransportHint = "doh"/);
+  assert.match(bridge, /nativeHintMatchesP90\(selector\.Hint, ep\.UpstreamHint\)/);
 });

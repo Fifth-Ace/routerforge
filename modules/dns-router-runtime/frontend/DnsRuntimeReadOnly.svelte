@@ -14,8 +14,15 @@
     hardware: 'Аппаратная совместимость не подтверждена',
     upstreams: 'Нет измерений'
   };
-  output = initial[kind] || '';
-  if (kind === 'upstreams') secondary = 'Native Bridge: статус ещё не запрошен. Режим read-only; готовность привязки не означает доступный интернет.';
+  // Re-evaluate defaults only if the mounted component's kind prop changes.
+  // Explicit probe results are never overwritten by unrelated draft updates.
+  $effect(() => {
+    output = initial[kind] || '';
+    secondary = kind === 'upstreams'
+      ? 'Native Bridge: статус ещё не запрошен. Режим read-only; готовность привязки не означает доступный интернет.'
+      : '';
+    error = '';
+  });
 
   function feedback(message) {
     showFeedback(message);

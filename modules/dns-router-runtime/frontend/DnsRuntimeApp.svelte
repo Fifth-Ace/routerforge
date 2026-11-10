@@ -125,13 +125,13 @@
     <article class="metric"><span>КОНФИГУРАЦИЯ</span><strong id="metricConfig">{draft.dirty?'ЧЕРНОВИК':draft.loaded?'СОХРАНЕНО':'—'}</strong><small>Черновик и ревизия CAS</small></article>
   </section>
 
-  <nav class="tabs" role="tablist" aria-label="Разделы DNS Router">
+  <div class="tabs" role="tablist" aria-label="Разделы DNS Router">
     <button type="button" class={shell.tab==='overview'?'tab active':'tab'} data-tab="overview" id="dr-tab-overview" role="tab" tabindex={shell.tab==='overview'?0:-1} aria-controls="dr-panel-overview" aria-selected={shell.tab==='overview'} onclick={()=>activate('overview')} onkeydown={e=>tabKey(e,'overview')}>Обзор</button>
     <button type="button" class={shell.tab==='policies'?'tab active':'tab'} data-tab="policies" id="dr-tab-policies" role="tab" tabindex={shell.tab==='policies'?0:-1} aria-controls="dr-panel-policies" aria-selected={shell.tab==='policies'} onclick={()=>activate('policies')} onkeydown={e=>tabKey(e,'policies')}>Списки и правила</button>
     <button type="button" class={shell.tab==='testing'?'tab active':'tab'} data-tab="testing" id="dr-tab-testing" role="tab" tabindex={shell.tab==='testing'?0:-1} aria-controls="dr-panel-testing" aria-selected={shell.tab==='testing'} onclick={()=>activate('testing')} onkeydown={e=>tabKey(e,'testing')}>Проверка</button>
     <button type="button" class={shell.tab==='keenetic'?'tab active':'tab'} data-tab="keenetic" id="dr-tab-keenetic" role="tab" tabindex={shell.tab==='keenetic'?0:-1} aria-controls="dr-panel-keenetic" aria-selected={shell.tab==='keenetic'} onclick={()=>activate('keenetic')} onkeydown={e=>tabKey(e,'keenetic')}>Keenetic</button>
     <button type="button" class={shell.tab==='diagnostics'?'tab active':'tab'} data-tab="diagnostics" id="dr-tab-diagnostics" role="tab" tabindex={shell.tab==='diagnostics'?0:-1} aria-controls="dr-panel-diagnostics" aria-selected={shell.tab==='diagnostics'} onclick={()=>activate('diagnostics')} onkeydown={e=>tabKey(e,'diagnostics')}>Диагностика</button>
-  </nav>
+  </div>
 
   <div class={shell.tab==='overview'?'tab-page active':'tab-page'} data-page="overview" aria-hidden={shell.tab!=='overview'} id="dr-panel-overview" role="tabpanel" aria-labelledby="dr-tab-overview" tabindex="0">
     <section class="panel">

@@ -11,7 +11,7 @@
   let probeBusy=$state(false);
   let stopped=false;
   let sequence=0;
-  let checked=false;
+  let checked=$state(false);
   const get=async path=>{
     const response=await fetch('../'+path,{method:'GET',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'}});
     if(!response.ok)throw Error('HTTP '+response.status+' · '+path);

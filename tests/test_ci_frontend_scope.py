@@ -27,7 +27,7 @@ class FrontendScopeTests(unittest.TestCase):
                              {'dns_lite_frontend': True})
 
     def test_runtime_only(self):
-        x = self.classify('modules/dns-router-runtime/frontend/app.js')
+        x = self.classify('modules/dns-router-runtime/frontend/DnsRuntimeApp.svelte')
         self.assertEqual(x, dict.fromkeys(module.FLAGS, False) | {'dns_runtime_frontend': True})
 
     def test_nfqws_only(self):
@@ -44,7 +44,7 @@ class FrontendScopeTests(unittest.TestCase):
 
     def test_multi_module_change_is_union(self):
         self.assertEqual(self.classify(
-            'modules/dns-router-runtime/frontend/app.js',
+            'modules/dns-router-runtime/frontend/DnsRuntimeApp.svelte',
             'modules/nfqws-manager/frontend/index.html',
         ), {'dns_lite_frontend': False, 'dns_runtime_frontend': True, 'nfqws_frontend': True})
 

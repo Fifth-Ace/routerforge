@@ -93,7 +93,7 @@ PY
 
 # Runtime Svelte 5 native UI: execute the real production pure functions.
 # The compiled browser/CAS parity is a separate mandatory gate, not source-only proof.
-node --test tests/dns_runtime_svelte5_behavior.test.mjs tests/dns_runtime_native_parity.test.mjs
+node --test tests/dns_runtime_svelte5_behavior.test.mjs tests/dns_runtime_native_parity.test.mjs tests/dns_runtime_svelte5_ownership.test.mjs
 python3 - <<'PY_VERIFY_L'
 from pathlib import Path
 ui=Path('modules/dns-router-runtime/frontend')

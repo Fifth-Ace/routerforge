@@ -101,13 +101,16 @@ html=(ui/'index.html').read_text(encoding='utf-8')
 component=(ui/'DnsRuntimeReadOnly.svelte').read_text(encoding='utf-8')
 app=(ui/'DnsRuntimeApp.svelte').read_text(encoding='utf-8')
 assert 'src="svelte-mode.js"' in html and 'app.js' not in html
-assert not (ui/'app.js').exists()
+entry=(ui/'main.js').read_text(encoding='utf-8')
+assert "from './DnsRuntimeApp.svelte'" in entry
+assert 'mount(DnsRuntimeApp,{target})' in entry
+assert 'app.js' not in entry
 for element in ('listenerPlanButton','listenerPlanStatus'):
     assert f'id="{element}"' in component, element
 assert "request('keenetic/domain-plan')" in component
 assert '--shadow-lan-experimental' in app
 assert 'no ip name-server' in Path('modules/dns-router-runtime/listener_l.go').read_text(encoding='utf-8')
-print('DPR2_L_NATIVE_UI_SOURCE_GATE: PASS (behaviour tested separately)')
+print('DPR2_L_ACTIVE_SVELTE_ENTRY_GATE: PASS (legacy source remains unshipped)')
 PY_VERIFY_L
 
 # DPR2-M test-only ndmc transaction. All CI side effects use injected

@@ -18,14 +18,13 @@
       <h1>DNS Router</h1>
       <p>Выбирай DNS-серверы, назначай домены и при необходимости включай RouterForge для всей локальной сети.</p>
     </div>
-    <div class="top-actions"><label class="p21-mode-label"><span data-p21-i18n="mode">Режим</span><select id="p21Mode" class="p22-legacy-mode" aria-label="Режим DNS"><option value="basic" data-p21-i18n="basic">Обычный</option><option value="advanced" data-p21-i18n="advanced">Расширенный</option></select></label><div id="rf-dns-lite-svelte-mode"><div class="p22-mode-switch rfds-segmented" role="group" aria-label="Режим DNS Router"><button id="p22ModeBasic" type="button" aria-pressed="true">Обычный</button><button id="p22ModeAdvanced" type="button" aria-pressed="false">Расширенный</button></div></div><span class="status" id="p21ActiveBadge" hidden>Активны правила устройств</span><span class="status" id="serviceBadge" role="status">Проверяем…</span><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">Открыть DNS-аналитику →</a><button type="button" class="button subtle" id="reloadButton">↻ Обновить</button></div>
+    <div class="top-actions"><label class="p21-mode-label"><span data-p21-i18n="mode">Режим</span><select id="p21Mode" class="p22-legacy-mode" aria-label="Режим DNS"><option value="basic" data-p21-i18n="basic">Обычный</option><option value="advanced" data-p21-i18n="advanced">Расширенный</option></select></label><div id="rf-dns-lite-svelte-mode"><div class="p22-mode-switch rfds-segmented" role="group" aria-label="Режим DNS Router"><button id="p22ModeBasic" type="button" aria-pressed="true">Обычный</button><button id="p22ModeAdvanced" type="button" aria-pressed="false">Расширенный</button></div></div><span class="status" id="p21ActiveBadge" hidden>Активны правила устройств</span><span class="status" id="serviceBadge" role="status">Проверяем…</span><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">Открыть DNS-аналитику →</a><span id="rf-lite-reload-slot" style="display:contents"></span></div>
   </header>
   <nav class="tabs rfds-tabs" aria-label="Разделы DNS">
-    <button id="navDns" type="button" class="tab selected" aria-current="page">DNS и домены</button>
-    <button id="p21Nav" type="button" class="tab p21-advanced-only" data-p21-i18n="devices">Устройства и правила</button>
-    <button id="p22NavGroups" type="button" class="tab p22-advanced-tab">Группы</button>
-    <button id="p22NavRules" type="button" class="tab p22-advanced-tab">Правила домена</button>
-    <button id="navLogs" type="button" class="tab">Журнал запросов <span id="logCounter" class="counter">0</span></button>
+    <span id="rf-lite-dns-nav-slot" style="display:contents"></span>
+    <span id="rf-dns-lite-svelte-advanced-nav" style="display:contents"></span>
+    <span id="rf-dns-lite-settings-nav-slot" style="display:contents"></span>
+    <span id="rf-lite-log-nav-slot" style="display:contents"></span>
   </nav>
   <div class="notice" id="feedback" role="status" aria-live="polite">Загружаем настройки…</div>
 
@@ -51,7 +50,7 @@
         <span class="status" id="gateBadge" role="status">Выключен</span>
       </div>
       <div class="gate-config">
-        <label class="field gate-default"><span>DNS по умолчанию в RouterForge <b class="required">*</b></span><select id="defaultDNS"><option value="">Выбери основной DNS…</option></select><small>Используется для доменов, которых нет в списках. Домены из списков идут на назначенный им DNS.</small></label>
+        <label class="field gate-default"><span>DNS по умолчанию в RouterForge <b class="required">*</b></span><span id="rf-lite-default-dns-slot" style="display:contents"></span><small>Используется для доменов, которых нет в списках. Домены из списков идут на назначенный им DNS.</small></label>
         <div class="gate-service-summary"><span>DNS-сервис</span><strong id="listenerSummary">—</strong><small id="connectionSummary">Для LAN-режима отдельное тестовое устройство не требуется.</small></div>
       </div>
       <div class="gate-instruction">
@@ -60,76 +59,41 @@
         <small>Подключать MAC-адрес отдельного устройства не нужно. Последний выбор ON/OFF сохраняется; DoH/DoT/DoQ приложений и DNS внутри VPN этим Gate не перехватываются.</small>
       </div>
       <p class="route-advice" id="gateAdvice">Системный DNS выключен. Сейчас запросы обрабатывает Keenetic.</p>
-      <div class="gate-actions">
-        <button type="button" class="button primary" id="applyButton">✓ Сохранить и запустить DNS</button>
-        <button type="button" class="button" id="gatePreflight">Проверить готовность</button>
-        <button type="button" class="button primary" id="gateEnable" disabled>Включить для LAN</button>
-        <button type="button" class="button danger" id="gateDisable" disabled>Вернуть штатный DNS</button>
-      </div>
+      <div id="rf-lite-gate-actions-slot" style="display:contents"></div>
       <div id="runStatus" class="result">Состояние DNS-сервиса загружается…</div>
       <p id="routeAdvice" class="route-advice" role="status">Проверяем, доходят ли запросы до DNS Router…</p>
       <details class="inner-details service-tools" id="serviceTools">
         <summary>Другие действия с DNS-сервисом <span class="hint">Проверка и обслуживание</span></summary>
-        <div class="actions">
-          <button type="button" class="button" id="verifyButton">Проверить DNS</button>
-          <button type="button" class="button" id="saveButton">Сохранить без запуска</button>
-          <button type="button" class="button danger" id="stopButton" disabled>Остановить DNS</button>
-        </div>
+        <div id="rf-lite-service-actions-slot" style="display:contents"></div>
       </details>
       <details class="inner-details legacy-test-device" id="clientConnection">
         <summary>Тестовое подключение одного устройства <span class="hint">Необязательно · для диагностики</span></summary>
         <p class="muted">Это отдельный точечный режим для диагностики через профиль Keenetic. Для замены DNS всей LAN он не нужен.</p>
         <div class="fields two"><label class="field"><span>MAC-адрес устройства</span><input id="clientMAC" placeholder="02:11:22:33:44:55" spellcheck="false"></label><div class="field"><span>DNS-профиль Keenetic</span><strong id="clientState">Не подключён</strong><small>Подключаем только выбранное устройство, не всю сеть</small></div></div>
         <label class="check"><input type="checkbox" id="persistClient"> Сохранить назначение после перезагрузки Keenetic (изменяет его общую running-config)</label>
-        <div class="actions"><button class="button primary" type="button" id="connectButton">Подключить</button><button class="button" type="button" id="disconnectButton">Вернуть прежний DNS</button></div>
+        <div id="rf-lite-client-actions-slot" style="display:contents"></div>
         <p class="muted">Для теста выключи Private DNS / DoH на устройстве. При недоступном Entware подключённое устройство может остаться без DNS — возврат делается по IP-адресу роутера.</p>
       </details>
       <details class="inner-details" id="additionalSettings">
         <summary>Дополнительные настройки <span class="hint">Обычно не нужны</span></summary>
-        <div class="fields two"><label class="field"><span>Адрес DNS-сервиса</span><input id="serviceListen" value="192.168.10.1:55358"></label><label class="field"><span>Кэш, МиБ</span><input id="cacheSize" type="number" value="1" min="0" max="8" step="1"></label></div>
-        <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" value="127.0.0.0/8,192.168.10.0/24" spellcheck="false"></label>
+        <div id="rf-dns-lite-basic-service-slot" style="display:contents"></div>
+        <div id="rf-dns-lite-basic-cache-slot" style="display:contents"></div>
       </details>
     </section>
     </details>
-    <section id="dnsAddPanel" class="panel" hidden>
-      <div class="section-title"><div><h2 id="dnsAddPanelTitle">Добавить DNS</h2><p>Укажи адрес провайдера, а IP и сертификат мы найдём сами.</p></div><button type="button" id="cancelDNS" class="button subtle">Закрыть</button></div>
-      <div class="fields two">
-        <label class="field"><span>Протокол</span><select id="newProtocol"><option value="doh">DoH · защищённый HTTPS</option><option value="dot">DoT · защищённый TLS</option><option value="udp">UDP · обычный</option><option value="tcp">TCP · обычный</option><option value="doq">DoQ · QUIC (без предварительного просмотра сертификата)</option></select></label>
-        <label class="field"><span>Адрес DNS</span><input id="newAddress" type="text" maxlength="300" spellcheck="false" placeholder="https://dns.example.com/dns-query" autocomplete="off"></label>
-      </div>
-      <div class="actions"><button type="button" class="button" id="inspectDNS">Проверить DNS</button><button type="button" class="button primary" id="commitDNS" disabled>Добавить DNS</button></div>
-      <div class="draft-check-grid" aria-label="Результаты проверки чернового DNS">
-        <div><span>Адрес</span><strong id="draftAddressState">Не проверено</strong></div>
-        <div><span>IP / порт</span><strong id="draftIPState">Не проверено</strong></div>
-        <div><span>TLS</span><strong id="draftTLSState">Не проверено</strong></div>
-        <div><span>Сертификат</span><strong id="draftCertificateState">Не проверено</strong></div>
-        <div><span>DNS</span><strong id="draftDNSState">Не проверено</strong></div>
-        <div><span>RTT</span><strong id="draftRTTState">Не проверено</strong></div>
-      </div>
-      <p class="draft-probe-error" id="draftProbeError" role="status" hidden></p>
-      <p id="certificateInfo" class="result muted">Проверка ещё не выполнялась.</p>
-      <details id="certificateDetails" hidden><summary>Сведения о сертификате</summary><pre id="certificateDetailsText" class="cert-details"></pre></details>
-    </section>
+    <div id="rf-lite-dns-form-slot" style="display:contents"></div>
     <div class="routing-workspace" aria-label="DNS-серверы и домены">
       <aside class="panel upstream-pane" aria-label="DNS-серверы">
-        <div class="section-title upstream-heading"><div><span class="eyebrow">DNS ROUTER</span><h2>DNS-серверы</h2><p>Серверы и назначенные списки.</p></div><div class="server-head-actions"><button id="checkAllDNS" type="button" class="button">↻ Проверить все</button><span class="counter" id="serverCount">0</span><button type="button" id="addDnsToggle" class="button primary">＋ Добавить DNS</button></div></div>
-        <div id="nativeWarning" class="warning" hidden>Есть прежние DNS Keenetic. Перед применением переведи их в прямой DoH. <button class="button" id="migrateNative" type="button">Преобразовать DNS</button><small>Списки сохраняются. Непонятные адреса не угадываются.</small></div>
+        <div class="section-title upstream-heading"><div><span class="eyebrow">DNS ROUTER</span><h2>DNS-серверы</h2><p>Серверы и назначенные списки.</p></div><div class="server-head-actions"><span id="rf-lite-dns-buttons-slot" style="display:contents"></span></div></div>
+        <div id="nativeWarning" class="warning" hidden>Есть прежние DNS Keenetic. Перед применением переведи их в прямой DoH. <span id="rf-lite-native-migrate-slot" style="display:contents"></span><small>Списки сохраняются. Непонятные адреса не угадываются.</small></div>
         <div id="dnsCards" class="dns-cards"><p class="muted">Серверов пока нет.</p></div>
       </aside>
       <section class="panel domain-pane" aria-label="Редактор доменов">
         <div class="section-title"><div><span class="eyebrow">DNS ROUTER</span><h2>Списки доменов</h2><p>Все списки выбранного DNS в одном месте.</p></div><span id="selectedDNSBadge" class="counter">DNS не выбран</span></div>
-        <div class="editor-dns-switch"><label class="field" for="editorDNSChoice"><span>DNS-сервер</span><select id="editorDNSChoice" aria-label="DNS-сервер для списков"><option value="">Выбери DNS…</option></select></label></div>
+        <div class="editor-dns-switch"><label class="field" for="editorDNSChoice"><span>DNS-сервер</span><span id="rf-lite-editor-choice-slot" style="display:contents"></span></label></div>
         <div id="editorEmpty" class="domain-empty"><div class="domain-empty-symbol" aria-hidden="true">↖</div><strong>Выбери DNS-сервер</strong><p>После выбора здесь появятся его списки и редактор доменов.</p></div>
         <div id="rf-dns-lite-svelte-editor"></div>
-        <div id="listEditor" class="editor" hidden>
-          <div class="section-title"><div><h3 id="editorTitle">Список доменов</h3><p>У каждого DNS может быть несколько независимых списков. Один домен на строку.</p></div><button type="button" class="button subtle" id="closeEditor">Закрыть</button></div>
-          <div class="list-toolbar"><label class="field"><span>Список выбранного DNS</span><select id="listChoice"></select></label><label class="field"><span>Новый список</span><input id="newListName" maxlength="80" placeholder="Например, Стриминг"></label><button type="button" class="button" id="newListButton">＋ Создать</button></div>
-          <div class="list-toolbar list-rename"><label class="field"><span>Название списка</span><input id="listRenameName" maxlength="80" placeholder="Название" disabled></label><button type="button" class="button" id="renameListButton" disabled>Переименовать</button><button type="button" class="button danger" id="deleteListButton" disabled>Удалить список</button></div>
-          <textarea id="editorDomains" rows="16" spellcheck="false" placeholder="youtube.com&#10;googlevideo.com&#10;ytimg.com"></textarea>
-          <div class="editor-meta"><span id="editorCount">0 доменов</span><span>Дубликаты удаляются при сохранении списка</span></div>
-          <div class="actions editor-actions"><button type="button" class="button" id="importDomains">Импорт TXT</button><button type="button" class="button" id="exportDomains">Экспорт TXT</button><button type="button" class="button primary" id="saveDomains">✓ Сохранить список</button><input type="file" id="domainFile" accept=".txt,text/plain" hidden></div>
-          <small id="editorHint" class="muted">Изменения попадут в черновик и начнут действовать после применения.</small>
-        </div>
+
       </section>
     </div>
     <details class="help panel" id="quickHelp">
@@ -145,107 +109,16 @@
   </section>
 
   <section id="p21Page" class="p21-advanced-only" hidden aria-label="Advanced DNS Router">
-    <div id="p27SecurityControls" class="p27-security-controls" hidden>
-      <p class="p25-settings-info">Защита применяется к независимому DNS Router, не меняет правила Keenetic. Все параметры по умолчанию выключены.</p>
-      <div class="fields two">
-        <label class="field"><span>Лимит запросов одного клиента в секунду (0 — выкл.)</span><input id="p27RateLimit" type="number" min="0" max="2000" value="0"></label>
-        <label class="check"><input type="checkbox" id="p27RefuseAny"> Отказывать на DNS ANY (NOTIMP)</label>
-      </div>
-      <label class="field"><span>Bogus NXDOMAIN — IP-адреса или CIDR (по одному в строке)</span><textarea id="p27BogusIPs" rows="4" spellcheck="false" placeholder="0.0.0.0"></textarea></label>
-      <p class="p25-settings-info">Если DNS вернул такой IP, RouterForge отправит NXDOMAIN. Не включает блокировку доменов и не проверяет криптографически DNSSEC. CIDR: IPv4 от /24, IPv6 от /64.</p>
-    </div>
-    <div id="p241IPControls" class="p241-ip-controls" hidden>
-      <label class="check p241-ip-toggle"><input type="checkbox" id="p241IPEnabled"><span>Включить IP Intelligence</span></label>
-      <label class="field p241-ip-mode"><span>Алгоритм выбора IP</span>
-        <select id="p241IPMode" aria-label="Алгоритм IP Intelligence">
-          <option value="original">Original · без изменений</option>
-          <option value="round_robin">Round-Robin · по кругу</option>
-          <option value="random">Random · случайный порядок</option>
-          <option value="fastest">Fastest IP · быстрые первыми</option>
-          <option value="health_aware">Health-Aware · доступные первыми</option>
-          <option value="adaptive">Adaptive · адаптивная ротация</option>
-          <option value="sticky">Sticky IP · закрепить за устройством</option>
-          <option value="weighted">Weighted · распределение по весам</option>
-          <option value="healthy_only">Healthy Only · исключать недоступные</option>
-        </select>
-      </label>
-      <p class="p25-settings-info" id="p241IPModeNote" role="status">Исходные DNS-ответы не меняются, пока функция выключена.</p>
-      <div class="p243-scope-settings">
-        <label class="field"><span>Область применения</span><select id="p243Scope"><option value="all">Все внешние домены</option><option value="domains">Выбранные домены</option><option value="lists">Выбранные списки</option></select></label>
-        <label class="field p243-domains"><span>Домены, по одному в строке (включая поддомены)</span><textarea id="p243Domains" rows="3" spellcheck="false" placeholder="example.org"></textarea></label>
-        <label class="field p243-lists"><span>Списки доменов (Ctrl/Shift для нескольких)</span><select id="p243ListIDs" multiple size="4"></select></label>
-      </div>
-      <div class="p242-health-settings">
-        <label class="check"><input type="checkbox" id="p242HealthEnabled"> Фоновая проверка IP-адресов (экспериментально)</label>
-        <div class="p242-health-fields">
-          <label class="field"><span>Проверка</span><select id="p242HealthProtocol"><option value="tcp">TCP: соединение с портом</option><option value="tls">TLS: проверка сертификата</option><option value="http">HTTP: ответ приложения</option><option value="https">HTTPS: ответ приложения + TLS</option></select></label>
-          <label class="field"><span>Порт</span><input id="p242HealthPort" type="number" min="80" max="65535" value="443"></label>
-          <label class="field"><span>Интервал, секунд</span><input id="p242HealthInterval" type="number" min="30" max="3600" value="60"></label>
-          <label class="field"><span>Тайм-аут, мс</span><input id="p242HealthTimeout" type="number" min="250" max="3000" value="1200"></label>
-          <label class="field"><span>Неудач до DOWN</span><input id="p242HealthFailures" type="number" min="1" max="5" value="2"></label>
-          <label class="field"><span>Успехов до UP</span><input id="p243Recoveries" type="number" min="1" max="5" value="2"></label>
-          <label class="field"><span>Выдержка DOWN, сек</span><input id="p243MinDown" type="number" min="0" max="3600" value="30"></label>
-          <label class="field"><span>HTTP-путь</span><input id="p243HTTPPath" maxlength="128" value="/" placeholder="/health"></label>
-        </div>
-        <p class="p25-settings-info">Проверяются только публичные IP из реальных ответов A/AAAA, не чаще одного подключения в секунду. Приватные и служебные адреса исключены. HTTP/HTTPS проверяют ответ сервиса, 5xx считаются ошибкой; редиректы не выполняются. TCP/TLS подтверждают только соединение.</p>
-        <div class="p242-monitor"><div class="p242-monitor-heading"><strong>Монитор IP</strong><small id="p242MonitorStatus">Нет измерений</small></div>
-          <div id="p242MonitorRows" class="p242-monitor-rows" aria-live="polite"><span class="muted">Записи появятся после запросов и фоновых проверок.</span></div>
-        </div>
-      </div>
-    </div>
-    <section class="panel rfds-card" id="p22DevicesCard">
-      <div class="section-title"><div><h2 data-p21-i18n="devices">Устройства и правила</h2><p data-p21-i18n="draftHelp">Изменения здесь — черновик. Сначала сохранить, затем явно применить DNS.</p></div><div class="actions"><button class="button" id="p21Refresh" data-p21-i18n="refresh">Обновить обнаружение</button><button class="button rfds-button" id="p21Save" data-p21-i18n="save">Сохранить черновик</button><button class="button primary rfds-button rfds-button--primary" id="p21Apply" data-p21-i18n="apply">Сохранить и применить</button></div></div>
-      <p class="notice" id="p21Cache" role="status"></p>
-      <p class="muted" data-p21-i18n="identityHelp">MAC — не аутентификация. Нужен свежий прямой L2-сосед. DHCP даёт имя и проверку противоречий. Клиенты за NAT, VPN или другим роутером не различаются; неизвестный клиент использует общие правила.</p>
-      <p id="p21DiscoveryStatus" class="muted"></p>
-      <p id="p22DeviceDiscovery" class="p22-discovery-hint" role="status" aria-live="polite">Загружаем устройства роутера…</p>
-      <div id="p21Devices" class="p21-device-list"></div>
-      <div class="fields two p21-form p22-device-fields">
-        <label class="field p22-picker"><span>Устройство на роутере</span><select id="p22DevicePick" aria-label="Устройство на роутере"><option value="">Выбери устройство из списка Keenetic</option></select></label>
-        <label class="field"><span>Или укажи MAC вручную</span><input id="p21MAC" maxlength="17" placeholder="02:11:22:33:44:55" spellcheck="false"></label>
-        <label class="field"><span data-p21-i18n="name">Название</span><input id="p21Name" maxlength="80"></label>
-        <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21Target"></select></label>
-        <label class="check"><input type="checkbox" id="p21Inherit"><span data-p21-i18n="inherit">Наследовать общие доменные правила перед DNS устройства</span></label>
-      </div>
-      <div id="p22DeviceFooter" class="p22-device-footer"><button class="button rfds-button" id="p21SetDevice" data-p21-i18n="setDevice">Добавить / обновить устройство в черновике</button></div>
-    </section>
-    <section class="panel rfds-card" id="p22GroupsCard">
-      <h2 data-p21-i18n="groups">Группы устройств</h2>
-      <div id="p21Groups" class="p21-device-list"></div>
-      <div class="fields two p21-form p22-group-fields">
-        <label class="field"><span data-p21-i18n="editGroup">Редактируемая группа</span><select id="p21GroupID"></select></label>
-        <label class="field"><span data-p21-i18n="name">Название</span><input id="p21GroupName" maxlength="80"></label>
-        <div class="p22-member-field"><label class="field"><span data-p21-i18n="members">MAC участников — по одному в строке</span><textarea id="p21Members" rows="3" spellcheck="false"></textarea></label><div class="p22-member-controls"><select id="p22MemberSelect" aria-label="Добавить устройство в группу"><option value="">Добавить устройство из списка</option></select><button type="button" class="button" id="p22MemberAdd">+ Добавить</button></div><div class="p22-member-chips" id="p22MemberChips" aria-label="Участники группы"></div></div>
-        <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21GroupTarget"></select></label>
-      </div>
-      <label class="check"><input type="checkbox" id="p21GroupInherit"><span data-p21-i18n="groupInherit">Наследовать общие доменные правила перед DNS группы</span></label>
-      <button class="button rfds-button" id="p21SetGroup" data-p21-i18n="setGroup">Сохранить группу в черновике</button>
-    </section>
-    <section class="panel rfds-card" id="p22RulesCard">
-      <h2 data-p21-i18n="rules">Правила домена для устройства</h2><p class="p22-section-subtitle">Определи, какой DNS использовать для нужного сайта на конкретном устройстве.</p><div class="p22-domain-help"><strong>Что такое правила домена?</strong><p>Это правила, через какой DNS открывать определённые сайты. Например, youtube.com можно направить через один DNS, а остальные сайты — через общий. Для групп задаётся основной DNS, а доменные исключения настраиваются для устройств.</p></div><div id="p21Rules" class="p21-device-list"></div>
-      <div class="fields two p21-form p22-rule-fields">
-        <div class="p22-rule-scope"><label class="field"><span>Область применения · устройство</span><select id="p22RulePick"><option value="">MAC вручную</option></select></label><label class="field p22-rule-mac-manual" id="p22RuleManual"><span data-p21-i18n="mac">MAC устройства</span><input id="p21RuleMAC" maxlength="17" spellcheck="false"></label></div>
-        <label class="field"><span data-p21-i18n="domain">Домен</span><input id="p21Domain" maxlength="253" placeholder="example.com" spellcheck="false"></label>
-        <label class="field"><span data-p21-i18n="match">Совпадение</span><select id="p21Match"><option value="suffix">Домен + поддомены / suffix</option><option value="exact">Только домен / exact</option><option value="subdomains">Только поддомены / subdomains</option></select></label>
-        <label class="field"><span data-p21-i18n="target">DNS или DNS-группа</span><select id="p21RuleTarget"></select></label>
-        <label class="field"><span data-p21-i18n="priority">Приоритет при равной точности: меньше — раньше</span><input id="p21Priority" type="number" min="0" max="1000000" value="100"></label>
-      </div><button class="button rfds-button" id="p21SetRule" data-p21-i18n="setRule">Добавить / обновить правило в черновике</button>
-    </section>
-    <section class="panel rfds-card" id="p22RouteCard">
-      <h2 data-p21-i18n="explain">Приоритеты и проверка маршрута</h2>
-      <p data-p21-i18n="precedence">1. Домен устройства → 2. DNS устройства → 3. Группа устройств → 4. Общие домены → 5. DNS по умолчанию. При включённом наследовании общие домены проверяются перед соответствующим DNS устройства/группы. Локальные зоны всегда обслуживает штатный локальный DNS.</p>
-      <div class="fields two p21-form p22-route-form"><label class="field"><span>Устройство на роутере</span><select id="p22ProbePick"><option value="">MAC вручную</option></select></label><label class="field"><span data-p21-i18n="mac">MAC устройства</span><input id="p21ProbeMAC" maxlength="17" spellcheck="false"></label><label class="field"><span data-p21-i18n="domain">Домен</span><input id="p21ProbeDomain" placeholder="example.com" maxlength="253"></label></div>
-      <label class="check"><input id="p21ProbeApplied" type="checkbox" checked><span data-p21-i18n="applied">Проверять применённые правила (иначе сохранённый черновик)</span></label>
-      <button class="button" id="p21Probe" data-p21-i18n="probe">Объяснить маршрут</button><div id="p22RouteSummary" class="p22-route-summary" role="status" aria-live="polite"><small>Укажи устройство и домен, затем проверь маршрут. Реальный трафик не отправляется.</small></div><details class="p22-technical"><summary>Технические подробности (JSON)</summary><pre id="p21Explanation" class="p21-explanation"></pre></details>
-      <p class="muted" data-p21-i18n="notE2E">Это проверка конфигурации по выбранному MAC, не доказательство определения клиента или сетевого E2E.</p>
-    </section>
+    <div id="rf-dns-lite-settings-page-slot" style="display:contents"></div>
+    <div id="rf-dns-lite-svelte-p21-workspace" style="display:contents"></div>
   </section>
+
   <section id="pageLogs" hidden aria-label="Журнал DNS">
     <section class="panel">
       <div class="section-title"><div><h1>Журнал запросов</h1><p>DNS-маршруты в реальном времени: назначение, фактический сервер, ответ и задержка.</p></div><div class="live-meta"><span id="liveBadge" class="status">LIVE · ожидание</span><small id="logUpdated">Ждём запросов</small></div></div>
       <p id="logGuide" class="route-advice" role="status">Проверяем путь DNS-запросов…</p>
       <div class="metrics"><div><small>Запросов после запуска</small><strong id="metricRequests">0</strong></div><div><small>Из кэша</small><strong id="metricCache">0</strong></div><div><small>Ошибок</small><strong id="metricErrors">0</strong></div><div><small>Сервис</small><strong id="metricRunning">—</strong></div></div>
-      <div class="log-toolbar"><label class="field search"><span>Фильтр по домену или DNS</span><input id="logFilter" placeholder="Например, youtube или Cloudflare" autocomplete="off"></label><label class="check"><input type="checkbox" id="onlyErrors"> Ошибки и отказы</label><label class="field log-type-field"><span>Тип</span><select id="logType"><option value="">Все типы</option><option>A</option><option>AAAA</option><option>HTTPS</option><option>TXT</option><option>PTR</option><option>MX</option><option>ANY</option></select></label><span id="logVisible" class="counter">0 / 0</span><button type="button" class="button" id="logPause">⏸ Пауза</button><button type="button" class="button" id="refreshLogs">↻ Обновить</button><button type="button" class="button" id="copyLogs">Копировать</button></div>
+      <div id="rf-lite-log-toolbar-slot" style="display:contents"></div>
       <div class="log-head"><span>Время</span><span>Клиент</span><span>Домен</span><span>Тип</span><span>Назначен → использован</span><span>Ответ</span><span>мс</span></div>
       <div id="logRows" class="log-rows" aria-live="polite"><div id="rf-dns-lite-svelte-log"><p class="muted">Здесь появятся запросы после запуска DNS.</p></div></div>
       <p class="muted">Обновляется автоматически каждые 2 секунды (кнопка паузы фиксирует снимок). Только последние 128 запросов в памяти; на диск журнал не пишется. Кэшированные ответы не отправляются upstream повторно.</p>

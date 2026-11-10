@@ -37,20 +37,29 @@ test('Svelte bundled DNS Lite: read-only boot, cards, draft list, mode, no unreq
     w.eval(script);
     await until(()=>d.getElementById('serverCount').textContent==='1 DNS');
     await until(()=>d.querySelector('[data-upstream-id="cf"] .dns-edit'));
-    assert.equal(w.__rfDnsLiteSvelteLoaded,true);
-    assert.equal(w.__rfDnsLiteCardsLoaded,true);
-    assert.equal(w.__rfDnsLiteNativeEditorLoaded,true);
+    assert.equal(Object.keys(w).some(k=>k.startsWith('__rfDnsLite')),false,
+      'Svelte UI must not expose or consume permanent window bridges');
+    assert.equal(d.querySelectorAll('[data-upstream-id="cf"]').length,1,
+      'one Svelte owner per DNS card');
     // P12: the native Svelte Settings hub must exist on the compiled bundle,
     // preserve advanced/basic placement, and never trigger DNS mutation.
     await until(()=>d.getElementById('p25SettingsNav') && d.getElementById('p25SettingsCard'));
     const settings=d.getElementById('p25SettingsCard');
     assert.ok(settings.hidden,'Settings is hidden on basic boot');
-    const originalParent=d.getElementById('additionalSettings').parentElement;
-    const originalCacheParent=d.getElementById('cacheSize').closest('.field').parentElement;
+    // P25 moves only Svelte-owned controls, not the former legacy
+    // #additionalSettings container or foreign DOM handlers.
+    const serviceFields=d.getElementById('serviceListen').closest('.p25-native-service-fields');
+    const cacheFields=d.getElementById('cacheSize').closest('.p25-native-cache-field');
+    const originalParent=serviceFields.parentElement;
+    const originalCacheParent=cacheFields.parentElement;
+    assert.equal(originalParent.id,'rf-dns-lite-basic-service-slot');
+    assert.equal(originalCacheParent.id,'rf-dns-lite-basic-cache-slot');
     d.getElementById('p22ModeAdvanced').click();
     await until(()=>d.getElementById('dnsLiteApp').dataset.dnsMode==='advanced');
-    await until(()=>d.getElementById('additionalSettings').parentElement.id==='p25Settings_service');
-    await until(()=>d.getElementById('cacheSize').closest('.field').parentElement.id==='p25Settings_cache');
+    await until(()=>serviceFields.parentElement.id==='p25Settings_service');
+    await until(()=>cacheFields.parentElement.id==='p25Settings_cache');
+    assert.equal(d.querySelectorAll('#serviceListen').length,1);
+    assert.equal(d.querySelectorAll('#cacheSize').length,1);
     d.getElementById('p25SettingsNav').click();
     await until(()=>settings.hidden===false);
     assert.equal(d.querySelectorAll('.p25-settings-link').length,8);
@@ -72,8 +81,8 @@ test('Svelte bundled DNS Lite: read-only boot, cards, draft list, mode, no unreq
     assert.ok(calls.every(x=>x.method==='GET'),'Settings navigation and draft fields must be non-mutating');
     d.getElementById('p22ModeBasic').click();
     await until(()=>d.getElementById('dnsLiteApp').dataset.dnsMode==='basic');
-    await until(()=>d.getElementById('additionalSettings').parentElement===originalParent);
-    await until(()=>d.getElementById('cacheSize').closest('.field').parentElement===originalCacheParent);
+    await until(()=>serviceFields.parentElement===originalParent);
+    await until(()=>cacheFields.parentElement===originalCacheParent);
     assert.ok(settings.hidden,'Settings hidden after basic switch');
     assert.equal(d.getElementById('cacheSize').value,'2','cache draft survives mode switch');
     assert.equal(d.getElementById('dnsLiteApp').dataset.dnsMode,'basic');
@@ -82,9 +91,10 @@ test('Svelte bundled DNS Lite: read-only boot, cards, draft list, mode, no unreq
     d.querySelector('[data-upstream-id="cf"] .dns-edit').click();
     await until(()=>d.querySelector('[data-native-svelte-domain-editor="true"]'));
     assert.equal(d.getElementById('editorEmpty').hidden,true);
-    const editor=d.getElementById('editorDomains');
+    const editor=d.querySelector('[data-native-svelte-domain-editor="true"] [data-rf-editor="domains"]');
+    assert.ok(editor,'native editor input is mounted, not the hidden legacy mirror');
     editor.value='example.com';editor.dispatchEvent(new w.Event('input',{bubbles:true}));
-    d.getElementById('saveDomains').click();
+    d.querySelector('[data-native-svelte-domain-editor="true"] [data-rf-editor="save-list"]').click();
     await until(()=>d.getElementById('feedback').textContent.includes('Список обновлён'));
     assert.ok(calls.every(x=>x.method==='GET'), 'draft save must not touch DNS service');
     assert.deepEqual(errors,[], 'uncaught browser errors');

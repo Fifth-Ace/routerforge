@@ -1,0 +1,33 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),test=require('node:test'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..','modules/dns-router-runtime/frontend');
+const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const main=fs.readFileSync(path.join(root,'main.js'),'utf8');
+const ui=fs.readFileSync(path.join(root,'DnsRuntimeP91.svelte'),'utf8');
+const logic=fs.readFileSync(path.join(root,'DnsRuntimeP91Logic.js'),'utf8');
+test('P91 manual DNS UI exists once in Svelte, not in legacy HTML',()=>{
+ for(const id of ['drP90Transport','drP90Endpoint','drP90Inspect','drP90Store','drP90Status','drP91Advanced','drP90IP','drP91SNI','drP91PEM']){
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,0,id);
+  assert.equal((ui.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+ }
+ assert.match(html,/id="rf-dns-runtime-svelte-p91"/);
+ assert.match(ui,/data-p91-native="true"/);
+ assert.match(main,/DNS_RUNTIME_R11_MOUNT_MISSING/);
+});
+test('P91 no legacy imperative owner remains and backend lookup stays explicit',()=>{
+ for(const marker of ["p88Id('drP90Inspect').addEventListener","p88Id('drP90Store').addEventListener",
+   'function p91Fields(', 'p90InspectedKey', 'server.certificate_pem=p90Inspected.pem'])
+   assert.doesNotMatch(app,new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+ assert.match(app,/window\.__rfDNSRuntimeP91Bridge/);
+ assert.match(app,/request\('certificates\/lookup',jsonOptions\('certificate-lookup'/);
+ assert.doesNotMatch(ui,/fetch\(|setInterval\(|onMount\(/);
+ assert.match(logic,/commit\('edited'/);
+ assert.doesNotMatch(logic,/shadow\/control|durable\/apply|opkg|ndmc/);
+});
+test('P91 DoT/DoH pin only after verified certificate; DoQ never claims verification',()=>{
+ assert.match(logic,/const encrypted=tlsTypes\.has/);
+ assert.match(logic,/result\.certificate\?\.verified/);
+ assert.match(logic,/if\(encrypted&&result\.certificate\?\.verified\)server\.certificate_pem/);
+ assert.doesNotMatch(ui,/InsecureSkipVerify|\$\{html/);
+});

@@ -8,22 +8,27 @@ problems=[]
 def gate(label,ok):
     print(('PASS' if ok else 'FAIL')+': '+label,flush=True)
     if not ok:problems.append(label)
-for name, marker, event in [
-    ('dns-router-lite','rf-dns-lite-svelte-mode','__rfDnsLiteSvelteLoaded'),
-    ('dns-router-runtime','rf-dns-runtime-svelte-mode','__rfDNSRuntimeSvelteLoaded'),
-]:
+# DNS Lite still has a temporary compatibility controller and remains INCOMPLETE.
+# Runtime has a single Svelte 5 root; do not require the deleted legacy app.js.
+for name in ('dns-router-lite','dns-router-runtime'):
     f=ROOT/'modules'/name/'frontend'
     html=(f/'index.html').read_text(encoding='utf-8')
     entry=(f/'main.js').read_text(encoding='utf-8')
     component=(f/('DnsModeStatus.svelte' if name.endswith('lite') else 'DnsRuntimeMode.svelte')).read_text(encoding='utf-8')
-    gate(name+' native mode mount',f'id="{marker}"' in html and marker in entry and 'mount(' in entry and 'flushSync()' in entry)
-    gate(name+' bundle is shipped before standalone legacy', 'src="svelte-mode.js"' in html and (name.endswith('lite') or html.index('src="svelte-mode.js"') < html.index('src="app.js"')))
-    gate(name+' Svelte owns buttons',all(x in component for x in ('$state(', 'aria-pressed=', 'onclick=', 'onMount(', 'clearInterval(')))
-    gate(name+' compatibility fallback', event in entry and event in (f/('DnsP22Visual.svelte' if name.endswith('lite') else 'app.js')).read_text(encoding='utf-8'))
-    gate(name+' no mode mutation APIs',not re.search(r'''method\s*:\s*['"](?:POST|PUT|DELETE|PATCH)['"]''',component))
-    gate(name+' fetch read-only', "method:'GET'" in component or "fetch('../shadow/status'" in component)
+    if name.endswith('lite'):
+        gate(name+' transitional native mode mount', 'rf-dns-lite-svelte-mode' in html and 'mount(' in entry and 'flushSync()' in entry)
+        gate(name+' Svelte mode controls',all(x in component for x in ('$state(', 'aria-pressed=', 'onclick=', 'onMount(', 'clearInterval(')))
+        gate(name+' compatibility event', '__rfDnsLiteSvelteLoaded' in entry and '__rfDnsLiteSvelteLoaded' in (f/'DnsP22Visual.svelte').read_text(encoding='utf-8'))
+        gate(name+' original controls retained', 'id="reloadButton"' in html)
+    else:
+        app=(f/'DnsRuntimeApp.svelte').read_text(encoding='utf-8')
+        gate(name+' single native Svelte root', "mount(DnsRuntimeApp" in entry and '<DnsRuntimeMode' in app and 'rf-dns-runtime-svelte-mode' in app)
+        gate(name+' no legacy controller', not (f/'app.js').exists() and 'src="app.js"' not in html)
+        gate(name+' Svelte mode controls',all(x in component for x in ('aria-pressed=', 'onclick=', 'onMount(', 'clearInterval(')))
+        gate(name+' original reload control retained in native root', '<DnsRuntimeConfigActions kind="reload"' in app)
+    gate(name+' bundle entry', 'src="svelte-mode.js"' in html)
+    gate(name+' no mode mutation API',not re.search('method.*(POST|PUT|DELETE|PATCH)',component))
     gate(name+' build input',all((f/x).exists() for x in ('package.json','vite.config.js','main.js')))
-    gate(name+' original action controls intact','id="reloadButton"' in html)
 for key in ('npm run build','svelte-mode.js','for file in index.html module.css'):
     gate('DNS IPK builder '+key,key in BUILD)
 print('DNS_SVELTE_NATIVE_MODE_GATE: '+('FAIL' if problems else 'PASS'),flush=True)

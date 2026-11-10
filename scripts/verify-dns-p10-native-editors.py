@@ -16,7 +16,7 @@ def gate(name,yes):
     print(('PASS' if yes else 'FAIL')+': '+name,flush=True)
 def main():
     lc=text(L/'DnsLiteCards.svelte');la=text(L/'DnsLiteController.svelte');lm=text(L/'main.js')
-    ec=text(E/'DnsRuntimeTables.svelte');ea=text(E/'app.js');em=text(E/'main.js')
+    ec=text(E/'DnsRuntimeTables.svelte');ea=text(E/'DnsRuntimeApp.svelte');es=text(E/'DnsRuntimeStore.svelte.js');em=text(E/'main.js')
     b=text(BUILD)
     gate('P10 Lite upstream cards owned by compiled Svelte', all(x in lm for x in (
         "import DnsLiteCards from './DnsLiteCards.svelte'",'mount(DnsLiteCards','window.__rfDnsLiteCardsLoaded=true','flushSync();')))
@@ -37,21 +37,16 @@ def main():
         "on('gateEnable'","on('gateDisable'","on('commitDNS'","on('applyButton'",'editorPending()')))
     gate('P10 Lite legacy DOM tests keep fallback renderer', all(x in la for x in (
         "if(!list.length){const p=document.createElement('p')", "const edit=document.createElement('button')",'root.appendChild(card);')))
-    gate('P10 Runtime two native table mounts', all(x in em for x in (
-        "import DnsRuntimeTables from './DnsRuntimeTables.svelte'", "['upstreamList','ruleList']", 'mount(DnsRuntimeTables',
-        'window.__rfDNSRuntimeSvelteTablesLoaded=true')))
+    gate('P10 Runtime tables mounted by one Svelte root', all(x in ea for x in (
+        "import DnsRuntimeTables from './DnsRuntimeTables.svelte'",'<DnsRuntimeTables target="upstreamList"', '<DnsRuntimeTables target="ruleList"')) and 'mount(DnsRuntimeApp' in em)
     gate('P10 Runtime reactive rule/upstream tables', all(x in ec for x in (
-        'let columns = $state([])','let rows = $state([])','<table>','{#each rows as values,index (index)}',
-        "window.addEventListener('routerforge:dns-runtime-table'",'window.removeEventListener')))
-    gate('P10 Runtime guarded deletion closure stays in original controller', all(x in ea for x in (
-        'routerforge:dns-runtime-table','detail:{target,columns,rows,onRemove}',
-        "config.upstreams.some(u=>(u.fallbacks||[]).includes(id))",'config.upstreams.splice(i,1);markDirty();',
-        'config.rules.splice(i,1);markDirty();')))
-    gate('P10 Runtime no mutation API or injected HTML in Svelte', all(x not in ec for x in (
-        'fetch(', 'innerHTML','POST','api/modules/dns','shadow/control','keenetic/domain-managed/trial')))
-    gate('P10 original Runtime guarded controls retained', all(x in ea for x in (
-        "el('managedTrialN').addEventListener", "el('shadowStartButton').addEventListener",
-        "el('saveButton').addEventListener", 'preparedN = null;')))
+        'let items=$derived(', 'let rows=$derived(', '<table>', '{#each rows as values,index (index)}', 'removeRow(', 'editRow(')))
+    gate('P10 Runtime guarded removal moves to native store', all(x in es for x in (
+        'export function removeRow(', 'config.service?.default_upstream===id', 'config.rules.some(r=>r.upstream===id)', 'items.some(u=>(u.fallbacks||[]).includes(id))', 'markDirty(')))
+    gate('P10 Runtime native tables contain no network mutation', all(x not in ec for x in (
+        'fetch(', 'innerHTML', 'XMLHttpRequest', 'shadow/control', 'keenetic/domain-managed/trial')))
+    gate('P10 Runtime action ownership is explicit native root', all(x in ea for x in (
+        'DnsRuntimeConfigActions', 'DnsRuntimeManagedTrial', 'DnsRuntimeShadowControls', 'DnsRuntimePolicyForms')))
     gate('P10 original packaged CSS and compiled Svelte kept', all(x in b for x in (
         'svelte-mode.js', 'npm run build','for file in index.html module.css')))
     failed=[name for name,ok in checks if not ok]

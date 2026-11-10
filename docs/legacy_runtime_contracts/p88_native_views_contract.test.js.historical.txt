@@ -1,0 +1,37 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'..'),ui=path.join(root,'modules/dns-router-runtime/frontend');
+const app=fs.readFileSync(path.join(ui,'app.js'),'utf8');
+const html=fs.readFileSync(path.join(ui,'index.html'),'utf8');
+const main=fs.readFileSync(path.join(ui,'main.js'),'utf8');
+const views=fs.readFileSync(path.join(ui,'DnsRuntimeP88Views.svelte'),'utf8');
+const model=fs.readFileSync(path.join(ui,'DnsRuntimeP88ViewModel.js'),'utf8');
+test('R10 exactly three Svelte views, no duplicate legacy IDs',()=>{
+ for(const scope of ['policies','inventory','rules']){
+  assert.equal((html.match(new RegExp('id="rf-dns-runtime-svelte-p88-'+scope+'"','g'))||[]).length,1);
+  assert.match(main,new RegExp('DNS_RUNTIME_R10_MOUNT_MISSING'));
+ }
+ for(const id of ['drSimplePolicies','drSimpleDNSInventory','drSimpleRuleList']){
+  assert.equal((views.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,0,id);
+ }
+});
+test('R10 imperative P88 cards gone, explicit action bridge remains',()=>{
+ const policy=app.slice(app.indexOf('  function p88RenderPolicies(){'),app.indexOf('  function p88RenderDNS(){'));
+ const rules=app.slice(app.indexOf('  function p88RenderRules(){'),app.indexOf('  function p88RefreshStatus(){'));
+ assert.doesNotMatch(policy,/document\.createElement|\.appendChild|\.replaceChildren/);
+ assert.doesNotMatch(rules,/document\.createElement|\.appendChild|\.replaceChildren|fetch\(|request\(/);
+ assert.match(app,/window\.__rfDNSRuntimeP88Actions=Object\.freeze/);
+ assert.match(app,/routerforge:dns-runtime-p88-view/);
+ assert.match(app,/function p88Scan\(\)/);
+ assert.match(app,/function p10UXReplaceDraft\(chosenDNS,parsed\)/);
+ assert.doesNotMatch(app,/function p88CreateButton/);
+});
+test('R10 view mounting performs no router IO or policy writes',()=>{
+ const mount=views.slice(views.indexOf('  onMount('),views.indexOf('</script>'));
+ assert.doesNotMatch(mount,/fetch\(|request\(|\.operate\(|\.apply\(|durable|service\/control|ndmc/);
+ assert.match(views,/onclick=\{\(\)=>execute\('selectPolicy'/);
+ assert.match(views,/onclick=\{\(\)=>execute\('editDNS'/);
+ assert.match(model,/export function policyCards/);
+ assert.match(model,/export function groupedCards/);
+});

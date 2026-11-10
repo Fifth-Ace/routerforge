@@ -1,0 +1,85 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const html=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/index.html'),'utf8');
+const css=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/module.css'),'utf8');
+const js=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/app.js'),'utf8');
+const views=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/DnsRuntimeP88Views.svelte'),'utf8');
+const nativeP91=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/DnsRuntimeP91.svelte'),'utf8');
+const p91Logic=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/DnsRuntimeP91Logic.js'),'utf8');
+const p92Editor=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/DnsRuntimeP92.svelte'),'utf8');
+const p92Logic=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/DnsRuntimeP92Logic.js'),'utf8');
+const actionUI=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/DnsRuntimeP88Actions.svelte'),'utf8');
+test('P92 horizontal scrolling policy strip retains native policy action',()=>{
+ assert.match(css,/#drSimpleWorkspace \.dr-simple-policies\{display:flex;flex-wrap:nowrap/);
+ assert.match(css,/overflow-x:auto/);
+ assert.match(js,/function p88RenderPolicies\(\)/);
+ assert.match(js,/p88\.policy=instance\.name;p88RenderPolicies\(\);p88RenderDNS\(\);p88RenderRules\(\)/);
+});
+test('P92 exact 40/60 desktop split and single-column responsive layout',()=>{
+ assert.match(css,/grid-template-columns:minmax\(0,2fr\) minmax\(0,3fr\)/);
+ assert.match(css,/grid-template-areas:"policies policies" "dns rules" "dns domains"/);
+ assert.match(css,/#drSimpleWorkspace \.dr-simple-main\{display:contents\}/);
+ assert.match(css,/@media\(max-width:920px\)/);
+ assert.match(css,/grid-template-areas:"policies" "dns" "rules" "domains"/);
+});
+test('P92 Svelte editor IDs are unique, while shared draft and P10 controls are preserved',()=>{
+ for(const id of ['drSimpleDNS','drSimpleDomains']){
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+ }
+ for(const id of ['drP92Check','drP92Clear','drP92Deduplicate','drP92Normalize','drP92Import','drP92Export','drP92File','drP92Preview','drP92Count','drP92Message']){
+  const re=new RegExp('id="'+id+'"','g');
+  assert.equal((html.match(re)||[]).length,0,'no old HTML ID: '+id);
+  assert.equal((p92Editor.match(re)||[]).length,1,'native P92 ID exactly once: '+id);
+ }
+ const p10Svelte=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/DnsRuntimeP10.svelte'),'utf8');
+ for(const id of ['drP92Apply','drP10Disable']){
+  const re=new RegExp('id="'+id+'"','g');
+  assert.equal((p10Svelte.match(re)||[]).length,1,'native P10 ID exactly once: '+id);
+  assert.equal((html.match(re)||[]).length,0,'no duplicate P10 HTML ID: '+id);
+ }
+ for(const id of ['drSimplePolicies','drSimpleDNSInventory','drSimpleRuleList']){
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,0);
+  assert.equal((views.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
+ }
+ for(const id of ['drP90Inspect','drP90Store']){
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,0);
+  assert.equal((nativeP91.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
+ }
+ assert.match(html,/id="drSimpleDomains" rows="12"/);
+ assert.match(html,/id="rf-dns-runtime-svelte-p92"/);
+ assert.match(html,/id="rf-dns-runtime-svelte-p10"/);
+});
+test('P92 native preview and file tools are explicit, never trigger runtime or Keenetic changes',()=>{
+ for(const id of ['drP92Check','drP92Clear','drP92Deduplicate','drP92Normalize','drP92Import','drP92Export','drP92File']){
+  assert.match(p92Editor,new RegExp('id="'+id+'"'));
+  assert.doesNotMatch(js,new RegExp("p88Id\\('"+id+"'\\)\\.addEventListener"));
+ }
+ assert.match(p92Editor,/onclick=\{check\}/);
+ assert.match(p92Editor,/onclick=\{exportFile\}/);
+ assert.match(p92Editor,/onchange=\{importFile\}/);
+ assert.match(p92Editor,/onMount\(\(\)=>\{/);
+ assert.match(js,/function p92Preview\(\)/);
+ assert.match(js,/window\.__rfDNSRuntimeP92/);
+ assert.match(js,/p88Id\('drModeAdvanced'\)\.click\(\)/);
+ assert.match(actionUI,/onclick=\{advanced\}/);
+ assert.match(p92Logic,/export function parseDomainBatch/);
+ assert.match(p92Logic,/export function mergeDomainFile/);
+ assert.match(p92Logic,/export function exportDomainText/);
+ const section=p92Editor;
+ assert.doesNotMatch(section,/\.innerHTML\s*=|ndmc|shadowApply|shadowStart|saveButton.*click|fetch\(|request\(|durable\/apply/);
+ assert.match(p92Editor,/parsed\.domains\.join\('\\n'\)/);
+ const native=fs.readFileSync(path.join(root,'modules/dns-router-runtime/frontend/DnsRuntimeP10.svelte'),'utf8');
+ assert.match(native,/onclick=\{\(\)=>operation\('activate'\)\}/);
+ assert.doesNotMatch(js,/p88Id\('drP92Apply'\)\.addEventListener/);
+});
+test('P92 existing advanced and P91 DNS form retained',()=>{
+ assert.match(html,/id="drAdvancedWorkspace" hidden/);
+ assert.doesNotMatch(html,/id="drP91Found"/);
+ assert.equal((nativeP91.match(/id="drP91Found"/g)||[]).length,1,'P91 found results Svelte-owned');
+ assert.match(p91Logic,/export function parseDnsFields\(fields,requireIP=false\)/);
+ assert.doesNotMatch(js,/function p91Fields\(/);
+ assert.match(js,/async function p88Scan\(\)/);
+ assert.match(actionUI,/onclick=\{save\}/);
+ assert.match(js,/save:\(\)=>p88Id\('saveButton'\)\.click\(\)/);
+});

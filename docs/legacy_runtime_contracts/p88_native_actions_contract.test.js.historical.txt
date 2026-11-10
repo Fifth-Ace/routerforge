@@ -1,0 +1,50 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const root=path.resolve(__dirname,'..','modules/dns-router-runtime/frontend');
+const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const main=fs.readFileSync(path.join(root,'main.js'),'utf8');
+const component=fs.readFileSync(path.join(root,'DnsRuntimeP88Actions.svelte'),'utf8');
+const logic=fs.readFileSync(path.join(root,'DnsRuntimeP88ActionLogic.js'),'utf8');
+test('R13 four Svelte action owners with unique DOM IDs',()=>{
+ for(const scope of ['scan','probe','draft','advanced']){
+  assert.equal((html.match(new RegExp('id="rf-dns-runtime-svelte-p88-'+scope+'"','g'))||[]).length,1,scope);
+ }
+ for(const id of ['drSimpleScan','drSimpleProbe','drSimpleProbeResult','drSimpleAdd','drP10CancelListEdit','drSimpleSave','drSimpleAdvanced']){
+  assert.equal((component.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id+' Svelte once');
+  assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,0,id+' no HTML duplicate');
+ }
+ assert.match(main,/DNS_RUNTIME_R13_MOUNT_MISSING/);
+ assert.match(main,/window\.__rfDNSRuntimeR13Loaded=true/);
+});
+test('R13 scan and probe perform GET only, not automatic on mount',()=>{
+ assert.match(component,/getJSON\('keenetic\/native-dns'\)/);
+ assert.match(component,/getJSON\('keenetic\/native-policies'\)/);
+ assert.match(component,/onclick=\{scan\}/);
+ assert.match(component,/onclick=\{probe\}/);
+ assert.match(component,/method:'GET'/);
+ assert.doesNotMatch(component,/method:'POST'|method:'PUT'|method:'DELETE'|\bndmc\b|durable\/apply|shadow\/control/);
+ const mount=component.slice(component.indexOf('  onMount('),component.indexOf('</script>'));
+ assert.doesNotMatch(mount,/\bscan\(\)|\bprobe\(\)|\badd\(\)|\bsave\(\)/);
+ assert.match(logic,/nativeProbeTarget/);
+});
+test('R13 draft controls preserve CAS and existing P10 group editing',()=>{
+ assert.match(logic,/export function planDomainAddition/);
+ assert.match(component,/parseDomainBatch\(s\.text\)/);
+ assert.match(component,/planDomainAddition/);
+ assert.match(app,/window\.__rfDNSRuntimeP88DraftBridge=Object\.freeze/);
+ assert.match(app,/function p10UXReplaceDraft\(chosenDNS,parsed\)/);
+ assert.match(app,/save:\(\)=>p88Id\('saveButton'\)\.click\(\)/);
+ assert.match(app,/window\.__rfDNSRuntimeP88Draft\?\.setDirty/);
+ assert.match(component,/onclick=\{add\}/);
+ assert.match(component,/onclick=\{cancel\}/);
+ for(const id of ['drSimpleAdd','drSimpleScan','drSimpleProbe','drP10CancelListEdit','drSimpleSave','drSimpleAdvanced'])
+  assert.doesNotMatch(app,new RegExp("p88Id\\('"+id+"'\\)\\.addEventListener"));
+});
+test('R13 native addition is draft-only, no service or Keenetic mutation',()=>{
+ assert.doesNotMatch(logic,/\bfetch\(|\brequest\(|service\/control|keenetic\/durable|\.innerHTML|\bndmc\b/);
+ assert.doesNotMatch(component,/\.innerHTML|service\/control|keenetic\/durable|\bndmc\b/);
+ assert.match(app,/config\.upstreams=plan\.upstreams;config\.rules=plan\.rules/);
+ assert.match(app,/p92Preview\(\)/);
+ assert.match(component,/if\(s\.editing\)\{api\.replace\(parsed\);return;\}/);
+});

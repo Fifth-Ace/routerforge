@@ -1,50 +1,13 @@
 <script>
-  import {onMount, flushSync} from 'svelte';
-
-  // Real Svelte ownership of upstream cards. The existing revision-pinned
-  // business controller remains the guarded source of mutations and drafts.
-  let cards = $state([]);
-  let selected = $state('');
-  let health = $state({});
+  let {cards = [], selected = '', health = {}, onAction = () => {}} = $props();
   let warning = $state('');
-  const detail = (id) => health[id] || null;
-  const stateText = (h) => !h ? 'Не проверялся' : ({UP:'Доступен',DOWN:'Недоступен',STALE:'Данные устарели',UNKNOWN:'Не проверялся',UNSUPPORTED:'Keenetic'}[h.status] || 'Не проверялся');
-  const route = (item) => !item.domains.length ? 'Без доменов' : 'Привязка: '+item.domains.slice(0,2).join(' · ')+(item.domains.length>2?' · +'+(item.domains.length-2):'');
-
+  const detail = id => health[id] || null;
+  const stateText = h => !h ? 'Не проверялся' : ({UP:'Доступен',DOWN:'Недоступен',STALE:'Данные устарели',UNKNOWN:'Не проверялся',UNSUPPORTED:'Keenetic'}[h.status] || 'Не проверялся');
+  const route = item => !item.domains.length ? 'Без доменов' : 'Привязка: '+item.domains.slice(0,2).join(' · ')+(item.domains.length>2?' · +'+(item.domains.length-2):'');
   function action(name, id, value) {
-    const api = window.__rfDnsLiteCardsAPI;
-    if (!api || typeof api[name] !== 'function') {
-      warning = 'Редактор DNS не готов. Перезагрузи страницу.';
-      return;
-    }
     warning = '';
-    api[name](id, value);
+    try { onAction(name,id,value); } catch(e) { warning = String(e.message || e); }
   }
-  onMount(() => {
-    let mounted = true;
-    const render = (event) => {
-      if (!mounted || !event.detail) return;
-      flushSync(() => {
-        cards = Array.isArray(event.detail.cards) ? event.detail.cards : [];
-        selected = event.detail.selected || '';
-      });
-    };
-    const updateHealth = (event) => {
-      if (!mounted || !event.detail || !Array.isArray(event.detail.upstreams)) return;
-      const next = {};
-      for (const entry of event.detail.upstreams) {
-        if (entry && typeof entry.id === 'string') next[entry.id] = entry;
-      }
-      flushSync(() => { health = next; });
-    };
-    window.addEventListener('routerforge:dns-lite-cards', render);
-    window.addEventListener('routerforge:dns-lite-card-health', updateHealth);
-    return () => {
-      mounted = false;
-      window.removeEventListener('routerforge:dns-lite-cards', render);
-      window.removeEventListener('routerforge:dns-lite-card-health', updateHealth);
-    };
-  });
 </script>
 
 {#if warning}

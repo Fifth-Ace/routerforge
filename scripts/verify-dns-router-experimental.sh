@@ -74,7 +74,7 @@ for arch in ('aarch64-3.10','mips-3.4','mipsel-3.4'):
     with tarfile.open(fileobj=io.BytesIO(payload),mode='r:gz') as data:
         names={m.name.lstrip('./') for m in data}
     prefix='opt/share/routerforge/modules/dns-router/'
-    for required in (prefix+'manifest.json', prefix+'ui/index.html', prefix+'ui/app.js', prefix+'ui/module.css'):
+    for required in (prefix+'manifest.json', prefix+'ui/index.html', prefix+'ui/svelte-mode.js', prefix+'ui/module.css'):
         assert required in names, required
     assert not any(n.endswith('/postinst') or n.endswith('/S99routerforge-dns-router') for n in names), 'unexpected autostart'
     assert 'opt/bin/routerforge-dns-router' in names
@@ -91,18 +91,24 @@ for arch in ('aarch64-3.10','mips-3.4','mipsel-3.4'):
 print('DNS_ROUTER_EXPERIMENTAL_MATRIX: PASS (3/3; manual loopback shadow DNS; no publish)')
 PY
 
-# DPR2-L frontend API wiring and syntactic contract, no browser or router dependency.
+# Runtime Svelte 5 native UI: execute the real production pure functions.
+# The compiled browser/CAS parity is a separate mandatory gate, not source-only proof.
+node --test tests/dns_runtime_svelte5_behavior.test.mjs tests/dns_runtime_native_parity.test.mjs
 python3 - <<'PY_VERIFY_L'
 from pathlib import Path
-html = Path('modules/dns-router-runtime/frontend/index.html').read_text()
-js = Path('modules/dns-router-runtime/frontend/app.js').read_text()
-for element in ('listenerForm','listenerMode','listenerListen','listenerACL','listenerPlanButton','listenerPlanStatus'):
-    assert f'id="{element}"' in html and "el('"+element+"')" in js, element
-assert 'keenetic/domain-plan' in js and 'shadow-lan-experimental' in html
-assert 'no ip name-server' in Path('modules/dns-router-runtime/listener_l.go').read_text()
-print('DPR2_L_FRONTEND_CONTRACT: PASS')
+ui=Path('modules/dns-router-runtime/frontend')
+html=(ui/'index.html').read_text(encoding='utf-8')
+component=(ui/'DnsRuntimeReadOnly.svelte').read_text(encoding='utf-8')
+app=(ui/'DnsRuntimeApp.svelte').read_text(encoding='utf-8')
+assert 'src="svelte-mode.js"' in html and 'app.js' not in html
+assert not (ui/'app.js').exists()
+for element in ('listenerPlanButton','listenerPlanStatus'):
+    assert f'id="{element}"' in component, element
+assert "request('keenetic/domain-plan')" in component
+assert '--shadow-lan-experimental' in app
+assert 'no ip name-server' in Path('modules/dns-router-runtime/listener_l.go').read_text(encoding='utf-8')
+print('DPR2_L_NATIVE_UI_SOURCE_GATE: PASS (behaviour tested separately)')
 PY_VERIFY_L
-if command -v node >/dev/null 2>&1; then node --check modules/dns-router-runtime/frontend/app.js; fi
 
 # DPR2-M test-only ndmc transaction. All CI side effects use injected
 # drivers or an ephemeral mock ndmc, never router configuration.
@@ -125,19 +131,17 @@ PY_VERIFY_M
 GOPROXY=off go test -count=1 -v -run '^TestDPR2N' ./modules/dns-router-runtime/...
 python3 - <<'PY_VERIFY_N'
 from pathlib import Path
-p = Path('modules/dns-router-runtime/transaction_n.go').read_text()
-a = Path('modules/dns-router-runtime/api.go').read_text()
-c = Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text()
-h = Path('modules/dns-router-runtime/frontend/index.html').read_text()
-j = Path('modules/dns-router-runtime/frontend/app.js').read_text()
+p=Path('modules/dns-router-runtime/transaction_n.go').read_text(encoding='utf-8')
+a=Path('modules/dns-router-runtime/api.go').read_text(encoding='utf-8')
+ui=Path('modules/dns-router-runtime/frontend/DnsRuntimeManagedTrial.svelte').read_text(encoding='utf-8')
 for needle in ('managedMaxZonesN = 8', 'ManagedWorkerN', 'trialSnapshotM', 'BaselineRestored', 'syscall.Flock'):
     assert needle in p, needle
-assert 'ndmc-managed-trial-experimental' in c
 assert 'domain-managed/prepare' in a and 'domain-managed/trial' in a
 for v in ('managedPrepareN','managedTrialN','managedStatusN'):
-    assert f'id="{v}"' in h and f"el('{v}')" in j
+    assert f'id="{v}"' in ui, v
+assert "createManagedFlow" in ui and 'onclick={() => perform(' in ui
 assert 'system configuration save' not in p
-print('DPR2_N_MULTIZONE_TRANSACTION_AND_UI: PASS')
+print('DPR2_N_TRANSACTION_AND_NATIVE_UI_SOURCE_GATE: PASS (Go tests above)')
 PY_VERIFY_N
 
 # DPR2-O1 durable ownership ledger and read-only reconciliation. No ndmc
@@ -145,18 +149,18 @@ PY_VERIFY_N
 GOPROXY=off go test -count=1 -v -run '^TestDPR2O1' ./modules/dns-router-runtime/...
 python3 - <<'PY_VERIFY_O1'
 from pathlib import Path
-p=Path('modules/dns-router-runtime/managed_o.go').read_text()
-a=Path('modules/dns-router-runtime/api.go').read_text()
-c=Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text()
-h=Path('modules/dns-router-runtime/frontend/index.html').read_text()
-j=Path('modules/dns-router-runtime/frontend/app.js').read_text()
+p=Path('modules/dns-router-runtime/managed_o.go').read_text(encoding='utf-8')
+a=Path('modules/dns-router-runtime/api.go').read_text(encoding='utf-8')
+c=Path('modules/dns-router-runtime/cmd/routerforge-dns-router/main.go').read_text(encoding='utf-8')
+ui=Path('modules/dns-router-runtime/frontend/DnsRuntimeReadOnly.svelte').read_text(encoding='utf-8')
 for needle in ('SaveCAS', 'safety.WriteFileAtomic', 'pending_recovery', 'stale_policy', 'ReconcileLedgerO'):
     assert needle in p, needle
 assert 'managed-ownership/status' in a and 'managed-state.json' in c
 for x in ('managedOwnershipStatusO', 'managedOwnershipResultO'):
-    assert f'id="{x}"' in h and f"el('{x}')" in j
+    assert f'id="{x}"' in ui, x
+assert "request('keenetic/managed-ownership/status')" in ui
 assert 'ndmc-managed-trial-experimental' in c
-print('DPR2_O1_PERSISTENCE_AND_READONLY_UI: PASS')
+print('DPR2_O1_PERSISTENCE_AND_NATIVE_READONLY_UI_SOURCE_GATE: PASS (Go tests above)')
 PY_VERIFY_O1
 
 # DPR2-O2: persistent DNS changes are opt-in and only possible on DSTest.

@@ -1,6 +1,5 @@
 <script>
-  import {onMount} from 'svelte';
-  import {flushSync} from 'svelte';
+  import {onMount, getContext} from 'svelte';
 
   // Svelte owns Settings navigation, section selection, read-only telemetry,
   // and every setting input. Existing Lite draft/CAS/apply remains authoritative.
@@ -14,14 +13,28 @@
   let ipRows = $state([]);
   let performanceStatus = $state('Метрики: нет данных');
   let english = $state(false);
-  let app, card, tab, workspace, additional, cacheField;
-  let originalAdditional, originalCache;
-  let originalOpen = false;
+  let app;
   let observer;
   let intervals = [];
+  let disposed = false;
+  const pending = new Set();
   let cleanups = [];
   const t = (ru, en) => english ? en : ru;
   const byId = id => document.getElementById(id);
+  // Both basic and advanced layouts contain a Svelte-owned instance of each
+  // service control. This action moves only OUR Svelte nodes, never a foreign
+  // legacy form or an already-attached event handler.
+  function ownSlot(node, targetId) {
+    const place = id => {
+      const target = document.getElementById(id);
+      if (!target) throw Error('P25_NATIVE_SLOT_MISSING: '+id);
+      target.appendChild(node);
+    };
+    place(targetId);
+    return {update:place,destroy(){node.remove();}};
+  }
+  // The parent owns draft/CAS. Merely displaying settings is GET-only.
+  function settingsInputChange(event) { if (!disposed) settingsHooks.change(event?.currentTarget?.id || ''); }
   const sections = [
     {id:'service',ru:'DNS-сервис',en:'DNS service',status:'available'},
     {id:'cache',ru:'Кэш',en:'Cache',status:'available'},
@@ -32,7 +45,9 @@
     {id:'dns64',ru:'DNS64 / rDNS',en:'DNS64 / rDNS',status:'available'},
     {id:'performance',ru:'Производительность',en:'Performance',status:'available'}
   ];
-  const inputChange = () => document.dispatchEvent(new Event('routerforge:p28-p31-change'));
+  const settingsHooks = getContext('routerforge:dns-lite-settings');
+  const navigationHooks = getContext('routerforge:dns-lite-navigation');
+  const inputChange = event => settingsHooks.change(event?.currentTarget?.id || '');
   const notes = {
     original:['Без изменения IP в DNS-ответе.','No address changes.'],
     round_robin:['Циклически меняет первый IP при каждом новом DNS-запросе, включая ответы из кэша.','Rotates the first IP on each DNS request, including cached responses.'],
@@ -56,66 +71,52 @@
     }));
   }
   async function refreshIPHealth(){
-    if(!advanced || !active || section!=='ip' || document.hidden) return;
+    if(disposed || !advanced || !active || section!=='ip' || document.hidden) return;
+    const controller=new AbortController(); pending.add(controller);
     try{
-      const response=await fetch('../service/ip-health',{method:'GET',cache:'no-store'});
+      const response=await fetch('../service/ip-health',{method:'GET',cache:'no-store',signal:controller.signal});
       if(!response.ok) throw Error('HTTP '+response.status);
       const data=await response.json();
+      if(disposed || controller.signal.aborted)return;
       ipRows=monitorRowsFrom(data);
       ipStatus=data.enabled ? t('Активен · записей: ','Active · entries: ')+ipRows.length : t('Монитор выключен','Monitor disabled');
-    }catch(e){ipStatus=t('Ошибка мониторинга: ','Monitor error: ')+e.message;}
+    }catch(e){if(!disposed && !controller.signal.aborted)ipStatus=t('Ошибка мониторинга: ','Monitor error: ')+e.message;}
+    finally{pending.delete(controller);}
   }
   async function refreshP29Metrics(){
-    if(!advanced || !active || section!=='performance' || document.hidden) return;
+    if(disposed || !advanced || !active || section!=='performance' || document.hidden) return;
+    const controller=new AbortController(); pending.add(controller);
     try{
-      const response=await fetch('../service/status',{method:'GET',cache:'no-store'});
+      const response=await fetch('../service/status',{method:'GET',cache:'no-store',signal:controller.signal});
       if(!response.ok) throw Error('HTTP '+response.status);
       const data=await response.json();
+      if(disposed || controller.signal.aborted)return;
       performanceStatus=t('Запросы: ','Queries: ')+String(data.requests||0)+t(' · Кэш: ',' · Cache: ')+String(data.cache_hits||0)+t(' · Ошибки: ',' · Errors: ')+String(data.failures||0)+t(' · DNS-измерений: ',' · Measured upstreams: ')+Object.keys(data.upstream_selection_metrics?.upstreams||{}).length;
-    }catch(e){performanceStatus=t('Метрики недоступны: ','Metrics unavailable: ')+e.message;}
+    }catch(e){if(!disposed && !controller.signal.aborted)performanceStatus=t('Метрики недоступны: ','Metrics unavailable: ')+e.message;}
+    finally{pending.delete(controller);}
   }
   function selectSection(id){
     section=id;
     if(id==='ip') refreshIPHealth();
     if(id==='performance') refreshP29Metrics();
   }
-  function returnTo(element,position){
-    if(!element || !position?.parent) return;
-    if(position.next?.parentNode===position.parent) position.parent.insertBefore(element,position.next);
-    else position.parent.appendChild(element);
-  }
   function placement(){
     const newMode=app?.dataset.dnsMode==='advanced';
-    if(newMode===advanced && !newMode)return;
+    if (newMode===advanced) return;
     advanced=newMode;
-    if(newMode){
-      byId('p25Settings_service')?.appendChild(additional);
-      if(additional) additional.open=true;
-      byId('p25Settings_cache')?.appendChild(cacheField);
-      byId('p25Settings_ip')?.appendChild(byId('p241IPControls'));
-      byId('p25Settings_security')?.appendChild(byId('p27SecurityControls'));
-      if(byId('p241IPControls'))byId('p241IPControls').hidden=false;
-      if(byId('p27SecurityControls'))byId('p27SecurityControls').hidden=false;
-    }else{
-      returnTo(cacheField,originalCache);
-      returnTo(additional,originalAdditional);
-      if(additional)additional.open=originalOpen;
+    if (!newMode) {
       active=false;
-      if(app) app.removeAttribute('data-p25-settings-active');
+      if (app) app.removeAttribute('data-p25-settings-active');
     }
-    flushSync();
   }
   function openSettings(){
-    if(!advanced) return;
-    byId('p21Nav')?.click();
-    for(const id of ['p22DevicesCard','p22GroupsCard','p22RulesCard']){const node=byId(id);if(node)node.hidden=true;}
+    if(!advanced && app?.dataset.dnsMode==='advanced')advanced=true;
+    if(!advanced)return;
+    // The workspace Svelte owner controls section visibility and active nav.
+    // Settings never moves or toggles another component's DOM nodes.
+    navigationHooks.navigate('settings');
     active=true;
-    for(const id of ['navDns','navLogs','p21Nav','p22NavGroups','p22NavRules']){
-      const node=byId(id);if(!node)continue;node.classList.remove('selected');node.removeAttribute('aria-current');
-    }
-    app.dataset.p25SettingsActive='true';
-    const label=byId('p23DraftToolbar')?.querySelector('.p22-draft-toolbar-label');
-    if(label)label.textContent=t('Настройки DNS · черновик','DNS settings · draft');
+    if(app)app.dataset.p25SettingsActive='true';
     refreshIPHealth();
   }
   function closeSettings(){active=false;if(app)app.removeAttribute('data-p25-settings-active');}
@@ -125,53 +126,49 @@
     cleanups.push(()=>target.removeEventListener(type,callback));
   }
   function syncNotes(){
+    if(disposed)return;
     ipEnabled=!!byId('p241IPEnabled')?.checked;
     ipMode=byId('p241IPMode')?.value || 'original';
     scope=byId('p243Scope')?.value || 'all';
-    // These legacy inputs are still owned by the existing P21 editor. Mirror
-    // their derived visibility and note until that editor is migrated.
-    const domains=byId('p241IPControls')?.querySelector('.p243-domains');
-    const lists=byId('p241IPControls')?.querySelector('.p243-lists');
-    if(domains)domains.hidden=scope!=='domains';
-    if(lists)lists.hidden=scope!=='lists';
-    const note=byId('p241IPModeNote');
-    if(note)note.textContent=ipEnabled ? t(...(notes[ipMode]||notes.original)) : t('Функция выключена. DNS-ответы не изменяются.','Feature disabled. DNS responses remain unchanged.');
+    // Scope visibility and description are Svelte-derived, never patched
+    // through textContent / hidden writes to a second owner's DOM.
   }
   onMount(()=>{
-    app=byId('dnsLiteApp');workspace=byId('p21Page');
-    tab=byId('p25SettingsNav');card=byId('p25SettingsCard');
-    additional=byId('additionalSettings');
-    const cacheInput=byId('cacheSize');
-    cacheField=cacheInput?.closest('.field');
-    if(!app||!workspace||!tab||!card||!additional||!cacheField) return;
+    disposed=false;
+    app=byId('dnsLiteApp');
+    if(!app) return;
     english=document.documentElement.lang==='en'||new URLSearchParams(location.search).get('lang')==='en';
-    const nextAdditional=additional.nextSibling,nextCache=cacheField.nextSibling;
-    originalAdditional={parent:additional.parentNode,next:nextAdditional};
-    originalCache={parent:cacheField.parentNode,next:nextCache};
-    originalOpen=additional.open;
-    byId('navLogs')?.before(tab);workspace.append(card);
     watch(byId('p21Mode'),'change',placement);
     for(const id of ['navDns','navLogs','p21Nav','p22NavGroups','p22NavRules']) watch(byId(id),'click',closeSettings);
-    watch(document,'routerforge:p243-render',syncNotes);
-    watch(document,'routerforge:p241-render',syncNotes);
-    for(const id of ['p243Scope','p241IPEnabled','p241IPMode']) watch(byId(id),'change',syncNotes);
+    settingsHooks.render=syncNotes;
     observer=new MutationObserver(placement);
     observer.observe(app,{attributes:true,attributeFilter:['data-dns-mode']});
     syncNotes();placement();
     intervals=[setInterval(refreshIPHealth,10000),setInterval(refreshP29Metrics,10000)];
     return ()=>{
+      disposed=true;
       for(const timer of intervals)clearInterval(timer);
       for(const dispose of cleanups)dispose();
       observer?.disconnect();
-      returnTo(cacheField,originalCache);
-      returnTo(additional,originalAdditional);
-      if(additional)additional.open=originalOpen;
+      for(const controller of pending)controller.abort();
+      pending.clear();
+      settingsHooks.render=()=>{};
     };
   });
-</script>
 
-<button id="p25SettingsNav" class="tab p22-advanced-tab" type="button" aria-controls="p25SettingsCard" class:selected={active} aria-current={active?'page':undefined} onclick={openSettings}>{t('Настройки','Settings')}</button>
-<section id="p25SettingsCard" class="panel rfds-card p25-settings-card" hidden={!active || !advanced} aria-label={t('Настройки DNS Router','DNS Router settings')}>
+</script>
+<div use:ownSlot={advanced ? 'p25Settings_service' : 'rf-dns-lite-basic-service-slot'} class="p25-native-service-fields">
+  <div class="fields two">
+    <label class="field"><span>Адрес DNS-сервиса</span><input id="serviceListen" value="192.168.10.1:55358" onchange={settingsInputChange}/></label>
+    <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" value="127.0.0.0/8,192.168.10.0/24" spellcheck="false" onchange={settingsInputChange}/></label>
+  </div>
+</div>
+<div use:ownSlot={advanced ? 'p25Settings_cache' : 'rf-dns-lite-basic-cache-slot'} class="p25-native-cache-field">
+  <label class="field"><span>Кэш, МиБ</span><input id="cacheSize" type="number" value="1" min="0" max="8" step="1" onchange={settingsInputChange}/></label>
+</div>
+
+<button use:ownSlot={'rf-dns-lite-settings-nav-slot'} id="p25SettingsNav" class="tab p22-advanced-tab" type="button" aria-controls="p25SettingsCard" class:selected={active} aria-current={active?'page':undefined} onclick={openSettings}>{t('Настройки','Settings')}</button>
+<section use:ownSlot={'rf-dns-lite-settings-page-slot'} id="p25SettingsCard" class="panel rfds-card p25-settings-card" hidden={!active || !advanced} aria-label={t('Настройки DNS Router','DNS Router settings')}>
   <div class="p25-settings-heading"><h2>{t('Настройки DNS Router','DNS Router settings')}</h2><p class="muted">{t('Настройки сервиса и DNSProxy в одном месте.','DNS service and DNSProxy settings in one place.')}</p></div>
   <div class="p25-settings-layout">
     <nav class="p25-settings-sidebar" aria-label={t('Категории настроек','Settings categories')}>
@@ -185,6 +182,46 @@
       <section id="p25Settings_ip" class="p25-settings-section" hidden={section!=='ip'} aria-label="IP Intelligence"><h3>IP Intelligence</h3><p class="p25-settings-info">P24.0 contains nine IP ordering strategies. P24.2 adds opt-in public-IP TCP/TLS checks; unknown never means down.</p>
         <p class="p25-settings-info">{modeNote}</p>
         <p class="p25-settings-info" id="p25IPHealthState">{ipStatus}</p>
+            <div id="p241IPControls" class="p241-ip-controls">
+      <label class="check p241-ip-toggle"><input type="checkbox" id="p241IPEnabled" onchange={(event)=>{settingsInputChange(event);syncNotes();}}><span>Включить IP Intelligence</span></label>
+      <label class="field p241-ip-mode"><span>Алгоритм выбора IP</span>
+        <select id="p241IPMode" onchange={(event)=>{settingsInputChange(event);syncNotes();}} aria-label="Алгоритм IP Intelligence">
+          <option value="original">Original · без изменений</option>
+          <option value="round_robin">Round-Robin · по кругу</option>
+          <option value="random">Random · случайный порядок</option>
+          <option value="fastest">Fastest IP · быстрые первыми</option>
+          <option value="health_aware">Health-Aware · доступные первыми</option>
+          <option value="adaptive">Adaptive · адаптивная ротация</option>
+          <option value="sticky">Sticky IP · закрепить за устройством</option>
+          <option value="weighted">Weighted · распределение по весам</option>
+          <option value="healthy_only">Healthy Only · исключать недоступные</option>
+        </select>
+      </label>
+      <p class="p25-settings-info" id="p241IPModeNote" role="status">{modeNote}</p>
+      <div class="p243-scope-settings">
+        <label class="field"><span>Область применения</span><select id="p243Scope" onchange={(event)=>{settingsInputChange(event);syncNotes();}}><option value="all">Все внешние домены</option><option value="domains">Выбранные домены</option><option value="lists">Выбранные списки</option></select></label>
+        <label class="field p243-domains" hidden={scope!=='domains'}><span>Домены, по одному в строке (включая поддомены)</span><textarea id="p243Domains" onchange={settingsInputChange} rows="3" spellcheck="false" placeholder="example.org"></textarea></label>
+        <label class="field p243-lists" hidden={scope!=='lists'}><span>Списки доменов (Ctrl/Shift для нескольких)</span><select id="p243ListIDs" onchange={settingsInputChange} multiple size="4"></select></label>
+      </div>
+      <div class="p242-health-settings">
+        <label class="check"><input type="checkbox" id="p242HealthEnabled" onchange={settingsInputChange}> Фоновая проверка IP-адресов (экспериментально)</label>
+        <div class="p242-health-fields">
+          <label class="field"><span>Проверка</span><select id="p242HealthProtocol" onchange={settingsInputChange}><option value="tcp">TCP: соединение с портом</option><option value="tls">TLS: проверка сертификата</option><option value="http">HTTP: ответ приложения</option><option value="https">HTTPS: ответ приложения + TLS</option></select></label>
+          <label class="field"><span>Порт</span><input id="p242HealthPort" onchange={settingsInputChange} type="number" min="80" max="65535" value="443"></label>
+          <label class="field"><span>Интервал, секунд</span><input id="p242HealthInterval" onchange={settingsInputChange} type="number" min="30" max="3600" value="60"></label>
+          <label class="field"><span>Тайм-аут, мс</span><input id="p242HealthTimeout" onchange={settingsInputChange} type="number" min="250" max="3000" value="1200"></label>
+          <label class="field"><span>Неудач до DOWN</span><input id="p242HealthFailures" onchange={settingsInputChange} type="number" min="1" max="5" value="2"></label>
+          <label class="field"><span>Успехов до UP</span><input id="p243Recoveries" onchange={settingsInputChange} type="number" min="1" max="5" value="2"></label>
+          <label class="field"><span>Выдержка DOWN, сек</span><input id="p243MinDown" onchange={settingsInputChange} type="number" min="0" max="3600" value="30"></label>
+          <label class="field"><span>HTTP-путь</span><input id="p243HTTPPath" onchange={settingsInputChange} maxlength="128" value="/" placeholder="/health"></label>
+        </div>
+        <p class="p25-settings-info">Проверяются только публичные IP из реальных ответов A/AAAA, не чаще одного подключения в секунду. Приватные и служебные адреса исключены. HTTP/HTTPS проверяют ответ сервиса, 5xx считаются ошибкой; редиректы не выполняются. TCP/TLS подтверждают только соединение.</p>
+        <div class="p242-monitor"><div class="p242-monitor-heading"><strong>Монитор IP</strong><small id="p242MonitorStatus">Нет измерений</small></div>
+          <div id="p242MonitorRows" class="p242-monitor-rows" aria-live="polite"><span class="muted">Записи появятся после запросов и фоновых проверок.</span></div>
+        </div>
+      </div>
+    </div>
+
         <div class="p242-monitor p25-native-monitor" aria-live="polite">
           {#if ipRows.length===0}<span class="muted">{t('Нет измерений. Дождись DNS-запросов.','No measurements yet.')}</span>{/if}
           {#each ipRows as record, i (record.address+'|'+record.domain+'|'+i)}
@@ -199,7 +236,16 @@
         <label class="field"><span>{t('Алгоритм','Mode')}</span><select id="p28Mode" onchange={inputChange}><option value="sequential">Failover / Sequential</option><option value="load_balance">Load Balance</option><option value="parallel">Parallel</option><option value="fastest">Fastest DNS</option></select></label>
         <label class="field"><span>{t('Тайм-аут на DNS, мс','Timeout per DNS, ms')}</span><input id="p28Timeout" type="number" min="250" max="5000" value="3000" onchange={inputChange}/></label>
       </section>
-      <section id="p25Settings_security" class="p25-settings-section" hidden={section!=='security'} aria-label={t('Защита запросов','Query protection')}><h3>{t('Защита запросов','Query protection')}</h3><p class="p25-settings-info">{t('Частотные ограничения, DNS ANY и Bogus NXDOMAIN действуют только после сохранения и явного применения.','Rate limits, ANY refusal and Bogus NXDOMAIN require explicit save and apply.')}</p></section>
+      <section id="p25Settings_security" class="p25-settings-section" hidden={section!=='security'} aria-label={t('Защита запросов','Query protection')}><h3>{t('Защита запросов','Query protection')}</h3><p class="p25-settings-info">{t('Частотные ограничения, DNS ANY и Bogus NXDOMAIN действуют только после сохранения и явного применения.','Rate limits, ANY refusal and Bogus NXDOMAIN require explicit save and apply.')}</p>    <div id="p27SecurityControls" class="p27-security-controls">
+      <p class="p25-settings-info">Защита применяется к независимому DNS Router, не меняет правила Keenetic. Все параметры по умолчанию выключены.</p>
+      <div class="fields two">
+        <label class="field"><span>Лимит запросов одного клиента в секунду (0 — выкл.)</span><input id="p27RateLimit" onchange={settingsInputChange} type="number" min="0" max="2000" value="0"></label>
+        <label class="check"><input type="checkbox" id="p27RefuseAny" onchange={settingsInputChange}> Отказывать на DNS ANY (NOTIMP)</label>
+      </div>
+      <label class="field"><span>Bogus NXDOMAIN — IP-адреса или CIDR (по одному в строке)</span><textarea id="p27BogusIPs" onchange={settingsInputChange} rows="4" spellcheck="false" placeholder="0.0.0.0"></textarea></label>
+      <p class="p25-settings-info">Если DNS вернул такой IP, RouterForge отправит NXDOMAIN. Не включает блокировку доменов и не проверяет криптографически DNSSEC. CIDR: IPv4 от /24, IPv6 от /64.</p>
+    </div>
+</section>
       <section id="p25Settings_privacy" class="p25-settings-section" hidden={section!=='privacy'} aria-label="EDNS / ECS / DNSSEC"><h3>EDNS / ECS / DNSSEC</h3><p class="p25-settings-info">{t('Require AD доверяет только шифрованным DNS; локальная проверка DNSSEC не выполняется.','Require AD trusts only encrypted upstreams; there is no local DNSSEC validation.')}</p>
         <label class="check"><span>{t('Включить настройки EDNS/ECS/DNSSEC','Enable EDNS/ECS/DNSSEC controls')}</span><input id="p30Enabled" type="checkbox" onchange={inputChange}/></label>
         <label class="field"><span>EDNS Client Subnet</span><select id="p30ECSMode" onchange={inputChange}><option value="inherit">{t('Сохранять запрос клиента','Preserve client option')}</option><option value="strip">{t('Удалять ECS','Strip ECS')}</option><option value="fixed">{t('Фиксированный публичный адрес','Fixed public IP')}</option></select></label>

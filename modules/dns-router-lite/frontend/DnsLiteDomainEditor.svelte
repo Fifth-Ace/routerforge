@@ -1,84 +1,74 @@
 <script>
-  import {onMount} from 'svelte';
-  let opened=$state(false);
-  let title=$state('Список доменов');
-  let choices=$state([]);
-  let selected=$state('');
-  let domains=$state('');
-  let newName=$state('');
-  let renameName=$state('');
-  let editable=$state(false);
-  let named=$state(false);
-  let hint=$state('Изменения попадут в черновик и начнут действовать после применения.');
-  let counter=$derived(domains.split(/\r?\n/).filter(x=>x.trim()).length);
-  const byId=id=>document.getElementById(id);
-  function snapshot(){
-    const raw=window.__rfDnsLiteEditorSnapshot?.();
-    if(!raw)return;
-    opened=!!raw.opened;
-    if(!opened)return;
-    title=raw.title;
-    choices=raw.choices;selected=raw.selected;
-    domains=raw.domains;renameName=raw.renameName;
-    editable=raw.editable;named=raw.named;hint=raw.hint;
+  let {snapshot = {}, onAction = () => {}} = $props();
+  let newName = $state('');
+  let renameName = $state('');
+  let domains = $state('');
+  let lastIdentity = '';
+  let importInput = $state(null);
+  async function importTxt(event) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > 256*1024) throw Error('Максимум 256 КБ');
+      command('import-data', await file.text());
+    } catch (e) { command('import-error', e?.message || String(e)); }
+    finally { input.value = ''; }
   }
-  function hiddenValue(id,value){const el=byId(id);if(el)el.value=value;}
-  function clickLegacy(id){byId(id)?.click();}
-  function selectList(event){
-    hiddenValue('listChoice',event.currentTarget.value);
-    byId('listChoice')?.dispatchEvent(new Event('change',{bubbles:true}));
-    snapshot();
+  function exportTxt() {
+    if (typeof URL.createObjectURL !== 'function') {command('export-error'); return;}
+    const url = URL.createObjectURL(new Blob([domains.endsWith('\n') ? domains : domains+'\n'], {type:'text/plain;charset=utf-8'}));
+    try { const anchor = document.createElement('a'); anchor.href=url; anchor.download='routerforge-domains.txt'; anchor.click(); }
+    finally { URL.revokeObjectURL(url); }
   }
-  function domainInput(event){
-    domains=event.currentTarget.value;
-    hiddenValue('editorDomains',domains);
-    byId('editorDomains')?.dispatchEvent(new Event('input',{bubbles:true}));
-  }
-  function createList(){hiddenValue('newListName',newName);clickLegacy('newListButton');snapshot();}
-  function renameList(){hiddenValue('listRenameName',renameName);clickLegacy('renameListButton');snapshot();}
-  function saveList(){hiddenValue('editorDomains',domains);clickLegacy('saveDomains');snapshot();}
-  onMount(()=>{
-    const legacy=byId('listEditor');
-    if(!legacy)throw Error('DNS_LITE_LEGACY_EDITOR_CONTRACT_MISSING');
-    const original=legacy.style.display;
-    legacy.style.display='none';
-    window.__rfDnsLiteNativeEditorLoaded=true;
-    window.addEventListener('routerforge:dns-lite-editor-state',snapshot);
-    snapshot();
-    return ()=>{
-      window.removeEventListener('routerforge:dns-lite-editor-state',snapshot);
-      legacy.style.display=original;
-      window.__rfDnsLiteNativeEditorLoaded=false;
-    };
+  let opened = $derived(Boolean(snapshot.opened));
+  let title = $derived(snapshot.title || 'Список доменов');
+  let choices = $derived(snapshot.choices || []);
+  let selected = $derived(snapshot.selected || '');
+  let editable = $derived(Boolean(snapshot.editable));
+  let named = $derived(Boolean(snapshot.named));
+  let hint = $derived(snapshot.hint || 'Изменения попадут в черновик и начнут действовать после применения.');
+  let counter = $derived(domains.split(/\r?\n/).filter(x=>x.trim()).length);
+  $effect(() => {
+    const generation = snapshot.generation || 0;
+    const identity = `${snapshot.selected || ''}|${generation}|${snapshot.opened ? 'open':'closed'}`;
+    if (identity !== lastIdentity) {
+      lastIdentity = identity;
+      domains = snapshot.domains || '';
+      renameName = snapshot.renameName || '';
+      newName = snapshot.newName || '';
+    }
   });
+  function command(action, value) { return onAction(action,value); }
 </script>
 
 {#if opened}
 <div class="editor" data-native-svelte-domain-editor="true">
   <div class="section-title">
     <div><h3>{title}</h3><p>У каждого DNS может быть несколько независимых списков. Один домен на строку.</p></div>
-    <button type="button" class="button subtle" onclick={()=>clickLegacy('closeEditor')}>Закрыть</button>
+    <button type="button" class="button subtle" onclick={()=>command('close')}>Закрыть</button>
   </div>
   <div class="list-toolbar">
     <label class="field"><span>Список выбранного DNS</span>
-      <select value={selected} onchange={selectList}>
+      <select data-rf-editor="list-choice" value={selected} onchange={e=>{if(command('select',e.currentTarget.value)===false)e.currentTarget.value=selected;}}>
         {#each choices as item (item.id)}<option value={item.id}>{item.label}</option>{/each}
       </select>
     </label>
-    <label class="field"><span>Новый список</span><input maxlength="80" placeholder="Например, Стриминг" bind:value={newName}/></label>
-    <button type="button" class="button" onclick={createList}>＋ Создать</button>
+    <label class="field"><span>Новый список</span><input data-rf-editor="new-name" maxlength="80" placeholder="Например, Стриминг" bind:value={newName} oninput={e=>command('new-name',e.currentTarget.value)}/></label>
+    <button data-rf-editor="new-list" type="button" class="button" onclick={()=>command('create',newName)}>＋ Создать</button>
   </div>
   <div class="list-toolbar list-rename">
-    <label class="field"><span>Название списка</span><input maxlength="80" placeholder="Название" bind:value={renameName} disabled={!named}/></label>
-    <button type="button" class="button" disabled={!named} onclick={renameList}>Переименовать</button>
-    <button type="button" class="button danger" disabled={!named} onclick={()=>clickLegacy('deleteListButton')}>Удалить список</button>
+    <label class="field"><span>Название списка</span><input data-rf-editor="rename-name" maxlength="80" placeholder="Название" bind:value={renameName} oninput={e=>command('rename-name',e.currentTarget.value)} disabled={!named}/></label>
+    <button data-rf-editor="rename-list" type="button" class="button" disabled={!named} onclick={()=>command('rename',renameName)}>Переименовать</button>
+    <button data-rf-editor="delete-list" type="button" class="button danger" disabled={!named} onclick={()=>command('delete')}>Удалить список</button>
   </div>
-  <textarea rows="16" spellcheck="false" placeholder={'youtube.com\ngooglevideo.com\nytimg.com'} value={domains} oninput={domainInput} readonly={!editable}></textarea>
-  <div class="editor-meta"><span>{counter} строк (черновик)</span><span>Дубликаты удаляются при сохранении списка</span></div>
+  <textarea data-rf-editor="domains" rows="16" spellcheck="false" placeholder={'youtube.com\ngooglevideo.com\nytimg.com'} value={domains} oninput={e=>{domains=e.currentTarget.value;command('input',domains);}} readonly={!editable}></textarea>
+  <div class="editor-meta"><span data-rf-editor="count">{counter} строк (черновик)</span><span>Дубликаты удаляются при сохранении списка</span></div>
   <div class="actions editor-actions">
-    <button type="button" class="button" disabled={!editable} onclick={()=>clickLegacy('importDomains')}>Импорт TXT</button>
-    <button type="button" class="button" onclick={()=>{hiddenValue('editorDomains',domains);clickLegacy('exportDomains');}}>Экспорт TXT</button>
-    <button type="button" class="button primary" disabled={!editable} onclick={saveList}>✓ Сохранить список</button>
+    <button type="button" class="button" disabled={!editable} onclick={()=>importInput?.click()}>Импорт TXT</button>
+    <button type="button" class="button" onclick={exportTxt}>Экспорт TXT</button>
+    <button data-rf-editor="save-list" type="button" class="button primary" disabled={!editable} onclick={()=>command('save',domains)}>✓ Сохранить список</button>
+    <input type="file" accept=".txt,text/plain" hidden bind:this={importInput} onchange={importTxt}/>
   </div>
   <small class="muted">{hint}</small>
 </div>

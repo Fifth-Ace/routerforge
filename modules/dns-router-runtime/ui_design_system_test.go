@@ -13,11 +13,11 @@ func TestP223UIAssetsServedWithSafeMIMEAndAllowlist(t *testing.T) {
 	folder := t.TempDir()
 	files := map[string]string{
 		"index.html":     "<!doctype html><title>DNS Router</title>",
-		"app.js":         "console.log('base')",
+		"svelte-mode.js": "console.log('svelte')",
 		"module.css":     ".base{color:green}",
-		"p22-visual.js":  "console.log('design')",
-		"p22-visual.css": ".rfds-scope{color:green}",
-		"secret.txt":     "must-not-be-served",
+		"app.js":         "console.log('legacy')",
+
+		"secret.txt": "must-not-be-served",
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(folder, name), []byte(content), 0600); err != nil {
@@ -27,8 +27,7 @@ func TestP223UIAssetsServedWithSafeMIMEAndAllowlist(t *testing.T) {
 	store := NewConfigStore(filepath.Join(t.TempDir(), "config.json"))
 	handler := NewAPI(store, folder).Handler()
 	mimes := map[string]string{
-		"index.html": "text/html", "app.js": "text/javascript", "module.css": "text/css",
-		"p22-visual.js": "text/javascript", "p22-visual.css": "text/css",
+		"index.html": "text/html", "svelte-mode.js": "text/javascript", "module.css": "text/css",
 	}
 	for _, prefix := range []string{"/v1/ui/", "/ui/"} {
 		for name, mime := range mimes {
@@ -46,7 +45,7 @@ func TestP223UIAssetsServedWithSafeMIMEAndAllowlist(t *testing.T) {
 				}
 			})
 		}
-		for _, bad := range []string{"secret.txt", "p22-visual.js.map", "another.js"} {
+		for _, bad := range []string{"secret.txt", "app.js", "p22-visual.js", "svelte-mode.js.map", "another.js"} {
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, prefix+bad, nil))
 			if response.Code != http.StatusNotFound {
@@ -54,7 +53,7 @@ func TestP223UIAssetsServedWithSafeMIMEAndAllowlist(t *testing.T) {
 			}
 		}
 		response := httptest.NewRecorder()
-		handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, prefix+"p22-visual.js", nil))
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, prefix+"svelte-mode.js", nil))
 		if response.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("write denied: %d", response.Code)
 		}

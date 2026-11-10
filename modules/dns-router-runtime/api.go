@@ -944,7 +944,7 @@ func (a *API) Handler() http.Handler {
 		if name == "" {
 			name = "index.html"
 		}
-		if name != "index.html" && name != "app.js" && name != "module.css" && name != "p22-visual.js" && name != "p22-visual.css" && name != "p25-settings.js" && name != "p25-settings.css" {
+		if name != "index.html" && name != "svelte-mode.js" && name != "module.css" {
 			http.NotFound(w, r)
 			return
 		}
@@ -963,9 +963,9 @@ func (a *API) Handler() http.Handler {
 		switch name {
 		case "index.html":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		case "app.js", "p22-visual.js", "p25-settings.js":
+		case "svelte-mode.js":
 			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-		case "module.css", "p22-visual.css", "p25-settings.css":
+		case "module.css":
 			w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		}
 		_, _ = io.Copy(w, f)

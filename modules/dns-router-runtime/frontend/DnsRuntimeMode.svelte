@@ -1,22 +1,14 @@
 <script>
   import { onMount } from 'svelte';
-  let mode = $state('simple');
+  import {shell} from './DnsRuntimeStore.svelte.js';
+  let mode = $derived(shell.mode);
   let busy = $state(false);
   let status = $state('Статус ещё не проверен');
   let error = $state('');
   let destroyed = false;
   let serial = 0;
   function selectMode(next) {
-    if (next !== 'simple' && next !== 'advanced') return;
-    mode = next;
-    const base = document.getElementById('dnsRouterWorkspace');
-    const simple = document.getElementById('drSimpleWorkspace');
-    const advanced = document.getElementById('drAdvancedWorkspace');
-    if (!base || !simple || !advanced) { status='Разделы DNS не найдены'; return; }
-    simple.hidden = next !== 'simple';
-    advanced.hidden = next !== 'advanced';
-    base.classList.toggle('dr-mode-advanced', next === 'advanced');
-    document.dispatchEvent(new CustomEvent('routerforge:dns-runtime-mode', {detail:{mode:next}}));
+    if(next==='simple'||next==='advanced')shell.mode=next;
   }
   async function refresh() {
     if (busy) return;
@@ -36,8 +28,7 @@
   }
   onMount(() => {
     // No implicit mode change or router mutation at mount.
-    const root = document.getElementById('dnsRouterWorkspace');
-    mode = root?.classList.contains('dr-mode-advanced') ? 'advanced' : 'simple';
+
     void refresh();
     const interval=window.setInterval(()=>{if (!document.hidden) void refresh();},15000);
     return ()=>{destroyed=true;++serial;window.clearInterval(interval);};

@@ -86,7 +86,7 @@ UI_SOURCE="$ROOT/modules/dns-router-runtime/frontend"
 if [ "$ROUTERFORGE_CHANNEL" = dev ]; then
   UI_SOURCE="$ROOT/modules/dns-router-lite/frontend"
 fi
-# Both DEV Lite and legacy experimental Runtime compile native Svelte 5 mode/status.
+# Both DEV Lite and experimental Runtime ship compiled native Svelte 5.
 # Dependencies are local to the disposable checkout or CI workspace only.
 command -v npm >/dev/null 2>&1 || { echo 'DNS_SVELTE_NPM_REQUIRED' >&2; exit 1; }
 # P0.3: deterministic frontend dependency tree; guarded by the existing per-UI lock.
@@ -95,15 +95,9 @@ command -v npm >/dev/null 2>&1 || { echo 'DNS_SVELTE_NPM_REQUIRED' >&2; exit 1; 
 (cd "$UI_SOURCE" && npm run build)
 test -s "$UI_SOURCE/build/svelte-mode.js"
 for file in index.html module.css; do
-  if [ "$ROUTERFORGE_CHANNEL" = experimental ]; then
-    : # experimental app.js remains a separately tested runtime entry
-  fi
   cp "$UI_SOURCE/$file" \
      "$WORK/data/opt/share/routerforge/modules/dns-router/ui/$file"
 done
-if [ "$ROUTERFORGE_CHANNEL" = experimental ]; then
-  cp "$UI_SOURCE/app.js" "$WORK/data/opt/share/routerforge/modules/dns-router/ui/app.js"
-fi
 cp "$UI_SOURCE/build/svelte-mode.js" "$WORK/data/opt/share/routerforge/modules/dns-router/ui/svelte-mode.js"
 test -s "$WORK/data/opt/share/routerforge/modules/dns-router/ui/svelte-mode.js"
 # P22 FIX2: native Svelte bundles the visual enhancer; CSS remains separate.
@@ -173,7 +167,9 @@ html=scripts.get(prefix+'index.html',b'')
 asset=scripts.get(prefix+'svelte-mode.js',b'')
 if b'src="svelte-mode.js"' not in html or len(asset)<3000:
     raise SystemExit('DNS_NATIVE_SVELTE_IPK: FAIL: compiled entry missing')
-if b'DNS_LITE_SVELTE_MODE_MOUNT_MISSING' not in asset and b'DNS_RUNTIME_SVELTE_MODE_MOUNT_MISSING' not in asset:
+if b'src="app.js"' in html or prefix+'app.js' in scripts:
+    raise SystemExit('DNS_NATIVE_SVELTE_IPK: FAIL: legacy runtime controller shipped')
+if b'DNS_LITE_SVELTE_MODE_MOUNT_MISSING' not in asset and b'DNS_RUNTIME_APP_MOUNT_MISSING' not in asset:
     raise SystemExit('DNS_NATIVE_SVELTE_IPK: FAIL: bundle mount marker missing')
 print('DNS_NATIVE_SVELTE_IPK: PASS')
 PY_DNS_SVELTE_IPK

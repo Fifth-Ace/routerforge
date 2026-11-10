@@ -1,17 +1,13 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestNF5G2FrontendUsesVerifiedPreview(t *testing.T) {
-	data, err := os.ReadFile("../nfqws-manager/frontend/index.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := string(data)
+	source := nfqwsFrontendSource(t)
+	s := source
 	for _, marker := range []string{
 		`id="applyRenameList"`,
 		`expected_config_changes:p.config_changes`,

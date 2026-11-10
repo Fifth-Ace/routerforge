@@ -1,17 +1,13 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestNF5BFrontendDeleteRequiresPreimage(t *testing.T) {
-	data, err := os.ReadFile("../nfqws-manager/frontend/index.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := string(data)
+	source := nfqwsFrontendSource(t)
+	s := source
 	if strings.Count(s, "api('/list/delete'") != 1 {
 		t.Fatal("all delete callsites need CAS coverage")
 	}

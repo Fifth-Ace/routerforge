@@ -50,16 +50,36 @@ def inspect(name: str, root: Path) -> list[str]:
                 errors.append('SVELTE_IMPORT_MISSING')
             if not any(p.name in source for p in components):
                 errors.append('SVELTE_COMPONENT_NOT_MOUNTED')
-    if name == 'dns-router-lite' and (d / 'DnsLiteController.svelte').is_file():
-        controller = (d / 'DnsLiteController.svelte').read_text(encoding='utf-8')
-        if 'RF_ACTUAL_CONTROLLER_START' in controller:
-            errors.append('IMPERATIVE_CONTROLLER_STILL_EMBEDDED')
+    if name == 'dns-router-lite':
+        component = (d / 'DnsLiteController.svelte')
+        impl = (d / 'DnsLiteControllerLogic.js')
+        if not component.is_file() or not impl.is_file():
+            errors.append('LITE_SVELTE_LIFECYCLE_SPLIT_MISSING')
+        else:
+            c = component.read_text(encoding='utf-8')
+            j = impl.read_text(encoding='utf-8')
+            if 'RF_ACTUAL_CONTROLLER_START' in c or 'startDnsLiteController' not in c or 'startDnsLiteController' not in j:
+                errors.append('LITE_SVELTE_LIFECYCLE_NOT_MOUNTED')
+            if '$state({' not in c or 'If-Match' not in j or 'service/gate/control' not in j:
+                errors.append('LITE_REACTIVE_STATE_OR_CAS_GUARD_MISSING')
     for file in LEGACY_CONTROLLERS.get(name, ()):
         if (d / file).is_file():
             errors.append('LEGACY_CONTROLLER:' + file)
-    if name == 'nfqws-manager' and (d / 'index.html').is_file():
-        if (d / 'index.html').stat().st_size > 100_000:
+    if name == 'nfqws-manager':
+        html = d / 'index.html'
+        component = d / 'NFQWSManagerApp.svelte'
+        logic = d / 'NfqwsRuntime.js'
+        if not html.is_file() or html.stat().st_size > 2000:
             errors.append('LEGACY_MONOLITHIC_HTML')
+        if not component.is_file() or not logic.is_file():
+            errors.append('NFQWS_SOURCE_SPLIT_MISSING')
+        else:
+            c = component.read_text(encoding='utf-8')
+            j = logic.read_text(encoding='utf-8')
+            if 'class:active={activeTab' not in c or 'startNFQWSRuntime()' not in c:
+                errors.append('NFQWS_NATIVE_NAV_MISSING')
+            if 'expected_sha256:listMeta.sha256' not in j or 'if(!result.post_apply_verified)' not in j:
+                errors.append('NFQWS_CAS_OR_POSTVERIFY_CONTRACT_MISSING')
     return errors
 
 
@@ -80,6 +100,7 @@ def main() -> int:
         print('FULL_SVELTE_MIGRATION=NOT_VERIFIED')
         return 0 if args.report_only else 1
     print('SVELTE_SOURCE_INVENTORY=PASS (BUILD_AND_PARITY_STILL_REQUIRED)')
+    print('NATIVE_OWNERSHIP=PARTIAL / NFQWS & LITE extracted imperative business controllers remain')
     return 0
 
 

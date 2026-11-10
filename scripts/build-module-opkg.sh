@@ -210,7 +210,16 @@ build_nfqws_manager() {
     sh "$ROOT/scripts/upx-pack.sh" "$TARGET" "$WORK/data/opt/bin/routerforge-nfqws-manager"
     cp "$ROOT/modules/nfqws-manager-runtime/packaging/S96routerforge-nfqws-manager" "$WORK/data/opt/etc/init.d/S96routerforge-nfqws-manager"
     chmod 0755 "$WORK/data/opt/etc/init.d/S96routerforge-nfqws-manager"
-    cp -R "$UI"/. "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/"
+    # NFQWS source is Svelte 5. Dependencies and bundle are built locally in CI
+    # and NEVER downloaded or installed on Keenetic.
+    [ -s "$UI/package-lock.json" ] || { echo NFQWS_SVELTE_LOCKFILE_REQUIRED >&2; exit 1; }
+    (cd "$UI" && npm ci --ignore-scripts --no-audit --no-fund && npm run build)
+    test -s "$UI/build/svelte-mode.js"
+    for file in index.html module.css; do
+        cp "$UI/$file" "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/$file"
+    done
+    cp "$UI/build/svelte-mode.js" "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/svelte-mode.js"
+    test -s "$WORK/data/opt/share/routerforge/modules/nfqws-manager/ui/svelte-mode.js"
 
     cat > "$WORK/data/opt/share/routerforge/modules/nfqws-manager/manifest.json" <<MANIFEST
 {

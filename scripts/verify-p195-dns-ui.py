@@ -2,6 +2,7 @@
 from pathlib import Path
 h=Path('modules/dns-router-lite/frontend/index.html').read_text()
 j=Path('modules/dns-router-lite/frontend/DnsLiteController.svelte').read_text()
+logic=Path('modules/dns-router-lite/frontend/DnsLiteControllerLogic.js').read_text()
 cards=Path('modules/dns-router-lite/frontend/DnsLiteCards.svelte').read_text()
 controls=Path('modules/dns-router-lite/frontend/DnsLiteControls.svelte').read_text()
 c=Path('modules/dns-router-lite/frontend/module.css').read_text()
@@ -10,10 +11,11 @@ m=Path('components/core/marketplace_install.go').read_text()
 assert 'target="_top"' in h and 'id="nativeDNSLink"' in h
 assert 'id="gateShell"' in h and 'id="gateCompactBadge"' in h
 assert 'id="healthOverview"' in h and 'class="health-overview"' in h
-assert 'refreshLogs().catch(()=>{})' in j and "state.page!=='dns'" in j
+assert 'refreshLogs().catch(()=>{})' in logic and "state.page!=='dns'" in logic
 # P19.5 cards are Svelte-owned; the controller only supplies reactive props.
 assert 'class="dns-card-metrics"' in cards and '{card.listCount}' in cards and '{card.domainCount}' in cards, 'P195_DNS_METRICS_NOT_OWNED_BY_SVELTE_CARDS'
 assert "use:portal={'dnsCards'}" in j and '<DnsLiteCards cards=' in j, 'P195_SVELTE_CARD_MOUNT_MISSING'
+assert 'startDnsLiteController' in j and 'startDnsLiteController' in logic, 'P195_DNS_SVELTE_SHARED_CONTROLLER_NOT_MOUNTED'
 assert '.gate-shell' in c, 'P195_GATE_SHELL_STYLING_MISSING'
 assert 'dnsRouterCatalogEngineActive()' in g
 assert m.count('routerForgeIPKOpkgArgs(action,') == 2
@@ -33,8 +35,8 @@ assert h.count('id="editorDNSChoice"') == 0, 'P195_DUPLICATE_LEGACY_EDITOR_SELEC
 assert controls.count('id="editorDNSChoice"') == 1, 'P195_SVELTE_EDITOR_SELECTOR_NOT_UNIQUE'
 assert 'id="rf-lite-editor-choice-slot"' in h and "use:portal={'rf-lite-editor-choice-slot'}" in controls, 'P195_EDITOR_SELECTOR_PORTAL_MISSING'
 assert "onchange={() => send('editor-choice')}" in controls, 'P195_EDITOR_SELECTOR_HANDLER_MISSING'
-assert 'const initial=state.config.upstreams.find' in j
-assert "if(!editList(chosen))byId('editorDNSChoice').value=previous" in j
+assert 'const initial=state.config.upstreams.find' in logic
+assert "if(!editList(chosen))byId('editorDNSChoice').value=previous" in logic
 assert '/* P19.5b — reference-render parity.' in c
 assert 'grid-template-columns: minmax(425px,1.16fr) minmax(400px,1fr)' in c
 print('P195B_RENDER_PARITY_AND_READ_ONLY_SELECTION: PASS')

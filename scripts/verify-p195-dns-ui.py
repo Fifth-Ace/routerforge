@@ -34,7 +34,10 @@ print('P195_CORE_EXPLICIT_SOURCE_LIST: PASS')
 assert h.count('id="editorDNSChoice"') == 0, 'P195_DUPLICATE_LEGACY_EDITOR_SELECTOR'
 assert controls.count('id="editorDNSChoice"') == 1, 'P195_SVELTE_EDITOR_SELECTOR_NOT_UNIQUE'
 assert 'id="rf-lite-editor-choice-slot"' in h and "use:portal={'rf-lite-editor-choice-slot'}" in controls, 'P195_EDITOR_SELECTOR_PORTAL_MISSING'
-assert "onchange={event => send('editor-choice',event.currentTarget.value)}" in controls, 'P195_EDITOR_SELECTOR_HANDLER_MISSING'
+# Require rejected-change rollback on the SINGLE Svelte-owned dropdown.
+# The legacy unguarded string was an obsolete P19.5 snapshot, not the safe UI contract.
+from p195_dns_editor_selector_contract import verify_editor_selector_contract
+verify_editor_selector_contract(controls)
 assert 'const initial=state.config.upstreams.find' in logic
 assert "'editor-choice':(value)" in logic and 'value={chosen}' in controls
 assert 'document.getElementById' not in logic, 'P195_LEGACY_DOM_SELECTOR_OWNERSHIP_REMAINS'

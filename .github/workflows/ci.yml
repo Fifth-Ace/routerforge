@@ -674,6 +674,14 @@ jobs:
       - name: DNS Router Lite shipped UI behavior
         if: steps.scope.outputs.go == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.layout == 'true' || steps.scope.outputs.dns_lite_frontend == 'true'
         run: |
+          set -euo pipefail
+          # This gate also runs for layout-only changes. P0.1's DNS Lite build
+          # may be skipped in that scope, so ensure the tested bundle exists.
+          if [ ! -s modules/dns-router-lite/frontend/build/svelte-mode.js ]; then
+            npm ci --prefix modules/dns-router-lite/frontend --no-audit --no-fund
+            npm run build --prefix modules/dns-router-lite/frontend
+          fi
+          test -s modules/dns-router-lite/frontend/build/svelte-mode.js
           npm ci --prefix modules/dns-router-lite/frontend-tests --ignore-scripts --no-audit --no-fund
           npm test --prefix modules/dns-router-lite/frontend-tests
       - name: P19.5 DNS UI and upgrade contracts

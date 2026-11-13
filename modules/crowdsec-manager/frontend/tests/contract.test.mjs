@@ -33,11 +33,23 @@ test('Svelte is the actual reactive controller, not legacy DOM wrapper', () => {
   for (const required of ['onMount', 'bind:value', 'bind:checked', 'onsubmit=', 'onclick=', '{#each', 'API + path']) {
     assert.ok(source.includes(required), required);
   }
+  // Stage 1 G: read-session cancellation is restricted to GETs; the
+  // overview request remains guarded against stale UI commits.
+  assert.match(source, /reads\.begin\('overview'\)/);
+  assert.match(source, /api\('overview',\s*'GET',\s*undefined,\s*read\.signal\)/);
+  assert.match(source, /read\.isCurrent\(\)/);
+  assert.match(source, /createReadSessions\(\)/);
 });
 test('existing backend contract and user consent still explicit', () => {
-  for (const required of ["api('overview')", "api('install/status')", "api('install/remove'",
+  for (const required of ["api('install/status'", "api('install/remove'",
     "api('install/start'", "action('tls-waiver'", "action('lapi'", "action('hook'",
     "action('service'", 'window.confirm(question)', '/api/modules/crowdsec-manager/']) {
     assert.ok(source.includes(required), required);
   }
+  // Stage 1 G: read-session cancellation is restricted to GETs; the
+  // overview request remains guarded against stale UI commits.
+  assert.match(source, /reads\.begin\('overview'\)/);
+  assert.match(source, /api\('overview',\s*'GET',\s*undefined,\s*read\.signal\)/);
+  assert.match(source, /read\.isCurrent\(\)/);
+  assert.match(source, /createReadSessions\(\)/);
 });

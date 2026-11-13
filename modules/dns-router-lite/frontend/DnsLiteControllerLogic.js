@@ -396,6 +396,8 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
       async function serviceCommand(path,body){return api('service/'+path,opts('service-control',body,true));}
       function hasUsedNative(){return state.config.upstreams.some(u=>u.transport==='native'&&(used(u.id).length||state.config.service?.default_upstream===u.id));}
       async function apply(){
+        // Unsaved editor content blocks every save/start path before prefs or API.
+        if(editorPending())throw Error('Сначала нажми «Сохранить список» в редакторе доменов.');
         if(hasUsedNative())throw Error('Есть старые native DNS. Сначала нажми «Преобразовать DNS» и проверь адреса.');
         const prefs=servicePrefs();
         if(!confirm('Сохранить настройки и запустить DNS Router на '+prefs.listen+'? Это ещё не переключит всю LAN. Для этого отдельно включи «Основной DNS для LAN».'))return;
@@ -509,7 +511,12 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
           if(ui.defaultSelection&&!state.config.upstreams.some(u=>u.id===ui.defaultSelection))throw Error('Выбранный DNS недоступен');
           syncPrefs(false);mark();
         },
-        'dns-check-all':()=>task(async()=>{await checkHealth();}),
+        'dns-check-all':()=>task(async()=>{
+          // Read status before the check: health completion remains the final
+          // visible action (no post-check refresh can obscure its result).
+          await refreshStatus();
+          await checkHealth();
+        },false),
         'save':()=>task(save),
         'apply':()=>task(apply),
         'dns-migrate':()=>task(migrate),

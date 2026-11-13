@@ -5,6 +5,8 @@ import json
 import os
 import re
 import sys
+import time
+import socket
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -129,14 +131,25 @@ class GitHub:
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
         request = urllib.request.Request(url, headers=headers)
-        try:
-            with urllib.request.urlopen(request, timeout=20) as response:
-                return json.load(response)
-        except urllib.error.HTTPError as exc:
-            body = exc.read(1024).decode("utf-8", "replace")
-            fail("GitHub API HTTP %d: %s" % (exc.code, body))
-        except Exception as exc:
-            fail("GitHub API request failed: " + str(exc))
+        # Bounded network retries only. A mismatched SHA/blob or malformed
+        # response still fails closed in the caller and is NEVER retried away.
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(request, timeout=20) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as exc:
+                if exc.code not in (429, 500, 502, 503, 504) or attempt == 2:
+                    body = exc.read(1024).decode("utf-8", "replace")
+                    fail("GitHub API HTTP %d: %s" % (exc.code, body))
+                print("ANTISCAN_UPSTREAM_TRANSIENT_HTTP_RETRY=%d" % (attempt+1))
+            except (TimeoutError, socket.timeout, urllib.error.URLError) as exc:
+                if isinstance(exc, urllib.error.URLError) and not isinstance(exc.reason, (TimeoutError, socket.timeout)):
+                    fail("GitHub API request failed: " + str(exc))
+                if attempt == 2:
+                    fail("GitHub API request failed after 3 attempts: " + str(exc))
+                print("ANTISCAN_UPSTREAM_TRANSIENT_TIMEOUT_RETRY=%d" % (attempt+1))
+            # No retry for JSON decode, security contract or unrelated errors.
+            time.sleep(attempt+1)
 
     def blob_text(self, repository, sha):
         payload = self.json(

@@ -119,6 +119,7 @@ test('P13 prevents accidental loss of unsaved domain text on apply or switching 
     await until(()=>nativeArea(d)?.value==='example.com');
     typeDomain(f,'example.com\nimportant.net');
     d.getElementById('defaultDNS').value='old';
+    d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change',{bubbles:true}));
     d.getElementById('applyButton').click();
     await until(()=>d.getElementById('feedback').textContent.includes('Сначала нажми'));
     a.equal(f.getActive(),false,'no DNS activation while unsaved domains exist');
@@ -216,6 +217,7 @@ test('P18: DNS cards show direct RTT separately from observed p95, read-only ove
    d.querySelector('[data-upstream-id="old"] .dns-check').click();
    await until(()=>f.calls.some(x=>x.path==='service/upstreams/check')&&!d.getElementById('applyButton').disabled);
    a.deepEqual(JSON.parse(f.calls.find(x=>x.path==='service/upstreams/check').opts.body),{operation:'check',upstream:'old'});
+   await until(()=>!d.getElementById('checkAllDNS').disabled);
    d.getElementById('checkAllDNS').click();
    // A request is recorded before the async handler has finished. Closing
    // jsdom here leaves renderHealth() running against a destroyed document.
@@ -405,14 +407,21 @@ test('P21 manual devices groups domain rules remain drafts until explicit save/a
  try{await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
  await ready(d);
  d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change',{bubbles:true}));
+ // Svelte options are rendered asynchronously: don't select a nonexistent
+ // option and then incorrectly report a policy failure.
+ await until(()=>Array.from(d.getElementById('p21Target').options).some(o=>o.value==='dns:cf')&&!d.getElementById('p21SetDevice').disabled);
  d.getElementById('p21MAC').value='02:11:22:33:44:55';d.getElementById('p21Name').value='Laptop';d.getElementById('p21Target').value='dns:cf';d.getElementById('p21Inherit').checked=true;d.getElementById('p21SetDevice').click();
  await until(()=>d.getElementById('p21Devices').textContent.includes('Черновик: cloudflare-dns.com'));a.equal(f.getConfig().advanced,undefined);a.equal(f.getActive(),false);
- d.getElementById('p21GroupName').value='Office';d.getElementById('p21Members').value='02:11:22:33:44:66';d.getElementById('p21GroupTarget').value='dns:old';d.getElementById('p21SetGroup').click();await until(()=>d.getElementById('p21Groups').textContent.includes('Office'));
+ await until(()=>!d.getElementById('p21SetGroup').disabled && Array.from(d.getElementById('p21GroupTarget').options).some(o=>o.value==='dns:old'));
+ d.getElementById('p21GroupName').value='Office';d.getElementById('p21Members').value='02:11:22:33:44:66';d.getElementById('p21GroupTarget').value='dns:old';d.getElementById('p21SetGroup').click();try{await until(()=>d.getElementById('p21Groups').textContent.includes('Office'));}catch(e){throw Error('P21_GROUP_DRAFT_NOT_RENDERED: disabled='+d.getElementById('p21SetGroup').disabled+'; selected='+d.getElementById('p21GroupTarget').value+'; name='+d.getElementById('p21GroupName').value+'; feedback='+d.getElementById('feedback').textContent+'; rows='+d.getElementById('p21Groups').textContent,{cause:e});}
+ await until(()=>!d.getElementById('p21SetRule').disabled && Array.from(d.getElementById('p21RuleTarget').options).some(o=>o.value==='dns:old'));
  d.getElementById('p21RuleMAC').value='02:11:22:33:44:55';d.getElementById('p21Domain').value='private.example';d.getElementById('p21RuleTarget').value='dns:old';d.getElementById('p21SetRule').click();await until(()=>d.getElementById('p21Rules').textContent.includes('private.example'));
- d.getElementById('p21Save').click();await until(()=>f.getConfig().advanced?.rules?.length===1&&!d.getElementById('p21Save').disabled);
+ await until(()=>!d.getElementById('p21Save').disabled);
+ d.getElementById('p21Save').click();await tick();
+ await until(()=>f.getConfig().advanced?.rules?.length===1 && f.calls.some(c=>c.path==='config'&&c.opts.method==='PUT') && d.getElementById('feedback').textContent.includes('Настройки сохранены') && !d.getElementById('p21Save').disabled && !d.getElementById('p21Probe').disabled);
  a.equal(f.getConfig().advanced.devices[0].inherit_domains,true);a.equal(f.getConfig().advanced.groups[0].name,'Office');a.equal(f.getActive(),false);
  a.equal(f.calls.some(c=>c.path==='service/connect'||c.path==='service/disconnect'||c.path==='service/control'),false);
- d.getElementById('p21ProbeDomain').value='private.example';d.getElementById('p21ProbeMAC').value='02:11:22:33:44:55';d.getElementById('p21ProbeApplied').checked=false;d.getElementById('p21Probe').click();await until(()=>d.getElementById('p21Explanation').textContent.includes('CONFIGURATION_ONLY'));a.match(d.getElementById('p21Explanation').textContent,/saved_draft/);a.match(d.getElementById('p21Explanation').textContent,/"network_verified": false/);
+ d.getElementById('p21ProbeDomain').value='private.example';d.getElementById('p21ProbeMAC').value='02:11:22:33:44:55';d.getElementById('p21ProbeApplied').checked=false;d.getElementById('p21Probe').click();try{await until(()=>d.getElementById('p21Explanation').textContent.includes('CONFIGURATION_ONLY'));}catch(e){throw Error('P21_ROUTE_PROBE_NOT_RENDERED: probeDisabled='+d.getElementById('p21Probe').disabled+'; saveDisabled='+d.getElementById('p21Save').disabled+'; calls='+f.calls.map(c=>c.path+':'+(c.opts.method||'GET')).join(',')+'; feedback='+d.getElementById('feedback').textContent+'; explanation='+d.getElementById('p21Explanation').textContent+'; errors='+f.errors.join('|'),{cause:e});}a.match(d.getElementById('p21Explanation').textContent,/saved_draft/);a.match(d.getElementById('p21Explanation').textContent,/"network_verified": false/);
  a.equal(f.calls.some(c=>c.path.includes('/v1/v1')),false);a.deepEqual(f.errors,[]);
  }finally{f.dom.window.close();}
 });

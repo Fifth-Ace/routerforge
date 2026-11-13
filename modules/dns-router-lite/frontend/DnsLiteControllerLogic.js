@@ -492,7 +492,7 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         'reload':()=>task(async()=>{if((state.dirty||editorPending())&&!confirm('Отменить все несохранённые изменения, включая текст доменов?'))return;await load();}),
         'nav-dns':()=>setPage('dns'),
         'nav-logs':()=>setPage('logs'),
-        'editor-choice':(value)=>{const chosen=String(value||'');if(!chosen){if(state.editing)closeEditor();return;}editList(chosen);},
+        'editor-choice':(value)=>{const chosen=String(value||'');if(!chosen)return state.editing?closeEditor():true;return editList(chosen);},
         'dns-add':()=>openDNSForm(null),
         'dns-cancel':()=>{ui.dnsForm.opened=false;state.editingDNSId=null;state.checked=null;ui.dnsForm.ready=false;},
         'dns-draft-change':(payload)=>{

@@ -11,8 +11,8 @@ test('Setup feedback, summary chips and diff have single Svelte owners, not lega
  for(const id of ['processingOverview','diagnosticSummary','flowDiagnostics','changeSummary','sumMain','sumQuic','sumUdp','sumIpset','setupState','flowQueue','flowUser','flowConfigVersion','diffBody'])
   assert.doesNotMatch(runtime,new RegExp(`\\$\\('${id}'\\)\\.(?:innerHTML|textContent|className|onclick)`),id);
  assert.doesNotMatch(runtime,/\$\('diffModal'\)\.classList/);
- assert.match(runtime,/onSetup\(\{dirty,changes,diagnostics:diag,overview:processingOverviewData\(\)/);
- assert.match(runtime,/onDiff\(\{open:diffOpen,lines:/);
+ assert.match(runtime,/emit\(onSetup,\{dirty,changes,diagnostics:diag,overview:processingOverviewData\(\)/);
+ assert.match(runtime,/emit\(onDiff,\{open:diffOpen,lines:/);
 });
 test('Save remains two-step and mutation requires original explicit NFQWS_CONFIG confirmation',()=>{
  const app=source('NFQWSManagerApp.svelte'),runtime=source('NfqwsRuntime.js'),diff=source('NfqwsSetupDiff.svelte');

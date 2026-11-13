@@ -6,6 +6,7 @@ const path=require('node:path');
 const {fixture,tick,until,html,js}=require('./fixture.cjs');
 const root=path.resolve(__dirname,'../frontend');
 const css=fs.readFileSync(path.join(root,'module.css'),'utf8');
+const ready=async(d)=>until(()=>d.getElementById('feedback')?.textContent.includes('Настройки загружены'));
 // Exercise the visible, Svelte-owned editor. No legacy editor mirror is present.
 function editor(d,key) {return d.querySelector('[data-native-svelte-domain-editor="true"] [data-rf-editor="'+key+'"]');}
 function nativeArea(d) {return editor(d,'domains');}
@@ -43,6 +44,7 @@ test('P13 split editor: DNS -> assigned domains, verified TLS, no unrequested ac
   const f=fixture(),d=f.w.document;
   try{
     await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    await ready(d);
     a.equal(d.querySelectorAll('.dns-card').length,2);
     a.equal(d.getElementById('defaultDNS').value,'');
     d.querySelector('[data-upstream-id="cf"] .dns-edit').click();
@@ -59,7 +61,9 @@ test('P13 split editor: DNS -> assigned domains, verified TLS, no unrequested ac
     a.ok(nativeArea(d),'native editor stays visible after saving draft');
     await until(()=>editor(d,'count')?.textContent.includes('2 строк'));
     a.equal(d.querySelector('[data-upstream-id="old"] .dns-preview').textContent.includes('youtube.com'),false);
-    d.getElementById('addDnsToggle').click();d.getElementById('newAddress').value='https://dns.google/dns-query';
+    d.getElementById('addDnsToggle').click();await until(()=>!d.getElementById('dnsAddPanel').hidden);
+    d.getElementById('newAddress').value='https://dns.google/dns-query';
+    d.getElementById('newAddress').dispatchEvent(new f.w.Event('input',{bubbles:true}));
     d.getElementById('inspectDNS').click();await until(()=>/TLS проверен/.test(d.getElementById('certificateInfo').textContent)&&!d.getElementById('commitDNS').disabled&&!d.getElementById('inspectDNS').disabled);
     a.match(d.getElementById('certificateInfo').textContent,/TLS проверен/);
     d.getElementById('commitDNS').click();await until(()=>d.querySelectorAll('.dns-card').length===3);
@@ -106,6 +110,7 @@ test('P13 prevents accidental loss of unsaved domain text on apply or switching 
   const f=fixture(),d=f.w.document;
   try{
     await until(()=>d.querySelectorAll('.dns-card').length===2);
+    await ready(d);
     d.querySelector('[data-upstream-id="cf"] .dns-edit').click();
     await until(()=>nativeArea(d)?.value==='other.net');
     typeDomain(f,'other.net\nunsaved.example');
@@ -201,6 +206,7 @@ test('P18: DNS cards show direct RTT separately from observed p95, read-only ove
  try{
    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
    await until(()=>d.getElementById('healthRequests').textContent==='11');
+   await ready(d);
    a.equal(d.querySelector('[data-upstream-id="old"] .dns-rtt').textContent,'DNS RTT: 14 мс');
    a.equal(d.querySelector('[data-upstream-id="old"] .dns-p95').textContent,'p95: 22 мс');
    a.match(d.querySelector('[data-upstream-id="cf"] .dns-health-status').textContent,/Недоступен/);
@@ -260,7 +266,7 @@ test('P19.3: existing DNS can refresh TLS without ID or domain loss',async()=>{
  try{
   await until(()=>d.querySelectorAll('.dns-card').length===2);
   d.querySelector('[data-upstream-id="cf"] .dns-change').click();
-  a.equal(d.getElementById('dnsAddPanelTitle').textContent,'Изменить DNS / обновить TLS');
+  await until(()=>d.getElementById('dnsAddPanelTitle').textContent==='Изменить DNS / обновить TLS');
   d.getElementById('inspectDNS').click();await until(()=>/TLS проверен/.test(d.getElementById('certificateInfo').textContent)&&!d.getElementById('commitDNS').disabled&&!d.getElementById('inspectDNS').disabled);
   d.getElementById('commitDNS').click();await until(()=>d.getElementById('feedback').textContent.includes('DNS/TLS обновлены')&&!d.getElementById('saveButton').disabled);
   d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change',{bubbles:true}));
@@ -353,6 +359,7 @@ test('P19.5b: initial DNS selection and safe cross-DNS list editing',async()=>{
   const f=fixture(),d=f.w.document;
   try {
     await until(()=>d.getElementById('editorDNSChoice').value==='old' && nativeArea(d)?.value==='example.com');
+    await ready(d);
     a.equal(d.getElementById('editorEmpty').hidden,true,'first eligible DNS is selected');
     await until(()=>d.querySelector('[data-upstream-id="old"]').classList.contains('is-selected'));
     a.equal(d.querySelector('[data-upstream-id="old"]').classList.contains('is-selected'),true);
@@ -380,13 +387,14 @@ test('P21 display mode persists without mutating config or applied policy',async
  const advanced={devices:[{mac:'02:11:22:33:44:55',name:'Laptop',target:{upstream:'cf'}}]};
  const f=fixture({advanced,active:true}),d=f.w.document;
  try{await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+ await ready(d);
  a.equal(d.getElementById('dnsLiteApp').dataset.dnsMode,'basic');a.equal(d.getElementById('p21ActiveBadge').hidden,false);
  const before=JSON.stringify(f.getConfig());d.getElementById('p22ModeAdvanced').click();
  await until(()=>d.getElementById('p21Devices').textContent.includes('Laptop'));
  a.match(d.getElementById('p21Cache').textContent,/кэш отключён/);
- d.getElementById('p21Nav').click();a.equal(d.getElementById('p21Page').hidden,false);
+ d.getElementById('p21Nav').click();await until(()=>d.getElementById('p21Page').hidden===false);
  d.getElementById('p22ModeBasic').click();
- a.equal(d.getElementById('p21Page').hidden,true);a.equal(f.w.localStorage.getItem('routerforge.dnsRouter.mode.v1'),'basic');
+ await until(()=>d.getElementById('p21Page').hidden===true);a.equal(f.w.localStorage.getItem('routerforge.dnsRouter.mode.v1'),'basic');
  await tick();a.equal(JSON.stringify(f.getConfig()),before);a.equal(f.getActive(),true);
  a.equal(f.calls.some(c=>c.opts.method==='PUT'||c.path==='service/control'||c.path==='service/connect'),false);a.deepEqual(f.errors,[]);
  }finally{f.dom.window.close();}
@@ -395,6 +403,7 @@ test('P21 display mode persists without mutating config or applied policy',async
 test('P21 manual devices groups domain rules remain drafts until explicit save/apply',async()=>{
  const f=fixture({mode:'advanced'}),d=f.w.document;
  try{await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+ await ready(d);
  d.getElementById('defaultDNS').value='old';d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change',{bubbles:true}));
  d.getElementById('p21MAC').value='02:11:22:33:44:55';d.getElementById('p21Name').value='Laptop';d.getElementById('p21Target').value='dns:cf';d.getElementById('p21Inherit').checked=true;d.getElementById('p21SetDevice').click();
  await until(()=>d.getElementById('p21Devices').textContent.includes('Черновик: cloudflare-dns.com'));a.equal(f.getConfig().advanced,undefined);a.equal(f.getActive(),false);

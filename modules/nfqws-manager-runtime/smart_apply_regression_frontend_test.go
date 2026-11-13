@@ -6,11 +6,10 @@ import (
 )
 
 func TestNF4DFrontendReportsVerifiedRegressionGuards(t *testing.T) {
-	source := nfqwsFrontendSource(t)
-	body := source
-	for _, marker := range []string{"result.regression_guards_verified", "Проверено других сайтов:"} {
-		if !strings.Contains(body, marker) {
-			t.Fatalf("NF4D regression guard status missing: %s", marker)
+	selector := nfqwsNativeOwner(t, "NfqwsSelector.svelte")
+	for _, marker := range []string{"response?.rolled_back||!response?.post_apply_verified", "response.regression_guards_verified||0", "production проверен; других сайтов:", "onApplied(status)"} {
+		if !strings.Contains(selector, marker) {
+			t.Fatalf("verified regression reporting missing %s", marker)
 		}
 	}
 }

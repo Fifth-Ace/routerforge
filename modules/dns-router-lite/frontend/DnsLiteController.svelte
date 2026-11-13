@@ -65,7 +65,7 @@
   function p21RowAction(kind, action, key) {controller.commands.p21Row?.(kind,action,key);}
   function p21FormAction(kind, payload) {controller.commands.p21Form?.(kind,payload);}
   function p21Navigate(which) {controller.commands.p21Navigate?.(which);}
-  function controlAction(which, payload) {controller.commands.control?.(which, payload);}
+  function controlAction(which, payload) {return controller.commands.control?.(which, payload);}
   const controller = {commands:{}};
   onMount(() => {
     const shellBridge=startDnsLiteShellBridge();

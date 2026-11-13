@@ -49,7 +49,8 @@ test('NFQWS runtime boots without dead DOM mirrors, GET-only, and aborts on unmo
     await assert.rejects(runtime.listRequest('/blobs/install',{method:'POST',body:'{}'}),/NFQWS_BLOB_MUTATION_INVALID_RESPONSE/);
     const before=calls.length;
     runtime.dispose();
-    for(const c of calls)assert.equal(c.signal.aborted,true);
+    for(const c of calls.filter(c=>c.method==='GET'))assert.equal(c.signal.aborted,true, 'GET reads must abort on unmount');
+    for(const c of calls.filter(c=>c.method!=='GET'))assert.equal(c.signal,undefined,'confirmed writes are not aborted on unmount');
     await new Promise(resolve=>setImmediate(resolve));
     assert.equal(calls.length,before,'no polling or hidden navigation after unmount');
     await assert.rejects(runtime.listRequest('/status'),/NFQWS_UI_UNMOUNTED/);

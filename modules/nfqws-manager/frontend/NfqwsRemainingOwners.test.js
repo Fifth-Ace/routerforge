@@ -56,7 +56,7 @@ test('all four transferred UI screens are Svelte owners, no duplicate runtime DO
   'keeneticNetwork','keeneticBinding','keeneticStorage','keeneticPolicy',
   'runtimeNFQueueHealth','runtimeAutomationPolicy','runtimeTransportProfiles'])
   assert.doesNotMatch(runtime,new RegExp(`\\$\\('${id}'\\)\\.(?:innerHTML|textContent|onclick|className)`),id);
- assert.match(runtime,/onCatalog\(/);assert.match(runtime,/onBlobs\(/);
+ assert.match(runtime,/emit\(onCatalog,\{/);assert.match(runtime,/emit\(onBlobs,\{/);
 });
 test('negative mutation guards: exact SHA, explicit confirms, one-shot and server postverify',()=>{
  const runtime=src('NfqwsRuntime.js');

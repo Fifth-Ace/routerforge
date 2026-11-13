@@ -39,7 +39,7 @@ test('History actions are exactly defined, local-only, and clear confirms user i
   assert.match(runtime,/NFQWS_HISTORY_ACTION_UNSUPPORTED/);
   assert.match(runtime,/confirm\(`Удалить \$\{runHistory.length\} записей локальной истории\?`\)/);
   assert.match(runtime,/runHistoryMax=24/);
-  assert.match(runtime,/onHistory\(\{runs:entries/);
+  assert.match(runtime,/emit\(onHistory,\{runs:entries/);
   assert.doesNotMatch(runtime,/\$\('runHistory(?:List|Count|Size|All|Sandbox|TestLab|LatestScore)'\)/);
   assert.match(svelte,/data-svelte-owned="nfqws-run-history"/);
   assert.doesNotMatch(svelte,/onRequest\(|fetch\(|@html|innerHTML/);

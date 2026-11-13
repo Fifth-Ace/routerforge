@@ -32,7 +32,7 @@ test('P22 native navigation keeps one visible section and never mutates DNS',asy
 test('P21 native forms reject invalid group and leave draft unchanged',async()=>{
  const f=fixture({mode:'advanced'}),d=f.w.document;
  try{
-  await until(()=>d.getElementById('p21GroupName'));
+  await until(()=>d.getElementById('p21GroupName') && d.getElementById('feedback')?.textContent.includes('Настройки загружены'));
   d.getElementById('p21GroupName').value='Invalid';
   d.getElementById('p21Members').value='ff:ff:ff:ff:ff:ff';
   d.getElementById('p21GroupTarget').value='dns:cf';

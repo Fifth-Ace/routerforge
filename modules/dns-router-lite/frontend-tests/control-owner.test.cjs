@@ -36,7 +36,7 @@ test('DNS draft and default selection do not send network mutations',async()=>{
     d.getElementById('defaultDNS').value='cf';
     d.getElementById('defaultDNS').dispatchEvent(new f.w.Event('change',{bubbles:true}));
     d.getElementById('addDnsToggle').click();
-    assert.equal(d.getElementById('dnsAddPanel').hidden,false);
+    await until(()=>d.getElementById('dnsAddPanel').hidden===false);
     d.getElementById('newAddress').value='https://dns.example.com/dns-query';
     d.getElementById('newAddress').dispatchEvent(new f.w.Event('input',{bubbles:true}));
     assert.equal(d.getElementById('commitDNS').disabled,true);

@@ -137,6 +137,24 @@ def check(module:str,repo:Path,browser,out:Path,viewport:int,scenario:str,url:st
         if errors:raise AssertionError(f'JAVASCRIPT_ERRORS: {module} {which} {scenario} {errors[:2]}')
         if module=='antiscan-manager':
             contents[which]=page.locator('#configState').inner_text()
+        # One intentional i18n improvement since the pinned DEV baseline:
+        # legacy hardcodes English in the idle Probes summary; Svelte 5
+        # correctly renders Russian on an RU page. Check exact translations
+        # first, save the unmodified visual evidence, then normalize only
+        # this ONE text node for pixel-geometry parity. Any other drift still
+        # fails at the unchanged 50-pixel/2-RGB limits.
+        if module=='network-tools' and scenario=='probes':
+            empty=page.locator('#probe-summary .nt-empty')
+            if empty.count()!=1:
+                raise AssertionError('PROBES_READY_TEXT_MISSING: '+which)
+            actual=empty.inner_text().strip()
+            expected='Ready to run.' if which=='legacy' else 'Готово к запуску.'
+            if actual!=expected:
+                raise AssertionError(f'PROBES_READY_LOCALIZATION_REGRESSION: {which} {actual!r}')
+            raw=out/f'{module}-{scenario}-{viewport}-{which}-unmodified.png'
+            page.screenshot(path=str(raw),full_page=True,animations='disabled',caret='hide')
+            if which=='svelte':
+                empty.evaluate("node => { if(node.textContent.trim() !== 'Готово к запуску.') throw Error('PROBES_I18N_CHANGED'); node.textContent='Ready to run.'; }")
         shots[which]=out/f'{module}-{scenario}-{viewport}-{which}.png'
         page.evaluate("() => document.fonts.ready")
         page.screenshot(path=str(shots[which]),full_page=True,animations='disabled',caret='hide')

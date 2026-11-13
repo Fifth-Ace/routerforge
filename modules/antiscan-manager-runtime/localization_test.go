@@ -16,7 +16,12 @@ func readLocalizationFixture(t *testing.T, path string) string {
 }
 
 func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
-	js := readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanManagerApp.svelte")
+	js := readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanManagerApp.svelte") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanScheduleEditor.svelte") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanConfigEditor.svelte") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanPresentationModel.js") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanIPSetRows.svelte") + "\n" +
+		readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanHistoryRows.svelte")
 
 	requiredHTML := []string{
 		"Управление Antiscan",
@@ -25,7 +30,6 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"RCI-токен",
 		"Токен передаётся upstream только через stdin",
 		"Расписание Antiscan",
-		"Автоматическая задача retry_load_geo",
 		"ШТАТНАЯ ОЧИСТКА / ВОССТАНОВЛЕНИЕ",
 		"Совместимость и обновления",
 		"RouterForge не устанавливает обновления Antiscan",
@@ -69,6 +73,14 @@ func TestAntiscanFrontendRussianLocalizationContracts(t *testing.T) {
 		"Предыдущее состояние восстановлено",
 		"Защита отключена до следующего запуска",
 		"нужен перезапуск",
+	}
+	// Scheduler copy moved to a reachable, Svelte-owned child during ALL11.
+	if !strings.Contains(js, "import AntiscanScheduleEditor from './AntiscanScheduleEditor.svelte'") || !strings.Contains(js, "<AntiscanScheduleEditor") {
+		t.Fatal("Antiscan native scheduler owner is not mounted")
+	}
+	scheduler := readLocalizationFixture(t, "../antiscan-manager/frontend/AntiscanScheduleEditor.svelte")
+	if !strings.Contains(scheduler, "Автоматическая задача retry_load_geo") || !strings.Contains(scheduler, "disabled={item.automatic}") {
+		t.Fatal("upstream automatic schedule cannot be renamed or manually changed")
 	}
 	for _, needle := range requiredJS {
 		if !strings.Contains(js, needle) {

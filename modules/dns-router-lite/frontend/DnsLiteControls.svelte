@@ -85,7 +85,7 @@
   <button class="button" id="migrateNative" type="button" disabled={busy} onclick={() => send('dns-migrate')}>Преобразовать DNS</button>
 </div>
 <div use:portal={'rf-lite-editor-choice-slot'} style="display:contents">
-  <select id="editorDNSChoice" aria-label="DNS-сервер для списков" value={chosen} disabled={!cards.some(c=>!c.native)} onchange={event => send('editor-choice',event.currentTarget.value)}>
+  <select id="editorDNSChoice" aria-label="DNS-сервер для списков" value={chosen} disabled={!cards.some(c=>!c.native)} onchange={event => {const prior=chosen;if(send('editor-choice',event.currentTarget.value)===false)event.currentTarget.value=prior;}}>
     <option value="">Выбери DNS…</option>
     {#each cards.filter(c=>!c.native) as item (item.id)}
       <option value={item.id}>{item.title}</option>

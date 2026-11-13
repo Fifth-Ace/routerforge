@@ -443,7 +443,11 @@ jobs:
           node --test modules/crowdsec-manager/frontend/tests/contract.test.mjs modules/network-tools/frontend/tests/contract.test.mjs modules/antiscan-manager/frontend/tests/contract.test.mjs
 
       - name: Verify compiled standalone Svelte 5 UI against original in Chromium
+        id: standalone_parity
         if: steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true'
+        # Diagnostic-only: run later independent gates and retain the real parity failure.
+        # PUSH CI remains fail-fast. beta_validate_only dispatch ends RED if this fails.
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.beta_validate_only == true }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1291,6 +1295,20 @@ jobs:
             dist/routerforge-*.ipk
             dist/routerforge-stable-candidate-index*.json
           retention-days: 14
+
+      # Never turn a known visual mismatch into a green release validation.
+      # Run last so all independent Go, vet and IPK gates can report their results.
+      - name: Enforce standalone Chromium parity after diagnostic validation
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.beta_validate_only == true
+        shell: bash
+        env:
+          STANDALONE_PARITY_OUTCOME: ${{ steps.standalone_parity.outcome }}
+        run: |
+          if [ "$STANDALONE_PARITY_OUTCOME" != "success" ]; then
+            echo 'STAGE2_FULL_DIAGNOSTIC: FAIL / original Chromium parity failed' >&2
+            exit 1
+          fi
+          echo 'STAGE2_FULL_DIAGNOSTIC: PASS / Chromium parity'
 
   beta_build:
     name: Beta package build (${{ matrix.target }})

@@ -140,7 +140,9 @@
     e.preventDefault();e.stopPropagation();if(dirty&&!busy)showDiff=true;
   }
   onMount(()=>{
-    abort=new AbortController();alive=true;mounted=true;
+    abort=new AbortController();
+    api=createLibraryRequest(window.fetch.bind(window),window.location.pathname,abort.signal);
+    alive=true;mounted=true;
     window.addEventListener('keydown',keyShortcut,true);
     return()=>{alive=false;mounted=false;++requestSequence;abort.abort();window.removeEventListener('keydown',keyShortcut,true);if(full){document.body.classList.remove('syntax-fullscreen-open');document.documentElement.classList.remove('syntax-fullscreen-open');}};
   });

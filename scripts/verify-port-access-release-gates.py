@@ -29,8 +29,11 @@ def main():
     # Native Svelte 5 bundle is compiled by Vite and copied into the IPK
     # after the static legacy assets loop. Never require generated JS in Git.
     compiled = 'svelte-status.js'
-    bundle_source = FRONT / 'PortAccessStatus.svelte'
+    bundle_source = FRONT / 'PortAccessLayout.svelte'
+    status_component = FRONT / 'PortAccessStatus.svelte'
     bundle_entry = FRONT / 'status-main.js'
+    entry_source = bundle_entry.read_text(encoding='utf-8')
+    layout_source = bundle_source.read_text(encoding='utf-8')
     bundle_config = FRONT / 'vite.config.js'
     bundle_copy = (
         'cp "$FRONTEND/build/svelte-status.js" '
@@ -40,9 +43,12 @@ def main():
         bundle_copy in build
         and 'test -s "$FRONTEND/build/svelte-status.js"' in build
         and 'npm run build' in build
-        and all(p.is_file() for p in (bundle_source, bundle_entry, bundle_config, FRONT / 'package.json'))
-        and '$state(' in bundle_source.read_text(encoding='utf-8')
-        and 'PortAccessStatus.svelte' in bundle_entry.read_text(encoding='utf-8')
+        and all(p.is_file() for p in (bundle_source, status_component, bundle_entry, bundle_config, FRONT / 'package.json'))
+        and '$state(' in layout_source
+        and "import PortAccessLayout from './PortAccessLayout.svelte'" in entry_source
+        and 'mount(PortAccessLayout, { target })' in entry_source
+        and 'PortAccessStatus.svelte' in layout_source
+        and '<PortAccessStatus' in layout_source
         and "fileName: () => 'svelte-status.js'" in bundle_config.read_text(encoding='utf-8')
     )
     gate('all frontend scripts shipped',
@@ -53,7 +59,8 @@ def main():
          (FRONT/'PortAccessEngineWorkspace.svelte').is_file()
          and not (FRONT/'engine-wizard.js').exists()
          and not (FRONT/'config-editor.js').exists()
-         and 'PortAccessEngineWorkspace.svelte' in (FRONT/'status-main.js').read_text(encoding='utf-8')
+         and "import PortAccessEngineWorkspace from './PortAccessEngineWorkspace.svelte'" in layout_source
+         and '<PortAccessEngineWorkspace' in layout_source
          and all(x not in shipped_names for x in ('config-editor.js', 'engine-wizard.js')))
     gate('frontend CSS shipped', all(s in shipped_names for s in ('module.css','ui-rebuild.css','p39-compact.css')))
     # Old controller was removed; the live operations log now mounts as native Svelte.
@@ -63,8 +70,9 @@ def main():
     gate('native operation log included in compiled Svelte bundle',
          'operation-log.js' not in shipped_names and 'operation-log.js' not in script_src
          and not (FRONT / 'operation-log.js').exists()
-         and 'PortAccessOperationLog.svelte' in entry_source
-         and 'mount(PortAccessOperationLog' in entry_source
+         and "import PortAccessOperationLog from './PortAccessOperationLog.svelte'" in layout_source
+         and '<PortAccessOperationLog' in layout_source
+         and 'mount(PortAccessOperationLog' not in entry_source
          and 'window.setInterval(refresh, 2000)' in log_source
          and 'window.clearInterval(interval)' in log_source)
     gate('no missing packaged frontend asset', all((FRONT / name).is_file() for name in shipped_names))

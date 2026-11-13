@@ -1722,7 +1722,7 @@ async function inspectIP() {
           </div>
         </div>
         <div id="diagnosticsMeta" class={diagnosticsControls['diagnosticsMeta'].className} hidden={diagnosticsControls['diagnosticsMeta'].hidden}>{#if diagnosticsControls['diagnosticsMeta'].textContent !== undefined}{diagnosticsControls['diagnosticsMeta'].textContent}{:else}Откройте вкладку, чтобы выполнить read-only проверку.{/if}</div>
-        <div id="diagnosticsChecks" class={diagnosticsControls['diagnosticsChecks'].className} hidden={diagnosticsControls['diagnosticsChecks'].hidden}><AntiscanDiagnosticChecks checks={diagnosticChecks} emptyText={diagnosticChecksEmpty} /></div>
+        <div id="diagnosticsChecks" class={diagnosticsControls['diagnosticsChecks'].className.replace(/\bempty-state\b/g, '').trim()} hidden={diagnosticsControls['diagnosticsChecks'].hidden}><AntiscanDiagnosticChecks checks={diagnosticChecks} emptyText={diagnosticChecksEmpty} /></div>
       </section>
 
       <section class="panel rci-token-panel">

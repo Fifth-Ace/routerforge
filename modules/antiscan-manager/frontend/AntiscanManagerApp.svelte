@@ -1855,7 +1855,7 @@ async function inspectIP() {
           <span id="flushState" class={blockedControls['flushState'].className} hidden={blockedControls['flushState'].hidden}>{#if blockedControls['flushState'].textContent !== undefined}{blockedControls['flushState'].textContent}{:else}НЕ ЗАГРУЖЕНО{/if}</span>
           <div id="flushMeta" class={blockedControls['flushMeta'].className} hidden={blockedControls['flushMeta'].hidden}>{#if blockedControls['flushMeta'].textContent !== undefined}{blockedControls['flushMeta'].textContent}{:else}Выберите цель, чтобы увидеть точные последствия штатной команды flush.{/if}</div>
         </div>
-        <div id="flushWarnings" class={blockedControls['flushWarnings'].className} hidden={blockedControls['flushWarnings'].hidden}><AntiscanWarningItems messages={flushWarningRows} emptyText="Дополнительных предупреждений для этой цели нет." /></div>
+        <div id="flushWarnings" class={blockedControls['flushWarnings'].className} hidden={blockedControls['flushWarnings'].hidden}>{#if flushWarningRows.length}<AntiscanWarningItems messages={flushWarningRows} />{:else}<div class="empty-state">Дополнительных предупреждений для этой цели нет.</div>{/if}</div>
         <div class="flush-actions">
           <button id="flushSelected" class={blockedControls['flushSelected'].className} type="button" disabled={blockedControls['flushSelected'].disabled} hidden={blockedControls['flushSelected'].hidden} onclick={performFlush}>{#if blockedControls['flushSelected'].textContent !== undefined}{blockedControls['flushSelected'].textContent}{:else}Очистить выбранное{/if}</button>
           <span class="muted">Для активных whitelist с опасной комбинацией настроек операция блокируется до изменения конфигурации.</span>

@@ -231,9 +231,20 @@ def main():
     with server(frontend,args.module) as url:
         with sync_playwright() as p:
             browser=p.chromium.launch(headless=True,executable_path=args.chromium or None,args=['--no-sandbox','--disable-extensions','--no-proxy-server'])
+            failures=[]
             try:
                 for scenario in scenarios:
-                    for viewport in [1280,375]:check(args.module,args.repo,browser,args.out,viewport,scenario,url,api)
+                    for viewport in [1280,375]:
+                        try:
+                            check(args.module,args.repo,browser,args.out,viewport,scenario,url,api)
+                        except AssertionError as error:
+                            failures.append((scenario,viewport,str(error)))
+                            print(f'PARITY_SCENARIO_FAIL / {args.module} / {scenario} / {viewport}: {error}',flush=True)
             finally:browser.close()
+    if failures:
+        print('PARITY_FULL_MATRIX: FAIL / '+str(len(failures))+' scenarios',flush=True)
+        for scenario,viewport,error in failures:
+            print(f'PARITY_FAILURE_DETAIL / {args.module} / {scenario} / {viewport}: {error}',flush=True)
+        raise AssertionError('PARITY_SCENARIOS_FAILED: '+str(len(failures)))
     print('BROWSER_STANDALONE_SVELTE5_ALL_SCENARIOS: PASS')
 if __name__=='__main__':main()

@@ -465,7 +465,7 @@ jobs:
           done
 
       - name: Preserve standalone Svelte 5 parity evidence on failure
-        if: failure() && (steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true')
+        if: (failure() || (github.event_name == 'workflow_dispatch' && inputs.beta_validate_only == true && steps.standalone_parity.outcome == 'failure')) && (steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.full_release == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: svelte-parity-evidence-${{ github.run_id }}
@@ -521,6 +521,8 @@ jobs:
           test -s modules/dns-router-runtime/frontend/build/svelte-mode.js
 
       - name: P0.1 Verify NFQWS frontend package and backend contract (nonpublishing)
+        id: s2_diag_01
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.nfqws_frontend == 'true' || steps.scope.outputs.full_release == 'true'
         shell: bash
         run: |
@@ -536,10 +538,14 @@ jobs:
           echo 'NFQWS_PACKAGED_UI_SHA: PASS'
 
       - name: Validate RouterForge registry
+        id: s2_diag_02
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.registry == 'true'
         run: python3 marketplace/build_registry.py --check
 
       - name: Verify repository layout
+        id: s2_diag_03
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.layout == 'true'
         run: |
           test -z "$(find . -maxdepth 1 -type f -name '*.go' -print)"
@@ -574,6 +580,8 @@ jobs:
 
 
       - name: Set up Go
+        id: s2_diag_04
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true' || steps.scope.outputs.cross == 'true' || steps.scope.outputs.shell == 'true'
         uses: actions/setup-go@v5
         with:
@@ -581,6 +589,8 @@ jobs:
           cache: true
 
       - name: Install QEMU user emulators
+        id: s2_diag_05
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: |
           set -eu
@@ -602,6 +612,8 @@ jobs:
           qemu-mipsel --version | head -n 1
 
       - name: Install pinned UPX
+        id: s2_diag_06
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: |
           set -eu
@@ -629,10 +641,14 @@ jobs:
           test "$(upx --version | head -n 1)" = "upx 5.2.1"
 
       - name: Verify Port Access IPK and watchdog smoke
+        id: s2_diag_07
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.shell == 'true' || steps.scope.outputs.full_release == 'true'
         run: sh scripts/verify-port-access-watchdog-package.sh
 
       - name: Check formatting
+        id: s2_diag_08
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true'
         run: |
           set -eu
@@ -643,13 +659,19 @@ jobs:
           fi
 
       - name: Test
+        id: s2_diag_09
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true'
         run: go test ./...
       - name: R7 DNS Router experimental IPK matrix (no publish)
+        id: s2_diag_10
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true'
         run: sh scripts/verify-dns-router-experimental.sh
 
       - name: R7 DNS Router DEV Preview packaging contract (no publish)
+        id: s2_diag_11
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true'
         run: |
           set -eu
@@ -667,6 +689,8 @@ jobs:
           dpkg --compare-versions '1~dev.r101.aaa' lt '1~dev.r102.bbb'
 
       - name: DNS Router Lite independent DNS and profile rollback tests
+        id: s2_diag_12
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true'
         working-directory: modules/dns-router-lite
         run: |
@@ -676,20 +700,28 @@ jobs:
           go vet -tags dns_router_lite ./...
 
       - name: DNS Router Lite shipped UI behavior
+        id: s2_diag_13
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true' || steps.scope.outputs.dns_frontend == 'true' || steps.scope.outputs.layout == 'true' || steps.scope.outputs.dns_lite_frontend == 'true'
         run: |
           npm ci --prefix modules/dns-router-lite/frontend-tests --ignore-scripts --no-audit --no-fund
           npm test --prefix modules/dns-router-lite/frontend-tests
       - name: P19.5 DNS UI and upgrade contracts
+        id: s2_diag_14
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         run: |
           python3 scripts/verify-p195-dns-ui.py
           go test ./components/core -run 'TestP195DNSRouter|TestP195CatalogDNSRouter' -count=1
 
       - name: Vet
+        id: s2_diag_15
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true'
         run: go vet ./...
 
       - name: Verify embedded frontend build
+        id: s2_diag_16
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.core_frontend == 'true'
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
@@ -699,6 +731,8 @@ jobs:
           test -s /tmp/routerforge-embed-check
 
       - name: Verify monitoring provider cross-build
+        id: s2_diag_17
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.cross == 'true'
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
@@ -711,6 +745,8 @@ jobs:
           test -s /tmp/routerforge-module-windows.exe
 
       - name: Verify planned MIPS build targets
+        id: s2_diag_18
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: |
           set -eu
@@ -752,10 +788,14 @@ jobs:
             done
           done
       - name: Verify MIPS runtime under QEMU
+        id: s2_diag_19
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: sh scripts/verify-mips-qemu.sh
 
       - name: Smoke test monitoring runtime
+        id: s2_diag_20
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.go == 'true'
         run: |
           go build -ldflags="-X main.version=0.0.0-ci" -o /tmp/routerforge-module ./modules/monitoring-runtime
@@ -810,6 +850,8 @@ jobs:
           trap - EXIT INT TERM
 
       - name: Check shell scripts
+        id: s2_diag_21
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.shell == 'true'
         run: |
           sh -n components/core/packaging/S90routerforge
@@ -862,18 +904,26 @@ jobs:
           sh -n modules/profiling/packaging/prerm
 
       - name: Verify runtime compatibility probe
+        id: s2_diag_22
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.shell == 'true'
         run: sh scripts/verify-runtime-compat-probe.sh
 
       - name: Verify MIPS preview quarantine
+        id: s2_diag_23
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.release == 'true' || steps.scope.outputs.shell == 'true'
         run: sh scripts/verify-mips-preview-quarantine.sh
 
       - name: Verify universal bootstrap dispatcher
+        id: s2_diag_24
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.release == 'true' || steps.scope.outputs.shell == 'true'
         run: sh scripts/verify-universal-bootstrap.sh
 
       - name: Build Entware package set
+        id: s2_diag_25
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: |
           ./scripts/build-opkg.sh 0.0.0-ci
@@ -881,6 +931,8 @@ jobs:
           ./scripts/build-modules-opkg.sh 0.0.0-ci
 
       - name: Verify Entware package containers
+        id: s2_diag_26
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: |
           packages="
@@ -900,6 +952,8 @@ jobs:
             tar -tzf "$pkg" | grep -qx './data.tar.gz'
           done
       - name: Verify Entware package payloads
+        id: s2_diag_27
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: |
           tar -xzOf dist/routerforge-core_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/bin/routerforge'
@@ -914,6 +968,8 @@ jobs:
           tar -xzOf dist/routerforge-antiscan-manager_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/share/routerforge/modules/antiscan-manager/ui/index.html'
           tar -xzOf dist/routerforge-profiling_0.0.0-ci_aarch64-3.10.ipk ./data.tar.gz | tar -tzf - | grep -qx './opt/etc/routerforge/profiling.enabled'
       - name: Verify AArch64 production executables are UPX packed
+        id: s2_diag_28
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: |
           set -eu
@@ -959,6 +1015,8 @@ jobs:
             dist/routerforge-antiscan-manager_0.0.0-ci_aarch64-3.10.ipk \
             routerforge-antiscan-manager
       - name: Verify Core runtime version injection
+        id: s2_diag_29
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         run: |
           set -eu
@@ -976,6 +1034,8 @@ jobs:
           strings "$TMP/routerforge" | grep -q '0.0.0-ci'
 
       - name: Check RouterForge release tooling
+        id: s2_diag_30
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.release == 'true'
         run: |
           set -eu
@@ -1270,6 +1330,8 @@ jobs:
           echo "Synthetic bootstrap preflight profiles: OK"
 
       - name: Share tested frontend assets for Beta matrix
+        id: s2_diag_31
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false }}
         if: steps.scope.outputs.full_release == 'true'
         uses: actions/upload-artifact@v4
         with:
@@ -1296,24 +1358,250 @@ jobs:
             dist/routerforge-stable-candidate-index*.json
           retention-days: 14
 
-      # Never turn a known visual mismatch into a green release validation.
-      # Run last so all independent Go, vet and IPK gates can report their results.
-      - name: Enforce standalone Chromium parity after diagnostic validation
-        if: always() && github.event_name == 'workflow_dispatch' && inputs.beta_validate_only == true
+      # Always fail the final job when ANY independent gate failed.
+      # Mark intermediate steps continue-on-error only during nonpublishing diagnostic dispatch.
+      - name: Enforce ALL independent Stage 2 gates after diagnostic validation
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false
         shell: bash
         env:
           STANDALONE_PARITY_OUTCOME: ${{ steps.standalone_parity.outcome }}
+          S2_DIAG_01: ${{ steps.s2_diag_01.outcome }}
+          S2_DIAG_02: ${{ steps.s2_diag_02.outcome }}
+          S2_DIAG_03: ${{ steps.s2_diag_03.outcome }}
+          S2_DIAG_04: ${{ steps.s2_diag_04.outcome }}
+          S2_DIAG_05: ${{ steps.s2_diag_05.outcome }}
+          S2_DIAG_06: ${{ steps.s2_diag_06.outcome }}
+          S2_DIAG_07: ${{ steps.s2_diag_07.outcome }}
+          S2_DIAG_08: ${{ steps.s2_diag_08.outcome }}
+          S2_DIAG_09: ${{ steps.s2_diag_09.outcome }}
+          S2_DIAG_10: ${{ steps.s2_diag_10.outcome }}
+          S2_DIAG_11: ${{ steps.s2_diag_11.outcome }}
+          S2_DIAG_12: ${{ steps.s2_diag_12.outcome }}
+          S2_DIAG_13: ${{ steps.s2_diag_13.outcome }}
+          S2_DIAG_14: ${{ steps.s2_diag_14.outcome }}
+          S2_DIAG_15: ${{ steps.s2_diag_15.outcome }}
+          S2_DIAG_16: ${{ steps.s2_diag_16.outcome }}
+          S2_DIAG_17: ${{ steps.s2_diag_17.outcome }}
+          S2_DIAG_18: ${{ steps.s2_diag_18.outcome }}
+          S2_DIAG_19: ${{ steps.s2_diag_19.outcome }}
+          S2_DIAG_20: ${{ steps.s2_diag_20.outcome }}
+          S2_DIAG_21: ${{ steps.s2_diag_21.outcome }}
+          S2_DIAG_22: ${{ steps.s2_diag_22.outcome }}
+          S2_DIAG_23: ${{ steps.s2_diag_23.outcome }}
+          S2_DIAG_24: ${{ steps.s2_diag_24.outcome }}
+          S2_DIAG_25: ${{ steps.s2_diag_25.outcome }}
+          S2_DIAG_26: ${{ steps.s2_diag_26.outcome }}
+          S2_DIAG_27: ${{ steps.s2_diag_27.outcome }}
+          S2_DIAG_28: ${{ steps.s2_diag_28.outcome }}
+          S2_DIAG_29: ${{ steps.s2_diag_29.outcome }}
+          S2_DIAG_30: ${{ steps.s2_diag_30.outcome }}
+          S2_DIAG_31: ${{ steps.s2_diag_31.outcome }}
         run: |
-          if [ "$STANDALONE_PARITY_OUTCOME" != "success" ]; then
-            echo 'STAGE2_FULL_DIAGNOSTIC: FAIL / original Chromium parity failed' >&2
+          set -eu
+          failed=0
+          echo "=== VERIFY / STRICT NONPUBLISHING STAGE2 GATE OUTCOMES ==="
+          if [ "$STANDALONE_PARITY_OUTCOME" != success ]; then
+            echo "GATE FAIL / STANDALONE_PARITY / $STANDALONE_PARITY_OUTCOME" >&2
+            failed=1
+          else
+            echo "GATE PASS / STANDALONE_PARITY"
+          fi
+          case "$S2_DIAG_01" in
+            failure) echo "GATE FAIL / s2_diag_01 / P0.1 Verify NFQWS frontend package and backend contract (nonpublishing)" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_01 / P0.1 Verify NFQWS frontend package and backend contract (nonpublishing)" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_01 / P0.1 Verify NFQWS frontend package and backend contract (nonpublishing)" ;;
+            *) echo "GATE UNKNOWN / s2_diag_01 / $S2_DIAG_01" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_02" in
+            failure) echo "GATE FAIL / s2_diag_02 / Validate RouterForge registry" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_02 / Validate RouterForge registry" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_02 / Validate RouterForge registry" ;;
+            *) echo "GATE UNKNOWN / s2_diag_02 / $S2_DIAG_02" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_03" in
+            failure) echo "GATE FAIL / s2_diag_03 / Verify repository layout" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_03 / Verify repository layout" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_03 / Verify repository layout" ;;
+            *) echo "GATE UNKNOWN / s2_diag_03 / $S2_DIAG_03" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_04" in
+            failure) echo "GATE FAIL / s2_diag_04 / Set up Go" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_04 / Set up Go" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_04 / Set up Go" ;;
+            *) echo "GATE UNKNOWN / s2_diag_04 / $S2_DIAG_04" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_05" in
+            failure) echo "GATE FAIL / s2_diag_05 / Install QEMU user emulators" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_05 / Install QEMU user emulators" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_05 / Install QEMU user emulators" ;;
+            *) echo "GATE UNKNOWN / s2_diag_05 / $S2_DIAG_05" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_06" in
+            failure) echo "GATE FAIL / s2_diag_06 / Install pinned UPX" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_06 / Install pinned UPX" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_06 / Install pinned UPX" ;;
+            *) echo "GATE UNKNOWN / s2_diag_06 / $S2_DIAG_06" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_07" in
+            failure) echo "GATE FAIL / s2_diag_07 / Verify Port Access IPK and watchdog smoke" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_07 / Verify Port Access IPK and watchdog smoke" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_07 / Verify Port Access IPK and watchdog smoke" ;;
+            *) echo "GATE UNKNOWN / s2_diag_07 / $S2_DIAG_07" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_08" in
+            failure) echo "GATE FAIL / s2_diag_08 / Check formatting" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_08 / Check formatting" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_08 / Check formatting" ;;
+            *) echo "GATE UNKNOWN / s2_diag_08 / $S2_DIAG_08" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_09" in
+            failure) echo "GATE FAIL / s2_diag_09 / Test" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_09 / Test" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_09 / Test" ;;
+            *) echo "GATE UNKNOWN / s2_diag_09 / $S2_DIAG_09" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_10" in
+            failure) echo "GATE FAIL / s2_diag_10 / R7 DNS Router experimental IPK matrix (no publish)" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_10 / R7 DNS Router experimental IPK matrix (no publish)" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_10 / R7 DNS Router experimental IPK matrix (no publish)" ;;
+            *) echo "GATE UNKNOWN / s2_diag_10 / $S2_DIAG_10" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_11" in
+            failure) echo "GATE FAIL / s2_diag_11 / R7 DNS Router DEV Preview packaging contract (no publish)" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_11 / R7 DNS Router DEV Preview packaging contract (no publish)" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_11 / R7 DNS Router DEV Preview packaging contract (no publish)" ;;
+            *) echo "GATE UNKNOWN / s2_diag_11 / $S2_DIAG_11" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_12" in
+            failure) echo "GATE FAIL / s2_diag_12 / DNS Router Lite independent DNS and profile rollback tests" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_12 / DNS Router Lite independent DNS and profile rollback tests" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_12 / DNS Router Lite independent DNS and profile rollback tests" ;;
+            *) echo "GATE UNKNOWN / s2_diag_12 / $S2_DIAG_12" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_13" in
+            failure) echo "GATE FAIL / s2_diag_13 / DNS Router Lite shipped UI behavior" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_13 / DNS Router Lite shipped UI behavior" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_13 / DNS Router Lite shipped UI behavior" ;;
+            *) echo "GATE UNKNOWN / s2_diag_13 / $S2_DIAG_13" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_14" in
+            failure) echo "GATE FAIL / s2_diag_14 / P19.5 DNS UI and upgrade contracts" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_14 / P19.5 DNS UI and upgrade contracts" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_14 / P19.5 DNS UI and upgrade contracts" ;;
+            *) echo "GATE UNKNOWN / s2_diag_14 / $S2_DIAG_14" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_15" in
+            failure) echo "GATE FAIL / s2_diag_15 / Vet" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_15 / Vet" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_15 / Vet" ;;
+            *) echo "GATE UNKNOWN / s2_diag_15 / $S2_DIAG_15" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_16" in
+            failure) echo "GATE FAIL / s2_diag_16 / Verify embedded frontend build" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_16 / Verify embedded frontend build" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_16 / Verify embedded frontend build" ;;
+            *) echo "GATE UNKNOWN / s2_diag_16 / $S2_DIAG_16" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_17" in
+            failure) echo "GATE FAIL / s2_diag_17 / Verify monitoring provider cross-build" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_17 / Verify monitoring provider cross-build" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_17 / Verify monitoring provider cross-build" ;;
+            *) echo "GATE UNKNOWN / s2_diag_17 / $S2_DIAG_17" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_18" in
+            failure) echo "GATE FAIL / s2_diag_18 / Verify planned MIPS build targets" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_18 / Verify planned MIPS build targets" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_18 / Verify planned MIPS build targets" ;;
+            *) echo "GATE UNKNOWN / s2_diag_18 / $S2_DIAG_18" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_19" in
+            failure) echo "GATE FAIL / s2_diag_19 / Verify MIPS runtime under QEMU" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_19 / Verify MIPS runtime under QEMU" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_19 / Verify MIPS runtime under QEMU" ;;
+            *) echo "GATE UNKNOWN / s2_diag_19 / $S2_DIAG_19" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_20" in
+            failure) echo "GATE FAIL / s2_diag_20 / Smoke test monitoring runtime" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_20 / Smoke test monitoring runtime" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_20 / Smoke test monitoring runtime" ;;
+            *) echo "GATE UNKNOWN / s2_diag_20 / $S2_DIAG_20" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_21" in
+            failure) echo "GATE FAIL / s2_diag_21 / Check shell scripts" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_21 / Check shell scripts" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_21 / Check shell scripts" ;;
+            *) echo "GATE UNKNOWN / s2_diag_21 / $S2_DIAG_21" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_22" in
+            failure) echo "GATE FAIL / s2_diag_22 / Verify runtime compatibility probe" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_22 / Verify runtime compatibility probe" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_22 / Verify runtime compatibility probe" ;;
+            *) echo "GATE UNKNOWN / s2_diag_22 / $S2_DIAG_22" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_23" in
+            failure) echo "GATE FAIL / s2_diag_23 / Verify MIPS preview quarantine" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_23 / Verify MIPS preview quarantine" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_23 / Verify MIPS preview quarantine" ;;
+            *) echo "GATE UNKNOWN / s2_diag_23 / $S2_DIAG_23" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_24" in
+            failure) echo "GATE FAIL / s2_diag_24 / Verify universal bootstrap dispatcher" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_24 / Verify universal bootstrap dispatcher" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_24 / Verify universal bootstrap dispatcher" ;;
+            *) echo "GATE UNKNOWN / s2_diag_24 / $S2_DIAG_24" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_25" in
+            failure) echo "GATE FAIL / s2_diag_25 / Build Entware package set" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_25 / Build Entware package set" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_25 / Build Entware package set" ;;
+            *) echo "GATE UNKNOWN / s2_diag_25 / $S2_DIAG_25" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_26" in
+            failure) echo "GATE FAIL / s2_diag_26 / Verify Entware package containers" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_26 / Verify Entware package containers" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_26 / Verify Entware package containers" ;;
+            *) echo "GATE UNKNOWN / s2_diag_26 / $S2_DIAG_26" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_27" in
+            failure) echo "GATE FAIL / s2_diag_27 / Verify Entware package payloads" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_27 / Verify Entware package payloads" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_27 / Verify Entware package payloads" ;;
+            *) echo "GATE UNKNOWN / s2_diag_27 / $S2_DIAG_27" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_28" in
+            failure) echo "GATE FAIL / s2_diag_28 / Verify AArch64 production executables are UPX packed" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_28 / Verify AArch64 production executables are UPX packed" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_28 / Verify AArch64 production executables are UPX packed" ;;
+            *) echo "GATE UNKNOWN / s2_diag_28 / $S2_DIAG_28" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_29" in
+            failure) echo "GATE FAIL / s2_diag_29 / Verify Core runtime version injection" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_29 / Verify Core runtime version injection" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_29 / Verify Core runtime version injection" ;;
+            *) echo "GATE UNKNOWN / s2_diag_29 / $S2_DIAG_29" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_30" in
+            failure) echo "GATE FAIL / s2_diag_30 / Check RouterForge release tooling" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_30 / Check RouterForge release tooling" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_30 / Check RouterForge release tooling" ;;
+            *) echo "GATE UNKNOWN / s2_diag_30 / $S2_DIAG_30" >&2; failed=1 ;;
+          esac
+          case "$S2_DIAG_31" in
+            failure) echo "GATE FAIL / s2_diag_31 / Share tested frontend assets for Beta matrix" >&2; failed=1 ;;
+            success) echo "GATE PASS / s2_diag_31 / Share tested frontend assets for Beta matrix" ;;
+            skipped) echo "GATE SKIPPED / s2_diag_31 / Share tested frontend assets for Beta matrix" ;;
+            *) echo "GATE UNKNOWN / s2_diag_31 / $S2_DIAG_31" >&2; failed=1 ;;
+          esac
+          if [ "$failed" -ne 0 ]; then
+            echo "STAGE2_FULL_DIAGNOSTIC: FAIL / all independent results collected" >&2
             exit 1
           fi
-          echo 'STAGE2_FULL_DIAGNOSTIC: PASS / Chromium parity'
+          echo "STAGE2_FULL_DIAGNOSTIC: PASS / all independent gates"
 
   beta_build:
     name: Beta package build (${{ matrix.target }})
     needs: [preflight, test]
-    if: github.event_name == 'workflow_dispatch' && inputs.full_release == true
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.full_release == true && needs.preflight.result == 'success' && (needs.test.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.full_release == true && inputs.beta_validate_only == true && inputs.publish_beta == false))
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true

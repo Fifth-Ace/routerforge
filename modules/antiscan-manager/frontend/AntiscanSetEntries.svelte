@@ -16,5 +16,5 @@
     </div>
   {/each}
 {:else}
-  <span class="empty-state">{emptyText}</span>
+  {emptyText}
 {/if}

@@ -2,7 +2,7 @@
   let { entries = [], emptyText = 'Откройте вкладку, чтобы загрузить последние события.' } = $props();
 </script>
 {#if !entries.length}
-  <div class="empty-state">{emptyText}</div>
+  {emptyText}
 {:else}
   {#each entries as entry, index (index)}
     <article class="history-row" class:failed={entry.failed}>

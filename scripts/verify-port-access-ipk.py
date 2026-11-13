@@ -79,8 +79,8 @@ def verify(path):
         raise ValueError('manifest contract mismatch')
     html = data[ROOT+'ui/index.html'][1].decode('utf-8')
     scripts = re.findall(r'<script\s+src="([^\"]+)"', html)
-    if not scripts or any('/' in x or x not in EXPECTED_UI for x in scripts):
-        raise ValueError('unsafe/missing JS entry')
+    if scripts != ['svelte-status.js']:
+        raise ValueError('expected exactly one compiled Svelte JS entrypoint')
     if any(ROOT+'ui/'+x not in files for x in scripts):
         raise ValueError('JS asset missing')
     if ROOT+'ui/operation-log.js' in files:
@@ -98,12 +98,36 @@ def verify(path):
         if ROOT+'ui/'+name in files or '<script src=\"'+name+'\">' in html:
             raise ValueError('legacy layout controller still shipped: ' + name)
     bundle = data[ROOT+'ui/svelte-status.js'][1]
-    if len(bundle) < 3000 or b'PORT_ACCESS_SVELTE_MOUNT_MISSING' not in bundle or b'PORT_ACCESS_SVELTE_LOG_MOUNT_MISSING' not in bundle:
+    # P43 / Svelte 5 single-root migration: these concrete compiled UI and API
+    # markers replace obsolete independent-root exception strings. The old
+    # PORT_ACCESS_*_MOUNT_MISSING errors were removed with the six-root bridge.
+    # Keep fail-closed checks on the *actual data.tar.gz payload* instead of
+    # accepting a source-only import or merely the presence of svelte-status.js.
+    required_bundle_markers = {
+        'Svelte root target': b'pa-svelte-layout',
+        'Svelte root missing-target guard': b'PORT_ACCESS_LAYOUT_TARGET_MISSING',
+        'native engine workspace': b'existing-engine-control',
+        'engine preview': b'engine-wizard-preview',
+        'Odin controls': b'pa-svelte-odin',
+        'engineering controls': b'pa-svelte-engineering',
+        'native status': b'pa-svelte-status',
+        'native operation log': b'pa-log-state',
+        'operation log API': b'/api/modules/port-access-manager/operation-logs',
+    }
+    if len(bundle) < 3000:
         raise ValueError('missing real compiled Svelte entrypoint')
-    if b'PORT_ACCESS_ENGINE_WORKSPACE_MOUNT_MISSING' not in bundle:
-        raise ValueError('compiled engine workspace not shipped')
+    for label, token in required_bundle_markers.items():
+        if token not in bundle:
+            raise ValueError('compiled Svelte bundle missing ' + label)
     if b'PortAccessStatus.svelte' in bundle and b'<script>' in bundle:
         raise ValueError('uncompiled Svelte source shipped')
+    # The normal build-port-access-manager-opkg.sh path always builds this
+    # file immediately before packaging. When available, byte-compare it to
+    # the shipped bundle to catch stale or substituted IPK payloads.
+    build_bundle = (Path(__file__).resolve().parents[1]
+                    / 'modules/port-access-manager/frontend/build/svelte-status.js')
+    if build_bundle.is_file() and build_bundle.read_bytes() != bundle:
+        raise ValueError('packaged Svelte bundle differs from compiled build output')
     print(f'P43_IPK_CONTENTS: PASS; FILES={len(files)}; SCRIPTS={len(scripts)}',flush=True)
 
 

@@ -1,5 +1,8 @@
 <script>
   import { onMount } from 'svelte';
+  import { createPortAccessReadSession } from './PortAccessReadSession.js';
+  const readSession = createPortAccessReadSession();
+  let { onStateChanged = () => {} } = $props();
 
   const endpoint = '/api/modules/port-access-manager/odin';
   const labels = {
@@ -39,17 +42,18 @@
       : 'Срок подтверждения истёк. Проверяем состояние…');
 
   async function request(method, body) {
-    const response = await fetch(endpoint, {
+    return readSession.consume(endpoint, {
       method, credentials: 'same-origin', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: body ? JSON.stringify(body) : undefined
+    }, async response => {
+      const raw = await response.text();
+      let result;
+      try { result = raw ? JSON.parse(raw) : {}; }
+      catch (_) { throw new Error('Некорректный ответ сервера (HTTP ' + response.status + ')'); }
+      if (!response.ok) throw new Error(result.error || result.message || 'HTTP ' + response.status);
+      return result;
     });
-    const raw = await response.text();
-    let result;
-    try { result = raw ? JSON.parse(raw) : {}; }
-    catch (_) { throw new Error('Некорректный ответ сервера (HTTP ' + response.status + ')'); }
-    if (!response.ok) throw new Error(result.error || result.message || 'HTTP ' + response.status);
-    return result;
   }
 
   function settings() {
@@ -102,7 +106,7 @@
     status = lastOperationError || (next.enabled
       ? (next.confirmed ? 'Защита включена · подтверждена' : 'Защита включена · ожидает подтверждения')
       : 'Защита выключена');
-    if (changed) document.dispatchEvent(new Event('routerforge-odin-state-changed'));
+    if (changed) onStateChanged();
   }
 
   async function refresh() {
@@ -117,7 +121,7 @@
       if (!disposed && serial === requestSerial) {
         status = lastOperationError || 'Ошибка получения состояния: ' + error.message;
         data = null; // Fail closed: no enable/confirm until verified again.
-        document.dispatchEvent(new Event('routerforge-odin-state-changed'));
+        onStateChanged();
       }
       return null;
     }
@@ -170,6 +174,7 @@
     }, 10000);
     return () => {
       disposed = true;
+      readSession.close();
       ++requestSerial;
       window.clearInterval(countdownTimer);
       window.clearInterval(statusTimer);

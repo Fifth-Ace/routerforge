@@ -2,10 +2,14 @@
   import {onMount, setContext} from 'svelte';
   import {startDnsLiteController} from './DnsLiteControllerLogic.js';
   import DnsLiteCards from './DnsLiteCards.svelte';
+  import DnsLiteShellState from './DnsLiteShellState.svelte';
+  import {startDnsLiteShellBridge} from './DnsLiteShellBridge.js';
   import DnsLiteDomainEditor from './DnsLiteDomainEditor.svelte';
   import DnsLiteLog from './DnsLiteLog.svelte';
   import DnsLiteStatus from './DnsLiteStatus.svelte';
   import DnsLiteControls from './DnsLiteControls.svelte';
+  import DnsLiteFeedback from './DnsLiteFeedback.svelte';
+  import {createLiteSettingsFields} from './DnsLiteSettingsModel.js';
   import DnsModeStatus from './DnsModeStatus.svelte';
   import DnsP21Workspace from './DnsP21Workspace.svelte';
   import DnsP22Navigation from './DnsP22Navigation.svelte';
@@ -17,9 +21,16 @@
     cardsView:[], defaultSelection:'', cardHealth:{},
     editorView:{opened:false,generation:0}, modeView:'basic', statusView:null,
     logView:{rows:[],upstreams:[],paused:false,updated:'',error:'',filter:'',type:'',errorsOnly:false},
+    logCriteria:{filter:'',type:'',errorsOnly:false},
+    dnsForm:{opened:false,title:'Добавить DNS',button:'Добавить DNS',protocol:'doh',address:'',
+      ready:false,checks:{},error:'',certificateInfo:'Проверка ещё не выполнялась.',certificateText:'',certificateVisible:false},
+
     initialized:false, p21Rows:{devices:[],groups:[],rules:[]}, p21Section:'devices',
     p21Model:{rows:{devices:[],groups:[],rules:[]},targets:[],groups:[],inventory:[],cache:'',discoveryStatus:''},
-    p21Selection:null, p21SelectionSeq:0, p21Route:null, p21ProbeMAC:''
+    p21Selection:null, p21SelectionSeq:0, p21Route:null, p21ProbeMAC:'',
+    controlView:{gateEnableDisabled:true,gateDisableDisabled:true,preflightDisabled:true,
+      stopDisabled:true,connectDisabled:true,disconnectDisabled:true,
+      preflightLabel:'Проверить готовность'}
   });
   // Reactive, read-only presentation. API/CAS/Gate operations stay in the
   // controller; status fields no longer depend on imperative DOM writes.
@@ -32,9 +43,10 @@
     runStatus:'Состояние DNS-сервиса загружается…',routeAdvice:'Проверяем, доходят ли запросы до DNS Router…',
     routeTone:'',clientState:'Не подключён',liveBadge:'LIVE · ожидание',liveTone:'',
     logUpdated:'Ждём запросов',metricRequests:0,metricCache:0,metricErrors:0,metricRunning:'—',
-    logCounter:0,logVisible:'0 / 0'
+    logCounter:0,logVisible:'0 / 0', feedbackText:'Загружаем настройки…',feedbackTone:''
   });
-  const settingsHooks = {change:() => {}, render:() => {}};
+  const settingsFields = $state(createLiteSettingsFields());
+  const settingsHooks = {fields:settingsFields, change:() => {}, render:() => {}};
   const discoveryHooks = {render:()=>{}, refresh:()=>Promise.resolve(), snapshot:()=>null};
   const navigationHooks = {navigate:()=>{}};
   setContext('routerforge:dns-lite-settings',settingsHooks);
@@ -55,10 +67,26 @@
   function p21Navigate(which) {controller.commands.p21Navigate?.(which);}
   function controlAction(which, payload) {controller.commands.control?.(which, payload);}
   const controller = {commands:{}};
-  onMount(() => startDnsLiteController({state,ui,presentation,settingsHooks,discoveryHooks,navigationHooks,controller}));
+  onMount(() => {
+    const shellBridge=startDnsLiteShellBridge();
+    try {
+      const stop=startDnsLiteController({state,ui,presentation,settingsHooks,discoveryHooks,navigationHooks,controller,reportHeight:shellBridge.reportHeight});
+      // Polling lifetime belongs to this Svelte root and ends before controller disposal.
+      const tick=kind=>{if(!document.hidden)controller.poll?.[kind]?.();};
+      const timers=[
+        setInterval(()=>tick('health'),60000),
+        setInterval(()=>tick('logs'),2000),
+        setInterval(()=>tick('overviewLogs'),15000),
+        setInterval(()=>tick('status'),15000)
+      ];
+      return () => {for(const timer of timers)clearInterval(timer);stop();shellBridge.dispose();};
+    } catch(error) {shellBridge.dispose();throw error;}
+  });
 </script>
 
-<DnsLiteControls onAction={controlAction} page={state.page} cards={ui.cardsView} defaultValue={ui.defaultSelection}/>
+<DnsLiteControls onAction={controlAction} chosen={state.editing||''} page={state.page} logView={ui.logView} logCounter={presentation.logCounter} logVisible={presentation.logVisible} form={ui.dnsForm} cards={ui.cardsView} defaultValue={ui.defaultSelection} busy={state.busy} controls={ui.controlView} dirty={state.dirty}/>
+<DnsLiteShellState page={state.page} editing={state.editing} config={state.config} mode={ui.modeView} active={Boolean(state.status?.device_policies_active)}/>
+<DnsLiteFeedback text={presentation.feedbackText} tone={presentation.feedbackTone}/>
 <DnsLiteStatus view={presentation}/>
 <div use:portal={'rf-dns-lite-svelte-mode'} style="display:contents">
   <DnsModeStatus mode={ui.modeView} status={ui.statusView} busy={state.busy} onMode={modeAction} onRefresh={statusAction}/>

@@ -13,7 +13,7 @@ async function readError(response, path) {
   return error;
 }
 
-async function fetchJSON(path, options, timeoutMs) {
+async function fetchJSON(path, options, timeoutMs, externalSignal) {
   return withRequestTimeout(path, timeoutMs, async (signal) => {
     const response = await fetch(path, { ...options, signal });
     if (!response.ok) throw await readError(response, path);
@@ -35,14 +35,14 @@ async function fetchJSON(path, options, timeoutMs) {
       error.cause = cause;
       throw error;
     }
-  });
+  }, externalSignal);
 }
 
-async function request(path, timeoutMs = READ_TIMEOUT_MS) {
+async function request(path, timeoutMs = READ_TIMEOUT_MS, signal) {
   return fetchJSON(path, {
     cache: 'no-store',
     headers: { Accept: 'application/json' }
-  }, timeoutMs);
+  }, timeoutMs, signal);
 }
 
 async function postJSON(path, body, timeoutMs = WRITE_TIMEOUT_MS) {
@@ -65,9 +65,9 @@ async function deleteRequest(path, timeoutMs = WRITE_TIMEOUT_MS) {
   }, timeoutMs);
 }
 
-export const getSnapshot = () => request('/api/snapshot');
+export const getSnapshot = (signal) => request('/api/snapshot', READ_TIMEOUT_MS, signal);
 export const getPlatform = () => request('/api/platform');
-export const getPlatformAlerts = () => request('/api/platform/alerts');
+export const getPlatformAlerts = (signal) => request('/api/platform/alerts', READ_TIMEOUT_MS, signal);
 export const getPlatformEvents = ({
   limit = 100,
   severity = '',
@@ -75,7 +75,8 @@ export const getPlatformEvents = ({
   type = '',
   object_id = '',
   transaction_id = '',
-  recovery = ''
+  recovery = '',
+  signal
 } = {}) => {
   const params = new URLSearchParams();
   params.set('limit', String(limit));
@@ -85,9 +86,9 @@ export const getPlatformEvents = ({
   if (object_id) params.set('object_id', object_id);
   if (transaction_id) params.set('transaction_id', transaction_id);
   if (recovery !== '' && recovery !== null && recovery !== undefined) params.set('recovery', String(recovery));
-  return request(`/api/platform/events?${params.toString()}`);
+  return request(`/api/platform/events?${params.toString()}`, READ_TIMEOUT_MS, signal);
 };
-export const getSystem = () => request('/api/system');
+export const getSystem = (signal) => request('/api/system', READ_TIMEOUT_MS, signal);
 export const getCatalog = () => request('/api/catalog');
 export const refreshCatalogRemote = (fresh = false) =>
   postJSON(`/api/catalog/refresh${fresh ? '?fresh=1' : ''}`, {});
@@ -97,7 +98,7 @@ export const getEntwarePackages = ({ query = '', state = '', offset = 0, limit =
   request(`/api/apps/entware?query=${encodeURIComponent(query)}&state=${encodeURIComponent(state)}&offset=${encodeURIComponent(offset)}&limit=${encodeURIComponent(limit)}`);
 export const refreshEntwarePackages = () =>
   postJSON('/api/apps/entware/refresh', {}, PACKAGE_WRITE_TIMEOUT_MS);
-export const getAppSources = () => request('/api/apps/sources');
+export const getAppSources = (signal) => request('/api/apps/sources', READ_TIMEOUT_MS, signal);
 export const previewAppSource = (body) => postJSON('/api/apps/sources/preview', body);
 export const addAppSource = (body) => postJSON('/api/apps/sources', body);
 export const refreshAppSource = (id) => postJSON(`/api/apps/sources/${encodeURIComponent(id)}/refresh`, {});
@@ -107,7 +108,7 @@ export const setAppSourceReleaseChannel = (id, channel) =>
   postJSON(`/api/apps/sources/${encodeURIComponent(id)}/channel`, { channel });
 export const removeAppSource = (id) => deleteRequest(`/api/apps/sources/${encodeURIComponent(id)}`);
 export const setAppSourceSecurity = (body) => postJSON('/api/apps/sources/security', body);
-export const getAppLegal = (locale = 'ru') => request(`/api/apps/legal?locale=${encodeURIComponent(locale)}`);
+export const getAppLegal = (locale = 'ru', signal) => request(`/api/apps/legal?locale=${encodeURIComponent(locale)}`, READ_TIMEOUT_MS, signal);
 export const entwarePackageAction = (packageName, action, confirm = '') =>
   postJSON('/api/apps/entware/action', { package: packageName, action, confirm }, PACKAGE_WRITE_TIMEOUT_MS);
 export const getEntwarePackageDetail = (packageName) =>
@@ -141,18 +142,18 @@ export const getAdminThermal = () => request('/api/admin/thermal');
 
 export const getPlainDNS = (limit = 100) =>
   request(`/api/plain-dns?limit=${encodeURIComponent(limit)}`);
-export const getDNSInfo = () => request('/api/dns/info');
+export const getDNSInfo = (signal) => request('/api/dns/info', READ_TIMEOUT_MS, signal);
 
-export const getModule = (moduleID, endpoint = 'health') =>
-  request(`/api/modules/${encodeURIComponent(moduleID)}/${encodeURIComponent(endpoint)}`);
-export const getAdminFiles = (path, includeTreeMetadata = false) =>
-  request(`/api/modules/admin/files/list?path=${encodeURIComponent(path)}${includeTreeMetadata ? '&tree_meta=1' : ''}`);
-export const getAdminFileVolumes = () =>
-  request('/api/modules/admin/files/volumes');
+export const getModule = (moduleID, endpoint = 'health', signal) =>
+  request(`/api/modules/${encodeURIComponent(moduleID)}/${encodeURIComponent(endpoint)}`, READ_TIMEOUT_MS, signal);
+export const getAdminFiles = (path, includeTreeMetadata = false, signal) =>
+  request(`/api/modules/admin/files/list?path=${encodeURIComponent(path)}${includeTreeMetadata ? '&tree_meta=1' : ''}`, READ_TIMEOUT_MS, signal);
+export const getAdminFileVolumes = (signal) =>
+  request('/api/modules/admin/files/volumes', READ_TIMEOUT_MS, signal);
 export const getAdminFileHash = (path, algorithm = 'sha256') =>
   request(`/api/modules/admin/files/hash?path=${encodeURIComponent(path)}&algorithm=${encodeURIComponent(algorithm)}`);
-export const readAdminFile = (path) =>
-  request(`/api/modules/admin/files/read?path=${encodeURIComponent(path)}`);
+export const readAdminFile = (path, signal) =>
+  request(`/api/modules/admin/files/read?path=${encodeURIComponent(path)}`, READ_TIMEOUT_MS, signal);
 export const adminFileDownloadURL = (path) =>
   `/api/modules/admin/files/download?path=${encodeURIComponent(path)}`;
 export const adminFileMkdir = (body) =>
@@ -199,12 +200,12 @@ export const adminTerminalResize = (sessionID, cols, rows) =>
   postJSON(`/api/modules/admin/terminal/session/${encodeURIComponent(sessionID)}/resize`, { cols, rows });
 export const adminTerminalClose = (sessionID) =>
   postJSON(`/api/modules/admin/terminal/session/${encodeURIComponent(sessionID)}/close`, {});
-export const getAdminMaintenanceLogs = () =>
-  request('/api/modules/admin/maintenance/logs');
-export const getAdminMaintenanceTasks = () =>
-  request('/api/modules/admin/maintenance/tasks');
-export const getAdminNFQWSJobs = () =>
-  request('/api/modules/admin/maintenance/nfqws-jobs');
+export const getAdminMaintenanceLogs = (signal) =>
+  request('/api/modules/admin/maintenance/logs', READ_TIMEOUT_MS, signal);
+export const getAdminMaintenanceTasks = (signal) =>
+  request('/api/modules/admin/maintenance/tasks', READ_TIMEOUT_MS, signal);
+export const getAdminNFQWSJobs = (signal) =>
+  request('/api/modules/admin/maintenance/nfqws-jobs', READ_TIMEOUT_MS, signal);
 export const configureAdminNFQWSJob = (job) =>
   postJSON('/api/modules/admin/maintenance/nfqws-jobs/configure', {
     ...job,
@@ -217,32 +218,32 @@ export const runAdminNFQWSJob = (id) =>
   });
 export const adminMaintenanceBackup = () =>
   postJSON('/api/modules/admin/maintenance/backup', { confirm: 'BACKUP' });
-export const getAdminIntegrations = () =>
-  request('/api/modules/admin/integrations');
-export const getNFQWS2Manager = () =>
-  request('/api/modules/admin/integrations/nfqws2');
+export const getAdminIntegrations = (signal) =>
+  request('/api/modules/admin/integrations', READ_TIMEOUT_MS, signal);
+export const getNFQWS2Manager = (signal) =>
+  request('/api/modules/admin/integrations/nfqws2', READ_TIMEOUT_MS, signal);
 export const nfqws2ManagerAction = (action) =>
   postJSON('/api/modules/admin/integrations/nfqws2/action', { action, confirm: 'NFQWS2' });
 export const saveNFQWS2Config = (content) =>
   postJSON('/api/modules/admin/integrations/nfqws2/config', { content, confirm: 'NFQWS2_CONFIG' });
-export const getAdminMaintenanceBackups = () =>
-  request('/api/modules/admin/maintenance/backups');
+export const getAdminMaintenanceBackups = (signal) =>
+  request('/api/modules/admin/maintenance/backups', READ_TIMEOUT_MS, signal);
 export const adminMaintenanceRestore = (path) =>
   postJSON('/api/modules/admin/maintenance/restore', {
     path,
     confirm_path: path,
     confirm: 'RESTORE'
   });
-export const getAdminWatchdogs = () =>
-  request('/api/modules/admin/maintenance/watchdogs');
+export const getAdminWatchdogs = (signal) =>
+  request('/api/modules/admin/maintenance/watchdogs', READ_TIMEOUT_MS, signal);
 export const configureAdminWatchdog = (id, enabled) =>
   postJSON('/api/modules/admin/maintenance/watchdogs/configure', {
     id,
     enabled,
     confirm_id: id
   });
-export const getAdminSnapshots = () =>
-  request('/api/modules/admin/maintenance/snapshots');
+export const getAdminSnapshots = (signal) =>
+  request('/api/modules/admin/maintenance/snapshots', READ_TIMEOUT_MS, signal);
 export const createAdminSnapshot = () =>
   postJSON('/api/modules/admin/maintenance/snapshot', { confirm: 'SNAPSHOT' });
 export const deleteAdminSnapshot = (path) =>
@@ -251,10 +252,10 @@ export const deleteAdminSnapshot = (path) =>
     confirm_path: path,
     confirm: 'DELETE'
   });
-export const getAdminSupportStatus = () =>
-  request('/api/modules/admin/maintenance/support/status');
-export const getAdminSupportBundles = () =>
-  request('/api/modules/admin/maintenance/support-bundles');
+export const getAdminSupportStatus = (signal) =>
+  request('/api/modules/admin/maintenance/support/status', READ_TIMEOUT_MS, signal);
+export const getAdminSupportBundles = (signal) =>
+  request('/api/modules/admin/maintenance/support-bundles', READ_TIMEOUT_MS, signal);
 export const createAdminSupportBundle = () =>
   postJSON('/api/modules/admin/maintenance/support-bundle', { confirm: 'SUPPORT_BUNDLE' });
 export const adminSupportBundleDownloadURL = (path) =>

@@ -1,5 +1,16 @@
 <script>
   import { onMount } from 'svelte';
+  import { createPortAccessReadSession } from './PortAccessReadSession.js';
+  const readSession = createPortAccessReadSession();
+  // Svelte component callbacks replace document-wide CustomEvents and synthetic selection.
+  let {
+    selectedEngine = 'knockd',
+    onEngineChanged = () => {},
+    onServiceState = () => {},
+    onDeployState = () => {},
+    onPreviewReady = () => {},
+    onPlanInvalidated = () => {}
+  } = $props();
 
   const engines = ['knockd', 'fwknopd'];
   const actions = [
@@ -51,12 +62,12 @@
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(data);
     }
-    const response = await fetch(endpoint, opts);
-    const body = await response.json();
-    if (!response.ok) throw new Error(body?.error || 'HTTP ' + response.status);
-    return body;
+    return readSession.consume(endpoint, opts, async response => {
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error || 'HTTP ' + response.status);
+      return body;
+    });
   }
-  const emit = (name, detail) => document.dispatchEvent(new CustomEvent(name, {detail}));
   function engineURL(id) { return url('engine-service') + '?engine=' + encodeURIComponent(id); }
 
   async function refreshServices() {
@@ -66,7 +77,7 @@
       for (const id of engines) {
         const result = await request(engineURL(id));
         next[id] = result;
-        emit('rfpa:service-state', {engine:id, installed:!!result.installed, running:!!result.running, installation:result.installation || {state:'idle'}});
+        onServiceState({engine:id, installed:!!result.installed, running:!!result.running, installation:result.installation || {state:'idle'}});
       }
       services = next;
       serviceMessage = Object.values(next).some(d => d.installation?.state === 'running')
@@ -148,7 +159,7 @@
     finally { configBusy = false; }
   }
 
-  function invalidatePlan() { validated = null; wizardPlan = ''; }
+  function invalidatePlan() { validated = null; wizardPlan = ''; onPlanInvalidated(); }
   function collect() {
     const entries = servicesText.split(/\r?\n/).filter(line => line.trim()).map(line => {
       const fields = line.split(',').map(part => part.trim());
@@ -172,7 +183,7 @@
       const d = await request(url('engine-wizard-preview'), req);
       if (d.applied !== false || d.preview_only !== true || d.engine !== req.engine) throw new Error('Неверный контракт предпросмотра');
       validated = JSON.stringify(req);
-      emit('rfpa:preview-ok', {engine:req.engine});
+      onPreviewReady({engine:req.engine});
       wizardMessage = 'Проверено · НЕ применено'; wizardPlan = d.plan;
     } catch (e) { wizardMessage = 'Ошибка: ' + e.message; }
     finally { wizardBusy = false; }
@@ -221,7 +232,7 @@
       const d = await request(deployURL(id));
       if (id !== selected) return;
       deployData = d;deployKnown = true;
-      emit('rfpa:deploy-state', {engine:id,prepared:!!d.prepared,enabled:!!d.enabled,confirmed:!!d.confirmed,running:!!d.running});
+      onDeployState({engine:id,prepared:!!d.prepared,enabled:!!d.enabled,confirmed:!!d.confirmed,running:!!d.running});
       deployMessage = d.enabled ? (!d.running ? 'Защитный шлюз включён, но служба остановлена' : d.confirmed ? 'Защита включена и подтверждена' : 'ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ · watchdog 90 секунд') : d.prepared ? 'Конфигурация готова · защита выключена' : 'Конфигурация не подготовлена';
     } catch (e) {if (id === selected) deployMessage = 'Ошибка состояния: ' + e.message;}
   }
@@ -246,18 +257,29 @@
     } catch(e) {deployMessage='Операция отклонена: '+e.message;}
     finally {deployBusy=false;await refreshDeploy();}
   }
-  function changeEngine(event) {
-    selected = event.currentTarget.value;
+  function setEngine(id, fromParent = false) {
+    if (!engines.includes(id) || selected === id) return;
+    selected = id;
     clearConfig();
     invalidatePlan();
     credentialOnce='';credentialOpen=false;replaceExisting=false;
+    if (!fromParent) onEngineChanged(id);
     void refreshConfig();void refreshDeploy();
   }
+  function changeEngine(event) {
+    // bind:value already writes selected before change. Keep the confirmed selection
+    // in a separate value so reset/refresh is shared with the parent-driven path.
+    setEngine(event.currentTarget.value, false);
+  }
+  $effect(() => {
+    const requested = selectedEngine;
+    if (requested !== selected) setEngine(requested, true);
+  });
   onMount(() => {
     void refreshServices();void refreshConfig();void refreshDeploy();
     const serviceInterval=window.setInterval(() => {if (!document.hidden) void refreshServices();},3000);
     const deployInterval=window.setInterval(() => {if (!document.hidden && !deployBusy) void refreshDeploy();},10000);
-    return () => {window.clearInterval(serviceInterval);window.clearInterval(deployInterval);};
+    return () => {readSession.close();window.clearInterval(serviceInterval);window.clearInterval(deployInterval);};
   });
 </script>
 
@@ -283,7 +305,7 @@
 <section class="panel" id="engine-config-panel">
   <h2>Настройка установленных движков</h2>
   <p class="help">Редактирование существующих конфигураций knockd и fwknopd. Файл сохраняется с резервной копией, служба не перезапускается автоматически. В fwknopd могут храниться секретные ключи.</p>
-  <div class="form-grid"><label>Движок<select id="engine-config-engine" bind:value={selected} onchange={changeEngine}><option value="knockd">knockd</option><option value="fwknopd">fwknopd / SPA</option></select></label></div>
+  <div class="form-grid"><label>Движок<select id="engine-config-engine" value={selected} onchange={changeEngine}><option value="knockd">knockd</option><option value="fwknopd">fwknopd / SPA</option></select></label></div>
   <div class="refresh-bar"><button type="button" id="engine-config-refresh" disabled={configBusy} onclick={refreshConfig}>Обновить сведения</button><button type="button" id="engine-config-load" disabled={configBusy || !configDigest} onclick={() => configAction('read')}>Показать и редактировать файл</button></div>
   <textarea id="engine-config-editor" rows="14" disabled={!configLoaded || configBusy} bind:value={configText} spellcheck="false" autocomplete="off" style="width:100%;box-sizing:border-box;font-family:monospace;resize:vertical"></textarea>
   <div class="refresh-bar"><button type="button" id="engine-config-save" disabled={!configLoaded || configBusy} onclick={() => configAction('save')}>Сохранить конфигурацию</button><button type="button" id="engine-config-restore" disabled={!configDigest || configBusy} onclick={() => configAction('restore')}>Вернуть предыдущую версию</button></div>

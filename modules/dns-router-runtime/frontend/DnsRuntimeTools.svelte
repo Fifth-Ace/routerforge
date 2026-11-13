@@ -1,10 +1,14 @@
 <script>
   import {evaluateDomain, exportSavedConfig} from './DnsRuntimeToolsLogic.js';
+  import {feedback as showFeedback} from './DnsRuntimeStore.svelte.js';
+  import {onMount} from 'svelte';
   let {kind} = $props();
   let busy = $state(false);
   let domain = $state('');
   let output = $state('Ожидание запроса');
   let error = $state('');
+  let stopped=false;
+  onMount(()=>()=>{stopped=true;});
   async function request(path, options = {}) {
     const response = await fetch('../' + path, {cache:'no-store', credentials:'same-origin', ...options});
     let body;
@@ -12,10 +16,7 @@
     if (!response.ok) throw Error('HTTP ' + response.status + ': ' + (body?.error || 'unknown error'));
     return body;
   }
-  function notify(message) {
-    const element = document.getElementById('feedback');
-    if (element) element.textContent = message;
-  }
+  function notify(message) { if(!stopped) showFeedback(message); }
   async function perform() {
     if (busy) return;
     busy = true; error = '';
@@ -26,8 +27,8 @@
         await exportSavedConfig(request, {BlobConstructor: Blob, URLObject: URL, documentObject: document});
         notify('Экспортирована сохранённая конфигурация');
       } else { throw Error('UNKNOWN_TOOL'); }
-    } catch(e) {error = String(e?.message || e);notify(error);}
-    finally {busy = false;}
+    } catch(e) {if(!stopped){error = String(e?.message || e);notify(error);}}
+    finally {if(!stopped)busy = false;}
   }
 </script>
 {#if kind === 'evaluate'}

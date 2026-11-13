@@ -1,5 +1,6 @@
 <script>
-  import {onMount} from 'svelte';
+  import {onMount,untrack} from 'svelte';
+  import {shell} from './DnsRuntimeStore.svelte.js';
   let busy=$state(false);
   let error=$state('');
   let shadow=$state(null);
@@ -8,8 +9,9 @@
   let updated=$state('');
   let stopped=false;
   let sequence=0;
-  async function get(path){
-    const response=await fetch('../'+path,{method:'GET',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'}});
+  let activeRead=null;
+  async function get(path,signal){
+    const response=await fetch('../'+path,{method:'GET',cache:'no-store',credentials:'same-origin',headers:{Accept:'application/json'},signal});
     if(!response.ok)throw Error('HTTP '+response.status+' · '+path);
     if(!(response.headers.get('content-type')||'').toLowerCase().includes('json'))throw Error('Ожидался JSON · '+path);
     return response.json();
@@ -17,8 +19,11 @@
   async function refresh(){
     if(busy||stopped)return;
     const call=++sequence;
+    activeRead?.abort();
+    const controller=new AbortController();
+    activeRead=controller;
     busy=true;error='';
-    const results=await Promise.allSettled([get('shadow/status'),get('runtime/resources'),get('keenetic/discovery')]);
+    const results=await Promise.allSettled([get('shadow/status',controller.signal),get('runtime/resources',controller.signal),get('keenetic/discovery',controller.signal)]);
     if(stopped||sequence!==call)return;
     shadow=results[0].status==='fulfilled'?results[0].value:null;
     resources=results[1].status==='fulfilled'?results[1].value:null;
@@ -27,8 +32,20 @@
     error=failures.map(x=>x.join(': ')).join(' · ');
     updated=new Date().toLocaleTimeString('ru-RU',{hour12:false});
     busy=false;
+    if(activeRead===controller)activeRead=null;
   }
-  onMount(()=>{void refresh();const id=window.setInterval(()=>{if(!document.hidden && !document.getElementById('dr-panel-diagnostics')?.hidden)void refresh();},15000);return()=>{stopped=true;++sequence;window.clearInterval(id);};});
+  $effect(()=>{
+    const visible = shell.tab === 'diagnostics';
+    if (visible) {
+      untrack(() => { if (!stopped) void refresh(); });
+    } else if (activeRead) {
+      activeRead.abort();
+      activeRead = null;
+      ++sequence;
+      busy = false;
+    }
+  });
+  onMount(()=>{const id=window.setInterval(()=>{if(!document.hidden && shell.tab==='diagnostics')void refresh();},15000);return()=>{stopped=true;++sequence;window.clearInterval(id);activeRead?.abort();activeRead=null;};});
 </script>
 <section class="panel" aria-label="Svelte 5: независимая диагностика DNS">
   <div class="panel-head">

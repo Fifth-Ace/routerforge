@@ -1101,3 +1101,6 @@ body.dpi-console-overlay-open{overflow:hidden!important}
 .v2-tech-details summary{color:var(--muted);font-size:11px;cursor:pointer;user-select:none}
 .v2-tech-details pre{margin:7px 0 0;padding:8px 9px;max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--code);border:1px solid var(--border);border-radius:6px;color:var(--muted);font:11px/1.45 ui-monospace,Consolas,monospace}
 #view-selector-v2 .v2-search-trace{display:none!important}
+
+/* Native Svelte Lua inventory buttons preserve the original list-row look. */
+button.script-item{background:transparent;color:inherit;text-align:left;font:inherit;width:100%}

@@ -1,6 +1,13 @@
 /* DNS Runtime R04: explicit, CAS-bound configuration operations.
    No network call on module evaluation, construction or mount. */
 let globalOperation = false;
+let viewEpoch = 0;
+
+// Called on real root unmount; an uncertain in-flight write must be reconciled by a new GET.
+export function invalidateConfigFlows() { viewEpoch++; }
+function requireCurrentView(epoch) {
+  if (epoch !== viewEpoch) throw Error('Операция завершилась после закрытия интерфейса; обнови состояние перед повтором');
+}
 
 function validSnapshot(readDraft) {
   const snapshot = readDraft();
@@ -30,12 +37,14 @@ export function createConfigFlow({readDraft, request, commit, confirmAction, not
   async function save() {
     return serial(async () => {
       const before = validSnapshot(readDraft);
+      const epoch = viewEpoch;
       const response = await request('config', {
         method: 'PUT',
         headers: {'Content-Type':'application/json', 'X-RouterForge-Action':'save',
           'If-Match':'"'+before.revision+'"'},
         body: JSON.stringify(before.config)
       });
+      requireCurrentView(epoch);
       const nextRevision = validRevision(response?.revision);
       const result = commit('saved', {
         previousRevision:before.revision, revision:nextRevision, generation:before.generation
@@ -49,8 +58,10 @@ export function createConfigFlow({readDraft, request, commit, confirmAction, not
   async function reload() {
     return serial(async () => {
       const before = validSnapshot(readDraft);
+      const epoch = viewEpoch;
       if (before.dirty && !confirmAction('Отменить несохранённые изменения?')) return {cancelled:true};
       const response = await request('config');
+      requireCurrentView(epoch);
       if (!response?.config || typeof response.config !== 'object' || Array.isArray(response.config)) {
         throw Error('Неверный ответ config');
       }
@@ -69,6 +80,7 @@ export function createConfigFlow({readDraft, request, commit, confirmAction, not
   async function previewImport(fields) {
     return serial(async () => {
       const before = validSnapshot(readDraft);
+      const epoch = viewEpoch;
       if (before.dirty) throw Error('Сначала сохрани или отменяй текущие изменения перед импортом');
       const values = {
         text: String(fields?.text ?? ''),
@@ -82,6 +94,7 @@ export function createConfigFlow({readDraft, request, commit, confirmAction, not
         method:'POST', headers:{'Content-Type':'application/json','X-RouterForge-Action':'import-preview'},
         body:JSON.stringify(values)
       });
+      requireCurrentView(epoch);
       if (response?.base_revision !== before.revision) {
         throw Error('Конфигурация изменилась; перечитай её');
       }
@@ -95,6 +108,7 @@ export function createConfigFlow({readDraft, request, commit, confirmAction, not
       if (!confirmAction('Применить импорт к НЕСОХРАНЁННОМУ проекту? DNS-трафик не изменится.')) {
         return {summary, staged:false};
       }
+      requireCurrentView(epoch);
       const after = validSnapshot(readDraft);
       if (after.revision !== before.revision || after.generation !== before.generation || after.dirty) {
         throw Error('Черновик изменён во время импорта; действие отменено');

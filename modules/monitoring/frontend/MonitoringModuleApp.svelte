@@ -5,6 +5,7 @@
   import { settings } from '$lib/stores/settings.js';
   import { getModule } from '$lib/api.js';
   import { startSerialPolling } from '$lib/polling.js';
+  import { createReadSessions } from '$lib/readSessions.js';
   import { bytes, fmtDuration, fmtInt } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
   import EventsPane from './EventsPane.svelte';
@@ -23,6 +24,8 @@
   let errorText = '';
   let data = {};
   let stopPolling = null;
+  let mounted = false;
+  const viewReads = createReadSessions();
   let interfaceSort = { key: 'display_name', dir: 'asc' };
   let systemInterfaceSort = { key: 'name', dir: 'asc' };
   let routeSort = { key: 'destination', dir: 'asc' };
@@ -50,6 +53,7 @@
     errorText = '';
     if (typeof window !== 'undefined') {
       Promise.resolve().then(() => {
+        if (!mounted) return;
         replaceState(`/monitoring?tab=${encodeURIComponent(tab)}`, {});
         startTimer(true);
       });
@@ -67,58 +71,70 @@
   const tempClass = (sensor) => sensor.status === 'critical' ? 'error' : sensor.status === 'warn' ? 'warn' : 'good';
   const moduleName = (item) => item?.id === 'events' ? t(locale, 'monitoring.events.title') : t(locale, item?.nameKey || 'monitoring.title');
 
-  async function loadSystem() {
+  async function loadSystem(signal) {
     const [summary, cpu, memory] = await Promise.all([
-      getModule('system', 'summary'), getModule('system', 'cpu'), getModule('system', 'memory')
+      getModule('system', 'summary', signal), getModule('system', 'cpu', signal), getModule('system', 'memory', signal)
     ]);
     return { summary, cpu, memory };
   }
 
-  async function loadProcesses() {
-    return { processes: await getModule('system', 'processes') };
+  async function loadProcesses(signal) {
+    return { processes: await getModule('system', 'processes', signal) };
   }
 
-  async function loadThermal() {
-    return { thermal: await getModule('thermal', 'sensors') };
+  async function loadThermal(signal) {
+    return { thermal: await getModule('thermal', 'sensors', signal) };
   }
 
-  async function loadStorage() {
-    return { storage: await getModule('storage', 'storage') };
+  async function loadStorage(signal) {
+    return { storage: await getModule('storage', 'storage', signal) };
   }
 
-  async function loadNetwork() {
+  async function loadNetwork(signal) {
     const [summary, interfaces, routes] = await Promise.all([
-      getModule('network', 'summary'), getModule('network', 'interfaces'), getModule('network', 'routes')
+      getModule('network', 'summary', signal), getModule('network', 'interfaces', signal), getModule('network', 'routes', signal)
     ]);
     return { summary, interfaces, routes };
   }
 
-  async function loadProfiling() {
-    return { profiling: await getModule('profiling', 'status') };
+  async function loadProfiling(signal) {
+    return { profiling: await getModule('profiling', 'status', signal) };
   }
 
   async function loadCurrent(showLoading = true) {
-    if (tab === 'events') { loading = false; errorText = ''; data = {}; return; }
+    const currentTab = tab;
+    if (currentTab === 'events') {
+      viewReads.cancel('active-tab');
+      loading = false; errorText = ''; data = {};
+      return;
+    }
+    const read = viewReads.begin('active-tab');
     if (showLoading) loading = true;
     try {
-      if (tab === 'system') data = await loadSystem();
-      if (tab === 'processes') data = await loadProcesses();
-      if (tab === 'thermal') data = await loadThermal();
-      if (tab === 'storage') data = await loadStorage();
-      if (tab === 'network') data = await loadNetwork();
-      if (tab === 'profiling') data = await loadProfiling();
+      let result = {};
+      if (currentTab === 'system') result = await loadSystem(read.signal);
+      if (currentTab === 'processes') result = await loadProcesses(read.signal);
+      if (currentTab === 'thermal') result = await loadThermal(read.signal);
+      if (currentTab === 'storage') result = await loadStorage(read.signal);
+      if (currentTab === 'network') result = await loadNetwork(read.signal);
+      if (currentTab === 'profiling') result = await loadProfiling(read.signal);
+      if (!read.isCurrent() || tab !== currentTab) return;
+      data = result;
       errorText = '';
     } catch (error) {
+      if (!read.isCurrent() || tab !== currentTab) return;
       data = {};
       errorText = error?.payload?.error || error?.message || t(locale, 'common.unavailable');
     } finally {
-      if (showLoading) loading = false;
+      if (read.isCurrent() && showLoading) loading = false;
+      read.finish();
     }
   }
 
   function startTimer(showLoading = false) {
-    if (tab === 'events') { if (stopPolling) stopPolling(); stopPolling = null; loading = false; errorText = ''; return; }
+    if (tab === 'events') { if (stopPolling) stopPolling(); stopPolling = null; viewReads.cancel('active-tab'); loading = false; errorText = ''; return; }
     if (stopPolling) stopPolling();
+    viewReads.cancel('active-tab');
     const interval = tab === 'processes' ? 1000 : tab === 'thermal' ? 10000 : tab === 'profiling' ? 5000 : 3000;
     let first = true;
     stopPolling = startSerialPolling(() => {
@@ -265,12 +281,15 @@
   }
 
   onMount(() => {
+    mounted = true;
     const params = new URLSearchParams(location.search);
     const initial = params.get('view') || params.get('tab');
     if (initial && moduleDefs.some((item) => item.id === initial)) tab = initial;
     startTimer(true);
     return () => {
+      mounted = false;
       if (stopPolling) stopPolling();
+      viewReads.dispose();
     };
   });
 </script>

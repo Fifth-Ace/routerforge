@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
 
   import { getPlatformAlerts, getPlatformEvents } from '$lib/api.js';
+  import { createReadSessions } from '$lib/readSessions.js';
 
   import { settings } from '$lib/stores/settings.js';
   import { t } from '$lib/i18n/index.js';
@@ -26,6 +27,7 @@
   let timer = null;
 
   let requestEpoch = 0;
+  const eventReads = createReadSessions();
 
   let category = 'all';
 
@@ -246,6 +248,7 @@
   async function load({ quiet = false } = {}) {
 
     const epoch = ++requestEpoch;
+    const read = eventReads.begin('events');
 
     if (quiet) refreshing = true;
 
@@ -255,13 +258,13 @@
 
       const [timeline, health] = await Promise.all([
 
-        getPlatformEvents({ limit: 100 }),
+        getPlatformEvents({ limit: 100, signal: read.signal }),
 
-        getPlatformAlerts()
+        getPlatformAlerts(read.signal)
 
       ]);
 
-      if (epoch !== requestEpoch) return;
+      if (epoch !== requestEpoch || !read.isCurrent()) return;
 
       events = Array.isArray(timeline?.events) ? timeline.events : [];
 
@@ -271,19 +274,20 @@
 
     } catch (error) {
 
-      if (epoch !== requestEpoch) return;
+      if (epoch !== requestEpoch || !read.isCurrent()) return;
 
       errorText = error?.payload?.error || error?.message || copy.loadError;
 
     } finally {
 
-      if (epoch === requestEpoch) {
+      if (epoch === requestEpoch && read.isCurrent()) {
 
         loading = false;
 
         refreshing = false;
 
       }
+      read.finish();
 
     }
 
@@ -304,6 +308,7 @@
     return () => {
 
       requestEpoch += 1;
+      eventReads.dispose();
 
       if (timer) window.clearInterval(timer);
 

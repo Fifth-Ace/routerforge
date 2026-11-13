@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { createReadSessions } from '$lib/readSessions.js';
   import { parseReleaseNote } from '$lib/release-notes.js';
 
   export let locale = 'ru';
@@ -10,22 +11,30 @@
   let blocks = [];
   let loading = true;
   let error = '';
+  let mounted = false;
+  const noteReads = createReadSessions();
 
   $: selected = (index.releases || []).find((item) => item.version === selectedVersion) || null;
 
   const text = (ru, en) => locale === 'ru' ? ru : en;
 
   onMount(() => {
+    mounted = true;
     void loadIndex();
+    return () => { mounted = false; noteReads.dispose(); };
   });
 
   async function loadIndex() {
+    if (!mounted) return;
+    const read = noteReads.begin('index');
     loading = true;
     error = '';
     try {
-      const response = await fetch('/release-notes/index.json', { cache:'no-store' });
+      const response = await fetch('/release-notes/index.json', { cache:'no-store', signal:read.signal });
       if (!response.ok) throw new Error(`release notes index HTTP ${response.status}`);
-      index = await response.json();
+      const payload = await response.json();
+      if (!read.isCurrent()) return;
+      index = payload;
 
       const available = new Set((index.releases || []).map((item) => item.version));
       selectedVersion = available.has(index.current_stable)
@@ -34,28 +43,36 @@
 
       if (selectedVersion) await loadVersion(selectedVersion);
     } catch (cause) {
-      error = cause?.message || String(cause);
+      if (read.isCurrent()) error = cause?.message || String(cause);
     } finally {
-      loading = false;
+      if (read.isCurrent()) loading = false;
+      read.finish();
     }
   }
 
   async function loadVersion(version) {
+    if (!mounted) return;
+    const read = noteReads.begin('version');
     const item = (index.releases || []).find((candidate) => candidate.version === version);
-    if (!item) return;
+    if (!item) { read.finish(); return; }
 
     loading = true;
     error = '';
     try {
-      const response = await fetch(`/release-notes/${encodeURIComponent(item.file)}`, { cache:'no-store' });
+      const response = await fetch(`/release-notes/${encodeURIComponent(item.file)}`, { cache:'no-store', signal:read.signal });
       if (!response.ok) throw new Error(`release note HTTP ${response.status}`);
+      const content = await response.text();
+      if (!read.isCurrent()) return;
       selectedVersion = version;
-      blocks = parseReleaseNote(await response.text());
+      blocks = parseReleaseNote(content);
     } catch (cause) {
-      blocks = [];
-      error = cause?.message || String(cause);
+      if (read.isCurrent()) {
+        blocks = [];
+        error = cause?.message || String(cause);
+      }
     } finally {
-      loading = false;
+      if (read.isCurrent()) loading = false;
+      read.finish();
     }
   }
 

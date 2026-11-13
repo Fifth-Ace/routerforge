@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { createReadSessions } from '$lib/readSessions.js';
   import { t } from '$lib/i18n/index.js';
   import {
     getAppSources, previewAppSource, addAppSource, refreshAppSource,
@@ -25,15 +26,25 @@
   let legalOpen = false;
   let legalText = '';
   let legalLoading = false;
+  let mounted = false;
+  const sourceReads = createReadSessions();
 
 
-  onMount(() => { void load(); });
+  onMount(() => { mounted = true; void load(); return () => { mounted = false; sourceReads.dispose(); }; });
 
   async function load() {
+    if (!mounted) return;
+    const read = sourceReads.begin('sources');
     loading = true; error = '';
-    try { state = await getAppSources(); }
-    catch (e) { error = e?.payload?.error || e?.message || 'error'; }
-    finally { loading = false; }
+    try {
+      const next = await getAppSources(read.signal);
+      if (read.isCurrent()) state = next;
+    } catch (e) {
+      if (read.isCurrent()) error = e?.payload?.error || e?.message || 'error';
+    } finally {
+      if (read.isCurrent()) loading = false;
+      read.finish();
+    }
   }
 
   function invalidateSourcePreview() {
@@ -47,7 +58,9 @@
     if (!url || busy) return;
     busy = 'preview'; error = ''; invalidateSourcePreview();
     try {
-      preview = await previewAppSource({ url, kind });
+      const result = await previewAppSource({ url, kind });
+      if (!mounted) return;
+      preview = result;
       previewRequest = { url, kind };
     }
     catch (e) { error = e?.payload?.error || e?.message || 'error'; }
@@ -70,7 +83,7 @@
         fingerprint:preview.fingerprint
       });
       sourceURL = ''; invalidateSourcePreview();
-      await load(); await onchanged();
+      if (mounted) { await load(); if (mounted) await onchanged(); }
     } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
@@ -78,15 +91,15 @@
   async function refreshSource(source) {
     if (busy || source.read_only) return;
     busy = `refresh:${source.id}`; error = '';
-    try { await refreshAppSource(source.id); await load(); await onchanged(); }
-    catch (e) { error = e?.payload?.error || e?.message || 'error'; await load(); }
+    try { await refreshAppSource(source.id); if (mounted) { await load(); if (mounted) await onchanged(); } }
+    catch (e) { if (mounted) { error = e?.payload?.error || e?.message || 'error'; await load(); } }
     finally { busy = ''; }
   }
 
   async function toggleSource(source) {
     if (busy || source.read_only) return;
     busy = `toggle:${source.id}`; error = '';
-    try { await setAppSourceEnabled(source.id, !source.enabled); await load(); await onchanged(); }
+    try { await setAppSourceEnabled(source.id, !source.enabled); if (mounted) { await load(); if (mounted) await onchanged(); } }
     catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
@@ -107,7 +120,7 @@
     busy = `channel:${source.id}`; error = '';
     try {
       await setAppSourceReleaseChannel(source.id, next);
-      await load(); await onchanged();
+      if (mounted) { await load(); if (mounted) await onchanged(); }
     } catch (e) {
       select.value = current;
       error = e?.payload?.error || e?.message || 'error';
@@ -120,7 +133,7 @@
     const question = t(locale, 'sourceManager.confirmDelete', {name:source.name});
     if (!window.confirm(question)) return;
     busy = `delete:${source.id}`; error = '';
-    try { await removeAppSource(source.id); await load(); await onchanged(); }
+    try { await removeAppSource(source.id); if (mounted) { await load(); if (mounted) await onchanged(); } }
     catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
@@ -130,7 +143,7 @@
     busy = 'security'; error = '';
     try {
       await setAppSourceSecurity({ scope:'unverified', allow_unverified:false, accepted:false, agreement_version:state.agreement_version });
-      await load(); await onchanged();
+      if (mounted) { await load(); if (mounted) await onchanged(); }
     } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
@@ -141,7 +154,7 @@
     try {
       await setAppSourceSecurity({ scope:'unverified', allow_unverified:true, accepted:true, agreement_version:state.agreement_version });
       riskOpen = false; riskAccepted = false;
-      await load(); await onchanged();
+      if (mounted) { await load(); if (mounted) await onchanged(); }
     } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
@@ -156,7 +169,7 @@
         local_accepted:false,
         local_agreement_version:state.local_agreement_version
       });
-      await load(); await onchanged();
+      if (mounted) { await load(); if (mounted) await onchanged(); }
     } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
@@ -172,18 +185,26 @@
         local_agreement_version:state.local_agreement_version
       });
       localRiskOpen = false; localRiskAccepted = false;
-      await load(); await onchanged();
+      if (mounted) { await load(); if (mounted) await onchanged(); }
     } catch (e) { error = e?.payload?.error || e?.message || 'error'; }
     finally { busy = ''; }
   }
 
   async function showLegal() {
+    if (!mounted) return;
     legalOpen = true;
     if (legalText || legalLoading) return;
+    const read = sourceReads.begin('legal');
     legalLoading = true;
-    try { const result = await getAppLegal(locale); legalText = result?.text || ''; }
-    catch (e) { legalText = e?.payload?.error || e?.message || 'error'; }
-    finally { legalLoading = false; }
+    try {
+      const result = await getAppLegal(locale, read.signal);
+      if (read.isCurrent()) legalText = result?.text || '';
+    } catch (e) {
+      if (read.isCurrent()) legalText = e?.payload?.error || e?.message || 'error';
+    } finally {
+      if (read.isCurrent()) legalLoading = false;
+      read.finish();
+    }
   }
 
   function trustLabel(source) {

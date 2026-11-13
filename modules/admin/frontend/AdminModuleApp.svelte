@@ -1,15 +1,9 @@
 <script>
   import { onMount } from 'svelte';
+  import { createReadSessions } from '$lib/readSessions.js';
   import {
-    adminFileChmod,
-    adminFileDelete,
-    adminFileDownloadURL,
-    adminFileMkdir,
-    adminFileMove,
-    adminFileWrite,
     adminProcessSignal,
     adminServiceAction,
-    adminTerminalRun,
     adminMaintenanceBackup,
     adminMaintenanceRestore,
     adminSupportBundleDownloadURL,
@@ -31,9 +25,7 @@
     getNFQWS2Manager,
     nfqws2ManagerAction,
     saveNFQWS2Config,
-    getAdminFiles,
-    getModule,
-    readAdminFile
+    getModule
   } from '$lib/api.js';
   import { startSerialPolling } from '$lib/polling.js';
   import { bytes } from '$lib/utils.js';
@@ -42,7 +34,6 @@
   import TerminalPane from './TerminalPane.svelte';
   import FileManagerPane from './FileManagerPane.svelte';
 
-  const FILE_EDITOR_WRITE_LIMIT = 128 * 1024;
   const adminQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const terminalEmbed = adminQuery.get('embed') === 'terminal';
   const terminalAutoCommand = terminalEmbed && adminQuery.get('autorun') === 'dpi-detector'
@@ -58,6 +49,10 @@
   let loading = false;
   let packageLoading = false;
   let loadEpoch = 0;
+  let mounted = false;
+  const adminReads = createReadSessions();
+  let actionToastTimer = null;
+  const deferredMaintenanceTimers = new Set();
   let packageRenderLimit = 160;
   let errorText = '';
   let actionText = '';
@@ -65,19 +60,6 @@
   let selectedServiceID = '';
   let selectedService = null;
   let fileOpenTarget = '';
-
-  let filePath = '/opt';
-  let fileEntries = [];
-  let fileLoading = false;
-  let selectedFile = null;
-  let editorContent = '';
-  let editorOriginal = '';
-  let editorBusy = false;
-
-  let terminalCommand = '';
-  let terminalCwd = '/opt';
-  let terminalLines = [];
-  let terminalBusy = false;
 
   let maintenanceLogs = '';
   let maintenanceLogSource = '';
@@ -171,13 +153,13 @@
   $: selectedService = filteredServices.find((service) => service.id === selectedServiceID) || filteredServices[0] || null;
   $: matchingPackages = packages.filter((p) => !q || `${p.name} ${p.version} ${p.architecture}`.toLowerCase().includes(q));
   $: filteredPackages = matchingPackages.slice(0, packageRenderLimit);
-  $: filteredFiles = fileEntries.filter((entry) => !q || `${entry.name} ${entry.path} ${entry.kind}`.toLowerCase().includes(q));
-  $: editorDirty = selectedFile && editorContent !== editorOriginal;
-  $: editorReadOnly = !!selectedFile && Number(selectedFile.size || 0) > FILE_EDITOR_WRITE_LIMIT;
 
   function setAction(message) {
+    if (!mounted) return;
+    if (actionToastTimer !== null) clearTimeout(actionToastTimer);
     actionText = message || '';
-    if (message) setTimeout(() => {
+    if (message) actionToastTimer = setTimeout(() => {
+      actionToastTimer = null;
       if (actionText === message) actionText = '';
     }, 5000);
   }
@@ -187,11 +169,26 @@
   }
 
   async function load(next = tab) {
+    if (!mounted) return;
     const epoch = ++loadEpoch;
-    if (next === 'files') return;
-    if (next === 'terminal') return;
+    adminReads.cancel('tab');
+    if (next !== 'maintenance') {
+      adminReads.cancel('maintenance');
+      adminReads.cancel('support');
+    }
+    if (next !== 'integrations') adminReads.cancel('integrations');
+    if (next === 'files' || next === 'terminal') {
+      loading = false;
+      packageLoading = false;
+      return;
+    }
     if (next === 'maintenance') return loadMaintenance();
+    if (next === 'integrations') {
+      loading = false;
+      return loadIntegrations();
+    }
 
+    const read = adminReads.begin('tab');
     if (next === 'packages') {
       packageLoading = true;
       packageRenderLimit = 160;
@@ -201,28 +198,29 @@
     errorText = '';
     try {
       if (next === 'processes') {
-        const result = await getModule('admin', 'processes');
-        if (epoch === loadEpoch && tab === next) processes = result.processes || [];
+        const result = await getModule('admin', 'processes', read.signal);
+        if (read.isCurrent() && epoch === loadEpoch && tab === next) processes = result.processes || [];
       }
       if (next === 'ports') {
-        const result = await getModule('admin', 'ports');
-        if (epoch === loadEpoch && tab === next) ports = result.ports || [];
+        const result = await getModule('admin', 'ports', read.signal);
+        if (read.isCurrent() && epoch === loadEpoch && tab === next) ports = result.ports || [];
       }
       if (next === 'services') {
-        const result = await getModule('admin', 'service-inspector');
-        if (epoch === loadEpoch && tab === next) services = result.services || [];
+        const result = await getModule('admin', 'service-inspector', read.signal);
+        if (read.isCurrent() && epoch === loadEpoch && tab === next) services = result.services || [];
       }
       if (next === 'packages') {
-        const result = await getModule('admin', 'packages');
-        if (epoch === loadEpoch && tab === next) packages = result.packages || [];
+        const result = await getModule('admin', 'packages', read.signal);
+        if (read.isCurrent() && epoch === loadEpoch && tab === next) packages = result.packages || [];
       }
     } catch (error) {
-      if (epoch === loadEpoch && tab === next) errorText = errorMessage(error);
+      if (read.isCurrent() && epoch === loadEpoch && tab === next) errorText = errorMessage(error);
     } finally {
-      if (epoch === loadEpoch) {
+      if (read.isCurrent() && epoch === loadEpoch) {
         loading = false;
         packageLoading = false;
       }
+      read.finish();
     }
   }
 
@@ -241,7 +239,7 @@
     try {
       await adminProcessSignal(p.pid, signal);
       setAction(`PID ${p.pid}: ${signal} — OK`);
-      await load('processes');
+      if (mounted && tab === 'processes') await load('processes');
     } catch (error) {
       errorText = errorMessage(error);
     }
@@ -290,7 +288,7 @@
       };
       const state = result.transaction?.state || 'completed';
       setAction(`${id}: ${action} — ${state.toUpperCase()}`);
-      await load('services');
+      if (mounted && tab === 'services') await load('services');
     } catch (error) {
       const payload = error?.payload || {};
       if (payload.transaction) {
@@ -304,215 +302,25 @@
       errorText = errorMessage(error);
     }
   }
-  function joinPath(parent, name) {
-    if (parent === '/') return `/${name}`;
-    return `${parent.replace(/\/+$/, '')}/${name}`;
-  }
-
-  function parentPath(path) {
-    const clean = path.replace(/\/+$/, '');
-    const pos = clean.lastIndexOf('/');
-    if (pos <= 0) return '/';
-    return clean.slice(0, pos);
-  }
-
-  async function loadFiles(path = filePath) {
-    fileLoading = true;
-    errorText = '';
-    try {
-      const result = await getAdminFiles(path);
-      filePath = result.path || path;
-      fileEntries = result.entries || [];
-      selectedFile = null;
-      editorContent = '';
-      editorOriginal = '';
-    } catch (error) {
-      errorText = errorMessage(error);
-    } finally {
-      fileLoading = false;
-    }
-  }
-
-  async function openEntry(entry) {
-    if (entry.kind === 'directory') {
-      await loadFiles(entry.path);
-      return;
-    }
-    if (entry.kind !== 'file') {
-      errorText = copy.noPreview;
-      return;
-    }
-    editorBusy = true;
-    errorText = '';
-    try {
-      const result = await readAdminFile(entry.path);
-      selectedFile = result;
-      editorContent = result.content || '';
-      editorOriginal = editorContent;
-    } catch (error) {
-      errorText = errorMessage(error);
-    } finally {
-      editorBusy = false;
-    }
-  }
-
-  async function saveEditor() {
-    if (!selectedFile || !editorDirty || editorReadOnly) return;
-    editorBusy = true;
-    errorText = '';
-    try {
-      const result = await adminFileWrite({
-        path: selectedFile.path,
-        confirm_path: selectedFile.path,
-        content: editorContent,
-        create: false,
-        expected_size: selectedFile.size,
-        expected_mtime_ns: selectedFile.mtime_ns
-      });
-      setAction(`${copy.save}: ${selectedFile.path} — OK`);
-      const fresh = await readAdminFile(result.path || selectedFile.path);
-      selectedFile = fresh;
-      editorContent = fresh.content || '';
-      editorOriginal = editorContent;
-      await refreshFilesKeepingEditor();
-    } catch (error) {
-      errorText = errorMessage(error);
-    } finally {
-      editorBusy = false;
-    }
-  }
-
-  async function refreshFilesKeepingEditor() {
-    const active = selectedFile?.path;
-    const result = await getAdminFiles(filePath);
-    fileEntries = result.entries || [];
-    if (active && selectedFile) {
-      const found = fileEntries.find((entry) => entry.path === active);
-      if (found) selectedFile = { ...selectedFile, size: found.size, mtime_ns: found.mtime_ns, modified_at: found.modified_at, mode: found.mode };
-    }
-  }
-
-  async function createDirectory() {
-    const name = prompt(copy.mkdirPrompt, '');
-    if (!name || name.includes('/') || name === '.' || name === '..') return;
-    const path = joinPath(filePath, name);
-    try {
-      await adminFileMkdir({ path, confirm_path: path });
-      setAction(`${copy.mkdir}: ${path} — OK`);
-      await loadFiles(filePath);
-    } catch (error) {
-      errorText = errorMessage(error);
-    }
-  }
-
-  async function createFile() {
-    const name = prompt(copy.filePrompt, '');
-    if (!name || name.includes('/') || name === '.' || name === '..') return;
-    const path = joinPath(filePath, name);
-    try {
-      await adminFileWrite({ path, confirm_path: path, content: '', create: true });
-      setAction(`${copy.newFile}: ${path} — OK`);
-      await loadFiles(filePath);
-      const entry = fileEntries.find((item) => item.path === path);
-      if (entry) await openEntry(entry);
-    } catch (error) {
-      errorText = errorMessage(error);
-    }
-  }
-
-  async function moveEntry(entry) {
-    const destination = prompt(copy.renamePrompt, entry.path);
-    if (!destination || destination === entry.path) return;
-    if (!confirm(`${copy.rename}: ${entry.path}\n→ ${destination}?`)) return;
-    try {
-      await adminFileMove({
-        source: entry.path,
-        destination,
-        confirm_source: entry.path,
-        confirm_destination: destination,
-        expected_size: entry.size,
-        expected_mtime_ns: entry.mtime_ns
-      });
-      setAction(`${copy.rename}: ${entry.path} → ${destination}`);
-      await loadFiles(filePath);
-    } catch (error) {
-      errorText = errorMessage(error);
-    }
-  }
-
-  async function deleteEntry(entry) {
-    if (!confirm(`${copy.deleteConfirm}\n${entry.path}`)) return;
-    try {
-      await adminFileDelete({
-        path: entry.path,
-        confirm_path: entry.path,
-        expected_size: entry.size,
-        expected_mtime_ns: entry.mtime_ns
-      });
-      setAction(`${copy.remove}: ${entry.path} — OK`);
-      await loadFiles(filePath);
-    } catch (error) {
-      errorText = errorMessage(error);
-    }
-  }
-
-  async function chmodEntry(entry) {
-    const mode = prompt(copy.chmodPrompt, '0644');
-    if (!mode) return;
-    if (!confirm(`${copy.chmod}: ${entry.path} → ${mode}?`)) return;
-    try {
-      await adminFileChmod({
-        path: entry.path,
-        confirm_path: entry.path,
-        mode,
-        expected_size: entry.size,
-        expected_mtime_ns: entry.mtime_ns
-      });
-      setAction(`${copy.chmod}: ${entry.path} → ${mode}`);
-      await loadFiles(filePath);
-    } catch (error) {
-      errorText = errorMessage(error);
-    }
-  }
-
-  async function runTerminal() {
-    const command = terminalCommand.trim();
-    if (!command || terminalBusy) return;
-    if (!confirm(`root@routerforge:${terminalCwd}$ ${command}`)) return;
-
-    terminalBusy = true;
-    errorText = '';
-    terminalLines = [...terminalLines, { kind: 'command', text: `root@routerforge:${terminalCwd}$ ${command}` }];
-    try {
-      const result = await adminTerminalRun(command, terminalCwd);
-      const output = result.output || '';
-      if (output) terminalLines = [...terminalLines, { kind: 'output', text: output }];
-      terminalLines = [...terminalLines, {
-        kind: result.ok ? 'status' : 'error',
-        text: `[exit ${result.exit_code}${result.timed_out ? ' · timeout' : ''}${result.output_truncated ? ' · truncated' : ''}]`
-      }];
-      terminalCommand = '';
-    } catch (error) {
-      const message = errorMessage(error);
-      terminalLines = [...terminalLines, { kind: 'error', text: message }];
-      errorText = message;
-    } finally {
-      terminalBusy = false;
-    }
-  }
-
   async function createSupportBundle() {
     if (supportBusy) return;
     supportBusy = true;
     errorText = '';
     try {
       const result = await createAdminSupportBundle();
-      const [status, bundles] = await Promise.all([
-        getAdminSupportStatus(),
-        getAdminSupportBundles()
-      ]);
-      supportStatus = status;
-      supportBundles = bundles.bundles || [];
+      if (mounted && tab === 'maintenance') {
+        const read = adminReads.begin('support');
+        try {
+          const [status, bundles] = await Promise.all([
+            getAdminSupportStatus(read.signal),
+            getAdminSupportBundles(read.signal)
+          ]);
+          if (read.isCurrent() && tab === 'maintenance') {
+            supportStatus = status;
+            supportBundles = bundles.bundles || [];
+          }
+        } finally { read.finish(); }
+      }
       setAction(`${t(locale, 'manage.adminMessages.supportCreated')}: ${result.bundle?.name || 'OK'}`);
     } catch (error) {
       errorText = errorMessage(error);
@@ -522,17 +330,20 @@
   }
 
   async function loadMaintenance() {
+    if (!mounted || tab !== 'maintenance') return;
+    const read = adminReads.begin('maintenance');
     maintenanceBusy = true;
     errorText = '';
     try {
       const [logs, tasks, jobs, backups, watchdogResult, snapshotResult] = await Promise.all([
-        getAdminMaintenanceLogs(),
-        getAdminMaintenanceTasks(),
-        getAdminNFQWSJobs(),
-        getAdminMaintenanceBackups(),
-        getAdminWatchdogs(),
-        getAdminSnapshots()
+        getAdminMaintenanceLogs(read.signal),
+        getAdminMaintenanceTasks(read.signal),
+        getAdminNFQWSJobs(read.signal),
+        getAdminMaintenanceBackups(read.signal),
+        getAdminWatchdogs(read.signal),
+        getAdminSnapshots(read.signal)
       ]);
+      if (!read.isCurrent() || tab !== 'maintenance') return;
       maintenanceLogs = logs.content || '';
       maintenanceLogSource = logs.source || '';
       maintenanceTasks = tasks.tasks || [];
@@ -541,13 +352,17 @@
       maintenanceBackups = backups.backups || [];
       watchdogs = watchdogResult.watchdogs || [];
       snapshots = snapshotResult.snapshots || [];
-      const [support, bundleResult] = await Promise.all([getAdminSupportStatus(), getAdminSupportBundles()]);
+      const [support, bundleResult] = await Promise.all([
+        getAdminSupportStatus(read.signal), getAdminSupportBundles(read.signal)
+      ]);
+      if (!read.isCurrent() || tab !== 'maintenance') return;
       supportStatus = support;
       supportBundles = bundleResult.bundles || [];
     } catch (error) {
-      errorText = errorMessage(error);
+      if (read.isCurrent() && tab === 'maintenance') errorText = errorMessage(error);
     } finally {
-      maintenanceBusy = false;
+      if (read.isCurrent()) maintenanceBusy = false;
+      read.finish();
     }
   }
 
@@ -572,7 +387,7 @@
         interval_minutes: interval,
         enabled: true
       });
-      await loadMaintenance();
+      if (mounted && tab === 'maintenance') await loadMaintenance();
       setAction(`NFQWS job ${id}: ENABLED`);
     } catch (error) {
       errorText = errorMessage(error);
@@ -593,7 +408,7 @@
         interval_minutes: job.interval_minutes,
         enabled: !job.enabled
       });
-      await loadMaintenance();
+      if (mounted && tab === 'maintenance') await loadMaintenance();
       setAction(`NFQWS job ${job.id}: ${job.enabled ? 'DISABLED' : 'ENABLED'}`);
     } catch (error) {
       errorText = errorMessage(error);
@@ -610,7 +425,13 @@
     try {
       await runAdminNFQWSJob(job.id);
       setAction(`NFQWS job ${job.id}: RUNNING`);
-      setTimeout(() => loadMaintenance(), 1200);
+      if (mounted && tab === 'maintenance') {
+        const timer = setTimeout(() => {
+          deferredMaintenanceTimers.delete(timer);
+          if (mounted && tab === 'maintenance') void loadMaintenance();
+        }, 1200);
+        deferredMaintenanceTimers.add(timer);
+      }
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
@@ -624,7 +445,7 @@
     errorText = '';
     try {
       const result = await adminMaintenanceBackup();
-      await loadMaintenance();
+      if (mounted && tab === 'maintenance') await loadMaintenance();
       setAction(`${copy.backup}: ${result.path} (${bytes(result.size || 0)})`);
     } catch (error) {
       errorText = errorMessage(error);
@@ -641,7 +462,7 @@
     try {
       const result = await adminMaintenanceRestore(backup.path);
       setAction(`${copy.restore}: ${result.restored_root} — OK · safety: ${result.safety_backup}`);
-      await loadMaintenance();
+      if (mounted && tab === 'maintenance') await loadMaintenance();
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
@@ -657,7 +478,7 @@
     errorText = '';
     try {
       await configureAdminWatchdog(watchdog.id, enabled);
-      await loadMaintenance();
+      if (mounted && tab === 'maintenance') await loadMaintenance();
       setAction(`${copy.watchdogs}: ${watchdog.name} — ${action}`);
     } catch (error) {
       errorText = errorMessage(error);
@@ -673,7 +494,7 @@
     try {
       const result = await createAdminSnapshot();
       setAction(`${copy.createSnapshot}: ${result.path} (${bytes(result.size || 0)})`);
-      await loadMaintenance();
+      if (mounted && tab === 'maintenance') await loadMaintenance();
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
@@ -689,7 +510,7 @@
     try {
       await deleteAdminSnapshot(snapshot.path);
       setAction(`${copy.delete}: ${snapshot.path}`);
-      await loadMaintenance();
+      if (mounted && tab === 'maintenance') await loadMaintenance();
     } catch (error) {
       errorText = errorMessage(error);
     } finally {
@@ -698,13 +519,16 @@
   }
 
   async function loadIntegrations() {
+    if (!mounted || tab !== 'integrations') return;
+    const read = adminReads.begin('integrations');
     integrationsBusy = true;
     errorText = '';
     try {
       const [result, manager] = await Promise.all([
-        getAdminIntegrations(),
-        getNFQWS2Manager()
+        getAdminIntegrations(read.signal),
+        getNFQWS2Manager(read.signal)
       ]);
+      if (!read.isCurrent() || tab !== 'integrations') return;
       integrations = result.integrations || [];
       nfqws2 = manager || null;
       if (!nfqws2Busy) {
@@ -712,9 +536,10 @@
         nfqws2Original = manager?.config || '';
       }
     } catch (error) {
-      errorText = errorMessage(error);
+      if (read.isCurrent() && tab === 'integrations') errorText = errorMessage(error);
     } finally {
-      integrationsBusy = false;
+      if (read.isCurrent()) integrationsBusy = false;
+      read.finish();
     }
   }
 
@@ -755,6 +580,7 @@
   }
 
   onMount(() => {
+    mounted = true;
     load(tab);
 
     adminHeightObserver = new MutationObserver(scheduleAdminHeight);
@@ -779,12 +605,18 @@
     }, 4000);
 
     return () => {
+      mounted = false;
       stopPolling();
       clearTimeout(warmupA);
       clearTimeout(warmupB);
       window.removeEventListener('resize', scheduleAdminHeight);
       if (adminHeightObserver) adminHeightObserver.disconnect();
       if (adminHeightRaf) cancelAnimationFrame(adminHeightRaf);
+      if (actionToastTimer !== null) clearTimeout(actionToastTimer);
+      for (const timer of deferredMaintenanceTimers) clearTimeout(timer);
+      deferredMaintenanceTimers.clear();
+      loadEpoch += 1;
+      adminReads.dispose();
     };
   });
 </script>
@@ -814,7 +646,7 @@
   {#if tab !== 'files' && tab !== 'terminal' && tab !== 'maintenance'}
     <div class="toolbar">
       <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale, 'common.search')}/></div>
-      <button class="button" onclick={() => load(tab)} disabled={loading || fileLoading}>↻ {t(locale, 'common.refresh')}</button>
+      <button class="button" onclick={() => load(tab)} disabled={loading}>↻ {t(locale, 'common.refresh')}</button>
     </div>
   {/if}
 

@@ -14,6 +14,10 @@ const initial = {
 };
 
 export const authState = writable({ ...initial });
+// A status GET started before logout/login must never overwrite the resulting
+// authenticated state after the mutation has completed.
+let authReadRevision = 0;
+const invalidateAuthReads = () => { authReadRevision += 1; };
 
 async function parseResponse(response) {
   let payload = null;
@@ -35,20 +39,23 @@ async function authRequest(path, options) {
 }
 
 export function markUnauthorized() {
+  invalidateAuthReads();
   authState.update((current) => current.required
     ? { ...current, ready: true, authenticated: false, user: '' }
     : current);
 }
 
 export async function refreshAuth() {
+  const revision = ++authReadRevision;
   try {
     const data = await authRequest('/api/auth/status', {
       cache: 'no-store',
       headers: { Accept: 'application/json' }
     });
-    authState.set({ ...initial, ...data, ready: true, error: '' });
+    if (revision === authReadRevision) authState.set({ ...initial, ...data, ready: true, error: '' });
     return data;
   } catch (error) {
+    if (revision !== authReadRevision) return null;
     authState.update((current) => ({
       ...current,
       ready: true,
@@ -60,6 +67,7 @@ export async function refreshAuth() {
 }
 
 export async function loginAuth(username, password) {
+  invalidateAuthReads();
   await authRequest('/api/auth/login', {
     method: 'POST',
     cache: 'no-store',
@@ -70,6 +78,7 @@ export async function loginAuth(username, password) {
 }
 
 export async function logoutAuth() {
+  invalidateAuthReads();
   try {
     await authRequest('/api/auth/logout', {
       method: 'POST',
@@ -78,6 +87,7 @@ export async function logoutAuth() {
       body: '{}'
     });
   } finally {
+    invalidateAuthReads();
     authState.update((current) => ({
       ...current,
       ready: true,
@@ -88,12 +98,14 @@ export async function logoutAuth() {
 }
 
 export async function setAuthRequired(required, username = '', password = '') {
+  invalidateAuthReads();
   const data = await authRequest('/api/auth/config', {
     method: 'POST',
     cache: 'no-store',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ required: Boolean(required), username, password })
   });
+  invalidateAuthReads();
   authState.set({ ...initial, ...data, ready: true, error: '' });
   if (required) {
     // The enabling response also creates the authenticated session cookie.

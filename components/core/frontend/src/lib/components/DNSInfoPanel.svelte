@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { createReadSessions } from '$lib/readSessions.js';
   import { getDNSInfo } from '$lib/api.js';
   import { snapshot } from '$lib/stores/snapshot.js';
   import { settings } from '$lib/stores/settings.js';
@@ -11,6 +12,8 @@
   let error = '';
   let actionMessage = '';
   let actionKind = 'info';
+  const reads = createReadSessions();
+  let mounted = false;
 
   $: locale = $settings.locale || 'ru';
   $: proxies = info.proxies || [];
@@ -72,15 +75,19 @@
   }
 
   async function load() {
+    if (!mounted) return;
+    const read = reads.begin('dns-info');
     loading = true;
     error = '';
     actionMessage = '';
     try {
-      info = await getDNSInfo();
+      const next = await getDNSInfo(read.signal);
+      if (read.isCurrent()) info = next;
     } catch (e) {
-      error = e?.payload?.error || e?.message || t(locale, 'dns.tools.dnsInfoUnavailable');
+      if (read.isCurrent()) error = e?.payload?.error || e?.message || t(locale, 'dns.tools.dnsInfoUnavailable');
     } finally {
-      loading = false;
+      if (read.isCurrent()) loading = false;
+      read.finish();
     }
   }
 
@@ -154,7 +161,7 @@
     URL.revokeObjectURL(href);
   }
 
-  onMount(load);
+  onMount(() => { mounted = true; void load(); return () => { mounted = false; reads.dispose(); }; });
 </script>
 
 <div class="dns-info-shell">

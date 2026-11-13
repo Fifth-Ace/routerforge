@@ -34,9 +34,10 @@ print('P195_CORE_EXPLICIT_SOURCE_LIST: PASS')
 assert h.count('id="editorDNSChoice"') == 0, 'P195_DUPLICATE_LEGACY_EDITOR_SELECTOR'
 assert controls.count('id="editorDNSChoice"') == 1, 'P195_SVELTE_EDITOR_SELECTOR_NOT_UNIQUE'
 assert 'id="rf-lite-editor-choice-slot"' in h and "use:portal={'rf-lite-editor-choice-slot'}" in controls, 'P195_EDITOR_SELECTOR_PORTAL_MISSING'
-assert "onchange={() => send('editor-choice')}" in controls, 'P195_EDITOR_SELECTOR_HANDLER_MISSING'
+assert "onchange={event => send('editor-choice',event.currentTarget.value)}" in controls, 'P195_EDITOR_SELECTOR_HANDLER_MISSING'
 assert 'const initial=state.config.upstreams.find' in logic
-assert "if(!editList(chosen))byId('editorDNSChoice').value=previous" in logic
+assert "'editor-choice':(value)" in logic and 'value={chosen}' in controls
+assert 'document.getElementById' not in logic, 'P195_LEGACY_DOM_SELECTOR_OWNERSHIP_REMAINS'
 assert '/* P19.5b — reference-render parity.' in c
 assert 'grid-template-columns: minmax(425px,1.16fr) minmax(400px,1fr)' in c
 print('P195B_RENDER_PARITY_AND_READ_ONLY_SELECTION: PASS')

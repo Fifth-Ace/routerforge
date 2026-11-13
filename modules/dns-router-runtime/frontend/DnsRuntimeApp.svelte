@@ -3,6 +3,7 @@
   import {draft,simple,shell,loadConfig,feedback,nativeDNS,choices,groups,policyName,policyRoute,changeDNS} from './DnsRuntimeStore.svelte.js';
   import {scanNative,stopRuntimeRequests} from './DnsRuntimeCommands.js';
   import {apiRequest} from './DnsRuntimeApi.js';
+  import {invalidateConfigFlows} from './DnsRuntimeConfigLogic.js';
   import {shadow} from './DnsRuntimeShadowState.svelte.js';
   import DnsRuntimeConfigActions from './DnsRuntimeConfigActions.svelte';
   import DnsRuntimeDiagnostics from './DnsRuntimeDiagnostics.svelte';
@@ -49,7 +50,7 @@
       if(!controller.signal.aborted)feedback('Ошибка загрузки: '+String(e?.message||e));
     });
     void scanNative(controller.signal);
-    return ()=>{controller.abort();stopRuntimeRequests();theme();};
+    return ()=>{controller.abort();stopRuntimeRequests();invalidateConfigFlows();theme();};
   });
   import {setupRuntimeTheme} from './DnsRuntimeTheme.js';
 </script>

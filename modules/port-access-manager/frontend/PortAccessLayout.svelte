@@ -1,5 +1,10 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
+  import PortAccessOdin from './PortAccessOdin.svelte';
+  import PortAccessEngineWorkspace from './PortAccessEngineWorkspace.svelte';
+  import PortAccessEngineering from './PortAccessEngineering.svelte';
+  import PortAccessStatus from './PortAccessStatus.svelte';
+  import PortAccessOperationLog from './PortAccessOperationLog.svelte';
 
   // Native Svelte 5 workspace. No ui-rebuild/P39/P53 DOM controllers.
   // All protected actions remain owned by PortAccessOdin and
@@ -30,15 +35,17 @@
   let accessBusy = $state(false);
   let activeRequest = 0;
   let destroyed = false;
-  let protectionEl, accessEl, enginesEl, diagnosticsEl;
+  let stateRequest = null;
+  let accessRequest = null;
+  let accessSerial = 0;
   const health = $derived(!statusKnown ? 'ПРОВЕРКА…'
     : /ожидает|watchdog/i.test(stateText) ? 'ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ'
     : /включена|подтвержден|запущен/i.test(stateText) ? 'РАБОТАЕТ'
     : 'НЕ АКТИВНА');
   const healthClass = $derived(health === 'РАБОТАЕТ' ? 'good' : health === 'ОЖИДАЕТ ПОДТВЕРЖДЕНИЯ' ? 'warn' : '');
 
-  function json(url) {
-    return fetch(url, { credentials:'same-origin', cache:'no-store', headers:{Accept:'application/json'} })
+  function json(url, signal) {
+    return fetch(url, { credentials:'same-origin', cache:'no-store', signal, headers:{Accept:'application/json'} })
       .then(async response => {
         const raw = await response.text();
         let data;
@@ -48,43 +55,46 @@
         return data;
       });
   }
-  function action(id) {
-    const element = document.getElementById(id);
-    if (!element || element.disabled || !element.isConnected) return;
-    element.click(); // Original Svelte action retains its own confirmation and safety gate.
-  }
   function show(page) {
     if (!pages.some(p => p.id === page)) return;
     active = page;
+    if (page !== 'access' && accessRequest) {
+      ++accessSerial;
+      accessRequest.abort();
+      accessRequest = null;
+      accessBusy = false;
+    }
     if (page === 'access' && method === 'odin') void refreshAccess();
   }
   function choose(id) {
     if (!methods.some(m => m.id === id)) return;
     method = id;
-    statusKnown = false;
-    if (id === 'odin') {
-      active = 'protection';
-    } else {
-      active = 'engines';
-      const selector = document.getElementById('engine-config-engine');
-      if (selector && selector.value !== id) {
-        selector.value = id;
-        selector.dispatchEvent(new Event('change', { bubbles:true }));
-      }
+    if (id !== 'odin' && accessRequest) {
+      ++accessSerial;
+      accessRequest.abort();
+      accessRequest = null;
+      accessBusy = false;
     }
+    statusKnown = false;
+    active = id === 'odin' ? 'protection' : 'engines';
+    // Engine selection is a reactive prop, never a synthetic DOM change event.
     void refreshState();
   }
-  function jump(targetId, page) {
+  async function jump(targetId, page) {
     if (page) show(page);
-    // DOM remains mounted when a page is hidden. Scroll only after Svelte's flush.
-    requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ behavior:'smooth', block:'start' }));
+    // Scrolling to a real section is not a command bridge. Wait for Svelte's flush.
+    await tick();
+    if (!destroyed) document.getElementById(targetId)?.scrollIntoView({ behavior:'smooth', block:'start' });
   }
   async function refreshState() {
     const serial = ++activeRequest;
+    stateRequest?.abort();
+    const controller = new AbortController();
+    stateRequest = controller;
     const selected = method;
     try {
       if (selected === 'odin') {
-        const data = await json('/api/modules/port-access-manager/odin');
+        const data = await json('/api/modules/port-access-manager/odin', controller.signal);
         if (destroyed || serial !== activeRequest || method !== selected) return;
         if (typeof data.enabled !== 'boolean' || typeof data.confirmed !== 'boolean') throw Error('Неверный ответ odin API');
         engineStatus = 'odin · Keenetic';
@@ -92,7 +102,7 @@
         configText = data.configured ? 'Сохранена' : 'Не настроена';
         ndmText = data.enabled ? (data.confirmed ? 'Подтверждено' : 'Watchdog · требует проверки') : 'Не активен';
       } else {
-        const data = await json('/api/modules/port-access-manager/engine-service?engine=' + encodeURIComponent(selected));
+        const data = await json('/api/modules/port-access-manager/engine-service?engine=' + encodeURIComponent(selected), controller.signal);
         if (destroyed || serial !== activeRequest || method !== selected) return;
         if (typeof data.installed !== 'boolean' || typeof data.running !== 'boolean') throw Error('Неверный ответ службы');
         engineStatus = selected === 'knockd' ? 'knockd' : 'fwknopd / SPA';
@@ -106,14 +116,19 @@
       engineStatus = selected;
       stateText = 'Нет связи с API: ' + error.message;
       configText = '—'; ndmText = '—'; statusKnown = false;
+    } finally {
+      if (stateRequest === controller) stateRequest = null;
     }
   }
   async function refreshAccess() {
     if (accessBusy || method !== 'odin') return;
+    const serial = ++accessSerial;
+    const controller = new AbortController();
+    accessRequest = controller;
     accessBusy = true; accessMessage = 'Читаем KKD…';
     try {
-      const data = await json('/api/modules/port-access-manager/odin-access');
-      if (destroyed) return;
+      const data = await json('/api/modules/port-access-manager/odin-access', controller.signal);
+      if (destroyed || method !== 'odin' || serial !== accessSerial) return;
       if (typeof data.available !== 'boolean') throw Error('Неверный ответ API');
       if (!data.available) {
         accessItems = [];
@@ -125,21 +140,23 @@
       accessItems = data.entries.map(entry => entry.ip);
       accessMessage = 'Активных записей: ' + accessItems.length;
     } catch (error) {
-      if (!destroyed) { accessItems = []; accessMessage = 'Ошибка чтения: ' + error.message; }
-    } finally { if (!destroyed) accessBusy = false; }
+      if (!destroyed && method === 'odin' && serial === accessSerial) {
+        accessItems = []; accessMessage = 'Ошибка чтения: ' + error.message;
+      }
+    } finally {
+      if (accessRequest === controller) accessRequest = null;
+      if (!destroyed && serial === accessSerial) accessBusy = false;
+    }
   }
-  function updateService(event) {
-    const data = event.detail;
+  function updateService(data) {
     if (!data || !['knockd','fwknopd'].includes(data.engine)) return;
     latestService = {...latestService, [data.engine]:data};
   }
-  function updateDeploy(event) {
-    const data = event.detail;
+  function updateDeploy(data) {
     if (!data || !['knockd','fwknopd'].includes(data.engine)) return;
     latestDeploy = {...latestDeploy, [data.engine]:data};
   }
-  function updatePreview(event) {
-    const data = event.detail;
+  function updatePreview(data) {
     if (!data || !['knockd','fwknopd'].includes(data.engine)) return;
     latestPreview = {...latestPreview, [data.engine]:true};
   }
@@ -163,44 +180,23 @@
     return {text:'Проверить план',detail:'Проверь WAN, порты и сервисы',target:'engine-wizard-preview',page:'engines'};
   });
 
+  // Single Svelte root owns all five child views, polling and host callbacks.
   onMount(() => {
-    const mounts = [
-      ['pa-svelte-odin',protectionEl],
-      ['pa-svelte-engine-workspace',enginesEl],
-      ['pa-svelte-engineering',diagnosticsEl],
-      ['pa-svelte-status',diagnosticsEl],
-      ['pa-svelte-log',diagnosticsEl]
-    ];
-    for (const [id, destination] of mounts) {
-      const el = document.getElementById(id);
-      if (!el || !destination) throw Error('PORT_ACCESS_LAYOUT_MISSING_MOUNT:' + id);
-      destination.appendChild(el);
-    }
-    const main = document.querySelector('main.pa');
-    main?.classList.add('p55-access');
-    main?.querySelector('header')?.classList.add('p55-hero');
-    const oldIntro = main?.querySelector('header p');
-    if (oldIntro) oldIntro.textContent = 'Защита проброшенных сервисов: odin, классический Port Knocking и SPA.';
-    document.addEventListener('routerforge-odin-state-changed', refreshState);
-    document.addEventListener('rfpa:service-state', updateService);
-    document.addEventListener('rfpa:deploy-state', updateDeploy);
-    document.addEventListener('rfpa:preview-ok', updatePreview);
-    document.getElementById('pa-svelte-engine-workspace')?.addEventListener('input', invalidatePreview);
     const timer = window.setInterval(() => { if (!document.hidden) void refreshState(); }, 10000);
     const accessTimer = window.setInterval(() => { if (active === 'access' && method === 'odin' && !document.hidden) void refreshAccess(); }, 15000);
     const visibility = () => { if (!document.hidden) void refreshState(); };
     document.addEventListener('visibilitychange', visibility);
-    void refreshState(); void refreshAccess();
+    void refreshState();
+    void refreshAccess();
     return () => {
       destroyed = true;
       ++activeRequest;
-      window.clearInterval(timer); window.clearInterval(accessTimer);
+      ++accessSerial;
+      stateRequest?.abort();
+      accessRequest?.abort();
+      window.clearInterval(timer);
+      window.clearInterval(accessTimer);
       document.removeEventListener('visibilitychange', visibility);
-      document.removeEventListener('routerforge-odin-state-changed', refreshState);
-      document.removeEventListener('rfpa:service-state', updateService);
-      document.removeEventListener('rfpa:deploy-state', updateDeploy);
-      document.removeEventListener('rfpa:preview-ok', updatePreview);
-      document.getElementById('pa-svelte-engine-workspace')?.removeEventListener('input', invalidatePreview);
     };
   });
 </script>
@@ -238,10 +234,11 @@
     <strong>{step.text}</strong><p>{step.detail}</p>
     <button type="button" onclick={() => jump(step.target, step.page)}>Перейти к действию</button>
   </div>
-  <section id="p54-protection" class="p54-page" aria-label="Обзор" hidden={active !== 'protection'} bind:this={protectionEl}>
+  <section id="p54-protection" class="p54-page" aria-label="Обзор" hidden={active !== 'protection'}>
     <div class="p54-heading p55-section-heading"><h2>Настроить защиту</h2><p>Для odin сохраняй настройки отдельно; включение и подтверждение требуют явного действия.</p></div>
+    <div id="pa-svelte-odin" aria-label="Управление защитой odin"><PortAccessOdin onStateChanged={refreshState} /></div>
   </section>
-  <section id="p54-access" class="p54-page" aria-label="Доступ" hidden={active !== 'access'} bind:this={accessEl}>
+  <section id="p54-access" class="p54-page" aria-label="Доступ" hidden={active !== 'access'}>
     <div class="p54-heading p55-section-heading"><h2>Авторизованные IP · odin</h2><p>Текущие разрешения KKD. Истечение доступа контролирует ядро; точное время не показано.</p></div>
     <section class="panel rf-pa-odin-access">
       <div class="refresh-bar"><button type="button" disabled={accessBusy} onclick={refreshAccess}>↻ Обновить IP</button><span role="status">{accessMessage}</span></div>
@@ -253,10 +250,14 @@
     </section>
     <button type="button" onclick={() => show('diagnostics')}>Диагностика и черновики</button>
   </section>
-  <section id="p54-engines" class="p54-page" aria-label="Движки" hidden={active !== 'engines'} bind:this={enginesEl}>
+  <section id="p54-engines" class="p54-page" aria-label="Движки" hidden={active !== 'engines'}>
     <div class="p54-heading p55-section-heading"><h2>Движки Entware</h2><p>Установка, настройка, проверка плана и защищённое включение.</p></div>
+    <div id="pa-svelte-engine-workspace"><PortAccessEngineWorkspace selectedEngine={method === 'odin' ? 'knockd' : method} onEngineChanged={(id) => { method = id; statusKnown = false; void refreshState(); }} onServiceState={updateService} onDeployState={updateDeploy} onPreviewReady={updatePreview} onPlanInvalidated={invalidatePreview} /></div>
   </section>
-  <section id="p54-diagnostics" class="p54-page" aria-label="Диагностика" hidden={active !== 'diagnostics'} bind:this={diagnosticsEl}>
+  <section id="p54-diagnostics" class="p54-page" aria-label="Диагностика" hidden={active !== 'diagnostics'}>
     <div class="p54-heading p55-section-heading"><h2>Диагностика и инструменты</h2><p>Read-only проверки, предпросмотр, журнал операций и экспериментальные черновики.</p></div>
+    <div id="pa-svelte-engineering" aria-label="Инженерная диагностика и черновики"><PortAccessEngineering /></div>
+    <div id="pa-svelte-status" aria-label="Диагностика доступа"><PortAccessStatus /></div>
+    <div id="pa-svelte-log" aria-label="Журнал операций"><PortAccessOperationLog /></div>
   </section>
 </div>

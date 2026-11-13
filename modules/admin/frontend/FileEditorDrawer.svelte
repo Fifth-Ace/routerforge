@@ -1,4 +1,5 @@
 <script>
+  import { onDestroy } from 'svelte';
   import { t } from '$lib/i18n/index.js';
   export let file = null;
   export let content = '';
@@ -14,6 +15,7 @@
   let highlightLayer;
   let closing = false;
   let closeTimer = null;
+  let caretFrame = null;
 
   $: lineCount = Math.max(1, String(content ?? '').split('\n').length);
   $: lineNumbers = Array.from({ length: lineCount }, (_, index) => index + 1).join('\n');
@@ -180,9 +182,18 @@
       event.preventDefault();
       const start = textarea.selectionStart; const end = textarea.selectionEnd;
       content = `${content.slice(0, start)}  ${content.slice(end)}`;
-      requestAnimationFrame(() => { textarea.selectionStart = start + 2; textarea.selectionEnd = start + 2; });
+      if (caretFrame !== null) cancelAnimationFrame(caretFrame);
+      caretFrame = requestAnimationFrame(() => {
+        caretFrame = null;
+        if (textarea?.isConnected) { textarea.selectionStart = start + 2; textarea.selectionEnd = start + 2; }
+      });
     }
   }
+
+  onDestroy(() => {
+    if (closeTimer !== null) clearTimeout(closeTimer);
+    if (caretFrame !== null) cancelAnimationFrame(caretFrame);
+  });
 </script>
 
 <div class:closing class="editor-backdrop" aria-hidden="true"></div>

@@ -1,4 +1,5 @@
 <script>
+  import {onMount} from 'svelte';
   import {configFlow} from './DnsRuntimeCommands.js';
   import {draft,feedback} from './DnsRuntimeStore.svelte.js';
   let {kind} = $props();
@@ -12,6 +13,7 @@
   let upstreams=$derived((draft.config.upstreams||[]).map(u=>String(u.id||'')).filter(Boolean));
   $effect(()=>{if(!upstreams.includes(upstream))upstream=upstreams[0]||'';});
   let stopped=false;
+  onMount(()=>()=>{stopped=true;});
 
   const flow=configFlow;
   async function perform(action) {

@@ -76,9 +76,21 @@ def inspect(name: str, root: Path) -> list[str]:
         else:
             c = component.read_text(encoding='utf-8')
             j = logic.read_text(encoding='utf-8')
-            if 'class:active={activeTab' not in c or 'startNFQWSRuntime()' not in c:
+            # Modern Svelte 5 composition passes callbacks to startNFQWSRuntime({ ... }).
+            # The former no-argument call belonged to the retired inline page.
+            if ('class:active={activeTab' not in c or 'startNFQWSRuntime({' not in c
+                    or '<NfqwsListEditor active=' not in c
+                    or '<NfqwsSelector active=' not in c):
                 errors.append('NFQWS_NATIVE_NAV_MISSING')
-            if 'expected_sha256:listMeta.sha256' not in j or 'if(!result.post_apply_verified)' not in j:
+            # Exact list SHA and manual confirmation live in the native list model;
+            # guarded post-apply verification lives in Selector and Auto Setup.
+            editor = (d / 'NfqwsListEditorModel.js').read_text(encoding='utf-8') if (d / 'NfqwsListEditorModel.js').is_file() else ''
+            selector = (d / 'NfqwsSelector.svelte').read_text(encoding='utf-8') if (d / 'NfqwsSelector.svelte').is_file() else ''
+            setup = (d / 'NfqwsAutoSetup.svelte').read_text(encoding='utf-8') if (d / 'NfqwsAutoSetup.svelte').is_file() else ''
+            if ('expected_sha256:reference.sha256' not in editor
+                    or "confirm:'NFQWS_LIST_SAVE'" not in editor
+                    or 'post_apply_verified' not in selector
+                    or 'post_apply_verified' not in setup):
                 errors.append('NFQWS_CAS_OR_POSTVERIFY_CONTRACT_MISSING')
     return errors
 

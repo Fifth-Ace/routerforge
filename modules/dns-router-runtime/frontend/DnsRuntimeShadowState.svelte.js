@@ -6,8 +6,25 @@ export const shadow = $state({
   error: '',
   result: null,
   sequence: 0,
-  destroyed: false
+  destroyed: false,
+  viewEpoch: 0
 });
+
+let activeRead = null;
+export function beginShadowView() {
+  const epoch = ++shadow.viewEpoch;
+  shadow.destroyed = false;
+  ++shadow.sequence;
+  shadow.result = null;
+  shadow.status = 'Загрузка состояния…';
+  shadow.error = '';
+  return () => {
+    if (epoch !== shadow.viewEpoch) return;
+    shadow.destroyed = true;
+    ++shadow.sequence;
+    if (activeRead) { activeRead.abort(); activeRead = null; }
+  };
+}
 
 export function draftStatus() {
   const state = readDraft();
@@ -30,28 +47,38 @@ async function jsonRequest(path, options = {}) {
 }
 
 export async function refreshShadow() {
+  if (shadow.destroyed) return;
+  const epoch = shadow.viewEpoch;
   const requestId = ++shadow.sequence;
+  if (activeRead) activeRead.abort();
+  const controller = new AbortController();
+  activeRead = controller;
   try {
-    const result = await jsonRequest('shadow/status');
-    if (shadow.destroyed || requestId !== shadow.sequence) return;
+    const result = await jsonRequest('shadow/status', {signal: controller.signal});
+    if (shadow.destroyed || epoch !== shadow.viewEpoch || requestId !== shadow.sequence) return;
     shadow.result = result;
     shadow.status = JSON.stringify(result, null, 2);
     shadow.error = '';
   } catch (error) {
-    if (shadow.destroyed || requestId !== shadow.sequence) return;
+    if (shadow.destroyed || epoch !== shadow.viewEpoch || requestId !== shadow.sequence || controller.signal.aborted) return;
     shadow.error = String(error?.message || error);
     shadow.status = 'Ошибка состояния Shadow DNS: ' + shadow.error;
     feedback('Shadow: ' + shadow.error);
+  } finally {
+    if (activeRead === controller) activeRead = null;
   }
 }
 
 export async function controlShadow(operation) {
-  if (shadow.busy || !['start','apply','stop'].includes(operation)) return;
+  if (shadow.busy || shadow.destroyed || !['start','apply','stop'].includes(operation)) return;
+  const epoch = shadow.viewEpoch;
   let state;
   try { state = draftStatus(); }
   catch (error) { feedback(error.message); return; }
   if (operation === 'start' && !confirm('Запустить сохранённый shadow listener? Keenetic DNS не изменится.')) return;
   if (operation === 'apply' && !confirm('Применить сохранённую ревизию к shadow DNS?')) return;
+  // Re-check after a synchronous confirmation callback before touching the backend.
+  if (epoch !== shadow.viewEpoch || shadow.destroyed) return;
   shadow.busy = true;
   shadow.error = '';
   try {
@@ -64,12 +91,17 @@ export async function controlShadow(operation) {
       },
       body: JSON.stringify({operation})
     });
-    feedback('Shadow: ' + result.outcome + ' · DNS Keenetic не затронут');
+    if (epoch === shadow.viewEpoch && !shadow.destroyed)
+      feedback('Shadow: ' + result.outcome + ' · DNS Keenetic не затронут');
   } catch (error) {
-    shadow.error = String(error?.message || error);
-    feedback('Shadow: ' + shadow.error);
+    if (epoch === shadow.viewEpoch && !shadow.destroyed) {
+      shadow.error = String(error?.message || error);
+      feedback('Shadow: ' + shadow.error);
+    }
   } finally {
-    await refreshShadow();
+    // The server may have completed a POST after the UI was closed. Do not retry
+    // or claim success; reconcile the current view with a fresh read-only GET.
+    if (!shadow.destroyed) await refreshShadow();
     shadow.busy = false;
   }
 }

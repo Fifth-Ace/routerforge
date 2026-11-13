@@ -1,9 +1,11 @@
 <script>
   import { onMount } from 'svelte';
+  import { createReadSessions } from './readSessions.js';
 
   // Svelte owns state, rendering, polling and action dispatch. Keep the
   // original DOM classes/IDs and CSS to avoid a design or layout migration.
   const API = '/api/modules/crowdsec-manager/';
+  const reads = createReadSessions();
   let overview = $state(null);
   let installer = $state(null);
   let overviewError = $state('');
@@ -57,13 +59,15 @@
         : 'NOT VERIFIED — ' + missing.join('; ') + '.');
   let metricKeys = $derived(Object.keys(overview?.metrics || {}).sort());
 
-  async function api(path, method = 'GET', data) {
+  async function api(path, method = 'GET', data, signal) {
     const r = await fetch(API + path, {
       method,
       credentials: 'same-origin',
       cache: 'no-store',
       headers: data ? { 'Content-Type': 'application/json' } : {},
-      body: data ? JSON.stringify(data) : undefined
+      body: data ? JSON.stringify(data) : undefined,
+      // Never abort a protected mutation after it has been dispatched.
+      ...(method === 'GET' && signal ? { signal } : {})
     });
     const d = await r.json();
     if (!r.ok || d.error) throw Error(d.error || 'HTTP ' + r.status);
@@ -73,9 +77,11 @@
 
   async function refresh() {
     if (busy || refreshing) return;
+    const read = reads.begin('overview');
     refreshing = true;
     try {
-      const d = await api('overview');
+      const d = await api('overview', 'GET', undefined, read.signal);
+      if (!read.isCurrent()) return;
       overview = d;
       installedUIReady = true;
       overviewError = '';
@@ -84,8 +90,11 @@
         lapiUrl = d.lapi?.api_url || '';
       }
     } catch (e) {
-      overviewError = e.message;
-    } finally { refreshing = false; }
+      if (read.isCurrent()) overviewError = e.message;
+    } finally {
+      if (read.isCurrent()) refreshing = false;
+      read.finish();
+    }
   }
 
   async function action(path, data, question) {
@@ -121,8 +130,10 @@
       'Сохранить URL/API key в существующий config с резервной копией? После сохранения перезапусти bouncer.');
   }
   async function pollInstaller() {
+    const read = reads.begin('installer');
     try {
-      const state = await api('install/status');
+      const state = await api('install/status', 'GET', undefined, read.signal);
+      if (!read.isCurrent()) return;
       installer = state;
       installerError = '';
       installerProgress = (state.busy ? 'LIVE · ' : state.completed ? 'PASS · ' : '')
@@ -132,7 +143,11 @@
         installerProgress = 'FAIL · ' + state.error;
       }
       if (state.completed && !state.error) await refresh();
-    } catch (e) { installerProgress = 'Статус установки: ' + e.message; }
+    } catch (e) {
+      if (read.isCurrent()) installerProgress = 'Статус установки: ' + e.message;
+    } finally {
+      read.finish();
+    }
   }
   async function startInstall(event) {
     event.preventDefault();
@@ -191,6 +206,7 @@
       window.removeEventListener('pageshow', synchronizeTheme);
       window.clearInterval(installerTimer);
       window.clearInterval(overviewTimer);
+      reads.dispose();
     };
   });
 </script>

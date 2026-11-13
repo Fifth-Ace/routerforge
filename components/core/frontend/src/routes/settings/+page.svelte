@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { createReadSessions } from '$lib/readSessions.js';
   import '../../routerforge-settings-p1.css';
   let activeSettingsTab = 'system';
   function onSettingsTabKeydown(event) {
@@ -44,15 +45,21 @@
   let telemetryStatus = {};
   let telemetryError = '';
   let telemetryNotice = '';
+  let mounted = false;
+  const settingsReads = createReadSessions();
   async function loadTelemetry() {
+    if (!mounted) return;
+    const read = settingsReads.begin('telemetry');
     try {
-      const response = await fetch('/api/settings/telemetry', { credentials:'same-origin', cache:'no-store' });
+      const response = await fetch('/api/settings/telemetry', { credentials:'same-origin', cache:'no-store', signal:read.signal });
       if (!response.ok) throw new Error('HTTP ' + response.status);
-      telemetryStatus = await response.json();
-      telemetryEnabled = !!telemetryStatus.diagnostics_enabled;
+      const status = await response.json();
+      if (!read.isCurrent()) return;
+      telemetryStatus = status;
+      telemetryEnabled = !!status.diagnostics_enabled;
     } catch (err) {
-      telemetryError = String(err?.message || err);
-    }
+      if (read.isCurrent()) telemetryError = String(err?.message || err);
+    } finally { read.finish(); }
   }
   async function changeTelemetry(enabled) {
     if (telemetrySaving) return;
@@ -78,10 +85,13 @@
     }
   }
   async function loadLogging() {
+    if (!mounted) return;
+    const read = settingsReads.begin('logging');
     try {
-      const response = await fetch('/api/settings/logging', { credentials: 'same-origin', cache: 'no-store' });
+      const response = await fetch('/api/settings/logging', { credentials: 'same-origin', cache: 'no-store', signal:read.signal });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
+      if (!read.isCurrent()) return;
       loggingMode = data.settings?.mode || 'entware';
       loggingCustomPath = data.settings?.custom_path || '';
       loggingActivePath = data.active_path || '';
@@ -89,8 +99,8 @@
       loggingBackups = data.settings?.backups || 2;
       loggingRAMAvailable = !!data.ram_available;
     } catch (err) {
-      loggingError = String(err.message || err);
-    }
+      if (read.isCurrent()) loggingError = String(err.message || err);
+    } finally { read.finish(); }
   }
   async function saveLogging() {
     if (loggingBusy) return;
@@ -152,13 +162,16 @@
   function updateDNS(key, value) {
     settings.update((current) => ({ ...current, [key]:value, dnsHealthPreset:'custom' }));
   }
-  onMount(async () => {
-    await Promise.all([
-      getSystem().then((value) => { system = value; }).catch(() => {}),
+  onMount(() => {
+    mounted = true;
+    const read = settingsReads.begin('system');
+    void Promise.all([
+      getSystem(read.signal).then((value) => { if (read.isCurrent()) system = value; }).catch(() => {}).finally(read.finish),
       refreshCatalog().catch(() => {}),
       loadLogging(),
       loadTelemetry()
     ]);
+    return () => { mounted = false; settingsReads.dispose(); };
   });
 
   function requestAuthToggle() {

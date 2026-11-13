@@ -14,6 +14,7 @@
   let resizeObserver;
   let socket;
   let resizeTimer;
+  let reconnectTimer;
   let connected = false;
   let connecting = false;
   let statusText = 'OFFLINE';
@@ -122,7 +123,7 @@
   }
 
   function connect() {
-    if (!terminal || connecting || (socket && socket.readyState === WebSocket.OPEN)) return;
+    if (disposed || !terminal || connecting || (socket && socket.readyState === WebSocket.OPEN)) return;
     connecting = true;
     autoCommandSent = false;
     setState(false, copy.connecting);
@@ -174,7 +175,8 @@
 
   function reconnect() {
     disconnect();
-    setTimeout(connect, 40);
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => { reconnectTimer = null; if (!disposed) connect(); }, 40);
   }
 
   function switchTerminalMode(nextMode) {
@@ -227,6 +229,7 @@
   onDestroy(() => {
     disposed = true;
     clearTimeout(resizeTimer);
+    clearTimeout(reconnectTimer);
     resizeObserver?.disconnect();
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close(1000, 'view closed');
     socket = null;

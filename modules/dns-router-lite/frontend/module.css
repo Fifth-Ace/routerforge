@@ -745,3 +745,6 @@ input,select,textarea{min-height:var(--rf-p194-control);padding:6px 9px;border-r
 .p21-explanation{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 ui-monospace,Consolas,monospace;margin-top:12px}
 [data-dns-mode="basic"] .p21-advanced-only,[data-dns-mode="basic"] #clientConnection,[data-dns-mode="basic"] #additionalSettings{display:none!important}
 @media(max-width:750px){.p21-device-row{align-items:stretch}.p21-mode-label{flex-wrap:wrap}#p21Page .actions{flex-wrap:wrap}}
+/* Native Svelte-owned feedback content (host stays as an existing layout slot). */
+#feedback [data-tone="good"] { color: var(--good); }
+#feedback [data-tone="bad"] { color: var(--bad); }

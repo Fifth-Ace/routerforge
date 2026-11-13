@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import { createPortAccessReadSession } from './PortAccessReadSession.js';
+  const readSession = createPortAccessReadSession();
 
   const endpoint = '/api/modules/port-access-manager/operation-logs';
   let lines = $state([]);
@@ -8,16 +10,18 @@
   let seen = 0;
   let connection = $state('Подключаемся…');
   let listNode;
+  let scrollFrame = 0;
 
   async function refresh() {
     if (halted || busy || document.hidden) return;
     busy = true;
     try {
-      const response = await fetch(endpoint, {
+      const data = await readSession.consume(endpoint, {
         credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }
+      }, async response => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
       });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const data = await response.json();
       if (!Array.isArray(data.entries) || data.scope !== 'operations') throw new Error('Неверный формат API');
       const next = [];
       for (const entry of data.entries) {
@@ -52,13 +56,14 @@
   onMount(() => {
     void refresh();
     const interval = window.setInterval(refresh, 2000);
-    return () => window.clearInterval(interval);
+    return () => { window.clearInterval(interval); readSession.close(); cancelAnimationFrame(scrollFrame); };
   });
   $effect(() => {
     lines;
     if (listNode) {
       // Keep the old auto-scroll contract after Svelte flushes the text.
-      requestAnimationFrame(() => { if (listNode) listNode.scrollTop = listNode.scrollHeight; });
+      cancelAnimationFrame(scrollFrame);
+      scrollFrame = requestAnimationFrame(() => { if (listNode?.isConnected) listNode.scrollTop = listNode.scrollHeight; });
     }
   });
 </script>

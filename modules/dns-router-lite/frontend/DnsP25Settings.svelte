@@ -6,9 +6,10 @@
   let active = $state(false);
   let section = $state('service');
   let advanced = $state(false);
-  let scope = $state('all');
-  let ipEnabled = $state(false);
-  let ipMode = $state('original');
+  const fields = getContext('routerforge:dns-lite-settings').fields;
+  let scope = $derived(fields.p243Scope);
+  let ipEnabled = $derived(fields.p241IPEnabled);
+  let ipMode = $derived(fields.p241IPMode);
   let ipStatus = $state('Монитор выключен');
   let ipRows = $state([]);
   let performanceStatus = $state('Метрики: нет данных');
@@ -34,7 +35,18 @@
     return {update:place,destroy(){node.remove();}};
   }
   // The parent owns draft/CAS. Merely displaying settings is GET-only.
-  function settingsInputChange(event) { if (!disposed) settingsHooks.change(event?.currentTarget?.id || ''); }
+  function settingsInputChange(event) {
+    if (disposed) return;
+    const control=event?.currentTarget;
+    if (!control?.id || !(control.id in fields)) return;
+    // Svelte dispatches user listeners before updating bind:value/checked.
+    // Capture the actual event value first, not a stale reactive snapshot.
+    if (control.multiple) fields[control.id]=Array.from(control.selectedOptions,o=>o.value);
+    else if (control.type==='checkbox') fields[control.id]=control.checked;
+    else if (control.type==='number') fields[control.id]=control.value===''?NaN:Number(control.value);
+    else fields[control.id]=control.value;
+    settingsHooks.change(control.id);
+  }
   const sections = [
     {id:'service',ru:'DNS-сервис',en:'DNS service',status:'available'},
     {id:'cache',ru:'Кэш',en:'Cache',status:'available'},
@@ -47,7 +59,7 @@
   ];
   const settingsHooks = getContext('routerforge:dns-lite-settings');
   const navigationHooks = getContext('routerforge:dns-lite-navigation');
-  const inputChange = event => settingsHooks.change(event?.currentTarget?.id || '');
+  const inputChange = settingsInputChange;
   const notes = {
     original:['Без изменения IP в DNS-ответе.','No address changes.'],
     round_robin:['Циклически меняет первый IP при каждом новом DNS-запросе, включая ответы из кэша.','Rotates the first IP on each DNS request, including cached responses.'],
@@ -125,14 +137,6 @@
     target.addEventListener(type,callback);
     cleanups.push(()=>target.removeEventListener(type,callback));
   }
-  function syncNotes(){
-    if(disposed)return;
-    ipEnabled=!!byId('p241IPEnabled')?.checked;
-    ipMode=byId('p241IPMode')?.value || 'original';
-    scope=byId('p243Scope')?.value || 'all';
-    // Scope visibility and description are Svelte-derived, never patched
-    // through textContent / hidden writes to a second owner's DOM.
-  }
   onMount(()=>{
     disposed=false;
     app=byId('dnsLiteApp');
@@ -140,10 +144,10 @@
     english=document.documentElement.lang==='en'||new URLSearchParams(location.search).get('lang')==='en';
     watch(byId('p21Mode'),'change',placement);
     for(const id of ['navDns','navLogs','p21Nav','p22NavGroups','p22NavRules']) watch(byId(id),'click',closeSettings);
-    settingsHooks.render=syncNotes;
+    settingsHooks.render=()=>{};
     observer=new MutationObserver(placement);
     observer.observe(app,{attributes:true,attributeFilter:['data-dns-mode']});
-    syncNotes();placement();
+    placement();
     intervals=[setInterval(refreshIPHealth,10000),setInterval(refreshP29Metrics,10000)];
     return ()=>{
       disposed=true;
@@ -159,12 +163,12 @@
 </script>
 <div use:ownSlot={advanced ? 'p25Settings_service' : 'rf-dns-lite-basic-service-slot'} class="p25-native-service-fields">
   <div class="fields two">
-    <label class="field"><span>Адрес DNS-сервиса</span><input id="serviceListen" value="192.168.10.1:55358" onchange={settingsInputChange}/></label>
-    <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" value="127.0.0.0/8,192.168.10.0/24" spellcheck="false" onchange={settingsInputChange}/></label>
+    <label class="field"><span>Адрес DNS-сервиса</span><input id="serviceListen" onchange={settingsInputChange} bind:value={fields.serviceListen}/></label>
+    <label class="field"><span>Разрешённые сети</span><input id="allowedNetworks" spellcheck="false" onchange={settingsInputChange} bind:value={fields.allowedNetworks}/></label>
   </div>
 </div>
 <div use:ownSlot={advanced ? 'p25Settings_cache' : 'rf-dns-lite-basic-cache-slot'} class="p25-native-cache-field">
-  <label class="field"><span>Кэш, МиБ</span><input id="cacheSize" type="number" value="1" min="0" max="8" step="1" onchange={settingsInputChange}/></label>
+  <label class="field"><span>Кэш, МиБ</span><input id="cacheSize" type="number" min="0" max="8" step="1" onchange={settingsInputChange} bind:value={fields.cacheSize}/></label>
 </div>
 
 <button use:ownSlot={'rf-dns-lite-settings-nav-slot'} id="p25SettingsNav" class="tab p22-advanced-tab" type="button" aria-controls="p25SettingsCard" class:selected={active} aria-current={active?'page':undefined} onclick={openSettings}>{t('Настройки','Settings')}</button>
@@ -183,9 +187,9 @@
         <p class="p25-settings-info">{modeNote}</p>
         <p class="p25-settings-info" id="p25IPHealthState">{ipStatus}</p>
             <div id="p241IPControls" class="p241-ip-controls">
-      <label class="check p241-ip-toggle"><input type="checkbox" id="p241IPEnabled" onchange={(event)=>{settingsInputChange(event);syncNotes();}}><span>Включить IP Intelligence</span></label>
+      <label class="check p241-ip-toggle"><input type="checkbox" id="p241IPEnabled" onchange={(event)=>{settingsInputChange(event);}} bind:checked={fields.p241IPEnabled}><span>Включить IP Intelligence</span></label>
       <label class="field p241-ip-mode"><span>Алгоритм выбора IP</span>
-        <select id="p241IPMode" onchange={(event)=>{settingsInputChange(event);syncNotes();}} aria-label="Алгоритм IP Intelligence">
+        <select id="p241IPMode" onchange={(event)=>{settingsInputChange(event);}} aria-label="Алгоритм IP Intelligence" bind:value={fields.p241IPMode}>
           <option value="original">Original · без изменений</option>
           <option value="round_robin">Round-Robin · по кругу</option>
           <option value="random">Random · случайный порядок</option>
@@ -199,21 +203,21 @@
       </label>
       <p class="p25-settings-info" id="p241IPModeNote" role="status">{modeNote}</p>
       <div class="p243-scope-settings">
-        <label class="field"><span>Область применения</span><select id="p243Scope" onchange={(event)=>{settingsInputChange(event);syncNotes();}}><option value="all">Все внешние домены</option><option value="domains">Выбранные домены</option><option value="lists">Выбранные списки</option></select></label>
-        <label class="field p243-domains" hidden={scope!=='domains'}><span>Домены, по одному в строке (включая поддомены)</span><textarea id="p243Domains" onchange={settingsInputChange} rows="3" spellcheck="false" placeholder="example.org"></textarea></label>
-        <label class="field p243-lists" hidden={scope!=='lists'}><span>Списки доменов (Ctrl/Shift для нескольких)</span><select id="p243ListIDs" onchange={settingsInputChange} multiple size="4"></select></label>
+        <label class="field"><span>Область применения</span><select id="p243Scope" onchange={(event)=>{settingsInputChange(event);}} bind:value={fields.p243Scope}><option value="all">Все внешние домены</option><option value="domains">Выбранные домены</option><option value="lists">Выбранные списки</option></select></label>
+        <label class="field p243-domains" hidden={scope!=='domains'}><span>Домены, по одному в строке (включая поддомены)</span><textarea id="p243Domains" onchange={settingsInputChange} rows="3" spellcheck="false" placeholder="example.org" bind:value={fields.p243Domains}></textarea></label>
+        <label class="field p243-lists" hidden={scope!=='lists'}><span>Списки доменов (Ctrl/Shift для нескольких)</span><select id="p243ListIDs" onchange={settingsInputChange} multiple size="4" bind:value={fields.p243ListIDs}>{#each fields.ipListOptions as option (option.id)}<option value={option.id}>{option.label}</option>{/each}</select></label>
       </div>
       <div class="p242-health-settings">
-        <label class="check"><input type="checkbox" id="p242HealthEnabled" onchange={settingsInputChange}> Фоновая проверка IP-адресов (экспериментально)</label>
+        <label class="check"><input type="checkbox" id="p242HealthEnabled" onchange={settingsInputChange} bind:checked={fields.p242HealthEnabled}> Фоновая проверка IP-адресов (экспериментально)</label>
         <div class="p242-health-fields">
-          <label class="field"><span>Проверка</span><select id="p242HealthProtocol" onchange={settingsInputChange}><option value="tcp">TCP: соединение с портом</option><option value="tls">TLS: проверка сертификата</option><option value="http">HTTP: ответ приложения</option><option value="https">HTTPS: ответ приложения + TLS</option></select></label>
-          <label class="field"><span>Порт</span><input id="p242HealthPort" onchange={settingsInputChange} type="number" min="80" max="65535" value="443"></label>
-          <label class="field"><span>Интервал, секунд</span><input id="p242HealthInterval" onchange={settingsInputChange} type="number" min="30" max="3600" value="60"></label>
-          <label class="field"><span>Тайм-аут, мс</span><input id="p242HealthTimeout" onchange={settingsInputChange} type="number" min="250" max="3000" value="1200"></label>
-          <label class="field"><span>Неудач до DOWN</span><input id="p242HealthFailures" onchange={settingsInputChange} type="number" min="1" max="5" value="2"></label>
-          <label class="field"><span>Успехов до UP</span><input id="p243Recoveries" onchange={settingsInputChange} type="number" min="1" max="5" value="2"></label>
-          <label class="field"><span>Выдержка DOWN, сек</span><input id="p243MinDown" onchange={settingsInputChange} type="number" min="0" max="3600" value="30"></label>
-          <label class="field"><span>HTTP-путь</span><input id="p243HTTPPath" onchange={settingsInputChange} maxlength="128" value="/" placeholder="/health"></label>
+          <label class="field"><span>Проверка</span><select id="p242HealthProtocol" onchange={settingsInputChange} bind:value={fields.p242HealthProtocol}><option value="tcp">TCP: соединение с портом</option><option value="tls">TLS: проверка сертификата</option><option value="http">HTTP: ответ приложения</option><option value="https">HTTPS: ответ приложения + TLS</option></select></label>
+          <label class="field"><span>Порт</span><input id="p242HealthPort" onchange={settingsInputChange} type="number" min="80" max="65535" bind:value={fields.p242HealthPort}></label>
+          <label class="field"><span>Интервал, секунд</span><input id="p242HealthInterval" onchange={settingsInputChange} type="number" min="30" max="3600" bind:value={fields.p242HealthInterval}></label>
+          <label class="field"><span>Тайм-аут, мс</span><input id="p242HealthTimeout" onchange={settingsInputChange} type="number" min="250" max="3000" bind:value={fields.p242HealthTimeout}></label>
+          <label class="field"><span>Неудач до DOWN</span><input id="p242HealthFailures" onchange={settingsInputChange} type="number" min="1" max="5" bind:value={fields.p242HealthFailures}></label>
+          <label class="field"><span>Успехов до UP</span><input id="p243Recoveries" onchange={settingsInputChange} type="number" min="1" max="5" bind:value={fields.p243Recoveries}></label>
+          <label class="field"><span>Выдержка DOWN, сек</span><input id="p243MinDown" onchange={settingsInputChange} type="number" min="0" max="3600" bind:value={fields.p243MinDown}></label>
+          <label class="field"><span>HTTP-путь</span><input id="p243HTTPPath" onchange={settingsInputChange} maxlength="128" placeholder="/health" bind:value={fields.p243HTTPPath}></label>
         </div>
         <p class="p25-settings-info">Проверяются только публичные IP из реальных ответов A/AAAA, не чаще одного подключения в секунду. Приватные и служебные адреса исключены. HTTP/HTTPS проверяют ответ сервиса, 5xx считаются ошибкой; редиректы не выполняются. TCP/TLS подтверждают только соединение.</p>
         <div class="p242-monitor"><div class="p242-monitor-heading"><strong>Монитор IP</strong><small id="p242MonitorStatus">Нет измерений</small></div>
@@ -232,40 +236,40 @@
         </div>
       </section>
       <section id="p25Settings_upstream" class="p25-settings-section" hidden={section!=='upstream'} aria-label={t('Выбор DNS','Upstream selection')}><h3>{t('Выбор DNS','Upstream selection')}</h3><p class="p25-settings-info">{t('Для работы требуется явная DNS-группа или резервная цепочка.','Requires an explicit upstream group or fallback chain.')}</p>
-        <label class="check"><span>{t('Включить выбор DNS','Enable upstream selection')}</span><input id="p28Enabled" type="checkbox" onchange={inputChange}/></label>
-        <label class="field"><span>{t('Алгоритм','Mode')}</span><select id="p28Mode" onchange={inputChange}><option value="sequential">Failover / Sequential</option><option value="load_balance">Load Balance</option><option value="parallel">Parallel</option><option value="fastest">Fastest DNS</option></select></label>
-        <label class="field"><span>{t('Тайм-аут на DNS, мс','Timeout per DNS, ms')}</span><input id="p28Timeout" type="number" min="250" max="5000" value="3000" onchange={inputChange}/></label>
+        <label class="check"><span>{t('Включить выбор DNS','Enable upstream selection')}</span><input id="p28Enabled" type="checkbox" onchange={inputChange} bind:checked={fields.p28Enabled}/></label>
+        <label class="field"><span>{t('Алгоритм','Mode')}</span><select id="p28Mode" onchange={inputChange} bind:value={fields.p28Mode}><option value="sequential">Failover / Sequential</option><option value="load_balance">Load Balance</option><option value="parallel">Parallel</option><option value="fastest">Fastest DNS</option></select></label>
+        <label class="field"><span>{t('Тайм-аут на DNS, мс','Timeout per DNS, ms')}</span><input id="p28Timeout" type="number" min="250" max="5000" onchange={inputChange} bind:value={fields.p28Timeout}/></label>
       </section>
       <section id="p25Settings_security" class="p25-settings-section" hidden={section!=='security'} aria-label={t('Защита запросов','Query protection')}><h3>{t('Защита запросов','Query protection')}</h3><p class="p25-settings-info">{t('Частотные ограничения, DNS ANY и Bogus NXDOMAIN действуют только после сохранения и явного применения.','Rate limits, ANY refusal and Bogus NXDOMAIN require explicit save and apply.')}</p>    <div id="p27SecurityControls" class="p27-security-controls">
       <p class="p25-settings-info">Защита применяется к независимому DNS Router, не меняет правила Keenetic. Все параметры по умолчанию выключены.</p>
       <div class="fields two">
-        <label class="field"><span>Лимит запросов одного клиента в секунду (0 — выкл.)</span><input id="p27RateLimit" onchange={settingsInputChange} type="number" min="0" max="2000" value="0"></label>
-        <label class="check"><input type="checkbox" id="p27RefuseAny" onchange={settingsInputChange}> Отказывать на DNS ANY (NOTIMP)</label>
+        <label class="field"><span>Лимит запросов одного клиента в секунду (0 — выкл.)</span><input id="p27RateLimit" onchange={settingsInputChange} type="number" min="0" max="2000" bind:value={fields.p27RateLimit}></label>
+        <label class="check"><input type="checkbox" id="p27RefuseAny" onchange={settingsInputChange} bind:checked={fields.p27RefuseAny}> Отказывать на DNS ANY (NOTIMP)</label>
       </div>
-      <label class="field"><span>Bogus NXDOMAIN — IP-адреса или CIDR (по одному в строке)</span><textarea id="p27BogusIPs" onchange={settingsInputChange} rows="4" spellcheck="false" placeholder="0.0.0.0"></textarea></label>
+      <label class="field"><span>Bogus NXDOMAIN — IP-адреса или CIDR (по одному в строке)</span><textarea id="p27BogusIPs" onchange={settingsInputChange} rows="4" spellcheck="false" placeholder="0.0.0.0" bind:value={fields.p27BogusIPs}></textarea></label>
       <p class="p25-settings-info">Если DNS вернул такой IP, RouterForge отправит NXDOMAIN. Не включает блокировку доменов и не проверяет криптографически DNSSEC. CIDR: IPv4 от /24, IPv6 от /64.</p>
     </div>
 </section>
       <section id="p25Settings_privacy" class="p25-settings-section" hidden={section!=='privacy'} aria-label="EDNS / ECS / DNSSEC"><h3>EDNS / ECS / DNSSEC</h3><p class="p25-settings-info">{t('Require AD доверяет только шифрованным DNS; локальная проверка DNSSEC не выполняется.','Require AD trusts only encrypted upstreams; there is no local DNSSEC validation.')}</p>
-        <label class="check"><span>{t('Включить настройки EDNS/ECS/DNSSEC','Enable EDNS/ECS/DNSSEC controls')}</span><input id="p30Enabled" type="checkbox" onchange={inputChange}/></label>
-        <label class="field"><span>EDNS Client Subnet</span><select id="p30ECSMode" onchange={inputChange}><option value="inherit">{t('Сохранять запрос клиента','Preserve client option')}</option><option value="strip">{t('Удалять ECS','Strip ECS')}</option><option value="fixed">{t('Фиксированный публичный адрес','Fixed public IP')}</option></select></label>
-        <label class="field"><span>{t('Публичный IP ECS','Public ECS address')}</span><input id="p30ECSAddress" type="text" onchange={inputChange}/></label>
-        <label class="field"><span>DNSSEC</span><select id="p30DNSSECMode" onchange={inputChange}><option value="off">Off</option><option value="request_do">Request DO</option><option value="require_ad">Require AD (encrypted DNS only)</option></select></label>
+        <label class="check"><span>{t('Включить настройки EDNS/ECS/DNSSEC','Enable EDNS/ECS/DNSSEC controls')}</span><input id="p30Enabled" type="checkbox" onchange={inputChange} bind:checked={fields.p30Enabled}/></label>
+        <label class="field"><span>EDNS Client Subnet</span><select id="p30ECSMode" onchange={inputChange} bind:value={fields.p30ECSMode}><option value="inherit">{t('Сохранять запрос клиента','Preserve client option')}</option><option value="strip">{t('Удалять ECS','Strip ECS')}</option><option value="fixed">{t('Фиксированный публичный адрес','Fixed public IP')}</option></select></label>
+        <label class="field"><span>{t('Публичный IP ECS','Public ECS address')}</span><input id="p30ECSAddress" type="text" onchange={inputChange} bind:value={fields.p30ECSAddress}/></label>
+        <label class="field"><span>DNSSEC</span><select id="p30DNSSECMode" onchange={inputChange} bind:value={fields.p30DNSSECMode}><option value="off">Off</option><option value="request_do">Request DO</option><option value="require_ad">Require AD (encrypted DNS only)</option></select></label>
       </section>
       <section id="p25Settings_dns64" class="p25-settings-section" hidden={section!=='dns64'} aria-label="DNS64 / rDNS"><h3>DNS64 / rDNS</h3><p class="p25-settings-info">{t('DNS64 требует заранее настроенного NAT64; RouterForge не меняет маршруты.','DNS64 requires preconfigured NAT64; RouterForge does not change routing.')}</p>
-        <label class="check"><span>{t('Включить DNS64','Enable DNS64')}</span><input id="p31DNS64Enabled" type="checkbox" onchange={inputChange}/></label>
-        <label class="field"><span>{t('Префикс NAT64 /96','NAT64 /96 prefix')}</span><input id="p31DNS64Prefix" type="text" value="64:ff9b::/96" onchange={inputChange}/></label>
-        <label class="check"><span>{t('Подтверждаю, что NAT64 уже настроен','I confirm NAT64 already works')}</span><input id="p31NAT64Confirmed" type="checkbox" onchange={inputChange}/></label>
-        <label class="check"><span>{t('Отдельный DNS для приватных PTR','Custom private PTR resolver')}</span><input id="p31ReverseEnabled" type="checkbox" onchange={inputChange}/></label>
-        <label class="field"><span>{t('DNS для rDNS','rDNS upstream')}</span><select id="p31ReverseUpstream" onchange={inputChange}></select></label>
+        <label class="check"><span>{t('Включить DNS64','Enable DNS64')}</span><input id="p31DNS64Enabled" type="checkbox" onchange={inputChange} bind:checked={fields.p31DNS64Enabled}/></label>
+        <label class="field"><span>{t('Префикс NAT64 /96','NAT64 /96 prefix')}</span><input id="p31DNS64Prefix" type="text" onchange={inputChange} bind:value={fields.p31DNS64Prefix}/></label>
+        <label class="check"><span>{t('Подтверждаю, что NAT64 уже настроен','I confirm NAT64 already works')}</span><input id="p31NAT64Confirmed" type="checkbox" onchange={inputChange} bind:checked={fields.p31NAT64Confirmed}/></label>
+        <label class="check"><span>{t('Отдельный DNS для приватных PTR','Custom private PTR resolver')}</span><input id="p31ReverseEnabled" type="checkbox" onchange={inputChange} bind:checked={fields.p31ReverseEnabled}/></label>
+        <label class="field"><span>{t('DNS для rDNS','rDNS upstream')}</span><select id="p31ReverseUpstream" onchange={inputChange} bind:value={fields.p31ReverseUpstream}><option value="">Выбери прямой DNS…</option>{#each fields.reverseOptions as option (option.id)}<option value={option.id}>{option.label}</option>{/each}</select></label>
       </section>
       <section id="p25Settings_performance" class="p25-settings-section" hidden={section!=='performance'} aria-label={t('Производительность','Performance')}><h3>{t('Производительность','Performance')}</h3><p class="p25-settings-info">{performanceStatus}</p>
-        <label class="check"><span>{t('Включить расширенные настройки','Enable performance settings')}</span><input id="p29Enabled" type="checkbox" onchange={inputChange}/></label>
-        <label class="field"><span>{t('Минимум TTL, с','Min cache TTL, s')}</span><input id="p29MinTTL" type="number" min="0" max="3600" value="0" onchange={inputChange}/></label>
-        <label class="field"><span>{t('Максимум TTL, с (0 — без ограничения)','Max cache TTL, s (0 = no cap)')}</span><input id="p29MaxTTL" type="number" min="0" max="86400" value="0" onchange={inputChange}/></label>
-        <label class="field"><span>{t('Параллельные обработчики','Concurrent handlers')}</span><input id="p29Concurrent" type="number" min="8" max="64" value="32" onchange={inputChange}/></label>
-        <label class="check"><span>Optimistic cache</span><input id="p29Optimistic" type="checkbox" onchange={inputChange}/></label>
-        <label class="field"><span>{t('Объединять одинаковые запросы','Deduplicate pending queries')}</span><select id="p29Pending" onchange={inputChange}><option value="default">{t('По умолчанию (вкл.)','Default (on)')}</option><option value="on">{t('Включено','On')}</option><option value="off">{t('Выключено','Off')}</option></select></label>
+        <label class="check"><span>{t('Включить расширенные настройки','Enable performance settings')}</span><input id="p29Enabled" type="checkbox" onchange={inputChange} bind:checked={fields.p29Enabled}/></label>
+        <label class="field"><span>{t('Минимум TTL, с','Min cache TTL, s')}</span><input id="p29MinTTL" type="number" min="0" max="3600" onchange={inputChange} bind:value={fields.p29MinTTL}/></label>
+        <label class="field"><span>{t('Максимум TTL, с (0 — без ограничения)','Max cache TTL, s (0 = no cap)')}</span><input id="p29MaxTTL" type="number" min="0" max="86400" onchange={inputChange} bind:value={fields.p29MaxTTL}/></label>
+        <label class="field"><span>{t('Параллельные обработчики','Concurrent handlers')}</span><input id="p29Concurrent" type="number" min="8" max="64" onchange={inputChange} bind:value={fields.p29Concurrent}/></label>
+        <label class="check"><span>Optimistic cache</span><input id="p29Optimistic" type="checkbox" onchange={inputChange} bind:checked={fields.p29Optimistic}/></label>
+        <label class="field"><span>{t('Объединять одинаковые запросы','Deduplicate pending queries')}</span><select id="p29Pending" onchange={inputChange} bind:value={fields.p29Pending}><option value="default">{t('По умолчанию (вкл.)','Default (on)')}</option><option value="on">{t('Включено','On')}</option><option value="off">{t('Выключено','Off')}</option></select></label>
       </section>
     </div>
   </div>

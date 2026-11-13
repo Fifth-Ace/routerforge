@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import { createPortAccessReadSession } from './PortAccessReadSession.js';
+  const readSession = createPortAccessReadSession();
 
   const kinds = [
     { id: 'knockd', title: 'knockd', description: 'Классический Port Knocking' },
@@ -39,15 +41,16 @@
   };
   const endpoint = suffix => apiBase() + '/' + suffix;
   async function jsonRequest(url, options = {}) {
-    const response = await fetch(url, {
+    return readSession.consume(url, {
       credentials: 'same-origin', cache: 'no-store',
       headers: { Accept: 'application/json', ...options.headers }, ...options
+    }, async response => {
+      let data;
+      try { data = await response.json(); }
+      catch { throw Error('Некорректный JSON (HTTP ' + response.status + ')'); }
+      if (!response.ok) throw Error(data.error || 'HTTP ' + response.status);
+      return data;
     });
-    let data;
-    try { data = await response.json(); }
-    catch { throw Error('Некорректный JSON (HTTP ' + response.status + ')'); }
-    if (!response.ok) throw Error(data.error || 'HTTP ' + response.status);
-    return data;
   }
   const port = text => /^\d+$/.test(String(text)) && Number(text) >= 1 && Number(text) <= 65535;
   const range = (text, min, max) => /^\d+$/.test(String(text)) && Number(text) >= min && Number(text) <= max;
@@ -216,7 +219,7 @@
         observer.observe(window.parent.document.documentElement, { attributes:true, attributeFilter:['style','class','data-theme','data-density','data-radius','data-ui-scale'] });
       } catch { /* Cross-origin iframe */ }
     }
-    return () => observer?.disconnect();
+    return () => { ++previewSerial; readSession.close(); observer?.disconnect(); };
   });
 </script>
 

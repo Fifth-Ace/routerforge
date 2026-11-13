@@ -39,7 +39,8 @@ def main():
     gate('no duplicate static IDs', all(len(tags) == 1 for tags in dom.ids.values()))
     gate('no browser-side forms capable of accidental submit', not re.search(r'<form\b', html, re.I))
     names = ['status','engineering','engine-workspace','odin','log','layout']
-    gate('exact six mount targets', all(dom.ids.get('pa-svelte-' + n) == ['div'] for n in names))
+    gate('single Svelte root target', dom.ids.get('pa-svelte-layout') == ['div'] and
+         all(('pa-svelte-' + n) not in dom.ids for n in names if n != 'layout'))
     gate('required CSS remains linked', all(name in html for name in
          ('module.css','ui-rebuild.css','p39-compact.css','p53-ux.css','p54-workspace.css','p55-antiscan.css')))
     old = ['app.js','odin-ui.js','operation-log.js','engine-wizard.js','config-editor.js',
@@ -53,21 +54,23 @@ def main():
     entry = (FRONT / 'status-main.js').read_text(encoding='utf-8')
     component_names = ['PortAccessStatus','PortAccessOperationLog','PortAccessEngineWorkspace',
                        'PortAccessOdin','PortAccessEngineering','PortAccessLayout']
-    gate('all six native Svelte components mounted', all(name + '.svelte' in entry and
-         'mount(' + name in entry for name in component_names))
-    gate('layout mounts after original components', 'flushSync();' in entry and
-         'DOMContentLoaded' in entry)
+    gate('only one Svelte mount', entry.count('mount(') == 1 and
+         'mount(PortAccessLayout' in entry and not any('mount(' + name in entry for name in component_names if name != 'PortAccessLayout'))
     source = {name:(FRONT / (name + '.svelte')).read_text(encoding='utf-8') for name in component_names}
     gate('all components use reactive Svelte 5 state', all('$state(' in s for s in source.values()))
     layout = source['PortAccessLayout']
     gate('Svelte owns four pages and three protection methods', all(x in layout for x in
          ("'protection'","'access'","'engines'","'diagnostics'","'odin'","'knockd'","'fwknopd'")))
-    gate('Svelte mode switch propagates real change event',
-         'engine-config-engine' in layout and "new Event('change'" in layout)
-    gate('Svelte moves only mounted roots', all('pa-svelte-' + name in layout for name in names if name!='layout') and
-         '.appendChild(el)' in layout)
-    gate('Svelte navigation uses same guarded action controls',
-         'element.disabled' in layout and 'element.click()' in layout)
+    gate('direct Svelte engine selection, no synthetic events',
+         'selectedEngine={' in layout and 'onEngineChanged=' in layout and
+         "new Event('change'" not in layout and '.dispatchEvent(' not in layout)
+    gate('all five views are direct Svelte children, no mounted DOM relocation',
+         all('<' + name + ' ' in layout or '<' + name + ' />' in layout for name in component_names if name != 'PortAccessLayout') and
+         all('pa-svelte-' + name in layout for name in names if name != 'layout') and
+         '.appendChild(' not in layout)
+    gate('state crosses component boundary by callbacks, never DOM click bridge',
+         all(name in layout for name in ('onServiceState=', 'onDeployState=', 'onPreviewReady=', 'onPlanInvalidated=', 'onStateChanged=')) and
+         '.click()' not in layout and 'rfpa:service-state' not in layout)
     gate('Svelte reports state from live read-only API',
          '/api/modules/port-access-manager/odin' in layout and '/engine-service?engine=' in layout)
     gate('Svelte KKD list is fail closed',
@@ -82,14 +85,14 @@ def main():
     engine = source['PortAccessEngineWorkspace']
     gate('Entware safety, CAS and watchdog intact', all(x in engine for x in
          ('base_sha256','RESTORE_CONFIG','SAVE_CONFIG','credential_once',
-          'replace_existing','rfpa:service-state','rfpa:deploy-state','rfpa:preview-ok','watchdog')))
+          'replace_existing','onServiceState','onDeployState','onPreviewReady','watchdog')))
     gate('Entware action IDs owned by Svelte', all('id="' + x + '"' in engine for x in
          ('engine-config-engine','engine-wizard-preview','rfpa-prepare','rfpa-enable',
           'rfpa-confirm','rfpa-disable','rfpa-refresh','existing-engine-control')))
     odin = source['PortAccessOdin']
     gate('odin watchdog and server verification retained', all(x in odin for x in
          ('watchdog_deadline_unix','server_unix','confirm','window.confirm',
-          'routerforge-odin-state-changed')))
+          'onStateChanged')))
     engineering = source['PortAccessEngineering']
     gate('engineering denies unintended firewall mutation', all(x in engineering for x in
          ('firewall_mutation !== false','deployment_blocked !== true','confirm:\'REVOKE\'')))

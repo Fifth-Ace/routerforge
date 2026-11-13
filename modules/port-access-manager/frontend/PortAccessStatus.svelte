@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import { createPortAccessReadSession } from './PortAccessReadSession.js';
+  const readSession = createPortAccessReadSession();
 
   const labels = [
     { id: 'knockd', name: 'knockd' },
@@ -31,13 +33,14 @@
     return '/api/modules/port-access-manager/status';
   }
   async function json(url) {
-    const response = await fetch(url, {
+    return readSession.consume(url, {
       credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' }
+    }, async response => {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const type = response.headers.get('content-type') || '';
+      if (!type.includes('application/json')) throw new Error('Ожидался JSON, получен ' + type);
+      return response.json();
     });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const type = response.headers.get('content-type') || '';
-    if (!type.includes('application/json')) throw new Error('Ожидался JSON, получен ' + type);
-    return response.json();
   }
   async function refreshStatus() {
     refreshingStatus = true;
@@ -99,7 +102,7 @@
       preflightMessage = 'Preflight недоступен: ' + e.message + '. Применение недоступно.';
     } finally { refreshingPreflight = false; }
   }
-  onMount(() => { void refreshStatus(); void refreshPreflight(); });
+  onMount(() => { void refreshStatus(); void refreshPreflight(); return () => readSession.close(); });
 </script>
 
 <section class="overview">

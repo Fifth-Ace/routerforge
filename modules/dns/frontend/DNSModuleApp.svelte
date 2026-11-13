@@ -1,12 +1,14 @@
 <script>
   import { onMount } from 'svelte';
   import { withRequestTimeout } from '$lib/http.js';
+  import { createReadSessions } from '$lib/readSessions.js';
   import { deriveDNSRouterAwareness } from './dnsRouterAwareness.js';
 
   const API = '/api/modules/dns';
   const DNS_READ_TIMEOUT_MS = 12000;
   const DNS_ROUTER_STATUS_API = '/api/modules/dns-router/service/status';
   const DNS_ROUTER_STATUS_TIMEOUT_MS = 3500;
+  const reads = createReadSessions();
 
   const query = new URLSearchParams(window.location.search);
   const topTabs = ['overview','resolvers','rules','traffic','diagnostics'];
@@ -48,6 +50,7 @@
   let advanced = false;
   let refreshTimer = null;
   let frameSyncTimer = null;
+  let frameSyncRaf = null;
   let sectionAnimationUntil = 0;
   const resolverSectionCloseTimers = new Map();
   const resolverSectionOpenTimers = new Map();
@@ -1080,13 +1083,14 @@
       return data;
     };
     if (method === 'GET' || method === 'HEAD') {
-      return withRequestTimeout(`${API}${path}`, DNS_READ_TIMEOUT_MS, perform);
+      return withRequestTimeout(`${API}${path}`, DNS_READ_TIMEOUT_MS, perform, options.signal);
     }
     return perform(undefined);
   }
 
   async function refreshDNSRouterAwareness() {
     if (dnsRouterAwarenessBusy || document.hidden) return;
+    const read = reads.begin('awareness');
     dnsRouterAwarenessBusy = true;
     try {
       const status = await withRequestTimeout(DNS_ROUTER_STATUS_API, DNS_ROUTER_STATUS_TIMEOUT_MS, async (signal) => {
@@ -1099,12 +1103,13 @@
         });
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
-      });
-      dnsRouterAwareness = deriveDNSRouterAwareness(status);
+      }, read.signal);
+      if (read.isCurrent()) dnsRouterAwareness = deriveDNSRouterAwareness(status);
     } catch {
-      dnsRouterAwareness = null;
+      if (read.isCurrent()) dnsRouterAwareness = null;
     } finally {
-      dnsRouterAwarenessBusy = false;
+      if (read.isCurrent()) dnsRouterAwarenessBusy = false;
+      read.finish();
     }
   }
 
@@ -1113,42 +1118,84 @@
   }
 
   async function loadAll(quiet = false) {
-    if (!quiet) loading = true;
-    if (!quiet) error = '';
+    const read = reads.begin('overview');
+    if (!quiet) { loading = true; error = ''; }
     try {
-      const [nextInfo, nextResolvers, nextSnapshot] = await Promise.all([request('/info'), request('/resolvers'), request('/snapshot')]);
+      const [nextInfo, nextResolvers, nextSnapshot] = await Promise.all([
+        request('/info', { signal: read.signal }),
+        request('/resolvers', { signal: read.signal }),
+        request('/snapshot', { signal: read.signal })
+      ]);
+      if (!read.isCurrent()) return;
       info = nextInfo;
       resolverState = nextResolvers;
       snapshot = nextSnapshot;
-      try { plain = await request('/plain-dns?limit=160'); } catch {}
+      try {
+        const nextPlain = await request('/plain-dns?limit=160', { signal: read.signal });
+        if (read.isCurrent()) plain = nextPlain;
+      } catch { /* Plain DNS may be unavailable without breaking the overview. */ }
     } catch (e) {
-      error = e?.message || String(e);
+      if (read.isCurrent()) error = e?.message || String(e);
     } finally {
-      loading = false;
+      if (read.isCurrent()) loading = false;
+      read.finish();
     }
   }
 
-  async function loadHistory() { try { history = await request(`/history?minutes=${historyMinutes}`); } catch (e) { error = e?.message || String(e); } }
-  async function loadFallbacks() { try { fallbacks = await request(`/fallbacks?minutes=${rulesMinutes}`); } catch (e) { error = e?.message || String(e); } }
-  async function loadClients() { try { clients = (await request('/clients')).clients || []; } catch (e) { error = e?.message || String(e); } }
-  async function loadInterfaces() { try { interfaces = (await request('/interfaces')).interfaces || []; } catch (e) { error = e?.message || String(e); } }
+  async function loadReadView(key, path, apply) {
+    const read = reads.begin(key);
+    try {
+      const result = await request(path, { signal: read.signal });
+      if (read.isCurrent()) apply(result);
+    } catch (e) {
+      if (read.isCurrent()) error = e?.message || String(e);
+    } finally {
+      read.finish();
+    }
+  }
+
+  async function loadHistory() {
+    const minutes = historyMinutes;
+    return loadReadView('history', `/history?minutes=${minutes}`, (result) => { history = result; });
+  }
+  async function loadFallbacks() {
+    const minutes = rulesMinutes;
+    return loadReadView('fallbacks', `/fallbacks?minutes=${minutes}`, (result) => { fallbacks = result; });
+  }
+  async function loadClients() {
+    return loadReadView('clients', '/clients', (result) => { clients = result.clients || []; });
+  }
+  async function loadInterfaces() {
+    return loadReadView('interfaces', '/interfaces', (result) => { interfaces = result.interfaces || []; });
+  }
   async function loadControlInterfaces() {
+    const read = reads.begin('control-interfaces');
     controlInterfacesLoading = true;
     controlInterfacesError = '';
     try {
-      controlInterfaces = (await request('/control-interfaces')).interfaces || [];
+      const result = await request('/control-interfaces', { signal: read.signal });
+      if (read.isCurrent()) controlInterfaces = result.interfaces || [];
     } catch (e) {
-      controlInterfacesError = e?.message || String(e);
+      if (read.isCurrent()) controlInterfacesError = e?.message || String(e);
     } finally {
-      controlInterfacesLoading = false;
+      if (read.isCurrent()) controlInterfacesLoading = false;
+      read.finish();
     }
   }
   async function loadSelectedClient() {
     if (!selectedIP || clientPaused) return;
-    try { clientDetail = await request(`/client?ip=${encodeURIComponent(selectedIP)}&limit=800`); } catch (e) { error = e?.message || String(e); }
+    const ip = selectedIP;
+    return loadReadView('client', `/client?ip=${encodeURIComponent(ip)}&limit=800`, (result) => {
+      if (selectedIP === ip && !clientPaused) clientDetail = result;
+    });
   }
-  async function loadSystem() { try { systemInfo = await request('/system'); } catch (e) { error = e?.message || String(e); } }
-  async function loadBursts() { try { errorBursts = await request(`/error-bursts?minutes=${diagMinutes}`); } catch (e) { error = e?.message || String(e); } }
+  async function loadSystem() {
+    return loadReadView('system', '/system', (result) => { systemInfo = result; });
+  }
+  async function loadBursts() {
+    const minutes = diagMinutes;
+    return loadReadView('bursts', `/error-bursts?minutes=${minutes}`, (result) => { errorBursts = result; });
+  }
 
   async function ensureViewData(nextTab = tab) {
     if (nextTab === 'rules') await loadFallbacks();
@@ -1206,7 +1253,7 @@
   function toggleClientPause() { if (!clientPaused) { frozenClientEvents = (clientDetail?.events || []).slice(); clientPaused = true; } else { clientPaused = false; frozenClientEvents = []; loadSelectedClient(); } }
   function toggleDiagPause() { if (!diagPaused) { frozenErrors = (snapshot?.errors || []).slice(); frozenBursts = (errorBursts?.bursts || snapshot?.error_bursts || []).slice(); diagPaused = true; } else { diagPaused = false; frozenErrors = []; frozenBursts = []; loadBursts(); } }
   function openClient(ip) { selectedIP = ip; clientPaused = false; frozenClientEvents = []; clientDetail = null; loadSelectedClient(); }
-  function closeClient() { selectedIP = ''; clientPaused = false; frozenClientEvents = []; clientDetail = null; loadClients(); }
+  function closeClient() { reads.cancel('client'); selectedIP = ''; clientPaused = false; frozenClientEvents = []; clientDetail = null; loadClients(); }
 
   function resetEditorTransition() {
     clearTimeout(editorCloseTimer);
@@ -1449,7 +1496,7 @@
       const wait = Math.max(24, Math.ceil(animationWait) + 12);
       frameSyncTimer = setTimeout(() => {
         frameSyncTimer = null;
-        window.requestAnimationFrame(() => syncFrameHeight());
+        frameSyncRaf = window.requestAnimationFrame(() => { frameSyncRaf = null; syncFrameHeight(); });
       }, wait);
     } catch {
       syncFrameHeight();
@@ -1501,6 +1548,10 @@
       clearInterval(dnsRouterAwarenessTimer);
       document.removeEventListener('visibilitychange', onDNSRouterVisibilityChange);
       if (frameSyncTimer !== null) clearTimeout(frameSyncTimer);
+      if (frameSyncRaf !== null) cancelAnimationFrame(frameSyncRaf);
+      if (editorCloseTimer !== null) clearTimeout(editorCloseTimer);
+      if (detailsCloseTimer !== null) clearTimeout(detailsCloseTimer);
+      reads.dispose();
       for (const timer of resolverSectionCloseTimers.values()) clearTimeout(timer);
       for (const timer of resolverSectionOpenTimers.values()) clearTimeout(timer);
       resolverSectionCloseTimers.clear();

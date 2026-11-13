@@ -22,7 +22,10 @@ export function createDnsLiteApi({fetchImpl, base = '../', timeoutMs = 15000} = 
     if (method === 'PUT' && path === 'config' && !/^"[^"\r\n]+"$/.test(headers['If-Match'] || ''))
       throw Error('DNS_LITE_CAS_REVISION_REQUIRED');
     const controller = new AbortController();
-    controllers.add(controller);
+    // Unmount only aborts read-only requests. A protected write may already
+    // have committed on the server; canceling its transport hides that fact.
+    const cancellableRead = method === 'GET';
+    if (cancellableRead) controllers.add(controller);
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await Promise.race([
@@ -33,12 +36,12 @@ export function createDnsLiteApi({fetchImpl, base = '../', timeoutMs = 15000} = 
         new Promise((_,reject)=>controller.signal.addEventListener('abort',
           ()=>reject(Error(stopped?'DNS_LITE_DISPOSED':'DNS_LITE_API_TIMEOUT: '+path)),{once:true}))
       ]);
-      if (stopped) throw Error('DNS_LITE_DISPOSED');
+      if (stopped && cancellableRead) throw Error('DNS_LITE_DISPOSED');
       const contentType = response.headers?.get?.('content-type') || '';
       if (!contentType.toLowerCase().includes('json'))
         throw Error('Ожидался JSON от RouterForge: '+path);
       const body = await response.json();
-      if (stopped) throw Error('DNS_LITE_DISPOSED');
+      if (stopped && cancellableRead) throw Error('DNS_LITE_DISPOSED');
       if (!response.ok) {
         const reason = typeof body?.error === 'string' ? body.error : 'HTTP '+response.status;
         const error = new Error(reason+' · '+path);

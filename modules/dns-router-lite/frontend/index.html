@@ -69,8 +69,7 @@
       <details class="inner-details legacy-test-device" id="clientConnection">
         <summary>Тестовое подключение одного устройства <span class="hint">Необязательно · для диагностики</span></summary>
         <p class="muted">Это отдельный точечный режим для диагностики через профиль Keenetic. Для замены DNS всей LAN он не нужен.</p>
-        <div class="fields two"><label class="field"><span>MAC-адрес устройства</span><input id="clientMAC" placeholder="02:11:22:33:44:55" spellcheck="false"></label><div class="field"><span>DNS-профиль Keenetic</span><strong id="clientState">Не подключён</strong><small>Подключаем только выбранное устройство, не всю сеть</small></div></div>
-        <label class="check"><input type="checkbox" id="persistClient"> Сохранить назначение после перезагрузки Keenetic (изменяет его общую running-config)</label>
+        <div id="rf-lite-client-fields-slot" style="display:contents"></div>
         <div id="rf-lite-client-actions-slot" style="display:contents"></div>
         <p class="muted">Для теста выключи Private DNS / DoH на устройстве. При недоступном Entware подключённое устройство может остаться без DNS — возврат делается по IP-адресу роутера.</p>
       </details>

@@ -944,13 +944,24 @@ func (a *API) Handler() http.Handler {
 		if name == "" {
 			name = "index.html"
 		}
-		if name != "index.html" && name != "svelte-mode.js" && name != "module.css" {
+		// The independent DEV Lite frontend references two optional CSS assets.
+		// Permit them only when the installed index actually references them;
+		// experimental Runtime and stale upgrade leftovers remain denied.
+		liteCSS := name == "p22-visual.css" || name == "p25-settings.css"
+		if name != "index.html" && name != "svelte-mode.js" && name != "module.css" && !liteCSS {
 			http.NotFound(w, r)
 			return
 		}
 		if a.UI == "" {
 			http.NotFound(w, r)
 			return
+		}
+		if liteCSS {
+			index, err := os.ReadFile(filepath.Join(a.UI, "index.html"))
+			if err != nil || !strings.Contains(string(index), `href="`+name+`"`) {
+				http.NotFound(w, r)
+				return
+			}
 		}
 		f, err := os.Open(filepath.Join(a.UI, name))
 		if err != nil {
@@ -965,7 +976,7 @@ func (a *API) Handler() http.Handler {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		case "svelte-mode.js":
 			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-		case "module.css":
+		case "module.css", "p22-visual.css", "p25-settings.css":
 			w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		}
 		_, _ = io.Copy(w, f)

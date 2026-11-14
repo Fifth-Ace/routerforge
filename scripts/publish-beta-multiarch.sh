@@ -118,6 +118,9 @@ while IFS= read -r asset; do
     gh release upload "$TAG" --clobber "dist/$asset"
 done < "$ALL_CHANGED"
 
+# 1b. Publish verified public notes BEFORE the package indexes expose this update.
+sh scripts/publish-release-notes.sh beta
+
 # 2. Publish target-specific indexes/bootstrap assets only after all packages exist.
 gh release upload "$TAG" --clobber \
     dist/routerforge-beta-index.json \

@@ -177,6 +177,9 @@ publish_release() {
         gh release upload "$TAG" --clobber "dist/$asset"
     done < "$ALL_CHANGED"
 
+    # 1b. Publish verified public notes BEFORE the package indexes expose this update.
+    sh scripts/publish-release-notes.sh stable
+
     # 2. Publish all target indexes and target bootstraps only after packages exist.
     gh release upload "$TAG" --clobber \
         dist/routerforge-stable-index.json \

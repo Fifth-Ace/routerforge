@@ -73,6 +73,7 @@ core_platform_storage_linux.go
 profiling.go
 routerforge_registry.go
 routerforge_release.go
+release_notes_remote.go
 frontend_assets_embed.go
 "
 

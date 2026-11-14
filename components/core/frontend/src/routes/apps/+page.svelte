@@ -1205,6 +1205,7 @@
       {/if}
 
       {#if tab === 'routerforge'}
+        <a class="button" href={'/release-notes?channel=' + (releaseChannel==='stable'?'stable':'beta')}>{locale==='ru'?'Что нового':'What’s new'}</a>
         <button class="button primary" disabled={bulkUpdating || checkingUpdates || checkingAll || Boolean(busyId) || officialRouterForgeUpdates.length === 0} onclick={updateAllRouterForge}>
           {bulkUpdating ? (a(locale,'msgBulkRunning')) : a(locale,'routerforgeUpdateAll')} ({officialRouterForgeUpdates.length})
         </button>
@@ -1433,6 +1434,10 @@
                   >
                     {busyId === item.id ? a(locale,'updating') : a(locale,'update')}
                   </button>
+                {/if}
+
+                {#if isOfficialRouterForgeUpdate(item) && (releaseChannel==='stable' || releaseChannel==='beta')}
+                  <a class="button" href={'/release-notes?channel=' + releaseChannel + '&version=' + encodeURIComponent(String(item.release?.version || item.available_version || '').replace('~beta.','-beta.'))}>{locale==='ru'?'Что изменилось':'Release notes'}</a>
                 {/if}
 
                 {#if ownURL}

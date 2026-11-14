@@ -6,6 +6,7 @@ import {createDnsLiteApi} from './DnsLiteApi.js';
 import {dnsLiveBadge} from './DnsLiteStatusModel.js';
 import {hydrateLiteSettings,refreshLiteSettingsOptions,buildLiteServicePrefs,mergeLiteServicePrefs,parseLiteDomains} from './DnsLiteSettingsModel.js';
 import {visibleLiteLogs} from './DnsLiteLogModel.js';
+import {parseP32Stamp} from './DnsP32Stamp.js';
 
 export function startDnsLiteController({state,ui,presentation,settingsHooks,discoveryHooks,navigationHooks,controller,reportHeight=()=>{}}) {
     let cleanup = () => {};
@@ -43,8 +44,8 @@ export function startDnsLiteController({state,ui,presentation,settingsHooks,disc
         const u=state.config.upstreams.find(x=>x.id===id);
         return u ? (u.server_name?u.server_name+' ('+u.address+')':u.address)+' · '+u.transport+' ['+u.id+']' : (id||'—');
       };
-      const protocolNames={doh:'DoH · HTTPS',dot:'DoT · TLS',doq:'DoQ · QUIC',udp:'UDP',tcp:'TCP',native:'Старый DNS Keenetic'};
-      const isEncrypted = t => t==='doh'||t==='dot'||t==='doq';
+      const protocolNames={doh:'DoH · HTTPS',dot:'DoT · TLS',doq:'DoQ · QUIC',udp:'UDP',tcp:'TCP',stamp:'DNS Stamp',native:'Старый DNS Keenetic'};
+      const isEncrypted = t => t==='doh'||t==='dot'||t==='doq'||t==='stamp';
       const isSimple = r => r.match==='suffix' && !r.group_id && Object.keys(r).every(k=>['id','domain','match','upstream','priority','list_id'].includes(k));
       const newId = (prefix,items) => {let i=1;const ids=new Set(items.map(x=>x.id));while(ids.has(prefix+'-'+i))i++;return prefix+'-'+i;};
       const displayName = u => u.server_name || (u.transport==='native'?'Наследованный DNS Keenetic':u.address);
@@ -269,7 +270,8 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         ui.dnsForm.title=u?'Изменить DNS / обновить TLS':'Добавить DNS';
         ui.dnsForm.button=u?'Сохранить DNS (черновик)':'Добавить DNS';
         ui.dnsForm.protocol=u?u.transport:'doh';
-        ui.dnsForm.address=!u?'':u.transport==='doh'?'https://'+u.server_name+(u.path||'/dns-query'):
+        ui.dnsForm.http3Mode=u?.http3_mode||'off';ui.dnsForm.bootstrapIPs=(u?.bootstrap_ips||[]).join('\n');
+        ui.dnsForm.address=!u?'':u.transport==='stamp'?u.stamp:u.transport==='doh'?'https://'+u.server_name+(u.path||'/dns-query'):
           isEncrypted(u.transport)?u.server_name:u.address.replace(/:53$/,'');
         resetDraftInspection();
         ui.dnsForm.certificateInfo=u?'Черновик: проверка не выполнялась. Активный DNS не изменён.':'Проверка не выполнялась.';
@@ -280,6 +282,7 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         let transport=ui.dnsForm.protocol;let raw=ui.dnsForm.address.trim();
         if(!raw)throw Error('Укажи адрес DNS');
         let host='',path='';
+        if(transport==='stamp'){const s=parseP32Stamp(raw);return {...s,path:'',http3Mode:'off',bootstrapIPs:[]};}
         if(transport==='doh'){
           let url;try{url=new URL(/^https:\/\//i.test(raw)?raw:'https://'+raw)}catch(_){throw Error('Неверный DoH URL');}
           if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.port||url.pathname.includes('..')||url.pathname.startsWith('//'))throw Error('DoH: нужен HTTPS-адрес без нестандартного порта и параметров');
@@ -287,7 +290,10 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         }else{if(/[\/:?@\s]/.test(raw)&&transport!=='udp')throw Error('Нужен домен DNS-сервера без протокола и порта');host=raw.toLowerCase();}
         if(transport==='udp'||transport==='tcp'){if(!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(raw)||raw.split('.').some(n=>Number(n)>255))throw Error('Для UDP укажи IPv4-адрес, например 9.9.9.9');host=raw;}
         if(isEncrypted(transport)&&(!/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(host)))throw Error('Для защищённого DNS требуется имя сервера');
-        return {transport,host,path};
+        const bootstrapIPs=String(ui.dnsForm.bootstrapIPs||'').split(/[\n,;]/).map(x=>x.trim()).filter(Boolean);
+        if(bootstrapIPs.length>4||new Set(bootstrapIPs).size!==bootstrapIPs.length)throw Error('Допустимо не более 4 уникальных Bootstrap IP');
+        const http3Mode=transport==='doh'?(ui.dnsForm.http3Mode||'off'):'off';
+        return {transport,host,path,http3Mode,bootstrapIPs};
       }
       function draftStatus(id,text,state='') {ui.dnsForm.checks[id]={text,state};}
       function resetDraftInspection(){
@@ -304,7 +310,7 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         draftStatus('draftTLSState',isEncrypted(f.transport)?'Ожидание…':'Не используется',isEncrypted(f.transport)?'pending':'neutral');
         draftStatus('draftCertificateState',(f.transport==='udp'||f.transport==='tcp')?'Не требуется':'Ожидание…',(f.transport==='udp'||f.transport==='tcp')?'neutral':'pending');
         let r;
-        try {r=f.transport==='tcp'?{selected_ip:f.host,address:f.host+':53'}:await api('certificates/lookup',opts('certificate-lookup',{transport:f.transport,server_name:f.host}));}
+        try {r=f.transport==='stamp'?{selected_ip:f.host,address:f.address}:f.transport==='tcp'?{selected_ip:f.host,address:f.host+':53'}:await api('certificates/lookup',opts('certificate-lookup',{transport:f.transport,server_name:f.host}));}
         catch(e){
           if(key!==ui.dnsForm.protocol+'|'+ui.dnsForm.address.trim()||editId!==state.editingDNSId)return;
           draftStatus('draftIPState','Не получен','bad');
@@ -322,7 +328,10 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         draftStatus('draftTLSState',preverified?'Проверен':f.transport==='doq'?'QUIC: проверяется запросом':'Не используется',preverified?'ok':f.transport==='doq'?'pending':'neutral');
         draftStatus('draftCertificateState',preverified?'Получен · до '+(r.certificate.not_after||'—'):f.transport==='doq'?'Проверяется при QUIC':'Не требуется',preverified?'ok':'neutral');
         const candidate={id:'p194-draft',transport:f.transport,address:r.address};
-        if(isEncrypted(f.transport))candidate.server_name=f.host;
+        if(f.transport==='stamp')candidate.stamp=f.stamp;
+        if(f.transport==='doh'&&f.http3Mode!=='off')candidate.http3_mode=f.http3Mode;
+        if(f.bootstrapIPs?.length)candidate.bootstrap_ips=f.bootstrapIPs;
+        if(isEncrypted(f.transport)&&f.transport!=='stamp')candidate.server_name=f.host;
         if(f.transport==='doh')candidate.path=f.path;
         draftStatus('draftDNSState','Проверка…','pending');
         let probe;
@@ -332,7 +341,7 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         const available=probe.dns_available===true;
         draftStatus('draftDNSState',available?'Доступен':'Недоступен',available?'ok':'bad');
         draftStatus('draftRTTState',available?String(probe.probe_latency_ms)+' мс':'—',available?'ok':'neutral');
-        if(f.transport==='doq'){
+        if(f.transport==='doq'||f.transport==='stamp'){
           draftStatus('draftTLSState',available?'Проверен при QUIC':'Не подтверждён',available?'ok':'bad');
           draftStatus('draftCertificateState',available?'Проверен транспортом':'Не получен',available?'ok':'bad');
         }
@@ -349,14 +358,18 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         if(!c||c.key!==key||c.editId!==state.editingDNSId)throw Error('Сначала проверь именно этот адрес DNS и TLS');
         if(c.available!==true&&!confirm('DNS недоступен. Сохранить его в черновик всё равно? Работающий DNS не изменится до применения.'))return;
         const f=c.form,r=c.lookup;
+        if(f.transport==='stamp'&&state.config.upstreams.some(u=>u.id!==state.editingDNSId&&u.transport==='stamp'&&u.stamp===f.stamp))throw Error('Такой DNS Stamp уже добавлен');
         const prev=state.editingDNSId?state.config.upstreams.find(u=>u.id===state.editingDNSId):null;
         if(state.editingDNSId&&!prev)throw Error('Редактируемый DNS не найден');
         if(state.config.upstreams.some(u=>u.id!==prev?.id&&u.transport===f.transport&&u.address===r.address&&u.server_name===(isEncrypted(f.transport)?f.host:'')&&(u.path||'')===f.path))throw Error('Такой DNS уже добавлен');
         const u=prev||{id:newId('dns',state.config.upstreams)};
         u.transport=f.transport;u.address=r.address;
-        delete u.server_name;delete u.path;delete u.certificate_pem;
-        if(isEncrypted(f.transport))u.server_name=f.host;
+        delete u.server_name;delete u.path;delete u.certificate_pem;delete u.http3_mode;delete u.bootstrap_ips;delete u.stamp;
+        if(isEncrypted(f.transport)&&f.transport!=='stamp')u.server_name=f.host;
         if(f.transport==='doh')u.path=f.path;
+        if(f.transport==='doh'&&f.http3Mode!=='off')u.http3_mode=f.http3Mode;
+        if(f.bootstrapIPs?.length)u.bootstrap_ips=f.bootstrapIPs;
+        if(f.transport==='stamp')u.stamp=f.stamp;
         if(r.certificate?.verified)u.certificate_pem=r.certificate.pem;
         if(!prev)state.config.upstreams.push(u);
         state.editingDNSId=null;state.checked=null;ui.dnsForm.opened=false;ui.dnsForm.ready=false;
@@ -500,6 +513,8 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         'dns-draft-change':(payload)=>{
           if(payload?.protocol!==undefined)ui.dnsForm.protocol=String(payload.protocol);
           if(payload?.address!==undefined)ui.dnsForm.address=String(payload.address);
+          if(payload?.http3Mode!==undefined)ui.dnsForm.http3Mode=String(payload.http3Mode);
+          if(payload?.bootstrapIPs!==undefined)ui.dnsForm.bootstrapIPs=String(payload.bootstrapIPs);
           state.checked=null;ui.dnsForm.ready=false;ui.dnsForm.certificateInfo='Адрес изменён. Нажми «Проверить». ';
           resetDraftInspection();ui.dnsForm.certificateVisible=false;ui.dnsForm.certificateText='';
         },

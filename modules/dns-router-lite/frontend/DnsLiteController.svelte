@@ -22,7 +22,7 @@
     editorView:{opened:false,generation:0}, modeView:'basic', statusView:null,
     logView:{rows:[],upstreams:[],paused:false,updated:'',error:'',filter:'',type:'',errorsOnly:false},
     logCriteria:{filter:'',type:'',errorsOnly:false},
-    dnsForm:{opened:false,title:'Добавить DNS',button:'Добавить DNS',protocol:'doh',address:'',
+    dnsForm:{opened:false,title:'Добавить DNS',button:'Добавить DNS',protocol:'doh',address:'',http3Mode:'off',bootstrapIPs:'',
       ready:false,checks:{},error:'',certificateInfo:'Проверка ещё не выполнялась.',certificateText:'',certificateVisible:false},
 
     initialized:false, p21Rows:{devices:[],groups:[],rules:[]}, p21Section:'devices',

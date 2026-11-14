@@ -2,6 +2,9 @@
  * Svelte owns the editable fields; CAS/commit/apply remain explicit commands.
  */
 
+import {parseP35Records,formatP35Records} from './DnsP35LocalModel.js';
+import {buildP36SecureDNS,hydrateP36} from './DnsP36SecureModel.js';
+
 export function createLiteSettingsFields() {
   return {
     defaultDNS:'', serviceListen:'192.168.10.1:55358', cacheSize:1,
@@ -9,9 +12,13 @@ export function createLiteSettingsFields() {
     p27RateLimit:0, p27RefuseAny:false, p27BogusIPs:'',
     p28Enabled:false, p28Mode:'sequential', p28Timeout:3000,
     p29Enabled:false, p29MinTTL:0, p29MaxTTL:0, p29Optimistic:false, p29Pending:'default', p29Concurrent:32,
+    p33MaxAge:0, p33AnswerTTL:0, p33DeviceCache:false,
     p30Enabled:false, p30ECSMode:'inherit', p30ECSAddress:'', p30DNSSECMode:'off',
     p31DNS64Enabled:false, p31DNS64Prefix:'64:ff9b::/96', p31NAT64Confirmed:false,
     p31ReverseEnabled:false, p31ReverseUpstream:'',
+    p35Enabled:false, p35Records:'',
+    p36Enabled:false, p36DoT:'', p36DoH:'', p36DoQ:'',
+    p36CertificateFile:'', p36PrivateKeyFile:'', p36ClientCAFile:'',
     p241IPEnabled:false, p241IPMode:'original', p243Scope:'all', p243Domains:'', p243ListIDs:[],
     p242HealthEnabled:false, p242HealthProtocol:'tcp', p242HealthPort:443,
     p242HealthInterval:60, p242HealthTimeout:1200, p242HealthFailures:2,
@@ -62,6 +69,8 @@ export function hydrateLiteSettings(fields, config) {
   d.p29Enabled=Boolean(perf.enabled);d.p29MinTTL=perf.cache_min_ttl||0;d.p29MaxTTL=perf.cache_max_ttl||0;
   d.p29Optimistic=Boolean(perf.optimistic_cache);d.p29Pending=perf.pending_requests||'default';
   d.p29Concurrent=perf.max_concurrent||32;
+  d.p33MaxAge=perf.optimistic_max_age_seconds||0;d.p33AnswerTTL=perf.optimistic_answer_ttl_seconds||0;
+  d.p33DeviceCache=Boolean(perf.device_policy_cache);
   const privacy=svc.privacy||{};
   d.p30Enabled=Boolean(privacy.enabled);d.p30ECSMode=privacy.ecs_mode||d.p30ECSMode;
   d.p30ECSAddress=privacy.ecs_address||'';d.p30DNSSECMode=privacy.dnssec_mode||'off';
@@ -70,6 +79,9 @@ export function hydrateLiteSettings(fields, config) {
   d.p31NAT64Confirmed=Boolean(dns64.nat64_confirmed);
   const reverse=svc.reverse_dns||{};
   d.p31ReverseEnabled=Boolean(reverse.enabled);d.p31ReverseUpstream=reverse.upstream||'';
+  d.p35Enabled=Boolean(svc.local_dns?.enabled);
+  d.p35Records=formatP35Records(svc.local_dns?.records);
+  hydrateP36(d,svc);
   const ip=svc.ip_intelligence||{},health=ip.health||{};
   d.p241IPEnabled=Boolean(ip.enabled);d.p241IPMode=ip.mode||d.p241IPMode;
   d.p243Scope=ip.scope||'all';d.p243Domains=(ip.domains||[]).join('\n');
@@ -122,7 +134,11 @@ export function buildLiteServicePrefs(f, config, requireDefault=true) {
     prefs.performance={enabled:true,cache_min_ttl:integer(f.p29MinTTL,'p29MinTTL',0,3600),
       cache_max_ttl:integer(f.p29MaxTTL,'p29MaxTTL',0,86400),optimistic_cache:Boolean(f.p29Optimistic),
       pending_requests:member(f.p29Pending,['default','on','off'],'p29Pending'),
-      max_concurrent:integer(f.p29Concurrent,'p29Concurrent',8,64)};
+      max_concurrent:integer(f.p29Concurrent,'p29Concurrent',8,64),
+      optimistic_max_age_seconds:integer(f.p33MaxAge,'p33MaxAge',0,86400),
+      optimistic_answer_ttl_seconds:integer(f.p33AnswerTTL,'p33AnswerTTL',0,300),
+      device_policy_cache:Boolean(f.p33DeviceCache)};
+    if(!f.p29Optimistic && (prefs.performance.optimistic_max_age_seconds || prefs.performance.optimistic_answer_ttl_seconds))throw Error('P33: лимиты устаревших записей требуют Optimistic Cache');
   }
   if (f.p30Enabled) {
     prefs.privacy={enabled:true,ecs_mode:member(f.p30ECSMode,['inherit','strip','fixed'],'p30ECSMode'),
@@ -134,6 +150,8 @@ export function buildLiteServicePrefs(f, config, requireDefault=true) {
     if (!f.p31ReverseUpstream||!config.upstreams.some(x=>x.id===f.p31ReverseUpstream&&x.transport!=='native')) throw Error('Выбери DNS для приватного rDNS');
     prefs.reverse_dns={enabled:true,upstream:f.p31ReverseUpstream};
   }
+  if (f.p35Enabled) prefs.local_dns={enabled:true,records:parseP35Records(String(f.p35Records||''))};
+  if (f.p36Enabled) prefs.secure_dns=buildP36SecureDNS(f);
   if (f.p242HealthEnabled&&!f.p241IPEnabled) throw Error('Сначала включи IP Intelligence');
   if (f.p241IPEnabled) {
     prefs.ip_intelligence={enabled:true,mode:member(f.p241IPMode,IP_MODES,'p241IPMode')};
@@ -165,7 +183,7 @@ export function buildLiteServicePrefs(f, config, requireDefault=true) {
 
 export function mergeLiteServicePrefs(previous, next) {
   const merged={...(previous||{}),...next};
-  for(const key of ['ip_intelligence','protection','upstream_selection','performance','privacy','dns64','reverse_dns']) {
+  for(const key of ['ip_intelligence','protection','upstream_selection','performance','privacy','dns64','reverse_dns','local_dns','secure_dns']) {
     if (!next[key]) delete merged[key];
   }
   if(previous?.default_upstream!==next.default_upstream) delete merged.default_group;

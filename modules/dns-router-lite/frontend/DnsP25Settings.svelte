@@ -1,5 +1,6 @@
 <script>
   import {onMount, getContext} from 'svelte';
+  import DnsP34Diagnostics from './DnsP34Diagnostics.svelte';
 
   // Svelte owns Settings navigation, section selection, read-only telemetry,
   // and every setting input. Existing Lite draft/CAS/apply remains authoritative.
@@ -13,6 +14,8 @@
   let ipStatus = $state('Монитор выключен');
   let ipRows = $state([]);
   let performanceStatus = $state('Метрики: нет данных');
+  let cacheClearBusy = $state(false);
+  let cacheClearStatus = $state('');
   let english = $state(false);
   let app;
   let observer;
@@ -55,7 +58,10 @@
     {id:'security',ru:'Защита запросов',en:'Query protection',status:'available'},
     {id:'privacy',ru:'EDNS / ECS / DNSSEC',en:'EDNS / ECS / DNSSEC',status:'available'},
     {id:'dns64',ru:'DNS64 / rDNS',en:'DNS64 / rDNS',status:'available'},
-    {id:'performance',ru:'Производительность',en:'Performance',status:'available'}
+    {id:'performance',ru:'Производительность',en:'Performance',status:'available'},
+    {id:'local',ru:'Локальный DNS',en:'Local DNS',status:'available'},
+    {id:'secure',ru:'Защищённый DNS',en:'Secure DNS',status:'experimental'},
+    {id:'diagnostics',ru:'Диагностика DNS',en:'DNS diagnostics',status:'available'}
   ];
   const settingsHooks = getContext('routerforge:dns-lite-settings');
   const navigationHooks = getContext('routerforge:dns-lite-navigation');
@@ -95,6 +101,21 @@
     }catch(e){if(!disposed && !controller.signal.aborted)ipStatus=t('Ошибка мониторинга: ','Monitor error: ')+e.message;}
     finally{pending.delete(controller);}
   }
+  async function clearP33Cache() {
+    if(cacheClearBusy || !confirm(t('Очистить DNS-кэш работающего RouterForge? Это не меняет правила или Gate.','Clear the active RouterForge DNS cache? Routing and Gate will not change.')))return;
+    cacheClearBusy=true;cacheClearStatus='';
+    try {
+      const statusResp=await fetch('../service/status',{method:'GET',cache:'no-store'});
+      if(!statusResp.ok)throw Error('status HTTP '+statusResp.status);
+      const status=await statusResp.json();
+      if(!status.active || !status.applied_revision)throw Error(t('Сначала запусти DNS','Start DNS first'));
+      const response=await fetch('../service/cache/control',{method:'POST',headers:{'Content-Type':'application/json','X-RouterForge-Action':'service-control','If-Match':'"'+status.applied_revision+'"'},body:JSON.stringify({operation:'clear'})});
+      if(!response.ok)throw Error('cache HTTP '+response.status);
+      cacheClearStatus=t('Кэш очищен','Cache cleared');
+      await refreshP29Metrics();
+    }catch(error){cacheClearStatus=String(error.message||error)}
+    finally{cacheClearBusy=false}
+  }
   async function refreshP29Metrics(){
     if(disposed || !advanced || !active || section!=='performance' || document.hidden) return;
     const controller=new AbortController(); pending.add(controller);
@@ -103,7 +124,7 @@
       if(!response.ok) throw Error('HTTP '+response.status);
       const data=await response.json();
       if(disposed || controller.signal.aborted)return;
-      performanceStatus=t('Запросы: ','Queries: ')+String(data.requests||0)+t(' · Кэш: ',' · Cache: ')+String(data.cache_hits||0)+t(' · Ошибки: ',' · Errors: ')+String(data.failures||0)+t(' · DNS-измерений: ',' · Measured upstreams: ')+Object.keys(data.upstream_selection_metrics?.upstreams||{}).length;
+      performanceStatus=t('Запросы: ','Queries: ')+String(data.requests||0)+t(' · Кэш: ',' · Cache: ')+String(data.cache_hits||0)+t(' · Ошибки: ',' · Errors: ')+String(data.failures||0)+t(' · DNS-измерений: ',' · Measured upstreams: ')+Object.keys(data.upstream_selection_metrics?.upstreams||{}).length+' · '+t('Изолированный кэш: ','Policy cache: ')+(data.cache_mode==='isolated_device_policy_cache'?'ON':data.cache_mode==='disabled_for_device_policy_isolation'?'OFF':'—')+' · '+t('Записей: ','Entries: ')+String(data.policy_cache?.entries||0);
     }catch(e){if(!disposed && !controller.signal.aborted)performanceStatus=t('Метрики недоступны: ','Metrics unavailable: ')+e.message;}
     finally{pending.delete(controller);}
   }
@@ -263,12 +284,44 @@
         <label class="check"><span>{t('Отдельный DNS для приватных PTR','Custom private PTR resolver')}</span><input id="p31ReverseEnabled" type="checkbox" onchange={inputChange} bind:checked={fields.p31ReverseEnabled}/></label>
         <label class="field"><span>{t('DNS для rDNS','rDNS upstream')}</span><select id="p31ReverseUpstream" onchange={inputChange} bind:value={fields.p31ReverseUpstream}><option value="">Выбери прямой DNS…</option>{#each fields.reverseOptions as option (option.id)}<option value={option.id}>{option.label}</option>{/each}</select></label>
       </section>
+      <section id="p25Settings_diagnostics" class="p25-settings-section" hidden={section!=='diagnostics'} aria-label={t('Диагностика DNS','DNS diagnostics')}>
+        <h3>{t('Диагностика DNS','DNS diagnostics')}</h3>
+        {#if section==='diagnostics'}<DnsP34Diagnostics/>{/if}
+      </section>
+      <section id="p25Settings_secure" class="p25-settings-section" hidden={section!=='secure'} aria-label={t('Защищённый DNS','Secure DNS')}>
+        <h3>{t('Защищённый DNS (P36)','Secure DNS (P36)')}</h3>
+        <p class="p25-settings-info">{t('Входящие DoT, DoH и DoQ: TLS 1.3 и ОБЯЗАТЕЛЬНЫЙ клиентский сертификат (mTLS). Доступ только по IP интерфейса DNS Router, через разрешённые сети. Не открывает порты Keenetic и ничего не запускает без общего Save и Apply.','Inbound DoT, DoH and DoQ: TLS 1.3 with MANDATORY client certificates (mTLS). Explicit DNS Router IP, existing allowed networks, no Keenetic port changes; requires Save then Apply.')}</p>
+        <label class="check"><input id="p36Enabled" type="checkbox" onchange={inputChange} bind:checked={fields.p36Enabled}/><span>{t('Включить защищённые входящие DNS','Enable encrypted inbound DNS')}</span></label>
+        <div class="fields two">
+          <label class="field"><span>DoT · TCP IP:port</span><input id="p36DoT" spellcheck="false" placeholder="192.168.10.1:10853" onchange={inputChange} bind:value={fields.p36DoT}/></label>
+          <label class="field"><span>DoH · HTTPS IP:port</span><input id="p36DoH" spellcheck="false" placeholder="192.168.10.1:10443" onchange={inputChange} bind:value={fields.p36DoH}/></label>
+          <label class="field"><span>DoQ · UDP IP:port</span><input id="p36DoQ" spellcheck="false" placeholder="192.168.10.1:10854" onchange={inputChange} bind:value={fields.p36DoQ}/></label>
+          <label class="field"><span>{t('PEM сертификат сервера','Server certificate PEM path')}</span><input id="p36CertificateFile" spellcheck="false" placeholder="/opt/etc/routerforge/secure-dns/server.pem" onchange={inputChange} bind:value={fields.p36CertificateFile}/></label>
+          <label class="field"><span>{t('Приватный ключ сервера, 0600','Server private key, mode 0600')}</span><input id="p36PrivateKeyFile" spellcheck="false" placeholder="/opt/etc/routerforge/secure-dns/server.key" onchange={inputChange} bind:value={fields.p36PrivateKeyFile}/></label>
+          <label class="field"><span>{t('CA клиентских сертификатов','Client certificate CA path')}</span><input id="p36ClientCAFile" spellcheck="false" placeholder="/opt/etc/routerforge/secure-dns/clients-ca.pem" onchange={inputChange} bind:value={fields.p36ClientCAFile}/></label>
+        </div>
+        <p class="p25-settings-info">{t('В конфигурации хранятся только пути. Ключи не загружаются через UI. Клиент без доверенного сертификата отклоняется на TLS-рукопожатии. DoH: /dns-query.','Only file paths are saved, never key material. Clients without trusted certificates fail TLS authentication. DoH: /dns-query.')}</p>
+      </section>
+      <section id="p25Settings_local" class="p25-settings-section" hidden={section!=='local'} aria-label={t('Локальный DNS','Local DNS')}>
+        <h3>{t('Локальный DNS','Local DNS')}</h3>
+        <p class="p25-settings-info">{t('Записи обрабатываются только для *.rf.home.arpa. Штатные имена Keenetic, *.lan, *.local и чужие *.home.arpa не изменяются. Изменения требуют общего сохранения и отдельного применения.','Only *.rf.home.arpa is served locally. Keenetic stock names and other home.arpa names remain untouched; explicit Save and Apply are required.')}</p>
+        <label class="check"><input id="p35Enabled" type="checkbox" onchange={inputChange} bind:checked={fields.p35Enabled}/><span>{t('Включить локальную зону RouterForge','Enable RouterForge local zone')}</span></label>
+        <label class="field"><span>{t('Записи: NAME | TYPE | VALUE | TTL (30–86400)','Records: NAME | TYPE | VALUE | TTL (30–86400)')}</span>
+          <textarea id="p35Records" spellcheck="false" rows="8" maxlength="32768" placeholder="nas.rf.home.arpa | A | 192.168.10.8 | 300&#10;alias.rf.home.arpa | CNAME | nas.rf.home.arpa | 300" onchange={inputChange} bind:value={fields.p35Records}></textarea>
+        </label>
+        <p class="p25-settings-info">{t('Поддержка A, AAAA, CNAME, PTR; максимум 128 записей. PTR разрешён только для приватного IP, уже указанного в локальной A/AAAA записи.','A, AAAA, CNAME and PTR; up to 128 records. PTR must match an explicitly configured private A/AAAA record.')}</p>
+      </section>
       <section id="p25Settings_performance" class="p25-settings-section" hidden={section!=='performance'} aria-label={t('Производительность','Performance')}><h3>{t('Производительность','Performance')}</h3><p class="p25-settings-info">{performanceStatus}</p>
         <label class="check"><span>{t('Включить расширенные настройки','Enable performance settings')}</span><input id="p29Enabled" type="checkbox" onchange={inputChange} bind:checked={fields.p29Enabled}/></label>
         <label class="field"><span>{t('Минимум TTL, с','Min cache TTL, s')}</span><input id="p29MinTTL" type="number" min="0" max="3600" onchange={inputChange} bind:value={fields.p29MinTTL}/></label>
         <label class="field"><span>{t('Максимум TTL, с (0 — без ограничения)','Max cache TTL, s (0 = no cap)')}</span><input id="p29MaxTTL" type="number" min="0" max="86400" onchange={inputChange} bind:value={fields.p29MaxTTL}/></label>
         <label class="field"><span>{t('Параллельные обработчики','Concurrent handlers')}</span><input id="p29Concurrent" type="number" min="8" max="64" onchange={inputChange} bind:value={fields.p29Concurrent}/></label>
         <label class="check"><span>Optimistic cache</span><input id="p29Optimistic" type="checkbox" onchange={inputChange} bind:checked={fields.p29Optimistic}/></label>
+        <label class="field"><span>{t('Максимальный возраст устаревшей записи, с (0 — стандарт DNSProxy)','Max expired-entry age, seconds (0 = DNSProxy default)')}</span><input id="p33MaxAge" type="number" min="0" max="86400" onchange={inputChange} bind:value={fields.p33MaxAge}/></label>
+        <label class="field"><span>{t('TTL ответа из устаревшего кэша, с (0 — стандарт DNSProxy)','Expired-answer TTL, seconds (0 = DNSProxy default)')}</span><input id="p33AnswerTTL" type="number" min="0" max="300" onchange={inputChange} bind:value={fields.p33AnswerTTL}/></label>
+        <label class="check"><span>{t('Изолированный кэш для политик устройств (экспериментально)','Isolated device-policy cache (experimental)')}</span><input id="p33DeviceCache" type="checkbox" onchange={inputChange} bind:checked={fields.p33DeviceCache}/></label>
+        <p class="p25-settings-info">{t('Изолированный кэш хранит только обычные A/AAAA без ECS, DO и DNSSEC. Общий кэш при правилах устройств по-прежнему отключён. Лимит памяти общий: максимум 8 МиБ.','Policy cache holds only ordinary A/AAAA without ECS, DO or DNSSEC. Global cache remains disabled with device rules; shared memory limit <=8 MiB.')}</p>
+        <div class="actions"><button type="button" class="button" disabled={cacheClearBusy} onclick={clearP33Cache}>{cacheClearBusy?t('Очищаем…','Clearing…'):t('Очистить кэш DNS','Clear DNS cache')}</button><span role="status">{cacheClearStatus}</span></div>
         <label class="field"><span>{t('Объединять одинаковые запросы','Deduplicate pending queries')}</span><select id="p29Pending" onchange={inputChange} bind:value={fields.p29Pending}><option value="default">{t('По умолчанию (вкл.)','Default (on)')}</option><option value="on">{t('Включено','On')}</option><option value="off">{t('Выключено','Off')}</option></select></label>
       </section>
     </div>

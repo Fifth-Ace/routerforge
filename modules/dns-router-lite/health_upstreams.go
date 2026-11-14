@@ -28,6 +28,7 @@ type upstreamHealthEntry struct {
 	probeOK        bool
 	probeError     string
 	observations   []healthObservation
+	p34History     [p34BucketCount]p34Bucket
 }
 
 type healthObservation struct {
@@ -65,7 +66,7 @@ func (h *UpstreamHealthTracker) entryLocked(id string) *upstreamHealthEntry {
 }
 
 func (h *UpstreamHealthTracker) Observe(t Trace) {
-	if h == nil || t.Internal || t.Cache || t.Used == "" || t.Used == "cache" || t.Used == "client-acl" || t.Used == "system-local" {
+	if h == nil || t.Internal || t.Cache || t.Used == "" || t.Used == "cache" || t.Used == "client-acl" || t.Used == "system-local" || t.Used == "local-p35" {
 		return
 	}
 	at := t.Time
@@ -76,6 +77,8 @@ func (h *UpstreamHealthTracker) Observe(t Trace) {
 	defer h.mu.Unlock()
 	e := h.entryLocked(t.Used)
 	e.observations = append(e.observations, healthObservation{at: at, latencyMS: t.LatencyMS, success: t.Success})
+	// P34: fixed-size per-upstream history, independent of the 5m observation cap.
+	p34Record(e, t, at, time.Now().UTC())
 	if len(e.observations) > 1024 {
 		e.observations = append([]healthObservation(nil), e.observations[len(e.observations)-1024:]...)
 	}

@@ -23,6 +23,8 @@ type ServiceConfig struct {
 	Privacy           *DNSPrivacyConfig        `json:"privacy,omitempty"`
 	DNS64             *DNS64Config             `json:"dns64,omitempty"`
 	ReverseDNS        *DNSReverseConfig        `json:"reverse_dns,omitempty"`
+	LocalDNS          *LocalDNSConfig          `json:"local_dns,omitempty"`
+	SecureDNS         *SecureDNSConfig         `json:"secure_dns,omitempty"`
 }
 
 // Optional P28-P31 settings. Nil/disabled preserves the shipped Beta 3 path.
@@ -32,12 +34,15 @@ type UpstreamSelectionConfig struct {
 	TimeoutMS int    `json:"timeout_ms,omitempty"`
 }
 type DNSPerformanceConfig struct {
-	Enabled         bool   `json:"enabled"`
-	CacheMinTTL     uint32 `json:"cache_min_ttl"`
-	CacheMaxTTL     uint32 `json:"cache_max_ttl"`
-	OptimisticCache bool   `json:"optimistic_cache"`
-	PendingRequests string `json:"pending_requests"` // default, on, off
-	MaxConcurrent   int    `json:"max_concurrent"`
+	Enabled                    bool   `json:"enabled"`
+	CacheMinTTL                uint32 `json:"cache_min_ttl"`
+	CacheMaxTTL                uint32 `json:"cache_max_ttl"`
+	OptimisticCache            bool   `json:"optimistic_cache"`
+	OptimisticMaxAgeSeconds    uint32 `json:"optimistic_max_age_seconds,omitempty"`
+	OptimisticAnswerTTLSeconds uint32 `json:"optimistic_answer_ttl_seconds,omitempty"`
+	DevicePolicyCache          bool   `json:"device_policy_cache,omitempty"`
+	PendingRequests            string `json:"pending_requests"` // default, on, off
+	MaxConcurrent              int    `json:"max_concurrent"`
 }
 type DNSPrivacyConfig struct {
 	Enabled    bool   `json:"enabled"`
@@ -75,6 +80,15 @@ func validateP28P31(s *ServiceConfig, upstreams map[string]Upstream) error {
 		if p.OptimisticCache && s.CacheBytes == 0 {
 			return fmt.Errorf("P29 optimistic cache requires enabled cache")
 		}
+		if p.OptimisticMaxAgeSeconds > 86400 || p.OptimisticAnswerTTLSeconds > 300 {
+			return fmt.Errorf("P33 optimistic maximum age must be <=86400 s, answer TTL <=300 s")
+		}
+		if (p.OptimisticMaxAgeSeconds != 0 || p.OptimisticAnswerTTLSeconds != 0) && !p.OptimisticCache {
+			return fmt.Errorf("P33 optimistic limits require optimistic cache")
+		}
+		if p.DevicePolicyCache && s.CacheBytes == 0 {
+			return fmt.Errorf("P33 device policy cache requires enabled cache")
+		}
 		switch p.PendingRequests {
 		case "", "default", "on", "off":
 		default:
@@ -108,7 +122,7 @@ func validateP28P31(s *ServiceConfig, upstreams map[string]Upstream) error {
 			// AD can only be trusted across an authenticated encrypted connection.
 			// Apply a strict rule to the catalog so no policy or fallback can downgrade.
 			for _, u := range upstreams {
-				if u.Transport != "native" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" {
+				if u.Transport != "native" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" && u.Transport != "stamp" {
 					return fmt.Errorf("P30 DNSSEC AD requires encrypted upstreams: %s", u.ID)
 				}
 			}
@@ -223,6 +237,12 @@ func validateServiceConfig(c Config, upstreams map[string]Upstream, groups map[s
 		return err
 	}
 	if err := validateQueryProtection(s.Protection); err != nil {
+		return err
+	}
+	if err := validateSecureDNSP36(s.SecureDNS, s.Listen); err != nil {
+		return err
+	}
+	if err := validateLocalDNSP35(s.LocalDNS, s.Listen); err != nil {
 		return err
 	}
 	if err := validateP28P31(s, upstreams); err != nil {

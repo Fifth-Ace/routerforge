@@ -60,17 +60,18 @@ type clientRoute struct {
 type Factory func(dr.Upstream) (upstream.Upstream, error)
 
 type Engine struct {
-	proxy     *proxy.Proxy
-	policy    *dr.Engine
-	cfg       dr.Config
-	servers   map[string]upstream.Upstream
-	local     upstream.Upstream
-	allowed   []*net.IPNet
-	mu        sync.Mutex
-	traces    []Trace
-	readiness []Trace
-	listenV6  bool
-	directory atomic.Pointer[DeviceDirectory]
+	proxy        *proxy.Proxy
+	policy       *dr.Engine
+	cfg          dr.Config
+	servers      map[string]upstream.Upstream
+	local        upstream.Upstream
+	localRecords *localRecordsP35
+	allowed      []*net.IPNet
+	mu           sync.Mutex
+	traces       []Trace
+	readiness    []Trace
+	listenV6     bool
+	directory    atomic.Pointer[DeviceDirectory]
 	// Optional injected identity provider, fixed before Start; production uses directory.
 	identify         func(string) DeviceIdentity
 	health           *UpstreamHealthTracker
@@ -79,6 +80,7 @@ type Engine struct {
 	ipScope          *ipScopeMatcher
 	protection       *queryProtectionP27
 	upstreamSelect   *upstreamSelectionP28
+	policyCache      *policyCacheP33
 	requests         atomic.Uint64
 	denied           atomic.Uint64
 	aclDenied        atomic.Uint64
@@ -97,16 +99,38 @@ func transportFactory(roots *x509.CertPool) Factory {
 			return nil, err
 		}
 		opts := &upstream.Options{Timeout: 3 * time.Second, RootCAs: roots, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+		// A direct pinned IP always leads. Extra bootstrap IPs are explicit and
+		// never resolved via Keenetic or the host's default resolver.
+		if u.Transport == "doh" || u.Transport == "dot" || u.Transport == "doq" || u.Transport == "stamp" {
+			primary, err := netip.ParseAddr(host)
+			if err != nil {
+				return nil, err
+			}
+			bootstrap := upstream.StaticResolver{primary}
+			for _, raw := range u.BootstrapIPs {
+				ip, err := netip.ParseAddr(raw)
+				if err != nil {
+					return nil, err
+				}
+				bootstrap = append(bootstrap, ip)
+			}
+			opts.Bootstrap = bootstrap
+		}
+		if u.Transport == "doh" {
+			switch u.HTTP3Mode {
+			case "auto":
+				opts.HTTPVersions = []upstream.HTTPVersion{upstream.HTTPVersion11, upstream.HTTPVersion2, upstream.HTTPVersion3}
+			case "only":
+				opts.HTTPVersions = []upstream.HTTPVersion{upstream.HTTPVersion3}
+			}
+		}
 		address := u.Address
 		switch u.Transport {
 		case "tcp":
 			address = "tcp://" + address
+		case "stamp":
+			return upstream.AddressToUpstream(u.Stamp, opts)
 		case "dot", "doh", "doq":
-			bootstrap, err := netip.ParseAddr(host)
-			if err != nil {
-				return nil, err
-			}
-			opts.Bootstrap = upstream.StaticResolver{bootstrap}
 			scheme := map[string]string{"dot": "tls", "doh": "https", "doq": "quic"}[u.Transport]
 			endpoint := &url.URL{Scheme: scheme, Host: net.JoinHostPort(u.ServerName, port)}
 			if u.Transport == "doh" {
@@ -140,6 +164,10 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 		ipHealth = newIPHealthMonitor(c.Service.IPIntelligence.Health)
 	}
 	e := &Engine{policy: policy, cfg: c, servers: map[string]upstream.Upstream{}, ipPlanner: ipintel.New(time.Now().UnixNano()), ipHealth: ipHealth, ipScope: newIPScopeMatcher(c), protection: newQueryProtectionP27(c.Service.Protection), upstreamSelect: newUpstreamSelectionP28()}
+	if policy.DevicePoliciesActive() && c.Service.Performance != nil && c.Service.Performance.Enabled && c.Service.Performance.DevicePolicyCache {
+		e.policyCache = newPolicyCacheP33(c.Service.CacheBytes)
+	}
+	e.localRecords = compileLocalRecordsP35(c.Service.LocalDNS)
 	// Only servers reachable by a rule/default chain are constructed. Unused
 	// legacy native catalog entries do not prevent an independent service start.
 	needed, err := usedUpstreams(c)
@@ -224,6 +252,14 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 		proxyConfig.CacheMinTTL = perf.CacheMinTTL
 		proxyConfig.CacheMaxTTL = perf.CacheMaxTTL
 		proxyConfig.CacheOptimistic = perf.OptimisticCache && proxyConfig.CacheEnabled
+		if proxyConfig.CacheOptimistic {
+			if perf.OptimisticMaxAgeSeconds > 0 {
+				proxyConfig.CacheOptimisticMaxAge = time.Duration(perf.OptimisticMaxAgeSeconds) * time.Second
+			}
+			if perf.OptimisticAnswerTTLSeconds > 0 {
+				proxyConfig.CacheOptimisticAnswerTTL = time.Duration(perf.OptimisticAnswerTTLSeconds) * time.Second
+			}
+		}
 		if perf.MaxConcurrent > 0 {
 			proxyConfig.MaxGoroutines = uint(perf.MaxConcurrent)
 		}
@@ -239,6 +275,11 @@ func newEngineWithTopology(c dr.Config, factory Factory, discover func() (string
 	}
 	if policy.DevicePoliciesActive() {
 		proxyConfig.PendingRequests = &proxy.PendingRequestsConfig{Enabled: false}
+	}
+	// P36 optional mutual-TLS listeners share the same policy/ACL/trace engine.
+	if err := configureInboundP36(proxyConfig, c.Service); err != nil {
+		e.closeServers()
+		return nil, err
 	}
 	e.proxy, err = proxy.New(proxyConfig)
 	if err != nil {
@@ -426,6 +467,17 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		return nil
 	}
 	ctx = context.WithValue(ctx, clientRouteKey{}, clientRoute{identity, route})
+	// P35 opt-in local zone is handled before stock-local and external resolvers.
+	// All names outside *.rf.home.arpa remain owned by Keenetic (including PTR).
+	if answer, handled := e.localRecords.answer(d.Req); handled {
+		d.Res = answer
+		trace := Trace{Time: time.Now().UTC(), Client: d.Addr.Addr().String(), Name: name,
+			Type: d.Req.Question[0].Qtype, Assigned: "local-p35", Used: "local-p35",
+			Success: true, RCode: answer.Rcode}
+		attachClientRoute(&trace, ctx)
+		e.addTrace(trace)
+		return nil
+	}
 	if localName(name) && !e.customReverseP31(d.Req) {
 		start := time.Now()
 		var err error
@@ -441,7 +493,34 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		e.addTrace(t)
 		return nil
 	}
-	err := p.Resolve(ctx, d)
+	// P33: an opt-in per-client/per-route cache. DNSProxy's global cache
+	// remains disabled whenever device policies are active.
+	cacheKey, cacheEligible := policyCacheKeyP33(route, d.Addr.Addr().String(), identity.MAC, d.Req)
+	if e.cfg.Service.Privacy != nil && e.cfg.Service.Privacy.Enabled && e.cfg.Service.Privacy.DNSSECMode == "require_ad" {
+		cacheEligible = false
+	}
+	if e.cfg.Service.DNS64 != nil && e.cfg.Service.DNS64.Enabled {
+		cacheEligible = false
+	}
+	policyHit := false
+	if cacheEligible && e.policyCache != nil {
+		if response, ok := e.policyCache.Get(cacheKey, d.Req, time.Now()); ok {
+			d.Res = response
+			policyHit = true
+		}
+	}
+	var err error
+	if !policyHit {
+		err = p.Resolve(ctx, d)
+		if err == nil && cacheEligible && e.policyCache != nil && d.Res != nil {
+			var minTTL, maxTTL uint32
+			if perf := e.cfg.Service.Performance; perf != nil && perf.Enabled {
+				minTTL = perf.CacheMinTTL
+				maxTTL = perf.CacheMaxTTL
+			}
+			e.policyCache.Put(cacheKey, d.Res, time.Now(), minTTL, maxTTL)
+		}
+	}
 	if err == nil && d.Res != nil {
 		d.Res = e.synthesizeDNS64P31(ctx, d.Req, d.Res)
 	}
@@ -454,10 +533,12 @@ func (e *Engine) handle(ctx context.Context, p *proxy.Proxy, d *proxy.DNSContext
 		scope := fmt.Sprintf("%s|%s|%s|%s|%s", route.Layer, route.Upstream, route.GroupID, route.RuleID, route.DeviceGroup)
 		d.Res = applyIPIntelligenceP26(e.ipPlanner, e.ipHealth, d.Req, d.Res, mode, scope, identity.MAC)
 	}
-	cached := false
-	if stats := d.QueryStatistics(); stats != nil {
-		for _, s := range stats.Main() {
-			cached = cached || s.IsCached
+	cached := policyHit
+	if !policyHit {
+		if stats := d.QueryStatistics(); stats != nil {
+			for _, s := range stats.Main() {
+				cached = cached || s.IsCached
+			}
 		}
 	}
 	if cached && d.Res != nil {
@@ -550,12 +631,18 @@ func attachClientRoute(t *Trace, ctx context.Context) {
 }
 func (e *Engine) effectiveCacheBytes() int {
 	if e.policy.DevicePoliciesActive() {
+		if e.policyCache != nil {
+			return e.cfg.Service.CacheBytes
+		}
 		return 0
 	}
 	return e.cfg.Service.CacheBytes
 }
 func (e *Engine) cacheMode() string {
 	if e.policy.DevicePoliciesActive() {
+		if e.policyCache != nil {
+			return "isolated_device_policy_cache"
+		}
 		return "disabled_for_device_policy_isolation"
 	}
 	if e.cfg.Service.CacheBytes == 0 {

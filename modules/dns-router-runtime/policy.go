@@ -37,6 +37,9 @@ type Upstream struct {
 	Path           string   `json:"path,omitempty"`            // DoH endpoint, defaults to /dns-query
 	Fallbacks      []string `json:"fallbacks,omitempty"`       // explicit same-rule failover, never default DNS
 	CertificatePEM string   `json:"certificate_pem,omitempty"` // public snapshot only; NOT a CA/trust override
+	HTTP3Mode      string   `json:"http3_mode,omitempty"` // off, auto, only; DoH only
+	BootstrapIPs   []string `json:"bootstrap_ips,omitempty"` // optional explicit IPs; never system DNS
+	Stamp          string   `json:"stamp,omitempty"` // DNSCrypt / DoH / DoT / DoQ stamp, pinned IP required
 }
 
 type Rule struct {
@@ -144,8 +147,11 @@ func Compile(cfg Config) (*Engine, error) {
 		if _, dup := e.upstreams[u.ID]; dup {
 			return nil, fmt.Errorf("duplicate upstream %q", u.ID)
 		}
-		if u.Transport != "udp" && u.Transport != "tcp" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" && u.Transport != "native" {
+		if u.Transport != "udp" && u.Transport != "tcp" && u.Transport != "dot" && u.Transport != "doh" && u.Transport != "doq" && u.Transport != "stamp" && u.Transport != "native" {
 			return nil, fmt.Errorf("invalid transport for %q", u.ID)
+		}
+		if err := validateP32Options(u); err != nil {
+			return nil, fmt.Errorf("upstream %q: %w", u.ID, err)
 		}
 		if err := validateSavedCertificateP90(u.Transport, u.ServerName, u.CertificatePEM); err != nil {
 			return nil, fmt.Errorf("upstream %q: %w", u.ID, err)
@@ -183,6 +189,10 @@ func Compile(cfg Config) (*Engine, error) {
 				}
 			} else if u.Path != "" {
 				return nil, fmt.Errorf("DoT/DoQ upstream %q must not have HTTP path", u.ID)
+			}
+		} else if u.Transport == "stamp" {
+			if u.ServerName != "" || u.Path != "" || u.CertificatePEM != "" {
+				return nil, fmt.Errorf("stamp upstream %q must not override stamp identity", u.ID)
 			}
 		} else if u.ServerName != "" || u.Path != "" {
 			return nil, fmt.Errorf("plaintext upstream %q must not set TLS/HTTP options", u.ID)

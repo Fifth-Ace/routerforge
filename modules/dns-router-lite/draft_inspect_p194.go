@@ -50,7 +50,7 @@ func InspectDraftP194(ctx context.Context, candidate dr.Upstream, factory Factor
 		ProbeLatencyMS: view.ProbeLatencyMS, LastError: view.LastError,
 		TLSStatus: "NOT_APPLICABLE", Saved: false, Applied: false,
 	}
-	if strings.EqualFold(candidate.Transport, "dot") || strings.EqualFold(candidate.Transport, "doh") || strings.EqualFold(candidate.Transport, "doq") {
+	if strings.EqualFold(candidate.Transport, "dot") || strings.EqualFold(candidate.Transport, "doh") || strings.EqualFold(candidate.Transport, "doq") || strings.EqualFold(candidate.Transport, "stamp") {
 		result.TLSStatus = "UNCONFIRMED"
 		if result.DNSAvailable {
 			result.TLSStatus = "VERIFIED_BY_TRANSPORT"

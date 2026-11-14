@@ -240,7 +240,7 @@ test('P25 Svelte native Settings: reactive categories, preserved controls and re
   assert.ok(hub.includes('id="p25SettingsCard"'));
   assert.ok(hub.includes('data-settings-section={item.id}'));
   assert.ok(hub.includes("{#each sections as item"));
-  assert.equal((hub.match(/id="p25Settings_(service|cache|ip|upstream|security|privacy|dns64|performance)"/g)||[]).length,8);
+  assert.equal((hub.match(/id="p25Settings_(service|cache|ip|upstream|security|privacy|dns64|performance|diagnostics|local|secure)"/g)||[]).length,11);
   assert.ok(hub.includes("fetch('../service/ip-health',{method:'GET',cache:'no-store'})"));
   assert.ok(hub.includes("fetch('../service/status',{method:'GET',cache:'no-store'})"));
   assert.ok(hub.includes('clearInterval(timer)'));

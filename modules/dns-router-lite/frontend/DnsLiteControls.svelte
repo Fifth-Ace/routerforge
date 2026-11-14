@@ -61,10 +61,17 @@
     <div class="section-title"><div><h2 id="dnsAddPanelTitle">{form.title || 'Добавить DNS'}</h2><p>Укажи адрес провайдера, а IP и сертификат мы найдём сами.</p></div><button type="button" id="cancelDNS" class="button subtle" onclick={() => send('dns-cancel')}>Закрыть</button></div>
     <div class="fields two">
       <label class="field"><span>Протокол</span><select id="newProtocol" value={form.protocol} onchange={event => send('dns-draft-change',{protocol:event.currentTarget.value})}>
-        <option value="doh">DoH · защищённый HTTPS</option><option value="dot">DoT · защищённый TLS</option><option value="udp">UDP · обычный</option><option value="tcp">TCP · обычный</option><option value="doq">DoQ · QUIC (без предварительного просмотра сертификата)</option>
+        <option value="doh">DoH · защищённый HTTPS</option><option value="dot">DoT · защищённый TLS</option><option value="udp">UDP · обычный</option><option value="tcp">TCP · обычный</option><option value="doq">DoQ · QUIC (без предварительного просмотра сертификата)</option><option value="stamp">DNS Stamp · DNSCrypt / DoH / DoT / DoQ</option>
       </select></label>
-      <label class="field"><span>Адрес DNS</span><input id="newAddress" type="text" maxlength="300" spellcheck="false" placeholder={form.protocol==='doh'?'https://dns.example.com/dns-query':form.protocol==='udp'||form.protocol==='tcp'?'9.9.9.9':'dns.example.com'} autocomplete="off" value={form.address} oninput={event => send('dns-draft-change',{address:event.currentTarget.value})}/></label>
+      <label class="field"><span>Адрес DNS</span><input id="newAddress" type="text" maxlength={form.protocol==='stamp'?4096:300} spellcheck="false" placeholder={form.protocol==='doh'?'https://dns.example.com/dns-query':form.protocol==='udp'||form.protocol==='tcp'?'9.9.9.9':'dns.example.com'} autocomplete="off" value={form.address} oninput={event => send('dns-draft-change',{address:event.currentTarget.value})}/></label>
     </div>
+    {#if form.protocol==='doh'}
+      <label class="field"><span>HTTP/3</span><select id="p32Http3" value={form.http3Mode||'off'} onchange={event=>send('dns-draft-change',{http3Mode:event.currentTarget.value})}><option value="off">Выключен (HTTP/1.1, HTTP/2)</option><option value="auto">Авто (HTTP/1.1, HTTP/2, HTTP/3)</option><option value="only">Только HTTP/3</option></select></label>
+    {/if}
+    {#if ['doh','dot','doq'].includes(form.protocol)}
+      <label class="field"><span>Дополнительные Bootstrap IP (до 4, по одному в строке)</span><textarea id="p32Bootstrap" rows="2" value={form.bootstrapIPs||''} oninput={event=>send('dns-draft-change',{bootstrapIPs:event.currentTarget.value})} placeholder="1.1.1.1"></textarea></label>
+    {/if}
+    {#if form.protocol==='stamp'}<p class="muted">Вставь sdns:// с явным публичным IP. Импорт не использует системный DNS.</p>{/if}
     <div class="actions"><button type="button" class="button" id="inspectDNS" disabled={busy} onclick={() => send('dns-inspect')}>Проверить DNS</button><button type="button" class="button primary" id="commitDNS" disabled={busy || !form.ready} onclick={() => send('dns-commit')}>{form.button||'Добавить DNS'}</button></div>
     <div class="draft-check-grid" aria-label="Результаты проверки чернового DNS">
       {#each [['draftAddressState','Адрес'],['draftIPState','IP / порт'],['draftTLSState','TLS'],['draftCertificateState','Сертификат'],['draftDNSState','DNS'],['draftRTTState','RTT']] as item (item[0])}

@@ -96,6 +96,7 @@ func (m *Manager) statusLocked() map[string]any {
 		s["cache_bytes"] = m.engine.effectiveCacheBytes()
 		s["requested_cache_bytes"] = m.applied.Service.CacheBytes
 		s["cache_mode"] = m.engine.cacheMode()
+		s["policy_cache"] = m.engine.policyCache.Stats()
 		s["device_policies_active"] = m.engine.policy.DevicePoliciesActive()
 		s["requests"] = m.engine.requests.Load()
 		s["denied_requests"] = m.engine.denied.Load()
@@ -182,6 +183,28 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	case "/v1/service/cache/control":
+		var body struct {
+			Operation string `json:"operation"`
+		}
+		err = mutation(r, &body)
+		if err == nil && body.Operation != "clear" {
+			err = errors.New("invalid cache operation")
+		}
+		if err == nil {
+			m.mu.Lock()
+			if m.engine == nil || m.revision == "" || strings.Trim(r.Header.Get("If-Match"), "\"") != m.revision {
+				err = errors.New("cache clear requires the exact applied DNS revision")
+			} else {
+				m.engine.proxy.ClearCache()
+				m.engine.policyCache.Clear()
+			}
+			m.mu.Unlock()
+			if err == nil {
+				jsonResponse(w, http.StatusOK, map[string]any{"ok": true, "cache_cleared": true})
+				return
+			}
+		}
 	case "/v1/service/ip-health":
 		if r.Method != "GET" {
 			w.Header().Set("Allow", "GET")
@@ -195,6 +218,29 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		m.mu.Unlock()
 		jsonResponse(w, 200, map[string]any{"enabled": monitor != nil, "protocol": "tcp/tls/http/https", "entries": monitor.Snapshot()})
+		return
+	case "/v1/service/diagnostics":
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", "GET")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		m.mu.Lock()
+		active := m.engine != nil
+		tracker := m.Health
+		upstreams := []dr.Upstream{}
+		if active {
+			upstreams = append(upstreams, m.applied.Upstreams...)
+		}
+		m.mu.Unlock()
+		rows := []P34UpstreamView{}
+		if active && tracker != nil {
+			rows = tracker.DiagnosticsP34(upstreams, time.Now().UTC())
+		}
+		jsonResponse(w, http.StatusOK, map[string]any{
+			"active": active, "source": "routerforge-observed-in-memory",
+			"bucket_minutes": 15, "history_buckets": 96, "upstreams": rows,
+		})
 		return
 	case "/v1/service/upstreams/health":
 		if r.Method != "GET" {

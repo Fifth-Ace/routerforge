@@ -86,3 +86,48 @@ test('advanced discovery in flight is cancelled on unmount without DOM writes',a
     a.deepEqual(f.errors,[]);
   } finally {f.releaseDevices();f.w.close();}
 });
+
+// P37 browser parity: prior tests clicked hidden DOM buttons; this checks
+// the actual CSS activation marker and both navigation directions.
+test('P37: shipped Svelte mode switch activates, hides legacy control, and navigates without DNS writes',async()=>{
+  const f=fixture(),d=f.w.document;
+  try {
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    const root=d.getElementById('dnsLiteApp');
+    a.equal(root.classList.contains('p22-ready'),true,'functional Svelte switch must be visually enabled');
+    a.equal(d.querySelectorAll('#p22ModeAdvanced').length,1);
+    a.equal(d.querySelectorAll('#p22ModeBasic').length,1);
+    const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../frontend/p22-visual.css'),'utf8');
+    a.match(css,/#dnsLiteApp\.p22-ready \.p21-mode-label \{ display:none!important; \}/);
+    a.match(css,/#dnsLiteApp:not\(\.p22-ready\) \.p22-mode-switch \{ display:none!important; \}/);
+    d.getElementById('p22ModeAdvanced').click();
+    await until(()=>root.dataset.dnsMode==='advanced' && !d.getElementById('p21Page').hidden);
+    a.equal(d.getElementById('pageDns').hidden,true);
+    a.equal(d.getElementById('p22ModeAdvanced').getAttribute('aria-pressed'),'true');
+    d.getElementById('p22ModeBasic').click();
+    await until(()=>root.dataset.dnsMode==='basic' && !d.getElementById('pageDns').hidden);
+    a.equal(d.getElementById('p21Page').hidden,true);
+    a.ok(f.calls.every(c=>!c.opts.method || c.opts.method==='GET'),'mode navigation cannot mutate live DNS');
+    a.deepEqual(f.errors,[]);
+  }finally{f.dom.window.close();}
+});
+
+test('P37: saved Advanced mode reopens Devices, not invisible Basic page',async()=>{
+  const f=fixture({mode:'advanced'}),d=f.w.document;
+  try {
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    await until(()=>d.getElementById('dnsLiteApp').dataset.dnsMode==='advanced');
+    a.equal(d.getElementById('dnsLiteApp').classList.contains('p22-ready'),true);
+    a.equal(d.getElementById('p21Page').hidden,false);
+    a.equal(d.getElementById('pageDns').hidden,true);
+    a.equal(d.getElementById('p22ModeAdvanced').getAttribute('aria-pressed'),'true');
+    a.ok(f.calls.every(c=>!c.opts.method || c.opts.method==='GET'));
+  }finally{f.dom.window.close();}
+});
+
+test('P37: DNS Lite typography matches Core semantic text hierarchy',()=>{
+  const css=require('node:fs').readFileSync(require('node:path').join(__dirname,'../frontend/p25-settings.css'),'utf8');
+  a.match(css,/P37: DNS Lite typography parity with RouterForge Core/);
+  for(const size of ['font-size:13px','font-size:20px','font-size:15px','font-size:11px'])
+    a.ok(css.includes(size),'missing Core typography token: '+size);
+});

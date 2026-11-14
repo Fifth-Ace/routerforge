@@ -56,7 +56,15 @@
     const target = document.getElementById(id);
     if (!target) throw Error('DNS_LITE_PORTAL_TARGET_MISSING: '+id);
     target.replaceChildren(node);
-    return {destroy(){if(node.parentNode===target)node.remove();}};
+    // P37: tell the shipped shell that its Svelte-owned mode buttons are live.
+    // Without this class, CSS hides the functional buttons and exposes the
+    // disconnected legacy <select> instead.
+    const modeHost = id === 'rf-dns-lite-svelte-mode' ? document.getElementById('dnsLiteApp') : null;
+    if (modeHost) modeHost.classList.add('p22-ready');
+    return {destroy(){
+      if (modeHost) modeHost.classList.remove('p22-ready');
+      if (node.parentNode===target) node.remove();
+    }};
   }
   function cardAction(name,id,value) {controller.commands.card?.(name,id,value);}
   function editorAction(name,value) {return controller.commands.editor?.(name,value);}

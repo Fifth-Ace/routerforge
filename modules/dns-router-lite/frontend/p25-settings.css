@@ -105,3 +105,33 @@
 /* P12: Svelte renders telemetry; keep original read-only field IDs for compatibility without duplicate monitor. */
 #dnsLiteApp #p25Settings_ip #p241IPControls .p242-monitor {display:none!important;}
 #dnsLiteApp .p25-native-monitor {display:grid;gap:6px;margin-top:10px;}
+
+/* P37: DNS Lite typography parity with RouterForge Core (13/20/15/11 px).
+ * Presentation only. Keep compact metric metadata and DNS mono text intact.
+ * This file loads last, after module.css and p22-visual.css. */
+html,body { font-size:13px; }
+#dnsLiteApp.rfds-scope {
+  --rf-ui-body:13px;
+  --rf-ui-xs:11px;
+  --rf-ui-small:12px;
+  --rf-ui-panel-title:15px;
+  font-size:13px;
+  line-height:1.45;
+}
+#dnsLiteApp .module-heading-copy h1,
+#dnsLiteApp[data-dns-mode="advanced"] .module-heading-copy h1 {
+  font-size:20px;
+  font-weight:650;
+  line-height:1.2;
+  letter-spacing:-.02em;
+}
+#dnsLiteApp .module-heading-copy p,
+#dnsLiteApp[data-dns-mode="advanced"] .module-heading-copy p { font-size:12px; }
+#dnsLiteApp .upstream-pane > .section-title h2,
+#dnsLiteApp .domain-pane > .section-title h2,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel h2 { font-size:15px; font-weight:650; }
+#dnsLiteApp .health-metrics strong { font-size:20px; }
+#dnsLiteApp .top-actions .button,
+#dnsLiteApp .tabs .tab,
+#dnsLiteApp[data-dns-mode="advanced"] .tabs .tab,
+#dnsLiteApp .p22-mode-switch button { font-size:11px; }

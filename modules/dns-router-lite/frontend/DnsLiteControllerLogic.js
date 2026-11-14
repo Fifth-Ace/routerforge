@@ -751,7 +751,8 @@ if(page==='logs')refreshLogs().catch(e=>show('Журнал: '+e.message,'bad'));
         status(){if(disposed||state.busy)return;void refreshStatus().catch(()=>{});}
       };
       ui.initialized=true;
-      setPage(params.get('view')==='logs'?'logs':'dns');
+      // P37: honor persisted Advanced on reload; do not land on the Basic DNS page.
+      setPage(params.get('view')==='logs'?'logs':ui.modeView==='advanced'?'devices':'dns');
       load().catch(e=>{if(disposed)return;show('Не удалось открыть DNS Router: '+e.message,'bad');presentation.serviceBadge='Недоступен';presentation.serviceTone='bad';});
       cleanup=()=>{
         disposed=true;nativeDNSRead?.abort();nativeDNSRead=null;apiClient.dispose();

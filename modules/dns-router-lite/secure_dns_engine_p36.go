@@ -53,6 +53,10 @@ func p36MutualTLS(c *dr.SecureDNSConfig) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p36MutualTLSPEM(certBytes, keyBytes, caBytes)
+}
+
+func p36MutualTLSPEM(certBytes, keyBytes, caBytes []byte) (*tls.Config, error) {
 	cert, err := tls.X509KeyPair(certBytes, keyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("P36 server certificate and key mismatch: %w", err)
@@ -81,6 +85,10 @@ func configureInboundP36(dst *proxy.Config, s *dr.ServiceConfig) error {
 	if err != nil {
 		return err
 	}
+	return p36ConfigureListeners(dst, c, tlsCfg)
+}
+
+func p36ConfigureListeners(dst *proxy.Config, c *dr.SecureDNSConfig, tlsCfg *tls.Config) error {
 	dst.TLSConfig = tlsCfg
 	if c.DoTListen != "" {
 		addr, e := net.ResolveTCPAddr("tcp", c.DoTListen)

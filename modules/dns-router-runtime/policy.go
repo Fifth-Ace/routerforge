@@ -37,9 +37,9 @@ type Upstream struct {
 	Path           string   `json:"path,omitempty"`            // DoH endpoint, defaults to /dns-query
 	Fallbacks      []string `json:"fallbacks,omitempty"`       // explicit same-rule failover, never default DNS
 	CertificatePEM string   `json:"certificate_pem,omitempty"` // public snapshot only; NOT a CA/trust override
-	HTTP3Mode      string   `json:"http3_mode,omitempty"` // off, auto, only; DoH only
-	BootstrapIPs   []string `json:"bootstrap_ips,omitempty"` // optional explicit IPs; never system DNS
-	Stamp          string   `json:"stamp,omitempty"` // DNSCrypt / DoH / DoT / DoQ stamp, pinned IP required
+	HTTP3Mode      string   `json:"http3_mode,omitempty"`      // off, auto, only; DoH only
+	BootstrapIPs   []string `json:"bootstrap_ips,omitempty"`   // optional explicit IPs; never system DNS
+	Stamp          string   `json:"stamp,omitempty"`           // DNSCrypt / DoH / DoT / DoQ stamp, pinned IP required
 }
 
 type Rule struct {

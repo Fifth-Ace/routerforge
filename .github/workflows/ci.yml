@@ -1361,8 +1361,8 @@ jobs:
           esac
           test -s "$index"
           python3 scripts/verify-beta-dns-router-package.py \
-            "dist/routerforge-dns-router_0.15.0-beta.3_${{ matrix.target }}.ipk" \
-            "${{ matrix.target }}" "0.15.0~beta.3"
+            "dist/routerforge-dns-router_0.15.0-beta.4_${{ matrix.target }}.ipk" \
+            "${{ matrix.target }}" "0.15.0~beta.4"
       - name: QEMU smoke for packed DNS Router on MIPS/MIPSEL
         if: matrix.target != 'aarch64-3.10'
         shell: bash
@@ -1371,8 +1371,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends qemu-user
           python3 scripts/verify-beta-dns-router-package.py \
-            "dist/routerforge-dns-router_0.15.0-beta.3_${{ matrix.target }}.ipk" \
-            "${{ matrix.target }}" "0.15.0~beta.3" --qemu
+            "dist/routerforge-dns-router_0.15.0-beta.4_${{ matrix.target }}.ipk" \
+            "${{ matrix.target }}" "0.15.0~beta.4" --qemu
       - name: Upload exact target packages and index
         uses: actions/upload-artifact@v4
         with:
@@ -1424,7 +1424,7 @@ jobs:
                   asset=Path('dist')/item['asset']
                   assert asset.is_file() and asset.stat().st_size>0, str(asset)
                   if item['package']=='routerforge-dns-router':
-                      subprocess.run(['python3', 'scripts/verify-beta-dns-router-package.py', str(asset), target, '0.15.0~beta.3'], check=True)
+                      subprocess.run(['python3', 'scripts/verify-beta-dns-router-package.py', str(asset), target, '0.15.0~beta.4'], check=True)
           print('MULTIARCH_BETA_CANDIDATE=PASS / 33 IPK / 11 per target')
           PY_CHECK
       - name: Verify Monitoring migration package contract

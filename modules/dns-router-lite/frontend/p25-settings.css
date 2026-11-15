@@ -251,3 +251,171 @@ html,body { font-size:13px; }
   #dnsLiteApp[data-dns-mode="advanced"] .tabs .tab { padding:7px 10px; }
   #dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel { padding:12px; }
 }
+
+/* P39: readable DNS UI — restore the original larger Basic scale, then
+ * bring Advanced UP to the same scale. P38 intentionally kept the same
+ * geometry across modes but chose the too-small P37 typography. This
+ * corrective layer is last in p25-settings.css; CSS-only, no zoom or scale. */
+html, body { font-size:14px; }
+#dnsLiteApp.rfds-scope {
+  --rf-ui-body:14px;
+  --rf-ui-xs:12px;
+  --rf-ui-small:13px;
+  --rf-ui-panel-title:17px;
+  font-size:14px;
+  line-height:1.52;
+}
+#dnsLiteApp #pageDns,
+#dnsLiteApp #p21Page,
+#dnsLiteApp #pageLogs {font-size:14px;line-height:1.52;}
+/* The shared header MUST NOT shrink when the mode changes. */
+#dnsLiteApp .module-heading,
+#dnsLiteApp[data-dns-mode="advanced"] .module-heading {
+  min-height:78px;
+}
+#dnsLiteApp .module-heading-copy h1,
+#dnsLiteApp[data-dns-mode="advanced"] .module-heading-copy h1 {
+  font-size:27px;
+  font-weight:750;
+  line-height:1.2;
+  letter-spacing:-.025em;
+}
+#dnsLiteApp .module-heading-copy p,
+#dnsLiteApp[data-dns-mode="advanced"] .module-heading-copy p {
+  font-size:14px;
+  line-height:1.5;
+}
+#dnsLiteApp .eyebrow {font-size:12px;}
+#dnsLiteApp small,
+#dnsLiteApp .hint,
+#dnsLiteApp .muted {font-size:12px;}
+/* Same physical button/tab dimensions in Basic and Advanced. */
+#dnsLiteApp .p22-mode-switch {min-height:42px;}
+#dnsLiteApp .p22-mode-switch button {
+  min-height:34px;
+  padding:6px 15px;
+  font-size:13px;
+  font-weight:700;
+}
+#dnsLiteApp .p22-mode-switch::before {font-size:12px;}
+#dnsLiteApp .top-actions .button {min-height:38px;padding:8px 13px;font-size:13px;}
+#dnsLiteApp .top-actions .status,
+#dnsLiteApp .status {font-size:12px;}
+#dnsLiteApp .tabs,
+#dnsLiteApp[data-dns-mode="advanced"] .tabs {
+  min-height:52px;
+  padding:5px;
+  gap:7px;
+}
+#dnsLiteApp .tabs .tab,
+#dnsLiteApp[data-dns-mode="advanced"] .tabs .tab {
+  min-height:40px;
+  padding:9px 16px;
+  font-size:13px;
+  font-weight:700;
+}
+#dnsLiteApp .tabs .counter,
+#dnsLiteApp .counter {font-size:12px;}
+/* Readable headings / descriptions across all DNS workspaces. */
+#dnsLiteApp .section-title h2,
+#dnsLiteApp .upstream-pane > .section-title h2,
+#dnsLiteApp .domain-pane > .section-title h2,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel h2,
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-heading h2 {
+  font-size:17px;
+  font-weight:720;
+  line-height:1.3;
+}
+#dnsLiteApp .section-title p,
+#dnsLiteApp .upstream-pane > .section-title p,
+#dnsLiteApp .domain-pane > .section-title p,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .section-title p,
+#dnsLiteApp[data-dns-mode="advanced"] .p22-section-subtitle,
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-heading p {
+  font-size:13px;
+  line-height:1.48;
+}
+#dnsLiteApp .button,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .button {
+  min-height:38px;
+  padding:8px 13px;
+  font-size:13px;
+  line-height:1.3;
+}
+#dnsLiteApp .notice,
+#dnsLiteApp .route-advice,
+#dnsLiteApp .result {font-size:13px;line-height:1.5;}
+#dnsLiteApp .health-caption,
+#dnsLiteApp .health-caption > span,
+#dnsLiteApp .health-native,
+#dnsLiteApp .health-native small {font-size:12px;}
+#dnsLiteApp .health-metrics strong {font-size:24px;}
+#dnsLiteApp .health-metrics small,
+#dnsLiteApp .health-metrics span {font-size:12px;line-height:1.45;}
+#dnsLiteApp .gate-shell > summary b {font-size:14px;}
+#dnsLiteApp .gate-shell > summary small {font-size:12px;}
+#dnsLiteApp #gateCompactBadge {font-size:12px;}
+/* Bring tiny DNS cards and status details up, too. */
+#dnsLiteApp .dns-title strong {font-size:15px;}
+#dnsLiteApp .dns-title small,
+#dnsLiteApp .dns-count,
+#dnsLiteApp .dns-preview,
+#dnsLiteApp .dns-health,
+#dnsLiteApp .dns-health-status,
+#dnsLiteApp .dns-card-metrics {font-size:12px;line-height:1.45;}
+#dnsLiteApp .dns-card-actions > .button {min-height:38px;font-size:13px;}
+#dnsLiteApp .dns-card-actions > .dns-advanced > summary {
+  min-height:38px;
+  line-height:36px;
+  font-size:13px;
+}
+#dnsLiteApp .field > span,
+#dnsLiteApp .editor-dns-switch .field > span,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .field > span,
+#dnsLiteApp[data-dns-mode="advanced"] #p25SettingsCard .field > span {
+  font-size:13px;
+  line-height:1.4;
+}
+#dnsLiteApp input:not([type="checkbox"]),
+#dnsLiteApp select,
+#dnsLiteApp textarea {font-size:13px;}
+#dnsLiteApp .domain-pane .editor-meta,
+#dnsLiteApp .domain-pane .list-toolbar .field > span,
+#dnsLiteApp .domain-empty p,
+#dnsLiteApp .domain-pane .editor > .section-title p {font-size:12px;}
+#dnsLiteApp .domain-empty strong,
+#dnsLiteApp .domain-pane .editor > .section-title h3 {font-size:14px;}
+#dnsLiteApp .domain-pane .list-toolbar .button {font-size:12px;}
+/* Advanced gets a real, legible workspace, not miniature text inside big cards. */
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel {
+  padding:18px 20px;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .p22-form-description,
+#dnsLiteApp[data-dns-mode="advanced"] .p22-discovery-hint,
+#dnsLiteApp[data-dns-mode="advanced"] .p22-draft-toolbar-label,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Cache,
+#dnsLiteApp[data-dns-mode="advanced"] .p22-identity-help,
+#dnsLiteApp[data-dns-mode="advanced"] .p22-technical,
+#dnsLiteApp[data-dns-mode="advanced"] .p22-identity-details,
+#dnsLiteApp[data-dns-mode="advanced"] .p22-precedence-details,
+#dnsLiteApp[data-dns-mode="advanced"] .p21-device-row small {
+  font-size:12px;
+  line-height:1.5;
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p21-device-row strong {font-size:14px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-heading h2 {font-size:17px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-section h3 {font-size:16px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link-label {font-size:13px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link-state {font-size:12px;}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page input:not([type=checkbox]),
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page select,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page textarea {min-height:39px;padding:8px 11px;}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link {min-height:45px;}
+/* Preserve existing single-column responsive layout and readable spacing. */
+@media (max-width:670px) {
+  #dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel {padding:14px;}
+  #dnsLiteApp .tabs .tab,
+  #dnsLiteApp[data-dns-mode="advanced"] .tabs .tab {padding:8px 12px;}
+  #dnsLiteApp .module-heading,
+  #dnsLiteApp[data-dns-mode="advanced"] .module-heading {min-height:0;}
+}

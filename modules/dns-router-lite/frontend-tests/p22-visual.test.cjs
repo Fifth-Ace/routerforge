@@ -173,3 +173,44 @@ test('P38: shared mode chrome retains navbar, title and button dimensions',async
     a.deepEqual(f.errors,[]);
   } finally {f.dom.window.close();}
 });
+
+
+// P39: the original Basic sizing is the reference; Advanced must grow to match.
+// CSS is injected after the old shrunken P37/P38 rules to exercise cascade order.
+test('P39: both DNS modes use readable 27/14/17/13 typography; switching is read-only',async()=>{
+  const fs=require('node:fs'),path=require('node:path');
+  const css=fs.readFileSync(path.join(__dirname,'../frontend/p25-settings.css'),'utf8');
+  const marker='/* P39: readable DNS UI';
+  a.ok(css.includes(marker),'P39 readable sizing layer missing');
+  const p39=css.slice(css.indexOf(marker));
+  for(const required of ['font-size:27px;','font-size:14px;','font-size:17px;','font-size:13px;','min-height:52px;'])
+    a.ok(p39.includes(required),'missing readable dimension: '+required);
+  a.doesNotMatch(p39,/\bzoom\s*:|transform\s*:\s*scale\s*\(/i,'do not simulate readability with zoom');
+  const f=fixture(),d=f.w.document;
+  try {
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    const root=d.getElementById('dnsLiteApp');
+    const style=d.createElement('style');
+    style.textContent='#dnsLiteApp.rfds-scope{font-size:13px}' +
+      '#dnsLiteApp .module-heading-copy h1{font-size:20px}' +
+      '#dnsLiteApp[data-dns-mode="advanced"] .module-heading-copy h1{font-size:20px}' +
+      '#dnsLiteApp .tabs .tab{font-size:11px}' +
+      '#dnsLiteApp[data-dns-mode="advanced"] .tabs .tab{font-size:11px}' + p39;
+    d.head.appendChild(style);
+    const h1=d.querySelector('#dnsLiteApp .module-heading-copy h1');
+    const tab=d.querySelector('#dnsLiteApp .tabs .tab');
+    const switchButton=d.getElementById('p22ModeAdvanced');
+    const baseMetrics=()=>[root,h1,tab,switchButton].map(n=>f.w.getComputedStyle(n).fontSize);
+    a.deepEqual(baseMetrics(),['14px','27px','13px','13px'],'Basic must be readable');
+    d.getElementById('p22ModeAdvanced').click();
+    await until(()=>root.dataset.dnsMode==='advanced');
+    a.deepEqual(baseMetrics(),['14px','27px','13px','13px'],'Advanced must match Basic, not shrink it');
+    const deviceTitle=d.querySelector('#dnsLiteApp #p21Page .panel h2');
+    if(deviceTitle)a.equal(f.w.getComputedStyle(deviceTitle).fontSize,'17px');
+    d.getElementById('p22ModeBasic').click();
+    await until(()=>root.dataset.dnsMode==='basic');
+    a.deepEqual(baseMetrics(),['14px','27px','13px','13px']);
+    a.ok(f.calls.every(c=>!c.opts.method||c.opts.method==='GET'),'navigation must not mutate DNS');
+    a.deepEqual(f.errors,[]);
+  } finally {f.dom.window.close();}
+});

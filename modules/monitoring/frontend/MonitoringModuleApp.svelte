@@ -94,7 +94,11 @@
   }
 
   async function loadThermal(signal) {
-    return { thermal: await getModule('thermal', 'sensors', signal) };
+    const [thermal, storageDoctor] = await Promise.all([
+      getModule('thermal', 'sensors', signal),
+      getModule('storage', 'doctor', signal).catch(() => null)
+    ]);
+    return { thermal, storageDoctor };
   }
 
   async function loadStorage(signal) {
@@ -294,6 +298,23 @@
     if(s.health==='critical') return doctorTr('Обнаружены серьёзные проблемы','Serious problems detected');
     return doctorTr('Состояние не определено','Health unknown');
   }
+  function doctorHistoryName(kind) {
+    const names = {
+      usb_disconnect: doctorTr('USB отключился','USB disconnected'),
+      usb_reset: doctorTr('Перезапуск USB','USB reset'),
+      io_error: doctorTr('Ошибка чтения или записи','I/O error'),
+      fs_error: doctorTr('Ошибка файловой системы','Filesystem error'),
+      read_only: doctorTr('Диск перешёл в режим чтения','Filesystem read-only'),
+      disappeared: doctorTr('Накопитель отключился','Mount disappeared'),
+      appeared: doctorTr('Накопитель подключился','Mount appeared'),
+      writable_again: doctorTr('Запись восстановлена','Writable again'),
+      overheat: doctorTr('Высокая температура','Overtemperature'),
+      cooled: doctorTr('Температура нормализовалась','Temperature returned to normal'),
+      smart_degradation: doctorTr('Ухудшение SMART','SMART degradation'),
+      smart_critical: doctorTr('SMART: критическое состояние','SMART critical')
+    };
+    return names[kind] || kind;
+  }
   function doctorEventName(type) {
     const names={appeared:doctorTr('Подключён','Mounted'),disappeared:doctorTr('Отключён','Unmounted'),read_only:doctorTr('Перешёл в только чтение','Became read-only'),writable_again:doctorTr('Запись восстановлена','Writable again')};
     return names[type] || type;
@@ -483,9 +504,38 @@
       <span>{t(locale, 'monitoring.thermal.cache')} <strong>{data.thermal.cache_seconds || 0}s</strong></span>
       <span>{t(locale, 'monitoring.thermal.smartctl')} <strong class={data.thermal.optional_smartctl ? 'good' : 'muted'}>{data.thermal.optional_smartctl ? t(locale, 'common.available') : t(locale, 'common.optional')}</strong></span>
     </div>
+    {#if data.storageDoctor}
+      <section class="panel rf-thermal-disks">
+        <div class="panel-head"><div><strong>{doctorTr('Температура накопителей','Drive temperatures')}</strong><span>{doctorTr('Отдельно для каждого диска. Показания из датчика устройства или последней ручной проверки SMART.','Per-drive temperature from device sensors or the last manual SMART check.')}</span></div></div>
+        {#if data.storageDoctor.disks?.length}
+          <div class="rf-thermal-disk-grid">
+            {#each data.storageDoctor.disks as disk (disk.device)}
+              {@const measurement = data.storageDoctor.temperatures?.[disk.device]}
+              {@const previous = (data.storageDoctor.temperature_history?.[disk.device] || []).filter((item) => new Date(item.at).getTime() > Date.now() - 86400000)}
+              <article class="rf-thermal-disk-card">
+                <div class="rf-thermal-disk-header"><strong>{disk.model || disk.vendor || disk.device}</strong><small>{disk.device} · {storageType(disk)}</small></div>
+                <div class="rf-thermal-disk-reading" class:rf-thermal-hot={measurement && measurement.celsius >= 65}>
+                  {#if measurement}<strong>{Number(measurement.celsius).toFixed(1)} °C</strong>{:else}<strong>— °C</strong>{/if}
+                  <span>{!measurement ? doctorTr('Нет доступного датчика','No temperature sensor available') : measurement.celsius >= 75 ? doctorTr('Сильный нагрев','High temperature') : measurement.celsius >= 65 ? doctorTr('Повышенная температура','Elevated temperature') : doctorTr('Температура получена','Temperature available')}</span>
+                </div>
+                {#if measurement}<small>{measurement.source} · {new Date(measurement.at).toLocaleString(locale)}</small>{/if}
+                {#if previous.length > 1}
+                  <small>{doctorTr('За последние 24 часа','Last 24 hours')}: {Math.min(...previous.map((p) => p.celsius)).toFixed(1)}–{Math.max(...previous.map((p) => p.celsius)).toFixed(1)} °C · {previous.length} {doctorTr('измерений','readings')}</small>
+                {:else}<small>{doctorTr('История появится после получения нескольких измерений.','History will appear after several readings.')}</small>{/if}
+                {#if !measurement && data.storageDoctor.smartctl_installed}
+                  <button type="button" class="button" disabled={!!doctorBusy[disk.device]} onclick={() => doctorCheckSmart(disk.device)}>{doctorBusy[disk.device] ? doctorTr('Проверяем…','Checking…') : doctorTr('Проверить температуру вручную','Read temperature manually')}</button>
+                {:else if !measurement}<small>{doctorTr('Обычная USB-флешка может не иметь температурного датчика.','Ordinary USB flash drives may not provide temperature data.')}</small>{/if}
+                {#if doctorError[disk.device]}<small class="rf-doctor-bad">{doctorError[disk.device]}</small>{/if}
+              </article>
+            {/each}
+          </div>
+          <p class="rf-doctor-note">{doctorTr('Автоматический опрос SMART отключён: спящие HDD не пробуждаются ради температуры. Для SMART-измерения нажми кнопку вручную.','Automatic SMART polling is disabled: sleeping HDDs are not woken up for temperature. Use the manual check for SMART readings.')}</p>
+        {:else}<p class="rf-doctor-note">{doctorTr('Диски не найдены.','No drives detected.')}</p>{/if}
+      </section>
+    {/if}
     <section class="module-thermal-grid">
       {#if (data.thermal.sensors || []).length}
-        {#each data.thermal.sensors as sensor (sensor.id)}
+        {#each data.thermal.sensors.filter((sensor) => !data.storageDoctor || sensor.category !== "storage") as sensor (sensor.id)}
           <article class="module-thermal-card">
             <div class="module-thermal-head"><span class="status-dot {tempClass(sensor)}"></span><div><strong>{thermalName(sensor)}</strong><span>{thermalCategory(sensor)}</span></div></div>
             <div class="module-temp {tempClass(sensor)}">{Number(sensor.temp_c).toFixed(1)}°C</div>
@@ -627,6 +677,16 @@
             {#each data.doctor.incidents.slice(0,10) as event (`${event.at}:${event.kind}:${event.mount}`)}<div class="rf-doctor-mount"><span>{doctorEventName(event.kind)} · {event.mount}</span><small>{new Date(event.at).toLocaleString(locale)}</small></div>{/each}
           {:else}<p class="rf-doctor-note">{doctorTr('За время работы этой диагностики изменений подключения не замечено.','No connection changes have been observed during this monitoring session.')}</p>{/if}
           <small>{doctorTr('Это не полная история диска: события доступны только с момента запуска этой диагностики. Журнал системных ошибок пока не подключён.','This is not the complete disk history: only events observed during this diagnostic session are shown. Kernel error logs are not included yet.')}</small>
+        </details>
+        <details class="rf-doctor-incidents">
+          <summary>{doctorTr('История ошибок накопителей','Storage error history')} · {data.doctor.history?.length || 0}</summary>
+          {#if data.doctor.history?.length}
+            {#each data.doctor.history.slice(0,32) as event (event.id)}
+              <div class="rf-doctor-mount"><span><strong class:rf-doctor-bad={event.severity==='critical'}>{doctorHistoryName(event.kind)}</strong> · {event.device || doctorTr('Накопитель','Drive')}</span><small>{new Date(event.at).toLocaleString(locale)}</small></div>
+              {#if advanced && event.detail}<small>{event.detail}</small>{/if}
+            {/each}
+          {:else}<p class="rf-doctor-note">{doctorTr('Ошибок, обнаруженных мониторингом, пока нет. Это не гарантирует отсутствие прежних неполадок.','No errors observed by Monitoring yet. This does not guarantee a flawless historical record.')}</p>{/if}
+          <small>{data.doctor.kernel_history_available ? doctorTr('Системный журнал доступен. Время события — момент обнаружения записи.','Kernel log available. Timestamps show when entries were observed.') : doctorTr('Системный журнал недоступен: отображаются только события, которые видел RouterForge.','Kernel log unavailable: only events observed by RouterForge are shown.')}</small>
         </details>
       </section>
     {/if}
@@ -1037,4 +1097,11 @@
   .rf-doctor-extras>summary{cursor:pointer;font-size:13px;color:var(--rf-muted,#aab1b9);font-weight:650}
   .rf-doctor-extras[open]>summary{margin-bottom:10px}
   @media(max-width:720px){.rf-doctor-install{flex-direction:column;align-items:stretch}.rf-doctor-install-button{width:100%}.rf-doctor-health{flex-wrap:wrap}.rf-doctor-pill{margin-left:42px}.rf-doctor-drive-head{align-items:flex-start}.rf-doctor-space-label{flex-wrap:wrap}}
+  .rf-thermal-disks{display:grid;gap:12px}
+  .rf-thermal-disk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr));gap:12px}
+  .rf-thermal-disk-card{display:grid;gap:8px;padding:14px;border:1px solid var(--rf-border,#38404c);border-radius:12px;min-width:0}
+  .rf-thermal-disk-header{display:grid;gap:3px}.rf-thermal-disk-header strong{overflow-wrap:anywhere}.rf-thermal-disk-header small,.rf-thermal-disk-card small{color:var(--rf-muted,#9ba5b1);font-size:12px}
+  .rf-thermal-disk-reading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .rf-thermal-disk-reading strong{font-size:26px;line-height:1.2;font-variant-numeric:tabular-nums}.rf-thermal-disk-reading span{font-size:12px;color:var(--rf-muted,#9ba5b1)}
+  .rf-thermal-hot strong,.rf-thermal-hot span{color:var(--warn,#ebba66)}
 </style>

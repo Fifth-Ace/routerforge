@@ -81,13 +81,16 @@ type doctorIncident struct {
 	Detail string    `json:"detail"`
 }
 type doctorView struct {
-	Disks                  []doctorDisk     `json:"disks"`
-	Entware                doctorEntware    `json:"entware"`
-	Incidents              []doctorIncident `json:"incidents"`
-	HistoryScope           string           `json:"history_scope"`
-	KernelHistoryAvailable bool             `json:"kernel_history_available"`
-	SmartctlInstalled      bool             `json:"smartctl_installed"`
-	CollectedAt            time.Time        `json:"collected_at"`
+	Disks                  []doctorDisk                        `json:"disks"`
+	Entware                doctorEntware                       `json:"entware"`
+	Incidents              []doctorIncident                    `json:"incidents"`
+	HistoryScope           string                              `json:"history_scope"`
+	KernelHistoryAvailable bool                                `json:"kernel_history_available"`
+	History                []doctorHealthEvent                 `json:"history"`
+	Temperatures           map[string]doctorTemperatureReading `json:"temperatures"`
+	TemperatureHistory     map[string][]doctorTemperaturePoint `json:"temperature_history"`
+	SmartctlInstalled      bool                                `json:"smartctl_installed"`
+	CollectedAt            time.Time                           `json:"collected_at"`
 }
 
 func doctorParent(disk, device string) bool {
@@ -212,6 +215,7 @@ func doctorSnapshot(now time.Time) doctorView {
 	result.Incidents = append(result.Incidents, doctorTracker.events...)
 	doctorTracker.Unlock()
 	_ = entwareMount
+	doctorHistoryAugment(&result, now)
 	return result
 }
 func doctorExistsDir(path string) bool { f, e := os.Stat(path); return e == nil && f.IsDir() }
@@ -496,6 +500,7 @@ func doctorSmartOutput(ctx context.Context, name, driver string) doctorSmartResu
 		doctorSmartState.cache[key] = doctorSmartCache{Result: res, At: now}
 		doctorSmartState.Unlock()
 	}
+	doctorRememberSMART(res)
 	return res
 }
 

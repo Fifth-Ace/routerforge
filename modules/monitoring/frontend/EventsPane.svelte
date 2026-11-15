@@ -2,7 +2,7 @@
 
   import { onMount } from 'svelte';
 
-  import { getPlatformAlerts, getPlatformEvents } from '$lib/api.js';
+  import { getPlatformAlerts, getPlatformEvents, getModule } from '$lib/api.js';
   import { createReadSessions } from '$lib/readSessions.js';
 
   import { settings } from '$lib/stores/settings.js';
@@ -140,6 +140,25 @@
       text: textOf(`${key}Text`, vars)
     });
 
+    if (type.startsWith('storage.doctor.')) {
+      const kind = type.slice('storage.doctor.'.length);
+      const titles = {
+        usb_disconnect: ['USB-накопитель отключился','USB drive disconnected'],
+        usb_reset: ['Сброс USB-подключения','USB connection reset'],
+        io_error: ['Ошибка чтения или записи','Disk I/O error'],
+        fs_error: ['Ошибка файловой системы','Filesystem error'],
+        read_only: ['Накопитель только для чтения','Filesystem switched to read-only'],
+        disappeared: ['Точка монтирования исчезла','Mount disappeared'],
+        appeared: ['Точка монтирования появилась','Mount appeared'],
+        writable_again: ['Запись восстановлена','Writable again'],
+        smart_degradation: ['SMART: ухудшение показателей','SMART counters increased'],
+        smart_critical: ['SMART: критический статус','SMART critical health'],
+        overheat: ['Перегрев накопителя','Drive overheating'],
+        cooled: ['Температура нормализовалась','Temperature recovered']
+      };
+      const translated = titles[kind] || [kind,kind];
+      return { title: locale === 'ru' ? translated[0] : translated[1], text: locale === 'ru' ? 'Устройство: ' + (object || 'накопитель') + '. Подробности — в карточке события.' : 'Device: ' + (object || 'drive') + '. Technical details are available below.' };
+    }
     if (type === 'module.health.down') return result('healthDown', { name });
     if (type === 'module.health.recovered') return result('healthRecovered', { name });
     if (type === 'module.health.up') return result('healthUp', { name });
@@ -256,17 +275,28 @@
 
     try {
 
-      const [timeline, health] = await Promise.all([
+      const [timeline, health, doctor] = await Promise.all([
 
         getPlatformEvents({ limit: 100, signal: read.signal }),
 
-        getPlatformAlerts(read.signal)
+        getPlatformAlerts(read.signal),
+
+        getModule('storage', 'doctor', read.signal).catch(() => null)
 
       ]);
 
       if (epoch !== requestEpoch || !read.isCurrent()) return;
 
-      events = Array.isArray(timeline?.events) ? timeline.events : [];
+      const coreEvents = Array.isArray(timeline?.events) ? timeline.events : [];
+      const storageEvents = (doctor?.history || []).map((e) => ({
+        id: e.id, time: e.at, component: 'storage', object_id: e.device,
+        type: 'storage.doctor.' + e.kind, severity: e.severity,
+        recovery: !!e.recovery, message: e.summary,
+        context: { origin: e.origin, detail: e.detail, observed_at: e.at }
+      }));
+      events = [...coreEvents, ...storageEvents]
+        .sort((a,b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, 200);
 
       alerts = Array.isArray(health?.alerts) ? health.alerts : [];
 

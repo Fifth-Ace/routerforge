@@ -15,7 +15,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -23,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -345,8 +346,7 @@ func rfSyslogApply(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binary, "-s", "-f", temp.Name())
-	output, err := cmd.CombinedOutput()
+	output, err := safety.RunCommand(ctx, 16<<10, binary, "-s", "-f", temp.Name())
 	if err != nil {
 		msg := string(output)
 		if len(msg) > 2048 {

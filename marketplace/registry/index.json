@@ -2,7 +2,7 @@
   "schema_version": 1,
   "registry_id": "routerforge-community",
   "brand": "RouterForge",
-  "revision": "6507b4bf06330c17a2b15cfc14d848a3f4569ec57a09d61fff76cbc7662c1e52",
+  "revision": "4b30e63edac5a6f8a56cf367c05eae980df9e0500dcd8dee3dcb49e011ef77dd",
   "entries": [
     {
       "id": "adguardhome-keenetic",
@@ -1451,6 +1451,79 @@
       }
     },
     {
+      "id": "opffk",
+      "kind": "integration",
+      "name": "opffk · OpenFlux Exit Node",
+      "category": "VPN / Routing",
+      "description": "Веб-панель управления OpenFlux exit node на Keenetic/Entware: транспорты, ключи, обновления и откат ядра.",
+      "publisher": {
+        "id": "upiok",
+        "name": "upiok",
+        "url": "https://github.com/upiok"
+      },
+      "project_url": "https://github.com/upiok/opffk",
+      "source": "project-official",
+      "version_source": "binary",
+      "capabilities": [
+        "detect",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "services": [
+          "/opt/etc/init.d/S99opffk"
+        ],
+        "paths": [
+          "/opt/bin/opffk-web",
+          "/opt/etc/opffk"
+        ]
+      },
+      "process_names": [
+        "opffk-web"
+      ],
+      "web_port": 8791,
+      "web_port_source": "project-default; configurable",
+      "web": {
+        "scheme": "http",
+        "port": 8791,
+        "path": "/",
+        "mode": "external-only",
+        "embed": false
+      },
+      "compatibility": {
+        "status": "requirements",
+        "targets": [
+          "aarch64-3.10"
+        ],
+        "hints": [
+          "Keenetic + Entware",
+          "ARM64 / ARMv7; MIPS and MIPSEL are not supported by upstream binaries",
+          "128 MB available RAM minimum (256 MB recommended)",
+          "150 MB free storage in /opt",
+          "Web UI binds to the router LAN IP by default"
+        ]
+      },
+      "install": {
+        "method": "official-script",
+        "installer_url": "https://raw.githubusercontent.com/upiok/opffk/main/install.sh",
+        "notes": [
+          "Upstream installer downloads and verifies opffk/OpenFlux binaries, creates service account and starts the service.",
+          "Installation executes upstream code; RouterForge displays instructions only and does not execute it automatically.",
+          "External connectivity of the exit node requires a separate owner-configured port forward."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "opffk",
+      "manifest_sha256": "b5130f97eaa3ad5e3733cb895b107d214da3a7810500cf6d2bd457b3c306ec80",
+      "manifest_source": "marketplace/submissions/opffk.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
+      }
+    },
+    {
       "id": "profiling",
       "kind": "module",
       "name": "Profiling",
@@ -1557,6 +1630,88 @@
         "status": "official",
         "reviewed_by": "routerforge",
         "note": "Официальный модуль RouterForge beta."
+      }
+    },
+    {
+      "id": "qwdtt-server-keenetic",
+      "kind": "integration",
+      "name": "qWDTT Server Keenetic",
+      "category": "VPN / Routing",
+      "description": "Сервер защищённого туннеля qWDTT для Keenetic: WG/Raw-IP, профили, QR-ссылки, правила firewall и веб-статистика.",
+      "publisher": {
+        "id": "SemerDevLab",
+        "name": "SemerDevLab",
+        "url": "https://github.com/SemerDevLab"
+      },
+      "project_url": "https://github.com/SemerDevLab/qWDTT_Server_Keenetic",
+      "source": "project-official",
+      "version_source": "opkg",
+      "capabilities": [
+        "detect",
+        "version",
+        "service-status",
+        "open-ui",
+        "install-preview"
+      ],
+      "detection": {
+        "packages": [
+          "qwdtt"
+        ],
+        "services": [
+          "/opt/etc/init.d/S99qwdtt"
+        ],
+        "paths": [
+          "/opt/bin/qwdtt",
+          "/opt/etc/qwdtt/config.json"
+        ]
+      },
+      "process_names": [
+        "qwdtt"
+      ],
+      "web_port": 3333,
+      "web_port_source": "project-default; configurable",
+      "web": {
+        "scheme": "http",
+        "port": 3333,
+        "path": "/",
+        "mode": "external-only",
+        "embed": false
+      },
+      "compatibility": {
+        "status": "requirements",
+        "targets": [
+          "aarch64-3.10",
+          "mipsel-3.4"
+        ],
+        "hints": [
+          "Keenetic + Entware",
+          "AArch64 / ARMv7 / MIPSEL; no MIPS big-endian release asset",
+          "wireguard-tools, iptables, and TUN/WireGuard support or userspace backend",
+          "May configure firewall, routing and a WireGuard interface",
+          "Web UI listens on 0.0.0.0:3333 by default; check network exposure"
+        ]
+      },
+      "install": {
+        "method": "release-deploy",
+        "repository_url": "https://github.com/SemerDevLab/qWDTT_Server_Keenetic/releases",
+        "packages": [
+          "qwdtt"
+        ],
+        "notes": [
+          "Download the IPK matching the router architecture from the upstream GitHub release.",
+          "Package install may stop/restart qWDTT and update firewall or tunnel state.",
+          "No external IPK is auto-installed by RouterForge; installation is preview-only.",
+          "The upstream project currently does not expose a license file; do not redistribute binaries without permission."
+        ],
+        "preview_only": true
+      },
+      "manifest_id": "qwdtt-server-keenetic",
+      "manifest_sha256": "e16939f35b112396209d1bcc52941c274815b40cf96f8859df89252cc26931b9",
+      "manifest_source": "marketplace/submissions/qwdtt-server-keenetic.json",
+      "registry_source": "routerforge-community",
+      "trust": {
+        "status": "unverified",
+        "note": "Manifest прошёл schema validation, но проект ещё не прошёл verification RouterForge."
       }
     },
     {

@@ -18,7 +18,15 @@
       <h1>DNS Router</h1>
       <p>Выбирай DNS-серверы, назначай домены и при необходимости включай RouterForge для всей локальной сети.</p>
     </div>
-    <div class="top-actions"><label class="p21-mode-label"><span data-p21-i18n="mode">Режим</span><select id="p21Mode" class="p22-legacy-mode" aria-label="Режим DNS"><option value="basic" data-p21-i18n="basic">Обычный</option><option value="advanced" data-p21-i18n="advanced">Расширенный</option></select></label><div id="rf-dns-lite-svelte-mode"><div class="p22-mode-switch rfds-segmented" role="group" aria-label="Режим DNS Router"><button id="p22ModeBasic" type="button" aria-pressed="true">Обычный</button><button id="p22ModeAdvanced" type="button" aria-pressed="false">Расширенный</button></div></div><span class="status" id="p21ActiveBadge" hidden>Активны правила устройств</span><span class="status" id="serviceBadge" role="status">Проверяем…</span><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">Открыть DNS-аналитику →</a><span id="rf-lite-reload-slot" style="display:contents"></span></div>
+    <div class="top-actions dns-toolbar" role="toolbar" aria-label="Режим, состояние и действия DNS Router">
+      <label class="p21-mode-label"><span data-p21-i18n="mode">Режим</span><select id="p21Mode" class="p22-legacy-mode" aria-label="Режим DNS"><option value="basic" data-p21-i18n="basic">Обычный</option><option value="advanced" data-p21-i18n="advanced">Расширенный</option></select></label>
+      <div id="rf-dns-lite-svelte-mode" style="display:contents"><div class="p22-mode-switch rfds-segmented" role="group" aria-label="Режим DNS Router"><button id="p22ModeBasic" type="button" aria-pressed="true">Обычный</button><button id="p22ModeAdvanced" type="button" aria-pressed="false">Расширенный</button></div></div>
+      <div class="dns-toolbar-end">
+        <span class="dns-toolbar-label">Доступность и инструменты</span>
+        <div class="dns-toolbar-badges"><span class="status" id="p21ActiveBadge" hidden>Активны правила устройств</span><span class="status" id="serviceBadge" role="status">Проверяем…</span></div>
+        <div class="dns-toolbar-links"><a href="/dns" target="_top" class="button subtle" id="nativeDNSLink">DNS-аналитика <span aria-hidden="true">↗</span></a><span id="rf-lite-reload-slot" style="display:contents"></span></div>
+      </div>
+    </div>
   </header>
   <nav class="tabs rfds-tabs" aria-label="Разделы DNS">
     <span id="rf-lite-dns-nav-slot" style="display:contents"></span>

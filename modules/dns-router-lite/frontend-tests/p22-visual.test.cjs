@@ -214,3 +214,44 @@ test('P39: both DNS modes use readable 27/14/17/13 typography; switching is read
     a.deepEqual(f.errors,[]);
   } finally {f.dom.window.close();}
 });
+
+
+// P40 header regression: no min-content title compression and no mixed loose
+// row of controls. All existing legacy IDs and real Svelte actions are kept.
+test('P40: full-width heading, three grouped toolbar sections, and safe mode switches',async()=>{
+  const fs=require('node:fs');
+  const path=require('node:path');
+  const html=fs.readFileSync(path.join(__dirname,'../frontend/index.html'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'../frontend/p25-settings.css'),'utf8');
+  a.match(html,/class="top-actions dns-toolbar"/);
+  a.match(html,/class="dns-toolbar-end"/);
+  a.match(html,/class="dns-toolbar-links"/);
+  a.match(css,/\/\* P40: responsive, grouped DNS header\./);
+  const p40=css.slice(css.indexOf('/* P40: responsive, grouped DNS header.'));
+  a.match(p40,/#dnsLiteApp \.module-heading,\s*#dnsLiteApp\[data-dns-mode="advanced"\] \.module-heading\s*\{\s*display:grid;/);
+  a.match(p40,/grid-template-columns:minmax\(0,1fr\);/);
+  a.match(p40,/@media\(max-width:1120px\)/);
+  a.match(p40,/@media\(max-width:720px\)/);
+  a.doesNotMatch(p40,/\bzoom\s*:|transform\s*:\s*scale\s*\(/i);
+  const f=fixture(),d=f.w.document;
+  try {
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    const root=d.getElementById('dnsLiteApp');
+    await until(()=>root.classList.contains('p22-ready') && d.querySelectorAll('.dns-toolbar-mode').length===1 && d.querySelectorAll('.dns-toolbar-runtime').length===1);
+    a.equal(d.querySelectorAll('.dns-toolbar-mode').length,1);
+    a.equal(d.querySelectorAll('.dns-toolbar-runtime').length,1);
+    a.equal(d.querySelectorAll('.dns-toolbar-end').length,1);
+    a.equal(d.getElementById('rf-dns-lite-svelte-mode').closest('.dns-toolbar')!==null,true);
+    for(const id of ['p22ModeBasic','p22ModeAdvanced','p21Mode','p21ActiveBadge','serviceBadge','nativeDNSLink','rf-lite-reload-slot']) {
+      a.ok(d.getElementById(id),'existing DNS contract missing: '+id);
+    }
+    d.getElementById('p22ModeAdvanced').click();
+    await until(()=>root.dataset.dnsMode==='advanced');
+    a.equal(d.getElementById('p21Page').hidden,false);
+    d.getElementById('p22ModeBasic').click();
+    await until(()=>root.dataset.dnsMode==='basic');
+    a.equal(d.getElementById('pageDns').hidden,false);
+    a.equal(f.calls.some(c=>c.opts.method && c.opts.method!=='GET'),false,'visual toggle must not modify DNS');
+    a.deepEqual(f.errors,[]);
+  } finally {f.dom.window.close();}
+});

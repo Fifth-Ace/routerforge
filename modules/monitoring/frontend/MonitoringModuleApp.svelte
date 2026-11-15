@@ -39,6 +39,9 @@
   let doctorInstallBusy = false;
   let doctorInstallError = '';
   let doctorInstallNotice = '';
+  // The user owns this disclosure state, not the 3-second storage poll.
+  let storageTechnicalOpen = false;
+  let storageTechnicalInitialized = false;
 
   $: locale = $settings.locale || 'ru';
   $: advanced = $settings.uiLevel === 'advanced';
@@ -130,6 +133,11 @@
       if (currentTab === 'network') result = await loadNetwork(read.signal);
       if (currentTab === 'profiling') result = await loadProfiling(read.signal);
       if (!read.isCurrent() || tab !== currentTab) return;
+      // Preserve manual open/close across subsequent polls and tab changes.
+      if (currentTab === 'storage' && !storageTechnicalInitialized) {
+        storageTechnicalOpen = !result.doctor;
+        storageTechnicalInitialized = true;
+      }
       data = result;
       errorText = '';
     } catch (error) {
@@ -622,7 +630,7 @@
         </details>
       </section>
     {/if}
-    <details class="rf-doctor-extras" open={!data.doctor}>
+    <details class="rf-doctor-extras" bind:open={storageTechnicalOpen}>
       <summary>{doctorTr('Техническая статистика дисков и файловых систем','Technical disk and filesystem statistics')}</summary>
     <section class="panel table-panel">
       <div class="panel-head"><div><strong>{t(locale, 'monitoring.storage.title')}</strong><span>{t(locale, 'monitoring.storage.subtitle')}</span></div></div>

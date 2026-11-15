@@ -182,6 +182,12 @@
           <span class="rail-repository-arrow" aria-hidden="true">↗</span>
         </a>
 
+        <a class="rail-repository-link rail-portal-link" href="https://fifth-ace.github.io/routerforge-portal/" target="_blank" rel="noopener noreferrer" aria-label={t(locale, 'shell.portalSidebarAria')}>
+          <span class="rail-link-icon rail-portal-icon" aria-hidden="true">▣</span>
+          <span class="rail-repository-copy"><small>{t(locale, 'shell.portalSidebarEyebrow')}</small><strong>RouterForge Portal</strong></span>
+          <span class="rail-repository-arrow" aria-hidden="true">↗</span>
+        </a>
+
         <a class="rail-repository-link rail-telegram-link" href="https://t.me/RouterForge" target="_blank" rel="noreferrer" aria-label={t(locale, 'shell.telegramAria')}>
           <span class="rail-link-icon" aria-hidden="true">TG</span>
           <span class="rail-repository-copy"><small>{t(locale, 'shell.community')}</small><strong>Telegram</strong></span>
@@ -223,4 +229,13 @@
   .rail-release-notes-icon {
     color: var(--rf-accent, var(--accent));
   }
+
+  /* Four compact links occupy about the space of the previous three large tiles. */
+  .rail-community-links{gap:5px}
+  .rail-community-links .rail-repository-link{min-height:43px;padding:5px 9px;grid-template-columns:28px minmax(0,1fr) 12px;gap:8px;border-radius:7px}
+  .rail-community-links .rail-repository-link img,.rail-community-links .rail-link-icon{width:28px;height:28px}
+  .rail-community-links .rail-link-icon{font-size:10px}
+  .rail-community-links .rail-portal-icon{font-size:17px}
+  .rail-community-links .rail-repository-copy{gap:1px}
+  .rail-community-links .rail-repository-arrow{font-size:13px}
 </style>

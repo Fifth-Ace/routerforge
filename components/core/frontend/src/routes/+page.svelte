@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';
 
   import { catalog, catalogOnline, catalogReady } from '$lib/stores/catalog.js';
   import { snapshot, backendOnline, backendReady } from '$lib/stores/snapshot.js';
@@ -15,6 +16,27 @@
   let webWorkspace = null;
   let webProbeBusyId = '';
   let webNotice = '';
+
+  // Dismissal is local to this browser and router origin; no server mutation.
+  const noticeStorageKeys = Object.freeze({
+    portal: 'routerforge:home:notice:portal:dismissed',
+    mips: 'routerforge:home:notice:stable-mips:dismissed'
+  });
+  let portalNoticeVisible = true;
+  let stableMipsNoticeVisible = true;
+  onMount(() => {
+    try {
+      portalNoticeVisible = localStorage.getItem(noticeStorageKeys.portal) !== '1';
+      stableMipsNoticeVisible = localStorage.getItem(noticeStorageKeys.mips) !== '1';
+    } catch { /* private mode: buttons still close notices for this page */ }
+  });
+  function dismissNotice(kind) {
+    if (kind === 'portal') portalNoticeVisible = false;
+    else if (kind === 'mips') stableMipsNoticeVisible = false;
+    else return;
+    try { localStorage.setItem(noticeStorageKeys[kind], '1'); } catch {}
+  }
+
 
   $: locale = $settings.locale || 'ru';
   $: modules = $catalog.modules || [];
@@ -344,18 +366,32 @@
     {/if}
   </section>
 
-  <section class="panel rf-portal-promo" aria-label={t(locale, 'home.portalTitle')}>
-    <div class="rf-portal-promo-copy">
-      <span class="rf-portal-promo-eyebrow">{t(locale, 'home.portalEyebrow')}</span>
-      <h2>{t(locale, 'home.portalTitle')}</h2>
-      <p>{t(locale, 'home.portalDescription')}</p>
-      <small>{t(locale, 'home.portalNote')}</small>
+  {#if portalNoticeVisible || stableMipsNoticeVisible}
+    <div class="rf-home-notices">
+      {#if portalNoticeVisible}
+        <section class="panel rf-home-notice" aria-labelledby="rf-notice-portal-title">
+          <div class="rf-home-notice-body">
+            <span class="rf-home-notice-kicker">{t(locale, 'home.portalEyebrow')}</span>
+            <h2 id="rf-notice-portal-title">{t(locale, 'home.portalTitle')}</h2>
+            <p>{t(locale, 'home.portalDescription')}</p>
+            <a href="https://fifth-ace.github.io/routerforge-portal/" target="_blank" rel="noopener noreferrer">{t(locale, 'home.portalSite')} ↗</a>
+          </div>
+          <button type="button" class="rf-home-notice-close" aria-label={t(locale, 'home.noticeDismiss')} title={t(locale, 'home.noticeDismiss')} onclick={() => dismissNotice('portal')}>×</button>
+        </section>
+      {/if}
+      {#if stableMipsNoticeVisible}
+        <section class="panel rf-home-notice rf-home-notice-stable" aria-labelledby="rf-notice-mips-title">
+          <div class="rf-home-notice-body">
+            <span class="rf-home-notice-kicker">{t(locale, 'home.stableMipsEyebrow')}</span>
+            <h2 id="rf-notice-mips-title">{t(locale, 'home.stableMipsTitle')}</h2>
+            <p>{t(locale, 'home.stableMipsDescription')}</p>
+            <a href="https://github.com/Fifth-Ace/routerforge/releases/tag/routerforge-stable" target="_blank" rel="noopener noreferrer">{t(locale, 'home.stableMipsLink')} ↗</a>
+          </div>
+          <button type="button" class="rf-home-notice-close" aria-label={t(locale, 'home.noticeDismiss')} title={t(locale, 'home.noticeDismiss')} onclick={() => dismissNotice('mips')}>×</button>
+        </section>
+      {/if}
     </div>
-    <div class="rf-portal-promo-actions">
-      <a class="button primary" href="https://chromewebstore.google.com/detail/ikghhhcbgfepddcjammfhaeomohfajij" target="_blank" rel="noopener noreferrer">{t(locale, 'home.portalChrome')} ↗</a>
-      <a class="button" href="https://fifth-ace.github.io/routerforge-portal/" target="_blank" rel="noopener noreferrer">{t(locale, 'home.portalSite')} ↗</a>
-    </div>
-  </section>
+  {/if}
 
   <section class="routerforge-installed-v2">
     <div class="catalog-section-head">
@@ -407,14 +443,16 @@
 {/if}
 
 <style>
-  .rf-portal-promo{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:21px 24px;border:1px solid var(--rf-accent-border,#376b8c);background:linear-gradient(110deg,rgba(30,90,132,.16),rgba(28,42,59,.16));}
-  .rf-portal-promo-copy{display:grid;gap:7px;min-width:0;max-width:720px}
-  .rf-portal-promo-eyebrow{font-size:10px;letter-spacing:.11em;font-weight:700;color:var(--rf-accent,#38bdf8)}
-  .rf-portal-promo h2{font-size:19px;margin:0}
-  .rf-portal-promo p{margin:0;font-size:13px;line-height:1.55;color:var(--rf-text,#d6e2f0)}
-  .rf-portal-promo small{font-size:11px;color:var(--rf-muted,#92a4b7);line-height:1.45}
-  .rf-portal-promo-actions{display:flex;gap:9px;flex-wrap:wrap;flex-shrink:0}
-  .rf-portal-promo-actions .button{white-space:normal;text-align:center;justify-content:center;min-height:38px}
-  @media(max-width:980px){.rf-portal-promo{align-items:stretch;flex-direction:column}.rf-portal-promo-actions{flex-shrink:1}}
-  @media(max-width:480px){.rf-portal-promo{padding:17px}.rf-portal-promo-actions{display:grid}.rf-portal-promo-actions .button{width:100%}}
+  .rf-home-notices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:10px}
+  .rf-home-notice{position:relative;min-width:0;min-height:100px;padding:12px 48px 12px 15px;border:1px solid var(--rf-accent-border,#376b8c);background:var(--rf-panel,#111820)}
+  .rf-home-notice-stable{border-color:var(--rf-border,#303640)}
+  .rf-home-notice-body{display:grid;gap:4px;min-width:0}
+  .rf-home-notice-kicker{font-size:9px;font-weight:700;letter-spacing:.09em;color:var(--rf-accent,#38bdf8)}
+  .rf-home-notice h2{font-size:15px;line-height:1.2;margin:0;color:var(--rf-text,#d6e2f0)}
+  .rf-home-notice p{font-size:11px;line-height:1.4;margin:0;color:var(--rf-muted,#92a4b7)}
+  .rf-home-notice a{font-size:11px;line-height:1.3;color:var(--rf-accent,#38bdf8);font-weight:650;width:max-content;max-width:100%}
+  .rf-home-notice a:hover{text-decoration:underline}
+  .rf-home-notice-close{position:absolute;right:8px;top:8px;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;border-radius:7px;border:1px solid var(--rf-border,#303640);background:transparent;color:var(--rf-muted,#92a4b7);font-size:22px;line-height:1}
+  .rf-home-notice-close:hover,.rf-home-notice-close:focus-visible{border-color:var(--rf-accent-border,#376b8c);color:var(--rf-text,#d6e2f0);background:var(--rf-accent-soft,rgba(56,189,248,.1))}
+  @media(max-width:480px){.rf-home-notice{min-height:0;padding:11px 46px 12px 12px}}
 </style>

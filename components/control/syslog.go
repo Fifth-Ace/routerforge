@@ -116,7 +116,7 @@ func rfSyslogRootAllowed(p string) bool {
 	}
 	// A dedicated directory under an Entware USB mount, never arbitrary paths.
 	parts := strings.Split(p, "/")
-	return len(parts) == 5 && parts[0] == "" && parts[1] == "opt" && parts[2] == "mnt" && parts[3] != "" && parts[3] != "." && parts[3] != ".." && parts[4] == "routerforge-syslog" && regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`).MatchString(parts[3])
+	return len(parts) == 5 && parts[0] == "" && (parts[1] == "opt" || parts[1] == "tmp") && parts[2] == "mnt" && parts[3] != "" && parts[3] != "." && parts[3] != ".." && parts[4] == "routerforge-syslog" && regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`).MatchString(parts[3])
 }
 func rfSyslogHash(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 func rfSyslogReadConfig() ([]byte, error) {
@@ -628,6 +628,10 @@ func registerAdminSyslogRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/syslog/tail", adminFileAccessOnly(false, rfSyslogTail))
 	mux.HandleFunc("/v1/syslog/export", adminFileAccessOnly(true, rfSyslogExport))
 	mux.HandleFunc("/v1/syslog/apply", mutationOnly(rfSyslogApply))
+	mux.HandleFunc("/v1/syslog/smb/status", adminFileAccessOnly(false, rfSyslogSMBStatus))
+	mux.HandleFunc("/v1/syslog/smb/connect", mutationOnly(rfSyslogSMBConnect))
+	mux.HandleFunc("/v1/syslog/smb/disconnect", mutationOnly(rfSyslogSMBDisconnect))
+	go rfSyslogSMBReconnectLoop()
 	mux.HandleFunc("/v1/syslog/plan", mutationOnly(rfSyslogPlanHandler))
 	mux.HandleFunc("/v1/syslog/summary", adminFileAccessOnly(false, rfSyslogSummary))
 }

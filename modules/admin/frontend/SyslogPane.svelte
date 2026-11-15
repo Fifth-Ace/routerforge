@@ -33,6 +33,50 @@
   let newDeviceIP = '';
   let newDeviceName = '';
   let firstLoadDone = false;
+  let smb = null;
+  let smbBusy = false;
+  let smbError = '';
+  let smbHost = '';
+  let smbShare = '';
+  let smbUser = '';
+  let smbPassword = '';
+  let smbDomain = '';
+  let smbRemember = true;
+  const syslogSMBPath='/api/modules/admin/syslog/smb/';
+  async function smbRequest(path, body = null) {
+    const response=await fetch(syslogSMBPath+path,{credentials:'same-origin',cache:'no-store',...(body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {})});
+    const data=await response.json();
+    if(!response.ok) throw new Error(data?.error||`HTTP ${response.status}`);
+    return data;
+  }
+  async function loadSMB() {
+    try {smb=await smbRequest('status');smbError='';}catch(e){smbError=e.message;}
+  }
+  async function smbConnect() {
+    if(smbBusy) return;
+    if(!confirm(tr('Подключить указанную SMB-папку к RouterForge? Службы syslog-ng и DNS не перезапускаются.','Connect this SMB share? syslog-ng and DNS are not restarted.')))return;
+    smbBusy=true;smbError='';
+    try {
+      const connected=await smbRequest('connect',{host:smbHost,share:smbShare,username:smbUser,password:smbPassword,domain:smbDomain,remember:smbRemember,confirm:'CONNECT SYSLOG SMB'});
+      smbPassword='';
+      await refresh();
+      await loadSMB();
+      storageKind='smb';draft.root=connected.root;mark();
+      notice=tr('NAS подключён. Проверь настройки ниже и сохрани план отдельно.','NAS connected. Review and save the Syslog plan separately.');
+    }catch(e){smbError=e.message;}
+    finally{smbBusy=false;}
+  }
+  async function smbDisconnect() {
+    if(smbBusy || !confirm(tr('Отключить SMB-папку? Сначала останови Syslog, если он записывает сюда.','Disconnect SMB share? Stop Syslog first if it writes here.')))return;
+    smbBusy=true;smbError='';
+    try {
+      await smbRequest('disconnect',{confirm:'DISCONNECT SYSLOG SMB'});
+      await loadSMB();await refresh();
+      if(storageKind==='smb')changeStorage('smb');
+      notice=tr('SMB-папка отключена.','SMB share disconnected.');
+    }catch(e){smbError=e.message;}
+    finally{smbBusy=false;}
+  }
   $: availableStorage = (status?.storage_options || []).filter((item) => item.kind === storageKind);
   $: selectedStorage = (status?.storage_options || []).find((item) => item.root === draft?.root);
   $: namedDevices = Object.entries(draft?.device_names || {}).sort((a,b) => a[0].localeCompare(b[0]));
@@ -43,6 +87,7 @@
     const options = (status?.storage_options || []).filter((v) => v.kind === kind);
     draft.root = options[0]?.root || '';
     mark();
+    if (kind==='smb') void loadSMB();
   }
   function nameDevice(ip, label) {
     draft.device_names = { ...(draft.device_names || {}), [ip]: label };
@@ -187,6 +232,7 @@
     catch(e){error=getError(e);}finally{busy='';}
   }
   onMount(() => {
+    void loadSMB();
     refresh({initial:true});
     periodic=window.setInterval(() => {if (!document.hidden && !busy) {void refresh();if(chosen)void reloadTail();}},10000);
     return () => {loadEpoch++;tailEpoch++;if(periodic)clearInterval(periodic);};
@@ -264,14 +310,39 @@
           {#if availableStorage.length}
             <label class="rf-block">{tr('Накопитель','Storage')}
               <select value={draft.root} onchange={(event)=>{draft.root=event.currentTarget.value;mark();}}>
-                {#each availableStorage as item (item.root)}<option value={item.root}>{item.label} · {item.root}</option>{/each}
+                {#each availableStorage as item (item.root)}<option value={item.root}>{item.label} · {item.root}{item.free_bytes ? ` · ${(item.free_bytes/1073741824).toFixed(1)} GB ${tr('свободно','free')}` : ''}</option>{/each}
                 {#if draft.root && !availableStorage.some(o=>o.root===draft.root)}<option value={draft.root}>{draft.root} ({tr('недоступно','unavailable')})</option>{/if}
               </select>
             </label>
-          {:else}
-            <div class="rf-syslog-msg rf-warning">{storageKind==='smb' ? tr('Сейчас нет подключённых SMB-папок. Сначала смонтируй SMB-папку в Entware под /opt/mnt/ИМЯ. После обновления она появится здесь. Пароли здесь не нужны.','No mounted SMB share. Mount it in Entware under /opt/mnt/NAME, then refresh. Passwords are not collected here.') : tr('Подходящие накопители не обнаружены. Проверь подключение и нажми «Обновить».','No suitable mounted storage. Connect a disk and refresh.')}</div>
+          {:else if storageKind !== 'smb'}
+            <div class="rf-syslog-msg rf-warning">{tr('Подходящие накопители не обнаружены. Проверь подключение и нажми «Обновить».','No suitable mounted storage. Connect a disk and refresh.')}</div>
           {/if}
-          {#if storageKind==='smb'}<p class="rf-hint">{tr('SMB: используем только уже примонтированную папку. RouterForge не монтирует её и не сохраняет пароль.','SMB: uses a pre-mounted share only. RouterForge never mounts it or stores credentials.')}</p>{/if}
+          {#if storageKind==='smb'}
+            <div class="rf-smb-wizard">
+              <div class="rf-smb-title"><strong>{tr('Подключить сетевую папку','Connect a network share')}</strong><button type="button" class="button" onclick={loadSMB} disabled={smbBusy}>↻ {tr('Проверить поддержку','Check support')}</button></div>
+              {#if smbError}<div class="rf-syslog-msg rf-warning" role="alert">{smbError}</div>{/if}
+              {#if smb?.connected}
+                <div class="rf-syslog-msg rf-ok">{tr('SMB-папка подключена','SMB share connected')}{smb.host ? `: ${smb.host}/${smb.share}` : ''}. {tr('Каталог журналов','Log folder')}: {smb.mount_root}</div>
+                <div class="rf-actions"><button type="button" class="button" onclick={smbDisconnect} disabled={smbBusy}>{tr('Отключить SMB','Disconnect SMB')}</button></div>
+              {:else}
+                {#if smb && (!smb.client_ready || !smb.kernel_ready)}
+                  <div class="rf-syslog-msg rf-warning">{!smb.client_ready ? tr('Не найден CIFS-клиент (mount.cifs). Для подключения требуется совместимый пакет Entware.','CIFS client (mount.cifs) missing. Compatible Entware package is required.') : tr('KeeneticOS не предоставляет поддержку файловой системы CIFS. Пока выбери USB.','KeeneticOS lacks the CIFS filesystem driver. Use USB instead.')}</div>
+                  {#if !smb.client_ready}<a href="/apps">{tr('Открыть App Center · пакет cifsmount','Open App Center · cifsmount package')}</a>{/if}
+                {/if}
+                <p class="rf-hint">{tr('Укажи адрес NAS, имя сетевой папки и отдельную учётную запись с доступом только к журналам.','Enter NAS address, share name and a dedicated account with log-only permissions.')}</p>
+                <div class="rf-smb-fields">
+                  <label>{tr('Адрес NAS','NAS address')}<input bind:value={smbHost} placeholder="192.168.10.20" autocomplete="off" /></label>
+                  <label>{tr('Сетевая папка','Shared folder')}<input bind:value={smbShare} placeholder="RouterLogs" autocomplete="off" /></label>
+                  <label>{tr('Пользователь','Username')}<input bind:value={smbUser} autocomplete="off" /></label>
+                  <label>{tr('Пароль','Password')}<input type="password" bind:value={smbPassword} autocomplete="new-password" /></label>
+                  <label>{tr('Домен (необязательно)','Domain (optional)')}<input bind:value={smbDomain} placeholder="WORKGROUP" autocomplete="off" /></label>
+                </div>
+                <label class="rf-smb-remember"><input type="checkbox" bind:checked={smbRemember} />{tr('Автоподключение после перезагрузки (учётные данные хранятся в защищённом файле на Entware, доступном root)','Reconnect after reboot (credentials saved in a root-only Entware file)')}</label>
+                <div class="rf-actions"><button type="button" class="button primary" onclick={smbConnect} disabled={smbBusy || !smb?.client_ready || !smb?.kernel_ready || !smbHost.trim() || !smbShare.trim() || !smbUser || !smbPassword}>{smbBusy?'…':tr('Подключить и проверить запись','Connect & test write access')}</button></div>
+              {/if}
+              <p class="rf-hint">{tr('SMB3. Пароль не появляется в логах или команде процесса. Если NAS пропадёт, запись на флеш-память не переключается.','SMB3. Password is not passed via process arguments or logs. No fallback to internal flash if NAS disconnects.')}</p>
+            </div>
+          {/if}
         </div>
         <div class="rf-easy-step">
           <div class="rf-step-title"><span class="rf-step-number">2</span><div><strong>{tr('Как назвать устройства?','Name your devices')}</strong><small>{tr('IP нужен для записи, а имя — чтобы легко находить файлы.','IP is used for routing; the name is used in filenames.')}</small></div></div>
@@ -431,4 +502,11 @@
   .rf-device-list{display:grid;gap:5px}.rf-device-row{display:grid;grid-template-columns:minmax(90px,170px) 1fr auto;gap:8px;align-items:center;font-size:12px}.rf-device-add{display:grid;grid-template-columns:minmax(110px,180px) 1fr auto;gap:8px}
   .rf-advanced-toggle{width:fit-content}
   @media(max-width:650px){.rf-easy-grid{grid-template-columns:1fr}.rf-device-add{grid-template-columns:1fr}.rf-device-row{grid-template-columns:1fr auto}.rf-device-row .mono{grid-column:1 / -1}}
+  .rf-smb-wizard{display:grid;gap:10px;padding:12px;border:1px solid var(--rf-border,#333);border-radius:8px}
+  .rf-smb-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .rf-smb-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .rf-smb-fields label{display:grid;gap:5px;font-size:12px;color:var(--rf-muted,#aaa)}
+  .rf-smb-fields input{width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--rf-border,#333);background:var(--rf-surface-2,#15191e);color:var(--rf-text,#fff);border-radius:6px;padding:9px}
+  .rf-smb-remember{font-size:12px;display:flex;align-items:flex-start;gap:8px}
+  @media(max-width:600px){.rf-smb-fields{grid-template-columns:1fr}}
 </style>

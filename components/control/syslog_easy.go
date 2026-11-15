@@ -57,10 +57,12 @@ func rfSyslogOutputName(s rfSyslogSettings, ip string) string {
 }
 
 type rfSyslogMountOption struct {
-	Root    string `json:"root"`
-	Label   string `json:"label"`
-	Kind    string `json:"kind"`
-	Mounted bool   `json:"mounted"`
+	Root       string `json:"root"`
+	Label      string `json:"label"`
+	Kind       string `json:"kind"`
+	Mounted    bool   `json:"mounted"`
+	TotalBytes uint64 `json:"total_bytes,omitempty"`
+	FreeBytes  uint64 `json:"free_bytes,omitempty"`
 }
 
 type rfSyslogMount struct{ Point, FS, Device string }
@@ -95,37 +97,86 @@ func rfSyslogKind(fs string) string {
 	}
 	return ""
 }
-func rfSyslogLocalMounted() bool {
-	resolved, err := filepath.EvalSymlinks(filepath.Dir(rfSyslogDefaultRoot))
-	if err != nil {
-		return false
-	}
-	longest := 0
-	kind := ""
-	for _, m := range rfSyslogMounted() {
-		if (resolved == m.Point || strings.HasPrefix(resolved, strings.TrimRight(m.Point, "/")+"/")) && len(m.Point) > longest {
-			longest = len(m.Point)
-			kind = rfSyslogKind(m.FS)
+
+// Determine the *physical* Entware device using mount table aliases. Keenetic
+// mounts a single USB partition both at /opt and /tmp/mnt/<uuid>. These paths
+// must be presented as ONE disk, not as separate storage devices.
+func rfSyslogEntwareUSB(mounts []rfSyslogMount) (string, bool) {
+	var opt rfSyslogMount
+	for _, m := range mounts {
+		if m.Point == "/opt" {
+			opt = m
+			break
 		}
 	}
-	return longest > 1 && kind == "usb"
+	if opt.Device == "" || rfSyslogKind(opt.FS) != "usb" {
+		return "", false
+	}
+	for _, m := range mounts {
+		if strings.HasPrefix(m.Point, "/tmp/mnt/") && filepath.Dir(m.Point) == "/tmp/mnt" && m.Device == opt.Device && m.FS == opt.FS {
+			return opt.Device, true
+		}
+	}
+	return opt.Device, false
 }
 func rfSyslogStorageOptions() []rfSyslogMountOption {
+	mounts := rfSyslogMounted()
 	var out []rfSyslogMountOption
-	seen := map[string]bool{}
-	if rfSyslogLocalMounted() {
-		out = append(out, rfSyslogMountOption{Root: rfSyslogDefaultRoot, Label: "Entware (/opt)", Kind: "local", Mounted: true})
-		seen[rfSyslogDefaultRoot] = true
+	seenRoot := map[string]bool{}
+	seenDevice := map[string]bool{}
+	mountSizes := map[string]storageInfo{}
+	for _, disk := range readStorage() {
+		mountSizes[disk.Mount] = disk
 	}
-	for _, m := range rfSyslogMounted() {
-		// Only *direct* mounted /opt/mnt/DEVICE targets are selectable;
-		// a directory on the parent /opt mount is NOT an active USB/SMB share.
+	newOption := func(root, label, kind, point string) rfSyslogMountOption {
+		opt := rfSyslogMountOption{Root: root, Label: label, Kind: kind, Mounted: true}
+		if disk, ok := mountSizes[point]; ok {
+			opt.TotalBytes = disk.TotalBytes
+			opt.FreeBytes = disk.FreeBytes
+		}
+		return opt
+	}
+	device, usb := rfSyslogEntwareUSB(mounts)
+	if usb {
+		out = append(out, newOption(rfSyslogDefaultRoot, "USB с Entware ("+device+")", "usb", "/opt"))
+		seenRoot[rfSyslogDefaultRoot] = true
+		seenDevice[device] = true
+	} else {
+		// A writable Entware mount is not necessarily a USB disk (NAND, SATA).
+		for _, m := range mounts {
+			if m.Point == "/opt" && rfSyslogKind(m.FS) == "usb" {
+				out = append(out, newOption(rfSyslogDefaultRoot, "Entware (/opt)", "local", "/opt"))
+				seenRoot[rfSyslogDefaultRoot] = true
+				break
+			}
+		}
+	}
+	for _, m := range mounts {
+		kind := rfSyslogKind(m.FS)
+		if kind == "" {
+			continue
+		}
+		if seenDevice[m.Device] && !rfSyslogIsSMB(m.FS) {
+			continue
+		}
+		// Existing direct mount under /opt/mnt and other Keenetic USB volumes
+		// mounted at /tmp/mnt/<uuid> are supported, but never guessed from a
+		// plain directory on the /opt filesystem.
+		if !(filepath.Dir(m.Point) == "/opt/mnt" || filepath.Dir(m.Point) == "/tmp/mnt") {
+			continue
+		}
 		root := filepath.Join(m.Point, "routerforge-syslog")
-		if rfSyslogRootAllowed(root) && m.Point == filepath.Dir(root) && rfSyslogKind(m.FS) != "" && !seen[root] {
-			kind := rfSyslogKind(m.FS)
-			label := filepath.Base(m.Point) + " (" + strings.ToUpper(kind) + ")"
-			out = append(out, rfSyslogMountOption{Root: root, Label: label, Kind: kind, Mounted: true})
-			seen[root] = true
+		if !rfSyslogRootAllowed(root) || seenRoot[root] {
+			continue
+		}
+		label := filepath.Base(m.Point) + " (" + strings.ToUpper(kind) + ")"
+		if kind == "smb" {
+			label = "NAS / SMB · " + filepath.Base(m.Point)
+		}
+		out = append(out, newOption(root, label, kind, m.Point))
+		seenRoot[root] = true
+		if kind == "usb" {
+			seenDevice[m.Device] = true
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })

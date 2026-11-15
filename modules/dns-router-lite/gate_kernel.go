@@ -446,7 +446,8 @@ func (k *LinuxGate) Ensure(ctx context.Context, p GatePlan) (until time.Time, er
 			return time.Time{}, e
 		}
 		if !v.InputOK || v.Jumps != 1 || !v.First || !reflect.DeepEqual(v.Ordered, orderedRules(p, f)) {
-			return time.Time{}, conflict("topology changed while enabling %s", f.Binary)
+			return time.Time{}, conflict("topology changed while enabling %s (input_ok=%t, jumps=%d, first=%t, ordered_match=%t)",
+				f.Binary, v.InputOK, v.Jumps, v.First, reflect.DeepEqual(v.Ordered, orderedRules(p, f)))
 		}
 	}
 	opened = true

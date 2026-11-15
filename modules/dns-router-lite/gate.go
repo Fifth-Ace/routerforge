@@ -217,7 +217,9 @@ func (g *GateManager) Enable(ctx context.Context, listen string) error {
 	g.lastError = ""
 	g.failures = 0
 	g.bootRetries = 0
-	g.bootRetryUntil = time.Time{}
+	// A first successful activation does not mean Keenetic/NDM finished
+	// rebuilding netfilter. Retain the original boot retry deadline so a
+	// later reload in the same bounded window remains recoverable.
 	g.leaseUntil = until
 	g.verifiedAt = g.now()
 	g.mu.Unlock()
@@ -369,7 +371,6 @@ func (g *GateManager) Reconcile(ctx context.Context, explicit bool) error {
 	g.state = "ACTIVE"
 	g.lastError = ""
 	g.failures = 0
-	g.bootRetryUntil = time.Time{}
 	g.bootRetries = 0
 	g.leaseUntil = until
 	g.verifiedAt = g.now()

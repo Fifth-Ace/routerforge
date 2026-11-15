@@ -62,3 +62,19 @@ func TestSyslogSafeFileNames(t *testing.T) {
 		}
 	}
 }
+
+func TestSyslogConfigPreviewBoundedUTF8(t *testing.T) {
+	original := strings.Repeat("a", 65535) + "Ж" + "suffix"
+	content, truncated := rfSyslogPreview([]byte(original), 65536)
+	if !truncated || len(content) != 65535 || !strings.HasSuffix(content, "a") {
+		t.Fatal("preview must not split UTF-8 rune")
+	}
+	content, truncated = rfSyslogPreview([]byte("existing configuration"), 65536)
+	if truncated || content != "existing configuration" {
+		t.Fatal("short config must be preserved without changes")
+	}
+	content, truncated = rfSyslogPreview([]byte("nonempty"), 0)
+	if !truncated || content != "" {
+		t.Fatal("zero-length preview must be empty")
+	}
+}

@@ -116,6 +116,7 @@ export const getEntwarePackageDetail = (packageName) =>
 export const preflightEntwarePackage = (packageName, action = 'install') =>
   postJSON('/api/apps/entware/preflight', { package: packageName, action });
 export const getRouterforgeSyslogStatus = () => request('/api/modules/admin/syslog/status');
+export const getRouterforgeSyslogConfig = () => request('/api/modules/admin/syslog/config');
 export const getRouterforgeSyslogFiles = () => request('/api/modules/admin/syslog/logs');
 export const getRouterforgeSyslogTail = (date, source, lines = 200) =>
   request(`/api/modules/admin/syslog/tail?date=${encodeURIComponent(date)}&source=${encodeURIComponent(source)}&lines=${encodeURIComponent(lines)}`);

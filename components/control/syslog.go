@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
@@ -176,6 +177,45 @@ func rfSyslogStatus(w http.ResponseWriter, r *http.Request) {
 		"settings": s, "settings_error": rfSyslogErr(metaErr), "storage_ready": rootReady, "storage_error": reason,
 		"requires_adoption": len(raw) > 0 && !managed, "managed_root": s.Root, "mutation_api": true})
 }
+
+// rfSyslogPreview bounds the response and does not split a UTF-8 code point.
+// This is a read-only view of the exact existing syslog-ng.conf, not a parser.
+func rfSyslogPreview(raw []byte, limit int) (string, bool) {
+	if len(raw) <= limit {
+		return string(raw), false
+	}
+	if limit <= 0 {
+		return "", len(raw) > 0
+	}
+	prefix := raw[:limit]
+	for len(prefix) > 0 && !utf8.Valid(prefix) {
+		prefix = prefix[:len(prefix)-1]
+	}
+	return string(prefix), true
+}
+
+func rfSyslogConfigPreview(w http.ResponseWriter, r *http.Request) {
+	raw, err := rfSyslogReadConfig()
+	if err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "cannot inspect existing syslog-ng configuration"})
+		return
+	}
+	if raw == nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "syslog-ng configuration does not exist"})
+		return
+	}
+	if !utf8.Valid(raw) || bytes.IndexByte(raw, 0) >= 0 {
+		writeJSON(w, http.StatusUnsupportedMediaType, map[string]any{"error": "existing syslog-ng configuration is not UTF-8 text"})
+		return
+	}
+	preview, truncated := rfSyslogPreview(raw, 64*1024)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"path": rfSyslogConfig, "content": preview, "total_bytes": len(raw),
+		"truncated": truncated, "sha256": rfSyslogHash(raw), "managed": rfSyslogOwned(raw),
+		"read_only": true,
+	})
+}
+
 func rfSyslogErr(err error) string {
 	if err != nil {
 		return err.Error()
@@ -724,6 +764,7 @@ func rfSyslogRetentionLoop() {
 func registerAdminSyslogRoutes(mux *http.ServeMux) {
 	// All reads require the same root-session header as Admin file operations.
 	mux.HandleFunc("/v1/syslog/status", adminFileAccessOnly(false, rfSyslogStatus))
+	mux.HandleFunc("/v1/syslog/config", adminFileAccessOnly(false, rfSyslogConfigPreview))
 	mux.HandleFunc("/v1/syslog/logs", adminFileAccessOnly(false, rfSyslogList))
 	mux.HandleFunc("/v1/syslog/tail", adminFileAccessOnly(false, rfSyslogTail))
 	mux.HandleFunc("/v1/syslog/export", adminFileAccessOnly(true, rfSyslogExport))

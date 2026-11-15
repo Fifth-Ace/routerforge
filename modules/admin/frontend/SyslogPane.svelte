@@ -233,16 +233,16 @@
       const p=await planRouterforgeSyslog({settings:draft});
       if(p.parent_sha256!==status.config_sha256){throw new Error(tr('Основной конфиг изменился: обнови состояние.','Main config changed: refresh status.'));}
       plan=p;
-      notice=tr('План готов. Подтверди подключение дополнения: службы не запускаются.','Plan ready. Confirm the add-on; no service is started.');
+      notice=tr('Настройки проверены. Подтвердите сохранение. Служба при этом не запускается.','Settings checked. Confirm to save. This will not start the service.');
     }catch(e){error=getError(e);}finally{planBusy=false;}
   }
   async function apply() {
     if (!draft || busy || !status || !plan || !acceptAdoption) return;
-    if(!confirm(tr('Подключить отдельный файл RouterForge к существующему syslog-ng.conf? Резервные копии создаются автоматически. НИ ОДНА служба не запускается.','Attach a separate RouterForge config to the existing syslog-ng.conf? Backups are automatic. No services will be started.'))) return;
+    if(!confirm(tr('Сохранить правила сбора? Исходные настройки будут сохранены, а служба не будет перезапущена.','Save collection rules? Existing settings are preserved, and the service will not restart.'))) return;
     busy='apply';error='';notice='';
     try {
       const result=await applyRouterforgeSyslog({settings:draft,expected_sha256:plan.parent_sha256,expected_sidecar_sha256:plan.sidecar_sha256,plan_sha256:plan.plan_sha256,confirm:'APPLY SYSLOG SIDECAR'});
-      notice=tr('Дополнение сохранено без замены основного конфига. Для активации вручную запусти/перезапусти syslog-ng.','Add-on saved without replacing the main config. Manually start/restart syslog-ng to activate.');
+      notice=tr('Настройки сохранены. Теперь нажмите «Начать сбор» либо «Перезапустить», если служба уже работает.','Settings saved. Select Start collecting or Restart if the service is already running.');
       dirty=false;acceptAdoption=false;plan=null;
       await refresh({initial:true});
     }catch(e){error=getError(e);}finally{busy='';}
@@ -277,7 +277,7 @@
         <div><small>{tr('Пакет','Package')}</small><strong>{status.installed ? 'syslog-ng '+(status.version||'') : tr('Не установлен','Not installed')}</strong></div>
         <div><small>{tr('Служба','Service')}</small><strong>{status.running ? tr('Работает','Running') : tr('Остановлена','Stopped')}</strong></div>
         <div><small>{tr('Конфигурация','Config')}</small><strong>{status.sidecar_included ? tr('Дополнение RouterForge','RouterForge add-on') : status.managed ? 'RouterForge' : status.config_exists ? tr('Сторонняя','Existing / unmanaged') : tr('Нет','Missing')}</strong></div>
-        <div><small>{tr('Хранилище','Storage')}</small><strong>{status.storage_ready ? 'READY' : 'UNAVAILABLE'}</strong></div>
+        <div><small>{tr('Хранилище','Storage')}</small><strong>{status.storage_ready ? tr('Доступно','Available') : tr('Недоступно','Unavailable')}</strong></div>
       </div>
     {/if}
   </section>
@@ -293,26 +293,27 @@
   {:else if status && draft}
     <section class="panel rf-service-controls">
       <div class="rf-service-row">
-        <div class="rf-service-title"><strong>{tr('Управление службой','Service controls')}</strong><span>{status.service_id||tr('Скрипт службы не обнаружен','Service script not found')}</span></div>
+        <div class="rf-service-title"><strong>{tr('Сбор журналов','Log collection')}</strong><span>{status.service_id||tr('Скрипт службы не обнаружен','Service script not found')}</span></div>
         <div class="rf-service-actions">
           <button class="button" disabled={!!busy||!status.service_id||status.running||!status.sidecar_included||!status.storage_ready} onclick={() => serviceAction('start')}>{tr('Начать сбор','Start collecting')}</button>
           <button class="button" disabled={!!busy||!status.service_id||!status.running||!status.sidecar_included||!status.storage_ready} onclick={() => serviceAction('restart')}>{tr('Перезапустить','Restart')}</button>
           <button class="button" disabled={!!busy||!status.service_id||!status.running} onclick={() => serviceAction('stop')}>{tr('Остановить','Stop')}</button>
         </div>
       </div>
-      <p class="rf-hint">{!status.sidecar_included ? tr('Для начала сбора сначала настройте и сохраните правила ниже. Существующий Syslog не запускается автоматически.','Configure and save the settings below before starting collection. The existing Syslog service is not started automatically.') : !status.storage_ready ? tr('Хранилище недоступно. Сбор нельзя начать до восстановления накопителя.','Storage unavailable. Collection cannot start until the disk is available.') : tr('Сбор включается только вручную. Обновление RouterForge не запускает службу.','Collection starts only when you choose it; RouterForge updates never start the service.')}</p>
+      <p class="rf-hint rf-autostart-hint"><strong>{tr('После перезагрузки:','After reboot:')}</strong> {status.autostart === 'enabled' ? tr('Автозапуск Entware включён. При доступном накопителе служба должна стартовать сама.','Entware autostart is enabled. The service should start if storage is available.') : status.autostart === 'disabled' ? tr('Автозапуск выключен — после перезагрузки потребуется запуск службы.','Autostart is disabled; the service will need to be started after reboot.') : tr('Не удалось определить. Проверьте настройки автозапуска syslog-ng в Entware.','Cannot determine. Check syslog-ng autostart settings in Entware.')}</p>
+      <p class="rf-hint">{!status.sidecar_included ? tr('Сначала сохраните настройки сбора. RouterForge не запустит службу без вашего подтверждения.','Save collection settings first. RouterForge will not start the service without your confirmation.') : !status.storage_ready ? tr('Хранилище недоступно. Сбор нельзя начать до восстановления накопителя.','Storage unavailable. Collection cannot start until the disk is available.') : tr('Первый запуск — по вашему нажатию. При включённом автозапуске Entware служба будет запускаться после перезагрузки.','The initial start is manual. If Entware autostart is enabled, the service will start on reboot.')}</p>
     </section>
 
     <section class="panel rf-syslog-space">
-      <div class="rf-syslog-heading"><div><strong>{tr('Настройка сбора','Collector configuration')}</strong><span>{status.config_path}</span></div><span class="rf-chip">{status.managed?'ROUTERFORGE / SAVED':'EXTERNAL / NOT IMPORTED'}</span></div>
+      <div class="rf-syslog-heading"><div><strong>{tr('Настройка сбора','Collector configuration')}</strong><span>{status.config_path}</span></div><span class="rf-chip">{status.managed?tr('Настройки сохранены','Settings saved'):tr('Текущие настройки syslog-ng','Existing syslog-ng settings')}</span></div>
       {#if status.config_exists}
         <div class="rf-existing-toolbar">
           <div><strong>{tr('Текущая конфигурация syslog-ng','Existing syslog-ng configuration')}</strong><small>{tr('Реальный файл на роутере · только просмотр','Actual router file · read-only')}</small></div>
-          <button class="button" onclick={toggleConfigPreview} disabled={configBusy || !!busy}>{configBusy?'…':configVisible?tr('Скрыть','Hide'):tr('Просмотреть / импортировать для просмотра','View / import read-only')}</button>
+          <button class="button" onclick={toggleConfigPreview} disabled={configBusy || !!busy}>{configBusy?'…':configVisible?tr('Скрыть','Hide'):tr('Посмотреть файл','View configuration')}</button>
         </div>
         {#if configVisible && configPreview}
           <div class="rf-existing-preview">
-            <div class="rf-preview-meta"><span>{configPreview.path} · {configPreview.total_bytes} B · SHA256 {configPreview.sha256.slice(0,12)}…</span><strong>READ ONLY</strong></div>
+            <div class="rf-preview-meta"><span>{configPreview.path} · {configPreview.total_bytes} B · SHA256 {configPreview.sha256.slice(0,12)}…</span><strong>{tr('ТОЛЬКО ЧТЕНИЕ','READ ONLY')}</strong></div>
             <p class="rf-hint">{tr('Показан текст существующего файла без преобразования и записи. Он может содержать пароли и ключи — не публикуй его содержимое.','This is the original file, displayed without conversion or changes. It may contain credentials; do not share it.')}</p>
             {#if configPreview.truncated}<p class="rf-syslog-msg rf-warning">{tr('Показаны первые 64 КиБ. Полный файл не изменён.','Only the first 64 KiB are shown. The original file is unchanged.')}</p>{/if}
             <pre class="rf-config-preview">{configPreview.content}</pre>
@@ -413,8 +414,8 @@
       </div>
       <button type="button" class="button rf-advanced-toggle" onclick={()=>simpleMode=!simpleMode}>{simpleMode?tr('⚙ Дополнительные настройки','⚙ Advanced settings'):tr('Скрыть дополнительные настройки','Hide advanced settings')}</button>
       {#if !simpleMode}
-      <div class="rf-draft-heading"><strong>{tr('Черновик дополнения RouterForge','RouterForge sidecar draft')}</strong><span>{tr('Правила RouterForge сохраняются отдельно: основной конфиг не заменяется, в него однократно добавляется строка подключения.','RouterForge rules are stored separately; the main config is not replaced, only one include directive is added.')}</span></div>
-      <p class="rf-syslog-msg rf-ok">{tr('P45.3: не перезаписываем сторонние правила, не открываем /dev/log повторно, не запускаем службу автоматически.','P45.3: foreign rules are preserved; /dev/log is never opened twice; the service is not started automatically.')}</p>
+      <div class="rf-draft-heading"><strong>{tr('Дополнительные параметры сбора','Advanced collection settings')}</strong><span>{tr('Ваши существующие настройки сохраняются. RouterForge добавляет свои правила отдельным файлом.','Your existing configuration is kept. RouterForge stores its rules in a separate file.')}</span></div>
+      <p class="rf-syslog-msg rf-ok">{tr('Существующие правила не заменяются. RouterForge не занимает повторно системный журнал и не запускает службу без вашего действия.','Existing rules remain intact. RouterForge does not reopen system log inputs or start the service without your action.')}</p>
       <div class="rf-fields">
         <label>{tr('Адрес прослушивания (если создаём свой сетевой источник)','Listen address (new network source only)')}<select bind:value={draft.bind} onchange={mark}><option value="0.0.0.0">0.0.0.0 (LAN)</option><option value="127.0.0.1">127.0.0.1 (local)</option></select></label>
         <label>{tr('Порт','Port')}<input type="number" min="1024" max="65535" bind:value={draft.port} oninput={mark} /></label>
@@ -445,19 +446,19 @@
       <p class="rf-hint">{tr('Доступны отдельный каталог Entware и /opt/mnt/УСТРОЙСТВО/routerforge-syslog. Хранилище должно быть примонтировано; запись во внутреннюю память при исчезновении USB запрещена.','Use the dedicated Entware directory or /opt/mnt/DEVICE/routerforge-syslog. Storage must be mounted; no fallback writes to internal flash.')}</p>
       {#if !status.storage_ready}<p class="rf-syslog-msg rf-warning">{status.storage_error || tr('Накопитель недоступен','Storage unavailable')}</p>{/if}
       {/if}
-      <div class="rf-actions"><button class="button primary" onclick={prepare} disabled={!!busy||planBusy||!status.binary_ready||!draft.root||!selectedStorage}>{planBusy?'…':tr('Предпросмотр и проверка плана','Preview & preflight')}</button></div>
+      <div class="rf-actions"><button class="button primary" onclick={prepare} disabled={!!busy||planBusy||!status.binary_ready||!draft.root||!selectedStorage}>{planBusy?'…':tr('Проверить настройки','Check settings')}</button></div>
       {#if plan}
         <div class="rf-plan">
-          <strong>{tr('Готово к сохранению — служба не запускается','Ready to save — service is not started')}</strong>
-          <p>{tr('Основной файл:','Main config:')} <b>{plan.parent_action==='unchanged'?tr('не изменится','unchanged'):tr('добавится безопасное подключение дополнения','a safe add-on include is added')}</b></p>
+          <strong>{tr('Настройки готовы — запуск отдельно','Settings ready — start separately')}</strong>
+          <p>{tr('Текущие настройки:','Existing settings:')} <b>{plan.parent_action==='unchanged'?tr('не изменится','unchanged'):tr('будет добавлено подключение правил RouterForge','RouterForge rules will be included')}</b></p>
           {#if !simpleMode}<p class="mono">{plan.include_line}</p>{/if}
-          <p>{tr('Отдельный файл RouterForge:','Separate RouterForge file:')} <span class="mono">{plan.sidecar_path}</span></p>
+          <p>{tr('Файл правил RouterForge:','RouterForge rules file:')} <span class="mono">{plan.sidecar_path}</span></p>
           {#if !simpleMode}<pre class="rf-config-preview">{plan.sidecar_content}</pre>{/if}
-          <label class="rf-danger"><input type="checkbox" bind:checked={acceptAdoption}/> {tr('Я проверил план и разрешаю добавить только дополнение RouterForge; основную конфигурацию не заменять.','I reviewed the plan and approve only the RouterForge sidecar; do not replace the main config.')}</label>
-          <button class="button primary" onclick={apply} disabled={!!busy||!acceptAdoption}>{busy==='apply'?'…':tr('Проверить синтаксис и сохранить дополнение','Validate syntax & save sidecar')}</button>
+          <label class="rf-danger"><input type="checkbox" bind:checked={acceptAdoption}/> {tr('Подтверждаю сохранение новых правил без замены существующих настроек.','I approve saving these rules without replacing my existing configuration.')}</label>
+          <button class="button primary" onclick={apply} disabled={!!busy||!acceptAdoption}>{busy==='apply'?'…':tr('Проверить и сохранить','Validate and save')}</button>
         </div>
       {/if}
-      <p class="rf-hint">{tr('При сохранении проверяется полный кандидат через syslog-ng -s, создаются резервные копии и публикуется только дополнение и строка подключения. Применение — только после ручного START/RESTART.','On save, full candidate syntax is checked with syslog-ng -s, backups are created, and only the sidecar and include directive are published. Activation requires manual START/RESTART.')}</p>
+      <p class="rf-hint">{tr('Перед сохранением настройки проверяются, а исходный файл резервируется. Чтобы новые правила заработали, запустите или перезапустите службу один раз.','Settings are validated and the original config is backed up. Start or restart the service once to activate new rules.')}</p>
     </section>
 
     {#if status.managed}

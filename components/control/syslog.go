@@ -179,6 +179,48 @@ func rfSyslogBinary() string {
 	}
 	return ""
 }
+
+// Autostart is an Entware init-script property, distinct from the running process.
+// An unknown result must never be displayed as an enabled service.
+var rfSyslogEnabledRE = regexp.MustCompile(`(?i)^ENABLED\s*=\s*['"]?(yes|no|true|false|1|0)['"]?$`)
+
+func rfSyslogAutostartFromScript(serviceID string, script []byte) string {
+	if serviceID == "" {
+		return "unknown"
+	}
+	if !strings.HasPrefix(serviceID, "S") {
+		return "disabled"
+	}
+	for _, line := range strings.Split(string(script), "\n") {
+		line = strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
+		match := rfSyslogEnabledRE.FindStringSubmatch(line)
+		if len(match) != 2 {
+			continue
+		}
+		switch strings.ToLower(match[1]) {
+		case "yes", "true", "1":
+			return "enabled"
+		case "no", "false", "0":
+			return "disabled"
+		}
+	}
+	return "unknown"
+}
+func rfSyslogAutostartStatus(serviceID string) string {
+	if serviceID == "" {
+		return "unknown"
+	}
+	path := filepath.Join("/opt/etc/init.d", serviceID)
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 32*1024 || info.Mode().Perm()&0111 == 0 {
+		return "unknown"
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "unknown"
+	}
+	return rfSyslogAutostartFromScript(serviceID, data)
+}
 func rfSyslogStatus(w http.ResponseWriter, r *http.Request) {
 	present, version := rfSyslogPackage()
 	service, running := rfSyslogService()
@@ -194,7 +236,7 @@ func rfSyslogStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	rootReady, reason := rfSyslogStorageReady(s.Root)
 	sidecar, _ := rfSyslogReadSidecar()
-	writeJSON(w, 200, map[string]any{"installed": present, "version": version, "binary_ready": rfSyslogBinary() != "", "service_id": service, "running": running,
+	writeJSON(w, 200, map[string]any{"installed": present, "version": version, "binary_ready": rfSyslogBinary() != "", "service_id": service, "running": running, "autostart": rfSyslogAutostartStatus(service),
 		"config_exists": len(raw) > 0, "managed": managed, "config_sha256": rfSyslogHash(raw), "config_path": rfSyslogConfig,
 		"settings": s, "settings_error": rfSyslogErr(metaErr), "storage_ready": rootReady, "storage_error": reason,
 		"requires_adoption": false, "managed_root": s.Root, "mutation_api": true,

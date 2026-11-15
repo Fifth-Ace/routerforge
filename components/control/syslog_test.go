@@ -222,3 +222,38 @@ func TestP454LogFilenameSecurity(t *testing.T) {
 		}
 	}
 }
+
+// Changing user-facing release labels must not orphan pre-existing sidecar configs.
+func TestSyslogVersionlessMarkerAndLegacyCompatibility(t *testing.T) {
+	if strings.Contains(rfSyslogSidecarMarker, "P45") {
+		t.Fatal("release label leaked into generated config")
+	}
+	for _, marker := range []string{rfSyslogSidecarMarker, rfSyslogLegacySidecarMarker} {
+		if !rfSyslogManagedSidecar([]byte(marker + "\nsource example { internal(); };\n")) {
+			t.Fatalf("owned sidecar rejected: %q", marker)
+		}
+	}
+	if rfSyslogManagedSidecar([]byte("# THIRD PARTY\n")) {
+		t.Fatal("foreign sidecar accepted")
+	}
+	s := rfSyslogDefaults()
+	if !strings.HasPrefix(rfSyslogSnippet(s), rfSyslogSidecarMarker+"\n") {
+		t.Fatal("new marker not emitted")
+	}
+}
+
+func TestSyslogInitAutostartStatus(t *testing.T) {
+	cases := []struct{ id, script, want string }{
+		{"S01syslog-ng", "#!/bin/sh\nENABLED=yes\n. /opt/etc/init.d/rc.func", "enabled"},
+		{"S01syslog-ng", "ENABLED='no' # disabled\n", "disabled"},
+		{"S01syslog-ng", "ENABLED=true\n", "enabled"},
+		{"S01syslog-ng", "#!/bin/sh\n# ENABLED=yes\n", "unknown"},
+		{"K01syslog-ng", "ENABLED=yes\n", "disabled"},
+		{"", "ENABLED=yes\n", "unknown"},
+	}
+	for _, c := range cases {
+		if got := rfSyslogAutostartFromScript(c.id, []byte(c.script)); got != c.want {
+			t.Errorf("%s: got %s want %s", c.id, got, c.want)
+		}
+	}
+}

@@ -23,9 +23,10 @@ import (
 )
 
 const (
-	rfSyslogSidecarPath   = "/opt/etc/routerforge/syslog.d/routerforge.conf"
-	rfSyslogIncludeLine   = `@include "/opt/etc/routerforge/syslog.d/routerforge.conf"`
-	rfSyslogSidecarMarker = "# ROUTERFORGE SYSLOG SIDECAR P45.3 - DO NOT EDIT BY HAND"
+	rfSyslogSidecarPath         = "/opt/etc/routerforge/syslog.d/routerforge.conf"
+	rfSyslogIncludeLine         = `@include "/opt/etc/routerforge/syslog.d/routerforge.conf"`
+	rfSyslogSidecarMarker       = "# ROUTERFORGE SYSLOG CONFIG - MANAGED FILE"
+	rfSyslogLegacySidecarMarker = "# ROUTERFORGE SYSLOG SIDECAR P45.3 - DO NOT EDIT BY HAND"
 )
 
 var rfSyslogSourcesRE = regexp.MustCompile(`(?m)^\s*source\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{`)
@@ -47,12 +48,17 @@ func rfSyslogReadSidecar() ([]byte, error) {
 	}
 	return os.ReadFile(rfSyslogSidecarPath)
 }
+
+// Old syslog-ng sidecars remain recognized; a save writes the versionless marker.
+func rfSyslogManagedSidecar(raw []byte) bool {
+	return bytes.HasPrefix(raw, []byte(rfSyslogSidecarMarker+"\n")) || bytes.HasPrefix(raw, []byte(rfSyslogLegacySidecarMarker+"\n"))
+}
 func rfSyslogSidecarAttached(parent []byte) bool {
 	if bytes.Count(parent, []byte(rfSyslogIncludeLine)) != 1 {
 		return false
 	}
 	side, err := rfSyslogReadSidecar()
-	return err == nil && bytes.HasPrefix(side, []byte(rfSyslogSidecarMarker+"\n"))
+	return err == nil && rfSyslogManagedSidecar(side)
 }
 func rfSyslogSources(parent []byte) []string {
 	clean := rfSyslogStripComments(string(parent))
@@ -147,7 +153,7 @@ func rfSyslogPreflight(s rfSyslogSettings, parent, existing []byte) (string, []b
 	if parent == nil {
 		return "", nil, "", errors.New("main syslog-ng.conf does not exist; install/configure syslog-ng first")
 	}
-	if len(existing) > 0 && !bytes.HasPrefix(existing, []byte(rfSyslogSidecarMarker+"\n")) {
+	if len(existing) > 0 && !rfSyslogManagedSidecar(existing) {
 		return "", nil, "", errors.New("existing sidecar belongs to another application; refusing overwrite")
 	}
 	if rfSyslogOwned(parent) {

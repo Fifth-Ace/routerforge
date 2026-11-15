@@ -123,7 +123,9 @@ func (x *XTables) Run(ctx context.Context, name string, args ...string) (string,
 			continue
 		}
 		if !iptables || !lockContention(err, output) {
-			return output, err
+			// Model and platform executors may return command output separately
+			// from the exit error. Preserve both for strict transient classification.
+			return output, fmt.Errorf("%s [%s]: %w: %s", name, strings.Join(argv, " "), err, strings.TrimSpace(output))
 		}
 		if attempt < 2 {
 			delay := x.Delay

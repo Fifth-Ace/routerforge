@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Fifth-Ace/routerforge/internal/safety"
@@ -136,15 +135,6 @@ func doctorMountFlags() map[string]bool {
 		result[mount] = ro
 	}
 	return result
-}
-func doctorFSInodes(path string) (*uint64, *uint64) {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		return nil, nil
-	}
-	total := uint64(stat.Files)
-	free := uint64(stat.Ffree)
-	return &free, &total
 }
 func doctorDiskID(name string) string {
 	// A real hardware identifier wins; fallback is explicitly non-stable.

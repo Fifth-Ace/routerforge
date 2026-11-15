@@ -66,6 +66,21 @@
     }catch(e){smbError=e.message;}
     finally{smbBusy=false;}
   }
+  async function installSMBClient() {
+    if (smbBusy || busy || smb?.client_ready) return;
+    smbBusy=true; smbError=''; notice='';
+    try {
+      const p=await preflightEntwarePackage('cifsmount','install');
+      if(!p.allowed) throw new Error(p.reason || tr('Установка CIFS-клиента недоступна через App Center.','The CIFS client cannot be installed through App Center.'));
+      if(!confirm(tr('Установить CIFS-клиент cifsmount из Entware? Это изменит установленные пакеты, но не подключит NAS и не перезапустит Syslog.','Install the Entware cifsmount package? This changes installed packages but will not mount NAS or restart Syslog.')))return;
+      const result=await entwarePackageAction('cifsmount','install');
+      if(!result.installed) throw new Error(tr('Установка не подтверждена App Center.','App Center did not confirm installation.'));
+      await loadSMB();
+      notice=smb?.client_ready
+        ? tr('CIFS-клиент установлен. Теперь можно настроить NAS.','CIFS client installed. You can now configure NAS.')
+        : tr('Пакет установлен, но mount.cifs пока не найден. Проверь поддержку на странице App Center.','Package installed, but mount.cifs is still missing. Check App Center.');
+    }catch(e){smbError=getError(e);}finally{smbBusy=false;}
+  }
   async function smbDisconnect() {
     if(smbBusy || !confirm(tr('Отключить SMB-папку? Сначала останови Syslog, если он записывает сюда.','Disconnect SMB share? Stop Syslog first if it writes here.')))return;
     smbBusy=true;smbError='';
@@ -78,6 +93,8 @@
     finally{smbBusy=false;}
   }
   $: availableStorage = (status?.storage_options || []).filter((item) => item.kind === storageKind);
+  $: hasSeparateEntware = (status?.storage_options || []).some((item) => item.kind === 'local');
+  $: entwareOnUSB = (status?.storage_options || []).some((item) => item.kind === 'usb' && item.root === '/opt/var/log/routerforge-syslog');
   $: selectedStorage = (status?.storage_options || []).find((item) => item.root === draft?.root);
   $: namedDevices = Object.entries(draft?.device_names || {}).sort((a,b) => a[0].localeCompare(b[0]));
   $: networkSources = (status?.source_details || []).filter((entry) => entry.kind === 'network');
@@ -146,6 +163,12 @@
         if(!firstLoadDone) {
           const currentKind=(current.storage_options||[]).find(v=>v.root===draft.root)?.kind;
           storageKind=currentKind || (draft.root.startsWith('/opt/mnt/') ? 'usb' : 'local');
+          // First-run only: prefer the detected Entware USB if the previous
+          // default points nowhere. Never silently migrate saved sidecars.
+          if(!currentKind && !current.sidecar_included) {
+            const firstUSB=(current.storage_options||[]).find(v=>v.kind==='usb');
+            if(firstUSB){storageKind='usb';draft.root=firstUSB.root;}
+          }
           firstLoadDone=true;
         }
         sourceChoice();
@@ -272,12 +295,12 @@
       <div class="rf-service-row">
         <div class="rf-service-title"><strong>{tr('Управление службой','Service controls')}</strong><span>{status.service_id||tr('Скрипт службы не обнаружен','Service script not found')}</span></div>
         <div class="rf-service-actions">
-          <button class="button" disabled={!!busy||!status.service_id||status.running} onclick={() => serviceAction('start')}>START</button>
-          <button class="button" disabled={!!busy||!status.service_id} onclick={() => serviceAction('restart')}>RESTART</button>
-          <button class="button" disabled={!!busy||!status.service_id||!status.running} onclick={() => serviceAction('stop')}>STOP</button>
+          <button class="button" disabled={!!busy||!status.service_id||status.running||!status.sidecar_included||!status.storage_ready} onclick={() => serviceAction('start')}>{tr('Начать сбор','Start collecting')}</button>
+          <button class="button" disabled={!!busy||!status.service_id||!status.running||!status.sidecar_included||!status.storage_ready} onclick={() => serviceAction('restart')}>{tr('Перезапустить','Restart')}</button>
+          <button class="button" disabled={!!busy||!status.service_id||!status.running} onclick={() => serviceAction('stop')}>{tr('Остановить','Stop')}</button>
         </div>
       </div>
-      <p class="rf-hint">{tr('Все действия выполняются только по нажатию. Обновление RouterForge не включает сбор автоматически.','All actions require explicit confirmation. RouterForge upgrades never enable collection.')}</p>
+      <p class="rf-hint">{!status.sidecar_included ? tr('Для начала сбора сначала настройте и сохраните правила ниже. Существующий Syslog не запускается автоматически.','Configure and save the settings below before starting collection. The existing Syslog service is not started automatically.') : !status.storage_ready ? tr('Хранилище недоступно. Сбор нельзя начать до восстановления накопителя.','Storage unavailable. Collection cannot start until the disk is available.') : tr('Сбор включается только вручную. Обновление RouterForge не запускает службу.','Collection starts only when you choose it; RouterForge updates never start the service.')}</p>
     </section>
 
     <section class="panel rf-syslog-space">
@@ -305,7 +328,7 @@
           <div class="rf-radio-pills" role="group" aria-label={tr('Тип хранилища','Storage type')}>
             <button type="button" class:chosen={storageKind==='usb'} onclick={()=>changeStorage('usb')}>{tr('USB','USB')}</button>
             <button type="button" class:chosen={storageKind==='smb'} onclick={()=>changeStorage('smb')}>SMB / NAS</button>
-            <button type="button" class:chosen={storageKind==='local'} onclick={()=>changeStorage('local')}>Entware</button>
+            {#if hasSeparateEntware}<button type="button" class:chosen={storageKind==='local'} onclick={()=>changeStorage('local')}>{tr('Другое хранилище Entware','Other Entware storage')}</button>{/if}
           </div>
           {#if availableStorage.length}
             <label class="rf-block">{tr('Накопитель','Storage')}
@@ -314,6 +337,12 @@
                 {#if draft.root && !availableStorage.some(o=>o.root===draft.root)}<option value={draft.root}>{draft.root} ({tr('недоступно','unavailable')})</option>{/if}
               </select>
             </label>
+            {#if selectedStorage}
+              <p class="rf-hint">{tr('Каталог журналов:','Log folder:')} <code>{selectedStorage.root}</code>{selectedStorage.free_bytes > 0 ? ` · ${(selectedStorage.free_bytes/1073741824).toFixed(1)} ${tr('ГБ свободно','GB free')}` : ''}</p>
+              {#if storageKind==='usb' && entwareOnUSB && selectedStorage.root === '/opt/var/log/routerforge-syslog'}
+                <p class="rf-syslog-msg rf-ok">{tr('Это ваша флешка с Entware. Дополнительный USB-накопитель не требуется.','This is your Entware USB drive. No additional USB disk is needed.')}</p>
+              {/if}
+            {/if}
           {:else if storageKind !== 'smb'}
             <div class="rf-syslog-msg rf-warning">{tr('Подходящие накопители не обнаружены. Проверь подключение и нажми «Обновить».','No suitable mounted storage. Connect a disk and refresh.')}</div>
           {/if}
@@ -326,8 +355,14 @@
                 <div class="rf-actions"><button type="button" class="button" onclick={smbDisconnect} disabled={smbBusy}>{tr('Отключить SMB','Disconnect SMB')}</button></div>
               {:else}
                 {#if smb && (!smb.client_ready || !smb.kernel_ready)}
-                  <div class="rf-syslog-msg rf-warning">{!smb.client_ready ? tr('Не найден CIFS-клиент (mount.cifs). Для подключения требуется совместимый пакет Entware.','CIFS client (mount.cifs) missing. Compatible Entware package is required.') : tr('KeeneticOS не предоставляет поддержку файловой системы CIFS. Пока выбери USB.','KeeneticOS lacks the CIFS filesystem driver. Use USB instead.')}</div>
-                  {#if !smb.client_ready}<a href="/apps">{tr('Открыть App Center · пакет cifsmount','Open App Center · cifsmount package')}</a>{/if}
+                  <div class="rf-syslog-msg rf-warning">{!smb.client_ready ? tr('Не установлен SMB-клиент (mount.cifs).','SMB client (mount.cifs) is missing.') : tr('CIFS-клиент установлен.','CIFS client installed.')} {smb.kernel_ready ? '' : tr('Поддержка CIFS в ядре KeeneticOS не подтверждена; установка пакета Entware сама по себе её не добавит.','CIFS kernel support is not detected; installing an Entware package alone cannot provide it.')}</div>
+                  {#if !smb.client_ready}
+                    <div class="rf-actions">
+                      <button type="button" class="button primary" onclick={installSMBClient} disabled={smbBusy || !!busy}>{smbBusy?'…':tr('Установить поддержку SMB','Install SMB client')}</button>
+                      <a href="/apps">{tr('Открыть App Center','Open App Center')}</a>
+                    </div>
+                    <p class="rf-hint">{tr('Установка cifsmount — только с вашего согласия. Она не добавляет отсутствующий драйвер CIFS в прошивку KeeneticOS.','Installing cifsmount requires your consent; it cannot add a missing CIFS kernel driver to KeeneticOS.')}</p>
+                  {/if}
                 {/if}
                 <p class="rf-hint">{tr('Укажи адрес NAS, имя сетевой папки и отдельную учётную запись с доступом только к журналам.','Enter NAS address, share name and a dedicated account with log-only permissions.')}</p>
                 <div class="rf-smb-fields">
@@ -358,6 +393,7 @@
             <button type="button" class="button" onclick={addDevice}>{tr('Добавить','Add')}</button>
           </div>
           <p class="rf-hint">{tr('Для головного Keenetic тоже можно добавить имя, например Главный_Keenetic. Устройства без имени сохраняются по IP.','You can name the main Keenetic too. Unnamed devices use their IPs.')}</p>
+          <p class="rf-syslog-msg rf-hint">{tr('Важно: RouterForge принимает журналы, но не включает их отправку на других устройствах. Настройте пересылку Syslog на каждом Keenetic и ретрансляторе:','Important: RouterForge receives logs but does not enable forwarding on other devices. Configure Syslog forwarding on each Keenetic and repeater:')} <strong>{draft.head_ip || '192.168.10.1'}:{draft.port || 514}</strong> (UDP).</p>
         </div>
         <div class="rf-easy-step">
           <div class="rf-step-title"><span class="rf-step-number">3</span><div><strong>{tr('Как часто создавать файлы?','How often to create files?')}</strong><small>{tr('Время нового файла и срок хранения не связаны.','File period and retention are separate settings.')}</small></div></div>
@@ -491,6 +527,9 @@
   .rf-source-inventory>div{display:grid;gap:3px;padding:9px;border:1px solid var(--rf-border,#333);border-radius:6px}
   .rf-source-inventory span{font-size:11px;color:var(--rf-muted,#aaa)}
 
+  .rf-file-example{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;min-width:0}
+  .rf-file-example code{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+  .rf-file-example small{color:var(--rf-muted,#aaa)}
   .rf-easy-shell{display:grid;gap:12px;min-width:0}
   .rf-easy-head{display:grid;gap:4px}.rf-easy-head strong{font-size:15px}.rf-easy-head span{color:var(--rf-muted,#aaa);font-size:12px}
   .rf-easy-step{display:grid;gap:12px;padding:14px;border:1px solid var(--rf-border,#333);border-radius:9px;min-width:0}

@@ -78,3 +78,63 @@ func TestSyslogConfigPreviewBoundedUTF8(t *testing.T) {
 		t.Fatal("zero-length preview must be empty")
 	}
 }
+
+func TestSidecarReusesExistingSourcesAndPreservesParent(t *testing.T) {
+	parent := []byte("@version: current\nsource src { internal(); unix-dgram(\"/dev/log\"); };\nsource repeater { udp(port(514)); };\n")
+	s := rfSyslogDefaults()
+	s.RemoteSource = "repeater"
+	s.Local = true
+	s.LocalSource = "src"
+	s.HeadIP = "192.168.10.1"
+	snippet, updated, action, err := rfSyslogPreflight(s, parent, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if action != "append-include" || !strings.HasPrefix(string(updated), string(parent)) {
+		t.Fatal("foreign config overwritten")
+	}
+	if strings.Contains(snippet, "unix-dgram(") || strings.Contains(snippet, "network(") {
+		t.Fatal("duplicate listener")
+	}
+	for _, needle := range []string{"source(repeater)", "source(src)", "syslog-entware.log", "syslog-192.168.10.1.log", "${YEAR}/${MONTH}/${DAY}", "netmask("} {
+		if !strings.Contains(snippet, needle) {
+			t.Fatalf("missing %q", needle)
+		}
+	}
+	_, updated2, action2, err := rfSyslogPreflight(s, updated, []byte(snippet))
+	if err != nil || action2 != "unchanged" || string(updated2) != string(updated) {
+		t.Fatal("include insertion must be idempotent", err)
+	}
+}
+func TestSidecarRefusesNetworkListenerCollision(t *testing.T) {
+	s := rfSyslogDefaults()
+	parent := []byte("@version: current\nsource existing { udp(port(514)); };\n")
+	_, _, _, err := rfSyslogPreflight(s, parent, nil)
+	if err == nil {
+		t.Fatal("double UDP listener allowed")
+	}
+	s.RemoteSource = "existing"
+	_, _, _, err = rfSyslogPreflight(s, parent, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+func TestSidecarRejectsForeignSidecarAndBadLocalSource(t *testing.T) {
+	s := rfSyslogDefaults()
+	s.RemoteSource = "foo"
+	_, _, _, err := rfSyslogPreflight(s, []byte("@version: current\n"), nil)
+	if err == nil {
+		t.Fatal("missing existing source allowed")
+	}
+	s.RemoteSource = ""
+	s.Local = true
+	s.LocalSource = ""
+	if rfSyslogValidate(s) == nil {
+		t.Fatal("unbound local source allowed")
+	}
+	s.LocalSource = "src"
+	_, _, _, err = rfSyslogPreflight(s, []byte("@version: current\nsource src { internal(); };\n"), []byte("# foreign"))
+	if err == nil {
+		t.Fatal("foreign sidecar overwrite allowed")
+	}
+}

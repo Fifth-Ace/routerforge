@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import {
     getRouterforgeSyslogStatus, getRouterforgeSyslogConfig, getRouterforgeSyslogFiles, getRouterforgeSyslogTail,
+    planRouterforgeSyslog, getRouterforgeSyslogSummary,
     applyRouterforgeSyslog, routerforgeSyslogExportURL, entwarePackageAction,
     preflightEntwarePackage, adminServiceAction
   } from '$lib/api.js';
@@ -17,6 +18,9 @@
   let error = '';
   let notice = '';
   let acceptAdoption = false;
+  let plan = null;
+  let planBusy = false;
+  let summary = null;
   let dirty = false;
   let periodic = null;
   let loadEpoch = 0;
@@ -39,15 +43,17 @@
         configVisible = false;
       }
       if (initial || !dirty) draft = structuredClone(current.settings);
+      if(plan && (plan.parent_sha256!==current.config_sha256 || plan.sidecar_sha256!==current.sidecar_sha256)){plan=null;acceptAdoption=false;}
       if (current.installed && current.managed) {
         const list = await getRouterforgeSyslogFiles();
         if (epoch !== loadEpoch) return;
         files = list.files || [];
+        try {summary=await getRouterforgeSyslogSummary();}catch(_){summary=null;}
         if (!chosen || !files.some((f) => f.date === chosen.date && f.source === chosen.source)) {
           chosen = files[0] || null;
           await reloadTail();
         }
-      } else { files=[];chosen=null;lines=[]; }
+      } else { files=[];chosen=null;lines=[];summary=null; }
       error='';
     } catch (e) { if (epoch === loadEpoch) error = getError(e); }
   }
@@ -59,7 +65,7 @@
     catch(e){if(epoch===tailEpoch) error=getError(e);}
   }
   function selectFile(file) { chosen=file; void reloadTail(); }
-  function mark() {dirty=true;}
+  function mark() {dirty=true;plan=null;acceptAdoption=false;}
   async function toggleConfigPreview() {
     if (configVisible) { configVisible=false; return; }
     if (!status?.config_exists || configBusy) return;
@@ -90,18 +96,26 @@
       await refresh({initial:true});
     } catch(e){error=getError(e);} finally{busy='';}
   }
+  async function prepare() {
+    if(!draft || busy || !status) return;
+    planBusy=true;error='';notice='';plan=null;acceptAdoption=false;
+    try {
+      const p=await planRouterforgeSyslog({settings:draft});
+      if(p.parent_sha256!==status.config_sha256){throw new Error(tr('Основной конфиг изменился: обнови состояние.','Main config changed: refresh status.'));}
+      plan=p;
+      notice=tr('План готов. Прочитай изменения и подтверди их отдельно.','Plan ready. Review and confirm separately.');
+    }catch(e){error=getError(e);}finally{planBusy=false;}
+  }
   async function apply() {
-    if (!draft || busy || !status) return;
-    if (status.requires_adoption && !acceptAdoption) {error=tr('Сначала разреши принятие существующей конфигурации.','Explicit adoption is required.');return;}
-    if (draft.local && !acceptAdoption) {error=tr('Для /dev/log требуется отдельное подтверждение.','Explicit /dev/log opt-in required.');return;}
-    if (!confirm(tr('Применить конфигурацию syslog-ng? Существующая будет сохранена в резервную копию. Служба НЕ перезапускается.','Apply syslog-ng config? Existing config will be backed up. Service will NOT restart.'))) return;
+    if (!draft || busy || !status || !plan || !acceptAdoption) return;
+    if(!confirm(tr('Подключить отдельный файл RouterForge к существующему syslog-ng.conf? Резервные копии создаются автоматически. НИ ОДНА служба не запускается.','Attach a separate RouterForge config to the existing syslog-ng.conf? Backups are automatic. No services will be started.'))) return;
     busy='apply';error='';notice='';
     try {
-      const result=await applyRouterforgeSyslog({settings:draft,expected_sha256:status.config_sha256,adopt_existing:acceptAdoption,confirm:'APPLY SYSLOG'});
-      notice=tr('Настройки сохранены. Для активации вручную перезапусти службу. Резервная копия: ','Saved. Restart service manually to activate. Backup: ')+(result.backup||'—');
-      dirty=false;acceptAdoption=false;
+      const result=await applyRouterforgeSyslog({settings:draft,expected_sha256:plan.parent_sha256,expected_sidecar_sha256:plan.sidecar_sha256,plan_sha256:plan.plan_sha256,confirm:'APPLY SYSLOG SIDECAR'});
+      notice=tr('Дополнение сохранено без замены основного конфига. Для активации вручную запусти/перезапусти syslog-ng.','Add-on saved without replacing the main config. Manually start/restart syslog-ng to activate.');
+      dirty=false;acceptAdoption=false;plan=null;
       await refresh({initial:true});
-    } catch(e){error=getError(e);} finally{busy='';}
+    }catch(e){error=getError(e);}finally{busy='';}
   }
   async function serviceAction(action) {
     if (busy || !status?.service_id) return;
@@ -131,7 +145,7 @@
       <div class="rf-syslog-status">
         <div><small>{tr('Пакет','Package')}</small><strong>{status.installed ? 'syslog-ng '+(status.version||'') : tr('Не установлен','Not installed')}</strong></div>
         <div><small>{tr('Служба','Service')}</small><strong>{status.running ? tr('Работает','Running') : tr('Остановлена','Stopped')}</strong></div>
-        <div><small>{tr('Конфигурация','Config')}</small><strong>{status.managed ? 'RouterForge' : status.config_exists ? tr('Сторонняя','Existing / unmanaged') : tr('Нет','Missing')}</strong></div>
+        <div><small>{tr('Конфигурация','Config')}</small><strong>{status.sidecar_included ? tr('Дополнение RouterForge','RouterForge add-on') : status.managed ? 'RouterForge' : status.config_exists ? tr('Сторонняя','Existing / unmanaged') : tr('Нет','Missing')}</strong></div>
         <div><small>{tr('Хранилище','Storage')}</small><strong>{status.storage_ready ? 'READY' : 'UNAVAILABLE'}</strong></div>
       </div>
     {/if}
@@ -176,12 +190,10 @@
       {:else}
         <p class="rf-hint">{tr('Файл syslog-ng.conf отсутствует.','No syslog-ng.conf exists yet.')}</p>
       {/if}
-      <div class="rf-draft-heading"><strong>{tr('Черновик настроек RouterForge','RouterForge settings draft')}</strong><span>{status.managed?tr('Значения последнего сохранения; активируются после перезапуска syslog-ng.','Last saved values; require syslog-ng restart to take effect.'):tr('Значения ниже — предлагаемые по умолчанию, НЕ параметры существующего syslog-ng.conf.','Values below are proposed defaults, NOT parsed from the existing syslog-ng.conf.')}</span></div>
-      {#if status.requires_adoption}
-        <p class="rf-syslog-msg rf-warning">{tr('Существующий syslog-ng.conf не импортируется в поля ниже и не меняется при просмотре. «Проверить и сохранить» ЗАМЕНИТ его новым конфигом после явного согласия и резервного копирования.','The existing syslog-ng.conf is not parsed into the fields below and remains untouched when viewed. Validate & save will REPLACE it after explicit consent and a backup.')}</p>
-      {/if}
+      <div class="rf-draft-heading"><strong>{tr('Черновик дополнения RouterForge','RouterForge sidecar draft')}</strong><span>{tr('Правила RouterForge сохраняются отдельно: основной конфиг не заменяется, в него однократно добавляется строка подключения.','RouterForge rules are stored separately; the main config is not replaced, only one include directive is added.')}</span></div>
+      <p class="rf-syslog-msg rf-ok">{tr('P45.3: не перезаписываем сторонние правила, не открываем /dev/log повторно, не запускаем службу автоматически.','P45.3: foreign rules are preserved; /dev/log is never opened twice; the service is not started automatically.')}</p>
       <div class="rf-fields">
-        <label>{tr('Адрес прослушивания','Listen address')}<select bind:value={draft.bind} onchange={mark}><option value="0.0.0.0">0.0.0.0 (LAN)</option><option value="127.0.0.1">127.0.0.1 (local)</option></select></label>
+        <label>{tr('Адрес прослушивания (если создаём свой сетевой источник)','Listen address (new network source only)')}<select bind:value={draft.bind} onchange={mark}><option value="0.0.0.0">0.0.0.0 (LAN)</option><option value="127.0.0.1">127.0.0.1 (local)</option></select></label>
         <label>{tr('Порт','Port')}<input type="number" min="1024" max="65535" bind:value={draft.port} oninput={mark} /></label>
         <label>{tr('Хранение, дней','Retention, days')}<input type="number" min="1" max="365" bind:value={draft.keep_days} oninput={mark} /></label>
         <label>{tr('Общий лимит, МБ','Total limit, MB')}<input type="number" min="10" max="10240" bind:value={draft.max_mb} oninput={mark} /></label>
@@ -189,24 +201,58 @@
       <div class="rf-checks">
         <label><input type="checkbox" bind:checked={draft.udp} onchange={mark}/> UDP</label>
         <label><input type="checkbox" bind:checked={draft.tcp} onchange={mark}/> TCP</label>
-        <label><input type="checkbox" bind:checked={draft.local} onchange={mark}/> {tr('Локальные события /dev/log (риск конфликта)','Local /dev/log (conflict risk)')}</label>
+        <label><input type="checkbox" bind:checked={draft.local} onchange={mark}/> {tr('Локальные события через существующий источник','Local events via existing source')}</label>
       </div>
+      <div class="rf-fields rf-source-fields">
+        <label>{tr('Сетевой источник из существующего конфига','Existing remote source')}
+          <select bind:value={draft.remote_source} onchange={mark}><option value="">{tr('Создать новый (если нет конфликтов)','Create new (if conflict-free)')}</option>{#each status.source_names||[] as name}<option value={name}>{name}</option>{/each}</select>
+        </label>
+        <label>{tr('Локальный источник Entware / Keenetic','Existing local source')}
+          <select bind:value={draft.local_source} onchange={mark}><option value="">{tr('Не выбран','Not selected')}</option>{#each status.source_names||[] as name}<option value={name}>{name}</option>{/each}</select>
+        </label>
+        <label>{tr('IPv4 головного Keenetic','Main Keenetic IPv4')}
+          <input bind:value={draft.head_ip} oninput={mark} placeholder="192.168.10.1" />
+        </label>
+      </div>
+      <p class="rf-hint">{tr('Существующие источники переиспользуются без второго прослушивания порта или /dev/log. Если источник принимает сообщения уже сейчас, RouterForge только добавляет маршруты записи.','Existing sources are reused without binding the port or /dev/log a second time. RouterForge adds destinations for received messages.')}</p>
       <label class="rf-block">{tr('Разрешённые сети (IPv4 CIDR, через запятую)','Allowed networks (IPv4 CIDRs, comma separated)')}
         <input value={draft.allowed.join(', ')} oninput={(e)=>{draft.allowed=e.currentTarget.value.split(',').map(x=>x.trim()).filter(Boolean);mark();}} placeholder="192.168.0.0/16, 10.0.0.0/8" />
       </label>
       <label class="rf-block">{tr('Каталог журналов','Log directory')}<input bind:value={draft.root} oninput={mark} placeholder="/opt/var/log/routerforge-syslog" /></label>
       <p class="rf-hint">{tr('Доступны отдельный каталог Entware и /opt/mnt/УСТРОЙСТВО/routerforge-syslog. Хранилище должно быть примонтировано; запись во внутреннюю память при исчезновении USB запрещена.','Use the dedicated Entware directory or /opt/mnt/DEVICE/routerforge-syslog. Storage must be mounted; no fallback writes to internal flash.')}</p>
       {#if !status.storage_ready}<p class="rf-syslog-msg rf-warning">{status.storage_error || tr('Накопитель недоступен','Storage unavailable')}</p>{/if}
-      {#if status.requires_adoption || draft.local}
-        <label class="rf-danger"><input type="checkbox" bind:checked={acceptAdoption}/> {tr('Я разрешаю принять/заменить конфигурацию и понимаю возможный конфликт /dev/log','I explicitly authorize adoption / replacement and understand /dev/log conflicts')}</label>
+      <div class="rf-actions"><button class="button primary" onclick={prepare} disabled={!!busy||planBusy||!status.binary_ready}>{planBusy?'…':tr('Предпросмотр и проверка плана','Preview & preflight')}</button></div>
+      {#if plan}
+        <div class="rf-plan">
+          <strong>{tr('ПЛАН ИЗМЕНЕНИЙ — служба не трогается','CHANGE PLAN — service untouched')}</strong>
+          <p>{tr('Основной файл:','Main config:')} <b>{plan.parent_action==='unchanged'?tr('не изменится','unchanged'):tr('только добавление @include','append @include only')}</b></p>
+          <p class="mono">{plan.include_line}</p>
+          <p>{tr('Отдельный файл RouterForge:','Separate RouterForge file:')} <span class="mono">{plan.sidecar_path}</span></p>
+          <pre class="rf-config-preview">{plan.sidecar_content}</pre>
+          <label class="rf-danger"><input type="checkbox" bind:checked={acceptAdoption}/> {tr('Я проверил план и разрешаю добавить только дополнение RouterForge; основную конфигурацию не заменять.','I reviewed the plan and approve only the RouterForge sidecar; do not replace the main config.')}</label>
+          <button class="button primary" onclick={apply} disabled={!!busy||!acceptAdoption}>{busy==='apply'?'…':tr('Проверить синтаксис и сохранить дополнение','Validate syntax & save sidecar')}</button>
+        </div>
       {/if}
-      <div class="rf-actions"><button class="button primary" onclick={apply} disabled={!!busy||!status.binary_ready||!dirty||(status.requires_adoption&&!acceptAdoption)||(draft.local&&!acceptAdoption)}>{busy==='apply'?'…':tr('Проверить и сохранить','Validate & save')}</button></div>
-      <p class="rf-hint">{tr('Синтаксис проверяется бинарником syslog-ng. Конфиг публикуется атомарно, служба не перезапускается. Для применения нажми RESTART отдельно.','The syslog-ng binary validates syntax. Atomic publish; service restart is a separate action.')}</p>
+      <p class="rf-hint">{tr('При сохранении проверяется полный кандидат через syslog-ng -s, создаются резервные копии и публикуется только дополнение и строка подключения. Применение — только после ручного START/RESTART.','On save, full candidate syntax is checked with syslog-ng -s, backups are created, and only the sidecar and include directive are published. Activation requires manual START/RESTART.')}</p>
     </section>
 
     {#if status.managed}
       <section class="panel rf-syslog-space">
-        <div class="rf-syslog-heading"><div><strong>{tr('Журналы','Journals')}</strong><span>{files.length} {tr('файлов (последние 250)','files (latest 250)')}</span></div><button class="button" onclick={() => refresh()} disabled={!!busy}>↻</button></div>
+        <div class="rf-syslog-heading"><div><strong>{tr('Журналы головного роутера и ретрансляторов','Main router & repeater journals')}</strong><span>{files.length} {tr('файлов (последние 250)','files (latest 250)')}</span></div><button class="button" onclick={() => refresh()} disabled={!!busy}>↻</button></div>
+        {#if summary}
+          <div class="rf-syslog-status rf-inventory">
+            <div><small>{tr('Всего файлов','Total files')}</small><strong>{summary.files}</strong></div>
+            <div><small>{tr('Размер журналов','Log data')}</small><strong>{(summary.total_bytes/1048576).toFixed(1)} MiB</strong></div>
+            <div><small>{tr('Период','Date range')}</small><strong>{summary.oldest_date||'—'} — {summary.latest_date||'—'}</strong></div>
+            <div><small>{tr('Очистка раз в час','Hourly cleanup')}</small><strong>{summary.cleanup_files} {tr('файлов','files')} · {(summary.cleanup_bytes/1048576).toFixed(1)} MiB</strong></div>
+          </div>
+          <div class="rf-source-inventory">
+            {#each summary.sources||[] as source}
+              <div><strong class="mono">{source.source==='entware'?'Entware':source.source}</strong><span>{source.files} {tr('файлов','files')} · {(source.bytes/1048576).toFixed(1)} MiB · {source.latest}</span></div>
+            {/each}
+          </div>
+          <p class="rf-hint">{tr('Кандидаты на очистку показаны справочно. Очистка выполняется автоматически раз в час. Файлы текущего дня защищены; другие каталоги не затрагиваются.','Cleanup candidates are informational. Auto cleanup runs hourly. Current-day files and unrelated directories are protected.')}</p>
+        {/if}
         <div class="rf-log-layout">
           <div class="rf-log-files">
             {#each files as file (`${file.date}/${file.filename}`)}
@@ -247,4 +293,13 @@
   .rf-preview-meta strong{color:var(--warn,#e9b459)}
   .rf-config-preview{box-sizing:border-box;margin:0;padding:12px;background:var(--rf-bg,#0b0d10);border:1px solid var(--rf-border,#333);color:var(--rf-text,#fff);font:11px/1.55 var(--font-mono,monospace);white-space:pre;overflow:auto;max-height:420px;min-width:0}
   .rf-draft-heading{display:grid;gap:4px;padding-top:5px}
+  .rf-plan{padding:12px;display:grid;gap:10px;min-width:0;border:1px solid var(--rf-border,#333);border-radius:7px}
+  .rf-plan p{margin:0;color:var(--rf-muted,#aaa);font-size:12px}
+  .rf-plan .mono{font-size:11px;overflow-wrap:anywhere}
+  .rf-source-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
+  @media(max-width:850px){.rf-source-fields{grid-template-columns:1fr}}
+  .rf-inventory{padding:0}
+  .rf-source-inventory{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:7px}
+  .rf-source-inventory>div{display:grid;gap:3px;padding:9px;border:1px solid var(--rf-border,#333);border-radius:6px}
+  .rf-source-inventory span{font-size:11px;color:var(--rf-muted,#aaa)}
 </style>

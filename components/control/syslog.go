@@ -5,7 +5,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -23,8 +22,6 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
-
-	"github.com/Fifth-Ace/routerforge/internal/safety"
 )
 
 const (
@@ -38,24 +35,28 @@ const (
 var rfSyslogMu sync.Mutex
 var rfSyslogDate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 var rfSyslogFile = regexp.MustCompile(`^syslog-(entware|[0-9A-Fa-f:.]+)\.log$`)
+var rfSyslogSourceName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]{0,63}$`)
 
 type rfSyslogSettings struct {
-	Bind     string   `json:"bind"`
-	Port     int      `json:"port"`
-	UDP      bool     `json:"udp"`
-	TCP      bool     `json:"tcp"`
-	Local    bool     `json:"local"`
-	Allowed  []string `json:"allowed"`
-	Root     string   `json:"root"`
-	KeepDays int      `json:"keep_days"`
-	MaxMB    int      `json:"max_mb"`
+	Bind         string   `json:"bind"`
+	Port         int      `json:"port"`
+	UDP          bool     `json:"udp"`
+	TCP          bool     `json:"tcp"`
+	Local        bool     `json:"local"`
+	Allowed      []string `json:"allowed"`
+	Root         string   `json:"root"`
+	KeepDays     int      `json:"keep_days"`
+	MaxMB        int      `json:"max_mb"`
+	RemoteSource string   `json:"remote_source"`
+	LocalSource  string   `json:"local_source"`
+	HeadIP       string   `json:"head_ip"`
 }
 
 func rfSyslogDefaults() rfSyslogSettings {
 	return rfSyslogSettings{
 		Bind: "0.0.0.0", Port: 514, UDP: true, TCP: false, Local: false,
 		Allowed: []string{"192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"},
-		Root:    rfSyslogDefaultRoot, KeepDays: 30, MaxMB: 500,
+		Root:    rfSyslogDefaultRoot, KeepDays: 30, MaxMB: 500, HeadIP: "192.168.10.1",
 	}
 }
 
@@ -71,6 +72,18 @@ func rfSyslogValidate(s rfSyslogSettings) error {
 	}
 	if s.KeepDays < 1 || s.KeepDays > 365 || s.MaxMB < 10 || s.MaxMB > 10240 {
 		return errors.New("retention out of bounds")
+	}
+	if s.RemoteSource != "" && !rfSyslogSourceName.MatchString(s.RemoteSource) {
+		return errors.New("invalid existing remote source name")
+	}
+	if s.LocalSource != "" && !rfSyslogSourceName.MatchString(s.LocalSource) {
+		return errors.New("invalid existing local source name")
+	}
+	if s.Local && s.LocalSource == "" {
+		return errors.New("local events require an existing syslog-ng source; /dev/log is not re-opened")
+	}
+	if s.Local && net.ParseIP(s.HeadIP).To4() == nil {
+		return errors.New("local router IPv4 address is required")
 	}
 	if !rfSyslogRootAllowed(s.Root) {
 		return errors.New("invalid log storage path")
@@ -166,16 +179,20 @@ func rfSyslogStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 500, map[string]any{"error": err.Error()})
 		return
 	}
-	managed := len(raw) > 0 && rfSyslogOwned(raw)
+	managed := len(raw) > 0 && (rfSyslogOwned(raw) || rfSyslogSidecarAttached(raw))
 	s, metaErr := rfSyslogStored()
 	if metaErr != nil {
 		s = rfSyslogDefaults()
 	}
 	rootReady, reason := rfSyslogStorageReady(s.Root)
+	sidecar, _ := rfSyslogReadSidecar()
 	writeJSON(w, 200, map[string]any{"installed": present, "version": version, "binary_ready": rfSyslogBinary() != "", "service_id": service, "running": running,
 		"config_exists": len(raw) > 0, "managed": managed, "config_sha256": rfSyslogHash(raw), "config_path": rfSyslogConfig,
 		"settings": s, "settings_error": rfSyslogErr(metaErr), "storage_ready": rootReady, "storage_error": reason,
-		"requires_adoption": len(raw) > 0 && !managed, "managed_root": s.Root, "mutation_api": true})
+		"requires_adoption": false, "managed_root": s.Root, "mutation_api": true,
+		"source_names": rfSyslogSources(raw), "sidecar_included": rfSyslogSidecarAttached(raw),
+		"sidecar_sha256": rfSyslogHash(sidecar), "sidecar_path": rfSyslogSidecarPath,
+		"mode": "non-destructive-sidecar"})
 }
 
 // rfSyslogPreview bounds the response and does not split a UTF-8 code point.
@@ -311,140 +328,9 @@ type rfSyslogApplyReq struct {
 }
 
 func rfSyslogApply(w http.ResponseWriter, r *http.Request) {
-	var req rfSyslogApplyReq
-	if err := decodeMutationJSON(w, r, &req); err != nil {
-		writeJSON(w, 400, map[string]any{"error": "invalid request"})
-		return
-	}
-	if req.Confirm != "APPLY SYSLOG" {
-		writeJSON(w, 409, map[string]any{"error": "exact confirmation required"})
-		return
-	}
-	if err := rfSyslogValidate(req.Settings); err != nil {
-		writeJSON(w, 400, map[string]any{"error": err.Error()})
-		return
-	}
-	if req.Settings.Local && !req.Adopt {
-		writeJSON(w, 409, map[string]any{"error": "local /dev/log capture requires explicit adoption"})
-		return
-	}
-	rfSyslogMu.Lock()
-	defer rfSyslogMu.Unlock()
-	installed, _ := rfSyslogPackage()
-	if !installed {
-		writeJSON(w, 409, map[string]any{"error": "syslog-ng is not installed"})
-		return
-	}
-	binary := rfSyslogBinary()
-	if binary == "" {
-		writeJSON(w, 409, map[string]any{"error": "syslog-ng executable not found"})
-		return
-	}
-	ready, reason := rfSyslogStorageReady(req.Settings.Root)
-	if !ready {
-		writeJSON(w, 409, map[string]any{"error": reason})
-		return
-	}
-	previous, err := rfSyslogReadConfig()
-	if err != nil {
-		writeJSON(w, 409, map[string]any{"error": err.Error()})
-		return
-	}
-	if len(req.Expected) != 64 || req.Expected != rfSyslogHash(previous) {
-		writeJSON(w, 409, map[string]any{"error": "configuration changed; refresh before applying"})
-		return
-	}
-	if len(previous) > 0 && !rfSyslogOwned(previous) && !req.Adopt {
-		writeJSON(w, 409, map[string]any{"error": "existing unmanaged config: explicit adoption required"})
-		return
-	}
-	content := []byte(rfSyslogConfigText(req.Settings))
-	temp, err := os.CreateTemp("/opt/etc", ".routerforge-syslog-*.conf")
-	if err != nil {
-		writeJSON(w, 500, map[string]any{"error": "cannot create candidate configuration"})
-		return
-	}
-	defer os.Remove(temp.Name())
-	if _, err = temp.Write(content); err != nil {
-		temp.Close()
-		writeJSON(w, 500, map[string]any{"error": "candidate write failed"})
-		return
-	}
-	if err = temp.Chmod(0600); err != nil {
-		temp.Close()
-		writeJSON(w, 500, map[string]any{"error": "candidate permissions failed"})
-		return
-	}
-	if err = temp.Sync(); err != nil {
-		temp.Close()
-		writeJSON(w, 500, map[string]any{"error": "candidate sync failed"})
-		return
-	}
-	if err = temp.Close(); err != nil {
-		writeJSON(w, 500, map[string]any{"error": "candidate close failed"})
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
-	defer cancel()
-	output, err := safety.RunCommand(ctx, 16<<10, binary, "-s", "-f", temp.Name())
-	if err != nil {
-		msg := string(output)
-		if len(msg) > 2048 {
-			msg = msg[:2048]
-		}
-		writeJSON(w, 409, map[string]any{"error": "syslog-ng syntax check failed", "detail": msg})
-		return
-	}
-	// Preserve exactly the previous original config before touching it.
-	backup := ""
-	if len(previous) > 0 {
-		if err = os.MkdirAll(rfSyslogBackup, 0700); err != nil {
-			writeJSON(w, 500, map[string]any{"error": "cannot create backup directory"})
-			return
-		}
-		backup = filepath.Join(rfSyslogBackup, "syslog-ng."+time.Now().UTC().Format("20060102T150405.000000000")+"."+rfSyslogHash(previous)[:12]+".conf")
-		bf, e := os.OpenFile(backup, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-		if e != nil {
-			writeJSON(w, 500, map[string]any{"error": "cannot create safety backup"})
-			return
-		}
-		_, e = bf.Write(previous)
-		if e == nil {
-			e = bf.Sync()
-		}
-		ce := bf.Close()
-		if e == nil {
-			e = ce
-		}
-		if e != nil {
-			os.Remove(backup)
-			writeJSON(w, 500, map[string]any{"error": "safety backup failed"})
-			return
-		}
-	}
-	if err = os.Rename(temp.Name(), rfSyslogConfig); err != nil {
-		writeJSON(w, 500, map[string]any{"error": "atomic config publish failed", "backup": backup})
-		return
-	}
-	if err = os.MkdirAll(filepath.Dir(rfSyslogMeta), 0700); err == nil {
-		var raw []byte
-		raw, err = json.Marshal(req.Settings)
-		if err == nil {
-			err = rfSyslogAtomicMeta(append(raw, '\n'))
-		}
-	}
-	if err != nil {
-		// Fail-safe rollback: preserve old state, no restart on failure.
-		if len(previous) > 0 {
-			_ = rfSyslogRestoreConfig(previous)
-		} else {
-			_ = os.Remove(rfSyslogConfig)
-		}
-		writeJSON(w, 500, map[string]any{"error": "settings persist failed; previous config restored", "backup": backup})
-		return
-	}
-	writeJSON(w, 200, map[string]any{"ok": true, "backup": backup, "config_sha256": rfSyslogHash(content), "restart_required": true, "service_untouched": true})
+	rfSyslogApplySidecar(w, r)
 }
+
 func rfSyslogAtomicMeta(data []byte) error {
 	f, err := os.CreateTemp(filepath.Dir(rfSyslogMeta), ".syslog-meta-*")
 	if err != nil {
@@ -557,8 +443,8 @@ func rfSyslogManagedRoot() (rfSyslogSettings, error) {
 	if err != nil {
 		return rfSyslogSettings{}, err
 	}
-	if !rfSyslogOwned(raw) {
-		return rfSyslogSettings{}, errors.New("syslog-ng config is not managed by RouterForge")
+	if !rfSyslogOwned(raw) && !rfSyslogSidecarAttached(raw) {
+		return rfSyslogSettings{}, errors.New("syslog-ng has no active RouterForge log rules")
 	}
 	s, err := rfSyslogStored()
 	if err != nil {
@@ -769,4 +655,6 @@ func registerAdminSyslogRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/syslog/tail", adminFileAccessOnly(false, rfSyslogTail))
 	mux.HandleFunc("/v1/syslog/export", adminFileAccessOnly(true, rfSyslogExport))
 	mux.HandleFunc("/v1/syslog/apply", mutationOnly(rfSyslogApply))
+	mux.HandleFunc("/v1/syslog/plan", mutationOnly(rfSyslogPlanHandler))
+	mux.HandleFunc("/v1/syslog/summary", adminFileAccessOnly(false, rfSyslogSummary))
 }

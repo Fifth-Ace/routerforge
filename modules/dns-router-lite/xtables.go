@@ -79,7 +79,7 @@ func runFirewallIOBounded(ctx context.Context, budget time.Duration, name string
 		if errors.Is(child.Err(), context.Canceled) {
 			return string(b), fmt.Errorf("%s: RF_FIREWALL_COMMAND_CANCELLED: %w", name, context.Canceled)
 		}
-		return string(b), fmt.Errorf("%s: %w: %s", name, err, strings.TrimSpace(string(b)))
+		return string(b), fmt.Errorf("%s [%s]: %w: %s", name, strings.Join(args, " "), err, strings.TrimSpace(string(b)))
 	}
 	return string(b), nil
 }

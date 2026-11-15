@@ -18,34 +18,38 @@ import (
 )
 
 const (
-	gateChain     = "RF_DNS_LITE_GATE"
-	gateSet4      = "RF_DNS_LITE4"
-	gateSet6      = "RF_DNS_LITE6"
-	gateInterface = "br0"
+	gateChain           = "RF_DNS_LITE_GATE"
+	gateSet4            = "RF_DNS_LITE4"
+	gateSet6            = "RF_DNS_LITE6"
+	gateInterface       = "br0"
+	bootGateRetryWindow = 2 * time.Minute
+	bootGateRetryLimit  = 30
 )
 
 type GateManager struct {
-	mu          sync.Mutex
-	op          sync.Mutex
-	kernel      GateKernel
-	candidates  func() (string, []string, error)
-	topology    func() (GateTopology, error)
-	planFactory func(string) (GatePlan, error)
-	locate      func(string) (string, error)
-	probe       func(context.Context, string, GatePlan) error
-	plan        GatePlan
-	listen      string
-	desired     bool
-	active      bool
-	paused      bool
-	state       string
-	leaseUntil  time.Time
-	verifiedAt  time.Time
-	lastError   string
-	failures    int
-	cancel      context.CancelFunc
-	notify      chan struct{}
-	now         func() time.Time
+	mu             sync.Mutex
+	op             sync.Mutex
+	kernel         GateKernel
+	candidates     func() (string, []string, error)
+	topology       func() (GateTopology, error)
+	planFactory    func(string) (GatePlan, error)
+	locate         func(string) (string, error)
+	probe          func(context.Context, string, GatePlan) error
+	plan           GatePlan
+	listen         string
+	desired        bool
+	active         bool
+	paused         bool
+	state          string
+	leaseUntil     time.Time
+	verifiedAt     time.Time
+	lastError      string
+	failures       int
+	bootRetryUntil time.Time
+	bootRetries    int
+	cancel         context.CancelFunc
+	notify         chan struct{}
+	now            func() time.Time
 }
 
 func NewGateManager() *GateManager {
@@ -68,7 +72,11 @@ func (g *GateManager) Status() map[string]any {
 	if g.active && !active {
 		state = "DEGRADED"
 	}
-	return map[string]any{"state": state, "active": active, "desired": g.desired, "port": g.plan.Port, "interface": gateInterface, "last_error": g.lastError, "lease_seconds": controllerLease, "lease_until": g.leaseUntil.UTC().Format(time.RFC3339Nano), "verified_at": g.verifiedAt.UTC().Format(time.RFC3339Nano), "persisted": true, "recovery_attempts": g.failures, "families": g.plan.Families, "hardware_e2e": "PENDING", "coverage": gateCoverage(g.plan, active)}
+	attempts := g.failures
+	if g.bootRetries > attempts {
+		attempts = g.bootRetries
+	}
+	return map[string]any{"state": state, "active": active, "desired": g.desired, "port": g.plan.Port, "interface": gateInterface, "last_error": g.lastError, "lease_seconds": controllerLease, "lease_until": g.leaseUntil.UTC().Format(time.RFC3339Nano), "verified_at": g.verifiedAt.UTC().Format(time.RFC3339Nano), "persisted": true, "recovery_attempts": attempts, "families": g.plan.Families, "hardware_e2e": "PENDING", "coverage": gateCoverage(g.plan, active)}
 }
 func (g *GateManager) acquire(ctx context.Context) error {
 	for !g.op.TryLock() {
@@ -208,16 +216,38 @@ func (g *GateManager) Enable(ctx context.Context, listen string) error {
 	g.state = "ACTIVE"
 	g.lastError = ""
 	g.failures = 0
+	g.bootRetries = 0
+	g.bootRetryUntil = time.Time{}
 	g.leaseUntil = until
 	g.verifiedAt = g.now()
 	g.mu.Unlock()
 	g.startWorker()
 	return nil
 }
+
+// Boot-only retries are allowed for narrowly identified transient NDM reload
+// errors. Foreign rules and unknown topology conflicts still fail closed.
+func bootTransientGateError(e error) bool {
+	var c *GateConflict
+	if errors.As(e, &c) {
+		return strings.HasPrefix(c.Evidence, "topology changed while enabling ")
+	}
+	msg := strings.ToLower(e.Error())
+	return (strings.Contains(msg, "iptables") || strings.Contains(msg, "ip6tables")) &&
+		strings.Contains(msg, "no chain/target/match by that name")
+}
 func (g *GateManager) failed(e error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.active = false
+	if g.now().Before(g.bootRetryUntil) && g.bootRetries < bootGateRetryLimit && bootTransientGateError(e) {
+		g.bootRetries++
+		g.lastError = e.Error()
+		g.state = "DEGRADED"
+		return
+	}
+	g.bootRetryUntil = time.Time{}
+	g.bootRetries = 0
 	g.failures++
 	g.lastError = e.Error()
 	g.state = "DEGRADED"
@@ -279,6 +309,8 @@ func (g *GateManager) Reconcile(ctx context.Context, explicit bool) error {
 	if explicit {
 		g.failures = 0
 		attempts = 0
+		g.bootRetryUntil = time.Time{}
+		g.bootRetries = 0
 	}
 	g.mu.Unlock()
 	if !desired {
@@ -337,6 +369,8 @@ func (g *GateManager) Reconcile(ctx context.Context, explicit bool) error {
 	g.state = "ACTIVE"
 	g.lastError = ""
 	g.failures = 0
+	g.bootRetryUntil = time.Time{}
+	g.bootRetries = 0
 	g.leaseUntil = until
 	g.verifiedAt = g.now()
 	g.mu.Unlock()
@@ -419,6 +453,8 @@ func (g *GateManager) Restore(ctx context.Context, listen string) error {
 	g.desired = true
 	g.paused = false
 	g.listen = listen
+	g.bootRetryUntil = g.now().Add(bootGateRetryWindow)
+	g.bootRetries = 0
 	g.mu.Unlock()
 	err := g.Enable(ctx, listen)
 	if err != nil {

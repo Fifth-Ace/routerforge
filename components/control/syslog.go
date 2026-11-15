@@ -34,29 +34,31 @@ const (
 
 var rfSyslogMu sync.Mutex
 var rfSyslogDate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-var rfSyslogFile = regexp.MustCompile(`^syslog-(entware|[0-9A-Fa-f:.]+)\.log$`)
+var rfSyslogFile = regexp.MustCompile(`^syslog-[\p{L}\p{N}_.:-]{1,100}\.log$`)
 var rfSyslogSourceName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]{0,63}$`)
 
 type rfSyslogSettings struct {
-	Bind         string   `json:"bind"`
-	Port         int      `json:"port"`
-	UDP          bool     `json:"udp"`
-	TCP          bool     `json:"tcp"`
-	Local        bool     `json:"local"`
-	Allowed      []string `json:"allowed"`
-	Root         string   `json:"root"`
-	KeepDays     int      `json:"keep_days"`
-	MaxMB        int      `json:"max_mb"`
-	RemoteSource string   `json:"remote_source"`
-	LocalSource  string   `json:"local_source"`
-	HeadIP       string   `json:"head_ip"`
+	Bind         string            `json:"bind"`
+	Port         int               `json:"port"`
+	UDP          bool              `json:"udp"`
+	TCP          bool              `json:"tcp"`
+	Local        bool              `json:"local"`
+	Allowed      []string          `json:"allowed"`
+	Root         string            `json:"root"`
+	KeepDays     int               `json:"keep_days"`
+	MaxMB        int               `json:"max_mb"`
+	RemoteSource string            `json:"remote_source"`
+	LocalSource  string            `json:"local_source"`
+	HeadIP       string            `json:"head_ip"`
+	RotateHours  int               `json:"rotate_hours"`
+	DeviceNames  map[string]string `json:"device_names"`
 }
 
 func rfSyslogDefaults() rfSyslogSettings {
 	return rfSyslogSettings{
 		Bind: "0.0.0.0", Port: 514, UDP: true, TCP: false, Local: false,
 		Allowed: []string{"192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"},
-		Root:    rfSyslogDefaultRoot, KeepDays: 30, MaxMB: 500, HeadIP: "192.168.10.1",
+		Root:    rfSyslogDefaultRoot, KeepDays: 30, MaxMB: 500, HeadIP: "192.168.10.1", RotateHours: 24, DeviceNames: map[string]string{},
 	}
 }
 
@@ -72,6 +74,9 @@ func rfSyslogValidate(s rfSyslogSettings) error {
 	}
 	if s.KeepDays < 1 || s.KeepDays > 365 || s.MaxMB < 10 || s.MaxMB > 10240 {
 		return errors.New("retention out of bounds")
+	}
+	if err := rfSyslogValidateSimple(s); err != nil {
+		return err
 	}
 	if s.RemoteSource != "" && !rfSyslogSourceName.MatchString(s.RemoteSource) {
 		return errors.New("invalid existing remote source name")
@@ -145,6 +150,9 @@ func rfSyslogStored() (rfSyslogSettings, error) {
 	if err = json.Unmarshal(raw, &s); err != nil {
 		return s, err
 	}
+	if s.RotateHours == 0 {
+		s.RotateHours = 24
+	}
 	return s, rfSyslogValidate(s)
 }
 func rfSyslogPackage() (bool, string) {
@@ -190,7 +198,7 @@ func rfSyslogStatus(w http.ResponseWriter, r *http.Request) {
 		"config_exists": len(raw) > 0, "managed": managed, "config_sha256": rfSyslogHash(raw), "config_path": rfSyslogConfig,
 		"settings": s, "settings_error": rfSyslogErr(metaErr), "storage_ready": rootReady, "storage_error": reason,
 		"requires_adoption": false, "managed_root": s.Root, "mutation_api": true,
-		"source_names": rfSyslogSources(raw), "sidecar_included": rfSyslogSidecarAttached(raw),
+		"source_names": rfSyslogSources(raw), "source_details": rfSyslogSourceDetails(raw), "storage_options": rfSyslogStorageOptions(), "sidecar_included": rfSyslogSidecarAttached(raw),
 		"sidecar_sha256": rfSyslogHash(sidecar), "sidecar_path": rfSyslogSidecarPath,
 		"mode": "non-destructive-sidecar"})
 }
@@ -241,49 +249,7 @@ func rfSyslogErr(err error) string {
 }
 
 func rfSyslogStorageReady(root string) (bool, string) {
-	if !rfSyslogRootAllowed(root) {
-		return false, "unsafe storage path"
-	}
-	parent := filepath.Dir(root)
-	p, err := filepath.EvalSymlinks(parent)
-	if err != nil {
-		return false, "storage parent is not mounted/available"
-	}
-	info, err := os.Stat(p)
-	if err != nil || !info.IsDir() {
-		return false, "storage parent is not a directory"
-	}
-	mounts, err := os.ReadFile("/proc/mounts")
-	if err != nil {
-		return false, "mount table unavailable"
-	}
-	mounted := false
-	maxLen := 0
-	fstype := ""
-	for _, line := range strings.Split(string(mounts), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-		mp := strings.ReplaceAll(fields[1], `\040`, " ")
-		if (p == mp || strings.HasPrefix(p, strings.TrimRight(mp, "/")+"/")) && len(mp) > maxLen {
-			maxLen = len(mp)
-			fstype = fields[2]
-		}
-	}
-	// Never fall back to the router root filesystem when a USB disappears.
-	if maxLen > 1 && fstype != "tmpfs" && fstype != "overlay" && fstype != "squashfs" && fstype != "rootfs" && fstype != "proc" && fstype != "sysfs" {
-		mounted = true
-	}
-	if !mounted {
-		return false, "storage is not on a persistent dedicated mount"
-	}
-	if st, err := os.Lstat(root); err == nil && (!st.IsDir() || st.Mode()&os.ModeSymlink != 0) {
-		return false, "managed log root must be a real directory"
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return false, "log root inaccessible"
-	}
-	return true, ""
+	return rfSyslogStorageCheck(root)
 }
 
 func rfSyslogConfigText(s rfSyslogSettings) string {
@@ -381,6 +347,8 @@ func rfSyslogRestoreConfig(data []byte) error {
 type rfSyslogEntry struct {
 	Date     string    `json:"date"`
 	Source   string    `json:"source"`
+	Display  string    `json:"display"`
+	Interval string    `json:"interval,omitempty"`
 	Filename string    `json:"filename"`
 	Size     int64     `json:"size"`
 	Modified time.Time `json:"modified"`
@@ -422,7 +390,9 @@ func rfSyslogFiles(s rfSyslogSettings) ([]rfSyslogEntry, error) {
 					if e != nil || !info.Mode().IsRegular() {
 						continue
 					}
-					out = append(out, rfSyslogEntry{Date: date, Source: strings.TrimSuffix(strings.TrimPrefix(entry.Name(), "syslog-"), ".log"), Filename: entry.Name(), Size: info.Size(), Modified: info.ModTime()})
+					source := strings.TrimSuffix(strings.TrimPrefix(entry.Name(), "syslog-"), ".log")
+					display, period := rfSyslogDisplaySource(source, rfSyslogHours(s))
+					out = append(out, rfSyslogEntry{Date: date, Source: source, Display: display, Interval: period, Filename: entry.Name(), Size: info.Size(), Modified: info.ModTime()})
 				}
 			}
 		}
@@ -600,6 +570,9 @@ func rfSyslogRetainOnce(now time.Time) error {
 	ready, _ := rfSyslogStorageReady(s.Root)
 	if !ready {
 		return errors.New("syslog storage not mounted")
+	}
+	if err := rfSyslogPrepareFolders(s.Root, now); err != nil {
+		return err
 	}
 	files, err := rfSyslogFiles(s)
 	if err != nil {

@@ -28,6 +28,58 @@
   let configPreview = null;
   let configBusy = false;
   let configVisible = false;
+  let simpleMode = true;
+  let storageKind = 'usb';
+  let newDeviceIP = '';
+  let newDeviceName = '';
+  let firstLoadDone = false;
+  $: availableStorage = (status?.storage_options || []).filter((item) => item.kind === storageKind);
+  $: selectedStorage = (status?.storage_options || []).find((item) => item.root === draft?.root);
+  $: namedDevices = Object.entries(draft?.device_names || {}).sort((a,b) => a[0].localeCompare(b[0]));
+  $: networkSources = (status?.source_details || []).filter((entry) => entry.kind === 'network');
+  $: localSources = (status?.source_details || []).filter((entry) => entry.kind === 'local');
+  function changeStorage(kind) {
+    storageKind = kind;
+    const options = (status?.storage_options || []).filter((v) => v.kind === kind);
+    draft.root = options[0]?.root || '';
+    mark();
+  }
+  function nameDevice(ip, label) {
+    draft.device_names = { ...(draft.device_names || {}), [ip]: label };
+    mark();
+  }
+  function addDevice() {
+    const ip = newDeviceIP.trim(), name = newDeviceName.trim().replace(/\s+/g,'_');
+    if (!/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/.test(ip)) {
+      error=tr('Укажи корректный IPv4-адрес устройства.','Enter a valid IPv4 address.');return;
+    }
+    if(!/^[\p{L}\p{N}_-]{1,48}$/u.test(name)) {
+      error=tr('Название: буквы, цифры, дефис или подчёркивание (до 48 символов).','Name: letters, digits, hyphen or underscore (max 48).');return;
+    }
+    if(namedDevices.length>=8 && !draft.device_names?.[ip]) {error=tr('Не больше 8 именных устройств.','At most 8 named devices.');return;}
+    if (Object.entries(draft.device_names || {}).some(([existing, v]) => existing !== ip && v.toLowerCase()===name.toLowerCase())) {
+      error=tr('Названия устройств не должны повторяться.','Device names must be unique.');return;
+    }
+    nameDevice(ip,name);newDeviceIP='';newDeviceName='';error='';
+  }
+  function removeDevice(ip) {
+    const entries={...(draft.device_names||{})};delete entries[ip];draft.device_names=entries;mark();
+  }
+  function sourceChoice() {
+    if(!draft || !status || status.sidecar_included) return;
+    // Never select kernel or ambiguous source merely because it exists.
+    if (!networkSources.some((v)=>v.name===draft.remote_source)) draft.remote_source=networkSources[0]?.name || '';
+    if (!localSources.some((v)=>v.name===draft.local_source)) draft.local_source=localSources[0]?.name || '';
+    if (draft.local && !draft.local_source) draft.local=false;
+  }
+  function selectHeadIP(ip){
+    const old=draft.head_ip;
+    const previous=draft.device_names?.[old];
+    draft.head_ip=ip;
+    if(previous && !draft.device_names?.[ip]) {const names={...draft.device_names};delete names[old];names[ip]=previous;draft.device_names=names;}
+    mark();
+  }
+
 
   $: visibleLines = lines.filter((line) => !filter || line.toLowerCase().includes(filter.toLowerCase()));
 
@@ -42,7 +94,17 @@
         configPreview = null;
         configVisible = false;
       }
-      if (initial || !dirty) draft = structuredClone(current.settings);
+      if (initial || !dirty) {
+        draft = structuredClone(current.settings);
+        draft.rotate_hours = draft.rotate_hours || 24;
+        draft.device_names = draft.device_names || {};
+        if(!firstLoadDone) {
+          const currentKind=(current.storage_options||[]).find(v=>v.root===draft.root)?.kind;
+          storageKind=currentKind || (draft.root.startsWith('/opt/mnt/') ? 'usb' : 'local');
+          firstLoadDone=true;
+        }
+        sourceChoice();
+      }
       if(plan && (plan.parent_sha256!==current.config_sha256 || plan.sidecar_sha256!==current.sidecar_sha256)){plan=null;acceptAdoption=false;}
       if (current.installed && current.managed) {
         const list = await getRouterforgeSyslogFiles();
@@ -103,7 +165,7 @@
       const p=await planRouterforgeSyslog({settings:draft});
       if(p.parent_sha256!==status.config_sha256){throw new Error(tr('Основной конфиг изменился: обнови состояние.','Main config changed: refresh status.'));}
       plan=p;
-      notice=tr('План готов. Прочитай изменения и подтверди их отдельно.','Plan ready. Review and confirm separately.');
+      notice=tr('План готов. Подтверди подключение дополнения: службы не запускаются.','Plan ready. Confirm the add-on; no service is started.');
     }catch(e){error=getError(e);}finally{planBusy=false;}
   }
   async function apply() {
@@ -134,7 +196,7 @@
 <div class="rf-syslog">
   <section class="panel">
     <div class="panel-head">
-      <div><strong>Syslog Manager</strong><span>{tr('Управление syslog-ng из Entware · без собственной службы RouterForge','Entware syslog-ng integration · no additional RouterForge service')}</span></div>
+      <div><strong>{tr('Системные журналы','System logs')}</strong><span>{tr('Управление syslog-ng из Entware · без собственной службы RouterForge','Entware syslog-ng integration · no additional RouterForge service')}</span></div>
       <button class="button" onclick={() => refresh()} disabled={!!busy}>↻ {tr('Обновить','Refresh')}</button>
     </div>
     {#if error}<div class="rf-syslog-msg rf-error" role="alert">{error}</div>{/if}
@@ -190,6 +252,60 @@
       {:else}
         <p class="rf-hint">{tr('Файл syslog-ng.conf отсутствует.','No syslog-ng.conf exists yet.')}</p>
       {/if}
+      <div class="rf-easy-shell">
+        <div class="rf-easy-head"><strong>{tr('Настройка за три шага','Three-step setup')}</strong><span>{tr('Сложные параметры мы определяем автоматически.','Technical settings are selected automatically.')}</span></div>
+        <div class="rf-easy-step">
+          <div class="rf-step-title"><span class="rf-step-number">1</span><div><strong>{tr('Где хранить журналы?','Where should logs be saved?')}</strong><small>{tr('Выбирай подключённый накопитель или готовую SMB-папку.','Choose a mounted disk or existing SMB share.')}</small></div></div>
+          <div class="rf-radio-pills" role="group" aria-label={tr('Тип хранилища','Storage type')}>
+            <button type="button" class:chosen={storageKind==='usb'} onclick={()=>changeStorage('usb')}>{tr('USB','USB')}</button>
+            <button type="button" class:chosen={storageKind==='smb'} onclick={()=>changeStorage('smb')}>SMB / NAS</button>
+            <button type="button" class:chosen={storageKind==='local'} onclick={()=>changeStorage('local')}>Entware</button>
+          </div>
+          {#if availableStorage.length}
+            <label class="rf-block">{tr('Накопитель','Storage')}
+              <select value={draft.root} onchange={(event)=>{draft.root=event.currentTarget.value;mark();}}>
+                {#each availableStorage as item (item.root)}<option value={item.root}>{item.label} · {item.root}</option>{/each}
+                {#if draft.root && !availableStorage.some(o=>o.root===draft.root)}<option value={draft.root}>{draft.root} ({tr('недоступно','unavailable')})</option>{/if}
+              </select>
+            </label>
+          {:else}
+            <div class="rf-syslog-msg rf-warning">{storageKind==='smb' ? tr('Сейчас нет подключённых SMB-папок. Сначала смонтируй SMB-папку в Entware под /opt/mnt/ИМЯ. После обновления она появится здесь. Пароли здесь не нужны.','No mounted SMB share. Mount it in Entware under /opt/mnt/NAME, then refresh. Passwords are not collected here.') : tr('Подходящие накопители не обнаружены. Проверь подключение и нажми «Обновить».','No suitable mounted storage. Connect a disk and refresh.')}</div>
+          {/if}
+          {#if storageKind==='smb'}<p class="rf-hint">{tr('SMB: используем только уже примонтированную папку. RouterForge не монтирует её и не сохраняет пароль.','SMB: uses a pre-mounted share only. RouterForge never mounts it or stores credentials.')}</p>{/if}
+        </div>
+        <div class="rf-easy-step">
+          <div class="rf-step-title"><span class="rf-step-number">2</span><div><strong>{tr('Как назвать устройства?','Name your devices')}</strong><small>{tr('IP нужен для записи, а имя — чтобы легко находить файлы.','IP is used for routing; the name is used in filenames.')}</small></div></div>
+          <div class="rf-device-list">
+            {#each namedDevices as [ip,label] (ip)}
+              <div class="rf-device-row"><span class="mono">{ip}</span><span>{label}</span><button type="button" class="button" onclick={()=>removeDevice(ip)} aria-label={tr('Удалить имя','Remove name')}>×</button></div>
+            {/each}
+            {#if !namedDevices.length}<p class="rf-hint">{tr('Пока без имён: файлы будут называться по IP.','No aliases yet: filenames will use IP addresses.')}</p>{/if}
+          </div>
+          <div class="rf-device-add">
+            <input aria-label="IPv4" placeholder="192.168.10.2" bind:value={newDeviceIP} />
+            <input aria-label={tr('Название устройства','Device name')} placeholder={tr('Ретранслятор_Спальня','Bedroom_Repeater')} bind:value={newDeviceName} />
+            <button type="button" class="button" onclick={addDevice}>{tr('Добавить','Add')}</button>
+          </div>
+          <p class="rf-hint">{tr('Для головного Keenetic тоже можно добавить имя, например Главный_Keenetic. Устройства без имени сохраняются по IP.','You can name the main Keenetic too. Unnamed devices use their IPs.')}</p>
+        </div>
+        <div class="rf-easy-step">
+          <div class="rf-step-title"><span class="rf-step-number">3</span><div><strong>{tr('Как часто создавать файлы?','How often to create files?')}</strong><small>{tr('Время нового файла и срок хранения не связаны.','File period and retention are separate settings.')}</small></div></div>
+          <div class="rf-easy-grid">
+            <label>{tr('Новый файл','New file')}<select bind:value={draft.rotate_hours} onchange={mark}>
+              <option value={24}>{tr('Каждые сутки','Every day')}</option><option value={12}>{tr('Каждые 12 часов','Every 12 hours')}</option><option value={6}>{tr('Каждые 6 часов','Every 6 hours')}</option><option value={1}>{tr('Каждый час','Every hour')}</option>
+            </select></label>
+            <label>{tr('Хранить журналы','Keep logs')}<select bind:value={draft.keep_days} onchange={mark}>
+              <option value={7}>{tr('7 дней','7 days')}</option><option value={30}>{tr('30 дней','30 days')}</option><option value={90}>{tr('90 дней','90 days')}</option><option value={365}>{tr('1 год','1 year')}</option>
+              {#if ![7,30,90,365].includes(draft.keep_days)}<option value={draft.keep_days}>{draft.keep_days} {tr('дней','days')}</option>{/if}
+            </select></label>
+            <label>{tr('Ограничение по объёму, МБ','Size limit, MB')}<input type="number" min="10" max="10240" bind:value={draft.max_mb} oninput={mark}/></label>
+          </div>
+          <p class="rf-hint">{tr('Например: раз в 6 часов, хранить 30 дней. Старые файлы очищаются каждый час.','Example: new file every 6 hours, retain for 30 days. Old files are cleaned hourly.')}</p>
+          <div class="rf-file-example"><small>{tr('Пример названия файла','Example filename')}</small><code>{`syslog-${namedDevices[0]?.[1] || draft.head_ip || 'router'}${draft.rotate_hours === 24 ? '' : draft.rotate_hours === 12 ? '-00-12' : draft.rotate_hours === 6 ? '-00-06' : '-00-01'}.log`}</code></div>
+        </div>
+      </div>
+      <button type="button" class="button rf-advanced-toggle" onclick={()=>simpleMode=!simpleMode}>{simpleMode?tr('⚙ Дополнительные настройки','⚙ Advanced settings'):tr('Скрыть дополнительные настройки','Hide advanced settings')}</button>
+      {#if !simpleMode}
       <div class="rf-draft-heading"><strong>{tr('Черновик дополнения RouterForge','RouterForge sidecar draft')}</strong><span>{tr('Правила RouterForge сохраняются отдельно: основной конфиг не заменяется, в него однократно добавляется строка подключения.','RouterForge rules are stored separately; the main config is not replaced, only one include directive is added.')}</span></div>
       <p class="rf-syslog-msg rf-ok">{tr('P45.3: не перезаписываем сторонние правила, не открываем /dev/log повторно, не запускаем службу автоматически.','P45.3: foreign rules are preserved; /dev/log is never opened twice; the service is not started automatically.')}</p>
       <div class="rf-fields">
@@ -221,14 +337,15 @@
       <label class="rf-block">{tr('Каталог журналов','Log directory')}<input bind:value={draft.root} oninput={mark} placeholder="/opt/var/log/routerforge-syslog" /></label>
       <p class="rf-hint">{tr('Доступны отдельный каталог Entware и /opt/mnt/УСТРОЙСТВО/routerforge-syslog. Хранилище должно быть примонтировано; запись во внутреннюю память при исчезновении USB запрещена.','Use the dedicated Entware directory or /opt/mnt/DEVICE/routerforge-syslog. Storage must be mounted; no fallback writes to internal flash.')}</p>
       {#if !status.storage_ready}<p class="rf-syslog-msg rf-warning">{status.storage_error || tr('Накопитель недоступен','Storage unavailable')}</p>{/if}
-      <div class="rf-actions"><button class="button primary" onclick={prepare} disabled={!!busy||planBusy||!status.binary_ready}>{planBusy?'…':tr('Предпросмотр и проверка плана','Preview & preflight')}</button></div>
+      {/if}
+      <div class="rf-actions"><button class="button primary" onclick={prepare} disabled={!!busy||planBusy||!status.binary_ready||!draft.root||!selectedStorage}>{planBusy?'…':tr('Предпросмотр и проверка плана','Preview & preflight')}</button></div>
       {#if plan}
         <div class="rf-plan">
-          <strong>{tr('ПЛАН ИЗМЕНЕНИЙ — служба не трогается','CHANGE PLAN — service untouched')}</strong>
-          <p>{tr('Основной файл:','Main config:')} <b>{plan.parent_action==='unchanged'?tr('не изменится','unchanged'):tr('только добавление @include','append @include only')}</b></p>
-          <p class="mono">{plan.include_line}</p>
+          <strong>{tr('Готово к сохранению — служба не запускается','Ready to save — service is not started')}</strong>
+          <p>{tr('Основной файл:','Main config:')} <b>{plan.parent_action==='unchanged'?tr('не изменится','unchanged'):tr('добавится безопасное подключение дополнения','a safe add-on include is added')}</b></p>
+          {#if !simpleMode}<p class="mono">{plan.include_line}</p>{/if}
           <p>{tr('Отдельный файл RouterForge:','Separate RouterForge file:')} <span class="mono">{plan.sidecar_path}</span></p>
-          <pre class="rf-config-preview">{plan.sidecar_content}</pre>
+          {#if !simpleMode}<pre class="rf-config-preview">{plan.sidecar_content}</pre>{/if}
           <label class="rf-danger"><input type="checkbox" bind:checked={acceptAdoption}/> {tr('Я проверил план и разрешаю добавить только дополнение RouterForge; основную конфигурацию не заменять.','I reviewed the plan and approve only the RouterForge sidecar; do not replace the main config.')}</label>
           <button class="button primary" onclick={apply} disabled={!!busy||!acceptAdoption}>{busy==='apply'?'…':tr('Проверить синтаксис и сохранить дополнение','Validate syntax & save sidecar')}</button>
         </div>
@@ -238,7 +355,7 @@
 
     {#if status.managed}
       <section class="panel rf-syslog-space">
-        <div class="rf-syslog-heading"><div><strong>{tr('Журналы головного роутера и ретрансляторов','Main router & repeater journals')}</strong><span>{files.length} {tr('файлов (последние 250)','files (latest 250)')}</span></div><button class="button" onclick={() => refresh()} disabled={!!busy}>↻</button></div>
+        <div class="rf-syslog-heading"><div><strong>{tr('Журналы устройств','Device journals')}</strong><span>{files.length} {tr('файлов (последние 250)','files (latest 250)')}</span></div><button class="button" onclick={() => refresh()} disabled={!!busy}>↻</button></div>
         {#if summary}
           <div class="rf-syslog-status rf-inventory">
             <div><small>{tr('Всего файлов','Total files')}</small><strong>{summary.files}</strong></div>
@@ -257,7 +374,7 @@
           <div class="rf-log-files">
             {#each files as file (`${file.date}/${file.filename}`)}
               <button class:selected={chosen?.date===file.date&&chosen?.filename===file.filename} onclick={() => selectFile(file)}>
-                <strong>{file.source}</strong><small>{file.date} · {(file.size/1024).toFixed(1)} KB</small>
+                <strong>{file.display || file.source}</strong><small>{file.date}{file.interval ? ` · ${file.interval}` : ''} · {(file.size/1024).toFixed(1)} KB</small>
               </button>
             {/each}
             {#if !files.length}<div class="rf-syslog-empty">{tr('Журналы пока пусты','No journals yet')}</div>{/if}
@@ -302,4 +419,16 @@
   .rf-source-inventory{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:7px}
   .rf-source-inventory>div{display:grid;gap:3px;padding:9px;border:1px solid var(--rf-border,#333);border-radius:6px}
   .rf-source-inventory span{font-size:11px;color:var(--rf-muted,#aaa)}
+
+  .rf-easy-shell{display:grid;gap:12px;min-width:0}
+  .rf-easy-head{display:grid;gap:4px}.rf-easy-head strong{font-size:15px}.rf-easy-head span{color:var(--rf-muted,#aaa);font-size:12px}
+  .rf-easy-step{display:grid;gap:12px;padding:14px;border:1px solid var(--rf-border,#333);border-radius:9px;min-width:0}
+  .rf-step-title{display:flex;align-items:center;gap:10px}.rf-step-title>div{display:grid;gap:3px}.rf-step-title strong{font-size:14px}.rf-step-title small{font-size:11px;color:var(--rf-muted,#aaa)}
+  .rf-step-number{display:grid;place-items:center;width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--rf-accent-soft,rgba(56,189,248,.10));color:var(--rf-accent,#38bdf8);font-weight:700}
+  .rf-radio-pills{display:flex;gap:7px;flex-wrap:wrap}.rf-radio-pills button{padding:9px 15px;border-radius:7px;border:1px solid var(--rf-border,#333);background:var(--rf-surface-2,#171b21);color:var(--rf-text,#fff);cursor:pointer}.rf-radio-pills button.chosen{border-color:var(--rf-accent,#38bdf8);background:var(--rf-accent-soft,rgba(56,189,248,.1))}
+  .rf-easy-step select,.rf-easy-step input{min-width:0;box-sizing:border-box;width:100%;padding:9px;border:1px solid var(--rf-border,#333);border-radius:6px;background:var(--rf-surface-2,#171b21);color:var(--rf-text,#fff)}
+  .rf-easy-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.rf-easy-grid label{display:grid;gap:5px;color:var(--rf-muted,#aaa);font-size:12px}
+  .rf-device-list{display:grid;gap:5px}.rf-device-row{display:grid;grid-template-columns:minmax(90px,170px) 1fr auto;gap:8px;align-items:center;font-size:12px}.rf-device-add{display:grid;grid-template-columns:minmax(110px,180px) 1fr auto;gap:8px}
+  .rf-advanced-toggle{width:fit-content}
+  @media(max-width:650px){.rf-easy-grid{grid-template-columns:1fr}.rf-device-add{grid-template-columns:1fr}.rf-device-row{grid-template-columns:1fr auto}.rf-device-row .mono{grid-column:1 / -1}}
 </style>

@@ -96,7 +96,7 @@ func TestSidecarReusesExistingSourcesAndPreservesParent(t *testing.T) {
 	if strings.Contains(snippet, "unix-dgram(") || strings.Contains(snippet, "network(") {
 		t.Fatal("duplicate listener")
 	}
-	for _, needle := range []string{"source(repeater)", "source(src)", "syslog-entware.log", "syslog-192.168.10.1.log", "${YEAR}/${MONTH}/${DAY}", "netmask("} {
+	for _, needle := range []string{"source(repeater)", "source(src)", "syslog-entware.log", "syslog-192.168.10.1.log", "${R_YEAR}/${R_MONTH}/${R_DAY}", "netmask("} {
 		if !strings.Contains(snippet, needle) {
 			t.Fatalf("missing %q", needle)
 		}
@@ -136,5 +136,89 @@ func TestSidecarRejectsForeignSidecarAndBadLocalSource(t *testing.T) {
 	_, _, _, err = rfSyslogPreflight(s, []byte("@version: current\nsource src { internal(); };\n"), []byte("# foreign"))
 	if err == nil {
 		t.Fatal("foreign sidecar overwrite allowed")
+	}
+}
+
+func TestP454RotationAndDeviceNames(t *testing.T) {
+	s := rfSyslogDefaults()
+	s.RotateHours = 6
+	s.RemoteSource = "repeater"
+	s.DeviceNames = map[string]string{"192.168.10.1": "Главный_Keenetic", "192.168.10.2": "Spalnya"}
+	parent := []byte("@version: current\nsource repeater { network(ip(\"0.0.0.0\") port(514) transport(\"udp\")); };\n")
+	snippet, _, _, err := rfSyslogPreflight(s, parent, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, needle := range []string{"syslog-Главный_Keenetic-00-06.log", "syslog-Spalnya-18-24.log", "${R_YEAR}/${R_MONTH}/${R_DAY}", "R_HOUR", "create_dirs(no)", "${SOURCEIP}-06-12.log"} {
+		if !strings.Contains(snippet, needle) {
+			t.Fatalf("missing rotation component %q", needle)
+		}
+	}
+	if strings.Contains(snippet, "source s_routerforge_net") {
+		t.Fatal("duplicate listener")
+	}
+	if strings.Count(snippet, "destination d_routerforge_named_0_") != 4 {
+		t.Fatal("wrong number of 6h files")
+	}
+}
+func TestP454IntervalsAndNamesRejectUnsafeInputs(t *testing.T) {
+	for _, hours := range []int{1, 6, 12, 24} {
+		s := rfSyslogDefaults()
+		s.RotateHours = hours
+		if err := rfSyslogValidate(s); err != nil {
+			t.Fatal(hours, err)
+		}
+		snippet := rfSyslogSnippetEasy(s)
+		want := 24 / hours
+		if strings.Count(snippet, "destination d_routerforge_other_") != want {
+			t.Fatalf("interval %d: expected %d buckets", hours, want)
+		}
+	}
+	s := rfSyslogDefaults()
+	s.RotateHours = 5
+	if rfSyslogValidate(s) == nil {
+		t.Fatal("unsupported bucket allowed")
+	}
+	s = rfSyslogDefaults()
+	s.DeviceNames = map[string]string{"192.168.10.2": "../../etc/passwd"}
+	if rfSyslogValidate(s) == nil {
+		t.Fatal("unsafe filename allowed")
+	}
+	s = rfSyslogDefaults()
+	s.DeviceNames = map[string]string{"192.168.10.2": "Bedroom", "192.168.10.3": "bedroom"}
+	if rfSyslogValidate(s) == nil {
+		t.Fatal("case-colliding names allowed")
+	}
+}
+func TestP454RejectKernelAsNetworkSource(t *testing.T) {
+	parent := []byte("@version: current\nsource kernel { file(\"/proc/kmsg\"); };\nsource src { internal(); unix-dgram(\"/dev/log\"); };\nsource net { network(ip(\"0.0.0.0\") port(514)); };\n")
+	kind := map[string]string{}
+	for _, item := range rfSyslogSourceDetails(parent) {
+		kind[item.Name] = item.Kind
+	}
+	if kind["kernel"] != "kernel" || kind["src"] != "local" || kind["net"] != "network" {
+		t.Fatal(kind)
+	}
+	s := rfSyslogDefaults()
+	s.RemoteSource = "kernel"
+	_, _, _, err := rfSyslogPreflight(s, parent, nil)
+	if err == nil {
+		t.Fatal("kernel was accepted as network listener")
+	}
+	s.RemoteSource = "net"
+	if _, _, _, err = rfSyslogPreflight(s, parent, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+func TestP454LogFilenameSecurity(t *testing.T) {
+	for _, filename := range []string{"syslog-Главный_Keenetic-00-06.log", "syslog-192.168.10.5-21-22.log", "syslog-entware.log"} {
+		if !rfSyslogFile.MatchString(filename) {
+			t.Fatalf("legitimate filename refused: %s", filename)
+		}
+	}
+	for _, filename := range []string{"../syslog-evil.log", "syslog-hello/../../bad.log", "syslog-hi;rm.log"} {
+		if rfSyslogFile.MatchString(filename) {
+			t.Fatalf("unsafe filename accepted: %s", filename)
+		}
 	}
 }

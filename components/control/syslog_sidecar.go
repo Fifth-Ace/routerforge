@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -30,7 +29,7 @@ const (
 )
 
 var rfSyslogSourcesRE = regexp.MustCompile(`(?m)^\s*source\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{`)
-var rfSyslogUnmanagedListenerRE = regexp.MustCompile(`(?m)\b(udp|tcp|network|syslog|default-network-drivers)\s*\(`)
+var rfSyslogUnmanagedListenerRE = regexp.MustCompile(`(?m)\b(udp|tcp|network|network_localhost|syslog|default-network-drivers)\s*\(`)
 var rfSyslogEntwarePrograms = []string{
 	"syslog-ng", "dropbear", "cron", "crond", "curl", "wget", "tcpdump", "ipset", "iptables", "nginx", "python", "sh", "sshd", "samba", "dnsmasq", "mosquitto", "openvpn", "wireguard", "xray", "routerforge",
 }
@@ -117,50 +116,9 @@ func rfSyslogHasSource(sources []string, name string) bool {
 	return false
 }
 func rfSyslogSnippet(s rfSyslogSettings) string {
-	var b strings.Builder
-	b.WriteString(rfSyslogSidecarMarker + "\n")
-	if s.UDP || s.TCP {
-		source := s.RemoteSource
-		if source == "" {
-			source = "s_routerforge_net"
-			b.WriteString("source s_routerforge_net {\n")
-			if s.UDP {
-				fmt.Fprintf(&b, "  network(ip(\"%s\") port(%d) transport(\"udp\"));\n", s.Bind, s.Port)
-			}
-			if s.TCP {
-				fmt.Fprintf(&b, "  network(ip(\"%s\") port(%d) transport(\"tcp\"));\n", s.Bind, s.Port)
-			}
-			b.WriteString("};\n")
-		}
-		b.WriteString("filter f_routerforge_allow { ")
-		for i, cidr := range s.Allowed {
-			if i > 0 {
-				b.WriteString(" or ")
-			}
-			fmt.Fprintf(&b, "netmask(\"%s\")", cidr)
-		}
-		b.WriteString("; };\n")
-		fmt.Fprintf(&b, "destination d_routerforge_remote { file(\"%s/${YEAR}/${MONTH}/${DAY}/syslog-${SOURCEIP}.log\" perm(0640) create_dirs(yes)); };\n", s.Root)
-		fmt.Fprintf(&b, "log { source(%s); filter(f_routerforge_allow); destination(d_routerforge_remote); };\n", source)
-	}
-	if s.Local {
-		// Reuse source owned by the existing Entware config. Never re-open /dev/log.
-		b.WriteString("filter f_routerforge_entware { ")
-		for i, program := range rfSyslogEntwarePrograms {
-			if i > 0 {
-				b.WriteString(" or ")
-			}
-			fmt.Fprintf(&b, "program(\"%s\")", program)
-		}
-		b.WriteString("; };\n")
-		b.WriteString("filter f_routerforge_router { not filter(f_routerforge_entware); };\n")
-		fmt.Fprintf(&b, "destination d_routerforge_entware { file(\"%s/${YEAR}/${MONTH}/${DAY}/syslog-entware.log\" perm(0640) create_dirs(yes)); };\n", s.Root)
-		fmt.Fprintf(&b, "destination d_routerforge_local { file(\"%s/${YEAR}/${MONTH}/${DAY}/syslog-%s.log\" perm(0640) create_dirs(yes)); };\n", s.Root, s.HeadIP)
-		fmt.Fprintf(&b, "log { source(%s); filter(f_routerforge_entware); destination(d_routerforge_entware); };\n", s.LocalSource)
-		fmt.Fprintf(&b, "log { source(%s); filter(f_routerforge_router); destination(d_routerforge_local); };\n", s.LocalSource)
-	}
-	return b.String()
+	return rfSyslogSnippetEasy(s)
 }
+
 func rfSyslogParentWithInclude(parent []byte, include string) ([]byte, bool, error) {
 	if !strings.HasPrefix(strings.TrimSpace(string(parent)), "@version:") && !strings.Contains(string(parent), "\n@version:") {
 		return nil, false, errors.New("existing config is missing @version; explicit manual fix required")
@@ -194,6 +152,9 @@ func rfSyslogPreflight(s rfSyslogSettings, parent, existing []byte) (string, []b
 	}
 	if rfSyslogOwned(parent) {
 		return "", nil, "", errors.New("legacy full-file RouterForge config found; migration requires separate action")
+	}
+	if err := rfSyslogCheckSource(s, parent); err != nil {
+		return "", nil, "", err
 	}
 	sources := rfSyslogSources(parent)
 	if (s.UDP || s.TCP) && s.RemoteSource != "" && !rfSyslogHasSource(sources, s.RemoteSource) {
@@ -440,6 +401,10 @@ func rfSyslogApplySidecar(w http.ResponseWriter, r *http.Request) {
 			detail = detail[:2000]
 		}
 		writeJSON(w, 409, map[string]any{"error": "syslog-ng syntax preflight rejected", "detail": detail})
+		return
+	}
+	if err := rfSyslogPrepareFolders(req.Settings.Root, time.Now()); err != nil {
+		writeJSON(w, 409, map[string]any{"error": "cannot prepare mounted log folders: " + err.Error()})
 		return
 	}
 	// Check external config has not changed between preview and publication.

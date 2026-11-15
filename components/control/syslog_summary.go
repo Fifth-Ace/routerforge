@@ -67,10 +67,14 @@ func rfSyslogSummary(w http.ResponseWriter, r *http.Request) {
 		if f.Date > last {
 			last = f.Date
 		}
-		m := bySource[f.Source]
+		label := f.Display
+		if label == "" {
+			label = f.Source
+		}
+		m := bySource[label]
 		if m == nil {
-			m = &rfSyslogSourceSummary{Source: f.Source}
-			bySource[f.Source] = m
+			m = &rfSyslogSourceSummary{Source: label}
+			bySource[label] = m
 		}
 		m.Files++
 		m.Bytes += f.Size

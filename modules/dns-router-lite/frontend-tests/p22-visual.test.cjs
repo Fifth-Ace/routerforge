@@ -131,3 +131,45 @@ test('P37: DNS Lite typography matches Core semantic text hierarchy',()=>{
   for(const size of ['font-size:13px','font-size:20px','font-size:15px','font-size:11px'])
     a.ok(css.includes(size),'missing Core typography token: '+size);
 });
+
+
+test('P38: shared mode chrome retains navbar, title and button dimensions',async()=>{
+  const fs=require('node:fs');
+  const path=require('node:path');
+  const css=fs.readFileSync(path.join(__dirname,'../frontend/p25-settings.css'),'utf8');
+  const marker='/* P38: shared DNS Lite chrome and sizing across Basic and Advanced.';
+  a.ok(css.includes(marker),'P38 style gate missing');
+  const p38=css.slice(css.indexOf(marker));
+  for(const expected of ['min-height:46px;','min-height:35px;','font-size:11px;','font-size:13px;'])
+    a.ok(p38.includes(expected),'P38 semantic size missing: '+expected);
+  const f=fixture(),d=f.w.document;
+  try{
+    await until(()=>d.getElementById('serverCount').textContent.includes('2 DNS'));
+    // Old mode-specific geometry deliberately precedes the P38 parity rules.
+    const style=d.createElement('style');
+    style.textContent='#dnsLiteApp .tabs{min-height:46px;padding:4px;gap:6px}' +
+      '#dnsLiteApp[data-dns-mode="advanced"] .tabs{min-height:49px;padding:5px;gap:8px}' +
+      '#dnsLiteApp .tabs .tab{min-height:35px;padding:7px 17px}' +
+      '#dnsLiteApp[data-dns-mode="advanced"] .tabs .tab{min-height:37px;padding:8px 15px}' + p38;
+    d.head.appendChild(style);
+    const nav=d.querySelector('#dnsLiteApp .tabs');
+    const tab=d.querySelector('#dnsLiteApp .tabs .tab');
+    a.ok(nav && tab,'native tab must be present');
+    const dimensions=()=>{
+      const navCSS=f.w.getComputedStyle(nav);
+      const tabCSS=f.w.getComputedStyle(tab);
+      return [navCSS.minHeight,navCSS.paddingTop,navCSS.gap,tabCSS.minHeight,tabCSS.paddingTop,tabCSS.paddingLeft,tabCSS.fontSize];
+    };
+    const basic=dimensions();
+    d.getElementById('p22ModeAdvanced').click();
+    await until(()=>d.getElementById('dnsLiteApp').dataset.dnsMode==='advanced');
+    const advanced=dimensions();
+    a.deepEqual(advanced,basic,'switching mode must not resize the shared navigation');
+    a.equal(d.getElementById('p21Page').hidden,false,'advanced content stays accessible');
+    d.getElementById('p22ModeBasic').click();
+    await until(()=>d.getElementById('dnsLiteApp').dataset.dnsMode==='basic');
+    a.deepEqual(dimensions(),basic,'reverse navigation retains the same scale');
+    a.ok(f.calls.every(c=>!c.opts.method||c.opts.method==='GET'),'mode switch is read-only');
+    a.deepEqual(f.errors,[]);
+  } finally {f.dom.window.close();}
+});

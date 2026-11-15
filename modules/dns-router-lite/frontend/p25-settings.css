@@ -135,3 +135,119 @@ html,body { font-size:13px; }
 #dnsLiteApp .tabs .tab,
 #dnsLiteApp[data-dns-mode="advanced"] .tabs .tab,
 #dnsLiteApp .p22-mode-switch button { font-size:11px; }
+
+/* P38: shared DNS Lite chrome and sizing across Basic and Advanced.
+ * P22 changes content/navigation, not the visual scale of the host shell.
+ * This stylesheet loads last; no DNS config or service selectors are changed. */
+#dnsLiteApp.rfds-scope {
+  --accent: var(--rfds-accent,#4be927);
+  --accent-soft: var(--rfds-accent-soft,rgba(75,233,39,.105));
+  --rf-p38-page-pad: 20px;
+}
+#dnsLiteApp.page {
+  width:100%; max-width:none;
+  padding:var(--rf-p38-page-pad) var(--rf-p38-page-pad) 25px;
+  gap:11px;
+  line-height:1.45;
+}
+#dnsLiteApp .module-heading,
+#dnsLiteApp[data-dns-mode="advanced"] .module-heading {
+  min-height:70px;
+  padding:0 0 5px;
+  align-items:center;
+}
+#dnsLiteApp .module-heading-copy p,
+#dnsLiteApp[data-dns-mode="advanced"] .module-heading-copy p { max-width:92ch; }
+#dnsLiteApp .top-actions { align-items:center; gap:8px; }
+#dnsLiteApp .top-actions .button { min-height:34px; padding:6px 12px; }
+#dnsLiteApp .p22-mode-switch { min-height:36px; border-color:var(--border); }
+#dnsLiteApp .p22-mode-switch button { min-height:28px; }
+/* Exactly the same navbar geometry in both modes. */
+#dnsLiteApp .tabs,
+#dnsLiteApp[data-dns-mode="advanced"] .tabs {
+  display:flex;
+  align-items:center;
+  min-height:46px;
+  padding:4px;
+  gap:6px;
+  border:1px solid var(--border);
+  border-radius:var(--rf-p195b-radius);
+  background:var(--surface);
+  overflow-x:auto;
+  flex-wrap:nowrap;
+}
+#dnsLiteApp .tabs .tab,
+#dnsLiteApp[data-dns-mode="advanced"] .tabs .tab {
+  min-height:35px;
+  padding:7px 12px;
+  border:1px solid transparent;
+  border-radius:var(--rf-p195b-control-radius);
+  font-size:11px;
+  font-weight:650;
+  line-height:1.25;
+  flex-shrink:0;
+  white-space:nowrap;
+}
+#dnsLiteApp .tabs .tab.selected,
+#dnsLiteApp[data-dns-mode="advanced"] .tabs .tab.selected {
+  background:var(--accent-soft);
+  border-color:var(--accent);
+  color:var(--text);
+  box-shadow:none;
+}
+#dnsLiteApp #pageDns,
+#dnsLiteApp #p21Page,
+#dnsLiteApp #pageLogs { min-width:0; font-size:13px; line-height:1.45; }
+/* Advanced content keeps its features, but uses the same panels and controls. */
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel {
+  padding:16px;
+  min-width:0;
+  border:1px solid var(--border);
+  border-radius:var(--rf-p195b-radius);
+  background:var(--surface);
+  box-shadow:none;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .button {
+  min-height:34px;
+  padding:6px 12px;
+  border:1px solid var(--border);
+  border-radius:var(--rf-p195b-control-radius);
+  background:var(--surface2);
+  color:var(--text);
+  font-size:11px;
+  font-weight:650;
+  box-shadow:none;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page .button.primary {
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  color:var(--text);
+  box-shadow:none;
+}
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page input:not([type=checkbox]),
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page select,
+#dnsLiteApp[data-dns-mode="advanced"] #p21Page textarea {
+  min-height:35px;
+  padding:6px 9px;
+  border-color:var(--border);
+  border-radius:var(--rf-p195b-control-radius);
+  background:var(--surface2);
+}
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-heading h2 { font-size:15px; font-weight:650; }
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-section h3 { font-size:14px; font-weight:650; }
+#dnsLiteApp[data-dns-mode="advanced"] .p25-settings-link-label { font-size:11px; }
+@media (max-width:960px) {
+  #dnsLiteApp .module-heading,
+  #dnsLiteApp[data-dns-mode="advanced"] .module-heading {
+    align-items:flex-start;
+    flex-wrap:wrap;
+    min-height:0;
+  }
+  #dnsLiteApp .top-actions { flex-wrap:wrap; justify-content:flex-start; }
+}
+@media (max-width:670px) {
+  #dnsLiteApp.rfds-scope { --rf-p38-page-pad:12px; }
+  #dnsLiteApp .tabs .tab,
+  #dnsLiteApp[data-dns-mode="advanced"] .tabs .tab { padding:7px 10px; }
+  #dnsLiteApp[data-dns-mode="advanced"] #p21Page > .panel { padding:12px; }
+}

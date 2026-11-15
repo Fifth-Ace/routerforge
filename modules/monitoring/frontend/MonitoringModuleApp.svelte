@@ -31,6 +31,11 @@
   let routeSort = { key: 'destination', dir: 'asc' };
   let processSort = { key: 'cpu', dir: 'desc' };
   let processQuery = '';
+  let doctorExpanded = '';
+  let doctorDrivers = {};
+  let doctorBusy = {};
+  let doctorSmartByDevice = {};
+  let doctorError = {};
 
   $: locale = $settings.locale || 'ru';
   $: advanced = $settings.uiLevel === 'advanced';
@@ -87,7 +92,10 @@
   }
 
   async function loadStorage(signal) {
-    return { storage: await getModule('storage', 'storage', signal) };
+    const storage = await getModule('storage', 'storage', signal);
+    let doctor = null;
+    try { doctor = await getModule('storage', 'doctor', signal); } catch (_) { /* older backend: keep original Storage working */ }
+    return { storage, doctor };
   }
 
   async function loadNetwork(signal) {
@@ -265,6 +273,37 @@
     return t(locale, `monitoring.thermal.categories.${sensor.category || 'other'}`);
   }
 
+  function doctorTr(ru,en) { return locale === 'ru' ? ru : en; }
+  function doctorSmartStatus(s) {
+    if(!s) return doctorTr('Не проверялся','Not checked');
+    const values = {available:doctorTr('Данные получены','Data available'),asleep:doctorTr('Диск спит','Drive asleep'),unsupported:doctorTr('Не поддерживается','Unsupported'),unavailable:doctorTr('Нет данных','Unavailable'),busy:doctorTr('Устройство занято','Device busy'),error:doctorTr('Ошибка опроса','Probe error')};
+    if(s.status!=='available') return values[s.status] || s.status;
+    if(s.health==='ok') return doctorTr('SMART: без критических признаков','SMART: no critical flags');
+    if(s.health==='warning') return doctorTr('SMART: внимание','SMART: warning');
+    if(s.health==='critical') return doctorTr('SMART: критично','SMART: critical');
+    return doctorTr('SMART: состояние неизвестно','SMART: health unknown');
+  }
+  function doctorEventName(type) {
+    const names={appeared:doctorTr('Подключён','Mounted'),disappeared:doctorTr('Отключён','Unmounted'),read_only:doctorTr('Перешёл в только чтение','Became read-only'),writable_again:doctorTr('Запись восстановлена','Writable again')};
+    return names[type] || type;
+  }
+  async function doctorCheckSmart(device) {
+    if(doctorBusy[device]) return;
+    doctorBusy={...doctorBusy,[device]:true};doctorError={...doctorError,[device]:''};
+    const name=String(device).replace(/^\/dev\//,'');
+    const driver=doctorDrivers[device]||'auto';
+    const ctl = new AbortController();
+    const timeout = setTimeout(()=>ctl.abort(),12000);
+    try {
+      const url=`/api/modules/storage/doctor-smart?device=${encodeURIComponent(name)}&driver=${encodeURIComponent(driver)}`;
+      const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:ctl.signal});
+      const result=await response.json();
+      if(!response.ok) throw new Error(result.error||doctorTr('Не удалось проверить SMART','SMART check failed'));
+      doctorSmartByDevice={...doctorSmartByDevice,[device]:result};doctorExpanded=device;
+    } catch(error){doctorError={...doctorError,[device]:error?.message||String(error)};}
+    finally{clearTimeout(timeout);doctorBusy={...doctorBusy,[device]:false};}
+  }
+
   function storageMountName(item) {
     if (item.mount === '/opt') return t(locale, 'monitoring.storage.entware');
     if (item.mount === '/storage') return t(locale, 'monitoring.storage.internal');
@@ -432,6 +471,89 @@
     </section>
 
   {:else if tab === 'storage' && data.storage}
+    {#if data.doctor}
+      <section class="panel rf-doctor-shell">
+        <div class="panel-head"><div><strong>{doctorTr('Состояние накопителей','Storage health')}</strong><span>{doctorTr('Физические диски, разделы, Entware и доступная диагностика SMART','Physical drives, partitions, Entware and optional SMART diagnostics')}</span></div></div>
+        <div class="rf-doctor-entware">
+          <strong>{doctorTr('Entware (/opt)','Entware (/opt)')}</strong>
+          <span class:rf-doctor-good={data.doctor.entware.mounted && data.doctor.entware.writable} class:rf-doctor-bad={!data.doctor.entware.mounted || !data.doctor.entware.writable}>
+            {data.doctor.entware.mounted ? (data.doctor.entware.writable ? doctorTr('Смонтирован · запись разрешена','Mounted · writable') : doctorTr('Только чтение','Read-only')) : doctorTr('Не смонтирован','Not mounted')}
+          </span>
+          <small>{data.doctor.entware.device || doctorTr('Устройство не определено','Device unavailable')} · {data.doctor.entware.fs_type || '—'} · {doctorTr('Служебные каталоги','Init files')}: {data.doctor.entware.init_present ? 'OK' : doctorTr('Нет данных','Missing')} · {doctorTr('База пакетов','Package database')}: {data.doctor.entware.package_db_present ? 'OK' : doctorTr('Нет данных','Missing')}</small>
+          {#if data.doctor.entware.warning}<div class="rf-doctor-warning">{data.doctor.entware.warning}</div>{/if}
+        </div>
+        {#if !data.doctor.smartctl_installed}
+          <p class="rf-doctor-warning">{doctorTr('SMART пока недоступен: установи smartmontools через Центр приложений. Диагностика USB и разделов работает без него.','SMART is unavailable: install smartmontools via App Center. USB and mount diagnostics work without it.')} <a href="/apps">{doctorTr('Открыть Центр приложений','Open App Center')}</a></p>
+        {/if}
+        <p class="rf-doctor-note">{doctorTr('SMART запускается только по нажатию кнопки. Некоторые USB-переходники не передают SMART, а проверка может разбудить HDD.','SMART runs only on request. Some USB bridges do not expose SMART; a request may wake a sleeping HDD.')}</p>
+        {#if (data.doctor.disks || []).length}
+          <div class="rf-doctor-grid">
+            {#each data.doctor.disks as disk (disk.device)}
+              <article class="rf-doctor-disk">
+                <div class="rf-doctor-top"><div><strong>{disk.entware ? doctorTr('Накопитель с Entware','Entware drive') : (disk.model || disk.vendor || disk.device)}</strong><small>{disk.device} · {storageType(disk)}{disk.model && disk.entware ? ` · ${disk.model}` : ''}</small></div><span>{bytes(disk.size_bytes)}</span></div>
+                <div class="rf-doctor-mounts">
+                  {#each disk.mounts as mount (`${disk.device}:${mount.mount}`)}
+                    <div class="rf-doctor-mount"><span>{mount.mount} · {mount.fs_type}</span><strong class:rf-doctor-bad={mount.read_only}>{mount.read_only ? 'RO' : 'RW'} · {Number(mount.used_pct).toFixed(1)}%</strong></div>
+                  {/each}
+                  {#if !disk.mounts.length}<small>{doctorTr('Разделы не смонтированы','No mounted partitions')}</small>{/if}
+                  {#if disk.partitions.length}<small>{doctorTr('Разделы','Partitions')}: {disk.partitions.join(', ')}</small>{/if}
+                </div>
+                <div class="rf-doctor-smart-summary">
+                  <strong>SMART</strong>
+                  {#if doctorSmartByDevice[disk.device]}
+                    <span class:rf-doctor-good={doctorSmartByDevice[disk.device].health==='ok'} class:rf-doctor-bad={doctorSmartByDevice[disk.device].health==='critical'}>{doctorSmartStatus(doctorSmartByDevice[disk.device])}</span>
+                  {:else}<span>{doctorTr('Не проверялся','Not checked')}</span>{/if}
+                </div>
+                <div class="rf-doctor-controls">
+                  <label>{doctorTr('Тип подключения','Bridge / device type')}
+                    <select value={doctorDrivers[disk.device] || 'auto'} onchange={(event)=>{doctorDrivers={...doctorDrivers,[disk.device]:event.currentTarget.value};}}>
+                      {#each ['auto','sat','sat,12','scsi','nvme','ata','usbjmicron','usbcypress','usbsunplus','sntjmicron','sntasmedia','sntrealtek'] as driver}<option value={driver}>{driver}</option>{/each}
+                    </select>
+                  </label>
+                  <button class="button" disabled={!data.doctor.smartctl_installed || !!doctorBusy[disk.device]} onclick={()=>doctorCheckSmart(disk.device)}>{doctorBusy[disk.device] ? doctorTr('Проверка…','Checking…') : doctorTr('Проверить SMART','Check SMART')}</button>
+                  <button class="button" onclick={()=>doctorExpanded=doctorExpanded===disk.device ? '' : disk.device}>{doctorExpanded===disk.device ? doctorTr('Скрыть','Hide details') : doctorTr('Подробности','Details')}</button>
+                </div>
+                {#if doctorError[disk.device]}<p class="rf-doctor-warning">{doctorError[disk.device]}</p>{/if}
+                {#if doctorExpanded===disk.device}
+                  <div class="rf-doctor-details">
+                    {#if doctorSmartByDevice[disk.device]}
+                      {@const smart=doctorSmartByDevice[disk.device]}
+                      <div class="rf-doctor-mount"><span>{doctorTr('Последняя проверка','Last checked')}</span><strong>{smart.checked_at ? new Date(smart.checked_at).toLocaleString(locale) : '—'}{smart.cached ? ' · cache' : ''}</strong></div>
+                      <div class="rf-doctor-mount"><span>{doctorTr('Температура','Temperature')}</span><strong>{smart.temperature_c == null ? '—' : `${smart.temperature_c} °C`}</strong></div>
+                      <div class="rf-doctor-mount"><span>{doctorTr('Часы работы','Power-on hours')}</span><strong>{smart.power_hours == null ? '—' : `${smart.power_hours} h`}</strong></div>
+                      {#if smart.note}<p class="rf-doctor-note">{smart.note}</p>{/if}
+                      {#if smart.attributes?.length}
+                        <div class="table-scroll"><table><thead><tr><th>ID</th><th>{doctorTr('Атрибут','Attribute')}</th><th>Value</th><th>Worst</th><th>Thresh</th><th>Raw</th></tr></thead><tbody>
+                          {#each smart.attributes as attr (attr.id)}<tr><td>{attr.id}</td><td>{attr.name}</td><td>{attr.value ?? '—'}</td><td>{attr.worst ?? '—'}</td><td>{attr.thresh ?? '—'}</td><td>{attr.raw?.value == null ? '—' : String(attr.raw.value)}</td></tr>{/each}
+                        </tbody></table></div>
+                      {/if}
+                      {#if smart.nvme && Object.keys(smart.nvme).length}
+                        <div class="rf-doctor-nvme">{#each Object.entries(smart.nvme) as [key,value] (key)}<div class="rf-doctor-mount"><span>{key.replaceAll('_',' ')}</span><strong>{String(value)}</strong></div>{/each}</div>
+                      {/if}
+                    {:else}
+                      <p class="rf-doctor-note">{doctorTr('Выбери «Проверить SMART» для получения физических показателей.','Select Check SMART for hardware health data.')}</p>
+                    {/if}
+                    {#if disk.mounts.length}
+                      <strong>{doctorTr('Файловые системы','Filesystems')}</strong>
+                      {#each disk.mounts as mount (`detail:${mount.mount}`)}
+                        <div class="rf-doctor-mount"><span>{mount.mount}</span><strong>{bytes(mount.available_bytes)} {doctorTr('доступно','available')}{mount.inodes_total != null ? ` · ${mount.inodes_free}/${mount.inodes_total} inode` : ''}</strong></div>
+                      {/each}
+                    {/if}
+                  </div>
+                {/if}
+              </article>
+            {/each}
+          </div>
+        {:else}<p class="rf-doctor-note">{doctorTr('Физические накопители не обнаружены. Сведения об Entware показаны отдельно.','No physical disks detected; Entware state is shown separately.')}</p>{/if}
+        <div class="rf-doctor-incidents">
+          <strong>{doctorTr('События накопителей','Storage events')}</strong>
+          {#if data.doctor.incidents?.length}
+            {#each data.doctor.incidents.slice(0,10) as event (`${event.at}:${event.kind}:${event.mount}`)}<div class="rf-doctor-mount"><span>{doctorEventName(event.kind)} · {event.mount}</span><small>{new Date(event.at).toLocaleString(locale)}</small></div>{/each}
+          {:else}<p class="rf-doctor-note">{doctorTr('С момента открытия диагностики изменений монтирования не замечено. Это не означает, что ошибок раньше не было.','No mount changes observed since the diagnostics was opened. This does not mean no earlier errors occurred.')}</p>{/if}
+          <small>{doctorTr('История ограничена текущим запуском Monitoring. Системный журнал ошибок ядра сюда пока не подключён.','History is limited to the current Monitoring runtime. Kernel I/O error logs are not connected yet.')}</small>
+        </div>
+      </section>
+    {/if}
     <section class="panel table-panel">
       <div class="panel-head"><div><strong>{t(locale, 'monitoring.storage.title')}</strong><span>{t(locale, 'monitoring.storage.subtitle')}</span></div></div>
       {#if (data.storage.mounts || []).length}
@@ -773,4 +895,19 @@
       min-width: 0;
     }
   }
+  .rf-doctor-shell{padding:14px;display:grid;gap:12px}
+  .rf-doctor-entware,.rf-doctor-disk,.rf-doctor-incidents{border:1px solid var(--rf-border,#333);border-radius:8px;padding:12px;display:grid;gap:8px;min-width:0}
+  .rf-doctor-entware small,.rf-doctor-disk small,.rf-doctor-incidents small,.rf-doctor-note{color:var(--rf-muted,#9ba5b1);font-size:12px}
+  .rf-doctor-good{color:var(--good,#4fd498)}.rf-doctor-bad{color:var(--error,#ff6d6d)}
+  .rf-doctor-warning{color:var(--warn,#eeb45e);font-size:12px;margin:0;overflow-wrap:anywhere}
+  .rf-doctor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px;min-width:0}
+  .rf-doctor-top,.rf-doctor-mount,.rf-doctor-smart-summary{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .rf-doctor-top>div{display:grid;gap:4px;min-width:0}.rf-doctor-top small{overflow-wrap:anywhere}
+  .rf-doctor-mount{font-size:12px;padding:4px 0;overflow-wrap:anywhere}.rf-doctor-mount strong{text-align:right;flex-shrink:0}
+  .rf-doctor-mounts,.rf-doctor-details{display:grid;gap:4px;min-width:0}
+  .rf-doctor-smart-summary{border-top:1px solid var(--rf-border,#333);padding-top:9px;font-size:13px}
+  .rf-doctor-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:end}.rf-doctor-controls label{font-size:11px;display:grid;gap:5px;color:var(--rf-muted,#aaa)}
+  .rf-doctor-controls select{background:var(--rf-surface-2,#15191e);border:1px solid var(--rf-border,#333);color:var(--rf-text,#fff);padding:7px;border-radius:6px}
+  .rf-doctor-details{padding-top:8px;border-top:1px solid var(--rf-border,#333)}.rf-doctor-details table{font-size:11px}
+  @media(max-width:600px){.rf-doctor-top,.rf-doctor-mount{align-items:flex-start;flex-wrap:wrap}.rf-doctor-mount strong{text-align:left}}
 </style>

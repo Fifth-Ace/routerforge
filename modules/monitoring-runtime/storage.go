@@ -143,6 +143,7 @@ func (s *moduleServer) registerStorage(mux *http.ServeMux) {
 			"benchmarking":   false,
 		})
 	}))
+	s.registerStorageDoctor(mux)
 }
 
 func readDiskCounters() map[string]diskCounters {

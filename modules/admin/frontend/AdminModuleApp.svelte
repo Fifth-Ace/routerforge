@@ -33,6 +33,7 @@
   import { t } from '$lib/i18n/index.js';
   import TerminalPane from './TerminalPane.svelte';
   import FileManagerPane from './FileManagerPane.svelte';
+  import SyslogPane from './SyslogPane.svelte';
 
   const adminQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const terminalEmbed = adminQuery.get('embed') === 'terminal';
@@ -137,7 +138,8 @@
     ['packages', t(locale, 'manage.tabs.packages')],
     ['files', copy.files],
     ['terminal', copy.terminal],
-    ['maintenance', copy.maintenance]
+    ['maintenance', copy.maintenance],
+    ['syslog', 'Syslog']
   ];
 
   $: q = search.trim().toLowerCase();
@@ -177,7 +179,7 @@
       adminReads.cancel('support');
     }
     if (next !== 'integrations') adminReads.cancel('integrations');
-    if (next === 'files' || next === 'terminal') {
+    if (next === 'files' || next === 'terminal' || next === 'syslog') {
       loading = false;
       packageLoading = false;
       return;
@@ -643,7 +645,7 @@
     {/each}
   </div>
 
-  {#if tab !== 'files' && tab !== 'terminal' && tab !== 'maintenance'}
+  {#if tab !== 'files' && tab !== 'terminal' && tab !== 'maintenance' && tab !== 'syslog'}
     <div class="toolbar">
       <div class="search-control flex"><span>⌕</span><input bind:value={search} placeholder={t(locale, 'common.search')}/></div>
       <button class="button" onclick={() => load(tab)} disabled={loading}>↻ {t(locale, 'common.refresh')}</button>
@@ -934,6 +936,8 @@
         {/if}
       {/if}
     </section>
+  {:else if tab === 'syslog'}
+    <SyslogPane locale={locale} />
   {:else if tab === 'files'}
     {#key fileOpenTarget}
       <FileManagerPane locale={locale} openTarget={fileOpenTarget} />

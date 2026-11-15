@@ -113,6 +113,15 @@ export const entwarePackageAction = (packageName, action, confirm = '') =>
   postJSON('/api/apps/entware/action', { package: packageName, action, confirm }, PACKAGE_WRITE_TIMEOUT_MS);
 export const getEntwarePackageDetail = (packageName) =>
   request(`/api/apps/entware/detail?package=${encodeURIComponent(packageName)}`);
+export const preflightEntwarePackage = (packageName, action = 'install') =>
+  postJSON('/api/apps/entware/preflight', { package: packageName, action });
+export const getRouterforgeSyslogStatus = () => request('/api/modules/admin/syslog/status');
+export const getRouterforgeSyslogFiles = () => request('/api/modules/admin/syslog/logs');
+export const getRouterforgeSyslogTail = (date, source, lines = 200) =>
+  request(`/api/modules/admin/syslog/tail?date=${encodeURIComponent(date)}&source=${encodeURIComponent(source)}&lines=${encodeURIComponent(lines)}`);
+export const routerforgeSyslogExportURL = (date, source) =>
+  `/api/modules/admin/syslog/export?date=${encodeURIComponent(date)}&source=${encodeURIComponent(source)}`;
+export const applyRouterforgeSyslog = (body) => postJSON('/api/modules/admin/syslog/apply', body);
 export const preflightAppAction = (body) => postJSON('/api/apps/preflight', body);
 export const startAppAction = (body) => postJSON('/api/apps/actions', body);
 export const getAppActions = () => request('/api/apps/actions');

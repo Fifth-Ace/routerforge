@@ -255,7 +255,8 @@ func securedModuleProxy(auth *authManager) http.HandlerFunc {
 		moduleMutation := nfqwsMutation || antiscanMutation || portAccessMutationRequest(r) || crowdsecMutationRequest(r) || dnsRouterMutationRequest(r)
 		adminFiles := adminModuleFileRequest(r)
 		adminTerminal := adminModuleTerminalRequest(r)
-		guarded := adminMutation || moduleMutation || adminFiles || adminTerminal
+		adminSyslog := strings.HasPrefix(r.URL.Path, "/api/modules/admin/syslog/")
+		guarded := adminMutation || moduleMutation || adminFiles || adminTerminal || adminSyslog
 		if guarded {
 			if !sameOriginRequest(r) {
 				message := "cross-origin Admin mutation rejected"

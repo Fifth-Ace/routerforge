@@ -54,7 +54,7 @@ start_service() {
   fail SOCKET_NOT_READY
 }
 stop_service() {
-  operation="${1:-stop}"
+  operation="${1:-maintenance}"
   if owned; then
     # Restore an owned client DNS profile before disabling the listener.
     # A failed restoration leaves management running for manual recovery.
@@ -79,9 +79,10 @@ stop_service() {
 }
 case "${1:-}" in
 start) start_service ;;
-stop) stop_service ;;
+stop) stop_service maintenance ;;
+disable) stop_service stop ;;
 maintenance) stop_service maintenance ;;
 restart) stop_service maintenance && start_service ;;
 status) if owned; then echo "RF_DNS_ROUTER_DEV: RUNNING:$p"; else echo 'RF_DNS_ROUTER_DEV: STOPPED'; exit 1; fi ;;
-*) echo 'Usage: S95routerforge-dns-router {start|stop|maintenance|restart|status}' >&2; exit 2 ;;
+*) echo 'Usage: S95routerforge-dns-router {start|stop|disable|maintenance|restart|status}' >&2; exit 2 ;;
 esac

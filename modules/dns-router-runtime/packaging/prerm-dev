@@ -3,7 +3,7 @@
 set -eu
 case "${1:-remove}" in
 upgrade|deconfigure) action=maintenance ;;
-remove) action=stop ;;
+remove) action=disable ;;
 *) echo 'RF_DNS_LITE_PRERM: unsupported lifecycle reason' >&2; exit 1 ;;
 esac
 /opt/etc/init.d/S95routerforge-dns-router "$action"

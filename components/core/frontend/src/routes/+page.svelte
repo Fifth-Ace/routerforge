@@ -344,6 +344,19 @@
     {/if}
   </section>
 
+  <section class="panel rf-portal-promo" aria-label={t(locale, 'home.portalTitle')}>
+    <div class="rf-portal-promo-copy">
+      <span class="rf-portal-promo-eyebrow">{t(locale, 'home.portalEyebrow')}</span>
+      <h2>{t(locale, 'home.portalTitle')}</h2>
+      <p>{t(locale, 'home.portalDescription')}</p>
+      <small>{t(locale, 'home.portalNote')}</small>
+    </div>
+    <div class="rf-portal-promo-actions">
+      <a class="button primary" href="https://chromewebstore.google.com/detail/ikghhhcbgfepddcjammfhaeomohfajij" target="_blank" rel="noopener noreferrer">{t(locale, 'home.portalChrome')} ↗</a>
+      <a class="button" href="https://fifth-ace.github.io/routerforge-portal/" target="_blank" rel="noopener noreferrer">{t(locale, 'home.portalSite')} ↗</a>
+    </div>
+  </section>
+
   <section class="routerforge-installed-v2">
     <div class="catalog-section-head">
       <div><h2>{t(locale, 'home.installedOnRouter')}</h2><p>{t(locale, 'home.installedOnRouterHint')}</p></div>
@@ -392,3 +405,16 @@
     onclose={() => webWorkspace = null}
   />
 {/if}
+
+<style>
+  .rf-portal-promo{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:21px 24px;border:1px solid var(--rf-accent-border,#376b8c);background:linear-gradient(110deg,rgba(30,90,132,.16),rgba(28,42,59,.16));}
+  .rf-portal-promo-copy{display:grid;gap:7px;min-width:0;max-width:720px}
+  .rf-portal-promo-eyebrow{font-size:10px;letter-spacing:.11em;font-weight:700;color:var(--rf-accent,#38bdf8)}
+  .rf-portal-promo h2{font-size:19px;margin:0}
+  .rf-portal-promo p{margin:0;font-size:13px;line-height:1.55;color:var(--rf-text,#d6e2f0)}
+  .rf-portal-promo small{font-size:11px;color:var(--rf-muted,#92a4b7);line-height:1.45}
+  .rf-portal-promo-actions{display:flex;gap:9px;flex-wrap:wrap;flex-shrink:0}
+  .rf-portal-promo-actions .button{white-space:normal;text-align:center;justify-content:center;min-height:38px}
+  @media(max-width:980px){.rf-portal-promo{align-items:stretch;flex-direction:column}.rf-portal-promo-actions{flex-shrink:1}}
+  @media(max-width:480px){.rf-portal-promo{padding:17px}.rf-portal-promo-actions{display:grid}.rf-portal-promo-actions .button{width:100%}}
+</style>

@@ -154,6 +154,12 @@ export default {
     "github": "RouterForge on GitHub"
   },
   "home": {
+    "portalEyebrow": "NEW · BROWSER EXTENSION",
+    "portalTitle": "RouterForge Portal",
+    "portalDescription": "Bring RouterForge, NFQWS and other web dashboards into the familiar Keenetic menu. Install in your browser, not on the router.",
+    "portalNote": "Free · Russian and English · Works independently of RouterForge Core.",
+    "portalChrome": "Add to Chrome",
+    "portalSite": "Official website",
     "issueCoreUnavailable": "RouterForge Core is unavailable",
     "issueAppCenterUnavailable": "App Center is unavailable",
     "issueRegistryLocal": "App catalog is using a local source",

@@ -250,6 +250,8 @@ func doctorHistoryBindDiskIdentity(doc *doctorHistoryDocument, device, identity 
 	}
 	if previous != "" {
 		delete(doc.Temperatures, device)
+		// The old disk's overheat state must not produce recovery/alarm for a replacement.
+		delete(doc.Smart, "temp-state:"+device)
 	}
 	doc.DiskIdentities[device] = identity
 	return true
@@ -286,6 +288,7 @@ func doctorHistoryAugment(view *doctorView, now time.Time) {
 	for _, disk := range view.Disks {
 		name := strings.TrimPrefix(disk.Device, "/dev/")
 		if doctorHistoryBindDiskIdentity(&doctorHistory.document, disk.Device, doctorSmartIdentity(name)) {
+			delete(doctorHistory.lastReadings, disk.Device)
 			dirty = true
 		}
 	}
@@ -400,12 +403,19 @@ func doctorRememberSMART(res doctorSmartResult) {
 		}
 	}
 	device := res.Device
-	baselineID := "smart:" + doctorSmartIdentity(strings.TrimPrefix(device, "/dev/"))
+	identity := doctorSmartIdentity(strings.TrimPrefix(device, "/dev/"))
+	if res.DiskIdentity != "" && identity != res.DiskIdentity {
+		return // The probe completed on a device that has since been replaced.
+	}
+	baselineID := "smart:" + identity
 	doctorHistory.Lock()
 	defer doctorHistory.Unlock()
 	doctorHistoryLoadLocked()
+	dirty := doctorHistoryBindDiskIdentity(&doctorHistory.document, device, identity)
+	if dirty {
+		delete(doctorHistory.lastReadings, device)
+	}
 	previous, exists := doctorHistory.document.Smart[baselineID]
-	dirty := false
 	if exists {
 		for key, value := range counters {
 			if before, ok := previous.Counters[key]; ok && value > before {

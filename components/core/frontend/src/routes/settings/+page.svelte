@@ -18,7 +18,7 @@
     tabs[next].focus();
   }
   import { snapshot } from '$lib/stores/snapshot.js';
-  import { settings, themes } from '$lib/stores/settings.js';
+  import { settings, themes, settingsPersistence } from '$lib/stores/settings.js';
   import { catalog, refreshCatalog } from '$lib/stores/catalog.js';
   import { authState, setAuthRequired } from '$lib/stores/auth.js';
   import { getSystem } from '$lib/api.js';
@@ -224,6 +224,11 @@
     <span class="page-kicker mono">{t(locale, 'settings.kicker')}</span>
   </div>
 
+  {#if !$settingsPersistence.saved}
+    <div class="settings-security-error" role="alert">{locale === 'ru'
+      ? 'Настройки интерфейса действуют только в текущей вкладке: браузер не разрешил их сохранить.'
+      : 'Interface settings apply only to this tab: browser storage is unavailable.'}</div>
+  {/if}
   <div class="rf-p1-settings">
     <nav class="rf-p1-tabs" role="tablist" aria-label={t(locale, 'settings.l1a.tabsAria')}>
       <button type="button" id="rf-p1-tab-system" role="tab" aria-controls="rf-p1-pane-system" aria-selected={activeSettingsTab === 'system'} tabindex={activeSettingsTab === 'system' ? 0 : -1} onkeydown={onSettingsTabKeydown} class:active={activeSettingsTab === 'system'} onclick={() => activeSettingsTab = 'system'}>{t(locale, 'settings.l1a.tabSystem')}</button>

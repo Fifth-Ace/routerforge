@@ -45,9 +45,9 @@ export function getSmartDriverPreference(preferences, disk) {
 }
 
 export function setSmartDriverPreference(storage, current, disk, driver) {
-  if (!SMART_DRIVER_CHOICES.includes(driver)) return { preferences: current, saved: false };
+  if (!SMART_DRIVER_CHOICES.includes(driver)) return { preferences: current, saved: false, reason: 'invalid_driver' };
   const key = smartDriverDiskKey(disk);
-  if (!key) return { preferences: current, saved: false };
+  if (!key) return { preferences: current, saved: false, reason: 'identity_unavailable' };
   const entries = Object.entries(current || {}).filter(([k,v]) => k !== key && SMART_DRIVER_CHOICES.includes(v) && v !== 'auto');
   if (driver !== 'auto') entries.push([key, driver]);
   const next = Object.fromEntries(entries.slice(-MAX_ENTRIES));
@@ -56,5 +56,5 @@ export function setSmartDriverPreference(storage, current, disk, driver) {
     storage?.setItem(SMART_DRIVER_STORAGE_KEY, JSON.stringify(next));
     saved = !!storage;
   } catch (_) { /* keep current-session choice, show explicit warning */ }
-  return { preferences: next, saved };
+  return saved ? { preferences: next, saved: true } : { preferences: next, saved: false, reason: 'storage_unavailable' };
 }

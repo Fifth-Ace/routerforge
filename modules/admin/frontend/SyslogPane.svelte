@@ -351,8 +351,12 @@
             <div class="rf-smb-wizard">
               <div class="rf-smb-title"><strong>{tr('Подключить сетевую папку','Connect a network share')}</strong><button type="button" class="button" onclick={loadSMB} disabled={smbBusy}>↻ {tr('Проверить поддержку','Check support')}</button></div>
               {#if smbError}<div class="rf-syslog-msg rf-warning" role="alert">{smbError}</div>{/if}
-              {#if smb?.connected}
-                <div class="rf-syslog-msg rf-ok">{tr('SMB-папка подключена','SMB share connected')}{smb.host ? `: ${smb.host}/${smb.share}` : ''}. {tr('Каталог журналов','Log folder')}: {smb.mount_root}</div>
+              {#if smb?.connected || smb?.mounted}
+                {#if smb?.degraded}
+                  <div class="rf-syslog-msg rf-warning" role="alert">{tr('NAS смонтирован, но запись журналов недоступна. Переподключение будет повторено автоматически, если хранилище не занято syslog-ng.','NAS is mounted but log writing is unavailable. RouterForge will retry recovery when syslog-ng is not using the share.')}{smb.reconnect_error ? ` · ${smb.reconnect_error}` : ''}</div>
+                {:else}
+                  <div class="rf-syslog-msg rf-ok">{tr('SMB-папка подключена','SMB share connected')}{smb.host ? `: ${smb.host}/${smb.share}` : ''}. {tr('Каталог журналов','Log folder')}: {smb.mount_root}</div>
+                {/if}
                 <div class="rf-actions"><button type="button" class="button" onclick={smbDisconnect} disabled={smbBusy}>{tr('Отключить SMB','Disconnect SMB')}</button></div>
               {:else}
                 {#if smb && (!smb.client_ready || !smb.kernel_ready)}

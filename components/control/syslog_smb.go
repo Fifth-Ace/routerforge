@@ -129,9 +129,16 @@ func rfSMBReadConnection() rfSMBConnection {
 	}
 	return c
 }
+
+// This state is accessed under rfSMBMu. A mounted CIFS share may be unwritable.
+var rfSMBReconnectDegraded bool
+var rfSMBReconnectError string
+
 func rfSyslogSMBStatus(w http.ResponseWriter, r *http.Request) {
+	rfSMBMu.Lock()
+	defer rfSMBMu.Unlock()
 	c := rfSMBReadConnection()
-	writeJSON(w, 200, map[string]any{"client_ready": rfSMBMountClient() != "", "kernel_ready": rfSMBKernelAvailable(), "connected": rfSMBMounted(), "mount_root": rfSMBRoot, "host": c.Host, "share": c.Share, "auto_reconnect": c.Remember, "credentials_saved": c.Remember && rfSMBSecretFileSecure(), "mutation_api": true})
+	writeJSON(w, 200, map[string]any{"client_ready": rfSMBMountClient() != "", "kernel_ready": rfSMBKernelAvailable(), "connected": rfSMBMounted() && !rfSMBReconnectDegraded, "mounted": rfSMBMounted(), "degraded": rfSMBReconnectDegraded, "reconnect_error": rfSMBReconnectError, "mount_root": rfSMBRoot, "host": c.Host, "share": c.Share, "auto_reconnect": c.Remember, "credentials_saved": c.Remember && rfSMBSecretFileSecure(), "mutation_api": true})
 }
 func rfSMBSecretFileSecure() bool {
 	st, e := os.Lstat(rfSMBSecret)
@@ -312,6 +319,8 @@ func rfSyslogSMBConnect(w http.ResponseWriter, r *http.Request) {
 		_ = os.Remove(rfSMBSettings)
 		_ = os.Remove(rfSMBSecret)
 	}
+	rfSMBReconnectDegraded = false
+	rfSMBReconnectError = ""
 	writeJSON(w, 200, map[string]any{"ok": true, "mounted": true, "root": rfSMBRoot, "auto_reconnect": req.Remember})
 }
 func rfSyslogSMBDisconnect(w http.ResponseWriter, r *http.Request) {
@@ -348,6 +357,8 @@ func rfSyslogSMBDisconnect(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = os.Remove(rfSMBSettings)
 	_ = os.Remove(rfSMBSecret)
+	rfSMBReconnectDegraded = false
+	rfSMBReconnectError = ""
 	writeJSON(w, 200, map[string]any{"ok": true, "mounted": false})
 }
 
@@ -364,7 +375,7 @@ func rfSyslogSMBReconnectLoop() {
 func rfSyslogSMBReconnectOnce() {
 	rfSMBMu.Lock()
 	defer rfSMBMu.Unlock()
-	if rfSMBMounted() || !rfSMBSecretFileSecure() {
+	if !rfSMBSecretFileSecure() {
 		return
 	}
 	c := rfSMBReadConnection()
@@ -377,11 +388,45 @@ func rfSyslogSMBReconnectOnce() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
 	defer cancel()
-	if rfSMBMount(ctx, host, share, rfSMBSecret) == nil {
+	if rfSMBMounted() && !rfSMBReconnectDegraded {
 		if rfSMBTestWrite() == nil {
-			if settings, err := rfSyslogStored(); err == nil && settings.Root == rfSMBRoot {
-				_ = rfSyslogPrepareFolders(rfSMBRoot, time.Now())
+			return
+		}
+		rfSMBReconnectDegraded = true
+		rfSMBReconnectError = "SMB share mounted but journal folder is not writable"
+	}
+	if rfSMBMounted() && rfSMBReconnectDegraded {
+		if err := rfSMBTestWrite(); err == nil {
+			rfSMBReconnectDegraded = false
+			rfSMBReconnectError = ""
+			return
+		}
+		// Never unmount an active syslog target. Report degraded and retry later.
+		if settings, err := rfSyslogStored(); err == nil && settings.Root == rfSMBRoot {
+			if _, running := rfSyslogService(); running {
+				return
 			}
 		}
+		if binary := rfSMBUmountBinary(); binary != "" {
+			_, _ = safety.RunCommand(ctx, 2048, binary, rfSMBPoint)
+		}
+		if rfSMBMounted() {
+			return
+		}
+	}
+	if err := rfSMBMount(ctx, host, share, rfSMBSecret); err != nil {
+		rfSMBReconnectDegraded = true
+		rfSMBReconnectError = "SMB reconnect failed"
+		return
+	}
+	if err := rfSMBTestWrite(); err != nil {
+		rfSMBReconnectDegraded = true
+		rfSMBReconnectError = "SMB share mounted but journal folder is not writable"
+		return // Next scheduled retry attempts recovery without restarting syslog-ng.
+	}
+	rfSMBReconnectDegraded = false
+	rfSMBReconnectError = ""
+	if settings, err := rfSyslogStored(); err == nil && settings.Root == rfSMBRoot {
+		_ = rfSyslogPrepareFolders(rfSMBRoot, time.Now())
 	}
 }

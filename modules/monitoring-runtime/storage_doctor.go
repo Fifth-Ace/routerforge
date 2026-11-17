@@ -280,18 +280,19 @@ type doctorSmartAttr struct {
 	Raw    json.RawMessage `json:"raw,omitempty"`
 }
 type doctorSmartResult struct {
-	Device      string            `json:"device"`
-	Driver      string            `json:"driver"`
-	Status      string            `json:"status"`
-	Health      string            `json:"health"`
-	Note        string            `json:"note,omitempty"`
-	Model       string            `json:"model,omitempty"`
-	Temperature *float64          `json:"temperature_c,omitempty"`
-	PowerHours  *int64            `json:"power_hours,omitempty"`
-	Attributes  []doctorSmartAttr `json:"attributes"`
-	NVMe        map[string]any    `json:"nvme,omitempty"`
-	CheckedAt   time.Time         `json:"checked_at"`
-	Cached      bool              `json:"cached"`
+	Device       string            `json:"device"`
+	DiskIdentity string            `json:"disk_identity,omitempty"`
+	Driver       string            `json:"driver"`
+	Status       string            `json:"status"`
+	Health       string            `json:"health"`
+	Note         string            `json:"note,omitempty"`
+	Model        string            `json:"model,omitempty"`
+	Temperature  *float64          `json:"temperature_c,omitempty"`
+	PowerHours   *int64            `json:"power_hours,omitempty"`
+	Attributes   []doctorSmartAttr `json:"attributes"`
+	NVMe         map[string]any    `json:"nvme,omitempty"`
+	CheckedAt    time.Time         `json:"checked_at"`
+	Cached       bool              `json:"cached"`
 }
 type doctorSmartCache struct {
 	Result doctorSmartResult
@@ -319,6 +320,9 @@ func doctorSmartIdentity(name string) string {
 	}
 	return id
 }
+
+// Hardware-weak identities never reuse SMART cache across requests.
+func doctorSmartCacheAllowed(identity string) bool { return strings.HasPrefix(identity, "hw:") }
 
 func doctorSmartAllowed(name string) bool {
 	if !doctorDeviceName.MatchString(name) {
@@ -348,10 +352,16 @@ func doctorSmartOutput(ctx context.Context, name, driver string) doctorSmartResu
 		res.Note = "unsupported SMART device type"
 		return res
 	}
-	key := doctorSmartIdentity(name) + "/" + driver
+	identity := doctorSmartIdentity(name)
+	res.DiskIdentity = identity
+	// Without a stable hardware ID, hot-swapped identical bridges must not reuse SMART results.
+	cacheable := doctorSmartCacheAllowed(identity)
+	key := identity + "/" + driver
 	doctorSmartState.Lock()
-	if cached, ok := doctorSmartState.cache[key]; ok && time.Since(cached.At) < 5*time.Minute {
+	if cached, ok := doctorSmartState.cache[key]; ok && cacheable && time.Since(cached.At) < 5*time.Minute {
 		res = cached.Result
+		res.Device = "/dev/" + name
+		res.DiskIdentity = identity
 		res.Cached = true
 		doctorSmartState.Unlock()
 		return res
@@ -506,7 +516,14 @@ func doctorSmartOutput(ctx context.Context, name, driver string) doctorSmartResu
 	if res.Status == "available" && res.Health == "unknown" {
 		res.Note = "SMART health is not reported by this device"
 	}
-	if res.Status == "available" || res.Status == "unsupported" || res.Status == "asleep" {
+	// Do not cache or record a result if a disk changed while smartctl ran.
+	if !doctorSmartAllowed(name) || doctorSmartIdentity(name) != identity {
+		res.Status = "error"
+		res.Health = "unknown"
+		res.Note = "Device changed during SMART check; result discarded"
+		return res
+	}
+	if cacheable && (res.Status == "available" || res.Status == "unsupported" || res.Status == "asleep") {
 		doctorSmartState.Lock()
 		now := time.Now()
 		for k, v := range doctorSmartState.cache {

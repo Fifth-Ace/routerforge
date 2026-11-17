@@ -463,7 +463,10 @@
     errorText = '';
     try {
       const result = await adminMaintenanceRestore(backup.path);
-      setAction(`${copy.restore}: ${result.restored_root} — OK · safety: ${result.safety_backup}`);
+      const vaultNote = result.config_vault_skipped_capacity
+        ? (locale === 'ru' ? ' · Config Vault: пропущен по лимиту, сохранена safety-копия' : ' · Config Vault: size limit, safety backup available')
+        : '';
+      setAction(`${copy.restore}: ${result.restored_root} — OK · safety: ${result.safety_backup}${vaultNote}`);
       if (mounted && tab === 'maintenance') await loadMaintenance();
     } catch (error) {
       errorText = errorMessage(error);

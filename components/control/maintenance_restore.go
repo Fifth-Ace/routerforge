@@ -112,6 +112,30 @@ func handleAdminMaintenanceBackups(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
+// Config Vault intentionally has a much smaller size/entry budget than portable
+// backup. An explicitly confirmed restore can use a verified pre-restore backup
+// when the current tree is too large for the Vault; other Vault errors still block.
+func adminMaintenanceNeedsBackupOnly(root string) (bool, error) {
+	count := 0
+	var total int64
+	tooLarge := false
+	err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+		count++
+		total += info.Size()
+		if count > adminConfigVaultMaxFiles || info.Size() > 2<<20 || total > 8<<20 {
+			tooLarge = true
+		}
+		return nil
+	})
+	return tooLarge, err
+}
+
 // SMB autoconnect secrets are device-local, not portable configuration.
 // This exact allowlist excludes both the plaintext secret and its reconnect
 // metadata from unencrypted config archives, including legacy restore inputs.
@@ -351,16 +375,24 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 	unlockVault, _ := lockAdminConfigVaultMutation(adminMaintenanceConfigRoot)
 	defer unlockVault()
 
-	prechange, err := captureAdminConfigVaultPrechangeLocked("maintenance-restore", adminMaintenanceConfigRoot)
+	backupOnly, err := adminMaintenanceNeedsBackupOnly(adminMaintenanceConfigRoot)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "automatic config vault pre-change snapshot failed", "mutation_blocked": true})
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "pre-restore capacity inspection failed", "mutation_blocked": true})
 		return
 	}
-
+	// Always complete the portable safety backup before any destructive swap.
 	safetyBackup, err := createAdminMaintenanceConfigBackup()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "pre-restore safety backup failed: " + err.Error()})
 		return
+	}
+	prechange := adminConfigVaultPrechangeSnapshot{}
+	if !backupOnly {
+		prechange, err = captureAdminConfigVaultPrechangeLocked("maintenance-restore", adminMaintenanceConfigRoot)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "automatic config vault pre-change snapshot failed", "mutation_blocked": true, "safety_backup": safetyBackup.Path})
+			return
+		}
 	}
 
 	stage, err := os.MkdirTemp(adminMaintenanceRestoreStageRoot, ".routerforge-restore-")
@@ -381,6 +413,9 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Do not copy the SMB reconnect pair while connect/disconnect is changing it.
+	rfSMBMu.Lock()
+	defer rfSMBMu.Unlock()
 	if err := adminMaintenancePreserveLocalSMBPair(adminMaintenanceConfigRoot, stagedConfig); err != nil {
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "cannot preserve local SMB reconnect credentials: " + err.Error()})
 		return
@@ -397,17 +432,18 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":                    true,
-		"restored_from":         path,
-		"restored_root":         adminMaintenanceConfigRoot,
-		"config_entries":        inspection.ConfigEntries,
-		"config_bytes":          inspection.ConfigBytes,
-		"ignored_entries":       inspection.IgnoredEntries,
-		"safety_backup":         safetyBackup.Path,
-		"config_vault_snapshot": prechange.SnapshotID,
-		"restart_required":      true,
-		"automatic_restart":     false,
-		"smb_credentials":       "local_only; old archive credentials ignored",
+		"ok":                            true,
+		"restored_from":                 path,
+		"restored_root":                 adminMaintenanceConfigRoot,
+		"config_entries":                inspection.ConfigEntries,
+		"config_bytes":                  inspection.ConfigBytes,
+		"ignored_entries":               inspection.IgnoredEntries,
+		"safety_backup":                 safetyBackup.Path,
+		"config_vault_snapshot":         prechange.SnapshotID,
+		"config_vault_skipped_capacity": backupOnly,
+		"restart_required":              true,
+		"automatic_restart":             false,
+		"smb_credentials":               "local_only; old archive credentials ignored",
 	})
 }
 

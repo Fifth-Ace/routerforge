@@ -9,7 +9,7 @@
   import { bytes, fmtDuration, fmtInt } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
   import EventsPane from './EventsPane.svelte';
-  import { SMART_DRIVER_CHOICES, readSmartDriverPreferences, getSmartDriverPreference, setSmartDriverPreference } from './smart-driver-preferences.js';
+  import { SMART_DRIVER_CHOICES, smartDriverDiskKey, readSmartDriverPreferences, getSmartDriverPreference, setSmartDriverPreference } from './smart-driver-preferences.js';
 
   const moduleDefs = [
     { id: 'system', nameKey: 'monitoring.modules.system', short: 'SYS', package: 'routerforge-monitoring' },
@@ -34,7 +34,7 @@
   let processQuery = '';
   let doctorExpanded = '';
   let doctorDrivers = {};
-  let doctorDriverSaveError = '';
+  let doctorDriverSaveError = {};
   let doctorBusy = {};
   let doctorSmartByDevice = {};
   let doctorError = {};
@@ -143,6 +143,23 @@
       if (currentTab === 'storage' && !storageTechnicalInitialized) {
         storageTechnicalOpen = !result.doctor;
         storageTechnicalInitialized = true;
+      }
+      if (currentTab === 'storage' && result.doctor) {
+        // A Linux device path can be reused after hot-swap. Never display another disk's SMART.
+        const validSmart = {};
+        const validErrors = {};
+        const validDriverErrors = {};
+        for (const disk of result.doctor.disks || []) {
+          const identity = smartDriverDiskKey(disk);
+          const prev = doctorSmartByDevice[disk.device];
+          if (identity && prev?._diskKey === identity) validSmart[disk.device] = prev;
+          if (identity && doctorError[disk.device]?._diskKey === identity) validErrors[disk.device] = doctorError[disk.device];
+          if (identity && doctorDriverSaveError[disk.device]?._diskKey === identity) validDriverErrors[disk.device] = doctorDriverSaveError[disk.device];
+        }
+        doctorSmartByDevice = validSmart;
+        // Existing error strings from older requests are replaced by scoped entries below.
+        doctorError = validErrors;
+        doctorDriverSaveError = validDriverErrors;
       }
       data = result;
       errorText = '';
@@ -350,13 +367,23 @@
     return getSmartDriverPreference(doctorDrivers, doctorDiskForPreference(device));
   }
   function doctorChooseDriver(device, driver) {
-    const result = setSmartDriverPreference(doctorPreferenceStorage(), doctorDrivers, doctorDiskForPreference(device), driver);
+    const disk = doctorDiskForPreference(device);
+    const identity = smartDriverDiskKey(disk);
+    const result = setSmartDriverPreference(doctorPreferenceStorage(), doctorDrivers, disk, driver);
     doctorDrivers = result.preferences;
-    doctorDriverSaveError = result.saved ? '' : doctorTr('Не удалось сохранить настройку в браузере. Выбор действует до обновления страницы.','Could not save the browser preference. The choice lasts until the page reloads.');
+    const message = result.saved ? '' : result.reason === 'identity_unavailable'
+      ? doctorTr('Недостаточно данных для привязки настройки к этому диску.','Not enough disk identity information to persist this selection.')
+      : doctorTr('Браузер не сохранил выбор. Он действует до перезагрузки страницы.','Browser storage is unavailable; this choice lasts until reload.');
+    doctorDriverSaveError = { ...doctorDriverSaveError, [device]: message ? { message, _diskKey: identity } : null };
   }
   async function doctorCheckSmart(device) {
     if(doctorBusy[device]) return;
-    doctorBusy={...doctorBusy,[device]:true};doctorError={...doctorError,[device]:''};
+    const diskKey = smartDriverDiskKey(doctorDiskForPreference(device));
+    if (!diskKey) {
+      doctorError = { ...doctorError, [device]: { message: doctorTr('Не удалось определить текущий диск.','Cannot identify the current disk.'), _diskKey: '' } };
+      return;
+    }
+    doctorBusy={...doctorBusy,[device]:true};doctorError={...doctorError,[device]:null};
     const name=String(device).replace(/^\/dev\//,'');
     const driver=doctorSelectedDriver(device);
     const ctl = new AbortController();
@@ -366,8 +393,9 @@
       const response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:ctl.signal});
       const result=await response.json();
       if(!response.ok) throw new Error(result.error||doctorTr('Не удалось проверить SMART','SMART check failed'));
-      doctorSmartByDevice={...doctorSmartByDevice,[device]:result};doctorExpanded=device;
-    } catch(error){doctorError={...doctorError,[device]:error?.message||String(error)};}
+      if (smartDriverDiskKey(doctorDiskForPreference(device)) !== diskKey) return;
+      doctorSmartByDevice={...doctorSmartByDevice,[device]:{...result,_diskKey:diskKey}};doctorExpanded=device;
+    } catch(error){if(smartDriverDiskKey(doctorDiskForPreference(device)) === diskKey) doctorError={...doctorError,[device]:{message:error?.message||String(error),_diskKey:diskKey}};}
     finally{clearTimeout(timeout);doctorBusy={...doctorBusy,[device]:false};}
   }
 
@@ -640,7 +668,7 @@
                   {/if}
                   <button type="button" class="button" aria-expanded={doctorExpanded===disk.device} onclick={()=>doctorExpanded=doctorExpanded===disk.device ? '' : disk.device}>{doctorExpanded===disk.device ? doctorTr('Скрыть детали','Hide details') : doctorTr('Подробнее о диске','Drive details')}</button>
                 </div>
-                {#if doctorError[disk.device]}<p class="rf-doctor-warning" role="alert">{doctorError[disk.device]}</p>{/if}
+                {#if doctorError[disk.device]?.message}<p class="rf-doctor-warning" role="alert">{doctorError[disk.device].message}</p>{/if}
                 {#if doctorExpanded===disk.device}
                   <div class="rf-doctor-details">
                     <strong>{doctorTr('Сведения о диске','Drive information')}</strong>
@@ -657,7 +685,10 @@
                           </select>
                         </label>
                         <small>{doctorTr('Режим сохраняется локально в этом браузере для выбранного диска. Изменяйте только если автоматическая проверка не сработала.','The mode is saved locally in this browser for this disk. Change it only if automatic detection fails.')}</small>
-                        {#if doctorDriverSaveError}<small class="rf-doctor-bad" role="alert">{doctorDriverSaveError}</small>{/if}
+                        {#if !String(disk.id || '').startsWith('hw:')}
+                          <small>{doctorTr('У накопителя нет уникального аппаратного ID: после замены устройства потребуется повторная проверка SMART.','No stable hardware ID: recheck SMART after replacing this drive.')}</small>
+                        {/if}
+                        {#if doctorDriverSaveError[disk.device]?.message}<small class="rf-doctor-bad" role="alert">{doctorDriverSaveError[disk.device].message}</small>{/if}
                       </details>
                     {/if}
                     {#if doctorSmartByDevice[disk.device]}

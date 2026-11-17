@@ -1,11 +1,16 @@
 <script>
   import { onMount } from 'svelte';
   import { parseReleaseNote } from '$lib/release-notes.js';
-  import { mergeNoteIndexes } from '$lib/release-notes-feed.js';
+  import { mergeNoteIndexes, noteChannelForCoreVersion } from '$lib/release-notes-feed.js';
+  import { catalog } from '$lib/stores/catalog.js';
+  import { snapshot } from '$lib/stores/snapshot.js';
+  import { markReleaseNoteRead } from '$lib/release-notes-read-state.js';
 
   export let locale = 'ru';
   let mounted = false;
   let channel = 'stable';
+  let explicitChannel = false;
+  let userSelectedChannel = false;
   let releases = [];
   let selectedVersion = '';
   let format = 'summary';
@@ -17,6 +22,13 @@
   let generation = 0;
   const text = (ru,en) => locale === 'en' ? en : ru;
 
+  $: coreVersion = String(($catalog.modules || []).find((item) => item.id === 'routerforge-core')?.version || $snapshot.version || '').trim();
+  $: preferredChannel = noteChannelForCoreVersion(coreVersion);
+  // Hydration can deliver Core later. Auto-select only until the user chooses a tab.
+  $: if (mounted && !explicitChannel && !userSelectedChannel && preferredChannel && channel !== preferredChannel) {
+    channel = preferredChannel;
+    if (releases.length) pickVersion();
+  }
   $: visible = releases.filter(item => item.channel === channel);
   $: selected = releases.find(item => item.channel === channel && item.version === selectedVersion) || null;
 
@@ -38,9 +50,11 @@
   onMount(() => {
     mounted = true;
     const params = new URLSearchParams(window.location.search);
-    channel = params.get('channel')==='beta' ? 'beta' : 'stable';
     const requested = params.get('version') || '';
-    if (requested.includes('-beta.') && !params.has('channel')) channel='beta';
+    const requestedChannel = params.get('channel');
+    explicitChannel = requestedChannel === 'beta' || requestedChannel === 'stable' || requested.includes('-beta.');
+    channel = requestedChannel === 'beta' || requestedChannel === 'stable'
+      ? requestedChannel : requested.includes('-beta.') ? 'beta' : (preferredChannel || 'stable');
     void loadCatalog(requested);
     return () => {mounted=false;generation+=1;};
   });
@@ -60,6 +74,7 @@
     pickVersion(requested);
   }
   function changeChannel(next) {
+    userSelectedChannel = true;
     if(channel===next) return;
     channel=next; pickVersion();
   }
@@ -89,6 +104,10 @@
       const markdown=await response.text();
       if(!mounted || seq!==generation) return;
       blocks=parseReleaseNote(markdown);
+      // Mark only a successfully rendered note as read, not just an opened dialog.
+      if (blocks.length) {
+        markReleaseNoteRead(item.channel, item.version);
+      }
     } catch(e) {
       if(!mounted || seq!==generation) return;
       error=text('Не удалось загрузить выбранный патчноут: ','Unable to load release notes: ')+(e?.message||String(e));

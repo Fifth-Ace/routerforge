@@ -7,6 +7,9 @@
   import { overview, refreshOverview, startOverviewPolling } from '$lib/stores/overview.js';
   import { t } from '$lib/i18n/index.js';
   import { railInstalledIntegrations } from '$lib/integrations.js';
+  import { snapshot } from '$lib/stores/snapshot.js';
+  import { noteChannelForCoreVersion, noteVersionForCore, latestPublishedNoteVersion, unreadPublishedNoteVersion } from '$lib/release-notes-feed.js';
+  import { releaseNoteReads, loadReleaseNoteReads } from '$lib/release-notes-read-state.js';
 
   let stopCatalog = null;
   let stopCatalogSync = null;
@@ -14,6 +17,7 @@
   let stopPageSync = null;
   let narrowRailOpen = true;
   let releaseNotesOpen = false;
+  let publishedNoteVersions = { beta: '', stable: '' };
 
   function toggleNarrowRail() {
     narrowRailOpen = !narrowRailOpen;
@@ -25,7 +29,38 @@
   onMount(() => {
     try {
       narrowRailOpen = localStorage.getItem('routerforge:narrow-rail-open') !== '0';
-    } catch {}
+    } catch { /* Browsers may disable local storage; use session-only state. */ }
+    loadReleaseNoteReads();
+
+    // Core caches the published index for 15 minutes. A five-minute check and
+    // visibility refresh pick up future releases without reinstalling RouterForge.
+    let notesMounted = true;
+    let notesChecking = false;
+    async function refreshPublishedNotes() {
+      if (!notesMounted || notesChecking) return;
+      notesChecking = true;
+      try {
+        const response = await fetch('/api/release-notes/catalog', {
+          credentials: 'same-origin', cache: 'no-store'
+        });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!notesMounted || !Array.isArray(result?.releases)) return;
+        publishedNoteVersions = {
+          beta: latestPublishedNoteVersion(result.releases, 'beta'),
+          stable: latestPublishedNoteVersion(result.releases, 'stable')
+        };
+      } catch { /* Preserve the previous valid state while offline. */ }
+      finally { notesChecking = false; }
+    }
+    function onNotesVisibility() {
+      if (!document.hidden) void refreshPublishedNotes();
+    }
+    document.addEventListener('visibilitychange', onNotesVisibility);
+    const notesTimer = window.setInterval(() => {
+      if (!document.hidden) void refreshPublishedNotes();
+    }, 5 * 60 * 1000);
+    void refreshPublishedNotes();
 
     stopCatalog = startCatalogPolling();
 
@@ -64,12 +99,23 @@
       15000,
       () => $page.url.pathname === '/'
     );
-    return () => { stopPageSync?.(); stopCatalogSync?.(); stopCatalog?.(); stopOverview?.(); };
+    return () => {
+      notesMounted = false;
+      window.clearInterval(notesTimer);
+      document.removeEventListener('visibilitychange', onNotesVisibility);
+      stopPageSync?.(); stopCatalogSync?.(); stopCatalog?.(); stopOverview?.();
+    };
   });
 
   $: locale = $settings.locale || 'ru';
   $: modules = $catalog.modules || [];
   $: coreModule = modules.find((item) => item.id === 'routerforge-core');
+  $: installedCoreVersion = String(coreModule?.version || $snapshot.version || '').trim();
+  $: releaseNotesChannel = noteChannelForCoreVersion(installedCoreVersion) || 'stable';
+  $: unreadReleaseVersion = unreadPublishedNoteVersion(
+    publishedNoteVersions[releaseNotesChannel], $releaseNoteReads[releaseNotesChannel],
+    noteVersionForCore(installedCoreVersion)
+  );
   $: integrations = $catalog.integrations || [];
   $: installedModules = modules.filter((item) => item.installed && !item.builtin && item.id !== 'profiling');
   $: installedIntegrations = railInstalledIntegrations(integrations);
@@ -196,12 +242,14 @@
 
         <button
           class="rail-repository-link rail-release-notes-link"
+          class:unread={!!unreadReleaseVersion}
           type="button"
           aria-haspopup="dialog"
+          aria-label={unreadReleaseVersion ? (locale === 'ru' ? `Что нового: непрочитанный выпуск ${unreadReleaseVersion}` : `What's new: unread release ${unreadReleaseVersion}`) : t(locale, 'shell.whatsNew')}
           onclick={() => releaseNotesOpen = true}
         >
           <span class="rail-link-icon rail-release-notes-icon" aria-hidden="true">✦</span>
-          <span class="rail-repository-copy"><small>RouterForge</small><strong>{t(locale, 'shell.whatsNew')}</strong></span>
+          <span class="rail-repository-copy"><small>RouterForge</small><strong>{t(locale, 'shell.whatsNew')}{#if unreadReleaseVersion}<span class="rf-notes-new">NEW</span>{/if}</strong></span>
           <span class="rail-repository-arrow" aria-hidden="true">→</span>
         </button>
       </div>
@@ -228,6 +276,31 @@
 
   .rail-release-notes-icon {
     color: var(--rf-accent, var(--accent));
+  }
+  /* Unread published releases: gentle highlight, never a disruptive popup. */
+  .rail-release-notes-link.unread {
+    border-color: var(--rf-accent, #38bdf8);
+    animation: rf-notes-soft-glow 3.2s ease-in-out infinite;
+  }
+  @keyframes rf-notes-soft-glow {
+    0%, 100% { background: transparent; box-shadow: 0 0 0 0 rgba(56,189,248,0); }
+    50% { background: var(--rf-accent-soft, rgba(56,189,248,.12)); box-shadow: 0 0 17px rgba(56,189,248,.20); }
+  }
+  .rf-notes-new {
+    display: inline-flex;
+    margin-left: 7px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: var(--rf-accent, #38bdf8);
+    color: var(--rf-bg, #07111b);
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    vertical-align: middle;
+    letter-spacing: .04em;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rail-release-notes-link.unread { animation: none; background: var(--rf-accent-soft, rgba(56,189,248,.12)); }
   }
 
   /* Four compact links occupy about the space of the previous three large tiles. */

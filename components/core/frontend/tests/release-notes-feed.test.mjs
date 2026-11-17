@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mergeNoteIndexes, compareNoteVersions, normalizeNoteItem } from '../src/lib/release-notes-feed.js';
+import { mergeNoteIndexes, compareNoteVersions, normalizeNoteItem, noteChannelForCoreVersion, noteVersionForCore, newerNoteVersion, latestPublishedNoteVersion, unreadPublishedNoteVersion } from '../src/lib/release-notes-feed.js';
 
 test('stable, beta, old v1 archives and version ordering', () => {
   const local={releases:[
@@ -21,4 +21,42 @@ test('remote notes do not accept unknown version/channel',()=>{
   assert.equal(normalizeNoteItem({version:'0.15.0-beta.3',channel:'stable'},'remote'),null);
   assert.ok(compareNoteVersions({version:'0.15.0'},{version:'0.15.0-beta.7'})<0);
   assert.ok(compareNoteVersions({version:'0.15.0-beta.10'},{version:'0.15.0-beta.9'})<0);
+});
+
+
+test('installed Core selects Beta/Dev or Stable without confusing package syntax', () => {
+  assert.equal(noteChannelForCoreVersion('0.15.0~beta.5'), 'beta');
+  assert.equal(noteChannelForCoreVersion('0.15.0-beta.6'), 'beta');
+  assert.equal(noteChannelForCoreVersion('1~dev.r1360.abc'), 'beta');
+  assert.equal(noteChannelForCoreVersion('0.13.0'), 'stable');
+  assert.equal(noteChannelForCoreVersion(''), null);
+  assert.equal(noteVersionForCore('0.15.0~beta.5'), '0.15.0-beta.5');
+  assert.equal(noteVersionForCore('0.15.0'), '0.15.0');
+  assert.equal(noteVersionForCore('1~dev.r1360.abc'), '');
+});
+
+test('latest published notes are channel-scoped and sorted numerically', () => {
+  const releases = [
+    {version:'0.15.0-beta.9',channel:'beta',summary:{asset:'note9'}},
+    {version:'0.15.0-beta.10',channel:'beta',summary:{asset:'note10'}},
+    {version:'0.15.0',channel:'stable',story:{asset:'stable'}},
+    {version:'0.15.0-beta.11',channel:'stable',summary:{asset:'wrong-channel'}},
+    {version:'0.15.0-beta.20',channel:'beta'}, // never notify an unviewable entry
+  ];
+  assert.equal(latestPublishedNoteVersion(releases,'beta'),'0.15.0-beta.10');
+  assert.equal(latestPublishedNoteVersion(releases,'stable'),'0.15.0');
+  assert.equal(latestPublishedNoteVersion(releases,'dev'),'');
+});
+
+test('unread glow starts for a newer published patch and ends after reading', () => {
+  assert.equal(unreadPublishedNoteVersion('0.15.0-beta.6','','0.15.0-beta.5'),'0.15.0-beta.6');
+  assert.equal(unreadPublishedNoteVersion('0.15.0-beta.6','','0.15.0-beta.6'),'0.15.0-beta.6');
+  assert.equal(unreadPublishedNoteVersion('0.15.0-beta.6','0.15.0-beta.6','0.15.0-beta.5'),'');
+  assert.equal(unreadPublishedNoteVersion('0.15.0-beta.7','0.15.0-beta.6','0.15.0-beta.7'),'0.15.0-beta.7');
+  assert.equal(unreadPublishedNoteVersion('0.15.0-beta.5','0.15.0-beta.6','0.15.0-beta.5'),'');
+  assert.equal(unreadPublishedNoteVersion('0.15.0-beta.6','',''),'');
+  assert.equal(unreadPublishedNoteVersion('0.15.0-beta.5','','0.15.0-beta.6'),'');
+  assert.equal(newerNoteVersion('0.15.0-beta.10','0.15.0-beta.9'),true);
+  assert.equal(newerNoteVersion('0.15.0-beta.9','0.15.0-beta.10'),false);
+  assert.equal(newerNoteVersion('0.15.0-beta.10','0.15.0-beta.10'),false);
 });

@@ -300,6 +300,26 @@ type doctorSmartCache struct {
 
 var doctorSmartDrivers = map[string]bool{"auto": true, "sat": true, "sat,12": true, "scsi": true, "nvme": true, "ata": true, "usbjmicron": true, "usbcypress": true, "usbsunplus": true, "sntjmicron": true, "sntasmedia": true, "sntrealtek": true}
 
+// A volatile /dev/sdX name is not a disk identity: Linux may recycle it after
+// a USB hot-swap. Fingerprint the visible device metadata before using a
+// five-minute SMART cache or storing its baseline. Identical disks behind
+// bridges that expose no serial remain indistinguishable: this is best effort.
+func doctorSmartFallbackIdentity(d blockDevice) string {
+	return fmt.Sprintf("fallback:%s|%d|%s|%s|%s", d.Name, d.SizeBytes, d.Vendor, d.Model, d.Transport)
+}
+func doctorSmartIdentity(name string) string {
+	id := doctorDiskID(name)
+	if strings.HasPrefix(id, "hw:") {
+		return id
+	}
+	for _, d := range userBlockDevices(readAllBlockDevices(nil)) {
+		if d.Name == name {
+			return doctorSmartFallbackIdentity(d)
+		}
+	}
+	return id
+}
+
 func doctorSmartAllowed(name string) bool {
 	if !doctorDeviceName.MatchString(name) {
 		return false
@@ -328,7 +348,7 @@ func doctorSmartOutput(ctx context.Context, name, driver string) doctorSmartResu
 		res.Note = "unsupported SMART device type"
 		return res
 	}
-	key := doctorDiskID(name) + "/" + driver
+	key := doctorSmartIdentity(name) + "/" + driver
 	doctorSmartState.Lock()
 	if cached, ok := doctorSmartState.cache[key]; ok && time.Since(cached.At) < 5*time.Minute {
 		res = cached.Result

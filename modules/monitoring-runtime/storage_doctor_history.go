@@ -48,11 +48,12 @@ type doctorSmartBaseline struct {
 	Health   string            `json:"health"`
 }
 type doctorHistoryDocument struct {
-	Version      int                                 `json:"version"`
-	Events       []doctorHealthEvent                 `json:"events"`
-	Seen         []string                            `json:"seen"`
-	Temperatures map[string][]doctorTemperaturePoint `json:"temperatures"`
-	Smart        map[string]doctorSmartBaseline      `json:"smart"`
+	Version        int                                 `json:"version"`
+	Events         []doctorHealthEvent                 `json:"events"`
+	Seen           []string                            `json:"seen"`
+	Temperatures   map[string][]doctorTemperaturePoint `json:"temperatures"`
+	Smart          map[string]doctorSmartBaseline      `json:"smart"`
+	DiskIdentities map[string]string                   `json:"disk_identities,omitempty"`
 }
 
 var doctorHistory = struct {
@@ -69,7 +70,7 @@ func doctorHistoryLoadLocked() {
 		return
 	}
 	doctorHistory.loaded = true
-	doctorHistory.document = doctorHistoryDocument{Version: 1, Events: []doctorHealthEvent{}, Seen: []string{}, Temperatures: map[string][]doctorTemperaturePoint{}, Smart: map[string]doctorSmartBaseline{}}
+	doctorHistory.document = doctorHistoryDocument{Version: 1, Events: []doctorHealthEvent{}, Seen: []string{}, Temperatures: map[string][]doctorTemperaturePoint{}, Smart: map[string]doctorSmartBaseline{}, DiskIdentities: map[string]string{}}
 	info, err := os.Stat(doctorHistoryFile)
 	if err != nil || info.Size() > 1024*1024 || info.Size() < 0 {
 		return
@@ -93,6 +94,12 @@ func doctorHistoryLoadLocked() {
 	}
 	if loaded.Smart == nil {
 		loaded.Smart = map[string]doctorSmartBaseline{}
+	}
+	if loaded.DiskIdentities == nil {
+		loaded.DiskIdentities = map[string]string{}
+	}
+	if len(loaded.DiskIdentities) > 32 {
+		loaded.DiskIdentities = map[string]string{}
 	}
 	// Bound untrusted persisted JSON after decode; only devices with simple disk IDs are retained.
 	for device, points := range loaded.Temperatures {
@@ -218,7 +225,7 @@ func doctorTemperatureForDisk(name string, now time.Time) (doctorTemperatureRead
 	doctorSmartState.Lock()
 	defer doctorSmartState.Unlock()
 	for key, cached := range doctorSmartState.cache {
-		if !strings.HasPrefix(key, doctorDiskID(name)+"/") || now.Sub(cached.At) > 5*time.Minute {
+		if !strings.HasPrefix(key, doctorSmartIdentity(name)+"/") || now.Sub(cached.At) > 5*time.Minute {
 			continue
 		}
 		if cached.Result.Status == "available" && cached.Result.Temperature != nil {
@@ -226,6 +233,26 @@ func doctorTemperatureForDisk(name string, now time.Time) (doctorTemperatureRead
 		}
 	}
 	return doctorTemperatureReading{}, false
+}
+
+// Track the last physical identity observed at each Linux device path.
+// A replacement at /dev/sdb should not inherit the previous disk's samples.
+func doctorHistoryBindDiskIdentity(doc *doctorHistoryDocument, device, identity string) bool {
+	if doc == nil || device == "" || identity == "" {
+		return false
+	}
+	if doc.DiskIdentities == nil {
+		doc.DiskIdentities = map[string]string{}
+	}
+	previous := doc.DiskIdentities[device]
+	if previous == identity {
+		return false
+	}
+	if previous != "" {
+		delete(doc.Temperatures, device)
+	}
+	doc.DiskIdentities[device] = identity
+	return true
 }
 
 func doctorHistoryAugment(view *doctorView, now time.Time) {
@@ -256,6 +283,12 @@ func doctorHistoryAugment(view *doctorView, now time.Time) {
 	defer doctorHistory.Unlock()
 	doctorHistoryLoadLocked()
 	dirty := false
+	for _, disk := range view.Disks {
+		name := strings.TrimPrefix(disk.Device, "/dev/")
+		if doctorHistoryBindDiskIdentity(&doctorHistory.document, disk.Device, doctorSmartIdentity(name)) {
+			dirty = true
+		}
+	}
 	for _, m := range observedMounts {
 		event := doctorHealthEvent{ID: "mount:" + m.At.UTC().Format(time.RFC3339Nano) + ":" + m.Kind + ":" + m.Mount, At: m.At, Kind: m.Kind, Severity: "warning", Device: m.Mount, Summary: m.Kind, Detail: m.Detail, Origin: "mount"}
 		if m.Kind == "appeared" || m.Kind == "writable_again" {
@@ -367,7 +400,7 @@ func doctorRememberSMART(res doctorSmartResult) {
 		}
 	}
 	device := res.Device
-	baselineID := "smart:" + doctorDiskID(strings.TrimPrefix(device, "/dev/"))
+	baselineID := "smart:" + doctorSmartIdentity(strings.TrimPrefix(device, "/dev/"))
 	doctorHistory.Lock()
 	defer doctorHistory.Unlock()
 	doctorHistoryLoadLocked()

@@ -6,6 +6,49 @@ import (
 	"time"
 )
 
+func TestDoctorIdentitySeparatesCacheByVisibleDiskMetadata(t *testing.T) {
+	original := blockDevice{Name: "sdb", SizeBytes: 100, Vendor: "A", Model: "USB", Transport: "usb"}
+	replacement := original
+	replacement.Model = "USB-B"
+	if doctorSmartFallbackIdentity(original) == doctorSmartFallbackIdentity(replacement) {
+		t.Fatal("SMART cache can confuse distinct USB disks")
+	}
+	replacement = original
+	replacement.SizeBytes = 200
+	if doctorSmartFallbackIdentity(original) == doctorSmartFallbackIdentity(replacement) {
+		t.Fatal("SMART cache can confuse different disk sizes")
+	}
+}
+
+func TestDoctorDiskIdentityResetDropsOnlyReplacedHistory(t *testing.T) {
+	doc := doctorHistoryDocument{
+		Temperatures:   map[string][]doctorTemperaturePoint{"/dev/sdb": {{Celsius: 30}}, "/dev/sdc": {{Celsius: 40}}},
+		DiskIdentities: map[string]string{"/dev/sdb": "hw:old", "/dev/sdc": "hw:other"},
+	}
+	if doctorHistoryBindDiskIdentity(&doc, "/dev/sdb", "hw:old") {
+		t.Fatal("identical disk triggered mutation")
+	}
+	if !doctorHistoryBindDiskIdentity(&doc, "/dev/sdb", "hw:new") {
+		t.Fatal("replacement was not detected")
+	}
+	if len(doc.Temperatures["/dev/sdb"]) != 0 || len(doc.Temperatures["/dev/sdc"]) != 1 {
+		t.Fatal("wrong temperature history reset")
+	}
+	if doc.DiskIdentities["/dev/sdb"] != "hw:new" {
+		t.Fatal("identity not updated")
+	}
+}
+
+func TestDoctorOldHistoryIsAdoptedWithoutErasure(t *testing.T) {
+	doc := doctorHistoryDocument{Temperatures: map[string][]doctorTemperaturePoint{"/dev/sdb": {{Celsius: 30}}}}
+	if !doctorHistoryBindDiskIdentity(&doc, "/dev/sdb", "hw:new") {
+		t.Fatal("identity not saved")
+	}
+	if len(doc.Temperatures["/dev/sdb"]) != 1 {
+		t.Fatal("legacy history erased")
+	}
+}
+
 func TestDoctorKernelEvidenceClassification(t *testing.T) {
 	for _, tc := range []struct{ line, kind string }{
 		{"EXT4-fs error (device sda1): ext4_find_entry", "fs_error"},

@@ -9,6 +9,7 @@
   import { bytes, fmtDuration, fmtInt } from '$lib/utils.js';
   import { t } from '$lib/i18n/index.js';
   import EventsPane from './EventsPane.svelte';
+  import { SMART_DRIVER_CHOICES, readSmartDriverPreferences, getSmartDriverPreference, setSmartDriverPreference } from './smart-driver-preferences.js';
 
   const moduleDefs = [
     { id: 'system', nameKey: 'monitoring.modules.system', short: 'SYS', package: 'routerforge-monitoring' },
@@ -33,6 +34,7 @@
   let processQuery = '';
   let doctorExpanded = '';
   let doctorDrivers = {};
+  let doctorDriverSaveError = '';
   let doctorBusy = {};
   let doctorSmartByDevice = {};
   let doctorError = {};
@@ -337,11 +339,26 @@
       doctorInstallBusy = false;
     }
   }
+  function doctorPreferenceStorage() {
+    try { return window.localStorage; } catch (_) { return null; }
+  }
+  function doctorDiskForPreference(device) {
+    return [...(data.doctor?.disks || []), ...(data.storageDoctor?.disks || [])]
+      .find((disk) => disk.device === device) || null;
+  }
+  function doctorSelectedDriver(device) {
+    return getSmartDriverPreference(doctorDrivers, doctorDiskForPreference(device));
+  }
+  function doctorChooseDriver(device, driver) {
+    const result = setSmartDriverPreference(doctorPreferenceStorage(), doctorDrivers, doctorDiskForPreference(device), driver);
+    doctorDrivers = result.preferences;
+    doctorDriverSaveError = result.saved ? '' : doctorTr('Не удалось сохранить настройку в браузере. Выбор действует до обновления страницы.','Could not save the browser preference. The choice lasts until the page reloads.');
+  }
   async function doctorCheckSmart(device) {
     if(doctorBusy[device]) return;
     doctorBusy={...doctorBusy,[device]:true};doctorError={...doctorError,[device]:''};
     const name=String(device).replace(/^\/dev\//,'');
-    const driver=doctorDrivers[device]||'auto';
+    const driver=doctorSelectedDriver(device);
     const ctl = new AbortController();
     const timeout = setTimeout(()=>ctl.abort(),12000);
     try {
@@ -370,6 +387,7 @@
   }
 
   onMount(() => {
+    doctorDrivers = readSmartDriverPreferences(doctorPreferenceStorage());
     mounted = true;
     const params = new URLSearchParams(location.search);
     const initial = params.get('view') || params.get('tab');
@@ -634,11 +652,12 @@
                     {#if data.doctor.smartctl_installed}
                       <details class="rf-doctor-bridge"><summary>{doctorTr('Если диск не проходит проверку: настройки совместимости','Compatibility settings (if the check fails)')}</summary>
                         <label>{doctorTr('Тип подключения USB / SMART','USB / SMART device type')}
-                          <select value={doctorDrivers[disk.device] || 'auto'} onchange={(event)=>{doctorDrivers={...doctorDrivers,[disk.device]:event.currentTarget.value};}}>
-                            {#each ['auto','sat','sat,12','scsi','nvme','ata','usbjmicron','usbcypress','usbsunplus','sntjmicron','sntasmedia','sntrealtek'] as driver}<option value={driver}>{driver}</option>{/each}
+                          <select value={doctorSelectedDriver(disk.device)} onchange={(event)=>doctorChooseDriver(disk.device,event.currentTarget.value)}>
+                            {#each SMART_DRIVER_CHOICES as driver}<option value={driver}>{driver}</option>{/each}
                           </select>
                         </label>
-                        <small>{doctorTr('По умолчанию используется автоматический режим. Меняйте его только если проверка не дала результата.','Automatic mode is recommended. Change only if a check could not get results.')}</small>
+                        <small>{doctorTr('Режим сохраняется локально в этом браузере для выбранного диска. Изменяйте только если автоматическая проверка не сработала.','The mode is saved locally in this browser for this disk. Change it only if automatic detection fails.')}</small>
+                        {#if doctorDriverSaveError}<small class="rf-doctor-bad" role="alert">{doctorDriverSaveError}</small>{/if}
                       </details>
                     {/if}
                     {#if doctorSmartByDevice[disk.device]}

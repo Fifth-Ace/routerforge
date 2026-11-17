@@ -31,13 +31,14 @@ type adminMaintenanceRestoreRequest struct {
 }
 
 type adminMaintenanceBackupResult struct {
-	OK         bool     `json:"ok"`
-	Path       string   `json:"path"`
-	Size       int64    `json:"size"`
-	Sources    []string `json:"sources"`
-	Files      int      `json:"files"`
-	Bytes      int64    `json:"bytes"`
-	ConfigOnly bool     `json:"config_only"`
+	OK                 bool     `json:"ok"`
+	Path               string   `json:"path"`
+	Size               int64    `json:"size"`
+	Sources            []string `json:"sources"`
+	Files              int      `json:"files"`
+	Bytes              int64    `json:"bytes"`
+	ConfigOnly         bool     `json:"config_only"`
+	SMBSecretsExcluded bool     `json:"smb_secrets_excluded"`
 }
 
 type adminMaintenanceArchiveInspection struct {
@@ -111,6 +112,91 @@ func handleAdminMaintenanceBackups(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
+// SMB autoconnect secrets are device-local, not portable configuration.
+// This exact allowlist excludes both the plaintext secret and its reconnect
+// metadata from unencrypted config archives, including legacy restore inputs.
+func adminMaintenanceSMBPrivateRelative(relative string) bool {
+	switch filepath.ToSlash(filepath.Clean(relative)) {
+	case "syslog-smb/credentials", "syslog-smb/connection.json":
+		return true
+	default:
+		return false
+	}
+}
+
+func adminMaintenanceSMBPrivateArchive(name string) bool {
+	const prefix = "opt/etc/routerforge/"
+	return strings.HasPrefix(name, prefix) && adminMaintenanceSMBPrivateRelative(strings.TrimPrefix(name, prefix))
+}
+
+// A config restore swaps the whole tree. Keep the *current router's* private
+// SMB pair in the staged tree, never import credentials from backup archives.
+// On a different device, neither file exists and NAS reconnect needs setup.
+func adminMaintenancePreserveLocalSMBPair(sourceRoot, stagedRoot string) error {
+	sourceDir := filepath.Join(sourceRoot, "syslog-smb")
+	info, err := os.Lstat(sourceDir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0700 {
+		return errors.New("unsafe local SMB credential directory")
+	}
+	privateNames := []string{"credentials", "connection.json"}
+	content := make([][]byte, len(privateNames))
+	exists := 0
+	for i, name := range privateNames {
+		path := filepath.Join(sourceDir, name)
+		st, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || st.Mode().Perm() != 0600 || st.Size() > 4096 {
+			return errors.New("unsafe local SMB private file")
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if len(data) > 4096 {
+			return errors.New("SMB private file exceeds bound")
+		}
+		content[i] = data
+		exists++
+	}
+	if exists == 0 {
+		return nil
+	}
+	if exists != len(privateNames) {
+		return errors.New("incomplete SMB reconnect pair; refusing destructive restore")
+	}
+	destDir := filepath.Join(stagedRoot, "syslog-smb")
+	if err := os.MkdirAll(destDir, 0700); err != nil {
+		return err
+	}
+	destInfo, err := os.Lstat(destDir)
+	if err != nil {
+		return err
+	}
+	if !destInfo.IsDir() || destInfo.Mode()&os.ModeSymlink != 0 {
+		return errors.New("unsafe staged SMB credential directory")
+	}
+	if err := os.Chmod(destDir, 0700); err != nil {
+		return err
+	}
+	for i, name := range privateNames {
+		if err := safety.WriteFileAtomic(filepath.Join(destDir, name), content[i], 0600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func createAdminMaintenanceConfigBackup() (adminMaintenanceBackupResult, error) {
 	var result adminMaintenanceBackupResult
 	sourceInfo, err := os.Stat(adminMaintenanceConfigRoot)
@@ -152,6 +238,13 @@ func createAdminMaintenanceConfigBackup() (adminMaintenanceBackupResult, error) 
 		}
 		if !info.IsDir() && !info.Mode().IsRegular() {
 			return fmt.Errorf("backup refuses special file: %s", path)
+		}
+		rel, err := filepath.Rel(adminMaintenanceConfigRoot, path)
+		if err != nil {
+			return err
+		}
+		if adminMaintenanceSMBPrivateRelative(rel) {
+			return nil
 		}
 		name := filepath.ToSlash(strings.TrimPrefix(filepath.Clean(path), string(filepath.Separator)))
 		header, err := tar.FileInfoHeader(info, "")
@@ -214,13 +307,14 @@ func createAdminMaintenanceConfigBackup() (adminMaintenanceBackupResult, error) 
 
 	success = true
 	return adminMaintenanceBackupResult{
-		OK:         true,
-		Path:       target,
-		Size:       info.Size(),
-		Sources:    []string{adminMaintenanceConfigRoot},
-		Files:      files,
-		Bytes:      total,
-		ConfigOnly: true,
+		OK:                 true,
+		Path:               target,
+		Size:               info.Size(),
+		Sources:            []string{adminMaintenanceConfigRoot},
+		Files:              files,
+		Bytes:              total,
+		ConfigOnly:         true,
+		SMBSecretsExcluded: true,
 	}, nil
 }
 
@@ -287,6 +381,10 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := adminMaintenancePreserveLocalSMBPair(adminMaintenanceConfigRoot, stagedConfig); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "cannot preserve local SMB reconnect credentials: " + err.Error()})
+		return
+	}
 	rollbackPath := adminMaintenanceConfigRoot + fmt.Sprintf(".restore-old-%d", time.Now().UnixNano())
 	swapResult, err := safety.SwapPath(stagedConfig, adminMaintenanceConfigRoot, rollbackPath)
 	if err != nil {
@@ -309,6 +407,7 @@ func handleAdminMaintenanceRestore(w http.ResponseWriter, r *http.Request) {
 		"config_vault_snapshot": prechange.SnapshotID,
 		"restart_required":      true,
 		"automatic_restart":     false,
+		"smb_credentials":       "local_only; old archive credentials ignored",
 	})
 }
 
@@ -395,6 +494,16 @@ func inspectAdminMaintenanceArchive(path string) (adminMaintenanceArchiveInspect
 			inspection.IgnoredEntries++
 			continue
 		}
+		if adminMaintenanceSMBPrivateArchive(name) {
+			if header.Typeflag != tar.TypeReg && header.Typeflag != tar.TypeRegA {
+				return inspection, fmt.Errorf("unsupported SMB private archive entry type: %s", name)
+			}
+			if header.Size < 0 || header.Size > adminMaintenanceArchiveMaxEntry {
+				return inspection, fmt.Errorf("SMB private archive entry exceeds safety limit: %s", name)
+			}
+			inspection.IgnoredEntries++
+			continue
+		}
 		if header.Typeflag != tar.TypeDir && header.Typeflag != tar.TypeReg && header.Typeflag != tar.TypeRegA {
 			return inspection, fmt.Errorf("config archive contains unsupported entry type: %s", name)
 		}
@@ -444,6 +553,15 @@ func extractAdminMaintenanceConfigArchive(path, stage string) error {
 			return err
 		}
 		if !isMaintenanceConfigArchivePath(name) {
+			continue
+		}
+		if adminMaintenanceSMBPrivateArchive(name) {
+			if header.Typeflag != tar.TypeReg && header.Typeflag != tar.TypeRegA {
+				return fmt.Errorf("unsupported SMB private archive entry type: %s", name)
+			}
+			if header.Size < 0 || header.Size > adminMaintenanceArchiveMaxEntry {
+				return fmt.Errorf("SMB private archive entry exceeds safety limit: %s", name)
+			}
 			continue
 		}
 		entries++

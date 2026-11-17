@@ -7,6 +7,9 @@ SHA="${1:-${GITHUB_SHA:-}}"
     exit 64
 }
 
+# A Stable candidate must be a new release version, never a republish or downgrade.
+python3 scripts/verify-stable-train.py --candidate
+
 rm -f \
     dist/routerforge-*.ipk \
     dist/routerforge-stable-candidate-index*.json

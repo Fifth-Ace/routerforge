@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { parseReleaseNote } from '$lib/release-notes.js';
-  import { mergeNoteIndexes, noteChannelForCoreVersion } from '$lib/release-notes-feed.js';
+  import { mergeNoteIndexes, preferredReleaseNotesChannel } from '$lib/release-notes-feed.js';
   import { catalog } from '$lib/stores/catalog.js';
   import { snapshot } from '$lib/stores/snapshot.js';
   import { markReleaseNoteRead } from '$lib/release-notes-read-state.js';
@@ -23,7 +23,7 @@
   const text = (ru,en) => locale === 'en' ? en : ru;
 
   $: coreVersion = String(($catalog.modules || []).find((item) => item.id === 'routerforge-core')?.version || $snapshot.version || '').trim();
-  $: preferredChannel = noteChannelForCoreVersion(coreVersion);
+  $: preferredChannel = preferredReleaseNotesChannel($catalog.release?.channel, coreVersion);
   // Hydration can deliver Core later. Auto-select only until the user chooses a tab.
   $: if (mounted && !explicitChannel && !userSelectedChannel && preferredChannel && channel !== preferredChannel) {
     channel = preferredChannel;

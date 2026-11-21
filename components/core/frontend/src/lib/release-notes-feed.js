@@ -74,6 +74,16 @@ export function latestPublishedNoteVersion(releases, channel) {
   return valid[0]?.version || '';
 }
 
+
+// Respect the user's App Center channel, not just the installed Core version.
+// The selected feed can be Beta while the installed package is still Stable.
+export function preferredReleaseNotesChannel(selectedChannel, installedCoreVersion) {
+  const selected = String(selectedChannel || '').trim().toLowerCase();
+  if (selected === 'beta' || selected === 'dev') return 'beta';
+  if (selected === 'stable') return 'stable';
+  return noteChannelForCoreVersion(installedCoreVersion) || 'stable';
+}
+
 // A release note is unread until it has actually been viewed, including after
 // installing that very release. Installed Core protects against older archives
 // appearing "new"; an explicit read checkpoint takes precedence.

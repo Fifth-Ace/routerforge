@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mergeNoteIndexes, compareNoteVersions, normalizeNoteItem, noteChannelForCoreVersion, noteVersionForCore, newerNoteVersion, latestPublishedNoteVersion, unreadPublishedNoteVersion } from '../src/lib/release-notes-feed.js';
+import { mergeNoteIndexes, compareNoteVersions, normalizeNoteItem, noteChannelForCoreVersion, noteVersionForCore, newerNoteVersion, latestPublishedNoteVersion, unreadPublishedNoteVersion, preferredReleaseNotesChannel } from '../src/lib/release-notes-feed.js';
 
 test('stable, beta, old v1 archives and version ordering', () => {
   const local={releases:[
@@ -46,6 +46,15 @@ test('latest published notes are channel-scoped and sorted numerically', () => {
   assert.equal(latestPublishedNoteVersion(releases,'beta'),'0.15.0-beta.10');
   assert.equal(latestPublishedNoteVersion(releases,'stable'),'0.15.0');
   assert.equal(latestPublishedNoteVersion(releases,'dev'),'');
+});
+
+test('App Center channel wins over installed Core while explicit tab navigation stays independent', () => {
+  assert.equal(preferredReleaseNotesChannel('beta', '0.14.0'), 'beta');
+  assert.equal(preferredReleaseNotesChannel('stable', '0.15.0~beta.6'), 'stable');
+  assert.equal(preferredReleaseNotesChannel('dev', '0.14.0'), 'beta');
+  assert.equal(preferredReleaseNotesChannel('', '0.15.0~beta.6'), 'beta');
+  assert.equal(preferredReleaseNotesChannel('', '0.14.0'), 'stable');
+  assert.equal(preferredReleaseNotesChannel('', ''), 'stable');
 });
 
 test('unread glow starts for a newer published patch and ends after reading', () => {

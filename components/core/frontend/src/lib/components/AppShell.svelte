@@ -8,8 +8,9 @@
   import { t } from '$lib/i18n/index.js';
   import { railInstalledIntegrations } from '$lib/integrations.js';
   import { snapshot } from '$lib/stores/snapshot.js';
-  import { noteChannelForCoreVersion, noteVersionForCore, latestPublishedNoteVersion, unreadPublishedNoteVersion } from '$lib/release-notes-feed.js';
+  import { preferredReleaseNotesChannel, noteVersionForCore, latestPublishedNoteVersion, unreadPublishedNoteVersion } from '$lib/release-notes-feed.js';
   import { releaseNoteReads, loadReleaseNoteReads } from '$lib/release-notes-read-state.js';
+  import { shouldShowServerAnnouncement, dismissServerAnnouncement } from '$lib/routerforge-server-preview.js';
 
   let stopCatalog = null;
   let stopCatalogSync = null;
@@ -18,6 +19,13 @@
   let narrowRailOpen = true;
   let releaseNotesOpen = false;
   let publishedNoteVersions = { beta: '', stable: '' };
+  let serverAnnouncementVisible = false;
+
+  function closeServerAnnouncement() {
+    serverAnnouncementVisible = false;
+    try { dismissServerAnnouncement(window.localStorage); }
+    catch { try { dismissServerAnnouncement(window.sessionStorage); } catch {} }
+  }
 
   function toggleNarrowRail() {
     narrowRailOpen = !narrowRailOpen;
@@ -31,6 +39,9 @@
       narrowRailOpen = localStorage.getItem('routerforge:narrow-rail-open') !== '0';
     } catch { /* Browsers may disable local storage; use session-only state. */ }
     loadReleaseNoteReads();
+    try { serverAnnouncementVisible = shouldShowServerAnnouncement(window.localStorage); }
+    catch { try { serverAnnouncementVisible = shouldShowServerAnnouncement(window.sessionStorage); }
+      catch { serverAnnouncementVisible = true; } }
 
     // Core caches the published index for 15 minutes. A five-minute check and
     // visibility refresh pick up future releases without reinstalling RouterForge.
@@ -111,7 +122,7 @@
   $: modules = $catalog.modules || [];
   $: coreModule = modules.find((item) => item.id === 'routerforge-core');
   $: installedCoreVersion = String(coreModule?.version || $snapshot.version || '').trim();
-  $: releaseNotesChannel = noteChannelForCoreVersion(installedCoreVersion) || 'stable';
+  $: releaseNotesChannel = preferredReleaseNotesChannel($catalog.release?.channel, installedCoreVersion);
   $: unreadReleaseVersion = unreadPublishedNoteVersion(
     publishedNoteVersions[releaseNotesChannel], $releaseNoteReads[releaseNotesChannel],
     noteVersionForCore(installedCoreVersion)
@@ -257,7 +268,22 @@
     </div>
   </aside>
 
-  <div class="global-content"><slot /></div>
+  <div class="global-content">
+    {#if serverAnnouncementVisible}
+      <aside class="rf-server-announcement" aria-label={locale === 'ru' ? 'Новинка RouterForge Server' : 'Introducing RouterForge Server'}>
+        <span class="rf-server-announcement-icon" aria-hidden="true">▣</span>
+        <div class="rf-server-announcement-copy">
+          <strong>{locale === 'ru' ? 'Новинка: RouterForge Server' : 'New: RouterForge Server'}</strong>
+          <span>{locale === 'ru'
+            ? 'Новый консольный менеджер Linux/VPS уже доступен отдельно. Интеграция с RouterForge — в разработке.'
+            : 'Our standalone Linux/VPS console manager is available. RouterForge integration is in development.'}</span>
+        </div>
+        <a class="button rf-server-announcement-detail" href="/server-hub" onclick={closeServerAnnouncement}>{locale === 'ru' ? 'Подробнее' : 'Learn more'}</a>
+        <button type="button" class="rf-server-announcement-close" aria-label={locale === 'ru' ? 'Больше не показывать' : 'Dismiss announcement'} onclick={closeServerAnnouncement}>×</button>
+      </aside>
+    {/if}
+    <slot />
+  </div>
 </div>
 
 {#if releaseNotesOpen}
@@ -302,6 +328,17 @@
   @media (prefers-reduced-motion: reduce) {
     .rail-release-notes-link.unread { animation: none; background: var(--rf-accent-soft, rgba(56,189,248,.12)); }
   }
+
+  /* A dismissible one-time announcement, not an auto-opening modal. */
+  .rf-server-announcement {display:flex;align-items:center;gap:11px;padding:10px 12px;margin:10px 12px 0;border:1px solid var(--rf-border, #334155);border-radius:10px;background:var(--rf-card,var(--panel));color:var(--rf-text,var(--text));}
+  .rf-server-announcement-icon {font-size:24px;color:var(--rf-accent,#38bdf8);}
+  .rf-server-announcement-copy {flex:1;min-width:0;display:grid;gap:3px;font-size:12px;line-height:1.35;}
+  .rf-server-announcement-copy strong {font-size:13px;}
+  .rf-server-announcement-copy span {color:var(--rf-muted,var(--muted));}
+  .rf-server-announcement-detail {white-space:nowrap;}
+  .rf-server-announcement-close {border:0;background:transparent;color:inherit;font:inherit;font-size:22px;cursor:pointer;padding:3px 8px;border-radius:6px;}
+  .rf-server-announcement-close:hover {background:var(--rf-accent-soft,rgba(56,189,248,.12));}
+  @media (max-width:720px) {.rf-server-announcement {flex-wrap:wrap;margin:8px 8px 0;}.rf-server-announcement-detail {margin-left:auto;}}
 
   /* Four compact links occupy about the space of the previous three large tiles. */
   .rail-community-links{gap:5px}
